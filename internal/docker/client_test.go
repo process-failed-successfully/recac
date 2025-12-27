@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/build"
@@ -223,4 +225,79 @@ func TestImageBuild_WithBuildArgs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ImageBuild failed: %v", err)
 	}
+}
+
+// TestDockerInDocker_Support verifies Docker-in-Docker (DinD) support.
+// This test requires:
+// - Running inside a container (/.dockerenv exists)
+// - Docker socket mounted at /var/run/docker.sock
+// - Proper permissions to access Docker socket (user in docker group or root)
+// - Ability to create nested containers
+func TestDockerInDocker_Support(t *testing.T) {
+	// Step 1: Verify we're running inside a container with Docker socket mounted
+	if _, err := os.Stat("/.dockerenv"); os.IsNotExist(err) {
+		t.Skip("Skipping DinD test: not running in a container (/.dockerenv not found)")
+	}
+
+	// Check if Docker socket exists
+	if _, err := os.Stat("/var/run/docker.sock"); os.IsNotExist(err) {
+		t.Skip("Skipping DinD test: Docker socket not mounted (/var/run/docker.sock not found)")
+	}
+
+	// Step 2: Create a real Docker client (not mock) to test actual DinD functionality
+	// Try to create client - this will fail if we don't have proper permissions
+	client, err := NewClient()
+	if err != nil {
+		t.Skipf("Skipping DinD test: failed to create Docker client (may need docker group membership): %v", err)
+	}
+	defer client.Close()
+
+	// Verify Docker daemon is accessible
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := client.CheckDaemon(ctx); err != nil {
+		t.Skipf("Skipping DinD test: Docker daemon not accessible (may need proper permissions): %v", err)
+	}
+
+	// Step 3: Create a nested container (worker container)
+	// Use a lightweight image like alpine or busybox
+	testImage := "alpine:latest"
+	testWorkspace := "/tmp/dind-test-workspace"
+	
+	// Create a temporary workspace directory
+	if err := os.MkdirAll(testWorkspace, 0755); err != nil {
+		t.Fatalf("Failed to create test workspace: %v", err)
+	}
+	defer os.RemoveAll(testWorkspace)
+
+	// Create nested container
+	containerID, err := client.RunContainer(ctx, testImage, testWorkspace)
+	if err != nil {
+		t.Fatalf("Failed to create nested container: %v", err)
+	}
+
+	// Ensure cleanup
+	defer func() {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := client.StopContainer(stopCtx, containerID); err != nil {
+			t.Logf("Warning: Failed to stop container %s: %v", containerID, err)
+		}
+	}()
+
+	// Step 4: Verify the nested container started correctly
+	// Execute a simple command in the nested container to verify it's running
+	output, err := client.Exec(ctx, containerID, []string{"echo", "hello from nested container"})
+	if err != nil {
+		t.Fatalf("Failed to execute command in nested container: %v", err)
+	}
+
+	// Verify output
+	expectedOutput := "hello from nested container"
+	if !strings.Contains(output, expectedOutput) {
+		t.Errorf("Expected output to contain '%s', got: %s", expectedOutput, output)
+	}
+
+	// Test passes if we reach here - nested container was created and is functional
+	t.Logf("Successfully created and verified nested container %s in DinD environment", containerID)
 }
