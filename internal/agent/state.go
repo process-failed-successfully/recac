@@ -113,3 +113,19 @@ func (sm *StateManager) AddMemory(memoryItem string) error {
 	
 	return sm.Save(state)
 }
+
+// InitializeState initializes the state with max_tokens if not already set
+func (sm *StateManager) InitializeState(maxTokens int) error {
+	state, err := sm.Load()
+	if err != nil {
+		return fmt.Errorf("failed to load state: %w", err)
+	}
+	
+	// Only set max_tokens if it's not already set (0 or uninitialized)
+	if state.MaxTokens == 0 && maxTokens > 0 {
+		state.MaxTokens = maxTokens
+		return sm.Save(state)
+	}
+	
+	return nil
+}

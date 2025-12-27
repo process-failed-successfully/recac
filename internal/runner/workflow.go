@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"recac/internal/agent"
+	"recac/internal/agent/prompts"
 	"recac/internal/pkg/git"
 )
 
@@ -44,13 +45,12 @@ func (w *Workflow) RunCycle(ctx context.Context) (string, error) {
 
 	// 2. Manager Review Phase
 	fmt.Println("Manager Review starting...")
-	prompt := fmt.Sprintf(`
-You are the Engineering Manager.
-Here is the current QA Report:
-%s
-
-Please provide strategic feedback on what to focus on next.
-`, qaReport.String())
+	prompt, err := prompts.GetPrompt(prompts.ManagerReview, map[string]string{
+		"qa_report": qaReport.String(),
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to load manager review prompt: %w", err)
+	}
 
 	feedback, err := w.ManagerAgent.Send(ctx, prompt)
 	if err != nil {
@@ -70,10 +70,17 @@ func (w *Workflow) FinishFeature(ctx context.Context, featureName string) error 
 	}
 	
 	// 2. Generate PR Description using Agent
-	prompt := fmt.Sprintf("Generate a PR description for the feature: %s", featureName)
-	description, err := w.ManagerAgent.Send(ctx, prompt)
+	prompt, err := prompts.GetPrompt(prompts.PRDescription, map[string]string{
+		"feature_name": featureName,
+	})
+	var description string
 	if err != nil {
 		description = "Automated PR for " + featureName
+	} else {
+		description, err = w.ManagerAgent.Send(ctx, prompt)
+		if err != nil {
+			description = "Automated PR for " + featureName
+		}
 	}
 	
 	// 3. Create PR

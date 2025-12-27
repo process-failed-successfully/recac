@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"recac/internal/agent"
+	"recac/internal/agent/prompts"
 	"regexp"
 	"strings"
 )
@@ -18,15 +19,12 @@ type Feature struct {
 
 // GenerateFeatureList asks the agent to decompose the spec into features.
 func GenerateFeatureList(ctx context.Context, a agent.Agent, spec string) ([]Feature, error) {
-	prompt := fmt.Sprintf("You are a Lead Software Architect.\n" +
-		"Given the following application specification, decompose it into a list of verifyable features (acceptance tests).\n" +
-		"Return ONLY a valid JSON array of objects. Do not include markdown formatting like ```json.\n" +
-		"Each object must have:\n" +
-		"- \"category\": string (e.g., \"cli\", \"ui\", \"backend\")\n" +
-		"- \"description\": string (clear acceptance criteria)\n" +
-		"- \"steps\": array of strings (verification steps)\n" +
-		"- \"passes\": boolean (always false initially)\n\n" +
-		"Specification:\n%s", spec)
+	prompt, err := prompts.GetPrompt(prompts.Planner, map[string]string{
+		"spec": spec,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to load planner prompt: %w", err)
+	}
 
 	response, err := a.Send(ctx, prompt)
 	if err != nil {

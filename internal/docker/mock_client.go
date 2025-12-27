@@ -16,6 +16,7 @@ import (
 // MockAPI implements APIClient for testing and mock execution.
 type MockAPI struct {
 	PingFunc                func(ctx context.Context) (types.Ping, error)
+	ImageListFunc           func(ctx context.Context, options image.ListOptions) ([]image.Summary, error)
 	ImagePullFunc           func(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error)
 	ImageBuildFunc          func(ctx context.Context, buildContext io.Reader, options build.ImageBuildOptions) (types.ImageBuildResponse, error)
 	ContainerCreateFunc     func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error)
@@ -32,6 +33,19 @@ func (m *MockAPI) Ping(ctx context.Context) (types.Ping, error) {
 		return m.PingFunc(ctx)
 	}
 	return types.Ping{}, nil
+}
+
+func (m *MockAPI) ImageList(ctx context.Context, options image.ListOptions) ([]image.Summary, error) {
+	if m.ImageListFunc != nil {
+		return m.ImageListFunc(ctx, options)
+	}
+	// Return mock images including ubuntu:latest
+	return []image.Summary{
+		{
+			ID:       "sha256:mockubuntu123",
+			RepoTags: []string{"ubuntu:latest"},
+		},
+	}, nil
 }
 
 func (m *MockAPI) ImagePull(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error) {

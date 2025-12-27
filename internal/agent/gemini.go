@@ -80,6 +80,11 @@ func (c *GeminiClient) Send(ctx context.Context, prompt string) (string, error) 
 		// Update current token count
 		state.CurrentTokens = promptTokens
 		state.TokenUsage.TotalPromptTokens += promptTokens
+		
+		// Log token usage
+		fmt.Printf("Token usage: prompt=%d, current=%d/%d, total_prompt=%d, truncations=%d\n",
+			promptTokens, state.CurrentTokens, maxTokens,
+			state.TokenUsage.TotalPromptTokens, state.TokenUsage.TruncationCount)
 	}
 
 	maxRetries := 3
@@ -114,6 +119,16 @@ func (c *GeminiClient) Send(ctx context.Context, prompt string) (string, error) 
 				// Increment iteration count only on successful calls
 				currentIteration, _ := state.Metadata["iteration"].(float64)
 				state.Metadata["iteration"] = currentIteration + 1
+
+				// Log token usage after response
+				maxTokens := state.MaxTokens
+				if maxTokens == 0 {
+					maxTokens = 32000
+				}
+				fmt.Printf("Token usage: response=%d, current=%d/%d, total=%d (prompt=%d, response=%d)\n",
+					responseTokens, state.CurrentTokens, maxTokens,
+					state.TokenUsage.TotalTokens,
+					state.TokenUsage.TotalPromptTokens, state.TokenUsage.TotalResponseTokens)
 
 				// Save updated state
 				if err := c.stateManager.Save(state); err != nil {

@@ -16,6 +16,10 @@ type OpenAIClient struct {
 	model      string
 	httpClient *http.Client
 	apiURL     string
+	// mockResponder is used for testing to bypass real API calls
+	mockResponder func(string) (string, error)
+	// stateManager is optional; if set, enables token tracking and truncation
+	stateManager *StateManager
 }
 
 // NewOpenAIClient creates a new OpenAI client
@@ -30,8 +34,121 @@ func NewOpenAIClient(apiKey, model string) *OpenAIClient {
 	}
 }
 
-// Send sends a prompt to OpenAI and returns the generated text.
+// WithMockResponder sets a mock responder for testing
+func (c *OpenAIClient) WithMockResponder(fn func(string) (string, error)) *OpenAIClient {
+	c.mockResponder = fn
+	return c
+}
+
+// WithStateManager sets the state manager for token tracking
+func (c *OpenAIClient) WithStateManager(sm *StateManager) *OpenAIClient {
+	c.stateManager = sm
+	return c
+}
+
+// Send sends a prompt to OpenAI and returns the generated text with retry logic.
+// If stateManager is configured, it will track tokens and truncate if needed.
 func (c *OpenAIClient) Send(ctx context.Context, prompt string) (string, error) {
+	// Load state and check token limits if state manager is configured
+	var state State
+	var shouldUpdateState bool
+	if c.stateManager != nil {
+		var err error
+		state, err = c.stateManager.Load()
+		if err != nil {
+			return "", fmt.Errorf("failed to load state: %w", err)
+		}
+		shouldUpdateState = true
+
+		// Check if prompt exceeds token limit
+		promptTokens := EstimateTokenCount(prompt)
+		maxTokens := state.MaxTokens
+		if maxTokens == 0 {
+			maxTokens = 128000 // Default to 128k for GPT-4 if not set
+		}
+
+		// Reserve some tokens for response (estimate 50% for response)
+		availableTokens := maxTokens * 50 / 100
+		if promptTokens > availableTokens {
+			// Truncate the prompt
+			fmt.Printf("Warning: Prompt exceeds token limit (%d > %d), truncating...\n", promptTokens, availableTokens)
+			prompt = TruncateToTokenLimit(prompt, availableTokens)
+			promptTokens = EstimateTokenCount(prompt)
+			state.TokenUsage.TruncationCount++
+		}
+
+		// Update current token count
+		state.CurrentTokens = promptTokens
+		state.TokenUsage.TotalPromptTokens += promptTokens
+		
+		// Log token usage
+		fmt.Printf("Token usage: prompt=%d, current=%d/%d, total_prompt=%d, truncations=%d\n",
+			promptTokens, state.CurrentTokens, maxTokens,
+			state.TokenUsage.TotalPromptTokens, state.TokenUsage.TruncationCount)
+	}
+
+	maxRetries := 3
+	var lastErr error
+
+	for i := 0; i <= maxRetries; i++ {
+		if i > 0 {
+			// Exponential backoff
+			waitTime := time.Duration(1<<uint(i-1)) * time.Second
+			fmt.Printf("Retry %d after %v due to: %v\n", i, waitTime, lastErr)
+			select {
+			case <-time.After(waitTime):
+			case <-ctx.Done():
+				return "", ctx.Err()
+			}
+		}
+
+		result, err := c.sendOnce(ctx, prompt)
+		if err == nil {
+			// Update token usage stats if state manager is configured
+			if shouldUpdateState {
+				responseTokens := EstimateTokenCount(result)
+				state.TokenUsage.TotalResponseTokens += responseTokens
+				state.TokenUsage.TotalTokens = state.TokenUsage.TotalPromptTokens + state.TokenUsage.TotalResponseTokens
+				state.CurrentTokens += responseTokens
+
+				// Initialize Metadata if needed
+				if state.Metadata == nil {
+					state.Metadata = make(map[string]interface{})
+				}
+
+				// Increment iteration count only on successful calls
+				currentIteration, _ := state.Metadata["iteration"].(float64)
+				state.Metadata["iteration"] = currentIteration + 1
+
+				// Log token usage after response
+				maxTokens := state.MaxTokens
+				if maxTokens == 0 {
+					maxTokens = 128000
+				}
+				fmt.Printf("Token usage: response=%d, current=%d/%d, total=%d (prompt=%d, response=%d)\n",
+					responseTokens, state.CurrentTokens, maxTokens,
+					state.TokenUsage.TotalTokens,
+					state.TokenUsage.TotalPromptTokens, state.TokenUsage.TotalResponseTokens)
+
+				// Save updated state
+				if err := c.stateManager.Save(state); err != nil {
+					fmt.Printf("Warning: Failed to save state: %v\n", err)
+				}
+			}
+			return result, nil
+		}
+
+		lastErr = err
+	}
+
+	return "", fmt.Errorf("failed after %d retries: %w", maxRetries, lastErr)
+}
+
+func (c *OpenAIClient) sendOnce(ctx context.Context, prompt string) (string, error) {
+	if c.mockResponder != nil {
+		return c.mockResponder(prompt)
+	}
+
 	if c.apiKey == "" {
 		return "", fmt.Errorf("API key is required")
 	}

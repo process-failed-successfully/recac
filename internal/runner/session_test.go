@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"recac/internal/docker"
+	"strings"
 	"testing"
 )
 
@@ -100,5 +101,76 @@ func TestSession_AgentReadsSpec(t *testing.T) {
 	expectedLength := len(specContent)
 	if len(spec) != expectedLength {
 		t.Errorf("Spec length mismatch: expected %d, got %d", expectedLength, len(spec))
+	}
+}
+// TestSession_SelectPrompt verifies the prompt selection logic based on iteration and signals.
+func TestSession_SelectPrompt(t *testing.T) {
+	tmpDir := t.TempDir()
+	specContent := "Test Spec"
+	specPath := filepath.Join(tmpDir, "app_spec.txt")
+	os.WriteFile(specPath, []byte(specContent), 0644)
+
+	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine")
+	session.ManagerFrequency = 3
+
+	// Session 1: Initializer
+	session.Iteration = 1
+	prompt, isManager, err := session.SelectPrompt()
+	if err != nil {
+		t.Fatalf("SelectPrompt failed: %v", err)
+	}
+	if isManager {
+		t.Error("Iteration 1 should not be manager")
+	}
+	if !strings.Contains(prompt, "INITIALIZER") {
+		t.Errorf("Expected INITIALIZER prompt, got %q", prompt)
+	}
+
+	// Session 2: Coding Agent
+	session.Iteration = 2
+	prompt, isManager, err = session.SelectPrompt()
+	if err != nil {
+		t.Fatalf("SelectPrompt failed: %v", err)
+	}
+	if isManager {
+		t.Error("Iteration 2 should not be manager")
+	}
+	if !strings.Contains(prompt, "CODING AGENT") {
+		t.Errorf("Expected CODING AGENT prompt, got %q", prompt)
+	}
+
+	// Session 3: Manager Review (frequency)
+	session.Iteration = 3
+	prompt, isManager, err = session.SelectPrompt()
+	if err != nil {
+		t.Fatalf("SelectPrompt failed: %v", err)
+	}
+	if !isManager {
+		t.Error("Iteration 3 should be manager")
+	}
+	if !strings.Contains(prompt, "Engineering Manager") {
+		t.Errorf("Expected Manager prompt, got %q", prompt)
+	}
+
+	// Session 4: Coding Agent
+	session.Iteration = 4
+	prompt, _, _ = session.SelectPrompt()
+	if !strings.Contains(prompt, "CODING AGENT") {
+		t.Errorf("Expected CODING AGENT prompt, got %q", prompt)
+	}
+
+	// Session 5: Manager Review (signal)
+	triggerPath := filepath.Join(tmpDir, "TRIGGER_MANAGER")
+	os.WriteFile(triggerPath, []byte(""), 0644)
+	session.Iteration = 5
+	prompt, isManager, err = session.SelectPrompt()
+	if err != nil {
+		t.Fatalf("SelectPrompt failed: %v", err)
+	}
+	if !isManager {
+		t.Error("TRIGGER_MANAGER should trigger manager")
+	}
+	if _, err := os.Stat(triggerPath); !os.IsNotExist(err) {
+		t.Error("TRIGGER_MANAGER file should have been cleared")
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -18,12 +19,20 @@ import (
 )
 
 func init() {
-	startCmd.Flags().Bool("mock", false, "Start in mock mode with dashboard")
+	startCmd.Flags().Bool("mock", false, "Start in mock mode (no Docker or API keys required)")
 	startCmd.Flags().Bool("mock-docker", false, "Use mock docker client")
 	startCmd.Flags().String("path", "", "Project path (skips wizard)")
+	startCmd.Flags().Int("max-iterations", 20, "Maximum number of iterations")
+	startCmd.Flags().Int("manager-frequency", 5, "Frequency of manager reviews")
+	startCmd.Flags().Bool("detached", false, "Run session in background (detached mode)")
+	startCmd.Flags().String("name", "", "Name for the session (required for detached mode)")
 	viper.BindPFlag("mock", startCmd.Flags().Lookup("mock"))
 	viper.BindPFlag("mock-docker", startCmd.Flags().Lookup("mock-docker"))
 	viper.BindPFlag("path", startCmd.Flags().Lookup("path"))
+	viper.BindPFlag("max_iterations", startCmd.Flags().Lookup("max-iterations"))
+	viper.BindPFlag("manager_frequency", startCmd.Flags().Lookup("manager-frequency"))
+	viper.BindPFlag("detached", startCmd.Flags().Lookup("detached"))
+	viper.BindPFlag("name", startCmd.Flags().Lookup("name"))
 	rootCmd.AddCommand(startCmd)
 }
 
@@ -49,15 +58,155 @@ var startCmd = &cobra.Command{
 		isMock := viper.GetBool("mock")
 		mockDocker := viper.GetBool("mock-docker")
 		projectPath := viper.GetString("path")
+		maxIterations := viper.GetInt("max_iterations")
+		managerFrequency := viper.GetInt("manager_frequency")
+		detached := viper.GetBool("detached")
+		sessionName := viper.GetString("name")
 
 		if debug {
 			fmt.Println("Debug mode is enabled")
 		}
 
+		// Handle detached mode
+		if detached {
+			if sessionName == "" {
+				fmt.Fprintf(os.Stderr, "Error: --name is required when using --detached\n")
+				os.Exit(1)
+			}
+
+			// Get the executable path
+			executable, err := os.Executable()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: failed to get executable path: %v\n", err)
+				os.Exit(1)
+			}
+
+			// Resolve absolute path and symlinks
+			executable, err = filepath.EvalSymlinks(executable)
+			if err != nil {
+				// If symlink resolution fails, try absolute path
+				executable, err = filepath.Abs(executable)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error: failed to resolve executable path: %v\n", err)
+					os.Exit(1)
+				}
+			} else {
+				// EvalSymlinks already returns absolute path, but ensure it
+				executable, err = filepath.Abs(executable)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error: failed to get absolute path: %v\n", err)
+					os.Exit(1)
+				}
+			}
+
+			// Verify executable exists and is accessible
+			if stat, err := os.Stat(executable); err != nil {
+				// Try fallback: look for recac-app in current directory
+				cwd, _ := os.Getwd()
+				fallback := filepath.Join(cwd, "recac-app")
+				if stat2, err2 := os.Stat(fallback); err2 == nil {
+					executable = fallback
+					stat = stat2
+				} else {
+					fmt.Fprintf(os.Stderr, "Error: executable not found at %s: %v\n", executable, err)
+					os.Exit(1)
+				}
+			} else {
+				// Verify it's executable
+				if stat.Mode()&0111 == 0 {
+					fmt.Fprintf(os.Stderr, "Error: %s is not executable\n", executable)
+					os.Exit(1)
+				}
+			}
+
+			// Build command to re-execute in foreground (without --detached)
+			command := []string{executable, "start"}
+			if projectPath != "" {
+				command = append(command, "--path", projectPath)
+			}
+			if isMock {
+				command = append(command, "--mock")
+			}
+			if mockDocker {
+				command = append(command, "--mock-docker")
+			}
+			if maxIterations != 20 {
+				command = append(command, "--max-iterations", fmt.Sprintf("%d", maxIterations))
+			}
+			if managerFrequency != 5 {
+				command = append(command, "--manager-frequency", fmt.Sprintf("%d", managerFrequency))
+			}
+
+			// Use default workspace if not provided
+			if projectPath == "" {
+				projectPath = "."
+			}
+
+			// Start session in background
+			sm, err := runner.NewSessionManager()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: failed to create session manager: %v\n", err)
+				os.Exit(1)
+			}
+
+			session, err := sm.StartSession(sessionName, command, projectPath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: failed to start detached session: %v\n", err)
+				os.Exit(1)
+			}
+
+			fmt.Printf("Session '%s' started in background (PID: %d)\n", sessionName, session.PID)
+			fmt.Printf("Log file: %s\n", session.LogFile)
+			fmt.Printf("Use 'recac-app list' to view sessions\n")
+			fmt.Printf("Use 'recac-app logs %s' to view output\n", sessionName)
+			return
+		}
+
+		// Mock mode: start session with mock Docker and mock agent
 		if isMock {
-			p := tea.NewProgram(ui.NewDashboardModel(), tea.WithAltScreen())
-			if _, err := p.Run(); err != nil {
-				fmt.Printf("Error starting dashboard: %v", err)
+			fmt.Println("Starting in MOCK MODE (no Docker or API keys required)")
+			
+			// Use mock Docker client
+			dockerCli, _ := docker.NewMockClient()
+			
+			// Use mock agent
+			var agentClient agent.Agent = agent.NewMockAgent()
+			
+			// Default project path if not provided
+			if projectPath == "" {
+				projectPath = "/tmp/recac-mock-workspace"
+				fmt.Printf("No project path provided, using: %s\n", projectPath)
+			}
+			
+			// Start Session
+			session := runner.NewSession(dockerCli, agentClient, projectPath, "ubuntu:latest")
+			session.MaxIterations = maxIterations
+			session.ManagerFrequency = managerFrequency
+			
+			// Configure StateManager for agents that support it (e.g., Gemini)
+			if session.StateManager != nil {
+				// Type assert to check if agent supports StateManager
+				if geminiClient, ok := agentClient.(*agent.GeminiClient); ok {
+					geminiClient.WithStateManager(session.StateManager)
+				}
+			}
+			
+			if err := session.Start(ctx); err != nil {
+				if ctx.Err() != nil {
+					fmt.Println("\nSession interrupted by user.")
+					return
+				}
+				fmt.Printf("Session initialization failed: %v\n", err)
+				os.Exit(1)
+			}
+			
+			// Run Autonomous Loop
+			if err := session.RunLoop(ctx); err != nil {
+				if ctx.Err() != nil {
+					fmt.Println("\nSession interrupted by user.")
+					return
+				}
+				fmt.Printf("Session loop failed: %v\n", err)
 				os.Exit(1)
 			}
 			return
@@ -161,12 +310,55 @@ var startCmd = &cobra.Command{
 
 		// Start Session
 		session := runner.NewSession(dockerCli, agentClient, projectPath, "ubuntu:latest")
+		session.MaxIterations = maxIterations
+		session.ManagerFrequency = managerFrequency
+
+		// Configure StateManager for agents that support it (Gemini, OpenAI)
+		if session.StateManager != nil {
+			// Read max_tokens from config (agent.max_tokens)
+			maxTokens := viper.GetInt("agent.max_tokens")
+			if maxTokens == 0 {
+				// Try alternative config path
+				maxTokens = viper.GetInt("max_tokens")
+			}
+			if maxTokens == 0 {
+				// Default based on provider
+				if provider == "gemini" {
+					maxTokens = 32000
+				} else if provider == "openai" {
+					maxTokens = 128000
+				}
+			}
+			
+			// Initialize state with max_tokens
+			if err := session.InitializeAgentState(maxTokens); err != nil {
+				fmt.Printf("Warning: Failed to initialize agent state with max_tokens: %v\n", err)
+			}
+			
+			// Type assert to check if agent supports StateManager
+			if geminiClient, ok := agentClient.(*agent.GeminiClient); ok {
+				geminiClient.WithStateManager(session.StateManager)
+			} else if openAIClient, ok := agentClient.(*agent.OpenAIClient); ok {
+				openAIClient.WithStateManager(session.StateManager)
+			}
+		}
+
 		if err := session.Start(ctx); err != nil {
 			if ctx.Err() != nil {
 				fmt.Println("\nSession interrupted by user.")
 				return
 			}
-			fmt.Printf("Session failed: %v\n", err)
+			fmt.Printf("Session initialization failed: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Run Autonomous Loop
+		if err := session.RunLoop(ctx); err != nil {
+			if ctx.Err() != nil {
+				fmt.Println("\nSession interrupted by user.")
+				return
+			}
+			fmt.Printf("Session loop failed: %v\n", err)
 			os.Exit(1)
 		}
 	},
