@@ -498,5 +498,35 @@
       "Step 3: Verify it does not crash"
     ],
     "passes": true
+  },
+  {
+    "category": "agent",
+    "description": "Verify local model support via Ollama profiles.",
+    "steps": [
+      "Step 1: Configure a local Ollama service",
+      "Step 2: Set the agent provider to 'ollama' and specify a model profile",
+      "Step 3: Run the agent and verify it successfully communicates with the local Ollama instance"
+    ],
+    "passes": false
+  },
+  {
+    "category": "docker",
+    "description": "Verify support for Docker-in-Docker (DinD) environments.",
+    "steps": [
+      "Step 1: Run the application inside a container with Docker socket mounted or DinD setup",
+      "Step 2: Trigger an action that requires Docker (e.g., spinning up a worker container)",
+      "Step 3: Verify the nested container starts correctly"
+    ],
+    "passes": false
+  },
+  {
+    "category": "agent",
+    "description": "Verify the agent prevents iteration increment on error and uses exponential backoff.",
+    "steps": [
+      "Step 1: Simulate an agent API error",
+      "Step 2: Verify the iteration count does not increase",
+      "Step 3: Verify the agent waits with exponential backoff before retrying"
+    ],
+    "passes": true
   }
 ]

@@ -23,6 +23,15 @@ func TestNewAgent(t *testing.T) {
 		t.Errorf("expected *OpenAIClient, got %T", a)
 	}
 
+	// Test Ollama
+	a, err = NewAgent("ollama", "", "llama2")
+	if err != nil {
+		t.Fatalf("failed to create ollama agent: %v", err)
+	}
+	if _, ok := a.(*OllamaClient); !ok {
+		t.Errorf("expected *OllamaClient, got %T", a)
+	}
+
 	// Test Unknown
 	_, err = NewAgent("unknown", "key", "model")
 	if err == nil {

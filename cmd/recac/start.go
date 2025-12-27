@@ -129,6 +129,9 @@ var startCmd = &cobra.Command{
 					apiKey = os.Getenv("GEMINI_API_KEY")
 				} else if provider == "openai" {
 					apiKey = os.Getenv("OPENAI_API_KEY")
+				} else if provider == "ollama" {
+					// For Ollama, apiKey is actually baseURL (optional)
+					apiKey = os.Getenv("OLLAMA_BASE_URL")
 				}
 			}
 		}
@@ -139,10 +142,14 @@ var startCmd = &cobra.Command{
 				model = "gemini-pro"
 			} else if provider == "openai" {
 				model = "gpt-4"
+			} else if provider == "ollama" {
+				model = "llama2" // Default Ollama model
 			}
 		}
 		
-		if apiKey == "" {
+		// For Ollama, apiKey (baseURL) can be empty (defaults to localhost:11434)
+		// For other providers, require apiKey
+		if apiKey == "" && provider != "ollama" {
 			apiKey = "dummy-key" // Allow starting without key (will fail on Send)
 		}
 

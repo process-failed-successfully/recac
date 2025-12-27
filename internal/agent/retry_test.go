@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -181,6 +182,122 @@ func TestGeminiClient_NetworkInterruption(t *testing.T) {
 		
 		if result != "" {
 			t.Errorf("expected empty result on cancellation, got %q", result)
+		}
+	})
+}
+
+// TestGeminiClient_IterationIncrementOnError verifies Feature #52:
+// "Verify the agent prevents iteration increment on error and uses exponential backoff."
+// Step 1: Simulate an agent API error
+// Step 2: Verify the iteration count does not increase
+// Step 3: Verify the agent waits with exponential backoff before retrying
+func TestGeminiClient_IterationIncrementOnError(t *testing.T) {
+	tmpDir := t.TempDir()
+	stateFile := filepath.Join(tmpDir, ".agent_state.json")
+	sm := NewStateManager(stateFile)
+
+	// Initialize state with iteration = 0
+	initialState := State{
+		Memory:    []string{},
+		History:   []Message{},
+		Metadata:  map[string]interface{}{"iteration": 0.0},
+		MaxTokens: 32000,
+	}
+	if err := sm.Save(initialState); err != nil {
+		t.Fatalf("Failed to save initial state: %v", err)
+	}
+
+	// Step 1: Simulate an agent API error
+	calls := 0
+	client := NewGeminiClient("fake-key", "gemini-pro")
+	client.WithStateManager(sm)
+	
+	// Mock responder that always fails (simulating API error)
+	client.WithMockResponder(func(prompt string) (string, error) {
+		calls++
+		return "", fmt.Errorf("API error: service unavailable")
+	})
+
+	ctx := context.Background()
+	startTime := time.Now()
+
+	// Step 2: Verify the iteration count does not increase
+	// Make a call that will fail after retries
+	_, err := client.Send(ctx, "test prompt")
+	
+	// Verify it failed (as expected)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+
+	// Load state and verify iteration did NOT increase
+	state, err := sm.Load()
+	if err != nil {
+		t.Fatalf("Failed to load state: %v", err)
+	}
+
+	// Iteration should still be 0 (not incremented on error)
+	iteration, ok := state.Metadata["iteration"].(float64)
+	if !ok {
+		t.Fatal("iteration not found in metadata or wrong type")
+	}
+	if iteration != 0.0 {
+		t.Errorf("Expected iteration to remain 0 on error, got %v", iteration)
+	}
+
+	// Step 3: Verify the agent waits with exponential backoff before retrying
+	// Should have made 4 calls (1 initial + 3 retries)
+	expectedCalls := 4
+	if calls != expectedCalls {
+		t.Errorf("Expected %d calls (1 initial + 3 retries), got %d", expectedCalls, calls)
+	}
+
+	// Verify exponential backoff was applied (should take at least 1s + 2s + 4s = 7s)
+	elapsed := time.Since(startTime)
+	expectedMinTime := 6 * time.Second // Allow some margin
+	if elapsed < expectedMinTime {
+		t.Errorf("Expected exponential backoff to take at least %v, took %v", expectedMinTime, elapsed)
+	}
+
+	// Now test that iteration increments on success
+	t.Run("IterationIncrementsOnSuccess", func(t *testing.T) {
+		// Reset state
+		initialState.Metadata["iteration"] = 0.0
+		if err := sm.Save(initialState); err != nil {
+			t.Fatalf("Failed to reset state: %v", err)
+		}
+
+		successCalls := 0
+		successClient := NewGeminiClient("fake-key", "gemini-pro")
+		successClient.WithStateManager(sm)
+		
+		// Mock responder that succeeds immediately
+		successClient.WithMockResponder(func(prompt string) (string, error) {
+			successCalls++
+			return "Success", nil
+		})
+
+		// Make a successful call
+		result, err := successClient.Send(ctx, "test prompt")
+		if err != nil {
+			t.Fatalf("Expected success, got error: %v", err)
+		}
+		if result != "Success" {
+			t.Errorf("Expected 'Success', got %q", result)
+		}
+
+		// Verify iteration incremented to 1
+		state, err := sm.Load()
+		if err != nil {
+			t.Fatalf("Failed to load state: %v", err)
+		}
+
+		iteration, ok := state.Metadata["iteration"].(float64)
+		if !ok {
+			t.Fatal("iteration not found in metadata or wrong type")
+		}
+		if iteration != 1.0 {
+			t.Errorf("Expected iteration to be 1 after success, got %v", iteration)
 		}
 	})
 }

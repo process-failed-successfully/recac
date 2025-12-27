@@ -106,6 +106,15 @@ func (c *GeminiClient) Send(ctx context.Context, prompt string) (string, error) 
 				state.TokenUsage.TotalTokens = state.TokenUsage.TotalPromptTokens + state.TokenUsage.TotalResponseTokens
 				state.CurrentTokens += responseTokens
 
+				// Initialize Metadata if needed
+				if state.Metadata == nil {
+					state.Metadata = make(map[string]interface{})
+				}
+
+				// Increment iteration count only on successful calls
+				currentIteration, _ := state.Metadata["iteration"].(float64)
+				state.Metadata["iteration"] = currentIteration + 1
+
 				// Save updated state
 				if err := c.stateManager.Save(state); err != nil {
 					fmt.Printf("Warning: Failed to save state: %v\n", err)

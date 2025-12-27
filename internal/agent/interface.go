@@ -12,12 +12,15 @@ type Agent interface {
 }
 
 // NewAgent is a factory function that returns an Agent based on the provider
+// For Ollama, apiKey is used as baseURL (optional, defaults to http://localhost:11434)
 func NewAgent(provider, apiKey, model string) (Agent, error) {
 	switch provider {
 	case "gemini":
 		return NewGeminiClient(apiKey, model), nil
 	case "openai":
 		return NewOpenAIClient(apiKey, model), nil
+	case "ollama":
+		return NewOllamaClient(apiKey, model), nil
 	default:
 		return nil, fmt.Errorf("unknown provider: %s", provider)
 	}
