@@ -8,9 +8,9 @@ import (
 )
 
 var (
-	version = "dev"
-	commit  = "none"
-	date    = "unknown"
+	version = "v0.1.0"
+	commit  = "HEAD"
+	date    = "2025-12-28"
 )
 
 func init() {
