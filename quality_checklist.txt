@@ -1,0 +1,24 @@
+# CODE QUALITY CHECKLIST
+
+## BEFORE COMMITTING:
+- [ ] Run `go fmt ./...`
+- [ ] Run `go vet ./...`
+- [ ] Run `golangci-lint run`
+- [ ] Run all tests: `go test ./...`
+- [ ] Check test coverage: `go test ./... -cover`
+- [ ] Verify no temporary files are left
+- [ ] Update documentation if API changed
+
+## CODE REVIEW CRITERIA:
+1. **Readability**: Code is easy to understand and follow
+2. **Testability**: Code can be easily tested in isolation
+3. **Error Handling**: All errors are properly handled
+4. **Performance**: No obvious performance issues
+5. **Security**: No security vulnerabilities
+6. **Documentation**: All exports are documented
+
+## ARCHITECTURE PRINCIPLES:
+- Single Responsibility Principle
+- Dependency Injection
+- Interface segregation
+- Fail fast with clear error messages

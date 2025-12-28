@@ -29,6 +29,10 @@ func (m *mockAPIClient) Ping(ctx context.Context) (types.Ping, error) {
 	return types.Ping{}, nil
 }
 
+func (m *mockAPIClient) ImageList(ctx context.Context, options image.ListOptions) ([]image.Summary, error) {
+	return []image.Summary{}, nil
+}
+
 func (m *mockAPIClient) ImagePull(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error) {
 	return nil, nil
 }

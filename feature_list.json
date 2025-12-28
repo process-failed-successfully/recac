@@ -1,0 +1,149 @@
+{
+  "project": "RECAC - Recursive Autonomous Coding",
+  "version": "0.1.0",
+  "description": "An autonomous coding system that can recursively improve itself",
+  "features": [
+    {
+      "id": "core-cli",
+      "name": "Core CLI Interface",
+      "description": "Command-line interface for managing autonomous coding sessions",
+      "status": "implemented",
+      "passes": true,
+      "tests": [
+        "cmd/recac/main.go",
+        "cmd/recac/root.go"
+      ]
+    },
+    {
+      "id": "agent-system",
+      "name": "Agent System",
+      "description": "Multiple AI agent implementations (OpenAI, Gemini, Ollama)",
+      "status": "implemented",
+      "passes": true,
+      "tests": [
+        "internal/agent/factory_test.go",
+        "internal/agent/gemini_test.go",
+        "internal/agent/ollama_test.go"
+      ]
+    },
+    {
+      "id": "docker-runner",
+      "name": "Docker Runner",
+      "description": "Isolated execution environment using Docker",
+      "status": "implemented",
+      "passes": true,
+      "tests": [
+        "internal/docker/client_test.go",
+        "internal/runner/session_test.go"
+      ]
+    },
+    {
+      "id": "workflow-engine",
+      "name": "Workflow Engine",
+      "description": "Task execution and dependency management",
+      "status": "implemented",
+      "passes": true,
+      "tests": [
+        "internal/runner/workflow_test.go",
+        "internal/runner/taskgraph.go"
+      ]
+    },
+    {
+      "id": "jira-integration",
+      "name": "JIRA Integration",
+      "description": "Connect autonomous coding sessions to JIRA tickets",
+      "status": "implemented",
+      "passes": true,
+      "tests": [
+        "internal/jira/client_test.go",
+        "cmd/recac/jira.go"
+      ]
+    },
+    {
+      "id": "ui-dashboard",
+      "name": "Web Dashboard",
+      "description": "Real-time monitoring interface",
+      "status": "implemented",
+      "passes": true,
+      "tests": [
+        "internal/ui/dashboard_test.go",
+        "internal/ui/sprint_board_test.go"
+      ]
+    },
+    {
+      "id": "telemetry",
+      "name": "Telemetry & Metrics",
+      "description": "Logging, metrics collection, and monitoring",
+      "status": "implemented",
+      "passes": true,
+      "tests": [
+        "internal/telemetry/logger_test.go",
+        "internal/telemetry/metrics_test.go"
+      ]
+    },
+    {
+      "id": "notifications",
+      "name": "Notifications",
+      "description": "Slack and other notification integrations",
+      "status": "implemented",
+      "passes": true,
+      "tests": [
+        "internal/notify/slack_test.go"
+      ]
+    },
+    {
+      "id": "discord-integration",
+      "name": "Discord Integration",
+      "description": "Discord notification integration",
+      "status": "pending",
+      "passes": false,
+      "tests": [
+        "internal/notify/discord_test.go"
+      ]
+    },
+    {
+      "id": "git-integration",
+      "name": "Git Integration",
+      "description": "Automated git operations and branch management",
+      "status": "implemented",
+      "passes": true,
+      "tests": [
+        "internal/pkg/git/git.go"
+      ]
+    }
+  ],
+  "quality_gates": [
+    {
+      "name": "test_coverage",
+      "target": 70,
+      "current": 0,
+      "passes": false
+    },
+    {
+      "name": "linting",
+      "target": "zero_errors",
+      "current": "unknown",
+      "passes": false
+    },
+    {
+      "name": "documentation",
+      "target": "complete",
+      "current": "partial",
+      "passes": false
+    },
+    {
+      "name": "build_system",
+      "target": "all_targets_work",
+      "current": "unknown",
+      "passes": false
+    }
+  ],
+  "next_milestone": "Stabilization Release v0.1.0",
+  "milestone_goals": [
+    "All tests passing",
+    "\u226570% test coverage",
+    "Complete documentation",
+    "Working Docker image",
+    "End-to-end example"
+  ]
+}
