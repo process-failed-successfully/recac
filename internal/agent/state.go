@@ -48,11 +48,35 @@ func NewStateManager(filePath string) *StateManager {
 	}
 }
 
-// Save writes the state to disk
-func (sm *StateManager) Save(state State) error {
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
+// loadState reads the state from disk (internal, no lock)
+func (sm *StateManager) loadState() (State, error) {
+	var state State
 
+	data, err := os.ReadFile(sm.FilePath)
+	if os.IsNotExist(err) {
+		// Return empty state if file doesn't exist
+		// Note: MaxTokens defaults to 0, which means "uninitialized"
+		return State{
+			Memory:        []string{},
+			History:       []Message{},
+			Metadata:      make(map[string]interface{}),
+			CurrentTokens: 0,
+			TokenUsage:    TokenUsage{},
+		}, nil
+	}
+	if err != nil {
+		return state, fmt.Errorf("failed to read state file: %w", err)
+	}
+
+	if err := json.Unmarshal(data, &state); err != nil {
+		return state, fmt.Errorf("failed to unmarshal state: %w", err)
+	}
+
+	return state, nil
+}
+
+// saveState writes the state to disk (internal, no lock)
+func (sm *StateManager) saveState(state State) error {
 	state.UpdatedAt = time.Now()
 
 	data, err := json.MarshalIndent(state, "", "  ")
@@ -72,59 +96,49 @@ func (sm *StateManager) Save(state State) error {
 	return nil
 }
 
+// Save writes the state to disk
+func (sm *StateManager) Save(state State) error {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	return sm.saveState(state)
+}
+
 // Load reads the state from disk
 func (sm *StateManager) Load() (State, error) {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
-
-	var state State
-
-		data, err := os.ReadFile(sm.FilePath)
-		if os.IsNotExist(err) {
-			// Return empty state if file doesn't exist
-			return State{
-				Memory:        []string{},
-				History:       []Message{},
-				Metadata:      make(map[string]interface{}),
-				MaxTokens:     32000, // Default to 32k tokens (common for many models)
-				CurrentTokens: 0,
-				TokenUsage:    TokenUsage{},
-			}, nil
-		}
-	if err != nil {
-		return state, fmt.Errorf("failed to read state file: %w", err)
-	}
-
-	if err := json.Unmarshal(data, &state); err != nil {
-		return state, fmt.Errorf("failed to unmarshal state: %w", err)
-	}
-
-	return state, nil
+	return sm.loadState()
 }
 
 // AddMemory adds a memory item to the state and saves it
 func (sm *StateManager) AddMemory(memoryItem string) error {
-	state, err := sm.Load()
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	state, err := sm.loadState()
 	if err != nil {
 		return fmt.Errorf("failed to load state: %w", err)
 	}
 	
 	state.Memory = append(state.Memory, memoryItem)
 	
-	return sm.Save(state)
+	return sm.saveState(state)
 }
 
 // InitializeState initializes the state with max_tokens if not already set
 func (sm *StateManager) InitializeState(maxTokens int) error {
-	state, err := sm.Load()
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	state, err := sm.loadState()
 	if err != nil {
 		return fmt.Errorf("failed to load state: %w", err)
 	}
 	
-	// Only set max_tokens if it's not already set (0 or uninitialized)
+	// Only set max_tokens if it's not already set (0)
 	if state.MaxTokens == 0 && maxTokens > 0 {
 		state.MaxTokens = maxTokens
-		return sm.Save(state)
+		return sm.saveState(state)
 	}
 	
 	return nil

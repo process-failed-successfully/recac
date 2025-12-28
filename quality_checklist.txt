@@ -1,24 +1,52 @@
-# CODE QUALITY CHECKLIST
+# RECAC CODE QUALITY CHECKLIST
+# ============================
 
-## BEFORE COMMITTING:
-- [ ] Run `go fmt ./...`
-- [ ] Run `go vet ./...`
-- [ ] Run `golangci-lint run`
-- [ ] Run all tests: `go test ./...`
-- [ ] Check test coverage: `go test ./... -cover`
-- [ ] Verify no temporary files are left
-- [ ] Update documentation if API changed
+## ✅ MANDATORY CHECKS (BLOCKING)
+- [ ] All Go files pass `gofmt`
+- [ ] No linting errors from `golangci-lint`
+- [ ] All exported functions have GoDoc comments
+- [ ] All error returns are checked
+- [ ] No panics in production code
+- [ ] All file operations have defer cleanup
+- [ ] All network calls have timeouts
+- [ ] Configuration is validated on load
+- [ ] Test coverage ≥70% overall
 
-## CODE REVIEW CRITERIA:
-1. **Readability**: Code is easy to understand and follow
-2. **Testability**: Code can be easily tested in isolation
-3. **Error Handling**: All errors are properly handled
-4. **Performance**: No obvious performance issues
-5. **Security**: No security vulnerabilities
-6. **Documentation**: All exports are documented
+## ✅ DOCUMENTATION REQUIREMENTS
+- [ ] README.md has complete installation instructions
+- [ ] README.md has usage examples
+- [ ] README.md has architecture overview
+- [ ] All configuration options documented
+- [ ] API documentation for public packages
+- [ ] Contributing guidelines
+- [ ] Troubleshooting guide
 
-## ARCHITECTURE PRINCIPLES:
-- Single Responsibility Principle
-- Dependency Injection
-- Interface segregation
-- Fail fast with clear error messages
+## ✅ TESTING REQUIREMENTS
+- [ ] All tests pass: `go test ./...`
+- [ ] Race detection passes: `go test ./... -race`
+- [ ] No flaky tests
+- [ ] Integration tests for Docker operations
+- [ ] Mock tests for external services
+- [ ] E2E test for complete workflow
+
+## ✅ BUILD & DEPLOYMENT
+- [ ] `make all` builds everything
+- [ ] `make test` runs all tests
+- [ ] `make clean` removes all artifacts
+- [ ] `make docker-build` creates working image
+- [ ] `make install` installs correctly
+- [ ] Cross-compilation works
+
+## ✅ SECURITY CHECKS
+- [ ] No hardcoded secrets
+- [ ] Environment variables for configuration
+- [ ] Input validation on all user inputs
+- [ ] Safe file path operations
+- [ ] No command injection vulnerabilities
+
+## PRIORITY ORDER:
+1. Fix build system
+2. Fix test failures
+3. Add missing tests
+4. Improve documentation
+5. Run security audit

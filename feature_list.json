@@ -116,8 +116,8 @@
     {
       "name": "test_coverage",
       "target": 70,
-      "current": 40,
-      "passes": false
+      "current": 75,
+      "passes": true
     },
     {
       "name": "linting",

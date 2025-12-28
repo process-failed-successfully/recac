@@ -43,6 +43,10 @@ func (m *MockGitOps) CreatePR(branch, title, body string) error {
 	return nil
 }
 
+func (m *MockGitOps) CreateBranch(name string) error {
+	return nil
+}
+
 func TestWorkflow_RunCycle_InvokesManager(t *testing.T) {
 	// Setup
 	mockManager := &MockManagerAgent{Response: "Focus on UI"}

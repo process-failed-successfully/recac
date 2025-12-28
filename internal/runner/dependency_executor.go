@@ -182,29 +182,38 @@ func (e *DependencyExecutor) Execute() error {
 	}
 
 	// Monitor and submit tasks as dependencies complete
-	done := make(chan bool, 1) // Buffered to prevent blocking
-	monitorDone := make(chan bool, 1)
+	done := make(chan bool, 1) // Signal completion to main thread
+	monitorDone := make(chan bool, 1) // Signal monitor loop exit
+	
 	go func() {
 		defer func() {
 			monitorDone <- true
 		}()
-		ticker := time.NewTicker(100 * time.Millisecond)
+		ticker := time.NewTicker(50 * time.Millisecond) // Faster ticker for tests
 		defer ticker.Stop()
 
 		for {
+			// Check completion first
+			statusMu.Lock()
+			allDone := len(taskStatus) == len(executionOrder)
+			statusMu.Unlock()
+
+			if allDone {
+				done <- true
+				return
+			}
+
 			select {
 			case <-e.ctx.Done():
 				return
 			case <-ticker.C:
+				// Re-check completion inside loop just in case
 				statusMu.Lock()
-				allDone := len(taskStatus) == len(executionOrder)
+				allDone = len(taskStatus) == len(executionOrder)
 				statusMu.Unlock()
 
 				if allDone {
-					select {
-					case done <- true:
-					default:
-					}
+					done <- true
 					return
 				}
 
@@ -223,13 +232,21 @@ func (e *DependencyExecutor) Execute() error {
 		}
 	}()
 
-	// Wait for all tasks to complete
+	// Wait for completion or cancellation
+	select {
+	case <-done:
+		// Success (or all failed/done)
+	case <-e.ctx.Done():
+		// Context cancelled
+	}
+
+	// Wait for all active workers to finish
 	wg.Wait()
 	
-	// Signal monitoring goroutine to stop
+	// Signal monitor loop to stop (if not already)
 	e.cancel()
 	
-	// Wait for monitoring goroutine to finish
+	// Wait for monitor goroutine to finish cleanup
 	<-monitorDone
 
 	// Check for errors

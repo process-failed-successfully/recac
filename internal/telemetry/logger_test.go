@@ -3,10 +3,36 @@ package telemetry
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"strings"
 	"testing"
 )
+
+func TestInitLogger_Configuration(t *testing.T) {
+	// Just verify it doesn't panic
+	InitLogger(true)
+	InitLogger(false)
+}
+
+func TestLogError(t *testing.T) {
+	var buf bytes.Buffer
+	handler := slog.NewJSONHandler(&buf, nil)
+	slog.SetDefault(slog.New(handler))
+
+	LogError("something failed", errors.New("my error"), "foo", "bar")
+
+	output := buf.String()
+	if !strings.Contains(output, "my error") {
+		t.Errorf("Expected error message in log, got %s", output)
+	}
+	if !strings.Contains(output, `"foo":"bar"`) {
+		t.Errorf("Expected context in log, got %s", output)
+	}
+	if !strings.Contains(output, `"msg":"something failed"`) {
+		t.Errorf("Expected msg in log, got %s", output)
+	}
+}
 
 func TestInitLogger_JSONOutput(t *testing.T) {
 	// Capture stdout

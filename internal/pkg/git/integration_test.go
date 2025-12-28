@@ -109,3 +109,50 @@ func TestRealGitOps_Integration(t *testing.T) {
 	}
 	fmt.Println("Integration Test Passed: Branch created and pushed successfully")
 }
+
+func TestRealGitOps_EdgeCases(t *testing.T) {
+	// Setup Local Repo
+	localDir, err := os.MkdirTemp("", "git-local-edge")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(localDir)
+
+	cwd, _ := os.Getwd()
+	defer os.Chdir(cwd)
+
+	if err := os.Chdir(localDir); err != nil {
+		t.Fatal(err)
+	}
+
+	exec.Command("git", "init").Run()
+	exec.Command("git", "config", "user.email", "test@example.com").Run()
+	exec.Command("git", "config", "user.name", "Test User").Run()
+	
+	// Create initial commit
+	os.WriteFile("README.md", []byte("init"), 0644)
+	exec.Command("git", "add", ".").Run()
+	exec.Command("git", "commit", "-m", "Initial commit").Run()
+
+	ops := &RealGitOps{}
+
+	// Test 1: Create Branch Failure (Already Exists)
+	branchName := "duplicate-branch"
+	if err := ops.CreateBranch(branchName); err != nil {
+		t.Fatalf("First CreateBranch failed: %v", err)
+	}
+	// Try creating it again
+	if err := ops.CreateBranch(branchName); err == nil {
+		t.Error("Expected error when creating duplicate branch, got nil")
+	} else {
+		if !strings.Contains(err.Error(), "already exists") && !strings.Contains(err.Error(), "failed") {
+			t.Errorf("Unexpected error message: %v", err)
+		}
+	}
+
+	// Test 2: Push Failure (No Remote)
+	// We haven't added a remote 'origin', so this should fail
+	if err := ops.Push(branchName); err == nil {
+		t.Error("Expected error when pushing with no remote, got nil")
+	}
+}
