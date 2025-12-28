@@ -8,7 +8,9 @@ import (
 	"path/filepath"
 	"recac/internal/agent"
 	"recac/internal/agent/prompts"
+	"recac/internal/db"
 	"recac/internal/docker"
+	"recac/internal/security"
 	"strings"
 	"time"
 )
@@ -24,6 +26,8 @@ type Session struct {
 	ManagerFrequency int
 	AgentStateFile   string              // Path to agent state file (.agent_state.json)
 	StateManager     *agent.StateManager // State manager for agent state persistence
+	DBStore          db.Store            // Persistent database store
+	Scanner          security.Scanner    // Security scanner
 	ContainerID      string              // Container ID for cleanup
 }
 
@@ -32,6 +36,16 @@ func NewSession(d *docker.Client, a agent.Agent, workspace, image string) *Sessi
 	agentStateFile := filepath.Join(workspace, ".agent_state.json")
 	stateManager := agent.NewStateManager(agentStateFile)
 	
+	// Initialize DB Store
+	dbPath := filepath.Join(workspace, ".recac.db")
+	dbStore, err := db.NewSQLiteStore(dbPath)
+	if err != nil {
+		fmt.Printf("Warning: Failed to initialize SQLite store: %v\n", err)
+	}
+
+	// Initialize Security Scanner
+	scanner := security.NewRegexScanner()
+
 	return &Session{
 		Docker:           d,
 		Agent:            a,
@@ -42,6 +56,8 @@ func NewSession(d *docker.Client, a agent.Agent, workspace, image string) *Sessi
 		ManagerFrequency: 5,  // Default
 		AgentStateFile:   agentStateFile,
 		StateManager:     stateManager,
+		DBStore:          dbStore,
+		Scanner:          scanner,
 	}
 }
 
@@ -49,6 +65,16 @@ func NewSession(d *docker.Client, a agent.Agent, workspace, image string) *Sessi
 func NewSessionWithStateFile(d *docker.Client, a agent.Agent, workspace, image, agentStateFile string) *Session {
 	stateManager := agent.NewStateManager(agentStateFile)
 	
+	// Initialize DB Store
+	dbPath := filepath.Join(workspace, ".recac.db")
+	dbStore, err := db.NewSQLiteStore(dbPath)
+	if err != nil {
+		fmt.Printf("Warning: Failed to initialize SQLite store: %v\n", err)
+	}
+
+	// Initialize Security Scanner
+	scanner := security.NewRegexScanner()
+
 	return &Session{
 		Docker:           d,
 		Agent:            a,
@@ -59,6 +85,8 @@ func NewSessionWithStateFile(d *docker.Client, a agent.Agent, workspace, image, 
 		ManagerFrequency: 5,  // Default
 		AgentStateFile:   agentStateFile,
 		StateManager:     stateManager,
+		DBStore:          dbStore,
+		Scanner:          scanner,
 	}
 }
 
@@ -158,6 +186,12 @@ func (s *Session) Start(ctx context.Context) error {
 
 // Stop cleans up the Docker container.
 func (s *Session) Stop(ctx context.Context) error {
+	if s.DBStore != nil {
+		if err := s.DBStore.Close(); err != nil {
+			fmt.Printf("Warning: Failed to close DB store: %v\n", err)
+		}
+	}
+
 	if s.ContainerID == "" {
 		return nil // No container to clean up
 	}
@@ -180,6 +214,14 @@ func (s *Session) RunLoop(ctx context.Context) error {
 	if err := s.LoadAgentState(); err != nil {
 		fmt.Printf("Warning: Failed to load agent state: %v\n", err)
 		// Continue anyway - state will be created on first save
+	}
+	
+	// Load DB history if available
+	if s.DBStore != nil {
+		history, err := s.DBStore.QueryHistory(5)
+		if err == nil && len(history) > 0 {
+			fmt.Printf("Loaded %d previous observations from DB history.\n", len(history))
+		}
 	}
 
 	// Ensure cleanup on exit (defer cleanup)
@@ -235,6 +277,36 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		}
 
 		fmt.Printf("Response received (%d chars).\n", len(response))
+		
+		// Security Scan
+		if s.Scanner != nil {
+			findings, err := s.Scanner.Scan(response)
+			if err != nil {
+				fmt.Printf("Warning: Security scan failed: %v\n", err)
+			} else if len(findings) > 0 {
+				fmt.Println("CRITICAL: Security violation detected in agent response!")
+				for _, f := range findings {
+					fmt.Printf("  - %s: %s (Line %d)\n", f.Type, f.Description, f.Line)
+				}
+				fmt.Println("Blocking response execution.")
+				
+				// Force a retry or feedback loop here?
+				// For now, we continue but treat it as a failure to execute.
+				// In a real loop, we would append this to history and ask for correction.
+				continue
+			} else {
+				fmt.Println("Security scan passed.")
+			}
+		}
+		
+		// Save observation to DB (only if safe)
+		if s.DBStore != nil {
+			if err := s.DBStore.SaveObservation(role, response); err != nil {
+				fmt.Printf("Warning: Failed to save observation to DB: %v\n", err)
+			} else {
+				fmt.Println("Saved observation to DB.")
+			}
+		}
 
 		// Save agent state periodically (every iteration)
 		if err := s.SaveAgentState(); err != nil {

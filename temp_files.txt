@@ -1,0 +1,20 @@
+# TEMPORARY FILES TO CLEAN UP
+# Run: make clean or manually remove these
+
+# Check for build artifacts:
+- recac-app (binary)
+- coverage.out
+- *.test
+- *.prof
+- dist/ directory if it exists
+
+# Check for editor backups:
+- *~ files
+- .#* files (emacs locks)
+
+# Check for test artifacts:
+- test-output*.txt
+- test-*.log
+
+# Recommended cleanup command:
+# make clean || rm -f recac-app coverage.out *.test *.prof && find . -name "*~" -delete && find . -name ".#*" -delete

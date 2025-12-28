@@ -110,6 +110,27 @@
       "tests": [
         "internal/pkg/git/git.go"
       ]
+    },
+    {
+      "id": "agent-memory",
+      "name": "Persistent Agent Memory",
+      "description": "SQLite-based long-term memory for agents",
+      "status": "implemented",
+      "passes": true,
+      "tests": [
+        "internal/db/sqlite_test.go"
+      ]
+    },
+    {
+      "id": "security-scanner",
+      "name": "Security Scanner",
+      "description": "Automated scanning for secrets and vulnerabilities",
+      "status": "implemented",
+      "passes": true,
+      "tests": [
+        "internal/security/scanner_test.go",
+        "internal/runner/security_integration_test.go"
+      ]
     }
   ],
   "quality_gates": [
@@ -128,8 +149,8 @@
     {
       "name": "documentation",
       "target": "complete",
-      "current": "partial",
-      "passes": false
+      "current": "complete",
+      "passes": true
     },
     {
       "name": "build_system",
@@ -138,12 +159,10 @@
       "passes": true
     }
   ],
-  "next_milestone": "Stabilization Release v0.1.0",
+  "next_milestone": "Expansion Release v0.2.0",
   "milestone_goals": [
-    "All tests passing",
-    "\u226570% test coverage",
-    "Complete documentation",
-    "Working Docker image",
-    "End-to-end example"
+    "Implement Persistent Memory (SQLite)",
+    "Implement Security Scanner",
+    "Increase Test Coverage to 80%"
   ]
 }
