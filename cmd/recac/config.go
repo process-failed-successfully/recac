@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -69,8 +70,58 @@ var listKeysCmd = &cobra.Command{
 	},
 }
 
+// listModelsCmd represents the list-models command
+var listModelsCmd = &cobra.Command{
+	Use:   "list-models",
+	Short: "List compatible models for the active provider",
+	Run: func(cmd *cobra.Command, args []string) {
+		provider := viper.GetString("provider")
+		fmt.Printf("Listing models for provider: %s\n", provider)
+
+		var filename string
+		switch provider {
+		case "gemini":
+			filename = "gemini-models.json"
+		case "openrouter":
+			filename = "openrouter-models.json"
+		default:
+			fmt.Printf("Model listing not supported for provider: %s\n", provider)
+			return
+		}
+
+		// Read file
+		data, err := os.ReadFile(filename)
+		if err != nil {
+			fmt.Printf("Error reading models file %s: %v\n", filename, err)
+			return
+		}
+
+		// Parse
+		var modelList struct {
+			Models []struct {
+				Name        string `json:"name"`
+					DisplayName string `json:"displayName"`
+			} `json:"models"`
+		}
+
+		if err := json.Unmarshal(data, &modelList); err != nil {
+			fmt.Printf("Error parsing models file: %v\n", err)
+			return
+		}
+
+		for _, m := range modelList.Models {
+			if m.DisplayName != "" {
+				fmt.Printf("- %s (%s)\n", m.Name, m.DisplayName)
+			} else {
+				fmt.Printf("- %s\n", m.Name)
+			}
+		}
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(configCmd)
 	configCmd.AddCommand(setCmd)
 	configCmd.AddCommand(listKeysCmd)
+	configCmd.AddCommand(listModelsCmd)
 }

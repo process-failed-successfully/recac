@@ -15,7 +15,7 @@
     "category": "functional",
     "description": "Dynamic Configuration: List Models",
     "steps": ["Run 'agent config list-models'", "Verify output lists compatible models for active provider"],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
