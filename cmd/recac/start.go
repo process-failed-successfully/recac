@@ -24,7 +24,6 @@ import (
 
 func init() {
 	startCmd.Flags().Bool("mock", false, "Start in mock mode (no Docker or API keys required)")
-	startCmd.Flags().Bool("mock-docker", false, "Use mock docker client")
 	startCmd.Flags().String("path", "", "Project path (skips wizard)")
 	startCmd.Flags().Int("max-iterations", 20, "Maximum number of iterations")
 	startCmd.Flags().Int("manager-frequency", 5, "Frequency of manager reviews")
@@ -33,7 +32,6 @@ func init() {
 	startCmd.Flags().String("jira", "", "Jira Ticket ID to start session from (e.g. PROJ-123)")
 	startCmd.Flags().Bool("allow-dirty", false, "Allow running with uncommitted git changes")
 	viper.BindPFlag("mock", startCmd.Flags().Lookup("mock"))
-	viper.BindPFlag("mock-docker", startCmd.Flags().Lookup("mock-docker"))
 	viper.BindPFlag("path", startCmd.Flags().Lookup("path"))
 	viper.BindPFlag("max_iterations", startCmd.Flags().Lookup("max-iterations"))
 	viper.BindPFlag("manager_frequency", startCmd.Flags().Lookup("manager-frequency"))
@@ -66,7 +64,6 @@ var startCmd = &cobra.Command{
 
 		debug := viper.GetBool("debug")
 		isMock := viper.GetBool("mock")
-		mockDocker := viper.GetBool("mock-docker")
 		projectPath := viper.GetString("path")
 		maxIterations := viper.GetInt("max_iterations")
 		managerFrequency := viper.GetInt("manager_frequency")
@@ -130,7 +127,7 @@ var startCmd = &cobra.Command{
 			// 3. Workspace Isolation (Create Temp Dir)
 			timestamp := time.Now().Format("20060102-150405")
 			tempWorkspace := filepath.Join(os.TempDir(), fmt.Sprintf("recac-jira-%s-%s", jiraTicketID, timestamp))
-			
+
 			if err := os.MkdirAll(tempWorkspace, 0755); err != nil {
 				fmt.Fprintf(os.Stderr, "Error creating temp workspace: %v\n", err)
 				os.Exit(1)
@@ -152,7 +149,7 @@ var startCmd = &cobra.Command{
 			if transitionID == "" {
 				transitionID = "31" // Default to In Progress
 			}
-			
+
 			fmt.Printf("Transitioning ticket %s to status ID %s...\n", jiraTicketID, transitionID)
 			if err := jClient.TransitionIssue(ctx, jiraTicketID, transitionID); err != nil {
 				fmt.Fprintf(os.Stderr, "Warning: Failed to transition Jira ticket: %v\n", err)
@@ -160,10 +157,10 @@ var startCmd = &cobra.Command{
 			} else {
 				fmt.Println("Jira ticket status updated.")
 			}
-			
+
 			// Override projectPath
 			projectPath = tempWorkspace
-			
+
 			// If session name is not set, set it to Ticket ID
 			if sessionName == "" {
 				sessionName = jiraTicketID
@@ -231,9 +228,6 @@ var startCmd = &cobra.Command{
 			}
 			if isMock {
 				command = append(command, "--mock")
-			}
-			if mockDocker {
-				command = append(command, "--mock-docker")
 			}
 			if maxIterations != 20 {
 				command = append(command, "--max-iterations", fmt.Sprintf("%d", maxIterations))
@@ -389,9 +383,7 @@ var startCmd = &cobra.Command{
 
 		// Initialize Docker Client
 		var dockerCli *docker.Client
-		if mockDocker {
-			dockerCli, _ = docker.NewMockClient()
-		} else {
+		{
 			var err error
 			dockerCli, err = docker.NewClient()
 			if err != nil {
