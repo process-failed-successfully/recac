@@ -4,7 +4,7 @@ This chart illustrates the main execution loop in `internal/runner/session.go`, 
 
 ```mermaid
 flowchart TD
-    Start([Start Session]) --> Init[Initialize Session\n(Load State, DB, Docker)]
+    Start([Start Session]) --> Init["Initialize Session\n(Load State, DB, Docker)"]
     Init --> LoopStart{Max Iterations Reached?}
     LoopStart -- Yes --> Stop([Stop Session])
     LoopStart -- No --> SelectPrompt[Select Prompt]
