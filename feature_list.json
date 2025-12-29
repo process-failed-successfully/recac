@@ -21,19 +21,19 @@
     "category": "functional",
     "description": "Jira Workflow: Run with Ticket ID",
     "steps": ["Run 'agent run --jira <TICKET_ID>'", "Verify context is initialized from ticket"],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
     "description": "Jira Workflow: Workspace Isolation",
     "steps": ["Run 'agent run --jira <TICKET_ID>'", "Verify temporary workspace is created and used"],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
     "description": "Jira Workflow: Status Sync",
     "steps": ["Run 'agent run --jira <TICKET_ID>'", "Perform actions", "Verify Jira ticket status updates automatically"],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",

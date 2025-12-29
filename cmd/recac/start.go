@@ -7,9 +7,11 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"recac/internal/agent"
 	"recac/internal/docker"
+	"recac/internal/jira"
 	"recac/internal/runner"
 	"recac/internal/telemetry"
 	"recac/internal/ui"
@@ -27,6 +29,7 @@ func init() {
 	startCmd.Flags().Int("manager-frequency", 5, "Frequency of manager reviews")
 	startCmd.Flags().Bool("detached", false, "Run session in background (detached mode)")
 	startCmd.Flags().String("name", "", "Name for the session (required for detached mode)")
+	startCmd.Flags().String("jira", "", "Jira Ticket ID to start session from (e.g. PROJ-123)")
 	viper.BindPFlag("mock", startCmd.Flags().Lookup("mock"))
 	viper.BindPFlag("mock-docker", startCmd.Flags().Lookup("mock-docker"))
 	viper.BindPFlag("path", startCmd.Flags().Lookup("path"))
@@ -34,6 +37,7 @@ func init() {
 	viper.BindPFlag("manager_frequency", startCmd.Flags().Lookup("manager-frequency"))
 	viper.BindPFlag("detached", startCmd.Flags().Lookup("detached"))
 	viper.BindPFlag("name", startCmd.Flags().Lookup("name"))
+	viper.BindPFlag("jira", startCmd.Flags().Lookup("jira"))
 	startCmd.Flags().String("provider", "", "Agent provider (gemini, gemini-cli, openai, etc)")
 	viper.BindPFlag("provider", startCmd.Flags().Lookup("provider"))
 	rootCmd.AddCommand(startCmd)
@@ -65,9 +69,104 @@ var startCmd = &cobra.Command{
 		managerFrequency := viper.GetInt("manager_frequency")
 		detached := viper.GetBool("detached")
 		sessionName := viper.GetString("name")
+		jiraTicketID := viper.GetString("jira")
 
 		if debug {
 			fmt.Println("Debug mode is enabled")
+		}
+
+		// Handle Jira Ticket Workflow
+		if jiraTicketID != "" {
+			fmt.Printf("Initializing session from Jira Ticket: %s\n", jiraTicketID)
+
+			// 1. Validate Credentials
+			jiraURL := viper.GetString("jira.url")
+			jiraEmail := viper.GetString("jira.username")
+			jiraToken := viper.GetString("jira.api_token")
+
+			if jiraURL == "" || jiraEmail == "" || jiraToken == "" {
+				// Fallback to env vars
+				if envURL := os.Getenv("JIRA_URL"); envURL != "" {
+					jiraURL = envURL
+				}
+				if envEmail := os.Getenv("JIRA_USERNAME"); envEmail != "" {
+					jiraEmail = envEmail
+				} else if envEmail := os.Getenv("JIRA_EMAIL"); envEmail != "" {
+					// Support JIRA_EMAIL as alias for JIRA_USERNAME
+					jiraEmail = envEmail
+				}
+				if envToken := os.Getenv("JIRA_API_TOKEN"); envToken != "" {
+					jiraToken = envToken
+				}
+
+				if jiraURL == "" || jiraEmail == "" || jiraToken == "" {
+					fmt.Fprintln(os.Stderr, "Error: Jira credentials not found. Please set JIRA_URL, JIRA_USERNAME/JIRA_EMAIL, and JIRA_API_TOKEN environment variables or configure 'jira' section in config.yaml.")
+					os.Exit(1)
+				}
+			}
+
+			// 2. Fetch Ticket
+			jClient := jira.NewClient(jiraURL, jiraEmail, jiraToken)
+			ticket, err := jClient.GetTicket(ctx, jiraTicketID)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error fetching Jira ticket: %v\n", err)
+				os.Exit(1)
+			}
+
+			// Extract details
+			fields, ok := ticket["fields"].(map[string]interface{})
+			if !ok {
+				fmt.Fprintln(os.Stderr, "Error: Invalid ticket format (missing fields)")
+				os.Exit(1)
+			}
+			summary, _ := fields["summary"].(string)
+			description := jClient.ParseDescription(ticket)
+
+			fmt.Printf("Ticket Found: %s\nSummary: %s\n", jiraTicketID, summary)
+
+			// 3. Workspace Isolation (Create Temp Dir)
+			timestamp := time.Now().Format("20060102-150405")
+			tempWorkspace := filepath.Join(os.TempDir(), fmt.Sprintf("recac-jira-%s-%s", jiraTicketID, timestamp))
+			
+			if err := os.MkdirAll(tempWorkspace, 0755); err != nil {
+				fmt.Fprintf(os.Stderr, "Error creating temp workspace: %v\n", err)
+				os.Exit(1)
+			}
+
+			// 4. Create app_spec.txt
+			specContent := fmt.Sprintf("# Jira Ticket: %s\n# Summary: %s\n\n%s", jiraTicketID, summary, description)
+			specPath := filepath.Join(tempWorkspace, "app_spec.txt")
+			if err := os.WriteFile(specPath, []byte(specContent), 0644); err != nil {
+				fmt.Fprintf(os.Stderr, "Error writing app_spec.txt: %v\n", err)
+				os.Exit(1)
+			}
+
+			fmt.Printf("Workspace created: %s\n", tempWorkspace)
+
+			// 5. Transition Ticket Status (Status Sync)
+			// Default transition ID for "In Progress" is usually 31, but make it configurable if needed
+			transitionID := viper.GetString("jira.transition_id")
+			if transitionID == "" {
+				transitionID = "31" // Default to In Progress
+			}
+			
+			fmt.Printf("Transitioning ticket %s to status ID %s...\n", jiraTicketID, transitionID)
+			if err := jClient.TransitionIssue(ctx, jiraTicketID, transitionID); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: Failed to transition Jira ticket: %v\n", err)
+				// Don't exit, just warn
+			} else {
+				fmt.Println("Jira ticket status updated.")
+			}
+			
+			// Override projectPath
+			projectPath = tempWorkspace
+			
+			// If session name is not set, set it to Ticket ID
+			if sessionName == "" {
+				sessionName = jiraTicketID
+				// Also update viper for consistency if needed downstream
+				viper.Set("name", sessionName)
+			}
 		}
 
 		// Handle detached mode
