@@ -1,7 +1,9 @@
 agent_timeout: 300
+allow_dirty: false
 bash_timeout: 120
 detached: false
 docker_timeout: 600
+jira: ""
 manager_frequency: 5
 max_iterations: 20
 metrics_port: 9090
