@@ -39,24 +39,24 @@
     "category": "functional",
     "description": "Pre-flight: Git Clean Check",
     "steps": ["Run 'agent run ...' with dirty git state", "Verify execution warns or stops"],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
     "description": "Pre-flight: Dependency Auto-Fix",
     "steps": ["Run 'agent check'", "Verify it detects and fixes minor local issues"],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
     "description": "Logs: Follow Mode",
     "steps": ["Run 'agent logs -f'", "Verify logs stream in real-time"],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
     "description": "Logs: Smart Filtering",
     "steps": ["Run 'agent logs --filter <category>'", "Verify only matching logs are shown"],
-    "passes": false
+    "passes": true
   }
 ]

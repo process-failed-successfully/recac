@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"syscall"
@@ -30,6 +31,7 @@ func init() {
 	startCmd.Flags().Bool("detached", false, "Run session in background (detached mode)")
 	startCmd.Flags().String("name", "", "Name for the session (required for detached mode)")
 	startCmd.Flags().String("jira", "", "Jira Ticket ID to start session from (e.g. PROJ-123)")
+	startCmd.Flags().Bool("allow-dirty", false, "Allow running with uncommitted git changes")
 	viper.BindPFlag("mock", startCmd.Flags().Lookup("mock"))
 	viper.BindPFlag("mock-docker", startCmd.Flags().Lookup("mock-docker"))
 	viper.BindPFlag("path", startCmd.Flags().Lookup("path"))
@@ -38,6 +40,7 @@ func init() {
 	viper.BindPFlag("detached", startCmd.Flags().Lookup("detached"))
 	viper.BindPFlag("name", startCmd.Flags().Lookup("name"))
 	viper.BindPFlag("jira", startCmd.Flags().Lookup("jira"))
+	viper.BindPFlag("allow_dirty", startCmd.Flags().Lookup("allow-dirty"))
 	startCmd.Flags().String("provider", "", "Agent provider (gemini, gemini-cli, openai, etc)")
 	viper.BindPFlag("provider", startCmd.Flags().Lookup("provider"))
 	rootCmd.AddCommand(startCmd)
@@ -238,6 +241,11 @@ var startCmd = &cobra.Command{
 			if managerFrequency != 5 {
 				command = append(command, "--manager-frequency", fmt.Sprintf("%d", managerFrequency))
 			}
+			// Pass allow-dirty flag if set
+			allowDirty := viper.GetBool("allow_dirty")
+			if allowDirty {
+				command = append(command, "--allow-dirty")
+			}
 
 			// Use default workspace if not provided
 			if projectPath == "" {
@@ -345,6 +353,27 @@ var startCmd = &cobra.Command{
 		}
 
 		fmt.Println("\nStarting RECAC session...")
+
+		// Pre-flight Check: Git Clean Status
+		allowDirty := viper.GetBool("allow_dirty")
+		if !allowDirty && !isMock {
+			// Check if projectPath is inside a git repository
+			cmd := exec.Command("git", "rev-parse", "--is-inside-work-tree")
+			cmd.Dir = projectPath
+			if err := cmd.Run(); err == nil {
+				// It is a git repo, check status
+				cmd := exec.Command("git", "status", "--porcelain")
+				cmd.Dir = projectPath
+				output, err := cmd.Output()
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Warning: Failed to check git status: %v\n", err)
+				} else if len(output) > 0 {
+					fmt.Fprintf(os.Stderr, "Error: Uncommitted changes detected in %s\n", projectPath)
+					fmt.Fprintf(os.Stderr, "Run with --allow-dirty to bypass this check.\n")
+					os.Exit(1)
+				}
+			}
+		}
 
 		// Start metrics server if telemetry is enabled
 		metricsPort := viper.GetInt("metrics_port")

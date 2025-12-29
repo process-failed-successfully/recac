@@ -3,14 +3,18 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"recac/internal/runner"
+	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 )
 
 func init() {
 	logsCmd.Flags().BoolP("follow", "f", false, "Follow log output (like tail -f)")
+	logsCmd.Flags().String("filter", "", "Filter logs by string match")
 	rootCmd.AddCommand(logsCmd)
 }
 
@@ -22,6 +26,7 @@ var logsCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		sessionName := args[0]
 		follow := cmd.Flags().Lookup("follow").Changed
+		filter, _ := cmd.Flags().GetString("filter")
 
 		sm, err := runner.NewSessionManager()
 		if err != nil {
@@ -42,20 +47,45 @@ var logsCmd = &cobra.Command{
 		}
 		defer file.Close()
 
-		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
-			fmt.Println(scanner.Text())
+		reader := bufio.NewReader(file)
+
+		// Helper to process line
+		processLine := func(line string) {
+			if filter == "" || strings.Contains(line, filter) {
+				fmt.Print(line)
+			}
 		}
 
-		if err := scanner.Err(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading log file: %v\n", err)
-			os.Exit(1)
+		// Initial read
+		for {
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				if err == io.EOF {
+					if line != "" {
+						processLine(line)
+					}
+					break
+				}
+				fmt.Fprintf(os.Stderr, "Error reading log file: %v\n", err)
+				os.Exit(1)
+			}
+			processLine(line)
 		}
 
 		if follow {
-			// For follow mode, we would need to implement tail -f functionality
-			// For now, just print existing logs
-			fmt.Println("\n(Follow mode not yet implemented - showing current logs)")
+			// Follow mode
+			for {
+				line, err := reader.ReadString('\n')
+				if err != nil {
+					if err == io.EOF {
+						time.Sleep(500 * time.Millisecond)
+						continue
+					}
+					fmt.Fprintf(os.Stderr, "Error streaming logs: %v\n", err)
+					break
+				}
+				processLine(line)
+			}
 		}
 	},
 }

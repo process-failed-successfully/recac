@@ -28,9 +28,24 @@
   - Automatically transitions ticket to "In Progress" (ID 31) upon session start.
   - Configurable via `jira.transition_id`.
 
+- **[x] Pre-flight: Git Clean Check**
+  - Implemented in `recac start`.
+  - Checks if git repo is clean before starting.
+  - Added `--allow-dirty` to bypass.
+
+- **[x] Pre-flight: Dependency Auto-Fix**
+  - Implemented `recac check` command.
+  - Checks Config, Go, Docker.
+  - `--fix` automatically repairs missing config.
+
+- **[x] Logs: Follow Mode**
+  - Implemented `recac logs -f` / `--follow`.
+  - Streams logs in real-time.
+
+- **[x] Logs: Smart Filtering**
+  - Implemented `recac logs --filter <string>`.
+  - Filters logs by content.
+
 ## Pending Features
 
-- [ ] Pre-flight: Git Clean Check
-- [ ] Pre-flight: Dependency Auto-Fix
-- [ ] Logs: Follow Mode
-- [ ] Logs: Smart Filtering
+- None! All features implemented.
