@@ -20,6 +20,8 @@ type GeminiClient struct {
 	mockResponder func(string) (string, error)
 	// stateManager is optional; if set, enables token tracking and truncation
 	stateManager *StateManager
+	// logger is optional; if set, used for logging instead of stdout
+	logger func(string, ...interface{})
 }
 
 // NewGeminiClient creates a new Gemini client
@@ -44,6 +46,19 @@ func (c *GeminiClient) WithMockResponder(fn func(string) (string, error)) *Gemin
 func (c *GeminiClient) WithStateManager(sm *StateManager) *GeminiClient {
 	c.stateManager = sm
 	return c
+}
+
+// WithLogger sets the logger for the client
+func (c *GeminiClient) WithLogger(logger func(string, ...interface{})) *GeminiClient {
+	c.logger = logger
+	return c
+}
+
+// log logs a message if a logger is configured
+func (c *GeminiClient) log(format string, args ...interface{}) {
+	if c.logger != nil {
+		c.logger(format, args...)
+	}
 }
 
 // Send sends a prompt to Gemini and returns the generated text with retry logic.
@@ -71,7 +86,7 @@ func (c *GeminiClient) Send(ctx context.Context, prompt string) (string, error) 
 		availableTokens := maxTokens * 50 / 100
 		if promptTokens > availableTokens {
 			// Truncate the prompt
-			fmt.Printf("Warning: Prompt exceeds token limit (%d > %d), truncating...\n", promptTokens, availableTokens)
+			c.log("Warning: Prompt exceeds token limit (%d > %d), truncating...\n", promptTokens, availableTokens)
 			prompt = TruncateToTokenLimit(prompt, availableTokens)
 			promptTokens = EstimateTokenCount(prompt)
 			state.TokenUsage.TruncationCount++
@@ -80,9 +95,9 @@ func (c *GeminiClient) Send(ctx context.Context, prompt string) (string, error) 
 		// Update current token count
 		state.CurrentTokens = promptTokens
 		state.TokenUsage.TotalPromptTokens += promptTokens
-		
+
 		// Log token usage
-		fmt.Printf("Token usage: prompt=%d, current=%d/%d, total_prompt=%d, truncations=%d\n",
+		c.log("Token usage: prompt=%d, current=%d/%d, total_prompt=%d, truncations=%d\n",
 			promptTokens, state.CurrentTokens, maxTokens,
 			state.TokenUsage.TotalPromptTokens, state.TokenUsage.TruncationCount)
 	}
@@ -94,7 +109,7 @@ func (c *GeminiClient) Send(ctx context.Context, prompt string) (string, error) 
 		if i > 0 {
 			// Exponential backoff
 			waitTime := time.Duration(1<<uint(i-1)) * time.Second
-			fmt.Printf("Retry %d after %v due to: %v\n", i, waitTime, lastErr)
+			c.log("Retry %d after %v due to: %v\n", i, waitTime, lastErr)
 			select {
 			case <-time.After(waitTime):
 			case <-ctx.Done():
@@ -125,14 +140,14 @@ func (c *GeminiClient) Send(ctx context.Context, prompt string) (string, error) 
 				if maxTokens == 0 {
 					maxTokens = 32000
 				}
-				fmt.Printf("Token usage: response=%d, current=%d/%d, total=%d (prompt=%d, response=%d)\n",
+				c.log("Token usage: response=%d, current=%d/%d, total=%d (prompt=%d, response=%d)\n",
 					responseTokens, state.CurrentTokens, maxTokens,
 					state.TokenUsage.TotalTokens,
 					state.TokenUsage.TotalPromptTokens, state.TokenUsage.TotalResponseTokens)
 
 				// Save updated state
 				if err := c.stateManager.Save(state); err != nil {
-					fmt.Printf("Warning: Failed to save state: %v\n", err)
+					c.log("Warning: Failed to save state: %v\n", err)
 				}
 			}
 			return result, nil
