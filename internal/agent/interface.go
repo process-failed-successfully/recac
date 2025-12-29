@@ -17,10 +17,16 @@ func NewAgent(provider, apiKey, model string) (Agent, error) {
 	switch provider {
 	case "gemini":
 		return NewGeminiClient(apiKey, model), nil
+	case "gemini-cli":
+		return NewGeminiCLIClient(apiKey, model), nil
 	case "openai":
 		return NewOpenAIClient(apiKey, model), nil
 	case "ollama":
 		return NewOllamaClient(apiKey, model), nil
+	case "openrouter":
+		return NewOpenRouterClient(apiKey, model), nil
+	case "cursor-cli":
+		return NewCursorCLIClient(apiKey, model), nil
 	default:
 		return nil, fmt.Errorf("unknown provider: %s", provider)
 	}

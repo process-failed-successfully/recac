@@ -140,7 +140,7 @@ func (c *Client) PullImage(ctx context.Context, imageRef string) error {
 
 // RunContainer starts a container with the specified image and mounts the workspace.
 // It returns the container ID or an error.
-func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace string) (string, error) {
+func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string) (string, error) {
 	// 1. Pull Image (Best effort)
 	reader, err := c.api.ImagePull(ctx, imageRef, image.PullOptions{})
 	if err == nil {
@@ -148,19 +148,25 @@ func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace st
 		io.Copy(io.Discard, reader) // Drain output
 	}
 
+	// Prepare binds
+	binds := []string{
+		fmt.Sprintf("%s:/workspace", workspace),
+	}
+	if len(extraBinds) > 0 {
+		binds = append(binds, extraBinds...)
+	}
+
 	// 2. Create Container
 	resp, err := c.api.ContainerCreate(ctx,
 		&container.Config{
 			Image:      imageRef,
-			Tty:        true,       // Keep it running
-			OpenStdin:  true,       // Keep stdin open
+			Tty:        true, // Keep it running
+			OpenStdin:  true, // Keep stdin open
 			WorkingDir: "/workspace",
 			Cmd:        []string{"/bin/sh"}, // Default command to keep it alive
 		},
 		&container.HostConfig{
-			Binds: []string{
-				fmt.Sprintf("%s:/workspace", workspace),
-			},
+			Binds: binds,
 		}, nil, nil, "")
 	if err != nil {
 		return "", fmt.Errorf("failed to create container: %w", err)
@@ -194,7 +200,7 @@ func (c *Client) Exec(ctx context.Context, containerID string, cmd []string) (st
 	defer resp.Close()
 
 	var outBuf, errBuf bytes.Buffer
-	// stdcopy.StdCopy demultiplexes the stream if Tty is false. 
+	// stdcopy.StdCopy demultiplexes the stream if Tty is false.
 	// If Tty is true in ExecConfig, it's a raw stream.
 	// We didn't set Tty in ExecConfig, so it defaults to false.
 	_, err = stdcopy.StdCopy(&outBuf, &errBuf, resp.Reader)
@@ -211,7 +217,7 @@ func (c *Client) StopContainer(ctx context.Context, containerID string) error {
 	if err := c.api.ContainerStop(ctx, containerID, container.StopOptions{}); err != nil {
 		// Just log error?
 	}
-	
+
 	// Remove
 	return c.api.ContainerRemove(ctx, containerID, container.RemoveOptions{Force: true})
 }

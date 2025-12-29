@@ -1,168 +1,62 @@
-{
-  "project": "RECAC - Recursive Autonomous Coding",
-  "version": "0.1.0",
-  "description": "An autonomous coding system that can recursively improve itself",
-  "features": [
-    {
-      "id": "core-cli",
-      "name": "Core CLI Interface",
-      "description": "Command-line interface for managing autonomous coding sessions",
-      "status": "implemented",
-      "passes": true,
-      "tests": [
-        "cmd/recac/main.go",
-        "cmd/recac/root.go"
-      ]
-    },
-    {
-      "id": "agent-system",
-      "name": "Agent System",
-      "description": "Multiple AI agent implementations (OpenAI, Gemini, Ollama)",
-      "status": "implemented",
-      "passes": true,
-      "tests": [
-        "internal/agent/factory_test.go",
-        "internal/agent/gemini_test.go",
-        "internal/agent/ollama_test.go"
-      ]
-    },
-    {
-      "id": "docker-runner",
-      "name": "Docker Runner",
-      "description": "Isolated execution environment using Docker",
-      "status": "implemented",
-      "passes": true,
-      "tests": [
-        "internal/docker/client_test.go",
-        "internal/runner/session_test.go"
-      ]
-    },
-    {
-      "id": "workflow-engine",
-      "name": "Workflow Engine",
-      "description": "Task execution and dependency management",
-      "status": "implemented",
-      "passes": true,
-      "tests": [
-        "internal/runner/workflow_test.go",
-        "internal/runner/taskgraph.go"
-      ]
-    },
-    {
-      "id": "jira-integration",
-      "name": "JIRA Integration",
-      "description": "Connect autonomous coding sessions to JIRA tickets",
-      "status": "implemented",
-      "passes": true,
-      "tests": [
-        "internal/jira/client_test.go",
-        "cmd/recac/jira.go"
-      ]
-    },
-    {
-      "id": "ui-dashboard",
-      "name": "Web Dashboard",
-      "description": "Real-time monitoring interface",
-      "status": "implemented",
-      "passes": true,
-      "tests": [
-        "internal/ui/dashboard_test.go",
-        "internal/ui/sprint_board_test.go"
-      ]
-    },
-    {
-      "id": "telemetry",
-      "name": "Telemetry & Metrics",
-      "description": "Logging, metrics collection, and monitoring",
-      "status": "implemented",
-      "passes": true,
-      "tests": [
-        "internal/telemetry/logger_test.go",
-        "internal/telemetry/metrics_test.go"
-      ]
-    },
-    {
-      "id": "notifications",
-      "name": "Notifications",
-      "description": "Slack and other notification integrations",
-      "status": "implemented",
-      "passes": true,
-      "tests": [
-        "internal/notify/slack_test.go"
-      ]
-    },
-    {
-      "id": "discord-integration",
-      "name": "Discord Integration",
-      "description": "Discord notification integration",
-      "status": "implemented",
-      "passes": true,
-      "tests": [
-        "internal/notify/discord_test.go"
-      ]
-    },
-    {
-      "id": "git-integration",
-      "name": "Git Integration",
-      "description": "Automated git operations and branch management",
-      "status": "implemented",
-      "passes": true,
-      "tests": [
-        "internal/pkg/git/git.go"
-      ]
-    },
-    {
-      "id": "agent-memory",
-      "name": "Persistent Agent Memory",
-      "description": "SQLite-based long-term memory for agents",
-      "status": "implemented",
-      "passes": true,
-      "tests": [
-        "internal/db/sqlite_test.go"
-      ]
-    },
-    {
-      "id": "security-scanner",
-      "name": "Security Scanner",
-      "description": "Automated scanning for secrets and vulnerabilities",
-      "status": "implemented",
-      "passes": true,
-      "tests": [
-        "internal/security/scanner_test.go",
-        "internal/runner/security_integration_test.go"
-      ]
-    }
-  ],
-  "quality_gates": [
-    {
-      "name": "test_coverage",
-      "target": 70,
-      "current": 75,
-      "passes": true
-    },
-    {
-      "name": "linting",
-      "target": "zero_errors",
-      "current": "passing",
-      "passes": true
-    },
-    {
-      "name": "documentation",
-      "target": "complete",
-      "current": "complete",
-      "passes": true
-    },
-    {
-      "name": "build_system",
-      "target": "all_targets_work",
-      "current": "passing",
-      "passes": true
-    }
-  ],
-  "next_milestone": "Expansion Release v0.2.0",
-  "milestone_goals": [
-    "Implement Persistent Memory (SQLite)",
-    "Implement Security Scanner",
-    "Increase Test Coverage to 80%"
-  ]
-}
+[
+  {
+    "category": "functional",
+    "description": "Dynamic Configuration: Set Value",
+    "steps": ["Run 'agent config set <key> <value>'", "Verify config file is updated", "Verify application reflects change"],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Dynamic Configuration: List Keys",
+    "steps": ["Run 'agent config list-keys'", "Verify output lists all available settings"],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Dynamic Configuration: List Models",
+    "steps": ["Run 'agent config list-models'", "Verify output lists compatible models for active provider"],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Jira Workflow: Run with Ticket ID",
+    "steps": ["Run 'agent run --jira <TICKET_ID>'", "Verify context is initialized from ticket"],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Jira Workflow: Workspace Isolation",
+    "steps": ["Run 'agent run --jira <TICKET_ID>'", "Verify temporary workspace is created and used"],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Jira Workflow: Status Sync",
+    "steps": ["Run 'agent run --jira <TICKET_ID>'", "Perform actions", "Verify Jira ticket status updates automatically"],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Pre-flight: Git Clean Check",
+    "steps": ["Run 'agent run ...' with dirty git state", "Verify execution warns or stops"],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Pre-flight: Dependency Auto-Fix",
+    "steps": ["Run 'agent check'", "Verify it detects and fixes minor local issues"],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Logs: Follow Mode",
+    "steps": ["Run 'agent logs -f'", "Verify logs stream in real-time"],
+    "passes": false
+  },
+  {
+    "category": "functional",
+    "description": "Logs: Smart Filtering",
+    "steps": ["Run 'agent logs --filter <category>'", "Verify only matching logs are shown"],
+    "passes": false
+  }
+]

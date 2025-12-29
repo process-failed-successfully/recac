@@ -8,14 +8,15 @@ import (
 	"path/filepath"
 	"syscall"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"recac/internal/agent"
 	"recac/internal/docker"
 	"recac/internal/runner"
 	"recac/internal/telemetry"
 	"recac/internal/ui"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 func init() {
@@ -33,6 +34,8 @@ func init() {
 	viper.BindPFlag("manager_frequency", startCmd.Flags().Lookup("manager-frequency"))
 	viper.BindPFlag("detached", startCmd.Flags().Lookup("detached"))
 	viper.BindPFlag("name", startCmd.Flags().Lookup("name"))
+	startCmd.Flags().String("provider", "", "Agent provider (gemini, gemini-cli, openai, etc)")
+	viper.BindPFlag("provider", startCmd.Flags().Lookup("provider"))
 	rootCmd.AddCommand(startCmd)
 }
 
@@ -165,24 +168,24 @@ var startCmd = &cobra.Command{
 		// Mock mode: start session with mock Docker and mock agent
 		if isMock {
 			fmt.Println("Starting in MOCK MODE (no Docker or API keys required)")
-			
+
 			// Use mock Docker client
 			dockerCli, _ := docker.NewMockClient()
-			
+
 			// Use mock agent
 			var agentClient agent.Agent = agent.NewMockAgent()
-			
+
 			// Default project path if not provided
 			if projectPath == "" {
 				projectPath = "/tmp/recac-mock-workspace"
 				fmt.Printf("No project path provided, using: %s\n", projectPath)
 			}
-			
+
 			// Start Session
 			session := runner.NewSession(dockerCli, agentClient, projectPath, "ubuntu:latest")
 			session.MaxIterations = maxIterations
 			session.ManagerFrequency = managerFrequency
-			
+
 			// Configure StateManager for agents that support it (e.g., Gemini)
 			if session.StateManager != nil {
 				// Type assert to check if agent supports StateManager
@@ -190,7 +193,7 @@ var startCmd = &cobra.Command{
 					geminiClient.WithStateManager(session.StateManager)
 				}
 			}
-			
+
 			if err := session.Start(ctx); err != nil {
 				if ctx.Err() != nil {
 					fmt.Println("\nSession interrupted by user.")
@@ -199,7 +202,7 @@ var startCmd = &cobra.Command{
 				fmt.Printf("Session initialization failed: %v\n", err)
 				os.Exit(1)
 			}
-			
+
 			// Run Autonomous Loop
 			if err := session.RunLoop(ctx); err != nil {
 				if ctx.Err() != nil {
@@ -231,6 +234,12 @@ var startCmd = &cobra.Command{
 			if projectPath == "" {
 				fmt.Println("No project path selected. Exiting.")
 				return
+			}
+
+			// Set Provider from Wizard if available
+			if wizardModel.Provider != "" {
+				viper.Set("provider", wizardModel.Provider)
+				fmt.Printf("Using provider: %s\n", wizardModel.Provider)
 			}
 		} else {
 			fmt.Printf("Using project path from flag: %s\n", projectPath)
@@ -268,7 +277,7 @@ var startCmd = &cobra.Command{
 		if provider == "" {
 			provider = "gemini" // Default
 		}
-		
+
 		apiKey := viper.GetString("api_key")
 		if apiKey == "" {
 			apiKey = os.Getenv("API_KEY")
@@ -281,21 +290,41 @@ var startCmd = &cobra.Command{
 				} else if provider == "ollama" {
 					// For Ollama, apiKey is actually baseURL (optional)
 					apiKey = os.Getenv("OLLAMA_BASE_URL")
+				} else if provider == "openrouter" {
+					apiKey = os.Getenv("OPENROUTER_API_KEY")
 				}
 			}
 		}
 
+		// Determine model
+		// Priority: RECAC_MODEL (env) > Provider default > Config
+		// We explicitly check env to allow overriding config.yaml
 		model := viper.GetString("model")
-		if model == "" {
-			if provider == "gemini" {
-				model = "gemini-pro"
-			} else if provider == "openai" {
-				model = "gpt-4"
-			} else if provider == "ollama" {
-				model = "llama2" // Default Ollama model
+		envModel := os.Getenv("RECAC_MODEL")
+		if envModel != "" {
+			model = envModel
+		} else {
+			// If no explicit env model, verify/override defaults for specific providers
+			// ignoring potentially incompatible values from config.yaml
+			if provider == "gemini-cli" {
+				model = "auto"
+			} else if provider == "cursor-cli" {
+				model = "auto"
+			} else if provider == "openrouter" {
+				model = "deepseek/deepseek-v3.2"
+			}
+			// For other providers (gemini, openai, ollama), fallback to viper (config) or defaults
+			if model == "" {
+				if provider == "gemini" {
+					model = "gemini-pro"
+				} else if provider == "openai" {
+					model = "gpt-4"
+				} else if provider == "ollama" {
+					model = "llama2"
+				}
 			}
 		}
-		
+
 		// For Ollama, apiKey (baseURL) can be empty (defaults to localhost:11434)
 		// For other providers, require apiKey
 		if apiKey == "" && provider != "ollama" {
@@ -327,19 +356,23 @@ var startCmd = &cobra.Command{
 					maxTokens = 32000
 				} else if provider == "openai" {
 					maxTokens = 128000
+				} else if provider == "openrouter" {
+					maxTokens = 128000
 				}
 			}
-			
+
 			// Initialize state with max_tokens
 			if err := session.InitializeAgentState(maxTokens); err != nil {
 				fmt.Printf("Warning: Failed to initialize agent state with max_tokens: %v\n", err)
 			}
-			
+
 			// Type assert to check if agent supports StateManager
 			if geminiClient, ok := agentClient.(*agent.GeminiClient); ok {
 				geminiClient.WithStateManager(session.StateManager)
 			} else if openAIClient, ok := agentClient.(*agent.OpenAIClient); ok {
 				openAIClient.WithStateManager(session.StateManager)
+			} else if openRouterClient, ok := agentClient.(*agent.OpenRouterClient); ok {
+				openRouterClient.WithStateManager(session.StateManager)
 			}
 		}
 

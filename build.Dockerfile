@@ -2,10 +2,40 @@ FROM golang:1.24-alpine
 
 WORKDIR /app
 
-# Install build dependencies
-RUN apk add --no-cache make git
+# Configure Alpine mirror for China (User in +08:00)
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 
-# Copy and download dependencies
+# Install system dependencies
+# nodejs/npm for gemini-cli
+# python3/pip
+# curl/git/jq/unzip/bash for utilities
+# libc6-compat for potential glibc compatibility (Cursor CLI)
+RUN apk add --no-cache \
+    nodejs \
+    npm \
+    python3 \
+    py3-pip \
+    curl \
+    git \
+    jq \
+    bash \
+    unzip \
+    libc6-compat
+
+# Configure NPM mirror
+RUN npm config set registry https://registry.npmmirror.com/
+
+# Install Gemini CLI
+RUN npm install -g @google/gemini-cli
+
+# Install Cursor Agent
+# Script installs to ~/.local/bin
+ENV HOME=/root
+# Cursor install might still be slow if not mirrored, but let's try
+RUN curl -fsS https://cursor.com/install | bash
+ENV PATH="${HOME}/.local/bin:${PATH}"
+
+# Copy and download Go dependencies
 COPY go.mod go.sum ./
 RUN go mod download
 

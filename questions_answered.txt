@@ -1,2 +1,0 @@
-Q: None active.
-A: Please focus on the directives in manager_directives.txt.

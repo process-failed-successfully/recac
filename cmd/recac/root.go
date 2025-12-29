@@ -6,6 +6,7 @@ import (
 	"recac/internal/config"
 	"recac/internal/telemetry"
 
+	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -44,6 +45,10 @@ func Execute() {
 }
 
 func init() {
+	rootCmd.Run = func(cmd *cobra.Command, args []string) {
+		// Default behavior: Run Interactive Mode
+		RunInteractive()
+	}
 	cobra.OnInitialize(initConfig)
 
 	// Here you will define your flags and configuration settings.
@@ -61,6 +66,12 @@ func init() {
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
+	// explicit .env loading
+	if err := godotenv.Load(); err != nil {
+		// handle error if you want, or ignore if .env is missing
+		// fmt.Println("No .env file found")
+	}
+
 	if cfgFile != "" {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
@@ -77,6 +88,46 @@ func initConfig() {
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
+	} else {
+		// Config file not found; create one with defaults
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok || true { // Force creation if failing to read for any reason (simplification)
+			// check if we already tried to read a specific file
+			if cfgFile == "" {
+				// Set defaults
+				viper.SetDefault("provider", "gemini")
+				viper.SetDefault("model", "gemini-pro")
+				viper.SetDefault("max_iterations", 20)
+				viper.SetDefault("manager_frequency", 5)
+				viper.SetDefault("timeout", 300)
+				viper.SetDefault("docker_timeout", 600)
+				viper.SetDefault("bash_timeout", 120)
+				viper.SetDefault("agent_timeout", 300)
+				viper.SetDefault("metrics_port", 9090)
+				viper.SetDefault("verbose", false)
+
+				// Write config to current directory
+				viper.SetConfigName("config")
+				viper.SetConfigType("yaml")
+				viper.AddConfigPath(".")
+
+				// Attempt to write
+				if err := viper.SafeWriteConfig(); err != nil {
+					// Check if it already exists (SafeWriteConfig fails if exists)
+					// But ReadInConfig failed, so likely it doesn't exist or is invalid.
+					// If it exists but is invalid, we probably shouldn't overwrite it blindly,
+					// but the requirement is "When first run... create the config file".
+					if _, err := os.Stat("config.yaml"); os.IsNotExist(err) {
+						if err := viper.WriteConfigAs("config.yaml"); err != nil {
+							fmt.Fprintf(os.Stderr, "Warning: Failed to create default config file: %v\n", err)
+						} else {
+							fmt.Println("Created default configuration file: config.yaml")
+						}
+					}
+				} else {
+					fmt.Println("Created default configuration file: config.yaml")
+				}
+			}
+		}
 	}
 
 	// Validate configuration values

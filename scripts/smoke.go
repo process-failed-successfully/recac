@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"recac/internal/agent"
 	"recac/internal/docker"
 	"recac/internal/runner"
 	"strings"
@@ -42,11 +43,49 @@ func main() {
 	// 2. Init Dependencies
 	// Use Mock Docker Client to avoid needing actual Docker daemon in this environment
 	dClient, mockAPI := docker.NewMockClient()
-	
+
 	// Configure Mock Docker to succeed
 	mockAPI.PingFunc = func(ctx context.Context) (types.Ping, error) { return types.Ping{}, nil }
-	
-	agentClient := &MockAgent{}
+
+	// Determine Agent
+	agentType := os.Getenv("AGENT")
+	if agentType == "" {
+		agentType = "mock"
+	}
+
+	var agentClient agent.Agent
+
+	if agentType == "mock" {
+		fmt.Println("Using Mock Agent")
+		agentClient = &MockAgent{}
+	} else {
+		fmt.Printf("Using Real Agent: %s\n", agentType)
+
+		// Map generic env vars to API key
+		var apiKey string
+		var model string // Default model?
+
+		switch agentType {
+		case "gemini", "gemini-cli":
+			apiKey = os.Getenv("GEMINI_API_KEY")
+			model = "gemini-1.5-flash" // Default to flash which is widely available
+		case "openai":
+			apiKey = os.Getenv("OPENAI_API_KEY")
+			model = "gpt-4-turbo"
+		case "anthropic":
+			apiKey = os.Getenv("ANTHROPIC_API_KEY")
+		case "ollama":
+			model = "llama3"
+		}
+
+		// Just create it, if it fails validation later that's fine (smoke test purpose)
+		var err error
+		agentClient, err = agent.NewAgent(agentType, apiKey, model)
+		if err != nil {
+			fmt.Printf("Failed to create agent %s: %v\n", agentType, err)
+			os.Exit(1)
+		}
+	}
 
 	// 3. Init Session
 	session := runner.NewSession(dClient, agentClient, tmpDir, "alpine:latest")
@@ -65,6 +104,7 @@ func main() {
 		// Context deadline exceeded is expected if we just run out of time/iterations
 		if err != context.DeadlineExceeded {
 			fmt.Printf("RunLoop Failed: %v\n", err)
+			os.Exit(1)
 		}
 	}
 

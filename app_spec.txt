@@ -1,68 +1,37 @@
-# APP SPECIFICATION: RECAC (Robust Enclosed CAtheter for Autonomous Coding)
+# Gap Analysis: Legacy Agent vs Recac (Go)
+This document outlines the functions and features present in the Legacy Agent (`information/combined-autonomous-coding`) specifications that are currently missing or incomplete in the `recac` (Go) implementation.
 
-## Overview
-RECAC is a Go-based autonomous coding platform designed to orchestrate various AI agents to solve coding tasks within a secure, isolated Docker environment. It achieves feature parity with the Python `combined-autonomous-coding` project but offers improved performance, type safety, and deployment portability.
+## 1. Dynamic Configuration Management
+**Status**: MISSING
+The legacy specification defines a robust CLI-based configuration system. The current Go implementation uses `viper` for reading configuration but lacks commands to modify it interactively.
 
-## Core Architecture
-The system follows a Manager-Agent-QA-Cleaner workflow loop, orchestrated by a central Session Runner. All agent code execution happens inside ephemeral Docker containers.
+*   **Missing Commands**:
+    *   `agent config set <key> <value>`: Ability to update settings without manual YAML editing.
+    *   `agent config list-keys`: Interactive discovery of available settings.
+    *   `agent config list-models`: Listing compatible models for the active provider.
+    *   **Context-Aware Hints**: Suggestions for invalid configuration values.
 
-### Supported Agents
-RECAC supports two classes of agents: API Clients and CLI Wrappers.
+## 2. Integrated Jira Workflow
+**Status**: PARTIALLY IMPLEMENTED / DISJOINTED
+While `recac` has a `jira` command group (`test-auth`, `get`, `transition`), it lacks the seamless integration into the main execution loop described in the legacy spec.
 
-#### 1. API Clients (Existing)
-Direct HTTP interaction with LLM providers.
-- **Gemini**: `internal/agent/gemini.go`
-- **OpenAI**: `internal/agent/openai.go`
-- **Ollama**: `internal/agent/ollama.go`
+*   **Missing Integration**:
+    *   `agent run --jira <TICKET_ID>`: A single flag to initialize a session context directly from a Jira ticket.
+    *   **Workspace Isolation**: Automatic management of temporary workspaces specific to a Jira task.
+    *   **Bi-directional Status Sync**: The legacy spec implies continuous status updates during the run, whereas `recac` only supports explicit manual transitions via `recac jira transition`.
 
-#### 2. CLI Wrappers (Required for Parity)
-Wrappers around external CLI tools that run within the container or host.
-- **Gemini CLI (`gemini-cli`)**:
-    - Wraps the `gemini` command-line tool.
-    - **Command**: `gemini --output-format text --approval-mode yolo --model <model>`
-    - **Input**: Passed via stdin to avoid shell argument limits.
-    - **Output**: Parsed from stdout (text format).
-    - **Handling**: Must handle streaming output and process return codes.
-- **Cursor CLI (`cursor-cli`)**:
-    - Wraps the `cursor-agent` executable.
-    - **Command**: `cursor-agent agent "<prompt>" --print --output-format text --force --workspace <cwd>`
-    - **Environment**: Must forward specific env vars (PATH, WORKSPACE_DIR, CURSOR_*) while sanitizing others.
-    - **Handling**: Must handle resource exhaustion errors, timeouts, and specific Cursor exit codes (e.g., 143 for OOM/SIGTERM).
+## 3. Intelligent Pre-flight Checks (Workspace & Environment)
+**Status**: PARTIALLY IMPLEMENTED
+`recac` implements robust Docker checks (`check-docker`), but lacks general environment and workspace validation.
 
-## Workflows
+*   **Missing Checks**:
+    *   **Workspace Validation**: "Git Clean Check" to ensure the project directory is safe for modification before starting.
+    *   **Dependency Auto-Fix (Non-Docker)**: Automatically handling minor local issues like creating missing non-project directories or fixing local file permissions.
 
-### 1. Autonomous Loop (Standard)
-- **Initialization**: Reads `app_spec.txt` or Jira ticket. Generates `feature_list.json` if missing.
-- **Cycle**:
-    1.  **Select Prompt**: Initializer -> Coding Agent -> Manager Review.
-    2.  **Execute**: Send prompt to selected Agent.
-    3.  **State**: Save token usage and history to `.agent_state.json`.
-    4.  **Signals**: Check for `COMPLETED` (runs QA), `QA_PASSED` (runs Manager), `PROJECT_SIGNED_OFF` (runs Cleaner).
-- **Parity Gap**: Ensure the loop supports the unique output formats and error handling of CLI wrappers.
+## 4. Advanced Log Management
+**Status**: INCOMPLETE
+The legacy spec promises "Smart Logs" with streaming and filtering. The current `recac` implementation is basic.
 
-### 2. Sprint Mode (Concurrent)
-**Required for Parity.**
-- **Description**: Runs multiple agent instances concurrently to work on different items from `feature_list.json`.
-- **Logic**:
-    -   Shared `LockManager` to preventing race conditions on files.
-    -   `SprintManager` that assigns unassigned features to idle agents.
-    -   Merge conflict resolution strategy.
-- **Implementation**: Needs a new `internal/runner/sprint.go` logic similar to Python's `agents/shared/sprint.py`.
-
-### 3. Jira Integration
-- **Input**: Accepts `--jira-ticket` or `--jira-label`.
-- **Flow**: Fetches ticket details -> creates isolated workspace -> runs Autonomous Loop -> updates Jira status -> posts comments/worklogs.
-- **Parity Gap**: Ensure `recac` fully implements the transition and commenting logic found in `shared/jira_client.py`.
-
-## Technical Requirements
-- **Docker-in-Docker (DinD)**: Support creating sibling containers for tests.
-- **Telemetry**: Prometheus/Grafana metrics for token usage, costs, and success rates.
-- **TUI Dashboard**: Interactive terminal UI using Bubble Tea (already in progress).
-
-## CLI Interface
-The `recac` binary should support:
-```bash
-recac run --agent [gemini|openai|ollama|gemini-cli|cursor-cli] --project-dir <path>
-recac sprint --agents 5 --project-dir <path>
-recac resume <session-id>
-```
+*   **Missing Functionality**:
+    *   **Log Following (`-f`)**: The `--follow` flag in `logs.go` is currently a stub: `(Follow mode not yet implemented - showing current logs)`.
+    *   **Smart Filtering**: No ability to filter logs by priority level or category to avoid terminal clutter.

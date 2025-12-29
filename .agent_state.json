@@ -1,19 +1,16 @@
 {
-  "iteration": 763,
-  "consecutive_errors": 0,
-  "is_first_run": false,
-  "has_run_manager_first": false,
-  "last_manager_iteration": 590,
-  "recent_history": [
-    "Ran Bash: cat app_spec.txt",
-    "Ran Bash: cat feature_list.json | head -n 50",
-    "Ran Bash: cat *_progress.txt",
-    "Ran Bash: git log --oneline -20",
-    "Ran Bash: cat manager_directives.txt",
-    "Ran Bash: cat feature_list.json | grep '\"passes\": false' | wc -l",
-    "Ran Bash: git branch",
-    "Ran Bash: pwd",
-    "Ran Bash: ls -la",
-    "Ran Bash: cat app_spec.txt"
-  ]
+  "memory": [],
+  "history": [],
+  "metadata": {
+    "iteration": 1
+  },
+  "updated_at": "2025-12-29T15:17:10.902165877+08:00",
+  "max_tokens": 128000,
+  "current_tokens": 206,
+  "token_usage": {
+    "total_prompt_tokens": 206,
+    "total_response_tokens": 0,
+    "total_tokens": 206,
+    "truncation_count": 0
+  }
 }

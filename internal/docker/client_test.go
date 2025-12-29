@@ -18,9 +18,9 @@ import (
 )
 
 type mockAPIClient struct {
-	pingFunc func(ctx context.Context) (types.Ping, error)
-	imageListFunc func(ctx context.Context, options image.ListOptions) ([]image.Summary, error)
-	imagePullFunc func(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error)
+	pingFunc          func(ctx context.Context) (types.Ping, error)
+	imageListFunc     func(ctx context.Context, options image.ListOptions) ([]image.Summary, error)
+	imagePullFunc     func(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error)
 	containerStopFunc func(ctx context.Context, containerID string, options container.StopOptions) error
 }
 
@@ -183,7 +183,7 @@ func TestStopContainer(t *testing.T) {
 
 func TestImageBuild_Success(t *testing.T) {
 	client, mock := NewMockClient()
-	
+
 	mock.ImageBuildFunc = func(ctx context.Context, buildContext io.Reader, options build.ImageBuildOptions) (types.ImageBuildResponse, error) {
 		if len(options.Tags) == 0 || options.Tags[0] != "testimage:latest" {
 			t.Errorf("Expected tag 'testimage:latest', got %v", options.Tags)
@@ -191,7 +191,7 @@ func TestImageBuild_Success(t *testing.T) {
 		if options.Dockerfile != "Dockerfile" {
 			t.Errorf("Expected Dockerfile 'Dockerfile', got %s", options.Dockerfile)
 		}
-		
+
 		mockOutput := `{"stream":"Step 1/2 : FROM alpine\n"}
 {"stream":" ---> abc123def456\n"}
 {"aux":{"ID":"sha256:testimageid123456789"}}
@@ -212,7 +212,7 @@ func TestImageBuild_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ImageBuild failed: %v", err)
 	}
-	
+
 	if imageID == "" {
 		t.Fatal("Expected image ID, got empty string")
 	}
@@ -223,7 +223,7 @@ func TestImageBuild_Success(t *testing.T) {
 
 func TestImageBuild_ErrorHandling(t *testing.T) {
 	client, mock := NewMockClient()
-	
+
 	mock.ImageBuildFunc = func(ctx context.Context, buildContext io.Reader, options build.ImageBuildOptions) (types.ImageBuildResponse, error) {
 		mockOutput := `{"errorDetail":{"message":"Build failed: syntax error"}}`
 		return types.ImageBuildResponse{
@@ -248,7 +248,7 @@ func TestImageBuild_ErrorHandling(t *testing.T) {
 
 func TestImageBuild_MissingBuildContext(t *testing.T) {
 	client, _ := NewMockClient()
-	
+
 	opts := ImageBuildOptions{
 		Tag: "testimage:latest",
 		// BuildContext is nil
@@ -265,7 +265,7 @@ func TestImageBuild_MissingBuildContext(t *testing.T) {
 
 func TestImageBuild_MissingTag(t *testing.T) {
 	client, _ := NewMockClient()
-	
+
 	opts := ImageBuildOptions{
 		BuildContext: strings.NewReader("mock context"),
 		// Tag is empty
@@ -282,7 +282,7 @@ func TestImageBuild_MissingTag(t *testing.T) {
 
 func TestImageBuild_WithBuildArgs(t *testing.T) {
 	client, mock := NewMockClient()
-	
+
 	version := "1.0.0"
 	mock.ImageBuildFunc = func(ctx context.Context, buildContext io.Reader, options build.ImageBuildOptions) (types.ImageBuildResponse, error) {
 		if options.BuildArgs == nil {
@@ -291,7 +291,7 @@ func TestImageBuild_WithBuildArgs(t *testing.T) {
 		if val, ok := options.BuildArgs["VERSION"]; !ok || val == nil || *val != "1.0.0" {
 			t.Errorf("Expected VERSION=1.0.0 in build args, got %v", options.BuildArgs)
 		}
-		
+
 		mockOutput := `{"stream":"Successfully built testimageid\n"}`
 		return types.ImageBuildResponse{
 			Body: io.NopCloser(strings.NewReader(mockOutput)),
@@ -340,14 +340,14 @@ func TestDockerInDocker_Support(t *testing.T) {
 	// Step 3: Create a nested container (worker container)
 	testImage := "alpine:latest"
 	testWorkspace := "/tmp/dind-test-workspace"
-	
+
 	if err := os.MkdirAll(testWorkspace, 0755); err != nil {
 		t.Fatalf("Failed to create test workspace: %v", err)
 	}
 	defer os.RemoveAll(testWorkspace)
 
 	// Create nested container
-	containerID, err := client.RunContainer(ctx, testImage, testWorkspace)
+	containerID, err := client.RunContainer(ctx, testImage, testWorkspace, nil)
 	if err != nil {
 		t.Fatalf("Failed to create nested container: %v", err)
 	}

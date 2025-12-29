@@ -35,12 +35,15 @@ func NewSession(d *docker.Client, a agent.Agent, workspace, image string) *Sessi
 	// Default agent state file path in workspace
 	agentStateFile := filepath.Join(workspace, ".agent_state.json")
 	stateManager := agent.NewStateManager(agentStateFile)
-	
+
+	// Initialize DB Store
 	// Initialize DB Store
 	dbPath := filepath.Join(workspace, ".recac.db")
-	dbStore, err := db.NewSQLiteStore(dbPath)
-	if err != nil {
+	var dbStore db.Store
+	if sqliteStore, err := db.NewSQLiteStore(dbPath); err != nil {
 		fmt.Printf("Warning: Failed to initialize SQLite store: %v\n", err)
+	} else {
+		dbStore = sqliteStore
 	}
 
 	// Initialize Security Scanner
@@ -64,12 +67,15 @@ func NewSession(d *docker.Client, a agent.Agent, workspace, image string) *Sessi
 // NewSessionWithStateFile creates a session with a specific agent state file (for restoring sessions)
 func NewSessionWithStateFile(d *docker.Client, a agent.Agent, workspace, image, agentStateFile string) *Session {
 	stateManager := agent.NewStateManager(agentStateFile)
-	
+
+	// Initialize DB Store
 	// Initialize DB Store
 	dbPath := filepath.Join(workspace, ".recac.db")
-	dbStore, err := db.NewSQLiteStore(dbPath)
-	if err != nil {
+	var dbStore db.Store
+	if sqliteStore, err := db.NewSQLiteStore(dbPath); err != nil {
 		fmt.Printf("Warning: Failed to initialize SQLite store: %v\n", err)
+	} else {
+		dbStore = sqliteStore
 	}
 
 	// Initialize Security Scanner
@@ -95,18 +101,18 @@ func (s *Session) LoadAgentState() error {
 	if s.StateManager == nil {
 		return nil // No state manager configured
 	}
-	
+
 	state, err := s.StateManager.Load()
 	if err != nil {
 		return fmt.Errorf("failed to load agent state: %w", err)
 	}
-	
+
 	// If state has memory/history, we can use it to restore context
 	// For now, we just ensure the state is loaded (agents that support StateManager will use it)
 	if len(state.Memory) > 0 {
 		fmt.Printf("Loaded agent state: %d memory items, %d history messages\n", len(state.Memory), len(state.History))
 	}
-	
+
 	// Log token usage if available
 	if state.TokenUsage.TotalTokens > 0 {
 		fmt.Printf("Token usage: total=%d (prompt=%d, response=%d), current=%d/%d, truncations=%d\n",
@@ -117,7 +123,7 @@ func (s *Session) LoadAgentState() error {
 			state.MaxTokens,
 			state.TokenUsage.TruncationCount)
 	}
-	
+
 	return nil
 }
 
@@ -126,7 +132,7 @@ func (s *Session) InitializeAgentState(maxTokens int) error {
 	if s.StateManager == nil {
 		return nil // No state manager configured
 	}
-	
+
 	return s.StateManager.InitializeState(maxTokens)
 }
 
@@ -135,13 +141,13 @@ func (s *Session) SaveAgentState() error {
 	if s.StateManager == nil {
 		return nil // No state manager configured
 	}
-	
+
 	// Load current state
 	state, err := s.StateManager.Load()
 	if err != nil {
 		return fmt.Errorf("failed to load state for saving: %w", err)
 	}
-	
+
 	// Save state (StateManager will update UpdatedAt timestamp)
 	return s.StateManager.Save(state)
 }
@@ -173,8 +179,29 @@ func (s *Session) Start(ctx context.Context) error {
 		fmt.Printf("Loaded spec: %d bytes\n", len(spec))
 	}
 
+	// Determine users home directory for config mounting
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		fmt.Printf("Warning: Failed to determine user home dir: %v. Configs will not be mounted.\n", err)
+	}
+
+	var extraBinds []string
+	if homeDir != "" {
+		// Mount configurations if they exist
+		// Note: Docker binds require the host path to exist, or it might auto-create as dir (depends on docker version/config).
+		// Best practice is to check existence, but for now we follow the Python approach which seemingly just mounts them.
+		// However, to avoid creating empty dirs if they don't exist on host, we can check.
+		// For now, we'll blindly mount as per requirement to emulate python script behavior effectively.
+		extraBinds = append(extraBinds,
+			fmt.Sprintf("%s/.gemini:/home/appuser/.gemini", homeDir),
+			fmt.Sprintf("%s/.config:/home/appuser/.config", homeDir),
+			fmt.Sprintf("%s/.cursor:/home/appuser/.cursor", homeDir),
+			fmt.Sprintf("%s/.ssh:/home/appuser/.ssh", homeDir),
+		)
+	}
+
 	// Run Container
-	id, err := s.Docker.RunContainer(ctx, s.Image, s.Workspace)
+	id, err := s.Docker.RunContainer(ctx, s.Image, s.Workspace, extraBinds)
 	if err != nil {
 		return fmt.Errorf("failed to start container: %w", err)
 	}
@@ -215,7 +242,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		fmt.Printf("Warning: Failed to load agent state: %v\n", err)
 		// Continue anyway - state will be created on first save
 	}
-	
+
 	// Load DB history if available
 	if s.DBStore != nil {
 		history, err := s.DBStore.QueryHistory(5)
@@ -277,7 +304,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		}
 
 		fmt.Printf("Response received (%d chars).\n", len(response))
-		
+
 		// Security Scan
 		if s.Scanner != nil {
 			findings, err := s.Scanner.Scan(response)
@@ -289,7 +316,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 					fmt.Printf("  - %s: %s (Line %d)\n", f.Type, f.Description, f.Line)
 				}
 				fmt.Println("Blocking response execution.")
-				
+
 				// Force a retry or feedback loop here?
 				// For now, we continue but treat it as a failure to execute.
 				// In a real loop, we would append this to history and ask for correction.
@@ -298,7 +325,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 				fmt.Println("Security scan passed.")
 			}
 		}
-		
+
 		// Save observation to DB (only if safe)
 		if s.DBStore != nil {
 			if err := s.DBStore.SaveObservation(role, response); err != nil {
@@ -443,7 +470,7 @@ func (s *Session) createSignal(name string) error {
 // Returns error if QA fails, nil if QA passes.
 func (s *Session) runQAAgent(ctx context.Context) error {
 	fmt.Println("=== QA Agent: Running Quality Checks ===")
-	
+
 	features := s.loadFeatures()
 	if len(features) == 0 {
 		return fmt.Errorf("no features found in feature_list.json")
@@ -466,10 +493,10 @@ func (s *Session) runQAAgent(ctx context.Context) error {
 // Returns error if manager rejects, nil if manager approves.
 func (s *Session) runManagerAgent(ctx context.Context) error {
 	fmt.Println("=== Manager Agent: Reviewing QA Report ===")
-	
+
 	features := s.loadFeatures()
 	qaReport := RunQA(features)
-	
+
 	// Create manager review prompt
 	prompt, err := prompts.GetPrompt(prompts.ManagerReview, map[string]string{
 		"qa_report": qaReport.String(),
@@ -486,7 +513,7 @@ func (s *Session) runManagerAgent(ctx context.Context) error {
 	}
 
 	fmt.Printf("Manager review response (%d chars): %s\n", len(response), response[:min(200, len(response))])
-	
+
 	// For now, manager approves if QA report shows 100% completion
 	// In a full implementation, the agent response would be parsed to determine approval
 	if qaReport.CompletionRatio >= 1.0 {
@@ -508,7 +535,7 @@ func (s *Session) runManagerAgent(ctx context.Context) error {
 // runCleanerAgent removes temporary files listed in temp_files.txt.
 func (s *Session) runCleanerAgent(ctx context.Context) error {
 	fmt.Println("=== Cleaner Agent: Removing Temporary Files ===")
-	
+
 	tempFilesPath := filepath.Join(s.Workspace, "temp_files.txt")
 	data, err := os.ReadFile(tempFilesPath)
 	if err != nil {
@@ -550,10 +577,10 @@ func (s *Session) runCleanerAgent(ctx context.Context) error {
 	}
 
 	fmt.Printf("Cleaner complete: %d files removed, %d errors\n", cleaned, errors)
-	
+
 	// Clear the temp_files.txt itself
 	os.Remove(tempFilesPath)
-	
+
 	return nil
 }
 

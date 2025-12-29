@@ -1,1 +1,16 @@
-debug: true
+agent_timeout: 300
+bash_timeout: 120
+detached: false
+docker_timeout: 600
+manager_frequency: 5
+max_iterations: 20
+metrics_port: 9090
+mock: false
+mock-agent: false
+mock-docker: false
+model: gemini-pro-latest
+name: ""
+path: ""
+provider: gemini
+timeout: 300
+verbose: true
