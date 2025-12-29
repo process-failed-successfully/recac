@@ -3,13 +3,13 @@
     "category": "functional",
     "description": "Dynamic Configuration: Set Value",
     "steps": ["Run 'agent config set <key> <value>'", "Verify config file is updated", "Verify application reflects change"],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
     "description": "Dynamic Configuration: List Keys",
     "steps": ["Run 'agent config list-keys'", "Verify output lists all available settings"],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",
