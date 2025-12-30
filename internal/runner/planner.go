@@ -16,6 +16,11 @@ type Feature struct {
 	Passes      bool     `json:"passes"`
 }
 
+var (
+	reJSON = regexp.MustCompile("(?s)```json(.*?)```")
+	reCode = regexp.MustCompile("(?s)```(.*?)```")
+)
+
 // GenerateFeatureList asks the agent to decompose the spec into features.
 func GenerateFeatureList(ctx context.Context, a agent.Agent, spec string) ([]Feature, error) {
 	prompt := fmt.Sprintf("You are a Lead Software Architect.\n" +
@@ -46,14 +51,12 @@ func GenerateFeatureList(ctx context.Context, a agent.Agent, spec string) ([]Fea
 
 func cleanJSON(input string) string {
 	// Remove ```json and ``` lines
-	re := regexp.MustCompile("(?s)```json(.*?)```")
-	match := re.FindStringSubmatch(input)
+	match := reJSON.FindStringSubmatch(input)
 	if len(match) > 1 {
 		return strings.TrimSpace(match[1])
 	}
 	// Try without json tag
-	re2 := regexp.MustCompile("(?s)```(.*?)```")
-	match2 := re2.FindStringSubmatch(input)
+	match2 := reCode.FindStringSubmatch(input)
 	if len(match2) > 1 {
 		return strings.TrimSpace(match2[1])
 	}
