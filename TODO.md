@@ -1,4 +1,4 @@
-
+# Rewrite of Combined Autonomous Coding (recac) - TODO
 
 Agent expansion:
 QA gets the specific commit where a feature is completed and tests and validates the change.

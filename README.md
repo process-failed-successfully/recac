@@ -1,6 +1,6 @@
 # recac - Rewrite of Combined Autonomous Coding
 
-`recac` (Rewrite of Combined Autonomous Coding) is a poorly named, but comprehensive CLI tool that automates the setup, management, and deployment of containerized applications. It leverages AI agents to assist with coding tasks, manages development environments via Docker, and integrates with JIRA for project management.
+`recac` (Rewrite of Combined Autonomous Coding) is a comprehensive CLI tool that automates the setup, management, and deployment of containerized applications. It leverages AI agents to assist with coding tasks, manages development environments via Docker, and integrates with JIRA for project management.
 
 ## Features
 
