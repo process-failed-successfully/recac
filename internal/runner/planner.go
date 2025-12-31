@@ -36,16 +36,19 @@ func GenerateFeatureList(ctx context.Context, a agent.Agent, spec string) (*db.F
 	return &featureList, nil
 }
 
+var (
+	reJSONBlock = regexp.MustCompile("(?s)```json(.*?)```")
+	reBlock     = regexp.MustCompile("(?s)```(.*?)```")
+)
+
 func cleanJSON(input string) string {
 	// Remove ```json and ``` lines
-	re := regexp.MustCompile("(?s)```json(.*?)```")
-	match := re.FindStringSubmatch(input)
+	match := reJSONBlock.FindStringSubmatch(input)
 	if len(match) > 1 {
 		return strings.TrimSpace(match[1])
 	}
 	// Try without json tag
-	re2 := regexp.MustCompile("(?s)```(.*?)```")
-	match2 := re2.FindStringSubmatch(input)
+	match2 := reBlock.FindStringSubmatch(input)
 	if len(match2) > 1 {
 		return strings.TrimSpace(match2[1])
 	}
