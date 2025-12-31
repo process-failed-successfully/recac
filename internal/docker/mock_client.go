@@ -1,8 +1,10 @@
 package docker
 
 import (
+	"bufio"
 	"context"
 	"io"
+	"net"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -97,7 +99,13 @@ func (m *MockAPI) ContainerExecAttach(ctx context.Context, execID string, config
 	if m.ContainerExecAttachFunc != nil {
 		return m.ContainerExecAttachFunc(ctx, execID, config)
 	}
-	return types.HijackedResponse{}, nil
+	// Return valid empty response to avoid panic
+	server, client := net.Pipe()
+	go server.Close() // Close immediately to simulate empty stream
+	return types.HijackedResponse{
+		Conn:   client,
+		Reader: bufio.NewReader(client),
+	}, nil
 }
 
 func (m *MockAPI) ContainerStop(ctx context.Context, containerID string, options container.StopOptions) error {

@@ -8,7 +8,7 @@ DOCKER_RUN_OPTS=--rm -v $(CURDIR):/app
 # Tools (Run inside Docker)
 DOCKER_CMD=docker run $(DOCKER_RUN_OPTS) $(DOCKER_IMAGE)
 
-all: lint test build ## Run lint, test, and build (in Docker)
+all: lint test build bridge ## Run lint, test, and build (in Docker)
 
 help: ## Show this help message
 	@grep -h -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
@@ -19,6 +19,9 @@ image: ## Build the helper Docker image
 
 build: image ## Build the recac binary (Linux) via Docker
 	$(DOCKER_CMD) go build -buildvcs=false -o $(BINARY_NAME) $(MAIN_PATH)
+
+bridge: image ## Build the agent-bridge binary (Linux) via Docker
+	$(DOCKER_CMD) go build -buildvcs=false -o agent-bridge ./cmd/agent-bridge
 
 test: image ## Run unit tests via Docker
 	$(DOCKER_CMD) go test -v ./...

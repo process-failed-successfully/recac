@@ -95,3 +95,12 @@ func (c *CursorCLIClient) Send(ctx context.Context, prompt string) (string, erro
 
 	return strings.TrimSpace(output), nil
 }
+
+// SendStream fallback for Cursor CLI (calls Send and emits once)
+func (c *CursorCLIClient) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+	resp, err := c.Send(ctx, prompt)
+	if err == nil && onChunk != nil {
+		onChunk(resp)
+	}
+	return resp, err
+}

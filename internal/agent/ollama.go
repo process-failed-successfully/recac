@@ -105,3 +105,12 @@ func (c *OllamaClient) Send(ctx context.Context, prompt string) (string, error) 
 
 	return response.Response, nil
 }
+
+// SendStream fallback for Ollama (calls Send and emits once)
+func (c *OllamaClient) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+	resp, err := c.Send(ctx, prompt)
+	if err == nil && onChunk != nil {
+		onChunk(resp)
+	}
+	return resp, err
+}

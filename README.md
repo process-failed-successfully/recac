@@ -1,6 +1,6 @@
-# recac - Rapid Environment for Containerized Application Development
+# recac - Rewrite of Combined Autonomous Coding
 
-`recac` (Recursive Autonomous Coding) is a comprehensive CLI tool that automates the setup, management, and deployment of containerized applications. It leverages AI agents to assist with coding tasks, manages development environments via Docker, and integrates with JIRA for project management.
+`recac` (Rewrite of Combined Autonomous Coding) is a poorly named, but comprehensive CLI tool that automates the setup, management, and deployment of containerized applications. It leverages AI agents to assist with coding tasks, manages development environments via Docker, and integrates with JIRA for project management.
 
 ## Features
 
@@ -120,6 +120,7 @@ recac feature status
 ## Architecture
 
 `recac` is built with a modular architecture:
+
 - **cmd/**: CLI entry points (Cobra).
 - **internal/agent/**: AI provider abstractions.
 - **internal/runner/**: The core workflow loop and state management.

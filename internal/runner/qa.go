@@ -2,6 +2,7 @@ package runner
 
 import (
 	"fmt"
+	"recac/internal/db"
 	"strings"
 )
 
@@ -10,19 +11,19 @@ type QAReport struct {
 	TotalFeatures   int
 	PassedFeatures  int
 	FailedFeatures  int
-	FailedList      []Feature
+	FailedList      []db.Feature
 	CompletionRatio float64
 }
 
 // RunQA analyzes the feature list and generates a report.
-func RunQA(features []Feature) QAReport {
+func RunQA(features []db.Feature) QAReport {
 	report := QAReport{
 		TotalFeatures: len(features),
-		FailedList:    []Feature{},
+		FailedList:    []db.Feature{},
 	}
 
 	for _, f := range features {
-		if f.Passes {
+		if f.Passes || f.Status == "done" || f.Status == "implemented" {
 			report.PassedFeatures++
 		} else {
 			report.FailedFeatures++
@@ -41,7 +42,7 @@ func RunQA(features []Feature) QAReport {
 func (r QAReport) String() string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("QA Report: %d/%d features passing (%.1f%%)\n", r.PassedFeatures, r.TotalFeatures, r.CompletionRatio*100))
-	
+
 	if r.FailedFeatures > 0 {
 		sb.WriteString("\nFailed Features:\n")
 		for _, f := range r.FailedList {
@@ -50,6 +51,6 @@ func (r QAReport) String() string {
 	} else {
 		sb.WriteString("\nAll systems operational.\n")
 	}
-	
+
 	return sb.String()
 }

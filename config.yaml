@@ -9,7 +9,7 @@ max_iterations: 20
 metrics_port: 9090
 mock: false
 mock-agent: false
-mock-docker: false
+
 model: gemini-pro-latest
 name: ""
 path: ""

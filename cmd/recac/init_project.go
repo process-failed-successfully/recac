@@ -7,10 +7,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"recac/internal/agent"
 	"recac/internal/runner"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var specFile string
@@ -21,39 +22,53 @@ func init() {
 	initProjectCmd.Flags().BoolVar(&forceInit, "force", false, "Overwrite existing files")
 	initProjectCmd.Flags().Bool("mock-agent", false, "Use mock agent for testing")
 	viper.BindPFlag("mock-agent", initProjectCmd.Flags().Lookup("mock-agent"))
-	
+
 	rootCmd.AddCommand(initProjectCmd)
 }
 
 type CLIMockAgent struct {
-
 	Response string
-
 }
-
-
 
 func (m *CLIMockAgent) Send(ctx context.Context, prompt string) (string, error) {
-
-	return m.Response, nil
-
+	return `{
+		"project_name": "Mock Project",
+		"features": [
+			{
+				"id": "feat-1",
+				"category": "core",
+				"description": "Initialize repository",
+				"status": "pending",
+				"steps": ["Run git init"],
+				"dependencies": {
+					"depends_on_ids": [],
+					"exclusive_write_paths": ["."],
+					"read_only_paths": []
+				}
+			}
+		]
+	}`, nil
 }
 
-
+func (m *CLIMockAgent) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+	resp := `{ "project_name": "Mock Project", "features": [] }`
+	if onChunk != nil {
+		onChunk(resp)
+	}
+	return resp, nil
+}
 
 var initProjectCmd = &cobra.Command{
 
-	Use:   "init-project",
+	Use: "init-project",
 
 	Short: "Initialize a new project structure",
 
-	Long:  `Scaffolds a new project based on the application specification. Generates feature_list.json and creates directory structure.`,
+	Long: `Scaffolds a new project based on the application specification. Generates feature_list.json and creates directory structure.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 
 		fmt.Printf("Initializing project from spec: %s\n", specFile)
-
-
 
 		// 1. Read Spec
 
@@ -67,8 +82,6 @@ var initProjectCmd = &cobra.Command{
 
 		}
 
-
-
 		// 2. Initialize Agent
 
 		var a agent.Agent
@@ -80,11 +93,9 @@ var initProjectCmd = &cobra.Command{
 			a = &CLIMockAgent{
 
 				Response: `[{"category":"core","description":"Initial Feature","steps":["Step 1"],"passes":false}]`,
-
 			}
 
 		} else {
-
 
 			apiKey := os.Getenv("GEMINI_API_KEY")
 			if apiKey == "" {
@@ -96,7 +107,7 @@ var initProjectCmd = &cobra.Command{
 
 		// 3. Generate Feature List
 		fmt.Println("Generating feature list (this may take a moment)...")
-		features, err := runner.GenerateFeatureList(context.Background(), a, string(specContent))
+		featureList, err := runner.GenerateFeatureList(context.Background(), a, string(specContent))
 		if err != nil {
 			fmt.Printf("Error generating feature list: %v\n", err)
 			os.Exit(1)
@@ -106,7 +117,7 @@ var initProjectCmd = &cobra.Command{
 		if _, err := os.Stat("feature_list.json"); err == nil && !forceInit {
 			fmt.Println("feature_list.json already exists. Use --force to overwrite.")
 		} else {
-			data, _ := json.MarshalIndent(features, "", "  ")
+			data, _ := json.MarshalIndent(featureList, "", "  ")
 			if err := os.WriteFile("feature_list.json", data, 0644); err != nil {
 				fmt.Printf("Error writing feature_list.json: %v\n", err)
 				os.Exit(1)

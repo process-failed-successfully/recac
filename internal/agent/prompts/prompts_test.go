@@ -30,8 +30,8 @@ func TestGetPrompt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetPrompt(ManagerReview) failed: %v", err)
 	}
-	if !strings.Contains(got2, "Engineering Manager") {
-		t.Errorf("Expected prompt to contain 'Engineering Manager', got %q", got2)
+	if !strings.Contains(got2, "PROJECT MANAGER") {
+		t.Errorf("Expected prompt to contain 'PROJECT MANAGER', got %q", got2)
 	}
 	if !strings.Contains(got2, "All tests passed!") {
 		t.Errorf("Expected prompt to contain 'All tests passed!', got %q", got2)

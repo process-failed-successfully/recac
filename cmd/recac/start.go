@@ -30,6 +30,8 @@ func init() {
 	startCmd.Flags().Bool("detached", false, "Run session in background (detached mode)")
 	startCmd.Flags().String("name", "", "Name for the session (required for detached mode)")
 	startCmd.Flags().String("jira", "", "Jira Ticket ID to start session from (e.g. PROJ-123)")
+	startCmd.Flags().Bool("manager-first", false, "Run the Manager Agent before the first coding session")
+	startCmd.Flags().Bool("stream", false, "Stream agent output to the console")
 	startCmd.Flags().Bool("allow-dirty", false, "Allow running with uncommitted git changes")
 	viper.BindPFlag("mock", startCmd.Flags().Lookup("mock"))
 	viper.BindPFlag("path", startCmd.Flags().Lookup("path"))
@@ -38,8 +40,12 @@ func init() {
 	viper.BindPFlag("detached", startCmd.Flags().Lookup("detached"))
 	viper.BindPFlag("name", startCmd.Flags().Lookup("name"))
 	viper.BindPFlag("jira", startCmd.Flags().Lookup("jira"))
+	viper.BindPFlag("manager_first", startCmd.Flags().Lookup("manager-first"))
+	viper.BindPFlag("stream", startCmd.Flags().Lookup("stream"))
 	viper.BindPFlag("allow_dirty", startCmd.Flags().Lookup("allow-dirty"))
+	startCmd.Flags().String("model", "", "Model to use (overrides config and RECAC_MODEL env var)")
 	startCmd.Flags().String("provider", "", "Agent provider (gemini, gemini-cli, openai, etc)")
+	viper.BindPFlag("model", startCmd.Flags().Lookup("model"))
 	viper.BindPFlag("provider", startCmd.Flags().Lookup("provider"))
 	rootCmd.AddCommand(startCmd)
 }
@@ -283,9 +289,10 @@ var startCmd = &cobra.Command{
 			}
 
 			// Start Session
-			session := runner.NewSession(dockerCli, agentClient, projectPath, "ubuntu:latest")
+			session := runner.NewSession(dockerCli, agentClient, projectPath, "recac-agent:latest")
 			session.MaxIterations = maxIterations
 			session.ManagerFrequency = managerFrequency
+			session.StreamOutput = viper.GetBool("stream")
 
 			// Configure StateManager for agents that support it (e.g., Gemini)
 			if session.StateManager != nil {
@@ -417,15 +424,21 @@ var startCmd = &cobra.Command{
 		}
 
 		// Determine model
-		// Priority: RECAC_MODEL (env) > Provider default > Config
-		// We explicitly check env to allow overriding config.yaml
+		// Priority: --model (flag) > RECAC_MODEL (env) > Provider default > Config
+		// Note: viper.GetString("model") returns the flag value if set,
+		// otherwise it falls back to config.
 		model := viper.GetString("model")
 		envModel := os.Getenv("RECAC_MODEL")
-		if envModel != "" {
+
+		// If the flag was NOT set (empty), check if env var exists
+		// If flag IS set, viper.GetString already has it.
+		// However, to be explicit about priority:
+		if !cmd.Flags().Changed("model") && envModel != "" {
 			model = envModel
-		} else {
-			// If no explicit env model, verify/override defaults for specific providers
-			// ignoring potentially incompatible values from config.yaml
+		}
+
+		if model == "" {
+			// If no explicit flag or env, verify/override defaults for specific providers
 			if provider == "gemini-cli" {
 				model = "auto"
 			} else if provider == "cursor-cli" {
@@ -451,16 +464,18 @@ var startCmd = &cobra.Command{
 			apiKey = "dummy-key" // Allow starting without key (will fail on Send)
 		}
 
-		agentClient, err := agent.NewAgent(provider, apiKey, model)
+		agentClient, err := agent.NewAgent(provider, apiKey, model, projectPath)
 		if err != nil {
 			fmt.Printf("Failed to initialize agent: %v\n", err)
 			os.Exit(1)
 		}
 
 		// Start Session
-		session := runner.NewSession(dockerCli, agentClient, projectPath, "ubuntu:latest")
+		session := runner.NewSession(dockerCli, agentClient, projectPath, "recac-agent:latest")
 		session.MaxIterations = maxIterations
 		session.ManagerFrequency = managerFrequency
+		session.ManagerFirst = viper.GetBool("manager_first")
+		session.StreamOutput = viper.GetBool("stream")
 
 		// Configure StateManager for agents that support it (Gemini, OpenAI)
 		if session.StateManager != nil {

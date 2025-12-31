@@ -20,7 +20,7 @@ func TestCLIAgentsManual(t *testing.T) {
 
 	// Test Gemini CLI
 	t.Log("--- Testing Gemini CLI ---")
-	gemini, err := NewAgent("gemini-cli", "", "auto")
+	gemini, err := NewAgent("gemini-cli", "", "auto", "")
 	if err != nil {
 		t.Logf("Failed to create Gemini CLI agent: %v", err)
 	} else {
@@ -34,7 +34,7 @@ func TestCLIAgentsManual(t *testing.T) {
 
 	// Test Cursor CLI
 	t.Log("\n--- Testing Cursor CLI ---")
-	cursor, err := NewAgent("cursor-cli", "", "auto")
+	cursor, err := NewAgent("cursor-cli", "", "auto", "")
 	if err != nil {
 		t.Logf("Failed to create Cursor CLI agent: %v", err)
 	} else {

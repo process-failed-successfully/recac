@@ -2,9 +2,10 @@ package runner
 
 import (
 	"context"
+	"recac/internal/db"
+	"recac/internal/pkg/git"
 	"strings"
 	"testing"
-	"recac/internal/pkg/git"
 )
 
 type MockManagerAgent struct {
@@ -14,6 +15,13 @@ type MockManagerAgent struct {
 
 func (m *MockManagerAgent) Send(ctx context.Context, prompt string) (string, error) {
 	m.ReceivedPrompt = prompt
+	return m.Response, nil
+}
+
+func (m *MockManagerAgent) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+	if onChunk != nil {
+		onChunk(m.Response)
+	}
 	return m.Response, nil
 }
 
@@ -51,10 +59,10 @@ func TestWorkflow_RunCycle_InvokesManager(t *testing.T) {
 	// Setup
 	mockManager := &MockManagerAgent{Response: "Focus on UI"}
 	workflow := NewWorkflow(nil, mockManager)
-	
+
 	// Add a failing feature to verify it appears in the prompt
-	workflow.Features = []Feature{
-		{Category: "ui", Description: "Broken Button", Passes: false},
+	workflow.Features = []db.Feature{
+		{Category: "ui", Description: "Broken Button", Status: "pending"},
 	}
 
 	// Execute
@@ -81,13 +89,13 @@ func TestWorkflow_FinishFeature(t *testing.T) {
 	mockManager := &MockManagerAgent{Response: "Detailed PR Description"}
 	mockGitOps := &MockGitOps{}
 	workflow := NewWorkflowWithGitOps(nil, mockManager, mockGitOps)
-	
+
 	featureName := "new-button"
 	err := workflow.FinishFeature(context.Background(), featureName)
 	if err != nil {
 		t.Fatalf("FinishFeature failed: %v", err)
 	}
-	
+
 	// Verify Manager Agent was called to generate PR description
 	if !strings.Contains(mockManager.ReceivedPrompt, featureName) {
 		t.Errorf("Expected prompt to contain feature name, got %q", mockManager.ReceivedPrompt)
@@ -95,7 +103,7 @@ func TestWorkflow_FinishFeature(t *testing.T) {
 	if !strings.Contains(mockManager.ReceivedPrompt, "PR description") {
 		t.Errorf("Expected prompt to contain 'PR description', got %q", mockManager.ReceivedPrompt)
 	}
-	
+
 	// Verify git.Push was called
 	if !mockGitOps.PushCalled {
 		t.Error("Expected Push to be called, but it was not")
@@ -104,7 +112,7 @@ func TestWorkflow_FinishFeature(t *testing.T) {
 	if mockGitOps.PushBranch != expectedBranch {
 		t.Errorf("Expected Push to be called with branch %q, got %q", expectedBranch, mockGitOps.PushBranch)
 	}
-	
+
 	// Verify git.CreatePR was called
 	if !mockGitOps.CreatePRCalled {
 		t.Error("Expected CreatePR to be called, but it was not")

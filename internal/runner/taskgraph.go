@@ -4,17 +4,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"recac/internal/db"
 	"sync"
 )
 
 // TaskNode represents a task in the dependency graph
 type TaskNode struct {
-	ID           string   `json:"id"`
-	Name         string   `json:"name"`
-	Dependencies []string `json:"dependencies,omitempty"` // IDs of dependencies
-	Status        TaskStatus `json:"status"`
-	Error       error     `json:"-"`
-	mu          sync.RWMutex
+	ID           string     `json:"id"`
+	Name         string     `json:"name"`
+	Dependencies []string   `json:"dependencies,omitempty"` // IDs of dependencies
+	Status       TaskStatus `json:"status"`
+	Error        error      `json:"-"`
+	mu           sync.RWMutex
 }
 
 // TaskStatus represents the execution status of a task
@@ -22,7 +23,7 @@ type TaskStatus string
 
 const (
 	TaskPending    TaskStatus = "pending"
-	TaskReady      TaskStatus = "ready"      // All dependencies satisfied
+	TaskReady      TaskStatus = "ready" // All dependencies satisfied
 	TaskInProgress TaskStatus = "in_progress"
 	TaskDone       TaskStatus = "done"
 	TaskFailed     TaskStatus = "failed"
@@ -45,11 +46,11 @@ func NewTaskGraph() *TaskGraph {
 func (g *TaskGraph) AddNode(id, name string, dependencies []string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	
+
 	if g.Nodes == nil {
 		g.Nodes = make(map[string]*TaskNode)
 	}
-	
+
 	g.Nodes[id] = &TaskNode{
 		ID:           id,
 		Name:         name,
@@ -65,38 +66,52 @@ func (g *TaskGraph) LoadFromFeatureList(filePath string) error {
 		return fmt.Errorf("failed to read feature_list.json: %w", err)
 	}
 
-	var features []struct {
-		Category    string   `json:"category"`
-		Description string   `json:"description"`
-		Steps       []string `json:"steps"`
-		Passes      bool     `json:"passes"`
-		Dependencies []string `json:"dependencies,omitempty"` // Optional dependency field
-	}
-
-	if err := json.Unmarshal(data, &features); err != nil {
+	var featureList db.FeatureList
+	if err := json.Unmarshal(data, &featureList); err != nil {
 		return fmt.Errorf("failed to parse feature_list.json: %w", err)
 	}
 
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	
+
 	if g.Nodes == nil {
 		g.Nodes = make(map[string]*TaskNode)
 	}
 
 	// Create task nodes from features
-	for i, feature := range features {
-		taskID := fmt.Sprintf("task-%d", i)
-		deps := feature.Dependencies
+	for _, feature := range featureList.Features {
+		// Use feature.ID as the task ID directly if available, otherwise fallback (though ID should be present)
+		taskID := feature.ID
+		if taskID == "" {
+			// Fallback generation if ID is missing (should verify schema instead maybe?)
+			taskID = fmt.Sprintf("task-%s", feature.Category)
+		}
+
+		deps := feature.Dependencies.DependsOnIDs
 		if deps == nil {
 			deps = []string{}
 		}
-		
+
+		// Map generic status to TaskStatus
+		var status TaskStatus
+		if feature.Passes || feature.Status == "done" || feature.Status == "implemented" {
+			status = TaskDone
+		} else {
+			switch feature.Status {
+			case "in_progress":
+				status = TaskInProgress
+			case "failed":
+				status = TaskFailed
+			default:
+				status = TaskPending
+			}
+		}
+
 		g.Nodes[taskID] = &TaskNode{
 			ID:           taskID,
 			Name:         feature.Description,
 			Dependencies: deps,
-			Status:       TaskPending,
+			Status:       status,
 		}
 	}
 
@@ -267,7 +282,7 @@ func (g *TaskGraph) MarkTaskStatus(taskID string, status TaskStatus, err error) 
 
 	node.mu.Lock()
 	defer node.mu.Unlock()
-	
+
 	node.Status = status
 	node.Error = err
 
@@ -286,7 +301,7 @@ func (g *TaskGraph) GetTaskStatus(taskID string) (TaskStatus, error) {
 
 	node.mu.RLock()
 	defer node.mu.RUnlock()
-	
+
 	return node.Status, nil
 }
 

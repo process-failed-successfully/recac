@@ -3,6 +3,7 @@ package docker
 import (
 	"bytes"
 	"context"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,6 +19,9 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
+
+//go:embed agent.Dockerfile
+var DefaultAgentDockerfile string
 
 // APIClient defines the subset of Docker API methods we use.
 // This allows for mocking in tests.
@@ -61,6 +65,24 @@ func (c *Client) CheckDaemon(ctx context.Context) error {
 		return fmt.Errorf("docker daemon is not reachable: %w", err)
 	}
 	return nil
+}
+
+// ImageExists checks if an image with the given tag exists locally.
+func (c *Client) ImageExists(ctx context.Context, tag string) (bool, error) {
+	images, err := c.api.ImageList(ctx, image.ListOptions{})
+	if err != nil {
+		return false, fmt.Errorf("failed to list images: %w", err)
+	}
+
+	for _, img := range images {
+		for _, t := range img.RepoTags {
+			if t == tag {
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
 }
 
 // CheckSocket verifies that the Docker socket is accessible.
@@ -140,7 +162,7 @@ func (c *Client) PullImage(ctx context.Context, imageRef string) error {
 
 // RunContainer starts a container with the specified image and mounts the workspace.
 // It returns the container ID or an error.
-func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string) (string, error) {
+func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, user string) (string, error) {
 	// 1. Pull Image (Best effort)
 	reader, err := c.api.ImagePull(ctx, imageRef, image.PullOptions{})
 	if err == nil {
@@ -160,6 +182,7 @@ func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace st
 	resp, err := c.api.ContainerCreate(ctx,
 		&container.Config{
 			Image:      imageRef,
+			User:       user,
 			Tty:        true, // Keep it running
 			OpenStdin:  true, // Keep stdin open
 			WorkingDir: "/workspace",

@@ -80,7 +80,7 @@ func (c *GeminiClient) Send(ctx context.Context, prompt string) (string, error) 
 		// Update current token count
 		state.CurrentTokens = promptTokens
 		state.TokenUsage.TotalPromptTokens += promptTokens
-		
+
 		// Log token usage
 		fmt.Printf("Token usage: prompt=%d, current=%d/%d, total_prompt=%d, truncations=%d\n",
 			promptTokens, state.CurrentTokens, maxTokens,
@@ -206,4 +206,13 @@ func (c *GeminiClient) sendOnce(ctx context.Context, prompt string) (string, err
 	}
 
 	return response.Candidates[0].Content.Parts[0].Text, nil
+}
+
+// SendStream fallback for Gemini (calls Send and emits once)
+func (c *GeminiClient) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+	resp, err := c.Send(ctx, prompt)
+	if err == nil && onChunk != nil {
+		onChunk(resp)
+	}
+	return resp, err
 }

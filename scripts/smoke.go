@@ -22,7 +22,14 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(prompt, "INITIALIZER") {
 		return "Plan: Create a hello world file.\nCommand: echo 'Hello Real World' > hello.txt", nil
 	}
-	return "Task completed.", nil
+	return "Mock response", nil
+}
+
+func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+	if onChunk != nil {
+		onChunk("Mock response")
+	}
+	return "Mock response", nil
 }
 
 func main() {
@@ -80,7 +87,7 @@ func main() {
 
 		// Just create it, if it fails validation later that's fine (smoke test purpose)
 		var err error
-		agentClient, err = agent.NewAgent(agentType, apiKey, model)
+		agentClient, err = agent.NewAgent(agentType, apiKey, model, "")
 		if err != nil {
 			fmt.Printf("Failed to create agent %s: %v\n", agentType, err)
 			os.Exit(1)

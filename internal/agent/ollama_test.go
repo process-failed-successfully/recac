@@ -204,7 +204,7 @@ func TestOllamaProvider_Integration(t *testing.T) {
 	defer server.Close()
 
 	// Step 2: Set the agent provider to 'ollama' and specify a model profile
-	agentClient, err := NewAgent("ollama", server.URL, "mistral")
+	agentClient, err := NewAgent("ollama", server.URL, "mistral", "")
 	if err != nil {
 		t.Fatalf("failed to create Ollama agent: %v", err)
 	}

@@ -347,7 +347,7 @@ func TestDockerInDocker_Support(t *testing.T) {
 	defer os.RemoveAll(testWorkspace)
 
 	// Create nested container
-	containerID, err := client.RunContainer(ctx, testImage, testWorkspace, nil)
+	containerID, err := client.RunContainer(ctx, testImage, testWorkspace, nil, "")
 	if err != nil {
 		t.Fatalf("Failed to create nested container: %v", err)
 	}

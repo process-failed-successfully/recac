@@ -1,6 +1,8 @@
 package runner
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -88,7 +90,7 @@ func TestTaskGraph_GetReadyTasks(t *testing.T) {
 	g := NewTaskGraph()
 	// 1 (done) -> 2 (pending)
 	// 3 (pending) -> 4 (pending)
-	
+
 	g.AddNode("1", "Task 1", nil)
 	g.AddNode("2", "Task 2", []string{"1"})
 	g.AddNode("3", "Task 3", nil)
@@ -96,25 +98,25 @@ func TestTaskGraph_GetReadyTasks(t *testing.T) {
 
 	// Initially, 1 and 3 should be ready
 	ready := g.GetReadyTasks()
-	
+
 	// Since using map, order is random, check for containment
 	if len(ready) != 2 {
 		t.Errorf("Expected 2 ready tasks, got %d", len(ready))
 	}
 
 	g.MarkTaskStatus("1", TaskDone, nil)
-	
+
 	// Now 2 and 3 should be ready (1 is done, so 2 becomes ready. 3 is still ready)
 	ready = g.GetReadyTasks()
-	
+
 	// 1 is done, so it's not "ready" (pending/ready status filter in GetReadyTasks might exclude done tasks? let's check implementation)
 	// Implementation: if node.Status != TaskPending && node.Status != TaskReady { continue }
 	// So done tasks are excluded.
-	
+
 	// 2 depends on 1 (Done). So 2 is ready.
 	// 3 depends on nothing. So 3 is ready.
 	// 4 depends on 3 (Pending). So 4 is not ready.
-	
+
 	expected := map[string]bool{"2": true, "3": true}
 	found := 0
 	for _, id := range ready {
@@ -144,7 +146,7 @@ func TestTaskGraph_TaskStatus(t *testing.T) {
 	if status != TaskInProgress {
 		t.Errorf("Expected status InProgress, got %s", status)
 	}
-	
+
 	// Test unknown task
 	_, err = g.GetTaskStatus("999")
 	if err == nil {
@@ -155,16 +157,16 @@ func TestTaskGraph_TaskStatus(t *testing.T) {
 func TestTaskGraph_AllTasksDone(t *testing.T) {
 	g := NewTaskGraph()
 	g.AddNode("1", "Task 1", nil)
-	
+
 	if g.AllTasksDone() {
 		t.Error("Expected false when task is pending")
 	}
-	
+
 	g.MarkTaskStatus("1", TaskDone, nil)
 	if !g.AllTasksDone() {
 		t.Error("Expected true when all tasks done")
 	}
-	
+
 	g.MarkTaskStatus("1", TaskFailed, nil)
 	if !g.AllTasksDone() {
 		t.Error("Expected true when task failed (completed)")
@@ -175,10 +177,10 @@ func TestTaskGraph_GetTaskSummary(t *testing.T) {
 	g := NewTaskGraph()
 	g.AddNode("1", "Task 1", nil)
 	g.AddNode("2", "Task 2", nil)
-	
+
 	g.MarkTaskStatus("1", TaskDone, nil)
 	g.MarkTaskStatus("2", TaskPending, nil)
-	
+
 	summary := g.GetTaskSummary()
 	if summary[TaskDone] != 1 {
 		t.Errorf("Expected 1 done task, got %d", summary[TaskDone])
@@ -189,8 +191,61 @@ func TestTaskGraph_GetTaskSummary(t *testing.T) {
 }
 
 func TestTaskGraph_LoadFromFeatureList(t *testing.T) {
-    // We need a temp file for this
-    // Skipping for now or mocking os.ReadFile if we could, 
-    // but better to rely on integration tests or mocking the file system.
-    // For unit test, we can try to write a temp file.
+	tg := NewTaskGraph()
+	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "feature_list.json")
+
+	// Create dummy feature_list.json
+	featureListContent := `
+	{
+		"project_name": "Test Project",
+		"features": [
+			{
+				"id": "feat-1",
+				"category": "core",
+				"description": "Core Feature",
+				"steps": ["Step 1"],
+				"status": "pending",
+				"dependencies": {
+					"depends_on_ids": [],
+					"exclusive_write_paths": ["core/"],
+					"read_only_paths": []
+				}
+			},
+			{
+				"id": "feat-2",
+				"category": "ui", 
+				"description": "UI Feature",
+				"steps": ["Step 1"],
+				"status": "pending",
+				"dependencies": {
+					"depends_on_ids": ["feat-1"],
+					"exclusive_write_paths": ["ui/"],
+					"read_only_paths": []
+				}
+			}
+		]
+	}`
+	os.WriteFile(filePath, []byte(featureListContent), 0644)
+
+	// Load
+	err := tg.LoadFromFeatureList(filePath)
+	if err != nil {
+		t.Fatalf("LoadFromFeatureList failed: %v", err)
+	}
+
+	// Verify
+	taskA, err := tg.GetTask("feat-1")
+	if err != nil {
+		t.Error("feat-1 not found")
+	} else if taskA.Name != "Core Feature" {
+		t.Errorf("Expected Core Feature, got %s", taskA.Name)
+	}
+
+	taskB, err := tg.GetTask("feat-2")
+	if err != nil {
+		t.Error("feat-2 not found")
+	} else if len(taskB.Dependencies) != 1 || taskB.Dependencies[0] != "feat-1" {
+		t.Errorf("Expected dependency on feat-1, got %v", taskB.Dependencies)
+	}
 }

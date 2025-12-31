@@ -12,14 +12,16 @@ import (
 
 // GeminiCLIClient implements the Agent interface for the Gemini CLI
 type GeminiCLIClient struct {
-	model string
+	model   string
+	workDir string
 }
 
 // NewGeminiCLIClient creates a new Gemini CLI client
 // apiKey is ignored as the CLI handles auth
-func NewGeminiCLIClient(apiKey, model string) *GeminiCLIClient {
+func NewGeminiCLIClient(apiKey, model, workDir string) *GeminiCLIClient {
 	return &GeminiCLIClient{
-		model: model,
+		model:   model,
+		workDir: workDir,
 	}
 }
 
@@ -44,9 +46,10 @@ func (c *GeminiCLIClient) Send(ctx context.Context, prompt string) (string, erro
 	cmd.Stderr = &stderr
 
 	// Run command
-	// Note: We don't set a specific Cwd here as the CLI should run from where recac runs,
-	// or it might rely on the project directory. The python equivalent passes the project dir.
-	// For now, let's inherit current working directory
+	// Set Cwd for the command to the project workspace
+	if c.workDir != "" {
+		cmd.Dir = c.workDir
+	}
 	cmd.Env = os.Environ()
 	// Ensure stdout is captured in text mode
 	// Python side does: cmd = ["gemini", "--output-format", "text", "--approval-mode", "yolo"]
@@ -75,6 +78,15 @@ func (c *GeminiCLIClient) Send(ctx context.Context, prompt string) (string, erro
 
 	// In text output mode, the stdout is the response content
 	return strings.TrimSpace(output), nil
+}
+
+// SendStream fallback for Gemini CLI (calls Send and emits once)
+func (c *GeminiCLIClient) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+	resp, err := c.Send(ctx, prompt)
+	if err == nil && onChunk != nil {
+		onChunk(resp)
+	}
+	return resp, err
 }
 
 // MockGeminiCLIClient is a mock for testing
