@@ -1,0 +1,24 @@
+# Git
+.git
+.gitignore
+
+# Go
+recac
+*.exe
+*.test
+*.out
+go.work
+vendor/
+
+# Node
+node_modules/
+npm-debug.log
+
+# Temporary
+tmp/
+temp/
+*smoke-test*
+
+# Docker
+*.Dockerfile
+recac-build

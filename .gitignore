@@ -1,5 +1,45 @@
-bin/
-dist/
-*.log
-.agent_state.json
+# Binaries
 /recac
+recac-*
+*.exe
+*.dll
+
+# Development environment
+.recac/
+.env
+.env.local
+.env.*.local
+
+# Docker
+docker-compose.override.yml
+docker-compose.dev.yml
+
+# Go
+vendor/
+*.test
+*.out
+coverage.out
+coverage.html
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Test projects
+test_projects/*/
+!test_projects/.gitkeep
+
+# Temporary files
+tmp/
+temp/

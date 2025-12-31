@@ -21,9 +21,14 @@ type WorkerPool struct {
 
 // NewWorkerPool creates a new worker pool.
 func NewWorkerPool(numWorkers int) *WorkerPool {
+	// Use buffered channel to prevent deadlocks when submitting many tasks
+	bufferSize := numWorkers * 10 // Allow 10x worker count as buffer
+	if bufferSize < 100 {
+		bufferSize = 100 // Minimum buffer size
+	}
 	return &WorkerPool{
 		NumWorkers: numWorkers,
-		Tasks:      make(chan Task),
+		Tasks:      make(chan Task, bufferSize),
 	}
 }
 

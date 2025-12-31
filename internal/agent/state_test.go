@@ -2,6 +2,7 @@ package agent
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -125,5 +126,73 @@ func TestStateManager_AgentMemoryPersistence(t *testing.T) {
 
 	if len(fileState.Memory) != len(memoryItems) {
 		t.Errorf("File state has %d memory items, expected %d", len(fileState.Memory), len(memoryItems))
+	}
+}
+
+func TestStateManager_InitializeState(t *testing.T) {
+	tmpDir := t.TempDir()
+	stateFile := filepath.Join(tmpDir, ".agent_state.json")
+	sm := NewStateManager(stateFile)
+
+	// Test 1: Initialize with max tokens
+	if err := sm.InitializeState(1000); err != nil {
+		t.Fatalf("InitializeState failed: %v", err)
+	}
+
+	state, err := sm.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.MaxTokens != 1000 {
+		t.Errorf("Expected MaxTokens 1000, got %d", state.MaxTokens)
+	}
+
+	// Test 2: Initialize again should NOT overwrite (if existing is non-zero)
+	// But wait, the logic says: "Only set max_tokens if it's not already set (0 or uninitialized)"
+	// So calling it again with a different value should do nothing.
+	if err := sm.InitializeState(2000); err != nil {
+		t.Fatal(err)
+	}
+	
+	state, err = sm.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.MaxTokens != 1000 {
+		t.Errorf("Expected MaxTokens to remain 1000, got %d", state.MaxTokens)
+	}
+}
+
+func TestStateManager_Concurrency(t *testing.T) {
+	tmpDir := t.TempDir()
+	stateFile := filepath.Join(tmpDir, ".agent_state.json")
+	sm := NewStateManager(stateFile)
+	
+	concurrency := 10
+	done := make(chan bool)
+
+	// Initialize first
+	sm.InitializeState(1000)
+
+	// Launch concurrent writers
+	for i := 0; i < concurrency; i++ {
+		go func(id int) {
+			sm.AddMemory(fmt.Sprintf("Memory %d", id))
+			done <- true
+		}(i)
+	}
+
+	// Wait for all
+	for i := 0; i < concurrency; i++ {
+		<-done
+	}
+
+	state, err := sm.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(state.Memory) != concurrency {
+		t.Errorf("Expected %d memory items, got %d", concurrency, len(state.Memory))
 	}
 }

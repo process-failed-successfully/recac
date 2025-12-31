@@ -39,38 +39,68 @@ func TestWizardModel_Input(t *testing.T) {
 		t.Errorf("Expected text input value 'test-project', got '%s'", m.textInput.Value())
 	}
 
-	// Simulate Enter
+	// Simulate Enter to set path
 	msg := tea.KeyMsg{Type: tea.KeyEnter}
 	updatedModel, _ := m.Update(msg)
 	m = updatedModel.(WizardModel)
 
-	if !m.done {
-		t.Error("Expected model to be done after Enter")
+	if m.done {
+		t.Error("Expected model NOT to be done after first Enter (Path step)")
+	}
+	if m.step != StepProvider {
+		t.Error("Expected to transition to StepProvider")
 	}
 	if m.Path != "test-project" {
 		t.Errorf("Expected path 'test-project', got '%s'", m.Path)
 	}
 
+	// Step 2: Provider Selection
+	// Default selected item is usually the first one ("Gemini") or index 0.
+	// Let's verify list is active.
+	if len(m.list.Items()) == 0 {
+		t.Error("Expected provider list to have items")
+	}
+
+	// Simulate selecting the second item ("Gemini CLI")
+	// Down key
+	msg = tea.KeyMsg{Type: tea.KeyDown}
+	updatedModel, _ = m.Update(msg)
+	m = updatedModel.(WizardModel)
+
+	// Simulate Enter to select provider
+	msg = tea.KeyMsg{Type: tea.KeyEnter}
+	updatedModel, _ = m.Update(msg)
+	m = updatedModel.(WizardModel)
+
+	if !m.done {
+		t.Error("Expected model to be done after second Enter (Provider step)")
+	}
+	if m.Provider != "gemini-cli" {
+		t.Errorf("Expected provider 'gemini-cli', got '%s'", m.Provider)
+	}
+
 	// Check final view
 	view := m.View()
-		if !strings.Contains(view, "Selected project: test-project") {
-			t.Errorf("Expected final view to show selected project, got: %s", view)
-		}
+	if !strings.Contains(view, "Selected project: test-project") {
+		t.Errorf("Expected final view to show selected project, got: %s", view)
 	}
-	
-	func TestWizardModel_Quit(t *testing.T) {
-		m := NewWizardModel()
-	
-		// Simulate Ctrl+C
-		msg := tea.KeyMsg{Type: tea.KeyCtrlC}
-		_, cmd := m.Update(msg)
-		
-		if cmd == nil {
-			t.Fatal("Expected a command after Ctrl+C, got nil")
-		}
-		
-		// We can't easily check if it's tea.Quit because it's an internal type/function in bubbletea
-		// but we can check the behavior in our app if we want.
-		// Actually, tea.Quit() returns a tea.Cmd which is a func() tea.Msg.
+	if !strings.Contains(view, "Selected provider: gemini-cli") {
+		t.Errorf("Expected final view to show selected provider, got: %s", view)
 	}
-	
+}
+
+func TestWizardModel_Quit(t *testing.T) {
+	m := NewWizardModel()
+
+	// Simulate Ctrl+C
+	msg := tea.KeyMsg{Type: tea.KeyCtrlC}
+	_, cmd := m.Update(msg)
+
+	if cmd == nil {
+		t.Fatal("Expected a command after Ctrl+C, got nil")
+	}
+
+	// We can't easily check if it's tea.Quit because it's an internal type/function in bubbletea
+	// but we can check the behavior in our app if we want.
+	// Actually, tea.Quit() returns a tea.Cmd which is a func() tea.Msg.
+}

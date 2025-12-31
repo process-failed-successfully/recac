@@ -1,502 +1,62 @@
 [
   {
-    "category": "cli",
-    "description": "Verify the CLI application prints the version number when the version command is run.",
-    "steps": [
-      "Step 1: Build the binary using `go build -o recac ./cmd/recac`",
-      "Step 2: Run `./recac version`",
-      "Step 3: Verify the output contains the current semantic version (e.g., v0.1.0)"
-    ],
+    "category": "functional",
+    "description": "Dynamic Configuration: Set Value",
+    "steps": ["Run 'agent config set <key> <value>'", "Verify config file is updated", "Verify application reflects change"],
     "passes": true
   },
   {
-    "category": "cli",
-    "description": "Verify the CLI application displays the help message with all available commands.",
-    "steps": [
-      "Step 1: Run `./recac --help`",
-      "Step 2: Verify the output lists 'start', 'sprint', 'version', and other subcommands",
-      "Step 3: Verify command descriptions are present"
-    ],
+    "category": "functional",
+    "description": "Dynamic Configuration: List Keys",
+    "steps": ["Run 'agent config list-keys'", "Verify output lists all available settings"],
     "passes": true
   },
   {
-    "category": "config",
-    "description": "Verify configuration is loaded correctly from a default config file (config.yaml).",
-    "steps": [
-      "Step 1: Create a `config.yaml` file with specific test values (e.g., debug: true)",
-      "Step 2: Run `./recac start --config config.yaml`",
-      "Step 3: Verify the application logs indicate debug mode is enabled"
-    ],
+    "category": "functional",
+    "description": "Dynamic Configuration: List Models",
+    "steps": ["Run 'agent config list-models'", "Verify output lists compatible models for active provider"],
     "passes": true
   },
   {
-    "category": "config",
-    "description": "Verify environment variables override config file values.",
-    "steps": [
-      "Step 1: Set environment variable `RECAC_DEBUG=true`",
-      "Step 2: Run `./recac start` with a config file where debug is false",
-      "Step 3: Verify the application runs in debug mode"
-    ],
+    "category": "functional",
+    "description": "Jira Workflow: Run with Ticket ID",
+    "steps": ["Run 'agent run --jira <TICKET_ID>'", "Verify context is initialized from ticket"],
     "passes": true
   },
   {
-    "category": "tui",
-    "description": "Verify the interactive project setup wizard appears when running start without arguments.",
-    "steps": [
-      "Step 1: Run `./recac start`",
-      "Step 2: Verify a Bubble Tea form appears asking for the project directory",
-      "Step 3: Verify navigation between form fields works with Tab/Enter"
-    ],
+    "category": "functional",
+    "description": "Jira Workflow: Workspace Isolation",
+    "steps": ["Run 'agent run --jira <TICKET_ID>'", "Verify temporary workspace is created and used"],
     "passes": true
   },
   {
-    "category": "tui",
-    "description": "Verify the TUI main dashboard loads with correct layout (Left, Right, Footer panes).",
-    "steps": [
-      "Step 1: Start a mock session `./recac start --mock`",
-      "Step 2: Verify the screen is split into at least two main vertical panes",
-      "Step 3: Verify the footer exists with key metrics"
-    ],
+    "category": "functional",
+    "description": "Jira Workflow: Status Sync",
+    "steps": ["Run 'agent run --jira <TICKET_ID>'", "Perform actions", "Verify Jira ticket status updates automatically"],
     "passes": true
   },
   {
-    "category": "tui",
-    "description": "Verify the log pane (Right Pane) displays syntax-highlighted agent thoughts.",
-    "steps": [
-      "Step 1: Trigger a mock agent thought event",
-      "Step 2: Observe the right pane",
-      "Step 3: Verify the text is displayed with appropriate colors (e.g., green for thoughts, red for errors)"
-    ],
+    "category": "functional",
+    "description": "Pre-flight: Git Clean Check",
+    "steps": ["Run 'agent run ...' with dirty git state", "Verify execution warns or stops"],
     "passes": true
   },
   {
-    "category": "tui",
-    "description": "Verify the progress bar updates visually during a long-running task.",
-    "steps": [
-      "Step 1: Trigger a mock long task",
-      "Step 2: Verify the progress bar fills from 0% to 100%",
-      "Step 3: Verify the percentage text updates"
-    ],
+    "category": "functional",
+    "description": "Pre-flight: Dependency Auto-Fix",
+    "steps": ["Run 'agent check'", "Verify it detects and fixes minor local issues"],
     "passes": true
   },
   {
-    "category": "tui",
-    "description": "Verify the application handles terminal resize gracefully.",
-    "steps": [
-      "Step 1: Start the TUI",
-      "Step 2: Resize the terminal window to a smaller size",
-      "Step 3: Verify the layout adjusts without crashing or overlapping text significantly"
-    ],
+    "category": "functional",
+    "description": "Logs: Follow Mode",
+    "steps": ["Run 'agent logs -f'", "Verify logs stream in real-time"],
     "passes": true
   },
   {
-    "category": "docker",
-    "description": "Verify the Go application can successfully verify Docker is running.",
-    "steps": [
-      "Step 1: Run `./recac check-docker` (internal dev command or startup check)",
-      "Step 2: Verify it returns success if Docker daemon is active",
-      "Step 3: Stop Docker and verify it reports a meaningful error"
-    ],
-    "passes": true
-  },
-  {
-    "category": "docker",
-    "description": "Verify the application can spin up a container with the correct image.",
-    "steps": [
-      "Step 1: Configure a test image in config",
-      "Step 2: Trigger a container start",
-      "Step 3: Run `docker ps` to verify the container is running with the correct name"
-    ],
-    "passes": true
-  },
-  {
-    "category": "docker",
-    "description": "Verify the application mounts the workspace directory correctly into the container.",
-    "steps": [
-      "Step 1: Start a session with a specific workspace path",
-      "Step 2: Execute `ls /workspace` inside the container via the application",
-      "Step 3: Verify the file listing matches the host directory"
-    ],
-    "passes": true
-  },
-  {
-    "category": "agent",
-    "description": "Verify the Gemini agent client can send a prompt and receive a mock response.",
-    "steps": [
-      "Step 1: Configure the agent to use a mock provider",
-      "Step 2: Send a 'Hello' prompt",
-      "Step 3: Verify the response is received and logged"
-    ],
-    "passes": true
-  },
-  {
-    "category": "agent",
-    "description": "Verify the agent state is persisted to disk (`.agent_state.json`).",
-    "steps": [
-      "Step 1: Run a session that updates agent memory",
-      "Step 2: Stop the session",
-      "Step 3: Check `.agent_state.json` exists and contains the memory data"
-    ],
-    "passes": true
-  },
-  {
-    "category": "agent",
-    "description": "Verify the agent can read the `app_spec.txt` file.",
-    "steps": [
-      "Step 1: Ensure `app_spec.txt` exists",
-      "Step 2: Trigger the agent initialization phase",
-      "Step 3: Verify the agent logs the content or length of the spec"
-    ],
-    "passes": true
-  },
-  {
-    "category": "workflow",
-    "description": "Verify the 'Initialization' phase sets up the project structure.",
-    "steps": [
-      "Step 1: Run `./recac init-project --spec app_spec.txt`",
-      "Step 2: Verify that `feature_list.json` is created (if not present)",
-      "Step 3: Verify the project folder structure is created as per defaults"
-    ],
-    "passes": true
-  },
-  {
-    "category": "workflow",
-    "description": "Verify the QA phase validates the codebase against `feature_list.json`.",
-    "steps": [
-      "Step 1: Mock a feature as 'passes: false'",
-      "Step 2: Run the QA module",
-      "Step 3: Verify the QA report indicates the failure"
-    ],
-    "passes": true
-  },
-  {
-    "category": "workflow",
-    "description": "Verify the Manager Agent is invoked after QA.",
-    "steps": [
-      "Step 1: Complete a coding cycle",
-      "Step 2: Verify the log shows 'Manager Review' starting",
-      "Step 3: Verify the Manager's feedback is captured"
-    ],
-    "passes": true
-  },
-  {
-    "category": "jira",
-    "description": "Verify the application can authenticate with Jira using API token.",
-    "steps": [
-      "Step 1: Configure valid Jira credentials in environment variables",
-      "Step 2: Run a Jira connection test command",
-      "Step 3: Verify success message"
-    ],
-    "passes": true
-  },
-  {
-    "category": "jira",
-    "description": "Verify the application can fetch a Jira ticket by ID.",
-    "steps": [
-      "Step 1: Run `./recac jira get --id PROJ-123` (mocked)",
-      "Step 2: Verify the ticket details (title, description) are displayed",
-      "Step 3: Verify error handling for non-existent ticket"
-    ],
-    "passes": true
-  },
-  {
-    "category": "jira",
-    "description": "Verify the application transitions a ticket status to 'In Progress'.",
-    "steps": [
-      "Step 1: Mock a ticket in 'To Do'",
-      "Step 2: Start working on the ticket via CLI",
-      "Step 3: Verify the mock backend received a transition request"
-    ],
-    "passes": true
-  },
-  {
-    "category": "concurrency",
-    "description": "Verify the Worker Pool initializes with the correct number of workers.",
-    "steps": [
-      "Step 1: Run `./recac sprint --workers 5`",
-      "Step 2: Verify logs indicate 5 worker goroutines started",
-      "Step 3: Verify no crash on startup"
-    ],
-    "passes": true
-  },
-  {
-    "category": "concurrency",
-    "description": "Verify independent tasks are distributed to different workers.",
-    "steps": [
-      "Step 1: Submit 2 mock tasks to the queue",
-      "Step 2: Verify logs show two different worker IDs handling them",
-      "Step 3: Verify tasks complete successfully"
-    ],
-    "passes": true
-  },
-  {
-    "category": "style",
-    "description": "Verify the TUI uses the correct primary color for headers.",
-    "steps": [
-      "Step 1: Start the TUI",
-      "Step 2: Inspect the header color",
-      "Step 3: Verify it matches the brand color (e.g., specific hex code)"
-    ],
-    "passes": true
-  },
-  {
-    "category": "style",
-    "description": "Verify error messages are displayed in red.",
-    "steps": [
-      "Step 1: Force an error in the TUI",
-      "Step 2: Verify the error text is red",
-      "Step 3: Verify the error icon is present"
-    ],
-    "passes": true
-  },
-  {
-    "category": "telemetry",
-    "description": "Verify metrics are exposed at the /metrics endpoint.",
-    "steps": [
-      "Step 1: Start the application with telemetry enabled",
-      "Step 2: Curl `http://localhost:9090/metrics`",
-      "Step 3: Verify Prometheus format metrics are returned"
-    ],
-    "passes": true
-  },
-  {
-    "category": "telemetry",
-    "description": "Verify structured logging outputs JSON.",
-    "steps": [
-      "Step 1: Configure logger to JSON mode",
-      "Step 2: Generate a log line",
-      "Step 3: Verify the output is valid JSON with timestamp and level"
-    ],
-    "passes": true
-  },
-  {
-    "category": "notify",
-    "description": "Verify Slack notification is sent on task completion.",
-    "steps": [
-      "Step 1: Configure a mock Slack webhook",
-      "Step 2: Complete a task",
-      "Step 3: Verify the mock webhook received a POST request"
-    ],
-    "passes": true
-  },
-  {
-    "category": "cli",
-    "description": "Verify unknown commands return a helpful error message.",
-    "steps": [
-      "Step 1: Run `./recac unknown-cmd`",
-      "Step 2: Verify output says 'command not found'",
-      "Step 3: Verify usage help is suggested"
-    ],
-    "passes": true
-  },
-  {
-    "category": "workflow",
-    "description": "Verify 'Clean' phase removes temporary files.",
-    "steps": [
-      "Step 1: Create a temp file in the workspace",
-      "Step 2: Run the cleanup command",
-      "Step 3: Verify the temp file is gone"
-    ],
-    "passes": true
-  },
-  {
-    "category": "agent",
-    "description": "Verify retry logic for failed API calls.",
-    "steps": [
-      "Step 1: Mock the API to fail twice then succeed",
-      "Step 2: Make a call via the agent client",
-      "Step 3: Verify the call eventually succeeds without crashing"
-    ],
-    "passes": true
-  },
-  {
-    "category": "tui",
-    "description": "Verify TUI keyboard interrupt (Ctrl+C) exits cleanly.",
-    "steps": [
-      "Step 1: Start the TUI",
-      "Step 2: Press Ctrl+C",
-      "Step 3: Verify the application exits with code 0 or 130 and cleans up raw mode"
-    ],
-    "passes": true
-  },
-  {
-    "category": "docker",
-    "description": "Verify docker exec command output is captured.",
-    "steps": [
-      "Step 1: Start a container",
-      "Step 2: Exec `echo 'hello'`",
-      "Step 3: Verify the return string is 'hello'"
-    ],
-    "passes": true
-  },
-  {
-    "category": "workflow",
-    "description": "Verify Git branch creation for new features.",
-    "steps": [
-      "Step 1: Start a feature work",
-      "Step 2: Verify `git branch` shows a new branch named after the feature",
-      "Step 3: Verify the branch is checked out"
-    ],
-    "passes": true
-  },
-  {
-    "category": "jira",
-    "description": "Verify Jira description is parsed into an app spec format.",
-    "steps": [
-      "Step 1: Mock a Jira ticket with specific requirements",
-      "Step 2: Run the parser",
-      "Step 3: Verify the output matches the expected spec structure"
-    ],
-    "passes": true
-  },
-  {
-    "category": "concurrency",
-    "description": "Verify race conditions are handled in shared state updates.",
-    "steps": [
-      "Step 1: Run the race detector `go run -race ...` (Requires CGO/GCC)",
-      "Step 2: Simulate high concurrency updates",
-      "Step 3: Verify no race warnings are printed"
-    ],
-    "passes": true
-  },
-  {
-    "category": "tui",
-    "description": "Verify TUI supports scrolling in the log pane.",
-    "steps": [
-      "Step 1: Fill the log pane with many lines",
-      "Step 2: Use Up/Down arrow keys or mouse wheel",
-      "Step 3: Verify the view scrolls"
-    ],
-    "passes": true
-  },
-  {
-    "category": "style",
-    "description": "Verify success messages use a green checkmark.",
-    "steps": [
-      "Step 1: Trigger a success event",
-      "Step 2: Verify the output contains a checkmark symbol",
-      "Step 3: Verify the color is green"
-    ],
-    "passes": true
-  },
-  {
-    "category": "agent",
-    "description": "Verify support for multiple model backends (Gemini, GPT-4).",
-    "steps": [
-      "Step 1: Configure config to swap models",
-      "Step 2: Run the agent",
-      "Step 3: Verify the correct API endpoint is hit"
-    ],
-    "passes": true
-  },
-  {
-    "category": "cli",
-    "description": "Verify verbose mode prints detailed debug logs.",
-    "steps": [
-      "Step 1: Run with `--verbose`",
-      "Step 2: Check logs for 'DEBUG' level entries",
-      "Step 3: Verify sensitive info is NOT logged"
-    ],
-    "passes": true
-  },
-  {
-    "category": "workflow",
-    "description": "Verify automated PR creation (mocked git push).",
-    "steps": [
-      "Step 1: Complete a feature",
-      "Step 2: Verify the workflow attempts to push and create a PR",
-      "Step 3: Verify the PR description is generated"
-    ],
-    "passes": true
-  },
-  {
-    "category": "workflow",
-    "description": "Verify the tool stops if a critical error occurs.",
-    "steps": [
-      "Step 1: Simulate a critical panic",
-      "Step 2: Verify the application attempts a graceful shutdown",
-      "Step 3: Verify the exit code is non-zero"
-    ],
-    "passes": true
-  },
-  {
-    "category": "tui",
-    "description": "Verify the 'Task Board' view in Sprint Mode.",
-    "steps": [
-      "Step 1: Enter Sprint Mode TUI",
-      "Step 2: Verify columns for 'Pending', 'In Progress', 'Done'",
-      "Step 3: Verify tasks move between columns"
-    ],
-    "passes": true
-  },
-  {
-    "category": "docker",
-    "description": "Verify Docker image build process (if needed).",
-    "steps": [
-      "Step 1: Run a build command",
-      "Step 2: Verify `docker images` shows the new image",
-      "Step 3: Verify build cache usage"
-    ],
-    "passes": true
-  },
-  {
-    "category": "agent",
-    "description": "Verify context window management (token counting).",
-    "steps": [
-      "Step 1: Feed a large prompt",
-      "Step 2: Verify the agent truncates or summarizes if over limit",
-      "Step 3: Verify token usage stats are updated"
-    ],
-    "passes": true
-  },
-  {
-    "category": "jira",
-    "description": "Verify adding a comment to a Jira ticket.",
-    "steps": [
-      "Step 1: Trigger a comment action",
-      "Step 2: Verify the mock backend receives the comment text",
-      "Step 3: Verify formatting is preserved"
-    ],
-    "passes": true
-  },
-  {
-    "category": "config",
-    "description": "Verify validation of configuration values (e.g., negative timeouts).",
-    "steps": [
-      "Step 1: Set a negative timeout in config",
-      "Step 2: Run the app",
-      "Step 3: Verify it exits with a validation error"
-    ],
-    "passes": true
-  },
-  {
-    "category": "workflow",
-    "description": "Verify the 'Clean' phase does NOT delete non-temp files.",
-    "steps": [
-      "Step 1: Create a permanent file",
-      "Step 2: Run cleanup",
-      "Step 3: Verify the file still exists"
-    ],
-    "passes": true
-  },
-  {
-    "category": "integration",
-    "description": "Verify end-to-end 'Hello World' agent run.",
-    "steps": [
-      "Step 2: Run the full agent loop",
-      "Step 1: Setup a 'Hello World' task",
-      "Step 3: Verify the task is marked as done and output exists"
-    ],
-    "passes": true
-  },
-  {
-    "category": "workflow",
-    "description": "Verify handling of network interruptions.",
-    "steps": [
-      "Step 1: Simulate network drop during agent call",
-      "Step 2: Verify the application pauses or retries",
-      "Step 3: Verify it does not crash"
-    ],
+    "category": "functional",
+    "description": "Logs: Smart Filtering",
+    "steps": ["Run 'agent logs --filter <category>'", "Verify only matching logs are shown"],
     "passes": true
   }
 ]

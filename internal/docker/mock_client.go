@@ -1,8 +1,10 @@
 package docker
 
 import (
+	"bufio"
 	"context"
 	"io"
+	"net"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -16,6 +18,7 @@ import (
 // MockAPI implements APIClient for testing and mock execution.
 type MockAPI struct {
 	PingFunc                func(ctx context.Context) (types.Ping, error)
+	ImageListFunc           func(ctx context.Context, options image.ListOptions) ([]image.Summary, error)
 	ImagePullFunc           func(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error)
 	ImageBuildFunc          func(ctx context.Context, buildContext io.Reader, options build.ImageBuildOptions) (types.ImageBuildResponse, error)
 	ContainerCreateFunc     func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error)
@@ -32,6 +35,19 @@ func (m *MockAPI) Ping(ctx context.Context) (types.Ping, error) {
 		return m.PingFunc(ctx)
 	}
 	return types.Ping{}, nil
+}
+
+func (m *MockAPI) ImageList(ctx context.Context, options image.ListOptions) ([]image.Summary, error) {
+	if m.ImageListFunc != nil {
+		return m.ImageListFunc(ctx, options)
+	}
+	// Return mock images including ubuntu:latest
+	return []image.Summary{
+		{
+			ID:       "sha256:mockubuntu123",
+			RepoTags: []string{"ubuntu:latest"},
+		},
+	}, nil
 }
 
 func (m *MockAPI) ImagePull(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error) {
@@ -83,7 +99,13 @@ func (m *MockAPI) ContainerExecAttach(ctx context.Context, execID string, config
 	if m.ContainerExecAttachFunc != nil {
 		return m.ContainerExecAttachFunc(ctx, execID, config)
 	}
-	return types.HijackedResponse{}, nil
+	// Return valid empty response to avoid panic
+	server, client := net.Pipe()
+	go server.Close() // Close immediately to simulate empty stream
+	return types.HijackedResponse{
+		Conn:   client,
+		Reader: bufio.NewReader(client),
+	}, nil
 }
 
 func (m *MockAPI) ContainerStop(ctx context.Context, containerID string, options container.StopOptions) error {

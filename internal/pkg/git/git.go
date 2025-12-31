@@ -9,6 +9,7 @@ import (
 type GitOps interface {
 	Push(branch string) error
 	CreatePR(branch, title, body string) error
+	CreateBranch(name string) error
 }
 
 // RealGitOps implements GitOps using actual git commands.
@@ -16,10 +17,11 @@ type RealGitOps struct{}
 
 // Push pushes the current branch to origin.
 func (r *RealGitOps) Push(branch string) error {
-	fmt.Printf("Mock: git push origin %s\n", branch)
-	// In a real implementation:
-	// cmd := exec.Command("git", "push", "origin", branch)
-	// return cmd.Run()
+	cmd := exec.Command("git", "push", "origin", branch)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to push branch %s: %w (output: %s)", branch, err, string(output))
+	}
 	return nil
 }
 
@@ -31,18 +33,22 @@ func (r *RealGitOps) CreatePR(branch, title, body string) error {
 	return nil
 }
 
-// DefaultGitOps is the default implementation.
-var DefaultGitOps GitOps = &RealGitOps{}
-
 // CreateBranch creates a new git branch and checks it out.
-func CreateBranch(name string) error {
-	// 1. Create branch
+func (r *RealGitOps) CreateBranch(name string) error {
 	cmd := exec.Command("git", "checkout", "-b", name)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to create branch %s: %w (output: %s)", name, err, string(output))
 	}
 	return nil
+}
+
+// DefaultGitOps is the default implementation.
+var DefaultGitOps GitOps = &RealGitOps{}
+
+// CreateBranch creates a new git branch and checks it out using DefaultGitOps.
+func CreateBranch(name string) error {
+	return DefaultGitOps.CreateBranch(name)
 }
 
 // Push pushes the current branch to origin (uses DefaultGitOps).

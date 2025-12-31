@@ -4,31 +4,42 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"recac/internal/db"
 	"recac/internal/docker"
+	"strings"
 	"testing"
+
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-type MockAgent struct{}
+type MockAgent struct {
+	Response string
+}
 
 func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
-	return "mock response", nil
+	return m.Response, nil
+}
+
+func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+	if onChunk != nil {
+		onChunk(m.Response)
+	}
+	return m.Response, nil
 }
 
 func TestSession_ReadSpec(t *testing.T) {
-	// 1. Setup temp workspace
 	tmpDir := t.TempDir()
 	specContent := "Application Specification v1.0"
 	specPath := filepath.Join(tmpDir, "app_spec.txt")
-	
+
 	if err := os.WriteFile(specPath, []byte(specContent), 0644); err != nil {
 		t.Fatalf("Failed to write spec file: %v", err)
 	}
 
-	// 2. Initialize Session
-	// We pass nil for Docker as we don't need it for this test
 	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine")
 
-	// 3. Test ReadSpec
 	content, err := session.ReadSpec()
 	if err != nil {
 		t.Fatalf("ReadSpec failed: %v", err)
@@ -49,25 +60,18 @@ func TestSession_ReadSpec_Missing(t *testing.T) {
 	}
 }
 
-// TestSession_AgentReadsSpec verifies Feature #15: Agent can read app_spec.txt and logs it during initialization
 func TestSession_AgentReadsSpec(t *testing.T) {
-	// Step 1: Ensure app_spec.txt exists
 	tmpDir := t.TempDir()
 	specContent := "Application Specification\nThis is a test specification file for verification."
 	specPath := filepath.Join(tmpDir, "app_spec.txt")
-	
+
 	if err := os.WriteFile(specPath, []byte(specContent), 0644); err != nil {
 		t.Fatalf("Failed to write spec file: %v", err)
 	}
 
-	// Step 2: Trigger the agent initialization phase
-	// Create mock Docker client that succeeds
 	mockDocker, _ := docker.NewMockClient()
 	session := NewSession(mockDocker, &MockAgent{}, tmpDir, "alpine")
 
-	// Step 3: Verify the agent logs the content or length of the spec
-	// We verify this by:
-	// a) Ensuring ReadSpec() works (reads the file correctly)
 	spec, err := session.ReadSpec()
 	if err != nil {
 		t.Fatalf("ReadSpec failed: %v", err)
@@ -76,29 +80,357 @@ func TestSession_AgentReadsSpec(t *testing.T) {
 		t.Errorf("Expected spec content '%s', got '%s'", specContent, spec)
 	}
 
-	// b) Ensuring Start() successfully reads the spec (doesn't error on ReadSpec)
-	// Start() calls ReadSpec() and logs "Loaded spec: %d bytes\n"
 	ctx := context.Background()
 	err = session.Start(ctx)
 	if err != nil {
-		// Start() may fail on container creation, but ReadSpec() should have succeeded
-		// We verify ReadSpec worked by checking the spec was read correctly above
-		// The log message "Loaded spec: %d bytes\n" would be printed if ReadSpec succeeds
-		// Since we can't easily capture fmt.Printf output in tests, we verify the behavior:
-		// - ReadSpec() works (verified above)
-		// - Start() calls ReadSpec() without error (we check that Start() doesn't fail due to ReadSpec)
-		// If Start() fails, it should be due to Docker, not ReadSpec
-		if err.Error() == "failed to read spec file" || 
-		   err.Error() == "Warning: Failed to read spec" {
+		if err.Error() == "failed to read spec file" ||
+			err.Error() == "Warning: Failed to read spec" {
 			t.Fatalf("Start() failed due to ReadSpec error: %v", err)
 		}
-		// Otherwise, failure is expected (container creation, etc.) which is fine
-		// The important part is that ReadSpec() worked, which we verified above
 	}
 
-	// Verify the spec length matches what would be logged
 	expectedLength := len(specContent)
 	if len(spec) != expectedLength {
 		t.Errorf("Spec length mismatch: expected %d, got %d", expectedLength, len(spec))
+	}
+}
+
+func TestSession_Start_PassesUser(t *testing.T) {
+	tmpDir := t.TempDir()
+	specPath := filepath.Join(tmpDir, "app_spec.txt")
+	os.WriteFile(specPath, []byte("test"), 0644)
+
+	d, mock := docker.NewMockClient()
+	passedUser := ""
+	mock.ContainerCreateFunc = func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error) {
+		passedUser = config.User
+		return container.CreateResponse{ID: "test"}, nil
+	}
+
+	session := NewSession(d, &MockAgent{}, tmpDir, "alpine")
+	if err := session.Start(context.Background()); err != nil {
+		t.Fatalf("Start failed: %v", err)
+	}
+
+	if passedUser == "" {
+		t.Error("Expected non-empty user to be passed to Docker")
+	}
+}
+
+func TestSession_SyncFeatureFile_RetryOnPermissionDenied(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "feature_list.json")
+
+	// Create a file and make it read-only
+	os.WriteFile(path, []byte("old"), 0444)
+
+	s := &Session{
+		Workspace: tmpDir,
+	}
+
+	fl := db.FeatureList{
+		ProjectName: "Test",
+		Features:    []db.Feature{{ID: "1", Status: "done"}},
+	}
+
+	// This should successfully overwrite because of os.Remove fallback
+	s.syncFeatureFile(fl)
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("Failed to read file after sync: %v", err)
+	}
+
+	if !strings.Contains(string(data), "done") {
+		t.Errorf("File content doesn't match expected after sync recovery: %s", string(data))
+	}
+}
+
+func TestSession_SelectPrompt(t *testing.T) {
+	tmpDir := t.TempDir()
+	specContent := "Test Spec"
+	specPath := filepath.Join(tmpDir, "app_spec.txt")
+	os.WriteFile(specPath, []byte(specContent), 0644)
+
+	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine")
+	session.ManagerFrequency = 3
+
+	// Session 1: Initializer
+	session.Iteration = 1
+	prompt, isManager, err := session.SelectPrompt()
+	if err != nil {
+		t.Fatalf("SelectPrompt failed: %v", err)
+	}
+	if isManager {
+		t.Error("Iteration 1 should not be manager")
+	}
+	if !strings.Contains(prompt, "INITIALIZER") {
+		t.Errorf("Expected INITIALIZER prompt, got %q", prompt)
+	}
+
+	// Session 2: Coding Agent
+	session.Iteration = 2
+	prompt, isManager, err = session.SelectPrompt()
+	if err != nil {
+		t.Fatalf("SelectPrompt failed: %v", err)
+	}
+	if isManager {
+		t.Error("Iteration 2 should not be manager")
+	}
+	if !strings.Contains(prompt, "CODING AGENT") {
+		t.Errorf("Expected CODING AGENT prompt, got %q", prompt)
+	}
+
+	// Session 3: Manager Review (frequency)
+	session.Iteration = 3
+	prompt, isManager, err = session.SelectPrompt()
+	if err != nil {
+		t.Fatalf("SelectPrompt failed: %v", err)
+	}
+	if !isManager {
+		t.Error("Iteration 3 should be manager")
+	}
+	if !strings.Contains(prompt, "PROJECT MANAGER") {
+		t.Errorf("Expected Manager prompt, got %q", prompt)
+	}
+
+	// Session 4: Coding Agent
+	session.Iteration = 4
+	prompt, _, _ = session.SelectPrompt()
+	if !strings.Contains(prompt, "CODING AGENT") {
+		t.Errorf("Expected CODING AGENT prompt, got %q", prompt)
+	}
+
+	// Session 5: Manager Review (signal)
+	triggerPath := filepath.Join(tmpDir, "TRIGGER_MANAGER")
+	os.WriteFile(triggerPath, []byte(""), 0644)
+	session.Iteration = 5
+	prompt, isManager, err = session.SelectPrompt()
+	if err != nil {
+		t.Fatalf("SelectPrompt failed: %v", err)
+	}
+	if !isManager {
+		t.Error("TRIGGER_MANAGER should trigger manager")
+	}
+	if _, err := os.Stat(triggerPath); !os.IsNotExist(err) {
+		t.Error("TRIGGER_MANAGER file should have been cleared")
+	}
+}
+
+func TestSession_AgentStatePersistence(t *testing.T) {
+	tmpDir := t.TempDir()
+	stateFile := filepath.Join(tmpDir, ".agent_state.json")
+
+	session := NewSessionWithStateFile(nil, &MockAgent{}, tmpDir, "alpine", stateFile)
+
+	// Initialize
+	if err := session.InitializeAgentState(1000); err != nil {
+		t.Fatalf("Failed to init state: %v", err)
+	}
+
+	// Modify state manually to verify save
+	state, _ := session.StateManager.Load()
+	state.CurrentTokens = 500
+	session.StateManager.Save(state)
+
+	// Save via session
+	if err := session.SaveAgentState(); err != nil {
+		t.Fatalf("Failed to save state: %v", err)
+	}
+
+	// Load via session
+	if err := session.LoadAgentState(); err != nil {
+		t.Fatalf("Failed to load state: %v", err)
+	}
+
+	// Verify loaded
+	loadedState, _ := session.StateManager.Load()
+	if loadedState.CurrentTokens != 500 {
+		t.Errorf("Expected 500 tokens, got %d", loadedState.CurrentTokens)
+	}
+}
+
+func TestSession_Signals(t *testing.T) {
+	tmpDir := t.TempDir()
+	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine")
+
+	// Test createSignal
+	if err := session.createSignal("TEST_SIGNAL"); err != nil {
+		t.Fatalf("Failed to create signal: %v", err)
+	}
+
+	// Test hasSignal
+	if !session.hasSignal("TEST_SIGNAL") {
+		t.Error("Expected hasSignal to return true")
+	}
+
+	// Test clearSignal
+	session.clearSignal("TEST_SIGNAL")
+	if session.hasSignal("TEST_SIGNAL") {
+		t.Error("Expected signal to be cleared")
+	}
+
+	// Test checkCompletion
+	if session.checkCompletion() {
+		t.Error("Expected not completed")
+	}
+	session.createSignal("COMPLETED")
+	if !session.checkCompletion() {
+		t.Error("Expected completed")
+	}
+}
+
+func TestSession_Stop(t *testing.T) {
+	mockDocker, _ := docker.NewMockClient()
+	session := NewSession(mockDocker, &MockAgent{}, "/tmp", "alpine")
+
+	ctx := context.Background()
+
+	// Stop without container ID
+	if err := session.Stop(ctx); err != nil {
+		t.Errorf("Stop failed with empty ID: %v", err)
+	}
+
+	// Stop with container ID
+	session.ContainerID = "test-container"
+	if err := session.Stop(ctx); err != nil {
+		t.Errorf("Stop failed with valid ID: %v", err)
+	}
+
+	if session.ContainerID != "" {
+		t.Error("Expected ContainerID to be cleared")
+	}
+}
+
+func TestSession_RunCleanerAgent(t *testing.T) {
+	tmpDir := t.TempDir()
+	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine")
+
+	// Create temp file to delete
+	tmpFile := filepath.Join(tmpDir, "to_delete.txt")
+	os.WriteFile(tmpFile, []byte("data"), 0644)
+
+	// Create temp_files.txt listing it
+	listFile := filepath.Join(tmpDir, "temp_files.txt")
+	os.WriteFile(listFile, []byte("to_delete.txt\n# comment\n\n"), 0644)
+
+	if err := session.runCleanerAgent(context.Background()); err != nil {
+		t.Fatalf("Cleaner agent failed: %v", err)
+	}
+
+	// Verify deleted
+	if _, err := os.Stat(tmpFile); !os.IsNotExist(err) {
+		t.Error("File should have been deleted")
+	}
+
+	// Verify list file deleted
+	if _, err := os.Stat(listFile); !os.IsNotExist(err) {
+		t.Error("temp_files.txt should have been deleted")
+	}
+}
+
+func TestSession_LoadFeatures(t *testing.T) {
+	tmpDir := t.TempDir()
+	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine")
+
+	features := session.loadFeatures()
+	if features != nil {
+		t.Error("Expected nil features when file missing")
+	}
+
+	// Write feature list
+	listPath := filepath.Join(tmpDir, "feature_list.json")
+	content := `{"project_name": "Test", "features": [{"id":"1", "description":"feat 1", "status":"done"}]}`
+	os.WriteFile(listPath, []byte(content), 0644)
+
+	features = session.loadFeatures()
+	if len(features) != 1 {
+		t.Errorf("Expected 1 feature, got %d", len(features))
+	}
+	if features[0].Description != "feat 1" {
+		t.Errorf("Expected feat 1, got %s", features[0].Description)
+	}
+}
+
+func TestSession_RunLoop_SingleIteration(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
+
+	mockDocker, _ := docker.NewMockClient()
+	session := NewSession(mockDocker, &MockAgent{}, tmpDir, "alpine")
+	session.MaxIterations = 1
+
+	ctx := context.Background()
+	if err := session.RunLoop(ctx); err != nil {
+		t.Fatalf("RunLoop failed: %v", err)
+	}
+}
+
+func TestSession_RunQAAgent(t *testing.T) {
+	tmpDir := t.TempDir()
+	mockAgent := &MockAgentForQA{
+		Response:  "PASS",
+		Workspace: tmpDir,
+	}
+	session := NewSession(nil, mockAgent, tmpDir, "alpine")
+	session.QAAgent = mockAgent
+
+	// Create feature list (all passing)
+	// Create feature list (all passing)
+	// Create feature list (all passing)
+	listPath := filepath.Join(tmpDir, "feature_list.json")
+	content := `{"project_name": "Test", "features": [{"id":"1", "description":"feat 1", "status":"done"}]}`
+	os.WriteFile(listPath, []byte(content), 0644)
+
+	if err := session.runQAAgent(context.Background()); err != nil {
+		t.Errorf("Expected QA to pass: %v", err)
+	}
+
+	// Create feature list (failing)
+	content = `{"project_name": "Test", "features": [{"id":"1", "description":"feat 1", "status":"pending"}]}`
+	os.WriteFile(listPath, []byte(content), 0644)
+	mockAgent.Response = "FAIL"
+
+	if err := session.runQAAgent(context.Background()); err == nil {
+		t.Error("Expected QA to fail")
+	}
+}
+
+func TestSession_RunManagerAgent(t *testing.T) {
+	tmpDir := t.TempDir()
+	mockAgent := &MockAgent{}
+	session := NewSession(nil, mockAgent, tmpDir, "alpine")
+	session.ManagerAgent = mockAgent
+
+	// 1. All passing -> Approved
+	content := `{"project_name": "Test", "features": [{"id":"1", "description":"feat 1", "status":"done"}]}`
+	os.WriteFile(filepath.Join(tmpDir, "feature_list.json"), []byte(content), 0644)
+	if session.DBStore != nil {
+		_ = session.DBStore.SaveFeatures(content)
+	}
+	if err := session.runManagerAgent(context.Background()); err != nil {
+		t.Errorf("Expected manager approval, got error: %v", err)
+	}
+
+	// 2. Failing -> Rejected
+	content = `{"project_name": "Test", "features": [{"id":"1", "description":"feat 1", "status":"pending"}]}`
+	os.WriteFile(filepath.Join(tmpDir, "feature_list.json"), []byte(content), 0644)
+	if session.DBStore != nil {
+		_ = session.DBStore.SaveFeatures(content)
+	}
+	if err := session.runManagerAgent(context.Background()); err == nil {
+		t.Error("Expected manager rejection, got nil")
+	}
+}
+
+func TestMin(t *testing.T) {
+	if min(1, 2) != 1 {
+		t.Error("min(1,2) != 1")
+	}
+	if min(2, 1) != 1 {
+		t.Error("min(2,1) != 1")
+	}
+	if min(1, 1) != 1 {
+		t.Error("min(1,1) != 1")
 	}
 }

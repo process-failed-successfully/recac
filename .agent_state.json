@@ -1,0 +1,16 @@
+{
+  "memory": [],
+  "history": [],
+  "metadata": {
+    "iteration": 1
+  },
+  "updated_at": "2025-12-29T15:17:10.902165877+08:00",
+  "max_tokens": 128000,
+  "current_tokens": 206,
+  "token_usage": {
+    "total_prompt_tokens": 206,
+    "total_response_tokens": 0,
+    "total_tokens": 206,
+    "truncation_count": 0
+  }
+}

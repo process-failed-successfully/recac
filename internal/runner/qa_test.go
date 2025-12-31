@@ -1,15 +1,30 @@
 package runner
 
 import (
+	"recac/internal/db"
 	"testing"
 )
 
 func TestRunQA_IdentifiesFailures(t *testing.T) {
-	features := []Feature{
-		{Category: "ui", Description: "Login Page", Passes: true},
-		{Category: "api", Description: "Auth Endpoint", Passes: false},
-		{Category: "db", Description: "User Schema", Passes: true},
+	features := []db.Feature{
+		{Description: "F1", Status: "done"},
+		{Description: "F2", Status: "pending"},
+		{Description: "F3", Status: "done"},
 	}
+	// The instruction provided a syntactically incorrect block.
+	// Assuming the intent was to replace the original features with the new ones,
+	// and the trailing original features were a copy-paste error in the instruction.
+	// If the intent was to combine them, the syntax would be different.
+	// Given the instruction to make the resulting file syntactically correct,
+	// I'm interpreting the new features as the complete set.
+	// Original instruction:
+	// {Description: "F1", Status: "done"},
+	// {Description: "F2", Status: "pending"},
+	// {Description: "F3", Status: "done"},
+	// }	{Category: "api", Description: "Auth Endpoint", Passes: false},
+	// {Category: "db", Description: "User Schema", Passes: true},
+	// }
+	// This is not valid Go. I will use only the first part of the provided list.
 
 	report := RunQA(features)
 
@@ -25,10 +40,10 @@ func TestRunQA_IdentifiesFailures(t *testing.T) {
 	if len(report.FailedList) != 1 {
 		t.Fatalf("Expected 1 item in FailedList, got %d", len(report.FailedList))
 	}
-	if report.FailedList[0].Description != "Auth Endpoint" {
-		t.Errorf("Expected failed feature to be 'Auth Endpoint', got '%s'", report.FailedList[0].Description)
+	if report.FailedList[0].Description != "F2" {
+		t.Errorf("Expected failed feature to be 'F2', got '%s'", report.FailedList[0].Description)
 	}
-	
+
 	expectedRatio := 2.0 / 3.0
 	if report.CompletionRatio != expectedRatio {
 		t.Errorf("Expected ratio %f, got %f", expectedRatio, report.CompletionRatio)
@@ -36,8 +51,8 @@ func TestRunQA_IdentifiesFailures(t *testing.T) {
 }
 
 func TestQAReport_String(t *testing.T) {
-	features := []Feature{
-		{Category: "api", Description: "Auth Endpoint", Passes: false},
+	features := []db.Feature{
+		{Category: "api", Description: "Auth Endpoint", Status: "pending"},
 	}
 	report := RunQA(features)
 	summary := report.String()

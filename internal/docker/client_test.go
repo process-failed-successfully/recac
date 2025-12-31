@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/build"
@@ -16,8 +18,10 @@ import (
 )
 
 type mockAPIClient struct {
-	pingFunc func(ctx context.Context) (types.Ping, error)
-	// Add other funcs as needed, or let them panic if unused
+	pingFunc          func(ctx context.Context) (types.Ping, error)
+	imageListFunc     func(ctx context.Context, options image.ListOptions) ([]image.Summary, error)
+	imagePullFunc     func(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error)
+	containerStopFunc func(ctx context.Context, containerID string, options container.StopOptions) error
 }
 
 func (m *mockAPIClient) Ping(ctx context.Context) (types.Ping, error) {
@@ -27,8 +31,18 @@ func (m *mockAPIClient) Ping(ctx context.Context) (types.Ping, error) {
 	return types.Ping{}, nil
 }
 
+func (m *mockAPIClient) ImageList(ctx context.Context, options image.ListOptions) ([]image.Summary, error) {
+	if m.imageListFunc != nil {
+		return m.imageListFunc(ctx, options)
+	}
+	return []image.Summary{}, nil
+}
+
 func (m *mockAPIClient) ImagePull(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error) {
-	return nil, nil
+	if m.imagePullFunc != nil {
+		return m.imagePullFunc(ctx, ref, options)
+	}
+	return io.NopCloser(strings.NewReader("")), nil
 }
 
 func (m *mockAPIClient) ImageBuild(ctx context.Context, buildContext io.Reader, options build.ImageBuildOptions) (types.ImageBuildResponse, error) {
@@ -52,10 +66,16 @@ func (m *mockAPIClient) ContainerExecAttach(ctx context.Context, execID string, 
 }
 
 func (m *mockAPIClient) ContainerStop(ctx context.Context, containerID string, options container.StopOptions) error {
+	if m.containerStopFunc != nil {
+		return m.containerStopFunc(ctx, containerID, options)
+	}
 	return nil
 }
 
 func (m *mockAPIClient) ContainerRemove(ctx context.Context, containerID string, options container.RemoveOptions) error {
+	if containerID == "fail" {
+		return errors.New("remove failed")
+	}
 	return nil
 }
 
@@ -89,20 +109,89 @@ func TestCheckDaemon_Failure(t *testing.T) {
 	}
 }
 
+func TestCheckSocket(t *testing.T) {
+	mock := &mockAPIClient{
+		pingFunc: func(ctx context.Context) (types.Ping, error) {
+			return types.Ping{}, nil
+		},
+	}
+	client := &Client{api: mock}
+	if err := client.CheckSocket(context.Background()); err != nil {
+		t.Fatalf("CheckSocket failed: %v", err)
+	}
+}
+
+func TestCheckImage(t *testing.T) {
+	mock := &mockAPIClient{
+		imageListFunc: func(ctx context.Context, options image.ListOptions) ([]image.Summary, error) {
+			return []image.Summary{
+				{RepoTags: []string{"alpine:latest"}},
+			}, nil
+		},
+	}
+	client := &Client{api: mock}
+
+	exists, err := client.CheckImage(context.Background(), "alpine:latest")
+	if err != nil {
+		t.Fatalf("CheckImage failed: %v", err)
+	}
+	if !exists {
+		t.Error("Expected image to exist")
+	}
+
+	exists, err = client.CheckImage(context.Background(), "ubuntu:latest")
+	if err != nil {
+		t.Fatalf("CheckImage failed: %v", err)
+	}
+	if exists {
+		t.Error("Expected image not to exist")
+	}
+}
+
+func TestPullImage(t *testing.T) {
+	mock := &mockAPIClient{
+		imagePullFunc: func(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error) {
+			return io.NopCloser(strings.NewReader(`{"status":"pulling..."}`)), nil
+		},
+	}
+	client := &Client{api: mock}
+
+	if err := client.PullImage(context.Background(), "alpine:latest"); err != nil {
+		t.Fatalf("PullImage failed: %v", err)
+	}
+}
+
+func TestStopContainer(t *testing.T) {
+	mock := &mockAPIClient{
+		containerStopFunc: func(ctx context.Context, containerID string, options container.StopOptions) error {
+			if containerID == "fail" {
+				return errors.New("stop failed")
+			}
+			return nil
+		},
+	}
+	client := &Client{api: mock}
+
+	if err := client.StopContainer(context.Background(), "good"); err != nil {
+		t.Errorf("StopContainer failed: %v", err)
+	}
+
+	if err := client.StopContainer(context.Background(), "fail"); err == nil {
+		t.Error("Expected error, got nil")
+	}
+}
+
 func TestImageBuild_Success(t *testing.T) {
 	client, mock := NewMockClient()
-	
-	// Configure mock to return successful build
+
 	mock.ImageBuildFunc = func(ctx context.Context, buildContext io.Reader, options build.ImageBuildOptions) (types.ImageBuildResponse, error) {
-		// Verify build options
 		if len(options.Tags) == 0 || options.Tags[0] != "testimage:latest" {
 			t.Errorf("Expected tag 'testimage:latest', got %v", options.Tags)
 		}
 		if options.Dockerfile != "Dockerfile" {
 			t.Errorf("Expected Dockerfile 'Dockerfile', got %s", options.Dockerfile)
 		}
-		
-		// Return mock build output with image ID
+
 		mockOutput := `{"stream":"Step 1/2 : FROM alpine\n"}
 {"stream":" ---> abc123def456\n"}
 {"aux":{"ID":"sha256:testimageid123456789"}}
@@ -123,8 +212,7 @@ func TestImageBuild_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ImageBuild failed: %v", err)
 	}
-	
-	// Verify image ID was extracted
+
 	if imageID == "" {
 		t.Fatal("Expected image ID, got empty string")
 	}
@@ -135,8 +223,7 @@ func TestImageBuild_Success(t *testing.T) {
 
 func TestImageBuild_ErrorHandling(t *testing.T) {
 	client, mock := NewMockClient()
-	
-	// Configure mock to return build error
+
 	mock.ImageBuildFunc = func(ctx context.Context, buildContext io.Reader, options build.ImageBuildOptions) (types.ImageBuildResponse, error) {
 		mockOutput := `{"errorDetail":{"message":"Build failed: syntax error"}}`
 		return types.ImageBuildResponse{
@@ -161,7 +248,7 @@ func TestImageBuild_ErrorHandling(t *testing.T) {
 
 func TestImageBuild_MissingBuildContext(t *testing.T) {
 	client, _ := NewMockClient()
-	
+
 	opts := ImageBuildOptions{
 		Tag: "testimage:latest",
 		// BuildContext is nil
@@ -178,7 +265,7 @@ func TestImageBuild_MissingBuildContext(t *testing.T) {
 
 func TestImageBuild_MissingTag(t *testing.T) {
 	client, _ := NewMockClient()
-	
+
 	opts := ImageBuildOptions{
 		BuildContext: strings.NewReader("mock context"),
 		// Tag is empty
@@ -195,17 +282,16 @@ func TestImageBuild_MissingTag(t *testing.T) {
 
 func TestImageBuild_WithBuildArgs(t *testing.T) {
 	client, mock := NewMockClient()
-	
+
 	version := "1.0.0"
 	mock.ImageBuildFunc = func(ctx context.Context, buildContext io.Reader, options build.ImageBuildOptions) (types.ImageBuildResponse, error) {
-		// Verify build args were passed
 		if options.BuildArgs == nil {
 			t.Error("Expected build args, got nil")
 		}
 		if val, ok := options.BuildArgs["VERSION"]; !ok || val == nil || *val != "1.0.0" {
 			t.Errorf("Expected VERSION=1.0.0 in build args, got %v", options.BuildArgs)
 		}
-		
+
 		mockOutput := `{"stream":"Successfully built testimageid\n"}`
 		return types.ImageBuildResponse{
 			Body: io.NopCloser(strings.NewReader(mockOutput)),
@@ -223,4 +309,68 @@ func TestImageBuild_WithBuildArgs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ImageBuild failed: %v", err)
 	}
+}
+
+// TestDockerInDocker_Support verifies Docker-in-Docker (DinD) support.
+func TestDockerInDocker_Support(t *testing.T) {
+	// Step 1: Verify we're running inside a container with Docker socket mounted
+	if _, err := os.Stat("/.dockerenv"); os.IsNotExist(err) {
+		t.Skip("Skipping DinD test: not running in a container (/.dockerenv not found)")
+	}
+
+	// Check if Docker socket exists
+	if _, err := os.Stat("/var/run/docker.sock"); os.IsNotExist(err) {
+		t.Skip("Skipping DinD test: Docker socket not mounted (/var/run/docker.sock not found)")
+	}
+
+	// Step 2: Create a real Docker client (not mock) to test actual DinD functionality
+	client, err := NewClient()
+	if err != nil {
+		t.Skipf("Skipping DinD test: failed to create Docker client (may need docker group membership): %v", err)
+	}
+	defer client.Close()
+
+	// Verify Docker daemon is accessible
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := client.CheckDaemon(ctx); err != nil {
+		t.Skipf("Skipping DinD test: Docker daemon not accessible (may need proper permissions): %v", err)
+	}
+
+	// Step 3: Create a nested container (worker container)
+	testImage := "alpine:latest"
+	testWorkspace := "/tmp/dind-test-workspace"
+
+	if err := os.MkdirAll(testWorkspace, 0755); err != nil {
+		t.Fatalf("Failed to create test workspace: %v", err)
+	}
+	defer os.RemoveAll(testWorkspace)
+
+	// Create nested container
+	containerID, err := client.RunContainer(ctx, testImage, testWorkspace, nil, "")
+	if err != nil {
+		t.Fatalf("Failed to create nested container: %v", err)
+	}
+
+	// Ensure cleanup
+	defer func() {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := client.StopContainer(stopCtx, containerID); err != nil {
+			t.Logf("Warning: Failed to stop container %s: %v", containerID, err)
+		}
+	}()
+
+	// Step 4: Verify the nested container started correctly
+	output, err := client.Exec(ctx, containerID, []string{"echo", "hello from nested container"})
+	if err != nil {
+		t.Fatalf("Failed to execute command in nested container: %v", err)
+	}
+
+	expectedOutput := "hello from nested container"
+	if !strings.Contains(output, expectedOutput) {
+		t.Errorf("Expected output to contain '%s', got: %s", expectedOutput, output)
+	}
+
+	t.Logf("Successfully created and verified nested container %s in DinD environment", containerID)
 }

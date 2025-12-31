@@ -9,19 +9,28 @@ import (
 	"strings"
 	"testing"
 
+	"recac/internal/agent"
+	"recac/internal/docker"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
-	"recac/internal/agent"
-	"recac/internal/docker"
 )
 
 // MockAgent for testing
 type MockAgentForMount struct{}
 
 func (m *MockAgentForMount) Send(ctx context.Context, prompt string) (string, error) {
-	return "mock response", nil
+	return "Agent processed " + prompt, nil
+}
+
+func (m *MockAgentForMount) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+	resp := "Agent processed " + prompt
+	if onChunk != nil {
+		onChunk(resp)
+	}
+	return resp, nil
 }
 
 // Ensure MockAgentForMount implements agent.Agent interface
@@ -33,7 +42,7 @@ var _ agent.Agent = (*MockAgentForMount)(nil)
 func TestSession_WorkspaceMounting(t *testing.T) {
 	// Step 1: Create a temporary workspace directory with test files
 	tmpDir := t.TempDir()
-	
+
 	// Create some test files in the workspace
 	testFiles := []string{"file1.txt", "file2.txt", "subdir"}
 	for _, name := range testFiles {
@@ -57,7 +66,7 @@ func TestSession_WorkspaceMounting(t *testing.T) {
 	// Step 2: Setup mock Docker client that simulates container execution
 	dockerClient, mock := docker.NewMockClient()
 	containerID := "test-container-123"
-	
+
 	// Track the workspace path that was mounted
 	var mountedWorkspace string
 	mock.ContainerCreateFunc = func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error) {
@@ -65,7 +74,7 @@ func TestSession_WorkspaceMounting(t *testing.T) {
 		if len(hostConfig.Binds) == 0 {
 			t.Error("Expected at least one bind mount, got none")
 		}
-		
+
 		// Extract the workspace path from the bind mount
 		// Format: "/host/path:/workspace"
 		bindMount := hostConfig.Binds[0]
@@ -77,12 +86,12 @@ func TestSession_WorkspaceMounting(t *testing.T) {
 			t.Errorf("Expected container mount point to be /workspace, got %s", parts[1])
 		}
 		mountedWorkspace = parts[0]
-		
+
 		// Verify working directory
 		if config.WorkingDir != "/workspace" {
 			t.Errorf("Expected WorkingDir to be /workspace, got %s", config.WorkingDir)
 		}
-		
+
 		return container.CreateResponse{ID: containerID}, nil
 	}
 
@@ -102,21 +111,21 @@ func TestSession_WorkspaceMounting(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to read workspace directory: %v", err)
 		}
-		
+
 		var fileList []string
 		for _, entry := range entries {
 			fileList = append(fileList, entry.Name())
 		}
-		
+
 		// Create Docker-style multiplexed output
 		output := strings.Join(fileList, "\n") + "\n"
 		var buf bytes.Buffer
-		
+
 		// Stdout header (type 1). The last 4 bytes are BigEndian size.
 		header := [8]byte{1, 0, 0, 0, 0, 0, 0, byte(len(output))}
 		buf.Write(header[:])
 		buf.Write([]byte(output))
-		
+
 		return types.HijackedResponse{
 			Conn:   &fakeConn{},
 			Reader: bufio.NewReader(&buf),
@@ -125,7 +134,7 @@ func TestSession_WorkspaceMounting(t *testing.T) {
 
 	// Step 3: Start session and execute ls command
 	session := NewSession(dockerClient, &MockAgentForMount{}, tmpDir, "alpine:latest")
-	
+
 	ctx := context.Background()
 	if err := session.Start(ctx); err != nil {
 		t.Fatalf("Session.Start failed: %v", err)
@@ -139,18 +148,18 @@ func TestSession_WorkspaceMounting(t *testing.T) {
 
 	// Step 4: Verify the output matches the host directory
 	outputLines := strings.Split(strings.TrimSpace(output), "\n")
-	
+
 	// Read actual files from host directory
 	hostEntries, err := os.ReadDir(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to read host directory: %v", err)
 	}
-	
+
 	hostFiles := make(map[string]bool)
 	for _, entry := range hostEntries {
 		hostFiles[entry.Name()] = true
 	}
-	
+
 	// Verify all container files exist in host
 	containerFiles := make(map[string]bool)
 	for _, line := range outputLines {
@@ -162,19 +171,19 @@ func TestSession_WorkspaceMounting(t *testing.T) {
 			}
 		}
 	}
-	
+
 	// Verify all host files are in container (at least the main ones)
 	for _, entry := range hostEntries {
 		if !containerFiles[entry.Name()] {
 			t.Errorf("File '%s' found in host but not in container output", entry.Name())
 		}
 	}
-	
+
 	// Verify mounted workspace path
 	if mountedWorkspace != tmpDir {
 		t.Errorf("Expected workspace path %s to be mounted, but got %s", tmpDir, mountedWorkspace)
 	}
-	
+
 	t.Logf("Successfully verified workspace mounting:")
 	t.Logf("  Workspace path: %s", tmpDir)
 	t.Logf("  Mounted as: %s:/workspace", mountedWorkspace)
