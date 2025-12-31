@@ -153,7 +153,7 @@ func (c *GeminiClient) sendOnce(ctx context.Context, prompt string) (string, err
 		return "", fmt.Errorf("API key is required")
 	}
 
-	url := fmt.Sprintf("%s/%s:generateContent?key=%s", c.apiURL, c.model, c.apiKey)
+	url := fmt.Sprintf("%s/%s:generateContent", c.apiURL, c.model)
 
 	requestBody := map[string]interface{}{
 		"contents": []map[string]interface{}{
@@ -175,6 +175,7 @@ func (c *GeminiClient) sendOnce(ctx context.Context, prompt string) (string, err
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-goog-api-key", c.apiKey)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
