@@ -6,8 +6,9 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/spf13/cobra"
 	"recac/internal/docker"
+
+	"github.com/spf13/cobra"
 )
 
 var autoFixFlag bool
@@ -24,7 +25,7 @@ var checkDockerCmd = &cobra.Command{
 
 		// Step 1: Check Docker daemon connectivity
 		fmt.Println("Checking Docker daemon connectivity...")
-		client, err := docker.NewClient()
+		client, err := docker.NewClient("check-docker")
 		if err != nil {
 			fmt.Printf("❌ Error creating docker client: %v\n", err)
 			os.Exit(1)
@@ -152,4 +153,3 @@ func init() {
 	checkDockerCmd.Flags().BoolVar(&autoFixFlag, "auto-fix", false, "Automatically attempt to fix issues (pull missing images, check disk space)")
 	rootCmd.AddCommand(checkDockerCmd)
 }
-

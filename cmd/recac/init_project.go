@@ -102,7 +102,9 @@ var initProjectCmd = &cobra.Command{
 				fmt.Println("Error: GEMINI_API_KEY is required.")
 				os.Exit(1)
 			}
-			a = agent.NewGeminiClient(apiKey, "gemini-pro")
+			cwd, _ := os.Getwd()
+			projectName := filepath.Base(cwd)
+			a = agent.NewGeminiClient(apiKey, "gemini-pro", projectName)
 		}
 
 		// 3. Generate Feature List

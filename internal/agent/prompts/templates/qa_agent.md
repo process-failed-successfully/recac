@@ -13,33 +13,13 @@ Either **PASS** or **FAIL** the current project state.
 
 1. **Execution**: Can the application actually start? (Check `Makefile`, `README.md`, or `init.sh`).
 2. **Verification**: Run the tests. All features in `feature_list.json` MUST pass.
+   - **MANDATORY CHECK**: You MUST run this command to verify completeness:
+     ```bash
+     jq -r '.features[] | select(.status != "done" and .status != "implemented" and .passes != true) | .id' feature_list.json
+     ```
+     If this command returns ANY output, you **MUST FAIL**. The project is NOT complete.
 3. **Spec Compliance**: Compare the actual functionality against `app_spec.txt`.
 4. **Resilience**: If you cannot run the tests because of missing dependencies or setup issues, that is a **FAIL**.
-5. **UI Verification (HUMAN IN THE LOOP)**:
-   - If a feature is in the "style" category or involves UI/UX that YOU cannot verify (e.g., verifying a specific color, an animation, or a layout), YOU MUST trigger **Human-in-the-Loop (HITL)**.
-   - You must NOT mark a UI feature as passing unless you have verified it (e.g., via screenshots if available, though currently you cannot see them).
-   - If you need human help, follow the protocol below.
-
-### UI VERIFICATION PROTOCOL (HITL)
-
-If you need a human to verify a UI feature:
-
-1. **Create `ui_verification.json`**:
-
-```json
-{
-  "requests": [
-    {
-      "feature_id": "feat-ui-01",
-      "instruction": "Please verify that the login button is centered and has a blue background.",
-      "status": "pending_human"
-    }
-  ]
-}
-```
-
-2. **Signal Blocker**: Use `agent-bridge blocker "UI Verification Required. See ui_verification.json"`.
-3. **Wait**: The session will stop. In your next turn, you will read the updated `ui_verification.json` to see the human's response.
 
 ### ENVIRONMENT BOOTSTRAPPING
 

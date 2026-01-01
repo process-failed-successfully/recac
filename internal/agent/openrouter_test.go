@@ -6,7 +6,7 @@ import (
 )
 
 func TestOpenRouterClient_Send(t *testing.T) {
-	client := NewOpenRouterClient("test-key", "google/gemini-2.0-flash-001")
+	client := NewOpenRouterClient("test-key", "google/gemini-2.0-flash-001", "test-project")
 	client.WithMockResponder(func(prompt string) (string, error) {
 		if prompt == "Hello" {
 			return "World", nil
@@ -25,7 +25,7 @@ func TestOpenRouterClient_Send(t *testing.T) {
 }
 
 func TestOpenRouterClient_New(t *testing.T) {
-	client := NewOpenRouterClient("api-key", "model-id")
+	client := NewOpenRouterClient("api-key", "model-id", "test-project")
 	if client.apiKey != "api-key" {
 		t.Error("API key not set")
 	}

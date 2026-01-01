@@ -20,6 +20,12 @@ type Store interface {
 	SaveFeatures(features string) error // JSON blob for flexibility
 	GetFeatures() (string, error)
 	UpdateFeatureStatus(id string, status string, passes bool) error
+
+	// Locking methods
+	AcquireLock(path, agentID string, timeout time.Duration) (bool, error)
+	ReleaseLock(path, agentID string) error
+	ReleaseAllLocks(agentID string) error
+	GetActiveLocks() ([]Lock, error)
 }
 
 // Observation represents a recorded event or fact
@@ -72,6 +78,13 @@ func (s *SQLiteStore) migrate() error {
 			id INTEGER PRIMARY KEY CHECK (id = 1),
 			content TEXT NOT NULL,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		);`,
+		`CREATE TABLE IF NOT EXISTS file_locks (
+			path TEXT PRIMARY KEY,
+			agent_id TEXT NOT NULL,
+			lock_type TEXT,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			expires_at DATETIME NOT NULL
 		);`,
 	}
 
@@ -199,4 +212,85 @@ func (s *SQLiteStore) UpdateFeatureStatus(id string, status string, passes bool)
 	}
 
 	return s.SaveFeatures(string(updated))
+}
+
+// AcquireLock attempts to acquire a lock on a path. It polls until timeout.
+func (s *SQLiteStore) AcquireLock(path, agentID string, timeout time.Duration) (bool, error) {
+	start := time.Now()
+	for {
+		// 1. Check if lock exists and is valid
+		var currentAgent string
+		var expiresAt time.Time
+		err := s.db.QueryRow(`SELECT agent_id, expires_at FROM file_locks WHERE path = ?`, path).Scan(&currentAgent, &expiresAt)
+
+		if err == sql.ErrNoRows {
+			// No lock, try to acquire
+			_, err = s.db.Exec(`INSERT INTO file_locks (path, agent_id, expires_at) VALUES (?, ?, ?)`,
+				path, agentID, time.Now().Add(10*time.Minute))
+			if err == nil {
+				return true, nil
+			}
+			// If insertion failed, someone might have just taken it, retry
+		} else if err == nil {
+			// Lock exists
+			if time.Now().After(expiresAt) {
+				// Lock expired, "highjack" it
+				_, err = s.db.Exec(`UPDATE file_locks SET agent_id = ?, expires_at = ?, created_at = CURRENT_TIMESTAMP WHERE path = ?`,
+					agentID, time.Now().Add(10*time.Minute), path)
+				if err == nil {
+					return true, nil
+				}
+			} else if currentAgent == agentID {
+				// Already held by us, renew
+				_, err = s.db.Exec(`UPDATE file_locks SET expires_at = ? WHERE path = ?`,
+					time.Now().Add(10*time.Minute), path)
+				return err == nil, err
+			}
+		} else {
+			return false, err
+		}
+
+		// 2. Check timeout
+		if time.Since(start) >= timeout {
+			return false, nil // Failed to acquire within timeout
+		}
+
+		// 3. Poll delay
+		time.Sleep(500 * time.Millisecond)
+	}
+}
+
+// ReleaseLock releases a lock. If agentID is "MANAGER", it can release any lock.
+func (s *SQLiteStore) ReleaseLock(path, agentID string) error {
+	if agentID == "MANAGER" {
+		_, err := s.db.Exec(`DELETE FROM file_locks WHERE path = ?`, path)
+		return err
+	}
+	_, err := s.db.Exec(`DELETE FROM file_locks WHERE path = ? AND agent_id = ?`, path, agentID)
+	return err
+}
+
+// ReleaseAllLocks releases all locks held by an agent.
+func (s *SQLiteStore) ReleaseAllLocks(agentID string) error {
+	_, err := s.db.Exec(`DELETE FROM file_locks WHERE agent_id = ?`, agentID)
+	return err
+}
+
+// GetActiveLocks returns all current (not expired) locks.
+func (s *SQLiteStore) GetActiveLocks() ([]Lock, error) {
+	rows, err := s.db.Query(`SELECT path, agent_id, expires_at FROM file_locks WHERE expires_at > ?`, time.Now())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var locks []Lock
+	for rows.Next() {
+		var l Lock
+		if err := rows.Scan(&l.Path, &l.AgentID, &l.ExpiresAt); err != nil {
+			return nil, err
+		}
+		locks = append(locks, l)
+	}
+	return locks, nil
 }

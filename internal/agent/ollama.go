@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"recac/internal/telemetry"
 	"time"
 )
 
@@ -14,6 +15,7 @@ import (
 type OllamaClient struct {
 	baseURL    string
 	model      string
+	project    string
 	httpClient *http.Client
 	// mockResponder is used for testing to bypass real API calls
 	mockResponder func(string) (string, error)
@@ -22,13 +24,14 @@ type OllamaClient struct {
 // NewOllamaClient creates a new Ollama client
 // baseURL defaults to http://localhost:11434 if empty
 // model is the Ollama model name (e.g., "llama2", "mistral", "codellama")
-func NewOllamaClient(baseURL, model string) *OllamaClient {
+func NewOllamaClient(baseURL, model, project string) *OllamaClient {
 	if baseURL == "" {
 		baseURL = "http://localhost:11434"
 	}
 	return &OllamaClient{
 		baseURL: baseURL,
 		model:   model,
+		project: project,
 		httpClient: &http.Client{
 			Timeout: 60 * time.Second, // Longer timeout for local models
 		},
@@ -43,6 +46,12 @@ func (c *OllamaClient) WithMockResponder(fn func(string) (string, error)) *Ollam
 
 // Send sends a prompt to Ollama and returns the generated text
 func (c *OllamaClient) Send(ctx context.Context, prompt string) (string, error) {
+	telemetry.TrackAgentIteration(c.project)
+	start := time.Now()
+	defer func() {
+		telemetry.ObserveAgentLatency(c.project, time.Since(start).Seconds())
+	}()
+
 	// Use mock responder if set (for testing)
 	if c.mockResponder != nil {
 		return c.mockResponder(prompt)

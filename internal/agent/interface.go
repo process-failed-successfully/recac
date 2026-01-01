@@ -17,20 +17,25 @@ type Agent interface {
 
 // NewAgent is a factory function that returns an Agent based on the provider
 // For Ollama, apiKey is used as baseURL (optional, defaults to http://localhost:11434)
-func NewAgent(provider, apiKey, model, workDir string) (Agent, error) {
+func NewAgent(provider, apiKey, model, workDir, project string) (Agent, error) {
+	// Default to "unknown" if project is empty
+	if project == "" {
+		project = "unknown"
+	}
+
 	switch provider {
 	case "gemini":
-		return NewGeminiClient(apiKey, model), nil
+		return NewGeminiClient(apiKey, model, project), nil
 	case "gemini-cli":
-		return NewGeminiCLIClient(apiKey, model, workDir), nil
+		return NewGeminiCLIClient(apiKey, model, workDir, project), nil
 	case "openai":
-		return NewOpenAIClient(apiKey, model), nil
+		return NewOpenAIClient(apiKey, model, project), nil
 	case "ollama":
-		return NewOllamaClient(apiKey, model), nil
+		return NewOllamaClient(apiKey, model, project), nil
 	case "openrouter":
-		return NewOpenRouterClient(apiKey, model), nil
+		return NewOpenRouterClient(apiKey, model, project), nil
 	case "cursor-cli":
-		return NewCursorCLIClient(apiKey, model), nil
+		return NewCursorCLIClient(apiKey, model, project), nil
 	default:
 		return nil, fmt.Errorf("unknown provider: %s", provider)
 	}

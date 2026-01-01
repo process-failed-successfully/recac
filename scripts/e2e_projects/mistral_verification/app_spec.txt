@@ -1,0 +1,3 @@
+Create a command line calculator in Go that takes two numbers and an operator (+, -, *, /) as arguments and prints the result.
+Ensure it handles division by zero.
+Provide a way to build it.

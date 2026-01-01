@@ -6,7 +6,7 @@ import (
 
 func TestNewAgent(t *testing.T) {
 	// Test Gemini
-	a, err := NewAgent("gemini", "key", "gemini-pro", "")
+	a, err := NewAgent("gemini", "key", "gemini-pro", "", "test-project")
 	if err != nil {
 		t.Fatalf("failed to create gemini agent: %v", err)
 	}
@@ -15,7 +15,7 @@ func TestNewAgent(t *testing.T) {
 	}
 
 	// Test OpenAI
-	a, err = NewAgent("openai", "key", "gpt-4", "")
+	a, err = NewAgent("openai", "key", "gpt-4", "", "test-project")
 	if err != nil {
 		t.Fatalf("failed to create openai agent: %v", err)
 	}
@@ -24,7 +24,7 @@ func TestNewAgent(t *testing.T) {
 	}
 
 	// Test Ollama
-	a, err = NewAgent("ollama", "", "llama2", "")
+	a, err = NewAgent("ollama", "", "llama2", "", "test-project")
 	if err != nil {
 		t.Fatalf("failed to create ollama agent: %v", err)
 	}
@@ -33,7 +33,7 @@ func TestNewAgent(t *testing.T) {
 	}
 
 	// Test Unknown
-	_, err = NewAgent("unknown", "key", "model", "")
+	_, err = NewAgent("unknown", "key", "model", "", "test-project")
 	if err == nil {
 		t.Error("expected error for unknown provider, got nil")
 	}

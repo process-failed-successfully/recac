@@ -9,8 +9,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/spf13/cobra"
 	"recac/internal/docker"
+
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -45,8 +46,15 @@ var buildCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		// Derive project name from build context
+		projectName := filepath.Base(buildContextPath)
+		if projectName == "." || projectName == "/" {
+			cwd, _ := os.Getwd()
+			projectName = filepath.Base(cwd)
+		}
+
 		// Create Docker client
-		client, err := docker.NewClient()
+		client, err := docker.NewClient(projectName)
 		if err != nil {
 			fmt.Printf("Error creating docker client: %v\n", err)
 			os.Exit(1)
@@ -56,7 +64,7 @@ var buildCmd = &cobra.Command{
 		// Build image
 		opts := docker.ImageBuildOptions{
 			BuildContext: tarStream,
-			Dockerfile:    buildDockerfile,
+			Dockerfile:   buildDockerfile,
 			Tag:          buildTag,
 			NoCache:      buildNoCache,
 		}

@@ -10,7 +10,7 @@ import (
 
 func TestGeminiClient_Retry(t *testing.T) {
 	calls := 0
-	client := NewGeminiClient("fake-key", "gemini-pro")
+	client := NewGeminiClient("fake-key", "gemini-pro", "test-project")
 	client.WithMockResponder(func(prompt string) (string, error) {
 		calls++
 		if calls < 3 {
@@ -21,15 +21,15 @@ func TestGeminiClient_Retry(t *testing.T) {
 
 	ctx := context.Background()
 	result, err := client.Send(ctx, "test prompt")
-	
+
 	if err != nil {
 		t.Fatalf("expected success, got error: %v", err)
 	}
-	
+
 	if result != "Success" {
 		t.Errorf("expected 'Success', got %q", result)
 	}
-	
+
 	if calls != 3 {
 		t.Errorf("expected 3 calls, got %d", calls)
 	}
@@ -43,8 +43,8 @@ func TestGeminiClient_NetworkInterruption(t *testing.T) {
 	// Test case 1: Network error that eventually succeeds after retries
 	t.Run("NetworkDrop_RecoversAfterRetries", func(t *testing.T) {
 		calls := 0
-		client := NewGeminiClient("fake-key", "gemini-pro")
-		
+		client := NewGeminiClient("fake-key", "gemini-pro", "test-project")
+
 		// Simulate network drop (connection refused, timeout, etc.)
 		client.WithMockResponder(func(prompt string) (string, error) {
 			calls++
@@ -66,30 +66,30 @@ func TestGeminiClient_NetworkInterruption(t *testing.T) {
 
 		ctx := context.Background()
 		startTime := time.Now()
-		
+
 		// Verify it doesn't crash (no panic)
 		defer func() {
 			if r := recover(); r != nil {
 				t.Fatalf("Application crashed with panic: %v", r)
 			}
 		}()
-		
+
 		result, err := client.Send(ctx, "test prompt")
-		
+
 		// Verify retries happened (should have called 4 times)
 		if calls != 4 {
 			t.Errorf("expected 4 calls (3 failures + 1 success), got %d", calls)
 		}
-		
+
 		// Verify eventual success
 		if err != nil {
 			t.Fatalf("expected success after retries, got error: %v", err)
 		}
-		
+
 		if result != "Success after network recovery" {
 			t.Errorf("expected 'Success after network recovery', got %q", result)
 		}
-		
+
 		// Verify exponential backoff was applied (should take some time)
 		elapsed := time.Since(startTime)
 		if elapsed < 3*time.Second {
@@ -100,8 +100,8 @@ func TestGeminiClient_NetworkInterruption(t *testing.T) {
 	// Test case 2: Network error that fails after max retries (but doesn't crash)
 	t.Run("NetworkDrop_FailsGracefully", func(t *testing.T) {
 		calls := 0
-		client := NewGeminiClient("fake-key", "gemini-pro")
-		
+		client := NewGeminiClient("fake-key", "gemini-pro", "test-project")
+
 		// Simulate persistent network failure
 		client.WithMockResponder(func(prompt string) (string, error) {
 			calls++
@@ -110,32 +110,32 @@ func TestGeminiClient_NetworkInterruption(t *testing.T) {
 		})
 
 		ctx := context.Background()
-		
+
 		// Verify it doesn't crash (no panic)
 		defer func() {
 			if r := recover(); r != nil {
 				t.Fatalf("Application crashed with panic: %v", r)
 			}
 		}()
-		
+
 		result, err := client.Send(ctx, "test prompt")
-		
+
 		// Verify retries happened (maxRetries = 3, so 4 total attempts: initial + 3 retries)
 		expectedCalls := 4
 		if calls != expectedCalls {
 			t.Errorf("expected %d calls (1 initial + 3 retries), got %d", expectedCalls, calls)
 		}
-		
+
 		// Verify it returns an error (not a panic)
 		if err == nil {
 			t.Error("expected error after max retries, got nil")
 		}
-		
+
 		// Verify error message indicates retry exhaustion
 		if result != "" {
 			t.Errorf("expected empty result on failure, got %q", result)
 		}
-		
+
 		// Verify error message mentions retries
 		if err != nil && err.Error() == "" {
 			t.Error("expected non-empty error message")
@@ -145,41 +145,41 @@ func TestGeminiClient_NetworkInterruption(t *testing.T) {
 	// Test case 3: Context cancellation during network interruption
 	t.Run("NetworkDrop_ContextCancellation", func(t *testing.T) {
 		calls := 0
-		client := NewGeminiClient("fake-key", "gemini-pro")
-		
+		client := NewGeminiClient("fake-key", "gemini-pro", "test-project")
+
 		client.WithMockResponder(func(prompt string) (string, error) {
 			calls++
 			return "", fmt.Errorf("dial tcp: connection refused")
 		})
 
 		ctx, cancel := context.WithCancel(context.Background())
-		
+
 		// Cancel context after a short delay
 		go func() {
 			time.Sleep(500 * time.Millisecond)
 			cancel()
 		}()
-		
+
 		// Verify it doesn't crash
 		defer func() {
 			if r := recover(); r != nil {
 				t.Fatalf("Application crashed with panic: %v", r)
 			}
 		}()
-		
+
 		result, err := client.Send(ctx, "test prompt")
-		
+
 		// Verify context cancellation is handled gracefully
 		if err == nil {
 			t.Error("expected error due to context cancellation, got nil")
 		}
-		
+
 		// Verify it doesn't continue retrying after context is cancelled
 		// (should stop after context is cancelled, not after max retries)
 		if calls > 2 {
 			t.Errorf("expected to stop after context cancellation, but made %d calls", calls)
 		}
-		
+
 		if result != "" {
 			t.Errorf("expected empty result on cancellation, got %q", result)
 		}
@@ -209,9 +209,9 @@ func TestGeminiClient_IterationIncrementOnError(t *testing.T) {
 
 	// Step 1: Simulate an agent API error
 	calls := 0
-	client := NewGeminiClient("fake-key", "gemini-pro")
+	client := NewGeminiClient("fake-key", "gemini-pro", "test-project")
 	client.WithStateManager(sm)
-	
+
 	// Mock responder that always fails (simulating API error)
 	client.WithMockResponder(func(prompt string) (string, error) {
 		calls++
@@ -224,7 +224,7 @@ func TestGeminiClient_IterationIncrementOnError(t *testing.T) {
 	// Step 2: Verify the iteration count does not increase
 	// Make a call that will fail after retries
 	_, err := client.Send(ctx, "test prompt")
-	
+
 	// Verify it failed (as expected)
 	if err == nil {
 		t.Fatal("expected error, got nil")
@@ -268,9 +268,9 @@ func TestGeminiClient_IterationIncrementOnError(t *testing.T) {
 		}
 
 		successCalls := 0
-		successClient := NewGeminiClient("fake-key", "gemini-pro")
+		successClient := NewGeminiClient("fake-key", "gemini-pro", "test-project")
 		successClient.WithStateManager(sm)
-		
+
 		// Mock responder that succeeds immediately
 		successClient.WithMockResponder(func(prompt string) (string, error) {
 			successCalls++

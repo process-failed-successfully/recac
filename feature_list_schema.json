@@ -1,0 +1,53 @@
+{
+  "project_name": "Autonomous Agent Framework",
+  "features": [
+    {
+      "id": "feat-jira-01",
+      "category": "backend",
+      "priority": "MVP",
+      "description": "Implement Jira integration client",
+      "status": "pending",
+      "steps": [
+        "Create jira package in internal/",
+        "Define Client struct",
+        "Implement Authenticate method"
+      ],
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": ["internal/jira"],
+        "read_only_paths": ["config/"]
+      }
+    },
+    {
+      "id": "feat-notify-01",
+      "category": "backend",
+      "priority": "MVP",
+      "description": "Implement notification system",
+      "status": "pending",
+      "steps": [
+        "Create notify package",
+        "Implement Slack webhook handler"
+      ],
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": ["internal/notify"],
+        "read_only_paths": ["config/"]
+      }
+    },
+    {
+      "id": "feat-integration-01",
+      "category": "devops",
+      "priority": "Production",
+      "description": "Wire up Jira and Notify together",
+      "status": "pending",
+      "steps": [
+        "Update main.go to initialize both services"
+      ],
+      "dependencies": {
+        "depends_on_ids": ["feat-jira-01", "feat-notify-01"],
+        "exclusive_write_paths": ["cmd/server/"],
+        "read_only_paths": ["internal/jira", "internal/notify"]
+      }
+    }
+  ]
+}

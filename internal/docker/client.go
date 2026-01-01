@@ -18,6 +18,8 @@ import (
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/stdcopy"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
+
+	"recac/internal/telemetry"
 )
 
 //go:embed agent.Dockerfile
@@ -41,16 +43,21 @@ type APIClient interface {
 
 // Client wraps the official Docker client to provide high-level orchestration methods.
 type Client struct {
-	api APIClient
+	api     APIClient
+	project string
 }
 
 // NewClient creates a new Docker client instance.
-func NewClient() (*Client, error) {
+func NewClient(project string) (*Client, error) {
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create docker client: %w", err)
 	}
-	return &Client{api: cli}, nil
+	// Default to "unknown" if project is empty to avoid cardinality explosion or errors
+	if project == "" {
+		project = "unknown"
+	}
+	return &Client{api: cli, project: project}, nil
 }
 
 // Close closes the underlying docker client connection.
@@ -133,8 +140,10 @@ func (c *Client) CheckImage(ctx context.Context, imageRef string) (bool, error) 
 // It returns an error if the pull fails.
 // Progress logging should be handled by the caller.
 func (c *Client) PullImage(ctx context.Context, imageRef string) error {
+	telemetry.TrackDockerOp(c.project)
 	reader, err := c.api.ImagePull(ctx, imageRef, image.PullOptions{})
 	if err != nil {
+		telemetry.TrackDockerError(c.project)
 		return fmt.Errorf("failed to pull image %s: %w", imageRef, err)
 	}
 	defer reader.Close()
@@ -163,6 +172,7 @@ func (c *Client) PullImage(ctx context.Context, imageRef string) error {
 // RunContainer starts a container with the specified image and mounts the workspace.
 // It returns the container ID or an error.
 func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, user string) (string, error) {
+	telemetry.TrackDockerOp(c.project)
 	// 1. Pull Image (Best effort)
 	reader, err := c.api.ImagePull(ctx, imageRef, image.PullOptions{})
 	if err == nil {
@@ -192,11 +202,13 @@ func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace st
 			Binds: binds,
 		}, nil, nil, "")
 	if err != nil {
+		telemetry.TrackDockerError(c.project)
 		return "", fmt.Errorf("failed to create container: %w", err)
 	}
 
 	// 3. Start Container
 	if err := c.api.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
+		telemetry.TrackDockerError(c.project)
 		return "", fmt.Errorf("failed to start container: %w", err)
 	}
 
@@ -205,6 +217,7 @@ func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace st
 
 // Exec executes a command in a running container and returns the output (stdout + stderr).
 func (c *Client) Exec(ctx context.Context, containerID string, cmd []string) (string, error) {
+	telemetry.TrackDockerOp(c.project)
 	execConfig := container.ExecOptions{
 		Cmd:          cmd,
 		AttachStdout: true,
@@ -223,12 +236,67 @@ func (c *Client) Exec(ctx context.Context, containerID string, cmd []string) (st
 	defer resp.Close()
 
 	var outBuf, errBuf bytes.Buffer
-	// stdcopy.StdCopy demultiplexes the stream if Tty is false.
-	// If Tty is true in ExecConfig, it's a raw stream.
-	// We didn't set Tty in ExecConfig, so it defaults to false.
-	_, err = stdcopy.StdCopy(&outBuf, &errBuf, resp.Reader)
+	done := make(chan error, 1)
+
+	go func() {
+		// stdcopy.StdCopy demultiplexes the stream if Tty is false.
+		// If Tty is true in ExecConfig, it's a raw stream.
+		// We didn't set Tty in ExecConfig, so it defaults to false.
+		_, err := stdcopy.StdCopy(&outBuf, &errBuf, resp.Reader)
+		done <- err
+	}()
+
+	select {
+	case <-ctx.Done():
+		// Context cancelled/timed out - close connection to interrupt read
+		resp.Close()
+		return "", ctx.Err()
+	case err := <-done:
+		if err != nil && err != io.EOF {
+			return "", fmt.Errorf("failed to copy exec output: %w", err)
+		}
+	}
+
+	return outBuf.String() + errBuf.String(), nil
+}
+
+// ExecAsUser executes a command as a specific user in a running container.
+func (c *Client) ExecAsUser(ctx context.Context, containerID string, user string, cmd []string) (string, error) {
+	telemetry.TrackDockerOp(c.project)
+	execConfig := container.ExecOptions{
+		User:         user,
+		Cmd:          cmd,
+		AttachStdout: true,
+		AttachStderr: true,
+	}
+
+	respID, err := c.api.ContainerExecCreate(ctx, containerID, execConfig)
 	if err != nil {
-		return "", fmt.Errorf("failed to copy exec output: %w", err)
+		return "", fmt.Errorf("failed to create exec as user %s: %w", user, err)
+	}
+
+	resp, err := c.api.ContainerExecAttach(ctx, respID.ID, container.ExecStartOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to attach exec as user %s: %w", user, err)
+	}
+	defer resp.Close()
+
+	var outBuf, errBuf bytes.Buffer
+	done := make(chan error, 1)
+
+	go func() {
+		_, err := stdcopy.StdCopy(&outBuf, &errBuf, resp.Reader)
+		done <- err
+	}()
+
+	select {
+	case <-ctx.Done():
+		resp.Close()
+		return "", ctx.Err()
+	case err := <-done:
+		if err != nil && err != io.EOF {
+			return "", fmt.Errorf("failed to copy exec output: %w", err)
+		}
 	}
 
 	return outBuf.String() + errBuf.String(), nil
@@ -236,9 +304,11 @@ func (c *Client) Exec(ctx context.Context, containerID string, cmd []string) (st
 
 // StopContainer stops and removes the container.
 func (c *Client) StopContainer(ctx context.Context, containerID string) error {
+	telemetry.TrackDockerOp(c.project)
 	// Stop
 	if err := c.api.ContainerStop(ctx, containerID, container.StopOptions{}); err != nil {
 		// Just log error?
+		telemetry.TrackDockerError(c.project)
 	}
 
 	// Remove
@@ -262,6 +332,7 @@ type ImageBuildOptions struct {
 // ImageBuild builds a Docker image from a build context and returns the image ID.
 // The build progress is logged via the provided logger function (if non-nil).
 func (c *Client) ImageBuild(ctx context.Context, opts ImageBuildOptions) (string, error) {
+	telemetry.TrackDockerOp(c.project)
 	if opts.BuildContext == nil {
 		return "", fmt.Errorf("build context is required")
 	}

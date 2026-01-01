@@ -4,15 +4,21 @@ bash_timeout: 120
 detached: false
 docker_timeout: 600
 jira: ""
+manager_first: false
 manager_frequency: 5
+max_agents: 1
 max_iterations: 20
-metrics_port: 9090
+metrics_port: 2112
 mock: false
 mock-agent: false
-
 model: gemini-pro-latest
 name: ""
+notifications:
+    slack:
+        enabled: true
 path: ""
 provider: gemini
+stream: false
+task_max_iterations: 10
 timeout: 300
 verbose: true

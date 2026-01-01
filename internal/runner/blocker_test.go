@@ -30,6 +30,10 @@ func (m *MockDockerForBlocker) Exec(ctx context.Context, id string, cmd []string
 	return "", nil
 }
 
+func (m *MockDockerForBlocker) ExecAsUser(ctx context.Context, id string, user string, cmd []string) (string, error) {
+	return m.Exec(ctx, id, cmd)
+}
+
 func TestProcessResponse_BlockerFalsePositives(t *testing.T) {
 	ctx := context.Background()
 	mockDocker := &MockDockerForBlocker{
@@ -51,7 +55,7 @@ func TestProcessResponse_BlockerFalsePositives(t *testing.T) {
 		{"recac_blockers.txt", "no blockers", false},
 		{"recac_blockers.txt", "Initial setup complete", false},
 		{"blockers.txt", "# Current Blockers\n\n# None at this time\n# The project is progressing smoothly\n# All required tools are available\n# No technical obstacles", false},
-		{"recac_blockers.txt", "UI Verification Required", true},
+		{"recac_blockers.txt", "UI Verification Required", false},
 		{"recac_blockers.txt", "I am actually blocked by missing API key", true},
 		{"blockers.txt", "Error: failed to connect to DB", true},
 	}

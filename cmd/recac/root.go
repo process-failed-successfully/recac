@@ -100,10 +100,22 @@ func initConfig() {
 				viper.SetDefault("manager_frequency", 5)
 				viper.SetDefault("timeout", 300)
 				viper.SetDefault("docker_timeout", 600)
-				viper.SetDefault("bash_timeout", 120)
+				viper.SetDefault("bash_timeout", 600)
 				viper.SetDefault("agent_timeout", 300)
-				viper.SetDefault("metrics_port", 9090)
+				viper.SetDefault("agent_timeout", 300)
+				viper.SetDefault("metrics_port", 2112)
 				viper.SetDefault("verbose", false)
+				viper.SetDefault("git_user_email", "recac-agent@example.com")
+				viper.SetDefault("git_user_name", "RECAC Agent")
+
+				// Notification Defaults
+				viper.SetDefault("notifications.slack.enabled", false)
+				viper.SetDefault("notifications.slack.channel", "#general")
+				viper.SetDefault("notifications.slack.events.on_start", true)
+				viper.SetDefault("notifications.slack.events.on_success", true)
+				viper.SetDefault("notifications.slack.events.on_failure", true)
+				viper.SetDefault("notifications.slack.events.on_user_interaction", true)
+				viper.SetDefault("notifications.slack.events.on_project_complete", true)
 
 				// Write config to current directory
 				viper.SetConfigName("config")
@@ -136,5 +148,13 @@ func initConfig() {
 		os.Exit(1)
 	}
 
-	telemetry.InitLogger(viper.GetBool("verbose"))
+	telemetry.InitLogger(viper.GetBool("verbose"), "")
+
+	// Start Metrics Server
+	go func() {
+		port := viper.GetInt("metrics_port")
+		if err := telemetry.StartMetricsServer(port); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: Failed to start metrics server: %v\n", err)
+		}
+	}()
 }

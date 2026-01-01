@@ -9,17 +9,18 @@ Your job is to set up the foundation for all future coding agents.
 2. **Create feature_list.json**: Create a complete and detailed list of acceptance tests based on the spec.
 3. **Initialize Project**: Set up the initial directory structure and files.
 4. **Create init.sh**: Add a setup script for the environment (dependencies, servers, etc.).
-5. **Initial Commit**: Create a git repository and make the first commit.
+5. **Initial Commit**: Create a git repository and make the first commit.sa
 
 ### CRITICAL: feature_list.json Requirements
 
 Based on `app_spec.txt`, create `feature_list.json`. This is the single source of truth for features. The system maintains an authoritative database mirror of this file for resilience; if the file is deleted or corrupted, the orchestrator will automatically restore it from the DB.
 
-- **Acceptance Tests**: Minimum 50 detailed end-to-end test cases.
+- **Acceptance Tests**: Minimum 5-10 detailed test cases that cover the core requirements.
+- **Pragmatic Scope**: DO NOT hallucinate features not mentioned in the spec. Focus purely on what is requested.
 - **Categories**: Use "functional" for core logic and "style" for UI/UX.
-- **Steps**: Each feature must have explicit "steps" for verification.
-- **Complexity**: Mix of narrow tests and comprehensive tests (at least 1 with 10+ steps).
-- **Exhaustive**: Cover every requirement, edge case, and error state in the spec.
+- **Priority**: Assign "POC", "MVP", or "Production". Always start with POC/MVP.
+- **Steps**: Each feature must have 3-5 explicit "steps" for verification.
+- **Exhaustive**: Cover the requirements and common edge cases (e.g., division by zero, invalid input).
 
 **Format:**
 
@@ -30,6 +31,7 @@ Based on `app_spec.txt`, create `feature_list.json`. This is the single source o
     {
       "id": "ui-dashboard",
       "category": "functional",
+      "priority": "MVP",
       "description": "Verifies the main dashboard displays user data correctly",
       "status": "pending",
       "steps": [
@@ -57,11 +59,17 @@ Create a script called `init.sh` to set up the dev environment:
 - Start services (if needed).
 - Print helpful information about how to access the running application.
 
-### THIRD TASK: Initialize Project & Git
+### THIRD TASK: Initialize Project
 
-- Create basic project structure (frontend/, backend/, etc.).
+- **NO SUBDIRECTORIES**: Work directly in the current directory (`.`). Do not create a project subfolder.
 - Create `README.md` and `Makefile`.
-- `git init` and commit everything.
+
+### RESTRICTED: NO FEATURE IMPLEMENTATION
+
+- **DO NOT** write application logic or implementing features.
+- **DO NOT** create complex source files. Create empty placeholders if necessary.
+- Your ONLY goal is to set the stage for the **Code Sprint** where multiple agents will work in parallel.
+- Focus on `feature_list.json` dependencies to ensure parallel agents don't conflict.
 
 ### HUMAN INTERVENTION
 

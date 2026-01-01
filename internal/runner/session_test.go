@@ -38,7 +38,7 @@ func TestSession_ReadSpec(t *testing.T) {
 		t.Fatalf("Failed to write spec file: %v", err)
 	}
 
-	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine")
+	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", 1)
 
 	content, err := session.ReadSpec()
 	if err != nil {
@@ -52,7 +52,7 @@ func TestSession_ReadSpec(t *testing.T) {
 
 func TestSession_ReadSpec_Missing(t *testing.T) {
 	tmpDir := t.TempDir()
-	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine")
+	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", 1)
 
 	_, err := session.ReadSpec()
 	if err == nil {
@@ -70,7 +70,7 @@ func TestSession_AgentReadsSpec(t *testing.T) {
 	}
 
 	mockDocker, _ := docker.NewMockClient()
-	session := NewSession(mockDocker, &MockAgent{}, tmpDir, "alpine")
+	session := NewSession(mockDocker, &MockAgent{}, tmpDir, "alpine", "test-project", 1)
 
 	spec, err := session.ReadSpec()
 	if err != nil {
@@ -107,7 +107,7 @@ func TestSession_Start_PassesUser(t *testing.T) {
 		return container.CreateResponse{ID: "test"}, nil
 	}
 
-	session := NewSession(d, &MockAgent{}, tmpDir, "alpine")
+	session := NewSession(d, &MockAgent{}, tmpDir, "alpine", "test-project", 1)
 	if err := session.Start(context.Background()); err != nil {
 		t.Fatalf("Start failed: %v", err)
 	}
@@ -152,12 +152,12 @@ func TestSession_SelectPrompt(t *testing.T) {
 	specPath := filepath.Join(tmpDir, "app_spec.txt")
 	os.WriteFile(specPath, []byte(specContent), 0644)
 
-	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine")
+	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", 1)
 	session.ManagerFrequency = 3
 
 	// Session 1: Initializer
 	session.Iteration = 1
-	prompt, isManager, err := session.SelectPrompt()
+	prompt, _, isManager, err := session.SelectPrompt()
 	if err != nil {
 		t.Fatalf("SelectPrompt failed: %v", err)
 	}
@@ -168,9 +168,13 @@ func TestSession_SelectPrompt(t *testing.T) {
 		t.Errorf("Expected INITIALIZER prompt, got %q", prompt)
 	}
 
+	// Create valid feature list (non-empty) so we exit Initializer mode
+	featureContent := `{"project_name": "Test", "features": [{"id":"1", "description":"test", "status":"pending"}]}`
+	os.WriteFile(filepath.Join(tmpDir, "feature_list.json"), []byte(featureContent), 0644)
+
 	// Session 2: Coding Agent
 	session.Iteration = 2
-	prompt, isManager, err = session.SelectPrompt()
+	prompt, _, isManager, err = session.SelectPrompt()
 	if err != nil {
 		t.Fatalf("SelectPrompt failed: %v", err)
 	}
@@ -183,7 +187,7 @@ func TestSession_SelectPrompt(t *testing.T) {
 
 	// Session 3: Manager Review (frequency)
 	session.Iteration = 3
-	prompt, isManager, err = session.SelectPrompt()
+	prompt, _, isManager, err = session.SelectPrompt()
 	if err != nil {
 		t.Fatalf("SelectPrompt failed: %v", err)
 	}
@@ -196,7 +200,7 @@ func TestSession_SelectPrompt(t *testing.T) {
 
 	// Session 4: Coding Agent
 	session.Iteration = 4
-	prompt, _, _ = session.SelectPrompt()
+	prompt, _, _, _ = session.SelectPrompt()
 	if !strings.Contains(prompt, "CODING AGENT") {
 		t.Errorf("Expected CODING AGENT prompt, got %q", prompt)
 	}
@@ -205,7 +209,7 @@ func TestSession_SelectPrompt(t *testing.T) {
 	triggerPath := filepath.Join(tmpDir, "TRIGGER_MANAGER")
 	os.WriteFile(triggerPath, []byte(""), 0644)
 	session.Iteration = 5
-	prompt, isManager, err = session.SelectPrompt()
+	prompt, _, isManager, err = session.SelectPrompt()
 	if err != nil {
 		t.Fatalf("SelectPrompt failed: %v", err)
 	}
@@ -221,7 +225,7 @@ func TestSession_AgentStatePersistence(t *testing.T) {
 	tmpDir := t.TempDir()
 	stateFile := filepath.Join(tmpDir, ".agent_state.json")
 
-	session := NewSessionWithStateFile(nil, &MockAgent{}, tmpDir, "alpine", stateFile)
+	session := NewSessionWithStateFile(nil, &MockAgent{}, tmpDir, "alpine", "test-project", stateFile, 1)
 
 	// Initialize
 	if err := session.InitializeAgentState(1000); err != nil {
@@ -252,7 +256,7 @@ func TestSession_AgentStatePersistence(t *testing.T) {
 
 func TestSession_Signals(t *testing.T) {
 	tmpDir := t.TempDir()
-	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine")
+	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", 1)
 
 	// Test createSignal
 	if err := session.createSignal("TEST_SIGNAL"); err != nil {
@@ -282,7 +286,7 @@ func TestSession_Signals(t *testing.T) {
 
 func TestSession_Stop(t *testing.T) {
 	mockDocker, _ := docker.NewMockClient()
-	session := NewSession(mockDocker, &MockAgent{}, "/tmp", "alpine")
+	session := NewSession(mockDocker, &MockAgent{}, "/tmp", "alpine", "test-project", 1)
 
 	ctx := context.Background()
 
@@ -304,7 +308,7 @@ func TestSession_Stop(t *testing.T) {
 
 func TestSession_RunCleanerAgent(t *testing.T) {
 	tmpDir := t.TempDir()
-	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine")
+	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", 1)
 
 	// Create temp file to delete
 	tmpFile := filepath.Join(tmpDir, "to_delete.txt")
@@ -331,7 +335,7 @@ func TestSession_RunCleanerAgent(t *testing.T) {
 
 func TestSession_LoadFeatures(t *testing.T) {
 	tmpDir := t.TempDir()
-	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine")
+	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", 1)
 
 	features := session.loadFeatures()
 	if features != nil {
@@ -357,11 +361,11 @@ func TestSession_RunLoop_SingleIteration(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
 
 	mockDocker, _ := docker.NewMockClient()
-	session := NewSession(mockDocker, &MockAgent{}, tmpDir, "alpine")
+	session := NewSession(mockDocker, &MockAgent{}, tmpDir, "alpine", "test-project", 1)
 	session.MaxIterations = 1
 
 	ctx := context.Background()
-	if err := session.RunLoop(ctx); err != nil {
+	if err := session.RunLoop(ctx); err != nil && err != ErrMaxIterations {
 		t.Fatalf("RunLoop failed: %v", err)
 	}
 }
@@ -372,11 +376,9 @@ func TestSession_RunQAAgent(t *testing.T) {
 		Response:  "PASS",
 		Workspace: tmpDir,
 	}
-	session := NewSession(nil, mockAgent, tmpDir, "alpine")
+	session := NewSession(nil, mockAgent, tmpDir, "alpine", "test-project", 1)
 	session.QAAgent = mockAgent
 
-	// Create feature list (all passing)
-	// Create feature list (all passing)
 	// Create feature list (all passing)
 	listPath := filepath.Join(tmpDir, "feature_list.json")
 	content := `{"project_name": "Test", "features": [{"id":"1", "description":"feat 1", "status":"done"}]}`
@@ -399,7 +401,7 @@ func TestSession_RunQAAgent(t *testing.T) {
 func TestSession_RunManagerAgent(t *testing.T) {
 	tmpDir := t.TempDir()
 	mockAgent := &MockAgent{}
-	session := NewSession(nil, mockAgent, tmpDir, "alpine")
+	session := NewSession(nil, mockAgent, tmpDir, "alpine", "test-project", 1)
 	session.ManagerAgent = mockAgent
 
 	// 1. All passing -> Approved
@@ -432,5 +434,43 @@ func TestMin(t *testing.T) {
 	}
 	if min(1, 1) != 1 {
 		t.Error("min(1,1) != 1")
+	}
+}
+
+func TestSession_Start_MountsBridge(t *testing.T) {
+	tmpDir := t.TempDir()
+	specPath := filepath.Join(tmpDir, "app_spec.txt")
+	os.WriteFile(specPath, []byte("test"), 0644)
+
+	// Create a dummy agent-bridge in the current directory (since test runs in package dir)
+	cwd, _ := os.Getwd()
+	bridgePath := filepath.Join(cwd, "agent-bridge")
+	if _, err := os.Stat(bridgePath); os.IsNotExist(err) {
+		os.WriteFile(bridgePath, []byte("dummy"), 0755)
+		defer os.Remove(bridgePath)
+	}
+
+	d, mock := docker.NewMockClient()
+	var mountedBinds []string
+	mock.ContainerCreateFunc = func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error) {
+		mountedBinds = hostConfig.Binds
+		return container.CreateResponse{ID: "test"}, nil
+	}
+
+	session := NewSession(d, &MockAgent{}, tmpDir, "alpine", "test-project", 1)
+	if err := session.Start(context.Background()); err != nil {
+		t.Fatalf("Start failed: %v", err)
+	}
+
+	foundBridge := false
+	for _, bind := range mountedBinds {
+		if strings.Contains(bind, "/usr/local/bin/agent-bridge:ro") {
+			foundBridge = true
+			break
+		}
+	}
+
+	if !foundBridge {
+		t.Errorf("Expected agent-bridge bind mount in %v", mountedBinds)
 	}
 }

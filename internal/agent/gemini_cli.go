@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"recac/internal/telemetry"
 	"strings"
 	"time"
 )
@@ -14,19 +15,27 @@ import (
 type GeminiCLIClient struct {
 	model   string
 	workDir string
+	project string
 }
 
 // NewGeminiCLIClient creates a new Gemini CLI client
 // apiKey is ignored as the CLI handles auth
-func NewGeminiCLIClient(apiKey, model, workDir string) *GeminiCLIClient {
+func NewGeminiCLIClient(apiKey, model, workDir, project string) *GeminiCLIClient {
 	return &GeminiCLIClient{
 		model:   model,
 		workDir: workDir,
+		project: project,
 	}
 }
 
 // Send sends a prompt to Gemini CLI and returns the generated text
 func (c *GeminiCLIClient) Send(ctx context.Context, prompt string) (string, error) {
+	telemetry.TrackAgentIteration(c.project)
+	agentStart := time.Now()
+	defer func() {
+		telemetry.ObserveAgentLatency(c.project, time.Since(agentStart).Seconds())
+	}()
+
 	// Build command: gemini --output-format text --approval-mode yolo
 	args := []string{"--output-format", "text", "--approval-mode", "yolo"}
 

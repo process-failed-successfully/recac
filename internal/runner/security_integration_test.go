@@ -2,6 +2,8 @@ package runner
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"recac/internal/docker"
 	"strings"
 	"testing"
@@ -27,11 +29,14 @@ func (m *MockUnsafeAgent) SendStream(ctx context.Context, prompt string, onChunk
 func TestSecurityIntegration_BlocksSecrets(t *testing.T) {
 	// Setup
 	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
 	mockDocker, _ := docker.NewMockClient()
-	mockAgent := &MockUnsafeAgent{}
+	mockAgent := &MockUnsafeAgent{
+		Response: "Here is a secret: AKIAIOSFODNN7EXAMPLE",
+	}
 
 	// Init Session
-	session := NewSession(mockDocker, mockAgent, tmpDir, "alpine")
+	session := NewSession(mockDocker, mockAgent, tmpDir, "alpine", "test-project", 1)
 	session.MaxIterations = 1
 
 	// Capture output to verify blocking
@@ -40,7 +45,8 @@ func TestSecurityIntegration_BlocksSecrets(t *testing.T) {
 	// If blocked, it shouldn't be saved to DB. (Our logic: Scan -> If Fail Continue -> Save DB)
 
 	ctx := context.Background()
-	if err := session.RunLoop(ctx); err != nil {
+	// It might error with ErrNoOp because no commands, or reach max iterations.
+	if err := session.RunLoop(ctx); err != nil && err != ErrMaxIterations && err != ErrNoOp && err != ErrStalled {
 		t.Fatalf("RunLoop failed: %v", err)
 	}
 

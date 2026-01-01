@@ -1,62 +1,75 @@
-[
-  {
-    "category": "functional",
-    "description": "Dynamic Configuration: Set Value",
-    "steps": ["Run 'agent config set <key> <value>'", "Verify config file is updated", "Verify application reflects change"],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Dynamic Configuration: List Keys",
-    "steps": ["Run 'agent config list-keys'", "Verify output lists all available settings"],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Dynamic Configuration: List Models",
-    "steps": ["Run 'agent config list-models'", "Verify output lists compatible models for active provider"],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Jira Workflow: Run with Ticket ID",
-    "steps": ["Run 'agent run --jira <TICKET_ID>'", "Verify context is initialized from ticket"],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Jira Workflow: Workspace Isolation",
-    "steps": ["Run 'agent run --jira <TICKET_ID>'", "Verify temporary workspace is created and used"],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Jira Workflow: Status Sync",
-    "steps": ["Run 'agent run --jira <TICKET_ID>'", "Perform actions", "Verify Jira ticket status updates automatically"],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Pre-flight: Git Clean Check",
-    "steps": ["Run 'agent run ...' with dirty git state", "Verify execution warns or stops"],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Pre-flight: Dependency Auto-Fix",
-    "steps": ["Run 'agent check'", "Verify it detects and fixes minor local issues"],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Logs: Follow Mode",
-    "steps": ["Run 'agent logs -f'", "Verify logs stream in real-time"],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Logs: Smart Filtering",
-    "steps": ["Run 'agent logs --filter <category>'", "Verify only matching logs are shown"],
-    "passes": true
-  }
-]
+{
+  "project_name": "recac",
+  "features": [
+    {
+      "category": "functional",
+      "priority": "Production",
+      "description": "Dynamic Configuration: Set Value",
+      "steps": ["Run 'agent config set <key> <value>'", "Verify config file is updated", "Verify application reflects change"],
+      "passes": true
+    },
+    {
+      "category": "functional",
+      "priority": "Production",
+      "description": "Dynamic Configuration: List Keys",
+      "steps": ["Run 'agent config list-keys'", "Verify output lists all available settings"],
+      "passes": true
+    },
+    {
+      "category": "functional",
+      "priority": "Production",
+      "description": "Dynamic Configuration: List Models",
+      "steps": ["Run 'agent config list-models'", "Verify output lists compatible models for active provider"],
+      "passes": true
+    },
+    {
+      "category": "functional",
+      "priority": "Production",
+      "description": "Jira Workflow: Run with Ticket ID",
+      "steps": ["Run 'agent run --jira <TICKET_ID>'", "Verify context is initialized from ticket"],
+      "passes": true
+    },
+    {
+      "category": "functional",
+      "priority": "Production",
+      "description": "Jira Workflow: Workspace Isolation",
+      "steps": ["Run 'agent run --jira <TICKET_ID>'", "Verify temporary workspace is created and used"],
+      "passes": true
+    },
+    {
+      "category": "functional",
+      "priority": "Production",
+      "description": "Jira Workflow: Status Sync",
+      "steps": ["Run 'agent run --jira <TICKET_ID>'", "Perform actions", "Verify Jira ticket status updates automatically"],
+      "passes": true
+    },
+    {
+      "category": "functional",
+      "priority": "Production",
+      "description": "Pre-flight: Git Clean Check",
+      "steps": ["Run 'agent run ...' with dirty git state", "Verify execution warns or stops"],
+      "passes": true
+    },
+    {
+      "category": "functional",
+      "priority": "Production",
+      "description": "Pre-flight: Dependency Auto-Fix",
+      "steps": ["Run 'agent check'", "Verify it detects and fixes minor local issues"],
+      "passes": true
+    },
+    {
+      "category": "functional",
+      "priority": "Production",
+      "description": "Logs: Follow Mode",
+      "steps": ["Run 'agent logs -f'", "Verify logs stream in real-time"],
+      "passes": true
+    },
+    {
+      "category": "functional",
+      "priority": "Production",
+      "description": "Logs: Smart Filtering",
+      "steps": ["Run 'agent logs --filter <category>'", "Verify only matching logs are shown"],
+      "passes": true
+    }
+  ]
+}

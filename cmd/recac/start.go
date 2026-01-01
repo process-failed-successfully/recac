@@ -27,6 +27,8 @@ func init() {
 	startCmd.Flags().String("path", "", "Project path (skips wizard)")
 	startCmd.Flags().Int("max-iterations", 20, "Maximum number of iterations")
 	startCmd.Flags().Int("manager-frequency", 5, "Frequency of manager reviews")
+	startCmd.Flags().Int("max-agents", 1, "Maximum number of parallel agents")
+	startCmd.Flags().Int("task-max-iterations", 10, "Maximum iterations for sub-tasks")
 	startCmd.Flags().Bool("detached", false, "Run session in background (detached mode)")
 	startCmd.Flags().String("name", "", "Name for the session (required for detached mode)")
 	startCmd.Flags().String("jira", "", "Jira Ticket ID to start session from (e.g. PROJ-123)")
@@ -37,6 +39,8 @@ func init() {
 	viper.BindPFlag("path", startCmd.Flags().Lookup("path"))
 	viper.BindPFlag("max_iterations", startCmd.Flags().Lookup("max-iterations"))
 	viper.BindPFlag("manager_frequency", startCmd.Flags().Lookup("manager-frequency"))
+	viper.BindPFlag("max_agents", startCmd.Flags().Lookup("max-agents"))
+	viper.BindPFlag("task_max_iterations", startCmd.Flags().Lookup("task-max-iterations"))
 	viper.BindPFlag("detached", startCmd.Flags().Lookup("detached"))
 	viper.BindPFlag("name", startCmd.Flags().Lookup("name"))
 	viper.BindPFlag("jira", startCmd.Flags().Lookup("jira"))
@@ -73,6 +77,8 @@ var startCmd = &cobra.Command{
 		projectPath := viper.GetString("path")
 		maxIterations := viper.GetInt("max_iterations")
 		managerFrequency := viper.GetInt("manager_frequency")
+		maxAgents := viper.GetInt("max_agents")
+		taskMaxIterations := viper.GetInt("task_max_iterations")
 		detached := viper.GetBool("detached")
 		sessionName := viper.GetString("name")
 		jiraTicketID := viper.GetString("jira")
@@ -241,6 +247,9 @@ var startCmd = &cobra.Command{
 			if managerFrequency != 5 {
 				command = append(command, "--manager-frequency", fmt.Sprintf("%d", managerFrequency))
 			}
+			if taskMaxIterations != 10 {
+				command = append(command, "--task-max-iterations", fmt.Sprintf("%d", taskMaxIterations))
+			}
 			// Pass allow-dirty flag if set
 			allowDirty := viper.GetBool("allow_dirty")
 			if allowDirty {
@@ -289,8 +298,11 @@ var startCmd = &cobra.Command{
 			}
 
 			// Start Session
-			session := runner.NewSession(dockerCli, agentClient, projectPath, "recac-agent:latest")
+			// Mock project name
+			mockProject := "mock-project"
+			session := runner.NewSession(dockerCli, agentClient, projectPath, "recac-agent:latest", mockProject, maxAgents)
 			session.MaxIterations = maxIterations
+			session.TaskMaxIterations = taskMaxIterations
 			session.ManagerFrequency = managerFrequency
 			session.StreamOutput = viper.GetBool("stream")
 
@@ -344,10 +356,20 @@ var startCmd = &cobra.Command{
 				return
 			}
 
-			// Set Provider from Wizard if available
+			// Set Provider and MaxAgents from Wizard if available
 			if wizardModel.Provider != "" {
 				viper.Set("provider", wizardModel.Provider)
 				fmt.Printf("Using provider: %s\n", wizardModel.Provider)
+			}
+			if wizardModel.MaxAgents > 0 {
+				maxAgents = wizardModel.MaxAgents
+				viper.Set("max_agents", maxAgents)
+				fmt.Printf("Max parallel agents: %d\n", maxAgents)
+			}
+			if wizardModel.TaskMaxIterations > 0 {
+				taskMaxIterations = wizardModel.TaskMaxIterations
+				viper.Set("task_max_iterations", taskMaxIterations)
+				fmt.Printf("Max task iterations: %d\n", taskMaxIterations)
 			}
 		} else {
 			fmt.Printf("Using project path from flag: %s\n", projectPath)
@@ -381,18 +403,25 @@ var startCmd = &cobra.Command{
 		if metricsPort == 0 {
 			metricsPort = 9090 // Default port
 		}
-		metricsAddr := fmt.Sprintf(":%d", metricsPort)
 		go func() {
-			if err := telemetry.StartMetricsServer(metricsAddr); err != nil {
+			if err := telemetry.StartMetricsServer(metricsPort); err != nil {
 				telemetry.LogDebug("Metrics server error", "error", err)
 			}
 		}()
 
 		// Initialize Docker Client
 		var dockerCli *docker.Client
+
+		// Derive project name from path
+		projectName := filepath.Base(projectPath)
+		if projectName == "." || projectName == "/" {
+			cwd, _ := os.Getwd()
+			projectName = filepath.Base(cwd)
+		}
+
 		{
 			var err error
-			dockerCli, err = docker.NewClient()
+			dockerCli, err = docker.NewClient(projectName)
 			if err != nil {
 				fmt.Printf("Failed to initialize Docker client: %v\n", err)
 				os.Exit(1)
@@ -464,15 +493,16 @@ var startCmd = &cobra.Command{
 			apiKey = "dummy-key" // Allow starting without key (will fail on Send)
 		}
 
-		agentClient, err := agent.NewAgent(provider, apiKey, model, projectPath)
+		agentClient, err := agent.NewAgent(provider, apiKey, model, projectPath, projectName)
 		if err != nil {
 			fmt.Printf("Failed to initialize agent: %v\n", err)
 			os.Exit(1)
 		}
 
 		// Start Session
-		session := runner.NewSession(dockerCli, agentClient, projectPath, "recac-agent:latest")
+		session := runner.NewSession(dockerCli, agentClient, projectPath, "recac-agent:latest", projectName, maxAgents)
 		session.MaxIterations = maxIterations
+		session.TaskMaxIterations = taskMaxIterations
 		session.ManagerFrequency = managerFrequency
 		session.ManagerFirst = viper.GetBool("manager_first")
 		session.StreamOutput = viper.GetBool("stream")

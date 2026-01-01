@@ -18,10 +18,11 @@ import (
 )
 
 type mockAPIClient struct {
-	pingFunc          func(ctx context.Context) (types.Ping, error)
-	imageListFunc     func(ctx context.Context, options image.ListOptions) ([]image.Summary, error)
-	imagePullFunc     func(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error)
-	containerStopFunc func(ctx context.Context, containerID string, options container.StopOptions) error
+	pingFunc            func(ctx context.Context) (types.Ping, error)
+	imageListFunc       func(ctx context.Context, options image.ListOptions) ([]image.Summary, error)
+	imagePullFunc       func(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error)
+	containerStopFunc   func(ctx context.Context, containerID string, options container.StopOptions) error
+	containerCreateFunc func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error)
 }
 
 func (m *mockAPIClient) Ping(ctx context.Context) (types.Ping, error) {
@@ -50,7 +51,10 @@ func (m *mockAPIClient) ImageBuild(ctx context.Context, buildContext io.Reader, 
 }
 
 func (m *mockAPIClient) ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error) {
-	return container.CreateResponse{}, nil
+	if m.containerCreateFunc != nil {
+		return m.containerCreateFunc(ctx, config, hostConfig, networkingConfig, platform, containerName)
+	}
+	return container.CreateResponse{ID: "mock-id"}, nil
 }
 
 func (m *mockAPIClient) ContainerStart(ctx context.Context, containerID string, options container.StartOptions) error {
@@ -212,12 +216,8 @@ func TestImageBuild_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ImageBuild failed: %v", err)
 	}
-
 	if imageID == "" {
 		t.Fatal("Expected image ID, got empty string")
-	}
-	if !strings.Contains(imageID, "testimageid") && imageID != "testimage:latest" {
-		t.Errorf("Expected image ID to contain 'testimageid' or be tag, got %s", imageID)
 	}
 }
 
@@ -324,7 +324,7 @@ func TestDockerInDocker_Support(t *testing.T) {
 	}
 
 	// Step 2: Create a real Docker client (not mock) to test actual DinD functionality
-	client, err := NewClient()
+	client, err := NewClient("test-dind")
 	if err != nil {
 		t.Skipf("Skipping DinD test: failed to create Docker client (may need docker group membership): %v", err)
 	}

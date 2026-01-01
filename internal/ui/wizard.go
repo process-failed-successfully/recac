@@ -20,16 +20,20 @@ var (
 const (
 	StepPath = iota
 	StepProvider
+	StepMaxAgents
+	StepTaskMaxIterations
 )
 
 type WizardModel struct {
-	textInput textinput.Model
-	list      list.Model
-	step      int
-	done      bool
-	Path      string
-	Provider  string
-	err       error
+	textInput         textinput.Model
+	list              list.Model
+	step              int
+	done              bool
+	Path              string
+	Provider          string
+	MaxAgents         int
+	TaskMaxIterations int
+	err               error
 }
 
 func NewWizardModel() WizardModel {
@@ -87,9 +91,43 @@ func (m WizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else if m.step == StepProvider {
 				if i := m.list.SelectedItem(); i != nil {
 					m.Provider = i.(AgentItem).Value
-					m.done = true
-					return m, tea.Quit
+					m.step = StepMaxAgents
+					m.textInput.Reset()
+					m.textInput.Placeholder = "1"
+					m.textInput.Focus()
+					return m, nil
 				}
+			} else if m.step == StepMaxAgents {
+				val := m.textInput.Value()
+				if val == "" {
+					m.MaxAgents = 1
+				} else {
+					var n int
+					fmt.Sscanf(val, "%d", &n)
+					if n < 1 {
+						n = 1
+					}
+					m.MaxAgents = n
+				}
+				m.step = StepTaskMaxIterations
+				m.textInput.Reset()
+				m.textInput.Placeholder = "10"
+				m.textInput.Focus()
+				return m, nil
+			} else if m.step == StepTaskMaxIterations {
+				val := m.textInput.Value()
+				if val == "" {
+					m.TaskMaxIterations = 10
+				} else {
+					var n int
+					fmt.Sscanf(val, "%d", &n)
+					if n < 1 {
+						n = 1
+					}
+					m.TaskMaxIterations = n
+				}
+				m.done = true
+				return m, tea.Quit
 			}
 		}
 	case tea.WindowSizeMsg:
@@ -100,7 +138,7 @@ func (m WizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	if m.step == StepPath {
+	if m.step == StepPath || m.step == StepMaxAgents || m.step == StepTaskMaxIterations {
 		m.textInput, cmd = m.textInput.Update(msg)
 	} else if m.step == StepProvider {
 		m.list, cmd = m.list.Update(msg)
@@ -123,6 +161,22 @@ func (m WizardModel) View() string {
 		return b.String()
 	} else if m.step == StepProvider {
 		return "\n" + m.list.View()
+	} else if m.step == StepMaxAgents {
+		var b strings.Builder
+		b.WriteString(titleStyle.Render("Agent Configuration"))
+		b.WriteString("\n\n")
+		b.WriteString("Enter maximum parallel agents (default 1):\n")
+		b.WriteString(m.textInput.View())
+		b.WriteString("\n\n(Esc to quit)")
+		return b.String()
+	} else if m.step == StepTaskMaxIterations {
+		var b strings.Builder
+		b.WriteString(titleStyle.Render("Agent Configuration"))
+		b.WriteString("\n\n")
+		b.WriteString("Enter maximum iterations per task (default 10):\n")
+		b.WriteString(m.textInput.View())
+		b.WriteString("\n\n(Esc to quit)")
+		return b.String()
 	}
 
 	return ""

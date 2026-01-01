@@ -10,12 +10,16 @@ import (
 
 // TaskNode represents a task in the dependency graph
 type TaskNode struct {
-	ID           string     `json:"id"`
-	Name         string     `json:"name"`
-	Dependencies []string   `json:"dependencies,omitempty"` // IDs of dependencies
-	Status       TaskStatus `json:"status"`
-	Error        error      `json:"-"`
-	mu           sync.RWMutex
+	ID                  string     `json:"id"`
+	Name                string     `json:"name"`
+	Priority            string     `json:"priority"`
+	Dependencies        []string   `json:"dependencies,omitempty"` // IDs of dependencies
+	ExclusiveWritePaths []string   `json:"exclusive_write_paths,omitempty"`
+	ReadOnlyPaths       []string   `json:"read_only_paths,omitempty"`
+	Status              TaskStatus `json:"status"`
+	RetryCount          int        `json:"retry_count"`
+	Error               error      `json:"-"`
+	mu                  sync.RWMutex
 }
 
 // TaskStatus represents the execution status of a task
@@ -108,10 +112,13 @@ func (g *TaskGraph) LoadFromFeatureList(filePath string) error {
 		}
 
 		g.Nodes[taskID] = &TaskNode{
-			ID:           taskID,
-			Name:         feature.Description,
-			Dependencies: deps,
-			Status:       status,
+			ID:                  taskID,
+			Name:                feature.Description,
+			Priority:            feature.Priority,
+			Dependencies:        deps,
+			ExclusiveWritePaths: feature.Dependencies.ExclusiveWritePaths,
+			ReadOnlyPaths:       feature.Dependencies.ReadOnlyPaths,
+			Status:              status,
 		}
 	}
 

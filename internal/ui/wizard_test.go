@@ -72,11 +72,27 @@ func TestWizardModel_Input(t *testing.T) {
 	updatedModel, _ = m.Update(msg)
 	m = updatedModel.(WizardModel)
 
-	if !m.done {
-		t.Error("Expected model to be done after second Enter (Provider step)")
+	if m.done {
+		t.Error("Expected model NOT to be done after second Enter (Provider step)")
+	}
+	if m.step != StepMaxAgents {
+		t.Error("Expected to transition to StepMaxAgents")
 	}
 	if m.Provider != "gemini-cli" {
 		t.Errorf("Expected provider 'gemini-cli', got '%s'", m.Provider)
+	}
+
+	// Step 3: Max Agents Selection
+	// Simulate Enter with default 1
+	msg = tea.KeyMsg{Type: tea.KeyEnter}
+	updatedModel, _ = m.Update(msg)
+	m = updatedModel.(WizardModel)
+
+	if !m.done {
+		t.Error("Expected model to be done after third Enter (MaxAgents step)")
+	}
+	if m.MaxAgents != 1 {
+		t.Errorf("Expected MaxAgents 1, got %d", m.MaxAgents)
 	}
 
 	// Check final view

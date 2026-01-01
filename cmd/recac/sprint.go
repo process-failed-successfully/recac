@@ -54,9 +54,8 @@ var sprintCmd = &cobra.Command{
 		if metricsPort == 0 {
 			metricsPort = 9090 // Default port
 		}
-		metricsAddr := fmt.Sprintf(":%d", metricsPort)
 		go func() {
-			if err := telemetry.StartMetricsServer(metricsAddr); err != nil {
+			if err := telemetry.StartMetricsServer(metricsPort); err != nil {
 				telemetry.LogDebug("Metrics server error", "error", err)
 			}
 		}()
