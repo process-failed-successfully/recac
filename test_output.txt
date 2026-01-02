@@ -1,0 +1,1839 @@
+go: downloading github.com/charmbracelet/bubbletea v1.3.10
+go: downloading github.com/joho/godotenv v1.5.1
+go: downloading github.com/spf13/cobra v1.10.2
+go: downloading github.com/spf13/viper v1.21.0
+go: downloading modernc.org/sqlite v1.42.2
+go: downloading github.com/docker/docker v28.5.2+incompatible
+go: downloading github.com/opencontainers/image-spec v1.1.1
+go: downloading github.com/stretchr/testify v1.11.1
+go: downloading github.com/slack-go/slack v0.17.3
+go: downloading github.com/prometheus/client_golang v1.23.2
+go: downloading github.com/charmbracelet/bubbles v0.21.0
+go: downloading github.com/charmbracelet/lipgloss v1.1.0
+go: downloading github.com/muesli/termenv v0.16.0
+go: downloading github.com/charmbracelet/x/ansi v0.10.1
+go: downloading github.com/charmbracelet/x/term v0.2.1
+go: downloading github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6
+go: downloading github.com/muesli/cancelreader v0.2.2
+go: downloading github.com/fsnotify/fsnotify v1.9.0
+go: downloading github.com/go-viper/mapstructure/v2 v2.4.0
+go: downloading github.com/sagikazarmark/locafero v0.11.0
+go: downloading github.com/spf13/afero v1.15.0
+go: downloading github.com/spf13/cast v1.10.0
+go: downloading github.com/spf13/pflag v1.0.10
+go: downloading github.com/moby/docker-image-spec v1.3.1
+go: downloading github.com/opencontainers/go-digest v1.0.0
+go: downloading github.com/docker/go-units v0.5.0
+go: downloading github.com/moby/term v0.5.2
+go: downloading github.com/morikuni/aec v1.1.0
+go: downloading github.com/docker/go-connections v0.6.0
+go: downloading github.com/containerd/errdefs v1.0.0
+go: downloading github.com/distribution/reference v0.6.0
+go: downloading github.com/containerd/errdefs/pkg v0.3.0
+go: downloading github.com/pkg/errors v0.9.1
+go: downloading go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.64.0
+go: downloading go.opentelemetry.io/otel/trace v1.39.0
+go: downloading github.com/davecgh/go-spew v1.1.1
+go: downloading github.com/pmezard/go-difflib v1.0.0
+go: downloading go.opentelemetry.io/otel v1.39.0
+go: downloading github.com/gorilla/websocket v1.5.3
+go: downloading github.com/beorn7/perks v1.0.1
+go: downloading github.com/cespare/xxhash/v2 v2.3.0
+go: downloading github.com/prometheus/client_model v0.6.2
+go: downloading github.com/prometheus/common v0.66.1
+go: downloading github.com/prometheus/procfs v0.16.1
+go: downloading google.golang.org/protobuf v1.36.10
+go: downloading github.com/atotto/clipboard v0.1.4
+go: downloading github.com/mattn/go-runewidth v0.0.16
+go: downloading github.com/rivo/uniseg v0.4.7
+go: downloading github.com/charmbracelet/harmonica v0.2.0
+go: downloading github.com/lucasb-eyer/go-colorful v1.2.0
+go: downloading github.com/sahilm/fuzzy v0.1.1
+go: downloading github.com/aymanbagabas/go-osc52/v2 v2.0.1
+go: downloading github.com/mattn/go-isatty v0.0.20
+go: downloading golang.org/x/sys v0.39.0
+go: downloading github.com/charmbracelet/x/cellbuf v0.0.13-0.20250311204145-2c3ea96c31dd
+go: downloading github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8
+go: downloading github.com/subosito/gotenv v1.6.0
+go: downloading github.com/pelletier/go-toml/v2 v2.2.4
+go: downloading go.yaml.in/yaml/v3 v3.0.4
+go: downloading golang.org/x/text v0.31.0
+go: downloading github.com/felixge/httpsnoop v1.0.4
+go: downloading go.opentelemetry.io/otel/metric v1.39.0
+go: downloading gopkg.in/yaml.v3 v3.0.1
+go: downloading github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822
+go: downloading go.yaml.in/yaml/v2 v2.4.2
+go: downloading github.com/charmbracelet/colorprofile v0.2.3-0.20250311203215-f60798e515dc
+go: downloading github.com/go-logr/logr v1.4.3
+go: downloading github.com/go-logr/stdr v1.2.2
+go: downloading go.opentelemetry.io/auto/sdk v1.2.1
+go: downloading github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e
+go: downloading modernc.org/libc v1.66.10
+go: downloading modernc.org/mathutil v1.7.1
+go: downloading github.com/google/uuid v1.6.0
+go: downloading github.com/dustin/go-humanize v1.0.1
+go: downloading golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b
+go: downloading modernc.org/memory v1.11.0
+go: downloading github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec
+# recac/cmd/agent-bridge [recac/cmd/agent-bridge.test]
+cmd/agent-bridge/main_test.go:4:2: "os" imported and not used
+FAIL	recac/cmd/agent-bridge [build failed]
+=== RUN   TestMain_HappyPath
+--- PASS: TestMain_HappyPath (0.04s)
+PASS
+ok  	recac/cmd/recac	0.093s
+=== RUN   TestDoc
+--- PASS: TestDoc (0.00s)
+PASS
+ok  	recac/internal	0.006s
+=== RUN   TestCLIAgentsManual
+    cli_verification_test.go:22: --- Testing Gemini CLI ---
+Running Gemini CLI: gemini --output-format text --approval-mode yolo
+    cli_verification_test.go:29: Gemini CLI failed (expected if not installed/configured): gemini cli error: exec: "gemini": executable file not found in $PATH
+    cli_verification_test.go:36:
+        --- Testing Cursor CLI ---
+Running Cursor CLI: cursor-agent agent <prompt> --workspace /app/internal/agent ...
+    cli_verification_test.go:43: Cursor CLI failed (expected if not installed/configured): cursor-agent cli error: exec: "cursor-agent": executable file not found in $PATH
+--- PASS: TestCLIAgentsManual (0.01s)
+=== RUN   TestNewAgent
+--- PASS: TestNewAgent (0.00s)
+=== RUN   TestGeminiClient_MockResponse
+--- PASS: TestGeminiClient_MockResponse (0.00s)
+=== RUN   TestGeminiClient_RealCallValidation
+2026/01/02 06:04:52 INFO Retrying agent call project=test-project retry=1 wait=1s error="API key is required"
+2026/01/02 06:04:53 INFO Retrying agent call project=test-project retry=2 wait=2s error="API key is required"
+2026/01/02 06:04:55 INFO Retrying agent call project=test-project retry=3 wait=4s error="API key is required"
+--- PASS: TestGeminiClient_RealCallValidation (7.00s)
+=== RUN   TestGeminiClient_TokenTracking
+2026/01/02 06:04:59 INFO Prompt exceeds token limit, truncating... project=test-project actual=17500 available=500
+2026/01/02 06:04:59 INFO Token usage (response) project=test-project response=4 current=11 max=1000 total=11 prompt=7 response_total=4
+--- PASS: TestGeminiClient_TokenTracking (0.02s)
+=== RUN   TestGeminiClient_TokenTrackingNoTruncation
+2026/01/02 06:04:59 INFO Token usage (response) project=test-project response=4 current=12 max=32000 total=12 prompt=8 response_total=4
+--- PASS: TestGeminiClient_TokenTrackingNoTruncation (0.00s)
+=== RUN   TestMockAgent
+--- PASS: TestMockAgent (0.00s)
+=== RUN   TestTruncateString
+--- PASS: TestTruncateString (0.00s)
+=== RUN   TestNewOllamaClient
+--- PASS: TestNewOllamaClient (0.00s)
+=== RUN   TestOllamaClient_Send_Success
+--- PASS: TestOllamaClient_Send_Success (0.01s)
+=== RUN   TestOllamaClient_Send_WithMockResponder
+--- PASS: TestOllamaClient_Send_WithMockResponder (0.00s)
+=== RUN   TestOllamaClient_Send_ErrorHandling
+--- PASS: TestOllamaClient_Send_ErrorHandling (0.00s)
+=== RUN   TestOllamaClient_Send_ContextCancellation
+--- PASS: TestOllamaClient_Send_ContextCancellation (2.00s)
+=== RUN   TestOllamaProvider_Integration
+--- PASS: TestOllamaProvider_Integration (0.00s)
+=== RUN   TestOpenAIClient_Mock
+--- PASS: TestOpenAIClient_Mock (0.00s)
+=== RUN   TestOpenAIClient_StateTracking
+2026/01/02 06:05:01 INFO Token usage (response) project=test-project response=4 current=6 max=128000 total=6 prompt=2 response_total=4
+--- PASS: TestOpenAIClient_StateTracking (0.00s)
+=== RUN   TestOpenAIClient_NoKey
+Retry 1 after 1s due to: API key is required
+Retry 2 after 2s due to: API key is required
+Retry 3 after 4s due to: API key is required
+--- PASS: TestOpenAIClient_NoKey (7.00s)
+=== RUN   TestOpenRouterClient_Send
+--- PASS: TestOpenRouterClient_Send (0.00s)
+=== RUN   TestOpenRouterClient_New
+--- PASS: TestOpenRouterClient_New (0.00s)
+=== RUN   TestGeminiClient_Retry
+2026/01/02 06:05:08 INFO Retrying agent call project=test-project retry=1 wait=1s error="temporary error"
+2026/01/02 06:05:09 INFO Retrying agent call project=test-project retry=2 wait=2s error="temporary error"
+--- PASS: TestGeminiClient_Retry (3.00s)
+=== RUN   TestGeminiClient_NetworkInterruption
+=== RUN   TestGeminiClient_NetworkInterruption/NetworkDrop_RecoversAfterRetries
+2026/01/02 06:05:11 INFO Retrying agent call project=test-project retry=1 wait=1s error="dial tcp: connection refused"
+2026/01/02 06:05:12 INFO Retrying agent call project=test-project retry=2 wait=2s error="context deadline exceeded"
+2026/01/02 06:05:14 INFO Retrying agent call project=test-project retry=3 wait=4s error="read: connection reset by peer"
+=== RUN   TestGeminiClient_NetworkInterruption/NetworkDrop_FailsGracefully
+2026/01/02 06:05:18 INFO Retrying agent call project=test-project retry=1 wait=1s error="dial tcp: no route to host"
+2026/01/02 06:05:19 INFO Retrying agent call project=test-project retry=2 wait=2s error="dial tcp: no route to host"
+2026/01/02 06:05:21 INFO Retrying agent call project=test-project retry=3 wait=4s error="dial tcp: no route to host"
+=== RUN   TestGeminiClient_NetworkInterruption/NetworkDrop_ContextCancellation
+2026/01/02 06:05:25 INFO Retrying agent call project=test-project retry=1 wait=1s error="dial tcp: connection refused"
+--- PASS: TestGeminiClient_NetworkInterruption (14.51s)
+    --- PASS: TestGeminiClient_NetworkInterruption/NetworkDrop_RecoversAfterRetries (7.00s)
+    --- PASS: TestGeminiClient_NetworkInterruption/NetworkDrop_FailsGracefully (7.01s)
+    --- PASS: TestGeminiClient_NetworkInterruption/NetworkDrop_ContextCancellation (0.50s)
+=== RUN   TestGeminiClient_IterationIncrementOnError
+2026/01/02 06:05:26 INFO Retrying agent call project=test-project retry=1 wait=1s error="API error: service unavailable"
+2026/01/02 06:05:27 INFO Retrying agent call project=test-project retry=2 wait=2s error="API error: service unavailable"
+2026/01/02 06:05:29 INFO Retrying agent call project=test-project retry=3 wait=4s error="API error: service unavailable"
+=== RUN   TestGeminiClient_IterationIncrementOnError/IterationIncrementsOnSuccess
+2026/01/02 06:05:33 INFO Token usage (response) project=test-project response=2 current=5 max=32000 total=5 prompt=3 response_total=2
+--- PASS: TestGeminiClient_IterationIncrementOnError (7.01s)
+    --- PASS: TestGeminiClient_IterationIncrementOnError/IterationIncrementsOnSuccess (0.00s)
+=== RUN   TestStateManager
+--- PASS: TestStateManager (0.00s)
+=== RUN   TestStateManager_AgentMemoryPersistence
+--- PASS: TestStateManager_AgentMemoryPersistence (0.00s)
+=== RUN   TestStateManager_InitializeState
+--- PASS: TestStateManager_InitializeState (0.00s)
+=== RUN   TestStateManager_Concurrency
+--- PASS: TestStateManager_Concurrency (0.00s)
+=== RUN   TestEstimateTokenCount
+=== RUN   TestEstimateTokenCount/empty_string
+=== RUN   TestEstimateTokenCount/whitespace_only
+=== RUN   TestEstimateTokenCount/short_text
+=== RUN   TestEstimateTokenCount/medium_text
+=== RUN   TestEstimateTokenCount/multiline_text
+--- PASS: TestEstimateTokenCount (0.00s)
+    --- PASS: TestEstimateTokenCount/empty_string (0.00s)
+    --- PASS: TestEstimateTokenCount/whitespace_only (0.00s)
+    --- PASS: TestEstimateTokenCount/short_text (0.00s)
+    --- PASS: TestEstimateTokenCount/medium_text (0.00s)
+    --- PASS: TestEstimateTokenCount/multiline_text (0.00s)
+=== RUN   TestTruncateToTokenLimit
+=== RUN   TestTruncateToTokenLimit/text_under_limit
+=== RUN   TestTruncateToTokenLimit/text_over_limit
+=== RUN   TestTruncateToTokenLimit/zero_limit
+=== RUN   TestTruncateToTokenLimit/multiline_text
+--- PASS: TestTruncateToTokenLimit (0.00s)
+    --- PASS: TestTruncateToTokenLimit/text_under_limit (0.00s)
+    --- PASS: TestTruncateToTokenLimit/text_over_limit (0.00s)
+    --- PASS: TestTruncateToTokenLimit/zero_limit (0.00s)
+    --- PASS: TestTruncateToTokenLimit/multiline_text (0.00s)
+=== RUN   TestSummarizeForTokenLimit
+=== RUN   TestSummarizeForTokenLimit/text_under_limit
+=== RUN   TestSummarizeForTokenLimit/multiple_paragraphs
+--- PASS: TestSummarizeForTokenLimit (0.00s)
+    --- PASS: TestSummarizeForTokenLimit/text_under_limit (0.00s)
+    --- PASS: TestSummarizeForTokenLimit/multiple_paragraphs (0.00s)
+PASS
+ok  	recac/internal/agent	40.591s
+=== RUN   TestGetPrompt
+--- PASS: TestGetPrompt (0.00s)
+PASS
+ok  	recac/internal/agent/prompts	0.003s
+=== RUN   TestValidateConfig
+=== RUN   TestValidateConfig/Valid_Configuration
+=== RUN   TestValidateConfig/Invalid_Timeout_(Negative_Duration)
+=== RUN   TestValidateConfig/Invalid_Timeout_(Negative_Int)
+=== RUN   TestValidateConfig/Invalid_Max_Iterations
+=== RUN   TestValidateConfig/Invalid_Workers
+=== RUN   TestValidateConfig/Invalid_Port_(Too_Low)
+=== RUN   TestValidateConfig/Invalid_Port_(Too_High)
+=== RUN   TestValidateConfig/Multiple_Errors
+=== RUN   TestValidateConfig/Invalid_Agent_Timeout
+=== RUN   TestValidateConfig/Invalid_Docker_Timeout
+=== RUN   TestValidateConfig/Invalid_Bash_Timeout
+=== RUN   TestValidateConfig/Invalid_Max_Agents
+=== RUN   TestValidateConfig/Invalid_Metrics_Port
+=== RUN   TestValidateConfig/Invalid_Manager_Frequency
+--- PASS: TestValidateConfig (0.00s)
+    --- PASS: TestValidateConfig/Valid_Configuration (0.00s)
+    --- PASS: TestValidateConfig/Invalid_Timeout_(Negative_Duration) (0.00s)
+    --- PASS: TestValidateConfig/Invalid_Timeout_(Negative_Int) (0.00s)
+    --- PASS: TestValidateConfig/Invalid_Max_Iterations (0.00s)
+    --- PASS: TestValidateConfig/Invalid_Workers (0.00s)
+    --- PASS: TestValidateConfig/Invalid_Port_(Too_Low) (0.00s)
+    --- PASS: TestValidateConfig/Invalid_Port_(Too_High) (0.00s)
+    --- PASS: TestValidateConfig/Multiple_Errors (0.00s)
+    --- PASS: TestValidateConfig/Invalid_Agent_Timeout (0.00s)
+    --- PASS: TestValidateConfig/Invalid_Docker_Timeout (0.00s)
+    --- PASS: TestValidateConfig/Invalid_Bash_Timeout (0.00s)
+    --- PASS: TestValidateConfig/Invalid_Max_Agents (0.00s)
+    --- PASS: TestValidateConfig/Invalid_Metrics_Port (0.00s)
+    --- PASS: TestValidateConfig/Invalid_Manager_Frequency (0.00s)
+PASS
+ok  	recac/internal/config	0.006s
+=== RUN   TestSQLiteFeatures
+--- PASS: TestSQLiteFeatures (0.03s)
+=== RUN   TestSQLiteLocks
+--- PASS: TestSQLiteLocks (60.22s)
+=== RUN   TestSQLiteSignals
+--- PASS: TestSQLiteSignals (0.04s)
+=== RUN   TestSQLiteStore
+--- PASS: TestSQLiteStore (0.04s)
+PASS
+ok  	recac/internal/db	60.350s
+=== RUN   TestCheckDaemon_Success
+--- PASS: TestCheckDaemon_Success (0.00s)
+=== RUN   TestCheckDaemon_Failure
+--- PASS: TestCheckDaemon_Failure (0.00s)
+=== RUN   TestCheckSocket
+--- PASS: TestCheckSocket (0.00s)
+=== RUN   TestCheckImage
+--- PASS: TestCheckImage (0.00s)
+=== RUN   TestPullImage
+--- PASS: TestPullImage (0.00s)
+=== RUN   TestStopContainer
+--- PASS: TestStopContainer (0.00s)
+=== RUN   TestImageBuild_Success
+--- PASS: TestImageBuild_Success (0.00s)
+=== RUN   TestImageBuild_ErrorHandling
+--- PASS: TestImageBuild_ErrorHandling (0.00s)
+=== RUN   TestImageBuild_MissingBuildContext
+--- PASS: TestImageBuild_MissingBuildContext (0.00s)
+=== RUN   TestImageBuild_MissingTag
+--- PASS: TestImageBuild_MissingTag (0.00s)
+=== RUN   TestImageBuild_WithBuildArgs
+--- PASS: TestImageBuild_WithBuildArgs (0.00s)
+=== RUN   TestDockerInDocker_Support
+    client_test.go:318: Skipping DinD test: not running in a container (/.dockerenv not found)
+--- SKIP: TestDockerInDocker_Support (0.00s)
+=== RUN   TestClient_Exec
+--- PASS: TestClient_Exec (0.00s)
+=== RUN   TestRunContainer_MountsWorkspace
+--- PASS: TestRunContainer_MountsWorkspace (0.00s)
+=== RUN   TestRunContainer_SetsWorkingDir
+--- PASS: TestRunContainer_SetsWorkingDir (0.00s)
+PASS
+ok  	recac/internal/docker	0.012s
+=== RUN   TestClient_Recover
+Recover: Removing stale lock file /tmp/git-test3098335391/.git/index.lock
+--- PASS: TestClient_Recover (0.00s)
+PASS
+ok  	recac/internal/git	0.005s
+=== RUN   TestAuthenticate_Success
+--- PASS: TestAuthenticate_Success (0.01s)
+=== RUN   TestGetTicket_Success
+--- PASS: TestGetTicket_Success (0.00s)
+=== RUN   TestGetTicket_NotFound
+--- PASS: TestGetTicket_NotFound (0.00s)
+=== RUN   TestTransitionIssue_Success
+--- PASS: TestTransitionIssue_Success (0.00s)
+=== RUN   TestAddComment_Success
+--- PASS: TestAddComment_Success (0.00s)
+=== RUN   TestAddComment_FormattingPreserved
+--- PASS: TestAddComment_FormattingPreserved (0.00s)
+=== RUN   TestAddComment_ErrorHandling
+--- PASS: TestAddComment_ErrorHandling (0.00s)
+=== RUN   TestClient_ParseDescription
+--- PASS: TestClient_ParseDescription (0.00s)
+=== RUN   TestResolveDependencies
+=== RUN   TestResolveDependencies/No_Dependencies
+=== RUN   TestResolveDependencies/Simple_Chain_A->B->C_(A_blocks_B,_B_blocks_C)
+=== RUN   TestResolveDependencies/Diamond_Dependency_A->(B,C)->D
+=== RUN   TestResolveDependencies/Circular_Dependency_A->B->A
+=== RUN   TestResolveDependencies/Missing_Dependency_(Ignored)
+--- PASS: TestResolveDependencies (0.00s)
+    --- PASS: TestResolveDependencies/No_Dependencies (0.00s)
+    --- PASS: TestResolveDependencies/Simple_Chain_A->B->C_(A_blocks_B,_B_blocks_C) (0.00s)
+    --- PASS: TestResolveDependencies/Diamond_Dependency_A->(B,C)->D (0.00s)
+    --- PASS: TestResolveDependencies/Circular_Dependency_A->B->A (0.00s)
+    --- PASS: TestResolveDependencies/Missing_Dependency_(Ignored) (0.00s)
+PASS
+ok  	recac/internal/jira	0.031s
+=== RUN   TestDiscordNotifier_Notify
+--- PASS: TestDiscordNotifier_Notify (0.01s)
+=== RUN   TestDiscordNotifier_Notify_Error
+--- PASS: TestDiscordNotifier_Notify_Error (0.00s)
+=== RUN   TestDiscordNotifier_Notify_MissingURL
+--- PASS: TestDiscordNotifier_Notify_MissingURL (0.00s)
+=== RUN   TestSlackNotifier_Notify
+--- PASS: TestSlackNotifier_Notify (0.00s)
+=== RUN   TestSlackNotifier_Notify_Error
+--- PASS: TestSlackNotifier_Notify_Error (0.00s)
+=== RUN   TestNotificationFlow
+--- PASS: TestNotificationFlow (0.13s)
+PASS
+ok  	recac/internal/notify	0.149s
+=== RUN   TestGitOps
+=== RUN   TestGitOps/CreateBranch
+=== RUN   TestGitOps/Push
+=== RUN   TestGitOps/CreatePR
+--- PASS: TestGitOps (0.00s)
+    --- PASS: TestGitOps/CreateBranch (0.00s)
+    --- PASS: TestGitOps/Push (0.00s)
+    --- PASS: TestGitOps/CreatePR (0.00s)
+=== RUN   TestRealGitOps_Integration
+Integration Test Passed: Branch created and pushed successfully
+--- PASS: TestRealGitOps_Integration (0.20s)
+=== RUN   TestRealGitOps_EdgeCases
+--- PASS: TestRealGitOps_EdgeCases (0.04s)
+PASS
+ok  	recac/internal/pkg/git	0.243s
+=== RUN   TestSession_E2E_DockerFileWrite
+    agent_e2e_docker_test.go:19: Skipping test: Docker daemon not available: docker daemon is not reachable: permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock: Head "http://%2Fvar%2Frun%2Fdocker.sock/_ping": dial unix /var/run/docker.sock: connect: permission denied
+--- SKIP: TestSession_E2E_DockerFileWrite (0.00s)
+=== RUN   TestSession_ProcessResponse_Thorough
+
+--- Executing Command Block (1/1) ---
+echo 'hello' > test.txt
+Command Output:
+Success: /bin/sh -c echo 'hello' > test.txt
+
+--- Executing Command Block (1/2) ---
+echo 1
+Command Output:
+Success: /bin/sh -c echo 1
+
+--- Executing Command Block (2/2) ---
+echo 2
+Command Output:
+Success: /bin/sh -c echo 2
+
+--- Executing Command Block (1/1) ---
+sudo apt-get update
+Command Output:
+Success: /bin/sh -c sudo apt-get update
+--- PASS: TestSession_ProcessResponse_Thorough (0.00s)
+=== RUN   TestSession_ProcessResponse_Timeout
+
+--- Executing Command Block (1/1) ---
+echo 'slow command'
+Command Failed: echo 'slow command'
+Error: Command timed out after 1 seconds.
+--- PASS: TestSession_ProcessResponse_Timeout (5.00s)
+=== RUN   TestSession_CheckAutoQA
+Created signal: COMPLETED
+--- PASS: TestSession_CheckAutoQA (0.26s)
+=== RUN   TestProcessResponse_BlockerFalsePositives
+Ignoring false positive blocker in recac_blockers.txt: No blockers identified. Initial setup complete.
+Ignoring false positive blocker in blockers.txt: None
+Ignoring false positive blocker in recac_blockers.txt: no blockers
+Ignoring false positive blocker in recac_blockers.txt: Initial setup complete
+Ignoring false positive blocker in blockers.txt: # Current Blockers
+
+# None at this time
+# The project is progressing smoothly
+# All required tools are available
+# No technical obstacles
+Ignoring false positive blocker in recac_blockers.txt: UI Verification Required
+
+=== HUMAN INTERVENTION REQUIRED (File: recac_blockers.txt) ===
+Agent reported blocker:
+I am actually blocked by missing API key
+Session stopping to allow human resolution.
+
+=== HUMAN INTERVENTION REQUIRED (File: blockers.txt) ===
+Agent reported blocker:
+Error: failed to connect to DB
+Session stopping to allow human resolution.
+--- PASS: TestProcessResponse_BlockerFalsePositives (0.00s)
+=== RUN   TestDependencyExecutor_Execute_Sequential
+Starting worker pool with 1 workers
+Task execution order (topological sort): [A B]
+Worker 0 started
+Task A: Executing on Worker 0
+Task A: Completed successfully
+Task B: Executing on Worker 0
+Task B: Completed successfully
+Worker 0 stopped
+Worker pool stopped
+--- PASS: TestDependencyExecutor_Execute_Sequential (0.10s)
+=== RUN   TestDependencyExecutor_Execute_Independent
+Starting worker pool with 2 workers
+Worker 0 started
+Task execution order (topological sort): [A B]
+Worker 1 started
+Task A: Executing on Worker 0
+Task B: Executing on Worker 1
+Task A: Completed successfully
+Task B: Completed successfully
+Worker 0 stopped
+Worker 1 stopped
+Worker pool stopped
+--- PASS: TestDependencyExecutor_Execute_Independent (0.05s)
+=== RUN   TestDependencyExecutor_Execute_Failure
+Starting worker pool with 1 workers
+Task execution order (topological sort): [A B]
+Worker 0 started
+Task A: Executing on Worker 0
+Worker 0 error: simulated failure
+Worker 0 stopped
+Worker pool stopped
+--- PASS: TestDependencyExecutor_Execute_Failure (0.05s)
+=== RUN   TestDependencyExecutor_Execute_Cycle
+Starting worker pool with 1 workers
+Worker 0 started
+Worker 0 stopped
+Worker pool stopped
+--- PASS: TestDependencyExecutor_Execute_Cycle (0.00s)
+=== RUN   TestDependencyExecutor_Stop
+Starting worker pool with 1 workers
+Task execution order (topological sort): [A]
+Worker 0 started
+Task A: Executing on Worker 0
+Task A: Completed successfully
+Worker 0 stopped
+Worker pool stopped
+--- PASS: TestDependencyExecutor_Stop (1.00s)
+=== RUN   TestEndToEndHelloWorld
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260102-060503.log
+Initializing session with image: ubuntu:latest
+Loaded spec: 99 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-hello-container
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:03.856817766Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:03.856880566Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+--- PASS: TestEndToEndHelloWorld (0.02s)
+=== RUN   TestEndToEndHelloWorld_WithFileSystem
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260102-060503.log
+Initializing session with image: ubuntu:latest
+Loaded spec: 63 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: test-container
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:03.87766178Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:03.877708591Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+--- PASS: TestEndToEndHelloWorld_WithFileSystem (0.02s)
+=== RUN   TestSession_Guardrail_PrematureSignoff
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:03.897726679Z","level":"INFO","msg":"Starting Iteration","project":"","iteration":1}
+Migrating signal PROJECT_SIGNED_OFF from file to DB
+WARNING: Premature PROJECT_SIGNED_OFF detected. Revoking sign-off.
+The following features are incomplete: 1
+Returning to coding/verification phase.
+{"time":"2026-01-02T06:05:03.903824767Z","level":"INFO","msg":"Starting Iteration","project":"","iteration":2}
+{"time":"2026-01-02T06:05:03.904701137Z","level":"INFO","msg":"Agent Role","project":"","role":"Agent"}
+Sending prompt to agent...
+{"time":"2026-01-02T06:05:03.904756409Z","level":"INFO","msg":"Agent response received","project":"","role":"Agent","chars":314}
+Reached max iterations (2). Stopping.
+--- PASS: TestSession_Guardrail_PrematureSignoff (1.03s)
+=== RUN   TestSession_RunLoop_MissingSpec
+
+=== Entering Autonomous Run Loop ===
+--- PASS: TestSession_RunLoop_MissingSpec (0.00s)
+=== RUN   TestSelectPrompt_ManagerFirst
+--- PASS: TestSelectPrompt_ManagerFirst (0.03s)
+=== RUN   TestSelectPrompt_NormalFirst
+Feature list not found. Running Initializer.
+--- PASS: TestSelectPrompt_NormalFirst (0.02s)
+=== RUN   TestManagerRejection_ClearsSignals
+Created signal: QA_PASSED
+Created signal: COMPLETED
+=== Manager Agent: Reviewing QA Report ===
+Sending QA report to Manager agent for review...
+Manager review response (14 chars).
+Manager REJECTED or pending: Project not signed off.
+--- PASS: TestManagerRejection_ClearsSignals (0.05s)
+=== RUN   TestOrchestrator_ConcurrencyLimit
+Starting Multi-Agent Orchestrator (max-agents: 10)
+Initializing git repository...
+Warning: git commit might have failed (maybe empty?): On branch master
+
+Initial commit
+
+nothing to commit (create/copy files and use "git add" to track)
+
+Adjusting concurrency from 10 to 2 (matching initial ready tasks)
+Starting worker pool with 2 workers
+Worker 1 started
+Worker 0 started
+Worker 1 stopped
+Worker 0 stopped
+Worker pool stopped
+--- PASS: TestOrchestrator_ConcurrencyLimit (0.05s)
+=== RUN   TestOrchestrator_FaultTolerance_HighFailureRate
+Starting Multi-Agent Orchestrator (max-agents: 3)
+Initializing git repository...
+Created initial git commit.
+Starting worker pool with 3 workers
+Worker 2 started
+Worker 0 started
+Worker 1 started
+
+>>> [ORCHESTRATOR] Starting Task: t1
+
+>>> [ORCHESTRATOR] Starting Task: t2
+
+>>> [ORCHESTRATOR] Starting Task: t3
+Warning: Failed to initialize SQLite store: failed to migrate database: database is locked (5) (SQLITE_BUSY)
+Warning: Failed to initialize SQLite store: failed to migrate database: database is locked (5) (SQLITE_BUSY)
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060505.log
+Initializing session with image: img
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:05.183960341Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:05.184149305Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:05.184276242Z","level":"INFO","msg":"Checking notification for event: on_start"}
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060505.log
+{"time":"2026-01-02T06:05:05.184297254Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+Initializing session with image: img
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:05.184413802Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:05.184455013Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:05.184470096Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:05.184483881Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+{"time":"2026-01-02T06:05:05.184485811Z","level":"INFO","msg":"Starting Iteration","project":"proj","iteration":1}
+{"time":"2026-01-02T06:05:05.186030954Z","level":"INFO","msg":"Starting Iteration","project":"proj","iteration":1}
+{"time":"2026-01-02T06:05:05.187129506Z","level":"INFO","msg":"Agent Role","project":"proj","role":"Agent"}
+Sending prompt to agent...
+Agent Response:
+Agent error: simulated failure. Retrying in next iteration...
+{"time":"2026-01-02T06:05:05.187331034Z","level":"INFO","msg":"Agent Role","project":"proj","role":"Agent"}
+Sending prompt to agent...
+Agent Response:
+Agent error: simulated failure. Retrying in next iteration...
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060505.log
+Initializing session with image: img
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:05.195974331Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:05.196001382Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:05.196012492Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:05.196020352Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+{"time":"2026-01-02T06:05:05.19626676Z","level":"INFO","msg":"Starting Iteration","project":"proj","iteration":1}
+{"time":"2026-01-02T06:05:05.196800833Z","level":"INFO","msg":"Agent Role","project":"proj","role":"Agent"}
+Sending prompt to agent...
+Agent Response:
+{"time":"2026-01-02T06:05:05.196981562Z","level":"INFO","msg":"Agent response received","project":"proj","role":"Agent","chars":9}
+Security scan passed.
+Reached max iterations (1). Stopping.
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t1 Session Failed: maximum iterations reached
+Stopping container: mock-id
+Container stopped successfully
+Worker 1 error: maximum iterations reached
+
+>>> [ORCHESTRATOR] Starting Task: t1
+Reached max iterations (1). Stopping.
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t2 Session Failed: maximum iterations reached
+Stopping container: mock-id
+Container stopped successfully
+Worker 2 error: maximum iterations reached
+
+>>> [ORCHESTRATOR] Starting Task: t2
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060506.log
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060506.log
+Initializing session with image: img
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:06.191281559Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:06.191335619Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:06.191432766Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:06.191443827Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+Initializing session with image: img
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:06.19168741Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:06.191733323Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:06.191763733Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:06.191776838Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+{"time":"2026-01-02T06:05:06.191840486Z","level":"INFO","msg":"Starting Iteration","project":"proj","iteration":1}
+{"time":"2026-01-02T06:05:06.19301955Z","level":"INFO","msg":"Starting Iteration","project":"proj","iteration":1}
+{"time":"2026-01-02T06:05:06.193738101Z","level":"INFO","msg":"Agent Role","project":"proj","role":"Agent"}
+Sending prompt to agent...
+Agent Response:
+Agent error: simulated failure. Retrying in next iteration...
+{"time":"2026-01-02T06:05:06.194496134Z","level":"INFO","msg":"Agent Role","project":"proj","role":"Agent"}
+Sending prompt to agent...
+Agent Response:
+Agent error: simulated failure. Retrying in next iteration...
+Reached max iterations (1). Stopping.
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t3 Session Failed: maximum iterations reached
+Stopping container: mock-id
+Container stopped successfully
+Worker 0 error: maximum iterations reached
+
+>>> [ORCHESTRATOR] Starting Task: t3
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060506.log
+Initializing session with image: img
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:06.198855633Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:06.198881592Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:06.198889853Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:06.198897915Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+{"time":"2026-01-02T06:05:06.199151772Z","level":"INFO","msg":"Starting Iteration","project":"proj","iteration":1}
+{"time":"2026-01-02T06:05:06.199967548Z","level":"INFO","msg":"Agent Role","project":"proj","role":"Agent"}
+Sending prompt to agent...
+Agent Response:
+{"time":"2026-01-02T06:05:06.200020455Z","level":"INFO","msg":"Agent response received","project":"proj","role":"Agent","chars":9}
+Security scan passed.
+Critical Failure Rate Detected (3/3 failed). Triggering Manager.
+All tasks processed (completed or failed).
+Task failures detected. Triggering Manager for review.
+Reached max iterations (1). Stopping.
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t1 Session Failed: maximum iterations reached
+Stopping container: mock-id
+Container stopped successfully
+Worker 1 error: maximum iterations reached
+
+>>> [ORCHESTRATOR] Starting Task: t1
+Reached max iterations (1). Stopping.
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t2 Session Failed: maximum iterations reached
+Stopping container: mock-id
+Container stopped successfully
+Worker 2 error: maximum iterations reached
+
+>>> [ORCHESTRATOR] Starting Task: t2
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060507.log
+Initializing session with image: img
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060507.log
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:07.198077083Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:07.198170758Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:07.198252463Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:07.198265162Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+Initializing session with image: img
+Loaded spec: 4 bytes
+{"time":"2026-01-02T06:05:07.198549921Z","level":"INFO","msg":"Starting Iteration","project":"proj","iteration":1}
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:07.198735481Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:07.198756473Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:07.198764886Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:07.198772582Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+{"time":"2026-01-02T06:05:07.199553876Z","level":"INFO","msg":"Starting Iteration","project":"proj","iteration":1}
+{"time":"2026-01-02T06:05:07.199614955Z","level":"INFO","msg":"Agent Role","project":"proj","role":"Agent"}
+Sending prompt to agent...
+Agent Response:
+Agent error: simulated failure. Retrying in next iteration...
+{"time":"2026-01-02T06:05:07.200463977Z","level":"INFO","msg":"Agent Role","project":"proj","role":"Agent"}
+Sending prompt to agent...
+Agent Response:
+Agent error: simulated failure. Retrying in next iteration...
+Reached max iterations (1). Stopping.
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t3 Session Failed: maximum iterations reached
+Stopping container: mock-id
+Container stopped successfully
+Worker 0 error: maximum iterations reached
+
+>>> [ORCHESTRATOR] Starting Task: t3
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060507.log
+Initializing session with image: img
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:07.202241009Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:07.202255499Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:07.20226271Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:07.202270287Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+{"time":"2026-01-02T06:05:07.202465471Z","level":"INFO","msg":"Starting Iteration","project":"proj","iteration":1}
+{"time":"2026-01-02T06:05:07.203197586Z","level":"INFO","msg":"Agent Role","project":"proj","role":"Agent"}
+Sending prompt to agent...
+Agent Response:
+{"time":"2026-01-02T06:05:07.203398546Z","level":"INFO","msg":"Agent response received","project":"proj","role":"Agent","chars":9}
+Security scan passed.
+Reached max iterations (1). Stopping.
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t2 Session Failed: maximum iterations reached
+Stopping container: mock-id
+Container stopped successfully
+Worker 2 error: maximum iterations reached
+
+>>> [ORCHESTRATOR] Starting Task: t3
+Reached max iterations (1). Stopping.
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060508.log
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t1 Session Failed: maximum iterations reached
+Stopping container: mock-id
+Container stopped successfully
+Worker 1 error: maximum iterations reached
+
+>>> [ORCHESTRATOR] Starting Task: t1
+Initializing session with image: img
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:08.202903833Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:08.20297542Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:08.203000598Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:08.203015999Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+{"time":"2026-01-02T06:05:08.204021439Z","level":"INFO","msg":"Starting Iteration","project":"proj","iteration":1}
+Reached max iterations (1). Stopping.
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t3 Session Failed: maximum iterations reached
+Stopping container: mock-id
+Container stopped successfully
+Worker 0 error: maximum iterations reached
+
+>>> [ORCHESTRATOR] Starting Task: t2
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060508.log
+Initializing session with image: img
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:08.207064056Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:08.207082716Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:08.207131408Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:08.207200693Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+{"time":"2026-01-02T06:05:08.207996124Z","level":"INFO","msg":"Starting Iteration","project":"proj","iteration":1}
+{"time":"2026-01-02T06:05:08.2083226Z","level":"INFO","msg":"Agent Role","project":"proj","role":"Agent"}
+Sending prompt to agent...
+Agent Response:
+{"time":"2026-01-02T06:05:08.208386596Z","level":"INFO","msg":"Agent response received","project":"proj","role":"Agent","chars":9}
+Security scan passed.
+{"time":"2026-01-02T06:05:08.209687917Z","level":"INFO","msg":"Agent Role","project":"proj","role":"Agent"}
+Sending prompt to agent...
+Agent Response:
+Agent error: simulated failure. Retrying in next iteration...
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060508.log
+Initializing session with image: img
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:08.216856263Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:08.216913049Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:08.21696456Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:08.216989055Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+{"time":"2026-01-02T06:05:08.217398936Z","level":"INFO","msg":"Starting Iteration","project":"proj","iteration":1}
+{"time":"2026-01-02T06:05:08.219047102Z","level":"INFO","msg":"Agent Role","project":"proj","role":"Agent"}
+Sending prompt to agent...
+Agent Response:
+Agent error: simulated failure. Retrying in next iteration...
+Reached max iterations (1). Stopping.
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t3 Session Failed: maximum iterations reached
+Stopping container: mock-id
+Container stopped successfully
+Worker 2 error: maximum iterations reached
+
+>>> [ORCHESTRATOR] Starting Task: t1
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060509.log
+Initializing session with image: img
+Loaded spec: 4 bytes
+Reached max iterations (1). Stopping.
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t1 Session Failed: maximum iterations reached
+Stopping container: mock-id
+Container stopped successfully
+Worker 1 error: maximum iterations reached
+
+>>> [ORCHESTRATOR] Starting Task: t2
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:09.211139701Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:09.21118531Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:09.211196113Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:09.211205681Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+{"time":"2026-01-02T06:05:09.21174844Z","level":"INFO","msg":"Starting Iteration","project":"proj","iteration":1}
+{"time":"2026-01-02T06:05:09.213410223Z","level":"INFO","msg":"Agent Role","project":"proj","role":"Agent"}
+Sending prompt to agent...
+Agent Response:
+Agent error: simulated failure. Retrying in next iteration...
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060509.log
+Initializing session with image: img
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:09.215470101Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:09.215540913Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:09.21559999Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:09.215614868Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+{"time":"2026-01-02T06:05:09.215970041Z","level":"INFO","msg":"Starting Iteration","project":"proj","iteration":1}
+{"time":"2026-01-02T06:05:09.217174525Z","level":"INFO","msg":"Agent Role","project":"proj","role":"Agent"}
+Sending prompt to agent...
+Agent Response:
+Agent error: simulated failure. Retrying in next iteration...
+Reached max iterations (1). Stopping.
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t2 Session Failed: maximum iterations reached
+Stopping container: mock-id
+Container stopped successfully
+Worker 0 error: maximum iterations reached
+
+>>> [ORCHESTRATOR] Starting Task: t3
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060509.log
+Initializing session with image: img
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:09.223541557Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:09.223569753Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:09.22358429Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:09.223594275Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+{"time":"2026-01-02T06:05:09.223893547Z","level":"INFO","msg":"Starting Iteration","project":"proj","iteration":1}
+{"time":"2026-01-02T06:05:09.225176605Z","level":"INFO","msg":"Agent Role","project":"proj","role":"Agent"}
+Sending prompt to agent...
+Agent Response:
+{"time":"2026-01-02T06:05:09.225239747Z","level":"INFO","msg":"Agent response received","project":"proj","role":"Agent","chars":9}
+Security scan passed.
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t1 Session Failed: context deadline exceeded
+Stopping container: mock-id
+Container stopped successfully
+Worker 2 error: context deadline exceeded
+
+>>> [ORCHESTRATOR] Starting Task: t2
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060510.log
+Initializing session with image: img
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:10.217125272Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.217162897Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:10.217173336Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.217181315Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t2 Session Failed: context deadline exceeded
+Stopping container: mock-id
+Container stopped successfully
+Worker 2 error: context deadline exceeded
+
+>>> [ORCHESTRATOR] Starting Task: t3
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t2 Session Failed: context deadline exceeded
+Stopping container: mock-id
+Container stopped successfully
+Worker 1 error: context deadline exceeded
+
+>>> [ORCHESTRATOR] Starting Task: t1
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060510.log
+Initializing session with image: img
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:10.218962933Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.218978078Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:10.218985467Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.218992625Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t3 Session Failed: context deadline exceeded
+Stopping container: mock-id
+Container stopped successfully
+Worker 2 error: context deadline exceeded
+
+>>> [ORCHESTRATOR] Starting Task: t2
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060510.log
+Initializing session with image: img
+Loaded spec: 4 bytes
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060510.log
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:10.220738073Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.220801389Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:10.220835793Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.220849846Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+Initializing session with image: img
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:10.22104518Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.221137743Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:10.221167421Z","level":"INFO","msg":"Checking notification for event: on_start"}
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t1 Session Failed: context deadline exceeded
+Stopping container: mock-id
+Container stopped successfully
+Worker 1 error: context deadline exceeded
+
+>>> [ORCHESTRATOR] Starting Task: t3
+{"time":"2026-01-02T06:05:10.221177527Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060510.log
+Initializing session with image: img
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t2 Session Failed: context deadline exceeded
+Stopping container: mock-id
+Container stopped successfully
+Worker 2 error: context deadline exceeded
+
+>>> [ORCHESTRATOR] Starting Task: t1
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:10.223153162Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.223175057Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:10.223183886Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.223197366Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t3 Session Failed: context deadline exceeded
+Stopping container: mock-id
+Container stopped successfully
+Worker 1 error: context deadline exceeded
+
+>>> [ORCHESTRATOR] Starting Task: t1
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060510.log
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060510.log
+Initializing session with image: img
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+Initializing session with image: img
+{"time":"2026-01-02T06:05:10.225417521Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.225442872Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:10.225586286Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.225651111Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:10.22578801Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.225831074Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:10.225918797Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.225949653Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t3 Session Failed: context deadline exceeded
+Stopping container: mock-id
+Container stopped successfully
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t1 Session Failed: context deadline exceeded
+Stopping container: mock-id
+Container stopped successfully
+Worker 2 error: context deadline exceeded
+
+>>> [ORCHESTRATOR] Starting Task: t2
+Worker 0 error: context deadline exceeded
+
+>>> [ORCHESTRATOR] Starting Task: t3
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t1 Session Failed: context deadline exceeded
+Stopping container: mock-id
+Container stopped successfully
+Worker 1 error: context deadline exceeded
+
+>>> [ORCHESTRATOR] Starting Task: t1
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060510.log
+Initializing session with image: img
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:10.227489295Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.227525534Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:10.227533667Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.227541202Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t2 Session Failed: context deadline exceeded
+Stopping container: mock-id
+Container stopped successfully
+Worker 2 error: context deadline exceeded
+
+>>> [ORCHESTRATOR] Starting Task: t2
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060510.log
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060510.log
+Initializing session with image: img
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:10.228583591Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.228597097Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:10.228620038Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.228628911Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t3 Session Failed: context deadline exceeded
+Stopping container: mock-id
+Container stopped successfully
+Worker 0 error: context deadline exceeded
+
+>>> [ORCHESTRATOR] Starting Task: t3
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060510.log
+Initializing session with image: img
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:10.229293535Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.229332154Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:10.229340474Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.229363556Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+Initializing session with image: img
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t2 Session Failed: context deadline exceeded
+Stopping container: mock-id
+Container stopped successfully
+Worker 2 error: context deadline exceeded
+
+>>> [ORCHESTRATOR] Starting Task: t1
+{"time":"2026-01-02T06:05:10.229587578Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.229655571Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:10.229662924Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.229679122Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t1 Session Failed: context deadline exceeded
+Stopping container: mock-id
+Container stopped successfully
+Worker 1 error: context deadline exceeded
+
+>>> [ORCHESTRATOR] Starting Task: t2
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060510.log
+Initializing session with image: img
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:10.2306452Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.230664336Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:10.230672218Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.230688131Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t3 Session Failed: context deadline exceeded
+Stopping container: mock-id
+Container stopped successfully
+Worker 0 error: context deadline exceeded
+
+>>> [ORCHESTRATOR] Starting Task: t3
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060510.log
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060510.log
+Initializing session with image: img
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+Initializing session with image: img
+{"time":"2026-01-02T06:05:10.232236118Z","level":"INFO","msg":"Checking notification for event: on_start"}
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060510.log
+{"time":"2026-01-02T06:05:10.232253223Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:10.232261232Z","level":"INFO","msg":"Checking notification for event: on_start"}
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+Initializing session with image: img
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:10.232268774Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t3 Session Failed: context deadline exceeded
+Stopping container: mock-id
+Container stopped successfully
+Worker 0 error: context deadline exceeded
+
+>>> [ORCHESTRATOR] Starting Task: t1
+{"time":"2026-01-02T06:05:10.23242666Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.232982327Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:10.23299164Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.232999437Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+{"time":"2026-01-02T06:05:10.232555721Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.233328807Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:10.233364162Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.23337794Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t1 Session Failed: context deadline exceeded
+Stopping container: mock-id
+Container stopped successfully
+Worker 2 error: context deadline exceeded
+
+>>> [ORCHESTRATOR] Starting Task: t2
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060510.log
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t2 Session Failed: context deadline exceeded
+Stopping container: mock-id
+Container stopped successfully
+Worker 1 error: context deadline exceeded
+
+>>> [ORCHESTRATOR] Starting Task: t3
+Initializing session with image: img
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:10.234040181Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.234053668Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:10.234124958Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.234139052Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t1 Session Failed: context deadline exceeded
+Stopping container: mock-id
+Container stopped successfully
+Worker 0 error: context deadline exceeded
+Worker 0 stopped
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060510.log
+Initializing session with image: img
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:10.235469821Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.235496479Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:10.235504043Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.235517639Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t2 Session Failed: context deadline exceeded
+Stopping container: mock-id
+Container stopped successfully
+Worker 2 error: context deadline exceeded
+Worker 2 stopped
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260102-060510.log
+Initializing session with image: img
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:10.236589882Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.236603006Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:10.236626148Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.236634944Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+Cleaning up container: mock-id
+Container cleaned up successfully
+Task t3 Session Failed: context deadline exceeded
+Stopping container: mock-id
+Container stopped successfully
+Worker 1 error: context deadline exceeded
+Worker 1 stopped
+Worker pool stopped
+--- PASS: TestOrchestrator_FaultTolerance_HighFailureRate (5.18s)
+=== RUN   TestOrchestrator_EnsureGitRepo
+Starting Multi-Agent Orchestrator (max-agents: 1)
+Initializing git repository...
+Created initial git commit.
+Starting worker pool with 1 workers
+Worker 0 started
+Worker 0 stopped
+Worker pool stopped
+--- PASS: TestOrchestrator_EnsureGitRepo (0.11s)
+=== RUN   TestGenerateFeatureList
+--- PASS: TestGenerateFeatureList (0.00s)
+=== RUN   TestWorkerPool
+Starting worker pool with 2 workers
+Worker 1 started
+Worker 0 started
+Worker 0 error: simulated error
+Worker 0 stopped
+Worker 1 stopped
+Worker pool stopped
+--- PASS: TestWorkerPool (0.01s)
+=== RUN   TestSession_ProcessResponse_NoCommands
+--- PASS: TestSession_ProcessResponse_NoCommands (0.00s)
+=== RUN   TestSession_ProcessResponse_WithCommands
+
+--- Executing Command Block (1/1) ---
+echo hello
+Command Output:
+Success
+--- PASS: TestSession_ProcessResponse_WithCommands (0.02s)
+=== RUN   TestSession_ProcessResponse_Blocker
+
+=== HUMAN INTERVENTION REQUIRED ===
+Agent reported blocker: I am stuck
+Session stopping to allow human resolution.
+--- PASS: TestSession_ProcessResponse_Blocker (0.02s)
+=== RUN   TestProjectCompleteFlow
+Workspace: /tmp/recac-test-complete3000105702
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260102-060510.log
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:10.397656835Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.397683672Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+All features passed! Triggering Project Complete flow.
+Created signal: COMPLETED
+{"time":"2026-01-02T06:05:10.401281181Z","level":"INFO","msg":"Checking notification for event: on_project_complete"}
+{"time":"2026-01-02T06:05:10.401322413Z","level":"INFO","msg":"Notification DISABLED for event: on_project_complete"}
+{"time":"2026-01-02T06:05:10.401331103Z","level":"INFO","msg":"Starting Iteration","project":"test-project","iteration":1}
+Project marked as COMPLETED. Running QA agent...
+=== QA Agent: Running Quality Checks ===
+Sending verification instructions to QA Agent...
+QA Agent Response (69 chars).
+
+--- Executing Command Block (1/1) ---
+echo PASS > /tmp/recac-test-complete3000105702/.qa_result
+QA Result: PASS
+Created signal: QA_PASSED
+QA PASSED: Agent verified all requirements.
+Created signal: QA_PASSED
+QA checks passed. Moving to Manager review.
+Reached max iterations (1). Stopping.
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:10.4060539Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:10.406074876Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+All features passed! Triggering Project Complete flow.
+Created signal: COMPLETED
+{"time":"2026-01-02T06:05:10.408667165Z","level":"INFO","msg":"Checking notification for event: on_project_complete"}
+{"time":"2026-01-02T06:05:10.408716866Z","level":"INFO","msg":"Notification DISABLED for event: on_project_complete"}
+{"time":"2026-01-02T06:05:10.408723944Z","level":"INFO","msg":"Starting Iteration","project":"test-project","iteration":3}
+QA passed. Running Manager agent for final review...
+=== Manager Agent: Reviewing QA Report ===
+Sending QA report to Manager agent for review...
+Manager review response (4 chars).
+Manager APPROVED (Legacy/Fallback): All features passing.
+Created signal: PROJECT_SIGNED_OFF
+Manager approved. Project signed off.
+{"time":"2026-01-02T06:05:10.411105576Z","level":"INFO","msg":"Checking notification for event: on_success"}
+{"time":"2026-01-02T06:05:10.41112638Z","level":"INFO","msg":"Notification DISABLED for event: on_success"}
+Reached max iterations (3). Stopping.
+--- PASS: TestProjectCompleteFlow (0.03s)
+=== RUN   TestRunQAAgent_Pass
+=== QA Agent: Running Quality Checks ===
+Sending verification instructions to QA Agent...
+QA Agent Response (31 chars).
+QA Result: PASS
+Created signal: QA_PASSED
+QA PASSED: Agent verified all requirements.
+--- PASS: TestRunQAAgent_Pass (0.01s)
+=== RUN   TestRunQAAgent_Fail
+=== QA Agent: Running Quality Checks ===
+Sending verification instructions to QA Agent...
+QA Agent Response (31 chars).
+QA Result: FAIL
+QA FAILED: Agent reported failure.
+--- PASS: TestRunQAAgent_Fail (0.01s)
+=== RUN   TestRunQA_IdentifiesFailures
+--- PASS: TestRunQA_IdentifiesFailures (0.00s)
+=== RUN   TestQAReport_String
+--- PASS: TestQAReport_String (0.00s)
+=== RUN   TestRace_StateManager
+--- PASS: TestRace_StateManager (5.37s)
+=== RUN   TestRace_WorkerPool_Notifier
+Starting worker pool with 4 workers
+Worker 0 started
+Worker 1 started
+Worker 0 stopped
+Worker 1 stopped
+Worker 2 started
+Worker 2 stopped
+Worker 3 started
+Worker 3 stopped
+Worker pool stopped
+--- PASS: TestRace_WorkerPool_Notifier (0.00s)
+=== RUN   TestTruncateRepetitiveResponse
+=== RUN   TestTruncateRepetitiveResponse/No_repetition
+=== RUN   TestTruncateRepetitiveResponse/Single_line_loop
+=== RUN   TestTruncateRepetitiveResponse/Two_line_pattern_loop
+=== RUN   TestTruncateRepetitiveResponse/Legitimate_repetition_(fewer_than_threshold)
+=== RUN   TestTruncateRepetitiveResponse/Empty_lines_loop
+--- PASS: TestTruncateRepetitiveResponse (0.00s)
+    --- PASS: TestTruncateRepetitiveResponse/No_repetition (0.00s)
+    --- PASS: TestTruncateRepetitiveResponse/Single_line_loop (0.00s)
+    --- PASS: TestTruncateRepetitiveResponse/Two_line_pattern_loop (0.00s)
+    --- PASS: TestTruncateRepetitiveResponse/Legitimate_repetition_(fewer_than_threshold) (0.00s)
+    --- PASS: TestTruncateRepetitiveResponse/Empty_lines_loop (0.00s)
+=== RUN   TestSession_RunLoop_Success
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:15.82103753Z","level":"INFO","msg":"Starting Iteration","project":"","iteration":1}
+Feature list not found. Running Initializer.
+{"time":"2026-01-02T06:05:15.821471049Z","level":"INFO","msg":"Agent Role","project":"","role":"Agent"}
+Sending prompt to agent...
+{"time":"2026-01-02T06:05:15.821486049Z","level":"INFO","msg":"Agent response received","project":"","role":"Agent","chars":43}
+
+--- Executing Command Block (1/1) ---
+echo success
+{"time":"2026-01-02T06:05:16.827034091Z","level":"INFO","msg":"Starting Iteration","project":"","iteration":2}
+Feature list not found. Running Initializer.
+{"time":"2026-01-02T06:05:16.827785886Z","level":"INFO","msg":"Agent Role","project":"","role":"Agent"}
+Sending prompt to agent...
+{"time":"2026-01-02T06:05:16.82781027Z","level":"INFO","msg":"Agent response received","project":"","role":"Agent","chars":10}
+{"time":"2026-01-02T06:05:17.832738926Z","level":"INFO","msg":"Starting Iteration","project":"","iteration":3}
+Feature list not found. Running Initializer.
+{"time":"2026-01-02T06:05:17.833343074Z","level":"INFO","msg":"Agent Role","project":"","role":"Agent"}
+Sending prompt to agent...
+{"time":"2026-01-02T06:05:17.833363201Z","level":"INFO","msg":"Agent response received","project":"","role":"Agent","chars":0}
+{"time":"2026-01-02T06:05:18.839195708Z","level":"INFO","msg":"Starting Iteration","project":"","iteration":4}
+Feature list not found. Running Initializer.
+{"time":"2026-01-02T06:05:18.839694499Z","level":"INFO","msg":"Agent Role","project":"","role":"Agent"}
+Sending prompt to agent...
+{"time":"2026-01-02T06:05:18.839719126Z","level":"INFO","msg":"Agent response received","project":"","role":"Agent","chars":0}
+CIRCUIT BREAKER TRIPPED: NO-OP LOOP (Agent has produced 3 consecutive responses with no commands)
+--- PASS: TestSession_RunLoop_Success (3.04s)
+=== RUN   TestSession_RunLoop_StalledBreaker
+--- PASS: TestSession_RunLoop_StalledBreaker (0.00s)
+=== RUN   TestSecurityIntegration_BlocksSecrets
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260102-060518.log
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:18.864740222Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:18.86476825Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+{"time":"2026-01-02T06:05:18.865205933Z","level":"INFO","msg":"Starting Iteration","project":"test-project","iteration":1}
+Feature list not found. Running Initializer.
+{"time":"2026-01-02T06:05:18.865501379Z","level":"INFO","msg":"Agent Role","project":"test-project","role":"Agent"}
+Sending prompt to agent...
+{"time":"2026-01-02T06:05:18.865516754Z","level":"INFO","msg":"Agent response received","project":"test-project","role":"Agent","chars":38}
+CRITICAL: Security violation detected in agent response!
+  - AWS Access Key: Found potential AWS Access Key (Line 1)
+Reached max iterations (1). Stopping.
+    security_integration_test.go:72: DB is empty (Good, secret was blocked)
+--- PASS: TestSecurityIntegration_BlocksSecrets (1.02s)
+=== RUN   TestSession_CheckNoOpBreaker
+--- PASS: TestSession_CheckNoOpBreaker (0.00s)
+=== RUN   TestSession_CheckStalledBreaker
+Warning: Progress stalled for 5 iterations. Summoning Manager.
+Warning: Progress stalled for 15 iterations. Summoning Manager.
+--- PASS: TestSession_CheckStalledBreaker (0.00s)
+=== RUN   TestSession_CheckStalledBreaker_ManagerReset
+--- PASS: TestSession_CheckStalledBreaker_ManagerReset (0.00s)
+=== RUN   TestSession_Start_RunsInitScript
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260102-060519.log
+Initializing session with image: alpine
+Loaded spec: 9 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: test-container
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+Found init.sh. Executing in container...
+Found init.sh. Launching in background (10m timeout)...
+{"time":"2026-01-02T06:05:19.888914082Z","level":"INFO","msg":"Checking notification for event: on_start"}
+async init.sh finished successfully.
+{"time":"2026-01-02T06:05:19.889193992Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+--- PASS: TestSession_Start_RunsInitScript (0.02s)
+=== RUN   TestSession_Start_NoInitScript
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260102-060519.log
+Initializing session with image: alpine
+Loaded spec: 9 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-container-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:19.905246742Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:19.905291871Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+--- PASS: TestSession_Start_NoInitScript (0.02s)
+=== RUN   TestSession_Start_InitScriptFails
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260102-060519.log
+Initializing session with image: alpine
+Loaded spec: 9 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-container-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+Found init.sh. Executing in container...
+Found init.sh. Launching in background (10m timeout)...
+{"time":"2026-01-02T06:05:19.923501078Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:19.92353663Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+Warning: init.sh execution failed: failed to create exec as user root: simulated init.sh failure
+--- PASS: TestSession_Start_InitScriptFails (0.02s)
+=== RUN   TestSessionManager_Lifecycle
+--- PASS: TestSessionManager_Lifecycle (2.12s)
+=== RUN   TestSessionManager_Persistence
+--- PASS: TestSessionManager_Persistence (0.00s)
+=== RUN   TestSessionManager_StopSession_NotRunning
+--- PASS: TestSessionManager_StopSession_NotRunning (0.00s)
+=== RUN   TestSessionManager_GetSessionLogs
+--- PASS: TestSessionManager_GetSessionLogs (0.00s)
+=== RUN   TestSession_WorkspaceMounting
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260102-060522.log
+Initializing session with image: alpine:latest
+Warning: Failed to read spec: failed to read spec file: open /tmp/TestSession_WorkspaceMounting366714754/001/app_spec.txt: no such file or directory
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: test-container-123
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:22.073607017Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:22.073684097Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+    session_mount_test.go:205: Successfully verified workspace mounting:
+    session_mount_test.go:206:   Workspace path: /tmp/TestSession_WorkspaceMounting366714754/001
+    session_mount_test.go:207:   Mounted as: /tmp/TestSession_WorkspaceMounting366714754/001:/workspace
+    session_mount_test.go:208:   Container files: [.recac.db file1.txt file2.txt subdir]
+--- PASS: TestSession_WorkspaceMounting (0.02s)
+=== RUN   TestSession_ReadSpec
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260102-060522.log
+--- PASS: TestSession_ReadSpec (0.02s)
+=== RUN   TestSession_ReadSpec_Missing
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260102-060522.log
+--- PASS: TestSession_ReadSpec_Missing (0.02s)
+=== RUN   TestSession_AgentReadsSpec
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260102-060522.log
+Initializing session with image: alpine
+Loaded spec: 77 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: mock-container-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:22.132187907Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:22.132224392Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+--- PASS: TestSession_AgentReadsSpec (0.02s)
+=== RUN   TestSession_Start_PassesUser
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260102-060522.log
+Initializing session with image: alpine
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: test
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:22.152774769Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:22.152838377Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+--- PASS: TestSession_Start_PassesUser (0.02s)
+=== RUN   TestSession_SyncFeatureFile_RetryOnPermissionDenied
+--- PASS: TestSession_SyncFeatureFile_RetryOnPermissionDenied (0.00s)
+=== RUN   TestSession_SelectPrompt
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260102-060522.log
+Feature list not found. Running Initializer.
+Migrating signal TRIGGER_MANAGER from file to DB
+--- PASS: TestSession_SelectPrompt (0.03s)
+=== RUN   TestSession_AgentStatePersistence
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260102-060522.log
+--- PASS: TestSession_AgentStatePersistence (0.02s)
+=== RUN   TestSession_Signals
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260102-060522.log
+Created signal: TEST_SIGNAL
+Created signal: COMPLETED
+--- PASS: TestSession_Signals (0.02s)
+=== RUN   TestSession_Stop
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260102-060522.log
+Stopping container: test-container
+Container stopped successfully
+--- PASS: TestSession_Stop (0.02s)
+=== RUN   TestSession_RunCleanerAgent
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260102-060522.log
+=== Cleaner Agent: Removing Temporary Files ===
+Removed: to_delete.txt
+Cleaner complete: 1 files removed, 0 errors
+--- PASS: TestSession_RunCleanerAgent (0.01s)
+=== RUN   TestSession_LoadFeatures
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260102-060522.log
+--- PASS: TestSession_LoadFeatures (0.02s)
+=== RUN   TestSession_RunLoop_SingleIteration
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260102-060522.log
+
+=== Entering Autonomous Run Loop ===
+{"time":"2026-01-02T06:05:22.279749496Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:22.279773508Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+{"time":"2026-01-02T06:05:22.280177356Z","level":"INFO","msg":"Starting Iteration","project":"test-project","iteration":1}
+Feature list not found. Running Initializer.
+{"time":"2026-01-02T06:05:22.280452047Z","level":"INFO","msg":"Agent Role","project":"test-project","role":"Agent"}
+Sending prompt to agent...
+{"time":"2026-01-02T06:05:22.280482681Z","level":"INFO","msg":"Agent response received","project":"test-project","role":"Agent","chars":0}
+Security scan passed.
+Reached max iterations (1). Stopping.
+--- PASS: TestSession_RunLoop_SingleIteration (1.02s)
+=== RUN   TestSession_RunQAAgent
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260102-060523.log
+=== QA Agent: Running Quality Checks ===
+Sending verification instructions to QA Agent...
+QA Agent Response (31 chars).
+QA Result: PASS
+Created signal: QA_PASSED
+QA PASSED: Agent verified all requirements.
+=== QA Agent: Running Quality Checks ===
+Sending verification instructions to QA Agent...
+QA Agent Response (31 chars).
+QA Result: FAIL
+QA FAILED: Agent reported failure.
+--- PASS: TestSession_RunQAAgent (0.02s)
+=== RUN   TestSession_RunManagerAgent
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260102-060523.log
+=== Manager Agent: Reviewing QA Report ===
+Sending QA report to Manager agent for review...
+Manager review response (0 chars).
+Manager APPROVED (Legacy/Fallback): All features passing.
+=== Manager Agent: Reviewing QA Report ===
+Sending QA report to Manager agent for review...
+Manager review response (0 chars).
+Manager REJECTED or pending: Project not signed off.
+--- PASS: TestSession_RunManagerAgent (0.02s)
+=== RUN   TestMin
+--- PASS: TestMin (0.00s)
+=== RUN   TestSession_Start_MountsBridge
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260102-060523.log
+Initializing session with image: alpine
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/internal/runner/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: test
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent)...
+{"time":"2026-01-02T06:05:23.33288736Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-02T06:05:23.332944824Z","level":"INFO","msg":"Notification DISABLED for event: on_start"}
+--- PASS: TestSession_Start_MountsBridge (0.01s)
+=== RUN   TestSignalMigration
+Migrating signal TEST_SIGNAL from file to DB
+--- PASS: TestSignalMigration (0.01s)
+=== RUN   TestTaskGraph_AddNode
+--- PASS: TestTaskGraph_AddNode (0.00s)
+=== RUN   TestTaskGraph_DetectCycles_NoCycle
+--- PASS: TestTaskGraph_DetectCycles_NoCycle (0.00s)
+=== RUN   TestTaskGraph_DetectCycles_WithCycle
+--- PASS: TestTaskGraph_DetectCycles_WithCycle (0.00s)
+=== RUN   TestTaskGraph_TopologicalSort
+--- PASS: TestTaskGraph_TopologicalSort (0.00s)
+=== RUN   TestTaskGraph_TopologicalSort_Disconnected
+--- PASS: TestTaskGraph_TopologicalSort_Disconnected (0.00s)
+=== RUN   TestTaskGraph_GetReadyTasks
+--- PASS: TestTaskGraph_GetReadyTasks (0.00s)
+=== RUN   TestTaskGraph_TaskStatus
+--- PASS: TestTaskGraph_TaskStatus (0.00s)
+=== RUN   TestTaskGraph_AllTasksDone
+--- PASS: TestTaskGraph_AllTasksDone (0.00s)
+=== RUN   TestTaskGraph_GetTaskSummary
+--- PASS: TestTaskGraph_GetTaskSummary (0.00s)
+=== RUN   TestTaskGraph_LoadFromFeatureList
+--- PASS: TestTaskGraph_LoadFromFeatureList (0.00s)
+=== RUN   TestSession_RunLoop_UIVerification
+
+=== Entering Autonomous Run Loop ===
+All features passed! Triggering Project Complete flow.
+Warning: Failed to create COMPLETED signal: db store not initialized
+{"time":"2026-01-02T06:05:23.349384794Z","level":"INFO","msg":"Starting Iteration","project":"","iteration":1}
+{"time":"2026-01-02T06:05:23.349501056Z","level":"INFO","msg":"Agent Role","project":"","role":"Agent"}
+Sending prompt to agent...
+{"time":"2026-01-02T06:05:23.349552859Z","level":"INFO","msg":"Agent response received","project":"","role":"Agent","chars":314}
+{"time":"2026-01-02T06:05:24.349994977Z","level":"INFO","msg":"Starting Iteration","project":"","iteration":2}
+{"time":"2026-01-02T06:05:24.350225227Z","level":"INFO","msg":"Agent Role","project":"","role":"Agent"}
+Sending prompt to agent...
+{"time":"2026-01-02T06:05:24.350243133Z","level":"INFO","msg":"Agent response received","project":"","role":"Agent","chars":314}
+{"time":"2026-01-02T06:05:25.350678576Z","level":"INFO","msg":"Starting Iteration","project":"","iteration":3}
+{"time":"2026-01-02T06:05:25.351096306Z","level":"INFO","msg":"Agent Role","project":"","role":"Agent"}
+Sending prompt to agent...
+{"time":"2026-01-02T06:05:25.351131713Z","level":"INFO","msg":"Agent response received","project":"","role":"Agent","chars":314}
+CIRCUIT BREAKER TRIPPED: NO-OP LOOP (Agent has produced 3 consecutive responses with no commands)
+--- PASS: TestSession_RunLoop_UIVerification (2.00s)
+=== RUN   TestWorkflow_RunCycle_InvokesManager
+QA Phase Complete.
+QA Report: 0/1 features passing (0.0%)
+
+Failed Features:
+- [ui] Broken Button
+
+Manager Review starting...
+--- PASS: TestWorkflow_RunCycle_InvokesManager (0.00s)
+=== RUN   TestWorkflow_FinishFeature
+--- PASS: TestWorkflow_FinishFeature (0.00s)
+PASS
+ok  	recac/internal/runner	27.992s
+=== RUN   TestRegexScanner_Scan
+=== RUN   TestRegexScanner_Scan/Safe_Content
+=== RUN   TestRegexScanner_Scan/AWS_Key
+=== RUN   TestRegexScanner_Scan/GitHub_Token
+=== RUN   TestRegexScanner_Scan/Private_Key
+=== RUN   TestRegexScanner_Scan/Generic_API_Key
+--- PASS: TestRegexScanner_Scan (0.00s)
+    --- PASS: TestRegexScanner_Scan/Safe_Content (0.00s)
+    --- PASS: TestRegexScanner_Scan/AWS_Key (0.00s)
+    --- PASS: TestRegexScanner_Scan/GitHub_Token (0.00s)
+    --- PASS: TestRegexScanner_Scan/Private_Key (0.00s)
+    --- PASS: TestRegexScanner_Scan/Generic_API_Key (0.00s)
+PASS
+ok  	recac/internal/security	0.004s
+=== RUN   TestInitLogger_Configuration
+--- PASS: TestInitLogger_Configuration (0.00s)
+=== RUN   TestLogError
+--- PASS: TestLogError (0.00s)
+=== RUN   TestInitLogger_JSONOutput
+--- PASS: TestInitLogger_JSONOutput (0.00s)
+=== RUN   TestInitLogger_VerboseMode
+    logger_test.go:119: WARNING: API key is visible in logs - should be masked in production
+--- PASS: TestInitLogger_VerboseMode (0.00s)
+=== RUN   TestMetricsHelpers
+--- PASS: TestMetricsHelpers (0.00s)
+=== RUN   TestStartMetricsServer
+--- PASS: TestStartMetricsServer (0.00s)
+PASS
+ok  	recac/internal/telemetry	0.010s
+=== RUN   TestInteractiveModel_CursorCLIModels
+--- PASS: TestInteractiveModel_CursorCLIModels (0.00s)
+=== RUN   TestDashboardModel_View
+--- PASS: TestDashboardModel_View (0.01s)
+=== RUN   TestDashboardModel_LogUpdates
+--- PASS: TestDashboardModel_LogUpdates (0.00s)
+=== RUN   TestDashboardModel_ProgressComponent
+--- PASS: TestDashboardModel_ProgressComponent (0.00s)
+=== RUN   TestDashboardModel_Resize
+--- PASS: TestDashboardModel_Resize (0.00s)
+=== RUN   TestDashboardModel_Update_Quit
+--- PASS: TestDashboardModel_Update_Quit (0.00s)
+=== RUN   TestDashboardModel_Scrolling
+--- PASS: TestDashboardModel_Scrolling (0.02s)
+=== RUN   TestInteractiveModel_GeminiCLIModels
+--- PASS: TestInteractiveModel_GeminiCLIModels (0.00s)
+=== RUN   TestNewInteractiveModel
+--- PASS: TestNewInteractiveModel (0.00s)
+=== RUN   TestInteractiveModel_Update_ModeSwitching
+--- PASS: TestInteractiveModel_Update_ModeSwitching (0.00s)
+=== RUN   TestInteractiveModel_Update_CommandExecution
+--- PASS: TestInteractiveModel_Update_CommandExecution (0.00s)
+=== RUN   TestInteractiveModel_Update_AgentSelection
+--- PASS: TestInteractiveModel_Update_AgentSelection (0.00s)
+=== RUN   TestInteractiveModel_Update_Filtering
+--- PASS: TestInteractiveModel_Update_Filtering (0.00s)
+=== RUN   TestInteractiveModel_View
+--- PASS: TestInteractiveModel_View (0.00s)
+=== RUN   TestInputModes
+--- PASS: TestInputModes (0.00s)
+=== RUN   TestHelperMethods
+--- PASS: TestHelperMethods (0.00s)
+=== RUN   TestInteractiveModel_ModelListing
+--- PASS: TestInteractiveModel_ModelListing (0.00s)
+=== RUN   TestInteractiveModel_ToggleList
+--- PASS: TestInteractiveModel_ToggleList (0.00s)
+=== RUN   TestInteractiveModel_Init
+--- PASS: TestInteractiveModel_Init (0.00s)
+=== RUN   TestInteractiveModel_ShellExecution
+--- PASS: TestInteractiveModel_ShellExecution (0.01s)
+=== RUN   TestInteractiveModel_Conversation
+--- PASS: TestInteractiveModel_Conversation (0.00s)
+=== RUN   TestSprintBoardModel_AddTask
+--- PASS: TestSprintBoardModel_AddTask (0.00s)
+=== RUN   TestSprintBoardModel_UpdateTaskStatus
+--- PASS: TestSprintBoardModel_UpdateTaskStatus (0.00s)
+=== RUN   TestSprintBoardModel_ViewColumns
+--- PASS: TestSprintBoardModel_ViewColumns (0.00s)
+=== RUN   TestSprintBoardModel_TaskMovement
+--- PASS: TestSprintBoardModel_TaskMovement (0.00s)
+=== RUN   TestSprintBoardModel_Quit
+--- PASS: TestSprintBoardModel_Quit (0.00s)
+=== RUN   TestDashboardStyles_Colors
+--- PASS: TestDashboardStyles_Colors (0.00s)
+=== RUN   TestDashboardHeader_BrandColor
+--- PASS: TestDashboardHeader_BrandColor (0.00s)
+=== RUN   TestDashboardView_ContainsErrorColor
+--- PASS: TestDashboardView_ContainsErrorColor (0.00s)
+=== RUN   TestDashboardView_SuccessCheckmark
+--- PASS: TestDashboardView_SuccessCheckmark (0.00s)
+=== RUN   TestWizardModel_InitialView
+--- PASS: TestWizardModel_InitialView (0.00s)
+=== RUN   TestWizardModel_Input
+--- PASS: TestWizardModel_Input (0.00s)
+=== RUN   TestWizardModel_Quit
+--- PASS: TestWizardModel_Quit (0.00s)
+PASS
+ok  	recac/internal/ui	0.069s
+?   	recac/scripts/e2e_projects/mistral_verification	[no test files]
+=== RUN   TestJiraWorkflow_E2E
+    jira_workflow_test.go:23: Skipping E2E test: JIRA credentials missing
+--- SKIP: TestJiraWorkflow_E2E (0.00s)
+PASS
+ok  	recac/tests/e2e	0.006s
+FAIL
