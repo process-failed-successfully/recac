@@ -117,6 +117,21 @@ recac feature status
     - It runs `go run hello.go` to verify output.
 4.  **Verify**: Check your workspace for `hello.go`.
 
+### Deployment (Experimental)
+
+To deploy the orchestrator in a Kubernetes cluster using Helm:
+
+```bash
+helm install recac ./deploy/helm/recac \
+  --set secrets.apiKey=$API_KEY \
+  --set config.jiraUrl=$JIRA_URL \
+  --set config.jiraUsername=$JIRA_EMAIL \
+  --set secrets.jiraApiToken=$JIRA_API_TOKEN
+```
+
+> [!NOTE]
+> The orchestrator requires access to the Docker daemon to run agents. By default, the Helm chart mounts `/var/run/docker.sock` from the host. Ensure your Kubernetes nodes have Docker installed and the socket is accessible.
+
 ## Architecture
 
 `recac` is built with a modular architecture:

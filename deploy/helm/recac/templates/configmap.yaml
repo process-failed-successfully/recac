@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "recac.fullname" . }}
+  labels:
+    {{- include "recac.labels" . | nindent 4 }}
+data:
+  PROVIDER: {{ .Values.config.provider | quote }}
+  {{- if .Values.config.ollamaBaseUrl }}
+  OLLAMA_BASE_URL: {{ .Values.config.ollamaBaseUrl | quote }}
+  {{- end }}
+  METRICS_PORT: {{ .Values.config.metricsPort | quote }}
+  MAX_ITERATIONS: {{ .Values.config.maxIterations | quote }}
+  MANAGER_FREQUENCY: {{ .Values.config.managerFrequency | quote }}
+  MAX_TOKENS: {{ .Values.config.maxTokens | quote }}
+  JIRA_URL: {{ .Values.config.jiraUrl | quote }}
+  JIRA_USERNAME: {{ .Values.config.jiraUsername | quote }}

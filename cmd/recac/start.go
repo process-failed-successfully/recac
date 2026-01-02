@@ -51,6 +51,12 @@ func init() {
 	startCmd.Flags().String("provider", "", "Agent provider (gemini, gemini-cli, openai, etc)")
 	viper.BindPFlag("model", startCmd.Flags().Lookup("model"))
 	viper.BindPFlag("provider", startCmd.Flags().Lookup("provider"))
+	startCmd.Flags().String("jira-label", "", "Jira Label to find tickets (e.g. agent-work)")
+	startCmd.Flags().Int("max-parallel-tickets", 1, "Maximum number of Jira tickets to process in parallel")
+	viper.BindPFlag("jira_label", startCmd.Flags().Lookup("jira-label"))
+	viper.BindPFlag("max_parallel_tickets", startCmd.Flags().Lookup("max-parallel-tickets"))
+	startCmd.Flags().Bool("auto-merge", false, "Automatically merge PRs if checks pass")
+	viper.BindPFlag("auto_merge", startCmd.Flags().Lookup("auto-merge"))
 	rootCmd.AddCommand(startCmd)
 }
 
@@ -88,9 +94,9 @@ var startCmd = &cobra.Command{
 		}
 
 		// Handle Jira Ticket Workflow
-		if jiraTicketID != "" {
-			fmt.Printf("Initializing session from Jira Ticket: %s\n", jiraTicketID)
+		jiraLabel := viper.GetString("jira_label")
 
+		if jiraTicketID != "" || jiraLabel != "" {
 			// 1. Validate Credentials
 			jiraURL := viper.GetString("jira.url")
 			jiraEmail := viper.GetString("jira.username")
@@ -117,8 +123,36 @@ var startCmd = &cobra.Command{
 				}
 			}
 
-			// 2. Fetch Ticket
 			jClient := jira.NewClient(jiraURL, jiraEmail, jiraToken)
+
+			// If Label is provided but not ID, search for ticket
+			if jiraTicketID == "" && jiraLabel != "" {
+				fmt.Printf("Searching for tickets with label '%s'...\n", jiraLabel)
+				// Search for issues with label AND status not done
+				jql := fmt.Sprintf("labels = \"%s\" AND statusCategory != Done ORDER BY created DESC", jiraLabel)
+				issues, err := jClient.SearchIssues(ctx, jql)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error searching Jira tickets: %v\n", err)
+					os.Exit(1)
+				}
+
+				if len(issues) == 0 {
+					fmt.Printf("No open tickets found with label '%s'. Exiting.\n", jiraLabel)
+					return
+				}
+
+				// Pick the first one
+				// TODO: Handle max-parallel-tickets logic here if we want to run multiple
+				// For now, we grab the first one to restore basic functionality
+				firstIssue := issues[0]
+				jiraTicketID, _ = firstIssue["key"].(string)
+				fmt.Printf("Found %d tickets. Selected: %s\n", len(issues), jiraTicketID)
+			}
+
+			// Proceed with Single Ticket Workflow
+			fmt.Printf("Initializing session from Jira Ticket: %s\n", jiraTicketID)
+
+			// 2. Fetch Ticket (if we searched, we technically have it, but consistent flow is safer)
 			ticket, err := jClient.GetTicket(ctx, jiraTicketID)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error fetching Jira ticket: %v\n", err)
@@ -156,16 +190,14 @@ var startCmd = &cobra.Command{
 			fmt.Printf("Workspace created: %s\n", tempWorkspace)
 
 			// 5. Transition Ticket Status (Status Sync)
-			// Default transition ID for "In Progress" is usually 31, but make it configurable if needed
-			transitionID := viper.GetString("jira.transition_id")
-			if transitionID == "" {
-				transitionID = "31" // Default to In Progress
+			transition := viper.GetString("jira.transition")
+			if transition == "" {
+				transition = "In Progress" // Smart default
 			}
 
-			fmt.Printf("Transitioning ticket %s to status ID %s...\n", jiraTicketID, transitionID)
-			if err := jClient.TransitionIssue(ctx, jiraTicketID, transitionID); err != nil {
+			fmt.Printf("Transitioning ticket %s to '%s'...\n", jiraTicketID, transition)
+			if err := jClient.SmartTransition(ctx, jiraTicketID, transition); err != nil {
 				fmt.Fprintf(os.Stderr, "Warning: Failed to transition Jira ticket: %v\n", err)
-				// Don't exit, just warn
 			} else {
 				fmt.Println("Jira ticket status updated.")
 			}
@@ -506,6 +538,7 @@ var startCmd = &cobra.Command{
 		session.ManagerFrequency = managerFrequency
 		session.ManagerFirst = viper.GetBool("manager_first")
 		session.StreamOutput = viper.GetBool("stream")
+		session.AutoMerge = viper.GetBool("auto_merge")
 
 		// Configure StateManager for agents that support it (Gemini, OpenAI)
 		if session.StateManager != nil {

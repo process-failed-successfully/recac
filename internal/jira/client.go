@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -33,55 +34,55 @@ func NewClient(baseURL, username, apiToken string) *Client {
 // Authenticate verifies the credentials by calling the Current User endpoint.
 func (c *Client) Authenticate(ctx context.Context) error {
 	url := fmt.Sprintf("%s/rest/api/3/myself", c.BaseURL)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
-	
+
 	req.SetBasicAuth(c.Username, c.APIToken)
 	req.Header.Set("Accept", "application/json")
-	
+
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to execute request: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("authentication failed with status: %d", resp.StatusCode)
 	}
-	
+
 	return nil
 }
 
 // GetTicket fetches a Jira ticket by ID.
 func (c *Client) GetTicket(ctx context.Context, ticketID string) (map[string]interface{}, error) {
 	url := fmt.Sprintf("%s/rest/api/3/issue/%s", c.BaseURL, ticketID)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	
+
 	req.SetBasicAuth(c.Username, c.APIToken)
 	req.Header.Set("Accept", "application/json")
-	
+
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute request: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to fetch ticket with status: %d", resp.StatusCode)
 	}
-	
+
 	var result map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
-	
+
 	return result, nil
 }
 
@@ -94,7 +95,7 @@ func (c *Client) TransitionIssue(ctx context.Context, ticketID, transitionID str
 			"id": transitionID,
 		},
 	}
-	
+
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("failed to marshal payload: %w", err)
@@ -116,7 +117,8 @@ func (c *Client) TransitionIssue(ctx context.Context, ticketID, transitionID str
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to transition issue with status: %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("failed to transition issue with status: %d, body: %s", resp.StatusCode, string(body))
 	}
 
 	return nil
@@ -173,28 +175,119 @@ func (c *Client) AddComment(ctx context.Context, ticketID, commentText string) e
 	return nil
 }
 
+// DeleteIssue deletes a Jira ticket.
+func (c *Client) DeleteIssue(ctx context.Context, ticketID string) error {
+	url := fmt.Sprintf("%s/rest/api/3/issue/%s", c.BaseURL, ticketID)
+
+	req, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.SetBasicAuth(c.Username, c.APIToken)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("failed to delete issue with status: %d, body: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+// CreateTicket creates a new Jira ticket.
+func (c *Client) CreateTicket(ctx context.Context, projectKey, summary, description, issueType string) (string, error) {
+	url := fmt.Sprintf("%s/rest/api/3/issue", c.BaseURL)
+
+	payload := map[string]interface{}{
+		"fields": map[string]interface{}{
+			"project": map[string]interface{}{
+				"key": projectKey,
+			},
+			"summary": summary,
+			"description": map[string]interface{}{
+				"type":    "doc",
+				"version": 1,
+				"content": []map[string]interface{}{
+					{
+						"type": "paragraph",
+						"content": []map[string]interface{}{
+							{
+								"type": "text",
+								"text": description,
+							},
+						},
+					},
+				},
+			},
+			"issuetype": map[string]interface{}{
+				"name": issueType,
+			},
+		},
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(body))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.SetBasicAuth(c.Username, c.APIToken)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("failed to create ticket with status: %d, body: %s", resp.StatusCode, string(body))
+	}
+
+	var result struct {
+		Key string `json:"key"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return result.Key, nil
+}
+
 // ParseDescription extracts plain text from Jira's ADF (Atlassian Document Format).
 func (c *Client) ParseDescription(data map[string]interface{}) string {
 	fields, ok := data["fields"].(map[string]interface{})
 	if !ok {
 		return ""
 	}
-	
+
 	description, ok := fields["description"].(map[string]interface{})
 	if !ok {
 		return ""
 	}
-	
+
 	return extractTextFromADF(description)
 }
 
 func extractTextFromADF(node map[string]interface{}) string {
 	var sb strings.Builder
-	
+
 	if text, ok := node["text"].(string); ok {
 		sb.WriteString(text)
 	}
-	
+
 	if content, ok := node["content"].([]interface{}); ok {
 		for _, child := range content {
 			if childMap, ok := child.(map[string]interface{}); ok {
@@ -206,6 +299,106 @@ func extractTextFromADF(node map[string]interface{}) string {
 			}
 		}
 	}
-	
+
 	return sb.String()
+}
+
+// SearchIssues searches for Jira tickets using JQL.
+func (c *Client) SearchIssues(ctx context.Context, jql string) ([]map[string]interface{}, error) {
+	url := fmt.Sprintf("%s/rest/api/3/search/jql", c.BaseURL)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	q := req.URL.Query()
+	q.Add("jql", jql)
+	q.Add("fields", "summary,description,status,labels")
+	req.URL.RawQuery = q.Encode()
+
+	req.SetBasicAuth(c.Username, c.APIToken)
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to search issues with status: %d", resp.StatusCode)
+	}
+
+	var result struct {
+		Issues []map[string]interface{} `json:"issues"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return result.Issues, nil
+}
+
+// LoadLabelIssues fetches issues with a specific label.
+func (c *Client) LoadLabelIssues(ctx context.Context, label string) ([]map[string]interface{}, error) {
+	jql := fmt.Sprintf("labels = \"%s\"", label)
+	return c.SearchIssues(ctx, jql)
+}
+
+// GetTransitions fetches available transitions for a Jira ticket.
+func (c *Client) GetTransitions(ctx context.Context, ticketID string) ([]map[string]interface{}, error) {
+	url := fmt.Sprintf("%s/rest/api/3/issue/%s/transitions", c.BaseURL, ticketID)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.SetBasicAuth(c.Username, c.APIToken)
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch transitions with status: %d", resp.StatusCode)
+	}
+
+	var result struct {
+		Transitions []map[string]interface{} `json:"transitions"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return result.Transitions, nil
+}
+
+// SmartTransition attempts to transition an issue by ID or Name.
+func (c *Client) SmartTransition(ctx context.Context, ticketID, targetNameOrID string) error {
+	transitions, err := c.GetTransitions(ctx, ticketID)
+	if err != nil {
+		return fmt.Errorf("failed to fetch transitions: %w", err)
+	}
+
+	var foundID string
+	for _, t := range transitions {
+		id, _ := t["id"].(string)
+		name, _ := t["name"].(string)
+
+		if id == targetNameOrID || strings.EqualFold(name, targetNameOrID) {
+			foundID = id
+			break
+		}
+	}
+
+	if foundID == "" {
+		return fmt.Errorf("no transition found matching '%s'", targetNameOrID)
+	}
+
+	return c.TransitionIssue(ctx, ticketID, foundID)
 }

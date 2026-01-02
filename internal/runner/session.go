@@ -8,12 +8,14 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/user"
 	"path/filepath"
 	"recac/internal/agent"
 	"recac/internal/agent/prompts"
 	"recac/internal/db"
 	"recac/internal/docker"
+	"recac/internal/git"
 	"recac/internal/security"
 	"regexp"
 	"strings"
@@ -65,6 +67,8 @@ type Session struct {
 	Project           string // Project identifier for telemetry
 	TaskMaxIterations int    // Max iterations for sub-tasks (if applicable)
 	Notifier          *notify.Manager
+	BaseBranch        string // Base Branch for merge guardrails
+	AutoMerge         bool   // Automatically merge PRs
 }
 
 func NewSession(d DockerClient, a agent.Agent, workspace, image, project string, maxAgents int) *Session {
@@ -485,6 +489,11 @@ func (s *Session) findAgentBridgeBinary() (string, error) {
 
 // RunLoop executes the autonomous agent loop.
 func (s *Session) RunLoop(ctx context.Context) error {
+	// Guard: Ensure Notifier is initialized (mostly for tests using manual struct initialization)
+	if s.Notifier == nil {
+		s.Notifier = notify.NewManager(func(string, ...interface{}) {})
+	}
+
 	fmt.Println("\n=== Entering Autonomous Run Loop ===")
 	s.Notifier.Notify(ctx, notify.EventStart, fmt.Sprintf("Session Started for Project: %s", s.Project))
 
@@ -578,6 +587,80 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		// Handle Lifecycle Role Transitions (Agent-QA-Manager-Cleaner workflow)
 		// Prioritize these checks at the beginning of the iteration
 		if s.hasSignal("PROJECT_SIGNED_OFF") {
+			// MERGE GUARDRAIL: Check for upstream conflicts before accepting sign-off
+			if s.BaseBranch != "" {
+				fmt.Printf("Checking for upstream changes in %s...\n", s.BaseBranch)
+
+				// Git Recovery/Retry Loop
+				maxRetries := 3
+				gitClient := git.NewClient()
+				success := false
+
+				for i := 0; i < maxRetries; i++ {
+					// 1. Fix Permissions
+					if err := s.fixPermissions(ctx); err != nil {
+						fmt.Printf("Warning: Failed to fix permissions (attempt %d/%d): %v\n", i+1, maxRetries, err)
+					}
+
+					// 2. Fetch
+					if err := gitClient.Fetch(s.Workspace, "origin", s.BaseBranch); err == nil {
+						// Stash (ignore errors)
+						_ = gitClient.Stash(s.Workspace)
+
+						// 3. Attempt Merge
+						if err := gitClient.Merge(s.Workspace, "origin/"+s.BaseBranch); err != nil {
+							fmt.Printf("Merge failed (attempt %d/%d): %v\n", i+1, maxRetries, err)
+
+							// RECOVERY STRATEGIES
+							if i < maxRetries-1 {
+								fmt.Println("Attempting git recovery...")
+
+								// Recovery Step 1: Remove Locks
+								if err := gitClient.Recover(s.Workspace); err != nil {
+									fmt.Printf("Recover failed: %v\n", err)
+								}
+
+								// Recovery Step 2: Clean untracked files (often cause conflicts/locks)
+								// This needs to be persistent/aggressive
+								if err := gitClient.Clean(s.Workspace); err != nil {
+									fmt.Printf("Clean failed: %v\n", err)
+								}
+
+								// Recovery Step 3: Hard Reset (Extreme Measure - Lost Work Preferred)
+								// If we are just pulling upstream changes to verify sign-off, a hard reset to the current branch state (or upstream)
+								// might be valid if we assume stashed changes are less important than unblocking.
+								// We assume 'git reset --hard' clears the working tree state effectively.
+								exec.Command("git", "-C", s.Workspace, "reset", "--hard").Run()
+							} else {
+								// Final Failure
+								fmt.Printf("CRITICAL: Merge with %s failed after %d attempts.\n", s.BaseBranch, maxRetries)
+							}
+						} else {
+							// Success
+							success = true
+							if err := gitClient.StashPop(s.Workspace); err != nil {
+								fmt.Printf("Warning: Restore stash failed: %v\n", err)
+							}
+							fmt.Println("Branch is up-to-date with base.")
+							break
+						}
+					} else {
+						fmt.Printf("Fetch failed (attempt %d/%d): %v\n", i+1, maxRetries, err)
+						gitClient.Recover(s.Workspace) // Try recovering for next loop
+					}
+					time.Sleep(2 * time.Second)
+				}
+
+				if !success {
+					fmt.Printf("Merge Conflict or Persistent Git Error detecting with %s. Revoking sign-off.\n", s.BaseBranch)
+					s.clearSignal("PROJECT_SIGNED_OFF")
+					s.EnsureConflictTask()
+					s.clearSignal("QA_PASSED")
+					s.clearSignal("COMPLETED")
+					continue
+				}
+			}
+
 			// CRITICAL: Guardrail against premature sign-off.
 			// Validate that ALL features are actually passing before accepting the sign-off.
 			features := s.loadFeatures()
@@ -1511,6 +1594,70 @@ func (s *Session) fixPasswdDatabase(ctx context.Context, containerUser string) {
 			fmt.Printf("Warning: Failed to create user %s: %v\n", uid, err)
 		}
 	}
+}
+
+// fixPermissions ensures that all files in the workspace are owned by the host user.
+// This prevents "Permission denied" errors when the host process (git) tries to modify/delete files created by the agent (root).
+func (s *Session) fixPermissions(ctx context.Context) error {
+	if s.ContainerID == "" {
+		return nil
+	}
+
+	u, err := user.Current()
+	if err != nil {
+		return fmt.Errorf("failed to get current user: %w", err)
+	}
+
+	// We use the root user inside the container to chown everything to the host user
+	// /workspace in container maps to s.Workspace on host
+	// We use chown -R to be thorough
+	cmd := []string{"chown", "-R", fmt.Sprintf("%s:%s", u.Uid, u.Gid), "/workspace"}
+
+	// We suppress output unless error, to avoid spam
+	output, err := s.Docker.ExecAsUser(ctx, s.ContainerID, "root", cmd)
+	if err != nil {
+		return fmt.Errorf("chown failed: %s, output: %s", err, output)
+	}
+	return nil
+}
+
+// EnsureConflictTask checks if "Resolve Merge Conflicts" task exists, otherwise adds it.
+func (s *Session) EnsureConflictTask() {
+	features := s.loadFeatures()
+	conflictTaskID := "CONFLICT_RES"
+
+	// Check if already exists/pending
+	for _, f := range features {
+		if f.ID == conflictTaskID {
+			if f.Status == "done" || f.Status == "implemented" || f.Passes {
+				// Reset it to todo since we have a NEW conflict
+				// We need to mutate the list and save.
+				var updatedFeatures []db.Feature
+				for _, fx := range features {
+					if fx.ID == conflictTaskID {
+						fx.Status = "todo"
+						fx.Passes = false
+					}
+					updatedFeatures = append(updatedFeatures, fx)
+				}
+				s.syncFeatureFile(db.FeatureList{Features: updatedFeatures})
+			}
+			return // Exists and is active or just reset
+		}
+	}
+
+	// Add new
+	newFeature := db.Feature{
+		ID:          conflictTaskID,
+		Category:    "Guardrail",
+		Priority:    "Critical",
+		Description: fmt.Sprintf("Resolve git merge conflicts with branch %s. Files contain conflict markers (<<<< HEAD). Fix them and commit.", s.BaseBranch),
+		Status:      "todo",
+		Passes:      false,
+	}
+
+	features = append(features, newFeature)
+	s.syncFeatureFile(db.FeatureList{Features: features})
 }
 
 // runInitScript checks for init.sh in the workspace and executes it if present.

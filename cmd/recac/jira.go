@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"os"
 
+	"recac/internal/jira"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"recac/internal/jira"
 )
 
 // jiraCmd represents the jira command
@@ -39,12 +40,12 @@ Or configure in config.yaml:
 		if baseURL == "" {
 			baseURL = viper.GetString("jira.url")
 		}
-		
+
 		username := os.Getenv("JIRA_USERNAME")
 		if username == "" {
 			username = viper.GetString("jira.username")
 		}
-		
+
 		apiToken := os.Getenv("JIRA_API_TOKEN")
 		if apiToken == "" {
 			apiToken = viper.GetString("jira.api_token")
@@ -108,12 +109,12 @@ Or configure in config.yaml:
 		if baseURL == "" {
 			baseURL = viper.GetString("jira.url")
 		}
-		
+
 		username := os.Getenv("JIRA_USERNAME")
 		if username == "" {
 			username = viper.GetString("jira.username")
 		}
-		
+
 		apiToken := os.Getenv("JIRA_API_TOKEN")
 		if apiToken == "" {
 			apiToken = viper.GetString("jira.api_token")
@@ -191,11 +192,10 @@ Or configure in config.yaml:
 			os.Exit(1)
 		}
 
-		// Get transition ID from flag (defaults to "In Progress" transition)
-		transitionID, _ := cmd.Flags().GetString("transition-id")
-		if transitionID == "" {
-			// Default transition ID for "In Progress" (common Jira transition ID)
-			transitionID = "31"
+		// Get transition Name or ID from flag (defaults to "In Progress")
+		transition, _ := cmd.Flags().GetString("transition")
+		if transition == "" {
+			transition = "In Progress"
 		}
 
 		// Get credentials from environment variables (preferred) or config
@@ -203,12 +203,12 @@ Or configure in config.yaml:
 		if baseURL == "" {
 			baseURL = viper.GetString("jira.url")
 		}
-		
+
 		username := os.Getenv("JIRA_USERNAME")
 		if username == "" {
 			username = viper.GetString("jira.username")
 		}
-		
+
 		apiToken := os.Getenv("JIRA_API_TOKEN")
 		if apiToken == "" {
 			apiToken = viper.GetString("jira.api_token")
@@ -233,12 +233,12 @@ Or configure in config.yaml:
 
 		// Transition ticket
 		ctx := context.Background()
-		if err := client.TransitionIssue(ctx, ticketID, transitionID); err != nil {
+		if err := client.SmartTransition(ctx, ticketID, transition); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: Failed to transition ticket %s: %v\n", ticketID, err)
 			os.Exit(1)
 		}
 
-		fmt.Printf("Success: Ticket %s transitioned successfully\n", ticketID)
+		fmt.Printf("Success: Ticket %s transitioned to '%s' successfully\n", ticketID, transition)
 	},
 }
 
@@ -249,7 +249,7 @@ func init() {
 	jiraGetCmd.MarkFlagRequired("id")
 	jiraCmd.AddCommand(jiraGetCmd)
 	jiraTransitionCmd.Flags().String("id", "", "Jira ticket ID (e.g., PROJ-123)")
-	jiraTransitionCmd.Flags().String("transition-id", "", "Transition ID (defaults to 31 for 'In Progress')")
+	jiraTransitionCmd.Flags().String("transition", "", "Transition Name or ID (defaults to 'In Progress')")
 	jiraTransitionCmd.MarkFlagRequired("id")
 	jiraCmd.AddCommand(jiraTransitionCmd)
 }

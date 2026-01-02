@@ -11,8 +11,8 @@ import (
 
 func TestInitLogger_Configuration(t *testing.T) {
 	// Just verify it doesn't panic
-	InitLogger(true)
-	InitLogger(false)
+	InitLogger(true, "")
+	InitLogger(false, "")
 }
 
 func TestLogError(t *testing.T) {

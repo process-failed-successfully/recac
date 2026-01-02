@@ -1,0 +1,150 @@
+{
+  "project_name": "Command Line Calculator",
+  "features": [
+    {
+      "id": "addition-operation",
+      "category": "functional",
+      "priority": "",
+      "description": "Verifies the calculator can perform addition correctly",
+      "status": "done",
+      "passes": true,
+      "steps": [
+        "Step 1: Run calculator with arguments: 5 + 3",
+        "Step 2: Verify output is 8",
+        "Step 3: Test with negative numbers: -2 + 7",
+        "Step 4: Verify output is 5"
+      ],
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": [
+          "main.go"
+        ],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "subtraction-operation",
+      "category": "functional",
+      "priority": "",
+      "description": "Verifies the calculator can perform subtraction correctly",
+      "status": "done",
+      "passes": true,
+      "steps": [
+        "Step 1: Run calculator with arguments: 10 - 4",
+        "Step 2: Verify output is 6",
+        "Step 3: Test with negative result: 3 - 5",
+        "Step 4: Verify output is -2"
+      ],
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": [
+          "main.go"
+        ],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "multiplication-operation",
+      "category": "functional",
+      "priority": "",
+      "description": "Verifies the calculator can perform multiplication correctly",
+      "status": "done",
+      "passes": true,
+      "steps": [
+        "Step 1: Run calculator with arguments: 4 * 3",
+        "Step 2: Verify output is 12",
+        "Step 3: Test with zero: 5 * 0",
+        "Step 4: Verify output is 0"
+      ],
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": [
+          "main.go"
+        ],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "division-operation",
+      "category": "functional",
+      "priority": "",
+      "description": "Verifies the calculator can perform division correctly",
+      "status": "done",
+      "passes": true,
+      "steps": [
+        "Step 1: Run calculator with arguments: 10 / 2",
+        "Step 2: Verify output is 5",
+        "Step 3: Test with decimal result: 7 / 2",
+        "Step 4: Verify output is 3.5"
+      ],
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": [
+          "main.go"
+        ],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "division-by-zero",
+      "category": "functional",
+      "priority": "",
+      "description": "Verifies the calculator handles division by zero gracefully",
+      "status": "done",
+      "passes": true,
+      "steps": [
+        "Step 1: Run calculator with arguments: 5 / 0",
+        "Step 2: Verify error message is displayed",
+        "Step 3: Check exit code is non-zero"
+      ],
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": [
+          "main.go"
+        ],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "invalid-operator",
+      "category": "functional",
+      "priority": "",
+      "description": "Verifies the calculator handles invalid operators",
+      "status": "done",
+      "passes": true,
+      "steps": [
+        "Step 1: Run calculator with invalid operator: 5 % 3",
+        "Step 2: Verify error message is displayed",
+        "Step 3: Check exit code is non-zero"
+      ],
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": [
+          "main.go"
+        ],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "build-script",
+      "category": "functional",
+      "priority": "",
+      "description": "Verifies the calculator can be built using the provided build script",
+      "status": "done",
+      "passes": true,
+      "steps": [
+        "Step 1: Run build script",
+        "Step 2: Verify executable is created",
+        "Step 3: Run the executable with test arguments",
+        "Step 4: Verify correct output"
+      ],
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": [
+          "Makefile"
+        ],
+        "read_only_paths": []
+      }
+    }
+  ]
+}

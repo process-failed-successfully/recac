@@ -46,6 +46,11 @@ func TestOrchestrator_EnsureGitRepo(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(tmpDir)
 
+	t.Setenv("GIT_AUTHOR_NAME", "RECAC Test")
+	t.Setenv("GIT_AUTHOR_EMAIL", "test@example.com")
+	t.Setenv("GIT_COMMITTER_NAME", "RECAC Test")
+	t.Setenv("GIT_COMMITTER_EMAIL", "test@example.com")
+
 	// Create a dummy file to commit
 	err = os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("hello"), 0644)
 	require.NoError(t, err)

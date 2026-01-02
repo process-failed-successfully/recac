@@ -10,18 +10,18 @@ import (
 )
 
 func TestSession_E2E_DockerFileWrite(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping E2E Docker test in short mode")
-	}
-
-	// 1. Setup real Docker client
-	dockerCli, err := docker.NewClient("e2e-test")
+	ctx := context.Background()
+	dockerCli, err := docker.NewClient("test-project")
 	if err != nil {
-		t.Fatalf("Failed to create Docker client: %v", err)
+		t.Skipf("Skipping test: Docker client creation failed: %v", err)
 	}
+	if err := dockerCli.CheckDaemon(ctx); err != nil {
+		t.Skipf("Skipping test: Docker daemon not available: %v", err)
+	}
+	defer dockerCli.Close()
 
-	// 2. Setup temporary workspace
-	tmpWorkspace := t.TempDir()
+	// Setup
+	tmpWorkspace, err := os.MkdirTemp("", "recac-e2e-test")
 
 	// 3. Setup Mock Agent
 	mockAgent := agent.NewMockAgent()
@@ -30,8 +30,6 @@ func TestSession_E2E_DockerFileWrite(t *testing.T) {
 
 	s := NewSession(dockerCli, mockAgent, tmpWorkspace, "recac-agent:latest", "e2e-test", 1)
 	s.MaxIterations = 1
-
-	ctx := context.Background()
 
 	// 4. Start Session (this should trigger fixPasswdDatabase)
 	if err := s.Start(ctx); err != nil {
