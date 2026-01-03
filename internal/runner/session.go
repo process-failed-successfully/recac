@@ -439,7 +439,24 @@ func (s *Session) ensureImage(ctx context.Context) error {
 		return nil
 	}
 
-	// 2. If using default image name, ensure it's built from our embedded template
+	// 2. If using default GHCR image, ensure it is pulled if missing
+	if strings.HasPrefix(s.Image, "ghcr.io/process-failed-successfully/recac-agent") {
+		exists, err := s.Docker.ImageExists(ctx, s.Image)
+		if err != nil {
+			return fmt.Errorf("failed to check image existence: %w", err)
+		}
+
+		if !exists {
+			fmt.Printf("Default agent image '%s' not found locally. Pulling...\n", s.Image)
+			if err := s.Docker.PullImage(ctx, s.Image); err != nil {
+				return fmt.Errorf("failed to pull agent image: %w", err)
+			}
+			fmt.Println("Agent image pulled successfully.")
+		}
+		return nil
+	}
+
+	// 3. Fallback: If using legacy default image name, ensure it's built from our embedded template
 	if s.Image == "recac-agent:latest" {
 		exists, err := s.Docker.ImageExists(ctx, s.Image)
 		if err != nil {
@@ -447,7 +464,7 @@ func (s *Session) ensureImage(ctx context.Context) error {
 		}
 
 		if !exists {
-			fmt.Println("Default agent image 'recac-agent:latest' not found. Building from template...")
+			fmt.Println("Legacy agent image 'recac-agent:latest' not found. Building from template...")
 
 			var buf bytes.Buffer
 			tw := tar.NewWriter(&buf)
@@ -462,9 +479,9 @@ func (s *Session) ensureImage(ctx context.Context) error {
 				Dockerfile:   "Dockerfile",
 			})
 			if err != nil {
-				return fmt.Errorf("failed to build default agent image: %w", err)
+				return fmt.Errorf("failed to build legacy agent image: %w", err)
 			}
-			fmt.Printf("Default agent image built successfully: %s\n", newID)
+			fmt.Printf("Legacy agent image built successfully: %s\n", newID)
 		}
 	}
 

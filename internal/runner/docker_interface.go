@@ -15,4 +15,5 @@ type DockerClient interface {
 	ExecAsUser(ctx context.Context, containerID string, user string, cmd []string) (string, error)
 	ImageExists(ctx context.Context, tag string) (bool, error)
 	ImageBuild(ctx context.Context, opts docker.ImageBuildOptions) (string, error)
+	PullImage(ctx context.Context, imageRef string) error
 }

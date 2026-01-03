@@ -61,6 +61,10 @@ func (m *MockLoopDocker) ImageBuild(ctx context.Context, opts docker.ImageBuildO
 	return opts.Tag, nil
 }
 
+func (m *MockLoopDocker) PullImage(ctx context.Context, imageRef string) error {
+	return nil
+}
+
 // MockLoopAgent implements Agent interface
 type MockLoopAgent struct {
 	Response  string

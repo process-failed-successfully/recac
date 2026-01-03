@@ -61,6 +61,8 @@ func init() {
 	viper.BindPFlag("auto_merge", startCmd.Flags().Lookup("auto-merge"))
 	startCmd.Flags().Bool("skip-qa", false, "Skip QA phase and auto-complete (use with caution)")
 	viper.BindPFlag("skip_qa", startCmd.Flags().Lookup("skip-qa"))
+	startCmd.Flags().String("image", "ghcr.io/process-failed-successfully/recac-agent:latest", "Docker image to use for the agent session")
+	viper.BindPFlag("image", startCmd.Flags().Lookup("image"))
 	rootCmd.AddCommand(startCmd)
 }
 
@@ -121,6 +123,7 @@ var startCmd = &cobra.Command{
 			AutoMerge:         autoMergeFlag || viper.GetBool("auto_merge"),
 			SkipQA:            skipQAFlag || viper.GetBool("skip_qa"),
 			ManagerFirst:      viper.GetBool("manager_first"),
+			Image:             viper.GetString("image"),
 			Debug:             debug,
 		}
 
@@ -385,6 +388,7 @@ type SessionConfig struct {
 	JiraClient        *jira.Client
 	JiraTicketID      string
 	RepoURL           string
+	Image             string
 }
 
 // processJiraTicket handles the Jira-specific workflow and then runs the project session
@@ -571,7 +575,7 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 			projectName = "mock-project"
 		}
 
-		session := runner.NewSession(dockerCli, agentClient, projectPath, "recac-agent:latest", projectName, cfg.MaxAgents)
+		session := runner.NewSession(dockerCli, agentClient, projectPath, cfg.Image, projectName, cfg.MaxAgents)
 		session.MaxIterations = cfg.MaxIterations
 		session.TaskMaxIterations = cfg.TaskMaxIterations
 		session.ManagerFrequency = cfg.ManagerFrequency
@@ -640,7 +644,7 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 		return fmt.Errorf("failed to initialize agent: %v", err)
 	}
 
-	session := runner.NewSession(dockerCli, agentClient, projectPath, "recac-agent:latest", projectName, cfg.MaxAgents)
+	session := runner.NewSession(dockerCli, agentClient, projectPath, cfg.Image, projectName, cfg.MaxAgents)
 	session.MaxIterations = cfg.MaxIterations
 	session.TaskMaxIterations = cfg.TaskMaxIterations
 	session.ManagerFrequency = cfg.ManagerFrequency
