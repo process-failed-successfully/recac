@@ -113,7 +113,7 @@ func (c *OpenRouterClient) Send(ctx context.Context, prompt string) (string, err
 		if i > 0 {
 			// Exponential backoff
 			waitTime := time.Duration(1<<uint(i-1)) * time.Second
-			fmt.Printf("Retry %d after %v due to: %v\n", i, waitTime, lastErr)
+			telemetry.LogInfo("Retrying agent call", "project", c.project, "retry", i, "wait", waitTime, "error", lastErr)
 			select {
 			case <-time.After(waitTime):
 			case <-ctx.Done():
@@ -155,7 +155,7 @@ func (c *OpenRouterClient) Send(ctx context.Context, prompt string) (string, err
 
 				// Save updated state
 				if err := c.stateManager.Save(state); err != nil {
-					fmt.Printf("Warning: Failed to save state: %v\n", err)
+					telemetry.LogInfo("Warning: Failed to save state", "project", c.project, "error", err)
 				}
 			}
 			return result, nil
@@ -255,7 +255,7 @@ func (c *OpenRouterClient) SendStream(ctx context.Context, prompt string, onChun
 		}
 		availableTokens := maxTokens * 50 / 100
 		if promptTokens > availableTokens {
-			fmt.Printf("Warning: Prompt exceeds token limit (%d > %d), truncating...\n", promptTokens, availableTokens)
+			telemetry.LogInfo("Prompt exceeds token limit, truncating...", "project", c.project, "actual", promptTokens, "available", availableTokens)
 			prompt = TruncateToTokenLimit(prompt, availableTokens)
 			promptTokens = EstimateTokenCount(prompt)
 			state.TokenUsage.TruncationCount++
@@ -266,9 +266,13 @@ func (c *OpenRouterClient) SendStream(ctx context.Context, prompt string, onChun
 		if maxTokens > 0 {
 			telemetry.SetContextUsage(c.project, float64(state.CurrentTokens)/float64(maxTokens)*100)
 		}
-		fmt.Printf("Token usage: prompt=%d, current=%d/%d, total_prompt=%d, truncations=%d\n",
-			promptTokens, state.CurrentTokens, maxTokens,
-			state.TokenUsage.TotalPromptTokens, state.TokenUsage.TruncationCount)
+		telemetry.LogDebug("Token usage (prompt)",
+			"project", c.project,
+			"prompt", promptTokens,
+			"current", state.CurrentTokens,
+			"max", maxTokens,
+			"total_prompt", state.TokenUsage.TotalPromptTokens,
+			"truncations", state.TokenUsage.TruncationCount)
 	}
 
 	// Prepare Request
@@ -293,7 +297,7 @@ func (c *OpenRouterClient) SendStream(ctx context.Context, prompt string, onChun
 		if i > 0 {
 			// Exponential backoff
 			waitTime := time.Duration(1<<uint(i-1)) * time.Second
-			fmt.Printf("Retry %d after %v due to: %v\n", i, waitTime, lastErr)
+			telemetry.LogInfo("Retrying agent call", "project", c.project, "retry", i, "wait", waitTime, "error", lastErr)
 			select {
 			case <-time.After(waitTime):
 			case <-ctx.Done():
@@ -333,13 +337,17 @@ func (c *OpenRouterClient) SendStream(ctx context.Context, prompt string, onChun
 		if maxTokens == 0 {
 			maxTokens = 128000
 		}
-		fmt.Printf("Token usage: response=%d, current=%d/%d, total=%d (prompt=%d, response=%d)\n",
-			responseTokens, state.CurrentTokens, maxTokens,
-			state.TokenUsage.TotalTokens,
-			state.TokenUsage.TotalPromptTokens, state.TokenUsage.TotalResponseTokens)
+		telemetry.LogInfo("Token usage (response)",
+			"project", c.project,
+			"response", responseTokens,
+			"current", state.CurrentTokens,
+			"max", maxTokens,
+			"total", state.TokenUsage.TotalTokens,
+			"prompt", state.TokenUsage.TotalPromptTokens,
+			"response_total", state.TokenUsage.TotalResponseTokens)
 
 		if err := c.stateManager.Save(state); err != nil {
-			fmt.Printf("Warning: Failed to save state: %v\n", err)
+			telemetry.LogInfo("Warning: Failed to save state", "project", c.project, "error", err)
 		}
 	}
 

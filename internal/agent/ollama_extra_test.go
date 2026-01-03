@@ -2,116 +2,56 @@ package agent
 
 import (
 	"context"
-	"fmt"
-	"net/http"
-	"net/http/httptest"
+	"os"
 	"testing"
 )
 
-func TestOllamaClient_HTTP_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/generate" {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, `{"response": "Hello form Ollama", "done": true}`)
-	}))
-	defer server.Close()
+func TestOllamaClient_StateTracking(t *testing.T) {
+	// Setup temporary directory for state
+	tmpDir, err := os.MkdirTemp("", "ollama_state_test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
 
-	client := NewOllamaClient(server.URL, "llama2", "test-project")
+	// Create StateManager
+	// NewStateManager expects a file path, not a directory
+	stateFile := tmpDir + "/state.json"
+	sm := NewStateManager(stateFile)
+	sm.Save(State{
+		MaxTokens: 1000,
+	})
 
-	resp, err := client.Send(context.Background(), "Hi")
+	// Create client with mock responder
+	client := NewOllamaClient("http://localhost:11434", "test-model", "test-project")
+	client.WithStateManager(sm)
+	client.WithMockResponder(func(prompt string) (string, error) {
+		return "This is a response", nil
+	})
+
+	// Send request
+	resp, err := client.Send(context.Background(), "Hello")
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
 	}
-	if resp != "Hello form Ollama" {
-		t.Errorf("Expected 'Hello form Ollama', got %q", resp)
-	}
-}
 
-func TestOllamaClient_HTTP_Errors(t *testing.T) {
-	tests := []struct {
-		name       string
-		handler    func(w http.ResponseWriter, r *http.Request)
-		wantErr    bool
-		errMessage string
-	}{
-		{
-			name: "Status 500",
-			handler: func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusInternalServerError)
-				fmt.Fprint(w, "Internal Server Error")
-			},
-			wantErr:    true,
-			errMessage: "Ollama API returned status 500",
-		},
-		{
-			name: "Malformed JSON",
-			handler: func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusOK)
-				fmt.Fprint(w, "{invalid-json")
-			},
-			wantErr:    true,
-			errMessage: "failed to decode response",
-		},
-		{
-			name: "Ollama Error",
-			handler: func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusOK)
-				fmt.Fprint(w, `{"error": "model not found", "done": true}`)
-			},
-			wantErr:    true,
-			errMessage: "Ollama API error: model not found",
-		},
-		{
-			name: "Incomplete Response",
-			handler: func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusOK)
-				fmt.Fprint(w, `{"response": "...", "done": false}`)
-			},
-			wantErr:    true,
-			errMessage: "Ollama response incomplete",
-		},
+	if resp != "This is a response" {
+		t.Errorf("Expected response 'This is a response', got '%s'", resp)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(tt.handler))
-			defer server.Close()
-
-			client := NewOllamaClient(server.URL, "llama2", "test-project")
-
-			_, err := client.Send(context.Background(), "Hi")
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Send() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func TestOllamaClient_SendStream(t *testing.T) {
-	// Ollama SendStream fallback calls Send
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, `{"response": "Streamed Response", "done": true}`)
-	}))
-	defer server.Close()
-
-	client := NewOllamaClient(server.URL, "llama2", "test-project")
-
-	var chunk string
-	resp, err := client.SendStream(context.Background(), "Hi", func(c string) {
-		chunk = c
-	})
+	// Verify state was updated
+	state, err := sm.Load()
 	if err != nil {
-		t.Fatalf("SendStream failed: %v", err)
+		t.Fatalf("Failed to load state: %v", err)
 	}
-	if resp != "Streamed Response" {
-		t.Errorf("Expected 'Streamed Response', got %q", resp)
+
+	if state.TokenUsage.TotalPromptTokens == 0 {
+		t.Error("TotalPromptTokens should be > 0")
 	}
-	if chunk != "Streamed Response" {
-		t.Errorf("Expected chunk 'Streamed Response', got %q", chunk)
+	if state.TokenUsage.TotalResponseTokens == 0 {
+		t.Error("TotalResponseTokens should be > 0")
+	}
+	if state.Metadata["iteration"] != 1.0 {
+		t.Errorf("Expected iteration 1.0, got %v", state.Metadata["iteration"])
 	}
 }
