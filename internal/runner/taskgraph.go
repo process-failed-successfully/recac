@@ -212,7 +212,9 @@ func (g *TaskGraph) TopologicalSort() ([]string, error) {
 		return nil, fmt.Errorf("circular dependency detected: %v", cycle)
 	}
 
-	// Calculate in-degree for each node
+	// Build adjacency list (forward dependencies: node -> things that depend on it)
+	// and calculate in-degrees
+	dependents := make(map[string][]string)
 	inDegree := make(map[string]int)
 	for nodeID := range g.Nodes {
 		inDegree[nodeID] = 0
@@ -221,20 +223,21 @@ func (g *TaskGraph) TopologicalSort() ([]string, error) {
 	for nodeID, node := range g.Nodes {
 		for _, depID := range node.Dependencies {
 			if _, exists := g.Nodes[depID]; exists {
+				dependents[depID] = append(dependents[depID], nodeID)
 				inDegree[nodeID]++
 			}
 		}
 	}
 
 	// Find all nodes with no dependencies (in-degree = 0)
-	queue := []string{}
+	queue := make([]string, 0, len(g.Nodes))
 	for nodeID, degree := range inDegree {
 		if degree == 0 {
 			queue = append(queue, nodeID)
 		}
 	}
 
-	result := []string{}
+	result := make([]string, 0, len(g.Nodes))
 
 	// Process nodes in topological order
 	for len(queue) > 0 {
@@ -243,21 +246,17 @@ func (g *TaskGraph) TopologicalSort() ([]string, error) {
 		result = append(result, current)
 
 		// Reduce in-degree of dependent nodes
-		for nodeID, node := range g.Nodes {
-			for _, depID := range node.Dependencies {
-				if depID == current {
-					inDegree[nodeID]--
-					if inDegree[nodeID] == 0 {
-						queue = append(queue, nodeID)
-					}
-				}
+		for _, dependentID := range dependents[current] {
+			inDegree[dependentID]--
+			if inDegree[dependentID] == 0 {
+				queue = append(queue, dependentID)
 			}
 		}
 	}
 
-	// Check if all nodes were processed (handles disconnected components)
+	// Check if all nodes were processed
 	if len(result) < len(g.Nodes) {
-		return nil, fmt.Errorf("graph has disconnected components or unresolved dependencies")
+		return nil, fmt.Errorf("graph has circular dependencies or unresolved dependencies")
 	}
 
 	return result, nil
@@ -271,18 +270,26 @@ func (g *TaskGraph) GetReadyTasks() []string {
 	ready := []string{}
 
 	for nodeID, node := range g.Nodes {
-		if node.Status != TaskPending && node.Status != TaskReady {
+		node.mu.RLock()
+		status := node.Status
+		deps := node.Dependencies
+		node.mu.RUnlock()
+
+		if status != TaskPending && status != TaskReady {
 			continue
 		}
 
 		allDepsDone := true
-		for _, depID := range node.Dependencies {
+		for _, depID := range deps {
 			dep, exists := g.Nodes[depID]
 			if !exists {
 				allDepsDone = false
 				break
 			}
-			if dep.Status != TaskDone {
+			dep.mu.RLock()
+			depStatus := dep.Status
+			dep.mu.RUnlock()
+			if depStatus != TaskDone {
 				allDepsDone = false
 				break
 			}

@@ -42,7 +42,30 @@ var (
 )
 
 func cleanJSON(input string) string {
-	// Remove ```json and ``` lines
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return ""
+	}
+
+	// Fast path: check for common markdown block wrappers without regex
+	if strings.HasPrefix(input, "```json") && strings.HasSuffix(input, "```") {
+		content := input[7 : len(input)-3]
+		return strings.TrimSpace(content)
+	}
+	if strings.HasPrefix(input, "```") && strings.HasSuffix(input, "```") {
+		// Might have a different language tag, find first newline
+		content := input[3 : len(input)-3]
+		if idx := strings.Index(content, "\n"); idx != -1 {
+			// Check if first line doesn't contain space (likely a tag)
+			tag := content[:idx]
+			if !strings.Contains(tag, " ") {
+				content = content[idx+1:]
+			}
+		}
+		return strings.TrimSpace(content)
+	}
+
+	// Fallback to regex for more complex cases (like blocks hidden in text)
 	match := reJSONBlock.FindStringSubmatch(input)
 	if len(match) > 1 {
 		return strings.TrimSpace(match[1])
@@ -52,5 +75,5 @@ func cleanJSON(input string) string {
 	if len(match2) > 1 {
 		return strings.TrimSpace(match2[1])
 	}
-	return strings.TrimSpace(input)
+	return input
 }

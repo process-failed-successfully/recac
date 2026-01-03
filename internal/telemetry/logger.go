@@ -99,5 +99,7 @@ func LogError(msg string, err error, args ...any) {
 
 // LogInfof logs an info message with formatting.
 func LogInfof(format string, args ...any) {
-	slog.Info(fmt.Sprintf(format, args...))
+	if slog.Default().Enabled(context.Background(), slog.LevelInfo) {
+		slog.Info(fmt.Sprintf(format, args...))
+	}
 }

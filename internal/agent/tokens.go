@@ -3,6 +3,7 @@ package agent
 import (
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 // EstimateTokenCount estimates the number of tokens in a text string.
@@ -19,7 +20,7 @@ func EstimateTokenCount(text string) int {
 	}
 	// Approximate: 4 characters per token for English
 	// Add 1 for every 4 characters, plus some overhead for punctuation/spaces
-	charCount := len([]rune(trimmed))
+	charCount := utf8.RuneCountInString(trimmed)
 	return (charCount / 4) + 1
 }
 
@@ -66,7 +67,7 @@ func TruncateToTokenLimit(text string, maxTokens int) string {
 			endPortion = string(runes[endStart:])
 		}
 		result := startPortion + truncationMarker + endPortion
-		
+
 		// Verify and recursively truncate if needed
 		if EstimateTokenCount(result) > maxTokens {
 			return TruncateToTokenLimit(result, maxTokens)
@@ -79,7 +80,7 @@ func TruncateToTokenLimit(text string, maxTokens int) string {
 	startChars := 0
 	startLines := []string{}
 	for i := 0; i < len(lines) && startChars < maxStartChars; i++ {
-		lineChars := len([]rune(lines[i]))
+		lineChars := utf8.RuneCountInString(lines[i])
 		if startChars+lineChars+1 > maxStartChars { // +1 for newline
 			break
 		}
@@ -94,7 +95,7 @@ func TruncateToTokenLimit(text string, maxTokens int) string {
 		if len(startLines) > 0 && i < len(startLines) {
 			break
 		}
-		lineChars := len([]rune(lines[i]))
+		lineChars := utf8.RuneCountInString(lines[i])
 		if endChars+lineChars+1 > maxEndChars { // +1 for newline
 			break
 		}
@@ -157,10 +158,10 @@ func SummarizeForTokenLimit(text string, maxTokens int) string {
 	}
 
 	var summary strings.Builder
-	
+
 	// Calculate how many tokens we can use for first and last paragraphs
 	tokensPerParagraph := availableTokens / 2
-	
+
 	// Add first paragraph (truncated if needed)
 	if len(paragraphs) > 0 {
 		firstPara := paragraphs[0]
@@ -191,12 +192,12 @@ func SummarizeForTokenLimit(text string, maxTokens int) string {
 	}
 
 	result := summary.String()
-	
+
 	// If result is empty, fall back to truncation
 	if result == "" {
 		return TruncateToTokenLimit(text, maxTokens)
 	}
-	
+
 	// Ensure we're still under limit
 	if EstimateTokenCount(result) > maxTokens {
 		return TruncateToTokenLimit(result, maxTokens)
