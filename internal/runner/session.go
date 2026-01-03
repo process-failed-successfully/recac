@@ -66,7 +66,7 @@ type Session struct {
 	OwnsDB                    bool   // Whether this session owns the DB connection (and should close it)
 	Project                   string // Project identifier for telemetry
 	TaskMaxIterations         int    // Max iterations for sub-tasks (if applicable)
-	Notifier                  *notify.Manager
+	Notifier                  notify.Notifier
 	BaseBranch                string // Base Branch for merge guardrails
 	SkipQA                    bool   // Skip QA phase and auto-complete
 	AutoMerge                 bool   // Automatically merge PRs
@@ -376,6 +376,14 @@ func (s *Session) Start(ctx context.Context) error {
 	// Start Notifier (Socket Mode)
 	s.Notifier.Start(ctx)
 
+	// Restore Slack Thread TS from DB if available (for session resumption)
+	if s.SlackThreadTS == "" && s.DBStore != nil {
+		if ts, err := s.DBStore.GetSignal("SLACK_THREAD_TS"); err == nil && ts != "" {
+			s.SlackThreadTS = ts
+			fmt.Printf("Restored Slack Thread TS: %s\n", ts)
+		}
+	}
+
 	// Notify Start
 	if !s.SuppressStartNotification {
 		msg := fmt.Sprintf("Project %s: Session Started", s.Project)
@@ -387,6 +395,12 @@ func (s *Session) Start(ctx context.Context) error {
 		ts, _ := s.Notifier.Notify(ctx, notify.EventStart, msg, s.SlackThreadTS)
 		if s.SlackThreadTS == "" {
 			s.SlackThreadTS = ts
+			// Persist new thread TS
+			if s.DBStore != nil && ts != "" {
+				if err := s.DBStore.SetSignal("SLACK_THREAD_TS", ts); err != nil {
+					fmt.Printf("Warning: Failed to persist Slack Thread TS: %v\n", err)
+				}
+			}
 		}
 	}
 

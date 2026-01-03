@@ -156,8 +156,8 @@ func (c *Client) PullImage(ctx context.Context, imageRef string) error {
 			if err == io.EOF {
 				break
 			}
-			// Continue parsing even if one message fails
-			continue
+			// Return error for malformed JSON to avoid infinite loop
+			return fmt.Errorf("failed to decode pull output: %w", err)
 		}
 
 		// Check for pull errors
@@ -366,8 +366,8 @@ func (c *Client) ImageBuild(ctx context.Context, opts ImageBuildOptions) (string
 			if err == io.EOF {
 				break
 			}
-			// Continue parsing even if one message fails
-			continue
+			// Return error for malformed JSON to avoid infinite loop
+			return "", fmt.Errorf("failed to decode build output: %w", err)
 		}
 
 		// Check for build errors

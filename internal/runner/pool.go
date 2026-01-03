@@ -68,7 +68,7 @@ func (p *WorkerPool) worker(id int) {
 		} else {
 			n := p.GetNotifier()
 			if n != nil {
-				_ = n.Notify(context.Background(), fmt.Sprintf("Worker %d completed a task", id))
+				_, _ = n.Notify(context.Background(), notify.EventSuccess, fmt.Sprintf("Worker %d completed a task", id), "")
 			}
 		}
 		atomic.AddInt64(&p.activeTasks, -1)

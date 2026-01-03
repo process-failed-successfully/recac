@@ -10,7 +10,13 @@ import (
 
 type MockNotifier struct{}
 
-func (m *MockNotifier) Notify(ctx context.Context, msg string) error {
+func (m *MockNotifier) Notify(ctx context.Context, eventType, msg, threadTS string) (string, error) {
+	return "", nil
+}
+
+func (m *MockNotifier) Start(ctx context.Context) {}
+
+func (m *MockNotifier) AddReaction(ctx context.Context, timestamp, reaction string) error {
 	return nil
 }
 
@@ -52,7 +58,7 @@ func TestWorkerPool(t *testing.T) {
 	wg.Wait() // Double check
 
 	// 5. ActiveCount should be 0 (eventually)
-	// Might be race if we check immediately after Wait? 
+	// Might be race if we check immediately after Wait?
 	// Wait() waits for taskWG. taskWG done in worker loop.
 	// So ActiveCount decrement happens BEFORE taskWG.Done().
 	// So ActiveCount should be 0.
