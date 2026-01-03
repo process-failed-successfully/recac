@@ -113,7 +113,7 @@ You have access to `agent-bridge`, a CLI tool to interact with the system.
 
 If all features in `feature_list.json` have `"passes": true` and you have verified the entire application:
 
-- Run: `agent-bridge signal COMPLETED true` OR `agent-bridge qa`.
+- Run: `agent-bridge signal COMPLETED true`
 
 ---
 

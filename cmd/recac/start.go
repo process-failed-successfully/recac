@@ -126,32 +126,11 @@ var startCmd = &cobra.Command{
 		}
 
 		if jiraTicketID != "" || jiraLabel != "" {
-			// 1. Validate Credentials
-			jiraURL := viper.GetString("jira.url")
-			jiraEmail := viper.GetString("jira.username")
-			jiraToken := viper.GetString("jira.api_token")
-
-			if jiraURL == "" || jiraEmail == "" || jiraToken == "" {
-				// Fallback to env vars
-				if envURL := os.Getenv("JIRA_URL"); envURL != "" {
-					jiraURL = envURL
-				}
-				if envEmail := os.Getenv("JIRA_USERNAME"); envEmail != "" {
-					jiraEmail = envEmail
-				} else if envEmail := os.Getenv("JIRA_EMAIL"); envEmail != "" {
-					jiraEmail = envEmail
-				}
-				if envToken := os.Getenv("JIRA_API_TOKEN"); envToken != "" {
-					jiraToken = envToken
-				}
-
-				if jiraURL == "" || jiraEmail == "" || jiraToken == "" {
-					fmt.Fprintln(os.Stderr, "Error: Jira credentials not found. Please set JIRA_URL, JIRA_USERNAME/JIRA_EMAIL, and JIRA_API_TOKEN.")
-					exit(1)
-				}
+			jClient, err := getJiraClient(ctx)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				exit(1)
 			}
-
-			jClient := jira.NewClient(jiraURL, jiraEmail, jiraToken)
 
 			// 1.5 Collect Ticket IDs
 			var ticketIDs []string
@@ -718,40 +697,7 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 		return fmt.Errorf("failed to initialize Docker client: %v", err)
 	}
 
-	provider := viper.GetString("provider")
-	if provider == "" {
-		provider = "gemini"
-	}
-
-	apiKey := viper.GetString("api_key")
-	if apiKey == "" {
-		apiKey = os.Getenv("API_KEY")
-		if apiKey == "" {
-			if provider == "gemini" {
-				apiKey = os.Getenv("GEMINI_API_KEY")
-			} else if provider == "openai" {
-				apiKey = os.Getenv("OPENAI_API_KEY")
-			} else if provider == "openrouter" {
-				apiKey = os.Getenv("OPENROUTER_API_KEY")
-			}
-		}
-	}
-	if apiKey == "" && provider != "ollama" {
-		apiKey = "dummy-key"
-	}
-
-	model := viper.GetString("model")
-	if model == "" {
-		if provider == "openrouter" {
-			model = "deepseek/deepseek-v3.2"
-		} else if provider == "gemini" {
-			model = "gemini-pro"
-		} else if provider == "openai" {
-			model = "gpt-4"
-		}
-	}
-
-	agentClient, err := agent.NewAgent(provider, apiKey, model, projectPath, projectName)
+	agentClient, err := getAgentClient(ctx, "", "", projectPath, projectName)
 	if err != nil {
 		return fmt.Errorf("failed to initialize agent: %v", err)
 	}
