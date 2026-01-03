@@ -66,9 +66,10 @@ func (sm *SessionManager) StartSession(name string, command []string, workspace 
 
 	// Create log file
 	logFile := filepath.Join(sm.sessionsDir, name+".log")
-	logFd, err := os.Create(logFile)
+	// Use OpenFile with O_EXCL to prevent TOCTOU race conditions and overwriting existing logs atomically
+	logFd, err := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create log file: %w", err)
+		return nil, fmt.Errorf("failed to create log file (safe): %w", err)
 	}
 	defer logFd.Close()
 
