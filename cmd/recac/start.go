@@ -15,7 +15,6 @@ import (
 
 	"recac/internal/agent"
 	"recac/internal/docker"
-	"recac/internal/git"
 	"recac/internal/jira"
 	"recac/internal/runner"
 	"recac/internal/ui"
@@ -439,71 +438,8 @@ func processJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.C
 		repoURL = strings.TrimSuffix(matches[1], ".git")
 		fmt.Printf("[%s] Found repository URL in ticket: %s\n", jiraTicketID, repoURL)
 
-		gitClient := git.NewClient()
-
-		authRepoURL := repoURL
-		// Handle GitHub Auth if token provided
-		githubKey := os.Getenv("GITHUB_API_KEY")
-		if githubKey != "" && strings.Contains(repoURL, "github.com") {
-			authRepoURL = strings.Replace(repoURL, "https://github.com/", fmt.Sprintf("https://%s@github.com/", githubKey), 1)
-		}
-
-		fmt.Printf("[%s] Cloning repository into %s...\n", jiraTicketID, tempWorkspace)
-		if err := gitClient.Clone(ctx, authRepoURL, tempWorkspace); err != nil {
-			fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to clone repository: %v. Initializing empty repo instead.\n", jiraTicketID, err)
-		} else {
-			// Handle Epic Branching Strategy
-			if cfg.JiraEpicKey != "" {
-				epicBranch := fmt.Sprintf("agent-epic/%s", cfg.JiraEpicKey)
-				fmt.Printf("[%s] Checking for Epic branch: %s\n", jiraTicketID, epicBranch)
-
-				exists, err := gitClient.RemoteBranchExists(tempWorkspace, "origin", epicBranch)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to check remote for epic branch: %v\n", jiraTicketID, err)
-				}
-
-				if exists {
-					fmt.Printf("[%s] Epic branch '%s' found. Checking out...\n", jiraTicketID, epicBranch)
-					if err := gitClient.Fetch(tempWorkspace, "origin", epicBranch); err != nil {
-						fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to fetch epic branch: %v\n", jiraTicketID, err)
-					}
-					if err := gitClient.Checkout(tempWorkspace, epicBranch); err != nil {
-						fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to checkout epic branch: %v\n", jiraTicketID, err)
-					}
-				} else {
-					fmt.Printf("[%s] Epic branch '%s' not found. Creating from default branch...\n", jiraTicketID, epicBranch)
-					if err := gitClient.CheckoutNewBranch(tempWorkspace, epicBranch); err != nil {
-						fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to create epic branch: %v\n", jiraTicketID, err)
-					} else {
-						// HACK: Remove .github/workflows to prevent permission errors when pushing with limited tokens
-						workflowsDir := filepath.Join(tempWorkspace, ".github")
-						if _, err := os.Stat(workflowsDir); err == nil {
-							fmt.Printf("[%s] Removing .github directory to bypass workflow permissions...\n", jiraTicketID)
-							os.RemoveAll(workflowsDir)
-							if err := gitClient.Commit(tempWorkspace, "Remove workflows to bypass permissions"); err != nil {
-								fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to commit workflow removal: %v\n", jiraTicketID, err)
-							}
-						}
-
-						if err := gitClient.Push(tempWorkspace, epicBranch); err != nil {
-							fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to push epic branch: %v\n", jiraTicketID, err)
-						}
-					}
-				}
-			}
-
-			// Create and Checkout Feature Branch
-			branchName := fmt.Sprintf("agent/%s-%s", jiraTicketID, timestamp)
-			fmt.Printf("[%s] Creating and switching to feature branch: %s\n", jiraTicketID, branchName)
-			if err := gitClient.CheckoutNewBranch(tempWorkspace, branchName); err != nil {
-				fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to create branch: %v\n", jiraTicketID, err)
-			} else {
-				// Push the branch immediately
-				fmt.Printf("[%s] Pushing branch to remote: %s\n", jiraTicketID, branchName)
-				if err := gitClient.Push(tempWorkspace, branchName); err != nil {
-					fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to push branch: %v\n", jiraTicketID, err)
-				}
-			}
+		if _, err := setupWorkspace(ctx, repoURL, tempWorkspace, jiraTicketID, cfg.JiraEpicKey, timestamp); err != nil {
+			fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to setup workspace: %v\n", jiraTicketID, err)
 		}
 	}
 
@@ -697,7 +633,9 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 		return fmt.Errorf("failed to initialize Docker client: %v", err)
 	}
 
-	agentClient, err := getAgentClient(ctx, "", "", projectPath, projectName)
+	provider := viper.GetString("provider")
+	model := viper.GetString("model")
+	agentClient, err := getAgentClient(ctx, provider, model, projectPath, projectName)
 	if err != nil {
 		return fmt.Errorf("failed to initialize agent: %v", err)
 	}
