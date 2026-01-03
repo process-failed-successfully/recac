@@ -1,0 +1,29 @@
+graph TD
+    User([User]) -->|recac init| Init[Initialize Project]
+    User -->|recac start| CLI[recac CLI]
+    User -->|recac feature| CLI
+
+    subgraph "Recac Core"
+        CLI --> SessionManager[Session Manager]
+        SessionManager --> AgentFactory[Agent Factory]
+        AgentFactory -->|Create| Agent[AI Agent (Gemini/OpenAI/Ollama)]
+        SessionManager -->|Orchestrate| Loop[Execution Loop]
+
+        Loop -->|Plan| Planner[Planner]
+        Loop -->|Execute| Executor[Executor]
+        Loop -->|Verify| Verifier[Verifier]
+
+        Executor -->|Run Code| Docker[Docker Container]
+        Verifier -->|Test| Docker
+    end
+
+    subgraph "External Systems"
+        Jira[Jira]
+        Git[Git]
+    end
+
+    CLI -->|Sync| Jira
+    CLI -->|Branch/Commit| Git
+
+    Docker -->|Mount| Workspace[Workspace Files]
+    Agent -->|Read/Write| Workspace
