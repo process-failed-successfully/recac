@@ -48,4 +48,7 @@
 
 ## Pending Features
 
-- None! All features implemented.
+- **[ ] Feature Management: Full Lifecycle**
+  - Implement `recac feature list` to list all features.
+  - Implement `recac feature add` to add features to the tracker.
+  - Implement `recac feature status` to check feature progress.

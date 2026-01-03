@@ -1,6 +1,6 @@
 # recac - Rewrite of Combined Autonomous Coding
 
-`recac` (Rewrite of Combined Autonomous Coding) is a poorly named, but comprehensive CLI tool that automates the setup, management, and deployment of containerized applications. It leverages AI agents to assist with coding tasks, manages development environments via Docker, and integrates with JIRA for project management.
+`recac` (Rewrite of Combined Autonomous Coding) is a comprehensive CLI tool that automates the setup, management, and deployment of containerized applications. It leverages AI agents to assist with coding tasks, manages development environments via Docker, and integrates with JIRA for project management.
 
 ## Features
 
@@ -27,7 +27,7 @@ git clone https://github.com/your-org/recac.git
 cd recac
 
 # Build the binary
-go build -o recac cmd/recac/main.go
+go build -o recac ./cmd/recac
 
 # Move to PATH (optional)
 sudo mv recac /usr/local/bin/
@@ -82,17 +82,11 @@ The agent will read `app_spec.txt` and begin working on tasks.
 
 ### 3. Manage Features
 
-Track and verify features directly from the CLI:
+Manage feature branches:
 
 ```bash
-# List all features
-recac feature list
-
-# Add a new feature
-recac feature add "User Authentication" --desc "Implement login via JWT"
-
-# Check status
-recac feature status
+# Start a new feature
+recac feature start "User Authentication"
 ```
 
 ### 4. Other Commands

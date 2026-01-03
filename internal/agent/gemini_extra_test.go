@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestGeminiClient_HTTP_Success(t *testing.T) {
@@ -15,11 +16,11 @@ func TestGeminiClient_HTTP_Success(t *testing.T) {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		if r.URL.Query().Get("key") != "test-key" {
+		if r.Header.Get("x-goog-api-key") != "test-key" {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		
+
 		// Verify body
 		var body map[string]interface{}
 		json.NewDecoder(r.Body).Decode(&body)
@@ -47,6 +48,8 @@ func TestGeminiClient_HTTP_Success(t *testing.T) {
 	defer server.Close()
 
 	client := NewGeminiClient("test-key", "gemini-pro", "test-project")
+	// Inject fast backoff to prevent slow retries on transient failures
+	client.backoffFn = func(i int) time.Duration { return time.Millisecond }
 	// Override API URL to point to mock server
 	client.apiURL = server.URL
 
@@ -101,6 +104,7 @@ func TestGeminiClient_HTTP_Errors(t *testing.T) {
 			defer server.Close()
 
 			client := NewGeminiClient("test-key", "gemini-pro", "test-project")
+			client.backoffFn = func(i int) time.Duration { return time.Millisecond }
 			client.apiURL = server.URL
 
 			_, err := client.Send(context.Background(), "Hi")
@@ -134,6 +138,7 @@ func TestGeminiClient_SendStream(t *testing.T) {
 	defer server.Close()
 
 	client := NewGeminiClient("test-key", "gemini-pro", "test-project")
+	client.backoffFn = func(i int) time.Duration { return time.Millisecond }
 	client.apiURL = server.URL
 
 	var chunk string
