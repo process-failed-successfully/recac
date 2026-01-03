@@ -48,6 +48,8 @@ func TestGeminiClient_HTTP_Success(t *testing.T) {
 	defer server.Close()
 
 	client := NewGeminiClient("test-key", "gemini-pro", "test-project")
+	// Inject fast backoff to prevent slow retries on transient failures
+	client.backoffFn = func(i int) time.Duration { return time.Millisecond }
 	// Override API URL to point to mock server
 	client.apiURL = server.URL
 
@@ -136,6 +138,7 @@ func TestGeminiClient_SendStream(t *testing.T) {
 	defer server.Close()
 
 	client := NewGeminiClient("test-key", "gemini-pro", "test-project")
+	client.backoffFn = func(i int) time.Duration { return time.Millisecond }
 	client.apiURL = server.URL
 
 	var chunk string

@@ -17,7 +17,7 @@ func setupTestRepo(t *testing.T) (string, string) {
 	if err != nil {
 		t.Fatalf("failed to create temp remote dir: %v", err)
 	}
-	
+
 	cmd := exec.Command("git", "init", "--bare")
 	cmd.Dir = remoteDir
 	if err := cmd.Run(); err != nil {
@@ -89,7 +89,7 @@ func TestClient_BasicOperations(t *testing.T) {
 	// Note: 'master' or 'main' depends on git version/config. git init usually uses 'master' by default in older, 'main' in newer.
 	// Let's force branch name to 'main'
 	exec.Command("git", "-C", localDir, "branch", "-m", "main").Run()
-	
+
 	if err := c.Push(localDir, "main"); err != nil {
 		t.Errorf("Push failed: %v", err)
 	}
@@ -209,12 +209,12 @@ func TestClient_Clone(t *testing.T) {
 	c := NewClient()
 	os.WriteFile(filepath.Join(localDir, "readme.md"), []byte("# test"), 0644)
 	c.Commit(localDir, "init")
-	
+
 	// Determine branch
 	cmd := exec.Command("git", "-C", localDir, "branch", "--show-current")
 	out, _ := cmd.Output()
 	branch := strings.TrimSpace(string(out))
-	
+
 	c.Push(localDir, branch)
 
 	// Test Clone
@@ -241,25 +241,29 @@ func TestClient_RemoteOperations(t *testing.T) {
 	localDir, remoteDir := setupTestRepo(t)
 	defer os.RemoveAll(localDir)
 	defer os.RemoveAll(remoteDir)
-	
+
 	c := NewClient()
 
 	// Setup remote content
 	os.WriteFile(filepath.Join(localDir, "f1"), []byte("v1"), 0644)
 	c.Commit(localDir, "init")
-	
+
 	// Determine branch
 	cmd := exec.Command("git", "-C", localDir, "branch", "--show-current")
 	out, _ := cmd.Output()
 	branch := strings.TrimSpace(string(out))
-	
+
 	c.Push(localDir, branch)
 
 	// Create another client/clone to simulate another user pushing changes
 	otherDir, _ := os.MkdirTemp("", "git-test-other")
 	defer os.RemoveAll(otherDir)
 	c.Clone(context.Background(), remoteDir, otherDir)
-	
+
+	// Configure user for otherDir (needed in CI)
+	exec.Command("git", "-C", otherDir, "config", "user.email", "test2@example.com").Run()
+	exec.Command("git", "-C", otherDir, "config", "user.name", "Test User 2").Run()
+
 	// Other user makes changes
 	os.WriteFile(filepath.Join(otherDir, "f1"), []byte("v2"), 0644)
 	c.Commit(otherDir, "update v2")
@@ -285,18 +289,18 @@ func TestClient_ResetHard(t *testing.T) {
 	localDir, remoteDir := setupTestRepo(t)
 	defer os.RemoveAll(localDir)
 	defer os.RemoveAll(remoteDir)
-	
+
 	c := NewClient()
 
 	// Init
 	os.WriteFile(filepath.Join(localDir, "f1"), []byte("v1"), 0644)
 	c.Commit(localDir, "init")
-	
+
 	// Determine branch
 	cmd := exec.Command("git", "-C", localDir, "branch", "--show-current")
 	out, _ := cmd.Output()
 	branch := strings.TrimSpace(string(out))
-	
+
 	c.Push(localDir, branch)
 
 	// Make local changes
@@ -318,12 +322,12 @@ func TestClient_SetRemoteURL(t *testing.T) {
 	defer os.RemoveAll(localDir)
 
 	c := NewClient()
-	
+
 	newURL := "https://example.com/repo.git"
 	if err := c.SetRemoteURL(localDir, "origin", newURL); err != nil {
 		t.Errorf("SetRemoteURL failed: %v", err)
 	}
-	
+
 	cmd := exec.Command("git", "-C", localDir, "remote", "get-url", "origin")
 	out, _ := cmd.Output()
 	if strings.TrimSpace(string(out)) != newURL {
@@ -333,7 +337,7 @@ func TestClient_SetRemoteURL(t *testing.T) {
 
 func TestClient_CreatePR_Skip(t *testing.T) {
 	// Creating a PR requires 'gh' CLI and real auth, which we can't easily test here.
-	// We'll just verify the function exists and doesn't panic on nil client, 
+	// We'll just verify the function exists and doesn't panic on nil client,
 	// but we'll likely skip or mock if we were serious.
 	// Here we just skip to acknowledge we aren't covering it fully in integration test.
 	t.Skip("Skipping CreatePR test as it requires gh CLI and auth")
