@@ -27,10 +27,11 @@ type Orchestrator struct {
 	TaskMaxIterations int         // Max iterations for each task
 	TaskMaxRetries    int         // Max retries for failed tasks (default 3)
 	TickInterval      time.Duration
+	ParentThreadTS    string // Parent Slack Thread TS
 	mu                sync.Mutex
 }
 
-func NewOrchestrator(dbStore db.Store, dockerCli DockerClient, workspace, image string, baseAgent agent.Agent, project string, maxAgents int) *Orchestrator {
+func NewOrchestrator(dbStore db.Store, dockerCli DockerClient, workspace, image string, baseAgent agent.Agent, project string, maxAgents int, parentThreadTS string) *Orchestrator {
 	pool := NewWorkerPool(maxAgents)
 	return &Orchestrator{
 		Graph:             NewTaskGraph(),
@@ -45,6 +46,7 @@ func NewOrchestrator(dbStore db.Store, dockerCli DockerClient, workspace, image 
 		TaskMaxIterations: 10, // Default
 		TaskMaxRetries:    3,  // Default retries
 		TickInterval:      1 * time.Second,
+		ParentThreadTS:    parentThreadTS,
 	}
 }
 
@@ -263,6 +265,8 @@ func (o *Orchestrator) ExecuteTask(ctx context.Context, taskID string, node *Tas
 
 	session := NewSession(o.Docker, o.Agent, o.Workspace, o.BaseImage, o.Project, 1)
 	session.SelectedTaskID = taskID
+	session.SlackThreadTS = o.ParentThreadTS
+	session.SuppressStartNotification = true
 
 	// Use Orchestrator's shared DB store
 	// First, close the one NewSession created to avoid leaks

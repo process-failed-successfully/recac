@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -18,12 +20,38 @@ func NewClient() *Client {
 	return &Client{}
 }
 
+// maskingWriter wraps an io.Writer and masks sensitive information.
+type maskingWriter struct {
+	w io.Writer
+}
+
+func (mw *maskingWriter) Write(p []byte) (n int, err error) {
+	s := string(p)
+	// Mask GitHub PATs in URLs: https://<token>@github.com/
+	re := regexp.MustCompile(`https://[^@:]+@github\.com`)
+	s = re.ReplaceAllString(s, "https://[REDACTED]@github.com")
+
+	// Also mask basic auth style: https://user:pass@host
+	reBasic := regexp.MustCompile(`https://[^:/]+:[^@/]+@`)
+	s = reBasic.ReplaceAllString(s, "https://[REDACTED]@")
+
+	_, err = mw.w.Write([]byte(s))
+	return len(p), err
+}
+
+func (c *Client) runWithMasking(ctx context.Context, dir string, args ...string) error {
+	cmd := exec.CommandContext(ctx, "git", args...)
+	if dir != "" {
+		cmd.Dir = dir
+	}
+	cmd.Stdout = &maskingWriter{w: os.Stdout}
+	cmd.Stderr = &maskingWriter{w: os.Stderr}
+	return cmd.Run()
+}
+
 // Clone clones a repository into a destination directory.
 func (c *Client) Clone(ctx context.Context, url, dest string) error {
-	cmd := exec.CommandContext(ctx, "git", "clone", url, dest)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return c.runWithMasking(ctx, "", "clone", url, dest)
 }
 
 // CheckoutNewBranch creates and switches to a new branch.
@@ -37,11 +65,7 @@ func (c *Client) CheckoutNewBranch(dir, branchName string) error {
 
 // Push pushes the branch to the remote origin.
 func (c *Client) Push(dir, branchName string) error {
-	cmd := exec.Command("git", "push", "-u", "origin", branchName)
-	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return c.runWithMasking(context.Background(), dir, "push", "-u", "origin", branchName)
 }
 
 // CreatePR creates a pull request using the GitHub CLI (gh).
@@ -132,11 +156,7 @@ func (c *Client) Checkout(dir, branchName string) error {
 
 // Pull pulls changes from the remote repository.
 func (c *Client) Pull(dir, remote, branchName string) error {
-	cmd := exec.Command("git", "pull", remote, branchName)
-	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return c.runWithMasking(context.Background(), dir, "pull", remote, branchName)
 }
 
 // Merge merges the specified branch into the current branch.
@@ -150,11 +170,7 @@ func (c *Client) Merge(dir, branchName string) error {
 
 // Fetch fetches changes from the remote repository.
 func (c *Client) Fetch(dir, remote, branchName string) error {
-	cmd := exec.Command("git", "fetch", remote, branchName)
-	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return c.runWithMasking(context.Background(), dir, "fetch", remote, branchName)
 }
 
 // RemoteBranchExists checks if a branch exists on the remote.
@@ -258,18 +274,49 @@ func (c *Client) ResetHard(dir, remote, branch string) error {
 
 	// git reset --hard remote/branch
 	target := fmt.Sprintf("%s/%s", remote, branch)
-	cmd := exec.Command("git", "reset", "--hard", target)
+	return c.runWithMasking(context.Background(), dir, "reset", "--hard", target)
+}
+
+// Clean force cleans the repository of untracked files and directories.
+func (c *Client) Clean(dir string) error {
+	// Pre-cleanup: Handle read-only Go module files that git clean fails on
+	filepath.Walk(filepath.Join(dir, "go/pkg/mod"), func(path string, info os.FileInfo, err error) error {
+		if err == nil && info != nil {
+			// Try to make everything writable so we can delete it
+			os.Chmod(path, 0777)
+		}
+		return nil
+	})
+
+	// Also try to remove go/pkg/mod manually if it exists, as it's often the culprit
+	os.RemoveAll(filepath.Join(dir, "go/pkg/mod"))
+
+	cmd := exec.Command("git", "clean", "-fdx")
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
 
-// Clean force cleans the repository of untracked files and directories.
-func (c *Client) Clean(dir string) error {
-	cmd := exec.Command("git", "clean", "-fdx")
+// AbortMerge aborts an in-progress merge.
+func (c *Client) AbortMerge(dir string) error {
+	cmd := exec.Command("git", "merge", "--abort")
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
+}
+
+// DeleteLocalBranch deletes a local branch.
+func (c *Client) DeleteLocalBranch(dir, branch string) error {
+	cmd := exec.Command("git", "branch", "-D", branch)
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+// DeleteRemoteBranch deletes a remote branch.
+func (c *Client) DeleteRemoteBranch(dir, remote, branch string) error {
+	return c.runWithMasking(context.Background(), dir, "push", remote, "--delete", branch)
 }

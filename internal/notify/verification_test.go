@@ -40,7 +40,7 @@ func TestNotificationFlow(t *testing.T) {
 	ctx := context.Background()
 
 	// Test Event Start (Enabled)
-	mgr.Notify(ctx, notify.EventStart, "Hello World")
+	mgr.Notify(ctx, notify.EventStart, "Hello World", "")
 
 	found := false
 	for _, l := range logs {
@@ -55,7 +55,7 @@ func TestNotificationFlow(t *testing.T) {
 
 	// Test Event Disabled
 	viper.Set("notifications.slack.events.on_failure", false)
-	mgr.Notify(ctx, notify.EventFailure, "Should skip")
+	mgr.Notify(ctx, notify.EventFailure, "Should skip", "")
 
 	foundFailure := false
 	for _, l := range logs {

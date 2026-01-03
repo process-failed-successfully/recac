@@ -61,18 +61,20 @@ type Session struct {
 	NoOpCount        int // Number of iterations without executed commands
 
 	// Multi-Agent support
-	SelectedTaskID    string // If set, the agent should focus ONLY on this task
-	MaxAgents         int    // Maximum number of parallel agents
-	OwnsDB            bool   // Whether this session owns the DB connection (and should close it)
-	Project           string // Project identifier for telemetry
-	TaskMaxIterations int    // Max iterations for sub-tasks (if applicable)
-	Notifier          *notify.Manager
-	BaseBranch        string // Base Branch for merge guardrails
-	SkipQA            bool   // Skip QA phase and auto-complete
-	AutoMerge         bool   // Automatically merge PRs
-	JiraClient        JiraClient
-	JiraTicketID      string
-	RepoURL           string // Repository URL for links
+	SelectedTaskID            string // If set, the agent should focus ONLY on this task
+	MaxAgents                 int    // Maximum number of parallel agents
+	OwnsDB                    bool   // Whether this session owns the DB connection (and should close it)
+	Project                   string // Project identifier for telemetry
+	TaskMaxIterations         int    // Max iterations for sub-tasks (if applicable)
+	Notifier                  *notify.Manager
+	BaseBranch                string // Base Branch for merge guardrails
+	SkipQA                    bool   // Skip QA phase and auto-complete
+	AutoMerge                 bool   // Automatically merge PRs
+	JiraClient                JiraClient
+	JiraTicketID              string
+	RepoURL                   string // Repository URL for links
+	SlackThreadTS             string // Thread Timestamp for Slack conversations
+	SuppressStartNotification bool   // Suppress "Session Started" notification (for sub-tasks)
 }
 
 // JiraClient defines the interface for Jira operations needed by the session
@@ -373,7 +375,20 @@ func (s *Session) Start(ctx context.Context) error {
 
 	// Start Notifier (Socket Mode)
 	s.Notifier.Start(ctx)
-	s.Notifier.Notify(ctx, notify.EventStart, fmt.Sprintf("Project %s: Session Started", s.Project))
+
+	// Notify Start
+	if !s.SuppressStartNotification {
+		msg := fmt.Sprintf("Project %s: Session Started", s.Project)
+		if s.Iteration > 1 {
+			msg = fmt.Sprintf("Project %s: Session Resumed (Iteration %d)", s.Project, s.Iteration)
+		}
+
+		// Capture timestamp for threading
+		ts, _ := s.Notifier.Notify(ctx, notify.EventStart, msg, s.SlackThreadTS)
+		if s.SlackThreadTS == "" {
+			s.SlackThreadTS = ts
+		}
+	}
 
 	return nil
 }
@@ -505,7 +520,19 @@ func (s *Session) RunLoop(ctx context.Context) error {
 	}
 
 	fmt.Println("\n=== Entering Autonomous Run Loop ===")
-	s.Notifier.Notify(ctx, notify.EventStart, fmt.Sprintf("Session Started for Project: %s", s.Project))
+	// Note: We use the stored SlackThreadTS if available (from startup), otherwise we start a new thread here if needed?
+	// But Start() is called before RunLoop(), so s.SlackThreadTS should be set if notifications are enabled.
+	// If it's a resume and we don't have the TS persisted, we might start a new thread.
+	// For now, let's just log if it's not set.
+	if s.SlackThreadTS == "" {
+		// Try to send a start message if we missed it (e.g. manual RunLoop call)
+		ts, _ := s.Notifier.Notify(ctx, notify.EventStart, fmt.Sprintf("Session Started for Project: %s", s.Project), "")
+		s.SlackThreadTS = ts
+	} else {
+		// Just log context update if needed, but "Session Started" is redundant if checking duplicates.
+		// User complained about DUPLICATE messages. If Start() already sent one, RunLoop shouldn't send another top-level one.
+		// So we ONLY send if s.SlackThreadTS is empty.
+	}
 
 	// Guardrail: Ensure app_spec.txt exists (Source of Truth)
 	// We skip this check for Mock mode users who might not have set it up, but for real usage it's mandatory.
@@ -546,7 +573,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 			}
 
 			// Final Phase: UI Verification Check
-			s.Notifier.Notify(ctx, notify.EventProjectComplete, fmt.Sprintf("Project %s is COMPLETE!", s.Project))
+			s.Notifier.Notify(ctx, notify.EventProjectComplete, fmt.Sprintf("Project %s is COMPLETE!", s.Project), s.SlackThreadTS)
 		}
 	}
 
@@ -621,6 +648,9 @@ func (s *Session) RunLoop(ctx context.Context) error {
 						if err := gitClient.Merge(s.Workspace, "origin/"+s.BaseBranch); err != nil {
 							fmt.Printf("Merge failed (attempt %d/%d): %v\n", i+1, maxRetries, err)
 
+							// ENSURE WE ABORT to clear unmerged files
+							_ = gitClient.AbortMerge(s.Workspace)
+
 							// RECOVERY STRATEGIES
 							if i < maxRetries-1 {
 								fmt.Println("Attempting git recovery...")
@@ -630,17 +660,19 @@ func (s *Session) RunLoop(ctx context.Context) error {
 									fmt.Printf("Recover failed: %v\n", err)
 								}
 
-								// Recovery Step 2: Clean untracked files (often cause conflicts/locks)
-								// This needs to be persistent/aggressive
+								// Recovery Step 2: Clean aggressively
 								if err := gitClient.Clean(s.Workspace); err != nil {
 									fmt.Printf("Clean failed: %v\n", err)
 								}
 
-								// Recovery Step 3: Hard Reset (Extreme Measure - Lost Work Preferred)
-								// If we are just pulling upstream changes to verify sign-off, a hard reset to the current branch state (or upstream)
-								// might be valid if we assume stashed changes are less important than unblocking.
-								// We assume 'git reset --hard' clears the working tree state effectively.
-								exec.Command("git", "-C", s.Workspace, "reset", "--hard").Run()
+								// Recovery Step 3: Hard Reset to origin/current_feature_branch
+								// This is safer than just 'reset --hard' without target
+								cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+								cmd.Dir = s.Workspace
+								if out, err := cmd.Output(); err == nil {
+									currBranch := strings.TrimSpace(string(out))
+									_ = gitClient.ResetHard(s.Workspace, "origin", currBranch)
+								}
 							} else {
 								// Final Failure
 								fmt.Printf("CRITICAL: Merge with %s failed after %d attempts.\n", s.BaseBranch, maxRetries)
@@ -663,6 +695,24 @@ func (s *Session) RunLoop(ctx context.Context) error {
 
 				if !success {
 					fmt.Printf("Merge Conflict or Persistent Git Error detecting with %s. Revoking sign-off.\n", s.BaseBranch)
+
+					// BRUTAL RECOVERY: If standard recovery fails, delete remote feature branch
+					// and let the agent start clean on next iteration.
+					if s.JiraTicketID != "" {
+						cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+						cmd.Dir = s.Workspace
+						if out, err := cmd.Output(); err == nil {
+							featureBranch := strings.TrimSpace(string(out))
+							if featureBranch != s.BaseBranch && !strings.Contains(featureBranch, "HEAD") {
+								fmt.Printf("[%s] BRUTAL RECOVERY: Deleting remote branch %s to clear conflict.\n", s.JiraTicketID, featureBranch)
+								_ = gitClient.DeleteRemoteBranch(s.Workspace, "origin", featureBranch)
+							}
+						}
+						// Hard reset to base branch state to ensures clean slate
+						fmt.Printf("[%s] Resetting workspace to %s...\n", s.JiraTicketID, s.BaseBranch)
+						_ = gitClient.ResetHard(s.Workspace, "origin", s.BaseBranch)
+					}
+
 					s.clearSignal("PROJECT_SIGNED_OFF")
 					s.EnsureConflictTask()
 					s.clearSignal("QA_PASSED")
@@ -736,14 +786,26 @@ func (s *Session) RunLoop(ctx context.Context) error {
 						// 3. Merge Feature Branch
 						if err := gitClient.Merge(s.Workspace, featureBranch); err != nil {
 							fmt.Printf("Warning: Auto-merge failed (merge): %v\n", err)
-							// Attempt to abort merge to leave clean state
+							// ENSURE WE ABORT
+							_ = gitClient.AbortMerge(s.Workspace)
 							_ = gitClient.Recover(s.Workspace)
 						} else {
 							// 4. Push Base Branch
 							if err := gitClient.Push(s.Workspace, s.BaseBranch); err != nil {
 								fmt.Printf("Warning: Auto-merge failed (push): %v\n", err)
+								// If push fails (likely race), abort the merge locally too so we can retry from clean state
+								_ = gitClient.AbortMerge(s.Workspace)
 							} else {
 								fmt.Printf("Successfully auto-merged %s into %s and pushed.\n", featureBranch, s.BaseBranch)
+
+								// DELETE REMOTE FEATURE BRANCH (Cleanup)
+								// This keeps the repo clean and prevents branch accumulation
+								if s.JiraTicketID != "" {
+									fmt.Printf("[%s] Deleting remote feature branch %s...\n", s.JiraTicketID, featureBranch)
+									if err := gitClient.DeleteRemoteBranch(s.Workspace, "origin", featureBranch); err != nil {
+										fmt.Printf("[%s] Warning: Failed to delete remote branch: %v\n", s.JiraTicketID, err)
+									}
+								}
 
 								// 6. Capture Commit SHA for links
 								commitSHA := ""
@@ -801,7 +863,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 						fmt.Printf("Warning: Failed to create PROJECT_SIGNED_OFF: %v\n", err)
 					}
 					fmt.Println("Manager approved. Project signed off.")
-					s.Notifier.Notify(ctx, notify.EventSuccess, fmt.Sprintf("Project %s Signed Off by Manager!", s.Project))
+					s.Notifier.Notify(ctx, notify.EventSuccess, fmt.Sprintf("Project %s Signed Off by Manager!", s.Project), s.SlackThreadTS)
 					continue // Next iteration will run Cleaner
 				}
 			}
@@ -842,7 +904,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		// Multi-Agent Coding Sprint Delegation
 		if role == prompts.CodingAgent && s.MaxAgents > 1 {
 			fmt.Printf("Delegating to Multi-Agent Orchestrator (role: %s, max-agents: %d)\n", role, s.MaxAgents)
-			orchestrator := NewOrchestrator(s.DBStore, s.Docker, s.Workspace, s.Image, s.Agent, s.Project, s.MaxAgents)
+			orchestrator := NewOrchestrator(s.DBStore, s.Docker, s.Workspace, s.Image, s.Agent, s.Project, s.MaxAgents, s.SlackThreadTS)
 			if err := orchestrator.Run(ctx); err != nil {
 				fmt.Printf("Orchestrator sprint failed: %v\n", err)
 			}
@@ -859,7 +921,8 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		// Circuit Breaker: No-Op Check
 		if err := s.checkNoOpBreaker(executionOutput); err != nil {
 			fmt.Println(err)
-			s.Notifier.Notify(ctx, notify.EventFailure, fmt.Sprintf("Project %s Failed: %v", s.Project, err))
+			s.Notifier.Notify(ctx, notify.EventFailure, fmt.Sprintf("Project %s Failed: %v", s.Project, err), s.SlackThreadTS)
+			s.Notifier.AddReaction(ctx, s.SlackThreadTS, "x")
 			return ErrNoOp // Exit loop with error
 		}
 
@@ -868,7 +931,8 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		if err := s.checkStalledBreaker(role, passingCount); err != nil {
 			telemetry.TrackAgentStall(s.Project)
 			fmt.Println(err)
-			s.Notifier.Notify(ctx, notify.EventFailure, fmt.Sprintf("Project %s Stalled: %v", s.Project, err))
+			s.Notifier.Notify(ctx, notify.EventFailure, fmt.Sprintf("Project %s Stalled: %v", s.Project, err), s.SlackThreadTS)
+			s.Notifier.AddReaction(ctx, s.SlackThreadTS, "x")
 			return ErrStalled // Exit loop with error
 		}
 
@@ -1860,7 +1924,7 @@ func (s *Session) runInitScript(ctx context.Context) {
 func (s *Session) completeJiraTicket(ctx context.Context, gitLink string) {
 	if s.JiraClient == nil || s.JiraTicketID == "" {
 		// Not a Jira session, but we still send a notification
-		s.Notifier.Notify(ctx, notify.EventProjectComplete, fmt.Sprintf("Project %s is COMPLETE! Git: %s", s.Project, gitLink))
+		s.Notifier.Notify(ctx, notify.EventProjectComplete, fmt.Sprintf("Project %s is COMPLETE! Git: %s", s.Project, gitLink), s.SlackThreadTS)
 		return
 	}
 
@@ -1890,8 +1954,12 @@ func (s *Session) completeJiraTicket(ctx context.Context, gitLink string) {
 
 	// 3. Send Notification with Links
 	jiraURL := viper.GetString("jira.url")
+	if jiraURL == "" {
+		jiraURL = os.Getenv("JIRA_URL")
+	}
 	jiraLink := fmt.Sprintf("%s/browse/%s", jiraURL, s.JiraTicketID)
 
 	notificationMsg := fmt.Sprintf("Project %s is COMPLETE!\n\nJira: %s\nGit: %s", s.Project, jiraLink, gitLink)
-	s.Notifier.Notify(ctx, notify.EventProjectComplete, notificationMsg)
+	s.Notifier.Notify(ctx, notify.EventProjectComplete, notificationMsg, s.SlackThreadTS)
+	s.Notifier.AddReaction(ctx, s.SlackThreadTS, "white_check_mark")
 }

@@ -30,6 +30,9 @@ type Manager struct {
 // NewManager creates a new Notification Manager.
 func NewManager(logger func(string, ...interface{})) *Manager {
 	if !viper.GetBool("notifications.slack.enabled") {
+		if os.Getenv("SLACK_BOT_USER_TOKEN") != "" && logger != nil {
+			logger("Warning: SLACK_BOT_USER_TOKEN found but 'notifications.slack.enabled' is false in config. No notifications will be sent.")
+		}
 		return &Manager{logger: logger}
 	}
 
@@ -89,7 +92,8 @@ func (m *Manager) Start(ctx context.Context) {
 }
 
 // Notify sends a notification if the event is enabled in configuration.
-func (m *Manager) Notify(ctx context.Context, eventType string, message string) {
+// It returns the timestamp of the sent message (for threading) and an error.
+func (m *Manager) Notify(ctx context.Context, eventType string, message string, threadTS string) (string, error) {
 	if m.logger != nil {
 		m.logger("Checking notification for event: %s", eventType)
 	}
@@ -98,7 +102,7 @@ func (m *Manager) Notify(ctx context.Context, eventType string, message string) 
 		if m.logger != nil {
 			m.logger("Notification DISABLED for event: %s", eventType)
 		}
-		return
+		return "", nil
 	}
 
 	if m.logger != nil {
@@ -112,13 +116,24 @@ func (m *Manager) Notify(ctx context.Context, eventType string, message string) 
 			channelID = "#general"
 		}
 
-		_, _, err := m.client.PostMessageContext(ctx, channelID, slack.MsgOptionText(message, false))
+		opts := []slack.MsgOption{
+			slack.MsgOptionText(message, false),
+		}
+
+		if threadTS != "" {
+			opts = append(opts, slack.MsgOptionTS(threadTS))
+		}
+
+		_, ts, err := m.client.PostMessageContext(ctx, channelID, opts...)
 		if err != nil {
 			if m.logger != nil {
 				m.logger("Failed to send Slack notification: %v", err)
 			}
+			return "", err
 		}
+		return ts, nil
 	}
+	return "", nil
 }
 
 func (m *Manager) isEnabled(eventType string) bool {
@@ -132,4 +147,32 @@ func (m *Manager) isEnabled(eventType string) bool {
 		return false
 	}
 	return eventEnabled
+}
+
+// AddReaction adds an emoji reaction to a message.
+func (m *Manager) AddReaction(ctx context.Context, timestamp, reaction string) error {
+	if m.client == nil {
+		return nil
+	}
+
+	channelID := m.channelID
+	if channelID == "" {
+		channelID = "#general"
+	}
+
+	// This is a "nice to have" feature, so we log errors but don't fail hard if it fails
+	// (e.g. if bot doesn't have permissions)
+	err := m.client.AddReactionContext(ctx, reaction, slack.ItemRef{
+		Channel:   channelID,
+		Timestamp: timestamp,
+	})
+
+	if err != nil {
+		if m.logger != nil {
+			m.logger("Failed to add reaction %s: %v", reaction, err)
+		}
+		return err
+	}
+
+	return nil
 }

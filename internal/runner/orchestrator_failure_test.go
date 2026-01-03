@@ -128,10 +128,10 @@ func TestOrchestrator_FaultTolerance_HighFailureRate(t *testing.T) {
 		FailTasks: map[string]bool{"task 1": true, "task 2": true},
 	}
 
-	o := NewOrchestrator(mockDB, mockDocker, tmpDir, "img", smartAgent, "proj", 3)
+	o := NewOrchestrator(mockDB, mockDocker, tmpDir, "img", smartAgent, "proj", 3, "")
 	o.TickInterval = 100 * time.Millisecond
-	o.TaskMaxRetries = 0 // Fail fast
-	o.TaskMaxIterations = 1 // Fail fast if no progress
+	o.TaskMaxRetries = 0                                                                  // Fail fast
+	o.TaskMaxIterations = 1                                                               // Fail fast if no progress
 	o.Graph.LoadFromFeatureList(filepath.Join(tmpDir, "dummy_not_used_since_we_mock_db")) // actually ensureGitRepo calls refreshGraph which calls DB.GetFeatures
 
 	// We need to bypass ensureGitRepo or make it work. It uses commands.
@@ -188,7 +188,7 @@ func (m *SmartMockAgent) Send(ctx context.Context, prompt string) (string, error
 	}
 
 	// For task 3, return a command that looks like success/completion if needed
-	// But usually agent just gives commands. 
+	// But usually agent just gives commands.
 	// To avoid NoOp, we give a command.
 	return "echo done", nil
 }

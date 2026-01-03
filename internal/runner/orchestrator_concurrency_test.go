@@ -29,7 +29,7 @@ func TestOrchestrator_ConcurrencyLimit(t *testing.T) {
 	defer os.RemoveAll(workspace)
 
 	// Initialize Orchestrator with MaxAgents = 10
-	orch := NewOrchestrator(mockDB, mockDocker, workspace, "test-image", mockAgent, "test-project", 10)
+	orch := NewOrchestrator(mockDB, mockDocker, workspace, "test-image", mockAgent, "test-project", 10, "")
 
 	// Since Run() blocks and is complex, we'll spy on the side effect we care about.
 	// We want to verify that orch.MaxAgents becomes 2 and orch.Pool.NumWorkers becomes 2.
