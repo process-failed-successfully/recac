@@ -379,8 +379,12 @@ var jiraGenerateFromSpecCmd = &cobra.Command{
 			fmt.Printf("  -> Created %s %s\n", issueType, epicKey)
 
 			for _, storyNode := range epicNode.Children {
-				fmt.Printf("  Creating Child (%s): %s\n", storyNode.Type, storyNode.Title)
-				childKey, err := jiraClient.CreateChildTicket(context.Background(), projectKey, storyNode.Title, storyNode.Description, storyNode.Type, epicKey)
+				childType := storyNode.Type
+				if childType == "" {
+					childType = "Story"
+				}
+				fmt.Printf("  Creating Child (%s): %s\n", childType, storyNode.Title)
+				childKey, err := jiraClient.CreateChildTicket(context.Background(), projectKey, storyNode.Title, storyNode.Description, childType, epicKey)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Error: Failed to create child '%s': %v\n", storyNode.Title, err)
 				} else {
