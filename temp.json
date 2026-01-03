@@ -1,0 +1,961 @@
+{
+  "project_name": "Roguelike Snake Web Game",
+  "features": [
+    {
+      "id": "game-initialization",
+      "status": "done",
+      "passes": true,
+      "category": "functional",
+      "description": "Verify game initializes with default state",
+      "steps": [
+        "Step 1: Load game in browser",
+        "Step 2: Verify canvas element exists",
+        "Step 3: Verify player snake exists with default HP",
+        "Step 4: Verify arena is generated",
+        "Step 5: Verify no enemies exist initially"
+      ],
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": ["src/game"],
+        "read_only_paths": ["assets/"]
+      }
+    },
+    {
+      "id": "player-movement-wasd",
+      "category": "functional",
+      "description": "Verify WASD keyboard controls work for player movement",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Press W key",
+        "Step 3: Verify snake moves upward",
+        "Step 4: Press A key",
+        "Step 5: Verify snake turns left",
+        "Step 6: Press S key",
+        "Step 7: Verify snake moves downward",
+        "Step 8: Press D key",
+        "Step 9: Verify snake turns right"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["game-initialization"],
+        "exclusive_write_paths": ["src/input"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "player-movement-arrows",
+      "category": "functional",
+      "description": "Verify arrow key controls work for player movement",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Press Up arrow",
+        "Step 3: Verify snake moves upward",
+        "Step 4: Press Left arrow",
+        "Step 5: Verify snake turns left",
+        "Step 6: Press Down arrow",
+        "Step 7: Verify snake moves downward",
+        "Step 8: Press Right arrow",
+        "Step 9: Verify snake turns right"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["game-initialization"],
+        "exclusive_write_paths": ["src/input"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "snake-growth-food",
+      "category": "functional",
+      "description": "Verify snake grows when consuming food pickups",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Note initial snake length",
+        "Step 3: Move snake to food pickup",
+        "Step 4: Verify food is consumed",
+        "Step 5: Verify snake length increases",
+        "Step 6: Verify new segment is added to tail"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["game-initialization"],
+        "exclusive_write_paths": ["src/snake", "src/pickups"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "health-system",
+      "category": "functional",
+      "description": "Verify health system with different collision types",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Note initial HP (100)",
+        "Step 3: Collide head with obstacle",
+        "Step 4: Verify HP decreases by 20",
+        "Step 5: Collide tail with obstacle",
+        "Step 6: Verify HP decreases by 5",
+        "Step 7: Verify HP doesn't go below 0",
+        "Step 8: Verify game over when HP reaches 0"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["game-initialization"],
+        "exclusive_write_paths": ["src/snake", "src/collision"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "auto-shooter-basic",
+      "category": "functional",
+      "description": "Verify basic auto-shooter functionality",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Verify no projectiles exist initially",
+        "Step 3: Wait for auto-shoot timer",
+        "Step 4: Verify projectile is created",
+        "Step 5: Verify projectile moves in direction of nearest enemy",
+        "Step 6: Verify projectile disappears when hitting enemy"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["game-initialization"],
+        "exclusive_write_paths": ["src/combat"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "enemy-spawning",
+      "category": "functional",
+      "description": "Verify enemy snakes spawn according to wave rules",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Wait for first wave timer (10s)",
+        "Step 3: Verify 3 basic enemies spawn",
+        "Step 4: Wait for second wave timer (20s)",
+        "Step 5: Verify 5 enemies spawn (mix of basic/elite)",
+        "Step 6: Verify enemies have correct tier properties"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["game-initialization"],
+        "exclusive_write_paths": ["src/enemies"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "enemy-ai-wander",
+      "category": "functional",
+      "description": "Verify enemy AI wander behavior",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Spawn basic enemy",
+        "Step 3: Verify enemy moves randomly",
+        "Step 4: Verify enemy changes direction periodically",
+        "Step 5: Verify enemy doesn't leave arena bounds"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["enemy-spawning"],
+        "exclusive_write_paths": ["src/ai"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "enemy-ai-hunt",
+      "category": "functional",
+      "description": "Verify enemy AI pickup hunting behavior",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Spawn elite enemy",
+        "Step 3: Spawn food pickup",
+        "Step 4: Verify enemy moves toward pickup",
+        "Step 5: Verify enemy consumes pickup when reaching it"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["enemy-spawning"],
+        "exclusive_write_paths": ["src/ai"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "xp-system",
+      "category": "functional",
+      "description": "Verify XP gain and level-up system",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Note initial XP (0) and level (1)",
+        "Step 3: Kill basic enemy",
+        "Step 4: Verify XP increases by 10",
+        "Step 5: Kill elite enemy",
+        "Step 6: Verify XP increases by 25",
+        "Step 7: Verify level-up at 100 XP",
+        "Step 8: Verify card selection triggers"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["game-initialization", "enemy-spawning"],
+        "exclusive_write_paths": ["src/progression"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "card-selection",
+      "category": "functional",
+      "description": "Verify card selection UI and application",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Gain XP to trigger level-up",
+        "Step 3: Verify card selection modal appears",
+        "Step 4: Verify 5 cards are displayed",
+        "Step 5: Select offensive card",
+        "Step 6: Verify card effect is applied",
+        "Step 7: Verify modal closes",
+        "Step 8: Verify game resumes"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["xp-system"],
+        "exclusive_write_paths": ["src/ui", "src/upgrades"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "projectile-upgrades",
+      "category": "functional",
+      "description": "Verify projectile upgrade effects",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Select projectile speed upgrade",
+        "Step 3: Fire projectile",
+        "Step 4: Verify projectile speed increased",
+        "Step 5: Select split-shot upgrade",
+        "Step 6: Fire projectile",
+        "Step 7: Verify 3 projectiles fired",
+        "Step 8: Select chain lightning upgrade",
+        "Step 9: Fire projectile at enemy group",
+        "Step 10: Verify chain effect to 3 enemies"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["card-selection"],
+        "exclusive_write_paths": ["src/combat", "src/upgrades"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "defensive-upgrades",
+      "category": "functional",
+      "description": "Verify defensive upgrade effects",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Select shield upgrade",
+        "Step 3: Take damage",
+        "Step 4: Verify shield absorbs damage first",
+        "Step 5: Select HP regen upgrade",
+        "Step 6: Wait 5 seconds",
+        "Step 7: Verify HP increases by 2",
+        "Step 8: Select damage reduction upgrade",
+        "Step 9: Take damage",
+        "Step 10: Verify damage reduced by 30%"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["card-selection"],
+        "exclusive_write_paths": ["src/combat", "src/upgrades"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "mobility-upgrades",
+      "category": "functional",
+      "description": "Verify mobility upgrade effects",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Select dash upgrade",
+        "Step 3: Press dash key (Shift)",
+        "Step 4: Verify snake moves 5x normal distance",
+        "Step 5: Verify cooldown starts",
+        "Step 6: Select turning agility upgrade",
+        "Step 7: Attempt turn",
+        "Step 8: Verify turn radius reduced",
+        "Step 10: Kill enemy",
+        "Step 11: Verify speed boost for 3s"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["card-selection"],
+        "exclusive_write_paths": ["src/movement", "src/upgrades"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "utility-upgrades",
+      "category": "functional",
+      "description": "Verify utility upgrade effects",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Select magnet upgrade",
+        "Step 3: Spawn pickup far away",
+        "Step 4: Verify pickup moves toward snake",
+        "Step 5: Select XP gain upgrade",
+        "Step 6: Kill enemy",
+        "Step 7: Verify 20% more XP gained",
+        "Step 8: Select pickup multiplier",
+        "Step 9: Collect food",
+        "Step 10: Verify 2x growth"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["card-selection"],
+        "exclusive_write_paths": ["src/upgrades"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "boss-fight",
+      "category": "functional",
+      "description": "Verify boss enemy behavior and defeat",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Progress to wave 10",
+        "Step 3: Verify boss enemy spawns",
+        "Step 4: Verify boss has special abilities",
+        "Step 5: Attack boss",
+        "Step 6: Verify boss health decreases",
+        "Step 7: Defeat boss",
+        "Step 8: Verify special reward drops",
+        "Step 9: Verify wave counter resets"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["enemy-spawning"],
+        "exclusive_write_paths": ["src/enemies"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "status-effects",
+      "category": "functional",
+      "description": "Verify status effect application and duration",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Apply burn effect to enemy",
+        "Step 3: Verify enemy takes damage over time",
+        "Step 4: Verify burn lasts 5s",
+        "Step 5: Apply poison effect",
+        "Step 6: Verify different damage pattern",
+        "Step 7: Apply slow effect",
+        "Step 8: Verify enemy speed reduced",
+        "Step 9: Apply shock effect",
+        "Step 10: Verify chain reaction on death"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["game-initialization"],
+        "exclusive_write_paths": ["src/effects"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "game-over-screen",
+      "category": "functional",
+      "description": "Verify game over screen and run summary",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Die to enemy",
+        "Step 3: Verify game over screen appears",
+        "Step 4: Verify run statistics displayed",
+        "Step 5: Verify restart button works",
+        "Step 6: Verify exit button returns to menu"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["game-initialization"],
+        "exclusive_write_paths": ["src/ui"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "localstorage-persistence",
+      "category": "functional",
+      "description": "Verify LocalStorage persistence of game data",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Play for 2 minutes",
+        "Step 3: Refresh browser",
+        "Step 4: Verify game state restored",
+        "Step 5: Verify best runs saved",
+        "Step 6: Verify settings persisted",
+        "Step 7: Clear LocalStorage",
+        "Step 8: Verify game starts fresh"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["game-initialization"],
+        "exclusive_write_paths": ["src/persistence"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "audio-system",
+      "category": "functional",
+      "description": "Verify audio system and sound effects",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Verify ambient music plays",
+        "Step 3: Fire projectile",
+        "Step 4: Verify shoot sound plays",
+        "Step 5: Take damage",
+        "Step 6: Verify hit sound plays",
+        "Step 7: Level up",
+        "Step 8: Verify level-up sound plays",
+        "Step 9: Mute audio",
+        "Step 10: Verify all sounds muted"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["game-initialization"],
+        "exclusive_write_paths": ["src/audio"],
+        "read_only_paths": ["assets/audio/"]
+      }
+    },
+    {
+      "id": "performance-target",
+      "category": "functional",
+      "description": "Verify 60 FPS performance with 50 enemies",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Spawn 50 enemies",
+        "Step 3: Enable FPS counter",
+        "Step 4: Verify FPS stays above 55",
+        "Step 5: Verify no frame drops during combat",
+        "Step 6: Verify spatial hashing optimizations work"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["game-initialization"],
+        "exclusive_write_paths": ["src/performance"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "collision-edge-cases",
+      "category": "functional",
+      "description": "Verify collision detection edge cases",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Position snake head exactly on obstacle edge",
+        "Step 3: Verify collision detected",
+        "Step 4: Position projectile between two enemies",
+        "Step 5: Verify only closest hit",
+        "Step 6: Test snake self-collision",
+        "Step 7: Verify tail collision rules",
+        "Step 8: Test arena boundary collisions"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["game-initialization"],
+        "exclusive_write_paths": ["src/collision"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "ui-hud-elements",
+      "category": "style",
+      "description": "Verify all HUD elements are visible and functional",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Verify HP bar visible",
+        "Step 3: Verify XP bar visible",
+        "Step 4: Verify level indicator visible",
+        "Step 5: Verify active mods displayed",
+        "Step 6: Verify all elements scale with resolution",
+        "Step 7: Verify colors are accessible"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["game-initialization"],
+        "exclusive_write_paths": ["src/ui"],
+        "read_only_paths": ["assets/ui/"]
+      }
+    },
+    {
+      "id": "card-ui-design",
+      "category": "style",
+      "description": "Verify card selection UI design and animations",
+      "status": "pending",
+      "steps": [
+        "Step 1: Trigger level-up",
+        "Step 2: Verify modal appears centered",
+        "Step 3: Verify cards animate in",
+        "Step 4: Verify card hover effects",
+        "Step 5: Verify rarity colors correct",
+        "Step 6: Verify selection animation",
+        "Step 7: Verify modal fade-out"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["card-selection"],
+        "exclusive_write_paths": ["src/ui"],
+        "read_only_paths": ["assets/ui/"]
+      }
+    },
+    {
+      "id": "responsive-design",
+      "category": "style",
+      "description": "Verify responsive design across devices",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game on desktop",
+        "Step 2: Verify full UI visible",
+        "Step 3: Resize to tablet",
+        "Step 4: Verify UI adapts",
+        "Step 5: Resize to mobile",
+        "Step 6: Verify touch controls appear",
+        "Step 7: Verify all elements accessible"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["game-initialization"],
+        "exclusive_write_paths": ["src/ui"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "color-blind-mode",
+      "category": "style",
+      "description": "Verify color blind accessible mode",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Enable color blind mode",
+        "Step 3: Verify distinct patterns on elements",
+        "Step 4: Verify rarity indicators changed",
+        "Step 5: Verify status effects have icons",
+        "Step 6: Verify all UI readable"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["game-initialization"],
+        "exclusive_write_paths": ["src/ui"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "input-latency",
+      "category": "functional",
+      "description": "Verify input latency meets requirements",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Measure time from keypress to movement",
+        "Step 3: Verify < 50ms latency",
+        "Step 4: Test with multiple rapid inputs",
+        "Step 5: Verify no input queueing issues",
+        "Step 6: Test with gamepad input",
+        "Step 7: Verify similar latency"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["game-initialization"],
+        "exclusive_write_paths": ["src/input"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "deterministic-movement",
+      "category": "functional",
+      "description": "Verify deterministic movement with same inputs",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Record input sequence",
+        "Step 3: Restart game",
+        "Step 4: Replay same inputs",
+        "Step 5: Verify identical snake position",
+        "Step 6: Verify identical enemy positions",
+        "Step 7: Verify identical projectile paths"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["game-initialization"],
+        "exclusive_write_paths": ["src/game"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "upgrade-balance",
+      "category": "functional",
+      "description": "Verify upgrade balance across categories",
+      "status": "pending",
+      "steps": [
+        "Step 1: Test offensive path only",
+        "Step 2: Verify viable to wave 20",
+        "Step 3: Test defensive path only",
+        "Step 4: Verify viable to wave 20",
+        "Step 5: Test mobility path only",
+        "Step 6: Verify viable to wave 20",
+        "Step 7: Test utility path only",
+        "Step 8: Verify viable to wave 20",
+        "Step 9: Test mixed path",
+        "Step 10: Verify no dominant strategy"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["card-selection"],
+        "exclusive_write_paths": ["src/upgrades"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "synergy-testing",
+      "category": "functional",
+      "description": "Verify synergy effects work correctly",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Select speed upgrade",
+        "Step 3: Select crit chance synergy",
+        "Step 4: Verify crit chance increases with speed",
+        "Step 5: Select burn upgrade",
+        "Step 6: Select burn stacking synergy",
+        "Step 7: Verify burn stacks apply",
+        "Step 8: Select tail upgrade",
+        "Step 9: Select shield synergy",
+        "Step 10: Select kill streak upgrade",
+        "Step 11: Verify fire rate increases with streak"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["card-selection"],
+        "exclusive_write_paths": ["src/upgrades"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "practice-mode",
+      "category": "functional",
+      "description": "Verify practice mode functionality",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start practice mode",
+        "Step 2: Verify no XP gain",
+        "Step 3: Verify enemies spawn normally",
+        "Step 4: Verify no level-ups",
+        "Step 5: Verify infinite HP option",
+        "Step 6: Verify enemy spawning controls",
+        "Step 7: Verify reset button works"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["game-initialization"],
+        "exclusive_write_paths": ["src/modes"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "survival-mode",
+      "category": "functional",
+      "description": "Verify survival mode progression",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start survival mode",
+        "Step 2: Verify wave counter starts at 1",
+        "Step 3: Complete wave 1",
+        "Step 4: Verify wave counter increments",
+        "Step 5: Verify difficulty increases",
+        "Step 6: Reach wave 10",
+        "Step 7: Verify boss fight triggers",
+        "Step 8: Verify score saved on death"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["game-initialization"],
+        "exclusive_write_paths": ["src/modes"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "obstacle-collision",
+      "category": "functional",
+      "description": "Verify obstacle collision physics",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Spawn obstacle",
+        "Step 3: Collide snake head with obstacle",
+        "Step 4: Verify damage taken",
+        "Step 5: Collide snake body with obstacle",
+        "Step 6: Verify no damage",
+        "Step 7: Fire projectile at obstacle",
+        "Step 8: Verify projectile destroyed",
+        "Step 9: Verify enemy collision with obstacle"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["game-initialization"],
+        "exclusive_write_paths": ["src/collision"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "hazard-effects",
+      "category": "functional",
+      "description": "Verify environmental hazard effects",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Spawn lava hazard",
+        "Step 3: Enter hazard with snake",
+        "Step 4: Verify continuous damage",
+        "Step 5: Spawn ice hazard",
+        "Step 6: Enter hazard",
+        "Step 7: Verify movement slowed",
+        "Step 8: Spawn spike hazard",
+        "Step 9: Collide with hazard",
+        "Step 10: Verify instant damage"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["game-initialization"],
+        "exclusive_write_paths": ["src/hazards"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "buff-pickups",
+      "category": "functional",
+      "description": "Verify temporary buff pickup effects",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Collect speed buff",
+        "Step 3: Verify speed increase",
+        "Step 4: Wait for duration",
+        "Step 5: Verify speed returns to normal",
+        "Step 6: Collect damage buff",
+        "Step 7: Verify damage increase",
+        "Step 8: Collect invulnerability buff",
+        "Step 9: Verify no damage taken",
+        "Step 10: Verify buff icon in HUD"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["game-initialization"],
+        "exclusive_write_paths": ["src/pickups"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "settings-menu",
+      "category": "functional",
+      "description": "Verify settings menu functionality",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Open settings menu",
+        "Step 3: Adjust volume",
+        "Step 4: Verify volume changes",
+        "Step 5: Toggle fullscreen",
+        "Step 6: Verify fullscreen mode",
+        "Step 7: Change controls",
+        "Step 8: Verify new controls work",
+        "Step 9: Reset to defaults",
+        "Step 10: Verify original settings restored"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["game-initialization"],
+        "exclusive_write_paths": ["src/ui"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "pause-functionality",
+      "category": "functional",
+      "description": "Verify pause system works correctly",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Press pause key",
+        "Step 3: Verify game paused",
+        "Step 4: Verify pause menu appears",
+        "Step 5: Resume game",
+        "Step 6: Verify game state restored",
+        "Step 7: Verify no time passed during pause",
+        "Step 8: Verify audio paused"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["game-initialization"],
+        "exclusive_write_paths": ["src/game"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "best-runs-tracking",
+      "category": "functional",
+      "description": "Verify best runs are tracked and displayed",
+      "status": "pending",
+      "steps": [
+        "Step 1: Complete run to wave 5",
+        "Step 2: Verify run saved",
+        "Step 3: Complete run to wave 10",
+        "Step 4: Verify new best run saved",
+        "Step 5: View best runs screen",
+        "Step 6: Verify both runs listed",
+        "Step 7: Verify sorting by wave",
+        "Step 8: Clear runs",
+        "Step 9: Verify empty list"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["localstorage-persistence"],
+        "exclusive_write_paths": ["src/persistence"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "meta-unlocks",
+      "category": "functional",
+      "description": "Verify meta unlock system",
+      "status": "pending",
+      "steps": [
+        "Step 1: Complete 5 runs",
+        "Step 2: Verify new starting card unlocked",
+        "Step 3: Reach wave 10",
+        "Step 4: Verify new enemy type unlocked",
+        "Step 5: Collect all card types",
+        "Step 6: Verify achievement unlocked",
+        "Step 7: View unlocks screen",
+        "Step 8: Verify all unlocks displayed"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["localstorage-persistence"],
+        "exclusive_write_paths": ["src/unlocks"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "touch-controls",
+      "category": "functional",
+      "description": "Verify touch controls on mobile",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game on mobile",
+        "Step 2: Verify virtual joystick appears",
+        "Step 3: Use joystick to move",
+        "Step 4: Verify snake moves correctly",
+        "Step 5: Tap shoot button",
+        "Step 6: Verify projectile fires",
+        "Step 7: Tap pause button",
+        "Step 8: Verify pause menu opens"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["game-initialization"],
+        "exclusive_write_paths": ["src/input"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "gamepad-support",
+      "category": "functional",
+      "description": "Verify gamepad input support",
+      "status": "pending",
+      "steps": [
+        "Step 1: Connect gamepad",
+        "Step 2: Start game",
+        "Step 3: Use left stick to move",
+        "Step 4: Verify snake moves",
+        "Step 5: Press A button",
+        "Step 6: Verify projectile fires",
+        "Step 7: Press Start button",
+        "Step 8: Verify pause menu opens",
+        "Step 9: Verify rumble on damage"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["game-initialization"],
+        "exclusive_write_paths": ["src/input"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "anti-stall-mechanics",
+      "category": "functional",
+      "description": "Verify anti-stall pressure mechanics",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start game",
+        "Step 2: Avoid combat for 30s",
+        "Step 3: Verify hazard spawns",
+        "Step 4: Avoid combat for 60s",
+        "Step 5: Verify elite enemy spawns",
+        "Step 6: Avoid combat for 90s",
+        "Step 7: Verify HP drain starts",
+        "Step 8: Engage in combat",
+        "Step 9: Verify pressure resets"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["game-initialization"],
+        "exclusive_write_paths": ["src/game"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "comprehensive-run",
+      "category": "functional",
+      "description": "Complete comprehensive test run with all systems",
+      "status": "pending",
+      "steps": [
+        "Step 1: Start new game",
+        "Step 2: Move snake with WASD",
+        "Step 3: Collect 3 food pickups",
+        "Step 4: Kill 5 basic enemies",
+        "Step 5: Level up twice",
+        "Step 6: Select offensive and defensive cards",
+        "Step 7: Fight elite enemy",
+        "Step 8: Collect buff pickup",
+        "Step 9: Trigger boss fight",
+        "Step 10: Defeat boss",
+        "Step 11: Reach wave 15",
+        "Step 12: Die to overwhelming odds",
+        "Step 13: Verify run summary",
+        "Step 14: Restart game",
+        "Step 15: Verify new game starts fresh"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": ["game-initialization", "card-selection", "boss-fight"],
+        "exclusive_write_paths": [],
+        "read_only_paths": []
+      }
+    }
+  ]
+}

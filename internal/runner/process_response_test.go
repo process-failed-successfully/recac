@@ -25,6 +25,12 @@ func (m *MockDockerClient) Exec(ctx context.Context, containerID string, cmd []s
 	}
 	return "", nil
 }
+func (m *MockDockerClient) ExecAsUser(ctx context.Context, containerID string, user string, cmd []string) (string, error) {
+	if m.ExecFunc != nil {
+		return m.ExecFunc(ctx, containerID, cmd)
+	}
+	return "", nil
+}
 func (m *MockDockerClient) ImageExists(ctx context.Context, tag string) (bool, error) {
 	return true, nil
 }

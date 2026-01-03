@@ -7,14 +7,17 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"regexp"
+	"strings"
+	"sync"
 	"syscall"
 	"time"
 
 	"recac/internal/agent"
 	"recac/internal/docker"
+	"recac/internal/git"
 	"recac/internal/jira"
 	"recac/internal/runner"
-	"recac/internal/telemetry"
 	"recac/internal/ui"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -27,6 +30,8 @@ func init() {
 	startCmd.Flags().String("path", "", "Project path (skips wizard)")
 	startCmd.Flags().Int("max-iterations", 20, "Maximum number of iterations")
 	startCmd.Flags().Int("manager-frequency", 5, "Frequency of manager reviews")
+	startCmd.Flags().Int("max-agents", 1, "Maximum number of parallel agents")
+	startCmd.Flags().Int("task-max-iterations", 10, "Maximum iterations for sub-tasks")
 	startCmd.Flags().Bool("detached", false, "Run session in background (detached mode)")
 	startCmd.Flags().String("name", "", "Name for the session (required for detached mode)")
 	startCmd.Flags().String("jira", "", "Jira Ticket ID to start session from (e.g. PROJ-123)")
@@ -37,6 +42,8 @@ func init() {
 	viper.BindPFlag("path", startCmd.Flags().Lookup("path"))
 	viper.BindPFlag("max_iterations", startCmd.Flags().Lookup("max-iterations"))
 	viper.BindPFlag("manager_frequency", startCmd.Flags().Lookup("manager-frequency"))
+	viper.BindPFlag("max_agents", startCmd.Flags().Lookup("max-agents"))
+	viper.BindPFlag("task_max_iterations", startCmd.Flags().Lookup("task-max-iterations"))
 	viper.BindPFlag("detached", startCmd.Flags().Lookup("detached"))
 	viper.BindPFlag("name", startCmd.Flags().Lookup("name"))
 	viper.BindPFlag("jira", startCmd.Flags().Lookup("jira"))
@@ -47,6 +54,14 @@ func init() {
 	startCmd.Flags().String("provider", "", "Agent provider (gemini, gemini-cli, openai, etc)")
 	viper.BindPFlag("model", startCmd.Flags().Lookup("model"))
 	viper.BindPFlag("provider", startCmd.Flags().Lookup("provider"))
+	startCmd.Flags().String("jira-label", "", "Jira Label to find tickets (e.g. agent-work)")
+	startCmd.Flags().Int("max-parallel-tickets", 1, "Maximum number of Jira tickets to process in parallel")
+	viper.BindPFlag("jira_label", startCmd.Flags().Lookup("jira-label"))
+	viper.BindPFlag("max_parallel_tickets", startCmd.Flags().Lookup("max-parallel-tickets"))
+	startCmd.Flags().Bool("auto-merge", false, "Automatically merge PRs if checks pass")
+	viper.BindPFlag("auto_merge", startCmd.Flags().Lookup("auto-merge"))
+	startCmd.Flags().Bool("skip-qa", false, "Skip QA phase and auto-complete (use with caution)")
+	viper.BindPFlag("skip_qa", startCmd.Flags().Lookup("skip-qa"))
 	rootCmd.AddCommand(startCmd)
 }
 
@@ -61,7 +76,7 @@ var startCmd = &cobra.Command{
 				fmt.Fprintf(os.Stderr, "\n=== CRITICAL ERROR: Session Panic ===\n")
 				fmt.Fprintf(os.Stderr, "Error: %v\n", r)
 				fmt.Fprintf(os.Stderr, "Attempting graceful shutdown...\n")
-				os.Exit(1)
+				exit(1)
 			}
 		}()
 
@@ -69,22 +84,48 @@ var startCmd = &cobra.Command{
 		defer stop()
 
 		debug := viper.GetBool("debug")
-		isMock := viper.GetBool("mock")
+		isMockFlag, _ := cmd.Flags().GetBool("mock")
+		isMock := isMockFlag || viper.GetBool("mock")
 		projectPath := viper.GetString("path")
+		if pathFlag, _ := cmd.Flags().GetString("path"); pathFlag != "" {
+			projectPath = pathFlag
+		}
 		maxIterations := viper.GetInt("max_iterations")
+		if maxIterFlag, _ := cmd.Flags().GetInt("max-iterations"); cmd.Flags().Changed("max-iterations") {
+			maxIterations = maxIterFlag
+		}
 		managerFrequency := viper.GetInt("manager_frequency")
+		maxAgents := viper.GetInt("max_agents")
+		taskMaxIterations := viper.GetInt("task_max_iterations")
 		detached := viper.GetBool("detached")
 		sessionName := viper.GetString("name")
 		jiraTicketID := viper.GetString("jira")
+		// Handle Jira Ticket Workflow
+		jiraLabel := viper.GetString("jira_label")
 
-		if debug {
-			fmt.Println("Debug mode is enabled")
+		// Persistent Flags used in config
+		autoMergeFlag, _ := cmd.Flags().GetBool("auto-merge")
+		skipQAFlag, _ := cmd.Flags().GetBool("skip-qa")
+
+		// Global Configuration
+		cfg := SessionConfig{
+			ProjectPath:       projectPath,
+			IsMock:            isMock,
+			MaxIterations:     maxIterations,
+			ManagerFrequency:  managerFrequency,
+			MaxAgents:         maxAgents,
+			TaskMaxIterations: taskMaxIterations,
+			Detached:          detached,
+			SessionName:       sessionName,
+			AllowDirty:        viper.GetBool("allow_dirty"),
+			Stream:            viper.GetBool("stream"),
+			AutoMerge:         autoMergeFlag || viper.GetBool("auto_merge"),
+			SkipQA:            skipQAFlag || viper.GetBool("skip_qa"),
+			ManagerFirst:      viper.GetBool("manager_first"),
+			Debug:             debug,
 		}
 
-		// Handle Jira Ticket Workflow
-		if jiraTicketID != "" {
-			fmt.Printf("Initializing session from Jira Ticket: %s\n", jiraTicketID)
-
+		if jiraTicketID != "" || jiraLabel != "" {
 			// 1. Validate Credentials
 			jiraURL := viper.GetString("jira.url")
 			jiraEmail := viper.GetString("jira.username")
@@ -98,7 +139,6 @@ var startCmd = &cobra.Command{
 				if envEmail := os.Getenv("JIRA_USERNAME"); envEmail != "" {
 					jiraEmail = envEmail
 				} else if envEmail := os.Getenv("JIRA_EMAIL"); envEmail != "" {
-					// Support JIRA_EMAIL as alias for JIRA_USERNAME
 					jiraEmail = envEmail
 				}
 				if envToken := os.Getenv("JIRA_API_TOKEN"); envToken != "" {
@@ -106,428 +146,654 @@ var startCmd = &cobra.Command{
 				}
 
 				if jiraURL == "" || jiraEmail == "" || jiraToken == "" {
-					fmt.Fprintln(os.Stderr, "Error: Jira credentials not found. Please set JIRA_URL, JIRA_USERNAME/JIRA_EMAIL, and JIRA_API_TOKEN environment variables or configure 'jira' section in config.yaml.")
-					os.Exit(1)
+					fmt.Fprintln(os.Stderr, "Error: Jira credentials not found. Please set JIRA_URL, JIRA_USERNAME/JIRA_EMAIL, and JIRA_API_TOKEN.")
+					exit(1)
 				}
 			}
 
-			// 2. Fetch Ticket
 			jClient := jira.NewClient(jiraURL, jiraEmail, jiraToken)
-			ticket, err := jClient.GetTicket(ctx, jiraTicketID)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error fetching Jira ticket: %v\n", err)
-				os.Exit(1)
-			}
 
-			// Extract details
-			fields, ok := ticket["fields"].(map[string]interface{})
-			if !ok {
-				fmt.Fprintln(os.Stderr, "Error: Invalid ticket format (missing fields)")
-				os.Exit(1)
-			}
-			summary, _ := fields["summary"].(string)
-			description := jClient.ParseDescription(ticket)
-
-			fmt.Printf("Ticket Found: %s\nSummary: %s\n", jiraTicketID, summary)
-
-			// 3. Workspace Isolation (Create Temp Dir)
-			timestamp := time.Now().Format("20060102-150405")
-			tempWorkspace := filepath.Join(os.TempDir(), fmt.Sprintf("recac-jira-%s-%s", jiraTicketID, timestamp))
-
-			if err := os.MkdirAll(tempWorkspace, 0755); err != nil {
-				fmt.Fprintf(os.Stderr, "Error creating temp workspace: %v\n", err)
-				os.Exit(1)
-			}
-
-			// 4. Create app_spec.txt
-			specContent := fmt.Sprintf("# Jira Ticket: %s\n# Summary: %s\n\n%s", jiraTicketID, summary, description)
-			specPath := filepath.Join(tempWorkspace, "app_spec.txt")
-			if err := os.WriteFile(specPath, []byte(specContent), 0644); err != nil {
-				fmt.Fprintf(os.Stderr, "Error writing app_spec.txt: %v\n", err)
-				os.Exit(1)
-			}
-
-			fmt.Printf("Workspace created: %s\n", tempWorkspace)
-
-			// 5. Transition Ticket Status (Status Sync)
-			// Default transition ID for "In Progress" is usually 31, but make it configurable if needed
-			transitionID := viper.GetString("jira.transition_id")
-			if transitionID == "" {
-				transitionID = "31" // Default to In Progress
-			}
-
-			fmt.Printf("Transitioning ticket %s to status ID %s...\n", jiraTicketID, transitionID)
-			if err := jClient.TransitionIssue(ctx, jiraTicketID, transitionID); err != nil {
-				fmt.Fprintf(os.Stderr, "Warning: Failed to transition Jira ticket: %v\n", err)
-				// Don't exit, just warn
-			} else {
-				fmt.Println("Jira ticket status updated.")
-			}
-
-			// Override projectPath
-			projectPath = tempWorkspace
-
-			// If session name is not set, set it to Ticket ID
-			if sessionName == "" {
-				sessionName = jiraTicketID
-				// Also update viper for consistency if needed downstream
-				viper.Set("name", sessionName)
-			}
-		}
-
-		// Handle detached mode
-		if detached {
-			if sessionName == "" {
-				fmt.Fprintf(os.Stderr, "Error: --name is required when using --detached\n")
-				os.Exit(1)
-			}
-
-			// Get the executable path
-			executable, err := os.Executable()
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: failed to get executable path: %v\n", err)
-				os.Exit(1)
-			}
-
-			// Resolve absolute path and symlinks
-			executable, err = filepath.EvalSymlinks(executable)
-			if err != nil {
-				// If symlink resolution fails, try absolute path
-				executable, err = filepath.Abs(executable)
+			// 1.5 Collect Ticket IDs
+			var ticketIDs []string
+			if jiraTicketID != "" {
+				ticketIDs = append(ticketIDs, jiraTicketID)
+			} else if jiraLabel != "" {
+				fmt.Printf("Searching for tickets with label '%s'...\n", jiraLabel)
+				jql := fmt.Sprintf("labels = \"%s\" AND statusCategory != Done ORDER BY created DESC", jiraLabel)
+				issues, err := jClient.SearchIssues(ctx, jql)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "Error: failed to resolve executable path: %v\n", err)
-					os.Exit(1)
+					fmt.Fprintf(os.Stderr, "Error searching Jira tickets: %v\n", err)
+					exit(1)
 				}
-			} else {
-				// EvalSymlinks already returns absolute path, but ensure it
-				executable, err = filepath.Abs(executable)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Error: failed to get absolute path: %v\n", err)
-					os.Exit(1)
-				}
-			}
 
-			// Verify executable exists and is accessible
-			if stat, err := os.Stat(executable); err != nil {
-				// Try fallback: look for recac-app in current directory
-				cwd, _ := os.Getwd()
-				fallback := filepath.Join(cwd, "recac-app")
-				if stat2, err2 := os.Stat(fallback); err2 == nil {
-					executable = fallback
-					stat = stat2
+				if len(issues) == 0 {
+					fmt.Printf("No open tickets found with label '%s'. Exiting.\n", jiraLabel)
+					return
+				}
+
+				// Sort issues by dependencies (blockers first)
+				sortedIssues, err := jira.ResolveDependencies(issues, func(issue map[string]interface{}) ([]string, error) {
+					// We need to fetch the full issue to get links if not present?
+					// But our Search includes "issuelinks".
+					// Does ResolveDependencies expect keys?
+					// Yes, Update ResolveDependencies usage.
+					// Actually, GetBlockers returns formatted strings "KEY (Status)".
+					// We need just keys for dependency graph.
+					// Let's make a wrapper or update GetBlockers.
+					// For now, let's just extract the Key from GetBlockers output or reimplement simple key extraction here.
+
+					rawBlockers := jClient.GetBlockers(issue)
+					var keys []string
+					for _, b := range rawBlockers {
+						// Format is "KEY (Status)"
+						parts := strings.Split(b, " (")
+						if len(parts) > 0 {
+							keys = append(keys, parts[0])
+						}
+					}
+					return keys, nil
+				})
+
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Warning: Failed to sort issues by dependency: %v. Proceeding with default order.\n", err)
+					sortedIssues = issues
 				} else {
-					fmt.Fprintf(os.Stderr, "Error: executable not found at %s: %v\n", executable, err)
-					os.Exit(1)
+					fmt.Println("Tickets sorted by dependency (blockers first).")
 				}
-			} else {
-				// Verify it's executable
-				if stat.Mode()&0111 == 0 {
-					fmt.Fprintf(os.Stderr, "Error: %s is not executable\n", executable)
-					os.Exit(1)
+
+				for _, issue := range sortedIssues {
+					if key, ok := issue["key"].(string); ok {
+						ticketIDs = append(ticketIDs, key)
+					}
+				}
+				fmt.Printf("Found %d tickets to process.\n", len(ticketIDs))
+			}
+
+			// Parallel Multi-Ticket Processing Loop
+			maxParallelTickets := viper.GetInt("max_parallel_tickets")
+			if maxParallelTickets < 1 {
+				maxParallelTickets = 1
+			}
+
+			// If only one ticket, run synchronously
+			if len(ticketIDs) == 1 {
+				processJiraTicket(ctx, ticketIDs[0], jClient, cfg)
+				return
+			}
+
+			// Build Dependency Graphs
+			localTickets := make(map[string]bool)
+			for _, id := range ticketIDs {
+				localTickets[id] = true
+			}
+
+			// internalBlockers[A] = [B, C] -> A is blocked by B and C
+			internalBlockers := make(map[string]map[string]bool)
+			// blockedBy[B] = [A, D] -> B blocks A and D
+			blockedBy := make(map[string][]string)
+
+			// Pre-calculate dependencies
+			// We iterate sortedIssues to get the full data if available, or fetch if needed.
+			// Re-fetching efficient enough? We already have sortedIssues inside the if block,
+			// but we are outside it now?
+			// sortedIssues scope is inside 'if jiraLabel != ""'.
+			// We can't access sortedIssues here if ticketIDs implies we came from there.
+			// Actually ticketIDs is just strings.
+			// But we have jClient.
+			// Let's iterate ticketIDs and define dependencies.
+			// Note: processJiraTicket calls GetTicket -> GetBlockers.
+			// We should avoid double fetching if possible, but for correct ordering we need it.
+			// Since we did SearchIssues previously, we have the data, but we discarded it into ticketIDs.
+			// Just re-fetching blockers for dependency graph is safer than assuming sort order equals dependency map.
+
+			// Optimization: If we came from Search, we effectively have the issues.
+			// But scoping prevents access.
+			// Let's just fetch blockers. It's metadata light.
+
+			fmt.Println("Building dependency graph for parallel execution...")
+			for _, id := range ticketIDs {
+				// We need basic issue data to get blockers.
+				// We can assume GetTicket is cached or fast enough.
+				// Or use a lightweight check.
+				// Actually, JClient.GetTicket makes an API call.
+				// Doing this 15 times before starting is okay-ish.
+				t, err := jClient.GetTicket(ctx, id)
+				if err != nil {
+					fmt.Printf("Warning: Failed to fetch metadata for %s: %v. Assuming no dependencies.\n", id, err)
+					continue
+				}
+
+				blockers := jClient.GetBlockers(t)
+				for _, bRaw := range blockers {
+					// Format "KEY (Status)"
+					parts := strings.Split(bRaw, " (")
+					if len(parts) > 0 {
+						bKey := parts[0]
+						if localTickets[bKey] {
+							if internalBlockers[id] == nil {
+								internalBlockers[id] = make(map[string]bool)
+							}
+							internalBlockers[id][bKey] = true
+							blockedBy[bKey] = append(blockedBy[bKey], id)
+						}
+					}
 				}
 			}
 
-			// Build command to re-execute in foreground (without --detached)
-			command := []string{executable, "start"}
-			if projectPath != "" {
-				command = append(command, "--path", projectPath)
-			}
-			if isMock {
-				command = append(command, "--mock")
-			}
-			if maxIterations != 20 {
-				command = append(command, "--max-iterations", fmt.Sprintf("%d", maxIterations))
-			}
-			if managerFrequency != 5 {
-				command = append(command, "--manager-frequency", fmt.Sprintf("%d", managerFrequency))
-			}
-			// Pass allow-dirty flag if set
-			allowDirty := viper.GetBool("allow_dirty")
-			if allowDirty {
-				command = append(command, "--allow-dirty")
+			// Channels
+			readyCh := make(chan string, len(ticketIDs))
+			completionCh := make(chan string, len(ticketIDs))
+
+			// Initial Ready Set
+			for _, id := range ticketIDs {
+				if len(internalBlockers[id]) == 0 {
+					readyCh <- id
+				}
 			}
 
-			// Use default workspace if not provided
-			if projectPath == "" {
-				projectPath = "."
+			// Worker Pool
+			var wg sync.WaitGroup
+			// We use a semaphore for limiting CONCURRENT execution, but we use strict dependency ordering for STARTING.
+			sem := make(chan struct{}, maxParallelTickets)
+
+			// Start Coordinator Routine
+			// Monitors completion and schedules dependents
+			go func() {
+				// We expect 'len(ticketIDs)' completions
+				completed := 0
+				total := len(ticketIDs)
+
+				for completed < total {
+					doneID := <-completionCh
+					completed++
+					// fmt.Printf("Coordinator: %s finished. (%d/%d)\n", doneID, completed, total)
+
+					// Release dependents
+					for _, depID := range blockedBy[doneID] {
+						if internalBlockers[depID] != nil {
+							delete(internalBlockers[depID], doneID)
+							if len(internalBlockers[depID]) == 0 {
+								// No more local blockers!
+								readyCh <- depID
+							}
+						}
+					}
+				}
+				close(readyCh)
+			}()
+
+			// Worker Loop
+			// We interpret 'readyCh' as "Tickets ready to be processed respecting dependencies"
+			// We respect maxParallelTickets for CPU/Agent-limit.
+			for id := range readyCh {
+				wg.Add(1)
+				go func(targetID string) {
+					defer wg.Done()
+
+					// Acquire Semaphore
+					sem <- struct{}{}
+					defer func() { <-sem }()
+
+					// Process
+					processJiraTicket(ctx, targetID, jClient, cfg)
+
+					// Signal Completion
+					completionCh <- targetID
+				}(id)
 			}
 
-			// Start session in background
-			sm, err := runner.NewSessionManager()
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: failed to create session manager: %v\n", err)
-				os.Exit(1)
-			}
-
-			session, err := sm.StartSession(sessionName, command, projectPath)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: failed to start detached session: %v\n", err)
-				os.Exit(1)
-			}
-
-			fmt.Printf("Session '%s' started in background (PID: %d)\n", sessionName, session.PID)
-			fmt.Printf("Log file: %s\n", session.LogFile)
-			fmt.Printf("Use 'recac-app list' to view sessions\n")
-			fmt.Printf("Use 'recac-app logs %s' to view output\n", sessionName)
+			wg.Wait()
 			return
 		}
 
-		// Mock mode: start session with mock Docker and mock agent
-		if isMock {
-			fmt.Println("Starting in MOCK MODE (no Docker or API keys required)")
-
-			// Use mock Docker client
-			dockerCli, _ := docker.NewMockClient()
-
-			// Use mock agent
-			var agentClient agent.Agent = agent.NewMockAgent()
-
-			// Default project path if not provided
-			if projectPath == "" {
-				projectPath = "/tmp/recac-mock-workspace"
-				fmt.Printf("No project path provided, using: %s\n", projectPath)
-			}
-
-			// Start Session
-			session := runner.NewSession(dockerCli, agentClient, projectPath, "recac-agent:latest")
-			session.MaxIterations = maxIterations
-			session.ManagerFrequency = managerFrequency
-			session.StreamOutput = viper.GetBool("stream")
-
-			// Configure StateManager for agents that support it (e.g., Gemini)
-			if session.StateManager != nil {
-				// Type assert to check if agent supports StateManager
-				if geminiClient, ok := agentClient.(*agent.GeminiClient); ok {
-					geminiClient.WithStateManager(session.StateManager)
-				}
-			}
-
-			if err := session.Start(ctx); err != nil {
-				if ctx.Err() != nil {
-					fmt.Println("\nSession interrupted by user.")
-					return
-				}
-				fmt.Printf("Session initialization failed: %v\n", err)
-				os.Exit(1)
-			}
-
-			// Run Autonomous Loop
-			if err := session.RunLoop(ctx); err != nil {
-				if ctx.Err() != nil {
-					fmt.Println("\nSession interrupted by user.")
-					return
-				}
-				fmt.Printf("Session loop failed: %v\n", err)
-				os.Exit(1)
-			}
-			return
-		}
-
-		// TUI Wizard (only if path is not provided)
-		if projectPath == "" {
+		// Local Path Workflow
+		if cfg.ProjectPath == "" {
 			p := tea.NewProgram(ui.NewWizardModel())
 			m, err := p.Run()
 			if err != nil {
-				fmt.Printf("Alas, there's been an error: %v", err)
-				os.Exit(1)
+				fmt.Printf("Wizard error: %v", err)
+				exit(1)
 			}
 
-			// Cast model to WizardModel to retrieve data
 			wizardModel, ok := m.(ui.WizardModel)
 			if !ok {
 				fmt.Println("Could not retrieve wizard data")
-				os.Exit(1)
+				exit(1)
 			}
-			projectPath = wizardModel.Path
-			if projectPath == "" {
+			cfg.ProjectPath = wizardModel.Path
+			if cfg.ProjectPath == "" {
 				fmt.Println("No project path selected. Exiting.")
 				return
 			}
 
-			// Set Provider from Wizard if available
 			if wizardModel.Provider != "" {
 				viper.Set("provider", wizardModel.Provider)
-				fmt.Printf("Using provider: %s\n", wizardModel.Provider)
+			}
+			if wizardModel.MaxAgents > 0 {
+				cfg.MaxAgents = wizardModel.MaxAgents
+			}
+			if wizardModel.TaskMaxIterations > 0 {
+				cfg.TaskMaxIterations = wizardModel.TaskMaxIterations
 			}
 		} else {
-			fmt.Printf("Using project path from flag: %s\n", projectPath)
+			fmt.Printf("Using project path: %s\n", cfg.ProjectPath)
 		}
 
-		fmt.Println("\nStarting RECAC session...")
+		if err := runWorkflow(ctx, cfg); err != nil {
+			fmt.Fprintf(os.Stderr, "Session failed: %v\n", err)
+			exit(1)
+		}
+	},
+}
 
-		// Pre-flight Check: Git Clean Status
-		allowDirty := viper.GetBool("allow_dirty")
-		if !allowDirty && !isMock {
-			// Check if projectPath is inside a git repository
-			cmd := exec.Command("git", "rev-parse", "--is-inside-work-tree")
-			cmd.Dir = projectPath
-			if err := cmd.Run(); err == nil {
-				// It is a git repo, check status
-				cmd := exec.Command("git", "status", "--porcelain")
-				cmd.Dir = projectPath
-				output, err := cmd.Output()
+// SessionConfig holds all parameters for a RECAC session
+type SessionConfig struct {
+	ProjectPath       string
+	ProjectName       string
+	IsMock            bool
+	MaxIterations     int
+	ManagerFrequency  int
+	MaxAgents         int
+	TaskMaxIterations int
+	Detached          bool
+	SessionName       string
+	JiraEpicKey       string
+	AllowDirty        bool
+	Stream            bool
+	AutoMerge         bool
+	SkipQA            bool
+	ManagerFirst      bool
+	Debug             bool
+	JiraClient        *jira.Client
+	JiraTicketID      string
+	RepoURL           string
+}
+
+// processJiraTicket handles the Jira-specific workflow and then runs the project session
+func processJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.Client, cfg SessionConfig) {
+	// 2. Fetch Ticket
+	ticket, err := jClient.GetTicket(ctx, jiraTicketID)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[%s] Error fetching Jira ticket: %v\n", jiraTicketID, err)
+		return
+	}
+
+	// 2a. Check for Blockers
+	blockers := jClient.GetBlockers(ticket)
+	if len(blockers) > 0 {
+		fmt.Printf("[%s] SKIPPING: Ticket is blocked by: %s\n", jiraTicketID, strings.Join(blockers, ", "))
+		return
+	}
+
+	// Extract details
+	fields, ok := ticket["fields"].(map[string]interface{})
+	if !ok {
+		fmt.Fprintf(os.Stderr, "[%s] Error: Invalid ticket format (missing fields)\n", jiraTicketID)
+		return
+	}
+	summary, _ := fields["summary"].(string)
+	description := jClient.ParseDescription(ticket)
+
+	// Epic Detection
+	if parent, ok := fields["parent"].(map[string]interface{}); ok {
+		if parentKey, ok := parent["key"].(string); ok {
+			cfg.JiraEpicKey = parentKey
+			fmt.Printf("[%s] Detected parent Epic: %s\n", jiraTicketID, cfg.JiraEpicKey)
+		}
+	}
+
+	fmt.Printf("[%s] Ticket Found: %s\nSummary: %s\n", jiraTicketID, jiraTicketID, summary)
+
+	// 3. Workspace Isolation (Create Temp Dir)
+	timestamp := time.Now().Format("20060102-150405")
+	pattern := fmt.Sprintf("recac-jira-%s-%s-*", jiraTicketID, timestamp)
+	tempWorkspace, err := os.MkdirTemp("", pattern)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[%s] Error creating temp workspace: %v\n", jiraTicketID, err)
+		return
+	}
+
+	var repoURL string
+	repoRegex := regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
+	matches := repoRegex.FindStringSubmatch(description)
+	if len(matches) > 1 {
+		repoURL = strings.TrimSuffix(matches[1], ".git")
+		fmt.Printf("[%s] Found repository URL in ticket: %s\n", jiraTicketID, repoURL)
+
+		gitClient := git.NewClient()
+
+		authRepoURL := repoURL
+		// Handle GitHub Auth if token provided
+		githubKey := os.Getenv("GITHUB_API_KEY")
+		if githubKey != "" && strings.Contains(repoURL, "github.com") {
+			authRepoURL = strings.Replace(repoURL, "https://github.com/", fmt.Sprintf("https://%s@github.com/", githubKey), 1)
+		}
+
+		fmt.Printf("[%s] Cloning repository into %s...\n", jiraTicketID, tempWorkspace)
+		if err := gitClient.Clone(ctx, authRepoURL, tempWorkspace); err != nil {
+			fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to clone repository: %v. Initializing empty repo instead.\n", jiraTicketID, err)
+		} else {
+			// Handle Epic Branching Strategy
+			if cfg.JiraEpicKey != "" {
+				epicBranch := fmt.Sprintf("agent-epic/%s", cfg.JiraEpicKey)
+				fmt.Printf("[%s] Checking for Epic branch: %s\n", jiraTicketID, epicBranch)
+
+				exists, err := gitClient.RemoteBranchExists(tempWorkspace, "origin", epicBranch)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "Warning: Failed to check git status: %v\n", err)
-				} else if len(output) > 0 {
-					fmt.Fprintf(os.Stderr, "Error: Uncommitted changes detected in %s\n", projectPath)
-					fmt.Fprintf(os.Stderr, "Run with --allow-dirty to bypass this check.\n")
-					os.Exit(1)
+					fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to check remote for epic branch: %v\n", jiraTicketID, err)
+				}
+
+				if exists {
+					fmt.Printf("[%s] Epic branch '%s' found. Checking out...\n", jiraTicketID, epicBranch)
+					if err := gitClient.Fetch(tempWorkspace, "origin", epicBranch); err != nil {
+						fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to fetch epic branch: %v\n", jiraTicketID, err)
+					}
+					if err := gitClient.Checkout(tempWorkspace, epicBranch); err != nil {
+						fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to checkout epic branch: %v\n", jiraTicketID, err)
+					}
+				} else {
+					fmt.Printf("[%s] Epic branch '%s' not found. Creating from default branch...\n", jiraTicketID, epicBranch)
+					if err := gitClient.CheckoutNewBranch(tempWorkspace, epicBranch); err != nil {
+						fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to create epic branch: %v\n", jiraTicketID, err)
+					} else {
+						// HACK: Remove .github/workflows to prevent permission errors when pushing with limited tokens
+						workflowsDir := filepath.Join(tempWorkspace, ".github")
+						if _, err := os.Stat(workflowsDir); err == nil {
+							fmt.Printf("[%s] Removing .github directory to bypass workflow permissions...\n", jiraTicketID)
+							os.RemoveAll(workflowsDir)
+							if err := gitClient.Commit(tempWorkspace, "Remove workflows to bypass permissions"); err != nil {
+								fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to commit workflow removal: %v\n", jiraTicketID, err)
+							}
+						}
+
+						if err := gitClient.Push(tempWorkspace, epicBranch); err != nil {
+							fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to push epic branch: %v\n", jiraTicketID, err)
+						}
+					}
+				}
+			}
+
+			// Create and Checkout Feature Branch
+			branchName := fmt.Sprintf("agent/%s-%s", jiraTicketID, timestamp)
+			fmt.Printf("[%s] Creating and switching to feature branch: %s\n", jiraTicketID, branchName)
+			if err := gitClient.CheckoutNewBranch(tempWorkspace, branchName); err != nil {
+				fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to create branch: %v\n", jiraTicketID, err)
+			} else {
+				// Push the branch immediately
+				fmt.Printf("[%s] Pushing branch to remote: %s\n", jiraTicketID, branchName)
+				if err := gitClient.Push(tempWorkspace, branchName); err != nil {
+					fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to push branch: %v\n", jiraTicketID, err)
 				}
 			}
 		}
+	}
 
-		// Start metrics server if telemetry is enabled
-		metricsPort := viper.GetInt("metrics_port")
-		if metricsPort == 0 {
-			metricsPort = 9090 // Default port
-		}
-		metricsAddr := fmt.Sprintf(":%d", metricsPort)
-		go func() {
-			if err := telemetry.StartMetricsServer(metricsAddr); err != nil {
-				telemetry.LogDebug("Metrics server error", "error", err)
-			}
-		}()
+	// 5. Create app_spec.txt
+	specContent := fmt.Sprintf("# Jira Ticket: %s\n# Summary: %s\n\n%s", jiraTicketID, summary, description)
+	specPath := filepath.Join(tempWorkspace, "app_spec.txt")
+	if err := os.WriteFile(specPath, []byte(specContent), 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "[%s] Error writing app_spec.txt: %v\n", jiraTicketID, err)
+		return
+	}
 
-		// Initialize Docker Client
-		var dockerCli *docker.Client
-		{
-			var err error
-			dockerCli, err = docker.NewClient()
-			if err != nil {
-				fmt.Printf("Failed to initialize Docker client: %v\n", err)
-				os.Exit(1)
-			}
-		}
+	fmt.Printf("[%s] Workspace created: %s\n", jiraTicketID, tempWorkspace)
 
-		// Initialize Agent
-		provider := viper.GetString("provider")
-		if provider == "" {
-			provider = "gemini" // Default
-		}
+	// 5. Transition Ticket Status
+	transition := viper.GetString("jira.transition")
+	if transition == "" {
+		transition = "In Progress"
+	}
 
-		apiKey := viper.GetString("api_key")
-		if apiKey == "" {
-			apiKey = os.Getenv("API_KEY")
-			if apiKey == "" {
-				// Fallback to provider-specific env vars
-				if provider == "gemini" {
-					apiKey = os.Getenv("GEMINI_API_KEY")
-				} else if provider == "openai" {
-					apiKey = os.Getenv("OPENAI_API_KEY")
-				} else if provider == "ollama" {
-					// For Ollama, apiKey is actually baseURL (optional)
-					apiKey = os.Getenv("OLLAMA_BASE_URL")
-				} else if provider == "openrouter" {
-					apiKey = os.Getenv("OPENROUTER_API_KEY")
-				}
-			}
-		}
+	fmt.Printf("[%s] Transitioning ticket to '%s'...\n", jiraTicketID, transition)
+	if err := jClient.SmartTransition(ctx, jiraTicketID, transition); err != nil {
+		fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to transition Jira ticket: %v\n", jiraTicketID, err)
+	} else {
+		fmt.Printf("[%s] Jira ticket status updated.\n", jiraTicketID)
+	}
 
-		// Determine model
-		// Priority: --model (flag) > RECAC_MODEL (env) > Provider default > Config
-		// Note: viper.GetString("model") returns the flag value if set,
-		// otherwise it falls back to config.
-		model := viper.GetString("model")
-		envModel := os.Getenv("RECAC_MODEL")
+	// Update configuration for the session run
+	cfg.ProjectPath = tempWorkspace
+	if cfg.SessionName == "" {
+		cfg.SessionName = jiraTicketID
+	}
+	cfg.JiraClient = jClient
+	cfg.JiraTicketID = jiraTicketID
+	cfg.RepoURL = repoURL
 
-		// If the flag was NOT set (empty), check if env var exists
-		// If flag IS set, viper.GetString already has it.
-		// However, to be explicit about priority:
-		if !cmd.Flags().Changed("model") && envModel != "" {
-			model = envModel
+	// Run Workflow
+	if err := runWorkflow(ctx, cfg); err != nil {
+		fmt.Fprintf(os.Stderr, "[%s] Session failed: %v\n", jiraTicketID, err)
+	} else {
+		fmt.Printf("[%s] Session completed successfully.\n", jiraTicketID)
+	}
+}
+
+// runWorkflow handles the execution of a single project session (local or Jira-based)
+func runWorkflow(ctx context.Context, cfg SessionConfig) error {
+	// Handle detached mode
+	if cfg.Detached {
+		if cfg.SessionName == "" {
+			return fmt.Errorf("--name is required when using --detached")
 		}
 
-		if model == "" {
-			// If no explicit flag or env, verify/override defaults for specific providers
-			if provider == "gemini-cli" {
-				model = "auto"
-			} else if provider == "cursor-cli" {
-				model = "auto"
-			} else if provider == "openrouter" {
-				model = "deepseek/deepseek-v3.2"
-			}
-			// For other providers (gemini, openai, ollama), fallback to viper (config) or defaults
-			if model == "" {
-				if provider == "gemini" {
-					model = "gemini-pro"
-				} else if provider == "openai" {
-					model = "gpt-4"
-				} else if provider == "ollama" {
-					model = "llama2"
-				}
-			}
-		}
-
-		// For Ollama, apiKey (baseURL) can be empty (defaults to localhost:11434)
-		// For other providers, require apiKey
-		if apiKey == "" && provider != "ollama" {
-			apiKey = "dummy-key" // Allow starting without key (will fail on Send)
-		}
-
-		agentClient, err := agent.NewAgent(provider, apiKey, model, projectPath)
+		executable, err := os.Executable()
 		if err != nil {
-			fmt.Printf("Failed to initialize agent: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("failed to get executable path: %v", err)
 		}
 
-		// Start Session
-		session := runner.NewSession(dockerCli, agentClient, projectPath, "recac-agent:latest")
-		session.MaxIterations = maxIterations
-		session.ManagerFrequency = managerFrequency
-		session.ManagerFirst = viper.GetBool("manager_first")
-		session.StreamOutput = viper.GetBool("stream")
+		executable, err = filepath.EvalSymlinks(executable)
+		if err != nil {
+			executable, _ = filepath.Abs(executable)
+		} else {
+			executable, _ = filepath.Abs(executable)
+		}
 
-		// Configure StateManager for agents that support it (Gemini, OpenAI)
-		if session.StateManager != nil {
-			// Read max_tokens from config (agent.max_tokens)
-			maxTokens := viper.GetInt("agent.max_tokens")
-			if maxTokens == 0 {
-				// Try alternative config path
-				maxTokens = viper.GetInt("max_tokens")
+		// Verify executable
+		if stat, err := os.Stat(executable); err != nil || stat.Mode()&0111 == 0 {
+			// Fallback to recac-app in CWD
+			cwd, _ := os.Getwd()
+			fallback := filepath.Join(cwd, "recac-app")
+			if stat2, err2 := os.Stat(fallback); err2 == nil && stat2.Mode()&0111 != 0 {
+				executable = fallback
+			} else {
+				return fmt.Errorf("executable not found or not executable at %s", executable)
 			}
-			if maxTokens == 0 {
-				// Default based on provider
-				if provider == "gemini" {
-					maxTokens = 32000
-				} else if provider == "openai" {
-					maxTokens = 128000
-				} else if provider == "openrouter" {
-					maxTokens = 128000
-				}
-			}
+		}
 
-			// Initialize state with max_tokens
-			if err := session.InitializeAgentState(maxTokens); err != nil {
-				fmt.Printf("Warning: Failed to initialize agent state with max_tokens: %v\n", err)
-			}
+		command := []string{executable, "start"}
+		if cfg.ProjectPath != "" {
+			command = append(command, "--path", cfg.ProjectPath)
+		}
+		if cfg.IsMock {
+			command = append(command, "--mock")
+		}
+		if cfg.MaxIterations != 20 {
+			command = append(command, "--max-iterations", fmt.Sprintf("%d", cfg.MaxIterations))
+		}
+		if cfg.ManagerFrequency != 5 {
+			command = append(command, "--manager-frequency", fmt.Sprintf("%d", cfg.ManagerFrequency))
+		}
+		if cfg.TaskMaxIterations != 10 {
+			command = append(command, "--task-max-iterations", fmt.Sprintf("%d", cfg.TaskMaxIterations))
+		}
+		if cfg.AllowDirty {
+			command = append(command, "--allow-dirty")
+		}
 
-			// Type assert to check if agent supports StateManager
-			if geminiClient, ok := agentClient.(*agent.GeminiClient); ok {
-				geminiClient.WithStateManager(session.StateManager)
-			} else if openAIClient, ok := agentClient.(*agent.OpenAIClient); ok {
-				openAIClient.WithStateManager(session.StateManager)
-			} else if openRouterClient, ok := agentClient.(*agent.OpenRouterClient); ok {
-				openRouterClient.WithStateManager(session.StateManager)
-			}
+		projectPath := cfg.ProjectPath
+		if projectPath == "" {
+			projectPath = "."
+		}
+
+		sm, err := runner.NewSessionManager()
+		if err != nil {
+			return fmt.Errorf("failed to create session manager: %v", err)
+		}
+
+		session, err := sm.StartSession(cfg.SessionName, command, projectPath)
+		if err != nil {
+			return fmt.Errorf("failed to start detached session: %v", err)
+		}
+
+		fmt.Printf("Session '%s' started in background (PID: %d)\n", cfg.SessionName, session.PID)
+		fmt.Printf("Log file: %s\n", session.LogFile)
+		return nil
+	}
+
+	// Mock mode
+	if cfg.IsMock {
+		fmt.Printf("[%s] Starting in MOCK MODE\n", cfg.SessionName)
+		dockerCli, _ := docker.NewMockClient()
+		agentClient := agent.NewMockAgent()
+
+		projectPath := cfg.ProjectPath
+		if projectPath == "" {
+			projectPath = "/tmp/recac-mock-workspace"
+		}
+
+		projectName := cfg.ProjectName
+		if projectName == "" {
+			projectName = "mock-project"
+		}
+
+		session := runner.NewSession(dockerCli, agentClient, projectPath, "recac-agent:latest", projectName, cfg.MaxAgents)
+		session.MaxIterations = cfg.MaxIterations
+		session.TaskMaxIterations = cfg.TaskMaxIterations
+		session.ManagerFrequency = cfg.ManagerFrequency
+		session.StreamOutput = cfg.Stream
+		session.AutoMerge = cfg.AutoMerge
+		session.SkipQA = cfg.SkipQA
+		session.ManagerFirst = cfg.ManagerFirst
+
+		if cfg.JiraEpicKey != "" {
+			session.BaseBranch = fmt.Sprintf("agent-epic/%s", cfg.JiraEpicKey)
 		}
 
 		if err := session.Start(ctx); err != nil {
 			if ctx.Err() != nil {
-				fmt.Println("\nSession interrupted by user.")
-				return
+				return nil
 			}
-			fmt.Printf("Session initialization failed: %v\n", err)
-			os.Exit(1)
+			return err
 		}
+		return session.RunLoop(ctx)
+	}
 
-		// Run Autonomous Loop
-		if err := session.RunLoop(ctx); err != nil {
-			if ctx.Err() != nil {
-				fmt.Println("\nSession interrupted by user.")
-				return
+	// Normal mode
+	fmt.Printf("[%s] Starting RECAC session...\n", cfg.SessionName)
+
+	projectPath := cfg.ProjectPath
+	if projectPath == "" {
+		projectPath = "."
+	}
+
+	// Pre-flight check
+	if !cfg.AllowDirty {
+		cmd := exec.Command("git", "rev-parse", "--is-inside-work-tree")
+		cmd.Dir = projectPath
+		if err := cmd.Run(); err == nil {
+			cmd := exec.Command("git", "status", "--porcelain")
+			cmd.Dir = projectPath
+			output, _ := cmd.Output()
+			if len(output) > 0 {
+				return fmt.Errorf("uncommitted changes detected in %s. Run with --allow-dirty to bypass", projectPath)
 			}
-			fmt.Printf("Session loop failed: %v\n", err)
-			os.Exit(1)
 		}
-	},
+	}
+
+	projectName := cfg.ProjectName
+	if projectName == "" {
+		projectName = filepath.Base(projectPath)
+		if projectName == "." || projectName == "/" {
+			cwd, _ := os.Getwd()
+			projectName = filepath.Base(cwd)
+		}
+	}
+
+	if cfg.SessionName == "" {
+		cfg.SessionName = projectName
+	}
+
+	dockerCli, err := docker.NewClient(projectName)
+	if err != nil {
+		return fmt.Errorf("failed to initialize Docker client: %v", err)
+	}
+
+	provider := viper.GetString("provider")
+	if provider == "" {
+		provider = "gemini"
+	}
+
+	apiKey := viper.GetString("api_key")
+	if apiKey == "" {
+		apiKey = os.Getenv("API_KEY")
+		if apiKey == "" {
+			if provider == "gemini" {
+				apiKey = os.Getenv("GEMINI_API_KEY")
+			} else if provider == "openai" {
+				apiKey = os.Getenv("OPENAI_API_KEY")
+			} else if provider == "openrouter" {
+				apiKey = os.Getenv("OPENROUTER_API_KEY")
+			}
+		}
+	}
+	if apiKey == "" && provider != "ollama" {
+		apiKey = "dummy-key"
+	}
+
+	model := viper.GetString("model")
+	if model == "" {
+		if provider == "openrouter" {
+			model = "deepseek/deepseek-v3.2"
+		} else if provider == "gemini" {
+			model = "gemini-pro"
+		} else if provider == "openai" {
+			model = "gpt-4"
+		}
+	}
+
+	agentClient, err := agent.NewAgent(provider, apiKey, model, projectPath, projectName)
+	if err != nil {
+		return fmt.Errorf("failed to initialize agent: %v", err)
+	}
+
+	session := runner.NewSession(dockerCli, agentClient, projectPath, "recac-agent:latest", projectName, cfg.MaxAgents)
+	session.MaxIterations = cfg.MaxIterations
+	session.TaskMaxIterations = cfg.TaskMaxIterations
+	session.ManagerFrequency = cfg.ManagerFrequency
+	session.ManagerFirst = cfg.ManagerFirst
+	session.StreamOutput = cfg.Stream
+	session.AutoMerge = cfg.AutoMerge
+	session.SkipQA = cfg.SkipQA
+	session.JiraClient = cfg.JiraClient
+	session.JiraTicketID = cfg.JiraTicketID
+	session.RepoURL = cfg.RepoURL
+
+	if cfg.JiraEpicKey != "" {
+		session.BaseBranch = fmt.Sprintf("agent-epic/%s", cfg.JiraEpicKey)
+	}
+
+	// State Management
+	if session.StateManager != nil {
+		maxTokens := viper.GetInt("agent.max_tokens")
+		if maxTokens == 0 {
+			maxTokens = 128000
+		}
+		session.InitializeAgentState(maxTokens)
+
+		if geminiClient, ok := agentClient.(*agent.GeminiClient); ok {
+			geminiClient.WithStateManager(session.StateManager)
+		} else if openAIClient, ok := agentClient.(*agent.OpenAIClient); ok {
+			openAIClient.WithStateManager(session.StateManager)
+		} else if openRouterClient, ok := agentClient.(*agent.OpenRouterClient); ok {
+			openRouterClient.WithStateManager(session.StateManager)
+		}
+	}
+
+	if err := session.Start(ctx); err != nil {
+		if ctx.Err() != nil {
+			return nil
+		}
+		return err
+	}
+	return session.RunLoop(ctx)
 }

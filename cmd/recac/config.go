@@ -49,7 +49,7 @@ var setCmd = &cobra.Command{
 
 		if err := viper.WriteConfigAs(filename); err != nil {
 			fmt.Fprintf(os.Stderr, "Error writing config to %s: %v\n", filename, err)
-			os.Exit(1)
+			exit(1)
 		}
 
 		fmt.Printf("Configuration updated: %s = %v\n", key, value)

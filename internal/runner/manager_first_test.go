@@ -23,7 +23,7 @@ func TestSelectPrompt_ManagerFirst(t *testing.T) {
 	}
 
 	// Test Iteration 1 with ManagerFirst=true
-	_, isManager, err := session.SelectPrompt()
+	_, _, isManager, err := session.SelectPrompt()
 	if err != nil {
 		t.Fatalf("SelectPrompt failed: %v", err)
 	}
@@ -58,7 +58,7 @@ func TestSelectPrompt_NormalFirst(t *testing.T) {
 	}
 
 	// Test Iteration 1 with ManagerFirst=false
-	_, isManager, err := session.SelectPrompt()
+	_, _, isManager, err := session.SelectPrompt()
 	if err != nil {
 		t.Fatalf("SelectPrompt failed: %v", err)
 	}

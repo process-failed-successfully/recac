@@ -50,33 +50,45 @@ func TestEstimateTokenCount(t *testing.T) {
 
 func TestTruncateToTokenLimit(t *testing.T) {
 	tests := []struct {
-		name      string
-		text       string
-		maxTokens  int
+		name          string
+		text          string
+		maxTokens     int
 		wantTruncated bool
 	}{
 		{
-			name:      "text under limit",
-			text:      "Short text",
-			maxTokens: 100,
+			name:          "text under limit",
+			text:          "Short text",
+			maxTokens:     100,
 			wantTruncated: false,
 		},
 		{
-			name:      "text over limit",
-			text:      "This is a very long text that exceeds the token limit and should be truncated to fit within the specified maximum number of tokens allowed for the context window.",
-			maxTokens: 10,
+			name:          "text over limit",
+			text:          "This is a very long text that exceeds the token limit and should be truncated to fit within the specified maximum number of tokens allowed for the context window.",
+			maxTokens:     10,
 			wantTruncated: true,
 		},
 		{
-			name:      "zero limit",
-			text:      "Any text",
-			maxTokens: 0,
+			name:          "zero limit",
+			text:          "Any text",
+			maxTokens:     0,
 			wantTruncated: true,
 		},
 		{
-			name:      "multiline text",
-			text:      "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6\nLine 7\nLine 8\nLine 9\nLine 10",
-			maxTokens: 5,
+			name:          "multiline text",
+			text:          "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6\nLine 7\nLine 8\nLine 9\nLine 10",
+			maxTokens:     5,
+			wantTruncated: true,
+		},
+		{
+			name:          "single line truncation",
+			text:          "ThisIsAVeryLongSingleLinePart1Part2Part3Part4Part5",
+			maxTokens:     5,
+			wantTruncated: true,
+		},
+		{
+			name:          "marker exceeds limit",
+			text:          "Some text",
+			maxTokens:     1,
 			wantTruncated: true,
 		},
 	}
@@ -104,8 +116,8 @@ func TestTruncateToTokenLimit(t *testing.T) {
 func TestSummarizeForTokenLimit(t *testing.T) {
 	tests := []struct {
 		name      string
-		text       string
-		maxTokens  int
+		text      string
+		maxTokens int
 	}{
 		{
 			name:      "text under limit",

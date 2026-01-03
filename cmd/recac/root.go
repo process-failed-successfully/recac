@@ -5,12 +5,14 @@ import (
 	"os"
 	"recac/internal/config"
 	"recac/internal/telemetry"
+	"strings"
 
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
+var exit = os.Exit
 var cfgFile string
 
 // rootCmd represents the base command when called without any subcommands
@@ -32,7 +34,7 @@ func Execute() {
 			fmt.Fprintf(os.Stderr, "\n=== CRITICAL ERROR: Command Execution Panic ===\n")
 			fmt.Fprintf(os.Stderr, "Error: %v\n", r)
 			fmt.Fprintf(os.Stderr, "Attempting graceful shutdown...\n")
-			os.Exit(1)
+			exit(1)
 		}
 	}()
 
@@ -40,7 +42,7 @@ func Execute() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: command not found: %v\n", err)
 		fmt.Fprintln(os.Stderr, "Run 'recac --help' for usage.")
-		os.Exit(1)
+		exit(1)
 	}
 }
 
@@ -83,7 +85,40 @@ func initConfig() {
 	}
 
 	viper.SetEnvPrefix("RECAC")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv() // read in environment variables that match
+
+	// Check for standard JIRA_URL if RECAC_JIRA_URL is not set
+	if os.Getenv("RECAC_JIRA_URL") == "" && os.Getenv("JIRA_URL") != "" {
+		viper.SetDefault("jira.url", os.Getenv("JIRA_URL"))
+	}
+
+	// Set defaults
+	viper.SetDefault("provider", "gemini")
+	viper.SetDefault("model", "gemini-pro")
+	viper.SetDefault("max_iterations", 20)
+	viper.SetDefault("manager_frequency", 5)
+	viper.SetDefault("timeout", 300)
+	viper.SetDefault("docker_timeout", 600)
+	viper.SetDefault("bash_timeout", 600)
+	viper.SetDefault("agent_timeout", 300)
+	viper.SetDefault("metrics_port", 2112)
+	viper.SetDefault("verbose", false)
+	viper.SetDefault("git_user_email", "recac-agent@example.com")
+	viper.SetDefault("git_user_name", "RECAC Agent")
+
+	// Notification Defaults
+	slackEnabled := false
+	if os.Getenv("SLACK_BOT_USER_TOKEN") != "" {
+		slackEnabled = true
+	}
+	viper.SetDefault("notifications.slack.enabled", slackEnabled)
+	viper.SetDefault("notifications.slack.channel", "#general")
+	viper.SetDefault("notifications.slack.events.on_start", true)
+	viper.SetDefault("notifications.slack.events.on_success", true)
+	viper.SetDefault("notifications.slack.events.on_failure", true)
+	viper.SetDefault("notifications.slack.events.on_user_interaction", true)
+	viper.SetDefault("notifications.slack.events.on_project_complete", true)
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
@@ -93,18 +128,6 @@ func initConfig() {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok || true { // Force creation if failing to read for any reason (simplification)
 			// check if we already tried to read a specific file
 			if cfgFile == "" {
-				// Set defaults
-				viper.SetDefault("provider", "gemini")
-				viper.SetDefault("model", "gemini-pro")
-				viper.SetDefault("max_iterations", 20)
-				viper.SetDefault("manager_frequency", 5)
-				viper.SetDefault("timeout", 300)
-				viper.SetDefault("docker_timeout", 600)
-				viper.SetDefault("bash_timeout", 120)
-				viper.SetDefault("agent_timeout", 300)
-				viper.SetDefault("metrics_port", 9090)
-				viper.SetDefault("verbose", false)
-
 				// Write config to current directory
 				viper.SetConfigName("config")
 				viper.SetConfigType("yaml")
@@ -133,8 +156,16 @@ func initConfig() {
 	// Validate configuration values
 	if err := config.ValidateConfig(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		exit(1)
 	}
 
-	telemetry.InitLogger(viper.GetBool("verbose"))
+	telemetry.InitLogger(viper.GetBool("verbose"), "")
+
+	// Start Metrics Server
+	go func() {
+		port := viper.GetInt("metrics_port")
+		if err := telemetry.StartMetricsServer(port); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: Failed to start metrics server: %v\n", err)
+		}
+	}()
 }

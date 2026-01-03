@@ -1,3 +1,5 @@
+//go:build ignore
+
 package main
 
 import (
@@ -87,7 +89,7 @@ func main() {
 
 		// Just create it, if it fails validation later that's fine (smoke test purpose)
 		var err error
-		agentClient, err = agent.NewAgent(agentType, apiKey, model, "")
+		agentClient, err = agent.NewAgent(agentType, apiKey, model, "", "smoke-test-project")
 		if err != nil {
 			fmt.Printf("Failed to create agent %s: %v\n", agentType, err)
 			os.Exit(1)
@@ -95,7 +97,7 @@ func main() {
 	}
 
 	// 3. Init Session
-	session := runner.NewSession(dClient, agentClient, tmpDir, "alpine:latest")
+	session := runner.NewSession(dClient, agentClient, tmpDir, "recac-agent:latest", "smoke-test-project", 1)
 	session.MaxIterations = 2 // Short run
 
 	// 4. Run

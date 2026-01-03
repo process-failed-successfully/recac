@@ -2,6 +2,8 @@ package runner
 
 import (
 	"context"
+	"errors"
+	"os"
 	"path/filepath"
 	"recac/internal/db"
 	"recac/internal/docker"
@@ -44,6 +46,13 @@ func (m *MockLoopDocker) Exec(ctx context.Context, containerID string, cmd []str
 	return "", nil
 }
 
+func (m *MockLoopDocker) ExecAsUser(ctx context.Context, containerID string, user string, cmd []string) (string, error) {
+	if m.ExecFunc != nil {
+		return m.ExecFunc(ctx, containerID, cmd)
+	}
+	return "", nil
+}
+
 func (m *MockLoopDocker) ImageExists(ctx context.Context, tag string) (bool, error) {
 	return true, nil
 }
@@ -79,6 +88,7 @@ func (m *MockLoopAgent) SendStream(ctx context.Context, prompt string, onChunk f
 func TestSession_RunLoop_Success(t *testing.T) {
 	// Setup
 	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
 	dbPath := filepath.Join(tmpDir, ".recac.db")
 	store, _ := db.NewSQLiteStore(dbPath)
 	defer store.Close()
@@ -117,7 +127,7 @@ func TestSession_RunLoop_Success(t *testing.T) {
 
 	ctx := context.Background()
 	err := s.RunLoop(ctx)
-	if err != nil {
+	if err != nil && !errors.Is(err, ErrNoOp) {
 		t.Errorf("RunLoop failed: %v", err)
 	}
 

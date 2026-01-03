@@ -12,7 +12,7 @@ import (
 
 func TestNewOllamaClient(t *testing.T) {
 	// Test with default baseURL
-	client := NewOllamaClient("", "llama2")
+	client := NewOllamaClient("", "llama2", "test-project")
 	if client.baseURL != "http://localhost:11434" {
 		t.Errorf("expected default baseURL http://localhost:11434, got %s", client.baseURL)
 	}
@@ -21,7 +21,7 @@ func TestNewOllamaClient(t *testing.T) {
 	}
 
 	// Test with custom baseURL
-	client = NewOllamaClient("http://localhost:8080", "mistral")
+	client = NewOllamaClient("http://localhost:8080", "mistral", "test-project")
 	if client.baseURL != "http://localhost:8080" {
 		t.Errorf("expected baseURL http://localhost:8080, got %s", client.baseURL)
 	}
@@ -64,7 +64,7 @@ func TestOllamaClient_Send_Success(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewOllamaClient(server.URL, "llama2")
+	client := NewOllamaClient(server.URL, "llama2", "test-project")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -80,7 +80,7 @@ func TestOllamaClient_Send_Success(t *testing.T) {
 }
 
 func TestOllamaClient_Send_WithMockResponder(t *testing.T) {
-	client := NewOllamaClient("", "llama2")
+	client := NewOllamaClient("", "llama2", "test-project")
 	client.WithMockResponder(func(prompt string) (string, error) {
 		return "Mock response for: " + prompt, nil
 	})
@@ -99,7 +99,7 @@ func TestOllamaClient_Send_WithMockResponder(t *testing.T) {
 
 func TestOllamaClient_Send_ErrorHandling(t *testing.T) {
 	// Test with empty model
-	client := NewOllamaClient("", "")
+	client := NewOllamaClient("", "", "test-project")
 	ctx := context.Background()
 
 	_, err := client.Send(ctx, "test")
@@ -119,7 +119,7 @@ func TestOllamaClient_Send_ErrorHandling(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client = NewOllamaClient(server.URL, "nonexistent")
+	client = NewOllamaClient(server.URL, "nonexistent", "test-project")
 	_, err = client.Send(ctx, "test")
 	if err == nil {
 		t.Error("expected error for API error response, got nil")
@@ -135,7 +135,7 @@ func TestOllamaClient_Send_ErrorHandling(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client = NewOllamaClient(server.URL, "llama2")
+	client = NewOllamaClient(server.URL, "llama2", "test-project")
 	_, err = client.Send(ctx, "test")
 	if err == nil {
 		t.Error("expected error for HTTP 500, got nil")
@@ -155,7 +155,7 @@ func TestOllamaClient_Send_ContextCancellation(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewOllamaClient(server.URL, "llama2")
+	client := NewOllamaClient(server.URL, "llama2", "test-project")
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
@@ -204,7 +204,7 @@ func TestOllamaProvider_Integration(t *testing.T) {
 	defer server.Close()
 
 	// Step 2: Set the agent provider to 'ollama' and specify a model profile
-	agentClient, err := NewAgent("ollama", server.URL, "mistral", "")
+	agentClient, err := NewAgent("ollama", server.URL, "mistral", "", "test-project")
 	if err != nil {
 		t.Fatalf("failed to create Ollama agent: %v", err)
 	}

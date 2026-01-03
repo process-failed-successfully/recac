@@ -63,3 +63,14 @@ smoke: image ## Run smoke test script via Docker
 shell: image ## Launch a shell inside the build container
 	docker run -it $(DOCKER_RUN_OPTS) $(DOCKER_IMAGE) /bin/sh
 
+
+# Monitoring
+.PHONY: monitor-up monitor-down monitor-logs
+monitor-up: ## Start local monitoring stack (Prometheus, Grafana, Loki)
+	docker compose -f docker-compose.monitoring.yml up -d
+
+monitor-down: ## Stop local monitoring stack
+	docker compose -f docker-compose.monitoring.yml down
+
+monitor-logs: ## View monitoring stack logs
+	docker compose -f docker-compose.monitoring.yml logs -f

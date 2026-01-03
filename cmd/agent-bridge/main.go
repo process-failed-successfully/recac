@@ -9,21 +9,24 @@ import (
 )
 
 func main() {
-	if len(os.Args) < 2 {
-		printUsage()
+	if err := run(os.Args, ".recac.db"); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
+}
 
-	command := os.Args[1]
+func run(args []string, dbPath string) error {
+	if len(args) < 2 {
+		printUsage()
+		return fmt.Errorf("missing command")
+	}
+
+	command := args[1]
 
 	// Initialize DB connection
-	// We assume the DB is at .recac.db in the current directory or workspace root
-	// Since agents run in /workspace, and DB is at /workspace/.recac.db
-	dbPath := ".recac.db"
 	store, err := db.NewSQLiteStore(dbPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: Failed to connect to database: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 	defer store.Close()
 
@@ -31,11 +34,10 @@ func main() {
 
 	switch command {
 	case "blocker":
-		if len(os.Args) < 3 {
-			fmt.Println("Usage: agent-bridge blocker <message>")
-			os.Exit(1)
+		if len(args) < 3 {
+			return fmt.Errorf("usage: agent-bridge blocker <message>")
 		}
-		message := os.Args[2]
+		message := args[2]
 		cmdErr = store.SetSignal("BLOCKER", message)
 		if cmdErr == nil {
 			fmt.Println("Blocker signal set.")
@@ -54,12 +56,11 @@ func main() {
 		}
 
 	case "verify":
-		if len(os.Args) < 4 {
-			fmt.Println("Usage: agent-bridge verify <id> <pass/fail>")
-			os.Exit(1)
+		if len(args) < 4 {
+			return fmt.Errorf("usage: agent-bridge verify <id> <pass/fail>")
 		}
-		id := os.Args[2]
-		status := os.Args[3]
+		id := args[2]
+		status := args[3]
 
 		// 1. Update ui_verification.json
 		uiPath := "ui_verification.json"
@@ -99,37 +100,35 @@ func main() {
 						}
 					}
 				} else {
-					fmt.Printf("Error: Feature ID %s not found in %s\n", id, uiPath)
+					return fmt.Errorf("feature ID %s not found in %s", id, uiPath)
 				}
 			}
 		} else {
-			fmt.Printf("Error: Could not read %s\n", uiPath)
+			return fmt.Errorf("could not read %s", uiPath)
 		}
 
 	case "signal":
-		if len(os.Args) < 4 {
-			fmt.Println("Usage: agent-bridge signal <key> <value>")
-			os.Exit(1)
+		if len(args) < 4 {
+			return fmt.Errorf("usage: agent-bridge signal <key> <value>")
 		}
-		cmdErr = store.SetSignal(os.Args[2], os.Args[3])
+		cmdErr = store.SetSignal(args[2], args[3])
 		if cmdErr == nil {
-			fmt.Printf("Signal %s set to %s.\n", os.Args[2], os.Args[3])
+			fmt.Printf("Signal %s set to %s.\n", args[2], args[3])
 		}
 
 	case "feature":
-		if len(os.Args) < 5 || os.Args[2] != "set" {
-			fmt.Println("Usage: agent-bridge feature set <id> --status <status> --passes <true/false>")
-			os.Exit(1)
+		if len(args) < 5 || args[2] != "set" {
+			return fmt.Errorf("usage: agent-bridge feature set <id> --status <status> --passes <true/false>")
 		}
-		id := os.Args[3]
+		id := args[3]
 		var status string
 		var passes bool
-		for i := 4; i < len(os.Args); i++ {
-			if os.Args[i] == "--status" && i+1 < len(os.Args) {
-				status = os.Args[i+1]
+		for i := 4; i < len(args); i++ {
+			if args[i] == "--status" && i+1 < len(args) {
+				status = args[i+1]
 				i++
-			} else if os.Args[i] == "--passes" && i+1 < len(os.Args) {
-				passes = os.Args[i+1] == "true"
+			} else if args[i] == "--passes" && i+1 < len(args) {
+				passes = args[i+1] == "true"
 				i++
 			}
 		}
@@ -140,13 +139,13 @@ func main() {
 
 	default:
 		printUsage()
-		os.Exit(1)
+		return fmt.Errorf("unknown command: %s", command)
 	}
 
 	if cmdErr != nil {
-		fmt.Fprintf(os.Stderr, "Error executing command: %v\n", cmdErr)
-		os.Exit(1)
+		return fmt.Errorf("error executing command: %w", cmdErr)
 	}
+	return nil
 }
 
 func printUsage() {

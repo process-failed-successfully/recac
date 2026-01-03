@@ -114,7 +114,7 @@ func RunInteractive() {
 	p := tea.NewProgram(ui.NewInteractiveModel(commands))
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Alas, there's been an error: %v", err)
-		os.Exit(1)
+		exit(1)
 	}
 }
 

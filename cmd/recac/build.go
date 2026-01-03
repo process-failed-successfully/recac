@@ -9,8 +9,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/spf13/cobra"
 	"recac/internal/docker"
+
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -28,11 +29,11 @@ var buildCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		if buildContextPath == "" {
 			fmt.Println("Error: build context path is required (--context)")
-			os.Exit(1)
+			exit(1)
 		}
 		if buildTag == "" {
 			fmt.Println("Error: image tag is required (--tag)")
-			os.Exit(1)
+			exit(1)
 		}
 		if buildDockerfile == "" {
 			buildDockerfile = "Dockerfile"
@@ -42,21 +43,28 @@ var buildCmd = &cobra.Command{
 		tarStream, err := createTarStream(buildContextPath)
 		if err != nil {
 			fmt.Printf("Error creating tar stream: %v\n", err)
-			os.Exit(1)
+			exit(1)
+		}
+
+		// Derive project name from build context
+		projectName := filepath.Base(buildContextPath)
+		if projectName == "." || projectName == "/" {
+			cwd, _ := os.Getwd()
+			projectName = filepath.Base(cwd)
 		}
 
 		// Create Docker client
-		client, err := docker.NewClient()
+		client, err := docker.NewClient(projectName)
 		if err != nil {
 			fmt.Printf("Error creating docker client: %v\n", err)
-			os.Exit(1)
+			exit(1)
 		}
 		defer client.Close()
 
 		// Build image
 		opts := docker.ImageBuildOptions{
 			BuildContext: tarStream,
-			Dockerfile:    buildDockerfile,
+			Dockerfile:   buildDockerfile,
 			Tag:          buildTag,
 			NoCache:      buildNoCache,
 		}
@@ -65,7 +73,7 @@ var buildCmd = &cobra.Command{
 		imageID, err := client.ImageBuild(context.Background(), opts)
 		if err != nil {
 			fmt.Printf("Error building image: %v\n", err)
-			os.Exit(1)
+			exit(1)
 		}
 
 		fmt.Printf("Successfully built image: %s\n", imageID)

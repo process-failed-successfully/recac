@@ -1,0 +1,2 @@
+Create a Python script `sort.py` that reads a list of numbers (one per line) from a file `input.txt` and writes the sorted numbers to `output.txt`.
+Create a sample `input.txt` with random numbers to test it.

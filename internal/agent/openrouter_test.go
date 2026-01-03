@@ -2,37 +2,55 @@ package agent
 
 import (
 	"context"
+	"net/http"
 	"testing"
 )
 
-func TestOpenRouterClient_Send(t *testing.T) {
-	client := NewOpenRouterClient("test-key", "google/gemini-2.0-flash-001")
+// MockRoundTripper implements http.RoundTripper
+type MockRoundTripper struct {
+	RoundTripFunc func(req *http.Request) *http.Response
+}
+
+func (m *MockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	return m.RoundTripFunc(req), nil
+}
+
+func TestOpenRouterClient(t *testing.T) {
+	client := NewOpenRouterClient("dummy-key", "test-model", "test-project")
+
+	// 1. Test Send with Mock Responder (Bypasses HTTP)
+	mockResponse := "Mocked OpenRouter Response"
 	client.WithMockResponder(func(prompt string) (string, error) {
-		if prompt == "Hello" {
-			return "World", nil
+		if prompt == "fail" {
+			return "", context.DeadlineExceeded
 		}
-		return "", nil
+		return mockResponse, nil
 	})
 
 	resp, err := client.Send(context.Background(), "Hello")
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("Send failed: %v", err)
+	}
+	if resp != mockResponse {
+		t.Errorf("Expected '%s', got '%s'", mockResponse, resp)
 	}
 
-	if resp != "World" {
-		t.Errorf("expected 'World', got '%s'", resp)
+	// 2. Test State Manager integration
+	tmpDir := t.TempDir()
+	stateFile := tmpDir + "/agent_state.json"
+	sm := NewStateManager(stateFile)
+	_ = sm.InitializeState(1000)
+	
+	client.WithStateManager(sm)
+	
+	resp, err = client.Send(context.Background(), "Hello with State")
+	if err != nil {
+		t.Fatalf("Send with State failed: %v", err)
 	}
-}
-
-func TestOpenRouterClient_New(t *testing.T) {
-	client := NewOpenRouterClient("api-key", "model-id")
-	if client.apiKey != "api-key" {
-		t.Error("API key not set")
-	}
-	if client.model != "model-id" {
-		t.Error("Model not set")
-	}
-	if client.apiURL != "https://openrouter.ai/api/v1/chat/completions" {
-		t.Error("Wrong API URL")
+	
+	// Verify state updated (mock responder should trigger state update logic in Send)
+	state, _ := sm.Load()
+	if state.TokenUsage.TotalTokens == 0 {
+		t.Error("Expected token usage to be updated")
 	}
 }

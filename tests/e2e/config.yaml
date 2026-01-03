@@ -1,0 +1,33 @@
+agent_timeout: 300
+allow_dirty: false
+bash_timeout: 600
+detached: false
+docker_timeout: 600
+git_user_email: recac-agent@example.com
+git_user_name: RECAC Agent
+jira: MFLP-8
+manager_first: false
+manager_frequency: 5
+max_agents: 1
+max_iterations: 20
+metrics_port: 2112
+mock: true
+mock-agent: false
+model: gemini-pro
+name: e2e-test
+notifications:
+    slack:
+        channel: '#general'
+        enabled: false
+        events:
+            on_failure: true
+            on_project_complete: true
+            on_start: true
+            on_success: true
+            on_user_interaction: true
+path: ""
+provider: gemini
+stream: false
+task_max_iterations: 10
+timeout: 300
+verbose: false

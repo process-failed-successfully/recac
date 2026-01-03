@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"recac/internal/telemetry"
 	"strings"
 	"time"
 )
@@ -16,6 +17,7 @@ import (
 type OpenAIClient struct {
 	apiKey     string
 	model      string
+	project    string
 	httpClient *http.Client
 	apiURL     string
 	// mockResponder is used for testing to bypass real API calls
@@ -25,10 +27,11 @@ type OpenAIClient struct {
 }
 
 // NewOpenAIClient creates a new OpenAI client
-func NewOpenAIClient(apiKey, model string) *OpenAIClient {
+func NewOpenAIClient(apiKey, model, project string) *OpenAIClient {
 	return &OpenAIClient{
-		apiKey: apiKey,
-		model:  model,
+		apiKey:  apiKey,
+		model:   model,
+		project: project,
 		httpClient: &http.Client{
 			Timeout: 300 * time.Second,
 		},
@@ -51,6 +54,11 @@ func (c *OpenAIClient) WithStateManager(sm *StateManager) *OpenAIClient {
 // Send sends a prompt to OpenAI and returns the generated text with retry logic.
 // If stateManager is configured, it will track tokens and truncate if needed.
 func (c *OpenAIClient) Send(ctx context.Context, prompt string) (string, error) {
+	telemetry.TrackAgentIteration(c.project)
+	start := time.Now()
+	defer func() {
+		telemetry.ObserveAgentLatency(c.project, time.Since(start).Seconds())
+	}()
 	// Load state and check token limits if state manager is configured
 	var state State
 	var shouldUpdateState bool
@@ -73,7 +81,7 @@ func (c *OpenAIClient) Send(ctx context.Context, prompt string) (string, error) 
 		availableTokens := maxTokens * 50 / 100
 		if promptTokens > availableTokens {
 			// Truncate the prompt
-			fmt.Printf("Warning: Prompt exceeds token limit (%d > %d), truncating...\n", promptTokens, availableTokens)
+			telemetry.LogInfo("Prompt exceeds token limit, truncating...", "project", c.project, "actual", promptTokens, "available", availableTokens)
 			prompt = TruncateToTokenLimit(prompt, availableTokens)
 			promptTokens = EstimateTokenCount(prompt)
 			state.TokenUsage.TruncationCount++
@@ -82,11 +90,16 @@ func (c *OpenAIClient) Send(ctx context.Context, prompt string) (string, error) 
 		// Update current token count
 		state.CurrentTokens = promptTokens
 		state.TokenUsage.TotalPromptTokens += promptTokens
+		telemetry.TrackTokenUsage(c.project, promptTokens)
 
 		// Log token usage
-		fmt.Printf("Token usage: prompt=%d, current=%d/%d, total_prompt=%d, truncations=%d\n",
-			promptTokens, state.CurrentTokens, maxTokens,
-			state.TokenUsage.TotalPromptTokens, state.TokenUsage.TruncationCount)
+		telemetry.LogDebug("Token usage (prompt)",
+			"project", c.project,
+			"prompt", promptTokens,
+			"current", state.CurrentTokens,
+			"max", maxTokens,
+			"total_prompt", state.TokenUsage.TotalPromptTokens,
+			"truncations", state.TokenUsage.TruncationCount)
 	}
 
 	maxRetries := 3
@@ -127,10 +140,14 @@ func (c *OpenAIClient) Send(ctx context.Context, prompt string) (string, error) 
 				if maxTokens == 0 {
 					maxTokens = 128000
 				}
-				fmt.Printf("Token usage: response=%d, current=%d/%d, total=%d (prompt=%d, response=%d)\n",
-					responseTokens, state.CurrentTokens, maxTokens,
-					state.TokenUsage.TotalTokens,
-					state.TokenUsage.TotalPromptTokens, state.TokenUsage.TotalResponseTokens)
+				telemetry.LogInfo("Token usage (response)",
+					"project", c.project,
+					"response", responseTokens,
+					"current", state.CurrentTokens,
+					"max", maxTokens,
+					"total", state.TokenUsage.TotalTokens,
+					"prompt", state.TokenUsage.TotalPromptTokens,
+					"response_total", state.TokenUsage.TotalResponseTokens)
 
 				// Save updated state
 				if err := c.stateManager.Save(state); err != nil {
@@ -209,6 +226,11 @@ func (c *OpenAIClient) sendOnce(ctx context.Context, prompt string) (string, err
 
 // SendStream sends a prompt to OpenAI and streams the response
 func (c *OpenAIClient) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+	telemetry.TrackAgentIteration(c.project)
+	start := time.Now()
+	defer func() {
+		telemetry.ObserveAgentLatency(c.project, time.Since(start).Seconds())
+	}()
 	// Re-use state loading logic if possible, or just duplicate for now to avoid refactoring Send() too much.
 	// ideally extract common logic.
 	// For MVP, just copy the prompt truncation/token logic.
@@ -238,6 +260,7 @@ func (c *OpenAIClient) SendStream(ctx context.Context, prompt string, onChunk fu
 		}
 		state.CurrentTokens = promptTokens
 		state.TokenUsage.TotalPromptTokens += promptTokens
+		telemetry.TrackTokenUsage(c.project, promptTokens)
 		fmt.Printf("Token usage: prompt=%d, current=%d/%d, total_prompt=%d, truncations=%d\n",
 			promptTokens, state.CurrentTokens, maxTokens,
 			state.TokenUsage.TotalPromptTokens, state.TokenUsage.TruncationCount)
@@ -292,6 +315,7 @@ func (c *OpenAIClient) SendStream(ctx context.Context, prompt string, onChunk fu
 		state.TokenUsage.TotalResponseTokens += responseTokens
 		state.TokenUsage.TotalTokens = state.TokenUsage.TotalPromptTokens + state.TokenUsage.TotalResponseTokens
 		state.CurrentTokens += responseTokens
+		telemetry.TrackTokenUsage(c.project, responseTokens)
 
 		// Initialize Metadata if needed
 		if state.Metadata == nil {

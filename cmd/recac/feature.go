@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"recac/internal/pkg/git"
 
 	"github.com/spf13/cobra"
@@ -25,16 +24,16 @@ var featureStartCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
 		branchName := fmt.Sprintf("feature/%s", name)
-		
+
 		fmt.Printf("Starting feature: %s\n", name)
 		fmt.Printf("Creating branch: %s\n", branchName)
-		
+
 		err := git.CreateBranch(branchName)
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			exit(1)
 		}
-		
+
 		fmt.Printf("Successfully switched to branch %s\n", branchName)
 	},
 }

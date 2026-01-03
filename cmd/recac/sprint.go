@@ -43,7 +43,7 @@ var sprintCmd = &cobra.Command{
 				fmt.Fprintf(os.Stderr, "\n=== CRITICAL ERROR: Sprint Panic ===\n")
 				fmt.Fprintf(os.Stderr, "Error: %v\n", r)
 				fmt.Fprintf(os.Stderr, "Attempting graceful shutdown...\n")
-				os.Exit(1)
+				exit(1)
 			}
 		}()
 
@@ -54,9 +54,8 @@ var sprintCmd = &cobra.Command{
 		if metricsPort == 0 {
 			metricsPort = 9090 // Default port
 		}
-		metricsAddr := fmt.Sprintf(":%d", metricsPort)
 		go func() {
-			if err := telemetry.StartMetricsServer(metricsAddr); err != nil {
+			if err := telemetry.StartMetricsServer(metricsPort); err != nil {
 				telemetry.LogDebug("Metrics server error", "error", err)
 			}
 		}()
@@ -101,17 +100,17 @@ var sprintCmd = &cobra.Command{
 				// Check for circular dependencies
 				if cycle, err := graph.DetectCycles(); err != nil {
 					fmt.Printf("Error: %v\n", err)
-					os.Exit(1)
+					exit(1)
 				} else if cycle != nil {
 					fmt.Printf("Error: Circular dependency detected: %v\n", cycle)
-					os.Exit(1)
+					exit(1)
 				}
 
 				// Get topological sort
 				executionOrder, err := graph.TopologicalSort()
 				if err != nil {
 					fmt.Printf("Error determining execution order: %v\n", err)
-					os.Exit(1)
+					exit(1)
 				}
 
 				fmt.Printf("Task execution order (topological sort): %v\n", executionOrder)
@@ -134,7 +133,7 @@ var sprintCmd = &cobra.Command{
 				fmt.Println("\nExecuting tasks with dependency awareness...")
 				if err := executor.Execute(); err != nil {
 					fmt.Printf("Error during execution: %v\n", err)
-					os.Exit(1)
+					exit(1)
 				}
 
 				// Print summary

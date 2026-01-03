@@ -1,0 +1,5 @@
+Create a bash script `setup.sh` that uses `sudo` to:
+1. Create a directory `/etc/recac-test`
+2. Create a file `/etc/recac-test/config.json` with some dummy JSON.
+3. Set permissions so that the current user can read it.
+Verify it works by catting the file.

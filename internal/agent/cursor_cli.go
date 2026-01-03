@@ -6,25 +6,34 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"recac/internal/telemetry"
 	"strings"
 	"time"
 )
 
 // CursorCLIClient implements the Agent interface for the Cursor Agent CLI
 type CursorCLIClient struct {
-	model string
+	model   string
+	project string
 }
 
 // NewCursorCLIClient creates a new Cursor CLI client
 // apiKey is ignored as the CLI handles auth
-func NewCursorCLIClient(apiKey, model string) *CursorCLIClient {
+func NewCursorCLIClient(apiKey, model, project string) *CursorCLIClient {
 	return &CursorCLIClient{
-		model: model,
+		model:   model,
+		project: project,
 	}
 }
 
 // Send sends a prompt to Cursor CLI and returns the generated text
 func (c *CursorCLIClient) Send(ctx context.Context, prompt string) (string, error) {
+	telemetry.TrackAgentIteration(c.project)
+	agentStart := time.Now()
+	defer func() {
+		telemetry.ObserveAgentLatency(c.project, time.Since(agentStart).Seconds())
+	}()
+
 	// Build command: cursor-agent agent [prompt] --print --output-format text --force --workspace [cwd]
 	cwd, err := os.Getwd()
 	if err != nil {

@@ -20,13 +20,13 @@ var listCmd = &cobra.Command{
 		sm, err := runner.NewSessionManager()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to create session manager: %v\n", err)
-			os.Exit(1)
+			exit(1)
 		}
 
 		sessions, err := sm.ListSessions()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to list sessions: %v\n", err)
-			os.Exit(1)
+			exit(1)
 		}
 
 		if len(sessions) == 0 {

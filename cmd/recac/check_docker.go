@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"syscall"
 
-	"github.com/spf13/cobra"
 	"recac/internal/docker"
+
+	"github.com/spf13/cobra"
 )
 
 var autoFixFlag bool
@@ -24,10 +24,10 @@ var checkDockerCmd = &cobra.Command{
 
 		// Step 1: Check Docker daemon connectivity
 		fmt.Println("Checking Docker daemon connectivity...")
-		client, err := docker.NewClient()
+		client, err := docker.NewClient("check-docker")
 		if err != nil {
 			fmt.Printf("❌ Error creating docker client: %v\n", err)
-			os.Exit(1)
+			exit(1)
 		}
 		defer client.Close()
 
@@ -108,7 +108,7 @@ var checkDockerCmd = &cobra.Command{
 		}
 		if allChecksPassed && allImagesPresent {
 			fmt.Println("✅ All checks passed: Docker is available and ready")
-			os.Exit(0)
+			exit(0)
 		} else if allChecksPassed {
 			if autoFixFlag {
 				fmt.Println("⚠️  Docker is available, but some required images could not be pulled")
@@ -116,13 +116,13 @@ var checkDockerCmd = &cobra.Command{
 				fmt.Println("⚠️  Docker is available, but some required images are missing")
 				fmt.Println("   Run with --auto-fix to automatically pull missing images")
 			}
-			os.Exit(0)
+			exit(0)
 		} else {
 			fmt.Println("❌ Docker is not available or not properly configured")
 			if autoFixFlag && autoFixAttempted {
 				fmt.Println("   Auto-fix was attempted but some issues could not be resolved")
 			}
-			os.Exit(1)
+			exit(1)
 		}
 	},
 }
@@ -152,4 +152,3 @@ func init() {
 	checkDockerCmd.Flags().BoolVar(&autoFixFlag, "auto-fix", false, "Automatically attempt to fix issues (pull missing images, check disk space)")
 	rootCmd.AddCommand(checkDockerCmd)
 }
-

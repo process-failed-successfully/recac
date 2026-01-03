@@ -47,6 +47,10 @@ func TestProjectCompleteFlow(t *testing.T) {
 
 	// Intercept ContainerExecCreate to handle file creation side-effect
 	mockAPI.ContainerExecCreateFunc = func(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error) {
+		// Allow git bootstrap commands
+		if len(config.Cmd) > 1 && config.Cmd[1] == "git" {
+			return types.IDResponse{ID: "bootstrap-exec-id"}, nil
+		}
 		// config.Cmd is usually ["/bin/sh", "-c", "script..."]
 		if len(config.Cmd) > 2 {
 			script := config.Cmd[2]
@@ -77,7 +81,7 @@ func TestProjectCompleteFlow(t *testing.T) {
 	agentClient.SetResponse(mockResponseCmd)
 
 	// Create Session
-	session := NewSession(dockerCli, agentClient, workspace, "ubuntu:latest")
+	session := NewSession(dockerCli, agentClient, workspace, "ubuntu:latest", "test-project", 1)
 
 	// We also need to mock the QAAgent and ManagerAgent inside session specifically
 	// because RunLoop creates NEW agents if they are nil.
@@ -114,7 +118,7 @@ func TestProjectCompleteFlow(t *testing.T) {
 
 	session.MaxIterations = 1
 	err = session.RunLoop(ctx)
-	if err != nil {
+	if err != nil && err != ErrMaxIterations {
 		t.Fatalf("RunLoop Iteration 1 failed: %v", err)
 	}
 
@@ -124,7 +128,7 @@ func TestProjectCompleteFlow(t *testing.T) {
 	session.Iteration = 2
 	session.MaxIterations = 3
 	err = session.RunLoop(ctx)
-	if err != nil {
+	if err != nil && err != ErrMaxIterations {
 		t.Fatalf("RunLoop Iteration 2+ failed: %v", err)
 	}
 

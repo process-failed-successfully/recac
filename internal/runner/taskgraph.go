@@ -10,12 +10,16 @@ import (
 
 // TaskNode represents a task in the dependency graph
 type TaskNode struct {
-	ID           string     `json:"id"`
-	Name         string     `json:"name"`
-	Dependencies []string   `json:"dependencies,omitempty"` // IDs of dependencies
-	Status       TaskStatus `json:"status"`
-	Error        error      `json:"-"`
-	mu           sync.RWMutex
+	ID                  string     `json:"id"`
+	Name                string     `json:"name"`
+	Priority            string     `json:"priority"`
+	Dependencies        []string   `json:"dependencies,omitempty"` // IDs of dependencies
+	ExclusiveWritePaths []string   `json:"exclusive_write_paths,omitempty"`
+	ReadOnlyPaths       []string   `json:"read_only_paths,omitempty"`
+	Status              TaskStatus `json:"status"`
+	RetryCount          int        `json:"retry_count"`
+	Error               error      `json:"-"`
+	mu                  sync.RWMutex
 }
 
 // TaskStatus represents the execution status of a task
@@ -78,12 +82,10 @@ func (g *TaskGraph) LoadFromFeatureList(filePath string) error {
 		g.Nodes = make(map[string]*TaskNode)
 	}
 
-	// Create task nodes from features
+	// Create or update task nodes from features
 	for _, feature := range featureList.Features {
-		// Use feature.ID as the task ID directly if available, otherwise fallback (though ID should be present)
 		taskID := feature.ID
 		if taskID == "" {
-			// Fallback generation if ID is missing (should verify schema instead maybe?)
 			taskID = fmt.Sprintf("task-%s", feature.Category)
 		}
 
@@ -93,25 +95,49 @@ func (g *TaskGraph) LoadFromFeatureList(filePath string) error {
 		}
 
 		// Map generic status to TaskStatus
-		var status TaskStatus
+		var newStatus TaskStatus
 		if feature.Passes || feature.Status == "done" || feature.Status == "implemented" {
-			status = TaskDone
+			newStatus = TaskDone
 		} else {
 			switch feature.Status {
 			case "in_progress":
-				status = TaskInProgress
+				newStatus = TaskInProgress
 			case "failed":
-				status = TaskFailed
+				newStatus = TaskFailed
 			default:
-				status = TaskPending
+				newStatus = TaskPending
 			}
 		}
 
-		g.Nodes[taskID] = &TaskNode{
-			ID:           taskID,
-			Name:         feature.Description,
-			Dependencies: deps,
-			Status:       status,
+		// Update existing node or create new one
+		if existing, ok := g.Nodes[taskID]; ok {
+			existing.mu.Lock()
+			// NEVER downgrade InProgress or Done to Pending/Ready from external sync
+			// unless we explicitly want a force-reset (not handled here).
+			// This prevents race conditions where the orchestrator resets a task
+			// that is currently being worked on by an agent.
+			if (existing.Status == TaskInProgress || existing.Status == TaskDone) && (newStatus == TaskPending || newStatus == TaskReady) {
+				// Keep existing status
+			} else {
+				existing.Status = newStatus
+			}
+			// Update metadata that might have changed
+			existing.Name = feature.Description
+			existing.Priority = feature.Priority
+			existing.Dependencies = deps
+			existing.ExclusiveWritePaths = feature.Dependencies.ExclusiveWritePaths
+			existing.ReadOnlyPaths = feature.Dependencies.ReadOnlyPaths
+			existing.mu.Unlock()
+		} else {
+			g.Nodes[taskID] = &TaskNode{
+				ID:                  taskID,
+				Name:                feature.Description,
+				Priority:            feature.Priority,
+				Dependencies:        deps,
+				ExclusiveWritePaths: feature.Dependencies.ExclusiveWritePaths,
+				ReadOnlyPaths:       feature.Dependencies.ReadOnlyPaths,
+				Status:              newStatus,
+			}
 		}
 	}
 

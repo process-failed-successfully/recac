@@ -9,7 +9,7 @@ import (
 
 func TestGeminiClient_MockResponse(t *testing.T) {
 	expectedResponse := "This is a mock response"
-	client := NewGeminiClient("dummy-key", "gemini-pro").WithMockResponder(func(prompt string) (string, error) {
+	client := NewGeminiClient("dummy-key", "gemini-pro", "test-project").WithMockResponder(func(prompt string) (string, error) {
 		if prompt == "Hello" {
 			return expectedResponse, nil
 		}
@@ -28,7 +28,7 @@ func TestGeminiClient_MockResponse(t *testing.T) {
 
 func TestGeminiClient_RealCallValidation(t *testing.T) {
 	// Without mock responder, it should fail if API key is missing
-	client := NewGeminiClient("", "gemini-pro")
+	client := NewGeminiClient("", "gemini-pro", "test-project")
 	_, err := client.Send(context.Background(), "Hello")
 	if err == nil {
 		t.Error("Expected error for missing API key, got nil")
@@ -48,7 +48,7 @@ func TestGeminiClient_TokenTracking(t *testing.T) {
 	}
 
 	expectedResponse := "Mock response"
-	client := NewGeminiClient("dummy-key", "gemini-pro").
+	client := NewGeminiClient("dummy-key", "gemini-pro", "test-project").
 		WithStateManager(stateManager).
 		WithMockResponder(func(prompt string) (string, error) {
 			// Verify prompt was truncated
@@ -96,7 +96,7 @@ func TestGeminiClient_TokenTrackingNoTruncation(t *testing.T) {
 	smallPrompt := "Hello, this is a short prompt."
 
 	expectedResponse := "Mock response"
-	client := NewGeminiClient("dummy-key", "gemini-pro").
+	client := NewGeminiClient("dummy-key", "gemini-pro", "test-project").
 		WithStateManager(stateManager).
 		WithMockResponder(func(prompt string) (string, error) {
 			// Verify prompt was NOT truncated

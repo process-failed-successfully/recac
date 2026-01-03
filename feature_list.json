@@ -1,62 +1,177 @@
-[
-  {
-    "category": "functional",
-    "description": "Dynamic Configuration: Set Value",
-    "steps": ["Run 'agent config set <key> <value>'", "Verify config file is updated", "Verify application reflects change"],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Dynamic Configuration: List Keys",
-    "steps": ["Run 'agent config list-keys'", "Verify output lists all available settings"],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Dynamic Configuration: List Models",
-    "steps": ["Run 'agent config list-models'", "Verify output lists compatible models for active provider"],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Jira Workflow: Run with Ticket ID",
-    "steps": ["Run 'agent run --jira <TICKET_ID>'", "Verify context is initialized from ticket"],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Jira Workflow: Workspace Isolation",
-    "steps": ["Run 'agent run --jira <TICKET_ID>'", "Verify temporary workspace is created and used"],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Jira Workflow: Status Sync",
-    "steps": ["Run 'agent run --jira <TICKET_ID>'", "Perform actions", "Verify Jira ticket status updates automatically"],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Pre-flight: Git Clean Check",
-    "steps": ["Run 'agent run ...' with dirty git state", "Verify execution warns or stops"],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Pre-flight: Dependency Auto-Fix",
-    "steps": ["Run 'agent check'", "Verify it detects and fixes minor local issues"],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Logs: Follow Mode",
-    "steps": ["Run 'agent logs -f'", "Verify logs stream in real-time"],
-    "passes": true
-  },
-  {
-    "category": "functional",
-    "description": "Logs: Smart Filtering",
-    "steps": ["Run 'agent logs --filter <category>'", "Verify only matching logs are shown"],
-    "passes": true
-  }
-]
+{
+  "project_name": "recac",
+  "features": [
+    {
+      "id": "",
+      "category": "functional",
+      "priority": "Production",
+      "description": "Dynamic Configuration: Set Value",
+      "status": "",
+      "passes": true,
+      "steps": [
+        "Run 'agent config set \u003ckey\u003e \u003cvalue\u003e'",
+        "Verify config file is updated",
+        "Verify application reflects change"
+      ],
+      "dependencies": {
+        "depends_on_ids": null,
+        "exclusive_write_paths": null,
+        "read_only_paths": null
+      }
+    },
+    {
+      "id": "",
+      "category": "functional",
+      "priority": "Production",
+      "description": "Dynamic Configuration: List Keys",
+      "status": "",
+      "passes": true,
+      "steps": [
+        "Run 'agent config list-keys'",
+        "Verify output lists all available settings"
+      ],
+      "dependencies": {
+        "depends_on_ids": null,
+        "exclusive_write_paths": null,
+        "read_only_paths": null
+      }
+    },
+    {
+      "id": "",
+      "category": "functional",
+      "priority": "Production",
+      "description": "Dynamic Configuration: List Models",
+      "status": "",
+      "passes": true,
+      "steps": [
+        "Run 'agent config list-models'",
+        "Verify output lists compatible models for active provider"
+      ],
+      "dependencies": {
+        "depends_on_ids": null,
+        "exclusive_write_paths": null,
+        "read_only_paths": null
+      }
+    },
+    {
+      "id": "",
+      "category": "functional",
+      "priority": "Production",
+      "description": "Jira Workflow: Run with Ticket ID",
+      "status": "",
+      "passes": true,
+      "steps": [
+        "Run 'agent run --jira \u003cTICKET_ID\u003e'",
+        "Verify context is initialized from ticket"
+      ],
+      "dependencies": {
+        "depends_on_ids": null,
+        "exclusive_write_paths": null,
+        "read_only_paths": null
+      }
+    },
+    {
+      "id": "",
+      "category": "functional",
+      "priority": "Production",
+      "description": "Jira Workflow: Workspace Isolation",
+      "status": "",
+      "passes": true,
+      "steps": [
+        "Run 'agent run --jira \u003cTICKET_ID\u003e'",
+        "Verify temporary workspace is created and used"
+      ],
+      "dependencies": {
+        "depends_on_ids": null,
+        "exclusive_write_paths": null,
+        "read_only_paths": null
+      }
+    },
+    {
+      "id": "",
+      "category": "functional",
+      "priority": "Production",
+      "description": "Jira Workflow: Status Sync",
+      "status": "",
+      "passes": true,
+      "steps": [
+        "Run 'agent run --jira \u003cTICKET_ID\u003e'",
+        "Perform actions",
+        "Verify Jira ticket status updates automatically"
+      ],
+      "dependencies": {
+        "depends_on_ids": null,
+        "exclusive_write_paths": null,
+        "read_only_paths": null
+      }
+    },
+    {
+      "id": "",
+      "category": "functional",
+      "priority": "Production",
+      "description": "Pre-flight: Git Clean Check",
+      "status": "",
+      "passes": true,
+      "steps": [
+        "Run 'agent run ...' with dirty git state",
+        "Verify execution warns or stops"
+      ],
+      "dependencies": {
+        "depends_on_ids": null,
+        "exclusive_write_paths": null,
+        "read_only_paths": null
+      }
+    },
+    {
+      "id": "",
+      "category": "functional",
+      "priority": "Production",
+      "description": "Pre-flight: Dependency Auto-Fix",
+      "status": "",
+      "passes": true,
+      "steps": [
+        "Run 'agent check'",
+        "Verify it detects and fixes minor local issues"
+      ],
+      "dependencies": {
+        "depends_on_ids": null,
+        "exclusive_write_paths": null,
+        "read_only_paths": null
+      }
+    },
+    {
+      "id": "",
+      "category": "functional",
+      "priority": "Production",
+      "description": "Logs: Follow Mode",
+      "status": "",
+      "passes": true,
+      "steps": [
+        "Run 'agent logs -f'",
+        "Verify logs stream in real-time"
+      ],
+      "dependencies": {
+        "depends_on_ids": null,
+        "exclusive_write_paths": null,
+        "read_only_paths": null
+      }
+    },
+    {
+      "id": "",
+      "category": "functional",
+      "priority": "Production",
+      "description": "Logs: Smart Filtering",
+      "status": "",
+      "passes": true,
+      "steps": [
+        "Run 'agent logs --filter \u003ccategory\u003e'",
+        "Verify only matching logs are shown"
+      ],
+      "dependencies": {
+        "depends_on_ids": null,
+        "exclusive_write_paths": null,
+        "read_only_paths": null
+      }
+    }
+  ]
+}

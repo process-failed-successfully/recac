@@ -89,6 +89,11 @@ rm successes.txt
 
 If all features in `feature_list.json` pass and the project is truly complete:
 
+**TRUST BUT VERIFY**: Before signing off, look at the QA Report. Are there any features marked "pending" or with "passes: false"?
+
+- If YES: **REJECT**. Do NOT sign off.
+- If NO (all are done/passes:true): **APPROVE**.
+
 1. **APPROVE**: Write `PROJECT_SIGNED_OFF`.
    ```bash
    echo "Approved by Manager." > PROJECT_SIGNED_OFF
