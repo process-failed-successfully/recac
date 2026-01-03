@@ -22,6 +22,9 @@ import (
 
 var ErrBlocker = errors.New("blocker detected")
 
+// Optimization: Pre-compile regex to avoid recompilation on every response processing
+var reBashBlock = regexp.MustCompile("(?s)```bash\\n(.*?)\\n```")
+
 type Session struct {
 	Docker           DockerClient
 	Agent            agent.Agent
@@ -916,10 +919,7 @@ func (s *Session) runManagerAgent(ctx context.Context) error {
 // ProcessResponse parses the agent response for commands, executes them, and handles blockers.
 func (s *Session) ProcessResponse(ctx context.Context, response string) (string, error) {
 	// 1. Extract Bash Blocks
-	re := regexp.MustCompile("(?s)```bash\\n(.*?)\\n```")
-	matches := re.FindAllStringSubmatch(response, -1)
-
-	// 1. Extract Bash Blocks
+	matches := reBashBlock.FindAllStringSubmatch(response, -1)
 
 	var parsedOutput strings.Builder
 
