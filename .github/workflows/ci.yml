@@ -3,24 +3,76 @@ name: RECAC CI
 on:
   pull_request:
     branches: ["**"]
+  push:
+    branches: ["main"]
 
 jobs:
-  validate:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build and Cache Docker Image
-        run: make image
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: build.Dockerfile
+          load: true
+          tags: recac-build:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Lint
         run: make lint
 
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: build.Dockerfile
+          load: true
+          tags: recac-build:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
       - name: Test
         run: make test
 
-      - name: Build
-        run: make build
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: build.Dockerfile
+          load: true
+          tags: recac-build:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Binaries
+        run: |
+          make build
+          make bridge
 
       - name: Check Artifact
-        run: ls -lh recac
+        run: |
+          ls -lh recac
+          ls -lh agent-bridge
