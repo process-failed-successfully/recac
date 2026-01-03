@@ -18,6 +18,7 @@ const (
 	CodingAgent   = "coding_agent"
 	Initializer   = "initializer"
 	QAAgent       = "qa_agent"
+	TPMAgent      = "tpm_agent"
 )
 
 // GetPrompt loads a template and injects variables.

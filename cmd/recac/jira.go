@@ -2,9 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
+	"recac/internal/agent"
+	"recac/internal/agent/prompts"
 	"recac/internal/jira"
 
 	"github.com/spf13/cobra"
@@ -242,6 +246,156 @@ Or configure in config.yaml:
 	},
 }
 
+type ticketNode struct {
+	Title       string        `json:"title"`
+	Description string        `json:"description"`
+	Type        string        `json:"type"`
+	Children    []ticketNode  `json:"children"`
+}
+
+// jiraGenerateFromSpecCmd represents the jira generate-from-spec command
+var jiraGenerateFromSpecCmd = &cobra.Command{
+	Use:   "generate-from-spec",
+	Short: "Generate Jira tickets from app_spec.txt",
+	Long:  "Reads app_spec.txt, uses an LLM to decompose it into Epics and Stories, and creates them in Jira.",
+	Run: func(cmd *cobra.Command, args []string) {
+		// 1. Read app_spec.txt
+		specPath, _ := cmd.Flags().GetString("spec")
+		specContent, err := os.ReadFile(specPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: Failed to read spec file %s: %v\n", specPath, err)
+			exit(1)
+		}
+
+		// 2. Setup Jira Client
+		baseURL := os.Getenv("JIRA_URL")
+		if baseURL == "" {
+			baseURL = viper.GetString("jira.url")
+		}
+		username := os.Getenv("JIRA_USERNAME")
+		if username == "" {
+			username = viper.GetString("jira.username")
+		}
+		apiToken := os.Getenv("JIRA_API_TOKEN")
+		if apiToken == "" {
+			apiToken = viper.GetString("jira.api_token")
+		}
+		projectKey := os.Getenv("JIRA_PROJECT_KEY") // Assume project key is needed
+		if projectKey == "" {
+			projectKey = viper.GetString("jira.project_key")
+		}
+
+		if baseURL == "" || username == "" || apiToken == "" || projectKey == "" {
+			fmt.Fprintf(os.Stderr, "Error: JIRA_URL, JIRA_USERNAME, JIRA_API_TOKEN, and JIRA_PROJECT_KEY are required.\n")
+			exit(1)
+		}
+
+		jiraClient := jira.NewClient(baseURL, username, apiToken)
+
+		// 3. Setup Agent
+		provider := viper.GetString("provider")
+		model := viper.GetString("model")
+		apiKey := ""
+
+		// Simple logic to get API key based on provider
+		switch provider {
+		case "gemini":
+			apiKey = os.Getenv("GEMINI_API_KEY")
+		case "openai":
+			apiKey = os.Getenv("OPENAI_API_KEY")
+		case "ollama":
+			// Ollama doesn't strictly need an API key usually, but NewAgent expects one.
+			apiKey = "ollama"
+		}
+
+		if apiKey == "" && provider != "ollama" && provider != "gemini-cli" && provider != "cursor-cli" {
+			fmt.Fprintf(os.Stderr, "Error: API Key for provider %s not found in environment.\n", provider)
+			exit(1)
+		}
+
+		// Instantiate Agent
+		ag, err := agent.NewAgent(provider, apiKey, model, ".", "recac-jira-gen")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: Failed to initialize agent: %v\n", err)
+			exit(1)
+		}
+
+		// 4. Generate Tickets JSON
+		prompt, err := prompts.GetPrompt(prompts.TPMAgent, map[string]string{"spec": string(specContent)})
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: Failed to load prompt: %v\n", err)
+			exit(1)
+		}
+
+		fmt.Println("Analyzing spec and generating ticket plan...")
+		resp, err := ag.Send(context.Background(), prompt)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: Agent failed to generate response: %v\n", err)
+			exit(1)
+		}
+
+		// Strip markdown code blocks if present
+		jsonStr := resp
+		if strings.Contains(jsonStr, "```json") {
+			parts := strings.Split(jsonStr, "```json")
+			if len(parts) > 1 {
+				jsonStr = parts[1]
+			}
+			parts = strings.Split(jsonStr, "```")
+			jsonStr = parts[0]
+		} else if strings.Contains(jsonStr, "```") {
+			// Generic code block
+			parts := strings.Split(jsonStr, "```")
+			if len(parts) > 1 {
+				jsonStr = parts[1]
+			}
+			parts = strings.Split(jsonStr, "```")
+			jsonStr = parts[0]
+		}
+		jsonStr = strings.TrimSpace(jsonStr)
+
+		var tickets []ticketNode
+		if err := json.Unmarshal([]byte(jsonStr), &tickets); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: Failed to parse agent response as JSON: %v\nResponse was:\n%s\n", err, resp)
+			exit(1)
+		}
+
+		// 5. Create Tickets in Jira
+		fmt.Printf("Found %d top-level items. Creating tickets...\n", len(tickets))
+
+		for _, epicNode := range tickets {
+			// Use the type provided by the agent (default to Epic if empty, though prompt enforces it)
+			issueType := epicNode.Type
+			if issueType == "" {
+				issueType = "Epic"
+			}
+
+			fmt.Printf("Creating %s: %s\n", issueType, epicNode.Title)
+			epicKey, err := jiraClient.CreateTicket(context.Background(), projectKey, epicNode.Title, epicNode.Description, issueType)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: Failed to create %s '%s': %v\n", issueType, epicNode.Title, err)
+				continue
+			}
+			fmt.Printf("  -> Created %s %s\n", issueType, epicKey)
+
+			for _, storyNode := range epicNode.Children {
+				childType := storyNode.Type
+				if childType == "" {
+					childType = "Story"
+				}
+				fmt.Printf("  Creating Child (%s): %s\n", childType, storyNode.Title)
+				childKey, err := jiraClient.CreateChildTicket(context.Background(), projectKey, storyNode.Title, storyNode.Description, childType, epicKey)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error: Failed to create child '%s': %v\n", storyNode.Title, err)
+				} else {
+					fmt.Printf("    -> Created %s\n", childKey)
+				}
+			}
+		}
+		fmt.Println("Done.")
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(jiraCmd)
 	jiraCmd.AddCommand(jiraTestAuthCmd)
@@ -252,4 +406,7 @@ func init() {
 	jiraTransitionCmd.Flags().String("transition", "", "Transition Name or ID (defaults to 'In Progress')")
 	jiraTransitionCmd.MarkFlagRequired("id")
 	jiraCmd.AddCommand(jiraTransitionCmd)
+
+	jiraGenerateFromSpecCmd.Flags().String("spec", "app_spec.txt", "Path to application specification file")
+	jiraCmd.AddCommand(jiraGenerateFromSpecCmd)
 }
