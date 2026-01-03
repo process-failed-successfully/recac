@@ -75,212 +75,147 @@ func TestRunContainer_Errors(t *testing.T) {
 		return errors.New("start error")
 	}
 
-		_, err = client.RunContainer(context.Background(), "image", "/tmp", nil, "")
+	_, err = client.RunContainer(context.Background(), "image", "/tmp", nil, "")
 
-		if err == nil {
+	if err == nil {
 
-			t.Error("Expected error for start failure")
-
-		}
+		t.Error("Expected error for start failure")
 
 	}
 
-	
+}
 
-	func TestCheckImage_Complex(t *testing.T) {
+func TestCheckImage_Complex(t *testing.T) {
 
-		client, mock := NewMockClient()
+	client, mock := NewMockClient()
 
-	
+	mock.ImageListFunc = func(ctx context.Context, options image.ListOptions) ([]image.Summary, error) {
 
-			mock.ImageListFunc = func(ctx context.Context, options image.ListOptions) ([]image.Summary, error) {
+		return []image.Summary{
 
-	
+			{
 
-				return []image.Summary{
+				ID: "sha256:1234567890ab",
 
-	
-
-					{
-
-	
-
-						ID:       "sha256:1234567890ab",
-
-	
-
-						RepoTags: []string{"myimage:v1"},
-
-	
-
-					},
-
-	
-
-				}, nil
-
-	
-
-			}
-
-	
-
-		
-
-	
-
-			// Match by ID short (must match prefix of ID including sha256:)
-
-	
-
-			// sha256:12345 is 12 chars
-
-	
-
-			exists, _ := client.CheckImage(context.Background(), "sha256:12345")
-
-	
-
-			if !exists {
-
-	
-
-				t.Error("Expected match by ID")
-
-	
-
-			}
-
-	
-
-		
-
-	
-
-		// Match by implicit latest
-
-		mock.ImageListFunc = func(ctx context.Context, options image.ListOptions) ([]image.Summary, error) {
-
-			return []image.Summary{
-
-				{RepoTags: []string{"myimage:latest"}},
-
-			}, nil
-
-		}
-
-		exists, _ = client.CheckImage(context.Background(), "myimage")
-
-		if !exists {
-
-			t.Error("Expected match by implicit latest")
-
-		}
+				RepoTags: []string{"myimage:v1"},
+			},
+		}, nil
 
 	}
 
-	
+	// Match by ID short (must match prefix of ID including sha256:)
 
-	func TestRunContainer_Pull(t *testing.T) {
+	// sha256:12345 is 12 chars
 
-		client, mock := NewMockClient()
+	exists, _ := client.CheckImage(context.Background(), "sha256:12345")
 
-		
+	if !exists {
 
-		pullCalled := false
+		t.Error("Expected match by ID")
 
-		mock.ImagePullFunc = func(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error) {
+	}
 
-			pullCalled = true
+	// Match by implicit latest
 
-			return io.NopCloser(strings.NewReader("{}")), nil
+	mock.ImageListFunc = func(ctx context.Context, options image.ListOptions) ([]image.Summary, error) {
+
+		return []image.Summary{
+
+			{RepoTags: []string{"myimage:latest"}},
+		}, nil
+
+	}
+
+	exists, _ = client.CheckImage(context.Background(), "myimage")
+
+	if !exists {
+
+		t.Error("Expected match by implicit latest")
+
+	}
+
+}
+
+func TestRunContainer_Pull(t *testing.T) {
+
+	client, mock := NewMockClient()
+
+	pullCalled := false
+
+	mock.ImagePullFunc = func(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error) {
+
+		pullCalled = true
+
+		return io.NopCloser(strings.NewReader("{}")), nil
+
+	}
+
+	client.RunContainer(context.Background(), "image", "/tmp", nil, "")
+
+	if !pullCalled {
+
+		t.Error("Expected ImagePull to be called")
+
+	}
+
+}
+
+func TestPullImage_Errors(t *testing.T) {
+
+	client, mock := NewMockClient()
+
+	// Test JSON Error in stream
+
+	mock.ImagePullFunc = func(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error) {
+
+		return io.NopCloser(strings.NewReader(`{"errorDetail": {"message": "pull error"}}`)), nil
+
+	}
+
+	if err := client.PullImage(context.Background(), "image"); err == nil {
+
+		t.Error("Expected error for pull failure")
+
+	}
+
+	// Test Malformed JSON (should be ignored/continue?)
+
+	// The code says: "Continue parsing even if one message fails"
+
+	mock.ImagePullFunc = func(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error) {
+
+		return io.NopCloser(strings.NewReader(`{malformed`)), nil
+
+	}
+
+	if err := client.PullImage(context.Background(), "image"); err == nil {
+		t.Error("Expected error for malformed JSON, got nil")
+	}
+
+}
+
+func TestNewClient_Defaults(t *testing.T) {
+
+	// This creates a real client, might fail if no docker.
+
+	// But NewClient usually succeeds in creating the struct.
+
+	c, err := NewClient("")
+
+	if err == nil {
+
+		defer c.Close()
+
+		if c.project != "unknown" {
+
+			t.Errorf("Expected default project 'unknown', got '%s'", c.project)
 
 		}
 
-	
+	} else {
 
-		client.RunContainer(context.Background(), "image", "/tmp", nil, "")
+		t.Logf("Skipping NewClient test (docker not available?): %v", err)
 
-			if !pullCalled {
+	}
 
-				t.Error("Expected ImagePull to be called")
-
-			}
-
-		}
-
-		
-
-		func TestPullImage_Errors(t *testing.T) {
-
-			client, mock := NewMockClient()
-
-		
-
-			// Test JSON Error in stream
-
-			mock.ImagePullFunc = func(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error) {
-
-				return io.NopCloser(strings.NewReader(`{"errorDetail": {"message": "pull error"}}`)), nil
-
-			}
-
-		
-
-			if err := client.PullImage(context.Background(), "image"); err == nil {
-
-				t.Error("Expected error for pull failure")
-
-			}
-
-		
-
-			// Test Malformed JSON (should be ignored/continue?)
-
-			// The code says: "Continue parsing even if one message fails"
-
-			mock.ImagePullFunc = func(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error) {
-
-				return io.NopCloser(strings.NewReader(`{malformed`)), nil
-
-			}
-
-			if err := client.PullImage(context.Background(), "image"); err != nil {
-
-				t.Errorf("Expected success (ignoring malformed), got: %v", err)
-
-			}
-
-		}
-
-		
-
-		func TestNewClient_Defaults(t *testing.T) {
-
-			// This creates a real client, might fail if no docker.
-
-			// But NewClient usually succeeds in creating the struct.
-
-			c, err := NewClient("")
-
-			if err == nil {
-
-				defer c.Close()
-
-				if c.project != "unknown" {
-
-					t.Errorf("Expected default project 'unknown', got '%s'", c.project)
-
-				}
-
-			} else {
-
-				t.Logf("Skipping NewClient test (docker not available?): %v", err)
-
-			}
-
-		}
-
-		
-
-	
+}

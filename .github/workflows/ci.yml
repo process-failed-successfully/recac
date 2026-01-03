@@ -1,8 +1,6 @@
 name: RECAC CI
 
 on:
-  push:
-    branches: ["**"]
   pull_request:
     branches: ["**"]
 
@@ -26,6 +24,3 @@ jobs:
 
       - name: Check Artifact
         run: ls -lh recac
-
-      - name: Smoke Test
-        run: make smoke

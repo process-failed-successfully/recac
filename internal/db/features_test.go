@@ -79,7 +79,7 @@ func TestSQLiteLocks(t *testing.T) {
 	agentID := "agent-1"
 
 	// 1. Acquire Lock
-	acquired, err := store.AcquireLock(path, agentID, 1*time.Minute)
+	acquired, err := store.AcquireLock(path, agentID, 100*time.Millisecond)
 	if err != nil {
 		t.Errorf("AcquireLock failed: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestSQLiteLocks(t *testing.T) {
 	}
 
 	// 2. Acquire Duplicate Lock (Same Agent) -> Should extend/succeed
-	acquired, err = store.AcquireLock(path, agentID, 1*time.Minute)
+	acquired, err = store.AcquireLock(path, agentID, 100*time.Millisecond)
 	if err != nil {
 		t.Errorf("AcquireLock (renew) failed: %v", err)
 	}
@@ -97,7 +97,7 @@ func TestSQLiteLocks(t *testing.T) {
 	}
 
 	// 3. Acquire Lock (Different Agent) -> Should fail
-	acquired, err = store.AcquireLock(path, "agent-2", 1*time.Minute)
+	acquired, err = store.AcquireLock(path, "agent-2", 100*time.Millisecond)
 	if err != nil {
 		t.Errorf("AcquireLock (contention) failed: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestSQLiteLocks(t *testing.T) {
 	}
 
 	// 6. Acquire Lock (Different Agent) -> Should succeed now
-	acquired, err = store.AcquireLock(path, "agent-2", 1*time.Minute)
+	acquired, err = store.AcquireLock(path, "agent-2", 100*time.Millisecond)
 	if err != nil {
 		t.Errorf("AcquireLock (after release) failed: %v", err)
 	}
