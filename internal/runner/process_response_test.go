@@ -37,6 +37,7 @@ func (m *MockDockerClient) ImageExists(ctx context.Context, tag string) (bool, e
 func (m *MockDockerClient) ImageBuild(ctx context.Context, opts docker.ImageBuildOptions) (string, error) {
 	return opts.Tag, nil
 }
+func (m *MockDockerClient) PullImage(ctx context.Context, imageRef string) error { return nil }
 
 func TestSession_ProcessResponse_NoCommands(t *testing.T) {
 	s := &Session{
