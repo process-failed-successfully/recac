@@ -24,7 +24,7 @@ bridge: image ## Build the agent-bridge binary (Linux) via Docker
 	$(DOCKER_CMD) go build -buildvcs=false -o agent-bridge ./cmd/agent-bridge
 
 test: image ## Run unit tests via Docker (skips E2E)
-	$(DOCKER_CMD) go test -v $$(go list ./... | grep -v /scripts/)
+	$(DOCKER_CMD) /bin/sh -c 'go test -buildvcs=false -v $$(go list -buildvcs=false ./... | grep -v /scripts/)'
 
 test-e2e: image ## Run E2E tests via Docker
 	$(DOCKER_CMD) go test -v -tags=e2e ./tests/e2e/...
