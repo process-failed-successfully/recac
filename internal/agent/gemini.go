@@ -22,6 +22,8 @@ type GeminiClient struct {
 	mockResponder func(string) (string, error)
 	// stateManager is optional; if set, enables token tracking and truncation
 	stateManager *StateManager
+	// backoffFn is used for exponential backoff (can be mocked for testing)
+	backoffFn func(int) time.Duration
 }
 
 // NewGeminiClient creates a new Gemini client
@@ -34,6 +36,9 @@ func NewGeminiClient(apiKey, model, project string) *GeminiClient {
 			Timeout: 30 * time.Second,
 		},
 		apiURL: "https://generativelanguage.googleapis.com/v1beta/models",
+		backoffFn: func(retry int) time.Duration {
+			return time.Duration(1<<uint(retry-1)) * time.Second
+		},
 	}
 }
 
@@ -107,7 +112,7 @@ func (c *GeminiClient) Send(ctx context.Context, prompt string) (string, error) 
 	for i := 0; i <= maxRetries; i++ {
 		if i > 0 {
 			// Exponential backoff
-			waitTime := time.Duration(1<<uint(i-1)) * time.Second
+			waitTime := c.backoffFn(i)
 			telemetry.LogInfo("Retrying agent call", "project", c.project, "retry", i, "wait", waitTime, "error", lastErr)
 			select {
 			case <-time.After(waitTime):

@@ -22,3 +22,14 @@ temp/
 # Docker
 *.Dockerfile
 recac-build
+
+# Large Data & Artifacts
+information/
+agents/logs/
+agents/cache/
+.recac.db
+.agent_state.json
+.agent_state_*.json
+cover.html
+coverage_final.out
+

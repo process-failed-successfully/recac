@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestGeminiClient_MockResponse(t *testing.T) {
@@ -29,6 +30,7 @@ func TestGeminiClient_MockResponse(t *testing.T) {
 func TestGeminiClient_RealCallValidation(t *testing.T) {
 	// Without mock responder, it should fail if API key is missing
 	client := NewGeminiClient("", "gemini-pro", "test-project")
+	client.backoffFn = func(i int) time.Duration { return time.Millisecond }
 	_, err := client.Send(context.Background(), "Hello")
 	if err == nil {
 		t.Error("Expected error for missing API key, got nil")
