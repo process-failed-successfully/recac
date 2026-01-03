@@ -31,19 +31,19 @@ var logsCmd = &cobra.Command{
 		sm, err := runner.NewSessionManager()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to create session manager: %v\n", err)
-			os.Exit(1)
+			exit(1)
 		}
 
 		logFile, err := sm.GetSessionLogs(sessionName)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			exit(1)
 		}
 
 		file, err := os.Open(logFile)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to open log file: %v\n", err)
-			os.Exit(1)
+			exit(1)
 		}
 		defer file.Close()
 
@@ -67,7 +67,7 @@ var logsCmd = &cobra.Command{
 					break
 				}
 				fmt.Fprintf(os.Stderr, "Error reading log file: %v\n", err)
-				os.Exit(1)
+				exit(1)
 			}
 			processLine(line)
 		}

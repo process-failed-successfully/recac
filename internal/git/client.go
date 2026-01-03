@@ -2,6 +2,7 @@ package git
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -18,8 +19,8 @@ func NewClient() *Client {
 }
 
 // Clone clones a repository into a destination directory.
-func (c *Client) Clone(url, dest string) error {
-	cmd := exec.Command("git", "clone", url, dest)
+func (c *Client) Clone(ctx context.Context, url, dest string) error {
+	cmd := exec.CommandContext(ctx, "git", "clone", url, dest)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()

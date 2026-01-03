@@ -56,7 +56,7 @@ func TestSession_ProcessResponse_Thorough(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ProcessResponse failed: %v", err)
 	}
-	if !strings.Contains(out1, "Success: /bin/sh -c echo 'hello' > test.txt") {
+	if !strings.Contains(out1, "Success: /bin/bash -c echo 'hello' > test.txt") {
 		t.Errorf("Output missing expected command: %s", out1)
 	}
 
@@ -82,10 +82,10 @@ func TestSession_ProcessResponse_Thorough(t *testing.T) {
 
 	// Verify executed commands match what we expect
 	expectedCmds := []string{
-		"/bin/sh -c echo 'hello' > test.txt",
-		"/bin/sh -c echo 1",
-		"/bin/sh -c echo 2",
-		"/bin/sh -c sudo apt-get update",
+		"/bin/bash -c echo 'hello' > test.txt",
+		"/bin/bash -c echo 1",
+		"/bin/bash -c echo 2",
+		"/bin/bash -c sudo apt-get update",
 	}
 
 	for i, cmd := range expectedCmds {

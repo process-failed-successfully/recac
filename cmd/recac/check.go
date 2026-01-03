@@ -15,8 +15,8 @@ var fixFlag bool
 var checkCmd = &cobra.Command{
 	Use:   "check",
 	Short: "Check dependencies and environment",
-	Long:  `Perform pre-flight checks on the environment and dependencies.
-Use --fix to automatically attempt repairs for minor issues.`, 
+	Long: `Perform pre-flight checks on the environment and dependencies.
+Use --fix to automatically attempt repairs for minor issues.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Running pre-flight checks...")
 		allPassed := true
@@ -30,7 +30,7 @@ Use --fix to automatically attempt repairs for minor issues.`,
 					fmt.Printf("  Failed to fix config: %v\n", err)
 				} else {
 					fmt.Printf("  ✅ Config fixed (created default)\n")
-				allPassed = true // reset? strictly speaking no, but for flow
+					allPassed = true // reset? strictly speaking no, but for flow
 				}
 			}
 		} else {
@@ -60,7 +60,7 @@ Use --fix to automatically attempt repairs for minor issues.`,
 			if !fixFlag {
 				fmt.Println("Run with --fix to attempt automatic repairs.")
 			}
-			os.Exit(1)
+			exit(1)
 		}
 	},
 }

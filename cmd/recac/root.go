@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/viper"
 )
 
+var exit = os.Exit
 var cfgFile string
 
 // rootCmd represents the base command when called without any subcommands
@@ -32,7 +33,7 @@ func Execute() {
 			fmt.Fprintf(os.Stderr, "\n=== CRITICAL ERROR: Command Execution Panic ===\n")
 			fmt.Fprintf(os.Stderr, "Error: %v\n", r)
 			fmt.Fprintf(os.Stderr, "Attempting graceful shutdown...\n")
-			os.Exit(1)
+			exit(1)
 		}
 	}()
 
@@ -40,7 +41,7 @@ func Execute() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: command not found: %v\n", err)
 		fmt.Fprintln(os.Stderr, "Run 'recac --help' for usage.")
-		os.Exit(1)
+		exit(1)
 	}
 }
 
@@ -145,7 +146,7 @@ func initConfig() {
 	// Validate configuration values
 	if err := config.ValidateConfig(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		exit(1)
 	}
 
 	telemetry.InitLogger(viper.GetBool("verbose"), "")

@@ -474,3 +474,43 @@ func TestSession_Start_MountsBridge(t *testing.T) {
 		t.Errorf("Expected agent-bridge bind mount in %v", mountedBinds)
 	}
 }
+func TestSession_FixPermissions(t *testing.T) {
+	tmpDir := t.TempDir()
+	d, _ := docker.NewMockClient()
+	session := NewSession(d, &MockAgent{}, tmpDir, "alpine", "test-project", 1)
+	session.ContainerID = "test-container"
+
+	// fixPermissions calls ExecAsUser, which in MockClient returns mock-exec-id and nil error by default.
+	// It doesn't need complex mocking if we just want to verify it doesn't crash/error on happy path.
+	if err := session.fixPermissions(context.Background()); err != nil {
+		t.Errorf("fixPermissions failed: %v", err)
+	}
+}
+
+func TestSession_EnsureConflictTask(t *testing.T) {
+	tmpDir := t.TempDir()
+	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", 1)
+
+	// Case 1: Add new conflict task
+	listPath := filepath.Join(tmpDir, "feature_list.json")
+	content := `{"project_name": "Test", "features": [{"id":"1", "description":"feat 1", "status":"done"}]}`
+	os.WriteFile(listPath, []byte(content), 0644)
+
+	session.EnsureConflictTask()
+
+	data, _ := os.ReadFile(listPath)
+	if !strings.Contains(string(data), "CONFLICT_RES") {
+		t.Errorf("Expected CONFLICT_RES task in feature list, got %s", string(data))
+	}
+
+	// Case 2: Conflict task exists and is done, should be reset to todo
+	content = `{"project_name": "Test", "features": [{"id":"CONFLICT_RES", "description":"conflict", "status":"done", "passes":true}]}`
+	os.WriteFile(listPath, []byte(content), 0644)
+
+	session.EnsureConflictTask()
+
+	data, _ = os.ReadFile(listPath)
+	if !strings.Contains(string(data), `"status": "todo"`) {
+		t.Errorf("Expected CONFLICT_RES task to be reset to todo, got %s", string(data))
+	}
+}

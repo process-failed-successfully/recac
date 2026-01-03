@@ -22,12 +22,18 @@ func main() {
 
 	var label string
 	var force bool
+	var all bool
 	flag.StringVar(&label, "label", "", "Jira label to clean up (e.g. e2e-test-20240101)")
 	flag.BoolVar(&force, "force", false, "Force delete without confirmation")
+	flag.BoolVar(&all, "all", false, "Delete ALL tickets in ALL projects (requires --force)")
 	flag.Parse()
 
-	if label == "" {
-		log.Fatal("Error: --label is required")
+	if label == "" && !all {
+		log.Fatal("Error: --label or --all is required")
+	}
+
+	if all && !force {
+		log.Fatal("Error: --all requires --force to be set")
 	}
 
 	baseURL := os.Getenv("JIRA_URL")
@@ -45,12 +51,23 @@ func main() {
 	ctx := context.Background()
 
 	// 1. Find Issues
-	fmt.Printf("Searching for issues with label: %s...\n", label)
-
 	var issues []map[string]interface{}
 	var err error
 
-	if strings.Contains(label, "*") {
+	if all {
+		fmt.Println("WARNING: Fetching ALL issues in the instance...")
+		// Fetch all issues. Using "order by created DESC" to just get a list.
+		// We might need to handle pagination if there are many, but SearchIssues usually handles some default limit (often 50 or 100).
+		// If the user wants to clean *everything*, we should probably loop until empty, or increase limit.
+		// For now, let's assume the client's SearchIssues does a reasonable fetch or the user will run it multiple times.
+		// Ideally we'd use "ORDER BY created DESC" to get them.
+		jql := "created is not EMPTY ORDER BY created DESC"
+		issues, err = client.SearchIssues(ctx, jql)
+		if err != nil {
+			log.Fatalf("Failed to search all issues: %v", err)
+		}
+	} else if strings.Contains(label, "*") {
+		fmt.Printf("Searching for issues with label: %s...\n", label)
 		// Wildcard search
 		prefix := strings.TrimSuffix(label, "*")
 		fmt.Printf("Wildcard detected. Searching for issues with labels starting with: %s\n", prefix)
@@ -63,8 +80,6 @@ func main() {
 		if projectKey != "" {
 			jql += fmt.Sprintf(" AND project = \"%s\"", projectKey)
 		}
-		// Also filter by reporter if it's the bot? No, maybe the user manually labeled them.
-		// Let's stick to project + labels existing.
 
 		fmt.Printf("JQL: %s\n", jql)
 		candidates, err := client.SearchIssues(ctx, jql)
@@ -98,6 +113,7 @@ func main() {
 		}
 
 	} else {
+		fmt.Printf("Searching for issues with label: %s...\n", label)
 		// Exact match
 		issues, err = client.LoadLabelIssues(ctx, label)
 		if err != nil {
@@ -106,7 +122,7 @@ func main() {
 	}
 
 	if len(issues) == 0 {
-		fmt.Println("No issues found with this label.")
+		fmt.Println("No issues found.")
 		return
 	}
 

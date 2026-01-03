@@ -14,7 +14,7 @@ import (
 //
 // Note: `Execute` is in root.go and eventually calls cobra.
 func TestMain_HappyPath(t *testing.T) {
-	// We can't really call main() directly because it calls os.Exit(1) on panic-recover or implicitly exits.
+	// We can't really call main() directly because it calls exit(1) on panic-recover or implicitly exits.
 	// But `Execute()` is blocking until command is done.
 	// If we run `recac --help`, it should exit 0.
 	

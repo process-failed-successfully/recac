@@ -90,7 +90,7 @@ func (o *Orchestrator) Run(ctx context.Context) error {
 		// "TestOrchestrator_ConcurrencyLimit".
 		// Maybe it's intended to test "Limit" not "Optimization"?
 		// "Expected MaxAgents to be adjusted to 2".
-		
+
 		fmt.Printf("Adjusting concurrency from %d to %d (matching initial ready tasks)\n", o.MaxAgents, newMax)
 		o.MaxAgents = newMax
 		o.Pool.NumWorkers = newMax
@@ -274,6 +274,13 @@ func (o *Orchestrator) ExecuteTask(ctx context.Context, taskID string, node *Tas
 
 	session.MaxIterations = o.TaskMaxIterations
 	session.StreamOutput = true
+
+	// Double-check status under lock before starting
+	status, _ := o.Graph.GetTaskStatus(taskID)
+	if status != TaskInProgress {
+		fmt.Printf("!!! [ORCHESTRATOR] Task %s status changed to %s before starting. Skipping spawning.\n", taskID, status)
+		return nil
+	}
 
 	if err := session.Start(ctx); err != nil {
 		o.Graph.MarkTaskStatus(taskID, TaskFailed, err)

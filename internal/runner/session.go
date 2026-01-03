@@ -68,7 +68,17 @@ type Session struct {
 	TaskMaxIterations int    // Max iterations for sub-tasks (if applicable)
 	Notifier          *notify.Manager
 	BaseBranch        string // Base Branch for merge guardrails
+	SkipQA            bool   // Skip QA phase and auto-complete
 	AutoMerge         bool   // Automatically merge PRs
+	JiraClient        JiraClient
+	JiraTicketID      string
+	RepoURL           string // Repository URL for links
+}
+
+// JiraClient defines the interface for Jira operations needed by the session
+type JiraClient interface {
+	AddComment(ctx context.Context, ticketID, comment string) error
+	SmartTransition(ctx context.Context, ticketID, targetNameOrID string) error
 }
 
 func NewSession(d DockerClient, a agent.Agent, workspace, image, project string, maxAgents int) *Session {
@@ -690,12 +700,92 @@ func (s *Session) RunLoop(ctx context.Context) error {
 				fmt.Println("Project signed off. Sub-session exiting.")
 				return nil
 			}
+
+			// Auto-Merge Logic
+			if s.AutoMerge && s.BaseBranch != "" {
+				fmt.Printf("Auto-Merge enabled. Preparing to merge changes into base branch: %s\n", s.BaseBranch)
+
+				// 0. COMMIT WORK: Ensure any pending changes are committed before merging
+				// We use a more careful commit strategy to avoid re-adding ignored files
+				commitCmd := exec.Command("sh", "-c", "git add . && git commit -m 'feat: implemented features for "+s.Project+"' || echo 'Nothing to commit'")
+				commitCmd.Dir = s.Workspace
+				if out, err := commitCmd.CombinedOutput(); err != nil {
+					fmt.Printf("Warning: Failed to auto-commit work: %v\nOutput: %s\n", err, out)
+				} else {
+					fmt.Printf("Auto-committed work: %s\n", strings.TrimSpace(string(out)))
+				}
+
+				fmt.Printf("Merging changes into base branch: %s\n", s.BaseBranch)
+				gitClient := git.NewClient()
+				// Actually, we are IN the workspace, so we can get current branch name
+				// But simpler: checkout BaseBranch -> Merge Previous -> Push
+
+				// 1. Get current branch name
+				cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+				cmd.Dir = s.Workspace
+				out, err := cmd.Output()
+				if err != nil {
+					fmt.Printf("Warning: Failed to get current branch for auto-merge: %v\n", err)
+				} else {
+					featureBranch := strings.TrimSpace(string(out))
+
+					// 2. Checkout Base Branch
+					if err := gitClient.Checkout(s.Workspace, s.BaseBranch); err != nil {
+						fmt.Printf("Warning: Auto-merge failed (checkout base): %v\n", err)
+					} else {
+						// 3. Merge Feature Branch
+						if err := gitClient.Merge(s.Workspace, featureBranch); err != nil {
+							fmt.Printf("Warning: Auto-merge failed (merge): %v\n", err)
+							// Attempt to abort merge to leave clean state
+							_ = gitClient.Recover(s.Workspace)
+						} else {
+							// 4. Push Base Branch
+							if err := gitClient.Push(s.Workspace, s.BaseBranch); err != nil {
+								fmt.Printf("Warning: Auto-merge failed (push): %v\n", err)
+							} else {
+								fmt.Printf("Successfully auto-merged %s into %s and pushed.\n", featureBranch, s.BaseBranch)
+
+								// 6. Capture Commit SHA for links
+								commitSHA := ""
+								shaCmd := exec.Command("git", "rev-parse", "HEAD")
+								shaCmd.Dir = s.Workspace
+								if shaOut, err := shaCmd.Output(); err == nil {
+									commitSHA = strings.TrimSpace(string(shaOut))
+								}
+
+								// 7. Transition Jira and notify with commit link
+								gitLink := s.RepoURL
+								if commitSHA != "" {
+									gitLink = fmt.Sprintf("%s/commit/%s", s.RepoURL, commitSHA)
+								}
+								s.completeJiraTicket(ctx, gitLink)
+							}
+						}
+						// 5. Checkout back to feature branch (nice to have)
+						_ = gitClient.Checkout(s.Workspace, featureBranch)
+					}
+				}
+			} else {
+				// No auto-merge or no base branch. Just push the feature branch and complete.
+				cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+				cmd.Dir = s.Workspace
+				if out, err := cmd.Output(); err == nil {
+					featureBranch := strings.TrimSpace(string(out))
+					// Push current branch
+					gitClient := git.NewClient()
+					if err := gitClient.Push(s.Workspace, featureBranch); err == nil {
+						gitLink := fmt.Sprintf("%s/tree/%s", s.RepoURL, featureBranch)
+						s.completeJiraTicket(ctx, gitLink)
+					}
+				}
+			}
+
 			fmt.Println("Project signed off. Running Cleaner agent...")
 			if err := s.runCleanerAgent(ctx); err != nil {
 				fmt.Printf("Cleaner agent error: %v\n", err)
 			}
 			fmt.Println("Cleaner agent complete. Session finished.")
-			break
+			return nil
 		}
 
 		// Global Lifecycle Transitions (QA/Manager) - Main Session Only
@@ -717,6 +807,14 @@ func (s *Session) RunLoop(ctx context.Context) error {
 			}
 
 			if s.hasSignal("COMPLETED") {
+				// Skip QA if requested (useful for smoketests/verification)
+				if s.SkipQA {
+					fmt.Println("SkipQA enabled. Bypassing QA agent and Manager review.")
+					s.createSignal("PROJECT_SIGNED_OFF")
+					s.clearSignal("COMPLETED")
+					continue
+				}
+
 				fmt.Println("Project marked as COMPLETED. Running QA agent...")
 				if err := s.runQAAgent(ctx); err != nil {
 					fmt.Printf("QA agent error: %v\n", err)
@@ -1317,8 +1415,8 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 		// Create timeout context for this specific command
 		cmdCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
 
-		// Execute via Docker
-		output, err := s.Docker.Exec(cmdCtx, s.ContainerID, []string{"/bin/sh", "-c", cmdScript})
+		// Execute via Docker (use bash for broader compatibility with LLM scripts)
+		output, err := s.Docker.Exec(cmdCtx, s.ContainerID, []string{"/bin/bash", "-c", cmdScript})
 		cancel() // Ensure we release resources
 
 		if err != nil {
@@ -1541,12 +1639,70 @@ func (s *Session) bootstrapGit(ctx context.Context) error {
 		name = "RECAC Agent"
 	}
 
-	fmt.Printf("Bootstrapping git config (email: %s, name: %s)...\n", email, name)
+	// 1. Create Ignore content
+	ignoreContent := `
+# RECAC Agent Artifacts
+.recac.db
+.agent_state.json
+.agent_state_*.json
+.qa_result
+manager_directives.txt
+successes.txt
+temp_files.txt
+blockers.txt
+questions.txt
+app_spec.txt
+feature_list.json
+implementation_summary.txt
+persistence_test.txt
+*summary.txt
+*.qa_result
+
+# Agent Caches and Configs
+.cache/
+.config/
+go/
+node_modules/
+dist/
+build/
+.npm/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+`
+	// 1a. Write to workspace .gitignore (affects BOTH host and container git)
+	gitignorePath := filepath.Join(s.Workspace, ".gitignore")
+	var existingIgnore []byte
+	if data, err := os.ReadFile(gitignorePath); err == nil {
+		existingIgnore = data
+	}
+
+	if !strings.Contains(string(existingIgnore), ".recac.db") {
+		f, err := os.OpenFile(gitignorePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err == nil {
+			f.WriteString("\n# Added by RECAC\n" + ignoreContent)
+			f.Close()
+			fmt.Println("Updated workspace .gitignore with agent patterns.")
+		}
+	}
+
+	// 1b. Create Global Ignore File in container (redundancy/system-wide)
+	writeCmd := []string{"/bin/sh", "-c", fmt.Sprintf("echo '%s' > /etc/gitignore_global", ignoreContent)}
+	if _, err := s.Docker.ExecAsUser(ctx, s.ContainerID, "root", writeCmd); err != nil {
+		fmt.Printf("Warning: Failed to create global gitignore: %v\n", err)
+	}
+
+	fmt.Printf("Bootstrapping git config (email: %s, name: %s, excludes: /etc/gitignore_global)...\n", email, name)
 
 	commands := [][]string{
 		{"sudo", "git", "config", "--system", "user.email", email},
 		{"sudo", "git", "config", "--system", "user.name", name},
 		{"sudo", "git", "config", "--system", "safe.directory", "*"},
+		{"sudo", "git", "config", "--system", "core.excludesFile", "/etc/gitignore_global"},
 	}
 
 	for _, cmd := range commands {
@@ -1698,4 +1854,44 @@ func (s *Session) runInitScript(ctx context.Context) {
 			fmt.Println("async init.sh finished successfully.")
 		}
 	}()
+}
+
+// completeJiraTicket performs the final Jira transition, adds a comment with the link, and sends a notification.
+func (s *Session) completeJiraTicket(ctx context.Context, gitLink string) {
+	if s.JiraClient == nil || s.JiraTicketID == "" {
+		// Not a Jira session, but we still send a notification
+		s.Notifier.Notify(ctx, notify.EventProjectComplete, fmt.Sprintf("Project %s is COMPLETE! Git: %s", s.Project, gitLink))
+		return
+	}
+
+	fmt.Printf("[%s] Finalizing Jira ticket...\n", s.JiraTicketID)
+
+	// 1. Add Comment with Link
+	comment := fmt.Sprintf("RECAC session completed successfully.\n\nGit Link: %s", gitLink)
+	if err := s.JiraClient.AddComment(ctx, s.JiraTicketID, comment); err != nil {
+		fmt.Printf("[%s] Warning: Failed to add Jira comment: %v\n", s.JiraTicketID, err)
+	} else {
+		fmt.Printf("[%s] Jira comment added with Git link.\n", s.JiraTicketID)
+	}
+
+	// 2. Transition to Done
+	// We use "Done" as the default target status, but it could be configurable
+	targetStatus := viper.GetString("jira.done_status")
+	if targetStatus == "" {
+		targetStatus = "Done"
+	}
+
+	fmt.Printf("[%s] Transitioning ticket to '%s'...\n", s.JiraTicketID, targetStatus)
+	if err := s.JiraClient.SmartTransition(ctx, s.JiraTicketID, targetStatus); err != nil {
+		fmt.Printf("[%s] Warning: Failed to transition Jira ticket to %s: %v\n", s.JiraTicketID, targetStatus, err)
+	} else {
+		fmt.Printf("[%s] Jira ticket transitioned to %s.\n", s.JiraTicketID, targetStatus)
+	}
+
+	// 3. Send Notification with Links
+	jiraURL := viper.GetString("jira.url")
+	jiraLink := fmt.Sprintf("%s/browse/%s", jiraURL, s.JiraTicketID)
+
+	notificationMsg := fmt.Sprintf("Project %s is COMPLETE!\n\nJira: %s\nGit: %s", s.Project, jiraLink, gitLink)
+	s.Notifier.Notify(ctx, notify.EventProjectComplete, notificationMsg)
 }

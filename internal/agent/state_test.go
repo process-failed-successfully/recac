@@ -153,7 +153,7 @@ func TestStateManager_InitializeState(t *testing.T) {
 	if err := sm.InitializeState(2000); err != nil {
 		t.Fatal(err)
 	}
-	
+
 	state, err = sm.Load()
 	if err != nil {
 		t.Fatal(err)
@@ -167,7 +167,7 @@ func TestStateManager_Concurrency(t *testing.T) {
 	tmpDir := t.TempDir()
 	stateFile := filepath.Join(tmpDir, ".agent_state.json")
 	sm := NewStateManager(stateFile)
-	
+
 	concurrency := 10
 	done := make(chan bool)
 
@@ -195,4 +195,31 @@ func TestStateManager_Concurrency(t *testing.T) {
 	if len(state.Memory) != concurrency {
 		t.Errorf("Expected %d memory items, got %d", concurrency, len(state.Memory))
 	}
+}
+
+func TestStateManager_Errors(t *testing.T) {
+	t.Run("Invalid JSON", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		stateFile := filepath.Join(tmpDir, ".agent_state.json")
+		os.WriteFile(stateFile, []byte("invalid json"), 0644)
+		sm := NewStateManager(stateFile)
+		_, err := sm.Load()
+		if err == nil {
+			t.Error("Expected error for invalid JSON")
+		}
+	})
+
+	t.Run("Unwritable Directory", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		// Create a file where a directory should be
+		blockedDir := filepath.Join(tmpDir, "blocked")
+		os.WriteFile(blockedDir, []byte("i am a file"), 0644)
+
+		stateFile := filepath.Join(blockedDir, "state.json")
+		sm := NewStateManager(stateFile)
+		err := sm.Save(State{})
+		if err == nil {
+			t.Error("Expected error when saving to unwritable directory")
+		}
+	})
 }

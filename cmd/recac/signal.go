@@ -36,7 +36,7 @@ var clearSignalCmd = &cobra.Command{
 			wd, err := os.Getwd()
 			if err != nil {
 				fmt.Printf("Error determining working directory: %v\n", err)
-				os.Exit(1)
+				exit(1)
 			}
 			projectPath = wd
 		}
@@ -44,19 +44,19 @@ var clearSignalCmd = &cobra.Command{
 		dbPath := filepath.Join(projectPath, ".recac.db")
 		if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 			fmt.Printf("Error: Database not found at %s. Are you in a project root?\n", dbPath)
-			os.Exit(1)
+			exit(1)
 		}
 
 		store, err := db.NewSQLiteStore(dbPath)
 		if err != nil {
 			fmt.Printf("Error opening database: %v\n", err)
-			os.Exit(1)
+			exit(1)
 		}
 		defer store.Close()
 
 		if err := store.DeleteSignal(key); err != nil {
 			fmt.Printf("Error clearing signal '%s': %v\n", key, err)
-			os.Exit(1)
+			exit(1)
 		}
 
 		fmt.Printf("Signal '%s' cleared successfully.\n", key)

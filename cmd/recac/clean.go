@@ -1,9 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
-	"bufio"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 )
@@ -17,8 +18,8 @@ var cleanCmd = &cobra.Command{
 	Short: "Remove temporary files created during the session",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Cleaning up temporary files...")
-		
-tempFilesPath := "temp_files.txt"
+
+		tempFilesPath := "temp_files.txt"
 		file, err := os.Open(tempFilesPath)
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -38,17 +39,23 @@ tempFilesPath := "temp_files.txt"
 				filesToRemove = append(filesToRemove, line)
 			}
 		}
+		file.Close() // Close BEFORE removal
 
 		for _, f := range filesToRemove {
-			err := os.Remove(f)
+			absPath, err := filepath.Abs(f)
+			if err != nil {
+				fmt.Printf("Error resolving path %s: %v\n", f, err)
+				continue
+			}
+			err = os.Remove(absPath)
 			if err != nil {
 				if os.IsNotExist(err) {
-					fmt.Printf("File %s already gone.\n", f)
+					fmt.Printf("File %s already gone.\n", absPath)
 				} else {
-					fmt.Printf("Error removing %s: %v\n", f, err)
+					fmt.Printf("Error removing %s: %v\n", absPath, err)
 				}
 			} else {
-				fmt.Printf("Removed %s\n", f)
+				fmt.Printf("Removed %s\n", absPath)
 			}
 		}
 

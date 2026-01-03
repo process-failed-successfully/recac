@@ -44,8 +44,8 @@ func TestJiraWorkflow_E2E(t *testing.T) {
 	ctx := context.Background()
 
 	// 1. Create Test Ticket
-	// Use a real public repo for cloning test, e.g. a small hello-world
-	testRepo := "https://github.com/octocat/Hello-World.git"
+	// Use a real public repo for cloning test
+	testRepo := "https://github.com/process-failed-successfully/recac-jira-e2e.git"
 	desc := fmt.Sprintf("This is an automated E2E test ticket.\nRepo: %s\nTask: Update Readme.", testRepo)
 
 	// Project key needs to be valid. Try "PROJ" or env var.

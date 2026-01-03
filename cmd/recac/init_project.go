@@ -78,7 +78,7 @@ var initProjectCmd = &cobra.Command{
 
 			fmt.Printf("Error reading spec file: %v\n", err)
 
-			os.Exit(1)
+			exit(1)
 
 		}
 
@@ -86,7 +86,8 @@ var initProjectCmd = &cobra.Command{
 
 		var a agent.Agent
 
-		if viper.GetBool("mock-agent") {
+		isMock, _ := cmd.Flags().GetBool("mock-agent")
+		if isMock || viper.GetBool("mock-agent") {
 
 			fmt.Println("Using Mock Agent...")
 
@@ -100,7 +101,7 @@ var initProjectCmd = &cobra.Command{
 			apiKey := os.Getenv("GEMINI_API_KEY")
 			if apiKey == "" {
 				fmt.Println("Error: GEMINI_API_KEY is required.")
-				os.Exit(1)
+				exit(1)
 			}
 			cwd, _ := os.Getwd()
 			projectName := filepath.Base(cwd)
@@ -112,7 +113,7 @@ var initProjectCmd = &cobra.Command{
 		featureList, err := runner.GenerateFeatureList(context.Background(), a, string(specContent))
 		if err != nil {
 			fmt.Printf("Error generating feature list: %v\n", err)
-			os.Exit(1)
+			exit(1)
 		}
 
 		// 4. Save Feature List
@@ -122,7 +123,7 @@ var initProjectCmd = &cobra.Command{
 			data, _ := json.MarshalIndent(featureList, "", "  ")
 			if err := os.WriteFile("feature_list.json", data, 0644); err != nil {
 				fmt.Printf("Error writing feature_list.json: %v\n", err)
-				os.Exit(1)
+				exit(1)
 			}
 			fmt.Println("Created feature_list.json")
 		}

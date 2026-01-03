@@ -23,12 +23,12 @@ var stopCmd = &cobra.Command{
 		sm, err := runner.NewSessionManager()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to create session manager: %v\n", err)
-			os.Exit(1)
+			exit(1)
 		}
 
 		if err := sm.StopSession(sessionName); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			exit(1)
 		}
 
 		fmt.Printf("Session '%s' stopped successfully\n", sessionName)

@@ -54,15 +54,15 @@ Or configure in config.yaml:
 		// Validate required fields
 		if baseURL == "" {
 			fmt.Fprintf(os.Stderr, "Error: JIRA_URL environment variable or jira.url config is required\n")
-			os.Exit(1)
+			exit(1)
 		}
 		if username == "" {
 			fmt.Fprintf(os.Stderr, "Error: JIRA_USERNAME environment variable or jira.username config is required\n")
-			os.Exit(1)
+			exit(1)
 		}
 		if apiToken == "" {
 			fmt.Fprintf(os.Stderr, "Error: JIRA_API_TOKEN environment variable or jira.api_token config is required\n")
-			os.Exit(1)
+			exit(1)
 		}
 
 		// Create Jira client
@@ -72,7 +72,7 @@ Or configure in config.yaml:
 		ctx := context.Background()
 		if err := client.Authenticate(ctx); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: Authentication failed: %v\n", err)
-			os.Exit(1)
+			exit(1)
 		}
 
 		fmt.Println("Success: Jira authentication successful!")
@@ -101,7 +101,7 @@ Or configure in config.yaml:
 		if ticketID == "" {
 			fmt.Fprintf(os.Stderr, "Error: --id flag is required\n")
 			fmt.Fprintf(os.Stderr, "Usage: %s jira get --id PROJ-123\n", os.Args[0])
-			os.Exit(1)
+			exit(1)
 		}
 
 		// Get credentials from environment variables (preferred) or config
@@ -123,15 +123,15 @@ Or configure in config.yaml:
 		// Validate required fields
 		if baseURL == "" {
 			fmt.Fprintf(os.Stderr, "Error: JIRA_URL environment variable or jira.url config is required\n")
-			os.Exit(1)
+			exit(1)
 		}
 		if username == "" {
 			fmt.Fprintf(os.Stderr, "Error: JIRA_USERNAME environment variable or jira.username config is required\n")
-			os.Exit(1)
+			exit(1)
 		}
 		if apiToken == "" {
 			fmt.Fprintf(os.Stderr, "Error: JIRA_API_TOKEN environment variable or jira.api_token config is required\n")
-			os.Exit(1)
+			exit(1)
 		}
 
 		// Create Jira client
@@ -142,7 +142,7 @@ Or configure in config.yaml:
 		ticket, err := client.GetTicket(ctx, ticketID)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: Failed to fetch ticket %s: %v\n", ticketID, err)
-			os.Exit(1)
+			exit(1)
 		}
 
 		// Extract and display ticket details
@@ -150,7 +150,7 @@ Or configure in config.yaml:
 		fields, ok := ticket["fields"].(map[string]interface{})
 		if !ok {
 			fmt.Fprintf(os.Stderr, "Error: Invalid ticket response format\n")
-			os.Exit(1)
+			exit(1)
 		}
 
 		summary, _ := fields["summary"].(string)
@@ -189,7 +189,7 @@ Or configure in config.yaml:
 		if ticketID == "" {
 			fmt.Fprintf(os.Stderr, "Error: --id flag is required\n")
 			fmt.Fprintf(os.Stderr, "Usage: %s jira transition --id PROJ-123 --transition-id 31\n", os.Args[0])
-			os.Exit(1)
+			exit(1)
 		}
 
 		// Get transition Name or ID from flag (defaults to "In Progress")
@@ -217,15 +217,15 @@ Or configure in config.yaml:
 		// Validate required fields
 		if baseURL == "" {
 			fmt.Fprintf(os.Stderr, "Error: JIRA_URL environment variable or jira.url config is required\n")
-			os.Exit(1)
+			exit(1)
 		}
 		if username == "" {
 			fmt.Fprintf(os.Stderr, "Error: JIRA_USERNAME environment variable or jira.username config is required\n")
-			os.Exit(1)
+			exit(1)
 		}
 		if apiToken == "" {
 			fmt.Fprintf(os.Stderr, "Error: JIRA_API_TOKEN environment variable or jira.api_token config is required\n")
-			os.Exit(1)
+			exit(1)
 		}
 
 		// Create Jira client
@@ -235,7 +235,7 @@ Or configure in config.yaml:
 		ctx := context.Background()
 		if err := client.SmartTransition(ctx, ticketID, transition); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: Failed to transition ticket %s: %v\n", ticketID, err)
-			os.Exit(1)
+			exit(1)
 		}
 
 		fmt.Printf("Success: Ticket %s transitioned to '%s' successfully\n", ticketID, transition)

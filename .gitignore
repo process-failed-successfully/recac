@@ -43,3 +43,37 @@ test_projects/*/
 # Temporary files
 tmp/
 temp/
+# Added by RECAC
+
+# RECAC Agent Artifacts
+.recac.db
+.agent_state.json
+.agent_state_*.json
+.qa_result
+manager_directives.txt
+successes.txt
+temp_files.txt
+blockers.txt
+questions.txt
+app_spec.txt
+feature_list.json
+implementation_summary.txt
+persistence_test.txt
+*summary.txt
+*.qa_result
+
+# Agent Caches and Configs
+.cache/
+.config/
+go/
+node_modules/
+dist/
+build/
+.npm/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
