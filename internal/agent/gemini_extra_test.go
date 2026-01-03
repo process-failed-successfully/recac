@@ -16,7 +16,7 @@ func TestGeminiClient_HTTP_Success(t *testing.T) {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		if r.URL.Query().Get("key") != "test-key" {
+		if r.Header.Get("x-goog-api-key") != "test-key" {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
