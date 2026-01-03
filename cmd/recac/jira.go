@@ -7,9 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"recac/internal/agent"
 	"recac/internal/agent/prompts"
-	"recac/internal/jira"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -39,41 +37,15 @@ Or configure in config.yaml:
     username: user@example.com
     api_token: your-api-token`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// Get credentials from environment variables (preferred) or config
-		baseURL := os.Getenv("JIRA_URL")
-		if baseURL == "" {
-			baseURL = viper.GetString("jira.url")
-		}
-
-		username := os.Getenv("JIRA_USERNAME")
-		if username == "" {
-			username = viper.GetString("jira.username")
-		}
-
-		apiToken := os.Getenv("JIRA_API_TOKEN")
-		if apiToken == "" {
-			apiToken = viper.GetString("jira.api_token")
-		}
-
-		// Validate required fields
-		if baseURL == "" {
-			fmt.Fprintf(os.Stderr, "Error: JIRA_URL environment variable or jira.url config is required\n")
+		// Create Jira client using factory helper
+		ctx := context.Background()
+		client, err := getJiraClient(ctx)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			exit(1)
 		}
-		if username == "" {
-			fmt.Fprintf(os.Stderr, "Error: JIRA_USERNAME environment variable or jira.username config is required\n")
-			exit(1)
-		}
-		if apiToken == "" {
-			fmt.Fprintf(os.Stderr, "Error: JIRA_API_TOKEN environment variable or jira.api_token config is required\n")
-			exit(1)
-		}
-
-		// Create Jira client
-		client := jira.NewClient(baseURL, username, apiToken)
 
 		// Test authentication
-		ctx := context.Background()
 		if err := client.Authenticate(ctx); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: Authentication failed: %v\n", err)
 			exit(1)
@@ -108,41 +80,15 @@ Or configure in config.yaml:
 			exit(1)
 		}
 
-		// Get credentials from environment variables (preferred) or config
-		baseURL := os.Getenv("JIRA_URL")
-		if baseURL == "" {
-			baseURL = viper.GetString("jira.url")
-		}
-
-		username := os.Getenv("JIRA_USERNAME")
-		if username == "" {
-			username = viper.GetString("jira.username")
-		}
-
-		apiToken := os.Getenv("JIRA_API_TOKEN")
-		if apiToken == "" {
-			apiToken = viper.GetString("jira.api_token")
-		}
-
-		// Validate required fields
-		if baseURL == "" {
-			fmt.Fprintf(os.Stderr, "Error: JIRA_URL environment variable or jira.url config is required\n")
+		// Create Jira client using factory helper
+		ctx := context.Background()
+		client, err := getJiraClient(ctx)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			exit(1)
 		}
-		if username == "" {
-			fmt.Fprintf(os.Stderr, "Error: JIRA_USERNAME environment variable or jira.username config is required\n")
-			exit(1)
-		}
-		if apiToken == "" {
-			fmt.Fprintf(os.Stderr, "Error: JIRA_API_TOKEN environment variable or jira.api_token config is required\n")
-			exit(1)
-		}
-
-		// Create Jira client
-		client := jira.NewClient(baseURL, username, apiToken)
 
 		// Fetch ticket
-		ctx := context.Background()
 		ticket, err := client.GetTicket(ctx, ticketID)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: Failed to fetch ticket %s: %v\n", ticketID, err)
@@ -202,41 +148,15 @@ Or configure in config.yaml:
 			transition = "In Progress"
 		}
 
-		// Get credentials from environment variables (preferred) or config
-		baseURL := os.Getenv("JIRA_URL")
-		if baseURL == "" {
-			baseURL = viper.GetString("jira.url")
-		}
-
-		username := os.Getenv("JIRA_USERNAME")
-		if username == "" {
-			username = viper.GetString("jira.username")
-		}
-
-		apiToken := os.Getenv("JIRA_API_TOKEN")
-		if apiToken == "" {
-			apiToken = viper.GetString("jira.api_token")
-		}
-
-		// Validate required fields
-		if baseURL == "" {
-			fmt.Fprintf(os.Stderr, "Error: JIRA_URL environment variable or jira.url config is required\n")
+		// Create Jira client using factory helper
+		ctx := context.Background()
+		client, err := getJiraClient(ctx)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			exit(1)
 		}
-		if username == "" {
-			fmt.Fprintf(os.Stderr, "Error: JIRA_USERNAME environment variable or jira.username config is required\n")
-			exit(1)
-		}
-		if apiToken == "" {
-			fmt.Fprintf(os.Stderr, "Error: JIRA_API_TOKEN environment variable or jira.api_token config is required\n")
-			exit(1)
-		}
-
-		// Create Jira client
-		client := jira.NewClient(baseURL, username, apiToken)
 
 		// Transition ticket
-		ctx := context.Background()
 		if err := client.SmartTransition(ctx, ticketID, transition); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: Failed to transition ticket %s: %v\n", ticketID, err)
 			exit(1)
@@ -247,10 +167,10 @@ Or configure in config.yaml:
 }
 
 type ticketNode struct {
-	Title       string        `json:"title"`
-	Description string        `json:"description"`
-	Type        string        `json:"type"`
-	Children    []ticketNode  `json:"children"`
+	Title       string       `json:"title"`
+	Description string       `json:"description"`
+	Type        string       `json:"type"`
+	Children    []ticketNode `json:"children"`
 }
 
 // jiraGenerateFromSpecCmd represents the jira generate-from-spec command
@@ -268,53 +188,24 @@ var jiraGenerateFromSpecCmd = &cobra.Command{
 		}
 
 		// 2. Setup Jira Client
-		baseURL := os.Getenv("JIRA_URL")
-		if baseURL == "" {
-			baseURL = viper.GetString("jira.url")
+		ctx := context.Background()
+		jiraClient, err := getJiraClient(ctx)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			exit(1)
 		}
-		username := os.Getenv("JIRA_USERNAME")
-		if username == "" {
-			username = viper.GetString("jira.username")
-		}
-		apiToken := os.Getenv("JIRA_API_TOKEN")
-		if apiToken == "" {
-			apiToken = viper.GetString("jira.api_token")
-		}
-		projectKey := os.Getenv("JIRA_PROJECT_KEY") // Assume project key is needed
+
+		projectKey := os.Getenv("JIRA_PROJECT_KEY")
 		if projectKey == "" {
 			projectKey = viper.GetString("jira.project_key")
 		}
-
-		if baseURL == "" || username == "" || apiToken == "" || projectKey == "" {
-			fmt.Fprintf(os.Stderr, "Error: JIRA_URL, JIRA_USERNAME, JIRA_API_TOKEN, and JIRA_PROJECT_KEY are required.\n")
+		if projectKey == "" {
+			fmt.Fprintf(os.Stderr, "Error: JIRA_PROJECT_KEY is required.\n")
 			exit(1)
 		}
-
-		jiraClient := jira.NewClient(baseURL, username, apiToken)
 
 		// 3. Setup Agent
-		provider := viper.GetString("provider")
-		model := viper.GetString("model")
-		apiKey := ""
-
-		// Simple logic to get API key based on provider
-		switch provider {
-		case "gemini":
-			apiKey = os.Getenv("GEMINI_API_KEY")
-		case "openai":
-			apiKey = os.Getenv("OPENAI_API_KEY")
-		case "ollama":
-			// Ollama doesn't strictly need an API key usually, but NewAgent expects one.
-			apiKey = "ollama"
-		}
-
-		if apiKey == "" && provider != "ollama" && provider != "gemini-cli" && provider != "cursor-cli" {
-			fmt.Fprintf(os.Stderr, "Error: API Key for provider %s not found in environment.\n", provider)
-			exit(1)
-		}
-
-		// Instantiate Agent
-		ag, err := agent.NewAgent(provider, apiKey, model, ".", "recac-jira-gen")
+		ag, err := getAgentClient(ctx, "", "", ".", "recac-jira-gen")
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: Failed to initialize agent: %v\n", err)
 			exit(1)
