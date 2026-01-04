@@ -2,12 +2,9 @@
 
 This project implements Prometheus metrics and structured logging for the orchestrator and agent jobs.
 
-## Features
+## Features Implemented
 
-- Prometheus metrics endpoint exposed by the orchestrator
-- Standard and custom business metrics implementation
-- Structured logging in JSON format using log/slog
-- Unit tests for metrics and logging
+✅ **Prometheus Metrics Endpoint** - The orchestrator now exposes a `/metrics` endpoint that returns Prometheus-formatted metrics.
 
 ## Setup
 
