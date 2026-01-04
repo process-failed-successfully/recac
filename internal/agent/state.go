@@ -11,21 +11,21 @@ import (
 
 // State represents the persistent state of an agent
 type State struct {
-	Memory       []string               `json:"memory"`
-	History      []Message              `json:"history"`
-	Metadata     map[string]interface{} `json:"metadata"`
-	UpdatedAt    time.Time              `json:"updated_at"`
-	MaxTokens    int                    `json:"max_tokens,omitempty"`    // Maximum token limit for context window
-	CurrentTokens int                   `json:"current_tokens,omitempty"` // Current token count in context
-	TokenUsage   TokenUsage             `json:"token_usage,omitempty"`   // Token usage statistics
+	Memory        []string               `json:"memory"`
+	History       []Message              `json:"history"`
+	Metadata      map[string]interface{} `json:"metadata"`
+	UpdatedAt     time.Time              `json:"updated_at"`
+	MaxTokens     int                    `json:"max_tokens,omitempty"`     // Maximum token limit for context window
+	CurrentTokens int                    `json:"current_tokens,omitempty"` // Current token count in context
+	TokenUsage    TokenUsage             `json:"token_usage,omitempty"`    // Token usage statistics
 }
 
 // TokenUsage tracks token consumption statistics
 type TokenUsage struct {
-	TotalPromptTokens  int `json:"total_prompt_tokens"`  // Total tokens in prompts sent
+	TotalPromptTokens   int `json:"total_prompt_tokens"`   // Total tokens in prompts sent
 	TotalResponseTokens int `json:"total_response_tokens"` // Total tokens in responses received
-	TotalTokens        int `json:"total_tokens"`         // Total tokens used (prompt + response)
-	TruncationCount    int `json:"truncation_count"`     // Number of times truncation occurred
+	TotalTokens         int `json:"total_tokens"`          // Total tokens used (prompt + response)
+	TruncationCount     int `json:"truncation_count"`      // Number of times truncation occurred
 }
 
 // Message represents a chat message
@@ -69,7 +69,12 @@ func (sm *StateManager) loadState() (State, error) {
 	}
 
 	if err := json.Unmarshal(data, &state); err != nil {
-		return state, fmt.Errorf("failed to unmarshal state: %w", err)
+		snippet := string(data)
+		if len(snippet) > 100 {
+			snippet = snippet[:100] + "..."
+		}
+		// Return specific error with snippet to help debugging
+		return state, fmt.Errorf("failed to unmarshal state (content starts with: %q): %w", snippet, err)
 	}
 
 	return state, nil
@@ -89,8 +94,14 @@ func (sm *StateManager) saveState(state State) error {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
-	if err := os.WriteFile(sm.FilePath, data, 0644); err != nil {
-		return fmt.Errorf("failed to write state file: %w", err)
+	// Atomic write: write to temp file then rename
+	tmpPath := sm.FilePath + ".tmp"
+	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write temp state file: %w", err)
+	}
+
+	if err := os.Rename(tmpPath, sm.FilePath); err != nil {
+		return fmt.Errorf("failed to rename state file: %w", err)
 	}
 
 	return nil
@@ -119,9 +130,9 @@ func (sm *StateManager) AddMemory(memoryItem string) error {
 	if err != nil {
 		return fmt.Errorf("failed to load state: %w", err)
 	}
-	
+
 	state.Memory = append(state.Memory, memoryItem)
-	
+
 	return sm.saveState(state)
 }
 
@@ -134,12 +145,12 @@ func (sm *StateManager) InitializeState(maxTokens int) error {
 	if err != nil {
 		return fmt.Errorf("failed to load state: %w", err)
 	}
-	
+
 	// Only set max_tokens if it's not already set (0)
 	if state.MaxTokens == 0 && maxTokens > 0 {
 		state.MaxTokens = maxTokens
 		return sm.saveState(state)
 	}
-	
+
 	return nil
 }
