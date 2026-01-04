@@ -3,6 +3,7 @@ package notify
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"strings"
 
@@ -143,7 +144,7 @@ func (m *Manager) Notify(ctx context.Context, eventType string, message string, 
 
 	// Send to Slack
 	if m.client != nil && m.isProviderEnabled("slack") {
-		newTS, err := m.notifySlack(ctx, message, ts.SlackTS)
+		newTS, err := m.notifySlack(ctx, eventType, message, ts.SlackTS)
 		if err != nil {
 			if m.logger != nil {
 				m.logger("Failed to send Slack notification: %v", err)
@@ -169,14 +170,36 @@ func (m *Manager) Notify(ctx context.Context, eventType string, message string, 
 	return dumpThreadState(ts), nil
 }
 
-func (m *Manager) notifySlack(ctx context.Context, message, threadTS string) (string, error) {
+func (m *Manager) notifySlack(ctx context.Context, eventType, message, threadTS string) (string, error) {
 	channelID := m.channelID
 	if channelID == "" {
 		channelID = "#general"
 	}
 
+	title, color := getStyle(eventType)
+
+	// Create Blocks
+	headerText := slack.NewTextBlockObject("plain_text", title, false, false)
+	headerBlock := slack.NewHeaderBlock(headerText)
+
+	// Use mrkdwn for the message body
+	messageText := slack.NewTextBlockObject("mrkdwn", message, false, false)
+	sectionBlock := slack.NewSectionBlock(messageText, nil, nil)
+
+	// Create Attachment
+	attachment := slack.Attachment{
+		Color: color,
+		Blocks: slack.Blocks{
+			BlockSet: []slack.Block{
+				headerBlock,
+				sectionBlock,
+			},
+		},
+	}
+
 	opts := []slack.MsgOption{
-		slack.MsgOptionText(message, false),
+		slack.MsgOptionAttachments(attachment),
+		slack.MsgOptionText(fmt.Sprintf("%s: %s", title, message), false),
 	}
 
 	if threadTS != "" {
@@ -188,6 +211,23 @@ func (m *Manager) notifySlack(ctx context.Context, message, threadTS string) (st
 		return "", err
 	}
 	return newTS, nil
+}
+
+func getStyle(eventType string) (string, string) {
+	switch eventType {
+	case EventStart:
+		return "🚀 Project Started", "#3498db" // Blue
+	case EventSuccess:
+		return "✅ Success", "#2eb886" // Green
+	case EventFailure:
+		return "❌ Failure", "#a30200" // Red
+	case EventUserInteraction:
+		return "💬 Input Needed", "#f1c40f" // Yellow
+	case EventProjectComplete:
+		return "🏁 Project Complete", "#2eb886" // Green
+	default:
+		return "📢 Notification", "#808080" // Grey
+	}
 }
 
 func (m *Manager) isEnabled(eventType string) bool {
