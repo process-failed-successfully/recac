@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recac-orchestrator
+  labels:
+    app: recac-orchestrator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: recac-orchestrator
+  template:
+    metadata:
+      labels:
+        app: recac-orchestrator
+    spec:
+      serviceAccountName: recac-orchestrator-sa
+      containers:
+      - name: recac-orchestrator
+        image: ghcr.io/process-failed-successfully/recac:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: JIRA_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: recac-secrets
+              key: jira-api-key
+        - name: JIRA_BASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: recac-secrets
+              key: jira-base-url
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: recac-secrets
+              key: github-token
+        - name: LOG_LEVEL
+          value: "info"
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
