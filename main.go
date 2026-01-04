@@ -1,29 +1,64 @@
 package main
 
 import (
-	"net/http"
 	"log"
+	"net/http"
 	"os"
+	"time"
 
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"workspace/internal/metrics"
 )
 
 func main() {
 	// Initialize metrics
-	metrics := metrics.NewMetrics()
+	m := metrics.NewMetrics()
 
-	// Set up Prometheus metrics endpoint
-	http.Handle("/metrics", promhttp.Handler())
+	// Set up HTTP server
+	mux := http.NewServeMux()
 
-	// Get port from environment or use default
+	// Add metrics endpoint
+	mux.Handle("/metrics", m.Handler())
+
+	// Add a sample endpoint to demonstrate metrics
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Hello, World!"))
+	})
+
+	// Add a health check endpoint
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("OK"))
+	})
+
+	// Wrap with metrics middleware
+	handler := m.RequestTrackingMiddleware(mux)
+
+	// Start server
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 
-	// Start server
+	server := &http.Server{
+		Addr:    ":" + port,
+		Handler: handler,
+	}
+
+	// Start a background goroutine to update system metrics
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			// In a real implementation, you would get actual system metrics
+			// For now, we'll use dummy values
+			m.UpdateSystemMetrics(1024*1024, 0.1, 5)
+		}
+	}()
+
 	log.Printf("Starting server on :%s", port)
-	log.Printf("Metrics endpoint available at http://localhost:%s/metrics", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	log.Printf("Metrics available at http://localhost:%s/metrics", port)
+
+	if err := server.ListenAndServe(); err != nil {
+		log.Fatalf("Server failed: %v", err)
+	}
 }
