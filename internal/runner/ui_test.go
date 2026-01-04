@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"recac/internal/agent"
+	"recac/internal/notify"
+	"recac/internal/telemetry"
 )
 
 func TestSession_RunLoop_UIVerification(t *testing.T) {
@@ -36,6 +38,8 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 		Agent:            mockAgent,
 		Workspace:        tmpDir,
 		ManagerFrequency: 5,
+		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
+		Logger:           telemetry.NewLogger(true, ""),
 	}
 
 	// 6. Capture Stdout? (Hard to do in test without refactor).

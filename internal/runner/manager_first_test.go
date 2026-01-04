@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"recac/internal/db"
+	"recac/internal/notify"
+	"recac/internal/telemetry"
 	"testing"
 )
 
@@ -20,6 +22,8 @@ func TestSelectPrompt_ManagerFirst(t *testing.T) {
 		ManagerFirst:     true,
 		Iteration:        1,
 		ManagerFrequency: 5,
+		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
+		Logger:           telemetry.NewLogger(true, ""),
 	}
 
 	// Test Iteration 1 with ManagerFirst=true
@@ -55,6 +59,8 @@ func TestSelectPrompt_NormalFirst(t *testing.T) {
 		Iteration:        1,
 		SpecFile:         "app_spec.txt",
 		ManagerFrequency: 5,
+		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
+		Logger:           telemetry.NewLogger(true, ""),
 	}
 
 	// Test Iteration 1 with ManagerFirst=false

@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"recac/internal/telemetry"
 	"testing"
 )
 
@@ -58,6 +59,7 @@ func TestCompleteJiraTicket_AddsCheckmark(t *testing.T) {
 		JiraTicketID:  "TEST-123",
 		RepoURL:       "http://github.com/example/repo",
 		SlackThreadTS: "initial-thread-ts",
+		Logger:        telemetry.NewLogger(true, ""),
 	}
 
 	// Execute the private method

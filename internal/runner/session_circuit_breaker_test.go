@@ -5,12 +5,17 @@ import (
 	"os"
 	"path/filepath"
 	"recac/internal/db"
+	"recac/internal/notify"
+	"recac/internal/telemetry"
 	"strings"
 	"testing"
 )
 
 func TestSession_CheckNoOpBreaker(t *testing.T) {
-	s := &Session{}
+	s := &Session{
+		Notifier: notify.NewManager(func(string, ...interface{}) {}),
+		Logger:   telemetry.NewLogger(true, ""),
+	}
 
 	// 1. One No-Op
 	err := s.checkNoOpBreaker("")
@@ -62,6 +67,8 @@ func TestSession_CheckStalledBreaker(t *testing.T) {
 		Workspace:        workspace,
 		ManagerFrequency: 5,
 		LastFeatureCount: 0,
+		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
+		Logger:           telemetry.NewLogger(true, ""),
 	}
 
 	// 1. Initial Progress
@@ -102,6 +109,8 @@ func TestSession_CheckStalledBreaker_ManagerReset(t *testing.T) {
 	s := &Session{
 		ManagerFrequency: 5,
 		LastFeatureCount: 0,
+		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
+		Logger:           telemetry.NewLogger(true, ""),
 	}
 
 	// 1. Stall for 4 iterations

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"recac/internal/notify"
 	"strings"
 	"testing"
 	"time"
@@ -49,6 +50,7 @@ func TestSession_ProcessResponse_Thorough(t *testing.T) {
 	s := &Session{
 		Docker:      mockDocker,
 		ContainerID: "test-container",
+		Notifier:    notify.NewManager(func(string, ...interface{}) {}),
 		Logger:      slog.Default(),
 	}
 
@@ -116,6 +118,7 @@ func TestSession_ProcessResponse_Timeout(t *testing.T) {
 	s := &Session{
 		Docker:      mockDocker,
 		ContainerID: "test-container",
+		Notifier:    notify.NewManager(func(string, ...interface{}) {}),
 		Logger:      slog.Default(),
 	}
 

@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"recac/internal/db"
 	"recac/internal/docker"
+	"recac/internal/notify"
+	"recac/internal/telemetry"
 	"testing"
 )
 
@@ -118,6 +120,8 @@ func TestSession_RunLoop_Success(t *testing.T) {
 		DBStore:          store,
 		MaxIterations:    5,
 		ManagerFrequency: 10,
+		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
+		Logger:           telemetry.NewLogger(true, ""),
 	}
 
 	// Wait, RunLoop will loop until MaxIterations or COMPLETED.
