@@ -4,6 +4,8 @@
 
 This specification outlines the evolution of `recac` into a Kubernetes-native Orchestrator (Operator). Instead of just abstracting Docker locally, `recac` will run as a long-lived service within a Kubernetes cluster. It will continuously discover work (starting with Jira tickets) and spawn ephemeral Kubernetes Jobs to perform tasks.
 
+Recac repository: https://github.com/process-failed-successfully/recac
+
 ## 2. Architecture
 
 ### 2.1 The Orchestrator (Operator)

@@ -287,31 +287,55 @@ func NewSessionWithConfig(workspace, project, provider, model string, dbStore db
 }
 
 // LoadAgentState loads agent state from disk if it exists
+// LoadAgentState loads agent state from disk if it exists
 func (s *Session) LoadAgentState() error {
 	if s.StateManager == nil {
 		return nil // No state manager configured
 	}
 
-	state, err := s.StateManager.Load()
+	// GUARDRAIL: Automatically ensure state files are ignored by git
+	if err := EnsureStateIgnored(s.Workspace); err != nil {
+		fmt.Printf("Warning: Failed to ensure state files are ignored: %v\n", err)
+	}
+
+	// INVALID STATE GUARDRAIL: Load with safeguard to auto-delete corrupt state
+	var state agent.State
+	if err := LoadSafeguardedState(s.AgentStateFile, &state); err != nil {
+		return fmt.Errorf("failed to load safeguarded state: %w", err)
+	}
+
+	// Manually inject the loaded state into the StateManager to ensure it's in sync
+	// We need to extend StateManager or just accept that the next Save() will overwrite it.
+	// However, StateManager.Load() is just a reader. To "inject" it, we rely on the fact
+	// that we just loaded it. But wait, we need to return it?
+	// The original code was: state, err := s.StateManager.Load()
+
+	// Since StateManager doesn't preserve state in memory (it loads on demand),
+	// we assume that if LoadSafeguardedState succeeded, the file is valid.
+	// So we can just call s.StateManager.Load() safely now.
+	// OR we can trust LoadSafeguardedState if it wrote it back? No, it only reads/deletes.
+
+	// If LoadSafeguardedState deleted the file, StateManager.Load() will return empty state (handled internally).
+
+	loadedState, err := s.StateManager.Load()
 	if err != nil {
 		return fmt.Errorf("failed to load agent state: %w", err)
 	}
 
 	// If state has memory/history, we can use it to restore context
-	// For now, we just ensure the state is loaded (agents that support StateManager will use it)
-	if len(state.Memory) > 0 {
-		fmt.Printf("Loaded agent state: %d memory items, %d history messages\n", len(state.Memory), len(state.History))
+	if len(loadedState.Memory) > 0 {
+		fmt.Printf("Loaded agent state: %d memory items, %d history messages\n", len(loadedState.Memory), len(loadedState.History))
 	}
 
 	// Log token usage if available
-	if state.TokenUsage.TotalTokens > 0 {
+	if loadedState.TokenUsage.TotalTokens > 0 {
 		fmt.Printf("Token usage: total=%d (prompt=%d, response=%d), current=%d/%d, truncations=%d\n",
-			state.TokenUsage.TotalTokens,
-			state.TokenUsage.TotalPromptTokens,
-			state.TokenUsage.TotalResponseTokens,
-			state.CurrentTokens,
-			state.MaxTokens,
-			state.TokenUsage.TruncationCount)
+			loadedState.TokenUsage.TotalTokens,
+			loadedState.TokenUsage.TotalPromptTokens,
+			loadedState.TokenUsage.TotalResponseTokens,
+			loadedState.CurrentTokens,
+			loadedState.MaxTokens,
+			loadedState.TokenUsage.TruncationCount)
 	}
 
 	return nil
@@ -1083,6 +1107,13 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		// Run iteration using determined prompt
 		executionOutput, err := s.RunIteration(ctx, prompt, isManager)
 
+		// Check for Agent/API Error (e.g. 413, Network, etc)
+		if err != nil {
+			s.Logger.Error("iteration failed", "error", err)
+			time.Sleep(5 * time.Second) // Backoff
+			continue                    // Retry loop without tripping no-op breaker
+		}
+
 		// Circuit Breaker: No-Op Check
 		if err := s.checkNoOpBreaker(executionOutput); err != nil {
 			fmt.Println(err)
@@ -1269,11 +1300,31 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 	// 3. Coding Agent (Default)
 	var historyStr string
 	if s.DBStore != nil {
-		obs, err := s.DBStore.QueryHistory(15) // Limit 15 to capture context
+		// Limit history size to prevent context exhaustion (413 errors)
+		const MaxHistoryChars = 25000          // approx 6k tokens, safe for most models
+		obs, err := s.DBStore.QueryHistory(20) // Fetch more, but we'll filter by size
 		if err == nil {
 			var sb strings.Builder
-			for i := len(obs) - 1; i >= 0; i-- {
-				sb.WriteString(fmt.Sprintf("\n--- %s ---\n%s\n", obs[i].AgentID, obs[i].Content))
+
+			// Calculate how many observations fit within the limit
+			// obs is ordered by created_at DESC (Newest First)
+			var includedObs []db.Observation
+			currentSize := 0
+
+			for _, o := range obs {
+				// Estimate size: Content + Overhead
+				size := len(o.Content) + len(o.AgentID) + 20
+				if currentSize+size > MaxHistoryChars {
+					break
+				}
+				includedObs = append(includedObs, o)
+				currentSize += size
+			}
+
+			// Build string in Chronological Order (Oldest -> Newest)
+			// includedObs is still [Newest, ..., Oldest-Fitting]
+			for i := len(includedObs) - 1; i >= 0; i-- {
+				sb.WriteString(fmt.Sprintf("\n--- %s ---\n%s\n", includedObs[i].AgentID, includedObs[i].Content))
 			}
 			historyStr = sb.String()
 		}
@@ -1296,7 +1347,16 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 
 		if target.ID != "" {
 			vars["task_id"] = target.ID
-			vars["task_description"] = target.Description
+
+			// Defensive Truncation: Restrict description size to prevent context exhaustion
+			desc := target.Description
+			const MaxDescriptionChars = 20000
+			if len(desc) > MaxDescriptionChars {
+				s.Logger.Warn("task description truncated", "original_len", len(desc), "limit", MaxDescriptionChars)
+				desc = desc[:MaxDescriptionChars] + "\n\n... [Description Truncated due to size] ..."
+			}
+			vars["task_description"] = desc
+
 			vars["exclusive_paths"] = strings.Join(target.Dependencies.ExclusiveWritePaths, ", ")
 			vars["read_only_paths"] = strings.Join(target.Dependencies.ReadOnlyPaths, ", ")
 		} else {
