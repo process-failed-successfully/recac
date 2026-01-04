@@ -1,0 +1,7 @@
+{
+  "jira_url": "https://your-jira-instance.atlassian.net",
+  "jira_username": "your-email@example.com",
+  "jira_api_token": "your-api-token",
+  "project_key": "MFLP",
+  "default_query": "project = MFLP AND status = \"To Do\""
+}

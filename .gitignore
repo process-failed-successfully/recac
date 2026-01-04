@@ -78,3 +78,6 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 test_state.json
+
+# Added by RECAC Safeguard
+agent_state.json
