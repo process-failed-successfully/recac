@@ -5,7 +5,7 @@ This project implements the polling logic in the orchestrator to periodically qu
 ## Features
 
 - Configurable polling interval via environment variables
-- Secure management of Jira API credentials
+- Secure management of Jira API credentials using Kubernetes Secrets
 - Filtering of tickets by state and labels
 - Error handling for Jira API failures
 - Unit tests for polling logic
