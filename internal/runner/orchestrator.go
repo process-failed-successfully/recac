@@ -265,7 +265,7 @@ func (o *Orchestrator) ExecuteTask(ctx context.Context, taskID string, node *Tas
 
 	session := NewSession(o.Docker, o.Agent, o.Workspace, o.BaseImage, o.Project, 1)
 	session.SelectedTaskID = taskID
-	session.SlackThreadTS = o.ParentThreadTS
+	session.SetSlackThreadTS(o.ParentThreadTS)
 	session.SuppressStartNotification = true
 
 	// Use Orchestrator's shared DB store

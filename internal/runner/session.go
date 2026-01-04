@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sync"
 	"os/exec"
 	"os/user"
 	"path/filepath"
@@ -75,6 +76,8 @@ type Session struct {
 	RepoURL                   string // Repository URL for links
 	SlackThreadTS             string // Thread Timestamp for Slack conversations
 	SuppressStartNotification bool   // Suppress "Session Started" notification (for sub-tasks)
+
+	mu sync.RWMutex // Protects concurrent access to Iteration, SlackThreadTS, ContainerID
 }
 
 // JiraClient defines the interface for Jira operations needed by the session
@@ -496,19 +499,64 @@ func (s *Session) Stop(ctx context.Context) error {
 		}
 	}
 
-	if s.ContainerID == "" {
+	s.mu.Lock()
+	containerID := s.ContainerID
+	s.mu.Unlock()
+
+	if containerID == "" {
 		return nil // No container to clean up
 	}
 
-	fmt.Printf("Stopping container: %s\n", s.ContainerID)
-	if err := s.Docker.StopContainer(ctx, s.ContainerID); err != nil {
+	fmt.Printf("Stopping container: %s\n", containerID)
+	if err := s.Docker.StopContainer(ctx, containerID); err != nil {
 		return fmt.Errorf("failed to stop container: %w", err)
 	}
 
+	s.mu.Lock()
 	s.ContainerID = ""
+	s.mu.Unlock()
 	fmt.Println("Container stopped successfully")
 
 	return nil
+}
+
+// Thread-safe Accessors
+
+func (s *Session) GetIteration() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.Iteration
+}
+
+func (s *Session) IncrementIteration() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.Iteration++
+	return s.Iteration
+}
+
+func (s *Session) GetSlackThreadTS() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.SlackThreadTS
+}
+
+func (s *Session) SetSlackThreadTS(ts string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.SlackThreadTS = ts
+}
+
+func (s *Session) GetContainerID() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.ContainerID
+}
+
+func (s *Session) SetContainerID(id string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.ContainerID = id
 }
 
 // findAgentBridgeBinary hunts for the agent-bridge binary on the host
@@ -555,10 +603,10 @@ func (s *Session) RunLoop(ctx context.Context) error {
 	// But Start() is called before RunLoop(), so s.SlackThreadTS should be set if notifications are enabled.
 	// If it's a resume and we don't have the TS persisted, we might start a new thread.
 	// For now, let's just log if it's not set.
-	if s.SlackThreadTS == "" {
+	if s.GetSlackThreadTS() == "" {
 		// Try to send a start message if we missed it (e.g. manual RunLoop call)
 		ts, _ := s.Notifier.Notify(ctx, notify.EventStart, fmt.Sprintf("Session Started for Project: %s", s.Project), "")
-		s.SlackThreadTS = ts
+		s.SetSlackThreadTS(ts)
 	} else {
 		// Just log context update if needed, but "Session Started" is redundant if checking duplicates.
 		// User complained about DUPLICATE messages. If Start() already sent one, RunLoop shouldn't send another top-level one.
@@ -604,17 +652,18 @@ func (s *Session) RunLoop(ctx context.Context) error {
 			}
 
 			// Final Phase: UI Verification Check
-			s.Notifier.Notify(ctx, notify.EventProjectComplete, fmt.Sprintf("Project %s is COMPLETE!", s.Project), s.SlackThreadTS)
+			s.Notifier.Notify(ctx, notify.EventProjectComplete, fmt.Sprintf("Project %s is COMPLETE!", s.Project), s.GetSlackThreadTS())
 		}
 	}
 
 	// Ensure cleanup on exit (defer cleanup)
 	defer func() {
-		if s.ContainerID != "" {
-			fmt.Printf("Cleaning up container: %s\n", s.ContainerID)
+		containerID := s.GetContainerID()
+		if containerID != "" {
+			fmt.Printf("Cleaning up container: %s\n", containerID)
 			cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			if err := s.Docker.StopContainer(cleanupCtx, s.ContainerID); err != nil {
+			if err := s.Docker.StopContainer(cleanupCtx, containerID); err != nil {
 				fmt.Printf("Warning: Failed to cleanup container: %v\n", err)
 			} else {
 				fmt.Println("Container cleaned up successfully")
@@ -631,13 +680,14 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		}
 
 		// Check Max Iterations
-		if s.MaxIterations > 0 && s.Iteration >= s.MaxIterations {
+		currentIteration := s.GetIteration()
+		if s.MaxIterations > 0 && currentIteration >= s.MaxIterations {
 			fmt.Printf("Reached max iterations (%d). Stopping.\n", s.MaxIterations)
 			return ErrMaxIterations
 		}
 
-		s.Iteration++
-		telemetry.LogInfo("Starting Iteration", "project", s.Project, "iteration", s.Iteration)
+		newIteration := s.IncrementIteration()
+		telemetry.LogInfo("Starting Iteration", "project", s.Project, "iteration", newIteration)
 
 		// Ensure feature list is synced and mirror is up to date
 		features = s.loadFeatures()
@@ -894,7 +944,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 						fmt.Printf("Warning: Failed to create PROJECT_SIGNED_OFF: %v\n", err)
 					}
 					fmt.Println("Manager approved. Project signed off.")
-					s.Notifier.Notify(ctx, notify.EventSuccess, fmt.Sprintf("Project %s Signed Off by Manager!", s.Project), s.SlackThreadTS)
+					s.Notifier.Notify(ctx, notify.EventSuccess, fmt.Sprintf("Project %s Signed Off by Manager!", s.Project), s.GetSlackThreadTS())
 					continue // Next iteration will run Cleaner
 				}
 			}
@@ -935,7 +985,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		// Multi-Agent Coding Sprint Delegation
 		if role == prompts.CodingAgent && s.MaxAgents > 1 {
 			fmt.Printf("Delegating to Multi-Agent Orchestrator (role: %s, max-agents: %d)\n", role, s.MaxAgents)
-			orchestrator := NewOrchestrator(s.DBStore, s.Docker, s.Workspace, s.Image, s.Agent, s.Project, s.MaxAgents, s.SlackThreadTS)
+			orchestrator := NewOrchestrator(s.DBStore, s.Docker, s.Workspace, s.Image, s.Agent, s.Project, s.MaxAgents, s.GetSlackThreadTS())
 			if err := orchestrator.Run(ctx); err != nil {
 				fmt.Printf("Orchestrator sprint failed: %v\n", err)
 			}
@@ -952,8 +1002,8 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		// Circuit Breaker: No-Op Check
 		if err := s.checkNoOpBreaker(executionOutput); err != nil {
 			fmt.Println(err)
-			s.Notifier.Notify(ctx, notify.EventFailure, fmt.Sprintf("Project %s Failed: %v", s.Project, err), s.SlackThreadTS)
-			s.Notifier.AddReaction(ctx, s.SlackThreadTS, "x")
+			s.Notifier.Notify(ctx, notify.EventFailure, fmt.Sprintf("Project %s Failed: %v", s.Project, err), s.GetSlackThreadTS())
+			s.Notifier.AddReaction(ctx, s.GetSlackThreadTS(), "x")
 			return ErrNoOp // Exit loop with error
 		}
 
@@ -962,8 +1012,8 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		if err := s.checkStalledBreaker(role, passingCount); err != nil {
 			telemetry.TrackAgentStall(s.Project)
 			fmt.Println(err)
-			s.Notifier.Notify(ctx, notify.EventFailure, fmt.Sprintf("Project %s Stalled: %v", s.Project, err), s.SlackThreadTS)
-			s.Notifier.AddReaction(ctx, s.SlackThreadTS, "x")
+			s.Notifier.Notify(ctx, notify.EventFailure, fmt.Sprintf("Project %s Stalled: %v", s.Project, err), s.GetSlackThreadTS())
+			s.Notifier.AddReaction(ctx, s.GetSlackThreadTS(), "x")
 			return ErrStalled // Exit loop with error
 		}
 
@@ -1074,7 +1124,7 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 
 		// If ManagerFirst is requested on Iteration 1, we skip Initializer for now
 		// (Manager might create it, or we'll loop back and hit this again later if Manager doesn't)
-		if s.Iteration == 1 && s.ManagerFirst {
+		if s.GetIteration() == 1 && s.ManagerFirst {
 			// Manager First: Skip Initializer, go straight to Manager prompt
 			// ... (existing logic for ManagerFirst)
 			qaReport := "Initial Planning Phase. No code implemented yet."
@@ -1109,7 +1159,7 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 	}
 
 	// 2. Manager Review (Triggered by file or frequency) - Main Session Only
-	if s.SelectedTaskID == "" && (s.Iteration%s.ManagerFrequency == 0 || s.hasSignal("TRIGGER_MANAGER")) {
+	if s.SelectedTaskID == "" && (s.GetIteration()%s.ManagerFrequency == 0 || s.hasSignal("TRIGGER_MANAGER")) {
 		// Cleanup signal
 		s.clearSignal("TRIGGER_MANAGER")
 
@@ -1228,12 +1278,13 @@ func (s *Session) syncFeatureFile(fl db.FeatureList) {
 		err = os.WriteFile(path, data, 0644)
 	}
 
-	if err != nil && os.IsPermission(err) && s.ContainerID != "" {
+	containerID := s.GetContainerID()
+	if err != nil && os.IsPermission(err) && containerID != "" {
 		// Last resort: ask root-powered container to chown it back to us
 		u, _ := user.Current()
 		if u != nil {
 			// Best effort chown
-			_, _ = s.Docker.Exec(context.Background(), s.ContainerID, []string{"chown", fmt.Sprintf("%s:%s", u.Uid, u.Gid), "feature_list.json"})
+			_, _ = s.Docker.Exec(context.Background(), containerID, []string{"chown", fmt.Sprintf("%s:%s", u.Uid, u.Gid), "feature_list.json"})
 			err = os.WriteFile(path, data, 0644)
 		}
 	}
@@ -1511,7 +1562,7 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 		cmdCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
 
 		// Execute via Docker (use bash for broader compatibility with LLM scripts)
-		output, err := s.Docker.Exec(cmdCtx, s.ContainerID, []string{"/bin/bash", "-c", cmdScript})
+		output, err := s.Docker.Exec(cmdCtx, s.GetContainerID(), []string{"/bin/bash", "-c", cmdScript})
 		cancel() // Ensure we release resources
 
 		if err != nil {
@@ -1588,7 +1639,7 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 		blockerFiles := []string{"recac_blockers.txt", "blockers.txt"}
 		for _, bf := range blockerFiles {
 			checkCmd := []string{"/bin/sh", "-c", fmt.Sprintf("test -f %s && cat %s", bf, bf)}
-			blockerContent, err := s.Docker.Exec(ctx, s.ContainerID, checkCmd)
+			blockerContent, err := s.Docker.Exec(ctx, s.GetContainerID(), checkCmd)
 			trimmed := strings.TrimSpace(blockerContent)
 			if err == nil && len(trimmed) > 0 {
 				// Check for false positives (status messages instead of blockers)
@@ -1611,7 +1662,7 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 				if isFalsePositive {
 					fmt.Printf("Ignoring false positive blocker in %s: %s\n", bf, trimmed)
 					// Cleanup the file so it doesn't re-trigger
-					s.Docker.Exec(ctx, s.ContainerID, []string{"rm", bf})
+					s.Docker.Exec(ctx, s.GetContainerID(), []string{"rm", bf})
 					continue
 				}
 
@@ -1720,7 +1771,8 @@ func (s *Session) checkAutoQA() bool {
 
 // bootstrapGit sets up default git configuration in the container.
 func (s *Session) bootstrapGit(ctx context.Context) error {
-	if s.ContainerID == "" {
+	containerID := s.GetContainerID()
+	if containerID == "" {
 		return fmt.Errorf("container not started")
 	}
 
@@ -1787,7 +1839,7 @@ yarn-error.log*
 
 	// 1b. Create Global Ignore File in container (redundancy/system-wide)
 	writeCmd := []string{"/bin/sh", "-c", fmt.Sprintf("echo '%s' > /etc/gitignore_global", ignoreContent)}
-	if _, err := s.Docker.ExecAsUser(ctx, s.ContainerID, "root", writeCmd); err != nil {
+	if _, err := s.Docker.ExecAsUser(ctx, containerID, "root", writeCmd); err != nil {
 		fmt.Printf("Warning: Failed to create global gitignore: %v\n", err)
 	}
 
@@ -1802,7 +1854,7 @@ yarn-error.log*
 
 	for _, cmd := range commands {
 		// Use root to bootstrap system config robustly
-		if _, err := s.Docker.ExecAsUser(ctx, s.ContainerID, "root", cmd); err != nil {
+		if _, err := s.Docker.ExecAsUser(ctx, containerID, "root", cmd); err != nil {
 			return fmt.Errorf("failed to execute git bootstrap command %v: %w", cmd, err)
 		}
 	}
@@ -1827,21 +1879,21 @@ func (s *Session) fixPasswdDatabase(ctx context.Context, containerUser string) {
 
 	// 1. Ensure GID exists
 	groupCheckCmd := []string{"getent", "group", gid}
-	groupOut, groupErr := s.Docker.ExecAsUser(ctx, s.ContainerID, "root", groupCheckCmd)
+	groupOut, groupErr := s.Docker.ExecAsUser(ctx, s.GetContainerID(), "root", groupCheckCmd)
 	if groupErr != nil || strings.TrimSpace(groupOut) == "" {
 		groupAddCmd := []string{"groupadd", "-g", gid, "appgroup"}
-		if _, err := s.Docker.ExecAsUser(ctx, s.ContainerID, "root", groupAddCmd); err != nil {
+		if _, err := s.Docker.ExecAsUser(ctx, s.GetContainerID(), "root", groupAddCmd); err != nil {
 			fmt.Printf("Warning: Failed to create group %s: %v\n", gid, err)
 		}
 	}
 
 	// 2. Ensure UID exists
 	userCheckCmd := []string{"getent", "passwd", uid}
-	userOut, userErr := s.Docker.ExecAsUser(ctx, s.ContainerID, "root", userCheckCmd)
+	userOut, userErr := s.Docker.ExecAsUser(ctx, s.GetContainerID(), "root", userCheckCmd)
 	if userErr != nil || strings.TrimSpace(userOut) == "" {
 		// -u UID, -g GID, -m (create home), -s shell, -d home
 		userAddCmd := []string{"useradd", "-u", uid, "-g", gid, "-m", "-s", "/bin/sh", "-d", "/workspace", "appuser"}
-		if _, err := s.Docker.ExecAsUser(ctx, s.ContainerID, "root", userAddCmd); err != nil {
+		if _, err := s.Docker.ExecAsUser(ctx, s.GetContainerID(), "root", userAddCmd); err != nil {
 			fmt.Printf("Warning: Failed to create user %s: %v\n", uid, err)
 		}
 	}
@@ -1850,7 +1902,8 @@ func (s *Session) fixPasswdDatabase(ctx context.Context, containerUser string) {
 // fixPermissions ensures that all files in the workspace are owned by the host user.
 // This prevents "Permission denied" errors when the host process (git) tries to modify/delete files created by the agent (root).
 func (s *Session) fixPermissions(ctx context.Context) error {
-	if s.ContainerID == "" {
+	containerID := s.GetContainerID()
+	if containerID == "" {
 		return nil
 	}
 
@@ -1865,7 +1918,7 @@ func (s *Session) fixPermissions(ctx context.Context) error {
 	cmd := []string{"chown", "-R", fmt.Sprintf("%s:%s", u.Uid, u.Gid), "/workspace"}
 
 	// We suppress output unless error, to avoid spam
-	output, err := s.Docker.ExecAsUser(ctx, s.ContainerID, "root", cmd)
+	output, err := s.Docker.ExecAsUser(ctx, containerID, "root", cmd)
 	if err != nil {
 		return fmt.Errorf("chown failed: %s, output: %s", err, output)
 	}
@@ -1922,7 +1975,7 @@ func (s *Session) runInitScript(ctx context.Context) {
 	fmt.Println("Found init.sh. Executing in container...")
 
 	// 1. Ensure executable
-	if _, err := s.Docker.ExecAsUser(ctx, s.ContainerID, "root", []string{"chmod", "+x", "init.sh"}); err != nil {
+	if _, err := s.Docker.ExecAsUser(ctx, s.GetContainerID(), "root", []string{"chmod", "+x", "init.sh"}); err != nil {
 		fmt.Printf("Warning: Failed to make init.sh executable: %v\n", err)
 		return
 	}
@@ -1936,7 +1989,7 @@ func (s *Session) runInitScript(ctx context.Context) {
 		asyncCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second*60)
 		defer cancel()
 
-		output, err := s.Docker.ExecAsUser(asyncCtx, s.ContainerID, "root", []string{"/bin/sh", "-c", "./init.sh"})
+		output, err := s.Docker.ExecAsUser(asyncCtx, s.GetContainerID(), "root", []string{"/bin/sh", "-c", "./init.sh"})
 		if err != nil {
 			if asyncCtx.Err() == context.DeadlineExceeded {
 				fmt.Printf("Warning: init.sh execution timed out after 10 minutes.\n")
@@ -1955,7 +2008,7 @@ func (s *Session) runInitScript(ctx context.Context) {
 func (s *Session) completeJiraTicket(ctx context.Context, gitLink string) {
 	if s.JiraClient == nil || s.JiraTicketID == "" {
 		// Not a Jira session, but we still send a notification
-		s.Notifier.Notify(ctx, notify.EventProjectComplete, fmt.Sprintf("Project %s is COMPLETE! Git: %s", s.Project, gitLink), s.SlackThreadTS)
+		s.Notifier.Notify(ctx, notify.EventProjectComplete, fmt.Sprintf("Project %s is COMPLETE! Git: %s", s.Project, gitLink), s.GetSlackThreadTS())
 		return
 	}
 
@@ -1991,6 +2044,6 @@ func (s *Session) completeJiraTicket(ctx context.Context, gitLink string) {
 	jiraLink := fmt.Sprintf("%s/browse/%s", jiraURL, s.JiraTicketID)
 
 	notificationMsg := fmt.Sprintf("Project %s is COMPLETE!\n\nJira: %s\nGit: %s", s.Project, jiraLink, gitLink)
-	s.Notifier.Notify(ctx, notify.EventProjectComplete, notificationMsg, s.SlackThreadTS)
-	s.Notifier.AddReaction(ctx, s.SlackThreadTS, "white_check_mark")
+	s.Notifier.Notify(ctx, notify.EventProjectComplete, notificationMsg, s.GetSlackThreadTS())
+	s.Notifier.AddReaction(ctx, s.GetSlackThreadTS(), "white_check_mark")
 }
