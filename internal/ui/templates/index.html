@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workflow Dashboard</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="dashboard-header">
+            <h1>Workflow Dashboard</h1>
+            <div class="last-updated">Last Updated: <span id="last-updated-time">Loading...</span></div>
+        </header>
+
+        <div class="status-overview">
+            <div class="status-card">
+                <h3>System Health</h3>
+                <div class="status-indicator" id="system-health">Loading...</div>
+            </div>
+
+            <div class="status-card">
+                <h3>Tickets</h3>
+                <div class="status-value" id="total-tickets">0</div>
+                <div class="status-detail">
+                    <span class="completed" id="completed-tickets">0</span> completed,
+                    <span class="pending" id="pending-tickets">0</span> pending
+                </div>
+            </div>
+
+            <div class="status-card">
+                <h3>Jobs</h3>
+                <div class="status-value" id="total-jobs">0</div>
+                <div class="status-detail">
+                    <span class="completed" id="completed-jobs">0</span> completed,
+                    <span class="failed" id="failed-jobs">0</span> failed,
+                    <span class="pending" id="pending-jobs">0</span> pending
+                </div>
+            </div>
+        </div>
+
+        <div class="metrics-section">
+            <h2>System Metrics</h2>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">CPU Usage</div>
+                    <div class="metric-value" id="cpu-usage">0%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Memory Usage</div>
+                    <div class="metric-value" id="memory-usage">0%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Disk Usage</div>
+                    <div class="metric-value" id="disk-usage">0%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Active Workers</div>
+                    <div class="metric-value" id="active-workers">0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Queue Size</div>
+                    <div class="metric-value" id="queue-size">0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Uptime</div>
+                    <div class="metric-value" id="uptime">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tickets-section">
+            <h2>Recent Tickets</h2>
+            <div class="tickets-table-container">
+                <table class="tickets-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Title</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Jobs</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tickets-table-body">
+                        <!-- Tickets will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>
