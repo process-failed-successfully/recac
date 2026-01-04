@@ -15,7 +15,7 @@ spec:
         image: alpine/git
         command: ["sh", "-c"]
         args:
-        - git clone https://github.com/process-failed-successfully/recac.git /workspace &&
+        - git clone $GIT_REPO $WORKSPACE_DIR &&
           echo "Git clone completed successfully"
         env:
         - name: GIT_REPO
@@ -30,13 +30,13 @@ spec:
         image: alpine/git
         command: ["sh", "-c"]
         args:
-        - cd /workspace &&
-          echo "Agent job completed successfully"
+        - cd $WORKSPACE_DIR &&
+          echo "Agent job completed successfully in $AGENT_ENV environment"
         env:
         - name: AGENT_ENV
           value: "production"
         - name: WORKSPACE_DIR
-          mountPath: /workspace
+          value: "/workspace"
         volumeMounts:
         - name: workspace
           mountPath: /workspace
