@@ -1,117 +1,142 @@
-# Specification: Kubernetes Job Support for Agents
+# Specification: Kubernetes Operator Support for Agents
 
 ## 1. Overview
 
-This specification details the addition of Kubernetes support to `recac`, allowing agents to run within Kubernetes Jobs instead of local Docker containers. This enables scalability, better resource management, and execution in remote environments.
-
-Recac repository:
-https://github.com/process-failed-successfully/recac
+This specification outlines the evolution of `recac` into a Kubernetes-native Orchestrator (Operator). Instead of just abstracting Docker locally, `recac` will run as a long-lived service within a Kubernetes cluster. It will continuously discover work (starting with Jira tickets) and spawn ephemeral Kubernetes Jobs to perform tasks.
 
 ## 2. Architecture
 
-### 2.1 Interface Abstraction
+### 2.1 The Orchestrator (Operator)
 
-The current `DockerClient` interface in `internal/runner/docker_interface.go` is tightly coupled to Docker concepts. It will be renamed to `ContainerEngine` (or similar generic name) and generalized.
+The `recac` core service runs as a Kubernetes **Deployment**.
 
-```go
-type ContainerEngine interface {
-    // Lifecycle
-    Init(ctx context.Context) error // Check connectivity (Daemon/Cluster)
-    StartEnvironment(ctx context.Context, imageRef string, workspace string, envVars map[string]string) (string, error) // Returns ID
-    StopEnvironment(ctx context.Context, id string) error
+- **Role**: Controller / Operator.
+- **Responsibility**:
+  1.  Poll/Listen for work triggers (Jira, Webhooks, Cron).
+  2.  Manage the lifecycle of Agent Jobs.
+  3.  Aggregate logs and status.
 
-    // Execution
-    Exec(ctx context.Context, id string, cmd []string) (string, error)
-    ExecAsUser(ctx context.Context, id string, user string, cmd []string) (string, error)
+### 2.2 The Agent (Worker)
 
-    // Image/Artifact Management
-    EnsureImage(ctx context.Context, imageRef string) error // Pulls or verifies existence
-    BuildImage(ctx context.Context, opts BuildOptions) (string, error) // Docker-specific mostly, K8s might skip or use Kaniko/BuildKit?
-                                                                       // For V1, K8s implementation might assume pre-built images or fail on build.
-}
-```
+Agents are spawned as Kubernetes **Jobs**.
 
-### 2.2 Implementations
+- **Isolation**: Each task runs in its own isolated Pod/Job.
+- **Ephemeral**: The environment is created for the task and destroyed afterwards.
+- **Self-Contained**: The Agent container is responsible for setting up its own workspace (git clone).
 
-- `internal/docker`: Existing Docker implementation.
-- `internal/kubernetes`: New package implementing the interface using `client-go`.
+## 3. Work Discovery
 
-## 3. Kubernetes Implementation Details
+### 3.1 Source: Jira (Phase 1)
 
-### 3.1 Resource Type: Job vs Pod
+The Orchestrator will focus on Jira integration as the primary work source.
 
-We will use `batch/v1 Job` for spawning the agent environment.
+1.  **Poll**: Periodically query Jira (JQL) for tickets in a "Ready" or specific state (e.g., `labels = recac-agent`).
+2.  **Claim**: Transition the ticket to "In Progress" or assign it to the bot user to prevent duplicate processing.
+3.  **Dispatch**: Spawn a Kubernetes Job to handle the ticket.
 
-- **Why Job?** Jobs provide restart policies (`OnFailure`) and clear lifecycle management. If the node dies, the Job controller can reschedule it (though we lose ephemeral state, `recac` should be robust to this).
-- **Keep-Alive**: The Job's container command will be `sleep infinity` (or a lightweight wait loop) to allow the `recac` runner to `Exec` commands into it interactively.
+## 4. Execution Flow
 
-### 3.2 Workspace Persistence
+### 4.1 Job Lifecycle
 
-- **Local Execution**: When `recac` runs locally and targets a remote cluster, we cannot "bind mount" the local workspace easily.
+1.  **Spawn**: The Orchestrator creates a `batch/v1 Job`.
 
-  - _Solution A (MVP)_: Assume `recac` runs **inside** the cluster (e.g., as a pod itself) and shares a PersistentVolumeClaim (PVC) with the agent Job.
-  - _Solution B (Remote)_: Use `kubectl cp` (via client-go `SPDY` executor) to sync files up/down. This is slow for large repos.
-  - _Solution C (Git)_: The agent Job clones the repo from the remote origin. `recac` manages the agent via Git ops (pushing changes).
+    - **Env Vars**: Passes Ticket ID, Repo URL, and temporary credentials.
+    - **Secrets**: Mounts necessary secrets (Github Token, Jira Token, OpenAI/Anthropic Keys).
 
-  **Decision for V1**:
+2.  **Initialization (The "Clone" Step)**:
 
-  1.  If `KUBECONFIG` points to a local cluster (e.g., Minikube, Docker Desktop), try `hostPath`.
-  2.  Standard mode: `recac` expects the workspace to be available via a PVC. The specification assumes the user provides a `pvc_name` in config.
-  3.  Future: `recac` uploads the current context to a PVC or ephemeral volume.
+    - Unlike the previous design (Shared PVC), each Agent **clones the repository** it needs at startup.
+    - _Advantages_: No stale state, clean slate for every run, supports multiple different repos easily.
+    - _Mechanism_: An `initContainer` or the first step of the Agent entrypoint performs `git clone <repo_url>`.
 
-### 3.3 Execution Flow
+3.  **Execution**:
 
-1.  **Start**: `recac` creates a Job.
-    - Name: `recac-agent-<session-id>`
-    - Image: `ghcr.io/.../recac-agent`
-    - VolumeMount: `workspace-pvc:/workspace`
-2.  **Wait**: Poll for Pod status `Running`.
-3.  **Exec**: Use `client-go/tools/remotecommand` to execute shell commands (`/bin/bash -c ...`) inside the Pod.
-4.  **Stop**: Delete the Job (and associated Pods).
+    - The Agent starts usually with `recac start --jira <TICKET_ID>`.
+    - It creates a feature branch, performs work, runs tests, and pushes changes.
 
-## 4. Configuration
+4.  **Completion**:
+    - **Success**: Agent transitions Jira ticket to "Review/Done". Job completes with Exit Code 0.
+    - **Failure**: Agent comments on Jira with error logs. Job fails. Orchestrator may retry or alert.
 
-Additions to `config.yaml`:
+### 4.2 Workspace Persistence
+
+- **Ephemeral**: The workspace exists only for the duration of the Job.
+- **Persistence**: Any changes must be pushed to Git to be saved.
+- **Logs/Artifacts**: Logs are streamed to the Orchestrator (or centralized logging like Loki) and potentially attached to the Jira ticket.
+
+## 5. Kubernetes Resources
+
+### 5.1 Deployment (Orchestrator)
 
 ```yaml
-runner:
-  backend: "kubernetes" # or "docker"
-
-kubernetes:
-  kubeconfig: "~/.kube/config" # optional, defaults to standard resolution
-  context: "my-cluster" # optional
-  namespace: "recac-agents" # default: default
-  pvc_name: "recac-workspace" # Required for persistence
-  resources:
-    requests:
-      cpu: "500m"
-      memory: "1Gi"
-    limits:
-      cpu: "2000m"
-      memory: "4Gi"
-  service_account: "recac-agent-sa" # optional
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recac-orchestrator
+spec:
+  replicas: 1 # Can be scaled >1 with Leader Election (see HA)
+  template:
+    spec:
+      serviceAccountName: recac-operator-sa
+      containers:
+        - name: orchestrator
+          image: ghcr.io/org/recac:latest
+          command: ["recac", "orchestrate"]
+          env:
+            - name: JIRA_URL
+              value: "https://..."
 ```
 
-## 5. Scaling and Best Practices
+### 5.2 Job (Agent Template)
 
-### 5.1 Resource Isolation
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: recac-agent-
+spec:
+  ttlSecondsAfterFinished: 3600 # Auto-cleanup
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: agent
+          image: ghcr.io/org/recac-agent:latest
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              git clone https://$GITHUB_TOKEN@github.com/org/repo.git .
+              recac start --jira $JIRA_TICKET
+```
 
-- **Namespace**: Agents should run in a dedicated namespace (`recac-agents`) to avoid clutter and enforce quotas.
-- **Quotas**: Use `ResourceQuota` to limit total CPU/Memory consumed by all agents.
+## 6. High Availability & Resilience
 
-### 5.2 Security
+### 6.1 Orchestrator HA
 
-- **ServiceAccount**: The agent pod should run with a ServiceAccount that has **no** permissions (or minimal) to prevent the agent from messing with the cluster.
-- **NetworkPolicy**: Restrict egress. Agents usually need Internet access (pip/go get), but should not access internal cluster services (Kube API, internal DBs).
+To ensure the Orchestrator itself is not a single point of failure:
 
-### 5.3 Concurrency
+- **Replicas**: The Deployment should be configured with `replicas: 2` (or more).
+- **Leader Election**: Use `client-go`'s `leaderelection` package (via `Lease` API) to ensure only one active leader is polling Jira and spawning jobs at a time.
+- **Failover**: If the leader crashes, a standby immediately acquires the lease.
 
-- `recac` supports multi-agent sessions. In K8s, this maps to multiple Jobs.
-- Scaling is handled by the K8s scheduler. If the cluster is full, Jobs stay `Pending`. `recac` must handle timeouts waiting for `Running` state.
+### 6.2 Job Resilience
 
-## 6. Migration Plan
+- **Idempotency**: Agents must designed to be idempotent. If a Job is restarted (e.g. node failure), the agent should detect if:
+  - Local work was started (it won't exist in a new pod).
+  - Branch already exists remotely (fetch and checkout instead of create).
+  - Jira ticket is already "In Progress" (verify own identity/claim).
+- **Retries**:
+  - Use `backoffLimit` in Job spec for transient failures (e.g., network issues during git clone).
+  - Orchestrator monitors for permanent failures (Exit Code > 0 after retries) and updates Jira accordingly.
 
-1.  Refactor `internal/runner` to use the `ContainerEngine` interface.
-2.  Move `DockerClient` implementation details to `internal/docker`.
-3.  Implement `internal/kubernetes`.
-4.  Update `Session` to load the correct engine based on config.
+### 6.3 Recovery & State
+
+- **Orphan Adoption**: On startup (or new leader election), the Orchestrator must scan for existing active Jobs labeled `app=recac-agent`.
+- **Status Sync**: It should verify the status of these Jobs against the known state in Jira. If a Job is dead but the ticket is "In Progress", it should either respawn or mark as failed.
+
+## 7. Migration & Roadmap
+
+1.  **Phase 1: Jira Poller**: Implement the polling logic in `cmd/recac` (new `orchestrate` command).
+2.  **Phase 2: Job Spawner**: Implement the K8s client logic to create Jobs dynamically.
+3.  **Phase 3: HA & Election**: Implement leader election for the orchestrator.
+4.  **Phase 4: Feedback Loop**: Ensure Job logs/status make it back to Jira.
