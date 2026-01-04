@@ -1,0 +1,27 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: agent-job
+  labels:
+    app: agent
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: agent
+        image: alpine/git
+        command: ["sh", "-c"]
+        args:
+        - git clone https://github.com/process-failed-successfully/recac.git /workspace &&
+          cd /workspace &&
+          echo "Agent job completed successfully"
+        env:
+        - name: AGENT_ENV
+          value: "production"
+        - name: GIT_REPO
+          value: "https://github.com/process-failed-successfully/recac.git"
+        - name: WORKSPACE_DIR
+          value: "/workspace"
