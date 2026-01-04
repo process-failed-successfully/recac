@@ -10,18 +10,36 @@ spec:
   template:
     spec:
       restartPolicy: Never
+      initContainers:
+      - name: git-clone
+        image: alpine/git
+        command: ["sh", "-c"]
+        args:
+        - git clone https://github.com/process-failed-successfully/recac.git /workspace &&
+          echo "Git clone completed successfully"
+        env:
+        - name: GIT_REPO
+          value: "https://github.com/process-failed-successfully/recac.git"
+        - name: WORKSPACE_DIR
+          value: "/workspace"
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
       containers:
       - name: agent
         image: alpine/git
         command: ["sh", "-c"]
         args:
-        - git clone https://github.com/process-failed-successfully/recac.git /workspace &&
-          cd /workspace &&
+        - cd /workspace &&
           echo "Agent job completed successfully"
         env:
         - name: AGENT_ENV
           value: "production"
-        - name: GIT_REPO
-          value: "https://github.com/process-failed-successfully/recac.git"
         - name: WORKSPACE_DIR
-          value: "/workspace"
+          mountPath: /workspace
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+      volumes:
+      - name: workspace
+        emptyDir: {}
