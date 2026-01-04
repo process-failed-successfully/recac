@@ -11,7 +11,7 @@ Your task is to analyze the provided application specification and decompose it 
 5. **Repository Specification**: Every Epic and Story description MUST end with the line `Repo: <repository_url>`. Use the repository associated with the project.
 6. **Blockers**: Identify technical dependencies. If a Story cannot be started until another is completed, list the title of the blocker Story in the `blocked_by` array.
 7. **Technical Context**: Use a professional, technical tone. Mention specific technologies or patterns if they are relevant to the spec.
-8. **Final sign off**: Every epic should have a final step that catlogues all the testable elements of the epic.
+8. **Final sign off**: Every epic should have a final ticket that catlogues all the testable elements of the epic and instructs the developer to sign off on the epic.
 
 ### Output Format:
 
