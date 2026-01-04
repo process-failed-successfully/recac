@@ -16,7 +16,7 @@ deploy:
 
 test:
 	@echo "Running tests..."
-	go test ./internal/jira/... -v
+	go test ./internal/validation/... -v
 
 clean:
 	@echo "Cleaning up..."
