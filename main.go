@@ -1,38 +1,29 @@
 package main
 
 import (
-	"context"
+	"net/http"
 	"log"
 	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
-	"workspace/internal/polling"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"workspace/internal/metrics"
 )
 
 func main() {
-	// Load configuration
-	cfg := polling.NewConfig()
-	log.Printf("Loaded polling configuration: interval=%v", cfg.Interval)
+	// Initialize metrics
+	metrics := metrics.NewMetrics()
 
-	// Create poller
-	poller := polling.NewPoller(cfg)
+	// Set up Prometheus metrics endpoint
+	http.Handle("/metrics", promhttp.Handler())
 
-	// Set up signal handling for graceful shutdown
-	ctx, cancel := context.WithCancel(context.Background())
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	// Get port from environment or use default
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 
-	// Start the poller in a goroutine
-	go poller.Start(ctx)
-
-	// Wait for shutdown signal
-	<-sigChan
-	log.Println("Shutdown signal received")
-	cancel()
-
-	// Give the poller a moment to clean up
-	time.Sleep(100 * time.Millisecond)
-	log.Println("Application shutdown complete")
+	// Start server
+	log.Printf("Starting server on :%s", port)
+	log.Printf("Metrics endpoint available at http://localhost:%s/metrics", port)
+	log.Fatal(http.ListenAndServe(":"+port, nil))
 }

@@ -1,43 +1,46 @@
 #!/bin/bash
 
-# Initialize the development environment for Jira Polling Logic
+# Initialize the development environment for the Observability Implementation project
 
-# Install dependencies
-echo "Installing dependencies..."
-sudo apt-get update
-sudo apt-get install -y git curl
+echo "Setting up the development environment..."
 
 # Install Go (if not already installed)
 if ! command -v go &> /dev/null; then
     echo "Installing Go..."
-    curl -fsSL https://go.dev/dl/go1.21.0.linux-amd64.tar.gz -o go.tar.gz
-    sudo tar -C /usr/local -xzf go.tar.gz
-    rm go.tar.gz
-    echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
-    source ~/.bashrc
+    sudo apt update
+    sudo apt install -y golang-go
+else
+    echo "Go is already installed"
 fi
 
-# Install Node.js and npm (if needed for frontend)
-if ! command -v npm &> /dev/null; then
-    echo "Installing Node.js and npm..."
-    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-    sudo apt-get install -y nodejs
-fi
+# Install Prometheus client library for Go
+echo "Installing Prometheus client library..."
+go get github.com/prometheus/client_golang/prometheus
+go get github.com/prometheus/client_golang/prometheus/promhttp
 
-# Initialize Git repository
-if [ ! -d ".git" ]; then
-    echo "Initializing Git repository..."
-    git init
-    git add .
-    git commit -m "Initial commit: Project setup"
-fi
+# Install other dependencies
+echo "Installing other dependencies..."
+go get golang.org/x/exp/slog
+
+# Create necessary directories
+echo "Creating directory structure..."
+mkdir -p internal/metrics
+mkdir -p internal/logging
+mkdir -p internal/metrics/test
+mkdir -p internal/logging/test
+mkdir -p config
 
 # Print helpful information
 echo ""
 echo "Development environment setup complete!"
 echo ""
-echo "To start the application:"
-echo "1. Set up your Jira API credentials in Kubernetes Secrets"
-echo "2. Configure the polling interval via JIRA_POLLING_INTERVAL environment variable"
-echo "3. Run the orchestrator with: go run main.go"
+echo "To run the application:"
+echo "1. Navigate to the project directory"
+echo "2. Run 'go run main.go' (once main.go is created)"
 echo ""
+echo "To access the Prometheus metrics endpoint:"
+echo "1. Start the application"
+echo "2. Visit http://localhost:8080/metrics (or the configured port)"
+echo ""
+echo "To run tests:"
+echo "1. Run 'go test ./...' from the project root"
