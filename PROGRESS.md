@@ -51,4 +51,6 @@
 - **[ ] Feature Management: Full Lifecycle**
   - Implement `recac feature list` to list all features.
   - Implement `recac feature add` to add features to the tracker.
-  - Implement `recac feature status` to check feature progress.
+  - Implement `recac feature status` to check feature progress.- Implemented error-logs-comment feature with unified Jira client
+- Fixed client type mismatches and test failures
+- Added comprehensive tests for error logs handling
