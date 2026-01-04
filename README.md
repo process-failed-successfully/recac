@@ -4,11 +4,18 @@ This project implements the polling logic in the orchestrator to periodically qu
 
 ## Features
 
+<<<<<<< Updated upstream
 - Configurable polling interval via environment variables
 - Secure management of Jira API credentials using Kubernetes Secrets
 - Filtering of tickets by state and labels
 - Error handling for Jira API failures
 - Unit tests for polling logic
+=======
+- ✅ Kubernetes Job template with proper structure (apiVersion, kind, metadata, spec)
+- InitContainer for git cloning
+- Main container for executing the recac agent
+- Local Kubernetes testing support
+>>>>>>> Stashed changes
 
 ## Setup
 
