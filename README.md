@@ -1,31 +1,33 @@
-# Kubernetes Operator Implementation
+# Workflow Execution System
 
-This project implements a Kubernetes Operator that integrates with Jira for workflow automation.
+This system handles complete workflow execution from ticket creation to job completion.
 
 ## Features
 
-- Jira ticket discovery and integration
-- Complete workflow execution from ticket to job completion
-- Graceful failure handling
-- Performance under load
-- Dashboard for monitoring workflows
+- Ticket management
+- Job processing
+- Status tracking
+- Configuration management
 
-## Documentation
+## Usage
 
-For detailed documentation, please refer to the following guides:
+1. Create a ticket:
 
-- [Deployment Guide](docs/deployment.md) - Step-by-step deployment instructions
-- [Configuration Guide](docs/configuration.md) - All configuration options
-- [Troubleshooting Guide](docs/troubleshooting.md) - Solutions to common issues
+## Network Failure Handling
 
-## Prerequisites
+The system now includes robust network failure handling through the `internal/network` module:
 
-- Kubernetes cluster (v1.20+)
-- kubectl configured to access your cluster
-- Docker
-- Go 1.20+
-- Node.js 18+ (for UI components)
+### Features:
+- **Automatic Retries**: Configurable retry logic with exponential backoff
+- **Timeout Handling**: Prevents hanging on slow/unresponsive networks
+- **Fallback Mechanisms**: Graceful degradation with cached or fallback data
+- **Rate Limiting**: Automatic handling of 429 responses
+- **Comprehensive Error Handling**: Handles all types of network errors
 
-## Quick Start
+### Usage:
 
-1. Clone the repository:
+## UI Dashboard
+
+The project includes a web-based dashboard for monitoring workflow status and metrics.
+
+### Running the Dashboard
