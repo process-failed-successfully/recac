@@ -2,13 +2,16 @@ package runner
 
 import (
 	"fmt"
+	"path/filepath"
 	"recac/internal/agent"
 	"sync"
 	"testing"
 )
 
 func TestRace_StateManager(t *testing.T) {
-	sm := agent.NewStateManager("test_state.json")
+	tmpDir := t.TempDir()
+	stateFile := filepath.Join(tmpDir, "test_state.json")
+	sm := agent.NewStateManager(stateFile)
 	var wg sync.WaitGroup
 
 	numGoroutines := 20
@@ -23,7 +26,7 @@ func TestRace_StateManager(t *testing.T) {
 				state, _ := sm.Load()
 				state.Memory = append(state.Memory, fmt.Sprintf("msg from %d-%d", id, j))
 				sm.Save(state)
-				
+
 				// Concurrent Load
 				_, _ = sm.Load()
 			}
