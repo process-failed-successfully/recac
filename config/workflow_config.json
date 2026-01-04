@@ -1,0 +1,6 @@
+{
+    "max_tickets": 100,
+    "job_types": ["processing", "validation", "notification"],
+    "default_timeout": 3600,
+    "retry_limit": 3
+}

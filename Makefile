@@ -1,34 +1,23 @@
-# Makefile for Kubernetes Operator Implementation
-
-.PHONY: all build deploy test clean
-
-all: build
-
-build:
-	@echo "Building operator..."
-	GO111MODULE=on go build -o bin/operator ./cmd/operator
-
-deploy:
-	@echo "Deploying to Kubernetes..."
-	kubectl apply -f config/crd/
-	kubectl apply -f config/rbac/
-	kubectl apply -f config/operator/
-
+.PHONY: test
 test:
-	@echo "Running tests..."
-	go test ./internal/validation/... -v
+	python3 test_workflow.py
 
+.PHONY: lint
+lint:
+	pylint internal/workflow/workflow.py || true
+
+.PHONY: format
+format:
+	autopep8 --in-place --aggressive internal/workflow/workflow.py
+
+.PHONY: clean
 clean:
-	@echo "Cleaning up..."
-	rm -rf bin/
-	kubectl delete -f config/operator/
-	kubectl delete -f config/rbac/
-	kubectl delete -f config/crd/
+	rm -rf __pycache__ */__pycache__ */*/__pycache__
 
-manifests:
-	@echo "Generating manifests..."
-	controller-gen rbac:roleName=recac-operator crd paths=./config/crd/... output:crd:artifacts:config=config/crd/bases
-
-ui:
-	@echo "Building UI..."
-	cd ui && npm install && npm run build
+.PHONY: help
+help:
+	@echo "Available targets:"
+	@echo "  test     - Run workflow tests"
+	@echo "  lint     - Run linting"
+	@echo "  format   - Format code"
+	@echo "  clean    - Clean up"
