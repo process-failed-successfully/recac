@@ -49,6 +49,8 @@ temp/
 .recac.db
 .agent_state.json
 .agent_state_*.json
+agent_state.json
+*_state.json
 .qa_result
 manager_directives.txt
 successes.txt
