@@ -54,116 +54,31 @@ func (c *OpenAIClient) WithStateManager(sm *StateManager) *OpenAIClient {
 // Send sends a prompt to OpenAI and returns the generated text with retry logic.
 // If stateManager is configured, it will track tokens and truncate if needed.
 func (c *OpenAIClient) Send(ctx context.Context, prompt string) (string, error) {
-	telemetry.TrackAgentIteration(c.project)
-	start := time.Now()
-	defer func() {
-		telemetry.ObserveAgentLatency(c.project, time.Since(start).Seconds())
-	}()
-	// Load state and check token limits if state manager is configured
-	var state State
-	var shouldUpdateState bool
-	if c.stateManager != nil {
-		var err error
-		state, err = c.stateManager.Load()
-		if err != nil {
-			return "", fmt.Errorf("failed to load state: %w", err)
-		}
-		shouldUpdateState = true
-
-		// Check if prompt exceeds token limit
-		promptTokens := EstimateTokenCount(prompt)
-		maxTokens := state.MaxTokens
-		if maxTokens == 0 {
-			maxTokens = 128000 // Default to 128k for GPT-4 if not set
-		}
-
-		// Reserve some tokens for response (estimate 50% for response)
-		availableTokens := maxTokens * 50 / 100
-		if promptTokens > availableTokens {
-			// Truncate the prompt
-			telemetry.LogInfo("Prompt exceeds token limit, truncating...", "project", c.project, "actual", promptTokens, "available", availableTokens)
-			prompt = TruncateToTokenLimit(prompt, availableTokens)
-			promptTokens = EstimateTokenCount(prompt)
-			state.TokenUsage.TruncationCount++
-		}
-
-		// Update current token count
-		state.CurrentTokens = promptTokens
-		state.TokenUsage.TotalPromptTokens += promptTokens
-		telemetry.TrackTokenUsage(c.project, promptTokens)
-
-		// Log token usage
-		telemetry.LogDebug("Token usage (prompt)",
-			"project", c.project,
-			"prompt", promptTokens,
-			"current", state.CurrentTokens,
-			"max", maxTokens,
-			"total_prompt", state.TokenUsage.TotalPromptTokens,
-			"truncations", state.TokenUsage.TruncationCount)
-	}
-
-	maxRetries := 3
-	var lastErr error
-
-	for i := 0; i <= maxRetries; i++ {
-		if i > 0 {
-			// Exponential backoff
-			waitTime := time.Duration(1<<uint(i-1)) * time.Second
-			telemetry.LogInfo("Retrying agent call", "project", c.project, "retry", i, "wait", waitTime, "error", lastErr)
-			select {
-			case <-time.After(waitTime):
-			case <-ctx.Done():
-				return "", ctx.Err()
-			}
-		}
-
-		result, err := c.sendOnce(ctx, prompt)
-		if err == nil {
-			// Update token usage stats if state manager is configured
-			if shouldUpdateState {
-				responseTokens := EstimateTokenCount(result)
-				state.TokenUsage.TotalResponseTokens += responseTokens
-				state.TokenUsage.TotalTokens = state.TokenUsage.TotalPromptTokens + state.TokenUsage.TotalResponseTokens
-				state.CurrentTokens += responseTokens
-
-				// Initialize Metadata if needed
-				if state.Metadata == nil {
-					state.Metadata = make(map[string]interface{})
-				}
-
-				// Increment iteration count only on successful calls
-				currentIteration, _ := state.Metadata["iteration"].(float64)
-				state.Metadata["iteration"] = currentIteration + 1
-
-				// Log token usage after response
-				maxTokens := state.MaxTokens
-				if maxTokens == 0 {
-					maxTokens = 128000
-				}
-				telemetry.LogInfo("Token usage (response)",
-					"project", c.project,
-					"response", responseTokens,
-					"current", state.CurrentTokens,
-					"max", maxTokens,
-					"total", state.TokenUsage.TotalTokens,
-					"prompt", state.TokenUsage.TotalPromptTokens,
-					"response_total", state.TokenUsage.TotalResponseTokens)
-
-				// Save updated state
-				if err := c.stateManager.Save(state); err != nil {
-					telemetry.LogInfo("Warning: Failed to save state", "project", c.project, "error", err)
-				}
-			}
-			return result, nil
-		}
-
-		lastErr = err
-	}
-
-	return "", fmt.Errorf("failed after %d retries: %w", maxRetries, lastErr)
+	return SendWithState(ctx, c, prompt)
 }
 
-func (c *OpenAIClient) sendOnce(ctx context.Context, prompt string) (string, error) {
+// GetProject returns the project name
+func (c *OpenAIClient) GetProject() string {
+	return c.project
+}
+
+// GetStateManager returns the state manager
+func (c *OpenAIClient) GetStateManager() *StateManager {
+	return c.stateManager
+}
+
+// GetBackoffFn returns the backoff function
+func (c *OpenAIClient) GetBackoffFn() func(int) time.Duration {
+	return nil // Use default
+}
+
+// GetDefaultMaxTokens returns the default max tokens
+func (c *OpenAIClient) GetDefaultMaxTokens() int {
+	return 128000
+}
+
+// SendOnce sends a prompt to OpenAI without retries or state management
+func (c *OpenAIClient) SendOnce(ctx context.Context, prompt string) (string, error) {
 	if c.mockResponder != nil {
 		return c.mockResponder(prompt)
 	}
