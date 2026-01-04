@@ -56,7 +56,7 @@ func TestJiraEpicWorkflow_E2E(t *testing.T) {
 	epicDesc := "This is an automated E2E test Epic."
 	// Note: 'Epic' issue type is standard, but some projects might differ.
 	// If this fails, we might need configuration or a fallback (e.g. searching for issue types).
-	epicID, err := jClient.CreateTicket(ctx, projectKey, epicSummary, epicDesc, "Epic")
+	epicID, err := jClient.CreateTicket(ctx, projectKey, epicSummary, epicDesc, "Epic", nil)
 	if err != nil {
 		t.Fatalf("Failed to create Epic ticket: %v. Ensure 'Epic' issue type exists in project %s.", err, projectKey)
 	}
@@ -69,7 +69,7 @@ func TestJiraEpicWorkflow_E2E(t *testing.T) {
 	childDesc := fmt.Sprintf("Child task for E2E.\nRepo: %s", testRepo)
 
 	// Use CreateChildTicket (assumes we added it in previous step)
-	childID, err := jClient.CreateChildTicket(ctx, projectKey, childSummary, childDesc, "Task", epicID)
+	childID, err := jClient.CreateChildTicket(ctx, projectKey, childSummary, childDesc, "Task", epicID, nil)
 	if err != nil {
 		t.Fatalf("Failed to create child ticket: %v", err)
 	}

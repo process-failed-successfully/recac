@@ -66,7 +66,7 @@ func TestJiraEpicSmoketest_GoCalculator(t *testing.T) {
 	timestamp := time.Now().Format("20060102-150405")
 	epicSummary := fmt.Sprintf("Go Calc Epic %s", timestamp)
 	epicDesc := "Epic to build a simple calculator in Go."
-	epicID, err := jClient.CreateTicket(ctx, projectKey, epicSummary, epicDesc, "Epic")
+	epicID, err := jClient.CreateTicket(ctx, projectKey, epicSummary, epicDesc, "Epic", nil)
 	if err != nil {
 		t.Fatalf("Failed to create Epic: %v", err)
 	}
@@ -145,7 +145,7 @@ func TestJiraEpicSmoketest_GoCalculator(t *testing.T) {
 		// We'll iterate by ID, so label is less critical for finding them, but good for cleanup.
 
 		// Note: CreateChildTicket signature is (ctx, project, summary, description, type, parentID)
-		childID, err := jClient.CreateChildTicket(ctx, projectKey, ticket.Summary, ticket.Desc, "Task", epicID)
+		childID, err := jClient.CreateChildTicket(ctx, projectKey, ticket.Summary, ticket.Desc, "Task", epicID, nil)
 		if err != nil {
 			t.Fatalf("Failed to create child ticket '%s': %v", ticket.Summary, err)
 		}

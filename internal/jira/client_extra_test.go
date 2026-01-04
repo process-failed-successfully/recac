@@ -20,7 +20,7 @@ func TestCreateTicket_Success(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient(server.URL, "user", "token")
-	key, err := client.CreateTicket(context.Background(), "PROJ", "Summary", "Desc", "Task")
+	key, err := client.CreateTicket(context.Background(), "PROJ", "Summary", "Desc", "Task", nil)
 	if err != nil {
 		t.Fatalf("CreateTicket failed: %v", err)
 	}
@@ -174,7 +174,7 @@ func TestCreateChildTicket_Success(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient(server.URL, "user", "token")
-	key, err := client.CreateChildTicket(context.Background(), "PROJ", "Child", "Desc", "Sub-task", "PARENT-1")
+	key, err := client.CreateChildTicket(context.Background(), "PROJ", "Child", "Desc", "Sub-task", "PARENT-1", nil)
 	if err != nil {
 		t.Fatalf("CreateChildTicket failed: %v", err)
 	}

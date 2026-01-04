@@ -201,7 +201,7 @@ func (c *Client) DeleteIssue(ctx context.Context, ticketID string) error {
 }
 
 // CreateTicket creates a new Jira ticket.
-func (c *Client) CreateTicket(ctx context.Context, projectKey, summary, description, issueType string) (string, error) {
+func (c *Client) CreateTicket(ctx context.Context, projectKey, summary, description, issueType string, labels []string) (string, error) {
 	url := fmt.Sprintf("%s/rest/api/3/issue", c.BaseURL)
 
 	payload := map[string]interface{}{
@@ -210,6 +210,7 @@ func (c *Client) CreateTicket(ctx context.Context, projectKey, summary, descript
 				"key": projectKey,
 			},
 			"summary": summary,
+			"labels":  labels,
 			"description": map[string]interface{}{
 				"type":    "doc",
 				"version": 1,
@@ -450,6 +451,50 @@ func (c *Client) GetBlockers(ticket map[string]interface{}) []string {
 	}
 
 	return blockers
+}
+
+// AddIssueLink creates a link between two Jira tickets (e.g., "Blocks").
+func (c *Client) AddIssueLink(ctx context.Context, inwardKey, outwardKey, linkType string) error {
+	url := fmt.Sprintf("%s/rest/api/3/issueLink", c.BaseURL)
+
+	payload := map[string]interface{}{
+		"type": map[string]interface{}{
+			"name": linkType,
+		},
+		"inwardIssue": map[string]interface{}{
+			"key": inwardKey,
+		},
+		"outwardIssue": map[string]interface{}{
+			"key": outwardKey,
+		},
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(body))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.SetBasicAuth(c.Username, c.APIToken)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("failed to create issue link with status: %d, body: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
 }
 
 func isDoneStatus(status string) bool {

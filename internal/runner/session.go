@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"sync"
 	"os/exec"
 	"os/user"
 	"path/filepath"
@@ -20,6 +19,7 @@ import (
 	"recac/internal/security"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"recac/internal/notify"
@@ -52,9 +52,13 @@ type Session struct {
 	ContainerID      string              // Container ID for cleanup
 
 	// Dependency Injection for Testing (optional)
-	ManagerAgent agent.Agent
-	CleanerAgent agent.Agent
-	QAAgent      agent.Agent
+	// Agent Clients
+	CodingAgent   agent.Agent
+	CleanerAgent  agent.Agent
+	QAAgent       agent.Agent
+	ManagerAgent  agent.Agent
+	AgentProvider string // Specific provider for this session
+	AgentModel    string // Specific model for this session
 
 	// Circuit Breaker State
 	LastFeatureCount int // Number of passing features last time we checked
@@ -86,10 +90,11 @@ type JiraClient interface {
 	SmartTransition(ctx context.Context, ticketID, targetNameOrID string) error
 }
 
-func NewSession(d DockerClient, a agent.Agent, workspace, image, project string, maxAgents int) *Session {
+// NewSession creates a new worker session
+func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *Session {
 	// Default to "unknown" if project is empty
 	if project == "" {
-		project = "unknown" // Should ideally be passed from start.go
+		project = "unknown"
 	}
 
 	// Default agent state file path in workspace
@@ -133,6 +138,8 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project string,
 		Workspace:        workspace,
 		Image:            image,
 		Project:          project,
+		AgentProvider:    provider,
+		AgentModel:       model,
 		SpecFile:         "app_spec.txt",
 		MaxIterations:    20, // Default
 		ManagerFrequency: 5,  // Default
@@ -147,7 +154,7 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project string,
 }
 
 // NewSessionWithStateFile creates a session with a specific agent state file (for restoring sessions)
-func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, project, agentStateFile string, maxAgents int) *Session {
+func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, project, agentStateFile, provider, model string, maxAgents int) *Session {
 	if project == "" {
 		project = "unknown"
 	}
@@ -189,6 +196,8 @@ func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, pr
 		Workspace:        workspace,
 		Image:            image,
 		Project:          project,
+		AgentProvider:    provider,
+		AgentModel:       model,
 		SpecFile:         "app_spec.txt",
 		MaxIterations:    20, // Default
 		ManagerFrequency: 5,  // Default
@@ -198,6 +207,55 @@ func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, pr
 		OwnsDB:           true,
 		Scanner:          scanner,
 		MaxAgents:        maxAgents,
+		Notifier:         notify.NewManager(telemetry.LogInfof),
+	}
+}
+
+// NewSessionWithConfig creates a session with specific provider/model settings.
+// This is used for sub-agents or when overriding global config.
+func NewSessionWithConfig(workspace, project, provider, model string, dbStore db.Store) *Session {
+	// Default to "unknown" if project is empty
+	if project == "" {
+		project = "unknown"
+	}
+
+	// Default agent state file path in workspace
+	stateFile := ".agent_state.json"
+	agentStateFile := filepath.Join(workspace, stateFile)
+	stateManager := agent.NewStateManager(agentStateFile)
+
+	// Initialize Security Scanner
+	scanner := security.NewRegexScanner()
+
+	// Create agents/logs directory in the current working directory (host)
+	cwd, _ := os.Getwd()
+	agentsLogsDir := filepath.Join(cwd, "agents", "logs")
+	if err := os.MkdirAll(agentsLogsDir, 0755); err != nil {
+		fmt.Printf("Warning: Failed to create agents/logs directory: %v\n", err)
+	} else {
+		// Initialize session log file
+		timestamp := time.Now().Format("20060102-150405")
+		logFileName := fmt.Sprintf("%s_agent_%s_%s.log", project, project, timestamp)
+		logFilePath := filepath.Join(agentsLogsDir, logFileName)
+
+		// Re-initialize telemetry logger with the session log file
+		telemetry.InitLogger(viper.GetBool("verbose"), logFilePath)
+		fmt.Printf("Session logs will be written to: %s\n", logFilePath)
+	}
+
+	return &Session{
+		Workspace:        workspace,
+		Project:          project,
+		AgentProvider:    provider,
+		AgentModel:       model,
+		DBStore:          dbStore,
+		SpecFile:         "app_spec.txt",
+		MaxIterations:    20, // Default
+		ManagerFrequency: 5,  // Default
+		AgentStateFile:   agentStateFile,
+		StateManager:     stateManager,
+		OwnsDB:           false, // This session does not own the DB, it's passed in
+		Scanner:          scanner,
 		Notifier:         notify.NewManager(telemetry.LogInfof),
 	}
 }
@@ -967,7 +1025,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 				} else {
 					// QA passed - create QA_PASSED
 					if err := s.createSignal("QA_PASSED"); err != nil {
-						fmt.Printf("Warning: Failed to create QA_PASSED: %v\n", err)
+						fmt.Printf("Warning: Failed to create QA_PASSED signal: %v\n", err)
 					}
 					fmt.Println("QA checks passed. Moving to Manager review.")
 					continue // Next iteration will run Manager
@@ -985,7 +1043,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		// Multi-Agent Coding Sprint Delegation
 		if role == prompts.CodingAgent && s.MaxAgents > 1 {
 			fmt.Printf("Delegating to Multi-Agent Orchestrator (role: %s, max-agents: %d)\n", role, s.MaxAgents)
-			orchestrator := NewOrchestrator(s.DBStore, s.Docker, s.Workspace, s.Image, s.Agent, s.Project, s.MaxAgents, s.GetSlackThreadTS())
+			orchestrator := NewOrchestrator(s.DBStore, s.Docker, s.Workspace, s.Image, s.Agent, s.Project, s.AgentProvider, s.AgentModel, s.MaxAgents, s.GetSlackThreadTS())
 			if err := orchestrator.Run(ctx); err != nil {
 				fmt.Printf("Orchestrator sprint failed: %v\n", err)
 			}
@@ -1303,13 +1361,28 @@ func (s *Session) hasSignal(name string) bool {
 		return false
 	}
 
-	// 1. Check DB first
+	// 1. Check DB first (Source of Truth for privileged signals)
 	val, err := s.DBStore.GetSignal(name)
 	if err == nil && val != "" {
 		return true
 	}
 
 	// 2. Check File (Agent might have created it)
+	// GUARDRAIL: Only allow non-privileged signals from the filesystem.
+	// This prevents agents from spoofing completion/sign-off status.
+	privilegedSignals := map[string]bool{
+		"PROJECT_SIGNED_OFF": true,
+		"QA_PASSED":          true,
+		"COMPLETED":          true,
+		"TRIGGER_QA":         true,
+		"TRIGGER_MANAGER":    true,
+	}
+
+	if privilegedSignals[name] {
+		// Privileged signals MUST come from the DB (set by RECAC internal logic)
+		return false
+	}
+
 	path := filepath.Join(s.Workspace, name)
 	if _, err := os.Stat(path); err == nil {
 		// File exists - Migrate to DB
@@ -1356,18 +1429,25 @@ func (s *Session) runQAAgent(ctx context.Context) error {
 	} else {
 		var err error
 		// Resolve Config
-		provider := viper.GetString("agents.qa.provider")
+		provider := s.AgentProvider
 		if provider == "" {
-			provider = viper.GetString("provider") // Fallback to global setting (flag/config)
+			provider = viper.GetString("agents.qa.provider")
 			if provider == "" {
-				provider = "gemini-cli" // Ultimate fallback
+				provider = viper.GetString("provider") // Fallback to global setting
+				if provider == "" {
+					provider = "gemini"
+				}
 			}
 		}
-		model := viper.GetString("agents.qa.model")
+
+		model := s.AgentModel
 		if model == "" {
-			model = viper.GetString("model") // Fallback to global setting
+			model = viper.GetString("agents.qa.model")
 			if model == "" {
-				model = "gemini-1.5-flash-latest" // Ultimate fallback
+				model = viper.GetString("model") // Fallback to global setting
+				if model == "" {
+					model = "gemini-1.5-flash-latest" // Ultimate fallback
+				}
 			}
 		}
 		apiKey := viper.GetString("agents.qa.api_key")
@@ -1391,6 +1471,7 @@ func (s *Session) runQAAgent(ctx context.Context) error {
 			}
 		}
 
+		fmt.Printf("Initialising QA Agent with provider: %s, model: %s\n", provider, model)
 		qaAgent, err = agent.NewAgent(provider, apiKey, model, s.Workspace, s.Project)
 		if err != nil {
 			return fmt.Errorf("failed to create QA agent: %w", err)
@@ -1453,18 +1534,24 @@ func (s *Session) runManagerAgent(ctx context.Context) error {
 	} else {
 		var err error
 		// Resolve Config
-		provider := viper.GetString("agents.manager.provider")
+		provider := s.AgentProvider
 		if provider == "" {
-			provider = viper.GetString("provider") // Fallback to global setting
+			provider = viper.GetString("agents.manager.provider")
 			if provider == "" {
-				provider = "gemini-cli"
+				provider = viper.GetString("provider") // Fallback to global setting
+				if provider == "" {
+					provider = "gemini-cli"
+				}
 			}
 		}
-		model := viper.GetString("agents.manager.model")
+		model := s.AgentModel
 		if model == "" {
-			model = viper.GetString("model")
+			model = viper.GetString("agents.manager.model")
 			if model == "" {
-				model = "gemini-1.5-pro-latest"
+				model = viper.GetString("model")
+				if model == "" {
+					model = "gemini-1.5-pro-latest"
+				}
 			}
 		}
 		apiKey := viper.GetString("agents.manager.api_key")
@@ -1486,6 +1573,7 @@ func (s *Session) runManagerAgent(ctx context.Context) error {
 			}
 		}
 
+		fmt.Printf("Initialising Manager Agent with provider: %s, model: %s\n", provider, model)
 		managerAgent, err = agent.NewAgent(provider, apiKey, model, s.Workspace, s.Project)
 		if err != nil {
 			return fmt.Errorf("failed to create manager agent: %w", err)

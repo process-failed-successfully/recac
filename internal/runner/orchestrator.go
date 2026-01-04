@@ -24,6 +24,8 @@ type Orchestrator struct {
 	Docker            DockerClient
 	Agent             agent.Agent // Template agent
 	Project           string      // Project identifier
+	AgentProvider     string      // Provider for spawned agents
+	AgentModel        string      // Model for spawned agents
 	TaskMaxIterations int         // Max iterations for each task
 	TaskMaxRetries    int         // Max retries for failed tasks (default 3)
 	TickInterval      time.Duration
@@ -31,7 +33,7 @@ type Orchestrator struct {
 	mu                sync.Mutex
 }
 
-func NewOrchestrator(dbStore db.Store, dockerCli DockerClient, workspace, image string, baseAgent agent.Agent, project string, maxAgents int, parentThreadTS string) *Orchestrator {
+func NewOrchestrator(dbStore db.Store, dockerCli DockerClient, workspace, image string, baseAgent agent.Agent, project, provider, model string, maxAgents int, parentThreadTS string) *Orchestrator {
 	pool := NewWorkerPool(maxAgents)
 	return &Orchestrator{
 		Graph:             NewTaskGraph(),
@@ -43,6 +45,8 @@ func NewOrchestrator(dbStore db.Store, dockerCli DockerClient, workspace, image 
 		Docker:            dockerCli,
 		Agent:             baseAgent,
 		Project:           project,
+		AgentProvider:     provider,
+		AgentModel:        model,
 		TaskMaxIterations: 10, // Default
 		TaskMaxRetries:    3,  // Default retries
 		TickInterval:      1 * time.Second,
@@ -263,7 +267,7 @@ func (o *Orchestrator) ExecuteTask(ctx context.Context, taskID string, node *Tas
 		defer o.DB.ReleaseLock(path, agentID)
 	}
 
-	session := NewSession(o.Docker, o.Agent, o.Workspace, o.BaseImage, o.Project, 1)
+	session := NewSession(o.Docker, o.Agent, o.Workspace, o.BaseImage, o.Project, o.AgentProvider, o.AgentModel, 1)
 	session.SelectedTaskID = taskID
 	session.SetSlackThreadTS(o.ParentThreadTS)
 	session.SuppressStartNotification = true

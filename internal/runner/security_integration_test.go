@@ -36,7 +36,7 @@ func TestSecurityIntegration_BlocksSecrets(t *testing.T) {
 	}
 
 	// Init Session
-	session := NewSession(mockDocker, mockAgent, tmpDir, "alpine", "test-project", 1)
+	session := NewSession(mockDocker, mockAgent, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 	session.MaxIterations = 1
 
 	// Capture output to verify blocking

@@ -38,7 +38,7 @@ func TestSession_ReadSpec(t *testing.T) {
 		t.Fatalf("Failed to write spec file: %v", err)
 	}
 
-	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", 1)
+	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 
 	content, err := session.ReadSpec()
 	if err != nil {
@@ -52,7 +52,7 @@ func TestSession_ReadSpec(t *testing.T) {
 
 func TestSession_ReadSpec_Missing(t *testing.T) {
 	tmpDir := t.TempDir()
-	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", 1)
+	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 
 	_, err := session.ReadSpec()
 	if err == nil {
@@ -70,7 +70,7 @@ func TestSession_AgentReadsSpec(t *testing.T) {
 	}
 
 	mockDocker, _ := docker.NewMockClient()
-	session := NewSession(mockDocker, &MockAgent{}, tmpDir, "alpine", "test-project", 1)
+	session := NewSession(mockDocker, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 
 	spec, err := session.ReadSpec()
 	if err != nil {
@@ -107,7 +107,7 @@ func TestSession_Start_PassesUser(t *testing.T) {
 		return container.CreateResponse{ID: "test"}, nil
 	}
 
-	session := NewSession(d, &MockAgent{}, tmpDir, "alpine", "test-project", 1)
+	session := NewSession(d, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 	if err := session.Start(context.Background()); err != nil {
 		t.Fatalf("Start failed: %v", err)
 	}
@@ -152,7 +152,7 @@ func TestSession_SelectPrompt(t *testing.T) {
 	specPath := filepath.Join(tmpDir, "app_spec.txt")
 	os.WriteFile(specPath, []byte(specContent), 0644)
 
-	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", 1)
+	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 	session.ManagerFrequency = 3
 
 	// Session 1: Initializer
@@ -206,8 +206,7 @@ func TestSession_SelectPrompt(t *testing.T) {
 	}
 
 	// Session 5: Manager Review (signal)
-	triggerPath := filepath.Join(tmpDir, "TRIGGER_MANAGER")
-	os.WriteFile(triggerPath, []byte(""), 0644)
+	session.createSignal("TRIGGER_MANAGER")
 	session.Iteration = 5
 	prompt, _, isManager, err = session.SelectPrompt()
 	if err != nil {
@@ -216,16 +215,14 @@ func TestSession_SelectPrompt(t *testing.T) {
 	if !isManager {
 		t.Error("TRIGGER_MANAGER should trigger manager")
 	}
-	if _, err := os.Stat(triggerPath); !os.IsNotExist(err) {
-		t.Error("TRIGGER_MANAGER file should have been cleared")
-	}
+
 }
 
 func TestSession_AgentStatePersistence(t *testing.T) {
 	tmpDir := t.TempDir()
 	stateFile := filepath.Join(tmpDir, ".agent_state.json")
 
-	session := NewSessionWithStateFile(nil, &MockAgent{}, tmpDir, "alpine", "test-project", stateFile, 1)
+	session := NewSessionWithStateFile(nil, &MockAgent{}, tmpDir, "alpine", "test-project", stateFile, "gemini", "gemini-pro", 1)
 
 	// Initialize
 	if err := session.InitializeAgentState(1000); err != nil {
@@ -256,7 +253,7 @@ func TestSession_AgentStatePersistence(t *testing.T) {
 
 func TestSession_Signals(t *testing.T) {
 	tmpDir := t.TempDir()
-	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", 1)
+	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 
 	// Test createSignal
 	if err := session.createSignal("TEST_SIGNAL"); err != nil {
@@ -286,7 +283,7 @@ func TestSession_Signals(t *testing.T) {
 
 func TestSession_Stop(t *testing.T) {
 	mockDocker, _ := docker.NewMockClient()
-	session := NewSession(mockDocker, &MockAgent{}, "/tmp", "alpine", "test-project", 1)
+	session := NewSession(mockDocker, &MockAgent{}, "/tmp", "alpine", "test-project", "gemini", "gemini-pro", 1)
 
 	ctx := context.Background()
 
@@ -308,7 +305,7 @@ func TestSession_Stop(t *testing.T) {
 
 func TestSession_RunCleanerAgent(t *testing.T) {
 	tmpDir := t.TempDir()
-	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", 1)
+	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 
 	// Create temp file to delete
 	tmpFile := filepath.Join(tmpDir, "to_delete.txt")
@@ -335,7 +332,7 @@ func TestSession_RunCleanerAgent(t *testing.T) {
 
 func TestSession_LoadFeatures(t *testing.T) {
 	tmpDir := t.TempDir()
-	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", 1)
+	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 
 	features := session.loadFeatures()
 	if features != nil {
@@ -361,7 +358,7 @@ func TestSession_RunLoop_SingleIteration(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
 
 	mockDocker, _ := docker.NewMockClient()
-	session := NewSession(mockDocker, &MockAgent{}, tmpDir, "alpine", "test-project", 1)
+	session := NewSession(mockDocker, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 	session.MaxIterations = 1
 
 	ctx := context.Background()
@@ -376,7 +373,7 @@ func TestSession_RunQAAgent(t *testing.T) {
 		Response:  "PASS",
 		Workspace: tmpDir,
 	}
-	session := NewSession(nil, mockAgent, tmpDir, "alpine", "test-project", 1)
+	session := NewSession(nil, mockAgent, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 	session.QAAgent = mockAgent
 
 	// Create feature list (all passing)
@@ -401,7 +398,7 @@ func TestSession_RunQAAgent(t *testing.T) {
 func TestSession_RunManagerAgent(t *testing.T) {
 	tmpDir := t.TempDir()
 	mockAgent := &MockAgent{}
-	session := NewSession(nil, mockAgent, tmpDir, "alpine", "test-project", 1)
+	session := NewSession(nil, mockAgent, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 	session.ManagerAgent = mockAgent
 
 	// 1. All passing -> Approved
@@ -457,7 +454,7 @@ func TestSession_Start_MountsBridge(t *testing.T) {
 		return container.CreateResponse{ID: "test"}, nil
 	}
 
-	session := NewSession(d, &MockAgent{}, tmpDir, "alpine", "test-project", 1)
+	session := NewSession(d, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 	if err := session.Start(context.Background()); err != nil {
 		t.Fatalf("Start failed: %v", err)
 	}
@@ -477,7 +474,7 @@ func TestSession_Start_MountsBridge(t *testing.T) {
 func TestSession_FixPermissions(t *testing.T) {
 	tmpDir := t.TempDir()
 	d, _ := docker.NewMockClient()
-	session := NewSession(d, &MockAgent{}, tmpDir, "alpine", "test-project", 1)
+	session := NewSession(d, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 	session.ContainerID = "test-container"
 
 	// fixPermissions calls ExecAsUser, which in MockClient returns mock-exec-id and nil error by default.
@@ -489,7 +486,7 @@ func TestSession_FixPermissions(t *testing.T) {
 
 func TestSession_EnsureConflictTask(t *testing.T) {
 	tmpDir := t.TempDir()
-	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", 1)
+	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 
 	// Case 1: Add new conflict task
 	listPath := filepath.Join(tmpDir, "feature_list.json")

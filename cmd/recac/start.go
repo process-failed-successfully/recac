@@ -25,7 +25,6 @@ import (
 )
 
 func init() {
-	startCmd.Flags().Bool("mock", false, "Start in mock mode (no Docker or API keys required)")
 	startCmd.Flags().String("path", "", "Project path (skips wizard)")
 	startCmd.Flags().Int("max-iterations", 20, "Maximum number of iterations")
 	startCmd.Flags().Int("manager-frequency", 5, "Frequency of manager reviews")
@@ -37,7 +36,6 @@ func init() {
 	startCmd.Flags().Bool("manager-first", false, "Run the Manager Agent before the first coding session")
 	startCmd.Flags().Bool("stream", false, "Stream agent output to the console")
 	startCmd.Flags().Bool("allow-dirty", false, "Allow running with uncommitted git changes")
-	viper.BindPFlag("mock", startCmd.Flags().Lookup("mock"))
 	viper.BindPFlag("path", startCmd.Flags().Lookup("path"))
 	viper.BindPFlag("max_iterations", startCmd.Flags().Lookup("max-iterations"))
 	viper.BindPFlag("manager_frequency", startCmd.Flags().Lookup("manager-frequency"))
@@ -49,10 +47,6 @@ func init() {
 	viper.BindPFlag("manager_first", startCmd.Flags().Lookup("manager-first"))
 	viper.BindPFlag("stream", startCmd.Flags().Lookup("stream"))
 	viper.BindPFlag("allow_dirty", startCmd.Flags().Lookup("allow-dirty"))
-	startCmd.Flags().String("model", "", "Model to use (overrides config and RECAC_MODEL env var)")
-	startCmd.Flags().String("provider", "", "Agent provider (gemini, gemini-cli, openai, etc)")
-	viper.BindPFlag("model", startCmd.Flags().Lookup("model"))
-	viper.BindPFlag("provider", startCmd.Flags().Lookup("provider"))
 	startCmd.Flags().String("jira-label", "", "Jira Label to find tickets (e.g. agent-work)")
 	startCmd.Flags().Int("max-parallel-tickets", 1, "Maximum number of Jira tickets to process in parallel")
 	viper.BindPFlag("jira_label", startCmd.Flags().Lookup("jira-label"))
@@ -85,12 +79,24 @@ var startCmd = &cobra.Command{
 		defer stop()
 
 		debug := viper.GetBool("debug")
-		isMockFlag, _ := cmd.Flags().GetBool("mock")
-		isMock := isMockFlag || viper.GetBool("mock")
+		isMock, _ := cmd.Flags().GetBool("mock")
+		if !isMock {
+			isMock = viper.GetBool("mock")
+		}
 		projectPath := viper.GetString("path")
 		if pathFlag, _ := cmd.Flags().GetString("path"); pathFlag != "" {
 			projectPath = pathFlag
 		}
+
+		provider, _ := cmd.Flags().GetString("provider")
+		if provider == "" {
+			provider = viper.GetString("provider")
+		}
+		model, _ := cmd.Flags().GetString("model")
+		if model == "" {
+			model = viper.GetString("model")
+		}
+
 		maxIterations := viper.GetInt("max_iterations")
 		if maxIterFlag, _ := cmd.Flags().GetInt("max-iterations"); cmd.Flags().Changed("max-iterations") {
 			maxIterations = maxIterFlag
@@ -125,6 +131,8 @@ var startCmd = &cobra.Command{
 			ManagerFirst:      viper.GetBool("manager_first"),
 			Image:             viper.GetString("image"),
 			Debug:             debug,
+			Provider:          provider,
+			Model:             model,
 		}
 
 		if jiraTicketID != "" || jiraLabel != "" {
@@ -389,6 +397,8 @@ type SessionConfig struct {
 	JiraTicketID      string
 	RepoURL           string
 	Image             string
+	Provider          string
+	Model             string
 }
 
 // processJiraTicket handles the Jira-specific workflow and then runs the project session
@@ -435,16 +445,19 @@ func processJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.C
 		return
 	}
 
-	var repoURL string
 	repoRegex := regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
 	matches := repoRegex.FindStringSubmatch(description)
-	if len(matches) > 1 {
-		repoURL = strings.TrimSuffix(matches[1], ".git")
-		fmt.Printf("[%s] Found repository URL in ticket: %s\n", jiraTicketID, repoURL)
+	if len(matches) <= 1 {
+		fmt.Fprintf(os.Stderr, "[%s] Error: No repository URL found in ticket description (Repo: https://...)\n", jiraTicketID)
+		exit(1)
+	}
 
-		if _, err := setupWorkspace(ctx, repoURL, tempWorkspace, jiraTicketID, cfg.JiraEpicKey, timestamp); err != nil {
-			fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to setup workspace: %v\n", jiraTicketID, err)
-		}
+	repoURL := strings.TrimSuffix(matches[1], ".git")
+	fmt.Printf("[%s] Found repository URL in ticket: %s\n", jiraTicketID, repoURL)
+
+	if _, err := setupWorkspace(ctx, repoURL, tempWorkspace, jiraTicketID, cfg.JiraEpicKey, timestamp); err != nil {
+		fmt.Fprintf(os.Stderr, "[%s] Error: Failed to setup workspace: %v\n", jiraTicketID, err)
+		exit(1)
 	}
 
 	// 5. Create app_spec.txt
@@ -575,7 +588,7 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 			projectName = "mock-project"
 		}
 
-		session := runner.NewSession(dockerCli, agentClient, projectPath, cfg.Image, projectName, cfg.MaxAgents)
+		session := runner.NewSession(dockerCli, agentClient, projectPath, cfg.Image, projectName, cfg.Provider, cfg.Model, cfg.MaxAgents)
 		session.MaxIterations = cfg.MaxIterations
 		session.TaskMaxIterations = cfg.TaskMaxIterations
 		session.ManagerFrequency = cfg.ManagerFrequency
@@ -637,14 +650,14 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 		return fmt.Errorf("failed to initialize Docker client: %v", err)
 	}
 
-	provider := viper.GetString("provider")
-	model := viper.GetString("model")
+	provider := cfg.Provider
+	model := cfg.Model
 	agentClient, err := getAgentClient(ctx, provider, model, projectPath, projectName)
 	if err != nil {
 		return fmt.Errorf("failed to initialize agent: %v", err)
 	}
 
-	session := runner.NewSession(dockerCli, agentClient, projectPath, cfg.Image, projectName, cfg.MaxAgents)
+	session := runner.NewSession(dockerCli, agentClient, projectPath, cfg.Image, projectName, provider, model, cfg.MaxAgents)
 	session.MaxIterations = cfg.MaxIterations
 	session.TaskMaxIterations = cfg.TaskMaxIterations
 	session.ManagerFrequency = cfg.ManagerFrequency

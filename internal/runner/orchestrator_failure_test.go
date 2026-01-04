@@ -128,7 +128,7 @@ func TestOrchestrator_FaultTolerance_HighFailureRate(t *testing.T) {
 		FailTasks: map[string]bool{"task 1": true, "task 2": true},
 	}
 
-	o := NewOrchestrator(mockDB, mockDocker, tmpDir, "img", smartAgent, "proj", 3, "")
+	o := NewOrchestrator(mockDB, mockDocker, tmpDir, "img", smartAgent, "proj", "gemini", "gemini-pro", 3, "")
 	o.TickInterval = 100 * time.Millisecond
 	o.TaskMaxRetries = 0                                                                  // Fail fast
 	o.TaskMaxIterations = 1                                                               // Fail fast if no progress

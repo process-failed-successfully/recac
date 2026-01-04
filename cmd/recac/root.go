@@ -59,7 +59,14 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.recac.yaml)")
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose/debug logging")
+	rootCmd.PersistentFlags().String("model", "", "Model to use (overrides config and RECAC_MODEL env var)")
+	rootCmd.PersistentFlags().String("provider", "", "Agent provider (gemini, openai, openrouter, etc)")
+	rootCmd.PersistentFlags().Bool("mock", false, "Start in mock mode (no Docker or API keys required)")
+
 	viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
+	viper.BindPFlag("model", rootCmd.PersistentFlags().Lookup("model"))
+	viper.BindPFlag("provider", rootCmd.PersistentFlags().Lookup("provider"))
+	viper.BindPFlag("mock", rootCmd.PersistentFlags().Lookup("mock"))
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.

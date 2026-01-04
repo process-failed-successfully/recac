@@ -111,9 +111,25 @@ func run(args []string, dbPath string) error {
 		if len(args) < 4 {
 			return fmt.Errorf("usage: agent-bridge signal <key> <value>")
 		}
-		cmdErr = store.SetSignal(args[2], args[3])
+		key := args[2]
+		value := args[3]
+
+		// PROTECT PRIVILEGED SIGNALS
+		privilegedSignals := map[string]bool{
+			"PROJECT_SIGNED_OFF": true,
+			"QA_PASSED":          true,
+			"COMPLETED":          true,
+			"TRIGGER_QA":         true,
+			"TRIGGER_MANAGER":    true,
+		}
+
+		if privilegedSignals[key] {
+			return fmt.Errorf("signal '%s' is privileged and cannot be set via agent-bridge", key)
+		}
+
+		cmdErr = store.SetSignal(key, value)
 		if cmdErr == nil {
-			fmt.Printf("Signal %s set to %s.\n", args[2], args[3])
+			fmt.Printf("Signal %s set to %s.\n", key, value)
 		}
 
 	case "feature":
