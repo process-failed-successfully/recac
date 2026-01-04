@@ -19,4 +19,40 @@ This project implements the polling logic in the orchestrator to periodically qu
 
 ## Setup
 
+<<<<<<< Updated upstream
 1. Run the initialization script:
+=======
+- **3 replicas** for redundancy
+- **Pod anti-affinity** to ensure replicas run on different nodes
+- **Resource requests/limits** for proper resource allocation
+- **Leader election labels** for proper identification
+
+### Deployment Structure
+
+## Implementation Status
+
+### Completed Features
+- ✅ Leader Election Implementation
+  - Implemented using client-go leaderelection package
+  - Runs in background goroutine
+  - Proper configuration setup
+  - Unit tests included
+
+### Usage
+
+To use the leader election in your application:
+
+## Failover Testing
+
+The orchestrator deployment is configured for high availability with failover testing:
+
+- **3 replicas** for redundancy
+- **Pod anti-affinity** to ensure replicas run on different nodes
+- **Resource requests/limits** for proper resource allocation
+- **Leader election labels** for proper identification
+
+### Running Failover Tests
+
+To test the failover mechanism:
+- Enhanced logging for leader election events
+>>>>>>> Stashed changes
