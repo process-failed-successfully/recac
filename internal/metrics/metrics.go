@@ -5,10 +5,8 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// Metrics represents the collection of all Prometheus metrics
 type Metrics struct {
 	// Standard metrics
 	HTTPRequestsTotal   *prometheus.CounterVec
@@ -23,13 +21,13 @@ type Metrics struct {
 	AgentStatus     *prometheus.GaugeVec
 	TasksProcessed  prometheus.Counter
 	TasksInProgress prometheus.Gauge
+	TaskProcessingTime *prometheus.HistogramVec
 }
 
-// NewMetrics creates and registers all standard and custom metrics
 func NewMetrics() *Metrics {
 	m := &Metrics{}
 
-	// Standard HTTP metrics
+	// Standard metrics
 	m.HTTPRequestsTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "http_requests_total",
@@ -47,7 +45,6 @@ func NewMetrics() *Metrics {
 		[]string{"method", "path"},
 	)
 
-	// System metrics
 	m.MemoryUsage = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "process_memory_bytes",
@@ -73,7 +70,7 @@ func NewMetrics() *Metrics {
 	m.JobsCompleted = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "jobs_completed_total",
-			Help: "Total number of jobs completed",
+			Help: "Total number of completed jobs",
 		},
 		[]string{"job_type", "status"},
 	)
@@ -81,9 +78,9 @@ func NewMetrics() *Metrics {
 	m.JobsFailed = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "jobs_failed_total",
-			Help: "Total number of jobs failed",
+			Help: "Total number of failed jobs",
 		},
-		[]string{"job_type", "reason"},
+		[]string{"job_type", "failure_reason"},
 	)
 
 	m.AgentStatus = prometheus.NewGaugeVec(
@@ -108,6 +105,15 @@ func NewMetrics() *Metrics {
 		},
 	)
 
+	m.TaskProcessingTime = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "task_processing_time_seconds",
+			Help:    "Time taken to process tasks in seconds",
+			Buckets: prometheus.DefBuckets,
+		},
+		[]string{"task_type"},
+	)
+
 	// Register all metrics
 	prometheus.MustRegister(
 		m.HTTPRequestsTotal,
@@ -120,17 +126,17 @@ func NewMetrics() *Metrics {
 		m.AgentStatus,
 		m.TasksProcessed,
 		m.TasksInProgress,
+		m.TaskProcessingTime,
 	)
 
 	return m
 }
 
-// Middleware for tracking HTTP requests
-func (m *Metrics) RequestTrackingMiddleware(next http.Handler) http.Handler {
+func (m *Metrics) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
-		// Create a response writer wrapper to capture status code
+		// Wrap the response writer to capture status code
 		rw := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
 		next.ServeHTTP(rw, r)
 
@@ -140,7 +146,6 @@ func (m *Metrics) RequestTrackingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// responseWriter is a wrapper to capture the status code
 type responseWriter struct {
 	http.ResponseWriter
 	statusCode int
@@ -149,16 +154,4 @@ type responseWriter struct {
 func (rw *responseWriter) WriteHeader(code int) {
 	rw.statusCode = code
 	rw.ResponseWriter.WriteHeader(code)
-}
-
-// UpdateSystemMetrics updates system-level metrics
-func (m *Metrics) UpdateSystemMetrics(memoryBytes uint64, cpuSeconds float64, goroutines int) {
-	m.MemoryUsage.Set(float64(memoryBytes))
-	m.CPUUsage.Add(cpuSeconds)
-	m.GoroutinesCount.Set(float64(goroutines))
-}
-
-// Handler returns the Prometheus HTTP handler
-func (m *Metrics) Handler() http.Handler {
-	return promhttp.Handler()
 }
