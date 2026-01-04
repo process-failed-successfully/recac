@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"log/slog"
 	"path/filepath"
 	"recac/internal/db"
 	"recac/internal/docker"
@@ -42,6 +43,7 @@ func (m *MockDockerClient) PullImage(ctx context.Context, imageRef string) error
 func TestSession_ProcessResponse_NoCommands(t *testing.T) {
 	s := &Session{
 		Docker: &MockDockerClient{},
+		Logger: slog.Default(),
 	}
 
 	output, err := s.ProcessResponse(context.Background(), "Just some text")
@@ -76,6 +78,7 @@ func TestSession_ProcessResponse_WithCommands(t *testing.T) {
 		Docker:    mockDocker,
 		Workspace: workspace,
 		DBStore:   store,
+		Logger:    slog.Default(),
 	}
 
 	response := "Here is code:\n```bash\necho hello\n```"
@@ -110,6 +113,7 @@ func TestSession_ProcessResponse_Blocker(t *testing.T) {
 		Docker:    mockDocker,
 		Workspace: workspace,
 		DBStore:   store,
+		Logger:    slog.Default(),
 	}
 
 	// Manually set blocker signal to simulate "agent did it"

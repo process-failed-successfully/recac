@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"log/slog"
 	"strings"
 	"testing"
 )
@@ -43,6 +44,7 @@ func TestProcessResponse_BlockerFalsePositives(t *testing.T) {
 	s := &Session{
 		Docker:      mockDocker,
 		ContainerID: "test-container",
+		Logger:      slog.Default(),
 	}
 
 	testCases := []struct {

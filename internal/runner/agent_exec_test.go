@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -48,6 +49,7 @@ func TestSession_ProcessResponse_Thorough(t *testing.T) {
 	s := &Session{
 		Docker:      mockDocker,
 		ContainerID: "test-container",
+		Logger:      slog.Default(),
 	}
 
 	// 1. Test standard block
@@ -114,6 +116,7 @@ func TestSession_ProcessResponse_Timeout(t *testing.T) {
 	s := &Session{
 		Docker:      mockDocker,
 		ContainerID: "test-container",
+		Logger:      slog.Default(),
 	}
 
 	resp := "Wait for it...\n```bash\necho 'slow command'\n```"

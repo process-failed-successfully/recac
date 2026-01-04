@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -17,6 +18,7 @@ import (
 	"recac/internal/docker"
 	"recac/internal/jira"
 	"recac/internal/runner"
+	"recac/internal/telemetry"
 	"recac/internal/ui"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -399,28 +401,36 @@ type SessionConfig struct {
 	Image             string
 	Provider          string
 	Model             string
+	Logger            *slog.Logger
 }
 
 // processJiraTicket handles the Jira-specific workflow and then runs the project session
 func processJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.Client, cfg SessionConfig) {
+	// Initialize Ticket Logger
+	if cfg.Logger == nil {
+		cfg.Logger = telemetry.NewLogger(cfg.Debug, "")
+	}
+	logger := cfg.Logger.With("ticket_id", jiraTicketID)
+	cfg.Logger = logger // Pass it down
+
 	// 2. Fetch Ticket
 	ticket, err := jClient.GetTicket(ctx, jiraTicketID)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "[%s] Error fetching Jira ticket: %v\n", jiraTicketID, err)
+		logger.Error("Error fetching Jira ticket", "error", err)
 		return
 	}
 
 	// 2a. Check for Blockers
 	blockers := jClient.GetBlockers(ticket)
 	if len(blockers) > 0 {
-		fmt.Printf("[%s] SKIPPING: Ticket is blocked by: %s\n", jiraTicketID, strings.Join(blockers, ", "))
+		logger.Info("SKIPPING: Ticket is blocked", "blockers", strings.Join(blockers, ", "))
 		return
 	}
 
 	// Extract details
 	fields, ok := ticket["fields"].(map[string]interface{})
 	if !ok {
-		fmt.Fprintf(os.Stderr, "[%s] Error: Invalid ticket format (missing fields)\n", jiraTicketID)
+		logger.Error("Error: Invalid ticket format (missing fields)")
 		return
 	}
 	summary, _ := fields["summary"].(string)
@@ -430,33 +440,33 @@ func processJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.C
 	if parent, ok := fields["parent"].(map[string]interface{}); ok {
 		if parentKey, ok := parent["key"].(string); ok {
 			cfg.JiraEpicKey = parentKey
-			fmt.Printf("[%s] Detected parent Epic: %s\n", jiraTicketID, cfg.JiraEpicKey)
+			logger.Info("Detected parent Epic", "epic_key", cfg.JiraEpicKey)
 		}
 	}
 
-	fmt.Printf("[%s] Ticket Found: %s\nSummary: %s\n", jiraTicketID, jiraTicketID, summary)
+	logger.Info("Ticket Found", "summary", summary)
 
 	// 3. Workspace Isolation (Create Temp Dir)
 	timestamp := time.Now().Format("20060102-150405")
 	pattern := fmt.Sprintf("recac-jira-%s-%s-*", jiraTicketID, timestamp)
 	tempWorkspace, err := os.MkdirTemp("", pattern)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "[%s] Error creating temp workspace: %v\n", jiraTicketID, err)
+		logger.Error("Error creating temp workspace", "error", err)
 		return
 	}
 
 	repoRegex := regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
 	matches := repoRegex.FindStringSubmatch(description)
 	if len(matches) <= 1 {
-		fmt.Fprintf(os.Stderr, "[%s] Error: No repository URL found in ticket description (Repo: https://...)\n", jiraTicketID)
+		logger.Error("Error: No repository URL found in ticket description (Repo: https://...)")
 		exit(1)
 	}
 
 	repoURL := strings.TrimSuffix(matches[1], ".git")
-	fmt.Printf("[%s] Found repository URL in ticket: %s\n", jiraTicketID, repoURL)
+	logger.Info("Found repository URL in ticket", "repo_url", repoURL)
 
 	if _, err := setupWorkspace(ctx, repoURL, tempWorkspace, jiraTicketID, cfg.JiraEpicKey, timestamp); err != nil {
-		fmt.Fprintf(os.Stderr, "[%s] Error: Failed to setup workspace: %v\n", jiraTicketID, err)
+		logger.Error("Error: Failed to setup workspace", "error", err)
 		exit(1)
 	}
 
@@ -464,11 +474,11 @@ func processJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.C
 	specContent := fmt.Sprintf("# Jira Ticket: %s\n# Summary: %s\n\n%s", jiraTicketID, summary, description)
 	specPath := filepath.Join(tempWorkspace, "app_spec.txt")
 	if err := os.WriteFile(specPath, []byte(specContent), 0644); err != nil {
-		fmt.Fprintf(os.Stderr, "[%s] Error writing app_spec.txt: %v\n", jiraTicketID, err)
+		logger.Error("Error writing app_spec.txt", "error", err)
 		return
 	}
 
-	fmt.Printf("[%s] Workspace created: %s\n", jiraTicketID, tempWorkspace)
+	logger.Info("Workspace created", "path", tempWorkspace)
 
 	// 5. Transition Ticket Status
 	transition := viper.GetString("jira.transition")
@@ -476,11 +486,11 @@ func processJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.C
 		transition = "In Progress"
 	}
 
-	fmt.Printf("[%s] Transitioning ticket to '%s'...\n", jiraTicketID, transition)
+	logger.Info("Transitioning ticket", "transition", transition)
 	if err := jClient.SmartTransition(ctx, jiraTicketID, transition); err != nil {
-		fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to transition Jira ticket: %v\n", jiraTicketID, err)
+		logger.Warn("Failed to transition Jira ticket", "error", err)
 	} else {
-		fmt.Printf("[%s] Jira ticket status updated.\n", jiraTicketID)
+		logger.Info("Jira ticket status updated")
 	}
 
 	// Update configuration for the session run
@@ -494,9 +504,9 @@ func processJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.C
 
 	// Run Workflow
 	if err := runWorkflow(ctx, cfg); err != nil {
-		fmt.Fprintf(os.Stderr, "[%s] Session failed: %v\n", jiraTicketID, err)
+		logger.Error("Session failed", "error", err)
 	} else {
-		fmt.Printf("[%s] Session completed successfully.\n", jiraTicketID)
+		logger.Info("Session completed successfully")
 	}
 }
 
@@ -589,6 +599,9 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 		}
 
 		session := runner.NewSession(dockerCli, agentClient, projectPath, cfg.Image, projectName, cfg.Provider, cfg.Model, cfg.MaxAgents)
+		if cfg.Logger != nil {
+			session.Logger = cfg.Logger
+		}
 		session.MaxIterations = cfg.MaxIterations
 		session.TaskMaxIterations = cfg.TaskMaxIterations
 		session.ManagerFrequency = cfg.ManagerFrequency
@@ -658,6 +671,9 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 	}
 
 	session := runner.NewSession(dockerCli, agentClient, projectPath, cfg.Image, projectName, provider, model, cfg.MaxAgents)
+	if cfg.Logger != nil {
+		session.Logger = cfg.Logger
+	}
 	session.MaxIterations = cfg.MaxIterations
 	session.TaskMaxIterations = cfg.TaskMaxIterations
 	session.ManagerFrequency = cfg.ManagerFrequency
