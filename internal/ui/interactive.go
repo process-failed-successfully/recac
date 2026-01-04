@@ -46,6 +46,10 @@ var (
 				BorderForeground(lipgloss.Color("63")).
 				MarginRight(2)
 
+	interactiveContextStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("241")).
+				MarginLeft(4)
+
 	promptStyle = lipgloss.NewStyle().MarginLeft(2)
 )
 
@@ -745,8 +749,12 @@ func (m InteractiveModel) View() string {
 		status = m.spinner.View() + " Thinking..."
 	}
 
+	// Context Info
+	contextInfo := interactiveContextStyle.Render(fmt.Sprintf("%s ❯ %s", m.currentAgent, m.currentModel))
+
 	footer := lipgloss.JoinHorizontal(lipgloss.Top,
 		helpStyle(m.help.View(m.keys)),
+		contextInfo,
 		lipgloss.NewStyle().MarginLeft(4).Render(status),
 	)
 	views = append(views, footer)
