@@ -10,7 +10,7 @@ import (
 )
 
 // CreateChildTicket creates a new Jira ticket with a parent (e.g., for Epic links or Sub-tasks).
-func (c *Client) CreateChildTicket(ctx context.Context, projectKey, summary, description, issueType, parentKey string) (string, error) {
+func (c *Client) CreateChildTicket(ctx context.Context, projectKey, summary, description, issueType, parentKey string, labels []string) (string, error) {
 	url := fmt.Sprintf("%s/rest/api/3/issue", c.BaseURL)
 
 	payload := map[string]interface{}{
@@ -22,6 +22,7 @@ func (c *Client) CreateChildTicket(ctx context.Context, projectKey, summary, des
 				"key": parentKey,
 			},
 			"summary": summary,
+			"labels":  labels,
 			"description": map[string]interface{}{
 				"type":    "doc",
 				"version": 1,

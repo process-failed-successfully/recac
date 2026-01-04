@@ -62,7 +62,7 @@ func TestOrchestrator_EnsureGitRepo(t *testing.T) {
 		GetFeaturesFunc: func() (string, error) { return "", nil },
 	}
 
-	o := NewOrchestrator(mockDB, mockDocker, tmpDir, "img", mockAgent, "proj", 1, "")
+	o := NewOrchestrator(mockDB, mockDocker, tmpDir, "img", mockAgent, "proj", "gemini", "gemini-pro", 1, "")
 
 	// Manually call ensureGitRepo (since it's private, we'll verify via Run or reflection,
 	// but to test the logic specifically we can temporarily export it or assume Run calls it.

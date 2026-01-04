@@ -8,6 +8,9 @@ import (
 	"strings"
 
 	"recac/internal/agent/prompts"
+	"regexp"
+
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -167,10 +170,12 @@ Or configure in config.yaml:
 }
 
 type ticketNode struct {
-	Title       string       `json:"title"`
-	Description string       `json:"description"`
-	Type        string       `json:"type"`
-	Children    []ticketNode `json:"children"`
+	Title              string       `json:"title"`
+	Description        string       `json:"description"`
+	Type               string       `json:"type"`
+	BlockedBy          []string     `json:"blocked_by"`
+	AcceptanceCriteria []string     `json:"acceptance_criteria"`
+	Children           []ticketNode `json:"children"`
 }
 
 // jiraGenerateFromSpecCmd represents the jira generate-from-spec command
@@ -195,23 +200,41 @@ var jiraGenerateFromSpecCmd = &cobra.Command{
 			exit(1)
 		}
 
-		projectKey := os.Getenv("JIRA_PROJECT_KEY")
+		projectKey, _ := cmd.Flags().GetString("project")
+		if projectKey == "" {
+			projectKey = os.Getenv("JIRA_PROJECT_KEY")
+		}
 		if projectKey == "" {
 			projectKey = viper.GetString("jira.project_key")
 		}
 		if projectKey == "" {
-			fmt.Fprintf(os.Stderr, "Error: JIRA_PROJECT_KEY is required.\n")
+			fmt.Fprintf(os.Stderr, "Error: JIRA_PROJECT_KEY is required. Use --project flag, JIRA_PROJECT_KEY env var, or jira.project_key in config.\n")
 			exit(1)
 		}
 
 		// 3. Setup Agent
-		ag, err := getAgentClient(ctx, "", "", ".", "recac-jira-gen")
+		provider, _ := cmd.Flags().GetString("provider")
+		if provider == "" {
+			provider = viper.GetString("provider")
+		}
+		model, _ := cmd.Flags().GetString("model")
+		if model == "" {
+			model = viper.GetString("model")
+		}
+
+		ag, err := getAgentClient(ctx, provider, model, ".", "recac-jira-gen")
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: Failed to initialize agent: %v\n", err)
 			exit(1)
 		}
 
-		// 4. Generate Tickets JSON
+		// 4. Labels
+		runLabel := fmt.Sprintf("recac-gen-%s", time.Now().Format("20060102-150405"))
+		userLabels, _ := cmd.Flags().GetStringSlice("label")
+		allLabels := append([]string{runLabel}, userLabels...)
+		fmt.Printf("Using labels for all tickets: %v\n", allLabels)
+
+		// 5. Generate Tickets JSON
 		prompt, err := prompts.GetPrompt(prompts.TPMAgent, map[string]string{"spec": string(specContent)})
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: Failed to load prompt: %v\n", err)
@@ -254,6 +277,24 @@ var jiraGenerateFromSpecCmd = &cobra.Command{
 		// 5. Create Tickets in Jira
 		fmt.Printf("Found %d top-level items. Creating tickets...\n", len(tickets))
 
+		// Validate repository in descriptions
+		repoRegex := regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
+		for _, epicNode := range tickets {
+			if !repoRegex.MatchString(epicNode.Description) {
+				fmt.Fprintf(os.Stderr, "Error: Epic '%s' description missing repository URL (Repo: https://...)\n", epicNode.Title)
+				exit(1)
+			}
+			for _, storyNode := range epicNode.Children {
+				if !repoRegex.MatchString(storyNode.Description) {
+					fmt.Fprintf(os.Stderr, "Error: Story '%s' description missing repository URL (Repo: https://...)\n", storyNode.Title)
+					exit(1)
+				}
+			}
+		}
+
+		// Keep track of titles to keys for linking
+		titleToKey := make(map[string]string)
+
 		for _, epicNode := range tickets {
 			// Use the type provided by the agent (default to Epic if empty, though prompt enforces it)
 			issueType := epicNode.Type
@@ -262,12 +303,23 @@ var jiraGenerateFromSpecCmd = &cobra.Command{
 			}
 
 			fmt.Printf("Creating %s: %s\n", issueType, epicNode.Title)
-			epicKey, err := jiraClient.CreateTicket(context.Background(), projectKey, epicNode.Title, epicNode.Description, issueType)
+
+			// Combine Description and Acceptance Criteria
+			fullDescription := epicNode.Description
+			if len(epicNode.AcceptanceCriteria) > 0 {
+				fullDescription += "\n\nAcceptance Criteria:\n"
+				for _, ac := range epicNode.AcceptanceCriteria {
+					fullDescription += fmt.Sprintf("- %s\n", ac)
+				}
+			}
+
+			epicKey, err := jiraClient.CreateTicket(context.Background(), projectKey, epicNode.Title, fullDescription, issueType, allLabels)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error: Failed to create %s '%s': %v\n", issueType, epicNode.Title, err)
 				continue
 			}
 			fmt.Printf("  -> Created %s %s\n", issueType, epicKey)
+			titleToKey[epicNode.Title] = epicKey
 
 			for _, storyNode := range epicNode.Children {
 				childType := storyNode.Type
@@ -275,11 +327,51 @@ var jiraGenerateFromSpecCmd = &cobra.Command{
 					childType = "Story"
 				}
 				fmt.Printf("  Creating Child (%s): %s\n", childType, storyNode.Title)
-				childKey, err := jiraClient.CreateChildTicket(context.Background(), projectKey, storyNode.Title, storyNode.Description, childType, epicKey)
+
+				// Combine Description and Acceptance Criteria
+				childDescription := storyNode.Description
+				if len(storyNode.AcceptanceCriteria) > 0 {
+					childDescription += "\n\nAcceptance Criteria:\n"
+					for _, ac := range storyNode.AcceptanceCriteria {
+						childDescription += fmt.Sprintf("- %s\n", ac)
+					}
+				}
+
+				childKey, err := jiraClient.CreateChildTicket(context.Background(), projectKey, storyNode.Title, childDescription, childType, epicKey, allLabels)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Error: Failed to create child '%s': %v\n", storyNode.Title, err)
 				} else {
 					fmt.Printf("    -> Created %s\n", childKey)
+					titleToKey[storyNode.Title] = childKey
+				}
+			}
+		}
+
+		// Create Links for Blockers
+		fmt.Println("Creating issue links for blockers...")
+		for _, epicNode := range tickets {
+			// Epics can block each other too?
+			for _, blockerTitle := range epicNode.BlockedBy {
+				if blockerKey, ok := titleToKey[blockerTitle]; ok {
+					if epicKey, ok := titleToKey[epicNode.Title]; ok {
+						fmt.Printf("Linking %s as blocked by %s\n", epicKey, blockerKey)
+						if err := jiraClient.AddIssueLink(context.Background(), blockerKey, epicKey, "Blocks"); err != nil {
+							fmt.Fprintf(os.Stderr, "Warning: Failed to link %s as blocked by %s: %v\n", epicKey, blockerKey, err)
+						}
+					}
+				}
+			}
+
+			for _, storyNode := range epicNode.Children {
+				for _, blockerTitle := range storyNode.BlockedBy {
+					if blockerKey, ok := titleToKey[blockerTitle]; ok {
+						if storyKey, ok := titleToKey[storyNode.Title]; ok {
+							fmt.Printf("Linking %s as blocked by %s\n", storyKey, blockerKey)
+							if err := jiraClient.AddIssueLink(context.Background(), blockerKey, storyKey, "Blocks"); err != nil {
+								fmt.Fprintf(os.Stderr, "Warning: Failed to link %s as blocked by %s: %v\n", storyKey, blockerKey, err)
+							}
+						}
+					}
 				}
 			}
 		}
@@ -299,5 +391,7 @@ func init() {
 	jiraCmd.AddCommand(jiraTransitionCmd)
 
 	jiraGenerateFromSpecCmd.Flags().String("spec", "app_spec.txt", "Path to application specification file")
+	jiraGenerateFromSpecCmd.Flags().String("project", "", "Jira project key (overrides JIRA_PROJECT_KEY env var and config)")
+	jiraGenerateFromSpecCmd.Flags().StringSliceP("label", "l", []string{}, "Custom labels to add to generated tickets")
 	jiraCmd.AddCommand(jiraGenerateFromSpecCmd)
 }

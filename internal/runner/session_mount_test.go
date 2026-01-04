@@ -151,7 +151,7 @@ func TestSession_WorkspaceMounting(t *testing.T) {
 	}
 
 	// Step 3: Start session and execute ls command
-	session := NewSession(dockerClient, &MockAgentForMount{}, tmpDir, "alpine:latest", "test-project", 1)
+	session := NewSession(dockerClient, &MockAgentForMount{}, tmpDir, "alpine:latest", "test-project", "gemini", "gemini-pro", 1)
 
 	ctx := context.Background()
 	if err := session.Start(ctx); err != nil {

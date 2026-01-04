@@ -110,7 +110,7 @@ Create a file named hello.txt in the workspace with the content "Hello World".
 	ctx := context.Background()
 
 	// Initialize session
-	session := NewSession(dockerClient, mockAgent, tmpDir, "ubuntu:latest", "test-project", 1)
+	session := NewSession(dockerClient, mockAgent, tmpDir, "ubuntu:latest", "test-project", "gemini", "gemini-pro", 1)
 
 	// Start session (Init phase: reads spec, starts container)
 	if err := session.Start(ctx); err != nil {
@@ -259,7 +259,7 @@ Create hello.txt with "Hello World" content.`
 	ctx := context.Background()
 
 	// Run the workflow
-	session := NewSession(dockerClient, mockAgent, tmpDir, "ubuntu:latest", "test-project", 1)
+	session := NewSession(dockerClient, mockAgent, tmpDir, "ubuntu:latest", "test-project", "gemini", "gemini-pro", 1)
 
 	// Init: Start session
 	if err := session.Start(ctx); err != nil {

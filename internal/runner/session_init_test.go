@@ -49,7 +49,7 @@ func TestSession_Start_RunsInitScript(t *testing.T) {
 	}
 
 	// 4. Create and Start Session
-	session := NewSession(d, &MockAgent{}, tmpDir, "alpine", "test-project", 1)
+	session := NewSession(d, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 
 	if err := session.Start(context.Background()); err != nil {
 		t.Fatalf("Start failed: %v", err)
@@ -109,7 +109,7 @@ func TestSession_Start_NoInitScript(t *testing.T) {
 		return types.IDResponse{ID: "mock-exec-id"}, nil
 	}
 
-	session := NewSession(d, &MockAgent{}, tmpDir, "alpine", "test-project", 1)
+	session := NewSession(d, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 
 	if err := session.Start(context.Background()); err != nil {
 		t.Fatalf("Start failed: %v", err)
@@ -140,7 +140,7 @@ func TestSession_Start_InitScriptFails(t *testing.T) {
 		return types.IDResponse{ID: "mock-exec-id"}, nil
 	}
 
-	session := NewSession(d, &MockAgent{}, tmpDir, "alpine", "test-project", 1)
+	session := NewSession(d, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 
 	if err := session.Start(context.Background()); err != nil {
 		t.Fatalf("Start should NOT fail even if init.sh fails, but got: %v", err)

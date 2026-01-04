@@ -69,11 +69,11 @@ func main() {
 	// Create Epic
 	epicSummary := fmt.Sprintf("[E2E %s] Golang HTTP Proxy Implementation", uniqueID)
 	epicDesc := fmt.Sprintf("Epic for the complete implementation of the Golang HTTP Proxy.\n\nRepo: %s", repoURL)
-	epicKey, err := client.CreateTicket(ctx, projectKey, epicSummary, epicDesc, "Epic")
+	epicKey, err := client.CreateTicket(ctx, projectKey, epicSummary, epicDesc, "Epic", nil)
 	if err != nil {
 		// Fallback to "Task" if "Epic" type doesn't exist or is different name
 		log.Printf("Failed to create Epic (maybe type name differs?), trying 'Task' as placeholder parent: %v", err)
-		epicKey, err = client.CreateTicket(ctx, projectKey, epicSummary, epicDesc, "Task")
+		epicKey, err = client.CreateTicket(ctx, projectKey, epicSummary, epicDesc, "Task", nil)
 		if err != nil {
 			log.Fatalf("Failed to create Epic/Parent ticket: %v", err)
 		}
@@ -247,7 +247,7 @@ func main() {
 	for i := range tickets {
 		t := &tickets[i] // pointer to update JiraKey
 		fmt.Printf("Creating %s: %s\n", t.ID, t.Summary)
-		key, err := client.CreateTicket(ctx, projectKey, t.Summary, t.Desc, t.Type)
+		key, err := client.CreateTicket(ctx, projectKey, t.Summary, t.Desc, t.Type, nil)
 		if err != nil {
 			log.Fatalf("Failed to create ticket %s: %v", t.ID, err)
 		}

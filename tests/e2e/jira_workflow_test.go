@@ -56,7 +56,7 @@ func TestJiraWorkflow_E2E(t *testing.T) {
 		t.Skip("Skipping E2E: JIRA_PROJECT_KEY missing")
 	}
 
-	ticketID, err := jClient.CreateTicket(ctx, projectKey, "E2E Test Jira Flow", desc, "Task")
+	ticketID, err := jClient.CreateTicket(ctx, projectKey, "E2E Test Jira Flow", desc, "Task", nil)
 	if err != nil {
 		t.Fatalf("Failed to create test ticket: %v", err)
 	}

@@ -81,7 +81,7 @@ func TestProjectCompleteFlow(t *testing.T) {
 	agentClient.SetResponse(mockResponseCmd)
 
 	// Create Session
-	session := NewSession(dockerCli, agentClient, workspace, "ubuntu:latest", "test-project", 1)
+	session := NewSession(dockerCli, agentClient, workspace, "ubuntu:latest", "test-project", "gemini", "gemini-pro", 1)
 
 	// We also need to mock the QAAgent and ManagerAgent inside session specifically
 	// because RunLoop creates NEW agents if they are nil.
