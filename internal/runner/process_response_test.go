@@ -2,9 +2,11 @@ package runner
 
 import (
 	"context"
+	"log/slog"
 	"path/filepath"
 	"recac/internal/db"
 	"recac/internal/docker"
+	"recac/internal/notify"
 	"strings"
 	"testing"
 )
@@ -41,7 +43,9 @@ func (m *MockDockerClient) PullImage(ctx context.Context, imageRef string) error
 
 func TestSession_ProcessResponse_NoCommands(t *testing.T) {
 	s := &Session{
-		Docker: &MockDockerClient{},
+		Docker:   &MockDockerClient{},
+		Logger:   slog.Default(),
+		Notifier: notify.NewManager(func(string, ...interface{}) {}),
 	}
 
 	output, err := s.ProcessResponse(context.Background(), "Just some text")
@@ -76,6 +80,8 @@ func TestSession_ProcessResponse_WithCommands(t *testing.T) {
 		Docker:    mockDocker,
 		Workspace: workspace,
 		DBStore:   store,
+		Logger:    slog.Default(),
+		Notifier:  notify.NewManager(func(string, ...interface{}) {}),
 	}
 
 	response := "Here is code:\n```bash\necho hello\n```"
@@ -110,6 +116,8 @@ func TestSession_ProcessResponse_Blocker(t *testing.T) {
 		Docker:    mockDocker,
 		Workspace: workspace,
 		DBStore:   store,
+		Logger:    slog.Default(),
+		Notifier:  notify.NewManager(func(string, ...interface{}) {}),
 	}
 
 	// Manually set blocker signal to simulate "agent did it"

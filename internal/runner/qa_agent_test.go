@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"recac/internal/db"
+	"recac/internal/notify"
+	"recac/internal/telemetry"
 	"strings"
 	"testing"
 )
@@ -57,7 +59,9 @@ func TestRunQAAgent_Pass(t *testing.T) {
 		Workspace: workspace,
 		DBStore:   store,
 		// Docker client not needed for this test
-		Docker: nil,
+		Docker:   nil,
+		Notifier: notify.NewManager(func(string, ...interface{}) {}),
+		Logger:   telemetry.NewLogger(true, ""),
 	}
 
 	// 5. Run QA Agent
@@ -100,6 +104,8 @@ func TestRunQAAgent_Fail(t *testing.T) {
 		QAAgent:   mockAgent,
 		Workspace: workspace,
 		DBStore:   store,
+		Notifier:  notify.NewManager(func(string, ...interface{}) {}),
+		Logger:    telemetry.NewLogger(true, ""),
 	}
 
 	// 5. Run QA Agent

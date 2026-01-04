@@ -2,6 +2,8 @@ package runner
 
 import (
 	"context"
+	"log/slog"
+	"recac/internal/notify"
 	"strings"
 	"testing"
 )
@@ -43,6 +45,8 @@ func TestProcessResponse_BlockerFalsePositives(t *testing.T) {
 	s := &Session{
 		Docker:      mockDocker,
 		ContainerID: "test-container",
+		Notifier:    notify.NewManager(func(string, ...interface{}) {}),
+		Logger:      slog.Default(),
 	}
 
 	testCases := []struct {

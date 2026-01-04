@@ -3,6 +3,8 @@ package runner
 import (
 	"context"
 	"os"
+	"recac/internal/notify"
+	"recac/internal/telemetry"
 	"strings"
 	"testing"
 )
@@ -20,7 +22,8 @@ func TestSession_RunLoop_MissingSpec(t *testing.T) {
 	s := &Session{
 		Docker:    mockDocker,
 		Workspace: tmpDir,
-		// Minimal setup to allow RunLoop to start
+		Notifier:  notify.NewManager(func(string, ...interface{}) {}),
+		Logger:    telemetry.NewLogger(true, ""),
 	}
 
 	// 3. Run Loop

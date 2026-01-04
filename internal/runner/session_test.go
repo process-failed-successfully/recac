@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"recac/internal/db"
 	"recac/internal/docker"
+	"recac/internal/notify"
+	"recac/internal/telemetry"
 	"strings"
 	"testing"
 
@@ -126,6 +128,8 @@ func TestSession_SyncFeatureFile_RetryOnPermissionDenied(t *testing.T) {
 
 	s := &Session{
 		Workspace: tmpDir,
+		Notifier:  notify.NewManager(func(string, ...interface{}) {}),
+		Logger:    telemetry.NewLogger(true, ""),
 	}
 
 	fl := db.FeatureList{

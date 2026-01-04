@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"recac/internal/db"
+	"recac/internal/notify"
+	"recac/internal/telemetry"
 	"testing"
 )
 
@@ -19,6 +21,8 @@ func TestSignalBypass(t *testing.T) {
 	session := &Session{
 		Workspace: workspace,
 		DBStore:   store,
+		Notifier:  notify.NewManager(func(string, ...interface{}) {}),
+		Logger:    telemetry.NewLogger(true, ""),
 	}
 
 	privilegedSignals := []string{

@@ -7,8 +7,8 @@ import (
 	"os"
 )
 
-// InitLogger configures the default logger with optional file output.
-func InitLogger(debug bool, logFile string) {
+// NewLogger creates a new configured logger.
+func NewLogger(debug bool, logFile string) *slog.Logger {
 	level := slog.LevelInfo
 	if debug {
 		level = slog.LevelDebug
@@ -40,7 +40,12 @@ func InitLogger(debug bool, logFile string) {
 		handler = handlers[0]
 	}
 
-	logger := slog.New(handler)
+	return slog.New(handler)
+}
+
+// InitLogger configures the default logger with optional file output.
+func InitLogger(debug bool, logFile string) {
+	logger := NewLogger(debug, logFile)
 	slog.SetDefault(logger)
 }
 

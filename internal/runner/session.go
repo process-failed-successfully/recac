@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"os/user"
@@ -77,9 +78,10 @@ type Session struct {
 	AutoMerge                 bool   // Automatically merge PRs
 	JiraClient                JiraClient
 	JiraTicketID              string
-	RepoURL                   string // Repository URL for links
-	SlackThreadTS             string // Thread Timestamp for Slack conversations
-	SuppressStartNotification bool   // Suppress "Session Started" notification (for sub-tasks)
+	RepoURL                   string       // Repository URL for links
+	SlackThreadTS             string       // Thread Timestamp for Slack conversations
+	SuppressStartNotification bool         // Suppress "Session Started" notification (for sub-tasks)
+	Logger                    *slog.Logger // Structured logger for this session
 
 	mu sync.RWMutex // Protects concurrent access to Iteration, SlackThreadTS, ContainerID
 }
@@ -128,8 +130,19 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 
 		// Re-initialize telemetry logger with the session log file
 		// Note: We use the global 'verbose' setting
+		// We still init global logger for backward compatibility and simpler calls where session isn't available
 		telemetry.InitLogger(viper.GetBool("verbose"), logFilePath)
 		fmt.Printf("Session logs will be written to: %s\n", logFilePath)
+	}
+
+	// Create session logger
+	// We want to persist it in the session so it can be customized (e.g. with attributes)
+	// For now, we reuse the configuration logic but ideally we'd pass this logger instance around.
+	// Since we called InitLogger above, slog.Default() is set.
+	// But let's create an explicit one too.
+	logger := telemetry.NewLogger(viper.GetBool("verbose"), "")
+	if project != "" {
+		logger = logger.With("project", project)
 	}
 
 	return &Session{
@@ -150,6 +163,7 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 		Scanner:          scanner,
 		MaxAgents:        maxAgents,
 		Notifier:         notify.NewManager(telemetry.LogInfof),
+		Logger:           logger,
 	}
 }
 
@@ -190,6 +204,11 @@ func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, pr
 		fmt.Printf("Session logs will be written to: %s\n", logFilePath)
 	}
 
+	logger := telemetry.NewLogger(viper.GetBool("verbose"), "")
+	if project != "" {
+		logger = logger.With("project", project)
+	}
+
 	return &Session{
 		Docker:           d,
 		Agent:            a,
@@ -208,6 +227,7 @@ func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, pr
 		Scanner:          scanner,
 		MaxAgents:        maxAgents,
 		Notifier:         notify.NewManager(telemetry.LogInfof),
+		Logger:           logger,
 	}
 }
 
@@ -243,6 +263,11 @@ func NewSessionWithConfig(workspace, project, provider, model string, dbStore db
 		fmt.Printf("Session logs will be written to: %s\n", logFilePath)
 	}
 
+	logger := telemetry.NewLogger(viper.GetBool("verbose"), "")
+	if project != "" {
+		logger = logger.With("project", project)
+	}
+
 	return &Session{
 		Workspace:        workspace,
 		Project:          project,
@@ -257,6 +282,7 @@ func NewSessionWithConfig(workspace, project, provider, model string, dbStore db
 		OwnsDB:           false, // This session does not own the DB, it's passed in
 		Scanner:          scanner,
 		Notifier:         notify.NewManager(telemetry.LogInfof),
+		Logger:           logger,
 	}
 }
 
@@ -656,7 +682,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		s.Notifier = notify.NewManager(func(string, ...interface{}) {})
 	}
 
-	fmt.Println("\n=== Entering Autonomous Run Loop ===")
+	s.Logger.Info("entering autonomous run loop")
 	// Note: We use the stored SlackThreadTS if available (from startup), otherwise we start a new thread here if needed?
 	// But Start() is called before RunLoop(), so s.SlackThreadTS should be set if notifications are enabled.
 	// If it's a resume and we don't have the TS persisted, we might start a new thread.
@@ -740,12 +766,12 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		// Check Max Iterations
 		currentIteration := s.GetIteration()
 		if s.MaxIterations > 0 && currentIteration >= s.MaxIterations {
-			fmt.Printf("Reached max iterations (%d). Stopping.\n", s.MaxIterations)
+			s.Logger.Info("reached max iterations", "max_iterations", s.MaxIterations)
 			return ErrMaxIterations
 		}
 
 		newIteration := s.IncrementIteration()
-		telemetry.LogInfo("Starting Iteration", "project", s.Project, "iteration", newIteration)
+		s.Logger.Info("starting iteration", "iteration", newIteration)
 
 		// Ensure feature list is synced and mirror is up to date
 		features = s.loadFeatures()
@@ -754,7 +780,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		if s.SelectedTaskID != "" {
 			for _, f := range features {
 				if f.ID == s.SelectedTaskID && (f.Passes || f.Status == "done" || f.Status == "implemented") {
-					fmt.Printf("Task %s completed. Exiting session.\n", s.SelectedTaskID)
+					s.Logger.Info("task completed", "task_id", s.SelectedTaskID)
 					return nil
 				}
 			}
@@ -765,7 +791,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		if s.hasSignal("PROJECT_SIGNED_OFF") {
 			// MERGE GUARDRAIL: Check for upstream conflicts before accepting sign-off
 			if s.BaseBranch != "" {
-				fmt.Printf("Checking for upstream changes in %s...\n", s.BaseBranch)
+				s.Logger.Info("checking for upstream changes", "branch", s.BaseBranch)
 
 				// Git Recovery/Retry Loop
 				maxRetries := 3
@@ -785,23 +811,23 @@ func (s *Session) RunLoop(ctx context.Context) error {
 
 						// 3. Attempt Merge
 						if err := gitClient.Merge(s.Workspace, "origin/"+s.BaseBranch); err != nil {
-							fmt.Printf("Merge failed (attempt %d/%d): %v\n", i+1, maxRetries, err)
+							s.Logger.Warn("merge failed", "attempt", i+1, "max", maxRetries, "error", err)
 
 							// ENSURE WE ABORT to clear unmerged files
 							_ = gitClient.AbortMerge(s.Workspace)
 
 							// RECOVERY STRATEGIES
 							if i < maxRetries-1 {
-								fmt.Println("Attempting git recovery...")
+								s.Logger.Info("attempting git recovery")
 
 								// Recovery Step 1: Remove Locks
 								if err := gitClient.Recover(s.Workspace); err != nil {
-									fmt.Printf("Recover failed: %v\n", err)
+									s.Logger.Warn("recover failed", "error", err)
 								}
 
 								// Recovery Step 2: Clean aggressively
 								if err := gitClient.Clean(s.Workspace); err != nil {
-									fmt.Printf("Clean failed: %v\n", err)
+									s.Logger.Warn("clean failed", "error", err)
 								}
 
 								// Recovery Step 3: Hard Reset to origin/current_feature_branch
@@ -814,26 +840,26 @@ func (s *Session) RunLoop(ctx context.Context) error {
 								}
 							} else {
 								// Final Failure
-								fmt.Printf("CRITICAL: Merge with %s failed after %d attempts.\n", s.BaseBranch, maxRetries)
+								s.Logger.Error("critical merge failure", "branch", s.BaseBranch, "attempts", maxRetries)
 							}
 						} else {
 							// Success
 							success = true
 							if err := gitClient.StashPop(s.Workspace); err != nil {
-								fmt.Printf("Warning: Restore stash failed: %v\n", err)
+								s.Logger.Warn("restore stash failed", "error", err)
 							}
-							fmt.Println("Branch is up-to-date with base.")
+							s.Logger.Info("branch up-to-date with base")
 							break
 						}
 					} else {
-						fmt.Printf("Fetch failed (attempt %d/%d): %v\n", i+1, maxRetries, err)
+						s.Logger.Warn("fetch failed", "attempt", i+1, "max", maxRetries, "error", err)
 						gitClient.Recover(s.Workspace) // Try recovering for next loop
 					}
 					time.Sleep(2 * time.Second)
 				}
 
 				if !success {
-					fmt.Printf("Merge Conflict or Persistent Git Error detecting with %s. Revoking sign-off.\n", s.BaseBranch)
+					s.Logger.Warn("merge conflict or persistent git error, revoking sign-off", "branch", s.BaseBranch)
 
 					// BRUTAL RECOVERY: If standard recovery fails, delete remote feature branch
 					// and let the agent start clean on next iteration.
@@ -871,8 +897,8 @@ func (s *Session) RunLoop(ctx context.Context) error {
 			}
 
 			if len(incompleteFeatures) > 0 {
-				fmt.Printf("WARNING: Premature PROJECT_SIGNED_OFF detected. Revoking sign-off.\n")
-				fmt.Printf("The following features are incomplete: %s\n", strings.Join(incompleteFeatures, ", "))
+
+				s.Logger.Warn("premature project sign-off detected", "incomplete_features", incompleteFeatures)
 
 				// Revoke signal
 				s.clearSignal("PROJECT_SIGNED_OFF")
@@ -881,7 +907,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 				// Also clear COMPLETED to force re-check
 				s.clearSignal("COMPLETED")
 
-				fmt.Println("Returning to coding/verification phase.")
+				s.Logger.Info("returning to coding phase")
 				continue
 			}
 
@@ -981,11 +1007,11 @@ func (s *Session) RunLoop(ctx context.Context) error {
 				}
 			}
 
-			fmt.Println("Project signed off. Running Cleaner agent...")
+			s.Logger.Info("project signed off, running cleaner agent")
 			if err := s.runCleanerAgent(ctx); err != nil {
-				fmt.Printf("Cleaner agent error: %v\n", err)
+				s.Logger.Error("cleaner agent error", "error", err)
 			}
-			fmt.Println("Cleaner agent complete. Session finished.")
+			s.Logger.Info("cleaner agent complete, session finished")
 			return nil
 		}
 
@@ -1084,11 +1110,12 @@ func (s *Session) RunLoop(ctx context.Context) error {
 	}
 
 	// Save final agent state before exiting
+	// Save final agent state before exiting
 	if err := s.SaveAgentState(); err != nil {
-		fmt.Printf("Warning: Failed to save final agent state: %v\n", err)
+		s.Logger.Warn("failed to save final agent state", "error", err)
 	}
 
-	fmt.Println("\n=== Session Complete ===")
+	s.Logger.Info("session complete")
 	return nil
 }
 
@@ -1098,10 +1125,10 @@ func (s *Session) RunIteration(ctx context.Context, prompt string, isManager boo
 	if isManager {
 		role = "Manager"
 	}
-	telemetry.LogInfo("Agent Role", "project", s.Project, "role", role)
+	s.Logger.Info("agent role selected", "role", role)
 
 	// Send to Agent
-	fmt.Println("Sending prompt to agent...")
+	s.Logger.Info("sending prompt to agent")
 	var response string
 	var err error
 
@@ -1116,16 +1143,16 @@ func (s *Session) RunIteration(ctx context.Context, prompt string, isManager boo
 	}
 
 	if err != nil {
-		fmt.Printf("Agent error: %v. Retrying in next iteration...\n", err)
+		s.Logger.Error("agent error, retrying", "error", err)
 		return "", err
 	}
 
-	telemetry.LogInfo("Agent response received", "project", s.Project, "role", role, "chars", len(response))
+	s.Logger.Info("agent response received", "role", role, "chars", len(response))
 
 	// Repetition Mitigation
 	truncated, wasTruncated := TruncateRepetitiveResponse(response)
 	if wasTruncated {
-		fmt.Println("WARNING: Agent response was truncated due to excessive repetition.")
+		s.Logger.Warn("agent response truncated due to repetition")
 		response = truncated + "\n\n[RESPONSE TRUNCATED DUE TO REPETITION DETECTED]"
 	}
 
@@ -1133,15 +1160,15 @@ func (s *Session) RunIteration(ctx context.Context, prompt string, isManager boo
 	if s.Scanner != nil {
 		findings, err := s.Scanner.Scan(response)
 		if err != nil {
-			fmt.Printf("Warning: Security scan failed: %v\n", err)
+			s.Logger.Warn("security scan failed", "error", err)
 		} else if len(findings) > 0 {
-			fmt.Println("CRITICAL: Security violation detected in agent response!")
+			s.Logger.Error("security violation detected")
 			for _, f := range findings {
-				fmt.Printf("  - %s: %s (Line %d)\n", f.Type, f.Description, f.Line)
+				s.Logger.Error("security finding", "type", f.Type, "desc", f.Description, "line", f.Line)
 			}
 			return "", fmt.Errorf("security violation detected")
 		} else {
-			fmt.Println("Security scan passed.")
+			s.Logger.Info("security scan passed")
 		}
 	}
 
@@ -1149,9 +1176,9 @@ func (s *Session) RunIteration(ctx context.Context, prompt string, isManager boo
 	if s.DBStore != nil {
 		telemetry.TrackDBOp(s.Project)
 		if err := s.DBStore.SaveObservation(role, response); err != nil {
-			telemetry.LogError("Failed to save observation to DB", err, "project", s.Project)
+			s.Logger.Error("failed to save observation to DB", "error", err)
 		} else {
-			telemetry.LogDebug("Saved observation to DB", "project", s.Project)
+			s.Logger.Debug("saved observation to DB")
 		}
 	}
 
@@ -1163,9 +1190,9 @@ func (s *Session) RunIteration(ctx context.Context, prompt string, isManager boo
 		telemetry.TrackDBOp(s.Project)
 		// Use "System" role for tool outputs
 		if err := s.DBStore.SaveObservation("System", executionOutput); err != nil {
-			telemetry.LogError("Failed to save system output to DB", err, "project", s.Project)
+			s.Logger.Error("failed to save system output to DB", "error", err)
 		} else {
-			telemetry.LogDebug("Saved system output to DB", "project", s.Project)
+			s.Logger.Debug("saved system output to DB")
 		}
 	}
 
@@ -1325,7 +1352,7 @@ func (s *Session) syncFeatureFile(fl db.FeatureList) {
 	path := filepath.Join(s.Workspace, "feature_list.json")
 	data, err := json.MarshalIndent(fl, "", "  ")
 	if err != nil {
-		fmt.Printf("Warning: Failed to marshal feature list: %v\n", err)
+		s.Logger.Warn("failed to marshal feature list", "error", err)
 		return
 	}
 
@@ -1348,7 +1375,7 @@ func (s *Session) syncFeatureFile(fl db.FeatureList) {
 	}
 
 	if err != nil {
-		fmt.Printf("Warning: Failed to sync feature_list.json: %v\n", err)
+		s.Logger.Warn("failed to sync feature_list.json", "error", err)
 	}
 }
 
@@ -1386,13 +1413,13 @@ func (s *Session) hasSignal(name string) bool {
 	path := filepath.Join(s.Workspace, name)
 	if _, err := os.Stat(path); err == nil {
 		// File exists - Migrate to DB
-		fmt.Printf("Migrating signal %s from file to DB\n", name)
+		s.Logger.Info("migrating signal from file to DB", "signal", name)
 		if err := s.DBStore.SetSignal(name, "true"); err != nil {
-			fmt.Printf("Warning: Failed to migrate signal %s to DB: %v\n", name, err)
+			s.Logger.Warn("failed to migrate signal to DB", "signal", name, "error", err)
 		}
 		// Remove file
 		if err := os.Remove(path); err != nil {
-			fmt.Printf("Warning: Failed to remove signal file %s: %v\n", name, err)
+			s.Logger.Warn("failed to remove signal file", "signal", name, "error", err)
 		}
 		return true
 	}
@@ -1414,14 +1441,14 @@ func (s *Session) createSignal(name string) error {
 	if s.DBStore == nil {
 		return fmt.Errorf("db store not initialized")
 	}
-	fmt.Printf("Created signal: %s\n", name)
+	s.Logger.Info("created signal", "signal", name)
 	return s.DBStore.SetSignal(name, "true")
 }
 
 // runQAAgent runs quality assurance checks on the feature list.
 // Returns error if QA fails, nil if QA passes.
 func (s *Session) runQAAgent(ctx context.Context) error {
-	fmt.Println("=== QA Agent: Running Quality Checks ===")
+	s.Logger.Info("QA agent running quality checks")
 
 	var qaAgent agent.Agent
 	if s.QAAgent != nil {
@@ -1471,7 +1498,7 @@ func (s *Session) runQAAgent(ctx context.Context) error {
 			}
 		}
 
-		fmt.Printf("Initialising QA Agent with provider: %s, model: %s\n", provider, model)
+		s.Logger.Info("initializing QA agent", "provider", provider, "model", model)
 		qaAgent, err = agent.NewAgent(provider, apiKey, model, s.Workspace, s.Project)
 		if err != nil {
 			return fmt.Errorf("failed to create QA agent: %w", err)
@@ -1485,16 +1512,16 @@ func (s *Session) runQAAgent(ctx context.Context) error {
 	}
 
 	// 2. Send to Agent
-	fmt.Println("Sending verification instructions to QA Agent...")
+	s.Logger.Info("sending verification instructions to QA agent")
 	response, err := qaAgent.Send(ctx, prompt) // Use qaAgent
 	if err != nil {
 		return fmt.Errorf("QA Agent failed to respond: %w", err)
 	}
-	fmt.Printf("QA Agent Response (%d chars).\n", len(response))
+	s.Logger.Info("QA agent response received", "chars", len(response))
 
 	// 2.5 Execute Commands
 	if _, err := s.ProcessResponse(ctx, response); err != nil {
-		fmt.Printf("Warning: QA Agent command execution failed: %v\n", err)
+		s.Logger.Warn("QA agent command execution failed", "error", err)
 	}
 
 	// 3. Check Result File (.qa_result)
@@ -1509,24 +1536,24 @@ func (s *Session) runQAAgent(ctx context.Context) error {
 	defer os.Remove(qaResultPath) // Cleanup
 
 	result := strings.TrimSpace(string(data))
-	fmt.Printf("QA Result: %s\n", result)
+	s.Logger.Info("QA result", "result", result)
 
 	if result == "PASS" {
 		if err := s.createSignal("QA_PASSED"); err != nil {
-			fmt.Printf("Warning: Failed to create QA_PASSED signal: %v\n", err)
+			s.Logger.Warn("failed to create QA_PASSED signal", "error", err)
 		}
-		fmt.Println("QA PASSED: Agent verified all requirements.")
+		s.Logger.Info("QA passed")
 		return nil
 	}
 
-	fmt.Println("QA FAILED: Agent reported failure.")
+	s.Logger.Error("QA failed")
 	return fmt.Errorf("QA failed with result: %s", result)
 }
 
 // runManagerAgent runs manager review of the QA report.
 // Returns error if manager rejects, nil if manager approves.
 func (s *Session) runManagerAgent(ctx context.Context) error {
-	fmt.Println("=== Manager Agent: Reviewing QA Report ===")
+	s.Logger.Info("manager agent reviewing QA report")
 
 	var managerAgent agent.Agent
 	if s.ManagerAgent != nil {
@@ -1592,33 +1619,35 @@ func (s *Session) runManagerAgent(ctx context.Context) error {
 	}
 
 	// Send to agent for review
-	fmt.Println("Sending QA report to Manager agent for review...")
+	s.Logger.Info("sending QA report to manager agent")
 	response, err := managerAgent.Send(ctx, prompt) // Use managerAgent
 	if err != nil {
 		return fmt.Errorf("manager review request failed: %w", err)
 	}
 
-	fmt.Printf("Manager review response (%d chars).\n", len(response))
+	s.Logger.Info("manager review response received", "chars", len(response))
 
 	// Execute commands (e.g., creating PROJECT_SIGNED_OFF or deleting COMPLETED)
+	// Execute commands (e.g., creating PROJECT_SIGNED_OFF or deleting COMPLETED)
 	if _, err := s.ProcessResponse(ctx, response); err != nil {
-		fmt.Printf("Warning: Manager agent command execution failed: %v\n", err)
+		s.Logger.Warn("manager agent command execution failed", "error", err)
 	}
 
 	// Check for PROJECT_SIGNED_OFF signal
 	if s.hasSignal("PROJECT_SIGNED_OFF") {
-		fmt.Println("Manager APPROVED: project signed off via signal.")
+		s.Logger.Info("manager approved, project signed off via signal")
 		return nil
 	}
 
 	// Fallback to legacy ratio check if no explicit signal was given
 	if qaReport.CompletionRatio >= 1.0 {
-		fmt.Println("Manager APPROVED (Legacy/Fallback): All features passing.")
+		s.Logger.Info("manager approved (legacy/fallback), all features passing")
 		return nil
 	}
 
 	// Manager rejected or didn't explicitly sign off
-	fmt.Println("Manager REJECTED or pending: Project not signed off.")
+	// Manager rejected or didn't explicitly sign off
+	s.Logger.Info("manager rejected or pending, project not signed off")
 	s.clearSignal("QA_PASSED")
 	s.clearSignal("COMPLETED")
 	return fmt.Errorf("manager review did not result in sign-off (ratio: %.2f)", qaReport.CompletionRatio)
@@ -1644,7 +1673,7 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 		if cmdScript == "" {
 			continue
 		}
-		fmt.Printf("\n--- Executing Command Block (%d/%d) ---\n%s\n", i+1, len(matches), cmdScript)
+		s.Logger.Info("executing command block", "index", i+1, "total", len(matches), "script", cmdScript)
 
 		// Create timeout context for this specific command
 		cmdCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
@@ -1664,7 +1693,7 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 			}
 
 			result := fmt.Sprintf("Command Failed: %s\nError: %s\n", cmdScript, errMsg)
-			fmt.Print(result)
+			s.Logger.Error("command failed", "script", cmdScript, "error", errMsg)
 			parsedOutput.WriteString(result)
 
 			// Telemetry: Build Failure
@@ -1678,11 +1707,11 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 			if len(output) > MaxOutputChars {
 				truncatedOutput = output[:MaxOutputChars] + fmt.Sprintf("\n... [Output Truncated. Total length: %d chars] ...", len(output))
 				// Also truncate for display to avoid flooding user console
-				fmt.Printf("Command Output (Truncated):\n%s\n", truncatedOutput)
+				s.Logger.Info("command output truncated", "truncated_output", truncatedOutput)
 			} else {
-				result := fmt.Sprintf("Command Output:\n%s\n", output)
+				// result := fmt.Sprintf("Command Output:\n%s\n", output)
 				if len(output) > 0 {
-					fmt.Print(result)
+					s.Logger.Info("command output", "output", output)
 				}
 			}
 
@@ -1709,10 +1738,8 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 	if s.DBStore != nil {
 		blockerMsg, err := s.DBStore.GetSignal("BLOCKER")
 		if err == nil && blockerMsg != "" {
-			fmt.Println("\n=== HUMAN INTERVENTION REQUIRED ===")
-			fmt.Printf("Agent reported blocker: %s\n", blockerMsg)
-
-			fmt.Println("Session stopping to allow human resolution.")
+			s.Logger.Warn("agent reported blocker", "blocker", blockerMsg)
+			s.Logger.Info("session stopping to allow human resolution")
 
 			// Clear blocker so it doesn't loop forever? Or keep it?
 			// If we keep it, restart will block again.
@@ -1748,17 +1775,16 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 					strings.Contains(cleanStr, "ui verification required")
 
 				if isFalsePositive {
-					fmt.Printf("Ignoring false positive blocker in %s: %s\n", bf, trimmed)
+					s.Logger.Info("ignoring false positive blocker", "file", bf, "content", trimmed)
 					// Cleanup the file so it doesn't re-trigger
 					s.Docker.Exec(ctx, s.GetContainerID(), []string{"rm", bf})
 					continue
 				}
 
 				// Real Blocker found!
-				fmt.Printf("\n=== HUMAN INTERVENTION REQUIRED (File: %s) ===\n", bf)
-				fmt.Printf("Agent reported blocker:\n%s\n", blockerContent)
-
-				fmt.Println("Session stopping to allow human resolution.")
+				s.Logger.Warn("agent reported blocker file", "file", bf)
+				s.Logger.Warn("blocker content", "content", blockerContent)
+				s.Logger.Info("session stopping to allow human resolution")
 				return "", ErrBlocker
 			}
 		}
@@ -1769,12 +1795,12 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 
 // runCleanerAgent removes temporary files listed in temp_files.txt.
 func (s *Session) runCleanerAgent(ctx context.Context) error {
-	fmt.Println("=== Cleaner Agent: Removing Temporary Files ===")
+	s.Logger.Info("cleaner agent running")
 
 	// Check if temp_files.txt exists
 	tempFilesPath := filepath.Join(s.Workspace, "temp_files.txt")
 	if _, err := os.Stat(tempFilesPath); os.IsNotExist(err) {
-		fmt.Println("No temp_files.txt found. Nothing to clean.")
+		s.Logger.Info("no temp_files.txt found")
 		return nil // Nothing to clean
 	}
 
@@ -1804,16 +1830,16 @@ func (s *Session) runCleanerAgent(ctx context.Context) error {
 
 		if err := os.Remove(filePath); err != nil {
 			if !os.IsNotExist(err) {
-				fmt.Printf("Warning: Failed to remove %s: %v\n", line, err)
+				s.Logger.Warn("failed to remove temp file", "file", line, "error", err)
 				errors++
 			}
 		} else {
-			fmt.Printf("Removed: %s\n", line)
+			s.Logger.Info("removed temp file", "file", line)
 			cleaned++
 		}
 	}
 
-	fmt.Printf("Cleaner complete: %d files removed, %d errors\n", cleaned, errors)
+	s.Logger.Info("cleaner agent complete", "removed", cleaned, "errors", errors)
 
 	// Clear the temp_files.txt itself
 	os.Remove(tempFilesPath)

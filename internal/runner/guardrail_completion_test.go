@@ -11,6 +11,7 @@ import (
 	"recac/internal/agent"
 	"recac/internal/db"
 	"recac/internal/notify"
+	"recac/internal/telemetry"
 )
 
 // MockDockerForGuardrail is a simple mock that returns success for everything
@@ -69,6 +70,7 @@ func TestSession_Guardrail_PrematureSignoff(t *testing.T) {
 		ManagerFrequency: 5,
 		DBStore:          dbStore,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
+		Logger:           telemetry.NewLogger(true, ""),
 	}
 
 	// 3. Run Loop

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"recac/internal/agent"
 	"recac/internal/git"
 	"recac/internal/jira"
@@ -137,16 +136,6 @@ func setupWorkspace(ctx context.Context, repoURL, workspace, ticketID, epicKey, 
 			if err := gitClient.CheckoutNewBranch(workspace, epicBranch); err != nil {
 				fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to create epic branch: %v\n", ticketID, err)
 			} else {
-				// HACK: Remove .github/workflows to prevent permission errors when pushing with limited tokens
-				workflowsDir := filepath.Join(workspace, ".github")
-				if _, err := os.Stat(workflowsDir); err == nil {
-					fmt.Printf("[%s] Removing .github directory to bypass workflow permissions...\n", ticketID)
-					os.RemoveAll(workflowsDir)
-					if err := gitClient.Commit(workspace, "Remove workflows to bypass permissions"); err != nil {
-						fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to commit workflow removal: %v\n", ticketID, err)
-					}
-				}
-
 				if err := gitClient.Push(workspace, epicBranch); err != nil {
 					fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to push epic branch: %v\n", ticketID, err)
 				}

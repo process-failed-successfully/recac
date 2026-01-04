@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"recac/internal/notify"
+	"recac/internal/telemetry"
 	"strings"
 	"testing"
 
@@ -22,6 +24,8 @@ func TestSession_GitIgnoreCreation(t *testing.T) {
 		Workspace:   workspace,
 		Docker:      mockDocker,
 		ContainerID: "test-container",
+		Notifier:    notify.NewManager(func(string, ...interface{}) {}),
+		Logger:      telemetry.NewLogger(true, ""),
 	}
 
 	viper.Set("git_user_email", "test@example.com")
@@ -60,6 +64,8 @@ func TestSession_GitIgnoreFunctional(t *testing.T) {
 		Workspace:   workspace,
 		Docker:      mockDocker,
 		ContainerID: "test-container",
+		Notifier:    notify.NewManager(func(string, ...interface{}) {}),
+		Logger:      telemetry.NewLogger(true, ""),
 	}
 
 	viper.Set("git_user_email", "test@example.com")

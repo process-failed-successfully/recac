@@ -2,9 +2,11 @@ package runner
 
 import (
 	"encoding/json"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"recac/internal/db"
+	"recac/internal/notify"
 	"testing"
 )
 
@@ -22,6 +24,8 @@ func TestSession_CheckAutoQA(t *testing.T) {
 	s := &Session{
 		Workspace: workspace,
 		DBStore:   store,
+		Logger:    slog.Default(),
+		Notifier:  notify.NewManager(func(string, ...interface{}) {}),
 	}
 
 	// 1. No features -> False

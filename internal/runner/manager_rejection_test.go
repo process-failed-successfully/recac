@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"recac/internal/db"
+	"recac/internal/notify"
+	"recac/internal/telemetry"
 	"testing"
 )
 
@@ -57,6 +59,8 @@ func TestManagerRejection_ClearsSignals(t *testing.T) {
 		DBStore:      store,
 		Agent:        &MockAgentForManager{Response: "I reject this."},
 		ManagerAgent: &MockAgentForManager{Response: "I reject this."},
+		Notifier:     notify.NewManager(func(string, ...interface{}) {}),
+		Logger:       telemetry.NewLogger(true, ""),
 	}
 
 	// 3. Set Signals
