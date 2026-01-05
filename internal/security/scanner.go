@@ -33,6 +33,8 @@ func NewRegexScanner() *RegexScanner {
 			"Generic API Token": regexp.MustCompile(`(api|access)[_-]?key\s*[:=]\s*['"][a-zA-Z0-9_\-]{20,}['"]`),
 			"Slack Token":       regexp.MustCompile(`xox[baprs]-([0-9a-zA-Z]{10,48})`),
 			"GitHub Token":      regexp.MustCompile(`gh[pousr]_[a-zA-Z0-9]{36,255}`),
+			"Dangerous Command": regexp.MustCompile(`(?i)\b(rm|cat|cp|mv|chmod|chown)\b.*(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`),
+			"Root Deletion":     regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+([/~*]+|/)$`),
 		},
 	}
 }
