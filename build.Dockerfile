@@ -35,12 +35,4 @@ ENV HOME=/root
 RUN curl -fsS https://cursor.com/install | bash
 ENV PATH="${HOME}/.local/bin:${PATH}"
 
-# Copy and download Go dependencies
-COPY go.mod go.sum ./
-RUN go mod download
-
-# Copy the rest of the source
-COPY . .
-
-# Default command
-CMD ["go", "build", "-o", "recac", "./cmd/recac"]
+# No default command - source is mounted at runtime
