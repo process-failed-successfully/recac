@@ -2,8 +2,6 @@ FROM golang:1.24-alpine
 
 WORKDIR /app
 
-# Configure Alpine mirror for China (User in +08:00)
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 
 # Install system dependencies
 # nodejs/npm for gemini-cli
@@ -20,6 +18,7 @@ RUN apk add --no-cache \
     jq \
     bash \
     unzip \
+    docker-cli \
     libc6-compat
 
 # Configure NPM mirror
@@ -35,12 +34,4 @@ ENV HOME=/root
 RUN curl -fsS https://cursor.com/install | bash
 ENV PATH="${HOME}/.local/bin:${PATH}"
 
-# Copy and download Go dependencies
-COPY go.mod go.sum ./
-RUN go mod download
-
-# Copy the rest of the source
-COPY . .
-
-# Default command
-CMD ["go", "build", "-o", "recac", "./cmd/recac"]
+# No default command - source is mounted at runtime

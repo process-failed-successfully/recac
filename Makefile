@@ -26,6 +26,9 @@ bridge: image ## Build the agent-bridge binary (Linux) via Docker
 test: image ## Run unit tests via Docker (skips E2E)
 	$(DOCKER_CMD) /bin/sh -c 'go test -buildvcs=false -v $$(go list -buildvcs=false ./... | grep -v /scripts/)'
 
+test-sharded: image ## Run a subset of tests (SHARD=x TOTAL_SHARDS=y)
+	$(DOCKER_CMD) /bin/sh scripts/test_sharded.sh $(SHARD) $(TOTAL_SHARDS)
+
 test-e2e: image ## Run E2E tests via Docker
 	$(DOCKER_CMD) go test -v -tags=e2e ./tests/e2e/...
 
