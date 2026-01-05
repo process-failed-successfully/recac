@@ -989,11 +989,9 @@ func (s *Session) RunLoop(ctx context.Context) error {
 
 								// DELETE REMOTE FEATURE BRANCH (Cleanup)
 								// This keeps the repo clean and prevents branch accumulation
-								if s.JiraTicketID != "" {
-									fmt.Printf("[%s] Deleting remote feature branch %s...\n", s.JiraTicketID, featureBranch)
-									if err := gitClient.DeleteRemoteBranch(s.Workspace, "origin", featureBranch); err != nil {
-										fmt.Printf("[%s] Warning: Failed to delete remote branch: %v\n", s.JiraTicketID, err)
-									}
+								fmt.Printf("[%s] Deleting remote feature branch %s...\n", s.Project, featureBranch)
+								if err := gitClient.DeleteRemoteBranch(s.Workspace, "origin", featureBranch); err != nil {
+									fmt.Printf("[%s] Warning: Failed to delete remote branch: %v\n", s.Project, err)
 								}
 
 								// 6. Capture Commit SHA for links

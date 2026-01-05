@@ -59,6 +59,8 @@ func init() {
 	viper.BindPFlag("skip_qa", startCmd.Flags().Lookup("skip-qa"))
 	startCmd.Flags().String("image", "ghcr.io/process-failed-successfully/recac-agent:latest", "Docker image to use for the agent session")
 	viper.BindPFlag("image", startCmd.Flags().Lookup("image"))
+	startCmd.Flags().Bool("cleanup", true, "Cleanup temporary workspace after session ends")
+	viper.BindPFlag("cleanup", startCmd.Flags().Lookup("cleanup"))
 	rootCmd.AddCommand(startCmd)
 }
 
@@ -135,6 +137,7 @@ var startCmd = &cobra.Command{
 			Debug:             debug,
 			Provider:          provider,
 			Model:             model,
+			Cleanup:           viper.GetBool("cleanup"),
 		}
 
 		if jiraTicketID != "" || jiraLabel != "" {
@@ -208,7 +211,7 @@ var startCmd = &cobra.Command{
 
 			// If only one ticket, run synchronously
 			if len(ticketIDs) == 1 {
-				processJiraTicket(ctx, ticketIDs[0], jClient, cfg)
+				processJiraTicket(ctx, ticketIDs[0], jClient, cfg, nil)
 				return
 			}
 
@@ -326,7 +329,8 @@ var startCmd = &cobra.Command{
 					defer func() { <-sem }()
 
 					// Process
-					processJiraTicket(ctx, targetID, jClient, cfg)
+					// Process
+					processJiraTicket(ctx, targetID, jClient, cfg, localTickets)
 
 					// Signal Completion
 					completionCh <- targetID
@@ -401,11 +405,12 @@ type SessionConfig struct {
 	Image             string
 	Provider          string
 	Model             string
+	Cleanup           bool
 	Logger            *slog.Logger
 }
 
 // processJiraTicket handles the Jira-specific workflow and then runs the project session
-func processJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.Client, cfg SessionConfig) {
+func processJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.Client, cfg SessionConfig, ignoredBlockers map[string]bool) {
 	// Initialize Ticket Logger
 	if cfg.Logger == nil {
 		cfg.Logger = telemetry.NewLogger(cfg.Debug, "")
@@ -423,8 +428,20 @@ func processJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.C
 	// 2a. Check for Blockers
 	blockers := jClient.GetBlockers(ticket)
 	if len(blockers) > 0 {
-		logger.Info("SKIPPING: Ticket is blocked", "blockers", strings.Join(blockers, ", "))
-		return
+		var effectiveBlockers []string
+		for _, b := range blockers {
+			// Format is "KEY (Status)"
+			parts := strings.Split(b, " (")
+			key := parts[0]
+			if !ignoredBlockers[key] {
+				effectiveBlockers = append(effectiveBlockers, b)
+			}
+		}
+
+		if len(effectiveBlockers) > 0 {
+			logger.Info("SKIPPING: Ticket is blocked", "blockers", strings.Join(effectiveBlockers, ", "))
+			return
+		}
 	}
 
 	// Extract details
@@ -479,6 +496,16 @@ func processJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.C
 	}
 
 	logger.Info("Workspace created", "path", tempWorkspace)
+
+	// Auto-cleanup
+	if cfg.Cleanup {
+		defer func() {
+			logger.Info("Cleaning up workspace", "path", tempWorkspace)
+			if err := os.RemoveAll(tempWorkspace); err != nil {
+				logger.Error("Failed to cleanup workspace", "path", tempWorkspace, "error", err)
+			}
+		}()
+	}
 
 	// 5. Transition Ticket Status
 	transition := viper.GetString("jira.transition")
