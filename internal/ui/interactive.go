@@ -28,8 +28,7 @@ var (
 				Padding(0, 1)
 
 	interactiveStatusMessageStyle = lipgloss.NewStyle().
-					Foreground(lipgloss.AdaptiveColor{Light: "#04B575", Dark: "#04B575"}).
-					Render
+					Foreground(lipgloss.AdaptiveColor{Light: "#04B575", Dark: "#04B575"})
 
 	interactiveSenderStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("39"))      // Blue for User
 	interactiveBotStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))     // Pink for Recac
@@ -269,7 +268,16 @@ func NewInteractiveModel(commands []SlashCommand) InteractiveModel {
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 
 	vp := viewport.New(50, 10)
-	vp.SetContent(interactiveBotStyle.Render("Recac: ") + "Welcome to RECAC. Use ! for shell commands.\n")
+	welcomeMsg := strings.Join([]string{
+		interactiveBotStyle.Render("Recac: ") + "Welcome to RECAC! 🎨",
+		"",
+		interactiveStatusMessageStyle.Render("  • Type / for commands (or press Tab)"),
+		interactiveStatusMessageStyle.Render("  • Type ! for shell execution"),
+		interactiveStatusMessageStyle.Render("  • Type anything else to chat"),
+		interactiveStatusMessageStyle.Render("  • Press Ctrl+C to quit"),
+		"",
+	}, "\n")
+	vp.SetContent(welcomeMsg)
 
 	// Define Agents/Providers
 	availableAgents := []AgentItem{
@@ -354,7 +362,7 @@ func NewInteractiveModel(commands []SlashCommand) InteractiveModel {
 		agentModels:  agentModels,
 		currentModel: "gemini-2.0-flash-auto",
 		currentAgent: "gemini",
-		history:      []string{interactiveBotStyle.Render("Recac: ") + "Welcome to RECAC. Use ! for shell commands."},
+		history:      []string{welcomeMsg},
 		mode:         ModeChat,
 		showList:     false,
 		thinking:     false,
@@ -619,14 +627,14 @@ func (m *InteractiveModel) setMode(mode InputMode) {
 	case ModeChat:
 		m.textarea.Focus() // Ensure focus returns to chat input
 		m.textarea.Prompt = "┃ "
-		m.textarea.Placeholder = "Type a message..."
+		m.textarea.Placeholder = "Type a message (or / for commands)..."
 		m.textarea.FocusedStyle.Prompt = lipgloss.NewStyle().Foreground(lipgloss.Color("205")) // Pink
 		m.showList = false
 		m.setListItemsToCommands() // Reset to full command list for next time
 
 	case ModeCmd:
 		m.textarea.Prompt = "/ "
-		m.textarea.Placeholder = "Select a command..."
+		m.textarea.Placeholder = "Type to filter commands..."
 		m.textarea.FocusedStyle.Prompt = lipgloss.NewStyle().Foreground(lipgloss.Color("240")) // Grey
 		m.showList = true
 		m.setListItemsToCommands()
