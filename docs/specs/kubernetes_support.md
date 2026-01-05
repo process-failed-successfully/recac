@@ -6,6 +6,8 @@ This specification outlines the evolution of `recac` into a Kubernetes-native Or
 
 Recac repository: https://github.com/process-failed-successfully/recac
 
+There is existing work in `deploy/helm/recac` ensure you build upon this.
+
 ## 2. Architecture
 
 ### 2.1 The Orchestrator (Operator)

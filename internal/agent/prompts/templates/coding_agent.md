@@ -36,6 +36,7 @@ Your goal is not just to make it work, but to make it **maintainable, readable, 
    - **Strong Typing:** Use type hints/types for all function signatures.
    - **Modular:** Keep functions small and files focused.
    - **Respect code base:** Do not introduce new languages, do not remove or modify code that is not directly related to the feature you are working on.
+   - **Clean branches:** Update .gitignore to include new files that are not required for the feature.
 
 2. **Robustness:**
 
@@ -49,6 +50,7 @@ Your goal is not just to make it work, but to make it **maintainable, readable, 
    - **Avoid Global State:** Do not use global variables or singletons; they make parallel testing impossible.
    - **Pure Functions:** Prefer logic that takes input and returns output without side effects.
    - **Integration Ready:** Code should be runnable in a test harness without a full environment spin-up.
+   - **Code Coverage:** Ensure that your code is tested and that the test coverage is at least 80%.
 
 4. **Documentation:**
    - **Docstrings/Comments:** Every function/class must have a summary. Explain "why", not just "what".
@@ -95,7 +97,6 @@ You are assigned to work on **EXACTLY ONE** feature. Once you have completed the
 
 1. `git add .`
 2. `git commit -m "Implement [feature-name] - verified end-to-end"`
-3. Update `README.md` or progress notes with what you accomplished.
 
 ### COMMUNICATE WITH MANAGER
 
