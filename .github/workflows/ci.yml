@@ -114,13 +114,13 @@ jobs:
           go mod download
           go vet ./...
 
-  # 4. Test (Containerized & Sharded)
+  # 4. Test (Sharded - Runs on VM for Docker Support)
   test:
-    needs: [prepare-test-image, setup-matrix]
+    needs: [setup-matrix]
     runs-on: ubuntu-latest
-    container:
-      image: ${{ needs.prepare-test-image.outputs.image }}
-      options: --volume /var/run/docker.sock:/var/run/docker.sock
+    # Note: We do NOT use 'container:' here because E2E tests utilize Docker volume mounts.
+    # Mounting volumes from a containerized runner to a sibling container is problematic
+    # (path mismatch between host and container). Running on the VM solves this.
     strategy:
       fail-fast: false
       matrix:
@@ -128,15 +128,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache Go Modules
-        uses: actions/cache@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+          go-version: "1.24"
 
       - name: Build Agent Image for Tests
         run: |
@@ -144,8 +139,7 @@ jobs:
 
       - name: Test Shard ${{ matrix.shard }}
         run: |
-          # Use the script directly, no make/docker wrapper needed
-          # Ensure script is executable
+          # Use the script directly
           chmod +x scripts/test_sharded.sh
           ./scripts/test_sharded.sh ${{ matrix.shard }} ${{ needs.setup-matrix.outputs.total_shards }}
 
