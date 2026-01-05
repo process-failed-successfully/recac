@@ -138,6 +138,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
+      - name: Build Agent Image for Tests
+        run: |
+          docker build -t recac-agent:latest -f internal/docker/agent.Dockerfile .
+
       - name: Test Shard ${{ matrix.shard }}
         run: |
           # Use the script directly, no make/docker wrapper needed
