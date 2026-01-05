@@ -2,7 +2,14 @@
 /recac
 recac-*
 *.exe
+*.exe
 *.dll
+*.tar.gz
+*.tar
+*.zip
+*.gz
+*.rar
+*.7z
 
 # Development environment
 .recac/

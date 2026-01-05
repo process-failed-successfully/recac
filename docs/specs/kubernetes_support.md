@@ -136,7 +136,52 @@ To ensure the Orchestrator itself is not a single point of failure:
 - **Orphan Adoption**: On startup (or new leader election), the Orchestrator must scan for existing active Jobs labeled `app=recac-agent`.
 - **Status Sync**: It should verify the status of these Jobs against the known state in Jira. If a Job is dead but the ticket is "In Progress", it should either respawn or mark as failed.
 
-## 7. Migration & Roadmap
+## 7. Observability
+
+### 7.1 Prometheus Metrics
+
+The Orchestrator will expose a `/metrics` endpoint for Prometheus scraping.
+
+- **Standard Metrics**:
+
+  - `go_*`: Standard Go runtime metrics (goroutines, GC, memory).
+  - `process_*`: Standard process metrics (CPU, open FDs).
+
+- **Custom Business Metrics**:
+  - `recac_jobs_active`: Gauge, current number of running agent jobs.
+  - `recac_jobs_created_total`: Counter, total jobs spawned.
+  - `recac_jobs_completed_total`: Counter, jobs that finished with exit code 0.
+  - `recac_jobs_failed_total`: Counter, jobs that failed or timed out.
+  - `recac_jira_api_requests_total`: Counter, labeled by `method` and `status_code`.
+
+### 7.2 Structured Logging
+
+All components (Orchestrator and Agents) must use structured logging (JSON format) to facilitate ingestion by log aggregators (e.g., Fluentd, Loki).
+
+- **Library**: `log/slog` (Go standard library).
+- **Format**: JSON.
+- **Required Fields**:
+  - `level`: (INFO, WARN, ERROR, DEBUG)
+  - `ts`: Timestamp in ISO 8601.
+  - `component`: `orchestrator` | `agent`
+  - `job_id`: (If applicable) Kubernetes Job name.
+  - `ticket_id`: (If applicable) Jira Ticket Key (e.g., PROJ-123).
+  - `correlation_id`: Unique ID to trace execution flows.
+
+Example:
+
+```json
+{
+  "level": "INFO",
+  "ts": "2023-10-27T10:00:00Z",
+  "component": "orchestrator",
+  "msg": "Spawning new agent job",
+  "ticket_id": "PROJ-123",
+  "job_name": "recac-agent-abcde"
+}
+```
+
+## 8. Migration & Roadmap
 
 1.  **Phase 1: Jira Poller**: Implement the polling logic in `cmd/recac` (new `orchestrate` command).
 2.  **Phase 2: Job Spawner**: Implement the K8s client logic to create Jobs dynamically.
