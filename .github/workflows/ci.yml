@@ -7,7 +7,8 @@ on:
     branches: ["main"]
 
 jobs:
-  lint:
+  # 1. Build Docker Image (Build Once)
+  prepare-image:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,19 +16,25 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build image
+      - name: Build and Export Image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: build.Dockerfile
-          load: true
+          load: true # Load into local docker daemon to export
           tags: recac-build:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          outputs: type=docker,dest=/tmp/recac-build.tar
 
-      - name: Lint
-        run: make lint
+      - name: Upload Image Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: recac-image
+          path: /tmp/recac-build.tar
+          retention-days: 1
 
+  # 2. Calculate Shards (Lightweight)
   setup-matrix:
     runs-on: ubuntu-latest
     outputs:
@@ -61,8 +68,28 @@ jobs:
           echo "matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
           echo "total_shards=$TOTAL_SHARDS" >> $GITHUB_OUTPUT
 
+  # 3. Lint (Run Many - Uses Image)
+  lint:
+    needs: prepare-image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Image Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: recac-image
+          path: /tmp
+
+      - name: Load Image
+        run: docker load --input /tmp/recac-build.tar
+
+      - name: Lint
+        run: make lint
+
+  # 4. Test Shards (Run Many - Uses Image)
   test:
-    needs: setup-matrix
+    needs: [prepare-image, setup-matrix]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -71,40 +98,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build image
-        uses: docker/build-push-action@v5
+      - name: Download Image Artifact
+        uses: actions/download-artifact@v4
         with:
-          context: .
-          file: build.Dockerfile
-          load: true
-          tags: recac-build:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          name: recac-image
+          path: /tmp
+
+      - name: Load Image
+        run: docker load --input /tmp/recac-build.tar
 
       - name: Test Shard ${{ matrix.shard }}
         run: |
           make test-sharded SHARD=${{ matrix.shard }} TOTAL_SHARDS=${{ needs.setup-matrix.outputs.total_shards }}
 
+  # 5. Build Binary (Run Many - Uses Image)
   build:
+    needs: prepare-image
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build image
-        uses: docker/build-push-action@v5
+      - name: Download Image Artifact
+        uses: actions/download-artifact@v4
         with:
-          context: .
-          file: build.Dockerfile
-          load: true
-          tags: recac-build:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          name: recac-image
+          path: /tmp
+
+      - name: Load Image
+        run: docker load --input /tmp/recac-build.tar
 
       - name: Build Binaries
         run: |
