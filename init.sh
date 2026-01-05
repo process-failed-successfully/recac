@@ -1,46 +1,51 @@
 #!/bin/bash
 
-# Initialize the development environment for the Observability Implementation project
+# Initialize development environment for Job Resilience and Idempotency project
 
-echo "Setting up the development environment..."
+echo "Setting up development environment..."
 
-# Install Go (if not already installed)
-if ! command -v go &> /dev/null; then
-    echo "Installing Go..."
-    sudo apt update
-    sudo apt install -y golang-go
-else
-    echo "Go is already installed"
-fi
+# Install basic dependencies
+echo "Installing basic dependencies..."
+sudo apt-get update
+sudo apt-get install -y git curl build-essential
 
-# Install Prometheus client library for Go
-echo "Installing Prometheus client library..."
-go get github.com/prometheus/client_golang/prometheus
-go get github.com/prometheus/client_golang/prometheus/promhttp
+# Install Go (assuming Go is needed for the project)
+echo "Installing Go..."
+GO_VERSION=1.21.0
+wget https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz
+sudo tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz
+rm go${GO_VERSION}.linux-amd64.tar.gz
+echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+source ~/.bashrc
 
-# Install other dependencies
-echo "Installing other dependencies..."
-go get golang.org/x/exp/slog
+# Install Node.js and npm (for potential frontend or tooling)
+echo "Installing Node.js and npm..."
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Install project-specific dependencies
+echo "Installing project dependencies..."
+go mod init github.com/process-failed-successfully/recac
+go mod tidy
 
 # Create necessary directories
-echo "Creating directory structure..."
-mkdir -p internal/metrics
-mkdir -p internal/logging
-mkdir -p internal/metrics/test
-mkdir -p internal/logging/test
-mkdir -p config
+echo "Creating project structure..."
+mkdir -p internal/jobs internal/retry internal/orphan internal/orchestrator internal/logging test config
 
 # Print helpful information
 echo ""
 echo "Development environment setup complete!"
 echo ""
-echo "To run the application:"
+echo "To start working on the project:"
 echo "1. Navigate to the project directory"
-echo "2. Run 'go run main.go' (once main.go is created)"
+echo "2. Run 'go run .' to start the application (once implemented)"
+echo "3. Check README.md for more details"
 echo ""
-echo "To access the Prometheus metrics endpoint:"
-echo "1. Start the application"
-echo "2. Visit http://localhost:8080/metrics (or the configured port)"
-echo ""
-echo "To run tests:"
-echo "1. Run 'go test ./...' from the project root"
+echo "Project structure:"
+echo "- internal/jobs: Idempotent job implementations"
+echo "- internal/retry: Job retry logic"
+echo "- internal/orphan: Orphan job detection"
+echo "- internal/orchestrator: Job adoption logic"
+echo "- internal/logging: Logging and monitoring"
+echo "- test/: Unit and integration tests"
+echo "- config/: Configuration files"

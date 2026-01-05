@@ -1,11 +1,36 @@
-# Observability Implementation
+# Job Resilience and Idempotency
 
-This project implements Prometheus metrics and structured logging for the orchestrator and agent jobs.
+## Overview
+This project implements job resilience and idempotency features for agent jobs, including retry mechanisms and orphan job handling.
 
-## Features Implemented
-
-✅ **Prometheus Metrics Endpoint** - The orchestrator now exposes a `/metrics` endpoint that returns Prometheus-formatted metrics.
+## Features
+- Idempotent job design
+- Configurable job retries with backoff
+- Orphan job detection and adoption
+- Comprehensive unit tests
+- Logging and monitoring
 
 ## Setup
+1. Run `./init.sh` to set up the development environment
+2. Install dependencies with `go mod tidy`
 
-1. Run the initialization script:
+## Development
+- Implement features according to `feature_list.json`
+- Add unit tests in the `test/` directory
+- Follow the project structure defined in `init.sh`
+
+## Testing
+Run tests with:
+
+## Logging and Monitoring
+
+The project includes a comprehensive logging and monitoring system in `internal/logging`:
+
+### Features
+- Structured logging with multiple severity levels
+- Job-specific loggers that automatically include job IDs
+- Metrics collection for job operations (starts, completions, retries)
+- Alert management for orphaned jobs and anomalies
+- Centralized monitoring service
+
+### Usage
