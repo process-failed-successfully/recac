@@ -34,6 +34,8 @@ var ErrMaxIterations = errors.New("maximum iterations reached")
 var ErrNoOp = errors.New("circuit breaker: no-op loop")
 var ErrStalled = errors.New("circuit breaker: stalled progress")
 
+var bashBlockRegex = regexp.MustCompile("(?s)```bash\\s*(.*?)\\s*```")
+
 type Session struct {
 	Docker           DockerClient
 	Agent            agent.Agent
@@ -1716,8 +1718,7 @@ func (s *Session) runManagerAgent(ctx context.Context) error {
 // ProcessResponse parses the agent response for commands, executes them, and handles blockers.
 func (s *Session) ProcessResponse(ctx context.Context, response string) (string, error) {
 	// 1. Extract Bash Blocks (More robust regex to handle variations in LLM output)
-	re := regexp.MustCompile("(?s)```bash\\s*(.*?)\\s*```")
-	matches := re.FindAllStringSubmatch(response, -1)
+	matches := bashBlockRegex.FindAllStringSubmatch(response, -1)
 
 	// 1. Extract Bash Blocks
 
