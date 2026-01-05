@@ -1,15 +1,11 @@
 #!/bin/bash
 
-# Initialize development environment for Job Resilience and Idempotency project
-
-echo "Setting up development environment..."
-
-# Install basic dependencies
-echo "Installing basic dependencies..."
+# Install dependencies
+echo "Installing dependencies..."
 sudo apt-get update
-sudo apt-get install -y git curl build-essential
+sudo apt-get install -y curl git make docker.io kubectl
 
-# Install Go (assuming Go is needed for the project)
+# Install Go
 echo "Installing Go..."
 GO_VERSION=1.21.0
 wget https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz
@@ -18,34 +14,30 @@ rm go${GO_VERSION}.linux-amd64.tar.gz
 echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
 source ~/.bashrc
 
-# Install Node.js and npm (for potential frontend or tooling)
-echo "Installing Node.js and npm..."
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt-get install -y nodejs
+# Install operator-sdk
+echo "Installing operator-sdk..."
+OPERATOR_SDK_VERSION=v1.28.0
+curl -LO https://github.com/operator-framework/operator-sdk/releases/download/${OPERATOR_SDK_VERSION}/operator-sdk_linux_amd64
+sudo install -o root -g root -m 0755 operator-sdk_linux_amd64 /usr/local/bin/operator-sdk
+rm operator-sdk_linux_amd64
 
-# Install project-specific dependencies
-echo "Installing project dependencies..."
-go mod init github.com/process-failed-successfully/recac
-go mod tidy
+# Install kustomize
+echo "Installing kustomize..."
+KUSTOMIZE_VERSION=v4.5.7
+curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+sudo mv kustomize /usr/local/bin/
 
-# Create necessary directories
-echo "Creating project structure..."
-mkdir -p internal/jobs internal/retry internal/orphan internal/orchestrator internal/logging test config
+# Verify installations
+echo "Verifying installations..."
+go version
+operator-sdk version
+kustomize version
+kubectl version --client
+docker --version
 
-# Print helpful information
+echo "Setup complete!"
 echo ""
-echo "Development environment setup complete!"
-echo ""
-echo "To start working on the project:"
-echo "1. Navigate to the project directory"
-echo "2. Run 'go run .' to start the application (once implemented)"
-echo "3. Check README.md for more details"
-echo ""
-echo "Project structure:"
-echo "- internal/jobs: Idempotent job implementations"
-echo "- internal/retry: Job retry logic"
-echo "- internal/orphan: Orphan job detection"
-echo "- internal/orchestrator: Job adoption logic"
-echo "- internal/logging: Logging and monitoring"
-echo "- test/: Unit and integration tests"
-echo "- config/: Configuration files"
+echo "To deploy the operator:"
+echo "1. make build"
+echo "2. make deploy"
+echo "3. ./verify_operator.sh"

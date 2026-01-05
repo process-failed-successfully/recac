@@ -1,22 +1,15 @@
-# Job Resilience and Idempotency
+# Kubernetes Operator Support for Agents
 
-## Overview
-This project implements job resilience and idempotency features for agent jobs, including retry mechanisms and orphan job handling.
+This project provides Kubernetes operator support for managing agents.
 
-## Features Implemented
+## Getting Started
 
-### Idempotent Job Design ✅
-- Base job interface with idempotency guarantees
-- Status management (pending, running, completed, failed)
-- Thread-safe execution with mutex protection
-- Sample job implementation demonstrating idempotent behavior
+### Prerequisites
 
-### Architecture
-The job system is designed with the following principles:
+- Kubernetes cluster (Minikube, Kind, or any other)
+- kubectl configured to access the cluster
+- Docker for building operator images
 
-1. **Idempotency**: Jobs can be executed multiple times without side effects
-2. **Status Tracking**: Jobs maintain their state throughout execution
-3. **Thread Safety**: All job operations are protected by mutexes
-4. **Error Handling**: Proper error propagation and status management
+### Installation
 
-## Project Structure
+1. Install dependencies:

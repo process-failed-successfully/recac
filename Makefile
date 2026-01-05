@@ -1,39 +1,25 @@
-# Makefile for Observability Implementation project
+.PHONY: all build test deploy clean verify-deployment
 
-.PHONY: setup
-setup:
-	./init.sh
+all: build test
 
-.PHONY: run
-run:
-	go run main.go
-
-.PHONY: test
-test:
-	go test ./...
-
-.PHONY: test-logging
-test-logging:
-	go test -v ./internal/logging/
-
-.PHONY: clean
-clean:
-	go clean
-	rm -rf bin/
-
-.PHONY: build
 build:
-	go build -o bin/observability main.go
+	@echo "Building operator..."
+	operator-sdk build recac-operator:latest
 
-.PHONY: install
-install:
-	go install
+test:
+	@echo "Running tests..."
+	go test ./... -v
 
-.PHONY: lint
-lint:
-	gofmt -l .
-	golint ./...
+deploy:
+	@echo "Deploying operator to cluster..."
+	kustomize build operator/manifests | kubectl apply -f -
 
-.PHONY: format
-format:
-	gofmt -w .
+clean:
+	@echo "Cleaning up..."
+	rm -rf bin
+	docker rmi recac-operator:latest
+
+verify-deployment:
+	@echo "Verifying operator deployment..."
+	@kubectl get pods -n recac-system
+	@kubectl logs -n recac-system -l app=recac-operator

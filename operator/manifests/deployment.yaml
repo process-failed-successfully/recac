@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recac-operator
+  namespace: recac-system
+  labels:
+    app: recac-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: recac-operator
+  template:
+    metadata:
+      labels:
+        app: recac-operator
+    spec:
+      serviceAccountName: recac-operator
+      containers:
+      - name: operator
+        image: recac-operator:latest
+        imagePullPolicy: IfNotPresent
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        env:
+        - name: WATCH_NAMESPACE
+          value: ""
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: OPERATOR_NAME
+          value: "recac-operator"
