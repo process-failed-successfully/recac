@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recac-agent
+  namespace: recac-system
+  labels:
+    app: recac-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: recac-agent
+  template:
+    metadata:
+      labels:
+        app: recac-agent
+    spec:
+      serviceAccountName: recac-agent
+      containers:
+      - name: recac-agent
+        image: recac-agent:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+        env:
+        - name: OPERATOR_ENDPOINT
+          value: "http://recac-operator.recac-system.svc.cluster.local:8080"
