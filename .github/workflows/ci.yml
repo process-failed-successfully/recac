@@ -93,7 +93,9 @@ jobs:
   lint:
     needs: prepare-test-image
     runs-on: ubuntu-latest
-    container: ${{ needs.prepare-test-image.outputs.image }}
+    container:
+      image: ${{ needs.prepare-test-image.outputs.image }}
+      # options: --volume /var/run/docker.sock:/var/run/docker.sock # Lint generally doesn't need docker
     steps:
       - uses: actions/checkout@v4
 
@@ -116,7 +118,9 @@ jobs:
   test:
     needs: [prepare-test-image, setup-matrix]
     runs-on: ubuntu-latest
-    container: ${{ needs.prepare-test-image.outputs.image }}
+    container:
+      image: ${{ needs.prepare-test-image.outputs.image }}
+      options: --volume /var/run/docker.sock:/var/run/docker.sock
     strategy:
       fail-fast: false
       matrix:

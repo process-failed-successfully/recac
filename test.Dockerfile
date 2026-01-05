@@ -18,6 +18,7 @@ RUN apk add --no-cache \
     jq \
     bash \
     unzip \
+    docker-cli \
     libc6-compat
 
 # Configure NPM mirror
