@@ -2,8 +2,6 @@ FROM golang:1.24-alpine
 
 WORKDIR /app
 
-# Configure Alpine mirror for China (User in +08:00)
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 
 # Install system dependencies
 # nodejs/npm for gemini-cli

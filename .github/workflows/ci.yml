@@ -6,44 +6,65 @@ on:
   push:
     branches: ["main"]
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
 jobs:
-  # 1. Build Docker Image (Build Once)
-  prepare-image:
+  # 1. Prepare Test Environment (Run only if Dockerfile changes)
+  prepare-test-image:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image-tag.outputs.image }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache Docker Image
-        id: cache-docker
-        uses: actions/cache@v4
-        with:
-          path: /tmp/recac-build.tar
-          key: docker-image-${{ runner.os }}-${{ hashFiles('build.Dockerfile', 'go.mod', 'go.sum') }}
+      - name: Generate Image Tag
+        id: image-tag
+        run: |
+          # Hash test.Dockerfile to create a unique tag
+          DOCKERFILE_HASH=${{ hashFiles('test.Dockerfile') }}
+          IMAGE_TAG=test-${{ runner.os }}-${DOCKERFILE_HASH}
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG"
+          # Convert to lowercase
+          IMAGE=$(echo $IMAGE | tr '[:upper:]' '[:lower:]')
+
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
+          echo "tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Check if Image Exists
+        id: check-image
+        continue-on-error: true
+        run: |
+          docker manifest inspect ${{ steps.image-tag.outputs.image }} > /dev/null
 
       - name: Set up Docker Buildx
-        if: steps.cache-docker.outputs.cache-hit != 'true'
+        if: steps.check-image.outcome == 'failure'
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and Export Image
-        if: steps.cache-docker.outputs.cache-hit != 'true'
+      - name: Log into GitHub Container Registry
+        if: steps.check-image.outcome == 'failure'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Test Image
+        if: steps.check-image.outcome == 'failure'
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: build.Dockerfile
-          load: true # Load into local docker daemon to export
-          tags: recac-build:latest
+          file: test.Dockerfile
+          push: true
+          tags: ${{ steps.image-tag.outputs.image }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          outputs: type=docker,dest=/tmp/recac-build.tar
 
-      - name: Upload Image Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: recac-image
-          path: /tmp/recac-build.tar
-          retention-days: 1
-
-  # 2. Calculate Shards (Lightweight)
+  # 2. Calculate Shards
   setup-matrix:
     runs-on: ubuntu-latest
     outputs:
@@ -51,55 +72,51 @@ jobs:
       total_shards: ${{ steps.set-matrix.outputs.total_shards }}
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.21"
-
+          go-version: "1.24" # Match Dockerfile
       - name: Calculate Matrix
         id: set-matrix
         env:
           PACKAGES_PER_SHARD: 5
         run: |
           PACKAGE_COUNT=$(go list ./... | wc -l)
-          echo "Found $PACKAGE_COUNT packages"
-
           # Calculate total shards (ceil(PACKAGE_COUNT / PACKAGES_PER_SHARD))
           TOTAL_SHARDS=$(( (PACKAGE_COUNT + PACKAGES_PER_SHARD - 1) / PACKAGES_PER_SHARD ))
           if [ "$TOTAL_SHARDS" -lt "1" ]; then TOTAL_SHARDS=1; fi
-          echo "Total shards: $TOTAL_SHARDS"
-
-          # Generate JSON array [1, 2, ..., TOTAL_SHARDS]
           MATRIX_JSON=$(jq -n -c "[range(1; $TOTAL_SHARDS + 1)]")
-          echo "Matrix: $MATRIX_JSON"
-
           echo "matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
           echo "total_shards=$TOTAL_SHARDS" >> $GITHUB_OUTPUT
 
-  # 3. Lint (Run Many - Uses Image)
+  # 3. Lint (Containerized)
   lint:
-    needs: prepare-image
+    needs: prepare-test-image
     runs-on: ubuntu-latest
+    container: ${{ needs.prepare-test-image.outputs.image }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download Image Artifact
-        uses: actions/download-artifact@v4
+      - name: Cache Go Modules
+        uses: actions/cache@v4
         with:
-          name: recac-image
-          path: /tmp
-
-      - name: Load Image
-        run: docker load --input /tmp/recac-build.tar
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
       - name: Lint
-        run: make lint
+        run: |
+          go mod download
+          go vet ./...
 
-  # 4. Test Shards (Run Many - Uses Image)
+  # 4. Test (Containerized & Sharded)
   test:
-    needs: [prepare-image, setup-matrix]
+    needs: [prepare-test-image, setup-matrix]
     runs-on: ubuntu-latest
+    container: ${{ needs.prepare-test-image.outputs.image }}
     strategy:
       fail-fast: false
       matrix:
@@ -107,41 +124,84 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download Image Artifact
-        uses: actions/download-artifact@v4
+      - name: Cache Go Modules
+        uses: actions/cache@v4
         with:
-          name: recac-image
-          path: /tmp
-
-      - name: Load Image
-        run: docker load --input /tmp/recac-build.tar
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
       - name: Test Shard ${{ matrix.shard }}
         run: |
-          make test-sharded SHARD=${{ matrix.shard }} TOTAL_SHARDS=${{ needs.setup-matrix.outputs.total_shards }}
+          # Use the script directly, no make/docker wrapper needed
+          # Ensure script is executable
+          chmod +x scripts/test_sharded.sh
+          ./scripts/test_sharded.sh ${{ matrix.shard }} ${{ needs.setup-matrix.outputs.total_shards }}
 
-  # 5. Build Binary (Run Many - Uses Image)
+  # 5. Build Binary Verification (Containerized)
   build:
-    needs: prepare-image
+    needs: prepare-test-image
     runs-on: ubuntu-latest
+    container: ${{ needs.prepare-test-image.outputs.image }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download Image Artifact
-        uses: actions/download-artifact@v4
+      - name: Cache Go Modules
+        uses: actions/cache@v4
         with:
-          name: recac-image
-          path: /tmp
-
-      - name: Load Image
-        run: docker load --input /tmp/recac-build.tar
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
       - name: Build Binaries
         run: |
-          make build
-          make bridge
+          go build -buildvcs=false -o recac ./cmd/recac
+          go build -buildvcs=false -o agent-bridge ./cmd/agent-bridge
 
-      - name: Check Artifact
-        run: |
-          ls -lh recac
-          ls -lh agent-bridge
+  # 6. Deploy Production Image (Run on Main)
+  deploy:
+    needs: [lint, test, build]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log into GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=
+
+      - name: Build and Push Production Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          target: production
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=prod
+          cache-to: type=gha,mode=max,scope=prod
