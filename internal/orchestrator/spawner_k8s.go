@@ -74,6 +74,35 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	safeID := strings.ToLower(strings.ReplaceAll(item.ID, "-", ""))
 	jobName := fmt.Sprintf("recac-agent-%s", safeID)
 
+	// Check if job already exists
+	existingJob, err := s.Client.BatchV1().Jobs(s.Namespace).Get(ctx, jobName, metav1.GetOptions{})
+	if err == nil {
+		// Job exists
+		if existingJob.Status.Failed > 0 {
+			s.Logger.Info("Found failed job, deleting to retry", "name", jobName)
+			// Delete background
+			delPolicy := metav1.DeletePropagationBackground
+			if err := s.Client.BatchV1().Jobs(s.Namespace).Delete(ctx, jobName, metav1.DeleteOptions{PropagationPolicy: &delPolicy}); err != nil {
+				return fmt.Errorf("failed to delete failed job: %w", err)
+			}
+			// We can return here and let the next poll cycle create it, OR try to create immediate.
+			// K8s deletion is async, so usually better to return and wait.
+			// BUT, to be "atomic" we might want to wait?
+			// Let's return and log, next tick will create it.
+			return fmt.Errorf("cleaning up failed job %s, will retry next cycle", jobName)
+		} else if existingJob.Status.Succeeded > 0 {
+			s.Logger.Info("Job already succeeded", "name", jobName)
+			return nil
+		} else {
+			// Active or undefined state
+			s.Logger.Info("Job already exists and is active", "name", jobName)
+			return nil
+		}
+	} else if !strings.Contains(err.Error(), "not found") {
+		// Real error
+		return fmt.Errorf("failed to check for existing job: %w", err)
+	}
+
 	// Define Job
 	ttl := int32(3600)  // 1 Hour TTL
 	backoff := int32(0) // No retries for now (fail fast to let Orchestrator handle? or rely on K8s?)
@@ -199,7 +228,7 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		},
 	}
 
-	_, err := s.Client.BatchV1().Jobs(s.Namespace).Create(ctx, job, metav1.CreateOptions{})
+	_, err = s.Client.BatchV1().Jobs(s.Namespace).Create(ctx, job, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to create job: %w", err)
 	}
