@@ -166,7 +166,7 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 		Scanner:          scanner,
 		MaxAgents:        maxAgents,
 		Notifier:         notify.NewManager(telemetry.LogInfof),
-		UseLocalAgent:    true, // FORCE LOCAL AGENT FOR E2E
+		UseLocalAgent:    os.Getenv("KUBERNETES_SERVICE_HOST") != "",
 		Logger:           logger,
 	}
 }
