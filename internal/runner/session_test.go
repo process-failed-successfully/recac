@@ -3,9 +3,11 @@ package runner
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"recac/internal/db"
 	"recac/internal/docker"
+	"recac/internal/git"
 	"recac/internal/notify"
 	"recac/internal/telemetry"
 	"strings"
@@ -513,5 +515,52 @@ func TestSession_EnsureConflictTask(t *testing.T) {
 	data, _ = os.ReadFile(listPath)
 	if !strings.Contains(string(data), `"status": "todo"`) {
 		t.Errorf("Expected CONFLICT_RES task to be reset to todo, got %s", string(data))
+	}
+}
+
+func TestSession_PushProgress(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Initialize git repo
+	exec.Command("git", "init", tmpDir).Run()
+	gitClient := git.NewClient()
+	gitClient.Config(tmpDir, "user.email", "test@example.com")
+	gitClient.Config(tmpDir, "user.name", "Test User")
+
+	// Create initial commit on main
+	os.WriteFile(filepath.Join(tmpDir, "initial.txt"), []byte("init"), 0644)
+	exec.Command("git", "-C", tmpDir, "add", ".").Run()
+	exec.Command("git", "-C", tmpDir, "commit", "-m", "initial").Run()
+
+	// Create feature branch
+	exec.Command("git", "-C", tmpDir, "checkout", "-b", "agent/test-branch").Run()
+
+	// Set up a "remote"
+	remoteDir := t.TempDir()
+	exec.Command("git", "init", "--bare", remoteDir).Run()
+	exec.Command("git", "-C", tmpDir, "remote", "add", "origin", remoteDir).Run()
+
+	session := &Session{
+		Workspace: tmpDir,
+		Logger:    telemetry.NewLogger(true, ""),
+		Iteration: 1,
+	}
+
+	// Modify a file
+	os.WriteFile(filepath.Join(tmpDir, "progress.txt"), []byte("work in progress"), 0644)
+
+	// Call pushProgress
+	session.pushProgress(context.Background())
+
+	// Verify commit exists on branch
+	out, _ := exec.Command("git", "-C", tmpDir, "log", "-1", "--oneline").Output()
+	if !strings.Contains(string(out), "chore: progress update") {
+		t.Errorf("Expected progress commit, got: %s", string(out))
+	}
+
+	// Verify pushed to remote
+	remoteOut, _ := exec.Command("git", "-C", remoteDir, "branch").Output()
+	if !strings.Contains(string(remoteOut), "agent/test-branch") {
+		t.Errorf("Expected branch to be pushed to remote, got: %s", string(remoteOut))
 	}
 }

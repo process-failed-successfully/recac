@@ -17,17 +17,18 @@ import (
 
 // MockAPI implements APIClient for testing and mock execution.
 type MockAPI struct {
-	PingFunc                func(ctx context.Context) (types.Ping, error)
-	ImageListFunc           func(ctx context.Context, options image.ListOptions) ([]image.Summary, error)
-	ImagePullFunc           func(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error)
-	ImageBuildFunc          func(ctx context.Context, buildContext io.Reader, options build.ImageBuildOptions) (types.ImageBuildResponse, error)
-	ContainerCreateFunc     func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error)
-	ContainerStartFunc      func(ctx context.Context, containerID string, options container.StartOptions) error
-	ContainerExecCreateFunc func(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error)
-	ContainerExecAttachFunc func(ctx context.Context, execID string, config container.ExecStartOptions) (types.HijackedResponse, error)
-	ContainerStopFunc       func(ctx context.Context, containerID string, options container.StopOptions) error
-	ContainerRemoveFunc     func(ctx context.Context, containerID string, options container.RemoveOptions) error
-	CloseFunc               func() error
+	PingFunc                 func(ctx context.Context) (types.Ping, error)
+	ImageListFunc            func(ctx context.Context, options image.ListOptions) ([]image.Summary, error)
+	ImagePullFunc            func(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error)
+	ImageBuildFunc           func(ctx context.Context, buildContext io.Reader, options build.ImageBuildOptions) (types.ImageBuildResponse, error)
+	ContainerCreateFunc      func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error)
+	ContainerStartFunc       func(ctx context.Context, containerID string, options container.StartOptions) error
+	ContainerExecCreateFunc  func(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error)
+	ContainerExecAttachFunc  func(ctx context.Context, execID string, config container.ExecStartOptions) (types.HijackedResponse, error)
+	ContainerExecInspectFunc func(ctx context.Context, execID string) (container.ExecInspect, error)
+	ContainerStopFunc        func(ctx context.Context, containerID string, options container.StopOptions) error
+	ContainerRemoveFunc      func(ctx context.Context, containerID string, options container.RemoveOptions) error
+	CloseFunc                func() error
 }
 
 func (m *MockAPI) Ping(ctx context.Context) (types.Ping, error) {
@@ -106,6 +107,13 @@ func (m *MockAPI) ContainerExecAttach(ctx context.Context, execID string, config
 		Conn:   client,
 		Reader: bufio.NewReader(client),
 	}, nil
+}
+
+func (m *MockAPI) ContainerExecInspect(ctx context.Context, execID string) (container.ExecInspect, error) {
+	if m.ContainerExecInspectFunc != nil {
+		return m.ContainerExecInspectFunc(ctx, execID)
+	}
+	return container.ExecInspect{ExitCode: 0}, nil
 }
 
 func (m *MockAPI) ContainerStop(ctx context.Context, containerID string, options container.StopOptions) error {

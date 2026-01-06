@@ -26,7 +26,7 @@ func TestRunContainer_MountsWorkspace(t *testing.T) {
 		return container.CreateResponse{ID: "test-container"}, nil
 	}
 
-	_, err := client.RunContainer(context.Background(), "alpine", workspacePath, nil, "")
+	_, err := client.RunContainer(context.Background(), "alpine", workspacePath, nil, nil, "")
 	if err != nil {
 		t.Fatalf("RunContainer failed: %v", err)
 	}
@@ -48,7 +48,7 @@ func TestRunContainer_SetsWorkingDir(t *testing.T) {
 		return container.CreateResponse{ID: "test-container"}, nil
 	}
 
-	_, err := client.RunContainer(context.Background(), "alpine", "/tmp/ws", nil, "")
+	_, err := client.RunContainer(context.Background(), "alpine", "/tmp/ws", nil, nil, "")
 	if err != nil {
 		t.Fatalf("RunContainer failed: %v", err)
 	}

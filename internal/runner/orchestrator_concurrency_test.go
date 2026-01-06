@@ -108,7 +108,7 @@ type MockDockerForOrchestrator struct {
 }
 
 func (m *MockDockerForOrchestrator) CheckDaemon(ctx context.Context) error { return nil }
-func (m *MockDockerForOrchestrator) RunContainer(ctx context.Context, image, workspace string, extraBinds []string, user string) (string, error) {
+func (m *MockDockerForOrchestrator) RunContainer(ctx context.Context, image, workspace string, extraBinds []string, env []string, user string) (string, error) {
 	return "mock-container-id", nil
 }
 func (m *MockDockerForOrchestrator) StopContainer(ctx context.Context, id string) error { return nil }

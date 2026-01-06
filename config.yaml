@@ -3,6 +3,8 @@ allow_dirty: false
 bash_timeout: 120
 detached: false
 docker_timeout: 600
+git:
+  unique_branch_names: false
 jira: ""
 manager_first: false
 manager_frequency: 5
@@ -14,8 +16,8 @@ mock-agent: false
 model: gemini-pro-latest
 name: ""
 notifications:
-    slack:
-        enabled: true
+  slack:
+    enabled: true
 path: ""
 provider: gemini
 stream: false

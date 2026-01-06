@@ -61,6 +61,8 @@ func init() {
 	viper.BindPFlag("image", startCmd.Flags().Lookup("image"))
 	startCmd.Flags().Bool("cleanup", true, "Cleanup temporary workspace after session ends")
 	viper.BindPFlag("cleanup", startCmd.Flags().Lookup("cleanup"))
+	startCmd.Flags().String("project", "", "Project name override")
+	viper.BindPFlag("project", startCmd.Flags().Lookup("project"))
 	rootCmd.AddCommand(startCmd)
 }
 
@@ -101,6 +103,11 @@ var startCmd = &cobra.Command{
 			model = viper.GetString("model")
 		}
 
+		projectName := viper.GetString("project")
+		if projectFlag, _ := cmd.Flags().GetString("project"); projectFlag != "" {
+			projectName = projectFlag
+		}
+
 		maxIterations := viper.GetInt("max_iterations")
 		if maxIterFlag, _ := cmd.Flags().GetInt("max-iterations"); cmd.Flags().Changed("max-iterations") {
 			maxIterations = maxIterFlag
@@ -138,6 +145,7 @@ var startCmd = &cobra.Command{
 			Provider:          provider,
 			Model:             model,
 			Cleanup:           viper.GetBool("cleanup"),
+			ProjectName:       projectName,
 		}
 
 		if jiraTicketID != "" || jiraLabel != "" {
@@ -216,100 +224,63 @@ var startCmd = &cobra.Command{
 			}
 
 			// Build Dependency Graphs
-			localTickets := make(map[string]bool)
-			for _, id := range ticketIDs {
-				localTickets[id] = true
-			}
-
-			// internalBlockers[A] = [B, C] -> A is blocked by B and C
-			internalBlockers := make(map[string]map[string]bool)
-			// blockedBy[B] = [A, D] -> B blocks A and D
-			blockedBy := make(map[string][]string)
-
-			// Pre-calculate dependencies
-			// We iterate sortedIssues to get the full data if available, or fetch if needed.
-			// Re-fetching efficient enough? We already have sortedIssues inside the if block,
-			// but we are outside it now?
-			// sortedIssues scope is inside 'if jiraLabel != ""'.
-			// We can't access sortedIssues here if ticketIDs implies we came from there.
-			// Actually ticketIDs is just strings.
-			// But we have jClient.
-			// Let's iterate ticketIDs and define dependencies.
-			// Note: processJiraTicket calls GetTicket -> GetBlockers.
-			// We should avoid double fetching if possible, but for correct ordering we need it.
-			// Since we did SearchIssues previously, we have the data, but we discarded it into ticketIDs.
-			// Just re-fetching blockers for dependency graph is safer than assuming sort order equals dependency map.
-
-			// Optimization: If we came from Search, we effectively have the issues.
-			// But scoping prevents access.
-			// Let's just fetch blockers. It's metadata light.
-
+			// Fetch metadata for all tickets to ensure we have dependency info
+			// (Even if we came from Search, we need to be sure we have the objects)
 			fmt.Println("Building dependency graph for parallel execution...")
+			issues := make([]map[string]interface{}, 0, len(ticketIDs))
 			for _, id := range ticketIDs {
-				// We need basic issue data to get blockers.
-				// We can assume GetTicket is cached or fast enough.
-				// Or use a lightweight check.
-				// Actually, JClient.GetTicket makes an API call.
-				// Doing this 15 times before starting is okay-ish.
 				t, err := jClient.GetTicket(ctx, id)
 				if err != nil {
 					fmt.Printf("Warning: Failed to fetch metadata for %s: %v. Assuming no dependencies.\n", id, err)
-					continue
-				}
-
-				blockers := jClient.GetBlockers(t)
-				for _, bRaw := range blockers {
-					// Format "KEY (Status)"
-					parts := strings.Split(bRaw, " (")
-					if len(parts) > 0 {
-						bKey := parts[0]
-						if localTickets[bKey] {
-							if internalBlockers[id] == nil {
-								internalBlockers[id] = make(map[string]bool)
-							}
-							internalBlockers[id][bKey] = true
-							blockedBy[bKey] = append(blockedBy[bKey], id)
-						}
-					}
+					issues = append(issues, map[string]interface{}{"key": id})
+				} else {
+					issues = append(issues, t)
 				}
 			}
+
+			graph := jira.BuildGraphFromIssues(issues, func(issue map[string]interface{}) []string {
+				raw := jClient.GetBlockers(issue)
+				keys := make([]string, 0, len(raw))
+				for _, r := range raw {
+					// Format "KEY (Status)"
+					parts := strings.Split(r, " (")
+					if len(parts) > 0 {
+						keys = append(keys, parts[0])
+					}
+				}
+				return keys
+			})
 
 			// Channels
 			readyCh := make(chan string, len(ticketIDs))
 			completionCh := make(chan string, len(ticketIDs))
 
-			// Initial Ready Set
-			for _, id := range ticketIDs {
-				if len(internalBlockers[id]) == 0 {
-					readyCh <- id
-				}
-			}
-
-			// Worker Pool
-			var wg sync.WaitGroup
-			// We use a semaphore for limiting CONCURRENT execution, but we use strict dependency ordering for STARTING.
-			sem := make(chan struct{}, maxParallelTickets)
-
-			// Start Coordinator Routine
-			// Monitors completion and schedules dependents
+			// Coordinator Routine
 			go func() {
-				// We expect 'len(ticketIDs)' completions
-				completed := 0
+				completed := make(map[string]bool)
+				dispatched := make(map[string]bool)
+				count := 0
 				total := len(ticketIDs)
 
-				for completed < total {
-					doneID := <-completionCh
-					completed++
-					// fmt.Printf("Coordinator: %s finished. (%d/%d)\n", doneID, completed, total)
+				// Initial Dispatch
+				initial := graph.GetReadyTickets(completed)
+				for _, id := range initial {
+					readyCh <- id
+					dispatched[id] = true
+				}
 
-					// Release dependents
-					for _, depID := range blockedBy[doneID] {
-						if internalBlockers[depID] != nil {
-							delete(internalBlockers[depID], doneID)
-							if len(internalBlockers[depID]) == 0 {
-								// No more local blockers!
-								readyCh <- depID
-							}
+				for count < total {
+					doneID := <-completionCh
+					count++
+					completed[doneID] = true
+					// fmt.Printf("Coordinator: %s finished. (%d/%d)\n", doneID, count, total)
+
+					// Check for new ready tickets
+					candidates := graph.GetReadyTickets(completed)
+					for _, id := range candidates {
+						if !dispatched[id] {
+							readyCh <- id
+							dispatched[id] = true
 						}
 					}
 				}
@@ -317,8 +288,9 @@ var startCmd = &cobra.Command{
 			}()
 
 			// Worker Loop
-			// We interpret 'readyCh' as "Tickets ready to be processed respecting dependencies"
-			// We respect maxParallelTickets for CPU/Agent-limit.
+			var wg sync.WaitGroup
+			sem := make(chan struct{}, maxParallelTickets)
+
 			for id := range readyCh {
 				wg.Add(1)
 				go func(targetID string) {
@@ -328,8 +300,7 @@ var startCmd = &cobra.Command{
 					sem <- struct{}{}
 					defer func() { <-sem }()
 
-					// Process
-					// Process
+					localTickets := graph.AllTickets
 					processJiraTicket(ctx, targetID, jClient, cfg, localTickets)
 
 					// Signal Completion
@@ -463,13 +434,24 @@ func processJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.C
 
 	logger.Info("Ticket Found", "summary", summary)
 
-	// 3. Workspace Isolation (Create Temp Dir)
 	timestamp := time.Now().Format("20060102-150405")
-	pattern := fmt.Sprintf("recac-jira-%s-%s-*", jiraTicketID, timestamp)
-	tempWorkspace, err := os.MkdirTemp("", pattern)
-	if err != nil {
-		logger.Error("Error creating temp workspace", "error", err)
-		return
+	var tempWorkspace string
+
+	if cfg.ProjectPath != "" {
+		tempWorkspace = cfg.ProjectPath
+		// Ensure directory exists
+		if err := os.MkdirAll(tempWorkspace, 0755); err != nil {
+			logger.Error("Error creating/verifying workspace path", "path", tempWorkspace, "error", err)
+			exit(1)
+		}
+		logger.Info("Using provided workspace path", "path", tempWorkspace)
+	} else {
+		pattern := fmt.Sprintf("recac-jira-%s-%s-*", jiraTicketID, timestamp)
+		tempWorkspace, err = os.MkdirTemp("", pattern)
+		if err != nil {
+			logger.Error("Error creating temp workspace", "error", err)
+			return
+		}
 	}
 
 	repoRegex := regexp.MustCompile(`(?i)Repo: (https?://\S+)`)

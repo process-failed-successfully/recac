@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // Client handles git interactions.
@@ -40,13 +41,21 @@ func (mw *maskingWriter) Write(p []byte) (n int, err error) {
 }
 
 func (c *Client) runWithMasking(ctx context.Context, dir string, args ...string) error {
+	var outBuf, errBuf bytes.Buffer
 	cmd := exec.CommandContext(ctx, "git", args...)
 	if dir != "" {
 		cmd.Dir = dir
 	}
-	cmd.Stdout = &maskingWriter{w: os.Stdout}
-	cmd.Stderr = &maskingWriter{w: os.Stderr}
-	return cmd.Run()
+	// Enforce no prompting
+	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=/bin/true")
+	cmd.Stdout = &maskingWriter{w: io.MultiWriter(os.Stdout, &outBuf)}
+	cmd.Stderr = &maskingWriter{w: io.MultiWriter(os.Stderr, &errBuf)}
+
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("git %s failed: %w\nOutput: %s\nStderr: %s", args[0], err, outBuf.String(), errBuf.String())
+	}
+	return nil
 }
 
 // Clone clones a repository into a destination directory.
@@ -63,9 +72,26 @@ func (c *Client) CheckoutNewBranch(dir, branchName string) error {
 	return cmd.Run()
 }
 
+// Config sets a git configuration value.
+func (c *Client) Config(dir, key, value string) error {
+	return c.runWithMasking(context.Background(), dir, "config", key, value)
+}
+
+// ConfigGlobal sets a global git configuration value.
+func (c *Client) ConfigGlobal(key, value string) error {
+	return c.runWithMasking(context.Background(), "", "config", "--global", key, value)
+}
+
+// ConfigAdd adds a value to a git configuration key.
+func (c *Client) ConfigAddGlobal(key, value string) error {
+	return c.runWithMasking(context.Background(), "", "config", "--global", "--add", key, value)
+}
+
 // Push pushes the branch to the remote origin.
 func (c *Client) Push(dir, branchName string) error {
-	return c.runWithMasking(context.Background(), dir, "push", "-u", "origin", branchName)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	return c.runWithMasking(ctx, dir, "push", "-u", "origin", branchName)
 }
 
 // CreatePR creates a pull request using the GitHub CLI (gh).

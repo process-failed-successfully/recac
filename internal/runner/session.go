@@ -83,6 +83,7 @@ type Session struct {
 	RepoURL                   string       // Repository URL for links
 	SlackThreadTS             string       // Thread Timestamp for Slack conversations
 	SuppressStartNotification bool         // Suppress "Session Started" notification (for sub-tasks)
+	UseLocalAgent             bool         // Execute commands locally (e.g. inside K8s pod) instead of spawning Docker container
 	Logger                    *slog.Logger // Structured logger for this session
 
 	mu sync.RWMutex // Protects concurrent access to Iteration, SlackThreadTS, ContainerID
@@ -165,6 +166,7 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 		Scanner:          scanner,
 		MaxAgents:        maxAgents,
 		Notifier:         notify.NewManager(telemetry.LogInfof),
+		UseLocalAgent:    true, // FORCE LOCAL AGENT FOR E2E
 		Logger:           logger,
 	}
 }
@@ -458,24 +460,51 @@ func (s *Session) Start(ctx context.Context) error {
 	if err != nil {
 		fmt.Printf("Warning: Failed to locate agent-bridge binary: %v. Agent CLI tools will not work.\n", err)
 	} else {
-		// Append to extraBinds
-		// format: /host/path:/container/path:ro
-		extraBinds = append(extraBinds, fmt.Sprintf("%s:/usr/local/bin/agent-bridge:ro", bridgePath))
-		fmt.Printf("Mounting agent-bridge from %s to /usr/local/bin/agent-bridge\n", bridgePath)
+		// If found in standard location, assume it is present in the container image and skip mount
+		// This avoids issues with mounting files over existing files/directories in Docker-in-Docker scenarios
+		if bridgePath == "/usr/local/bin/agent-bridge" {
+			fmt.Printf("Agent bridge found in standard location %s, skipping mount (assumed present in image)\n", bridgePath)
+		} else {
+			// Append to extraBinds
+			// format: /host/path:/container/path:ro
+			extraBinds = append(extraBinds, fmt.Sprintf("%s:/usr/local/bin/agent-bridge:ro", bridgePath))
+			fmt.Printf("Mounting agent-bridge from %s to /usr/local/bin/agent-bridge\n", bridgePath)
+		}
 	}
 
-	// Run Container
-	id, err := s.Docker.RunContainer(ctx, s.Image, s.Workspace, extraBinds, containerUser)
-	if err != nil {
-		return err
+	// Collect Env Vars to propagate to container
+	var env []string
+	prefixes := []string{"GIT_", "JIRA_", "RECAC_", "OPENROUTER_", "OPENAI_", "ANTHROPIC_", "GEMINI_"}
+	for _, e := range os.Environ() {
+		for _, p := range prefixes {
+			if strings.HasPrefix(e, p) {
+				env = append(env, e)
+				break
+			}
+		}
 	}
 
-	s.ContainerID = id
-	fmt.Printf("Container started successfully. ID: %s\n", id)
+	// Run Container (or Skip if Local)
+	if s.UseLocalAgent {
+		if s.Logger != nil {
+			s.Logger.Info("Running in Local Agent Mode (K8s detected). Skipping container spawn.")
+		} else {
+			fmt.Println("Running in Local Agent Mode (K8s detected). Skipping container spawn.")
+		}
+		s.ContainerID = "local"
+	} else {
+		id, err := s.Docker.RunContainer(ctx, s.Image, s.Workspace, extraBinds, env, containerUser)
+		if err != nil {
+			return err
+		}
 
-	// Fix Linux passwd database (ensure host UID exists in container)
-	if containerUser != "" {
-		s.fixPasswdDatabase(ctx, containerUser)
+		s.ContainerID = id
+		fmt.Printf("Container started successfully. ID: %s\n", id)
+
+		// Fix Linux passwd database (ensure host UID exists in container)
+		if containerUser != "" {
+			s.fixPasswdDatabase(ctx, containerUser)
+		}
 	}
 
 	// Bootstrap Git Config
@@ -613,8 +642,8 @@ func (s *Session) Stop(ctx context.Context) error {
 	containerID := s.ContainerID
 	s.mu.Unlock()
 
-	if containerID == "" {
-		return nil // No container to clean up
+	if containerID == "" || containerID == "local" { // Added "local" check for UseLocalAgent mode
+		return nil // No container to clean up or running locally
 	}
 
 	fmt.Printf("Stopping container: %s\n", containerID)
@@ -671,6 +700,11 @@ func (s *Session) SetContainerID(id string) {
 
 // findAgentBridgeBinary hunts for the agent-bridge binary on the host
 func (s *Session) findAgentBridgeBinary() (string, error) {
+	// 0. Try Standard Location (Container / System Install)
+	if _, err := os.Stat("/usr/local/bin/agent-bridge"); err == nil {
+		return "/usr/local/bin/agent-bridge", nil
+	}
+
 	// 1. Try CWD
 	srcPath, err := filepath.Abs("agent-bridge")
 	if err != nil {
@@ -1137,6 +1171,9 @@ func (s *Session) RunLoop(ctx context.Context) error {
 			fmt.Printf("Warning: Failed to save agent state: %v\n", err)
 		}
 
+		// Push progress to remote periodically (to ensure visibility in Jira/Git)
+		s.pushProgress(ctx)
+
 		time.Sleep(1 * time.Second)
 	}
 
@@ -1496,6 +1533,65 @@ func (s *Session) clearSignal(name string) {
 	os.Remove(path)
 }
 
+// pushProgress commits and pushes the current state of the workspace to the current branch.
+func (s *Session) pushProgress(ctx context.Context) {
+	if s.Workspace == "" {
+		return
+	}
+
+	gitClient := git.NewClient()
+	if !gitClient.RepoExists(s.Workspace) {
+		return
+	}
+
+	// Safety Check: Ensure state files are ignored
+	_ = EnsureStateIgnored(s.Workspace)
+
+	// Ensure Host has permissions to read what Agent (Root) wrote (e.g. .git/refs/heads/master)
+	if !s.UseLocalAgent {
+		if err := s.fixPermissions(ctx); err != nil {
+			s.Logger.Warn("failed to fix permissions before push", "error", err)
+		}
+	}
+
+	s.debugGitState(ctx)
+
+	branch, err := gitClient.CurrentBranch(s.Workspace)
+	if err != nil || branch == "" || branch == "main" || branch == "master" {
+		// Don't auto-push to main/master
+		return
+	}
+
+	s.Logger.Info("pushing progress to remote", "branch", branch)
+
+	// Commit any changes (ignore error if nothing to commit)
+	msg := fmt.Sprintf("chore: progress update (iteration %d)", s.GetIteration())
+	_ = gitClient.Commit(s.Workspace, msg)
+
+	// Workaround: Agent might have run 'git init' which resets HEAD to master in the container
+	// We merge master into current branch to capture those commits if they exist
+	if branch != "master" && branch != "main" {
+		// Try explicit refs to avoid ambiguity or missing short names
+		candidates := []string{"refs/heads/master", "refs/heads/main", "master", "main"}
+		merged := false
+		for _, ref := range candidates {
+			if err := gitClient.Merge(s.Workspace, ref); err == nil {
+				s.Logger.Info("merged stranded commits from ref", "ref", ref)
+				merged = true
+				break
+			}
+		}
+		if !merged {
+			s.Logger.Debug("no stranded commits merged from master/main")
+		}
+	}
+
+	// Push progress
+	if err := gitClient.Push(s.Workspace, branch); err != nil {
+		s.Logger.Warn("failed to push progress", "error", err)
+	}
+}
+
 // createSignal creates a signal in the DB.
 func (s *Session) createSignal(name string) error {
 	if s.DBStore == nil {
@@ -1737,8 +1833,25 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 		// Create timeout context for this specific command
 		cmdCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
 
-		// Execute via Docker (use bash for broader compatibility with LLM scripts)
-		output, err := s.Docker.Exec(cmdCtx, s.GetContainerID(), []string{"/bin/bash", "-c", cmdScript})
+		// Execute via Docker or Local
+		var output string
+		var err error
+
+		if s.UseLocalAgent {
+			// Execute Locally
+			cmd := exec.CommandContext(cmdCtx, "/bin/bash", "-c", cmdScript)
+			cmd.Dir = s.Workspace // Run in workspace
+			// Capture Combined Output
+			var outBuf bytes.Buffer
+			cmd.Stdout = &outBuf
+			cmd.Stderr = &outBuf
+			err = cmd.Run()
+			output = outBuf.String()
+		} else {
+			// Execute via Docker
+			output, err = s.Docker.Exec(cmdCtx, s.GetContainerID(), []string{"/bin/bash", "-c", cmdScript})
+		}
+
 		cancel() // Ensure we release resources
 
 		if err != nil {
@@ -1751,7 +1864,7 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 				errMsg = err.Error()
 			}
 
-			result := fmt.Sprintf("Command Failed: %s\nError: %s\n", cmdScript, errMsg)
+			result := fmt.Sprintf("Command Failed: %s\nError: %s\nOutput:\n%s\n", cmdScript, errMsg, output)
 			s.Logger.Error("command failed", "script", cmdScript, "error", errMsg)
 			parsedOutput.WriteString(result)
 
@@ -2219,4 +2332,24 @@ func (s *Session) completeJiraTicket(ctx context.Context, gitLink string) {
 	notificationMsg := fmt.Sprintf("Project %s is COMPLETE!\n\nJira: %s\nGit: %s", s.Project, jiraLink, gitLink)
 	s.Notifier.Notify(ctx, notify.EventProjectComplete, notificationMsg, s.GetSlackThreadTS())
 	s.Notifier.AddReaction(ctx, s.GetSlackThreadTS(), "white_check_mark")
+}
+
+func (s *Session) debugGitState(ctx context.Context) {
+	// Log Branches
+	cmd := exec.Command("git", "branch", "-avv")
+	cmd.Dir = s.Workspace
+	out, _ := cmd.CombinedOutput()
+	s.Logger.Info("debug git branches", "output", string(out))
+
+	// Log Status
+	cmd = exec.Command("git", "status", "--porcelain")
+	cmd.Dir = s.Workspace
+	out, _ = cmd.CombinedOutput()
+	s.Logger.Info("debug git status", "output", string(out))
+
+	// Log Refs
+	cmd = exec.Command("git", "show-ref")
+	cmd.Dir = s.Workspace
+	out, _ = cmd.CombinedOutput()
+	s.Logger.Info("debug git refs", "output", string(out))
 }

@@ -64,7 +64,7 @@ func TestRunContainer_Errors(t *testing.T) {
 		return container.CreateResponse{}, errors.New("create error")
 	}
 
-	_, err := client.RunContainer(context.Background(), "image", "/tmp", nil, "")
+	_, err := client.RunContainer(context.Background(), "image", "/tmp", nil, nil, "")
 	if err == nil {
 		t.Error("Expected error for create failure")
 	}
@@ -75,7 +75,7 @@ func TestRunContainer_Errors(t *testing.T) {
 		return errors.New("start error")
 	}
 
-	_, err = client.RunContainer(context.Background(), "image", "/tmp", nil, "")
+	_, err = client.RunContainer(context.Background(), "image", "/tmp", nil, nil, "")
 
 	if err == nil {
 
@@ -150,7 +150,7 @@ func TestRunContainer_Pull(t *testing.T) {
 
 	}
 
-	client.RunContainer(context.Background(), "image", "/tmp", nil, "")
+	client.RunContainer(context.Background(), "image", "/tmp", nil, nil, "")
 
 	if !pullCalled {
 

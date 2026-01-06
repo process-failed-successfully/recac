@@ -15,13 +15,13 @@ help: ## Show this help message
 
 # Image management
 image: ## Build the helper Docker image
-	docker build -t $(DOCKER_IMAGE) -f build.Dockerfile .
+	docker build -t $(DOCKER_IMAGE) -f Dockerfile .
 
-build: image ## Build the recac binary (Linux) via Docker
-	$(DOCKER_CMD) go build -buildvcs=false -o $(BINARY_NAME) $(MAIN_PATH)
+build: ## Build the recac binary
+	go build -o $(BINARY_NAME) $(MAIN_PATH)
 
-bridge: image ## Build the agent-bridge binary (Linux) via Docker
-	$(DOCKER_CMD) go build -buildvcs=false -o agent-bridge ./cmd/agent-bridge
+bridge: ## Build the agent-bridge binary
+	go build -o agent-bridge ./cmd/agent-bridge
 
 test: image ## Run unit tests via Docker (skips E2E)
 	$(DOCKER_CMD) /bin/sh -c 'go test -buildvcs=false -v $$(go list -buildvcs=false ./... | grep -v /scripts/)'
