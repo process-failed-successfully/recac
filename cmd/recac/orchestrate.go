@@ -24,6 +24,8 @@ var orchestrateCmd = &cobra.Command{
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 
+		var err error
+
 		logger := telemetry.NewLogger(viper.GetBool("verbose"), "orchestrator")
 
 		// Config
@@ -38,19 +40,33 @@ var orchestrateCmd = &cobra.Command{
 		query := viper.GetString("orchestrator.jira_query")
 		logger.Info("Starting Orchestrator", "mode", mode, "label", label, "query", query, "interval", interval, "agent_provider", agentProvider)
 
-		// 1. Jira Client
-		jClient, err := getJiraClient(ctx)
-		if err != nil {
-			logger.Error("Failed to initialize Jira client", "error", err)
-			os.Exit(1)
-		}
+		// 1. Poller
+		var poller orchestrator.Poller
+		pollerType := viper.GetString("orchestrator.poller")
 
-		// 2. Poller
-		jql := viper.GetString("orchestrator.jira_query")
-		if jql == "" && label != "" {
-			jql = fmt.Sprintf("labels = \"%s\" AND statusCategory != Done ORDER BY created ASC", label)
+		switch pollerType {
+		case "file", "filesystem":
+			workFile := viper.GetString("orchestrator.work_file")
+			if workFile == "" {
+				logger.Error("Work file must be specified in file poller mode")
+				os.Exit(1)
+			}
+			poller = orchestrator.NewFilePoller(workFile)
+			logger.Info("Using filesystem poller", "file", workFile)
+		default:
+			// Default to Jira
+			jClient, err := getJiraClient(ctx)
+			if err != nil {
+				logger.Error("Failed to initialize Jira client", "error", err)
+				os.Exit(1)
+			}
+			jql := viper.GetString("orchestrator.jira_query")
+			if jql == "" && label != "" {
+				jql = fmt.Sprintf("labels = \"%s\" AND statusCategory != Done ORDER BY created ASC", label)
+			}
+			poller = orchestrator.NewJiraPoller(jClient, jql)
+			logger.Info("Using Jira poller", "label", label, "query", jql)
 		}
-		poller := orchestrator.NewJiraPoller(jClient, jql)
 
 		// 3. Spawner
 		var spawner orchestrator.Spawner
@@ -97,7 +113,12 @@ func init() {
 	orchestrateCmd.Flags().String("agent-model", "mistralai/devstral-2512:free", "Model for spawned agents")
 
 	orchestrateCmd.Flags().String("jira-query", "", "Custom JQL query (overrides label)")
+	orchestrateCmd.Flags().String("poller", "jira", "Poller type: 'jira' or 'file'")
+	orchestrateCmd.Flags().String("work-file", "work_items.json", "Work items file (for 'file' poller)")
+
 	viper.BindPFlag("orchestrator.jira_query", orchestrateCmd.Flags().Lookup("jira-query"))
+	viper.BindPFlag("orchestrator.poller", orchestrateCmd.Flags().Lookup("poller"))
+	viper.BindPFlag("orchestrator.work_file", orchestrateCmd.Flags().Lookup("work-file"))
 
 	viper.BindPFlag("orchestrator.mode", orchestrateCmd.Flags().Lookup("mode"))
 	viper.BindPFlag("orchestrator.jira_label", orchestrateCmd.Flags().Lookup("jira-label"))

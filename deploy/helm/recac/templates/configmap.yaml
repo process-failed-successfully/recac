@@ -21,3 +21,4 @@ data:
   RECAC_ORCHESTRATOR_NAMESPACE: {{ .Release.Namespace | quote }}
   RECAC_AGENT_PROVIDER: {{ .Values.config.provider | quote }}
   RECAC_AGENT_MODEL: {{ include "recac.defaultModel" . | quote }}
+  RECAC_AGENT_SECRET_NAME: {{ include "recac.fullname" . | quote }}

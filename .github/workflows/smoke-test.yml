@@ -1,0 +1,92 @@
+name: Smoke Test (k3s)
+
+on:
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Setup k3s
+        uses: jupyterhub/action-k3s-helm@v1
+        with:
+          k3s-version: v1.30.0+k3s1
+          metrics-enabled: false
+          traefik-enabled: false
+
+      - name: Build Docker Image
+        run: |
+          make image-prod DEPLOY_IMAGE=recac:smoke
+
+      - name: Load Image into k3s
+        run: |
+          docker save recac:smoke > recac-smoke.tar
+          sudo k3s ctr images import recac-smoke.tar
+
+      - name: Prepare Smoke Scenario
+        run: |
+          # Replace placeholder with current repo/branch
+          # For PRs, we want the agent to clone the PR branch
+          REPO_URL="https://github.com/${{ github.repository }}"
+          sed -i "s|https://github.com/REPLACE_ME_REPO|$REPO_URL|g" tests/smoke-test/work_items.json
+
+          # Create ConfigMap from work items
+          kubectl create configmap smoke-test-work --from-file=work_items.json=tests/smoke-test/work_items.json
+
+      - name: Deploy Helm (Smoke Config)
+        run: |
+          helm upgrade --install recac ./deploy/helm/recac \
+            --set image.repository=recac \
+            --set image.tag=smoke \
+            --set image.pullPolicy=Never \
+            --set config.poller=file \
+            --set config.work_file=/etc/recac-smoke/work_items.json \
+            --set config.verbose=true \
+            --set config.provider=gemini \
+            --set config.model=gemini-1.5-flash \
+            --set secrets.geminiApiKey="${{ secrets.GEMINI_API_KEY }}" \
+            --set secrets.ghApiKey="${{ secrets.GH_API_KEY }}" \
+            --set extraVolumes[0].name=work-items \
+            --set extraVolumes[0].configMap.name=smoke-test-work \
+            --set extraVolumeMounts[0].name=work-items \
+            --set extraVolumeMounts[0].mountPath=/etc/recac-smoke \
+            --set extraVolumeMounts[0].readOnly=true
+
+      - name: Wait and Verify
+        run: |
+          echo "Waiting for orchestrator to spawn agent job..."
+          timeout=300
+          elapsed=0
+          while [ $elapsed -lt $timeout ]; do
+            if kubectl get jobs | grep -q "recac-agent-smoke-1"; then
+              echo "Agent job spawned!"
+              break
+            fi
+            sleep 10
+            elapsed=$((elapsed + 10))
+          done
+
+          if [ $elapsed -ge $timeout ]; then
+            echo "Error: Orchestrator failed to spawn agent job within 5 minutes"
+            kubectl logs -l app.kubernetes.io/name=recac
+            exit 1
+          fi
+
+          echo "Waiting for agent job to complete..."
+          kubectl wait --for=condition=complete job/recac-agent-smoke-1 --timeout=300s || {
+            echo "Agent job failed or timed out"
+            kubectl logs -l job-name=recac-agent-smoke-1 --all-containers=true
+            exit 1
+          }
+
+          echo "Smoke test passed!"

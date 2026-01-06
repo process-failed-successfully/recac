@@ -63,6 +63,14 @@ func init() {
 	viper.BindPFlag("cleanup", startCmd.Flags().Lookup("cleanup"))
 	startCmd.Flags().String("project", "", "Project name override")
 	viper.BindPFlag("project", startCmd.Flags().Lookup("project"))
+
+	startCmd.Flags().String("repo-url", "", "Repository URL to clone (bypasses Jira if provided)")
+	startCmd.Flags().String("summary", "", "Task summary (bypasses Jira if provided)")
+	startCmd.Flags().String("description", "", "Task description")
+	viper.BindPFlag("repo_url", startCmd.Flags().Lookup("repo-url"))
+	viper.BindPFlag("summary", startCmd.Flags().Lookup("summary"))
+	viper.BindPFlag("description", startCmd.Flags().Lookup("description"))
+
 	rootCmd.AddCommand(startCmd)
 }
 
@@ -125,6 +133,10 @@ var startCmd = &cobra.Command{
 		autoMergeFlag, _ := cmd.Flags().GetBool("auto-merge")
 		skipQAFlag, _ := cmd.Flags().GetBool("skip-qa")
 
+		repoURL, _ := cmd.Flags().GetString("repo-url")
+		summary, _ := cmd.Flags().GetString("summary")
+		description, _ := cmd.Flags().GetString("description")
+
 		// Global Configuration
 		cfg := SessionConfig{
 			ProjectPath:       projectPath,
@@ -146,6 +158,14 @@ var startCmd = &cobra.Command{
 			Model:             model,
 			Cleanup:           viper.GetBool("cleanup"),
 			ProjectName:       projectName,
+			RepoURL:           repoURL,
+			Summary:           summary,
+			Description:       description,
+		}
+
+		if repoURL != "" {
+			processDirectTask(ctx, cfg)
+			return
 		}
 
 		if jiraTicketID != "" || jiraLabel != "" {
@@ -377,7 +397,41 @@ type SessionConfig struct {
 	Provider          string
 	Model             string
 	Cleanup           bool
+	Summary           string
+	Description       string
 	Logger            *slog.Logger
+}
+
+// processDirectTask handles a coding session from a direct repository and task description
+func processDirectTask(ctx context.Context, cfg SessionConfig) {
+	// Initialize Logger
+	if cfg.Logger == nil {
+		cfg.Logger = telemetry.NewLogger(cfg.Debug, "")
+	}
+	logger := cfg.Logger
+	if cfg.SessionName == "" {
+		cfg.SessionName = "direct-task"
+	}
+
+	logger.Info("Starting direct task session", "repo", cfg.RepoURL, "summary", cfg.Summary)
+
+	// Setup Workspace
+	timestamp := time.Now().Format("20060102-150405")
+	tempWorkspace, err := setupWorkspace(ctx, cfg.RepoURL, cfg.ProjectPath, cfg.SessionName, "", timestamp)
+	if err != nil {
+		logger.Error("Error: Failed to setup workspace", "error", err)
+		return
+	}
+
+	// Update configuration for the session run
+	cfg.ProjectPath = tempWorkspace
+
+	// Run Workflow
+	if err := runWorkflow(ctx, cfg); err != nil {
+		logger.Error("Session failed", "error", err)
+	} else {
+		logger.Info("Session completed successfully")
+	}
 }
 
 // processJiraTicket handles the Jira-specific workflow and then runs the project session

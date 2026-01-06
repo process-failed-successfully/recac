@@ -137,14 +137,15 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		{Name: "GIT_COMMITTER_EMAIL", Value: "agent@recac.io"},
 	}...)
 
-	// Auth Handling:
-	// Use Secret for sensitive data if available.
-	// For now, we assume a secret "recac-agent-secrets" exists and we load all keys from it.
-	// This avoids passing secrets in plain text.
+	secretName := os.Getenv("RECAC_AGENT_SECRET_NAME")
+	if secretName == "" {
+		secretName = "recac-agent-secrets" // fallback
+	}
+
 	envFrom := []corev1.EnvFromSource{
 		{
 			SecretRef: &corev1.SecretEnvSource{
-				LocalObjectReference: corev1.LocalObjectReference{Name: "recac-agent-secrets"},
+				LocalObjectReference: corev1.LocalObjectReference{Name: secretName},
 				Optional:             boolPtr(true),
 			},
 		},
@@ -170,8 +171,8 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		if [ -n "$GITHUB_TOKEN" ]; then
 			git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
 		fi
-		recac start --jira %s --detached=false --cleanup=false --allow-dirty --path /workspace --image %s
-	`, item.ID, s.Image)
+		recac start --repo-url %q --summary %q --description %q --jira %s --detached=false --cleanup=false --allow-dirty --path /workspace --image %s
+	`, item.RepoURL, item.Summary, item.Description, item.ID, s.Image)
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
