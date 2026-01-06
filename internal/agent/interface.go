@@ -57,6 +57,8 @@ func NewAgent(provider, apiKey, model, workDir, project string) (Agent, error) {
 		return NewOpenRouterClient(apiKey, model, project), nil
 	case "cursor-cli":
 		return NewCursorCLIClient(apiKey, model, project), nil
+	case "opencode", "opencode-cli":
+		return NewOpenCodeCLIClient(apiKey, model, workDir, project), nil
 	default:
 		return nil, fmt.Errorf("unknown provider: %s", provider)
 	}

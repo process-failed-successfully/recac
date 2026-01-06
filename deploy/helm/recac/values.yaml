@@ -5,7 +5,7 @@
 replicaCount: 1
 
 image:
-  repository: recac
+  repository: ghcr.io/process-failed-successfully/recac
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
@@ -62,6 +62,8 @@ config:
 secrets:
   apiKey: ""
   geminiApiKey: ""
+  anthropicApiKey: ""
+  cursorApiKey: ""
   openaiApiKey: ""
   openrouterApiKey: ""
   jiraApiToken: ""

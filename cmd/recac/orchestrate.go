@@ -107,5 +107,9 @@ func init() {
 	viper.BindPFlag("orchestrator.agent_provider", orchestrateCmd.Flags().Lookup("agent-provider"))
 	viper.BindPFlag("orchestrator.agent_model", orchestrateCmd.Flags().Lookup("agent-model"))
 
+	// Explicitly bind cleaner env vars
+	viper.BindEnv("orchestrator.agent_provider", "RECAC_AGENT_PROVIDER")
+	viper.BindEnv("orchestrator.agent_model", "RECAC_AGENT_MODEL")
+
 	rootCmd.AddCommand(orchestrateCmd)
 }

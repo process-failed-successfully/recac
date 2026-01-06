@@ -60,3 +60,26 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Determine default model based on provider if not explicitly set
+*/}}
+{{- define "recac.defaultModel" -}}
+{{- if .Values.config.model }}
+{{- .Values.config.model }}
+{{- else }}
+{{- if eq .Values.config.provider "openrouter" }}
+{{- "mistralai/devstral-2512:free" }}
+{{- else if eq .Values.config.provider "gemini" }}
+{{- "gemini-pro" }}
+{{- else if eq .Values.config.provider "openai" }}
+{{- "gpt-4" }}
+{{- else if eq .Values.config.provider "opencode" }}
+{{- "claude-3-5-sonnet" }}
+{{- else if eq .Values.config.provider "cursor" }}
+{{- "claude-3-5-sonnet" }}
+{{- else }}
+{{- "gemini-pro" }}
+{{- end }}
+{{- end }}
+{{- end }}

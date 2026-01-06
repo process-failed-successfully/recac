@@ -71,7 +71,7 @@ func getAgentClient(ctx context.Context, provider, model, projectPath, projectNa
 	}
 
 	// Final fallback for developers or testing if not ollama
-	if apiKey == "" && provider != "ollama" && provider != "gemini-cli" && provider != "cursor-cli" {
+	if apiKey == "" && provider != "ollama" && provider != "gemini-cli" && provider != "cursor-cli" && provider != "opencode" {
 		apiKey = "dummy-key"
 	}
 

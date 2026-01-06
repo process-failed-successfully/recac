@@ -18,5 +18,5 @@ data:
   RECAC_ORCHESTRATOR_MODE: "k8s"
   RECAC_ORCHESTRATOR_IMAGE: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
   RECAC_ORCHESTRATOR_NAMESPACE: {{ .Release.Namespace | quote }}
-  RECAC_ORCHESTRATOR_AGENT_PROVIDER: {{ .Values.config.provider | quote }}
-  RECAC_ORCHESTRATOR_AGENT_MODEL: {{ .Values.config.model | quote }}
+  RECAC_AGENT_PROVIDER: {{ .Values.config.provider | quote }}
+  RECAC_AGENT_MODEL: {{ include "recac.defaultModel" . | quote }}
