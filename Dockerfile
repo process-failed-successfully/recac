@@ -1,4 +1,5 @@
-FROM golang:1.25-alpine AS base
+ARG GO_VERSION=1.25
+FROM golang:${GO_VERSION}-alpine AS base
 
 # Install essential tools
 RUN apk add --no-cache \
