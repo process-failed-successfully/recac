@@ -21,6 +21,9 @@ RUN apk add --no-cache \
 # Install Gemini CLI
 RUN npm install -g @google/gemini-cli
 
+# Install OpenCode CLI
+RUN npm install -g opencode-ai
+
 # Install Cursor Agent
 ENV HOME=/root
 RUN curl -fsS https://cursor.com/install | bash

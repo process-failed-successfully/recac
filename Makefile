@@ -81,3 +81,31 @@ monitor-down: ## Stop local monitoring stack
 
 monitor-logs: ## View monitoring stack logs
 	docker compose -f docker-compose.monitoring.yml logs -f
+
+# Deployment
+.PHONY: deploy-helm
+deploy-helm: ## Deploy with Helm using local .env and variables (PROVIDER=x MODEL=y)
+	@echo "Deploying to k8s context: $$(kubectl config current-context)"
+	@# Defaults
+	$(eval PROVIDER ?= openrouter)
+	$(eval MODEL ?= "")
+	@# Source .env if exists, then run helm (using '; true' ensures we proceed if .env missing)
+	@set -a && ( [ -f .env ] && . ./.env ) || true && set +a && \
+	helm upgrade --install recac ./deploy/helm/recac \
+		--set config.provider=$(PROVIDER) \
+		--set config.model=$(MODEL) \
+		--set secrets.apiKey=$${API_KEY} \
+		--set secrets.geminiApiKey=$${GEMINI_API_KEY} \
+		--set secrets.anthropicApiKey=$${ANTHROPIC_API_KEY} \
+		--set secrets.cursorApiKey=$${CURSOR_API_KEY} \
+		--set secrets.openaiApiKey=$${OPENAI_API_KEY} \
+		--set secrets.openrouterApiKey=$${OPENROUTER_API_KEY} \
+		--set secrets.jiraApiToken=$${JIRA_API_TOKEN} \
+		--set secrets.githubToken=$${GITHUB_TOKEN} \
+		--set secrets.githubApiKey=$${GITHUB_API_KEY}
+
+.PHONY: remove-helm
+remove-helm: ## Uninstall the Helm release
+	@echo "Uninstalling recac from k8s context: $$(kubectl config current-context)"
+	helm uninstall recac || true
+
