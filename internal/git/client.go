@@ -25,15 +25,18 @@ type maskingWriter struct {
 	w io.Writer
 }
 
+var (
+	reGitHubPAT = regexp.MustCompile(`https://[^@:]+@github\.com`)
+	reBasicAuth = regexp.MustCompile(`https://[^:/]+:[^@/]+@`)
+)
+
 func (mw *maskingWriter) Write(p []byte) (n int, err error) {
 	s := string(p)
 	// Mask GitHub PATs in URLs: https://<token>@github.com/
-	re := regexp.MustCompile(`https://[^@:]+@github\.com`)
-	s = re.ReplaceAllString(s, "https://[REDACTED]@github.com")
+	s = reGitHubPAT.ReplaceAllString(s, "https://[REDACTED]@github.com")
 
 	// Also mask basic auth style: https://user:pass@host
-	reBasic := regexp.MustCompile(`https://[^:/]+:[^@/]+@`)
-	s = reBasic.ReplaceAllString(s, "https://[REDACTED]@")
+	s = reBasicAuth.ReplaceAllString(s, "https://[REDACTED]@")
 
 	_, err = mw.w.Write([]byte(s))
 	return len(p), err

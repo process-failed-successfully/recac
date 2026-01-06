@@ -24,17 +24,27 @@ type RegexScanner struct {
 	patterns map[string]*regexp.Regexp
 }
 
+var (
+	reAWSAccessKey    = regexp.MustCompile(`AKIA[0-9A-Z]{16}`)
+	rePrivateKey      = regexp.MustCompile(`-----BEGIN [A-Z]+ PRIVATE KEY-----`)
+	reGenericAPIToken = regexp.MustCompile(`(api|access)[_-]?key\s*[:=]\s*['"][a-zA-Z0-9_\-]{20,}['"]`)
+	reSlackToken      = regexp.MustCompile(`xox[baprs]-([0-9a-zA-Z]{10,48})`)
+	reGitHubToken     = regexp.MustCompile(`gh[pousr]_[a-zA-Z0-9]{36,255}`)
+	reDangerousCmd    = regexp.MustCompile(`(?i)\b(rm|cat|cp|mv|chmod|chown)\b.*(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
+	reRootDeletion    = regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+([/~*]+|/)$`)
+)
+
 // NewRegexScanner creates a new scanner with default patterns
 func NewRegexScanner() *RegexScanner {
 	return &RegexScanner{
 		patterns: map[string]*regexp.Regexp{
-			"AWS Access Key":    regexp.MustCompile(`AKIA[0-9A-Z]{16}`),
-			"Private Key":       regexp.MustCompile(`-----BEGIN [A-Z]+ PRIVATE KEY-----`),
-			"Generic API Token": regexp.MustCompile(`(api|access)[_-]?key\s*[:=]\s*['"][a-zA-Z0-9_\-]{20,}['"]`),
-			"Slack Token":       regexp.MustCompile(`xox[baprs]-([0-9a-zA-Z]{10,48})`),
-			"GitHub Token":      regexp.MustCompile(`gh[pousr]_[a-zA-Z0-9]{36,255}`),
-			"Dangerous Command": regexp.MustCompile(`(?i)\b(rm|cat|cp|mv|chmod|chown)\b.*(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`),
-			"Root Deletion":     regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+([/~*]+|/)$`),
+			"AWS Access Key":    reAWSAccessKey,
+			"Private Key":       rePrivateKey,
+			"Generic API Token": reGenericAPIToken,
+			"Slack Token":       reSlackToken,
+			"GitHub Token":      reGitHubToken,
+			"Dangerous Command": reDangerousCmd,
+			"Root Deletion":     reRootDeletion,
 		},
 	}
 }
