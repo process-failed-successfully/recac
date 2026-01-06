@@ -14,6 +14,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	corev1 "k8s.io/api/core/v1"
 )
 
 var orchestrateCmd = &cobra.Command{
@@ -26,7 +27,7 @@ var orchestrateCmd = &cobra.Command{
 
 		var err error
 
-		logger := telemetry.NewLogger(viper.GetBool("verbose"), "orchestrator")
+		logger := telemetry.NewLogger(viper.GetBool("debug"), "orchestrator")
 
 		// Config
 		mode := viper.GetString("orchestrator.mode")
@@ -72,7 +73,11 @@ var orchestrateCmd = &cobra.Command{
 		var spawner orchestrator.Spawner
 		switch mode {
 		case "k8s", "kubernetes":
-			spawner, err = orchestrator.NewK8sSpawner(logger, image, namespace, agentProvider, agentModel)
+			pullPolicy := corev1.PullPolicy(viper.GetString("orchestrator.image_pull_policy"))
+			if pullPolicy == "" {
+				pullPolicy = corev1.PullAlways
+			}
+			spawner, err = orchestrator.NewK8sSpawner(logger, image, namespace, agentProvider, agentModel, pullPolicy)
 			if err != nil {
 				logger.Error("Failed to initialize K8s spawner", "error", err)
 				os.Exit(1)
@@ -111,6 +116,7 @@ func init() {
 	orchestrateCmd.Flags().Duration("interval", 1*time.Minute, "Polling interval")
 	orchestrateCmd.Flags().String("agent-provider", "openrouter", "Provider for spawned agents")
 	orchestrateCmd.Flags().String("agent-model", "mistralai/devstral-2512:free", "Model for spawned agents")
+	orchestrateCmd.Flags().String("image-pull-policy", "Always", "Image pull policy for agents (Always, IfNotPresent, Never)")
 
 	orchestrateCmd.Flags().String("jira-query", "", "Custom JQL query (overrides label)")
 	orchestrateCmd.Flags().String("poller", "jira", "Poller type: 'jira' or 'file'")
@@ -127,6 +133,7 @@ func init() {
 	viper.BindPFlag("orchestrator.interval", orchestrateCmd.Flags().Lookup("interval"))
 	viper.BindPFlag("orchestrator.agent_provider", orchestrateCmd.Flags().Lookup("agent-provider"))
 	viper.BindPFlag("orchestrator.agent_model", orchestrateCmd.Flags().Lookup("agent-model"))
+	viper.BindPFlag("orchestrator.image_pull_policy", orchestrateCmd.Flags().Lookup("image-pull-policy"))
 
 	// Explicitly bind cleaner env vars
 	viper.BindEnv("orchestrator.agent_provider", "RECAC_AGENT_PROVIDER")
@@ -137,6 +144,7 @@ func init() {
 	viper.BindEnv("orchestrator.image", "RECAC_ORCHESTRATOR_IMAGE")
 	viper.BindEnv("orchestrator.namespace", "RECAC_ORCHESTRATOR_NAMESPACE")
 	viper.BindEnv("orchestrator.interval", "RECAC_ORCHESTRATOR_INTERVAL")
+	viper.BindEnv("orchestrator.image_pull_policy", "RECAC_IMAGE_PULL_POLICY")
 
 	rootCmd.AddCommand(orchestrateCmd)
 }

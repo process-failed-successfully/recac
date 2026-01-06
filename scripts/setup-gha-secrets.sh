@@ -1,9 +1,10 @@
 #!/bin/bash
-# scripts/setup-gha-secrets.sh
-# Push .env secrets to GitHub using gh cli
+
+# This script pushes secrets from .env to GitHub Actions Secrets using 'gh' CLI.
+# It handles the GITHUB_ prefix restriction by renaming them to GH_
 
 if ! command -v gh &> /dev/null; then
-    echo "Error: gh cli is not installed."
+    echo "Error: 'gh' CLI is not installed."
     exit 1
 fi
 
@@ -14,27 +15,19 @@ fi
 
 echo "Pushing secrets from .env to GitHub..."
 
-# Iterate over each line in .env
-while IFS= read -r line || [[ -n "$line" ]]; do
-    # Skip comments and empty lines
-    [[ "$line" =~ ^#.*$ ]] && continue
-    [[ -z "$line" ]] && continue
-
-    # Split into key and value
-    key=$(echo "$line" | cut -d'=' -f1)
-    # Remove quotes if they exist around the value
-    value=$(echo "$line" | cut -d'=' -f2- | sed -e 's/^"//' -e 's/"$//')
-
-    if [ -n "$key" ] && [ -n "$value" ]; then
-        display_key=$key
-        # GitHub restricted prefix: GITHUB_
-        if [[ "$key" =~ ^GITHUB_ ]]; then
-            display_key="GH_${key#GITHUB_}"
-            echo "Renaming $key to $display_key for GitHub..."
-        fi
-        echo "Setting secret: $display_key"
-        echo "$value" | gh secret set "$display_key"
+grep -v '^#' .env | grep -v '^$' | while IFS='=' read -r key value; do
+    # Strip any potential surrounding quotes from value
+    value=$(echo "$value" | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
+    
+    # Check if key starts with GITHUB_ (unsupported by GHA)
+    secret_name=$key
+    if [[ $key == GITHUB_* ]]; then
+        secret_name=$(echo $key | sed 's/^GITHUB_/GH_/')
+        echo "Renaming restricted secret: $key -> $secret_name"
     fi
-done < .env
 
-echo "All secrets pushed successfully."
+    echo "Setting secret: $secret_name"
+    echo "$value" | gh secret set "$secret_name"
+done
+
+echo "Done."

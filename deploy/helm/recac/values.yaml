@@ -58,9 +58,13 @@ config:
   maxTokens: 32000
   jiraUrl: ""
   jiraUsername: ""
+  imagePullPolicy: Always
   poller: "jira"
   work_file: "work_items.json"
   interval: "1m"
+
+extraVolumes: []
+extraVolumeMounts: []
 
 # Sensitive configuration (to be stored in a Secret)
 secrets:

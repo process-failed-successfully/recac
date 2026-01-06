@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -23,10 +24,11 @@ type K8sSpawner struct {
 	Image         string
 	AgentProvider string
 	AgentModel    string
+	PullPolicy    corev1.PullPolicy
 	Logger        *slog.Logger
 }
 
-func NewK8sSpawner(logger *slog.Logger, image string, namespace, provider, model string) (*K8sSpawner, error) {
+func NewK8sSpawner(logger *slog.Logger, image string, namespace, provider, model string, pullPolicy corev1.PullPolicy) (*K8sSpawner, error) {
 	// 1. Try In-Cluster Config
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -63,6 +65,7 @@ func NewK8sSpawner(logger *slog.Logger, image string, namespace, provider, model
 		Image:         image,
 		AgentProvider: provider,
 		AgentModel:    model,
+		PullPolicy:    pullPolicy,
 		Logger:        logger,
 	}, nil
 }
@@ -71,7 +74,7 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	s.Logger.Info("Spawning K8s Job", "item", item.ID, "namespace", s.Namespace)
 
 	// Clean ID for K8s name (lowercase, replace invalid chars)
-	safeID := strings.ToLower(strings.ReplaceAll(item.ID, "-", ""))
+	safeID := sanitizeK8sName(item.ID)
 	jobName := fmt.Sprintf("recac-agent-%s", safeID)
 
 	// Check if job already exists
@@ -137,6 +140,10 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		{Name: "GIT_COMMITTER_EMAIL", Value: "agent@recac.io"},
 	}...)
 
+	// Auth Handling:
+	// Use Secret for sensitive data if available.
+	// For now, we assume a secret "recac-agent-secrets" exists and we load all keys from it.
+	// This avoids passing secrets in plain text.
 	secretName := os.Getenv("RECAC_AGENT_SECRET_NAME")
 	if secretName == "" {
 		secretName = "recac-agent-secrets" // fallback
@@ -165,8 +172,6 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	// We'll trust the Orchestrator passed a clone-able URL or we use env var injection in the shell command.
 	// item.RepoURL is plain.
 	// Command:
-	// Command:
-	// Configure git to use token if available using git config insteadOf
 	cmd := fmt.Sprintf(`
 		if [ -n "$GITHUB_TOKEN" ]; then
 			git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
@@ -195,7 +200,7 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 						{
 							Name:            "agent",
 							Image:           s.Image,
-							ImagePullPolicy: corev1.PullAlways,
+							ImagePullPolicy: s.PullPolicy,
 							Command:         []string{"/bin/sh", "-c"},
 							Args:            []string{cmd},
 							Env:             envVars,
@@ -249,4 +254,12 @@ func boolPtr(b bool) *bool {
 func extractRepoPath(url string) string {
 	// Removes https://github.com/
 	return strings.TrimPrefix(strings.TrimPrefix(url, "https://"), "github.com/")
+}
+
+func sanitizeK8sName(name string) string {
+	// Lowercase and replace non-alphanumeric with -
+	name = strings.ToLower(name)
+	reg, _ := regexp.Compile("[^a-z0-9]+")
+	name = reg.ReplaceAllString(name, "-")
+	return strings.Trim(name, "-")
 }
