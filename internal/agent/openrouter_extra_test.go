@@ -18,7 +18,7 @@ func TestOpenRouterClient_HTTP_Success(t *testing.T) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		
+
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprint(w, `{"choices": [{"message": {"content": "Hello form OpenRouter"}}]}`)
 	}))
