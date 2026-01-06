@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -36,6 +37,7 @@ type APIClient interface {
 	ContainerStart(ctx context.Context, containerID string, options container.StartOptions) error
 	ContainerExecCreate(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error)
 	ContainerExecAttach(ctx context.Context, execID string, config container.ExecStartOptions) (types.HijackedResponse, error)
+	ContainerExecInspect(ctx context.Context, execID string) (container.ExecInspect, error)
 	ContainerStop(ctx context.Context, containerID string, options container.StopOptions) error
 	ContainerRemove(ctx context.Context, containerID string, options container.RemoveOptions) error
 	Close() error
@@ -43,8 +45,9 @@ type APIClient interface {
 
 // Client wraps the official Docker client to provide high-level orchestration methods.
 type Client struct {
-	api     APIClient
-	project string
+	api               APIClient
+	project           string
+	HostWorkspacePath string
 }
 
 // NewClient creates a new Docker client instance.
@@ -57,7 +60,11 @@ func NewClient(project string) (*Client, error) {
 	if project == "" {
 		project = "unknown"
 	}
-	return &Client{api: cli, project: project}, nil
+	return &Client{
+		api:               cli,
+		project:           project,
+		HostWorkspacePath: os.Getenv("RECAC_HOST_WORKSPACE_PATH"),
+	}, nil
 }
 
 // Close closes the underlying docker client connection.
@@ -171,7 +178,7 @@ func (c *Client) PullImage(ctx context.Context, imageRef string) error {
 
 // RunContainer starts a container with the specified image and mounts the workspace.
 // It returns the container ID or an error.
-func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, user string) (string, error) {
+func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, user string) (string, error) {
 	telemetry.TrackDockerOp(c.project)
 	// 1. Pull Image (Best effort)
 	reader, err := c.api.ImagePull(ctx, imageRef, image.PullOptions{})
@@ -181,8 +188,12 @@ func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace st
 	}
 
 	// Prepare binds
+	sourcePath := workspace
+	if c.HostWorkspacePath != "" && workspace == "/workspace" {
+		sourcePath = c.HostWorkspacePath
+	}
 	binds := []string{
-		fmt.Sprintf("%s:/workspace", workspace),
+		fmt.Sprintf("%s:/workspace", sourcePath),
 	}
 	if len(extraBinds) > 0 {
 		binds = append(binds, extraBinds...)
@@ -196,6 +207,7 @@ func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace st
 			Tty:        true, // Keep it running
 			OpenStdin:  true, // Keep stdin open
 			WorkingDir: "/workspace",
+			Env:        env,
 			Cmd:        []string{"/bin/sh"}, // Default command to keep it alive
 		},
 		&container.HostConfig{
@@ -219,6 +231,7 @@ func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace st
 func (c *Client) Exec(ctx context.Context, containerID string, cmd []string) (string, error) {
 	telemetry.TrackDockerOp(c.project)
 	execConfig := container.ExecOptions{
+		WorkingDir:   "/workspace",
 		Cmd:          cmd,
 		AttachStdout: true,
 		AttachStderr: true,
@@ -257,13 +270,25 @@ func (c *Client) Exec(ctx context.Context, containerID string, cmd []string) (st
 		}
 	}
 
-	return outBuf.String() + errBuf.String(), nil
+	// Python/Go-style: Check exit code
+	inspect, err := c.api.ContainerExecInspect(ctx, respID.ID)
+	if err != nil {
+		return outBuf.String() + errBuf.String(), fmt.Errorf("failed to inspect exec: %w", err)
+	}
+
+	output := outBuf.String() + errBuf.String()
+	if inspect.ExitCode != 0 {
+		return output, fmt.Errorf("command exited with code %d", inspect.ExitCode)
+	}
+
+	return output, nil
 }
 
 // ExecAsUser executes a command as a specific user in a running container.
 func (c *Client) ExecAsUser(ctx context.Context, containerID string, user string, cmd []string) (string, error) {
 	telemetry.TrackDockerOp(c.project)
 	execConfig := container.ExecOptions{
+		WorkingDir:   "/workspace",
 		User:         user,
 		Cmd:          cmd,
 		AttachStdout: true,

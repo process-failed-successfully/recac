@@ -65,6 +65,8 @@ secrets:
   openaiApiKey: ""
   openrouterApiKey: ""
   jiraApiToken: ""
+  githubToken: ""
+  githubApiKey: ""
 
 # Mount the Docker socket for running agents
 dockerSocket:

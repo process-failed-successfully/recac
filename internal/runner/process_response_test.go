@@ -17,7 +17,7 @@ type MockDockerClient struct {
 }
 
 func (m *MockDockerClient) CheckDaemon(ctx context.Context) error { return nil }
-func (m *MockDockerClient) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, user string) (string, error) {
+func (m *MockDockerClient) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, user string) (string, error) {
 	return "mock-id", nil
 }
 func (m *MockDockerClient) StopContainer(ctx context.Context, containerID string) error { return nil }

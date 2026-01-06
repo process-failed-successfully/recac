@@ -1,0 +1,42 @@
+name: Weekly Codebase Cleanup
+
+on:
+  schedule:
+    # Hourly
+    - cron: "0 * */2 * *"
+  workflow_dispatch: # Allow manual triggers
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Invoke Jules for Cleanup
+        uses: google-labs-code/jules-invoke@v1.0.0
+        with:
+          prompt: |
+            Please maintain >80% test coverage across the codebase.
+
+            ## Goal
+            Identify gaps in test coverage and write meaningful unit tests to close them, ensuring the overall coverage exceeds 80%.
+
+            ## Workflow
+            1. **Measure**: Run `make cover` to see the current coverage status. Identify packages or files below 80%.
+            2. **Analyze**: Select critical areas with low coverage. Look for untested error paths, edge cases, or complex logic.
+            3. **Implement**: Write table-driven unit tests in Go.
+               - Use the standard `testing` package.
+               - Mock dependencies using existing patterns (see `internal/runner` or `vitest.config.ts` for mocks if relevant).
+            4. **Verify**:
+               - Run `make test` to ensure all tests pass.
+               - Run `make cover` to confirm coverage has improved.
+
+            ## Guidelines
+            - **Quality over Quantity**: Do not write trivial tests just to bump numbers. Test actual behavior.
+            - **No Regressions**: Ensure existing tests continue to pass.
+            - **Linting**: Ensure `make lint` passes.
+
+            Do not open a PR if you have not successfully increased coverage or if tests are failing.
+          jules_api_key: ${{ secrets.JULES_API_KEY }}
+          include_commit_log: false

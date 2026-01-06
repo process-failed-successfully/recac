@@ -5,13 +5,18 @@ metadata:
   labels:
     {{- include "recac.labels" . | nindent 4 }}
 data:
-  PROVIDER: {{ .Values.config.provider | quote }}
+  RECAC_PROVIDER: {{ .Values.config.provider | quote }}
   {{- if .Values.config.ollamaBaseUrl }}
-  OLLAMA_BASE_URL: {{ .Values.config.ollamaBaseUrl | quote }}
+  RECAC_OLLAMA_BASE_URL: {{ .Values.config.ollamaBaseUrl | quote }}
   {{- end }}
-  METRICS_PORT: {{ .Values.config.metricsPort | quote }}
-  MAX_ITERATIONS: {{ .Values.config.maxIterations | quote }}
-  MANAGER_FREQUENCY: {{ .Values.config.managerFrequency | quote }}
-  MAX_TOKENS: {{ .Values.config.maxTokens | quote }}
+  RECAC_METRICS_PORT: {{ .Values.config.metricsPort | quote }}
+  RECAC_MAX_ITERATIONS: {{ .Values.config.maxIterations | quote }}
+  RECAC_MANAGER_FREQUENCY: {{ .Values.config.managerFrequency | quote }}
+  RECAC_MAX_TOKENS: {{ .Values.config.maxTokens | quote }}
   JIRA_URL: {{ .Values.config.jiraUrl | quote }}
   JIRA_USERNAME: {{ .Values.config.jiraUsername | quote }}
+  RECAC_ORCHESTRATOR_MODE: "k8s"
+  RECAC_ORCHESTRATOR_IMAGE: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+  RECAC_ORCHESTRATOR_NAMESPACE: {{ .Release.Namespace | quote }}
+  RECAC_ORCHESTRATOR_AGENT_PROVIDER: {{ .Values.config.provider | quote }}
+  RECAC_ORCHESTRATOR_AGENT_MODEL: {{ .Values.config.model | quote }}

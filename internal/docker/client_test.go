@@ -1,9 +1,11 @@
 package docker
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"io"
+	"net"
 	"os"
 	"strings"
 	"testing"
@@ -18,11 +20,13 @@ import (
 )
 
 type mockAPIClient struct {
-	pingFunc            func(ctx context.Context) (types.Ping, error)
-	imageListFunc       func(ctx context.Context, options image.ListOptions) ([]image.Summary, error)
-	imagePullFunc       func(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error)
-	containerStopFunc   func(ctx context.Context, containerID string, options container.StopOptions) error
-	containerCreateFunc func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error)
+	pingFunc                func(ctx context.Context) (types.Ping, error)
+	imageListFunc           func(ctx context.Context, options image.ListOptions) ([]image.Summary, error)
+	imagePullFunc           func(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error)
+	containerStopFunc       func(ctx context.Context, containerID string, options container.StopOptions) error
+	containerCreateFunc     func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error)
+	containerExecCreateFunc func(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error)
+	containerExecAttachFunc func(ctx context.Context, execID string, config container.ExecStartOptions) (types.HijackedResponse, error)
 }
 
 func (m *mockAPIClient) Ping(ctx context.Context) (types.Ping, error) {
@@ -62,11 +66,25 @@ func (m *mockAPIClient) ContainerStart(ctx context.Context, containerID string, 
 }
 
 func (m *mockAPIClient) ContainerExecCreate(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error) {
+	if m.containerExecCreateFunc != nil {
+		return m.containerExecCreateFunc(ctx, container, config)
+	}
 	return types.IDResponse{}, nil
 }
 
 func (m *mockAPIClient) ContainerExecAttach(ctx context.Context, execID string, config container.ExecStartOptions) (types.HijackedResponse, error) {
-	return types.HijackedResponse{}, nil
+	if m.containerExecAttachFunc != nil {
+		return m.containerExecAttachFunc(ctx, execID, config)
+	}
+	// We need a non-nil Conn to avoid panic in Close()
+	return types.HijackedResponse{
+		Reader: bufio.NewReader(strings.NewReader("")),
+		Conn:   &net.TCPConn{},
+	}, nil
+}
+
+func (m *mockAPIClient) ContainerExecInspect(ctx context.Context, execID string) (container.ExecInspect, error) {
+	return container.ExecInspect{ExitCode: 0}, nil
 }
 
 func (m *mockAPIClient) ContainerStop(ctx context.Context, containerID string, options container.StopOptions) error {
@@ -347,7 +365,7 @@ func TestDockerInDocker_Support(t *testing.T) {
 	defer os.RemoveAll(testWorkspace)
 
 	// Create nested container
-	containerID, err := client.RunContainer(ctx, testImage, testWorkspace, nil, "")
+	containerID, err := client.RunContainer(ctx, testImage, testWorkspace, nil, nil, "")
 	if err != nil {
 		t.Fatalf("Failed to create nested container: %v", err)
 	}
@@ -373,4 +391,38 @@ func TestDockerInDocker_Support(t *testing.T) {
 	}
 
 	t.Logf("Successfully created and verified nested container %s in DinD environment", containerID)
+}
+
+func TestExec_WorkingDir(t *testing.T) {
+	var capturedConfig container.ExecOptions
+	mock := &mockAPIClient{
+		containerExecCreateFunc: func(ctx context.Context, containerID string, config container.ExecOptions) (types.IDResponse, error) {
+			capturedConfig = config
+			return types.IDResponse{ID: "exec-id"}, nil
+		},
+	}
+	client := &Client{api: mock}
+
+	_, _ = client.Exec(context.Background(), "container-id", []string{"ls"})
+
+	if capturedConfig.WorkingDir != "/workspace" {
+		t.Errorf("expected WorkingDir /workspace, got %s", capturedConfig.WorkingDir)
+	}
+}
+
+func TestExecAsUser_WorkingDir(t *testing.T) {
+	var capturedConfig container.ExecOptions
+	mock := &mockAPIClient{
+		containerExecCreateFunc: func(ctx context.Context, containerID string, config container.ExecOptions) (types.IDResponse, error) {
+			capturedConfig = config
+			return types.IDResponse{ID: "exec-id"}, nil
+		},
+	}
+	client := &Client{api: mock}
+
+	_, _ = client.ExecAsUser(context.Background(), "container-id", "user", []string{"ls"})
+
+	if capturedConfig.WorkingDir != "/workspace" {
+		t.Errorf("expected WorkingDir /workspace, got %s", capturedConfig.WorkingDir)
+	}
 }

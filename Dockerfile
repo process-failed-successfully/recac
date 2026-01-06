@@ -1,4 +1,5 @@
-FROM golang:1.24-alpine AS base
+ARG GO_VERSION=1.25
+FROM golang:${GO_VERSION}-alpine AS base
 
 # Install essential tools
 RUN apk add --no-cache \
@@ -11,10 +12,11 @@ RUN apk add --no-cache \
     jq \
     bash \
     unzip \
-    libc6-compat
+    libc6-compat \
+    docker-cli
 
 # Configure NPM mirror
-RUN npm config set registry https://registry.npmmirror.com/
+# RUN npm config set registry https://registry.npmmirror.com/
 
 # Install Gemini CLI
 RUN npm install -g @google/gemini-cli
@@ -42,4 +44,4 @@ COPY --from=builder /app/recac /usr/local/bin/recac
 COPY --from=builder /app/agent-bridge /usr/local/bin/agent-bridge
 
 # Default entrypoint
-ENTRYPOINT ["recac"]
+CMD ["recac"]

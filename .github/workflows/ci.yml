@@ -53,12 +53,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Extract Go Version
+        id: go-version
+        run: |
+          VERSION=$(grep "^go " go.mod | awk '{print $2}')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Build and Push Test Image
         if: steps.check-image.outcome == 'failure'
         uses: docker/build-push-action@v5
         with:
           context: .
           file: test.Dockerfile
+          build-args: |
+            GO_VERSION=${{ steps.go-version.outputs.version }}
           push: true
           tags: ${{ steps.image-tag.outputs.image }}
           cache-from: type=gha
@@ -75,7 +83,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.24" # Match Dockerfile
+          go-version-file: go.mod
       - name: Calculate Matrix
         id: set-matrix
         env:
@@ -131,7 +139,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.24"
+          go-version-file: go.mod
 
       - name: Build Agent Image for Tests
         run: |
@@ -196,11 +204,19 @@ jobs:
             type=raw,value=latest
             type=sha,prefix=
 
+      - name: Extract Go Version
+        id: go-version
+        run: |
+          VERSION=$(grep "^go " go.mod | awk '{print $2}')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Build and Push Production Image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: Dockerfile
+          build-args: |
+            GO_VERSION=${{ steps.go-version.outputs.version }}
           target: production
           push: true
           tags: ${{ steps.meta.outputs.tags }}

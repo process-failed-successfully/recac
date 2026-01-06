@@ -15,7 +15,7 @@ import (
 // MockLoopDocker implements DockerClient interface
 type MockLoopDocker struct {
 	CheckDaemonFunc   func(ctx context.Context) error
-	RunContainerFunc  func(ctx context.Context, imageRef string, workspace string, extraBinds []string, user string) (string, error)
+	RunContainerFunc  func(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, user string) (string, error)
 	StopContainerFunc func(ctx context.Context, containerID string) error
 	ExecFunc          func(ctx context.Context, containerID string, cmd []string) (string, error)
 }
@@ -27,9 +27,9 @@ func (m *MockLoopDocker) CheckDaemon(ctx context.Context) error {
 	return nil
 }
 
-func (m *MockLoopDocker) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, user string) (string, error) {
+func (m *MockLoopDocker) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, user string) (string, error) {
 	if m.RunContainerFunc != nil {
-		return m.RunContainerFunc(ctx, imageRef, workspace, extraBinds, user)
+		return m.RunContainerFunc(ctx, imageRef, workspace, extraBinds, env, user)
 	}
 	return "mock-container", nil
 }
