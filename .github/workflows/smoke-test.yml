@@ -61,6 +61,7 @@ jobs:
             --set config.poller=file \
             --set config.work_file=/etc/recac-smoke/work_items.json \
             --set config.verbose=true \
+            --set config.interval=10s \
             --set config.provider=gemini \
             --set config.model=gemini-1.5-flash \
             --set secrets.geminiApiKey="${{ secrets.GEMINI_API_KEY }}" \
@@ -88,7 +89,7 @@ jobs:
           timeout=300
           elapsed=0
           while [ $elapsed -lt $timeout ]; do
-            if kubectl get jobs | grep -qi "recac-agent-smoke1"; then
+            if kubectl get jobs | grep -qi "recac-agent-smoke"; then
               echo "Agent job spawned!"
               break
             fi
@@ -105,9 +106,10 @@ jobs:
           fi
 
           echo "Waiting for agent job to complete..."
-          kubectl wait --for=condition=complete job/recac-agent-smoke1 --timeout=300s || {
+          JOB_NAME=$(kubectl get jobs -o name | grep "recac-agent-smoke" | head -n 1)
+          kubectl wait --for=condition=complete "$JOB_NAME" --timeout=300s || {
             echo "Agent job failed or timed out"
-            kubectl describe job/recac-agent-smoke1 || true
+            kubectl describe "$JOB_NAME" || true
             kubectl logs -l app=recac-agent --all-containers=true
             exit 1
           }
