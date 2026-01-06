@@ -135,14 +135,15 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	// We'll trust the Orchestrator passed a clone-able URL or we use env var injection in the shell command.
 	// item.RepoURL is plain.
 	// Command:
+	// Command:
+	// Configure git to use token if available using git config insteadOf
 	cmd := fmt.Sprintf(`
 		if [ -n "$GITHUB_TOKEN" ]; then
-			git clone https://$GITHUB_TOKEN@github.com/%s .
-		else
-			git clone %s .
+			git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
 		fi
+		git clone %s .
 		recac start --jira %s --detached=false --cleanup=false --allow-dirty --path /workspace --image %s
-	`, extractRepoPath(item.RepoURL), item.RepoURL, item.ID, s.Image)
+	`, item.RepoURL, item.ID, s.Image)
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -159,7 +160,8 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 					},
 				},
 				Spec: corev1.PodSpec{
-					RestartPolicy: corev1.RestartPolicyNever,
+					RestartPolicy:      corev1.RestartPolicyNever,
+					EnableServiceLinks: boolPtr(false),
 					Containers: []corev1.Container{
 						{
 							Name:            "agent",
