@@ -58,6 +58,8 @@ config:
   maxTokens: 32000
   jiraUrl: ""
   jiraUsername: ""
+  poller: "jira"
+  workFile: "work_items.json"
 
 # Sensitive configuration (to be stored in a Secret)
 secrets:

@@ -131,6 +131,11 @@ func init() {
 	// Explicitly bind cleaner env vars
 	viper.BindEnv("orchestrator.agent_provider", "RECAC_AGENT_PROVIDER")
 	viper.BindEnv("orchestrator.agent_model", "RECAC_AGENT_MODEL")
+	viper.BindEnv("orchestrator.poller", "RECAC_POLLER")
+	viper.BindEnv("orchestrator.work_file", "RECAC_WORK_FILE")
+	viper.BindEnv("orchestrator.mode", "RECAC_ORCHESTRATOR_MODE")
+	viper.BindEnv("orchestrator.image", "RECAC_ORCHESTRATOR_IMAGE")
+	viper.BindEnv("orchestrator.namespace", "RECAC_ORCHESTRATOR_NAMESPACE")
 
 	rootCmd.AddCommand(orchestrateCmd)
 }

@@ -24,6 +24,7 @@ jobs:
           args: >-
             --agents 1
             --no-lb
+            --volume /var/run/docker.sock:/var/run/docker.sock
             --k3s-arg "--disable=traefik@server:*"
             --k3s-arg "--disable=metrics-server@server:*"
 
@@ -63,11 +64,22 @@ jobs:
             --set config.model=gemini-1.5-flash \
             --set secrets.geminiApiKey="${{ secrets.GEMINI_API_KEY }}" \
             --set secrets.ghApiKey="${{ secrets.GH_API_KEY }}" \
+            --set dockerSocket.enabled=false \
             --set extraVolumes[0].name=work-items \
             --set extraVolumes[0].configMap.name=smoke-test-work \
             --set extraVolumeMounts[0].name=work-items \
             --set extraVolumeMounts[0].mountPath=/etc/recac-smoke \
             --set extraVolumeMounts[0].readOnly=true
+
+      - name: Wait for Orchestrator
+        run: |
+          echo "Waiting for orchestrator pod to be ready..."
+          kubectl rollout status deployment/recac --timeout=120s || {
+            echo "Orchestrator deployment failed"
+            kubectl get pods
+            kubectl describe pods -l app.kubernetes.io/name=recac
+            exit 1
+          }
 
       - name: Wait and Verify
         run: |
