@@ -59,7 +59,8 @@ config:
   jiraUrl: ""
   jiraUsername: ""
   poller: "jira"
-  workFile: "work_items.json"
+  work_file: "work_items.json"
+  interval: "1m"
 
 # Sensitive configuration (to be stored in a Secret)
 secrets:

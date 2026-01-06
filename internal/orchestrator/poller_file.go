@@ -27,6 +27,7 @@ func (p *FilePoller) Poll(ctx context.Context) ([]WorkItem, error) {
 	defer p.mu.Unlock()
 
 	if _, err := os.Stat(p.path); os.IsNotExist(err) {
+		fmt.Printf("[FilePoller] Work file %s not found\n", p.path)
 		return nil, nil // No work file found yet
 	}
 

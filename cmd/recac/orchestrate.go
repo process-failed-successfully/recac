@@ -136,6 +136,7 @@ func init() {
 	viper.BindEnv("orchestrator.mode", "RECAC_ORCHESTRATOR_MODE")
 	viper.BindEnv("orchestrator.image", "RECAC_ORCHESTRATOR_IMAGE")
 	viper.BindEnv("orchestrator.namespace", "RECAC_ORCHESTRATOR_NAMESPACE")
+	viper.BindEnv("orchestrator.interval", "RECAC_ORCHESTRATOR_INTERVAL")
 
 	rootCmd.AddCommand(orchestrateCmd)
 }

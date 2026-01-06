@@ -59,6 +59,7 @@ jobs:
             --set image.pullPolicy=Never \
             --set config.poller=file \
             --set config.work_file=/etc/recac-smoke/work_items.json \
+            --set config.interval=10s \
             --set config.verbose=true \
             --set config.provider=gemini \
             --set config.model=gemini-1.5-flash \
@@ -80,6 +81,8 @@ jobs:
             kubectl describe pods -l app.kubernetes.io/name=recac
             exit 1
           }
+          echo "ConfigMap content:"
+          kubectl get configmap -l app.kubernetes.io/name=recac -o yaml
 
       - name: Wait and Verify
         run: |
@@ -94,6 +97,7 @@ jobs:
             sleep 10
             elapsed=$((elapsed + 10))
           done
+          kubectl get pods -A
 
           if [ $elapsed -ge $timeout ]; then
             echo "Error: Orchestrator failed to spawn agent job within 5 minutes"

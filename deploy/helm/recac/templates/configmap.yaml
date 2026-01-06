@@ -23,4 +23,5 @@ data:
   RECAC_AGENT_MODEL: {{ include "recac.defaultModel" . | quote }}
   RECAC_AGENT_SECRET_NAME: {{ include "recac.fullname" . | quote }}
   RECAC_POLLER: {{ .Values.config.poller | quote }}
-  RECAC_WORK_FILE: {{ .Values.config.workFile | quote }}
+  RECAC_WORK_FILE: {{ .Values.config.work_file | quote }}
+  RECAC_ORCHESTRATOR_INTERVAL: {{ .Values.config.interval | quote }}
