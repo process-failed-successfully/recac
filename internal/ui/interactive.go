@@ -46,6 +46,11 @@ var (
 				MarginRight(2)
 
 	promptStyle = lipgloss.NewStyle().MarginLeft(2)
+
+	infoBarStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("241")). // Dim gray
+			MarginLeft(2).
+			MarginBottom(1)
 )
 
 // -- Key Bindings --
@@ -95,7 +100,7 @@ var keys = keyMap{
 	),
 	Quit: key.NewBinding(
 		key.WithKeys("ctrl+c"),
-		key.WithHelp("asc/ctrl+c", "quit"),
+		key.WithHelp("ctrl+c", "quit"),
 	),
 	ToggleList: key.NewBinding(
 		key.WithKeys("tab"),
@@ -727,6 +732,10 @@ func (m InteractiveModel) View() string {
 	// Normal View
 	logo := GenerateLogo()
 	views = append(views, LogoContainerStyle.Render(logo))
+
+	// Info Bar
+	infoBar := infoBarStyle.Render(fmt.Sprintf("Provider: %s • Model: %s", strings.Title(m.currentAgent), m.currentModel))
+	views = append(views, infoBar)
 
 	// Layout Switch: Show List OR Viewport
 	if m.showList {
