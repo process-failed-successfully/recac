@@ -111,3 +111,16 @@ remove-helm: ## Uninstall the Helm release
 	@echo "Uninstalling recac from k8s context: $$(kubectl config current-context)"
 	helm uninstall recac || true
 
+# Dev Cycle Helpers
+DEPLOY_IMAGE=ghcr.io/process-failed-successfully/recac:latest
+
+.PHONY: image-prod push-prod dev-cycle
+image-prod: ## Build the production docker image
+	docker build -t $(DEPLOY_IMAGE) .
+
+push-prod: image-prod ## Push the production docker image
+	docker push $(DEPLOY_IMAGE)
+
+dev-cycle: push-prod deploy-helm ## Build, Push, Deploy, and Restart
+	kubectl rollout restart deployment recac
+
