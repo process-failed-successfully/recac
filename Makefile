@@ -96,6 +96,8 @@ deploy-helm: ## Deploy with Helm using local .env and variables (PROVIDER=x MODE
 		--set config.model=$(MODEL) \
 		--set config.jiraUrl=$${JIRA_URL} \
 		--set config.jiraUsername=$${JIRA_USERNAME} \
+		--set image.repository=$(DEPLOY_REPO) \
+		--set image.tag=$(DEPLOY_TAG) \
 		--set secrets.apiKey=$${API_KEY} \
 		--set secrets.geminiApiKey=$${GEMINI_API_KEY} \
 		--set secrets.anthropicApiKey=$${ANTHROPIC_API_KEY} \
@@ -112,7 +114,10 @@ remove-helm: ## Uninstall the Helm release
 	helm uninstall recac || true
 
 # Dev Cycle Helpers
-DEPLOY_IMAGE=ghcr.io/process-failed-successfully/recac:latest
+# Use ttl.sh for ephemeral, fast, auth-less registry
+DEPLOY_REPO=ttl.sh/recac-dev-luke
+DEPLOY_TAG=2h
+DEPLOY_IMAGE=$(DEPLOY_REPO):$(DEPLOY_TAG)
 
 .PHONY: image-prod push-prod dev-cycle
 image-prod: ## Build the production docker image

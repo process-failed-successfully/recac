@@ -10,6 +10,7 @@ data:
   RECAC_OLLAMA_BASE_URL: {{ .Values.config.ollamaBaseUrl | quote }}
   {{- end }}
   RECAC_METRICS_PORT: {{ .Values.config.metricsPort | quote }}
+  RECAC_VERBOSE: {{ .Values.config.verbose | default false | quote }}
   RECAC_MAX_ITERATIONS: {{ .Values.config.maxIterations | quote }}
   RECAC_MANAGER_FREQUENCY: {{ .Values.config.managerFrequency | quote }}
   RECAC_MAX_TOKENS: {{ .Values.config.maxTokens | quote }}

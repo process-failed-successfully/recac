@@ -24,7 +24,7 @@ var orchestrateCmd = &cobra.Command{
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 
-		logger := telemetry.NewLogger(viper.GetBool("debug"), "orchestrator")
+		logger := telemetry.NewLogger(viper.GetBool("verbose"), "orchestrator")
 
 		// Config
 		mode := viper.GetString("orchestrator.mode")
