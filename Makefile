@@ -90,10 +90,12 @@ deploy-helm: ## Deploy with Helm using local .env and variables (PROVIDER=x MODE
 	$(eval PROVIDER ?= openrouter)
 	$(eval MODEL ?= "")
 	@# Source .env if exists, then run helm (using '; true' ensures we proceed if .env missing)
-	@set -a && ( [ -f .env ] && . ./.env ) || true && set +a && \
+	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
 	helm upgrade --install recac ./deploy/helm/recac \
 		--set config.provider=$(PROVIDER) \
 		--set config.model=$(MODEL) \
+		--set config.jiraUrl=$${JIRA_URL} \
+		--set config.jiraUsername=$${JIRA_USERNAME} \
 		--set secrets.apiKey=$${API_KEY} \
 		--set secrets.geminiApiKey=$${GEMINI_API_KEY} \
 		--set secrets.anthropicApiKey=$${ANTHROPIC_API_KEY} \
