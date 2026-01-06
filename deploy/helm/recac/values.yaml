@@ -51,6 +51,7 @@ config:
   provider: openrouter
   model: mistralai/devstral-2512:free
   ollamaBaseUrl: ""
+  verbose: true
   metricsPort: 9090
   maxIterations: 20
   managerFrequency: 5
