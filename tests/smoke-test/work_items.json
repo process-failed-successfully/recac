@@ -1,0 +1,8 @@
+[
+  {
+    "ID": "SMOKE-1",
+    "Summary": "Create a Hello World Python app",
+    "Description": "Create a file named hello.py that prints 'Hello, World!' and a test_hello.py using pytest. The test should verify that hello.py prints 'Hello, World!'.",
+    "RepoURL": "https://github.com/REPLACE_ME_REPO"
+  }
+]

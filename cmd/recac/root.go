@@ -130,6 +130,32 @@ func initConfig() {
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
+	} else {
+		// Config file not found; create one with defaults ONLY if not in agent/orchestrator mode
+		if os.Getenv("RECAC_PROVIDER") == "" && os.Getenv("RECAC_AGENT_PROVIDER") == "" && os.Getenv("RECAC_ORCHESTRATOR_MODE") == "" {
+			if _, ok := err.(viper.ConfigFileNotFoundError); ok || true {
+				// check if we already tried to read a specific file
+				if cfgFile == "" {
+					// Write config to current directory
+					viper.SetConfigName("config")
+					viper.SetConfigType("yaml")
+					viper.AddConfigPath(".")
+
+					// Attempt to write
+					if err := viper.SafeWriteConfig(); err != nil {
+						if _, err := os.Stat("config.yaml"); os.IsNotExist(err) {
+							if err := viper.WriteConfigAs("config.yaml"); err != nil {
+								fmt.Fprintf(os.Stderr, "Warning: Failed to create default config file: %v\n", err)
+							} else {
+								fmt.Println("Created default configuration file: config.yaml")
+							}
+						}
+					} else {
+						fmt.Println("Created default configuration file: config.yaml")
+					}
+				}
+			}
+		}
 	}
 
 	// Validate configuration values
