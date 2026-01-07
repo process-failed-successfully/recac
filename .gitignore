@@ -11,6 +11,7 @@ recac-*
 *.rar
 *.7z
 agent-bridge
+e2e-runner
 
 # Development environment
 .recac/

@@ -32,6 +32,10 @@ test-sharded: image ## Run a subset of tests (SHARD=x TOTAL_SHARDS=y)
 test-e2e: image ## Run E2E tests via Docker
 	$(DOCKER_CMD) go test -v -tags=e2e ./tests/e2e/...
 
+test-cluster: ## Run full cluster E2E test suite (Build, Deploy, Test, Cleanup)
+	go run e2e/runner/main.go $(ARGS)
+
+
 
 clean: ## Clean build artifacts and Docker image
 	-rm -f $(BINARY_NAME)
@@ -55,7 +59,7 @@ cover: image ## Run tests with coverage output via Docker
 	$(DOCKER_CMD) go test -coverprofile=coverage.out ./...
 	$(DOCKER_CMD) go tool cover -func=coverage.out
 
-smoke: image ## Run smoke test script via Docker
+smoke: image ## Run smoke test script via Docker (mock agent)
 	docker run $(DOCKER_RUN_OPTS) \
 		-v $(HOME)/.config:/root/.config \
 		-v $(HOME)/.gemini:/root/.gemini \
@@ -66,6 +70,9 @@ smoke: image ## Run smoke test script via Docker
 		-e OPENAI_API_KEY=$(OPENAI_API_KEY) \
 		-e ANTHROPIC_API_KEY=$(ANTHROPIC_API_KEY) \
 		$(DOCKER_IMAGE) go run scripts/smoke.go
+
+smoke-k8s: ## Run full E2E smoke test in local Kubernetes (k3d)
+	./scripts/smoke-k8s.sh
 
 shell: image ## Launch a shell inside the build container
 	docker run -it $(DOCKER_RUN_OPTS) $(DOCKER_IMAGE) /bin/sh
@@ -121,7 +128,7 @@ DEPLOY_IMAGE=$(DEPLOY_REPO):$(DEPLOY_TAG)
 
 .PHONY: image-prod push-prod dev-cycle
 image-prod: ## Build the production docker image
-	docker build -t $(DEPLOY_IMAGE) .
+	docker build --no-cache -t $(DEPLOY_IMAGE) --target production .
 
 push-prod: image-prod ## Push the production docker image
 	docker push $(DEPLOY_IMAGE)

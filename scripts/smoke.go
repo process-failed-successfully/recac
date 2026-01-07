@@ -63,7 +63,7 @@ func main() {
 	}
 
 	var agentClient agent.Agent
-
+	var model string
 	if agentType == "mock" {
 		fmt.Println("Using Mock Agent")
 		agentClient = &MockAgent{}
@@ -72,7 +72,6 @@ func main() {
 
 		// Map generic env vars to API key
 		var apiKey string
-		var model string // Default model?
 
 		switch agentType {
 		case "gemini", "gemini-cli":
@@ -97,7 +96,7 @@ func main() {
 	}
 
 	// 3. Init Session
-	session := runner.NewSession(dClient, agentClient, tmpDir, "recac-agent:latest", "smoke-test-project", 1)
+	session := runner.NewSession(dClient, agentClient, tmpDir, "recac-agent:latest", "smoke-test-project", agentType, model, 1)
 	session.MaxIterations = 2 // Short run
 
 	// 4. Run
@@ -110,8 +109,8 @@ func main() {
 	}
 
 	if err := session.RunLoop(ctx); err != nil {
-		// Context deadline exceeded is expected if we just run out of time/iterations
-		if err != context.DeadlineExceeded {
+		// Context deadline exceeded or max iterations is expected
+		if err != context.DeadlineExceeded && err.Error() != "maximum iterations reached" {
 			fmt.Printf("RunLoop Failed: %v\n", err)
 			os.Exit(1)
 		}
