@@ -7,9 +7,8 @@ Your job is to set up the foundation for all future coding agents.
 
 1. **Read Spec**: Read `app_spec.txt` to understand the project requirements.
 2. **Create feature_list.json**: Create a complete and detailed list of acceptance tests based on the spec.
-3. **Initialize Project**: Set up the initial directory structure and files.
-4. **Create init.sh**: Add a setup script for the environment (dependencies, servers, etc.).
-5. **Initial Commit**: Create a git repository and make the first commit.sa
+3. **Create init.sh**: Add a setup script for the environment (dependencies, servers, etc.).
+4. **Initial Commit**: Create a git repository and make the first commit.
 
 ### CRITICAL: feature_list.json Requirements
 
@@ -57,18 +56,18 @@ Create a script called `init.sh` to set up the dev environment:
 
 - Install dependencies (apt, npm, go, etc.).
 - Start services (if needed).
-- Print helpful information about how to access the running application.
+- Print helpful information about project setup.
 
 ### THIRD TASK: Initialize Project
 
 - **NO SUBDIRECTORIES**: Work directly in the current directory (`.`). Do not create a project subfolder.
-- Create `README.md` and `Makefile`.
+- If they **DO NOT EXIST** Create `README.md` and `Makefile`. **DO NOT** destroy existing files.
 
 ### RESTRICTED: NO FEATURE IMPLEMENTATION
 
-- **DO NOT** write application logic or implementing features.
+- **DO NOT** write application logic or implement features.
 - **DO NOT** create complex source files. Create empty placeholders if necessary.
-- Your ONLY goal is to set the stage for the **Code Sprint** where multiple agents will work in parallel.
+- Your ONLY goal is to set the stage for the **Code State** where multiple agents will work in parallel.
 - Focus on `feature_list.json` dependencies to ensure parallel agents don't conflict.
 
 ### HUMAN INTERVENTION
