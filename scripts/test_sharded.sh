@@ -15,7 +15,7 @@ fi
 echo "Running tests for shard $SHARD_INDEX of $TOTAL_SHARDS"
 
 # List all packages, filter by shard index using round-robin
-PACKAGES=$(go list -buildvcs=false ./... | awk "NR % $TOTAL_SHARDS == ($SHARD_INDEX - 1)")
+PACKAGES=$(go list ./... | awk "NR % $TOTAL_SHARDS == ($SHARD_INDEX - 1)")
 
 if [ -z "$PACKAGES" ]; then
   echo "No packages found for this shard."
@@ -27,4 +27,4 @@ echo "$PACKAGES"
 
 # Run tests for selected packages
 # We use echo to pass packages as arguments to go test
-echo "$PACKAGES" | xargs go test -buildvcs=false -v
+echo "$PACKAGES" | xargs go test -v
