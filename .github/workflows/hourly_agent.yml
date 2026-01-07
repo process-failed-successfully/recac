@@ -1,0 +1,33 @@
+name: Hourly Agent
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+jobs:
+  add_feature:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Invoke Jules
+        uses: ./.github/actions/jules-invoke
+        with:
+          prompt: |
+            Analyze the repository to understand its purpose and active components.
+            Identify ONE missing but high-value feature or improvement (e.g., CLI usability, new subcommand, better error handling).
+
+            YOUR GOAL:
+            1. Propose and implement this 1 useful feature.
+            2. You MUST add strong testing (unit or integration) to verify it.
+            3. Be bold and innovative.
+
+            Constraints:
+            - Do not break existing tests.
+            - Do not just do "cleanup" or "documentation" unless it is critical. Focus on functional value.
+          jules_api_key: ${{ secrets.JULES_API_KEY }}
+          include_commit_log: false
+          include_last_commit: false
+          starting_branch: master
