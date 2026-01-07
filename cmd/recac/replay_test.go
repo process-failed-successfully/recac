@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"os"
 	"strings"
@@ -34,6 +35,29 @@ func setupTestEnvironment(t *testing.T) (string, *runner.SessionManager, func())
 	}
 
 	return tempDir, sm, cleanup
+}
+
+// createFakeSession creates a mock session file in the session manager's directory.
+func createFakeSession(t *testing.T, sm *runner.SessionManager, sessionName, status string) *runner.SessionState {
+	t.Helper()
+	fakeSession := &runner.SessionState{
+		Name:      sessionName,
+		PID:       os.Getpid(),
+		StartTime: time.Now().Add(-10 * time.Minute),
+		Status:    status,
+		LogFile:   "/tmp/test.log",
+	}
+	sessionPath := sm.GetSessionPath(sessionName)
+
+	data, err := json.Marshal(fakeSession)
+	if err != nil {
+		t.Fatalf("Failed to marshal fake session: %v", err)
+	}
+
+	if err := os.WriteFile(sessionPath, data, 0644); err != nil {
+		t.Fatalf("Failed to write fake session file: %v", err)
+	}
+	return fakeSession
 }
 
 func TestReplayCmd(t *testing.T) {

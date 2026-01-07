@@ -41,6 +41,7 @@ type APIClient interface {
 	ContainerExecInspect(ctx context.Context, execID string) (container.ExecInspect, error)
 	ContainerStop(ctx context.Context, containerID string, options container.StopOptions) error
 	ContainerRemove(ctx context.Context, containerID string, options container.RemoveOptions) error
+	ContainerInspect(ctx context.Context, containerID string) (types.ContainerJSON, error)
 	Close() error
 }
 
@@ -76,6 +77,17 @@ func (c *Client) Close() error {
 // ServerVersion returns the version of the Docker server.
 func (c *Client) ServerVersion(ctx context.Context) (types.Version, error) {
 	return c.api.ServerVersion(ctx)
+}
+
+// ContainerState returns the state of a container.
+func (c *Client) ContainerState(ctx context.Context, containerID string) (*types.ContainerState, error) {
+	telemetry.TrackDockerOp(c.project)
+	inspect, err := c.api.ContainerInspect(ctx, containerID)
+	if err != nil {
+		telemetry.TrackDockerError(c.project)
+		return nil, err
+	}
+	return inspect.State, nil
 }
 
 // CheckDaemon verifies that the Docker daemon is running and reachable.

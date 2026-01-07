@@ -2,120 +2,86 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
-	"fmt"
-	"io"
-	"os"
-	"recac/internal/runner"
-	"strings"
+	"context"
+	"errors"
+	"recac/internal/docker"
 	"testing"
-	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/spf13/viper"
+	"github.com/stretchr/testify/assert"
 )
 
-// captureOutput executes a function and captures its standard output.
-func captureOutput(f func() error) (string, error) {
-	old := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	err := f()
-
-	w.Close()
-	os.Stdout = old
-
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
-	return buf.String(), err
-}
-
 func TestShowStatus(t *testing.T) {
-	// Setup: Create a temporary session manager and a fake session file
-	sm, err := runner.NewSessionManager()
-	if err != nil {
-		t.Fatalf("failed to create session manager: %v", err)
-	}
+	_, sm, cleanup := setupTestEnvironment(t)
+	defer cleanup()
 
-	sessionName := fmt.Sprintf("test-session-%d", time.Now().UnixNano())
-	fakeSession := &runner.SessionState{
-		Name:      sessionName,
-		PID:       os.Getpid(), // Use the current process ID, which is guaranteed to be running
-		StartTime: time.Now().Add(-10 * time.Minute),
-		Status:    "running",
-		LogFile:   "/tmp/test.log",
-	}
-	sessionPath := sm.GetSessionPath(sessionName)
+	sessionName := "test-session-running"
+	createFakeSession(t, sm, sessionName, "running")
 
-	data, err := json.Marshal(fakeSession)
-	if err != nil {
-		t.Fatalf("failed to marshal fake session: %v", err)
-	}
-
-	if err := os.WriteFile(sessionPath, data, 0644); err != nil {
-		t.Fatalf("failed to write fake session file: %v", err)
-	}
-	defer os.Remove(sessionPath) // Cleanup
-
-	// Setup viper config
 	viper.Set("provider", "test-provider")
 	viper.Set("model", "test-model")
 	viper.Set("config", "/tmp/config.yaml")
-	defer viper.Reset() // Cleanup viper
+	defer viper.Reset()
 
-	// Execute the command and capture output
-	output, err := captureOutput(showStatus)
-	if err != nil {
-		t.Errorf("showStatus() returned an error: %v", err)
-	}
+	t.Run("Success with Running Container", func(t *testing.T) {
+		mockClient, mockAPI := docker.NewMockClient()
+		mockAPI.ContainerInspectFunc = func(ctx context.Context, containerID string) (types.ContainerJSON, error) {
+			return types.ContainerJSON{
+				ContainerJSONBase: &types.ContainerJSONBase{
+					State: &types.ContainerState{Status: "running"},
+				},
+			}, nil
+		}
 
-	// Assertions
-	t.Run("Session Output", func(t *testing.T) {
-		if !strings.Contains(output, "[Sessions]") {
-			t.Error("output should contain '[Sessions]'")
-		}
-		if !strings.Contains(output, sessionName) {
-			t.Errorf("output should contain session name '%s'", sessionName)
-		}
-		if !strings.Contains(output, fmt.Sprintf("PID: %d", fakeSession.PID)) {
-			t.Errorf("output should contain 'PID: %d'", fakeSession.PID)
-		}
-		if !strings.Contains(output, "Status: RUNNING") {
-			t.Error("output should contain 'Status: RUNNING'")
-		}
+		var out bytes.Buffer
+		err := showStatus(&out, sm, mockClient, nil)
+		assert.NoError(t, err)
+
+		output := out.String()
+		assert.Contains(t, output, "NAME")
+		assert.Contains(t, output, "PID")
+		assert.Contains(t, output, "SESSION STATUS")
+		assert.Contains(t, output, "CONTAINER")
+		assert.Contains(t, output, sessionName)
+		assert.Contains(t, output, "RUNNING")
+		assert.Contains(t, output, "[Logs]")
+		assert.Contains(t, output, "recac logs "+sessionName)
 	})
 
-	t.Run("Docker Output", func(t *testing.T) {
-		if !strings.Contains(output, "[Docker Environment]") {
-			t.Error("output should contain '[Docker Environment]'")
+	t.Run("Container Not Found", func(t *testing.T) {
+		mockClient, mockAPI := docker.NewMockClient()
+		mockAPI.ContainerInspectFunc = func(ctx context.Context, containerID string) (types.ContainerJSON, error) {
+			return types.ContainerJSON{}, errors.New("container not found")
 		}
+
+		var out bytes.Buffer
+		err := showStatus(&out, sm, mockClient, nil)
+		assert.NoError(t, err)
+		assert.Contains(t, out.String(), "NOT FOUND")
 	})
 
-	t.Run("Configuration Output", func(t *testing.T) {
-		if !strings.Contains(output, "[Configuration]") {
-			t.Error("output should contain '[Configuration]'")
-		}
-		if !strings.Contains(output, "Provider: test-provider") {
-			t.Error("output should contain 'Provider: test-provider'")
-		}
-		if !strings.Contains(output, "Model: test-model") {
-			t.Error("output should contain 'Model: test-model'")
-		}
-		if !strings.Contains(output, "Config File: /tmp/config.yaml") {
-			t.Error("output should contain 'Config File: /tmp/config.yaml'")
-		}
+	t.Run("No Sessions", func(t *testing.T) {
+		// Create a new, empty session manager for this test
+		_, emptySm, emptyCleanup := setupTestEnvironment(t)
+		defer emptyCleanup()
+		mockClient, _ := docker.NewMockClient()
+
+		var out bytes.Buffer
+		err := showStatus(&out, emptySm, mockClient, nil)
+		assert.NoError(t, err)
+		assert.Contains(t, out.String(), "No active or past sessions found.")
 	})
-}
 
-func TestShowStatus_NoSessions(t *testing.T) {
-	// Execute the command with no sessions present
-	output, err := captureOutput(showStatus)
-	if err != nil {
-		t.Errorf("showStatus() returned an error: %v", err)
-	}
+	t.Run("Docker Client Initialization Error", func(t *testing.T) {
+		dockerErr := errors.New("docker daemon not available")
 
-	// Assertions
-	if !strings.Contains(output, "No active or past sessions found.") {
-		t.Error("output should contain 'No active or past sessions found.'")
-	}
+		var out bytes.Buffer
+		err := showStatus(&out, sm, nil, dockerErr)
+		assert.NoError(t, err)
+
+		output := out.String()
+		assert.Contains(t, output, "Docker client failed to initialize")
+		assert.Contains(t, output, dockerErr.Error())
+	})
 }
