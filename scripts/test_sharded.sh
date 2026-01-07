@@ -27,4 +27,7 @@ echo "$PACKAGES"
 
 # Run tests for selected packages
 # We use echo to pass packages as arguments to go test
-echo "$PACKAGES" | xargs go test -buildvcs=false -v
+echo "$PACKAGES" | while read -r package; do
+  echo "--- Testing package: $package ---"
+  go test -buildvcs=false -v "$package"
+done
