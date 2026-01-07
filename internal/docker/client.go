@@ -30,6 +30,7 @@ var DefaultAgentDockerfile string
 // This allows for mocking in tests.
 type APIClient interface {
 	Ping(ctx context.Context) (types.Ping, error)
+	ServerVersion(ctx context.Context) (types.Version, error)
 	ImageList(ctx context.Context, options image.ListOptions) ([]image.Summary, error)
 	ImagePull(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error)
 	ImageBuild(ctx context.Context, buildContext io.Reader, options build.ImageBuildOptions) (types.ImageBuildResponse, error)
@@ -70,6 +71,11 @@ func NewClient(project string) (*Client, error) {
 // Close closes the underlying docker client connection.
 func (c *Client) Close() error {
 	return c.api.Close()
+}
+
+// ServerVersion returns the version of the Docker server.
+func (c *Client) ServerVersion(ctx context.Context) (types.Version, error) {
+	return c.api.ServerVersion(ctx)
 }
 
 // CheckDaemon verifies that the Docker daemon is running and reachable.

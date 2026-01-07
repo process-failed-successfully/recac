@@ -21,6 +21,7 @@ import (
 
 type mockAPIClient struct {
 	pingFunc                func(ctx context.Context) (types.Ping, error)
+	serverVersionFunc       func(ctx context.Context) (types.Version, error)
 	imageListFunc           func(ctx context.Context, options image.ListOptions) ([]image.Summary, error)
 	imagePullFunc           func(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error)
 	containerStopFunc       func(ctx context.Context, containerID string, options container.StopOptions) error
@@ -34,6 +35,13 @@ func (m *mockAPIClient) Ping(ctx context.Context) (types.Ping, error) {
 		return m.pingFunc(ctx)
 	}
 	return types.Ping{}, nil
+}
+
+func (m *mockAPIClient) ServerVersion(ctx context.Context) (types.Version, error) {
+	if m.serverVersionFunc != nil {
+		return m.serverVersionFunc(ctx)
+	}
+	return types.Version{}, nil
 }
 
 func (m *mockAPIClient) ImageList(ctx context.Context, options image.ListOptions) ([]image.Summary, error) {

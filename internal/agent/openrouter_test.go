@@ -40,14 +40,14 @@ func TestOpenRouterClient(t *testing.T) {
 	stateFile := tmpDir + "/agent_state.json"
 	sm := NewStateManager(stateFile)
 	_ = sm.InitializeState(1000)
-	
+
 	client.WithStateManager(sm)
-	
+
 	resp, err = client.Send(context.Background(), "Hello with State")
 	if err != nil {
 		t.Fatalf("Send with State failed: %v", err)
 	}
-	
+
 	// Verify state updated (mock responder should trigger state update logic in Send)
 	state, _ := sm.Load()
 	if state.TokenUsage.TotalTokens == 0 {

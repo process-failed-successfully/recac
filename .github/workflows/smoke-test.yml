@@ -1,0 +1,60 @@
+name: Smoke Test (k3s)
+
+on:
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Setup k3d
+        uses: AbsaOSS/k3d-action@v2
+        with:
+          cluster-name: "recac-smoke"
+          args: >-
+            --agents 1
+            --no-lb
+            --volume /var/run/docker.sock:/var/run/docker.sock
+            --k3s-arg "--disable=traefik@server:*"
+            --k3s-arg "--disable=metrics-server@server:*"
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "latest"
+
+      - name: Build Docker Image
+        run: |
+          make image-prod DEPLOY_IMAGE=recac:smoke
+
+      - name: Load Image into k3d
+        run: |
+          k3d image import recac:smoke -c recac-smoke
+
+      - name: Run E2E Test
+        env:
+          JIRA_URL: ${{ secrets.JIRA_URL }}
+          JIRA_USERNAME: ${{ secrets.JIRA_USERNAME }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          GITHUB_API_KEY: ${{ secrets.GH_API_KEY }}
+          GITHUB_EMAIL: ${{ secrets.GH_EMAIL }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          go run e2e/runner/main.go \
+            -scenario prime-python \
+            -provider openrouter \
+            -model "mistralai/devstral-2512:free" \
+            -image recac:smoke \
+            -repo-url "https://github.com/process-failed-successfully/recac-jira-e2e" \
+            -pull-policy Never \
+            -skip-build
