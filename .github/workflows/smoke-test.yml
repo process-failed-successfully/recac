@@ -55,6 +55,6 @@ jobs:
             -provider openrouter \
             -model "mistralai/devstral-2512:free" \
             -image recac:smoke \
-            -repo-url "https://github.com/${{ github.repository }}" \
+            -repo-url "https://github.com/process-failed-successfully/recac-jira-e2e" \
             -pull-policy Never \
             -skip-build
