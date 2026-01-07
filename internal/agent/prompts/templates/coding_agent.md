@@ -10,7 +10,7 @@ You are running inside a **Docker container**. This has specific implications:
 - **Usage of Sudo:** You are running as a non-root user. If you need to install system requirements, use `sudo apt-get install ...`.
 - **Ephemeral Environment:** System-level changes (apt packages) will not persist across restarts unless added to the init.sh. Use `init.sh` to install requirements and update as requirements change.
 - **Dev Experience** Always introduce `Makefile` targets to make development tasks simpler. It should be able to run dev servers, run tests, run linting and formatting, etc.
-- **No GUI:** You have no graphical user interface. Use headless browsers if automation is required.
+- **No GUI:** You have no graphical user interface.
 - **Feature Tracking:** The `feature_list.json` file is a mirrored view of a persistent database. Continue to update it manually to reflect your progress; the orchestrator will sync valid changes back to the database. If the file is corrupted, the orchestrator will restore it from the DB.
 - **Environment Bootstrapping:** The container image is **MINIMAL** by design to avoid bloat. You are RESPONSIBLE for your environment. If any tool (Node.js, Python, Make, etc.) is missing, YOU MUST install it immediately using `sudo apt-get install -y <package>`. Do not complain about missing tools; be an engineer and setup your workspace.
 
@@ -62,7 +62,7 @@ First, check your location and list files:
 
 ```bash
 pwd
-ls -la
+ls -la | head -50
 ```
 
 Then read the specification and plan:
@@ -83,7 +83,7 @@ You are assigned to work on **EXACTLY ONE** feature. Once you have completed the
 - **NO SCOPE CREEP**: Do not add extra features, "future-proofing", or hallucinations (e.g., blockchain, quantum) unless explicitly in the feature description.
 - **MVP First**: Deliver functional POC/MVP code before adding complexity.
 
-1. Find the assigned feature in `feature_list.json` (or the highest-priority one if not specifically assigned).
+1. Find the assigned feature in `feature_list.json`
 2. Verify required packages are installed. If not, install them.
 3. Implement it thoroughly (frontend and/or backend).
    - **MANDATORY:** Write unit tests for your new code. Code without tests is not done.

@@ -1,0 +1,152 @@
+=== RUN   TestCommands
+=== RUN   TestCommands/Init_Command
+Created default configuration file: config.yaml
+Initializing project from spec: app_spec.txt
+Using Mock Agent...
+Generating feature list (this may take a moment)...
+Created feature_list.json
+Project structure created successfully.
+=== RUN   TestCommands/Config_Command
+Starting metrics server on :2112
+Using config file: /tmp/TestCommands2628342446/001/init-test/config.yaml
+Listing models for provider: gemini
+Starting metrics server on :2113
+- gemini-pro (Gemini Pro)
+=== RUN   TestCommands/Start_Mock_Command
+Using config file: /tmp/TestCommands2628342446/001/init-test/config.yaml
+Using project path: .
+[] Starting in MOCK MODE
+Starting metrics server on :2114
+Session logs will be written to: /tmp/TestCommands2628342446/001/start-test/agents/logs/mock-project_agent_mock-project_20260107-134555.log
+Initializing session with image: ghcr.io/process-failed-successfully/recac-agent:latest
+Loaded spec: 9 bytes
+Default agent image 'ghcr.io/process-failed-successfully/recac-agent:latest' not found locally. Pulling...
+Agent image pulled successfully.
+Warning: Failed to locate agent-bridge binary: agent-bridge binary not found at /tmp/TestCommands2628342446/001/start-test/agent-bridge. Did you run 'make bridge'?. Agent CLI tools will not work.
+Container started successfully. ID: mock-container-id
+Fixing container passwd database for UID:GID 1000:1000...
+Updated workspace .gitignore with agent patterns.
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent, excludes: /etc/gitignore_global)...
+{"time":"2026-01-07T13:45:55.731234718+08:00","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-01-07T13:45:55.731280003+08:00","level":"INFO","msg":"entering autonomous run loop","project":"mock-project"}
+{"time":"2026-01-07T13:45:55.731284065+08:00","level":"INFO","msg":"Checking notification for event: on_start"}
+Warning: Failed to ensure state files are ignored: failed to untrack state files: exit status 128
+{"time":"2026-01-07T13:45:55.732815071+08:00","level":"INFO","msg":"starting iteration","project":"mock-project","iteration":1}
+Feature list found but is empty. Running Initializer.
+{"time":"2026-01-07T13:45:55.733061515+08:00","level":"INFO","msg":"agent role selected","project":"mock-project","role":"Agent"}
+{"time":"2026-01-07T13:45:55.733071747+08:00","level":"INFO","msg":"sending prompt to agent","project":"mock-project"}
+Agent Response: Mock agent response:
+
+I received your prompt (3345 characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.
+
+Prompt preview: ## YOUR ROLE - INITIALIZER AGENT
+
+You are the FIRST agent in a long-running autonomous development p...
+{"time":"2026-01-07T13:45:55.7331017+08:00","level":"INFO","msg":"agent response received","project":"mock-project","role":"Agent","chars":314}
+{"time":"2026-01-07T13:45:55.733191499+08:00","level":"INFO","msg":"security scan passed","project":"mock-project"}
+{"time":"2026-01-07T13:45:56.735823405+08:00","level":"INFO","msg":"reached max iterations","project":"mock-project","max_iterations":1}
+Cleaning up container: mock-container-id
+Container cleaned up successfully
+Session failed: maximum iterations reached
+
+=== CRITICAL ERROR: Session Panic ===
+Error: exit-1
+Attempting graceful shutdown...
+=== RUN   TestCommands/List_Command_With_Data
+Using config file: /tmp/TestCommands2628342446/001/init-test/config.yaml
+No sessions found.
+=== RUN   TestCommands/Signal_Command
+Starting metrics server on :2115
+Using config file: /tmp/TestCommands2628342446/001/init-test/config.yaml
+Starting metrics server on :2116
+Signal 'SOME_SIGNAL' cleared successfully.
+=== RUN   TestCommands/Logs_Command
+View logs for a specific session. Use --follow to stream logs in real-time.
+
+Usage:
+  recac logs [session-name] [flags]
+
+Flags:
+      --filter string   Filter logs by string match
+  -f, --follow          Follow log output (like tail -f)
+  -h, --help            help for logs
+
+Global Flags:
+      --config string     config file (default is $HOME/.recac.yaml)
+      --mock              Start in mock mode (no Docker or API keys required)
+      --model string      Model to use (overrides config and RECAC_MODEL env var)
+      --provider string   Agent provider (gemini, openai, openrouter, etc)
+  -v, --verbose           Enable verbose/debug logging
+=== RUN   TestCommands/List_Command
+Using config file: /tmp/TestCommands2628342446/001/init-test/config.yaml
+No sessions found.
+=== RUN   TestCommands/Check_Command
+Starting metrics server on :2117
+Using config file: /tmp/TestCommands2628342446/001/init-test/config.yaml
+Running pre-flight checks...
+✅ Config found
+✅ Go installed
+Starting metrics server on :2118
+✅ Docker running
+
+All checks passed! 🚀
+=== RUN   TestCommands/Clean_Command
+Using config file: /tmp/TestCommands2628342446/001/init-test/config.yaml
+Cleaning up temporary files...
+Removed /tmp/TestCommandsClean_Command3726910600/001/dummy.txt
+Cleanup complete.
+=== RUN   TestCommands/Version_Command
+Starting metrics server on :2119
+Using config file: /tmp/TestCommands2628342446/001/init-test/config.yaml
+recac version v0.2.0
+Commit: HEAD
+Build Date: 2025-12-28
+Go Version: go1.25.0
+Platform: linux/amd64
+=== RUN   TestCommands/Missing_Args
+Starting metrics server on :2120
+Using config file: /tmp/TestCommands2628342446/001/init-test/config.yaml
+Usage:
+  recac logs [session-name] [flags]
+
+Flags:
+      --filter string   Filter logs by string match
+  -f, --follow          Follow log output (like tail -f)
+  -h, --help            help for logs
+
+Global Flags:
+      --config string     config file (default is $HOME/.recac.yaml)
+      --mock              Start in mock mode (no Docker or API keys required)
+      --model string      Model to use (overrides config and RECAC_MODEL env var)
+      --provider string   Agent provider (gemini, openai, openrouter, etc)
+  -v, --verbose           Enable verbose/debug logging
+
+Using config file: /tmp/TestCommands2628342446/001/init-test/config.yaml
+Starting metrics server on :2121
+Warning: Failed to start metrics server: failed to find available port starting from 2112: listen tcp :2121: bind: address already in use
+[?25l[?2004hProject Setup
+             
+
+Enter project directory:
+> /path/to/project                         
+
+(Esc to quit)[2K[?2004l[?25h[?1002l[?1003l[?1006lNo project path selected. Exiting.
+    commands_test.go:278: Expected error for detached without name
+--- PASS: TestCommands (291.48s)
+    --- PASS: TestCommands/Init_Command (0.00s)
+    --- PASS: TestCommands/Config_Command (0.00s)
+    --- PASS: TestCommands/Start_Mock_Command (1.01s)
+    --- PASS: TestCommands/List_Command_With_Data (0.00s)
+    --- PASS: TestCommands/Signal_Command (0.00s)
+    --- PASS: TestCommands/Logs_Command (0.00s)
+    --- PASS: TestCommands/List_Command (0.00s)
+    --- PASS: TestCommands/Check_Command (0.04s)
+    --- PASS: TestCommands/Clean_Command (0.00s)
+    --- PASS: TestCommands/Version_Command (0.00s)
+    --- PASS: TestCommands/Missing_Args (290.43s)
+=== RUN   TestMain_HappyPath
+--- PASS: TestMain_HappyPath (0.01s)
+=== RUN   TestRepoRegex
+--- PASS: TestRepoRegex (0.00s)
+PASS
+ok  	recac/cmd/recac	291.504s

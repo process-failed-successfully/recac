@@ -104,12 +104,24 @@ var (
 	}, []string{"project"})
 )
 
-var metricsOnce sync.Once
+var (
+	metricsOnce    sync.Once
+	metricsMu      sync.Mutex
+	metricsRunning bool
+)
 
 // StartMetricsServer starts a HTTP server exposing Prometheus metrics.
 // It attempts to bind to the given port. If the port is in use, it will
 // try the next 10 ports before giving up.
 func StartMetricsServer(basePort int) error {
+	metricsMu.Lock()
+	if metricsRunning {
+		metricsMu.Unlock()
+		return nil // Already running
+	}
+	metricsRunning = true
+	metricsMu.Unlock()
+
 	metricsOnce.Do(func() {
 		http.Handle("/metrics", promhttp.Handler())
 	})
@@ -126,10 +138,11 @@ func StartMetricsServer(basePort int) error {
 			fmt.Printf("Starting metrics server on %s\n", addr)
 			return http.Serve(listener, nil)
 		}
-		// If it's not an "address already in use" error, retry might not help, but for simplicity we continue.
-		// In a real app we might check the error type.
 	}
 
+	metricsMu.Lock()
+	metricsRunning = false
+	metricsMu.Unlock()
 	return fmt.Errorf("failed to find available port starting from %d: %w", basePort, err)
 }
 
