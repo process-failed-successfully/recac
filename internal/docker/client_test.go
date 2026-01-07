@@ -1,11 +1,9 @@
 package docker
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"io"
-	"net"
 	"os"
 	"strings"
 	"testing"
@@ -15,111 +13,13 @@ import (
 	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/network"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-type mockAPIClient struct {
-	pingFunc                func(ctx context.Context) (types.Ping, error)
-	serverVersionFunc       func(ctx context.Context) (types.Version, error)
-	imageListFunc           func(ctx context.Context, options image.ListOptions) ([]image.Summary, error)
-	imagePullFunc           func(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error)
-	containerStopFunc       func(ctx context.Context, containerID string, options container.StopOptions) error
-	containerCreateFunc     func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error)
-	containerExecCreateFunc func(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error)
-	containerExecAttachFunc func(ctx context.Context, execID string, config container.ExecStartOptions) (types.HijackedResponse, error)
-}
-
-func (m *mockAPIClient) Ping(ctx context.Context) (types.Ping, error) {
-	if m.pingFunc != nil {
-		return m.pingFunc(ctx)
-	}
-	return types.Ping{}, nil
-}
-
-func (m *mockAPIClient) ServerVersion(ctx context.Context) (types.Version, error) {
-	if m.serverVersionFunc != nil {
-		return m.serverVersionFunc(ctx)
-	}
-	return types.Version{}, nil
-}
-
-func (m *mockAPIClient) ImageList(ctx context.Context, options image.ListOptions) ([]image.Summary, error) {
-	if m.imageListFunc != nil {
-		return m.imageListFunc(ctx, options)
-	}
-	return []image.Summary{}, nil
-}
-
-func (m *mockAPIClient) ImagePull(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error) {
-	if m.imagePullFunc != nil {
-		return m.imagePullFunc(ctx, ref, options)
-	}
-	return io.NopCloser(strings.NewReader("")), nil
-}
-
-func (m *mockAPIClient) ImageBuild(ctx context.Context, buildContext io.Reader, options build.ImageBuildOptions) (types.ImageBuildResponse, error) {
-	return types.ImageBuildResponse{Body: io.NopCloser(strings.NewReader(""))}, nil
-}
-
-func (m *mockAPIClient) ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error) {
-	if m.containerCreateFunc != nil {
-		return m.containerCreateFunc(ctx, config, hostConfig, networkingConfig, platform, containerName)
-	}
-	return container.CreateResponse{ID: "mock-id"}, nil
-}
-
-func (m *mockAPIClient) ContainerStart(ctx context.Context, containerID string, options container.StartOptions) error {
-	return nil
-}
-
-func (m *mockAPIClient) ContainerExecCreate(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error) {
-	if m.containerExecCreateFunc != nil {
-		return m.containerExecCreateFunc(ctx, container, config)
-	}
-	return types.IDResponse{}, nil
-}
-
-func (m *mockAPIClient) ContainerExecAttach(ctx context.Context, execID string, config container.ExecStartOptions) (types.HijackedResponse, error) {
-	if m.containerExecAttachFunc != nil {
-		return m.containerExecAttachFunc(ctx, execID, config)
-	}
-	// We need a non-nil Conn to avoid panic in Close()
-	return types.HijackedResponse{
-		Reader: bufio.NewReader(strings.NewReader("")),
-		Conn:   &net.TCPConn{},
-	}, nil
-}
-
-func (m *mockAPIClient) ContainerExecInspect(ctx context.Context, execID string) (container.ExecInspect, error) {
-	return container.ExecInspect{ExitCode: 0}, nil
-}
-
-func (m *mockAPIClient) ContainerStop(ctx context.Context, containerID string, options container.StopOptions) error {
-	if m.containerStopFunc != nil {
-		return m.containerStopFunc(ctx, containerID, options)
-	}
-	return nil
-}
-
-func (m *mockAPIClient) ContainerRemove(ctx context.Context, containerID string, options container.RemoveOptions) error {
-	if containerID == "fail" {
-		return errors.New("remove failed")
-	}
-	return nil
-}
-
-func (m *mockAPIClient) Close() error {
-	return nil
-}
-
 func TestCheckDaemon_Success(t *testing.T) {
-	mock := &mockAPIClient{
-		pingFunc: func(ctx context.Context) (types.Ping, error) {
-			return types.Ping{}, nil
-		},
+	client, mock := NewMockClient()
+	mock.PingFunc = func(ctx context.Context) (types.Ping, error) {
+		return types.Ping{}, nil
 	}
-	client := &Client{api: mock}
 
 	if err := client.CheckDaemon(context.Background()); err != nil {
 		t.Fatalf("CheckDaemon failed: %v", err)
@@ -127,12 +27,10 @@ func TestCheckDaemon_Success(t *testing.T) {
 }
 
 func TestCheckDaemon_Failure(t *testing.T) {
-	mock := &mockAPIClient{
-		pingFunc: func(ctx context.Context) (types.Ping, error) {
-			return types.Ping{}, errors.New("daemon down")
-		},
+	client, mock := NewMockClient()
+	mock.PingFunc = func(ctx context.Context) (types.Ping, error) {
+		return types.Ping{}, errors.New("daemon down")
 	}
-	client := &Client{api: mock}
 
 	if err := client.CheckDaemon(context.Background()); err == nil {
 		t.Fatal("CheckDaemon expected error, got nil")
@@ -140,26 +38,22 @@ func TestCheckDaemon_Failure(t *testing.T) {
 }
 
 func TestCheckSocket(t *testing.T) {
-	mock := &mockAPIClient{
-		pingFunc: func(ctx context.Context) (types.Ping, error) {
-			return types.Ping{}, nil
-		},
+	client, mock := NewMockClient()
+	mock.PingFunc = func(ctx context.Context) (types.Ping, error) {
+		return types.Ping{}, nil
 	}
-	client := &Client{api: mock}
 	if err := client.CheckSocket(context.Background()); err != nil {
 		t.Fatalf("CheckSocket failed: %v", err)
 	}
 }
 
 func TestCheckImage(t *testing.T) {
-	mock := &mockAPIClient{
-		imageListFunc: func(ctx context.Context, options image.ListOptions) ([]image.Summary, error) {
-			return []image.Summary{
-				{RepoTags: []string{"alpine:latest"}},
-			}, nil
-		},
+	client, mock := NewMockClient()
+	mock.ImageListFunc = func(ctx context.Context, options image.ListOptions) ([]image.Summary, error) {
+		return []image.Summary{
+			{RepoTags: []string{"alpine:latest"}},
+		}, nil
 	}
-	client := &Client{api: mock}
 
 	exists, err := client.CheckImage(context.Background(), "alpine:latest")
 	if err != nil {
@@ -179,12 +73,10 @@ func TestCheckImage(t *testing.T) {
 }
 
 func TestPullImage(t *testing.T) {
-	mock := &mockAPIClient{
-		imagePullFunc: func(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error) {
-			return io.NopCloser(strings.NewReader(`{"status":"pulling..."}`)), nil
-		},
+	client, mock := NewMockClient()
+	mock.ImagePullFunc = func(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error) {
+		return io.NopCloser(strings.NewReader(`{"status":"pulling..."}`)), nil
 	}
-	client := &Client{api: mock}
 
 	if err := client.PullImage(context.Background(), "alpine:latest"); err != nil {
 		t.Fatalf("PullImage failed: %v", err)
@@ -192,15 +84,19 @@ func TestPullImage(t *testing.T) {
 }
 
 func TestStopContainer(t *testing.T) {
-	mock := &mockAPIClient{
-		containerStopFunc: func(ctx context.Context, containerID string, options container.StopOptions) error {
-			if containerID == "fail" {
-				return errors.New("stop failed")
-			}
-			return nil
-		},
+	client, mock := NewMockClient()
+	mock.ContainerStopFunc = func(ctx context.Context, containerID string, options container.StopOptions) error {
+		if containerID == "fail" {
+			return errors.New("stop failed")
+		}
+		return nil
 	}
-	client := &Client{api: mock}
+	mock.ContainerRemoveFunc = func(ctx context.Context, containerID string, options container.RemoveOptions) error {
+		if containerID == "fail" {
+			return errors.New("remove failed")
+		}
+		return nil
+	}
 
 	if err := client.StopContainer(context.Background(), "good"); err != nil {
 		t.Errorf("StopContainer failed: %v", err)
@@ -403,13 +299,11 @@ func TestDockerInDocker_Support(t *testing.T) {
 
 func TestExec_WorkingDir(t *testing.T) {
 	var capturedConfig container.ExecOptions
-	mock := &mockAPIClient{
-		containerExecCreateFunc: func(ctx context.Context, containerID string, config container.ExecOptions) (types.IDResponse, error) {
-			capturedConfig = config
-			return types.IDResponse{ID: "exec-id"}, nil
-		},
+	client, mock := NewMockClient()
+	mock.ContainerExecCreateFunc = func(ctx context.Context, containerID string, config container.ExecOptions) (types.IDResponse, error) {
+		capturedConfig = config
+		return types.IDResponse{ID: "exec-id"}, nil
 	}
-	client := &Client{api: mock}
 
 	_, _ = client.Exec(context.Background(), "container-id", []string{"ls"})
 
@@ -420,13 +314,11 @@ func TestExec_WorkingDir(t *testing.T) {
 
 func TestExecAsUser_WorkingDir(t *testing.T) {
 	var capturedConfig container.ExecOptions
-	mock := &mockAPIClient{
-		containerExecCreateFunc: func(ctx context.Context, containerID string, config container.ExecOptions) (types.IDResponse, error) {
-			capturedConfig = config
-			return types.IDResponse{ID: "exec-id"}, nil
-		},
+	client, mock := NewMockClient()
+	mock.ContainerExecCreateFunc = func(ctx context.Context, containerID string, config container.ExecOptions) (types.IDResponse, error) {
+		capturedConfig = config
+		return types.IDResponse{ID: "exec-id"}, nil
 	}
-	client := &Client{api: mock}
 
 	_, _ = client.ExecAsUser(context.Background(), "container-id", "user", []string{"ls"})
 
