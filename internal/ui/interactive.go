@@ -442,6 +442,10 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.setMode(ModeChat) // Return to chat after command
 		return m, nil
 
+	case StatusMsg:
+		m.conversation(string(msg), false)
+		return m, nil
+
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -721,6 +725,18 @@ func (m *InteractiveModel) runShellCommand(cmdStr string) tea.Cmd {
 }
 
 type shellOutputMsg string
+
+// StatusMsg is a message type for displaying status information.
+type StatusMsg string
+
+// ClearHistory clears the conversation history.
+func (m *InteractiveModel) ClearHistory() {
+	m.history = []string{}
+	clearedMsg := interactiveStatusMessageStyle.Render("Conversation history cleared.")
+	m.history = append(m.history, clearedMsg)
+	m.viewport.SetContent(strings.Join(m.history, "\n"))
+	m.viewport.GotoBottom()
+}
 
 func (m InteractiveModel) View() string {
 	var views []string

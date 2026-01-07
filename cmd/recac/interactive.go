@@ -41,16 +41,18 @@ func RunInteractive() {
 		Name:        "/clear",
 		Description: "Clear conversation history",
 		Action: func(m *ui.InteractiveModel, args []string) tea.Cmd {
-			// Cannot easily clear history from here without exposing fields,
-			// but we can implement a custom message or just let UI handle it if we moved logic there.
-			// Actually, the new UI helper doesn't expose fields publicly.
-			// Let's rely on validCommands being passed in, but the Action logic needs access to 'm'.
-			// Since 'm' is passed to Action, we can modify it if fields are exported.
-			// Currently fields are NOT exported in my previous write.
-			// I should have exported them or added helper methods.
-			// For now, let's skip implementation detail of 'clear' or implement it via re-init?
-			// But for parity, let's focus on Cobra commands.
+			m.ClearHistory()
 			return nil
+		},
+	})
+
+	commands = append(commands, ui.SlashCommand{
+		Name:        "/status",
+		Description: "Show RECAC status",
+		Action: func(m *ui.InteractiveModel, args []string) tea.Cmd {
+			return func() tea.Msg {
+				return ui.StatusMsg(ui.GetStatus())
+			}
 		},
 	})
 
