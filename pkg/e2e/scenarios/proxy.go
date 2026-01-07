@@ -2,6 +2,7 @@ package scenarios
 
 import (
 	"fmt"
+	"os/exec"
 )
 
 type HTTPProxyScenario struct{}
