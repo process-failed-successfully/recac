@@ -10,6 +10,7 @@
 - **📋 Feature Tracking**: End-to-end feature lifecycle management (Spec -> Implementation -> Verification).
 - **📊 Web Dashboard**: Real-time TUI and Web dashboard for monitoring progress.
 - **🔗 Integrations**: JIRA for tickets, Slack/Discord for notifications, Git for version control.
+- **🔄 Orchestration**: Pool and process work items from Jira or files using autonomous agents.
 
 ## Quick Start
 
@@ -89,13 +90,61 @@ Manage feature branches:
 recac feature start "User Authentication"
 ```
 
-### 4. Other Commands
+### 4. Session Management
 
-- `recac stop`: Stop the running development container.
-- `recac logs`: View agent and container logs.
-- `recac clean`: Remove temporary files and containers.
-- `recac build`: Build the project (if applicable).
-- `recac jira sync`: Sync local features with JIRA issues.
+Recac allows you to manage multiple concurrent or background sessions.
+
+- **List Sessions**: View all active and completed sessions.
+  ```bash
+  recac list
+  ```
+
+- **Check Status**: View detailed status of sessions, Docker environment, and configuration.
+  ```bash
+  recac status
+  ```
+
+- **Attach to Session**: Re-attach to a running session to view its live logs.
+  ```bash
+  recac attach <session-name>
+  ```
+
+### 5. Orchestration
+
+The orchestrator pools work items (e.g., Jira tickets) and spawns agents to handle them.
+
+```bash
+# Run locally (uses Docker to spawn agents)
+recac orchestrate --mode local --jira-label "recac-agent"
+
+# Run in Kubernetes (spawns K8s Jobs)
+recac orchestrate --mode k8s --namespace default
+```
+
+Common flags:
+- `--mode`: `local` or `k8s` (default: local)
+- `--poller`: `jira` or `file` (default: jira)
+- `--jira-label`: Label to filter tickets by.
+- `--interval`: Polling interval (default: 1m).
+
+### 6. Troubleshooting & Maintenance
+
+- **Pre-flight Check**: Check environment dependencies (Go, Docker, Config).
+  ```bash
+  recac check
+  # Attempt to fix issues automatically
+  recac check --fix
+  ```
+
+- **Signal Management**: Manage persistent project signals (stored in `.recac.db`).
+  ```bash
+  # Clear a specific signal (e.g., to reset project sign-off)
+  recac signal clear PROJECT_SIGNED_OFF
+  ```
+
+- **Logs & Cleaning**:
+  - `recac logs`: View agent and container logs.
+  - `recac clean`: Remove temporary files and containers.
 
 ## End-to-End Example: Hello World
 

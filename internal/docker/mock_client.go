@@ -18,6 +18,7 @@ import (
 // MockAPI implements APIClient for testing and mock execution.
 type MockAPI struct {
 	PingFunc                 func(ctx context.Context) (types.Ping, error)
+	ServerVersionFunc        func(ctx context.Context) (types.Version, error)
 	ImageListFunc            func(ctx context.Context, options image.ListOptions) ([]image.Summary, error)
 	ImagePullFunc            func(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error)
 	ImageBuildFunc           func(ctx context.Context, buildContext io.Reader, options build.ImageBuildOptions) (types.ImageBuildResponse, error)
@@ -36,6 +37,18 @@ func (m *MockAPI) Ping(ctx context.Context) (types.Ping, error) {
 		return m.PingFunc(ctx)
 	}
 	return types.Ping{}, nil
+}
+
+func (m *MockAPI) ServerVersion(ctx context.Context) (types.Version, error) {
+	if m.ServerVersionFunc != nil {
+		return m.ServerVersionFunc(ctx)
+	}
+	return types.Version{
+		Version:    "mock-docker-20.10.7",
+		APIVersion: "1.41",
+		Os:         "linux",
+		Arch:       "amd64",
+	}, nil
 }
 
 func (m *MockAPI) ImageList(ctx context.Context, options image.ListOptions) ([]image.Summary, error) {

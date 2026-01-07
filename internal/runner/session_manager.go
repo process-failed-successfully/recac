@@ -36,12 +36,22 @@ func NewSessionManager() (*SessionManager, error) {
 	}
 
 	sessionsDir := filepath.Join(homeDir, ".recac", "sessions")
-	if err := os.MkdirAll(sessionsDir, 0755); err != nil {
+	if err := os.MkdirAll(sessionsDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create sessions directory: %w", err)
 	}
 
 	return &SessionManager{
 		sessionsDir: sessionsDir,
+	}, nil
+}
+
+// NewSessionManagerWithDir creates a new session manager with a specific directory.
+func NewSessionManagerWithDir(dir string) (*SessionManager, error) {
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return nil, fmt.Errorf("failed to create sessions directory: %w", err)
+	}
+	return &SessionManager{
+		sessionsDir: dir,
 	}, nil
 }
 
@@ -67,7 +77,8 @@ func (sm *SessionManager) StartSession(name string, command []string, workspace 
 	// Create log file
 	logFile := filepath.Join(sm.sessionsDir, name+".log")
 	// Use OpenFile with O_EXCL to prevent TOCTOU race conditions and overwriting existing logs atomically
-	logFd, err := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666)
+	// Use 0600 to restrict access to the owner only
+	logFd, err := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create log file (safe): %w", err)
 	}
@@ -164,7 +175,7 @@ func (sm *SessionManager) SaveSession(session *SessionState) error {
 		return fmt.Errorf("failed to marshal session: %w", err)
 	}
 
-	if err := os.WriteFile(sessionPath, data, 0644); err != nil {
+	if err := os.WriteFile(sessionPath, data, 0600); err != nil {
 		return fmt.Errorf("failed to write session file: %w", err)
 	}
 
