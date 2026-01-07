@@ -96,7 +96,7 @@ type JiraClient interface {
 }
 
 // NewSession creates a new worker session
-func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *Session {
+func NewSession(d docker.IClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *Session {
 	// Default to "unknown" if project is empty
 	if project == "" {
 		project = "unknown"

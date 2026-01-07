@@ -52,7 +52,7 @@ type Client struct {
 }
 
 // NewClient creates a new Docker client instance.
-func NewClient(project string) (*Client, error) {
+func NewClient(project string) (IClient, error) {
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create docker client: %w", err)

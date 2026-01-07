@@ -729,6 +729,9 @@ type shellOutputMsg string
 // StatusMsg is a message type for displaying status information.
 type StatusMsg string
 
+// ErrorMsg is a message indicating an error has occurred.
+type ErrorMsg error
+
 // ClearHistory clears the conversation history.
 func (m *InteractiveModel) ClearHistory() {
 	m.history = []string{}

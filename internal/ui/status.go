@@ -6,41 +6,58 @@ import (
 	"recac/internal/docker"
 	"recac/internal/runner"
 	"strings"
-	"time"
 
 	"github.com/spf13/viper"
 )
 
-// GetStatus generates a formatted string with the current status of RECAC.
-func GetStatus() string {
+// NewSessionManager is a variable that holds the function to create a new session manager.
+// This can be replaced in tests to inject a mock session manager.
+var NewSessionManager = runner.NewSessionManager
+
+// NewDockerClient is a variable that holds the function to create a new Docker client.
+// This can be replaced in tests to inject a mock Docker client.
+var NewDockerClient = docker.NewClient
+
+// GetStatus generates a detailed status report of the RECAC environment.
+// It includes session statuses, Docker environment details, and current configuration.
+func GetStatus() (string, error) {
 	var b strings.Builder
 
 	b.WriteString("--- RECAC Status ---\n")
 
 	// --- Sessions ---
 	b.WriteString("\n[Sessions]\n")
-	sm, err := runner.NewSessionManager()
+	sm, err := NewSessionManager()
 	if err != nil {
-		b.WriteString(fmt.Sprintf("  Error: failed to initialize session manager: %v\n", err))
+		return "", fmt.Errorf("failed to initialize session manager: %w", err)
+	}
+
+	sessions, err := sm.ListSessions()
+	if err != nil {
+		return "", fmt.Errorf("failed to list sessions: %w", err)
+	}
+
+	if len(sessions) == 0 {
+		b.WriteString("No active or past sessions found.\n")
 	} else {
-		sessions, err := sm.ListSessions()
-		if err != nil {
-			b.WriteString(fmt.Sprintf("  Error: failed to list sessions: %v\n", err))
-		} else if len(sessions) == 0 {
-			b.WriteString("  No active or past sessions found.\n")
-		} else {
-			for _, s := range sessions {
-				status := strings.ToUpper(s.Status)
-				duration := time.Since(s.StartTime).Round(time.Second)
-				b.WriteString(fmt.Sprintf("  - %s (PID: %d, Status: %s, Uptime: %s)\n", s.Name, s.PID, status, duration))
-				b.WriteString(fmt.Sprintf("    Log: %s\n", s.LogFile))
-			}
+		// Use a table format for sessions
+		b.WriteString(fmt.Sprintf("%-20s %-10s %-10s %-20s %s\n", "NAME", "STATUS", "PID", "STARTED", "WORKSPACE"))
+		b.WriteString(strings.Repeat("-", 80) + "\n")
+		for _, session := range sessions {
+			started := session.StartTime.Format("2006-01-02 15:04:05")
+			b.WriteString(fmt.Sprintf("%-20s %-10s %-10d %-20s %s\n",
+				session.Name,
+				session.Status,
+				session.PID,
+				started,
+				session.Workspace,
+			))
 		}
 	}
 
 	// --- Docker ---
 	b.WriteString("\n[Docker Environment]\n")
-	dockerCli, err := docker.NewClient("") // Project name isn't needed for version check
+	dockerCli, err := NewDockerClient("") // Project name isn't needed for version check
 	if err != nil {
 		b.WriteString("  Docker client failed to initialize. Is Docker running?\n")
 		b.WriteString(fmt.Sprintf("  Error: %v\n", err))
@@ -66,5 +83,5 @@ func GetStatus() string {
 		b.WriteString(fmt.Sprintf("  - Config File: %s\n", viper.ConfigFileUsed()))
 	}
 
-	return b.String()
+	return b.String(), nil
 }

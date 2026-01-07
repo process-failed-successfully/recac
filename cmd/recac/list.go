@@ -13,9 +13,10 @@ func init() {
 }
 
 var listCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List all sessions",
-	Long:  `List all active and completed sessions.`,
+	Use:        "list",
+	Short:      "List all sessions (DEPRECATED: use 'status')",
+	Long:       `List all active and completed sessions.`,
+	Deprecated: "use 'recac status' instead.",
 	Run: func(cmd *cobra.Command, args []string) {
 		sm, err := runner.NewSessionManager()
 		if err != nil {

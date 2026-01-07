@@ -89,7 +89,12 @@ var orchestrateCmd = &cobra.Command{
 				logger.Error("Failed to initialize Docker client", "error", err)
 				os.Exit(1)
 			}
-			spawner = orchestrator.NewDockerSpawner(logger, dockerCli, image, projectName, poller, agentProvider, agentModel)
+			dockerClient, ok := dockerCli.(*docker.Client)
+			if !ok {
+				logger.Error("internal error: docker client is not of type *docker.Client")
+				os.Exit(1)
+			}
+			spawner = orchestrator.NewDockerSpawner(logger, dockerClient, image, projectName, poller, agentProvider, agentModel)
 		default:
 			logger.Error("Invalid mode. Use 'local' or 'k8s'", "mode", mode)
 			os.Exit(1)

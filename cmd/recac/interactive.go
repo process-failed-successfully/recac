@@ -51,7 +51,11 @@ func RunInteractive() {
 		Description: "Show RECAC status",
 		Action: func(m *ui.InteractiveModel, args []string) tea.Cmd {
 			return func() tea.Msg {
-				return ui.StatusMsg(ui.GetStatus())
+				status, err := ui.GetStatus()
+				if err != nil {
+					return ui.ErrorMsg(err)
+				}
+				return ui.StatusMsg(status)
 			}
 		},
 	})
