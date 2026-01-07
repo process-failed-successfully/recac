@@ -15,7 +15,7 @@ func TestRun_Blocker(t *testing.T) {
 
 	// 1. Set Blocker
 	args := []string{"agent-bridge", "blocker", "Something is wrong"}
-	if err := run(args, dbPath); err != nil {
+	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}); err != nil {
 		t.Fatalf("run failed: %v", err)
 	}
 
@@ -28,7 +28,7 @@ func TestRun_QA(t *testing.T) {
 	dbPath := filepath.Join(tmpDir, ".recac.db")
 
 	args := []string{"agent-bridge", "qa"}
-	if err := run(args, dbPath); err != nil {
+	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}); err != nil {
 		t.Fatalf("run failed: %v", err)
 	}
 }
@@ -38,7 +38,7 @@ func TestRun_Signal(t *testing.T) {
 	dbPath := filepath.Join(tmpDir, ".recac.db")
 
 	args := []string{"agent-bridge", "signal", "MY_KEY", "MY_VALUE"}
-	if err := run(args, dbPath); err != nil {
+	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}); err != nil {
 		t.Fatalf("run failed: %v", err)
 	}
 }
@@ -48,7 +48,7 @@ func TestRun_Manager(t *testing.T) {
 	dbPath := filepath.Join(tmpDir, ".recac.db")
 
 	args := []string{"agent-bridge", "manager"}
-	if err := run(args, dbPath); err != nil {
+	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}); err != nil {
 		t.Fatalf("run failed: %v", err)
 	}
 }
@@ -68,7 +68,7 @@ func TestRun_Verify(t *testing.T) {
 	defer os.Remove(uiPath)
 
 	args := []string{"agent-bridge", "verify", "F1", "pass"}
-	if err := run(args, dbPath); err != nil {
+	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}); err != nil {
 		t.Fatalf("run failed: %v", err)
 	}
 
@@ -88,7 +88,7 @@ func TestRun_Feature(t *testing.T) {
 	store.Close()
 
 	args := []string{"agent-bridge", "feature", "set", "F1", "--status", "done", "--passes", "true"}
-	if err := run(args, dbPath); err != nil {
+	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}); err != nil {
 		t.Fatalf("run failed: %v", err)
 	}
 }
@@ -117,22 +117,22 @@ func TestRun_Invalid(t *testing.T) {
 	dbPath := filepath.Join(tmpDir, ".recac.db")
 
 	// No args
-	if err := run([]string{"agent-bridge"}, dbPath); err == nil {
+	if err := run([]string{"agent-bridge"}, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}); err == nil {
 		t.Error("Expected error for no args")
 	}
 
 	// Unknown command
-	if err := run([]string{"agent-bridge", "unknown"}, dbPath); err == nil {
+	if err := run([]string{"agent-bridge", "unknown"}, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}); err == nil {
 		t.Error("Expected error for unknown command")
 	}
 
 	// verify missing args
-	if err := run([]string{"agent-bridge", "verify", "F1"}, dbPath); err == nil {
+	if err := run([]string{"agent-bridge", "verify", "F1"}, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}); err == nil {
 		t.Error("Expected error for verify missing args")
 	}
 
 	// verify missing file
-	if err := run([]string{"agent-bridge", "verify", "F2", "pass"}, dbPath); err == nil {
+	if err := run([]string{"agent-bridge", "verify", "F2", "pass"}, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}); err == nil {
 		t.Error("Expected error for verify missing file")
 	}
 }

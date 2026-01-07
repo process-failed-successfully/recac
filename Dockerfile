@@ -13,7 +13,9 @@ RUN apk add --no-cache \
     bash \
     unzip \
     libc6-compat \
-    docker-cli
+    docker-cli \
+    coreutils \
+    make
 
 # Configure NPM mirror
 # RUN npm config set registry https://registry.npmmirror.com/
@@ -33,6 +35,7 @@ WORKDIR /app
 
 # Download Utils
 FROM base AS builder
+ARG CACHE_BYPASS=unknown
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download

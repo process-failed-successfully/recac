@@ -108,12 +108,28 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 	stateManager := agent.NewStateManager(agentStateFile)
 
 	// Initialize DB Store
-	dbPath := filepath.Join(workspace, ".recac.db")
+	dbType := os.Getenv("RECAC_DB_TYPE")
+	dbURL := os.Getenv("RECAC_DB_URL")
+	
+	if dbType == "" {
+		dbType = "sqlite"
+		if dbURL == "" {
+			dbURL = filepath.Join(workspace, ".recac.db")
+		}
+	} else if dbType == "sqlite" && dbURL == "" {
+		dbURL = filepath.Join(workspace, ".recac.db")
+	}
+
 	var dbStore db.Store
-	if sqliteStore, err := db.NewSQLiteStore(dbPath); err != nil {
-		fmt.Printf("Warning: Failed to initialize SQLite store: %v\n", err)
+	storeConfig := db.StoreConfig{
+		Type:             dbType,
+		ConnectionString: dbURL,
+	}
+
+	if s, err := db.NewStore(storeConfig); err != nil {
+		fmt.Printf("Warning: Failed to initialize DB store (%s): %v\n", dbType, err)
 	} else {
-		dbStore = sqliteStore
+		dbStore = s
 	}
 
 	// Initialize Security Scanner
@@ -179,12 +195,28 @@ func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, pr
 	stateManager := agent.NewStateManager(agentStateFile)
 
 	// Initialize DB Store
-	dbPath := filepath.Join(workspace, ".recac.db")
+	dbType := os.Getenv("RECAC_DB_TYPE")
+	dbURL := os.Getenv("RECAC_DB_URL")
+	
+	if dbType == "" {
+		dbType = "sqlite"
+		if dbURL == "" {
+			dbURL = filepath.Join(workspace, ".recac.db")
+		}
+	} else if dbType == "sqlite" && dbURL == "" {
+		dbURL = filepath.Join(workspace, ".recac.db")
+	}
+
 	var dbStore db.Store
-	if sqliteStore, err := db.NewSQLiteStore(dbPath); err != nil {
-		fmt.Printf("Warning: Failed to initialize SQLite store: %v\n", err)
+	storeConfig := db.StoreConfig{
+		Type:             dbType,
+		ConnectionString: dbURL,
+	}
+
+	if s, err := db.NewStore(storeConfig); err != nil {
+		fmt.Printf("Warning: Failed to initialize DB store (%s): %v\n", dbType, err)
 	} else {
-		dbStore = sqliteStore
+		dbStore = s
 	}
 
 	// Initialize Security Scanner
@@ -773,7 +805,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 
 	// Load DB history if available
 	if s.DBStore != nil {
-		history, err := s.DBStore.QueryHistory(5)
+		history, err := s.DBStore.QueryHistory(s.Project, 5)
 		if err == nil && len(history) > 0 {
 			fmt.Printf("Loaded %d previous observations from DB history.\n", len(history))
 		}
@@ -1243,7 +1275,7 @@ func (s *Session) RunIteration(ctx context.Context, prompt string, isManager boo
 	// Save observation to DB (only if safe)
 	if s.DBStore != nil {
 		telemetry.TrackDBOp(s.Project)
-		if err := s.DBStore.SaveObservation(role, response); err != nil {
+		if err := s.DBStore.SaveObservation(s.Project, role, response); err != nil {
 			s.Logger.Error("failed to save observation to DB", "error", err)
 		} else {
 			s.Logger.Debug("saved observation to DB")
@@ -1257,7 +1289,7 @@ func (s *Session) RunIteration(ctx context.Context, prompt string, isManager boo
 	if s.DBStore != nil && executionOutput != "" {
 		telemetry.TrackDBOp(s.Project)
 		// Use "System" role for tool outputs
-		if err := s.DBStore.SaveObservation("System", executionOutput); err != nil {
+		if err := s.DBStore.SaveObservation(s.Project, "System", executionOutput); err != nil {
 			s.Logger.Error("failed to save system output to DB", "error", err)
 		} else {
 			s.Logger.Debug("saved system output to DB")
@@ -1338,8 +1370,8 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 	var historyStr string
 	if s.DBStore != nil {
 		// Limit history size to prevent context exhaustion (413 errors)
-		const MaxHistoryChars = 25000          // approx 6k tokens, safe for most models
-		obs, err := s.DBStore.QueryHistory(20) // Fetch more, but we'll filter by size
+		const MaxHistoryChars = 25000                 // approx 6k tokens, safe for most models
+		obs, err := s.DBStore.QueryHistory(s.Project, 20) // Fetch more, but we'll filter by size
 		if err == nil {
 			var sb strings.Builder
 

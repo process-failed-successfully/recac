@@ -103,7 +103,8 @@ func run() error {
 
 	if !skipBuild {
 		log.Println("=== Building and Pushing Image ===")
-		if err := runCommand("make", "image-prod", fmt.Sprintf("DEPLOY_IMAGE=%s", imageName)); err != nil {
+		bypass := fmt.Sprintf("CACHE_BYPASS=%d", time.Now().Unix())
+		if err := runCommand("make", "image-prod", fmt.Sprintf("DEPLOY_IMAGE=%s", imageName), fmt.Sprintf("ARGS=--build-arg %s", bypass)); err != nil {
 			return fmt.Errorf("failed to build image: %w", err)
 		}
 		if err := runCommand("docker", "push", imageName); err != nil {
@@ -139,6 +140,13 @@ func run() error {
 	log.Println("=== Cleaning up old Jobs ===")
 	_ = runCommand("kubectl", "delete", "jobs", "-n", namespace, "-l", "app=recac-agent", "--cascade=foreground", "--wait=true")
 
+	// Wipe Database if postgres is used
+	log.Println("=== Wiping PostgreSQL Database ===")
+	// We use kubectl exec to run psql inside the postgres pod
+	// We ignore errors if pod doesn't exist yet (first run)
+	wipeCmd := "PGPASSWORD=changeit psql -U recac -d recac -c \"TRUNCATE observations, signals, project_features, file_locks;\""
+	_ = runCommand("sh", "-c", fmt.Sprintf("POD_NAME=$(kubectl get pods -l app.kubernetes.io/instance=recac,app.kubernetes.io/name=postgresql -n default -o jsonpath='{.items[0].metadata.name}' 2>/dev/null) && [ -n \"$POD_NAME\" ] && kubectl exec $POD_NAME -n default -- sh -c %s", fmt.Sprintf("'%s'", wipeCmd)))
+
 	log.Println("=== Deploying Helm Chart ===")
 	lastColon := strings.LastIndex(imageName, ":")
 	repoPart := imageName[:lastColon]
@@ -167,6 +175,11 @@ func run() error {
 		"--set", "config.max_iterations=20",
 		"--set", fmt.Sprintf("config.provider=%s", provider),
 		"--set", fmt.Sprintf("config.model=%s", model),
+		"--set", "config.dbType=postgres",
+		"--set", "postgresql.enabled=true",
+		"--set", "postgresql.global.imageRegistry=localhost:5000",
+		"--set", "postgresql.image.repository=bitnami/postgresql",
+		"--set", "postgresql.image.tag=latest",
 		"--set", fmt.Sprintf("config.jiraUrl=%s", os.Getenv("JIRA_URL")),
 		"--set", fmt.Sprintf("config.jiraUsername=%s", os.Getenv("JIRA_USERNAME")),
 		"--set", fmt.Sprintf("secrets.openrouterApiKey=%s", os.Getenv("OPENROUTER_API_KEY")),

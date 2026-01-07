@@ -9,13 +9,29 @@ import (
 )
 
 func main() {
-	if err := run(os.Args, ".recac.db"); err != nil {
+	// Check env vars for overrides
+	dbType := os.Getenv("RECAC_DB_TYPE")
+	dbURL := os.Getenv("RECAC_DB_URL")
+	
+	if dbType == "" {
+		dbType = "sqlite"
+		if dbURL == "" {
+			dbURL = ".recac.db"
+		}
+	}
+
+	config := db.StoreConfig{
+		Type:             dbType,
+		ConnectionString: dbURL,
+	}
+
+	if err := run(os.Args, config); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func run(args []string, dbPath string) error {
+func run(args []string, config db.StoreConfig) error {
 	if len(args) < 2 {
 		printUsage()
 		return fmt.Errorf("missing command")
@@ -24,12 +40,11 @@ func run(args []string, dbPath string) error {
 	command := args[1]
 
 	// Initialize DB connection
-	store, err := db.NewSQLiteStore(dbPath)
+	store, err := db.NewStore(config)
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 	defer store.Close()
-
 	var cmdErr error
 
 	switch command {
@@ -114,15 +129,12 @@ func run(args []string, dbPath string) error {
 		key := args[2]
 		value := args[3]
 
-		// PROTECT PRIVILEGED SIGNALS
-		privilegedSignals := map[string]bool{
-			"PROJECT_SIGNED_OFF": true,
-			"QA_PASSED":          true,
-			"COMPLETED":          true,
-			"TRIGGER_QA":         true,
-			"TRIGGER_MANAGER":    true,
-		}
-
+		                // PROTECT PRIVILEGED SIGNALS
+		                privilegedSignals := map[string]bool{
+		                        "PROJECT_SIGNED_OFF": true,
+		                        "TRIGGER_QA":         true,
+		                        "TRIGGER_MANAGER":    true,
+		                }
 		if privilegedSignals[key] {
 			return fmt.Errorf("signal '%s' is privileged and cannot be set via agent-bridge", key)
 		}

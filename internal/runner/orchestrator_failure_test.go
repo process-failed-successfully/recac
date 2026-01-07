@@ -23,9 +23,11 @@ type FaultToleranceMockDB struct {
 }
 
 func (m *FaultToleranceMockDB) Close() error                                     { return nil }
-func (m *FaultToleranceMockDB) SaveObservation(agentID, content string) error    { return nil }
-func (m *FaultToleranceMockDB) QueryHistory(limit int) ([]db.Observation, error) { return nil, nil }
-func (m *FaultToleranceMockDB) DeleteSignal(key string) error                    { return nil }
+func (m *FaultToleranceMockDB) SaveObservation(projectID, agentID, content string) error { return nil }
+func (m *FaultToleranceMockDB) QueryHistory(projectID string, limit int) ([]db.Observation, error) {
+	return nil, nil
+}
+func (m *FaultToleranceMockDB) DeleteSignal(key string) error { return nil }
 func (m *FaultToleranceMockDB) SaveFeatures(features string) error               { return nil }
 func (m *FaultToleranceMockDB) ReleaseAllLocks(agentID string) error             { return nil }
 
@@ -72,6 +74,7 @@ func (m *FaultToleranceMockDB) AcquireLock(path, agentID string, timeout time.Du
 }
 func (m *FaultToleranceMockDB) ReleaseLock(path, agentID string) error { return nil }
 func (m *FaultToleranceMockDB) GetActiveLocks() ([]db.Lock, error)     { return nil, nil }
+func (m *FaultToleranceMockDB) Cleanup() error                         { return nil }
 
 func TestOrchestrator_FaultTolerance_HighFailureRate(t *testing.T) {
 	// Setup workspace

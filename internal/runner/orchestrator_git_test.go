@@ -20,9 +20,11 @@ type MockDBStore struct {
 }
 
 func (m *MockDBStore) Close() error                                     { return nil }
-func (m *MockDBStore) SaveObservation(agentID, content string) error    { return nil }
-func (m *MockDBStore) QueryHistory(limit int) ([]db.Observation, error) { return nil, nil }
-func (m *MockDBStore) SetSignal(key, value string) error                { return nil }
+func (m *MockDBStore) SaveObservation(projectID, agentID, content string) error { return nil }
+func (m *MockDBStore) QueryHistory(projectID string, limit int) ([]db.Observation, error) {
+	return nil, nil
+}
+func (m *MockDBStore) SetSignal(key, value string) error    { return nil }
 func (m *MockDBStore) GetSignal(key string) (string, error)             { return "", nil }
 func (m *MockDBStore) DeleteSignal(key string) error                    { return nil }
 func (m *MockDBStore) SaveFeatures(features string) error               { return nil }
@@ -39,6 +41,7 @@ func (m *MockDBStore) AcquireLock(path, agentID string, timeout time.Duration) (
 func (m *MockDBStore) ReleaseLock(path, agentID string) error { return nil }
 func (m *MockDBStore) ReleaseAllLocks(agentID string) error   { return nil }
 func (m *MockDBStore) GetActiveLocks() ([]db.Lock, error)     { return nil, nil }
+func (m *MockDBStore) Cleanup() error                         { return nil }
 
 func TestOrchestrator_EnsureGitRepo(t *testing.T) {
 	// Setup temporary workspace

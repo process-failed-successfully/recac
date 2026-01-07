@@ -88,17 +88,20 @@ func (m *MockDBStoreForOrchestrator) GetSignal(name string) (string, error)     
 func (m *MockDBStoreForOrchestrator) SetSignal(name, value string) error         { return nil }
 func (m *MockDBStoreForOrchestrator) GetActiveLocks() ([]db.Lock, error)         { return nil, nil }
 func (m *MockDBStoreForOrchestrator) Close() error                               { return nil }
-func (m *MockDBStoreForOrchestrator) SaveObservation(role, content string) error { return nil }
-func (m *MockDBStoreForOrchestrator) QueryHistory(limit int) ([]db.Observation, error) {
+func (m *MockDBStoreForOrchestrator) SaveObservation(projectID, role, content string) error {
+	return nil
+}
+func (m *MockDBStoreForOrchestrator) QueryHistory(projectID string, limit int) ([]db.Observation, error) {
 	return nil, nil
 }
-func (m *MockDBStoreForOrchestrator) DeleteSignal(name string) error       { return nil }
+func (m *MockDBStoreForOrchestrator) DeleteSignal(name string) error { return nil }
 func (m *MockDBStoreForOrchestrator) SaveFeatures(features string) error   { return nil }
 func (m *MockDBStoreForOrchestrator) ReleaseAllLocks(agentID string) error { return nil }
 func (m *MockDBStoreForOrchestrator) AcquireLock(path, agentID string, timeout time.Duration) (bool, error) {
 	return true, nil
 }
 func (m *MockDBStoreForOrchestrator) ReleaseLock(path, agentID string) error { return nil }
+func (m *MockDBStoreForOrchestrator) Cleanup() error                         { return nil }
 func (m *MockDBStoreForOrchestrator) UpdateFeatureStatus(id, status string, passes bool) error {
 	return nil
 }
