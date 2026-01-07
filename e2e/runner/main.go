@@ -256,12 +256,25 @@ func verifyScenario(scenarioName, repo string, ticketMap map[string]string) erro
 	defer os.RemoveAll(tmpDir)
 
 	token := os.Getenv("GITHUB_API_KEY")
-	// Insert token into URL
-	// repo is like https://github.com/org/repo
-	authRepo := strings.Replace(repo, "https://", fmt.Sprintf("https://x-access-token:%s@", token), 1)
 
-	log.Printf("Cloning repo to %s...", tmpDir)
-	if err := runCommand("git", "clone", authRepo, tmpDir); err != nil {
+	// Use git config to handle authentication instead of embedding in URL.
+	// This is more robust, especially in CI environments.
+	authURL := fmt.Sprintf("https://x-access-token:%s@github.com/", token)
+	insteadOf := "https://github.com/"
+
+	log.Println("Setting up git credentials for clone...")
+	if err := runCommand("git", "config", "--global", fmt.Sprintf("url.%s.insteadOf", authURL), insteadOf); err != nil {
+		return fmt.Errorf("failed to set git config for auth: %w", err)
+	}
+
+	// Unset the config when the function returns to avoid polluting the system state.
+	defer func() {
+		log.Println("Cleaning up git credentials...")
+		_ = runCommand("git", "config", "--global", "--unset", fmt.Sprintf("url.%s.insteadOf", authURL))
+	}()
+
+	log.Printf("Cloning repo %s to %s...", repo, tmpDir)
+	if err := runCommand("git", "clone", repo, tmpDir); err != nil {
 		return fmt.Errorf("failed to clone: %w", err)
 	}
 
