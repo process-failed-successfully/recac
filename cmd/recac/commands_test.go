@@ -7,26 +7,31 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"recac/internal/runner"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
-func executeCommand(root *cobra.Command, args ...string) (string, error) {
+func executeCommand(root *cobra.Command, args ...string) (output string, err error) {
 	resetFlags(root)
-	// Mock exit
+	b := new(bytes.Buffer)
+
+	// Mock exit and recover from panic to capture output
 	oldExit := exit
 	exit = func(code int) {
 		if code != 0 {
 			panic(fmt.Sprintf("exit-%d", code))
 		}
 	}
-	defer func() { exit = oldExit }()
-
 	defer func() {
+		exit = oldExit
 		if r := recover(); r != nil {
 			if s, ok := r.(string); ok && strings.HasPrefix(s, "exit-") {
-				// This is an expected exit, don't re-panic
+				// This is an expected exit.
+				// We capture the output from the buffer and return it.
+				output = b.String()
+				err = nil // The command exited, not returned an error
 				return
 			}
 			panic(r) // Re-panic actual panics
@@ -34,14 +39,14 @@ func executeCommand(root *cobra.Command, args ...string) (string, error) {
 	}()
 
 	root.SetArgs(args)
-	b := new(bytes.Buffer)
 	root.SetOut(b)
 	root.SetErr(b)
 	// Mock Stdin to avoid hanging on interactive prompts (e.g. wizard)
 	root.SetIn(bytes.NewBufferString(""))
 
-	err := root.Execute()
-	return b.String(), err
+	err = root.Execute()
+	output = b.String()
+	return output, err
 }
 
 func resetFlags(cmd *cobra.Command) {
@@ -304,4 +309,59 @@ func TestCommands(t *testing.T) {
 
 	})
 
+	t.Run("Stop Command", func(t *testing.T) {
+		sessionsDir := t.TempDir()
+
+		// Override the newSessionManager function to use a test-specific directory
+		originalNewSessionManager := newSessionManager
+		newSessionManager = func() (*runner.SessionManager, error) {
+			return runner.NewSessionManagerWithDir(sessionsDir)
+		}
+		defer func() { newSessionManager = originalNewSessionManager }()
+
+		sm, err := newSessionManager()
+		if err != nil {
+			t.Fatalf("failed to create session manager: %v", err)
+		}
+
+		// Case 1: Stop a running session
+		sessionName := "test-session"
+		// Use a command that will run for a bit
+		cmdToRun := []string{"sleep", "10"}
+		if _, err := sm.StartSession(sessionName, cmdToRun, tmpDir); err != nil {
+			t.Fatalf("failed to start session: %v", err)
+		}
+
+		output, err := executeCommand(rootCmd, "stop", sessionName)
+		if err != nil {
+			t.Errorf("stop command failed: %v", err)
+		}
+
+		if !strings.Contains(output, "stopped successfully") {
+			t.Errorf("expected success message, got: %s", output)
+		}
+
+		session, err := sm.LoadSession(sessionName)
+		if err != nil {
+			t.Fatalf("failed to load session: %v", err)
+		}
+
+		if session.Status != "stopped" {
+			t.Errorf("expected session status to be 'stopped', got '%s'", session.Status)
+		}
+
+		// Case 2: Stop a non-existent session
+		output, err = executeCommand(rootCmd, "stop", "non-existent-session")
+		if err == nil {
+			// This should not be nil because the mock `exit` function should panic.
+			// The test harness recovers from the panic, so we check the output.
+			if !strings.Contains(output, "session not found") {
+				t.Errorf("expected error for non-existent session, but got: %s", output)
+			}
+		} else {
+			if !strings.Contains(output, "session not found") && !strings.Contains(err.Error(), "session not found") {
+				t.Errorf("expected error for non-existent session, but got: %v and output: %s", err, output)
+			}
+		}
+	})
 }

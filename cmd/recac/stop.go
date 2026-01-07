@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"recac/internal/runner"
 
 	"github.com/spf13/cobra"
 )
@@ -20,17 +18,17 @@ var stopCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		sessionName := args[0]
 
-		sm, err := runner.NewSessionManager()
+		sm, err := newSessionManager()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: failed to create session manager: %v\n", err)
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error: failed to create session manager: %v\n", err)
 			exit(1)
 		}
 
 		if err := sm.StopSession(sessionName); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error: %v\n", err)
 			exit(1)
 		}
 
-		fmt.Printf("Session '%s' stopped successfully\n", sessionName)
+		fmt.Fprintf(cmd.OutOrStdout(), "Session '%s' stopped successfully\n", sessionName)
 	},
 }

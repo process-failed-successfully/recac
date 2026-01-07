@@ -91,9 +91,19 @@ func (sm *SessionManager) StartSession(name string, command []string, workspace 
 	// Ensure executable path is absolute and exists
 	execPath := command[0]
 	if !filepath.IsAbs(execPath) {
-		absPath, err := filepath.Abs(execPath)
-		if err == nil {
+		// First, try to find the executable in the system PATH.
+		path, err := exec.LookPath(execPath)
+		if err != nil {
+			// If not in PATH, assume it's a relative path from the current working directory.
+			absPath, absErr := filepath.Abs(execPath)
+			if absErr != nil {
+				// If we can't even make it absolute, fail.
+				return nil, fmt.Errorf("failed to resolve path for executable '%s': %w", execPath, absErr)
+			}
 			execPath = absPath
+		} else {
+			// Found in PATH, use the resolved absolute path.
+			execPath = path
 		}
 	}
 	
