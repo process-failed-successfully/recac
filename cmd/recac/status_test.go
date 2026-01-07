@@ -64,7 +64,10 @@ func TestShowStatus(t *testing.T) {
 	defer viper.Reset() // Cleanup viper
 
 	// Execute the command and capture output
-	output, err := captureOutput(showStatus)
+	output, err := captureOutput(func() error {
+		showStatus()
+		return nil
+	})
 	if err != nil {
 		t.Errorf("showStatus() returned an error: %v", err)
 	}
@@ -109,7 +112,10 @@ func TestShowStatus(t *testing.T) {
 
 func TestShowStatus_NoSessions(t *testing.T) {
 	// Execute the command with no sessions present
-	output, err := captureOutput(showStatus)
+	output, err := captureOutput(func() error {
+		showStatus()
+		return nil
+	})
 	if err != nil {
 		t.Errorf("showStatus() returned an error: %v", err)
 	}
