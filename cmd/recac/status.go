@@ -7,6 +7,7 @@ import (
 	"recac/internal/docker"
 	"recac/internal/runner"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -22,22 +23,23 @@ var statusCmd = &cobra.Command{
 	Short: "Show the status of RECAC sessions and environment",
 	Long:  `Displays a summary of all running and completed RECAC sessions, checks the Docker environment, and shows key configuration values.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if err := showStatus(); err != nil {
+		sm, err := runner.NewSessionManager()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: failed to create session manager: %v\n", err)
+			exit(1)
+		}
+		if err := showStatus(sm); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			exit(1)
 		}
 	},
 }
 
-func showStatus() error {
+func showStatus(sm runner.ISessionManager) error {
 	fmt.Println("--- RECAC Status ---")
 
 	// --- Sessions ---
 	fmt.Println("\n[Sessions]")
-	sm, err := runner.NewSessionManager()
-	if err != nil {
-		return fmt.Errorf("failed to initialize session manager: %w", err)
-	}
 
 	sessions, err := sm.ListSessions()
 	if err != nil {
@@ -47,12 +49,15 @@ func showStatus() error {
 	if len(sessions) == 0 {
 		fmt.Println("No active or past sessions found.")
 	} else {
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
+		fmt.Fprintln(w, "NAME\tSTATUS\tPID\tUPTIME\tLOG FILE")
+		fmt.Fprintln(w, "----\t------\t---\t------\t--------")
 		for _, s := range sessions {
 			status := strings.ToUpper(s.Status)
 			duration := time.Since(s.StartTime).Round(time.Second)
-			fmt.Printf("  - %s (PID: %d, Status: %s, Uptime: %s)\n", s.Name, s.PID, status, duration)
-			fmt.Printf("    Log: %s\n", s.LogFile)
+			fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\n", s.Name, status, s.PID, duration, s.LogFile)
 		}
+		w.Flush()
 	}
 
 	// --- Docker ---

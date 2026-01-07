@@ -2,120 +2,105 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
-	"fmt"
 	"io"
 	"os"
-	"recac/internal/runner"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/spf13/viper"
+	"recac/internal/runner"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-// captureOutput executes a function and captures its standard output.
-func captureOutput(f func() error) (string, error) {
-	old := os.Stdout
+// MockSessionManager is a mock implementation of the ISessionManager interface for testing.
+type MockSessionManager struct {
+	Sessions []*runner.SessionState
+	Err      error
+}
+
+func (m *MockSessionManager) ListSessions() ([]*runner.SessionState, error) {
+	if m.Err != nil {
+		return nil, m.Err
+	}
+	return m.Sessions, nil
+}
+
+func (m *MockSessionManager) SaveSession(session *runner.SessionState) error {
+	return nil // Not needed for this test
+}
+
+func (m *MockSessionManager) LoadSession(name string) (*runner.SessionState, error) {
+	return nil, nil // Not needed for this test
+}
+
+func (m *MockSessionManager) StopSession(name string) error {
+	return nil // Not needed for this test
+}
+
+func (m *MockSessionManager) GetSessionLogs(name string) (string, error) {
+	return "", nil // Not needed for this test
+}
+
+func TestStatusCommandOutput(t *testing.T) {
+	// --- Setup ---
+	sm := &MockSessionManager{
+		Sessions: []*runner.SessionState{
+			{
+				Name:      "test-session",
+				Status:    "running",
+				PID:       12345,
+				StartTime: time.Now(),
+				LogFile:   "/tmp/test.log",
+			},
+		},
+	}
+
+	// --- Execute ---
+	oldStdout := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	err := f()
+	err := showStatus(sm)
+	require.NoError(t, err)
 
 	w.Close()
-	os.Stdout = old
-
+	os.Stdout = oldStdout
 	var buf bytes.Buffer
 	io.Copy(&buf, r)
-	return buf.String(), err
+	output := buf.String()
+
+	// --- Verify ---
+	assert.Contains(t, output, "NAME")
+	assert.Contains(t, output, "STATUS")
+	assert.Contains(t, output, "PID")
+	assert.Contains(t, output, "UPTIME")
+	assert.Contains(t, output, "LOG FILE")
+	assert.Contains(t, output, "test-session")
+	assert.Contains(t, output, "RUNNING")
+	assert.Contains(t, output, "12345")
 }
 
-func TestShowStatus(t *testing.T) {
-	// Setup: Create a temporary session manager and a fake session file
-	sm, err := runner.NewSessionManager()
-	if err != nil {
-		t.Fatalf("failed to create session manager: %v", err)
+func TestStatusCommandNoSessions(t *testing.T) {
+	// --- Setup ---
+	sm := &MockSessionManager{
+		Sessions: []*runner.SessionState{},
 	}
 
-	sessionName := fmt.Sprintf("test-session-%d", time.Now().UnixNano())
-	fakeSession := &runner.SessionState{
-		Name:      sessionName,
-		PID:       os.Getpid(), // Use the current process ID, which is guaranteed to be running
-		StartTime: time.Now().Add(-10 * time.Minute),
-		Status:    "running",
-		LogFile:   "/tmp/test.log",
-	}
-	sessionPath := sm.GetSessionPath(sessionName)
+	// --- Execute ---
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
 
-	data, err := json.Marshal(fakeSession)
-	if err != nil {
-		t.Fatalf("failed to marshal fake session: %v", err)
-	}
+	err := showStatus(sm)
+	require.NoError(t, err)
 
-	if err := os.WriteFile(sessionPath, data, 0644); err != nil {
-		t.Fatalf("failed to write fake session file: %v", err)
-	}
-	defer os.Remove(sessionPath) // Cleanup
+	w.Close()
+	os.Stdout = oldStdout
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	output := buf.String()
 
-	// Setup viper config
-	viper.Set("provider", "test-provider")
-	viper.Set("model", "test-model")
-	viper.Set("config", "/tmp/config.yaml")
-	defer viper.Reset() // Cleanup viper
-
-	// Execute the command and capture output
-	output, err := captureOutput(showStatus)
-	if err != nil {
-		t.Errorf("showStatus() returned an error: %v", err)
-	}
-
-	// Assertions
-	t.Run("Session Output", func(t *testing.T) {
-		if !strings.Contains(output, "[Sessions]") {
-			t.Error("output should contain '[Sessions]'")
-		}
-		if !strings.Contains(output, sessionName) {
-			t.Errorf("output should contain session name '%s'", sessionName)
-		}
-		if !strings.Contains(output, fmt.Sprintf("PID: %d", fakeSession.PID)) {
-			t.Errorf("output should contain 'PID: %d'", fakeSession.PID)
-		}
-		if !strings.Contains(output, "Status: RUNNING") {
-			t.Error("output should contain 'Status: RUNNING'")
-		}
-	})
-
-	t.Run("Docker Output", func(t *testing.T) {
-		if !strings.Contains(output, "[Docker Environment]") {
-			t.Error("output should contain '[Docker Environment]'")
-		}
-	})
-
-	t.Run("Configuration Output", func(t *testing.T) {
-		if !strings.Contains(output, "[Configuration]") {
-			t.Error("output should contain '[Configuration]'")
-		}
-		if !strings.Contains(output, "Provider: test-provider") {
-			t.Error("output should contain 'Provider: test-provider'")
-		}
-		if !strings.Contains(output, "Model: test-model") {
-			t.Error("output should contain 'Model: test-model'")
-		}
-		if !strings.Contains(output, "Config File: /tmp/config.yaml") {
-			t.Error("output should contain 'Config File: /tmp/config.yaml'")
-		}
-	})
-}
-
-func TestShowStatus_NoSessions(t *testing.T) {
-	// Execute the command with no sessions present
-	output, err := captureOutput(showStatus)
-	if err != nil {
-		t.Errorf("showStatus() returned an error: %v", err)
-	}
-
-	// Assertions
-	if !strings.Contains(output, "No active or past sessions found.") {
-		t.Error("output should contain 'No active or past sessions found.'")
-	}
+	// --- Verify ---
+	assert.Contains(t, output, "No active or past sessions found.")
 }

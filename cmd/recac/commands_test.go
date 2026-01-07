@@ -182,22 +182,21 @@ func TestCommands(t *testing.T) {
 
 	})
 
-	t.Run("List Command With Data", func(t *testing.T) {
+	t.Run("List Command (Deprecated)", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "list")
+		if err != nil {
+			t.Errorf("List command failed: %v", err)
+		}
 
-		// Create a dummy session file in .recac/sessions or similar?
+		// Check for deprecation warning
+		if !strings.Contains(output, "Warning: 'recac list' is deprecated") {
+			t.Errorf("Expected deprecation warning for 'list' command, but got: %s", output)
+		}
 
-		// runner uses DB usually.
-
-		// If DB is used, we need to init DB.
-
-		// commands.go doesn't seem to expose DB init easily for testing 'list'.
-
-		// But 'list' command reads from DB.
-
-		// Just run list, we already did.
-
-		executeCommand(rootCmd, "list")
-
+		// Check that it still outputs the status table
+		if !strings.Contains(output, "NAME") || !strings.Contains(output, "STATUS") {
+			t.Errorf("Expected status output from deprecated 'list' command, but got: %s", output)
+		}
 	})
 
 	t.Run("Signal Command", func(t *testing.T) {
@@ -221,20 +220,6 @@ func TestCommands(t *testing.T) {
 		if err != nil {
 
 			t.Errorf("Logs help failed: %v", err)
-
-		}
-
-	})
-
-	t.Run("List Command", func(t *testing.T) {
-
-		// Just run it, it should output empty list or similar
-
-		_, err := executeCommand(rootCmd, "list")
-
-		if err != nil {
-
-			t.Errorf("List failed: %v", err)
 
 		}
 
