@@ -26,8 +26,6 @@ echo "Testing packages:"
 echo "$PACKAGES"
 
 # Run tests for selected packages
-# We use echo to pass packages as arguments to go test
-echo "$PACKAGES" | while read -r package; do
-  echo "--- Testing package: $package ---"
-  go test -buildvcs=false -v "$package"
-done
+# We use xargs to pass all packages as arguments to a single go test command.
+# This is more efficient and handles dependencies between packages in the same shard correctly.
+echo "$PACKAGES" | xargs go test -buildvcs=false -v
