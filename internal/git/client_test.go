@@ -397,3 +397,138 @@ func TestClient_ErrorHandling(t *testing.T) {
 		t.Error("Commit should fail on non-repo")
 	}
 }
+
+func TestClient_Config(t *testing.T) {
+	localDir, _ := setupTestRepo(t)
+	defer os.RemoveAll(localDir)
+
+	c := NewClient()
+
+	// Test Config
+	if err := c.Config(localDir, "user.name", "test-user"); err != nil {
+		t.Fatalf("Config failed: %v", err)
+	}
+	cmd := exec.Command("git", "config", "user.name")
+	cmd.Dir = localDir
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("git config user.name failed: %v", err)
+	}
+	if strings.TrimSpace(string(out)) != "test-user" {
+		t.Errorf("expected user.name to be 'test-user', got '%s'", string(out))
+	}
+}
+
+func TestClient_AbortMerge(t *testing.T) {
+	localDir, _ := setupTestRepo(t)
+	defer os.RemoveAll(localDir)
+
+	c := NewClient()
+
+	// Initial commit
+	os.WriteFile(filepath.Join(localDir, "file.txt"), []byte("initial"), 0644)
+	c.Commit(localDir, "initial commit")
+
+	// Create a branch
+	c.CheckoutNewBranch(localDir, "feature")
+	os.WriteFile(filepath.Join(localDir, "file.txt"), []byte("feature"), 0644)
+	c.Commit(localDir, "feature commit")
+
+	// Go back to main and create a conflicting change
+	mainBranch := "master" // default in test setup
+	c.Checkout(localDir, mainBranch)
+	os.WriteFile(filepath.Join(localDir, "file.txt"), []byte("main"), 0644)
+	c.Commit(localDir, "main commit")
+
+	// This merge will fail
+	err := c.Merge(localDir, "feature")
+	if err == nil {
+		t.Fatal("expected merge to fail, but it did not")
+	}
+
+	// Abort the merge
+	if err := c.AbortMerge(localDir); err != nil {
+		t.Fatalf("AbortMerge failed: %v", err)
+	}
+
+	// Check that the merge is no longer in progress
+	cmd := exec.Command("git", "status")
+	cmd.Dir = localDir
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("git status failed: %v", err)
+	}
+	if strings.Contains(string(out), "merging") {
+		t.Error("git status still shows merge in progress after abort")
+	}
+}
+
+func TestClient_DeleteLocalBranch(t *testing.T) {
+	localDir, _ := setupTestRepo(t)
+	defer os.RemoveAll(localDir)
+
+	c := NewClient()
+
+	// Initial commit
+	os.WriteFile(filepath.Join(localDir, "file.txt"), []byte("initial"), 0644)
+	c.Commit(localDir, "initial commit")
+
+	// Create a branch
+	c.CheckoutNewBranch(localDir, "to-delete")
+
+	// Go back to main
+	mainBranch := "master" // default in test setup
+	c.Checkout(localDir, mainBranch)
+
+	// Delete the branch
+	if err := c.DeleteLocalBranch(localDir, "to-delete"); err != nil {
+		t.Fatalf("DeleteLocalBranch failed: %v", err)
+	}
+
+	// Verify the branch is gone
+	exists, err := c.LocalBranchExists(localDir, "to-delete")
+	if err != nil {
+		t.Fatalf("LocalBranchExists failed: %v", err)
+	}
+	if exists {
+		t.Error("branch 'to-delete' still exists after deletion")
+	}
+}
+
+func TestClient_DeleteRemoteBranch(t *testing.T) {
+	localDir, remoteDir := setupTestRepo(t)
+	defer os.RemoveAll(localDir)
+	defer os.RemoveAll(remoteDir)
+
+	c := NewClient()
+
+	// Initial commit on default branch and push
+	os.WriteFile(filepath.Join(localDir, "file.txt"), []byte("initial"), 0644)
+	c.Commit(localDir, "initial commit")
+	mainBranch := "master" // default in test setup
+	c.Push(localDir, mainBranch)
+
+	// Create and push a new branch to be deleted
+	deleteBranch := "to-delete"
+	c.CheckoutNewBranch(localDir, deleteBranch)
+	os.WriteFile(filepath.Join(localDir, "delete.txt"), []byte("delete me"), 0644)
+	c.Commit(localDir, "commit to delete")
+	c.Push(localDir, deleteBranch)
+
+	// Go back to main branch
+	c.Checkout(localDir, mainBranch)
+
+	// Delete the remote branch
+	if err := c.DeleteRemoteBranch(localDir, "origin", deleteBranch); err != nil {
+		t.Fatalf("DeleteRemoteBranch failed: %v", err)
+	}
+
+	// Verify the branch is gone from the remote
+	exists, err := c.RemoteBranchExists(localDir, "origin", deleteBranch)
+	if err != nil {
+		t.Fatalf("RemoteBranchExists failed: %v", err)
+	}
+	if exists {
+		t.Error("remote branch still exists after deletion")
+	}
+}
