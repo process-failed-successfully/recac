@@ -212,18 +212,18 @@ func run() error {
 	// Check for Agent Job
 	log.Println("Waiting for Agent Job to start...")
 	
-	// Determine expected job name from ticket map (assuming single task for now or finding "PRIMES")
+	// Determine expected job name from the ticket map
 	var targetTicketID string
-	if id, ok := ticketMap["PRIMES"]; ok {
+	// Fallback: Use the ID of the first ticket in the map
+	for id := range ticketMap {
 		targetTicketID = id
-	} else {
-		// Fallback: Use the first one
-		for _, id := range ticketMap {
-			targetTicketID = id
-			break
-		}
+		break
 	}
-	
+
+	if targetTicketID == "" {
+		return fmt.Errorf("ticket map is empty, cannot determine job to wait for")
+	}
+
 	expectedJobPrefix := fmt.Sprintf("recac-agent-%s", strings.ToLower(targetTicketID))
 	log.Printf("Looking for job prefix: %s", expectedJobPrefix)
 
