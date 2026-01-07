@@ -42,6 +42,7 @@ func run() error {
 		deployRepo   string
 		targetRepo   string
 		pullPolicy   string
+		exactImage   string
 		skipBuild    bool
 		skipCleanup  bool
 	)
@@ -52,6 +53,7 @@ func run() error {
 	flag.StringVar(&deployRepo, "repo", defaultRepo, "Docker repository for deployment")
 	flag.StringVar(&targetRepo, "repo-url", repoURL, "Target Git repository for the agent")
 	flag.StringVar(&pullPolicy, "pull-policy", "Always", "Image pull policy (Always, IfNotPresent, Never)")
+	flag.StringVar(&exactImage, "image", "", "Exact image name to use (overrides repo/timestamp logic)")
 	flag.BoolVar(&skipBuild, "skip-build", false, "Skip docker build")
 	flag.BoolVar(&skipCleanup, "skip-cleanup", false, "Skip cleanup on finish")
 	flag.Parse()
@@ -91,7 +93,14 @@ func run() error {
 	mgr := manager.NewJiraManager(os.Getenv("JIRA_URL"), os.Getenv("JIRA_USERNAME"), os.Getenv("JIRA_API_TOKEN"), projectKey)
 
 	// 1. Build and Push
-	imageName := fmt.Sprintf("%s-%d:%s", deployRepo, time.Now().Unix(), deployTag)
+	var imageName string
+	if exactImage != "" {
+		imageName = exactImage
+		log.Printf("Using exact image: %s", imageName)
+	} else {
+		imageName = fmt.Sprintf("%s-%d:%s", deployRepo, time.Now().Unix(), deployTag)
+	}
+
 	if !skipBuild {
 		log.Println("=== Building and Pushing Image ===")
 		if err := runCommand("make", "image-prod", fmt.Sprintf("DEPLOY_IMAGE=%s", imageName)); err != nil {

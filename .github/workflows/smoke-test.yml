@@ -54,7 +54,7 @@ jobs:
             -scenario prime-python \
             -provider openrouter \
             -model "mistralai/devstral-2512:free" \
-            -repo recac:smoke \
+            -image recac:smoke \
             -repo-url "https://github.com/${{ github.repository }}" \
             -pull-policy Never \
             -skip-build
