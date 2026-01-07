@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-func executeCommand(root *cobra.Command, args ...string) error {
+func executeCommand(root *cobra.Command, args ...string) (string, error) {
 	resetFlags(root)
 	// Mock exit
 	oldExit := exit
@@ -23,10 +23,13 @@ func executeCommand(root *cobra.Command, args ...string) error {
 	}
 	defer func() { exit = oldExit }()
 
+	var err error
 	defer func() {
 		if r := recover(); r != nil {
 			if s, ok := r.(string); ok && strings.HasPrefix(s, "exit-") {
 				// This is an expected exit, don't re-panic
+				// but we need to capture the exit code as an error
+				err = fmt.Errorf("exited with code %s", strings.TrimPrefix(s, "exit-"))
 				return
 			}
 			panic(r) // Re-panic actual panics
@@ -34,17 +37,14 @@ func executeCommand(root *cobra.Command, args ...string) error {
 	}()
 
 	root.SetArgs(args)
-	// capture output to avoid spamming test logs
-	// root.SetOut(os.Stdout)
-	// root.SetErr(os.Stderr)
-	// Use bytes.Buffer if we want to assert output, but for now just silence or let it go to stdout
-	// Use bytes.Buffer if we want to assert output, but for now just silence or let it go to stdout
-	root.SetOut(os.Stdout)
-	root.SetErr(os.Stderr)
+	buf := new(bytes.Buffer)
+	root.SetOut(buf)
+	root.SetErr(buf)
 	// Mock Stdin to avoid hanging on interactive prompts (e.g. wizard)
 	root.SetIn(bytes.NewBufferString(""))
 
-	return root.Execute()
+	err = root.Execute()
+	return strings.TrimSpace(buf.String()), err
 }
 
 func resetFlags(cmd *cobra.Command) {
@@ -83,7 +83,7 @@ func TestCommands(t *testing.T) {
 
 		os.WriteFile("app_spec.txt", []byte("My App Spec"), 0644)
 
-		err := executeCommand(rootCmd, "init-project", "--mock-agent", "--spec", "app_spec.txt")
+		_, err := executeCommand(rootCmd, "init-project", "--mock-agent", "--spec", "app_spec.txt")
 
 		if err != nil {
 
@@ -107,22 +107,15 @@ func TestCommands(t *testing.T) {
 
 	})
 
-	t.Run("Config Command", func(t *testing.T) {
-
-		// Create dummy models file with correct structure
-
-		os.WriteFile("gemini-models.json", []byte(`{"models": [{"name": "gemini-pro", "displayName": "Gemini Pro"}]}`), 0644)
-
+	t.Run("Config List Models Command", func(t *testing.T) {
 		// Test list-models
-
-		err := executeCommand(rootCmd, "config", "list-models")
-
+		output, err := executeCommand(rootCmd, "config", "list-models")
 		if err != nil {
-
 			t.Errorf("Config list-models failed: %v", err)
-
 		}
-
+		if !strings.Contains(output, "Gemini Pro") {
+			t.Errorf("Expected output to contain 'Gemini Pro', but got %q", output)
+		}
 	})
 
 	t.Run("Start Mock Command", func(t *testing.T) {
@@ -145,7 +138,7 @@ func TestCommands(t *testing.T) {
 
 		// Also use --stream to cover that path
 
-		err := executeCommand(rootCmd, "start", "--mock", "--path", ".", "--max-iterations", "1", "--stream")
+		_, err := executeCommand(rootCmd, "start", "--mock", "--path", ".", "--max-iterations", "1", "--stream")
 
 		// It might exit with code 1 due to max iterations, which is caught by executeCommand
 
@@ -193,7 +186,7 @@ func TestCommands(t *testing.T) {
 
 		// Just run help to cover command definition
 
-		err := executeCommand(rootCmd, "logs", "--help")
+		_, err := executeCommand(rootCmd, "logs", "--help")
 
 		if err != nil {
 
@@ -207,7 +200,7 @@ func TestCommands(t *testing.T) {
 
 		// Just run it, it should output empty list or similar
 
-		err := executeCommand(rootCmd, "list")
+		_, err := executeCommand(rootCmd, "list")
 
 		if err != nil {
 
@@ -219,7 +212,7 @@ func TestCommands(t *testing.T) {
 
 	t.Run("Check Command", func(t *testing.T) {
 
-		err := executeCommand(rootCmd, "check")
+		_, err := executeCommand(rootCmd, "check")
 
 		// It might fail due to missing docker/go in test env, but we just want to execute code paths
 
@@ -243,7 +236,7 @@ func TestCommands(t *testing.T) {
 
 		os.WriteFile("dummy.txt", []byte("content"), 0644)
 
-		err := executeCommand(rootCmd, "clean")
+		_, err := executeCommand(rootCmd, "clean")
 
 		if err != nil {
 
@@ -267,13 +260,13 @@ func TestCommands(t *testing.T) {
 
 	t.Run("Missing Args", func(t *testing.T) {
 
-		if err := executeCommand(rootCmd, "logs"); err == nil {
+		if _, err := executeCommand(rootCmd, "logs"); err == nil {
 
 			t.Log("Expected error for logs without args")
 
 		}
 
-		if err := executeCommand(rootCmd, "start", "--detached"); err == nil {
+		if _, err := executeCommand(rootCmd, "start", "--detached"); err == nil {
 
 			t.Log("Expected error for detached without name")
 

@@ -4,124 +4,122 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-// configCmd represents the config command
+func init() {
+	configCmd.AddCommand(configViewCmd)
+	configCmd.AddCommand(configGetCmd)
+	configCmd.AddCommand(configSetCmd)
+	configCmd.AddCommand(configListModelsCmd)
+	rootCmd.AddCommand(configCmd)
+}
+
 var configCmd = &cobra.Command{
 	Use:   "config",
-	Short: "Manage configuration",
-	Long:  `Get, set, and list configuration values.`, 
+	Short: "Manage configuration settings",
+	Long:  `View and manage the configuration for recac.`,
 }
 
-// setCmd represents the set command
-var setCmd = &cobra.Command{
-	Use:   "set <key> <value>",
+var configViewCmd = &cobra.Command{
+	Use:   "view",
+	Short: "Display all configuration settings",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		allSettings := viper.AllSettings()
+		if len(allSettings) == 0 {
+			fmt.Fprintln(cmd.OutOrStdout(), "No configuration settings found.")
+			return nil
+		}
+
+		fmt.Fprintln(cmd.OutOrStdout(), "Current configuration:")
+		for key, value := range allSettings {
+			fmt.Fprintf(cmd.OutOrStdout(), "%s: %v\n", key, value)
+		}
+		return nil
+	},
+}
+
+var configGetCmd = &cobra.Command{
+	Use:   "get [key]",
+	Short: "Get a specific configuration value",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		key := args[0]
+		if !viper.IsSet(key) {
+			return fmt.Errorf("key not found in configuration: %s", key)
+		}
+		value := viper.Get(key)
+		fmt.Fprintf(cmd.OutOrStdout(), "%v\n", value)
+		return nil
+	},
+}
+
+var configSetCmd = &cobra.Command{
+	Use:   "set [key] [value]",
 	Short: "Set a configuration value",
 	Args:  cobra.ExactArgs(2),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		key := args[0]
-		valueStr := args[1]
-		var value interface{}
-
-		// Try to parse as integer
-		if i, err := strconv.Atoi(valueStr); err == nil {
-			value = i
-		} else if b, err := strconv.ParseBool(valueStr); err == nil {
-			// Try to parse as boolean
-			value = b
-		} else {
-			// Fallback to string
-			value = valueStr
-		}
+		value := args[1]
 
 		viper.Set(key, value)
-
-		// Save configuration
-		filename := viper.ConfigFileUsed()
-		if filename == "" {
-			// If no config file was used (e.g. defaults only), default to config.yaml in current dir
-			filename = "config.yaml"
+		if err := viper.SafeWriteConfig(); err != nil {
+			// If file doesn't exist, we might need to create it.
+			// Let's try to get the config file path and write it.
+			cfgFile := viper.ConfigFileUsed()
+			if cfgFile == "" {
+				// Try to get from flags if available, or use default.
+				if rootCmd.PersistentFlags().Changed("config") {
+					cfgFile, _ = rootCmd.PersistentFlags().GetString("config")
+				} else {
+					home, _ := os.UserHomeDir()
+					cfgFile = home + "/.recac.yaml"
+				}
+			}
+			if err := viper.WriteConfigAs(cfgFile); err != nil {
+				return fmt.Errorf("error writing config file: %w", err)
+			}
 		}
-
-		if err := viper.WriteConfigAs(filename); err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing config to %s: %v\n", filename, err)
-			exit(1)
-		}
-
-		fmt.Printf("Configuration updated: %s = %v\n", key, value)
-		fmt.Printf("Saved to: %s\n", filename)
+		fmt.Fprintf(cmd.OutOrStdout(), "Updated configuration key '%s'\n", key)
+		return nil
 	},
 }
 
-// listKeysCmd represents the list-keys command
-var listKeysCmd = &cobra.Command{
-	Use:   "list-keys",
-	Short: "List all available configuration keys",
-	Run: func(cmd *cobra.Command, args []string) {
-		keys := viper.AllKeys()
-		fmt.Println("Available configuration keys:")
-		for _, key := range keys {
-			fmt.Printf("- %s: %v\n", key, viper.Get(key))
-		}
-	},
-}
-
-// listModelsCmd represents the list-models command
-var listModelsCmd = &cobra.Command{
+var configListModelsCmd = &cobra.Command{
 	Use:   "list-models",
-	Short: "List compatible models for the active provider",
-	Run: func(cmd *cobra.Command, args []string) {
-		provider := viper.GetString("provider")
-		fmt.Printf("Listing models for provider: %s\n", provider)
-
-		var filename string
-		switch provider {
-		case "gemini":
-			filename = "gemini-models.json"
-		case "openrouter":
-			filename = "openrouter-models.json"
-		default:
-			fmt.Printf("Model listing not supported for provider: %s\n", provider)
-			return
+	Short: "List available AI models for the configured provider",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		provider := viper.GetString("agent_provider")
+		if provider == "" {
+			provider = "gemini" // Default to gemini if not set
 		}
+		modelFileName := fmt.Sprintf("%s-models.json", provider)
 
-		// Read file
-		data, err := os.ReadFile(filename)
+		// This assumes the model files are in the same directory as the executable or cwd.
+		// This might need adjustment based on how the application is deployed.
+		data, err := os.ReadFile(modelFileName)
 		if err != nil {
-			fmt.Printf("Error reading models file %s: %v\n", filename, err)
-			return
+			return fmt.Errorf("could not read models file for provider '%s': %w. Ensure '%s' is present", provider, err, modelFileName)
 		}
 
-		// Parse
-		var modelList struct {
+		var modelsData struct {
 			Models []struct {
 				Name        string `json:"name"`
-					DisplayName string `json:"displayName"`
+				DisplayName string `json:"displayName"`
 			} `json:"models"`
 		}
 
-		if err := json.Unmarshal(data, &modelList); err != nil {
-			fmt.Printf("Error parsing models file: %v\n", err)
-			return
+		if err := json.Unmarshal(data, &modelsData); err != nil {
+			return fmt.Errorf("failed to parse models file: %w", err)
 		}
 
-		for _, m := range modelList.Models {
-			if m.DisplayName != "" {
-				fmt.Printf("- %s (%s)\n", m.Name, m.DisplayName)
-			} else {
-				fmt.Printf("- %s\n", m.Name)
-			}
+		fmt.Fprintf(cmd.OutOrStdout(), "Available models for %s:\n", provider)
+		for _, model := range modelsData.Models {
+			fmt.Fprintf(cmd.OutOrStdout(), "- %s (%s)\n", model.DisplayName, model.Name)
 		}
+
+		return nil
 	},
-}
-
-func init() {
-	rootCmd.AddCommand(configCmd)
-	configCmd.AddCommand(setCmd)
-	configCmd.AddCommand(listKeysCmd)
-	configCmd.AddCommand(listModelsCmd)
 }
