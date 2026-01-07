@@ -17,14 +17,15 @@ func TestSQLiteStore(t *testing.T) {
 	defer store.Close()
 
 	// Test 1: SaveObservation
+	projectID := "test-project"
 	agentID := "test-agent"
 	content := "Observed a test event"
-	if err := store.SaveObservation(agentID, content); err != nil {
+	if err := store.SaveObservation(projectID, agentID, content); err != nil {
 		t.Errorf("SaveObservation failed: %v", err)
 	}
 
 	// Test 2: QueryHistory
-	history, err := store.QueryHistory(10)
+	history, err := store.QueryHistory(projectID, 10)
 	if err != nil {
 		t.Errorf("QueryHistory failed: %v", err)
 	}
@@ -41,11 +42,11 @@ func TestSQLiteStore(t *testing.T) {
 	}
 
 	// Test 3: Multiple Insertions and Order
-	store.SaveObservation(agentID, "Second event")
+	store.SaveObservation(projectID, agentID, "Second event")
 	time.Sleep(10 * time.Millisecond) // Ensure timestamp difference
-	store.SaveObservation(agentID, "Third event")
+	store.SaveObservation(projectID, agentID, "Third event")
 
-	history, err = store.QueryHistory(2)
+	history, err = store.QueryHistory(projectID, 2)
 	if err != nil {
 		t.Errorf("QueryHistory failed: %v", err)
 	}
