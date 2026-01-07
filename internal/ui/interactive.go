@@ -437,6 +437,15 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
+	case shellOutputMsg:
+		m.conversation(string(msg), false)
+		m.setMode(ModeChat) // Return to chat after command
+		return m, nil
+
+	case StatusMsg:
+		m.conversation(string(msg), false)
+		return m, nil
+
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -717,6 +726,18 @@ func (m *InteractiveModel) runShellCommand(cmdStr string) tea.Cmd {
 
 type shellOutputMsg string
 
+// StatusMsg is a message type for displaying status information.
+type StatusMsg string
+
+// ClearHistory clears the conversation history.
+func (m *InteractiveModel) ClearHistory() {
+	m.history = []string{}
+	clearedMsg := interactiveStatusMessageStyle.Render("Conversation history cleared.")
+	m.history = append(m.history, clearedMsg)
+	m.viewport.SetContent(strings.Join(m.history, "\n"))
+	m.viewport.GotoBottom()
+}
+
 func (m InteractiveModel) View() string {
 	var views []string
 
@@ -734,7 +755,13 @@ func (m InteractiveModel) View() string {
 	views = append(views, LogoContainerStyle.Render(logo))
 
 	// Info Bar
-	infoBar := infoBarStyle.Render(fmt.Sprintf("Provider: %s • Model: %s", strings.Title(m.currentAgent), m.currentModel))
+	modeStr := "Chat"
+	if m.mode == ModeShell {
+		modeStr = "Shell"
+	} else if m.mode == ModeCmd {
+		modeStr = "Command"
+	}
+	infoBar := infoBarStyle.Render(fmt.Sprintf("Provider: %s • Model: %s • Mode: %s", strings.Title(m.currentAgent), m.currentModel, modeStr))
 	views = append(views, infoBar)
 
 	// Layout Switch: Show List OR Viewport
@@ -746,9 +773,16 @@ func (m InteractiveModel) View() string {
 		m.list.SetHeight(avail)
 		views = append(views, interactiveListStyle.Render(m.list.View()))
 	} else {
+		borderColor := lipgloss.Color("240") // Default Grey
+		if m.mode == ModeShell {
+			borderColor = lipgloss.Color("#F4B400") // Yellow
+		} else if m.mode == ModeChat {
+			borderColor = lipgloss.Color("63") // Purple
+		}
+
 		vpStyle := lipgloss.NewStyle().
 			BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("240")).
+			BorderForeground(borderColor).
 			Padding(0, 1).
 			MarginLeft(2)
 		views = append(views, vpStyle.Render(m.viewport.View()))
