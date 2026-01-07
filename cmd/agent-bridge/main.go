@@ -1,14 +1,17 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"recac/internal/db"
 	"strings"
 )
 
 func main() {
+	// Default DB path, can be overridden if needed but usually static in container
 	if err := run(os.Args, ".recac.db"); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -23,7 +26,41 @@ func run(args []string, dbPath string) error {
 
 	command := args[1]
 
-	// Initialize DB connection
+	// Commands that don't need DB access
+	switch command {
+	case "list-files":
+		dir := "."
+		if len(args) > 2 {
+			dir = args[2]
+		}
+		return listFiles(dir)
+	case "search":
+		if len(args) < 3 {
+			return fmt.Errorf("usage: agent-bridge search <query> [path]")
+		}
+		query := args[2]
+		path := "."
+		if len(args) > 3 {
+			path = args[3]
+		}
+		return searchFiles(path, query)
+	case "read-file":
+		if len(args) < 3 {
+			return fmt.Errorf("usage: agent-bridge read-file <path> [start_line] [end_line]")
+		}
+		fpath := args[2]
+		start := 0
+		end := -1
+		if len(args) > 3 {
+			fmt.Sscanf(args[3], "%d", &start)
+		}
+		if len(args) > 4 {
+			fmt.Sscanf(args[4], "%d", &end)
+		}
+		return readFile(fpath, start, end)
+	}
+
+	// Commands that need DB access
 	store, err := db.NewSQLiteStore(dbPath)
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
@@ -167,10 +204,109 @@ func run(args []string, dbPath string) error {
 func printUsage() {
 	fmt.Println("Usage: agent-bridge <command> [arguments]")
 	fmt.Println("Commands:")
+	fmt.Println("  list-files [dir]       List files (respecting ignores)")
+	fmt.Println("  search <query> [dir]   Search text in files (respecting ignores)")
+	fmt.Println("  read-file <path> [s] [e] Read file with line numbers (optional start/end lines)")
 	fmt.Println("  blocker <message>      Set a blocker signal")
 	fmt.Println("  qa                     Trigger QA process")
 	fmt.Println("  manager                Trigger Manager review")
 	fmt.Println("  verify <id> <pass/fail> Update UI verification request")
 	fmt.Println("  signal <key> <value>   Set a generic signal")
 	fmt.Println("  feature set <id> --status <status> --passes <true/false> Update feature status")
+}
+
+// Helpers for file operations
+
+func isIgnored(name string, isDir bool) bool {
+	// Common ignores
+	if name == ".git" || name == ".idea" || name == ".vscode" || name == "node_modules" || name == "dist" || name == "build" || name == "vendor" || name == ".recac.db" {
+		return true
+	}
+	if !isDir {
+		if strings.HasSuffix(name, ".log") || strings.HasSuffix(name, ".sum") || strings.HasSuffix(name, ".lock") {
+			return true
+		}
+	}
+	return false
+}
+
+func listFiles(root string) error {
+	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			if isIgnored(info.Name(), true) && path != root {
+				return filepath.SkipDir
+			}
+		} else {
+			if !isIgnored(info.Name(), false) {
+				fmt.Println(path)
+			}
+		}
+		return nil
+	})
+}
+
+func searchFiles(root, query string) error {
+	found := false
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			if isIgnored(info.Name(), true) && path != root {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if isIgnored(info.Name(), false) {
+			return nil
+		}
+
+		// Read file
+		file, err := os.Open(path)
+		if err != nil {
+			return nil // Skip unreadable
+		}
+		defer file.Close()
+
+		// Simple line scan
+		scanner := bufio.NewScanner(file)
+		lineNum := 1
+		for scanner.Scan() {
+			text := scanner.Text()
+			if strings.Contains(text, query) {
+				fmt.Printf("%s:%d: %s\n", path, lineNum, strings.TrimSpace(text))
+				found = true
+			}
+			lineNum++
+		}
+		return nil
+	})
+	if !found && err == nil {
+		fmt.Println("No matches found.")
+	}
+	return err
+}
+
+func readFile(path string, start, end int) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	lineNum := 1
+	for scanner.Scan() {
+		if lineNum >= start && (end == -1 || lineNum <= end) {
+			fmt.Printf("%4d | %s\n", lineNum, scanner.Text())
+		}
+		if end != -1 && lineNum > end {
+			break
+		}
+		lineNum++
+	}
+	return scanner.Err()
 }

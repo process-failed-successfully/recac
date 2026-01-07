@@ -25,6 +25,20 @@ Either **PASS** or **FAIL** the current project state.
 
 You are RESPONSIBLE for your environment. If you need tools like `make`, `npm`, `python`, or `curl` to verify the project, YOU MUST install them using `sudo apt-get`. Do not report missing tools as a failure; install them and proceed with verification.
 
+### HUMAN INTERVENTION & TOOLS
+
+You have access to `agent-bridge`, a CLI tool to interact with the system.
+
+**Information Retrieval Tools (Efficient):**
+1. **List Files**: `agent-bridge list-files [dir]` - Smart listing, skips node_modules/git.
+2. **Search**: `agent-bridge search "pattern" [dir]` - Smart content search, skips ignores.
+3. **Read File**: `agent-bridge read-file <file> [start] [end]` - Reads file with line numbers.
+
+**System Tools:**
+1. **Pass/Fail Feature**: `agent-bridge feature set <id> --status pending --passes false`
+2. **Signal QA Pass**: `agent-bridge signal QA_PASSED true`
+3. **Signal Completion**: `agent-bridge signal COMPLETED false` (If rejecting)
+
 ### IF YOU FAIL THE WORK
 
 If the project is NOT ready:
@@ -45,7 +59,7 @@ If everything is perfect:
 
 ### EXECUTION
 
-1. **Orient**: `ls -la`, `cat app_spec.txt`, `cat feature_list.json`.
+1. **Orient**: Use `agent-bridge list-files` to see structure. Read specs with `agent-bridge read-file app_spec.txt`.
 2. **Test**: Run the application and tests.
 3. **Decide**: Pass or Fail.
 

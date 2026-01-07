@@ -57,19 +57,18 @@ Your goal is not just to make it work, but to make it **maintainable, readable, 
 
 ### STEP 1: GET YOUR BEARINGS (MANDATORY)
 
-Start by orienting yourself.
-First, check your location and list files:
+Start by orienting yourself using `agent-bridge` tools for efficiency.
 
 ```bash
 pwd
-ls -la
+agent-bridge list-files .
 ```
 
 Then read the specification and plan:
 
 ```bash
-cat app_spec.txt
-cat feature_list.json | head -50
+agent-bridge read-file app_spec.txt
+agent-bridge read-file feature_list.json 1 50
 cat manager_directives.txt
 cat questions_answered.txt
 ```
@@ -115,6 +114,12 @@ echo "- Implemented auth service" >> successes.txt
 
 You have access to `agent-bridge`, a CLI tool to interact with the system.
 
+**Information Retrieval Tools (Efficient):**
+1. **List Files**: `agent-bridge list-files [dir]` - Smart listing, skips node_modules/git.
+2. **Search**: `agent-bridge search "pattern" [dir]` - Smart content search, skips ignores.
+3. **Read File**: `agent-bridge read-file <file> [start] [end]` - Reads file with line numbers.
+
+**System Tools:**
 1. **Blockers**: `agent-bridge blocker "Reason..."` (Pauses session for user). **ONLY use this if you are actually blocked.** Do not report "no blockers".
 2. **Quality Assurance**: `agent-bridge qa` (Triggers QA Agent).
 3. **Manager Review**: `agent-bridge manager` (Triggers Manager Review).
@@ -130,8 +135,8 @@ If all features in `feature_list.json` have `"passes": true` and you have verifi
 
 ### EXECUTION INSTRUCTIONS
 
-- **DO NOT USE NATIVE TOOLS** like `read_file` or `write_file`.
-- **ALWAYS USE `bash` blocks** for commands and file operations.
+- **Use `agent-bridge` tools** for file exploration and reading where possible for efficiency.
+- **ALWAYS USE `bash` blocks** for all commands.
 - **WORK IN ROOT**: Do not create or move into project subdirectories. All files should be in the current directory (`.`).
 - Write the full content of files when modifying.
 - Do not chain more than 3-4 commands per turn.
