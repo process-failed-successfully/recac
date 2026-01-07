@@ -13,8 +13,9 @@ jobs:
       contents: read
 
     steps:
+      - uses: actions/checkout@v4
       - name: Invoke Jules for Cleanup
-        uses: google-labs-code/jules-invoke@v1.0.0
+        uses: ./.github/actions/jules-invoke
         with:
           prompt: |
             Please analyze the codebase and perform maintenance tasks:

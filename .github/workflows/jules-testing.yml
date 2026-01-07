@@ -1,4 +1,4 @@
-name: Weekly Codebase Cleanup
+name: Jules testing workflow
 
 on:
   schedule:
@@ -13,8 +13,9 @@ jobs:
       contents: read
 
     steps:
+      - uses: actions/checkout@v4
       - name: Invoke Jules for Cleanup
-        uses: google-labs-code/jules-invoke@v1.0.0
+        uses: ./.github/actions/jules-invoke
         with:
           prompt: |
             Please maintain >80% test coverage across the codebase.
@@ -40,3 +41,4 @@ jobs:
             Do not open a PR if you have not successfully increased coverage or if tests are failing.
           jules_api_key: ${{ secrets.JULES_API_KEY }}
           include_commit_log: false
+          starting_branch: master
