@@ -4,11 +4,6 @@ on:
   workflow_run:
     workflows: ["RECAC CI", "Smoke Test (k3s)"]
     types: [completed]
-    branches:
-      - "test/**"
-      - "smoke/**"
-      - "**test**"
-      - "**smoke**"
 
 jobs:
   fix-failure:
