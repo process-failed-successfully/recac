@@ -58,20 +58,20 @@ Your goal is not just to make it work, but to make it **maintainable, readable, 
 ### STEP 1: GET YOUR BEARINGS (MANDATORY)
 
 Start by orienting yourself.
-First, check your location and list files:
+First, check your location and list files using the bridge:
 
 ```bash
 pwd
-ls -la
+agent-bridge list-files
 ```
 
 Then read the specification and plan:
 
 ```bash
-cat app_spec.txt
+agent-bridge read-file app_spec.txt
 cat feature_list.json | head -50
-cat manager_directives.txt
-cat questions_answered.txt
+agent-bridge read-file manager_directives.txt
+agent-bridge read-file questions_answered.txt
 ```
 
 ### STEP 2: CHOOSE AND IMPLEMENT
@@ -115,10 +115,14 @@ echo "- Implemented auth service" >> successes.txt
 
 You have access to `agent-bridge`, a CLI tool to interact with the system.
 
-1. **Blockers**: `agent-bridge blocker "Reason..."` (Pauses session for user). **ONLY use this if you are actually blocked.** Do not report "no blockers".
-2. **Quality Assurance**: `agent-bridge qa` (Triggers QA Agent).
-3. **Manager Review**: `agent-bridge manager` (Triggers Manager Review).
-4. **Signal Completion**: `agent-bridge signal COMPLETED true` (When ALL features pass).
+1. **File Operations**:
+   - List files: `agent-bridge list-files [path]` (returns clean list, ignores artifacts)
+   - Read file: `agent-bridge read-file <path> [--start-line N] [--end-line M]`
+   - Search: `agent-bridge search <query> [path]`
+2. **Blockers**: `agent-bridge blocker "Reason..."` (Pauses session for user). **ONLY use this if you are actually blocked.** Do not report "no blockers".
+3. **Quality Assurance**: `agent-bridge qa` (Triggers QA Agent).
+4. **Manager Review**: `agent-bridge manager` (Triggers Manager Review).
+5. **Signal Completion**: `agent-bridge signal COMPLETED true` (When ALL features pass).
 
 ### COMPLETION
 
@@ -130,7 +134,7 @@ If all features in `feature_list.json` have `"passes": true` and you have verifi
 
 ### EXECUTION INSTRUCTIONS
 
-- **DO NOT USE NATIVE TOOLS** like `read_file` or `write_file`.
+- **Prefer `agent-bridge`** for file operations (list, read, search) over native tools like `ls`, `cat`, or `grep` when possible for cleaner output.
 - **ALWAYS USE `bash` blocks** for commands and file operations.
 - **WORK IN ROOT**: Do not create or move into project subdirectories. All files should be in the current directory (`.`).
 - Write the full content of files when modifying.

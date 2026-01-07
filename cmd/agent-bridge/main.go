@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"recac/internal/db"
+	"strconv"
 	"strings"
 )
 
@@ -23,6 +24,76 @@ func run(args []string, dbPath string) error {
 
 	command := args[1]
 
+	// File System commands (DB Independent)
+	switch command {
+	case "list-files":
+		root := "."
+		if len(args) > 2 {
+			root = args[2]
+		}
+		files, err := listFiles(root)
+		if err != nil {
+			return err
+		}
+		// Output JSON for easy parsing by agents
+		jsonBytes, err := json.MarshalIndent(files, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(jsonBytes))
+		return nil
+
+	case "read-file":
+		if len(args) < 3 {
+			return fmt.Errorf("usage: agent-bridge read-file <path> [--start-line N] [--end-line M]")
+		}
+		path := args[2]
+		startLine := 0
+		endLine := 0
+
+		for i := 3; i < len(args); i++ {
+			if args[i] == "--start-line" && i+1 < len(args) {
+				if v, err := strconv.Atoi(args[i+1]); err == nil {
+					startLine = v
+					i++
+				}
+			} else if args[i] == "--end-line" && i+1 < len(args) {
+				if v, err := strconv.Atoi(args[i+1]); err == nil {
+					endLine = v
+					i++
+				}
+			}
+		}
+
+		content, err := readFile(path, startLine, endLine)
+		if err != nil {
+			return err
+		}
+		// Output raw content
+		fmt.Print(content)
+		return nil
+
+	case "search":
+		if len(args) < 3 {
+			return fmt.Errorf("usage: agent-bridge search <query> [path]")
+		}
+		query := args[2]
+		root := "."
+		if len(args) > 3 {
+			root = args[3]
+		}
+
+		results, err := searchFiles(query, root)
+		if err != nil {
+			return err
+		}
+		for _, r := range results {
+			fmt.Println(r)
+		}
+		return nil
+	}
+
+	// DB Dependent commands
 	// Initialize DB connection
 	store, err := db.NewSQLiteStore(dbPath)
 	if err != nil {
@@ -167,6 +238,10 @@ func run(args []string, dbPath string) error {
 func printUsage() {
 	fmt.Println("Usage: agent-bridge <command> [arguments]")
 	fmt.Println("Commands:")
+	fmt.Println("  list-files [path]      List files in directory (ignores common artifacts)")
+	fmt.Println("  read-file <path>       Read file content")
+	fmt.Println("    Flags: --start-line <n> --end-line <n>")
+	fmt.Println("  search <query> [path]  Search text in files")
 	fmt.Println("  blocker <message>      Set a blocker signal")
 	fmt.Println("  qa                     Trigger QA process")
 	fmt.Println("  manager                Trigger Manager review")

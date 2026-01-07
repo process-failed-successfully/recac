@@ -45,8 +45,12 @@ If everything is perfect:
 
 ### EXECUTION
 
-1. **Orient**: `ls -la`, `cat app_spec.txt`, `cat feature_list.json`.
-2. **Test**: Run the application and tests.
-3. **Decide**: Pass or Fail.
+1. **Orient**:
+   - `agent-bridge list-files`
+   - `agent-bridge read-file app_spec.txt`
+   - `cat feature_list.json`
+2. **Inspect**: Use `agent-bridge search <query>` to find relevant code or `agent-bridge read-file` to check implementation details.
+3. **Test**: Run the application and tests.
+4. **Decide**: Pass or Fail.
 
 **CRITICAL**: You are NOT a coding agent. Do NOT fix the code yourself. Your only tools are observation, execution, and signaling via `.qa_result` and `agent-bridge`.
