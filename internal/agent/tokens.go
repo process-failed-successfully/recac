@@ -10,18 +10,14 @@ import (
 // Uses approximate counting: ~4 characters per token for English text.
 // This is a rough approximation; actual tokenization varies by model.
 func EstimateTokenCount(text string) int {
-	if text == "" {
+	n := len(text)
+	if n == 0 {
 		return 0
 	}
-	// Remove extra whitespace and count
-	trimmed := strings.TrimSpace(text)
-	if trimmed == "" {
-		return 0
-	}
-	// Approximate: 4 characters per token for English
-	// Add 1 for every 4 characters, plus some overhead for punctuation/spaces
-	charCount := utf8.RuneCountInString(trimmed)
-	return (charCount / 4) + 1
+	// Approximate: 4 characters per token for English.
+	// We use len(text) (byte count) instead of RuneCountInString for performance (O(1) vs O(N)).
+	// For ASCII, bytes == runes. For UTF-8, bytes >= runes, so this slightly overestimates, which is safer for limits.
+	return (n / 4) + 1
 }
 
 // TruncateToTokenLimit truncates text to fit within a token limit while preserving important context.

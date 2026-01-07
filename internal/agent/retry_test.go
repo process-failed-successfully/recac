@@ -11,7 +11,7 @@ import (
 func TestGeminiClient_Retry(t *testing.T) {
 	calls := 0
 	client := NewGeminiClient("fake-key", "gemini-pro", "test-project")
-	client.backoffFn = func(i int) time.Duration { return 50 * time.Millisecond } // Fast backoff
+	client.BackoffFn = func(i int) time.Duration { return 50 * time.Millisecond } // Fast backoff
 	client.WithMockResponder(func(prompt string) (string, error) {
 		calls++
 		if calls < 3 {
@@ -45,7 +45,7 @@ func TestGeminiClient_NetworkInterruption(t *testing.T) {
 	t.Run("NetworkDrop_RecoversAfterRetries", func(t *testing.T) {
 		calls := 0
 		client := NewGeminiClient("fake-key", "gemini-pro", "test-project")
-		client.backoffFn = func(i int) time.Duration { return 50 * time.Millisecond } // Fast backoff
+		client.BackoffFn = func(i int) time.Duration { return 50 * time.Millisecond } // Fast backoff
 
 		// Simulate network drop (connection refused, timeout, etc.)
 		client.WithMockResponder(func(prompt string) (string, error) {
@@ -101,7 +101,7 @@ func TestGeminiClient_NetworkInterruption(t *testing.T) {
 	t.Run("NetworkDrop_FailsGracefully", func(t *testing.T) {
 		calls := 0
 		client := NewGeminiClient("fake-key", "gemini-pro", "test-project")
-		client.backoffFn = func(i int) time.Duration { return 50 * time.Millisecond } // Fast backoff
+		client.BackoffFn = func(i int) time.Duration { return 50 * time.Millisecond } // Fast backoff
 
 		// Simulate persistent network failure
 		client.WithMockResponder(func(prompt string) (string, error) {
@@ -147,7 +147,7 @@ func TestGeminiClient_NetworkInterruption(t *testing.T) {
 	t.Run("NetworkDrop_ContextCancellation", func(t *testing.T) {
 		calls := 0
 		client := NewGeminiClient("fake-key", "gemini-pro", "test-project")
-		client.backoffFn = func(i int) time.Duration { return 50 * time.Millisecond } // Slower backoff for cancel test
+		client.BackoffFn = func(i int) time.Duration { return 50 * time.Millisecond } // Slower backoff for cancel test
 
 		client.WithMockResponder(func(prompt string) (string, error) {
 			calls++
@@ -212,7 +212,7 @@ func TestGeminiClient_IterationIncrementOnError(t *testing.T) {
 	// Step 1: Simulate an agent API error
 	calls := 0
 	client := NewGeminiClient("fake-key", "gemini-pro", "test-project")
-	client.backoffFn = func(i int) time.Duration { return 50 * time.Millisecond } // Fast backoff
+	client.BackoffFn = func(i int) time.Duration { return 50 * time.Millisecond } // Fast backoff
 	client.WithStateManager(sm)
 
 	// Mock responder that always fails (simulating API error)

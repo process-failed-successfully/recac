@@ -8,30 +8,27 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"recac/internal/telemetry"
 	"strings"
 	"time"
 )
 
 // OpenAIClient represents a client for the OpenAI API
 type OpenAIClient struct {
+	BaseClient
 	apiKey     string
 	model      string
-	project    string
 	httpClient *http.Client
 	apiURL     string
 	// mockResponder is used for testing to bypass real API calls
 	mockResponder func(string) (string, error)
-	// stateManager is optional; if set, enables token tracking and truncation
-	stateManager *StateManager
 }
 
 // NewOpenAIClient creates a new OpenAI client
 func NewOpenAIClient(apiKey, model, project string) *OpenAIClient {
 	return &OpenAIClient{
-		apiKey:  apiKey,
-		model:   model,
-		project: project,
+		BaseClient: NewBaseClient(project, 128000), // Default to 128k for GPT-4
+		apiKey:     apiKey,
+		model:      model,
 		httpClient: &http.Client{
 			Timeout: 300 * time.Second,
 		},
@@ -47,120 +44,14 @@ func (c *OpenAIClient) WithMockResponder(fn func(string) (string, error)) *OpenA
 
 // WithStateManager sets the state manager for token tracking
 func (c *OpenAIClient) WithStateManager(sm *StateManager) *OpenAIClient {
-	c.stateManager = sm
+	c.StateManager = sm
 	return c
 }
 
 // Send sends a prompt to OpenAI and returns the generated text with retry logic.
 // If stateManager is configured, it will track tokens and truncate if needed.
 func (c *OpenAIClient) Send(ctx context.Context, prompt string) (string, error) {
-	telemetry.TrackAgentIteration(c.project)
-	start := time.Now()
-	defer func() {
-		telemetry.ObserveAgentLatency(c.project, time.Since(start).Seconds())
-	}()
-	// Load state and check token limits if state manager is configured
-	var state State
-	var shouldUpdateState bool
-	if c.stateManager != nil {
-		var err error
-		state, err = c.stateManager.Load()
-		if err != nil {
-			return "", fmt.Errorf("failed to load state: %w", err)
-		}
-		shouldUpdateState = true
-
-		// Check if prompt exceeds token limit
-		promptTokens := EstimateTokenCount(prompt)
-		maxTokens := state.MaxTokens
-		if maxTokens == 0 {
-			maxTokens = 128000 // Default to 128k for GPT-4 if not set
-		}
-
-		// Reserve some tokens for response (estimate 50% for response)
-		availableTokens := maxTokens * 50 / 100
-		if promptTokens > availableTokens {
-			// Truncate the prompt
-			telemetry.LogInfo("Prompt exceeds token limit, truncating...", "project", c.project, "actual", promptTokens, "available", availableTokens)
-			prompt = TruncateToTokenLimit(prompt, availableTokens)
-			promptTokens = EstimateTokenCount(prompt)
-			state.TokenUsage.TruncationCount++
-		}
-
-		// Update current token count
-		state.CurrentTokens = promptTokens
-		state.TokenUsage.TotalPromptTokens += promptTokens
-		telemetry.TrackTokenUsage(c.project, promptTokens)
-
-		// Log token usage
-		telemetry.LogDebug("Token usage (prompt)",
-			"project", c.project,
-			"prompt", promptTokens,
-			"current", state.CurrentTokens,
-			"max", maxTokens,
-			"total_prompt", state.TokenUsage.TotalPromptTokens,
-			"truncations", state.TokenUsage.TruncationCount)
-	}
-
-	maxRetries := 3
-	var lastErr error
-
-	for i := 0; i <= maxRetries; i++ {
-		if i > 0 {
-			// Exponential backoff
-			waitTime := time.Duration(1<<uint(i-1)) * time.Second
-			telemetry.LogInfo("Retrying agent call", "project", c.project, "retry", i, "wait", waitTime, "error", lastErr)
-			select {
-			case <-time.After(waitTime):
-			case <-ctx.Done():
-				return "", ctx.Err()
-			}
-		}
-
-		result, err := c.sendOnce(ctx, prompt)
-		if err == nil {
-			// Update token usage stats if state manager is configured
-			if shouldUpdateState {
-				responseTokens := EstimateTokenCount(result)
-				state.TokenUsage.TotalResponseTokens += responseTokens
-				state.TokenUsage.TotalTokens = state.TokenUsage.TotalPromptTokens + state.TokenUsage.TotalResponseTokens
-				state.CurrentTokens += responseTokens
-
-				// Initialize Metadata if needed
-				if state.Metadata == nil {
-					state.Metadata = make(map[string]interface{})
-				}
-
-				// Increment iteration count only on successful calls
-				currentIteration, _ := state.Metadata["iteration"].(float64)
-				state.Metadata["iteration"] = currentIteration + 1
-
-				// Log token usage after response
-				maxTokens := state.MaxTokens
-				if maxTokens == 0 {
-					maxTokens = 128000
-				}
-				telemetry.LogInfo("Token usage (response)",
-					"project", c.project,
-					"response", responseTokens,
-					"current", state.CurrentTokens,
-					"max", maxTokens,
-					"total", state.TokenUsage.TotalTokens,
-					"prompt", state.TokenUsage.TotalPromptTokens,
-					"response_total", state.TokenUsage.TotalResponseTokens)
-
-				// Save updated state
-				if err := c.stateManager.Save(state); err != nil {
-					telemetry.LogInfo("Warning: Failed to save state", "project", c.project, "error", err)
-				}
-			}
-			return result, nil
-		}
-
-		lastErr = err
-	}
-
-	return "", fmt.Errorf("failed after %d retries: %w", maxRetries, lastErr)
+	return c.SendWithRetry(ctx, prompt, c.sendOnce)
 }
 
 func (c *OpenAIClient) sendOnce(ctx context.Context, prompt string) (string, error) {
@@ -226,127 +117,20 @@ func (c *OpenAIClient) sendOnce(ctx context.Context, prompt string) (string, err
 
 // SendStream sends a prompt to OpenAI and streams the response
 func (c *OpenAIClient) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
-	telemetry.TrackAgentIteration(c.project)
-	start := time.Now()
-	defer func() {
-		telemetry.ObserveAgentLatency(c.project, time.Since(start).Seconds())
-	}()
-	// Re-use state loading logic if possible, or just duplicate for now to avoid refactoring Send() too much.
-	// ideally extract common logic.
-	// For MVP, just copy the prompt truncation/token logic.
-
-	// Load state and check token limits
-	var state State
-	var shouldUpdateState bool
-	if c.stateManager != nil {
-		var err error
-		state, err = c.stateManager.Load()
-		if err != nil {
-			return "", fmt.Errorf("failed to load state: %w", err)
-		}
-		shouldUpdateState = true
-
-		promptTokens := EstimateTokenCount(prompt)
-		maxTokens := state.MaxTokens
-		if maxTokens == 0 {
-			maxTokens = 128000
-		}
-		availableTokens := maxTokens * 50 / 100
-		if promptTokens > availableTokens {
-			telemetry.LogInfo("Prompt exceeds token limit, truncating...", "project", c.project, "actual", promptTokens, "available", availableTokens)
-			prompt = TruncateToTokenLimit(prompt, availableTokens)
-			promptTokens = EstimateTokenCount(prompt)
-			state.TokenUsage.TruncationCount++
-		}
-		state.CurrentTokens = promptTokens
-		state.TokenUsage.TotalPromptTokens += promptTokens
-		telemetry.TrackTokenUsage(c.project, promptTokens)
-		telemetry.LogDebug("Token usage (prompt)",
-			"project", c.project,
-			"prompt", promptTokens,
-			"current", state.CurrentTokens,
-			"max", maxTokens,
-			"total_prompt", state.TokenUsage.TotalPromptTokens,
-			"truncations", state.TokenUsage.TruncationCount)
-	}
-
-	// Prepare Request
-	requestBody := map[string]interface{}{
-		"model":  c.model,
-		"stream": true,
-		"messages": []map[string]interface{}{
-			{
-				"role":    "user",
-				"content": prompt,
+	return c.SendStreamWithRetry(ctx, prompt, func(ctx context.Context, p string, oc func(string)) (string, error) {
+		// Prepare Request with the potentially truncated prompt 'p'
+		requestBody := map[string]interface{}{
+			"model":  c.model,
+			"stream": true,
+			"messages": []map[string]interface{}{
+				{
+					"role":    "user",
+					"content": p,
+				},
 			},
-		},
-	}
-
-	var fullResponse strings.Builder
-
-	maxRetries := 3
-	var lastErr error
-
-	for i := 0; i <= maxRetries; i++ {
-		if i > 0 {
-			// Exponential backoff
-			waitTime := time.Duration(1<<uint(i-1)) * time.Second
-			telemetry.LogInfo("Retrying agent call", "project", c.project, "retry", i, "wait", waitTime, "error", lastErr)
-			select {
-			case <-time.After(waitTime):
-			case <-ctx.Done():
-				return "", ctx.Err()
-			}
 		}
-
-		result, err := c.sendStreamOnce(ctx, prompt, requestBody, onChunk)
-		if err == nil {
-			fullResponse.WriteString(result)
-			break
-		}
-		lastErr = err
-	}
-
-	if lastErr != nil {
-		return "", fmt.Errorf("failed after %d retries: %w", maxRetries, lastErr)
-	}
-
-	result := fullResponse.String()
-
-	// Update Token Usage after streaming
-	if shouldUpdateState {
-		responseTokens := EstimateTokenCount(result)
-		state.TokenUsage.TotalResponseTokens += responseTokens
-		state.TokenUsage.TotalTokens = state.TokenUsage.TotalPromptTokens + state.TokenUsage.TotalResponseTokens
-		state.CurrentTokens += responseTokens
-		telemetry.TrackTokenUsage(c.project, responseTokens)
-
-		// Initialize Metadata if needed
-		if state.Metadata == nil {
-			state.Metadata = make(map[string]interface{})
-		}
-		currentIteration, _ := state.Metadata["iteration"].(float64)
-		state.Metadata["iteration"] = currentIteration + 1
-
-		maxTokens := state.MaxTokens
-		if maxTokens == 0 {
-			maxTokens = 128000
-		}
-		telemetry.LogInfo("Token usage (response)",
-			"project", c.project,
-			"response", responseTokens,
-			"current", state.CurrentTokens,
-			"max", maxTokens,
-			"total", state.TokenUsage.TotalTokens,
-			"prompt", state.TokenUsage.TotalPromptTokens,
-			"response_total", state.TokenUsage.TotalResponseTokens)
-
-		if err := c.stateManager.Save(state); err != nil {
-			telemetry.LogInfo("Warning: Failed to save state", "project", c.project, "error", err)
-		}
-	}
-
-	return result, nil
+		return c.sendStreamOnce(ctx, p, requestBody, oc)
+	}, onChunk)
 }
 
 func (c *OpenAIClient) sendStreamOnce(ctx context.Context, prompt string, requestBody map[string]interface{}, onChunk func(string)) (string, error) {
