@@ -172,10 +172,58 @@ func (s *HTTPProxyScenario) Generate(uniqueID string, repoURL string) []TicketSp
 }
 
 func (s *HTTPProxyScenario) Verify(repoPath string, ticketKeys map[string]string) error {
-	// For the complex proxy scenario, we just check if an agent branch exists for now.
-	// A full verification would involve building the go code and running tests,
-	// but that is outside the scope of this generic verification for now.
-	return checkAgentBranchExists(repoPath)
+	// For the complex proxy scenario, we check if multiple agent branches exist
+	// and if at least one of them has the basic structure.
+
+	// 1. Check if any agent branch exists
+	if err := checkAgentBranchExists(repoPath); err != nil {
+		return err
+	}
+
+	// 2. Try to find the branch for the last ticket (DOCKERFILE or README)
+	targetKey := ticketKeys["README"]
+	if targetKey == "" {
+		targetKey = ticketKeys["DOCKERFILE"]
+	}
+
+	branch, err := getSpecificAgentBranch(repoPath, targetKey)
+	if err != nil {
+		// Fallback to most recent agent branch
+		branch, err = getAgentBranch(repoPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Checkout
+	checkoutCmd := exec.Command("git", "checkout", branch)
+	checkoutCmd.Dir = repoPath
+	if out, err := checkoutCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to checkout %s: %v\nOutput: %s", branch, err, out)
+	}
+
+	// 3. Verify Structure
+	requiredPaths := []string{
+		"go.mod",
+		"cmd",
+		"internal/config/config.go",
+		"internal/proxy",
+	}
+
+	for _, p := range requiredPaths {
+		checkCmd := exec.Command("ls", "-d", p)
+		checkCmd.Dir = repoPath
+		if err := checkCmd.Run(); err != nil {
+			// List files for debugging
+			lsCmd := exec.Command("ls", "-R")
+			lsCmd.Dir = repoPath
+			lsOut, _ := lsCmd.CombinedOutput()
+			return fmt.Errorf("required path %s not found in branch %s\nFiles in repo:\n%s", p, branch, string(lsOut))
+		}
+	}
+
+	fmt.Printf("Verification Successful: Found basic project structure in branch %s.\n", branch)
+	return nil
 }
 
 func init() {

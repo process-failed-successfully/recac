@@ -39,6 +39,7 @@ func run() error {
 		provider     string
 		model        string
 		deployRepo   string
+		targetRepo   string
 		skipBuild    bool
 		skipCleanup  bool
 	)
@@ -47,9 +48,13 @@ func run() error {
 	flag.StringVar(&provider, "provider", "openrouter", "AI Provider")
 	flag.StringVar(&model, "model", "mistralai/devstral-2512:free", "AI Model")
 	flag.StringVar(&deployRepo, "repo", defaultRepo, "Docker repository for deployment")
+	flag.StringVar(&targetRepo, "repo-url", repoURL, "Target Git repository for the agent")
 	flag.BoolVar(&skipBuild, "skip-build", false, "Skip docker build")
 	flag.BoolVar(&skipCleanup, "skip-cleanup", false, "Skip cleanup on finish")
 	flag.Parse()
+
+	// Use targetRepo instead of hardcoded repoURL
+	repoURL = targetRepo
 
 	// Validate Env
 	required := []string{"JIRA_URL", "JIRA_USERNAME", "JIRA_API_TOKEN", "GITHUB_API_KEY", "OPENROUTER_API_KEY"}

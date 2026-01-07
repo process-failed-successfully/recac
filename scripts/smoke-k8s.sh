@@ -64,66 +64,12 @@ helm upgrade --install recac ./deploy/helm/recac \
     --set secrets.ghApiKey="$GITHUB_API_KEY" \
     --set secrets.ghEmail="$GITHUB_EMAIL"
 
-# 5. Wait and Verify
-echo "Waiting for Orchestrator pod..."
-kubectl rollout status deployment/recac --timeout=120s
-
-echo "Waiting for Agent job..."
-timeout=300
-elapsed=0
-while [ $elapsed -lt $timeout ]; do
-    if kubectl get jobs | grep -qi "recac-agent-"; then
-        echo "Agent job spawned!"
-        break
-    fi
-    sleep 5
-    elapsed=$((elapsed + 5))
-done
-
-if [ $elapsed -ge $timeout ]; then
-    echo "Error: Orchestrator failed to spawn agent job"
-    kubectl logs -l app.kubernetes.io/name=recac
-    exit 1
-fi
-
-echo "Waiting for agent job to complete..."
-JOB_NAME=$(kubectl get jobs -o name | grep "recac-agent-" | head -n 1)
-kubectl wait --for=condition=complete "$JOB_NAME" --timeout=600s || {
-    echo "Agent job failed or timed out"
-    kubectl describe "$JOB_NAME"
-    kubectl logs -l app=recac-agent --all-containers=true
-    exit 1
-}
-
-# 6. Verify Git Commits
-echo "Verifying Git Commits in e2e repository..."
-rm -rf e2e-repo
-git clone https://x-access-token:$GITHUB_API_KEY@github.com/process-failed-successfully/recac-jira-e2e.git e2e-repo
-cd e2e-repo
-
-BRANCHES=$(git branch -r | grep "origin/agent/" || true)
-if [ -z "$BRANCHES" ]; then
-    echo "Error: No agent branches found"
-    exit 1
-fi
-
-FOUND_VALID_BRANCH=false
-for remote_branch in $BRANCHES; do
-    branch=${remote_branch#origin/}
-    echo "Checking branch: $branch"
-    git checkout -q $branch
-    count=$(git rev-list --count HEAD ^master 2>/dev/null || git rev-list --count HEAD ^main 2>/dev/null)
-    echo "Branch $branch has $count commits"
-    if [ "$count" -ge 3 ]; then
-        echo "SUCCESS: Found branch with 3+ commits!"
-        FOUND_VALID_BRANCH=true
-        break
-    fi
-done
-
-if [ "$FOUND_VALID_BRANCH" = "false" ]; then
-    echo "Error: No agent branch found with at least 3 commits"
-    exit 1
-fi
-
-echo "=== Kubernetes Smoke Test Passed! ==="
+# 5. Run E2E Runner (Verify)
+echo "Running E2E Runner for verification..."
+# We use -skip-build because we already built and pushed
+# We use -skip-cleanup because we want to see the results
+go run e2e/runner/main.go \
+    -scenario prime-python \
+    -repo "$(echo $DEPLOY_REPO)" \
+    -skip-build \
+    -skip-cleanup
