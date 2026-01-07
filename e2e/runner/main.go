@@ -255,13 +255,8 @@ func verifyScenario(scenarioName, repo string, ticketMap map[string]string) erro
 	}
 	defer os.RemoveAll(tmpDir)
 
-	token := os.Getenv("GITHUB_API_KEY")
-	// Insert token into URL
-	// repo is like https://github.com/org/repo
-	authRepo := strings.Replace(repo, "https://", fmt.Sprintf("https://x-access-token:%s@", token), 1)
-
 	log.Printf("Cloning repo to %s...", tmpDir)
-	if err := runCommand("git", "clone", authRepo, tmpDir); err != nil {
+	if err := runCommand("git", "clone", repo, tmpDir); err != nil {
 		return fmt.Errorf("failed to clone: %w", err)
 	}
 
