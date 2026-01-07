@@ -78,6 +78,61 @@ func (c *Client) ServerVersion(ctx context.Context) (types.Version, error) {
 	return c.api.ServerVersion(ctx)
 }
 
+// Ping forwards the Ping call to the underlying API client.
+func (c *Client) Ping(ctx context.Context) (types.Ping, error) {
+	return c.api.Ping(ctx)
+}
+
+// ImageList forwards the ImageList call to the underlying API client.
+func (c *Client) ImageList(ctx context.Context, options image.ListOptions) ([]image.Summary, error) {
+	return c.api.ImageList(ctx, options)
+}
+
+// ImagePull forwards the ImagePull call to the underlying API client.
+func (c *Client) ImagePull(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error) {
+	return c.api.ImagePull(ctx, ref, options)
+}
+
+// ImageBuild forwards the ImageBuild call to the underlying API client.
+func (c *Client) ImageBuild(ctx context.Context, buildContext io.Reader, options build.ImageBuildOptions) (types.ImageBuildResponse, error) {
+	return c.api.ImageBuild(ctx, buildContext, options)
+}
+
+// ContainerCreate forwards the ContainerCreate call to the underlying API client.
+func (c *Client) ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error) {
+	return c.api.ContainerCreate(ctx, config, hostConfig, networkingConfig, platform, containerName)
+}
+
+// ContainerStart forwards the ContainerStart call to the underlying API client.
+func (c *Client) ContainerStart(ctx context.Context, containerID string, options container.StartOptions) error {
+	return c.api.ContainerStart(ctx, containerID, options)
+}
+
+// ContainerExecCreate forwards the ContainerExecCreate call to the underlying API client.
+func (c *Client) ContainerExecCreate(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error) {
+	return c.api.ContainerExecCreate(ctx, container, config)
+}
+
+// ContainerExecAttach forwards the ContainerExecAttach call to the underlying API client.
+func (c *Client) ContainerExecAttach(ctx context.Context, execID string, config container.ExecStartOptions) (types.HijackedResponse, error) {
+	return c.api.ContainerExecAttach(ctx, execID, config)
+}
+
+// ContainerExecInspect forwards the ContainerExecInspect call to the underlying API client.
+func (c *Client) ContainerExecInspect(ctx context.Context, execID string) (container.ExecInspect, error) {
+	return c.api.ContainerExecInspect(ctx, execID)
+}
+
+// ContainerStop forwards the ContainerStop call to the underlying API client.
+func (c *Client) ContainerStop(ctx context.Context, containerID string, options container.StopOptions) error {
+	return c.api.ContainerStop(ctx, containerID, options)
+}
+
+// ContainerRemove forwards the ContainerRemove call to the underlying API client.
+func (c *Client) ContainerRemove(ctx context.Context, containerID string, options container.RemoveOptions) error {
+	return c.api.ContainerRemove(ctx, containerID, options)
+}
+
 // CheckDaemon verifies that the Docker daemon is running and reachable.
 func (c *Client) CheckDaemon(ctx context.Context) error {
 	_, err := c.api.Ping(ctx)
@@ -358,82 +413,4 @@ type ImageBuildOptions struct {
 	BuildArgs map[string]*string
 	// NoCache disables build cache if true.
 	NoCache bool
-}
-
-// ImageBuild builds a Docker image from a build context and returns the image ID.
-// The build progress is logged via the provided logger function (if non-nil).
-func (c *Client) ImageBuild(ctx context.Context, opts ImageBuildOptions) (string, error) {
-	telemetry.TrackDockerOp(c.project)
-	if opts.BuildContext == nil {
-		return "", fmt.Errorf("build context is required")
-	}
-	if opts.Tag == "" {
-		return "", fmt.Errorf("image tag is required")
-	}
-	if opts.Dockerfile == "" {
-		opts.Dockerfile = "Dockerfile"
-	}
-
-	buildOptions := build.ImageBuildOptions{
-		Dockerfile: opts.Dockerfile,
-		Tags:       []string{opts.Tag},
-		BuildArgs:  opts.BuildArgs,
-		NoCache:    opts.NoCache,
-		Remove:     true, // Remove intermediate containers
-	}
-
-	resp, err := c.api.ImageBuild(ctx, opts.BuildContext, buildOptions)
-	if err != nil {
-		return "", fmt.Errorf("failed to start image build: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// Parse build output to extract image ID
-	var imageID string
-	decoder := json.NewDecoder(resp.Body)
-	for {
-		var msg jsonmessage.JSONMessage
-		if err := decoder.Decode(&msg); err != nil {
-			if err == io.EOF {
-				break
-			}
-			// Return error for malformed JSON to avoid infinite loop
-			return "", fmt.Errorf("failed to decode build output: %w", err)
-		}
-
-		// Check for build errors
-		if msg.Error != nil {
-			return "", fmt.Errorf("build failed: %s", msg.Error.Message)
-		}
-
-		// Extract image ID from "Successfully built" message
-		if msg.Stream != "" {
-			if bytes.Contains([]byte(msg.Stream), []byte("Successfully built")) {
-				// Try to extract image ID from stream
-				// Format: "Successfully built <image-id>\n"
-				parts := bytes.Fields([]byte(msg.Stream))
-				if len(parts) >= 2 {
-					imageID = string(parts[len(parts)-1])
-				}
-			}
-		}
-
-		// Also check Aux field for image ID
-		if msg.Aux != nil {
-			var aux map[string]interface{}
-			if err := json.Unmarshal(*msg.Aux, &aux); err == nil {
-				if id, ok := aux["ID"].(string); ok && id != "" {
-					imageID = id
-				}
-			}
-		}
-	}
-
-	if imageID == "" {
-		// If we couldn't extract image ID, try to infer from tag
-		// This is a fallback - ideally we should always get it from build output
-		return opts.Tag, nil
-	}
-
-	return imageID, nil
 }

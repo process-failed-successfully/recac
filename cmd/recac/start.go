@@ -12,7 +12,6 @@ import (
 	"strings"
 	"sync"
 	"syscall"
-	"time"
 
 	"recac/internal/agent"
 	"recac/internal/docker"
@@ -426,8 +425,6 @@ func processDirectTask(ctx context.Context, cfg SessionConfig) {
 	logger.Info("Starting direct task session", "repo", cfg.RepoURL, "summary", cfg.Summary, "id", workID)
 
 	// Setup Workspace
-	timestamp := time.Now().Format("20060102-150405")
-	
 	if cfg.ProjectPath == "" {
 		var err error
 		cfg.ProjectPath, err = os.MkdirTemp("", "recac-direct-*")
@@ -435,11 +432,6 @@ func processDirectTask(ctx context.Context, cfg SessionConfig) {
 			logger.Error("Error creating temp workspace", "error", err)
 			return
 		}
-	}
-
-	if _, err := setupWorkspace(ctx, cfg.RepoURL, cfg.ProjectPath, workID, "", timestamp); err != nil {
-		logger.Error("Error: Failed to setup workspace", "error", err)
-		return
 	}
 
 	// Force task context: Overwrite app_spec.txt and remove feature_list.json
@@ -520,7 +512,6 @@ func processJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.C
 
 	logger.Info("Ticket Found", "summary", summary)
 
-	timestamp := time.Now().Format("20060102-150405")
 	var tempWorkspace string
 
 	if cfg.ProjectPath != "" {
@@ -532,7 +523,7 @@ func processJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.C
 		}
 		logger.Info("Using provided workspace path", "path", tempWorkspace)
 	} else {
-		pattern := fmt.Sprintf("recac-jira-%s-%s-*", jiraTicketID, timestamp)
+		pattern := fmt.Sprintf("recac-jira-%s-*", jiraTicketID)
 		tempWorkspace, err = os.MkdirTemp("", pattern)
 		if err != nil {
 			logger.Error("Error creating temp workspace", "error", err)
@@ -549,11 +540,6 @@ func processJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.C
 
 	repoURL := strings.TrimSuffix(matches[1], ".git")
 	logger.Info("Found repository URL in ticket", "repo_url", repoURL)
-
-	if _, err := setupWorkspace(ctx, repoURL, tempWorkspace, jiraTicketID, cfg.JiraEpicKey, timestamp); err != nil {
-		logger.Error("Error: Failed to setup workspace", "error", err)
-		exit(1)
-	}
 
 	// 5. Create app_spec.txt
 	specContent := fmt.Sprintf("# Jira Ticket: %s\n# Summary: %s\n\n%s", jiraTicketID, summary, description)

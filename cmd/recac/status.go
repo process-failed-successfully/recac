@@ -4,10 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"recac/internal/docker"
-	"recac/internal/runner"
-	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -34,7 +30,7 @@ func showStatus() error {
 
 	// --- Sessions ---
 	fmt.Println("\n[Sessions]")
-	sm, err := runner.NewSessionManager()
+	sm, err := newSessionManager()
 	if err != nil {
 		return fmt.Errorf("failed to initialize session manager: %w", err)
 	}
@@ -45,19 +41,25 @@ func showStatus() error {
 	}
 
 	if len(sessions) == 0 {
-		fmt.Println("No active or past sessions found.")
+		fmt.Println("No sessions found.")
 	} else {
-		for _, s := range sessions {
-			status := strings.ToUpper(s.Status)
-			duration := time.Since(s.StartTime).Round(time.Second)
-			fmt.Printf("  - %s (PID: %d, Status: %s, Uptime: %s)\n", s.Name, s.PID, status, duration)
-			fmt.Printf("    Log: %s\n", s.LogFile)
+		fmt.Printf("%-20s %-10s %-10s %-20s %s\n", "NAME", "STATUS", "PID", "STARTED", "WORKSPACE")
+		fmt.Println("--------------------------------------------------------------------------------")
+		for _, session := range sessions {
+			started := session.StartTime.Format("2006-01-02 15:04:05")
+			fmt.Printf("%-20s %-10s %-10d %-20s %s\n",
+				session.Name,
+				session.Status,
+				session.PID,
+				started,
+				session.Workspace,
+			)
 		}
 	}
 
 	// --- Docker ---
 	fmt.Println("\n[Docker Environment]")
-	dockerCli, err := docker.NewClient("") // Project name isn't needed for version check
+	dockerCli, err := newDockerClient("") // Project name isn't needed for version check
 	if err != nil {
 		fmt.Println("  Docker client failed to initialize. Is Docker running?")
 		fmt.Printf("  Error: %v\n", err)

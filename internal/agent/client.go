@@ -169,6 +169,22 @@ func (c *BaseClient) SendWithRetry(ctx context.Context, prompt string, sendOnce 
 	return "", fmt.Errorf("failed after %d retries: %w", maxRetries, lastErr)
 }
 
+// ProviderToEnvVar converts a provider name to its corresponding API key environment variable.
+func ProviderToEnvVar(provider string) string {
+	switch strings.ToLower(provider) {
+	case "openai":
+		return "OPENAI_API_KEY"
+	case "gemini", "gemini-cli":
+		return "GEMINI_API_KEY"
+	case "openrouter":
+		return "OPENROUTER_API_KEY"
+	case "anthropic":
+		return "ANTHROPIC_API_KEY"
+	default:
+		return "GEMINI_API_KEY" // Default fallback
+	}
+}
+
 // SendStreamWithRetry handles the common retry loop and telemetry for SendStream.
 func (c *BaseClient) SendStreamWithRetry(ctx context.Context, prompt string, sendStreamOnce func(context.Context, string, func(string)) (string, error), onChunk func(string)) (string, error) {
 	telemetry.TrackAgentIteration(c.Project)

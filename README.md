@@ -94,12 +94,7 @@ recac feature start "User Authentication"
 
 Recac allows you to manage multiple concurrent or background sessions.
 
-- **List Sessions**: View all active and completed sessions.
-  ```bash
-  recac list
-  ```
-
-- **Check Status**: View detailed status of sessions, Docker environment, and configuration.
+- **Check Status**: View a detailed summary of all active and completed sessions, check the Docker environment, and show key configuration values.
   ```bash
   recac status
   ```

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/docker/docker/api/types/build"
 	"recac/internal/docker"
 
 	"github.com/spf13/cobra"
@@ -62,22 +63,25 @@ var buildCmd = &cobra.Command{
 		defer client.Close()
 
 		// Build image
-		opts := docker.ImageBuildOptions{
-			BuildContext: tarStream,
-			Dockerfile:   buildDockerfile,
-			Tag:          buildTag,
-			NoCache:      buildNoCache,
+		buildOptions := build.ImageBuildOptions{
+			Dockerfile: buildDockerfile,
+			Tags:       []string{buildTag},
+			NoCache:    buildNoCache,
+			Remove:     true, // Remove intermediate containers
 		}
 
 		fmt.Printf("Building image %s from %s...\n", buildTag, buildContextPath)
-		imageID, err := client.ImageBuild(context.Background(), opts)
+		resp, err := client.ImageBuild(context.Background(), tarStream, buildOptions)
 		if err != nil {
 			fmt.Printf("Error building image: %v\n", err)
 			exit(1)
 		}
+		defer resp.Body.Close()
 
-		fmt.Printf("Successfully built image: %s\n", imageID)
-		fmt.Printf("Tag: %s\n", buildTag)
+		// We don't need to parse the response for the build command, just show it.
+		io.Copy(os.Stdout, resp.Body)
+
+		fmt.Printf("Successfully built image with tag: %s\n", buildTag)
 	},
 }
 

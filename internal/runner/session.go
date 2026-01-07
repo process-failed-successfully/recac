@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -23,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/docker/docker/api/types/build"
 	"recac/internal/notify"
 	"recac/internal/telemetry"
 
@@ -568,15 +570,21 @@ func (s *Session) ensureImage(ctx context.Context) error {
 		_, _ = tw.Write(data)
 		_ = tw.Close()
 
-		newID, err := s.Docker.ImageBuild(ctx, docker.ImageBuildOptions{
-			BuildContext: &buf,
-			Tag:          tag,
-			Dockerfile:   "Dockerfile",
-		})
+		buildOptions := build.ImageBuildOptions{
+			Dockerfile: "Dockerfile",
+			Tags:       []string{tag},
+			Remove:     true,
+		}
+
+		resp, err := s.Docker.ImageBuild(ctx, &buf, buildOptions)
 		if err != nil {
 			return fmt.Errorf("failed to build custom image: %w", err)
 		}
-		fmt.Printf("Custom image built successfully: %s\n", newID)
+		defer resp.Body.Close()
+
+		io.Copy(io.Discard, resp.Body)
+
+		fmt.Printf("Custom image built successfully with tag: %s\n", tag)
 		s.Image = tag
 		return nil
 	}
@@ -615,15 +623,20 @@ func (s *Session) ensureImage(ctx context.Context) error {
 			_, _ = tw.Write([]byte(content))
 			_ = tw.Close()
 
-			newID, err := s.Docker.ImageBuild(ctx, docker.ImageBuildOptions{
-				BuildContext: &buf,
-				Tag:          s.Image,
-				Dockerfile:   "Dockerfile",
-			})
+			buildOptions := build.ImageBuildOptions{
+				Dockerfile: "Dockerfile",
+				Tags:       []string{s.Image},
+				Remove:     true,
+			}
+
+			resp, err := s.Docker.ImageBuild(ctx, &buf, buildOptions)
 			if err != nil {
 				return fmt.Errorf("failed to build legacy agent image: %w", err)
 			}
-			fmt.Printf("Legacy agent image built successfully: %s\n", newID)
+			defer resp.Body.Close()
+			io.Copy(io.Discard, resp.Body)
+
+			fmt.Printf("Legacy agent image built successfully with tag: %s\n", s.Image)
 		}
 	}
 

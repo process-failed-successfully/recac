@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"recac/internal/runner"
 
 	"github.com/spf13/cobra"
 )
@@ -14,10 +13,12 @@ func init() {
 
 var listCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List all sessions",
+	Short: "List all sessions (deprecated, use 'status')",
 	Long:  `List all active and completed sessions.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		sm, err := runner.NewSessionManager()
+		fmt.Fprintln(os.Stderr, "Warning: the \"list\" command is deprecated and will be removed in a future release. Please use \"recac status\" instead.")
+
+		sm, err := newSessionManager()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to create session manager: %v\n", err)
 			exit(1)
