@@ -33,7 +33,7 @@ func TestDashboardStyles_Colors(t *testing.T) {
 func TestDashboardHeader_BrandColor(t *testing.T) {
 	// Set color profile to TrueColor to properly test hex codes
 	lipgloss.SetColorProfile(termenv.TrueColor)
-	
+
 	// Create header style with brand color
 	headerStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#FFF")).
@@ -41,22 +41,22 @@ func TestDashboardHeader_BrandColor(t *testing.T) {
 		Bold(true).
 		Padding(0, 1).
 		Width(100)
-	
+
 	headerText := headerStyle.Render("RECAC: Autonomous Coding Agent - Recac v0.1.0")
-	
+
 	// Verify header text is present
 	if !strings.Contains(headerText, "RECAC: Autonomous Coding Agent") {
 		t.Fatal("Header text missing")
 	}
-	
+
 	// Check for brand color in the rendered output
 	// Lipgloss converts hex colors to RGB ANSI codes in TrueColor mode
 	// #7D56F4 = RGB(125, 86, 244) which becomes 48;2;125;86;244m for background
 	// We check for the RGB sequence pattern: 48;2; followed by the RGB values
-	hasColor := strings.Contains(headerText, "48;2;125;86;244") || 
+	hasColor := strings.Contains(headerText, "48;2;125;86;244") ||
 		strings.Contains(headerText, "48;2;125") || // At least the R value
 		(strings.Contains(headerText, "125") && strings.Contains(headerText, "86") && strings.Contains(headerText, "244"))
-	
+
 	if !hasColor {
 		// Debug: print first 200 chars to see what we're getting
 		debugLen := 200
@@ -65,23 +65,23 @@ func TestDashboardHeader_BrandColor(t *testing.T) {
 		}
 		t.Errorf("View missing brand color #7D56F4. Header preview (first %d chars): %q", debugLen, headerText[:debugLen])
 	}
-	
+
 	// Also verify via the dashboard model
 	model := NewDashboardModel()
 	model, _ = updateModel(model, tea.WindowSizeMsg{Width: 100, Height: 20})
-	
+
 	view := model.View()
-	
+
 	// Verify header exists in dashboard view
 	if !strings.Contains(view, "RECAC: Autonomous Coding Agent") {
 		t.Fatal("Dashboard view missing header text")
 	}
-	
+
 	// Check for brand color in dashboard view
-	hasColorInView := strings.Contains(view, "48;2;125;86;244") || 
+	hasColorInView := strings.Contains(view, "48;2;125;86;244") ||
 		strings.Contains(view, "48;2;125") ||
 		(strings.Contains(view, "125") && strings.Contains(view, "86") && strings.Contains(view, "244"))
-	
+
 	if !hasColorInView {
 		t.Error("Dashboard view missing brand color #7D56F4 for header")
 	}
@@ -91,19 +91,19 @@ func TestDashboardView_ContainsErrorColor(t *testing.T) {
 	model := NewDashboardModel()
 	// Initialize with WindowSize to ensure viewport is created
 	model, _ = updateModel(model, tea.WindowSizeMsg{Width: 100, Height: 20})
-	
+
 	// Send error log via Update
 	model, _ = updateModel(model, LogMsg{Type: LogError, Message: "Critical Failure"})
 
 	view := model.View()
-	
+
 	// Check if "Critical Failure" is wrapped in the error color
-	// This is a bit brittle as it depends on exact ANSI sequence, 
+	// This is a bit brittle as it depends on exact ANSI sequence,
 	// but generally checking for the color code presence near the text is enough.
 	if !strings.Contains(view, "Critical Failure") {
 		t.Fatal("View missing error message")
 	}
-	
+
 	// Check for Red color code
 	if !strings.Contains(view, "196") {
 		t.Error("View missing Red color code (196) for error")
@@ -113,15 +113,15 @@ func TestDashboardView_ContainsErrorColor(t *testing.T) {
 func TestDashboardView_SuccessCheckmark(t *testing.T) {
 	model := NewDashboardModel()
 	model, _ = updateModel(model, tea.WindowSizeMsg{Width: 100, Height: 20})
-	
+
 	model, _ = updateModel(model, LogMsg{Type: LogSuccess, Message: "Task Done"})
 
 	view := model.View()
-	
+
 	if !strings.Contains(view, "✓") {
 		t.Error("View missing success checkmark (✓)")
 	}
-	
+
 	// Check for Green color code (46)
 	if !strings.Contains(view, "46") {
 		t.Error("View missing Green color code (46) for success")

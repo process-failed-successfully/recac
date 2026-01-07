@@ -22,13 +22,13 @@ const (
 // Styles
 var (
 	paneStyle = lipgloss.NewStyle().
-		Border(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("63")) // Purple-ish
+			Border(lipgloss.NormalBorder()).
+			BorderForeground(lipgloss.Color("63")) // Purple-ish
 
 	footerStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#FFF")).
-		Background(lipgloss.Color("#7D56F4")).
-		Padding(0, 1)
+			Foreground(lipgloss.Color("#FFF")).
+			Background(lipgloss.Color("#7D56F4")).
+			Padding(0, 1)
 
 	// Log Styles
 	logInfoStyle = lipgloss.NewStyle().
@@ -91,7 +91,7 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		
+
 		headerHeight := 1
 		footerHeight := 2
 		mainHeight := m.height - footerHeight - headerHeight
@@ -105,7 +105,7 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.viewport.Height = mainHeight - 2
 		}
 
-		m.progress.Width = msg.Width - 20 
+		m.progress.Width = msg.Width - 20
 
 	case LogMsg:
 		m.logs = append(m.logs, LogEntry(msg))
@@ -129,7 +129,7 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *DashboardModel) updateViewport() {
 	var logBuilder strings.Builder
 	halfWidth := m.width/2 - 2
-	
+
 	for _, log := range m.logs {
 		var style lipgloss.Style
 		prefix := ""
@@ -147,7 +147,7 @@ func (m *DashboardModel) updateViewport() {
 			style = logInfoStyle
 			prefix = "  "
 		}
-		style = style.Width(halfWidth - 2) 
+		style = style.Width(halfWidth - 2)
 		logBuilder.WriteString(style.Render(prefix + log.Message))
 		logBuilder.WriteString("\n")
 	}
@@ -196,7 +196,7 @@ func (m DashboardModel) View() string {
 	// Footer View
 	progView := m.progress.View()
 	footerText := "Status: Ready"
-	
+
 	footer := footerStyle.
 		Width(m.width).
 		Render(lipgloss.JoinVertical(lipgloss.Left, footerText, progView))

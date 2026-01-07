@@ -89,7 +89,7 @@ func (m SprintBoardModel) Init() tea.Cmd {
 // Update handles messages
 func (m SprintBoardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
-	
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -223,7 +223,7 @@ func (m SprintBoardModel) renderColumn(title string, tasks []SprintTask, width i
 	headerHeight := 1
 	footerHeight := 1
 	colHeight := m.height - headerHeight - footerHeight - 2 // Account for padding
-	
+
 	if colHeight < 5 {
 		colHeight = 5 // Minimum height
 	}

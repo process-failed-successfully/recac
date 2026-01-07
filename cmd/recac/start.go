@@ -125,12 +125,12 @@ var startCmd = &cobra.Command{
 		taskMaxIterations := viper.GetInt("task_max_iterations")
 		detached := viper.GetBool("detached")
 		sessionName := viper.GetString("name")
-		
+
 		jiraTicketID, _ := cmd.Flags().GetString("jira")
 		if jiraTicketID == "" {
 			jiraTicketID = viper.GetString("jira")
 		}
-		
+
 		// Handle Jira Ticket Workflow
 		jiraLabel := viper.GetString("jira_label")
 
@@ -427,7 +427,7 @@ func processDirectTask(ctx context.Context, cfg SessionConfig) {
 
 	// Setup Workspace
 	timestamp := time.Now().Format("20060102-150405")
-	
+
 	if cfg.ProjectPath == "" {
 		var err error
 		cfg.ProjectPath, err = os.MkdirTemp("", "recac-direct-*")

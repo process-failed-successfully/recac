@@ -17,8 +17,8 @@ func init() {
 
 func TestDashboardModel_View(t *testing.T) {
 	m := NewDashboardModel()
-	
-m.width = 100
+
+	m.width = 100
 	m.height = 30
 	m.ready = true
 
@@ -48,8 +48,8 @@ func TestDashboardModel_LogUpdates(t *testing.T) {
 	// Send a Thought Log
 	thoughtMsg := "Agent is thinking..."
 	msg := LogMsg{Type: LogThought, Message: thoughtMsg}
-	
-m, _ = updateModel(m, msg)
+
+	m, _ = updateModel(m, msg)
 
 	view := m.View()
 
@@ -84,16 +84,16 @@ func TestDashboardModel_ProgressComponent(t *testing.T) {
 
 	// Send Progress Update (50%)
 	msg := ProgressMsg(0.5)
-	
-m, cmd := updateModel(m, msg)
-	
+
+	m, cmd := updateModel(m, msg)
+
 	view := m.View()
 
 	// Check if progress bar is rendered (look for 0% initially as animation hasn't run)
 	if !contains(view, "0%") {
 		t.Errorf("Expected view to contain '0%%' indicating progress bar presence. View snippet: %q", view)
 	}
-	
+
 	// Check that a command was returned (indicating animation/update triggered)
 	if cmd == nil {
 		t.Error("Expected cmd from SetPercent to not be nil (animation trigger)")
@@ -102,7 +102,7 @@ m, cmd := updateModel(m, msg)
 
 func TestDashboardModel_Resize(t *testing.T) {
 	m := NewDashboardModel()
-	
+
 	// 1. Normal Size
 	m, _ = updateModel(m, tea.WindowSizeMsg{Width: 100, Height: 30})
 	view1 := m.View()
@@ -117,7 +117,7 @@ func TestDashboardModel_Resize(t *testing.T) {
 	if len(view2) == 0 {
 		t.Error("Expected small size view to not be empty")
 	}
-	
+
 	// 3. Resize back to large
 	m, _ = updateModel(m, tea.WindowSizeMsg{Width: 200, Height: 60})
 	view3 := m.View()
@@ -142,17 +142,17 @@ func contains(s, substr string) bool {
 // Step 3: Verify the application exits cleanly (tea.Quit is returned, which Bubble Tea handles)
 func TestDashboardModel_Update_Quit(t *testing.T) {
 	m := NewDashboardModel()
-	
+
 	// Simulate Ctrl+C
 	msg := tea.KeyMsg{Type: tea.KeyCtrlC}
 	_, cmd := m.Update(msg)
-	
+
 	// Verify tea.Quit is returned (cmd is not nil and will cause program to exit)
 	// Bubble Tea automatically handles raw mode cleanup when tea.Quit is returned
 	if cmd == nil {
 		t.Error("Expected cmd to be tea.Quit, got nil")
 	}
-	
+
 	// Verify the command is actually tea.Quit by checking it's callable
 	// tea.Quit() returns a tea.Cmd (func() tea.Msg)
 	if cmd != nil {
@@ -170,10 +170,10 @@ func TestDashboardModel_Update_Quit(t *testing.T) {
 // Step 3: Verify the view scrolls
 func TestDashboardModel_Scrolling(t *testing.T) {
 	m := NewDashboardModel()
-	
+
 	// Initialize with WindowSize to set up viewport
 	m, _ = updateModel(m, tea.WindowSizeMsg{Width: 100, Height: 30})
-	
+
 	// Step 1: Fill the log pane with many lines (more than can fit in viewport)
 	// Viewport height is mainHeight - 2, which with height=30 is about 27 lines
 	// We'll add 50 log entries to ensure scrolling is needed
@@ -184,7 +184,7 @@ func TestDashboardModel_Scrolling(t *testing.T) {
 		}
 		m, _ = updateModel(m, msg)
 	}
-	
+
 	// Verify viewport has content and can scroll
 	totalLines := m.viewport.TotalLineCount()
 	viewportHeight := m.viewport.Height
@@ -192,7 +192,7 @@ func TestDashboardModel_Scrolling(t *testing.T) {
 		t.Errorf("Expected viewport content (%d lines) to exceed viewport height (%d) to enable scrolling",
 			totalLines, viewportHeight)
 	}
-	
+
 	// Get initial viewport position (should be at bottom after GotoBottom in updateViewport)
 	// When content is added, viewport automatically scrolls to bottom
 	initialYOffset := m.viewport.YOffset
@@ -200,7 +200,7 @@ func TestDashboardModel_Scrolling(t *testing.T) {
 	if maxYOffset < 0 {
 		maxYOffset = 0
 	}
-	
+
 	// Verify we're at or near the bottom initially
 	if initialYOffset < maxYOffset-5 && maxYOffset > 0 {
 		// Not at bottom, scroll to bottom first
@@ -210,14 +210,14 @@ func TestDashboardModel_Scrolling(t *testing.T) {
 		}
 		initialYOffset = m.viewport.YOffset
 	}
-	
+
 	// Step 2: Use Up arrow key to scroll up
 	upKey := tea.KeyMsg{Type: tea.KeyUp}
 	m, _ = updateModel(m, upKey)
-	
+
 	// Step 3: Verify the view scrolled (YOffset should have decreased when scrolling up)
 	afterUpYOffset := m.viewport.YOffset
-	
+
 	// When scrolling up from bottom, YOffset should decrease
 	// If we're at the bottom (initialYOffset >= maxYOffset), scrolling up should move us up
 	if initialYOffset >= maxYOffset && maxYOffset > 0 {
@@ -226,24 +226,24 @@ func TestDashboardModel_Scrolling(t *testing.T) {
 				initialYOffset, afterUpYOffset, maxYOffset)
 		}
 	}
-	
+
 	// Verify scrolling down works too
 	downKey := tea.KeyMsg{Type: tea.KeyDown}
 	m, _ = updateModel(m, downKey)
 	afterDownYOffset := m.viewport.YOffset
-	
+
 	// Scrolling down should increase YOffset (or stay at max if already at bottom)
 	if afterDownYOffset < afterUpYOffset && afterUpYOffset < maxYOffset {
 		t.Errorf("Expected scrolling down to increase YOffset. Up: %d, Down: %d, Max: %d",
 			afterUpYOffset, afterDownYOffset, maxYOffset)
 	}
-	
+
 	// Verify viewport responds to arrow keys and view is rendered
 	view := m.View()
 	if len(view) == 0 {
 		t.Error("Expected view to not be empty after scrolling")
 	}
-	
+
 	// Verify that viewport scrolling is functional by checking that arrow keys change position
 	// The viewport from Bubble Tea automatically handles Up/Down/PgUp/PgDown keys
 	if m.viewport.YOffset == afterUpYOffset && afterUpYOffset > 0 && maxYOffset > 0 {

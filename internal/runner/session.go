@@ -97,197 +97,119 @@ type JiraClient interface {
 
 // NewSession creates a new worker session
 func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *Session {
-	// Default to "unknown" if project is empty
-	if project == "" {
-		project = "unknown"
+	s := &Session{
+		Docker:        d,
+		Agent:         a,
+		Workspace:     workspace,
+		Image:         image,
+		Project:       project,
+		AgentProvider: provider,
+		AgentModel:    model,
+		OwnsDB:        true, // This constructor creates the DB connection
+		MaxAgents:     maxAgents,
 	}
+	s.initSessionCommon()
 
-	// Default agent state file path in workspace
-	stateFile := ".agent_state.json"
-	agentStateFile := filepath.Join(workspace, stateFile)
-	stateManager := agent.NewStateManager(agentStateFile)
-
-	// Initialize DB Store
+	// Initialize DB Store (owned by this session)
 	dbPath := filepath.Join(workspace, ".recac.db")
-	var dbStore db.Store
 	if sqliteStore, err := db.NewSQLiteStore(dbPath); err != nil {
 		fmt.Printf("Warning: Failed to initialize SQLite store: %v\n", err)
 	} else {
-		dbStore = sqliteStore
+		s.DBStore = sqliteStore
 	}
 
-	// Initialize Security Scanner
-	scanner := security.NewRegexScanner()
-
-	// Create agents/logs directory in the current working directory (host)
-	// This is where Promtail expects to find them based on docker-compose.monitoring.yml
-	cwd, _ := os.Getwd()
-	agentsLogsDir := filepath.Join(cwd, "agents", "logs")
-	if err := os.MkdirAll(agentsLogsDir, 0755); err != nil {
-		fmt.Printf("Warning: Failed to create agents/logs directory: %v\n", err)
-	} else {
-		// Initialize session log file
-		timestamp := time.Now().Format("20060102-150405")
-		logFileName := fmt.Sprintf("%s_agent_%s_%s.log", project, project, timestamp)
-		logFilePath := filepath.Join(agentsLogsDir, logFileName)
-
-		// Re-initialize telemetry logger with the session log file
-		// Note: We use the global 'verbose' setting
-		// We still init global logger for backward compatibility and simpler calls where session isn't available
-		telemetry.InitLogger(viper.GetBool("verbose"), logFilePath)
-		fmt.Printf("Session logs will be written to: %s\n", logFilePath)
-	}
-
-	// Create session logger
-	// We want to persist it in the session so it can be customized (e.g. with attributes)
-	// For now, we reuse the configuration logic but ideally we'd pass this logger instance around.
-	// Since we called InitLogger above, slog.Default() is set.
-	// But let's create an explicit one too.
-	logger := telemetry.NewLogger(viper.GetBool("verbose"), "")
-	if project != "" {
-		logger = logger.With("project", project)
-	}
-
-	return &Session{
-		Docker:           d,
-		Agent:            a,
-		Workspace:        workspace,
-		Image:            image,
-		Project:          project,
-		AgentProvider:    provider,
-		AgentModel:       model,
-		SpecFile:         "app_spec.txt",
-		MaxIterations:    20, // Default
-		ManagerFrequency: 5,  // Default
-		AgentStateFile:   agentStateFile,
-		StateManager:     stateManager,
-		DBStore:          dbStore,
-		OwnsDB:           true,
-		Scanner:          scanner,
-		MaxAgents:        maxAgents,
-		Notifier:         notify.NewManager(telemetry.LogInfof),
-		UseLocalAgent:    os.Getenv("KUBERNETES_SERVICE_HOST") != "",
-		Logger:           logger,
-	}
+	return s
 }
 
 // NewSessionWithStateFile creates a session with a specific agent state file (for restoring sessions)
 func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, project, agentStateFile, provider, model string, maxAgents int) *Session {
-	if project == "" {
-		project = "unknown"
+	s := &Session{
+		Docker:         d,
+		Agent:          a,
+		Workspace:      workspace,
+		Image:          image,
+		Project:        project,
+		AgentStateFile: agentStateFile,
+		AgentProvider:  provider,
+		AgentModel:     model,
+		OwnsDB:         true,
+		MaxAgents:      maxAgents,
 	}
-	stateManager := agent.NewStateManager(agentStateFile)
+	s.initSessionCommon()
 
-	// Initialize DB Store
+	// Initialize DB Store (owned by this session)
 	dbPath := filepath.Join(workspace, ".recac.db")
-	var dbStore db.Store
 	if sqliteStore, err := db.NewSQLiteStore(dbPath); err != nil {
 		fmt.Printf("Warning: Failed to initialize SQLite store: %v\n", err)
 	} else {
-		dbStore = sqliteStore
+		s.DBStore = sqliteStore
 	}
 
-	// Initialize Security Scanner
-	scanner := security.NewRegexScanner()
-
-	// Create agents/logs directory in the current working directory (host)
-	// This is where Promtail expects to find them based on docker-compose.monitoring.yml
-	cwd, _ := os.Getwd()
-	agentsLogsDir := filepath.Join(cwd, "agents", "logs")
-	if err := os.MkdirAll(agentsLogsDir, 0755); err != nil {
-		fmt.Printf("Warning: Failed to create agents/logs directory: %v\n", err)
-	} else {
-		// Initialize session log file
-		timestamp := time.Now().Format("20060102-150405")
-		logFileName := fmt.Sprintf("%s_agent_%s_%s.log", project, project, timestamp)
-		logFilePath := filepath.Join(agentsLogsDir, logFileName)
-
-		// Re-initialize telemetry logger with the session log file
-		// Note: We use the global 'verbose' setting (viper)
-		telemetry.InitLogger(viper.GetBool("verbose"), logFilePath)
-		fmt.Printf("Session logs will be written to: %s\n", logFilePath)
-	}
-
-	logger := telemetry.NewLogger(viper.GetBool("verbose"), "")
-	if project != "" {
-		logger = logger.With("project", project)
-	}
-
-	return &Session{
-		Docker:           d,
-		Agent:            a,
-		Workspace:        workspace,
-		Image:            image,
-		Project:          project,
-		AgentProvider:    provider,
-		AgentModel:       model,
-		SpecFile:         "app_spec.txt",
-		MaxIterations:    20, // Default
-		ManagerFrequency: 5,  // Default
-		AgentStateFile:   agentStateFile,
-		StateManager:     stateManager,
-		DBStore:          dbStore,
-		OwnsDB:           true,
-		Scanner:          scanner,
-		MaxAgents:        maxAgents,
-		Notifier:         notify.NewManager(telemetry.LogInfof),
-		Logger:           logger,
-	}
+	return s
 }
 
 // NewSessionWithConfig creates a session with specific provider/model settings.
 // This is used for sub-agents or when overriding global config.
 func NewSessionWithConfig(workspace, project, provider, model string, dbStore db.Store) *Session {
-	// Default to "unknown" if project is empty
-	if project == "" {
-		project = "unknown"
+	s := &Session{
+		Workspace:     workspace,
+		Project:       project,
+		AgentProvider: provider,
+		AgentModel:    model,
+		DBStore:       dbStore,
+		OwnsDB:        false, // DB is passed in, not owned
+	}
+	s.initSessionCommon()
+	return s
+}
+
+// initSessionCommon handles common initialization logic for all constructors.
+func (s *Session) initSessionCommon() {
+	// Default project if empty
+	if s.Project == "" {
+		s.Project = "unknown"
 	}
 
-	// Default agent state file path in workspace
-	stateFile := ".agent_state.json"
-	agentStateFile := filepath.Join(workspace, stateFile)
-	stateManager := agent.NewStateManager(agentStateFile)
+	// Default agent state file path in workspace if not provided
+	if s.AgentStateFile == "" {
+		s.AgentStateFile = filepath.Join(s.Workspace, ".agent_state.json")
+	}
+	s.StateManager = agent.NewStateManager(s.AgentStateFile)
 
 	// Initialize Security Scanner
-	scanner := security.NewRegexScanner()
+	s.Scanner = security.NewRegexScanner()
 
+	// Configure logger
 	// Create agents/logs directory in the current working directory (host)
 	cwd, _ := os.Getwd()
 	agentsLogsDir := filepath.Join(cwd, "agents", "logs")
+	var logFilePath string
 	if err := os.MkdirAll(agentsLogsDir, 0755); err != nil {
 		fmt.Printf("Warning: Failed to create agents/logs directory: %v\n", err)
 	} else {
-		// Initialize session log file
 		timestamp := time.Now().Format("20060102-150405")
-		logFileName := fmt.Sprintf("%s_agent_%s_%s.log", project, project, timestamp)
-		logFilePath := filepath.Join(agentsLogsDir, logFileName)
+		logFileName := fmt.Sprintf("%s_agent_%s_%s.log", s.Project, s.Project, timestamp)
+		logFilePath = filepath.Join(agentsLogsDir, logFileName)
 
 		// Re-initialize telemetry logger with the session log file
 		telemetry.InitLogger(viper.GetBool("verbose"), logFilePath)
 		fmt.Printf("Session logs will be written to: %s\n", logFilePath)
 	}
 
-	logger := telemetry.NewLogger(viper.GetBool("verbose"), "")
-	if project != "" {
-		logger = logger.With("project", project)
+	logger := telemetry.NewLogger(viper.GetBool("verbose"), logFilePath)
+	if s.Project != "" {
+		logger = logger.With("project", s.Project)
 	}
+	s.Logger = logger
 
-	return &Session{
-		Workspace:        workspace,
-		Project:          project,
-		AgentProvider:    provider,
-		AgentModel:       model,
-		DBStore:          dbStore,
-		SpecFile:         "app_spec.txt",
-		MaxIterations:    20, // Default
-		ManagerFrequency: 5,  // Default
-		AgentStateFile:   agentStateFile,
-		StateManager:     stateManager,
-		OwnsDB:           false, // This session does not own the DB, it's passed in
-		Scanner:          scanner,
-		Notifier:         notify.NewManager(telemetry.LogInfof),
-		Logger:           logger,
-	}
+	// Set defaults
+	s.SpecFile = "app_spec.txt"
+	s.MaxIterations = 20
+	s.ManagerFrequency = 5
+	s.Notifier = notify.NewManager(telemetry.LogInfof)
+
+	// Detect if running in Kubernetes for local agent execution
+	s.UseLocalAgent = os.Getenv("KUBERNETES_SERVICE_HOST") != ""
 }
 
 // LoadAgentState loads agent state from disk if it exists
@@ -1476,10 +1398,6 @@ func (s *Session) syncFeatureFile(fl db.FeatureList) {
 	}
 }
 
-func (s *Session) checkCompletion() bool {
-	return s.hasSignal("COMPLETED")
-}
-
 func (s *Session) hasSignal(name string) bool {
 	if s.DBStore == nil {
 		return false
@@ -1603,62 +1521,62 @@ func (s *Session) createSignal(name string) error {
 
 // runQAAgent runs quality assurance checks on the feature list.
 // Returns error if QA fails, nil if QA passes.
+func (s *Session) resolveAgent(agentType string, dedicatedAgent agent.Agent) (agent.Agent, error) {
+	if dedicatedAgent != nil {
+		return dedicatedAgent, nil
+	}
+
+	providerKey := fmt.Sprintf("agents.%s.provider", agentType)
+	modelKey := fmt.Sprintf("agents.%s.model", agentType)
+	apiKeyKey := fmt.Sprintf("agents.%s.api_key", agentType)
+
+	provider := s.AgentProvider
+	if p := viper.GetString(providerKey); p != "" {
+		provider = p
+	} else if provider == "" {
+		provider = viper.GetString("provider")
+	}
+
+	model := s.AgentModel
+	if m := viper.GetString(modelKey); m != "" {
+		model = m
+	} else if model == "" {
+		model = viper.GetString("model")
+	}
+
+	apiKey := viper.GetString(apiKeyKey)
+	if apiKey == "" {
+		apiKey = viper.GetString("api_key")
+	}
+
+	// Fallback to environment variables if still not found
+	if apiKey == "" {
+		switch provider {
+		case "openrouter":
+			apiKey = os.Getenv("OPENROUTER_API_KEY")
+		case "gemini", "gemini-cli":
+			apiKey = os.Getenv("GEMINI_API_KEY")
+		case "openai":
+			apiKey = os.Getenv("OPENAI_API_KEY")
+		}
+	}
+	// Ultimate fallback for backward compatibility
+	if apiKey == "" {
+		apiKey = os.Getenv("GEMINI_API_KEY")
+	}
+
+	s.Logger.Info("initializing agent", "type", agentType, "provider", provider, "model", model)
+	return agent.NewAgent(provider, apiKey, model, s.Workspace, s.Project)
+}
+
+// runQAAgent runs quality assurance checks on the feature list.
+// Returns error if QA fails, nil if QA passes.
 func (s *Session) runQAAgent(ctx context.Context) error {
 	s.Logger.Info("QA agent running quality checks")
 
-	var qaAgent agent.Agent
-	if s.QAAgent != nil {
-		qaAgent = s.QAAgent
-	} else {
-		var err error
-		// Resolve Config
-		provider := s.AgentProvider
-		if provider == "" {
-			provider = viper.GetString("agents.qa.provider")
-			if provider == "" {
-				provider = viper.GetString("provider") // Fallback to global setting
-				if provider == "" {
-					provider = "gemini"
-				}
-			}
-		}
-
-		model := s.AgentModel
-		if model == "" {
-			model = viper.GetString("agents.qa.model")
-			if model == "" {
-				model = viper.GetString("model") // Fallback to global setting
-				if model == "" {
-					model = "gemini-1.5-flash-latest" // Ultimate fallback
-				}
-			}
-		}
-		apiKey := viper.GetString("agents.qa.api_key")
-		if apiKey == "" {
-			// Fallback to global API key
-			apiKey = viper.GetString("api_key")
-			if apiKey == "" {
-				// Try provider-specific env vars
-				if provider == "openrouter" {
-					apiKey = os.Getenv("OPENROUTER_API_KEY")
-				} else if provider == "gemini" || provider == "gemini-cli" {
-					apiKey = os.Getenv("GEMINI_API_KEY")
-				} else if provider == "openai" {
-					apiKey = os.Getenv("OPENAI_API_KEY")
-				}
-
-				// Final catch-all if still empty (legacy support)
-				if apiKey == "" {
-					apiKey = os.Getenv("GEMINI_API_KEY")
-				}
-			}
-		}
-
-		s.Logger.Info("initializing QA agent", "provider", provider, "model", model)
-		qaAgent, err = agent.NewAgent(provider, apiKey, model, s.Workspace, s.Project)
-		if err != nil {
-			return fmt.Errorf("failed to create QA agent: %w", err)
-		}
+	qaAgent, err := s.resolveAgent("qa", s.QAAgent)
+	if err != nil {
+		return fmt.Errorf("failed to resolve QA agent: %w", err)
 	}
 
 	// 1. Get Prompt
@@ -1711,56 +1629,9 @@ func (s *Session) runQAAgent(ctx context.Context) error {
 func (s *Session) runManagerAgent(ctx context.Context) error {
 	s.Logger.Info("manager agent reviewing QA report")
 
-	var managerAgent agent.Agent
-	if s.ManagerAgent != nil {
-		managerAgent = s.ManagerAgent
-	} else {
-		var err error
-		// Resolve Config
-		provider := s.AgentProvider
-		if provider == "" {
-			provider = viper.GetString("agents.manager.provider")
-			if provider == "" {
-				provider = viper.GetString("provider") // Fallback to global setting
-				if provider == "" {
-					provider = "gemini-cli"
-				}
-			}
-		}
-		model := s.AgentModel
-		if model == "" {
-			model = viper.GetString("agents.manager.model")
-			if model == "" {
-				model = viper.GetString("model")
-				if model == "" {
-					model = "gemini-1.5-pro-latest"
-				}
-			}
-		}
-		apiKey := viper.GetString("agents.manager.api_key")
-		if apiKey == "" {
-			apiKey = viper.GetString("api_key")
-			if apiKey == "" {
-				// Try provider-specific env vars
-				if provider == "openrouter" {
-					apiKey = os.Getenv("OPENROUTER_API_KEY")
-				} else if provider == "gemini" || provider == "gemini-cli" {
-					apiKey = os.Getenv("GEMINI_API_KEY")
-				} else if provider == "openai" {
-					apiKey = os.Getenv("OPENAI_API_KEY")
-				}
-
-				if apiKey == "" {
-					apiKey = os.Getenv("GEMINI_API_KEY")
-				}
-			}
-		}
-
-		fmt.Printf("Initialising Manager Agent with provider: %s, model: %s\n", provider, model)
-		managerAgent, err = agent.NewAgent(provider, apiKey, model, s.Workspace, s.Project)
-		if err != nil {
-			return fmt.Errorf("failed to create manager agent: %w", err)
-		}
+	managerAgent, err := s.resolveAgent("manager", s.ManagerAgent)
+	if err != nil {
+		return fmt.Errorf("failed to resolve manager agent: %w", err)
 	}
 
 	features := s.loadFeatures()
@@ -2019,12 +1890,6 @@ func (s *Session) runCleanerAgent(ctx context.Context) error {
 	return nil
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
 
 // checkAutoQA checks if all features pass and we haven't already passed QA/Completed
 func (s *Session) checkAutoQA() bool {

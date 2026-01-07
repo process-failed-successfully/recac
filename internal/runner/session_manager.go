@@ -12,15 +12,15 @@ import (
 
 // SessionState represents the state of a background session
 type SessionState struct {
-	Name          string    `json:"name"`
-	PID           int       `json:"pid"`
-	StartTime     time.Time `json:"start_time"`
-	Command       []string `json:"command"`
-	LogFile       string    `json:"log_file"`
-	Workspace     string    `json:"workspace"`
-	Status        string    `json:"status"`         // "running", "completed", "stopped", "error"
-	Type          string    `json:"type"`           // "detached" or "interactive"
-	AgentStateFile string   `json:"agent_state_file"` // Path to agent state file (.agent_state.json)
+	Name           string    `json:"name"`
+	PID            int       `json:"pid"`
+	StartTime      time.Time `json:"start_time"`
+	Command        []string  `json:"command"`
+	LogFile        string    `json:"log_file"`
+	Workspace      string    `json:"workspace"`
+	Status         string    `json:"status"`           // "running", "completed", "stopped", "error"
+	Type           string    `json:"type"`             // "detached" or "interactive"
+	AgentStateFile string    `json:"agent_state_file"` // Path to agent state file (.agent_state.json)
 }
 
 // SessionManager handles background session management
@@ -85,19 +85,19 @@ func (sm *SessionManager) StartSession(name string, command []string, workspace 
 			execPath = absPath
 		}
 	}
-	
+
 	// Resolve symlinks
 	if resolved, err := filepath.EvalSymlinks(execPath); err == nil {
 		execPath = resolved
 	}
-	
+
 	// Verify executable exists and is accessible
 	if stat, err := os.Stat(execPath); err != nil {
 		return nil, fmt.Errorf("executable not found at %s: %w", execPath, err)
 	} else if stat.Mode()&0111 == 0 {
 		return nil, fmt.Errorf("executable %s is not executable", execPath)
 	}
-	
+
 	cmd := exec.Command(execPath, command[1:]...)
 	cmd.Stdout = logFd
 	cmd.Stderr = logFd
@@ -119,14 +119,14 @@ func (sm *SessionManager) StartSession(name string, command []string, workspace 
 
 	// Create session state
 	session := &SessionState{
-		Name:          name,
-		PID:           cmd.Process.Pid,
-		StartTime:     time.Now(),
-		Command:       command,
-		LogFile:       logFile,
-		Workspace:     workspace,
-		Status:        "running",
-		Type:          "detached",
+		Name:           name,
+		PID:            cmd.Process.Pid,
+		StartTime:      time.Now(),
+		Command:        command,
+		LogFile:        logFile,
+		Workspace:      workspace,
+		Status:         "running",
+		Type:           "detached",
 		AgentStateFile: agentStateFile,
 	}
 

@@ -128,7 +128,7 @@ func TestRealGitOps_EdgeCases(t *testing.T) {
 	exec.Command("git", "init").Run()
 	exec.Command("git", "config", "user.email", "test@example.com").Run()
 	exec.Command("git", "config", "user.name", "Test User").Run()
-	
+
 	// Create initial commit
 	os.WriteFile("README.md", []byte("init"), 0644)
 	exec.Command("git", "add", ".").Run()

@@ -18,12 +18,12 @@ import (
 )
 
 var (
-	defaultRepo  = "192.168.0.55:5000/recac-e2e"
-	deployTag    = "1h"
-	chartPath    = "./deploy/helm/recac"
-	namespace    = "default"
-	releaseName  = "recac"
-	repoURL      = "https://github.com/process-failed-successfully/recac-jira-e2e"
+	defaultRepo = "192.168.0.55:5000/recac-e2e"
+	deployTag   = "1h"
+	chartPath   = "./deploy/helm/recac"
+	namespace   = "default"
+	releaseName = "recac"
+	repoURL     = "https://github.com/process-failed-successfully/recac-jira-e2e"
 )
 
 func main() {
@@ -198,7 +198,7 @@ func run() error {
 
 	// Check for Agent Job
 	log.Println("Waiting for Agent Job to start...")
-	
+
 	// Determine expected job name from ticket map (assuming single task for now or finding "PRIMES")
 	var targetTicketID string
 	if id, ok := ticketMap["PRIMES"]; ok {
@@ -210,7 +210,7 @@ func run() error {
 			break
 		}
 	}
-	
+
 	expectedJobPrefix := fmt.Sprintf("recac-agent-%s", strings.ToLower(targetTicketID))
 	log.Printf("Looking for job prefix: %s", expectedJobPrefix)
 

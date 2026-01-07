@@ -14,7 +14,7 @@ import (
 var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "Manage configuration",
-	Long:  `Get, set, and list configuration values.`, 
+	Long:  `Get, set, and list configuration values.`,
 }
 
 // setCmd represents the set command
@@ -100,7 +100,7 @@ var listModelsCmd = &cobra.Command{
 		var modelList struct {
 			Models []struct {
 				Name        string `json:"name"`
-					DisplayName string `json:"displayName"`
+				DisplayName string `json:"displayName"`
 			} `json:"models"`
 		}
 

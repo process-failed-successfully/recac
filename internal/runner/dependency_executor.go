@@ -9,12 +9,12 @@ import (
 
 // DependencyExecutor executes tasks with dependency awareness
 type DependencyExecutor struct {
-	graph      *TaskGraph
-	pool       *WorkerPool
-	taskFuncs  map[string]Task // Map task ID to execution function
-	mu         sync.RWMutex
-	ctx        context.Context
-	cancel     context.CancelFunc
+	graph     *TaskGraph
+	pool      *WorkerPool
+	taskFuncs map[string]Task // Map task ID to execution function
+	mu        sync.RWMutex
+	ctx       context.Context
+	cancel    context.CancelFunc
 }
 
 // NewDependencyExecutor creates a new dependency-aware executor
@@ -55,7 +55,7 @@ func (e *DependencyExecutor) Execute() error {
 
 	// Track task completion
 	var wg sync.WaitGroup
-	taskStatus := make(map[string]bool) // true = done or failed
+	taskStatus := make(map[string]bool)    // true = done or failed
 	taskSubmitted := make(map[string]bool) // true = already submitted
 	var statusMu sync.Mutex
 	executionErrors := make(map[string]error)
@@ -68,7 +68,7 @@ func (e *DependencyExecutor) Execute() error {
 			statusMu.Unlock()
 			return
 		}
-		
+
 		// Check if all dependencies are satisfied (while holding lock)
 		node, err := e.graph.GetTask(taskID)
 		if err != nil {
@@ -149,27 +149,27 @@ func (e *DependencyExecutor) Execute() error {
 						}
 					}()
 					e.pool.Submit(func(workerID int) error {
-				defer wg.Done()
+						defer wg.Done()
 
-				fmt.Printf("Task %s: Executing on Worker %d\n", taskID, workerID)
-				
-				// Execute task
-				err := taskFunc(workerID)
-				
-				statusMu.Lock()
-				defer statusMu.Unlock()
+						fmt.Printf("Task %s: Executing on Worker %d\n", taskID, workerID)
 
-				if err != nil {
-					executionErrors[taskID] = err
-					taskStatus[taskID] = true
-					_ = e.graph.MarkTaskStatus(taskID, TaskFailed, err)
-					return err
-				}
+						// Execute task
+						err := taskFunc(workerID)
 
-				taskStatus[taskID] = true
-				_ = e.graph.MarkTaskStatus(taskID, TaskDone, nil)
-				fmt.Printf("Task %s: Completed successfully\n", taskID)
-				return nil
+						statusMu.Lock()
+						defer statusMu.Unlock()
+
+						if err != nil {
+							executionErrors[taskID] = err
+							taskStatus[taskID] = true
+							_ = e.graph.MarkTaskStatus(taskID, TaskFailed, err)
+							return err
+						}
+
+						taskStatus[taskID] = true
+						_ = e.graph.MarkTaskStatus(taskID, TaskDone, nil)
+						fmt.Printf("Task %s: Completed successfully\n", taskID)
+						return nil
 					})
 				}()
 			}
@@ -182,9 +182,9 @@ func (e *DependencyExecutor) Execute() error {
 	}
 
 	// Monitor and submit tasks as dependencies complete
-	done := make(chan bool, 1) // Signal completion to main thread
+	done := make(chan bool, 1)        // Signal completion to main thread
 	monitorDone := make(chan bool, 1) // Signal monitor loop exit
-	
+
 	go func() {
 		defer func() {
 			monitorDone <- true
@@ -242,10 +242,10 @@ func (e *DependencyExecutor) Execute() error {
 
 	// Wait for all active workers to finish
 	wg.Wait()
-	
+
 	// Signal monitor loop to stop (if not already)
 	e.cancel()
-	
+
 	// Wait for monitor goroutine to finish cleanup
 	<-monitorDone
 

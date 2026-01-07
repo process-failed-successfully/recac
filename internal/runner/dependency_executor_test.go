@@ -111,13 +111,13 @@ func TestDependencyExecutor_Execute_Failure(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error, got nil")
 	}
-	
+
 	// Check status
 	statusA, _ := g.GetTaskStatus("A")
 	if statusA != TaskFailed {
 		t.Errorf("Expected A to be Failed, got %s", statusA)
 	}
-	
+
 	statusB, _ := g.GetTaskStatus("B")
 	if statusB != TaskFailed {
 		t.Errorf("Expected B to be Failed (due to dep), got %s", statusB)
@@ -144,28 +144,28 @@ func TestDependencyExecutor_Execute_Cycle(t *testing.T) {
 func TestDependencyExecutor_Stop(t *testing.T) {
 	g := NewTaskGraph()
 	g.AddNode("A", "Task A", nil)
-	
+
 	pool := NewWorkerPool(1)
 	pool.Start()
 	defer pool.Stop()
-	
+
 	executor := NewDependencyExecutor(g, pool)
-	
+
 	executor.RegisterTask("A", func(workerID int) error {
 		time.Sleep(1 * time.Second)
 		return nil
 	})
-	
+
 	// Start execution in background
 	go func() {
 		executor.Execute()
 	}()
-	
+
 	// Stop immediately
 	time.Sleep(100 * time.Millisecond)
 	executor.Stop()
-	
-	// We can't easily assert return value of Execute here without channels, 
+
+	// We can't easily assert return value of Execute here without channels,
 	// but we can check if it finishes (implicit) and doesn't hang.
 	// In a real test we'd check if context cancellation propagated.
 }

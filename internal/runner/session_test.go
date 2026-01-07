@@ -257,36 +257,6 @@ func TestSession_AgentStatePersistence(t *testing.T) {
 	}
 }
 
-func TestSession_Signals(t *testing.T) {
-	tmpDir := t.TempDir()
-	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
-
-	// Test createSignal
-	if err := session.createSignal("TEST_SIGNAL"); err != nil {
-		t.Fatalf("Failed to create signal: %v", err)
-	}
-
-	// Test hasSignal
-	if !session.hasSignal("TEST_SIGNAL") {
-		t.Error("Expected hasSignal to return true")
-	}
-
-	// Test clearSignal
-	session.clearSignal("TEST_SIGNAL")
-	if session.hasSignal("TEST_SIGNAL") {
-		t.Error("Expected signal to be cleared")
-	}
-
-	// Test checkCompletion
-	if session.checkCompletion() {
-		t.Error("Expected not completed")
-	}
-	session.createSignal("COMPLETED")
-	if !session.checkCompletion() {
-		t.Error("Expected completed")
-	}
-}
-
 func TestSession_Stop(t *testing.T) {
 	mockDocker, _ := docker.NewMockClient()
 	session := NewSession(mockDocker, &MockAgent{}, "/tmp", "alpine", "test-project", "gemini", "gemini-pro", 1)
@@ -425,18 +395,6 @@ func TestSession_RunManagerAgent(t *testing.T) {
 	}
 	if err := session.runManagerAgent(context.Background()); err == nil {
 		t.Error("Expected manager rejection, got nil")
-	}
-}
-
-func TestMin(t *testing.T) {
-	if min(1, 2) != 1 {
-		t.Error("min(1,2) != 1")
-	}
-	if min(2, 1) != 1 {
-		t.Error("min(2,1) != 1")
-	}
-	if min(1, 1) != 1 {
-		t.Error("min(1,1) != 1")
 	}
 }
 
