@@ -14,7 +14,6 @@ var templateFS embed.FS
 const (
 	Planner       = "planner"
 	ManagerReview = "manager_review"
-	PRDescription = "pr_description"
 	CodingAgent   = "coding_agent"
 	Initializer   = "initializer"
 	QAAgent       = "qa_agent"

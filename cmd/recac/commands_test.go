@@ -185,12 +185,6 @@ func TestCommands(t *testing.T) {
 
 	})
 
-	t.Run("Sprint Command", func(t *testing.T) {
-
-		executeCommand(rootCmd, "sprint", "--help")
-
-	})
-
 	t.Run("Logs Command", func(t *testing.T) {
 
 		// logs command needs a session name or lists logs.

@@ -1,0 +1,40 @@
+name: Jules Consistency Check
+
+on:
+  schedule:
+    # Twice daily at 00:00 and 12:00 UTC
+    - cron: "0 0,12 * * *"
+  workflow_dispatch: # Allow manual triggers
+
+jobs:
+  consistency:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Invoke Jules for Consistency
+        uses: ./.github/actions/jules-invoke
+        with:
+          prompt: |
+            You are a consistency expert for the RECAC repository.
+            Your goal is to ensure parity and consistency across three main axes:
+            1. **Docker vs. K8s**: Ensure that operations and configurations are consistent between Docker-based local development and Kubernetes-based deployment.
+            2. **Orchestrator vs. Task**: Ensure that the Orchestrator's expectations match the Task's implementation and vice-versa.
+            3. **CLI vs. TUI**: Ensure that functional features available in the CLI are mirrored in the TUI (or vice-versa) where appropriate.
+
+            ## Task
+            1. Analyze the codebase to identify **one small to medium inconsistency** within the three axes mentioned above.
+            2. Implement functional parity or fix the inconsistency.
+            3. Add or update tests to verify the consistency.
+
+            ## Guidelines
+            - Focus on functional correctness and developer experience.
+            - Ensure `make test` and `make lint` pass after your changes.
+            - Provide a clear explanation of the inconsistency you found and how you fixed it in your PR description.
+
+            Do not open a PR if you have not identified a valid inconsistency or if tests are failing.
+          jules_api_key: ${{ secrets.JULES_API_KEY }}
+          include_commit_log: false
+          starting_branch: master
