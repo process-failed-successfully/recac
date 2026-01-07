@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"recac/internal/jira"
 	"recac/pkg/e2e/manager"
 	"recac/pkg/e2e/scenarios"
 
@@ -40,6 +41,7 @@ func run() error {
 		model        string
 		deployRepo   string
 		targetRepo   string
+		pullPolicy   string
 		skipBuild    bool
 		skipCleanup  bool
 	)
@@ -49,12 +51,15 @@ func run() error {
 	flag.StringVar(&model, "model", "mistralai/devstral-2512:free", "AI Model")
 	flag.StringVar(&deployRepo, "repo", defaultRepo, "Docker repository for deployment")
 	flag.StringVar(&targetRepo, "repo-url", repoURL, "Target Git repository for the agent")
+	flag.StringVar(&pullPolicy, "pull-policy", "Always", "Image pull policy (Always, IfNotPresent, Never)")
 	flag.BoolVar(&skipBuild, "skip-build", false, "Skip docker build")
 	flag.BoolVar(&skipCleanup, "skip-cleanup", false, "Skip cleanup on finish")
 	flag.Parse()
 
 	// Use targetRepo instead of hardcoded repoURL
-	repoURL = targetRepo
+	if targetRepo != "" {
+		repoURL = targetRepo
+	}
 
 	// Validate Env
 	required := []string{"JIRA_URL", "JIRA_USERNAME", "JIRA_API_TOKEN", "GITHUB_API_KEY", "OPENROUTER_API_KEY"}
@@ -68,11 +73,21 @@ func run() error {
 		os.Setenv("JIRA_API_TOKEN", os.Getenv("JIRA_API_KEY"))
 	}
 	projectKey := os.Getenv("JIRA_PROJECT_KEY")
-	if projectKey == "" {
-		return fmt.Errorf("missing JIRA_PROJECT_KEY")
-	}
 
 	ctx := context.Background()
+
+	// Fallback for missing JIRA_PROJECT_KEY
+	if projectKey == "" {
+		log.Println("JIRA_PROJECT_KEY not set. Attempting to fetch default project...")
+		tmpClient := jira.NewClient(os.Getenv("JIRA_URL"), os.Getenv("JIRA_USERNAME"), os.Getenv("JIRA_API_TOKEN"))
+		var err error
+		projectKey, err = tmpClient.GetFirstProjectKey(ctx)
+		if err != nil {
+			return fmt.Errorf("missing JIRA_PROJECT_KEY and failed to fetch default: %w", err)
+		}
+		log.Printf("Using default project key: %s", projectKey)
+	}
+
 	mgr := manager.NewJiraManager(os.Getenv("JIRA_URL"), os.Getenv("JIRA_USERNAME"), os.Getenv("JIRA_API_TOKEN"), projectKey)
 
 	// 1. Build and Push
@@ -133,7 +148,7 @@ func run() error {
 		"--namespace", namespace,
 		"--set", fmt.Sprintf("image.repository=%s", pullRepo),
 		"--set", fmt.Sprintf("image.tag=%s", tagPart),
-		"--set", "image.pullPolicy=Always",
+		"--set", fmt.Sprintf("image.pullPolicy=%s", pullPolicy),
 		"--set", "config.imagePullPolicy=IfNotPresent",
 		"--set", "config.poller=jira",
 		"--set", fmt.Sprintf("config.jira_label=%s", label),

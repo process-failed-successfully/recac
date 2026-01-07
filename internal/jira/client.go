@@ -584,3 +584,39 @@ func isDoneStatus(status string) bool {
 	}
 	return false
 }
+
+// GetFirstProjectKey fetches the key of the first visible project.
+func (c *Client) GetFirstProjectKey(ctx context.Context) (string, error) {
+	url := fmt.Sprintf("%s/rest/api/3/project", c.BaseURL)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+	req.SetBasicAuth(c.Username, c.APIToken)
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to list projects: status %d", resp.StatusCode)
+	}
+
+	var projects []map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&projects); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if len(projects) == 0 {
+		return "", fmt.Errorf("no projects found")
+	}
+
+	if key, ok := projects[0]["key"].(string); ok {
+		return key, nil
+	}
+
+	return "", fmt.Errorf("invalid project response format")
+}

@@ -41,112 +41,20 @@ jobs:
         run: |
           k3d image import recac:smoke -c recac-smoke
 
-      - name: Prepare Smoke Scenario
-        run: |
-          # Replace placeholder with current repo/branch
-          # For PRs, we want the agent to clone the PR branch
-          REPO_URL="https://github.com/${{ github.repository }}"
-          sed -i "s|https://github.com/REPLACE_ME_REPO|$REPO_URL|g" tests/smoke-test/work_items.json
-
-      - name: Create Jira E2E Data
-        id: jira_data
+      - name: Run E2E Test
         env:
           JIRA_URL: ${{ secrets.JIRA_URL }}
           JIRA_USERNAME: ${{ secrets.JIRA_USERNAME }}
           JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          GITHUB_API_KEY: ${{ secrets.GH_API_KEY }}
+          GITHUB_EMAIL: ${{ secrets.GH_EMAIL }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
-          go run e2e/jira/gen_jira_data.go
-
-      - name: Deploy Helm (Smoke Jira Config)
-        run: |
-          helm upgrade --install recac ./deploy/helm/recac \
-            --set image.repository=recac \
-            --set image.tag=smoke \
-            --set image.pullPolicy=Never \
-            --set config.imagePullPolicy=IfNotPresent \
-            --set config.poller=jira \
-            --set config.jira_label="${{ steps.jira_data.outputs.jira_label }}" \
-            --set config.verbose=true \
-            --set config.interval=10s \
-            --set config.max_iterations=10 \
-            --set config.provider=openrouter \
-            --set config.model="mistralai/devstral-2512:free" \
-            --set config.jiraUrl="${{ secrets.JIRA_URL }}" \
-            --set config.jiraUsername="${{ secrets.JIRA_USERNAME }}" \
-            --set secrets.openrouterApiKey="${{ secrets.OPENROUTER_API_KEY }}" \
-            --set secrets.jiraApiToken="${{ secrets.JIRA_API_TOKEN }}" \
-            --set secrets.ghApiKey="${{ secrets.GH_API_KEY }}" \
-            --set secrets.ghEmail="${{ secrets.GH_EMAIL }}"
-
-      - name: Wait for Orchestrator
-        run: |
-          echo "Waiting for orchestrator pod to be ready..."
-          kubectl rollout status deployment/recac --timeout=120s || {
-            echo "Orchestrator deployment failed"
-            kubectl get pods
-            kubectl describe pods -l app.kubernetes.io/name=recac
-            exit 1
-          }
-
-      - name: Wait and Verify
-        run: |
-          echo "Waiting for Orchestrator to spawn agent job for Jira label..."
-          timeout=300
-          elapsed=0
-          while [ $elapsed -lt $timeout ]; do
-            if kubectl get jobs | grep -qi "recac-agent-"; then
-              echo "Agent job spawned!"
-              break
-            fi
-            sleep 10
-            elapsed=$((elapsed + 10))
-          done
-          kubectl get pods -A
-          kubectl describe pods -l app=recac-agent || true
-
-          if [ $elapsed -ge $timeout ]; then
-            echo "Error: Orchestrator failed to spawn agent job within 5 minutes"
-            kubectl logs -l app.kubernetes.io/name=recac
-            exit 1
-          fi
-
-          echo "Waiting for agent job to complete..."
-          JOB_NAME=$(kubectl get jobs -o name | grep "recac-agent-" | head -n 1)
-          kubectl wait --for=condition=complete "$JOB_NAME" --timeout=300s || {
-            echo "Agent job failed or timed out"
-            kubectl describe "$JOB_NAME" || true
-            kubectl logs -l app=recac-agent --all-containers=true
-            exit 1
-          }
-
-          echo "Verifying Git Commits in e2e repository..."
-          git clone https://x-access-token:${{ secrets.GH_API_KEY }}@github.com/process-failed-successfully/recac-jira-e2e.git e2e-repo
-          cd e2e-repo
-
-          # Find agent branches and check commit count
-          BRANCHES=$(git branch -r | grep "origin/agent/" || true)
-          if [ -z "$BRANCHES" ]; then
-            echo "Error: No agent branches found in remote"
-            exit 1
-          fi
-
-          FOUND_VALID_BRANCH=false
-          for remote_branch in $BRANCHES; do
-            branch=${remote_branch#origin/}
-            echo "Checking branch: $branch"
-            git checkout $branch
-            count=$(git rev-list --count HEAD ^master || git rev-list --count HEAD ^main)
-            echo "Branch $branch has $count commits relative to base"
-            if [ "$count" -ge 3 ]; then
-              echo "Found branch with at least 3 commits: $branch"
-              FOUND_VALID_BRANCH=true
-              break
-            fi
-          done
-
-          if [ "$FOUND_VALID_BRANCH" = "false" ]; then
-            echo "Error: No agent branch found with at least 3 commits"
-            exit 1
-          fi
-
-          echo "E2E Smoke Test Passed (Verified 3+ commits)!"
+          go run e2e/runner/main.go \
+            -scenario prime-python \
+            -provider openrouter \
+            -model "mistralai/devstral-2512:free" \
+            -repo recac:smoke \
+            -repo-url "https://github.com/${{ github.repository }}" \
+            -pull-policy Never \
+            -skip-build
