@@ -124,14 +124,14 @@ var getCmd = &cobra.Command{
 	Use:   "get <key>",
 	Short: "Get a configuration value",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		key := args[0]
 		value := viper.Get(key)
 		if value == nil {
-			fmt.Fprintf(cmd.ErrOrStderr(), "Error: key not found: %s\n", key)
-			exit(1)
+			return fmt.Errorf("key not found: %s", key)
 		}
 		fmt.Fprintln(cmd.OutOrStdout(), value)
+		return nil
 	},
 }
 

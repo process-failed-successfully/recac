@@ -105,6 +105,9 @@ func TestCommands(t *testing.T) {
 	})
 
 	t.Run("Config Get Command", func(t *testing.T) {
+		// Explicitly re-enable error printing for this test
+		rootCmd.SilenceErrors = false
+
 		// Create a temporary config file
 		tmpFile, err := os.CreateTemp(t.TempDir(), "config-*.yaml")
 		if err != nil {
@@ -127,6 +130,22 @@ func TestCommands(t *testing.T) {
 
 		if !strings.Contains(output, "bar") {
 			t.Errorf("Expected output to contain 'bar', got %q", output)
+		}
+
+		// Test get non-existent key
+		output, err = executeCommand(rootCmd, "--config", tmpFile.Name(), "config", "get", "nonexistentkey")
+		if err == nil {
+			t.Fatal("Expected an error for non-existent key, but got nil")
+		}
+
+		expectedError := "key not found: nonexistentkey"
+		if !strings.Contains(err.Error(), expectedError) {
+			t.Errorf("Expected error to contain %q, got %q", expectedError, err.Error())
+		}
+
+		// Cobra prints the error to stderr, which is redirected to output
+		if !strings.Contains(output, "Error: "+expectedError) {
+			t.Errorf("Expected output to contain error message, got %q", output)
 		}
 	})
 
