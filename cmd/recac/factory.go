@@ -12,8 +12,8 @@ import (
 	"github.com/spf13/viper"
 )
 
-// getJiraClient initializes a Jira client using config or environment variables
-func getJiraClient(ctx context.Context) (*jira.Client, error) {
+// jiraClientFactory is a function type for creating a Jira client. It's a variable so we can override it in tests.
+var jiraClientFactory = func(ctx context.Context) (*jira.Client, error) {
 	baseURL := viper.GetString("jira.url")
 	username := viper.GetString("jira.username")
 	apiToken := viper.GetString("jira.api_token")
@@ -44,6 +44,11 @@ func getJiraClient(ctx context.Context) (*jira.Client, error) {
 	}
 
 	return jira.NewClient(baseURL, username, apiToken), nil
+}
+
+// getJiraClient initializes a Jira client using the factory.
+func getJiraClient(ctx context.Context) (*jira.Client, error) {
+	return jiraClientFactory(ctx)
 }
 
 // getAgentClient initializes an Agent client based on provider and configuration

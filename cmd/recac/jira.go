@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"recac/internal/git"
 	"strings"
 
 	"recac/internal/agent/prompts"
@@ -179,6 +180,80 @@ type ticketNode struct {
 }
 
 // jiraGenerateFromSpecCmd represents the jira generate-from-spec command
+var jiraImportCmd = &cobra.Command{
+	Use:   "import",
+	Short: "Import a Jira ticket as a feature branch",
+	Long: `Imports a Jira ticket by creating a new feature branch and populating app_spec.txt.
+
+The branch name is created from the ticket summary, and app_spec.txt is populated with the ticket description.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		// Get ticket ID from flag
+		ticketID, _ := cmd.Flags().GetString("id")
+		if ticketID == "" {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error: --id flag is required\n")
+			fmt.Fprintf(cmd.ErrOrStderr(), "Usage: %s jira import --id PROJ-123\n", os.Args[0])
+			exit(1)
+		}
+
+		// Create Jira client
+		ctx := context.Background()
+		jiraClient, err := getJiraClient(ctx)
+		if err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error: %v\n", err)
+			exit(1)
+		}
+
+		// Fetch ticket
+		cmd.Printf("Fetching Jira ticket %s...\n", ticketID)
+		ticket, err := jiraClient.GetTicket(ctx, ticketID)
+		if err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error: Failed to fetch ticket %s: %v\n", ticketID, err)
+			exit(1)
+		}
+
+		// Extract fields
+		fields, ok := ticket["fields"].(map[string]interface{})
+		if !ok {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error: Invalid ticket response format\n")
+			exit(1)
+		}
+
+		summary, _ := fields["summary"].(string)
+		description := jiraClient.ParseDescription(ticket)
+
+		if summary == "" {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error: Ticket has no summary\n")
+			exit(1)
+		}
+
+		// Create Git client
+		gitClient := git.NewClient()
+
+		// Sanitize summary to create a valid branch name
+		branchName := sanitizeBranchName(summary)
+		branchName = fmt.Sprintf("feature/%s-%s", ticketID, branchName)
+
+		cmd.Printf("Creating feature branch: %s\n", branchName)
+
+		// Create and checkout the new branch
+		if err := gitClient.CheckoutNewBranch(".", branchName); err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error: Failed to create git branch: %v\n", err)
+			exit(1)
+		}
+
+		// Populate app_spec.txt
+		cmd.Println("Populating app_spec.txt with Jira ticket description...")
+		if err := os.WriteFile("app_spec.txt", []byte(description), 0644); err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error: Failed to write to app_spec.txt: %v\n", err)
+			// Maybe we should switch back to the original branch here? For now, let's just exit.
+			exit(1)
+		}
+
+		cmd.Printf("\nSuccess! Feature branch '%s' created and app_spec.txt updated.\n", branchName)
+		cmd.Println("You can now run 'recac start' to begin working on the feature.")
+	},
+}
+
 var jiraGenerateFromSpecCmd = &cobra.Command{
 	Use:   "generate-from-spec",
 	Short: "Generate Jira tickets from app_spec.txt",
@@ -379,6 +454,30 @@ var jiraGenerateFromSpecCmd = &cobra.Command{
 	},
 }
 
+// sanitizeBranchName converts a string into a valid git branch name.
+func sanitizeBranchName(name string) string {
+	// to lower case
+	name = strings.ToLower(name)
+	// replace spaces and slashes with hyphens
+	name = strings.ReplaceAll(name, " ", "-")
+	name = strings.ReplaceAll(name, "/", "-")
+	// remove invalid characters
+	reg := regexp.MustCompile("[^a-z0-9-]+")
+	name = reg.ReplaceAllString(name, "")
+	// remove leading/trailing hyphens that might exist before truncation
+	name = strings.Trim(name, "-")
+
+	// Truncate to a reasonable length
+	if len(name) > 50 {
+		name = name[:50]
+	}
+
+	// remove trailing hyphens that might be created by truncation
+	name = strings.Trim(name, "-")
+
+	return name
+}
+
 func init() {
 	rootCmd.AddCommand(jiraCmd)
 	jiraCmd.AddCommand(jiraTestAuthCmd)
@@ -394,4 +493,8 @@ func init() {
 	jiraGenerateFromSpecCmd.Flags().String("project", "", "Jira project key (overrides JIRA_PROJECT_KEY env var and config)")
 	jiraGenerateFromSpecCmd.Flags().StringSliceP("label", "l", []string{}, "Custom labels to add to generated tickets")
 	jiraCmd.AddCommand(jiraGenerateFromSpecCmd)
+
+	jiraImportCmd.Flags().String("id", "", "Jira ticket ID (e.g., PROJ-123)")
+	jiraImportCmd.MarkFlagRequired("id")
+	jiraCmd.AddCommand(jiraImportCmd)
 }
