@@ -125,7 +125,12 @@ var startCmd = &cobra.Command{
 		taskMaxIterations := viper.GetInt("task_max_iterations")
 		detached := viper.GetBool("detached")
 		sessionName := viper.GetString("name")
-		jiraTicketID := viper.GetString("jira")
+		
+		jiraTicketID, _ := cmd.Flags().GetString("jira")
+		if jiraTicketID == "" {
+			jiraTicketID = viper.GetString("jira")
+		}
+		
 		// Handle Jira Ticket Workflow
 		jiraLabel := viper.GetString("jira_label")
 
@@ -413,18 +418,45 @@ func processDirectTask(ctx context.Context, cfg SessionConfig) {
 		cfg.SessionName = "direct-task"
 	}
 
-	logger.Info("Starting direct task session", "repo", cfg.RepoURL, "summary", cfg.Summary)
+	workID := cfg.SessionName
+	if cfg.JiraTicketID != "" {
+		workID = cfg.JiraTicketID
+	}
+
+	logger.Info("Starting direct task session", "repo", cfg.RepoURL, "summary", cfg.Summary, "id", workID)
 
 	// Setup Workspace
 	timestamp := time.Now().Format("20060102-150405")
-	tempWorkspace, err := setupWorkspace(ctx, cfg.RepoURL, cfg.ProjectPath, cfg.SessionName, "", timestamp)
-	if err != nil {
+	
+	if cfg.ProjectPath == "" {
+		var err error
+		cfg.ProjectPath, err = os.MkdirTemp("", "recac-direct-*")
+		if err != nil {
+			logger.Error("Error creating temp workspace", "error", err)
+			return
+		}
+	}
+
+	if _, err := setupWorkspace(ctx, cfg.RepoURL, cfg.ProjectPath, workID, "", timestamp); err != nil {
 		logger.Error("Error: Failed to setup workspace", "error", err)
 		return
 	}
 
+	// Force task context: Overwrite app_spec.txt and remove feature_list.json
+	if cfg.Summary != "" || cfg.Description != "" {
+		specContent := fmt.Sprintf("# Task Summary: %s\n\n%s", cfg.Summary, cfg.Description)
+		specPath := filepath.Join(cfg.ProjectPath, "app_spec.txt")
+		if err := os.WriteFile(specPath, []byte(specContent), 0644); err != nil {
+			logger.Error("Error writing app_spec.txt", "error", err)
+			return
+		}
+		// Remove existing feature list to force agent to focus on this task
+		_ = os.Remove(filepath.Join(cfg.ProjectPath, "feature_list.json"))
+		logger.Info("Refreshed workspace context from task description")
+	}
+
 	// Update configuration for the session run
-	cfg.ProjectPath = tempWorkspace
+	// cfg.ProjectPath is already set correctly above
 
 	// Run Workflow
 	if err := runWorkflow(ctx, cfg); err != nil {

@@ -176,8 +176,8 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		if [ -n "$GITHUB_TOKEN" ]; then
 			git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
 		fi
-		recac start --repo-url %q --summary %q --description %q --jira %s --detached=false --cleanup=false --allow-dirty --path /workspace --image %s
-	`, item.RepoURL, item.Summary, item.Description, item.ID, s.Image)
+		recac start --jira %s --name %s --image %s --path /workspace --detached=false --cleanup=false --allow-dirty --repo-url %q --summary %q --description %q
+	`, item.ID, item.ID, s.Image, item.RepoURL, item.Summary, item.Description)
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{

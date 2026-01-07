@@ -497,6 +497,84 @@ func (c *Client) AddIssueLink(ctx context.Context, inwardKey, outwardKey, linkTy
 	return nil
 }
 
+// SetParent sets the parent of an issue (e.g. for Subtasks or Epics).
+func (c *Client) SetParent(ctx context.Context, issueKey, parentKey string) error {
+	url := fmt.Sprintf("%s/rest/api/3/issue/%s", c.BaseURL, issueKey)
+
+	// Start with "parent" field (standard for subtasks and next-gen epics)
+	payload := map[string]interface{}{
+		"fields": map[string]interface{}{
+			"parent": map[string]interface{}{
+				"key": parentKey,
+			},
+		},
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "PUT", url, bytes.NewBuffer(body))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.SetBasicAuth(c.Username, c.APIToken)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("failed to set parent with status: %d, body: %s", resp.StatusCode, string(body))
+	}
+	return nil
+}
+
+// AddLabel adds a label to an existing ticket.
+func (c *Client) AddLabel(ctx context.Context, key, label string) error {
+	url := fmt.Sprintf("%s/rest/api/3/issue/%s", c.BaseURL, key)
+	payload := map[string]interface{}{
+		"update": map[string]interface{}{
+			"labels": []map[string]interface{}{
+				{"add": label},
+			},
+		},
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "PUT", url, bytes.NewBuffer(body))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.SetBasicAuth(c.Username, c.APIToken)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("failed to add label with status: %d, body: %s", resp.StatusCode, string(body))
+	}
+	return nil
+}
+
 func isDoneStatus(status string) bool {
 	doneStatuses := []string{"Done", "Closed", "Resolved", "Finished", "Passed"}
 	for _, s := range doneStatuses {

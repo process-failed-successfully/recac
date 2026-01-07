@@ -26,3 +26,5 @@ data:
   RECAC_POLLER: {{ .Values.config.poller | quote }}
   RECAC_WORK_FILE: {{ .Values.config.work_file | quote }}
   RECAC_ORCHESTRATOR_INTERVAL: {{ .Values.config.interval | quote }}
+  RECAC_ORCHESTRATOR_JIRA_LABEL: {{ .Values.config.jira_label | quote }}
+  RECAC_ORCHESTRATOR_JIRA_QUERY: {{ .Values.config.jira_query | quote }}
