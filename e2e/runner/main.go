@@ -63,6 +63,13 @@ func run() error {
 		repoURL = targetRepo
 	}
 
+	// Create an authenticated URL for the agent to use
+	token := os.Getenv("GITHUB_API_KEY")
+	authRepoURL := repoURL
+	if token != "" {
+		authRepoURL = strings.Replace(repoURL, "https://", fmt.Sprintf("https://x-access-token:%s@", token), 1)
+	}
+
 	// Validate Env
 	required := []string{"JIRA_URL", "JIRA_USERNAME", "JIRA_API_TOKEN", "GITHUB_API_KEY", "OPENROUTER_API_KEY"}
 	for _, env := range required {
@@ -119,7 +126,7 @@ func run() error {
 		return fmt.Errorf("unknown scenario: %s", scenarioName)
 	}
 
-	label, ticketMap, err := mgr.GenerateScenario(ctx, scenarioName, repoURL)
+	label, ticketMap, err := mgr.GenerateScenario(ctx, scenarioName, authRepoURL)
 	if err != nil {
 		return fmt.Errorf("failed to generate scenario: %w", err)
 	}
