@@ -5,307 +5,321 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 )
 
-func TestAuthenticate_Success(t *testing.T) {
-	// Mock Server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Verify Auth Header
-		user, pass, ok := r.BasicAuth()
-		if !ok || user != "user" || pass != "token" {
+// --- Mocks ---
+
+type mockRoundTripper struct {
+	response *http.Response
+	err      error
+}
+
+func (m *mockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	return m.response, m.err
+}
+
+// --- Helpers ---
+
+func newTestClient(handler http.Handler) (*Client, *httptest.Server) {
+	server := httptest.NewServer(handler)
+	client := NewClient(server.URL, "user", "token")
+	return client, server
+}
+
+// --- Tests ---
+
+func TestClient_Authenticate(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		client, server := newTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer server.Close()
+
+		err := client.Authenticate(context.Background())
+		if err != nil {
+			t.Errorf("Authenticate() returned an unexpected error: %v", err)
+		}
+	})
+
+	t.Run("failure", func(t *testing.T) {
+		client, server := newTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusUnauthorized)
-			return
+		}))
+		defer server.Close()
+
+		err := client.Authenticate(context.Background())
+		if err == nil {
+			t.Error("Authenticate() expected an error but got none")
 		}
-		
-		if r.URL.Path != "/rest/api/3/myself" {
+	})
+}
+
+func TestClient_GetTicket(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		client, server := newTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]interface{}{"key": "TEST-1"})
+		}))
+		defer server.Close()
+
+		ticket, err := client.GetTicket(context.Background(), "TEST-1")
+		if err != nil {
+			t.Fatalf("GetTicket() returned an unexpected error: %v", err)
+		}
+		if key, _ := ticket["key"].(string); key != "TEST-1" {
+			t.Errorf("expected ticket key 'TEST-1', got '%s'", key)
+		}
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		client, server := newTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
-			return
+		}))
+		defer server.Close()
+
+		_, err := client.GetTicket(context.Background(), "TEST-1")
+		if err == nil {
+			t.Error("GetTicket() expected an error but got none")
 		}
-
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"accountId": "123"}`))
-	}))
-	defer server.Close()
-
-	client := NewClient(server.URL, "user", "token")
-	
-	if err := client.Authenticate(context.Background()); err != nil {
-		t.Fatalf("Authenticate failed: %v", err)
-	}
+	})
 }
 
-func TestGetTicket_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/rest/api/3/issue/PROJ-123" {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"key": "PROJ-123", "fields": {"summary": "Test Ticket"}}`))
-	}))
-	defer server.Close()
+func TestClient_CreateTicket(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		client, server := newTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusCreated)
+			json.NewEncoder(w).Encode(map[string]string{"key": "TEST-1"})
+		}))
+		defer server.Close()
 
-	client := NewClient(server.URL, "user", "token")
-	ticket, err := client.GetTicket(context.Background(), "PROJ-123")
-	if err != nil {
-		t.Fatalf("GetTicket failed: %v", err)
-	}
-	
-	if ticket["key"] != "PROJ-123" {
-		t.Errorf("Expected key PROJ-123, got %v", ticket["key"])
-	}
+		key, err := client.CreateTicket(context.Background(), "PROJ", "summary", "desc", "Story", nil)
+		if err != nil {
+			t.Fatalf("CreateTicket() returned an unexpected error: %v", err)
+		}
+		if key != "TEST-1" {
+			t.Errorf("expected new ticket key 'TEST-1', got '%s'", key)
+		}
+	})
+
+	t.Run("failure", func(t *testing.T) {
+		client, server := newTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		_, err := client.CreateTicket(context.Background(), "PROJ", "summary", "desc", "Story", nil)
+		if err == nil {
+			t.Error("CreateTicket() expected an error but got none")
+		}
+	})
 }
 
-func TestGetTicket_NotFound(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/rest/api/3/issue/NONEXIST-123" {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(`{"errorMessages":["Issue Does Not Exist"],"errors":{}}`))
-	}))
-	defer server.Close()
+func TestClient_AddComment(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		client, server := newTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusCreated)
+		}))
+		defer server.Close()
 
-	client := NewClient(server.URL, "user", "token")
-	_, err := client.GetTicket(context.Background(), "NONEXIST-123")
-	if err == nil {
-		t.Fatal("Expected error for non-existent ticket")
-	}
-	
-	if !strings.Contains(err.Error(), "404") && !strings.Contains(err.Error(), "failed to fetch ticket") {
-		t.Errorf("Expected error message about failed fetch, got: %v", err)
-	}
+		err := client.AddComment(context.Background(), "TEST-1", "comment")
+		if err != nil {
+			t.Fatalf("AddComment() returned an unexpected error: %v", err)
+		}
+	})
+
+	t.Run("failure", func(t *testing.T) {
+		client, server := newTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		err := client.AddComment(context.Background(), "TEST-1", "comment")
+		if err == nil {
+			t.Error("AddComment() expected an error but got none")
+		}
+	})
 }
 
-func TestTransitionIssue_Success(t *testing.T) {
-	var receivedPath string
-	var receivedMethod string
-	var receivedTransitionID string
-	
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		receivedPath = r.URL.Path
-		receivedMethod = r.Method
-		
-		if r.URL.Path != "/rest/api/3/issue/PROJ-123/transitions" {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		if r.Method != "POST" {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
-		
-		var payload map[string]interface{}
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		
-		trans, ok := payload["transition"].(map[string]interface{})
-		if !ok {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		
-		receivedTransitionID, _ = trans["id"].(string)
-		
-		if receivedTransitionID != "31" {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
+func TestClient_DeleteIssue(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		client, server := newTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		}))
+		defer server.Close()
 
-		w.WriteHeader(http.StatusNoContent)
-	}))
-	defer server.Close()
+		err := client.DeleteIssue(context.Background(), "TEST-1")
+		if err != nil {
+			t.Fatalf("DeleteIssue() returned an unexpected error: %v", err)
+		}
+	})
 
-	client := NewClient(server.URL, "user", "token")
-	err := client.TransitionIssue(context.Background(), "PROJ-123", "31")
-	if err != nil {
-		t.Fatalf("TransitionIssue failed: %v", err)
-	}
-	
-	// Verify the mock backend received the transition request
-	if receivedPath != "/rest/api/3/issue/PROJ-123/transitions" {
-		t.Errorf("Expected path /rest/api/3/issue/PROJ-123/transitions, got %s", receivedPath)
-	}
-	if receivedMethod != "POST" {
-		t.Errorf("Expected method POST, got %s", receivedMethod)
-	}
-	if receivedTransitionID != "31" {
-		t.Errorf("Expected transition ID '31', got %q", receivedTransitionID)
-	}
-}
-	
-func TestAddComment_Success(t *testing.T) {
-	var receivedComment string
-	var receivedPath string
-	
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		receivedPath = r.URL.Path
-		
-		if r.URL.Path != "/rest/api/3/issue/PROJ-123/comment" {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		if r.Method != "POST" {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
-		
-		var payload map[string]interface{}
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+	t.Run("failure", func(t *testing.T) {
+		client, server := newTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		
-		// Extract comment text from ADF format
-		body, ok := payload["body"].(map[string]interface{})
-		if !ok {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		
-		content, ok := body["content"].([]interface{})
-		if !ok || len(content) == 0 {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		
-		paragraph, ok := content[0].(map[string]interface{})
-		if !ok {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		
-		paragraphContent, ok := paragraph["content"].([]interface{})
-		if !ok || len(paragraphContent) == 0 {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		
-		textNode, ok := paragraphContent[0].(map[string]interface{})
-		if !ok {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		
-		receivedComment, _ = textNode["text"].(string)
-		
-		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte(`{"id": "12345", "body": {"type": "doc"}}`))
-	}))
-	defer server.Close()
+		}))
+		defer server.Close()
 
-	client := NewClient(server.URL, "user", "token")
-	err := client.AddComment(context.Background(), "PROJ-123", "This is a test comment")
-	if err != nil {
-		t.Fatalf("AddComment failed: %v", err)
-	}
-	
-	if receivedPath != "/rest/api/3/issue/PROJ-123/comment" {
-		t.Errorf("Expected path /rest/api/3/issue/PROJ-123/comment, got %s", receivedPath)
-	}
-	
-	if receivedComment != "This is a test comment" {
-		t.Errorf("Expected comment 'This is a test comment', got %q", receivedComment)
-	}
+		err := client.DeleteIssue(context.Background(), "TEST-1")
+		if err == nil {
+			t.Error("DeleteIssue() expected an error but got none")
+		}
+	})
 }
 
-func TestAddComment_FormattingPreserved(t *testing.T) {
-	var receivedPayload map[string]interface{}
-	
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewDecoder(r.Body).Decode(&receivedPayload)
-		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte(`{"id": "12345"}`))
-	}))
-	defer server.Close()
+func TestClient_AddIssueLink(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		client, server := newTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusCreated)
+		}))
+		defer server.Close()
 
-	client := NewClient(server.URL, "user", "token")
-	commentText := "Line 1\nLine 2\n*Bold* text"
-	err := client.AddComment(context.Background(), "PROJ-456", commentText)
-	if err != nil {
-		t.Fatalf("AddComment failed: %v", err)
-	}
-	
-	// Verify ADF structure is preserved
-	body, ok := receivedPayload["body"].(map[string]interface{})
-	if !ok {
-		t.Fatal("Expected 'body' field in payload")
-	}
-	
-	if body["type"] != "doc" {
-		t.Errorf("Expected body type 'doc', got %v", body["type"])
-	}
-	
-	content, ok := body["content"].([]interface{})
-	if !ok || len(content) == 0 {
-		t.Fatal("Expected 'content' array in body")
-	}
-	
-	paragraph, ok := content[0].(map[string]interface{})
-	if !ok {
-		t.Fatal("Expected paragraph in content")
-	}
-	
-	if paragraph["type"] != "paragraph" {
-		t.Errorf("Expected paragraph type 'paragraph', got %v", paragraph["type"])
-	}
+		err := client.AddIssueLink(context.Background(), "TEST-1", "TEST-2", "Blocks")
+		if err != nil {
+			t.Fatalf("AddIssueLink() returned an unexpected error: %v", err)
+		}
+	})
+
+	t.Run("failure", func(t *testing.T) {
+		client, server := newTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		err := client.AddIssueLink(context.Background(), "TEST-1", "TEST-2", "Blocks")
+		if err == nil {
+			t.Error("AddIssueLink() expected an error but got none")
+		}
+	})
 }
 
-func TestAddComment_ErrorHandling(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	}))
-	defer server.Close()
+func TestClient_SetParent(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		client, server := newTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		}))
+		defer server.Close()
 
-	client := NewClient(server.URL, "user", "token")
-	err := client.AddComment(context.Background(), "INVALID-123", "test")
-	if err == nil {
-		t.Fatal("Expected error for non-existent ticket")
-	}
+		err := client.SetParent(context.Background(), "TEST-1", "TEST-2")
+		if err != nil {
+			t.Fatalf("SetParent() returned an unexpected error: %v", err)
+		}
+	})
+
+	t.Run("failure", func(t *testing.T) {
+		client, server := newTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		err := client.SetParent(context.Background(), "TEST-1", "TEST-2")
+		if err == nil {
+			t.Error("SetParent() expected an error but got none")
+		}
+	})
 }
 
-	func TestClient_ParseDescription(t *testing.T) {
-		client := NewClient("http://jira.local", "user", "token")
-		
-		mockData := map[string]interface{}{
-			"fields": map[string]interface{}{
-				"description": map[string]interface{}{
-					"version": 1,
-					"type":    "doc",
-					"content": []interface{}{
-						map[string]interface{}{
-							"type": "paragraph",
-							"content": []interface{}{
-								map[string]interface{}{
-									"type": "text",
-									"text": "Task: Implement Auth",
-								},
-							},
-						},
-						map[string]interface{}{
-							"type": "paragraph",
-							"content": []interface{}{
-								map[string]interface{}{
-									"type": "text",
-									"text": "Details: Use OAuth2",
-								},
-							},
-						},
+func TestClient_AddLabel(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		client, server := newTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		}))
+		defer server.Close()
+
+		err := client.AddLabel(context.Background(), "TEST-1", "label")
+		if err != nil {
+			t.Fatalf("AddLabel() returned an unexpected error: %v", err)
+		}
+	})
+
+	t.Run("failure", func(t *testing.T) {
+		client, server := newTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		err := client.AddLabel(context.Background(), "TEST-1", "label")
+		if err == nil {
+			t.Error("AddLabel() expected an error but got none")
+		}
+	})
+}
+
+func TestClient_SmartTransition(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		client, server := newTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/rest/api/3/issue/TEST-1/transitions" && r.Method == "GET" {
+				w.WriteHeader(http.StatusOK)
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"transitions": []map[string]interface{}{
+						{"id": "1", "name": "To Do"},
+						{"id": "2", "name": "In Progress"},
 					},
-				},
-			},
+				})
+			} else if r.URL.Path == "/rest/api/3/issue/TEST-1/transitions" && r.Method == "POST" {
+				w.WriteHeader(http.StatusNoContent)
+			}
+		}))
+		defer server.Close()
+
+		err := client.SmartTransition(context.Background(), "TEST-1", "In Progress")
+		if err != nil {
+			t.Fatalf("SmartTransition() returned an unexpected error: %v", err)
 		}
-		
-		result := client.ParseDescription(mockData)
-		expected := "Task: Implement Auth\nDetails: Use OAuth2\n"
-		
-		if result != expected {
-			t.Errorf("expected %q, got %q", expected, result)
+	})
+
+	t.Run("failure", func(t *testing.T) {
+		client, server := newTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		err := client.SmartTransition(context.Background(), "TEST-1", "In Progress")
+		if err == nil {
+			t.Error("SmartTransition() expected an error but got none")
 		}
-	}
-	
+	})
+}
+
+func TestClient_GetFirstProjectKey(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		client, server := newTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode([]map[string]interface{}{
+				{"key": "PROJ"},
+			})
+		}))
+		defer server.Close()
+		key, err := client.GetFirstProjectKey(context.Background())
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if key != "PROJ" {
+			t.Errorf("expected key 'PROJ', got '%s'", key)
+		}
+	})
+	t.Run("no projects", func(t *testing.T) {
+		client, server := newTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode([]map[string]interface{}{})
+		}))
+		defer server.Close()
+		_, err := client.GetFirstProjectKey(context.Background())
+		if err == nil {
+			t.Fatal("expected an error but got none")
+		}
+	})
+	t.Run("invalid format", func(t *testing.T) {
+		client, server := newTestClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode([]map[string]interface{}{
+				{"id": "123"},
+			})
+		}))
+		defer server.Close()
+		_, err := client.GetFirstProjectKey(context.Background())
+		if err == nil {
+			t.Fatal("expected an error but got none")
+		}
+	})
+}

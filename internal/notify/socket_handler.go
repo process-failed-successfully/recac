@@ -50,7 +50,7 @@ func (m *Manager) HandleEvents(ctx context.Context) {
 							m.logger("Received Mention: %s", ev.Text)
 						}
 						// Echo back just to prove it works
-						m.client.PostMessage(ev.Channel, slack.MsgOptionText(fmt.Sprintf("Yes, hello! I received: %s", ev.Text), false))
+						_, _, _ = m.client.PostMessageContext(ctx, ev.Channel, slack.MsgOptionText(fmt.Sprintf("Yes, hello! I received: %s", ev.Text), false))
 					}
 				}
 			}

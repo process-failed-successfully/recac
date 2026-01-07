@@ -9,25 +9,25 @@ import (
 	"time"
 )
 
-// DiscordNotifier sends notifications to Discord via Webhook or Bot API.
-type DiscordNotifier struct {
+// DiscordBotNotifier sends notifications to Discord via Webhook or Bot API.
+type DiscordBotNotifier struct {
 	WebhookURL string
 	BotToken   string
 	ChannelID  string
 	Client     *http.Client
 }
 
-// NewDiscordNotifier creates a new DiscordNotifier using Webhook.
-func NewDiscordNotifier(webhookURL string) *DiscordNotifier {
-	return &DiscordNotifier{
+// NewDiscordNotifier creates a new DiscordBotNotifier using Webhook.
+func NewDiscordNotifier(webhookURL string) *DiscordBotNotifier {
+	return &DiscordBotNotifier{
 		WebhookURL: webhookURL,
 		Client:     &http.Client{Timeout: 10 * time.Second},
 	}
 }
 
-// NewDiscordBotNotifier creates a new DiscordNotifier using Bot Token.
-func NewDiscordBotNotifier(token, channelID string) *DiscordNotifier {
-	return &DiscordNotifier{
+// NewDiscordBotNotifier creates a new DiscordBotNotifier using Bot Token.
+func NewDiscordBotNotifier(token, channelID string) *DiscordBotNotifier {
+	return &DiscordBotNotifier{
 		BotToken:  token,
 		ChannelID: channelID,
 		Client:    &http.Client{Timeout: 10 * time.Second},
@@ -36,14 +36,14 @@ func NewDiscordBotNotifier(token, channelID string) *DiscordNotifier {
 
 // Notify sends a message to the configured Discord webhook or channel.
 // This is the legacy interface method.
-func (n *DiscordNotifier) Notify(ctx context.Context, message string) error {
+func (n *DiscordBotNotifier) Notify(ctx context.Context, message string) error {
 	_, err := n.Send(ctx, message, "")
 	return err
 }
 
 // Send sends a message to Discord and returns the Message ID (if using Bot API).
 // threadID is used for replying (Message Reference) in Bot API.
-func (n *DiscordNotifier) Send(ctx context.Context, message, threadID string) (string, error) {
+func (n *DiscordBotNotifier) Send(ctx context.Context, message, threadID string) (string, error) {
 	// 1. Bot API (Preferred if configured)
 	if n.BotToken != "" && n.ChannelID != "" {
 		return n.sendBotMessage(ctx, message, threadID)
@@ -57,7 +57,7 @@ func (n *DiscordNotifier) Send(ctx context.Context, message, threadID string) (s
 	return "", fmt.Errorf("discord not configured (missing token/channel or webhook)")
 }
 
-func (n *DiscordNotifier) sendWebhookMessage(ctx context.Context, message string) error {
+func (n *DiscordBotNotifier) sendWebhookMessage(ctx context.Context, message string) error {
 	payload := map[string]string{
 		"content": message,
 	}
@@ -87,7 +87,7 @@ func (n *DiscordNotifier) sendWebhookMessage(ctx context.Context, message string
 	return nil
 }
 
-func (n *DiscordNotifier) sendBotMessage(ctx context.Context, message, replyToID string) (string, error) {
+func (n *DiscordBotNotifier) sendBotMessage(ctx context.Context, message, replyToID string) (string, error) {
 	url := fmt.Sprintf("https://discord.com/api/v10/channels/%s/messages", n.ChannelID)
 
 	payload := map[string]interface{}{
@@ -138,7 +138,7 @@ func (n *DiscordNotifier) sendBotMessage(ctx context.Context, message, replyToID
 
 // AddReaction adds an emoji reaction to a message.
 // Note: reaction must be URL encoded if it's unicode, or name:id for custom emojis.
-func (n *DiscordNotifier) AddReaction(ctx context.Context, messageID, reaction string) error {
+func (n *DiscordBotNotifier) AddReaction(ctx context.Context, messageID, reaction string) error {
 	if n.BotToken == "" || n.ChannelID == "" {
 		return fmt.Errorf("bot token and channel id required for reactions")
 	}

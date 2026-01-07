@@ -3,19 +3,30 @@ package orchestrator
 import (
 	"context"
 	"fmt"
-	"recac/internal/jira"
 	"regexp"
 	"strings"
+
+	"recac/internal/jira"
 )
 
+// JiraClient defines the interface for the Jira client used by the poller.
+// This allows for mocking in tests.
+type JiraClient interface {
+	SearchIssues(ctx context.Context, jql string) ([]map[string]interface{}, error)
+	GetBlockers(issue map[string]interface{}) []string
+	ParseDescription(issue map[string]interface{}) string
+	SmartTransition(ctx context.Context, issueID string, status string) error
+	AddComment(ctx context.Context, issueID, comment string) error
+}
+
 type JiraPoller struct {
-	Client  *jira.Client
+	Client  JiraClient
 	JQL     string
 	Label   string // Helper to construct JQL if JQL not provided
 	Project string // Helper to construct JQL
 }
 
-func NewJiraPoller(client *jira.Client, jql string) *JiraPoller {
+func NewJiraPoller(client JiraClient, jql string) *JiraPoller {
 	return &JiraPoller{
 		Client: client,
 		JQL:    jql,

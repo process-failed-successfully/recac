@@ -12,6 +12,19 @@ import (
 	"github.com/spf13/viper"
 )
 
+// SlackClient defines the interface for Slack API operations.
+type SlackClient interface {
+	PostMessageContext(ctx context.Context, channelID string, options ...slack.MsgOption) (string, string, error)
+	PostMessage(channelID string, options ...slack.MsgOption) (string, string, error)
+	AddReactionContext(ctx context.Context, name string, item slack.ItemRef) error
+}
+
+// DiscordNotifier defines the interface for Discord notifications.
+type DiscordNotifier interface {
+	Send(ctx context.Context, message, threadID string) (string, error)
+	AddReaction(ctx context.Context, messageID, emoji string) error
+}
+
 // Event types
 const (
 	EventStart           = "on_start"
@@ -24,12 +37,12 @@ const (
 // Manager handles notifications across different providers (Slack and Discord).
 type Manager struct {
 	// Slack
-	client       *slack.Client
+	client       SlackClient
 	socketClient *socketmode.Client
 	channelID    string
 
 	// Discord
-	discordNotifier *DiscordNotifier
+	discordNotifier DiscordNotifier
 
 	logger func(string, ...interface{})
 }
