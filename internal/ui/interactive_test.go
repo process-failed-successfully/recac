@@ -365,3 +365,44 @@ func TestInteractiveModel_Conversation(t *testing.T) {
 		t.Error("Shell message should contain prefix 'Shell:'")
 	}
 }
+
+func TestInteractiveModel_Update_StatusExecution(t *testing.T) {
+	cmds := []SlashCommand{
+		{
+			Name:        "/status",
+			Description: "Show RECAC status",
+			Action: func(m *InteractiveModel, args []string) tea.Cmd {
+				return func() tea.Msg {
+					return StatusMsg(GetStatus())
+				}
+			},
+		},
+	}
+	m := NewInteractiveModel(cmds)
+
+	m.textarea.SetValue("/status")
+
+	msg := tea.KeyMsg{Type: tea.KeyEnter}
+	updatedM, cmd := m.Update(msg)
+	m = updatedM.(InteractiveModel)
+
+	if cmd == nil {
+		t.Fatal("Expected a command to be returned")
+	}
+
+	statusMsg := cmd()
+	if _, ok := statusMsg.(StatusMsg); !ok {
+		t.Errorf("Expected StatusMsg, got %T", statusMsg)
+	}
+
+	updatedM, _ = m.Update(statusMsg)
+	m = updatedM.(InteractiveModel)
+
+	if len(m.history) < 2 {
+		t.Fatal("History should contain status message")
+	}
+	last := m.history[len(m.history)-1]
+	if !strings.Contains(last, "RECAC Status") {
+		t.Error("Expected status message in history")
+	}
+}
