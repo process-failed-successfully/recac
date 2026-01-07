@@ -41,6 +41,10 @@ jobs:
         run: |
           k3d image import recac:smoke -c recac-smoke
 
+      - name: Configure Git for private repo access
+        run: |
+          git config --global url."https://oauth2:${{ secrets.GH_API_KEY }}@github.com/".insteadOf "https://github.com/"
+
       - name: Run E2E Test
         env:
           JIRA_URL: ${{ secrets.JIRA_URL }}
@@ -55,6 +59,6 @@ jobs:
             -provider openrouter \
             -model "mistralai/devstral-2512:free" \
             -image recac:smoke \
-            -repo-url "https://${{ secrets.GH_API_KEY }}@github.com/process-failed-successfully/recac-jira-e2e" \
+            -repo-url "https://github.com/process-failed-successfully/recac-jira-e2e" \
             -pull-policy Never \
             -skip-build
