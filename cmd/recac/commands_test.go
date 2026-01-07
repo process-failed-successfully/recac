@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -304,4 +305,85 @@ func TestCommands(t *testing.T) {
 
 	})
 
+	t.Run("Feature Abort Command", func(t *testing.T) {
+		repoDir, cleanup := setupTestRepo(t)
+		defer cleanup()
+
+		originalWd, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("Failed to get current working directory: %v", err)
+		}
+		if err := os.Chdir(repoDir); err != nil {
+			t.Fatalf("Failed to change directory to repoDir: %v", err)
+		}
+		defer os.Chdir(originalWd)
+
+		featureName := "test-abort"
+		branchName := fmt.Sprintf("feature/%s", featureName)
+
+		// Create a feature branch
+		cmd := exec.Command("git", "checkout", "-b", branchName)
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("Failed to create feature branch: %v", err)
+		}
+
+		// Run the feature abort command
+		output, err := executeCommand(rootCmd, "feature", "abort", featureName)
+		if err != nil {
+			t.Fatalf("`feature abort` command failed: %v\nOutput:\n%s", err, output)
+		}
+
+		// Check if we are back on the main branch
+		cmd = exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+		currentBranch, err := cmd.Output()
+		if err != nil {
+			t.Fatalf("Failed to get current branch: %v", err)
+		}
+		if strings.TrimSpace(string(currentBranch)) != "main" {
+			t.Errorf("Expected to be on branch 'main', but got '%s'", string(currentBranch))
+		}
+
+		// Check if the feature branch was deleted
+		cmd = exec.Command("git", "branch", "--list", branchName)
+		branchList, err := cmd.Output()
+		if err != nil {
+			t.Fatalf("Failed to list branches: %v", err)
+		}
+		if len(branchList) > 0 {
+			t.Errorf("Expected branch '%s' to be deleted, but it still exists", branchName)
+		}
+	})
+}
+
+// setupTestRepo creates a temporary git repository for testing.
+// It returns the path to the repo and a cleanup function.
+func setupTestRepo(t *testing.T) (string, func()) {
+	t.Helper()
+
+	dir, err := os.MkdirTemp("", "recac-test-repo-")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+
+	cleanup := func() {
+		os.RemoveAll(dir)
+	}
+
+	// Helper function to run commands in the test repo directory
+	runCmd := func(name string, args ...string) {
+		cmd := exec.Command(name, args...)
+		cmd.Dir = dir
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("Command '%s %s' failed: %v\nOutput:\n%s", name, strings.Join(args, " "), err, string(output))
+		}
+	}
+
+	// Initialize git repo
+	runCmd("git", "init", "-b", "main")
+	runCmd("git", "config", "user.email", "test@example.com")
+	runCmd("git", "config", "user.name", "Test User")
+	runCmd("git", "commit", "--allow-empty", "-m", "Initial commit")
+
+	return dir, cleanup
 }

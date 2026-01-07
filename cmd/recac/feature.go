@@ -9,6 +9,7 @@ import (
 
 func init() {
 	featureCmd.AddCommand(featureStartCmd)
+	featureCmd.AddCommand(featureAbortCmd)
 	rootCmd.AddCommand(featureCmd)
 }
 
@@ -35,5 +36,26 @@ var featureStartCmd = &cobra.Command{
 		}
 
 		fmt.Printf("Successfully switched to branch %s\n", branchName)
+	},
+}
+
+var featureAbortCmd = &cobra.Command{
+	Use:   "abort [name]",
+	Short: "Abort a feature and delete its branch",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		name := args[0]
+		branchName := fmt.Sprintf("feature/%s", name)
+
+		fmt.Printf("Aborting feature: %s\n", name)
+		fmt.Printf("Deleting branch: %s\n", branchName)
+
+		err := git.AbortFeature(branchName)
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			exit(1)
+		}
+
+		fmt.Printf("Successfully deleted branch %s and switched to main\n", branchName)
 	},
 }

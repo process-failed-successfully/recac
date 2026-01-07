@@ -10,6 +10,7 @@ type GitOps interface {
 	Push(branch string) error
 	CreatePR(branch, title, body string) error
 	CreateBranch(name string) error
+	AbortFeature(branchName string) error
 }
 
 // RealGitOps implements GitOps using actual git commands.
@@ -21,6 +22,24 @@ func (r *RealGitOps) Push(branch string) error {
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to push branch %s: %w (output: %s)", branch, err, string(output))
+	}
+	return nil
+}
+
+// AbortFeature switches to main and deletes the feature branch.
+func (r *RealGitOps) AbortFeature(branchName string) error {
+	// Switch to main branch
+	cmd := exec.Command("git", "checkout", "main")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to switch to main branch: %w (output: %s)", err, string(output))
+	}
+
+	// Delete the feature branch
+	cmd = exec.Command("git", "branch", "-D", branchName)
+	output, err = cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to delete branch %s: %w (output: %s)", branchName, err, string(output))
 	}
 	return nil
 }
@@ -59,4 +78,9 @@ func Push(branch string) error {
 // CreatePR creates a pull request (uses DefaultGitOps).
 func CreatePR(branch, title, body string) error {
 	return DefaultGitOps.CreatePR(branch, title, body)
+}
+
+// AbortFeature uses DefaultGitOps to abort a feature.
+func AbortFeature(branchName string) error {
+	return DefaultGitOps.AbortFeature(branchName)
 }
