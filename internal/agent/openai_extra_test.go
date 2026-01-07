@@ -18,7 +18,7 @@ func TestOpenAIClient_HTTP_Success(t *testing.T) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		
+
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprint(w, `{"choices": [{"message": {"content": "Hello form OpenAI"}}]}`)
 	}))
