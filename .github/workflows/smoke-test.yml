@@ -50,6 +50,7 @@ jobs:
           GITHUB_EMAIL: ${{ secrets.GH_EMAIL }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
+          git config --global url."https://x-access-token:${{ secrets.GH_API_KEY }}@github.com/".insteadOf "https://github.com/"
           go run e2e/runner/main.go \
             -scenario prime-python \
             -provider openrouter \
