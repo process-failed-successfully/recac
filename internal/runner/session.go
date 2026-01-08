@@ -1466,8 +1466,7 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 		vars["exclusive_paths"] = strings.Join(assignedFeature.Dependencies.ExclusiveWritePaths, ", ")
 		vars["read_only_paths"] = strings.Join(assignedFeature.Dependencies.ReadOnlyPaths, ", ")
 
-		// Set selected task ID for tracking
-		s.SelectedTaskID = assignedFeature.ID
+		// s.SelectedTaskID = assignedFeature.ID // DO NOT SET THIS: It prevents Manager interruptions in subsequent turns.
 	} else {
 		// All done?
 		vars["task_id"] = "NONE_ALL_COMPLETE"
