@@ -9,9 +9,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// newSessionManager is a function variable that can be overridden in tests
-var newSessionManager = runner.NewSessionManager
-
 func init() {
 	rootCmd.AddCommand(replayCmd)
 }
@@ -24,7 +21,7 @@ var replayCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		sessionName := args[0]
 
-		sm, err := newSessionManager()
+		sm, err := runner.NewSessionManager()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to create session manager: %v\n", err)
 			exit(1)
