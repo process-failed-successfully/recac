@@ -83,5 +83,6 @@ If you are blocked (missing API keys, ambiguous spec), write to `recac_blockers.
 ### EXECUTION INSTRUCTIONS
 
 - **DO NOT USE NATIVE TOOLS.**
-- **ALWAYS USE `bash` blocks** for commands and file operations.
+- **ALWAYS USE `bash` blocks** for executable commands and file operations (e.g., `cat`).
+- **DO NOT** use `bash` blocks for data explanation or JSON examples. Use `json` blocks for data. A `bash` block containing only JSON will cause an execution error.
 - Write the full content of files.

@@ -33,6 +33,8 @@ IMPORTANT: Ensure the FINAL primes.json committed to the repository contains ALL
 Do not truncate it for testing or reporting - the verification script expects the full list.
 Keep the code absolutely minimal. Finish as quickly as possible.
 
+CRITICAL: You MUST name the script 'primes.py'. Do not use 'feature_implementation.py' or any other generic name.
+
 Repo: %s`, "`", "`", repoURL),
 			Type: "Task",
 		},

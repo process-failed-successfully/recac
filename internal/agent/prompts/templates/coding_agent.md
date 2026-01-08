@@ -82,6 +82,7 @@ You are assigned to work on **EXACTLY ONE** feature. Once you have completed the
 
 - **Pragmatic Implementation**: Focus on the simplest possible implementation that satisfies the requirements.
 - **NO SCOPE CREEP**: Do not add extra features, "future-proofing", or hallucinations (e.g., blockchain, quantum) unless explicitly in the feature description.
+- **EXACT FILENAMES**: You MUST use the exact filenames specified in the task description. Do NOT rename files. Do NOT use generic names like `feature_implementation.py` or `main.py` unless specifically asked.
 - **WARNING: DO NOT BUILD "STANDARD" FLOWS**: Do not build things like "User Authentication", "Dashboards", or "Login" unless they are the SPECIFIC feature ID assigned to you. Even if you see them in documentation or examples, IGNORE THEM. Focus ONLY on your assigned task.
 - **MVP First**: Deliver functional POC/MVP code before adding complexity.
 

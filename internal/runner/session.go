@@ -1933,6 +1933,13 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 		}
 		s.Logger.Info("executing command block", "index", i+1, "total", len(matches), "script", cmdScript)
 
+		// Heuristic: If block starts with '{' or '[' and parses as JSON, it's likely data mislabeled as bash.
+		if (strings.HasPrefix(cmdScript, "{") || strings.HasPrefix(cmdScript, "[")) && json.Valid([]byte(cmdScript)) {
+			s.Logger.Warn("Skipping execution of likely JSON data block mislabeled as bash", "snippet", cmdScript[:min(len(cmdScript), 50)])
+			parsedOutput.WriteString(fmt.Sprintf("\n[Skipped JSON Block %d - Use 'cat' to write files]\n", i+1))
+			continue
+		}
+
 		// Create timeout context for this specific command
 		cmdCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
 
