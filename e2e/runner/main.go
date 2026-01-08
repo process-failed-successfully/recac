@@ -179,7 +179,7 @@ func run() error {
 		"--set", fmt.Sprintf("config.jira_query=labels = \"%s\" AND issuetype != Epic AND statusCategory != Done ORDER BY created ASC", label),
 		"--set", "config.verbose=true",
 		"--set", "config.interval=10s",
-		"--set", "config.max_iterations=20",
+		"--set", "config.max_iterations=30",
 		"--set", fmt.Sprintf("config.provider=%s", provider),
 		"--set", fmt.Sprintf("config.model=%s", model),
 		"--set", "config.dbType=postgres",
@@ -365,14 +365,25 @@ func prepareRepo(repoURL string, ticketMap map[string]string) error {
 		return fmt.Errorf("failed to clone for preparation: %w", err)
 	}
 
-	for _, ticketKey := range ticketMap {
-		branchName := fmt.Sprintf("agent/%s", ticketKey)
-		log.Printf("Checking for stale branch: %s", branchName)
-
-		// Delete remote branch if it exists
-		// git push origin --delete <branch>
-		// We ignore error if it doesn't exist
-		_ = exec.Command("git", "-C", tmpDir, "push", "origin", "--delete", branchName).Run()
+	// Delete ALL remote agent branches to avoid context pollution
+	// git branch -r --list 'origin/agent/*'
+	cmd := exec.Command("git", "-C", tmpDir, "branch", "-r", "--list", "origin/agent/*")
+	output, err := cmd.Output()
+	if err == nil {
+		lines := strings.Split(string(output), "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			// line is origin/agent/MFLP-123
+			parts := strings.Split(line, "origin/")
+			if len(parts) > 1 {
+				branch := parts[1]
+				log.Printf("Deleting stale remote branch: %s", branch)
+				_ = exec.Command("git", "-C", tmpDir, "push", "origin", "--delete", branch).Run()
+			}
+		}
 	}
 
 	return nil
