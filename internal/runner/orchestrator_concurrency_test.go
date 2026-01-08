@@ -67,11 +67,11 @@ func TestOrchestrator_ConcurrencyLimit(t *testing.T) {
 
 	// Assertions
 	expected := 2
-	if orch.MaxAgents != expected {
-		t.Errorf("Expected MaxAgents to be adjusted to %d, got %d", expected, orch.MaxAgents)
+	if orch.GetMaxAgents() != expected {
+		t.Errorf("Expected MaxAgents to be adjusted to %d, got %d", expected, orch.GetMaxAgents())
 	}
-	if orch.Pool.NumWorkers != expected {
-		t.Errorf("Expected Pool.NumWorkers to be adjusted to %d, got %d", expected, orch.Pool.NumWorkers)
+	if orch.Pool.GetNumWorkers() != expected {
+		t.Errorf("Expected Pool.NumWorkers to be adjusted to %d, got %d", expected, orch.Pool.GetNumWorkers())
 	}
 }
 

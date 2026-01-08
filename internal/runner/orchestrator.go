@@ -55,7 +55,10 @@ func NewOrchestrator(dbStore db.Store, dockerCli DockerClient, workspace, image 
 }
 
 func (o *Orchestrator) Run(ctx context.Context) error {
-	fmt.Printf("Starting Multi-Agent Orchestrator (max-agents: %d)\n", o.MaxAgents)
+	o.mu.Lock()
+	maxAgents := o.MaxAgents
+	o.mu.Unlock()
+	fmt.Printf("Starting Multi-Agent Orchestrator (max-agents: %d)\n", maxAgents)
 
 	// Ensure Git Repo is initialized on Host
 	if err := o.ensureGitRepo(); err != nil {
@@ -97,9 +100,10 @@ func (o *Orchestrator) Run(ctx context.Context) error {
 		// Maybe it's intended to test "Limit" not "Optimization"?
 		// "Expected MaxAgents to be adjusted to 2".
 
-		fmt.Printf("Adjusting concurrency from %d to %d (matching initial ready tasks)\n", o.MaxAgents, newMax)
+		o.mu.Lock()
 		o.MaxAgents = newMax
-		o.Pool.NumWorkers = newMax
+		o.mu.Unlock()
+		o.Pool.SetNumWorkers(newMax)
 	}
 
 	o.Pool.Start()
@@ -235,8 +239,10 @@ func (o *Orchestrator) canAcquireImmediate(paths []string) bool {
 
 	// 2. Check Local Graph Locks (InProgress tasks that haven't hit the DB yet)
 	// We really want to check all nodes in the graph.
+	o.Graph.mu.RLock()
+	defer o.Graph.mu.RUnlock()
 	for _, node := range o.Graph.Nodes {
-		status, _ := o.Graph.GetTaskStatus(node.ID)
+		status := node.Status // TaskNode has its own mu, but we are inside Graph.mu RLock
 		if status == TaskInProgress {
 			for _, p := range node.ExclusiveWritePaths {
 				lockMap[p] = true
@@ -378,4 +384,18 @@ func (o *Orchestrator) ensureGitRepo() error {
 	}
 
 	return nil
+}
+
+// GetMaxAgents returns the current MaxAgents setting in a thread-safe way.
+func (o *Orchestrator) GetMaxAgents() int {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return o.MaxAgents
+}
+
+// SetMaxAgents sets the MaxAgents setting in a thread-safe way.
+func (o *Orchestrator) SetMaxAgents(n int) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	o.MaxAgents = n
 }
