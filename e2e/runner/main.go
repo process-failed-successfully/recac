@@ -274,14 +274,28 @@ func verifyScenario(scenarioName, repo string, ticketMap map[string]string) erro
 	defer os.RemoveAll(tmpDir)
 
 	token := os.Getenv("GITHUB_API_KEY")
-	authRepo := repo
-	if !strings.Contains(repo, "@") {
-		// Insert token into URL
-		authRepo = strings.Replace(repo, "https://", fmt.Sprintf("https://x-access-token:%s@", token), 1)
+	if token == "" {
+		return fmt.Errorf("GITHUB_API_KEY is not set")
 	}
 
+	// Use git config to handle authentication securely
+	authedURL := fmt.Sprintf("https://oauth2:%s@github.com", token)
+	configKey := "url." + authedURL + ".insteadOf"
+	configCmd := exec.Command("git", "config", "--global", configKey, "https://github.com")
+	if err := configCmd.Run(); err != nil {
+		return fmt.Errorf("failed to set up git config for auth: %w", err)
+	}
+
+	// Unset the config at the end of the function
+	defer func() {
+		unsetCmd := exec.Command("git", "config", "--global", "--unset", configKey)
+		if err := unsetCmd.Run(); err != nil {
+			log.Printf("Failed to unset git config: %v", err)
+		}
+	}()
+
 	log.Printf("Cloning repo to %s...", tmpDir)
-	if err := runCommand("git", "clone", authRepo, tmpDir); err != nil {
+	if err := runCommand("git", "clone", repo, tmpDir); err != nil {
 		return fmt.Errorf("failed to clone: %w", err)
 	}
 
