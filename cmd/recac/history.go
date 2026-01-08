@@ -18,20 +18,21 @@ func initHistoryCmd(rootCmd *cobra.Command) {
 		Short: "Show history of completed RECAC sessions",
 		Long:  `Displays a summary of all completed RECAC sessions with performance metrics.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runHistoryCmd(runner.NewSessionManager)
+			// Get the session manager from the factory
+			sm, err := newSessionManager()
+			if err != nil {
+				return fmt.Errorf("failed to initialize session manager: %w", err)
+			}
+			return runHistoryCmd(cmd, sm)
 		},
 	}
 	rootCmd.AddCommand(historyCmd)
 }
 
 // runHistoryCmd contains the core logic for the history command.
-// It accepts a factory function for SessionManager to allow for mocking in tests.
-func runHistoryCmd(newSessionManager func() (*runner.SessionManager, error)) error {
-	sm, err := newSessionManager()
-	if err != nil {
-		return fmt.Errorf("failed to initialize session manager: %w", err)
-	}
-
+// It accepts an ISessionManager to allow for mocking in tests.
+func runHistoryCmd(cmd *cobra.Command, sm runner.ISessionManager) error {
+	out := cmd.OutOrStdout()
 	sessions, err := sm.ListSessions()
 	if err != nil {
 		return fmt.Errorf("failed to list sessions: %w", err)
@@ -45,11 +46,11 @@ func runHistoryCmd(newSessionManager func() (*runner.SessionManager, error)) err
 	}
 
 	if len(completedSessions) == 0 {
-		fmt.Println("No completed sessions found.")
+		fmt.Fprintln(out, "No completed sessions found.")
 		return nil
 	}
 
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
+	w := tabwriter.NewWriter(out, 0, 0, 3, ' ', 0)
 	fmt.Fprintln(w, "NAME\tMODEL\tSTATUS\tSTARTED\tPROMPT TOKENS\tCOMPLETION TOKENS\tCOST ($)")
 	fmt.Fprintln(w, "----\t-----\t------\t-------\t-------------\t-----------------\t--------")
 

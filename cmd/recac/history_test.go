@@ -1,9 +1,9 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/spf13/cobra"
 	"os"
 	"path/filepath"
 	"recac/internal/agent"
@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-// mockSessionManager is a mock implementation of the SessionManager for testing.
+// mockSessionManager is a mock implementation of the ISessionManager for testing.
 type mockSessionManager struct {
 	sessions []*runner.SessionState
 	err      error
@@ -23,7 +23,54 @@ func (m *mockSessionManager) ListSessions() ([]*runner.SessionState, error) {
 	return m.sessions, m.err
 }
 
-func TestRunHistoryCmd(t *testing.T) {
+func (m *mockSessionManager) LoadSession(name string) (*runner.SessionState, error) {
+	for _, s := range m.sessions {
+		if s.Name == name {
+			return s, nil
+		}
+	}
+	return nil, os.ErrNotExist
+}
+
+func (m *mockSessionManager) IsProcessRunning(pid int) bool {
+	// For testing, assume process is not running unless PID is the current process's PID
+	return pid == os.Getpid()
+}
+
+func (m *mockSessionManager) StartSession(name string, command []string, workspace string) (*runner.SessionState, error) {
+	newState := &runner.SessionState{
+		Name:      name,
+		PID:       12345, // Dummy PID
+		StartTime: time.Now(),
+		Command:   command,
+		Workspace: workspace,
+		Status:    "running",
+	}
+	m.sessions = append(m.sessions, newState)
+	return newState, nil
+}
+
+func (m *mockSessionManager) StopSession(name string) error {
+	for _, s := range m.sessions {
+		if s.Name == name {
+			s.Status = "stopped"
+			return nil
+		}
+	}
+	return os.ErrNotExist
+}
+
+func (m *mockSessionManager) GetSessionLogs(name string) (string, error) {
+	for _, s := range m.sessions {
+		if s.Name == name {
+			return "/tmp/mock.log", nil
+		}
+	}
+	return "", os.ErrNotExist
+}
+
+// TestHistoryCmd tests the full execution of the history command.
+func TestHistoryCmd(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir, err := os.MkdirTemp("", "recac-history-test")
 	if err != nil {
@@ -60,30 +107,22 @@ func TestRunHistoryCmd(t *testing.T) {
 		},
 	}
 
-	// Redirect stdout to a buffer
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
+	// Override the factory to return the mock
+	originalNewSessionManager := newSessionManager
+	newSessionManager = func() (runner.ISessionManager, error) {
+		return mockSM, nil
+	}
+	defer func() { newSessionManager = originalNewSessionManager }()
 
-	// Run the command
-	err = runHistoryCmd(func() (*runner.SessionManager, error) {
-		sm, _ := runner.NewSessionManager()
-		sm.SetLister(mockSM)
-		return sm, nil
-	})
-
-	// Restore stdout
-	w.Close()
-	os.Stdout = oldStdout
+	// Execute the command and capture output
+	rootCmd := &cobra.Command{}
+	initHistoryCmd(rootCmd)
+	output, err := executeCommand(rootCmd, "history")
 
 	if err != nil {
-		t.Fatalf("runHistoryCmd returned an error: %v", err)
+		t.Fatalf("history command returned an error: %v", err)
 	}
 
-	// Read the output from the buffer
-	var buf bytes.Buffer
-	buf.ReadFrom(r)
-	output := buf.String()
 
 	// Check the output
 	expectedCost := agent.CalculateCost("gpt-4o", 100000, 50000)

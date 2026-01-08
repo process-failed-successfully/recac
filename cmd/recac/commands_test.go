@@ -31,36 +31,53 @@ func TestHelperProcess(t *testing.T) {
 	}
 }
 
-func executeCommand(root *cobra.Command, args ...string) (string, error) {
+// executeCommand executes a cobra command and returns its output.
+// It handles panics from os.Exit and returns them as errors.
+func executeCommand(root *cobra.Command, args ...string) (output string, err error) {
 	resetFlags(root)
-	// Mock exit
+
+	// Mock os.Exit
 	oldExit := exit
 	exit = func(code int) {
+		// A non-zero exit code is considered an error
 		if code != 0 {
 			panic(fmt.Sprintf("exit-%d", code))
 		}
 	}
 	defer func() { exit = oldExit }()
 
+	// Use named return values to capture output even on panic
 	defer func() {
 		if r := recover(); r != nil {
+			// Check if it's our mocked exit
 			if s, ok := r.(string); ok && strings.HasPrefix(s, "exit-") {
-				// This is an expected exit, don't re-panic
-				return
+				// Extract the exit code
+				var code int
+				fmt.Sscanf(s, "exit-%d", &code)
+				err = fmt.Errorf("command exited with code %d", code)
+				return // Return the captured output and the new error
 			}
-			panic(r) // Re-panic actual panics
+			// Re-panic if it's not our mocked exit
+			panic(r)
 		}
 	}()
 
-	root.SetArgs(args)
+	// Redirect stdout/stderr
 	b := new(bytes.Buffer)
 	root.SetOut(b)
 	root.SetErr(b)
-	// Mock Stdin to avoid hanging on interactive prompts (e.g. wizard)
+
+	// Mock stdin to prevent blocking on interactive prompts
 	root.SetIn(bytes.NewBufferString(""))
 
-	err := root.Execute()
-	return b.String(), err
+	// Execute the command
+	root.SetArgs(args)
+	err = root.Execute()
+
+	// The output is whatever is in the buffer
+	output = b.String()
+
+	return output, err
 }
 
 func resetFlags(cmd *cobra.Command) {

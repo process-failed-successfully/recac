@@ -15,17 +15,19 @@ import (
 )
 
 // setupTestEnvironment creates a temporary directory and a session manager for testing.
-func setupTestEnvironment(t *testing.T) (string, *runner.SessionManager, func()) {
+func setupTestEnvironment(t *testing.T) (string, runner.ISessionManager, func()) {
 	tempDir, err := os.MkdirTemp("", "recac-replay-test-*")
 	require.NoError(t, err)
 
-	sm, err := runner.NewSessionManagerWithDir(tempDir)
-	require.NoError(t, err)
+	// Create a mock session manager
+	mockSM := &mockSessionManager{
+		sessions: make([]*runner.SessionState, 0),
+	}
 
 	// Override the default session manager creation in the command
 	originalNewSessionManager := newSessionManager
-	newSessionManager = func() (*runner.SessionManager, error) {
-		return sm, nil
+	newSessionManager = func() (runner.ISessionManager, error) {
+		return mockSM, nil
 	}
 
 	cleanup := func() {
@@ -33,7 +35,7 @@ func setupTestEnvironment(t *testing.T) (string, *runner.SessionManager, func())
 		newSessionManager = originalNewSessionManager
 	}
 
-	return tempDir, sm, cleanup
+	return tempDir, mockSM, cleanup
 }
 
 func TestReplayCmd(t *testing.T) {
@@ -49,8 +51,7 @@ func TestReplayCmd(t *testing.T) {
 		Workspace: "/tmp",
 		Status:    "completed",
 	}
-	err := sm.SaveSession(originalSession)
-	require.NoError(t, err)
+	sm.(*mockSessionManager).sessions = append(sm.(*mockSessionManager).sessions, originalSession)
 
 	// Capture stdout
 	oldStdout := os.Stdout
@@ -59,8 +60,7 @@ func TestReplayCmd(t *testing.T) {
 
 	// Execute the replay command
 	rootCmd.SetArgs([]string{"replay", "test-session"})
-	err = rootCmd.Execute()
-	assert.NoError(t, err)
+	assert.NoError(t, rootCmd.Execute())
 
 	// Restore stdout and read captured output
 	w.Close()
@@ -106,8 +106,7 @@ func TestReplayCmd_RunningSession(t *testing.T) {
 		Workspace: "/tmp",
 		Status:    "running",
 	}
-	err := sm.SaveSession(runningSession)
-	require.NoError(t, err)
+	sm.(*mockSessionManager).sessions = append(sm.(*mockSessionManager).sessions, runningSession)
 
 	// Capture stderr
 	oldStderr := os.Stderr
