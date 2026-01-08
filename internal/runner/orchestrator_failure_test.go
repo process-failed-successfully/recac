@@ -57,6 +57,9 @@ func (m *FaultToleranceMockDB) GetFeatures(projectID string) (string, error) {
 	return string(data), err
 }
 
+func (m *FaultToleranceMockDB) SaveSpec(projectID string, spec string) error { return nil }
+func (m *FaultToleranceMockDB) GetSpec(projectID string) (string, error)     { return "", nil }
+
 func (m *FaultToleranceMockDB) UpdateFeatureStatus(projectID, id string, status string, passes bool) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

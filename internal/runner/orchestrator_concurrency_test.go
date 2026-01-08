@@ -109,6 +109,8 @@ func (m *MockDBStoreForOrchestrator) Cleanup() error                            
 func (m *MockDBStoreForOrchestrator) UpdateFeatureStatus(projectID, id, status string, passes bool) error {
 	return nil
 }
+func (m *MockDBStoreForOrchestrator) SaveSpec(projectID string, spec string) error { return nil }
+func (m *MockDBStoreForOrchestrator) GetSpec(projectID string) (string, error)     { return "", nil }
 
 type MockDockerForOrchestrator struct {
 	DockerClient // Embed

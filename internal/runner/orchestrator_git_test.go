@@ -34,6 +34,8 @@ func (m *MockDBStore) GetFeatures(projectID string) (string, error) {
 	}
 	return "", nil
 }
+func (m *MockDBStore) SaveSpec(projectID string, spec string) error { return nil }
+func (m *MockDBStore) GetSpec(projectID string) (string, error)     { return "", nil }
 func (m *MockDBStore) UpdateFeatureStatus(projectID, id string, status string, passes bool) error {
 	return nil
 }

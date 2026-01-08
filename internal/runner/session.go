@@ -84,6 +84,8 @@ type Session struct {
 	SlackThreadTS             string       // Thread Timestamp for Slack conversations
 	SuppressStartNotification bool         // Suppress "Session Started" notification (for sub-tasks)
 	UseLocalAgent             bool         // Execute commands locally (e.g. inside K8s pod) instead of spawning Docker container
+	SpecContent               string       // Explicit specification content (e.g. from Jira)
+	FeatureContent            string       // Explicit feature list JSON content (authoritative)
 	Logger                    *slog.Logger // Structured logger for this session
 
 	mu sync.RWMutex // Protects concurrent access to Iteration, SlackThreadTS, ContainerID
@@ -405,11 +407,38 @@ func (s *Session) SaveAgentState() error {
 // ReadSpec reads the application specification file from the workspace.
 func (s *Session) ReadSpec() (string, error) {
 	path := filepath.Join(s.Workspace, s.SpecFile)
+
+	// 1. Try file first
 	content, err := os.ReadFile(path)
-	if err != nil {
-		return "", fmt.Errorf("failed to read spec file: %w", err)
+	if err == nil {
+		// Sync VALID file content to DB so DB stays fresh
+		if s.DBStore != nil && len(content) > 0 {
+			_ = s.DBStore.SaveSpec(s.Project, string(content))
+		}
+		return string(content), nil
 	}
-	return string(content), nil
+
+	// 2. Fallback: SpecContent field (passed from Orchestrator/CLI)
+	if s.SpecContent != "" {
+		// Initialize file
+		_ = os.WriteFile(path, []byte(s.SpecContent), 0644)
+		if s.DBStore != nil {
+			_ = s.DBStore.SaveSpec(s.Project, s.SpecContent)
+		}
+		return s.SpecContent, nil
+	}
+
+	// 3. Fallback: DB (Authoritative Mirror)
+	if s.DBStore != nil {
+		dbContent, err := s.DBStore.GetSpec(s.Project)
+		if err == nil && dbContent != "" {
+			// Restore file from DB
+			_ = os.WriteFile(path, []byte(dbContent), 0644)
+			return dbContent, nil
+		}
+	}
+
+	return "", fmt.Errorf("failed to read spec file and no backups found: %w", err)
 }
 
 // Start initializes the session environment (Docker container).
@@ -1461,7 +1490,21 @@ func (s *Session) loadFeatures() []db.Feature {
 		}
 	}
 
-	// 2. Fallback to file (First run or recovery)
+	// 2. Fallback to FeatureContent (passed from Orchestrator/CLI)
+	if s.FeatureContent != "" {
+		var fl db.FeatureList
+		if err := json.Unmarshal([]byte(s.FeatureContent), &fl); err == nil {
+			s.Logger.Info("loaded features from injected content")
+			s.syncFeatureFile(fl)
+			// Sync to DB
+			if s.DBStore != nil {
+				_ = s.DBStore.SaveFeatures(s.Project, s.FeatureContent)
+			}
+			return fl.Features
+		}
+	}
+
+	// 3. Fallback to file (First run or recovery)
 	data, err := os.ReadFile(filePath)
 	if err == nil {
 		var fl db.FeatureList

@@ -48,6 +48,8 @@ type Store interface {
 	DeleteSignal(projectID, key string) error
 	SaveFeatures(projectID string, features string) error // JSON blob for flexibility
 	GetFeatures(projectID string) (string, error)
+	SaveSpec(projectID string, spec string) error
+	GetSpec(projectID string) (string, error)
 	UpdateFeatureStatus(projectID, id string, status string, passes bool) error
 
 	// Locking methods

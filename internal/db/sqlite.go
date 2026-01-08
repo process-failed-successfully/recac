@@ -56,6 +56,11 @@ func (s *SQLiteStore) migrate() error {
 			content TEXT NOT NULL,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		);`,
+		`CREATE TABLE IF NOT EXISTS project_specs (
+			project_id TEXT PRIMARY KEY,
+			content TEXT NOT NULL,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		);`,
 		`CREATE TABLE IF NOT EXISTS file_locks (
 			project_id TEXT NOT NULL DEFAULT 'default',
 			path TEXT NOT NULL,
@@ -153,6 +158,26 @@ func (s *SQLiteStore) SaveFeatures(projectID string, features string) error {
 // GetFeatures retrieves the feature list JSON blob
 func (s *SQLiteStore) GetFeatures(projectID string) (string, error) {
 	query := `SELECT content FROM project_features WHERE project_id = ?`
+	row := s.db.QueryRow(query, projectID)
+	var content string
+	err := row.Scan(&content)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+
+	return content, err
+}
+
+// SaveSpec saves the application specification content
+func (s *SQLiteStore) SaveSpec(projectID string, spec string) error {
+	query := `INSERT OR REPLACE INTO project_specs (project_id, content, updated_at) VALUES (?, ?, ?)`
+	_, err := s.db.Exec(query, projectID, spec, time.Now())
+	return err
+}
+
+// GetSpec retrieves the application specification content
+func (s *SQLiteStore) GetSpec(projectID string) (string, error) {
+	query := `SELECT content FROM project_specs WHERE project_id = ?`
 	row := s.db.QueryRow(query, projectID)
 	var content string
 	err := row.Scan(&content)

@@ -57,6 +57,11 @@ func (s *PostgresStore) migrate() error {
 			content TEXT NOT NULL,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		);`,
+		`CREATE TABLE IF NOT EXISTS project_specs (
+			project_id TEXT PRIMARY KEY,
+			content TEXT NOT NULL,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);`,
 		`CREATE TABLE IF NOT EXISTS file_locks (
 			project_id TEXT NOT NULL DEFAULT 'default',
 			path TEXT NOT NULL,
@@ -171,6 +176,27 @@ func (s *PostgresStore) SaveFeatures(projectID string, features string) error {
 // GetFeatures retrieves the feature list JSON blob
 func (s *PostgresStore) GetFeatures(projectID string) (string, error) {
 	query := `SELECT content FROM project_features WHERE project_id = $1`
+	row := s.db.QueryRow(query, projectID)
+	var content string
+	err := row.Scan(&content)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+
+	return content, err
+}
+
+// SaveSpec saves the application specification content
+func (s *PostgresStore) SaveSpec(projectID string, spec string) error {
+	query := `INSERT INTO project_specs (project_id, content, updated_at) VALUES ($1, $2, NOW())
+			  ON CONFLICT (project_id) DO UPDATE SET content = $2, updated_at = NOW()`
+	_, err := s.db.Exec(query, projectID, spec)
+	return err
+}
+
+// GetSpec retrieves the application specification content
+func (s *PostgresStore) GetSpec(projectID string) (string, error) {
+	query := `SELECT content FROM project_specs WHERE project_id = $1`
 	row := s.db.QueryRow(query, projectID)
 	var content string
 	err := row.Scan(&content)
