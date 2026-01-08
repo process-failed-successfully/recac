@@ -139,7 +139,7 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		if ghToken == "" {
 			ghToken = os.Getenv("GITHUB_API_KEY")
 		}
-		if ghToken != "" && strings.Contains(authRepoURL, "github.com") {
+		if ghToken != "" && strings.Contains(authRepoURL, "github.com") && !strings.Contains(authRepoURL, "@") {
 			// Sanitize token just in case
 			ghToken = strings.Trim(ghToken, "\"")
 			authRepoURL = strings.Replace(authRepoURL, "https://github.com/", fmt.Sprintf("https://%s@github.com/", ghToken), 1)

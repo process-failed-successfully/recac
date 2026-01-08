@@ -45,7 +45,7 @@ config:
   interval: "1m"
   jira_label: "recac-agent"
   jira_query: ""
-  
+
   # Database Configuration
   dbType: "sqlite" # or "postgres"
   dbUrl: "" # External Database URL (for 'postgres' type)
@@ -65,6 +65,10 @@ secrets:
   githubToken: ""
   githubApiKey: ""
   githubEmail: ""
+  slackBotUserToken: ""
+  slackAppToken: ""
+  discordBotToken: ""
+  discordChannelId: ""
 
 # Mount the Docker socket for running agents
 dockerSocket:

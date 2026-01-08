@@ -70,6 +70,7 @@ func run() error {
 			return fmt.Errorf("missing required env var: %s", env)
 		}
 	}
+	// Note: SLACK/DISCORD tokens are optional for E2E but supported if present
 	// Fallback/Default for API key if token not set
 	if os.Getenv("JIRA_API_TOKEN") == "" && os.Getenv("JIRA_API_KEY") != "" {
 		os.Setenv("JIRA_API_TOKEN", os.Getenv("JIRA_API_KEY"))
@@ -186,6 +187,10 @@ func run() error {
 		"--set", fmt.Sprintf("secrets.jiraApiToken=%s", os.Getenv("JIRA_API_TOKEN")),
 		"--set", fmt.Sprintf("secrets.ghApiKey=%s", os.Getenv("GITHUB_API_KEY")),
 		"--set", fmt.Sprintf("secrets.ghEmail=%s", os.Getenv("GITHUB_EMAIL")),
+		"--set", fmt.Sprintf("secrets.slackBotUserToken=%s", os.Getenv("SLACK_BOT_USER_TOKEN")),
+		"--set", fmt.Sprintf("secrets.slackAppToken=%s", os.Getenv("SLACK_APP_TOKEN")),
+		"--set", fmt.Sprintf("secrets.discordBotToken=%s", os.Getenv("DISCORD_BOT_TOKEN")),
+		"--set", fmt.Sprintf("secrets.discordChannelId=%s", os.Getenv("DISCORD_CHANNEL_ID")),
 	}
 
 	if err := runCommand("helm", helmLargestCmd...); err != nil {
@@ -269,9 +274,11 @@ func verifyScenario(scenarioName, repo string, ticketMap map[string]string) erro
 	defer os.RemoveAll(tmpDir)
 
 	token := os.Getenv("GITHUB_API_KEY")
-	// Insert token into URL
-	// repo is like https://github.com/org/repo
-	authRepo := strings.Replace(repo, "https://", fmt.Sprintf("https://x-access-token:%s@", token), 1)
+	authRepo := repo
+	if !strings.Contains(repo, "@") {
+		// Insert token into URL
+		authRepo = strings.Replace(repo, "https://", fmt.Sprintf("https://x-access-token:%s@", token), 1)
+	}
 
 	log.Printf("Cloning repo to %s...", tmpDir)
 	if err := runCommand("git", "clone", authRepo, tmpDir); err != nil {

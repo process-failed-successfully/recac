@@ -123,7 +123,11 @@ deploy-helm: ## Deploy with Helm using local .env and variables (PROVIDER=x MODE
 		--set secrets.openrouterApiKey=$${OPENROUTER_API_KEY} \
 		--set secrets.jiraApiToken=$${JIRA_API_TOKEN} \
 		--set secrets.githubToken=$${GITHUB_TOKEN} \
-		--set secrets.githubApiKey=$${GITHUB_API_KEY}
+		--set secrets.githubApiKey=$${GITHUB_API_KEY} \
+		--set secrets.slackBotUserToken=$${SLACK_BOT_USER_TOKEN} \
+		--set secrets.slackAppToken=$${SLACK_APP_TOKEN} \
+		--set secrets.discordBotToken=$${DISCORD_BOT_TOKEN} \
+		--set secrets.discordChannelId=$${DISCORD_CHANNEL_ID}
 
 .PHONY: remove-helm
 remove-helm: ## Uninstall the Helm release
