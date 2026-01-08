@@ -304,4 +304,55 @@ func TestCommands(t *testing.T) {
 
 	})
 
+	t.Run("History Command", func(t *testing.T) {
+		sessionsDir := filepath.Join(tmpDir, ".recac", "sessions")
+		os.MkdirAll(sessionsDir, 0755)
+
+		// Test with no history
+		t.Run("No History", func(t *testing.T) {
+			output, err := executeCommand(rootCmd, "history")
+			if err != nil {
+				t.Fatalf("history command failed unexpectedly: %v", err)
+			}
+			if !strings.Contains(output, "No session history found.") {
+				t.Errorf("Expected 'No session history found.', got: %s", output)
+			}
+		})
+
+		// Setup mock session files
+		session1 := `{"name":"session-1","pid":123,"start_time":"2023-01-01T12:00:00Z","command":["cmd"],"log_file":"log1","workspace":"/ws1","status":"completed","type":"detached"}`
+		session2 := `{"name":"session-2","pid":456,"start_time":"2023-01-02T12:00:00Z","command":["cmd"],"log_file":"log2","workspace":"/ws2","status":"running","type":"detached"}`
+		os.WriteFile(filepath.Join(sessionsDir, "session-1.json"), []byte(session1), 0644)
+		os.WriteFile(filepath.Join(sessionsDir, "session-2.json"), []byte(session2), 0644)
+		// Add a non-json file to ensure it's ignored
+		os.WriteFile(filepath.Join(sessionsDir, "ignore.txt"), []byte("ignore me"), 0644)
+
+
+		t.Run("With History", func(t *testing.T) {
+			output, err := executeCommand(rootCmd, "history")
+			if err != nil {
+				t.Fatalf("history command failed: %v", err)
+			}
+
+			// Check for headers
+			if !strings.Contains(output, "SESSION ID") || !strings.Contains(output, "STATUS") {
+				t.Errorf("Output missing expected headers. Got:\n%s", output)
+			}
+
+			// Check for session data
+			if !strings.Contains(output, "session-1") || !strings.Contains(output, "completed") {
+				t.Errorf("Output missing session-1 data. Got:\n%s", output)
+			}
+			if !strings.Contains(output, "session-2") || !strings.Contains(output, "running") {
+				t.Errorf("Output missing session-2 data. Got:\n%s", output)
+			}
+
+			// Check for sorting (session-2 should appear before session-1)
+			pos1 := strings.Index(output, "session-1")
+			pos2 := strings.Index(output, "session-2")
+			if pos2 > pos1 {
+				t.Errorf("Output not sorted correctly. session-2 should be first. Got:\n%s", output)
+			}
+		})
+	})
 }
