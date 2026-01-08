@@ -71,7 +71,7 @@ func (c *BaseClient) PreparePrompt(prompt string) (string, State, bool, error) {
 
 	// Update current token count
 	state.CurrentTokens = promptTokens
-	state.TokenUsage.TotalPromptTokens += promptTokens
+	state.TokenUsage.PromptTokens += promptTokens
 	telemetry.TrackTokenUsage(c.Project, promptTokens)
 
 	// Log token usage
@@ -80,7 +80,7 @@ func (c *BaseClient) PreparePrompt(prompt string) (string, State, bool, error) {
 		"prompt", promptTokens,
 		"current", state.CurrentTokens,
 		"max", maxTokens,
-		"total_prompt", state.TokenUsage.TotalPromptTokens,
+		"total_prompt", state.TokenUsage.PromptTokens,
 		"truncations", state.TokenUsage.TruncationCount)
 
 	return prompt, state, true, nil
@@ -93,8 +93,8 @@ func (c *BaseClient) UpdateStateWithResponse(state State, response string) {
 	}
 
 	responseTokens := EstimateTokenCount(response)
-	state.TokenUsage.TotalResponseTokens += responseTokens
-	state.TokenUsage.TotalTokens = state.TokenUsage.TotalPromptTokens + state.TokenUsage.TotalResponseTokens
+	state.TokenUsage.CompletionTokens += responseTokens
+	state.TokenUsage.TotalTokens = state.TokenUsage.PromptTokens + state.TokenUsage.CompletionTokens
 	state.CurrentTokens += responseTokens
 	telemetry.TrackTokenUsage(c.Project, responseTokens)
 
@@ -133,8 +133,8 @@ func (c *BaseClient) UpdateStateWithResponse(state State, response string) {
 		"current", state.CurrentTokens,
 		"max", maxTokens,
 		"total", state.TokenUsage.TotalTokens,
-		"prompt", state.TokenUsage.TotalPromptTokens,
-		"response_total", state.TokenUsage.TotalResponseTokens)
+		"prompt", state.TokenUsage.PromptTokens,
+		"response_total", state.TokenUsage.CompletionTokens)
 
 	// Save updated state
 	if err := c.StateManager.Save(state); err != nil {

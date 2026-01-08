@@ -90,7 +90,7 @@ func (c *OllamaClient) Send(ctx context.Context, prompt string) (string, error) 
 
 		// Update current token count
 		state.CurrentTokens = promptTokens
-		state.TokenUsage.TotalPromptTokens += promptTokens
+		state.TokenUsage.PromptTokens += promptTokens
 		telemetry.TrackTokenUsage(c.project, promptTokens)
 
 		// Log token usage
@@ -99,7 +99,7 @@ func (c *OllamaClient) Send(ctx context.Context, prompt string) (string, error) 
 			"prompt", promptTokens,
 			"current", state.CurrentTokens,
 			"max", maxTokens,
-			"total_prompt", state.TokenUsage.TotalPromptTokens,
+			"total_prompt", state.TokenUsage.PromptTokens,
 			"truncations", state.TokenUsage.TruncationCount)
 	}
 
@@ -123,8 +123,8 @@ func (c *OllamaClient) Send(ctx context.Context, prompt string) (string, error) 
 			// Update token usage stats if state manager is configured
 			if shouldUpdateState {
 				responseTokens := EstimateTokenCount(result)
-				state.TokenUsage.TotalResponseTokens += responseTokens
-				state.TokenUsage.TotalTokens = state.TokenUsage.TotalPromptTokens + state.TokenUsage.TotalResponseTokens
+				state.TokenUsage.CompletionTokens += responseTokens
+				state.TokenUsage.TotalTokens = state.TokenUsage.PromptTokens + state.TokenUsage.CompletionTokens
 				state.CurrentTokens += responseTokens
 
 				// Initialize Metadata if needed
@@ -147,8 +147,8 @@ func (c *OllamaClient) Send(ctx context.Context, prompt string) (string, error) 
 					"current", state.CurrentTokens,
 					"max", maxTokens,
 					"total", state.TokenUsage.TotalTokens,
-					"prompt", state.TokenUsage.TotalPromptTokens,
-					"response_total", state.TokenUsage.TotalResponseTokens)
+					"prompt", state.TokenUsage.PromptTokens,
+					"response_total", state.TokenUsage.CompletionTokens)
 
 				// Save updated state
 				if err := c.stateManager.Save(state); err != nil {

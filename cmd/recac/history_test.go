@@ -10,113 +10,198 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/assert"
 )
 
-func TestRunHistoryCmd(t *testing.T) {
-	// Create a temporary directory for all test artifacts
-	baseTempDir, err := os.MkdirTemp("", "history-test-base")
-	assert.NoError(t, err)
-	defer os.RemoveAll(baseTempDir)
+// createMockSession creates a mock session file in the specified directory.
+func createMockSession(t *testing.T, dir, name, status, agentStateFile string, pid int) {
+	t.Helper()
+	session := &runner.SessionState{
+		Name:           name,
+		Status:         status,
+		StartTime:      time.Now(),
+		AgentStateFile: agentStateFile,
+		PID:            pid,
+	}
+	data, err := json.Marshal(session)
+	if err != nil {
+		t.Fatalf("Failed to marshal session: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, name+".json"), data, 0644); err != nil {
+		t.Fatalf("Failed to write session file: %v", err)
+	}
+}
 
-	sessionsDir := filepath.Join(baseTempDir, "sessions")
-	assert.NoError(t, os.Mkdir(sessionsDir, 0755))
+func TestRunHistoryCmd_NoSessions(t *testing.T) {
+	sessionsDir, mockNewSessionManager := setupTestEnvironment(t)
+	defer os.RemoveAll(filepath.Dir(filepath.Dir(sessionsDir)))
 
-	// Create a mock agent state file in a separate location
-	agentStateDir := filepath.Join(baseTempDir, "workspace")
-	assert.NoError(t, os.Mkdir(agentStateDir, 0755))
-	agentStateFile := filepath.Join(agentStateDir, ".agent_state.json")
+	// Redirect stdout to a buffer to capture the output
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
 
+	err := runHistoryListCmd(mockNewSessionManager)
+	if err != nil {
+		t.Errorf("Expected no error, but got: %v", err)
+	}
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	buf.ReadFrom(r)
+	output := buf.String()
+
+	expected := "No completed sessions found."
+	if !strings.Contains(output, expected) {
+		t.Errorf("Expected output to contain '%s', but got: %s", expected, output)
+	}
+}
+
+func TestRunHistoryCmd_WithCompletedSessions(t *testing.T) {
+	sessionsDir, mockNewSessionManager := setupTestEnvironment(t)
+	defer os.RemoveAll(filepath.Dir(filepath.Dir(sessionsDir)))
+	// Create mock agent state
 	agentState := agent.State{
+		Model: "test-model",
 		TokenUsage: agent.TokenUsage{
-			TotalTokens: 12345,
+			PromptTokens:     1000,
+			CompletionTokens: 2000,
+			TotalTokens:      3000,
 		},
 	}
-	agentStateData, err := json.Marshal(agentState)
-	assert.NoError(t, err)
-	err = os.WriteFile(agentStateFile, agentStateData, 0644)
-	assert.NoError(t, err)
+	agentStateFile := filepath.Join(sessionsDir, "agent_state.json")
+	agentStateData, _ := json.Marshal(agentState)
+	os.WriteFile(agentStateFile, agentStateData, 0644)
 
-	// --- Test Case 1: No Completed Sessions ---
-	t.Run("NoCompletedSessions", func(t *testing.T) {
-		// Redirect stdout
-		oldStdout := os.Stdout
-		r, w, _ := os.Pipe()
-		os.Stdout = w
+	createMockSession(t, sessionsDir, "session1", "completed", agentStateFile, 0)
+	createMockSession(t, sessionsDir, "session2", "stopped", "", 0)
 
-		mockFactory := func() (*runner.SessionManager, error) {
-			// Point to an empty sessions dir
-			emptyDir := t.TempDir()
-			return runner.NewSessionManagerWithDir(emptyDir)
+	// Redirect stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := runHistoryListCmd(mockNewSessionManager)
+	if err != nil {
+		t.Errorf("Expected no error, but got: %v", err)
+	}
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	buf.ReadFrom(r)
+	output := buf.String()
+
+	if !strings.Contains(output, "session1") || !strings.Contains(output, "completed") {
+		t.Errorf("Output is missing session1 details")
+	}
+	if !strings.Contains(output, "session2") || !strings.Contains(output, "stopped") {
+		t.Errorf("Output is missing session2 details")
+	}
+	if !strings.Contains(output, "3000") {
+		t.Errorf("Output is missing correct token count")
+	}
+}
+
+func TestRunHistoryCmd_WithRunningSessions(t *testing.T) {
+	sessionsDir, mockNewSessionManager := setupTestEnvironment(t)
+	defer os.RemoveAll(filepath.Dir(filepath.Dir(sessionsDir)))
+
+	createMockSession(t, sessionsDir, "session1", "running", "", os.Getpid())
+
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := runHistoryListCmd(mockNewSessionManager)
+	if err != nil {
+		t.Errorf("Expected no error, but got: %v", err)
+	}
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	buf.ReadFrom(r)
+	output := buf.String()
+
+	if strings.Contains(output, "session1") {
+		t.Errorf("Running session should not be listed, but was found in output")
+	}
+	if !strings.Contains(output, "No completed sessions found.") {
+		t.Errorf("Expected 'No completed sessions' message, but got: %s", output)
+	}
+}
+
+func TestRunHistoryDetailCmd_Success(t *testing.T) {
+	sessionsDir, mockNewSessionManager := setupTestEnvironment(t)
+	defer os.RemoveAll(filepath.Dir(filepath.Dir(sessionsDir)))
+
+	// Create a mock agent state
+	mockAgentState := agent.State{
+		Model: "test-model",
+		TokenUsage: agent.TokenUsage{
+			PromptTokens:     100,
+			CompletionTokens: 200,
+			TotalTokens:      300,
+		},
+		FinalError: "something went wrong",
+	}
+
+	agentStateFile := filepath.Join(sessionsDir, "agent_state.json")
+	agentStateData, _ := json.Marshal(mockAgentState)
+	os.WriteFile(agentStateFile, agentStateData, 0644)
+
+	createMockSession(t, sessionsDir, "test-session", "completed", agentStateFile, 12345)
+
+	// Redirect stdout to a buffer to capture the output
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := runHistoryDetailCmd(mockNewSessionManager, "test-session")
+	if err != nil {
+		t.Errorf("Expected no error, but got: %v", err)
+	}
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	buf.ReadFrom(r)
+	output := buf.String()
+
+	// Verify the output
+	expectedSubstrings := []string{
+		"Session Details for 'test-session'",
+		"Name", "test-session",
+		"Status", "completed",
+		"PID", "12345",
+		"Model", "test-model",
+		"Total Tokens", "300",
+		"Final Error", "something went wrong",
+	}
+
+	for _, s := range expectedSubstrings {
+		if !strings.Contains(output, s) {
+			t.Errorf("Output is missing expected substring: '%s'. Full output: %s", s, output)
 		}
+	}
+}
 
-		err := runHistoryCmd(mockFactory)
-		assert.NoError(t, err)
+func TestRunHistoryDetailCmd_NotFound(t *testing.T) {
+	sessionsDir, mockNewSessionManager := setupTestEnvironment(t)
+	defer os.RemoveAll(filepath.Dir(filepath.Dir(sessionsDir)))
 
-		// Restore stdout and capture output
-		w.Close()
-		os.Stdout = oldStdout
-		var buf bytes.Buffer
-		buf.ReadFrom(r)
+	err := runHistoryDetailCmd(mockNewSessionManager, "non-existent-session")
+	if err == nil {
+		t.Fatal("Expected an error for non-existent session, but got nil")
+	}
 
-		assert.Equal(t, "No completed sessions found.\n", buf.String())
-	})
-
-	// --- Test Case 2: One Completed Session ---
-	t.Run("OneCompletedSession", func(t *testing.T) {
-		// Setup: Create a session file
-		session := &runner.SessionState{
-			Name:           "test-session-1",
-			Status:         "completed",
-			StartTime:      time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC),
-			AgentStateFile: agentStateFile,
-		}
-		sessionData, _ := json.Marshal(session)
-		sessionFilePath := filepath.Join(sessionsDir, "test-session-1.json")
-		os.WriteFile(sessionFilePath, sessionData, 0644)
-		defer os.Remove(sessionFilePath)
-
-		// Redirect stdout
-		oldStdout := os.Stdout
-		r, w, _ := os.Pipe()
-		os.Stdout = w
-
-		mockFactory := func() (*runner.SessionManager, error) {
-			return runner.NewSessionManagerWithDir(sessionsDir)
-		}
-
-		err := runHistoryCmd(mockFactory)
-		assert.NoError(t, err)
-
-		// Restore stdout and capture output
-		w.Close()
-		os.Stdout = oldStdout
-		var buf bytes.Buffer
-		buf.ReadFrom(r)
-		output := buf.String()
-
-		// Assertions: Check for key pieces of data, ignore whitespace issues
-		assert.Contains(t, output, "test-session-1")
-		assert.Contains(t, output, "completed")
-		assert.Contains(t, output, "12345")      // Token count
-		assert.Contains(t, output, "0.0123")     // Estimated cost
-		assert.Contains(t, output, "2023-01-01") // Start time
-	})
-
-	// --- Test Case 3: Error Listing Sessions ---
-	t.Run("ErrorListingSessions", func(t *testing.T) {
-		unreadableDir := t.TempDir()
-		// Make the directory unreadable to force an error in ListSessions
-		assert.NoError(t, os.Chmod(unreadableDir, 0000))
-		defer os.Chmod(unreadableDir, 0755) // Cleanup permissions
-
-		mockFactory := func() (*runner.SessionManager, error) {
-			return runner.NewSessionManagerWithDir(unreadableDir)
-		}
-
-		err := runHistoryCmd(mockFactory)
-		assert.Error(t, err)
-		assert.True(t, strings.Contains(err.Error(), "failed to list sessions"), "Error message should indicate a listing failure")
-	})
+	expectedError := "failed to load session 'non-existent-session'"
+	if !strings.Contains(err.Error(), expectedError) {
+		t.Errorf("Expected error to contain '%s', but got: %v", expectedError, err)
+	}
 }

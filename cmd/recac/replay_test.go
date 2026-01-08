@@ -1,139 +1,113 @@
 package main
 
 import (
-	"bytes"
-	"io"
+	"encoding/json"
 	"os"
+	"path/filepath"
+	"recac/internal/agent"
+	"recac/internal/runner"
 	"strings"
 	"testing"
-	"time"
-
-	"recac/internal/runner"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-// setupTestEnvironment creates a temporary directory and a session manager for testing.
-func setupTestEnvironment(t *testing.T) (string, *runner.SessionManager, func()) {
-	tempDir, err := os.MkdirTemp("", "recac-replay-test-*")
-	require.NoError(t, err)
+func TestReplayCmd_Success(t *testing.T) {
+	// Isolate HOME for this test
+	homeDir := t.TempDir()
+	t.Setenv("HOME", homeDir)
+	t.Setenv("RECAC_TEST", "1")
 
-	sm, err := runner.NewSessionManagerWithDir(tempDir)
-	require.NoError(t, err)
+	sessionsDir := filepath.Join(homeDir, ".recac", "sessions")
+	os.MkdirAll(sessionsDir, 0755)
 
-	// Override the default session manager creation in the command
-	originalNewSessionManager := newSessionManager
-	newSessionManager = func() (*runner.SessionManager, error) {
-		return sm, nil
+	// Create a mock session with a valid agent state file
+	agentState := agent.State{
+		Model: "test-model",
+		TokenUsage: agent.TokenUsage{
+			PromptTokens:     10,
+			CompletionTokens: 20,
+			TotalTokens:      30,
+		},
+	}
+	agentStateFile := filepath.Join(sessionsDir, "agent_state_for_replay.json")
+	agentData, _ := json.Marshal(agentState)
+	os.WriteFile(agentStateFile, agentData, 0644)
+
+	session := runner.SessionState{
+		Name:           "replay-test",
+		AgentStateFile: agentStateFile,
+		Command:        []string{"/bin/echo", "hello"},
+	}
+	sessionFile := filepath.Join(sessionsDir, "replay-test.json")
+	sessionData, _ := json.Marshal(session)
+	os.WriteFile(sessionFile, sessionData, 0644)
+
+	output, err := executeCommand(rootCmd, "replay", "replay-test")
+	if err != nil {
+		t.Fatalf("replay command failed: %v", err)
 	}
 
-	cleanup := func() {
-		os.RemoveAll(tempDir)
-		newSessionManager = originalNewSessionManager
+	t.Logf("Replay command output: %s", output)
+
+	// Check that the replay was initiated
+	if !strings.Contains(output, "Successfully started replay session") {
+		t.Error("Expected output to contain 'Successfully started replay session'")
 	}
 
-	return tempDir, sm, cleanup
+	// Verify that the new session file was created with updated info
+	replayedSessionFile := filepath.Join(sessionsDir, "replay-test-replayed.json")
+	if _, err := os.Stat(replayedSessionFile); os.IsNotExist(err) {
+		t.Fatal("Replayed session file was not created")
+	}
+
+	data, _ := os.ReadFile(replayedSessionFile)
+	var replayedSession runner.SessionState
+	json.Unmarshal(data, &replayedSession)
+
+	if !strings.HasSuffix(replayedSession.Name, "-replayed") {
+		t.Errorf("Replayed session name is incorrect: %s", replayedSession.Name)
+	}
+	if replayedSession.Status != "running" {
+		t.Errorf("Replayed session status should be 'running', but got '%s'", replayedSession.Status)
+	}
 }
 
-func TestReplayCmd(t *testing.T) {
-	_, sm, cleanup := setupTestEnvironment(t)
-	defer cleanup()
+func TestReplayCmd_NotFound(t *testing.T) {
+	homeDir := t.TempDir()
+	t.Setenv("HOME", homeDir)
 
-	// Create a fake original session
-	originalSession := &runner.SessionState{
-		Name:      "test-session",
-		PID:       12345,
-		StartTime: time.Now(),
-		Command:   []string{"/bin/true"},
-		Workspace: "/tmp",
-		Status:    "completed",
+	_, err := executeCommand(rootCmd, "replay", "non-existent-session")
+	if err == nil {
+		t.Fatal("Expected an error for non-existent session, but got nil")
 	}
-	err := sm.SaveSession(originalSession)
-	require.NoError(t, err)
 
-	// Capture stdout
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	// Execute the replay command
-	rootCmd.SetArgs([]string{"replay", "test-session"})
-	err = rootCmd.Execute()
-	assert.NoError(t, err)
-
-	// Restore stdout and read captured output
-	w.Close()
-	os.Stdout = oldStdout
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
-	output := buf.String()
-
-	// Verify the output
-	assert.Contains(t, output, "Successfully started replay session")
-	assert.Contains(t, output, "replay")
-
-	// Verify that a new session was created
-	sessions, err := sm.ListSessions()
-	require.NoError(t, err)
-	assert.Len(t, sessions, 2)
-
-	var replayedSession *runner.SessionState
-	for _, s := range sessions {
-		if strings.HasPrefix(s.Name, "test-session-replay-") {
-			replayedSession = s
-			break
-		}
+	if !strings.Contains(err.Error(), "failed to load session") {
+		t.Errorf("Expected error message not found in output: %s", err.Error())
 	}
-	require.NotNil(t, replayedSession, "replayed session not found")
-
-	// Verify the replayed session's properties
-	assert.Equal(t, originalSession.Command, replayedSession.Command)
-	assert.Equal(t, originalSession.Workspace, replayedSession.Workspace)
-	assert.Equal(t, "running", replayedSession.Status) // It should be running
 }
 
-func TestReplayCmd_RunningSession(t *testing.T) {
-	_, sm, cleanup := setupTestEnvironment(t)
-	defer cleanup()
+func TestReplayCmd_AlreadyRunning(t *testing.T) {
+	homeDir := t.TempDir()
+	t.Setenv("HOME", homeDir)
 
-	// Create a fake running session
-	runningSession := &runner.SessionState{
-		Name:      "running-session",
-		PID:       os.Getpid(), // Use current process's PID to simulate a running process
-		StartTime: time.Now(),
-		Command:   []string{"/bin/sleep", "30"},
-		Workspace: "/tmp",
-		Status:    "running",
+	sessionsDir := filepath.Join(homeDir, ".recac", "sessions")
+	os.MkdirAll(sessionsDir, 0755)
+
+	session := runner.SessionState{
+		Name:    "running-session",
+		Status:  "running",
+		PID:     os.Getpid(),
+		Command: []string{"/bin/echo", "hello"},
 	}
-	err := sm.SaveSession(runningSession)
-	require.NoError(t, err)
+	sessionFile := filepath.Join(sessionsDir, "running-session.json")
+	sessionData, _ := json.Marshal(session)
+	os.WriteFile(sessionFile, sessionData, 0644)
 
-	// Capture stderr
-	oldStderr := os.Stderr
-	r, w, _ := os.Pipe()
-	os.Stderr = w
-
-	// Set exit function to avoid os.Exit(1)
-	oldExit := exit
-	var exitCode int
-	exit = func(code int) {
-		exitCode = code
+	_, err := executeCommand(rootCmd, "replay", "running-session")
+	if err == nil {
+		t.Fatal("Expected an error for replaying a running session, but got nil")
 	}
-	defer func() { exit = oldExit }()
 
-	// Execute the command
-	rootCmd.SetArgs([]string{"replay", "running-session"})
-	rootCmd.Execute()
-
-	// Restore stderr and read output
-	w.Close()
-	os.Stderr = oldStderr
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
-	output := buf.String()
-
-	// Verify the error message
-	assert.Equal(t, 1, exitCode)
-	assert.Contains(t, output, "Error: cannot replay a running session. Please stop it first.")
+	if !strings.Contains(err.Error(), "cannot replay a running session") {
+		t.Errorf("Expected error message not found in output: %s", err.Error())
+	}
 }

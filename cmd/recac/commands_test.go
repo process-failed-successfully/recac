@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"recac/internal/runner"
 	"recac/internal/ui"
 	"strings"
 	"testing"
@@ -14,6 +15,24 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
+
+// setupTestEnvironment creates a temporary directory for session files and a mock session manager.
+func setupTestEnvironment(t *testing.T) (string, func() (*runner.SessionManager, error)) {
+	t.Helper()
+	tempDir, err := os.MkdirTemp("", "recac-test-")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+
+	sessionsDir := filepath.Join(tempDir, ".recac", "sessions")
+	os.MkdirAll(sessionsDir, 0755)
+
+	mockNewSessionManager := func() (*runner.SessionManager, error) {
+		return runner.NewSessionManagerWithDir(sessionsDir)
+	}
+
+	return sessionsDir, mockNewSessionManager
+}
 
 // TestHelperProcess isn't a real test. It's a helper process that's executed
 // by other tests to simulate running the main binary.
