@@ -7,10 +7,25 @@ import (
 	"recac/internal/agent"
 	"recac/internal/git"
 	"recac/internal/jira"
+	"recac/internal/runner"
 	"strings"
 
 	"github.com/spf13/viper"
 )
+
+// ISessionManager defines the interface for session management to allow mocking.
+type ISessionManager interface {
+	ListSessions() ([]*runner.SessionState, error)
+	LoadSession(name string) (*runner.SessionState, error)
+	IsProcessRunning(pid int) bool
+	StartSession(name string, command []string, workspace string) (*runner.SessionState, error)
+}
+
+// newSessionManager is a factory function for creating a SessionManager.
+// It's a variable so it can be replaced in tests.
+var newSessionManager = func() (ISessionManager, error) {
+	return runner.NewSessionManager()
+}
 
 // getJiraClient initializes a Jira client using config or environment variables
 func getJiraClient(ctx context.Context) (*jira.Client, error) {

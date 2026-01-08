@@ -12,15 +12,16 @@ import (
 
 // SessionState represents the state of a background session
 type SessionState struct {
-	Name          string    `json:"name"`
-	PID           int       `json:"pid"`
-	StartTime     time.Time `json:"start_time"`
-	Command       []string `json:"command"`
-	LogFile       string    `json:"log_file"`
-	Workspace     string    `json:"workspace"`
-	Status        string    `json:"status"`         // "running", "completed", "stopped", "error"
-	Type          string    `json:"type"`           // "detached" or "interactive"
-	AgentStateFile string   `json:"agent_state_file"` // Path to agent state file (.agent_state.json)
+	Name      string    `json:"name"`
+	PID       int       `json:"pid"`
+	StartTime time.Time `json:"start_time"`
+	EndTime   time.Time `json:"end_time,omitempty"`
+	Command   []string  `json:"command"`
+	LogFile   string    `json:"log_file"`
+	Workspace string    `json:"workspace"`
+	Status    string    `json:"status"` // "running", "completed", "stopped", "error"
+	Type      string    `json:"type"`   // "detached" or "interactive"
+	AgentStateFile string `json:"agent_state_file"` // Path to agent state file (.agent_state.json)
 }
 
 // SessionManager handles background session management
@@ -208,6 +209,9 @@ func (sm *SessionManager) ListSessions() ([]*SessionState, error) {
 		// Only update if status is "running" - preserve "stopped" and "error" statuses
 		if session.Status == "running" && !sm.IsProcessRunning(session.PID) {
 			session.Status = "completed"
+			if session.EndTime.IsZero() {
+				session.EndTime = time.Now()
+			}
 			sm.SaveSession(session) // Update on disk
 		}
 
@@ -242,6 +246,9 @@ func (sm *SessionManager) StopSession(name string) error {
 
 	if !sm.IsProcessRunning(session.PID) {
 		session.Status = "completed"
+		if session.EndTime.IsZero() {
+			session.EndTime = time.Now()
+		}
 		sm.SaveSession(session)
 		return fmt.Errorf("session '%s' is not running (process not found)", name)
 	}
@@ -267,6 +274,9 @@ func (sm *SessionManager) StopSession(name string) error {
 	}
 
 	session.Status = "stopped"
+	if session.EndTime.IsZero() {
+		session.EndTime = time.Now()
+	}
 	sm.SaveSession(session)
 
 	return nil
