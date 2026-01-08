@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
+	"path/filepath"
 )
 
 type PrimePythonScenario struct{}
@@ -24,9 +26,11 @@ func (s *PrimePythonScenario) Generate(uniqueID string, repoURL string) []Ticket
 			Summary: fmt.Sprintf("[%s] Create Prime Number Script", uniqueID),
 			Desc: fmt.Sprintf(`Create a python script named 'primes.py'.
 It must calculate all prime numbers less than 10,000.
-It must print the result to stdout as a JSON object with a single key 'primes' containing the list of integers.
+As soon as you have the result, save it to a file named 'primes.json' and commit it.
+The JSON format must have a single key 'primes' containing the list of integers.
 Example: %s{"primes": [2, 3, 5, ...]}%s.
-Do not output anything else to stdout.
+IMPORTANT: Ensure the FINAL primes.json committed to the repository contains ALL primes less than 10,000 (Exactly 1229 primes).
+Do not truncate it for testing or reporting - the verification script expects the full list.
 Keep the code absolutely minimal. Finish as quickly as possible.
 
 Repo: %s`, "`", "`", repoURL),
@@ -61,23 +65,37 @@ func (s *PrimePythonScenario) Verify(repoPath string, ticketKeys map[string]stri
 	}
 
 	// Check file existence
-	scriptPath := "primes.py" // Relative to repo root
+	jsonPath := "primes.json"
+	scriptPath := "primes.py"
 
-	// Run script
-	cmd := exec.Command("python3", scriptPath)
-	cmd.Dir = repoPath
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		// Try python just in case
-		cmd = exec.Command("python", scriptPath)
+	var out []byte
+
+	// 1. Try reading primes.json first (Deterministic Output)
+	fullJsonPath := filepath.Join(repoPath, jsonPath)
+	if _, err := os.Stat(fullJsonPath); err == nil {
+		fmt.Printf("Found %s, verifying content...\n", jsonPath)
+		out, err = os.ReadFile(fullJsonPath)
+		if err != nil {
+			return fmt.Errorf("failed to read %s: %v", jsonPath, err)
+		}
+	} else {
+		// 2. Fallback to running the script
+		fmt.Printf("%s not found, falling back to running %s\n", jsonPath, scriptPath)
+		cmd := exec.Command("python3", scriptPath)
 		cmd.Dir = repoPath
 		out, err = cmd.CombinedOutput()
 		if err != nil {
-			// List files to help debugging
-			lsCmd := exec.Command("ls", "-R")
-			lsCmd.Dir = repoPath
-			lsOut, _ := lsCmd.CombinedOutput()
-			return fmt.Errorf("failed to run primes.py: %v\nOutput:\n%s\nFiles in repo:\n%s", err, string(out), string(lsOut))
+			// Try python just in case
+			cmd = exec.Command("python", scriptPath)
+			cmd.Dir = repoPath
+			out, err = cmd.CombinedOutput()
+			if err != nil {
+				// List files to help debugging
+				lsCmd := exec.Command("ls", "-R")
+				lsCmd.Dir = repoPath
+				lsOut, _ := lsCmd.CombinedOutput()
+				return fmt.Errorf("failed to run %s: %v\nOutput:\n%s\nFiles in repo:\n%s", scriptPath, err, string(out), string(lsOut))
+			}
 		}
 	}
 
@@ -107,6 +125,13 @@ func (s *PrimePythonScenario) Verify(repoPath string, ticketKeys map[string]stri
 	expectedCount := 1229
 	if len(primes) != expectedCount {
 		return fmt.Errorf("expected %d primes, got %d", expectedCount, len(primes))
+	}
+
+	// Last prime check (Largest prime < 10000 is 9973)
+	expectedLast := 9973
+	lastPrime := int(primes[len(primes)-1])
+	if lastPrime != expectedLast {
+		return fmt.Errorf("expected last prime to be %d, got %d", expectedLast, lastPrime)
 	}
 
 	fmt.Printf("Verification Successful: Found %d primes correctly.\n", len(primes))
