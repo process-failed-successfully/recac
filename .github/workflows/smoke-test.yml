@@ -41,6 +41,10 @@ jobs:
         run: |
           k3d image import recac:smoke -c recac-smoke
 
+      - name: Configure Git for HTTPS
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git config --global url."https://".insteadOf "ssh://"
       - name: Run E2E Test
         env:
           JIRA_URL: ${{ secrets.JIRA_URL }}
