@@ -23,7 +23,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Force Git to use HTTPS
-        run: git config --global url."https://github.com/".insteadOf "git@github.com:"
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git config --global url."https://".insteadOf "ssh://"
 
       - name: Generate Image Tag
         id: image-tag
@@ -85,7 +87,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Force Git to use HTTPS
-        run: git config --global url."https://github.com/".insteadOf "git@github.com:"
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git config --global url."https://".insteadOf "ssh://"
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -124,7 +128,9 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Force Git to use HTTPS
-        run: git config --global url."https://github.com/".insteadOf "git@github.com:"
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git config --global url."https://".insteadOf "ssh://"
 
       - name: Lint
         run: |
@@ -151,7 +157,9 @@ jobs:
           go-version-file: go.mod
 
       - name: Force Git to use HTTPS
-        run: git config --global url."https://github.com/".insteadOf "git@github.com:"
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git config --global url."https://".insteadOf "ssh://"
 
       - name: Build Agent Image for Tests
         run: |
@@ -182,7 +190,9 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Force Git to use HTTPS
-        run: git config --global url."https://github.com/".insteadOf "git@github.com:"
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git config --global url."https://".insteadOf "ssh://"
 
       - name: Build Binaries
         run: |
