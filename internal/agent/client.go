@@ -31,7 +31,7 @@ func NewBaseClient(project string, defaultMaxTokens int) BaseClient {
 
 // PreparePrompt checks token limits and truncates if necessary.
 // Returns the (possibly truncated) prompt, the state, and a boolean indicating if state should be updated.
-func (c *BaseClient) PreparePrompt(prompt string) (string, State, bool, error) {
+func (c *BaseClient) PreparePrompt(prompt string, model string) (string, State, bool, error) {
 	if c.StateManager == nil {
 		return prompt, State{}, false, nil
 	}
@@ -69,18 +69,20 @@ func (c *BaseClient) PreparePrompt(prompt string) (string, State, bool, error) {
 		state.TokenUsage.TruncationCount++
 	}
 
-	// Update current token count
+	// Update model and current token count
+	state.Model = model
 	state.CurrentTokens = promptTokens
-	state.TokenUsage.TotalPromptTokens += promptTokens
+	state.TokenUsage.PromptTokens += promptTokens
 	telemetry.TrackTokenUsage(c.Project, promptTokens)
 
 	// Log token usage
 	telemetry.LogDebug("Token usage (prompt)",
 		"project", c.Project,
+		"model", model,
 		"prompt", promptTokens,
 		"current", state.CurrentTokens,
 		"max", maxTokens,
-		"total_prompt", state.TokenUsage.TotalPromptTokens,
+		"total_prompt", state.TokenUsage.PromptTokens,
 		"truncations", state.TokenUsage.TruncationCount)
 
 	return prompt, state, true, nil
@@ -93,8 +95,7 @@ func (c *BaseClient) UpdateStateWithResponse(state State, response string) {
 	}
 
 	responseTokens := EstimateTokenCount(response)
-	state.TokenUsage.TotalResponseTokens += responseTokens
-	state.TokenUsage.TotalTokens = state.TokenUsage.TotalPromptTokens + state.TokenUsage.TotalResponseTokens
+	state.TokenUsage.CompletionTokens += responseTokens
 	state.CurrentTokens += responseTokens
 	telemetry.TrackTokenUsage(c.Project, responseTokens)
 
@@ -132,9 +133,8 @@ func (c *BaseClient) UpdateStateWithResponse(state State, response string) {
 		"response", responseTokens,
 		"current", state.CurrentTokens,
 		"max", maxTokens,
-		"total", state.TokenUsage.TotalTokens,
-		"prompt", state.TokenUsage.TotalPromptTokens,
-		"response_total", state.TokenUsage.TotalResponseTokens)
+		"total_prompt", state.TokenUsage.PromptTokens,
+		"total_completion", state.TokenUsage.CompletionTokens)
 
 	// Save updated state
 	if err := c.StateManager.Save(state); err != nil {
@@ -143,14 +143,14 @@ func (c *BaseClient) UpdateStateWithResponse(state State, response string) {
 }
 
 // SendWithRetry handles the common retry loop and telemetry for Send.
-func (c *BaseClient) SendWithRetry(ctx context.Context, prompt string, sendOnce func(context.Context, string) (string, error)) (string, error) {
+func (c *BaseClient) SendWithRetry(ctx context.Context, prompt string, model string, sendOnce func(context.Context, string) (string, error)) (string, error) {
 	telemetry.TrackAgentIteration(c.Project)
 	start := time.Now()
 	defer func() {
 		telemetry.ObserveAgentLatency(c.Project, time.Since(start).Seconds())
 	}()
 
-	prompt, state, shouldUpdateState, err := c.PreparePrompt(prompt)
+	prompt, state, shouldUpdateState, err := c.PreparePrompt(prompt, model)
 	if err != nil {
 		return "", err
 	}
@@ -184,14 +184,14 @@ func (c *BaseClient) SendWithRetry(ctx context.Context, prompt string, sendOnce 
 }
 
 // SendStreamWithRetry handles the common retry loop and telemetry for SendStream.
-func (c *BaseClient) SendStreamWithRetry(ctx context.Context, prompt string, sendStreamOnce func(context.Context, string, func(string)) (string, error), onChunk func(string)) (string, error) {
+func (c *BaseClient) SendStreamWithRetry(ctx context.Context, prompt string, model string, sendStreamOnce func(context.Context, string, func(string)) (string, error), onChunk func(string)) (string, error) {
 	telemetry.TrackAgentIteration(c.Project)
 	start := time.Now()
 	defer func() {
 		telemetry.ObserveAgentLatency(c.Project, time.Since(start).Seconds())
 	}()
 
-	prompt, state, shouldUpdateState, err := c.PreparePrompt(prompt)
+	prompt, state, shouldUpdateState, err := c.PreparePrompt(prompt, model)
 	if err != nil {
 		return "", err
 	}

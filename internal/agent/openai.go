@@ -51,7 +51,7 @@ func (c *OpenAIClient) WithStateManager(sm *StateManager) *OpenAIClient {
 // Send sends a prompt to OpenAI and returns the generated text with retry logic.
 // If stateManager is configured, it will track tokens and truncate if needed.
 func (c *OpenAIClient) Send(ctx context.Context, prompt string) (string, error) {
-	return c.SendWithRetry(ctx, prompt, c.sendOnce)
+	return c.SendWithRetry(ctx, prompt, c.model, c.sendOnce)
 }
 
 func (c *OpenAIClient) sendOnce(ctx context.Context, prompt string) (string, error) {
@@ -117,7 +117,7 @@ func (c *OpenAIClient) sendOnce(ctx context.Context, prompt string) (string, err
 
 // SendStream sends a prompt to OpenAI and streams the response
 func (c *OpenAIClient) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
-	return c.SendStreamWithRetry(ctx, prompt, func(ctx context.Context, p string, oc func(string)) (string, error) {
+	return c.SendStreamWithRetry(ctx, prompt, c.model, func(ctx context.Context, p string, oc func(string)) (string, error) {
 		// Prepare Request with the potentially truncated prompt 'p'
 		requestBody := map[string]interface{}{
 			"model":  c.model,

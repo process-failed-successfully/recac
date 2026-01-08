@@ -50,28 +50,31 @@ func runHistoryCmd(newSessionManager func() (*runner.SessionManager, error)) err
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
-	fmt.Fprintln(w, "NAME\tSTATUS\tSTARTED\tTOTAL TOKENS\tESTIMATED COST ($)")
-	fmt.Fprintln(w, "----\t------\t-------\t------------\t------------------")
+	fmt.Fprintln(w, "NAME\tMODEL\tSTATUS\tSTARTED\tPROMPT TOKENS\tCOMPLETION TOKENS\tCOST ($)")
+	fmt.Fprintln(w, "----\t-----\t------\t-------\t-------------\t-----------------\t--------")
 
 	for _, s := range completedSessions {
-		var totalTokens int
+		var model string
+		var promptTokens, completionTokens int
 		var estimatedCost float64
 
 		if s.AgentStateFile != "" {
 			agentState, err := loadAgentState(s.AgentStateFile)
 			if err == nil {
-				totalTokens = agentState.TokenUsage.TotalTokens
-				// NOTE: This is a simplified cost model and does not account for different model pricing.
-				// It assumes a generic rate of $1.00 per 1,000,000 tokens.
-				estimatedCost = float64(totalTokens) / 1_000_000.0
+				model = agentState.Model
+				promptTokens = agentState.TokenUsage.PromptTokens
+				completionTokens = agentState.TokenUsage.CompletionTokens
+				estimatedCost = agent.CalculateCost(model, promptTokens, completionTokens)
 			}
 		}
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%.4f\n",
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%d\t%.4f\n",
 			s.Name,
+			model,
 			s.Status,
 			s.StartTime.Format("2006-01-02 15:04:05"),
-			totalTokens,
+			promptTokens,
+			completionTokens,
 			estimatedCost,
 		)
 	}

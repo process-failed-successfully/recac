@@ -49,7 +49,7 @@ func (c *GeminiClient) WithStateManager(sm *StateManager) *GeminiClient {
 // Send sends a prompt to Gemini and returns the generated text with retry logic.
 // If stateManager is configured, it will track tokens and truncate if needed.
 func (c *GeminiClient) Send(ctx context.Context, prompt string) (string, error) {
-	return c.SendWithRetry(ctx, prompt, c.sendOnce)
+	return c.SendWithRetry(ctx, prompt, c.model, c.sendOnce)
 }
 
 func (c *GeminiClient) sendOnce(ctx context.Context, prompt string) (string, error) {
@@ -119,7 +119,7 @@ func (c *GeminiClient) sendOnce(ctx context.Context, prompt string) (string, err
 
 // SendStream fallback for Gemini (calls Send and emits once)
 func (c *GeminiClient) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
-	return c.SendStreamWithRetry(ctx, prompt, func(ctx context.Context, p string, oc func(string)) (string, error) {
+	return c.SendStreamWithRetry(ctx, prompt, c.model, func(ctx context.Context, p string, oc func(string)) (string, error) {
 		// Mock streaming by calling SendOnce and emitting the whole result
 		resp, err := c.sendOnce(ctx, p)
 		if err == nil && oc != nil {

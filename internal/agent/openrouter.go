@@ -50,7 +50,7 @@ func (c *OpenRouterClient) WithStateManager(sm *StateManager) *OpenRouterClient 
 
 // Send sends a prompt to OpenRouter and returns the generated text
 func (c *OpenRouterClient) Send(ctx context.Context, prompt string) (string, error) {
-	return c.SendWithRetry(ctx, prompt, c.sendOnce)
+	return c.SendWithRetry(ctx, prompt, c.model, c.sendOnce)
 }
 
 func (c *OpenRouterClient) sendOnce(ctx context.Context, prompt string) (string, error) {
@@ -118,7 +118,7 @@ func (c *OpenRouterClient) sendOnce(ctx context.Context, prompt string) (string,
 
 // SendStream sends a prompt to OpenRouter and streams the response
 func (c *OpenRouterClient) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
-	return c.SendStreamWithRetry(ctx, prompt, func(ctx context.Context, p string, oc func(string)) (string, error) {
+	return c.SendStreamWithRetry(ctx, prompt, c.model, func(ctx context.Context, p string, oc func(string)) (string, error) {
 		// Prepare Request with the potentially truncated prompt 'p'
 		requestBody := map[string]interface{}{
 			"model":  c.model,

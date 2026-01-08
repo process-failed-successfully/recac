@@ -15,6 +15,7 @@ type State struct {
 	History       []Message              `json:"history"`
 	Metadata      map[string]interface{} `json:"metadata"`
 	UpdatedAt     time.Time              `json:"updated_at"`
+	Model         string                 `json:"model,omitempty"`          // Name of the model used
 	MaxTokens     int                    `json:"max_tokens,omitempty"`     // Maximum token limit for context window
 	CurrentTokens int                    `json:"current_tokens,omitempty"` // Current token count in context
 	TokenUsage    TokenUsage             `json:"token_usage,omitempty"`    // Token usage statistics
@@ -22,10 +23,9 @@ type State struct {
 
 // TokenUsage tracks token consumption statistics
 type TokenUsage struct {
-	TotalPromptTokens   int `json:"total_prompt_tokens"`   // Total tokens in prompts sent
-	TotalResponseTokens int `json:"total_response_tokens"` // Total tokens in responses received
-	TotalTokens         int `json:"total_tokens"`          // Total tokens used (prompt + response)
-	TruncationCount     int `json:"truncation_count"`      // Number of times truncation occurred
+	PromptTokens     int `json:"prompt_tokens"`     // Total tokens in prompts sent
+	CompletionTokens int `json:"completion_tokens"` // Total tokens in responses received
+	TruncationCount  int `json:"truncation_count"`  // Number of times truncation occurred
 }
 
 // Message represents a chat message

@@ -26,6 +26,7 @@ type SessionState struct {
 // SessionManager handles background session management
 type SessionManager struct {
 	sessionsDir string
+	lister      SessionLister
 }
 
 // NewSessionManager creates a new session manager
@@ -40,9 +41,11 @@ func NewSessionManager() (*SessionManager, error) {
 		return nil, fmt.Errorf("failed to create sessions directory: %w", err)
 	}
 
-	return &SessionManager{
+	sm := &SessionManager{
 		sessionsDir: sessionsDir,
-	}, nil
+	}
+	sm.lister = sm // The SessionManager implements the SessionLister interface
+	return sm, nil
 }
 
 // NewSessionManagerWithDir creates a new session manager with a specific directory.
@@ -50,9 +53,11 @@ func NewSessionManagerWithDir(dir string) (*SessionManager, error) {
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create sessions directory: %w", err)
 	}
-	return &SessionManager{
+	sm := &SessionManager{
 		sessionsDir: dir,
-	}, nil
+	}
+	sm.lister = sm
+	return sm, nil
 }
 
 // GetSessionPath returns the path to a session state file
@@ -184,6 +189,19 @@ func (sm *SessionManager) SaveSession(session *SessionState) error {
 
 // ListSessions returns all sessions
 func (sm *SessionManager) ListSessions() ([]*SessionState, error) {
+	if sm.lister != nil {
+		return sm.lister.ListSessions()
+	}
+	return sm.listSessions()
+}
+
+// SetLister sets the session lister for the session manager.
+func (sm *SessionManager) SetLister(lister SessionLister) {
+	sm.lister = lister
+}
+
+// listSessions is the actual implementation of ListSessions.
+func (sm *SessionManager) listSessions() ([]*SessionState, error) {
 	entries, err := os.ReadDir(sm.sessionsDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read sessions directory: %w", err)
@@ -216,6 +234,7 @@ func (sm *SessionManager) ListSessions() ([]*SessionState, error) {
 
 	return sessions, nil
 }
+
 
 // IsProcessRunning checks if a process is still running
 func (sm *SessionManager) IsProcessRunning(pid int) bool {
