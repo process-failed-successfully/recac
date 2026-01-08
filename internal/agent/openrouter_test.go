@@ -50,7 +50,7 @@ func TestOpenRouterClient(t *testing.T) {
 
 	// Verify state updated (mock responder should trigger state update logic in Send)
 	state, _ := sm.Load()
-	if state.TokenUsage.TotalTokens == 0 {
+	if state.TokenUsage.PromptTokens == 0 {
 		t.Error("Expected token usage to be updated")
 	}
 }

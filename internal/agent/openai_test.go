@@ -36,7 +36,7 @@ func TestOpenAIClient_StateTracking(t *testing.T) {
 	}
 
 	state, _ := sm.Load()
-	if state.TokenUsage.TotalPromptTokens == 0 {
+	if state.TokenUsage.PromptTokens == 0 {
 		t.Error("Expected token usage tracking")
 	}
 }
