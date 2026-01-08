@@ -46,6 +46,7 @@ func TestSession_ProcessResponse_NoCommands(t *testing.T) {
 		Docker:   &MockDockerClient{},
 		Logger:   slog.Default(),
 		Notifier: notify.NewManager(func(string, ...interface{}) {}),
+		Project:  "test-project",
 	}
 
 	output, err := s.ProcessResponse(context.Background(), "Just some text")
@@ -82,6 +83,7 @@ func TestSession_ProcessResponse_WithCommands(t *testing.T) {
 		DBStore:   store,
 		Logger:    slog.Default(),
 		Notifier:  notify.NewManager(func(string, ...interface{}) {}),
+		Project:   "test-project",
 	}
 
 	response := "Here is code:\n```bash\necho hello\n```"
@@ -118,10 +120,11 @@ func TestSession_ProcessResponse_Blocker(t *testing.T) {
 		DBStore:   store,
 		Logger:    slog.Default(),
 		Notifier:  notify.NewManager(func(string, ...interface{}) {}),
+		Project:   "test-project",
 	}
 
 	// Manually set blocker signal to simulate "agent did it"
-	store.SetSignal("BLOCKER", "I am stuck")
+	store.SetSignal("test-project", "BLOCKER", "I am stuck")
 
 	_, err := s.ProcessResponse(context.Background(), "some commands")
 	if err != ErrBlocker {

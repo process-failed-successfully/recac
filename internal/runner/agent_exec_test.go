@@ -75,13 +75,13 @@ func TestSession_ProcessResponse_Thorough(t *testing.T) {
 	}
 
 	// 3. Test sudo blocks
-	resp3 := "I need sudo:\n```bash\nsudo apt-get update\n```"
+	resp3 := "I need to install something:\n```bash\napk add curl\n```"
 	out3, err := s.ProcessResponse(context.Background(), resp3)
 	if err != nil {
 		t.Fatalf("ProcessResponse failed: %v", err)
 	}
-	if !strings.Contains(out3, "sudo apt-get update") {
-		t.Errorf("Sudo command not found: %s", out3)
+	if !strings.Contains(out3, "apk add curl") {
+		t.Errorf("Apk command not found: %s", out3)
 	}
 
 	// Verify executed commands match what we expect
@@ -89,7 +89,7 @@ func TestSession_ProcessResponse_Thorough(t *testing.T) {
 		"/bin/bash -c echo 'hello' > test.txt",
 		"/bin/bash -c echo 1",
 		"/bin/bash -c echo 2",
-		"/bin/bash -c sudo apt-get update",
+		"/bin/bash -c apk add curl",
 	}
 
 	for i, cmd := range expectedCmds {

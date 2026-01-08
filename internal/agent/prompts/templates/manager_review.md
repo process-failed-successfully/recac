@@ -39,7 +39,7 @@ You interact by **Executing Commands**. The agents will read the files you creat
 Write high-level instructions for the next sessions.
 
 ```bash
-cat <<EOF > manager_directives.txt
+cat <<'EOF' > manager_directives.txt
 - Priority 1: Focus on the core game loop before adding sound effects.
 - Priority 2: Use the existing helper functions in utils.js instead of re-implementing them.
 - Requirement: All new functions must have JSDoc comments.
@@ -83,7 +83,7 @@ rm successes.txt
 - Focus on _process_, _decisions_, and _quality_.
 - You are leading the team. Take charge.
 - You are the final arbiter of code quality.
-- Add to feature list: If you find missing requirements, add them using `agent-bridge feature set <new-id> --status pending --passes false` (Note: `feature_list.json` is a read-only mirror).
+- Add to feature list: If you find missing requirements, add them using `agent-bridge feature set <new-id> --status pending --passes false` (Note: `feature_list.json` is a read-only mirror). **new-id IS A PLACEHOLDER** Use a real ID.
 
 ### PROJECT COMPLETION & SIGN-OFF
 
