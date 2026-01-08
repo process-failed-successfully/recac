@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"recac/internal/runner"
 	"strings"
@@ -12,23 +10,8 @@ import (
 	"time"
 
 	"github.com/spf13/viper"
+	"github.com/stretchr/testify/assert"
 )
-
-// captureOutput executes a function and captures its standard output.
-func captureOutput(f func() error) (string, error) {
-	old := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	err := f()
-
-	w.Close()
-	os.Stdout = old
-
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
-	return buf.String(), err
-}
 
 func TestShowStatus(t *testing.T) {
 	// Setup: Create a temporary session manager and a fake session file
@@ -64,10 +47,10 @@ func TestShowStatus(t *testing.T) {
 	defer viper.Reset() // Cleanup viper
 
 	// Execute the command and capture output
-	output, err := captureOutput(showStatus)
-	if err != nil {
-		t.Errorf("showStatus() returned an error: %v", err)
-	}
+	output, _ := captureOutput(t, func() {
+		err := showStatus()
+		assert.NoError(t, err)
+	})
 
 	// Assertions
 	t.Run("Session Output", func(t *testing.T) {
@@ -109,10 +92,10 @@ func TestShowStatus(t *testing.T) {
 
 func TestShowStatus_NoSessions(t *testing.T) {
 	// Execute the command with no sessions present
-	output, err := captureOutput(showStatus)
-	if err != nil {
-		t.Errorf("showStatus() returned an error: %v", err)
-	}
+	output, _ := captureOutput(t, func() {
+		err := showStatus()
+		assert.NoError(t, err)
+	})
 
 	// Assertions
 	if !strings.Contains(output, "No active or past sessions found.") {

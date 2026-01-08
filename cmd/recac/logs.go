@@ -21,10 +21,13 @@ func init() {
 var logsCmd = &cobra.Command{
 	Use:   "logs [session-name]",
 	Short: "View session logs",
-	Long:  `View logs for a specific session. Use --follow to stream logs in real-time.`,
-	Args:  cobra.ExactArgs(1),
+	Long:  `View logs for a specific session. If no session-name is provided, it shows the logs for the last completed session. Use --follow to stream logs in real-time.`,
+	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		sessionName := args[0]
+		var sessionName string
+		if len(args) > 0 {
+			sessionName = args[0]
+		}
 		follow := cmd.Flags().Lookup("follow").Changed
 		filter, _ := cmd.Flags().GetString("filter")
 
@@ -32,6 +35,30 @@ var logsCmd = &cobra.Command{
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to create session manager: %v\n", err)
 			exit(1)
+		}
+
+		if sessionName == "" {
+			sessions, err := sm.ListSessions()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: failed to list sessions: %v\n", err)
+				exit(1)
+			}
+
+			var lastCompletedSession *runner.SessionState
+			for _, s := range sessions {
+				if s.Status != "running" {
+					if lastCompletedSession == nil || s.StartTime.After(lastCompletedSession.StartTime) {
+						lastCompletedSession = s
+					}
+				}
+			}
+
+			if lastCompletedSession == nil {
+				fmt.Fprintln(os.Stderr, "Error: No completed sessions found.")
+				exit(1)
+			}
+			sessionName = lastCompletedSession.Name
+			fmt.Printf("No session name provided, showing logs for last completed session: %s\n\n", sessionName)
 		}
 
 		logFile, err := sm.GetSessionLogs(sessionName)
