@@ -219,7 +219,6 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 							WorkingDir:      "/workspace",
 							VolumeMounts: []corev1.VolumeMount{
 								{Name: "workspace", MountPath: "/workspace"},
-								{Name: "docker-sock", MountPath: "/var/run/docker.sock"},
 							},
 						},
 					},
@@ -228,14 +227,6 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 							Name: "workspace",
 							VolumeSource: corev1.VolumeSource{
 								EmptyDir: &corev1.EmptyDirVolumeSource{},
-							},
-						},
-						{
-							Name: "docker-sock",
-							VolumeSource: corev1.VolumeSource{
-								HostPath: &corev1.HostPathVolumeSource{
-									Path: "/var/run/docker.sock",
-								},
 							},
 						},
 					},

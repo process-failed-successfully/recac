@@ -471,8 +471,13 @@ func (s *Session) Start(ctx context.Context) error {
 	fmt.Printf("Initializing session with image: %s\n", s.Image)
 
 	// Check Docker Daemon
-	if err := s.Docker.CheckDaemon(ctx); err != nil {
-		return fmt.Errorf("docker check failed: %w", err)
+	if s.Docker != nil {
+		if err := s.Docker.CheckDaemon(ctx); err != nil {
+			fmt.Printf("Warning: Docker check failed: %v. Running in restricted mode.\n", err)
+			s.Docker = nil // Disable docker usage if check fails
+		}
+	} else {
+		fmt.Println("Running in restricted mode (no Docker access).")
 	}
 
 	// Read Spec
@@ -483,9 +488,11 @@ func (s *Session) Start(ctx context.Context) error {
 		fmt.Printf("Loaded spec: %d bytes\n", len(spec))
 	}
 
-	// Ensure Image is ready
-	if err := s.ensureImage(ctx); err != nil {
-		fmt.Printf("Warning: Failed to ensure image %s: %v. Attempting to proceed anyway...\n", s.Image, err)
+	// Ensure Image is ready (only if Docker is available)
+	if s.Docker != nil {
+		if err := s.ensureImage(ctx); err != nil {
+			fmt.Printf("Warning: Failed to ensure image %s: %v. Attempting to proceed anyway...\n", s.Image, err)
+		}
 	}
 
 	// Determine users home directory for config mounting
@@ -545,14 +552,15 @@ func (s *Session) Start(ctx context.Context) error {
 		}
 	}
 
-	// Run Container (or Skip if Local)
-	if s.UseLocalAgent {
+	// Run Container (or Skip if Local/Restricted)
+	if s.UseLocalAgent || s.Docker == nil {
 		if s.Logger != nil {
-			s.Logger.Info("Running in Local Agent Mode (K8s detected). Skipping container spawn.")
+			s.Logger.Info("Running in Local Agent Mode (K8s detected or restricted). Skipping container spawn.")
 		} else {
-			fmt.Println("Running in Local Agent Mode (K8s detected). Skipping container spawn.")
+			fmt.Println("Running in Local Agent Mode (K8s detected or restricted). Skipping container spawn.")
 		}
 		s.ContainerID = "local"
+		s.UseLocalAgent = true
 	} else {
 		id, err := s.Docker.RunContainer(ctx, s.Image, s.Workspace, extraBinds, env, containerUser)
 		if err != nil {
@@ -609,7 +617,14 @@ func (s *Session) Start(ctx context.Context) error {
 	return nil
 }
 
+// ensureImage ensures the agent image exists locally, pulling or building if needed.
 func (s *Session) ensureImage(ctx context.Context) error {
+	if s.Docker == nil {
+		fmt.Println("Docker not available available. Skipping image check (assuming local execution or pre-pulled).")
+		return nil
+	}
+
+	// 1. Check for custom Dockerfile in workspace
 	// 1. Check if workspace has a Dockerfile. If so, building is mandatory to allow customization.
 	workspaceDockerfile := filepath.Join(s.Workspace, "Dockerfile")
 	if _, err := os.Stat(workspaceDockerfile); err == nil {
@@ -707,8 +722,10 @@ func (s *Session) Stop(ctx context.Context) error {
 	}
 
 	fmt.Printf("Stopping container: %s\n", containerID)
-	if err := s.Docker.StopContainer(ctx, containerID); err != nil {
-		return fmt.Errorf("failed to stop container: %w", err)
+	if s.Docker != nil {
+		if err := s.Docker.StopContainer(ctx, containerID); err != nil {
+			return fmt.Errorf("failed to stop container: %w", err)
+		}
 	}
 
 	s.mu.Lock()
@@ -867,10 +884,13 @@ func (s *Session) RunLoop(ctx context.Context) error {
 			fmt.Printf("Cleaning up container: %s\n", containerID)
 			cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			if err := s.Docker.StopContainer(cleanupCtx, containerID); err != nil {
-				fmt.Printf("Warning: Failed to cleanup container: %v\n", err)
-			} else {
-				fmt.Println("Container cleaned up successfully")
+			defer cancel()
+			if s.Docker != nil {
+				if err := s.Docker.StopContainer(cleanupCtx, containerID); err != nil {
+					fmt.Printf("Warning: Failed to cleanup container: %v\n", err)
+				} else {
+					fmt.Println("Container cleaned up successfully")
+				}
 			}
 		}
 	}()
@@ -1541,7 +1561,9 @@ func (s *Session) syncFeatureFile(fl db.FeatureList) {
 		u, _ := user.Current()
 		if u != nil {
 			// Best effort chown
-			_, _ = s.Docker.Exec(context.Background(), containerID, []string{"chown", fmt.Sprintf("%s:%s", u.Uid, u.Gid), "feature_list.json"})
+			if s.Docker != nil {
+				_, _ = s.Docker.Exec(context.Background(), containerID, []string{"chown", fmt.Sprintf("%s:%s", u.Uid, u.Gid), "feature_list.json"})
+			}
 			err = os.WriteFile(path, data, 0644)
 		}
 	}
@@ -2200,25 +2222,29 @@ yarn-error.log*
 	}
 
 	// 1b. Create Global Ignore File in container (redundancy/system-wide)
-	writeCmd := []string{"/bin/sh", "-c", fmt.Sprintf("echo '%s' > /etc/gitignore_global", ignoreContent)}
-	if _, err := s.Docker.ExecAsUser(ctx, containerID, "root", writeCmd); err != nil {
-		fmt.Printf("Warning: Failed to create global gitignore: %v\n", err)
-	}
-
-	fmt.Printf("Bootstrapping git config (email: %s, name: %s, excludes: /etc/gitignore_global)...\n", email, name)
-
-	commands := [][]string{
-		{"sudo", "git", "config", "--system", "user.email", email},
-		{"sudo", "git", "config", "--system", "user.name", name},
-		{"sudo", "git", "config", "--system", "safe.directory", "*"},
-		{"sudo", "git", "config", "--system", "core.excludesFile", "/etc/gitignore_global"},
-	}
-
-	for _, cmd := range commands {
-		// Use root to bootstrap system config robustly
-		if _, err := s.Docker.ExecAsUser(ctx, containerID, "root", cmd); err != nil {
-			return fmt.Errorf("failed to execute git bootstrap command %v: %w", cmd, err)
+	if !s.UseLocalAgent {
+		writeCmd := []string{"/bin/sh", "-c", fmt.Sprintf("echo '%s' > /etc/gitignore_global", ignoreContent)}
+		if _, err := s.Docker.ExecAsUser(ctx, containerID, "root", writeCmd); err != nil {
+			fmt.Printf("Warning: Failed to create global gitignore: %v\n", err)
 		}
+
+		fmt.Printf("Bootstrapping git config (email: %s, name: %s, excludes: /etc/gitignore_global)...\n", email, name)
+
+		commands := [][]string{
+			{"sudo", "git", "config", "--system", "user.email", email},
+			{"sudo", "git", "config", "--system", "user.name", name},
+			{"sudo", "git", "config", "--system", "safe.directory", "*"},
+			{"sudo", "git", "config", "--system", "core.excludesFile", "/etc/gitignore_global"},
+		}
+
+		for _, cmd := range commands {
+			// Use root to bootstrap system config robustly
+			if _, err := s.Docker.ExecAsUser(ctx, containerID, "root", cmd); err != nil {
+				return fmt.Errorf("failed to execute git bootstrap command %v: %w", cmd, err)
+			}
+		}
+	} else {
+		fmt.Println("Skipping system-level git bootstrap in local mode (relying on env vars).")
 	}
 
 	return nil
@@ -2347,21 +2373,41 @@ func (s *Session) runInitScript(ctx context.Context) {
 	fmt.Println("Found init.sh. Executing in container...")
 
 	// 1. Ensure executable
-	if _, err := s.Docker.ExecAsUser(ctx, s.GetContainerID(), "root", []string{"chmod", "+x", "init.sh"}); err != nil {
-		fmt.Printf("Warning: Failed to make init.sh executable: %v\n", err)
-		return
+	if s.UseLocalAgent {
+		if err := os.Chmod(initPath, 0755); err != nil {
+			fmt.Printf("Warning: Failed to make init.sh executable: %v\n", err)
+			return
+		}
+	} else {
+		if _, err := s.Docker.ExecAsUser(ctx, s.GetContainerID(), "root", []string{"chmod", "+x", "init.sh"}); err != nil {
+			fmt.Printf("Warning: Failed to make init.sh executable: %v\n", err)
+			return
+		}
 	}
 
 	// 2. Execute Async
 	fmt.Println("Found init.sh. Launching in background (10m timeout)...")
 	go func() {
-		// Use a fresh context so it doesn't get cancelled if the parent context is short.
-		// But usually we want it bound to app lifecycle?
-		// For async setup, we want it to finish even if we move on.
-		asyncCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second*60)
+		asyncCtx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
 
-		output, err := s.Docker.ExecAsUser(asyncCtx, s.GetContainerID(), "root", []string{"/bin/sh", "-c", "./init.sh"})
+		var output string
+		var err error
+
+		if s.UseLocalAgent {
+			// Local Execution
+			cmd := exec.CommandContext(asyncCtx, "/bin/sh", "-c", "./init.sh")
+			cmd.Dir = s.Workspace
+			var outBuf bytes.Buffer
+			cmd.Stdout = &outBuf
+			cmd.Stderr = &outBuf
+			err = cmd.Run()
+			output = outBuf.String()
+		} else {
+			// Docker Execution
+			output, err = s.Docker.ExecAsUser(asyncCtx, s.GetContainerID(), "root", []string{"/bin/sh", "-c", "./init.sh"})
+		}
+
 		if err != nil {
 			if asyncCtx.Err() == context.DeadlineExceeded {
 				fmt.Printf("Warning: init.sh execution timed out after 10 minutes.\n")

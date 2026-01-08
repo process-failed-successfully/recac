@@ -757,9 +757,12 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 		cfg.SessionName = projectName
 	}
 
-	dockerCli, err := docker.NewClient(projectName)
+	var dockerCli *docker.Client
+	var err error
+	dockerCli, err = docker.NewClient(projectName)
 	if err != nil {
-		return fmt.Errorf("failed to initialize Docker client: %v", err)
+		fmt.Printf("Warning: Failed to initialize Docker client: %v. Proceeding in restricted mode.\n", err)
+		dockerCli = nil
 	}
 
 	provider := cfg.Provider

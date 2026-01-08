@@ -72,7 +72,7 @@ secrets:
 
 # Mount the Docker socket for running agents
 dockerSocket:
-  enabled: true
+  enabled: false
   hostPath: /var/run/docker.sock
 
 # Subcharts
