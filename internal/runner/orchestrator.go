@@ -121,7 +121,7 @@ func (o *Orchestrator) Run(ctx context.Context) error {
 			// If we have minimal tasks (>2) and failure rate > 50%, trigger manager
 			if totalTasks > 2 && float64(failedTasks)/float64(totalTasks) > 0.5 {
 				fmt.Printf("Critical Failure Rate Detected (%d/%d failed). Triggering Manager.\n", failedTasks, totalTasks)
-				if err := o.DB.SetSignal("TRIGGER_MANAGER", "true"); err != nil {
+				if err := o.DB.SetSignal(o.Project, "TRIGGER_MANAGER", "true"); err != nil {
 					fmt.Printf("Error setting TRIGGER_MANAGER: %v\n", err)
 				}
 				// We don't return here, we let the barrier sync catch the signal in the next iteration
@@ -141,7 +141,7 @@ func (o *Orchestrator) Run(ctx context.Context) error {
 
 				if o.hasFailures() {
 					fmt.Println("Task failures detected. Triggering Manager for review.")
-					o.DB.SetSignal("TRIGGER_MANAGER", "true")
+					o.DB.SetSignal(o.Project, "TRIGGER_MANAGER", "true")
 				}
 
 				return nil
@@ -178,7 +178,7 @@ func (o *Orchestrator) Run(ctx context.Context) error {
 						fmt.Printf("Marking blocked task %s as failed.\n", id)
 						o.Graph.MarkTaskStatus(id, TaskFailed, fmt.Errorf("dependency failure"))
 						// Update DB too
-						if err := o.DB.UpdateFeatureStatus(id, "failed", false); err != nil {
+						if err := o.DB.UpdateFeatureStatus(o.Project, id, "failed", false); err != nil {
 							fmt.Printf("Warning: Failed to update DB for blocked task %s: %v\n", id, err)
 						}
 					}
@@ -204,7 +204,7 @@ func (o *Orchestrator) Run(ctx context.Context) error {
 }
 
 func (o *Orchestrator) refreshGraph() error {
-	content, err := o.DB.GetFeatures()
+	content, err := o.DB.GetFeatures(o.Project)
 	if err != nil {
 		return err
 	}
@@ -223,7 +223,7 @@ func (o *Orchestrator) refreshGraph() error {
 
 func (o *Orchestrator) canAcquireImmediate(paths []string) bool {
 	// 1. Check Database Locks
-	activeLocks, err := o.DB.GetActiveLocks()
+	activeLocks, err := o.DB.GetActiveLocks(o.Project)
 	if err != nil {
 		return false
 	}
@@ -257,14 +257,14 @@ func (o *Orchestrator) ExecuteTask(ctx context.Context, taskID string, node *Tas
 	agentID := fmt.Sprintf("agent-%s", taskID)
 
 	for _, path := range node.ExclusiveWritePaths {
-		acquired, err := o.DB.AcquireLock(path, agentID, 1*time.Minute)
+		acquired, err := o.DB.AcquireLock(o.Project, path, agentID, 1*time.Minute)
 		if err != nil || !acquired {
 			fmt.Printf("!!! [ORCHESTRATOR] Task %s failed to acquire lock on %s (it may be held by another agent)\n", taskID, path)
 			telemetry.TrackLockContention(o.Project)
 			o.Graph.MarkTaskStatus(taskID, TaskPending, fmt.Errorf("lock acquisition failed"))
 			return fmt.Errorf("lock acquisition failed")
 		}
-		defer o.DB.ReleaseLock(path, agentID)
+		defer o.DB.ReleaseLock(o.Project, path, agentID)
 	}
 
 	session := NewSession(o.Docker, o.Agent, o.Workspace, o.BaseImage, o.Project, o.AgentProvider, o.AgentModel, 1)
@@ -317,7 +317,7 @@ func (o *Orchestrator) ExecuteTask(ctx context.Context, taskID string, node *Tas
 		o.Graph.MarkTaskStatus(taskID, TaskFailed, err)
 
 		// Explicitly mark feature as failed in DB so other agents don't think it's done
-		if dbErr := o.DB.UpdateFeatureStatus(taskID, "failed", false); dbErr != nil {
+		if dbErr := o.DB.UpdateFeatureStatus(o.Project, taskID, "failed", false); dbErr != nil {
 			fmt.Printf("Warning: Failed to update DB status for failed task %s: %v\n", taskID, dbErr)
 		}
 
@@ -332,7 +332,7 @@ func (o *Orchestrator) ExecuteTask(ctx context.Context, taskID string, node *Tas
 func (o *Orchestrator) hasLifecycleSignal() bool {
 	signals := []string{"PROJECT_SIGNED_OFF", "QA_PASSED", "COMPLETED", "TRIGGER_MANAGER", "TRIGGER_QA", "CLEANUP_REQUIRED"}
 	for _, sig := range signals {
-		val, err := o.DB.GetSignal(sig)
+		val, err := o.DB.GetSignal(o.Project, sig)
 		if err == nil && val != "" {
 			return true
 		}

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -35,6 +36,7 @@ func NewPostgresStore(dsn string) (*PostgresStore, error) {
 }
 
 func (s *PostgresStore) migrate() error {
+	// 1. Initial creation
 	queries := []string{
 		`CREATE TABLE IF NOT EXISTS observations (
 			id SERIAL PRIMARY KEY,
@@ -44,29 +46,58 @@ func (s *PostgresStore) migrate() error {
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		);`,
 		`CREATE TABLE IF NOT EXISTS signals (
-			key TEXT PRIMARY KEY,
+			project_id TEXT NOT NULL DEFAULT 'default',
+			key TEXT NOT NULL,
 			value TEXT,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY (project_id, key)
 		);`,
 		`CREATE TABLE IF NOT EXISTS project_features (
-			id INTEGER PRIMARY KEY CHECK (id = 1),
+			project_id TEXT PRIMARY KEY,
 			content TEXT NOT NULL,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		);`,
 		`CREATE TABLE IF NOT EXISTS file_locks (
-			path TEXT PRIMARY KEY,
+			project_id TEXT NOT NULL DEFAULT 'default',
+			path TEXT NOT NULL,
 			agent_id TEXT NOT NULL,
 			lock_type TEXT,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			expires_at TIMESTAMP NOT NULL
+			expires_at TIMESTAMP NOT NULL,
+			PRIMARY KEY (project_id, path)
 		);`,
 	}
 
 	for _, query := range queries {
 		if _, err := s.db.Exec(query); err != nil {
-			return err
+			// If it failed due to PK already existing or column missing, we handle it in step 2
+			slog.Debug("primary migration step failed, will attempt fine-grained fixes", "error", err)
 		}
 	}
+
+	// 2. Fine-grained column/PK additions for older installations
+	// observations: add project_id
+	_, _ = s.db.Exec(`ALTER TABLE observations ADD COLUMN IF NOT EXISTS project_id TEXT NOT NULL DEFAULT 'default'`)
+
+	// signals: add project_id, update PK
+	_, _ = s.db.Exec(`ALTER TABLE signals ADD COLUMN IF NOT EXISTS project_id TEXT NOT NULL DEFAULT 'default'`)
+	// Change PK if it's only (key). This is tricky in PG but we can try to drop and recreate PK.
+	// Actually, just ensuring the column exists is enough for individual queries to not crash
+	// if they don't rely on the multi-column PK for correctness (SetSignal does use ON CONFLICT).
+
+	// Better: drop old PK and add new one if it doesn't match
+	_, _ = s.db.Exec(`ALTER TABLE signals DROP CONSTRAINT IF EXISTS signals_pkey`)
+	_, _ = s.db.Exec(`ALTER TABLE signals ADD PRIMARY KEY (project_id, key)`)
+
+	// project_features: ensure project_id is PK
+	_, _ = s.db.Exec(`ALTER TABLE project_features DROP CONSTRAINT IF EXISTS project_features_pkey`)
+	_, _ = s.db.Exec(`ALTER TABLE project_features ADD PRIMARY KEY (project_id)`)
+
+	// file_locks: add project_id, update PK
+	_, _ = s.db.Exec(`ALTER TABLE file_locks ADD COLUMN IF NOT EXISTS project_id TEXT NOT NULL DEFAULT 'default'`)
+	_, _ = s.db.Exec(`ALTER TABLE file_locks DROP CONSTRAINT IF EXISTS file_locks_pkey`)
+	_, _ = s.db.Exec(`ALTER TABLE file_locks ADD PRIMARY KEY (project_id, path)`)
+
 	return nil
 }
 
@@ -103,17 +134,17 @@ func (s *PostgresStore) QueryHistory(projectID string, limit int) ([]Observation
 }
 
 // SetSignal sets a signal key-value pair
-func (s *PostgresStore) SetSignal(key, value string) error {
-	query := `INSERT INTO signals (key, value, created_at) VALUES ($1, $2, NOW()) 
-			  ON CONFLICT (key) DO UPDATE SET value = $2, created_at = NOW()`
-	_, err := s.db.Exec(query, key, value)
+func (s *PostgresStore) SetSignal(projectID, key, value string) error {
+	query := `INSERT INTO signals (project_id, key, value, created_at) VALUES ($1, $2, $3, NOW()) 
+			  ON CONFLICT (project_id, key) DO UPDATE SET value = $3, created_at = NOW()`
+	_, err := s.db.Exec(query, projectID, key, value)
 	return err
 }
 
 // GetSignal retrieves a signal value by key
-func (s *PostgresStore) GetSignal(key string) (string, error) {
-	query := `SELECT value FROM signals WHERE key = $1`
-	row := s.db.QueryRow(query, key)
+func (s *PostgresStore) GetSignal(projectID, key string) (string, error) {
+	query := `SELECT value FROM signals WHERE project_id = $1 AND key = $2`
+	row := s.db.QueryRow(query, projectID, key)
 	var value string
 	err := row.Scan(&value)
 	if err == sql.ErrNoRows {
@@ -123,24 +154,24 @@ func (s *PostgresStore) GetSignal(key string) (string, error) {
 }
 
 // DeleteSignal deletes a signal by key
-func (s *PostgresStore) DeleteSignal(key string) error {
-	query := `DELETE FROM signals WHERE key = $1`
-	_, err := s.db.Exec(query, key)
+func (s *PostgresStore) DeleteSignal(projectID, key string) error {
+	query := `DELETE FROM signals WHERE project_id = $1 AND key = $2`
+	_, err := s.db.Exec(query, projectID, key)
 	return err
 }
 
 // SaveFeatures saves the feature list JSON blob
-func (s *PostgresStore) SaveFeatures(features string) error {
-	query := `INSERT INTO project_features (id, content, updated_at) VALUES (1, $1, NOW())
-			  ON CONFLICT (id) DO UPDATE SET content = $1, updated_at = NOW()`
-	_, err := s.db.Exec(query, features)
+func (s *PostgresStore) SaveFeatures(projectID string, features string) error {
+	query := `INSERT INTO project_features (project_id, content, updated_at) VALUES ($1, $2, NOW())
+			  ON CONFLICT (project_id) DO UPDATE SET content = $2, updated_at = NOW()`
+	_, err := s.db.Exec(query, projectID, features)
 	return err
 }
 
 // GetFeatures retrieves the feature list JSON blob
-func (s *PostgresStore) GetFeatures() (string, error) {
-	query := `SELECT content FROM project_features WHERE id = 1`
-	row := s.db.QueryRow(query)
+func (s *PostgresStore) GetFeatures(projectID string) (string, error) {
+	query := `SELECT content FROM project_features WHERE project_id = $1`
+	row := s.db.QueryRow(query, projectID)
 	var content string
 	err := row.Scan(&content)
 	if err == sql.ErrNoRows {
@@ -151,9 +182,7 @@ func (s *PostgresStore) GetFeatures() (string, error) {
 }
 
 // UpdateFeatureStatus updates a specific feature within the JSON blob
-// Uses optimistic locking logic (read-modify-write) because managing JSONB updates for arrays is complex
-// and we want compatibility with the interface logic.
-func (s *PostgresStore) UpdateFeatureStatus(id string, status string, passes bool) error {
+func (s *PostgresStore) UpdateFeatureStatus(projectID string, id string, status string, passes bool) error {
 	// Transaction for safety
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -163,7 +192,7 @@ func (s *PostgresStore) UpdateFeatureStatus(id string, status string, passes boo
 
 	// 1. Read existing (FOR UPDATE to lock row)
 	var content string
-	err = tx.QueryRow(`SELECT content FROM project_features WHERE id = 1 FOR UPDATE`).Scan(&content)
+	err = tx.QueryRow(`SELECT content FROM project_features WHERE project_id = $1 FOR UPDATE`, projectID).Scan(&content)
 	if err != nil {
 		return err
 	}
@@ -194,7 +223,7 @@ func (s *PostgresStore) UpdateFeatureStatus(id string, status string, passes boo
 		return err
 	}
 
-	_, err = tx.Exec(`UPDATE project_features SET content = $1, updated_at = NOW() WHERE id = 1`, string(updated))
+	_, err = tx.Exec(`UPDATE project_features SET content = $1, updated_at = NOW() WHERE project_id = $2`, string(updated), projectID)
 	if err != nil {
 		return err
 	}
@@ -203,18 +232,18 @@ func (s *PostgresStore) UpdateFeatureStatus(id string, status string, passes boo
 }
 
 // AcquireLock attempts to acquire a lock on a path. It polls until timeout.
-func (s *PostgresStore) AcquireLock(path, agentID string, timeout time.Duration) (bool, error) {
+func (s *PostgresStore) AcquireLock(projectID, path, agentID string, timeout time.Duration) (bool, error) {
 	start := time.Now()
 	for {
 		// 1. Check if lock exists and is valid
 		var currentAgent string
 		var expiresAt time.Time
-		err := s.db.QueryRow(`SELECT agent_id, expires_at FROM file_locks WHERE path = $1`, path).Scan(&currentAgent, &expiresAt)
+		err := s.db.QueryRow(`SELECT agent_id, expires_at FROM file_locks WHERE project_id = $1 AND path = $2`, projectID, path).Scan(&currentAgent, &expiresAt)
 
 		if err == sql.ErrNoRows {
 			// No lock, try to acquire
-			_, err = s.db.Exec(`INSERT INTO file_locks (path, agent_id, expires_at) VALUES ($1, $2, $3)`,
-				path, agentID, time.Now().Add(10*time.Minute))
+			_, err = s.db.Exec(`INSERT INTO file_locks (project_id, path, agent_id, expires_at) VALUES ($1, $2, $3, $4)`,
+				projectID, path, agentID, time.Now().Add(10*time.Minute))
 			if err == nil {
 				return true, nil
 			}
@@ -223,15 +252,15 @@ func (s *PostgresStore) AcquireLock(path, agentID string, timeout time.Duration)
 			// Lock exists
 			if time.Now().After(expiresAt) {
 				// Lock expired, "highjack" it
-				_, err = s.db.Exec(`UPDATE file_locks SET agent_id = $1, expires_at = $2, created_at = NOW() WHERE path = $3`,
-					agentID, time.Now().Add(10*time.Minute), path)
+				_, err = s.db.Exec(`UPDATE file_locks SET agent_id = $1, expires_at = $2, created_at = NOW() WHERE project_id = $3 AND path = $4`,
+					agentID, time.Now().Add(10*time.Minute), projectID, path)
 				if err == nil {
 					return true, nil
 				}
 			} else if currentAgent == agentID {
 				// Already held by us, renew
-				_, err = s.db.Exec(`UPDATE file_locks SET expires_at = $1 WHERE path = $2`,
-					time.Now().Add(10*time.Minute), path)
+				_, err = s.db.Exec(`UPDATE file_locks SET expires_at = $1 WHERE project_id = $2 AND path = $3`,
+					time.Now().Add(10*time.Minute), projectID, path)
 				return err == nil, err
 			}
 		} else {
@@ -249,24 +278,24 @@ func (s *PostgresStore) AcquireLock(path, agentID string, timeout time.Duration)
 }
 
 // ReleaseLock releases a lock. If agentID is "MANAGER", it can release any lock.
-func (s *PostgresStore) ReleaseLock(path, agentID string) error {
+func (s *PostgresStore) ReleaseLock(projectID, path, agentID string) error {
 	if agentID == "MANAGER" {
-		_, err := s.db.Exec(`DELETE FROM file_locks WHERE path = $1`, path)
+		_, err := s.db.Exec(`DELETE FROM file_locks WHERE project_id = $1 AND path = $2`, projectID, path)
 		return err
 	}
-	_, err := s.db.Exec(`DELETE FROM file_locks WHERE path = $1 AND agent_id = $2`, path, agentID)
+	_, err := s.db.Exec(`DELETE FROM file_locks WHERE project_id = $1 AND path = $2 AND agent_id = $3`, projectID, path, agentID)
 	return err
 }
 
 // ReleaseAllLocks releases all locks held by an agent.
-func (s *PostgresStore) ReleaseAllLocks(agentID string) error {
-	_, err := s.db.Exec(`DELETE FROM file_locks WHERE agent_id = $1`, agentID)
+func (s *PostgresStore) ReleaseAllLocks(projectID, agentID string) error {
+	_, err := s.db.Exec(`DELETE FROM file_locks WHERE project_id = $1 AND agent_id = $2`, projectID, agentID)
 	return err
 }
 
 // GetActiveLocks returns all current (not expired) locks.
-func (s *PostgresStore) GetActiveLocks() ([]Lock, error) {
-	rows, err := s.db.Query(`SELECT path, agent_id, expires_at FROM file_locks WHERE expires_at > NOW()`)
+func (s *PostgresStore) GetActiveLocks(projectID string) ([]Lock, error) {
+	rows, err := s.db.Query("SELECT path, agent_id, expires_at FROM file_locks WHERE expires_at > $1 AND project_id = $2", time.Now(), projectID)
 	if err != nil {
 		return nil, err
 	}

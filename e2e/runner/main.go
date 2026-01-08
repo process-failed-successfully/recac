@@ -18,12 +18,12 @@ import (
 )
 
 var (
-	defaultRepo  = "192.168.0.55:5000/recac-e2e"
-	deployTag    = "1h"
-	chartPath    = "./deploy/helm/recac"
-	namespace    = "default"
-	releaseName  = "recac"
-	repoURL      = "https://github.com/process-failed-successfully/recac-jira-e2e"
+	defaultRepo = "192.168.0.55:5000/recac-e2e"
+	deployTag   = "1h"
+	chartPath   = "./deploy/helm/recac"
+	namespace   = "default"
+	releaseName = "recac"
+	repoURL     = "https://github.com/process-failed-successfully/recac-jira-e2e"
 )
 
 func main() {
@@ -52,7 +52,7 @@ func run() error {
 	flag.StringVar(&model, "model", "mistralai/devstral-2512:free", "AI Model")
 	flag.StringVar(&deployRepo, "repo", defaultRepo, "Docker repository for deployment")
 	flag.StringVar(&targetRepo, "repo-url", repoURL, "Target Git repository for the agent")
-	flag.StringVar(&pullPolicy, "pull-policy", "Always", "Image pull policy (Always, IfNotPresent, Never)")
+	flag.StringVar(&pullPolicy, "pull-policy", "IfNotPresent", "Image pull policy (Always, IfNotPresent, Never)")
 	flag.StringVar(&exactImage, "image", "", "Exact image name to use (overrides repo/timestamp logic)")
 	flag.BoolVar(&skipBuild, "skip-build", false, "Skip docker build")
 	flag.BoolVar(&skipCleanup, "skip-cleanup", false, "Skip cleanup on finish")
@@ -211,7 +211,7 @@ func run() error {
 
 	// Check for Agent Job
 	log.Println("Waiting for Agent Job to start...")
-	
+
 	// Determine expected job name from ticket map (assuming single task for now or finding "PRIMES")
 	var targetTicketID string
 	if id, ok := ticketMap["PRIMES"]; ok {
@@ -223,7 +223,7 @@ func run() error {
 			break
 		}
 	}
-	
+
 	expectedJobPrefix := fmt.Sprintf("recac-agent-%s", strings.ToLower(targetTicketID))
 	log.Printf("Looking for job prefix: %s", expectedJobPrefix)
 
@@ -236,7 +236,7 @@ func run() error {
 
 	// Wait for Job Completion
 	log.Println("Waiting for Agent Job to complete...")
-	if err := waitForJobCompletion(namespace, jobName, 600*time.Second); err != nil {
+	if err := waitForJobCompletion(namespace, jobName, 1200*time.Second); err != nil {
 		printLogs(namespace, "app=recac-agent")
 		return fmt.Errorf("agent job failed to complete: %w", err)
 	}

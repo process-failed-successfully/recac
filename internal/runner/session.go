@@ -110,7 +110,7 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 	// Initialize DB Store
 	dbType := os.Getenv("RECAC_DB_TYPE")
 	dbURL := os.Getenv("RECAC_DB_URL")
-	
+
 	if dbType == "" {
 		dbType = "sqlite"
 		if dbURL == "" {
@@ -197,7 +197,7 @@ func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, pr
 	// Initialize DB Store
 	dbType := os.Getenv("RECAC_DB_TYPE")
 	dbURL := os.Getenv("RECAC_DB_URL")
-	
+
 	if dbType == "" {
 		dbType = "sqlite"
 		if dbURL == "" {
@@ -552,12 +552,11 @@ func (s *Session) Start(ctx context.Context) error {
 
 	// Restore Slack Thread TS from DB if available (for session resumption)
 	if s.SlackThreadTS == "" && s.DBStore != nil {
-		if ts, err := s.DBStore.GetSignal("SLACK_THREAD_TS"); err == nil && ts != "" {
+		if ts, err := s.DBStore.GetSignal(s.Project, "SLACK_THREAD_TS"); err == nil && ts != "" {
 			s.SlackThreadTS = ts
-			fmt.Printf("Restored Slack Thread TS: %s\n", ts)
+			s.Logger.Info("restored slack thread ts from db", "ts", ts)
 		}
 	}
-
 	// Notify Start
 	if !s.SuppressStartNotification {
 		msg := fmt.Sprintf("Project %s: Session Started", s.Project)
@@ -571,7 +570,7 @@ func (s *Session) Start(ctx context.Context) error {
 			s.SlackThreadTS = ts
 			// Persist new thread TS
 			if s.DBStore != nil && ts != "" {
-				if err := s.DBStore.SetSignal("SLACK_THREAD_TS", ts); err != nil {
+				if err := s.DBStore.SetSignal(s.Project, "SLACK_THREAD_TS", ts); err != nil {
 					fmt.Printf("Warning: Failed to persist Slack Thread TS: %v\n", err)
 				}
 			}
@@ -1370,7 +1369,7 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 	var historyStr string
 	if s.DBStore != nil {
 		// Limit history size to prevent context exhaustion (413 errors)
-		const MaxHistoryChars = 25000                 // approx 6k tokens, safe for most models
+		const MaxHistoryChars = 25000                     // approx 6k tokens, safe for most models
 		obs, err := s.DBStore.QueryHistory(s.Project, 20) // Fetch more, but we'll filter by size
 		if err == nil {
 			var sb strings.Builder
@@ -1450,10 +1449,11 @@ func (s *Session) loadFeatures() []db.Feature {
 
 	// 1. Try to fetch from DB first (Authoritative source)
 	if s.DBStore != nil {
-		content, err := s.DBStore.GetFeatures()
+		content, err := s.DBStore.GetFeatures(s.Project)
 		if err == nil && content != "" {
 			var fl db.FeatureList
 			if err := json.Unmarshal([]byte(content), &fl); err == nil {
+				s.Logger.Info("loaded features from DB history")
 				// Authoritative data found in DB - Sync BACK to file to restore it (effectively read-only/mirror)
 				s.syncFeatureFile(fl)
 				return fl.Features
@@ -1468,7 +1468,7 @@ func (s *Session) loadFeatures() []db.Feature {
 		if err := json.Unmarshal(data, &fl); err == nil {
 			// Successfully read valid JSON from file - Sync to DB if DB is empty
 			if s.DBStore != nil {
-				_ = s.DBStore.SaveFeatures(string(data))
+				_ = s.DBStore.SaveFeatures(s.Project, string(data))
 			}
 			return fl.Features
 		}
@@ -1517,39 +1517,37 @@ func (s *Session) hasSignal(name string) bool {
 		return false
 	}
 
-	// 1. Check DB first (Source of Truth for privileged signals)
-	val, err := s.DBStore.GetSignal(name)
-	if err == nil && val != "" {
+	// 1. Check DB (Modern Source)
+	val, err := s.DBStore.GetSignal(s.Project, name)
+	if err == nil && val == "true" {
 		return true
 	}
 
-	// 2. Check File (Agent might have created it)
-	// GUARDRAIL: Only allow non-privileged signals from the filesystem.
-	// This prevents agents from spoofing completion/sign-off status.
-	privilegedSignals := map[string]bool{
-		"PROJECT_SIGNED_OFF": true,
-		"QA_PASSED":          true,
-		"COMPLETED":          true,
-		"TRIGGER_QA":         true,
-		"TRIGGER_MANAGER":    true,
-	}
-
-	if privilegedSignals[name] {
-		// Privileged signals MUST come from the DB (set by RECAC internal logic)
-		return false
-	}
-
+	// 2. Migration: Check Filesystem (Legacy Source)
 	path := filepath.Join(s.Workspace, name)
 	if _, err := os.Stat(path); err == nil {
-		// File exists - Migrate to DB
-		s.Logger.Info("migrating signal from file to DB", "signal", name)
-		if err := s.DBStore.SetSignal(name, "true"); err != nil {
-			s.Logger.Warn("failed to migrate signal to DB", "signal", name, "error", err)
+		// Found file-based signal.
+		// Security Check: Only migrate non-privileged signals from filesystem
+		privilegedSignals := map[string]bool{
+			"PROJECT_SIGNED_OFF": true,
+			"QA_PASSED":          true,
+			"COMPLETED":          true,
+			"TRIGGER_QA":         true,
+			"TRIGGER_MANAGER":    true,
 		}
-		// Remove file
-		if err := os.Remove(path); err != nil {
-			s.Logger.Warn("failed to remove signal file", "signal", name, "error", err)
+
+		if privilegedSignals[name] {
+			s.Logger.Warn("ignoring filesystem-based privileged signal (must come from DB)", "signal", name)
+			return false
 		}
+
+		s.Logger.Info("migrating signal from filesystem to DB", "signal", name)
+		if err := s.DBStore.SetSignal(s.Project, name, "true"); err != nil {
+			s.Logger.Error("failed to migrate signal to DB", "signal", name, "error", err)
+			return true // File exists, so logically signal is true even if migration failed
+		}
+		// Cleanup the file after migration
+		os.Remove(path)
 		return true
 	}
 
@@ -1558,7 +1556,7 @@ func (s *Session) hasSignal(name string) bool {
 
 func (s *Session) clearSignal(name string) {
 	if s.DBStore != nil {
-		s.DBStore.DeleteSignal(name)
+		s.DBStore.DeleteSignal(s.Project, name)
 	}
 	// Also ensure file is removed (redundancy)
 	path := filepath.Join(s.Workspace, name)
@@ -1629,8 +1627,11 @@ func (s *Session) createSignal(name string) error {
 	if s.DBStore == nil {
 		return fmt.Errorf("db store not initialized")
 	}
+	if err := s.DBStore.SetSignal(s.Project, name, "true"); err != nil {
+		return err
+	}
 	s.Logger.Info("created signal", "signal", name)
-	return s.DBStore.SetSignal(name, "true")
+	return nil
 }
 
 // runQAAgent runs quality assurance checks on the feature list.
@@ -1940,15 +1941,10 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 
 	// Check for Blocker Signal (DB)
 	if s.DBStore != nil {
-		blockerMsg, err := s.DBStore.GetSignal("BLOCKER")
+		blockerMsg, err := s.DBStore.GetSignal(s.Project, "BLOCKER")
 		if err == nil && blockerMsg != "" {
-			s.Logger.Warn("agent reported blocker", "blocker", blockerMsg)
-			s.Logger.Info("session stopping to allow human resolution")
-
-			// Clear blocker so it doesn't loop forever? Or keep it?
-			// If we keep it, restart will block again.
-			// User needs to clear it or we need a mechanism.
-			// For now, valid strategy is to exit.
+			fmt.Printf("\n!!! AGENT BLOCKED: %s !!!\n", blockerMsg)
+			fmt.Println("Waiting for blocker to be resolved...")
 			return "", ErrBlocker
 		}
 	}

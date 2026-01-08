@@ -54,7 +54,7 @@ Based on `app_spec.txt`, create `feature_list.json`. This is the single source o
 
 Create a script called `init.sh` to set up the dev environment:
 
-- Install dependencies (apt, npm, go, etc.).
+- Install dependencies (apk, npm, go, etc.).
 - Start services (if needed).
 - Print helpful information about project setup.
 

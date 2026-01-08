@@ -35,6 +35,7 @@ func NewSQLiteStore(path string) (*SQLiteStore, error) {
 }
 
 func (s *SQLiteStore) migrate() error {
+	// 1. Initial creation
 	queries := []string{
 		`CREATE TABLE IF NOT EXISTS observations (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -44,29 +45,43 @@ func (s *SQLiteStore) migrate() error {
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		);`,
 		`CREATE TABLE IF NOT EXISTS signals (
-			key TEXT PRIMARY KEY,
+			project_id TEXT NOT NULL DEFAULT 'default',
+			key TEXT NOT NULL,
 			value TEXT,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY (project_id, key)
 		);`,
 		`CREATE TABLE IF NOT EXISTS project_features (
-			id INTEGER PRIMARY KEY CHECK (id = 1),
+			project_id TEXT PRIMARY KEY,
 			content TEXT NOT NULL,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		);`,
 		`CREATE TABLE IF NOT EXISTS file_locks (
-			path TEXT PRIMARY KEY,
+			project_id TEXT NOT NULL DEFAULT 'default',
+			path TEXT NOT NULL,
 			agent_id TEXT NOT NULL,
 			lock_type TEXT,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			expires_at DATETIME NOT NULL
+			expires_at DATETIME NOT NULL,
+			PRIMARY KEY (project_id, path)
 		);`,
 	}
 
 	for _, query := range queries {
 		if _, err := s.db.Exec(query); err != nil {
-			return err
+			// If it failed, we'll try fine-grained fixes
 		}
 	}
+
+	// 2. Fine-grained column additions for older installations
+	// Note: SQLite doesn't support ADD COLUMN IF NOT EXISTS, so we ignore errors if they exist.
+	_, _ = s.db.Exec(`ALTER TABLE observations ADD COLUMN project_id TEXT NOT NULL DEFAULT 'default'`)
+	_, _ = s.db.Exec(`ALTER TABLE signals ADD COLUMN project_id TEXT NOT NULL DEFAULT 'default'`)
+	_, _ = s.db.Exec(`ALTER TABLE file_locks ADD COLUMN project_id TEXT NOT NULL DEFAULT 'default'`)
+
+	// PK changes in SQLite require table recreation, which is risky to do here.
+	// For now, adding the column is the most important part to avoid "no such column" errors.
+
 	return nil
 }
 
@@ -103,16 +118,16 @@ func (s *SQLiteStore) QueryHistory(projectID string, limit int) ([]Observation, 
 }
 
 // SetSignal sets a signal key-value pair
-func (s *SQLiteStore) SetSignal(key, value string) error {
-	query := `INSERT OR REPLACE INTO signals (key, value, created_at) VALUES (?, ?, ?)`
-	_, err := s.db.Exec(query, key, value, time.Now())
+func (s *SQLiteStore) SetSignal(projectID, key, value string) error {
+	query := `INSERT OR REPLACE INTO signals (project_id, key, value, created_at) VALUES (?, ?, ?, ?)`
+	_, err := s.db.Exec(query, projectID, key, value, time.Now())
 	return err
 }
 
 // GetSignal retrieves a signal value by key
-func (s *SQLiteStore) GetSignal(key string) (string, error) {
-	query := `SELECT value FROM signals WHERE key = ?`
-	row := s.db.QueryRow(query, key)
+func (s *SQLiteStore) GetSignal(projectID, key string) (string, error) {
+	query := `SELECT value FROM signals WHERE project_id = ? AND key = ?`
+	row := s.db.QueryRow(query, projectID, key)
 	var value string
 	err := row.Scan(&value)
 	if err == sql.ErrNoRows {
@@ -122,23 +137,23 @@ func (s *SQLiteStore) GetSignal(key string) (string, error) {
 }
 
 // DeleteSignal deletes a signal by key
-func (s *SQLiteStore) DeleteSignal(key string) error {
-	query := `DELETE FROM signals WHERE key = ?`
-	_, err := s.db.Exec(query, key)
+func (s *SQLiteStore) DeleteSignal(projectID, key string) error {
+	query := `DELETE FROM signals WHERE project_id = ? AND key = ?`
+	_, err := s.db.Exec(query, projectID, key)
 	return err
 }
 
 // SaveFeatures saves the feature list JSON blob
-func (s *SQLiteStore) SaveFeatures(features string) error {
-	query := `INSERT OR REPLACE INTO project_features (id, content, updated_at) VALUES (1, ?, ?)`
-	_, err := s.db.Exec(query, features, time.Now())
+func (s *SQLiteStore) SaveFeatures(projectID string, features string) error {
+	query := `INSERT OR REPLACE INTO project_features (project_id, content, updated_at) VALUES (?, ?, ?)`
+	_, err := s.db.Exec(query, projectID, features, time.Now())
 	return err
 }
 
 // GetFeatures retrieves the feature list JSON blob
-func (s *SQLiteStore) GetFeatures() (string, error) {
-	query := `SELECT content FROM project_features WHERE id = 1`
-	row := s.db.QueryRow(query)
+func (s *SQLiteStore) GetFeatures(projectID string) (string, error) {
+	query := `SELECT content FROM project_features WHERE project_id = ?`
+	row := s.db.QueryRow(query, projectID)
 	var content string
 	err := row.Scan(&content)
 	if err == sql.ErrNoRows {
@@ -149,14 +164,14 @@ func (s *SQLiteStore) GetFeatures() (string, error) {
 }
 
 // UpdateFeatureStatus updates a specific feature within the JSON blob
-func (s *SQLiteStore) UpdateFeatureStatus(id string, status string, passes bool) error {
+func (s *SQLiteStore) UpdateFeatureStatus(projectID string, id string, status string, passes bool) error {
 	// 1. Read existing
-	content, err := s.GetFeatures()
+	content, err := s.GetFeatures(projectID)
 	if err != nil {
 		return err
 	}
 	if content == "" {
-		return fmt.Errorf("no features found in DB")
+		return fmt.Errorf("no features found in DB for project %s", projectID)
 	}
 
 	var fl FeatureList
@@ -185,22 +200,22 @@ func (s *SQLiteStore) UpdateFeatureStatus(id string, status string, passes bool)
 		return err
 	}
 
-	return s.SaveFeatures(string(updated))
+	return s.SaveFeatures(projectID, string(updated))
 }
 
 // AcquireLock attempts to acquire a lock on a path. It polls until timeout.
-func (s *SQLiteStore) AcquireLock(path, agentID string, timeout time.Duration) (bool, error) {
+func (s *SQLiteStore) AcquireLock(projectID, path, agentID string, timeout time.Duration) (bool, error) {
 	start := time.Now()
 	for {
 		// 1. Check if lock exists and is valid
 		var currentAgent string
 		var expiresAt time.Time
-		err := s.db.QueryRow(`SELECT agent_id, expires_at FROM file_locks WHERE path = ?`, path).Scan(&currentAgent, &expiresAt)
+		err := s.db.QueryRow(`SELECT agent_id, expires_at FROM file_locks WHERE project_id = ? AND path = ?`, projectID, path).Scan(&currentAgent, &expiresAt)
 
 		if err == sql.ErrNoRows {
 			// No lock, try to acquire
-			_, err = s.db.Exec(`INSERT INTO file_locks (path, agent_id, expires_at) VALUES (?, ?, ?)`,
-				path, agentID, time.Now().Add(10*time.Minute))
+			_, err = s.db.Exec(`INSERT INTO file_locks (project_id, path, agent_id, expires_at) VALUES (?, ?, ?, ?)`,
+				projectID, path, agentID, time.Now().Add(10*time.Minute))
 			if err == nil {
 				return true, nil
 			}
@@ -209,15 +224,15 @@ func (s *SQLiteStore) AcquireLock(path, agentID string, timeout time.Duration) (
 			// Lock exists
 			if time.Now().After(expiresAt) {
 				// Lock expired, "highjack" it
-				_, err = s.db.Exec(`UPDATE file_locks SET agent_id = ?, expires_at = ?, created_at = CURRENT_TIMESTAMP WHERE path = ?`,
-					agentID, time.Now().Add(10*time.Minute), path)
+				_, err = s.db.Exec(`UPDATE file_locks SET agent_id = ?, expires_at = ?, created_at = CURRENT_TIMESTAMP WHERE project_id = ? AND path = ?`,
+					agentID, time.Now().Add(10*time.Minute), projectID, path)
 				if err == nil {
 					return true, nil
 				}
 			} else if currentAgent == agentID {
 				// Already held by us, renew
-				_, err = s.db.Exec(`UPDATE file_locks SET expires_at = ? WHERE path = ?`,
-					time.Now().Add(10*time.Minute), path)
+				_, err = s.db.Exec(`UPDATE file_locks SET expires_at = ? WHERE project_id = ? AND path = ?`,
+					time.Now().Add(10*time.Minute), projectID, path)
 				return err == nil, err
 			}
 		} else {
@@ -235,18 +250,18 @@ func (s *SQLiteStore) AcquireLock(path, agentID string, timeout time.Duration) (
 }
 
 // ReleaseLock releases a lock. If agentID is "MANAGER", it can release any lock.
-func (s *SQLiteStore) ReleaseLock(path, agentID string) error {
+func (s *SQLiteStore) ReleaseLock(projectID, path, agentID string) error {
 	if agentID == "MANAGER" {
-		_, err := s.db.Exec(`DELETE FROM file_locks WHERE path = ?`, path)
+		_, err := s.db.Exec(`DELETE FROM file_locks WHERE project_id = ? AND path = ?`, projectID, path)
 		return err
 	}
-	_, err := s.db.Exec(`DELETE FROM file_locks WHERE path = ? AND agent_id = ?`, path, agentID)
+	_, err := s.db.Exec(`DELETE FROM file_locks WHERE project_id = ? AND path = ? AND agent_id = ?`, projectID, path, agentID)
 	return err
 }
 
 // ReleaseAllLocks releases all locks held by an agent.
-func (s *SQLiteStore) ReleaseAllLocks(agentID string) error {
-	_, err := s.db.Exec(`DELETE FROM file_locks WHERE agent_id = ?`, agentID)
+func (s *SQLiteStore) ReleaseAllLocks(projectID, agentID string) error {
+	_, err := s.db.Exec(`DELETE FROM file_locks WHERE project_id = ? AND agent_id = ?`, projectID, agentID)
 	return err
 }
 
@@ -277,8 +292,8 @@ func (s *SQLiteStore) Cleanup() error {
 }
 
 // GetActiveLocks returns all current (not expired) locks.
-func (s *SQLiteStore) GetActiveLocks() ([]Lock, error) {
-	rows, err := s.db.Query(`SELECT path, agent_id, expires_at FROM file_locks WHERE expires_at > ?`, time.Now())
+func (s *SQLiteStore) GetActiveLocks(projectID string) ([]Lock, error) {
+	rows, err := s.db.Query(`SELECT path, agent_id, expires_at FROM file_locks WHERE expires_at > ? AND project_id = ?`, time.Now(), projectID)
 	if err != nil {
 		return nil, err
 	}

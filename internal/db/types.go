@@ -43,18 +43,18 @@ type Store interface {
 	Close() error
 	SaveObservation(projectID, agentID, content string) error
 	QueryHistory(projectID string, limit int) ([]Observation, error)
-	SetSignal(key, value string) error
-	GetSignal(key string) (string, error)
-	DeleteSignal(key string) error
-	SaveFeatures(features string) error // JSON blob for flexibility
-	GetFeatures() (string, error)
-	UpdateFeatureStatus(id string, status string, passes bool) error
+	SetSignal(projectID, key, value string) error
+	GetSignal(projectID, key string) (string, error)
+	DeleteSignal(projectID, key string) error
+	SaveFeatures(projectID string, features string) error // JSON blob for flexibility
+	GetFeatures(projectID string) (string, error)
+	UpdateFeatureStatus(projectID, id string, status string, passes bool) error
 
 	// Locking methods
-	AcquireLock(path, agentID string, timeout time.Duration) (bool, error)
-	ReleaseLock(path, agentID string) error
-	ReleaseAllLocks(agentID string) error
-	GetActiveLocks() ([]Lock, error)
+	AcquireLock(projectID, path, agentID string, timeout time.Duration) (bool, error)
+	ReleaseLock(projectID, path, agentID string) error
+	ReleaseAllLocks(projectID, agentID string) error
+	GetActiveLocks(projectID string) ([]Lock, error)
 
 	// Maintenance
 	Cleanup() error

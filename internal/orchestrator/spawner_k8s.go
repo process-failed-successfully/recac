@@ -140,6 +140,9 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_DB_URL", Value: val})
 	}
 
+	// Propagate Project ID
+	envVars = append(envVars, corev1.EnvVar{Name: "RECAC_PROJECT_ID", Value: item.ID})
+
 	// Inject Git Identity to prevent "Author identity unknown" errors
 	envVars = append(envVars, []corev1.EnvVar{
 		{Name: "GIT_AUTHOR_NAME", Value: "RECAC Agent"},

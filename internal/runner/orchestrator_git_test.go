@@ -16,32 +16,34 @@ import (
 
 // MockDBStore implements db.Store for testing
 type MockDBStore struct {
-	GetFeaturesFunc func() (string, error)
+	GetFeaturesFunc func(projectID string) (string, error)
 }
 
-func (m *MockDBStore) Close() error                                     { return nil }
+func (m *MockDBStore) Close() error                                             { return nil }
 func (m *MockDBStore) SaveObservation(projectID, agentID, content string) error { return nil }
 func (m *MockDBStore) QueryHistory(projectID string, limit int) ([]db.Observation, error) {
 	return nil, nil
 }
-func (m *MockDBStore) SetSignal(key, value string) error    { return nil }
-func (m *MockDBStore) GetSignal(key string) (string, error)             { return "", nil }
-func (m *MockDBStore) DeleteSignal(key string) error                    { return nil }
-func (m *MockDBStore) SaveFeatures(features string) error               { return nil }
-func (m *MockDBStore) GetFeatures() (string, error) {
+func (m *MockDBStore) SetSignal(projectID, key, value string) error    { return nil }
+func (m *MockDBStore) GetSignal(projectID, key string) (string, error) { return "", nil }
+func (m *MockDBStore) DeleteSignal(projectID, key string) error        { return nil }
+func (m *MockDBStore) SaveFeatures(projectID, features string) error   { return nil }
+func (m *MockDBStore) GetFeatures(projectID string) (string, error) {
 	if m.GetFeaturesFunc != nil {
-		return m.GetFeaturesFunc()
+		return m.GetFeaturesFunc(projectID)
 	}
 	return "", nil
 }
-func (m *MockDBStore) UpdateFeatureStatus(id string, status string, passes bool) error { return nil }
-func (m *MockDBStore) AcquireLock(path, agentID string, timeout time.Duration) (bool, error) {
+func (m *MockDBStore) UpdateFeatureStatus(projectID, id string, status string, passes bool) error {
+	return nil
+}
+func (m *MockDBStore) AcquireLock(projectID, path, agentID string, timeout time.Duration) (bool, error) {
 	return true, nil
 }
-func (m *MockDBStore) ReleaseLock(path, agentID string) error { return nil }
-func (m *MockDBStore) ReleaseAllLocks(agentID string) error   { return nil }
-func (m *MockDBStore) GetActiveLocks() ([]db.Lock, error)     { return nil, nil }
-func (m *MockDBStore) Cleanup() error                         { return nil }
+func (m *MockDBStore) ReleaseLock(projectID, path, agentID string) error  { return nil }
+func (m *MockDBStore) ReleaseAllLocks(projectID, agentID string) error    { return nil }
+func (m *MockDBStore) GetActiveLocks(projectID string) ([]db.Lock, error) { return nil, nil }
+func (m *MockDBStore) Cleanup() error                                     { return nil }
 
 func TestOrchestrator_EnsureGitRepo(t *testing.T) {
 	// Setup temporary workspace
@@ -62,7 +64,7 @@ func TestOrchestrator_EnsureGitRepo(t *testing.T) {
 	mockDocker := &MockDockerClient{}
 	mockAgent := &agent.MockAgent{}
 	mockDB := &MockDBStore{
-		GetFeaturesFunc: func() (string, error) { return "", nil },
+		GetFeaturesFunc: func(projectID string) (string, error) { return "", nil },
 	}
 
 	o := NewOrchestrator(mockDB, mockDocker, tmpDir, "img", mockAgent, "proj", "gemini", "gemini-pro", 1, "")
