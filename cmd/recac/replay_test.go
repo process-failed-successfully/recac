@@ -15,7 +15,7 @@ import (
 )
 
 // setupTestEnvironment creates a temporary directory and a session manager for testing.
-func setupTestEnvironment(t *testing.T) (string, *runner.SessionManager, func()) {
+func setupTestEnvironment(t *testing.T) (string, ISessionManager, func()) {
 	tempDir, err := os.MkdirTemp("", "recac-replay-test-*")
 	require.NoError(t, err)
 
@@ -24,7 +24,7 @@ func setupTestEnvironment(t *testing.T) (string, *runner.SessionManager, func())
 
 	// Override the default session manager creation in the command
 	originalNewSessionManager := newSessionManager
-	newSessionManager = func() (*runner.SessionManager, error) {
+	newSessionManager = func() (ISessionManager, error) {
 		return sm, nil
 	}
 
@@ -49,7 +49,7 @@ func TestReplayCmd(t *testing.T) {
 		Workspace: "/tmp",
 		Status:    "completed",
 	}
-	err := sm.SaveSession(originalSession)
+	err := sm.(*runner.SessionManager).SaveSession(originalSession)
 	require.NoError(t, err)
 
 	// Capture stdout
@@ -106,7 +106,7 @@ func TestReplayCmd_RunningSession(t *testing.T) {
 		Workspace: "/tmp",
 		Status:    "running",
 	}
-	err := sm.SaveSession(runningSession)
+	err := sm.(*runner.SessionManager).SaveSession(runningSession)
 	require.NoError(t, err)
 
 	// Capture stderr

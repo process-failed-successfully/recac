@@ -56,8 +56,10 @@ func executeCommand(root *cobra.Command, args ...string) (string, error) {
 	b := new(bytes.Buffer)
 	root.SetOut(b)
 	root.SetErr(b)
-	// Mock Stdin to avoid hanging on interactive prompts (e.g. wizard)
-	root.SetIn(bytes.NewBufferString(""))
+	// Mock Stdin to avoid hanging on interactive prompts if it's not already set
+	if root.InOrStdin() == os.Stdin {
+		root.SetIn(bytes.NewBufferString(""))
+	}
 
 	err := root.Execute()
 	return b.String(), err
