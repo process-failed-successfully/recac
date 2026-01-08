@@ -12,7 +12,9 @@ Your job is to set up the foundation for all future coding agents.
 
 ### CRITICAL: feature_list.json Requirements
 
-Based on `app_spec.txt`, create `feature_list.json`. This is the single source of truth for features. The system maintains an authoritative database mirror of this file for resilience; if the file is deleted or corrupted, the orchestrator will automatically restore it from the DB.
+Based on `app_spec.txt`, **YOU MUST CREATE `feature_list.json`**.
+**You MUST use a `bash` block with `cat > feature_list.json << 'EOF'` to create this file.**
+This is the single source of truth for features. The system maintains an authoritative database mirror of this file for resilience; if the file is deleted or corrupted, the orchestrator will automatically restore it from the DB.
 
 - **Acceptance Tests**: Minimum 2-10 detailed test cases that cover the core requirements (2-3 for simple scripts, 5-10 for complex apps).
 - **Pragmatic Scope**: DO NOT hallucinate features not mentioned in the spec. Focus purely on what is requested.
@@ -20,6 +22,10 @@ Based on `app_spec.txt`, create `feature_list.json`. This is the single source o
 - **Priority**: Assign "POC", "MVP", or "Production". Always start with POC/MVP.
 - **Steps**: Each feature must have 3-5 explicit "steps" for verification.
 - **Exhaustive**: Cover the requirements and common edge cases (e.g., division by zero, invalid input).
+- **ANTI-HALLUCINATION**:
+  - **NO** "User Profiles", "Authentication", "Login", "FastAPI", or "Web Servers" unless explicitly requested in the Spec.
+  - If the spec is for a CLI tool, build a CLI tool. Do not build a REST API.
+  - **NO** "Future Proofing". Build EXACTLY what is asked.
 
 **Format:**
 

@@ -16,7 +16,9 @@ type SQLiteStore struct {
 
 // NewSQLiteStore creates a new SQLite store and applies migrations
 func NewSQLiteStore(path string) (*SQLiteStore, error) {
-	db, err := sql.Open("sqlite", path)
+	// Enable WAL mode and 5s busy timeout for concurrency
+	dsn := fmt.Sprintf("%s?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)", path)
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}

@@ -218,6 +218,28 @@ func run(args []string, config db.StoreConfig, projectID string) error {
 		}
 		if cmdErr == nil {
 			fmt.Printf("Feature %s updated: status=%s, passes=%v\n", id, status, passes)
+
+			// Auto-Completion Check
+			// If all features are done/passed, signal completion automatically.
+			content, err := store.GetFeatures(projectID)
+			if err == nil && content != "" {
+				var fl db.FeatureList
+				if json.Unmarshal([]byte(content), &fl) == nil {
+					allDone := true
+					for _, f := range fl.Features {
+						if strings.ToLower(f.Status) != "done" || !f.Passes {
+							allDone = false
+							break
+						}
+					}
+					if allDone {
+						fmt.Println("All features completed and passed. Auto-signaling COMPLETED.")
+						if err := store.SetSignal(projectID, "COMPLETED", "true"); err != nil {
+							fmt.Printf("Warning: Failed to set COMPLETED signal: %v\n", err)
+						}
+					}
+				}
+			}
 		}
 
 	default:
