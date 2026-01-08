@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"recac/internal/runner"
 	"recac/internal/agent"
 	"recac/internal/git"
 	"recac/internal/jira"
@@ -91,6 +92,8 @@ func getAgentClient(ctx context.Context, provider, model, projectPath, projectNa
 
 	return agent.NewAgent(provider, apiKey, model, projectPath, projectName)
 }
+
+var newSessionManager = runner.NewSessionManager
 
 // setupWorkspace handles cloning, auth fallback, and Epic branching strategy
 func setupWorkspace(ctx context.Context, repoURL, workspace, ticketID, epicKey, timestamp string) (string, error) {

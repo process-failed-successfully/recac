@@ -229,6 +229,9 @@ func (sm *SessionManager) IsProcessRunning(pid int) bool {
 	return err == nil
 }
 
+// StopSessionFunc defines the type for the stop session function
+var StopSessionFunc = (*SessionManager).StopSession
+
 // StopSession stops a running session
 func (sm *SessionManager) StopSession(name string) error {
 	session, err := sm.LoadSession(name)

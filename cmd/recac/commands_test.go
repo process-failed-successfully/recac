@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"recac/internal/runner"
 	"strings"
 	"testing"
 
@@ -304,4 +305,145 @@ func TestCommands(t *testing.T) {
 
 	})
 
+	t.Run("Stop Command Interactive", func(t *testing.T) {
+		// 1. Setup a temporary directory for the session manager
+		tmpDir := t.TempDir()
+		originalNewSessionManager := newSessionManager
+		defer func() { newSessionManager = originalNewSessionManager }()
+
+		// 2. Mock the SessionManager
+		var stoppedSession string
+		mockSM, err := runner.NewSessionManagerWithDir(tmpDir)
+		if err != nil {
+			t.Fatalf("Failed to create mock session manager: %v", err)
+		}
+		newSessionManager = func() (*runner.SessionManager, error) {
+			// Return a new instance of the mock that can be configured for the test
+			return runner.NewSessionManagerWithDir(tmpDir)
+		}
+
+		// 3. Create a mock running session
+		mockSession := &runner.SessionState{
+			Name:   "test-session-1",
+			PID:    os.Getpid(), // Use a valid PID
+			Status: "running",
+		}
+		if err := mockSM.SaveSession(mockSession); err != nil {
+			t.Fatalf("Failed to save mock session: %v", err)
+		}
+
+		// 4. Override StopSession to just record the call
+		originalStopSessionFunc := runner.StopSessionFunc
+		runner.StopSessionFunc = func(sm *runner.SessionManager, name string) error {
+			stoppedSession = name
+			// Simulate stopping by updating the status
+			session, err := sm.LoadSession(name)
+			if err != nil {
+				return err
+			}
+			session.Status = "stopped"
+			return sm.SaveSession(session)
+		}
+		defer func() {
+			runner.StopSessionFunc = originalStopSessionFunc
+		}()
+
+
+		// 5. Simulate user input ("1" for the first session) and execute the command
+		// We need to pass the input to stdin
+		input := "1\n"
+		oldStdin := os.Stdin
+		defer func() { os.Stdin = oldStdin }()
+		r, w, _ := os.Pipe()
+		w.WriteString(input)
+		w.Close()
+		os.Stdin = r
+
+		// We need a custom execute function that can handle stdin
+		executeWithStdin := func(root *cobra.Command, in *os.File, args ...string) (string, error) {
+			resetFlags(root)
+			oldExit := exit
+			exit = func(code int) {
+				if code != 0 {
+					panic(fmt.Sprintf("exit-%d", code))
+				}
+			}
+			defer func() { exit = oldExit }()
+
+			root.SetArgs(args)
+			b := new(bytes.Buffer)
+			root.SetOut(b)
+			root.SetErr(b)
+			root.SetIn(in)
+
+			err := root.Execute()
+			return b.String(), err
+		}
+
+		output, err := executeWithStdin(rootCmd, r, "stop")
+
+		if err != nil {
+			t.Errorf("Stop command failed: %v, output: %s", err, output)
+		}
+
+		// 6. Assertions
+		if stoppedSession != "test-session-1" {
+			t.Errorf("Expected session 'test-session-1' to be stopped, but got '%s'", stoppedSession)
+		}
+
+		if !strings.Contains(output, "Session 'test-session-1' stopped successfully") {
+			t.Errorf("Expected success message, but got: %s", output)
+		}
+	})
+
+	t.Run("Stop Command Non-Interactive", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		originalNewSessionManager := newSessionManager
+		defer func() { newSessionManager = originalNewSessionManager }()
+
+		var stoppedSession string
+		mockSM, err := runner.NewSessionManagerWithDir(tmpDir)
+		if err != nil {
+			t.Fatalf("Failed to create mock session manager: %v", err)
+		}
+		newSessionManager = func() (*runner.SessionManager, error) {
+			return runner.NewSessionManagerWithDir(tmpDir)
+		}
+
+		mockSession := &runner.SessionState{
+			Name:   "test-session-2",
+			PID:    os.Getpid(),
+			Status: "running",
+		}
+		if err := mockSM.SaveSession(mockSession); err != nil {
+			t.Fatalf("Failed to save mock session: %v", err)
+		}
+
+		originalStopSessionFunc := runner.StopSessionFunc
+		runner.StopSessionFunc = func(sm *runner.SessionManager, name string) error {
+			stoppedSession = name
+			session, err := sm.LoadSession(name)
+			if err != nil {
+				return err
+			}
+			session.Status = "stopped"
+			return sm.SaveSession(session)
+		}
+		defer func() {
+			runner.StopSessionFunc = originalStopSessionFunc
+		}()
+
+		output, err := executeCommand(rootCmd, "stop", "test-session-2")
+		if err != nil {
+			t.Errorf("Stop command failed: %v, output: %s", err, output)
+		}
+
+		if stoppedSession != "test-session-2" {
+			t.Errorf("Expected session 'test-session-2' to be stopped, but got '%s'", stoppedSession)
+		}
+
+		if !strings.Contains(output, "Session 'test-session-2' stopped successfully") {
+			t.Errorf("Expected success message, but got: %s", output)
+		}
+	})
 }
