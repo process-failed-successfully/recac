@@ -20,12 +20,13 @@ func TestSQLiteSignals(t *testing.T) {
 	defer store.Close()
 
 	// 1. Test SetSignal
-	if err := store.SetSignal("COMPLETED", "true"); err != nil {
+	projectID := "test-project"
+	if err := store.SetSignal(projectID, "COMPLETED", "true"); err != nil {
 		t.Errorf("SetSignal failed: %v", err)
 	}
 
 	// 2. Test GetSignal
-	val, err := store.GetSignal("COMPLETED")
+	val, err := store.GetSignal(projectID, "COMPLETED")
 	if err != nil {
 		t.Errorf("GetSignal failed: %v", err)
 	}
@@ -34,7 +35,7 @@ func TestSQLiteSignals(t *testing.T) {
 	}
 
 	// 3. Test GetSignal (Not Found)
-	val, err = store.GetSignal("NON_EXISTENT")
+	val, err = store.GetSignal(projectID, "NON_EXISTENT")
 	if err != nil {
 		t.Errorf("GetSignal (NonExistent) failed: %v", err)
 	}
@@ -43,10 +44,10 @@ func TestSQLiteSignals(t *testing.T) {
 	}
 
 	// 4. Test Update Signal
-	if err := store.SetSignal("COMPLETED", "false"); err != nil {
+	if err := store.SetSignal(projectID, "COMPLETED", "false"); err != nil {
 		t.Errorf("SetSignal (Update) failed: %v", err)
 	}
-	val, err = store.GetSignal("COMPLETED")
+	val, err = store.GetSignal(projectID, "COMPLETED")
 	if err != nil {
 		t.Errorf("GetSignal (After Update) failed: %v", err)
 	}
@@ -55,10 +56,10 @@ func TestSQLiteSignals(t *testing.T) {
 	}
 
 	// 5. Test DeleteSignal
-	if err := store.DeleteSignal("COMPLETED"); err != nil {
+	if err := store.DeleteSignal(projectID, "COMPLETED"); err != nil {
 		t.Errorf("DeleteSignal failed: %v", err)
 	}
-	val, err = store.GetSignal("COMPLETED")
+	val, err = store.GetSignal(projectID, "COMPLETED")
 	if err != nil {
 		t.Errorf("GetSignal (After Delete) failed: %v", err)
 	}

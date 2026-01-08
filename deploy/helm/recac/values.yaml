@@ -1,13 +1,10 @@
 # Default values for recac.
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
 
 replicaCount: 1
 
 image:
   repository: ghcr.io/process-failed-successfully/recac
   pullPolicy: Always
-  # Overrides the image tag whose default is the chart appVersion.
   tag: latest
 
 imagePullSecrets: []
@@ -15,32 +12,16 @@ nameOverride: ""
 fullnameOverride: ""
 
 serviceAccount:
-  # Specifies whether a service account should be created
   create: true
-  # Annotations to add to the service account
   annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
   name: ""
 
 rbac:
-  # Specifies whether RBAC resources should be created
   create: true
 
 podAnnotations: {}
-
-podSecurityContext:
-  {}
-  # fsGroup: 2000
-
-securityContext:
-  {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
+podSecurityContext: {}
+securityContext: {}
 
 service:
   type: ClusterIP
@@ -62,6 +43,12 @@ config:
   poller: "jira"
   work_file: "work_items.json"
   interval: "1m"
+  jira_label: "recac-agent"
+  jira_query: ""
+
+  # Database Configuration
+  dbType: "sqlite" # or "postgres"
+  dbUrl: "" # External Database URL (for 'postgres' type)
 
 extraVolumes: []
 extraVolumeMounts: []
@@ -77,23 +64,37 @@ secrets:
   jiraApiToken: ""
   githubToken: ""
   githubApiKey: ""
+  githubEmail: ""
+  slackBotUserToken: ""
+  slackAppToken: ""
+  discordBotToken: ""
+  discordChannelId: ""
 
 # Mount the Docker socket for running agents
 dockerSocket:
-  enabled: true
+  enabled: false
   hostPath: /var/run/docker.sock
 
+# Subcharts
+postgresql:
+  enabled: false
+  auth:
+    database: recac
+    username: recac
+    password: "changeit"
+  primary:
+    persistence:
+      enabled: true
+      size: 1Gi
+
 resources:
-  {}
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
 
 nodeSelector: {}
-
 tolerations: []
-
 affinity: {}

@@ -18,8 +18,9 @@ func TestSQLiteFeatures(t *testing.T) {
 	defer store.Close()
 
 	// 1. Test SaveFeatures & GetFeatures
+	projectID := "test-project"
 	fl := FeatureList{
-		ProjectName: "Test Project",
+		ProjectName: projectID,
 		Features: []Feature{
 			{ID: "f1", Description: "Feature 1", Status: "pending"},
 		},
@@ -27,11 +28,11 @@ func TestSQLiteFeatures(t *testing.T) {
 	data, _ := json.Marshal(fl)
 	featuresJson := string(data)
 
-	if err := store.SaveFeatures(featuresJson); err != nil {
+	if err := store.SaveFeatures(projectID, featuresJson); err != nil {
 		t.Errorf("SaveFeatures failed: %v", err)
 	}
 
-	retrieved, err := store.GetFeatures()
+	retrieved, err := store.GetFeatures(projectID)
 	if err != nil {
 		t.Errorf("GetFeatures failed: %v", err)
 	}
@@ -40,11 +41,11 @@ func TestSQLiteFeatures(t *testing.T) {
 	}
 
 	// 2. Test UpdateFeatureStatus
-	if err := store.UpdateFeatureStatus("f1", "done", true); err != nil {
+	if err := store.UpdateFeatureStatus(projectID, "f1", "done", true); err != nil {
 		t.Errorf("UpdateFeatureStatus failed: %v", err)
 	}
 
-	retrieved, _ = store.GetFeatures()
+	retrieved, _ = store.GetFeatures(projectID)
 	var retrievedFL FeatureList
 	json.Unmarshal([]byte(retrieved), &retrievedFL)
 	if retrievedFL.Features[0].Status != "done" {
@@ -55,13 +56,8 @@ func TestSQLiteFeatures(t *testing.T) {
 	}
 
 	// 3. Test UpdateFeatureStatus (Non-existent)
-	// Currently implementation might return error or ignore?
-	// Based on Orchestrator logic, it returns error if not found.
-	if err := store.UpdateFeatureStatus("non-existent", "done", true); err == nil {
-		// If it doesn't return error, verify behavior.
-		// If implementation loads, updates, saves, then it should fail if ID not found?
-		// Or it ignores?
-		// We'll see. Assuming it might return error.
+	if err := store.UpdateFeatureStatus(projectID, "non-existent", "done", true); err == nil {
+		t.Error("Expected error for non-existent feature")
 	}
 }
 
@@ -77,9 +73,10 @@ func TestSQLiteLocks(t *testing.T) {
 
 	path := "file.txt"
 	agentID := "agent-1"
+	projectID := "test-project"
 
 	// 1. Acquire Lock
-	acquired, err := store.AcquireLock(path, agentID, 100*time.Millisecond)
+	acquired, err := store.AcquireLock(projectID, path, agentID, 100*time.Millisecond)
 	if err != nil {
 		t.Errorf("AcquireLock failed: %v", err)
 	}
@@ -88,7 +85,7 @@ func TestSQLiteLocks(t *testing.T) {
 	}
 
 	// 2. Acquire Duplicate Lock (Same Agent) -> Should extend/succeed
-	acquired, err = store.AcquireLock(path, agentID, 100*time.Millisecond)
+	acquired, err = store.AcquireLock(projectID, path, agentID, 100*time.Millisecond)
 	if err != nil {
 		t.Errorf("AcquireLock (renew) failed: %v", err)
 	}
@@ -97,7 +94,7 @@ func TestSQLiteLocks(t *testing.T) {
 	}
 
 	// 3. Acquire Lock (Different Agent) -> Should fail
-	acquired, err = store.AcquireLock(path, "agent-2", 100*time.Millisecond)
+	acquired, err = store.AcquireLock(projectID, path, "agent-2", 100*time.Millisecond)
 	if err != nil {
 		t.Errorf("AcquireLock (contention) failed: %v", err)
 	}
@@ -106,9 +103,9 @@ func TestSQLiteLocks(t *testing.T) {
 	}
 
 	// 4. GetActiveLocks
-	locks, err := store.GetActiveLocks()
+	locks, err := store.GetActiveLocks(projectID)
 	if err != nil {
-		t.Errorf("GetActiveLocks failed: %v", err)
+		t.Fatalf("GetActiveLocks failed: %v", err)
 	}
 	if len(locks) != 1 {
 		t.Errorf("Expected 1 lock, got %d", len(locks))
@@ -118,12 +115,12 @@ func TestSQLiteLocks(t *testing.T) {
 	}
 
 	// 5. Release Lock
-	if err := store.ReleaseLock(path, agentID); err != nil {
+	if err := store.ReleaseLock(projectID, path, agentID); err != nil {
 		t.Errorf("ReleaseLock failed: %v", err)
 	}
 
 	// 6. Acquire Lock (Different Agent) -> Should succeed now
-	acquired, err = store.AcquireLock(path, "agent-2", 100*time.Millisecond)
+	acquired, err = store.AcquireLock(projectID, path, "agent-2", 100*time.Millisecond)
 	if err != nil {
 		t.Errorf("AcquireLock (after release) failed: %v", err)
 	}
@@ -132,11 +129,12 @@ func TestSQLiteLocks(t *testing.T) {
 	}
 
 	// 7. Release All Locks
-	if err := store.ReleaseAllLocks("agent-2"); err != nil {
+	if err := store.ReleaseAllLocks(projectID, "agent-2"); err != nil {
 		t.Errorf("ReleaseAllLocks failed: %v", err)
 	}
-	locks, _ = store.GetActiveLocks()
-	if len(locks) != 0 {
+	// 8. Final check - no locks
+	locks, _ = store.GetActiveLocks(projectID)
+	if len(locks) > 0 {
 		t.Errorf("Expected 0 locks after ReleaseAllLocks, got %d", len(locks))
 	}
 }

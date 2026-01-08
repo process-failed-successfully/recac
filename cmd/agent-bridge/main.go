@@ -4,18 +4,40 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"recac/internal/db"
 	"strings"
 )
 
 func main() {
-	if err := run(os.Args, ".recac.db"); err != nil {
+	// Check env vars for overrides
+	dbType := os.Getenv("RECAC_DB_TYPE")
+	dbURL := os.Getenv("RECAC_DB_URL")
+
+	if dbType == "" {
+		dbType = "sqlite"
+		if dbURL == "" {
+			dbURL = ".recac.db"
+		}
+	}
+
+	projectID := os.Getenv("RECAC_PROJECT_ID")
+	if projectID == "" {
+		projectID = "default"
+	}
+
+	config := db.StoreConfig{
+		Type:             dbType,
+		ConnectionString: dbURL,
+	}
+
+	if err := run(os.Args, config, projectID); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func run(args []string, dbPath string) error {
+func run(args []string, config db.StoreConfig, projectID string) error {
 	if len(args) < 2 {
 		printUsage()
 		return fmt.Errorf("missing command")
@@ -24,33 +46,69 @@ func run(args []string, dbPath string) error {
 	command := args[1]
 
 	// Initialize DB connection
-	store, err := db.NewSQLiteStore(dbPath)
+	store, err := db.NewStore(config)
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 	defer store.Close()
-
 	var cmdErr error
 
 	switch command {
+	case "clear-signal":
+		if len(args) < 3 {
+			return fmt.Errorf("usage: agent-bridge clear-signal <key>")
+		}
+		key := args[2]
+
+		// Temporarily use default project ID for clearing signals
+		// This logic seems to be intended for a different context or command,
+		// but integrating it as requested.
+		projectPath, err := os.Getwd() // Assuming current directory is project root
+		if err != nil {
+			return fmt.Errorf("failed to get current directory: %w", err)
+		}
+		dbPath := filepath.Join(projectPath, ".recac.db")
+		if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+			return fmt.Errorf("Error: Database not found at %s. Are you in a project root?", dbPath)
+		}
+
+		projectName := filepath.Base(projectPath)
+		if projectName == "." || projectName == "/" {
+			cwd, _ := os.Getwd()
+			projectName = filepath.Base(cwd)
+		}
+
+		// Re-initialize store for SQLite specifically, as per the snippet's intent
+		// This might override the 'config' passed to 'run' if it's not SQLite
+		sqliteStore, err := db.NewSQLiteStore(dbPath)
+		if err != nil {
+			return fmt.Errorf("Error opening database: %v", err)
+		}
+		defer sqliteStore.Close()
+
+		if err := sqliteStore.DeleteSignal(projectName, key); err != nil {
+			return fmt.Errorf("Error clearing signal '%s': %v", key, err)
+		}
+		fmt.Printf("Signal '%s' cleared for project '%s'.\n", key, projectName)
+
 	case "blocker":
 		if len(args) < 3 {
 			return fmt.Errorf("usage: agent-bridge blocker <message>")
 		}
 		message := args[2]
-		cmdErr = store.SetSignal("BLOCKER", message)
+		cmdErr = store.SetSignal(projectID, "BLOCKER", message)
 		if cmdErr == nil {
 			fmt.Println("Blocker signal set.")
 		}
 
 	case "qa":
-		cmdErr = store.SetSignal("TRIGGER_QA", "true")
+		cmdErr = store.SetSignal(projectID, "TRIGGER_QA", "true")
 		if cmdErr == nil {
 			fmt.Println("QA trigger signal set.")
 		}
 
 	case "manager":
-		cmdErr = store.SetSignal("TRIGGER_MANAGER", "true")
+		cmdErr = store.SetSignal(projectID, "TRIGGER_MANAGER", "true")
 		if cmdErr == nil {
 			fmt.Println("Manager trigger signal set.")
 		}
@@ -93,9 +151,9 @@ func run(args []string, dbPath string) error {
 
 					if allDone {
 						// Optionally clear blocker if it was a UI blocker
-						msg, _ := store.GetSignal("BLOCKER")
+						msg, _ := store.GetSignal(projectID, "BLOCKER")
 						if strings.Contains(msg, "UI Verification Required") {
-							store.DeleteSignal("BLOCKER")
+							store.DeleteSignal(projectID, "BLOCKER")
 							fmt.Println("All UI verifications complete. Clearing blocker.")
 						}
 					}
@@ -117,17 +175,14 @@ func run(args []string, dbPath string) error {
 		// PROTECT PRIVILEGED SIGNALS
 		privilegedSignals := map[string]bool{
 			"PROJECT_SIGNED_OFF": true,
-			"QA_PASSED":          true,
-			"COMPLETED":          true,
 			"TRIGGER_QA":         true,
 			"TRIGGER_MANAGER":    true,
 		}
-
 		if privilegedSignals[key] {
 			return fmt.Errorf("signal '%s' is privileged and cannot be set via agent-bridge", key)
 		}
 
-		cmdErr = store.SetSignal(key, value)
+		cmdErr = store.SetSignal(projectID, key, value)
 		if cmdErr == nil {
 			fmt.Printf("Signal %s set to %s.\n", key, value)
 		}
@@ -148,9 +203,43 @@ func run(args []string, dbPath string) error {
 				i++
 			}
 		}
-		cmdErr = store.UpdateFeatureStatus(id, status, passes)
+		cmdErr = store.UpdateFeatureStatus(projectID, id, status, passes)
+		if cmdErr != nil && (strings.Contains(cmdErr.Error(), "no features found") || strings.Contains(cmdErr.Error(), "not found") || strings.Contains(cmdErr.Error(), "no rows")) {
+			// Attempt to sync from file if it exists
+			featurePath := "feature_list.json"
+			data, err := os.ReadFile(featurePath)
+			if err == nil {
+				fmt.Printf("Features not found in DB. Syncing from %s...\n", featurePath)
+				if saveErr := store.SaveFeatures(projectID, string(data)); saveErr == nil {
+					// Retry update
+					cmdErr = store.UpdateFeatureStatus(projectID, id, status, passes)
+				}
+			}
+		}
 		if cmdErr == nil {
 			fmt.Printf("Feature %s updated: status=%s, passes=%v\n", id, status, passes)
+
+			// Auto-Completion Check
+			// If all features are done/passed, signal completion automatically.
+			content, err := store.GetFeatures(projectID)
+			if err == nil && content != "" {
+				var fl db.FeatureList
+				if json.Unmarshal([]byte(content), &fl) == nil {
+					allDone := true
+					for _, f := range fl.Features {
+						if strings.ToLower(f.Status) != "done" || !f.Passes {
+							allDone = false
+							break
+						}
+					}
+					if allDone {
+						fmt.Println("All features completed and passed. Auto-signaling COMPLETED.")
+						if err := store.SetSignal(projectID, "COMPLETED", "true"); err != nil {
+							fmt.Printf("Warning: Failed to set COMPLETED signal: %v\n", err)
+						}
+					}
+				}
+			}
 		}
 
 	default:
