@@ -1,3 +1,3 @@
-## 2024-05-23 - Enhanced TUI Onboarding
-**Learning:** Terminal interfaces often lack discoverability. Users don't know they can press `Tab` or type `/` unless told explicitly. A dedicated welcome block with color-coded bullet points significantly improves "First Time to Hello World".
-**Action:** Always include a visual summary of primary interactions (shortcuts/commands) in the initial view of any CLI tool.
+## 2025-12-28 - [TUI Feedback Gap]
+**Learning:** Users often assume the app is frozen when long-running background tasks (like shell commands) execute without UI updates in a TUI.
+**Action:** Always couple async command triggers with an immediate state update (e.g., `thinking = true`) and ensure the completion message (e.g., `shellOutputMsg`) explicitly clears that state.
