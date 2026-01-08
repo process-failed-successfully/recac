@@ -184,7 +184,6 @@ func run() error {
 		"--set", fmt.Sprintf("config.model=%s", model),
 		"--set", "config.dbType=postgres",
 		"--set", "postgresql.enabled=true",
-		"--set", "postgresql.global.imageRegistry=localhost:5000",
 		"--set", "postgresql.image.repository=bitnami/postgresql",
 		"--set", "postgresql.image.tag=latest",
 		"--set", fmt.Sprintf("config.jiraUrl=%s", os.Getenv("JIRA_URL")),
@@ -197,6 +196,11 @@ func run() error {
 		"--set", fmt.Sprintf("secrets.slackAppToken=%s", os.Getenv("SLACK_APP_TOKEN")),
 		"--set", fmt.Sprintf("secrets.discordBotToken=%s", os.Getenv("DISCORD_BOT_TOKEN")),
 		"--set", fmt.Sprintf("secrets.discordChannelId=%s", os.Getenv("DISCORD_CHANNEL_ID")),
+	}
+
+	// Conditionally set postgres registry if we are assuming a local mirroring setup
+	if strings.HasPrefix(pullRepo, "localhost:5000") {
+		helmLargestCmd = append(helmLargestCmd, "--set", "postgresql.global.imageRegistry=localhost:5000")
 	}
 
 	if err := runCommand("helm", helmLargestCmd...); err != nil {
