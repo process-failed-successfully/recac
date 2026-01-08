@@ -3,14 +3,10 @@ package main
 import (
 	"fmt"
 	"os"
-	"recac/internal/runner"
 	"time"
 
 	"github.com/spf13/cobra"
 )
-
-// newSessionManager is a function variable that can be overridden in tests
-var newSessionManager = runner.NewSessionManager
 
 func init() {
 	rootCmd.AddCommand(replayCmd)

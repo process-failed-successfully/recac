@@ -109,6 +109,15 @@ Recac allows you to manage multiple concurrent or background sessions.
   recac attach <session-name>
   ```
 
+- **Stop Session**: Stop a running session.
+  ```bash
+  # Stop a specific session by name
+  recac stop <session-name>
+
+  # Or, run without a name for an interactive prompt
+  recac stop
+  ```
+
 ### 5. Orchestration
 
 The orchestrator pools work items (e.g., Jira tickets) and spawns agents to handle them.

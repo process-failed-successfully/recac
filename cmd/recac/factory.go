@@ -7,10 +7,14 @@ import (
 	"recac/internal/agent"
 	"recac/internal/git"
 	"recac/internal/jira"
+	"recac/internal/runner"
 	"strings"
 
 	"github.com/spf13/viper"
 )
+
+// Factory for SessionManager to allow mocking in tests
+var newSessionManager = runner.NewSessionManager
 
 // getJiraClient initializes a Jira client using config or environment variables
 func getJiraClient(ctx context.Context) (*jira.Client, error) {

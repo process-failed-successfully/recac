@@ -25,7 +25,8 @@ type SessionState struct {
 
 // SessionManager handles background session management
 type SessionManager struct {
-	sessionsDir string
+	sessionsDir    string
+	IsProcessRunning func(pid int) bool
 }
 
 // NewSessionManager creates a new session manager
@@ -40,9 +41,11 @@ func NewSessionManager() (*SessionManager, error) {
 		return nil, fmt.Errorf("failed to create sessions directory: %w", err)
 	}
 
-	return &SessionManager{
+	sm := &SessionManager{
 		sessionsDir: sessionsDir,
-	}, nil
+	}
+	sm.IsProcessRunning = sm.isProcessRunningDefault
+	return sm, nil
 }
 
 // NewSessionManagerWithDir creates a new session manager with a specific directory.
@@ -50,9 +53,11 @@ func NewSessionManagerWithDir(dir string) (*SessionManager, error) {
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create sessions directory: %w", err)
 	}
-	return &SessionManager{
+	sm := &SessionManager{
 		sessionsDir: dir,
-	}, nil
+	}
+	sm.IsProcessRunning = sm.isProcessRunningDefault
+	return sm, nil
 }
 
 // GetSessionPath returns the path to a session state file
@@ -217,8 +222,8 @@ func (sm *SessionManager) ListSessions() ([]*SessionState, error) {
 	return sessions, nil
 }
 
-// IsProcessRunning checks if a process is still running
-func (sm *SessionManager) IsProcessRunning(pid int) bool {
+// isProcessRunningDefault checks if a process is still running
+func (sm *SessionManager) isProcessRunningDefault(pid int) bool {
 	process, err := os.FindProcess(pid)
 	if err != nil {
 		return false

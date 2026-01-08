@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"recac/internal/runner"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -180,6 +182,68 @@ func TestCommands(t *testing.T) {
 
 		}
 
+	})
+
+	t.Run("Stop Command", func(t *testing.T) {
+		// Create a temporary directory for the mock session manager
+		tmpDir := t.TempDir()
+		sm, err := runner.NewSessionManagerWithDir(tmpDir)
+		if err != nil {
+			t.Fatalf("Failed to create mock session manager: %v", err)
+		}
+
+		// Create a mock session
+		mockSession := &runner.SessionState{
+			Name:    "test-session",
+			PID:     12345,
+			Status:  "running",
+			StartTime: time.Now(),
+		}
+		if err := sm.SaveSession(mockSession); err != nil {
+			t.Fatalf("Failed to save mock session: %v", err)
+		}
+
+		// Override the factory
+		originalNewSessionManager := newSessionManager
+		newSessionManager = func() (*runner.SessionManager, error) {
+			return sm, nil
+		}
+		defer func() { newSessionManager = originalNewSessionManager }()
+
+		// Mock IsProcessRunning to return true for the test
+		sm.IsProcessRunning = func(pid int) bool {
+			return true
+		}
+
+		// Test non-interactive stop
+		t.Run("Non-Interactive", func(t *testing.T) {
+			output, err := executeCommand(rootCmd, "stop", "test-session")
+			if err != nil {
+				t.Errorf("Stop command failed: %v", err)
+			}
+			if !strings.Contains(output, "Session 'test-session' stopped successfully") {
+				t.Errorf("Expected success message, got: %s", output)
+			}
+		})
+
+		// Test interactive stop
+		t.Run("Interactive", func(t *testing.T) {
+			// Reset the session status for the interactive test
+			mockSession.Status = "running"
+			sm.SaveSession(mockSession)
+
+			// Simulate user input "1"
+			input := "1\n"
+			rootCmd.SetIn(bytes.NewBufferString(input))
+
+			output, err := executeCommand(rootCmd, "stop")
+			if err != nil {
+				t.Errorf("Interactive stop command failed: %v", err)
+			}
+			if !strings.Contains(output, "Session 'test-session' stopped successfully") {
+				t.Errorf("Expected success message, got: %s", output)
+			}
+		})
 	})
 
 	t.Run("List Command With Data", func(t *testing.T) {
