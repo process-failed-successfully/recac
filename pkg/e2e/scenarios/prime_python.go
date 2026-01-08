@@ -25,8 +25,8 @@ func (s *PrimePythonScenario) Generate(uniqueID string, repoURL string) []Ticket
 			ID:      "PRIMES",
 			Summary: fmt.Sprintf("[%s] Create Prime Number Script", uniqueID),
 			Desc: fmt.Sprintf(`Create a python script named 'primes.py'. It MUST be python.
-It must calculate all prime numbers less than 10,000.
-As soon as you have the result, save it to a file named 'primes.json' and commit it.
+It must calculate all prime numbers less than 10,000 and output to a file named 'primes.json'.
+Commit primes.json AS SOON AS POSSIBLE.
 The JSON format must have a single key 'primes' containing the list of integers.
 Example: %s{"primes": [2, 3, 5, ...]}%s.
 IMPORTANT: Ensure the FINAL primes.json committed to the repository contains ALL primes less than 10,000 (Exactly 1229 primes).
