@@ -41,6 +41,12 @@ jobs:
         run: |
           k3d image import recac:smoke -c recac-smoke
 
+      - name: Configure Git for private repo access
+        env:
+          GITHUB_API_KEY: ${{ secrets.GH_API_KEY }}
+        run: |
+          git config --global url."https://x-access-token:${GITHUB_API_KEY}@github.com/".insteadOf "https://github.com/"
+
       - name: Run E2E Test
         env:
           JIRA_URL: ${{ secrets.JIRA_URL }}
@@ -58,3 +64,8 @@ jobs:
             -repo-url "https://github.com/process-failed-successfully/recac-jira-e2e" \
             -pull-policy IfNotPresent \
             -skip-build
+
+      - name: Clean up Git config
+        if: always()
+        run: |
+          git config --global --unset url."https://github.com/".insteadOf
