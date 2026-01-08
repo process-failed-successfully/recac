@@ -11,6 +11,7 @@ import (
 
 // State represents the persistent state of an agent
 type State struct {
+	Model         string                 `json:"model,omitempty"`          // Model used by the agent
 	Memory        []string               `json:"memory"`
 	History       []Message              `json:"history"`
 	Metadata      map[string]interface{} `json:"metadata"`
@@ -22,10 +23,10 @@ type State struct {
 
 // TokenUsage tracks token consumption statistics
 type TokenUsage struct {
-	TotalPromptTokens   int `json:"total_prompt_tokens"`   // Total tokens in prompts sent
-	TotalResponseTokens int `json:"total_response_tokens"` // Total tokens in responses received
-	TotalTokens         int `json:"total_tokens"`          // Total tokens used (prompt + response)
-	TruncationCount     int `json:"truncation_count"`      // Number of times truncation occurred
+	PromptTokens     int `json:"prompt_tokens"`     // Total tokens in prompts sent
+	CompletionTokens int `json:"completion_tokens"` // Total tokens in responses received
+	TotalTokens      int `json:"total_tokens"`      // Total tokens used (prompt + response)
+	TruncationCount  int `json:"truncation_count"`  // Number of times truncation occurred
 }
 
 // Message represents a chat message

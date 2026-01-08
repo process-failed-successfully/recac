@@ -26,7 +26,7 @@ type OpenAIClient struct {
 // NewOpenAIClient creates a new OpenAI client
 func NewOpenAIClient(apiKey, model, project string) *OpenAIClient {
 	return &OpenAIClient{
-		BaseClient: NewBaseClient(project, 128000), // Default to 128k for GPT-4
+		BaseClient: NewBaseClient(project, model, 128000), // Default to 128k for GPT-4
 		apiKey:     apiKey,
 		model:      model,
 		httpClient: &http.Client{

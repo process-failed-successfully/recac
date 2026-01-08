@@ -369,8 +369,8 @@ func (s *Session) LoadAgentState() error {
 	if loadedState.TokenUsage.TotalTokens > 0 {
 		fmt.Printf("Token usage: total=%d (prompt=%d, response=%d), current=%d/%d, truncations=%d\n",
 			loadedState.TokenUsage.TotalTokens,
-			loadedState.TokenUsage.TotalPromptTokens,
-			loadedState.TokenUsage.TotalResponseTokens,
+			loadedState.TokenUsage.PromptTokens,
+			loadedState.TokenUsage.CompletionTokens,
 			loadedState.CurrentTokens,
 			loadedState.MaxTokens,
 			loadedState.TokenUsage.TruncationCount)

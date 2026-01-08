@@ -24,7 +24,7 @@ type GeminiClient struct {
 // NewGeminiClient creates a new Gemini client
 func NewGeminiClient(apiKey, model, project string) *GeminiClient {
 	return &GeminiClient{
-		BaseClient: NewBaseClient(project, 32000), // Default to 32k for Gemini
+		BaseClient: NewBaseClient(project, model, 32000), // Default to 32k for Gemini
 		apiKey:     apiKey,
 		model:      model,
 		httpClient: &http.Client{

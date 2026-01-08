@@ -45,11 +45,11 @@ func TestOllamaClient_StateTracking(t *testing.T) {
 		t.Fatalf("Failed to load state: %v", err)
 	}
 
-	if state.TokenUsage.TotalPromptTokens == 0 {
-		t.Error("TotalPromptTokens should be > 0")
+	if state.TokenUsage.PromptTokens == 0 {
+		t.Error("PromptTokens should be > 0")
 	}
-	if state.TokenUsage.TotalResponseTokens == 0 {
-		t.Error("TotalResponseTokens should be > 0")
+	if state.TokenUsage.CompletionTokens == 0 {
+		t.Error("CompletionTokens should be > 0")
 	}
 	if state.Metadata["iteration"] != 1.0 {
 		t.Errorf("Expected iteration 1.0, got %v", state.Metadata["iteration"])

@@ -77,10 +77,10 @@ func TestGeminiClient_TokenTracking(t *testing.T) {
 
 	// Verify state was updated with token usage
 	updatedState, _ := stateManager.Load()
-	if updatedState.TokenUsage.TotalPromptTokens == 0 {
+	if updatedState.TokenUsage.PromptTokens == 0 {
 		t.Error("Expected prompt tokens to be tracked, got 0")
 	}
-	if updatedState.TokenUsage.TotalResponseTokens == 0 {
+	if updatedState.TokenUsage.CompletionTokens == 0 {
 		t.Error("Expected response tokens to be tracked, got 0")
 	}
 	if updatedState.TokenUsage.TruncationCount == 0 {
@@ -119,10 +119,10 @@ func TestGeminiClient_TokenTrackingNoTruncation(t *testing.T) {
 
 	// Verify state was updated with token usage
 	updatedState, _ := stateManager.Load()
-	if updatedState.TokenUsage.TotalPromptTokens == 0 {
+	if updatedState.TokenUsage.PromptTokens == 0 {
 		t.Error("Expected prompt tokens to be tracked, got 0")
 	}
-	if updatedState.TokenUsage.TotalResponseTokens == 0 {
+	if updatedState.TokenUsage.CompletionTokens == 0 {
 		t.Error("Expected response tokens to be tracked, got 0")
 	}
 	if updatedState.TokenUsage.TruncationCount != 0 {
