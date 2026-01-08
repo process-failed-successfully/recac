@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"recac/internal/runner"
 	"sort"
 	"text/tabwriter"
 	"time"
@@ -23,7 +22,7 @@ func init() {
 }
 
 func runHistory(cmd *cobra.Command, args []string) error {
-	manager, err := runner.NewSessionManager()
+	manager, err := newSessionManager()
 	if err != nil {
 		return fmt.Errorf("failed to initialize session manager: %w", err)
 	}

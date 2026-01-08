@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"recac/internal/runner"
 	"strings"
 	"testing"
 
@@ -308,8 +309,19 @@ func TestCommands(t *testing.T) {
 		sessionsDir := filepath.Join(tmpDir, ".recac", "sessions")
 		os.MkdirAll(sessionsDir, 0755)
 
+		// Override the newSessionManager factory to use a test-specific directory
+		originalNewSessionManager := newSessionManager
+		newSessionManager = func() (*runner.SessionManager, error) {
+			return runner.NewSessionManagerWithDir(sessionsDir)
+		}
+		defer func() { newSessionManager = originalNewSessionManager }()
+
 		// Test with no history
 		t.Run("No History", func(t *testing.T) {
+			// Clear the directory for this sub-test
+			os.RemoveAll(sessionsDir)
+			os.MkdirAll(sessionsDir, 0755)
+
 			output, err := executeCommand(rootCmd, "history")
 			if err != nil {
 				t.Fatalf("history command failed unexpectedly: %v", err)
