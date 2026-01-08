@@ -2195,9 +2195,14 @@ func (s *Session) fixPasswdDatabase(ctx context.Context, containerUser string) {
 	groupCheckCmd := []string{"getent", "group", gid}
 	groupOut, groupErr := s.Docker.ExecAsUser(ctx, s.GetContainerID(), "root", groupCheckCmd)
 	if groupErr != nil || strings.TrimSpace(groupOut) == "" {
+		// Try groupadd first
 		groupAddCmd := []string{"groupadd", "-g", gid, "appgroup"}
 		if _, err := s.Docker.ExecAsUser(ctx, s.GetContainerID(), "root", groupAddCmd); err != nil {
-			fmt.Printf("Warning: Failed to create group %s: %v\n", gid, err)
+			// Fallback to Alpine addgroup
+			groupAddCmd = []string{"addgroup", "-g", gid, "appgroup"}
+			if _, err := s.Docker.ExecAsUser(ctx, s.GetContainerID(), "root", groupAddCmd); err != nil {
+				fmt.Printf("Warning: Failed to create group %s: %v\n", gid, err)
+			}
 		}
 	}
 
@@ -2205,10 +2210,15 @@ func (s *Session) fixPasswdDatabase(ctx context.Context, containerUser string) {
 	userCheckCmd := []string{"getent", "passwd", uid}
 	userOut, userErr := s.Docker.ExecAsUser(ctx, s.GetContainerID(), "root", userCheckCmd)
 	if userErr != nil || strings.TrimSpace(userOut) == "" {
-		// -u UID, -g GID, -m (create home), -s shell, -d home
+		// Try useradd first
 		userAddCmd := []string{"useradd", "-u", uid, "-g", gid, "-m", "-s", "/bin/sh", "-d", "/workspace", "appuser"}
 		if _, err := s.Docker.ExecAsUser(ctx, s.GetContainerID(), "root", userAddCmd); err != nil {
-			fmt.Printf("Warning: Failed to create user %s: %v\n", uid, err)
+			// Fallback to Alpine adduser
+			// adduser -u UID -G appgroup -h /workspace -s /bin/sh -D appuser
+			userAddCmd = []string{"adduser", "-u", uid, "-G", "appgroup", "-h", "/workspace", "-s", "/bin/sh", "-D", "appuser"}
+			if _, err := s.Docker.ExecAsUser(ctx, s.GetContainerID(), "root", userAddCmd); err != nil {
+				fmt.Printf("Warning: Failed to create user %s: %v\n", uid, err)
+			}
 		}
 	}
 }

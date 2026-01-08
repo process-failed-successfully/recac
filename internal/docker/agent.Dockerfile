@@ -17,7 +17,9 @@ RUN apk add --no-cache \
     make \
     sudo \
     wget \
-    ca-certificates
+    ca-certificates \
+    shadow \
+    util-linux
 
 # Configure sudo for passwordless access (if needed, though we often run as root)
 RUN echo "ALL ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
