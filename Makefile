@@ -74,6 +74,16 @@ smoke: image ## Run smoke test script via Docker (mock agent)
 smoke-k8s: ## Run full E2E smoke test in local Kubernetes (k3d)
 	./scripts/smoke-k8s.sh
 
+ci-simulate: ## Run E2E test exactly like CI (but on local cluster)
+	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
+	if [ -z "$$OPENROUTER_API_KEY" ]; then echo "Error: OPENROUTER_API_KEY is not set"; exit 1; fi; \
+	go run e2e/runner/main.go \
+		-scenario prime-python \
+		-provider openrouter \
+		-model "mistralai/devstral-2512:free" \
+		-pull-policy IfNotPresent \
+		-skip-cleanup
+
 shell: image ## Launch a shell inside the build container
 	docker run -it $(DOCKER_RUN_OPTS) $(DOCKER_IMAGE) /bin/sh
 
@@ -113,7 +123,11 @@ deploy-helm: ## Deploy with Helm using local .env and variables (PROVIDER=x MODE
 		--set secrets.openrouterApiKey=$${OPENROUTER_API_KEY} \
 		--set secrets.jiraApiToken=$${JIRA_API_TOKEN} \
 		--set secrets.githubToken=$${GITHUB_TOKEN} \
-		--set secrets.githubApiKey=$${GITHUB_API_KEY}
+		--set secrets.githubApiKey=$${GITHUB_API_KEY} \
+		--set secrets.slackBotUserToken=$${SLACK_BOT_USER_TOKEN} \
+		--set secrets.slackAppToken=$${SLACK_APP_TOKEN} \
+		--set secrets.discordBotToken=$${DISCORD_BOT_TOKEN} \
+		--set secrets.discordChannelId=$${DISCORD_CHANNEL_ID}
 
 .PHONY: remove-helm
 remove-helm: ## Uninstall the Helm release
@@ -128,7 +142,7 @@ DEPLOY_IMAGE=$(DEPLOY_REPO):$(DEPLOY_TAG)
 
 .PHONY: image-prod push-prod dev-cycle
 image-prod: ## Build the production docker image
-	docker build --no-cache -t $(DEPLOY_IMAGE) --target production .
+	docker build -t $(DEPLOY_IMAGE) --target production $(ARGS) .
 
 push-prod: image-prod ## Push the production docker image
 	docker push $(DEPLOY_IMAGE)

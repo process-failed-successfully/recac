@@ -47,6 +47,12 @@ var clearSignalCmd = &cobra.Command{
 			exit(1)
 		}
 
+		projectName := filepath.Base(projectPath)
+		if projectName == "." || projectName == "/" {
+			cwd, _ := os.Getwd()
+			projectName = filepath.Base(cwd)
+		}
+
 		store, err := db.NewSQLiteStore(dbPath)
 		if err != nil {
 			fmt.Printf("Error opening database: %v\n", err)
@@ -54,7 +60,7 @@ var clearSignalCmd = &cobra.Command{
 		}
 		defer store.Close()
 
-		if err := store.DeleteSignal(key); err != nil {
+		if err := store.DeleteSignal(projectName, key); err != nil {
 			fmt.Printf("Error clearing signal '%s': %v\n", key, err)
 			exit(1)
 		}

@@ -411,7 +411,7 @@ func TestSession_RunManagerAgent(t *testing.T) {
 	content := `{"project_name": "Test", "features": [{"id":"1", "description":"feat 1", "status":"done"}]}`
 	os.WriteFile(filepath.Join(tmpDir, "feature_list.json"), []byte(content), 0644)
 	if session.DBStore != nil {
-		_ = session.DBStore.SaveFeatures(content)
+		_ = session.DBStore.SaveFeatures(session.Project, content)
 	}
 	if err := session.runManagerAgent(context.Background()); err != nil {
 		t.Errorf("Expected manager approval, got error: %v", err)
@@ -421,7 +421,7 @@ func TestSession_RunManagerAgent(t *testing.T) {
 	content = `{"project_name": "Test", "features": [{"id":"1", "description":"feat 1", "status":"pending"}]}`
 	os.WriteFile(filepath.Join(tmpDir, "feature_list.json"), []byte(content), 0644)
 	if session.DBStore != nil {
-		_ = session.DBStore.SaveFeatures(content)
+		_ = session.DBStore.SaveFeatures(session.Project, content)
 	}
 	if err := session.runManagerAgent(context.Background()); err == nil {
 		t.Error("Expected manager rejection, got nil")

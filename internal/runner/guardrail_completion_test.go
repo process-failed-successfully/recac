@@ -95,7 +95,10 @@ func TestSession_Guardrail_PrematureSignoff(t *testing.T) {
 	}
 
 	// Double check DB
-	val, _ := s.DBStore.GetSignal("PROJECT_SIGNED_OFF")
+	val, err := s.DBStore.GetSignal(s.Project, "PROJECT_SIGNED_OFF")
+	if err != nil {
+		t.Fatalf("Failed to get signal from DB: %v", err)
+	}
 	if val != "" {
 		t.Errorf("Guardrail failed: DB still has signal: %s", val)
 	}
