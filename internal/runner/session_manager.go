@@ -15,6 +15,7 @@ type SessionState struct {
 	Name          string    `json:"name"`
 	PID           int       `json:"pid"`
 	StartTime     time.Time `json:"start_time"`
+	EndTime       time.Time `json:"end_time,omitempty"`
 	Command       []string `json:"command"`
 	LogFile       string    `json:"log_file"`
 	Workspace     string    `json:"workspace"`
@@ -208,6 +209,7 @@ func (sm *SessionManager) ListSessions() ([]*SessionState, error) {
 		// Only update if status is "running" - preserve "stopped" and "error" statuses
 		if session.Status == "running" && !sm.IsProcessRunning(session.PID) {
 			session.Status = "completed"
+			session.EndTime = time.Now() // Set the end time
 			sm.SaveSession(session) // Update on disk
 		}
 
@@ -280,4 +282,42 @@ func (sm *SessionManager) GetSessionLogs(name string) (string, error) {
 	}
 
 	return session.LogFile, nil
+}
+
+// EndSession marks a session as ended, setting its EndTime.
+func (sm *SessionManager) EndSession(name string) error {
+	session, err := sm.LoadSession(name)
+	if err != nil {
+		return fmt.Errorf("session not found: %w", err)
+	}
+	session.EndTime = time.Now()
+	if session.Status == "running" {
+		session.Status = "completed"
+	}
+	return sm.SaveSession(session)
+}
+
+// GetLogPath returns the path to the log file for a given session.
+func (sm *SessionManager) GetLogPath(name string) string {
+	return filepath.Join(sm.sessionsDir, name+".log")
+}
+
+// GetStatePath returns the path to the state file for a given session.
+func (sm *SessionManager) GetStatePath(name string) string {
+	return sm.GetSessionPath(name)
+}
+
+// UpdateSessionStatus updates the status of a session.
+func (sm *SessionManager) UpdateSessionStatus(name, status string) error {
+	session, err := sm.LoadSession(name)
+	if err != nil {
+		return err
+	}
+	session.Status = status
+	return sm.SaveSession(session)
+}
+
+// GetSession loads and returns a session by name.
+func (sm *SessionManager) GetSession(name string) (*SessionState, error) {
+	return sm.LoadSession(name)
 }

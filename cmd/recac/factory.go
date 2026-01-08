@@ -7,6 +7,7 @@ import (
 	"recac/internal/agent"
 	"recac/internal/git"
 	"recac/internal/jira"
+	"recac/internal/runner"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -205,4 +206,8 @@ func setupWorkspace(ctx context.Context, repoURL, workspace, ticketID, epicKey, 
 	}
 
 	return repoURL, nil
+}
+
+var newSessionManager = func() (runner.ISessionManager, error) {
+	return runner.NewSessionManager()
 }

@@ -3,14 +3,10 @@ package main
 import (
 	"fmt"
 	"os"
-	"recac/internal/runner"
 	"time"
 
 	"github.com/spf13/cobra"
 )
-
-// newSessionManager is a function variable that can be overridden in tests
-var newSessionManager = runner.NewSessionManager
 
 func init() {
 	rootCmd.AddCommand(replayCmd)
@@ -31,7 +27,7 @@ var replayCmd = &cobra.Command{
 		}
 
 		// Load the original session
-		originalSession, err := sm.LoadSession(sessionName)
+		originalSession, err := sm.GetSession(sessionName)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to load session '%s': %v\n", sessionName, err)
 			exit(1)

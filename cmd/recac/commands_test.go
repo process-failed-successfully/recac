@@ -5,12 +5,34 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"recac/internal/runner"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
+
+// mockSessionManager is a mock implementation of ISessionManager for testing.
+type mockSessionManager struct {
+	sessions []*runner.SessionState
+	err      error
+}
+
+// ListSessions is the mock implementation of the interface method.
+func (m *mockSessionManager) ListSessions() ([]*runner.SessionState, error) {
+	return m.sessions, m.err
+}
+func (m *mockSessionManager) StartSession(name string, command []string, workspace string) (*runner.SessionState, error) {
+	return nil, nil
+}
+func (m *mockSessionManager) GetSession(name string) (*runner.SessionState, error) { return nil, nil }
+func (m *mockSessionManager) UpdateSessionStatus(name, status string) error    { return nil }
+func (m *mockSessionManager) EndSession(name string) error                      { return nil }
+func (m *mockSessionManager) IsProcessRunning(pid int) bool                     { return false }
+func (m *mockSessionManager) GetLogPath(name string) string                     { return "" }
+func (m *mockSessionManager) GetStatePath(name string) string                   { return "" }
 
 func executeCommand(root *cobra.Command, args ...string) (string, error) {
 	resetFlags(root)
@@ -302,6 +324,73 @@ func TestCommands(t *testing.T) {
 
 		}
 
+	})
+
+	t.Run("History Command", func(t *testing.T) {
+		// 1. Setup mock session manager
+		mockSessions := []*runner.SessionState{
+			{
+				Name:      "active-session",
+				Status:    "RUNNING",
+				PID:       12345,
+				StartTime: time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC),
+				Workspace: "/path/to/active",
+			},
+			{
+				Name:      "completed-session",
+				Status:    "COMPLETED",
+				PID:       54321,
+				StartTime: time.Date(2024, 1, 1, 9, 0, 0, 0, time.UTC),
+				EndTime:   time.Date(2024, 1, 1, 9, 30, 0, 0, time.UTC),
+				Workspace: "/path/to/completed",
+			},
+		}
+
+		mockSM := &mockSessionManager{
+			sessions: mockSessions,
+		}
+
+		// 2. Override the factory
+		originalNewSessionManager := newSessionManager
+		newSessionManager = func() (runner.ISessionManager, error) {
+			return mockSM, nil
+		}
+		defer func() { newSessionManager = originalNewSessionManager }()
+
+		// 3. Execute the command
+		output, err := executeCommand(rootCmd, "history")
+		if err != nil {
+			t.Fatalf("history command failed: %v", err)
+		}
+
+		// 4. Verify the output
+		t.Logf("History command output:\n%s", output)
+
+		// Check for headers
+		if !strings.Contains(output, "Active Sessions:") {
+			t.Error("output should contain 'Active Sessions:'")
+		}
+		if !strings.Contains(output, "Completed Sessions:") {
+			t.Error("output should contain 'Completed Sessions:'")
+		}
+
+		// Check for session data. Using Contains because of tabwriter formatting.
+		if !strings.Contains(output, "active-session") {
+			t.Error("output should contain active session name")
+		}
+		if !strings.Contains(output, "12345") {
+			t.Error("output should contain active session PID")
+		}
+		if !strings.Contains(output, "completed-session") {
+			t.Error("output should contain completed session name")
+		}
+		// Note: The duration might have leading/trailing spaces due to tabwriter
+		if !strings.Contains(output, "30m0s") {
+			t.Errorf("output should contain correct duration for completed session, got: %s", output)
+		}
+		if !strings.Contains(output, "2024-01-01 09:30:00") {
+			t.Errorf("output should contain correct end time for completed session, got: %s", output)
+		}
 	})
 
 }

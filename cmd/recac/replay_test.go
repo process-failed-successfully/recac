@@ -24,7 +24,7 @@ func setupTestEnvironment(t *testing.T) (string, *runner.SessionManager, func())
 
 	// Override the default session manager creation in the command
 	originalNewSessionManager := newSessionManager
-	newSessionManager = func() (*runner.SessionManager, error) {
+	newSessionManager = func() (runner.ISessionManager, error) {
 		return sm, nil
 	}
 
