@@ -41,6 +41,9 @@ jobs:
         run: |
           k3d image import recac:smoke -c recac-smoke
 
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y libpcre2-8-0
+
       - name: Run E2E Test
         env:
           JIRA_URL: ${{ secrets.JIRA_URL }}
