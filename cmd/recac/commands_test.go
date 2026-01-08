@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"recac/internal/runner"
 	"recac/internal/ui"
 	"strings"
 	"testing"
@@ -363,4 +364,25 @@ func TestCommands(t *testing.T) {
 			t.Errorf("Expected output to contain '%s', but got '%s'", expectedOutput, string(statusMsg))
 		}
 	})
+}
+
+// setupTestEnvironment creates a temporary directory and a session manager for testing.
+// It returns the temporary directory path, the session manager, and a cleanup function.
+func setupTestEnvironment(t *testing.T) (string, *runner.SessionManager, func()) {
+	t.Helper()
+	tempDir, err := os.MkdirTemp("", "recac-test-")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+
+	sm, err := runner.NewSessionManagerWithDir(tempDir)
+	if err != nil {
+		t.Fatalf("Failed to create session manager: %v", err)
+	}
+
+	cleanup := func() {
+		os.RemoveAll(tempDir)
+	}
+
+	return tempDir, sm, cleanup
 }

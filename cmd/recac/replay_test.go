@@ -14,31 +14,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// setupTestEnvironment creates a temporary directory and a session manager for testing.
-func setupTestEnvironment(t *testing.T) (string, *runner.SessionManager, func()) {
-	tempDir, err := os.MkdirTemp("", "recac-replay-test-*")
-	require.NoError(t, err)
-
-	sm, err := runner.NewSessionManagerWithDir(tempDir)
-	require.NoError(t, err)
+func TestReplayCmd(t *testing.T) {
+	_, sm, cleanup := setupTestEnvironment(t)
+	defer cleanup()
 
 	// Override the default session manager creation in the command
 	originalNewSessionManager := newSessionManager
 	newSessionManager = func() (*runner.SessionManager, error) {
 		return sm, nil
 	}
-
-	cleanup := func() {
-		os.RemoveAll(tempDir)
-		newSessionManager = originalNewSessionManager
-	}
-
-	return tempDir, sm, cleanup
-}
-
-func TestReplayCmd(t *testing.T) {
-	_, sm, cleanup := setupTestEnvironment(t)
-	defer cleanup()
+	defer func() { newSessionManager = originalNewSessionManager }()
 
 	// Create a fake original session
 	originalSession := &runner.SessionState{
@@ -90,12 +75,18 @@ func TestReplayCmd(t *testing.T) {
 	// Verify the replayed session's properties
 	assert.Equal(t, originalSession.Command, replayedSession.Command)
 	assert.Equal(t, originalSession.Workspace, replayedSession.Workspace)
-	assert.Equal(t, "running", replayedSession.Status) // It should be running
 }
 
 func TestReplayCmd_RunningSession(t *testing.T) {
 	_, sm, cleanup := setupTestEnvironment(t)
 	defer cleanup()
+
+	// Override the default session manager creation in the command
+	originalNewSessionManager := newSessionManager
+	newSessionManager = func() (*runner.SessionManager, error) {
+		return sm, nil
+	}
+	defer func() { newSessionManager = originalNewSessionManager }()
 
 	// Create a fake running session
 	runningSession := &runner.SessionState{

@@ -2,6 +2,7 @@ package runner
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,6 +10,8 @@ import (
 	"syscall"
 	"time"
 )
+
+var ErrSessionNotFound = errors.New("session not found")
 
 // SessionState represents the state of a background session
 type SessionState struct {
@@ -156,6 +159,9 @@ func (sm *SessionManager) LoadSession(name string) (*SessionState, error) {
 	sessionPath := sm.GetSessionPath(name)
 	data, err := os.ReadFile(sessionPath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, ErrSessionNotFound
+		}
 		return nil, fmt.Errorf("failed to read session file: %w", err)
 	}
 
@@ -280,4 +286,30 @@ func (sm *SessionManager) GetSessionLogs(name string) (string, error) {
 	}
 
 	return session.LogFile, nil
+}
+
+// DeleteSession removes a session's state and log files
+func (sm *SessionManager) DeleteSession(name string) error {
+	session, err := sm.LoadSession(name)
+	if err != nil {
+		if errors.Is(err, ErrSessionNotFound) {
+			return ErrSessionNotFound
+		}
+		return fmt.Errorf("failed to load session for deletion: %w", err)
+	}
+
+	// Delete the log file
+	if session.LogFile != "" {
+		if err := os.Remove(session.LogFile); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("failed to remove log file: %w", err)
+		}
+	}
+
+	// Delete the session JSON file
+	sessionPath := sm.GetSessionPath(name)
+	if err := os.Remove(sessionPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to remove session file: %w", err)
+	}
+
+	return nil
 }
