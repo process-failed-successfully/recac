@@ -296,7 +296,7 @@ func TestCommands(t *testing.T) {
 
 		}
 
-		if _, err := executeCommand(rootCmd, "start", "--detached"); err == nil {
+		if _, err := executeCommand(rootCmd, "start", "--detached", "--path", "."); err == nil {
 
 			t.Log("Expected error for detached without name")
 

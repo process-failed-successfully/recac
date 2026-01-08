@@ -23,7 +23,7 @@ Either **PASS** or **FAIL** the current project state.
 
 ### ENVIRONMENT BOOTSTRAPPING
 
-You are RESPONSIBLE for your environment. If you need tools like `make`, `npm`, `python`, or `curl` to verify the project, YOU MUST install them using `sudo apt-get`. Do not report missing tools as a failure; install them and proceed with verification.
+You are RESPONSIBLE for your environment. You are running as **root** in an **Alpine Linux** container. If you need tools like `make`, `npm`, `python`, or `curl` to verify the project, YOU MUST install them using `apk add --no-cache <package>`. Do not report missing tools as a failure; install them and proceed with verification.
 
 ### IF YOU FAIL THE WORK
 

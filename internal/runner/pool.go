@@ -51,11 +51,29 @@ func (p *WorkerPool) GetNotifier() notify.Notifier {
 
 // Start launches the worker goroutines.
 func (p *WorkerPool) Start() {
-	fmt.Printf("Starting worker pool with %d workers\n", p.NumWorkers)
-	for i := 0; i < p.NumWorkers; i++ {
+	p.mu.RLock()
+	numWorkers := p.NumWorkers
+	p.mu.RUnlock()
+
+	fmt.Printf("Starting worker pool with %d workers\n", numWorkers)
+	for i := 0; i < numWorkers; i++ {
 		p.wg.Add(1)
 		go p.worker(i)
 	}
+}
+
+// SetNumWorkers sets the number of workers in a thread-safe way.
+func (p *WorkerPool) SetNumWorkers(n int) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.NumWorkers = n
+}
+
+// GetNumWorkers returns the current number of workers in a thread-safe way.
+func (p *WorkerPool) GetNumWorkers() int {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.NumWorkers
 }
 
 func (p *WorkerPool) worker(id int) {

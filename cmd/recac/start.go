@@ -28,7 +28,7 @@ import (
 
 func init() {
 	startCmd.Flags().String("path", "", "Project path (skips wizard)")
-	startCmd.Flags().Int("max-iterations", 20, "Maximum number of iterations")
+	startCmd.Flags().Int("max-iterations", 30, "Maximum number of iterations")
 	startCmd.Flags().Int("manager-frequency", 5, "Frequency of manager reviews")
 	startCmd.Flags().Int("max-agents", 1, "Maximum number of parallel agents")
 	startCmd.Flags().Int("task-max-iterations", 10, "Maximum iterations for sub-tasks")
@@ -70,6 +70,10 @@ func init() {
 	viper.BindPFlag("repo_url", startCmd.Flags().Lookup("repo-url"))
 	viper.BindPFlag("summary", startCmd.Flags().Lookup("summary"))
 	viper.BindPFlag("description", startCmd.Flags().Lookup("description"))
+
+	viper.BindEnv("max_iterations", "RECAC_MAX_ITERATIONS")
+	viper.BindEnv("manager_frequency", "RECAC_MANAGER_FREQUENCY")
+	viper.BindEnv("task_max_iterations", "RECAC_TASK_MAX_ITERATIONS")
 
 	rootCmd.AddCommand(startCmd)
 }
@@ -125,12 +129,12 @@ var startCmd = &cobra.Command{
 		taskMaxIterations := viper.GetInt("task_max_iterations")
 		detached := viper.GetBool("detached")
 		sessionName := viper.GetString("name")
-		
+
 		jiraTicketID, _ := cmd.Flags().GetString("jira")
 		if jiraTicketID == "" {
 			jiraTicketID = viper.GetString("jira")
 		}
-		
+
 		// Handle Jira Ticket Workflow
 		jiraLabel := viper.GetString("jira_label")
 
@@ -427,7 +431,7 @@ func processDirectTask(ctx context.Context, cfg SessionConfig) {
 
 	// Setup Workspace
 	timestamp := time.Now().Format("20060102-150405")
-	
+
 	if cfg.ProjectPath == "" {
 		var err error
 		cfg.ProjectPath, err = os.MkdirTemp("", "recac-direct-*")
@@ -753,9 +757,12 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 		cfg.SessionName = projectName
 	}
 
-	dockerCli, err := docker.NewClient(projectName)
+	var dockerCli *docker.Client
+	var err error
+	dockerCli, err = docker.NewClient(projectName)
 	if err != nil {
-		return fmt.Errorf("failed to initialize Docker client: %v", err)
+		fmt.Printf("Warning: Failed to initialize Docker client: %v. Proceeding in restricted mode.\n", err)
+		dockerCli = nil
 	}
 
 	provider := cfg.Provider
