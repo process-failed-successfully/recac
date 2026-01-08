@@ -137,7 +137,13 @@ func run() error {
 		}
 	}()
 
-	// 3. Deploy Helm
+	// 3. Prepare Repository (Cleanup stale branches)
+	log.Println("=== Preparing Repository (Cleaning stale branches) ===")
+	if err := prepareRepo(repoURL, ticketMap); err != nil {
+		log.Printf("Warning: Failed to prepare repository: %v", err)
+	}
+
+	// 4. Deploy Helm
 	log.Println("=== Cleaning up old Jobs ===")
 	_ = runCommand("kubectl", "delete", "jobs", "-n", namespace, "-l", "app=recac-agent", "--cascade=foreground", "--wait=true")
 
@@ -209,8 +215,7 @@ func run() error {
 	// Check for Orchestrator Pod
 	if err := waitForPod(namespace, fmt.Sprintf("app.kubernetes.io/name=%s", "recac"), 120*time.Second); err != nil {
 		fmt.Println("!!! Orchestrator Pod Failed to Start !!!")
-		_ = runCommand("kubectl", "get", "pods", "-n", namespace)
-		_ = runCommand("kubectl", "describe", "pods", "-l", fmt.Sprintf("app.kubernetes.io/name=%s", "recac"), "-n", namespace)
+		printKubeDebugInfo(namespace)
 		return fmt.Errorf("orchestrator pod failed to start: %w", err)
 	}
 
@@ -234,6 +239,7 @@ func run() error {
 
 	jobName, err := waitForJob(namespace, expectedJobPrefix, 300*time.Second)
 	if err != nil {
+		printKubeDebugInfo(namespace)
 		printLogs(namespace, fmt.Sprintf("app.kubernetes.io/name=%s", "recac"))
 		return fmt.Errorf("agent job failed to start: %w", err)
 	}
@@ -241,7 +247,8 @@ func run() error {
 
 	// Wait for Job Completion
 	log.Println("Waiting for Agent Job to complete...")
-	if err := waitForJobCompletion(namespace, jobName, 1200*time.Second); err != nil {
+	if err := waitForJobCompletion(namespace, jobName, 2400*time.Second); err != nil {
+		printKubeDebugInfo(namespace)
 		printLogs(namespace, "app=recac-agent")
 		return fmt.Errorf("agent job failed to complete: %w", err)
 	}
@@ -253,6 +260,7 @@ func run() error {
 	// 5. Verify Results
 	log.Println("=== Verifying Results ===")
 	if err := verifyScenario(scenarioName, repoURL, ticketMap); err != nil {
+		printKubeDebugInfo(namespace)
 		return fmt.Errorf("verification failed: %w", err)
 	}
 
@@ -324,6 +332,48 @@ func waitForJobCompletion(ns, jobName string, timeout time.Duration) error {
 
 func printLogs(ns, selector string) {
 	fmt.Println("--- LOGS START ---")
-	_ = runCommand("kubectl", "logs", "-l", selector, "-n", ns, "--all-containers=true", "--tail=50")
+	_ = runCommand("kubectl", "logs", "-l", selector, "-n", ns, "--all-containers=true", "--tail=300")
 	fmt.Println("--- LOGS END ---")
+}
+
+func printKubeDebugInfo(ns string) {
+	fmt.Println("--- KUBE DEBUG INFO START ---")
+	fmt.Println(">> PODS <<")
+	_ = runCommand("kubectl", "get", "pods", "-n", ns, "-o", "wide")
+	fmt.Println(">> DESCRIBE PODS <<")
+	_ = runCommand("kubectl", "describe", "pods", "-n", ns)
+	fmt.Println(">> EVENTS <<")
+	_ = runCommand("kubectl", "get", "events", "-n", ns, "--sort-by=.lastTimestamp")
+	fmt.Println("--- KUBE DEBUG INFO END ---")
+}
+
+func prepareRepo(repoURL string, ticketMap map[string]string) error {
+	token := os.Getenv("GITHUB_API_KEY")
+	authRepo := repoURL
+	if !strings.Contains(repoURL, "@") {
+		authRepo = strings.Replace(repoURL, "https://", fmt.Sprintf("https://x-access-token:%s@", token), 1)
+	}
+
+	// Clone to temp dir
+	tmpDir, err := os.MkdirTemp("", "e2e-cleanup")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmpDir)
+
+	if err := runCommand("git", "clone", "--depth", "1", authRepo, tmpDir); err != nil {
+		return fmt.Errorf("failed to clone for preparation: %w", err)
+	}
+
+	for _, ticketKey := range ticketMap {
+		branchName := fmt.Sprintf("agent/%s", ticketKey)
+		log.Printf("Checking for stale branch: %s", branchName)
+
+		// Delete remote branch if it exists
+		// git push origin --delete <branch>
+		// We ignore error if it doesn't exist
+		_ = exec.Command("git", "-C", tmpDir, "push", "origin", "--delete", branchName).Run()
+	}
+
+	return nil
 }

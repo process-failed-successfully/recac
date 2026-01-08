@@ -154,7 +154,7 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		// Wait, binds are host_path:/workspace.
 		// So inside container we must use /workspace.
 		cmdStr = "cd /workspace" // Reset to constant
-		cmdStr += " && export RECAC_MAX_ITERATIONS=10"
+		cmdStr += " && export RECAC_MAX_ITERATIONS=20"
 		cmdStr += " && " + strings.Join(envExports, " && ")
 		cmdStr += fmt.Sprintf(" && /usr/local/bin/recac start --jira %s --project %s --detached=false --cleanup=false --path /workspace --verbose", item.ID, item.ID)
 		cmdStr += " && echo 'Recac Finished'"

@@ -28,7 +28,7 @@ import (
 
 func init() {
 	startCmd.Flags().String("path", "", "Project path (skips wizard)")
-	startCmd.Flags().Int("max-iterations", 20, "Maximum number of iterations")
+	startCmd.Flags().Int("max-iterations", 30, "Maximum number of iterations")
 	startCmd.Flags().Int("manager-frequency", 5, "Frequency of manager reviews")
 	startCmd.Flags().Int("max-agents", 1, "Maximum number of parallel agents")
 	startCmd.Flags().Int("task-max-iterations", 10, "Maximum iterations for sub-tasks")
@@ -125,12 +125,12 @@ var startCmd = &cobra.Command{
 		taskMaxIterations := viper.GetInt("task_max_iterations")
 		detached := viper.GetBool("detached")
 		sessionName := viper.GetString("name")
-		
+
 		jiraTicketID, _ := cmd.Flags().GetString("jira")
 		if jiraTicketID == "" {
 			jiraTicketID = viper.GetString("jira")
 		}
-		
+
 		// Handle Jira Ticket Workflow
 		jiraLabel := viper.GetString("jira_label")
 
@@ -427,7 +427,7 @@ func processDirectTask(ctx context.Context, cfg SessionConfig) {
 
 	// Setup Workspace
 	timestamp := time.Now().Format("20060102-150405")
-	
+
 	if cfg.ProjectPath == "" {
 		var err error
 		cfg.ProjectPath, err = os.MkdirTemp("", "recac-direct-*")

@@ -16,6 +16,8 @@ func EnsureStateIgnored(repoPath string) error {
 		".agent_state.json",
 		"test_state.json",
 		".recac.db",
+		"*.pyc",
+		"__pycache__/",
 	}
 
 	gitignorePath := repoPath + "/.gitignore"

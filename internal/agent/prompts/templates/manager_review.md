@@ -39,7 +39,7 @@ You interact by **Executing Commands**. The agents will read the files you creat
 Write high-level instructions for the next sessions.
 
 ```bash
-cat <<EOF > manager_directives.txt
+cat <<'EOF' > manager_directives.txt
 - Priority 1: Focus on the core game loop before adding sound effects.
 - Priority 2: Use the existing helper functions in utils.js instead of re-implementing them.
 - Requirement: All new functions must have JSDoc comments.
