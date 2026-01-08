@@ -142,7 +142,7 @@ DEPLOY_IMAGE=$(DEPLOY_REPO):$(DEPLOY_TAG)
 
 .PHONY: image-prod push-prod dev-cycle
 image-prod: ## Build the production docker image
-	docker build --no-cache -t $(DEPLOY_IMAGE) --target production $(ARGS) .
+	docker build -t $(DEPLOY_IMAGE) --target production $(ARGS) .
 
 push-prod: image-prod ## Push the production docker image
 	docker push $(DEPLOY_IMAGE)
