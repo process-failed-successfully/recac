@@ -21,6 +21,10 @@ jobs:
       image: ${{ steps.image-tag.outputs.image }}
     steps:
       - uses: actions/checkout@v4
+      - name: Configure Git for Private Modules
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
+          git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "git@github.com:"
 
       - name: Generate Image Tag
         id: image-tag
@@ -80,6 +84,10 @@ jobs:
       total_shards: ${{ steps.set-matrix.outputs.total_shards }}
     steps:
       - uses: actions/checkout@v4
+      - name: Configure Git for Private Modules
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
+          git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "git@github.com:"
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -106,6 +114,10 @@ jobs:
       # options: --volume /var/run/docker.sock:/var/run/docker.sock # Lint generally doesn't need docker
     steps:
       - uses: actions/checkout@v4
+      - name: Configure Git for Private Modules
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
+          git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "git@github.com:"
 
       - name: Cache Go Modules
         uses: actions/cache@v4
@@ -135,6 +147,10 @@ jobs:
         shard: ${{ fromJson(needs.setup-matrix.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
+      - name: Configure Git for Private Modules
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
+          git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "git@github.com:"
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -158,6 +174,10 @@ jobs:
     container: ${{ needs.prepare-test-image.outputs.image }}
     steps:
       - uses: actions/checkout@v4
+      - name: Configure Git for Private Modules
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
+          git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "git@github.com:"
 
       - name: Cache Go Modules
         uses: actions/cache@v4
@@ -184,6 +204,10 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+      - name: Configure Git for Private Modules
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
+          git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "git@github.com:"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
