@@ -281,15 +281,8 @@ func verifyScenario(scenarioName, repo string, ticketMap map[string]string) erro
 	}
 	defer os.RemoveAll(tmpDir)
 
-	token := os.Getenv("GITHUB_API_KEY")
-	authRepo := repo
-	if !strings.Contains(repo, "@") {
-		// Insert token into URL
-		authRepo = strings.Replace(repo, "https://", fmt.Sprintf("https://x-access-token:%s@", token), 1)
-	}
-
 	log.Printf("Cloning repo to %s...", tmpDir)
-	if err := runCommand("git", "clone", authRepo, tmpDir); err != nil {
+	if err := runCommand("git", "clone", repo, tmpDir); err != nil {
 		return fmt.Errorf("failed to clone: %w", err)
 	}
 
@@ -348,12 +341,6 @@ func printKubeDebugInfo(ns string) {
 }
 
 func prepareRepo(repoURL string, ticketMap map[string]string) error {
-	token := os.Getenv("GITHUB_API_KEY")
-	authRepo := repoURL
-	if !strings.Contains(repoURL, "@") {
-		authRepo = strings.Replace(repoURL, "https://", fmt.Sprintf("https://x-access-token:%s@", token), 1)
-	}
-
 	// Clone to temp dir
 	tmpDir, err := os.MkdirTemp("", "e2e-cleanup")
 	if err != nil {
@@ -361,7 +348,7 @@ func prepareRepo(repoURL string, ticketMap map[string]string) error {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	if err := runCommand("git", "clone", "--depth", "1", authRepo, tmpDir); err != nil {
+	if err := runCommand("git", "clone", "--depth", "1", repoURL, tmpDir); err != nil {
 		return fmt.Errorf("failed to clone for preparation: %w", err)
 	}
 
