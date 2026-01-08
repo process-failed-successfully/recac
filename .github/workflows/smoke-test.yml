@@ -9,6 +9,8 @@ jobs:
   smoke-test:
     runs-on: ubuntu-latest
     steps:
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y libpcre2-8-0
       - name: Checkout
         uses: actions/checkout@v4
 
