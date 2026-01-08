@@ -179,7 +179,7 @@ func run() error {
 		"--set", fmt.Sprintf("config.jira_query=labels = \"%s\" AND issuetype != Epic AND statusCategory != Done ORDER BY created ASC", label),
 		"--set", "config.verbose=true",
 		"--set", "config.interval=10s",
-		"--set", "config.max_iterations=10",
+		"--set", "config.maxIterations=20",
 		"--set", fmt.Sprintf("config.provider=%s", provider),
 		"--set", fmt.Sprintf("config.model=%s", model),
 		"--set", "config.dbType=postgres",

@@ -1847,7 +1847,12 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 	// 1. Extract Bash Blocks (More robust regex to handle variations in LLM output)
 	matches := bashBlockRegex.FindAllStringSubmatch(response, -1)
 
-	// 1. Extract Bash Blocks
+	// Safety valve: Prevent LLM loops from flooding the execution
+	const maxCommandBlocks = 100
+	if len(matches) > maxCommandBlocks {
+		s.Logger.Warn("Safety valve tripped: truncated too many command blocks", "total", len(matches), "limit", maxCommandBlocks)
+		matches = matches[:maxCommandBlocks]
+	}
 
 	var parsedOutput strings.Builder
 	// Get timeout from config

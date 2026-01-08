@@ -71,6 +71,10 @@ func init() {
 	viper.BindPFlag("summary", startCmd.Flags().Lookup("summary"))
 	viper.BindPFlag("description", startCmd.Flags().Lookup("description"))
 
+	viper.BindEnv("max_iterations", "RECAC_MAX_ITERATIONS")
+	viper.BindEnv("manager_frequency", "RECAC_MANAGER_FREQUENCY")
+	viper.BindEnv("task_max_iterations", "RECAC_TASK_MAX_ITERATIONS")
+
 	rootCmd.AddCommand(startCmd)
 }
 

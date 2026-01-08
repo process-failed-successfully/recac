@@ -109,7 +109,7 @@ You have a Project Manager who reviews your work periodically.
 - **Trigger Manager**: If you need immediate intervention, run `agent-bridge manager`.
 
 ```bash
-echo "- Implemented auth service" >> successes.txt
+echo "- Implemented [assigned feature]" >> successes.txt
 ```
 
 ### HUMAN INTERVENTION & TOOLS
