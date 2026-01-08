@@ -22,6 +22,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Force Git to use HTTPS
+        run: git config --global url."https://github.com/".insteadOf "git@github.com:"
+
       - name: Generate Image Tag
         id: image-tag
         run: |
@@ -80,6 +83,9 @@ jobs:
       total_shards: ${{ steps.set-matrix.outputs.total_shards }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Force Git to use HTTPS
+        run: git config --global url."https://github.com/".insteadOf "git@github.com:"
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -117,6 +123,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
+      - name: Force Git to use HTTPS
+        run: git config --global url."https://github.com/".insteadOf "git@github.com:"
+
       - name: Lint
         run: |
           go mod download
@@ -140,6 +149,9 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+
+      - name: Force Git to use HTTPS
+        run: git config --global url."https://github.com/".insteadOf "git@github.com:"
 
       - name: Build Agent Image for Tests
         run: |
@@ -168,6 +180,9 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
+
+      - name: Force Git to use HTTPS
+        run: git config --global url."https://github.com/".insteadOf "git@github.com:"
 
       - name: Build Binaries
         run: |
