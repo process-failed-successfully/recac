@@ -41,6 +41,11 @@ jobs:
         run: |
           k3d image import recac:smoke -c recac-smoke
 
+      - name: Configure Git for private modules
+        env:
+          GH_API_KEY: ${{ secrets.GH_API_KEY }}
+        run: |
+          git config --global url."https://x-access-token:${GH_API_KEY}@github.com/".insteadOf "https://github.com/"
       - name: Run E2E Test
         env:
           JIRA_URL: ${{ secrets.JIRA_URL }}
