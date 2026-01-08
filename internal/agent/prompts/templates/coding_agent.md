@@ -86,7 +86,7 @@ You are assigned to work on **EXACTLY ONE** feature. Once you have completed the
 - **WARNING: DO NOT BUILD "STANDARD" FLOWS**: Do not build things like "User Authentication", "Dashboards", or "Login" unless they are the SPECIFIC feature ID assigned to you. Even if you see them in documentation or examples, IGNORE THEM. Focus ONLY on your assigned task.
 - **MVP First**: Deliver functional POC/MVP code before adding complexity.
 
-1. Find the assigned feature in `feature_list.json`
+1. **Verify Assigned Feature**: Your assigned task is **{task_id}**. Double-check its details in `feature_list.json` using `cat feature_list.json | grep -A 10 "{task_id}"`.
 2. Verify required packages are installed. If not, install them.
 3. Implement it thoroughly (frontend and/or backend).
    - **MANDATORY:** Write unit tests for your new code. Code without tests is not done.

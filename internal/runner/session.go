@@ -1448,6 +1448,33 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 	}
 
 	// Populate task-specific variables if set
+	// 4. Deterministic Task Assignment (User Request: Remove agent reliance on jq)
+	// Find the first pending feature and assign it explicitly.
+	var assignedFeature *db.Feature
+	features := s.loadFeatures() // Refresh from DB/File
+
+	for i := range features {
+		if features[i].Status != "done" && !features[i].Passes {
+			assignedFeature = &features[i]
+			break
+		}
+	}
+
+	if assignedFeature != nil {
+		vars["task_id"] = assignedFeature.ID
+		vars["task_description"] = assignedFeature.Description
+		vars["exclusive_paths"] = strings.Join(assignedFeature.Dependencies.ExclusiveWritePaths, ", ")
+		vars["read_only_paths"] = strings.Join(assignedFeature.Dependencies.ReadOnlyPaths, ", ")
+
+		// Set selected task ID for tracking
+		s.SelectedTaskID = assignedFeature.ID
+	} else {
+		// All done?
+		vars["task_id"] = "NONE_ALL_COMPLETE"
+		vars["task_description"] = "All features are marked as done/passing. Please run final verification and signal completion."
+		vars["exclusive_paths"] = "none"
+		vars["read_only_paths"] = "all"
+	}
 	if s.SelectedTaskID != "" {
 		features := s.loadFeatures()
 		var target db.Feature
