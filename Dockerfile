@@ -48,6 +48,11 @@ FROM base AS production
 WORKDIR /app
 COPY --from=builder /app/recac /usr/local/bin/recac
 COPY --from=builder /app/agent-bridge /usr/local/bin/agent-bridge
+COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
-# Default entrypoint
+# Make entrypoint executable and set it
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+
+# Default command
 CMD ["recac"]
