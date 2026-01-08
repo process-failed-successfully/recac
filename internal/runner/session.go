@@ -385,7 +385,8 @@ func (s *Session) InitializeAgentState(maxTokens int) error {
 		return nil // No state manager configured
 	}
 
-	return s.StateManager.InitializeState(maxTokens)
+	// Also persist the model name
+	return s.StateManager.InitializeState(maxTokens, s.AgentModel)
 }
 
 // SaveAgentState saves the current agent state to disk
