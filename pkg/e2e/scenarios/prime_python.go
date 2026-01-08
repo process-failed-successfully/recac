@@ -74,15 +74,29 @@ func (s *PrimePythonScenario) Verify(repoPath string, ticketKeys map[string]stri
 
 	// 1. Try reading primes.json first (Deterministic Output)
 	fullJsonPath := filepath.Join(repoPath, jsonPath)
+	var shouldUseFile bool
 	if _, err := os.Stat(fullJsonPath); err == nil {
-		fmt.Printf("Found %s, verifying content...\n", jsonPath)
-		out, err = os.ReadFile(fullJsonPath)
-		if err != nil {
-			return fmt.Errorf("failed to read %s: %v", jsonPath, err)
+		fmt.Printf("Found %s, checking content...\n", jsonPath)
+		fileOut, err := os.ReadFile(fullJsonPath)
+		if err == nil && len(fileOut) > 0 {
+			// Check if it's a valid non-empty JSON
+			var tempResult struct {
+				Primes []int `json:"primes"`
+			}
+			// We only use the file if it parses correctly AND has data
+			if json.Unmarshal(fileOut, &tempResult) == nil && len(tempResult.Primes) > 0 {
+				out = fileOut
+				shouldUseFile = true
+				fmt.Printf("Valid content found in %s, verifying...\n", jsonPath)
+			} else {
+				fmt.Printf("%s exists but is empty or invalid, falling back to execution...\n", jsonPath)
+			}
 		}
-	} else {
+	}
+
+	if !shouldUseFile {
 		// 2. Fallback to running the script
-		fmt.Printf("%s not found, falling back to running %s\n", jsonPath, scriptPath)
+		fmt.Printf("Generating output using %s\n", scriptPath)
 		cmd := exec.Command("python3", scriptPath)
 		cmd.Dir = repoPath
 		out, err = cmd.CombinedOutput()

@@ -1367,18 +1367,14 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 			return prompt, prompts.ManagerReview, true, err
 		}
 
-		featuresPath := filepath.Join(s.Workspace, "feature_list.json")
-		// Check if file exists and has content
-		if _, err := os.Stat(featuresPath); err == nil {
-			features := s.loadFeatures()
-			if len(features) == 0 {
-				fmt.Println("Feature list found but is empty. Running Initializer.")
-				runInitializer = true
-			}
-			// If features > 0, we proceed normally
+		// Check for existing features (DB, Injected, or File)
+		features := s.loadFeatures()
+		if len(features) > 0 {
+			// Features exist, so we don't need to run Initializer.
+			// s.loadFeatures() automatically syncs to file if found in DB.
 		} else {
-			// File does NOT exist. Run Initializer.
-			fmt.Println("Feature list not found. Running Initializer.")
+			// No features found anywhere. Run Initializer.
+			fmt.Println("Feature list not found (in DB, Content, or File). Running Initializer.")
 			runInitializer = true
 		}
 
