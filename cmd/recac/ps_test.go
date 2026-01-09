@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestPsCmd_NoSessions(t *testing.T) {
+func TestPsAndListCommands(t *testing.T) {
 	tempDir := t.TempDir()
 	sessionDir := filepath.Join(tempDir, "sessions")
 	os.MkdirAll(sessionDir, 0755)
@@ -19,12 +19,30 @@ func TestPsCmd_NoSessions(t *testing.T) {
 	}
 	defer func() { sessionManagerFactory = oldSessionManager }()
 
-	output, err := executeCommand(rootCmd, "ps")
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
+	testCases := []struct {
+		name    string
+		command string
+	}{
+		{
+			name:    "ps command with no sessions",
+			command: "ps",
+		},
+		{
+			name:    "list alias with no sessions",
+			command: "list",
+		},
 	}
 
-	if !strings.Contains(output, "No sessions found.") {
-		t.Errorf("expected output to contain 'No sessions found.', got '%s'", output)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			output, err := executeCommand(rootCmd, tc.command)
+			if err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+
+			if !strings.Contains(output, "No sessions found.") {
+				t.Errorf("expected output to contain 'No sessions found.', got '%s'", output)
+			}
+		})
 	}
 }

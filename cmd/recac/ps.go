@@ -14,9 +14,10 @@ func init() {
 }
 
 var psCmd = &cobra.Command{
-	Use:   "ps",
-	Short: "List all sessions",
-	Long:  `List all active and completed sessions.`,
+	Use:     "ps",
+	Aliases: []string{"list"},
+	Short:   "List all sessions",
+	Long:    `List all active and completed sessions.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		sm, err := sessionManagerFactory()
 		if err != nil {

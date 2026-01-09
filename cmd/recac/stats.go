@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"recac/internal/agent"
-	"recac/internal/runner"
 )
 
 // AggregateStats holds the calculated statistics
@@ -26,7 +25,7 @@ var statsCmd = &cobra.Command{
 	Short: "Show aggregate statistics for all sessions",
 	Long:  `Calculates and displays aggregate statistics from all session history files, such as total tokens used, total cost, and a breakdown of session statuses.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		sm, err := runner.NewSessionManager()
+		sm, err := sessionManagerFactory()
 		if err != nil {
 			return fmt.Errorf("could not create session manager: %w", err)
 		}
@@ -41,7 +40,7 @@ var statsCmd = &cobra.Command{
 	},
 }
 
-func calculateStats(sm *runner.SessionManager) (*AggregateStats, error) {
+func calculateStats(sm ISessionManager) (*AggregateStats, error) {
 	sessions, err := sm.ListSessions()
 	if err != nil {
 		return nil, fmt.Errorf("could not list sessions: %w", err)
