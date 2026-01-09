@@ -1,9 +1,7 @@
 package runner
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
 	"recac/internal/db"
 	"sync"
 )
@@ -63,18 +61,8 @@ func (g *TaskGraph) AddNode(id, name string, dependencies []string) {
 	}
 }
 
-// LoadFromFeatureList loads tasks from feature_list.json with dependency support
-func (g *TaskGraph) LoadFromFeatureList(filePath string) error {
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return fmt.Errorf("failed to read feature_list.json: %w", err)
-	}
-
-	var featureList db.FeatureList
-	if err := json.Unmarshal(data, &featureList); err != nil {
-		return fmt.Errorf("failed to parse feature_list.json: %w", err)
-	}
-
+// LoadFromFeatures creates/updates tasks from a list of features with dependency support
+func (g *TaskGraph) LoadFromFeatures(features []db.Feature) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -83,7 +71,7 @@ func (g *TaskGraph) LoadFromFeatureList(filePath string) error {
 	}
 
 	// Create or update task nodes from features
-	for _, feature := range featureList.Features {
+	for _, feature := range features {
 		taskID := feature.ID
 		if taskID == "" {
 			taskID = fmt.Sprintf("task-%s", feature.Category)

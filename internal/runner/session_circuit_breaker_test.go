@@ -1,10 +1,6 @@
 package runner
 
 import (
-	"encoding/json"
-	"os"
-	"path/filepath"
-	"recac/internal/db"
 	"recac/internal/notify"
 	"recac/internal/telemetry"
 	"strings"
@@ -130,13 +126,4 @@ func TestSession_CheckStalledBreaker_ManagerReset(t *testing.T) {
 	if s.StalledCount != 0 {
 		t.Errorf("Expected StalledCount to be reset to 0 by Manager, got %d", s.StalledCount)
 	}
-}
-
-func writeFeaturesForBreaker(t *testing.T, workspace string, features []db.Feature) {
-	list := db.FeatureList{
-		ProjectName: "Test Project",
-		Features:    features,
-	}
-	data, _ := json.Marshal(list)
-	os.WriteFile(filepath.Join(workspace, "feature_list.json"), data, 0644)
 }
