@@ -223,3 +223,146 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=prod
           cache-to: type=gha,mode=max,scope=prod
+
+  # 7. Smoke Test (k3s) - Consolidated from smoke-test.yml
+  smoke-test:
+    runs-on: ubuntu-latest
+    # Run in parallel with others, but fail fast if early checks fail could be added.
+    # For now, running in parallel is fastest.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Setup k3d
+        uses: AbsaOSS/k3d-action@v2
+        with:
+          cluster-name: "recac-smoke"
+          args: >-
+            --agents 1
+            --no-lb
+            --no-lb
+            --k3s-arg "--disable=traefik@server:*"
+            --k3s-arg "--disable=metrics-server@server:*"
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "latest"
+
+      - name: Build Docker Image
+        run: |
+          make image-prod DEPLOY_IMAGE=recac:smoke
+
+      - name: Load Image into k3d
+        run: |
+          k3d image import recac:smoke -c recac-smoke
+
+      - name: Run E2E Test
+        env:
+          JIRA_URL: ${{ secrets.JIRA_URL }}
+          JIRA_USERNAME: ${{ secrets.JIRA_USERNAME }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          GITHUB_API_KEY: ${{ secrets.GH_API_KEY }}
+          GITHUB_EMAIL: ${{ secrets.GH_EMAIL }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          RETRIES=3
+          for i in $(seq 0 $RETRIES); do
+            echo "Attempt $((i+1)) of $((RETRIES+1))"
+            if go run e2e/runner/main.go \
+              -scenario prime-python \
+              -provider openrouter \
+              -model "mistralai/devstral-2512:free" \
+              -image recac:smoke \
+              -repo-url "https://github.com/process-failed-successfully/recac-jira-e2e" \
+              -pull-policy IfNotPresent \
+              -skip-build; then
+              echo "Test passed!"
+              exit 0
+            fi
+            echo "Attempt $((i+1)) failed."
+            if [ $i -lt $RETRIES ]; then
+              echo "Retrying in 10 seconds..."
+              sleep 10
+            fi
+          done
+          echo "All attempts failed."
+          exit 1
+
+  # 8. Auto-Merge PR (Consolidated from mergy.yml)
+  auto-merge:
+    name: 🦾 Auto-Merge PR
+    needs: [lint, test, build, smoke-test]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: "🚢 Merge PR"
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            if (!pr) {
+              console.log("No pull request found in context.");
+              return;
+            }
+            const prNumber = pr.number;
+
+            try {
+              console.log(`All required workflows passed (ensured by 'needs'). Processing PR #${prNumber}...`);
+
+              // 1. Get PR details to check if it's a draft and get node_id
+              const { data: prDetails } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+              });
+
+              // 2. If it's a draft, promote it
+              if (prDetails.draft) {
+                console.log(`PR #${prNumber} is a draft. Promoting...`);
+                const mutation = `
+                  mutation($pullRequestId: ID!) {
+                    markPullRequestReadyForReview(input: {pullRequestId: $pullRequestId}) {
+                      pullRequest { id isDraft }
+                    }
+                  }
+                `;
+                await github.graphql(mutation, { pullRequestId: prDetails.node_id });
+                console.log(`Successfully promoted PR #${prNumber}`);
+              }
+
+              // 3. Approve the PR (Required by branch protection)
+              // Note: You cannot approve your own PR. If the token belongs to the PR author, this might fail.
+              // Assuming GITHUB_TOKEN or a bot token is used.
+              try {
+                await github.rest.pulls.createReview({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: prNumber,
+                  event: 'APPROVE'
+                });
+                console.log(`Successfully approved PR #${prNumber}`);
+              } catch (approveError) {
+                console.log(`Approval step skipped or failed: ${approveError.message}. Continuing to merge attempt...`);
+              }
+
+              // 4. Merge the PR
+              await github.rest.pulls.merge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+                merge_method: 'squash'
+              });
+              console.log(`Successfully merged PR #${prNumber}`);
+            } catch (error) {
+              console.error(`Failed to process PR #${prNumber}:`, error.message);
+              core.setFailed(`Auto-merge failed: ${error.message}`);
+            }
