@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/help"
@@ -834,7 +835,23 @@ func (m *InteractiveModel) conversation(msg string, isUser bool) {
 
 // Helper to load models from JSON
 func loadModelsFromFile(filename string) ([]ModelItem, error) {
-	data, err := os.ReadFile(filename)
+	// Try internal/data first, then current directory (fallback)
+	// In production/binary context, we might need a different strategy or embed,
+	// but for now this supports both dev (root) and organized layouts.
+	paths := []string{
+		filepath.Join("internal", "data", filename),
+		filename,
+	}
+
+	var data []byte
+	var err error
+
+	for _, p := range paths {
+		data, err = os.ReadFile(p)
+		if err == nil {
+			break
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
