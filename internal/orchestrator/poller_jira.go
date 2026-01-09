@@ -39,9 +39,7 @@ func (p *JiraPoller) Poll(ctx context.Context) ([]WorkItem, error) {
 		p.JQL = "statusCategory != Done ORDER BY created ASC"
 	}
 
-	fmt.Println("DEBUG: SearchIssues start")
 	issues, err := p.Client.SearchIssues(ctx, p.JQL)
-	fmt.Println("DEBUG: SearchIssues done", len(issues), err)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search issues: %w", err)
 	}
@@ -51,7 +49,6 @@ func (p *JiraPoller) Poll(ctx context.Context) ([]WorkItem, error) {
 	}
 
 	// Build Dependency Graph to find actionable items
-	fmt.Println("DEBUG: BuildGraph start")
 	graph := jira.BuildGraphFromIssues(issues, func(issue map[string]interface{}) []string {
 		raw := p.Client.GetBlockers(issue)
 		keys := make([]string, 0, len(raw))
@@ -65,42 +62,9 @@ func (p *JiraPoller) Poll(ctx context.Context) ([]WorkItem, error) {
 		return keys
 	})
 
-	// We only want items that are READY (no local blockers).
-	// We assume external blockers (not in 'issues') might also exist?
-	// jira.BuildGraphFromIssues filters dependencies to only those in the set.
-	// This means if A depends on Z, and Z is NOT in 'issues', A is considered READY by the graph.
-	// However, GetBlockers returns "KEY (Status)" for NON-DONE blockers.
-	// So if Z is returned by GetBlockers, it is NOT Done.
-	// If Z is not in our JQL result, it means we didn't fetch it, but it blocks A.
-	// So A should NOT run.
-	// We need to handle "External Blockers".
-	// The current `jira.BuildGraphFromIssues` ignores external blockers.
-	// We should probably check if `GetBlockers` returned ANY blockers, and if so, don't run.
-	// Let's refine the ready check.
-
-	// Actually, `GetBlockers` returns "tickets that block ... and are not Done".
-	// So if `GetBlockers` returns non-empty, the ticket is blocked by SOMETHING that is not done.
-	// So it is not ready.
-
+	// We only want items that are READY (no local blockers and no external blockers).
+	// GetReadyTickets(nil) returns items with no internal dependencies in the current set.
 	var curatedItems []WorkItem
-	// We use the graph for ordering/sorting, but simple "IsBlocked" check is safer?
-	// The graph helps if we have A -> B in the SAME batch, so we don't start B until A is done.
-	// But `Poll` returns a list of items to process NOW.
-	// If we return [A, B] and A blocks B, the Orchestrator spawns them in parallel.
-	// The Orchestrator does NOT wait for A before spawning B in the current implementation.
-	// The Orchestrator spawns EVERYTHING returned by Poll.
-	// So Poll MUST ONLY return items that are truly ready to run immediately.
-	// So if A blocks B, we should return A. Next Poll, if A is done, we return B.
-
-	// So we need `GetReadyTickets` but we also need to respect that we can't run B yet.
-	// `graph.GetReadyTickets` handles internal dependencies.
-	// But what about A? It will be in `ready`.
-	// If A requires time to run, B shouldn't start.
-	// So returning both A and B (if B didn't depend on A) is fine.
-	// But if B depends on A, `GetReadyTickets` will NOT return B because A is not in `completed`.
-	// So `GetReadyTickets` with empty `completed` map returns only roots.
-	// This ensures we don't start B.
-	// AND we also need to check for External Blockers.
 
 	readyKeys := graph.GetReadyTickets(nil) // Empty completed set
 
@@ -115,14 +79,9 @@ func (p *JiraPoller) Poll(ctx context.Context) ([]WorkItem, error) {
 	for _, key := range readyKeys {
 		issue := issueMap[key]
 		blockers := p.Client.GetBlockers(issue)
+		// If blockers exist (internal or external), skip.
+		// GetReadyTickets ensures no internal blockers, but GetBlockers checks JQL-independent status.
 		if len(blockers) > 0 {
-			// This ticket has blockers (internal or external) that are not Done.
-			// Since GetReadyTickets(nil) says it's ready internally, it means:
-			// no internal dependency blocks it.
-			// But if len(blockers) > 0, it must be an EXTERNAL blocker (or a cycle? or self?).
-			// Wait, if it has internal blockers, GetReadyTickets WOULD filter it out.
-			// So if it's here, blockers must be external.
-			// If external blockers exist and are not Done, we shouldn't run.
 			continue
 		}
 		finalKeys = append(finalKeys, key)

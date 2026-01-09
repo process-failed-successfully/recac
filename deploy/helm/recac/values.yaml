@@ -50,6 +50,12 @@ config:
   dbType: "sqlite" # or "postgres"
   dbUrl: "" # External Database URL (for 'postgres' type)
 
+  notifications:
+    discord:
+      enabled: true
+    slack:
+      enabled: true
+
 extraVolumes: []
 extraVolumeMounts: []
 
