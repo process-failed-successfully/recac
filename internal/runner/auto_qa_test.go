@@ -3,7 +3,6 @@ package runner
 import (
 	"encoding/json"
 	"log/slog"
-	"os"
 	"path/filepath"
 	"recac/internal/db"
 	"recac/internal/notify"
@@ -79,7 +78,6 @@ func writeFeaturesForAutoQAWithSession(t *testing.T, s *Session, features []db.F
 		Features:    features,
 	}
 	data, _ := json.Marshal(list)
-	os.WriteFile(filepath.Join(s.Workspace, "feature_list.json"), data, 0644)
 	if s.DBStore != nil {
 		_ = s.DBStore.SaveFeatures(s.Project, string(data))
 	}
