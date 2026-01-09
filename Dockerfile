@@ -38,10 +38,10 @@ FROM base AS builder
 ARG CACHE_BYPASS=unknown
 WORKDIR /app
 COPY go.mod go.sum ./
-COPY vendor ./vendor
+RUN go mod download
 COPY . .
-RUN go build -mod=vendor -buildvcs=false -o recac ./cmd/recac
-RUN go build -mod=vendor -buildvcs=false -o agent-bridge ./cmd/agent-bridge
+RUN go build -buildvcs=false -o recac ./cmd/recac
+RUN go build -buildvcs=false -o agent-bridge ./cmd/agent-bridge
 
 # Production Image
 FROM base AS production

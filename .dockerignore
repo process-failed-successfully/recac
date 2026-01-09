@@ -11,7 +11,7 @@ recac
 *.test
 *.out
 go.work
-# vendor/
+vendor/
 
 # Node
 node_modules/
