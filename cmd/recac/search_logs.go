@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"recac/internal/runner"
-
 	"github.com/spf13/cobra"
 )
 
@@ -29,7 +27,7 @@ func init() {
 }
 
 func searchLogs(pattern string, cmd *cobra.Command) error {
-	sm, err := runner.NewSessionManager()
+	sm, err := sessionManagerFactory()
 	if err != nil {
 		return fmt.Errorf("failed to initialize session manager: %w", err)
 	}
@@ -47,15 +45,25 @@ func searchLogs(pattern string, cmd *cobra.Command) error {
 			// Log file might not exist for some sessions, so we skip it.
 			continue
 		}
-		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
-			line := scanner.Text()
-			if strings.Contains(line, pattern) {
-				cmd.Println(fmt.Sprintf("[%s] %s", session.Name, line))
-				foundMatch = true
+
+		// Using a closure to correctly scope the defer and check for scanner errors.
+		scanErr := func() error {
+			defer file.Close()
+			scanner := bufio.NewScanner(file)
+			for scanner.Scan() {
+				line := scanner.Text()
+				if strings.Contains(line, pattern) {
+					cmd.Println(fmt.Sprintf("[%s] %s", session.Name, line))
+					foundMatch = true
+				}
 			}
+			return scanner.Err()
+		}()
+
+		if scanErr != nil {
+			// Print a warning and continue to the next log file.
+			fmt.Fprintf(cmd.ErrOrStderr(), "warning: error reading log file %s: %v\n", logPath, scanErr)
 		}
-		file.Close()
 	}
 
 	if !foundMatch {
