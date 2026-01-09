@@ -64,6 +64,11 @@ func (sm *SessionManager) GetSessionPath(name string) string {
 	return filepath.Join(sm.sessionsDir, name+".json")
 }
 
+// SessionsDir returns the root directory where sessions are stored.
+func (sm *SessionManager) SessionsDir() string {
+	return sm.sessionsDir
+}
+
 // StartSession starts a session in detached mode
 func (sm *SessionManager) StartSession(name string, command []string, workspace string) (*SessionState, error) {
 	// Check if session already exists
