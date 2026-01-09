@@ -64,7 +64,7 @@ var initProjectCmd = &cobra.Command{
 
 	Short: "Initialize a new project structure",
 
-	Long: `Scaffolds a new project based on the application specification. Generates feature_list.json and creates directory structure.`,
+	Long: `Scaffolds a new project based on the application specification. Generates initial_features.json and creates directory structure.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 
@@ -117,15 +117,16 @@ var initProjectCmd = &cobra.Command{
 		}
 
 		// 4. Save Feature List
-		if _, err := os.Stat("feature_list.json"); err == nil && !forceInit {
-			fmt.Println("feature_list.json already exists. Use --force to overwrite.")
+		outputFile := "initial_features.json"
+		if _, err := os.Stat(outputFile); err == nil && !forceInit {
+			fmt.Printf("%s already exists. Use --force to overwrite.\n", outputFile)
 		} else {
 			data, _ := json.MarshalIndent(featureList, "", "  ")
-			if err := os.WriteFile("feature_list.json", data, 0644); err != nil {
-				fmt.Printf("Error writing feature_list.json: %v\n", err)
+			if err := os.WriteFile(outputFile, data, 0644); err != nil {
+				fmt.Printf("Error writing %s: %v\n", outputFile, err)
 				exit(1)
 			}
-			fmt.Println("Created feature_list.json")
+			fmt.Printf("Created %s. Run 'cat %s | agent-bridge import' to load features.\n", outputFile, outputFile)
 		}
 
 		// 5. Create Directory Structure
