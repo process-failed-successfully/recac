@@ -10,6 +10,7 @@ import (
 )
 
 func TestSignalBypass(t *testing.T) {
+	t.Setenv("RECAC_TEST_MODE", "false") // Ensure test mode is off by default for this test
 	workspace := t.TempDir()
 	dbPath := filepath.Join(workspace, ".recac.db")
 	store, err := db.NewSQLiteStore(dbPath)

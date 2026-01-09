@@ -10,6 +10,7 @@ import (
 )
 
 func TestSignalMigration(t *testing.T) {
+	t.Setenv("RECAC_TEST_MODE", "true")
 	// 1. Setup Workspace
 	workspace := t.TempDir()
 

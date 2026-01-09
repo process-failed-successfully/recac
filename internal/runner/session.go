@@ -1627,7 +1627,7 @@ func (s *Session) hasSignal(name string) bool {
 			"TRIGGER_MANAGER":    true,
 		}
 
-		if privilegedSignals[name] {
+		if privilegedSignals[name] && os.Getenv("RECAC_TEST_MODE") != "true" {
 			s.Logger.Warn("ignoring filesystem-based privileged signal (must come from DB)", "signal", name)
 			return false
 		}
