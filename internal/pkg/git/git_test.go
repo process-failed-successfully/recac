@@ -6,10 +6,15 @@ import (
 
 // MockGitOps is a mock implementation of GitOps.
 type MockGitOps struct {
-	PushCalled         bool
-	CreatePRCalled     bool
-	CreateBranchCalled bool
-	LastBranch         string
+	PushCalled          bool
+	CreatePRCalled      bool
+	CreateBranchCalled  bool
+	ListBranchesCalled  bool
+	GetLastCommitCalled bool
+	LastBranch          string
+	Branches            []string
+	Commit              *Commit
+	ListBranchesFunc    func(prefix string) ([]string, error)
 }
 
 func (m *MockGitOps) Push(branch string) error {
@@ -28,6 +33,20 @@ func (m *MockGitOps) CreateBranch(name string) error {
 	m.CreateBranchCalled = true
 	m.LastBranch = name
 	return nil
+}
+
+func (m *MockGitOps) ListBranches(prefix string) ([]string, error) {
+	m.ListBranchesCalled = true
+	if m.ListBranchesFunc != nil {
+		return m.ListBranchesFunc(prefix)
+	}
+	return m.Branches, nil
+}
+
+func (m *MockGitOps) GetLastCommit(branch string) (*Commit, error) {
+	m.GetLastCommitCalled = true
+	m.LastBranch = branch
+	return m.Commit, nil
 }
 
 func TestGitOps(t *testing.T) {
