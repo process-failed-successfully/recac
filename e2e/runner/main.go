@@ -238,10 +238,9 @@ func run() error {
 		}
 	}
 
-	expectedJobPrefix := fmt.Sprintf("recac-agent-%s", strings.ToLower(targetTicketID))
-	log.Printf("Looking for job prefix: %s", expectedJobPrefix)
+	log.Printf("Looking for job with label ticket=%s", targetTicketID)
 
-	jobName, err := waitForJob(namespace, expectedJobPrefix, 300*time.Second)
+	jobName, err := waitForJob(namespace, targetTicketID, 300*time.Second)
 	if err != nil {
 		printKubeDebugInfo(namespace)
 		printLogs(namespace, fmt.Sprintf("app.kubernetes.io/name=%s", "recac"))
@@ -312,22 +311,24 @@ func waitForPod(ns, labelSelector string, timeout time.Duration) error {
 	return runCommand("kubectl", "rollout", "status", "deployment/recac", "-n", ns, "--timeout", fmt.Sprintf("%.0fs", timeout.Seconds()))
 }
 
-func waitForJob(ns, namePrefix string, timeout time.Duration) (string, error) {
+func waitForJob(ns, ticketID string, timeout time.Duration) (string, error) {
 	start := time.Now()
+	labelSelector := fmt.Sprintf("ticket=%s", ticketID)
+
 	for time.Since(start) < timeout {
-		cmd := exec.Command("kubectl", "get", "jobs", "-n", ns, "-o", "name")
+		cmd := exec.Command("kubectl", "get", "jobs", "-n", ns, "-l", labelSelector, "-o", "name")
 		out, err := cmd.Output()
 		if err == nil {
 			lines := strings.Split(string(out), "\n")
 			for _, line := range lines {
-				if strings.Contains(line, namePrefix) {
+				if strings.TrimSpace(line) != "" {
 					return strings.TrimSpace(line), nil
 				}
 			}
 		}
 		time.Sleep(5 * time.Second)
 	}
-	return "", fmt.Errorf("timeout waiting for job %s", namePrefix)
+	return "", fmt.Errorf("timeout waiting for job with label %s", labelSelector)
 }
 
 func waitForJobCompletion(ns, jobName string, timeout time.Duration) error {
