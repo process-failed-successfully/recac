@@ -97,6 +97,7 @@ Recac allows you to manage multiple concurrent or background sessions.
 - **List Sessions**: View all active and completed sessions.
   ```bash
   recac list
+  # Alias for: recac ps
   ```
 
 - **Check Status**: View detailed status of sessions, Docker environment, and configuration.
