@@ -1,8 +1,7 @@
 package runner
 
 import (
-	"os"
-	"path/filepath"
+	"recac/internal/db"
 	"reflect"
 	"testing"
 )
@@ -190,48 +189,37 @@ func TestTaskGraph_GetTaskSummary(t *testing.T) {
 	}
 }
 
-func TestTaskGraph_LoadFromFeatureList(t *testing.T) {
+func TestTaskGraph_LoadFromFeatures(t *testing.T) {
 	tg := NewTaskGraph()
-	tmpDir := t.TempDir()
-	filePath := filepath.Join(tmpDir, "feature_list.json")
 
-	// Create dummy feature_list.json
-	featureListContent := `
-	{
-		"project_name": "Test Project",
-		"features": [
-			{
-				"id": "feat-1",
-				"category": "core",
-				"description": "Core Feature",
-				"steps": ["Step 1"],
-				"status": "pending",
-				"dependencies": {
-					"depends_on_ids": [],
-					"exclusive_write_paths": ["core/"],
-					"read_only_paths": []
-				}
+	// Create dummy features
+	features := []db.Feature{
+		{
+			ID:          "feat-1",
+			Category:    "core",
+			Description: "Core Feature",
+			Status:      "pending",
+			Dependencies: db.FeatureDependencies{
+				DependsOnIDs:        []string{},
+				ExclusiveWritePaths: []string{"core/"},
 			},
-			{
-				"id": "feat-2",
-				"category": "ui", 
-				"description": "UI Feature",
-				"steps": ["Step 1"],
-				"status": "pending",
-				"dependencies": {
-					"depends_on_ids": ["feat-1"],
-					"exclusive_write_paths": ["ui/"],
-					"read_only_paths": []
-				}
-			}
-		]
-	}`
-	os.WriteFile(filePath, []byte(featureListContent), 0644)
+		},
+		{
+			ID:          "feat-2",
+			Category:    "ui",
+			Description: "UI Feature",
+			Status:      "pending",
+			Dependencies: db.FeatureDependencies{
+				DependsOnIDs:        []string{"feat-1"},
+				ExclusiveWritePaths: []string{"ui/"},
+			},
+		},
+	}
 
 	// Load
-	err := tg.LoadFromFeatureList(filePath)
+	err := tg.LoadFromFeatures(features)
 	if err != nil {
-		t.Fatalf("LoadFromFeatureList failed: %v", err)
+		t.Fatalf("LoadFromFeatures failed: %v", err)
 	}
 
 	// Verify

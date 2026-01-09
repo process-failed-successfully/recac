@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -216,13 +217,12 @@ func (o *Orchestrator) refreshGraph() error {
 		return nil
 	}
 
-	tmpFile := filepath.Join(o.Workspace, ".features_graph_tmp.json")
-	if err := os.WriteFile(tmpFile, []byte(content), 0644); err != nil {
-		return err
+	var fl db.FeatureList
+	if err := json.Unmarshal([]byte(content), &fl); err != nil {
+		return fmt.Errorf("failed to parse features from DB: %w", err)
 	}
-	defer os.Remove(tmpFile)
 
-	return o.Graph.LoadFromFeatureList(tmpFile)
+	return o.Graph.LoadFromFeatures(fl.Features)
 }
 
 func (o *Orchestrator) canAcquireImmediate(paths []string) bool {

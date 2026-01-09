@@ -122,16 +122,36 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 		dbURL = filepath.Join(workspace, ".recac.db")
 	}
 
+	// Initialize DB Store with Retry Logic
 	var dbStore db.Store
 	storeConfig := db.StoreConfig{
 		Type:             dbType,
 		ConnectionString: dbURL,
 	}
 
-	if s, err := db.NewStore(storeConfig); err != nil {
-		fmt.Printf("Warning: Failed to initialize DB store (%s): %v\n", dbType, err)
+	// Retry loop for DB connection (up to 30 seconds)
+	var err error
+	maxRetries := 6
+	for i := 0; i < maxRetries; i++ {
+		if i > 0 {
+			fmt.Fprintf(os.Stderr, "[Session] Retrying DB connection (%d/%d)...\n", i+1, maxRetries)
+			time.Sleep(5 * time.Second)
+		}
+		dbStore, err = db.NewStore(storeConfig)
+		if err == nil {
+			break
+		}
+		fmt.Fprintf(os.Stderr, "[Session] Failed to initialize DB store (%s): %v\n", dbType, err)
+	}
+
+	if err != nil {
+		// Critical failure - Fail Fast
+		fmt.Fprintf(os.Stderr, "[Session] CRITICAL: Could not connect to database after retries. Exiting.\n")
+		os.Exit(1)
 	} else {
-		dbStore = s
+		// Success
+		fmt.Fprintf(os.Stderr, "[Session] DB Store initialized successfully: type=%s, project=%s\n", dbType, project)
+		slog.Info("[DB] Store initialized successfully", "type", dbType, "project", project)
 	}
 
 	// Initialize Security Scanner
@@ -551,6 +571,11 @@ func (s *Session) Start(ctx context.Context) error {
 		}
 	}
 
+	// Explicitly inject Session Context (Critical for DB persistence)
+	if s.Project != "" {
+		env = append(env, fmt.Sprintf("RECAC_PROJECT_ID=%s", s.Project))
+	}
+
 	// Run Container (or Skip if Local/Restricted)
 	if s.UseLocalAgent || s.Docker == nil {
 		if s.Logger != nil {
@@ -910,7 +935,17 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		}
 
 		newIteration := s.IncrementIteration()
-		s.Logger.Info("starting iteration", "iteration", newIteration)
+		s.Logger.Info("starting iteration", "iteration", newIteration, "task_id", s.SelectedTaskID, "agent_provider", s.AgentProvider, "agent_model", s.AgentModel)
+		if s.SelectedTaskID != "" {
+			// Log task description snippet for debugging context
+			descSnippet := ""
+			if len(s.SpecContent) > 50 {
+				descSnippet = s.SpecContent[:50] + "..."
+			} else {
+				descSnippet = s.SpecContent
+			}
+			s.Logger.Info("assigned task details", "task_id", s.SelectedTaskID, "desc_snippet", descSnippet)
+		}
 
 		// Ensure feature list is synced and mirror is up to date
 		features = s.loadFeatures()
@@ -1447,6 +1482,32 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 	}
 
 	// Populate task-specific variables if set
+	// 4. Deterministic Task Assignment (User Request: Remove agent reliance on jq)
+	// Find the first pending feature and assign it explicitly.
+	var assignedFeature *db.Feature
+	features := s.loadFeatures() // Refresh from DB/File
+
+	for i := range features {
+		if features[i].Status != "done" && !features[i].Passes {
+			assignedFeature = &features[i]
+			break
+		}
+	}
+
+	if assignedFeature != nil {
+		vars["task_id"] = assignedFeature.ID
+		vars["task_description"] = assignedFeature.Description
+		vars["exclusive_paths"] = strings.Join(assignedFeature.Dependencies.ExclusiveWritePaths, ", ")
+		vars["read_only_paths"] = strings.Join(assignedFeature.Dependencies.ReadOnlyPaths, ", ")
+
+		// s.SelectedTaskID = assignedFeature.ID // DO NOT SET THIS: It prevents Manager interruptions in subsequent turns.
+	} else {
+		// All done?
+		vars["task_id"] = "NONE_ALL_COMPLETE"
+		vars["task_description"] = "All features are marked as done/passing. Please run final verification and signal completion."
+		vars["exclusive_paths"] = "none"
+		vars["read_only_paths"] = "all"
+	}
 	if s.SelectedTaskID != "" {
 		features := s.loadFeatures()
 		var target db.Feature
@@ -1489,20 +1550,22 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 }
 
 func (s *Session) loadFeatures() []db.Feature {
-	filePath := filepath.Join(s.Workspace, "feature_list.json")
-
 	// 1. Try to fetch from DB first (Authoritative source)
 	if s.DBStore != nil {
+		s.Logger.Info("[DEBUG] Attempting to load features from DB", "project", s.Project)
 		content, err := s.DBStore.GetFeatures(s.Project)
+		if err != nil {
+			s.Logger.Info("[DEBUG] DB GetFeatures error", "error", err)
+		}
 		if err == nil && content != "" {
 			var fl db.FeatureList
 			if err := json.Unmarshal([]byte(content), &fl); err == nil {
-				s.Logger.Info("loaded features from DB history")
-				// Authoritative data found in DB - Sync BACK to file to restore it (effectively read-only/mirror)
-				s.syncFeatureFile(fl)
+				s.Logger.Info("loaded features from DB history", "count", len(fl.Features))
 				return fl.Features
 			}
 		}
+	} else {
+		s.Logger.Info("[DEBUG] No DBStore available for feature lookup")
 	}
 
 	// 2. Fallback to FeatureContent (passed from Orchestrator/CLI)
@@ -1510,7 +1573,6 @@ func (s *Session) loadFeatures() []db.Feature {
 		var fl db.FeatureList
 		if err := json.Unmarshal([]byte(s.FeatureContent), &fl); err == nil {
 			s.Logger.Info("loaded features from injected content")
-			s.syncFeatureFile(fl)
 			// Sync to DB
 			if s.DBStore != nil {
 				_ = s.DBStore.SaveFeatures(s.Project, s.FeatureContent)
@@ -1519,12 +1581,13 @@ func (s *Session) loadFeatures() []db.Feature {
 		}
 	}
 
-	// 3. Fallback to file (First run or recovery)
-	data, err := os.ReadFile(filePath)
-	if err == nil {
+	// 3. Fallback to feature_list.json file (Legacy/Local mode)
+	listPath := filepath.Join(s.Workspace, "feature_list.json")
+	if data, err := os.ReadFile(listPath); err == nil {
 		var fl db.FeatureList
 		if err := json.Unmarshal(data, &fl); err == nil {
-			// Successfully read valid JSON from file - Sync to DB if DB is empty
+			s.Logger.Info("loaded features from file", "path", listPath)
+			// Sync to DB
 			if s.DBStore != nil {
 				_ = s.DBStore.SaveFeatures(s.Project, string(data))
 			}
@@ -1533,39 +1596,6 @@ func (s *Session) loadFeatures() []db.Feature {
 	}
 
 	return nil
-}
-
-func (s *Session) syncFeatureFile(fl db.FeatureList) {
-	path := filepath.Join(s.Workspace, "feature_list.json")
-	data, err := json.MarshalIndent(fl, "", "  ")
-	if err != nil {
-		s.Logger.Warn("failed to marshal feature list", "error", err)
-		return
-	}
-
-	err = os.WriteFile(path, data, 0644)
-	if err != nil && os.IsPermission(err) {
-		// Try to remove it first. Host users usually have write access to the workspace directory.
-		_ = os.Remove(path)
-		err = os.WriteFile(path, data, 0644)
-	}
-
-	containerID := s.GetContainerID()
-	if err != nil && os.IsPermission(err) && containerID != "" {
-		// Last resort: ask root-powered container to chown it back to us
-		u, _ := user.Current()
-		if u != nil {
-			// Best effort chown
-			if s.Docker != nil {
-				_, _ = s.Docker.Exec(context.Background(), containerID, []string{"chown", fmt.Sprintf("%s:%s", u.Uid, u.Gid), "feature_list.json"})
-			}
-			err = os.WriteFile(path, data, 0644)
-		}
-	}
-
-	if err != nil {
-		s.Logger.Warn("failed to sync feature_list.json", "error", err)
-	}
 }
 
 func (s *Session) checkCompletion() bool {
@@ -1945,6 +1975,13 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 		if s.UseLocalAgent {
 			// Execute Locally
 			cmd := exec.CommandContext(cmdCtx, "/bin/bash", "-c", cmdScript)
+			// Propagate Environment + Inject Project ID
+			cmd.Env = append(os.Environ(), fmt.Sprintf("RECAC_PROJECT_ID=%s", s.Project))
+			// Debug: Log key env vars for troubleshooting
+			s.Logger.Info("[DEBUG] Local exec env vars",
+				"RECAC_PROJECT_ID", s.Project,
+				"RECAC_DB_TYPE", os.Getenv("RECAC_DB_TYPE"),
+				"RECAC_DB_URL_set", os.Getenv("RECAC_DB_URL") != "")
 			cmd.Dir = s.Workspace // Run in workspace
 			// Capture Combined Output
 			var outBuf bytes.Buffer
@@ -2327,41 +2364,55 @@ func (s *Session) fixPermissions(ctx context.Context) error {
 
 // EnsureConflictTask checks if "Resolve Merge Conflicts" task exists, otherwise adds it.
 func (s *Session) EnsureConflictTask() {
+	if s.DBStore == nil {
+		return
+	}
 	features := s.loadFeatures()
 	conflictTaskID := "CONFLICT_RES"
+	needsUpdate := false
 
 	// Check if already exists/pending
-	for _, f := range features {
+	for idx, f := range features {
 		if f.ID == conflictTaskID {
 			if f.Status == "done" || f.Status == "implemented" || f.Passes {
 				// Reset it to todo since we have a NEW conflict
-				// We need to mutate the list and save.
-				var updatedFeatures []db.Feature
-				for _, fx := range features {
-					if fx.ID == conflictTaskID {
-						fx.Status = "todo"
-						fx.Passes = false
-					}
-					updatedFeatures = append(updatedFeatures, fx)
-				}
-				s.syncFeatureFile(db.FeatureList{Features: updatedFeatures})
+				features[idx].Status = "todo"
+				features[idx].Passes = false
+				needsUpdate = true
 			}
-			return // Exists and is active or just reset
+			break
 		}
 	}
 
-	// Add new
-	newFeature := db.Feature{
-		ID:          conflictTaskID,
-		Category:    "Guardrail",
-		Priority:    "Critical",
-		Description: fmt.Sprintf("Resolve git merge conflicts with branch %s. Files contain conflict markers (<<<< HEAD). Fix them and commit.", s.BaseBranch),
-		Status:      "todo",
-		Passes:      false,
+	// Add new if not found (needsUpdate loop below handles the save)
+	found := false
+	for _, f := range features {
+		if f.ID == conflictTaskID {
+			found = true
+			break
+		}
 	}
 
-	features = append(features, newFeature)
-	s.syncFeatureFile(db.FeatureList{Features: features})
+	if !found {
+		newFeature := db.Feature{
+			ID:          conflictTaskID,
+			Category:    "Guardrail",
+			Priority:    "Critical",
+			Description: fmt.Sprintf("Resolve git merge conflicts with branch %s. Files contain conflict markers (<<<< HEAD). Fix them and commit.", s.BaseBranch),
+			Status:      "todo",
+			Passes:      false,
+		}
+		features = append(features, newFeature)
+		needsUpdate = true
+	}
+
+	if needsUpdate {
+		fl := db.FeatureList{Features: features}
+		data, err := json.Marshal(fl)
+		if err == nil {
+			_ = s.DBStore.SaveFeatures(s.Project, string(data))
+		}
+	}
 }
 
 // runInitScript checks for init.sh in the workspace and executes it if present.
