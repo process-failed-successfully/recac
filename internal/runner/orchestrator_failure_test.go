@@ -136,9 +136,9 @@ func TestOrchestrator_FaultTolerance_HighFailureRate(t *testing.T) {
 
 	o := NewOrchestrator(mockDB, mockDocker, tmpDir, "img", smartAgent, "proj", "gemini", "gemini-pro", 3, "")
 	o.TickInterval = 100 * time.Millisecond
-	o.TaskMaxRetries = 0                                                                  // Fail fast
-	o.TaskMaxIterations = 1                                                               // Fail fast if no progress
-	o.Graph.LoadFromFeatureList(filepath.Join(tmpDir, "dummy_not_used_since_we_mock_db")) // actually ensureGitRepo calls refreshGraph which calls DB.GetFeatures
+	o.TaskMaxRetries = 0    // Fail fast
+	o.TaskMaxIterations = 1 // Fail fast if no progress
+	o.Graph.LoadFromFeatures(fl.Features)
 
 	// We need to bypass ensureGitRepo or make it work. It uses commands.
 	// Easier to just let it run or mock exec used by it.

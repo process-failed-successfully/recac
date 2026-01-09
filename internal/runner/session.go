@@ -540,17 +540,6 @@ func (s *Session) Start(ctx context.Context) error {
 		}
 	}
 
-	// 1.6 Mount feature_list.json as READ-ONLY
-	// This protects the file from agent overwrites while allowing the host (Runner) to update it.
-	featureListPath := filepath.Join(s.Workspace, "feature_list.json")
-	if _, err := os.Stat(featureListPath); os.IsNotExist(err) {
-		// Ensure it exists so mount doesn't fail or create a directory
-		_ = os.WriteFile(featureListPath, []byte("{}"), 0644)
-	}
-	// container path is same as host path relative to workspace mount, which is /workspace
-	// We map it explicitly to /workspace/feature_list.json to override the volume mount for that specific file
-	extraBinds = append(extraBinds, fmt.Sprintf("%s:/workspace/feature_list.json:ro", featureListPath))
-
 	// Collect Env Vars to propagate to container
 	var env []string
 	prefixes := []string{"GIT_", "JIRA_", "RECAC_", "OPENROUTER_", "OPENAI_", "ANTHROPIC_", "GEMINI_"}
@@ -1537,8 +1526,6 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 }
 
 func (s *Session) loadFeatures() []db.Feature {
-	filePath := filepath.Join(s.Workspace, "feature_list.json")
-
 	// 1. Try to fetch from DB first (Authoritative source)
 	if s.DBStore != nil {
 		content, err := s.DBStore.GetFeatures(s.Project)
@@ -1546,8 +1533,6 @@ func (s *Session) loadFeatures() []db.Feature {
 			var fl db.FeatureList
 			if err := json.Unmarshal([]byte(content), &fl); err == nil {
 				s.Logger.Info("loaded features from DB history")
-				// Authoritative data found in DB - Sync BACK to file to restore it (effectively read-only/mirror)
-				s.syncFeatureFile(fl)
 				return fl.Features
 			}
 		}
@@ -1558,7 +1543,6 @@ func (s *Session) loadFeatures() []db.Feature {
 		var fl db.FeatureList
 		if err := json.Unmarshal([]byte(s.FeatureContent), &fl); err == nil {
 			s.Logger.Info("loaded features from injected content")
-			s.syncFeatureFile(fl)
 			// Sync to DB
 			if s.DBStore != nil {
 				_ = s.DBStore.SaveFeatures(s.Project, s.FeatureContent)
@@ -1567,53 +1551,7 @@ func (s *Session) loadFeatures() []db.Feature {
 		}
 	}
 
-	// 3. Fallback to file (First run or recovery)
-	data, err := os.ReadFile(filePath)
-	if err == nil {
-		var fl db.FeatureList
-		if err := json.Unmarshal(data, &fl); err == nil {
-			// Successfully read valid JSON from file - Sync to DB if DB is empty
-			if s.DBStore != nil {
-				_ = s.DBStore.SaveFeatures(s.Project, string(data))
-			}
-			return fl.Features
-		}
-	}
-
 	return nil
-}
-
-func (s *Session) syncFeatureFile(fl db.FeatureList) {
-	path := filepath.Join(s.Workspace, "feature_list.json")
-	data, err := json.MarshalIndent(fl, "", "  ")
-	if err != nil {
-		s.Logger.Warn("failed to marshal feature list", "error", err)
-		return
-	}
-
-	err = os.WriteFile(path, data, 0644)
-	if err != nil && os.IsPermission(err) {
-		// Try to remove it first. Host users usually have write access to the workspace directory.
-		_ = os.Remove(path)
-		err = os.WriteFile(path, data, 0644)
-	}
-
-	containerID := s.GetContainerID()
-	if err != nil && os.IsPermission(err) && containerID != "" {
-		// Last resort: ask root-powered container to chown it back to us
-		u, _ := user.Current()
-		if u != nil {
-			// Best effort chown
-			if s.Docker != nil {
-				_, _ = s.Docker.Exec(context.Background(), containerID, []string{"chown", fmt.Sprintf("%s:%s", u.Uid, u.Gid), "feature_list.json"})
-			}
-			err = os.WriteFile(path, data, 0644)
-		}
-	}
-
-	if err != nil {
-		s.Logger.Warn("failed to sync feature_list.json", "error", err)
-	}
 }
 
 func (s *Session) checkCompletion() bool {
@@ -2375,41 +2313,55 @@ func (s *Session) fixPermissions(ctx context.Context) error {
 
 // EnsureConflictTask checks if "Resolve Merge Conflicts" task exists, otherwise adds it.
 func (s *Session) EnsureConflictTask() {
+	if s.DBStore == nil {
+		return
+	}
 	features := s.loadFeatures()
 	conflictTaskID := "CONFLICT_RES"
+	needsUpdate := false
 
 	// Check if already exists/pending
-	for _, f := range features {
+	for idx, f := range features {
 		if f.ID == conflictTaskID {
 			if f.Status == "done" || f.Status == "implemented" || f.Passes {
 				// Reset it to todo since we have a NEW conflict
-				// We need to mutate the list and save.
-				var updatedFeatures []db.Feature
-				for _, fx := range features {
-					if fx.ID == conflictTaskID {
-						fx.Status = "todo"
-						fx.Passes = false
-					}
-					updatedFeatures = append(updatedFeatures, fx)
-				}
-				s.syncFeatureFile(db.FeatureList{Features: updatedFeatures})
+				features[idx].Status = "todo"
+				features[idx].Passes = false
+				needsUpdate = true
 			}
-			return // Exists and is active or just reset
+			break
 		}
 	}
 
-	// Add new
-	newFeature := db.Feature{
-		ID:          conflictTaskID,
-		Category:    "Guardrail",
-		Priority:    "Critical",
-		Description: fmt.Sprintf("Resolve git merge conflicts with branch %s. Files contain conflict markers (<<<< HEAD). Fix them and commit.", s.BaseBranch),
-		Status:      "todo",
-		Passes:      false,
+	// Add new if not found (needsUpdate loop below handles the save)
+	found := false
+	for _, f := range features {
+		if f.ID == conflictTaskID {
+			found = true
+			break
+		}
 	}
 
-	features = append(features, newFeature)
-	s.syncFeatureFile(db.FeatureList{Features: features})
+	if !found {
+		newFeature := db.Feature{
+			ID:          conflictTaskID,
+			Category:    "Guardrail",
+			Priority:    "Critical",
+			Description: fmt.Sprintf("Resolve git merge conflicts with branch %s. Files contain conflict markers (<<<< HEAD). Fix them and commit.", s.BaseBranch),
+			Status:      "todo",
+			Passes:      false,
+		}
+		features = append(features, newFeature)
+		needsUpdate = true
+	}
+
+	if needsUpdate {
+		fl := db.FeatureList{Features: features}
+		data, err := json.Marshal(fl)
+		if err == nil {
+			_ = s.DBStore.SaveFeatures(s.Project, string(data))
+		}
+	}
 }
 
 // runInitScript checks for init.sh in the workspace and executes it if present.

@@ -1,7 +1,6 @@
 package runner // MockAgentForManager simulates the agent interaction for Manager
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"recac/internal/db"
 	"recac/internal/notify"
@@ -48,14 +47,16 @@ func TestManagerRejection_ClearsSignals(t *testing.T) {
 	// The `Agent` response is just logged, not parsed for decision currently (as per comments in session.go: "For now, manager approves if QA report shows 100% completion").
 
 	// So to force rejection: ensure QA report isn't perfect.
-	// Create a feature_list.json with a feature that is NOT verified.
-
-	featureListPath := filepath.Join(workspace, "feature_list.json")
-	featureJSON := `[{"id": 1, "name": "Test Feature", "verified": false}]`
-	os.WriteFile(featureListPath, []byte(featureJSON), 0644)
+	// Create a feature list with a feature that is NOT passing.
+	projectID := "test-project"
+	featureList := `{"project_name": "Test", "features": [{"id": "1", "description": "Test Feature", "status": "failed", "passes": false}]}`
+	if err := store.SaveFeatures(projectID, featureList); err != nil {
+		t.Fatalf("Failed to save features: %v", err)
+	}
 
 	session := &Session{
 		Workspace:    workspace,
+		Project:      projectID,
 		DBStore:      store,
 		Agent:        &MockAgentForManager{Response: "I reject this."},
 		ManagerAgent: &MockAgentForManager{Response: "I reject this."},
