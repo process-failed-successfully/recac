@@ -49,7 +49,7 @@ var (
 	promptStyle = lipgloss.NewStyle().MarginLeft(2)
 
 	infoBarStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("241")). // Dim gray
+			Foreground(lipgloss.Color("244")). // Medium gray for better contrast
 			MarginLeft(2).
 			MarginBottom(1)
 )
@@ -744,31 +744,29 @@ func (m *InteractiveModel) ClearHistory() {
 func (m InteractiveModel) View() string {
 	var views []string
 
-	// Menu Mode - Logo + List
-	if m.mode == ModeModelSelect || m.mode == ModeAgentSelect {
-		views = append(views, LogoContainerStyle.Render(GenerateLogo()))
-		m.list.SetHeight(20)
-		views = append(views, interactiveListStyle.Render(m.list.View()))
-		views = append(views, helpStyle(m.help.View(m.keys)))
-		return interactiveAppStyle.Render(lipgloss.JoinVertical(lipgloss.Left, views...))
-	}
-
-	// Normal View
+	// Unified View Layout
 	logo := GenerateLogo()
 	views = append(views, LogoContainerStyle.Render(logo))
 
 	// Info Bar
 	modeStr := "Chat"
-	if m.mode == ModeShell {
+	switch m.mode {
+	case ModeShell:
 		modeStr = "Shell"
-	} else if m.mode == ModeCmd {
+	case ModeCmd:
 		modeStr = "Command"
+	case ModeModelSelect:
+		modeStr = "Select Model"
+	case ModeAgentSelect:
+		modeStr = "Select Agent"
 	}
+
 	infoBar := infoBarStyle.Render(fmt.Sprintf("Provider: %s • Model: %s • Mode: %s", strings.Title(m.currentAgent), m.currentModel, modeStr))
 	views = append(views, infoBar)
 
 	// Layout Switch: Show List OR Viewport
-	if m.showList {
+	// Explicitly check for menu modes to ensure list is rendered even if showList is somehow desync
+	if m.showList || m.mode == ModeModelSelect || m.mode == ModeAgentSelect {
 		avail := m.height - 10
 		if avail < 10 {
 			avail = 10
