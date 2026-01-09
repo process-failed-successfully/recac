@@ -39,7 +39,7 @@ func TestOpenRouterClient(t *testing.T) {
 	tmpDir := t.TempDir()
 	stateFile := tmpDir + "/agent_state.json"
 	sm := NewStateManager(stateFile)
-	_ = sm.InitializeState(1000)
+	_ = sm.InitializeState(1000, "test-model")
 
 	client.WithStateManager(sm)
 
