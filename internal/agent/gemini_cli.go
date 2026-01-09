@@ -72,6 +72,25 @@ func (c *GeminiCLIClient) Send(ctx context.Context, prompt string) (string, erro
 	if err != nil {
 		stderrStr := stderr.String()
 		if stderrStr != "" {
+			// Check for error report file
+			// Example: "Full report available at: /tmp/gemini-client-error-Turn.run-sendMessageStream-2026-01-09T07-12-14-613Z.json"
+			const reportPrefix = "Full report available at: "
+			if idx := strings.Index(stderrStr, reportPrefix); idx != -1 {
+				start := idx + len(reportPrefix)
+				// Extract line
+				lineEnd := strings.Index(stderrStr[start:], "\n")
+				var filePath string
+				if lineEnd == -1 {
+					filePath = strings.TrimSpace(stderrStr[start:])
+				} else {
+					filePath = strings.TrimSpace(stderrStr[start : start+lineEnd])
+				}
+
+				// Attempt to read file
+				if content, readErr := os.ReadFile(filePath); readErr == nil {
+					stderrStr += fmt.Sprintf("\n--- Error Report (%s) ---\n%s\n---------------------------", filePath, string(content))
+				}
+			}
 			return "", fmt.Errorf("gemini cli error (exit code %d): %s\nStderr: %s", cmd.ProcessState.ExitCode(), err, stderrStr)
 		}
 		return "", fmt.Errorf("gemini cli error: %w", err)

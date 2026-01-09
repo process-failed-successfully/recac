@@ -172,7 +172,15 @@ func TestRunHistoryCmd(t *testing.T) {
 		}
 
 		err := runHistoryCmd(mockFactory)
-		assert.Error(t, err)
-		assert.True(t, strings.Contains(err.Error(), "failed to list sessions"), "Error message should indicate a listing failure")
+		// If running as root (which Docker container likely is), 0000 permissions might not block reading.
+		// If it succeeds, we just skip the assertion rather than panicking or failing.
+		if err == nil && os.Geteuid() == 0 {
+			t.Skip("Skipping permission test as root (permissions ignored)")
+		} else {
+			assert.Error(t, err)
+			if err != nil {
+				assert.True(t, strings.Contains(err.Error(), "failed to list sessions"), "Error message should indicate a listing failure")
+			}
+		}
 	})
 }
