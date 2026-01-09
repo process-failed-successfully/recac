@@ -1,0 +1,13 @@
+package main
+
+import "recac/internal/runner"
+
+// ISessionManager defines the interface for session management.
+type ISessionManager interface {
+	ListSessions() ([]*runner.SessionState, error)
+	SaveSession(*runner.SessionState) error
+	LoadSession(name string) (*runner.SessionState, error)
+	StopSession(name string) error
+	GetSessionLogs(name string) (string, error)
+	StartSession(name string, command []string, workspace string) (*runner.SessionState, error)
+}
