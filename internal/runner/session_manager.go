@@ -15,20 +15,23 @@ var ErrSessionNotFound = errors.New("session not found")
 
 // SessionState represents the state of a background session
 type SessionState struct {
-	Name          string    `json:"name"`
-	PID           int       `json:"pid"`
-	StartTime     time.Time `json:"start_time"`
-	Command       []string `json:"command"`
-	LogFile       string    `json:"log_file"`
-	Workspace     string    `json:"workspace"`
-	Status        string    `json:"status"`         // "running", "completed", "stopped", "error"
-	Type          string    `json:"type"`           // "detached" or "interactive"
-	AgentStateFile string   `json:"agent_state_file"` // Path to agent state file (.agent_state.json)
+	Name           string    `json:"name"`
+	PID            int       `json:"pid"`
+	StartTime      time.Time `json:"start_time"`
+	EndTime        time.Time `json:"end_time,omitempty"`
+	Command        []string  `json:"command"`
+	LogFile        string    `json:"log_file"`
+	Workspace      string    `json:"workspace"`
+	Status         string    `json:"status"` // "running", "completed", "stopped", "error"
+	Type           string    `json:"type"`   // "detached" or "interactive"
+	Error          string    `json:"error,omitempty"`
+	AgentStateFile string    `json:"agent_state_file"` // Path to agent state file (.agent_state.json)
 }
 
 // SessionManager handles background session management
 type SessionManager struct {
-	sessionsDir string
+	sessionsDir      string
+	IsProcessRunning func(pid int) bool
 }
 
 // NewSessionManager creates a new session manager
@@ -43,9 +46,11 @@ func NewSessionManager() (*SessionManager, error) {
 		return nil, fmt.Errorf("failed to create sessions directory: %w", err)
 	}
 
-	return &SessionManager{
+	sm := &SessionManager{
 		sessionsDir: sessionsDir,
-	}, nil
+	}
+	sm.IsProcessRunning = sm.isProcessRunning
+	return sm, nil
 }
 
 // NewSessionManagerWithDir creates a new session manager with a specific directory.
@@ -53,9 +58,11 @@ func NewSessionManagerWithDir(dir string) (*SessionManager, error) {
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create sessions directory: %w", err)
 	}
-	return &SessionManager{
+	sm := &SessionManager{
 		sessionsDir: dir,
-	}, nil
+	}
+	sm.IsProcessRunning = sm.isProcessRunning
+	return sm, nil
 }
 
 // GetSessionPath returns the path to a session state file
@@ -214,6 +221,7 @@ func (sm *SessionManager) ListSessions() ([]*SessionState, error) {
 		// Only update if status is "running" - preserve "stopped" and "error" statuses
 		if session.Status == "running" && !sm.IsProcessRunning(session.PID) {
 			session.Status = "completed"
+			session.EndTime = time.Now()
 			sm.SaveSession(session) // Update on disk
 		}
 
@@ -223,8 +231,8 @@ func (sm *SessionManager) ListSessions() ([]*SessionState, error) {
 	return sessions, nil
 }
 
-// IsProcessRunning checks if a process is still running
-func (sm *SessionManager) IsProcessRunning(pid int) bool {
+// isProcessRunning checks if a process is still running
+func (sm *SessionManager) isProcessRunning(pid int) bool {
 	process, err := os.FindProcess(pid)
 	if err != nil {
 		return false
@@ -273,6 +281,7 @@ func (sm *SessionManager) StopSession(name string) error {
 	}
 
 	session.Status = "stopped"
+	session.EndTime = time.Now()
 	sm.SaveSession(session)
 
 	return nil
