@@ -50,11 +50,25 @@ jobs:
           GITHUB_EMAIL: ${{ secrets.GH_EMAIL }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
-          go run e2e/runner/main.go \
-            -scenario prime-python \
-            -provider openrouter \
-            -model "mistralai/devstral-2512:free" \
-            -image recac:smoke \
-            -repo-url "https://github.com/process-failed-successfully/recac-jira-e2e" \
-            -pull-policy IfNotPresent \
-            -skip-build
+          RETRIES=3
+          for i in $(seq 0 $RETRIES); do
+            echo "Attempt $((i+1)) of $((RETRIES+1))"
+            if go run e2e/runner/main.go \
+              -scenario prime-python \
+              -provider openrouter \
+              -model "mistralai/devstral-2512:free" \
+              -image recac:smoke \
+              -repo-url "https://github.com/process-failed-successfully/recac-jira-e2e" \
+              -pull-policy IfNotPresent \
+              -skip-build; then
+              echo "Test passed!"
+              exit 0
+            fi
+            echo "Attempt $((i+1)) failed."
+            if [ $i -lt $RETRIES ]; then
+              echo "Retrying in 10 seconds..."
+              sleep 10
+            fi
+          done
+          echo "All attempts failed."
+          exit 1
