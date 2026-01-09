@@ -84,6 +84,12 @@ func (sm *StateManager) loadState() (State, error) {
 func (sm *StateManager) saveState(state State) error {
 	state.UpdatedAt = time.Now()
 
+	// Truncate history to avoid infinite growth and context overflow
+	const maxHistoryEntries = 50
+	if len(state.History) > maxHistoryEntries {
+		state.History = state.History[len(state.History)-maxHistoryEntries:]
+	}
+
 	data, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal state: %w", err)

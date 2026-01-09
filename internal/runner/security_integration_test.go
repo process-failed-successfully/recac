@@ -55,7 +55,7 @@ func TestSecurityIntegration_BlocksSecrets(t *testing.T) {
 		t.Fatal("DBStore not initialized")
 	}
 
-	history, err := session.DBStore.QueryHistory(10)
+	history, err := session.DBStore.QueryHistory(session.Project, 10)
 	if err != nil {
 		t.Fatalf("QueryHistory failed: %v", err)
 	}

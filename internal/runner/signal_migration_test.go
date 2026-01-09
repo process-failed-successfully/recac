@@ -25,6 +25,7 @@ func TestSignalMigration(t *testing.T) {
 	// Note: Agent and Docker are nil as we only test hasSignal logic
 	session := &Session{
 		Workspace: workspace,
+		Project:   "test-project",
 		DBStore:   store,
 		Notifier:  notify.NewManager(func(string, ...interface{}) {}),
 		Logger:    telemetry.NewLogger(true, ""),
@@ -48,7 +49,7 @@ func TestSignalMigration(t *testing.T) {
 	}
 
 	// 7. Verify DB Entry
-	val, err := store.GetSignal(signalName)
+	val, err := store.GetSignal("test-project", signalName)
 	if err != nil {
 		t.Errorf("DB check failed: %v", err)
 	}

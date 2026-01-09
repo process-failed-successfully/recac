@@ -342,7 +342,17 @@ func (c *Client) ExecAsUser(ctx context.Context, containerID string, user string
 		}
 	}
 
-	return outBuf.String() + errBuf.String(), nil
+	inspect, err := c.api.ContainerExecInspect(ctx, respID.ID)
+	if err != nil {
+		return outBuf.String() + errBuf.String(), fmt.Errorf("failed to inspect exec: %w", err)
+	}
+
+	output := outBuf.String() + errBuf.String()
+	if inspect.ExitCode != 0 {
+		return output, fmt.Errorf("command exited with code %d", inspect.ExitCode)
+	}
+
+	return output, nil
 }
 
 // StopContainer stops and removes the container.
