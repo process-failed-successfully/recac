@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"recac/internal/db"
@@ -204,18 +205,7 @@ func run(args []string, config db.StoreConfig, projectID string) error {
 			}
 		}
 		cmdErr = store.UpdateFeatureStatus(projectID, id, status, passes)
-		if cmdErr != nil && (strings.Contains(cmdErr.Error(), "no features found") || strings.Contains(cmdErr.Error(), "not found") || strings.Contains(cmdErr.Error(), "no rows")) {
-			// Attempt to sync from file if it exists
-			featurePath := "feature_list.json"
-			data, err := os.ReadFile(featurePath)
-			if err == nil {
-				fmt.Printf("Features not found in DB. Syncing from %s...\n", featurePath)
-				if saveErr := store.SaveFeatures(projectID, string(data)); saveErr == nil {
-					// Retry update
-					cmdErr = store.UpdateFeatureStatus(projectID, id, status, passes)
-				}
-			}
-		}
+
 		if cmdErr == nil {
 			fmt.Printf("Feature %s updated: status=%s, passes=%v\n", id, status, passes)
 
@@ -241,6 +231,29 @@ func run(args []string, config db.StoreConfig, projectID string) error {
 				}
 			}
 		}
+
+	case "import":
+		// Usage: cat features.json | agent-bridge import
+		// Reads JSON from Stdin and saves to DB
+		data, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return fmt.Errorf("failed to read from stdin: %w", err)
+		}
+
+		if len(data) == 0 {
+			return fmt.Errorf("empty input")
+		}
+
+		// Validate JSON
+		var fl db.FeatureList
+		if err := json.Unmarshal(data, &fl); err != nil {
+			return fmt.Errorf("invalid json: %w", err)
+		}
+
+		if err := store.SaveFeatures(projectID, string(data)); err != nil {
+			return fmt.Errorf("failed to save features to DB: %w", err)
+		}
+		fmt.Printf("Successfully imported %d features.\n", len(fl.Features))
 
 	default:
 		printUsage()
