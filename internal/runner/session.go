@@ -540,6 +540,17 @@ func (s *Session) Start(ctx context.Context) error {
 		}
 	}
 
+	// 1.6 Mount feature_list.json as READ-ONLY
+	// This protects the file from agent overwrites while allowing the host (Runner) to update it.
+	featureListPath := filepath.Join(s.Workspace, "feature_list.json")
+	if _, err := os.Stat(featureListPath); os.IsNotExist(err) {
+		// Ensure it exists so mount doesn't fail or create a directory
+		_ = os.WriteFile(featureListPath, []byte("{}"), 0644)
+	}
+	// container path is same as host path relative to workspace mount, which is /workspace
+	// We map it explicitly to /workspace/feature_list.json to override the volume mount for that specific file
+	extraBinds = append(extraBinds, fmt.Sprintf("%s:/workspace/feature_list.json:ro", featureListPath))
+
 	// Collect Env Vars to propagate to container
 	var env []string
 	prefixes := []string{"GIT_", "JIRA_", "RECAC_", "OPENROUTER_", "OPENAI_", "ANTHROPIC_", "GEMINI_"}
@@ -911,7 +922,17 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		}
 
 		newIteration := s.IncrementIteration()
-		s.Logger.Info("starting iteration", "iteration", newIteration)
+		s.Logger.Info("starting iteration", "iteration", newIteration, "task_id", s.SelectedTaskID, "agent_provider", s.AgentProvider, "agent_model", s.AgentModel)
+		if s.SelectedTaskID != "" {
+			// Log task description snippet for debugging context
+			descSnippet := ""
+			if len(s.SpecContent) > 50 {
+				descSnippet = s.SpecContent[:50] + "..."
+			} else {
+				descSnippet = s.SpecContent
+			}
+			s.Logger.Info("assigned task details", "task_id", s.SelectedTaskID, "desc_snippet", descSnippet)
+		}
 
 		// Ensure feature list is synced and mirror is up to date
 		features = s.loadFeatures()
