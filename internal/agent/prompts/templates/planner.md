@@ -5,7 +5,7 @@ Given the following application specification, decompose it into a comprehensive
 
 ### YOUR GOAL:
 
-Create a `feature_list.json` that exhaustively covers the `app_spec.txt`.
+Create a JSON object containing a feature list that exhaustively covers the `app_spec.txt`.
 
 ### REQUIREMENTS:
 
