@@ -64,10 +64,35 @@ func run() error {
 	}
 
 	// Validate Env
-	required := []string{"JIRA_URL", "JIRA_USERNAME", "JIRA_API_TOKEN", "GITHUB_API_KEY", "OPENROUTER_API_KEY"}
+	// Validate Env
+	required := []string{"JIRA_URL", "JIRA_USERNAME", "JIRA_API_TOKEN", "GITHUB_API_KEY"}
 	for _, env := range required {
 		if os.Getenv(env) == "" {
 			return fmt.Errorf("missing required env var: %s", env)
+		}
+	}
+
+	// Provider specific validation
+	switch provider {
+	case "openrouter":
+		if os.Getenv("OPENROUTER_API_KEY") == "" {
+			return fmt.Errorf("missing OPENROUTER_API_KEY for provider openrouter")
+		}
+	case "gemini", "gemini-cli":
+		if os.Getenv("GEMINI_API_KEY") == "" {
+			return fmt.Errorf("missing GEMINI_API_KEY for provider %s", provider)
+		}
+	case "anthropic":
+		if os.Getenv("ANTHROPIC_API_KEY") == "" {
+			return fmt.Errorf("missing ANTHROPIC_API_KEY for provider anthropic")
+		}
+	case "openai":
+		if os.Getenv("OPENAI_API_KEY") == "" {
+			return fmt.Errorf("missing OPENAI_API_KEY for provider openai")
+		}
+	case "cursor":
+		if os.Getenv("CURSOR_API_KEY") == "" {
+			return fmt.Errorf("missing CURSOR_API_KEY for provider cursor")
 		}
 	}
 	// Note: SLACK/DISCORD tokens are optional for E2E but supported if present
@@ -189,6 +214,10 @@ func run() error {
 		"--set", fmt.Sprintf("config.jiraUrl=%s", os.Getenv("JIRA_URL")),
 		"--set", fmt.Sprintf("config.jiraUsername=%s", os.Getenv("JIRA_USERNAME")),
 		"--set", fmt.Sprintf("secrets.openrouterApiKey=%s", os.Getenv("OPENROUTER_API_KEY")),
+		"--set", fmt.Sprintf("secrets.geminiApiKey=%s", os.Getenv("GEMINI_API_KEY")),
+		"--set", fmt.Sprintf("secrets.anthropicApiKey=%s", os.Getenv("ANTHROPIC_API_KEY")),
+		"--set", fmt.Sprintf("secrets.openaiApiKey=%s", os.Getenv("OPENAI_API_KEY")),
+		"--set", fmt.Sprintf("secrets.cursorApiKey=%s", os.Getenv("CURSOR_API_KEY")),
 		"--set", fmt.Sprintf("secrets.jiraApiToken=%s", os.Getenv("JIRA_API_TOKEN")),
 		"--set", fmt.Sprintf("secrets.ghApiKey=%s", os.Getenv("GITHUB_API_KEY")),
 		"--set", fmt.Sprintf("secrets.ghEmail=%s", os.Getenv("GITHUB_EMAIL")),
