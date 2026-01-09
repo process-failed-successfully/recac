@@ -138,6 +138,8 @@ If all features in `feature_list.json` have `"passes": true` and you have verifi
 
 - **DO NOT USE NATIVE TOOLS** like `read_file` or `write_file`.
 - **ALWAYS USE `bash` blocks** for commands and file operations.
+- **FORBIDDEN:** Do NOT output code in `python`, `javascript`, or other language blocks without a `bash` command to write it to a file. The system will IGNORE them.
+- **HOW TO WRITE FILES:** You MUST use a `bash` block with `cat << 'EOF' > filename` to create or update files.
 - **WORK IN ROOT**: Do not create or move into project subdirectories. All files should be in the current directory (`.`).
 - Write the full content of files when modifying.
 - Do not chain more than 3-4 commands per turn.
