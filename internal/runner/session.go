@@ -122,16 +122,35 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 		dbURL = filepath.Join(workspace, ".recac.db")
 	}
 
+	// Initialize DB Store with Retry Logic
 	var dbStore db.Store
 	storeConfig := db.StoreConfig{
 		Type:             dbType,
 		ConnectionString: dbURL,
 	}
 
-	if s, err := db.NewStore(storeConfig); err != nil {
-		slog.Error("[DB] Failed to initialize DB store", "type", dbType, "error", err)
+	// Retry loop for DB connection (up to 30 seconds)
+	var err error
+	maxRetries := 6
+	for i := 0; i < maxRetries; i++ {
+		if i > 0 {
+			fmt.Fprintf(os.Stderr, "[Session] Retrying DB connection (%d/%d)...\n", i+1, maxRetries)
+			time.Sleep(5 * time.Second)
+		}
+		dbStore, err = db.NewStore(storeConfig)
+		if err == nil {
+			break
+		}
+		fmt.Fprintf(os.Stderr, "[Session] Failed to initialize DB store (%s): %v\n", dbType, err)
+	}
+
+	if err != nil {
+		// Critical failure - Fail Fast
+		fmt.Fprintf(os.Stderr, "[Session] CRITICAL: Could not connect to database after retries. Exiting.\n")
+		os.Exit(1)
 	} else {
-		dbStore = s
+		// Success
+		fmt.Fprintf(os.Stderr, "[Session] DB Store initialized successfully: type=%s, project=%s\n", dbType, project)
 		slog.Info("[DB] Store initialized successfully", "type", dbType, "project", project)
 	}
 
