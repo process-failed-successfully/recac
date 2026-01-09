@@ -3,7 +3,6 @@ package agent
 import (
 	"strconv"
 	"strings"
-	"unicode/utf8"
 )
 
 // EstimateTokenCount estimates the number of tokens in a text string.
@@ -76,7 +75,8 @@ func TruncateToTokenLimit(text string, maxTokens int) string {
 	startChars := 0
 	startLines := []string{}
 	for i := 0; i < len(lines) && startChars < maxStartChars; i++ {
-		lineChars := utf8.RuneCountInString(lines[i])
+		// Use len() instead of utf8.RuneCountInString for O(1) performance and consistency with EstimateTokenCount
+		lineChars := len(lines[i])
 		if startChars+lineChars+1 > maxStartChars { // +1 for newline
 			break
 		}
@@ -85,18 +85,27 @@ func TruncateToTokenLimit(text string, maxTokens int) string {
 	}
 
 	endChars := 0
-	endLines := []string{}
+	// Use a slice to collect lines in reverse order, then reverse at the end
+	// This avoids O(n^2) behavior of repeated prepending (append([]string{line}, list...))
+	var endLinesReversed []string
 	for i := len(lines) - 1; i >= 0 && endChars < maxEndChars; i-- {
 		// Don't overlap with start lines
 		if len(startLines) > 0 && i < len(startLines) {
 			break
 		}
-		lineChars := utf8.RuneCountInString(lines[i])
+		// Use len() instead of utf8.RuneCountInString for O(1) performance and consistency with EstimateTokenCount
+		lineChars := len(lines[i])
 		if endChars+lineChars+1 > maxEndChars { // +1 for newline
 			break
 		}
-		endLines = append([]string{lines[i]}, endLines...)
+		endLinesReversed = append(endLinesReversed, lines[i])
 		endChars += lineChars + 1
+	}
+
+	// Reverse the collected end lines to get correct order
+	endLines := make([]string, len(endLinesReversed))
+	for i, j := 0, len(endLinesReversed)-1; j >= 0; i, j = i+1, j-1 {
+		endLines[i] = endLinesReversed[j]
 	}
 
 	omittedCount := len(lines) - len(startLines) - len(endLines)
