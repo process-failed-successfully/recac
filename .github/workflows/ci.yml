@@ -117,6 +117,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
+      - name: Configure Git for Private Modules
+        run: git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
       - name: Lint
         run: |
           go mod download
@@ -140,6 +142,8 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      - name: Configure Git for Private Modules
+        run: git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
 
       - name: Build Agent Image for Tests
         run: |
@@ -169,8 +173,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
+      - name: Configure Git for Private Modules
+        run: git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
+
       - name: Build Binaries
         run: |
+          go mod download
           go build -buildvcs=false -o recac ./cmd/recac
           go build -buildvcs=false -o agent-bridge ./cmd/agent-bridge
 
