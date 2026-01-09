@@ -266,10 +266,11 @@ func extractRepoPath(url string) string {
 	return strings.TrimPrefix(strings.TrimPrefix(url, "https://"), "github.com/")
 }
 
+var k8sNameSanitizerRegex = regexp.MustCompile("[^a-z0-9]+")
+
 func sanitizeK8sName(name string) string {
 	// Lowercase and replace non-alphanumeric with -
 	name = strings.ToLower(name)
-	reg, _ := regexp.Compile("[^a-z0-9]+")
-	name = reg.ReplaceAllString(name, "-")
+	name = k8sNameSanitizerRegex.ReplaceAllString(name, "-")
 	return strings.Trim(name, "-")
 }
