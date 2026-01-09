@@ -1551,6 +1551,23 @@ func (s *Session) loadFeatures() []db.Feature {
 		}
 	}
 
+	// 3. Fallback to filesystem
+	listPath := filepath.Join(s.Workspace, "feature_list.json")
+	if data, err := os.ReadFile(listPath); err == nil {
+		var fl db.FeatureList
+		if err := json.Unmarshal(data, &fl); err == nil {
+			s.Logger.Info("loaded features from file")
+			// Sync to DB and FeatureContent field for consistency
+			if s.DBStore != nil {
+				if err := s.DBStore.SaveFeatures(s.Project, string(data)); err != nil {
+					s.Logger.Warn("failed to sync features from filesystem to database", "error", err)
+				}
+			}
+			s.FeatureContent = string(data)
+			return fl.Features
+		}
+	}
+
 	return nil
 }
 

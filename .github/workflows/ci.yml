@@ -72,32 +72,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # 2. Calculate Shards
-  setup-matrix:
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-      total_shards: ${{ steps.set-matrix.outputs.total_shards }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-      - name: Calculate Matrix
-        id: set-matrix
-        env:
-          PACKAGES_PER_SHARD: 5
-        run: |
-          PACKAGE_COUNT=$(go list ./... | wc -l)
-          # Calculate total shards (ceil(PACKAGE_COUNT / PACKAGES_PER_SHARD))
-          TOTAL_SHARDS=$(( (PACKAGE_COUNT + PACKAGES_PER_SHARD - 1) / PACKAGES_PER_SHARD ))
-          if [ "$TOTAL_SHARDS" -lt "1" ]; then TOTAL_SHARDS=1; fi
-          MATRIX_JSON=$(jq -n -c "[range(1; $TOTAL_SHARDS + 1)]")
-          echo "matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
-          echo "total_shards=$TOTAL_SHARDS" >> $GITHUB_OUTPUT
-
-  # 3. Lint (Containerized)
+  # 2. Lint (Containerized)
   lint:
     needs: prepare-test-image
     runs-on: ubuntu-latest
@@ -122,17 +97,13 @@ jobs:
           go mod download
           go vet ./...
 
-  # 4. Test (Sharded - Runs on VM for Docker Support)
+  # 3. Test (Runs on VM for Docker Support)
   test:
-    needs: [setup-matrix]
+    needs: [lint]
     runs-on: ubuntu-latest
     # Note: We do NOT use 'container:' here because E2E tests utilize Docker volume mounts.
     # Mounting volumes from a containerized runner to a sibling container is problematic
     # (path mismatch between host and container). Running on the VM solves this.
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: ${{ fromJson(needs.setup-matrix.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -145,13 +116,11 @@ jobs:
         run: |
           docker build -t recac-agent:latest -f internal/docker/agent.Dockerfile .
 
-      - name: Test Shard ${{ matrix.shard }}
+      - name: Run All Tests
         run: |
-          # Use the script directly
-          chmod +x scripts/test_sharded.sh
-          ./scripts/test_sharded.sh ${{ matrix.shard }} ${{ needs.setup-matrix.outputs.total_shards }}
+          go test -buildvcs=false -v ./...
 
-  # 5. Build Binary Verification (Containerized)
+  # 4. Build Binary Verification (Containerized)
   build:
     needs: prepare-test-image
     runs-on: ubuntu-latest
@@ -174,7 +143,7 @@ jobs:
           go build -buildvcs=false -o recac ./cmd/recac
           go build -buildvcs=false -o agent-bridge ./cmd/agent-bridge
 
-  # 6. Deploy Production Image (Run on Main)
+  # 5. Deploy Production Image (Run on Main)
   deploy:
     needs: [lint, test, build]
     runs-on: ubuntu-latest
