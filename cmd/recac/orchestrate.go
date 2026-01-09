@@ -150,6 +150,9 @@ func init() {
 	viper.BindEnv("orchestrator.namespace", "RECAC_ORCHESTRATOR_NAMESPACE")
 	viper.BindEnv("orchestrator.interval", "RECAC_ORCHESTRATOR_INTERVAL")
 	viper.BindEnv("orchestrator.image_pull_policy", "RECAC_IMAGE_PULL_POLICY")
+	viper.BindEnv("orchestrator.max_iterations", "RECAC_MAX_ITERATIONS")
+	viper.BindEnv("orchestrator.manager_frequency", "RECAC_MANAGER_FREQUENCY")
+	viper.BindEnv("orchestrator.task_max_iterations", "RECAC_TASK_MAX_ITERATIONS")
 
 	rootCmd.AddCommand(orchestrateCmd)
 }

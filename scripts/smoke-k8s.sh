@@ -70,6 +70,6 @@ echo "Running E2E Runner for verification..."
 # We use -skip-cleanup because we want to see the results
 go run e2e/runner/main.go \
     -scenario prime-python \
-    -repo "$(echo $DEPLOY_REPO)" \
+    -repo "$DEPLOY_REPO" \
     -skip-build \
     -skip-cleanup

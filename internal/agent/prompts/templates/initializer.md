@@ -12,37 +12,44 @@ Your job is to set up the foundation for all future coding agents.
 
 ### CRITICAL: feature_list.json Requirements
 
-Based on `app_spec.txt`, create `feature_list.json`. This is the single source of truth for features. The system maintains an authoritative database mirror of this file for resilience; if the file is deleted or corrupted, the orchestrator will automatically restore it from the DB.
+Based on `app_spec.txt`, **YOU MUST CREATE `feature_list.json`**.
+**You MUST use a `bash` block with `cat << 'EOF' | agent-bridge import` to create the features.**
+This creates the features in the authoritative database.
+**DO NOT use `cat > feature_list.json` or write the file to the workspace.** The system is database-driven.
 
-- **Acceptance Tests**: Minimum 5-10 detailed test cases that cover the core requirements.
+- **Acceptance Tests**: Minimum 2-10 detailed test cases that cover the core requirements (2-3 for simple scripts, 5-10 for complex apps).
 - **Pragmatic Scope**: DO NOT hallucinate features not mentioned in the spec. Focus purely on what is requested.
 - **Categories**: Use "functional" for core logic and "style" for UI/UX.
 - **Priority**: Assign "POC", "MVP", or "Production". Always start with POC/MVP.
 - **Steps**: Each feature must have 3-5 explicit "steps" for verification.
 - **Exhaustive**: Cover the requirements and common edge cases (e.g., division by zero, invalid input).
+- **ANTI-HALLUCINATION**:
+  - **NO** "User Profiles", "Authentication", "Login", "FastAPI", or "Web Servers" unless explicitly requested in the Spec.
+  - If the spec is for a CLI tool, build a CLI tool. Do not build a REST API.
+  - **NO** "Future Proofing". Build EXACTLY what is asked.
 
 **Format:**
 
 ```json
 {
-  "project_name": "My App",
+  "project_name": "Weather CLI",
   "features": [
     {
-      "id": "ui-dashboard",
+      "id": "weather-fetch",
       "category": "functional",
       "priority": "MVP",
-      "description": "Verifies the main dashboard displays user data correctly",
+      "description": "Verifies the tool fetches weather data from the API",
       "status": "pending",
       "steps": [
-        "Step 1: Navigate to /dashboard",
-        "Step 2: Check if user name is visible",
-        "Step 3: Verify data tables populate",
-        "Step 4: Check footer links"
+        "Step 1: Run weather-cli --city London",
+        "Step 2: Check if output contains temperature",
+        "Step 3: Verify the data is in JSON format",
+        "Step 4: Check for error message on invalid city"
       ],
       "passes": false,
       "dependencies": {
         "depends_on_ids": [],
-        "exclusive_write_paths": ["internal/ui"],
+        "exclusive_write_paths": ["internal/weather"],
         "read_only_paths": ["config/"]
       }
     }
@@ -54,7 +61,7 @@ Based on `app_spec.txt`, create `feature_list.json`. This is the single source o
 
 Create a script called `init.sh` to set up the dev environment:
 
-- Install dependencies (apt, npm, go, etc.).
+- Install dependencies (apk, npm, go, etc.).
 - Start services (if needed).
 - Print helpful information about project setup.
 
@@ -83,5 +90,6 @@ If you are blocked (missing API keys, ambiguous spec), write to `recac_blockers.
 ### EXECUTION INSTRUCTIONS
 
 - **DO NOT USE NATIVE TOOLS.**
-- **ALWAYS USE `bash` blocks** for commands and file operations.
+- **ALWAYS USE `bash` blocks** for executable commands and file operations (e.g., `cat`).
+- **DO NOT** use `bash` blocks for data explanation or JSON examples. Use `json` blocks for data. A `bash` block containing only JSON will cause an execution error.
 - Write the full content of files.

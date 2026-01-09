@@ -45,6 +45,16 @@ func NewSessionManager() (ISessionManager, error) {
 	}, nil
 }
 
+// NewSessionManagerWithDir creates a new session manager with a specific directory.
+func NewSessionManagerWithDir(dir string) (*SessionManager, error) {
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return nil, fmt.Errorf("failed to create sessions directory: %w", err)
+	}
+	return &SessionManager{
+		sessionsDir: dir,
+	}, nil
+}
+
 // GetSessionPath returns the path to a session state file
 func (sm *SessionManager) GetSessionPath(name string) string {
 	return filepath.Join(sm.sessionsDir, name+".json")

@@ -18,12 +18,12 @@ import (
 )
 
 var (
-	defaultRepo  = "192.168.0.55:5000/recac-e2e"
-	deployTag    = "1h"
-	chartPath    = "./deploy/helm/recac"
-	namespace    = "default"
-	releaseName  = "recac"
-	repoURL      = "https://github.com/process-failed-successfully/recac-jira-e2e"
+	defaultRepo = "192.168.0.55:5000/recac-e2e"
+	deployTag   = "1h"
+	chartPath   = "./deploy/helm/recac"
+	namespace   = "default"
+	releaseName = "recac"
+	repoURL     = "https://github.com/process-failed-successfully/recac-jira-e2e"
 )
 
 func main() {
@@ -52,7 +52,7 @@ func run() error {
 	flag.StringVar(&model, "model", "mistralai/devstral-2512:free", "AI Model")
 	flag.StringVar(&deployRepo, "repo", defaultRepo, "Docker repository for deployment")
 	flag.StringVar(&targetRepo, "repo-url", repoURL, "Target Git repository for the agent")
-	flag.StringVar(&pullPolicy, "pull-policy", "Always", "Image pull policy (Always, IfNotPresent, Never)")
+	flag.StringVar(&pullPolicy, "pull-policy", "IfNotPresent", "Image pull policy (Always, IfNotPresent, Never)")
 	flag.StringVar(&exactImage, "image", "", "Exact image name to use (overrides repo/timestamp logic)")
 	flag.BoolVar(&skipBuild, "skip-build", false, "Skip docker build")
 	flag.BoolVar(&skipCleanup, "skip-cleanup", false, "Skip cleanup on finish")
@@ -70,6 +70,7 @@ func run() error {
 			return fmt.Errorf("missing required env var: %s", env)
 		}
 	}
+	// Note: SLACK/DISCORD tokens are optional for E2E but supported if present
 	// Fallback/Default for API key if token not set
 	if os.Getenv("JIRA_API_TOKEN") == "" && os.Getenv("JIRA_API_KEY") != "" {
 		os.Setenv("JIRA_API_TOKEN", os.Getenv("JIRA_API_KEY"))
@@ -103,7 +104,8 @@ func run() error {
 
 	if !skipBuild {
 		log.Println("=== Building and Pushing Image ===")
-		if err := runCommand("make", "image-prod", fmt.Sprintf("DEPLOY_IMAGE=%s", imageName)); err != nil {
+		bypass := fmt.Sprintf("CACHE_BYPASS=%d", time.Now().Unix())
+		if err := runCommand("make", "image-prod", fmt.Sprintf("DEPLOY_IMAGE=%s", imageName), fmt.Sprintf("ARGS=--build-arg %s", bypass)); err != nil {
 			return fmt.Errorf("failed to build image: %w", err)
 		}
 		if err := runCommand("docker", "push", imageName); err != nil {
@@ -135,9 +137,22 @@ func run() error {
 		}
 	}()
 
-	// 3. Deploy Helm
+	// 3. Prepare Repository (Cleanup stale branches)
+	log.Println("=== Preparing Repository (Cleaning stale branches) ===")
+	if err := prepareRepo(repoURL, ticketMap); err != nil {
+		log.Printf("Warning: Failed to prepare repository: %v", err)
+	}
+
+	// 4. Deploy Helm
 	log.Println("=== Cleaning up old Jobs ===")
 	_ = runCommand("kubectl", "delete", "jobs", "-n", namespace, "-l", "app=recac-agent", "--cascade=foreground", "--wait=true")
+
+	// Wipe Database if postgres is used
+	log.Println("=== Wiping PostgreSQL Database ===")
+	// We use kubectl exec to run psql inside the postgres pod
+	// We ignore errors if pod doesn't exist yet (first run)
+	wipeCmd := "PGPASSWORD=changeit psql -U recac -d recac -c \"TRUNCATE observations, signals, project_features, file_locks;\""
+	_ = runCommand("sh", "-c", fmt.Sprintf("POD_NAME=$(kubectl get pods -l app.kubernetes.io/instance=recac,app.kubernetes.io/name=postgresql -n default -o jsonpath='{.items[0].metadata.name}' 2>/dev/null) && [ -n \"$POD_NAME\" ] && kubectl exec $POD_NAME -n default -- sh -c %s", fmt.Sprintf("'%s'", wipeCmd)))
 
 	log.Println("=== Deploying Helm Chart ===")
 	lastColon := strings.LastIndex(imageName, ":")
@@ -164,15 +179,28 @@ func run() error {
 		"--set", fmt.Sprintf("config.jira_query=labels = \"%s\" AND issuetype != Epic AND statusCategory != Done ORDER BY created ASC", label),
 		"--set", "config.verbose=true",
 		"--set", "config.interval=10s",
-		"--set", "config.max_iterations=20",
+		"--set", "config.maxIterations=20",
 		"--set", fmt.Sprintf("config.provider=%s", provider),
 		"--set", fmt.Sprintf("config.model=%s", model),
+		"--set", "config.dbType=postgres",
+		"--set", "postgresql.enabled=true",
+		"--set", "postgresql.image.repository=bitnami/postgresql",
+		"--set", "postgresql.image.tag=latest",
 		"--set", fmt.Sprintf("config.jiraUrl=%s", os.Getenv("JIRA_URL")),
 		"--set", fmt.Sprintf("config.jiraUsername=%s", os.Getenv("JIRA_USERNAME")),
 		"--set", fmt.Sprintf("secrets.openrouterApiKey=%s", os.Getenv("OPENROUTER_API_KEY")),
 		"--set", fmt.Sprintf("secrets.jiraApiToken=%s", os.Getenv("JIRA_API_TOKEN")),
 		"--set", fmt.Sprintf("secrets.ghApiKey=%s", os.Getenv("GITHUB_API_KEY")),
 		"--set", fmt.Sprintf("secrets.ghEmail=%s", os.Getenv("GITHUB_EMAIL")),
+		"--set", fmt.Sprintf("secrets.slackBotUserToken=%s", os.Getenv("SLACK_BOT_USER_TOKEN")),
+		"--set", fmt.Sprintf("secrets.slackAppToken=%s", os.Getenv("SLACK_APP_TOKEN")),
+		"--set", fmt.Sprintf("secrets.discordBotToken=%s", os.Getenv("DISCORD_BOT_TOKEN")),
+		"--set", fmt.Sprintf("secrets.discordChannelId=%s", os.Getenv("DISCORD_CHANNEL_ID")),
+	}
+
+	// Conditionally set postgres registry if we are assuming a local mirroring setup
+	if strings.HasPrefix(pullRepo, "localhost:5000") {
+		helmLargestCmd = append(helmLargestCmd, "--set", "postgresql.global.imageRegistry=localhost:5000")
 	}
 
 	if err := runCommand("helm", helmLargestCmd...); err != nil {
@@ -191,14 +219,13 @@ func run() error {
 	// Check for Orchestrator Pod
 	if err := waitForPod(namespace, fmt.Sprintf("app.kubernetes.io/name=%s", "recac"), 120*time.Second); err != nil {
 		fmt.Println("!!! Orchestrator Pod Failed to Start !!!")
-		_ = runCommand("kubectl", "get", "pods", "-n", namespace)
-		_ = runCommand("kubectl", "describe", "pods", "-l", fmt.Sprintf("app.kubernetes.io/name=%s", "recac"), "-n", namespace)
+		printKubeDebugInfo(namespace)
 		return fmt.Errorf("orchestrator pod failed to start: %w", err)
 	}
 
 	// Check for Agent Job
 	log.Println("Waiting for Agent Job to start...")
-	
+
 	// Determine expected job name from ticket map (assuming single task for now or finding "PRIMES")
 	var targetTicketID string
 	if id, ok := ticketMap["PRIMES"]; ok {
@@ -210,12 +237,13 @@ func run() error {
 			break
 		}
 	}
-	
+
 	expectedJobPrefix := fmt.Sprintf("recac-agent-%s", strings.ToLower(targetTicketID))
 	log.Printf("Looking for job prefix: %s", expectedJobPrefix)
 
 	jobName, err := waitForJob(namespace, expectedJobPrefix, 300*time.Second)
 	if err != nil {
+		printKubeDebugInfo(namespace)
 		printLogs(namespace, fmt.Sprintf("app.kubernetes.io/name=%s", "recac"))
 		return fmt.Errorf("agent job failed to start: %w", err)
 	}
@@ -223,7 +251,8 @@ func run() error {
 
 	// Wait for Job Completion
 	log.Println("Waiting for Agent Job to complete...")
-	if err := waitForJobCompletion(namespace, jobName, 600*time.Second); err != nil {
+	if err := waitForJobCompletion(namespace, jobName, 2400*time.Second); err != nil {
+		printKubeDebugInfo(namespace)
 		printLogs(namespace, "app=recac-agent")
 		return fmt.Errorf("agent job failed to complete: %w", err)
 	}
@@ -235,6 +264,7 @@ func run() error {
 	// 5. Verify Results
 	log.Println("=== Verifying Results ===")
 	if err := verifyScenario(scenarioName, repoURL, ticketMap); err != nil {
+		printKubeDebugInfo(namespace)
 		return fmt.Errorf("verification failed: %w", err)
 	}
 
@@ -256,9 +286,11 @@ func verifyScenario(scenarioName, repo string, ticketMap map[string]string) erro
 	defer os.RemoveAll(tmpDir)
 
 	token := os.Getenv("GITHUB_API_KEY")
-	// Insert token into URL
-	// repo is like https://github.com/org/repo
-	authRepo := strings.Replace(repo, "https://", fmt.Sprintf("https://x-access-token:%s@", token), 1)
+	authRepo := repo
+	if !strings.Contains(repo, "@") {
+		// Insert token into URL
+		authRepo = strings.Replace(repo, "https://", fmt.Sprintf("https://x-access-token:%s@", token), 1)
+	}
 
 	log.Printf("Cloning repo to %s...", tmpDir)
 	if err := runCommand("git", "clone", authRepo, tmpDir); err != nil {
@@ -304,6 +336,59 @@ func waitForJobCompletion(ns, jobName string, timeout time.Duration) error {
 
 func printLogs(ns, selector string) {
 	fmt.Println("--- LOGS START ---")
-	_ = runCommand("kubectl", "logs", "-l", selector, "-n", ns, "--all-containers=true", "--tail=50")
+	_ = runCommand("kubectl", "logs", "-l", selector, "-n", ns, "--all-containers=true", "--tail=300")
 	fmt.Println("--- LOGS END ---")
+}
+
+func printKubeDebugInfo(ns string) {
+	fmt.Println("--- KUBE DEBUG INFO START ---")
+	fmt.Println(">> PODS <<")
+	_ = runCommand("kubectl", "get", "pods", "-n", ns, "-o", "wide")
+	fmt.Println(">> DESCRIBE PODS <<")
+	_ = runCommand("kubectl", "describe", "pods", "-n", ns)
+	fmt.Println(">> EVENTS <<")
+	_ = runCommand("kubectl", "get", "events", "-n", ns, "--sort-by=.lastTimestamp")
+	fmt.Println("--- KUBE DEBUG INFO END ---")
+}
+
+func prepareRepo(repoURL string, ticketMap map[string]string) error {
+	token := os.Getenv("GITHUB_API_KEY")
+	authRepo := repoURL
+	if !strings.Contains(repoURL, "@") {
+		authRepo = strings.Replace(repoURL, "https://", fmt.Sprintf("https://x-access-token:%s@", token), 1)
+	}
+
+	// Clone to temp dir
+	tmpDir, err := os.MkdirTemp("", "e2e-cleanup")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmpDir)
+
+	if err := runCommand("git", "clone", "--depth", "1", authRepo, tmpDir); err != nil {
+		return fmt.Errorf("failed to clone for preparation: %w", err)
+	}
+
+	// Delete ALL remote agent branches to avoid context pollution
+	// git branch -r --list 'origin/agent/*'
+	cmd := exec.Command("git", "-C", tmpDir, "branch", "-r", "--list", "origin/agent/*")
+	output, err := cmd.Output()
+	if err == nil {
+		lines := strings.Split(string(output), "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			// line is origin/agent/MFLP-123
+			parts := strings.Split(line, "origin/")
+			if len(parts) > 1 {
+				branch := parts[1]
+				log.Printf("Deleting stale remote branch: %s", branch)
+				_ = exec.Command("git", "-C", tmpDir, "push", "origin", "--delete", branch).Run()
+			}
+		}
+	}
+
+	return nil
 }

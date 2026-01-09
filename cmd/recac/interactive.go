@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 
 	"recac/internal/ui"
 
@@ -74,45 +73,28 @@ func RunInteractive() {
 			Name:        slashName,
 			Description: desc,
 			Action: func(m *ui.InteractiveModel, args []string) tea.Cmd {
-				// Construct the command to run
-				exe, err := os.Executable()
-				if err != nil {
-					exe = "recac" // fallback
-				}
-
-				// Wrap in a shell to pause execution after the command finishes
-				// This ensures the user can see the output (error or success)
-				// quotedArgs handles arguments safely enough for this TUI context
-				// constructing a shell command: sh -c 'exe arg1 arg2; read -p "Press Enter to continue..."'
-
-				// flatten args
-				fullArgs := append([]string{cmdName}, args...)
-				flatArgs := strings.Join(fullArgs, " ") // Simplistic joining
-
-				// Better approach: passing args to the executed command directly is safer,
-				// but to "pause", we need a wrapper.
-				// We can create a small wrapper script or just chain it.
-				// exec.Command("sh", "-c", "recac command args...; bufio wait")
-
-				// Reconstructing the command string for sh -c
-				// We need to escape args if they have spaces, but for now simple join is risky but acceptable for prototype
-				// Actually, we can use $0 and pass args.
-
-				shellCmd := fmt.Sprintf("'%s' %s; echo ''; echo 'Press Enter to continue...'; read", exe, flatArgs)
-				c := exec.Command("sh", "-c", shellCmd)
-
-				// If not linux/sh, we might need other handling, but USER OS is linux.
-
-				c.Stdin = os.Stdin
-				c.Stdout = os.Stdout
-				c.Stderr = os.Stderr
-
-				return tea.ExecProcess(c, func(err error) tea.Msg {
+				// This Cmd function will be executed by the Bubble Tea runtime.
+				return func() tea.Msg {
+					// Find the executable path.
+					exe, err := os.Executable()
 					if err != nil {
-						return fmt.Errorf("Command finished with error: %v", err)
+						exe = "recac" // fallback to assuming recac is in PATH.
 					}
-					return nil
-				})
+
+					// Prepare the command with its arguments.
+					fullArgs := append([]string{cmdName}, args...)
+					c := exec.Command(exe, fullArgs...)
+
+					// Execute the command and capture its combined stdout and stderr.
+					output, err := c.CombinedOutput()
+					if err != nil {
+						// If the command fails, prepend the error to the output.
+						return ui.StatusMsg(fmt.Sprintf("Error executing command '%s': %v\n%s", cmdName, err, string(output)))
+					}
+
+					// On success, return the output to be displayed in the TUI.
+					return ui.StatusMsg(string(output))
+				}
 			},
 		})
 	}

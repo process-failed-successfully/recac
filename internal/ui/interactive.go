@@ -439,6 +439,7 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case shellOutputMsg:
 		m.conversation(string(msg), false)
+		m.thinking = false
 		m.setMode(ModeChat) // Return to chat after command
 		return m, nil
 
@@ -571,6 +572,7 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmdToRun := strings.TrimPrefix(v, "!")
 				m.conversation(v, true)
 				m.textarea.Reset()
+				m.thinking = true
 				return m, m.runShellCommand(cmdToRun)
 			}
 
@@ -796,7 +798,11 @@ func (m InteractiveModel) View() string {
 	// Status & Footer
 	status := ""
 	if m.thinking {
-		status = m.spinner.View() + " Thinking..."
+		text := "Thinking..."
+		if m.mode == ModeShell {
+			text = "Executing..."
+		}
+		status = m.spinner.View() + " " + text
 	}
 
 	footer := lipgloss.JoinHorizontal(lipgloss.Top,
