@@ -22,6 +22,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Git dependency
+        run: sudo apt-get update && sudo apt-get install -y libpcre2-8-0
+
+      - name: Configure Git for private dependencies
+        env:
+          JIRA_E2E_GITHUB_TOKEN: ${{ secrets.JIRA_E2E_GITHUB_TOKEN }}
+        run: |
+          git config --global url."https://x-access-token:${JIRA_E2E_GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+          git config --global url."https://x-access-token:${JIRA_E2E_GITHUB_TOKEN}@github.com/".insteadOf "git@github.com:"
+
       - name: Generate Image Tag
         id: image-tag
         run: |
@@ -80,6 +90,16 @@ jobs:
       total_shards: ${{ steps.set-matrix.outputs.total_shards }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install Git dependency
+        run: sudo apt-get update && sudo apt-get install -y libpcre2-8-0
+
+      - name: Configure Git for private dependencies
+        env:
+          JIRA_E2E_GITHUB_TOKEN: ${{ secrets.JIRA_E2E_GITHUB_TOKEN }}
+        run: |
+          git config --global url."https://x-access-token:${JIRA_E2E_GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+          git config --global url."https://x-access-token:${JIRA_E2E_GITHUB_TOKEN}@github.com/".insteadOf "git@github.com:"
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -106,6 +126,16 @@ jobs:
       # options: --volume /var/run/docker.sock:/var/run/docker.sock # Lint generally doesn't need docker
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install Git dependency
+        run: sudo apt-get update && sudo apt-get install -y libpcre2-8-0
+
+      - name: Configure Git for private dependencies
+        env:
+          JIRA_E2E_GITHUB_TOKEN: ${{ secrets.JIRA_E2E_GITHUB_TOKEN }}
+        run: |
+          git config --global url."https://x-access-token:${JIRA_E2E_GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+          git config --global url."https://x-access-token:${JIRA_E2E_GITHUB_TOKEN}@github.com/".insteadOf "git@github.com:"
 
       - name: Cache Go Modules
         uses: actions/cache@v4
@@ -136,6 +166,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Git dependency
+        run: sudo apt-get update && sudo apt-get install -y libpcre2-8-0
+
+      - name: Configure Git for private dependencies
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.JIRA_E2E_GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
+          git config --global url."https://x-access-token:${{ secrets.JIRA_E2E_GITHUB_TOKEN }}@github.com/".insteadOf "git@github.com:"
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -158,6 +196,16 @@ jobs:
     container: ${{ needs.prepare-test-image.outputs.image }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install Git dependency
+        run: sudo apt-get update && sudo apt-get install -y libpcre2-8-0
+
+      - name: Configure Git for private dependencies
+        env:
+          JIRA_E2E_GITHUB_TOKEN: ${{ secrets.JIRA_E2E_GITHUB_TOKEN }}
+        run: |
+          git config --global url."https://x-access-token:${JIRA_E2E_GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+          git config --global url."https://x-access-token:${JIRA_E2E_GITHUB_TOKEN}@github.com/".insteadOf "git@github.com:"
 
       - name: Cache Go Modules
         uses: actions/cache@v4
@@ -184,6 +232,16 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install Git dependency
+        run: sudo apt-get update && sudo apt-get install -y libpcre2-8-0
+
+      - name: Configure Git for private dependencies
+        env:
+          JIRA_E2E_GITHUB_TOKEN: ${{ secrets.JIRA_E2E_GITHUB_TOKEN }}
+        run: |
+          git config --global url."https://x-access-token:${JIRA_E2E_GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+          git config --global url."https://x-access-token:${JIRA_E2E_GITHUB_TOKEN}@github.com/".insteadOf "git@github.com:"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
