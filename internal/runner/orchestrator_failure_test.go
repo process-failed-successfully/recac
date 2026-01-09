@@ -27,8 +27,17 @@ func (m *FaultToleranceMockDB) SaveObservation(projectID, agentID, content strin
 func (m *FaultToleranceMockDB) QueryHistory(projectID string, limit int) ([]db.Observation, error) {
 	return nil, nil
 }
-func (m *FaultToleranceMockDB) DeleteSignal(projectID, key string) error        { return nil }
-func (m *FaultToleranceMockDB) SaveFeatures(projectID, features string) error   { return nil }
+func (m *FaultToleranceMockDB) DeleteSignal(projectID, key string) error { return nil }
+func (m *FaultToleranceMockDB) SaveFeatures(projectID, features string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var fl db.FeatureList
+	if err := json.Unmarshal([]byte(features), &fl); err != nil {
+		return err
+	}
+	m.FeatureList = fl
+	return nil
+}
 func (m *FaultToleranceMockDB) ReleaseAllLocks(projectID, agentID string) error { return nil }
 
 func (m *FaultToleranceMockDB) SetSignal(projectID, key, value string) error {
@@ -136,9 +145,9 @@ func TestOrchestrator_FaultTolerance_HighFailureRate(t *testing.T) {
 
 	o := NewOrchestrator(mockDB, mockDocker, tmpDir, "img", smartAgent, "proj", "gemini", "gemini-pro", 3, "")
 	o.TickInterval = 100 * time.Millisecond
-	o.TaskMaxRetries = 0                                                                  // Fail fast
-	o.TaskMaxIterations = 1                                                               // Fail fast if no progress
-	o.Graph.LoadFromFeatureList(filepath.Join(tmpDir, "dummy_not_used_since_we_mock_db")) // actually ensureGitRepo calls refreshGraph which calls DB.GetFeatures
+	o.TaskMaxRetries = 0    // Fail fast
+	o.TaskMaxIterations = 1 // Fail fast if no progress
+	o.Graph.LoadFromFeatures(fl.Features)
 
 	// We need to bypass ensureGitRepo or make it work. It uses commands.
 	// Easier to just let it run or mock exec used by it.

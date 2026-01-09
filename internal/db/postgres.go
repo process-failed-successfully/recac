@@ -94,9 +94,17 @@ func (s *PostgresStore) migrate() error {
 	_, _ = s.db.Exec(`ALTER TABLE signals DROP CONSTRAINT IF EXISTS signals_pkey`)
 	_, _ = s.db.Exec(`ALTER TABLE signals ADD PRIMARY KEY (project_id, key)`)
 
-	// project_features: ensure project_id is PK
+	// project_features: ensure project_id exists and is PK
+	_, _ = s.db.Exec(`ALTER TABLE project_features ADD COLUMN IF NOT EXISTS project_id TEXT NOT NULL DEFAULT 'default'`)
+	_, _ = s.db.Exec(`ALTER TABLE project_features DROP COLUMN IF EXISTS id`)
 	_, _ = s.db.Exec(`ALTER TABLE project_features DROP CONSTRAINT IF EXISTS project_features_pkey`)
 	_, _ = s.db.Exec(`ALTER TABLE project_features ADD PRIMARY KEY (project_id)`)
+
+	// project_specs: ensure project_id exists and is PK
+	_, _ = s.db.Exec(`ALTER TABLE project_specs ADD COLUMN IF NOT EXISTS project_id TEXT NOT NULL DEFAULT 'default'`)
+	_, _ = s.db.Exec(`ALTER TABLE project_specs DROP COLUMN IF EXISTS id`)
+	_, _ = s.db.Exec(`ALTER TABLE project_specs DROP CONSTRAINT IF EXISTS project_specs_pkey`)
+	_, _ = s.db.Exec(`ALTER TABLE project_specs ADD PRIMARY KEY (project_id)`)
 
 	// file_locks: add project_id, update PK
 	_, _ = s.db.Exec(`ALTER TABLE file_locks ADD COLUMN IF NOT EXISTS project_id TEXT NOT NULL DEFAULT 'default'`)

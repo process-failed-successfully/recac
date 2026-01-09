@@ -110,9 +110,9 @@ func TestCommands(t *testing.T) {
 
 		// Verify files
 
-		if _, err := os.Stat("feature_list.json"); os.IsNotExist(err) {
+		if _, err := os.Stat("initial_features.json"); os.IsNotExist(err) {
 
-			t.Error("feature_list.json not created")
+			t.Error("initial_features.json not created")
 
 		}
 
@@ -176,9 +176,7 @@ func TestCommands(t *testing.T) {
 
 		os.Chdir(projectDir)
 
-		// Create feature_list.json so it doesn't try to run wizard or init
-
-		os.WriteFile("feature_list.json", []byte(`[{"id":"1","description":"test","category":"core","steps":["echo hello"]}]`), 0644)
+		// Create app_spec.txt so it has something to work with
 
 		os.WriteFile("app_spec.txt", []byte("test spec"), 0644)
 
