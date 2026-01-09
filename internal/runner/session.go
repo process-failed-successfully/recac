@@ -132,6 +132,7 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 		fmt.Printf("Warning: Failed to initialize DB store (%s): %v\n", dbType, err)
 	} else {
 		dbStore = s
+		fmt.Printf("[DEBUG] DB Store initialized: type=%s, project=%s\n", dbType, project)
 	}
 
 	// Initialize Security Scanner
@@ -1533,14 +1534,20 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 func (s *Session) loadFeatures() []db.Feature {
 	// 1. Try to fetch from DB first (Authoritative source)
 	if s.DBStore != nil {
+		s.Logger.Info("[DEBUG] Attempting to load features from DB", "project", s.Project)
 		content, err := s.DBStore.GetFeatures(s.Project)
+		if err != nil {
+			s.Logger.Info("[DEBUG] DB GetFeatures error", "error", err)
+		}
 		if err == nil && content != "" {
 			var fl db.FeatureList
 			if err := json.Unmarshal([]byte(content), &fl); err == nil {
-				s.Logger.Info("loaded features from DB history")
+				s.Logger.Info("loaded features from DB history", "count", len(fl.Features))
 				return fl.Features
 			}
 		}
+	} else {
+		s.Logger.Info("[DEBUG] No DBStore available for feature lookup")
 	}
 
 	// 2. Fallback to FeatureContent (passed from Orchestrator/CLI)
@@ -1938,6 +1945,11 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 			cmd := exec.CommandContext(cmdCtx, "/bin/bash", "-c", cmdScript)
 			// Propagate Environment + Inject Project ID
 			cmd.Env = append(os.Environ(), fmt.Sprintf("RECAC_PROJECT_ID=%s", s.Project))
+			// Debug: Log key env vars for troubleshooting
+			s.Logger.Info("[DEBUG] Local exec env vars",
+				"RECAC_PROJECT_ID", s.Project,
+				"RECAC_DB_TYPE", os.Getenv("RECAC_DB_TYPE"),
+				"RECAC_DB_URL_set", os.Getenv("RECAC_DB_URL") != "")
 			cmd.Dir = s.Workspace // Run in workspace
 			// Capture Combined Output
 			var outBuf bytes.Buffer
