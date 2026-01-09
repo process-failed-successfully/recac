@@ -28,7 +28,6 @@ type SessionState struct {
 // SessionManager handles background session management
 type SessionManager struct {
 	sessionsDir      string
-	IsProcessRunning func(pid int) bool
 }
 
 // NewSessionManager creates a new session manager
@@ -46,7 +45,6 @@ func NewSessionManager() (*SessionManager, error) {
 	sm := &SessionManager{
 		sessionsDir: sessionsDir,
 	}
-	sm.IsProcessRunning = sm.isProcessRunning
 	return sm, nil
 }
 
@@ -58,7 +56,6 @@ func NewSessionManagerWithDir(dir string) (*SessionManager, error) {
 	sm := &SessionManager{
 		sessionsDir: dir,
 	}
-	sm.IsProcessRunning = sm.isProcessRunning
 	return sm, nil
 }
 
@@ -225,8 +222,8 @@ func (sm *SessionManager) ListSessions() ([]*SessionState, error) {
 	return sessions, nil
 }
 
-// isProcessRunning checks if a process is still running
-func (sm *SessionManager) isProcessRunning(pid int) bool {
+// IsProcessRunning checks if a process is still running
+func (sm *SessionManager) IsProcessRunning(pid int) bool {
 	process, err := os.FindProcess(pid)
 	if err != nil {
 		return false
