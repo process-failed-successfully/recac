@@ -48,12 +48,12 @@ var setCmd = &cobra.Command{
 		}
 
 		if err := viper.WriteConfigAs(filename); err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing config to %s: %v\n", filename, err)
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error writing config to %s: %v\n", filename, err)
 			exit(1)
 		}
 
-		fmt.Printf("Configuration updated: %s = %v\n", key, value)
-		fmt.Printf("Saved to: %s\n", filename)
+		fmt.Fprintf(cmd.OutOrStdout(), "Configuration updated: %s = %v\n", key, value)
+		fmt.Fprintf(cmd.OutOrStdout(), "Saved to: %s\n", filename)
 	},
 }
 
@@ -63,9 +63,9 @@ var listKeysCmd = &cobra.Command{
 	Short: "List all available configuration keys",
 	Run: func(cmd *cobra.Command, args []string) {
 		keys := viper.AllKeys()
-		fmt.Println("Available configuration keys:")
+		fmt.Fprintln(cmd.OutOrStdout(), "Available configuration keys:")
 		for _, key := range keys {
-			fmt.Printf("- %s: %v\n", key, viper.Get(key))
+			fmt.Fprintf(cmd.OutOrStdout(), "- %s: %v\n", key, viper.Get(key))
 		}
 	},
 }
@@ -75,8 +75,8 @@ var listModelsCmd = &cobra.Command{
 	Use:   "list-models",
 	Short: "List compatible models for the active provider",
 	Run: func(cmd *cobra.Command, args []string) {
-		provider := viper.GetString("provider")
-		fmt.Printf("Listing models for provider: %s\n", provider)
+		provider := viper.GetString("agent_provider")
+		fmt.Fprintf(cmd.OutOrStdout(), "Listing models for provider: %s\n", provider)
 
 		var filename string
 		switch provider {
@@ -85,14 +85,14 @@ var listModelsCmd = &cobra.Command{
 		case "openrouter":
 			filename = "openrouter-models.json"
 		default:
-			fmt.Printf("Model listing not supported for provider: %s\n", provider)
+			fmt.Fprintf(cmd.OutOrStdout(), "Model listing not supported for provider: %s\n", provider)
 			return
 		}
 
 		// Read file
 		data, err := os.ReadFile(filename)
 		if err != nil {
-			fmt.Printf("Error reading models file %s: %v\n", filename, err)
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error reading models file %s: %v\n", filename, err)
 			return
 		}
 
@@ -100,28 +100,45 @@ var listModelsCmd = &cobra.Command{
 		var modelList struct {
 			Models []struct {
 				Name        string `json:"name"`
-					DisplayName string `json:"displayName"`
+				DisplayName string `json:"displayName"`
 			} `json:"models"`
 		}
 
 		if err := json.Unmarshal(data, &modelList); err != nil {
-			fmt.Printf("Error parsing models file: %v\n", err)
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error parsing models file: %v\n", err)
 			return
 		}
 
 		for _, m := range modelList.Models {
 			if m.DisplayName != "" {
-				fmt.Printf("- %s (%s)\n", m.Name, m.DisplayName)
+				fmt.Fprintf(cmd.OutOrStdout(), "- %s (%s)\n", m.Name, m.DisplayName)
 			} else {
-				fmt.Printf("- %s\n", m.Name)
+				fmt.Fprintf(cmd.OutOrStdout(), "- %s\n", m.Name)
 			}
 		}
+	},
+}
+
+// getCmd represents the get command
+var getCmd = &cobra.Command{
+	Use:   "get <key>",
+	Short: "Get a configuration value",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		key := args[0]
+		value := viper.Get(key)
+		if value == nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error: key not found: %s\n", key)
+			exit(1)
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), value)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(configCmd)
 	configCmd.AddCommand(setCmd)
+	configCmd.AddCommand(getCmd)
 	configCmd.AddCommand(listKeysCmd)
 	configCmd.AddCommand(listModelsCmd)
 }

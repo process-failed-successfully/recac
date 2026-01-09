@@ -13,7 +13,9 @@ RUN apk add --no-cache \
     bash \
     unzip \
     libc6-compat \
-    docker-cli
+    docker-cli \
+    coreutils \
+    make
 
 # Configure NPM mirror
 # RUN npm config set registry https://registry.npmmirror.com/
@@ -22,7 +24,7 @@ RUN apk add --no-cache \
 RUN npm install -g @google/gemini-cli
 
 # Install OpenCode CLI
-RUN npm install -g opencode-ai
+RUN npm install -g opencode-ai --ignore-scripts
 
 # Install Cursor Agent
 ENV HOME=/root
@@ -33,6 +35,7 @@ WORKDIR /app
 
 # Download Utils
 FROM base AS builder
+ARG CACHE_BYPASS=unknown
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download

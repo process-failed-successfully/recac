@@ -3,7 +3,6 @@ package runner
 import (
 	"encoding/json"
 	"log/slog"
-	"os"
 	"path/filepath"
 	"recac/internal/db"
 	"recac/internal/notify"
@@ -12,6 +11,7 @@ import (
 
 func TestSession_CheckAutoQA(t *testing.T) {
 	workspace := t.TempDir()
+	projectID := "test-project"
 
 	// Create Mock DB Store to check signals
 	dbPath := filepath.Join(workspace, ".recac.db")
@@ -23,6 +23,7 @@ func TestSession_CheckAutoQA(t *testing.T) {
 
 	s := &Session{
 		Workspace: workspace,
+		Project:   projectID,
 		DBStore:   store,
 		Logger:    slog.Default(),
 		Notifier:  notify.NewManager(func(string, ...interface{}) {}),
@@ -52,7 +53,7 @@ func TestSession_CheckAutoQA(t *testing.T) {
 	}
 
 	// Verify signal COMPLETED created
-	val, _ := store.GetSignal("COMPLETED")
+	val, _ := store.GetSignal(projectID, "COMPLETED")
 	if val != "true" {
 		t.Error("Expected COMPLETED signal to be created")
 	}
@@ -63,10 +64,10 @@ func TestSession_CheckAutoQA(t *testing.T) {
 	}
 
 	// Reset signal
-	store.DeleteSignal("COMPLETED")
+	store.DeleteSignal(projectID, "COMPLETED")
 
 	// 5. Existing signals -> False
-	store.SetSignal("QA_PASSED", "true")
+	store.SetSignal(projectID, "QA_PASSED", "true")
 	if s.checkAutoQA() {
 		t.Error("Expected false if QA_PASSED exists")
 	}
@@ -77,8 +78,7 @@ func writeFeaturesForAutoQAWithSession(t *testing.T, s *Session, features []db.F
 		Features:    features,
 	}
 	data, _ := json.Marshal(list)
-	os.WriteFile(filepath.Join(s.Workspace, "feature_list.json"), data, 0644)
 	if s.DBStore != nil {
-		_ = s.DBStore.SaveFeatures(string(data))
+		_ = s.DBStore.SaveFeatures(s.Project, string(data))
 	}
 }
