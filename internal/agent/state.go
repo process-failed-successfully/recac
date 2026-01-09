@@ -11,6 +11,7 @@ import (
 
 // State represents the persistent state of an agent
 type State struct {
+	Model         string                 `json:"model,omitempty"`          // Name of the model used
 	Memory        []string               `json:"memory"`
 	History       []Message              `json:"history"`
 	Metadata      map[string]interface{} `json:"metadata"`
@@ -142,8 +143,8 @@ func (sm *StateManager) AddMemory(memoryItem string) error {
 	return sm.saveState(state)
 }
 
-// InitializeState initializes the state with max_tokens if not already set
-func (sm *StateManager) InitializeState(maxTokens int) error {
+// InitializeState initializes the state with max_tokens and model if not already set
+func (sm *StateManager) InitializeState(maxTokens int, model string) error {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
@@ -152,9 +153,19 @@ func (sm *StateManager) InitializeState(maxTokens int) error {
 		return fmt.Errorf("failed to load state: %w", err)
 	}
 
+	needsSave := false
 	// Only set max_tokens if it's not already set (0)
 	if state.MaxTokens == 0 && maxTokens > 0 {
 		state.MaxTokens = maxTokens
+		needsSave = true
+	}
+
+	if state.Model == "" && model != "" {
+		state.Model = model
+		needsSave = true
+	}
+
+	if needsSave {
 		return sm.saveState(state)
 	}
 
