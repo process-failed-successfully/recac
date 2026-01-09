@@ -73,6 +73,15 @@ jobs:
                 console.log(`Successfully promoted PR #${prNumber}`);
               }
 
+              // 4.5 Approve the PR (Required by branch protection)
+              await github.rest.pulls.createReview({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+                event: 'APPROVE'
+              });
+              console.log(`Successfully approved PR #${prNumber}`);
+
               // 5. Merge the PR
               await github.rest.pulls.merge({
                 owner: context.repo.owner,
