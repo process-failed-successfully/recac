@@ -7,7 +7,9 @@ import (
 	"os"
 	"strings"
 
+	"recac/internal/agent"
 	"recac/internal/agent/prompts"
+	"recac/internal/jira"
 	"regexp"
 
 	"time"
@@ -183,200 +185,206 @@ var jiraGenerateFromSpecCmd = &cobra.Command{
 	Use:   "generate-from-spec",
 	Short: "Generate Jira tickets from app_spec.txt",
 	Long:  "Reads app_spec.txt, uses an LLM to decompose it into Epics and Stories, and creates them in Jira.",
-	Run: func(cmd *cobra.Command, args []string) {
-		// 1. Read app_spec.txt
-		specPath, _ := cmd.Flags().GetString("spec")
-		specContent, err := os.ReadFile(specPath)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: Failed to read spec file %s: %v\n", specPath, err)
-			exit(1)
-		}
+	Run:   runGenerateTicketsCmd,
+}
 
-		// 2. Setup Jira Client
-		ctx := context.Background()
-		jiraClient, err := getJiraClient(ctx)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			exit(1)
-		}
+func runGenerateTicketsCmd(cmd *cobra.Command, args []string) {
+	// 1. Read app_spec.txt
+	specPath, _ := cmd.Flags().GetString("spec")
+	specContent, err := os.ReadFile(specPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: Failed to read spec file %s: %v\n", specPath, err)
+		exit(1)
+	}
 
-		projectKey, _ := cmd.Flags().GetString("project")
-		if projectKey == "" {
-			projectKey = os.Getenv("JIRA_PROJECT_KEY")
-		}
-		if projectKey == "" {
-			projectKey = viper.GetString("jira.project_key")
-		}
-		if projectKey == "" {
-			fmt.Fprintf(os.Stderr, "Error: JIRA_PROJECT_KEY is required. Use --project flag, JIRA_PROJECT_KEY env var, or jira.project_key in config.\n")
-			exit(1)
-		}
+	// 2. Setup Jira Client
+	ctx := context.Background()
+	jiraClient, err := getJiraClient(ctx)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		exit(1)
+	}
 
-		// 3. Setup Agent
-		provider, _ := cmd.Flags().GetString("provider")
-		if provider == "" {
-			provider = viper.GetString("provider")
-		}
-		model, _ := cmd.Flags().GetString("model")
-		if model == "" {
-			model = viper.GetString("model")
-		}
+	projectKey, _ := cmd.Flags().GetString("project")
+	if projectKey == "" {
+		projectKey = os.Getenv("JIRA_PROJECT_KEY")
+	}
+	if projectKey == "" {
+		projectKey = viper.GetString("jira.project_key")
+	}
+	if projectKey == "" {
+		fmt.Fprintf(os.Stderr, "Error: JIRA_PROJECT_KEY is required. Use --project flag, JIRA_PROJECT_KEY env var, or jira.project_key in config.\n")
+		exit(1)
+	}
 
-		ag, err := getAgentClient(ctx, provider, model, ".", "recac-jira-gen")
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: Failed to initialize agent: %v\n", err)
-			exit(1)
+	// 3. Setup Agent
+	provider, _ := cmd.Flags().GetString("provider")
+	if provider == "" {
+		provider = viper.GetString("provider")
+	}
+	model, _ := cmd.Flags().GetString("model")
+	if model == "" {
+		model = viper.GetString("model")
+	}
+
+	ag, err := getAgentClient(ctx, provider, model, ".", "recac-jira-gen")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: Failed to initialize agent: %v\n", err)
+		exit(1)
+	}
+
+	// 4. Labels
+	runLabel := fmt.Sprintf("recac-gen-%s", time.Now().Format("20060102-150405"))
+	userLabels, _ := cmd.Flags().GetStringSlice("label")
+	allLabels := append([]string{runLabel}, userLabels...)
+	fmt.Printf("Using labels for all tickets: %v\n", allLabels)
+
+	if err := generateTickets(ctx, string(specContent), projectKey, allLabels, jiraClient, ag); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		exit(1)
+	}
+}
+
+// generateTickets contains the core logic for ticket generation, decoupled from flags for testing.
+func generateTickets(ctx context.Context, specContent, projectKey string, allLabels []string, jiraClient jira.ClientInterface, ag agent.Agent) error {
+	// 5. Generate Tickets JSON
+	prompt, err := prompts.GetPrompt(prompts.TPMAgent, map[string]string{"spec": specContent})
+	if err != nil {
+		return fmt.Errorf("failed to load prompt: %w", err)
+	}
+
+	fmt.Println("Analyzing spec and generating ticket plan...")
+	resp, err := ag.Send(ctx, prompt)
+	if err != nil {
+		return fmt.Errorf("agent failed to generate response: %w", err)
+	}
+
+	// Strip markdown code blocks if present
+	jsonStr := resp
+	if strings.Contains(jsonStr, "```json") {
+		parts := strings.Split(jsonStr, "```json")
+		if len(parts) > 1 {
+			jsonStr = parts[1]
 		}
-
-		// 4. Labels
-		runLabel := fmt.Sprintf("recac-gen-%s", time.Now().Format("20060102-150405"))
-		userLabels, _ := cmd.Flags().GetStringSlice("label")
-		allLabels := append([]string{runLabel}, userLabels...)
-		fmt.Printf("Using labels for all tickets: %v\n", allLabels)
-
-		// 5. Generate Tickets JSON
-		prompt, err := prompts.GetPrompt(prompts.TPMAgent, map[string]string{"spec": string(specContent)})
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: Failed to load prompt: %v\n", err)
-			exit(1)
+		parts = strings.Split(jsonStr, "```")
+		jsonStr = parts[0]
+	} else if strings.Contains(jsonStr, "```") {
+		// Generic code block
+		parts := strings.Split(jsonStr, "```")
+		if len(parts) > 1 {
+			jsonStr = parts[1]
 		}
+		parts = strings.Split(jsonStr, "```")
+		jsonStr = parts[0]
+	}
+	jsonStr = strings.TrimSpace(jsonStr)
 
-		fmt.Println("Analyzing spec and generating ticket plan...")
-		resp, err := ag.Send(context.Background(), prompt)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: Agent failed to generate response: %v\n", err)
-			exit(1)
+	var tickets []ticketNode
+	if err := json.Unmarshal([]byte(jsonStr), &tickets); err != nil {
+		return fmt.Errorf("failed to parse agent response as JSON: %w\nResponse was:\n%s", err, resp)
+	}
+
+	// 5. Create Tickets in Jira
+	fmt.Printf("Found %d top-level items. Creating tickets...\n", len(tickets))
+
+	// Validate repository in descriptions
+	repoRegex := regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
+	for _, epicNode := range tickets {
+		if !repoRegex.MatchString(epicNode.Description) {
+			return fmt.Errorf("Epic '%s' description missing repository URL (Repo: https://...)", epicNode.Title)
 		}
-
-		// Strip markdown code blocks if present
-		jsonStr := resp
-		if strings.Contains(jsonStr, "```json") {
-			parts := strings.Split(jsonStr, "```json")
-			if len(parts) > 1 {
-				jsonStr = parts[1]
+		for _, storyNode := range epicNode.Children {
+			if !repoRegex.MatchString(storyNode.Description) {
+				return fmt.Errorf("Story '%s' description missing repository URL (Repo: https://...)", storyNode.Title)
 			}
-			parts = strings.Split(jsonStr, "```")
-			jsonStr = parts[0]
-		} else if strings.Contains(jsonStr, "```") {
-			// Generic code block
-			parts := strings.Split(jsonStr, "```")
-			if len(parts) > 1 {
-				jsonStr = parts[1]
-			}
-			parts = strings.Split(jsonStr, "```")
-			jsonStr = parts[0]
 		}
-		jsonStr = strings.TrimSpace(jsonStr)
+	}
 
-		var tickets []ticketNode
-		if err := json.Unmarshal([]byte(jsonStr), &tickets); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: Failed to parse agent response as JSON: %v\nResponse was:\n%s\n", err, resp)
-			exit(1)
+	// Keep track of titles to keys for linking
+	titleToKey := make(map[string]string)
+
+	for _, epicNode := range tickets {
+		// Use the type provided by the agent (default to Epic if empty, though prompt enforces it)
+		issueType := epicNode.Type
+		if issueType == "" {
+			issueType = "Epic"
 		}
 
-		// 5. Create Tickets in Jira
-		fmt.Printf("Found %d top-level items. Creating tickets...\n", len(tickets))
+		fmt.Printf("Creating %s: %s\n", issueType, epicNode.Title)
 
-		// Validate repository in descriptions
-		repoRegex := regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
-		for _, epicNode := range tickets {
-			if !repoRegex.MatchString(epicNode.Description) {
-				fmt.Fprintf(os.Stderr, "Error: Epic '%s' description missing repository URL (Repo: https://...)\n", epicNode.Title)
-				exit(1)
-			}
-			for _, storyNode := range epicNode.Children {
-				if !repoRegex.MatchString(storyNode.Description) {
-					fmt.Fprintf(os.Stderr, "Error: Story '%s' description missing repository URL (Repo: https://...)\n", storyNode.Title)
-					exit(1)
-				}
+		// Combine Description and Acceptance Criteria
+		fullDescription := epicNode.Description
+		if len(epicNode.AcceptanceCriteria) > 0 {
+			fullDescription += "\n\nAcceptance Criteria:\n"
+			for _, ac := range epicNode.AcceptanceCriteria {
+				fullDescription += fmt.Sprintf("- %s\n", ac)
 			}
 		}
 
-		// Keep track of titles to keys for linking
-		titleToKey := make(map[string]string)
+		epicKey, err := jiraClient.CreateTicket(ctx, projectKey, epicNode.Title, fullDescription, issueType, allLabels)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: Failed to create %s '%s': %v\n", issueType, epicNode.Title, err)
+			continue
+		}
+		fmt.Printf("  -> Created %s %s\n", issueType, epicKey)
+		titleToKey[epicNode.Title] = epicKey
 
-		for _, epicNode := range tickets {
-			// Use the type provided by the agent (default to Epic if empty, though prompt enforces it)
-			issueType := epicNode.Type
-			if issueType == "" {
-				issueType = "Epic"
+		for _, storyNode := range epicNode.Children {
+			childType := storyNode.Type
+			if childType == "" {
+				childType = "Story"
 			}
-
-			fmt.Printf("Creating %s: %s\n", issueType, epicNode.Title)
+			fmt.Printf("  Creating Child (%s): %s\n", childType, storyNode.Title)
 
 			// Combine Description and Acceptance Criteria
-			fullDescription := epicNode.Description
-			if len(epicNode.AcceptanceCriteria) > 0 {
-				fullDescription += "\n\nAcceptance Criteria:\n"
-				for _, ac := range epicNode.AcceptanceCriteria {
-					fullDescription += fmt.Sprintf("- %s\n", ac)
+			childDescription := storyNode.Description
+			if len(storyNode.AcceptanceCriteria) > 0 {
+				childDescription += "\n\nAcceptance Criteria:\n"
+				for _, ac := range storyNode.AcceptanceCriteria {
+					childDescription += fmt.Sprintf("- %s\n", ac)
 				}
 			}
 
-			epicKey, err := jiraClient.CreateTicket(context.Background(), projectKey, epicNode.Title, fullDescription, issueType, allLabels)
+			childKey, err := jiraClient.CreateChildTicket(ctx, projectKey, storyNode.Title, childDescription, childType, epicKey, allLabels)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: Failed to create %s '%s': %v\n", issueType, epicNode.Title, err)
-				continue
+				fmt.Fprintf(os.Stderr, "Error: Failed to create child '%s': %v\n", storyNode.Title, err)
+			} else {
+				fmt.Printf("    -> Created %s\n", childKey)
+				titleToKey[storyNode.Title] = childKey
 			}
-			fmt.Printf("  -> Created %s %s\n", issueType, epicKey)
-			titleToKey[epicNode.Title] = epicKey
+		}
+	}
 
-			for _, storyNode := range epicNode.Children {
-				childType := storyNode.Type
-				if childType == "" {
-					childType = "Story"
-				}
-				fmt.Printf("  Creating Child (%s): %s\n", childType, storyNode.Title)
-
-				// Combine Description and Acceptance Criteria
-				childDescription := storyNode.Description
-				if len(storyNode.AcceptanceCriteria) > 0 {
-					childDescription += "\n\nAcceptance Criteria:\n"
-					for _, ac := range storyNode.AcceptanceCriteria {
-						childDescription += fmt.Sprintf("- %s\n", ac)
+	// Create Links for Blockers
+	fmt.Println("Creating issue links for blockers...")
+	for _, epicNode := range tickets {
+		// Epics can block each other too?
+		for _, blockerTitle := range epicNode.BlockedBy {
+			if blockerKey, ok := titleToKey[blockerTitle]; ok {
+				if epicKey, ok := titleToKey[epicNode.Title]; ok {
+					fmt.Printf("Linking %s as blocked by %s\n", epicKey, blockerKey)
+					if err := jiraClient.AddIssueLink(ctx, blockerKey, epicKey, "Blocks"); err != nil {
+						fmt.Fprintf(os.Stderr, "Warning: Failed to link %s as blocked by %s: %v\n", epicKey, blockerKey, err)
 					}
-				}
-
-				childKey, err := jiraClient.CreateChildTicket(context.Background(), projectKey, storyNode.Title, childDescription, childType, epicKey, allLabels)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Error: Failed to create child '%s': %v\n", storyNode.Title, err)
-				} else {
-					fmt.Printf("    -> Created %s\n", childKey)
-					titleToKey[storyNode.Title] = childKey
 				}
 			}
 		}
 
-		// Create Links for Blockers
-		fmt.Println("Creating issue links for blockers...")
-		for _, epicNode := range tickets {
-			// Epics can block each other too?
-			for _, blockerTitle := range epicNode.BlockedBy {
+		for _, storyNode := range epicNode.Children {
+			for _, blockerTitle := range storyNode.BlockedBy {
 				if blockerKey, ok := titleToKey[blockerTitle]; ok {
-					if epicKey, ok := titleToKey[epicNode.Title]; ok {
-						fmt.Printf("Linking %s as blocked by %s\n", epicKey, blockerKey)
-						if err := jiraClient.AddIssueLink(context.Background(), blockerKey, epicKey, "Blocks"); err != nil {
-							fmt.Fprintf(os.Stderr, "Warning: Failed to link %s as blocked by %s: %v\n", epicKey, blockerKey, err)
-						}
-					}
-				}
-			}
-
-			for _, storyNode := range epicNode.Children {
-				for _, blockerTitle := range storyNode.BlockedBy {
-					if blockerKey, ok := titleToKey[blockerTitle]; ok {
-						if storyKey, ok := titleToKey[storyNode.Title]; ok {
-							fmt.Printf("Linking %s as blocked by %s\n", storyKey, blockerKey)
-							if err := jiraClient.AddIssueLink(context.Background(), blockerKey, storyKey, "Blocks"); err != nil {
-								fmt.Fprintf(os.Stderr, "Warning: Failed to link %s as blocked by %s: %v\n", storyKey, blockerKey, err)
-							}
+					if storyKey, ok := titleToKey[storyNode.Title]; ok {
+						fmt.Printf("Linking %s as blocked by %s\n", storyKey, blockerKey)
+						if err := jiraClient.AddIssueLink(ctx, blockerKey, storyKey, "Blocks"); err != nil {
+							fmt.Fprintf(os.Stderr, "Warning: Failed to link %s as blocked by %s: %v\n", storyKey, blockerKey, err)
 						}
 					}
 				}
 			}
 		}
-		fmt.Println("Done.")
-	},
+	}
+	fmt.Println("Done.")
+	return nil
 }
 
 func init() {
