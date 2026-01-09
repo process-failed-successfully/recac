@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -38,7 +37,7 @@ var psCmd = &cobra.Command{
 
 		showErrors, _ := cmd.Flags().GetBool("errors")
 
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
+		w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 3, ' ', 0)
 		header := "NAME\tSTATUS\tSTARTED\tDURATION"
 		if showErrors {
 			header += "\tERROR"

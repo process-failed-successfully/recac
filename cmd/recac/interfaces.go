@@ -11,5 +11,6 @@ type ISessionManager interface {
 	GetSessionLogs(name string) (string, error)
 	StartSession(name string, command []string, workspace string) (*runner.SessionState, error)
 	GetSessionPath(name string) string
+	SessionsDir() string
 	IsProcessRunning(pid int) bool
 }

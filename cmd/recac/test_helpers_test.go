@@ -86,6 +86,10 @@ func (m *MockSessionManager) GetSessionPath(name string) string {
 	return fmt.Sprintf("/tmp/recac/sessions/%s.json", name)
 }
 
+func (m *MockSessionManager) SessionsDir() string {
+	return "/tmp/recac/sessions"
+}
+
 func (m *MockSessionManager) SaveSession(session *runner.SessionState) error {
 	m.Sessions[session.Name] = session
 	return nil
