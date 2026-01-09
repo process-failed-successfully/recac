@@ -41,7 +41,7 @@ var statsCmd = &cobra.Command{
 	},
 }
 
-func calculateStats(sm *runner.SessionManager) (*AggregateStats, error) {
+func calculateStats(sm ISessionManager) (*AggregateStats, error) {
 	sessions, err := sm.ListSessions()
 	if err != nil {
 		return nil, fmt.Errorf("could not list sessions: %w", err)
@@ -61,7 +61,6 @@ func calculateStats(sm *runner.SessionManager) (*AggregateStats, error) {
 
 		agentState, err := loadAgentState(session.AgentStateFile)
 		if err != nil {
-			// If the agent state file doesn't exist, we can just skip it
 			if os.IsNotExist(err) {
 				continue
 			}

@@ -13,18 +13,8 @@ import (
 
 func TestCalculateStats(t *testing.T) {
 	tmpDir := t.TempDir()
-	sessionsDir := filepath.Join(tmpDir, "sessions")
-	os.MkdirAll(sessionsDir, 0755)
 
-	sm, err := runner.NewSessionManagerWithDir(sessionsDir)
-	if err != nil {
-		t.Fatalf("Failed to create session manager: %v", err)
-	}
-	sm.IsProcessRunning = func(pid int) bool {
-		return true // Mock process as always running
-	}
-
-	// --- Create Mock Session 1 (with agent state) ---
+	// --- Create Mock Agent State Files ---
 	agentState1 := agent.State{
 		Model: "gemini-1.5-pro-latest",
 		TokenUsage: agent.TokenUsage{
@@ -37,15 +27,6 @@ func TestCalculateStats(t *testing.T) {
 	agentData1, _ := json.Marshal(agentState1)
 	os.WriteFile(agentStateFile1, agentData1, 0644)
 
-	session1 := &runner.SessionState{
-		Name:           "session1",
-		Status:         "completed",
-		AgentStateFile: agentStateFile1,
-		StartTime:      time.Now(),
-	}
-	sm.SaveSession(session1)
-
-	// --- Create Mock Session 2 (with agent state) ---
 	agentState2 := agent.State{
 		Model: "claude-3-opus-20240229",
 		TokenUsage: agent.TokenUsage{
@@ -58,24 +39,31 @@ func TestCalculateStats(t *testing.T) {
 	agentData2, _ := json.Marshal(agentState2)
 	os.WriteFile(agentStateFile2, agentData2, 0644)
 
-	session2 := &runner.SessionState{
-		Name:           "session2",
-		Status:         "completed",
-		AgentStateFile: agentStateFile2,
-		StartTime:      time.Now(),
+	// --- Create Mock Session Manager ---
+	mockSM := &MockSessionManager{
+		Sessions: []*runner.SessionState{
+			{
+				Name:           "session1",
+				Status:         "completed",
+				AgentStateFile: agentStateFile1,
+				StartTime:      time.Now(),
+			},
+			{
+				Name:           "session2",
+				Status:         "completed",
+				AgentStateFile: agentStateFile2,
+				StartTime:      time.Now(),
+			},
+			{
+				Name:      "session3",
+				Status:    "running",
+				StartTime: time.Now(),
+			},
+		},
 	}
-	sm.SaveSession(session2)
-
-	// --- Create Mock Session 3 (without agent state) ---
-	session3 := &runner.SessionState{
-		Name:      "session3",
-		Status:    "running",
-		StartTime: time.Now(),
-	}
-	sm.SaveSession(session3)
 
 	// Calculate stats
-	stats, err := calculateStats(sm)
+	stats, err := calculateStats(mockSM)
 	if err != nil {
 		t.Fatalf("calculateStats failed: %v", err)
 	}
