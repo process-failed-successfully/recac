@@ -140,6 +140,14 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_DB_URL", Value: val})
 	}
 
+	// Propagate Notifications Config
+	if val := os.Getenv("RECAC_NOTIFICATIONS_DISCORD_ENABLED"); val != "" {
+		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_NOTIFICATIONS_DISCORD_ENABLED", Value: val})
+	}
+	if val := os.Getenv("RECAC_NOTIFICATIONS_SLACK_ENABLED"); val != "" {
+		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_NOTIFICATIONS_SLACK_ENABLED", Value: val})
+	}
+
 	// Propagate Project ID
 	envVars = append(envVars, corev1.EnvVar{Name: "RECAC_PROJECT_ID", Value: item.ID})
 

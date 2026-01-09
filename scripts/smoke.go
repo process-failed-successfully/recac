@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/joho/godotenv"
 )
 
 // MockAgent implements agent.Agent
@@ -35,6 +36,7 @@ func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(
 }
 
 func main() {
+	_ = godotenv.Load() // Load .env file if it exists
 	fmt.Println("Starting End-to-End Smoke Test...")
 
 	// 1. Setup Workspace
