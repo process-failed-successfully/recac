@@ -104,7 +104,63 @@ func TestRunHistoryCmd(t *testing.T) {
 		assert.Contains(t, output, "2023-01-01") // Start time
 	})
 
-	// --- Test Case 3: Error Listing Sessions ---
+	// --- Test Case 3: Accurate Cost Calculation ---
+	t.Run("AccurateCostCalculation", func(t *testing.T) {
+		// Setup: Create a session file with a specific model
+		agentStateWithModel := agent.State{
+			Model: "gemini-pro",
+			TokenUsage: agent.TokenUsage{
+				TotalPromptTokens:   100000, // 0.1M
+				TotalResponseTokens: 200000, // 0.2M
+				TotalTokens:         300000,
+			},
+		}
+		agentStateData, _ := json.Marshal(agentStateWithModel)
+		agentStateFileWithModel := filepath.Join(agentStateDir, ".agent_state_model.json")
+		os.WriteFile(agentStateFileWithModel, agentStateData, 0644)
+		defer os.Remove(agentStateFileWithModel)
+
+		session := &runner.SessionState{
+			Name:           "cost-session",
+			Status:         "completed",
+			StartTime:      time.Now(),
+			AgentStateFile: agentStateFileWithModel,
+		}
+		sessionData, _ := json.Marshal(session)
+		sessionFilePath := filepath.Join(sessionsDir, "cost-session.json")
+		os.WriteFile(sessionFilePath, sessionData, 0644)
+		defer os.Remove(sessionFilePath)
+
+		// Redirect stdout
+		oldStdout := os.Stdout
+		r, w, _ := os.Pipe()
+		os.Stdout = w
+
+		mockFactory := func() (*runner.SessionManager, error) {
+			return runner.NewSessionManagerWithDir(sessionsDir)
+		}
+
+		err := runHistoryCmd(mockFactory)
+		assert.NoError(t, err)
+
+		// Restore stdout and capture output
+		w.Close()
+		os.Stdout = oldStdout
+		var buf bytes.Buffer
+		buf.ReadFrom(r)
+		output := buf.String()
+
+		// Assertions
+		// Cost for gemini-pro is $0.50/M prompt, $1.50/M completion
+		// Prompt cost: 0.1M * $0.50 = $0.05
+		// Completion cost: 0.2M * $1.50 = $0.30
+		// Total cost: $0.35
+		assert.Contains(t, output, "cost-session")
+		assert.Contains(t, output, "300000")
+		assert.Contains(t, output, "0.3500")
+	})
+
+	// --- Test Case 4: Error Listing Sessions ---
 	t.Run("ErrorListingSessions", func(t *testing.T) {
 		unreadableDir := t.TempDir()
 		// Make the directory unreadable to force an error in ListSessions

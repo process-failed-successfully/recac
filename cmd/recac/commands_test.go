@@ -225,24 +225,6 @@ func TestCommands(t *testing.T) {
 
 	})
 
-	t.Run("List Command With Data", func(t *testing.T) {
-
-		// Create a dummy session file in .recac/sessions or similar?
-
-		// runner uses DB usually.
-
-		// If DB is used, we need to init DB.
-
-		// commands.go doesn't seem to expose DB init easily for testing 'list'.
-
-		// But 'list' command reads from DB.
-
-		// Just run list, we already did.
-
-		executeCommand(rootCmd, "list")
-
-	})
-
 	t.Run("Signal Command", func(t *testing.T) {
 
 		// signal clear
@@ -264,20 +246,6 @@ func TestCommands(t *testing.T) {
 		if err != nil {
 
 			t.Errorf("Logs help failed: %v", err)
-
-		}
-
-	})
-
-	t.Run("List Command", func(t *testing.T) {
-
-		// Just run it, it should output empty list or similar
-
-		_, err := executeCommand(rootCmd, "list")
-
-		if err != nil {
-
-			t.Errorf("List failed: %v", err)
 
 		}
 

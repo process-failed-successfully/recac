@@ -12,6 +12,10 @@ recac-*
 *.7z
 agent-bridge
 e2e-runner
+clean_jira_data
+gen-jira-data
+gen_jira_data
+smoke_test
 
 # Development environment
 .recac/
@@ -68,6 +72,9 @@ blockers.txt
 questions.txt
 app_spec.txt
 feature_list.json
+feature_list_schema.json
+test_features.json
+ui_verification_schema.json
 implementation_summary.txt
 persistence_test.txt
 *summary.txt
