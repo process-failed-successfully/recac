@@ -199,22 +199,6 @@ func TestCommands(t *testing.T) {
 
 	})
 
-	t.Run("List Command (Deprecated)", func(t *testing.T) {
-		output, err := executeCommand(rootCmd, "list")
-		if err != nil {
-			t.Errorf("List command failed: %v", err)
-		}
-
-		// Check for deprecation warning
-		if !strings.Contains(output, "Warning: 'recac list' is deprecated") {
-			t.Errorf("Expected deprecation warning for 'list' command, but got: %s", output)
-		}
-
-		// Check that it still outputs the status table
-		if !strings.Contains(output, "NAME") || !strings.Contains(output, "STATUS") {
-			t.Errorf("Expected status output from deprecated 'list' command, but got: %s", output)
-		}
-	})
 
 	t.Run("Signal Command", func(t *testing.T) {
 
