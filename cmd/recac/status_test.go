@@ -1,121 +1,88 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
+	"path/filepath"
 	"recac/internal/runner"
-	"strings"
+	"recac/internal/ui"
 	"testing"
 	"time"
 
 	"github.com/spf13/viper"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-// captureOutput executes a function and captures its standard output.
-func captureOutput(f func() error) (string, error) {
-	old := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
+func TestGetStatus(t *testing.T) {
+	// Setup: Create a temporary directory for sessions
+	tempDir := t.TempDir()
+	t.Setenv("HOME", tempDir) // Isolate session manager
 
-	err := f()
+	// We need to initialize the session manager to create the .recac/sessions directory
+	_, err := runner.NewSessionManager()
+	require.NoError(t, err, "failed to create session manager")
 
-	w.Close()
-	os.Stdout = old
-
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
-	return buf.String(), err
-}
-
-func TestShowStatus(t *testing.T) {
-	// Setup: Create a temporary session manager and a fake session file
-	sm, err := runner.NewSessionManager()
-	if err != nil {
-		t.Fatalf("failed to create session manager: %v", err)
-	}
-
+	// Create a fake session
 	sessionName := fmt.Sprintf("test-session-%d", time.Now().UnixNano())
 	fakeSession := &runner.SessionState{
 		Name:      sessionName,
-		PID:       os.Getpid(), // Use the current process ID, which is guaranteed to be running
+		PID:       os.Getpid(),
 		StartTime: time.Now().Add(-10 * time.Minute),
 		Status:    "running",
 		LogFile:   "/tmp/test.log",
 	}
-	sessionPath := sm.GetSessionPath(sessionName)
+	// Correctly construct the path where the session manager will look for the file
+	sessionPath := filepath.Join(tempDir, ".recac", "sessions", fmt.Sprintf("%s.json", sessionName))
+	require.NoError(t, os.MkdirAll(filepath.Dir(sessionPath), 0755))
 
 	data, err := json.Marshal(fakeSession)
-	if err != nil {
-		t.Fatalf("failed to marshal fake session: %v", err)
-	}
+	require.NoError(t, err, "failed to marshal fake session")
 
-	if err := os.WriteFile(sessionPath, data, 0644); err != nil {
-		t.Fatalf("failed to write fake session file: %v", err)
-	}
-	defer os.Remove(sessionPath) // Cleanup
+	require.NoError(t, os.WriteFile(sessionPath, data, 0644), "failed to write fake session file")
 
 	// Setup viper config
 	viper.Set("provider", "test-provider")
 	viper.Set("model", "test-model")
 	viper.Set("config", "/tmp/config.yaml")
-	defer viper.Reset() // Cleanup viper
+	defer viper.Reset()
 
-	// Execute the command and capture output
-	output, err := captureOutput(showStatus)
-	if err != nil {
-		t.Errorf("showStatus() returned an error: %v", err)
-	}
+	// Execute the function
+	output := ui.GetStatus()
 
 	// Assertions
 	t.Run("Session Output", func(t *testing.T) {
-		if !strings.Contains(output, "[Sessions]") {
-			t.Error("output should contain '[Sessions]'")
-		}
-		if !strings.Contains(output, sessionName) {
-			t.Errorf("output should contain session name '%s'", sessionName)
-		}
-		if !strings.Contains(output, fmt.Sprintf("PID: %d", fakeSession.PID)) {
-			t.Errorf("output should contain 'PID: %d'", fakeSession.PID)
-		}
-		if !strings.Contains(output, "Status: RUNNING") {
-			t.Error("output should contain 'Status: RUNNING'")
-		}
+		assert.Contains(t, output, "[Sessions]")
+		assert.Contains(t, output, sessionName)
+		assert.Contains(t, output, fmt.Sprintf("PID: %d", fakeSession.PID))
+		assert.Contains(t, output, "Status: RUNNING") // The logic uppercases the status
 	})
 
 	t.Run("Docker Output", func(t *testing.T) {
-		if !strings.Contains(output, "[Docker Environment]") {
-			t.Error("output should contain '[Docker Environment]'")
-		}
+		assert.Contains(t, output, "[Docker Environment]")
 	})
 
 	t.Run("Configuration Output", func(t *testing.T) {
-		if !strings.Contains(output, "[Configuration]") {
-			t.Error("output should contain '[Configuration]'")
-		}
-		if !strings.Contains(output, "Provider: test-provider") {
-			t.Error("output should contain 'Provider: test-provider'")
-		}
-		if !strings.Contains(output, "Model: test-model") {
-			t.Error("output should contain 'Model: test-model'")
-		}
-		if !strings.Contains(output, "Config File: /tmp/config.yaml") {
-			t.Error("output should contain 'Config File: /tmp/config.yaml'")
-		}
+		assert.Contains(t, output, "[Configuration]")
+		assert.Contains(t, output, "Provider: test-provider")
+		assert.Contains(t, output, "Model: test-model")
+		assert.Contains(t, output, "Config File: /tmp/config.yaml")
 	})
 }
 
-func TestShowStatus_NoSessions(t *testing.T) {
-	// Execute the command with no sessions present
-	output, err := captureOutput(showStatus)
-	if err != nil {
-		t.Errorf("showStatus() returned an error: %v", err)
-	}
+func TestGetStatus_NoSessions(t *testing.T) {
+	// Setup: Create a temporary directory for sessions
+	tempDir := t.TempDir()
+	t.Setenv("HOME", tempDir) // Isolate session manager
+
+	// Initialize session manager to ensure directories are created
+	_, err := runner.NewSessionManager()
+	require.NoError(t, err)
+
+	// Execute the function with no sessions present
+	output := ui.GetStatus()
 
 	// Assertions
-	if !strings.Contains(output, "No active or past sessions found.") {
-		t.Error("output should contain 'No active or past sessions found.'")
-	}
+	assert.Contains(t, output, "No active or past sessions found.")
 }
