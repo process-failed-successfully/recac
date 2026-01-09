@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 )
 
 func init() {
+	psCmd.Flags().Bool("errors", false, "Show the first line of the error message for failed sessions")
 	rootCmd.AddCommand(psCmd)
 }
 
@@ -34,8 +36,14 @@ var psCmd = &cobra.Command{
 			return nil
 		}
 
+		showErrors, _ := cmd.Flags().GetBool("errors")
+
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
-		fmt.Fprintln(w, "NAME\tSTATUS\tSTARTED\tDURATION")
+		header := "NAME\tSTATUS\tSTARTED\tDURATION"
+		if showErrors {
+			header += "\tERROR"
+		}
+		fmt.Fprintln(w, header)
 
 		for _, session := range sessions {
 			started := session.StartTime.Format("2006-01-02 15:04:05")
@@ -45,12 +53,23 @@ var psCmd = &cobra.Command{
 			} else {
 				duration = session.EndTime.Sub(session.StartTime).Round(time.Second).String()
 			}
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+
+			line := fmt.Sprintf("%s\t%s\t%s\t%s",
 				session.Name,
 				session.Status,
 				started,
 				duration,
 			)
+
+			if showErrors {
+				var errorMsg string
+				if session.Error != "" {
+					// Get the first line of the error
+					errorMsg = strings.Split(session.Error, "\n")[0]
+				}
+				line += fmt.Sprintf("\t%s", errorMsg)
+			}
+			fmt.Fprintln(w, line)
 		}
 
 		return w.Flush()
