@@ -5,10 +5,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"recac/internal/runner"
 	"recac/internal/ui"
 	"strings"
 	"testing"
 
+	"github.com/AlecAivazis/survey/v2"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
@@ -282,6 +284,56 @@ func TestCommands(t *testing.T) {
 		expectedOutput := "recac version v0.2.0"
 		if !strings.Contains(string(statusMsg), expectedOutput) {
 			t.Errorf("Expected output to contain '%s', but got '%s'", expectedOutput, string(statusMsg))
+		}
+	})
+
+	t.Run("Stop Command Interactive", func(t *testing.T) {
+		// 1. Setup
+		// Use the real factory to get a session manager
+		sm, err := runner.NewSessionManager()
+		if err != nil {
+			t.Fatalf("Failed to create session manager: %v", err)
+		}
+
+		// Start a dummy session
+		sessionName := "test-session-to-stop"
+		// Using os.Executable() and a fake command to ensure we have a valid executable
+		// The actual command won't be run, but StartSession checks for it.
+		cmdToRun := []string{os.Args[0], "-test.run=^$", "--"}
+		_, err = sm.StartSession(sessionName, cmdToRun, t.TempDir())
+		if err != nil {
+			t.Fatalf("Failed to start dummy session: %v", err)
+		}
+
+		// 2. Mock the interactive prompt
+		originalSurveyAskOne := surveyAskOne
+		surveyAskOne = func(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {
+			// Simulate the user selecting the first (and only) option
+			val := response.(*string)
+			*val = sessionName
+			return nil
+		}
+		defer func() { surveyAskOne = originalSurveyAskOne }()
+
+		// 3. Execute the command
+		output, err := executeCommand(rootCmd, "stop")
+		if err != nil {
+			t.Fatalf("Stop command failed: %v, output: %s", err, output)
+		}
+
+		// 4. Assert
+		expectedOutput := fmt.Sprintf("Session '%s' stopped successfully", sessionName)
+		if !strings.Contains(output, expectedOutput) {
+			t.Errorf("Expected output to contain '%s', got '%s'", expectedOutput, output)
+		}
+
+		// Verify session status is 'stopped'
+		stoppedSession, err := sm.LoadSession(sessionName)
+		if err != nil {
+			t.Fatalf("Failed to load session after stop: %v", err)
+		}
+		if stoppedSession.Status != "stopped" {
+			t.Errorf("Expected session status to be 'stopped', but got '%s'", stoppedSession.Status)
 		}
 	})
 }
