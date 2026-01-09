@@ -27,8 +27,17 @@ func (m *FaultToleranceMockDB) SaveObservation(projectID, agentID, content strin
 func (m *FaultToleranceMockDB) QueryHistory(projectID string, limit int) ([]db.Observation, error) {
 	return nil, nil
 }
-func (m *FaultToleranceMockDB) DeleteSignal(projectID, key string) error        { return nil }
-func (m *FaultToleranceMockDB) SaveFeatures(projectID, features string) error   { return nil }
+func (m *FaultToleranceMockDB) DeleteSignal(projectID, key string) error { return nil }
+func (m *FaultToleranceMockDB) SaveFeatures(projectID, features string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var fl db.FeatureList
+	if err := json.Unmarshal([]byte(features), &fl); err != nil {
+		return err
+	}
+	m.FeatureList = fl
+	return nil
+}
 func (m *FaultToleranceMockDB) ReleaseAllLocks(projectID, agentID string) error { return nil }
 
 func (m *FaultToleranceMockDB) SetSignal(projectID, key, value string) error {
