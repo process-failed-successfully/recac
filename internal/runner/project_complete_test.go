@@ -31,7 +31,7 @@ func TestProjectCompleteFlow(t *testing.T) {
 	// Create app_spec.txt
 	os.WriteFile(filepath.Join(workspace, "app_spec.txt"), []byte("Mock Spec"), 0644)
 
-	// 1. Create feature_list.json with all passing features
+	// 1. Prepare feature list (to be injected)
 	list := db.FeatureList{
 		ProjectName: "Test Project",
 		Features: []db.Feature{
@@ -40,7 +40,7 @@ func TestProjectCompleteFlow(t *testing.T) {
 		},
 	}
 	data, _ := json.Marshal(list)
-	os.WriteFile(filepath.Join(workspace, "feature_list.json"), data, 0644)
+	featureContent := string(data)
 
 	// Mock Docker and Agent
 	dockerCli, mockAPI := docker.NewMockClient()
@@ -82,6 +82,7 @@ func TestProjectCompleteFlow(t *testing.T) {
 
 	// Create Session
 	session := NewSession(dockerCli, agentClient, workspace, "ubuntu:latest", "test-project", "gemini", "gemini-pro", 1)
+	session.FeatureContent = featureContent
 
 	// We also need to mock the QAAgent and ManagerAgent inside session specifically
 	// because RunLoop creates NEW agents if they are nil.
