@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -16,6 +17,9 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/spf13/viper"
+
+	"recac/internal/agent"
 )
 
 // -- Styling --
@@ -165,6 +169,20 @@ type SlashCommand struct {
 	Action      func(m *InteractiveModel, args []string) tea.Cmd
 }
 
+type MessageRole int
+
+const (
+	RoleUser MessageRole = iota
+	RoleBot
+	RoleSystem
+	RoleError
+)
+
+type ChatMessage struct {
+	Role    MessageRole
+	Content string
+}
+
 type InteractiveModel struct {
 	viewport viewport.Model
 	textarea textarea.Model
@@ -174,15 +192,16 @@ type InteractiveModel struct {
 	spinner spinner.Model
 	keys    keyMap
 
-	history  []string
+	messages []ChatMessage // Structured history
 	commands []CommandItem
 
 	// Data
 	agents      []AgentItem            // Available agents/providers
 	agentModels map[string][]ModelItem // Models keyed by agent value
 
-	currentModel string // Selected model ID
-	currentAgent string // Selected agent/provider
+	activeAgent  agent.Agent // The actual backend agent instance
+	currentModel string      // Selected model ID
+	currentAgent string      // Selected agent/provider
 
 	mode     InputMode
 	showList bool
@@ -199,12 +218,12 @@ func NewInteractiveModel(commands []SlashCommand) InteractiveModel {
 	ta := textarea.New()
 	ta.Placeholder = "Type a message..."
 	ta.Focus()
-	ta.Prompt = "┃ "
-	ta.CharLimit = 1000
+	ta.Prompt = " ❯ "
+	ta.CharLimit = 0 // No limit
 	ta.SetWidth(50)
 	ta.SetHeight(3)
 	ta.ShowLineNumbers = false
-	ta.KeyMap.InsertNewline.SetEnabled(false)
+	ta.KeyMap.InsertNewline.SetEnabled(true) // Allow multi-line input
 
 	// Convert SlashCommands to CommandItems
 	// Custom Commands Injection
@@ -368,7 +387,7 @@ func NewInteractiveModel(commands []SlashCommand) InteractiveModel {
 		agentModels:  agentModels,
 		currentModel: "gemini-2.0-flash-auto",
 		currentAgent: "gemini",
-		history:      []string{welcomeMsg},
+		messages:     []ChatMessage{{Role: RoleSystem, Content: welcomeMsg}},
 		mode:         ModeChat,
 		showList:     false,
 		thinking:     false,
@@ -376,7 +395,43 @@ func NewInteractiveModel(commands []SlashCommand) InteractiveModel {
 }
 
 func (m InteractiveModel) Init() tea.Cmd {
-	return tea.Batch(textarea.Blink, m.spinner.Tick)
+	// Initialize the agent immediately
+	return tea.Batch(textarea.Blink, m.spinner.Tick, m.initAgentCmd())
+}
+
+func (m *InteractiveModel) initAgentCmd() tea.Cmd {
+	return func() tea.Msg {
+		// Logic to determine API Key (mirrors factory.go)
+		provider := m.currentAgent
+		apiKey := viper.GetString("api_key")
+		if apiKey == "" {
+			apiKey = os.Getenv("API_KEY")
+			if apiKey == "" {
+				switch provider {
+				case "gemini":
+					apiKey = os.Getenv("GEMINI_API_KEY")
+				case "openai":
+					apiKey = os.Getenv("OPENAI_API_KEY")
+				case "openrouter":
+					apiKey = os.Getenv("OPENROUTER_API_KEY")
+				}
+			}
+		}
+
+		// Fallback for non-key providers
+		if apiKey == "" && provider != "ollama" && provider != "gemini-cli" && provider != "cursor-cli" && provider != "opencode" {
+			apiKey = "dummy-key"
+		}
+
+		// determine project path
+		wd, _ := os.Getwd()
+
+		ag, err := agent.NewAgent(provider, apiKey, m.currentModel, wd, "recac-interactive")
+		if err != nil {
+			return AgentErrorMsg{Err: err}
+		}
+		return AgentReadyMsg{Agent: ag}
+	}
 }
 
 func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -448,6 +503,21 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.conversation(string(msg), false)
 		return m, nil
 
+	case AgentReadyMsg:
+		m.activeAgent = msg.Agent
+		// Optional: m.conversation("System: Agent backend ready.", false)
+		return m, nil
+
+	case AgentErrorMsg:
+		m.thinking = false
+		m.conversation(fmt.Sprintf("Error: %v", msg.Err), false)
+		return m, nil
+
+	case AgentResponseMsg:
+		m.thinking = false
+		m.conversation(msg.Content, false) // Bot response
+		return m, nil
+
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -497,6 +567,8 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.currentModel = model.Value
 					m.conversation(fmt.Sprintf("Switched model to: %s", model.Name), false)
 					m.setMode(ModeChat)
+					// Re-init agent with new model
+					return m, m.initAgentCmd()
 				}
 				return m, nil
 			}
@@ -515,6 +587,8 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 
 					m.setMode(ModeChat)
+					// Re-init agent with new provider
+					return m, m.initAgentCmd()
 				}
 				return m, nil
 			}
@@ -578,13 +652,19 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			// Chat Message
-			m.conversation(v, true)
+			params := fmt.Sprintf("Processing with %s (Model: %s)...", m.currentAgent, m.currentModel)
+			if m.activeAgent == nil {
+				params += " (Agent logic initializing...)"
+			}
 			m.thinking = true
-			m.conversation(fmt.Sprintf("Processing with %s (Model: %s)...", m.currentAgent, m.currentModel), false)
+			m.conversation(params, false) // System/Status msg
+
 			m.textarea.Reset()
 			m.viewport.GotoBottom()
 			m.setMode(ModeChat)
-			return m, nil
+
+			prompt := v
+			return m, m.generateResponse(prompt)
 
 		case key.Matches(msg, m.keys.Slash):
 			if m.mode == ModeChat && m.textarea.Value() == "" {
@@ -625,6 +705,35 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(tiCmd, vpCmd, listCmd, spinCmd)
 }
 
+// -- Agent Messages --
+
+type AgentReadyMsg struct {
+	Agent agent.Agent
+}
+
+type AgentErrorMsg struct {
+	Err error
+}
+
+type AgentResponseMsg struct {
+	Content string
+}
+
+func (m *InteractiveModel) generateResponse(prompt string) tea.Cmd {
+	return func() tea.Msg {
+		if m.activeAgent == nil {
+			return AgentErrorMsg{Err: fmt.Errorf("agent not initialized")}
+		}
+		// Use a temporary background context for now.
+		// In a real TUI we might want to support cancellation via context.
+		resp, err := m.activeAgent.Send(context.Background(), prompt)
+		if err != nil {
+			return AgentErrorMsg{Err: err}
+		}
+		return AgentResponseMsg{Content: resp}
+	}
+}
+
 func (m *InteractiveModel) toggleList() {
 	m.showList = !m.showList
 	if m.showList {
@@ -643,8 +752,9 @@ func (m *InteractiveModel) setMode(mode InputMode) {
 	switch mode {
 	case ModeChat:
 		m.textarea.Focus() // Ensure focus returns to chat input
-		m.textarea.Prompt = "┃ "
-		m.textarea.Placeholder = "Type a message (or / for commands)..."
+		m.textarea.Focus() // Ensure focus returns to chat input
+		m.textarea.Prompt = " ❯ "
+		m.textarea.Placeholder = "Ask anything..."
 		m.textarea.FocusedStyle.Prompt = lipgloss.NewStyle().Foreground(lipgloss.Color("205")) // Pink
 		m.showList = false
 		m.setListItemsToCommands() // Reset to full command list for next time
@@ -732,12 +842,46 @@ type shellOutputMsg string
 // StatusMsg is a message type for displaying status information.
 type StatusMsg string
 
+// conversation adds a message to the history and updates the viewport.
+func (m *InteractiveModel) conversation(msg string, isUser bool) {
+	role := RoleBot
+	if isUser {
+		role = RoleUser
+	}
+	m.messages = append(m.messages, ChatMessage{Role: role, Content: msg})
+	m.viewport.SetContent(m.renderMessages())
+	m.viewport.GotoBottom()
+}
+
+// renderMessages formats the chat history with styles
+func (m *InteractiveModel) renderMessages() string {
+	var b strings.Builder
+	for _, msg := range m.messages {
+		switch msg.Role {
+		case RoleUser:
+			b.WriteString(interactiveSenderStyle.Render("You: "))
+			b.WriteString(RenderMarkdown(msg.Content))
+			b.WriteString("\n\n")
+		case RoleBot:
+			b.WriteString(interactiveBotStyle.Render("Recac: "))
+			b.WriteString(RenderMarkdown(msg.Content))
+			b.WriteString("\n\n")
+		case RoleSystem:
+			b.WriteString(interactiveStatusMessageStyle.Render(msg.Content))
+			b.WriteString("\n\n")
+		case RoleError:
+			b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Render("Error: " + msg.Content))
+			b.WriteString("\n\n")
+		}
+	}
+	return b.String()
+}
+
 // ClearHistory clears the conversation history.
 func (m *InteractiveModel) ClearHistory() {
-	m.history = []string{}
-	clearedMsg := interactiveStatusMessageStyle.Render("Conversation history cleared.")
-	m.history = append(m.history, clearedMsg)
-	m.viewport.SetContent(strings.Join(m.history, "\n"))
+	m.messages = []ChatMessage{}
+	m.messages = append(m.messages, ChatMessage{Role: RoleSystem, Content: "Conversation history cleared."})
+	m.viewport.SetContent(m.renderMessages())
 	m.viewport.GotoBottom()
 }
 
@@ -767,13 +911,21 @@ func (m InteractiveModel) View() string {
 	// Layout Switch: Show List OR Viewport
 	// Explicitly check for menu modes to ensure list is rendered even if showList is somehow desync
 	if m.showList || m.mode == ModeModelSelect || m.mode == ModeAgentSelect {
-		avail := m.height - 10
-		if avail < 10 {
-			avail = 10
+		// Overlay style: Viewport on top, List at bottom
+		// Calculate split
+		listHeight := 10
+		if m.height > 20 {
+			listHeight = m.height / 3
 		}
-		m.list.SetHeight(avail)
+		m.list.SetHeight(listHeight)
+
+		vpHeight := m.height - listHeight - 5 // Approximate prompts/headers
+		m.viewport.Height = vpHeight
+
+		views = append(views, m.viewport.View())
 		views = append(views, interactiveListStyle.Render(m.list.View()))
 	} else {
+		// Full Chat Mode
 		borderColor := lipgloss.Color("240") // Default Grey
 		if m.mode == ModeShell {
 			borderColor = lipgloss.Color("#F4B400") // Yellow
@@ -786,10 +938,10 @@ func (m InteractiveModel) View() string {
 			BorderForeground(borderColor).
 			Padding(0, 1).
 			MarginLeft(2)
+
+		m.viewport.Height = m.height - 10 // Adjust for header/footer/input more safely
 		views = append(views, vpStyle.Render(m.viewport.View()))
 	}
-
-	views = append(views, promptStyle.Render(m.textarea.View()))
 
 	// Status & Footer
 	status := ""
@@ -798,12 +950,23 @@ func (m InteractiveModel) View() string {
 		if m.mode == ModeShell {
 			text = "Executing..."
 		}
-		status = m.spinner.View() + " " + text
+		status = fmt.Sprintf(" %s %s", m.spinner.View(), text)
 	}
 
+	// Status Line Construction
+	// [ Provider: Model ] [ Status ]
+	statusBarStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.AdaptiveColor{Light: "#343433", Dark: "#C1C6B2"}).
+		Background(lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#353533"})
+
+	statusText := statusBarStyle.Render(fmt.Sprintf(" %s:%s ", m.currentAgent, m.currentModel))
+
+	views = append(views, status+statusText)
+	views = append(views, promptStyle.Render(m.textarea.View()))
+
+	// Footer Help
 	footer := lipgloss.JoinHorizontal(lipgloss.Top,
 		helpStyle(m.help.View(m.keys)),
-		lipgloss.NewStyle().MarginLeft(4).Render(status),
 	)
 	views = append(views, footer)
 
@@ -812,23 +975,6 @@ func (m InteractiveModel) View() string {
 
 func helpStyle(s string) string {
 	return lipgloss.NewStyle().Foreground(lipgloss.Color("241")).MarginLeft(2).MarginTop(1).Render(s)
-}
-
-func (m *InteractiveModel) conversation(msg string, isUser bool) {
-	style := interactiveBotStyle
-	prefix := "Recac: "
-	if isUser {
-		style = interactiveSenderStyle
-		prefix = "You: "
-	}
-	if m.mode == ModeShell && isUser {
-		style = interactiveShellStyle
-		prefix = "Shell: "
-	}
-	newMsg := fmt.Sprintf("%s%s", style.Render(prefix), msg)
-	m.history = append(m.history, newMsg)
-	m.viewport.SetContent(strings.Join(m.history, "\n"))
-	m.viewport.GotoBottom()
 }
 
 // Helper to load models from JSON

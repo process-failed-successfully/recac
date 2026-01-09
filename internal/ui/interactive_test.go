@@ -207,7 +207,7 @@ func TestInputModes(t *testing.T) {
 	m := NewInteractiveModel(nil)
 
 	m.setMode(ModeChat)
-	if m.textarea.Prompt != "┃ " {
+	if m.textarea.Prompt != " ❯ " {
 		t.Error("Wrong prompt for Chat")
 	}
 
@@ -344,25 +344,24 @@ func TestInteractiveModel_ShellExecution(t *testing.T) {
 func TestInteractiveModel_Conversation(t *testing.T) {
 	m := NewInteractiveModel(nil)
 	m.conversation("User Msg", true)
-	if len(m.history) == 0 {
-		t.Error("History should store user msg")
+	if len(m.messages) <= 1 {
+		t.Error("Messages should store user msg")
 	}
-	last := m.history[len(m.history)-1]
-	if !strings.Contains(last, "You:") {
-		t.Error("User message should contain prefix 'You:'")
+	last := m.messages[len(m.messages)-1]
+	if last.Role != RoleUser {
+		t.Error("User message should have RoleUser")
+	}
+	if last.Content != "User Msg" {
+		t.Errorf("Expected 'User Msg', got '%s'", last.Content)
 	}
 
 	m.conversation("Bot Msg", false)
-	last = m.history[len(m.history)-1]
-	if !strings.Contains(last, "Recac:") {
-		t.Error("Bot message should contain prefix 'Recac:'")
+	last = m.messages[len(m.messages)-1]
+	if last.Role != RoleBot {
+		t.Error("Bot message should have RoleBot")
 	}
-
-	m.setMode(ModeShell)
-	m.conversation("Shell Msg", true)
-	last = m.history[len(m.history)-1]
-	if !strings.Contains(last, "Shell:") {
-		t.Error("Shell message should contain prefix 'Shell:'")
+	if last.Content != "Bot Msg" {
+		t.Errorf("Expected 'Bot Msg', got '%s'", last.Content)
 	}
 }
 
@@ -398,11 +397,11 @@ func TestInteractiveModel_Update_StatusExecution(t *testing.T) {
 	updatedM, _ = m.Update(statusMsg)
 	m = updatedM.(InteractiveModel)
 
-	if len(m.history) < 2 {
+	if len(m.messages) < 2 {
 		t.Fatal("History should contain status message")
 	}
-	last := m.history[len(m.history)-1]
-	if !strings.Contains(last, "RECAC Status") {
+	last := m.messages[len(m.messages)-1]
+	if !strings.Contains(last.Content, "RECAC Status") {
 		t.Error("Expected status message in history")
 	}
 }
