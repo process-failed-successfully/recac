@@ -67,11 +67,11 @@ func TestOrchestrator_ConcurrencyLimit(t *testing.T) {
 
 	// Assertions
 	expected := 2
-	if orch.MaxAgents != expected {
-		t.Errorf("Expected MaxAgents to be adjusted to %d, got %d", expected, orch.MaxAgents)
+	if orch.GetMaxAgents() != expected {
+		t.Errorf("Expected MaxAgents to be adjusted to %d, got %d", expected, orch.GetMaxAgents())
 	}
-	if orch.Pool.NumWorkers != expected {
-		t.Errorf("Expected Pool.NumWorkers to be adjusted to %d, got %d", expected, orch.Pool.NumWorkers)
+	if orch.Pool.GetNumWorkers() != expected {
+		t.Errorf("Expected Pool.NumWorkers to be adjusted to %d, got %d", expected, orch.Pool.GetNumWorkers())
 	}
 }
 
@@ -81,27 +81,36 @@ type MockDBStoreForOrchestrator struct {
 	Features string
 }
 
-func (m *MockDBStoreForOrchestrator) GetFeatures() (string, error) {
+func (m *MockDBStoreForOrchestrator) GetFeatures(projectID string) (string, error) {
 	return m.Features, nil
 }
-func (m *MockDBStoreForOrchestrator) GetSignal(name string) (string, error)      { return "", nil }
-func (m *MockDBStoreForOrchestrator) SetSignal(name, value string) error         { return nil }
-func (m *MockDBStoreForOrchestrator) GetActiveLocks() ([]db.Lock, error)         { return nil, nil }
-func (m *MockDBStoreForOrchestrator) Close() error                               { return nil }
-func (m *MockDBStoreForOrchestrator) SaveObservation(role, content string) error { return nil }
-func (m *MockDBStoreForOrchestrator) QueryHistory(limit int) ([]db.Observation, error) {
+func (m *MockDBStoreForOrchestrator) GetSignal(projectID, name string) (string, error) {
+	return "", nil
+}
+func (m *MockDBStoreForOrchestrator) SetSignal(projectID, name, value string) error { return nil }
+func (m *MockDBStoreForOrchestrator) GetActiveLocks(projectID string) ([]db.Lock, error) {
 	return nil, nil
 }
-func (m *MockDBStoreForOrchestrator) DeleteSignal(name string) error       { return nil }
-func (m *MockDBStoreForOrchestrator) SaveFeatures(features string) error   { return nil }
-func (m *MockDBStoreForOrchestrator) ReleaseAllLocks(agentID string) error { return nil }
-func (m *MockDBStoreForOrchestrator) AcquireLock(path, agentID string, timeout time.Duration) (bool, error) {
-	return true, nil
-}
-func (m *MockDBStoreForOrchestrator) ReleaseLock(path, agentID string) error { return nil }
-func (m *MockDBStoreForOrchestrator) UpdateFeatureStatus(id, status string, passes bool) error {
+func (m *MockDBStoreForOrchestrator) Close() error { return nil }
+func (m *MockDBStoreForOrchestrator) SaveObservation(projectID, role, content string) error {
 	return nil
 }
+func (m *MockDBStoreForOrchestrator) QueryHistory(projectID string, limit int) ([]db.Observation, error) {
+	return nil, nil
+}
+func (m *MockDBStoreForOrchestrator) DeleteSignal(projectID, name string) error       { return nil }
+func (m *MockDBStoreForOrchestrator) SaveFeatures(projectID, features string) error   { return nil }
+func (m *MockDBStoreForOrchestrator) ReleaseAllLocks(projectID, agentID string) error { return nil }
+func (m *MockDBStoreForOrchestrator) AcquireLock(projectID, path, agentID string, timeout time.Duration) (bool, error) {
+	return true, nil
+}
+func (m *MockDBStoreForOrchestrator) ReleaseLock(projectID, path, agentID string) error { return nil }
+func (m *MockDBStoreForOrchestrator) Cleanup() error                                    { return nil }
+func (m *MockDBStoreForOrchestrator) UpdateFeatureStatus(projectID, id, status string, passes bool) error {
+	return nil
+}
+func (m *MockDBStoreForOrchestrator) SaveSpec(projectID string, spec string) error { return nil }
+func (m *MockDBStoreForOrchestrator) GetSpec(projectID string) (string, error)     { return "", nil }
 
 type MockDockerForOrchestrator struct {
 	DockerClient // Embed

@@ -23,9 +23,8 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	// 2. Setup: app_spec.txt (required)
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
 
-	// 3. Setup: feature_list.json with ALL PASSING
+	// 3. Setup: feature_list.json with ALL PASSING (Use FeatureContent)
 	features := `{"features":[{"id":"1","description":"feat","status":"done","passes":true}]}`
-	os.WriteFile(filepath.Join(tmpDir, "feature_list.json"), []byte(features), 0644)
 
 	// 4. Setup: ui_verification.json (Should be detected)
 	os.WriteFile(filepath.Join(tmpDir, "ui_verification.json"), []byte("Verify Button Color"), 0644)
@@ -37,6 +36,7 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 		Docker:           mockDocker,
 		Agent:            mockAgent,
 		Workspace:        tmpDir,
+		FeatureContent:   features,
 		ManagerFrequency: 5,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
 		Logger:           telemetry.NewLogger(true, ""),

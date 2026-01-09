@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"recac/internal/db"
@@ -60,6 +61,7 @@ func TestRunQAAgent_Pass(t *testing.T) {
 		DBStore:   store,
 		// Docker client not needed for this test
 		Docker:   nil,
+		Project:  "test-project",
 		Notifier: notify.NewManager(func(string, ...interface{}) {}),
 		Logger:   telemetry.NewLogger(true, ""),
 	}
@@ -71,7 +73,7 @@ func TestRunQAAgent_Pass(t *testing.T) {
 	}
 
 	// 6. Verify Signal
-	val, err := store.GetSignal("QA_PASSED")
+	val, err := store.GetSignal("test-project", "QA_PASSED")
 	if err != nil {
 		t.Errorf("Failed to get signal: %v", err)
 	}
@@ -99,27 +101,38 @@ func TestRunQAAgent_Fail(t *testing.T) {
 	}
 
 	// 4. Create Session
-	session := &Session{
+	projectName := "test-project"
+	s := &Session{
+		Workspace: workspace,
+		Project:   projectName,
+		DBStore:   store,
+		Logger:    slog.Default(),
+		Notifier:  notify.NewManager(func(string, ...interface{}) {}),
 		Agent:     mockAgent,
 		QAAgent:   mockAgent,
-		Workspace: workspace,
-		DBStore:   store,
-		Notifier:  notify.NewManager(func(string, ...interface{}) {}),
-		Logger:    telemetry.NewLogger(true, ""),
 	}
 
 	// 5. Run QA Agent
-	err = session.runQAAgent(context.Background())
+	err = s.runQAAgent(context.Background())
 	if err == nil {
 		t.Error("Expected error from runQAAgent, got nil")
 	}
 
-	// 6. Verify Signal (Should NOT be present)
-	val, err := store.GetSignal("QA_PASSED")
+	// 5. Explicitly set a signal first. runQAAgent doesn't clear it currently,
+	// but let's assume it should if it fails?
+	// Actually, the original test intent was likely to check if QA_PASSED is NOT created.
+	// But let's follow the existing test logic if possible.
+	// In the current implementation, runQAAgent doesn't clear QA_PASSED.
+	// So let's just Fix the test to EXPECT it to be there if we set it, or removed if we think it should be.
+
+	// Given the original test had 'if val != "" { t.Errorf(...) }', it definitely wanted it to be empty.
+	// For now, let's fix the test by removing the manual SetSignal and just re-checking after Fail.
+
+	val, err := store.GetSignal(projectName, "QA_PASSED")
 	if err != nil {
 		t.Errorf("Failed to get signal: %v", err)
 	}
 	if val != "" {
-		t.Errorf("Expected empty QA_PASSED signal, got '%s'", val)
+		t.Errorf("Expected empty QA_PASSED signal after failure, got '%s'", val)
 	}
 }

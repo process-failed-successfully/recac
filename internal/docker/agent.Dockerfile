@@ -1,28 +1,27 @@
-FROM debian:stable-slim
+FROM golang:1.25-alpine
 
-# Avoid prompts from apt
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Install essential tools: sudo, curl, git, ca-certificates, golang, nodejs, python3, jq, make
-RUN apt-get update && apt-get install -y \
-    sudo \
-    curl \
-    git \
-    ca-certificates \
-    golang \
+# Install essential tools
+RUN apk add --no-cache \
     nodejs \
     npm \
     python3 \
-    python3-pip \
+    py3-pip \
+    curl \
+    git \
     jq \
+    bash \
+    unzip \
+    libc6-compat \
+    docker-cli \
+    coreutils \
     make \
+    sudo \
     wget \
-    zip \
-    && rm -rf /var/lib/apt/lists/*
+    ca-certificates \
+    shadow \
+    util-linux
 
-# Configure sudo for passwordless access by any user (crucial for host UID mapping)
-# We allow the "appuser" (which we might not use explicitly, but anyone with sudo can use it)
-# More effectively, we allow ALL users to use sudo without password since we map host UID.
+# Configure sudo for passwordless access (if needed, though we often run as root)
 RUN echo "ALL ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
 WORKDIR /workspace

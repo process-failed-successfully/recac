@@ -20,6 +20,7 @@ func TestSignalBypass(t *testing.T) {
 
 	session := &Session{
 		Workspace: workspace,
+		Project:   "test-project",
 		DBStore:   store,
 		Notifier:  notify.NewManager(func(string, ...interface{}) {}),
 		Logger:    telemetry.NewLogger(true, ""),
@@ -48,7 +49,7 @@ func TestSignalBypass(t *testing.T) {
 			}
 
 			// 3. Verify it wasn't migrated to DB
-			val, _ := store.GetSignal(name)
+			val, _ := store.GetSignal("test-project", name)
 			if val != "" {
 				t.Errorf("Privileged signal %s was migrated to DB, expected blank", name)
 			}
@@ -73,7 +74,7 @@ func TestSignalBypass(t *testing.T) {
 		}
 
 		// Verify DB Entry
-		val, _ := store.GetSignal(name)
+		val, _ := store.GetSignal("test-project", name)
 		if val != "true" {
 			t.Errorf("Signal FOO wasn't migrated to DB correctly, got '%s'", val)
 		}

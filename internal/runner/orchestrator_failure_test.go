@@ -22,14 +22,25 @@ type FaultToleranceMockDB struct {
 	mu          sync.Mutex
 }
 
-func (m *FaultToleranceMockDB) Close() error                                     { return nil }
-func (m *FaultToleranceMockDB) SaveObservation(agentID, content string) error    { return nil }
-func (m *FaultToleranceMockDB) QueryHistory(limit int) ([]db.Observation, error) { return nil, nil }
-func (m *FaultToleranceMockDB) DeleteSignal(key string) error                    { return nil }
-func (m *FaultToleranceMockDB) SaveFeatures(features string) error               { return nil }
-func (m *FaultToleranceMockDB) ReleaseAllLocks(agentID string) error             { return nil }
+func (m *FaultToleranceMockDB) Close() error                                             { return nil }
+func (m *FaultToleranceMockDB) SaveObservation(projectID, agentID, content string) error { return nil }
+func (m *FaultToleranceMockDB) QueryHistory(projectID string, limit int) ([]db.Observation, error) {
+	return nil, nil
+}
+func (m *FaultToleranceMockDB) DeleteSignal(projectID, key string) error { return nil }
+func (m *FaultToleranceMockDB) SaveFeatures(projectID, features string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var fl db.FeatureList
+	if err := json.Unmarshal([]byte(features), &fl); err != nil {
+		return err
+	}
+	m.FeatureList = fl
+	return nil
+}
+func (m *FaultToleranceMockDB) ReleaseAllLocks(projectID, agentID string) error { return nil }
 
-func (m *FaultToleranceMockDB) SetSignal(key, value string) error {
+func (m *FaultToleranceMockDB) SetSignal(projectID, key, value string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.Signals == nil {
@@ -39,7 +50,7 @@ func (m *FaultToleranceMockDB) SetSignal(key, value string) error {
 	return nil
 }
 
-func (m *FaultToleranceMockDB) GetSignal(key string) (string, error) {
+func (m *FaultToleranceMockDB) GetSignal(projectID, key string) (string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.Signals == nil {
@@ -48,14 +59,17 @@ func (m *FaultToleranceMockDB) GetSignal(key string) (string, error) {
 	return m.Signals[key], nil
 }
 
-func (m *FaultToleranceMockDB) GetFeatures() (string, error) {
+func (m *FaultToleranceMockDB) GetFeatures(projectID string) (string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	data, err := json.Marshal(m.FeatureList)
 	return string(data), err
 }
 
-func (m *FaultToleranceMockDB) UpdateFeatureStatus(id string, status string, passes bool) error {
+func (m *FaultToleranceMockDB) SaveSpec(projectID string, spec string) error { return nil }
+func (m *FaultToleranceMockDB) GetSpec(projectID string) (string, error)     { return "", nil }
+
+func (m *FaultToleranceMockDB) UpdateFeatureStatus(projectID, id string, status string, passes bool) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for i := range m.FeatureList.Features {
@@ -67,11 +81,12 @@ func (m *FaultToleranceMockDB) UpdateFeatureStatus(id string, status string, pas
 	}
 	return fmt.Errorf("feature not found")
 }
-func (m *FaultToleranceMockDB) AcquireLock(path, agentID string, timeout time.Duration) (bool, error) {
+func (m *FaultToleranceMockDB) AcquireLock(projectID, path, agentID string, timeout time.Duration) (bool, error) {
 	return true, nil
 }
-func (m *FaultToleranceMockDB) ReleaseLock(path, agentID string) error { return nil }
-func (m *FaultToleranceMockDB) GetActiveLocks() ([]db.Lock, error)     { return nil, nil }
+func (m *FaultToleranceMockDB) ReleaseLock(projectID, path, agentID string) error  { return nil }
+func (m *FaultToleranceMockDB) GetActiveLocks(projectID string) ([]db.Lock, error) { return nil, nil }
+func (m *FaultToleranceMockDB) Cleanup() error                                     { return nil }
 
 func TestOrchestrator_FaultTolerance_HighFailureRate(t *testing.T) {
 	// Setup workspace
@@ -130,9 +145,9 @@ func TestOrchestrator_FaultTolerance_HighFailureRate(t *testing.T) {
 
 	o := NewOrchestrator(mockDB, mockDocker, tmpDir, "img", smartAgent, "proj", "gemini", "gemini-pro", 3, "")
 	o.TickInterval = 100 * time.Millisecond
-	o.TaskMaxRetries = 0                                                                  // Fail fast
-	o.TaskMaxIterations = 1                                                               // Fail fast if no progress
-	o.Graph.LoadFromFeatureList(filepath.Join(tmpDir, "dummy_not_used_since_we_mock_db")) // actually ensureGitRepo calls refreshGraph which calls DB.GetFeatures
+	o.TaskMaxRetries = 0    // Fail fast
+	o.TaskMaxIterations = 1 // Fail fast if no progress
+	o.Graph.LoadFromFeatures(fl.Features)
 
 	// We need to bypass ensureGitRepo or make it work. It uses commands.
 	// Easier to just let it run or mock exec used by it.

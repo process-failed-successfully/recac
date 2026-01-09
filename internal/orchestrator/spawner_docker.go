@@ -120,7 +120,7 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		// But Poller doesn't know secrets.
 		// The Orchestrator or Spawner should inject secrets.
 		// We'll inject secrets here from HOST env.
-		secrets := []string{"JIRA_API_TOKEN", "JIRA_USERNAME", "JIRA_URL", "GITHUB_TOKEN", "GITHUB_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY"}
+		secrets := []string{"JIRA_API_TOKEN", "JIRA_USERNAME", "JIRA_URL", "GITHUB_TOKEN", "GITHUB_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY", "RECAC_DB_TYPE", "RECAC_DB_URL"}
 		for _, secret := range secrets {
 			if val := os.Getenv(secret); val != "" {
 				envExports = append(envExports, fmt.Sprintf("export %s='%s'", secret, val))
@@ -139,7 +139,7 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		if ghToken == "" {
 			ghToken = os.Getenv("GITHUB_API_KEY")
 		}
-		if ghToken != "" && strings.Contains(authRepoURL, "github.com") {
+		if ghToken != "" && strings.Contains(authRepoURL, "github.com") && !strings.Contains(authRepoURL, "@") {
 			// Sanitize token just in case
 			ghToken = strings.Trim(ghToken, "\"")
 			authRepoURL = strings.Replace(authRepoURL, "https://github.com/", fmt.Sprintf("https://%s@github.com/", ghToken), 1)
@@ -154,9 +154,9 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		// Wait, binds are host_path:/workspace.
 		// So inside container we must use /workspace.
 		cmdStr = "cd /workspace" // Reset to constant
-		cmdStr += " && export RECAC_MAX_ITERATIONS=10"
+		cmdStr += " && export RECAC_MAX_ITERATIONS=20"
 		cmdStr += " && " + strings.Join(envExports, " && ")
-		cmdStr += fmt.Sprintf(" && /usr/local/bin/recac start --jira %s --project %s-%s --detached=false --cleanup=false --path /workspace --verbose", item.ID, s.projectName, item.ID)
+		cmdStr += fmt.Sprintf(" && /usr/local/bin/recac start --jira %s --project %s --detached=false --cleanup=false --path /workspace --verbose", item.ID, item.ID)
 		cmdStr += " && echo 'Recac Finished'"
 
 		// Run via sh -c
