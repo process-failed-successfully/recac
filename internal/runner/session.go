@@ -129,10 +129,10 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 	}
 
 	if s, err := db.NewStore(storeConfig); err != nil {
-		fmt.Printf("Warning: Failed to initialize DB store (%s): %v\n", dbType, err)
+		slog.Error("[DB] Failed to initialize DB store", "type", dbType, "error", err)
 	} else {
 		dbStore = s
-		fmt.Printf("[DEBUG] DB Store initialized: type=%s, project=%s\n", dbType, project)
+		slog.Info("[DB] Store initialized successfully", "type", dbType, "project", project)
 	}
 
 	// Initialize Security Scanner
