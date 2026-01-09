@@ -63,12 +63,17 @@ func (c *Client) runWithMasking(ctx context.Context, dir string, args ...string)
 
 // Clone clones a repository into a destination directory.
 func (c *Client) Clone(ctx context.Context, url, dest string) error {
-	return c.runWithMasking(ctx, "", "clone", url, dest)
+	// Clone can take a while
+	cloneCtx, cancel := context.WithTimeout(ctx, 15*time.Minute)
+	defer cancel()
+	return c.runWithMasking(cloneCtx, "", "clone", url, dest)
 }
 
 // CheckoutNewBranch creates and switches to a new branch.
 func (c *Client) CheckoutNewBranch(dir, branchName string) error {
-	cmd := exec.Command("git", "checkout", "-B", branchName)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "git", "checkout", "-B", branchName)
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -176,7 +181,9 @@ func (c *Client) SetRemoteURL(dir, name, url string) error {
 
 // Checkout switches to an existing branch.
 func (c *Client) Checkout(dir, branchName string) error {
-	cmd := exec.Command("git", "checkout", branchName)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "git", "checkout", branchName)
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -185,7 +192,9 @@ func (c *Client) Checkout(dir, branchName string) error {
 
 // Pull pulls changes from the remote repository.
 func (c *Client) Pull(dir, remote, branchName string) error {
-	return c.runWithMasking(context.Background(), dir, "pull", remote, branchName)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	return c.runWithMasking(ctx, dir, "pull", remote, branchName)
 }
 
 // Merge merges the specified branch into the current branch.
@@ -199,7 +208,9 @@ func (c *Client) Merge(dir, branchName string) error {
 
 // Fetch fetches changes from the remote repository.
 func (c *Client) Fetch(dir, remote, branchName string) error {
-	return c.runWithMasking(context.Background(), dir, "fetch", remote, branchName)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	return c.runWithMasking(ctx, dir, "fetch", remote, branchName)
 }
 
 // RemoteBranchExists checks if a branch exists on the remote.

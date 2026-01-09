@@ -4,13 +4,32 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"recac/internal/ui"
 	"strings"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
+
+// TestHelperProcess isn't a real test. It's a helper process that's executed
+// by other tests to simulate running the main binary.
+func TestHelperProcess(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+	defer os.Exit(0)
+
+	args := os.Args[3:]
+	rootCmd.SetArgs(args)
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintf(os.Stderr, "execution failed: %v", err)
+		os.Exit(1)
+	}
+}
 
 func executeCommand(root *cobra.Command, args ...string) (string, error) {
 	resetFlags(root)
@@ -90,9 +109,9 @@ func TestCommands(t *testing.T) {
 
 		// Verify files
 
-		if _, err := os.Stat("feature_list.json"); os.IsNotExist(err) {
+		if _, err := os.Stat("initial_features.json"); os.IsNotExist(err) {
 
-			t.Error("feature_list.json not created")
+			t.Error("initial_features.json not created")
 
 		}
 
@@ -156,9 +175,7 @@ func TestCommands(t *testing.T) {
 
 		os.Chdir(projectDir)
 
-		// Create feature_list.json so it doesn't try to run wizard or init
-
-		os.WriteFile("feature_list.json", []byte(`[{"id":"1","description":"test","category":"core","steps":["echo hello"]}]`), 0644)
+		// Create app_spec.txt so it has something to work with
 
 		os.WriteFile("app_spec.txt", []byte("test spec"), 0644)
 
@@ -281,7 +298,7 @@ func TestCommands(t *testing.T) {
 
 		}
 
-		if _, err := executeCommand(rootCmd, "start", "--detached"); err == nil {
+		if _, err := executeCommand(rootCmd, "start", "--detached", "--path", "."); err == nil {
 
 			t.Log("Expected error for detached without name")
 
@@ -289,4 +306,44 @@ func TestCommands(t *testing.T) {
 
 	})
 
+	t.Run("Interactive Slash Command", func(t *testing.T) {
+		cmdName := "version"
+		var targetCmd *cobra.Command
+		for _, c := range rootCmd.Commands() {
+			if c.Name() == cmdName {
+				targetCmd = c
+				break
+			}
+		}
+		if targetCmd == nil {
+			t.Fatalf("Could not find command '%s'", cmdName)
+		}
+
+		action := func(args []string) tea.Cmd {
+			return func() tea.Msg {
+				cs := []string{"-test.run=TestHelperProcess", "--", cmdName}
+				cs = append(cs, args...)
+				cmd := exec.Command(os.Args[0], cs...)
+				cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+				output, err := cmd.CombinedOutput()
+				if err != nil {
+					return ui.StatusMsg(fmt.Sprintf("Error executing command '%s': %v\n%s", cmdName, err, string(output)))
+				}
+				return ui.StatusMsg(string(output))
+			}
+		}
+
+		cmdFunc := action([]string{})
+		msg := cmdFunc()
+
+		statusMsg, ok := msg.(ui.StatusMsg)
+		if !ok {
+			t.Fatalf("Expected msg to be of type ui.StatusMsg, but got %T", msg)
+		}
+
+		expectedOutput := "recac version v0.2.0"
+		if !strings.Contains(string(statusMsg), expectedOutput) {
+			t.Errorf("Expected output to contain '%s', but got '%s'", expectedOutput, string(statusMsg))
+		}
+	})
 }

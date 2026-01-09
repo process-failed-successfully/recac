@@ -29,9 +29,8 @@ func (s *Session) checkFeatures() int {
 	return passed
 }
 
-// checkStalledBreaker checks if the agent is making progress on features.
 func (s *Session) checkStalledBreaker(role string, passingCount int) error {
-	if role == "Manager" {
+	if role == "manager_review" || role == "Manager" || role == "initializer" {
 		s.StalledCount = 0
 		s.LastFeatureCount = passingCount
 		return nil

@@ -8,7 +8,6 @@ import (
 	"recac/internal/db"
 	"recac/internal/docker"
 	"recac/internal/git"
-	"recac/internal/notify"
 	"recac/internal/telemetry"
 	"strings"
 	"testing"
@@ -121,37 +120,6 @@ func TestSession_Start_PassesUser(t *testing.T) {
 	}
 }
 
-func TestSession_SyncFeatureFile_RetryOnPermissionDenied(t *testing.T) {
-	tmpDir := t.TempDir()
-	path := filepath.Join(tmpDir, "feature_list.json")
-
-	// Create a file and make it read-only
-	os.WriteFile(path, []byte("old"), 0444)
-
-	s := &Session{
-		Workspace: tmpDir,
-		Notifier:  notify.NewManager(func(string, ...interface{}) {}),
-		Logger:    telemetry.NewLogger(true, ""),
-	}
-
-	fl := db.FeatureList{
-		ProjectName: "Test",
-		Features:    []db.Feature{{ID: "1", Status: "done"}},
-	}
-
-	// This should successfully overwrite because of os.Remove fallback
-	s.syncFeatureFile(fl)
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("Failed to read file after sync: %v", err)
-	}
-
-	if !strings.Contains(string(data), "done") {
-		t.Errorf("File content doesn't match expected after sync recovery: %s", string(data))
-	}
-}
-
 func TestSession_SelectPrompt(t *testing.T) {
 	tmpDir := t.TempDir()
 	specContent := "Test Spec"
@@ -176,7 +144,7 @@ func TestSession_SelectPrompt(t *testing.T) {
 
 	// Create valid feature list (non-empty) so we exit Initializer mode
 	featureContent := `{"project_name": "Test", "features": [{"id":"1", "description":"test", "status":"pending"}]}`
-	os.WriteFile(filepath.Join(tmpDir, "feature_list.json"), []byte(featureContent), 0644)
+	session.FeatureContent = featureContent
 
 	// Session 2: Coding Agent
 	session.Iteration = 2
@@ -411,7 +379,7 @@ func TestSession_RunManagerAgent(t *testing.T) {
 	content := `{"project_name": "Test", "features": [{"id":"1", "description":"feat 1", "status":"done"}]}`
 	os.WriteFile(filepath.Join(tmpDir, "feature_list.json"), []byte(content), 0644)
 	if session.DBStore != nil {
-		_ = session.DBStore.SaveFeatures(content)
+		_ = session.DBStore.SaveFeatures(session.Project, content)
 	}
 	if err := session.runManagerAgent(context.Background()); err != nil {
 		t.Errorf("Expected manager approval, got error: %v", err)
@@ -421,7 +389,7 @@ func TestSession_RunManagerAgent(t *testing.T) {
 	content = `{"project_name": "Test", "features": [{"id":"1", "description":"feat 1", "status":"pending"}]}`
 	os.WriteFile(filepath.Join(tmpDir, "feature_list.json"), []byte(content), 0644)
 	if session.DBStore != nil {
-		_ = session.DBStore.SaveFeatures(content)
+		_ = session.DBStore.SaveFeatures(session.Project, content)
 	}
 	if err := session.runManagerAgent(context.Background()); err == nil {
 		t.Error("Expected manager rejection, got nil")
@@ -498,29 +466,68 @@ func TestSession_FixPermissions(t *testing.T) {
 
 func TestSession_EnsureConflictTask(t *testing.T) {
 	tmpDir := t.TempDir()
-	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 
 	// Case 1: Add new conflict task
-	listPath := filepath.Join(tmpDir, "feature_list.json")
-	content := `{"project_name": "Test", "features": [{"id":"1", "description":"feat 1", "status":"done"}]}`
-	os.WriteFile(listPath, []byte(content), 0644)
+	flInitial := db.FeatureList{
+		ProjectName: "Test",
+		Features: []db.Feature{
+			{ID: "1", Description: "feat 1", Status: "done"},
+		},
+	}
+	mockDB := &FaultToleranceMockDB{
+		FeatureList: flInitial,
+	}
+
+	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
+	session.DBStore = mockDB
+	session.Project = "test-project"
 
 	session.EnsureConflictTask()
 
-	data, _ := os.ReadFile(listPath)
-	if !strings.Contains(string(data), "CONFLICT_RES") {
-		t.Errorf("Expected CONFLICT_RES task in feature list, got %s", string(data))
+	// Verify DB updated
+	mockDB.mu.Lock()
+	foundConflict := false
+	for _, f := range mockDB.FeatureList.Features {
+		if f.ID == "CONFLICT_RES" {
+			foundConflict = true
+			if f.Status != "todo" {
+				t.Errorf("Expected CONFLICT_RES status to be todo, got %s", f.Status)
+			}
+		}
+	}
+	mockDB.mu.Unlock()
+	if !foundConflict {
+		t.Error("Expected CONFLICT_RES task to be added to DB")
 	}
 
 	// Case 2: Conflict task exists and is done, should be reset to todo
-	content = `{"project_name": "Test", "features": [{"id":"CONFLICT_RES", "description":"conflict", "status":"done", "passes":true}]}`
-	os.WriteFile(listPath, []byte(content), 0644)
+	flDone := db.FeatureList{
+		ProjectName: "Test",
+		Features: []db.Feature{
+			{ID: "CONFLICT_RES", Description: "conflict", Status: "done", Passes: true},
+		},
+	}
+	mockDB.FeatureList = flDone
 
 	session.EnsureConflictTask()
 
-	data, _ = os.ReadFile(listPath)
-	if !strings.Contains(string(data), `"status": "todo"`) {
-		t.Errorf("Expected CONFLICT_RES task to be reset to todo, got %s", string(data))
+	mockDB.mu.Lock()
+	foundUpdated := false
+	for _, f := range mockDB.FeatureList.Features {
+		if f.ID == "CONFLICT_RES" {
+			foundUpdated = true
+			if f.Status != "todo" {
+				t.Errorf("Expected CONFLICT_RES task to be reset to todo, got %s", f.Status)
+			}
+			if f.Passes {
+				t.Error("Expected Passes to be false")
+			}
+		}
+	}
+	mockDB.mu.Unlock()
+
+	if !foundUpdated {
+		t.Error("Expected CONFLICT_RES task to be updated in DB")
 	}
 }
 
