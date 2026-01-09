@@ -51,11 +51,35 @@ The following table lists the configurable parameters of the RECAC chart and the
 | `config.maxTokens`         | Max tokens per request                      | `32000`                               |
 | `config.jiraUrl`           | Jira instance URL                           | `""`                                  |
 | `config.jiraUsername`      | Jira username/email                         | `""`                                  |
-| `secrets.apiKey`           | Generic API key                             | `""`                                  |
-| `secrets.geminiApiKey`     | Gemini specific API key                     | `""`                                  |
-| `secrets.openaiApiKey`     | OpenAI specific API key                     | `""`                                  |
-| `secrets.openrouterApiKey` | OpenRouter specific API key                 | `""`                                  |
-| `secrets.jiraApiToken`     | Jira API Token                              | `""`                                  |
+| `config.dbType`            | Database type (`sqlite` or `postgres`)      | `sqlite`                              |
+| `config.dbUrl`             | External Database URL (for `postgres` type) | `""`                                  |
+| `postgresql.enabled`       | Enable bundled PostgreSQL subchart          | `false`                               |
+
+## Database Configuration
+
+RECAC supports persistent storage via SQLite (default) or PostgreSQL. For production or multi-agent orchestration, PostgreSQL is recommended.
+
+### Option 1: Bundled PostgreSQL (Recommended for Cluster)
+
+To install RECAC with a managed PostgreSQL instance:
+
+```bash
+helm install recac ./deploy/helm/recac \
+  --set config.dbType=postgres \
+  --set postgresql.enabled=true
+```
+
+The chart will automatically configure the connection string using the subchart's credentials.
+
+### Option 2: Bring Your Own Database (BYO)
+
+If you have an existing PostgreSQL instance:
+
+```bash
+helm install recac ./deploy/helm/recac \
+  --set config.dbType=postgres \
+  --set config.dbUrl="postgres://user:pass@host:5432/dbname?sslmode=disable"
+```
 
 ## Security and Secrets
 
