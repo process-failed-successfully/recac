@@ -31,13 +31,7 @@ jobs:
             const headSha = context.payload.workflow_run.head_sha;
 
             try {
-              // 1. Time Check (Perth 11 PM - 7 AM -> UTC 15:00 - 23:00)
-              const now = new Date();
-              const hour = now.getUTCHours();
-              if (hour < 15 || hour >= 23) {
-                console.log(`Current UTC hour ${hour} is outside Perth out-of-hours window (15:00-23:00 UTC). Skip.`);
-                return;
-              }
+              // 1. Time Check removed as we have E2E testing in CI now
 
               // 2. Dual Workflow Check
               const { data: runs } = await github.rest.actions.listWorkflowRunsForRepo({
