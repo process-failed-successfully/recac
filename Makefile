@@ -60,15 +60,22 @@ cover: image ## Run tests with coverage output via Docker
 	$(DOCKER_CMD) go tool cover -func=coverage.out
 
 smoke: image ## Run smoke test script via Docker (mock agent)
+	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
 	docker run $(DOCKER_RUN_OPTS) \
 		-v $(HOME)/.config:/root/.config \
 		-v $(HOME)/.gemini:/root/.gemini \
 		-v $(HOME)/.cursor:/root/.cursor \
 		-v $(HOME)/.ssh:/root/.ssh \
-		-e AGENT=$(AGENT) \
-		-e GEMINI_API_KEY=$(GEMINI_API_KEY) \
-		-e OPENAI_API_KEY=$(OPENAI_API_KEY) \
-		-e ANTHROPIC_API_KEY=$(ANTHROPIC_API_KEY) \
+		-e AGENT=$${AGENT} \
+		-e GEMINI_API_KEY=$${GEMINI_API_KEY} \
+		-e OPENAI_API_KEY=$${OPENAI_API_KEY} \
+		-e ANTHROPIC_API_KEY=$${ANTHROPIC_API_KEY} \
+		-e SLACK_BOT_USER_TOKEN=$${SLACK_BOT_USER_TOKEN} \
+		-e SLACK_APP_TOKEN=$${SLACK_APP_TOKEN} \
+		-e DISCORD_BOT_TOKEN=$${DISCORD_BOT_TOKEN} \
+		-e DISCORD_CHANNEL_ID=$${DISCORD_CHANNEL_ID} \
+		-e RECAC_NOTIFICATIONS_DISCORD_ENABLED=true \
+		-e RECAC_NOTIFICATIONS_SLACK_ENABLED=true \
 		$(DOCKER_IMAGE) go run scripts/smoke.go
 
 smoke-k8s: ## Run full E2E smoke test in local Kubernetes (k3d)

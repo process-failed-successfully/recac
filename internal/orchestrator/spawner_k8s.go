@@ -140,6 +140,14 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_DB_URL", Value: val})
 	}
 
+	// Propagate Notifications Config
+	if val := os.Getenv("RECAC_NOTIFICATIONS_DISCORD_ENABLED"); val != "" {
+		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_NOTIFICATIONS_DISCORD_ENABLED", Value: val})
+	}
+	if val := os.Getenv("RECAC_NOTIFICATIONS_SLACK_ENABLED"); val != "" {
+		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_NOTIFICATIONS_SLACK_ENABLED", Value: val})
+	}
+
 	// Propagate Project ID
 	envVars = append(envVars, corev1.EnvVar{Name: "RECAC_PROJECT_ID", Value: item.ID})
 
@@ -258,10 +266,11 @@ func extractRepoPath(url string) string {
 	return strings.TrimPrefix(strings.TrimPrefix(url, "https://"), "github.com/")
 }
 
+var k8sNameSanitizerRegex = regexp.MustCompile("[^a-z0-9]+")
+
 func sanitizeK8sName(name string) string {
 	// Lowercase and replace non-alphanumeric with -
 	name = strings.ToLower(name)
-	reg, _ := regexp.Compile("[^a-z0-9]+")
-	name = reg.ReplaceAllString(name, "-")
+	name = k8sNameSanitizerRegex.ReplaceAllString(name, "-")
 	return strings.Trim(name, "-")
 }

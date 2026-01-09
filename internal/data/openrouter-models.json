@@ -1,0 +1,88 @@
+{
+  "models": [
+    {
+      "name": "google/gemini-3-pro-preview",
+      "displayName": "Google Gemini 3 Pro Preview"
+    },
+    {
+      "name": "deepseek/deepseek-v3.2",
+      "displayName": "DeepSeek V3.2"
+    },
+    {
+      "name": "deepseek/deepseek-chat-v3-0324",
+      "displayName": "DeepSeek Chat V3 0324"
+    },
+    {
+      "name": "minimax/minimax-m2",
+      "displayName": "Minimax M2"
+    },
+    {
+      "name": "google/gemini-2.5-pro",
+      "displayName": "Google Gemini 2.5 Pro"
+    },
+    {
+      "name": "anthropic/claude-haiku-4.5",
+      "displayName": "Anthropic Claude Haiku 4.5"
+    },
+    {
+      "name": "openai/gpt-4o-mini",
+      "displayName": "OpenAI GPT-4o Mini"
+    },
+    {
+      "name": "tngtech/deepseek-r1t2-chimera:free",
+      "displayName": "TNGTech DeepSeek R1T2 Chimera (Free)"
+    },
+    {
+      "name": "mistralai/mistral-nemo",
+      "displayName": "MistralAI Mistral Nemo"
+    },
+    {
+      "name": "z-ai/glm-4.7",
+      "displayName": "Z-AI GLM 4.7"
+    },
+    {
+      "name": "openai/gpt-5.2",
+      "displayName": "OpenAI GPT-5.2"
+    },
+    {
+      "name": "qwen/qwen3-235b-a22b-2507",
+      "displayName": "Qwen 3 235B A22B"
+    },
+    {
+      "name": "openai/gpt-5-mini",
+      "displayName": "OpenAI GPT-5 Mini"
+    },
+    {
+      "name": "deepseek/deepseek-chat-v3.1",
+      "displayName": "DeepSeek Chat V3.1"
+    },
+    {
+      "name": "nex-agi/deepseek-v3.1-nex-n1:free",
+      "displayName": "NexAGI DeepSeek V3.1 Nex N1 (Free)"
+    },
+    {
+      "name": "anthropic/claude-sonnet-4",
+      "displayName": "Anthropic Claude Sonnet 4"
+    },
+    {
+      "name": "nvidia/nemotron-3-nano-30b-a3b:free",
+      "displayName": "NVIDIA Nemotron 3 Nano 30B (Free)"
+    },
+    {
+      "name": "openai/gpt-oss-20b",
+      "displayName": "OpenAI GPT OSS 20B"
+    },
+    {
+      "name": "minimax/minimax-m2.1",
+      "displayName": "Minimax M2.1"
+    },
+    {
+      "name": "openai/gpt-4.1-mini",
+      "displayName": "OpenAI GPT-4.1 Mini"
+    },
+    {
+      "name": "google/gemini-2.5-flash-preview-09-2025",
+      "displayName": "Google Gemini 2.5 Flash Preview 09-2025"
+    }
+  ]
+}
