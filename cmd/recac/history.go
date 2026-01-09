@@ -1,8 +1,6 @@
 package main
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -108,7 +106,7 @@ func displaySessionDetail(cmd *cobra.Command, session *runner.SessionState, full
 	w.Flush()
 	if session.AgentStateFile != "" {
 		agentState, err := loadAgentState(session.AgentStateFile)
-		if err == nil {
+		if err == nil && agentState != nil {
 			fmt.Fprintln(w, "\nAgent & Token Usage")
 			fmt.Fprintln(w, "-------------------")
 			fmt.Fprintf(w, "Model:\t%s\n", agentState.Model)
@@ -151,22 +149,3 @@ func displaySessionDetail(cmd *cobra.Command, session *runner.SessionState, full
 	return nil
 }
 
-// loadAgentState reads and decodes the agent state file.
-func loadAgentState(filePath string) (agent.State, error) {
-	var state agent.State
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return state, fmt.Errorf("agent state file not found at %s", filePath)
-	}
-
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return state, fmt.Errorf("failed to read agent state file: %w", err)
-	}
-	if len(data) == 0 {
-		return state, errors.New("agent state file is empty")
-	}
-	if err := json.Unmarshal(data, &state); err != nil {
-		return state, fmt.Errorf("failed to unmarshal agent state: %w", err)
-	}
-	return state, nil
-}
