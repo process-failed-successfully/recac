@@ -52,10 +52,17 @@ func (c *BaseClient) PreparePrompt(prompt string) (string, State, bool, error) {
 		}
 	}
 
+	// Add message to history
+	state.History = append(state.History, Message{
+		Role:      "user",
+		Content:   prompt,
+		Timestamp: time.Now(),
+	})
+
 	// Reserve some tokens for response (estimate 50% for response)
 	availableTokens := maxTokens * 50 / 100
 	if promptTokens > availableTokens {
-		// Truncate the prompt
+		// Truncate the prompt for the API call (but the history keeps the full or reasonably trimmed version)
 		telemetry.LogInfo("Prompt exceeds token limit, truncating...", "project", c.Project, "actual", promptTokens, "available", availableTokens)
 		prompt = TruncateToTokenLimit(prompt, availableTokens)
 		promptTokens = EstimateTokenCount(prompt)
@@ -90,6 +97,13 @@ func (c *BaseClient) UpdateStateWithResponse(state State, response string) {
 	state.TokenUsage.TotalTokens = state.TokenUsage.TotalPromptTokens + state.TokenUsage.TotalResponseTokens
 	state.CurrentTokens += responseTokens
 	telemetry.TrackTokenUsage(c.Project, responseTokens)
+
+	// Add response to history
+	state.History = append(state.History, Message{
+		Role:      "assistant",
+		Content:   response,
+		Timestamp: time.Now(),
+	})
 
 	// Initialize Metadata if needed
 	if state.Metadata == nil {

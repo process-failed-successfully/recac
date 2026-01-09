@@ -41,10 +41,8 @@ func TestSession_Guardrail_PrematureSignoff(t *testing.T) {
 
 	// 1. Setup Features: One FAILING
 	features := `{"features":[{"id":"1","description":"feat","passes":false}]}`
-	os.WriteFile(filepath.Join(tmpDir, "feature_list.json"), []byte(features), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
 
-	// 2. Setup Signals: PROJECT_SIGNED_OFF exists (prematurely)
 	// 2. Setup Signals: PROJECT_SIGNED_OFF exists (prematurely)
 	// hasSignal looks for a file named "PROJECT_SIGNED_OFF" or DB entry.
 	// Since we mock DB but didn't populate it, let's use the file fallback to trigger migration/detection.
@@ -62,10 +60,16 @@ func TestSession_Guardrail_PrematureSignoff(t *testing.T) {
 		t.Fatalf("Failed to init db: %v", err)
 	}
 
+	// Seed DB
+	if err := dbStore.SaveFeatures("test-project", features); err != nil {
+		t.Fatalf("Failed to seed features: %v", err)
+	}
+
 	s := &Session{
 		Docker:           mockDocker,
 		Agent:            mockAgent,
 		Workspace:        tmpDir,
+		Project:          "test-project",
 		MaxIterations:    2,
 		ManagerFrequency: 5,
 		DBStore:          dbStore,
@@ -95,7 +99,10 @@ func TestSession_Guardrail_PrematureSignoff(t *testing.T) {
 	}
 
 	// Double check DB
-	val, _ := s.DBStore.GetSignal("PROJECT_SIGNED_OFF")
+	val, err := s.DBStore.GetSignal(s.Project, "PROJECT_SIGNED_OFF")
+	if err != nil {
+		t.Fatalf("Failed to get signal from DB: %v", err)
+	}
 	if val != "" {
 		t.Errorf("Guardrail failed: DB still has signal: %s", val)
 	}

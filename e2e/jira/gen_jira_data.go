@@ -10,7 +10,6 @@ import (
 	"os"
 
 	"recac/pkg/e2e/manager"
-	"recac/pkg/e2e/scenarios"
 
 	"github.com/joho/godotenv"
 )
@@ -45,7 +44,7 @@ func main() {
 	}
 
 	repoURL := "https://github.com/process-failed-successfully/recac-jira-e2e"
-	label, err := mgr.GenerateScenario(ctx, scenarioName, repoURL)
+	label, _, err := mgr.GenerateScenario(ctx, scenarioName, repoURL)
 	if err != nil {
 		log.Fatalf("Failed to generate scenario: %v", err)
 	}

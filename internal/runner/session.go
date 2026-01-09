@@ -84,6 +84,8 @@ type Session struct {
 	SlackThreadTS             string       // Thread Timestamp for Slack conversations
 	SuppressStartNotification bool         // Suppress "Session Started" notification (for sub-tasks)
 	UseLocalAgent             bool         // Execute commands locally (e.g. inside K8s pod) instead of spawning Docker container
+	SpecContent               string       // Explicit specification content (e.g. from Jira)
+	FeatureContent            string       // Explicit feature list JSON content (authoritative)
 	Logger                    *slog.Logger // Structured logger for this session
 
 	mu sync.RWMutex // Protects concurrent access to Iteration, SlackThreadTS, ContainerID
@@ -108,12 +110,48 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 	stateManager := agent.NewStateManager(agentStateFile)
 
 	// Initialize DB Store
-	dbPath := filepath.Join(workspace, ".recac.db")
+	dbType := os.Getenv("RECAC_DB_TYPE")
+	dbURL := os.Getenv("RECAC_DB_URL")
+
+	if dbType == "" {
+		dbType = "sqlite"
+		if dbURL == "" {
+			dbURL = filepath.Join(workspace, ".recac.db")
+		}
+	} else if dbType == "sqlite" && dbURL == "" {
+		dbURL = filepath.Join(workspace, ".recac.db")
+	}
+
+	// Initialize DB Store with Retry Logic
 	var dbStore db.Store
-	if sqliteStore, err := db.NewSQLiteStore(dbPath); err != nil {
-		fmt.Printf("Warning: Failed to initialize SQLite store: %v\n", err)
+	storeConfig := db.StoreConfig{
+		Type:             dbType,
+		ConnectionString: dbURL,
+	}
+
+	// Retry loop for DB connection (up to 30 seconds)
+	var err error
+	maxRetries := 6
+	for i := 0; i < maxRetries; i++ {
+		if i > 0 {
+			fmt.Fprintf(os.Stderr, "[Session] Retrying DB connection (%d/%d)...\n", i+1, maxRetries)
+			time.Sleep(5 * time.Second)
+		}
+		dbStore, err = db.NewStore(storeConfig)
+		if err == nil {
+			break
+		}
+		fmt.Fprintf(os.Stderr, "[Session] Failed to initialize DB store (%s): %v\n", dbType, err)
+	}
+
+	if err != nil {
+		// Critical failure - Fail Fast
+		fmt.Fprintf(os.Stderr, "[Session] CRITICAL: Could not connect to database after retries. Exiting.\n")
+		os.Exit(1)
 	} else {
-		dbStore = sqliteStore
+		// Success
+		fmt.Fprintf(os.Stderr, "[Session] DB Store initialized successfully: type=%s, project=%s\n", dbType, project)
+		slog.Info("[DB] Store initialized successfully", "type", dbType, "project", project)
 	}
 
 	// Initialize Security Scanner
@@ -179,12 +217,28 @@ func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, pr
 	stateManager := agent.NewStateManager(agentStateFile)
 
 	// Initialize DB Store
-	dbPath := filepath.Join(workspace, ".recac.db")
+	dbType := os.Getenv("RECAC_DB_TYPE")
+	dbURL := os.Getenv("RECAC_DB_URL")
+
+	if dbType == "" {
+		dbType = "sqlite"
+		if dbURL == "" {
+			dbURL = filepath.Join(workspace, ".recac.db")
+		}
+	} else if dbType == "sqlite" && dbURL == "" {
+		dbURL = filepath.Join(workspace, ".recac.db")
+	}
+
 	var dbStore db.Store
-	if sqliteStore, err := db.NewSQLiteStore(dbPath); err != nil {
-		fmt.Printf("Warning: Failed to initialize SQLite store: %v\n", err)
+	storeConfig := db.StoreConfig{
+		Type:             dbType,
+		ConnectionString: dbURL,
+	}
+
+	if s, err := db.NewStore(storeConfig); err != nil {
+		fmt.Printf("Warning: Failed to initialize DB store (%s): %v\n", dbType, err)
 	} else {
-		dbStore = sqliteStore
+		dbStore = s
 	}
 
 	// Initialize Security Scanner
@@ -373,11 +427,38 @@ func (s *Session) SaveAgentState() error {
 // ReadSpec reads the application specification file from the workspace.
 func (s *Session) ReadSpec() (string, error) {
 	path := filepath.Join(s.Workspace, s.SpecFile)
+
+	// 1. Try file first
 	content, err := os.ReadFile(path)
-	if err != nil {
-		return "", fmt.Errorf("failed to read spec file: %w", err)
+	if err == nil {
+		// Sync VALID file content to DB so DB stays fresh
+		if s.DBStore != nil && len(content) > 0 {
+			_ = s.DBStore.SaveSpec(s.Project, string(content))
+		}
+		return string(content), nil
 	}
-	return string(content), nil
+
+	// 2. Fallback: SpecContent field (passed from Orchestrator/CLI)
+	if s.SpecContent != "" {
+		// Initialize file
+		_ = os.WriteFile(path, []byte(s.SpecContent), 0644)
+		if s.DBStore != nil {
+			_ = s.DBStore.SaveSpec(s.Project, s.SpecContent)
+		}
+		return s.SpecContent, nil
+	}
+
+	// 3. Fallback: DB (Authoritative Mirror)
+	if s.DBStore != nil {
+		dbContent, err := s.DBStore.GetSpec(s.Project)
+		if err == nil && dbContent != "" {
+			// Restore file from DB
+			_ = os.WriteFile(path, []byte(dbContent), 0644)
+			return dbContent, nil
+		}
+	}
+
+	return "", fmt.Errorf("failed to read spec file and no backups found: %w", err)
 }
 
 // Start initializes the session environment (Docker container).
@@ -410,8 +491,13 @@ func (s *Session) Start(ctx context.Context) error {
 	fmt.Printf("Initializing session with image: %s\n", s.Image)
 
 	// Check Docker Daemon
-	if err := s.Docker.CheckDaemon(ctx); err != nil {
-		return fmt.Errorf("docker check failed: %w", err)
+	if s.Docker != nil {
+		if err := s.Docker.CheckDaemon(ctx); err != nil {
+			fmt.Printf("Warning: Docker check failed: %v. Running in restricted mode.\n", err)
+			s.Docker = nil // Disable docker usage if check fails
+		}
+	} else {
+		fmt.Println("Running in restricted mode (no Docker access).")
 	}
 
 	// Read Spec
@@ -422,9 +508,11 @@ func (s *Session) Start(ctx context.Context) error {
 		fmt.Printf("Loaded spec: %d bytes\n", len(spec))
 	}
 
-	// Ensure Image is ready
-	if err := s.ensureImage(ctx); err != nil {
-		fmt.Printf("Warning: Failed to ensure image %s: %v. Attempting to proceed anyway...\n", s.Image, err)
+	// Ensure Image is ready (only if Docker is available)
+	if s.Docker != nil {
+		if err := s.ensureImage(ctx); err != nil {
+			fmt.Printf("Warning: Failed to ensure image %s: %v. Attempting to proceed anyway...\n", s.Image, err)
+		}
 	}
 
 	// Determine users home directory for config mounting
@@ -484,14 +572,20 @@ func (s *Session) Start(ctx context.Context) error {
 		}
 	}
 
-	// Run Container (or Skip if Local)
-	if s.UseLocalAgent {
+	// Explicitly inject Session Context (Critical for DB persistence)
+	if s.Project != "" {
+		env = append(env, fmt.Sprintf("RECAC_PROJECT_ID=%s", s.Project))
+	}
+
+	// Run Container (or Skip if Local/Restricted)
+	if s.UseLocalAgent || s.Docker == nil {
 		if s.Logger != nil {
-			s.Logger.Info("Running in Local Agent Mode (K8s detected). Skipping container spawn.")
+			s.Logger.Info("Running in Local Agent Mode (K8s detected or restricted). Skipping container spawn.")
 		} else {
-			fmt.Println("Running in Local Agent Mode (K8s detected). Skipping container spawn.")
+			fmt.Println("Running in Local Agent Mode (K8s detected or restricted). Skipping container spawn.")
 		}
 		s.ContainerID = "local"
+		s.UseLocalAgent = true
 	} else {
 		id, err := s.Docker.RunContainer(ctx, s.Image, s.Workspace, extraBinds, env, containerUser)
 		if err != nil {
@@ -520,12 +614,11 @@ func (s *Session) Start(ctx context.Context) error {
 
 	// Restore Slack Thread TS from DB if available (for session resumption)
 	if s.SlackThreadTS == "" && s.DBStore != nil {
-		if ts, err := s.DBStore.GetSignal("SLACK_THREAD_TS"); err == nil && ts != "" {
+		if ts, err := s.DBStore.GetSignal(s.Project, "SLACK_THREAD_TS"); err == nil && ts != "" {
 			s.SlackThreadTS = ts
-			fmt.Printf("Restored Slack Thread TS: %s\n", ts)
+			s.Logger.Info("restored slack thread ts from db", "ts", ts)
 		}
 	}
-
 	// Notify Start
 	if !s.SuppressStartNotification {
 		msg := fmt.Sprintf("Project %s: Session Started", s.Project)
@@ -539,7 +632,7 @@ func (s *Session) Start(ctx context.Context) error {
 			s.SlackThreadTS = ts
 			// Persist new thread TS
 			if s.DBStore != nil && ts != "" {
-				if err := s.DBStore.SetSignal("SLACK_THREAD_TS", ts); err != nil {
+				if err := s.DBStore.SetSignal(s.Project, "SLACK_THREAD_TS", ts); err != nil {
 					fmt.Printf("Warning: Failed to persist Slack Thread TS: %v\n", err)
 				}
 			}
@@ -549,7 +642,14 @@ func (s *Session) Start(ctx context.Context) error {
 	return nil
 }
 
+// ensureImage ensures the agent image exists locally, pulling or building if needed.
 func (s *Session) ensureImage(ctx context.Context) error {
+	if s.Docker == nil {
+		fmt.Println("Docker not available available. Skipping image check (assuming local execution or pre-pulled).")
+		return nil
+	}
+
+	// 1. Check for custom Dockerfile in workspace
 	// 1. Check if workspace has a Dockerfile. If so, building is mandatory to allow customization.
 	workspaceDockerfile := filepath.Join(s.Workspace, "Dockerfile")
 	if _, err := os.Stat(workspaceDockerfile); err == nil {
@@ -647,8 +747,10 @@ func (s *Session) Stop(ctx context.Context) error {
 	}
 
 	fmt.Printf("Stopping container: %s\n", containerID)
-	if err := s.Docker.StopContainer(ctx, containerID); err != nil {
-		return fmt.Errorf("failed to stop container: %w", err)
+	if s.Docker != nil {
+		if err := s.Docker.StopContainer(ctx, containerID); err != nil {
+			return fmt.Errorf("failed to stop container: %w", err)
+		}
 	}
 
 	s.mu.Lock()
@@ -773,7 +875,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 
 	// Load DB history if available
 	if s.DBStore != nil {
-		history, err := s.DBStore.QueryHistory(5)
+		history, err := s.DBStore.QueryHistory(s.Project, 5)
 		if err == nil && len(history) > 0 {
 			fmt.Printf("Loaded %d previous observations from DB history.\n", len(history))
 		}
@@ -807,10 +909,13 @@ func (s *Session) RunLoop(ctx context.Context) error {
 			fmt.Printf("Cleaning up container: %s\n", containerID)
 			cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			if err := s.Docker.StopContainer(cleanupCtx, containerID); err != nil {
-				fmt.Printf("Warning: Failed to cleanup container: %v\n", err)
-			} else {
-				fmt.Println("Container cleaned up successfully")
+			defer cancel()
+			if s.Docker != nil {
+				if err := s.Docker.StopContainer(cleanupCtx, containerID); err != nil {
+					fmt.Printf("Warning: Failed to cleanup container: %v\n", err)
+				} else {
+					fmt.Println("Container cleaned up successfully")
+				}
 			}
 		}
 	}()
@@ -831,7 +936,17 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		}
 
 		newIteration := s.IncrementIteration()
-		s.Logger.Info("starting iteration", "iteration", newIteration)
+		s.Logger.Info("starting iteration", "iteration", newIteration, "task_id", s.SelectedTaskID, "agent_provider", s.AgentProvider, "agent_model", s.AgentModel)
+		if s.SelectedTaskID != "" {
+			// Log task description snippet for debugging context
+			descSnippet := ""
+			if len(s.SpecContent) > 50 {
+				descSnippet = s.SpecContent[:50] + "..."
+			} else {
+				descSnippet = s.SpecContent
+			}
+			s.Logger.Info("assigned task details", "task_id", s.SelectedTaskID, "desc_snippet", descSnippet)
+		}
 
 		// Ensure feature list is synced and mirror is up to date
 		features = s.loadFeatures()
@@ -1243,7 +1358,7 @@ func (s *Session) RunIteration(ctx context.Context, prompt string, isManager boo
 	// Save observation to DB (only if safe)
 	if s.DBStore != nil {
 		telemetry.TrackDBOp(s.Project)
-		if err := s.DBStore.SaveObservation(role, response); err != nil {
+		if err := s.DBStore.SaveObservation(s.Project, role, response); err != nil {
 			s.Logger.Error("failed to save observation to DB", "error", err)
 		} else {
 			s.Logger.Debug("saved observation to DB")
@@ -1257,7 +1372,7 @@ func (s *Session) RunIteration(ctx context.Context, prompt string, isManager boo
 	if s.DBStore != nil && executionOutput != "" {
 		telemetry.TrackDBOp(s.Project)
 		// Use "System" role for tool outputs
-		if err := s.DBStore.SaveObservation("System", executionOutput); err != nil {
+		if err := s.DBStore.SaveObservation(s.Project, "System", executionOutput); err != nil {
 			s.Logger.Error("failed to save system output to DB", "error", err)
 		} else {
 			s.Logger.Debug("saved system output to DB")
@@ -1287,18 +1402,14 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 			return prompt, prompts.ManagerReview, true, err
 		}
 
-		featuresPath := filepath.Join(s.Workspace, "feature_list.json")
-		// Check if file exists and has content
-		if _, err := os.Stat(featuresPath); err == nil {
-			features := s.loadFeatures()
-			if len(features) == 0 {
-				fmt.Println("Feature list found but is empty. Running Initializer.")
-				runInitializer = true
-			}
-			// If features > 0, we proceed normally
+		// Check for existing features (DB, Injected, or File)
+		features := s.loadFeatures()
+		if len(features) > 0 {
+			// Features exist, so we don't need to run Initializer.
+			// s.loadFeatures() automatically syncs to file if found in DB.
 		} else {
-			// File does NOT exist. Run Initializer.
-			fmt.Println("Feature list not found. Running Initializer.")
+			// No features found anywhere. Run Initializer.
+			fmt.Println("Feature list not found (in DB, Content, or File). Running Initializer.")
 			runInitializer = true
 		}
 
@@ -1338,8 +1449,8 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 	var historyStr string
 	if s.DBStore != nil {
 		// Limit history size to prevent context exhaustion (413 errors)
-		const MaxHistoryChars = 25000          // approx 6k tokens, safe for most models
-		obs, err := s.DBStore.QueryHistory(20) // Fetch more, but we'll filter by size
+		const MaxHistoryChars = 25000                     // approx 6k tokens, safe for most models
+		obs, err := s.DBStore.QueryHistory(s.Project, 20) // Fetch more, but we'll filter by size
 		if err == nil {
 			var sb strings.Builder
 
@@ -1372,6 +1483,32 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 	}
 
 	// Populate task-specific variables if set
+	// 4. Deterministic Task Assignment (User Request: Remove agent reliance on jq)
+	// Find the first pending feature and assign it explicitly.
+	var assignedFeature *db.Feature
+	features := s.loadFeatures() // Refresh from DB/File
+
+	for i := range features {
+		if features[i].Status != "done" && !features[i].Passes {
+			assignedFeature = &features[i]
+			break
+		}
+	}
+
+	if assignedFeature != nil {
+		vars["task_id"] = assignedFeature.ID
+		vars["task_description"] = assignedFeature.Description
+		vars["exclusive_paths"] = strings.Join(assignedFeature.Dependencies.ExclusiveWritePaths, ", ")
+		vars["read_only_paths"] = strings.Join(assignedFeature.Dependencies.ReadOnlyPaths, ", ")
+
+		// s.SelectedTaskID = assignedFeature.ID // DO NOT SET THIS: It prevents Manager interruptions in subsequent turns.
+	} else {
+		// All done?
+		vars["task_id"] = "NONE_ALL_COMPLETE"
+		vars["task_description"] = "All features are marked as done/passing. Please run final verification and signal completion."
+		vars["exclusive_paths"] = "none"
+		vars["read_only_paths"] = "all"
+	}
 	if s.SelectedTaskID != "" {
 		features := s.loadFeatures()
 		var target db.Feature
@@ -1414,66 +1551,52 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 }
 
 func (s *Session) loadFeatures() []db.Feature {
-	filePath := filepath.Join(s.Workspace, "feature_list.json")
-
 	// 1. Try to fetch from DB first (Authoritative source)
 	if s.DBStore != nil {
-		content, err := s.DBStore.GetFeatures()
+		s.Logger.Info("[DEBUG] Attempting to load features from DB", "project", s.Project)
+		content, err := s.DBStore.GetFeatures(s.Project)
+		if err != nil {
+			s.Logger.Info("[DEBUG] DB GetFeatures error", "error", err)
+		}
 		if err == nil && content != "" {
 			var fl db.FeatureList
 			if err := json.Unmarshal([]byte(content), &fl); err == nil {
-				// Authoritative data found in DB - Sync BACK to file to restore it (effectively read-only/mirror)
-				s.syncFeatureFile(fl)
+				s.Logger.Info("loaded features from DB history", "count", len(fl.Features))
 				return fl.Features
 			}
 		}
+	} else {
+		s.Logger.Info("[DEBUG] No DBStore available for feature lookup")
 	}
 
-	// 2. Fallback to file (First run or recovery)
-	data, err := os.ReadFile(filePath)
-	if err == nil {
+	// 2. Fallback to FeatureContent (passed from Orchestrator/CLI)
+	if s.FeatureContent != "" {
+		var fl db.FeatureList
+		if err := json.Unmarshal([]byte(s.FeatureContent), &fl); err == nil {
+			s.Logger.Info("loaded features from injected content")
+			// Sync to DB
+			if s.DBStore != nil {
+				_ = s.DBStore.SaveFeatures(s.Project, s.FeatureContent)
+			}
+			return fl.Features
+		}
+	}
+
+	// 3. Fallback to feature_list.json file (Legacy/Local mode)
+	listPath := filepath.Join(s.Workspace, "feature_list.json")
+	if data, err := os.ReadFile(listPath); err == nil {
 		var fl db.FeatureList
 		if err := json.Unmarshal(data, &fl); err == nil {
-			// Successfully read valid JSON from file - Sync to DB if DB is empty
+			s.Logger.Info("loaded features from file", "path", listPath)
+			// Sync to DB
 			if s.DBStore != nil {
-				_ = s.DBStore.SaveFeatures(string(data))
+				_ = s.DBStore.SaveFeatures(s.Project, string(data))
 			}
 			return fl.Features
 		}
 	}
 
 	return nil
-}
-
-func (s *Session) syncFeatureFile(fl db.FeatureList) {
-	path := filepath.Join(s.Workspace, "feature_list.json")
-	data, err := json.MarshalIndent(fl, "", "  ")
-	if err != nil {
-		s.Logger.Warn("failed to marshal feature list", "error", err)
-		return
-	}
-
-	err = os.WriteFile(path, data, 0644)
-	if err != nil && os.IsPermission(err) {
-		// Try to remove it first. Host users usually have write access to the workspace directory.
-		_ = os.Remove(path)
-		err = os.WriteFile(path, data, 0644)
-	}
-
-	containerID := s.GetContainerID()
-	if err != nil && os.IsPermission(err) && containerID != "" {
-		// Last resort: ask root-powered container to chown it back to us
-		u, _ := user.Current()
-		if u != nil {
-			// Best effort chown
-			_, _ = s.Docker.Exec(context.Background(), containerID, []string{"chown", fmt.Sprintf("%s:%s", u.Uid, u.Gid), "feature_list.json"})
-			err = os.WriteFile(path, data, 0644)
-		}
-	}
-
-	if err != nil {
-		s.Logger.Warn("failed to sync feature_list.json", "error", err)
-	}
 }
 
 func (s *Session) checkCompletion() bool {
@@ -1485,39 +1608,37 @@ func (s *Session) hasSignal(name string) bool {
 		return false
 	}
 
-	// 1. Check DB first (Source of Truth for privileged signals)
-	val, err := s.DBStore.GetSignal(name)
-	if err == nil && val != "" {
+	// 1. Check DB (Modern Source)
+	val, err := s.DBStore.GetSignal(s.Project, name)
+	if err == nil && val == "true" {
 		return true
 	}
 
-	// 2. Check File (Agent might have created it)
-	// GUARDRAIL: Only allow non-privileged signals from the filesystem.
-	// This prevents agents from spoofing completion/sign-off status.
-	privilegedSignals := map[string]bool{
-		"PROJECT_SIGNED_OFF": true,
-		"QA_PASSED":          true,
-		"COMPLETED":          true,
-		"TRIGGER_QA":         true,
-		"TRIGGER_MANAGER":    true,
-	}
-
-	if privilegedSignals[name] {
-		// Privileged signals MUST come from the DB (set by RECAC internal logic)
-		return false
-	}
-
+	// 2. Migration: Check Filesystem (Legacy Source)
 	path := filepath.Join(s.Workspace, name)
 	if _, err := os.Stat(path); err == nil {
-		// File exists - Migrate to DB
-		s.Logger.Info("migrating signal from file to DB", "signal", name)
-		if err := s.DBStore.SetSignal(name, "true"); err != nil {
-			s.Logger.Warn("failed to migrate signal to DB", "signal", name, "error", err)
+		// Found file-based signal.
+		// Security Check: Only migrate non-privileged signals from filesystem
+		privilegedSignals := map[string]bool{
+			"PROJECT_SIGNED_OFF": true,
+			"QA_PASSED":          true,
+			"COMPLETED":          true,
+			"TRIGGER_QA":         true,
+			"TRIGGER_MANAGER":    true,
 		}
-		// Remove file
-		if err := os.Remove(path); err != nil {
-			s.Logger.Warn("failed to remove signal file", "signal", name, "error", err)
+
+		if privilegedSignals[name] {
+			s.Logger.Warn("ignoring filesystem-based privileged signal (must come from DB)", "signal", name)
+			return false
 		}
+
+		s.Logger.Info("migrating signal from filesystem to DB", "signal", name)
+		if err := s.DBStore.SetSignal(s.Project, name, "true"); err != nil {
+			s.Logger.Error("failed to migrate signal to DB", "signal", name, "error", err)
+			return true // File exists, so logically signal is true even if migration failed
+		}
+		// Cleanup the file after migration
+		os.Remove(path)
 		return true
 	}
 
@@ -1526,7 +1647,7 @@ func (s *Session) hasSignal(name string) bool {
 
 func (s *Session) clearSignal(name string) {
 	if s.DBStore != nil {
-		s.DBStore.DeleteSignal(name)
+		s.DBStore.DeleteSignal(s.Project, name)
 	}
 	// Also ensure file is removed (redundancy)
 	path := filepath.Join(s.Workspace, name)
@@ -1597,8 +1718,11 @@ func (s *Session) createSignal(name string) error {
 	if s.DBStore == nil {
 		return fmt.Errorf("db store not initialized")
 	}
+	if err := s.DBStore.SetSignal(s.Project, name, "true"); err != nil {
+		return err
+	}
 	s.Logger.Info("created signal", "signal", name)
-	return s.DBStore.SetSignal(name, "true")
+	return nil
 }
 
 // runQAAgent runs quality assurance checks on the feature list.
@@ -1814,7 +1938,12 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 	// 1. Extract Bash Blocks (More robust regex to handle variations in LLM output)
 	matches := bashBlockRegex.FindAllStringSubmatch(response, -1)
 
-	// 1. Extract Bash Blocks
+	// Safety valve: Prevent LLM loops from flooding the execution
+	const maxCommandBlocks = 100
+	if len(matches) > maxCommandBlocks {
+		s.Logger.Warn("Safety valve tripped: truncated too many command blocks", "total", len(matches), "limit", maxCommandBlocks)
+		matches = matches[:maxCommandBlocks]
+	}
 
 	var parsedOutput strings.Builder
 	// Get timeout from config
@@ -1830,6 +1959,13 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 		}
 		s.Logger.Info("executing command block", "index", i+1, "total", len(matches), "script", cmdScript)
 
+		// Heuristic: If block starts with '{' or '[' and parses as JSON, it's likely data mislabeled as bash.
+		if (strings.HasPrefix(cmdScript, "{") || strings.HasPrefix(cmdScript, "[")) && json.Valid([]byte(cmdScript)) {
+			s.Logger.Warn("Skipping execution of likely JSON data block mislabeled as bash", "snippet", cmdScript[:min(len(cmdScript), 50)])
+			parsedOutput.WriteString(fmt.Sprintf("\n[Skipped JSON Block %d - Use 'cat' to write files]\n", i+1))
+			continue
+		}
+
 		// Create timeout context for this specific command
 		cmdCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
 
@@ -1840,6 +1976,13 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 		if s.UseLocalAgent {
 			// Execute Locally
 			cmd := exec.CommandContext(cmdCtx, "/bin/bash", "-c", cmdScript)
+			// Propagate Environment + Inject Project ID
+			cmd.Env = append(os.Environ(), fmt.Sprintf("RECAC_PROJECT_ID=%s", s.Project))
+			// Debug: Log key env vars for troubleshooting
+			s.Logger.Info("[DEBUG] Local exec env vars",
+				"RECAC_PROJECT_ID", s.Project,
+				"RECAC_DB_TYPE", os.Getenv("RECAC_DB_TYPE"),
+				"RECAC_DB_URL_set", os.Getenv("RECAC_DB_URL") != "")
 			cmd.Dir = s.Workspace // Run in workspace
 			// Capture Combined Output
 			var outBuf bytes.Buffer
@@ -1908,15 +2051,10 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 
 	// Check for Blocker Signal (DB)
 	if s.DBStore != nil {
-		blockerMsg, err := s.DBStore.GetSignal("BLOCKER")
+		blockerMsg, err := s.DBStore.GetSignal(s.Project, "BLOCKER")
 		if err == nil && blockerMsg != "" {
-			s.Logger.Warn("agent reported blocker", "blocker", blockerMsg)
-			s.Logger.Info("session stopping to allow human resolution")
-
-			// Clear blocker so it doesn't loop forever? Or keep it?
-			// If we keep it, restart will block again.
-			// User needs to clear it or we need a mechanism.
-			// For now, valid strategy is to exit.
+			fmt.Printf("\n!!! AGENT BLOCKED: %s !!!\n", blockerMsg)
+			fmt.Println("Waiting for blocker to be resolved...")
 			return "", ErrBlocker
 		}
 	}
@@ -2124,25 +2262,29 @@ yarn-error.log*
 	}
 
 	// 1b. Create Global Ignore File in container (redundancy/system-wide)
-	writeCmd := []string{"/bin/sh", "-c", fmt.Sprintf("echo '%s' > /etc/gitignore_global", ignoreContent)}
-	if _, err := s.Docker.ExecAsUser(ctx, containerID, "root", writeCmd); err != nil {
-		fmt.Printf("Warning: Failed to create global gitignore: %v\n", err)
-	}
-
-	fmt.Printf("Bootstrapping git config (email: %s, name: %s, excludes: /etc/gitignore_global)...\n", email, name)
-
-	commands := [][]string{
-		{"sudo", "git", "config", "--system", "user.email", email},
-		{"sudo", "git", "config", "--system", "user.name", name},
-		{"sudo", "git", "config", "--system", "safe.directory", "*"},
-		{"sudo", "git", "config", "--system", "core.excludesFile", "/etc/gitignore_global"},
-	}
-
-	for _, cmd := range commands {
-		// Use root to bootstrap system config robustly
-		if _, err := s.Docker.ExecAsUser(ctx, containerID, "root", cmd); err != nil {
-			return fmt.Errorf("failed to execute git bootstrap command %v: %w", cmd, err)
+	if !s.UseLocalAgent {
+		writeCmd := []string{"/bin/sh", "-c", fmt.Sprintf("echo '%s' > /etc/gitignore_global", ignoreContent)}
+		if _, err := s.Docker.ExecAsUser(ctx, containerID, "root", writeCmd); err != nil {
+			fmt.Printf("Warning: Failed to create global gitignore: %v\n", err)
 		}
+
+		fmt.Printf("Bootstrapping git config (email: %s, name: %s, excludes: /etc/gitignore_global)...\n", email, name)
+
+		commands := [][]string{
+			{"sudo", "git", "config", "--system", "user.email", email},
+			{"sudo", "git", "config", "--system", "user.name", name},
+			{"sudo", "git", "config", "--system", "safe.directory", "*"},
+			{"sudo", "git", "config", "--system", "core.excludesFile", "/etc/gitignore_global"},
+		}
+
+		for _, cmd := range commands {
+			// Use root to bootstrap system config robustly
+			if _, err := s.Docker.ExecAsUser(ctx, containerID, "root", cmd); err != nil {
+				return fmt.Errorf("failed to execute git bootstrap command %v: %w", cmd, err)
+			}
+		}
+	} else {
+		fmt.Println("Skipping system-level git bootstrap in local mode (relying on env vars).")
 	}
 
 	return nil
@@ -2167,9 +2309,14 @@ func (s *Session) fixPasswdDatabase(ctx context.Context, containerUser string) {
 	groupCheckCmd := []string{"getent", "group", gid}
 	groupOut, groupErr := s.Docker.ExecAsUser(ctx, s.GetContainerID(), "root", groupCheckCmd)
 	if groupErr != nil || strings.TrimSpace(groupOut) == "" {
+		// Try groupadd first
 		groupAddCmd := []string{"groupadd", "-g", gid, "appgroup"}
 		if _, err := s.Docker.ExecAsUser(ctx, s.GetContainerID(), "root", groupAddCmd); err != nil {
-			fmt.Printf("Warning: Failed to create group %s: %v\n", gid, err)
+			// Fallback to Alpine addgroup
+			groupAddCmd = []string{"addgroup", "-g", gid, "appgroup"}
+			if _, err := s.Docker.ExecAsUser(ctx, s.GetContainerID(), "root", groupAddCmd); err != nil {
+				fmt.Printf("Warning: Failed to create group %s: %v\n", gid, err)
+			}
 		}
 	}
 
@@ -2177,10 +2324,15 @@ func (s *Session) fixPasswdDatabase(ctx context.Context, containerUser string) {
 	userCheckCmd := []string{"getent", "passwd", uid}
 	userOut, userErr := s.Docker.ExecAsUser(ctx, s.GetContainerID(), "root", userCheckCmd)
 	if userErr != nil || strings.TrimSpace(userOut) == "" {
-		// -u UID, -g GID, -m (create home), -s shell, -d home
+		// Try useradd first
 		userAddCmd := []string{"useradd", "-u", uid, "-g", gid, "-m", "-s", "/bin/sh", "-d", "/workspace", "appuser"}
 		if _, err := s.Docker.ExecAsUser(ctx, s.GetContainerID(), "root", userAddCmd); err != nil {
-			fmt.Printf("Warning: Failed to create user %s: %v\n", uid, err)
+			// Fallback to Alpine adduser
+			// adduser -u UID -G appgroup -h /workspace -s /bin/sh -D appuser
+			userAddCmd = []string{"adduser", "-u", uid, "-G", "appgroup", "-h", "/workspace", "-s", "/bin/sh", "-D", "appuser"}
+			if _, err := s.Docker.ExecAsUser(ctx, s.GetContainerID(), "root", userAddCmd); err != nil {
+				fmt.Printf("Warning: Failed to create user %s: %v\n", uid, err)
+			}
 		}
 	}
 }
@@ -2213,41 +2365,55 @@ func (s *Session) fixPermissions(ctx context.Context) error {
 
 // EnsureConflictTask checks if "Resolve Merge Conflicts" task exists, otherwise adds it.
 func (s *Session) EnsureConflictTask() {
+	if s.DBStore == nil {
+		return
+	}
 	features := s.loadFeatures()
 	conflictTaskID := "CONFLICT_RES"
+	needsUpdate := false
 
 	// Check if already exists/pending
-	for _, f := range features {
+	for idx, f := range features {
 		if f.ID == conflictTaskID {
 			if f.Status == "done" || f.Status == "implemented" || f.Passes {
 				// Reset it to todo since we have a NEW conflict
-				// We need to mutate the list and save.
-				var updatedFeatures []db.Feature
-				for _, fx := range features {
-					if fx.ID == conflictTaskID {
-						fx.Status = "todo"
-						fx.Passes = false
-					}
-					updatedFeatures = append(updatedFeatures, fx)
-				}
-				s.syncFeatureFile(db.FeatureList{Features: updatedFeatures})
+				features[idx].Status = "todo"
+				features[idx].Passes = false
+				needsUpdate = true
 			}
-			return // Exists and is active or just reset
+			break
 		}
 	}
 
-	// Add new
-	newFeature := db.Feature{
-		ID:          conflictTaskID,
-		Category:    "Guardrail",
-		Priority:    "Critical",
-		Description: fmt.Sprintf("Resolve git merge conflicts with branch %s. Files contain conflict markers (<<<< HEAD). Fix them and commit.", s.BaseBranch),
-		Status:      "todo",
-		Passes:      false,
+	// Add new if not found (needsUpdate loop below handles the save)
+	found := false
+	for _, f := range features {
+		if f.ID == conflictTaskID {
+			found = true
+			break
+		}
 	}
 
-	features = append(features, newFeature)
-	s.syncFeatureFile(db.FeatureList{Features: features})
+	if !found {
+		newFeature := db.Feature{
+			ID:          conflictTaskID,
+			Category:    "Guardrail",
+			Priority:    "Critical",
+			Description: fmt.Sprintf("Resolve git merge conflicts with branch %s. Files contain conflict markers (<<<< HEAD). Fix them and commit.", s.BaseBranch),
+			Status:      "todo",
+			Passes:      false,
+		}
+		features = append(features, newFeature)
+		needsUpdate = true
+	}
+
+	if needsUpdate {
+		fl := db.FeatureList{Features: features}
+		data, err := json.Marshal(fl)
+		if err == nil {
+			_ = s.DBStore.SaveFeatures(s.Project, string(data))
+		}
+	}
 }
 
 // runInitScript checks for init.sh in the workspace and executes it if present.
@@ -2261,21 +2427,41 @@ func (s *Session) runInitScript(ctx context.Context) {
 	fmt.Println("Found init.sh. Executing in container...")
 
 	// 1. Ensure executable
-	if _, err := s.Docker.ExecAsUser(ctx, s.GetContainerID(), "root", []string{"chmod", "+x", "init.sh"}); err != nil {
-		fmt.Printf("Warning: Failed to make init.sh executable: %v\n", err)
-		return
+	if s.UseLocalAgent {
+		if err := os.Chmod(initPath, 0755); err != nil {
+			fmt.Printf("Warning: Failed to make init.sh executable: %v\n", err)
+			return
+		}
+	} else {
+		if _, err := s.Docker.ExecAsUser(ctx, s.GetContainerID(), "root", []string{"chmod", "+x", "init.sh"}); err != nil {
+			fmt.Printf("Warning: Failed to make init.sh executable: %v\n", err)
+			return
+		}
 	}
 
 	// 2. Execute Async
 	fmt.Println("Found init.sh. Launching in background (10m timeout)...")
 	go func() {
-		// Use a fresh context so it doesn't get cancelled if the parent context is short.
-		// But usually we want it bound to app lifecycle?
-		// For async setup, we want it to finish even if we move on.
-		asyncCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second*60)
+		asyncCtx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
 
-		output, err := s.Docker.ExecAsUser(asyncCtx, s.GetContainerID(), "root", []string{"/bin/sh", "-c", "./init.sh"})
+		var output string
+		var err error
+
+		if s.UseLocalAgent {
+			// Local Execution
+			cmd := exec.CommandContext(asyncCtx, "/bin/sh", "-c", "./init.sh")
+			cmd.Dir = s.Workspace
+			var outBuf bytes.Buffer
+			cmd.Stdout = &outBuf
+			cmd.Stderr = &outBuf
+			err = cmd.Run()
+			output = outBuf.String()
+		} else {
+			// Docker Execution
+			output, err = s.Docker.ExecAsUser(asyncCtx, s.GetContainerID(), "root", []string{"/bin/sh", "-c", "./init.sh"})
+		}
+
 		if err != nil {
 			if asyncCtx.Err() == context.DeadlineExceeded {
 				fmt.Printf("Warning: init.sh execution timed out after 10 minutes.\n")
