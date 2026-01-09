@@ -29,3 +29,5 @@ data:
   RECAC_ORCHESTRATOR_JIRA_LABEL: {{ .Values.config.jira_label | quote }}
   RECAC_ORCHESTRATOR_JIRA_QUERY: {{ .Values.config.jira_query | quote }}
   RECAC_DB_TYPE: {{ .Values.config.dbType | quote }}
+  RECAC_NOTIFICATIONS_DISCORD_ENABLED: {{ .Values.config.notifications.discord.enabled | default true | quote }}
+  RECAC_NOTIFICATIONS_SLACK_ENABLED: {{ .Values.config.notifications.slack.enabled | default true | quote }}
