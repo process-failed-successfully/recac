@@ -552,6 +552,11 @@ func (s *Session) Start(ctx context.Context) error {
 		}
 	}
 
+	// Explicitly inject Session Context (Critical for DB persistence)
+	if s.Project != "" {
+		env = append(env, fmt.Sprintf("RECAC_PROJECT_ID=%s", s.Project))
+	}
+
 	// Run Container (or Skip if Local/Restricted)
 	if s.UseLocalAgent || s.Docker == nil {
 		if s.Logger != nil {
@@ -1931,6 +1936,8 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 		if s.UseLocalAgent {
 			// Execute Locally
 			cmd := exec.CommandContext(cmdCtx, "/bin/bash", "-c", cmdScript)
+			// Propagate Environment + Inject Project ID
+			cmd.Env = append(os.Environ(), fmt.Sprintf("RECAC_PROJECT_ID=%s", s.Project))
 			cmd.Dir = s.Workspace // Run in workspace
 			// Capture Combined Output
 			var outBuf bytes.Buffer
