@@ -454,8 +454,7 @@ func processDirectTask(ctx context.Context, cfg SessionConfig) {
 			logger.Error("Error writing app_spec.txt", "error", err)
 			return
 		}
-		// Remove existing feature list to force agent to focus on this task
-		_ = os.Remove(filepath.Join(cfg.ProjectPath, "feature_list.json"))
+
 		logger.Info("Refreshed workspace context from task description")
 	}
 
