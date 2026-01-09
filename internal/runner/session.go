@@ -1563,6 +1563,20 @@ func (s *Session) loadFeatures() []db.Feature {
 		}
 	}
 
+	// 3. Fallback to feature_list.json file (Legacy/Local mode)
+	listPath := filepath.Join(s.Workspace, "feature_list.json")
+	if data, err := os.ReadFile(listPath); err == nil {
+		var fl db.FeatureList
+		if err := json.Unmarshal(data, &fl); err == nil {
+			s.Logger.Info("loaded features from file", "path", listPath)
+			// Sync to DB
+			if s.DBStore != nil {
+				_ = s.DBStore.SaveFeatures(s.Project, string(data))
+			}
+			return fl.Features
+		}
+	}
+
 	return nil
 }
 
