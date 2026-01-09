@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -12,7 +11,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
 
 // TestHelperProcess isn't a real test. It's a helper process that's executed
@@ -31,49 +29,6 @@ func TestHelperProcess(t *testing.T) {
 	}
 }
 
-func executeCommand(root *cobra.Command, args ...string) (string, error) {
-	resetFlags(root)
-	// Mock exit
-	oldExit := exit
-	exit = func(code int) {
-		if code != 0 {
-			panic(fmt.Sprintf("exit-%d", code))
-		}
-	}
-	defer func() { exit = oldExit }()
-
-	defer func() {
-		if r := recover(); r != nil {
-			if s, ok := r.(string); ok && strings.HasPrefix(s, "exit-") {
-				// This is an expected exit, don't re-panic
-				return
-			}
-			panic(r) // Re-panic actual panics
-		}
-	}()
-
-	root.SetArgs(args)
-	b := new(bytes.Buffer)
-	root.SetOut(b)
-	root.SetErr(b)
-	// Mock Stdin to avoid hanging on interactive prompts (e.g. wizard)
-	root.SetIn(bytes.NewBufferString(""))
-
-	err := root.Execute()
-	return b.String(), err
-}
-
-func resetFlags(cmd *cobra.Command) {
-	cmd.Flags().VisitAll(func(f *pflag.Flag) {
-		if f.Changed {
-			f.Value.Set(f.DefValue)
-			f.Changed = false
-		}
-	})
-	for _, c := range cmd.Commands() {
-		resetFlags(c)
-	}
-}
 
 func TestCommands(t *testing.T) {
 	// Setup global test env
