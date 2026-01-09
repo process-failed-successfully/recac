@@ -1,5 +1,6 @@
 .agent_*
 feature_list.json
+initial_features.json
 .recac.db
 app_spec.txt
 manager_directives.txt

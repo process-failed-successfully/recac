@@ -13,8 +13,9 @@ Your job is to set up the foundation for all future coding agents.
 ### CRITICAL: feature_list.json Requirements
 
 Based on `app_spec.txt`, **YOU MUST CREATE `feature_list.json`**.
-**You MUST use a `bash` block with `cat > feature_list.json << 'EOF'` to create this file.**
-This is the single source of truth for features. The system maintains an authoritative database mirror of this file for resilience; if the file is deleted or corrupted, the orchestrator will automatically restore it from the DB.
+**You MUST use a `bash` block with `cat << 'EOF' | agent-bridge import` to create the features.**
+This creates the features in the authoritative database.
+**DO NOT use `cat > feature_list.json` or write the file to the workspace.** The system is database-driven.
 
 - **Acceptance Tests**: Minimum 2-10 detailed test cases that cover the core requirements (2-3 for simple scripts, 5-10 for complex apps).
 - **Pragmatic Scope**: DO NOT hallucinate features not mentioned in the spec. Focus purely on what is requested.
