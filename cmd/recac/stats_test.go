@@ -60,11 +60,14 @@ func TestCalculateStats(t *testing.T) {
 		},
 	}
 
+	// Convert slice to map for the mock
+	sessionsMap := make(map[string]*runner.SessionState)
+	for _, s := range mockSessions {
+		sessionsMap[s.Name] = s
+	}
+
 	sm := &MockSessionManager{
-		Sessions: mockSessions,
-		IsProcessRunningFunc: func(pid int) bool {
-			return pid == 123 // Only session3 is "running"
-		},
+		Sessions: sessionsMap,
 	}
 
 	// Calculate stats

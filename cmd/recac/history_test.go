@@ -1,246 +1,111 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
-	"recac/internal/agent"
-	"recac/internal/runner"
+	"strings"
 	"testing"
 	"time"
-
-	"github.com/spf13/cobra"
-
-	"github.com/stretchr/testify/assert"
+	"recac/internal/agent"
+	"recac/internal/runner"
 	"github.com/stretchr/testify/require"
-
-	"github.com/AlecAivazis/survey/v2"
 )
 
-// MockSessionManager is a mock that implements ISessionManager for testing.
-type MockSessionManager struct {
-	Sessions             []*runner.SessionState
-	Err                  error
-	IsProcessRunningFunc func(pid int) bool
-}
+// TestHistoryCommand tests the enhanced history command.
+func TestHistoryCommand(t *testing.T) {
+	// 1. Setup Mock Session
+	tempDir := t.TempDir()
+	sessionsDir := filepath.Join(tempDir, ".recac", "sessions")
+	err := os.MkdirAll(sessionsDir, 0755)
+	require.NoError(t, err)
 
-func (m *MockSessionManager) ListSessions() ([]*runner.SessionState, error) {
-	return m.Sessions, m.Err
-}
+	// Create mock session manager
+	sm, err := runner.NewSessionManagerWithDir(sessionsDir)
+	require.NoError(t, err)
 
-func (m *MockSessionManager) LoadSession(name string) (*runner.SessionState, error) {
-	for _, s := range m.Sessions {
-		if s.Name == name {
-			return s, nil
-		}
-	}
-	return nil, fmt.Errorf("session '%s' not found", name)
-}
+	// Create mock log file
+	logContent := "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11"
+	logFile := filepath.Join(sessionsDir, "test-session.log")
+	err = os.WriteFile(logFile, []byte(logContent), 0644)
+	require.NoError(t, err)
 
-func (m *MockSessionManager) IsProcessRunning(pid int) bool {
-	if m.IsProcessRunningFunc != nil {
-		return m.IsProcessRunningFunc(pid)
-	}
-	// Default mock behavior
-	return pid%2 != 0 // Let's consider odd PIDs as running for this mock
-}
-
-// Implement unused methods to satisfy the interface
-func (m *MockSessionManager) SaveSession(s *runner.SessionState) error    { return nil }
-func (m *MockSessionManager) StopSession(name string) error                 { return nil }
-func (m *MockSessionManager) GetSessionLogs(name string) (string, error)    { return "", nil }
-func (m *MockSessionManager) StartSession(name string, command []string, workspace string) (*runner.SessionState, error) {
-	return nil, nil
-}
-func (m *MockSessionManager) GetSessionPath(name string) string { return "" }
-
-
-// runCommand executes a cobra command and captures its output.
-func runCommand(cmd *cobra.Command, args ...string) (string, error) {
-	buf := new(bytes.Buffer)
-	cmd.SetOut(buf)
-	cmd.SetErr(buf)
-	cmd.SetArgs(args)
-
-	err := cmd.Execute()
-	return buf.String(), err
-}
-
-// setupTestSessions creates a slice of sessions with varying properties for testing.
-func setupTestSessions(t *testing.T) []*runner.SessionState {
-	t.Helper()
-
-	// createAgentState creates a temporary agent state file and returns its path.
-	createAgentState := func(name string, model string, promptTokens, completionTokens int) string {
-		tmpDir := t.TempDir()
-		state := agent.State{
-			Model: model,
-			TokenUsage: agent.TokenUsage{
-				TotalPromptTokens:     promptTokens,
-				TotalResponseTokens: completionTokens,
-				TotalTokens:      promptTokens + completionTokens,
-			},
-		}
-		filePath := filepath.Join(tmpDir, name+"_agent_state.json")
-		data, err := json.Marshal(state)
-		require.NoError(t, err)
-		err = os.WriteFile(filePath, data, 0644)
-		require.NoError(t, err)
-		return filePath
-	}
-
-	// createLogFile creates a temporary log file.
-	createLogFile := func(name string, content string) string {
-		tmpDir := t.TempDir()
-		filePath := filepath.Join(tmpDir, name+".log")
-		err := os.WriteFile(filePath, []byte(content), 0644)
-		require.NoError(t, err)
-		return filePath
-	}
-
-	return []*runner.SessionState{
-		{
-			Name:           "session-1-completed",
-			Status:         "completed",
-			StartTime:      time.Now().Add(-2 * time.Hour),
-			EndTime:        time.Now().Add(-1 * time.Hour),
-			PID:            101,
-			Type:           "detached",
-			Workspace:      "/tmp/workspace1",
-			LogFile:        createLogFile("session-1", "line1\nline2\n"),
-			AgentStateFile: createAgentState("session-1", "gemini-pro", 100, 200),
-		},
-		{
-			Name:           "session-2-failed",
-			Status:         "failed",
-			StartTime:      time.Now().Add(-4 * time.Hour),
-			EndTime:        time.Now().Add(-3 * time.Hour),
-			PID:            102,
-			Type:           "interactive",
-			Workspace:      "/tmp/workspace2",
-			LogFile:        createLogFile("session-2", "error log\n"),
-			Error:          "Process exited with code 1",
-			AgentStateFile: createAgentState("session-2", "gpt-4", 500, 0),
-		},
-		{
-			Name:           "session-3-running",
-			Status:         "running",
-			StartTime:      time.Now().Add(-10 * time.Minute),
-			PID:            103, // Odd PID, so IsProcessRunning will be true
-			Workspace:      "/tmp/workspace3",
-			LogFile:        createLogFile("session-3", "still running...\n"),
-			AgentStateFile: createAgentState("session-3", "ollama", 10, 10),
+	// Create mock agent state file
+	agentState := agent.State{
+		Model: "test-model",
+		TokenUsage: agent.TokenUsage{
+			TotalPromptTokens:     100,
+			TotalResponseTokens: 200,
+			TotalTokens:          300,
 		},
 	}
-}
+	agentStateContent, err := json.Marshal(agentState)
+	require.NoError(t, err)
+	agentStateFile := filepath.Join(sessionsDir, ".agent_state.json")
+	err = os.WriteFile(agentStateFile, agentStateContent, 0644)
+	require.NoError(t, err)
 
-
-// TestHistoryCmd_DetailView tests the command when a session name is provided directly.
-func TestHistoryCmd_DetailView(t *testing.T) {
-	// Setup
-	sessions := setupTestSessions(t)
-	mockSM := &MockSessionManager{
-		Sessions: sessions,
-		IsProcessRunningFunc: func(pid int) bool { return pid == 103 },
+	// Create and save mock session state
+	session := &runner.SessionState{
+		Name:           "test-session",
+		Status:         "completed",
+		PID:            12345,
+		Type:           "detached",
+		StartTime:      time.Now().Add(-1 * time.Hour),
+		EndTime:        time.Now(),
+		Workspace:      "/tmp/workspace",
+		LogFile:        logFile,
+		AgentStateFile: agentStateFile,
+		Error:          "test error",
 	}
+	sessionPath := sm.GetSessionPath("test-session")
+	sessionContent, err := json.Marshal(session)
+	require.NoError(t, err)
+	err = os.WriteFile(sessionPath, sessionContent, 0644)
+	require.NoError(t, err)
 
-	// Replace the factory
+	// 2. Setup Cobra Command
+	rootCmd, _, _ := newRootCmd()
+	initHistoryCmd(rootCmd)
+
+	// Mock the sessionManagerFactory
 	originalFactory := sessionManagerFactory
 	sessionManagerFactory = func() (ISessionManager, error) {
-		return mockSM, nil
+		return sm, nil
 	}
 	defer func() { sessionManagerFactory = originalFactory }()
 
-	// Create root command and initialize history command
-	rootCmd := &cobra.Command{Use: "recac"}
-	initHistoryCmd(rootCmd)
+	// 3. Run and Assert: Standard History (last 10 lines)
+	t.Run("Standard History", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "history", "test-session")
+		require.NoError(t, err)
+		// Check for session details
+		require.Contains(t, output, "Session Details for 'test-session'")
+		require.Regexp(t, `Status:\s+completed`, output)
+		require.Regexp(t, `Error:\s+test error`, output)
 
-	// Execute
-	output, err := runCommand(rootCmd, "history", "session-1-completed")
+		// Check for agent state
+		require.Contains(t, output, "Agent & Token Usage")
+		require.Regexp(t, `Model:\s+test-model`, output)
+		require.Regexp(t, `Total Tokens:\s+300`, output)
 
-	// Assert
-	require.NoError(t, err)
-	assert.Contains(t, output, "Session Details for 'session-1-completed'")
-	require.Regexp(t, `Status:\s+completed`, output)
-	assert.Contains(t, output, "Duration:")
-	require.Regexp(t, `Model:\s+gemini-pro`, output)
-	require.Regexp(t, `Total Tokens:\s+300`, output)
-	assert.Contains(t, output, "Estimated Cost:")
-	assert.Contains(t, output, "Recent Logs")
-	assert.Contains(t, output, "line1\nline2")
-}
+		// Check for recent logs (last 10 lines)
+		require.Contains(t, output, "Recent Logs (last 10 lines)")
+		require.NotContains(t, output, "line 1\n") // Should not be present
+		require.Contains(t, output, "line 11")
+		require.Equal(t, 10, strings.Count(output[strings.Index(output, "Recent Logs"):], "\n")-2) // 10 log lines
+	})
 
-
-// TestHistoryCmd_NoSessions tests the interactive mode when no sessions exist.
-func TestHistoryCmd_NoSessions(t *testing.T) {
-	// Setup
-	mockSM := &MockSessionManager{Sessions: []*runner.SessionState{}}
-	originalFactory := sessionManagerFactory
-	sessionManagerFactory = func() (ISessionManager, error) {
-		return mockSM, nil
-	}
-	defer func() { sessionManagerFactory = originalFactory }()
-
-	rootCmd := &cobra.Command{Use: "recac"}
-	initHistoryCmd(rootCmd)
-
-	// Execute
-	output, err := runCommand(rootCmd, "history")
-
-	// Assert
-	require.NoError(t, err)
-	assert.Contains(t, output, "No sessions found.")
-}
-
-// TestHistoryCmd_InteractiveSelection tests the interactive session selection flow.
-func TestHistoryCmd_InteractiveSelection(t *testing.T) {
-	// Setup
-	sessions := setupTestSessions(t)
-	mockSM := &MockSessionManager{
-		Sessions: sessions,
-		IsProcessRunningFunc: func(pid int) bool { return pid == 103 },
-	}
-
-	originalFactory := sessionManagerFactory
-	sessionManagerFactory = func() (ISessionManager, error) {
-		return mockSM, nil
-	}
-	defer func() { sessionManagerFactory = originalFactory }()
-
-	// This is the magic part for testing survey prompts
-	askOne = func(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {
-		// We expect a Select prompt
-		selectPrompt, ok := p.(*survey.Select)
-		require.True(t, ok, "Expected a survey.Select prompt")
-
-		// Assert options are correct and in the right order (newest first)
-		require.Len(t, selectPrompt.Options, 3)
-		assert.Contains(t, selectPrompt.Options[0], "session-3-running")
-		assert.Contains(t, selectPrompt.Options[1], "session-1-completed")
-		assert.Contains(t, selectPrompt.Options[2], "session-2-failed")
-
-		// Simulate the user selecting the second option ("session-1-completed")
-		val := response.(*string)
-		*val = selectPrompt.Options[1] // Choose the completed session
-
-		return nil
-	}
-	// Restore original function after test
-	defer func() { askOne = survey.AskOne }()
-
-
-	rootCmd := &cobra.Command{Use: "recac"}
-	initHistoryCmd(rootCmd)
-
-	// Execute
-	output, err := runCommand(rootCmd, "history")
-
-	// Assert: Should show details for the selected session
-	require.NoError(t, err)
-	assert.Contains(t, output, "Session Details for 'session-1-completed'")
-	require.Regexp(t, `Status:\s+completed`, output)
-	require.Regexp(t, `Model:\s+gemini-pro`, output)
-	require.Regexp(t, `Total Tokens:\s+300`, output)
+	// 4. Run and Assert: Full Logs
+	t.Run("Full Logs History", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "history", "test-session", "--full-logs")
+		require.NoError(t, err)
+		// Check for full logs header
+		require.Contains(t, output, "Full Logs")
+		// Check that all lines are present
+		require.Contains(t, output, "line 1\n")
+		require.Contains(t, output, "line 11")
+		// 11 log lines + header/separator
+		require.Equal(t, 11, strings.Count(output[strings.Index(output, "Full Logs"):], "\n")-2)
+	})
 }

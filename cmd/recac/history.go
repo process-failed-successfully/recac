@@ -20,6 +20,7 @@ var askOne = survey.AskOne
 
 // initHistoryCmd initializes the history command and adds it to the root command.
 func initHistoryCmd(rootCmd *cobra.Command) {
+	var fullLogs bool
 	historyCmd := &cobra.Command{
 		Use:   "history [session-name]",
 		Short: "Show history of a specific session or a list of all sessions",
@@ -30,38 +31,34 @@ If no session name is provided, it lists all sessions and prompts for a selectio
 			if err != nil {
 				return fmt.Errorf("failed to initialize session manager: %w", err)
 			}
-
 			if len(args) > 0 {
 				sessionName := args[0]
 				session, err := sm.LoadSession(sessionName)
 				if err != nil {
 					return fmt.Errorf("failed to load session '%s': %w", sessionName, err)
 				}
-				return displaySessionDetail(cmd, session)
+				return displaySessionDetail(cmd, session, fullLogs)
 			}
-			return runInteractiveHistory(cmd, sm)
+			return runInteractiveHistory(cmd, sm, fullLogs)
 		},
 	}
+	historyCmd.Flags().BoolVar(&fullLogs, "full-logs", false, "Display full log file content")
 	rootCmd.AddCommand(historyCmd)
 }
 
 // runInteractiveHistory handles the interactive session selection.
-func runInteractiveHistory(cmd *cobra.Command, sm ISessionManager) error {
+func runInteractiveHistory(cmd *cobra.Command, sm ISessionManager, fullLogs bool) error {
 	sessions, err := sm.ListSessions()
 	if err != nil {
 		return fmt.Errorf("failed to list sessions: %w", err)
 	}
-
 	if len(sessions) == 0 {
 		cmd.Println("No sessions found.")
 		return nil
 	}
-
-	// Sort sessions by start time, descending
 	sort.Slice(sessions, func(i, j int) bool {
 		return sessions[i].StartTime.After(sessions[j].StartTime)
 	})
-
 	var displaySessions []string
 	sessionMap := make(map[string]*runner.SessionState)
 	for _, s := range sessions {
@@ -69,16 +66,14 @@ func runInteractiveHistory(cmd *cobra.Command, sm ISessionManager) error {
 		if s.Status == "running" && !sm.IsProcessRunning(s.PID) {
 			status = "completed"
 		}
-		// Format for display: "SessionName (Status | 2023-10-27 10:00)"
 		display := fmt.Sprintf("%-30s (%-10s | %s)", s.Name, status, s.StartTime.Format("2006-01-02 15:04"))
 		displaySessions = append(displaySessions, display)
 		sessionMap[display] = s
 	}
-
 	var selectedDisplay string
 	prompt := &survey.Select{
-		Message: "Select a session to view its history:",
-		Options: displaySessions,
+		Message:  "Select a session to view its history:",
+		Options:  displaySessions,
 		PageSize: 15,
 	}
 	if err := askOne(prompt, &selectedDisplay); err != nil {
@@ -87,17 +82,15 @@ func runInteractiveHistory(cmd *cobra.Command, sm ISessionManager) error {
 		}
 		return fmt.Errorf("failed to select session: %w", err)
 	}
-
 	selectedSession := sessionMap[selectedDisplay]
-	return displaySessionDetail(cmd, selectedSession)
+	return displaySessionDetail(cmd, selectedSession, fullLogs)
 }
 
 // displaySessionDetail prints a detailed view of a single session.
-func displaySessionDetail(cmd *cobra.Command, session *runner.SessionState) error {
+func displaySessionDetail(cmd *cobra.Command, session *runner.SessionState, fullLogs bool) error {
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-
 	fmt.Fprintf(w, "Session Details for '%s'\n", session.Name)
-	fmt.Fprintf(w, "-------------------------\n")
+	fmt.Fprintln(w, "-------------------------")
 	fmt.Fprintf(w, "Name:\t%s\n", session.Name)
 	fmt.Fprintf(w, "Status:\t%s\n", session.Status)
 	fmt.Fprintf(w, "PID:\t%d\n", session.PID)
@@ -113,53 +106,48 @@ func displaySessionDetail(cmd *cobra.Command, session *runner.SessionState) erro
 		fmt.Fprintf(w, "Error:\t%s\n", session.Error)
 	}
 	w.Flush()
-
-	// Agent State and Cost
 	if session.AgentStateFile != "" {
 		agentState, err := loadAgentState(session.AgentStateFile)
 		if err == nil {
-			fmt.Println("\nAgent & Token Usage")
-			fmt.Println("-------------------")
+			fmt.Fprintln(w, "\nAgent & Token Usage")
+			fmt.Fprintln(w, "-------------------")
 			fmt.Fprintf(w, "Model:\t%s\n", agentState.Model)
 			fmt.Fprintf(w, "Prompt Tokens:\t%d\n", agentState.TokenUsage.TotalPromptTokens)
 			fmt.Fprintf(w, "Completion Tokens:\t%d\n", agentState.TokenUsage.TotalResponseTokens)
 			fmt.Fprintf(w, "Total Tokens:\t%d\n", agentState.TokenUsage.TotalTokens)
-
 			cost := agent.CalculateCost(agentState.Model, agentState.TokenUsage)
 			fmt.Fprintf(w, "Estimated Cost:\t$%.6f\n", cost)
 			w.Flush()
-		} else {
-			fmt.Fprintf(cmd.OutOrStdout(), "\nCould not load agent state from %s: %v\n", session.AgentStateFile, err)
+		} else if !os.IsNotExist(err) {
+			// Only show error if the file exists but is invalid.
+			fmt.Fprintf(cmd.ErrOrStderr(), "\nWarning: Could not load agent state from %s: %v\n", session.AgentStateFile, err)
 		}
-	} else {
-		fmt.Fprintln(cmd.OutOrStdout(), "\nNo agent state file associated with this session.")
 	}
-
-
-	// Display last 10 lines of the log file
 	if _, err := os.Stat(session.LogFile); err == nil {
-		fmt.Fprintf(w, "\nRecent Logs (last 10 lines)\n")
-		fmt.Fprintf(w, "---------------------------\n")
-		w.Flush()
-
-		// In a real scenario, we might use a more robust method to get last N lines,
-		// but for a CLI tool, this is often sufficient.
 		logContent, err := os.ReadFile(session.LogFile)
 		if err == nil {
 			lines := strings.Split(strings.TrimSpace(string(logContent)), "\n")
-			start := 0
-			if len(lines) > 10 {
-				start = len(lines) - 10
-			}
-			for _, line := range lines[start:] {
-				cmd.Println(line)
+			if fullLogs {
+				fmt.Fprintln(w, "\nFull Logs")
+				fmt.Fprintln(w, "-----------")
+				w.Flush()
+				cmd.Println(string(logContent))
+			} else {
+				fmt.Fprintln(w, "\nRecent Logs (last 10 lines)")
+				fmt.Fprintln(w, "---------------------------")
+				w.Flush()
+				start := 0
+				if len(lines) > 10 {
+					start = len(lines) - 10
+				}
+				for _, line := range lines[start:] {
+					cmd.Println(line)
+				}
 			}
 		} else {
 			cmd.PrintErrf("Failed to read log file: %v\n", err)
 		}
 	}
-
-
 	return nil
 }
 
