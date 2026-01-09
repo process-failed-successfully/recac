@@ -86,15 +86,6 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 
 	// 3. Execute Work in Background
 	go func() {
-		/* defer func() {
-			// Cleanup container
-			_ = s.Client.StopContainer(context.Background(), containerID)
-			// Cleanup workspace? Spec says "Persistence: Any changes must be pushed...".
-			// "Ephemeral: The workspace exists only for the duration of the Job".
-			// So yes, cleanup.
-			_ = os.RemoveAll(tempDir)
-		}() */
-
 		// Construct Command
 		// 1. Export Env Vars
 		// 2. Clone Repo (Auth?)

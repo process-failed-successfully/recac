@@ -61,9 +61,7 @@ func runHistoryCmd(newSessionManager func() (*runner.SessionManager, error)) err
 			agentState, err := loadAgentState(s.AgentStateFile)
 			if err == nil {
 				totalTokens = agentState.TokenUsage.TotalTokens
-				// NOTE: This is a simplified cost model and does not account for different model pricing.
-				// It assumes a generic rate of $1.00 per 1,000,000 tokens.
-				estimatedCost = float64(totalTokens) / 1_000_000.0
+				estimatedCost = agent.CalculateCost(agentState.Model, agentState.TokenUsage)
 			}
 		}
 
