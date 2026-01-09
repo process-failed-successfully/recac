@@ -47,8 +47,6 @@ func searchLogs(pattern string, cmd *cobra.Command) error {
 			// Log file might not exist for some sessions, so we skip it.
 			continue
 		}
-		defer file.Close()
-
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -57,6 +55,7 @@ func searchLogs(pattern string, cmd *cobra.Command) error {
 				foundMatch = true
 			}
 		}
+		file.Close()
 	}
 
 	if !foundMatch {
