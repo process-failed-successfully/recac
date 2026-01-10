@@ -13,79 +13,138 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCalculateStats(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	// Helper to create agent state files
-	createAgentStateFile := func(name string, model string, promptTokens, responseTokens int) string {
-		state := agent.State{
-			Model: model,
-			TokenUsage: agent.TokenUsage{
-				TotalPromptTokens:   promptTokens,
-				TotalResponseTokens: responseTokens,
-				TotalTokens:         promptTokens + responseTokens,
-			},
-		}
-		filePath := filepath.Join(tmpDir, name+"_agent_state.json")
-		data, err := json.Marshal(state)
-		require.NoError(t, err)
-		os.WriteFile(filePath, data, 0644)
-		return filePath
+// Helper to create agent state files for testing
+func createAgentStateFile(t *testing.T, dir string, name string, model string, promptTokens, responseTokens int) string {
+	state := agent.State{
+		Model: model,
+		TokenUsage: agent.TokenUsage{
+			TotalPromptTokens:   promptTokens,
+			TotalResponseTokens: responseTokens,
+			TotalTokens:         promptTokens + responseTokens,
+		},
 	}
+	filePath := filepath.Join(dir, name+"_agent_state.json")
+	data, err := json.Marshal(state)
+	require.NoError(t, err)
+	os.WriteFile(filePath, data, 0644)
+	return filePath
+}
 
+func setupMockSessions(t *testing.T, tmpDir string) *MockSessionManager {
 	mockSessions := []*runner.SessionState{
 		{
-			Name:           "session1-completed",
-			Status:         "completed",
-			AgentStateFile: createAgentStateFile("s1", "gemini-1.5-pro-latest", 100, 200),
-			StartTime:      time.Now(),
+			Name:           "session1-completed-gemini",
+			Status:         "COMPLETED",
+			AgentStateFile: createAgentStateFile(t, tmpDir, "s1", "gemini-1.5-pro-latest", 100, 200),
+			StartTime:      time.Now().Add(-1 * time.Hour),
 		},
 		{
-			Name:           "session2-completed",
-			Status:         "completed",
-			AgentStateFile: createAgentStateFile("s2", "claude-3-opus-20240229", 50, 150),
-			StartTime:      time.Now(),
+			Name:           "session2-completed-claude",
+			Status:         "COMPLETED",
+			AgentStateFile: createAgentStateFile(t, tmpDir, "s2", "claude-3-opus-20240229", 50, 150),
+			StartTime:      time.Now().Add(-25 * time.Hour),
 		},
 		{
 			Name:      "session3-running",
-			Status:    "running",
+			Status:    "RUNNING",
 			PID:       123, // Mock PID
-			StartTime: time.Now(),
+			StartTime: time.Now().Add(-10 * time.Minute),
 		},
 		{
-			Name:           "session4-failed-no-state",
-			Status:         "failed",
+			Name:           "session4-failed",
+			Status:         "FAILED",
+			AgentStateFile: createAgentStateFile(t, tmpDir, "s4", "gemini-1.5-pro-latest", 10, 20),
+			StartTime:      time.Now().Add(-3 * 24 * time.Hour),
+		},
+		{
+			Name:           "session5-no-state",
+			Status:         "COMPLETED",
 			AgentStateFile: "", // No agent state
-			StartTime:      time.Now(),
+			StartTime:      time.Now().Add(-2 * time.Hour),
 		},
 	}
 
-	// Convert slice to map for the mock
 	sessionsMap := make(map[string]*runner.SessionState)
 	for _, s := range mockSessions {
 		sessionsMap[s.Name] = s
 	}
 
-	sm := &MockSessionManager{
+	return &MockSessionManager{
 		Sessions: sessionsMap,
 	}
+}
 
-	// Calculate stats
-	stats, err := calculateStats(sm)
+func TestCalculateStats_NoFilters(t *testing.T) {
+	tmpDir := t.TempDir()
+	sm := setupMockSessions(t, tmpDir)
+
+	stats, err := calculateStats(sm, "", "", "")
 	require.NoError(t, err)
 
-	// --- Assertions ---
-	require.Equal(t, 4, stats.TotalSessions, "Total sessions should be 4")
-	require.Equal(t, 500, stats.TotalTokens, "Total tokens should be sum of s1 and s2")
-	require.Equal(t, 150, stats.TotalPromptTokens, "Total prompt tokens should be sum of s1 and s2")
-	require.Equal(t, 350, stats.TotalResponseTokens, "Total response tokens should be sum of s1 and s2")
+	require.Equal(t, 5, stats.TotalSessions)
+	require.Equal(t, 3, stats.StatusCounts["COMPLETED"])
+	require.Equal(t, 1, stats.StatusCounts["RUNNING"])
+	require.Equal(t, 1, stats.StatusCounts["FAILED"])
+	require.Equal(t, 530, stats.TotalTokens) // 300 + 200 + 30
+	require.InDelta(t, 0.01739, stats.TotalCost, 0.00001)
+}
 
-	cost1 := agent.CalculateCost("gemini-1.5-pro-latest", agent.TokenUsage{TotalPromptTokens: 100, TotalResponseTokens: 200})
-	cost2 := agent.CalculateCost("claude-3-opus-20240229", agent.TokenUsage{TotalPromptTokens: 50, TotalResponseTokens: 150})
-	expectedCost := cost1 + cost2
-	require.InDelta(t, expectedCost, stats.TotalCost, 0.0001, "Total cost should be sum of s1 and s2")
+func TestCalculateStatsWithFilters(t *testing.T) {
+	tmpDir := t.TempDir()
+	sm := setupMockSessions(t, tmpDir)
 
-	require.Equal(t, 2, stats.StatusCounts["completed"], "Should have 2 completed sessions")
-	require.Equal(t, 1, stats.StatusCounts["running"], "Should have 1 running session")
-	require.Equal(t, 1, stats.StatusCounts["failed"], "Should have 1 failed session")
+	t.Run("Filter by status=COMPLETED", func(t *testing.T) {
+		stats, err := calculateStats(sm, "COMPLETED", "", "")
+		require.NoError(t, err)
+
+		require.Equal(t, 3, stats.TotalSessions)
+		require.Equal(t, 3, stats.StatusCounts["COMPLETED"])
+		require.Equal(t, 0, stats.StatusCounts["RUNNING"])
+		require.Equal(t, 500, stats.TotalTokens) // s1 + s2
+	})
+
+	t.Run("Filter by since=3h", func(t *testing.T) {
+		stats, err := calculateStats(sm, "", "3h", "")
+		require.NoError(t, err)
+
+		require.Equal(t, 3, stats.TotalSessions) // s1, s3, s5
+		require.Equal(t, 2, stats.StatusCounts["COMPLETED"])
+		require.Equal(t, 1, stats.StatusCounts["RUNNING"])
+		require.Equal(t, 300, stats.TotalTokens) // s1 only
+	})
+
+	t.Run("Filter by model=gemini-1.5-pro-latest", func(t *testing.T) {
+		stats, err := calculateStats(sm, "", "", "gemini-1.5-pro-latest")
+		require.NoError(t, err)
+
+		require.Equal(t, 2, stats.TotalSessions) // s1, s4
+		require.Equal(t, 1, stats.StatusCounts["COMPLETED"])
+		require.Equal(t, 1, stats.StatusCounts["FAILED"])
+		require.Equal(t, 330, stats.TotalTokens) // 300 + 30
+	})
+
+	t.Run("Filter by status and since", func(t *testing.T) {
+		stats, err := calculateStats(sm, "COMPLETED", "3h", "")
+		require.NoError(t, err)
+
+		require.Equal(t, 2, stats.TotalSessions) // s1, s5
+		require.Equal(t, 2, stats.StatusCounts["COMPLETED"])
+		require.Equal(t, 300, stats.TotalTokens) // s1 only
+	})
+
+	t.Run("Filter by model and since", func(t *testing.T) {
+		stats, err := calculateStats(sm, "", "30h", "gemini-1.5-pro-latest")
+		require.NoError(t, err)
+
+		require.Equal(t, 1, stats.TotalSessions) // s1 only
+		require.Equal(t, 1, stats.StatusCounts["COMPLETED"])
+		require.Equal(t, 300, stats.TotalTokens)
+	})
+
+	t.Run("No results", func(t *testing.T) {
+		stats, err := calculateStats(sm, "NON_EXISTENT_STATUS", "", "")
+		require.NoError(t, err)
+		require.Equal(t, 0, stats.TotalSessions)
+		require.Equal(t, 0.0, stats.TotalCost)
+	})
 }
