@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"recac/internal/runner"
 	"time"
 
@@ -26,7 +25,7 @@ var replayCmd = &cobra.Command{
 
 		sm, err := newSessionManager()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: failed to create session manager: %v\n", err)
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error: failed to create session manager: %v\n", err)
 			exit(1)
 			return
 		}
@@ -34,14 +33,14 @@ var replayCmd = &cobra.Command{
 		// Load the original session
 		originalSession, err := sm.LoadSession(sessionName)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: failed to load session '%s': %v\n", sessionName, err)
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error: failed to load session '%s': %v\n", sessionName, err)
 			exit(1)
 			return
 		}
 
 		// Prevent replaying a running session to avoid unexpected behavior
 		if originalSession.Status == "running" && sm.IsProcessRunning(originalSession.PID) {
-			fmt.Fprintf(os.Stderr, "Error: cannot replay a running session. Please stop it first.\n")
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error: cannot replay a running session. Please stop it first.\n")
 			exit(1)
 			return
 		}
@@ -52,12 +51,12 @@ var replayCmd = &cobra.Command{
 		// Start a new session with the original command and workspace
 		newSession, err := sm.StartSession(replayName, originalSession.Command, originalSession.Workspace)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: failed to start replay session: %v\n", err)
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error: failed to start replay session: %v\n", err)
 			exit(1)
 			return
 		}
 
-		fmt.Printf("Successfully started replay session '%s' (PID: %d).\n", newSession.Name, newSession.PID)
-		fmt.Printf("Logs are available at: %s\n", newSession.LogFile)
+		fmt.Fprintf(cmd.OutOrStdout(), "Successfully started replay session '%s' (PID: %d).\n", newSession.Name, newSession.PID)
+		fmt.Fprintf(cmd.OutOrStdout(), "Logs are available at: %s\n", newSession.LogFile)
 	},
 }
