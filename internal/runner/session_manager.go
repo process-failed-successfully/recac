@@ -292,3 +292,39 @@ func (sm *SessionManager) GetSessionLogs(name string) (string, error) {
 
 	return session.LogFile, nil
 }
+
+// ErrSessionRunning is returned when an operation cannot be performed on a running session without force.
+var ErrSessionRunning = fmt.Errorf("session is running")
+
+// RemoveSession deletes a session's state and log files from disk.
+func (sm *SessionManager) RemoveSession(name string, force bool) error {
+	session, err := sm.LoadSession(name)
+	if err != nil {
+		// Use os.IsNotExist to provide a cleaner "not found" message.
+		if os.IsNotExist(err) {
+			return fmt.Errorf("session '%s' not found", name)
+		}
+		return fmt.Errorf("could not load session '%s': %w", name, err)
+	}
+
+	// Check if the process is running and force flag is not provided
+	if sm.IsProcessRunning(session.PID) && !force {
+		return fmt.Errorf("session '%s' is running (PID: %d), use --force to remove: %w", name, session.PID, ErrSessionRunning)
+	}
+
+	// Remove session state file (.json)
+	sessionPath := sm.GetSessionPath(name)
+	err = os.Remove(sessionPath)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to remove session state file %s: %w", sessionPath, err)
+	}
+
+	// Remove log file (.log)
+	logPath := session.LogFile
+	err = os.Remove(logPath)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to remove session log file %s: %w", logPath, err)
+	}
+
+	return nil
+}
