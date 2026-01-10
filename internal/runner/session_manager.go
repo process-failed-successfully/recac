@@ -292,3 +292,27 @@ func (sm *SessionManager) GetSessionLogs(name string) (string, error) {
 
 	return session.LogFile, nil
 }
+
+// RemoveSession deletes a session's state and log files from disk.
+func (sm *SessionManager) RemoveSession(name string) error {
+	jsonPath := sm.GetSessionPath(name)
+	logPath := filepath.Join(sm.sessionsDir, name+".log")
+
+	var errs []error
+
+	// Try to remove the JSON file
+	if err := os.Remove(jsonPath); err != nil && !os.IsNotExist(err) {
+		errs = append(errs, fmt.Errorf("failed to remove session file %s: %w", jsonPath, err))
+	}
+
+	// Try to remove the log file
+	if err := os.Remove(logPath); err != nil && !os.IsNotExist(err) {
+		errs = append(errs, fmt.Errorf("failed to remove log file %s: %w", logPath, err))
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("encountered errors removing session %s: %v", name, errs)
+	}
+
+	return nil
+}

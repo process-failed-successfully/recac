@@ -12,4 +12,5 @@ type ISessionManager interface {
 	StartSession(name string, command []string, workspace string) (*runner.SessionState, error)
 	GetSessionPath(name string) string
 	IsProcessRunning(pid int) bool
+	RemoveSession(name string) error
 }

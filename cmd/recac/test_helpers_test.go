@@ -91,6 +91,14 @@ func (m *MockSessionManager) SaveSession(session *runner.SessionState) error {
 	return nil
 }
 
+func (m *MockSessionManager) RemoveSession(name string) error {
+	if _, ok := m.Sessions[name]; !ok {
+		return fmt.Errorf("session %s not found", name)
+	}
+	delete(m.Sessions, name)
+	return nil
+}
+
 // executeCommand executes a cobra command and returns its output.
 func executeCommand(root *cobra.Command, args ...string) (string, error) {
 	resetFlags(root)
