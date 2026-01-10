@@ -190,3 +190,63 @@ func TestPsCmdSort(t *testing.T) {
 		assert.Regexp(t, `(?s)session-b.*session-c.*session-a`, output)
 	})
 }
+
+func TestPsCommandDetailView(t *testing.T) {
+	tempDir := t.TempDir()
+	sessionsDir := filepath.Join(tempDir, "sessions")
+	require.NoError(t, os.Mkdir(sessionsDir, 0755))
+
+	originalFactory := sessionManagerFactory
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return runner.NewSessionManagerWithDir(sessionsDir)
+	}
+	defer func() { sessionManagerFactory = originalFactory }()
+
+	sm, err := sessionManagerFactory()
+	require.NoError(t, err)
+
+	// Create a mock session
+	sessionName := "test-session-detail"
+	logFile := filepath.Join(sessionsDir, sessionName+".log")
+	err = os.WriteFile(logFile, []byte("line 1\nline 2\n"), 0644)
+	require.NoError(t, err)
+
+	agentStateFile := filepath.Join(sessionsDir, sessionName+"-agent-state.json")
+	agentState := &agent.State{
+		Model: "gemini-pro",
+		TokenUsage: agent.TokenUsage{
+			TotalPromptTokens:   50,
+			TotalResponseTokens: 150,
+			TotalTokens:         200,
+		},
+	}
+	stateData, err := json.Marshal(agentState)
+	require.NoError(t, err)
+	err = os.WriteFile(agentStateFile, stateData, 0644)
+	require.NoError(t, err)
+
+	session := &runner.SessionState{
+		Name:           sessionName,
+		Status:         "completed",
+		StartTime:      time.Now().Add(-1 * time.Hour),
+		EndTime:        time.Now(),
+		LogFile:        logFile,
+		AgentStateFile: agentStateFile,
+	}
+	err = sm.SaveSession(session)
+	require.NoError(t, err)
+
+	// Execute the "ps <session-name>" command
+	output, err := executeCommand(rootCmd, "ps", sessionName)
+	require.NoError(t, err)
+
+	// Assert that the output contains the detailed view information using regular expressions
+	assert.Regexp(t, `Session Details`, output)
+	assert.Regexp(t, `Name:\s+test-session-detail`, output)
+	assert.Regexp(t, `Status:\s+completed`, output)
+	assert.Regexp(t, `Total Tokens:\s+200`, output)
+	assert.Regexp(t, `Cost:`, output)
+	assert.Regexp(t, `Recent Logs`, output)
+	assert.Contains(t, output, "line 1")
+	assert.Contains(t, output, "line 2")
+}
