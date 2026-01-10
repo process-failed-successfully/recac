@@ -59,7 +59,7 @@ func TestCompleteJiraTicket_AddsCheckmark(t *testing.T) {
 		JiraTicketID:  "TEST-123",
 		RepoURL:       "http://github.com/example/repo",
 		SlackThreadTS: "initial-thread-ts",
-		Logger:        telemetry.NewLogger(true, ""),
+		Logger:        telemetry.NewLogger(true, "", false),
 	}
 
 	// Execute the private method

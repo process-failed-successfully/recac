@@ -63,7 +63,7 @@ func TestRunQAAgent_Pass(t *testing.T) {
 		Docker:   nil,
 		Project:  "test-project",
 		Notifier: notify.NewManager(func(string, ...interface{}) {}),
-		Logger:   telemetry.NewLogger(true, ""),
+		Logger:   telemetry.NewLogger(true, "", false),
 	}
 
 	// 5. Run QA Agent

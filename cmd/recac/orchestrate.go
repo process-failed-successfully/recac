@@ -27,7 +27,7 @@ var orchestrateCmd = &cobra.Command{
 
 		var err error
 
-		logger := telemetry.NewLogger(viper.GetBool("debug"), "orchestrator")
+		logger := telemetry.NewLogger(viper.GetBool("verbose"), "orchestrator", false)
 
 		// Config
 		mode := viper.GetString("orchestrator.mode")

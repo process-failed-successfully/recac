@@ -555,7 +555,7 @@ func TestSession_PushProgress(t *testing.T) {
 
 	session := &Session{
 		Workspace: tmpDir,
-		Logger:    telemetry.NewLogger(true, ""),
+		Logger:    telemetry.NewLogger(true, "", false),
 		Iteration: 1,
 	}
 

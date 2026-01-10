@@ -5,7 +5,7 @@ import (
 )
 
 func TestInteractiveModel_CursorCLIModels(t *testing.T) {
-	m := NewInteractiveModel(nil)
+	m := NewInteractiveModel(nil, "", "")
 	models, ok := m.agentModels["cursor-cli"]
 	if !ok {
 		t.Fatal("cursor-cli should be in agentModels")

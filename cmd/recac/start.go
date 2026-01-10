@@ -415,7 +415,7 @@ type SessionConfig struct {
 func processDirectTask(ctx context.Context, cfg SessionConfig) {
 	// Initialize Logger
 	if cfg.Logger == nil {
-		cfg.Logger = telemetry.NewLogger(cfg.Debug, "")
+		cfg.Logger = telemetry.NewLogger(cfg.Debug, "", false)
 	}
 	logger := cfg.Logger
 	if cfg.SessionName == "" {
@@ -473,7 +473,7 @@ func processDirectTask(ctx context.Context, cfg SessionConfig) {
 func processJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.Client, cfg SessionConfig, ignoredBlockers map[string]bool) {
 	// Initialize Ticket Logger
 	if cfg.Logger == nil {
-		cfg.Logger = telemetry.NewLogger(cfg.Debug, "")
+		cfg.Logger = telemetry.NewLogger(cfg.Debug, "", false)
 	}
 	logger := cfg.Logger.With("ticket_id", jiraTicketID)
 	cfg.Logger = logger // Pass it down

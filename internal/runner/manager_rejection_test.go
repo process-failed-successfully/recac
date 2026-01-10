@@ -61,7 +61,7 @@ func TestManagerRejection_ClearsSignals(t *testing.T) {
 		Agent:        &MockAgentForManager{Response: "I reject this."},
 		ManagerAgent: &MockAgentForManager{Response: "I reject this."},
 		Notifier:     notify.NewManager(func(string, ...interface{}) {}),
-		Logger:       telemetry.NewLogger(true, ""),
+		Logger:       telemetry.NewLogger(true, "", false),
 	}
 
 	// 3. Set Signals

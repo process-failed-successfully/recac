@@ -8,17 +8,20 @@ import (
 )
 
 // NewLogger creates a new configured logger.
-func NewLogger(debug bool, logFile string) *slog.Logger {
+func NewLogger(debug bool, logFile string, silenceStdout bool) *slog.Logger {
 	level := slog.LevelInfo
 	if debug {
 		level = slog.LevelDebug
 	}
 
-	// Default handler is stdout
 	var handlers []slog.Handler
-	handlers = append(handlers, slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: level,
-	}))
+
+	// Default handler is stdout, unless silenced
+	if !silenceStdout {
+		handlers = append(handlers, slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+			Level: level,
+		}))
+	}
 
 	// Add file handler if requested
 	if logFile != "" {
@@ -36,16 +39,19 @@ func NewLogger(debug bool, logFile string) *slog.Logger {
 	var handler slog.Handler
 	if len(handlers) > 1 {
 		handler = &multiHandler{handlers: handlers}
-	} else {
+	} else if len(handlers) == 1 {
 		handler = handlers[0]
+	} else {
+		// No handlers? usage with discard
+		handler = slog.NewJSONHandler(os.NewFile(0, os.DevNull), &slog.HandlerOptions{Level: level})
 	}
 
 	return slog.New(handler)
 }
 
 // InitLogger configures the default logger with optional file output.
-func InitLogger(debug bool, logFile string) {
-	logger := NewLogger(debug, logFile)
+func InitLogger(debug bool, logFile string, silenceStdout bool) {
+	logger := NewLogger(debug, logFile, silenceStdout)
 	slog.SetDefault(logger)
 }
 

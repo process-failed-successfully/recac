@@ -74,7 +74,7 @@ func TestSession_Guardrail_PrematureSignoff(t *testing.T) {
 		ManagerFrequency: 5,
 		DBStore:          dbStore,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
-		Logger:           telemetry.NewLogger(true, ""),
+		Logger:           telemetry.NewLogger(true, "", false),
 	}
 
 	// 3. Run Loop

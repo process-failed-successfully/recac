@@ -25,7 +25,7 @@ func TestSession_GitIgnoreCreation(t *testing.T) {
 		Docker:      mockDocker,
 		ContainerID: "test-container",
 		Notifier:    notify.NewManager(func(string, ...interface{}) {}),
-		Logger:      telemetry.NewLogger(true, ""),
+		Logger:      telemetry.NewLogger(true, "", false),
 	}
 
 	viper.Set("git_user_email", "test@example.com")
@@ -65,7 +65,7 @@ func TestSession_GitIgnoreFunctional(t *testing.T) {
 		Docker:      mockDocker,
 		ContainerID: "test-container",
 		Notifier:    notify.NewManager(func(string, ...interface{}) {}),
-		Logger:      telemetry.NewLogger(true, ""),
+		Logger:      telemetry.NewLogger(true, "", false),
 	}
 
 	viper.Set("git_user_email", "test@example.com")

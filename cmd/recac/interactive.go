@@ -5,10 +5,12 @@ import (
 	"os"
 	"os/exec"
 
+	"recac/internal/telemetry"
 	"recac/internal/ui"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // interactiveCmd represents the interactive command
@@ -18,12 +20,28 @@ var interactiveCmd = &cobra.Command{
 	Long: `Starts a TUI (Text User Interface) for interactive communication 
 with the autonomous coding agent.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		RunInteractive()
+		// Use Viper as it handles env vars and persistent flags binding
+		provider := viper.GetString("provider")
+		model := viper.GetString("model")
+		RunInteractive(provider, model)
 	},
 }
 
 // RunInteractive starts the interactive TUI session.
-func RunInteractive() {
+func RunInteractive(provider, model string) {
+	// Redirect logs to file to avoid TUI corruption
+	// We do this by re-initializing the logger
+	f, err := os.OpenFile("recac-tui.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err == nil {
+		f.Close() // Close immediately to release for InitLogger
+		// We can't easily swap the global logger sink in the provided slog setup without a helper,
+		// but we can try to re-init it.
+		// A cleaner way would be provided by telemetry package, but for now re-init:
+		telemetry.InitLogger(viper.GetBool("verbose"), "recac-tui.log", true)
+		// Also silence standard fmt output if any non-logger prints exist?
+		// ideally we just rely on logger redirection.
+	}
+
 	// Build commands list from rootCmd
 	var commands []ui.SlashCommand
 
@@ -95,7 +113,7 @@ func RunInteractive() {
 		})
 	}
 
-	p := tea.NewProgram(ui.NewInteractiveModel(commands))
+	p := tea.NewProgram(ui.NewInteractiveModel(commands, provider, model))
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Alas, there's been an error: %v", err)
 		exit(1)
