@@ -35,4 +35,9 @@ ENV HOME=/root
 RUN curl -fsS https://cursor.com/install | bash
 ENV PATH="${HOME}/.local/bin:${PATH}"
 
+# Copy and configure the entrypoint
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+ENTRYPOINT ["docker-entrypoint.sh"]
+
 # No default command - source is mounted at runtime
