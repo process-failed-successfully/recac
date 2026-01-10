@@ -52,7 +52,65 @@ func TestPsAndListCommands(t *testing.T) {
 		})
 	}
 }
+func TestPsCommandWithErrors(t *testing.T) {
+	tempDir := t.TempDir()
+	sessionsDir := filepath.Join(tempDir, "sessions")
+	require.NoError(t, os.Mkdir(sessionsDir, 0755))
 
+	originalFactory := sessionManagerFactory
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return runner.NewSessionManagerWithDir(sessionsDir)
+	}
+	defer func() { sessionManagerFactory = originalFactory }()
+
+	sm, err := sessionManagerFactory()
+	require.NoError(t, err)
+
+	sessionWithError := &runner.SessionState{
+		Name:      "session-with-error",
+		Status:    "error",
+		StartTime: time.Now().Add(-1 * time.Hour),
+		Error:     "this is the first line\nthis is the second line",
+	}
+	sessionCompleted := &runner.SessionState{
+		Name:      "session-completed",
+		Status:    "completed",
+		StartTime: time.Now().Add(-10 * time.Minute),
+	}
+	require.NoError(t, sm.SaveSession(sessionWithError))
+	require.NoError(t, sm.SaveSession(sessionCompleted))
+
+	// Test with --errors flag
+	t.Run("with errors flag", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "ps", "--errors")
+		require.NoError(t, err)
+
+		assert.Contains(t, output, "NAME\tSTATUS\tSTARTED\tDURATION\tERROR")
+		assert.Regexp(t, `session-with-error\s+error.*this is the first line`, output)
+		assert.Regexp(t, `session-completed\s+completed`, output)
+		assert.NotContains(t, output, "this is the second line")
+	})
+
+	// Test with both --errors and --costs flags
+	t.Run("with errors and costs flags", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "ps", "--errors", "--costs")
+		require.NoError(t, err)
+
+		assert.Contains(t, output, "COST")
+		assert.Contains(t, output, "ERROR")
+		assert.Regexp(t, `session-with-error\s+error.*this is the first line`, output)
+		assert.Contains(t, output, "N/A\tthis is the first line")
+	})
+
+	// Test without --errors flag
+	t.Run("without errors flag", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "ps")
+		require.NoError(t, err)
+
+		assert.NotContains(t, output, "ERROR")
+		assert.NotContains(t, output, "this is the first line")
+	})
+}
 func TestPsCommandWithCosts(t *testing.T) {
 	tempDir := t.TempDir()
 	sessionsDir := filepath.Join(tempDir, "sessions")
@@ -112,7 +170,7 @@ func TestPsCommandWithCosts(t *testing.T) {
 	assert.Contains(t, output, "2000")
 	assert.Contains(t, output, "3000")
 
-	assert.Regexp(t, `session-without-cost\s+completed`, output)
+	assert.Regexp(t, `session-without-cost\s+running`, output)
 	assert.Contains(t, output, "N/A")
 }
 

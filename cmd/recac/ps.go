@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"recac/internal/agent"
 	"sort"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -60,6 +61,7 @@ If a session name is provided, it displays a detailed summary for that session.`
 		}
 
 		showCosts, _ := cmd.Flags().GetBool("costs")
+		showErrors, _ := cmd.Flags().GetBool("errors")
 		sortBy, _ := cmd.Flags().GetString("sort")
 
 		// Pre-calculate costs for sorting if needed
@@ -94,11 +96,14 @@ If a session name is provided, it displays a detailed summary for that session.`
 		})
 
 		w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 3, ' ', 0)
+		header := "NAME\tSTATUS\tSTARTED\tDURATION"
 		if showCosts {
-			fmt.Fprintln(w, "NAME\tSTATUS\tSTARTED\tDURATION\tPROMPT_TOKENS\tCOMPLETION_TOKENS\tTOTAL_TOKENS\tCOST")
-		} else {
-			fmt.Fprintln(w, "NAME\tSTATUS\tSTARTED\tDURATION")
+			header = "NAME\tSTATUS\tSTARTED\tDURATION\tPROMPT_TOKENS\tCOMPLETION_TOKENS\tTOTAL_TOKENS\tCOST"
 		}
+		if showErrors {
+			header += "\tERROR"
+		}
+		fmt.Fprintln(w, header)
 
 		for _, session := range sessions {
 			started := session.StartTime.Format("2006-01-02 15:04:05")
@@ -108,6 +113,9 @@ If a session name is provided, it displays a detailed summary for that session.`
 			} else {
 				duration = session.EndTime.Sub(session.StartTime).Round(time.Second).String()
 			}
+
+			line := fmt.Sprintf("%s\t%s\t%s\t%s",
+				session.Name, session.Status, started, duration)
 
 			if showCosts {
 				cost, hasCost := sessionCosts[session.Name]
@@ -121,23 +129,28 @@ If a session name is provided, it displays a detailed summary for that session.`
 				}
 
 				if !hasCost {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\tN/A\tN/A\tN/A\tN/A\n",
-						session.Name, session.Status, started, duration)
+					line += "\tN/A\tN/A\tN/A\tN/A"
 				} else {
 					// We need to reload agentState to get token counts
 					agentState, _ := loadAgentState(session.AgentStateFile)
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%d\t%d\t$%.6f\n",
-						session.Name, session.Status, started, duration,
+					line += fmt.Sprintf("\t%d\t%d\t%d\t$%.6f",
 						agentState.TokenUsage.TotalPromptTokens,
 						agentState.TokenUsage.TotalResponseTokens,
 						agentState.TokenUsage.TotalTokens,
 						cost,
 					)
 				}
-			} else {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
-					session.Name, session.Status, started, duration)
 			}
+
+			if showErrors {
+				errorMsg := ""
+				if session.Error != "" {
+					// Show only the first line of the error
+					errorMsg = strings.Split(session.Error, "\n")[0]
+				}
+				line += fmt.Sprintf("\t%s", errorMsg)
+			}
+			fmt.Fprintln(w, line)
 		}
 
 		return w.Flush()
