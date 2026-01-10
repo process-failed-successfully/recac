@@ -36,7 +36,12 @@ func TruncateToTokenLimit(text string, maxTokens int) string {
 	availableTokens := maxTokens - markerTokens
 	if availableTokens <= 0 {
 		// If marker itself exceeds limit, perform a hard truncate.
-		hardMaxChars := maxTokens * 4
+		if maxTokens <= 1 {
+			// Not enough space for even one token if we truncate, so return empty.
+			return ""
+		}
+		// (maxTokens-1)*4 ensures that (n/4)+1 <= maxTokens
+		hardMaxChars := (maxTokens - 1) * 4
 		if len(text) > hardMaxChars {
 			return text[:hardMaxChars]
 		}
@@ -262,7 +267,7 @@ func SummarizeForTokenLimit(text string, maxTokens int) string {
 
 	// Ensure we're still under limit
 	if EstimateTokenCount(result) > maxTokens {
-		return TruncateToTokenLimit(result, maxTokens)
+		return TruncateToTokenLimit(result, maxTokens*90/100)
 	}
 
 	return result
