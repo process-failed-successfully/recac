@@ -1040,9 +1040,6 @@ func (m *InteractiveModel) renderAll() string {
 	return b.String()
 }
 
-// Clean up old renderMessages
-// func (m *InteractiveModel) renderMessages() string { ... } - REPLACED
-
 // ClearHistory clears the conversation history.
 func (m *InteractiveModel) ClearHistory() {
 	m.messages = []ChatMessage{}
