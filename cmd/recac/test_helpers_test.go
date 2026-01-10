@@ -12,15 +12,17 @@ import (
 
 // MockSessionManager is a mock implementation of the ISessionManager interface.
 type MockSessionManager struct {
-	Sessions    map[string]*runner.SessionState
-	FailOnLoad  bool
-	FailOnList  bool
-	ProcessDown bool
+	Sessions     map[string]*runner.SessionState
+	FailOnLoad   bool
+	FailOnList   bool
+	ProcessDown  bool
+	sessionsDir  string // Add a field to store the session directory path
 }
 
-func NewMockSessionManager() *MockSessionManager {
+func NewMockSessionManager(sessionsDir string) *MockSessionManager {
 	return &MockSessionManager{
-		Sessions: make(map[string]*runner.SessionState),
+		Sessions:    make(map[string]*runner.SessionState),
+		sessionsDir: sessionsDir, // Store the provided path
 	}
 }
 func (m *MockSessionManager) StartSession(name string, command []string, workspace string) (*runner.SessionState, error) {
@@ -114,6 +116,10 @@ func (m *MockSessionManager) RemoveSession(name string, force bool) error {
 
 	delete(m.Sessions, name)
 	return nil
+}
+
+func (m *MockSessionManager) SessionsDir() string {
+	return m.sessionsDir
 }
 
 // executeCommand executes a cobra command and returns its output.

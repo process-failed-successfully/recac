@@ -88,7 +88,7 @@ func setupDiffTest(t *testing.T, sm *MockSessionManager) {
 
 func TestDiffCmd(t *testing.T) {
 	// Setup mock session manager
-	mockSM := NewMockSessionManager()
+	mockSM := NewMockSessionManager("/tmp")
 	setupDiffTest(t, mockSM)
 
 	// Override the factory to return our mock manager
