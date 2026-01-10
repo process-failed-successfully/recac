@@ -1,18 +1,18 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"recac/internal/runner"
 	"recac/internal/ui"
 	"strings"
 	"testing"
 
+	"github.com/AlecAivazis/survey/v2"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
 
 // TestHelperProcess isn't a real test. It's a helper process that's executed
@@ -31,49 +31,6 @@ func TestHelperProcess(t *testing.T) {
 	}
 }
 
-func executeCommand(root *cobra.Command, args ...string) (string, error) {
-	resetFlags(root)
-	// Mock exit
-	oldExit := exit
-	exit = func(code int) {
-		if code != 0 {
-			panic(fmt.Sprintf("exit-%d", code))
-		}
-	}
-	defer func() { exit = oldExit }()
-
-	defer func() {
-		if r := recover(); r != nil {
-			if s, ok := r.(string); ok && strings.HasPrefix(s, "exit-") {
-				// This is an expected exit, don't re-panic
-				return
-			}
-			panic(r) // Re-panic actual panics
-		}
-	}()
-
-	root.SetArgs(args)
-	b := new(bytes.Buffer)
-	root.SetOut(b)
-	root.SetErr(b)
-	// Mock Stdin to avoid hanging on interactive prompts (e.g. wizard)
-	root.SetIn(bytes.NewBufferString(""))
-
-	err := root.Execute()
-	return b.String(), err
-}
-
-func resetFlags(cmd *cobra.Command) {
-	cmd.Flags().VisitAll(func(f *pflag.Flag) {
-		if f.Changed {
-			f.Value.Set(f.DefValue)
-			f.Changed = false
-		}
-	})
-	for _, c := range cmd.Commands() {
-		resetFlags(c)
-	}
-}
 
 func TestCommands(t *testing.T) {
 	// Setup global test env
@@ -327,6 +284,56 @@ func TestCommands(t *testing.T) {
 		expectedOutput := "recac version v0.2.0"
 		if !strings.Contains(string(statusMsg), expectedOutput) {
 			t.Errorf("Expected output to contain '%s', but got '%s'", expectedOutput, string(statusMsg))
+		}
+	})
+
+	t.Run("Stop Command Interactive", func(t *testing.T) {
+		// 1. Setup
+		// Use the real factory to get a session manager
+		sm, err := runner.NewSessionManager()
+		if err != nil {
+			t.Fatalf("Failed to create session manager: %v", err)
+		}
+
+		// Start a dummy session
+		sessionName := "test-session-to-stop"
+		// Using os.Executable() and a fake command to ensure we have a valid executable
+		// The actual command won't be run, but StartSession checks for it.
+		cmdToRun := []string{os.Args[0], "-test.run=^$", "--"}
+		_, err = sm.StartSession(sessionName, cmdToRun, t.TempDir())
+		if err != nil {
+			t.Fatalf("Failed to start dummy session: %v", err)
+		}
+
+		// 2. Mock the interactive prompt
+		originalSurveyAskOne := surveyAskOne
+		surveyAskOne = func(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {
+			// Simulate the user selecting the first (and only) option
+			val := response.(*string)
+			*val = sessionName
+			return nil
+		}
+		defer func() { surveyAskOne = originalSurveyAskOne }()
+
+		// 3. Execute the command
+		output, err := executeCommand(rootCmd, "stop")
+		if err != nil {
+			t.Fatalf("Stop command failed: %v, output: %s", err, output)
+		}
+
+		// 4. Assert
+		expectedOutput := fmt.Sprintf("Session '%s' stopped successfully", sessionName)
+		if !strings.Contains(output, expectedOutput) {
+			t.Errorf("Expected output to contain '%s', got '%s'", expectedOutput, output)
+		}
+
+		// Verify session status is 'stopped'
+		stoppedSession, err := sm.LoadSession(sessionName)
+		if err != nil {
+			t.Fatalf("Failed to load session after stop: %v", err)
+		}
+		if stoppedSession.Status != "stopped" {
+			t.Errorf("Expected session status to be 'stopped', but got '%s'", stoppedSession.Status)
 		}
 	})
 }
