@@ -6,7 +6,6 @@ import (
 	"github.com/spf13/viper"
 	"io"
 	"sort"
-	"strings"
 )
 
 var showSensitive bool
@@ -49,9 +48,3 @@ func printConfig(writer io.Writer, settings map[string]interface{}, prefix strin
 	}
 }
 
-func isSensitive(key string) bool {
-	lowerKey := strings.ToLower(key)
-	return strings.Contains(lowerKey, "key") ||
-		strings.Contains(lowerKey, "token") ||
-		strings.Contains(lowerKey, "secret")
-}

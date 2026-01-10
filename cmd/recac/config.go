@@ -11,6 +11,20 @@ var configCmd = &cobra.Command{
 	Long:  `Manage configuration for the recac CLI.`,
 }
 
+var listKeysCmd = &cobra.Command{
+	Use:   "list-keys",
+	Short: "List all configuration keys",
+	RunE:  listKeys,
+}
+
+var listModelsCmd = &cobra.Command{
+	Use:   "list-models",
+	Short: "List available models",
+	RunE:  listModels,
+}
+
 func init() {
+	configCmd.AddCommand(listKeysCmd)
+	configCmd.AddCommand(listModelsCmd)
 	rootCmd.AddCommand(configCmd)
 }
