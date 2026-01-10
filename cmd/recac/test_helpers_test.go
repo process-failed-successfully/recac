@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"strings"
 	"time"
 	"recac/internal/runner"
 	"github.com/spf13/cobra"
@@ -119,31 +118,33 @@ func (m *MockSessionManager) RemoveSession(name string, force bool) error {
 // executeCommand executes a cobra command and returns its output.
 func executeCommand(root *cobra.Command, args ...string) (string, error) {
 	resetFlags(root)
-	// Mock exit
-	oldExit := exit
-	exit = func(code int) {
-		if code != 0 {
-			panic(fmt.Sprintf("exit-%d", code))
-		}
-	}
-	defer func() { exit = oldExit }()
-	defer func() {
-		if r := recover(); r != nil {
-			if s, ok := r.(string); ok && strings.HasPrefix(s, "exit-") {
-				// This is an expected exit, don't re-panic
-				return
-			}
-			panic(r) // Re-panic actual panics
-		}
-	}()
-	root.SetArgs(args)
 	b := new(bytes.Buffer)
 	root.SetOut(b)
 	root.SetErr(b)
+
+	// Mock exit
+	var err error
+	oldExit := exit
+	exit = func(code int) {
+		if code != 0 {
+			// Create an error to signal that the command tried to exit.
+			err = fmt.Errorf("exit code %d", code)
+		}
+	}
+	defer func() { exit = oldExit }()
+
 	// Mock Stdin to avoid hanging on interactive prompts (e.g. wizard)
 	root.SetIn(bytes.NewBufferString(""))
-	err := root.Execute()
-	return b.String(), err
+
+	root.SetArgs(args)
+	cmdErr := root.Execute()
+
+	// If our mocked exit was called, return that error.
+	if err != nil {
+		return b.String(), err
+	}
+
+	return b.String(), cmdErr
 }
 
 // resetFlags resets all flags to their default values.

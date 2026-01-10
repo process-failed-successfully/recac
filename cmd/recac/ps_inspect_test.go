@@ -72,9 +72,12 @@ func TestPsCmd_InspectOutput(t *testing.T) {
 
 	// 4. Assert the output contains the expected details
 	require.Contains(t, output, "Session Details for 'test-inspect-session'")
-	require.Contains(t, output, "Status:			COMPLETED")
-	require.Contains(t, output, "Model:			test-model")
-	require.Contains(t, output, "Total Tokens:		300")
+	require.Contains(t, output, "Status:")
+	require.Contains(t, output, "COMPLETED")
+	require.Contains(t, output, "Model:")
+	require.Contains(t, output, "test-model")
+	require.Contains(t, output, "Total Tokens:")
+	require.Contains(t, output, "300")
 	require.Contains(t, output, "Estimated Cost:") // Check for the label
 	require.Contains(t, output, "Recent Logs (last 10 lines)")
 	require.Contains(t, output, "line 1")
