@@ -64,7 +64,17 @@ func (m *MockSessionManager) IsProcessRunning(pid int) bool {
 	if m.ProcessDown {
 		return false
 	}
-	return pid != 0 // Simple mock
+	if pid == 0 {
+		return false
+	}
+	// Find the session with this PID and check its status.
+	for _, session := range m.Sessions {
+		if session.PID == pid {
+			return session.Status == "running"
+		}
+	}
+	// Default to false for unknown PIDs
+	return false
 }
 
 func (m *MockSessionManager) StopSession(name string) error {
@@ -88,6 +98,21 @@ func (m *MockSessionManager) GetSessionPath(name string) string {
 
 func (m *MockSessionManager) SaveSession(session *runner.SessionState) error {
 	m.Sessions[session.Name] = session
+	return nil
+}
+
+func (m *MockSessionManager) RemoveSession(name string, force bool) error {
+	session, ok := m.Sessions[name]
+	if !ok {
+		return fmt.Errorf("session not found")
+	}
+
+	if m.IsProcessRunning(session.PID) && !force {
+		// Wrap the specific error so errors.Is() works
+		return fmt.Errorf("session is running, use --force to remove: %w", runner.ErrSessionRunning)
+	}
+
+	delete(m.Sessions, name)
 	return nil
 }
 

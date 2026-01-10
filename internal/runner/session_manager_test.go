@@ -201,3 +201,76 @@ func TestSessionManager_GetSessionLogs(t *testing.T) {
 		t.Errorf("Expected /tmp/foo.log, got %s", logPath)
 	}
 }
+
+func TestSessionManager_RemoveSession(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "recac-test-remove")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	sm, err := NewSessionManagerWithDir(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create session manager: %v", err)
+	}
+
+	// Create a dummy session to remove
+	sessionName := "test-remove-session"
+	logFile, _ := os.Create(filepath.Join(tmpDir, sessionName+".log"))
+	logFile.Close()
+
+	session := &SessionState{
+		Name:    sessionName,
+		Status:  "completed",
+		LogFile: logFile.Name(),
+		PID:     0, // Not running
+	}
+	sm.SaveSession(session)
+
+	// Verify files exist
+	if _, err := os.Stat(sm.GetSessionPath(sessionName)); os.IsNotExist(err) {
+		t.Fatal("Session file should exist before removal")
+	}
+	if _, err := os.Stat(logFile.Name()); os.IsNotExist(err) {
+		t.Fatal("Log file should exist before removal")
+	}
+
+	// Remove the session
+	err = sm.RemoveSession(sessionName, false)
+	if err != nil {
+		t.Fatalf("Failed to remove session: %v", err)
+	}
+
+	// Verify files are gone
+	if _, err := os.Stat(sm.GetSessionPath(sessionName)); !os.IsNotExist(err) {
+		t.Error("Session file should not exist after removal")
+	}
+	if _, err := os.Stat(logFile.Name()); !os.IsNotExist(err) {
+		t.Error("Log file should not exist after removal")
+	}
+
+	// Test removing a running session
+	runningSessionName := "running-session"
+	logFile2, _ := os.Create(filepath.Join(tmpDir, runningSessionName+".log"))
+	logFile2.Close()
+
+	runningSession := &SessionState{
+		Name:    runningSessionName,
+		Status:  "running",
+		LogFile: logFile2.Name(),
+		PID:     os.Getpid(), // Use the current process PID as a running process
+	}
+	sm.SaveSession(runningSession)
+
+	// Attempt to remove without force
+	err = sm.RemoveSession(runningSessionName, false)
+	if err == nil {
+		t.Fatal("Expected an error when removing a running session without force")
+	}
+
+	// Attempt to remove with force
+	err = sm.RemoveSession(runningSessionName, true)
+	if err != nil {
+		t.Fatalf("Failed to remove a running session with force: %v", err)
+	}
+}
