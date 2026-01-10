@@ -7,8 +7,8 @@ import (
 	"recac/internal/agent"
 )
 
-// loadAgentState is a helper to read and parse an agent state file.
-func loadAgentState(filePath string) (*agent.State, error) {
+// LoadAgentState is a helper to read and parse an agent state file.
+func LoadAgentState(filePath string) (*agent.State, error) {
 	if filePath == "" {
 		return nil, fmt.Errorf("file path is empty")
 	}

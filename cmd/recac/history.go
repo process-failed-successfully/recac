@@ -105,7 +105,7 @@ func displaySessionDetail(cmd *cobra.Command, session *runner.SessionState, full
 	}
 	w.Flush()
 	if session.AgentStateFile != "" {
-		agentState, err := loadAgentState(session.AgentStateFile)
+		agentState, err := LoadAgentState(session.AgentStateFile)
 		if err == nil && agentState != nil {
 			fmt.Fprintln(w, "\nAgent & Token Usage")
 			fmt.Fprintln(w, "-------------------")

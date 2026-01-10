@@ -73,8 +73,8 @@ func printMetadataDiff(cmd *cobra.Command, sA, sB *runner.SessionState) {
 	fmt.Fprintf(w, "Duration\t%s\t%s\n", durationA, durationB)
 
 	// Agent State & Cost
-	stateA, errA := loadAgentState(sA.AgentStateFile)
-	stateB, errB := loadAgentState(sB.AgentStateFile)
+	stateA, errA := LoadAgentState(sA.AgentStateFile)
+	stateB, errB := LoadAgentState(sB.AgentStateFile)
 
 	costA, costB := "$0.00", "$0.00"
 	tokensA, tokensB := "0", "0"

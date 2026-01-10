@@ -56,7 +56,7 @@ var psCmd = &cobra.Command{
 			}
 
 			if showCosts {
-				agentState, err := loadAgentState(session.AgentStateFile)
+				agentState, err := LoadAgentState(session.AgentStateFile)
 				if err != nil {
 					fmt.Fprintf(w, "%s\t%s\t%s\t%s\tN/A\tN/A\tN/A\tN/A\n",
 						session.Name,

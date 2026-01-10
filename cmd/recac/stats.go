@@ -58,7 +58,7 @@ func calculateStats(sm ISessionManager) (*AggregateStats, error) {
 			continue
 		}
 
-		agentState, err := loadAgentState(session.AgentStateFile)
+		agentState, err := LoadAgentState(session.AgentStateFile)
 		if err != nil {
 			// If the agent state file doesn't exist, we can just skip it
 			if os.IsNotExist(err) {
