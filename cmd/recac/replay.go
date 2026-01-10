@@ -28,6 +28,7 @@ var replayCmd = &cobra.Command{
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to create session manager: %v\n", err)
 			exit(1)
+			return
 		}
 
 		// Load the original session
@@ -35,12 +36,14 @@ var replayCmd = &cobra.Command{
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to load session '%s': %v\n", sessionName, err)
 			exit(1)
+			return
 		}
 
 		// Prevent replaying a running session to avoid unexpected behavior
 		if originalSession.Status == "running" && sm.IsProcessRunning(originalSession.PID) {
 			fmt.Fprintf(os.Stderr, "Error: cannot replay a running session. Please stop it first.\n")
 			exit(1)
+			return
 		}
 
 		// Create a new name for the replayed session
@@ -51,6 +54,7 @@ var replayCmd = &cobra.Command{
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to start replay session: %v\n", err)
 			exit(1)
+			return
 		}
 
 		fmt.Printf("Successfully started replay session '%s' (PID: %d).\n", newSession.Name, newSession.PID)
