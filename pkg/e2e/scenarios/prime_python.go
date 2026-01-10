@@ -3,7 +3,6 @@ package scenarios
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -51,12 +50,7 @@ func (s *PrimePythonScenario) Verify(repoPath string, ticketKeys map[string]stri
 	// Helper to find specific agent branch
 	branch, err := getSpecificAgentBranch(repoPath, ticketKey)
 	if err != nil {
-		// Fallback to any agent branch if specific fail
-		log.Printf("Warning: Specific branch for %s not found, checking generic...", ticketKey)
-		branch, err = getAgentBranch(repoPath)
-		if err != nil {
-			return err
-		}
+		return fmt.Errorf("specific branch for %s not found: %w", ticketKey, err)
 	}
 	fmt.Printf("Verifying branch: %s\n", branch)
 

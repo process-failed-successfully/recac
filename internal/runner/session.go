@@ -18,6 +18,7 @@ import (
 	"recac/internal/docker"
 	"recac/internal/git"
 	"recac/internal/security"
+	"reflect"
 	"regexp"
 	"strings"
 	"sync"
@@ -2479,7 +2480,7 @@ func (s *Session) runInitScript(ctx context.Context) {
 
 // completeJiraTicket performs the final Jira transition, adds a comment with the link, and sends a notification.
 func (s *Session) completeJiraTicket(ctx context.Context, gitLink string) {
-	if s.JiraClient == nil || s.JiraTicketID == "" {
+	if s.JiraClient == nil || (reflect.ValueOf(s.JiraClient).Kind() == reflect.Ptr && reflect.ValueOf(s.JiraClient).IsNil()) || s.JiraTicketID == "" {
 		// Not a Jira session, but we still send a notification
 		s.Notifier.Notify(ctx, notify.EventProjectComplete, fmt.Sprintf("Project %s is COMPLETE! Git: %s", s.Project, gitLink), s.GetSlackThreadTS())
 		return

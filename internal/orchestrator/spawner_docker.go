@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"recac/internal/docker"
 	"strings"
 )
 
 type DockerSpawner struct {
-	Client        *docker.Client
+	Client        DockerClient
 	Image         string
 	Network       string
 	Poller        Poller // To update status on completion
@@ -20,7 +19,7 @@ type DockerSpawner struct {
 	Logger        *slog.Logger
 }
 
-func NewDockerSpawner(logger *slog.Logger, client *docker.Client, image string, projectName string, poller Poller, provider, model string) *DockerSpawner {
+func NewDockerSpawner(logger *slog.Logger, client DockerClient, image string, projectName string, poller Poller, provider, model string) *DockerSpawner {
 	return &DockerSpawner{
 		Client:        client,
 		Image:         image,
@@ -147,7 +146,7 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		cmdStr = "cd /workspace" // Reset to constant
 		cmdStr += " && export RECAC_MAX_ITERATIONS=20"
 		cmdStr += " && " + strings.Join(envExports, " && ")
-		cmdStr += fmt.Sprintf(" && /usr/local/bin/recac start --jira %s --project %s --detached=false --cleanup=false --path /workspace --verbose", item.ID, item.ID)
+		cmdStr += fmt.Sprintf(" && /usr/local/bin/recac-agent --jira %s --project %s --detached=false --cleanup=false --path /workspace --verbose", item.ID, item.ID)
 		cmdStr += " && echo 'Recac Finished'"
 
 		// Run via sh -c
