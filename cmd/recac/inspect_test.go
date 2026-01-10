@@ -1,42 +1,73 @@
 package main
 
 import (
-	"fmt"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"recac/internal/agent"
+	"recac/internal/runner"
+	"strings"
 	"testing"
 	"time"
 
-	"recac/internal/runner"
-
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestInspectCmd(t *testing.T) {
-	// Create a mock session manager
-	mockSM := &MockSessionManager{
-		Sessions: make(map[string]*runner.SessionState),
-	}
-
-	// Create a fake session
-	sessionName := "test-session"
-	fakeSession := &runner.SessionState{
-		Name:      sessionName,
-		Status:    "completed",
-		PID:       12345,
-		Type:      "test",
-		StartTime: time.Now().Add(-1 * time.Hour),
-		EndTime:   time.Now(),
-		Workspace: "/tmp/workspace",
-		LogFile:   "/tmp/test.log",
-		Error:     "",
-	}
-	err := mockSM.SaveSession(fakeSession)
+func TestInspectCommand(t *testing.T) {
+	// Setup
+	t.Setenv("RECAC_TEST", "true")
+	// Create a temporary directory for session files
+	tempDir := t.TempDir()
+	sessionDir := filepath.Join(tempDir, ".recac", "sessions")
+	err := os.MkdirAll(sessionDir, 0755)
 	require.NoError(t, err)
 
-	// Replace the sessionManagerFactory with a mock factory
+	// Create a mock session state file
+	sessionName := "test-session"
+	sessionFile := filepath.Join(sessionDir, sessionName+".json")
+	logFile := filepath.Join(sessionDir, sessionName+".log")
+	agentStateFile := filepath.Join(sessionDir, sessionName+"_agent_state.json")
+
+	startTime := time.Now().Add(-1 * time.Hour)
+	endTime := time.Now()
+
+	sessionState := &runner.SessionState{
+		Name:           sessionName,
+		Status:         "COMPLETED",
+		StartTime:      startTime,
+		EndTime:        endTime,
+		LogFile:        logFile,
+		AgentStateFile: agentStateFile,
+		Error:          "mock error",
+	}
+	sessionData, err := json.Marshal(sessionState)
+	require.NoError(t, err)
+	err = os.WriteFile(sessionFile, sessionData, 0644)
+	require.NoError(t, err)
+
+	// Create a mock agent state file
+	agentState := &agent.State{
+		Model: "test-model",
+		TokenUsage: agent.TokenUsage{
+			TotalPromptTokens:   100,
+			TotalResponseTokens: 200,
+			TotalTokens:         300,
+		},
+	}
+	agentData, err := json.Marshal(agentState)
+	require.NoError(t, err)
+	err = os.WriteFile(agentStateFile, agentData, 0644)
+	require.NoError(t, err)
+
+	// Create a mock log file
+	logContent := "line 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\n"
+	err = os.WriteFile(logFile, []byte(logContent), 0644)
+	require.NoError(t, err)
+
+	// Override the sessionManagerFactory to use a mock session manager
 	originalFactory := sessionManagerFactory
 	sessionManagerFactory = func() (ISessionManager, error) {
-		return mockSM, nil
+		return runner.NewSessionManagerWithDir(sessionDir)
 	}
 	defer func() { sessionManagerFactory = originalFactory }()
 
@@ -44,10 +75,33 @@ func TestInspectCmd(t *testing.T) {
 	output, err := executeCommand(rootCmd, "inspect", sessionName)
 	require.NoError(t, err)
 
-	// Check the output
-	assert.Contains(t, output, fmt.Sprintf("Session Details for '%s'", sessionName))
-	assert.Regexp(t, `Name:\s+test-session`, output)
-	assert.Regexp(t, `Status:\s+completed`, output)
-	assert.Regexp(t, `PID:\s+12345`, output)
-	assert.Regexp(t, `Type:\s+test`, output)
+	// Assertions
+	require.Contains(t, output, "METADATA")
+	require.Regexp(t, `Name:\s+test-session`, output)
+	require.Regexp(t, `Status:\s+COMPLETED`, output)
+	require.Regexp(t, `Error:\s+mock error`, output)
+	require.Contains(t, output, "AGENT & TOKEN STATS")
+	require.Regexp(t, `Model:\s+test-model`, output)
+	require.Regexp(t, `Prompt Tokens:\s+100`, output)
+	require.Contains(t, output, "LOG EXCERPT (LAST 10 LINES)")
+	require.Contains(t, output, "line 11")
+	require.NotContains(t, output, "line 1")
+
+	// Test case for a session that is still running
+	runningSessionName := "running-session"
+	runningSessionFile := filepath.Join(sessionDir, runningSessionName+".json")
+	runningSessionState := &runner.SessionState{
+		Name:      runningSessionName,
+		Status:    "RUNNING",
+		StartTime: startTime,
+	}
+	runningSessionData, err := json.Marshal(runningSessionState)
+	require.NoError(t, err)
+	err = os.WriteFile(runningSessionFile, runningSessionData, 0644)
+	require.NoError(t, err)
+
+	output, err = executeCommand(rootCmd, "inspect", runningSessionName)
+	require.NoError(t, err)
+	require.Contains(t, output, "Status:         RUNNING")
+	require.True(t, strings.Contains(output, "Duration:") && !strings.Contains(output, "End Time:"))
 }
