@@ -13,7 +13,7 @@ func TestRmCmd(t *testing.T) {
 	rootCmd, _, _ := newRootCmd()
 
 	// 1. Setup a mock session manager
-	mockSM := NewMockSessionManager("/tmp")
+	mockSM := NewMockSessionManager(t.TempDir())
 	mockSM.Sessions["session1"] = &runner.SessionState{Name: "session1", Status: "completed", PID: 123}
 	mockSM.Sessions["session2"] = &runner.SessionState{Name: "session2", Status: "running", PID: 456}
 	mockSM.Sessions["session3"] = &runner.SessionState{Name: "session3", Status: "completed", PID: 789}

@@ -15,7 +15,7 @@ func TestSearchCodeCmd(t *testing.T) {
 	require.NoError(t, os.MkdirAll(sessionsDir, 0755))
 
 	// Create a session manager that points to our temporary directory
-	sm, err := runner.NewSessionManagerWithDir(tmpDir)
+	sm, err := runner.NewSessionManagerWithDir(sessionsDir)
 	require.NoError(t, err)
 
 	// Override the global factory to inject our test-specific session manager
@@ -61,7 +61,12 @@ func TestSearchCodeCmd(t *testing.T) {
 
 	// Create dummy session state files so the manager can find them
 	for _, name := range []string{session1Name, session2Name, session3Name, session4Name} {
-		state := &runner.SessionState{Name: name, Status: "COMPLETED"}
+		workspacePath := filepath.Join(sessionsDir, name, "workspace")
+		// For session4, the workspace doesn't exist, which is part of the test.
+		if name == session4Name {
+			workspacePath = ""
+		}
+		state := &runner.SessionState{Name: name, Status: "COMPLETED", Workspace: workspacePath}
 		err := sm.SaveSession(state)
 		require.NoError(t, err)
 	}
