@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"sort"
 	"recac/internal/runner"
+	"sort"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/spf13/cobra"
@@ -63,20 +63,30 @@ func runInteractiveHistory(cmd *cobra.Command, sm ISessionManager, fullLogs bool
 		displaySessions = append(displaySessions, display)
 		sessionMap[display] = s
 	}
-	var selectedDisplay string
-	prompt := &survey.Select{
-		Message:  "Select a session to view its history:",
+	var selectedDisplays []string
+	prompt := &survey.MultiSelect{
+		Message:  "Select one session to view details, or two to compare:",
 		Options:  displaySessions,
 		PageSize: 15,
 	}
-	if err := askOne(prompt, &selectedDisplay); err != nil {
+	if err := askOne(prompt, &selectedDisplays); err != nil {
 		if err.Error() == "interrupt" {
 			return nil // User cancelled
 		}
-		return fmt.Errorf("failed to select session: %w", err)
+		return fmt.Errorf("failed to select session(s): %w", err)
 	}
-	selectedSession := sessionMap[selectedDisplay]
-	return DisplaySessionDetail(cmd, selectedSession, fullLogs)
+	switch len(selectedDisplays) {
+	case 0:
+		cmd.Println("No sessions selected.")
+		return nil
+	case 1:
+		selectedSession := sessionMap[selectedDisplays[0]]
+		return DisplaySessionDetail(cmd, selectedSession, fullLogs)
+	case 2:
+		sessionA := sessionMap[selectedDisplays[0]]
+		sessionB := sessionMap[selectedDisplays[1]]
+		return DisplaySessionDiff(cmd, sessionA, sessionB)
+	default:
+		return fmt.Errorf("please select either one session to view or two sessions to compare")
+	}
 }
-
-
