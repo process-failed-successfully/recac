@@ -191,7 +191,7 @@ func TestPsCmdSort(t *testing.T) {
 	})
 }
 
-func TestPsCommandDetailView(t *testing.T) {
+func TestPsAndListDetailView(t *testing.T) {
 	tempDir := t.TempDir()
 	sessionsDir := filepath.Join(tempDir, "sessions")
 	require.NoError(t, os.Mkdir(sessionsDir, 0755))
@@ -236,17 +236,29 @@ func TestPsCommandDetailView(t *testing.T) {
 	err = sm.SaveSession(session)
 	require.NoError(t, err)
 
-	// Execute the "ps <session-name>" command
-	output, err := executeCommand(rootCmd, "ps", sessionName)
-	require.NoError(t, err)
+	testCases := []struct {
+		name    string
+		command []string
+	}{
+		{"ps command", []string{"ps", sessionName}},
+		{"list command", []string{"list", sessionName}},
+	}
 
-	// Assert that the output contains the detailed view information using regular expressions
-	assert.Regexp(t, `Session Details`, output)
-	assert.Regexp(t, `Name:\s+test-session-detail`, output)
-	assert.Regexp(t, `Status:\s+completed`, output)
-	assert.Regexp(t, `Total Tokens:\s+200`, output)
-	assert.Regexp(t, `Cost:`, output)
-	assert.Regexp(t, `Recent Logs`, output)
-	assert.Contains(t, output, "line 1")
-	assert.Contains(t, output, "line 2")
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Execute the command
+			output, err := executeCommand(rootCmd, tc.command...)
+			require.NoError(t, err)
+
+			// Assert that the output contains the detailed view information using regular expressions
+			assert.Regexp(t, `Session Details`, output)
+			assert.Regexp(t, `Name:\s+test-session-detail`, output)
+			assert.Regexp(t, `Status:\s+completed`, output)
+			assert.Regexp(t, `Total Tokens:\s+200`, output)
+			assert.Regexp(t, `Cost:`, output)
+			assert.Regexp(t, `Recent Logs`, output)
+			assert.Contains(t, output, "line 1")
+			assert.Contains(t, output, "line 2")
+		})
+	}
 }
