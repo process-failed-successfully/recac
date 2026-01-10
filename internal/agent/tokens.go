@@ -26,18 +26,21 @@ func TruncateToTokenLimit(text string, maxTokens int) string {
 		return ""
 	}
 
-	currentTokens := EstimateTokenCount(text)
-	if currentTokens <= maxTokens {
+	if EstimateTokenCount(text) <= maxTokens {
 		return text
 	}
 
-	// Reserve tokens for truncation marker (approximately 5 tokens)
+	// Reserve tokens for truncation marker (approximately 10 tokens for the verbose one)
 	truncationMarker := "\n[... truncated ...]\n"
 	markerTokens := EstimateTokenCount(truncationMarker)
 	availableTokens := maxTokens - markerTokens
 	if availableTokens <= 0 {
-		// If marker itself exceeds limit, return empty
-		return ""
+		// If marker itself exceeds limit, perform a hard truncate.
+		hardMaxChars := maxTokens * 4
+		if len(text) > hardMaxChars {
+			return text[:hardMaxChars]
+		}
+		return text
 	}
 
 	// Calculate max characters we can keep (reserve 50% for start, 50% for end)
@@ -45,16 +48,17 @@ func TruncateToTokenLimit(text string, maxTokens int) string {
 	maxStartChars := maxChars / 2
 	maxEndChars := maxChars / 2
 
-	// Split into lines to preserve structure
-	lines := strings.Split(text, "\n")
-	if len(lines) <= 1 {
-		// Single line: truncate from middle
+	n := len(text)
+
+	// Single line check or no newlines
+	firstNewLine := strings.IndexByte(text, '\n')
+	if firstNewLine == -1 {
+		// Single line: truncate from middle.
+		// We use rune slicing here to ensure we don't split multi-byte characters.
 		runes := []rune(text)
 		if len(runes) <= maxChars {
-			// If entire text fits, return as-is
 			return text
 		}
-		// Keep start and end portions
 		startPortion := string(runes[:min(maxStartChars, len(runes))])
 		endPortion := ""
 		if len(runes) > maxStartChars {
@@ -62,58 +66,111 @@ func TruncateToTokenLimit(text string, maxTokens int) string {
 			endPortion = string(runes[endStart:])
 		}
 		result := startPortion + truncationMarker + endPortion
-
-		// Verify and recursively truncate if needed
 		if EstimateTokenCount(result) > maxTokens {
 			return TruncateToTokenLimit(result, maxTokens)
 		}
 		return result
 	}
 
-	// Multi-line: remove lines from middle
-	// Calculate how many characters we can keep from start and end lines
-	startChars := 0
-	startLines := []string{}
-	for i := 0; i < len(lines) && startChars < maxStartChars; i++ {
-		// Use len() instead of utf8.RuneCountInString for O(1) performance and consistency with EstimateTokenCount
-		lineChars := len(lines[i])
-		if startChars+lineChars+1 > maxStartChars { // +1 for newline
-			break
+	// Multi-line logic:
+
+	// 1. Find start cut point
+	startCut := 0
+	if maxStartChars >= n {
+		startCut = n
+	} else {
+		// Scan forward finding newlines until we exceed maxStartChars.
+		scanPos := 0
+		for {
+			nextNL := strings.IndexByte(text[scanPos:], '\n')
+			if nextNL == -1 {
+				// No more newlines. Check if the rest fits
+				if len(text) <= maxStartChars {
+					startCut = len(text)
+				}
+				break
+			}
+			absoluteNL := scanPos + nextNL
+
+			// Length if we include this line (up to and including newline)
+			if absoluteNL+1 > maxStartChars {
+				break
+			}
+
+			// This line fits.
+			startCut = absoluteNL + 1 // Include the newline
+			scanPos = absoluteNL + 1
 		}
-		startLines = append(startLines, lines[i])
-		startChars += lineChars + 1
 	}
 
-	endChars := 0
-	// Use a slice to collect lines in reverse order, then reverse at the end
-	// This avoids O(n^2) behavior of repeated prepending (append([]string{line}, list...))
-	var endLinesReversed []string
-	for i := len(lines) - 1; i >= 0 && endChars < maxEndChars; i-- {
-		// Don't overlap with start lines
-		if len(startLines) > 0 && i < len(startLines) {
-			break
+	// 2. Find end cut point
+	endCut := n
+	if maxEndChars >= n {
+		endCut = 0
+	} else {
+		// Loop backwards finding lines that fit in maxEndChars
+		currLen := 0
+		currentEndCut := n
+
+		cursor := n
+		for {
+			p := -1
+			if cursor > 0 {
+				p = strings.LastIndexByte(text[:cursor], '\n')
+			}
+
+			// Line is from p+1 to cursor.
+
+			realLen := cursor - (p + 1)
+
+			// If we keep this line, we keep content + newline.
+			// Logic matches `lineChars + 1`.
+
+			if currLen+realLen+1 > maxEndChars {
+				break
+			}
+
+			currLen += realLen + 1
+			currentEndCut = p + 1
+
+			if p == -1 {
+				break // Reached start of string
+			}
+			cursor = p // Move cursor to the newline we just found
 		}
-		// Use len() instead of utf8.RuneCountInString for O(1) performance and consistency with EstimateTokenCount
-		lineChars := len(lines[i])
-		if endChars+lineChars+1 > maxEndChars { // +1 for newline
-			break
-		}
-		endLinesReversed = append(endLinesReversed, lines[i])
-		endChars += lineChars + 1
+		endCut = currentEndCut
 	}
 
-	// Reverse the collected end lines to get correct order
-	endLines := make([]string, len(endLinesReversed))
-	for i, j := 0, len(endLinesReversed)-1; j >= 0; i, j = i+1, j-1 {
-		endLines[i] = endLinesReversed[j]
+	// Check overlap
+	if startCut >= endCut {
+		// Fallback for when the text is too short for the start/end logic to work without overlap.
+		// Simply truncate from the end.
+		safeCut := maxTokens * 4
+		if safeCut > len(text) {
+			safeCut = len(text)
+		}
+		return text[:safeCut]
 	}
 
-	omittedCount := len(lines) - len(startLines) - len(endLines)
-	result := strings.Join(startLines, "\n") + "\n[... truncated " + strconv.Itoa(omittedCount) + " lines ...]\n" + strings.Join(endLines, "\n")
+	// Omitted lines count
+	omittedCount := 0
+	dropped := text[startCut:endCut]
+	if strings.HasSuffix(dropped, "\n") {
+		omittedCount = strings.Count(dropped, "\n")
+	} else {
+		omittedCount = strings.Count(dropped, "\n") + 1
+	}
+
+	startPortion := text[:startCut]
+	if startCut > 0 && startPortion[startCut-1] == '\n' {
+		startPortion = startPortion[:startCut-1]
+	}
+
+	omittedStr := strconv.Itoa(omittedCount)
+	result := startPortion + "\n[... truncated " + omittedStr + " lines ...]\n" + text[endCut:]
 
 	// Verify we're under the limit (recursive safety)
 	if EstimateTokenCount(result) > maxTokens {
-		// If still too large, be more aggressive
 		return TruncateToTokenLimit(result, maxTokens*90/100)
 	}
 
