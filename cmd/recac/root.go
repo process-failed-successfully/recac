@@ -48,8 +48,10 @@ func Execute() {
 
 func init() {
 	rootCmd.Run = func(cmd *cobra.Command, args []string) {
-		// Default behavior: Run Interactive Mode
-		RunInteractive()
+		// Default behavior: Run Interactive Mode using flags
+		provider, _ := cmd.Flags().GetString("provider")
+		model, _ := cmd.Flags().GetString("model")
+		RunInteractive(provider, model)
 	}
 	cobra.OnInitialize(initConfig)
 
@@ -167,7 +169,7 @@ func initConfig() {
 		exit(1)
 	}
 
-	telemetry.InitLogger(viper.GetBool("verbose"), "")
+	telemetry.InitLogger(viper.GetBool("verbose"), "", false)
 
 	// Start Metrics Server
 	go func() {

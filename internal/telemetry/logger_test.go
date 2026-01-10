@@ -11,8 +11,8 @@ import (
 
 func TestInitLogger_Configuration(t *testing.T) {
 	// Just verify it doesn't panic
-	InitLogger(true, "")
-	InitLogger(false, "")
+	InitLogger(true, "", false)
+	InitLogger(false, "", false)
 }
 
 func TestLogError(t *testing.T) {
@@ -50,22 +50,22 @@ func TestInitLogger_JSONOutput(t *testing.T) {
 	if !strings.Contains(output, `"key":"value"`) {
 		t.Errorf("Expected output to contain key-value, got %s", output)
 	}
-	
+
 	var logMap map[string]interface{}
 	if err := json.Unmarshal(buf.Bytes(), &logMap); err != nil {
 		t.Fatalf("Output is not valid JSON: %v", err)
 	}
-	
+
 	// Verify timestamp field exists
 	if _, ok := logMap["time"]; !ok {
 		t.Error("JSON output missing 'time' (timestamp) field")
 	}
-	
+
 	// Verify level field exists
 	if _, ok := logMap["level"]; !ok {
 		t.Error("JSON output missing 'level' field")
 	}
-	
+
 	// Verify level is "INFO" for LogInfo
 	if level, ok := logMap["level"].(string); ok {
 		if level != "INFO" {

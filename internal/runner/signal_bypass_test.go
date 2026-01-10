@@ -23,7 +23,7 @@ func TestSignalBypass(t *testing.T) {
 		Project:   "test-project",
 		DBStore:   store,
 		Notifier:  notify.NewManager(func(string, ...interface{}) {}),
-		Logger:    telemetry.NewLogger(true, ""),
+		Logger:    telemetry.NewLogger(true, "", false),
 	}
 
 	privilegedSignals := []string{

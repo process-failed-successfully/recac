@@ -5,7 +5,7 @@ import (
 )
 
 func TestInteractiveModel_GeminiCLIModels(t *testing.T) {
-	m := NewInteractiveModel(nil)
+	m := NewInteractiveModel(nil, "", "")
 	m.currentAgent = "gemini-cli"
 	m.setMode(ModeModelSelect)
 

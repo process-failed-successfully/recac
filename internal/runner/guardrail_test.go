@@ -23,7 +23,7 @@ func TestSession_RunLoop_MissingSpec(t *testing.T) {
 		Docker:    mockDocker,
 		Workspace: tmpDir,
 		Notifier:  notify.NewManager(func(string, ...interface{}) {}),
-		Logger:    telemetry.NewLogger(true, ""),
+		Logger:    telemetry.NewLogger(true, "", false),
 	}
 
 	// 3. Run Loop

@@ -172,7 +172,7 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 		// Re-initialize telemetry logger with the session log file
 		// Note: We use the global 'verbose' setting
 		// We still init global logger for backward compatibility and simpler calls where session isn't available
-		telemetry.InitLogger(viper.GetBool("verbose"), logFilePath)
+		telemetry.InitLogger(viper.GetBool("verbose"), logFilePath, false)
 		fmt.Printf("Session logs will be written to: %s\n", logFilePath)
 	}
 
@@ -181,7 +181,7 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 	// For now, we reuse the configuration logic but ideally we'd pass this logger instance around.
 	// Since we called InitLogger above, slog.Default() is set.
 	// But let's create an explicit one too.
-	logger := telemetry.NewLogger(viper.GetBool("verbose"), "")
+	logger := telemetry.NewLogger(viper.GetBool("verbose"), "", false)
 	if project != "" {
 		logger = logger.With("project", project)
 	}
@@ -258,11 +258,11 @@ func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, pr
 
 		// Re-initialize telemetry logger with the session log file
 		// Note: We use the global 'verbose' setting (viper)
-		telemetry.InitLogger(viper.GetBool("verbose"), logFilePath)
+		telemetry.InitLogger(viper.GetBool("verbose"), logFilePath, false)
 		fmt.Printf("Session logs will be written to: %s\n", logFilePath)
 	}
 
-	logger := telemetry.NewLogger(viper.GetBool("verbose"), "")
+	logger := telemetry.NewLogger(viper.GetBool("verbose"), "", false)
 	if project != "" {
 		logger = logger.With("project", project)
 	}
@@ -317,11 +317,11 @@ func NewSessionWithConfig(workspace, project, provider, model string, dbStore db
 		logFilePath := filepath.Join(agentsLogsDir, logFileName)
 
 		// Re-initialize telemetry logger with the session log file
-		telemetry.InitLogger(viper.GetBool("verbose"), logFilePath)
+		telemetry.InitLogger(viper.GetBool("verbose"), logFilePath, false)
 		fmt.Printf("Session logs will be written to: %s\n", logFilePath)
 	}
 
-	logger := telemetry.NewLogger(viper.GetBool("verbose"), "")
+	logger := telemetry.NewLogger(viper.GetBool("verbose"), "", false)
 	if project != "" {
 		logger = logger.With("project", project)
 	}

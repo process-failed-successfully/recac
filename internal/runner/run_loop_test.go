@@ -121,7 +121,7 @@ func TestSession_RunLoop_Success(t *testing.T) {
 		MaxIterations:    5,
 		ManagerFrequency: 10,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
-		Logger:           telemetry.NewLogger(true, ""),
+		Logger:           telemetry.NewLogger(true, "", false),
 	}
 
 	// Wait, RunLoop will loop until MaxIterations or COMPLETED.

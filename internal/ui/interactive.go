@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -179,8 +180,9 @@ const (
 )
 
 type ChatMessage struct {
-	Role    MessageRole
-	Content string
+	Role     MessageRole
+	Content  string
+	Rendered string // Cache for rendered ANSI string
 }
 
 type InteractiveModel struct {
@@ -207,6 +209,12 @@ type InteractiveModel struct {
 	showList bool
 	thinking bool // For spinner
 
+	// Streaming state
+	chunkChan        chan string
+	errChan          chan error
+	currentMsgBuffer string // Buffer for the message currently being streamed
+	isStreaming      bool
+
 	err error
 
 	// Layout
@@ -214,7 +222,7 @@ type InteractiveModel struct {
 	height int
 }
 
-func NewInteractiveModel(commands []SlashCommand) InteractiveModel {
+func NewInteractiveModel(commands []SlashCommand, provider, model string) InteractiveModel {
 	ta := textarea.New()
 	ta.Placeholder = "Type a message..."
 	ta.Focus()
@@ -321,7 +329,7 @@ func NewInteractiveModel(commands []SlashCommand) InteractiveModel {
 	agentModels["openai"] = []ModelItem{
 		{Name: "GPT-4o", Value: "gpt-4o", DescriptionDetails: "Omni model, high intelligence"},
 		{Name: "GPT-4 Turbo", Value: "gpt-4-turbo", DescriptionDetails: "High intelligence"},
-		{Name: "GPT-3.5 Turbo", Value: "gpt-3.5-turbo", DescriptionDetails: "Fast and cheap"},
+		{Name: "GPT-3.5 Turbo", Value: "gpt-3.5-turbo", DescriptionDetails: "Fastest and cheap"},
 	}
 
 	// Try to load OpenRouter models from file
@@ -375,6 +383,19 @@ func NewInteractiveModel(commands []SlashCommand) InteractiveModel {
 		{Name: "Pro", Value: "pro", DescriptionDetails: "Gemini 1.5 Pro"},
 	}
 
+	// Default Logic
+	if provider == "" {
+		provider = "gemini"
+	}
+	if model == "" {
+		// Try to find default model for provider
+		if models, ok := agentModels[provider]; ok && len(models) > 0 {
+			model = models[0].Value
+		} else {
+			model = "gemini-2.0-flash-auto" // Fallback
+		}
+	}
+
 	return InteractiveModel{
 		textarea:     ta,
 		viewport:     vp,
@@ -385,8 +406,8 @@ func NewInteractiveModel(commands []SlashCommand) InteractiveModel {
 		commands:     cmdItems,
 		agents:       availableAgents,
 		agentModels:  agentModels,
-		currentModel: "gemini-2.0-flash-auto",
-		currentAgent: "gemini",
+		currentModel: model,
+		currentAgent: provider,
 		messages:     []ChatMessage{{Role: RoleSystem, Content: welcomeMsg}},
 		mode:         ModeChat,
 		showList:     false,
@@ -481,6 +502,8 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// Forward navigation keys to list even if textarea focuses
 				switch msg := msg.(type) {
 				case tea.KeyMsg:
+					slog.Info("KeyMsg received", "type", msg.Type, "string", msg.String(), "runes", msg.Runes)
+					// Handle global keybindings
 					switch msg.Type {
 					case tea.KeyUp, tea.KeyDown, tea.KeyPgUp, tea.KeyPgDown:
 						m.list, listCmd = m.list.Update(msg)
@@ -515,8 +538,45 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case AgentResponseMsg:
 		m.thinking = false
-		m.conversation(msg.Content, false) // Bot response
+		m.isStreaming = false
+		// Ensure final render is cached cleanly
+		if len(m.messages) > 0 {
+			idx := len(m.messages) - 1
+			m.messages[idx].Rendered = m.renderSingleMessage(m.messages[idx])
+			m.viewport.SetContent(m.renderAll())
+		}
 		return m, nil
+
+	case AgentChunkMsg:
+		if !m.isStreaming {
+			return m, nil
+		}
+
+		// Update buffer
+		m.currentMsgBuffer += msg.Content
+
+		// Update the last message (which is our active bot message)
+		if len(m.messages) > 0 {
+			idx := len(m.messages) - 1
+			m.messages[idx].Content = m.currentMsgBuffer
+			// We render the streaming message on every chunk to support markdown syntax highlighting appearing live
+			// This is expensive but only for ONE message, not the whole history.
+			m.messages[idx].Rendered = m.renderSingleMessage(m.messages[idx])
+		}
+
+		m.viewport.SetContent(m.renderAll())
+		m.viewport.GotoBottom()
+
+		return m, m.waitForChunkMsg()
+
+	case AgentStreamStartMsg:
+		m.chunkChan = msg.ChunkChan
+		m.errChan = msg.ErrChan
+		m.isStreaming = true
+		m.currentMsgBuffer = ""
+		// Add a placeholder message for the bot that we will stream into
+		m.messages = append(m.messages, ChatMessage{Role: RoleBot, Content: "", Rendered: ""})
+		return m, m.waitForChunkMsg()
 
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -539,6 +599,56 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch {
+		case msg.Type == tea.KeyTab:
+			v := m.textarea.Value()
+
+			// Determine context
+			isCmdMode := m.mode == ModeCmd
+			isSlashCmd := strings.HasPrefix(v, "/")
+
+			// If not a command context, fallback to ToggleList behavior immediately
+			if !isCmdMode && !isSlashCmd {
+				if key.Matches(msg, m.keys.ToggleList) {
+					if m.mode != ModeModelSelect && m.mode != ModeAgentSelect {
+						m.toggleList()
+						return m, nil
+					}
+				}
+				return m, nil
+			}
+
+			// Command Completion Logic
+			checkVal := v
+			if isCmdMode && !isSlashCmd {
+				checkVal = "/" + v
+			}
+
+			slog.Info("Tab pressed for completion", "checkVal", checkVal)
+
+			var candidates []string
+			candidates = append(candidates, "/model", "/agent", "/clear", "/status", "/version", "/quit")
+			for _, c := range m.commands {
+				candidates = append(candidates, c.Name)
+			}
+
+			var matches []string
+			for _, c := range candidates {
+				if strings.HasPrefix(c, checkVal) {
+					matches = append(matches, c)
+				}
+			}
+
+			if len(matches) > 0 {
+				match := matches[0]
+				if m.mode == ModeCmd {
+					match = strings.TrimPrefix(match, "/")
+				}
+				m.textarea.SetValue(match)
+				m.textarea.SetCursor(len(match))
+				return m, nil
+			}
+			return m, nil
+
 		case key.Matches(msg, m.keys.Quit):
 			return m, tea.Quit
 
@@ -719,20 +829,57 @@ type AgentResponseMsg struct {
 	Content string
 }
 
+type AgentChunkMsg struct {
+	Content string
+}
+
 func (m *InteractiveModel) generateResponse(prompt string) tea.Cmd {
 	return func() tea.Msg {
 		if m.activeAgent == nil {
 			return AgentErrorMsg{Err: fmt.Errorf("agent not initialized")}
 		}
-		// Use a temporary background context for now.
-		// In a real TUI we might want to support cancellation via context.
-		resp, err := m.activeAgent.Send(context.Background(), prompt)
-		if err != nil {
-			return AgentErrorMsg{Err: err}
-		}
-		return AgentResponseMsg{Content: resp}
+
+		// Channel for streaming chunks
+		// Store in a way that we can pass it (Wait, we can't easily modify 'm' inside a Cmd safely if it's not a pointer receiver on the specific instance managed by Bubble Tea update loop, but we can pass channels in the MsgOr just use closure if we are careful)
+		// Better approach: wrap channels in a "StreamStartedMsg"
+
+		chkCh := make(chan string, 100)
+		errCh := make(chan error, 1)
+
+		go func() {
+			_, err := m.activeAgent.SendStream(context.Background(), prompt, func(chunk string) {
+				chkCh <- chunk
+			})
+			if err != nil {
+				errCh <- err
+			}
+			close(chkCh)
+		}()
+
+		return AgentStreamStartMsg{ChunkChan: chkCh, ErrChan: errCh}
 	}
 }
+
+type AgentStreamStartMsg struct {
+	ChunkChan chan string
+	ErrChan   chan error
+}
+
+func (m *InteractiveModel) waitForChunkMsg() tea.Cmd {
+	return func() tea.Msg {
+		select {
+		case chunk, ok := <-m.chunkChan:
+			if !ok {
+				return AgentResponseMsg{Content: ""} // Done
+			}
+			return AgentChunkMsg{Content: chunk}
+		case err := <-m.errChan:
+			return AgentErrorMsg{Err: err}
+		}
+	}
+}
+
+// Wrapper for waitForChunk to be used as a Cmd
 
 func (m *InteractiveModel) toggleList() {
 	m.showList = !m.showList
@@ -848,41 +995,59 @@ func (m *InteractiveModel) conversation(msg string, isUser bool) {
 	if isUser {
 		role = RoleUser
 	}
-	m.messages = append(m.messages, ChatMessage{Role: role, Content: msg})
-	m.viewport.SetContent(m.renderMessages())
+	// For System/Non-chat messages?
+	if !isUser && m.thinking && !m.isStreaming {
+		// Use System role for status messages if it's not a real response yet
+		role = RoleSystem
+	}
+
+	newMsg := ChatMessage{Role: role, Content: msg}
+	newMsg.Rendered = m.renderSingleMessage(newMsg) // Render once and cache
+	m.messages = append(m.messages, newMsg)
+
+	m.viewport.SetContent(m.renderAll())
 	m.viewport.GotoBottom()
 }
 
-// renderMessages formats the chat history with styles
-func (m *InteractiveModel) renderMessages() string {
+// renderSingleMessage renders a SINGLE message to string
+func (m InteractiveModel) renderSingleMessage(msg ChatMessage) string {
 	var b strings.Builder
-	for _, msg := range m.messages {
-		switch msg.Role {
-		case RoleUser:
-			b.WriteString(interactiveSenderStyle.Render("You: "))
-			b.WriteString(RenderMarkdown(msg.Content))
-			b.WriteString("\n\n")
-		case RoleBot:
-			b.WriteString(interactiveBotStyle.Render("Recac: "))
-			b.WriteString(RenderMarkdown(msg.Content))
-			b.WriteString("\n\n")
-		case RoleSystem:
-			b.WriteString(interactiveStatusMessageStyle.Render(msg.Content))
-			b.WriteString("\n\n")
-		case RoleError:
-			b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Render("Error: " + msg.Content))
-			b.WriteString("\n\n")
-		}
+	switch msg.Role {
+	case RoleUser:
+		b.WriteString(interactiveSenderStyle.Render("You: "))
+		b.WriteString(RenderMarkdown(msg.Content, m.viewport.Width-4))
+		b.WriteString("\n\n")
+	case RoleBot:
+		b.WriteString(interactiveBotStyle.Render("Recac: "))
+		b.WriteString(RenderMarkdown(msg.Content, m.viewport.Width-4))
+		b.WriteString("\n\n")
+	case RoleSystem:
+		b.WriteString(interactiveStatusMessageStyle.Render(msg.Content))
+		b.WriteString("\n\n")
+	case RoleError:
+		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Render("Error: " + msg.Content))
+		b.WriteString("\n\n")
 	}
 	return b.String()
 }
 
+// renderAll joins pre-rendered messages
+func (m *InteractiveModel) renderAll() string {
+	var b strings.Builder
+	for _, msg := range m.messages {
+		b.WriteString(msg.Rendered)
+	}
+	return b.String()
+}
+
+// Clean up old renderMessages
+// func (m *InteractiveModel) renderMessages() string { ... } - REPLACED
+
 // ClearHistory clears the conversation history.
 func (m *InteractiveModel) ClearHistory() {
 	m.messages = []ChatMessage{}
-	m.messages = append(m.messages, ChatMessage{Role: RoleSystem, Content: "Conversation history cleared."})
-	m.viewport.SetContent(m.renderMessages())
-	m.viewport.GotoBottom()
+	// Re-add welcome or cleared msg
+	m.conversation("Conversation history cleared.", false)
 }
 
 func (m InteractiveModel) View() string {

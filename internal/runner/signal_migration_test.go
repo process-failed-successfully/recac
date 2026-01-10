@@ -28,7 +28,7 @@ func TestSignalMigration(t *testing.T) {
 		Project:   "test-project",
 		DBStore:   store,
 		Notifier:  notify.NewManager(func(string, ...interface{}) {}),
-		Logger:    telemetry.NewLogger(true, ""),
+		Logger:    telemetry.NewLogger(true, "", false),
 	}
 
 	// 4. Test Scenario: Agent creates a signal file

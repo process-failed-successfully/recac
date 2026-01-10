@@ -10,7 +10,7 @@ import (
 func TestSession_CheckNoOpBreaker(t *testing.T) {
 	s := &Session{
 		Notifier: notify.NewManager(func(string, ...interface{}) {}),
-		Logger:   telemetry.NewLogger(true, ""),
+		Logger:   telemetry.NewLogger(true, "", false),
 	}
 
 	// 1. One No-Op
@@ -64,7 +64,7 @@ func TestSession_CheckStalledBreaker(t *testing.T) {
 		ManagerFrequency: 5,
 		LastFeatureCount: 0,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
-		Logger:           telemetry.NewLogger(true, ""),
+		Logger:           telemetry.NewLogger(true, "", false),
 	}
 
 	// 1. Initial Progress
@@ -106,7 +106,7 @@ func TestSession_CheckStalledBreaker_ManagerReset(t *testing.T) {
 		ManagerFrequency: 5,
 		LastFeatureCount: 0,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
-		Logger:           telemetry.NewLogger(true, ""),
+		Logger:           telemetry.NewLogger(true, "", false),
 	}
 
 	// 1. Stall for 4 iterations

@@ -11,7 +11,7 @@ func TestNewInteractiveModel(t *testing.T) {
 	cmds := []SlashCommand{
 		{Name: "/test", Description: "Test Command", Action: nil},
 	}
-	m := NewInteractiveModel(cmds)
+	m := NewInteractiveModel(cmds, "", "")
 
 	if len(m.commands) < 3 { // /test + /model + /agent
 		t.Errorf("Expected at least 3 commands, got %d", len(m.commands))
@@ -37,7 +37,7 @@ func TestNewInteractiveModel(t *testing.T) {
 }
 
 func TestInteractiveModel_Update_ModeSwitching(t *testing.T) {
-	m := NewInteractiveModel(nil)
+	m := NewInteractiveModel(nil, "", "")
 
 	// Test switching to Cmd mode via Slash
 	// We need to type "/" into textarea, then Update
@@ -79,7 +79,7 @@ func TestInteractiveModel_Update_CommandExecution(t *testing.T) {
 			},
 		},
 	}
-	m := NewInteractiveModel(cmds)
+	m := NewInteractiveModel(cmds, "", "")
 
 	// Type "/exec"
 	m.textarea.SetValue("/exec")
@@ -98,7 +98,7 @@ func TestInteractiveModel_Update_CommandExecution(t *testing.T) {
 }
 
 func TestInteractiveModel_Update_AgentSelection(t *testing.T) {
-	m := NewInteractiveModel(nil)
+	m := NewInteractiveModel(nil, "", "")
 
 	// Enter Agent Mode directly for test
 	m.setMode(ModeAgentSelect)
@@ -135,7 +135,7 @@ func TestInteractiveModel_Update_Filtering(t *testing.T) {
 	cmds := []SlashCommand{
 		{Name: "/custom", Description: "Custom", Action: nil},
 	}
-	m := NewInteractiveModel(cmds)
+	m := NewInteractiveModel(cmds, "", "")
 	m.showList = true
 	m.setMode(ModeCmd)
 
@@ -174,7 +174,7 @@ func TestInteractiveModel_Update_Filtering(t *testing.T) {
 }
 
 func TestInteractiveModel_View(t *testing.T) {
-	m := NewInteractiveModel(nil)
+	m := NewInteractiveModel(nil, "", "")
 
 	// Send Window Size
 	// Must capture return value as Update is value receiver
@@ -204,7 +204,7 @@ func TestInteractiveModel_View(t *testing.T) {
 }
 
 func TestInputModes(t *testing.T) {
-	m := NewInteractiveModel(nil)
+	m := NewInteractiveModel(nil, "", "")
 
 	m.setMode(ModeChat)
 	if m.textarea.Prompt != " ❯ " {
@@ -263,7 +263,7 @@ func TestHelperMethods(t *testing.T) {
 }
 
 func TestInteractiveModel_ModelListing(t *testing.T) {
-	m := NewInteractiveModel(nil)
+	m := NewInteractiveModel(nil, "", "")
 	m.currentAgent = "gemini"
 	// Force populating list
 	m.setMode(ModeModelSelect)
@@ -299,7 +299,7 @@ func TestInteractiveModel_ModelListing(t *testing.T) {
 }
 
 func TestInteractiveModel_ToggleList(t *testing.T) {
-	m := NewInteractiveModel(nil)
+	m := NewInteractiveModel(nil, "", "")
 	m.showList = false
 
 	m.toggleList()
@@ -314,7 +314,7 @@ func TestInteractiveModel_ToggleList(t *testing.T) {
 }
 
 func TestInteractiveModel_Init(t *testing.T) {
-	m := NewInteractiveModel(nil)
+	m := NewInteractiveModel(nil, "", "")
 	cmd := m.Init()
 	if cmd == nil {
 		t.Error("Init should return batch cmd")
@@ -322,7 +322,7 @@ func TestInteractiveModel_Init(t *testing.T) {
 }
 
 func TestInteractiveModel_ShellExecution(t *testing.T) {
-	m := NewInteractiveModel(nil)
+	m := NewInteractiveModel(nil, "", "")
 	cmd := m.runShellCommand("echo hello")
 	if cmd == nil {
 		t.Error("Should return cmd")
@@ -342,7 +342,7 @@ func TestInteractiveModel_ShellExecution(t *testing.T) {
 }
 
 func TestInteractiveModel_Conversation(t *testing.T) {
-	m := NewInteractiveModel(nil)
+	m := NewInteractiveModel(nil, "", "")
 	m.conversation("User Msg", true)
 	if len(m.messages) <= 1 {
 		t.Error("Messages should store user msg")
@@ -377,7 +377,7 @@ func TestInteractiveModel_Update_StatusExecution(t *testing.T) {
 			},
 		},
 	}
-	m := NewInteractiveModel(cmds)
+	m := NewInteractiveModel(cmds, "", "")
 
 	m.textarea.SetValue("/status")
 
