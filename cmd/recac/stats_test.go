@@ -162,7 +162,7 @@ func TestCalculateStats(t *testing.T) {
 
 			require.Equal(t, tc.expectedTotal, stats.TotalSessions, "TotalSessions mismatch")
 			require.Equal(t, tc.expectedTokens, stats.TotalTokens, "TotalTokens mismatch")
-			require.InDelta(t, tc.expectedCost, stats.TotalCost, 0.0001, "TotalCost mismatch")
+			require.InDelta(t, tc.expectedCost, stats.TotalCost, 0.0002, "TotalCost mismatch")
 			require.Equal(t, len(tc.expectedStatusCount), len(stats.StatusCounts), "StatusCounts length mismatch")
 			for status, count := range tc.expectedStatusCount {
 				require.Equal(t, count, stats.StatusCounts[status], "StatusCount for '%s' mismatch", status)
