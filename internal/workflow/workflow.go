@@ -183,15 +183,19 @@ func ProcessJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.C
 		}
 	}
 
-	repoRegex := regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
-	matches := repoRegex.FindStringSubmatch(description)
-	if len(matches) <= 1 {
-		logger.Error("Error: No repository URL found in ticket description (Repo: https://...)")
-		return fmt.Errorf("no repo url found")
+	repoURL := cfg.RepoURL
+	if repoURL == "" {
+		repoRegex := regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
+		matches := repoRegex.FindStringSubmatch(description)
+		if len(matches) <= 1 {
+			logger.Error("Error: No repository URL found in ticket description (Repo: https://...)")
+			return fmt.Errorf("no repo url found")
+		}
+		repoURL = strings.TrimSuffix(matches[1], ".git")
+		logger.Info("Found repository URL in ticket", "repo_url", repoURL)
+	} else {
+		logger.Info("Using provided repository URL", "repo_url", repoURL)
 	}
-
-	repoURL := strings.TrimSuffix(matches[1], ".git")
-	logger.Info("Found repository URL in ticket", "repo_url", repoURL)
 
 	if _, err := cmdutils.SetupWorkspace(ctx, repoURL, tempWorkspace, jiraTicketID, cfg.JiraEpicKey, timestamp); err != nil {
 		logger.Error("Error: Failed to setup workspace", "error", err)

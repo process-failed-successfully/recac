@@ -120,14 +120,6 @@ func main() {
 	defer stop()
 
 	// Logic
-	if cfg.RepoURL != "" {
-		if err := workflow.ProcessDirectTask(ctx, cfg); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
-		}
-		return
-	}
-
 	if cfg.JiraTicketID != "" {
 		jClient, err := cmdutils.GetJiraClient(ctx)
 		if err != nil {
@@ -135,6 +127,14 @@ func main() {
 			os.Exit(1)
 		}
 		if err := workflow.ProcessJiraTicket(ctx, cfg.JiraTicketID, jClient, cfg, nil); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	if cfg.RepoURL != "" {
+		if err := workflow.ProcessDirectTask(ctx, cfg); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}

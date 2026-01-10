@@ -50,40 +50,30 @@ func (m *MockDockerClient) Exec(ctx context.Context, containerID string, cmd []s
 }
 
 func TestDockerSpawner_Spawn(t *testing.T) {
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	client := new(MockDockerClient)
-	poller := new(MockPoller) // Reusing mock poller from orchestrator_test.go if in same package
-
-	spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro")
-
 	item := WorkItem{
 		ID:      "TASK-1",
 		RepoURL: "https://github.com/example/repo",
 	}
 
 	t.Run("Spawn Success", func(t *testing.T) {
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+		client := new(MockDockerClient)
+		poller := new(MockPoller)
+		spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro")
+
 		client.On("RunContainer", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("container-123", nil)
 		client.On("Exec", mock.Anything, "container-123", mock.Anything).Return("Success", nil)
-		// Poller UpdateStatus NOT called on success in Spawn goroutine?
-		// Code: s.Logger.Info("Agent execution completed"...)
-		// It only calls UpdateStatus on Failure.
 
 		err := spawner.Spawn(context.Background(), item)
 		assert.NoError(t, err)
-
-		// Wait for goroutine? Spawn returns immediately.
-		// The mock asserts might happen before goroutine runs.
-		// We can add a sleep or WaitGroup if we modify code, but here we just check Spawn logic setup.
-		// The RunContainer happens synchronously in Spawn before goroutine.
-		// Exec happens in goroutine.
-
-		// To verify Exec, we need to wait.
-		// Using mock.WaitUntil? No.
-		// We can't easily wait for unexposed goroutine.
-		// But we verified RunContainer was called.
 	})
 
 	t.Run("RunContainer Failure", func(t *testing.T) {
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+		client := new(MockDockerClient)
+		poller := new(MockPoller)
+		spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro")
+
 		client.On("RunContainer", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", errors.New("docker error"))
 
 		err := spawner.Spawn(context.Background(), item)
