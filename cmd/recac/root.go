@@ -38,6 +38,9 @@ func Execute() {
 		}
 	}()
 
+	fmt.Fprintln(os.Stderr, "WARNING: The 'recac' binary is deprecated and will be removed in a future release.")
+	fmt.Fprintln(os.Stderr, "Please use 'orchestrator' or 'recac-agent' (agent) binaries instead.")
+
 	err := rootCmd.Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: command not found: %v\n", err)

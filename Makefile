@@ -17,8 +17,16 @@ help: ## Show this help message
 image: ## Build the helper Docker image
 	docker build -t $(DOCKER_IMAGE) -f Dockerfile .
 
-build: ## Build the recac binary
+build: build-recac build-orchestrator build-agent ## Build all binaries
+
+build-recac: ## Build the legacy recac binary
 	go build -o $(BINARY_NAME) $(MAIN_PATH)
+
+build-orchestrator: ## Build the orchestrator binary
+	go build -o orchestrator ./cmd/orchestrator
+
+build-agent: ## Build the agent binary
+	go build -o recac-agent ./cmd/agent
 
 bridge: ## Build the agent-bridge binary
 	go build -o agent-bridge ./cmd/agent-bridge
