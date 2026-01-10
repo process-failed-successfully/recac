@@ -21,16 +21,31 @@ func init() {
 }
 
 var psCmd = &cobra.Command{
-	Use:     "ps",
+	Use:     "ps [session-name]",
 	Aliases: []string{"list"},
-	Short:   "List all sessions",
-	Long:    `List all active and completed sessions.`,
+	Short:   "List sessions or display details for a specific session",
+	Long: `List all active and completed sessions.
+If a session name is provided, it displays a detailed summary for that session.`,
+	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		sm, err := sessionManagerFactory()
 		if err != nil {
 			return fmt.Errorf("failed to create session manager: %w", err)
 		}
 
+		// If a session name is provided, show details for that session.
+		if len(args) > 0 {
+			sessionName := args[0]
+			session, err := sm.LoadSession(sessionName)
+			if err != nil {
+				return fmt.Errorf("failed to load session '%s': %w", sessionName, err)
+			}
+			// The --costs flag is not applicable here, so we pass false for fullLogs.
+			// DisplaySessionDetail shows cost info by default.
+			return DisplaySessionDetail(cmd, session, false)
+		}
+
+		// Otherwise, list all sessions.
 		sessions, err := sm.ListSessions()
 		if err != nil {
 			return fmt.Errorf("failed to list sessions: %w", err)
