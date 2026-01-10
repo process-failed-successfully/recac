@@ -137,3 +137,36 @@ func TestReplayCmd_RunningSession(t *testing.T) {
 	assert.Equal(t, 1, exitCode)
 	assert.Contains(t, output, "Error: cannot replay a running session. Please stop it first.")
 }
+
+func TestReplayCmd_SessionNotFound(t *testing.T) {
+	_, _, cleanup := setupTestEnvironment(t)
+	defer cleanup()
+
+	// Capture stderr
+	oldStderr := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+
+	// Set exit function to avoid os.Exit(1)
+	oldExit := exit
+	var exitCode int
+	exit = func(code int) {
+		exitCode = code
+	}
+	defer func() { exit = oldExit }()
+
+	// Execute the command with a non-existent session name
+	rootCmd.SetArgs([]string{"replay", "non-existent-session"})
+	rootCmd.Execute()
+
+	// Restore stderr and read output
+	w.Close()
+	os.Stderr = oldStderr
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	output := buf.String()
+
+	// Verify the error message
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, output, "Error: failed to load session 'non-existent-session'")
+}
