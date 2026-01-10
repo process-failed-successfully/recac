@@ -60,7 +60,7 @@ func TestInspectCommand(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create a mock log file
-	logContent := "line 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\n"
+	logContent := "alpha\nbravo\ncharlie\ndelta\necho\nfoxtrot\ngolf\nhotel\nindia\njuliet\nkilo\n" // 11 lines
 	err = os.WriteFile(logFile, []byte(logContent), 0644)
 	require.NoError(t, err)
 
@@ -84,8 +84,9 @@ func TestInspectCommand(t *testing.T) {
 	require.Regexp(t, `Model:\s+test-model`, output)
 	require.Regexp(t, `Prompt Tokens:\s+100`, output)
 	require.Contains(t, output, "LOG EXCERPT (LAST 10 LINES)")
-	require.Contains(t, output, "line 11")
-	require.NotContains(t, output, "line 1")
+	require.Contains(t, output, "kilo")      // The last line should be present
+	require.Contains(t, output, "bravo")     // The second line should be present
+	require.NotContains(t, output, "alpha") // The first line should be truncated
 
 	// Test case for a session that is still running
 	runningSessionName := "running-session"
@@ -102,6 +103,6 @@ func TestInspectCommand(t *testing.T) {
 
 	output, err = executeCommand(rootCmd, "inspect", runningSessionName)
 	require.NoError(t, err)
-	require.Contains(t, output, "Status:         RUNNING")
+	require.Regexp(t, `Status:\s+RUNNING`, output)
 	require.True(t, strings.Contains(output, "Duration:") && !strings.Contains(output, "End Time:"))
 }
