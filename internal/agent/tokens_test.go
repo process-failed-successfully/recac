@@ -48,6 +48,31 @@ func TestEstimateTokenCount(t *testing.T) {
 	}
 }
 
+func TestTruncateToTokenLimit_Exact(t *testing.T) {
+	tests := []struct {
+		name      string
+		text      string
+		maxTokens int
+		expected  string
+	}{
+		{
+			name:      "multiline simple case",
+			text:      "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10",
+			maxTokens: 15,
+			expected:  "line 1\nline 2\n[... truncated 6 lines ...]\nline 9\nline 10",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := TruncateToTokenLimit(tt.text, tt.maxTokens)
+			if result != tt.expected {
+				t.Errorf("TruncateToTokenLimit() got = %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestTruncateToTokenLimit(t *testing.T) {
 	tests := []struct {
 		name          string

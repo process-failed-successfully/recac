@@ -68,7 +68,8 @@ func TruncateToTokenLimit(text string, maxTokens int) string {
 		}
 		result := startPortion + truncationMarker + endPortion
 		if EstimateTokenCount(result) > maxTokens {
-			return TruncateToTokenLimit(result, maxTokens)
+			// If still too large, be more aggressive to prevent infinite recursion
+			return TruncateToTokenLimit(result, maxTokens*90/100)
 		}
 		return result
 	}
@@ -264,7 +265,7 @@ func SummarizeForTokenLimit(text string, maxTokens int) string {
 
 	// Ensure we're still under limit
 	if EstimateTokenCount(result) > maxTokens {
-		return TruncateToTokenLimit(result, maxTokens)
+		return TruncateToTokenLimit(result, maxTokens*90/100)
 	}
 
 	return result
