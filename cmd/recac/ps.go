@@ -18,6 +18,9 @@ func init() {
 	if psCmd.Flags().Lookup("sort") == nil {
 		psCmd.Flags().String("sort", "time", "Sort sessions by 'cost', 'time', or 'name'")
 	}
+	if psCmd.Flags().Lookup("errors") == nil {
+		psCmd.Flags().BoolP("errors", "e", false, "Show the first line of the error for failed sessions")
+	}
 }
 
 var psCmd = &cobra.Command{
