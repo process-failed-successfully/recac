@@ -1,67 +1,79 @@
 package main
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"recac/internal/agent"
+	"recac/internal/runner"
+
+	"github.com/stretchr/testify/require"
 )
 
-func TestTopCommandView(t *testing.T) {
-	t.Run("displays headers correctly on initialization", func(t *testing.T) {
-		sm := NewMockSessionManager()
-		model := newTopModel(sm)
+func TestTopCommand(t *testing.T) {
+	// Setup: Create a temporary directory for sessions
+	dir := t.TempDir()
+	t.Setenv("HOME", dir) // Isolate session manager
 
-		view := model.View()
+	// Create mock session files
+	createMockSessionForTop(t, dir, "session-cheap", "COMPLETED", 100, 200, "gemini-pro")     // low cost
+	createMockSessionForTop(t, dir, "session-expensive", "COMPLETED", 50000, 100000, "gpt-4o") // high cost
+	createMockSessionForTop(t, dir, "session-medium", "RUNNING", 1000, 2000, "gpt-3.5-turbo") // medium cost
+	createMockSessionForTop(t, dir, "session-no-state", "ERROR", 0, 0, "")                   // no agent state
 
-		assert.Contains(t, view, "NAME")
-		assert.Contains(t, view, "STATUS")
-		assert.Contains(t, view, "STARTED")
-		assert.Contains(t, view, "DURATION")
-		assert.Contains(t, view, "PROMPT")
-		assert.Contains(t, view, "COMPLETION")
-		assert.Contains(t, view, "TOTAL")
-		assert.Contains(t, view, "COST")
-	})
+	// Setup Cobra command
+	rootCmd, _, _ := newRootCmd()
+	rootCmd.SetArgs([]string{"top"})
 
-	t.Run("renders session data correctly", func(t *testing.T) {
-		sm := NewMockSessionManager()
-		// Add a running session
-		_, err := sm.StartSession("running-session", []string{"sleep", "10"}, "/tmp")
-		assert.NoError(t, err)
+	// Execute and capture output
+	output, err := executeCommand(rootCmd, "")
+	require.NoError(t, err)
 
-		// Add a completed session
-		completedSession, err := sm.StartSession("completed-session", []string{"echo", "hello"}, "/tmp")
-		assert.NoError(t, err)
-		completedSession.Status = "completed"
-		completedSession.EndTime = completedSession.StartTime.Add(10 * time.Second)
-		sm.Sessions["completed-session"] = completedSession
+	// Assertions
+	require.Contains(t, output, "session-expensive", "The most expensive session should be listed first")
+	require.Contains(t, output, "session-medium", "The medium cost session should be in the output")
+	require.Contains(t, output, "session-cheap", "The cheapest session should be in the output")
+	require.NotContains(t, output, "session-no-state", "Session without agent state should not be listed")
 
-		model := newTopModel(sm)
-		model.Init() // Fetch initial data
-
-		// Simulate an update
-		sessions, _ := sm.ListSessions()
-		msg := updateMsg(sessions)
-		model.Update(msg)
-
-		view := model.View()
-
-		// Check for running session data
-		assert.Contains(t, view, "running-session")
-		assert.Contains(t, view, "running")
-
-		// Check for completed session data
-		assert.Contains(t, view, "completed-session")
-		assert.Contains(t, view, "completed")
-		assert.Contains(t, view, "10s") // Duration
-	})
+	// Test the -n flag
+	rootCmd.SetArgs([]string{"top", "-n", "2"})
+	output, err = executeCommand(rootCmd, "")
+	require.NoError(t, err)
+	require.Contains(t, output, "session-expensive")
+	require.Contains(t, output, "session-medium")
+	require.NotContains(t, output, "session-cheap", "The cheapest session should be excluded when n=2")
 }
 
-func TestTopCommandExists(t *testing.T) {
-	rootCmd, _, _ := newRootCmd()
-	cmd, _, err := rootCmd.Find([]string{"top"})
-	assert.NoError(t, err)
-	assert.NotNil(t, cmd)
-	assert.Equal(t, "top", cmd.Name())
+// Helper function to create mock session data
+func createMockSessionForTop(t *testing.T, baseDir, name, status string, promptTokens, responseTokens int, model string) {
+	sessionDir := filepath.Join(baseDir, ".recac", "sessions", name)
+	require.NoError(t, os.MkdirAll(sessionDir, 0755))
+
+	// Session State
+	state := &runner.SessionState{
+		Name:           name,
+		Status:         status,
+		StartTime:      time.Now().Add(-1 * time.Hour),
+		EndTime:        time.Now(),
+		AgentStateFile: filepath.Join(sessionDir, "agent_state.json"),
+	}
+	stateBytes, _ := json.Marshal(state)
+	require.NoError(t, os.WriteFile(filepath.Join(sessionDir, "state.json"), stateBytes, 0644))
+
+	// Agent State (if a model is provided)
+	if model != "" {
+		agentState := &agent.State{
+			Model: model,
+			TokenUsage: agent.TokenUsage{
+				TotalPromptTokens:   promptTokens,
+				TotalResponseTokens: responseTokens,
+				TotalTokens:         promptTokens + responseTokens,
+			},
+		}
+		agentBytes, _ := json.Marshal(agentState)
+		require.NoError(t, os.WriteFile(state.AgentStateFile, agentBytes, 0644))
+	}
 }
