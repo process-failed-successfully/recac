@@ -16,6 +16,7 @@ import (
 
 	"recac/internal/agent"
 	"recac/internal/docker"
+	"recac/internal/git"
 	"recac/internal/jira"
 	"recac/internal/runner"
 	"recac/internal/telemetry"
@@ -670,9 +671,27 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 			return fmt.Errorf("failed to create session manager: %v", err)
 		}
 
+		// Get the starting commit SHA
+		var startSHA string
+		gitClient := git.NewClient()
+		sha, err := gitClient.CurrentCommitSHA(projectPath)
+		if err != nil {
+			fmt.Printf("Warning: could not get start commit SHA: %v\n", err)
+		} else {
+			startSHA = sha
+		}
+
 		session, err := sm.StartSession(cfg.SessionName, command, projectPath)
 		if err != nil {
 			return fmt.Errorf("failed to start detached session: %v", err)
+		}
+
+		// Save the start commit SHA to the session state
+		if startSHA != "" {
+			session.StartCommitSHA = startSHA
+			if err := sm.SaveSession(session); err != nil {
+				fmt.Printf("Warning: failed to save start commit SHA for session %s: %v\n", cfg.SessionName, err)
+			}
 		}
 
 		fmt.Printf("Session '%s' started in background (PID: %d)\n", cfg.SessionName, session.PID)
@@ -807,11 +826,57 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 		}
 	}
 
+	// Get the starting commit SHA for interactive sessions
+	var startSHA string
+	gitClient := git.NewClient()
+	if sha, err := gitClient.CurrentCommitSHA(projectPath); err == nil {
+		startSHA = sha
+	} else {
+		fmt.Printf("Warning: could not get start commit SHA: %v\n", err)
+	}
+
 	if err := session.Start(ctx); err != nil {
 		if ctx.Err() != nil {
 			return nil
 		}
 		return err
 	}
-	return session.RunLoop(ctx)
+
+	// Create a session state for the interactive session to track commit SHAs
+	sm, err := runner.NewSessionManager()
+	if err != nil {
+		return fmt.Errorf("failed to create session manager for interactive session: %w", err)
+	}
+	interactiveSessionState := &runner.SessionState{
+		Name:           cfg.SessionName,
+		StartTime:      time.Now(),
+		Command:        os.Args,
+		Workspace:      projectPath,
+		Status:         "running",
+		Type:           "interactive",
+		AgentStateFile: filepath.Join(projectPath, ".agent_state.json"),
+		StartCommitSHA: startSHA,
+	}
+	sm.SaveSession(interactiveSessionState)
+
+	runErr := session.RunLoop(ctx)
+
+	// Now that the session is over, get the end commit SHA
+	endSHA, err := gitClient.CurrentCommitSHA(projectPath)
+	if err != nil {
+		fmt.Printf("Warning: could not get end commit SHA: %v\n", err)
+	}
+
+	// Update the session state
+	interactiveSessionState.EndCommitSHA = endSHA
+	interactiveSessionState.EndTime = time.Now()
+	if runErr != nil {
+		interactiveSessionState.Status = "error"
+		interactiveSessionState.Error = runErr.Error()
+	} else {
+		interactiveSessionState.Status = "completed"
+	}
+	sm.SaveSession(interactiveSessionState)
+
+	return runErr
 }

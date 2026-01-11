@@ -3,7 +3,6 @@ package scenarios
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -51,12 +50,7 @@ func (s *PrimePythonScenario) Verify(repoPath string, ticketKeys map[string]stri
 	// Helper to find specific agent branch
 	branch, err := getSpecificAgentBranch(repoPath, ticketKey)
 	if err != nil {
-		// Fallback to any agent branch if specific fail
-		log.Printf("Warning: Specific branch for %s not found, checking generic...", ticketKey)
-		branch, err = getAgentBranch(repoPath)
-		if err != nil {
-			return err
-		}
+		return fmt.Errorf("specific branch for %s not found: %w", ticketKey, err)
 	}
 	fmt.Printf("Verifying branch: %s\n", branch)
 
@@ -100,20 +94,27 @@ func (s *PrimePythonScenario) Verify(repoPath string, ticketKeys map[string]stri
 		fmt.Printf("Generating output using %s\n", scriptPath)
 		cmd := exec.Command("python3", scriptPath)
 		cmd.Dir = repoPath
-		out, err = cmd.CombinedOutput()
+		cmdOut, err := cmd.CombinedOutput()
 		if err != nil {
 			// Try python just in case
 			cmd = exec.Command("python", scriptPath)
 			cmd.Dir = repoPath
-			out, err = cmd.CombinedOutput()
+			cmdOut, err = cmd.CombinedOutput()
 			if err != nil {
 				// List files to help debugging
 				lsCmd := exec.Command("ls", "-R")
 				lsCmd.Dir = repoPath
 				lsOut, _ := lsCmd.CombinedOutput()
-				return fmt.Errorf("failed to run %s: %v\nOutput:\n%s\nFiles in repo:\n%s", scriptPath, err, string(out), string(lsOut))
+				return fmt.Errorf("failed to run %s: %v\nOutput:\n%s\nFiles in repo:\n%s", scriptPath, err, string(cmdOut), string(lsOut))
 			}
 		}
+		// After running script, try reading the file it produced
+		fileOut, err := os.ReadFile(fullJsonPath)
+		if err != nil {
+			return fmt.Errorf("script ran but failed to read %s: %v\nScript Output: %s", jsonPath, err, string(cmdOut))
+		}
+		out = fileOut
+		fmt.Printf("Successfully generated and read %s\n", jsonPath)
 	}
 
 	// Parse JSON
@@ -121,7 +122,7 @@ func (s *PrimePythonScenario) Verify(repoPath string, ticketKeys map[string]stri
 		Primes []int `json:"primes"`
 	}
 	if err := json.Unmarshal(out, &result); err != nil {
-		return fmt.Errorf("failed to parse JSON output: %v\nOutput was: %s", err, string(out))
+		return fmt.Errorf("failed to parse JSON from %s: %v\nContent was: %s", jsonPath, err, string(out))
 	}
 
 	// Verify Primes

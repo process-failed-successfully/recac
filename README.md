@@ -1,16 +1,30 @@
 # recac - Rewrite of Combined Autonomous Coding
 
-`recac` (Rewrite of Combined Autonomous Coding) is a comprehensive CLI tool that automates the setup, management, and deployment of containerized applications. It leverages AI agents to assist with coding tasks, manages development environments via Docker, and integrates with JIRA for project management.
+> [!WARNING] > **BINARY DEPRECATION**: The single `recac` binary is now deprecated.
+> Please use the new distributed binaries:
+>
+> - **`orchestrator`**: For polling tasks (Jira/Files) and spawning agents.
+> - **`recac-agent`**: The core autonomous coding agent.
+
+`recac` is a comprehensive framework for autonomous coding. It has evolved from a single CLI tool into a distributed architecture designed for scale and reliability, particularly in Kubernetes environments.
 
 ## Features
 
-- **🚀 Project Initialization**: Interactive wizard for creating new projects with predefined templates.
-- **🐳 Container Management**: Auto-managed Docker environments for isolated development.
-- **🤖 Multi-Agent System**: Built-in support for Gemini, OpenAI, and Ollama to perform autonomous coding tasks.
-- **📋 Feature Tracking**: End-to-end feature lifecycle management (Spec -> Implementation -> Verification).
-- **📊 Web Dashboard**: Real-time TUI and Web dashboard for monitoring progress.
-- **🔗 Integrations**: JIRA for tickets, Slack/Discord for notifications, Git for version control.
-- **🔄 Orchestration**: Pool and process work items from Jira or files using autonomous agents.
+- **🚀 Distributed Architecture**: Separate Orchestrator and Agent binaries for independent scaling.
+- **🤖 Multi-Agent System**: Built-in support for Gemini, OpenAI, and Ollama.
+- **🐳 Docker & K8s Native**: Run agents locally in Docker or as distributed Jobs in Kubernetes.
+- **📋 Feature Tracking**: End-to-End feature lifecycle (Spec -> Implementation -> Verification).
+- **📊 Real-time Monitoring**: TUI and Slack/Discord integrations for progress tracking.
+- **🔄 Smart Orchestration**: Automatic Jira polling and agent lifecycle management.
+
+## Project Structure & Documentation
+
+The project is now divided into specialized components. Please refer to the specific documentation for each:
+
+- [**Orchestrator**](file:///home/luke/repos/recac/cmd/orchestrator/README.md): How to manage the task pool and agent spawning.
+- [**RECAC Agent**](file:///home/luke/repos/recac/cmd/agent/README.md): How the autonomous coding logic works and how to run it manually.
+- [**E2E Testing**](file:///home/luke/repos/recac/e2e/README.md): Documentation for the scenario-based testing framework.
+- [**Helm/K8s**](file:///home/luke/repos/recac/deploy/helm/recac/README.md): Guide for deploying to Kubernetes.
 
 ## Quick Start
 
@@ -19,133 +33,78 @@
 - **Go 1.21+**
 - **Docker** and **Docker Compose**
 - **Git**
+- **Kubernetes (Optional)** (e.g., k3s, minikube)
 
 ### Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/recac.git
+git clone https://github.com/process-failed-successfully/recac.git
 cd recac
 
-# Build the binary
-go build -o recac ./cmd/recac
-
-# Move to PATH (optional)
-sudo mv recac /usr/local/bin/
+# Build everything
+make build
 ```
+
+The `make build` command will produce:
+
+- `bin/orchestrator`
+- `bin/recac-agent`
+- `bin/recac` (Legacy/CLI wrapper)
 
 ### Configuration
 
-Create a `config.yaml` in your project root or home directory (`$HOME/.recac.yaml`).
+Create a `.recac.yaml` in your home directory.
 
 ```yaml
-# Core settings
-debug: true
-timeout: 300s
-max_iterations: 20
-
-# AI Provider (gemini, openai, ollama)
-agent_provider: gemini
+# AI Provider
+agent_provider: openrouter
+agent_model: "mistralai/devstral-2512:free"
 api_key: "your-api-key"
-model: "gemini-pro"
 
-# Docker settings
-docker_image: "ubuntu:latest"
-workspace_mount: "/workspace"
-
-# Integrations (Optional)
+# Integrations
 jira_url: "https://your-domain.atlassian.net"
 jira_email: "user@example.com"
 jira_token: "api-token"
 ```
 
-## Usage
+## Usage (Distributed Mode)
 
-### 1. Initialize a Project
+### 1. Run the Orchestrator
 
-Start a new project with the interactive wizard:
-
-```bash
-recac init
-```
-
-This will create the necessary directory structure, `app_spec.txt` for requirements, and `feature_list.json` for tracking.
-
-### 2. Start a Session
-
-Start the autonomous coding session. This spins up the Docker container and starts the AI agent loop.
+The orchestrator polls for work and starts agents.
 
 ```bash
-recac start
+# Local Docker mode
+./bin/orchestrator --mode local --jira-label "recac-agent"
 ```
 
-The agent will read `app_spec.txt` and begin working on tasks.
+### 2. The Agent
 
-### 3. Manage Features
-
-Manage feature branches:
+The agent is usually spawned by the orchestrator, but can be run manually for debugging:
 
 ```bash
-# Start a new feature
-recac feature start "User Authentication"
+./bin/recac-agent --jira RD-123 --project "My Project" --repo-url "https://github.com/org/repo"
 ```
 
-### 4. Session Management
+## Architecture
 
-Recac allows you to manage multiple concurrent or background sessions.
+`recac` utilizes a **Poll-Spawn-Verify** loop:
 
-- **List Sessions**: View all active and completed sessions.
-  ```bash
-  recac list
-  # Alias for: recac ps
-  ```
+1.  **Orchestrator**: Watches Jira (or a file) for new tasks matching a specific label.
+2.  **Spawner**: Creates a Docker container or K8s Job for each task.
+3.  **Agent**: Clones the repo, analyzes the task, implements the code, and pushes back.
+4.  **Verification**: The agent runs QA checks and the manager signs off before completion.
 
-- **Check Status**: View detailed status of sessions, Docker environment, and configuration.
-  ```bash
-  recac status
-  ```
-
-- **Attach to Session**: Re-attach to a running session to view its live logs.
-  ```bash
-  recac attach <session-name>
-  ```
-
-### 5. Orchestration
-
-The orchestrator pools work items (e.g., Jira tickets) and spawns agents to handle them.
-
-```bash
-# Run locally (uses Docker to spawn agents)
-recac orchestrate --mode local --jira-label "recac-agent"
-
-# Run in Kubernetes (spawns K8s Jobs)
-recac orchestrate --mode k8s --namespace default
+```mermaid
+graph TD
+    J[Jira/Backlog] -->|Poll| O[Orchestrator]
+    O -->|Spawn| A1[Agent Pod 1]
+    O -->|Spawn| A2[Agent Pod 2]
+    A1 -->|Git Push| G[GitHub/GitLab]
+    A2 -->|Git Push| G
+    A1 -->|Notify| S[Slack/Discord]
 ```
-
-Common flags:
-- `--mode`: `local` or `k8s` (default: local)
-- `--poller`: `jira` or `file` (default: jira)
-- `--jira-label`: Label to filter tickets by.
-- `--interval`: Polling interval (default: 1m).
-
-### 6. Troubleshooting & Maintenance
-
-- **Pre-flight Check**: Check environment dependencies (Go, Docker, Config).
-  ```bash
-  recac check
-  # Attempt to fix issues automatically
-  recac check --fix
-  ```
-
-- **Signal Management**: Manage persistent project signals (stored in `.recac.db`).
-  ```bash
-  # Clear a specific signal (e.g., to reset project sign-off)
-  recac signal clear PROJECT_SIGNED_OFF
-  ```
-
-- **Logs & Cleaning**:
-  - `recac logs`: View agent and container logs.
-  - `recac clean`: Remove temporary files and containers.
 
 ## End-to-End Example: Hello World
 
