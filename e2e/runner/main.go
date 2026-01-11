@@ -450,35 +450,42 @@ func prepareRepo(repoURL string, ticketMap map[string]string) error {
 		authRepo = strings.Replace(repoURL, "https://", fmt.Sprintf("https://x-access-token:%s@", token), 1)
 	}
 
-	// Clone to temp dir
-	tmpDir, err := os.MkdirTemp("", "e2e-cleanup")
+	// 1. Get all remote branches using ls-remote (fast, no clone needed)
+	log.Printf("Checking remote branches for %s...", repoURL)
+	cmd := exec.Command("git", "ls-remote", "--heads", authRepo)
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(tmpDir)
-
-	if err := runCommand("git", "clone", "--depth", "1", authRepo, tmpDir); err != nil {
-		return fmt.Errorf("failed to clone for preparation: %w", err)
+		return fmt.Errorf("failed to ls-remote: %w\nOutput: %s", err, string(output))
 	}
 
-	// Delete ALL remote agent branches to avoid context pollution
-	// git branch -r --list 'origin/agent/*'
-	cmd := exec.Command("git", "-C", tmpDir, "branch", "-r", "--list", "origin/agent/*")
-	output, err := cmd.Output()
-	if err == nil {
-		lines := strings.Split(string(output), "\n")
-		for _, line := range lines {
-			line = strings.TrimSpace(line)
-			if line == "" {
-				continue
-			}
-			// line is origin/agent/MFLP-123
-			parts := strings.Split(line, "origin/")
-			if len(parts) > 1 {
-				branch := parts[1]
-				log.Printf("Deleting stale remote branch: %s", branch)
-				_ = exec.Command("git", "-C", tmpDir, "push", "origin", "--delete", branch).Run()
-			}
+	lines := strings.Split(string(output), "\n")
+	var branchesToDelete []string
+	for _, line := range lines {
+		// line format: <sha>\trefs/heads/<branch>
+		parts := strings.Fields(line)
+		if len(parts) < 2 {
+			continue
+		}
+		ref := parts[1]
+		if strings.HasPrefix(ref, "refs/heads/agent/") {
+			branch := strings.TrimPrefix(ref, "refs/heads/")
+			branchesToDelete = append(branchesToDelete, branch)
+		}
+	}
+
+	if len(branchesToDelete) == 0 {
+		return nil
+	}
+
+	// 2. Delete the branches
+	// Since we don't have a local repo yet, we can use a dummy one or just 'git push <url> --delete <branch>'
+	log.Printf("Found %d stale agent branches to delete", len(branchesToDelete))
+	for _, branch := range branchesToDelete {
+		log.Printf("Deleting remote branch: %s", branch)
+		// We can run git push without a local repo by specifying the URL
+		delCmd := exec.Command("git", "push", authRepo, "--delete", branch)
+		if out, err := delCmd.CombinedOutput(); err != nil {
+			log.Printf("Warning: Failed to delete branch %s: %v\nOutput: %s", branch, err, string(out))
 		}
 	}
 
