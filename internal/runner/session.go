@@ -2343,7 +2343,7 @@ func (s *Session) fixPasswdDatabase(ctx context.Context, containerUser string) {
 // This prevents "Permission denied" errors when the host process (git) tries to modify/delete files created by the agent (root).
 func (s *Session) fixPermissions(ctx context.Context) error {
 	containerID := s.GetContainerID()
-	if containerID == "" {
+	if containerID == "" || containerID == "local" || s.Docker == nil {
 		return nil
 	}
 

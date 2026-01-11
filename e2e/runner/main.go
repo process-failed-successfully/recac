@@ -445,8 +445,9 @@ func printKubeDebugInfo(ns string) {
 
 func prepareRepo(repoURL string, ticketMap map[string]string) error {
 	token := os.Getenv("GITHUB_API_KEY")
+	repoURL = strings.TrimSuffix(repoURL, "/")
 	authRepo := repoURL
-	if !strings.Contains(repoURL, "@") {
+	if token != "" && !strings.Contains(repoURL, "@") {
 		authRepo = strings.Replace(repoURL, "https://", fmt.Sprintf("https://x-access-token:%s@", token), 1)
 	}
 

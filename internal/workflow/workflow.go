@@ -192,6 +192,7 @@ func ProcessJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.C
 			return fmt.Errorf("no repo url found")
 		}
 		repoURL = strings.TrimSuffix(matches[1], ".git")
+		repoURL = strings.TrimSuffix(repoURL, "/")
 		logger.Info("Found repository URL in ticket", "repo_url", repoURL)
 	} else {
 		logger.Info("Using provided repository URL", "repo_url", repoURL)
