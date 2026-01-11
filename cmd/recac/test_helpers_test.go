@@ -124,6 +124,16 @@ func (m *MockSessionManager) RemoveSession(name string, force bool) error {
 	return nil
 }
 
+func (m *MockSessionManager) GetSessionGitDiffStat(name string) (string, error) {
+	if session, ok := m.Sessions[name]; ok {
+		if session.StartCommitSHA != "" && session.EndCommitSHA != "" {
+			return " M README.md\n 1 file changed, 1 insertion(+)", nil
+		}
+		return "", nil // No diff if no commits
+	}
+	return "", fmt.Errorf("session not found")
+}
+
 // executeCommand executes a cobra command and returns its output.
 func executeCommand(root *cobra.Command, args ...string) (string, error) {
 	resetFlags(root)

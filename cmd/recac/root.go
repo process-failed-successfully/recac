@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"recac/internal/config"
@@ -174,11 +175,13 @@ func initConfig() {
 
 	telemetry.InitLogger(viper.GetBool("verbose"), "", false)
 
-	// Start Metrics Server
-	go func() {
-		port := viper.GetInt("metrics_port")
-		if err := telemetry.StartMetricsServer(port); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: Failed to start metrics server: %v\n", err)
-		}
-	}()
+	// Start Metrics Server, but not in test mode to avoid hanging
+	if flag.Lookup("test.v") == nil {
+		go func() {
+			port := viper.GetInt("metrics_port")
+			if err := telemetry.StartMetricsServer(port); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: Failed to start metrics server: %v\n", err)
+			}
+		}()
+	}
 }

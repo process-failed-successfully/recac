@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -33,6 +34,7 @@ func DisplaySessionDetail(cmd *cobra.Command, session *runner.SessionState, full
 		fmt.Fprintf(w, "Error:\t%s\n", session.Error)
 	}
 	w.Flush()
+
 	if session.AgentStateFile != "" {
 		agentState, err := loadAgentState(session.AgentStateFile)
 		if err == nil && agentState != nil {
@@ -50,6 +52,23 @@ func DisplaySessionDetail(cmd *cobra.Command, session *runner.SessionState, full
 			fmt.Fprintf(cmd.ErrOrStderr(), "\nWarning: Could not load agent state from %s: %v\n", session.AgentStateFile, err)
 		}
 	}
+
+	// Git Diff Stat
+	sm, err := sessionManagerFactory()
+	if err != nil {
+		fmt.Fprintf(cmd.ErrOrStderr(), "Failed to create session manager to get git diff: %v\n", err)
+	} else {
+		diffStat, err := sm.GetSessionGitDiffStat(session.Name)
+		if err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "\nWarning: Could not generate git diff stat: %v\n", err)
+		} else if diffStat != "" {
+			fmt.Fprintln(w, "\nGit Changes (stat)")
+			fmt.Fprintln(w, "------------------")
+			w.Flush() // Flush before writing raw content
+			cmd.Println(diffStat)
+		}
+	}
+
 	if _, err := os.Stat(session.LogFile); err == nil {
 		logContent, err := os.ReadFile(session.LogFile)
 		if err == nil {
@@ -77,6 +96,7 @@ func DisplaySessionDetail(cmd *cobra.Command, session *runner.SessionState, full
 	}
 	return nil
 }
+
 func DisplaySessionDiff(cmd *cobra.Command, sessionA, sessionB *runner.SessionState) error {
 	cmd.Println("📊 Metadata Comparison")
 	printMetadataDiff(cmd, sessionA, sessionB)
@@ -181,6 +201,22 @@ func printLogDiff(cmd *cobra.Command, logA, logB string) error {
 	}
 
 	return nil
+}
+
+// loadAgentState is a helper to read and parse an agent state file.
+func loadAgentState(filePath string) (*agent.State, error) {
+	if filePath == "" {
+		return nil, fmt.Errorf("file path is empty")
+	}
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+	var state agent.State
+	if err := json.Unmarshal(data, &state); err != nil {
+		return nil, err
+	}
+	return &state, nil
 }
 func fallbackDiff(cmd *cobra.Command, file1, file2 string) error {
 	content1, err1 := os.ReadFile(file1)

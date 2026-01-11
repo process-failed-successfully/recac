@@ -38,14 +38,10 @@ If a session name is provided, it displays a detailed summary for that session.`
 
 		// If a session name is provided, show details for that session.
 		if len(args) > 0 {
-			sessionName := args[0]
-			session, err := sm.LoadSession(sessionName)
-			if err != nil {
-				return fmt.Errorf("failed to load session '%s': %w", sessionName, err)
-			}
-			// The --costs flag is not applicable here, so we pass false for fullLogs.
-			// DisplaySessionDetail shows cost info by default.
-			return DisplaySessionDetail(cmd, session, false)
+			cmd.PrintErrln("Warning: `recac ps [SESSION_NAME]` is deprecated and will be removed in a future version. Please use `recac inspect [SESSION_NAME]` instead.")
+
+			// Forward to the inspect command's logic
+			return inspectCmd.RunE(cmd, args)
 		}
 
 		// Otherwise, list all sessions.
