@@ -22,11 +22,13 @@ type mockDockerClient struct {
 	execCmd       []string
 	runWorkspace  string
 	runExtraBinds []string
+	runEnv        []string
 }
 
 func (m *mockDockerClient) RunContainer(ctx context.Context, image, workspace string, extraBinds []string, env []string, user string) (string, error) {
 	m.runWorkspace = workspace
 	m.runExtraBinds = extraBinds
+	m.runEnv = env
 	if m.RunContainerFn != nil {
 		return m.RunContainerFn(ctx, image, workspace, extraBinds, env, user)
 	}
@@ -157,15 +159,17 @@ func TestDockerSpawner_Spawn_ExecLogic(t *testing.T) {
 			assert.Equal(t, "-c", mockClient.execCmd[1])
 
 			cmdStr := mockClient.execCmd[2]
-			fmt.Println(cmdStr)
 			assert.Contains(t, cmdStr, "cd /workspace")
-			assert.Contains(t, cmdStr, "export RECAC_PROVIDER='test-provider'")
-			assert.Contains(t, cmdStr, "export RECAC_MODEL='test-model'")
-			assert.Contains(t, cmdStr, "export CUSTOM_VAR='custom_value'")
-			assert.Contains(t, cmdStr, "export JIRA_API_TOKEN='jira-token'")
-			assert.Contains(t, cmdStr, fmt.Sprintf("export RECAC_HOST_WORKSPACE_PATH='%s'", mockClient.runWorkspace))
-			assert.Contains(t, cmdStr, "https://test-token@github.com/user/repo.git")
+			assert.NotContains(t, cmdStr, "export ")
+			assert.Contains(t, cmdStr, "git clone --depth 1 https://test-token@github.com/user/repo.git .")
 			assert.Contains(t, cmdStr, "/usr/local/bin/recac start --jira TEST-EXEC-1")
+
+			// Check env vars passed to container
+			assert.Contains(t, mockClient.runEnv, "RECAC_PROVIDER=test-provider")
+			assert.Contains(t, mockClient.runEnv, "RECAC_MODEL=test-model")
+			assert.Contains(t, mockClient.runEnv, "CUSTOM_VAR=custom_value")
+			assert.Contains(t, mockClient.runEnv, "JIRA_API_TOKEN=jira-token")
+			assert.Contains(t, mockClient.runEnv, fmt.Sprintf("RECAC_HOST_WORKSPACE_PATH=%s", mockClient.runWorkspace))
 		})
 	}
 }

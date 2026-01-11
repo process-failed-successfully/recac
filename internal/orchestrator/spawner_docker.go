@@ -47,9 +47,36 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 
 	s.Logger.Info("Spawning agent for item", "id", item.ID, "workspace", tempDir)
 
+	// Prepare Environment
+	var containerEnv []string
+	if s.AgentProvider != "" {
+		containerEnv = append(containerEnv, fmt.Sprintf("RECAC_PROVIDER=%s", s.AgentProvider))
+	}
+	if s.AgentModel != "" {
+		containerEnv = append(containerEnv, fmt.Sprintf("RECAC_MODEL=%s", s.AgentModel))
+	}
+	containerEnv = append(containerEnv, "GIT_TERMINAL_PROMPT=0")
+	containerEnv = append(containerEnv, "RECAC_MAX_ITERATIONS=20")
+
+	for k, v := range item.EnvVars {
+		containerEnv = append(containerEnv, fmt.Sprintf("%s=%s", k, v))
+	}
+
+	secrets := []string{"JIRA_API_TOKEN", "JIRA_USERNAME", "JIRA_URL", "GITHUB_TOKEN", "GITHUB_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY", "RECAC_DB_TYPE", "RECAC_DB_URL"}
+	for _, secret := range secrets {
+		if val := os.Getenv(secret); val != "" {
+			containerEnv = append(containerEnv, fmt.Sprintf("%s=%s", secret, val))
+			if secret == "GITHUB_API_KEY" {
+				containerEnv = append(containerEnv, fmt.Sprintf("RECAC_GITHUB_API_KEY=%s", val))
+			}
+		}
+	}
+
+	containerEnv = append(containerEnv, fmt.Sprintf("RECAC_HOST_WORKSPACE_PATH=%s", tempDir))
+
 	// 2. Start Container
 	extraBinds := []string{"/var/run/docker.sock:/var/run/docker.sock"}
-	containerID, err := s.Client.RunContainer(ctx, s.Image, tempDir, extraBinds, nil, "")
+	containerID, err := s.Client.RunContainer(ctx, s.Image, tempDir, extraBinds, containerEnv, "")
 	if err != nil {
 		os.RemoveAll(tempDir) // Clean up on failure
 		return fmt.Errorf("failed to start container: %w", err)
@@ -59,31 +86,6 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 
 	// 3. Execute Work in Background
 	go func() {
-		var envExports []string
-		if s.AgentProvider != "" {
-			envExports = append(envExports, fmt.Sprintf("export RECAC_PROVIDER='%s'", s.AgentProvider))
-		}
-		if s.AgentModel != "" {
-			envExports = append(envExports, fmt.Sprintf("export RECAC_MODEL='%s'", s.AgentModel))
-		}
-		envExports = append(envExports, "export GIT_TERMINAL_PROMPT=0")
-
-		for k, v := range item.EnvVars {
-			envExports = append(envExports, fmt.Sprintf("export %s='%s'", k, v))
-		}
-
-		secrets := []string{"JIRA_API_TOKEN", "JIRA_USERNAME", "JIRA_URL", "GITHUB_TOKEN", "GITHUB_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY", "RECAC_DB_TYPE", "RECAC_DB_URL"}
-		for _, secret := range secrets {
-			if val := os.Getenv(secret); val != "" {
-				envExports = append(envExports, fmt.Sprintf("export %s='%s'", secret, val))
-				if secret == "GITHUB_API_KEY" {
-					envExports = append(envExports, fmt.Sprintf("export RECAC_GITHUB_API_KEY='%s'", val))
-				}
-			}
-		}
-
-		envExports = append(envExports, fmt.Sprintf("export RECAC_HOST_WORKSPACE_PATH='%s'", tempDir))
-
 		authRepoURL := item.RepoURL
 		ghToken := os.Getenv("GITHUB_TOKEN")
 		if ghToken == "" {
@@ -95,9 +97,8 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		}
 
 		var cmdStr string
-		cmdStr = "cd /workspace" // Reset to constant
-		cmdStr += " && export RECAC_MAX_ITERATIONS=20"
-		cmdStr += " && " + strings.Join(envExports, " && ")
+		// Env vars are already set, so we just need to execute the logic
+		cmdStr = "cd /workspace"
 		if authRepoURL != "" {
 			cmdStr += fmt.Sprintf(" && git clone --depth 1 %s .", authRepoURL)
 		}
