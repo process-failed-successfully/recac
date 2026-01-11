@@ -3,106 +3,181 @@ package orchestrator
 import (
 	"context"
 	"errors"
-	"log/slog"
-	"os"
+	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-type mockPoller struct {
-	items []WorkItem
-	err   error
-}
-
-func (m *mockPoller) Poll(ctx context.Context) ([]WorkItem, error) {
-	return m.items, m.err
-}
-
-func (m *mockPoller) Claim(ctx context.Context, item WorkItem) error {
-	return nil
-}
-
-func (m *mockPoller) UpdateStatus(ctx context.Context, item WorkItem, status string, comment string) error {
-	return nil
-}
-
 type mockSpawner struct {
-	spawned []WorkItem
-	err     error
+	spawned  []WorkItem
+	spawnErr error
+	mu       sync.Mutex
 }
 
 func (m *mockSpawner) Spawn(ctx context.Context, item WorkItem) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.spawned = append(m.spawned, item)
-	return m.err
+	return m.spawnErr
 }
 
 func (m *mockSpawner) Cleanup(ctx context.Context, item WorkItem) error {
 	return nil
 }
 
-func TestOrchestrator_Run(t *testing.T) {
-	// Setup
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	poller := &mockPoller{
-		items: []WorkItem{
-			{ID: "TEST-1", Summary: "Task 1"},
-			{ID: "TEST-2", Summary: "Task 2"},
-		},
-	}
+func TestOrchestrator_Run_Success(t *testing.T) {
+	poller := newMockPoller([]WorkItem{
+		{ID: "TEST-1", Summary: "Task 1"},
+		{ID: "TEST-2", Summary: "Task 2"},
+	})
 	spawner := &mockSpawner{}
-
-	orch := New(poller, spawner, 10*time.Millisecond)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	defer cancel()
-
-	// rUN
-	err := orch.Run(ctx, logger)
-
-	// Assert
-	if !errors.Is(err, context.DeadlineExceeded) && err != nil {
-		t.Errorf("expected context deadline exceeded, got %v", err)
-	}
-
-	if len(spawner.spawned) < 2 {
-		t.Errorf("expected at least 2 spawned items, got %d", len(spawner.spawned))
-	}
-
-	// Check content
-	found1, found2 := false, false
-	for _, item := range spawner.spawned {
-		if item.ID == "TEST-1" {
-			found1 = true
-		}
-		if item.ID == "TEST-2" {
-			found2 = true
-		}
-	}
-
-	if !found1 || !found2 {
-		t.Error("did not spawn all items")
-	}
-}
-
-func TestOrchestrator_Run_PollError(t *testing.T) {
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	poller := &mockPoller{
-		err: errors.New("poll failed"),
-	}
-	spawner := &mockSpawner{}
-
 	orch := New(poller, spawner, 10*time.Millisecond)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 
-	err := orch.Run(ctx, logger)
+	err := orch.Run(ctx, silentLogger)
 
-	if !errors.Is(err, context.DeadlineExceeded) && err != nil {
-		t.Errorf("expected context deadline exceeded (cleanup), got %v", err)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+
+	spawner.mu.Lock()
+	defer spawner.mu.Unlock()
+
+	// Check that both items were spawned exactly once.
+	assert.Len(t, spawner.spawned, 2)
+	found := make(map[string]bool)
+	for _, item := range spawner.spawned {
+		found[item.ID] = true
+	}
+	assert.True(t, found["TEST-1"])
+	assert.True(t, found["TEST-2"])
+
+	// Check that poller has no more items
+	polledItems, _ := poller.Poll(context.Background())
+	assert.Empty(t, polledItems)
+}
+
+func TestOrchestrator_Run_PollError(t *testing.T) {
+	poller := newMockPoller(nil)
+	poller.pollErr = errors.New("poll failed")
+	spawner := &mockSpawner{}
+	orch := New(poller, spawner, 10*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	err := orch.Run(ctx, silentLogger)
+
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.Empty(t, spawner.spawned)
+}
+
+func TestOrchestrator_Run_Scenarios(t *testing.T) {
+	testCases := []struct {
+		name               string
+		setupPoller        func() *mockPoller
+		setupSpawner       func() *mockSpawner
+		timeout            time.Duration
+		expectedSpawnCount int
+		expectedStatus     map[string]string
+		verifyPoller       func(t *testing.T, p *mockPoller)
+	}{
+		{
+			name: "Claim Error",
+			setupPoller: func() *mockPoller {
+				p := newMockPoller([]WorkItem{{ID: "TEST-1"}})
+				p.claimErr = errors.New("claim failed")
+				return p
+			},
+			setupSpawner:       func() *mockSpawner { return &mockSpawner{} },
+			timeout:            50 * time.Millisecond,
+			expectedSpawnCount: 0,
+			expectedStatus:     map[string]string{},
+			verifyPoller: func(t *testing.T, p *mockPoller) {
+				// Item should NOT have been claimed/removed
+				items, _ := p.Poll(context.Background())
+				assert.Len(t, items, 1)
+			},
+		},
+		{
+			name:        "Spawn Error",
+			setupPoller: func() *mockPoller { return newMockPoller([]WorkItem{{ID: "TEST-1"}}) },
+			setupSpawner: func() *mockSpawner {
+				return &mockSpawner{spawnErr: errors.New("spawn failed")}
+			},
+			timeout:            50 * time.Millisecond,
+			expectedSpawnCount: 1,
+			expectedStatus:     map[string]string{"TEST-1": "Failed"},
+			verifyPoller: func(t *testing.T, p *mockPoller) {
+				// Item should have been claimed/removed
+				items, _ := p.Poll(context.Background())
+				assert.Empty(t, items)
+			},
+		},
+		{
+			name:               "No Work",
+			setupPoller:        func() *mockPoller { return newMockPoller(nil) },
+			setupSpawner:       func() *mockSpawner { return &mockSpawner{} },
+			timeout:            50 * time.Millisecond,
+			expectedSpawnCount: 0,
+			expectedStatus:     map[string]string{},
+			verifyPoller:       nil,
+		},
 	}
 
-	if len(spawner.spawned) > 0 {
-		t.Errorf("expected 0 spawned items, got %d", len(spawner.spawned))
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			poller := tc.setupPoller()
+			spawner := tc.setupSpawner()
+			orch := New(poller, spawner, 10*time.Millisecond)
+			ctx, cancel := context.WithTimeout(context.Background(), tc.timeout)
+			defer cancel()
+
+			err := orch.Run(ctx, silentLogger)
+
+			require.ErrorIs(t, err, context.DeadlineExceeded)
+
+			spawner.mu.Lock()
+			assert.Len(t, spawner.spawned, tc.expectedSpawnCount)
+			spawner.mu.Unlock()
+
+			poller.updateStatusMu.Lock()
+			assert.Equal(t, tc.expectedStatus, poller.updateStatus)
+			poller.updateStatusMu.Unlock()
+
+			if tc.verifyPoller != nil {
+				tc.verifyPoller(t, poller)
+			}
+		})
 	}
+}
+
+func TestOrchestrator_Run_GracefulShutdown(t *testing.T) {
+	poller := newMockPoller([]WorkItem{{ID: "TEST-1"}})
+	spawner := &mockSpawner{}
+	orch := New(poller, spawner, 50*time.Millisecond)
+	ctx, cancel := context.WithCancel(context.Background())
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err := orch.Run(ctx, silentLogger)
+		assert.ErrorIs(t, err, context.Canceled)
+	}()
+
+	// Allow orchestrator to start and poll once
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify it was spawned
+	spawner.mu.Lock()
+	require.Len(t, spawner.spawned, 1)
+	assert.Equal(t, "TEST-1", spawner.spawned[0].ID)
+	spawner.mu.Unlock()
+
+	// Now cancel and wait for shutdown
+	cancel()
+	wg.Wait()
 }
