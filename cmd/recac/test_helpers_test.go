@@ -183,3 +183,19 @@ func newRootCmd() (*cobra.Command, *bytes.Buffer, *bytes.Buffer) {
 	rootCmd.SetErr(errBuf)
 	return rootCmd, outBuf, errBuf
 }
+
+// MockGitClient provides a mock implementation of the git client for testing.
+type MockGitClient struct {
+	DiffFunc func(workspace, fromSHA, toSHA string) (string, error)
+}
+
+func (m *MockGitClient) Diff(workspace, fromSHA, toSHA string) (string, error) {
+	if m.DiffFunc != nil {
+		return m.DiffFunc(workspace, fromSHA, toSHA)
+	}
+	return "", fmt.Errorf("DiffFunc not implemented")
+}
+
+func (m *MockGitClient) CurrentCommitSHA(workspace string) (string, error) {
+	return "mock-current-sha", nil
+}

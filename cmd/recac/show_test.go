@@ -1,28 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"recac/internal/runner"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
-
-// MockGitClient provides a mock implementation of the git client for testing.
-type MockGitClient struct {
-	DiffFunc func(workspace, fromSHA, toSHA string) (string, error)
-}
-
-func (m *MockGitClient) Diff(workspace, fromSHA, toSHA string) (string, error) {
-	if m.DiffFunc != nil {
-		return m.DiffFunc(workspace, fromSHA, toSHA)
-	}
-	return "", fmt.Errorf("DiffFunc not implemented")
-}
-
-func (m *MockGitClient) CurrentCommitSHA(workspace string) (string, error) {
-	return "mock-current-sha", nil
-}
 
 func TestShowCmd(t *testing.T) {
 	// 1. Setup Mock Session Manager
