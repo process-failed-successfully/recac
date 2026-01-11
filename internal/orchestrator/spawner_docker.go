@@ -8,6 +8,13 @@ import (
 	"strings"
 )
 
+// dockerClient defines the interface for Docker operations that the spawner needs.
+// This allows for mocking in tests.
+type dockerClient interface {
+	RunContainer(ctx context.Context, image, workspace string, extraBinds []string, ports []string, user string) (string, error)
+	Exec(ctx context.Context, containerID string, cmd []string) (string, error)
+}
+
 type DockerSpawner struct {
 	Client        DockerClient
 	Image         string

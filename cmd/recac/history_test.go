@@ -7,8 +7,11 @@ import (
 	"strings"
 	"testing"
 	"time"
+
 	"recac/internal/agent"
 	"recac/internal/runner"
+
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/stretchr/testify/require"
 )
 
@@ -107,5 +110,50 @@ func TestHistoryCommand(t *testing.T) {
 		require.Contains(t, output, "line 11")
 		// 11 log lines + header/separator
 		require.Equal(t, 11, strings.Count(output[strings.Index(output, "Full Logs"):], "\n")-2)
+	})
+	t.Run("Interactive History Compare", func(t *testing.T) {
+		// 1. Setup a second mock session
+		logContentB := "line 1\nline 2-new\nline 3"
+		logFileB := filepath.Join(sessionsDir, "test-session-b.log")
+		err := os.WriteFile(logFileB, []byte(logContentB), 0644)
+		require.NoError(t, err)
+
+		sessionB := &runner.SessionState{
+			Name:      "test-session-b",
+			Status:    "completed",
+			StartTime: time.Now().Add(-2 * time.Hour),
+			EndTime:   time.Now().Add(-1 * time.Hour),
+			LogFile:   logFileB,
+		}
+		sessionPathB := sm.GetSessionPath("test-session-b")
+		sessionContentB, err := json.Marshal(sessionB)
+		require.NoError(t, err)
+		err = os.WriteFile(sessionPathB, sessionContentB, 0644)
+		require.NoError(t, err)
+
+		// 2. Mock the interactive prompt to select two sessions
+		originalAskOne := askOne
+		askOne = func(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {
+			ms, ok := p.(*survey.MultiSelect)
+			require.True(t, ok, "prompt should be a MultiSelect")
+
+			// Simulate the user selecting the two sessions
+			selection := response.(*[]string)
+			*selection = []string{ms.Options[0], ms.Options[1]} // Select the first two
+			return nil
+		}
+		defer func() { askOne = originalAskOne }()
+
+		// 3. Execute the command
+		output, err := executeCommand(rootCmd, "history")
+		require.NoError(t, err)
+
+		// 4. Assert
+		require.Contains(t, output, "📊 Metadata Comparison")
+		require.Contains(t, output, "📜 Log Diff")
+		require.Regexp(t, `METRIC\s+SESSION A\s+SESSION B`, output)
+		require.Regexp(t, `Name\s+test-session\s+test-session-b`, output)
+		require.Contains(t, output, "-line 2")
+		require.Contains(t, output, "+line 2-new")
 	})
 }

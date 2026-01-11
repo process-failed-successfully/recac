@@ -54,7 +54,7 @@ var (
 	promptStyle = lipgloss.NewStyle().MarginLeft(2)
 
 	infoBarStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("244")). // Medium gray for better contrast
+			Foreground(lipgloss.AdaptiveColor{Light: "#555555", Dark: "#B0B0B0"}). // Improved contrast
 			MarginLeft(2).
 			MarginBottom(1)
 )
@@ -1040,9 +1040,6 @@ func (m *InteractiveModel) renderAll() string {
 	return b.String()
 }
 
-// Clean up old renderMessages
-// func (m *InteractiveModel) renderMessages() string { ... } - REPLACED
-
 // ClearHistory clears the conversation history.
 func (m *InteractiveModel) ClearHistory() {
 	m.messages = []ChatMessage{}
@@ -1120,13 +1117,13 @@ func (m InteractiveModel) View() string {
 
 	// Status Line Construction
 	// [ Provider: Model ] [ Status ]
-	statusBarStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.AdaptiveColor{Light: "#343433", Dark: "#C1C6B2"}).
-		Background(lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#353533"})
+	// Redundant statusText removed. Info is already in the header bar.
 
-	statusText := statusBarStyle.Render(fmt.Sprintf(" %s:%s ", m.currentAgent, m.currentModel))
-
-	views = append(views, status+statusText)
+	if status != "" {
+		views = append(views, status)
+	} else {
+		views = append(views, " ") // Maintain layout stability
+	}
 	views = append(views, promptStyle.Render(m.textarea.View()))
 
 	// Footer Help
