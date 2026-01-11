@@ -13,4 +13,5 @@ type ISessionManager interface {
 	GetSessionPath(name string) string
 	IsProcessRunning(pid int) bool
 	RemoveSession(name string, force bool) error
+	SessionsDir() string
 }

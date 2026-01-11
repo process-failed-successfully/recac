@@ -12,10 +12,18 @@ import (
 
 // MockSessionManager is a mock implementation of the ISessionManager interface.
 type MockSessionManager struct {
-	Sessions    map[string]*runner.SessionState
-	FailOnLoad  bool
-	FailOnList  bool
-	ProcessDown bool
+	Sessions        map[string]*runner.SessionState
+	FailOnLoad      bool
+	FailOnList      bool
+	ProcessDown     bool
+	SessionsDirFunc func() string
+}
+
+func (m *MockSessionManager) SessionsDir() string {
+	if m.SessionsDirFunc != nil {
+		return m.SessionsDirFunc()
+	}
+	return "/tmp/recac/sessions" // Default mock path
 }
 
 func NewMockSessionManager() *MockSessionManager {
