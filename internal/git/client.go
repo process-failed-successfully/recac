@@ -323,7 +323,7 @@ func (c *Client) Clean(dir string) error {
 	filepath.Walk(filepath.Join(dir, "go/pkg/mod"), func(path string, info os.FileInfo, err error) error {
 		if err == nil && info != nil {
 			// Try to make everything writable so we can delete it
-			os.Chmod(path, 0777)
+			os.Chmod(path, 0700)
 		}
 		return nil
 	})
