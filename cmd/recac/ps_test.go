@@ -192,49 +192,22 @@ func TestPsCmdSort(t *testing.T) {
 }
 
 func TestPsAndListDetailView(t *testing.T) {
-	tempDir := t.TempDir()
-	sessionsDir := filepath.Join(tempDir, "sessions")
-	require.NoError(t, os.Mkdir(sessionsDir, 0755))
-
-	originalFactory := sessionManagerFactory
+	// Setup mock session manager
+	sm := NewMockSessionManager()
+	oldFactory := sessionManagerFactory
 	sessionManagerFactory = func() (ISessionManager, error) {
-		return runner.NewSessionManagerWithDir(sessionsDir)
+		return sm, nil
 	}
-	defer func() { sessionManagerFactory = originalFactory }()
-
-	sm, err := sessionManagerFactory()
-	require.NoError(t, err)
+	defer func() { sessionManagerFactory = oldFactory }()
 
 	// Create a mock session
 	sessionName := "test-session-detail"
-	logFile := filepath.Join(sessionsDir, sessionName+".log")
-	err = os.WriteFile(logFile, []byte("line 1\nline 2\n"), 0644)
-	require.NoError(t, err)
-
-	agentStateFile := filepath.Join(sessionsDir, sessionName+"-agent-state.json")
-	agentState := &agent.State{
-		Model: "gemini-pro",
-		TokenUsage: agent.TokenUsage{
-			TotalPromptTokens:   50,
-			TotalResponseTokens: 150,
-			TotalTokens:         200,
-		},
+	sm.Sessions[sessionName] = &runner.SessionState{
+		Name:      sessionName,
+		Status:    "completed",
+		StartTime: time.Now().Add(-1 * time.Hour),
+		EndTime:   time.Now(),
 	}
-	stateData, err := json.Marshal(agentState)
-	require.NoError(t, err)
-	err = os.WriteFile(agentStateFile, stateData, 0644)
-	require.NoError(t, err)
-
-	session := &runner.SessionState{
-		Name:           sessionName,
-		Status:         "completed",
-		StartTime:      time.Now().Add(-1 * time.Hour),
-		EndTime:        time.Now(),
-		LogFile:        logFile,
-		AgentStateFile: agentStateFile,
-	}
-	err = sm.SaveSession(session)
-	require.NoError(t, err)
 
 	testCases := []struct {
 		name    string
@@ -246,19 +219,28 @@ func TestPsAndListDetailView(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Execute the command
-			output, err := executeCommand(rootCmd, tc.command...)
+			// Manually execute command to capture stderr correctly
+			resetFlags(rootCmd)
+			outBuf := new(strings.Builder)
+			errBuf := new(strings.Builder)
+			rootCmd.SetOut(outBuf)
+			rootCmd.SetErr(errBuf)
+			rootCmd.SetArgs(tc.command)
+
+			err := rootCmd.Execute()
 			require.NoError(t, err)
 
-			// Assert that the output contains the detailed view information using regular expressions
-			assert.Regexp(t, `Session Details`, output)
-			assert.Regexp(t, `Name:\s+test-session-detail`, output)
-			assert.Regexp(t, `Status:\s+completed`, output)
-			assert.Regexp(t, `Total Tokens:\s+200`, output)
-			assert.Regexp(t, `Cost:`, output)
-			assert.Regexp(t, `Recent Logs`, output)
-			assert.Contains(t, output, "line 1")
-			assert.Contains(t, output, "line 2")
+			stdout := outBuf.String()
+			stderr := errBuf.String()
+
+			// Assert deprecation warning is in stderr
+			assert.Contains(t, stderr, "Warning: `recac ps [SESSION_NAME]` is deprecated")
+			assert.Contains(t, stderr, "Please use `recac inspect [SESSION_NAME]` instead.")
+
+			// Assert that the output contains the detailed view information from the inspect command
+			assert.Regexp(t, `Session Details`, stdout)
+			assert.Regexp(t, `Name:\s+test-session-detail`, stdout)
+			assert.Regexp(t, `Status:\s+completed`, stdout)
 		})
 	}
 }

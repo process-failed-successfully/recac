@@ -386,3 +386,23 @@ func (c *Client) Diff(dir, startCommit, endCommit string) (string, error) {
 	}
 	return out.String(), nil
 }
+
+// DiffStat returns the stat summary of a diff between two commits.
+func (c *Client) DiffStat(dir, startCommit, endCommit string) (string, error) {
+	cmd := exec.Command("git", "diff", "--stat", startCommit, endCommit)
+	cmd.Dir = dir
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out // Redirect stderr to stdout to capture potential errors
+	if err := cmd.Run(); err != nil {
+		// Check for exit code 1 which means there are differences, not necessarily a git error.
+		// However, for diff --stat, a clean run is exit code 0.
+		// A real error might be exit code 128 (e.g., bad commit sha).
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			// If there's output even with an error, it might be useful info.
+			return "", fmt.Errorf("git diff --stat failed with exit code %d: %w\nOutput: %s", exitErr.ExitCode(), err, out.String())
+		}
+		return "", fmt.Errorf("git diff --stat failed: %w\nOutput: %s", err, out.String())
+	}
+	return strings.TrimSpace(out.String()), nil
+}

@@ -194,6 +194,27 @@ func (sm *SessionManager) SaveSession(session *SessionState) error {
 	return nil
 }
 
+// GetSessionGitDiffStat returns the `git diff --stat` output between a session's start and end commits.
+func (sm *SessionManager) GetSessionGitDiffStat(name string) (string, error) {
+	session, err := sm.LoadSession(name)
+	if err != nil {
+		return "", fmt.Errorf("could not load session '%s': %w", name, err)
+	}
+
+	if session.StartCommitSHA == "" || session.EndCommitSHA == "" || session.Workspace == "" {
+		return "", nil // Not an error, just no diff to show
+	}
+
+	// Use the git client for consistency, though direct exec is also fine here.
+	gitClient := git.NewClient()
+	diff, err := gitClient.DiffStat(session.Workspace, session.StartCommitSHA, session.EndCommitSHA)
+	if err != nil {
+		return "", fmt.Errorf("failed to get git diff stat: %w", err)
+	}
+
+	return diff, nil
+}
+
 // ListSessions returns all sessions
 func (sm *SessionManager) ListSessions() ([]*SessionState, error) {
 	entries, err := os.ReadDir(sm.sessionsDir)
