@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func setupTestRepoV2(t *testing.T) (string, string) {
+func setupTestRepo(t *testing.T) (string, string) {
 	t.Helper()
 
 	// Create a bare repo to act as remote
@@ -54,7 +54,7 @@ func setupTestRepoV2(t *testing.T) (string, string) {
 	return localDir, remoteDir
 }
 
-func TestClient_BasicOperationsV2(t *testing.T) {
+func TestClient_BasicOperations(t *testing.T) {
 	localDir, remoteDir := setupTestRepo(t)
 	defer os.RemoveAll(localDir)
 	defer os.RemoveAll(remoteDir)
@@ -104,7 +104,7 @@ func TestClient_BasicOperationsV2(t *testing.T) {
 	}
 }
 
-func TestClient_BranchingV2(t *testing.T) {
+func TestClient_Branching(t *testing.T) {
 	localDir, remoteDir := setupTestRepo(t)
 	defer os.RemoveAll(localDir)
 	defer os.RemoveAll(remoteDir)
@@ -155,7 +155,7 @@ func TestClient_BranchingV2(t *testing.T) {
 	}
 }
 
-func TestClient_StashAndCleanV2(t *testing.T) {
+func TestClient_StashAndClean(t *testing.T) {
 	localDir, remoteDir := setupTestRepo(t)
 	defer os.RemoveAll(localDir)
 	defer os.RemoveAll(remoteDir)
@@ -200,7 +200,7 @@ func TestClient_StashAndCleanV2(t *testing.T) {
 	}
 }
 
-func TestClient_CloneV2(t *testing.T) {
+func TestClient_Clone(t *testing.T) {
 	localDir, remoteDir := setupTestRepo(t)
 	defer os.RemoveAll(localDir)
 	defer os.RemoveAll(remoteDir)
@@ -237,7 +237,7 @@ func TestClient_CloneV2(t *testing.T) {
 	}
 }
 
-func TestClient_RemoteOperationsV2(t *testing.T) {
+func TestClient_RemoteOperations(t *testing.T) {
 	localDir, remoteDir := setupTestRepo(t)
 	defer os.RemoveAll(localDir)
 	defer os.RemoveAll(remoteDir)
@@ -285,7 +285,7 @@ func TestClient_RemoteOperationsV2(t *testing.T) {
 	}
 }
 
-func TestClient_ResetHardV2(t *testing.T) {
+func TestClient_ResetHard(t *testing.T) {
 	localDir, remoteDir := setupTestRepo(t)
 	defer os.RemoveAll(localDir)
 	defer os.RemoveAll(remoteDir)
@@ -317,7 +317,7 @@ func TestClient_ResetHardV2(t *testing.T) {
 	}
 }
 
-func TestClient_SetRemoteURLV2(t *testing.T) {
+func TestClient_SetRemoteURL(t *testing.T) {
 	localDir, _ := setupTestRepo(t)
 	defer os.RemoveAll(localDir)
 
@@ -335,7 +335,7 @@ func TestClient_SetRemoteURLV2(t *testing.T) {
 	}
 }
 
-func TestClient_CreatePR_SkipV2(t *testing.T) {
+func TestClient_CreatePR_Skip(t *testing.T) {
 	// Creating a PR requires 'gh' CLI and real auth, which we can't easily test here.
 	// We'll just verify the function exists and doesn't panic on nil client,
 	// but we'll likely skip or mock if we were serious.
@@ -343,7 +343,7 @@ func TestClient_CreatePR_SkipV2(t *testing.T) {
 	t.Skip("Skipping CreatePR test as it requires gh CLI and auth")
 }
 
-func TestClient_MergeV2(t *testing.T) {
+func TestClient_Merge(t *testing.T) {
 	localDir, _ := setupTestRepo(t)
 	defer os.RemoveAll(localDir)
 
@@ -372,7 +372,7 @@ func TestClient_MergeV2(t *testing.T) {
 	}
 }
 
-func TestClient_ErrorHandlingV2(t *testing.T) {
+func TestClient_ErrorHandling(t *testing.T) {
 	c := NewClient()
 	tmpDir, _ := os.MkdirTemp("", "git-test-errors")
 	defer os.RemoveAll(tmpDir)
@@ -398,7 +398,7 @@ func TestClient_ErrorHandlingV2(t *testing.T) {
 	}
 }
 
-func TestClient_ConfigV2(t *testing.T) {
+func TestClient_Config(t *testing.T) {
 	localDir, _ := setupTestRepo(t)
 	defer os.RemoveAll(localDir)
 
@@ -419,7 +419,7 @@ func TestClient_ConfigV2(t *testing.T) {
 	}
 }
 
-func TestClient_AbortMergeV2(t *testing.T) {
+func TestClient_AbortMerge(t *testing.T) {
 	localDir, _ := setupTestRepo(t)
 	defer os.RemoveAll(localDir)
 
@@ -463,7 +463,7 @@ func TestClient_AbortMergeV2(t *testing.T) {
 	}
 }
 
-func TestClient_DeleteLocalBranchV2(t *testing.T) {
+func TestClient_DeleteLocalBranch(t *testing.T) {
 	localDir, _ := setupTestRepo(t)
 	defer os.RemoveAll(localDir)
 
@@ -495,7 +495,7 @@ func TestClient_DeleteLocalBranchV2(t *testing.T) {
 	}
 }
 
-func TestClient_DeleteRemoteBranchV2(t *testing.T) {
+func TestClient_DeleteRemoteBranch(t *testing.T) {
 	localDir, remoteDir := setupTestRepo(t)
 	defer os.RemoveAll(localDir)
 	defer os.RemoveAll(remoteDir)
