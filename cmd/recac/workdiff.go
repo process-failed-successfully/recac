@@ -8,6 +8,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// gitClient defines the interface for git operations, allowing for mocking in tests.
+type gitClient interface {
+	Diff(workspace, fromSHA, toSHA string) (string, error)
+	CurrentCommitSHA(workspace string) (string, error)
+}
+
+// gitNewClient is a factory function that can be overridden in tests.
+var gitNewClient = func() gitClient {
+	// We need to wrap the concrete client in the interface type.
+	return git.NewClient()
+}
+
 func init() {
 	rootCmd.AddCommand(workdiffCmd)
 }
@@ -47,7 +59,7 @@ func handleSingleSessionDiff(cmd *cobra.Command, sm ISessionManager, sessionName
 		return err
 	}
 
-	gitClient := git.NewClient()
+	gitClient := gitNewClient()
 	diff, err := gitClient.Diff(session.Workspace, session.StartCommitSHA, endSHA)
 	if err != nil {
 		return fmt.Errorf("failed to get git diff: %w", err)
@@ -88,7 +100,7 @@ func handleTwoSessionDiff(cmd *cobra.Command, sm ISessionManager, sessionAName, 
 		return fmt.Errorf("cannot determine workspace for diff")
 	}
 
-	gitClient := git.NewClient()
+	gitClient := gitNewClient()
 	diff, err := gitClient.Diff(workspace, endSHA_A, endSHA_B)
 	if err != nil {
 		return fmt.Errorf("failed to get git diff between sessions: %w", err)
@@ -107,7 +119,7 @@ func getSessionEndSHA(session *runner.SessionState) (string, error) {
 
 	// If the session is complete but has no end SHA, use the current HEAD.
 	if session.Status == "completed" || session.Status == "stopped" {
-		gitClient := git.NewClient()
+		gitClient := gitNewClient()
 		currentSHA, err := gitClient.CurrentCommitSHA(session.Workspace)
 		if err != nil {
 			return "", fmt.Errorf("could not get current commit SHA for completed session '%s': %w", session.Name, err)
