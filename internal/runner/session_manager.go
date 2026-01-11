@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"recac/internal/git"
 	"syscall"
 	"time"
 )
@@ -23,6 +24,8 @@ type SessionState struct {
 	Type           string    `json:"type"`   // "detached" or "interactive"
 	Error          string    `json:"error,omitempty"`
 	AgentStateFile string    `json:"agent_state_file"` // Path to agent state file (.agent_state.json)
+	StartCommitSHA string    `json:"start_commit_sha,omitempty"`
+	EndCommitSHA   string    `json:"end_commit_sha,omitempty"`
 }
 
 // SessionManager handles background session management
@@ -218,6 +221,16 @@ func (sm *SessionManager) ListSessions() ([]*SessionState, error) {
 		if session.Status == "running" && !sm.IsProcessRunning(session.PID) {
 			session.Status = "completed"
 			session.EndTime = time.Now()
+
+			// Get the ending commit SHA
+			gitClient := git.NewClient()
+			if session.Workspace != "" {
+				sha, err := gitClient.CurrentCommitSHA(session.Workspace)
+				if err == nil {
+					session.EndCommitSHA = sha
+				}
+			}
+
 			sm.SaveSession(session) // Update on disk
 		}
 
@@ -278,6 +291,16 @@ func (sm *SessionManager) StopSession(name string) error {
 
 	session.Status = "stopped"
 	session.EndTime = time.Now()
+
+	// Get the ending commit SHA
+	gitClient := git.NewClient()
+	if session.Workspace != "" {
+		sha, err := gitClient.CurrentCommitSHA(session.Workspace)
+		if err == nil {
+			session.EndCommitSHA = sha
+		}
+	}
+
 	sm.SaveSession(session)
 
 	return nil

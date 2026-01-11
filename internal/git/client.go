@@ -262,6 +262,19 @@ func (c *Client) CurrentBranch(dir string) (string, error) {
 	return strings.TrimSpace(out.String()), nil
 }
 
+// CurrentCommitSHA returns the SHA of the current commit (HEAD).
+func (c *Client) CurrentCommitSHA(dir string) (string, error) {
+	cmd := exec.Command("git", "rev-parse", "HEAD")
+	cmd.Dir = dir
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(out.String()), nil
+}
+
 // Stash stashes local changes, including untracked files.
 func (c *Client) Stash(dir string) error {
 	cmd := exec.Command("git", "stash", "--include-untracked")
@@ -359,4 +372,17 @@ func (c *Client) DeleteLocalBranch(dir, branch string) error {
 // DeleteRemoteBranch deletes a remote branch.
 func (c *Client) DeleteRemoteBranch(dir, remote, branch string) error {
 	return c.runWithMasking(context.Background(), dir, "push", remote, "--delete", branch)
+}
+
+// Diff returns the diff between two commits.
+func (c *Client) Diff(dir, startCommit, endCommit string) (string, error) {
+	cmd := exec.Command("git", "diff", startCommit, endCommit)
+	cmd.Dir = dir
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("git diff failed: %w\nOutput: %s", err, out.String())
+	}
+	return out.String(), nil
 }
