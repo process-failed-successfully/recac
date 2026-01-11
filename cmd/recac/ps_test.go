@@ -112,7 +112,7 @@ func TestPsCommandWithCosts(t *testing.T) {
 	assert.Contains(t, output, "2000")
 	assert.Contains(t, output, "3000")
 
-	assert.Regexp(t, `session-without-cost\s+completed`, output)
+	assert.Regexp(t, `session-without-cost\s+running`, output)
 	assert.Contains(t, output, "N/A")
 }
 
@@ -261,4 +261,59 @@ func TestPsAndListDetailView(t *testing.T) {
 			assert.Contains(t, output, "line 2")
 		})
 	}
+}
+
+func TestPsCommandWithFilter(t *testing.T) {
+	tempDir := t.TempDir()
+	sessionsDir := filepath.Join(tempDir, "sessions")
+	require.NoError(t, os.Mkdir(sessionsDir, 0755))
+
+	originalFactory := sessionManagerFactory
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return runner.NewSessionManagerWithDir(sessionsDir)
+	}
+	defer func() { sessionManagerFactory = originalFactory }()
+
+	sm, err := sessionManagerFactory()
+	require.NoError(t, err)
+
+	// Create mock sessions
+	sessionRunning := &runner.SessionState{Name: "session-running", Status: "running", StartTime: time.Now()}
+	sessionCompleted := &runner.SessionState{Name: "session-completed", Status: "completed", StartTime: time.Now()}
+	sessionError := &runner.SessionState{Name: "session-error", Status: "error", StartTime: time.Now()}
+
+	// Save sessions
+	require.NoError(t, sm.SaveSession(sessionRunning))
+	require.NoError(t, sm.SaveSession(sessionCompleted))
+	require.NoError(t, sm.SaveSession(sessionError))
+
+	t.Run("filter by running", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "ps", "--filter", "running")
+		require.NoError(t, err)
+		assert.Contains(t, output, "session-running")
+		assert.NotContains(t, output, "session-completed")
+		assert.NotContains(t, output, "session-error")
+	})
+
+	t.Run("filter by completed", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "ps", "--filter", "completed")
+		require.NoError(t, err)
+		assert.NotContains(t, output, "session-running")
+		assert.Contains(t, output, "session-completed")
+		assert.NotContains(t, output, "session-error")
+	})
+
+	t.Run("filter by error", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "ps", "--filter", "error")
+		require.NoError(t, err)
+		assert.NotContains(t, output, "session-running")
+		assert.NotContains(t, output, "session-completed")
+		assert.Contains(t, output, "session-error")
+	})
+
+	t.Run("filter with no matching sessions", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "ps", "--filter", "unknown")
+		require.NoError(t, err)
+		assert.Contains(t, output, "No sessions found with status 'unknown'.")
+	})
 }

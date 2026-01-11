@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"recac/internal/agent"
+	"recac/internal/runner"
 	"sort"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -20,6 +22,9 @@ func init() {
 	}
 	if psCmd.Flags().Lookup("errors") == nil {
 		psCmd.Flags().BoolP("errors", "e", false, "Show the first line of the error for failed sessions")
+	}
+	if psCmd.Flags().Lookup("filter") == nil {
+		psCmd.Flags().String("filter", "", "Filter sessions by status (e.g., 'running', 'completed', 'error')")
 	}
 }
 
@@ -54,8 +59,23 @@ If a session name is provided, it displays a detailed summary for that session.`
 			return fmt.Errorf("failed to list sessions: %w", err)
 		}
 
+		filterBy, _ := cmd.Flags().GetString("filter")
+		if filterBy != "" {
+			var filteredSessions []*runner.SessionState
+			for _, session := range sessions {
+				if strings.EqualFold(session.Status, filterBy) {
+					filteredSessions = append(filteredSessions, session)
+				}
+			}
+			sessions = filteredSessions
+		}
+
 		if len(sessions) == 0 {
-			cmd.Println("No sessions found.")
+			if filterBy != "" {
+				cmd.Printf("No sessions found with status '%s'.\n", filterBy)
+			} else {
+				cmd.Println("No sessions found.")
+			}
 			return nil
 		}
 
