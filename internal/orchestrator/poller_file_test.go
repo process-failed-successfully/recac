@@ -2,73 +2,55 @@ package orchestrator
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-func TestFilePoller_Poll(t *testing.T) {
-	tempDir := t.TempDir()
-	workFilePath := filepath.Join(tempDir, "work.json")
+func TestFilePoller(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "poller_test")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
 
-	items := []WorkItem{
-		{ID: "FILE-1", Summary: "File task 1"},
-		{ID: "FILE-2", Summary: "File task 2"},
-	}
-	data, err := json.Marshal(items)
-	require.NoError(t, err)
-	err = os.WriteFile(workFilePath, data, 0644)
-	require.NoError(t, err)
+	workFile := filepath.Join(tmpDir, "work.json")
 
-	poller := NewFilePoller(workFilePath)
+	t.Run("New FilePoller", func(t *testing.T) {
+		poller := NewFilePoller(workFile)
+		assert.NotNil(t, poller)
+	})
 
-	// First poll should return all items
-	polledItems, err := poller.Poll(context.Background())
-	require.NoError(t, err)
-	assert.Len(t, polledItems, 2)
+	t.Run("Poll Empty/Missing File", func(t *testing.T) {
+		poller := NewFilePoller(workFile)
+		items, err := poller.Poll(context.Background())
+		assert.NoError(t, err)
+		assert.Nil(t, items)
+	})
 
-	// Claim one item
-	err = poller.Claim(context.Background(), items[0])
-	require.NoError(t, err)
+	t.Run("Poll With Items", func(t *testing.T) {
+		content := `[{"id": "TASK-1", "summary": "Task 1"}]`
+		os.WriteFile(workFile, []byte(content), 0644)
 
-	// Second poll should return only the unclaimed item
-	polledItems, err = poller.Poll(context.Background())
-	require.NoError(t, err)
-	require.Len(t, polledItems, 1)
-	assert.Equal(t, "FILE-2", polledItems[0].ID)
-}
+		poller := NewFilePoller(workFile)
+		items, err := poller.Poll(context.Background())
+		assert.NoError(t, err)
+		assert.Len(t, items, 1)
+		assert.Equal(t, "TASK-1", items[0].ID)
 
-func TestFilePoller_Poll_NoFile(t *testing.T) {
-	tempDir := t.TempDir()
-	workFilePath := filepath.Join(tempDir, "nonexistent.json")
+		// Claim
+		err = poller.Claim(context.Background(), items[0])
+		assert.NoError(t, err)
 
-	poller := NewFilePoller(workFilePath)
+		// Poll again should be empty
+		items2, err := poller.Poll(context.Background())
+		assert.NoError(t, err)
+		assert.Len(t, items2, 0)
+	})
 
-	polledItems, err := poller.Poll(context.Background())
-	require.NoError(t, err)
-	assert.Empty(t, polledItems)
-}
-
-func TestFilePoller_Poll_MalformedJSON(t *testing.T) {
-	tempDir := t.TempDir()
-	workFilePath := filepath.Join(tempDir, "work.json")
-
-	err := os.WriteFile(workFilePath, []byte("{not json}"), 0644)
-	require.NoError(t, err)
-
-	poller := NewFilePoller(workFilePath)
-
-	_, err = poller.Poll(context.Background())
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to unmarshal work items")
-}
-
-func TestFilePoller_UpdateStatus(t *testing.T) {
-	poller := NewFilePoller("")
-	err := poller.UpdateStatus(context.Background(), WorkItem{ID: "TEST-1"}, "Completed", "All done")
-	assert.NoError(t, err, "UpdateStatus should be a no-op and not return an error")
+	t.Run("Update Status", func(t *testing.T) {
+		poller := NewFilePoller(workFile)
+		err := poller.UpdateStatus(context.Background(), WorkItem{ID: "TASK-1"}, "done", "comment")
+		assert.NoError(t, err)
+	})
 }

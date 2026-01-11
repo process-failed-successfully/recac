@@ -18,6 +18,7 @@ import (
 	"recac/internal/docker"
 	"recac/internal/git"
 	"recac/internal/security"
+	"reflect"
 	"regexp"
 	"strings"
 	"sync"
@@ -2342,7 +2343,7 @@ func (s *Session) fixPasswdDatabase(ctx context.Context, containerUser string) {
 // This prevents "Permission denied" errors when the host process (git) tries to modify/delete files created by the agent (root).
 func (s *Session) fixPermissions(ctx context.Context) error {
 	containerID := s.GetContainerID()
-	if containerID == "" {
+	if containerID == "" || containerID == "local" || s.Docker == nil {
 		return nil
 	}
 
@@ -2479,7 +2480,7 @@ func (s *Session) runInitScript(ctx context.Context) {
 
 // completeJiraTicket performs the final Jira transition, adds a comment with the link, and sends a notification.
 func (s *Session) completeJiraTicket(ctx context.Context, gitLink string) {
-	if s.JiraClient == nil || s.JiraTicketID == "" {
+	if s.JiraClient == nil || (reflect.ValueOf(s.JiraClient).Kind() == reflect.Ptr && reflect.ValueOf(s.JiraClient).IsNil()) || s.JiraTicketID == "" {
 		// Not a Jira session, but we still send a notification
 		s.Notifier.Notify(ctx, notify.EventProjectComplete, fmt.Sprintf("Project %s is COMPLETE! Git: %s", s.Project, gitLink), s.GetSlackThreadTS())
 		return

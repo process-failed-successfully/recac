@@ -56,6 +56,7 @@ func run() error {
 	flag.StringVar(&exactImage, "image", "", "Exact image name to use (overrides repo/timestamp logic)")
 	flag.BoolVar(&skipBuild, "skip-build", false, "Skip docker build")
 	flag.BoolVar(&skipCleanup, "skip-cleanup", false, "Skip cleanup on finish")
+	local := flag.Bool("local", false, "Run orchestrator locally instead of deploying to K8s")
 	flag.Parse()
 
 	// Use targetRepo instead of hardcoded repoURL
@@ -168,80 +169,142 @@ func run() error {
 		log.Printf("Warning: Failed to prepare repository: %v", err)
 	}
 
-	// 4. Deploy Helm
-	log.Println("=== Cleaning up old Jobs ===")
-	_ = runCommand("kubectl", "delete", "jobs", "-n", namespace, "-l", "app=recac-agent", "--cascade=foreground", "--wait=true")
+	// 4. Deploy (Helm or Local)
+	if *local {
+		log.Println("=== Running Orchestrator LOCALLY ===")
 
-	// Wipe Database if postgres is used
-	log.Println("=== Wiping PostgreSQL Database ===")
-	// We use kubectl exec to run psql inside the postgres pod
-	// We ignore errors if pod doesn't exist yet (first run)
-	wipeCmd := "PGPASSWORD=changeit psql -U recac -d recac -c \"TRUNCATE observations, signals, project_features, file_locks;\""
-	_ = runCommand("sh", "-c", fmt.Sprintf("POD_NAME=$(kubectl get pods -l app.kubernetes.io/instance=recac,app.kubernetes.io/name=postgresql -n default -o jsonpath='{.items[0].metadata.name}' 2>/dev/null) && [ -n \"$POD_NAME\" ] && kubectl exec $POD_NAME -n default -- sh -c %s", fmt.Sprintf("'%s'", wipeCmd)))
+		// Run orchestrator
+		cmd := exec.Command("go", "run", "./cmd/orchestrator",
+			"--mode=local",
+			"--poller=jira",
+			fmt.Sprintf("--jira-label=%s", label),
+			"--image=recac-build", // Use local image
+			fmt.Sprintf("--agent-provider=%s", provider),
+			fmt.Sprintf("--agent-model=%s", model),
+			"--verbose",
+			"--interval=10s",
+		)
+		cmd.Env = os.Environ()
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 
-	log.Println("=== Deploying Helm Chart ===")
-	lastColon := strings.LastIndex(imageName, ":")
-	repoPart := imageName[:lastColon]
-	tagPart := imageName[lastColon+1:]
-
-	// Workaround: If pushing to 192.168.0.55 (plex-desktop), pull from localhost:5000
-	// to avoid "http: server gave HTTP response to HTTPS client" errors in K3s.
-	pullRepo := repoPart
-	if strings.HasPrefix(repoPart, "192.168.0.55:5000") {
-		pullRepo = strings.Replace(repoPart, "192.168.0.55:5000", "localhost:5000", 1)
-		log.Printf("Detected local registry. Using %s for pull.", pullRepo)
-	}
-
-	helmLargestCmd := []string{
-		"upgrade", "--install", releaseName, chartPath,
-		"--namespace", namespace,
-		"--set", fmt.Sprintf("image.repository=%s", pullRepo),
-		"--set", fmt.Sprintf("image.tag=%s", tagPart),
-		"--set", fmt.Sprintf("image.pullPolicy=%s", pullPolicy),
-		"--set", "config.imagePullPolicy=IfNotPresent",
-		"--set", "config.poller=jira",
-		"--set", fmt.Sprintf("config.jira_label=%s", label),
-		"--set", fmt.Sprintf("config.jira_query=labels = \"%s\" AND issuetype != Epic AND statusCategory != Done ORDER BY created ASC", label),
-		"--set", "config.verbose=true",
-		"--set", "config.interval=10s",
-		"--set", "config.maxIterations=20",
-		"--set", fmt.Sprintf("config.provider=%s", provider),
-		"--set", fmt.Sprintf("config.model=%s", model),
-		"--set", "config.dbType=postgres",
-		"--set", "postgresql.enabled=true",
-		"--set", "postgresql.image.repository=bitnami/postgresql",
-		"--set", "postgresql.image.tag=latest",
-		"--set", fmt.Sprintf("config.jiraUrl=%s", os.Getenv("JIRA_URL")),
-		"--set", fmt.Sprintf("config.jiraUsername=%s", os.Getenv("JIRA_USERNAME")),
-		"--set", fmt.Sprintf("secrets.openrouterApiKey=%s", os.Getenv("OPENROUTER_API_KEY")),
-		"--set", fmt.Sprintf("secrets.geminiApiKey=%s", os.Getenv("GEMINI_API_KEY")),
-		"--set", fmt.Sprintf("secrets.anthropicApiKey=%s", os.Getenv("ANTHROPIC_API_KEY")),
-		"--set", fmt.Sprintf("secrets.openaiApiKey=%s", os.Getenv("OPENAI_API_KEY")),
-		"--set", fmt.Sprintf("secrets.cursorApiKey=%s", os.Getenv("CURSOR_API_KEY")),
-		"--set", fmt.Sprintf("secrets.jiraApiToken=%s", os.Getenv("JIRA_API_TOKEN")),
-		"--set", fmt.Sprintf("secrets.ghApiKey=%s", os.Getenv("GITHUB_API_KEY")),
-		"--set", fmt.Sprintf("secrets.ghEmail=%s", os.Getenv("GITHUB_EMAIL")),
-		"--set", fmt.Sprintf("secrets.slackBotUserToken=%s", os.Getenv("SLACK_BOT_USER_TOKEN")),
-		"--set", fmt.Sprintf("secrets.slackAppToken=%s", os.Getenv("SLACK_APP_TOKEN")),
-		"--set", fmt.Sprintf("secrets.discordBotToken=%s", os.Getenv("DISCORD_BOT_TOKEN")),
-		"--set", fmt.Sprintf("secrets.discordChannelId=%s", os.Getenv("DISCORD_CHANNEL_ID")),
-	}
-
-	// Conditionally set postgres registry if we are assuming a local mirroring setup
-	if strings.HasPrefix(pullRepo, "localhost:5000") {
-		helmLargestCmd = append(helmLargestCmd, "--set", "postgresql.global.imageRegistry=localhost:5000")
-	}
-
-	if err := runCommand("helm", helmLargestCmd...); err != nil {
-		return fmt.Errorf("helm deploy failed: %w", err)
-	}
-
-	defer func() {
-		if !skipCleanup {
-			log.Println("=== Uninstalling Helm Release ===")
-			_ = runCommand("helm", "uninstall", releaseName, "--namespace", namespace)
+		log.Printf("Starting orchestrator: %v", cmd.Args)
+		if err := cmd.Start(); err != nil {
+			return fmt.Errorf("failed to start local orchestrator: %w", err)
 		}
-	}()
+
+		defer func() {
+			if cmd.Process != nil {
+				log.Println("Stopping local orchestrator...")
+				_ = cmd.Process.Kill()
+			}
+		}()
+
+		// Wait loop for local execution
+		log.Println("=== Waiting for Execution (Local) ===")
+		timeout := 600 * time.Second
+		start := time.Now()
+
+		for {
+			if time.Since(start) > timeout {
+				return fmt.Errorf("timeout waiting for local execution verification")
+			}
+
+			// Try verify
+			log.Println("Attempting verification...")
+			if err := verifyScenario(scenarioName, repoURL, ticketMap); err == nil {
+				log.Println("Verification PASSED!")
+				break
+			} else {
+				log.Printf("Verification pending/failed: %v", err)
+			}
+
+			// Check if orchestrator died
+			if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
+				return fmt.Errorf("orchestrator process exited unexpectedly")
+			}
+
+			time.Sleep(10 * time.Second)
+		}
+
+		log.Println("=== E2E Test PASSED (Local) ===")
+		return nil
+
+	} else {
+		log.Println("=== Cleaning up old Jobs ===")
+		_ = runCommand("kubectl", "delete", "jobs", "-n", namespace, "-l", "app=recac-agent", "--cascade=foreground", "--wait=true")
+
+		// Wipe Database if postgres is used
+		log.Println("=== Wiping PostgreSQL Database ===")
+		// We use kubectl exec to run psql inside the postgres pod
+		// We ignore errors if pod doesn't exist yet (first run)
+		wipeCmd := "PGPASSWORD=changeit psql -U recac -d recac -c \"TRUNCATE observations, signals, project_features, file_locks;\""
+		_ = runCommand("sh", "-c", fmt.Sprintf("POD_NAME=$(kubectl get pods -l app.kubernetes.io/instance=recac,app.kubernetes.io/name=postgresql -n default -o jsonpath='{.items[0].metadata.name}' 2>/dev/null) && [ -n \"$POD_NAME\" ] && kubectl exec $POD_NAME -n default -- sh -c %s", fmt.Sprintf("'%s'", wipeCmd)))
+
+		log.Println("=== Deploying Helm Chart ===")
+		lastColon := strings.LastIndex(imageName, ":")
+		repoPart := imageName[:lastColon]
+		tagPart := imageName[lastColon+1:]
+
+		// Workaround: If pushing to 192.168.0.55 (plex-desktop), pull from localhost:5000
+		// to avoid "http: server gave HTTP response to HTTPS client" errors in K3s.
+		pullRepo := repoPart
+		if strings.HasPrefix(repoPart, "192.168.0.55:5000") {
+			pullRepo = strings.Replace(repoPart, "192.168.0.55:5000", "localhost:5000", 1)
+			log.Printf("Detected local registry. Using %s for pull.", pullRepo)
+		}
+
+		helmLargestCmd := []string{
+			"upgrade", "--install", releaseName, chartPath,
+			"--namespace", namespace,
+			"--set", fmt.Sprintf("image.repository=%s", pullRepo),
+			"--set", fmt.Sprintf("image.tag=%s", tagPart),
+			"--set", fmt.Sprintf("image.pullPolicy=%s", pullPolicy),
+			"--set", "config.imagePullPolicy=IfNotPresent",
+			"--set", "config.poller=jira",
+			"--set", fmt.Sprintf("config.jira_label=%s", label),
+			"--set", fmt.Sprintf("config.jira_query=labels = \"%s\" AND issuetype != Epic AND statusCategory != Done ORDER BY created ASC", label),
+			"--set", "config.verbose=true",
+			"--set", "config.interval=10s",
+			"--set", "config.maxIterations=20",
+			"--set", fmt.Sprintf("config.provider=%s", provider),
+			"--set", fmt.Sprintf("config.model=%s", model),
+			"--set", "config.dbType=postgres",
+			"--set", "postgresql.enabled=true",
+			"--set", "postgresql.image.repository=bitnami/postgresql",
+			"--set", "postgresql.image.tag=latest",
+			"--set", fmt.Sprintf("config.jiraUrl=%s", os.Getenv("JIRA_URL")),
+			"--set", fmt.Sprintf("config.jiraUsername=%s", os.Getenv("JIRA_USERNAME")),
+			"--set", fmt.Sprintf("secrets.openrouterApiKey=%s", os.Getenv("OPENROUTER_API_KEY")),
+			"--set", fmt.Sprintf("secrets.geminiApiKey=%s", os.Getenv("GEMINI_API_KEY")),
+			"--set", fmt.Sprintf("secrets.anthropicApiKey=%s", os.Getenv("ANTHROPIC_API_KEY")),
+			"--set", fmt.Sprintf("secrets.openaiApiKey=%s", os.Getenv("OPENAI_API_KEY")),
+			"--set", fmt.Sprintf("secrets.cursorApiKey=%s", os.Getenv("CURSOR_API_KEY")),
+			"--set", fmt.Sprintf("secrets.jiraApiToken=%s", os.Getenv("JIRA_API_TOKEN")),
+			"--set", fmt.Sprintf("secrets.ghApiKey=%s", os.Getenv("GITHUB_API_KEY")),
+			"--set", fmt.Sprintf("secrets.ghEmail=%s", os.Getenv("GITHUB_EMAIL")),
+			"--set", fmt.Sprintf("secrets.slackBotUserToken=%s", os.Getenv("SLACK_BOT_USER_TOKEN")),
+			"--set", fmt.Sprintf("secrets.slackAppToken=%s", os.Getenv("SLACK_APP_TOKEN")),
+			"--set", fmt.Sprintf("secrets.discordBotToken=%s", os.Getenv("DISCORD_BOT_TOKEN")),
+			"--set", fmt.Sprintf("secrets.discordChannelId=%s", os.Getenv("DISCORD_CHANNEL_ID")),
+		}
+
+		// Conditionally set postgres registry if we are assuming a local mirroring setup
+		if strings.HasPrefix(pullRepo, "localhost:5000") {
+			helmLargestCmd = append(helmLargestCmd, "--set", "postgresql.global.imageRegistry=localhost:5000")
+		}
+
+		if err := runCommand("helm", helmLargestCmd...); err != nil {
+			return fmt.Errorf("helm deploy failed: %w", err)
+		}
+
+		defer func() {
+			if !skipCleanup {
+				log.Println("=== Uninstalling Helm Release ===")
+				_ = runCommand("helm", "uninstall", releaseName, "--namespace", namespace)
+			}
+		}()
+	}
 
 	// 4. Wait for Execution
 	log.Println("=== Waiting for Execution ===")
@@ -382,40 +445,48 @@ func printKubeDebugInfo(ns string) {
 
 func prepareRepo(repoURL string, ticketMap map[string]string) error {
 	token := os.Getenv("GITHUB_API_KEY")
+	repoURL = strings.TrimSuffix(repoURL, "/")
 	authRepo := repoURL
-	if !strings.Contains(repoURL, "@") {
+	if token != "" && !strings.Contains(repoURL, "@") {
 		authRepo = strings.Replace(repoURL, "https://", fmt.Sprintf("https://x-access-token:%s@", token), 1)
 	}
 
-	// Clone to temp dir
-	tmpDir, err := os.MkdirTemp("", "e2e-cleanup")
+	// 1. Get all remote branches using ls-remote (fast, no clone needed)
+	log.Printf("Checking remote branches for %s...", repoURL)
+	cmd := exec.Command("git", "ls-remote", "--heads", authRepo)
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(tmpDir)
-
-	if err := runCommand("git", "clone", "--depth", "1", authRepo, tmpDir); err != nil {
-		return fmt.Errorf("failed to clone for preparation: %w", err)
+		return fmt.Errorf("failed to ls-remote: %w\nOutput: %s", err, string(output))
 	}
 
-	// Delete ALL remote agent branches to avoid context pollution
-	// git branch -r --list 'origin/agent/*'
-	cmd := exec.Command("git", "-C", tmpDir, "branch", "-r", "--list", "origin/agent/*")
-	output, err := cmd.Output()
-	if err == nil {
-		lines := strings.Split(string(output), "\n")
-		for _, line := range lines {
-			line = strings.TrimSpace(line)
-			if line == "" {
-				continue
-			}
-			// line is origin/agent/MFLP-123
-			parts := strings.Split(line, "origin/")
-			if len(parts) > 1 {
-				branch := parts[1]
-				log.Printf("Deleting stale remote branch: %s", branch)
-				_ = exec.Command("git", "-C", tmpDir, "push", "origin", "--delete", branch).Run()
-			}
+	lines := strings.Split(string(output), "\n")
+	var branchesToDelete []string
+	for _, line := range lines {
+		// line format: <sha>\trefs/heads/<branch>
+		parts := strings.Fields(line)
+		if len(parts) < 2 {
+			continue
+		}
+		ref := parts[1]
+		if strings.HasPrefix(ref, "refs/heads/agent/") {
+			branch := strings.TrimPrefix(ref, "refs/heads/")
+			branchesToDelete = append(branchesToDelete, branch)
+		}
+	}
+
+	if len(branchesToDelete) == 0 {
+		return nil
+	}
+
+	// 2. Delete the branches
+	// Since we don't have a local repo yet, we can use a dummy one or just 'git push <url> --delete <branch>'
+	log.Printf("Found %d stale agent branches to delete", len(branchesToDelete))
+	for _, branch := range branchesToDelete {
+		log.Printf("Deleting remote branch: %s", branch)
+		// We can run git push without a local repo by specifying the URL
+		delCmd := exec.Command("git", "push", authRepo, "--delete", branch)
+		if out, err := delCmd.CombinedOutput(); err != nil {
+			log.Printf("Warning: Failed to delete branch %s: %v\nOutput: %s", branch, err, string(out))
 		}
 	}
 

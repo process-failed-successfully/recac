@@ -1,21 +1,20 @@
 ARG GO_VERSION=1.25
-FROM golang:${GO_VERSION}-alpine AS base
+ARG GO_VERSION=1.25
+FROM golang:${GO_VERSION} AS base
 
 # Install essential tools
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y \
     nodejs \
     npm \
     python3 \
-    py3-pip \
+    python3-pip \
     curl \
     git \
     jq \
-    bash \
     unzip \
-    libc6-compat \
-    docker-cli \
-    coreutils \
-    make
+    docker.io \
+    make \
+    && rm -rf /var/lib/apt/lists/*
 
 # Configure NPM mirror
 # RUN npm config set registry https://registry.npmmirror.com/
@@ -41,12 +40,16 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 RUN go build -buildvcs=false -o recac ./cmd/recac
+RUN go build -buildvcs=false -o orchestrator ./cmd/orchestrator
+RUN go build -buildvcs=false -o recac-agent ./cmd/agent
 RUN go build -buildvcs=false -o agent-bridge ./cmd/agent-bridge
 
 # Production Image
 FROM base AS production
 WORKDIR /app
 COPY --from=builder /app/recac /usr/local/bin/recac
+COPY --from=builder /app/orchestrator /usr/local/bin/orchestrator
+COPY --from=builder /app/recac-agent /usr/local/bin/recac-agent
 COPY --from=builder /app/agent-bridge /usr/local/bin/agent-bridge
 
 # Default entrypoint
