@@ -1,91 +1,74 @@
+
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"os"
-	"recac/internal/runner"
-	"strings"
-	"time"
 
+	"github.com/nxadm/tail"
 	"github.com/spf13/cobra"
 )
 
 func init() {
-	logsCmd.Flags().BoolP("follow", "f", false, "Follow log output (like tail -f)")
-	logsCmd.Flags().String("filter", "", "Filter logs by string match")
 	rootCmd.AddCommand(logsCmd)
+	logsCmd.Flags().BoolP("follow", "f", false, "Follow log output")
 }
 
 var logsCmd = &cobra.Command{
-	Use:   "logs [session-name]",
-	Short: "View session logs",
-	Long:  `View logs for a specific session. Use --follow to stream logs in real-time.`,
+	Use:   "logs [SESSION_NAME]",
+	Short: "Fetch the logs of a session",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		sessionName := args[0]
-		follow := cmd.Flags().Lookup("follow").Changed
-		filter, _ := cmd.Flags().GetString("filter")
+		follow, _ := cmd.Flags().GetBool("follow")
 
-		sm, err := runner.NewSessionManager()
+		sm, err := sessionManagerFactory()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: failed to create session manager: %v\n", err)
-			exit(1)
+			return fmt.Errorf("failed to create session manager: %w", err)
 		}
 
 		logFile, err := sm.GetSessionLogs(sessionName)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			exit(1)
+			return err
 		}
 
-		file, err := os.Open(logFile)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: failed to open log file: %v\n", err)
-			exit(1)
-		}
-		defer file.Close()
-
-		reader := bufio.NewReader(file)
-
-		// Helper to process line
-		processLine := func(line string) {
-			if filter == "" || strings.Contains(line, filter) {
-				fmt.Print(line)
-			}
-		}
-
-		// Initial read
-		for {
-			line, err := reader.ReadString('\n')
-			if err != nil {
-				if err == io.EOF {
-					if line != "" {
-						processLine(line)
-					}
-					break
-				}
-				fmt.Fprintf(os.Stderr, "Error reading log file: %v\n", err)
-				exit(1)
-			}
-			processLine(line)
+		if _, err := os.Stat(logFile); os.IsNotExist(err) {
+			return fmt.Errorf("log file for session '%s' not found at %s", sessionName, logFile)
 		}
 
 		if follow {
-			// Follow mode
-			for {
-				line, err := reader.ReadString('\n')
-				if err != nil {
-					if err == io.EOF {
-						time.Sleep(500 * time.Millisecond)
-						continue
-					}
-					fmt.Fprintf(os.Stderr, "Error streaming logs: %v\n", err)
-					break
-				}
-				processLine(line)
-			}
+			return tailLog(cmd, logFile)
 		}
+		return printLog(cmd, logFile)
 	},
+}
+
+func printLog(cmd *cobra.Command, logFile string) error {
+	file, err := os.Open(logFile)
+	if err != nil {
+		return fmt.Errorf("failed to open log file: %w", err)
+	}
+	defer file.Close()
+
+	_, err = io.Copy(cmd.OutOrStdout(), file)
+	return err
+}
+
+func tailLog(cmd *cobra.Command, logFile string) error {
+	t, err := tail.TailFile(logFile, tail.Config{
+		Follow:    true,
+		MustExist: true,
+		Poll:      true, // Use polling to work around potential inotify issues in some environments
+		ReOpen:    true,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to start tailing log file: %w", err)
+	}
+
+	for line := range t.Lines {
+		fmt.Fprintln(cmd.OutOrStdout(), line.Text)
+	}
+
+	return t.Wait()
 }

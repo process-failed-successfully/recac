@@ -165,21 +165,61 @@ func TestCommands(t *testing.T) {
 	})
 
 	t.Run("Logs Command", func(t *testing.T) {
+		// 1. Setup
+		logsTestDir := t.TempDir()
+		sessionName := "test-logs-session-from-commands-test"
+		logFile := filepath.Join(logsTestDir, sessionName+".log")
+		logContent := "line 1\nline 2\nline 3"
 
-		// logs command needs a session name or lists logs.
-
-		// If no session provided, it might list or error (test said "Logs Missing Arg").
-
-		// Just run help to cover command definition
-
-		_, err := executeCommand(rootCmd, "logs", "--help")
-
+		err := os.WriteFile(logFile, []byte(logContent), 0600)
 		if err != nil {
-
-			t.Errorf("Logs help failed: %v", err)
-
+			t.Fatalf("Failed to write dummy log file: %v", err)
 		}
 
+		mockSM, err := runner.NewSessionManagerWithDir(logsTestDir)
+		if err != nil {
+			t.Fatalf("Failed to create mock session manager: %v", err)
+		}
+
+		session := &runner.SessionState{
+			Name:    sessionName,
+			LogFile: logFile,
+			Status:  "completed",
+		}
+		err = mockSM.SaveSession(session)
+		if err != nil {
+			t.Fatalf("Failed to save mock session: %v", err)
+		}
+
+		originalFactory := sessionManagerFactory
+		sessionManagerFactory = func() (ISessionManager, error) {
+			return mockSM, nil
+		}
+		defer func() { sessionManagerFactory = originalFactory }()
+
+		// Sub-test for basic log retrieval
+		t.Run("without follow", func(t *testing.T) {
+			rootCmd, _, _ := newRootCmd()
+			output, err := executeCommand(rootCmd, "logs", sessionName)
+			if err != nil {
+				t.Fatalf("logs command failed: %v", err)
+			}
+			if !strings.Contains(output, logContent) {
+				t.Errorf("Expected output to contain '%s', got '%s'", logContent, output)
+			}
+		})
+
+		// Sub-test for non-existent session
+		t.Run("for non-existent session", func(t *testing.T) {
+			rootCmd, _, _ := newRootCmd()
+			_, err := executeCommand(rootCmd, "logs", "no-such-session")
+			if err == nil {
+				t.Fatal("Expected error for non-existent session, but got nil")
+			}
+			if !strings.Contains(err.Error(), "failed to read session file") {
+				t.Errorf("Expected error message to contain 'failed to read session file', got '%v'", err)
+			}
+		})
 	})
 
 	t.Run("Check Command", func(t *testing.T) {
