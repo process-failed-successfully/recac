@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"sort"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -18,150 +20,123 @@ func init() {
 
 var summaryCmd = &cobra.Command{
 	Use:   "summary",
-	Short: "Display a high-level summary of all sessions",
-	Long:  `Provides a dashboard view of the most important statistics, including running sessions, costs, and recent activity.`,
+	Short: "Display a summary of all sessions",
+	Long:  "Provides a high-level dashboard of session statistics, usage, and cost.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		sm, err := sessionManagerFactory()
 		if err != nil {
-			return fmt.Errorf("could not create session manager: %w", err)
+			return fmt.Errorf("failed to create session manager: %w", err)
 		}
-
-		sessions, err := sm.ListSessions()
-		if err != nil {
-			return fmt.Errorf("could not list sessions: %w", err)
-		}
-
-		if len(sessions) == 0 {
-			cmd.Println("No sessions found to summarize.")
-			return nil
-		}
-
-		displaySummary(cmd, sessions)
-
-		return nil
+		return doSummary(cmd.OutOrStdout(), sm)
 	},
 }
 
-// SummaryStats holds all the aggregated data for the summary view.
-type SummaryStats struct {
-	TotalSessions     int
-	RunningSessions   int
-	ErroredSessions   int
-	TotalCost         float64
-	TotalTokens       int
-	TopSessionsByCost []SessionWithCost
-	RecentSessions    []*runner.SessionState
-}
-
-// SessionWithCost pairs a session with its calculated cost.
-type SessionWithCost struct {
+// sessionWithCost is a helper struct to sort sessions by their cost.
+type sessionWithCost struct {
 	*runner.SessionState
 	Cost float64
 }
 
-func analyzeSessionsForSummary(sessions []*runner.SessionState) (*SummaryStats, error) {
-	stats := &SummaryStats{
-		TotalSessions: len(sessions),
+func doSummary(out io.Writer, sm ISessionManager) error {
+	sessions, err := sm.ListSessions()
+	if err != nil {
+		return fmt.Errorf("failed to list sessions: %w", err)
 	}
 
-	sessionsWithCosts := make([]SessionWithCost, 0, len(sessions))
+	if len(sessions) == 0 {
+		fmt.Fprintln(out, "No sessions to display.")
+		return nil
+	}
 
-	for _, s := range sessions {
-		if s.Status == "RUNNING" {
-			stats.RunningSessions++
-		}
-		if s.Status == "ERROR" {
-			stats.ErroredSessions++
-		}
+	totalTokens := 0
+	totalCost := 0.0
+	statusCounts := make(map[string]int)
+	sessionsWithCosts := make([]sessionWithCost, 0, len(sessions))
 
+	for _, session := range sessions {
+		statusCounts[session.Status]++
 		cost := 0.0
-		if s.AgentStateFile != "" {
-			agentState, err := loadAgentState(s.AgentStateFile)
-			if err == nil {
-				cost = agent.CalculateCost(agentState.Model, agentState.TokenUsage)
-				stats.TotalCost += cost
-				stats.TotalTokens += agentState.TokenUsage.TotalTokens
-			}
+		if state, err := loadAgentState(session.AgentStateFile); err == nil {
+			totalTokens += state.TokenUsage.TotalTokens
+			cost = agent.CalculateCost(state.Model, state.TokenUsage)
+			totalCost += cost
 		}
-		sessionsWithCosts = append(sessionsWithCosts, SessionWithCost{SessionState: s, Cost: cost})
+		sessionsWithCosts = append(sessionsWithCosts, sessionWithCost{SessionState: session, Cost: cost})
 	}
 
-	// Sort by cost for top sessions
-	sort.Slice(sessionsWithCosts, func(i, j int) bool {
+	fmt.Fprintln(out, "==> Overview")
+	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
+	fmt.Fprintf(w, "Total Sessions:\t%d\n", len(sessions))
+	fmt.Fprintf(w, "  - Running:\t%d\n", statusCounts["running"])
+	fmt.Fprintf(w, "  - Completed:\t%d\n", statusCounts["completed"])
+	fmt.Fprintf(w, "  - Errored:\t%d\n", statusCounts["error"])
+	w.Flush()
+	fmt.Fprintln(out)
+
+	fmt.Fprintln(out, "==> Usage Stats (All Time)")
+	fmt.Fprintf(w, "Total Tokens:\t%d\n", totalTokens)
+	fmt.Fprintf(w, "Total Cost:\t$%.2f\n", totalCost)
+	w.Flush()
+	fmt.Fprintln(out)
+
+	// Sort sessions by start time for "Recent Sessions"
+	sort.Slice(sessions, func(i, j int) bool {
+		return sessions[i].StartTime.After(sessions[j].StartTime)
+	})
+
+	fmt.Fprintln(out, "==> Recent Sessions (Last 5)")
+	printSessionTable(out, sessions, sessionsWithCosts, 5, true)
+	fmt.Fprintln(out)
+
+	// Sort sessions by cost for "Most Expensive Sessions"
+	sort.SliceStable(sessionsWithCosts, func(i, j int) bool {
 		return sessionsWithCosts[i].Cost > sessionsWithCosts[j].Cost
 	})
-	stats.TopSessionsByCost = sessionsWithCosts
-	if len(stats.TopSessionsByCost) > 5 {
-		stats.TopSessionsByCost = stats.TopSessionsByCost[:5]
+
+	fmt.Fprintln(out, "==> Most Expensive Sessions (Top 3)")
+	// We need to convert sessionsWithCosts back to a list of sessions for printing
+	expensiveSessions := make([]*runner.SessionState, len(sessionsWithCosts))
+	for i, swc := range sessionsWithCosts {
+		expensiveSessions[i] = swc.SessionState
 	}
+	printSessionTable(out, expensiveSessions, sessionsWithCosts, 3, false)
 
-	// Create a copy for time sorting
-	sessionsForTimeSort := make([]*runner.SessionState, len(sessions))
-	copy(sessionsForTimeSort, sessions)
-
-	// Sort by time for recent sessions
-	sort.Slice(sessionsForTimeSort, func(i, j int) bool {
-		return sessionsForTimeSort[i].StartTime.After(sessionsForTimeSort[j].StartTime)
-	})
-	stats.RecentSessions = sessionsForTimeSort
-	if len(stats.RecentSessions) > 5 {
-		stats.RecentSessions = stats.RecentSessions[:5]
-	}
-
-	return stats, nil
+	return nil
 }
 
-func displaySummary(cmd *cobra.Command, sessions []*runner.SessionState) {
-	stats, err := analyzeSessionsForSummary(sessions)
-	if err != nil {
-		fmt.Fprintf(cmd.ErrOrStderr(), "Error analyzing sessions: %v\n", err)
-		return
-	}
-
-	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 3, ' ', 0)
-
-	// --- Overall Stats ---
-	fmt.Fprintln(w, "OVERALL STATS")
-	fmt.Fprintln(w, "-------------")
-	fmt.Fprintf(w, "Total Sessions:\t%d\n", stats.TotalSessions)
-	fmt.Fprintf(w, "Running:\t%d\n", stats.RunningSessions)
-	fmt.Fprintf(w, "Errored:\t%d\n", stats.ErroredSessions)
-	fmt.Fprintln(w)
-
-	// --- Cost Analysis ---
-	fmt.Fprintln(w, "COST ANALYSIS")
-	fmt.Fprintln(w, "-------------")
-	fmt.Fprintf(w, "Total Estimated Cost:\t$%.4f\n", stats.TotalCost)
-	fmt.Fprintf(w, "Total Tokens:\t%d\n", stats.TotalTokens)
-	fmt.Fprintln(w)
-
-	// --- Top 5 Sessions by Cost ---
-	fmt.Fprintln(w, "TOP 5 SESSIONS BY COST")
-	fmt.Fprintln(w, "----------------------")
-	fmt.Fprintln(w, "NAME\tSTATUS\tCOST")
-	for _, s := range stats.TopSessionsByCost {
-		costStr := "N/A"
-		if s.Cost > 0 {
-			costStr = fmt.Sprintf("$%.6f", s.Cost)
+func getSessionCost(session *runner.SessionState, sessionsWithCosts []sessionWithCost) float64 {
+	for _, swc := range sessionsWithCosts {
+		if swc.Name == session.Name {
+			return swc.Cost
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\n", s.Name, s.Status, costStr)
 	}
-	fmt.Fprintln(w)
+	return 0.0
+}
 
-	// --- 5 Most Recent Sessions ---
-	fmt.Fprintln(w, "5 MOST RECENT SESSIONS")
-	fmt.Fprintln(w, "----------------------")
-	fmt.Fprintln(w, "NAME\tSTATUS\tSTARTED\tDURATION")
-	for _, s := range stats.RecentSessions {
-		started := s.StartTime.Format("2006-01-02 15:04:05")
-		var duration string
-		if s.EndTime.IsZero() {
-			duration = time.Since(s.StartTime).Round(time.Second).String()
+func printSessionTable(out io.Writer, sessions []*runner.SessionState, sessionsWithCosts []sessionWithCost, limit int, showAge bool) {
+	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
+	header := "NAME\tSTATUS\tCOST"
+	if showAge {
+		header = "NAME\tSTATUS\tAGE\tCOST"
+	}
+	fmt.Fprintln(w, header)
+
+	if limit > len(sessions) {
+		limit = len(sessions)
+	}
+
+	for _, s := range sessions[:limit] {
+		cost := getSessionCost(s, sessionsWithCosts)
+		costStr := fmt.Sprintf("$%.2f", cost)
+
+		if showAge {
+			age := time.Since(s.StartTime).Round(time.Minute).String()
+			// a bit of a hack to make the output cleaner e.g. "5m" instead of "5m0s"
+			cleanAge := strings.Replace(age, "m0s", "m", 1)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", s.Name, s.Status, cleanAge, costStr)
 		} else {
-			duration = s.EndTime.Sub(s.StartTime).Round(time.Second).String()
+			fmt.Fprintf(w, "%s\t%s\t%s\n", s.Name, s.Status, costStr)
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", s.Name, s.Status, started, duration)
 	}
-
 	w.Flush()
 }
