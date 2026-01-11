@@ -5,12 +5,18 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"recac/internal/docker"
 	"strings"
 )
 
+// dockerClient defines the interface for Docker operations that the spawner needs.
+// This allows for mocking in tests.
+type dockerClient interface {
+	RunContainer(ctx context.Context, image, workspace string, extraBinds []string, ports []string, user string) (string, error)
+	Exec(ctx context.Context, containerID string, cmd []string) (string, error)
+}
+
 type DockerSpawner struct {
-	Client        *docker.Client
+	Client        dockerClient
 	Image         string
 	Network       string
 	Poller        Poller // To update status on completion
@@ -20,7 +26,7 @@ type DockerSpawner struct {
 	Logger        *slog.Logger
 }
 
-func NewDockerSpawner(logger *slog.Logger, client *docker.Client, image string, projectName string, poller Poller, provider, model string) *DockerSpawner {
+func NewDockerSpawner(logger *slog.Logger, client dockerClient, image string, projectName string, poller Poller, provider, model string) *DockerSpawner {
 	return &DockerSpawner{
 		Client:        client,
 		Image:         image,
@@ -147,6 +153,9 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		cmdStr = "cd /workspace" // Reset to constant
 		cmdStr += " && export RECAC_MAX_ITERATIONS=20"
 		cmdStr += " && " + strings.Join(envExports, " && ")
+		if authRepoURL != "" {
+			cmdStr += fmt.Sprintf(" && git clone --depth 1 %s .", authRepoURL)
+		}
 		cmdStr += fmt.Sprintf(" && /usr/local/bin/recac start --jira %s --project %s --detached=false --cleanup=false --path /workspace --verbose", item.ID, item.ID)
 		cmdStr += " && echo 'Recac Finished'"
 
