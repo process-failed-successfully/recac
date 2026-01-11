@@ -5,11 +5,13 @@ import (
 	"context"
 	"fmt"
 	"recac/internal/docker"
+	"recac/internal/k8s"
 	"recac/internal/runner"
 	"strings"
 	"time"
 
 	"github.com/spf13/viper"
+	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 // GetStatus gathers and formats the status of RECAC sessions, environment, and configuration.
@@ -54,6 +56,55 @@ func GetStatus() string {
 			fmt.Fprintf(&b, "  - Docker Version: %s\n", version.Version)
 			fmt.Fprintf(&b, "  - API Version: %s\n", version.APIVersion)
 			fmt.Fprintf(&b, "  - OS/Arch: %s/%s\n", version.Os, version.Arch)
+		}
+	}
+
+	// --- Kubernetes ---
+	b.WriteString("\n[Kubernetes Environment]\n")
+	k8sClient, err := k8s.NewClient()
+	if err != nil {
+		fmt.Fprintf(&b, "  Kubernetes client failed to initialize.\n")
+		fmt.Fprintf(&b, "  Error: %v\n", err)
+	} else {
+		// Display K8s context
+		contextName, err := k8sClient.GetCurrentContext()
+		if err != nil {
+			fmt.Fprintf(&b, "  Could not determine Kubernetes context: %v\n", err)
+		} else if contextName == "" {
+			b.WriteString("  No active Kubernetes configuration found.\n")
+		} else {
+			fmt.Fprintf(&b, "  - Context: %s\n", contextName)
+
+			// Check for Orchestrator
+			deployment, err := k8sClient.GetOrchestratorDeployment(context.Background())
+			if err != nil {
+				if errors.IsNotFound(err) {
+					fmt.Fprintf(&b, "  - Orchestrator: Not Found\n")
+				} else {
+					fmt.Fprintf(&b, "  - Orchestrator: Error checking status (%v)\n", err)
+				}
+			} else if deployment != nil {
+				status := "Not Ready"
+				if deployment.Status.ReadyReplicas > 0 {
+					status = "Ready"
+				}
+				fmt.Fprintf(&b, "  - Orchestrator: %s (%d/%d replicas ready)\n", status, deployment.Status.ReadyReplicas, deployment.Status.Replicas)
+			}
+
+			// List Agent Pods
+			pods, err := k8sClient.ListAgentPods(context.Background())
+			if err != nil {
+				fmt.Fprintf(&b, "  - Agent Pods: Error listing pods (%v)\n", err)
+			} else {
+				fmt.Fprintf(&b, "  - Agent Pods: Found %d\n", len(pods))
+				for _, pod := range pods {
+					ticket := pod.Labels["ticket"]
+					if ticket == "" {
+						ticket = "N/A"
+					}
+					fmt.Fprintf(&b, "    - %s (Ticket: %s, Status: %s)\n", pod.Name, ticket, pod.Status.Phase)
+				}
+			}
 		}
 	}
 
