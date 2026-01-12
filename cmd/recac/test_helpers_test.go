@@ -124,6 +124,27 @@ func (m *MockSessionManager) RemoveSession(name string, force bool) error {
 	return nil
 }
 
+func (m *MockSessionManager) RenameSession(oldName, newName string) error {
+	session, ok := m.Sessions[oldName]
+	if !ok {
+		return fmt.Errorf("session not found")
+	}
+
+	if m.IsProcessRunning(session.PID) {
+		return runner.ErrSessionRunning
+	}
+
+	if _, exists := m.Sessions[newName]; exists {
+		return fmt.Errorf("session '%s' already exists", newName)
+	}
+
+	delete(m.Sessions, oldName)
+	session.Name = newName
+	m.Sessions[newName] = session
+
+	return nil
+}
+
 func (m *MockSessionManager) GetSessionGitDiffStat(name string) (string, error) {
 	if session, ok := m.Sessions[name]; ok {
 		if session.StartCommitSHA != "" && session.EndCommitSHA != "" {
