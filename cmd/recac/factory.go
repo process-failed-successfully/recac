@@ -46,37 +46,20 @@ func getJiraClient(ctx context.Context) (*jira.Client, error) {
 	return jira.NewClient(baseURL, username, apiToken), nil
 }
 
-// getAgentClient initializes an Agent client based on provider and configuration
-func getAgentClient(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+// getAgentClient is a factory variable that can be overridden in tests.
+var getAgentClient = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+	// Default provider if not specified
 	if provider == "" {
 		provider = viper.GetString("provider")
 		if provider == "" {
-			provider = "gemini"
+			provider = "gemini" // Default provider
 		}
 	}
 
-	apiKey := viper.GetString("api_key")
-	if apiKey == "" {
-		apiKey = os.Getenv("API_KEY")
-		if apiKey == "" {
-			switch provider {
-			case "gemini":
-				apiKey = os.Getenv("GEMINI_API_KEY")
-			case "openai":
-				apiKey = os.Getenv("OPENAI_API_KEY")
-			case "openrouter":
-				apiKey = os.Getenv("OPENROUTER_API_KEY")
-			}
-		}
-	}
-
-	// Final fallback for developers or testing if not ollama
-	if apiKey == "" && provider != "ollama" && provider != "gemini-cli" && provider != "cursor-cli" && provider != "opencode" {
-		apiKey = "dummy-key"
-	}
-
+	// Default model if not specified
 	if model == "" {
 		model = viper.GetString("model")
+		// Provider-specific model defaults
 		if model == "" {
 			switch provider {
 			case "openrouter":
@@ -85,11 +68,43 @@ func getAgentClient(ctx context.Context, provider, model, projectPath, projectNa
 				model = "gemini-pro"
 			case "openai":
 				model = "gpt-4"
+			default:
+				// No default model for CLI or Ollama as it's often configured on the server/tool side
 			}
 		}
 	}
 
-	return agent.NewAgent(provider, apiKey, model, projectPath, projectName)
+	switch provider {
+	case "gemini":
+		apiKey := viper.GetString("gemini.api_key")
+		if apiKey == "" {
+			return nil, fmt.Errorf("GEMINI_API_KEY is not set in config or env")
+		}
+		return agent.NewGeminiClient(apiKey, model, projectName), nil
+	case "openai":
+		apiKey := viper.GetString("openai.api_key")
+		if apiKey == "" {
+			return nil, fmt.Errorf("OPENAI_API_KEY is not set in config or env")
+		}
+		return agent.NewOpenAIClient(apiKey, model, projectName), nil
+	case "openrouter":
+		apiKey := viper.GetString("openrouter.api_key")
+		if apiKey == "" {
+			return nil, fmt.Errorf("OPENROUTER_API_KEY is not set in config or env")
+		}
+		return agent.NewOpenRouterClient(apiKey, model, projectName), nil
+	case "ollama":
+		apiHost := viper.GetString("ollama.api_host")
+		return agent.NewOllamaClient(apiHost, model, projectName), nil
+	case "gemini-cli":
+		return agent.NewGeminiCLIClient("", model, projectPath, projectName), nil
+	case "cursor-cli":
+		return agent.NewCursorCLIClient("", model, projectPath), nil
+	case "opencode-cli":
+		return agent.NewOpenCodeCLIClient("", model, projectPath, projectName), nil
+	default:
+		return nil, fmt.Errorf("unsupported provider: '%s'", provider)
+	}
 }
 
 // setupWorkspace handles cloning, auth fallback, and Epic branching strategy
