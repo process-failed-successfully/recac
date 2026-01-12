@@ -151,8 +151,9 @@ func refreshSessionsCmd(sm ISessionManager) tea.Cmd {
 	return func() tea.Msg {
 		sessions, err := sm.ListSessions()
 		if err != nil {
-			// In a real app, you'd have an error message type
-			return nil
+			// In a real app, you'd have an error message type.
+			// For now, returning a message with nil sessions will stop the loading spinner.
+			return sessionsRefreshedMsg{sessions: nil}
 		}
 		// Sort by start time, newest first
 		sort.SliceStable(sessions, func(i, j int) bool {
@@ -264,10 +265,6 @@ var loadAgentState = func(filePath string) (*agent.State, error) {
 func SetAgentStateLoader(loader func(string) (*agent.State, error)) {
 	loadAgentState = loader
 }
-
-func (i sessionItem) Title() string       { return i.name }
-func (i sessionItem) Description() string { return "Status: " + i.status }
-func (i sessionItem) FilterValue() string { return i.name }
 
 func (m *DashboardModel) updateDetailsView() {
 	selectedItem, ok := m.sessionList.SelectedItem().(sessionItem)
