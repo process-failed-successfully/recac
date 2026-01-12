@@ -191,3 +191,67 @@ func TestPsCmdSort(t *testing.T) {
 	})
 }
 
+func TestPsCommandWithStatusFilter(t *testing.T) {
+	tempDir := t.TempDir()
+	sessionsDir := filepath.Join(tempDir, "sessions")
+	require.NoError(t, os.Mkdir(sessionsDir, 0755))
+
+	originalFactory := sessionManagerFactory
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return runner.NewSessionManagerWithDir(sessionsDir)
+	}
+	defer func() { sessionManagerFactory = originalFactory }()
+
+	sm, err := sessionManagerFactory()
+	require.NoError(t, err)
+
+	// Create mock sessions. Note: The SessionManager will transition any "running" session
+	// with a non-running PID to "completed" status when ListSessions is called.
+	sessionRunning := &runner.SessionState{Name: "session-running", Status: "running", StartTime: time.Now()}
+	sessionCompleted := &runner.SessionState{Name: "session-completed", Status: "completed", StartTime: time.Now()}
+	sessionError := &runner.SessionState{Name: "session-error", Status: "error", StartTime: time.Now()}
+	sessionCompleted2 := &runner.SessionState{Name: "session-completed-2", Status: "completed", StartTime: time.Now()}
+
+	require.NoError(t, sm.SaveSession(sessionRunning))
+	require.NoError(t, sm.SaveSession(sessionCompleted))
+	require.NoError(t, sm.SaveSession(sessionError))
+	require.NoError(t, sm.SaveSession(sessionCompleted2))
+
+	t.Run("filter by running (finds none)", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "ps", "--status", "running")
+		require.NoError(t, err)
+		assert.Contains(t, output, "No sessions found.")
+		assert.NotContains(t, output, "session-running")
+	})
+
+	t.Run("filter by completed (finds transitioned running session)", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "ps", "--status", "completed")
+		require.NoError(t, err)
+		assert.Contains(t, output, "session-running") // This session is now "completed"
+		assert.Contains(t, output, "session-completed")
+		assert.Contains(t, output, "session-completed-2")
+		assert.NotContains(t, output, "session-error")
+	})
+
+	t.Run("filter by error", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "ps", "--status", "error")
+		require.NoError(t, err)
+		assert.NotContains(t, output, "session-running")
+		assert.NotContains(t, output, "session-completed")
+		assert.Contains(t, output, "session-error")
+	})
+
+	t.Run("filter with no matching sessions", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "ps", "--status", "non-existent-status")
+		require.NoError(t, err)
+		assert.Contains(t, output, "No sessions found.")
+	})
+
+	t.Run("filter is case-insensitive", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "ps", "--status", "CoMpLeTeD")
+		require.NoError(t, err)
+		assert.Contains(t, output, "session-running") // Also finds the transitioned session
+		assert.Contains(t, output, "session-completed")
+		assert.Contains(t, output, "session-completed-2")
+	})
+}

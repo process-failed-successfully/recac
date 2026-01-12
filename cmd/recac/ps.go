@@ -8,6 +8,7 @@ import (
 	"recac/internal/agent"
 	"recac/internal/orchestrator"
 	"sort"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -41,6 +42,9 @@ func init() {
 	}
 	if psCmd.Flags().Lookup("remote") == nil {
 		psCmd.Flags().Bool("remote", false, "Include remote Kubernetes pods in the list")
+	}
+	if psCmd.Flags().Lookup("status") == nil {
+		psCmd.Flags().String("status", "", "Filter sessions by status (e.g., 'running', 'completed', 'error')")
 	}
 }
 
@@ -107,6 +111,18 @@ var psCmd = &cobra.Command{
 					allSessions = append(allSessions, us)
 				}
 			}
+		}
+
+		// --- Filter by Status ---
+		statusFilter, _ := cmd.Flags().GetString("status")
+		if statusFilter != "" {
+			var filteredSessions []unifiedSession
+			for _, s := range allSessions {
+				if strings.EqualFold(s.Status, statusFilter) {
+					filteredSessions = append(filteredSessions, s)
+				}
+			}
+			allSessions = filteredSessions
 		}
 
 		if len(allSessions) == 0 {
