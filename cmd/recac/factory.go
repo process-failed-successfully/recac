@@ -13,7 +13,7 @@ import (
 )
 
 // getJiraClient initializes a Jira client using config or environment variables
-func getJiraClient(ctx context.Context) (*jira.Client, error) {
+var getJiraClient = func(ctx context.Context) (*jira.Client, error) {
 	baseURL := viper.GetString("jira.url")
 	username := viper.GetString("jira.username")
 	apiToken := viper.GetString("jira.api_token")
@@ -47,7 +47,7 @@ func getJiraClient(ctx context.Context) (*jira.Client, error) {
 }
 
 // getAgentClient initializes an Agent client based on provider and configuration
-func getAgentClient(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+var getAgentClient = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
 	if provider == "" {
 		provider = viper.GetString("provider")
 		if provider == "" {
