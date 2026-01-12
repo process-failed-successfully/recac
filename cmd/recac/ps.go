@@ -24,24 +24,15 @@ func init() {
 }
 
 var psCmd = &cobra.Command{
-	Use:     "ps [session-name]",
+	Use:     "ps",
 	Aliases: []string{"list"},
-	Short:   "List sessions or display details for a specific session",
-	Long: `List all active and completed sessions.
-If a session name is provided, it displays a detailed summary for that session.`,
-	Args: cobra.MaximumNArgs(1),
+	Short:   "List sessions",
+	Long:    `List all active and completed sessions.`,
+	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		sm, err := sessionManagerFactory()
 		if err != nil {
 			return fmt.Errorf("failed to create session manager: %w", err)
-		}
-
-		// If a session name is provided, show details for that session.
-		if len(args) > 0 {
-			cmd.PrintErrln("Warning: `recac ps [SESSION_NAME]` is deprecated and will be removed in a future version. Please use `recac inspect [SESSION_NAME]` instead.")
-
-			// Forward to the inspect command's logic
-			return inspectCmd.RunE(cmd, args)
 		}
 
 		// Otherwise, list all sessions.
