@@ -1,4 +1,4 @@
-package main
+package ui
 
 import (
 	"fmt"
@@ -11,41 +11,56 @@ import (
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/spf13/cobra"
 )
 
-func init() {
-	rootCmd.AddCommand(topCmd)
+// SessionManager is an interface that defines the methods needed by the cost TUI.
+// This is defined locally to avoid circular dependencies with the cmd package.
+type SessionManager interface {
+	ListSessions() ([]*runner.SessionState, error)
 }
 
-var topCmd = &cobra.Command{
-	Use:   "top",
-	Short: "Monitor live session metrics",
-	Long:  `Provides a real-time, htop-like view of active and completed sessions, including status, duration, token usage, and cost.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		sm, err := sessionManagerFactory()
-		if err != nil {
-			return fmt.Errorf("could not create session manager: %w", err)
-		}
+// LoadAgentStateFunc defines the signature for a function that can load agent state.
+// This allows the cmd package to inject its own implementation.
+type LoadAgentStateFunc func(filePath string) (*agent.State, error)
 
-		model := newTopModel(sm)
-		p := tea.NewProgram(model, tea.WithAltScreen())
+var (
+	// LoadAgentState is the function used to load the agent state.
+	// This must be set by the calling package (e.g., cmd) before starting the TUI.
+	LoadAgentState LoadAgentStateFunc
 
-		if err := p.Start(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error running program: %v\n", err)
-			return err
-		}
-		return nil
-	},
+	baseStyle = lipgloss.NewStyle().
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderForeground(lipgloss.Color("240"))
+)
+
+var startCostTUI = func(sm SessionManager) error {
+	if LoadAgentState == nil {
+		return fmt.Errorf("LoadAgentState function must be set before starting the Cost TUI")
+	}
+
+	model := newCostModel(sm)
+	p := tea.NewProgram(model, tea.WithAltScreen())
+
+	if err := p.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error running TUI: %v\n", err)
+		return err
+	}
+	return nil
 }
 
-var baseStyle = lipgloss.NewStyle().
-	BorderStyle(lipgloss.NormalBorder()).
-	BorderForeground(lipgloss.Color("240"))
+// StartCostTUI is a wrapper that can be mocked for testing.
+func StartCostTUI(sm SessionManager) error {
+	return startCostTUI(sm)
+}
 
-type topModel struct {
+// SetStartCostTUIForTest allows tests to replace the TUI starter function.
+func SetStartCostTUIForTest(fn func(sm SessionManager) error) {
+	startCostTUI = fn
+}
+
+type costModel struct {
 	table    table.Model
-	sm       ISessionManager
+	sm       SessionManager
 	sessions []*runner.SessionState
 	err      error
 }
@@ -53,7 +68,7 @@ type topModel struct {
 type updateMsg []*runner.SessionState
 type errMsg struct{ err error }
 
-func newTopModel(sm ISessionManager) *topModel {
+func newCostModel(sm SessionManager) *costModel {
 	columns := []table.Column{
 		{Title: "NAME", Width: 20},
 		{Title: "STATUS", Width: 10},
@@ -71,7 +86,7 @@ func newTopModel(sm ISessionManager) *topModel {
 		table.WithColumns(columns),
 		table.WithRows(rows),
 		table.WithFocused(true),
-		table.WithHeight(7),
+		table.WithHeight(15), // Increased height for better view
 	)
 
 	s := table.DefaultStyles()
@@ -79,24 +94,24 @@ func newTopModel(sm ISessionManager) *topModel {
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderForeground(lipgloss.Color("240")).
 		BorderBottom(true).
-		Bold(false)
+		Bold(true) // Bolder header
 	s.Selected = s.Selected.
 		Foreground(lipgloss.Color("229")).
 		Background(lipgloss.Color("57")).
 		Bold(false)
 	t.SetStyles(s)
 
-	return &topModel{
+	return &costModel{
 		table: t,
 		sm:    sm,
 	}
 }
 
-func (m *topModel) Init() tea.Cmd {
+func (m *costModel) Init() tea.Cmd {
 	return tea.Batch(tickCmd(), fetchSessions(m.sm))
 }
 
-func (m *topModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *costModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -113,21 +128,25 @@ func (m *topModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case errMsg:
 		m.err = msg.err
 		return m, nil
+	case tea.WindowSizeMsg:
+		// Adjust table height on window resize
+		m.table.SetHeight(msg.Height - 5)
+		return m, nil
 	}
 	m.table, cmd = m.table.Update(msg)
 	return m, cmd
 }
 
-func (m *topModel) View() string {
+func (m *costModel) View() string {
 	if m.err != nil {
-		return fmt.Sprintf("Error: %v", m.err)
+		return fmt.Sprintf("Error: %v\n\nPress 'q' to quit.", m.err)
 	}
-	body := m.table.View()
+	title := " RECAC Live Session Monitor "
 	help := "\n  ↑/↓: Navigate • q: Quit"
-	return baseStyle.Render(body) + help
+	return baseStyle.Render(title+"\n"+m.table.View()) + help
 }
 
-func (m *topModel) updateTable() {
+func (m *costModel) updateTable() {
 	rows := make([]table.Row, len(m.sessions))
 	for i, session := range m.sessions {
 		started := session.StartTime.Format("2006-01-02 15:04:05")
@@ -138,8 +157,8 @@ func (m *topModel) updateTable() {
 			duration = session.EndTime.Sub(session.StartTime).Round(time.Second).String()
 		}
 
-		agentState, err := loadAgentState(session.AgentStateFile)
-		if err != nil {
+		agentState, err := LoadAgentState(session.AgentStateFile)
+		if err != nil || agentState == nil {
 			rows[i] = table.Row{
 				session.Name,
 				session.Status,
@@ -170,12 +189,12 @@ func (m *topModel) updateTable() {
 type tickMsg time.Time
 
 func tickCmd() tea.Cmd {
-	return tea.Tick(time.Second, func(t time.Time) tea.Msg {
+	return tea.Tick(time.Second*2, func(t time.Time) tea.Msg { // Slower tick for less CPU usage
 		return tickMsg(t)
 	})
 }
 
-func fetchSessions(sm ISessionManager) tea.Cmd {
+func fetchSessions(sm SessionManager) tea.Cmd {
 	return func() tea.Msg {
 		sessions, err := sm.ListSessions()
 		if err != nil {
