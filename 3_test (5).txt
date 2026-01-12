@@ -1,0 +1,522 @@
+﻿2026-01-12T02:02:51.2505374Z Current runner version: '2.330.0'
+2026-01-12T02:02:51.2527706Z ##[group]Runner Image Provisioner
+2026-01-12T02:02:51.2528617Z Hosted Compute Agent
+2026-01-12T02:02:51.2529130Z Version: 20251211.462
+2026-01-12T02:02:51.2529714Z Commit: 6cbad8c2bb55d58165063d031ccabf57e2d2db61
+2026-01-12T02:02:51.2530486Z Build Date: 2025-12-11T16:28:49Z
+2026-01-12T02:02:51.2531136Z Worker ID: {2904823f-3097-4d0c-b9e1-01cffb9e998b}
+2026-01-12T02:02:51.2531763Z ##[endgroup]
+2026-01-12T02:02:51.2532336Z ##[group]Operating System
+2026-01-12T02:02:51.2532849Z Ubuntu
+2026-01-12T02:02:51.2533325Z 24.04.3
+2026-01-12T02:02:51.2533863Z LTS
+2026-01-12T02:02:51.2534290Z ##[endgroup]
+2026-01-12T02:02:51.2534781Z ##[group]Runner Image
+2026-01-12T02:02:51.2535336Z Image: ubuntu-24.04
+2026-01-12T02:02:51.2535859Z Version: 20260105.202.1
+2026-01-12T02:02:51.2536853Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260105.202/images/ubuntu/Ubuntu2404-Readme.md
+2026-01-12T02:02:51.2538761Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260105.202
+2026-01-12T02:02:51.2539706Z ##[endgroup]
+2026-01-12T02:02:51.2540808Z ##[group]GITHUB_TOKEN Permissions
+2026-01-12T02:02:51.2542575Z Contents: read
+2026-01-12T02:02:51.2543169Z Metadata: read
+2026-01-12T02:02:51.2543728Z Packages: read
+2026-01-12T02:02:51.2544184Z ##[endgroup]
+2026-01-12T02:02:51.2546203Z Secret source: Actions
+2026-01-12T02:02:51.2546906Z Prepare workflow directory
+2026-01-12T02:02:51.3043198Z Prepare all required actions
+2026-01-12T02:02:51.3080407Z Getting action download info
+2026-01-12T02:02:51.5610722Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+2026-01-12T02:02:51.6791251Z Download action repository 'actions/setup-go@v5' (SHA:40f1582b2485089dde7abd97c1529aa768e1baff)
+2026-01-12T02:02:52.0042567Z Complete job name: test (5)
+2026-01-12T02:02:52.0650790Z ##[group]Run actions/checkout@v4
+2026-01-12T02:02:52.0651606Z with:
+2026-01-12T02:02:52.0652072Z   repository: process-failed-successfully/recac
+2026-01-12T02:02:52.0652805Z   token: ***
+2026-01-12T02:02:52.0653183Z   ssh-strict: true
+2026-01-12T02:02:52.0653577Z   ssh-user: git
+2026-01-12T02:02:52.0654077Z   persist-credentials: true
+2026-01-12T02:02:52.0654690Z   clean: true
+2026-01-12T02:02:52.0655088Z   sparse-checkout-cone-mode: true
+2026-01-12T02:02:52.0655577Z   fetch-depth: 1
+2026-01-12T02:02:52.0655955Z   fetch-tags: false
+2026-01-12T02:02:52.0656369Z   show-progress: true
+2026-01-12T02:02:52.0656775Z   lfs: false
+2026-01-12T02:02:52.0657156Z   submodules: false
+2026-01-12T02:02:52.0657713Z   set-safe-directory: true
+2026-01-12T02:02:52.0658389Z env:
+2026-01-12T02:02:52.0658760Z   REGISTRY: ghcr.io
+2026-01-12T02:02:52.0659219Z   IMAGE_NAME: process-failed-successfully/recac
+2026-01-12T02:02:52.0659756Z ##[endgroup]
+2026-01-12T02:02:52.1724515Z Syncing repository: process-failed-successfully/recac
+2026-01-12T02:02:52.1726289Z ##[group]Getting Git version info
+2026-01-12T02:02:52.1727277Z Working directory is '/home/runner/work/recac/recac'
+2026-01-12T02:02:52.1728464Z [command]/usr/bin/git version
+2026-01-12T02:02:52.1800734Z git version 2.52.0
+2026-01-12T02:02:52.1825867Z ##[endgroup]
+2026-01-12T02:02:52.1839561Z Temporarily overriding HOME='/home/runner/work/_temp/83ae848d-b04d-4ff8-b7dd-2403ea99519a' before making global git config changes
+2026-01-12T02:02:52.1840907Z Adding repository directory to the temporary git global config as a safe directory
+2026-01-12T02:02:52.1844245Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/recac/recac
+2026-01-12T02:02:52.1881397Z Deleting the contents of '/home/runner/work/recac/recac'
+2026-01-12T02:02:52.1884813Z ##[group]Initializing the repository
+2026-01-12T02:02:52.1888666Z [command]/usr/bin/git init /home/runner/work/recac/recac
+2026-01-12T02:02:52.1991184Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-01-12T02:02:52.1992531Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-01-12T02:02:52.1993711Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-01-12T02:02:52.1994598Z hint: call:
+2026-01-12T02:02:52.1995174Z hint:
+2026-01-12T02:02:52.1995808Z hint: 	git config --global init.defaultBranch <name>
+2026-01-12T02:02:52.1996389Z hint:
+2026-01-12T02:02:52.1997198Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-01-12T02:02:52.1998220Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-01-12T02:02:52.1998926Z hint:
+2026-01-12T02:02:52.1999299Z hint: 	git branch -m <name>
+2026-01-12T02:02:52.1999737Z hint:
+2026-01-12T02:02:52.2000536Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-01-12T02:02:52.2001500Z Initialized empty Git repository in /home/runner/work/recac/recac/.git/
+2026-01-12T02:02:52.2006118Z [command]/usr/bin/git remote add origin https://github.com/process-failed-successfully/recac
+2026-01-12T02:02:52.2039522Z ##[endgroup]
+2026-01-12T02:02:52.2040252Z ##[group]Disabling automatic garbage collection
+2026-01-12T02:02:52.2043423Z [command]/usr/bin/git config --local gc.auto 0
+2026-01-12T02:02:52.2071971Z ##[endgroup]
+2026-01-12T02:02:52.2072629Z ##[group]Setting up auth
+2026-01-12T02:02:52.2078812Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-01-12T02:02:52.2108348Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-01-12T02:02:52.2466712Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-01-12T02:02:52.2502510Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-01-12T02:02:52.2744679Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-01-12T02:02:52.2786376Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-01-12T02:02:52.3036240Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-01-12T02:02:52.3069750Z ##[endgroup]
+2026-01-12T02:02:52.3070585Z ##[group]Fetching the repository
+2026-01-12T02:02:52.3078355Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +711435681f59fa2ad8e1c6ecc2efe015d25327cc:refs/remotes/pull/262/merge
+2026-01-12T02:02:52.5402251Z From https://github.com/process-failed-successfully/recac
+2026-01-12T02:02:52.5403332Z  * [new ref]         711435681f59fa2ad8e1c6ecc2efe015d25327cc -> pull/262/merge
+2026-01-12T02:02:52.5438656Z ##[endgroup]
+2026-01-12T02:02:52.5439889Z ##[group]Determining the checkout info
+2026-01-12T02:02:52.5441449Z ##[endgroup]
+2026-01-12T02:02:52.5446957Z [command]/usr/bin/git sparse-checkout disable
+2026-01-12T02:02:52.5489728Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-01-12T02:02:52.5515786Z ##[group]Checking out the ref
+2026-01-12T02:02:52.5520518Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/262/merge
+2026-01-12T02:02:52.5843584Z Note: switching to 'refs/remotes/pull/262/merge'.
+2026-01-12T02:02:52.5844336Z
+2026-01-12T02:02:52.5844925Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-01-12T02:02:52.5846345Z changes and commit them, and you can discard any commits you make in this
+2026-01-12T02:02:52.5849291Z state without impacting any branches by switching back to a branch.
+2026-01-12T02:02:52.5849831Z
+2026-01-12T02:02:52.5850176Z If you want to create a new branch to retain commits you create, you may
+2026-01-12T02:02:52.5851009Z do so (now or later) by using -c with the switch command. Example:
+2026-01-12T02:02:52.5851471Z
+2026-01-12T02:02:52.5851664Z   git switch -c <new-branch-name>
+2026-01-12T02:02:52.5852262Z
+2026-01-12T02:02:52.5852559Z Or undo this operation with:
+2026-01-12T02:02:52.5853062Z
+2026-01-12T02:02:52.5853332Z   git switch -
+2026-01-12T02:02:52.5853693Z
+2026-01-12T02:02:52.5854198Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-01-12T02:02:52.5854725Z
+2026-01-12T02:02:52.5855312Z HEAD is now at 7114356 Merge 6e419ba82d62ba7129cb4ce099b7f058885350fc into d99bf56d1841b4536517f84124a0ef93e3184a90
+2026-01-12T02:02:52.5857872Z ##[endgroup]
+2026-01-12T02:02:52.5892059Z [command]/usr/bin/git log -1 --format=%H
+2026-01-12T02:02:52.5916041Z 711435681f59fa2ad8e1c6ecc2efe015d25327cc
+2026-01-12T02:02:52.6150272Z ##[group]Run actions/setup-go@v5
+2026-01-12T02:02:52.6150793Z with:
+2026-01-12T02:02:52.6151165Z   go-version-file: go.mod
+2026-01-12T02:02:52.6151614Z   check-latest: false
+2026-01-12T02:02:52.6152170Z   token: ***
+2026-01-12T02:02:52.6152541Z   cache: true
+2026-01-12T02:02:52.6152887Z env:
+2026-01-12T02:02:52.6153231Z   REGISTRY: ghcr.io
+2026-01-12T02:02:52.6153700Z   IMAGE_NAME: process-failed-successfully/recac
+2026-01-12T02:02:52.6154233Z ##[endgroup]
+2026-01-12T02:02:52.7761482Z Setup go version spec 1.25.0
+2026-01-12T02:02:52.7781233Z Attempting to download 1.25.0...
+2026-01-12T02:02:53.0690633Z matching 1.25.0...
+2026-01-12T02:02:53.0727653Z Acquiring 1.25.0 from https://github.com/actions/go-versions/releases/download/1.25.0-16925932082/go-1.25.0-linux-x64.tar.gz
+2026-01-12T02:02:53.8998457Z Extracting Go...
+2026-01-12T02:02:53.9098863Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/8dc6c568-b219-41f7-9dc6-a367c067f897 -f /home/runner/work/_temp/1212350b-e33b-41fe-a9ef-952605cf8307
+2026-01-12T02:02:55.3455569Z Successfully extracted go to /home/runner/work/_temp/8dc6c568-b219-41f7-9dc6-a367c067f897
+2026-01-12T02:02:55.3456587Z Adding to the cache ...
+2026-01-12T02:02:59.9342380Z Successfully cached go to /opt/hostedtoolcache/go/1.25.0/x64
+2026-01-12T02:02:59.9343328Z Added go to the path
+2026-01-12T02:02:59.9345819Z Successfully set up Go version 1.25.0
+2026-01-12T02:02:59.9572561Z [command]/opt/hostedtoolcache/go/1.25.0/x64/bin/go env GOMODCACHE
+2026-01-12T02:02:59.9602715Z [command]/opt/hostedtoolcache/go/1.25.0/x64/bin/go env GOCACHE
+2026-01-12T02:02:59.9637596Z /home/runner/go/pkg/mod
+2026-01-12T02:02:59.9652399Z /home/runner/.cache/go-build
+2026-01-12T02:03:00.0148438Z Cache hit for: setup-go-Linux-x64-ubuntu24-go-1.25.0-f409a0f2e8e9f57691b191e32714458e6fa47036c073ba0fae39c89ecdeff06d
+2026-01-12T02:03:00.8760204Z Received 188331153 of 188331153 (100.0%), 216.7 MBs/sec
+2026-01-12T02:03:00.8761114Z Cache Size: ~180 MB (188331153 B)
+2026-01-12T02:03:00.8798656Z [command]/usr/bin/tar -xf /home/runner/work/_temp/479697fe-d9e4-419e-b64f-e10ca00e06a5/cache.tzst -P -C /home/runner/work/recac/recac --use-compress-program unzstd
+2026-01-12T02:03:02.7255694Z Cache restored successfully
+2026-01-12T02:03:02.7633829Z Cache restored from key: setup-go-Linux-x64-ubuntu24-go-1.25.0-f409a0f2e8e9f57691b191e32714458e6fa47036c073ba0fae39c89ecdeff06d
+2026-01-12T02:03:02.7654236Z go version go1.25.0 linux/amd64
+2026-01-12T02:03:02.7654443Z
+2026-01-12T02:03:02.7654718Z ##[group]go env
+2026-01-12T02:03:02.7789749Z AR='ar'
+2026-01-12T02:03:02.7790168Z CC='gcc'
+2026-01-12T02:03:02.7790500Z CGO_CFLAGS='-O2 -g'
+2026-01-12T02:03:02.7790886Z CGO_CPPFLAGS=''
+2026-01-12T02:03:02.7791275Z CGO_CXXFLAGS='-O2 -g'
+2026-01-12T02:03:02.7791755Z CGO_ENABLED='1'
+2026-01-12T02:03:02.7792155Z CGO_FFLAGS='-O2 -g'
+2026-01-12T02:03:02.7792530Z CGO_LDFLAGS='-O2 -g'
+2026-01-12T02:03:02.7792978Z CXX='g++'
+2026-01-12T02:03:02.7793709Z GCCGO='gccgo'
+2026-01-12T02:03:02.7794085Z GO111MODULE=''
+2026-01-12T02:03:02.7794409Z GOAMD64='v1'
+2026-01-12T02:03:02.7794748Z GOARCH='amd64'
+2026-01-12T02:03:02.7795103Z GOAUTH='netrc'
+2026-01-12T02:03:02.7795457Z GOBIN=''
+2026-01-12T02:03:02.7795829Z GOCACHE='/home/runner/.cache/go-build'
+2026-01-12T02:03:02.7796338Z GOCACHEPROG=''
+2026-01-12T02:03:02.7796714Z GODEBUG=''
+2026-01-12T02:03:02.7797054Z GOENV='/home/runner/.config/go/env'
+2026-01-12T02:03:02.7798091Z GOEXE=''
+2026-01-12T02:03:02.7798407Z GOEXPERIMENT=''
+2026-01-12T02:03:02.7798736Z GOFIPS140='off'
+2026-01-12T02:03:02.7799074Z GOFLAGS=''
+2026-01-12T02:03:02.7800215Z GOGCCFLAGS='-fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=/tmp/go-build1411974023=/tmp/go-build -gno-record-gcc-switches'
+2026-01-12T02:03:02.7801914Z GOHOSTARCH='amd64'
+2026-01-12T02:03:02.7802274Z GOHOSTOS='linux'
+2026-01-12T02:03:02.7802701Z GOINSECURE=''
+2026-01-12T02:03:02.7803159Z GOMOD='/home/runner/work/recac/recac/go.mod'
+2026-01-12T02:03:02.7804052Z GOMODCACHE='/home/runner/go/pkg/mod'
+2026-01-12T02:03:02.7804531Z GONOPROXY=''
+2026-01-12T02:03:02.7804823Z GONOSUMDB=''
+2026-01-12T02:03:02.7805101Z GOOS='linux'
+2026-01-12T02:03:02.7805388Z GOPATH='/home/runner/go'
+2026-01-12T02:03:02.7805732Z GOPRIVATE=''
+2026-01-12T02:03:02.7806203Z GOPROXY='https://proxy.golang.org,direct'
+2026-01-12T02:03:02.7806849Z GOROOT='/opt/hostedtoolcache/go/1.25.0/x64'
+2026-01-12T02:03:02.7807655Z GOSUMDB='sum.golang.org'
+2026-01-12T02:03:02.7808051Z GOTELEMETRY='local'
+2026-01-12T02:03:02.7808487Z GOTELEMETRYDIR='/home/runner/.config/go/telemetry'
+2026-01-12T02:03:02.7808993Z GOTMPDIR=''
+2026-01-12T02:03:02.7809300Z GOTOOLCHAIN='auto'
+2026-01-12T02:03:02.7809827Z GOTOOLDIR='/opt/hostedtoolcache/go/1.25.0/x64/pkg/tool/linux_amd64'
+2026-01-12T02:03:02.7810406Z GOVCS=''
+2026-01-12T02:03:02.7810704Z GOVERSION='go1.25.0'
+2026-01-12T02:03:02.7811033Z GOWORK=''
+2026-01-12T02:03:02.7811352Z PKG_CONFIG='pkg-config'
+2026-01-12T02:03:02.7811594Z
+2026-01-12T02:03:02.7811975Z ##[endgroup]
+2026-01-12T02:03:02.7985477Z ##[group]Run docker build -t recac-agent:latest -f internal/docker/agent.Dockerfile .
+2026-01-12T02:03:02.7986163Z [36;1mdocker build -t recac-agent:latest -f internal/docker/agent.Dockerfile .[0m
+2026-01-12T02:03:02.8024835Z shell: /usr/bin/bash -e {0}
+2026-01-12T02:03:02.8025097Z env:
+2026-01-12T02:03:02.8025279Z   REGISTRY: ghcr.io
+2026-01-12T02:03:02.8025541Z   IMAGE_NAME: process-failed-successfully/recac
+2026-01-12T02:03:02.8025850Z ##[endgroup]
+2026-01-12T02:03:03.6805291Z #0 building with "default" instance using docker driver
+2026-01-12T02:03:03.6805820Z
+2026-01-12T02:03:03.6806098Z #1 [internal] load build definition from agent.Dockerfile
+2026-01-12T02:03:03.6806546Z #1 transferring dockerfile: 517B done
+2026-01-12T02:03:03.6806871Z #1 DONE 0.0s
+2026-01-12T02:03:03.6807003Z
+2026-01-12T02:03:03.6807214Z #2 [auth] library/golang:pull token for registry-1.docker.io
+2026-01-12T02:03:03.6807832Z #2 DONE 0.0s
+2026-01-12T02:03:03.6807960Z
+2026-01-12T02:03:03.6808258Z #3 [internal] load metadata for docker.io/library/golang:1.25-alpine
+2026-01-12T02:03:03.8619757Z #3 DONE 0.4s
+2026-01-12T02:03:03.9806179Z
+2026-01-12T02:03:03.9809952Z #4 [internal] load .dockerignore
+2026-01-12T02:03:03.9811505Z #4 transferring context: 376B done
+2026-01-12T02:03:03.9811922Z #4 DONE 0.0s
+2026-01-12T02:03:03.9813130Z
+2026-01-12T02:03:03.9814874Z #5 [1/4] FROM docker.io/library/golang:1.25-alpine@sha256:ac09a5f469f307e5da71e766b0bd59c9c49ea460a528cc3e6686513d64a6f1fb
+2026-01-12T02:03:03.9817607Z #5 resolve docker.io/library/golang:1.25-alpine@sha256:ac09a5f469f307e5da71e766b0bd59c9c49ea460a528cc3e6686513d64a6f1fb done
+2026-01-12T02:03:03.9818956Z #5 sha256:ac09a5f469f307e5da71e766b0bd59c9c49ea460a528cc3e6686513d64a6f1fb 10.29kB / 10.29kB done
+2026-01-12T02:03:03.9820090Z #5 sha256:301db1784c200c7ec221a84672d0bd3ffdcf6c873bc9806482bbe730910924fb 1.92kB / 1.92kB done
+2026-01-12T02:03:03.9821200Z #5 sha256:4ef5200fdbf03c03780e5f7356c20c226596c5130d1019491b49d2ae7968133e 2.19kB / 2.19kB done
+2026-01-12T02:03:03.9822298Z #5 sha256:1074353eec0db2c1d81d5af2671e56e00cf5738486f5762609ea33d606f88612 1.05MB / 3.86MB 0.1s
+2026-01-12T02:03:03.9823497Z #5 sha256:665f62578bcef03586d252ea1bc3a3f2f936e5bc570a754bd62e098f67225c6e 296.08kB / 296.08kB 0.1s done
+2026-01-12T02:03:03.9824684Z #5 sha256:5c445a0e108b509dd422d6adce512f16cb7edd37814e8e3509850820377bcf06 3.15MB / 60.15MB 0.1s
+2026-01-12T02:03:03.9826139Z #5 sha256:97e8847bf924ea4cced11c4db1360c8c8ba93cdeeced7418f48f430e219ebf94 0B / 127B 0.1s
+2026-01-12T02:03:04.1274183Z #5 sha256:1074353eec0db2c1d81d5af2671e56e00cf5738486f5762609ea33d606f88612 3.86MB / 3.86MB 0.2s done
+2026-01-12T02:03:04.1274977Z #5 sha256:5c445a0e108b509dd422d6adce512f16cb7edd37814e8e3509850820377bcf06 14.22MB / 60.15MB 0.2s
+2026-01-12T02:03:04.1275675Z #5 sha256:97e8847bf924ea4cced11c4db1360c8c8ba93cdeeced7418f48f430e219ebf94 127B / 127B 0.1s done
+2026-01-12T02:03:04.1277017Z #5 extracting sha256:1074353eec0db2c1d81d5af2671e56e00cf5738486f5762609ea33d606f88612 0.1s done
+2026-01-12T02:03:04.1279094Z #5 sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1 32B / 32B 0.2s done
+2026-01-12T02:03:04.2800681Z #5 sha256:5c445a0e108b509dd422d6adce512f16cb7edd37814e8e3509850820377bcf06 30.41MB / 60.15MB 0.4s
+2026-01-12T02:03:04.2801534Z #5 extracting sha256:665f62578bcef03586d252ea1bc3a3f2f936e5bc570a754bd62e098f67225c6e 0.1s done
+2026-01-12T02:03:04.4799726Z #5 sha256:5c445a0e108b509dd422d6adce512f16cb7edd37814e8e3509850820377bcf06 46.14MB / 60.15MB 0.6s
+2026-01-12T02:03:04.5807681Z #5 sha256:5c445a0e108b509dd422d6adce512f16cb7edd37814e8e3509850820377bcf06 49.28MB / 60.15MB 0.7s
+2026-01-12T02:03:04.7801030Z #5 sha256:5c445a0e108b509dd422d6adce512f16cb7edd37814e8e3509850820377bcf06 60.15MB / 60.15MB 0.8s done
+2026-01-12T02:03:06.8321345Z #5 extracting sha256:5c445a0e108b509dd422d6adce512f16cb7edd37814e8e3509850820377bcf06
+2026-01-12T02:03:11.0260547Z #5 extracting sha256:5c445a0e108b509dd422d6adce512f16cb7edd37814e8e3509850820377bcf06 4.0s done
+2026-01-12T02:03:11.2550736Z #5 extracting sha256:97e8847bf924ea4cced11c4db1360c8c8ba93cdeeced7418f48f430e219ebf94
+2026-01-12T02:03:11.4457288Z #5 extracting sha256:97e8847bf924ea4cced11c4db1360c8c8ba93cdeeced7418f48f430e219ebf94 done
+2026-01-12T02:03:11.4458854Z #5 extracting sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1 done
+2026-01-12T02:03:11.4459575Z #5 DONE 7.4s
+2026-01-12T02:03:11.4459778Z
+2026-01-12T02:03:11.4461006Z #6 [2/4] RUN apk add --no-cache     nodejs     npm     python3     py3-pip     curl     git     jq     bash     unzip     libc6-compat     docker-cli     coreutils     make     sudo     wget     ca-certificates     shadow     util-linux
+2026-01-12T02:03:11.7564576Z #6 0.461 ( 1/99) Installing ncurses-terminfo-base (6.5_p20251123-r0)
+2026-01-12T02:03:11.8664541Z #6 0.469 ( 2/99) Installing libncursesw (6.5_p20251123-r0)
+2026-01-12T02:03:11.8665106Z #6 0.477 ( 3/99) Installing readline (8.3.1-r0)
+2026-01-12T02:03:11.8665756Z #6 0.483 ( 4/99) Installing bash (5.3.3-r1)
+2026-01-12T02:03:11.8666514Z #6 0.500   Executing bash-5.3.3-r1.post-install
+2026-01-12T02:03:11.8667172Z #6 0.503 ( 5/99) Installing coreutils-env (9.8-r1)
+2026-01-12T02:03:11.8667998Z #6 0.529 ( 6/99) Installing coreutils-fmt (9.8-r1)
+2026-01-12T02:03:11.8668663Z #6 0.533 ( 7/99) Installing coreutils-sha512sum (9.8-r1)
+2026-01-12T02:03:11.8669302Z #6 0.538 ( 8/99) Installing acl-libs (2.3.2-r1)
+2026-01-12T02:03:11.8669895Z #6 0.542 ( 9/99) Installing libattr (2.5.2-r2)
+2026-01-12T02:03:11.8670363Z #6 0.547 (10/99) Installing skalibs-libs (2.14.4.0-r0)
+2026-01-12T02:03:11.8670768Z #6 0.553 (11/99) Installing utmps-libs (0.1.3.1-r0)
+2026-01-12T02:03:11.8671154Z #6 0.572 (12/99) Installing coreutils (9.8-r1)
+2026-01-12T02:03:11.9735663Z #6 0.593 (13/99) Installing brotli-libs (1.2.0-r0)
+2026-01-12T02:03:11.9736417Z #6 0.602 (14/99) Installing c-ares (1.34.6-r0)
+2026-01-12T02:03:11.9737202Z #6 0.608 (15/99) Installing libunistring (1.4.1-r0)
+2026-01-12T02:03:11.9738084Z #6 0.641 (16/99) Installing libidn2 (2.3.8-r0)
+2026-01-12T02:03:11.9738843Z #6 0.646 (17/99) Installing nghttp2-libs (1.68.0-r0)
+2026-01-12T02:03:11.9739420Z #6 0.650 (18/99) Installing nghttp3 (1.13.1-r0)
+2026-01-12T02:03:11.9739805Z #6 0.654 (19/99) Installing libpsl (0.21.5-r3)
+2026-01-12T02:03:11.9740200Z #6 0.660 (20/99) Installing zstd-libs (1.5.7-r2)
+2026-01-12T02:03:11.9740581Z #6 0.668 (21/99) Installing libcurl (8.17.0-r1)
+2026-01-12T02:03:11.9740955Z #6 0.679 (22/99) Installing curl (8.17.0-r1)
+2026-01-12T02:03:12.1288621Z #6 0.683 (23/99) Installing docker-cli (29.1.3-r0)
+2026-01-12T02:03:12.1380192Z #6 0.843 (24/99) Installing libexpat (2.7.3-r0)
+2026-01-12T02:03:12.2727916Z #6 0.878 (25/99) Installing pcre2 (10.47-r0)
+2026-01-12T02:03:12.2728656Z #6 0.887 (26/99) Installing git (2.52.0-r0)
+2026-01-12T02:03:12.2729465Z #6 0.978 (27/99) Installing git-init-template (2.52.0-r0)
+2026-01-12T02:03:12.4090623Z #6 0.982 (28/99) Installing oniguruma (6.9.10-r0)
+2026-01-12T02:03:12.4091237Z #6 0.988 (29/99) Installing jq (1.8.1-r0)
+2026-01-12T02:03:12.4091687Z #6 0.994 (30/99) Installing musl-obstack (1.2.3-r2)
+2026-01-12T02:03:12.4092130Z #6 0.998 (31/99) Installing libucontext (1.3.3-r0)
+2026-01-12T02:03:12.4092534Z #6 1.001 (32/99) Installing gcompat (1.1.0-r4)
+2026-01-12T02:03:12.4092912Z #6 1.004 (33/99) Installing make (4.4.1-r3)
+2026-01-12T02:03:12.4093278Z #6 1.009 (34/99) Installing libgcc (15.2.0-r2)
+2026-01-12T02:03:12.4093653Z #6 1.013 (35/99) Installing libstdc++ (15.2.0-r2)
+2026-01-12T02:03:12.4094056Z #6 1.030 (36/99) Installing ada-libs (3.3.0-r0)
+2026-01-12T02:03:12.4094437Z #6 1.041 (37/99) Installing icu-data-en (76.1-r1)
+2026-01-12T02:03:12.4094856Z #6 1.062   Executing icu-data-en-76.1-r1.post-install
+2026-01-12T02:03:12.4095239Z #6 1.066   *
+2026-01-12T02:03:12.4095673Z #6 1.066   * If you need ICU with non-English locales and legacy charset support, install
+2026-01-12T02:03:12.4096204Z #6 1.066   * package icu-data-full.
+2026-01-12T02:03:12.4096515Z #6 1.066   *
+2026-01-12T02:03:12.4096844Z #6 1.066 (38/99) Installing icu-libs (76.1-r1)
+2026-01-12T02:03:12.4097721Z #6 1.114 (39/99) Installing simdjson (3.12.0-r0)
+2026-01-12T02:03:12.5881180Z #6 1.119 (40/99) Installing simdutf (7.5.0-r0)
+2026-01-12T02:03:12.5881856Z #6 1.128 (41/99) Installing sqlite-libs (3.51.1-r0)
+2026-01-12T02:03:12.5882319Z #6 1.143 (42/99) Installing nodejs (24.11.1-r0)
+2026-01-12T02:03:12.7143746Z #6 1.419 (43/99) Installing npm (11.6.3-r0)
+2026-01-12T02:03:12.9040433Z #6 1.609 (44/99) Installing libbz2 (1.0.8-r6)
+2026-01-12T02:03:13.0768180Z #6 1.612 (45/99) Installing libffi (3.5.2-r0)
+2026-01-12T02:03:13.0768780Z #6 1.616 (46/99) Installing gdbm (1.26-r0)
+2026-01-12T02:03:13.0769311Z #6 1.620 (47/99) Installing xz-libs (5.8.1-r0)
+2026-01-12T02:03:13.0769862Z #6 1.624 (48/99) Installing mpdecimal (4.0.1-r0)
+2026-01-12T02:03:13.0770385Z #6 1.628 (49/99) Installing libpanelw (6.5_p20251123-r0)
+2026-01-12T02:03:13.0770886Z #6 1.631 (50/99) Installing python3 (3.12.12-r0)
+2026-01-12T02:03:13.1001432Z #6 1.805 (51/99) Installing python3-pycache-pyc0 (3.12.12-r0)
+2026-01-12T02:03:13.2131430Z #6 1.918 (52/99) Installing pyc (3.12.12-r0)
+2026-01-12T02:03:13.2132139Z #6 1.918 (53/99) Installing py3-setuptools-pyc (80.9.0-r2)
+2026-01-12T02:03:13.3477892Z #6 1.980 (54/99) Installing py3-pip-pyc (25.1.1-r1)
+2026-01-12T02:03:13.3478453Z #6 2.053 (55/99) Installing py3-packaging-pyc (25.0-r0)
+2026-01-12T02:03:13.4492129Z #6 2.062 (56/99) Installing python3-pyc (3.12.12-r0)
+2026-01-12T02:03:13.4492801Z #6 2.062 (57/99) Installing py3-parsing (3.2.3-r0)
+2026-01-12T02:03:13.4493206Z #6 2.073 (58/99) Installing py3-parsing-pyc (3.2.3-r0)
+2026-01-12T02:03:13.4493556Z #6 2.083 (59/99) Installing py3-packaging (25.0-r0)
+2026-01-12T02:03:13.4493905Z #6 2.090 (60/99) Installing py3-setuptools (80.9.0-r2)
+2026-01-12T02:03:13.4494230Z #6 2.154 (61/99) Installing py3-pip (25.1.1-r1)
+2026-01-12T02:03:13.6290654Z #6 2.221 (62/99) Installing libmd (1.1.0-r0)
+2026-01-12T02:03:13.6291353Z #6 2.224 (63/99) Installing libbsd (0.12.2-r0)
+2026-01-12T02:03:13.6292002Z #6 2.228 (64/99) Installing linux-pam (1.7.1-r2)
+2026-01-12T02:03:13.6292692Z #6 2.245 (65/99) Installing shadow (4.18.0-r0)
+2026-01-12T02:03:13.6293310Z #6 2.334 (66/99) Installing sudo (1.9.17_p2-r0)
+2026-01-12T02:03:13.7409868Z #6 2.359 (67/99) Installing unzip (6.0-r16)
+2026-01-12T02:03:13.7410348Z #6 2.366 (68/99) Installing util-linux (2.41.2-r0)
+2026-01-12T02:03:13.7410757Z #6 2.370 (69/99) Installing dmesg (2.41.2-r0)
+2026-01-12T02:03:13.7411139Z #6 2.379 (70/99) Installing setarch (2.41.2-r0)
+2026-01-12T02:03:13.7411826Z #6 2.393 (71/99) Installing libeconf (0.8.0-r0)
+2026-01-12T02:03:13.7412212Z #6 2.404 (72/99) Installing libblkid (2.41.2-r0)
+2026-01-12T02:03:13.7412593Z #6 2.409 (73/99) Installing libuuid (2.41.2-r0)
+2026-01-12T02:03:13.7412965Z #6 2.413 (74/99) Installing libfdisk (2.41.2-r0)
+2026-01-12T02:03:13.7413342Z #6 2.420 (75/99) Installing libmount (2.41.2-r0)
+2026-01-12T02:03:13.7413738Z #6 2.425 (76/99) Installing libsmartcols (2.41.2-r0)
+2026-01-12T02:03:13.7414162Z #6 2.446 (77/99) Installing util-linux-misc (2.41.2-r0)
+2026-01-12T02:03:13.8565099Z #6 2.490 (78/99) Installing runuser (2.41.2-r0)
+2026-01-12T02:03:13.8565739Z #6 2.497 (79/99) Installing mount (2.41.2-r0)
+2026-01-12T02:03:13.8566130Z #6 2.523 (80/99) Installing losetup (2.41.2-r0)
+2026-01-12T02:03:13.8566509Z #6 2.528 (81/99) Installing hexdump (2.41.2-r0)
+2026-01-12T02:03:13.8566870Z #6 2.531 (82/99) Installing uuidgen (2.41.2-r0)
+2026-01-12T02:03:13.8567229Z #6 2.537 (83/99) Installing blkid (2.41.2-r0)
+2026-01-12T02:03:13.8567856Z #6 2.544 (84/99) Installing sfdisk (2.41.2-r0)
+2026-01-12T02:03:13.8568228Z #6 2.562 (85/99) Installing mcookie (2.41.2-r0)
+2026-01-12T02:03:13.9830119Z #6 2.567 (86/99) Installing agetty (2.41.2-r0)
+2026-01-12T02:03:13.9830740Z #6 2.590 (87/99) Installing wipefs (2.41.2-r0)
+2026-01-12T02:03:13.9831132Z #6 2.601 (88/99) Installing cfdisk (2.41.2-r0)
+2026-01-12T02:03:13.9831520Z #6 2.627 (89/99) Installing umount (2.41.2-r0)
+2026-01-12T02:03:13.9831897Z #6 2.633 (90/99) Installing flock (2.41.2-r0)
+2026-01-12T02:03:13.9832595Z #6 2.688 (91/99) Installing lsblk (2.41.2-r0)
+2026-01-12T02:03:14.0832965Z #6 2.693 (92/99) Installing libcap-ng (0.8.5-r0)
+2026-01-12T02:03:14.0833716Z #6 2.698 (93/99) Installing setpriv (2.41.2-r0)
+2026-01-12T02:03:14.0834350Z #6 2.702 (94/99) Installing lscpu (2.41.2-r0)
+2026-01-12T02:03:14.0834968Z #6 2.710 (95/99) Installing logger (2.41.2-r0)
+2026-01-12T02:03:14.0835567Z #6 2.715 (96/99) Installing partx (2.41.2-r0)
+2026-01-12T02:03:14.0836205Z #6 2.721 (97/99) Installing fstrim (2.41.2-r0)
+2026-01-12T02:03:14.0836813Z #6 2.771 (98/99) Installing findmnt (2.41.2-r0)
+2026-01-12T02:03:14.0837727Z #6 2.779 (99/99) Installing wget (1.25.0-r2)
+2026-01-12T02:03:14.0838240Z #6 2.788 Executing busybox-1.37.0-r30.trigger
+2026-01-12T02:03:14.2429716Z #6 2.798 OK: 189.6 MiB in 116 packages
+2026-01-12T02:03:14.3760003Z #6 DONE 3.1s
+2026-01-12T02:03:14.4920283Z
+2026-01-12T02:03:14.4921064Z #7 [3/4] RUN echo "ALL ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+2026-01-12T02:03:14.4921838Z #7 DONE 0.1s
+2026-01-12T02:03:14.6733990Z
+2026-01-12T02:03:14.6734607Z #8 [4/4] WORKDIR /workspace
+2026-01-12T02:03:14.6735055Z #8 DONE 0.0s
+2026-01-12T02:03:14.6735247Z
+2026-01-12T02:03:14.6735405Z #9 exporting to image
+2026-01-12T02:03:14.6735769Z #9 exporting layers
+2026-01-12T02:03:16.2688748Z #9 exporting layers 1.7s done
+2026-01-12T02:03:16.2887664Z #9 writing image sha256:b246f01d186180c1c6a25a4b6eb67fdf807260a8ba58c184612c729feee7e84b done
+2026-01-12T02:03:16.2889137Z #9 naming to docker.io/library/recac-agent:latest done
+2026-01-12T02:03:16.2889647Z #9 DONE 1.8s
+2026-01-12T02:03:16.2982100Z ##[group]Run # Use the script directly
+2026-01-12T02:03:16.2982434Z [36;1m# Use the script directly[0m
+2026-01-12T02:03:16.2982703Z [36;1mchmod +x scripts/test_sharded.sh[0m
+2026-01-12T02:03:16.2982969Z [36;1m./scripts/test_sharded.sh 5 5[0m
+2026-01-12T02:03:16.3019330Z shell: /usr/bin/bash -e {0}
+2026-01-12T02:03:16.3019572Z env:
+2026-01-12T02:03:16.3019748Z   REGISTRY: ghcr.io
+2026-01-12T02:03:16.3020009Z   IMAGE_NAME: process-failed-successfully/recac
+2026-01-12T02:03:16.3020293Z ##[endgroup]
+2026-01-12T02:03:16.3096932Z Running tests for shard 5 of 5
+2026-01-12T02:03:16.5593264Z Testing packages:
+2026-01-12T02:03:16.5593658Z recac/cmd/recac
+2026-01-12T02:03:16.5593990Z recac/internal/cmdutils
+2026-01-12T02:03:16.5594345Z recac/internal/jira
+2026-01-12T02:03:16.5594676Z recac/internal/security
+2026-01-12T02:03:16.5595022Z recac/pkg/e2e/scenarios
+2026-01-12T02:03:16.5696670Z go: downloading github.com/stretchr/testify v1.11.1
+2026-01-12T02:03:16.6447096Z go: downloading github.com/pmezard/go-difflib v1.0.0
+2026-01-12T02:03:16.6447956Z go: downloading github.com/stretchr/objx v0.5.2
+2026-01-12T02:04:18.5318652Z # recac/cmd/recac [recac/cmd/recac.test]
+2026-01-12T02:04:18.5375327Z ##[error]cmd/recac/data_utils.go:73:6: CostAnalysis redeclared in this block
+2026-01-12T02:04:18.5386182Z ##[error]	cmd/recac/cost.go:53:6: other declaration of CostAnalysis
+2026-01-12T02:04:18.5388458Z ##[error]cmd/recac/data_utils.go:81:6: ModelCost redeclared in this block
+2026-01-12T02:04:18.5390332Z ##[error]	cmd/recac/cost.go:61:6: other declaration of ModelCost
+2026-01-12T02:04:18.5392204Z ##[error]cmd/recac/data_utils.go:90:6: SessionCost redeclared in this block
+2026-01-12T02:04:18.5394087Z ##[error]	cmd/recac/cost.go:70:6: other declaration of SessionCost
+2026-01-12T02:04:18.5395903Z ##[error]cmd/recac/stats.go:14:6: AggregateStats redeclared in this block
+2026-01-12T02:04:18.5397989Z ##[error]	cmd/recac/data_utils.go:32:6: other declaration of AggregateStats
+2026-01-12T02:04:18.5399796Z ##[error]cmd/recac/dashboard.go:30:10: undefined: fmt
+2026-01-12T02:04:18.5402453Z ##[error]cmd/recac/stats_test.go:74:31: cannot use sm (variable of type *MockSessionManager) as []*runner.SessionState value in argument to calculateStats
+2026-01-12T02:04:18.5404868Z ##[error]cmd/recac/cost.go:5:2: "sort" imported and not used
+2026-01-12T02:04:18.5406640Z ##[error]cmd/recac/cost.go:8:2: "recac/internal/agent" imported and not used
+2026-01-12T02:04:18.5408678Z ##[error]cmd/recac/cost.go:9:2: "recac/internal/runner" imported and not used
+2026-01-12T02:04:18.5410545Z ##[error]cmd/recac/session_utils.go:4:2: "encoding/json" imported and not used
+2026-01-12T02:04:18.5412156Z ##[error]cmd/recac/session_utils.go:4:2: too many errors
+2026-01-12T02:04:27.9099019Z FAIL	recac/cmd/recac [build failed]
+2026-01-12T02:04:28.0331741Z === RUN   TestGetJiraClient
+2026-01-12T02:04:28.0335176Z === RUN   TestGetJiraClient/Missing_Config
+2026-01-12T02:04:28.0336641Z === RUN   TestGetJiraClient/Valid_Config
+2026-01-12T02:04:28.0337782Z === RUN   TestGetJiraClient/Environment_Variables
+2026-01-12T02:04:28.0338514Z --- PASS: TestGetJiraClient (0.00s)
+2026-01-12T02:04:28.0339331Z     --- PASS: TestGetJiraClient/Missing_Config (0.00s)
+2026-01-12T02:04:28.0340160Z     --- PASS: TestGetJiraClient/Valid_Config (0.00s)
+2026-01-12T02:04:28.0341061Z     --- PASS: TestGetJiraClient/Environment_Variables (0.00s)
+2026-01-12T02:04:28.0341702Z === RUN   TestGetAgentClient
+2026-01-12T02:04:28.0342227Z === RUN   TestGetAgentClient/Default_Provider_Gemini
+2026-01-12T02:04:28.0342816Z === RUN   TestGetAgentClient/Specific_Provider
+2026-01-12T02:04:28.0343358Z --- PASS: TestGetAgentClient (0.00s)
+2026-01-12T02:04:28.0344063Z     --- PASS: TestGetAgentClient/Default_Provider_Gemini (0.00s)
+2026-01-12T02:04:28.0344656Z     --- PASS: TestGetAgentClient/Specific_Provider (0.00s)
+2026-01-12T02:04:28.0345092Z === RUN   TestSetupWorkspace
+2026-01-12T02:04:28.0345387Z === RUN   TestSetupWorkspace/Empty_Repo_URL
+2026-01-12T02:04:28.0346030Z === RUN   TestSetupWorkspace/Existing_Workspace
+2026-01-12T02:04:28.0346370Z --- PASS: TestSetupWorkspace (0.01s)
+2026-01-12T02:04:28.0346873Z     --- PASS: TestSetupWorkspace/Empty_Repo_URL (0.00s)
+2026-01-12T02:04:28.0347693Z     --- PASS: TestSetupWorkspace/Existing_Workspace (0.01s)
+2026-01-12T02:04:28.0348190Z PASS
+2026-01-12T02:04:28.0348546Z ok  	recac/internal/cmdutils	0.015s
+2026-01-12T02:04:28.0349009Z === RUN   TestCreateTicket_Success
+2026-01-12T02:04:28.0349505Z --- PASS: TestCreateTicket_Success (0.00s)
+2026-01-12T02:04:28.0350011Z === RUN   TestDeleteIssue_Success
+2026-01-12T02:04:28.0350457Z --- PASS: TestDeleteIssue_Success (0.00s)
+2026-01-12T02:04:28.0350939Z === RUN   TestSearchIssues_Success
+2026-01-12T02:04:28.0351394Z --- PASS: TestSearchIssues_Success (0.00s)
+2026-01-12T02:04:28.0351888Z === RUN   TestLoadLabelIssues_Success
+2026-01-12T02:04:28.0352390Z --- PASS: TestLoadLabelIssues_Success (0.00s)
+2026-01-12T02:04:28.0353194Z === RUN   TestGetTransitions_Success
+2026-01-12T02:04:28.0353699Z --- PASS: TestGetTransitions_Success (0.00s)
+2026-01-12T02:04:28.0354199Z === RUN   TestSmartTransition_Success
+2026-01-12T02:04:28.0354687Z --- PASS: TestSmartTransition_Success (0.00s)
+2026-01-12T02:04:28.0355201Z === RUN   TestCreateChildTicket_Success
+2026-01-12T02:04:28.0355715Z --- PASS: TestCreateChildTicket_Success (0.00s)
+2026-01-12T02:04:28.0356208Z === RUN   TestGetBlockers
+2026-01-12T02:04:28.0356591Z === RUN   TestGetBlockers/No_links
+2026-01-12T02:04:28.0357032Z === RUN   TestGetBlockers/No_blockers
+2026-01-12T02:04:28.0358585Z === RUN   TestGetBlockers/Unresolved_blocker
+2026-01-12T02:04:28.0359125Z === RUN   TestGetBlockers/Resolved_blocker
+2026-01-12T02:04:28.0359618Z --- PASS: TestGetBlockers (0.00s)
+2026-01-12T02:04:28.0360198Z     --- PASS: TestGetBlockers/No_links (0.00s)
+2026-01-12T02:04:28.0360838Z     --- PASS: TestGetBlockers/No_blockers (0.00s)
+2026-01-12T02:04:28.0361543Z     --- PASS: TestGetBlockers/Unresolved_blocker (0.00s)
+2026-01-12T02:04:28.0362298Z     --- PASS: TestGetBlockers/Resolved_blocker (0.00s)
+2026-01-12T02:04:28.0362841Z === RUN   TestAuthenticate_Success
+2026-01-12T02:04:28.0363312Z --- PASS: TestAuthenticate_Success (0.00s)
+2026-01-12T02:04:28.0363794Z === RUN   TestGetTicket_Success
+2026-01-12T02:04:28.0364227Z --- PASS: TestGetTicket_Success (0.00s)
+2026-01-12T02:04:28.0364683Z === RUN   TestGetTicket_NotFound
+2026-01-12T02:04:28.0365143Z --- PASS: TestGetTicket_NotFound (0.00s)
+2026-01-12T02:04:28.0365631Z === RUN   TestTransitionIssue_Success
+2026-01-12T02:04:28.0366127Z --- PASS: TestTransitionIssue_Success (0.00s)
+2026-01-12T02:04:28.0366672Z === RUN   TestAddComment_Success
+2026-01-12T02:04:28.0367109Z --- PASS: TestAddComment_Success (0.00s)
+2026-01-12T02:04:28.0367898Z === RUN   TestAddComment_FormattingPreserved
+2026-01-12T02:04:28.0368468Z --- PASS: TestAddComment_FormattingPreserved (0.00s)
+2026-01-12T02:04:28.0369094Z === RUN   TestAddComment_ErrorHandling
+2026-01-12T02:04:28.0369613Z --- PASS: TestAddComment_ErrorHandling (0.00s)
+2026-01-12T02:04:28.0370134Z === RUN   TestClient_ParseDescription
+2026-01-12T02:04:28.0370641Z --- PASS: TestClient_ParseDescription (0.00s)
+2026-01-12T02:04:28.0371150Z === RUN   TestResolveDependencies
+2026-01-12T02:04:28.0371643Z === RUN   TestResolveDependencies/No_Dependencies
+2026-01-12T02:04:28.0372424Z === RUN   TestResolveDependencies/Simple_Chain_A->B->C_(A_blocks_B,_B_blocks_C)
+2026-01-12T02:04:28.0373431Z === RUN   TestResolveDependencies/Diamond_Dependency_A->(B,C)->D
+2026-01-12T02:04:28.0374157Z === RUN   TestResolveDependencies/Circular_Dependency_A->B->A
+2026-01-12T02:04:28.0374867Z === RUN   TestResolveDependencies/Missing_Dependency_(Ignored)
+2026-01-12T02:04:28.0375480Z --- PASS: TestResolveDependencies (0.00s)
+2026-01-12T02:04:28.0376203Z     --- PASS: TestResolveDependencies/No_Dependencies (0.00s)
+2026-01-12T02:04:28.0377249Z     --- PASS: TestResolveDependencies/Simple_Chain_A->B->C_(A_blocks_B,_B_blocks_C) (0.00s)
+2026-01-12T02:04:28.0378593Z     --- PASS: TestResolveDependencies/Diamond_Dependency_A->(B,C)->D (0.00s)
+2026-01-12T02:04:28.0379858Z     --- PASS: TestResolveDependencies/Circular_Dependency_A->B->A (0.00s)
+2026-01-12T02:04:28.0380867Z     --- PASS: TestResolveDependencies/Missing_Dependency_(Ignored) (0.00s)
+2026-01-12T02:04:28.0381488Z PASS
+2026-01-12T02:04:28.0381795Z ok  	recac/internal/jira	0.016s
+2026-01-12T02:04:28.0382213Z === RUN   TestRegexScanner_Scan
+2026-01-12T02:04:28.0382676Z === RUN   TestRegexScanner_Scan/Safe_Content
+2026-01-12T02:04:28.0383185Z === RUN   TestRegexScanner_Scan/AWS_Key
+2026-01-12T02:04:28.0385659Z === RUN   TestRegexScanner_Scan/GitHub_Token
+2026-01-12T02:04:28.0386184Z === RUN   TestRegexScanner_Scan/Private_Key
+2026-01-12T02:04:28.0386703Z === RUN   TestRegexScanner_Scan/Generic_API_Key
+2026-01-12T02:04:28.0387222Z --- PASS: TestRegexScanner_Scan (0.00s)
+2026-01-12T02:04:28.0388029Z     --- PASS: TestRegexScanner_Scan/Safe_Content (0.00s)
+2026-01-12T02:04:28.0388681Z     --- PASS: TestRegexScanner_Scan/AWS_Key (0.00s)
+2026-01-12T02:04:28.0389946Z     --- PASS: TestRegexScanner_Scan/GitHub_Token (0.00s)
+2026-01-12T02:04:28.0390684Z     --- PASS: TestRegexScanner_Scan/Private_Key (0.00s)
+2026-01-12T02:04:28.0391411Z     --- PASS: TestRegexScanner_Scan/Generic_API_Key (0.00s)
+2026-01-12T02:04:28.0391905Z PASS
+2026-01-12T02:04:28.0392231Z ok  	recac/internal/security	0.003s
+2026-01-12T02:04:28.1373048Z === RUN   TestGenericScenario_Generate
+2026-01-12T02:04:28.1373622Z --- PASS: TestGenericScenario_Generate (0.00s)
+2026-01-12T02:04:28.1374021Z === RUN   TestGenericScenario_RunStep_FileContent
+2026-01-12T02:04:28.1374444Z --- PASS: TestGenericScenario_RunStep_FileContent (0.00s)
+2026-01-12T02:04:28.1374837Z === RUN   TestRegistry_ContainsPrimePython
+2026-01-12T02:04:28.1375186Z --- PASS: TestRegistry_ContainsPrimePython (0.00s)
+2026-01-12T02:04:28.1375499Z PASS
+2026-01-12T02:04:28.1375710Z ok  	recac/pkg/e2e/scenarios	0.002s
+2026-01-12T02:04:28.1375963Z FAIL
+2026-01-12T02:04:28.3930490Z ##[error]Process completed with exit code 123.
+2026-01-12T02:04:28.4054850Z Post job cleanup.
+2026-01-12T02:04:28.4978814Z [command]/usr/bin/git version
+2026-01-12T02:04:28.5014130Z git version 2.52.0
+2026-01-12T02:04:28.5064022Z Temporarily overriding HOME='/home/runner/work/_temp/2fd2474b-cb0d-496e-81b2-2fef1cea6ddb' before making global git config changes
+2026-01-12T02:04:28.5065492Z Adding repository directory to the temporary git global config as a safe directory
+2026-01-12T02:04:28.5070022Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/recac/recac
+2026-01-12T02:04:28.5105035Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-01-12T02:04:28.5137012Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-01-12T02:04:28.5350311Z fatal: No url found for submodule path 'verification/manual_push_test' in .gitmodules
+2026-01-12T02:04:28.5389497Z ##[warning]The process '/usr/bin/git' failed with exit code 128
+2026-01-12T02:04:28.5472669Z Cleaning up orphan processes

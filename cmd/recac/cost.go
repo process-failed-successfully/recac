@@ -2,11 +2,7 @@ package main
 
 import (
 	"fmt"
-	"sort"
 	"text/tabwriter"
-
-	"recac/internal/agent"
-	"recac/internal/runner"
 
 	"github.com/spf13/cobra"
 )
@@ -49,30 +45,6 @@ var costCmd = &cobra.Command{
 	},
 }
 
-// CostAnalysis holds the aggregated cost data.
-type CostAnalysis struct {
-	TotalCost         float64
-	TotalTokens       int
-	Models            []*ModelCost
-	TopSessionsByCost []*SessionCost
-}
-
-// ModelCost aggregates cost and token data for a specific model.
-type ModelCost struct {
-	Name              string
-	TotalTokens       int
-	TotalPromptTokens int
-	TotalResponseTokens int
-	TotalCost         float64
-}
-
-// SessionCost holds cost data for a single session.
-type SessionCost struct {
-	Name      string
-	Model     string
-	Cost      float64
-	TotalTokens int
-}
 
 func displayCostAnalysis(cmd *cobra.Command, analysis *CostAnalysis) {
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 3, ' ', 0)

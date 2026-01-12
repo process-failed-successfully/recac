@@ -1,0 +1,136 @@
+﻿2026-01-12T02:03:16.2982086Z ##[group]Run # Use the script directly
+2026-01-12T02:03:16.2982431Z [36;1m# Use the script directly[0m
+2026-01-12T02:03:16.2982701Z [36;1mchmod +x scripts/test_sharded.sh[0m
+2026-01-12T02:03:16.2982967Z [36;1m./scripts/test_sharded.sh 5 5[0m
+2026-01-12T02:03:16.3019321Z shell: /usr/bin/bash -e {0}
+2026-01-12T02:03:16.3019570Z env:
+2026-01-12T02:03:16.3019746Z   REGISTRY: ghcr.io
+2026-01-12T02:03:16.3020007Z   IMAGE_NAME: process-failed-successfully/recac
+2026-01-12T02:03:16.3020290Z ##[endgroup]
+2026-01-12T02:03:16.3096914Z Running tests for shard 5 of 5
+2026-01-12T02:03:16.5593222Z Testing packages:
+2026-01-12T02:03:16.5593654Z recac/cmd/recac
+2026-01-12T02:03:16.5593987Z recac/internal/cmdutils
+2026-01-12T02:03:16.5594342Z recac/internal/jira
+2026-01-12T02:03:16.5594672Z recac/internal/security
+2026-01-12T02:03:16.5595020Z recac/pkg/e2e/scenarios
+2026-01-12T02:03:16.5696537Z go: downloading github.com/stretchr/testify v1.11.1
+2026-01-12T02:03:16.6446954Z go: downloading github.com/pmezard/go-difflib v1.0.0
+2026-01-12T02:03:16.6447951Z go: downloading github.com/stretchr/objx v0.5.2
+2026-01-12T02:04:18.5318599Z # recac/cmd/recac [recac/cmd/recac.test]
+2026-01-12T02:04:18.5375294Z ##[error]cmd/recac/data_utils.go:73:6: CostAnalysis redeclared in this block
+2026-01-12T02:04:18.5386146Z ##[error]	cmd/recac/cost.go:53:6: other declaration of CostAnalysis
+2026-01-12T02:04:18.5388448Z ##[error]cmd/recac/data_utils.go:81:6: ModelCost redeclared in this block
+2026-01-12T02:04:18.5390322Z ##[error]	cmd/recac/cost.go:61:6: other declaration of ModelCost
+2026-01-12T02:04:18.5392195Z ##[error]cmd/recac/data_utils.go:90:6: SessionCost redeclared in this block
+2026-01-12T02:04:18.5394079Z ##[error]	cmd/recac/cost.go:70:6: other declaration of SessionCost
+2026-01-12T02:04:18.5395896Z ##[error]cmd/recac/stats.go:14:6: AggregateStats redeclared in this block
+2026-01-12T02:04:18.5397980Z ##[error]	cmd/recac/data_utils.go:32:6: other declaration of AggregateStats
+2026-01-12T02:04:18.5399766Z ##[error]cmd/recac/dashboard.go:30:10: undefined: fmt
+2026-01-12T02:04:18.5402442Z ##[error]cmd/recac/stats_test.go:74:31: cannot use sm (variable of type *MockSessionManager) as []*runner.SessionState value in argument to calculateStats
+2026-01-12T02:04:18.5404857Z ##[error]cmd/recac/cost.go:5:2: "sort" imported and not used
+2026-01-12T02:04:18.5406633Z ##[error]cmd/recac/cost.go:8:2: "recac/internal/agent" imported and not used
+2026-01-12T02:04:18.5408670Z ##[error]cmd/recac/cost.go:9:2: "recac/internal/runner" imported and not used
+2026-01-12T02:04:18.5410540Z ##[error]cmd/recac/session_utils.go:4:2: "encoding/json" imported and not used
+2026-01-12T02:04:18.5412150Z ##[error]cmd/recac/session_utils.go:4:2: too many errors
+2026-01-12T02:04:27.9098974Z FAIL	recac/cmd/recac [build failed]
+2026-01-12T02:04:28.0331693Z === RUN   TestGetJiraClient
+2026-01-12T02:04:28.0335162Z === RUN   TestGetJiraClient/Missing_Config
+2026-01-12T02:04:28.0336627Z === RUN   TestGetJiraClient/Valid_Config
+2026-01-12T02:04:28.0337746Z === RUN   TestGetJiraClient/Environment_Variables
+2026-01-12T02:04:28.0338508Z --- PASS: TestGetJiraClient (0.00s)
+2026-01-12T02:04:28.0339326Z     --- PASS: TestGetJiraClient/Missing_Config (0.00s)
+2026-01-12T02:04:28.0340156Z     --- PASS: TestGetJiraClient/Valid_Config (0.00s)
+2026-01-12T02:04:28.0341051Z     --- PASS: TestGetJiraClient/Environment_Variables (0.00s)
+2026-01-12T02:04:28.0341697Z === RUN   TestGetAgentClient
+2026-01-12T02:04:28.0342221Z === RUN   TestGetAgentClient/Default_Provider_Gemini
+2026-01-12T02:04:28.0342809Z === RUN   TestGetAgentClient/Specific_Provider
+2026-01-12T02:04:28.0343353Z --- PASS: TestGetAgentClient (0.00s)
+2026-01-12T02:04:28.0344058Z     --- PASS: TestGetAgentClient/Default_Provider_Gemini (0.00s)
+2026-01-12T02:04:28.0344652Z     --- PASS: TestGetAgentClient/Specific_Provider (0.00s)
+2026-01-12T02:04:28.0345088Z === RUN   TestSetupWorkspace
+2026-01-12T02:04:28.0345385Z === RUN   TestSetupWorkspace/Empty_Repo_URL
+2026-01-12T02:04:28.0345732Z === RUN   TestSetupWorkspace/Existing_Workspace
+2026-01-12T02:04:28.0346366Z --- PASS: TestSetupWorkspace (0.01s)
+2026-01-12T02:04:28.0346870Z     --- PASS: TestSetupWorkspace/Empty_Repo_URL (0.00s)
+2026-01-12T02:04:28.0347686Z     --- PASS: TestSetupWorkspace/Existing_Workspace (0.01s)
+2026-01-12T02:04:28.0348185Z PASS
+2026-01-12T02:04:28.0348539Z ok  	recac/internal/cmdutils	0.015s
+2026-01-12T02:04:28.0349003Z === RUN   TestCreateTicket_Success
+2026-01-12T02:04:28.0349490Z --- PASS: TestCreateTicket_Success (0.00s)
+2026-01-12T02:04:28.0350006Z === RUN   TestDeleteIssue_Success
+2026-01-12T02:04:28.0350453Z --- PASS: TestDeleteIssue_Success (0.00s)
+2026-01-12T02:04:28.0350934Z === RUN   TestSearchIssues_Success
+2026-01-12T02:04:28.0351391Z --- PASS: TestSearchIssues_Success (0.00s)
+2026-01-12T02:04:28.0351885Z === RUN   TestLoadLabelIssues_Success
+2026-01-12T02:04:28.0352387Z --- PASS: TestLoadLabelIssues_Success (0.00s)
+2026-01-12T02:04:28.0353189Z === RUN   TestGetTransitions_Success
+2026-01-12T02:04:28.0353684Z --- PASS: TestGetTransitions_Success (0.00s)
+2026-01-12T02:04:28.0354196Z === RUN   TestSmartTransition_Success
+2026-01-12T02:04:28.0354683Z --- PASS: TestSmartTransition_Success (0.00s)
+2026-01-12T02:04:28.0355198Z === RUN   TestCreateChildTicket_Success
+2026-01-12T02:04:28.0355712Z --- PASS: TestCreateChildTicket_Success (0.00s)
+2026-01-12T02:04:28.0356204Z === RUN   TestGetBlockers
+2026-01-12T02:04:28.0356586Z === RUN   TestGetBlockers/No_links
+2026-01-12T02:04:28.0357028Z === RUN   TestGetBlockers/No_blockers
+2026-01-12T02:04:28.0358575Z === RUN   TestGetBlockers/Unresolved_blocker
+2026-01-12T02:04:28.0359120Z === RUN   TestGetBlockers/Resolved_blocker
+2026-01-12T02:04:28.0359614Z --- PASS: TestGetBlockers (0.00s)
+2026-01-12T02:04:28.0360194Z     --- PASS: TestGetBlockers/No_links (0.00s)
+2026-01-12T02:04:28.0360834Z     --- PASS: TestGetBlockers/No_blockers (0.00s)
+2026-01-12T02:04:28.0361540Z     --- PASS: TestGetBlockers/Unresolved_blocker (0.00s)
+2026-01-12T02:04:28.0362281Z     --- PASS: TestGetBlockers/Resolved_blocker (0.00s)
+2026-01-12T02:04:28.0362837Z === RUN   TestAuthenticate_Success
+2026-01-12T02:04:28.0363308Z --- PASS: TestAuthenticate_Success (0.00s)
+2026-01-12T02:04:28.0363790Z === RUN   TestGetTicket_Success
+2026-01-12T02:04:28.0364223Z --- PASS: TestGetTicket_Success (0.00s)
+2026-01-12T02:04:28.0364680Z === RUN   TestGetTicket_NotFound
+2026-01-12T02:04:28.0365139Z --- PASS: TestGetTicket_NotFound (0.00s)
+2026-01-12T02:04:28.0365628Z === RUN   TestTransitionIssue_Success
+2026-01-12T02:04:28.0366124Z --- PASS: TestTransitionIssue_Success (0.00s)
+2026-01-12T02:04:28.0366667Z === RUN   TestAddComment_Success
+2026-01-12T02:04:28.0367104Z --- PASS: TestAddComment_Success (0.00s)
+2026-01-12T02:04:28.0367891Z === RUN   TestAddComment_FormattingPreserved
+2026-01-12T02:04:28.0368462Z --- PASS: TestAddComment_FormattingPreserved (0.00s)
+2026-01-12T02:04:28.0369078Z === RUN   TestAddComment_ErrorHandling
+2026-01-12T02:04:28.0369609Z --- PASS: TestAddComment_ErrorHandling (0.00s)
+2026-01-12T02:04:28.0370122Z === RUN   TestClient_ParseDescription
+2026-01-12T02:04:28.0370637Z --- PASS: TestClient_ParseDescription (0.00s)
+2026-01-12T02:04:28.0371147Z === RUN   TestResolveDependencies
+2026-01-12T02:04:28.0371640Z === RUN   TestResolveDependencies/No_Dependencies
+2026-01-12T02:04:28.0372420Z === RUN   TestResolveDependencies/Simple_Chain_A->B->C_(A_blocks_B,_B_blocks_C)
+2026-01-12T02:04:28.0373424Z === RUN   TestResolveDependencies/Diamond_Dependency_A->(B,C)->D
+2026-01-12T02:04:28.0374152Z === RUN   TestResolveDependencies/Circular_Dependency_A->B->A
+2026-01-12T02:04:28.0374856Z === RUN   TestResolveDependencies/Missing_Dependency_(Ignored)
+2026-01-12T02:04:28.0375475Z --- PASS: TestResolveDependencies (0.00s)
+2026-01-12T02:04:28.0376199Z     --- PASS: TestResolveDependencies/No_Dependencies (0.00s)
+2026-01-12T02:04:28.0377244Z     --- PASS: TestResolveDependencies/Simple_Chain_A->B->C_(A_blocks_B,_B_blocks_C) (0.00s)
+2026-01-12T02:04:28.0378586Z     --- PASS: TestResolveDependencies/Diamond_Dependency_A->(B,C)->D (0.00s)
+2026-01-12T02:04:28.0379606Z     --- PASS: TestResolveDependencies/Circular_Dependency_A->B->A (0.00s)
+2026-01-12T02:04:28.0380862Z     --- PASS: TestResolveDependencies/Missing_Dependency_(Ignored) (0.00s)
+2026-01-12T02:04:28.0381484Z PASS
+2026-01-12T02:04:28.0381791Z ok  	recac/internal/jira	0.016s
+2026-01-12T02:04:28.0382208Z === RUN   TestRegexScanner_Scan
+2026-01-12T02:04:28.0382669Z === RUN   TestRegexScanner_Scan/Safe_Content
+2026-01-12T02:04:28.0383179Z === RUN   TestRegexScanner_Scan/AWS_Key
+2026-01-12T02:04:28.0385651Z === RUN   TestRegexScanner_Scan/GitHub_Token
+2026-01-12T02:04:28.0386179Z === RUN   TestRegexScanner_Scan/Private_Key
+2026-01-12T02:04:28.0386699Z === RUN   TestRegexScanner_Scan/Generic_API_Key
+2026-01-12T02:04:28.0387218Z --- PASS: TestRegexScanner_Scan (0.00s)
+2026-01-12T02:04:28.0388023Z     --- PASS: TestRegexScanner_Scan/Safe_Content (0.00s)
+2026-01-12T02:04:28.0388676Z     --- PASS: TestRegexScanner_Scan/AWS_Key (0.00s)
+2026-01-12T02:04:28.0389928Z     --- PASS: TestRegexScanner_Scan/GitHub_Token (0.00s)
+2026-01-12T02:04:28.0390680Z     --- PASS: TestRegexScanner_Scan/Private_Key (0.00s)
+2026-01-12T02:04:28.0391406Z     --- PASS: TestRegexScanner_Scan/Generic_API_Key (0.00s)
+2026-01-12T02:04:28.0391900Z PASS
+2026-01-12T02:04:28.0392225Z ok  	recac/internal/security	0.003s
+2026-01-12T02:04:28.1373003Z === RUN   TestGenericScenario_Generate
+2026-01-12T02:04:28.1373619Z --- PASS: TestGenericScenario_Generate (0.00s)
+2026-01-12T02:04:28.1374018Z === RUN   TestGenericScenario_RunStep_FileContent
+2026-01-12T02:04:28.1374441Z --- PASS: TestGenericScenario_RunStep_FileContent (0.00s)
+2026-01-12T02:04:28.1374835Z === RUN   TestRegistry_ContainsPrimePython
+2026-01-12T02:04:28.1375183Z --- PASS: TestRegistry_ContainsPrimePython (0.00s)
+2026-01-12T02:04:28.1375497Z PASS
+2026-01-12T02:04:28.1375708Z ok  	recac/pkg/e2e/scenarios	0.002s
+2026-01-12T02:04:28.1375961Z FAIL
+2026-01-12T02:04:28.3930466Z ##[error]Process completed with exit code 123.

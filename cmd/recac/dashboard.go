@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"recac/internal/ui"
 
 	tea "github.com/charmbracelet/bubbletea"

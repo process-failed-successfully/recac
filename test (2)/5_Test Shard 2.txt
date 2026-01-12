@@ -1,0 +1,132 @@
+﻿2026-01-12T02:03:16.9419317Z ##[group]Run # Use the script directly
+2026-01-12T02:03:16.9419673Z [36;1m# Use the script directly[0m
+2026-01-12T02:03:16.9419937Z [36;1mchmod +x scripts/test_sharded.sh[0m
+2026-01-12T02:03:16.9420199Z [36;1m./scripts/test_sharded.sh 2 5[0m
+2026-01-12T02:03:16.9454767Z shell: /usr/bin/bash -e {0}
+2026-01-12T02:03:16.9454993Z env:
+2026-01-12T02:03:16.9455161Z   REGISTRY: ghcr.io
+2026-01-12T02:03:16.9455398Z   IMAGE_NAME: process-failed-successfully/recac
+2026-01-12T02:03:16.9455671Z ##[endgroup]
+2026-01-12T02:03:16.9525447Z Running tests for shard 2 of 5
+2026-01-12T02:03:17.1903614Z Testing packages:
+2026-01-12T02:03:17.1904076Z recac/cmd/agent
+2026-01-12T02:03:17.1904382Z recac/internal
+2026-01-12T02:03:17.1904685Z recac/internal/db
+2026-01-12T02:03:17.1905411Z recac/internal/orchestrator
+2026-01-12T02:03:17.1906502Z recac/internal/ui
+2026-01-12T02:03:17.2036137Z go: downloading github.com/stretchr/testify v1.11.1
+2026-01-12T02:03:17.2789257Z go: downloading github.com/stretchr/objx v0.5.2
+2026-01-12T02:03:17.2791056Z go: downloading github.com/pmezard/go-difflib v1.0.0
+2026-01-12T02:03:59.9904937Z ?   	recac/cmd/agent	[no test files]
+2026-01-12T02:03:59.9961810Z === RUN   TestDoc
+2026-01-12T02:03:59.9981782Z --- PASS: TestDoc (0.00s)
+2026-01-12T02:03:59.9984215Z PASS
+2026-01-12T02:03:59.9985011Z ok  	recac/internal	0.003s
+2026-01-12T02:04:00.6530157Z === RUN   TestSQLiteFeatures
+2026-01-12T02:04:00.6531107Z --- PASS: TestSQLiteFeatures (0.02s)
+2026-01-12T02:04:00.6531866Z === RUN   TestSQLiteLocks
+2026-01-12T02:04:00.6532556Z --- PASS: TestSQLiteLocks (0.52s)
+2026-01-12T02:04:00.6533199Z === RUN   TestSQLiteSignals
+2026-01-12T02:04:00.6533792Z --- PASS: TestSQLiteSignals (0.02s)
+2026-01-12T02:04:00.6534426Z === RUN   TestSQLiteStore
+2026-01-12T02:04:00.6535066Z --- PASS: TestSQLiteStore (0.03s)
+2026-01-12T02:04:00.6535725Z === RUN   TestSQLiteStore_Errors
+2026-01-12T02:04:00.6536467Z === RUN   TestSQLiteStore_Errors/Invalid_Path
+2026-01-12T02:04:00.6537197Z --- PASS: TestSQLiteStore_Errors (0.00s)
+2026-01-12T02:04:00.6538063Z     --- PASS: TestSQLiteStore_Errors/Invalid_Path (0.00s)
+2026-01-12T02:04:00.6539073Z === RUN   TestSQLiteStore_ReleaseLock
+2026-01-12T02:04:00.6540676Z --- PASS: TestSQLiteStore_ReleaseLock (0.03s)
+2026-01-12T02:04:00.6541361Z PASS
+2026-01-12T02:04:00.6541851Z ok  	recac/internal/db	0.644s
+2026-01-12T02:04:23.2705120Z === RUN   TestOrchestrator_Run_Success
+2026-01-12T02:04:23.2705754Z --- PASS: TestOrchestrator_Run_Success (0.05s)
+2026-01-12T02:04:23.2706282Z === RUN   TestOrchestrator_Run_PollError
+2026-01-12T02:04:23.2706808Z --- PASS: TestOrchestrator_Run_PollError (0.05s)
+2026-01-12T02:04:23.2707336Z === RUN   TestOrchestrator_Run_Scenarios
+2026-01-12T02:04:23.2707858Z === RUN   TestOrchestrator_Run_Scenarios/Claim_Error
+2026-01-12T02:04:23.2708453Z === RUN   TestOrchestrator_Run_Scenarios/Spawn_Error
+2026-01-12T02:04:23.2709292Z === RUN   TestOrchestrator_Run_Scenarios/No_Work
+2026-01-12T02:04:23.2709846Z --- PASS: TestOrchestrator_Run_Scenarios (0.15s)
+2026-01-12T02:04:23.2710582Z     --- PASS: TestOrchestrator_Run_Scenarios/Claim_Error (0.05s)
+2026-01-12T02:04:23.2711392Z     --- PASS: TestOrchestrator_Run_Scenarios/Spawn_Error (0.05s)
+2026-01-12T02:04:23.2712154Z     --- PASS: TestOrchestrator_Run_Scenarios/No_Work (0.05s)
+2026-01-12T02:04:23.2712744Z === RUN   TestOrchestrator_Run_GracefulShutdown
+2026-01-12T02:04:23.2713315Z --- PASS: TestOrchestrator_Run_GracefulShutdown (0.10s)
+2026-01-12T02:04:23.2713850Z === RUN   TestFilePoller
+2026-01-12T02:04:23.2714239Z === RUN   TestFilePoller/New_FilePoller
+2026-01-12T02:04:23.2714734Z === RUN   TestFilePoller/Poll_Empty/Missing_File
+2026-01-12T02:04:23.2715420Z [FilePoller] Work file /tmp/poller_test1825438995/work.json not found
+2026-01-12T02:04:23.2716053Z === RUN   TestFilePoller/Poll_With_Items
+2026-01-12T02:04:23.2716523Z === RUN   TestFilePoller/Update_Status
+2026-01-12T02:04:23.2717064Z [FilePoller] Item TASK-1 status updated to done: comment
+2026-01-12T02:04:23.2717610Z --- PASS: TestFilePoller (0.00s)
+2026-01-12T02:04:23.2718663Z     --- PASS: TestFilePoller/New_FilePoller (0.00s)
+2026-01-12T02:04:23.2719373Z     --- PASS: TestFilePoller/Poll_Empty/Missing_File (0.00s)
+2026-01-12T02:04:23.2720061Z     --- PASS: TestFilePoller/Poll_With_Items (0.00s)
+2026-01-12T02:04:23.2720701Z     --- PASS: TestFilePoller/Update_Status (0.00s)
+2026-01-12T02:04:23.2721194Z === RUN   TestDockerSpawner_Spawn
+2026-01-12T02:04:23.2721635Z === RUN   TestDockerSpawner_Spawn/Spawn_Success
+2026-01-12T02:04:23.2722577Z time=2026-01-12T02:04:23.259Z level=INFO msg="Spawning agent for item" id=TASK-1 workspace=/tmp/recac-agent-TASK-1-3267784408
+2026-01-12T02:04:23.2723800Z time=2026-01-12T02:04:23.259Z level=INFO msg="Container started" id=container-123 work_item=TASK-1
+2026-01-12T02:04:23.2724856Z === RUN   TestDockerSpawner_Spawn/RunContainer_Failure
+2026-01-12T02:04:23.2725579Z time=2026-01-12T02:04:23.259Z level=INFO msg="Executing agent command" item=TASK-1
+2026-01-12T02:04:23.2726580Z time=2026-01-12T02:04:23.259Z level=INFO msg="Agent execution completed" item=TASK-1 output=Success
+2026-01-12T02:04:23.2727945Z time=2026-01-12T02:04:23.259Z level=INFO msg="Spawning agent for item" id=TASK-1 workspace=/tmp/recac-agent-TASK-1-2797621752
+2026-01-12T02:04:23.2729831Z --- PASS: TestDockerSpawner_Spawn (0.00s)
+2026-01-12T02:04:23.2730567Z     --- PASS: TestDockerSpawner_Spawn/Spawn_Success (0.00s)
+2026-01-12T02:04:23.2731377Z     --- PASS: TestDockerSpawner_Spawn/RunContainer_Failure (0.00s)
+2026-01-12T02:04:23.2731928Z PASS
+2026-01-12T02:04:23.2732281Z ok  	recac/internal/orchestrator	0.383s
+2026-01-12T02:04:28.4267561Z === RUN   TestInteractiveModel_CursorCLIModels
+2026-01-12T02:04:28.4268042Z --- PASS: TestInteractiveModel_CursorCLIModels (0.00s)
+2026-01-12T02:04:28.4268385Z === RUN   TestDashboardState_Initial
+2026-01-12T02:04:28.4268995Z --- PASS: TestDashboardState_Initial (0.00s)
+2026-01-12T02:04:28.4269319Z === RUN   TestDashboardState_SessionsLoaded
+2026-01-12T02:04:28.4269635Z --- PASS: TestDashboardState_SessionsLoaded (0.00s)
+2026-01-12T02:04:28.4269963Z === RUN   TestDashboardState_UpdateQuit
+2026-01-12T02:04:28.4270264Z --- PASS: TestDashboardState_UpdateQuit (0.00s)
+2026-01-12T02:04:28.4270557Z === RUN   TestDashboardState_Empty
+2026-01-12T02:04:28.4270822Z --- PASS: TestDashboardState_Empty (0.00s)
+2026-01-12T02:04:28.4271102Z === RUN   TestDashboardState_Error
+2026-01-12T02:04:28.4271363Z --- PASS: TestDashboardState_Error (0.00s)
+2026-01-12T02:04:28.4271636Z === RUN   TestDashboardState_Selection
+2026-01-12T02:04:28.4271913Z --- PASS: TestDashboardState_Selection (0.00s)
+2026-01-12T02:04:28.4272209Z === RUN   TestInteractiveModel_GeminiCLIModels
+2026-01-12T02:04:28.4272525Z --- PASS: TestInteractiveModel_GeminiCLIModels (0.00s)
+2026-01-12T02:04:28.4272828Z === RUN   TestNewInteractiveModel
+2026-01-12T02:04:28.4273114Z --- PASS: TestNewInteractiveModel (0.00s)
+2026-01-12T02:04:28.4273427Z === RUN   TestInteractiveModel_Update_ModeSwitching
+2026-01-12T02:04:28.4273779Z --- PASS: TestInteractiveModel_Update_ModeSwitching (0.00s)
+2026-01-12T02:04:28.4274149Z === RUN   TestInteractiveModel_Update_CommandExecution
+2026-01-12T02:04:28.4274517Z --- PASS: TestInteractiveModel_Update_CommandExecution (0.00s)
+2026-01-12T02:04:28.4274882Z === RUN   TestInteractiveModel_Update_AgentSelection
+2026-01-12T02:04:28.4275226Z --- PASS: TestInteractiveModel_Update_AgentSelection (0.00s)
+2026-01-12T02:04:28.4275563Z === RUN   TestInteractiveModel_Update_Filtering
+2026-01-12T02:04:28.4275945Z 2026/01/12 02:04:28 INFO KeyMsg received type=runes string=s runes=[115]
+2026-01-12T02:04:28.4276348Z --- PASS: TestInteractiveModel_Update_Filtering (0.00s)
+2026-01-12T02:04:28.4276663Z === RUN   TestInteractiveModel_View
+2026-01-12T02:04:28.4276936Z --- PASS: TestInteractiveModel_View (0.00s)
+2026-01-12T02:04:28.4277201Z === RUN   TestInputModes
+2026-01-12T02:04:28.4277423Z --- PASS: TestInputModes (0.00s)
+2026-01-12T02:04:28.4277666Z === RUN   TestHelperMethods
+2026-01-12T02:04:28.4277894Z --- PASS: TestHelperMethods (0.00s)
+2026-01-12T02:04:28.4278162Z === RUN   TestInteractiveModel_ModelListing
+2026-01-12T02:04:28.4279132Z --- PASS: TestInteractiveModel_ModelListing (0.00s)
+2026-01-12T02:04:28.4279525Z === RUN   TestInteractiveModel_ToggleList
+2026-01-12T02:04:28.4279835Z --- PASS: TestInteractiveModel_ToggleList (0.00s)
+2026-01-12T02:04:28.4280123Z === RUN   TestInteractiveModel_Init
+2026-01-12T02:04:28.4280385Z --- PASS: TestInteractiveModel_Init (0.00s)
+2026-01-12T02:04:28.4280672Z === RUN   TestInteractiveModel_ShellExecution
+2026-01-12T02:04:28.4280982Z --- PASS: TestInteractiveModel_ShellExecution (0.00s)
+2026-01-12T02:04:28.4281293Z === RUN   TestInteractiveModel_Conversation
+2026-01-12T02:04:28.4281592Z --- PASS: TestInteractiveModel_Conversation (0.00s)
+2026-01-12T02:04:28.4281918Z === RUN   TestInteractiveModel_Update_StatusExecution
+2026-01-12T02:04:28.4282455Z --- PASS: TestInteractiveModel_Update_StatusExecution (0.01s)
+2026-01-12T02:04:28.4282787Z === RUN   TestWizardModel_InitialView
+2026-01-12T02:04:28.4283064Z --- PASS: TestWizardModel_InitialView (0.00s)
+2026-01-12T02:04:28.4283336Z === RUN   TestWizardModel_Input
+2026-01-12T02:04:28.4283582Z --- PASS: TestWizardModel_Input (0.00s)
+2026-01-12T02:04:28.4283839Z === RUN   TestWizardModel_Quit
+2026-01-12T02:04:28.4284071Z --- PASS: TestWizardModel_Quit (0.00s)
+2026-01-12T02:04:28.4284297Z PASS
+2026-01-12T02:04:28.4284473Z ok  	recac/internal/ui	0.039s

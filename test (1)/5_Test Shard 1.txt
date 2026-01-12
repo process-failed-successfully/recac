@@ -1,0 +1,91 @@
+﻿2026-01-12T02:03:16.9961711Z ##[group]Run # Use the script directly
+2026-01-12T02:03:16.9962048Z [36;1m# Use the script directly[0m
+2026-01-12T02:03:16.9962322Z [36;1mchmod +x scripts/test_sharded.sh[0m
+2026-01-12T02:03:16.9962583Z [36;1m./scripts/test_sharded.sh 1 5[0m
+2026-01-12T02:03:16.9997138Z shell: /usr/bin/bash -e {0}
+2026-01-12T02:03:16.9997377Z env:
+2026-01-12T02:03:16.9997547Z   REGISTRY: ghcr.io
+2026-01-12T02:03:16.9997783Z   IMAGE_NAME: process-failed-successfully/recac
+2026-01-12T02:03:16.9998056Z ##[endgroup]
+2026-01-12T02:03:17.0070717Z Running tests for shard 1 of 5
+2026-01-12T02:03:17.2541428Z Testing packages:
+2026-01-12T02:03:17.2541911Z recac/e2e/runner
+2026-01-12T02:03:17.2542243Z recac/internal/config
+2026-01-12T02:03:17.2542610Z recac/internal/notify
+2026-01-12T02:03:17.2542968Z recac/internal/telemetry
+2026-01-12T02:03:17.2543415Z recac/scripts/e2e_projects/mistral_verification
+2026-01-12T02:03:17.2626760Z go: downloading github.com/stretchr/testify v1.11.1
+2026-01-12T02:03:17.3615974Z go: downloading github.com/pmezard/go-difflib v1.0.0
+2026-01-12T02:03:35.4688562Z ?   	recac/e2e/runner	[no test files]
+2026-01-12T02:03:36.6820837Z === RUN   TestLoad
+2026-01-12T02:03:36.6821306Z === RUN   TestLoad/Default_Config_Generation
+2026-01-12T02:03:36.6821804Z Created default configuration file: config.yaml
+2026-01-12T02:03:36.6822249Z === RUN   TestLoad/Load_From_Env
+2026-01-12T02:03:36.6822864Z Using config file: /home/runner/work/recac/recac/internal/config/config.yaml
+2026-01-12T02:03:36.6823510Z --- PASS: TestLoad (0.01s)
+2026-01-12T02:03:36.6824091Z     --- PASS: TestLoad/Default_Config_Generation (0.01s)
+2026-01-12T02:03:36.6824726Z     --- PASS: TestLoad/Load_From_Env (0.00s)
+2026-01-12T02:03:36.6825190Z === RUN   TestValidateConfig
+2026-01-12T02:03:36.6825645Z === RUN   TestValidateConfig/Valid_Configuration
+2026-01-12T02:03:36.6826278Z === RUN   TestValidateConfig/Invalid_Timeout_(Negative_Duration)
+2026-01-12T02:03:36.6827163Z === RUN   TestValidateConfig/Invalid_Timeout_(Negative_Int)
+2026-01-12T02:03:36.6827879Z === RUN   TestValidateConfig/Invalid_Max_Iterations
+2026-01-12T02:03:36.6828409Z === RUN   TestValidateConfig/Invalid_Workers
+2026-01-12T02:03:36.6828941Z === RUN   TestValidateConfig/Invalid_Port_(Too_Low)
+2026-01-12T02:03:36.6829484Z === RUN   TestValidateConfig/Invalid_Port_(Too_High)
+2026-01-12T02:03:36.6830014Z === RUN   TestValidateConfig/Multiple_Errors
+2026-01-12T02:03:36.6830527Z === RUN   TestValidateConfig/Invalid_Agent_Timeout
+2026-01-12T02:03:36.6831069Z === RUN   TestValidateConfig/Invalid_Docker_Timeout
+2026-01-12T02:03:36.6831595Z === RUN   TestValidateConfig/Invalid_Bash_Timeout
+2026-01-12T02:03:36.6832115Z === RUN   TestValidateConfig/Invalid_Max_Agents
+2026-01-12T02:03:36.6832648Z === RUN   TestValidateConfig/Invalid_Metrics_Port
+2026-01-12T02:03:36.6833211Z === RUN   TestValidateConfig/Invalid_Manager_Frequency
+2026-01-12T02:03:36.6833732Z --- PASS: TestValidateConfig (0.00s)
+2026-01-12T02:03:36.6834381Z     --- PASS: TestValidateConfig/Valid_Configuration (0.00s)
+2026-01-12T02:03:36.6835263Z     --- PASS: TestValidateConfig/Invalid_Timeout_(Negative_Duration) (0.00s)
+2026-01-12T02:03:36.6836184Z     --- PASS: TestValidateConfig/Invalid_Timeout_(Negative_Int) (0.00s)
+2026-01-12T02:03:36.6837250Z     --- PASS: TestValidateConfig/Invalid_Max_Iterations (0.00s)
+2026-01-12T02:03:36.6838107Z     --- PASS: TestValidateConfig/Invalid_Workers (0.00s)
+2026-01-12T02:03:36.6838974Z     --- PASS: TestValidateConfig/Invalid_Port_(Too_Low) (0.00s)
+2026-01-12T02:03:36.6839820Z     --- PASS: TestValidateConfig/Invalid_Port_(Too_High) (0.00s)
+2026-01-12T02:03:36.6840560Z     --- PASS: TestValidateConfig/Multiple_Errors (0.00s)
+2026-01-12T02:03:36.6841290Z     --- PASS: TestValidateConfig/Invalid_Agent_Timeout (0.00s)
+2026-01-12T02:03:36.6842083Z     --- PASS: TestValidateConfig/Invalid_Docker_Timeout (0.00s)
+2026-01-12T02:03:36.6842821Z     --- PASS: TestValidateConfig/Invalid_Bash_Timeout (0.00s)
+2026-01-12T02:03:36.6843526Z     --- PASS: TestValidateConfig/Invalid_Max_Agents (0.00s)
+2026-01-12T02:03:36.6845996Z     --- PASS: TestValidateConfig/Invalid_Metrics_Port (0.00s)
+2026-01-12T02:03:36.6847637Z     --- PASS: TestValidateConfig/Invalid_Manager_Frequency (0.00s)
+2026-01-12T02:03:36.6848331Z PASS
+2026-01-12T02:03:36.6852004Z ok  	recac/internal/config	0.013s
+2026-01-12T02:03:38.8814865Z === RUN   TestDiscordNotifier_Notify
+2026-01-12T02:03:38.8815499Z --- PASS: TestDiscordNotifier_Notify (0.00s)
+2026-01-12T02:03:38.8816585Z === RUN   TestDiscordNotifier_Notify_Error
+2026-01-12T02:03:38.8817143Z --- PASS: TestDiscordNotifier_Notify_Error (0.00s)
+2026-01-12T02:03:38.8817721Z === RUN   TestDiscordNotifier_Notify_MissingURL
+2026-01-12T02:03:38.8818286Z --- PASS: TestDiscordNotifier_Notify_MissingURL (0.00s)
+2026-01-12T02:03:38.8818829Z === RUN   TestDiscordNotifier_Send_Bot
+2026-01-12T02:03:38.8819308Z --- PASS: TestDiscordNotifier_Send_Bot (0.00s)
+2026-01-12T02:03:38.8819796Z === RUN   TestSlackNotifier_Notify
+2026-01-12T02:03:38.8820248Z --- PASS: TestSlackNotifier_Notify (0.00s)
+2026-01-12T02:03:38.8820762Z === RUN   TestSlackNotifier_Notify_Error
+2026-01-12T02:03:38.8821266Z --- PASS: TestSlackNotifier_Notify_Error (0.00s)
+2026-01-12T02:03:38.8822166Z === RUN   TestNotificationFlow
+2026-01-12T02:03:38.8822599Z --- PASS: TestNotificationFlow (0.06s)
+2026-01-12T02:03:38.8822991Z PASS
+2026-01-12T02:03:38.8823296Z ok  	recac/internal/notify	0.066s
+2026-01-12T02:03:38.8823730Z === RUN   TestInitLogger_Configuration
+2026-01-12T02:03:38.8824207Z --- PASS: TestInitLogger_Configuration (0.00s)
+2026-01-12T02:03:38.8824677Z === RUN   TestLogError
+2026-01-12T02:03:38.8825036Z --- PASS: TestLogError (0.00s)
+2026-01-12T02:03:38.8825436Z === RUN   TestInitLogger_JSONOutput
+2026-01-12T02:03:38.8825892Z --- PASS: TestInitLogger_JSONOutput (0.00s)
+2026-01-12T02:03:38.8826557Z === RUN   TestInitLogger_VerboseMode
+2026-01-12T02:03:38.8827772Z     logger_test.go:119: WARNING: API key is visible in logs - should be masked in production
+2026-01-12T02:03:38.8828574Z --- PASS: TestInitLogger_VerboseMode (0.00s)
+2026-01-12T02:03:38.8829074Z === RUN   TestMetricsHelpers
+2026-01-12T02:03:38.8829497Z --- PASS: TestMetricsHelpers (0.00s)
+2026-01-12T02:03:38.8829949Z === RUN   TestStartMetricsServer
+2026-01-12T02:03:38.8830400Z --- PASS: TestStartMetricsServer (0.00s)
+2026-01-12T02:03:38.8830821Z PASS
+2026-01-12T02:03:38.8831117Z ok  	recac/internal/telemetry	0.006s
+2026-01-12T02:03:38.8831718Z ?   	recac/scripts/e2e_projects/mistral_verification	[no test files]

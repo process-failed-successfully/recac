@@ -1,0 +1,18 @@
+﻿2026-01-12T02:03:09.7538686Z ##[group]Run actions/cache@v4
+2026-01-12T02:03:09.7538991Z with:
+2026-01-12T02:03:09.7539196Z   path: ~/.cache/go-build
+~/go/pkg/mod
+
+2026-01-12T02:03:09.7539599Z   key: Linux-go-f409a0f2e8e9f57691b191e32714458e6fa47036c073ba0fae39c89ecdeff06d
+2026-01-12T02:03:09.7540004Z   restore-keys: Linux-go-
+
+2026-01-12T02:03:09.7540219Z   enableCrossOsArchive: false
+2026-01-12T02:03:09.7540441Z   fail-on-cache-miss: false
+2026-01-12T02:03:09.7540848Z   lookup-only: false
+2026-01-12T02:03:09.7541034Z   save-always: false
+2026-01-12T02:03:09.7541206Z env:
+2026-01-12T02:03:09.7541353Z   REGISTRY: ghcr.io
+2026-01-12T02:03:09.7541578Z   IMAGE_NAME: process-failed-successfully/recac
+2026-01-12T02:03:09.7541835Z ##[endgroup]
+2026-01-12T02:03:09.7545276Z ##[command]/usr/bin/docker exec  ae8b33e130d54e95d1cca74f511f2ef33fa55b9b8efda1a113e826fa3049aef7 sh -c "cat /etc/*release | grep ^ID"
+2026-01-12T02:03:10.1863020Z Cache not found for input keys: Linux-go-f409a0f2e8e9f57691b191e32714458e6fa47036c073ba0fae39c89ecdeff06d, Linux-go-

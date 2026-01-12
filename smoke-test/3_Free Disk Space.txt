@@ -1,0 +1,23 @@
+﻿2026-01-12T02:02:32.6458486Z ##[group]Run sudo docker system prune -a -f
+2026-01-12T02:02:32.6459060Z [36;1msudo docker system prune -a -f[0m
+2026-01-12T02:02:32.6459459Z [36;1msudo rm -rf /usr/local/lib/android[0m
+2026-01-12T02:02:32.6459833Z [36;1msudo rm -rf /usr/share/dotnet[0m
+2026-01-12T02:02:32.6460174Z [36;1msudo rm -rf /opt/ghc[0m
+2026-01-12T02:02:32.6460529Z [36;1msudo rm -rf "/usr/local/share/boost"[0m
+2026-01-12T02:02:32.6460926Z [36;1msudo rm -rf "$AGENT_TOOLSDIRECTORY"[0m
+2026-01-12T02:02:32.6461274Z [36;1mdf -h[0m
+2026-01-12T02:02:32.6497185Z shell: /usr/bin/bash -e {0}
+2026-01-12T02:02:32.6497554Z env:
+2026-01-12T02:02:32.6497818Z   REGISTRY: ghcr.io
+2026-01-12T02:02:32.6498162Z   IMAGE_NAME: process-failed-successfully/recac
+2026-01-12T02:02:32.6498563Z ##[endgroup]
+2026-01-12T02:02:32.7760338Z Total reclaimed space: 0B
+2026-01-12T02:05:08.9243193Z Filesystem      Size  Used Avail Use% Mounted on
+2026-01-12T02:05:08.9244365Z /dev/root        72G   33G   40G  46% /
+2026-01-12T02:05:08.9246727Z tmpfs           7.9G   84K  7.9G   1% /dev/shm
+2026-01-12T02:05:08.9247446Z tmpfs           3.2G  1.2M  3.2G   1% /run
+2026-01-12T02:05:08.9248023Z tmpfs           5.0M     0  5.0M   0% /run/lock
+2026-01-12T02:05:08.9248529Z /dev/sdb16      881M   62M  758M   8% /boot
+2026-01-12T02:05:08.9249099Z /dev/sdb15      105M  6.2M   99M   6% /boot/efi
+2026-01-12T02:05:08.9249547Z /dev/sda1        74G  4.1G   66G   6% /mnt
+2026-01-12T02:05:08.9249905Z tmpfs           1.6G   12K  1.6G   1% /run/user/1001

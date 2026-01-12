@@ -1,0 +1,45 @@
+﻿2026-01-12T02:05:17.0978495Z ##[group]Run AbsaOSS/k3d-action@v2
+2026-01-12T02:05:17.0978948Z with:
+2026-01-12T02:05:17.0979281Z   cluster-name: recac-smoke
+2026-01-12T02:05:17.0980116Z   args: --agents 1 --no-lb --no-lb --k3s-arg "--disable=traefik@server:*" --k3s-arg "--disable=metrics-server@server:*"
+2026-01-12T02:05:17.0980988Z env:
+2026-01-12T02:05:17.0981278Z   REGISTRY: ghcr.io
+2026-01-12T02:05:17.0981701Z   IMAGE_NAME: process-failed-successfully/recac
+2026-01-12T02:05:17.0982190Z ##[endgroup]
+2026-01-12T02:05:17.1085219Z ##[group]Run /home/runner/work/_actions/AbsaOSS/k3d-action/v2/run.sh deploy
+2026-01-12T02:05:17.1085901Z [36;1m/home/runner/work/_actions/AbsaOSS/k3d-action/v2/run.sh deploy[0m
+2026-01-12T02:05:17.1120704Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-01-12T02:05:17.1121035Z env:
+2026-01-12T02:05:17.1121222Z   REGISTRY: ghcr.io
+2026-01-12T02:05:17.1121477Z   IMAGE_NAME: process-failed-successfully/recac
+2026-01-12T02:05:17.1121768Z   CLUSTER_NAME: recac-smoke
+2026-01-12T02:05:17.1122241Z   ARGS: --agents 1 --no-lb --no-lb --k3s-arg "--disable=traefik@server:*" --k3s-arg "--disable=metrics-server@server:*"
+2026-01-12T02:05:17.1122769Z   K3D_VERSION:
+2026-01-12T02:05:17.1122957Z ##[endgroup]
+2026-01-12T02:05:17.1198838Z [0;33mDownloading [1;36mk3d@v5.4.6 [0msee: https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh
+2026-01-12T02:05:17.5290483Z Preparing to install k3d into /usr/local/bin
+2026-01-12T02:05:17.5565201Z k3d installed into /usr/local/bin/k3d
+2026-01-12T02:05:17.5566166Z Run 'k3d --help' to see what you can do with it.
+2026-01-12T02:05:17.5616628Z xisting_network[0;33mDeploy cluster [1;36mrecac-smoke [0m
+2026-01-12T02:05:17.5796300Z [36mINFO[0m[0000] Prep: Network
+2026-01-12T02:05:17.7322371Z [36mINFO[0m[0000] Created network 'k3d-recac-smoke'
+2026-01-12T02:05:17.7340206Z [36mINFO[0m[0000] Created image volume k3d-recac-smoke-images
+2026-01-12T02:05:17.7359195Z [36mINFO[0m[0000] Starting new tools node...
+2026-01-12T02:05:18.0750095Z [36mINFO[0m[0000] Pulling image 'ghcr.io/k3d-io/k3d-tools:5.4.6'
+2026-01-12T02:05:18.7417710Z [36mINFO[0m[0001] Creating node 'k3d-recac-smoke-server-0'
+2026-01-12T02:05:19.1599882Z [36mINFO[0m[0001] Starting Node 'k3d-recac-smoke-tools'
+2026-01-12T02:05:19.1926955Z [36mINFO[0m[0001] Pulling image 'docker.io/rancher/k3s:v1.24.4-k3s1'
+2026-01-12T02:05:21.9573992Z [36mINFO[0m[0004] Creating node 'k3d-recac-smoke-agent-0'
+2026-01-12T02:05:21.9759004Z [36mINFO[0m[0004] Using the k3d-tools node to gather environment information
+2026-01-12T02:05:22.0953161Z [36mINFO[0m[0004] HostIP: using network gateway 172.18.0.1 address
+2026-01-12T02:05:22.0954288Z [36mINFO[0m[0004] Starting cluster 'recac-smoke'
+2026-01-12T02:05:22.0955441Z [36mINFO[0m[0004] Starting servers...
+2026-01-12T02:05:22.1074127Z [36mINFO[0m[0004] Starting Node 'k3d-recac-smoke-server-0'
+2026-01-12T02:05:26.5139425Z [36mINFO[0m[0008] Starting agents...
+2026-01-12T02:05:26.5368664Z [36mINFO[0m[0008] Starting Node 'k3d-recac-smoke-agent-0'
+2026-01-12T02:05:33.4407301Z [36mINFO[0m[0015] All helpers already running.
+2026-01-12T02:05:33.4473245Z [36mINFO[0m[0015] Injecting records for hostAliases (incl. host.k3d.internal) and for 2 network members into CoreDNS configmap...
+2026-01-12T02:05:35.4622743Z [36mINFO[0m[0017] Cluster 'recac-smoke' created successfully!
+2026-01-12T02:05:35.4682776Z [36mINFO[0m[0017] You can now use it like this:
+2026-01-12T02:05:35.4683318Z kubectl cluster-info
+2026-01-12T02:05:35.4694673Z [0;33mwait until all agents are ready[0m

@@ -1,0 +1,1444 @@
+﻿2026-01-12T02:02:51.3413943Z Current runner version: '2.330.0'
+2026-01-12T02:02:51.3448263Z ##[group]Runner Image Provisioner
+2026-01-12T02:02:51.3449685Z Hosted Compute Agent
+2026-01-12T02:02:51.3450586Z Version: 20251211.462
+2026-01-12T02:02:51.3451595Z Commit: 6cbad8c2bb55d58165063d031ccabf57e2d2db61
+2026-01-12T02:02:51.3452766Z Build Date: 2025-12-11T16:28:49Z
+2026-01-12T02:02:51.3453977Z Worker ID: {c9893a82-a964-4e97-b260-bf99831d5de8}
+2026-01-12T02:02:51.3455150Z ##[endgroup]
+2026-01-12T02:02:51.3456100Z ##[group]Operating System
+2026-01-12T02:02:51.3457176Z Ubuntu
+2026-01-12T02:02:51.3457889Z 24.04.3
+2026-01-12T02:02:51.3458817Z LTS
+2026-01-12T02:02:51.3459669Z ##[endgroup]
+2026-01-12T02:02:51.3460539Z ##[group]Runner Image
+2026-01-12T02:02:51.3461373Z Image: ubuntu-24.04
+2026-01-12T02:02:51.3462294Z Version: 20260105.202.1
+2026-01-12T02:02:51.3463972Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260105.202/images/ubuntu/Ubuntu2404-Readme.md
+2026-01-12T02:02:51.3466949Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260105.202
+2026-01-12T02:02:51.3468950Z ##[endgroup]
+2026-01-12T02:02:51.3470921Z ##[group]GITHUB_TOKEN Permissions
+2026-01-12T02:02:51.3473440Z Contents: read
+2026-01-12T02:02:51.3474335Z Metadata: read
+2026-01-12T02:02:51.3475176Z Packages: read
+2026-01-12T02:02:51.3476020Z ##[endgroup]
+2026-01-12T02:02:51.3479367Z Secret source: Actions
+2026-01-12T02:02:51.3480484Z Prepare workflow directory
+2026-01-12T02:02:51.4244963Z Prepare all required actions
+2026-01-12T02:02:51.4303819Z Getting action download info
+2026-01-12T02:02:51.6313754Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+2026-01-12T02:02:51.7290120Z Download action repository 'actions/setup-go@v5' (SHA:40f1582b2485089dde7abd97c1529aa768e1baff)
+2026-01-12T02:02:52.0986024Z Complete job name: test (4)
+2026-01-12T02:02:52.1615953Z ##[group]Run actions/checkout@v4
+2026-01-12T02:02:52.1616924Z with:
+2026-01-12T02:02:52.1617394Z   repository: process-failed-successfully/recac
+2026-01-12T02:02:52.1618181Z   token: ***
+2026-01-12T02:02:52.1618760Z   ssh-strict: true
+2026-01-12T02:02:52.1619172Z   ssh-user: git
+2026-01-12T02:02:52.1619569Z   persist-credentials: true
+2026-01-12T02:02:52.1620008Z   clean: true
+2026-01-12T02:02:52.1620426Z   sparse-checkout-cone-mode: true
+2026-01-12T02:02:52.1620927Z   fetch-depth: 1
+2026-01-12T02:02:52.1621316Z   fetch-tags: false
+2026-01-12T02:02:52.1621720Z   show-progress: true
+2026-01-12T02:02:52.1622122Z   lfs: false
+2026-01-12T02:02:52.1622486Z   submodules: false
+2026-01-12T02:02:52.1622906Z   set-safe-directory: true
+2026-01-12T02:02:52.1623576Z env:
+2026-01-12T02:02:52.1623952Z   REGISTRY: ghcr.io
+2026-01-12T02:02:52.1624416Z   IMAGE_NAME: process-failed-successfully/recac
+2026-01-12T02:02:52.1624967Z ##[endgroup]
+2026-01-12T02:02:52.2785821Z Syncing repository: process-failed-successfully/recac
+2026-01-12T02:02:52.2788328Z ##[group]Getting Git version info
+2026-01-12T02:02:52.2789632Z Working directory is '/home/runner/work/recac/recac'
+2026-01-12T02:02:52.2791089Z [command]/usr/bin/git version
+2026-01-12T02:02:52.6158204Z git version 2.52.0
+2026-01-12T02:02:52.6187539Z ##[endgroup]
+2026-01-12T02:02:52.6202348Z Temporarily overriding HOME='/home/runner/work/_temp/aaf278de-77b4-4a43-9d75-87885444b69c' before making global git config changes
+2026-01-12T02:02:52.6204878Z Adding repository directory to the temporary git global config as a safe directory
+2026-01-12T02:02:52.6209658Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/recac/recac
+2026-01-12T02:02:52.6253138Z Deleting the contents of '/home/runner/work/recac/recac'
+2026-01-12T02:02:52.6257115Z ##[group]Initializing the repository
+2026-01-12T02:02:52.6261717Z [command]/usr/bin/git init /home/runner/work/recac/recac
+2026-01-12T02:02:52.6394064Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-01-12T02:02:52.6396123Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-01-12T02:02:52.6398416Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-01-12T02:02:52.6400174Z hint: call:
+2026-01-12T02:02:52.6400780Z hint:
+2026-01-12T02:02:52.6401350Z hint: 	git config --global init.defaultBranch <name>
+2026-01-12T02:02:52.6402115Z hint:
+2026-01-12T02:02:52.6402846Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-01-12T02:02:52.6403968Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-01-12T02:02:52.6404911Z hint:
+2026-01-12T02:02:52.6405578Z hint: 	git branch -m <name>
+2026-01-12T02:02:52.6406367Z hint:
+2026-01-12T02:02:52.6407183Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-01-12T02:02:52.6408158Z Initialized empty Git repository in /home/runner/work/recac/recac/.git/
+2026-01-12T02:02:52.6412520Z [command]/usr/bin/git remote add origin https://github.com/process-failed-successfully/recac
+2026-01-12T02:02:52.6449024Z ##[endgroup]
+2026-01-12T02:02:52.6449971Z ##[group]Disabling automatic garbage collection
+2026-01-12T02:02:52.6453600Z [command]/usr/bin/git config --local gc.auto 0
+2026-01-12T02:02:52.6483148Z ##[endgroup]
+2026-01-12T02:02:52.6484210Z ##[group]Setting up auth
+2026-01-12T02:02:52.6489721Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-01-12T02:02:52.6519626Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-01-12T02:02:52.6892144Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-01-12T02:02:52.6921171Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-01-12T02:02:52.7143747Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-01-12T02:02:52.7176518Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-01-12T02:02:52.7403368Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-01-12T02:02:52.7440041Z ##[endgroup]
+2026-01-12T02:02:52.7441476Z ##[group]Fetching the repository
+2026-01-12T02:02:52.7450527Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +711435681f59fa2ad8e1c6ecc2efe015d25327cc:refs/remotes/pull/262/merge
+2026-01-12T02:02:53.0078049Z From https://github.com/process-failed-successfully/recac
+2026-01-12T02:02:53.0081851Z  * [new ref]         711435681f59fa2ad8e1c6ecc2efe015d25327cc -> pull/262/merge
+2026-01-12T02:02:53.0113558Z ##[endgroup]
+2026-01-12T02:02:53.0114679Z ##[group]Determining the checkout info
+2026-01-12T02:02:53.0116144Z ##[endgroup]
+2026-01-12T02:02:53.0121777Z [command]/usr/bin/git sparse-checkout disable
+2026-01-12T02:02:53.0166423Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-01-12T02:02:53.0195140Z ##[group]Checking out the ref
+2026-01-12T02:02:53.0199083Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/262/merge
+2026-01-12T02:02:53.0524126Z Note: switching to 'refs/remotes/pull/262/merge'.
+2026-01-12T02:02:53.0525512Z
+2026-01-12T02:02:53.0526573Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-01-12T02:02:53.0529101Z changes and commit them, and you can discard any commits you make in this
+2026-01-12T02:02:53.0530938Z state without impacting any branches by switching back to a branch.
+2026-01-12T02:02:53.0531985Z
+2026-01-12T02:02:53.0532880Z If you want to create a new branch to retain commits you create, you may
+2026-01-12T02:02:53.0534991Z do so (now or later) by using -c with the switch command. Example:
+2026-01-12T02:02:53.0535928Z
+2026-01-12T02:02:53.0536289Z   git switch -c <new-branch-name>
+2026-01-12T02:02:53.0537294Z
+2026-01-12T02:02:53.0537651Z Or undo this operation with:
+2026-01-12T02:02:53.0538367Z
+2026-01-12T02:02:53.0538989Z   git switch -
+2026-01-12T02:02:53.0539528Z
+2026-01-12T02:02:53.0540351Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-01-12T02:02:53.0541603Z
+2026-01-12T02:02:53.0543028Z HEAD is now at 7114356 Merge 6e419ba82d62ba7129cb4ce099b7f058885350fc into d99bf56d1841b4536517f84124a0ef93e3184a90
+2026-01-12T02:02:53.0547374Z ##[endgroup]
+2026-01-12T02:02:53.0576423Z [command]/usr/bin/git log -1 --format=%H
+2026-01-12T02:02:53.0599820Z 711435681f59fa2ad8e1c6ecc2efe015d25327cc
+2026-01-12T02:02:53.0907294Z ##[group]Run actions/setup-go@v5
+2026-01-12T02:02:53.0908424Z with:
+2026-01-12T02:02:53.0909523Z   go-version-file: go.mod
+2026-01-12T02:02:53.0910536Z   check-latest: false
+2026-01-12T02:02:53.0911760Z   token: ***
+2026-01-12T02:02:53.0912599Z   cache: true
+2026-01-12T02:02:53.0913404Z env:
+2026-01-12T02:02:53.0914177Z   REGISTRY: ghcr.io
+2026-01-12T02:02:53.0915270Z   IMAGE_NAME: process-failed-successfully/recac
+2026-01-12T02:02:53.0916561Z ##[endgroup]
+2026-01-12T02:02:53.2577262Z Setup go version spec 1.25.0
+2026-01-12T02:02:53.2603988Z Attempting to download 1.25.0...
+2026-01-12T02:02:53.5751521Z matching 1.25.0...
+2026-01-12T02:02:53.5788978Z Acquiring 1.25.0 from https://github.com/actions/go-versions/releases/download/1.25.0-16925932082/go-1.25.0-linux-x64.tar.gz
+2026-01-12T02:02:54.0605951Z Extracting Go...
+2026-01-12T02:02:54.0713596Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/18bdd3f2-2fde-4bec-ad2d-c68a6df549eb -f /home/runner/work/_temp/b830bc40-eb56-412e-8a47-c084298386dd
+2026-01-12T02:02:55.5352656Z Successfully extracted go to /home/runner/work/_temp/18bdd3f2-2fde-4bec-ad2d-c68a6df549eb
+2026-01-12T02:02:55.5353416Z Adding to the cache ...
+2026-01-12T02:03:00.6651090Z Successfully cached go to /opt/hostedtoolcache/go/1.25.0/x64
+2026-01-12T02:03:00.6654168Z Added go to the path
+2026-01-12T02:03:00.6656586Z Successfully set up Go version 1.25.0
+2026-01-12T02:03:00.6922618Z [command]/opt/hostedtoolcache/go/1.25.0/x64/bin/go env GOMODCACHE
+2026-01-12T02:03:00.6967642Z [command]/opt/hostedtoolcache/go/1.25.0/x64/bin/go env GOCACHE
+2026-01-12T02:03:00.7002929Z /home/runner/go/pkg/mod
+2026-01-12T02:03:00.7024940Z /home/runner/.cache/go-build
+2026-01-12T02:03:00.7614531Z Cache hit for: setup-go-Linux-x64-ubuntu24-go-1.25.0-f409a0f2e8e9f57691b191e32714458e6fa47036c073ba0fae39c89ecdeff06d
+2026-01-12T02:03:01.8168473Z Received 188331153 of 188331153 (100.0%), 178.5 MBs/sec
+2026-01-12T02:03:01.8169638Z Cache Size: ~180 MB (188331153 B)
+2026-01-12T02:03:01.8234313Z [command]/usr/bin/tar -xf /home/runner/work/_temp/34b95e33-3923-4ae0-87ed-a76685c5a24e/cache.tzst -P -C /home/runner/work/recac/recac --use-compress-program unzstd
+2026-01-12T02:03:03.8551573Z Cache restored successfully
+2026-01-12T02:03:03.8916403Z Cache restored from key: setup-go-Linux-x64-ubuntu24-go-1.25.0-f409a0f2e8e9f57691b191e32714458e6fa47036c073ba0fae39c89ecdeff06d
+2026-01-12T02:03:03.8944177Z go version go1.25.0 linux/amd64
+2026-01-12T02:03:03.8944378Z
+2026-01-12T02:03:03.8944677Z ##[group]go env
+2026-01-12T02:03:03.9110453Z AR='ar'
+2026-01-12T02:03:03.9110884Z CC='gcc'
+2026-01-12T02:03:03.9111290Z CGO_CFLAGS='-O2 -g'
+2026-01-12T02:03:03.9111752Z CGO_CPPFLAGS=''
+2026-01-12T02:03:03.9112155Z CGO_CXXFLAGS='-O2 -g'
+2026-01-12T02:03:03.9112548Z CGO_ENABLED='1'
+2026-01-12T02:03:03.9112928Z CGO_FFLAGS='-O2 -g'
+2026-01-12T02:03:03.9113336Z CGO_LDFLAGS='-O2 -g'
+2026-01-12T02:03:03.9113719Z CXX='g++'
+2026-01-12T02:03:03.9114065Z GCCGO='gccgo'
+2026-01-12T02:03:03.9114552Z GO111MODULE=''
+2026-01-12T02:03:03.9114905Z GOAMD64='v1'
+2026-01-12T02:03:03.9115241Z GOARCH='amd64'
+2026-01-12T02:03:03.9115551Z GOAUTH='netrc'
+2026-01-12T02:03:03.9115824Z GOBIN=''
+2026-01-12T02:03:03.9116190Z GOCACHE='/home/runner/.cache/go-build'
+2026-01-12T02:03:03.9116605Z GOCACHEPROG=''
+2026-01-12T02:03:03.9116897Z GODEBUG=''
+2026-01-12T02:03:03.9117219Z GOENV='/home/runner/.config/go/env'
+2026-01-12T02:03:03.9118009Z GOEXE=''
+2026-01-12T02:03:03.9118283Z GOEXPERIMENT=''
+2026-01-12T02:03:03.9118805Z GOFIPS140='off'
+2026-01-12T02:03:03.9119120Z GOFLAGS=''
+2026-01-12T02:03:03.9120185Z GOGCCFLAGS='-fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=/tmp/go-build605636727=/tmp/go-build -gno-record-gcc-switches'
+2026-01-12T02:03:03.9121303Z GOHOSTARCH='amd64'
+2026-01-12T02:03:03.9121610Z GOHOSTOS='linux'
+2026-01-12T02:03:03.9121930Z GOINSECURE=''
+2026-01-12T02:03:03.9122322Z GOMOD='/home/runner/work/recac/recac/go.mod'
+2026-01-12T02:03:03.9123135Z GOMODCACHE='/home/runner/go/pkg/mod'
+2026-01-12T02:03:03.9123595Z GONOPROXY=''
+2026-01-12T02:03:03.9123885Z GONOSUMDB=''
+2026-01-12T02:03:03.9124179Z GOOS='linux'
+2026-01-12T02:03:03.9124485Z GOPATH='/home/runner/go'
+2026-01-12T02:03:03.9124809Z GOPRIVATE=''
+2026-01-12T02:03:03.9125179Z GOPROXY='https://proxy.golang.org,direct'
+2026-01-12T02:03:03.9125680Z GOROOT='/opt/hostedtoolcache/go/1.25.0/x64'
+2026-01-12T02:03:03.9126123Z GOSUMDB='sum.golang.org'
+2026-01-12T02:03:03.9126464Z GOTELEMETRY='local'
+2026-01-12T02:03:03.9126857Z GOTELEMETRYDIR='/home/runner/.config/go/telemetry'
+2026-01-12T02:03:03.9127309Z GOTMPDIR=''
+2026-01-12T02:03:03.9127615Z GOTOOLCHAIN='auto'
+2026-01-12T02:03:03.9128118Z GOTOOLDIR='/opt/hostedtoolcache/go/1.25.0/x64/pkg/tool/linux_amd64'
+2026-01-12T02:03:03.9128889Z GOVCS=''
+2026-01-12T02:03:03.9129171Z GOVERSION='go1.25.0'
+2026-01-12T02:03:03.9129489Z GOWORK=''
+2026-01-12T02:03:03.9129792Z PKG_CONFIG='pkg-config'
+2026-01-12T02:03:03.9130011Z
+2026-01-12T02:03:03.9130403Z ##[endgroup]
+2026-01-12T02:03:03.9379945Z ##[group]Run docker build -t recac-agent:latest -f internal/docker/agent.Dockerfile .
+2026-01-12T02:03:03.9380590Z [36;1mdocker build -t recac-agent:latest -f internal/docker/agent.Dockerfile .[0m
+2026-01-12T02:03:03.9418464Z shell: /usr/bin/bash -e {0}
+2026-01-12T02:03:03.9419009Z env:
+2026-01-12T02:03:03.9419181Z   REGISTRY: ghcr.io
+2026-01-12T02:03:03.9419427Z   IMAGE_NAME: process-failed-successfully/recac
+2026-01-12T02:03:03.9419728Z ##[endgroup]
+2026-01-12T02:03:04.6815610Z #0 building with "default" instance using docker driver
+2026-01-12T02:03:04.6816189Z
+2026-01-12T02:03:04.6816548Z #1 [internal] load build definition from agent.Dockerfile
+2026-01-12T02:03:04.6817251Z #1 transferring dockerfile: 517B done
+2026-01-12T02:03:04.6817615Z #1 DONE 0.0s
+2026-01-12T02:03:04.6817823Z
+2026-01-12T02:03:04.6818174Z #2 [auth] library/golang:pull token for registry-1.docker.io
+2026-01-12T02:03:04.6819141Z #2 DONE 0.0s
+2026-01-12T02:03:04.6819389Z
+2026-01-12T02:03:04.6819844Z #3 [internal] load metadata for docker.io/library/golang:1.25-alpine
+2026-01-12T02:03:04.9225396Z #3 DONE 0.5s
+2026-01-12T02:03:05.0407201Z
+2026-01-12T02:03:05.0407870Z #4 [internal] load .dockerignore
+2026-01-12T02:03:05.0408276Z #4 transferring context: 376B done
+2026-01-12T02:03:05.0408834Z #4 DONE 0.0s
+2026-01-12T02:03:05.0409072Z
+2026-01-12T02:03:05.0409548Z #5 [1/4] FROM docker.io/library/golang:1.25-alpine@sha256:ac09a5f469f307e5da71e766b0bd59c9c49ea460a528cc3e6686513d64a6f1fb
+2026-01-12T02:03:05.0411035Z #5 resolve docker.io/library/golang:1.25-alpine@sha256:ac09a5f469f307e5da71e766b0bd59c9c49ea460a528cc3e6686513d64a6f1fb done
+2026-01-12T02:03:05.0412421Z #5 sha256:ac09a5f469f307e5da71e766b0bd59c9c49ea460a528cc3e6686513d64a6f1fb 10.29kB / 10.29kB done
+2026-01-12T02:03:05.0413494Z #5 sha256:301db1784c200c7ec221a84672d0bd3ffdcf6c873bc9806482bbe730910924fb 1.92kB / 1.92kB done
+2026-01-12T02:03:05.0414669Z #5 sha256:4ef5200fdbf03c03780e5f7356c20c226596c5130d1019491b49d2ae7968133e 2.19kB / 2.19kB done
+2026-01-12T02:03:05.0415419Z #5 sha256:1074353eec0db2c1d81d5af2671e56e00cf5738486f5762609ea33d606f88612 3.15MB / 3.86MB 0.1s
+2026-01-12T02:03:05.0416135Z #5 sha256:665f62578bcef03586d252ea1bc3a3f2f936e5bc570a754bd62e098f67225c6e 0B / 296.08kB 0.1s
+2026-01-12T02:03:05.0417144Z #5 sha256:5c445a0e108b509dd422d6adce512f16cb7edd37814e8e3509850820377bcf06 0B / 60.15MB 0.1s
+2026-01-12T02:03:05.1592281Z #5 sha256:1074353eec0db2c1d81d5af2671e56e00cf5738486f5762609ea33d606f88612 3.86MB / 3.86MB 0.1s done
+2026-01-12T02:03:05.1594201Z #5 sha256:665f62578bcef03586d252ea1bc3a3f2f936e5bc570a754bd62e098f67225c6e 296.08kB / 296.08kB 0.1s done
+2026-01-12T02:03:05.1596222Z #5 sha256:5c445a0e108b509dd422d6adce512f16cb7edd37814e8e3509850820377bcf06 6.29MB / 60.15MB 0.2s
+2026-01-12T02:03:05.1597606Z #5 extracting sha256:1074353eec0db2c1d81d5af2671e56e00cf5738486f5762609ea33d606f88612 0.1s
+2026-01-12T02:03:05.1599948Z #5 sha256:97e8847bf924ea4cced11c4db1360c8c8ba93cdeeced7418f48f430e219ebf94 0B / 127B 0.2s
+2026-01-12T02:03:05.1601119Z #5 sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1 32B / 32B 0.2s done
+2026-01-12T02:03:05.3409590Z #5 sha256:5c445a0e108b509dd422d6adce512f16cb7edd37814e8e3509850820377bcf06 34.60MB / 60.15MB 0.4s
+2026-01-12T02:03:05.3412432Z #5 extracting sha256:1074353eec0db2c1d81d5af2671e56e00cf5738486f5762609ea33d606f88612 0.1s done
+2026-01-12T02:03:05.3413973Z #5 sha256:97e8847bf924ea4cced11c4db1360c8c8ba93cdeeced7418f48f430e219ebf94 127B / 127B 0.2s done
+2026-01-12T02:03:05.3415653Z #5 extracting sha256:665f62578bcef03586d252ea1bc3a3f2f936e5bc570a754bd62e098f67225c6e 0.1s done
+2026-01-12T02:03:05.5402804Z #5 sha256:5c445a0e108b509dd422d6adce512f16cb7edd37814e8e3509850820377bcf06 57.67MB / 60.15MB 0.6s
+2026-01-12T02:03:05.8404960Z #5 sha256:5c445a0e108b509dd422d6adce512f16cb7edd37814e8e3509850820377bcf06 60.15MB / 60.15MB 0.9s done
+2026-01-12T02:03:08.3336239Z #5 extracting sha256:5c445a0e108b509dd422d6adce512f16cb7edd37814e8e3509850820377bcf06
+2026-01-12T02:03:12.7402035Z #5 extracting sha256:5c445a0e108b509dd422d6adce512f16cb7edd37814e8e3509850820377bcf06 4.3s done
+2026-01-12T02:03:13.2022152Z #5 extracting sha256:97e8847bf924ea4cced11c4db1360c8c8ba93cdeeced7418f48f430e219ebf94
+2026-01-12T02:03:13.3864396Z #5 extracting sha256:97e8847bf924ea4cced11c4db1360c8c8ba93cdeeced7418f48f430e219ebf94 done
+2026-01-12T02:03:13.3865396Z #5 extracting sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1 done
+2026-01-12T02:03:13.3866011Z #5 DONE 8.3s
+2026-01-12T02:03:13.3866150Z
+2026-01-12T02:03:13.3867070Z #6 [2/4] RUN apk add --no-cache     nodejs     npm     python3     py3-pip     curl     git     jq     bash     unzip     libc6-compat     docker-cli     coreutils     make     sudo     wget     ca-certificates     shadow     util-linux
+2026-01-12T02:03:13.7460968Z #6 0.510 ( 1/99) Installing ncurses-terminfo-base (6.5_p20251123-r0)
+2026-01-12T02:03:13.8477585Z #6 0.528 ( 2/99) Installing libncursesw (6.5_p20251123-r0)
+2026-01-12T02:03:13.8478414Z #6 0.544 ( 3/99) Installing readline (8.3.1-r0)
+2026-01-12T02:03:13.8479181Z #6 0.568 ( 4/99) Installing bash (5.3.3-r1)
+2026-01-12T02:03:13.8479608Z #6 0.593   Executing bash-5.3.3-r1.post-install
+2026-01-12T02:03:13.8480056Z #6 0.597 ( 5/99) Installing coreutils-env (9.8-r1)
+2026-01-12T02:03:13.8480509Z #6 0.612 ( 6/99) Installing coreutils-fmt (9.8-r1)
+2026-01-12T02:03:13.9490758Z #6 0.625 ( 7/99) Installing coreutils-sha512sum (9.8-r1)
+2026-01-12T02:03:13.9492146Z #6 0.643 ( 8/99) Installing acl-libs (2.3.2-r1)
+2026-01-12T02:03:13.9492875Z #6 0.658 ( 9/99) Installing libattr (2.5.2-r2)
+2026-01-12T02:03:13.9493668Z #6 0.684 (10/99) Installing skalibs-libs (2.14.4.0-r0)
+2026-01-12T02:03:13.9494333Z #6 0.698 (11/99) Installing utmps-libs (0.1.3.1-r0)
+2026-01-12T02:03:13.9494970Z #6 0.713 (12/99) Installing coreutils (9.8-r1)
+2026-01-12T02:03:14.0748285Z #6 0.741 (13/99) Installing brotli-libs (1.2.0-r0)
+2026-01-12T02:03:14.0749235Z #6 0.764 (14/99) Installing c-ares (1.34.6-r0)
+2026-01-12T02:03:14.0749928Z #6 0.782 (15/99) Installing libunistring (1.4.1-r0)
+2026-01-12T02:03:14.0750362Z #6 0.813 (16/99) Installing libidn2 (2.3.8-r0)
+2026-01-12T02:03:14.0750801Z #6 0.839 (17/99) Installing nghttp2-libs (1.68.0-r0)
+2026-01-12T02:03:14.3231632Z #6 0.858 (18/99) Installing nghttp3 (1.13.1-r0)
+2026-01-12T02:03:14.3232288Z #6 0.870 (19/99) Installing libpsl (0.21.5-r3)
+2026-01-12T02:03:14.3232729Z #6 0.887 (20/99) Installing zstd-libs (1.5.7-r2)
+2026-01-12T02:03:14.3233429Z #6 0.904 (21/99) Installing libcurl (8.17.0-r1)
+2026-01-12T02:03:14.3233836Z #6 0.921 (22/99) Installing curl (8.17.0-r1)
+2026-01-12T02:03:14.3234259Z #6 0.937 (23/99) Installing docker-cli (29.1.3-r0)
+2026-01-12T02:03:14.3247421Z #6 1.089 (24/99) Installing libexpat (2.7.3-r0)
+2026-01-12T02:03:14.5081772Z #6 1.102 (25/99) Installing pcre2 (10.47-r0)
+2026-01-12T02:03:14.5082401Z #6 1.122 (26/99) Installing git (2.52.0-r0)
+2026-01-12T02:03:14.5182296Z #6 1.283 (27/99) Installing git-init-template (2.52.0-r0)
+2026-01-12T02:03:14.6322872Z #6 1.296 (28/99) Installing oniguruma (6.9.10-r0)
+2026-01-12T02:03:14.6323567Z #6 1.311 (29/99) Installing jq (1.8.1-r0)
+2026-01-12T02:03:14.6323986Z #6 1.325 (30/99) Installing musl-obstack (1.2.3-r2)
+2026-01-12T02:03:14.6324404Z #6 1.337 (31/99) Installing libucontext (1.3.3-r0)
+2026-01-12T02:03:14.6324802Z #6 1.351 (32/99) Installing gcompat (1.1.0-r4)
+2026-01-12T02:03:14.6325166Z #6 1.363 (33/99) Installing make (4.4.1-r3)
+2026-01-12T02:03:14.6325522Z #6 1.382 (34/99) Installing libgcc (15.2.0-r2)
+2026-01-12T02:03:14.6325915Z #6 1.397 (35/99) Installing libstdc++ (15.2.0-r2)
+2026-01-12T02:03:14.7973583Z #6 1.424 (36/99) Installing ada-libs (3.3.0-r0)
+2026-01-12T02:03:14.7974353Z #6 1.441 (37/99) Installing icu-data-en (76.1-r1)
+2026-01-12T02:03:14.7974875Z #6 1.470   Executing icu-data-en-76.1-r1.post-install
+2026-01-12T02:03:14.7975289Z #6 1.473   *
+2026-01-12T02:03:14.7975775Z #6 1.473   * If you need ICU with non-English locales and legacy charset support, install
+2026-01-12T02:03:14.7976361Z #6 1.473   * package icu-data-full.
+2026-01-12T02:03:14.7976990Z #6 1.473   *
+2026-01-12T02:03:14.7977284Z #6 1.474 (38/99) Installing icu-libs (76.1-r1)
+2026-01-12T02:03:14.7977710Z #6 1.562 (39/99) Installing simdjson (3.12.0-r0)
+2026-01-12T02:03:15.0280711Z #6 1.580 (40/99) Installing simdutf (7.5.0-r0)
+2026-01-12T02:03:15.0281500Z #6 1.598 (41/99) Installing sqlite-libs (3.51.1-r0)
+2026-01-12T02:03:15.0282210Z #6 1.642 (42/99) Installing nodejs (24.11.1-r0)
+2026-01-12T02:03:15.1605673Z #6 1.925 (43/99) Installing npm (11.6.3-r0)
+2026-01-12T02:03:15.3566244Z #6 2.121 (44/99) Installing libbz2 (1.0.8-r6)
+2026-01-12T02:03:15.5970936Z #6 2.135 (45/99) Installing libffi (3.5.2-r0)
+2026-01-12T02:03:15.5971553Z #6 2.150 (46/99) Installing gdbm (1.26-r0)
+2026-01-12T02:03:15.5972042Z #6 2.166 (47/99) Installing xz-libs (5.8.1-r0)
+2026-01-12T02:03:15.5972437Z #6 2.183 (48/99) Installing mpdecimal (4.0.1-r0)
+2026-01-12T02:03:15.5972852Z #6 2.196 (49/99) Installing libpanelw (6.5_p20251123-r0)
+2026-01-12T02:03:15.5973281Z #6 2.211 (50/99) Installing python3 (3.12.12-r0)
+2026-01-12T02:03:15.6276300Z #6 2.392 (51/99) Installing python3-pycache-pyc0 (3.12.12-r0)
+2026-01-12T02:03:15.7502861Z #6 2.514 (52/99) Installing pyc (3.12.12-r0)
+2026-01-12T02:03:15.7503587Z #6 2.514 (53/99) Installing py3-setuptools-pyc (80.9.0-r2)
+2026-01-12T02:03:15.8570215Z #6 2.621 (54/99) Installing py3-pip-pyc (25.1.1-r1)
+2026-01-12T02:03:15.9630717Z #6 2.711 (55/99) Installing py3-packaging-pyc (25.0-r0)
+2026-01-12T02:03:15.9631269Z #6 2.727 (56/99) Installing python3-pyc (3.12.12-r0)
+2026-01-12T02:03:15.9631709Z #6 2.727 (57/99) Installing py3-parsing (3.2.3-r0)
+2026-01-12T02:03:16.0950622Z #6 2.752 (58/99) Installing py3-parsing-pyc (3.2.3-r0)
+2026-01-12T02:03:16.0951332Z #6 2.771 (59/99) Installing py3-packaging (25.0-r0)
+2026-01-12T02:03:16.0951800Z #6 2.786 (60/99) Installing py3-setuptools (80.9.0-r2)
+2026-01-12T02:03:16.0952212Z #6 2.859 (61/99) Installing py3-pip (25.1.1-r1)
+2026-01-12T02:03:16.2004625Z #6 2.934 (62/99) Installing libmd (1.1.0-r0)
+2026-01-12T02:03:16.2005259Z #6 2.965 (63/99) Installing libbsd (0.12.2-r0)
+2026-01-12T02:03:16.3077799Z #6 3.011 (64/99) Installing linux-pam (1.7.1-r2)
+2026-01-12T02:03:16.3078266Z #6 3.042 (65/99) Installing shadow (4.18.0-r0)
+2026-01-12T02:03:16.3078862Z #6 3.072 (66/99) Installing sudo (1.9.17_p2-r0)
+2026-01-12T02:03:16.4577123Z #6 3.103 (67/99) Installing unzip (6.0-r16)
+2026-01-12T02:03:16.4577704Z #6 3.116 (68/99) Installing util-linux (2.41.2-r0)
+2026-01-12T02:03:16.4578400Z #6 3.129 (69/99) Installing dmesg (2.41.2-r0)
+2026-01-12T02:03:16.4579073Z #6 3.222 (70/99) Installing setarch (2.41.2-r0)
+2026-01-12T02:03:16.5772715Z #6 3.256 (71/99) Installing libeconf (0.8.0-r0)
+2026-01-12T02:03:16.5773112Z #6 3.278 (72/99) Installing libblkid (2.41.2-r0)
+2026-01-12T02:03:16.5773437Z #6 3.303 (73/99) Installing libuuid (2.41.2-r0)
+2026-01-12T02:03:16.5773744Z #6 3.316 (74/99) Installing libfdisk (2.41.2-r0)
+2026-01-12T02:03:16.5774040Z #6 3.342 (75/99) Installing libmount (2.41.2-r0)
+2026-01-12T02:03:16.6861941Z #6 3.361 (76/99) Installing libsmartcols (2.41.2-r0)
+2026-01-12T02:03:16.6862553Z #6 3.398 (77/99) Installing util-linux-misc (2.41.2-r0)
+2026-01-12T02:03:16.6862971Z #6 3.436 (78/99) Installing runuser (2.41.2-r0)
+2026-01-12T02:03:16.6863358Z #6 3.451 (79/99) Installing mount (2.41.2-r0)
+2026-01-12T02:03:16.8023830Z #6 3.466 (80/99) Installing losetup (2.41.2-r0)
+2026-01-12T02:03:16.8024384Z #6 3.479 (81/99) Installing hexdump (2.41.2-r0)
+2026-01-12T02:03:16.8024806Z #6 3.495 (82/99) Installing uuidgen (2.41.2-r0)
+2026-01-12T02:03:16.8025186Z #6 3.524 (83/99) Installing blkid (2.41.2-r0)
+2026-01-12T02:03:16.8025559Z #6 3.550 (84/99) Installing sfdisk (2.41.2-r0)
+2026-01-12T02:03:16.8025925Z #6 3.567 (85/99) Installing mcookie (2.41.2-r0)
+2026-01-12T02:03:16.9211255Z #6 3.591 (86/99) Installing agetty (2.41.2-r0)
+2026-01-12T02:03:16.9211988Z #6 3.606 (87/99) Installing wipefs (2.41.2-r0)
+2026-01-12T02:03:16.9212492Z #6 3.622 (88/99) Installing cfdisk (2.41.2-r0)
+2026-01-12T02:03:16.9212886Z #6 3.636 (89/99) Installing umount (2.41.2-r0)
+2026-01-12T02:03:16.9213540Z #6 3.650 (90/99) Installing flock (2.41.2-r0)
+2026-01-12T02:03:16.9213914Z #6 3.665 (91/99) Installing lsblk (2.41.2-r0)
+2026-01-12T02:03:16.9214289Z #6 3.686 (92/99) Installing libcap-ng (0.8.5-r0)
+2026-01-12T02:03:17.0264715Z #6 3.700 (93/99) Installing setpriv (2.41.2-r0)
+2026-01-12T02:03:17.0265439Z #6 3.715 (94/99) Installing lscpu (2.41.2-r0)
+2026-01-12T02:03:17.0266035Z #6 3.732 (95/99) Installing logger (2.41.2-r0)
+2026-01-12T02:03:17.0266523Z #6 3.747 (96/99) Installing partx (2.41.2-r0)
+2026-01-12T02:03:17.0266915Z #6 3.763 (97/99) Installing fstrim (2.41.2-r0)
+2026-01-12T02:03:17.0267291Z #6 3.777 (98/99) Installing findmnt (2.41.2-r0)
+2026-01-12T02:03:17.0267657Z #6 3.791 (99/99) Installing wget (1.25.0-r2)
+2026-01-12T02:03:17.2054897Z #6 3.810 Executing busybox-1.37.0-r30.trigger
+2026-01-12T02:03:17.2055456Z #6 3.819 OK: 189.6 MiB in 116 packages
+2026-01-12T02:03:17.3024558Z #6 DONE 4.1s
+2026-01-12T02:03:17.4215960Z
+2026-01-12T02:03:17.4216551Z #7 [3/4] RUN echo "ALL ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+2026-01-12T02:03:17.4217070Z #7 DONE 0.1s
+2026-01-12T02:03:17.6072952Z
+2026-01-12T02:03:17.6073475Z #8 [4/4] WORKDIR /workspace
+2026-01-12T02:03:17.6073925Z #8 DONE 0.0s
+2026-01-12T02:03:17.6074112Z
+2026-01-12T02:03:17.6074964Z #9 exporting to image
+2026-01-12T02:03:17.6075350Z #9 exporting layers
+2026-01-12T02:03:19.2143965Z #9 exporting layers 1.8s done
+2026-01-12T02:03:19.2325057Z #9 writing image sha256:ef1ad351017e012b35bee03546b3c36c57168d03ec571752a16e60ccedfbeb8c done
+2026-01-12T02:03:19.2326082Z #9 naming to docker.io/library/recac-agent:latest done
+2026-01-12T02:03:19.2326778Z #9 DONE 1.8s
+2026-01-12T02:03:19.2414484Z ##[group]Run # Use the script directly
+2026-01-12T02:03:19.2414843Z [36;1m# Use the script directly[0m
+2026-01-12T02:03:19.2415116Z [36;1mchmod +x scripts/test_sharded.sh[0m
+2026-01-12T02:03:19.2415488Z [36;1m./scripts/test_sharded.sh 4 5[0m
+2026-01-12T02:03:19.2449341Z shell: /usr/bin/bash -e {0}
+2026-01-12T02:03:19.2449576Z env:
+2026-01-12T02:03:19.2449747Z   REGISTRY: ghcr.io
+2026-01-12T02:03:19.2449996Z   IMAGE_NAME: process-failed-successfully/recac
+2026-01-12T02:03:19.2450277Z ##[endgroup]
+2026-01-12T02:03:19.2524461Z Running tests for shard 4 of 5
+2026-01-12T02:03:19.5071743Z Testing packages:
+2026-01-12T02:03:19.5072160Z recac/cmd/orchestrator
+2026-01-12T02:03:19.5072552Z recac/internal/agent/prompts
+2026-01-12T02:03:19.5072937Z recac/internal/git
+2026-01-12T02:03:19.5073724Z recac/internal/runner
+2026-01-12T02:03:19.5074064Z recac/pkg/e2e/manager
+2026-01-12T02:03:19.5188855Z go: downloading github.com/stretchr/testify v1.11.1
+2026-01-12T02:03:19.6134555Z go: downloading github.com/pmezard/go-difflib v1.0.0
+2026-01-12T02:04:13.6937110Z ?   	recac/cmd/orchestrator	[no test files]
+2026-01-12T02:04:13.7086319Z === RUN   TestGetPrompt
+2026-01-12T02:04:13.7087394Z --- PASS: TestGetPrompt (0.00s)
+2026-01-12T02:04:13.7088100Z PASS
+2026-01-12T02:04:13.7088980Z ok  	recac/internal/agent/prompts	0.003s
+2026-01-12T02:04:15.2937320Z === RUN   TestClient_BasicOperations
+2026-01-12T02:04:15.2937912Z [master (root-commit) c5e4da2] Initial commit
+2026-01-12T02:04:15.2938443Z  1 file changed, 1 insertion(+)
+2026-01-12T02:04:15.2939076Z  create mode 100644 test.txt
+2026-01-12T02:04:15.2939525Z To /tmp/git-test-remote3361828643
+2026-01-12T02:04:15.2939977Z  * [new branch]      main -> main
+2026-01-12T02:04:15.2940451Z branch 'main' set up to track 'origin/main'.
+2026-01-12T02:04:15.2940972Z --- PASS: TestClient_BasicOperations (0.08s)
+2026-01-12T02:04:15.2941467Z === RUN   TestClient_Branching
+2026-01-12T02:04:15.2941905Z Switched to a new branch 'feature-1'
+2026-01-12T02:04:15.2942359Z Switched to branch 'master'
+2026-01-12T02:04:15.2942787Z --- PASS: TestClient_Branching (0.08s)
+2026-01-12T02:04:15.2943243Z === RUN   TestClient_StashAndClean
+2026-01-12T02:04:15.2943671Z [master (root-commit) 3a614c8] init
+2026-01-12T02:04:15.2944110Z  1 file changed, 1 insertion(+)
+2026-01-12T02:04:15.2944493Z  create mode 100644 f1
+2026-01-12T02:04:15.2945018Z Saved working directory and index state WIP on master: 3a614c8 init
+2026-01-12T02:04:15.2945735Z On branch master
+2026-01-12T02:04:15.2946072Z Changes not staged for commit:
+2026-01-12T02:04:15.2946643Z   (use "git add <file>..." to update what will be committed)
+2026-01-12T02:04:15.2947451Z   (use "git restore <file>..." to discard changes in working directory)
+2026-01-12T02:04:15.2948052Z 	modified:   f1
+2026-01-12T02:04:15.2948255Z
+2026-01-12T02:04:15.2948778Z no changes added to commit (use "git add" and/or "git commit -a")
+2026-01-12T02:04:15.2949553Z Dropped refs/stash@{0} (d236a2ece93cb271874769a4d01cbb3bea19db0c)
+2026-01-12T02:04:15.2950136Z Removing untracked.txt
+2026-01-12T02:04:15.2950549Z --- PASS: TestClient_StashAndClean (0.11s)
+2026-01-12T02:04:15.2951013Z === RUN   TestClient_Clone
+2026-01-12T02:04:15.2951402Z [master (root-commit) 7577d5d] init
+2026-01-12T02:04:15.2951828Z  1 file changed, 1 insertion(+)
+2026-01-12T02:04:15.2952239Z  create mode 100644 readme.md
+2026-01-12T02:04:15.2952643Z To /tmp/git-test-remote3827165255
+2026-01-12T02:04:15.2953069Z  * [new branch]      master -> master
+2026-01-12T02:04:15.2953561Z branch 'master' set up to track 'origin/master'.
+2026-01-12T02:04:15.2954360Z Cloning into '/tmp/git-test-clone4233163999'...
+2026-01-12T02:04:15.2969441Z done.
+2026-01-12T02:04:15.2969810Z --- PASS: TestClient_Clone (0.13s)
+2026-01-12T02:04:15.2970281Z === RUN   TestClient_RemoteOperations
+2026-01-12T02:04:15.2970759Z [master (root-commit) 3a614c8] init
+2026-01-12T02:04:15.2971205Z  1 file changed, 1 insertion(+)
+2026-01-12T02:04:15.2971597Z  create mode 100644 f1
+2026-01-12T02:04:15.2972366Z branch 'master' set up to track 'origin/master'.
+2026-01-12T02:04:15.2972898Z To /tmp/git-test-remote3312721552
+2026-01-12T02:04:15.2973350Z  * [new branch]      master -> master
+2026-01-12T02:04:15.2973844Z Cloning into '/tmp/git-test-other3384150912'...
+2026-01-12T02:04:15.2974275Z done.
+2026-01-12T02:04:15.2974558Z [master 2bc114d] update v2
+2026-01-12T02:04:15.2975003Z  1 file changed, 1 insertion(+), 1 deletion(-)
+2026-01-12T02:04:15.2975489Z To /tmp/git-test-remote3312721552
+2026-01-12T02:04:15.2975963Z    3a614c8..2bc114d  master -> master
+2026-01-12T02:04:15.2976445Z branch 'master' set up to track 'origin/master'.
+2026-01-12T02:04:15.2976948Z From /tmp/git-test-remote3312721552
+2026-01-12T02:04:15.2977429Z  * branch            master     -> FETCH_HEAD
+2026-01-12T02:04:15.2977964Z    3a614c8..2bc114d  master     -> origin/master
+2026-01-12T02:04:15.2978887Z From /tmp/git-test-remote3312721552
+2026-01-12T02:04:15.2979366Z  * branch            master     -> FETCH_HEAD
+2026-01-12T02:04:15.2979807Z Updating 3a614c8..2bc114d
+2026-01-12T02:04:15.2980150Z Fast-forward
+2026-01-12T02:04:15.2980445Z  f1 | 2 +-
+2026-01-12T02:04:15.2980801Z  1 file changed, 1 insertion(+), 1 deletion(-)
+2026-01-12T02:04:15.2981305Z --- PASS: TestClient_RemoteOperations (0.22s)
+2026-01-12T02:04:15.2981778Z === RUN   TestClient_ResetHard
+2026-01-12T02:04:15.2982178Z [master (root-commit) 3a614c8] init
+2026-01-12T02:04:15.2982603Z  1 file changed, 1 insertion(+)
+2026-01-12T02:04:15.2982994Z  create mode 100644 f1
+2026-01-12T02:04:15.2983352Z To /tmp/git-test-remote2711058486
+2026-01-12T02:04:15.2983820Z  * [new branch]      master -> master
+2026-01-12T02:04:15.2984354Z branch 'master' set up to track 'origin/master'.
+2026-01-12T02:04:15.2984851Z From /tmp/git-test-remote2711058486
+2026-01-12T02:04:15.2985324Z  * branch            master     -> FETCH_HEAD
+2026-01-12T02:04:15.2985772Z HEAD is now at 3a614c8 init
+2026-01-12T02:04:15.2986179Z --- PASS: TestClient_ResetHard (0.12s)
+2026-01-12T02:04:15.2986629Z === RUN   TestClient_SetRemoteURL
+2026-01-12T02:04:15.2987079Z --- PASS: TestClient_SetRemoteURL (0.04s)
+2026-01-12T02:04:15.2987546Z === RUN   TestClient_CreatePR_Skip
+2026-01-12T02:04:15.2988524Z     client_test.go:343: Skipping CreatePR test as it requires gh CLI and auth
+2026-01-12T02:04:15.2998488Z --- SKIP: TestClient_CreatePR_Skip (0.00s)
+2026-01-12T02:04:15.2999267Z === RUN   TestClient_Merge
+2026-01-12T02:04:15.2999898Z [master (root-commit) 3a614c8] init
+2026-01-12T02:04:15.3000587Z  1 file changed, 1 insertion(+)
+2026-01-12T02:04:15.3001015Z  create mode 100644 f1
+2026-01-12T02:04:15.3001621Z Switched to a new branch 'feature'
+2026-01-12T02:04:15.3002285Z [feature 9f4d343] feature commit
+2026-01-12T02:04:15.3002728Z  1 file changed, 1 insertion(+)
+2026-01-12T02:04:15.3003331Z  create mode 100644 f2
+2026-01-12T02:04:15.3003876Z Switched to branch 'master'
+2026-01-12T02:04:15.3004288Z Updating 3a614c8..9f4d343
+2026-01-12T02:04:15.3004834Z Fast-forward
+2026-01-12T02:04:15.3005110Z  f2 | 1 +
+2026-01-12T02:04:15.3005629Z  1 file changed, 1 insertion(+)
+2026-01-12T02:04:15.3006028Z  create mode 100644 f2
+2026-01-12T02:04:15.3006577Z --- PASS: TestClient_Merge (0.07s)
+2026-01-12T02:04:15.3007198Z === RUN   TestClient_ErrorHandling
+2026-01-12T02:04:15.3007958Z fatal: not a git repository (or any of the parent directories): .git
+2026-01-12T02:04:15.3008994Z fatal: not a git repository (or any of the parent directories): .git
+2026-01-12T02:04:15.3009805Z --- PASS: TestClient_ErrorHandling (0.01s)
+2026-01-12T02:04:15.3010477Z === RUN   TestClient_Config
+2026-01-12T02:04:15.3010906Z --- PASS: TestClient_Config (0.03s)
+2026-01-12T02:04:15.3011558Z === RUN   TestClient_AbortMerge
+2026-01-12T02:04:15.3012212Z [master (root-commit) 68d2669] initial commit
+2026-01-12T02:04:15.3012727Z  1 file changed, 1 insertion(+)
+2026-01-12T02:04:15.3013347Z  create mode 100644 file.txt
+2026-01-12T02:04:15.3013968Z Switched to a new branch 'feature'
+2026-01-12T02:04:15.3014597Z [feature ac99e09] feature commit
+2026-01-12T02:04:15.3015116Z  1 file changed, 1 insertion(+), 1 deletion(-)
+2026-01-12T02:04:15.3016337Z Switched to branch 'master'
+2026-01-12T02:04:15.3016883Z [master 3fcc573] main commit
+2026-01-12T02:04:15.3017565Z  1 file changed, 1 insertion(+), 1 deletion(-)
+2026-01-12T02:04:15.3018199Z Auto-merging file.txt
+2026-01-12T02:04:15.3019009Z CONFLICT (content): Merge conflict in file.txt
+2026-01-12T02:04:15.3019861Z Automatic merge failed; fix conflicts and then commit the result.
+2026-01-12T02:04:15.3020722Z --- PASS: TestClient_AbortMerge (0.09s)
+2026-01-12T02:04:15.3021404Z === RUN   TestClient_DeleteLocalBranch
+2026-01-12T02:04:15.3022149Z [master (root-commit) 68d2669] initial commit
+2026-01-12T02:04:15.3022682Z  1 file changed, 1 insertion(+)
+2026-01-12T02:04:15.3023351Z  create mode 100644 file.txt
+2026-01-12T02:04:15.3023978Z Switched to a new branch 'to-delete'
+2026-01-12T02:04:15.3024897Z Switched to branch 'master'
+2026-01-12T02:04:15.3025278Z Deleted branch to-delete (was 68d2669).
+2026-01-12T02:04:15.3025993Z --- PASS: TestClient_DeleteLocalBranch (0.06s)
+2026-01-12T02:04:15.3026754Z === RUN   TestClient_DeleteRemoteBranch
+2026-01-12T02:04:15.3027463Z [master (root-commit) 9ce132a] initial commit
+2026-01-12T02:04:15.3028153Z  1 file changed, 1 insertion(+)
+2026-01-12T02:04:15.3028843Z  create mode 100644 file.txt
+2026-01-12T02:04:15.3029267Z To /tmp/git-test-remote2637866491
+2026-01-12T02:04:15.3029925Z  * [new branch]      master -> master
+2026-01-12T02:04:15.3030851Z branch 'master' set up to track 'origin/master'.
+2026-01-12T02:04:15.3031554Z Switched to a new branch 'to-delete'
+2026-01-12T02:04:15.3032018Z [to-delete 6fd3237] commit to delete
+2026-01-12T02:04:15.3032465Z  1 file changed, 1 insertion(+)
+2026-01-12T02:04:15.3033104Z  create mode 100644 delete.txt
+2026-01-12T02:04:15.3033542Z To /tmp/git-test-remote2637866491
+2026-01-12T02:04:15.3033959Z  * [new branch]      to-delete -> to-delete
+2026-01-12T02:04:15.3034498Z branch 'to-delete' set up to track 'origin/to-delete'.
+2026-01-12T02:04:15.3035244Z Switched to branch 'master'
+2026-01-12T02:04:15.3035731Z Your branch is up to date with 'origin/master'.
+2026-01-12T02:04:15.3036244Z To /tmp/git-test-remote2637866491
+2026-01-12T02:04:15.3036702Z  - [deleted]         to-delete
+2026-01-12T02:04:15.3037169Z --- PASS: TestClient_DeleteRemoteBranch (0.19s)
+2026-01-12T02:04:15.3037668Z === RUN   TestMaskingWriter
+2026-01-12T02:04:15.3038094Z === RUN   TestMaskingWriter/GitHub_PAT
+2026-01-12T02:04:15.3038868Z === RUN   TestMaskingWriter/Basic_Auth
+2026-01-12T02:04:15.3039385Z === RUN   TestMaskingWriter/Normal_URL
+2026-01-12T02:04:15.3039896Z === RUN   TestMaskingWriter/Standard_Output
+2026-01-12T02:04:15.3040407Z --- PASS: TestMaskingWriter (0.00s)
+2026-01-12T02:04:15.3040979Z     --- PASS: TestMaskingWriter/GitHub_PAT (0.00s)
+2026-01-12T02:04:15.3041618Z     --- PASS: TestMaskingWriter/Basic_Auth (0.00s)
+2026-01-12T02:04:15.3042268Z     --- PASS: TestMaskingWriter/Normal_URL (0.00s)
+2026-01-12T02:04:15.3042942Z     --- PASS: TestMaskingWriter/Standard_Output (0.00s)
+2026-01-12T02:04:15.3043433Z === RUN   TestClient_Recover
+2026-01-12T02:04:15.3044000Z Recover: Removing stale lock file /tmp/git-test307086118/.git/index.lock
+2026-01-12T02:04:15.3044634Z --- PASS: TestClient_Recover (0.00s)
+2026-01-12T02:04:15.3045032Z PASS
+2026-01-12T02:04:15.3045347Z ok  	recac/internal/git	1.255s
+2026-01-12T02:05:06.2314975Z === RUN   TestSession_E2E_DockerFileWrite
+2026-01-12T02:05:06.2316214Z [Session] DB Store initialized successfully: type=sqlite, project=e2e-test
+2026-01-12T02:05:06.2317476Z 2026/01/12 02:04:28 INFO [DB] Store initialized successfully type=sqlite project=e2e-test
+2026-01-12T02:05:06.2319271Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/e2e-test_agent_e2e-test_20260112-020428.log
+2026-01-12T02:05:06.2320196Z Initializing session with image: recac-agent:latest
+2026-01-12T02:05:06.2321204Z Warning: Failed to read spec: failed to read spec file and no backups found: open /tmp/recac-e2e-test339866253/app_spec.txt: no such file or directory
+2026-01-12T02:05:06.2323132Z Warning: Failed to locate agent-bridge binary: agent-bridge binary not found at /home/runner/work/recac/recac/agent-bridge. Did you run 'make bridge'?. Agent CLI tools will not work.
+2026-01-12T02:05:06.2324579Z Container started successfully. ID: e0332f102fe05fbad15ddb6749b56110ea1c0599da574a6e8ede69310e9c3d3b
+2026-01-12T02:05:06.2325375Z Fixing container passwd database for UID:GID 1001:1001...
+2026-01-12T02:05:06.2325902Z Updated workspace .gitignore with agent patterns.
+2026-01-12T02:05:06.2326711Z Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent, excludes: /etc/gitignore_global)...
+2026-01-12T02:05:06.2327744Z {"time":"2026-01-12T02:04:29.738338891Z","level":"INFO","msg":"Checking notification for event: on_start"}
+2026-01-12T02:05:06.2329555Z {"time":"2026-01-12T02:04:29.738403371Z","level":"INFO","msg":"executing command block","project":"e2e-test","index":1,"total":1,"script":"echo 'Verified at recac-e2e-test339866253' > persistence_test.txt"}
+2026-01-12T02:05:06.2331532Z {"time":"2026-01-12T02:04:29.851132433Z","level":"INFO","msg":"executing command block","project":"e2e-test","index":1,"total":1,"script":"id\nwhoami\ngrep appuser /etc/passwd"}
+2026-01-12T02:05:06.2333437Z {"time":"2026-01-12T02:04:29.891471357Z","level":"INFO","msg":"command output","project":"e2e-test","output":"uid=1001(appuser) gid=1001(appgroup) groups=1001(appgroup)\nappuser\nappuser:x:1001:1001::/workspace:/bin/sh\n"}
+2026-01-12T02:05:06.2334494Z     agent_e2e_docker_test.go:64: Diagnostic Output:
+2026-01-12T02:05:06.2334837Z         Command Output:
+2026-01-12T02:05:06.2335240Z         uid=1001(appuser) gid=1001(appgroup) groups=1001(appgroup)
+2026-01-12T02:05:06.2335576Z         appuser
+2026-01-12T02:05:06.2335867Z         appuser:x:1001:1001::/workspace:/bin/sh
+2026-01-12T02:05:06.2336132Z
+2026-01-12T02:05:06.2336769Z {"time":"2026-01-12T02:04:29.964050056Z","level":"INFO","msg":"executing command block","project":"e2e-test","index":1,"total":1,"script":"sudo touch sudo_test.txt"}
+2026-01-12T02:05:06.2337479Z --- PASS: TestSession_E2E_DockerFileWrite (12.08s)
+2026-01-12T02:05:06.2337816Z === RUN   TestSession_ProcessResponse_Thorough
+2026-01-12T02:05:06.2338418Z {"time":"2026-01-12T02:04:40.16298122Z","level":"INFO","msg":"executing command block","index":1,"total":1,"script":"echo 'hello' > test.txt"}
+2026-01-12T02:05:06.2339577Z {"time":"2026-01-12T02:04:40.163034428Z","level":"INFO","msg":"command output","output":"Success: /bin/bash -c echo 'hello' > test.txt"}
+2026-01-12T02:05:06.2340391Z {"time":"2026-01-12T02:04:40.163060377Z","level":"INFO","msg":"executing command block","index":1,"total":2,"script":"echo 1"}
+2026-01-12T02:05:06.2341148Z {"time":"2026-01-12T02:04:40.163071608Z","level":"INFO","msg":"command output","output":"Success: /bin/bash -c echo 1"}
+2026-01-12T02:05:06.2341899Z {"time":"2026-01-12T02:04:40.163077909Z","level":"INFO","msg":"executing command block","index":2,"total":2,"script":"echo 2"}
+2026-01-12T02:05:06.2342654Z {"time":"2026-01-12T02:04:40.163087758Z","level":"INFO","msg":"command output","output":"Success: /bin/bash -c echo 2"}
+2026-01-12T02:05:06.2343426Z {"time":"2026-01-12T02:04:40.163109378Z","level":"INFO","msg":"executing command block","index":1,"total":1,"script":"apk add curl"}
+2026-01-12T02:05:06.2344208Z {"time":"2026-01-12T02:04:40.163125378Z","level":"INFO","msg":"command output","output":"Success: /bin/bash -c apk add curl"}
+2026-01-12T02:05:06.2344757Z --- PASS: TestSession_ProcessResponse_Thorough (0.00s)
+2026-01-12T02:05:06.2345096Z === RUN   TestSession_ProcessResponse_Timeout
+2026-01-12T02:05:06.2345674Z {"time":"2026-01-12T02:04:40.163193755Z","level":"INFO","msg":"executing command block","index":1,"total":1,"script":"echo 'slow command'"}
+2026-01-12T02:05:06.2346570Z {"time":"2026-01-12T02:04:41.163351431Z","level":"ERROR","msg":"command failed","script":"echo 'slow command'","error":"Command timed out after 1 seconds."}
+2026-01-12T02:05:06.2347213Z --- PASS: TestSession_ProcessResponse_Timeout (5.00s)
+2026-01-12T02:05:06.2347523Z === RUN   TestAgentInheritance
+2026-01-12T02:05:06.2348028Z [Session] DB Store initialized successfully: type=sqlite, project=test-project
+2026-01-12T02:05:06.2349025Z {"time":"2026-01-12T02:04:45.171133274Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+2026-01-12T02:05:06.2349983Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/test-project_agent_test-project_20260112-020445.log
+2026-01-12T02:05:06.2350613Z --- PASS: TestAgentInheritance (0.01s)
+2026-01-12T02:05:06.2350921Z === RUN   TestNewAgent_OpenRouterPrefixInheritance
+2026-01-12T02:05:06.2351343Z [Session] DB Store initialized successfully: type=sqlite, project=test-project
+2026-01-12T02:05:06.2352049Z {"time":"2026-01-12T02:04:45.176832658Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+2026-01-12T02:05:06.2353132Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/test-project_agent_test-project_20260112-020445.log
+2026-01-12T02:05:06.2353928Z Agent Factory: Corrected OpenRouter model from gemini-pro-latest to google/gemini-pro-latest
+2026-01-12T02:05:06.2354440Z --- PASS: TestNewAgent_OpenRouterPrefixInheritance (0.01s)
+2026-01-12T02:05:06.2354772Z === RUN   TestSession_CheckAutoQA
+2026-01-12T02:05:06.2355305Z {"time":"2026-01-12T02:04:45.18206406Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+2026-01-12T02:05:06.2356112Z {"time":"2026-01-12T02:04:45.182771206Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+2026-01-12T02:05:06.2356824Z {"time":"2026-01-12T02:04:45.182844863Z","level":"INFO","msg":"loaded features from DB history","count":2}
+2026-01-12T02:05:06.2357536Z {"time":"2026-01-12T02:04:45.183414693Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+2026-01-12T02:05:06.2358289Z {"time":"2026-01-12T02:04:45.183481728Z","level":"INFO","msg":"loaded features from DB history","count":2}
+2026-01-12T02:05:06.2359157Z {"time":"2026-01-12T02:04:45.183979184Z","level":"INFO","msg":"created signal","signal":"COMPLETED"}
+2026-01-12T02:05:06.2359595Z --- PASS: TestSession_CheckAutoQA (0.01s)
+2026-01-12T02:05:06.2359909Z === RUN   TestProcessResponse_BlockerFalsePositives
+2026-01-12T02:05:06.2360676Z {"time":"2026-01-12T02:04:45.185823325Z","level":"INFO","msg":"ignoring false positive blocker","file":"recac_blockers.txt","content":"No blockers identified. Initial setup complete."}
+2026-01-12T02:05:06.2361663Z {"time":"2026-01-12T02:04:45.185841298Z","level":"INFO","msg":"ignoring false positive blocker","file":"blockers.txt","content":"None"}
+2026-01-12T02:05:06.2362527Z {"time":"2026-01-12T02:04:45.185849864Z","level":"INFO","msg":"ignoring false positive blocker","file":"recac_blockers.txt","content":"no blockers"}
+2026-01-12T02:05:06.2363490Z {"time":"2026-01-12T02:04:45.185883757Z","level":"INFO","msg":"ignoring false positive blocker","file":"recac_blockers.txt","content":"Initial setup complete"}
+2026-01-12T02:05:06.2364878Z {"time":"2026-01-12T02:04:45.185905287Z","level":"INFO","msg":"ignoring false positive blocker","file":"blockers.txt","content":"# Current Blockers\n\n# None at this time\n# The project is progressing smoothly\n# All required tools are available\n# No technical obstacles"}
+2026-01-12T02:05:06.2366261Z {"time":"2026-01-12T02:04:45.185921668Z","level":"INFO","msg":"ignoring false positive blocker","file":"recac_blockers.txt","content":"UI Verification Required"}
+2026-01-12T02:05:06.2367116Z {"time":"2026-01-12T02:04:45.185938038Z","level":"WARN","msg":"agent reported blocker file","file":"recac_blockers.txt"}
+2026-01-12T02:05:06.2367867Z {"time":"2026-01-12T02:04:45.18594437Z","level":"WARN","msg":"blocker content","content":"I am actually blocked by missing API key"}
+2026-01-12T02:05:06.2368889Z {"time":"2026-01-12T02:04:45.185951092Z","level":"INFO","msg":"session stopping to allow human resolution"}
+2026-01-12T02:05:06.2369688Z {"time":"2026-01-12T02:04:45.185960009Z","level":"WARN","msg":"agent reported blocker file","file":"blockers.txt"}
+2026-01-12T02:05:06.2370405Z {"time":"2026-01-12T02:04:45.185968625Z","level":"WARN","msg":"blocker content","content":"Error: failed to connect to DB"}
+2026-01-12T02:05:06.2371078Z {"time":"2026-01-12T02:04:45.185973324Z","level":"INFO","msg":"session stopping to allow human resolution"}
+2026-01-12T02:05:06.2371602Z --- PASS: TestProcessResponse_BlockerFalsePositives (0.00s)
+2026-01-12T02:05:06.2371940Z === RUN   TestEndToEndHelloWorld
+2026-01-12T02:05:06.2372314Z [Session] DB Store initialized successfully: type=sqlite, project=test-project
+2026-01-12T02:05:06.2373007Z {"time":"2026-01-12T02:04:45.191049308Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+2026-01-12T02:05:06.2374033Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/test-project_agent_test-project_20260112-020445.log
+2026-01-12T02:05:06.2374667Z Initializing session with image: ubuntu:latest
+2026-01-12T02:05:06.2374940Z Loaded spec: 99 bytes
+2026-01-12T02:05:06.2375667Z Warning: Failed to locate agent-bridge binary: agent-bridge binary not found at /home/runner/work/recac/recac/agent-bridge. Did you run 'make bridge'?. Agent CLI tools will not work.
+2026-01-12T02:05:06.2376474Z Container started successfully. ID: mock-hello-container
+2026-01-12T02:05:06.2376855Z Fixing container passwd database for UID:GID 1001:1001...
+2026-01-12T02:05:06.2377198Z Updated workspace .gitignore with agent patterns.
+2026-01-12T02:05:06.2377746Z Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent, excludes: /etc/gitignore_global)...
+2026-01-12T02:05:06.2378451Z {"time":"2026-01-12T02:04:45.1918247Z","level":"INFO","msg":"Checking notification for event: on_start"}
+2026-01-12T02:05:06.2379166Z --- PASS: TestEndToEndHelloWorld (0.01s)
+2026-01-12T02:05:06.2379470Z === RUN   TestEndToEndHelloWorld_WithFileSystem
+2026-01-12T02:05:06.2379895Z [Session] DB Store initialized successfully: type=sqlite, project=test-project
+2026-01-12T02:05:06.2380602Z {"time":"2026-01-12T02:04:45.198100306Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+2026-01-12T02:05:06.2381527Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/test-project_agent_test-project_20260112-020445.log
+2026-01-12T02:05:06.2382165Z Initializing session with image: ubuntu:latest
+2026-01-12T02:05:06.2382437Z Loaded spec: 63 bytes
+2026-01-12T02:05:06.2383149Z Warning: Failed to locate agent-bridge binary: agent-bridge binary not found at /home/runner/work/recac/recac/agent-bridge. Did you run 'make bridge'?. Agent CLI tools will not work.
+2026-01-12T02:05:06.2383933Z Container started successfully. ID: test-container
+2026-01-12T02:05:06.2384294Z Fixing container passwd database for UID:GID 1001:1001...
+2026-01-12T02:05:06.2384645Z Updated workspace .gitignore with agent patterns.
+2026-01-12T02:05:06.2385189Z Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent, excludes: /etc/gitignore_global)...
+2026-01-12T02:05:06.2385886Z {"time":"2026-01-12T02:04:45.199927205Z","level":"INFO","msg":"Checking notification for event: on_start"}
+2026-01-12T02:05:06.2386393Z --- PASS: TestEndToEndHelloWorld_WithFileSystem (0.01s)
+2026-01-12T02:05:06.2386722Z === RUN   TestSession_GitIgnoreCreation
+2026-01-12T02:05:06.2387012Z Updated workspace .gitignore with agent patterns.
+2026-01-12T02:05:06.2387518Z Bootstrapping git config (email: test@example.com, name: Test User, excludes: /etc/gitignore_global)...
+2026-01-12T02:05:06.2388015Z --- PASS: TestSession_GitIgnoreCreation (0.00s)
+2026-01-12T02:05:06.2388313Z === RUN   TestSession_GitIgnoreFunctional
+2026-01-12T02:05:06.2388717Z Updated workspace .gitignore with agent patterns.
+2026-01-12T02:05:06.2389226Z Bootstrapping git config (email: test@example.com, name: Test User, excludes: /etc/gitignore_global)...
+2026-01-12T02:05:06.2389850Z --- PASS: TestSession_GitIgnoreFunctional (0.01s)
+2026-01-12T02:05:06.2390168Z === RUN   TestSession_Guardrail_PrematureSignoff
+2026-01-12T02:05:06.2390599Z {"time":"2026-01-12T02:04:45.220541017Z","level":"INFO","msg":"entering autonomous run loop"}
+2026-01-12T02:05:06.2391288Z {"time":"2026-01-12T02:04:45.220715631Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+2026-01-12T02:05:06.2392011Z {"time":"2026-01-12T02:04:45.220777316Z","level":"INFO","msg":"loaded features from DB history","count":1}
+2026-01-12T02:05:06.2392776Z {"time":"2026-01-12T02:04:45.220787605Z","level":"INFO","msg":"starting iteration","iteration":1,"task_id":"","agent_provider":"","agent_model":""}
+2026-01-12T02:05:06.2393624Z {"time":"2026-01-12T02:04:45.220791092Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+2026-01-12T02:05:06.2394447Z {"time":"2026-01-12T02:04:45.220824734Z","level":"INFO","msg":"loaded features from DB history","count":1}
+2026-01-12T02:05:06.2395300Z {"time":"2026-01-12T02:04:45.220905004Z","level":"WARN","msg":"ignoring filesystem-based privileged signal (must come from DB)","signal":"PROJECT_SIGNED_OFF"}
+2026-01-12T02:05:06.2396200Z {"time":"2026-01-12T02:04:45.220990503Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+2026-01-12T02:05:06.2396912Z {"time":"2026-01-12T02:04:45.221040916Z","level":"INFO","msg":"loaded features from DB history","count":1}
+2026-01-12T02:05:06.2397625Z {"time":"2026-01-12T02:04:45.221188321Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+2026-01-12T02:05:06.2398346Z {"time":"2026-01-12T02:04:45.221244876Z","level":"INFO","msg":"loaded features from DB history","count":1}
+2026-01-12T02:05:06.2399174Z {"time":"2026-01-12T02:04:45.221270975Z","level":"INFO","msg":"agent role selected","role":"Agent"}
+2026-01-12T02:05:06.2399741Z {"time":"2026-01-12T02:04:45.221276806Z","level":"INFO","msg":"sending prompt to agent"}
+2026-01-12T02:05:06.2400363Z {"time":"2026-01-12T02:04:45.221281524Z","level":"INFO","msg":"agent response received","role":"Agent","chars":314}
+2026-01-12T02:05:06.2400973Z {"time":"2026-01-12T02:04:45.221839102Z","level":"DEBUG","msg":"saved observation to DB"}
+2026-01-12T02:05:06.2401644Z {"time":"2026-01-12T02:04:45.221928688Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+2026-01-12T02:05:06.2402348Z {"time":"2026-01-12T02:04:45.221977098Z","level":"INFO","msg":"loaded features from DB history","count":1}
+2026-01-12T02:05:06.2403114Z {"time":"2026-01-12T02:04:46.223332752Z","level":"INFO","msg":"starting iteration","iteration":2,"task_id":"","agent_provider":"","agent_model":""}
+2026-01-12T02:05:06.2403982Z {"time":"2026-01-12T02:04:46.223380571Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+2026-01-12T02:05:06.2404699Z {"time":"2026-01-12T02:04:46.223522946Z","level":"INFO","msg":"loaded features from DB history","count":1}
+2026-01-12T02:05:06.2405521Z {"time":"2026-01-12T02:04:46.223588218Z","level":"WARN","msg":"ignoring filesystem-based privileged signal (must come from DB)","signal":"PROJECT_SIGNED_OFF"}
+2026-01-12T02:05:06.2406425Z {"time":"2026-01-12T02:04:46.223655994Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+2026-01-12T02:05:06.2407129Z {"time":"2026-01-12T02:04:46.223697521Z","level":"INFO","msg":"loaded features from DB history","count":1}
+2026-01-12T02:05:06.2407848Z {"time":"2026-01-12T02:04:46.223962174Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+2026-01-12T02:05:06.2408820Z {"time":"2026-01-12T02:04:46.224008871Z","level":"INFO","msg":"loaded features from DB history","count":1}
+2026-01-12T02:05:06.2409524Z {"time":"2026-01-12T02:04:46.224039778Z","level":"INFO","msg":"agent role selected","role":"Agent"}
+2026-01-12T02:05:06.2410252Z {"time":"2026-01-12T02:04:46.22404596Z","level":"INFO","msg":"sending prompt to agent"}
+2026-01-12T02:05:06.2410877Z {"time":"2026-01-12T02:04:46.224051119Z","level":"INFO","msg":"agent response received","role":"Agent","chars":314}
+2026-01-12T02:05:06.2411484Z {"time":"2026-01-12T02:04:46.224826583Z","level":"DEBUG","msg":"saved observation to DB"}
+2026-01-12T02:05:06.2412155Z {"time":"2026-01-12T02:04:46.224911251Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+2026-01-12T02:05:06.2412862Z {"time":"2026-01-12T02:04:46.224979137Z","level":"INFO","msg":"loaded features from DB history","count":1}
+2026-01-12T02:05:06.2413484Z {"time":"2026-01-12T02:04:47.226620369Z","level":"INFO","msg":"reached max iterations","max_iterations":2}
+2026-01-12T02:05:06.2414308Z {"time":"2026-01-12T02:04:47.226800925Z","level":"WARN","msg":"ignoring filesystem-based privileged signal (must come from DB)","signal":"PROJECT_SIGNED_OFF"}
+2026-01-12T02:05:06.2415437Z {"time":"2026-01-12T02:04:47.226848914Z","level":"WARN","msg":"ignoring filesystem-based privileged signal (must come from DB)","signal":"PROJECT_SIGNED_OFF"}
+2026-01-12T02:05:06.2416121Z --- PASS: TestSession_Guardrail_PrematureSignoff (2.02s)
+2026-01-12T02:05:06.2416456Z === RUN   TestSession_RunLoop_MissingSpec
+2026-01-12T02:05:06.2416873Z {"time":"2026-01-12T02:04:47.227333957Z","level":"INFO","msg":"entering autonomous run loop"}
+2026-01-12T02:05:06.2417316Z --- PASS: TestSession_RunLoop_MissingSpec (0.00s)
+2026-01-12T02:05:06.2417620Z === RUN   TestSelectPrompt_ManagerFirst
+2026-01-12T02:05:06.2417941Z --- PASS: TestSelectPrompt_ManagerFirst (0.01s)
+2026-01-12T02:05:06.2418238Z === RUN   TestSelectPrompt_NormalFirst
+2026-01-12T02:05:06.2418995Z {"time":"2026-01-12T02:04:47.238567456Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+2026-01-12T02:05:06.2419599Z Feature list not found (in DB, Content, or File). Running Initializer.
+2026-01-12T02:05:06.2419984Z --- PASS: TestSelectPrompt_NormalFirst (0.01s)
+2026-01-12T02:05:06.2420293Z === RUN   TestManagerRejection_ClearsSignals
+2026-01-12T02:05:06.2420734Z {"time":"2026-01-12T02:04:47.245819274Z","level":"INFO","msg":"created signal","signal":"QA_PASSED"}
+2026-01-12T02:05:06.2421323Z {"time":"2026-01-12T02:04:47.246275704Z","level":"INFO","msg":"created signal","signal":"COMPLETED"}
+2026-01-12T02:05:06.2421905Z {"time":"2026-01-12T02:04:47.246285161Z","level":"INFO","msg":"manager agent reviewing QA report"}
+2026-01-12T02:05:06.2422600Z {"time":"2026-01-12T02:04:47.246288277Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+2026-01-12T02:05:06.2423316Z {"time":"2026-01-12T02:04:47.246353689Z","level":"INFO","msg":"loaded features from DB history","count":1}
+2026-01-12T02:05:06.2423926Z {"time":"2026-01-12T02:04:47.246374798Z","level":"INFO","msg":"sending QA report to manager agent"}
+2026-01-12T02:05:06.2424541Z {"time":"2026-01-12T02:04:47.24638661Z","level":"INFO","msg":"manager review response received","chars":14}
+2026-01-12T02:05:06.2425213Z {"time":"2026-01-12T02:04:47.246463343Z","level":"INFO","msg":"manager rejected or pending, project not signed off"}
+2026-01-12T02:05:06.2425741Z --- PASS: TestManagerRejection_ClearsSignals (0.01s)
+2026-01-12T02:05:06.2426063Z === RUN   TestOrchestrator_ConcurrencyLimit
+2026-01-12T02:05:06.2426376Z Starting Multi-Agent Orchestrator (max-agents: 10)
+2026-01-12T02:05:06.2426672Z Initializing git repository...
+2026-01-12T02:05:06.2427031Z Warning: git commit might have failed (maybe empty?): Author identity unknown
+2026-01-12T02:05:06.2427326Z
+2026-01-12T02:05:06.2427420Z *** Please tell me who you are.
+2026-01-12T02:05:06.2427569Z
+2026-01-12T02:05:06.2427629Z Run
+2026-01-12T02:05:06.2427719Z
+2026-01-12T02:05:06.2427870Z   git config --global user.email "you@example.com"
+2026-01-12T02:05:06.2428206Z   git config --global user.name "Your Name"
+2026-01-12T02:05:06.2428395Z
+2026-01-12T02:05:06.2428498Z to set your account's default identity.
+2026-01-12T02:05:06.2428926Z Omit --global to set the identity only in this repository.
+2026-01-12T02:05:06.2429290Z
+2026-01-12T02:05:06.2429686Z fatal: empty ident name (for <runner@runnervmi13qx.lwu44u4eecjufa4b0wdo1cfjyf.cx.internal.cloudapp.net>) not allowed
+2026-01-12T02:05:06.2430149Z
+2026-01-12T02:05:06.2430252Z Starting worker pool with 2 workers
+2026-01-12T02:05:06.2430493Z Worker 1 started
+2026-01-12T02:05:06.2430665Z Worker 0 started
+2026-01-12T02:05:06.2430840Z Worker 1 stopped
+2026-01-12T02:05:06.2431013Z Worker 0 stopped
+2026-01-12T02:05:06.2431188Z Worker pool stopped
+2026-01-12T02:05:06.2431428Z --- PASS: TestOrchestrator_ConcurrencyLimit (0.05s)
+2026-01-12T02:05:06.2431789Z === RUN   TestOrchestrator_FaultTolerance_HighFailureRate
+2026-01-12T02:05:06.2432132Z Starting Multi-Agent Orchestrator (max-agents: 3)
+2026-01-12T02:05:06.2432434Z Initializing git repository...
+2026-01-12T02:05:06.2432912Z Warning: git commit might have failed (maybe empty?): Author identity unknown
+2026-01-12T02:05:06.2433201Z
+2026-01-12T02:05:06.2433289Z *** Please tell me who you are.
+2026-01-12T02:05:06.2433446Z
+2026-01-12T02:05:06.2433507Z Run
+2026-01-12T02:05:06.2433599Z
+2026-01-12T02:05:06.2433747Z   git config --global user.email "you@example.com"
+2026-01-12T02:05:06.2434072Z   git config --global user.name "Your Name"
+2026-01-12T02:05:06.2434252Z
+2026-01-12T02:05:06.2434350Z to set your account's default identity.
+2026-01-12T02:05:06.2434670Z Omit --global to set the identity only in this repository.
+2026-01-12T02:05:06.2434895Z
+2026-01-12T02:05:06.2435284Z fatal: empty ident name (for <runner@runnervmi13qx.lwu44u4eecjufa4b0wdo1cfjyf.cx.internal.cloudapp.net>) not allowed
+2026-01-12T02:05:06.2435742Z
+2026-01-12T02:05:06.2435840Z Starting worker pool with 3 workers
+2026-01-12T02:05:06.2436067Z Worker 2 started
+2026-01-12T02:05:06.2436246Z Worker 1 started
+2026-01-12T02:05:06.2455017Z Worker 0 started
+2026-01-12T02:05:06.2455258Z
+2026-01-12T02:05:06.2455420Z >>> [ORCHESTRATOR] Starting Task: t1
+2026-01-12T02:05:06.2455708Z
+2026-01-12T02:05:06.2455859Z >>> [ORCHESTRATOR] Starting Task: t3
+2026-01-12T02:05:06.2456130Z
+2026-01-12T02:05:06.2456290Z >>> [ORCHESTRATOR] Starting Task: t2
+2026-01-12T02:05:06.2456863Z [Session] DB Store initialized successfully: type=sqlite, project=proj
+2026-01-12T02:05:06.2457627Z {"time":"2026-01-12T02:04:47.415697945Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"proj"}
+2026-01-12T02:05:06.2458521Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/proj_agent_proj_20260112-020447.log
+2026-01-12T02:05:06.2459409Z Initializing session with image: img
+2026-01-12T02:05:06.2459656Z Loaded spec: 4 bytes
+2026-01-12T02:05:06.2460371Z Warning: Failed to locate agent-bridge binary: agent-bridge binary not found at /home/runner/work/recac/recac/agent-bridge. Did you run 'make bridge'?. Agent CLI tools will not work.
+2026-01-12T02:05:06.2461140Z Container started successfully. ID: mock-id
+2026-01-12T02:05:06.2461479Z Fixing container passwd database for UID:GID 1001:1001...
+2026-01-12T02:05:06.2461835Z Updated workspace .gitignore with agent patterns.
+2026-01-12T02:05:06.2462352Z Bootstrapping git config (email: test@example.com, name: Test User, excludes: /etc/gitignore_global)...
+2026-01-12T02:05:06.2463058Z {"time":"2026-01-12T02:04:47.416038319Z","level":"INFO","msg":"entering autonomous run loop","project":"proj"}
+2026-01-12T02:05:06.2463719Z {"time":"2026-01-12T02:04:47.41604452Z","level":"INFO","msg":"Checking notification for event: on_start"}
+2026-01-12T02:05:06.2464257Z [Session] DB Store initialized successfully: type=sqlite, project=proj
+2026-01-12T02:05:06.2464897Z {"time":"2026-01-12T02:04:47.417092552Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"proj"}
+2026-01-12T02:05:06.2465741Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/proj_agent_proj_20260112-020447.log
+2026-01-12T02:05:06.2466363Z Initializing session with image: img
+2026-01-12T02:05:06.2466618Z Loaded spec: 4 bytes
+2026-01-12T02:05:06.2467539Z Warning: Failed to locate agent-bridge binary: agent-bridge binary not found at /home/runner/work/recac/recac/agent-bridge. Did you run 'make bridge'?. Agent CLI tools will not work.
+2026-01-12T02:05:06.2468389Z Container started successfully. ID: mock-id
+2026-01-12T02:05:06.2468929Z Fixing container passwd database for UID:GID 1001:1001...
+2026-01-12T02:05:06.2469470Z Bootstrapping git config (email: test@example.com, name: Test User, excludes: /etc/gitignore_global)...
+2026-01-12T02:05:06.2470152Z {"time":"2026-01-12T02:04:47.41735986Z","level":"INFO","msg":"entering autonomous run loop","project":"proj"}
+2026-01-12T02:05:06.2471072Z {"time":"2026-01-12T02:04:47.417369978Z","level":"INFO","msg":"Checking notification for event: on_start"}
+2026-01-12T02:05:06.2472375Z {"time":"2026-01-12T02:04:47.418078327Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"proj","project":"proj"}
+2026-01-12T02:05:06.2473915Z {"time":"2026-01-12T02:04:47.418125354Z","level":"INFO","msg":"loaded features from DB history","project":"proj","count":3}
+2026-01-12T02:05:06.2475515Z {"time":"2026-01-12T02:04:47.418138258Z","level":"INFO","msg":"starting iteration","project":"proj","iteration":1,"task_id":"t3","agent_provider":"gemini","agent_model":"gemini-pro"}
+2026-01-12T02:05:06.2477110Z {"time":"2026-01-12T02:04:47.418143378Z","level":"INFO","msg":"assigned task details","project":"proj","task_id":"t3","desc_snippet":""}
+2026-01-12T02:05:06.2478802Z {"time":"2026-01-12T02:04:47.418146484Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"proj","project":"proj"}
+2026-01-12T02:05:06.2480191Z {"time":"2026-01-12T02:04:47.418164157Z","level":"INFO","msg":"loaded features from DB history","project":"proj","count":3}
+2026-01-12T02:05:06.2481551Z {"time":"2026-01-12T02:04:47.418178233Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"proj","project":"proj"}
+2026-01-12T02:05:06.2482922Z {"time":"2026-01-12T02:04:47.418193822Z","level":"INFO","msg":"loaded features from DB history","project":"proj","count":3}
+2026-01-12T02:05:06.2484258Z {"time":"2026-01-12T02:04:47.41820347Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"proj","project":"proj"}
+2026-01-12T02:05:06.2485593Z {"time":"2026-01-12T02:04:47.418227204Z","level":"INFO","msg":"loaded features from DB history","project":"proj","count":3}
+2026-01-12T02:05:06.2486781Z {"time":"2026-01-12T02:04:47.418254906Z","level":"INFO","msg":"agent role selected","project":"proj","role":"Agent"}
+2026-01-12T02:05:06.2487883Z {"time":"2026-01-12T02:04:47.418263551Z","level":"INFO","msg":"sending prompt to agent","project":"proj"}
+2026-01-12T02:05:06.2488736Z Agent Response:
+2026-01-12T02:05:06.2489527Z {"time":"2026-01-12T02:04:47.418283138Z","level":"INFO","msg":"agent response received","project":"proj","role":"Agent","chars":9}
+2026-01-12T02:05:06.2490724Z {"time":"2026-01-12T02:04:47.418296844Z","level":"INFO","msg":"security scan passed","project":"proj"}
+2026-01-12T02:05:06.2492001Z {"time":"2026-01-12T02:04:47.418308495Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"proj","project":"proj"}
+2026-01-12T02:05:06.2493370Z {"time":"2026-01-12T02:04:47.418342889Z","level":"INFO","msg":"loaded features from DB history","project":"proj","count":3}
+2026-01-12T02:05:06.2494768Z {"time":"2026-01-12T02:04:47.418977631Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"proj","project":"proj"}
+2026-01-12T02:05:06.2496173Z {"time":"2026-01-12T02:04:47.419022775Z","level":"INFO","msg":"loaded features from DB history","project":"proj","count":3}
+2026-01-12T02:05:06.2497787Z {"time":"2026-01-12T02:04:47.419034246Z","level":"INFO","msg":"starting iteration","project":"proj","iteration":1,"task_id":"t1","agent_provider":"gemini","agent_model":"gemini-pro"}
+2026-01-12T02:05:06.2499635Z {"time":"2026-01-12T02:04:47.419039586Z","level":"INFO","msg":"assigned task details","project":"proj","task_id":"t1","desc_snippet":""}
+2026-01-12T02:05:06.2501376Z {"time":"2026-01-12T02:04:47.419047741Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"proj","project":"proj"}
+2026-01-12T02:05:06.2502854Z {"time":"2026-01-12T02:04:47.419074651Z","level":"INFO","msg":"loaded features from DB history","project":"proj","count":3}
+2026-01-12T02:05:06.2504259Z {"time":"2026-01-12T02:04:47.419088237Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"proj","project":"proj"}
+2026-01-12T02:05:06.2505636Z {"time":"2026-01-12T02:04:47.419113063Z","level":"INFO","msg":"loaded features from DB history","project":"proj","count":3}
+2026-01-12T02:05:06.2507009Z {"time":"2026-01-12T02:04:47.41912265Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"proj","project":"proj"}
+2026-01-12T02:05:06.2508693Z {"time":"2026-01-12T02:04:47.419147787Z","level":"INFO","msg":"loaded features from DB history","project":"proj","count":3}
+2026-01-12T02:05:06.2509942Z {"time":"2026-01-12T02:04:47.419173315Z","level":"INFO","msg":"agent role selected","project":"proj","role":"Agent"}
+2026-01-12T02:05:06.2511077Z {"time":"2026-01-12T02:04:47.41918133Z","level":"INFO","msg":"sending prompt to agent","project":"proj"}
+2026-01-12T02:05:06.2511803Z Agent Response:
+2026-01-12T02:05:06.2512615Z {"time":"2026-01-12T02:04:47.419194003Z","level":"ERROR","msg":"agent error, retrying","project":"proj","error":"simulated failure"}
+2026-01-12T02:05:06.2513980Z {"time":"2026-01-12T02:04:47.419210133Z","level":"ERROR","msg":"iteration failed","project":"proj","error":"simulated failure"}
+2026-01-12T02:05:06.2515050Z [Session] DB Store initialized successfully: type=sqlite, project=proj
+2026-01-12T02:05:06.2516146Z {"time":"2026-01-12T02:04:47.420794732Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"proj"}
+2026-01-12T02:05:06.2517601Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/proj_agent_proj_20260112-020447.log
+2026-01-12T02:05:06.2518696Z Initializing session with image: img
+2026-01-12T02:05:06.2519107Z Loaded spec: 4 bytes
+2026-01-12T02:05:06.2520317Z Warning: Failed to locate agent-bridge binary: agent-bridge binary not found at /home/runner/work/recac/recac/agent-bridge. Did you run 'make bridge'?. Agent CLI tools will not work.
+2026-01-12T02:05:06.2521656Z Container started successfully. ID: mock-id
+2026-01-12T02:05:06.2522219Z Fixing container passwd database for UID:GID 1001:1001...
+2026-01-12T02:05:06.2523124Z Bootstrapping git config (email: test@example.com, name: Test User, excludes: /etc/gitignore_global)...
+2026-01-12T02:05:06.2524289Z {"time":"2026-01-12T02:04:47.422290603Z","level":"INFO","msg":"entering autonomous run loop","project":"proj"}
+2026-01-12T02:05:06.2525402Z {"time":"2026-01-12T02:04:47.422297465Z","level":"INFO","msg":"Checking notification for event: on_start"}
+2026-01-12T02:05:06.2526534Z {"time":"2026-01-12T02:04:47.423254752Z","level":"INFO","msg":"debug git branches","project":"proj","output":""}
+2026-01-12T02:05:06.2527866Z {"time":"2026-01-12T02:04:47.423884374Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"proj","project":"proj"}
+2026-01-12T02:05:06.2529381Z {"time":"2026-01-12T02:04:47.423923787Z","level":"INFO","msg":"loaded features from DB history","project":"proj","count":3}
+2026-01-12T02:05:06.2531000Z {"time":"2026-01-12T02:04:47.423935319Z","level":"INFO","msg":"starting iteration","project":"proj","iteration":1,"task_id":"t2","agent_provider":"gemini","agent_model":"gemini-pro"}
+2026-01-12T02:05:06.2532681Z {"time":"2026-01-12T02:04:47.423939767Z","level":"INFO","msg":"assigned task details","project":"proj","task_id":"t2","desc_snippet":""}
+2026-01-12T02:05:06.2534155Z {"time":"2026-01-12T02:04:47.423942271Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"proj","project":"proj"}
+2026-01-12T02:05:06.2535518Z {"time":"2026-01-12T02:04:47.42395797Z","level":"INFO","msg":"loaded features from DB history","project":"proj","count":3}
+2026-01-12T02:05:06.2537037Z {"time":"2026-01-12T02:04:47.423967228Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"proj","project":"proj"}
+2026-01-12T02:05:06.2538411Z {"time":"2026-01-12T02:04:47.423980953Z","level":"INFO","msg":"loaded features from DB history","project":"proj","count":3}
+2026-01-12T02:05:06.2539955Z {"time":"2026-01-12T02:04:47.423985873Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"proj","project":"proj"}
+2026-01-12T02:05:06.2541357Z {"time":"2026-01-12T02:04:47.424004728Z","level":"INFO","msg":"loaded features from DB history","project":"proj","count":3}
+2026-01-12T02:05:06.2542599Z {"time":"2026-01-12T02:04:47.424032059Z","level":"INFO","msg":"agent role selected","project":"proj","role":"Agent"}
+2026-01-12T02:05:06.2543886Z {"time":"2026-01-12T02:04:47.424040875Z","level":"INFO","msg":"sending prompt to agent","project":"proj"}
+2026-01-12T02:05:06.2544621Z Agent Response:
+2026-01-12T02:05:06.2545418Z {"time":"2026-01-12T02:04:47.424056213Z","level":"ERROR","msg":"agent error, retrying","project":"proj","error":"simulated failure"}
+2026-01-12T02:05:06.2546791Z {"time":"2026-01-12T02:04:47.424060251Z","level":"ERROR","msg":"iteration failed","project":"proj","error":"simulated failure"}
+2026-01-12T02:05:06.2548203Z {"time":"2026-01-12T02:04:47.425093434Z","level":"INFO","msg":"debug git status","project":"proj","output":"A  app_spec.txt\n?? .gitignore\n"}
+2026-01-12T02:05:06.2549604Z {"time":"2026-01-12T02:04:47.426457282Z","level":"INFO","msg":"debug git refs","project":"proj","output":""}
+2026-01-12T02:05:06.2550781Z {"time":"2026-01-12T02:04:48.428777328Z","level":"INFO","msg":"reached max iterations","project":"proj","max_iterations":1}
+2026-01-12T02:05:06.2551635Z Cleaning up container: mock-id
+2026-01-12T02:05:06.2552052Z Container cleaned up successfully
+2026-01-12T02:05:06.2552519Z Task t3 Session Failed: maximum iterations reached
+2026-01-12T02:05:06.2552961Z Stopping container: mock-id
+2026-01-12T02:05:06.2553331Z Container stopped successfully
+2026-01-12T02:05:06.2553760Z Worker 1 error: maximum iterations reached
+2026-01-12T02:05:06.2554173Z Worker 1 stopped
+2026-01-12T02:05:06.2554504Z Cleaning up container: mock-id
+2026-01-12T02:05:06.2554909Z Container cleaned up successfully
+2026-01-12T02:05:06.2555460Z Task t1 Session Failed: context deadline exceeded
+2026-01-12T02:05:06.2555973Z Stopping container: mock-id
+2026-01-12T02:05:06.2556371Z Container stopped successfully
+2026-01-12T02:05:06.2556818Z Worker 0 error: context deadline exceeded
+2026-01-12T02:05:06.2557253Z Worker 0 stopped
+2026-01-12T02:05:06.2557586Z Cleaning up container: mock-id
+2026-01-12T02:05:06.2557992Z Container cleaned up successfully
+2026-01-12T02:05:06.2558691Z Task t2 Session Failed: context deadline exceeded
+2026-01-12T02:05:06.2559203Z Stopping container: mock-id
+2026-01-12T02:05:06.2559609Z Container stopped successfully
+2026-01-12T02:05:06.2560037Z Worker 2 error: context deadline exceeded
+2026-01-12T02:05:06.2560466Z Worker 2 stopped
+2026-01-12T02:05:06.2560790Z Worker pool stopped
+2026-01-12T02:05:06.2561291Z --- PASS: TestOrchestrator_FaultTolerance_HighFailureRate (5.13s)
+2026-01-12T02:05:06.2561918Z === RUN   TestOrchestrator_EnsureGitRepo
+2026-01-12T02:05:06.2562441Z Starting Multi-Agent Orchestrator (max-agents: 1)
+2026-01-12T02:05:06.2562940Z Initializing git repository...
+2026-01-12T02:05:06.2563340Z Created initial git commit.
+2026-01-12T02:05:06.2563747Z Starting worker pool with 1 workers
+2026-01-12T02:05:06.2564140Z Worker 0 started
+2026-01-12T02:05:06.2564442Z Worker 0 stopped
+2026-01-12T02:05:06.2564759Z Worker pool stopped
+2026-01-12T02:05:06.2565147Z --- PASS: TestOrchestrator_EnsureGitRepo (0.10s)
+2026-01-12T02:05:06.2565656Z === RUN   TestGenerateFeatureList
+2026-01-12T02:05:06.2566115Z --- PASS: TestGenerateFeatureList (0.00s)
+2026-01-12T02:05:06.2566589Z === RUN   TestWorkerPool
+2026-01-12T02:05:06.2566963Z Starting worker pool with 2 workers
+2026-01-12T02:05:06.2567367Z Worker 1 started
+2026-01-12T02:05:06.2567667Z Worker 0 started
+2026-01-12T02:05:06.2568188Z Worker 0 error: simulated error
+2026-01-12T02:05:06.2568793Z Worker 0 stopped
+2026-01-12T02:05:06.2569119Z Worker 1 stopped
+2026-01-12T02:05:06.2569446Z Worker pool stopped
+2026-01-12T02:05:06.2569802Z --- PASS: TestWorkerPool (0.01s)
+2026-01-12T02:05:06.2570275Z === RUN   TestSession_ProcessResponse_NoCommands
+2026-01-12T02:05:06.2570879Z --- PASS: TestSession_ProcessResponse_NoCommands (0.00s)
+2026-01-12T02:05:06.2571480Z === RUN   TestSession_ProcessResponse_WithCommands
+2026-01-12T02:05:06.2572471Z {"time":"2026-01-12T02:04:52.545737275Z","level":"INFO","msg":"executing command block","index":1,"total":1,"script":"echo hello"}
+2026-01-12T02:05:06.2573679Z {"time":"2026-01-12T02:04:52.545767451Z","level":"INFO","msg":"command output","output":"Success"}
+2026-01-12T02:05:06.2574722Z --- PASS: TestSession_ProcessResponse_WithCommands (0.01s)
+2026-01-12T02:05:06.2575317Z === RUN   TestSession_ProcessResponse_Blocker
+2026-01-12T02:05:06.2575640Z
+2026-01-12T02:05:06.2575813Z !!! AGENT BLOCKED: I am stuck !!!
+2026-01-12T02:05:06.2576256Z Waiting for blocker to be resolved...
+2026-01-12T02:05:06.2576783Z --- PASS: TestSession_ProcessResponse_Blocker (0.01s)
+2026-01-12T02:05:06.2577307Z === RUN   TestProjectCompleteFlow
+2026-01-12T02:05:06.2577790Z Workspace: /tmp/recac-test-complete3952764564
+2026-01-12T02:05:06.2578522Z [Session] DB Store initialized successfully: type=sqlite, project=test-project
+2026-01-12T02:05:06.2579968Z {"time":"2026-01-12T02:04:52.559055725Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+2026-01-12T02:05:06.2581602Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/test-project_agent_test-project_20260112-020452.log
+2026-01-12T02:05:06.2583097Z {"time":"2026-01-12T02:04:52.559166772Z","level":"INFO","msg":"entering autonomous run loop","project":"test-project"}
+2026-01-12T02:05:06.2584298Z {"time":"2026-01-12T02:04:52.559180237Z","level":"INFO","msg":"Checking notification for event: on_start"}
+2026-01-12T02:05:06.2585369Z Warning: Failed to ensure state files are ignored: failed to untrack state files: exit status 128
+2026-01-12T02:05:06.2586732Z {"time":"2026-01-12T02:04:52.560916829Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+2026-01-12T02:05:06.2588751Z {"time":"2026-01-12T02:04:52.560991578Z","level":"INFO","msg":"loaded features from injected content","project":"test-project"}
+2026-01-12T02:05:06.2589787Z All features passed! Triggering Project Complete flow.
+2026-01-12T02:05:06.2590774Z {"time":"2026-01-12T02:04:52.561842973Z","level":"INFO","msg":"created signal","project":"test-project","signal":"COMPLETED"}
+2026-01-12T02:05:06.2592056Z {"time":"2026-01-12T02:04:52.561871747Z","level":"INFO","msg":"Checking notification for event: on_project_complete"}
+2026-01-12T02:05:06.2593756Z {"time":"2026-01-12T02:04:52.561894549Z","level":"INFO","msg":"starting iteration","project":"test-project","iteration":1,"task_id":"","agent_provider":"gemini","agent_model":"gemini-pro"}
+2026-01-12T02:05:06.2595677Z {"time":"2026-01-12T02:04:52.561902914Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+2026-01-12T02:05:06.2597298Z {"time":"2026-01-12T02:04:52.561962095Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":2}
+2026-01-12T02:05:06.2598302Z Project marked as COMPLETED. Running QA agent...
+2026-01-12T02:05:06.2599452Z {"time":"2026-01-12T02:04:52.562086736Z","level":"INFO","msg":"QA agent running quality checks","project":"test-project"}
+2026-01-12T02:05:06.2600958Z {"time":"2026-01-12T02:04:52.562100773Z","level":"INFO","msg":"sending verification instructions to QA agent","project":"test-project"}
+2026-01-12T02:05:06.2602426Z {"time":"2026-01-12T02:04:52.562109759Z","level":"INFO","msg":"QA agent response received","project":"test-project","chars":69}
+2026-01-12T02:05:06.2604377Z {"time":"2026-01-12T02:04:52.562122393Z","level":"INFO","msg":"executing command block","project":"test-project","index":1,"total":1,"script":"echo PASS > /tmp/recac-test-complete3952764564/.qa_result"}
+2026-01-12T02:05:06.2606062Z {"time":"2026-01-12T02:04:52.562327124Z","level":"INFO","msg":"QA result","project":"test-project","result":"PASS"}
+2026-01-12T02:05:06.2607321Z {"time":"2026-01-12T02:04:52.562735604Z","level":"INFO","msg":"created signal","project":"test-project","signal":"QA_PASSED"}
+2026-01-12T02:05:06.2608507Z {"time":"2026-01-12T02:04:52.562745422Z","level":"INFO","msg":"QA passed","project":"test-project"}
+2026-01-12T02:05:06.2609915Z {"time":"2026-01-12T02:04:52.563195059Z","level":"INFO","msg":"created signal","project":"test-project","signal":"QA_PASSED"}
+2026-01-12T02:05:06.2610836Z QA checks passed. Moving to Manager review.
+2026-01-12T02:05:06.2612009Z {"time":"2026-01-12T02:04:52.563207222Z","level":"INFO","msg":"reached max iterations","project":"test-project","max_iterations":1}
+2026-01-12T02:05:06.2613363Z {"time":"2026-01-12T02:04:52.563210078Z","level":"INFO","msg":"entering autonomous run loop","project":"test-project"}
+2026-01-12T02:05:06.2614549Z {"time":"2026-01-12T02:04:52.563213394Z","level":"INFO","msg":"Checking notification for event: on_start"}
+2026-01-12T02:05:06.2615649Z Warning: Failed to ensure state files are ignored: failed to untrack state files: exit status 128
+2026-01-12T02:05:06.2617104Z {"time":"2026-01-12T02:04:52.564683759Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+2026-01-12T02:05:06.2618865Z {"time":"2026-01-12T02:04:52.56475947Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":2}
+2026-01-12T02:05:06.2619883Z All features passed! Triggering Project Complete flow.
+2026-01-12T02:05:06.2620870Z {"time":"2026-01-12T02:04:52.565221881Z","level":"INFO","msg":"created signal","project":"test-project","signal":"COMPLETED"}
+2026-01-12T02:05:06.2622191Z {"time":"2026-01-12T02:04:52.565237239Z","level":"INFO","msg":"Checking notification for event: on_project_complete"}
+2026-01-12T02:05:06.2623842Z {"time":"2026-01-12T02:04:52.5652592Z","level":"INFO","msg":"starting iteration","project":"test-project","iteration":3,"task_id":"","agent_provider":"gemini","agent_model":"gemini-pro"}
+2026-01-12T02:05:06.2625666Z {"time":"2026-01-12T02:04:52.565271744Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+2026-01-12T02:05:06.2627169Z {"time":"2026-01-12T02:04:52.565330323Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":2}
+2026-01-12T02:05:06.2628185Z QA passed. Running Manager agent for final review...
+2026-01-12T02:05:06.2629342Z {"time":"2026-01-12T02:04:52.565423446Z","level":"INFO","msg":"manager agent reviewing QA report","project":"test-project"}
+2026-01-12T02:05:06.2630894Z {"time":"2026-01-12T02:04:52.565428275Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+2026-01-12T02:05:06.2632525Z {"time":"2026-01-12T02:04:52.565476675Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":2}
+2026-01-12T02:05:06.2633978Z {"time":"2026-01-12T02:04:52.565503054Z","level":"INFO","msg":"sending QA report to manager agent","project":"test-project"}
+2026-01-12T02:05:06.2635382Z {"time":"2026-01-12T02:04:52.565508324Z","level":"INFO","msg":"manager review response received","project":"test-project","chars":4}
+2026-01-12T02:05:06.2636920Z {"time":"2026-01-12T02:04:52.565664059Z","level":"INFO","msg":"manager approved (legacy/fallback), all features passing","project":"test-project"}
+2026-01-12T02:05:06.2638448Z {"time":"2026-01-12T02:04:52.56611035Z","level":"INFO","msg":"created signal","project":"test-project","signal":"PROJECT_SIGNED_OFF"}
+2026-01-12T02:05:06.2639703Z Manager approved. Project signed off.
+2026-01-12T02:05:06.2640684Z {"time":"2026-01-12T02:04:52.566122613Z","level":"INFO","msg":"Checking notification for event: on_success"}
+2026-01-12T02:05:06.2641956Z {"time":"2026-01-12T02:04:52.56613748Z","level":"INFO","msg":"reached max iterations","project":"test-project","max_iterations":3}
+2026-01-12T02:05:06.2642896Z --- PASS: TestProjectCompleteFlow (0.01s)
+2026-01-12T02:05:06.2643387Z === RUN   TestRunQAAgent_Pass
+2026-01-12T02:05:06.2644089Z {"time":"2026-01-12T02:04:52.571509649Z","level":"INFO","msg":"QA agent running quality checks"}
+2026-01-12T02:05:06.2645224Z {"time":"2026-01-12T02:04:52.571523255Z","level":"INFO","msg":"sending verification instructions to QA agent"}
+2026-01-12T02:05:06.2646302Z {"time":"2026-01-12T02:04:52.571568178Z","level":"INFO","msg":"QA agent response received","chars":31}
+2026-01-12T02:05:06.2647269Z {"time":"2026-01-12T02:04:52.571638489Z","level":"INFO","msg":"QA result","result":"PASS"}
+2026-01-12T02:05:06.2648401Z {"time":"2026-01-12T02:04:52.572208941Z","level":"INFO","msg":"created signal","signal":"QA_PASSED"}
+2026-01-12T02:05:06.2649497Z {"time":"2026-01-12T02:04:52.57221923Z","level":"INFO","msg":"QA passed"}
+2026-01-12T02:05:06.2650111Z --- PASS: TestRunQAAgent_Pass (0.01s)
+2026-01-12T02:05:06.2650573Z === RUN   TestRunQAAgent_Fail
+2026-01-12T02:05:06.2651273Z {"time":"2026-01-12T02:04:52.578199572Z","level":"INFO","msg":"QA agent running quality checks"}
+2026-01-12T02:05:06.2652361Z {"time":"2026-01-12T02:04:52.578222123Z","level":"INFO","msg":"sending verification instructions to QA agent"}
+2026-01-12T02:05:06.2653497Z {"time":"2026-01-12T02:04:52.578265765Z","level":"INFO","msg":"QA agent response received","chars":31}
+2026-01-12T02:05:06.2654509Z {"time":"2026-01-12T02:04:52.578334753Z","level":"INFO","msg":"QA result","result":"FAIL"}
+2026-01-12T02:05:06.2655380Z {"time":"2026-01-12T02:04:52.578347307Z","level":"ERROR","msg":"QA failed"}
+2026-01-12T02:05:06.2656023Z --- PASS: TestRunQAAgent_Fail (0.01s)
+2026-01-12T02:05:06.2656491Z === RUN   TestRunQA_IdentifiesFailures
+2026-01-12T02:05:06.2657009Z --- PASS: TestRunQA_IdentifiesFailures (0.00s)
+2026-01-12T02:05:06.2657503Z === RUN   TestQAReport_String
+2026-01-12T02:05:06.2657919Z --- PASS: TestQAReport_String (0.00s)
+2026-01-12T02:05:06.2658421Z === RUN   TestRace_StateManager
+2026-01-12T02:05:06.2659003Z --- PASS: TestRace_StateManager (0.20s)
+2026-01-12T02:05:06.2659457Z === RUN   TestRace_WorkerPool_Notifier
+2026-01-12T02:05:06.2659887Z Starting worker pool with 4 workers
+2026-01-12T02:05:06.2660277Z Worker 2 started
+2026-01-12T02:05:06.2660568Z Worker 1 started
+2026-01-12T02:05:06.2660857Z Worker 0 started
+2026-01-12T02:05:06.2661143Z Worker 0 stopped
+2026-01-12T02:05:06.2661428Z Worker 1 stopped
+2026-01-12T02:05:06.2661719Z Worker 3 started
+2026-01-12T02:05:06.2662004Z Worker 3 stopped
+2026-01-12T02:05:06.2662289Z Worker 2 stopped
+2026-01-12T02:05:06.2662589Z Worker pool stopped
+2026-01-12T02:05:06.2662981Z --- PASS: TestRace_WorkerPool_Notifier (0.00s)
+2026-01-12T02:05:06.2663480Z === RUN   TestTruncateRepetitiveResponse
+2026-01-12T02:05:06.2664025Z === RUN   TestTruncateRepetitiveResponse/No_repetition
+2026-01-12T02:05:06.2664647Z === RUN   TestTruncateRepetitiveResponse/Single_line_loop
+2026-01-12T02:05:06.2665300Z === RUN   TestTruncateRepetitiveResponse/Two_line_pattern_loop
+2026-01-12T02:05:06.2666130Z === RUN   TestTruncateRepetitiveResponse/Legitimate_repetition_(fewer_than_threshold)
+2026-01-12T02:05:06.2666923Z === RUN   TestTruncateRepetitiveResponse/Empty_lines_loop
+2026-01-12T02:05:06.2667468Z --- PASS: TestTruncateRepetitiveResponse (0.00s)
+2026-01-12T02:05:06.2668202Z     --- PASS: TestTruncateRepetitiveResponse/No_repetition (0.00s)
+2026-01-12T02:05:06.2669203Z     --- PASS: TestTruncateRepetitiveResponse/Single_line_loop (0.00s)
+2026-01-12T02:05:06.2670122Z     --- PASS: TestTruncateRepetitiveResponse/Two_line_pattern_loop (0.00s)
+2026-01-12T02:05:06.2671304Z     --- PASS: TestTruncateRepetitiveResponse/Legitimate_repetition_(fewer_than_threshold) (0.00s)
+2026-01-12T02:05:06.2672421Z     --- PASS: TestTruncateRepetitiveResponse/Empty_lines_loop (0.00s)
+2026-01-12T02:05:06.2673237Z === RUN   TestSession_RunLoop_Success
+2026-01-12T02:05:06.2673970Z {"time":"2026-01-12T02:04:52.787622685Z","level":"INFO","msg":"entering autonomous run loop"}
+2026-01-12T02:05:06.2675093Z {"time":"2026-01-12T02:04:52.787788224Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+2026-01-12T02:05:06.2676531Z {"time":"2026-01-12T02:04:52.787884172Z","level":"INFO","msg":"starting iteration","iteration":1,"task_id":"","agent_provider":"","agent_model":""}
+2026-01-12T02:05:06.2677940Z {"time":"2026-01-12T02:04:52.787898469Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+2026-01-12T02:05:06.2679433Z {"time":"2026-01-12T02:04:52.788023351Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+2026-01-12T02:05:06.2680616Z Feature list not found (in DB, Content, or File). Running Initializer.
+2026-01-12T02:05:06.2681511Z {"time":"2026-01-12T02:04:52.788169914Z","level":"INFO","msg":"agent role selected","role":"Agent"}
+2026-01-12T02:05:06.2682469Z {"time":"2026-01-12T02:04:52.788197606Z","level":"INFO","msg":"sending prompt to agent"}
+2026-01-12T02:05:06.2683516Z {"time":"2026-01-12T02:04:52.788204528Z","level":"INFO","msg":"agent response received","role":"Agent","chars":43}
+2026-01-12T02:05:06.2684548Z {"time":"2026-01-12T02:04:52.788619761Z","level":"DEBUG","msg":"saved observation to DB"}
+2026-01-12T02:05:06.2685714Z {"time":"2026-01-12T02:04:52.788655097Z","level":"INFO","msg":"executing command block","index":1,"total":1,"script":"echo success"}
+2026-01-12T02:05:06.2686868Z {"time":"2026-01-12T02:04:52.789103612Z","level":"DEBUG","msg":"saved system output to DB"}
+2026-01-12T02:05:06.2687876Z {"time":"2026-01-12T02:04:52.789116365Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+2026-01-12T02:05:06.2689288Z {"time":"2026-01-12T02:04:53.790797516Z","level":"INFO","msg":"starting iteration","iteration":2,"task_id":"","agent_provider":"","agent_model":""}
+2026-01-12T02:05:06.2690699Z {"time":"2026-01-12T02:04:53.790832101Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+2026-01-12T02:05:06.2691959Z {"time":"2026-01-12T02:04:53.79109522Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+2026-01-12T02:05:06.2692975Z Feature list not found (in DB, Content, or File). Running Initializer.
+2026-01-12T02:05:06.2693862Z {"time":"2026-01-12T02:04:53.791294792Z","level":"INFO","msg":"agent role selected","role":"Agent"}
+2026-01-12T02:05:06.2694813Z {"time":"2026-01-12T02:04:53.79132094Z","level":"INFO","msg":"sending prompt to agent"}
+2026-01-12T02:05:06.2695857Z {"time":"2026-01-12T02:04:53.791326341Z","level":"INFO","msg":"agent response received","role":"Agent","chars":10}
+2026-01-12T02:05:06.2696903Z {"time":"2026-01-12T02:04:53.792067721Z","level":"DEBUG","msg":"saved observation to DB"}
+2026-01-12T02:05:06.2698001Z {"time":"2026-01-12T02:04:53.792151216Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+2026-01-12T02:05:06.2699656Z {"time":"2026-01-12T02:04:54.793882402Z","level":"INFO","msg":"starting iteration","iteration":3,"task_id":"","agent_provider":"","agent_model":""}
+2026-01-12T02:05:06.2701071Z {"time":"2026-01-12T02:04:54.793916435Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+2026-01-12T02:05:06.2702322Z {"time":"2026-01-12T02:04:54.79416607Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+2026-01-12T02:05:06.2703358Z Feature list not found (in DB, Content, or File). Running Initializer.
+2026-01-12T02:05:06.2704274Z {"time":"2026-01-12T02:04:54.794340254Z","level":"INFO","msg":"agent role selected","role":"Agent"}
+2026-01-12T02:05:06.2705259Z {"time":"2026-01-12T02:04:54.794357827Z","level":"INFO","msg":"sending prompt to agent"}
+2026-01-12T02:05:06.2706336Z {"time":"2026-01-12T02:04:54.794363999Z","level":"INFO","msg":"agent response received","role":"Agent","chars":0}
+2026-01-12T02:05:06.2707541Z {"time":"2026-01-12T02:04:54.795344724Z","level":"DEBUG","msg":"saved observation to DB"}
+2026-01-12T02:05:06.2708806Z {"time":"2026-01-12T02:04:54.79541813Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+2026-01-12T02:05:06.2710208Z {"time":"2026-01-12T02:04:55.797095066Z","level":"INFO","msg":"starting iteration","iteration":4,"task_id":"","agent_provider":"","agent_model":""}
+2026-01-12T02:05:06.2711665Z {"time":"2026-01-12T02:04:55.797158113Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+2026-01-12T02:05:06.2712927Z {"time":"2026-01-12T02:04:55.797422876Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+2026-01-12T02:05:06.2713988Z Feature list not found (in DB, Content, or File). Running Initializer.
+2026-01-12T02:05:06.2715045Z {"time":"2026-01-12T02:04:55.79759698Z","level":"INFO","msg":"agent role selected","role":"Agent"}
+2026-01-12T02:05:06.2716020Z {"time":"2026-01-12T02:04:55.797614953Z","level":"INFO","msg":"sending prompt to agent"}
+2026-01-12T02:05:06.2717077Z {"time":"2026-01-12T02:04:55.797621135Z","level":"INFO","msg":"agent response received","role":"Agent","chars":0}
+2026-01-12T02:05:06.2718012Z {"time":"2026-01-12T02:04:55.798441602Z","level":"DEBUG","msg":"saved observation to DB"}
+2026-01-12T02:05:06.2719291Z CIRCUIT BREAKER TRIPPED: NO-OP LOOP (Agent has produced 3 consecutive responses with no commands)
+2026-01-12T02:05:06.2720140Z --- PASS: TestSession_RunLoop_Success (3.02s)
+2026-01-12T02:05:06.2720689Z === RUN   TestSession_RunLoop_StalledBreaker
+2026-01-12T02:05:06.2721241Z --- PASS: TestSession_RunLoop_StalledBreaker (0.00s)
+2026-01-12T02:05:06.2721830Z === RUN   TestSecurityIntegration_BlocksSecrets
+2026-01-12T02:05:06.2722619Z [Session] DB Store initialized successfully: type=sqlite, project=test-project
+2026-01-12T02:05:06.2723884Z {"time":"2026-01-12T02:04:55.804818227Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+2026-01-12T02:05:06.2725500Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/test-project_agent_test-project_20260112-020455.log
+2026-01-12T02:05:06.2726997Z {"time":"2026-01-12T02:04:55.80492696Z","level":"INFO","msg":"entering autonomous run loop","project":"test-project"}
+2026-01-12T02:05:06.2728158Z {"time":"2026-01-12T02:04:55.804933041Z","level":"INFO","msg":"Checking notification for event: on_start"}
+2026-01-12T02:05:06.2729404Z Warning: Failed to ensure state files are ignored: failed to untrack state files: exit status 128
+2026-01-12T02:05:06.2730803Z {"time":"2026-01-12T02:04:55.806707598Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+2026-01-12T02:05:06.2732660Z {"time":"2026-01-12T02:04:55.806759534Z","level":"INFO","msg":"starting iteration","project":"test-project","iteration":1,"task_id":"","agent_provider":"gemini","agent_model":"gemini-pro"}
+2026-01-12T02:05:06.2734595Z {"time":"2026-01-12T02:04:55.806768711Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+2026-01-12T02:05:06.2736300Z {"time":"2026-01-12T02:04:55.806898122Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+2026-01-12T02:05:06.2737518Z Feature list not found (in DB, Content, or File). Running Initializer.
+2026-01-12T02:05:06.2738785Z {"time":"2026-01-12T02:04:55.807394476Z","level":"INFO","msg":"agent role selected","project":"test-project","role":"Agent"}
+2026-01-12T02:05:06.2740070Z {"time":"2026-01-12T02:04:55.807403883Z","level":"INFO","msg":"sending prompt to agent","project":"test-project"}
+2026-01-12T02:05:06.2741450Z {"time":"2026-01-12T02:04:55.807406849Z","level":"INFO","msg":"agent response received","project":"test-project","role":"Agent","chars":38}
+2026-01-12T02:05:06.2743029Z {"time":"2026-01-12T02:04:55.807423941Z","level":"ERROR","msg":"security violation detected","project":"test-project"}
+2026-01-12T02:05:06.2744651Z {"time":"2026-01-12T02:04:55.807427046Z","level":"ERROR","msg":"security finding","project":"test-project","type":"AWS Access Key","desc":"Found potential AWS Access Key","line":1}
+2026-01-12T02:05:06.2746443Z {"time":"2026-01-12T02:04:55.807431495Z","level":"ERROR","msg":"iteration failed","project":"test-project","error":"security violation detected"}
+2026-01-12T02:05:06.2747900Z {"time":"2026-01-12T02:05:00.811525264Z","level":"INFO","msg":"reached max iterations","project":"test-project","max_iterations":1}
+2026-01-12T02:05:06.2749367Z     security_integration_test.go:72: DB is empty (Good, secret was blocked)
+2026-01-12T02:05:06.2750114Z --- PASS: TestSecurityIntegration_BlocksSecrets (5.01s)
+2026-01-12T02:05:06.2750662Z === RUN   TestSession_CheckNoOpBreaker
+2026-01-12T02:05:06.2751375Z --- PASS: TestSession_CheckNoOpBreaker (0.00s)
+2026-01-12T02:05:06.2751879Z === RUN   TestSession_CheckStalledBreaker
+2026-01-12T02:05:06.2752477Z Warning: Progress stalled for 5 iterations. Summoning Manager.
+2026-01-12T02:05:06.2753196Z Warning: Progress stalled for 15 iterations. Summoning Manager.
+2026-01-12T02:05:06.2753818Z --- PASS: TestSession_CheckStalledBreaker (0.00s)
+2026-01-12T02:05:06.2754392Z === RUN   TestSession_CheckStalledBreaker_ManagerReset
+2026-01-12T02:05:06.2755026Z --- PASS: TestSession_CheckStalledBreaker_ManagerReset (0.00s)
+2026-01-12T02:05:06.2755615Z === RUN   TestSession_Start_RunsInitScript
+2026-01-12T02:05:06.2756329Z [Session] DB Store initialized successfully: type=sqlite, project=test-project
+2026-01-12T02:05:06.2757611Z {"time":"2026-01-12T02:05:00.817918422Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+2026-01-12T02:05:06.2759584Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/test-project_agent_test-project_20260112-020500.log
+2026-01-12T02:05:06.2760701Z Initializing session with image: alpine
+2026-01-12T02:05:06.2761130Z Loaded spec: 9 bytes
+2026-01-12T02:05:06.2762366Z Warning: Failed to locate agent-bridge binary: agent-bridge binary not found at /home/runner/work/recac/recac/agent-bridge. Did you run 'make bridge'?. Agent CLI tools will not work.
+2026-01-12T02:05:06.2763738Z Container started successfully. ID: test-container
+2026-01-12T02:05:06.2764354Z Fixing container passwd database for UID:GID 1001:1001...
+2026-01-12T02:05:06.2764967Z Updated workspace .gitignore with agent patterns.
+2026-01-12T02:05:06.2765880Z Bootstrapping git config (email: test@example.com, name: Test User, excludes: /etc/gitignore_global)...
+2026-01-12T02:05:06.2766741Z Found init.sh. Executing in container...
+2026-01-12T02:05:06.2767310Z Found init.sh. Launching in background (10m timeout)...
+2026-01-12T02:05:06.2768205Z {"time":"2026-01-12T02:05:00.819012465Z","level":"INFO","msg":"Checking notification for event: on_start"}
+2026-01-12T02:05:06.2769222Z async init.sh finished successfully.
+2026-01-12T02:05:06.2769760Z --- PASS: TestSession_Start_RunsInitScript (0.01s)
+2026-01-12T02:05:06.2770318Z === RUN   TestSession_Start_NoInitScript
+2026-01-12T02:05:06.2771006Z [Session] DB Store initialized successfully: type=sqlite, project=test-project
+2026-01-12T02:05:06.2772233Z {"time":"2026-01-12T02:05:00.824454193Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+2026-01-12T02:05:06.2773855Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/test-project_agent_test-project_20260112-020500.log
+2026-01-12T02:05:06.2774946Z Initializing session with image: alpine
+2026-01-12T02:05:06.2775370Z Loaded spec: 9 bytes
+2026-01-12T02:05:06.2776637Z Warning: Failed to locate agent-bridge binary: agent-bridge binary not found at /home/runner/work/recac/recac/agent-bridge. Did you run 'make bridge'?. Agent CLI tools will not work.
+2026-01-12T02:05:06.2778061Z Container started successfully. ID: mock-container-id
+2026-01-12T02:05:06.2778891Z Fixing container passwd database for UID:GID 1001:1001...
+2026-01-12T02:05:06.2779684Z Updated workspace .gitignore with agent patterns.
+2026-01-12T02:05:06.2780618Z Bootstrapping git config (email: test@example.com, name: Test User, excludes: /etc/gitignore_global)...
+2026-01-12T02:05:06.2781781Z {"time":"2026-01-12T02:05:00.825392121Z","level":"INFO","msg":"Checking notification for event: on_start"}
+2026-01-12T02:05:06.2782599Z --- PASS: TestSession_Start_NoInitScript (0.01s)
+2026-01-12T02:05:06.2783120Z === RUN   TestSession_Start_InitScriptFails
+2026-01-12T02:05:06.2783774Z [Session] DB Store initialized successfully: type=sqlite, project=test-project
+2026-01-12T02:05:06.2784850Z {"time":"2026-01-12T02:05:00.830725118Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+2026-01-12T02:05:06.2786468Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/test-project_agent_test-project_20260112-020500.log
+2026-01-12T02:05:06.2787728Z Initializing session with image: alpine
+2026-01-12T02:05:06.2788163Z Loaded spec: 9 bytes
+2026-01-12T02:05:06.2789576Z Warning: Failed to locate agent-bridge binary: agent-bridge binary not found at /home/runner/work/recac/recac/agent-bridge. Did you run 'make bridge'?. Agent CLI tools will not work.
+2026-01-12T02:05:06.2791024Z Container started successfully. ID: mock-container-id
+2026-01-12T02:05:06.2791683Z Fixing container passwd database for UID:GID 1001:1001...
+2026-01-12T02:05:06.2792421Z Updated workspace .gitignore with agent patterns.
+2026-01-12T02:05:06.2793310Z Bootstrapping git config (email: test@example.com, name: Test User, excludes: /etc/gitignore_global)...
+2026-01-12T02:05:06.2794180Z Found init.sh. Executing in container...
+2026-01-12T02:05:06.2794745Z Found init.sh. Launching in background (10m timeout)...
+2026-01-12T02:05:06.2795620Z {"time":"2026-01-12T02:05:00.831768786Z","level":"INFO","msg":"Checking notification for event: on_start"}
+2026-01-12T02:05:06.2796728Z Warning: init.sh execution failed: failed to create exec as user root: simulated init.sh failure
+2026-01-12T02:05:06.2797582Z --- PASS: TestSession_Start_InitScriptFails (0.01s)
+2026-01-12T02:05:06.2798114Z === RUN   TestSessionManager_Lifecycle
+2026-01-12T02:05:06.2798945Z fatal: not a git repository (or any of the parent directories): .git
+2026-01-12T02:05:06.2799642Z --- PASS: TestSessionManager_Lifecycle (2.11s)
+2026-01-12T02:05:06.2800165Z === RUN   TestSessionManager_Persistence
+2026-01-12T02:05:06.2800680Z --- PASS: TestSessionManager_Persistence (0.00s)
+2026-01-12T02:05:06.2801233Z === RUN   TestSessionManager_StopSession_NotRunning
+2026-01-12T02:05:06.2801842Z --- PASS: TestSessionManager_StopSession_NotRunning (0.00s)
+2026-01-12T02:05:06.2802421Z === RUN   TestSessionManager_GetSessionLogs
+2026-01-12T02:05:06.2802950Z --- PASS: TestSessionManager_GetSessionLogs (0.00s)
+2026-01-12T02:05:06.2803470Z === RUN   TestSessionManager_RemoveSession
+2026-01-12T02:05:06.2803936Z --- PASS: TestSessionManager_RemoveSession (0.00s)
+2026-01-12T02:05:06.2804420Z === RUN   TestSession_WorkspaceMounting
+2026-01-12T02:05:06.2805076Z [Session] DB Store initialized successfully: type=sqlite, project=test-project
+2026-01-12T02:05:06.2806340Z {"time":"2026-01-12T02:05:02.944278878Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+2026-01-12T02:05:06.2807993Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/test-project_agent_test-project_20260112-020502.log
+2026-01-12T02:05:06.2809300Z Initializing session with image: alpine:latest
+2026-01-12T02:05:06.2810648Z Warning: Failed to read spec: failed to read spec file and no backups found: open /tmp/TestSession_WorkspaceMounting1126416666/001/app_spec.txt: no such file or directory
+2026-01-12T02:05:06.2812742Z Warning: Failed to locate agent-bridge binary: agent-bridge binary not found at /home/runner/work/recac/recac/agent-bridge. Did you run 'make bridge'?. Agent CLI tools will not work.
+2026-01-12T02:05:06.2814291Z Container started successfully. ID: test-container-123
+2026-01-12T02:05:06.2814930Z Fixing container passwd database for UID:GID 1001:1001...
+2026-01-12T02:05:06.2815517Z Updated workspace .gitignore with agent patterns.
+2026-01-12T02:05:06.2816372Z Bootstrapping git config (email: test@example.com, name: Test User, excludes: /etc/gitignore_global)...
+2026-01-12T02:05:06.2817505Z {"time":"2026-01-12T02:05:02.944882041Z","level":"INFO","msg":"Checking notification for event: on_start"}
+2026-01-12T02:05:06.2818792Z     session_mount_test.go:205: Successfully verified workspace mounting:
+2026-01-12T02:05:06.2819893Z     session_mount_test.go:206:   Workspace path: /tmp/TestSession_WorkspaceMounting1126416666/001
+2026-01-12T02:05:06.2821235Z     session_mount_test.go:207:   Mounted as: /tmp/TestSession_WorkspaceMounting1126416666/001:/workspace
+2026-01-12T02:05:06.2822909Z     session_mount_test.go:208:   Container files: [.gitignore .recac.db .recac.db-shm .recac.db-wal file1.txt file2.txt subdir]
+2026-01-12T02:05:06.2823896Z --- PASS: TestSession_WorkspaceMounting (0.01s)
+2026-01-12T02:05:06.2824379Z === RUN   TestSession_ReadSpec
+2026-01-12T02:05:06.2825012Z [Session] DB Store initialized successfully: type=sqlite, project=test-project
+2026-01-12T02:05:06.2826235Z {"time":"2026-01-12T02:05:02.951479349Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+2026-01-12T02:05:06.2827857Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/test-project_agent_test-project_20260112-020502.log
+2026-01-12T02:05:06.2829043Z --- PASS: TestSession_ReadSpec (0.01s)
+2026-01-12T02:05:06.2829535Z === RUN   TestSession_ReadSpec_Missing
+2026-01-12T02:05:06.2830226Z [Session] DB Store initialized successfully: type=sqlite, project=test-project
+2026-01-12T02:05:06.2831474Z {"time":"2026-01-12T02:05:02.957371786Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+2026-01-12T02:05:06.2833079Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/test-project_agent_test-project_20260112-020502.log
+2026-01-12T02:05:06.2834181Z --- PASS: TestSession_ReadSpec_Missing (0.01s)
+2026-01-12T02:05:06.2834680Z === RUN   TestSession_AgentReadsSpec
+2026-01-12T02:05:06.2835354Z [Session] DB Store initialized successfully: type=sqlite, project=test-project
+2026-01-12T02:05:06.2836600Z {"time":"2026-01-12T02:05:02.962422225Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+2026-01-12T02:05:06.2838227Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/test-project_agent_test-project_20260112-020502.log
+2026-01-12T02:05:06.2839498Z Initializing session with image: alpine
+2026-01-12T02:05:06.2839948Z Loaded spec: 77 bytes
+2026-01-12T02:05:06.2841249Z Warning: Failed to locate agent-bridge binary: agent-bridge binary not found at /home/runner/work/recac/recac/agent-bridge. Did you run 'make bridge'?. Agent CLI tools will not work.
+2026-01-12T02:05:06.2842680Z Container started successfully. ID: mock-container-id
+2026-01-12T02:05:06.2843360Z Fixing container passwd database for UID:GID 1001:1001...
+2026-01-12T02:05:06.2843975Z Updated workspace .gitignore with agent patterns.
+2026-01-12T02:05:06.2844863Z Bootstrapping git config (email: test@example.com, name: Test User, excludes: /etc/gitignore_global)...
+2026-01-12T02:05:06.2846018Z {"time":"2026-01-12T02:05:02.964424465Z","level":"INFO","msg":"Checking notification for event: on_start"}
+2026-01-12T02:05:06.2846828Z --- PASS: TestSession_AgentReadsSpec (0.01s)
+2026-01-12T02:05:06.2847315Z === RUN   TestSession_Start_PassesUser
+2026-01-12T02:05:06.2848007Z [Session] DB Store initialized successfully: type=sqlite, project=test-project
+2026-01-12T02:05:06.2849486Z {"time":"2026-01-12T02:05:02.969625876Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+2026-01-12T02:05:06.2851260Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/test-project_agent_test-project_20260112-020502.log
+2026-01-12T02:05:06.2852343Z Initializing session with image: alpine
+2026-01-12T02:05:06.2852780Z Loaded spec: 4 bytes
+2026-01-12T02:05:06.2854072Z Warning: Failed to locate agent-bridge binary: agent-bridge binary not found at /home/runner/work/recac/recac/agent-bridge. Did you run 'make bridge'?. Agent CLI tools will not work.
+2026-01-12T02:05:06.2855403Z Container started successfully. ID: test
+2026-01-12T02:05:06.2855996Z Fixing container passwd database for UID:GID 1001:1001...
+2026-01-12T02:05:06.2856618Z Updated workspace .gitignore with agent patterns.
+2026-01-12T02:05:06.2857523Z Bootstrapping git config (email: test@example.com, name: Test User, excludes: /etc/gitignore_global)...
+2026-01-12T02:05:06.2859031Z {"time":"2026-01-12T02:05:02.970451382Z","level":"INFO","msg":"Checking notification for event: on_start"}
+2026-01-12T02:05:06.2859532Z --- PASS: TestSession_Start_PassesUser (0.01s)
+2026-01-12T02:05:06.2859837Z === RUN   TestSession_SelectPrompt
+2026-01-12T02:05:06.2860231Z [Session] DB Store initialized successfully: type=sqlite, project=test-project
+2026-01-12T02:05:06.2860960Z {"time":"2026-01-12T02:05:02.975488637Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+2026-01-12T02:05:06.2861898Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/test-project_agent_test-project_20260112-020502.log
+2026-01-12T02:05:06.2862878Z {"time":"2026-01-12T02:05:02.97555509Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+2026-01-12T02:05:06.2863588Z Feature list not found (in DB, Content, or File). Running Initializer.
+2026-01-12T02:05:06.2864323Z {"time":"2026-01-12T02:05:02.976143936Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+2026-01-12T02:05:06.2865207Z {"time":"2026-01-12T02:05:02.976213666Z","level":"INFO","msg":"loaded features from injected content","project":"test-project"}
+2026-01-12T02:05:06.2866084Z {"time":"2026-01-12T02:05:02.976762518Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+2026-01-12T02:05:06.2866964Z {"time":"2026-01-12T02:05:02.976823341Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+2026-01-12T02:05:06.2867853Z {"time":"2026-01-12T02:05:02.976879495Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+2026-01-12T02:05:06.2869012Z {"time":"2026-01-12T02:05:02.97693574Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+2026-01-12T02:05:06.2869934Z {"time":"2026-01-12T02:05:02.9769842Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+2026-01-12T02:05:06.2870821Z {"time":"2026-01-12T02:05:02.977041417Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+2026-01-12T02:05:06.2871718Z {"time":"2026-01-12T02:05:02.977103252Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+2026-01-12T02:05:06.2872629Z {"time":"2026-01-12T02:05:02.977162472Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+2026-01-12T02:05:06.2873521Z {"time":"2026-01-12T02:05:02.977283928Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+2026-01-12T02:05:06.2874401Z {"time":"2026-01-12T02:05:02.977340493Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+2026-01-12T02:05:06.2875183Z {"time":"2026-01-12T02:05:02.977770554Z","level":"INFO","msg":"created signal","project":"test-project","signal":"TRIGGER_MANAGER"}
+2026-01-12T02:05:06.2876221Z {"time":"2026-01-12T02:05:02.977779881Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+2026-01-12T02:05:06.2877129Z {"time":"2026-01-12T02:05:02.977836847Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+2026-01-12T02:05:06.2878014Z {"time":"2026-01-12T02:05:02.978291754Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+2026-01-12T02:05:06.2879079Z {"time":"2026-01-12T02:05:02.978352667Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+2026-01-12T02:05:06.2879631Z --- PASS: TestSession_SelectPrompt (0.01s)
+2026-01-12T02:05:06.2879933Z === RUN   TestSession_AgentStatePersistence
+2026-01-12T02:05:06.2880701Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/test-project_agent_test-project_20260112-020502.log
+2026-01-12T02:05:06.2881500Z Warning: Failed to ensure state files are ignored: failed to untrack state files: exit status 128
+2026-01-12T02:05:06.2881989Z --- PASS: TestSession_AgentStatePersistence (0.01s)
+2026-01-12T02:05:06.2882295Z === RUN   TestSession_Signals
+2026-01-12T02:05:06.2882663Z [Session] DB Store initialized successfully: type=sqlite, project=test-project
+2026-01-12T02:05:06.2883365Z {"time":"2026-01-12T02:05:02.993560652Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+2026-01-12T02:05:06.2884285Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/test-project_agent_test-project_20260112-020502.log
+2026-01-12T02:05:06.2885154Z {"time":"2026-01-12T02:05:02.994128579Z","level":"INFO","msg":"created signal","project":"test-project","signal":"TEST_SIGNAL"}
+2026-01-12T02:05:06.2885921Z {"time":"2026-01-12T02:05:02.994978682Z","level":"INFO","msg":"created signal","project":"test-project","signal":"COMPLETED"}
+2026-01-12T02:05:06.2886434Z --- PASS: TestSession_Signals (0.01s)
+2026-01-12T02:05:06.2886693Z === RUN   TestSession_Stop
+2026-01-12T02:05:06.2887052Z [Session] DB Store initialized successfully: type=sqlite, project=test-project
+2026-01-12T02:05:06.2887749Z {"time":"2026-01-12T02:05:03.001488507Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+2026-01-12T02:05:06.2888820Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/test-project_agent_test-project_20260112-020503.log
+2026-01-12T02:05:06.2889439Z Stopping container: test-container
+2026-01-12T02:05:06.2889699Z Container stopped successfully
+2026-01-12T02:05:06.2889942Z --- PASS: TestSession_Stop (0.01s)
+2026-01-12T02:05:06.2890198Z === RUN   TestSession_RunCleanerAgent
+2026-01-12T02:05:06.2890585Z [Session] DB Store initialized successfully: type=sqlite, project=test-project
+2026-01-12T02:05:06.2891273Z {"time":"2026-01-12T02:05:03.007136609Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+2026-01-12T02:05:06.2892181Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/test-project_agent_test-project_20260112-020503.log
+2026-01-12T02:05:06.2892989Z {"time":"2026-01-12T02:05:03.007291417Z","level":"INFO","msg":"cleaner agent running","project":"test-project"}
+2026-01-12T02:05:06.2893715Z {"time":"2026-01-12T02:05:03.007353212Z","level":"INFO","msg":"removed temp file","project":"test-project","file":"to_delete.txt"}
+2026-01-12T02:05:06.2894521Z {"time":"2026-01-12T02:05:03.00736284Z","level":"INFO","msg":"cleaner agent complete","project":"test-project","removed":1,"errors":0}
+2026-01-12T02:05:06.2895081Z --- PASS: TestSession_RunCleanerAgent (0.01s)
+2026-01-12T02:05:06.2895369Z === RUN   TestSession_LoadFeatures
+2026-01-12T02:05:06.2895746Z [Session] DB Store initialized successfully: type=sqlite, project=test-project
+2026-01-12T02:05:06.2896566Z {"time":"2026-01-12T02:05:03.012186708Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+2026-01-12T02:05:06.2897488Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/test-project_agent_test-project_20260112-020503.log
+2026-01-12T02:05:06.2898458Z {"time":"2026-01-12T02:05:03.012250396Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+2026-01-12T02:05:06.2899701Z {"time":"2026-01-12T02:05:03.01237052Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+2026-01-12T02:05:06.2900789Z {"time":"2026-01-12T02:05:03.012455208Z","level":"INFO","msg":"loaded features from file","project":"test-project","path":"/tmp/TestSession_LoadFeatures2109340629/001/feature_list.json"}
+2026-01-12T02:05:06.2901661Z --- PASS: TestSession_LoadFeatures (0.01s)
+2026-01-12T02:05:06.2901963Z === RUN   TestSession_RunLoop_SingleIteration
+2026-01-12T02:05:06.2902371Z [Session] DB Store initialized successfully: type=sqlite, project=test-project
+2026-01-12T02:05:06.2903062Z {"time":"2026-01-12T02:05:03.01818952Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+2026-01-12T02:05:06.2903984Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/test-project_agent_test-project_20260112-020503.log
+2026-01-12T02:05:06.2904839Z {"time":"2026-01-12T02:05:03.018240024Z","level":"INFO","msg":"entering autonomous run loop","project":"test-project"}
+2026-01-12T02:05:06.2905511Z {"time":"2026-01-12T02:05:03.018245564Z","level":"INFO","msg":"Checking notification for event: on_start"}
+2026-01-12T02:05:06.2906135Z Warning: Failed to ensure state files are ignored: failed to untrack state files: exit status 128
+2026-01-12T02:05:06.2906952Z {"time":"2026-01-12T02:05:03.020040134Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+2026-01-12T02:05:06.2908029Z {"time":"2026-01-12T02:05:03.020088564Z","level":"INFO","msg":"starting iteration","project":"test-project","iteration":1,"task_id":"","agent_provider":"gemini","agent_model":"gemini-pro"}
+2026-01-12T02:05:06.2909402Z {"time":"2026-01-12T02:05:03.020098463Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+2026-01-12T02:05:06.2910381Z {"time":"2026-01-12T02:05:03.020199431Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+2026-01-12T02:05:06.2911083Z Feature list not found (in DB, Content, or File). Running Initializer.
+2026-01-12T02:05:06.2911682Z {"time":"2026-01-12T02:05:03.020850673Z","level":"INFO","msg":"agent role selected","project":"test-project","role":"Agent"}
+2026-01-12T02:05:06.2912392Z {"time":"2026-01-12T02:05:03.020905715Z","level":"INFO","msg":"sending prompt to agent","project":"test-project"}
+2026-01-12T02:05:06.2913153Z {"time":"2026-01-12T02:05:03.020908931Z","level":"INFO","msg":"agent response received","project":"test-project","role":"Agent","chars":0}
+2026-01-12T02:05:06.2913895Z {"time":"2026-01-12T02:05:03.020914622Z","level":"INFO","msg":"security scan passed","project":"test-project"}
+2026-01-12T02:05:06.2914712Z {"time":"2026-01-12T02:05:03.021440404Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+2026-01-12T02:05:06.2915587Z {"time":"2026-01-12T02:05:04.022990042Z","level":"INFO","msg":"reached max iterations","project":"test-project","max_iterations":1}
+2026-01-12T02:05:06.2916162Z --- PASS: TestSession_RunLoop_SingleIteration (1.01s)
+2026-01-12T02:05:06.2916468Z === RUN   TestSession_RunQAAgent
+2026-01-12T02:05:06.2916846Z [Session] DB Store initialized successfully: type=sqlite, project=test-project
+2026-01-12T02:05:06.2917547Z {"time":"2026-01-12T02:05:04.028823799Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+2026-01-12T02:05:06.2918765Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/test-project_agent_test-project_20260112-020504.log
+2026-01-12T02:05:06.2919638Z {"time":"2026-01-12T02:05:04.029008493Z","level":"INFO","msg":"QA agent running quality checks","project":"test-project"}
+2026-01-12T02:05:06.2920420Z {"time":"2026-01-12T02:05:04.02902326Z","level":"INFO","msg":"sending verification instructions to QA agent","project":"test-project"}
+2026-01-12T02:05:06.2921227Z {"time":"2026-01-12T02:05:04.029071861Z","level":"INFO","msg":"QA agent response received","project":"test-project","chars":31}
+2026-01-12T02:05:06.2921950Z {"time":"2026-01-12T02:05:04.029164563Z","level":"INFO","msg":"QA result","project":"test-project","result":"PASS"}
+2026-01-12T02:05:06.2922771Z {"time":"2026-01-12T02:05:04.029715228Z","level":"INFO","msg":"created signal","project":"test-project","signal":"QA_PASSED"}
+2026-01-12T02:05:06.2923441Z {"time":"2026-01-12T02:05:04.029732511Z","level":"INFO","msg":"QA passed","project":"test-project"}
+2026-01-12T02:05:06.2924097Z {"time":"2026-01-12T02:05:04.029849609Z","level":"INFO","msg":"QA agent running quality checks","project":"test-project"}
+2026-01-12T02:05:06.2924872Z {"time":"2026-01-12T02:05:04.029883251Z","level":"INFO","msg":"sending verification instructions to QA agent","project":"test-project"}
+2026-01-12T02:05:06.2925667Z {"time":"2026-01-12T02:05:04.029948713Z","level":"INFO","msg":"QA agent response received","project":"test-project","chars":31}
+2026-01-12T02:05:06.2926376Z {"time":"2026-01-12T02:05:04.030031447Z","level":"INFO","msg":"QA result","project":"test-project","result":"FAIL"}
+2026-01-12T02:05:06.2927010Z {"time":"2026-01-12T02:05:04.030041916Z","level":"ERROR","msg":"QA failed","project":"test-project"}
+2026-01-12T02:05:06.2927458Z --- PASS: TestSession_RunQAAgent (0.01s)
+2026-01-12T02:05:06.2927735Z === RUN   TestSession_RunManagerAgent
+2026-01-12T02:05:06.2928134Z [Session] DB Store initialized successfully: type=sqlite, project=test-project
+2026-01-12T02:05:06.2929019Z {"time":"2026-01-12T02:05:04.035280446Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+2026-01-12T02:05:06.2929941Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/test-project_agent_test-project_20260112-020504.log
+2026-01-12T02:05:06.2930792Z {"time":"2026-01-12T02:05:04.03585194Z","level":"INFO","msg":"manager agent reviewing QA report","project":"test-project"}
+2026-01-12T02:05:06.2931652Z {"time":"2026-01-12T02:05:04.035874442Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+2026-01-12T02:05:06.2932537Z {"time":"2026-01-12T02:05:04.035931337Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+2026-01-12T02:05:06.2933310Z {"time":"2026-01-12T02:05:04.035949151Z","level":"INFO","msg":"sending QA report to manager agent","project":"test-project"}
+2026-01-12T02:05:06.2934078Z {"time":"2026-01-12T02:05:04.035953008Z","level":"INFO","msg":"manager review response received","project":"test-project","chars":0}
+2026-01-12T02:05:06.2934937Z {"time":"2026-01-12T02:05:04.036010405Z","level":"INFO","msg":"manager approved (legacy/fallback), all features passing","project":"test-project"}
+2026-01-12T02:05:06.2935758Z {"time":"2026-01-12T02:05:04.036483826Z","level":"INFO","msg":"manager agent reviewing QA report","project":"test-project"}
+2026-01-12T02:05:06.2936633Z {"time":"2026-01-12T02:05:04.036492081Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+2026-01-12T02:05:06.2937505Z {"time":"2026-01-12T02:05:04.036537416Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+2026-01-12T02:05:06.2938283Z {"time":"2026-01-12T02:05:04.036555069Z","level":"INFO","msg":"sending QA report to manager agent","project":"test-project"}
+2026-01-12T02:05:06.2939404Z {"time":"2026-01-12T02:05:04.036559527Z","level":"INFO","msg":"manager review response received","project":"test-project","chars":0}
+2026-01-12T02:05:06.2940275Z {"time":"2026-01-12T02:05:04.036608718Z","level":"INFO","msg":"manager rejected or pending, project not signed off","project":"test-project"}
+2026-01-12T02:05:06.2940862Z --- PASS: TestSession_RunManagerAgent (0.01s)
+2026-01-12T02:05:06.2941137Z === RUN   TestMin
+2026-01-12T02:05:06.2941333Z --- PASS: TestMin (0.00s)
+2026-01-12T02:05:06.2941572Z === RUN   TestSession_Start_MountsBridge
+2026-01-12T02:05:06.2941964Z [Session] DB Store initialized successfully: type=sqlite, project=test-project
+2026-01-12T02:05:06.2942668Z {"time":"2026-01-12T02:05:04.041985415Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+2026-01-12T02:05:06.2943691Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/test-project_agent_test-project_20260112-020504.log
+2026-01-12T02:05:06.2944312Z Initializing session with image: alpine
+2026-01-12T02:05:06.2944572Z Loaded spec: 4 bytes
+2026-01-12T02:05:06.2945062Z Mounting agent-bridge from /home/runner/work/recac/recac/internal/runner/agent-bridge to /usr/local/bin/agent-bridge
+2026-01-12T02:05:06.2945611Z Container started successfully. ID: test
+2026-01-12T02:05:06.2945932Z Fixing container passwd database for UID:GID 1001:1001...
+2026-01-12T02:05:06.2946300Z Updated workspace .gitignore with agent patterns.
+2026-01-12T02:05:06.2946815Z Bootstrapping git config (email: test@example.com, name: Test User, excludes: /etc/gitignore_global)...
+2026-01-12T02:05:06.2947473Z {"time":"2026-01-12T02:05:04.043146071Z","level":"INFO","msg":"Checking notification for event: on_start"}
+2026-01-12T02:05:06.2947956Z --- PASS: TestSession_Start_MountsBridge (0.01s)
+2026-01-12T02:05:06.2948262Z === RUN   TestSession_FixPermissions
+2026-01-12T02:05:06.2948837Z [Session] DB Store initialized successfully: type=sqlite, project=test-project
+2026-01-12T02:05:06.2949551Z {"time":"2026-01-12T02:05:04.048561324Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+2026-01-12T02:05:06.2950473Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/test-project_agent_test-project_20260112-020504.log
+2026-01-12T02:05:06.2951100Z --- PASS: TestSession_FixPermissions (0.01s)
+2026-01-12T02:05:06.2951392Z === RUN   TestSession_EnsureConflictTask
+2026-01-12T02:05:06.2951777Z [Session] DB Store initialized successfully: type=sqlite, project=test-project
+2026-01-12T02:05:06.2952474Z {"time":"2026-01-12T02:05:04.053672418Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+2026-01-12T02:05:06.2953390Z Session logs will be written to: /home/runner/work/recac/recac/internal/runner/agents/logs/test-project_agent_test-project_20260112-020504.log
+2026-01-12T02:05:06.2954369Z {"time":"2026-01-12T02:05:04.053727551Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+2026-01-12T02:05:06.2955252Z {"time":"2026-01-12T02:05:04.053751805Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+2026-01-12T02:05:06.2956141Z {"time":"2026-01-12T02:05:04.053775099Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+2026-01-12T02:05:06.2957016Z {"time":"2026-01-12T02:05:04.05378628Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+2026-01-12T02:05:06.2957584Z --- PASS: TestSession_EnsureConflictTask (0.01s)
+2026-01-12T02:05:06.2957880Z === RUN   TestSession_PushProgress
+2026-01-12T02:05:06.2958713Z {"time":"2026-01-12T02:05:04.077630369Z","level":"INFO","msg":"debug git branches","output":"* agent/test-branch e85dc1e initial\n  master            e85dc1e initial\n"}
+2026-01-12T02:05:06.2959746Z {"time":"2026-01-12T02:05:04.079544971Z","level":"INFO","msg":"debug git status","output":"?? .gitignore\n?? progress.txt\n"}
+2026-01-12T02:05:06.2960886Z {"time":"2026-01-12T02:05:04.081025876Z","level":"INFO","msg":"debug git refs","output":"e85dc1e4ecdbec044f17202c6c158017bfdaa4e7 refs/heads/agent/test-branch\ne85dc1e4ecdbec044f17202c6c158017bfdaa4e7 refs/heads/master\n"}
+2026-01-12T02:05:06.2961971Z {"time":"2026-01-12T02:05:04.082373784Z","level":"INFO","msg":"pushing progress to remote","branch":"agent/test-branch"}
+2026-01-12T02:05:06.2962552Z [agent/test-branch 4b049ba] chore: progress update (iteration 1)
+2026-01-12T02:05:06.2962907Z  2 files changed, 17 insertions(+)
+2026-01-12T02:05:06.2963163Z  create mode 100644 .gitignore
+2026-01-12T02:05:06.2963399Z  create mode 100644 progress.txt
+2026-01-12T02:05:06.2963627Z Already up to date.
+2026-01-12T02:05:06.2964240Z {"time":"2026-01-12T02:05:04.090542782Z","level":"INFO","msg":"merged stranded commits from ref","ref":"refs/heads/master"}
+2026-01-12T02:05:06.2964766Z To /tmp/TestSession_PushProgress265044507/002
+2026-01-12T02:05:06.2965128Z  * [new branch]      agent/test-branch -> agent/test-branch
+2026-01-12T02:05:06.2965543Z branch 'agent/test-branch' set up to track 'origin/agent/test-branch'.
+2026-01-12T02:05:06.2965927Z --- PASS: TestSession_PushProgress (0.06s)
+2026-01-12T02:05:06.2966193Z === RUN   TestSignalBypass
+2026-01-12T02:05:06.2966474Z === RUN   TestSignalBypass/Privileged_PROJECT_SIGNED_OFF
+2026-01-12T02:05:06.2967166Z {"time":"2026-01-12T02:05:04.118139594Z","level":"WARN","msg":"ignoring filesystem-based privileged signal (must come from DB)","signal":"PROJECT_SIGNED_OFF"}
+2026-01-12T02:05:06.2967819Z === RUN   TestSignalBypass/Privileged_QA_PASSED
+2026-01-12T02:05:06.2968451Z {"time":"2026-01-12T02:05:04.118370273Z","level":"WARN","msg":"ignoring filesystem-based privileged signal (must come from DB)","signal":"QA_PASSED"}
+2026-01-12T02:05:06.2969265Z === RUN   TestSignalBypass/Privileged_COMPLETED
+2026-01-12T02:05:06.2969896Z {"time":"2026-01-12T02:05:04.118579853Z","level":"WARN","msg":"ignoring filesystem-based privileged signal (must come from DB)","signal":"COMPLETED"}
+2026-01-12T02:05:06.2970518Z === RUN   TestSignalBypass/Privileged_TRIGGER_QA
+2026-01-12T02:05:06.2971162Z {"time":"2026-01-12T02:05:04.118790925Z","level":"WARN","msg":"ignoring filesystem-based privileged signal (must come from DB)","signal":"TRIGGER_QA"}
+2026-01-12T02:05:06.2971812Z === RUN   TestSignalBypass/Privileged_TRIGGER_MANAGER
+2026-01-12T02:05:06.2972483Z {"time":"2026-01-12T02:05:04.119038516Z","level":"WARN","msg":"ignoring filesystem-based privileged signal (must come from DB)","signal":"TRIGGER_MANAGER"}
+2026-01-12T02:05:06.2973119Z === RUN   TestSignalBypass/NonPrivileged_FOO
+2026-01-12T02:05:06.2973625Z {"time":"2026-01-12T02:05:04.119247355Z","level":"INFO","msg":"migrating signal from filesystem to DB","signal":"FOO"}
+2026-01-12T02:05:06.2974118Z --- PASS: TestSignalBypass (0.01s)
+2026-01-12T02:05:06.2974518Z     --- PASS: TestSignalBypass/Privileged_PROJECT_SIGNED_OFF (0.00s)
+2026-01-12T02:05:06.2974986Z     --- PASS: TestSignalBypass/Privileged_QA_PASSED (0.00s)
+2026-01-12T02:05:06.2975403Z     --- PASS: TestSignalBypass/Privileged_COMPLETED (0.00s)
+2026-01-12T02:05:06.2975823Z     --- PASS: TestSignalBypass/Privileged_TRIGGER_QA (0.00s)
+2026-01-12T02:05:06.2976263Z     --- PASS: TestSignalBypass/Privileged_TRIGGER_MANAGER (0.00s)
+2026-01-12T02:05:06.2976688Z     --- PASS: TestSignalBypass/NonPrivileged_FOO (0.00s)
+2026-01-12T02:05:06.2976994Z === RUN   TestSignalMigration
+2026-01-12T02:05:06.2977488Z {"time":"2026-01-12T02:05:04.126028075Z","level":"INFO","msg":"migrating signal from filesystem to DB","signal":"TEST_SIGNAL"}
+2026-01-12T02:05:06.2978009Z --- PASS: TestSignalMigration (0.01s)
+2026-01-12T02:05:06.2978301Z === RUN   TestCompleteJiraTicket_AddsCheckmark
+2026-01-12T02:05:06.2978781Z [TEST-123] Finalizing Jira ticket...
+2026-01-12T02:05:06.2979086Z [TEST-123] Jira comment added with Git link.
+2026-01-12T02:05:06.2979376Z [TEST-123] Transitioning ticket to 'Done'...
+2026-01-12T02:05:06.2979784Z [TEST-123] Jira ticket transitioned to Done.
+2026-01-12T02:05:06.2980111Z --- PASS: TestCompleteJiraTicket_AddsCheckmark (0.00s)
+2026-01-12T02:05:06.2980429Z === RUN   TestTaskGraph_AddNode
+2026-01-12T02:05:06.2980676Z --- PASS: TestTaskGraph_AddNode (0.00s)
+2026-01-12T02:05:06.2980950Z === RUN   TestTaskGraph_DetectCycles_NoCycle
+2026-01-12T02:05:06.2981259Z --- PASS: TestTaskGraph_DetectCycles_NoCycle (0.00s)
+2026-01-12T02:05:06.2981578Z === RUN   TestTaskGraph_DetectCycles_WithCycle
+2026-01-12T02:05:06.2981902Z --- PASS: TestTaskGraph_DetectCycles_WithCycle (0.00s)
+2026-01-12T02:05:06.2982206Z === RUN   TestTaskGraph_TopologicalSort
+2026-01-12T02:05:06.2982496Z --- PASS: TestTaskGraph_TopologicalSort (0.00s)
+2026-01-12T02:05:06.2982817Z === RUN   TestTaskGraph_TopologicalSort_Disconnected
+2026-01-12T02:05:06.2983289Z --- PASS: TestTaskGraph_TopologicalSort_Disconnected (0.00s)
+2026-01-12T02:05:06.2983624Z === RUN   TestTaskGraph_GetReadyTasks
+2026-01-12T02:05:06.2983910Z --- PASS: TestTaskGraph_GetReadyTasks (0.00s)
+2026-01-12T02:05:06.2984192Z === RUN   TestTaskGraph_TaskStatus
+2026-01-12T02:05:06.2984458Z --- PASS: TestTaskGraph_TaskStatus (0.00s)
+2026-01-12T02:05:06.2984730Z === RUN   TestTaskGraph_AllTasksDone
+2026-01-12T02:05:06.2985003Z --- PASS: TestTaskGraph_AllTasksDone (0.00s)
+2026-01-12T02:05:06.2985284Z === RUN   TestTaskGraph_GetTaskSummary
+2026-01-12T02:05:06.2985568Z --- PASS: TestTaskGraph_GetTaskSummary (0.00s)
+2026-01-12T02:05:06.2985855Z === RUN   TestTaskGraph_LoadFromFeatures
+2026-01-12T02:05:06.2986146Z --- PASS: TestTaskGraph_LoadFromFeatures (0.00s)
+2026-01-12T02:05:06.2986449Z === RUN   TestSession_RunLoop_UIVerification
+2026-01-12T02:05:06.2986870Z {"time":"2026-01-12T02:05:04.128055407Z","level":"INFO","msg":"entering autonomous run loop"}
+2026-01-12T02:05:06.2987489Z {"time":"2026-01-12T02:05:04.128082747Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+2026-01-12T02:05:06.2988125Z {"time":"2026-01-12T02:05:04.128106382Z","level":"INFO","msg":"loaded features from injected content"}
+2026-01-12T02:05:06.2988806Z All features passed! Triggering Project Complete flow.
+2026-01-12T02:05:06.2989213Z Warning: Failed to create COMPLETED signal: db store not initialized
+2026-01-12T02:05:06.2989897Z {"time":"2026-01-12T02:05:04.128129074Z","level":"INFO","msg":"starting iteration","iteration":1,"task_id":"","agent_provider":"","agent_model":""}
+2026-01-12T02:05:06.2990675Z {"time":"2026-01-12T02:05:04.128137149Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+2026-01-12T02:05:06.2991303Z {"time":"2026-01-12T02:05:04.128146777Z","level":"INFO","msg":"loaded features from injected content"}
+2026-01-12T02:05:06.2991935Z {"time":"2026-01-12T02:05:04.128152277Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+2026-01-12T02:05:06.2992555Z {"time":"2026-01-12T02:05:04.12818087Z","level":"INFO","msg":"loaded features from injected content"}
+2026-01-12T02:05:06.2993182Z {"time":"2026-01-12T02:05:04.128185789Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+2026-01-12T02:05:06.2993811Z {"time":"2026-01-12T02:05:04.128193514Z","level":"INFO","msg":"loaded features from injected content"}
+2026-01-12T02:05:06.2994399Z {"time":"2026-01-12T02:05:04.128221746Z","level":"INFO","msg":"agent role selected","role":"Agent"}
+2026-01-12T02:05:06.2994949Z {"time":"2026-01-12T02:05:04.128231945Z","level":"INFO","msg":"sending prompt to agent"}
+2026-01-12T02:05:06.2995557Z {"time":"2026-01-12T02:05:04.128238297Z","level":"INFO","msg":"agent response received","role":"Agent","chars":314}
+2026-01-12T02:05:06.2996217Z {"time":"2026-01-12T02:05:04.128257102Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+2026-01-12T02:05:06.2996842Z {"time":"2026-01-12T02:05:04.128275366Z","level":"INFO","msg":"loaded features from injected content"}
+2026-01-12T02:05:06.2997586Z {"time":"2026-01-12T02:05:05.129644066Z","level":"INFO","msg":"starting iteration","iteration":2,"task_id":"","agent_provider":"","agent_model":""}
+2026-01-12T02:05:06.2998793Z {"time":"2026-01-12T02:05:05.129693748Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+2026-01-12T02:05:06.2999485Z {"time":"2026-01-12T02:05:05.129718885Z","level":"INFO","msg":"loaded features from injected content"}
+2026-01-12T02:05:06.3000122Z {"time":"2026-01-12T02:05:05.129722622Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+2026-01-12T02:05:06.3000753Z {"time":"2026-01-12T02:05:05.129729695Z","level":"INFO","msg":"loaded features from injected content"}
+2026-01-12T02:05:06.3001375Z {"time":"2026-01-12T02:05:05.129733162Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+2026-01-12T02:05:06.3001987Z {"time":"2026-01-12T02:05:05.129738742Z","level":"INFO","msg":"loaded features from injected content"}
+2026-01-12T02:05:06.3002702Z {"time":"2026-01-12T02:05:05.12980198Z","level":"INFO","msg":"agent role selected","role":"Agent"}
+2026-01-12T02:05:06.3003244Z {"time":"2026-01-12T02:05:05.129809895Z","level":"INFO","msg":"sending prompt to agent"}
+2026-01-12T02:05:06.3003844Z {"time":"2026-01-12T02:05:05.129816216Z","level":"INFO","msg":"agent response received","role":"Agent","chars":314}
+2026-01-12T02:05:06.3004505Z {"time":"2026-01-12T02:05:05.129831916Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+2026-01-12T02:05:06.3005126Z {"time":"2026-01-12T02:05:05.12983989Z","level":"INFO","msg":"loaded features from injected content"}
+2026-01-12T02:05:06.3005866Z {"time":"2026-01-12T02:05:06.131651858Z","level":"INFO","msg":"starting iteration","iteration":3,"task_id":"","agent_provider":"","agent_model":""}
+2026-01-12T02:05:06.3006627Z {"time":"2026-01-12T02:05:06.131689678Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+2026-01-12T02:05:06.3007247Z {"time":"2026-01-12T02:05:06.131714394Z","level":"INFO","msg":"loaded features from injected content"}
+2026-01-12T02:05:06.3007875Z {"time":"2026-01-12T02:05:06.131718131Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+2026-01-12T02:05:06.3008487Z {"time":"2026-01-12T02:05:06.131727198Z","level":"INFO","msg":"loaded features from injected content"}
+2026-01-12T02:05:06.3009272Z {"time":"2026-01-12T02:05:06.131730274Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+2026-01-12T02:05:06.3009890Z {"time":"2026-01-12T02:05:06.131735263Z","level":"INFO","msg":"loaded features from injected content"}
+2026-01-12T02:05:06.3010471Z {"time":"2026-01-12T02:05:06.131766331Z","level":"INFO","msg":"agent role selected","role":"Agent"}
+2026-01-12T02:05:06.3011007Z {"time":"2026-01-12T02:05:06.131774065Z","level":"INFO","msg":"sending prompt to agent"}
+2026-01-12T02:05:06.3011607Z {"time":"2026-01-12T02:05:06.131780126Z","level":"INFO","msg":"agent response received","role":"Agent","chars":314}
+2026-01-12T02:05:06.3012265Z CIRCUIT BREAKER TRIPPED: NO-OP LOOP (Agent has produced 3 consecutive responses with no commands)
+2026-01-12T02:05:06.3012755Z --- PASS: TestSession_RunLoop_UIVerification (2.00s)
+2026-01-12T02:05:06.3013029Z PASS
+2026-01-12T02:05:06.3013215Z ok  	recac/internal/runner	38.063s
+2026-01-12T02:05:06.3013480Z ?   	recac/pkg/e2e/manager	[no test files]
+2026-01-12T02:05:06.4892894Z Post job cleanup.
+2026-01-12T02:05:06.6537226Z [command]/opt/hostedtoolcache/go/1.25.0/x64/bin/go env GOMODCACHE
+2026-01-12T02:05:06.6576814Z [command]/opt/hostedtoolcache/go/1.25.0/x64/bin/go env GOCACHE
+2026-01-12T02:05:06.6601850Z /home/runner/go/pkg/mod
+2026-01-12T02:05:06.6633515Z /home/runner/.cache/go-build
+2026-01-12T02:05:06.6639914Z Cache hit occurred on the primary key setup-go-Linux-x64-ubuntu24-go-1.25.0-f409a0f2e8e9f57691b191e32714458e6fa47036c073ba0fae39c89ecdeff06d, not saving cache.
+2026-01-12T02:05:06.6782223Z Post job cleanup.
+2026-01-12T02:05:06.7808979Z [command]/usr/bin/git version
+2026-01-12T02:05:06.7847086Z git version 2.52.0
+2026-01-12T02:05:06.7900840Z Temporarily overriding HOME='/home/runner/work/_temp/c06ddbe0-b596-40c6-a749-fa89b1ca88f3' before making global git config changes
+2026-01-12T02:05:06.7902313Z Adding repository directory to the temporary git global config as a safe directory
+2026-01-12T02:05:06.7907390Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/recac/recac
+2026-01-12T02:05:06.7945566Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-01-12T02:05:06.7979538Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-01-12T02:05:06.8199017Z fatal: No url found for submodule path 'verification/manual_push_test' in .gitmodules
+2026-01-12T02:05:06.8249565Z ##[warning]The process '/usr/bin/git' failed with exit code 128
+2026-01-12T02:05:06.8347456Z Cleaning up orphan processes

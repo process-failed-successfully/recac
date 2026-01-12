@@ -1,0 +1,11 @@
+﻿2026-01-12T02:04:30.4990278Z Post job cleanup.
+2026-01-12T02:04:30.4994151Z ##[command]/usr/bin/docker exec  ae8b33e130d54e95d1cca74f511f2ef33fa55b9b8efda1a113e826fa3049aef7 sh -c "cat /etc/*release | grep ^ID"
+2026-01-12T02:04:30.7278706Z [command]/usr/bin/git version
+2026-01-12T02:04:30.7319598Z git version 2.49.1
+2026-01-12T02:04:30.7371285Z Temporarily overriding HOME='/__w/_temp/de39f820-5a6c-426c-9f31-d3367ffa18ab' before making global git config changes
+2026-01-12T02:04:30.7372537Z Adding repository directory to the temporary git global config as a safe directory
+2026-01-12T02:04:30.7378213Z [command]/usr/bin/git config --global --add safe.directory /__w/recac/recac
+2026-01-12T02:04:30.7416030Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-01-12T02:04:30.7471468Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-01-12T02:04:30.7663302Z fatal: No url found for submodule path 'verification/manual_push_test' in .gitmodules
+2026-01-12T02:04:30.7706006Z ##[warning]The process '/usr/bin/git' failed with exit code 128

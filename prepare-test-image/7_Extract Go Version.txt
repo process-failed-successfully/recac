@@ -1,0 +1,8 @@
+﻿2026-01-12T02:02:33.4646319Z ##[group]Run VERSION=$(grep "^go " go.mod | awk '{print $2}')
+2026-01-12T02:02:33.4646772Z [36;1mVERSION=$(grep "^go " go.mod | awk '{print $2}')[0m
+2026-01-12T02:02:33.4647107Z [36;1mecho "version=$VERSION" >> $GITHUB_OUTPUT[0m
+2026-01-12T02:02:33.4678853Z shell: /usr/bin/bash -e {0}
+2026-01-12T02:02:33.4679092Z env:
+2026-01-12T02:02:33.4679255Z   REGISTRY: ghcr.io
+2026-01-12T02:02:33.4679626Z   IMAGE_NAME: process-failed-successfully/recac
+2026-01-12T02:02:33.4679908Z ##[endgroup]
