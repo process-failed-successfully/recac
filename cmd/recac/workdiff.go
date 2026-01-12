@@ -3,23 +3,10 @@ package main
 import (
 	"errors"
 	"fmt"
-	"recac/internal/git"
 	"recac/internal/runner"
 
 	"github.com/spf13/cobra"
 )
-
-// gitClient defines the interface for git operations, allowing for mocking in tests.
-type gitClient interface {
-	Diff(workspace, fromSHA, toSHA string) (string, error)
-	CurrentCommitSHA(workspace string) (string, error)
-}
-
-// gitNewClient is a factory function that can be overridden in tests.
-var gitNewClient = func() gitClient {
-	// We need to wrap the concrete client in the interface type.
-	return git.NewClient()
-}
 
 func init() {
 	rootCmd.AddCommand(workdiffCmd)
