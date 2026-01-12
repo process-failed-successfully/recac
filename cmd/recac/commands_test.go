@@ -182,18 +182,28 @@ func TestCommands(t *testing.T) {
 
 	})
 
-	t.Run("Check Command", func(t *testing.T) {
+	t.Run("Check Command (Deprecated)", func(t *testing.T) {
+		// This test now verifies that the deprecated 'check' command
+		// properly calls the 'doctor' command and displays the warning.
+		output, err := executeCommand(rootCmd, "check")
 
-		_, err := executeCommand(rootCmd, "check")
-
-		// It might fail due to missing docker/go in test env, but we just want to execute code paths
-
+		// We expect it to fail if Docker isn't running in the test env,
+		// which is fine. We just want to check the output.
 		if err != nil {
-
-			t.Logf("Check failed (expected): %v", err)
-
+			t.Logf("Check/Doctor command failed as expected in test env: %v", err)
 		}
 
+		// Check for deprecation warning
+		expectedWarning := "Warning: The 'check' command is deprecated. Please use 'doctor' instead."
+		if !strings.Contains(output, expectedWarning) {
+			t.Errorf("Expected output to contain deprecation warning, but it was not found in: %s", output)
+		}
+
+		// Check for doctor output
+		expectedDoctorOutput := "Running recac doctor..."
+		if !strings.Contains(output, expectedDoctorOutput) {
+			t.Errorf("Expected output to contain doctor output, but it was not found in: %s", output)
+		}
 	})
 
 	t.Run("Clean Command", func(t *testing.T) {
