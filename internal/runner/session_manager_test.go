@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSessionManager_Lifecycle(t *testing.T) {
@@ -273,4 +276,105 @@ func TestSessionManager_RemoveSession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to remove a running session with force: %v", err)
 	}
+}
+
+func TestReplaySession_Running(t *testing.T) {
+	// 1. Setup
+	tempDir := t.TempDir()
+	sm, err := NewSessionManagerWithDir(tempDir)
+	require.NoError(t, err)
+
+	originalSession := &SessionState{
+		Name:    "running-session",
+		PID:     os.Getpid(), // Use the current process's PID to simulate a running process
+		Status:  "running",
+		Command: []string{"/bin/sleep", "30"},
+	}
+	err = sm.SaveSession(originalSession)
+	require.NoError(t, err)
+
+	// 2. Execute
+	_, err = sm.ReplaySession("running-session")
+
+	// 3. Assert
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot replay session 'running-session' because it is still running")
+}
+
+func TestReplaySession_Success(t *testing.T) {
+	// 1. Setup: Create a temporary git repository
+	workspaceDir := t.TempDir()
+	runCmd(t, workspaceDir, "git", "init")
+	runCmd(t, workspaceDir, "git", "config", "user.email", "test@example.com")
+	runCmd(t, workspaceDir, "git", "config", "user.name", "Test User")
+	err := os.WriteFile(filepath.Join(workspaceDir, "initial-file.txt"), []byte("initial content"), 0644)
+	require.NoError(t, err)
+	runCmd(t, workspaceDir, "git", "add", ".")
+	runCmd(t, workspaceDir, "git", "commit", "-m", "initial commit")
+	initialCommitSHA := getGitHead(t, workspaceDir)
+
+	// Create a second commit to ensure we check out the correct one
+	err = os.WriteFile(filepath.Join(workspaceDir, "second-file.txt"), []byte("second content"), 0644)
+	require.NoError(t, err)
+	runCmd(t, workspaceDir, "git", "add", ".")
+	runCmd(t, workspaceDir, "git", "commit", "-m", "second commit")
+	secondCommitSHA := getGitHead(t, workspaceDir)
+	require.NotEqual(t, initialCommitSHA, secondCommitSHA)
+
+	// 2. Setup: Create the SessionManager and the original session
+	sessionsDir := t.TempDir()
+	sm, err := NewSessionManagerWithDir(sessionsDir)
+	require.NoError(t, err)
+
+	// Find a dummy executable for the command
+	echoCmd, err := exec.LookPath("echo")
+	require.NoError(t, err, "echo command not found")
+
+	originalSession := &SessionState{
+		Name:           "completed-session",
+		PID:            0, // Not running
+		Status:         "completed",
+		Command:        []string{echoCmd, "hello"},
+		Workspace:      workspaceDir,
+		StartCommitSHA: initialCommitSHA,
+	}
+	err = sm.SaveSession(originalSession)
+	require.NoError(t, err)
+
+	// 3. Execute
+	replayedSession, err := sm.ReplaySession("completed-session")
+	require.NoError(t, err)
+
+	// 4. Assert
+	assert.NotNil(t, replayedSession)
+	assert.Contains(t, replayedSession.Name, "completed-session-replay-")
+	assert.Equal(t, "running", replayedSession.Status)
+	assert.True(t, sm.IsProcessRunning(replayedSession.PID), "replayed session should be running")
+
+	// Verify the git checkout
+	currentCommit := getGitHead(t, workspaceDir)
+	assert.Equal(t, initialCommitSHA, currentCommit, "workspace should be checked out to the original commit")
+
+	// Verify the new session has the correct start SHA
+	loadedReplayed, err := sm.LoadSession(replayedSession.Name)
+	require.NoError(t, err)
+	assert.Equal(t, initialCommitSHA, loadedReplayed.StartCommitSHA)
+
+	// Cleanup the replayed process
+	_ = sm.StopSession(replayedSession.Name)
+}
+
+func getGitHead(t *testing.T, dir string) string {
+	cmd := exec.Command("git", "rev-parse", "HEAD")
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	require.NoError(t, err)
+	return string(out)
+}
+
+func runCmd(t *testing.T, dir, name string, args ...string) {
+	cmd := exec.Command(name, args...)
+	cmd.Dir = dir
+	err := cmd.Run()
+	require.NoError(t, err)
 }

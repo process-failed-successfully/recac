@@ -12,11 +12,14 @@ import (
 
 // MockSessionManager is a mock implementation of the ISessionManager interface.
 type MockSessionManager struct {
-	Sessions        map[string]*runner.SessionState
-	FailOnLoad      bool
-	FailOnList      bool
-	ProcessDown     bool
-	SessionsDirFunc func() string
+	Sessions            map[string]*runner.SessionState
+	FailOnLoad          bool
+	FailOnList          bool
+	ProcessDown         bool
+	SessionsDirFunc     func() string
+	ReplaySessionFunc   func(originalSessionName string) (*runner.SessionState, error)
+	ReplaySessionCalled bool
+	ReplaySessionArg    string
 }
 
 func (m *MockSessionManager) SessionsDir() string {
@@ -98,6 +101,26 @@ func (m *MockSessionManager) GetSessionLogs(name string) (string, error) {
 		return session.LogFile, nil
 	}
 	return "", fmt.Errorf("session not found")
+}
+
+func (m *MockSessionManager) ReplaySession(originalSessionName string) (*runner.SessionState, error) {
+	m.ReplaySessionCalled = true
+	m.ReplaySessionArg = originalSessionName
+	if m.ReplaySessionFunc != nil {
+		return m.ReplaySessionFunc(originalSessionName)
+	}
+	// Default behavior if func is not provided
+	if _, ok := m.Sessions[originalSessionName]; !ok {
+		return nil, fmt.Errorf("session '%s' not found for replay", originalSessionName)
+	}
+	replayed := &runner.SessionState{
+		Name:    fmt.Sprintf("%s-replayed", originalSessionName),
+		PID:     12345,
+		Status:  "running",
+		LogFile: "/tmp/replayed.log",
+	}
+	m.Sessions[replayed.Name] = replayed
+	return replayed, nil
 }
 
 func (m *MockSessionManager) GetSessionPath(name string) string {

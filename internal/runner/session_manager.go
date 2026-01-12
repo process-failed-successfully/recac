@@ -194,6 +194,49 @@ func (sm *SessionManager) SaveSession(session *SessionState) error {
 	return nil
 }
 
+// ReplaySession creates and starts a new session based on an existing one.
+func (sm *SessionManager) ReplaySession(originalSessionName string) (*SessionState, error) {
+	// 1. Load the original session
+	originalSession, err := sm.LoadSession(originalSessionName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load session to replay: %w", err)
+	}
+
+	// Safety Check: Do not replay a running session
+	if sm.IsProcessRunning(originalSession.PID) {
+		return nil, fmt.Errorf("cannot replay session '%s' because it is still running (PID: %d)", originalSessionName, originalSession.PID)
+	}
+
+	// 2. Prepare the workspace by checking out the original commit
+	gitClient := git.NewClient()
+	if originalSession.StartCommitSHA != "" {
+		if err := gitClient.Checkout(originalSession.Workspace, originalSession.StartCommitSHA); err != nil {
+			return nil, fmt.Errorf("failed to checkout start commit SHA %s: %w", originalSession.StartCommitSHA, err)
+		}
+	}
+
+	// 3. Generate a new name for the replayed session
+	timestamp := time.Now().Format("20060102-150405")
+	newSessionName := fmt.Sprintf("%s-replay-%s", originalSessionName, timestamp)
+
+	// 4. Start the new session using the original's command and workspace
+	newSession, err := sm.StartSession(newSessionName, originalSession.Command, originalSession.Workspace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to start replayed session: %w", err)
+	}
+
+	// 5. Set the start commit SHA for the new session
+	// We get it fresh from the workspace, which we just reset.
+	currentSHA, err := gitClient.CurrentCommitSHA(originalSession.Workspace)
+	if err == nil {
+		newSession.StartCommitSHA = currentSHA
+		// Save the session again to persist the StartCommitSHA
+		_ = sm.SaveSession(newSession)
+	}
+
+	return newSession, nil
+}
+
 // RenameSession renames a session, including its state and log files.
 func (sm *SessionManager) RenameSession(oldName, newName string) error {
 	// 1. Load the session state for the old name.

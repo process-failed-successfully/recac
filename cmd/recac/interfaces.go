@@ -16,4 +16,5 @@ type ISessionManager interface {
 	RenameSession(oldName, newName string) error
 	SessionsDir() string
 	GetSessionGitDiffStat(name string) (string, error)
+	ReplaySession(originalSessionName string) (*runner.SessionState, error)
 }
