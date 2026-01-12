@@ -206,9 +206,12 @@ func SummarizeForTokenLimit(text string, maxTokens int) string {
 		return text
 	}
 
-	// Simple summarization: extract first paragraph, key sentences, and last paragraph
-	paragraphs := strings.Split(text, "\n\n")
-	if len(paragraphs) == 0 {
+	// Optimization: Avoid strings.Split(text, "\n\n") which allocates O(P) memory where P is paragraphs.
+	// Instead, find paragraph boundaries using Index/LastIndex.
+	sep := "\n\n"
+	numParagraphs := strings.Count(text, sep) + 1
+
+	if numParagraphs == 0 { // Should not happen if text is not empty, but safety check
 		return TruncateToTokenLimit(text, maxTokens)
 	}
 
@@ -227,26 +230,39 @@ func SummarizeForTokenLimit(text string, maxTokens int) string {
 	tokensPerParagraph := availableTokens / 2
 
 	// Add first paragraph (truncated if needed)
-	if len(paragraphs) > 0 {
-		firstPara := paragraphs[0]
-		if EstimateTokenCount(firstPara) > tokensPerParagraph {
-			firstPara = TruncateToTokenLimit(firstPara, tokensPerParagraph)
-		}
-		if firstPara != "" {
-			summary.WriteString(firstPara)
-			summary.WriteString("\n\n")
-		}
+	var firstPara string
+	firstSepIdx := strings.Index(text, sep)
+	if firstSepIdx == -1 {
+		firstPara = text
+	} else {
+		firstPara = text[:firstSepIdx]
+	}
+
+	if EstimateTokenCount(firstPara) > tokensPerParagraph {
+		firstPara = TruncateToTokenLimit(firstPara, tokensPerParagraph)
+	}
+	if firstPara != "" {
+		summary.WriteString(firstPara)
+		summary.WriteString("\n\n")
 	}
 
 	// Add middle summary if there are multiple paragraphs
-	if len(paragraphs) > 2 {
-		omittedCount := len(paragraphs) - 2
+	if numParagraphs > 2 {
+		omittedCount := numParagraphs - 2
 		summary.WriteString("[... " + strconv.Itoa(omittedCount) + " paragraphs omitted ...]\n\n")
 	}
 
 	// Add last paragraph (truncated if needed)
-	if len(paragraphs) > 1 {
-		lastPara := paragraphs[len(paragraphs)-1]
+	if numParagraphs > 1 {
+		var lastPara string
+		lastSepIdx := strings.LastIndex(text, sep)
+		if lastSepIdx != -1 {
+			lastPara = text[lastSepIdx+len(sep):]
+		} else {
+			// Should not happen if numParagraphs > 1, but fallback
+			lastPara = text
+		}
+
 		if EstimateTokenCount(lastPara) > tokensPerParagraph {
 			lastPara = TruncateToTokenLimit(lastPara, tokensPerParagraph)
 		}
