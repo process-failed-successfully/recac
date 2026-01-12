@@ -53,7 +53,7 @@ func doSummary(cmd *cobra.Command, sm ISessionManager, limit int) error {
 
 	// --- 2. Aggregate Stats ---
 	// Reuse the `calculateStats` logic from the `stats` command.
-	stats, err := calculateStats(sm)
+	stats, err := calculateStats(sessions)
 	if err != nil {
 		return fmt.Errorf("could not calculate statistics: %w", err)
 	}

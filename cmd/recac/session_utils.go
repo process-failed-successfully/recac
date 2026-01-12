@@ -203,21 +203,6 @@ func printLogDiff(cmd *cobra.Command, logA, logB string) error {
 	return nil
 }
 
-// loadAgentState is a helper to read and parse an agent state file.
-func loadAgentState(filePath string) (*agent.State, error) {
-	if filePath == "" {
-		return nil, fmt.Errorf("file path is empty")
-	}
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, err
-	}
-	var state agent.State
-	if err := json.Unmarshal(data, &state); err != nil {
-		return nil, err
-	}
-	return &state, nil
-}
 func fallbackDiff(cmd *cobra.Command, file1, file2 string) error {
 	content1, err1 := os.ReadFile(file1)
 	if err1 != nil {

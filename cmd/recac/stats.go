@@ -29,8 +29,11 @@ var statsCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("could not create session manager: %w", err)
 		}
-
-		stats, err := calculateStats(sm)
+		sessions, err := sm.ListSessions()
+		if err != nil {
+			return fmt.Errorf("could not list sessions: %w", err)
+		}
+		stats, err := calculateStats(sessions)
 		if err != nil {
 			return fmt.Errorf("could not calculate statistics: %w", err)
 		}
@@ -38,44 +41,6 @@ var statsCmd = &cobra.Command{
 		displayStats(stats)
 		return nil
 	},
-}
-
-func calculateStats(sm ISessionManager) (*AggregateStats, error) {
-	sessions, err := sm.ListSessions()
-	if err != nil {
-		return nil, fmt.Errorf("could not list sessions: %w", err)
-	}
-
-	stats := &AggregateStats{
-		StatusCounts: make(map[string]int),
-	}
-
-	for _, session := range sessions {
-		stats.TotalSessions++
-		stats.StatusCounts[session.Status]++
-
-		if session.AgentStateFile == "" {
-			continue
-		}
-
-		agentState, err := loadAgentState(session.AgentStateFile)
-		if err != nil {
-			// If the agent state file doesn't exist, we can just skip it
-			if os.IsNotExist(err) {
-				continue
-			}
-			return nil, fmt.Errorf("could not load agent state for session %s: %w", session.Name, err)
-		}
-
-		stats.TotalTokens += agentState.TokenUsage.TotalTokens
-		stats.TotalPromptTokens += agentState.TokenUsage.TotalPromptTokens
-		stats.TotalResponseTokens += agentState.TokenUsage.TotalResponseTokens
-
-		// Calculate cost
-		stats.TotalCost += agent.CalculateCost(agentState.Model, agentState.TokenUsage)
-	}
-
-	return stats, nil
 }
 
 func displayStats(stats *AggregateStats) {
