@@ -53,10 +53,16 @@ var (
 
 	promptStyle = lipgloss.NewStyle().MarginLeft(2)
 
-	infoBarStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "#555555", Dark: "#B0B0B0"}). // Improved contrast
-			MarginLeft(2).
-			MarginBottom(1)
+	// Info Bar Styles
+	infoLabelStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.AdaptiveColor{Light: "#666666", Dark: "#888888"}) // Adaptive Grey
+
+	infoValueStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.AdaptiveColor{Light: "#000000", Dark: "#E0E0E0"}) // Adaptive High Contrast
+
+	statusBadgeStyle = lipgloss.NewStyle().
+				Padding(0, 1).
+				Bold(true)
 )
 
 // -- Key Bindings --
@@ -1055,20 +1061,56 @@ func (m InteractiveModel) View() string {
 	views = append(views, LogoContainerStyle.Render(logo))
 
 	// Info Bar
-	modeStr := "Chat"
+	var modeColor lipgloss.Color
+	var modeTextColor lipgloss.Color = lipgloss.Color("#FFFFFF")
+	var modeStr string
+
 	switch m.mode {
 	case ModeShell:
-		modeStr = "Shell"
+		modeStr = "SHELL"
+		modeColor = lipgloss.Color("#F4B400")     // Yellow
+		modeTextColor = lipgloss.Color("#000000") // Black for contrast
 	case ModeCmd:
-		modeStr = "Command"
+		modeStr = "CMD"
+		modeColor = lipgloss.Color("240")
 	case ModeModelSelect:
-		modeStr = "Select Model"
+		modeStr = "MODEL"
+		modeColor = lipgloss.Color("#4285F4")
 	case ModeAgentSelect:
-		modeStr = "Select Agent"
+		modeStr = "AGENT"
+		modeColor = lipgloss.Color("#04B575")
+	default: // Chat
+		modeStr = "CHAT"
+		modeColor = lipgloss.Color("63")
 	}
 
-	infoBar := infoBarStyle.Render(fmt.Sprintf("Provider: %s • Model: %s • Mode: %s", strings.Title(m.currentAgent), m.currentModel, modeStr))
-	views = append(views, infoBar)
+	modeBadge := statusBadgeStyle.Copy().
+		Background(modeColor).
+		Foreground(modeTextColor).
+		Render(modeStr)
+
+	providerSection := lipgloss.JoinHorizontal(lipgloss.Center,
+		infoLabelStyle.Render("Provider: "),
+		infoValueStyle.Render(strings.Title(m.currentAgent)),
+	)
+
+	modelSection := lipgloss.JoinHorizontal(lipgloss.Center,
+		infoLabelStyle.Render("Model: "),
+		infoValueStyle.Render(m.currentModel),
+	)
+
+	divider := lipgloss.NewStyle().Foreground(lipgloss.Color("238")).SetString(" • ").String()
+
+	infoBarContent := lipgloss.JoinHorizontal(lipgloss.Center,
+		providerSection,
+		divider,
+		modelSection,
+		divider,
+		modeBadge,
+	)
+
+	// Apply container margins
+	views = append(views, lipgloss.NewStyle().MarginLeft(2).MarginBottom(1).Render(infoBarContent))
 
 	// Layout Switch: Show List OR Viewport
 	// Explicitly check for menu modes to ensure list is rendered even if showList is somehow desync
