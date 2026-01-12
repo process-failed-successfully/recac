@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"recac/internal/git"
 	"recac/internal/runner"
@@ -25,19 +26,36 @@ func init() {
 }
 
 var workdiffCmd = &cobra.Command{
-	Use:   "workdiff [session-name] | [session-a] [session-b]",
-	Short: "Show a git diff of the work done in a session or between two sessions",
+	Use:     "workdiff [session-name] | [session-a] [session-b]",
+	Short:   "Show a git diff of work; alias for single-session 'show'",
+	Aliases: []string{"show"},
 	Long: `Displays the git diff between the starting and ending commits of a completed session.
-If two session names are provided, it displays the git diff between the final states of those two sessions.
-This command helps you review the exact changes made by the agent during its run.`,
-	Args: cobra.RangeArgs(1, 2),
+This is the primary command for reviewing work. The 'show' alias is provided for convenience.
+
+If a single session name is provided, it shows the diff for that session.
+If two session names are provided, it displays the git diff between the final states of those two sessions.`,
+	Args: cobra.ArbitraryArgs, // Let RunE handle more nuanced validation
 	RunE: func(cmd *cobra.Command, args []string) error {
+		numArgs := len(args)
+		calledAs := cmd.CalledAs()
+
+		// Custom argument validation
+		if calledAs == "show" {
+			if numArgs != 1 {
+				return errors.New("the 'show' alias requires exactly one session name")
+			}
+		} else { // "workdiff"
+			if numArgs < 1 || numArgs > 2 {
+				return fmt.Errorf("accepts between 1 and 2 arg(s), received %d", numArgs)
+			}
+		}
+
 		sm, err := sessionManagerFactory()
 		if err != nil {
 			return fmt.Errorf("failed to initialize session manager: %w", err)
 		}
 
-		if len(args) == 1 {
+		if numArgs == 1 {
 			return handleSingleSessionDiff(cmd, sm, args[0])
 		}
 		return handleTwoSessionDiff(cmd, sm, args[0], args[1])
