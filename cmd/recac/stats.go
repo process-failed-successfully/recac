@@ -6,19 +6,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
-
-	"recac/internal/agent"
 )
-
-// AggregateStats holds the calculated statistics
-type AggregateStats struct {
-	TotalSessions       int
-	TotalTokens         int
-	TotalPromptTokens   int
-	TotalResponseTokens int
-	TotalCost           float64
-	StatusCounts        map[string]int
-}
 
 var statsCmd = &cobra.Command{
 	Use:   "stats",

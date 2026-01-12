@@ -1,0 +1,3 @@
+﻿2026-01-12T02:02:33.6285280Z Evaluate and set job outputs
+2026-01-12T02:02:33.6291187Z Set output 'image'
+2026-01-12T02:02:33.6293041Z Cleaning up orphan processes

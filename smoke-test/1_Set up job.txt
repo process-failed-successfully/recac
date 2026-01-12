@@ -1,0 +1,33 @@
+﻿2026-01-12T02:02:29.6199642Z Current runner version: '2.330.0'
+2026-01-12T02:02:29.6226325Z ##[group]Runner Image Provisioner
+2026-01-12T02:02:29.6227144Z Hosted Compute Agent
+2026-01-12T02:02:29.6227813Z Version: 20251211.462
+2026-01-12T02:02:29.6228476Z Commit: 6cbad8c2bb55d58165063d031ccabf57e2d2db61
+2026-01-12T02:02:29.6229177Z Build Date: 2025-12-11T16:28:49Z
+2026-01-12T02:02:29.6229958Z Worker ID: {907e8a32-849e-4cae-95da-9e49bcdce110}
+2026-01-12T02:02:29.6230707Z ##[endgroup]
+2026-01-12T02:02:29.6231277Z ##[group]Operating System
+2026-01-12T02:02:29.6231862Z Ubuntu
+2026-01-12T02:02:29.6232354Z 24.04.3
+2026-01-12T02:02:29.6232913Z LTS
+2026-01-12T02:02:29.6233398Z ##[endgroup]
+2026-01-12T02:02:29.6234026Z ##[group]Runner Image
+2026-01-12T02:02:29.6234736Z Image: ubuntu-24.04
+2026-01-12T02:02:29.6235290Z Version: 20260105.202.1
+2026-01-12T02:02:29.6236625Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260105.202/images/ubuntu/Ubuntu2404-Readme.md
+2026-01-12T02:02:29.6238186Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260105.202
+2026-01-12T02:02:29.6239473Z ##[endgroup]
+2026-01-12T02:02:29.6240593Z ##[group]GITHUB_TOKEN Permissions
+2026-01-12T02:02:29.6242699Z Contents: read
+2026-01-12T02:02:29.6243327Z Metadata: read
+2026-01-12T02:02:29.6243879Z Packages: read
+2026-01-12T02:02:29.6244474Z ##[endgroup]
+2026-01-12T02:02:29.6246695Z Secret source: Actions
+2026-01-12T02:02:29.6247549Z Prepare workflow directory
+2026-01-12T02:02:29.6919719Z Prepare all required actions
+2026-01-12T02:02:29.6974640Z Getting action download info
+2026-01-12T02:02:30.0599184Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+2026-01-12T02:02:30.4417328Z Download action repository 'actions/setup-go@v5' (SHA:40f1582b2485089dde7abd97c1529aa768e1baff)
+2026-01-12T02:02:30.8445231Z Download action repository 'AbsaOSS/k3d-action@v2' (SHA:4e8b3239042be1dc0aed6c5eb80c13b18200fc79)
+2026-01-12T02:02:31.1500664Z Download action repository 'azure/setup-helm@v4' (SHA:1a275c3b69536ee54be43f2070a358922e12c8d4)
+2026-01-12T02:02:31.8717816Z Complete job name: smoke-test

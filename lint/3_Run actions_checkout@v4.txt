@@ -1,0 +1,89 @@
+﻿2026-01-12T02:03:08.8377647Z ##[group]Run actions/checkout@v4
+2026-01-12T02:03:08.8378437Z with:
+2026-01-12T02:03:08.8378714Z   repository: process-failed-successfully/recac
+2026-01-12T02:03:08.8379276Z   token: ***
+2026-01-12T02:03:08.8379453Z   ssh-strict: true
+2026-01-12T02:03:08.8379638Z   ssh-user: git
+2026-01-12T02:03:08.8379827Z   persist-credentials: true
+2026-01-12T02:03:08.8380039Z   clean: true
+2026-01-12T02:03:08.8380219Z   sparse-checkout-cone-mode: true
+2026-01-12T02:03:08.8380451Z   fetch-depth: 1
+2026-01-12T02:03:08.8380619Z   fetch-tags: false
+2026-01-12T02:03:08.8380803Z   show-progress: true
+2026-01-12T02:03:08.8380984Z   lfs: false
+2026-01-12T02:03:08.8381138Z   submodules: false
+2026-01-12T02:03:08.8381323Z   set-safe-directory: true
+2026-01-12T02:03:08.8381736Z env:
+2026-01-12T02:03:08.8381900Z   REGISTRY: ghcr.io
+2026-01-12T02:03:08.8382119Z   IMAGE_NAME: process-failed-successfully/recac
+2026-01-12T02:03:08.8382385Z ##[endgroup]
+2026-01-12T02:03:08.8441200Z ##[command]/usr/bin/docker exec  ae8b33e130d54e95d1cca74f511f2ef33fa55b9b8efda1a113e826fa3049aef7 sh -c "cat /etc/*release | grep ^ID"
+2026-01-12T02:03:09.0900047Z Syncing repository: process-failed-successfully/recac
+2026-01-12T02:03:09.0901577Z ##[group]Getting Git version info
+2026-01-12T02:03:09.0901920Z Working directory is '/__w/recac/recac'
+2026-01-12T02:03:09.0902409Z [command]/usr/bin/git version
+2026-01-12T02:03:09.0914822Z git version 2.49.1
+2026-01-12T02:03:09.0945933Z ##[endgroup]
+2026-01-12T02:03:09.0967795Z Temporarily overriding HOME='/__w/_temp/691b03e6-4490-4124-9103-ebaeed522308' before making global git config changes
+2026-01-12T02:03:09.0969240Z Adding repository directory to the temporary git global config as a safe directory
+2026-01-12T02:03:09.0975630Z [command]/usr/bin/git config --global --add safe.directory /__w/recac/recac
+2026-01-12T02:03:09.1008940Z Deleting the contents of '/__w/recac/recac'
+2026-01-12T02:03:09.1013251Z ##[group]Initializing the repository
+2026-01-12T02:03:09.1017906Z [command]/usr/bin/git init /__w/recac/recac
+2026-01-12T02:03:09.1060196Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-01-12T02:03:09.1061334Z hint: is subject to change. To configure the initial branch name to use in all
+2026-01-12T02:03:09.1062269Z hint: of your new repositories, which will suppress this warning, call:
+2026-01-12T02:03:09.1062934Z hint:
+2026-01-12T02:03:09.1063372Z hint: 	git config --global init.defaultBranch <name>
+2026-01-12T02:03:09.1063893Z hint:
+2026-01-12T02:03:09.1064409Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-01-12T02:03:09.1065309Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-01-12T02:03:09.1065973Z hint:
+2026-01-12T02:03:09.1066295Z hint: 	git branch -m <name>
+2026-01-12T02:03:09.1070350Z Initialized empty Git repository in /__w/recac/recac/.git/
+2026-01-12T02:03:09.1077581Z [command]/usr/bin/git remote add origin https://github.com/process-failed-successfully/recac
+2026-01-12T02:03:09.1110626Z ##[endgroup]
+2026-01-12T02:03:09.1111097Z ##[group]Disabling automatic garbage collection
+2026-01-12T02:03:09.1115253Z [command]/usr/bin/git config --local gc.auto 0
+2026-01-12T02:03:09.1143789Z ##[endgroup]
+2026-01-12T02:03:09.1144225Z ##[group]Setting up auth
+2026-01-12T02:03:09.1152497Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-01-12T02:03:09.1183379Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-01-12T02:03:09.1389909Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-01-12T02:03:09.1420674Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-01-12T02:03:09.1622244Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-01-12T02:03:09.1654526Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-01-12T02:03:09.1861664Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-01-12T02:03:09.1987450Z ##[endgroup]
+2026-01-12T02:03:09.1988300Z ##[group]Fetching the repository
+2026-01-12T02:03:09.1989758Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +711435681f59fa2ad8e1c6ecc2efe015d25327cc:refs/remotes/pull/262/merge
+2026-01-12T02:03:09.5526309Z From https://github.com/process-failed-successfully/recac
+2026-01-12T02:03:09.5526997Z  * [new ref]         711435681f59fa2ad8e1c6ecc2efe015d25327cc -> pull/262/merge
+2026-01-12T02:03:09.5570454Z ##[endgroup]
+2026-01-12T02:03:09.5571138Z ##[group]Determining the checkout info
+2026-01-12T02:03:09.5571908Z ##[endgroup]
+2026-01-12T02:03:09.5576288Z [command]/usr/bin/git sparse-checkout disable
+2026-01-12T02:03:09.5620473Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-01-12T02:03:09.5650016Z ##[group]Checking out the ref
+2026-01-12T02:03:09.5653886Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/262/merge
+2026-01-12T02:03:09.6187525Z Note: switching to 'refs/remotes/pull/262/merge'.
+2026-01-12T02:03:09.6188000Z
+2026-01-12T02:03:09.6188777Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-01-12T02:03:09.6189619Z changes and commit them, and you can discard any commits you make in this
+2026-01-12T02:03:09.6190407Z state without impacting any branches by switching back to a branch.
+2026-01-12T02:03:09.6190896Z
+2026-01-12T02:03:09.6191213Z If you want to create a new branch to retain commits you create, you may
+2026-01-12T02:03:09.6192000Z do so (now or later) by using -c with the switch command. Example:
+2026-01-12T02:03:09.6192442Z
+2026-01-12T02:03:09.6192625Z   git switch -c <new-branch-name>
+2026-01-12T02:03:09.6192940Z
+2026-01-12T02:03:09.6193099Z Or undo this operation with:
+2026-01-12T02:03:09.6193393Z
+2026-01-12T02:03:09.6193528Z   git switch -
+2026-01-12T02:03:09.6193742Z
+2026-01-12T02:03:09.6194076Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-01-12T02:03:09.6194635Z
+2026-01-12T02:03:09.6195208Z HEAD is now at 7114356 Merge 6e419ba82d62ba7129cb4ce099b7f058885350fc into d99bf56d1841b4536517f84124a0ef93e3184a90
+2026-01-12T02:03:09.6201492Z ##[endgroup]
+2026-01-12T02:03:09.6241325Z [command]/usr/bin/git log -1 --format=%H
+2026-01-12T02:03:09.6273550Z 711435681f59fa2ad8e1c6ecc2efe015d25327cc

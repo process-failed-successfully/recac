@@ -1,0 +1,12 @@
+﻿2026-01-12T02:03:10.1994185Z ##[group]Run go mod download
+2026-01-12T02:03:10.1994537Z [36;1mgo mod download[0m
+2026-01-12T02:03:10.1994764Z [36;1mgo vet ./...[0m
+2026-01-12T02:03:10.1998931Z shell: sh -e {0}
+2026-01-12T02:03:10.1999157Z env:
+2026-01-12T02:03:10.1999321Z   REGISTRY: ghcr.io
+2026-01-12T02:03:10.1999574Z   IMAGE_NAME: process-failed-successfully/recac
+2026-01-12T02:03:10.1999861Z ##[endgroup]
+2026-01-12T02:04:30.1845459Z # recac/cmd/recac
+2026-01-12T02:04:30.1845877Z # [recac/cmd/recac]
+2026-01-12T02:04:30.1846404Z vet: cmd/recac/data_utils.go:73:6: CostAnalysis redeclared in this block
+2026-01-12T02:04:30.4897970Z ##[error]Process completed with exit code 1.

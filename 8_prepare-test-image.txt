@@ -1,0 +1,167 @@
+﻿2026-01-12T02:02:29.5893750Z Current runner version: '2.330.0'
+2026-01-12T02:02:29.5917568Z ##[group]Runner Image Provisioner
+2026-01-12T02:02:29.5918333Z Hosted Compute Agent
+2026-01-12T02:02:29.5919056Z Version: 20251211.462
+2026-01-12T02:02:29.5919810Z Commit: 6cbad8c2bb55d58165063d031ccabf57e2d2db61
+2026-01-12T02:02:29.5920548Z Build Date: 2025-12-11T16:28:49Z
+2026-01-12T02:02:29.5921297Z Worker ID: {a3ce4a1d-acb8-4368-8d7f-f77ff7ebf951}
+2026-01-12T02:02:29.5921940Z ##[endgroup]
+2026-01-12T02:02:29.5922460Z ##[group]Operating System
+2026-01-12T02:02:29.5923057Z Ubuntu
+2026-01-12T02:02:29.5923534Z 24.04.3
+2026-01-12T02:02:29.5923988Z LTS
+2026-01-12T02:02:29.5924492Z ##[endgroup]
+2026-01-12T02:02:29.5924944Z ##[group]Runner Image
+2026-01-12T02:02:29.5925526Z Image: ubuntu-24.04
+2026-01-12T02:02:29.5926079Z Version: 20260105.202.1
+2026-01-12T02:02:29.5927043Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260105.202/images/ubuntu/Ubuntu2404-Readme.md
+2026-01-12T02:02:29.5928655Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260105.202
+2026-01-12T02:02:29.5929928Z ##[endgroup]
+2026-01-12T02:02:29.5931144Z ##[group]GITHUB_TOKEN Permissions
+2026-01-12T02:02:29.5933346Z Contents: read
+2026-01-12T02:02:29.5933885Z Metadata: read
+2026-01-12T02:02:29.5934462Z Packages: write
+2026-01-12T02:02:29.5934957Z ##[endgroup]
+2026-01-12T02:02:29.5936982Z Secret source: Actions
+2026-01-12T02:02:29.5937702Z Prepare workflow directory
+2026-01-12T02:02:29.6463531Z Prepare all required actions
+2026-01-12T02:02:29.6501766Z Getting action download info
+2026-01-12T02:02:29.9913625Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+2026-01-12T02:02:30.0975300Z Download action repository 'docker/setup-buildx-action@v3' (SHA:8d2750c68a42422c14e847fe6c8ac0403b4cbd6f)
+2026-01-12T02:02:30.5645969Z Download action repository 'docker/login-action@v3' (SHA:5e57cd118135c172c3672efd75eb46360885c0ef)
+2026-01-12T02:02:31.0307309Z Download action repository 'docker/build-push-action@v5' (SHA:ca052bb54ab0790a636c9b5f226502c73d547a25)
+2026-01-12T02:02:31.6045656Z Complete job name: prepare-test-image
+2026-01-12T02:02:31.6843518Z ##[group]Run actions/checkout@v4
+2026-01-12T02:02:31.6844838Z with:
+2026-01-12T02:02:31.6845706Z   repository: process-failed-successfully/recac
+2026-01-12T02:02:31.6847103Z   token: ***
+2026-01-12T02:02:31.6847848Z   ssh-strict: true
+2026-01-12T02:02:31.6848630Z   ssh-user: git
+2026-01-12T02:02:31.6849604Z   persist-credentials: true
+2026-01-12T02:02:31.6850498Z   clean: true
+2026-01-12T02:02:31.6851308Z   sparse-checkout-cone-mode: true
+2026-01-12T02:02:31.6852268Z   fetch-depth: 1
+2026-01-12T02:02:31.6853064Z   fetch-tags: false
+2026-01-12T02:02:31.6853867Z   show-progress: true
+2026-01-12T02:02:31.6854675Z   lfs: false
+2026-01-12T02:02:31.6855420Z   submodules: false
+2026-01-12T02:02:31.6856228Z   set-safe-directory: true
+2026-01-12T02:02:31.6857387Z env:
+2026-01-12T02:02:31.6858090Z   REGISTRY: ghcr.io
+2026-01-12T02:02:31.6859014Z   IMAGE_NAME: process-failed-successfully/recac
+2026-01-12T02:02:31.6860279Z ##[endgroup]
+2026-01-12T02:02:31.7942575Z Syncing repository: process-failed-successfully/recac
+2026-01-12T02:02:31.7945357Z ##[group]Getting Git version info
+2026-01-12T02:02:31.7946954Z Working directory is '/home/runner/work/recac/recac'
+2026-01-12T02:02:31.7948778Z [command]/usr/bin/git version
+2026-01-12T02:02:31.8013003Z git version 2.52.0
+2026-01-12T02:02:31.8038916Z ##[endgroup]
+2026-01-12T02:02:31.8053507Z Temporarily overriding HOME='/home/runner/work/_temp/92c2cbbb-0443-4b93-96fa-0692e394dd76' before making global git config changes
+2026-01-12T02:02:31.8056932Z Adding repository directory to the temporary git global config as a safe directory
+2026-01-12T02:02:31.8060320Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/recac/recac
+2026-01-12T02:02:31.8099248Z Deleting the contents of '/home/runner/work/recac/recac'
+2026-01-12T02:02:31.8103225Z ##[group]Initializing the repository
+2026-01-12T02:02:31.8106765Z [command]/usr/bin/git init /home/runner/work/recac/recac
+2026-01-12T02:02:31.8225929Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-01-12T02:02:31.8229410Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-01-12T02:02:31.8232668Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-01-12T02:02:31.8234220Z hint: call:
+2026-01-12T02:02:31.8234932Z hint:
+2026-01-12T02:02:31.8235970Z hint: 	git config --global init.defaultBranch <name>
+2026-01-12T02:02:31.8237832Z hint:
+2026-01-12T02:02:31.8239697Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-01-12T02:02:31.8241880Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-01-12T02:02:31.8243501Z hint:
+2026-01-12T02:02:31.8244240Z hint: 	git branch -m <name>
+2026-01-12T02:02:31.8245121Z hint:
+2026-01-12T02:02:31.8246301Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-01-12T02:02:31.8248176Z Initialized empty Git repository in /home/runner/work/recac/recac/.git/
+2026-01-12T02:02:31.8251568Z [command]/usr/bin/git remote add origin https://github.com/process-failed-successfully/recac
+2026-01-12T02:02:31.8279801Z ##[endgroup]
+2026-01-12T02:02:31.8281833Z ##[group]Disabling automatic garbage collection
+2026-01-12T02:02:31.8284078Z [command]/usr/bin/git config --local gc.auto 0
+2026-01-12T02:02:31.8314066Z ##[endgroup]
+2026-01-12T02:02:31.8315558Z ##[group]Setting up auth
+2026-01-12T02:02:31.8319827Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-01-12T02:02:31.8350265Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-01-12T02:02:31.8711954Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-01-12T02:02:31.8745651Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-01-12T02:02:31.8960933Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-01-12T02:02:31.9000726Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-01-12T02:02:31.9222266Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-01-12T02:02:31.9255967Z ##[endgroup]
+2026-01-12T02:02:31.9258318Z ##[group]Fetching the repository
+2026-01-12T02:02:31.9267584Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +711435681f59fa2ad8e1c6ecc2efe015d25327cc:refs/remotes/pull/262/merge
+2026-01-12T02:02:32.2972447Z From https://github.com/process-failed-successfully/recac
+2026-01-12T02:02:32.2974617Z  * [new ref]         711435681f59fa2ad8e1c6ecc2efe015d25327cc -> pull/262/merge
+2026-01-12T02:02:32.3009345Z ##[endgroup]
+2026-01-12T02:02:32.3011445Z ##[group]Determining the checkout info
+2026-01-12T02:02:32.3012961Z ##[endgroup]
+2026-01-12T02:02:32.3015710Z [command]/usr/bin/git sparse-checkout disable
+2026-01-12T02:02:32.3057150Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-01-12T02:02:32.3083329Z ##[group]Checking out the ref
+2026-01-12T02:02:32.3086601Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/262/merge
+2026-01-12T02:02:32.3396917Z Note: switching to 'refs/remotes/pull/262/merge'.
+2026-01-12T02:02:32.3398268Z
+2026-01-12T02:02:32.3399378Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-01-12T02:02:32.3402091Z changes and commit them, and you can discard any commits you make in this
+2026-01-12T02:02:32.3403822Z state without impacting any branches by switching back to a branch.
+2026-01-12T02:02:32.3405014Z
+2026-01-12T02:02:32.3406071Z If you want to create a new branch to retain commits you create, you may
+2026-01-12T02:02:32.3407720Z do so (now or later) by using -c with the switch command. Example:
+2026-01-12T02:02:32.3408644Z
+2026-01-12T02:02:32.3409026Z   git switch -c <new-branch-name>
+2026-01-12T02:02:32.3409917Z
+2026-01-12T02:02:32.3410433Z Or undo this operation with:
+2026-01-12T02:02:32.3411040Z
+2026-01-12T02:02:32.3411368Z   git switch -
+2026-01-12T02:02:32.3411811Z
+2026-01-12T02:02:32.3412546Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-01-12T02:02:32.3413646Z
+2026-01-12T02:02:32.3414845Z HEAD is now at 7114356 Merge 6e419ba82d62ba7129cb4ce099b7f058885350fc into d99bf56d1841b4536517f84124a0ef93e3184a90
+2026-01-12T02:02:32.3418337Z ##[endgroup]
+2026-01-12T02:02:32.3444780Z [command]/usr/bin/git log -1 --format=%H
+2026-01-12T02:02:32.3467997Z 711435681f59fa2ad8e1c6ecc2efe015d25327cc
+2026-01-12T02:02:32.4217893Z ##[group]Run # Hash test.Dockerfile to create a unique tag
+2026-01-12T02:02:32.4219402Z [36;1m# Hash test.Dockerfile to create a unique tag[0m
+2026-01-12T02:02:32.4221445Z [36;1mDOCKERFILE_HASH=440e4d98cedaae47692ddf07b4dba3a4dcf057a5c39b36e8e9debcd62ceee4b5[0m
+2026-01-12T02:02:32.4223215Z [36;1mIMAGE_TAG=test-Linux-${DOCKERFILE_HASH}[0m
+2026-01-12T02:02:32.4224676Z [36;1mIMAGE="ghcr.io/process-failed-successfully/recac:$IMAGE_TAG"[0m
+2026-01-12T02:02:32.4226015Z [36;1m# Convert to lowercase[0m
+2026-01-12T02:02:32.4227100Z [36;1mIMAGE=$(echo $IMAGE | tr '[:upper:]' '[:lower:]')[0m
+2026-01-12T02:02:32.4228219Z [36;1m[0m
+2026-01-12T02:02:32.4228997Z [36;1mecho "image=$IMAGE" >> $GITHUB_OUTPUT[0m
+2026-01-12T02:02:32.4230237Z [36;1mecho "tag=$IMAGE_TAG" >> $GITHUB_OUTPUT[0m
+2026-01-12T02:02:32.4269297Z shell: /usr/bin/bash -e {0}
+2026-01-12T02:02:32.4270336Z env:
+2026-01-12T02:02:32.4271016Z   REGISTRY: ghcr.io
+2026-01-12T02:02:32.4271967Z   IMAGE_NAME: process-failed-successfully/recac
+2026-01-12T02:02:32.4273034Z ##[endgroup]
+2026-01-12T02:02:32.4534315Z ##[group]Run docker manifest inspect ghcr.io/process-failed-successfully/recac:test-linux-440e4d98cedaae47692ddf07b4dba3a4dcf057a5c39b36e8e9debcd62ceee4b5 > /dev/null
+2026-01-12T02:02:32.4538679Z [36;1mdocker manifest inspect ghcr.io/process-failed-successfully/recac:test-linux-440e4d98cedaae47692ddf07b4dba3a4dcf057a5c39b36e8e9debcd62ceee4b5 > /dev/null[0m
+2026-01-12T02:02:32.4576037Z shell: /usr/bin/bash -e {0}
+2026-01-12T02:02:32.4576895Z env:
+2026-01-12T02:02:32.4577560Z   REGISTRY: ghcr.io
+2026-01-12T02:02:32.4578463Z   IMAGE_NAME: process-failed-successfully/recac
+2026-01-12T02:02:32.4579640Z ##[endgroup]
+2026-01-12T02:02:33.4646338Z ##[group]Run VERSION=$(grep "^go " go.mod | awk '{print $2}')
+2026-01-12T02:02:33.4646776Z [36;1mVERSION=$(grep "^go " go.mod | awk '{print $2}')[0m
+2026-01-12T02:02:33.4647109Z [36;1mecho "version=$VERSION" >> $GITHUB_OUTPUT[0m
+2026-01-12T02:02:33.4678861Z shell: /usr/bin/bash -e {0}
+2026-01-12T02:02:33.4679096Z env:
+2026-01-12T02:02:33.4679258Z   REGISTRY: ghcr.io
+2026-01-12T02:02:33.4679631Z   IMAGE_NAME: process-failed-successfully/recac
+2026-01-12T02:02:33.4679911Z ##[endgroup]
+2026-01-12T02:02:33.4851989Z Post job cleanup.
+2026-01-12T02:02:33.5777925Z [command]/usr/bin/git version
+2026-01-12T02:02:33.5814473Z git version 2.52.0
+2026-01-12T02:02:33.5858611Z Temporarily overriding HOME='/home/runner/work/_temp/0e596144-f2d9-4a18-921a-b61e60a7a5c3' before making global git config changes
+2026-01-12T02:02:33.5860267Z Adding repository directory to the temporary git global config as a safe directory
+2026-01-12T02:02:33.5872168Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/recac/recac
+2026-01-12T02:02:33.5907163Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-01-12T02:02:33.5939850Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-01-12T02:02:33.6152890Z fatal: No url found for submodule path 'verification/manual_push_test' in .gitmodules
+2026-01-12T02:02:33.6203388Z ##[warning]The process '/usr/bin/git' failed with exit code 128
+2026-01-12T02:02:33.6285295Z Evaluate and set job outputs
+2026-01-12T02:02:33.6291199Z Set output 'image'
+2026-01-12T02:02:33.6293051Z Cleaning up orphan processes

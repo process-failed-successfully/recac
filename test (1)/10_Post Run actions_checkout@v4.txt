@@ -1,0 +1,10 @@
+﻿2026-01-12T02:03:39.1740078Z Post job cleanup.
+2026-01-12T02:03:39.2780582Z [command]/usr/bin/git version
+2026-01-12T02:03:39.2832366Z git version 2.52.0
+2026-01-12T02:03:39.2878342Z Temporarily overriding HOME='/home/runner/work/_temp/10136440-2639-4235-9962-c538c9f93caa' before making global git config changes
+2026-01-12T02:03:39.2879722Z Adding repository directory to the temporary git global config as a safe directory
+2026-01-12T02:03:39.2884794Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/recac/recac
+2026-01-12T02:03:39.2930278Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-01-12T02:03:39.2973096Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-01-12T02:03:39.3230154Z fatal: No url found for submodule path 'verification/manual_push_test' in .gitmodules
+2026-01-12T02:03:39.3280623Z ##[warning]The process '/usr/bin/git' failed with exit code 128

@@ -1,0 +1,6 @@
+﻿2026-01-12T02:05:06.4892882Z Post job cleanup.
+2026-01-12T02:05:06.6537186Z [command]/opt/hostedtoolcache/go/1.25.0/x64/bin/go env GOMODCACHE
+2026-01-12T02:05:06.6576787Z [command]/opt/hostedtoolcache/go/1.25.0/x64/bin/go env GOCACHE
+2026-01-12T02:05:06.6601828Z /home/runner/go/pkg/mod
+2026-01-12T02:05:06.6633502Z /home/runner/.cache/go-build
+2026-01-12T02:05:06.6639899Z Cache hit occurred on the primary key setup-go-Linux-x64-ubuntu24-go-1.25.0-f409a0f2e8e9f57691b191e32714458e6fa47036c073ba0fae39c89ecdeff06d, not saving cache.

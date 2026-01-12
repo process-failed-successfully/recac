@@ -1,0 +1,85 @@
+﻿2026-01-12T02:02:41.0834606Z ##[group]Checking docker version
+2026-01-12T02:02:41.0848349Z ##[command]/usr/bin/docker version --format '{{.Server.APIVersion}}'
+2026-01-12T02:02:41.1616778Z '1.48'
+2026-01-12T02:02:41.1629348Z Docker daemon API version: '1.48'
+2026-01-12T02:02:41.1630353Z ##[command]/usr/bin/docker version --format '{{.Client.APIVersion}}'
+2026-01-12T02:02:41.1805929Z '1.48'
+2026-01-12T02:02:41.1821253Z Docker client API version: '1.48'
+2026-01-12T02:02:41.1828473Z ##[endgroup]
+2026-01-12T02:02:41.1831727Z ##[group]Clean up resources from previous jobs
+2026-01-12T02:02:41.1837223Z ##[command]/usr/bin/docker ps --all --quiet --no-trunc --filter "label=dce14f"
+2026-01-12T02:02:41.1995089Z ##[command]/usr/bin/docker network prune --force --filter "label=dce14f"
+2026-01-12T02:02:41.2149508Z ##[endgroup]
+2026-01-12T02:02:41.2150395Z ##[group]Create local container network
+2026-01-12T02:02:41.2161135Z ##[command]/usr/bin/docker network create --label dce14f github_network_3fffe5f15ec7438ead3093a99bd2683d
+2026-01-12T02:02:41.2752619Z 3c3288e1ed20616d0871b817abec6336fe73d6fc87327f860c8e17df2e6c3d0d
+2026-01-12T02:02:41.2777468Z ##[endgroup]
+2026-01-12T02:02:41.2811075Z ##[group]Starting job container
+2026-01-12T02:02:41.2843108Z ##[command]/usr/bin/docker --config /home/runner/work/_temp/.docker_a8b6972f-0aa3-491a-91cd-6133d246defc login ghcr.io -u google-labs-jules[bot] --password-stdin
+2026-01-12T02:02:41.5989332Z ##[command]/usr/bin/docker --config /home/runner/work/_temp/.docker_a8b6972f-0aa3-491a-91cd-6133d246defc pull ghcr.io/process-failed-successfully/recac:test-linux-440e4d98cedaae47692ddf07b4dba3a4dcf057a5c39b36e8e9debcd62ceee4b5
+2026-01-12T02:02:41.9619452Z test-linux-440e4d98cedaae47692ddf07b4dba3a4dcf057a5c39b36e8e9debcd62ceee4b5: Pulling from process-failed-successfully/recac
+2026-01-12T02:02:42.0451833Z 9824c27679d3: Pulling fs layer
+2026-01-12T02:02:42.0453149Z ec7d4ca09441: Pulling fs layer
+2026-01-12T02:02:42.0454229Z 8286cb4ece30: Pulling fs layer
+2026-01-12T02:02:42.0455369Z 18414ed0f666: Pulling fs layer
+2026-01-12T02:02:42.0456540Z 4f4fb700ef54: Pulling fs layer
+2026-01-12T02:02:42.0457602Z 1ed131d992fe: Pulling fs layer
+2026-01-12T02:02:42.0459275Z e56710d91b36: Pulling fs layer
+2026-01-12T02:02:42.0459976Z d644b8847894: Pulling fs layer
+2026-01-12T02:02:42.0460694Z 62a86a8bd49a: Pulling fs layer
+2026-01-12T02:02:42.0461485Z 706389cba054: Pulling fs layer
+2026-01-12T02:02:42.0462088Z 18414ed0f666: Waiting
+2026-01-12T02:02:42.0462642Z 4f4fb700ef54: Waiting
+2026-01-12T02:02:42.0463179Z 1ed131d992fe: Waiting
+2026-01-12T02:02:42.0463707Z e56710d91b36: Waiting
+2026-01-12T02:02:42.0464230Z d644b8847894: Waiting
+2026-01-12T02:02:42.0464750Z 706389cba054: Waiting
+2026-01-12T02:02:42.1748917Z 9824c27679d3: Verifying Checksum
+2026-01-12T02:02:42.1751295Z 9824c27679d3: Download complete
+2026-01-12T02:02:42.1811386Z ec7d4ca09441: Verifying Checksum
+2026-01-12T02:02:42.1813252Z ec7d4ca09441: Download complete
+2026-01-12T02:02:42.2698874Z 4f4fb700ef54: Download complete
+2026-01-12T02:02:42.2902404Z 18414ed0f666: Verifying Checksum
+2026-01-12T02:02:42.2906925Z 18414ed0f666: Download complete
+2026-01-12T02:02:42.3097411Z 9824c27679d3: Pull complete
+2026-01-12T02:02:42.3931320Z 1ed131d992fe: Verifying Checksum
+2026-01-12T02:02:42.3933023Z 1ed131d992fe: Download complete
+2026-01-12T02:02:42.6159186Z d644b8847894: Verifying Checksum
+2026-01-12T02:02:42.6163309Z d644b8847894: Download complete
+2026-01-12T02:02:42.7545457Z 8286cb4ece30: Verifying Checksum
+2026-01-12T02:02:42.7548359Z 8286cb4ece30: Download complete
+2026-01-12T02:02:42.8502860Z e56710d91b36: Verifying Checksum
+2026-01-12T02:02:42.8503940Z e56710d91b36: Download complete
+2026-01-12T02:02:43.0603957Z ec7d4ca09441: Pull complete
+2026-01-12T02:02:43.2861145Z 706389cba054: Verifying Checksum
+2026-01-12T02:02:43.2863777Z 706389cba054: Download complete
+2026-01-12T02:02:43.9412104Z 62a86a8bd49a: Verifying Checksum
+2026-01-12T02:02:43.9413143Z 62a86a8bd49a: Download complete
+2026-01-12T02:02:48.8491588Z 8286cb4ece30: Pull complete
+2026-01-12T02:02:48.8596757Z 18414ed0f666: Pull complete
+2026-01-12T02:02:48.8693395Z 4f4fb700ef54: Pull complete
+2026-01-12T02:02:48.8785743Z 1ed131d992fe: Pull complete
+2026-01-12T02:02:51.1120110Z e56710d91b36: Pull complete
+2026-01-12T02:02:51.1491646Z d644b8847894: Pull complete
+2026-01-12T02:03:07.5479647Z 62a86a8bd49a: Pull complete
+2026-01-12T02:03:08.5443303Z 706389cba054: Pull complete
+2026-01-12T02:03:08.5484965Z Digest: sha256:bb55cb8fec1b634bdb1558550268f35fc95949ad1d4ff5805e42c43e319a76bb
+2026-01-12T02:03:08.5497435Z Status: Downloaded newer image for ghcr.io/process-failed-successfully/recac:test-linux-440e4d98cedaae47692ddf07b4dba3a4dcf057a5c39b36e8e9debcd62ceee4b5
+2026-01-12T02:03:08.5508860Z ghcr.io/process-failed-successfully/recac:test-linux-440e4d98cedaae47692ddf07b4dba3a4dcf057a5c39b36e8e9debcd62ceee4b5
+2026-01-12T02:03:08.5598933Z ##[command]/usr/bin/docker create --name 27b57857bffe43139eeaefcacc482427_ghcrioprocessfailedsuccessfullyrecactestlinux440e4d98cedaae47692ddf07b4dba3a4dcf057a5c39b36e8e9debcd62ceee4b5_21e786 --label dce14f --workdir /__w/recac/recac --network github_network_3fffe5f15ec7438ead3093a99bd2683d  -e "HOME=/github/home" -e GITHUB_ACTIONS=true -e CI=true -v "/var/run/docker.sock":"/var/run/docker.sock" -v "/home/runner/work":"/__w" -v "/home/runner/actions-runner/cached/externals":"/__e":ro -v "/home/runner/work/_temp":"/__w/_temp" -v "/home/runner/work/_actions":"/__w/_actions" -v "/opt/hostedtoolcache":"/__t" -v "/home/runner/work/_temp/_github_home":"/github/home" -v "/home/runner/work/_temp/_github_workflow":"/github/workflow" --entrypoint "tail" ghcr.io/process-failed-successfully/recac:test-linux-440e4d98cedaae47692ddf07b4dba3a4dcf057a5c39b36e8e9debcd62ceee4b5 "-f" "/dev/null"
+2026-01-12T02:03:08.5889820Z ae8b33e130d54e95d1cca74f511f2ef33fa55b9b8efda1a113e826fa3049aef7
+2026-01-12T02:03:08.5916205Z ##[command]/usr/bin/docker start ae8b33e130d54e95d1cca74f511f2ef33fa55b9b8efda1a113e826fa3049aef7
+2026-01-12T02:03:08.7774677Z ae8b33e130d54e95d1cca74f511f2ef33fa55b9b8efda1a113e826fa3049aef7
+2026-01-12T02:03:08.7795117Z ##[command]/usr/bin/docker ps --all --filter id=ae8b33e130d54e95d1cca74f511f2ef33fa55b9b8efda1a113e826fa3049aef7 --filter status=running --no-trunc --format "{{.ID}} {{.Status}}"
+2026-01-12T02:03:08.7921711Z ae8b33e130d54e95d1cca74f511f2ef33fa55b9b8efda1a113e826fa3049aef7 Up Less than a second
+2026-01-12T02:03:08.7943933Z ##[command]/usr/bin/docker inspect --format "{{range .Config.Env}}{{println .}}{{end}}" ae8b33e130d54e95d1cca74f511f2ef33fa55b9b8efda1a113e826fa3049aef7
+2026-01-12T02:03:08.8080820Z HOME=/github/home
+2026-01-12T02:03:08.8081400Z GITHUB_ACTIONS=true
+2026-01-12T02:03:08.8081744Z CI=true
+2026-01-12T02:03:08.8082483Z PATH=/root/.local/bin:/go/bin:/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+2026-01-12T02:03:08.8083361Z GOLANG_VERSION=1.25.0
+2026-01-12T02:03:08.8083719Z GOTOOLCHAIN=local
+2026-01-12T02:03:08.8084140Z GOPATH=/go
+2026-01-12T02:03:08.8104956Z ##[endgroup]
+2026-01-12T02:03:08.8114740Z ##[group]Waiting for all services to be ready
+2026-01-12T02:03:08.8116602Z ##[endgroup]

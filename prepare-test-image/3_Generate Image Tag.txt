@@ -1,0 +1,15 @@
+﻿2026-01-12T02:02:32.4217858Z ##[group]Run # Hash test.Dockerfile to create a unique tag
+2026-01-12T02:02:32.4219394Z [36;1m# Hash test.Dockerfile to create a unique tag[0m
+2026-01-12T02:02:32.4221436Z [36;1mDOCKERFILE_HASH=440e4d98cedaae47692ddf07b4dba3a4dcf057a5c39b36e8e9debcd62ceee4b5[0m
+2026-01-12T02:02:32.4223210Z [36;1mIMAGE_TAG=test-Linux-${DOCKERFILE_HASH}[0m
+2026-01-12T02:02:32.4224671Z [36;1mIMAGE="ghcr.io/process-failed-successfully/recac:$IMAGE_TAG"[0m
+2026-01-12T02:02:32.4226011Z [36;1m# Convert to lowercase[0m
+2026-01-12T02:02:32.4227094Z [36;1mIMAGE=$(echo $IMAGE | tr '[:upper:]' '[:lower:]')[0m
+2026-01-12T02:02:32.4228214Z [36;1m[0m
+2026-01-12T02:02:32.4228992Z [36;1mecho "image=$IMAGE" >> $GITHUB_OUTPUT[0m
+2026-01-12T02:02:32.4230232Z [36;1mecho "tag=$IMAGE_TAG" >> $GITHUB_OUTPUT[0m
+2026-01-12T02:02:32.4269275Z shell: /usr/bin/bash -e {0}
+2026-01-12T02:02:32.4270330Z env:
+2026-01-12T02:02:32.4271010Z   REGISTRY: ghcr.io
+2026-01-12T02:02:32.4271906Z   IMAGE_NAME: process-failed-successfully/recac
+2026-01-12T02:02:32.4273030Z ##[endgroup]

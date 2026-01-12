@@ -1,0 +1,8 @@
+2026-01-12T02:02:26.8430000Z Evaluating setup-matrix.if
+2026-01-12T02:02:26.8430000Z Evaluating: success()
+2026-01-12T02:02:26.8430000Z Result: true
+2026-01-12T02:02:27.3620000Z Job is waiting for a hosted runner to come online.
+2026-01-12T02:02:27.3630000Z Job is about to start running on the hosted runner: GitHub Actions 1000006520
+2026-01-12T02:02:27.3600000Z Requested labels: ubuntu-latest
+2026-01-12T02:02:27.3600000Z Job defined at: process-failed-successfully/recac/.github/workflows/ci.yml@refs/pull/262/merge
+2026-01-12T02:02:27.3600000Z Waiting for a runner to pick up this job...

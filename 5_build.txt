@@ -1,0 +1,384 @@
+﻿2026-01-12T02:02:40.4926525Z Current runner version: '2.330.0'
+2026-01-12T02:02:40.4951120Z ##[group]Runner Image Provisioner
+2026-01-12T02:02:40.4952048Z Hosted Compute Agent
+2026-01-12T02:02:40.4952570Z Version: 20251211.462
+2026-01-12T02:02:40.4953184Z Commit: 6cbad8c2bb55d58165063d031ccabf57e2d2db61
+2026-01-12T02:02:40.4953914Z Build Date: 2025-12-11T16:28:49Z
+2026-01-12T02:02:40.4954559Z Worker ID: {c7395f55-e413-4c87-a479-9d1fb74fe756}
+2026-01-12T02:02:40.4955200Z ##[endgroup]
+2026-01-12T02:02:40.4955750Z ##[group]Operating System
+2026-01-12T02:02:40.4956305Z Ubuntu
+2026-01-12T02:02:40.4956765Z 24.04.3
+2026-01-12T02:02:40.4957516Z LTS
+2026-01-12T02:02:40.4957938Z ##[endgroup]
+2026-01-12T02:02:40.4958426Z ##[group]Runner Image
+2026-01-12T02:02:40.4958959Z Image: ubuntu-24.04
+2026-01-12T02:02:40.4959478Z Version: 20260105.202.1
+2026-01-12T02:02:40.4960501Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260105.202/images/ubuntu/Ubuntu2404-Readme.md
+2026-01-12T02:02:40.4962046Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260105.202
+2026-01-12T02:02:40.4963023Z ##[endgroup]
+2026-01-12T02:02:40.4964136Z ##[group]GITHUB_TOKEN Permissions
+2026-01-12T02:02:40.4965922Z Contents: read
+2026-01-12T02:02:40.4966529Z Metadata: read
+2026-01-12T02:02:40.4967264Z Packages: read
+2026-01-12T02:02:40.4967766Z ##[endgroup]
+2026-01-12T02:02:40.4969967Z Secret source: Actions
+2026-01-12T02:02:40.4970767Z Prepare workflow directory
+2026-01-12T02:02:40.5506192Z Prepare all required actions
+2026-01-12T02:02:40.5544143Z Getting action download info
+2026-01-12T02:02:40.9829248Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+2026-01-12T02:02:41.0862241Z Download action repository 'actions/cache@v4' (SHA:0057852bfaa89a56745cba8c7296529d2fc39830)
+2026-01-12T02:02:41.3258052Z Complete job name: build
+2026-01-12T02:02:41.3695281Z ##[group]Checking docker version
+2026-01-12T02:02:41.3708383Z ##[command]/usr/bin/docker version --format '{{.Server.APIVersion}}'
+2026-01-12T02:02:41.4832015Z '1.48'
+2026-01-12T02:02:41.4845493Z Docker daemon API version: '1.48'
+2026-01-12T02:02:41.4846303Z ##[command]/usr/bin/docker version --format '{{.Client.APIVersion}}'
+2026-01-12T02:02:41.5006162Z '1.48'
+2026-01-12T02:02:41.5019679Z Docker client API version: '1.48'
+2026-01-12T02:02:41.5024516Z ##[endgroup]
+2026-01-12T02:02:41.5028222Z ##[group]Clean up resources from previous jobs
+2026-01-12T02:02:41.5033412Z ##[command]/usr/bin/docker ps --all --quiet --no-trunc --filter "label=e40851"
+2026-01-12T02:02:41.5172906Z ##[command]/usr/bin/docker network prune --force --filter "label=e40851"
+2026-01-12T02:02:41.5298424Z ##[endgroup]
+2026-01-12T02:02:41.5298952Z ##[group]Create local container network
+2026-01-12T02:02:41.5309747Z ##[command]/usr/bin/docker network create --label e40851 github_network_c4cf2342f31843cd8f5c29670075999a
+2026-01-12T02:02:41.5870082Z 7401f64f35b4ab57fb2af42f9f420809e9d5f6f8a31c96a53f5f7bdf69e5d541
+2026-01-12T02:02:41.5896103Z ##[endgroup]
+2026-01-12T02:02:41.5921108Z ##[group]Starting job container
+2026-01-12T02:02:41.5944144Z ##[command]/usr/bin/docker --config /home/runner/work/_temp/.docker_734334f6-cf11-49bf-b713-2c0bf0a64bc8 login ghcr.io -u google-labs-jules[bot] --password-stdin
+2026-01-12T02:02:42.3223543Z ##[command]/usr/bin/docker --config /home/runner/work/_temp/.docker_734334f6-cf11-49bf-b713-2c0bf0a64bc8 pull ghcr.io/process-failed-successfully/recac:test-linux-440e4d98cedaae47692ddf07b4dba3a4dcf057a5c39b36e8e9debcd62ceee4b5
+2026-01-12T02:02:43.0048368Z test-linux-440e4d98cedaae47692ddf07b4dba3a4dcf057a5c39b36e8e9debcd62ceee4b5: Pulling from process-failed-successfully/recac
+2026-01-12T02:02:43.1542802Z 9824c27679d3: Pulling fs layer
+2026-01-12T02:02:43.1544114Z ec7d4ca09441: Pulling fs layer
+2026-01-12T02:02:43.1545396Z 8286cb4ece30: Pulling fs layer
+2026-01-12T02:02:43.1546543Z 18414ed0f666: Pulling fs layer
+2026-01-12T02:02:43.1547781Z 4f4fb700ef54: Pulling fs layer
+2026-01-12T02:02:43.1548861Z 1ed131d992fe: Pulling fs layer
+2026-01-12T02:02:43.1550336Z e56710d91b36: Pulling fs layer
+2026-01-12T02:02:43.1551406Z d644b8847894: Pulling fs layer
+2026-01-12T02:02:43.1552457Z 62a86a8bd49a: Pulling fs layer
+2026-01-12T02:02:43.1553860Z 706389cba054: Pulling fs layer
+2026-01-12T02:02:43.1555311Z d644b8847894: Waiting
+2026-01-12T02:02:43.1556250Z e56710d91b36: Waiting
+2026-01-12T02:02:43.1557417Z 18414ed0f666: Waiting
+2026-01-12T02:02:43.1558359Z 4f4fb700ef54: Waiting
+2026-01-12T02:02:43.1559318Z 1ed131d992fe: Waiting
+2026-01-12T02:02:43.1560512Z 706389cba054: Waiting
+2026-01-12T02:02:43.4049852Z ec7d4ca09441: Verifying Checksum
+2026-01-12T02:02:43.4053054Z ec7d4ca09441: Download complete
+2026-01-12T02:02:43.6357188Z 18414ed0f666: Verifying Checksum
+2026-01-12T02:02:43.7839032Z 18414ed0f666: Download complete
+2026-01-12T02:02:43.7839626Z 4f4fb700ef54: Verifying Checksum
+2026-01-12T02:02:43.7840146Z 4f4fb700ef54: Download complete
+2026-01-12T02:02:43.9696651Z 9824c27679d3: Verifying Checksum
+2026-01-12T02:02:43.9697377Z 9824c27679d3: Download complete
+2026-01-12T02:02:44.0099201Z 1ed131d992fe: Verifying Checksum
+2026-01-12T02:02:44.0099774Z 1ed131d992fe: Download complete
+2026-01-12T02:02:44.0869496Z 9824c27679d3: Pull complete
+2026-01-12T02:02:44.1839679Z 8286cb4ece30: Verifying Checksum
+2026-01-12T02:02:44.1845051Z 8286cb4ece30: Download complete
+2026-01-12T02:02:44.2268978Z d644b8847894: Verifying Checksum
+2026-01-12T02:02:44.2269518Z d644b8847894: Download complete
+2026-01-12T02:02:44.7514564Z ec7d4ca09441: Pull complete
+2026-01-12T02:02:45.2121604Z e56710d91b36: Verifying Checksum
+2026-01-12T02:02:45.2122151Z e56710d91b36: Download complete
+2026-01-12T02:02:45.7127908Z 706389cba054: Verifying Checksum
+2026-01-12T02:02:45.7128431Z 706389cba054: Download complete
+2026-01-12T02:02:46.3655372Z 62a86a8bd49a: Verifying Checksum
+2026-01-12T02:02:46.3655918Z 62a86a8bd49a: Download complete
+2026-01-12T02:02:50.1715086Z 8286cb4ece30: Pull complete
+2026-01-12T02:02:50.1910218Z 18414ed0f666: Pull complete
+2026-01-12T02:02:50.2035631Z 4f4fb700ef54: Pull complete
+2026-01-12T02:02:50.2139114Z 1ed131d992fe: Pull complete
+2026-01-12T02:02:52.2928224Z e56710d91b36: Pull complete
+2026-01-12T02:02:52.3287662Z d644b8847894: Pull complete
+2026-01-12T02:03:07.5914417Z 62a86a8bd49a: Pull complete
+2026-01-12T02:03:08.5495415Z 706389cba054: Pull complete
+2026-01-12T02:03:08.5538845Z Digest: sha256:bb55cb8fec1b634bdb1558550268f35fc95949ad1d4ff5805e42c43e319a76bb
+2026-01-12T02:03:08.5555459Z Status: Downloaded newer image for ghcr.io/process-failed-successfully/recac:test-linux-440e4d98cedaae47692ddf07b4dba3a4dcf057a5c39b36e8e9debcd62ceee4b5
+2026-01-12T02:03:08.5569010Z ghcr.io/process-failed-successfully/recac:test-linux-440e4d98cedaae47692ddf07b4dba3a4dcf057a5c39b36e8e9debcd62ceee4b5
+2026-01-12T02:03:08.5654277Z ##[command]/usr/bin/docker create --name 777f963e8f5b43099b70a6f4a654e121_ghcrioprocessfailedsuccessfullyrecactestlinux440e4d98cedaae47692ddf07b4dba3a4dcf057a5c39b36e8e9debcd62ceee4b5_57962a --label e40851 --workdir /__w/recac/recac --network github_network_c4cf2342f31843cd8f5c29670075999a  -e "HOME=/github/home" -e GITHUB_ACTIONS=true -e CI=true -v "/var/run/docker.sock":"/var/run/docker.sock" -v "/home/runner/work":"/__w" -v "/home/runner/actions-runner/cached/externals":"/__e":ro -v "/home/runner/work/_temp":"/__w/_temp" -v "/home/runner/work/_actions":"/__w/_actions" -v "/opt/hostedtoolcache":"/__t" -v "/home/runner/work/_temp/_github_home":"/github/home" -v "/home/runner/work/_temp/_github_workflow":"/github/workflow" --entrypoint "tail" ghcr.io/process-failed-successfully/recac:test-linux-440e4d98cedaae47692ddf07b4dba3a4dcf057a5c39b36e8e9debcd62ceee4b5 "-f" "/dev/null"
+2026-01-12T02:03:08.5950763Z 199772f68fc250e413969823535dbb24423785f377673af6057696bc6f7002c6
+2026-01-12T02:03:08.5975574Z ##[command]/usr/bin/docker start 199772f68fc250e413969823535dbb24423785f377673af6057696bc6f7002c6
+2026-01-12T02:03:08.8025807Z 199772f68fc250e413969823535dbb24423785f377673af6057696bc6f7002c6
+2026-01-12T02:03:08.8044607Z ##[command]/usr/bin/docker ps --all --filter id=199772f68fc250e413969823535dbb24423785f377673af6057696bc6f7002c6 --filter status=running --no-trunc --format "{{.ID}} {{.Status}}"
+2026-01-12T02:03:08.8157205Z 199772f68fc250e413969823535dbb24423785f377673af6057696bc6f7002c6 Up Less than a second
+2026-01-12T02:03:08.8176487Z ##[command]/usr/bin/docker inspect --format "{{range .Config.Env}}{{println .}}{{end}}" 199772f68fc250e413969823535dbb24423785f377673af6057696bc6f7002c6
+2026-01-12T02:03:08.8287901Z CI=true
+2026-01-12T02:03:08.8288108Z HOME=/github/home
+2026-01-12T02:03:08.8288312Z GITHUB_ACTIONS=true
+2026-01-12T02:03:08.8288757Z PATH=/root/.local/bin:/go/bin:/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+2026-01-12T02:03:08.8289259Z GOLANG_VERSION=1.25.0
+2026-01-12T02:03:08.8289447Z GOTOOLCHAIN=local
+2026-01-12T02:03:08.8289635Z GOPATH=/go
+2026-01-12T02:03:08.8306688Z ##[endgroup]
+2026-01-12T02:03:08.8315652Z ##[group]Waiting for all services to be ready
+2026-01-12T02:03:08.8317524Z ##[endgroup]
+2026-01-12T02:03:08.8563743Z ##[group]Run actions/checkout@v4
+2026-01-12T02:03:08.8564303Z with:
+2026-01-12T02:03:08.8564541Z   repository: process-failed-successfully/recac
+2026-01-12T02:03:08.8565033Z   token: ***
+2026-01-12T02:03:08.8565211Z   ssh-strict: true
+2026-01-12T02:03:08.8565393Z   ssh-user: git
+2026-01-12T02:03:08.8565587Z   persist-credentials: true
+2026-01-12T02:03:08.8565806Z   clean: true
+2026-01-12T02:03:08.8565987Z   sparse-checkout-cone-mode: true
+2026-01-12T02:03:08.8566219Z   fetch-depth: 1
+2026-01-12T02:03:08.8566392Z   fetch-tags: false
+2026-01-12T02:03:08.8566570Z   show-progress: true
+2026-01-12T02:03:08.8566758Z   lfs: false
+2026-01-12T02:03:08.8567085Z   submodules: false
+2026-01-12T02:03:08.8567273Z   set-safe-directory: true
+2026-01-12T02:03:08.8567694Z env:
+2026-01-12T02:03:08.8567860Z   REGISTRY: ghcr.io
+2026-01-12T02:03:08.8568082Z   IMAGE_NAME: process-failed-successfully/recac
+2026-01-12T02:03:08.8568358Z ##[endgroup]
+2026-01-12T02:03:08.8623768Z ##[command]/usr/bin/docker exec  199772f68fc250e413969823535dbb24423785f377673af6057696bc6f7002c6 sh -c "cat /etc/*release | grep ^ID"
+2026-01-12T02:03:09.0958496Z Syncing repository: process-failed-successfully/recac
+2026-01-12T02:03:09.0960509Z ##[group]Getting Git version info
+2026-01-12T02:03:09.0961048Z Working directory is '/__w/recac/recac'
+2026-01-12T02:03:09.0961915Z [command]/usr/bin/git version
+2026-01-12T02:03:09.0962384Z git version 2.49.1
+2026-01-12T02:03:09.0989081Z ##[endgroup]
+2026-01-12T02:03:09.1012126Z Temporarily overriding HOME='/__w/_temp/46b0109a-d155-4cc1-b868-c4d95d148e61' before making global git config changes
+2026-01-12T02:03:09.1012847Z Adding repository directory to the temporary git global config as a safe directory
+2026-01-12T02:03:09.1018556Z [command]/usr/bin/git config --global --add safe.directory /__w/recac/recac
+2026-01-12T02:03:09.1047466Z Deleting the contents of '/__w/recac/recac'
+2026-01-12T02:03:09.1052255Z ##[group]Initializing the repository
+2026-01-12T02:03:09.1056722Z [command]/usr/bin/git init /__w/recac/recac
+2026-01-12T02:03:09.1094296Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-01-12T02:03:09.1095900Z hint: is subject to change. To configure the initial branch name to use in all
+2026-01-12T02:03:09.1097119Z hint: of your new repositories, which will suppress this warning, call:
+2026-01-12T02:03:09.1097813Z hint:
+2026-01-12T02:03:09.1098318Z hint: 	git config --global init.defaultBranch <name>
+2026-01-12T02:03:09.1098909Z hint:
+2026-01-12T02:03:09.1099492Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-01-12T02:03:09.1100469Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-01-12T02:03:09.1101223Z hint:
+2026-01-12T02:03:09.1101605Z hint: 	git branch -m <name>
+2026-01-12T02:03:09.1102322Z Initialized empty Git repository in /__w/recac/recac/.git/
+2026-01-12T02:03:09.1108734Z [command]/usr/bin/git remote add origin https://github.com/process-failed-successfully/recac
+2026-01-12T02:03:09.1137048Z ##[endgroup]
+2026-01-12T02:03:09.1138004Z ##[group]Disabling automatic garbage collection
+2026-01-12T02:03:09.1142389Z [command]/usr/bin/git config --local gc.auto 0
+2026-01-12T02:03:09.1167156Z ##[endgroup]
+2026-01-12T02:03:09.1167523Z ##[group]Setting up auth
+2026-01-12T02:03:09.1174753Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-01-12T02:03:09.1201850Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-01-12T02:03:09.1391032Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-01-12T02:03:09.1417644Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-01-12T02:03:09.1605405Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-01-12T02:03:09.1632466Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-01-12T02:03:09.1821838Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-01-12T02:03:09.1852302Z ##[endgroup]
+2026-01-12T02:03:09.1853014Z ##[group]Fetching the repository
+2026-01-12T02:03:09.1872591Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +711435681f59fa2ad8e1c6ecc2efe015d25327cc:refs/remotes/pull/262/merge
+2026-01-12T02:03:09.7640095Z From https://github.com/process-failed-successfully/recac
+2026-01-12T02:03:09.7640976Z  * [new ref]         711435681f59fa2ad8e1c6ecc2efe015d25327cc -> pull/262/merge
+2026-01-12T02:03:09.7671044Z ##[endgroup]
+2026-01-12T02:03:09.7671673Z ##[group]Determining the checkout info
+2026-01-12T02:03:09.7673775Z ##[endgroup]
+2026-01-12T02:03:09.7680973Z [command]/usr/bin/git sparse-checkout disable
+2026-01-12T02:03:09.7725828Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-01-12T02:03:09.7753404Z ##[group]Checking out the ref
+2026-01-12T02:03:09.7757770Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/262/merge
+2026-01-12T02:03:09.8271198Z Note: switching to 'refs/remotes/pull/262/merge'.
+2026-01-12T02:03:09.8272768Z
+2026-01-12T02:03:09.8273133Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-01-12T02:03:09.8273987Z changes and commit them, and you can discard any commits you make in this
+2026-01-12T02:03:09.8274843Z state without impacting any branches by switching back to a branch.
+2026-01-12T02:03:09.8275360Z
+2026-01-12T02:03:09.8275683Z If you want to create a new branch to retain commits you create, you may
+2026-01-12T02:03:09.8276443Z do so (now or later) by using -c with the switch command. Example:
+2026-01-12T02:03:09.8277124Z
+2026-01-12T02:03:09.8277326Z   git switch -c <new-branch-name>
+2026-01-12T02:03:09.8277649Z
+2026-01-12T02:03:09.8277814Z Or undo this operation with:
+2026-01-12T02:03:09.8278092Z
+2026-01-12T02:03:09.8278223Z   git switch -
+2026-01-12T02:03:09.8278448Z
+2026-01-12T02:03:09.8278814Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-01-12T02:03:09.8279356Z
+2026-01-12T02:03:09.8279975Z HEAD is now at 7114356 Merge 6e419ba82d62ba7129cb4ce099b7f058885350fc into d99bf56d1841b4536517f84124a0ef93e3184a90
+2026-01-12T02:03:09.8285116Z ##[endgroup]
+2026-01-12T02:03:09.8321646Z [command]/usr/bin/git log -1 --format=%H
+2026-01-12T02:03:09.8346115Z 711435681f59fa2ad8e1c6ecc2efe015d25327cc
+2026-01-12T02:03:09.9520214Z ##[group]Run actions/cache@v4
+2026-01-12T02:03:09.9520467Z with:
+2026-01-12T02:03:09.9520654Z   path: ~/.cache/go-build
+~/go/pkg/mod
+
+2026-01-12T02:03:09.9521063Z   key: Linux-go-f409a0f2e8e9f57691b191e32714458e6fa47036c073ba0fae39c89ecdeff06d
+2026-01-12T02:03:09.9521471Z   restore-keys: Linux-go-
+
+2026-01-12T02:03:09.9521694Z   enableCrossOsArchive: false
+2026-01-12T02:03:09.9522105Z   fail-on-cache-miss: false
+2026-01-12T02:03:09.9522312Z   lookup-only: false
+2026-01-12T02:03:09.9522501Z   save-always: false
+2026-01-12T02:03:09.9522667Z env:
+2026-01-12T02:03:09.9522823Z   REGISTRY: ghcr.io
+2026-01-12T02:03:09.9523048Z   IMAGE_NAME: process-failed-successfully/recac
+2026-01-12T02:03:09.9523344Z ##[endgroup]
+2026-01-12T02:03:09.9527512Z ##[command]/usr/bin/docker exec  199772f68fc250e413969823535dbb24423785f377673af6057696bc6f7002c6 sh -c "cat /etc/*release | grep ^ID"
+2026-01-12T02:03:10.5042302Z Cache not found for input keys: Linux-go-f409a0f2e8e9f57691b191e32714458e6fa47036c073ba0fae39c89ecdeff06d, Linux-go-
+2026-01-12T02:03:10.5156531Z ##[group]Run go build -buildvcs=false -o recac ./cmd/recac
+2026-01-12T02:03:10.5157387Z [36;1mgo build -buildvcs=false -o recac ./cmd/recac[0m
+2026-01-12T02:03:10.5157881Z [36;1mgo build -buildvcs=false -o agent-bridge ./cmd/agent-bridge[0m
+2026-01-12T02:03:10.5161538Z shell: sh -e {0}
+2026-01-12T02:03:10.5161752Z env:
+2026-01-12T02:03:10.5161934Z   REGISTRY: ghcr.io
+2026-01-12T02:03:10.5162179Z   IMAGE_NAME: process-failed-successfully/recac
+2026-01-12T02:03:10.5162468Z ##[endgroup]
+2026-01-12T02:03:10.5945585Z go: downloading github.com/AlecAivazis/survey/v2 v2.3.7
+2026-01-12T02:03:10.5946189Z go: downloading github.com/charmbracelet/bubbles v0.21.0
+2026-01-12T02:03:10.5946582Z go: downloading github.com/charmbracelet/bubbletea v1.3.10
+2026-01-12T02:03:10.5992531Z go: downloading github.com/charmbracelet/lipgloss v1.1.1-0.20250404203927-76690c660834
+2026-01-12T02:03:10.6954224Z go: downloading github.com/joho/godotenv v1.5.1
+2026-01-12T02:03:10.6968786Z go: downloading github.com/spf13/cobra v1.10.2
+2026-01-12T02:03:10.7052295Z go: downloading github.com/spf13/viper v1.21.0
+2026-01-12T02:03:10.7092474Z go: downloading k8s.io/api v0.35.0
+2026-01-12T02:03:10.7705207Z go: downloading github.com/charmbracelet/x/ansi v0.10.1
+2026-01-12T02:03:10.7712354Z go: downloading github.com/charmbracelet/x/term v0.2.1
+2026-01-12T02:03:10.7818729Z go: downloading github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6
+2026-01-12T02:03:10.7944836Z go: downloading github.com/muesli/cancelreader v0.2.2
+2026-01-12T02:03:10.8076504Z go: downloading github.com/mattn/go-runewidth v0.0.16
+2026-01-12T02:03:10.8105547Z go: downloading github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
+2026-01-12T02:03:10.8164715Z go: downloading golang.org/x/term v0.37.0
+2026-01-12T02:03:10.8223263Z go: downloading golang.org/x/text v0.31.0
+2026-01-12T02:03:10.8364503Z go: downloading github.com/charmbracelet/x/cellbuf v0.0.13
+2026-01-12T02:03:10.8524544Z go: downloading github.com/muesli/termenv v0.16.0
+2026-01-12T02:03:10.8945681Z go: downloading github.com/rivo/uniseg v0.4.7
+2026-01-12T02:03:10.9580352Z go: downloading github.com/lib/pq v1.10.9
+2026-01-12T02:03:10.9822206Z go: downloading modernc.org/sqlite v1.42.2
+2026-01-12T02:03:11.3246469Z go: downloading github.com/docker/docker v28.5.2+incompatible
+2026-01-12T02:03:12.1158951Z go: downloading github.com/opencontainers/image-spec v1.1.1
+2026-01-12T02:03:12.1159638Z go: downloading k8s.io/apimachinery v0.35.0
+2026-01-12T02:03:12.1317202Z go: downloading k8s.io/client-go v0.35.0
+2026-01-12T02:03:12.7616341Z go: downloading github.com/fsnotify/fsnotify v1.9.0
+2026-01-12T02:03:12.7617291Z go: downloading github.com/go-viper/mapstructure/v2 v2.4.0
+2026-01-12T02:03:12.7624725Z go: downloading github.com/sagikazarmark/locafero v0.11.0
+2026-01-12T02:03:12.7762781Z go: downloading github.com/spf13/afero v1.15.0
+2026-01-12T02:03:12.7784753Z go: downloading github.com/spf13/cast v1.10.0
+2026-01-12T02:03:12.7925693Z go: downloading github.com/spf13/pflag v1.0.10
+2026-01-12T02:03:12.7953392Z go: downloading github.com/prometheus/client_golang v1.23.2
+2026-01-12T02:03:12.8560618Z go: downloading github.com/charmbracelet/glamour v0.10.0
+2026-01-12T02:03:12.8632144Z go: downloading golang.org/x/sys v0.39.0
+2026-01-12T02:03:12.8744678Z go: downloading github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b
+2026-01-12T02:03:12.8912914Z go: downloading github.com/lucasb-eyer/go-colorful v1.2.0
+2026-01-12T02:03:12.9039531Z go: downloading github.com/charmbracelet/colorprofile v0.2.3-0.20250311203215-f60798e515dc
+2026-01-12T02:03:12.9169748Z go: downloading github.com/aymanbagabas/go-osc52/v2 v2.0.1
+2026-01-12T02:03:12.9245776Z go: downloading github.com/mattn/go-isatty v0.0.20
+2026-01-12T02:03:12.9559163Z go: downloading k8s.io/klog/v2 v2.130.1
+2026-01-12T02:03:12.9835206Z go: downloading github.com/moby/docker-image-spec v1.3.1
+2026-01-12T02:03:12.9931673Z go: downloading github.com/opencontainers/go-digest v1.0.0
+2026-01-12T02:03:12.9949781Z go: downloading github.com/docker/go-units v0.5.0
+2026-01-12T02:03:13.0035895Z go: downloading github.com/moby/term v0.5.2
+2026-01-12T02:03:13.0046642Z go: downloading github.com/morikuni/aec v1.1.0
+2026-01-12T02:03:13.0167665Z go: downloading github.com/docker/go-connections v0.6.0
+2026-01-12T02:03:13.0172941Z go: downloading github.com/containerd/errdefs v1.0.0
+2026-01-12T02:03:13.0272296Z go: downloading github.com/containerd/errdefs/pkg v0.3.0
+2026-01-12T02:03:13.0407294Z go: downloading github.com/distribution/reference v0.6.0
+2026-01-12T02:03:13.0416643Z go: downloading github.com/pkg/errors v0.9.1
+2026-01-12T02:03:13.0570028Z go: downloading go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.64.0
+2026-01-12T02:03:13.0581371Z go: downloading go.opentelemetry.io/otel/trace v1.39.0
+2026-01-12T02:03:13.0761271Z go: downloading go.opentelemetry.io/otel v1.39.0
+2026-01-12T02:03:13.0762578Z go: downloading k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
+2026-01-12T02:03:13.1125336Z go: downloading sigs.k8s.io/randfill v1.0.0
+2026-01-12T02:03:13.1244699Z go: downloading github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822
+2026-01-12T02:03:13.1306974Z go: downloading golang.org/x/net v0.47.0
+2026-01-12T02:03:13.1324774Z go: downloading github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8
+2026-01-12T02:03:13.1518466Z go: downloading github.com/subosito/gotenv v1.6.0
+2026-01-12T02:03:13.1648760Z go: downloading github.com/pelletier/go-toml/v2 v2.2.4
+2026-01-12T02:03:13.2182583Z go: downloading go.yaml.in/yaml/v3 v3.0.4
+2026-01-12T02:03:13.2386259Z go: downloading github.com/beorn7/perks v1.0.1
+2026-01-12T02:03:13.2501886Z go: downloading github.com/cespare/xxhash/v2 v2.3.0
+2026-01-12T02:03:13.2690087Z go: downloading github.com/prometheus/client_model v0.6.2
+2026-01-12T02:03:13.2784431Z go: downloading github.com/prometheus/common v0.66.1
+2026-01-12T02:03:13.3374331Z go: downloading github.com/prometheus/procfs v0.16.1
+2026-01-12T02:03:13.4220469Z go: downloading google.golang.org/protobuf v1.36.10
+2026-01-12T02:03:13.4564057Z go: downloading github.com/sahilm/fuzzy v0.1.1
+2026-01-12T02:03:13.5389796Z go: downloading github.com/atotto/clipboard v0.1.4
+2026-01-12T02:03:13.5486220Z go: downloading github.com/slack-go/slack v0.17.3
+2026-01-12T02:03:13.6857453Z go: downloading github.com/mattn/go-colorable v0.1.2
+2026-01-12T02:03:13.6924585Z go: downloading github.com/yuin/goldmark v1.7.8
+2026-01-12T02:03:13.6932216Z go: downloading github.com/yuin/goldmark-emoji v1.0.5
+2026-01-12T02:03:13.7251779Z go: downloading github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e
+2026-01-12T02:03:13.7418523Z go: downloading gopkg.in/inf.v0 v0.9.1
+2026-01-12T02:03:13.7431828Z go: downloading k8s.io/kube-openapi v0.0.0-20250910181357-589584f1c912
+2026-01-12T02:03:13.7437507Z go: downloading sigs.k8s.io/structured-merge-diff/v6 v6.3.0
+2026-01-12T02:03:13.7521985Z go: downloading github.com/go-logr/logr v1.4.3
+2026-01-12T02:03:13.8154061Z go: downloading github.com/felixge/httpsnoop v1.0.4
+2026-01-12T02:03:13.8250423Z go: downloading go.opentelemetry.io/otel/metric v1.39.0
+2026-01-12T02:03:13.8329156Z go: downloading sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730
+2026-01-12T02:03:13.8531287Z go: downloading github.com/google/gnostic-models v0.7.0
+2026-01-12T02:03:13.8720123Z go: downloading golang.org/x/time v0.14.0
+2026-01-12T02:03:13.8818226Z go: downloading github.com/fxamacker/cbor/v2 v2.9.0
+2026-01-12T02:03:13.8957273Z go: downloading golang.org/x/oauth2 v0.30.0
+2026-01-12T02:03:13.9208961Z go: downloading go.yaml.in/yaml/v2 v2.4.3
+2026-01-12T02:03:13.9398129Z go: downloading github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
+2026-01-12T02:03:13.9399023Z go: downloading github.com/alecthomas/chroma/v2 v2.14.0
+2026-01-12T02:03:14.0818633Z go: downloading github.com/charmbracelet/x/exp/slice v0.0.0-20250327172914-2fdc97757edf
+2026-01-12T02:03:14.0895522Z go: downloading github.com/microcosm-cc/bluemonday v1.0.27
+2026-01-12T02:03:14.1130610Z go: downloading github.com/muesli/reflow v0.3.0
+2026-01-12T02:03:14.1386458Z go: downloading github.com/json-iterator/go v1.1.12
+2026-01-12T02:03:14.1387544Z go: downloading sigs.k8s.io/yaml v1.6.0
+2026-01-12T02:03:14.1388531Z go: downloading github.com/davecgh/go-spew v1.1.1
+2026-01-12T02:03:14.1405524Z go: downloading github.com/x448/float16 v0.8.4
+2026-01-12T02:03:14.1562396Z go: downloading modernc.org/libc v1.66.10
+2026-01-12T02:03:14.1601490Z go: downloading github.com/aymerick/douceur v0.2.0
+2026-01-12T02:03:14.1709871Z go: downloading github.com/dlclark/regexp2 v1.11.0
+2026-01-12T02:03:14.1818974Z go: downloading github.com/go-logr/stdr v1.2.2
+2026-01-12T02:03:14.1923715Z go: downloading go.opentelemetry.io/auto/sdk v1.2.1
+2026-01-12T02:03:14.2075496Z go: downloading github.com/google/uuid v1.6.0
+2026-01-12T02:03:14.2211061Z go: downloading github.com/go-openapi/swag v0.23.0
+2026-01-12T02:03:14.2374454Z go: downloading github.com/go-openapi/jsonreference v0.20.2
+2026-01-12T02:03:14.2516480Z go: downloading gopkg.in/evanphx/json-patch.v4 v4.13.0
+2026-01-12T02:03:14.2642799Z go: downloading github.com/gorilla/css v1.0.1
+2026-01-12T02:03:14.2767573Z go: downloading github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
+2026-01-12T02:03:14.2866128Z go: downloading github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee
+2026-01-12T02:03:14.3011461Z go: downloading github.com/emicklei/go-restful/v3 v3.12.2
+2026-01-12T02:03:14.3240398Z go: downloading github.com/mailru/easyjson v0.7.7
+2026-01-12T02:03:14.3501346Z go: downloading gopkg.in/yaml.v3 v3.0.1
+2026-01-12T02:03:14.3746156Z go: downloading github.com/go-openapi/jsonpointer v0.21.0
+2026-01-12T02:03:14.3854143Z go: downloading github.com/josharian/intern v1.0.0
+2026-01-12T02:03:15.6282394Z go: downloading modernc.org/mathutil v1.7.1
+2026-01-12T02:03:15.6283138Z go: downloading github.com/dustin/go-humanize v1.0.1
+2026-01-12T02:03:15.6283764Z go: downloading modernc.org/memory v1.11.0
+2026-01-12T02:03:15.6284828Z go: downloading golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b
+2026-01-12T02:03:15.6561565Z go: downloading github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec
+2026-01-12T02:04:14.4798131Z # recac/cmd/recac
+2026-01-12T02:04:14.4798622Z cmd/recac/data_utils.go:73:6: CostAnalysis redeclared in this block
+2026-01-12T02:04:14.4799176Z 	cmd/recac/cost.go:53:6: other declaration of CostAnalysis
+2026-01-12T02:04:14.4799646Z cmd/recac/data_utils.go:81:6: ModelCost redeclared in this block
+2026-01-12T02:04:14.4800142Z 	cmd/recac/cost.go:61:6: other declaration of ModelCost
+2026-01-12T02:04:14.4800528Z cmd/recac/data_utils.go:90:6: SessionCost redeclared in this block
+2026-01-12T02:04:14.4801013Z 	cmd/recac/cost.go:70:6: other declaration of SessionCost
+2026-01-12T02:04:14.4801478Z cmd/recac/stats.go:10:2: "recac/internal/agent" imported and not used
+2026-01-12T02:04:14.4801930Z cmd/recac/stats.go:14:6: AggregateStats redeclared in this block
+2026-01-12T02:04:14.4802425Z 	cmd/recac/data_utils.go:32:6: other declaration of AggregateStats
+2026-01-12T02:04:14.4802796Z cmd/recac/dashboard.go:30:10: undefined: fmt
+2026-01-12T02:04:14.4803186Z cmd/recac/cost.go:5:2: "sort" imported and not used
+2026-01-12T02:04:14.4803559Z cmd/recac/cost.go:8:2: "recac/internal/agent" imported and not used
+2026-01-12T02:04:14.4804079Z cmd/recac/cost.go:9:2: "recac/internal/runner" imported and not used
+2026-01-12T02:04:14.4804510Z cmd/recac/session_utils.go:4:2: "encoding/json" imported and not used
+2026-01-12T02:04:14.4805271Z cmd/recac/stats.go:10:2: too many errors
+2026-01-12T02:04:14.7245898Z ##[error]Process completed with exit code 1.
+2026-01-12T02:04:14.7331176Z Post job cleanup.
+2026-01-12T02:04:14.7334928Z ##[command]/usr/bin/docker exec  199772f68fc250e413969823535dbb24423785f377673af6057696bc6f7002c6 sh -c "cat /etc/*release | grep ^ID"
+2026-01-12T02:04:14.9578016Z [command]/usr/bin/git version
+2026-01-12T02:04:14.9614787Z git version 2.49.1
+2026-01-12T02:04:14.9664837Z Temporarily overriding HOME='/__w/_temp/f4d62557-ff00-41b0-a9a1-186041e86fca' before making global git config changes
+2026-01-12T02:04:14.9666086Z Adding repository directory to the temporary git global config as a safe directory
+2026-01-12T02:04:14.9680040Z [command]/usr/bin/git config --global --add safe.directory /__w/recac/recac
+2026-01-12T02:04:14.9711798Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-01-12T02:04:14.9744243Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-01-12T02:04:14.9925877Z fatal: No url found for submodule path 'verification/manual_push_test' in .gitmodules
+2026-01-12T02:04:14.9970256Z ##[warning]The process '/usr/bin/git' failed with exit code 128
+2026-01-12T02:04:15.0070498Z Stop and remove container: 777f963e8f5b43099b70a6f4a654e121_ghcrioprocessfailedsuccessfullyrecactestlinux440e4d98cedaae47692ddf07b4dba3a4dcf057a5c39b36e8e9debcd62ceee4b5_57962a
+2026-01-12T02:04:15.0075226Z ##[command]/usr/bin/docker rm --force 199772f68fc250e413969823535dbb24423785f377673af6057696bc6f7002c6
+2026-01-12T02:04:16.7810636Z 199772f68fc250e413969823535dbb24423785f377673af6057696bc6f7002c6
+2026-01-12T02:04:16.7842371Z Remove container network: github_network_c4cf2342f31843cd8f5c29670075999a
+2026-01-12T02:04:16.7847385Z ##[command]/usr/bin/docker network rm github_network_c4cf2342f31843cd8f5c29670075999a
+2026-01-12T02:04:16.8946716Z github_network_c4cf2342f31843cd8f5c29670075999a
+2026-01-12T02:04:16.9004522Z Cleaning up orphan processes

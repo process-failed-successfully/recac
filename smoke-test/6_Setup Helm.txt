@@ -1,0 +1,14 @@
+﻿2026-01-12T02:05:42.0676046Z ##[group]Run azure/setup-helm@v4
+2026-01-12T02:05:42.0676350Z with:
+2026-01-12T02:05:42.0676524Z   version: latest
+2026-01-12T02:05:42.0676857Z   token: ***
+2026-01-12T02:05:42.0677071Z   downloadBaseURL: https://get.helm.sh
+2026-01-12T02:05:42.0677317Z env:
+2026-01-12T02:05:42.0677487Z   REGISTRY: ghcr.io
+2026-01-12T02:05:42.0677729Z   IMAGE_NAME: process-failed-successfully/recac
+2026-01-12T02:05:42.0678005Z ##[endgroup]
+2026-01-12T02:05:42.2447443Z ##[group]Installing v4.0.4
+2026-01-12T02:05:42.2459005Z Downloading 'v4.0.4' from 'https://get.helm.sh'
+2026-01-12T02:05:42.4426407Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/f49dc026-d2cf-4653-966a-05288c577247 -f /home/runner/work/_temp/bfe3a375-588b-47fd-9999-14478f0011f0
+2026-01-12T02:05:42.9510231Z ##[endgroup]
+2026-01-12T02:05:42.9513262Z Helm tool version 'v4.0.4' has been cached at /opt/hostedtoolcache/helm/4.0.4/x64/linux-amd64/helm

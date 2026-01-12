@@ -1,0 +1,6 @@
+﻿2026-01-12T02:04:30.7810202Z Stop and remove container: 27b57857bffe43139eeaefcacc482427_ghcrioprocessfailedsuccessfullyrecactestlinux440e4d98cedaae47692ddf07b4dba3a4dcf057a5c39b36e8e9debcd62ceee4b5_21e786
+2026-01-12T02:04:30.7816419Z ##[command]/usr/bin/docker rm --force ae8b33e130d54e95d1cca74f511f2ef33fa55b9b8efda1a113e826fa3049aef7
+2026-01-12T02:04:32.4652897Z ae8b33e130d54e95d1cca74f511f2ef33fa55b9b8efda1a113e826fa3049aef7
+2026-01-12T02:04:32.4690937Z Remove container network: github_network_3fffe5f15ec7438ead3093a99bd2683d
+2026-01-12T02:04:32.4695423Z ##[command]/usr/bin/docker network rm github_network_3fffe5f15ec7438ead3093a99bd2683d
+2026-01-12T02:04:32.5875692Z github_network_3fffe5f15ec7438ead3093a99bd2683d

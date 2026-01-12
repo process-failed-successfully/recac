@@ -1,0 +1,7 @@
+﻿2026-01-12T02:02:32.4534283Z ##[group]Run docker manifest inspect ghcr.io/process-failed-successfully/recac:test-linux-440e4d98cedaae47692ddf07b4dba3a4dcf057a5c39b36e8e9debcd62ceee4b5 > /dev/null
+2026-01-12T02:02:32.4538673Z [36;1mdocker manifest inspect ghcr.io/process-failed-successfully/recac:test-linux-440e4d98cedaae47692ddf07b4dba3a4dcf057a5c39b36e8e9debcd62ceee4b5 > /dev/null[0m
+2026-01-12T02:02:32.4576023Z shell: /usr/bin/bash -e {0}
+2026-01-12T02:02:32.4576890Z env:
+2026-01-12T02:02:32.4577555Z   REGISTRY: ghcr.io
+2026-01-12T02:02:32.4578458Z   IMAGE_NAME: process-failed-successfully/recac
+2026-01-12T02:02:32.4579635Z ##[endgroup]

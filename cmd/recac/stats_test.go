@@ -71,7 +71,13 @@ func TestCalculateStats(t *testing.T) {
 	}
 
 	// Calculate stats
-	stats, err := calculateStats(sm)
+	// Create a slice of session states from the mock manager's map
+	sessions := make([]*runner.SessionState, 0, len(sm.Sessions))
+	for _, session := range sm.Sessions {
+		sessions = append(sessions, session)
+	}
+
+	stats, err := calculateStats(sessions)
 	require.NoError(t, err)
 
 	// --- Assertions ---
