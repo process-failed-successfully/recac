@@ -27,6 +27,7 @@ type unifiedSession struct {
 	Cost      float64
 	HasCost   bool
 	Tokens    agent.TokenUsage
+	Tags      []string
 }
 
 func init() {
@@ -45,6 +46,9 @@ func init() {
 	}
 	if psCmd.Flags().Lookup("status") == nil {
 		psCmd.Flags().String("status", "", "Filter sessions by status (e.g., 'running', 'completed', 'error')")
+	}
+	if psCmd.Flags().Lookup("tag") == nil {
+		psCmd.Flags().String("tag", "", "Filter sessions by tag")
 	}
 }
 
@@ -73,6 +77,7 @@ var psCmd = &cobra.Command{
 				StartTime: s.StartTime,
 				EndTime:   s.EndTime,
 				Location:  "local",
+				Tags:      s.Tags,
 			}
 			// Calculate cost and tokens for local sessions
 			agentState, err := loadAgentState(s.AgentStateFile)
@@ -120,6 +125,21 @@ var psCmd = &cobra.Command{
 			for _, s := range allSessions {
 				if strings.EqualFold(s.Status, statusFilter) {
 					filteredSessions = append(filteredSessions, s)
+				}
+			}
+			allSessions = filteredSessions
+		}
+
+		// --- Filter by Tag ---
+		tagFilter, _ := cmd.Flags().GetString("tag")
+		if tagFilter != "" {
+			var filteredSessions []unifiedSession
+			for _, s := range allSessions {
+				for _, t := range s.Tags {
+					if t == tagFilter {
+						filteredSessions = append(filteredSessions, s)
+						break
+					}
 				}
 			}
 			allSessions = filteredSessions

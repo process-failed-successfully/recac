@@ -26,6 +26,7 @@ type SessionState struct {
 	AgentStateFile string    `json:"agent_state_file"` // Path to agent state file (.agent_state.json)
 	StartCommitSHA string    `json:"start_commit_sha,omitempty"`
 	EndCommitSHA   string    `json:"end_commit_sha,omitempty"`
+	Tags           []string  `json:"tags,omitempty"`
 }
 
 // SessionManager handles background session management

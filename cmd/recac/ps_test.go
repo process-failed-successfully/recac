@@ -255,3 +255,49 @@ func TestPsCommandWithStatusFilter(t *testing.T) {
 		assert.Contains(t, output, "session-completed-2")
 	})
 }
+
+func TestPsCommandWithTagFilter(t *testing.T) {
+	tempDir := t.TempDir()
+	sessionsDir := filepath.Join(tempDir, "sessions")
+	require.NoError(t, os.Mkdir(sessionsDir, 0755))
+
+	originalFactory := sessionManagerFactory
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return runner.NewSessionManagerWithDir(sessionsDir)
+	}
+	defer func() { sessionManagerFactory = originalFactory }()
+
+	sm, err := sessionManagerFactory()
+	require.NoError(t, err)
+
+	// Create mock sessions
+	session1 := &runner.SessionState{Name: "session-1", Status: "completed", Tags: []string{"bugfix", "frontend"}}
+	session2 := &runner.SessionState{Name: "session-2", Status: "completed", Tags: []string{"feature", "backend"}}
+	session3 := &runner.SessionState{Name: "session-3", Status: "completed", Tags: []string{"bugfix", "backend"}}
+
+	require.NoError(t, sm.SaveSession(session1))
+	require.NoError(t, sm.SaveSession(session2))
+	require.NoError(t, sm.SaveSession(session3))
+
+	t.Run("filter by tag 'bugfix'", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "ps", "--tag", "bugfix")
+		require.NoError(t, err)
+		assert.Contains(t, output, "session-1")
+		assert.NotContains(t, output, "session-2")
+		assert.Contains(t, output, "session-3")
+	})
+
+	t.Run("filter by tag 'backend'", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "ps", "--tag", "backend")
+		require.NoError(t, err)
+		assert.NotContains(t, output, "session-1")
+		assert.Contains(t, output, "session-2")
+		assert.Contains(t, output, "session-3")
+	})
+
+	t.Run("filter by tag with no matches", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "ps", "--tag", "unrelated")
+		require.NoError(t, err)
+		assert.Contains(t, output, "No sessions found.")
+	})
+}

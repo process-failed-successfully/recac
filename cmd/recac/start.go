@@ -68,9 +68,11 @@ func init() {
 	startCmd.Flags().String("repo-url", "", "Repository URL to clone (bypasses Jira if provided)")
 	startCmd.Flags().String("summary", "", "Task summary (bypasses Jira if provided)")
 	startCmd.Flags().String("description", "", "Task description")
+	startCmd.Flags().StringSlice("tag", []string{}, "Add a tag to the session (can be used multiple times)")
 	viper.BindPFlag("repo_url", startCmd.Flags().Lookup("repo-url"))
 	viper.BindPFlag("summary", startCmd.Flags().Lookup("summary"))
 	viper.BindPFlag("description", startCmd.Flags().Lookup("description"))
+	viper.BindPFlag("tag", startCmd.Flags().Lookup("tag"))
 
 	viper.BindEnv("max_iterations", "RECAC_MAX_ITERATIONS")
 	viper.BindEnv("manager_frequency", "RECAC_MANAGER_FREQUENCY")
@@ -146,6 +148,7 @@ var startCmd = &cobra.Command{
 		repoURL, _ := cmd.Flags().GetString("repo-url")
 		summary, _ := cmd.Flags().GetString("summary")
 		description, _ := cmd.Flags().GetString("description")
+		tags := viper.GetStringSlice("tag")
 
 		// Global Configuration
 		cfg := SessionConfig{
@@ -171,6 +174,7 @@ var startCmd = &cobra.Command{
 			RepoURL:           repoURL,
 			Summary:           summary,
 			Description:       description,
+			Tags:              tags,
 		}
 
 		if repoURL != "" {
@@ -410,6 +414,7 @@ type SessionConfig struct {
 	Summary           string
 	Description       string
 	Logger            *slog.Logger
+	Tags              []string
 }
 
 // processDirectTask handles a coding session from a direct repository and task description
