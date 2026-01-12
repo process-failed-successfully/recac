@@ -194,6 +194,58 @@ func (sm *SessionManager) SaveSession(session *SessionState) error {
 	return nil
 }
 
+// RenameSession renames a session, including its state and log files.
+func (sm *SessionManager) RenameSession(oldName, newName string) error {
+	// 1. Load the session state for the old name.
+	session, err := sm.LoadSession(oldName)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("session '%s' not found", oldName)
+		}
+		return fmt.Errorf("could not load session '%s': %w", oldName, err)
+	}
+
+	// 2. Prevent renaming of a running session.
+	if sm.IsProcessRunning(session.PID) {
+		return fmt.Errorf("session '%s' is running (PID: %d): %w", oldName, session.PID, ErrSessionRunning)
+	}
+
+	// 3. Check if a session with the new name already exists.
+	newSessionPath := sm.GetSessionPath(newName)
+	if _, err := os.Stat(newSessionPath); err == nil {
+		return fmt.Errorf("a session named '%s' already exists", newName)
+	}
+
+	// 4. Rename the session state file (.json).
+	oldSessionPath := sm.GetSessionPath(oldName)
+	if err := os.Rename(oldSessionPath, newSessionPath); err != nil {
+		return fmt.Errorf("failed to rename session state file: %w", err)
+	}
+
+	// 5. Rename the log file (.log).
+	oldLogPath := session.LogFile
+	newLogPath := filepath.Join(sm.sessionsDir, newName+".log")
+	if err := os.Rename(oldLogPath, newLogPath); err != nil {
+		// Attempt to roll back the session file rename.
+		os.Rename(newSessionPath, oldSessionPath)
+		return fmt.Errorf("failed to rename session log file: %w", err)
+	}
+
+	// 6. Update the session's internal state.
+	session.Name = newName
+	session.LogFile = newLogPath
+
+	// 7. Save the updated session state to the newly named file.
+	if err := sm.SaveSession(session); err != nil {
+		// Attempt to roll back both renames.
+		os.Rename(newSessionPath, oldSessionPath)
+		os.Rename(newLogPath, oldLogPath)
+		return fmt.Errorf("failed to save updated session state: %w", err)
+	}
+
+	return nil
+}
+
 // GetSessionGitDiffStat returns the `git diff --stat` output between a session's start and end commits.
 func (sm *SessionManager) GetSessionGitDiffStat(name string) (string, error) {
 	session, err := sm.LoadSession(name)

@@ -13,6 +13,7 @@ type ISessionManager interface {
 	GetSessionPath(name string) string
 	IsProcessRunning(pid int) bool
 	RemoveSession(name string, force bool) error
+	RenameSession(oldName, newName string) error
 	SessionsDir() string
 	GetSessionGitDiffStat(name string) (string, error)
 }
