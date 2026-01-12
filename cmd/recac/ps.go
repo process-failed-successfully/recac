@@ -1,14 +1,32 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
+	"os"
 	"recac/internal/agent"
+	"recac/internal/orchestrator"
 	"sort"
 	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+// unifiedSession represents both a local session and a remote K8s pod
+type unifiedSession struct {
+	Name      string
+	Status    string
+	StartTime time.Time
+	EndTime   time.Time
+	Duration  time.Duration
+	Location  string
+	Cost      float64
+	HasCost   bool
+	Tokens    agent.TokenUsage
+}
 
 func init() {
 	rootCmd.AddCommand(psCmd)
@@ -21,109 +39,129 @@ func init() {
 	if psCmd.Flags().Lookup("errors") == nil {
 		psCmd.Flags().BoolP("errors", "e", false, "Show the first line of the error for failed sessions")
 	}
+	if psCmd.Flags().Lookup("remote") == nil {
+		psCmd.Flags().Bool("remote", false, "Include remote Kubernetes pods in the list")
+	}
 }
 
 var psCmd = &cobra.Command{
 	Use:     "ps",
 	Aliases: []string{"list"},
 	Short:   "List sessions",
-	Long:    `List all active and completed sessions.`,
+	Long:    `List all active and completed local sessions and, optionally, remote Kubernetes pods.`,
 	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		var allSessions []unifiedSession
+
+		// --- Get Local Sessions ---
 		sm, err := sessionManagerFactory()
 		if err != nil {
 			return fmt.Errorf("failed to create session manager: %w", err)
 		}
-
-		// Otherwise, list all sessions.
-		sessions, err := sm.ListSessions()
+		localSessions, err := sm.ListSessions()
 		if err != nil {
-			return fmt.Errorf("failed to list sessions: %w", err)
+			return fmt.Errorf("failed to list local sessions: %w", err)
+		}
+		for _, s := range localSessions {
+			us := unifiedSession{
+				Name:      s.Name,
+				Status:    s.Status,
+				StartTime: s.StartTime,
+				EndTime:   s.EndTime,
+				Location:  "local",
+			}
+			// Calculate cost and tokens for local sessions
+			agentState, err := loadAgentState(s.AgentStateFile)
+			if err == nil {
+				us.Cost = agent.CalculateCost(agentState.Model, agentState.TokenUsage)
+				us.Tokens = agentState.TokenUsage
+				us.HasCost = true
+			}
+			allSessions = append(allSessions, us)
 		}
 
-		if len(sessions) == 0 {
+		// --- Get Remote Pods (if requested) ---
+		showRemote, _ := cmd.Flags().GetBool("remote")
+		if showRemote {
+			// Using a null logger as we don't want spawner logs in `ps` output
+			nullLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
+			spawner, err := orchestrator.NewK8sSpawner(nullLogger, "", "", "", "", "")
+			if err != nil {
+				// Don't fail hard, just warn. Allows `ps` to work even if k8s is not configured.
+				cmd.PrintErrf("Warning: Could not connect to Kubernetes: %v\n", err)
+			} else {
+				pods, err := spawner.Client.CoreV1().Pods(spawner.Namespace).List(context.Background(), metav1.ListOptions{
+					LabelSelector: "app=recac-agent",
+				})
+				if err != nil {
+					return fmt.Errorf("failed to list Kubernetes pods: %w", err)
+				}
+				for _, pod := range pods.Items {
+					us := unifiedSession{
+						Name:      pod.Labels["ticket"], // Assuming ticket label holds the session name
+						Status:    string(pod.Status.Phase),
+						StartTime: pod.CreationTimestamp.Time,
+						Location:  "k8s",
+					}
+					// Cost calculation for pods is not supported yet
+					allSessions = append(allSessions, us)
+				}
+			}
+		}
+
+		if len(allSessions) == 0 {
 			cmd.Println("No sessions found.")
 			return nil
 		}
 
-		showCosts, _ := cmd.Flags().GetBool("costs")
+		// --- Sort all sessions ---
 		sortBy, _ := cmd.Flags().GetString("sort")
-
-		// Pre-calculate costs for sorting if needed
-		sessionCosts := make(map[string]float64)
-		if sortBy == "cost" {
-			for _, session := range sessions {
-				agentState, err := loadAgentState(session.AgentStateFile)
-				if err == nil {
-					sessionCosts[session.Name] = agent.CalculateCost(agentState.Model, agentState.TokenUsage)
-				}
-			}
-		}
-
-		// Sort sessions
-		sort.SliceStable(sessions, func(i, j int) bool {
+		sort.SliceStable(allSessions, func(i, j int) bool {
 			switch sortBy {
 			case "cost":
-				// Handle cases where cost is not available
-				costI, okI := sessionCosts[sessions[i].Name]
-				costJ, okJ := sessionCosts[sessions[j].Name]
-				if okI && okJ {
-					return costI > costJ // Higher cost first
+				if allSessions[i].HasCost && allSessions[j].HasCost {
+					return allSessions[i].Cost > allSessions[j].Cost
 				}
-				return okI // Sessions with cost come before those without
+				return allSessions[i].HasCost // Ones with cost come first
 			case "name":
-				return sessions[i].Name < sessions[j].Name
+				return allSessions[i].Name < allSessions[j].Name
 			case "time":
-				fallthrough // Default to sorting by time
+				fallthrough
 			default:
-				return sessions[i].StartTime.After(sessions[j].StartTime)
+				return allSessions[i].StartTime.After(allSessions[j].StartTime)
 			}
 		})
 
+		// --- Print Output ---
 		w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 3, ' ', 0)
+		showCosts, _ := cmd.Flags().GetBool("costs")
+		header := "NAME\tSTATUS\tLOCATION\tSTARTED\tDURATION"
 		if showCosts {
-			fmt.Fprintln(w, "NAME\tSTATUS\tSTARTED\tDURATION\tPROMPT_TOKENS\tCOMPLETION_TOKENS\tTOTAL_TOKENS\tCOST")
-		} else {
-			fmt.Fprintln(w, "NAME\tSTATUS\tSTARTED\tDURATION")
+			header += "\tPROMPT_TOKENS\tCOMPLETION_TOKENS\tTOTAL_TOKENS\tCOST"
 		}
+		fmt.Fprintln(w, header)
 
-		for _, session := range sessions {
-			started := session.StartTime.Format("2006-01-02 15:04:05")
+		for _, s := range allSessions {
+			started := s.StartTime.Format("2006-01-02 15:04:05")
 			var duration string
-			if session.EndTime.IsZero() {
-				duration = time.Since(session.StartTime).Round(time.Second).String()
+			if s.EndTime.IsZero() {
+				duration = time.Since(s.StartTime).Round(time.Second).String()
 			} else {
-				duration = session.EndTime.Sub(session.StartTime).Round(time.Second).String()
+				duration = s.EndTime.Sub(s.StartTime).Round(time.Second).String()
 			}
 
-			if showCosts {
-				cost, hasCost := sessionCosts[session.Name]
-				// If costs were not pre-calculated, calculate them now
-				if !hasCost && sortBy != "cost" {
-					agentState, err := loadAgentState(session.AgentStateFile)
-					if err == nil {
-						cost = agent.CalculateCost(agentState.Model, agentState.TokenUsage)
-						hasCost = true
-					}
-				}
+			baseOutput := fmt.Sprintf("%s\t%s\t%s\t%s\t%s",
+				s.Name, s.Status, s.Location, started, duration)
 
-				if !hasCost {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\tN/A\tN/A\tN/A\tN/A\n",
-						session.Name, session.Status, started, duration)
+			if showCosts {
+				if s.HasCost {
+					fmt.Fprintf(w, "%s\t%d\t%d\t%d\t$%.6f\n",
+						baseOutput, s.Tokens.TotalPromptTokens, s.Tokens.TotalResponseTokens, s.Tokens.TotalTokens, s.Cost)
 				} else {
-					// We need to reload agentState to get token counts
-					agentState, _ := loadAgentState(session.AgentStateFile)
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%d\t%d\t$%.6f\n",
-						session.Name, session.Status, started, duration,
-						agentState.TokenUsage.TotalPromptTokens,
-						agentState.TokenUsage.TotalResponseTokens,
-						agentState.TokenUsage.TotalTokens,
-						cost,
-					)
+					fmt.Fprintf(w, "%s\tN/A\tN/A\tN/A\tN/A\n", baseOutput)
 				}
 			} else {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
-					session.Name, session.Status, started, duration)
+				fmt.Fprintf(w, "%s\n", baseOutput)
 			}
 		}
 
