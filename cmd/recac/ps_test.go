@@ -217,41 +217,61 @@ func TestPsCommandWithStatusFilter(t *testing.T) {
 	require.NoError(t, sm.SaveSession(sessionError))
 	require.NoError(t, sm.SaveSession(sessionCompleted2))
 
-	t.Run("filter by running (finds none)", func(t *testing.T) {
-		output, err := executeCommand(rootCmd, "ps", "--status", "running")
-		require.NoError(t, err)
-		assert.Contains(t, output, "No sessions found.")
-		assert.NotContains(t, output, "session-running")
-	})
+	testCases := []struct {
+		name                 string
+		statusFilter         string
+		expectedToContain    []string
+		expectedToNotContain []string
+		expectNoSessions     bool
+	}{
+		{
+			name:                 "filter by running finds none",
+			statusFilter:         "running",
+			expectNoSessions:     true,
+			expectedToNotContain: []string{"session-running"},
+		},
+		{
+			name:                 "filter by completed finds transitioned running session",
+			statusFilter:         "completed",
+			expectedToContain:    []string{"session-running", "session-completed", "session-completed-2"},
+			expectedToNotContain: []string{"session-error"},
+		},
+		{
+			name:                 "filter by error",
+			statusFilter:         "error",
+			expectedToContain:    []string{"session-error"},
+			expectedToNotContain: []string{"session-running", "session-completed"},
+		},
+		{
+			name:             "filter with no matching sessions",
+			statusFilter:     "non-existent-status",
+			expectNoSessions: true,
+		},
+		{
+			name:              "filter is case-insensitive",
+			statusFilter:      "CoMpLeTeD",
+			expectedToContain: []string{"session-running", "session-completed", "session-completed-2"},
+		},
+	}
 
-	t.Run("filter by completed (finds transitioned running session)", func(t *testing.T) {
-		output, err := executeCommand(rootCmd, "ps", "--status", "completed")
-		require.NoError(t, err)
-		assert.Contains(t, output, "session-running") // This session is now "completed"
-		assert.Contains(t, output, "session-completed")
-		assert.Contains(t, output, "session-completed-2")
-		assert.NotContains(t, output, "session-error")
-	})
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Get a fresh command instance for each subtest to prevent flag state leakage.
+			cmd, _, _ := newRootCmd()
 
-	t.Run("filter by error", func(t *testing.T) {
-		output, err := executeCommand(rootCmd, "ps", "--status", "error")
-		require.NoError(t, err)
-		assert.NotContains(t, output, "session-running")
-		assert.NotContains(t, output, "session-completed")
-		assert.Contains(t, output, "session-error")
-	})
+			output, err := executeCommand(cmd, "ps", "--status", tc.statusFilter)
+			require.NoError(t, err)
 
-	t.Run("filter with no matching sessions", func(t *testing.T) {
-		output, err := executeCommand(rootCmd, "ps", "--status", "non-existent-status")
-		require.NoError(t, err)
-		assert.Contains(t, output, "No sessions found.")
-	})
+			if tc.expectNoSessions {
+				assert.Contains(t, output, "No sessions found.")
+			}
 
-	t.Run("filter is case-insensitive", func(t *testing.T) {
-		output, err := executeCommand(rootCmd, "ps", "--status", "CoMpLeTeD")
-		require.NoError(t, err)
-		assert.Contains(t, output, "session-running") // Also finds the transitioned session
-		assert.Contains(t, output, "session-completed")
-		assert.Contains(t, output, "session-completed-2")
-	})
+			for _, expected := range tc.expectedToContain {
+				assert.Contains(t, output, expected)
+			}
+			for _, notExpected := range tc.expectedToNotContain {
+				assert.NotContains(t, output, notExpected)
+			}
+		})
+	}
 }
