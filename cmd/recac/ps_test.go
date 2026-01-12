@@ -300,4 +300,17 @@ func TestPsCommandWithTagFilter(t *testing.T) {
 		require.NoError(t, err)
 		assert.Contains(t, output, "No sessions found.")
 	})
+
+	t.Run("filter by tag and status", func(t *testing.T) {
+		// Add a session with a different status but the same tag
+		errorSession := &runner.SessionState{Name: "session-4-error", Status: "error", Tags: []string{"bugfix"}}
+		require.NoError(t, sm.SaveSession(errorSession))
+
+		output, err := executeCommand(rootCmd, "ps", "--tag", "bugfix", "--status", "completed")
+		require.NoError(t, err)
+		assert.Contains(t, output, "session-1")
+		assert.NotContains(t, output, "session-2")
+		assert.Contains(t, output, "session-3")
+		assert.NotContains(t, output, "session-4-error")
+	})
 }

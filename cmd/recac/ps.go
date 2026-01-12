@@ -118,28 +118,33 @@ var psCmd = &cobra.Command{
 			}
 		}
 
-		// --- Filter by Status ---
+		// --- Filtering ---
 		statusFilter, _ := cmd.Flags().GetString("status")
-		if statusFilter != "" {
-			var filteredSessions []unifiedSession
-			for _, s := range allSessions {
-				if strings.EqualFold(s.Status, statusFilter) {
-					filteredSessions = append(filteredSessions, s)
-				}
-			}
-			allSessions = filteredSessions
-		}
-
-		// --- Filter by Tag ---
 		tagFilter, _ := cmd.Flags().GetString("tag")
-		if tagFilter != "" {
+
+		if statusFilter != "" || tagFilter != "" {
 			var filteredSessions []unifiedSession
 			for _, s := range allSessions {
-				for _, t := range s.Tags {
-					if t == tagFilter {
-						filteredSessions = append(filteredSessions, s)
-						break
+				// Status match logic
+				statusMatch := true
+				if statusFilter != "" {
+					statusMatch = strings.EqualFold(s.Status, statusFilter)
+				}
+
+				// Tag match logic
+				tagMatch := true
+				if tagFilter != "" {
+					tagMatch = false // Assume no match until found
+					for _, t := range s.Tags {
+						if t == tagFilter {
+							tagMatch = true
+							break
+						}
 					}
+				}
+
+				if statusMatch && tagMatch {
+					filteredSessions = append(filteredSessions, s)
 				}
 			}
 			allSessions = filteredSessions
