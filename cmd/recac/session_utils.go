@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"recac/internal/agent"
+	"recac/internal/git"
 	"recac/internal/runner"
 	"strings"
 	"text/tabwriter"
@@ -13,6 +14,18 @@ import (
 
 	"github.com/spf13/cobra"
 )
+
+// gitClient defines the interface for git operations, allowing for mocking in tests.
+type gitClient interface {
+	Diff(workspace, fromSHA, toSHA string) (string, error)
+	CurrentCommitSHA(workspace string) (string, error)
+}
+
+// gitNewClient is a factory function that can be overridden in tests.
+var gitNewClient = func() gitClient {
+	// We need to wrap the concrete client in the interface type.
+	return git.NewClient()
+}
 
 // DisplaySessionDetail prints a detailed view of a single session.
 func DisplaySessionDetail(cmd *cobra.Command, session *runner.SessionState, fullLogs bool) error {
