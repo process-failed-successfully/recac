@@ -1,21 +1,18 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"recac/internal/agent"
 	"recac/internal/git"
-	"recac/internal/jira"
 	"recac/internal/runner"
 	"strings"
 	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // gitClient defines the interface for git operations, allowing for mocking in tests.
@@ -275,48 +272,6 @@ func fallbackDiff(cmd *cobra.Command, file1, file2 string) error {
 }
 
 // getJiraClient creates a new Jira client based on viper configuration.
-func getJiraClient(ctx context.Context) (jira.ClientInterface, error) {
-	// Factory for Jira client
-	jiraURL := viper.GetString("jira.url")
-	jiraEmail := viper.GetString("jira.email")
-	jiraToken := viper.GetString("jira.api_token")
 
-	if jiraURL == "" {
-		// Not configured, return nil client and no error.
-		return nil, nil
-	}
-
-	client, err := jira.NewClient(jiraURL, jiraEmail, jiraToken)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create Jira client: %w", err)
-	}
-	return client, nil
-}
 
 // getAgentClient creates a new agent client based on provider and model.
-func getAgentClient(ctx context.Context, provider, model, workspace, sessionID string) (agent.Agent, error) {
-	var ag agent.Agent
-	var err error
-
-	// Default to viper if not provided
-	if provider == "" {
-		provider = viper.GetString("agent_provider")
-	}
-	if model == "" {
-		model = viper.GetString("agent_model")
-	}
-
-	// Use factory to create agent
-	opts := agent.Options{
-		Provider:  provider,
-		Model:     model,
-		Workspace: workspace,
-		SessionID: sessionID,
-	}
-	ag, err = agent.New(ctx, opts)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create agent: %w", err)
-	}
-
-	return ag, nil
-}
