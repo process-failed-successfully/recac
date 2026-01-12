@@ -12,11 +12,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestWorkdiffCmd(t *testing.T) {
+// setupWorkdiffTest is a helper to create a git repo and a mock session for testing.
+func setupWorkdiffTest(t *testing.T) (sm *runner.SessionManager, sessionName, repoDir string) {
+	t.Helper()
+
 	// 1. Setup a temporary git repository
 	repoDir, err := os.MkdirTemp("", "recac-workdiff-test-*")
 	require.NoError(t, err)
-	defer os.RemoveAll(repoDir)
 
 	runCmd := func(args ...string) {
 		cmd := exec.Command(args[0], args[1:]...)
@@ -25,7 +27,7 @@ func TestWorkdiffCmd(t *testing.T) {
 		require.NoError(t, err, "failed to run git command: %v", args)
 	}
 
-	runCmd("git", "init")
+	runCmd("git", "init", "-b", "main") // Specify default branch
 	runCmd("git", "config", "user.email", "test@example.com")
 	runCmd("git", "config", "user.name", "Test User")
 
@@ -54,12 +56,12 @@ func TestWorkdiffCmd(t *testing.T) {
 	// 4. Create a mock session
 	sessionsDir, err := os.MkdirTemp("", "recac-sessions-*")
 	require.NoError(t, err)
-	defer os.RemoveAll(sessionsDir)
+	t.Cleanup(func() { os.RemoveAll(sessionsDir) }) // Clean up sessions dir
 
-	sm, err := runner.NewSessionManagerWithDir(sessionsDir)
+	sm, err = runner.NewSessionManagerWithDir(sessionsDir)
 	require.NoError(t, err)
 
-	sessionName := "workdiff-test-session"
+	sessionName = "workdiff-test-session"
 	session := &runner.SessionState{
 		Name:           sessionName,
 		Status:         "completed",
@@ -72,9 +74,15 @@ func TestWorkdiffCmd(t *testing.T) {
 	err = sm.SaveSession(session)
 	require.NoError(t, err)
 
-	// 5. Run the workdiff command
+	return sm, sessionName, repoDir
+}
+
+func TestWorkdiffCmd(t *testing.T) {
+	sm, sessionName, repoDir := setupWorkdiffTest(t)
+	defer os.RemoveAll(repoDir)
+
+	// Run the workdiff command
 	rootCmd, _, _ := newRootCmd()
-	// Temporarily override the session manager factory
 	originalFactory := sessionManagerFactory
 	sessionManagerFactory = func() (ISessionManager, error) {
 		return sm, nil
@@ -84,8 +92,40 @@ func TestWorkdiffCmd(t *testing.T) {
 	output, err := executeCommand(rootCmd, "workdiff", sessionName)
 	require.NoError(t, err)
 
-	// 6. Assert the output
+	// Assert the output
 	require.Contains(t, output, "diff --git a/test.txt b/test.txt")
 	require.Contains(t, output, "-hello")
 	require.Contains(t, output, "+hello world")
+}
+
+func TestShowAliasCmd(t *testing.T) {
+	sm, sessionName, repoDir := setupWorkdiffTest(t)
+	defer os.RemoveAll(repoDir)
+
+	rootCmd, _, _ := newRootCmd()
+	originalFactory := sessionManagerFactory
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return sm, nil
+	}
+	defer func() { sessionManagerFactory = originalFactory }()
+
+	t.Run("show with one argument should succeed", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "show", sessionName)
+		require.NoError(t, err)
+		require.Contains(t, output, "diff --git a/test.txt b/test.txt")
+		require.Contains(t, output, "-hello")
+		require.Contains(t, output, "+hello world")
+	})
+
+	t.Run("show with two arguments should fail", func(t *testing.T) {
+		_, err := executeCommand(rootCmd, "show", sessionName, "another-session")
+		require.Error(t, err)
+		require.Equal(t, "the 'show' alias requires exactly one session name", err.Error())
+	})
+
+	t.Run("show with no arguments should fail", func(t *testing.T) {
+		_, err := executeCommand(rootCmd, "show")
+		require.Error(t, err)
+		require.Equal(t, "the 'show' alias requires exactly one session name", err.Error())
+	})
 }
