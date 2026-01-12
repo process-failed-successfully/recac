@@ -10,11 +10,13 @@ import (
 
 	"recac/internal/agent"
 	"recac/internal/runner"
+	"recac/internal/ui"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestCostCommand(t *testing.T) {
+func TestCostCommand_Static(t *testing.T) {
 	// Create a temporary directory for mock session and agent state files
 	tempDir := t.TempDir()
 	sessionsDir := filepath.Join(tempDir, "sessions")
@@ -138,4 +140,56 @@ func TestCostCommand(t *testing.T) {
 
 	// Verify that the session with no agent state was ignored and didn't cause a panic
 	require.NotContains(t, output, "test-session-4-no-state")
+}
+
+func TestCostCommand_WatchFlag(t *testing.T) {
+	// --- Setup ---
+	tempDir := t.TempDir()
+	sessionsDir := filepath.Join(tempDir, "sessions")
+	err := os.Mkdir(sessionsDir, 0755)
+	require.NoError(t, err)
+
+	// Mock the session manager factory
+	var createdSm ISessionManager
+	originalFactory := sessionManagerFactory
+	sessionManagerFactory = func() (ISessionManager, error) {
+		sm, err := runner.NewSessionManagerWithDir(sessionsDir)
+		createdSm = sm // Capture the instance for assertion
+		return sm, err
+	}
+	defer func() { sessionManagerFactory = originalFactory }()
+
+	// Mock the TUI starter function
+	var tuiStarted bool
+	var receivedSm ui.SessionManager
+
+	// Temporarily replace the TUI starter with our mock
+	originalTUIStarter := ui.StartCostTUI
+	ui.SetStartCostTUIForTest(func(sm ui.SessionManager) error {
+		tuiStarted = true
+		receivedSm = sm
+		return nil
+	})
+	// Restore the original function after the test
+	defer ui.SetStartCostTUIForTest(originalTUIStarter)
+
+
+	// --- Execute ---
+	rootCmd, _, _ := newRootCmd()
+	_, err = executeCommand(rootCmd, "cost", "--watch")
+	require.NoError(t, err)
+
+	// --- Assertions ---
+	assert.True(t, tuiStarted, "ui.StartCostTUI should have been called")
+	assert.NotNil(t, receivedSm, "TUI should have received a non-nil session manager")
+	assert.Equal(t, createdSm, receivedSm, "The session manager passed to the TUI should be the one created by the factory")
+	assert.NotNil(t, ui.LoadAgentState, "The LoadAgentState function should have been injected into the ui package")
+}
+
+func TestCostCommand_Flags(t *testing.T) {
+	cmd := costCmd
+	flag := cmd.Flags().Lookup("watch")
+	require.NotNil(t, flag, "the --watch flag should be registered")
+	require.Equal(t, "false", flag.DefValue, "the --watch flag should default to false")
+	require.Equal(t, "Launch a real-time TUI to monitor session costs", flag.Usage, "the --watch flag should have the correct usage message")
 }
