@@ -7,20 +7,17 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"recac/internal/telemetry"
 	"time"
 )
 
 // OllamaClient implements the Agent interface for local Ollama service
 type OllamaClient struct {
+	BaseClient
 	baseURL    string
 	model      string
-	project    string
 	httpClient *http.Client
 	// mockResponder is used for testing to bypass real API calls
 	mockResponder func(string) (string, error)
-	// stateManager is optional; if set, enables token tracking and truncation
-	stateManager *StateManager
 }
 
 // NewOllamaClient creates a new Ollama client
@@ -31,9 +28,9 @@ func NewOllamaClient(baseURL, model, project string) *OllamaClient {
 		baseURL = "http://localhost:11434"
 	}
 	return &OllamaClient{
-		baseURL: baseURL,
-		model:   model,
-		project: project,
+		BaseClient: NewBaseClient(project, 8192), // Default to 8k for local models
+		baseURL:    baseURL,
+		model:      model,
 		httpClient: &http.Client{
 			Timeout: 60 * time.Second, // Longer timeout for local models
 		},
@@ -48,120 +45,13 @@ func (c *OllamaClient) WithMockResponder(fn func(string) (string, error)) *Ollam
 
 // WithStateManager sets the state manager for token tracking
 func (c *OllamaClient) WithStateManager(sm *StateManager) *OllamaClient {
-	c.stateManager = sm
+	c.StateManager = sm
 	return c
 }
 
 // Send sends a prompt to Ollama and returns the generated text
 func (c *OllamaClient) Send(ctx context.Context, prompt string) (string, error) {
-	telemetry.TrackAgentIteration(c.project)
-	start := time.Now()
-	defer func() {
-		telemetry.ObserveAgentLatency(c.project, time.Since(start).Seconds())
-	}()
-
-	// Load state and check token limits if state manager is configured
-	var state State
-	var shouldUpdateState bool
-	if c.stateManager != nil {
-		var err error
-		state, err = c.stateManager.Load()
-		if err != nil {
-			return "", fmt.Errorf("failed to load state: %w", err)
-		}
-		shouldUpdateState = true
-
-		// Check if prompt exceeds token limit
-		promptTokens := EstimateTokenCount(prompt)
-		maxTokens := state.MaxTokens
-		if maxTokens == 0 {
-			maxTokens = 8192 // Default to 8k for local models if not set
-		}
-
-		// Reserve some tokens for response (estimate 50% for response)
-		availableTokens := maxTokens * 50 / 100
-		if promptTokens > availableTokens {
-			// Truncate the prompt
-			telemetry.LogInfo("Prompt exceeds token limit, truncating...", "project", c.project, "actual", promptTokens, "available", availableTokens)
-			prompt = TruncateToTokenLimit(prompt, availableTokens)
-			promptTokens = EstimateTokenCount(prompt)
-			state.TokenUsage.TruncationCount++
-		}
-
-		// Update current token count
-		state.CurrentTokens = promptTokens
-		state.TokenUsage.TotalPromptTokens += promptTokens
-		telemetry.TrackTokenUsage(c.project, promptTokens)
-
-		// Log token usage
-		telemetry.LogDebug("Token usage (prompt)",
-			"project", c.project,
-			"prompt", promptTokens,
-			"current", state.CurrentTokens,
-			"max", maxTokens,
-			"total_prompt", state.TokenUsage.TotalPromptTokens,
-			"truncations", state.TokenUsage.TruncationCount)
-	}
-
-	maxRetries := 3
-	var lastErr error
-
-	for i := 0; i <= maxRetries; i++ {
-		if i > 0 {
-			// Exponential backoff
-			waitTime := time.Duration(1<<uint(i-1)) * time.Second
-			telemetry.LogInfo("Retrying agent call", "project", c.project, "retry", i, "wait", waitTime, "error", lastErr)
-			select {
-			case <-time.After(waitTime):
-			case <-ctx.Done():
-				return "", ctx.Err()
-			}
-		}
-
-		result, err := c.sendOnce(ctx, prompt)
-		if err == nil {
-			// Update token usage stats if state manager is configured
-			if shouldUpdateState {
-				responseTokens := EstimateTokenCount(result)
-				state.TokenUsage.TotalResponseTokens += responseTokens
-				state.TokenUsage.TotalTokens = state.TokenUsage.TotalPromptTokens + state.TokenUsage.TotalResponseTokens
-				state.CurrentTokens += responseTokens
-
-				// Initialize Metadata if needed
-				if state.Metadata == nil {
-					state.Metadata = make(map[string]interface{})
-				}
-
-				// Increment iteration count only on successful calls
-				currentIteration, _ := state.Metadata["iteration"].(float64)
-				state.Metadata["iteration"] = currentIteration + 1
-
-				// Log token usage after response
-				maxTokens := state.MaxTokens
-				if maxTokens == 0 {
-					maxTokens = 8192
-				}
-				telemetry.LogInfo("Token usage (response)",
-					"project", c.project,
-					"response", responseTokens,
-					"current", state.CurrentTokens,
-					"max", maxTokens,
-					"total", state.TokenUsage.TotalTokens,
-					"prompt", state.TokenUsage.TotalPromptTokens,
-					"response_total", state.TokenUsage.TotalResponseTokens)
-
-				// Save updated state
-				if err := c.stateManager.Save(state); err != nil {
-					telemetry.LogInfo("Warning: Failed to save state", "project", c.project, "error", err)
-				}
-			}
-			return result, nil
-		}
-
-		lastErr = err
-	}
-
-	return "", fmt.Errorf("failed after %d retries: %w", maxRetries, lastErr)
+	return c.SendWithRetry(ctx, prompt, c.sendOnce)
 }
 
 func (c *OllamaClient) sendOnce(ctx context.Context, prompt string) (string, error) {
@@ -230,6 +120,11 @@ func (c *OllamaClient) sendOnce(ctx context.Context, prompt string) (string, err
 
 // SendStream fallback for Ollama (calls Send and emits once)
 func (c *OllamaClient) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+	// We use SendWithRetry via Send, but we need to manually trigger onChunk
+	// Or we can use SendStreamWithRetry if we had a streaming implementation.
+	// Since we don't have streaming implementation for sendOnce, we can just call Send.
+	// Note: BaseClient.SendWithRetry handles retries.
+
 	resp, err := c.Send(ctx, prompt)
 	if err == nil && onChunk != nil {
 		onChunk(resp)

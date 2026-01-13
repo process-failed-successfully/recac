@@ -318,7 +318,6 @@ var startCmd = &cobra.Command{
 					doneID := <-completionCh
 					count++
 					completed[doneID] = true
-					// fmt.Printf("Coordinator: %s finished. (%d/%d)\n", doneID, count, total)
 
 					// Check for new ready tickets
 					candidates := graph.GetReadyTickets(completed)
