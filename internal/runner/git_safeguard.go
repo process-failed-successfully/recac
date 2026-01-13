@@ -80,7 +80,8 @@ func ensureInGitignore(gitignorePath string, files []string) error {
 
 func untrackFiles(repoPath string, files []string) error {
 	// Check if files are tracked
-	cmd := exec.Command("git", append([]string{"ls-files"}, files...)...)
+	// Use "--" to ensure filenames starting with "-" are treated as files, not flags
+	cmd := exec.Command("git", append([]string{"ls-files", "--"}, files...)...)
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
 	if err != nil {
