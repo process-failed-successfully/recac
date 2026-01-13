@@ -131,11 +131,6 @@ func (sm *SessionManager) StartSession(name string, command []string, workspace 
 	// Note: Setsid may not work in all environments (e.g., Docker containers without proper capabilities)
 	// For now, we start without Setsid to ensure it works, even if not fully detached from terminal
 	// The process will still run in background and output to log file
-	// TODO: Add Setsid support when running in environments that support it
-	// cmd.SysProcAttr = &syscall.SysProcAttr{
-	// 	Setsid: true,
-	// }
-
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("failed to start process: %w", err)
 	}

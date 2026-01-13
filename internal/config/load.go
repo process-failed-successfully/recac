@@ -14,7 +14,6 @@ func Load(cfgFile string) {
 	// explicit .env loading
 	if err := godotenv.Load(); err != nil {
 		// handle error if you want, or ignore if .env is missing
-		// fmt.Println("No .env file found")
 	}
 
 	if cfgFile != "" {
