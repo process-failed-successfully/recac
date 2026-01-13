@@ -24,39 +24,33 @@ var rootCmd = &cobra.Command{
 re-implemented in Go. It provides a world-class CLI/TUI experience for 
 managing autonomous coding sessions.`,
 	SilenceErrors: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		// If no subcommand is given, and we are in an interactive terminal,
+		// default to running the interactive TUI.
+		if len(args) == 0 {
+			// Fallback to interactive mode if no subcommand is given
+			if !viper.GetBool("non-interactive") {
+				provider := viper.GetString("provider")
+				model := viper.GetString("model")
+					RunInteractive(provider, model, "chat", cmd.Commands()) // Default to chat mode
+			}
+			return nil
+		}
+		return nil
+	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	// Wrap Execute in panic recovery for graceful shutdown
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Fprintf(os.Stderr, "\n=== CRITICAL ERROR: Command Execution Panic ===\n")
-			fmt.Fprintf(os.Stderr, "Error: %v\n", r)
-			fmt.Fprintf(os.Stderr, "Attempting graceful shutdown...\n")
-			exit(1)
-		}
-	}()
-
-	fmt.Fprintln(os.Stderr, "WARNING: The 'recac' binary is deprecated and will be removed in a future release.")
-	fmt.Fprintln(os.Stderr, "Please use 'orchestrator' or 'recac-agent' (agent) binaries instead.")
-
-	err := rootCmd.Execute()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: command not found: %v\n", err)
-		fmt.Fprintln(os.Stderr, "Run 'recac --help' for usage.")
+	if err := rootCmd.Execute(); err != nil {
+		// The RunE function handles errors, so we don't need to print here.
+		// However, if Execute itself fails (e.g., parsing flags), Cobra prints the error.
 		exit(1)
 	}
 }
 
 func init() {
-	rootCmd.Run = func(cmd *cobra.Command, args []string) {
-		// Default behavior: Run Interactive Mode using flags
-		provider, _ := cmd.Flags().GetString("provider")
-		model, _ := cmd.Flags().GetString("model")
-		RunInteractive(provider, model)
-	}
 	cobra.OnInitialize(initConfig)
 
 	// Initialize commands

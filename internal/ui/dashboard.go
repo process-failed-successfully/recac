@@ -1,207 +1,184 @@
 package ui
 
 import (
+	"fmt"
+	"io"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/progress"
-	"github.com/charmbracelet/bubbles/viewport"
+	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Log Levels/Types
-type LogType int
-
-const (
-	LogInfo LogType = iota
-	LogThought
-	LogError
-	LogSuccess
-)
-
-// Styles
+// --- DI for session loading ---
 var (
-	paneStyle = lipgloss.NewStyle().
-		Border(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("63")) // Purple-ish
-
-	footerStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#FFF")).
-		Background(lipgloss.Color("#7D56F4")).
-		Padding(0, 1)
-
-	// Log Styles
-	logInfoStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("252")) // Light Gray
-
-	logThoughtStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("86")) // Cyan/Teal for thoughts
-
-	logErrorStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("196")). // Red
-			Bold(true)
-
-	logSuccessStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("46")). // Green
-			Bold(true)
+	sessionLoader SessionLoader
 )
 
-type LogEntry struct {
-	Type    LogType
-	Message string
+// SetSessionLoader allows the main package to inject the session loading function.
+func SetSessionLoader(loader SessionLoader) {
+	sessionLoader = loader
 }
 
-type LogMsg LogEntry
-type ProgressMsg float64
+// --- Bubbletea Model ---
 
-type DashboardModel struct {
-	width    int
-	height   int
-	ready    bool
-	logs     []LogEntry
-	progress progress.Model
-	viewport viewport.Model
-}
+// Styles are now defined in styles.go
 
-func NewDashboardModel() DashboardModel {
-	prog := progress.New(progress.WithDefaultGradient())
-	return DashboardModel{
-		logs:     make([]LogEntry, 0),
-		progress: prog,
+// sessionItem implements the list.Item interface.
+type sessionItem Session
+
+func (i sessionItem) FilterValue() string { return i.Name }
+
+// itemDelegate handles rendering of items in the list.
+type itemDelegate struct{}
+
+func (d itemDelegate) Height() int                             { return 1 }
+func (d itemDelegate) Spacing() int                            { return 0 }
+func (d itemDelegate) Update(msg tea.Msg, m *list.Model) tea.Cmd { return nil }
+func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
+	i, ok := listItem.(sessionItem)
+	if !ok {
+		return
 	}
+
+	str := fmt.Sprintf("%-25s %-10s %-8s %-10s %s", i.Name, i.Status, i.Location, i.StartTime, i.Cost)
+
+	if index == m.Index() {
+		fmt.Fprint(w, selectedItemStyle.Render("> "+str))
+	} else {
+		fmt.Fprint(w, itemStyle.Render(str))
+	}
+}
+
+// sessionsLoadedMsg is sent when the async session loading is complete.
+type sessionsLoadedMsg struct {
+	sessions []list.Item
+	err      error
+}
+
+// DashboardModel is the main model for the TUI dashboard.
+type DashboardModel struct {
+	list     list.Model
+	spinner  spinner.Model
+	loading  bool
+	err      error
+	quitting bool
+}
+
+// NewDashboardModel creates a new dashboard model.
+func NewDashboardModel() DashboardModel {
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+
+	return DashboardModel{
+		spinner: s,
+		loading: true,
+	}
+}
+
+// loadSessionsCmd is a tea.Cmd that calls the injected session loader.
+func loadSessionsCmd() tea.Msg {
+	if sessionLoader == nil {
+		return sessionsLoadedMsg{err: fmt.Errorf("session loader not initialized")}
+	}
+	sessions, err := sessionLoader()
+	if err != nil {
+		return sessionsLoadedMsg{err: err}
+	}
+
+	items := make([]list.Item, len(sessions))
+	for i, s := range sessions {
+		items[i] = sessionItem(s)
+	}
+	return sessionsLoadedMsg{sessions: items}
 }
 
 func (m DashboardModel) Init() tea.Cmd {
-	return nil
+	return tea.Batch(loadSessionsCmd, m.spinner.Tick)
 }
 
 func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
-	var cmds []tea.Cmd
-
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		h, v := lipgloss.NewStyle().Margin(1, 2).GetFrameSize()
+		m.list.SetSize(msg.Width-h, msg.Height-v)
+		return m, nil
+
 	case tea.KeyMsg:
-		if msg.String() == "ctrl+c" || msg.String() == "q" {
+		if m.list.FilterState() == list.Filtering {
+			break
+		}
+		switch keypress := msg.String(); keypress {
+		case "q", "ctrl+c":
+			m.quitting = true
 			return m, tea.Quit
 		}
-		// Pass keys to viewport for scrolling
-		m.viewport, cmd = m.viewport.Update(msg)
-		cmds = append(cmds, cmd)
 
-	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.height = msg.Height
-		
-		headerHeight := 1
-		footerHeight := 2
-		mainHeight := m.height - footerHeight - headerHeight
-		halfWidth := m.width/2 - 2
-
-		if !m.ready {
-			m.viewport = viewport.New(halfWidth, mainHeight-2)
-			m.ready = true
-		} else {
-			m.viewport.Width = halfWidth
-			m.viewport.Height = mainHeight - 2
+	case sessionsLoadedMsg:
+		m.loading = false
+		if msg.err != nil {
+			m.err = msg.err
+			return m, nil
 		}
+		const defaultWidth = 20
+		const defaultHeight = 14
 
-		m.progress.Width = msg.Width - 20 
+		h, v := lipgloss.NewStyle().Margin(1, 2).GetFrameSize()
 
-	case LogMsg:
-		m.logs = append(m.logs, LogEntry(msg))
-		if len(m.logs) > 200 { // Increased buffer
-			m.logs = m.logs[len(m.logs)-200:]
+		m.list = list.New(msg.sessions, itemDelegate{}, defaultWidth-h, defaultHeight-v)
+		m.list.Title = "RECAC Sessions"
+		m.list.SetShowStatusBar(false)
+		m.list.SetFilteringEnabled(true)
+		m.list.Styles.Title = titleStyle
+		m.list.Styles.PaginationStyle = paginationStyle
+		m.list.Styles.HelpStyle = helpStyle
+		return m, nil
+
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		if m.loading {
+			m.spinner, cmd = m.spinner.Update(msg)
 		}
-		m.updateViewport()
-
-	case ProgressMsg:
-		cmd = m.progress.SetPercent(float64(msg))
-		cmds = append(cmds, cmd)
-	case progress.FrameMsg:
-		newModel, cmd := m.progress.Update(msg)
-		m.progress = newModel.(progress.Model)
-		cmds = append(cmds, cmd)
+		return m, cmd
 	}
 
-	return m, tea.Batch(cmds...)
-}
-
-func (m *DashboardModel) updateViewport() {
-	var logBuilder strings.Builder
-	halfWidth := m.width/2 - 2
-	
-	for _, log := range m.logs {
-		var style lipgloss.Style
-		prefix := ""
-		switch log.Type {
-		case LogThought:
-			style = logThoughtStyle
-			prefix = "• "
-		case LogError:
-			style = logErrorStyle
-			prefix = "✗ "
-		case LogSuccess:
-			style = logSuccessStyle
-			prefix = "✓ "
-		default:
-			style = logInfoStyle
-			prefix = "  "
-		}
-		style = style.Width(halfWidth - 2) 
-		logBuilder.WriteString(style.Render(prefix + log.Message))
-		logBuilder.WriteString("\n")
+	var cmd tea.Cmd
+	if !m.loading && m.err == nil {
+		m.list, cmd = m.list.Update(msg)
 	}
-	m.viewport.SetContent(logBuilder.String())
-	m.viewport.GotoBottom()
+	return m, cmd
 }
 
 func (m DashboardModel) View() string {
-	if !m.ready {
-		return "Initializing..."
+	if m.quitting {
+		return quitTextStyle.Render("Closing dashboard...")
+	}
+	if m.loading {
+		return fmt.Sprintf("\n   %s Loading sessions...\n\n", m.spinner.View())
+	}
+	if m.err != nil {
+		return fmt.Sprintf("\n   Error loading sessions: %v\n\n", m.err)
 	}
 
-	// Header
-	headerStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#FFF")).
-		Background(lipgloss.Color("#7D56F4")). // Brand Color (matches footer)
-		Bold(true).
-		Padding(0, 1).
-		Width(m.width)
+	var leftPane, rightPane string
 
-	header := headerStyle.Render("RECAC: Autonomous Coding Agent - Recac v0.1.0")
+	listContainerStyle := lipgloss.NewStyle().
+		Border(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("63")).
+		Padding(1, 2)
+	leftPane = listContainerStyle.Render(m.list.View())
 
-	// Adjust main height for header and footer
-	headerHeight := 1
-	footerHeight := 2
-	mainHeight := m.height - footerHeight - headerHeight
-	if mainHeight < 0 {
-		mainHeight = 0
+	detailView := "Select a session to see details."
+	if i, ok := m.list.SelectedItem().(sessionItem); ok {
+		detailView = detailTitleStyle.Render(i.Name) + "\n" + detailTextStyle.Render(i.Details)
 	}
+	detailContainerStyle := lipgloss.NewStyle().
+		Border(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		Padding(1, 2)
+	rightPane = detailContainerStyle.Render(strings.TrimSpace(detailView))
 
-	halfWidth := m.width/2 - 2
-	if halfWidth < 0 {
-		halfWidth = 0
-	}
-
-	leftPane := paneStyle.
-		Width(halfWidth).
-		Height(mainHeight - 2).
-		Render("Left Pane\n(Project/Tasks)")
-
-	rightPane := paneStyle.
-		Width(halfWidth).
-		Height(mainHeight - 2).
-		Render(m.viewport.View())
-
-	// Footer View
-	progView := m.progress.View()
-	footerText := "Status: Ready"
-	
-	footer := footerStyle.
-		Width(m.width).
-		Render(lipgloss.JoinVertical(lipgloss.Left, footerText, progView))
-
-	mainView := lipgloss.JoinHorizontal(lipgloss.Top, leftPane, rightPane)
-
-	return lipgloss.JoinVertical(lipgloss.Left, header, mainView, footer)
+	return lipgloss.JoinHorizontal(lipgloss.Top, leftPane, rightPane)
 }

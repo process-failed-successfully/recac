@@ -24,14 +24,9 @@ import (
 )
 
 // -- Styling --
-
+// Styles are now centralized in styles.go
 var (
 	interactiveAppStyle = lipgloss.NewStyle().Margin(0, 0) // Full bleed mostly
-
-	interactiveTitleStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#FFF")).
-				Background(lipgloss.Color("#874BFD")).
-				Padding(0, 1)
 
 	interactiveStatusMessageStyle = lipgloss.NewStyle().
 					Foreground(lipgloss.AdaptiveColor{Light: "#04B575", Dark: "#04B575"})
@@ -1170,15 +1165,11 @@ func (m InteractiveModel) View() string {
 
 	// Footer Help
 	footer := lipgloss.JoinHorizontal(lipgloss.Top,
-		helpStyle(m.help.View(m.keys)),
+		lipgloss.NewStyle().Foreground(lipgloss.Color("241")).MarginLeft(2).MarginTop(1).Render(m.help.View(m.keys)),
 	)
 	views = append(views, footer)
 
 	return interactiveAppStyle.Render(lipgloss.JoinVertical(lipgloss.Left, views...))
-}
-
-func helpStyle(s string) string {
-	return lipgloss.NewStyle().Foreground(lipgloss.Color("241")).MarginLeft(2).MarginTop(1).Render(s)
 }
 
 // Helper to load models from JSON

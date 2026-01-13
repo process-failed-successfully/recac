@@ -1,36 +1,18 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"log/slog"
-	"os"
-	"recac/internal/agent"
-	"recac/internal/orchestrator"
 	"sort"
 	"strings"
 	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-// unifiedSession represents both a local session and a remote K8s pod
-type unifiedSession struct {
-	Name      string
-	Status    string
-	StartTime time.Time
-	EndTime   time.Time
-	Duration  time.Duration
-	Location  string
-	Cost      float64
-	HasCost   bool
-	Tokens    agent.TokenUsage
-}
 
 func init() {
 	rootCmd.AddCommand(psCmd)
+	// Note: The `unifiedSession` struct is now in `session_utils.go`
 	if psCmd.Flags().Lookup("costs") == nil {
 		psCmd.Flags().BoolP("costs", "c", false, "Show token usage and cost information")
 	}
@@ -55,74 +37,22 @@ var psCmd = &cobra.Command{
 	Long:    `List all active and completed local sessions and, optionally, remote Kubernetes pods.`,
 	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		var allSessions []unifiedSession
+		// --- Get Flags ---
+		showRemote, _ := cmd.Flags().GetBool("remote")
+		statusFilter, _ := cmd.Flags().GetString("status")
+		sortBy, _ := cmd.Flags().GetString("sort")
+		showCosts, _ := cmd.Flags().GetBool("costs")
+		showErrors, _ := cmd.Flags().GetBool("errors")
 
-		// --- Get Local Sessions ---
+		// --- Get Sessions using the new shared function ---
 		sm, err := sessionManagerFactory()
 		if err != nil {
 			return fmt.Errorf("failed to create session manager: %w", err)
 		}
-		localSessions, err := sm.ListSessions()
+
+		allSessions, err := getFullSessionList(sm, showRemote, statusFilter)
 		if err != nil {
-			return fmt.Errorf("failed to list local sessions: %w", err)
-		}
-		for _, s := range localSessions {
-			us := unifiedSession{
-				Name:      s.Name,
-				Status:    s.Status,
-				StartTime: s.StartTime,
-				EndTime:   s.EndTime,
-				Location:  "local",
-			}
-			// Calculate cost and tokens for local sessions
-			agentState, err := loadAgentState(s.AgentStateFile)
-			if err == nil {
-				us.Cost = agent.CalculateCost(agentState.Model, agentState.TokenUsage)
-				us.Tokens = agentState.TokenUsage
-				us.HasCost = true
-			}
-			allSessions = append(allSessions, us)
-		}
-
-		// --- Get Remote Pods (if requested) ---
-		showRemote, _ := cmd.Flags().GetBool("remote")
-		if showRemote {
-			// Using a null logger as we don't want spawner logs in `ps` output
-			nullLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
-			spawner, err := orchestrator.NewK8sSpawner(nullLogger, "", "", "", "", "")
-			if err != nil {
-				// Don't fail hard, just warn. Allows `ps` to work even if k8s is not configured.
-				cmd.PrintErrf("Warning: Could not connect to Kubernetes: %v\n", err)
-			} else {
-				pods, err := spawner.Client.CoreV1().Pods(spawner.Namespace).List(context.Background(), metav1.ListOptions{
-					LabelSelector: "app=recac-agent",
-				})
-				if err != nil {
-					return fmt.Errorf("failed to list Kubernetes pods: %w", err)
-				}
-				for _, pod := range pods.Items {
-					us := unifiedSession{
-						Name:      pod.Labels["ticket"], // Assuming ticket label holds the session name
-						Status:    string(pod.Status.Phase),
-						StartTime: pod.CreationTimestamp.Time,
-						Location:  "k8s",
-					}
-					// Cost calculation for pods is not supported yet
-					allSessions = append(allSessions, us)
-				}
-			}
-		}
-
-		// --- Filter by Status ---
-		statusFilter, _ := cmd.Flags().GetString("status")
-		if statusFilter != "" {
-			var filteredSessions []unifiedSession
-			for _, s := range allSessions {
-				if strings.EqualFold(s.Status, statusFilter) {
-					filteredSessions = append(filteredSessions, s)
-				}
-			}
-			allSessions = filteredSessions
+			return err // Error is already descriptive
 		}
 
 		if len(allSessions) == 0 {
@@ -131,7 +61,6 @@ var psCmd = &cobra.Command{
 		}
 
 		// --- Sort all sessions ---
-		sortBy, _ := cmd.Flags().GetString("sort")
 		sort.SliceStable(allSessions, func(i, j int) bool {
 			switch sortBy {
 			case "cost":
@@ -150,12 +79,16 @@ var psCmd = &cobra.Command{
 
 		// --- Print Output ---
 		w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 3, ' ', 0)
-		showCosts, _ := cmd.Flags().GetBool("costs")
-		header := "NAME\tSTATUS\tLOCATION\tSTARTED\tDURATION"
+
+		// Build header dynamically
+		header := []string{"NAME", "STATUS", "LOCATION", "STARTED", "DURATION"}
 		if showCosts {
-			header += "\tPROMPT_TOKENS\tCOMPLETION_TOKENS\tTOTAL_TOKENS\tCOST"
+			header = append(header, "PROMPT_TOKENS", "COMPLETION_TOKENS", "TOTAL_TOKENS", "COST")
 		}
-		fmt.Fprintln(w, header)
+		if showErrors {
+			header = append(header, "ERROR")
+		}
+		fmt.Fprintln(w, strings.Join(header, "\t"))
 
 		for _, s := range allSessions {
 			started := s.StartTime.Format("2006-01-02 15:04:05")
@@ -166,19 +99,29 @@ var psCmd = &cobra.Command{
 				duration = s.EndTime.Sub(s.StartTime).Round(time.Second).String()
 			}
 
-			baseOutput := fmt.Sprintf("%s\t%s\t%s\t%s\t%s",
-				s.Name, s.Status, s.Location, started, duration)
-
+			// Build row dynamically
+			row := []string{s.Name, s.Status, s.Location, started, duration}
 			if showCosts {
 				if s.HasCost {
-					fmt.Fprintf(w, "%s\t%d\t%d\t%d\t$%.6f\n",
-						baseOutput, s.Tokens.TotalPromptTokens, s.Tokens.TotalResponseTokens, s.Tokens.TotalTokens, s.Cost)
+					row = append(row,
+						fmt.Sprintf("%d", s.Tokens.TotalPromptTokens),
+						fmt.Sprintf("%d", s.Tokens.TotalResponseTokens),
+						fmt.Sprintf("%d", s.Tokens.TotalTokens),
+						fmt.Sprintf("$%.6f", s.Cost),
+					)
 				} else {
-					fmt.Fprintf(w, "%s\tN/A\tN/A\tN/A\tN/A\n", baseOutput)
+					row = append(row, "N/A", "N/A", "N/A", "N/A")
 				}
-			} else {
-				fmt.Fprintf(w, "%s\n", baseOutput)
 			}
+			if showErrors {
+				// Only show the first line of the error
+				firstLine := ""
+				if s.Error != "" {
+					firstLine = strings.Split(s.Error, "\n")[0]
+				}
+				row = append(row, firstLine)
+			}
+			fmt.Fprintln(w, strings.Join(row, "\t"))
 		}
 
 		return w.Flush()

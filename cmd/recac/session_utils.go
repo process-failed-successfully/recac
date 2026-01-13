@@ -1,19 +1,112 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"recac/internal/agent"
 	"recac/internal/git"
+	"recac/internal/orchestrator"
 	"recac/internal/runner"
 	"strings"
 	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+// unifiedSession represents both a local session and a remote K8s pod.
+// It's defined here to be shared between the `ps` command and the TUI dashboard.
+type unifiedSession struct {
+	Name      string
+	Status    string
+	StartTime time.Time
+	EndTime   time.Time
+	Duration  time.Duration
+	Location  string
+	Error     string // Storing the first line of an error
+	Cost      float64
+	HasCost   bool
+	Tokens    agent.TokenUsage
+	// Original state for detailed view
+	OriginalState interface{}
+}
+
+// getFullSessionList fetches both local and remote sessions, combines them,
+// filters them, and returns a unified list.
+func getFullSessionList(sm ISessionManager, showRemote bool, statusFilter string) ([]unifiedSession, error) {
+	var allSessions []unifiedSession
+
+	// --- Get Local Sessions ---
+	localSessions, err := sm.ListSessions()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list local sessions: %w", err)
+	}
+	for _, s := range localSessions {
+		us := unifiedSession{
+			Name:          s.Name,
+			Status:        s.Status,
+			StartTime:     s.StartTime,
+			EndTime:       s.EndTime,
+			Location:      "local",
+			Error:         s.Error,
+			OriginalState: s,
+		}
+		// Calculate cost and tokens for local sessions
+		agentState, err := loadAgentState(s.AgentStateFile)
+		if err == nil && agentState != nil {
+			us.Cost = agent.CalculateCost(agentState.Model, agentState.TokenUsage)
+			us.Tokens = agentState.TokenUsage
+			us.HasCost = true
+		}
+		allSessions = append(allSessions, us)
+	}
+
+	// --- Get Remote Pods (if requested) ---
+	if showRemote {
+		// Using a null logger as we don't want spawner logs in the output
+		nullLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
+		spawner, err := orchestrator.NewK8sSpawner(nullLogger, "", "", "", "", "")
+		if err != nil {
+			// Don't fail hard, just warn. Allows command to work even if k8s is not configured.
+			fmt.Fprintf(os.Stderr, "Warning: Could not connect to Kubernetes: %v\n", err)
+		} else {
+			pods, err := spawner.Client.CoreV1().Pods(spawner.Namespace).List(context.Background(), metav1.ListOptions{
+				LabelSelector: "app=recac-agent",
+			})
+			if err != nil {
+				return nil, fmt.Errorf("failed to list Kubernetes pods: %w", err)
+			}
+			for _, pod := range pods.Items {
+				us := unifiedSession{
+					Name:      pod.Labels["ticket"], // Assuming ticket label holds the session name
+					Status:    string(pod.Status.Phase),
+					StartTime: pod.CreationTimestamp.Time,
+					Location:  "k8s",
+				}
+				// Cost calculation for pods is not supported yet
+				allSessions = append(allSessions, us)
+			}
+		}
+	}
+
+	// --- Filter by Status ---
+	if statusFilter != "" {
+		var filteredSessions []unifiedSession
+		for _, s := range allSessions {
+			if strings.EqualFold(s.Status, statusFilter) {
+				filteredSessions = append(filteredSessions, s)
+			}
+		}
+		return filteredSessions, nil // Return early
+	}
+
+	return allSessions, nil
+}
 
 // gitClient defines the interface for git operations, allowing for mocking in tests.
 type gitClient interface {
