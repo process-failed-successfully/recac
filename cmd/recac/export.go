@@ -46,8 +46,7 @@ for sharing or archival.`,
 		// Gather git diff
 		var diffContent []byte
 		if session.StartCommitSHA != "" && session.EndCommitSHA != "" {
-			// Use the same factory pattern as workdiff for testability
-			gitClient := gitNewClient()
+			gitClient := gitClientFactory()
 			diff, err := gitClient.Diff(session.Workspace, session.StartCommitSHA, session.EndCommitSHA)
 			if err != nil {
 				// Not a fatal error, just a warning.

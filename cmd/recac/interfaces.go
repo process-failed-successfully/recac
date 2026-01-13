@@ -17,3 +17,11 @@ type ISessionManager interface {
 	SessionsDir() string
 	GetSessionGitDiffStat(name string) (string, error)
 }
+
+// IGitClient defines the interface for git operations.
+type IGitClient interface {
+	Checkout(repoPath, commitOrBranch string) error
+	Diff(repoPath, commitA, commitB string) (string, error)
+	DiffStat(repoPath, commitA, commitB string) (string, error)
+	CurrentCommitSHA(repoPath string) (string, error)
+}

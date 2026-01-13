@@ -64,7 +64,7 @@ func handleSingleSessionDiff(cmd *cobra.Command, sm ISessionManager, sessionName
 		return err
 	}
 
-	gitClient := gitNewClient()
+	gitClient := gitClientFactory()
 	diff, err := gitClient.Diff(session.Workspace, session.StartCommitSHA, endSHA)
 	if err != nil {
 		return fmt.Errorf("failed to get git diff: %w", err)
@@ -105,7 +105,7 @@ func handleTwoSessionDiff(cmd *cobra.Command, sm ISessionManager, sessionAName, 
 		return fmt.Errorf("cannot determine workspace for diff")
 	}
 
-	gitClient := gitNewClient()
+	gitClient := gitClientFactory()
 	diff, err := gitClient.Diff(workspace, endSHA_A, endSHA_B)
 	if err != nil {
 		return fmt.Errorf("failed to get git diff between sessions: %w", err)
@@ -124,7 +124,7 @@ func getSessionEndSHA(session *runner.SessionState) (string, error) {
 
 	// If the session is complete but has no end SHA, use the current HEAD.
 	if session.Status == "completed" || session.Status == "stopped" {
-		gitClient := gitNewClient()
+		gitClient := gitClientFactory()
 		currentSHA, err := gitClient.CurrentCommitSHA(session.Workspace)
 		if err != nil {
 			return "", fmt.Errorf("could not get current commit SHA for completed session '%s': %w", session.Name, err)
