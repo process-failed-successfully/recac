@@ -2,10 +2,11 @@ package main
 
 import (
 	"os"
-	"os/exec"
 	"testing"
 
 	"recac/internal/runner"
+
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 )
 
@@ -69,7 +70,6 @@ func TestResumeCommand(t *testing.T) {
 
 			sessionName := tc.expectedNameArg
 			if sessionName == "" {
-				// Extract from args for tests that should fail before this matters
 				for i, arg := range tc.originalArgs {
 					if arg == "--name" && i+1 < len(tc.originalArgs) {
 						sessionName = tc.originalArgs[i+1]
@@ -85,26 +85,36 @@ func TestResumeCommand(t *testing.T) {
 				Workspace: tc.expectedResumeArg,
 				PID:       0,
 			}
-
 			if tc.sessionStatus == "running" {
 				mockSession.PID = os.Getpid() // Use a real PID
 			}
-
 			err = sm.SaveSession(mockSession)
 			require.NoError(t, err)
 
 			// --- Mocking ---
-			var capturedArgs []string
-			// Override the package-level variable with a mock function
-			execCommand = func(executable string, args ...string) *exec.Cmd {
-				capturedArgs = args
-				// Return a dummy command that does nothing when Run() is called
-				return exec.Command("true")
-			}
-			// Restore the original function after the test
-			defer func() { execCommand = exec.Command }()
+			var startCmdCalled bool
+			originalStartRun := startCmd.Run
+			startCmd.Run = func(cmd *cobra.Command, args []string) {
+				startCmdCalled = true
+				// Verify flags passed to the start command
+				resumeFrom, _ := cmd.Flags().GetString("resume-from")
+				require.Equal(t, tc.expectedResumeArg, resumeFrom)
 
-			// Override the session manager factory
+				name, _ := cmd.Flags().GetString("name")
+				require.Equal(t, tc.expectedNameArg, name)
+
+				if contains(tc.originalArgs, "--detached") {
+					detached, _ := cmd.Flags().GetBool("detached")
+					require.True(t, detached)
+				}
+				if contains(tc.originalArgs, "--max-iterations") {
+					maxIter, _ := cmd.Flags().GetInt("max-iterations")
+					require.Equal(t, 50, maxIter) // Hardcoded from test case
+				}
+			}
+			defer func() { startCmd.Run = originalStartRun }()
+
+			// Override the session manager factory to use our mock
 			sessionManagerFactory = func() (ISessionManager, error) {
 				return sm, nil
 			}
@@ -118,40 +128,13 @@ func TestResumeCommand(t *testing.T) {
 			if tc.expectError {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), tc.expectedErrorMsg)
+				require.False(t, startCmdCalled, "start command should not be called on error")
 			} else {
+				// The resume command itself doesn't return an error, it executes the start command.
+				// If startCmd.Run panics on an assertion, the test will fail, which is correct.
+				// If it returns an error, Execute() will propagate it.
 				require.NoError(t, err)
-
-				// Verify the arguments passed to the mocked exec.Command
-				require.NotNil(t, capturedArgs, "execCommand was not called")
-
-				// Check for --resume-from flag
-				foundResume := false
-				for i, arg := range capturedArgs {
-					if arg == "--resume-from" {
-						require.True(t, i+1 < len(capturedArgs), "missing value for --resume-from")
-						require.Equal(t, tc.expectedResumeArg, capturedArgs[i+1])
-						foundResume = true
-						break
-					}
-				}
-				require.True(t, foundResume, "did not find --resume-from flag")
-
-				// Check for --name flag
-				foundName := false
-				for i, arg := range capturedArgs {
-					if arg == "--name" {
-						require.True(t, i+1 < len(capturedArgs), "missing value for --name")
-						require.Equal(t, tc.expectedNameArg, capturedArgs[i+1])
-						foundName = true
-						break
-					}
-				}
-				require.True(t, foundName, "did not find --name flag")
-
-				// Check if original flags were preserved (e.g., --detached)
-				if contains(tc.originalArgs, "--detached") {
-					require.True(t, contains(capturedArgs, "--detached"), "did not preserve --detached flag")
-				}
+				require.True(t, startCmdCalled, "start command was not called")
 			}
 		})
 	}

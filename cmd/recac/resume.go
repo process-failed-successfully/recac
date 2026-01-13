@@ -2,14 +2,8 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
-
 	"github.com/spf13/cobra"
 )
-
-// execCommand is a package-level variable to allow mocking in tests.
-var execCommand = exec.Command
 
 func init() {
 	rootCmd.AddCommand(resumeCmd)
@@ -64,27 +58,11 @@ and the agent's memory, allowing it to continue from where it left off.`,
 			"--name", session.Name, // Ensure the session name is preserved
 		)
 
-		executable, err := os.Executable()
-		if err != nil {
-			return fmt.Errorf("failed to get executable path: %w", err)
-		}
+		// Set the arguments on the root command and execute the 'start' command's logic.
+		// This avoids re-executing the binary, which resolves testing issues with flag redefinition.
+		root := cmd.Root()
+		root.SetArgs(finalArgs)
 
-		// Replace the current process with the new command
-		// Note: syscall.Exec is not available in all Go environments (e.g., Windows)
-		// and might be overkill. A sub-process is safer and more portable.
-
-		newCmd := execCommand(executable, finalArgs...)
-		newCmd.Stdout = os.Stdout
-		newCmd.Stderr = os.Stderr
-		newCmd.Stdin = os.Stdin
-
-		// We must not use Start() and Wait() here, because we want the new process to take over.
-		// In a Unix-like environment, we could use syscall.Exec.
-		// For portability, we will run it as a subprocess and exit.
-		if err := newCmd.Run(); err != nil {
-			return fmt.Errorf("failed to start resumed session: %w", err)
-		}
-
-		return nil
+		return root.Execute()
 	},
 }
