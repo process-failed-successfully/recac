@@ -14,6 +14,7 @@ import (
 	"recac/internal/agent"
 	"recac/internal/cmdutils"
 	"recac/internal/docker"
+	"recac/internal/git"
 	"recac/internal/jira"
 	"recac/internal/runner"
 	"recac/internal/telemetry"
@@ -84,7 +85,8 @@ func ProcessDirectTask(ctx context.Context, cfg SessionConfig) error {
 		}
 	}
 
-	if _, err := cmdutils.SetupWorkspace(ctx, cfg.RepoURL, cfg.ProjectPath, workID, "", timestamp); err != nil {
+	gitClient := git.NewClient()
+	if _, err := cmdutils.SetupWorkspace(ctx, gitClient, cfg.RepoURL, cfg.ProjectPath, workID, "", timestamp); err != nil {
 		logger.Error("Error: Failed to setup workspace", "error", err)
 		return err
 	}
@@ -199,7 +201,8 @@ func ProcessJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.C
 		logger.Info("Using provided repository URL", "repo_url", repoURL)
 	}
 
-	if _, err := cmdutils.SetupWorkspace(ctx, repoURL, tempWorkspace, jiraTicketID, cfg.JiraEpicKey, timestamp); err != nil {
+	gitClient := git.NewClient()
+	if _, err := cmdutils.SetupWorkspace(ctx, gitClient, repoURL, tempWorkspace, jiraTicketID, cfg.JiraEpicKey, timestamp); err != nil {
 		logger.Error("Error: Failed to setup workspace", "error", err)
 		return err
 	}
