@@ -131,29 +131,17 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		// PROPAGATE HOST WORKSPACE PATH: For DinD volume mounting support
 		envExports = append(envExports, fmt.Sprintf("export RECAC_HOST_WORKSPACE_PATH='%s'", tempDir))
 
-		authRepoURL := item.RepoURL
-		ghToken := os.Getenv("GITHUB_TOKEN")
-		if ghToken == "" {
-			ghToken = os.Getenv("GITHUB_API_KEY")
-		}
-		if ghToken != "" && strings.Contains(authRepoURL, "github.com") && !strings.Contains(authRepoURL, "@") {
-			// Sanitize token just in case
-			ghToken = strings.Trim(ghToken, "\"")
-			authRepoURL = strings.Replace(authRepoURL, "https://github.com/", fmt.Sprintf("https://%s@github.com/", ghToken), 1)
-		}
-
 		// Command Chain
 		// git clone <url> .
 		// recac start --jira <ID> --detached=false --cleanup=false (since we cleanup container)
 		// We assume /workspace is empty initially.
 
-		cmdStr := fmt.Sprintf("cd %s", tempDir) // Use the mounted path inside container? No, inside container it is /workspace!
-		// Wait, binds are host_path:/workspace.
-		// So inside container we must use /workspace.
-		cmdStr = "cd /workspace" // Reset to constant
+		cmdStr := "cd /workspace" // Reset to constant
 		cmdStr += " && export RECAC_MAX_ITERATIONS=20"
 		cmdStr += " && " + strings.Join(envExports, " && ")
-		cmdStr += fmt.Sprintf(" && /usr/local/bin/recac-agent --jira %s --project %s --detached=false --cleanup=false --path /workspace --verbose", item.ID, item.ID)
+		// Use git config for auth, mirroring the k8s spawner for consistency
+		cmdStr += ` && if [ -n "$GITHUB_TOKEN" ]; then git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"; fi`
+		cmdStr += fmt.Sprintf(" && /usr/local/bin/recac-agent --jira %s --project %s --detached=false --cleanup=false --path /workspace --verbose --repo-url %q", item.ID, item.ID, item.RepoURL)
 		cmdStr += " && echo 'Recac Finished'"
 
 		// Run via sh -c

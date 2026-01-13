@@ -39,8 +39,8 @@ type MockDockerClient struct {
 	mock.Mock
 }
 
-func (m *MockDockerClient) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, user string) (string, error) {
-	args := m.Called(ctx, imageRef, workspace, extraBinds, env, user)
+func (m *MockDockerClient) RunContainer(ctx context.Context, image, workspace string, extraBinds []string, ports []string, user string) (string, error) {
+	args := m.Called(ctx, image, workspace, extraBinds, ports, user)
 	return args.String(0), args.Error(1)
 }
 
@@ -61,11 +61,25 @@ func TestDockerSpawner_Spawn(t *testing.T) {
 		poller := new(MockPoller)
 		spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro")
 
-		client.On("RunContainer", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("container-123", nil)
-		client.On("Exec", mock.Anything, "container-123", mock.Anything).Return("Success", nil)
+		// We pass nil for ports, so the mock should expect that
+		client.On("RunContainer", mock.Anything, "recac-agent:latest", mock.Anything, []string(nil), mock.AnythingOfType("string")).Return("container-123", nil)
+
+		// Assert that the command passed to Exec contains the correct git config logic
+		client.On("Exec", mock.Anything, "container-123", mock.MatchedBy(func(cmd []string) bool {
+			// cmd is ["/bin/sh", "-c", "full command string"]
+			if len(cmd) != 3 {
+				return false
+			}
+			fullCmd := cmd[2]
+			hasGitConfig := assert.Contains(t, fullCmd, `git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"`)
+			hasRepoURL := assert.Contains(t, fullCmd, `--repo-url "https://github.com/example/repo"`)
+			return hasGitConfig && hasRepoURL
+		})).Return("Success", nil)
 
 		err := spawner.Spawn(context.Background(), item)
 		assert.NoError(t, err)
+
+		client.AssertExpectations(t)
 	})
 
 	t.Run("RunContainer Failure", func(t *testing.T) {
