@@ -66,8 +66,10 @@ func init() {
 	viper.BindPFlag("project", startCmd.Flags().Lookup("project"))
 
 	// Internal flag for resuming sessions
-	startCmd.Flags().String("resume-from", "", "Resume from a specific workspace path")
-	startCmd.Flags().MarkHidden("resume-from")
+	if startCmd.Flags().Lookup("resume-from") == nil {
+		startCmd.Flags().String("resume-from", "", "Resume from a specific workspace path")
+		startCmd.Flags().MarkHidden("resume-from")
+	}
 
 	startCmd.Flags().String("repo-url", "", "Repository URL to clone (bypasses Jira if provided)")
 	startCmd.Flags().String("summary", "", "Task summary (bypasses Jira if provided)")
