@@ -65,6 +65,10 @@ func init() {
 	startCmd.Flags().String("project", "", "Project name override")
 	viper.BindPFlag("project", startCmd.Flags().Lookup("project"))
 
+	// Internal flag for resuming sessions
+	startCmd.Flags().String("resume-from", "", "Resume from a specific workspace path")
+	startCmd.Flags().MarkHidden("resume-from")
+
 	startCmd.Flags().String("repo-url", "", "Repository URL to clone (bypasses Jira if provided)")
 	startCmd.Flags().String("summary", "", "Task summary (bypasses Jira if provided)")
 	startCmd.Flags().String("description", "", "Task description")
@@ -171,6 +175,17 @@ var startCmd = &cobra.Command{
 			RepoURL:           repoURL,
 			Summary:           summary,
 			Description:       description,
+		}
+
+		// Handle session resumption
+		if resumePath, _ := cmd.Flags().GetString("resume-from"); resumePath != "" {
+			cfg.ProjectPath = resumePath
+			fmt.Printf("Resuming session '%s' from workspace: %s\n", cfg.SessionName, resumePath)
+			if err := runWorkflow(ctx, cfg); err != nil {
+				fmt.Fprintf(os.Stderr, "Resumed session failed: %v\n", err)
+				exit(1)
+			}
+			return
 		}
 
 		if repoURL != "" {
