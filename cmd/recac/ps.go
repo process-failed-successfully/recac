@@ -3,17 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
-	"log/slog"
-	"os"
 	"recac/internal/agent"
-	"recac/internal/orchestrator"
+	"recac/internal/k8s"
 	"sort"
 	"strings"
 	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // unifiedSession represents both a local session and a remote K8s pod
@@ -87,20 +84,16 @@ var psCmd = &cobra.Command{
 		// --- Get Remote Pods (if requested) ---
 		showRemote, _ := cmd.Flags().GetBool("remote")
 		if showRemote {
-			// Using a null logger as we don't want spawner logs in `ps` output
-			nullLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
-			spawner, err := orchestrator.NewK8sSpawner(nullLogger, "", "", "", "", "")
+			k8sClient, err := k8s.NewClient()
 			if err != nil {
 				// Don't fail hard, just warn. Allows `ps` to work even if k8s is not configured.
 				cmd.PrintErrf("Warning: Could not connect to Kubernetes: %v\n", err)
 			} else {
-				pods, err := spawner.Client.CoreV1().Pods(spawner.Namespace).List(context.Background(), metav1.ListOptions{
-					LabelSelector: "app=recac-agent",
-				})
+				pods, err := k8sClient.ListPods(context.Background(), "app=recac-agent")
 				if err != nil {
 					return fmt.Errorf("failed to list Kubernetes pods: %w", err)
 				}
-				for _, pod := range pods.Items {
+				for _, pod := range pods {
 					us := unifiedSession{
 						Name:      pod.Labels["ticket"], // Assuming ticket label holds the session name
 						Status:    string(pod.Status.Phase),
