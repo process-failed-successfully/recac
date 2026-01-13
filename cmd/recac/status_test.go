@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"recac/internal/k8s"
 	"recac/internal/runner"
 	"recac/internal/ui"
 	"testing"
@@ -13,6 +14,11 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sversion "k8s.io/apimachinery/pkg/version"
+	fakediscovery "k8s.io/client-go/discovery/fake"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 func TestGetStatus(t *testing.T) {
@@ -48,6 +54,33 @@ func TestGetStatus(t *testing.T) {
 	viper.Set("config", "/tmp/config.yaml")
 	defer viper.Reset()
 
+	// Mock the k8s client
+	oldK8sNewClient := ui.K8sNewClient
+	defer func() { ui.SetK8sClient(oldK8sNewClient) }()
+	ui.SetK8sClient(func() (*k8s.Client, error) {
+		fakeClientset := fake.NewSimpleClientset(
+			&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "recac-agent-123",
+					Namespace: "default",
+					Labels:    map[string]string{"app": "recac-agent"},
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodRunning,
+				},
+			},
+		)
+		fakeDiscovery, ok := fakeClientset.Discovery().(*fakediscovery.FakeDiscovery)
+		require.True(t, ok)
+		fakeDiscovery.FakedServerVersion = &k8sversion.Info{
+			GitVersion: "v1.2.3",
+		}
+		return &k8s.Client{
+			Clientset: fakeClientset,
+			Namespace: "default",
+		}, nil
+	})
+
 	// Execute the function
 	output := ui.GetStatus()
 
@@ -68,6 +101,13 @@ func TestGetStatus(t *testing.T) {
 		assert.Contains(t, output, "Provider: test-provider")
 		assert.Contains(t, output, "Model: test-model")
 		assert.Contains(t, output, "Config File: /tmp/config.yaml")
+	})
+
+	t.Run("Kubernetes Output", func(t *testing.T) {
+		assert.Contains(t, output, "[Kubernetes Environment]")
+		assert.Contains(t, output, "Server Version: v1.2.3")
+		assert.Contains(t, output, "RECAC Agent Pods: 1")
+		assert.Contains(t, output, "recac-agent-123 (Running)")
 	})
 }
 

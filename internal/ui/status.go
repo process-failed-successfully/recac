@@ -5,12 +5,20 @@ import (
 	"context"
 	"fmt"
 	"recac/internal/docker"
+	"recac/internal/k8s"
 	"recac/internal/runner"
 	"strings"
 	"time"
 
 	"github.com/spf13/viper"
 )
+
+var K8sNewClient = k8s.NewClient
+
+// SetK8sClient a setter for the k8s client factory for testing purposes
+func SetK8sClient(fn func() (*k8s.Client, error)) {
+	K8sNewClient = fn
+}
 
 // GetStatus gathers and formats the status of RECAC sessions, environment, and configuration.
 func GetStatus() string {
@@ -54,6 +62,33 @@ func GetStatus() string {
 			fmt.Fprintf(&b, "  - Docker Version: %s\n", version.Version)
 			fmt.Fprintf(&b, "  - API Version: %s\n", version.APIVersion)
 			fmt.Fprintf(&b, "  - OS/Arch: %s/%s\n", version.Os, version.Arch)
+		}
+	}
+
+	// --- Kubernetes ---
+	b.WriteString("\n[Kubernetes Environment]\n")
+	k8sClient, err := K8sNewClient()
+	if err != nil {
+		fmt.Fprintf(&b, "  Could not connect to Kubernetes.\n")
+		fmt.Fprintf(&b, "  Error: %v\n", err)
+	} else {
+		serverVersion, err := k8sClient.GetServerVersion()
+		if err != nil {
+			fmt.Fprintf(&b, "  Could not get server version.\n")
+			fmt.Fprintf(&b, "  Error: %v\n", err)
+		} else {
+			fmt.Fprintf(&b, "  - Server Version: %s\n", serverVersion.String())
+		}
+
+		pods, err := k8sClient.ListPods(context.Background(), "app=recac-agent")
+		if err != nil {
+			fmt.Fprintf(&b, "  Could not list orchestrator pods.\n")
+			fmt.Fprintf(&b, "  Error: %v\n", err)
+		} else {
+			fmt.Fprintf(&b, "  - RECAC Agent Pods: %d\n", len(pods))
+			for _, pod := range pods {
+				fmt.Fprintf(&b, "    - %s (%s)\n", pod.Name, pod.Status.Phase)
+			}
 		}
 	}
 
