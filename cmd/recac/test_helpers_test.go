@@ -201,6 +201,8 @@ func newRootCmd() (*cobra.Command, *bytes.Buffer, *bytes.Buffer) {
 	errBuf := new(bytes.Buffer)
 	rootCmd.SetOut(outBuf)
 	rootCmd.SetErr(errBuf)
+	// Relaxing arg validation for tests to prevent bleeding from other commands
+	rootCmd.Args = cobra.ArbitraryArgs
 	return rootCmd, outBuf, errBuf
 }
 
