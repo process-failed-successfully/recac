@@ -89,6 +89,23 @@ func (k keyMap) FullHelp() [][]key.Binding {
 	}
 }
 
+// contextualHelp wraps keyMap to provide mode-aware help text
+type contextualHelp struct {
+	keyMap
+	isMenu bool
+}
+
+func (h contextualHelp) ShortHelp() []key.Binding {
+	if h.isMenu {
+		return []key.Binding{h.Up, h.Down, h.Enter, h.Back, h.Quit}
+	}
+	return []key.Binding{h.Enter, h.Slash, h.Bang, h.Quit}
+}
+
+func (h contextualHelp) FullHelp() [][]key.Binding {
+	return h.keyMap.FullHelp()
+}
+
 var keys = keyMap{
 	Up: key.NewBinding(
 		key.WithKeys("up"),
@@ -1168,9 +1185,25 @@ func (m InteractiveModel) View() string {
 	}
 	views = append(views, promptStyle.Render(m.textarea.View()))
 
+	// Dynamic Help Configuration
+	isMenu := m.mode == ModeModelSelect || m.mode == ModeAgentSelect || m.showList
+
+	if isMenu {
+		m.keys.Enter.SetHelp("enter", "select")
+	} else if m.mode == ModeShell {
+		m.keys.Enter.SetHelp("enter", "exec")
+	} else {
+		m.keys.Enter.SetHelp("enter", "send")
+	}
+
+	helpMap := contextualHelp{
+		keyMap: m.keys,
+		isMenu: isMenu,
+	}
+
 	// Footer Help
 	footer := lipgloss.JoinHorizontal(lipgloss.Top,
-		helpStyle(m.help.View(m.keys)),
+		helpStyle(m.help.View(helpMap)),
 	)
 	views = append(views, footer)
 
