@@ -3,7 +3,6 @@ package orchestrator
 import (
 	"context"
 	"errors"
-	"recac/internal/jira"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -147,7 +146,12 @@ func TestJiraPoller_Poll_Scenarios(t *testing.T) {
 			setupClient: func() *mockJiraClient {
 				return &mockJiraClient{
 					issues: []map[string]interface{}{
-						{"key": "TEST-1"},
+						{
+							"key": "TEST-1",
+							"fields": map[string]interface{}{
+								"summary": "Task 1",
+							},
+						},
 					},
 					descriptions: map[string]string{
 						"TEST-1": "Repo: https://github.com/test/repo1",
@@ -162,17 +166,15 @@ func TestJiraPoller_Poll_Scenarios(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			mockClient := tc.setupClient()
-			// Need to cast to the concrete type since the poller wants the struct, not an interface.
-			// This highlights a potential area for improvement (using interfaces).
-			poller := NewJiraPoller(&jira.Client{}, tc.jql)
+			poller := NewJiraPoller(mockClient, tc.jql)
+			items, err := poller.Poll(context.Background())
 
-			// We can't easily swap the client, so we'll rely on the mock's behavior.
-			// This is a limitation of the current design. A better design would use an interface.
-			// For now, we are just adding test cases. A future refactor could improve this.
-
-			// Since we can't inject the mock, we can't directly test the poller.
-			// This is a good example of why dependency injection is important.
-			// I will add a test for the extractRepoURL function, which is testable.
+			if tc.expectedErr != "" {
+				require.EqualError(t, err, tc.expectedErr)
+			} else {
+				require.NoError(t, err)
+				require.Len(t, items, tc.expectedItems)
+			}
 		})
 	}
 }
@@ -198,12 +200,36 @@ func TestExtractRepoURL(t *testing.T) {
 
 func TestJiraPoller_Claim(t *testing.T) {
 	mockClient := &mockJiraClient{}
-	poller := NewJiraPoller(&jira.Client{}, "")
-	// As above, we can't inject the mock.
+	poller := NewJiraPoller(mockClient, "")
+	item := WorkItem{ID: "TEST-1"}
+	err := poller.Claim(context.Background(), item)
+	require.NoError(t, err)
+
+	// Test error case
+	mockClient.transitionErr = errors.New("transition failed")
+	err = poller.Claim(context.Background(), item)
+	require.Error(t, err)
 }
 
 func TestJiraPoller_UpdateStatus(t *testing.T) {
 	mockClient := &mockJiraClient{}
-	poller := NewJiraPoller(&jira.Client{}, "")
-	// As above, we can't inject the mock.
+	poller := NewJiraPoller(mockClient, "")
+	item := WorkItem{ID: "TEST-1"}
+
+	// Test comment and transition
+	err := poller.UpdateStatus(context.Background(), item, "Done", "Work complete")
+	require.NoError(t, err)
+
+	// Test only comment
+	err = poller.UpdateStatus(context.Background(), item, "", "Another comment")
+	require.NoError(t, err)
+
+	// Test error case
+	mockClient.commentErr = errors.New("comment failed")
+	err = poller.UpdateStatus(context.Background(), item, "", "Bad comment")
+	require.NoError(t, err) // AddComment error is ignored
+
+	mockClient.transitionErr = errors.New("transition failed")
+	err = poller.UpdateStatus(context.Background(), item, "Failed", "")
+	require.Error(t, err)
 }
