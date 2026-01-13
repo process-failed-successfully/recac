@@ -8,14 +8,15 @@ import (
 	"strings"
 )
 
+
 type JiraPoller struct {
-	Client  *jira.Client
+	Client  JiraClient
 	JQL     string
 	Label   string // Helper to construct JQL if JQL not provided
 	Project string // Helper to construct JQL
 }
 
-func NewJiraPoller(client *jira.Client, jql string) *JiraPoller {
+func NewJiraPoller(client JiraClient, jql string) *JiraPoller {
 	return &JiraPoller{
 		Client: client,
 		JQL:    jql,
