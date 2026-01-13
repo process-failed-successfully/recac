@@ -24,7 +24,11 @@ including aggregate statistics, recent sessions, and costliest sessions.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		watch, _ := cmd.Flags().GetBool("watch")
 		if watch {
-			return ui.StartSummaryDashboard()
+			sm, err := sessionManagerFactory()
+			if err != nil {
+				return fmt.Errorf("failed to create session manager: %w", err)
+			}
+			return ui.StartDashboard(sm)
 		}
 		return doSummary(cmd)
 	},
