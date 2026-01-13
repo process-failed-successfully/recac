@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"recac/internal/jira"
-	"regexp"
+	"recac/internal/stringutils"
 	"strings"
 )
 
@@ -84,7 +84,7 @@ func (p *JiraPoller) Poll(ctx context.Context) ([]WorkItem, error) {
 		description := p.Client.ParseDescription(issue)
 
 		// Extract Repo
-		repoURL := extractRepoURL(description)
+		repoURL := stringutils.ExtractRepoURL(description)
 
 		// If no Repo found, we can't run agent really.
 		// Unless we allow no-repo agents?
@@ -128,12 +128,3 @@ func (p *JiraPoller) UpdateStatus(ctx context.Context, item WorkItem, status str
 	return nil
 }
 
-var repoRegex = regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
-
-func extractRepoURL(text string) string {
-	matches := repoRegex.FindStringSubmatch(text)
-	if len(matches) > 1 {
-		return strings.TrimSuffix(matches[1], ".git")
-	}
-	return ""
-}
