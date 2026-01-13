@@ -128,6 +128,12 @@ func (sm *StateManager) Load() (State, error) {
 	return sm.loadState()
 }
 
+// LoadState is a convenience function to load state directly from a file path.
+func LoadState(filePath string) (State, error) {
+	sm := NewStateManager(filePath)
+	return sm.Load()
+}
+
 // AddMemory adds a memory item to the state and saves it
 func (sm *StateManager) AddMemory(memoryItem string) error {
 	sm.mu.Lock()
