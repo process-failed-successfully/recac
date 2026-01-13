@@ -12,25 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type MockGitClient struct {
-	DiffFunc func(workspace, fromSHA, toSHA string) (string, error)
-	CurrentCommitSHAFunc func(workspace string) (string, error)
-}
-
-func (m *MockGitClient) Diff(workspace, fromSHA, toSHA string) (string, error) {
-	if m.DiffFunc != nil {
-		return m.DiffFunc(workspace, fromSHA, toSHA)
-	}
-	return "mock diff", nil
-}
-
-func (m *MockGitClient) CurrentCommitSHA(workspace string) (string, error) {
-	if m.CurrentCommitSHAFunc != nil {
-		return m.CurrentCommitSHAFunc(workspace)
-	}
-	return "mock_end_sha", nil
-}
-
 func TestExportCmd(t *testing.T) {
 	// 1. Setup Mock Session
 	tmpDir := t.TempDir()
@@ -60,9 +41,9 @@ func TestExportCmd(t *testing.T) {
 	require.NoError(t, err)
 
 	// 2. Setup Mock Git Client
-	originalGitNewClient := gitNewClient
-	defer func() { gitNewClient = originalGitNewClient }()
-	gitNewClient = func() gitClient {
+	originalGitFactory := gitClientFactory
+	defer func() { gitClientFactory = originalGitFactory }()
+	gitClientFactory = func() IGitClient {
 		return &MockGitClient{
 			DiffFunc: func(workspace, fromSHA, toSHA string) (string, error) {
 				return "mock diff content", nil

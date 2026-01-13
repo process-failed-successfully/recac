@@ -12,11 +12,11 @@ import (
 
 // MockSessionManager is a mock implementation of the ISessionManager interface.
 type MockSessionManager struct {
-	Sessions        map[string]*runner.SessionState
-	FailOnLoad      bool
-	FailOnList      bool
-	ProcessDown     bool
-	SessionsDirFunc func() string
+	Sessions             map[string]*runner.SessionState
+	FailOnLoad           bool
+	FailOnList           bool
+	IsProcessRunningFunc func(pid int) bool
+	SessionsDirFunc      func() string
 }
 
 func (m *MockSessionManager) SessionsDir() string {
@@ -69,19 +69,18 @@ func (m *MockSessionManager) ListSessions() ([]*runner.SessionState, error) {
 }
 
 func (m *MockSessionManager) IsProcessRunning(pid int) bool {
-	if m.ProcessDown {
-		return false
+	if m.IsProcessRunningFunc != nil {
+		return m.IsProcessRunningFunc(pid)
 	}
 	if pid == 0 {
 		return false
 	}
-	// Find the session with this PID and check its status.
-	for _, session := range m.Sessions {
-		if session.PID == pid {
-			return session.Status == "running"
+	// Default behavior: check if any session with this PID is 'running'
+	for _, s := range m.Sessions {
+		if s.PID == pid && s.Status == "running" {
+			return true
 		}
 	}
-	// Default to false for unknown PIDs
 	return false
 }
 
@@ -203,4 +202,40 @@ func newRootCmd() (*cobra.Command, *bytes.Buffer, *bytes.Buffer) {
 	rootCmd.SetOut(outBuf)
 	rootCmd.SetErr(errBuf)
 	return rootCmd, outBuf, errBuf
+}
+
+// MockGitClient is a mock implementation of the IGitClient interface.
+type MockGitClient struct {
+	CheckoutFunc         func(repoPath, commitOrBranch string) error
+	DiffFunc             func(repoPath, commitA, commitB string) (string, error)
+	DiffStatFunc         func(repoPath, commitA, commitB string) (string, error)
+	CurrentCommitSHAFunc func(repoPath string) (string, error)
+}
+
+func (m *MockGitClient) Checkout(repoPath, commitOrBranch string) error {
+	if m.CheckoutFunc != nil {
+		return m.CheckoutFunc(repoPath, commitOrBranch)
+	}
+	return nil
+}
+
+func (m *MockGitClient) Diff(repoPath, commitA, commitB string) (string, error) {
+	if m.DiffFunc != nil {
+		return m.DiffFunc(repoPath, commitA, commitB)
+	}
+	return "mock diff", nil
+}
+
+func (m *MockGitClient) DiffStat(repoPath, commitA, commitB string) (string, error) {
+	if m.DiffStatFunc != nil {
+		return m.DiffStatFunc(repoPath, commitA, commitB)
+	}
+	return "mock diff --stat", nil
+}
+
+func (m *MockGitClient) CurrentCommitSHA(repoPath string) (string, error) {
+	if m.CurrentCommitSHAFunc != nil {
+		return m.CurrentCommitSHAFunc(repoPath)
+	}
+	return "mock-sha", nil
 }

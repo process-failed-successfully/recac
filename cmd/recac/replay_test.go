@@ -1,172 +1,186 @@
 package main
 
 import (
-	"bytes"
-	"io"
 	"os"
-	"strings"
-	"testing"
-	"time"
-
 	"recac/internal/runner"
+	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// setupTestEnvironment creates a temporary directory and a session manager for testing.
-func setupTestEnvironment(t *testing.T) (string, *runner.SessionManager, func()) {
-	tempDir, err := os.MkdirTemp("", "recac-replay-test-*")
-	require.NoError(t, err)
-
-	sm, err := runner.NewSessionManagerWithDir(tempDir)
-	require.NoError(t, err)
-
-	// Override the default session manager creation in the command
-	originalNewSessionManager := newSessionManager
-	newSessionManager = func() (*runner.SessionManager, error) {
-		return sm, nil
-	}
-
-	cleanup := func() {
-		os.RemoveAll(tempDir)
-		newSessionManager = originalNewSessionManager
-	}
-
-	return tempDir, sm, cleanup
-}
-
 func TestReplayCmd(t *testing.T) {
-	_, sm, cleanup := setupTestEnvironment(t)
-	defer cleanup()
+	// Setup: Create a mock session manager and a completed session
+	mockSM := NewMockSessionManager()
+	mockSM.IsProcessRunningFunc = func(pid int) bool {
+		return false // Assume process is not running for completed sessions
+	}
 
-	// Create a fake original session
 	originalSession := &runner.SessionState{
-		Name:      "test-session",
-		PID:       12345,
-		StartTime: time.Now(),
-		Command:   []string{"/bin/true"},
-		Workspace: "/tmp",
-		Status:    "completed",
+		Name:           "test-session",
+		Command:        []string{"/bin/echo", "hello"},
+		Workspace:      "/tmp/workspace",
+		Status:         "completed",
+		StartCommitSHA: "abcdef123",
 	}
-	err := sm.SaveSession(originalSession)
-	require.NoError(t, err)
+	mockSM.Sessions["test-session"] = originalSession
 
-	// Capture stdout
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	// Execute the replay command
-	rootCmd.SetArgs([]string{"replay", "test-session"})
-	err = rootCmd.Execute()
-	assert.NoError(t, err)
-
-	// Restore stdout and read captured output
-	w.Close()
-	os.Stdout = oldStdout
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
-	output := buf.String()
-
-	// Verify the output
-	assert.Contains(t, output, "Successfully started replay session")
-	assert.Contains(t, output, "replay")
-
-	// Verify that a new session was created
-	sessions, err := sm.ListSessions()
-	require.NoError(t, err)
-	assert.Len(t, sessions, 2)
-
-	var replayedSession *runner.SessionState
-	for _, s := range sessions {
-		if strings.HasPrefix(s.Name, "test-session-replay-") {
-			replayedSession = s
-			break
-		}
+	// Setup: Create a mock git client
+	mockGit := &MockGitClient{
+		CheckoutFunc: func(repoPath, commitOrBranch string) error {
+			assert.Equal(t, originalSession.Workspace, repoPath)
+			assert.Equal(t, originalSession.StartCommitSHA, commitOrBranch)
+			return nil
+		},
 	}
-	require.NotNil(t, replayedSession, "replayed session not found")
 
-	// Verify the replayed session's properties
+	// Override factories
+	originalSMFactory := sessionManagerFactory
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return mockSM, nil
+	}
+	defer func() { sessionManagerFactory = originalSMFactory }()
+
+	originalGitFactory := gitClientFactory
+	gitClientFactory = func() IGitClient {
+		return mockGit
+	}
+	defer func() { gitClientFactory = originalGitFactory }()
+
+	// Execute the command
+	cmd, _, _ := newRootCmd()
+	output, err := executeCommand(cmd, "replay", "test-session")
+
+	// Assertions
+	require.NoError(t, err)
+	assert.Contains(t, output, "Restoring workspace to original commit: abcdef123")
+	assert.Contains(t, output, "Successfully started replay session 'test-session-replay-1'")
+
+	// Verify a new session was started
+	require.Contains(t, mockSM.Sessions, "test-session-replay-1")
+	replayedSession := mockSM.Sessions["test-session-replay-1"]
 	assert.Equal(t, originalSession.Command, replayedSession.Command)
 	assert.Equal(t, originalSession.Workspace, replayedSession.Workspace)
-	assert.Equal(t, "running", replayedSession.Status) // It should be running
 }
 
 func TestReplayCmd_RunningSession(t *testing.T) {
-	_, sm, cleanup := setupTestEnvironment(t)
-	defer cleanup()
-
-	// Create a fake running session
+	// Setup: Create a mock session manager with a running session
+	mockSM := NewMockSessionManager()
+	mockSM.IsProcessRunningFunc = func(pid int) bool {
+		return pid == 12345 // This is the running process
+	}
 	runningSession := &runner.SessionState{
-		Name:      "running-session",
-		PID:       os.Getpid(), // Use current process's PID to simulate a running process
-		StartTime: time.Now(),
-		Command:   []string{"/bin/sleep", "30"},
-		Workspace: "/tmp",
-		Status:    "running",
+		Name:    "running-session",
+		PID:     12345,
+		Status:  "running",
+		Command: []string{"/bin/sleep", "60"},
 	}
-	err := sm.SaveSession(runningSession)
-	require.NoError(t, err)
+	mockSM.Sessions["running-session"] = runningSession
 
-	// Capture stderr
-	oldStderr := os.Stderr
-	r, w, _ := os.Pipe()
-	os.Stderr = w
-
-	// Set exit function to avoid os.Exit(1)
-	oldExit := exit
-	var exitCode int
-	exit = func(code int) {
-		exitCode = code
+	// Override factory
+	originalFactory := sessionManagerFactory
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return mockSM, nil
 	}
-	defer func() { exit = oldExit }()
+	defer func() { sessionManagerFactory = originalFactory }()
 
-	// Execute the command
-	rootCmd.SetArgs([]string{"replay", "running-session"})
-	rootCmd.Execute()
-
-	// Restore stderr and read output
-	w.Close()
-	os.Stderr = oldStderr
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
-	output := buf.String()
-
-	// Verify the error message
-	assert.Equal(t, 1, exitCode)
-	assert.Contains(t, output, "Error: cannot replay a running session. Please stop it first.")
+	// Execute and assert error
+	cmd, _, _ := newRootCmd()
+	_, err := executeCommand(cmd, "replay", "running-session")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot replay a running session")
 }
 
 func TestReplayCmd_SessionNotFound(t *testing.T) {
-	_, _, cleanup := setupTestEnvironment(t)
-	defer cleanup()
-
-	// Capture stderr
-	oldStderr := os.Stderr
-	r, w, _ := os.Pipe()
-	os.Stderr = w
-
-	// Set exit function to avoid os.Exit(1)
-	oldExit := exit
-	var exitCode int
-	exit = func(code int) {
-		exitCode = code
+	// Setup: Empty mock session manager
+	mockSM := &MockSessionManager{
+		Sessions: make(map[string]*runner.SessionState),
 	}
-	defer func() { exit = oldExit }()
+	originalFactory := sessionManagerFactory
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return mockSM, nil
+	}
+	defer func() { sessionManagerFactory = originalFactory }()
 
-	// Execute the command with a non-existent session name
-	rootCmd.SetArgs([]string{"replay", "non-existent-session"})
-	rootCmd.Execute()
+	// Execute and assert error
+	cmd, _, _ := newRootCmd()
+	_, err := executeCommand(cmd, "replay", "non-existent")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to load session 'non-existent'")
+}
 
-	// Restore stderr and read output
-	w.Close()
-	os.Stderr = oldStderr
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
-	output := buf.String()
+func TestFindNextReplayName(t *testing.T) {
+	tests := []struct {
+		name           string
+		baseName       string
+		existing       []string
+		expectedName   string
+		expectErr      bool
+	}{
+		{
+			name:         "first replay",
+			baseName:     "session-a",
+			existing:     []string{"session-a", "session-b"},
+			expectedName: "session-a-replay-1",
+		},
+		{
+			name:         "second replay",
+			baseName:     "session-a",
+			existing:     []string{"session-a", "session-a-replay-1"},
+			expectedName: "session-a-replay-2",
+		},
+		{
+			name:         "replay a replay",
+			baseName:     "session-a-replay-1",
+			existing:     []string{"session-a", "session-a-replay-1"},
+			expectedName: "session-a-replay-1-replay-1",
+		},
+		{
+			name:         "gaps in numbering",
+			baseName:     "session-c",
+			existing:     []string{"session-c", "session-c-replay-1", "session-c-replay-3"},
+			expectedName: "session-c-replay-4",
+		},
+		{
+			name:         "no existing sessions",
+			baseName:     "session-d",
+			existing:     []string{},
+			expectedName: "session-d-replay-1",
+		},
+	}
 
-	// Verify the error message
-	assert.Equal(t, 1, exitCode)
-	assert.Contains(t, output, "Error: failed to load session 'non-existent-session'")
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mockSM := &MockSessionManager{Sessions: make(map[string]*runner.SessionState)}
+			for _, name := range tc.existing {
+				mockSM.Sessions[name] = &runner.SessionState{Name: name}
+			}
+
+			actualName, err := findNextReplayName(mockSM, tc.baseName)
+
+			if tc.expectErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tc.expectedName, actualName)
+			}
+		})
+	}
+}
+
+
+// This test setup is now simplified by using the shared helpers.
+// A mock implementation of ISessionManager is defined in test_helpers_test.go.
+
+func setupRealSM(t *testing.T) (string, ISessionManager, func()) {
+	dir, err := os.MkdirTemp("", "replay-test-")
+	require.NoError(t, err)
+	sm, err := runner.NewSessionManagerWithDir(dir)
+	require.NoError(t, err)
+
+	cleanup := func() {
+		os.RemoveAll(dir)
+	}
+
+	return dir, sm, cleanup
 }
