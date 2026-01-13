@@ -3,7 +3,7 @@ package cmdutils
 import (
 	"context"
 	"os"
-	"os/exec"
+	"recac/internal/git"
 	"testing"
 
 	"github.com/spf13/viper"
@@ -18,9 +18,16 @@ func TestGetJiraClient(t *testing.T) {
 	os.Unsetenv("JIRA_API_TOKEN")
 
 	t.Run("Missing Config", func(t *testing.T) {
-		client, err := GetJiraClient(context.Background())
+		_, err := GetJiraClient(context.Background())
 		assert.Error(t, err)
-		assert.Nil(t, client)
+
+		viper.Set("jira.url", "https://example.atlassian.net")
+		_, err = GetJiraClient(context.Background())
+		assert.Error(t, err)
+
+		viper.Set("jira.username", "user@example.com")
+		_, err = GetJiraClient(context.Background())
+		assert.Error(t, err)
 	})
 
 	t.Run("Valid Config", func(t *testing.T) {
@@ -60,9 +67,6 @@ func TestGetAgentClient(t *testing.T) {
 		client, err := GetAgentClient(context.Background(), "", "", "", "")
 		assert.NoError(t, err)
 		assert.NotNil(t, client)
-		// Default provider is gemini if not set?
-		// Code says: if provider == "" { provider = viper.GetString("provider") }
-		// if provider == "" { provider = "gemini" }
 	})
 
 	t.Run("Specific Provider", func(t *testing.T) {
@@ -70,52 +74,197 @@ func TestGetAgentClient(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, client)
 	})
+
+	t.Run("API Key from Environment", func(t *testing.T) {
+		viper.Reset()
+		os.Setenv("OPENAI_API_KEY", "env-key")
+		defer os.Unsetenv("OPENAI_API_KEY")
+
+		client, err := GetAgentClient(context.Background(), "openai", "", "", "")
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+	})
+
+	t.Run("Dummy Key Fallback", func(t *testing.T) {
+		viper.Reset()
+		client, err := GetAgentClient(context.Background(), "gemini", "", "", "")
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+	})
+}
+
+type MockGitClient struct {
+	repoExists         bool
+	remoteBranchExists bool
+	cloneFn            func(ctx context.Context, repoURL, directory string) error
+	checkoutFn         func(directory, branch string) error
+	checkoutNewBranchFn func(directory, branch string) error
+}
+
+func (m *MockGitClient) Clone(ctx context.Context, repoURL, directory string) error {
+	if m.cloneFn != nil {
+		return m.cloneFn(ctx, repoURL, directory)
+	}
+	return nil
+}
+
+func (m *MockGitClient) RepoExists(directory string) bool {
+	return m.repoExists
+}
+
+func (m *MockGitClient) Config(directory, key, value string) error {
+	return nil
+}
+
+func (m *MockGitClient) ConfigAddGlobal(key, value string) error {
+	return nil
+}
+
+func (m *MockGitClient) RemoteBranchExists(directory, remote, branch string) (bool, error) {
+	return m.remoteBranchExists, nil
+}
+
+func (m *MockGitClient) Fetch(directory, remote, branch string) error {
+	return nil
+}
+
+func (m *MockGitClient) Checkout(directory, branch string) error {
+	if m.checkoutFn != nil {
+		return m.checkoutFn(directory, branch)
+	}
+	return nil
+}
+
+func (m *MockGitClient) CheckoutNewBranch(directory, branch string) error {
+	if m.checkoutNewBranchFn != nil {
+		return m.checkoutNewBranchFn(directory, branch)
+	}
+	return nil
+}
+
+func (m *MockGitClient) Push(directory, branch string) error {
+	return nil
+}
+
+func (m *MockGitClient) Pull(directory, remote, branch string) error {
+	return nil
 }
 
 func TestSetupWorkspace(t *testing.T) {
-	// We need a real git repo or mock.
-	// SetupWorkspace clones a repo.
-	// For unit test, we might skip actual cloning if we point to extended integration test,
-	// or we can mock git.NewClient if we refactor to allow injection.
-	// Currently cmdutils uses `git.NewClient()` directly.
-	// We can test basic path creation or empty repo url case.
-
 	t.Run("Empty Repo URL", func(t *testing.T) {
-		url, err := SetupWorkspace(context.Background(), "", "/tmp/recac-test", "TEST-1", "", "")
+		mockGitClient := &MockGitClient{}
+		assert.Implements(t, (*git.GitClient)(nil), mockGitClient)
+		url, err := SetupWorkspace(context.Background(), mockGitClient, "", "/tmp/recac-test", "TEST-1", "", "")
 		assert.NoError(t, err)
 		assert.Equal(t, "", url)
 	})
 
-	t.Run("Existing Workspace", func(t *testing.T) {
-		// Create a fake workspace
-		tmpDir, err := os.MkdirTemp("", "recac-test-workspace")
+	t.Run("Clones when workspace does not exist", func(t *testing.T) {
+		cloned := false
+		mockGitClient := &MockGitClient{
+			repoExists: false,
+			cloneFn: func(ctx context.Context, repoURL, directory string) error {
+				cloned = true
+				return nil
+			},
+		}
+		_, err := SetupWorkspace(context.Background(), mockGitClient, "https://github.com/example/repo", "/tmp/recac-test", "TEST-1", "", "")
 		assert.NoError(t, err)
-		defer os.RemoveAll(tmpDir)
+		assert.True(t, cloned)
+	})
 
-		// We assume if repo exists, it skips clone.
-		// However, it checks `gitClient.RepoExists(workspace)`.
-		// If we don't init git there, it returns false.
-		// If we init git, it returns true.
-
-		// Let's init a git repo there
-		cmd := exec.Command("git", "init", tmpDir)
-		err = cmd.Run()
+	t.Run("Skips clone when workspace exists", func(t *testing.T) {
+		cloned := false
+		mockGitClient := &MockGitClient{
+			repoExists: true,
+			cloneFn: func(ctx context.Context, repoURL, directory string) error {
+				cloned = true
+				return nil
+			},
+		}
+		_, err := SetupWorkspace(context.Background(), mockGitClient, "https://github.com/example/repo", "/tmp/recac-test", "TEST-1", "", "")
 		assert.NoError(t, err)
+		assert.False(t, cloned)
+	})
 
-		// Set a remote to avoid failure when checking remote branch?
-		// Code:
-		// if !gitClient.RepoExists(workspace) { ... }
-		// else { ... }
-		// SetupWorkspace then does: gitClient.Config(...) which should work.
-		// Then it handles Epic Branching... gitClient.RemoteBranchExists(...)
-		// If no remote 'origin', RemoteBranchExists depends on implementation.
-		// It might fail or return false.
+	t.Run("Checks out existing epic branch", func(t *testing.T) {
+		checkedOut := ""
+		mockGitClient := &MockGitClient{
+			repoExists:         true,
+			remoteBranchExists: true,
+			checkoutFn: func(directory, branch string) error {
+				if branch == "agent-epic/EPIC-1" {
+					checkedOut = branch
+				}
+				return nil
+			},
+		}
+		_, err := SetupWorkspace(context.Background(), mockGitClient, "https://github.com/example/repo", "/tmp/recac-test", "TEST-1", "EPIC-1", "")
+		assert.NoError(t, err)
+		assert.Equal(t, "agent-epic/EPIC-1", checkedOut)
+	})
 
-		// Ideally we refactor `cmdutils` to accept a GitClient interface for better testing.
-		// For now, let's just confirm it doesn't crash on local simple path?
-		// Or skip this test if too complex without refactor.
+	t.Run("Creates new epic branch", func(t *testing.T) {
+		newBranch := ""
+		mockGitClient := &MockGitClient{
+			repoExists:         true,
+			remoteBranchExists: false,
+			checkoutNewBranchFn: func(directory, branch string) error {
+				if branch == "agent-epic/EPIC-1" {
+					newBranch = branch
+				}
+				return nil
+			},
+		}
+		_, err := SetupWorkspace(context.Background(), mockGitClient, "https://github.com/example/repo", "/tmp/recac-test", "TEST-1", "EPIC-1", "")
+		assert.NoError(t, err)
+		assert.Equal(t, "agent-epic/EPIC-1", newBranch)
+	})
 
-		// I will refactor cmdutils to be friendlier to testing in a future step if needed.
-		// For now, I'll stick to basic tests.
+	t.Run("Creates unique feature branch", func(t *testing.T) {
+		viper.Set("git.unique_branch_names", true)
+		defer viper.Set("git.unique_branch_names", false)
+
+		newBranch := ""
+		mockGitClient := &MockGitClient{
+			repoExists: true,
+			checkoutNewBranchFn: func(directory, branch string) error {
+				newBranch = branch
+				return nil
+			},
+		}
+		_, err := SetupWorkspace(context.Background(), mockGitClient, "https://github.com/example/repo", "/tmp/recac-test", "TEST-1", "", "20240101-120000")
+		assert.NoError(t, err)
+		assert.Equal(t, "agent/TEST-1-20240101-120000", newBranch)
+	})
+
+	t.Run("Creates stable feature branch", func(t *testing.T) {
+		newBranch := ""
+		mockGitClient := &MockGitClient{
+			repoExists:         true,
+			remoteBranchExists: false,
+			checkoutNewBranchFn: func(directory, branch string) error {
+				newBranch = branch
+				return nil
+			},
+		}
+		_, err := SetupWorkspace(context.Background(), mockGitClient, "https://github.com/example/repo", "/tmp/recac-test", "TEST-1", "", "")
+		assert.NoError(t, err)
+		assert.Equal(t, "agent/TEST-1", newBranch)
+	})
+
+	t.Run("Checks out existing stable feature branch", func(t *testing.T) {
+		checkedOut := ""
+		mockGitClient := &MockGitClient{
+			repoExists:         true,
+			remoteBranchExists: true,
+			checkoutFn: func(directory, branch string) error {
+				checkedOut = branch
+				return nil
+			},
+		}
+		_, err := SetupWorkspace(context.Background(), mockGitClient, "https://github.com/example/repo", "/tmp/recac-test", "TEST-1", "", "")
+		assert.NoError(t, err)
+		assert.Equal(t, "agent/TEST-1", checkedOut)
 	})
 }
