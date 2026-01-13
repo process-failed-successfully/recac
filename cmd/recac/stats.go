@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"text/tabwriter"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -30,7 +31,12 @@ var statsCmd = &cobra.Command{
 			return fmt.Errorf("could not create session manager: %w", err)
 		}
 
-		stats, err := calculateStats(sm)
+		// Get filter flags
+		status, _ := cmd.Flags().GetString("status")
+		since, _ := cmd.Flags().GetString("since")
+		model, _ := cmd.Flags().GetString("model")
+
+		stats, err := calculateStats(sm, status, since, model)
 		if err != nil {
 			return fmt.Errorf("could not calculate statistics: %w", err)
 		}
@@ -40,10 +46,19 @@ var statsCmd = &cobra.Command{
 	},
 }
 
-func calculateStats(sm ISessionManager) (*AggregateStats, error) {
+func calculateStats(sm ISessionManager, statusFilter string, sinceFilter string, modelFilter string) (*AggregateStats, error) {
 	sessions, err := sm.ListSessions()
 	if err != nil {
 		return nil, fmt.Errorf("could not list sessions: %w", err)
+	}
+
+	var sinceCutoff time.Time
+	if sinceFilter != "" {
+		duration, err := time.ParseDuration(sinceFilter)
+		if err != nil {
+			return nil, fmt.Errorf("invalid duration format for --since: %w", err)
+		}
+		sinceCutoff = time.Now().Add(-duration)
 	}
 
 	stats := &AggregateStats{
@@ -51,6 +66,30 @@ func calculateStats(sm ISessionManager) (*AggregateStats, error) {
 	}
 
 	for _, session := range sessions {
+		// Apply filters
+		if statusFilter != "" && session.Status != statusFilter {
+			continue
+		}
+		if !sinceCutoff.IsZero() && session.StartTime.Before(sinceCutoff) {
+			continue
+		}
+
+		agentState, err := loadAgentState(session.AgentStateFile)
+		if modelFilter != "" {
+			if session.AgentStateFile == "" {
+				continue
+			}
+			if err != nil {
+				if os.IsNotExist(err) {
+					continue
+				}
+				return nil, fmt.Errorf("could not load agent state for session %s: %w", session.Name, err)
+			}
+			if agentState.Model != modelFilter {
+				continue
+			}
+		}
+
 		stats.TotalSessions++
 		stats.StatusCounts[session.Status]++
 
@@ -58,9 +97,7 @@ func calculateStats(sm ISessionManager) (*AggregateStats, error) {
 			continue
 		}
 
-		agentState, err := loadAgentState(session.AgentStateFile)
 		if err != nil {
-			// If the agent state file doesn't exist, we can just skip it
 			if os.IsNotExist(err) {
 				continue
 			}
@@ -70,8 +107,6 @@ func calculateStats(sm ISessionManager) (*AggregateStats, error) {
 		stats.TotalTokens += agentState.TokenUsage.TotalTokens
 		stats.TotalPromptTokens += agentState.TokenUsage.TotalPromptTokens
 		stats.TotalResponseTokens += agentState.TokenUsage.TotalResponseTokens
-
-		// Calculate cost
 		stats.TotalCost += agent.CalculateCost(agentState.Model, agentState.TokenUsage)
 	}
 
@@ -101,4 +136,7 @@ func displayStats(stats *AggregateStats) {
 
 func init() {
 	rootCmd.AddCommand(statsCmd)
+	statsCmd.Flags().String("status", "", "Filter by session status (e.g., COMPLETED, FAILED)")
+	statsCmd.Flags().String("since", "", "Filter sessions started within a duration (e.g., 24h, 7d)")
+	statsCmd.Flags().String("model", "", "Filter by agent model name")
 }
