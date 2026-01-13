@@ -91,7 +91,8 @@ func untrackFiles(repoPath string, files []string) error {
 		trackedFiles := strings.Split(strings.TrimSpace(string(output)), "\n")
 		if len(trackedFiles) > 0 {
 			// Untrack them
-			rmCmd := exec.Command("git", append([]string{"rm", "--cached", "-f"}, trackedFiles...)...)
+			// Use "--" to ensure filenames starting with "-" are treated as files, not flags
+			rmCmd := exec.Command("git", append([]string{"rm", "--cached", "-f", "--"}, trackedFiles...)...)
 			rmCmd.Dir = repoPath
 			if err := rmCmd.Run(); err != nil {
 				return fmt.Errorf("failed to untrack files %v: %w", trackedFiles, err)
