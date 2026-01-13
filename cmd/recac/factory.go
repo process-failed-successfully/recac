@@ -7,9 +7,20 @@ import (
 	"recac/internal/agent"
 	"recac/internal/git"
 	"recac/internal/jira"
+	"recac/internal/runner"
 	"strings"
 
 	"github.com/spf13/viper"
+)
+
+var (
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return runner.NewSessionManager()
+	}
+
+	gitClientFactory = func() IGitClient {
+		return git.NewClient()
+	}
 )
 
 // getJiraClient initializes a Jira client using config or environment variables

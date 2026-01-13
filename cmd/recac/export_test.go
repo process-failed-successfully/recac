@@ -45,7 +45,7 @@ func TestExportCmd(t *testing.T) {
 	defer func() { gitClientFactory = originalGitFactory }()
 	gitClientFactory = func() IGitClient {
 		return &MockGitClient{
-			DiffFunc: func(workspace, fromSHA, toSHA string) (string, error) {
+			DiffFunc: func(repoPath, commitA, commitB string) (string, error) {
 				return "mock diff content", nil
 			},
 		}

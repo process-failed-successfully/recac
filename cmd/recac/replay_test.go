@@ -1,7 +1,6 @@
 package main
 
 import (
-	"os"
 	"recac/internal/runner"
 	"testing"
 
@@ -11,9 +10,11 @@ import (
 
 func TestReplayCmd(t *testing.T) {
 	// Setup: Create a mock session manager and a completed session
-	mockSM := NewMockSessionManager()
-	mockSM.IsProcessRunningFunc = func(pid int) bool {
-		return false // Assume process is not running for completed sessions
+	mockSM := &MockSessionManager{
+		Sessions: make(map[string]*runner.SessionState),
+		IsProcessRunningFunc: func(pid int) bool {
+			return false // Assume process is not running for completed sessions
+		},
 	}
 
 	originalSession := &runner.SessionState{
@@ -65,9 +66,11 @@ func TestReplayCmd(t *testing.T) {
 
 func TestReplayCmd_RunningSession(t *testing.T) {
 	// Setup: Create a mock session manager with a running session
-	mockSM := NewMockSessionManager()
-	mockSM.IsProcessRunningFunc = func(pid int) bool {
-		return pid == 12345 // This is the running process
+	mockSM := &MockSessionManager{
+		Sessions: make(map[string]*runner.SessionState),
+		IsProcessRunningFunc: func(pid int) bool {
+			return pid == 12345 // This is the running process
+		},
 	}
 	runningSession := &runner.SessionState{
 		Name:    "running-session",
@@ -171,16 +174,3 @@ func TestFindNextReplayName(t *testing.T) {
 
 // This test setup is now simplified by using the shared helpers.
 // A mock implementation of ISessionManager is defined in test_helpers_test.go.
-
-func setupRealSM(t *testing.T) (string, ISessionManager, func()) {
-	dir, err := os.MkdirTemp("", "replay-test-")
-	require.NoError(t, err)
-	sm, err := runner.NewSessionManagerWithDir(dir)
-	require.NoError(t, err)
-
-	cleanup := func() {
-		os.RemoveAll(dir)
-	}
-
-	return dir, sm, cleanup
-}

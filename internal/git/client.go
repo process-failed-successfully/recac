@@ -375,22 +375,28 @@ func (c *Client) DeleteRemoteBranch(dir, remote, branch string) error {
 }
 
 // Diff returns the diff between two commits.
-func (c *Client) Diff(dir, startCommit, endCommit string) (string, error) {
-	cmd := exec.Command("git", "diff", startCommit, endCommit)
-	cmd.Dir = dir
+func (c *Client) Diff(repoPath, commitA, commitB string) (string, error) {
+	cmd := exec.Command("git", "diff", commitA, commitB)
+	cmd.Dir = repoPath
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
 	if err := cmd.Run(); err != nil {
+		// Exit code 1 can mean differences were found, which is not an error for diff.
+		// However, a clean run returns 0. Let's return the output even on error.
+		// A true error (e.g. bad commit) will have a different exit code (e.g. 128).
+		if _, ok := err.(*exec.ExitError); ok {
+			return out.String(), nil
+		}
 		return "", fmt.Errorf("git diff failed: %w\nOutput: %s", err, out.String())
 	}
 	return out.String(), nil
 }
 
 // DiffStat returns the stat summary of a diff between two commits.
-func (c *Client) DiffStat(dir, startCommit, endCommit string) (string, error) {
-	cmd := exec.Command("git", "diff", "--stat", startCommit, endCommit)
-	cmd.Dir = dir
+func (c *Client) DiffStat(repoPath, commitA, commitB string) (string, error) {
+	cmd := exec.Command("git", "diff", "--stat", commitA, commitB)
+	cmd.Dir = repoPath
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out // Redirect stderr to stdout to capture potential errors
