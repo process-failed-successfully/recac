@@ -1,13 +1,11 @@
 package main
 
 import (
-	"regexp"
+	"recac/internal/jira"
 	"testing"
 )
 
 func TestRepoRegex(t *testing.T) {
-	repoRegex := regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
-
 	tests := []struct {
 		description string
 		wantMatch   bool
@@ -34,7 +32,7 @@ func TestRepoRegex(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		matches := repoRegex.FindStringSubmatch(tt.description)
+		matches := jira.RepoRegex.FindStringSubmatch(tt.description)
 		gotMatch := len(matches) > 1
 		if gotMatch != tt.wantMatch {
 			t.Errorf("MatchString(%q) = %v, want %v", tt.description, gotMatch, tt.wantMatch)

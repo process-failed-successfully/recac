@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"sync"
 	"syscall"
@@ -558,8 +557,7 @@ func processJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.C
 		}
 	}
 
-	repoRegex := regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
-	matches := repoRegex.FindStringSubmatch(description)
+	matches := jira.RepoRegex.FindStringSubmatch(description)
 	if len(matches) <= 1 {
 		logger.Error("Error: No repository URL found in ticket description (Repo: https://...)")
 		exit(1)

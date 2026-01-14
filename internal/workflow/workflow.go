@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -21,8 +20,6 @@ import (
 
 	"github.com/spf13/viper"
 )
-
-var repoRegex = regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
 
 // SessionConfig holds all parameters for a RECAC session
 type SessionConfig struct {
@@ -189,7 +186,7 @@ func ProcessJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.C
 
 	repoURL := cfg.RepoURL
 	if repoURL == "" {
-		matches := repoRegex.FindStringSubmatch(description)
+		matches := jira.RepoRegex.FindStringSubmatch(description)
 		if len(matches) <= 1 {
 			logger.Error("Error: No repository URL found in ticket description (Repo: https://...)")
 			return fmt.Errorf("no repo url found")

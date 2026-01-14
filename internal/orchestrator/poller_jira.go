@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"recac/internal/jira"
-	"regexp"
 	"strings"
 )
 
@@ -128,10 +127,8 @@ func (p *JiraPoller) UpdateStatus(ctx context.Context, item WorkItem, status str
 	return nil
 }
 
-var repoRegex = regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
-
 func extractRepoURL(text string) string {
-	matches := repoRegex.FindStringSubmatch(text)
+	matches := jira.RepoRegex.FindStringSubmatch(text)
 	if len(matches) > 1 {
 		return strings.TrimSuffix(matches[1], ".git")
 	}
