@@ -10,7 +10,6 @@ import (
 	"recac/internal/agent"
 	"recac/internal/agent/prompts"
 	"recac/internal/jira"
-	"regexp"
 
 	"time"
 
@@ -288,13 +287,12 @@ func generateTickets(ctx context.Context, specContent, projectKey string, allLab
 	fmt.Printf("Found %d top-level items. Creating tickets...\n", len(tickets))
 
 	// Validate repository in descriptions
-	repoRegex := regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
 	for _, epicNode := range tickets {
-		if !repoRegex.MatchString(epicNode.Description) {
+		if !jira.RepoRegex.MatchString(epicNode.Description) {
 			return fmt.Errorf("Epic '%s' description missing repository URL (Repo: https://...)", epicNode.Title)
 		}
 		for _, storyNode := range epicNode.Children {
-			if !repoRegex.MatchString(storyNode.Description) {
+			if !jira.RepoRegex.MatchString(storyNode.Description) {
 				return fmt.Errorf("Story '%s' description missing repository URL (Repo: https://...)", storyNode.Title)
 			}
 		}
