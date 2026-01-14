@@ -43,6 +43,9 @@ func init() {
 	if psCmd.Flags().Lookup("status") == nil {
 		psCmd.Flags().String("status", "", "Filter sessions by status (e.g., 'running', 'completed', 'error')")
 	}
+	if psCmd.Flags().Lookup("since") == nil {
+		psCmd.Flags().String("since", "", "Filter sessions started after a specific duration (e.g., '1h', '30m') or timestamp ('2006-01-02')")
+	}
 	if psCmd.Flags().Lookup("show-diff") == nil {
 		psCmd.Flags().Bool("show-diff", false, "Show git diff for the most recent or specified session")
 	}
@@ -118,6 +121,43 @@ var psCmd = &cobra.Command{
 			var filteredSessions []unifiedSession
 			for _, s := range allSessions {
 				if strings.EqualFold(s.Status, statusFilter) {
+					filteredSessions = append(filteredSessions, s)
+				}
+			}
+			allSessions = filteredSessions
+		}
+
+		// --- Filter by Time ---
+		sinceFilter, _ := cmd.Flags().GetString("since")
+		if sinceFilter != "" {
+			var sinceTime time.Time
+			var err error
+
+			// Try parsing as a relative duration (e.g., "1h", "30m")
+			duration, err := time.ParseDuration(sinceFilter)
+			if err == nil {
+				sinceTime = time.Now().Add(-duration)
+			} else {
+				// If not a duration, try parsing as an absolute timestamp
+				// Supports RFC3339 ("2006-01-02T15:04:05Z07:00") and a simple date ("2006-01-02")
+				layouts := []string{time.RFC3339, "2006-01-02"}
+				parsed := false
+				for _, layout := range layouts {
+					t, err := time.Parse(layout, sinceFilter)
+					if err == nil {
+						sinceTime = t
+						parsed = true
+						break
+					}
+				}
+				if !parsed {
+					return fmt.Errorf("invalid 'since' value %q: must be a duration (e.g., '2h') or a timestamp (e.g., '2006-01-02')", sinceFilter)
+				}
+			}
+
+			var filteredSessions []unifiedSession
+			for _, s := range allSessions {
+				if s.StartTime.After(sinceTime) {
 					filteredSessions = append(filteredSessions, s)
 				}
 			}

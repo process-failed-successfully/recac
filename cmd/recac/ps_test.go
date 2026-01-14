@@ -255,3 +255,95 @@ func TestPsCommandWithStatusFilter(t *testing.T) {
 		assert.Contains(t, output, "session-completed-2")
 	})
 }
+
+func TestPsCommandWithSinceFilter(t *testing.T) {
+	tempDir := t.TempDir()
+	sessionsDir := filepath.Join(tempDir, "sessions")
+	require.NoError(t, os.Mkdir(sessionsDir, 0755))
+
+	originalFactory := sessionManagerFactory
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return runner.NewSessionManagerWithDir(sessionsDir)
+	}
+	defer func() { sessionManagerFactory = originalFactory }()
+
+	sm, err := sessionManagerFactory()
+	require.NoError(t, err)
+
+	now := time.Now()
+	sessionRecent := &runner.SessionState{Name: "session-recent", Status: "completed", StartTime: now.Add(-5 * time.Minute)}
+	sessionHourOld := &runner.SessionState{Name: "session-hour-old", Status: "completed", StartTime: now.Add(-2 * time.Hour)}
+	sessionDayOld := &runner.SessionState{Name: "session-day-old", Status: "error", StartTime: now.Add(-25 * time.Hour)}
+
+	require.NoError(t, sm.SaveSession(sessionRecent))
+	require.NoError(t, sm.SaveSession(sessionHourOld))
+	require.NoError(t, sm.SaveSession(sessionDayOld))
+
+	testCases := []struct {
+		name           string
+		sinceValue     string
+		expectError    bool
+		expectedToContain []string
+		expectedToOmit  []string
+	}{
+		{
+			name:           "relative duration '1h'",
+			sinceValue:     "1h",
+			expectError:    false,
+			expectedToContain: []string{"session-recent"},
+			expectedToOmit:  []string{"session-hour-old", "session-day-old"},
+		},
+		{
+			name:           "relative duration '3h'",
+			sinceValue:     "3h",
+			expectError:    false,
+			expectedToContain: []string{"session-recent", "session-hour-old"},
+			expectedToOmit:  []string{"session-day-old"},
+		},
+		{
+			name:           "absolute date",
+			sinceValue:     now.Add(-90 * time.Minute).Format("2006-01-02T15:04:05Z07:00"),
+			expectError:    false,
+			expectedToContain: []string{"session-recent"},
+			expectedToOmit:  []string{"session-hour-old", "session-day-old"},
+		},
+		{
+			name:           "simple absolute date",
+			sinceValue:     now.Add(-3 * time.Hour).Format("2006-01-02"),
+			expectError:    false,
+			expectedToContain: []string{"session-recent", "session-hour-old"},
+			expectedToOmit:  []string{"session-day-old"},
+		},
+		{
+			name:           "no sessions match",
+			sinceValue:     "1m",
+			expectError:    false,
+			expectedToContain: []string{"No sessions found."},
+			expectedToOmit:  []string{"session-recent", "session-hour-old", "session-day-old"},
+		},
+		{
+			name:        "invalid since value",
+			sinceValue:  "not-a-date",
+			expectError: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			output, err := executeCommand(rootCmd, "ps", "--since", tc.sinceValue)
+
+			if tc.expectError {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "invalid 'since' value")
+			} else {
+				require.NoError(t, err)
+				for _, expected := range tc.expectedToContain {
+					assert.Contains(t, output, expected)
+				}
+				for _, omit := range tc.expectedToOmit {
+					assert.NotContains(t, output, omit)
+				}
+			}
+		})
+	}
+}
