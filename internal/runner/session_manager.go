@@ -41,8 +41,14 @@ type SessionState struct {
 
 // SessionManager handles background session management
 type SessionManager struct {
+	baseDir             string
 	sessionsDir         string
 	archivedSessionsDir string
+}
+
+// GetBaseDir returns the base directory for the session manager.
+func (sm *SessionManager) GetBaseDir() string {
+	return sm.baseDir
 }
 
 // NewSessionManager creates a new session manager
@@ -52,7 +58,8 @@ func NewSessionManager() (*SessionManager, error) {
 		return nil, fmt.Errorf("failed to get home directory: %w", err)
 	}
 
-	sessionsDir := filepath.Join(homeDir, ".recac", "sessions")
+	baseDir := filepath.Join(homeDir, ".recac")
+	sessionsDir := filepath.Join(baseDir, "sessions")
 	archivedSessionsDir := filepath.Join(sessionsDir, "archived")
 
 	if err := os.MkdirAll(sessionsDir, 0700); err != nil {
@@ -63,6 +70,7 @@ func NewSessionManager() (*SessionManager, error) {
 	}
 
 	sm := &SessionManager{
+		baseDir:             baseDir,
 		sessionsDir:         sessionsDir,
 		archivedSessionsDir: archivedSessionsDir,
 	}
@@ -71,9 +79,10 @@ func NewSessionManager() (*SessionManager, error) {
 
 // NewSessionManagerWithDir creates a new session manager with a specific directory.
 func NewSessionManagerWithDir(dir string) (*SessionManager, error) {
-	archivedSessionsDir := filepath.Join(dir, "archived")
+	sessionsDir := filepath.Join(dir, "sessions")
+	archivedSessionsDir := filepath.Join(sessionsDir, "archived")
 
-	if err := os.MkdirAll(dir, 0700); err != nil {
+	if err := os.MkdirAll(sessionsDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create sessions directory: %w", err)
 	}
 	if err := os.MkdirAll(archivedSessionsDir, 0700); err != nil {
@@ -81,7 +90,8 @@ func NewSessionManagerWithDir(dir string) (*SessionManager, error) {
 	}
 
 	sm := &SessionManager{
-		sessionsDir:         dir,
+		baseDir:             dir,
+		sessionsDir:         sessionsDir,
 		archivedSessionsDir: archivedSessionsDir,
 	}
 	return sm, nil
