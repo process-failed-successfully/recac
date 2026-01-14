@@ -15,15 +15,17 @@ import (
 
 // unifiedSession represents both a local session and a remote K8s pod
 type unifiedSession struct {
-	Name      string
-	Status    string
-	StartTime time.Time
-	EndTime   time.Time
-	Duration  time.Duration
-	Location  string
-	Cost      float64
-	HasCost   bool
-	Tokens    agent.TokenUsage
+	Name         string
+	Status       string
+	StartTime    time.Time
+	EndTime      time.Time
+	LastActivity time.Time
+	Duration     time.Duration
+	Location     string
+	Goal         string
+	Cost         float64
+	HasCost      bool
+	Tokens       agent.TokenUsage
 }
 
 func init() {
@@ -77,12 +79,22 @@ var psCmd = &cobra.Command{
 				EndTime:   s.EndTime,
 				Location:  "local",
 			}
-			// Calculate cost and tokens for local sessions
+			// Get additional info from agent state
 			agentState, err := loadAgentState(s.AgentStateFile)
 			if err == nil {
+				// Cost
 				us.Cost = agent.CalculateCost(agentState.Model, agentState.TokenUsage)
 				us.Tokens = agentState.TokenUsage
 				us.HasCost = true
+				// Last Activity
+				us.LastActivity = agentState.UpdatedAt
+				// Goal
+				for _, msg := range agentState.History {
+					if msg.Role == "user" {
+						us.Goal = msg.Content
+						break
+					}
+				}
 			}
 			allSessions = append(allSessions, us)
 		}
@@ -150,30 +162,33 @@ var psCmd = &cobra.Command{
 		// --- Print Output ---
 		w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 3, ' ', 0)
 		showCosts, _ := cmd.Flags().GetBool("costs")
-		header := "NAME\tSTATUS\tLOCATION\tSTARTED\tDURATION"
+		header := "NAME\tGOAL\tSTATUS\tLOCATION\tAGE\tLAST ACTIVITY"
 		if showCosts {
-			header += "\tPROMPT_TOKENS\tCOMPLETION_TOKENS\tTOTAL_TOKENS\tCOST"
+			header += "\tCOST"
 		}
 		fmt.Fprintln(w, header)
 
 		for _, s := range allSessions {
-			started := s.StartTime.Format("2006-01-02 15:04:05")
-			var duration string
-			if s.EndTime.IsZero() {
-				duration = time.Since(s.StartTime).Round(time.Second).String()
-			} else {
-				duration = s.EndTime.Sub(s.StartTime).Round(time.Second).String()
+			age := formatSince(s.StartTime)
+			lastActivity := "N/A"
+			if !s.LastActivity.IsZero() {
+				lastActivity = formatSince(s.LastActivity)
 			}
 
-			baseOutput := fmt.Sprintf("%s\t%s\t%s\t%s\t%s",
-				s.Name, s.Status, s.Location, started, duration)
+			// Truncate goal for display
+			goal := s.Goal
+			if len(goal) > 50 {
+				goal = goal[:47] + "..."
+			}
+
+			baseOutput := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s",
+				s.Name, goal, s.Status, s.Location, age, lastActivity)
 
 			if showCosts {
 				if s.HasCost {
-					fmt.Fprintf(w, "%s\t%d\t%d\t%d\t$%.6f\n",
-						baseOutput, s.Tokens.TotalPromptTokens, s.Tokens.TotalResponseTokens, s.Tokens.TotalTokens, s.Cost)
+					fmt.Fprintf(w, "%s\t$%.6f\n", baseOutput, s.Cost)
 				} else {
-					fmt.Fprintf(w, "%s\tN/A\tN/A\tN/A\tN/A\n", baseOutput)
+					fmt.Fprintf(w, "%s\tN/A\n", baseOutput)
 				}
 			} else {
 				fmt.Fprintf(w, "%s\n", baseOutput)
@@ -227,4 +242,31 @@ func handleSingleSessionDiff(cmd *cobra.Command, sm ISessionManager, sessionName
 
 	cmd.Println(diff)
 	return nil
+}
+
+// formatSince returns a human-readable string representing the time elapsed since t.
+func formatSince(t time.Time) string {
+	if t.IsZero() {
+		return "N/A"
+	}
+
+	since := time.Since(t)
+
+	if since.Hours() >= 24*30 {
+		months := int(since.Hours() / (24 * 30))
+		return fmt.Sprintf("%dmo ago", months)
+	}
+	if since.Hours() >= 24 {
+		days := int(since.Hours() / 24)
+		return fmt.Sprintf("%dd ago", days)
+	}
+	if since.Minutes() >= 60 {
+		hours := int(since.Minutes() / 60)
+		return fmt.Sprintf("%dh ago", hours)
+	}
+	if since.Seconds() >= 60 {
+		minutes := int(since.Seconds() / 60)
+		return fmt.Sprintf("%dm ago", minutes)
+	}
+	return fmt.Sprintf("%ds ago", int(since.Seconds()))
 }

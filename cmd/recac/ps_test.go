@@ -255,3 +255,66 @@ func TestPsCommandWithStatusFilter(t *testing.T) {
 		assert.Contains(t, output, "session-completed-2")
 	})
 }
+
+func TestPsCommandWithRichOutput(t *testing.T) {
+	tempDir := t.TempDir()
+	sessionsDir := filepath.Join(tempDir, "sessions")
+	require.NoError(t, os.Mkdir(sessionsDir, 0755))
+
+	originalFactory := sessionManagerFactory
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return runner.NewSessionManagerWithDir(sessionsDir)
+	}
+	defer func() { sessionManagerFactory = originalFactory }()
+
+	sm, err := sessionManagerFactory()
+	require.NoError(t, err)
+
+	// Create mock session and agent state
+	sessionName := "rich-session"
+	agentStateFile := filepath.Join(sessionsDir, "rich-session-agent-state.json")
+	longGoal := "This is a very long goal that should definitely be truncated in the final output."
+
+	session := &runner.SessionState{
+		Name:           sessionName,
+		Status:         "running",
+		StartTime:      time.Now().Add(-2 * time.Hour), // ~2h ago
+		AgentStateFile: agentStateFile,
+	}
+
+	agentState := &agent.State{
+		Model: "gemini-pro",
+		History: []agent.Message{
+			{Role: "user", Content: longGoal, Timestamp: time.Now().Add(-10 * time.Minute)},
+			{Role: "assistant", Content: "Okay, I will do that.", Timestamp: time.Now().Add(-9 * time.Minute)},
+		},
+		UpdatedAt: time.Now().Add(-5 * time.Minute), // ~5m ago
+	}
+
+	stateData, err := json.Marshal(agentState)
+	require.NoError(t, err)
+	err = os.WriteFile(agentStateFile, stateData, 0644)
+	require.NoError(t, err)
+
+	err = sm.SaveSession(session)
+	require.NoError(t, err)
+
+	// Execute ps command
+	output, err := executeCommand(rootCmd, "ps")
+	require.NoError(t, err)
+
+	// --- Assertions ---
+
+	// Check headers
+	require.Regexp(t, `NAME\s+GOAL\s+STATUS\s+LOCATION\s+AGE\s+LAST ACTIVITY`, output)
+
+	// Check session name
+	require.Contains(t, output, sessionName)
+
+	// Check truncated goal
+	require.Contains(t, output, "This is a very long goal that should definitely...")
+
+	// Check age and last activity (using regexp to be flexible with exact numbers)
+	assert.Regexp(t, `2h ago`, output)
+	assert.Regexp(t, `5m ago`, output)
+}
