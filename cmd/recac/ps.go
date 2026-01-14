@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"recac/internal/agent"
 	"recac/internal/k8s"
-	"sort"
-	"strings"
 	"recac/internal/model"
 	"recac/internal/ui"
+	"recac/internal/utils"
+	"sort"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -127,9 +128,9 @@ var psCmd = &cobra.Command{
 		fmt.Fprintln(w, header)
 
 		for _, s := range allSessions {
-			lastUsed := formatSince(s.LastActivity)
+			lastUsed := utils.FormatSince(s.LastActivity)
 			if s.Location == "k8s" { // K8s pods don't have activity, use start time
-				lastUsed = formatSince(s.StartTime)
+				lastUsed = utils.FormatSince(s.StartTime)
 			}
 
 			// Truncate goal for better display
@@ -271,7 +272,7 @@ func getUnifiedSessions(cmd *cobra.Command, filters model.PsFilters) ([]model.Un
 
 	// --- Filter by Stale ---
 	if filters.Stale != "" {
-		duration, err := parseStaleDuration(filters.Stale)
+		duration, err := utils.ParseStaleDuration(filters.Stale)
 		if err != nil {
 			return nil, fmt.Errorf("invalid 'stale' value %q: %w", filters.Stale, err)
 		}
@@ -348,55 +349,3 @@ func handleSingleSessionDiff(cmd *cobra.Command, sm ISessionManager, sessionName
 	return nil
 }
 
-// formatSince returns a human-readable string representing the time elapsed since t.
-func formatSince(t time.Time) string {
-	if t.IsZero() {
-		return "never"
-	}
-
-	const (
-		day  = 24 * time.Hour
-		week = 7 * day
-	)
-
-	since := time.Since(t)
-	if since < time.Minute {
-		return fmt.Sprintf("%ds ago", int(since.Seconds()))
-	}
-	if since < time.Hour {
-		return fmt.Sprintf("%dm ago", int(since.Minutes()))
-	}
-	if since < day {
-		return fmt.Sprintf("%dh ago", int(since.Hours()))
-	}
-	if since < week {
-		return fmt.Sprintf("%dd ago", int(since.Hours()/24))
-	}
-	// Fallback to absolute date for longer durations
-	return t.Format("2006-01-02")
-}
-
-// parseStaleDuration parses a duration string like "7d" or "24h" into a time.Duration.
-// It's more flexible than time.ParseDuration by supporting days.
-func parseStaleDuration(durationStr string) (time.Duration, error) {
-	if len(durationStr) < 2 {
-		return 0, fmt.Errorf("duration string too short")
-	}
-
-	unit := durationStr[len(durationStr)-1]
-	valueStr := durationStr[:len(durationStr)-1]
-	value, err := time.ParseDuration(valueStr + "h") // Default to hours for parsing
-	if err != nil {
-		return 0, fmt.Errorf("invalid duration value: %w", err)
-	}
-
-	switch unit {
-	case 'd':
-		return value * 24, nil
-	case 'h':
-		return value, nil
-	default:
-		// Fallback to time.ParseDuration for standard units (m, s, etc.)
-		return time.ParseDuration(durationStr)
-	}
-}
