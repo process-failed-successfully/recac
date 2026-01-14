@@ -231,6 +231,7 @@ var loadAgentState = func(filePath string) (*agent.State, error) {
 	}
 	return &state, nil
 }
+
 func fallbackDiff(cmd *cobra.Command, file1, file2 string) error {
 	content1, err1 := os.ReadFile(file1)
 	if err1 != nil {

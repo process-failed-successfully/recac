@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"recac/internal/model"
+	"recac/internal/utils"
 	"strings"
 	"time"
 
@@ -100,9 +101,9 @@ func (m psDashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *psDashboardModel) updateTableRows() {
 	rows := []table.Row{}
 	for _, s := range m.sessions {
-		lastUsed := formatSince(s.LastActivity)
+		lastUsed := utils.FormatSince(s.LastActivity)
 		if s.Location == "k8s" {
-			lastUsed = formatSince(s.StartTime)
+			lastUsed = utils.FormatSince(s.StartTime)
 		}
 		goal := s.Goal
 		if len(goal) > 57 {
@@ -153,24 +154,3 @@ var StartPsDashboard = func() error {
 	return nil
 }
 
-// formatSince returns a human-readable string representing the time elapsed since t.
-// This is duplicated from ps.go to avoid package cycle.
-func formatSince(t time.Time) string {
-	if t.IsZero() {
-		return "never"
-	}
-	since := time.Since(t)
-	if since < time.Minute {
-		return fmt.Sprintf("%ds ago", int(since.Seconds()))
-	}
-	if since < time.Hour {
-		return fmt.Sprintf("%dm ago", int(since.Minutes()))
-	}
-	if since < 24*time.Hour {
-		return fmt.Sprintf("%dh ago", int(since.Hours()))
-	}
-	if since < 7*24*time.Hour {
-		return fmt.Sprintf("%dd ago", int(since.Hours()/24))
-	}
-	return t.Format("2006-01-02")
-}
