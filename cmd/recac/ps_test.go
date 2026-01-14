@@ -330,6 +330,9 @@ func TestPsCommandWithSinceFilter(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			// Re-initialize the command before each test run
+			rootCmd, _, _ := newRootCmd()
+			rootCmd.AddCommand(newPsCmd())
 			output, err := executeCommand(rootCmd, "ps", "--since", tc.sinceValue)
 
 			if tc.expectError {
