@@ -217,8 +217,22 @@ func (m *MockSessionManager) ListArchivedSessions() ([]*runner.SessionState, err
 }
 
 // executeCommand executes a cobra command and returns its output.
-func executeCommand(root *cobra.Command, args ...string) (string, error) {
-	resetFlags(root)
+func executeCommand(rootCmd *cobra.Command, args ...string) (string, error) {
+	// Re-create the ps command for each test run to avoid flag conflicts
+	var psCmd *cobra.Command
+	for i, cmd := range rootCmd.Commands() {
+		if cmd.Use == "ps" {
+			psCmd = newPsCmd()
+			rootCmd.RemoveCommand(cmd)
+			rootCmd.AddCommand(psCmd)
+			break
+		}
+		if i == len(rootCmd.Commands())-1 {
+			panic("ps command not found")
+		}
+	}
+
+	resetFlags(rootCmd)
 	// Mock exit
 	oldExit := exit
 	exit = func(code int) {
@@ -236,13 +250,13 @@ func executeCommand(root *cobra.Command, args ...string) (string, error) {
 			panic(r) // Re-panic actual panics
 		}
 	}()
-	root.SetArgs(args)
+	rootCmd.SetArgs(args)
 	b := new(bytes.Buffer)
-	root.SetOut(b)
-	root.SetErr(b)
+	rootCmd.SetOut(b)
+	rootCmd.SetErr(b)
 	// Mock Stdin to avoid hanging on interactive prompts (e.g. wizard)
-	root.SetIn(bytes.NewBufferString(""))
-	err := root.Execute()
+	rootCmd.SetIn(bytes.NewBufferString(""))
+	err := rootCmd.Execute()
 	return b.String(), err
 }
 

@@ -53,6 +53,76 @@ func TestPsAndListCommands(t *testing.T) {
 	}
 }
 
+func TestPsCommandWithLastUsedAndStaleFilter(t *testing.T) {
+	tempDir := t.TempDir()
+	sessionsDir := filepath.Join(tempDir, "sessions")
+	require.NoError(t, os.Mkdir(sessionsDir, 0755))
+
+	originalFactory := sessionManagerFactory
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return runner.NewSessionManagerWithDir(sessionsDir)
+	}
+	defer func() { sessionManagerFactory = originalFactory }()
+
+	sm, err := sessionManagerFactory()
+	require.NoError(t, err)
+
+	now := time.Now()
+	sessionRunning := &runner.SessionState{Name: "session-running", Status: "running", StartTime: now.Add(-1 * time.Minute)}
+	sessionStoppedRecent := &runner.SessionState{Name: "session-stopped-recent", Status: "stopped", StartTime: now.Add(-10 * time.Minute), EndTime: now.Add(-5 * time.Minute)}
+	sessionStoppedStale := &runner.SessionState{Name: "session-stopped-stale", Status: "completed", StartTime: now.Add(-3 * time.Hour), EndTime: now.Add(-2 * time.Hour)}
+	sessionStoppedVeryStale := &runner.SessionState{Name: "session-stopped-very-stale", Status: "completed", StartTime: now.Add(-10 * 24 * time.Hour), EndTime: now.Add(-8 * 24 * time.Hour)}
+
+	require.NoError(t, sm.SaveSession(sessionRunning))
+	require.NoError(t, sm.SaveSession(sessionStoppedRecent))
+	require.NoError(t, sm.SaveSession(sessionStoppedStale))
+	require.NoError(t, sm.SaveSession(sessionStoppedVeryStale))
+
+	t.Run("default output includes LAST USED column", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "ps")
+		require.NoError(t, err)
+
+		assert.Contains(t, output, "LAST USED")
+		// Check for human-readable formats
+		assert.Regexp(t, `session-running\s+completed\s+.*\s+N/A`, output) // Running session becomes completed by ps
+		assert.Regexp(t, `session-stopped-recent\s+stopped\s+.*\s+\dm ago`, output)
+		assert.Regexp(t, `session-stopped-stale\s+completed\s+.*\s+\dh ago`, output)
+		assert.Regexp(t, `session-stopped-very-stale\s+completed\s+.*\s+\dd ago`, output)
+	})
+
+	t.Run("stale filter with 1h duration", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "ps", "--stale", "1h")
+		require.NoError(t, err)
+
+		assert.NotContains(t, output, "session-running")
+		assert.NotContains(t, output, "session-stopped-recent")
+		assert.Contains(t, output, "session-stopped-stale")
+		assert.Contains(t, output, "session-stopped-very-stale")
+	})
+
+	t.Run("stale filter with 7d duration", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "ps", "--stale", "7d")
+		require.NoError(t, err)
+
+		assert.NotContains(t, output, "session-running")
+		assert.NotContains(t, output, "session-stopped-recent")
+		assert.NotContains(t, output, "session-stopped-stale")
+		assert.Contains(t, output, "session-stopped-very-stale")
+	})
+
+	t.Run("stale filter with no matches", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "ps", "--stale", "15d")
+		require.NoError(t, err)
+		assert.Contains(t, output, "No sessions found.")
+	})
+
+	t.Run("invalid stale value returns error", func(t *testing.T) {
+		_, err := executeCommand(rootCmd, "ps", "--stale", "invalid-duration")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid 'stale' value")
+	})
+}
+
 func TestPsCommandWithCosts(t *testing.T) {
 	tempDir := t.TempDir()
 	sessionsDir := filepath.Join(tempDir, "sessions")
