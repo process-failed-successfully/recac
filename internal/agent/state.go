@@ -16,6 +16,7 @@ type State struct {
 	History       []Message              `json:"history"`
 	Metadata      map[string]interface{} `json:"metadata"`
 	UpdatedAt     time.Time              `json:"updated_at"`
+	LastActivity  time.Time              `json:"last_activity"`            // Timestamp of the last user/agent interaction
 	MaxTokens     int                    `json:"max_tokens,omitempty"`     // Maximum token limit for context window
 	CurrentTokens int                    `json:"current_tokens,omitempty"` // Current token count in context
 	TokenUsage    TokenUsage             `json:"token_usage,omitempty"`    // Token usage statistics
@@ -84,6 +85,11 @@ func (sm *StateManager) loadState() (State, error) {
 // saveState writes the state to disk (internal, no lock)
 func (sm *StateManager) saveState(state State) error {
 	state.UpdatedAt = time.Now()
+
+	// Update LastActivity to the timestamp of the last message
+	if len(state.History) > 0 {
+		state.LastActivity = state.History[len(state.History)-1].Timestamp
+	}
 
 	// Truncate history to avoid infinite growth and context overflow
 	const maxHistoryEntries = 50

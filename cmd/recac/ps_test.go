@@ -53,6 +53,59 @@ func TestPsAndListCommands(t *testing.T) {
 	}
 }
 
+func TestPsCmd_NewColumns(t *testing.T) {
+	tempDir := t.TempDir()
+	sessionsDir := filepath.Join(tempDir, "sessions")
+	require.NoError(t, os.Mkdir(sessionsDir, 0755))
+
+	// --- Setup ---
+	sm, cleanup := setupTestSessionManager(t)
+	defer cleanup()
+
+	sessionName := "test-session-goal"
+	agentStateFile := filepath.Join(sm.SessionsDir(), "test-session-goal-agent.json")
+	lastActivityTime := time.Now().Add(-5 * time.Minute)
+
+	// Create a mock session
+	mockSession := &runner.SessionState{
+		Name:           sessionName,
+		Status:         "completed",
+		StartTime:      time.Now().Add(-10 * time.Minute),
+		AgentStateFile: agentStateFile,
+	}
+	require.NoError(t, sm.SaveSession(mockSession))
+
+	// Create a mock agent state with a goal
+	mockAgentState := &agent.State{
+		LastActivity: lastActivityTime,
+		History: []agent.Message{
+			{Role: "user", Content: "This is the goal of the session.\nThis is a second line.", Timestamp: time.Now().Add(-6 * time.Minute)},
+			{Role: "assistant", Content: "I am working on it.", Timestamp: lastActivityTime},
+		},
+	}
+	stateData, err := json.Marshal(mockAgentState)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(agentStateFile, stateData, 0644))
+
+	// --- Execution ---
+	output, err := executeCommand(rootCmd, "ps")
+
+	// --- Assertions ---
+	require.NoError(t, err)
+
+	// Check for new headers
+	assert.Contains(t, output, "LAST USED")
+	assert.Contains(t, output, "GOAL")
+	assert.NotContains(t, output, "STARTED") // Old header should be gone
+	assert.NotContains(t, output, "DURATION") // Old header should be gone
+
+	// Check for new column content
+	assert.Contains(t, output, sessionName)
+	assert.Contains(t, output, "5m ago")
+	assert.Contains(t, output, "This is the goal of the session")
+	assert.NotContains(t, output, "This is a second line")
+}
+
 func TestPsCommandWithCosts(t *testing.T) {
 	tempDir := t.TempDir()
 	sessionsDir := filepath.Join(tempDir, "sessions")
