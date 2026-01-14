@@ -132,6 +132,11 @@ func (m *MockSessionManager) GetSessionPath(name string) string {
 	return fmt.Sprintf("/tmp/recac/sessions/%s.json", name)
 }
 
+func (m *MockSessionManager) DeleteSession(name string) error {
+	// For mock, this is the same as RemoveSession without force
+	return m.RemoveSession(name, false)
+}
+
 func (m *MockSessionManager) SaveSession(session *runner.SessionState) error {
 	m.Sessions[session.Name] = session
 	return nil

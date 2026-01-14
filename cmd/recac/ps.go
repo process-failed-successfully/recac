@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"recac/internal/agent"
 	"recac/internal/k8s"
+	"recac/internal/runner"
+	"recac/internal/ui"
 	"sort"
 	"strings"
 	"text/tabwriter"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
 
@@ -57,6 +60,9 @@ func init() {
 	if psCmd.Flags().Lookup("stale") == nil {
 		psCmd.Flags().String("stale", "", "Filter sessions that have been inactive for a given duration (e.g., '7d', '24h')")
 	}
+	if psCmd.Flags().Lookup("interactive") == nil {
+		psCmd.Flags().BoolP("interactive", "i", false, "Start interactive session explorer")
+	}
 }
 
 var psCmd = &cobra.Command{
@@ -66,13 +72,35 @@ var psCmd = &cobra.Command{
 	Long:    `List all active and completed local sessions and, optionally, remote Kubernetes pods.`,
 	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		var allSessions []unifiedSession
-
-		// --- Get Local Sessions ---
 		sm, err := sessionManagerFactory()
 		if err != nil {
 			return fmt.Errorf("failed to create session manager: %w", err)
 		}
+
+		// --- Handle Interactive Mode ---
+		isInteractive, _ := cmd.Flags().GetBool("interactive")
+		if isInteractive {
+			// NOTE: Interactive mode currently only supports local sessions.
+			localSessions, err := sm.ListSessions()
+			if err != nil {
+				return fmt.Errorf("failed to list local sessions for interactive mode: %w", err)
+			}
+			// Convert []*runner.SessionState to []runner.SessionState for the TUI
+			sessions := make([]runner.SessionState, len(localSessions))
+			for i, s := range localSessions {
+				sessions[i] = *s
+			}
+
+			// Pass the session manager to the TUI model
+			p := tea.NewProgram(ui.NewInteractivePsModel(sm, sessions))
+			if _, err := p.Run(); err != nil {
+				return fmt.Errorf("error running interactive session explorer: %w", err)
+			}
+			return nil
+		}
+
+		// --- Default Non-Interactive Mode ---
+		var allSessions []unifiedSession
 		localSessions, err := sm.ListSessions()
 		if err != nil {
 			return fmt.Errorf("failed to list local sessions: %w", err)

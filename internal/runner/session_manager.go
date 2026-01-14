@@ -524,6 +524,11 @@ func (sm *SessionManager) GetSessionLogs(name string) (string, error) {
 // ErrSessionRunning is returned when an operation cannot be performed on a running session without force.
 var ErrSessionRunning = fmt.Errorf("session is running")
 
+// DeleteSession removes a session if it is not running.
+func (sm *SessionManager) DeleteSession(name string) error {
+	return sm.RemoveSession(name, false)
+}
+
 // RemoveSession deletes a session's state and log files from disk.
 func (sm *SessionManager) RemoveSession(name string, force bool) error {
 	session, err := sm.LoadSession(name)
