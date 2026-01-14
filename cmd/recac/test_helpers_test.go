@@ -246,6 +246,18 @@ func executeCommand(root *cobra.Command, args ...string) (string, error) {
 	return b.String(), err
 }
 
+func executeCommandWithStderr(root *cobra.Command, args ...string) (string, string, error) {
+	resetFlags(root)
+	root.SetArgs(args)
+	outBuf := new(bytes.Buffer)
+	errBuf := new(bytes.Buffer)
+	root.SetOut(outBuf)
+	root.SetErr(errBuf)
+	root.SetIn(bytes.NewBufferString(""))
+	err := root.Execute()
+	return outBuf.String(), errBuf.String(), err
+}
+
 // resetFlags resets all flags to their default values.
 func resetFlags(cmd *cobra.Command) {
 	cmd.Flags().VisitAll(func(f *pflag.Flag) {

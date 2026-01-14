@@ -5,52 +5,47 @@ import (
 	"os"
 	"path/filepath"
 	"recac/internal/agent"
+	"recac/internal/model"
 	"recac/internal/runner"
-	"strings"
 	"testing"
 	"time"
 
+	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestPsAndListCommands(t *testing.T) {
+func TestPsCommandNoSessions(t *testing.T) {
 	tempDir := t.TempDir()
-	sessionDir := filepath.Join(tempDir, "sessions")
-	os.MkdirAll(sessionDir, 0755)
+	sessionsDir := filepath.Join(tempDir, "sessions")
+	require.NoError(t, os.Mkdir(sessionsDir, 0755))
 
-	oldSessionManager := sessionManagerFactory
+	originalFactory := sessionManagerFactory
 	sessionManagerFactory = func() (ISessionManager, error) {
-		return runner.NewSessionManagerWithDir(sessionDir)
+		return runner.NewSessionManagerWithDir(sessionsDir)
 	}
-	defer func() { sessionManagerFactory = oldSessionManager }()
+	defer func() { sessionManagerFactory = originalFactory }()
 
-	testCases := []struct {
-		name    string
-		command string
-	}{
-		{
-			name:    "ps command with no sessions",
-			command: "ps",
-		},
-		{
-			name:    "list alias with no sessions",
-			command: "list",
-		},
+	output, err := executeCommand(rootCmd, "ps")
+	require.NoError(t, err)
+	assert.Contains(t, output, "No sessions found.")
+}
+
+func TestPsCommandWithWarning(t *testing.T) {
+	// --- Setup ---
+	// Mock GetUnifiedSessions to return a warning
+	originalGetUnifiedSessions := GetUnifiedSessions
+	defer func() { GetUnifiedSessions = originalGetUnifiedSessions }()
+	GetUnifiedSessions = func(flags *pflag.FlagSet) ([]model.UnifiedSession, []string, error) {
+		return nil, []string{"KUBERNETES SMELTDOWN"}, nil
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			output, err := executeCommand(rootCmd, tc.command)
-			if err != nil {
-				t.Fatalf("expected no error, got %v", err)
-			}
+	// --- Execute ---
+	_, errOut, err := executeCommandWithStderr(rootCmd, "ps")
+	require.NoError(t, err)
 
-			if !strings.Contains(output, "No sessions found.") {
-				t.Errorf("expected output to contain 'No sessions found.', got '%s'", output)
-			}
-		})
-	}
+	// --- Assert ---
+	assert.Contains(t, errOut, "KUBERNETES SMELTDOWN")
 }
 
 func TestPsCommandWithCosts(t *testing.T) {

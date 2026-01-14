@@ -1,30 +1,13 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"recac/internal/agent"
-	"recac/internal/k8s"
-	"sort"
-	"strings"
+	"recac/internal/ui"
 	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
 )
-
-// unifiedSession represents both a local session and a remote K8s pod
-type unifiedSession struct {
-	Name      string
-	Status    string
-	StartTime time.Time
-	EndTime   time.Time
-	Duration  time.Duration
-	Location  string
-	Cost      float64
-	HasCost   bool
-	Tokens    agent.TokenUsage
-}
 
 func init() {
 	rootCmd.AddCommand(psCmd)
@@ -52,6 +35,9 @@ func init() {
 	if psCmd.Flags().Lookup("session") == nil {
 		psCmd.Flags().String("session", "", "Specify a session for --show-diff")
 	}
+	if psCmd.Flags().Lookup("watch") == nil {
+		psCmd.Flags().BoolP("watch", "w", false, "Enable real-time dashboard view")
+	}
 }
 
 var psCmd = &cobra.Command{
@@ -61,131 +47,23 @@ var psCmd = &cobra.Command{
 	Long:    `List all active and completed local sessions and, optionally, remote Kubernetes pods.`,
 	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		var allSessions []unifiedSession
+		watch, _ := cmd.Flags().GetBool("watch")
+		if watch {
+			return ui.StartPsDashboard(cmd.Flags(), GetUnifiedSessions)
+		}
 
-		// --- Get Local Sessions ---
-		sm, err := sessionManagerFactory()
+		allSessions, warnings, err := GetUnifiedSessions(cmd.Flags())
 		if err != nil {
-			return fmt.Errorf("failed to create session manager: %w", err)
+			return err
 		}
-		localSessions, err := sm.ListSessions()
-		if err != nil {
-			return fmt.Errorf("failed to list local sessions: %w", err)
-		}
-		for _, s := range localSessions {
-			us := unifiedSession{
-				Name:      s.Name,
-				Status:    s.Status,
-				StartTime: s.StartTime,
-				EndTime:   s.EndTime,
-				Location:  "local",
-			}
-			// Calculate cost and tokens for local sessions
-			agentState, err := loadAgentState(s.AgentStateFile)
-			if err == nil {
-				us.Cost = agent.CalculateCost(agentState.Model, agentState.TokenUsage)
-				us.Tokens = agentState.TokenUsage
-				us.HasCost = true
-			}
-			allSessions = append(allSessions, us)
-		}
-
-		// --- Get Remote Pods (if requested) ---
-		showRemote, _ := cmd.Flags().GetBool("remote")
-		if showRemote {
-			k8sClient, err := k8s.NewClient()
-			if err != nil {
-				// Don't fail hard, just warn. Allows `ps` to work even if k8s is not configured.
-				cmd.PrintErrf("Warning: Could not connect to Kubernetes: %v\n", err)
-			} else {
-				pods, err := k8sClient.ListPods(context.Background(), "app=recac-agent")
-				if err != nil {
-					return fmt.Errorf("failed to list Kubernetes pods: %w", err)
-				}
-				for _, pod := range pods {
-					us := unifiedSession{
-						Name:      pod.Labels["ticket"], // Assuming ticket label holds the session name
-						Status:    string(pod.Status.Phase),
-						StartTime: pod.CreationTimestamp.Time,
-						Location:  "k8s",
-					}
-					// Cost calculation for pods is not supported yet
-					allSessions = append(allSessions, us)
-				}
-			}
-		}
-
-		// --- Filter by Status ---
-		statusFilter, _ := cmd.Flags().GetString("status")
-		if statusFilter != "" {
-			var filteredSessions []unifiedSession
-			for _, s := range allSessions {
-				if strings.EqualFold(s.Status, statusFilter) {
-					filteredSessions = append(filteredSessions, s)
-				}
-			}
-			allSessions = filteredSessions
-		}
-
-		// --- Filter by Time ---
-		sinceFilter, _ := cmd.Flags().GetString("since")
-		if sinceFilter != "" {
-			var sinceTime time.Time
-			var err error
-
-			// Try parsing as a relative duration (e.g., "1h", "30m")
-			duration, err := time.ParseDuration(sinceFilter)
-			if err == nil {
-				sinceTime = time.Now().Add(-duration)
-			} else {
-				// If not a duration, try parsing as an absolute timestamp
-				// Supports RFC3339 ("2006-01-02T15:04:05Z07:00") and a simple date ("2006-01-02")
-				layouts := []string{time.RFC3339, "2006-01-02"}
-				parsed := false
-				for _, layout := range layouts {
-					t, err := time.Parse(layout, sinceFilter)
-					if err == nil {
-						sinceTime = t
-						parsed = true
-						break
-					}
-				}
-				if !parsed {
-					return fmt.Errorf("invalid 'since' value %q: must be a duration (e.g., '2h') or a timestamp (e.g., '2006-01-02')", sinceFilter)
-				}
-			}
-
-			var filteredSessions []unifiedSession
-			for _, s := range allSessions {
-				if s.StartTime.After(sinceTime) {
-					filteredSessions = append(filteredSessions, s)
-				}
-			}
-			allSessions = filteredSessions
+		for _, w := range warnings {
+			cmd.PrintErrln(w)
 		}
 
 		if len(allSessions) == 0 {
 			cmd.Println("No sessions found.")
 			return nil
 		}
-
-		// --- Sort all sessions ---
-		sortBy, _ := cmd.Flags().GetString("sort")
-		sort.SliceStable(allSessions, func(i, j int) bool {
-			switch sortBy {
-			case "cost":
-				if allSessions[i].HasCost && allSessions[j].HasCost {
-					return allSessions[i].Cost > allSessions[j].Cost
-				}
-				return allSessions[i].HasCost // Ones with cost come first
-			case "name":
-				return allSessions[i].Name < allSessions[j].Name
-			case "time":
-				fallthrough
-			default:
-				return allSessions[i].StartTime.After(allSessions[j].StartTime)
-			}
-		})
 
 		// --- Print Output ---
 		w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 3, ' ', 0)
@@ -225,6 +103,10 @@ var psCmd = &cobra.Command{
 		}
 
 		// --- Handle --show-diff ---
+		sm, err := sessionManagerFactory() // We still need the session manager for diffs
+		if err != nil {
+			return fmt.Errorf("failed to create session manager for diff: %w", err)
+		}
 		showDiff, _ := cmd.Flags().GetBool("show-diff")
 		if showDiff {
 			sessionName, _ := cmd.Flags().GetString("session")
