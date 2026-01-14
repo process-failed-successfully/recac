@@ -49,31 +49,6 @@ If two session names are provided, it displays the git diff between the final st
 	},
 }
 
-func handleSingleSessionDiff(cmd *cobra.Command, sm ISessionManager, sessionName string) error {
-	session, err := sm.LoadSession(sessionName)
-	if err != nil {
-		return fmt.Errorf("failed to load session %s: %w", sessionName, err)
-	}
-
-	if session.StartCommitSHA == "" {
-		return fmt.Errorf("session '%s' does not have a start commit SHA recorded", sessionName)
-	}
-
-	endSHA, err := getSessionEndSHA(session)
-	if err != nil {
-		return err
-	}
-
-	gitClient := gitClientFactory()
-	diff, err := gitClient.Diff(session.Workspace, session.StartCommitSHA, endSHA)
-	if err != nil {
-		return fmt.Errorf("failed to get git diff: %w", err)
-	}
-
-	cmd.Println(diff)
-	return nil
-}
-
 func handleTwoSessionDiff(cmd *cobra.Command, sm ISessionManager, sessionAName, sessionBName string) error {
 	sessionA, err := sm.LoadSession(sessionAName)
 	if err != nil {
