@@ -3,12 +3,41 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"strings"
+	"testing"
 	"time"
+
 	"recac/internal/runner"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"github.com/stretchr/testify/require"
 )
+
+// setupTestSessionManager creates a real SessionManager in a temporary directory for integration tests.
+func setupTestSessionManager(t *testing.T) (*runner.SessionManager, func()) {
+	t.Helper()
+	tmpDir, err := os.MkdirTemp("", "recac-cmd-test-")
+	require.NoError(t, err, "Failed to create temp dir")
+
+	sm, err := runner.NewSessionManagerWithDir(tmpDir)
+	require.NoError(t, err, "Failed to create session manager")
+
+	// Override the factory to use our real, temp session manager.
+	originalFactory := sessionManagerFactory
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return sm, nil
+	}
+
+	cleanup := func() {
+		os.RemoveAll(tmpDir)
+		// Restore the original factory after the test.
+		sessionManagerFactory = originalFactory
+	}
+
+	return sm, cleanup
+}
 
 // MockSessionManager is a mock implementation of the ISessionManager interface.
 type MockSessionManager struct {
@@ -152,6 +181,39 @@ func (m *MockSessionManager) GetSessionGitDiffStat(name string) (string, error) 
 		return "", nil // No diff if no commits
 	}
 	return "", fmt.Errorf("session not found")
+}
+
+func (m *MockSessionManager) ArchiveSession(name string) error {
+	// This is a simplified mock. A real implementation would move files.
+	if session, ok := m.Sessions[name]; ok {
+		if m.IsProcessRunning(session.PID) {
+			return fmt.Errorf("cannot archive running session")
+		}
+		session.Status = "archived" // Use status to simulate archival for the mock
+		return nil
+	}
+	return fmt.Errorf("session not found")
+}
+
+func (m *MockSessionManager) UnarchiveSession(name string) error {
+	if session, ok := m.Sessions[name]; ok {
+		if session.Status == "archived" {
+			session.Status = "completed" // Restore to a non-running state
+			return nil
+		}
+		return fmt.Errorf("session is not archived")
+	}
+	return fmt.Errorf("session not found")
+}
+
+func (m *MockSessionManager) ListArchivedSessions() ([]*runner.SessionState, error) {
+	var archived []*runner.SessionState
+	for _, s := range m.Sessions {
+		if s.Status == "archived" {
+			archived = append(archived, s)
+		}
+	}
+	return archived, nil
 }
 
 // executeCommand executes a cobra command and returns its output.

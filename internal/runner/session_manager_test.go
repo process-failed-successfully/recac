@@ -1,12 +1,32 @@
 package runner
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+// setupSessionManager creates a new SessionManager in a temporary directory for isolated testing.
+func setupSessionManager(t *testing.T) (*SessionManager, func()) {
+	t.Helper()
+	tmpDir, err := os.MkdirTemp("", "recac-test-")
+	require.NoError(t, err, "Failed to create temp dir")
+
+	sm, err := NewSessionManagerWithDir(tmpDir)
+	require.NoError(t, err, "Failed to create session manager")
+
+	cleanup := func() {
+		os.RemoveAll(tmpDir)
+	}
+	return sm, cleanup
+}
+
 
 func TestSessionManager_Lifecycle(t *testing.T) {
 	// Setup temporary home directory
@@ -273,4 +293,78 @@ func TestSessionManager_RemoveSession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to remove a running session with force: %v", err)
 	}
+}
+
+func TestArchiveAndUnarchiveSession(t *testing.T) {
+	t.Run("archives and unarchives a session successfully", func(t *testing.T) {
+		sm, cleanup := setupSessionManager(t)
+		defer cleanup()
+
+		// Create a mock session
+		sessionName := "test-archive"
+		session := &SessionState{Name: sessionName, Status: "completed", LogFile: filepath.Join(sm.sessionsDir, sessionName+".log")}
+		err := sm.SaveSession(session)
+		require.NoError(t, err)
+		_, err = os.Create(session.LogFile)
+		require.NoError(t, err)
+
+		// Archive the session
+		err = sm.ArchiveSession(sessionName)
+		require.NoError(t, err)
+
+		// Verify it's in the archived directory and not in the active one
+		_, err = os.Stat(filepath.Join(sm.archivedSessionsDir, sessionName+".json"))
+		assert.NoError(t, err, "json file should be in archive")
+		_, err = os.Stat(filepath.Join(sm.archivedSessionsDir, sessionName+".log"))
+		assert.NoError(t, err, "log file should be in archive")
+
+		_, err = os.Stat(filepath.Join(sm.sessionsDir, sessionName+".json"))
+		assert.True(t, os.IsNotExist(err), "json file should not be in active dir")
+
+		// Unarchive the session
+		err = sm.UnarchiveSession(sessionName)
+		require.NoError(t, err)
+
+		// Verify it's back in the active directory
+		_, err = os.Stat(filepath.Join(sm.sessionsDir, sessionName+".json"))
+		assert.NoError(t, err, "json file should be back in active dir")
+		_, err = os.Stat(filepath.Join(sm.sessionsDir, sessionName+".log"))
+		assert.NoError(t, err, "log file should be back in active dir")
+
+		_, err = os.Stat(filepath.Join(sm.archivedSessionsDir, sessionName+".json"))
+		assert.True(t, os.IsNotExist(err), "json file should not be in archive dir")
+	})
+
+	t.Run("fails to archive a running session", func(t *testing.T) {
+		sm, cleanup := setupSessionManager(t)
+		defer cleanup()
+
+		// Create a mock running session using the current PID
+		sessionName := "test-running"
+		session := &SessionState{Name: sessionName, PID: os.Getpid(), Status: "running"}
+		err := sm.SaveSession(session)
+		require.NoError(t, err)
+
+		err = sm.ArchiveSession(sessionName)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "cannot archive running session")
+	})
+}
+
+func TestListArchivedSessions(t *testing.T) {
+	sm, cleanup := setupSessionManager(t)
+	defer cleanup()
+
+	// Create a mock archived session
+	archivedSessionName := "test-archived-list"
+	archivedSession := &SessionState{Name: archivedSessionName}
+	data, err := json.Marshal(archivedSession)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(sm.archivedSessionsDir, archivedSessionName+".json"), data, 0600)
+	require.NoError(t, err)
+
+	archived, err := sm.ListArchivedSessions()
+	require.NoError(t, err)
+	require.Len(t, archived, 1)
+	assert.Equal(t, archivedSessionName, archived[0].Name)
 }
