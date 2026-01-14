@@ -270,3 +270,23 @@ func fallbackDiff(cmd *cobra.Command, file1, file2 string) error {
 
 	return nil
 }
+
+// getSessionEndSHA determines the final commit SHA for a session.
+// If the session is completed/stopped and has no explicit EndCommitSHA, it uses the current HEAD.
+func getSessionEndSHA(session *runner.SessionState) (string, error) {
+	if session.EndCommitSHA != "" {
+		return session.EndCommitSHA, nil
+	}
+
+	// If the session is complete but has no end SHA, use the current HEAD.
+	if session.Status == "completed" || session.Status == "stopped" {
+		gitClient := gitClientFactory()
+		currentSHA, err := gitClient.CurrentCommitSHA(session.Workspace)
+		if err != nil {
+			return "", fmt.Errorf("could not get current commit SHA for completed session '%s': %w", session.Name, err)
+		}
+		return currentSHA, nil
+	}
+
+	return "", fmt.Errorf("session '%s' is still running and does not have an end commit SHA", session.Name)
+}

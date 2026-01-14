@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"recac/internal/runner"
 
 	"github.com/spf13/cobra"
 )
@@ -49,31 +48,6 @@ If two session names are provided, it displays the git diff between the final st
 	},
 }
 
-func handleSingleSessionDiff(cmd *cobra.Command, sm ISessionManager, sessionName string) error {
-	session, err := sm.LoadSession(sessionName)
-	if err != nil {
-		return fmt.Errorf("failed to load session %s: %w", sessionName, err)
-	}
-
-	if session.StartCommitSHA == "" {
-		return fmt.Errorf("session '%s' does not have a start commit SHA recorded", sessionName)
-	}
-
-	endSHA, err := getSessionEndSHA(session)
-	if err != nil {
-		return err
-	}
-
-	gitClient := gitClientFactory()
-	diff, err := gitClient.Diff(session.Workspace, session.StartCommitSHA, endSHA)
-	if err != nil {
-		return fmt.Errorf("failed to get git diff: %w", err)
-	}
-
-	cmd.Println(diff)
-	return nil
-}
-
 func handleTwoSessionDiff(cmd *cobra.Command, sm ISessionManager, sessionAName, sessionBName string) error {
 	sessionA, err := sm.LoadSession(sessionAName)
 	if err != nil {
@@ -115,22 +89,3 @@ func handleTwoSessionDiff(cmd *cobra.Command, sm ISessionManager, sessionAName, 
 	return nil
 }
 
-// getSessionEndSHA determines the final commit SHA for a session.
-// If the session is completed/stopped and has no explicit EndCommitSHA, it uses the current HEAD.
-func getSessionEndSHA(session *runner.SessionState) (string, error) {
-	if session.EndCommitSHA != "" {
-		return session.EndCommitSHA, nil
-	}
-
-	// If the session is complete but has no end SHA, use the current HEAD.
-	if session.Status == "completed" || session.Status == "stopped" {
-		gitClient := gitClientFactory()
-		currentSHA, err := gitClient.CurrentCommitSHA(session.Workspace)
-		if err != nil {
-			return "", fmt.Errorf("could not get current commit SHA for completed session '%s': %w", session.Name, err)
-		}
-		return currentSHA, nil
-	}
-
-	return "", fmt.Errorf("session '%s' is still running and does not have an end commit SHA", session.Name)
-}
