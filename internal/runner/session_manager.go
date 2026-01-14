@@ -511,14 +511,55 @@ func (sm *SessionManager) StopSession(name string) error {
 	return nil
 }
 
-// GetSessionLogs returns the log file path for a session
+// GetSessionLogs returns the content of the log file for a session.
 func (sm *SessionManager) GetSessionLogs(name string) (string, error) {
 	session, err := sm.LoadSession(name)
 	if err != nil {
 		return "", fmt.Errorf("session not found: %w", err)
 	}
 
-	return session.LogFile, nil
+	logContent, err := os.ReadFile(session.LogFile)
+	if err != nil {
+		return "", fmt.Errorf("could not read log file: %w", err)
+	}
+
+	return string(logContent), nil
+}
+
+// GetSessionDiff returns the git diff for a session.
+func (sm *SessionManager) GetSessionDiff(name string) (string, error) {
+	session, err := sm.LoadSession(name)
+	if err != nil {
+		return "", fmt.Errorf("could not load session '%s': %w", name, err)
+	}
+
+	if session.StartCommitSHA == "" {
+		return "No start commit SHA found for this session.", nil
+	}
+
+	endSHA := session.EndCommitSHA
+	if endSHA == "" {
+		// If the session is still running or completed without a final commit,
+		// use the current HEAD of the workspace.
+		gitClient := git.NewClient()
+		currentSHA, err := gitClient.CurrentCommitSHA(session.Workspace)
+		if err != nil {
+			return "", fmt.Errorf("could not get current commit SHA: %w", err)
+		}
+		endSHA = currentSHA
+	}
+
+	gitClient := git.NewClient()
+	diff, err := gitClient.Diff(session.Workspace, session.StartCommitSHA, endSHA)
+	if err != nil {
+		return "", fmt.Errorf("failed to get git diff: %w", err)
+	}
+
+	if diff == "" {
+		return "No changes detected.", nil
+	}
+
+	return diff, nil
 }
 
 // ErrSessionRunning is returned when an operation cannot be performed on a running session without force.

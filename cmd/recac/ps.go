@@ -81,12 +81,16 @@ var psCmd = &cobra.Command{
 
 		// --- Handle Watch Mode ---
 		if watch {
+			sm, err := sessionManagerFactory()
+			if err != nil {
+				return fmt.Errorf("failed to create session manager for watch mode: %w", err)
+			}
 			// Dependency injection: Provide the UI with a function to get sessions
 			ui.GetSessions = func() ([]model.UnifiedSession, error) {
 				// We pass the *current* command instance to getUnifiedSessions
 				return getUnifiedSessions(cmd, filters)
 			}
-			return ui.StartPsDashboard()
+			return ui.StartPsDashboard(sm)
 		}
 
 		// --- Get Sessions ---
