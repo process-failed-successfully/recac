@@ -16,6 +16,9 @@ type ISessionManager interface {
 	RenameSession(oldName, newName string) error
 	SessionsDir() string
 	GetSessionGitDiffStat(name string) (string, error)
+	ArchiveSession(name string) error
+	UnarchiveSession(name string) error
+	ListArchivedSessions() ([]*runner.SessionState, error)
 }
 
 // IGitClient defines the interface for git operations.

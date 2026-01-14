@@ -41,7 +41,8 @@ type SessionState struct {
 
 // SessionManager handles background session management
 type SessionManager struct {
-	sessionsDir      string
+	sessionsDir         string
+	archivedSessionsDir string
 }
 
 // NewSessionManager creates a new session manager
@@ -52,23 +53,36 @@ func NewSessionManager() (*SessionManager, error) {
 	}
 
 	sessionsDir := filepath.Join(homeDir, ".recac", "sessions")
+	archivedSessionsDir := filepath.Join(sessionsDir, "archived")
+
 	if err := os.MkdirAll(sessionsDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create sessions directory: %w", err)
 	}
+	if err := os.MkdirAll(archivedSessionsDir, 0700); err != nil {
+		return nil, fmt.Errorf("failed to create archived sessions directory: %w", err)
+	}
 
 	sm := &SessionManager{
-		sessionsDir: sessionsDir,
+		sessionsDir:         sessionsDir,
+		archivedSessionsDir: archivedSessionsDir,
 	}
 	return sm, nil
 }
 
 // NewSessionManagerWithDir creates a new session manager with a specific directory.
 func NewSessionManagerWithDir(dir string) (*SessionManager, error) {
+	archivedSessionsDir := filepath.Join(dir, "archived")
+
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create sessions directory: %w", err)
 	}
+	if err := os.MkdirAll(archivedSessionsDir, 0700); err != nil {
+		return nil, fmt.Errorf("failed to create archived sessions directory: %w", err)
+	}
+
 	sm := &SessionManager{
-		sessionsDir: dir,
+		sessionsDir:         dir,
+		archivedSessionsDir: archivedSessionsDir,
 	}
 	return sm, nil
 }
@@ -212,6 +226,69 @@ func (sm *SessionManager) SaveSession(session *SessionState) error {
 	return nil
 }
 
+// ArchiveSession moves a session's state and log files to the archived directory.
+func (sm *SessionManager) ArchiveSession(name string) error {
+	session, err := sm.LoadSession(name)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("session '%s' not found", name)
+		}
+		return fmt.Errorf("could not load session '%s': %w", name, err)
+	}
+
+	if sm.IsProcessRunning(session.PID) {
+		return fmt.Errorf("cannot archive running session '%s' (PID: %d)", name, session.PID)
+	}
+
+	// Move session state file (.json)
+	oldSessionPath := sm.GetSessionPath(name)
+	newSessionPath := filepath.Join(sm.archivedSessionsDir, filepath.Base(oldSessionPath))
+	if err := os.Rename(oldSessionPath, newSessionPath); err != nil {
+		return fmt.Errorf("failed to move session state file to archive: %w", err)
+	}
+
+	// Move log file (.log)
+	oldLogPath := session.LogFile
+	newLogPath := filepath.Join(sm.archivedSessionsDir, filepath.Base(oldLogPath))
+	if err := os.Rename(oldLogPath, newLogPath); err != nil {
+		// Rollback session file move
+		os.Rename(newSessionPath, oldSessionPath)
+		return fmt.Errorf("failed to move session log file to archive: %w", err)
+	}
+
+	return nil
+}
+
+// UnarchiveSession moves a session's state and log files from the archived directory back to the active sessions directory.
+func (sm *SessionManager) UnarchiveSession(name string) error {
+	// Note: We don't use LoadSession here because it looks in the active sessions directory.
+	archivedSessionPath := filepath.Join(sm.archivedSessionsDir, name+".json")
+	if _, err := os.Stat(archivedSessionPath); os.IsNotExist(err) {
+		return fmt.Errorf("archived session '%s' not found", name)
+	}
+
+	activeSessionPath := sm.GetSessionPath(name)
+	if _, err := os.Stat(activeSessionPath); err == nil {
+		return fmt.Errorf("an active session named '%s' already exists", name)
+	}
+
+	// Move session state file (.json)
+	if err := os.Rename(archivedSessionPath, activeSessionPath); err != nil {
+		return fmt.Errorf("failed to move session state file from archive: %w", err)
+	}
+
+	// Move log file (.log)
+	archivedLogPath := filepath.Join(sm.archivedSessionsDir, name+".log")
+	activeLogPath := filepath.Join(sm.sessionsDir, name+".log")
+	if err := os.Rename(archivedLogPath, activeLogPath); err != nil {
+		// Rollback session file move
+		os.Rename(activeSessionPath, archivedSessionPath)
+		return fmt.Errorf("failed to move session log file from archive: %w", err)
+	}
+
+	return nil
+}
+
 // RenameSession renames a session, including its state and log files.
 func (sm *SessionManager) RenameSession(oldName, newName string) error {
 	if err := validateSessionName(oldName); err != nil {
@@ -333,6 +410,36 @@ func (sm *SessionManager) ListSessions() ([]*SessionState, error) {
 		}
 
 		sessions = append(sessions, session)
+	}
+
+	return sessions, nil
+}
+
+// ListArchivedSessions returns all archived sessions
+func (sm *SessionManager) ListArchivedSessions() ([]*SessionState, error) {
+	entries, err := os.ReadDir(sm.archivedSessionsDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read archived sessions directory: %w", err)
+	}
+
+	var sessions []*SessionState
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+			continue
+		}
+
+		sessionPath := filepath.Join(sm.archivedSessionsDir, entry.Name())
+		data, err := os.ReadFile(sessionPath)
+		if err != nil {
+			continue // Skip invalid session files
+		}
+
+		var session SessionState
+		if err := json.Unmarshal(data, &session); err != nil {
+			continue // Skip corrupted session files
+		}
+
+		sessions = append(sessions, &session)
 	}
 
 	return sessions, nil
