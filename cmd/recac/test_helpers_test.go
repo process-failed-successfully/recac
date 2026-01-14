@@ -13,6 +13,7 @@ import (
 // MockSessionManager is a mock implementation of the ISessionManager interface.
 type MockSessionManager struct {
 	Sessions             map[string]*runner.SessionState
+	removed              map[string]bool
 	FailOnLoad           bool
 	FailOnList           bool
 	IsProcessRunningFunc func(pid int) bool
@@ -29,7 +30,12 @@ func (m *MockSessionManager) SessionsDir() string {
 func NewMockSessionManager() *MockSessionManager {
 	return &MockSessionManager{
 		Sessions: make(map[string]*runner.SessionState),
+		removed:  make(map[string]bool),
 	}
+}
+
+func (m *MockSessionManager) AddSession(session *runner.SessionState) {
+	m.Sessions[session.Name] = session
 }
 func (m *MockSessionManager) StartSession(name string, command []string, workspace string) (*runner.SessionState, error) {
 	if _, exists := m.Sessions[name]; exists {
@@ -120,6 +126,7 @@ func (m *MockSessionManager) RemoveSession(name string, force bool) error {
 	}
 
 	delete(m.Sessions, name)
+	m.removed[name] = true
 	return nil
 }
 
@@ -199,9 +206,10 @@ func resetFlags(cmd *cobra.Command) {
 func newRootCmd() (*cobra.Command, *bytes.Buffer, *bytes.Buffer) {
 	outBuf := new(bytes.Buffer)
 	errBuf := new(bytes.Buffer)
-	rootCmd.SetOut(outBuf)
-	rootCmd.SetErr(errBuf)
-	return rootCmd, outBuf, errBuf
+	root := &cobra.Command{Use: "recac"}
+	root.SetOut(outBuf)
+	root.SetErr(errBuf)
+	return root, outBuf, errBuf
 }
 
 // MockGitClient is a mock implementation of the IGitClient interface.

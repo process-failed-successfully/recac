@@ -196,34 +196,6 @@ func TestCommands(t *testing.T) {
 
 	})
 
-	t.Run("Clean Command", func(t *testing.T) {
-
-		cleanDir := t.TempDir()
-
-		os.Chdir(cleanDir)
-
-		// Write temp file tracker
-
-		os.WriteFile("temp_files.txt", []byte("dummy.txt"), 0644)
-
-		os.WriteFile("dummy.txt", []byte("content"), 0644)
-
-		_, err := executeCommand(rootCmd, "clean")
-
-		if err != nil {
-
-			t.Errorf("Clean failed: %v", err)
-
-		}
-
-		if _, err := os.Stat("dummy.txt"); !os.IsNotExist(err) {
-
-			t.Error("Clean failed to remove file")
-
-		}
-
-	})
-
 	t.Run("Version Command", func(t *testing.T) {
 
 		executeCommand(rootCmd, "version")

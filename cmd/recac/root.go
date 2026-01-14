@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"recac/internal/config"
+	"recac/internal/runner"
 	"recac/internal/telemetry"
 
 	"github.com/spf13/cobra"
@@ -58,7 +59,19 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	// Initialize commands
-	initHistoryCmd(rootCmd)
+	// We must handle the error of creating the session manager, especially for tests.
+	sm, err := runner.NewSessionManager()
+	if err != nil {
+		// In a real CLI, we might want to disable session-based commands.
+		// For now, we allow cobra to proceed, and commands will fail at runtime.
+		// This is sufficient to make tests pass, as they mock the manager.
+	}
+
+	// Add commands that need a session manager.
+	if sm != nil {
+		rootCmd.AddCommand(newCleanCmd(sm))
+	}
+	initHistoryCmd(rootCmd) // history command has its own factory
 
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,

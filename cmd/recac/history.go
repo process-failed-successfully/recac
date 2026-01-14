@@ -11,10 +11,10 @@ import (
 
 var askOne = survey.AskOne
 
-// initHistoryCmd initializes the history command and adds it to the root command.
-func initHistoryCmd(rootCmd *cobra.Command) {
+// newHistoryCmd creates the history command.
+func newHistoryCmd() *cobra.Command {
 	var fullLogs bool
-	historyCmd := &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "history [session-name]",
 		Short: "Show history of a specific session or a list of all sessions",
 		Long: `Displays detailed history for a specific RECAC session.
@@ -35,8 +35,14 @@ If no session name is provided, it lists all sessions and prompts for a selectio
 			return runInteractiveHistory(cmd, sm, fullLogs)
 		},
 	}
-	historyCmd.Flags().BoolVar(&fullLogs, "full-logs", false, "Display full log file content")
-	rootCmd.AddCommand(historyCmd)
+	cmd.Flags().BoolVar(&fullLogs, "full-logs", false, "Display full log file content")
+	return cmd
+}
+
+// initHistoryCmd adds the history command to the root command.
+// This is kept separate to allow tests to add the command to their own root instances.
+func initHistoryCmd(rootCmd *cobra.Command) {
+	rootCmd.AddCommand(newHistoryCmd())
 }
 
 // runInteractiveHistory handles the interactive session selection.
