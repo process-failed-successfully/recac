@@ -15,15 +15,17 @@ import (
 
 // unifiedSession represents both a local session and a remote K8s pod
 type unifiedSession struct {
-	Name      string
-	Status    string
-	StartTime time.Time
-	EndTime   time.Time
-	Duration  time.Duration
-	Location  string
-	Cost      float64
-	HasCost   bool
-	Tokens    agent.TokenUsage
+	Name         string
+	Status       string
+	StartTime    time.Time
+	LastActivity time.Time
+	EndTime      time.Time
+	Duration     time.Duration
+	Location     string
+	Cost         float64
+	HasCost      bool
+	Tokens       agent.TokenUsage
+	Goal         string
 }
 
 func init() {
@@ -86,6 +88,16 @@ var psCmd = &cobra.Command{
 				us.Cost = agent.CalculateCost(agentState.Model, agentState.TokenUsage)
 				us.Tokens = agentState.TokenUsage
 				us.HasCost = true
+				us.LastActivity = agentState.LastActivity
+				// Extract the goal from the first user message
+				for _, msg := range agentState.History {
+					if msg.Role == "user" {
+						// Use the first line of the content as the goal
+						firstLine := strings.Split(msg.Content, "\n")[0]
+						us.Goal = strings.TrimSuffix(firstLine, ".")
+						break
+					}
+				}
 			}
 			allSessions = append(allSessions, us)
 		}
@@ -190,23 +202,26 @@ var psCmd = &cobra.Command{
 		// --- Print Output ---
 		w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 3, ' ', 0)
 		showCosts, _ := cmd.Flags().GetBool("costs")
-		header := "NAME\tSTATUS\tLOCATION\tSTARTED\tDURATION"
+		header := "NAME\tSTATUS\tLOCATION\tLAST USED\tGOAL"
 		if showCosts {
 			header += "\tPROMPT_TOKENS\tCOMPLETION_TOKENS\tTOTAL_TOKENS\tCOST"
 		}
 		fmt.Fprintln(w, header)
 
 		for _, s := range allSessions {
-			started := s.StartTime.Format("2006-01-02 15:04:05")
-			var duration string
-			if s.EndTime.IsZero() {
-				duration = time.Since(s.StartTime).Round(time.Second).String()
-			} else {
-				duration = s.EndTime.Sub(s.StartTime).Round(time.Second).String()
+			lastUsed := formatSince(s.LastActivity)
+			if s.Location == "k8s" { // K8s pods don't have activity, use start time
+				lastUsed = formatSince(s.StartTime)
+			}
+
+			// Truncate goal for better display
+			goal := s.Goal
+			if len(goal) > 60 {
+				goal = goal[:57] + "..."
 			}
 
 			baseOutput := fmt.Sprintf("%s\t%s\t%s\t%s\t%s",
-				s.Name, s.Status, s.Location, started, duration)
+				s.Name, s.Status, s.Location, lastUsed, goal)
 
 			if showCosts {
 				if s.HasCost {
@@ -267,4 +282,32 @@ func handleSingleSessionDiff(cmd *cobra.Command, sm ISessionManager, sessionName
 
 	cmd.Println(diff)
 	return nil
+}
+
+// formatSince returns a human-readable string representing the time elapsed since t.
+func formatSince(t time.Time) string {
+	if t.IsZero() {
+		return "never"
+	}
+
+	const (
+		day  = 24 * time.Hour
+		week = 7 * day
+	)
+
+	since := time.Since(t)
+	if since < time.Minute {
+		return fmt.Sprintf("%ds ago", int(since.Seconds()))
+	}
+	if since < time.Hour {
+		return fmt.Sprintf("%dm ago", int(since.Minutes()))
+	}
+	if since < day {
+		return fmt.Sprintf("%dh ago", int(since.Hours()))
+	}
+	if since < week {
+		return fmt.Sprintf("%dd ago", int(since.Hours()/24))
+	}
+	// Fallback to absolute date for longer durations
+	return t.Format("2006-01-02")
 }
