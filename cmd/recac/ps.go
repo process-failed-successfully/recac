@@ -54,6 +54,9 @@ func init() {
 	if psCmd.Flags().Lookup("session") == nil {
 		psCmd.Flags().String("session", "", "Specify a session for --show-diff")
 	}
+	if psCmd.Flags().Lookup("stale") == nil {
+		psCmd.Flags().String("stale", "", "Filter sessions that have been inactive for a given duration (e.g., '7d', '24h')")
+	}
 }
 
 var psCmd = &cobra.Command{
@@ -133,6 +136,29 @@ var psCmd = &cobra.Command{
 			var filteredSessions []unifiedSession
 			for _, s := range allSessions {
 				if strings.EqualFold(s.Status, statusFilter) {
+					filteredSessions = append(filteredSessions, s)
+				}
+			}
+			allSessions = filteredSessions
+		}
+
+		// --- Filter by Stale ---
+		staleFilter, _ := cmd.Flags().GetString("stale")
+		if staleFilter != "" {
+			duration, err := parseStaleDuration(staleFilter)
+			if err != nil {
+				return fmt.Errorf("invalid 'stale' value %q: %w", staleFilter, err)
+			}
+
+			staleTime := time.Now().Add(-duration)
+			var filteredSessions []unifiedSession
+			for _, s := range allSessions {
+				activityTime := s.LastActivity
+				if s.Location == "k8s" {
+					activityTime = s.StartTime
+				}
+
+				if !activityTime.IsZero() && activityTime.Before(staleTime) {
 					filteredSessions = append(filteredSessions, s)
 				}
 			}
@@ -310,4 +336,29 @@ func formatSince(t time.Time) string {
 	}
 	// Fallback to absolute date for longer durations
 	return t.Format("2006-01-02")
+}
+
+// parseStaleDuration parses a duration string like "7d" or "24h" into a time.Duration.
+// It's more flexible than time.ParseDuration by supporting days.
+func parseStaleDuration(durationStr string) (time.Duration, error) {
+	if len(durationStr) < 2 {
+		return 0, fmt.Errorf("duration string too short")
+	}
+
+	unit := durationStr[len(durationStr)-1]
+	valueStr := durationStr[:len(durationStr)-1]
+	value, err := time.ParseDuration(valueStr + "h") // Default to hours for parsing
+	if err != nil {
+		return 0, fmt.Errorf("invalid duration value: %w", err)
+	}
+
+	switch unit {
+	case 'd':
+		return value * 24, nil
+	case 'h':
+		return value, nil
+	default:
+		// Fallback to time.ParseDuration for standard units (m, s, etc.)
+		return time.ParseDuration(durationStr)
+	}
 }

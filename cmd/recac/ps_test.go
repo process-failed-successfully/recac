@@ -53,6 +53,90 @@ func TestPsAndListCommands(t *testing.T) {
 	}
 }
 
+func TestPsCommandWithStaleFilter(t *testing.T) {
+	sm, cleanup := setupTestSessionManager(t)
+	defer cleanup()
+
+	now := time.Now()
+	// Create mock sessions with varied last activity times
+	sessionActive := &runner.SessionState{Name: "session-active", Status: "completed", StartTime: now.Add(-1 * time.Hour)}
+	sessionStale1d := &runner.SessionState{Name: "session-stale-1d", Status: "completed", StartTime: now.Add(-25 * time.Hour)}
+	sessionStale8d := &runner.SessionState{Name: "session-stale-8d", Status: "completed", StartTime: now.Add(-9 * 24 * time.Hour)}
+
+	// Create corresponding agent states
+	createAgentState(t, sm, sessionActive, now.Add(-5*time.Minute))      // Active 5 mins ago
+	createAgentState(t, sm, sessionStale1d, now.Add(-25*time.Hour))     // Stale for 1 day
+	createAgentState(t, sm, sessionStale8d, now.Add(-8*24*time.Hour)) // Stale for 8 days
+
+	require.NoError(t, sm.SaveSession(sessionActive))
+	require.NoError(t, sm.SaveSession(sessionStale1d))
+	require.NoError(t, sm.SaveSession(sessionStale8d))
+
+	testCases := []struct {
+		name              string
+		staleValue        string
+		expectError       bool
+		expectedToContain []string
+		expectedToOmit    []string
+	}{
+		{
+			name:              "stale duration '12h'",
+			staleValue:        "12h",
+			expectedToContain: []string{"session-stale-1d", "session-stale-8d"},
+			expectedToOmit:    []string{"session-active"},
+		},
+		{
+			name:              "stale duration '7d'",
+			staleValue:        "7d",
+			expectedToContain: []string{"session-stale-8d"},
+			expectedToOmit:    []string{"session-active", "session-stale-1d"},
+		},
+		{
+			name:              "no sessions match",
+			staleValue:        "10d",
+			expectedToContain: []string{"No sessions found."},
+		},
+		{
+			name:        "invalid stale value",
+			staleValue:  "not-a-duration",
+			expectError: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			output, err := executeCommand(rootCmd, "ps", "--stale", tc.staleValue)
+
+			if tc.expectError {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "invalid 'stale' value")
+			} else {
+				require.NoError(t, err)
+				for _, expected := range tc.expectedToContain {
+					assert.Contains(t, output, expected)
+				}
+				for _, omit := range tc.expectedToOmit {
+					assert.NotContains(t, output, omit)
+				}
+			}
+		})
+	}
+}
+
+// Helper to create agent state for a session
+func createAgentState(t *testing.T, sm ISessionManager, session *runner.SessionState, lastActivity time.Time) {
+	t.Helper()
+	agentStateFile := filepath.Join(sm.SessionsDir(), session.Name+"-agent.json")
+	session.AgentStateFile = agentStateFile
+	agentState := &agent.State{
+		LastActivity: lastActivity,
+		History:      []agent.Message{{Role: "user", Content: "Test goal for " + session.Name}},
+	}
+	data, err := json.Marshal(agentState)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(agentStateFile, data, 0644))
+}
+
 func TestPsCmd_NewColumns(t *testing.T) {
 	tempDir := t.TempDir()
 	sessionsDir := filepath.Join(tempDir, "sessions")
