@@ -12,6 +12,7 @@ import (
 	"recac/internal/config"
 	"recac/internal/docker"
 	"recac/internal/orchestrator"
+	"recac/internal/runner"
 	"recac/internal/telemetry"
 
 	"github.com/spf13/pflag"
@@ -141,7 +142,14 @@ func main() {
 			logger.Error("Failed to initialize Docker client", "error", err)
 			os.Exit(1)
 		}
-		spawner = orchestrator.NewDockerSpawner(logger, dockerCli, image, projectName, poller, agentProvider, agentModel)
+
+		sm, err := runner.NewSessionManager()
+		if err != nil {
+			logger.Error("Failed to initialize Session Manager", "error", err)
+			os.Exit(1)
+		}
+
+		spawner = orchestrator.NewDockerSpawner(logger, dockerCli, image, projectName, poller, agentProvider, agentModel, sm)
 	default:
 		logger.Error("Invalid mode. Use 'local' or 'k8s'", "mode", mode)
 		os.Exit(1)

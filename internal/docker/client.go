@@ -184,7 +184,7 @@ func (c *Client) PullImage(ctx context.Context, imageRef string) error {
 
 // RunContainer starts a container with the specified image and mounts the workspace.
 // It returns the container ID or an error.
-func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, user string) (string, error) {
+func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, ports []string, user string) (string, error) {
 	telemetry.TrackDockerOp(c.project)
 	// 1. Pull Image (Best effort)
 	reader, err := c.api.ImagePull(ctx, imageRef, image.PullOptions{})
@@ -213,7 +213,6 @@ func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace st
 			Tty:        true, // Keep it running
 			OpenStdin:  true, // Keep stdin open
 			WorkingDir: "/workspace",
-			Env:        env,
 			Cmd:        []string{"/bin/sh"}, // Default command to keep it alive
 		},
 		&container.HostConfig{
@@ -343,17 +342,20 @@ func (c *Client) ExecAsUser(ctx context.Context, containerID string, user string
 	return output, nil
 }
 
-// StopContainer stops and removes the container.
+// StopContainer stops a running container.
 func (c *Client) StopContainer(ctx context.Context, containerID string) error {
 	telemetry.TrackDockerOp(c.project)
-	// Stop
 	if err := c.api.ContainerStop(ctx, containerID, container.StopOptions{}); err != nil {
-		// Just log error?
 		telemetry.TrackDockerError(c.project)
+		return fmt.Errorf("failed to stop container %s: %w", containerID, err)
 	}
+	return nil
+}
 
-	// Remove
-	return c.api.ContainerRemove(ctx, containerID, container.RemoveOptions{Force: true})
+// RemoveContainer removes a container.
+func (c *Client) RemoveContainer(ctx context.Context, containerID string, force bool) error {
+	telemetry.TrackDockerOp(c.project)
+	return c.api.ContainerRemove(ctx, containerID, container.RemoveOptions{Force: force})
 }
 
 // ImageBuildOptions configures how an image is built.
