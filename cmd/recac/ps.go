@@ -7,26 +7,14 @@ import (
 	"recac/internal/k8s"
 	"sort"
 	"strings"
+	"recac/internal/model"
+	"recac/internal/ui"
 	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
 )
 
-// unifiedSession represents both a local session and a remote K8s pod
-type unifiedSession struct {
-	Name         string
-	Status       string
-	StartTime    time.Time
-	LastActivity time.Time
-	EndTime      time.Time
-	Duration     time.Duration
-	Location     string
-	Cost         float64
-	HasCost      bool
-	Tokens       agent.TokenUsage
-	Goal         string
-}
 
 func init() {
 	rootCmd.AddCommand(psCmd)
@@ -57,6 +45,17 @@ func init() {
 	if psCmd.Flags().Lookup("stale") == nil {
 		psCmd.Flags().String("stale", "", "Filter sessions that have been inactive for a given duration (e.g., '7d', '24h')")
 	}
+	if psCmd.Flags().Lookup("watch") == nil {
+		psCmd.Flags().BoolP("watch", "w", false, "Enter watch mode with real-time updates")
+	}
+}
+
+// psFilters holds the filter values for the ps command.
+type psFilters struct {
+	status string
+	since  string
+	stale  string
+	remote bool
 }
 
 var psCmd = &cobra.Command{
@@ -66,140 +65,34 @@ var psCmd = &cobra.Command{
 	Long:    `List all active and completed local sessions and, optionally, remote Kubernetes pods.`,
 	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		var allSessions []unifiedSession
+		// --- Get Flags ---
+		showCosts, _ := cmd.Flags().GetBool("costs")
+		sortBy, _ := cmd.Flags().GetString("sort")
+		showDiff, _ := cmd.Flags().GetBool("show-diff")
+		sessionName, _ := cmd.Flags().GetString("session")
+		watch, _ := cmd.Flags().GetBool("watch")
 
-		// --- Get Local Sessions ---
-		sm, err := sessionManagerFactory()
+		filters := model.PsFilters{
+			Status: cmd.Flag("status").Value.String(),
+			Since:  cmd.Flag("since").Value.String(),
+			Stale:  cmd.Flag("stale").Value.String(),
+			Remote: cmd.Flag("remote").Value.String() == "true",
+		}
+
+		// --- Handle Watch Mode ---
+		if watch {
+			// Dependency injection: Provide the UI with a function to get sessions
+			ui.GetSessions = func() ([]model.UnifiedSession, error) {
+				// We pass the *current* command instance to getUnifiedSessions
+				return getUnifiedSessions(cmd, filters)
+			}
+			return ui.StartPsDashboard()
+		}
+
+		// --- Get Sessions ---
+		allSessions, err := getUnifiedSessions(cmd, filters)
 		if err != nil {
-			return fmt.Errorf("failed to create session manager: %w", err)
-		}
-		localSessions, err := sm.ListSessions()
-		if err != nil {
-			return fmt.Errorf("failed to list local sessions: %w", err)
-		}
-		for _, s := range localSessions {
-			us := unifiedSession{
-				Name:      s.Name,
-				Status:    s.Status,
-				StartTime: s.StartTime,
-				EndTime:   s.EndTime,
-				Location:  "local",
-			}
-			// Calculate cost and tokens for local sessions
-			agentState, err := loadAgentState(s.AgentStateFile)
-			if err == nil {
-				us.Cost = agent.CalculateCost(agentState.Model, agentState.TokenUsage)
-				us.Tokens = agentState.TokenUsage
-				us.HasCost = true
-				us.LastActivity = agentState.LastActivity
-				// Extract the goal from the first user message
-				for _, msg := range agentState.History {
-					if msg.Role == "user" {
-						// Use the first line of the content as the goal
-						firstLine := strings.Split(msg.Content, "\n")[0]
-						us.Goal = strings.TrimSuffix(firstLine, ".")
-						break
-					}
-				}
-			}
-			allSessions = append(allSessions, us)
-		}
-
-		// --- Get Remote Pods (if requested) ---
-		showRemote, _ := cmd.Flags().GetBool("remote")
-		if showRemote {
-			k8sClient, err := k8s.NewClient()
-			if err != nil {
-				// Don't fail hard, just warn. Allows `ps` to work even if k8s is not configured.
-				cmd.PrintErrf("Warning: Could not connect to Kubernetes: %v\n", err)
-			} else {
-				pods, err := k8sClient.ListPods(context.Background(), "app=recac-agent")
-				if err != nil {
-					return fmt.Errorf("failed to list Kubernetes pods: %w", err)
-				}
-				for _, pod := range pods {
-					us := unifiedSession{
-						Name:      pod.Labels["ticket"], // Assuming ticket label holds the session name
-						Status:    string(pod.Status.Phase),
-						StartTime: pod.CreationTimestamp.Time,
-						Location:  "k8s",
-					}
-					// Cost calculation for pods is not supported yet
-					allSessions = append(allSessions, us)
-				}
-			}
-		}
-
-		// --- Filter by Status ---
-		statusFilter, _ := cmd.Flags().GetString("status")
-		if statusFilter != "" {
-			var filteredSessions []unifiedSession
-			for _, s := range allSessions {
-				if strings.EqualFold(s.Status, statusFilter) {
-					filteredSessions = append(filteredSessions, s)
-				}
-			}
-			allSessions = filteredSessions
-		}
-
-		// --- Filter by Stale ---
-		staleFilter, _ := cmd.Flags().GetString("stale")
-		if staleFilter != "" {
-			duration, err := parseStaleDuration(staleFilter)
-			if err != nil {
-				return fmt.Errorf("invalid 'stale' value %q: %w", staleFilter, err)
-			}
-
-			staleTime := time.Now().Add(-duration)
-			var filteredSessions []unifiedSession
-			for _, s := range allSessions {
-				activityTime := s.LastActivity
-				if s.Location == "k8s" {
-					activityTime = s.StartTime
-				}
-
-				if !activityTime.IsZero() && activityTime.Before(staleTime) {
-					filteredSessions = append(filteredSessions, s)
-				}
-			}
-			allSessions = filteredSessions
-		}
-
-		// --- Filter by Time ---
-		sinceFilter, _ := cmd.Flags().GetString("since")
-		if sinceFilter != "" {
-			var sinceTime time.Time
-			var err error
-
-			// Try parsing as a relative duration (e.g., "1h", "30m")
-			duration, err := time.ParseDuration(sinceFilter)
-			if err == nil {
-				sinceTime = time.Now().Add(-duration)
-			} else {
-				// If not a duration, try parsing as an absolute timestamp
-				// Supports RFC3339 ("2006-01-02T15:04:05Z07:00") and a simple date ("2006-01-02")
-				layouts := []string{time.RFC3339, "2006-01-02"}
-				parsed := false
-				for _, layout := range layouts {
-					t, err := time.Parse(layout, sinceFilter)
-					if err == nil {
-						sinceTime = t
-						parsed = true
-						break
-					}
-				}
-				if !parsed {
-					return fmt.Errorf("invalid 'since' value %q: must be a duration (e.g., '2h') or a timestamp (e.g., '2006-01-02')", sinceFilter)
-				}
-			}
-
-			var filteredSessions []unifiedSession
-			for _, s := range allSessions {
-				if s.StartTime.After(sinceTime) {
-					filteredSessions = append(filteredSessions, s)
-				}
-			}
-			allSessions = filteredSessions
+			return err
 		}
 
 		if len(allSessions) == 0 {
@@ -208,7 +101,6 @@ var psCmd = &cobra.Command{
 		}
 
 		// --- Sort all sessions ---
-		sortBy, _ := cmd.Flags().GetString("sort")
 		sort.SliceStable(allSessions, func(i, j int) bool {
 			switch sortBy {
 			case "cost":
@@ -227,7 +119,6 @@ var psCmd = &cobra.Command{
 
 		// --- Print Output ---
 		w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 3, ' ', 0)
-		showCosts, _ := cmd.Flags().GetBool("costs")
 		header := "NAME\tSTATUS\tLOCATION\tLAST USED\tGOAL"
 		if showCosts {
 			header += "\tPROMPT_TOKENS\tCOMPLETION_TOKENS\tTOTAL_TOKENS\tCOST"
@@ -266,9 +157,7 @@ var psCmd = &cobra.Command{
 		}
 
 		// --- Handle --show-diff ---
-		showDiff, _ := cmd.Flags().GetBool("show-diff")
 		if showDiff {
-			sessionName, _ := cmd.Flags().GetString("session")
 			if sessionName == "" {
 				// Find the most recent session if not specified
 				if len(allSessions) > 0 {
@@ -278,11 +167,142 @@ var psCmd = &cobra.Command{
 				}
 			}
 			cmd.Println() // Add a newline for better formatting
+			sm, err := sessionManagerFactory()
+			if err != nil {
+				return fmt.Errorf("failed to create session manager for diff: %w", err)
+			}
 			return handleSingleSessionDiff(cmd, sm, sessionName)
 		}
 
 		return nil
 	},
+}
+
+// getUnifiedSessions retrieves and filters both local and remote sessions.
+func getUnifiedSessions(cmd *cobra.Command, filters model.PsFilters) ([]model.UnifiedSession, error) {
+	var allSessions []model.UnifiedSession
+
+	// --- Get Local Sessions ---
+	sm, err := sessionManagerFactory()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create session manager: %w", err)
+	}
+	localSessions, err := sm.ListSessions()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list local sessions: %w", err)
+	}
+	for _, s := range localSessions {
+		us := model.UnifiedSession{
+			Name:      s.Name,
+			Status:    s.Status,
+			StartTime: s.StartTime,
+			EndTime:   s.EndTime,
+			Location:  "local",
+		}
+		// Calculate cost and tokens for local sessions
+		agentState, err := loadAgentState(s.AgentStateFile)
+		if err == nil {
+			us.Cost = agent.CalculateCost(agentState.Model, agentState.TokenUsage)
+			us.Tokens = agentState.TokenUsage
+			us.HasCost = true
+			us.LastActivity = agentState.LastActivity
+			// Extract the goal from the first user message
+			for _, msg := range agentState.History {
+				if msg.Role == "user" {
+					firstLine := strings.Split(msg.Content, "\n")[0]
+					us.Goal = strings.TrimSuffix(firstLine, ".")
+					break
+				}
+			}
+		}
+		allSessions = append(allSessions, us)
+	}
+
+	// --- Get Remote Pods (if requested) ---
+	if filters.Remote {
+		k8sClient, err := k8s.NewClient()
+		if err != nil {
+			cmd.PrintErrf("Warning: Could not connect to Kubernetes: %v\n", err)
+		} else {
+			pods, err := k8sClient.ListPods(context.Background(), "app=recac-agent")
+			if err != nil {
+				return nil, fmt.Errorf("failed to list Kubernetes pods: %w", err)
+			}
+			for _, pod := range pods {
+				us := model.UnifiedSession{
+					Name:      pod.Labels["ticket"],
+					Status:    string(pod.Status.Phase),
+					StartTime: pod.CreationTimestamp.Time,
+					Location:  "k8s",
+				}
+				allSessions = append(allSessions, us)
+			}
+		}
+	}
+
+	// --- Filter by Status ---
+	if filters.Status != "" {
+		var filteredSessions []model.UnifiedSession
+		for _, s := range allSessions {
+			if strings.EqualFold(s.Status, filters.Status) {
+				filteredSessions = append(filteredSessions, s)
+			}
+		}
+		allSessions = filteredSessions
+	}
+
+	// --- Filter by Stale ---
+	if filters.Stale != "" {
+		duration, err := parseStaleDuration(filters.Stale)
+		if err != nil {
+			return nil, fmt.Errorf("invalid 'stale' value %q: %w", filters.Stale, err)
+		}
+		staleTime := time.Now().Add(-duration)
+		var filteredSessions []model.UnifiedSession
+		for _, s := range allSessions {
+			activityTime := s.LastActivity
+			if s.Location == "k8s" {
+				activityTime = s.StartTime
+			}
+			if !activityTime.IsZero() && activityTime.Before(staleTime) {
+				filteredSessions = append(filteredSessions, s)
+			}
+		}
+		allSessions = filteredSessions
+	}
+
+	// --- Filter by Time ---
+	if filters.Since != "" {
+		var sinceTime time.Time
+		var err error
+		duration, err := time.ParseDuration(filters.Since)
+		if err == nil {
+			sinceTime = time.Now().Add(-duration)
+		} else {
+			layouts := []string{time.RFC3339, "2006-01-02"}
+			parsed := false
+			for _, layout := range layouts {
+				t, err := time.Parse(layout, filters.Since)
+				if err == nil {
+					sinceTime = t
+					parsed = true
+					break
+				}
+			}
+			if !parsed {
+				return nil, fmt.Errorf("invalid 'since' value %q: must be a duration or timestamp", filters.Since)
+			}
+		}
+		var filteredSessions []model.UnifiedSession
+		for _, s := range allSessions {
+			if s.StartTime.After(sinceTime) {
+				filteredSessions = append(filteredSessions, s)
+			}
+		}
+		allSessions = filteredSessions
+	}
+
+	return allSessions, nil
 }
 
 func handleSingleSessionDiff(cmd *cobra.Command, sm ISessionManager, sessionName string) error {
