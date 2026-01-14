@@ -12,6 +12,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/shirou/gopsutil/process"
 	"github.com/spf13/cobra"
 )
 
@@ -119,7 +120,7 @@ var psCmd = &cobra.Command{
 
 		// --- Print Output ---
 		w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 3, ' ', 0)
-		header := "NAME\tSTATUS\tLOCATION\tLAST USED\tGOAL"
+		header := "NAME\tSTATUS\tCPU\tMEM\tLOCATION\tLAST USED\tGOAL"
 		if showCosts {
 			header += "\tPROMPT_TOKENS\tCOMPLETION_TOKENS\tTOTAL_TOKENS\tCOST"
 		}
@@ -137,8 +138,8 @@ var psCmd = &cobra.Command{
 				goal = goal[:57] + "..."
 			}
 
-			baseOutput := fmt.Sprintf("%s\t%s\t%s\t%s\t%s",
-				s.Name, s.Status, s.Location, lastUsed, goal)
+			baseOutput := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s",
+				s.Name, s.Status, s.CPU, s.Memory, s.Location, lastUsed, goal)
 
 			if showCosts {
 				if s.HasCost {
@@ -212,6 +213,23 @@ func getUnifiedSessions(cmd *cobra.Command, filters model.PsFilters) ([]model.Un
 					firstLine := strings.Split(msg.Content, "\n")[0]
 					us.Goal = strings.TrimSuffix(firstLine, ".")
 					break
+				}
+			}
+		}
+
+		us.CPU = "N/A"
+		us.Memory = "N/A"
+		// Get CPU and Memory usage for local running sessions
+		if s.Status == "running" && s.PID > 0 {
+			p, err := process.NewProcess(int32(s.PID))
+			if err == nil {
+				cpuPercent, err := p.CPUPercent()
+				if err == nil {
+					us.CPU = fmt.Sprintf("%.1f%%", cpuPercent)
+				}
+				memInfo, err := p.MemoryInfo()
+				if err == nil {
+					us.Memory = fmt.Sprintf("%dMB", memInfo.RSS/1024/1024)
 				}
 			}
 		}

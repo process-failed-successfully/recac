@@ -18,6 +18,8 @@ type UnifiedSession struct {
 	HasCost      bool
 	Tokens       agent.TokenUsage
 	Goal         string
+	CPU          string
+	Memory       string
 }
 
 // PsFilters holds the filter values for the ps command.
