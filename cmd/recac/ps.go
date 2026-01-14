@@ -43,6 +43,12 @@ func init() {
 	if psCmd.Flags().Lookup("status") == nil {
 		psCmd.Flags().String("status", "", "Filter sessions by status (e.g., 'running', 'completed', 'error')")
 	}
+	if psCmd.Flags().Lookup("show-diff") == nil {
+		psCmd.Flags().Bool("show-diff", false, "Show git diff for the most recent or specified session")
+	}
+	if psCmd.Flags().Lookup("session") == nil {
+		psCmd.Flags().String("session", "", "Specify a session for --show-diff")
+	}
 }
 
 var psCmd = &cobra.Command{
@@ -174,6 +180,51 @@ var psCmd = &cobra.Command{
 			}
 		}
 
-		return w.Flush()
+		if err := w.Flush(); err != nil {
+			return err
+		}
+
+		// --- Handle --show-diff ---
+		showDiff, _ := cmd.Flags().GetBool("show-diff")
+		if showDiff {
+			sessionName, _ := cmd.Flags().GetString("session")
+			if sessionName == "" {
+				// Find the most recent session if not specified
+				if len(allSessions) > 0 {
+					sessionName = allSessions[0].Name // Assumes default sort by time
+				} else {
+					return fmt.Errorf("no sessions available to diff")
+				}
+			}
+			cmd.Println() // Add a newline for better formatting
+			return handleSingleSessionDiff(cmd, sm, sessionName)
+		}
+
+		return nil
 	},
+}
+
+func handleSingleSessionDiff(cmd *cobra.Command, sm ISessionManager, sessionName string) error {
+	session, err := sm.LoadSession(sessionName)
+	if err != nil {
+		return fmt.Errorf("failed to load session %s: %w", sessionName, err)
+	}
+
+	if session.StartCommitSHA == "" {
+		return fmt.Errorf("session '%s' does not have a start commit SHA recorded", sessionName)
+	}
+
+	endSHA, err := getSessionEndSHA(session)
+	if err != nil {
+		return err
+	}
+
+	gitClient := gitClientFactory()
+	diff, err := gitClient.Diff(session.Workspace, session.StartCommitSHA, endSHA)
+	if err != nil {
+		return fmt.Errorf("failed to get git diff: %w", err)
+	}
+
+	cmd.Println(diff)
+	return nil
 }
