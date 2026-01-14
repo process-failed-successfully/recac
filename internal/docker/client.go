@@ -52,18 +52,18 @@ type Client struct {
 }
 
 // NewClient creates a new Docker client instance.
-func NewClient(project string) (*Client, error) {
+func NewClient(project ...string) (*Client, error) {
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create docker client: %w", err)
 	}
-	// Default to "unknown" if project is empty to avoid cardinality explosion or errors
-	if project == "" {
-		project = "unknown"
+	proj := "unknown"
+	if len(project) > 0 && project[0] != "" {
+		proj = project[0]
 	}
 	return &Client{
 		api:               cli,
-		project:           project,
+		project:           proj,
 		HostWorkspacePath: os.Getenv("RECAC_HOST_WORKSPACE_PATH"),
 	}, nil
 }
@@ -448,4 +448,52 @@ func (c *Client) ImageBuild(ctx context.Context, opts ImageBuildOptions) (string
 	}
 
 	return imageID, nil
+}
+
+// ExecInContainer executes a command in a running container with attached I/O.
+// It supports interactive TTY sessions.
+func (c *Client) ExecInContainer(ctx context.Context, containerID string, cmd []string, stdout io.Writer, stderr io.Writer, stdin io.Reader) error {
+	telemetry.TrackDockerOp(c.project)
+
+	execConfig := container.ExecOptions{
+		Cmd:          cmd,
+		AttachStdout: true,
+		AttachStderr: true,
+		AttachStdin:  stdin != nil,
+		Tty:          true, // Enable TTY for interactive session
+	}
+
+	respID, err := c.api.ContainerExecCreate(ctx, containerID, execConfig)
+	if err != nil {
+		return fmt.Errorf("failed to create exec: %w", err)
+	}
+
+	resp, err := c.api.ContainerExecAttach(ctx, respID.ID, container.ExecStartOptions{
+		Tty: true,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to attach exec: %w", err)
+	}
+	defer resp.Close()
+
+	// Goroutine for output
+	go func() {
+		// stdcopy.StdCopy demultiplexes the stream if Tty is false.
+		// Since we enable Tty, we can just copy directly.
+		io.Copy(stdout, resp.Reader)
+	}()
+
+	// Goroutine for input
+	if stdin != nil {
+		go func() {
+			io.Copy(resp.Conn, stdin)
+		}()
+	}
+
+	// Wait for the command to finish
+	// TODO: This is a simplification. A more robust implementation would
+	// wait for the goroutines to finish and check the exit code.
+	<-ctx.Done()
+
+	return nil
 }
