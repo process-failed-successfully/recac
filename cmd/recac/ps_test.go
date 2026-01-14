@@ -248,6 +248,66 @@ func TestPsCommandWithResourceUsage(t *testing.T) {
 	assert.Contains(t, completedLine, "N/A", "Expected 'N/A' for Memory of completed session")
 }
 
+func TestPsCommandWithContainerResourceUsage(t *testing.T) {
+	// --- Setup ---
+	sm, cleanup := setupTestSessionManager(t)
+	defer cleanup()
+
+	// Mock the docker client factory
+	oldDockerFactory := dockerClientFactory
+	dockerClientFactory = func(project string) (DockerStatsClient, error) {
+		mock := &MockDockerStatsClient{}
+		mock.On("GetContainerStats", mock.Anything, "test-container-id").Return(&docker.ContainerStats{
+			CPUPercentage: 12.345,
+			MemoryUsage:   100 * 1024 * 1024, // 100 MiB
+		}, nil)
+		return mock, nil
+	}
+	defer func() { dockerClientFactory = oldDockerFactory }()
+
+	// Create a running session with a container ID
+	runningSession := &runner.SessionState{
+		Name:        "running-with-container",
+		Status:      "running",
+		ContainerID: "test-container-id",
+	}
+	require.NoError(t, sm.SaveSession(runningSession))
+
+	// Create a running session without a container ID (should fallback to N/A)
+	runningSessionNoContainer := &runner.SessionState{
+		Name:   "running-no-container",
+		Status: "running",
+	}
+	require.NoError(t, sm.SaveSession(runningSessionNoContainer))
+
+	// --- Execution ---
+	output, err := executeCommand(rootCmd, "ps")
+
+	// --- Assertions ---
+	require.NoError(t, err)
+
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	require.GreaterOrEqual(t, len(lines), 3)
+
+	var containerLine, noContainerLine string
+	for _, line := range lines {
+		if strings.Contains(line, "running-with-container") {
+			containerLine = line
+		} else if strings.Contains(line, "running-no-container") {
+			noContainerLine = line
+		}
+	}
+	require.NotEmpty(t, containerLine, "Session with container not found in output")
+	require.NotEmpty(t, noContainerLine, "Session without container not found in output")
+
+	// Check the session with a container for the mocked stats
+	assert.Contains(t, containerLine, "12.3%")
+	assert.Contains(t, containerLine, "100MB")
+
+	// Check the session without a container for "N/A"
+	assert.Contains(t, noContainerLine, "N/A")
+}
+
 func TestPsCommandWithCosts(t *testing.T) {
 	tempDir := t.TempDir()
 	sessionsDir := filepath.Join(tempDir, "sessions")

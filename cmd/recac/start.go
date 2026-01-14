@@ -854,21 +854,31 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 		return err
 	}
 
-	// Create a session state for the interactive session to track commit SHAs
+	// Load or create a session state to track commits and container ID
 	sm, err := runner.NewSessionManager()
 	if err != nil {
 		return fmt.Errorf("failed to create session manager for interactive session: %w", err)
 	}
-	interactiveSessionState := &runner.SessionState{
-		Name:           cfg.SessionName,
-		StartTime:      time.Now(),
-		Command:        os.Args,
-		Workspace:      projectPath,
-		Status:         "running",
-		Type:           "interactive",
-		AgentStateFile: filepath.Join(projectPath, ".agent_state.json"),
-		StartCommitSHA: startSHA,
+
+	// Try to load the session state first. This handles resuming and detached sessions.
+	interactiveSessionState, err := sm.LoadSession(cfg.SessionName)
+	if err != nil {
+		// If it doesn't exist, create a new one for this interactive session.
+		interactiveSessionState = &runner.SessionState{
+			Name:           cfg.SessionName,
+			PID:            os.Getpid(), // For interactive, the PID is the current process
+			StartTime:      time.Now(),
+			Command:        os.Args,
+			Workspace:      projectPath,
+			Status:         "running",
+			Type:           "interactive",
+			AgentStateFile: filepath.Join(projectPath, ".agent_state.json"),
+			StartCommitSHA: startSHA,
+		}
 	}
+
+	// Update the state with the container ID now that the session has started
+	interactiveSessionState.ContainerID = session.GetContainerID()
 	sm.SaveSession(interactiveSessionState)
 
 	runErr := session.RunLoop(ctx)

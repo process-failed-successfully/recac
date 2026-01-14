@@ -11,9 +11,28 @@ import (
 	"recac/internal/runner"
 
 	"github.com/spf13/cobra"
+	"context"
+	"recac/internal/docker"
+
 	"github.com/spf13/pflag"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
+
+// MockDockerStatsClient is a mock implementation of the DockerStatsClient interface for testing.
+type MockDockerStatsClient struct {
+	mock.Mock
+}
+
+func (m *MockDockerStatsClient) GetContainerStats(ctx context.Context, containerID string) (*docker.ContainerStats, error) {
+	args := m.Called(mock.Anything, containerID)
+	// Type assert the first return value, handling nil case.
+	var stats *docker.ContainerStats
+	if args.Get(0) != nil {
+		stats = args.Get(0).(*docker.ContainerStats)
+	}
+	return stats, args.Error(1)
+}
 
 // setupTestSessionManager creates a real SessionManager in a temporary directory for integration tests.
 func setupTestSessionManager(t *testing.T) (*runner.SessionManager, func()) {

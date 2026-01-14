@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"recac/internal/agent"
+	"recac/internal/docker"
 	"recac/internal/k8s"
 	"sort"
 	"strings"
@@ -220,16 +221,13 @@ func getUnifiedSessions(cmd *cobra.Command, filters model.PsFilters) ([]model.Un
 		us.CPU = "N/A"
 		us.Memory = "N/A"
 		// Get CPU and Memory usage for local running sessions
-		if s.Status == "running" && s.PID > 0 {
-			p, err := process.NewProcess(int32(s.PID))
+		if s.Status == "running" && s.ContainerID != "" {
+			dockerClient, err := dockerClientFactory(s.Name)
 			if err == nil {
-				cpuPercent, err := p.CPUPercent()
+				stats, err := dockerClient.GetContainerStats(context.Background(), s.ContainerID)
 				if err == nil {
-					us.CPU = fmt.Sprintf("%.1f%%", cpuPercent)
-				}
-				memInfo, err := p.MemoryInfo()
-				if err == nil {
-					us.Memory = fmt.Sprintf("%dMB", memInfo.RSS/1024/1024)
+					us.CPU = fmt.Sprintf("%.1f%%", stats.CPUPercentage)
+					us.Memory = fmt.Sprintf("%dMB", stats.MemoryUsage/1024/1024)
 				}
 			}
 		}

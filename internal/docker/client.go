@@ -41,7 +41,14 @@ type APIClient interface {
 	ContainerExecInspect(ctx context.Context, execID string) (container.ExecInspect, error)
 	ContainerStop(ctx context.Context, containerID string, options container.StopOptions) error
 	ContainerRemove(ctx context.Context, containerID string, options container.RemoveOptions) error
+	ContainerStats(ctx context.Context, containerID string, stream bool) (types.ContainerStats, error)
 	Close() error
+}
+
+// ContainerStats holds formatted container resource usage data.
+type ContainerStats struct {
+	CPUPercentage float64
+	MemoryUsage   uint64 // in bytes
 }
 
 // Client wraps the official Docker client to provide high-level orchestration methods.
@@ -448,4 +455,34 @@ func (c *Client) ImageBuild(ctx context.Context, opts ImageBuildOptions) (string
 	}
 
 	return imageID, nil
+}
+
+// GetContainerStats fetches and calculates resource usage for a specific container.
+func (c *Client) GetContainerStats(ctx context.Ctxt, containerID string) (*ContainerStats, error) {
+	stats, err := c.api.ContainerStats(ctx, containerID, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get container stats: %w", err)
+	}
+	defer stats.Body.Close()
+
+	var statsJSON types.StatsJSON
+	if err := json.NewDecoder(stats.Body).Decode(&statsJSON); err != nil {
+		return nil, fmt.Errorf("failed to decode container stats: %w", err)
+	}
+
+	// Calculate CPU percentage
+	cpuDelta := float64(statsJSON.CPUStats.CPUUsage.TotalUsage) - float64(statsJSON.PreCPUStats.CPUUsage.TotalUsage)
+	systemDelta := float64(statsJSON.CPUStats.SystemUsage) - float64(statsJSON.PreCPUStats.SystemUsage)
+	cpuPercent := 0.0
+	if systemDelta > 0.0 && cpuDelta > 0.0 {
+		cpuPercent = (cpuDelta / systemDelta) * float64(len(statsJSON.CPUStats.CPUUsage.PercpuUsage)) * 100.0
+	}
+
+	// Memory usage
+	memUsage := statsJSON.MemoryStats.Usage - statsJSON.MemoryStats.Stats["cache"]
+
+	return &ContainerStats{
+		CPUPercentage: cpuPercent,
+		MemoryUsage:   memUsage,
+	}, nil
 }
