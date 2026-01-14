@@ -11,6 +11,17 @@ import (
 	"time"
 )
 
+// validateSessionName ensures the session name is safe to use in file paths
+func validateSessionName(name string) error {
+	if name == "" {
+		return fmt.Errorf("session name cannot be empty")
+	}
+	if filepath.Base(name) != name {
+		return fmt.Errorf("invalid session name '%s': path traversal characters detected", name)
+	}
+	return nil
+}
+
 // SessionState represents the state of a background session
 type SessionState struct {
 	Name           string    `json:"name"`
@@ -74,6 +85,10 @@ func (sm *SessionManager) SessionsDir() string {
 
 // StartSession starts a session in detached mode
 func (sm *SessionManager) StartSession(name string, command []string, workspace string) (*SessionState, error) {
+	if err := validateSessionName(name); err != nil {
+		return nil, err
+	}
+
 	// Check if session already exists
 	sessionPath := sm.GetSessionPath(name)
 	if _, err := os.Stat(sessionPath); err == nil {
@@ -160,6 +175,10 @@ func (sm *SessionManager) StartSession(name string, command []string, workspace 
 
 // LoadSession loads a session state from disk
 func (sm *SessionManager) LoadSession(name string) (*SessionState, error) {
+	if err := validateSessionName(name); err != nil {
+		return nil, err
+	}
+
 	sessionPath := sm.GetSessionPath(name)
 	data, err := os.ReadFile(sessionPath)
 	if err != nil {
@@ -176,6 +195,10 @@ func (sm *SessionManager) LoadSession(name string) (*SessionState, error) {
 
 // SaveSession saves a session state to disk
 func (sm *SessionManager) SaveSession(session *SessionState) error {
+	if err := validateSessionName(session.Name); err != nil {
+		return err
+	}
+
 	sessionPath := sm.GetSessionPath(session.Name)
 	data, err := json.MarshalIndent(session, "", "  ")
 	if err != nil {
@@ -191,6 +214,13 @@ func (sm *SessionManager) SaveSession(session *SessionState) error {
 
 // RenameSession renames a session, including its state and log files.
 func (sm *SessionManager) RenameSession(oldName, newName string) error {
+	if err := validateSessionName(oldName); err != nil {
+		return err
+	}
+	if err := validateSessionName(newName); err != nil {
+		return err
+	}
+
 	// 1. Load the session state for the old name.
 	session, err := sm.LoadSession(oldName)
 	if err != nil {
