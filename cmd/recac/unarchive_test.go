@@ -16,22 +16,22 @@ func TestUnarchiveCmd(t *testing.T) {
 	defer cleanup()
 
 	archivedSessionName := "test-unarchive-cmd"
-	archivedSession := &runner.SessionState{Name: archivedSessionName, Status: "completed"}
-
-	// Manually create an archived session file for the test
-	archivedSessionPath := filepath.Join(sm.SessionsDir(), "archived", archivedSessionName+".json")
-	archivedLogPath := filepath.Join(sm.SessionsDir(), "archived", archivedSessionName+".log")
-
-	err := sm.SaveSession(archivedSession)
+	// Create a session and then archive it to set up the test state properly.
+	sessionToArchive := &runner.SessionState{
+		Name:    archivedSessionName,
+		Status:  "completed",
+		LogFile: filepath.Join(sm.SessionsDir(), archivedSessionName+".log"),
+	}
+	err := sm.SaveSession(sessionToArchive)
 	require.NoError(t, err)
-	// Now, archive it by moving it manually for the test setup
-	err = os.Rename(sm.GetSessionPath(archivedSessionName), archivedSessionPath)
-	require.NoError(t, err)
-	_, err = os.Create(archivedLogPath) // Create a dummy log file
+	_, err = os.Create(sessionToArchive.LogFile) // Create a dummy log file
 	require.NoError(t, err)
 
+	// Use the application's own logic to archive the session.
+	err = sm.ArchiveSession(archivedSessionName)
+	require.NoError(t, err, "Setup: failed to archive session")
 
-	// Execute the unarchive command
+	// Execute the unarchive command.
 	rootCmd, out, _ := newRootCmd()
 	rootCmd.SetArgs([]string{"unarchive", archivedSessionName})
 	err = rootCmd.Execute()
