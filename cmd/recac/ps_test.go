@@ -190,6 +190,64 @@ func TestPsCmd_NewColumns(t *testing.T) {
 	assert.NotContains(t, output, "This is a second line")
 }
 
+func TestPsCommandWithResourceUsage(t *testing.T) {
+	// --- Setup ---
+	sm, cleanup := setupTestSessionManager(t)
+	defer cleanup()
+
+	// Create a mock session that is "running"
+	// We use the current process's PID as a real, running process for gopsutil
+	runningSession := &runner.SessionState{
+		Name:      "test-running-session",
+		Status:    "running",
+		StartTime: time.Now().Add(-5 * time.Minute),
+		PID:       os.Getpid(),
+	}
+	require.NoError(t, sm.SaveSession(runningSession))
+
+	// Create a completed session that should not have metrics
+	completedSession := &runner.SessionState{
+		Name:      "test-completed-session",
+		Status:    "completed",
+		StartTime: time.Now().Add(-1 * time.Hour),
+	}
+	require.NoError(t, sm.SaveSession(completedSession))
+
+	// --- Execution ---
+	output, err := executeCommand(rootCmd, "ps")
+
+	// --- Assertions ---
+	require.NoError(t, err)
+
+	// Check for headers
+	assert.Contains(t, output, "CPU")
+	assert.Contains(t, output, "MEM")
+
+	// Split output into lines to check individual session rows
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	require.GreaterOrEqual(t, len(lines), 3, "Expected at least 3 lines of output (header + 2 sessions)")
+
+	var runningLine, completedLine string
+	for _, line := range lines {
+		if strings.Contains(line, "test-running-session") {
+			runningLine = line
+		} else if strings.Contains(line, "test-completed-session") {
+			completedLine = line
+		}
+	}
+	require.NotEmpty(t, runningLine, "Running session not found in output")
+	require.NotEmpty(t, completedLine, "Completed session not found in output")
+
+	// Check the running session for metrics
+	// It should have a percentage and a memory value (e.g., "0.1%", "15MB")
+	assert.Regexp(t, `\d+\.\d+%`, runningLine, "Expected CPU percentage for running session")
+	assert.Regexp(t, `\d+MB`, runningLine, "Expected Memory usage in MB for running session")
+
+	// Check the completed session for "N/A"
+	assert.Contains(t, completedLine, "N/A", "Expected 'N/A' for CPU of completed session")
+	assert.Contains(t, completedLine, "N/A", "Expected 'N/A' for Memory of completed session")
+}
+
 func TestPsCommandWithCosts(t *testing.T) {
 	tempDir := t.TempDir()
 	sessionsDir := filepath.Join(tempDir, "sessions")
