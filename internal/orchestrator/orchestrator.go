@@ -8,6 +8,20 @@ import (
 	"time"
 )
 
+type Orchestrator struct {
+	Poller       Poller
+	Spawner      Spawner
+	PollInterval time.Duration
+}
+
+func New(poller Poller, spawner Spawner, pollInterval time.Duration) *Orchestrator {
+	return &Orchestrator{
+		Poller:       poller,
+		Spawner:      spawner,
+		PollInterval: pollInterval,
+	}
+}
+
 // Run starts the orchestration loop
 func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 	logger.Info("Starting Orchestrator", "interval", o.PollInterval)
@@ -26,7 +40,7 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 		case <-ticker.C:
 			// Poll for work
 			logger.Debug("Polling for work...")
-			items, err := o.Poller.Poll(ctx)
+			items, err := o.Poller.Poll(ctx, logger)
 			if err != nil {
 				logger.Error("Failed to poll for work", "error", err)
 				continue
@@ -39,12 +53,6 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 			logger.Info("Found work items", "count", len(items))
 
 			for _, item := range items {
-				// Try to claim
-				if err := o.Poller.Claim(ctx, item); err != nil {
-					logger.Warn("Failed to claim work item", "id", item.ID, "error", err)
-					continue
-				}
-
 				wg.Add(1)
 				go func(item WorkItem) {
 					defer wg.Done()

@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"recac/internal/jira"
 	"strings"
 )
@@ -21,7 +22,7 @@ func NewJiraPoller(client *jira.Client, jql string) *JiraPoller {
 	}
 }
 
-func (p *JiraPoller) Poll(ctx context.Context) ([]WorkItem, error) {
+func (p *JiraPoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkItem, error) {
 	// Default JQL if empty
 	if p.JQL == "" {
 		p.JQL = "statusCategory != Done ORDER BY created ASC"
@@ -106,11 +107,6 @@ func (p *JiraPoller) Poll(ctx context.Context) ([]WorkItem, error) {
 	}
 
 	return curatedItems, nil
-}
-
-func (p *JiraPoller) Claim(ctx context.Context, item WorkItem) error {
-	// Transition to "In Progress"
-	return p.Client.SmartTransition(ctx, item.ID, "In Progress")
 }
 
 func (p *JiraPoller) UpdateStatus(ctx context.Context, item WorkItem, status string, comment string) error {

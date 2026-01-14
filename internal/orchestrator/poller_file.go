@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"sync"
 )
@@ -22,12 +23,12 @@ func NewFilePoller(path string) *FilePoller {
 	}
 }
 
-func (p *FilePoller) Poll(ctx context.Context) ([]WorkItem, error) {
+func (p *FilePoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkItem, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	if _, err := os.Stat(p.path); os.IsNotExist(err) {
-		fmt.Printf("[FilePoller] Work file %s not found\n", p.path)
+		logger.Warn("[FilePoller] Work file not found", "path", p.path)
 		return nil, nil // No work file found yet
 	}
 
@@ -46,17 +47,11 @@ func (p *FilePoller) Poll(ctx context.Context) ([]WorkItem, error) {
 	for _, item := range items {
 		if !p.processed[item.ID] {
 			newItems = append(newItems, item)
+			p.processed[item.ID] = true
 		}
 	}
 
 	return newItems, nil
-}
-
-func (p *FilePoller) Claim(ctx context.Context, item WorkItem) error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.processed[item.ID] = true
-	return nil
 }
 
 func (p *FilePoller) UpdateStatus(ctx context.Context, item WorkItem, status string, comment string) error {

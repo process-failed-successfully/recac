@@ -18,7 +18,6 @@ type mockPoller struct {
 	items          map[string]WorkItem
 	itemsMu        sync.Mutex
 	pollErr        error
-	claimErr       error
 	updateStatus   map[string]string
 	updateStatusMu sync.Mutex
 }
@@ -34,7 +33,7 @@ func newMockPoller(items []WorkItem) *mockPoller {
 	}
 }
 
-func (m *mockPoller) Poll(ctx context.Context) ([]WorkItem, error) {
+func (m *mockPoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkItem, error) {
 	m.itemsMu.Lock()
 	defer m.itemsMu.Unlock()
 	if m.pollErr != nil {
@@ -44,20 +43,9 @@ func (m *mockPoller) Poll(ctx context.Context) ([]WorkItem, error) {
 	for _, item := range m.items {
 		result = append(result, item)
 	}
+	// Clear items after polling to simulate them being claimed
+	m.items = make(map[string]WorkItem)
 	return result, nil
-}
-
-func (m *mockPoller) Claim(ctx context.Context, item WorkItem) error {
-	if m.claimErr != nil {
-		return m.claimErr
-	}
-	m.itemsMu.Lock()
-	defer m.itemsMu.Unlock()
-	if _, ok := m.items[item.ID]; !ok {
-		return errors.New("item not found")
-	}
-	delete(m.items, item.ID)
-	return nil
 }
 
 func (m *mockPoller) UpdateStatus(ctx context.Context, item WorkItem, status string, comment string) error {
@@ -115,7 +103,7 @@ func TestOrchestrator_Run_Success(t *testing.T) {
 	assert.True(t, found["TEST-2"])
 
 	// Check that poller has no more items
-	polledItems, _ := poller.Poll(context.Background())
+	polledItems, _ := poller.Poll(context.Background(), silentLogger)
 	assert.Empty(t, polledItems)
 }
 
@@ -144,23 +132,6 @@ func TestOrchestrator_Run_Scenarios(t *testing.T) {
 		verifyPoller       func(t *testing.T, p *mockPoller)
 	}{
 		{
-			name: "Claim Error",
-			setupPoller: func() *mockPoller {
-				p := newMockPoller([]WorkItem{{ID: "TEST-1"}})
-				p.claimErr = errors.New("claim failed")
-				return p
-			},
-			setupSpawner:       func() *mockSpawner { return &mockSpawner{} },
-			timeout:            50 * time.Millisecond,
-			expectedSpawnCount: 0,
-			expectedStatus:     map[string]string{},
-			verifyPoller: func(t *testing.T, p *mockPoller) {
-				// Item should NOT have been claimed/removed
-				items, _ := p.Poll(context.Background())
-				assert.Len(t, items, 1)
-			},
-		},
-		{
 			name:        "Spawn Error",
 			setupPoller: func() *mockPoller { return newMockPoller([]WorkItem{{ID: "TEST-1"}}) },
 			setupSpawner: func() *mockSpawner {
@@ -171,7 +142,7 @@ func TestOrchestrator_Run_Scenarios(t *testing.T) {
 			expectedStatus:     map[string]string{"TEST-1": "Failed"},
 			verifyPoller: func(t *testing.T, p *mockPoller) {
 				// Item should have been claimed/removed
-				items, _ := p.Poll(context.Background())
+				items, _ := p.Poll(context.Background(), silentLogger)
 				assert.Empty(t, items)
 			},
 		},

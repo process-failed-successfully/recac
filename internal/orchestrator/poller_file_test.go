@@ -23,7 +23,7 @@ func TestFilePoller(t *testing.T) {
 
 	t.Run("Poll Empty/Missing File", func(t *testing.T) {
 		poller := NewFilePoller(workFile)
-		items, err := poller.Poll(context.Background())
+		items, err := poller.Poll(context.Background(), silentLogger)
 		assert.NoError(t, err)
 		assert.Nil(t, items)
 	})
@@ -33,17 +33,13 @@ func TestFilePoller(t *testing.T) {
 		os.WriteFile(workFile, []byte(content), 0644)
 
 		poller := NewFilePoller(workFile)
-		items, err := poller.Poll(context.Background())
+		items, err := poller.Poll(context.Background(), silentLogger)
 		assert.NoError(t, err)
 		assert.Len(t, items, 1)
 		assert.Equal(t, "TASK-1", items[0].ID)
 
-		// Claim
-		err = poller.Claim(context.Background(), items[0])
-		assert.NoError(t, err)
-
-		// Poll again should be empty
-		items2, err := poller.Poll(context.Background())
+		// Poll again should be empty, as Poll now claims the items
+		items2, err := poller.Poll(context.Background(), silentLogger)
 		assert.NoError(t, err)
 		assert.Len(t, items2, 0)
 	})
