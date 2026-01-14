@@ -9,6 +9,8 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -17,6 +19,8 @@ type summaryModel struct {
 	sessions   []*runner.SessionState
 	lastUpdate time.Time
 	err        error
+	help       help.Model
+	keys       summaryKeyMap
 }
 
 type summaryTickMsg time.Time
@@ -28,8 +32,37 @@ var (
 	cellStyle        = lipgloss.NewStyle().Padding(0, 1)
 )
 
+type summaryKeyMap struct {
+	Quit    key.Binding
+	Refresh key.Binding
+}
+
+func (k summaryKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Refresh, k.Quit}
+}
+
+func (k summaryKeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.Refresh, k.Quit},
+	}
+}
+
+var summaryKeys = summaryKeyMap{
+	Quit: key.NewBinding(
+		key.WithKeys("q", "ctrl+c"),
+		key.WithHelp("q", "quit"),
+	),
+	Refresh: key.NewBinding(
+		key.WithKeys("r"),
+		key.WithHelp("r", "refresh now"),
+	),
+}
+
 func NewSummaryModel() summaryModel {
-	return summaryModel{}
+	return summaryModel{
+		help: help.New(),
+		keys: summaryKeys,
+	}
 }
 
 func (m summaryModel) Init() tea.Cmd {
@@ -41,9 +74,11 @@ func (m summaryModel) Init() tea.Cmd {
 func (m summaryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "q", "ctrl+c":
+		switch {
+		case key.Matches(msg, m.keys.Quit):
 			return m, tea.Quit
+		case key.Matches(msg, m.keys.Refresh):
+			return m, refreshSessionsCmd()
 		}
 	case summaryTickMsg:
 		return m, refreshSessionsCmd()
@@ -65,48 +100,48 @@ func (m summaryModel) View() string {
 
 	var s strings.Builder
 	s.WriteString(summaryTitleStyle.Render("📊 RECAC Summary Dashboard") + "\n")
-	s.WriteString(fmt.Sprintf("Last updated: %s (press 'q' to quit)\n", m.lastUpdate.Format(time.RFC1123)))
+	s.WriteString(fmt.Sprintf("Last updated: %s\n", m.lastUpdate.Format(time.RFC1123)))
 
 	if len(m.sessions) == 0 {
 		s.WriteString("\nNo sessions found.")
-		return s.String()
-	}
+	} else {
+		// Calculate stats
+		var totalTokens int
+		var totalCost float64
+		completed, errored, running := 0, 0, 0
+		sessionCosts := make(map[string]float64)
 
-	// Calculate stats
-	var totalTokens int
-	var totalCost float64
-	completed, errored, running := 0, 0, 0
-	sessionCosts := make(map[string]float64)
-
-	for _, session := range m.sessions {
-		switch session.Status {
-		case "completed":
-			completed++
-		case "error":
-			errored++
-		case "running":
-			running++
-		}
-		if session.AgentStateFile != "" {
-			state, err := agent.LoadState(session.AgentStateFile)
-			if err == nil {
-				cost := agent.CalculateCost(state.Model, state.TokenUsage)
-				totalCost += cost
-				totalTokens += state.TokenUsage.TotalTokens
-				sessionCosts[session.Name] = cost
+		for _, session := range m.sessions {
+			switch session.Status {
+			case "completed":
+				completed++
+			case "error":
+				errored++
+			case "running":
+				running++
+			}
+			if session.AgentStateFile != "" {
+				state, err := agent.LoadState(session.AgentStateFile)
+				if err == nil {
+					cost := agent.CalculateCost(state.Model, state.TokenUsage)
+					totalCost += cost
+					totalTokens += state.TokenUsage.TotalTokens
+					sessionCosts[session.Name] = cost
+				}
 			}
 		}
+
+		// Render stats
+		s.WriteString(m.renderStats(len(m.sessions), completed, errored, running, totalTokens, totalCost))
+
+		// Render recent sessions
+		s.WriteString(m.renderRecentSessions())
+
+		// Render most expensive sessions
+		s.WriteString(m.renderMostExpensiveSessions(sessionCosts))
 	}
 
-	// Render stats
-	s.WriteString(m.renderStats(len(m.sessions), completed, errored, running, totalTokens, totalCost))
-
-	// Render recent sessions
-	s.WriteString(m.renderRecentSessions())
-
-	// Render most expensive sessions
-	s.WriteString(m.renderMostExpensiveSessions(sessionCosts))
-
+	s.WriteString("\n\n" + m.help.View(m.keys))
 	return s.String()
 }
 
