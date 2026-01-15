@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"recac/internal/runner"
@@ -103,5 +104,58 @@ func TestLsCommand_FilterByStatus(t *testing.T) {
 		output, err := executeCommand(rootCmd, "ls", "--status", "zombie")
 		require.NoError(t, err)
 		assert.Contains(t, output, "No sessions found.")
+	})
+}
+
+func TestLsCommand_JsonOutput(t *testing.T) {
+	teardown := setupLsTest(t)
+	defer teardown()
+
+	sm, err := sessionManagerFactory()
+	require.NoError(t, err)
+
+	// Create a session with a specific start time for deterministic JSON output
+	startTime := time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC)
+	session := &runner.SessionState{
+		Name:      "session-json",
+		Status:    "running",
+		StartTime: startTime,
+		PID:       12345,
+		LogFile:   "/tmp/session-json.log",
+		Workspace: "/tmp/workspace",
+		Command:   []string{"/bin/sleep", "30"},
+	}
+	require.NoError(t, sm.SaveSession(session))
+
+	t.Run("single session", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "ls", "--json")
+		require.NoError(t, err)
+
+		// The mock session manager will transition the status to 'completed'
+		// and set an end time, so we need to account for that.
+		var sessions []*runner.SessionState
+		err = json.Unmarshal([]byte(output), &sessions)
+		require.NoError(t, err, "Output should be valid JSON")
+		require.Len(t, sessions, 1, "Should be one session in the JSON output")
+
+		s := sessions[0]
+		assert.Equal(t, "session-json", s.Name)
+		assert.Equal(t, "completed", s.Status) // Note: mock manager transitions status
+		assert.Equal(t, 12345, s.PID)
+		assert.Equal(t, "/tmp/session-json.log", s.LogFile)
+		assert.Equal(t, "/tmp/workspace", s.Workspace)
+		assert.Equal(t, []string{"/bin/sleep", "30"}, s.Command)
+		assert.Equal(t, startTime.UTC(), s.StartTime.UTC()) // Compare in UTC for consistency
+		assert.False(t, s.EndTime.IsZero(), "EndTime should be set by the mock manager")
+	})
+
+	t.Run("no sessions", func(t *testing.T) {
+		// Remove the session to test the empty case
+		require.NoError(t, sm.RemoveSession("session-json", true))
+
+		output, err := executeCommand(rootCmd, "ls", "--json")
+		require.NoError(t, err)
+
+		assert.JSONEq(t, `[]`, output, "Output should be an empty JSON array")
 	})
 }

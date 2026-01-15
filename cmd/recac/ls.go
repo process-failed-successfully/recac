@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -15,13 +16,14 @@ import (
 func init() {
 	rootCmd.AddCommand(lsCmd)
 	lsCmd.Flags().String("status", "", "Filter sessions by status (e.g., 'running', 'completed', 'error')")
+	lsCmd.Flags().Bool("json", false, "Output in JSON format")
 }
 
 var lsCmd = &cobra.Command{
-	Use:     "ls",
-	Short:   "List sessions in a simple, script-friendly format",
-	Long:    `List all active and completed local sessions in a format suitable for scripting and piping.`,
-	Args:    cobra.NoArgs,
+	Use:   "ls",
+	Short: "List sessions in a simple, script-friendly format",
+	Long:  `List all active and completed local sessions in a format suitable for scripting and piping.`,
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		sm, err := sessionManagerFactory()
 		if err != nil {
@@ -42,6 +44,25 @@ var lsCmd = &cobra.Command{
 				}
 			}
 			sessions = filteredSessions
+		}
+
+		jsonOutput, _ := cmd.Flags().GetBool("json")
+		if jsonOutput {
+			if len(sessions) == 0 {
+				// Return an empty JSON array instead of a message
+				cmd.Println("[]")
+				return nil
+			}
+			// Sort for deterministic output in tests
+			sort.SliceStable(sessions, func(i, j int) bool {
+				return sessions[i].Name < sessions[j].Name
+			})
+			jsonData, err := json.MarshalIndent(sessions, "", "  ")
+			if err != nil {
+				return fmt.Errorf("failed to marshal sessions to JSON: %w", err)
+			}
+			cmd.Println(string(jsonData))
+			return nil
 		}
 
 		if len(sessions) == 0 {
