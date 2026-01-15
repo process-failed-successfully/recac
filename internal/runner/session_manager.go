@@ -47,8 +47,28 @@ type SessionManager struct {
 	archivedSessionsDir string
 }
 
+// ISessionManager defines the interface for session management.
+type ISessionManager interface {
+	ListSessions() ([]*SessionState, error)
+	SaveSession(*SessionState) error
+	LoadSession(name string) (*SessionState, error)
+	StopSession(name string) error
+	GetSessionLogs(name string) (string, error)
+	GetSessionLogContent(name string, lines int) (string, error)
+	StartSession(name string, command []string, workspace string) (*SessionState, error)
+	GetSessionPath(name string) string
+	IsProcessRunning(pid int) bool
+	RemoveSession(name string, force bool) error
+	RenameSession(oldName, newName string) error
+	SessionsDir() string
+	GetSessionGitDiffStat(name string) (string, error)
+	ArchiveSession(name string) error
+	UnarchiveSession(name string) error
+	ListArchivedSessions() ([]*SessionState, error)
+}
+
 // NewSessionManager creates a new session manager
-func NewSessionManager() (*SessionManager, error) {
+var NewSessionManager = func() (ISessionManager, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get home directory: %w", err)
