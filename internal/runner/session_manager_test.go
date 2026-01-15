@@ -61,6 +61,11 @@ func (m *MockGitClient) Fetch(directory, remote, branch string) error {
 	return args.Error(0)
 }
 
+func (m *MockGitClient) IsDirty(directory string) (bool, error) {
+	args := m.Called(directory)
+	return args.Bool(0), args.Error(1)
+}
+
 func (m *MockGitClient) Stash(directory string) error {
 	args := m.Called(directory)
 	return args.Error(0)
