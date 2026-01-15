@@ -15,6 +15,8 @@ import (
 var (
 	execLookPath            = exec.LookPath
 	clientNewClientWithOpts = client.NewClientWithOpts
+	viperConfigFileUsed     = viper.ConfigFileUsed
+	checkDockerConnectivity = checkDockerConnectivityFunc
 )
 
 // DockerClient defines the interface for Docker client operations needed by the doctor.
@@ -43,7 +45,7 @@ func GetDoctor() string {
 }
 
 func checkConfig() string {
-	if cfgFile := viper.ConfigFileUsed(); cfgFile != "" {
+	if cfgFile := viperConfigFileUsed(); cfgFile != "" {
 		return fmt.Sprintf("[✔] Configuration: %s found\n", cfgFile)
 	}
 	return "[✖] Configuration: Missing config file\n"
@@ -63,7 +65,7 @@ func checkDependencies() string {
 	return builder.String()
 }
 
-func checkDockerConnectivity(cli DockerClient, err error) string {
+func checkDockerConnectivityFunc(cli DockerClient, err error) string {
 	if err != nil {
 		return fmt.Sprintf("[✖] Docker: Failed to create client: %v\n", err)
 	}
