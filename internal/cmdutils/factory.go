@@ -93,7 +93,7 @@ func GetAgentClient(ctx context.Context, provider, model, projectPath, projectNa
 }
 
 // SetupWorkspace handles cloning, auth fallback, and Epic branching strategy
-var SetupWorkspace = func(ctx context.Context, gitClient git.GitClient, repoURL, workspace, ticketID, epicKey, timestamp string) (string, error) {
+var SetupWorkspace = func(ctx context.Context, gitClient git.IClient, repoURL, workspace, ticketID, epicKey, timestamp string) (string, error) {
 	if repoURL == "" {
 		return "", nil // Nothing to clone
 	}

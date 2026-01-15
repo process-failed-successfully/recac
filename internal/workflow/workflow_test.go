@@ -21,7 +21,7 @@ func TestProcessJiraTicket(t *testing.T) {
 	originalSetup := cmdutils.SetupWorkspace
 	defer func() { cmdutils.SetupWorkspace = originalSetup }()
 
-	cmdutils.SetupWorkspace = func(ctx context.Context, gitClient git.GitClient, repoURL, workspace, ticketID, epicKey, timestamp string) (string, error) {
+	cmdutils.SetupWorkspace = func(ctx context.Context, gitClient git.IClient, repoURL, workspace, ticketID, epicKey, timestamp string) (string, error) {
 		// Mock success
 		// Ensure workspace dir exists
 		os.MkdirAll(workspace, 0755)
@@ -119,7 +119,7 @@ func TestProcessDirectTask(t *testing.T) {
 	originalSetup := cmdutils.SetupWorkspace
 	defer func() { cmdutils.SetupWorkspace = originalSetup }()
 
-	cmdutils.SetupWorkspace = func(ctx context.Context, gitClient git.GitClient, repoURL, workspace, ticketID, epicKey, timestamp string) (string, error) {
+	cmdutils.SetupWorkspace = func(ctx context.Context, gitClient git.IClient, repoURL, workspace, ticketID, epicKey, timestamp string) (string, error) {
 		os.MkdirAll(workspace, 0755)
 		return repoURL, nil
 	}
@@ -154,7 +154,7 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 	originalSetup := cmdutils.SetupWorkspace
 	defer func() { cmdutils.SetupWorkspace = originalSetup }()
 
-	cmdutils.SetupWorkspace = func(ctx context.Context, gitClient git.GitClient, repoURL, workspace, ticketID, epicKey, timestamp string) (string, error) {
+	cmdutils.SetupWorkspace = func(ctx context.Context, gitClient git.IClient, repoURL, workspace, ticketID, epicKey, timestamp string) (string, error) {
 		os.MkdirAll(workspace, 0755)
 		return repoURL, nil
 	}

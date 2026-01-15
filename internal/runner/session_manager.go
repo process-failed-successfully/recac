@@ -301,7 +301,10 @@ func (sm *SessionManager) RenameSession(oldName, newName string) error {
 	// 1. Load the session state for the old name.
 	session, err := sm.LoadSession(oldName)
 	if err != nil {
-		if os.IsNotExist(err) {
+		// Re-check for NotExist because the error wrapping can be tricky.
+		// This makes the check more robust for the "not found" case.
+		sessionPath := sm.GetSessionPath(oldName)
+		if _, statErr := os.Stat(sessionPath); os.IsNotExist(statErr) {
 			return fmt.Errorf("session '%s' not found", oldName)
 		}
 		return fmt.Errorf("could not load session '%s': %w", oldName, err)

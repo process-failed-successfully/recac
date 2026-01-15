@@ -150,10 +150,74 @@ func (m *MockGitClient) Pull(directory, remote, branch string) error {
 	return nil
 }
 
+func (m *MockGitClient) DiffStat(workspace, startCommit, endCommit string) (string, error) {
+	return "", nil
+}
+
+func (m *MockGitClient) CurrentCommitSHA(workspace string) (string, error) {
+	return "", nil
+}
+
+func (m *MockGitClient) Stash(directory string) error {
+	return nil
+}
+
+func (m *MockGitClient) Merge(directory, branchName string) error {
+	return nil
+}
+
+func (m *MockGitClient) AbortMerge(directory string) error {
+	return nil
+}
+
+func (m *MockGitClient) Recover(directory string) error {
+	return nil
+}
+
+func (m *MockGitClient) Clean(directory string) error {
+	return nil
+}
+
+func (m *MockGitClient) ResetHard(directory, remote, branch string) error {
+	return nil
+}
+
+func (m *MockGitClient) StashPop(directory string) error {
+	return nil
+}
+
+func (m *MockGitClient) DeleteRemoteBranch(directory, remote, branch string) error {
+	return nil
+}
+
+func (m *MockGitClient) CurrentBranch(directory string) (string, error) {
+	return "", nil
+}
+
+func (m *MockGitClient) Commit(directory, message string) error {
+	return nil
+}
+
+func (m *MockGitClient) Diff(directory, startCommit, endCommit string) (string, error) {
+	return "", nil
+}
+
+func (m *MockGitClient) SetRemoteURL(directory, name, url string) error {
+	return nil
+}
+
+func (m *MockGitClient) DeleteLocalBranch(directory, branch string) error {
+	return nil
+}
+
+func (m *MockGitClient) LocalBranchExists(directory, branch string) (bool, error) {
+	return false, nil
+}
+
 func TestSetupWorkspace(t *testing.T) {
 	t.Run("Empty Repo URL", func(t *testing.T) {
 		mockGitClient := &MockGitClient{}
-		assert.Implements(t, (*git.GitClient)(nil), mockGitClient)
+		assert.Implements(t, (*git.IClient)(nil), mockGitClient)
 		url, err := SetupWorkspace(context.Background(), mockGitClient, "", "/tmp/recac-test", "TEST-1", "", "")
 		assert.NoError(t, err)
 		assert.Equal(t, "", url)
