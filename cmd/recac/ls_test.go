@@ -105,3 +105,73 @@ func TestLsCommand_FilterByStatus(t *testing.T) {
 		assert.Contains(t, output, "No sessions found.")
 	})
 }
+
+func TestLsCommand_FilterByTime(t *testing.T) {
+	teardown := setupLsTest(t)
+	defer teardown()
+
+	sm, err := sessionManagerFactory()
+	require.NoError(t, err)
+
+	now := time.Now()
+	pid := os.Getpid()
+	sessionRecent := &runner.SessionState{Name: "session-recent", Status: "running", StartTime: now.Add(-30 * time.Minute), PID: pid}
+	session1hAgo := &runner.SessionState{Name: "session-1h-ago", Status: "completed", StartTime: now.Add(-1 * time.Hour), EndTime: now.Add(-55 * time.Minute)}
+	sessionOld := &runner.SessionState{Name: "session-old", Status: "completed", StartTime: now.Add(-48 * time.Hour), EndTime: now.Add(-47 * time.Hour)}
+	sessionStale := &runner.SessionState{Name: "session-stale", Status: "running", StartTime: now.Add(-8 * 24 * time.Hour), PID: pid} // 8 days ago, still running
+
+	require.NoError(t, sm.SaveSession(sessionRecent))
+	require.NoError(t, sm.SaveSession(session1hAgo))
+	require.NoError(t, sm.SaveSession(sessionOld))
+	require.NoError(t, sm.SaveSession(sessionStale))
+
+	t.Run("filter by since with duration", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "ls", "--since", "90m")
+		require.NoError(t, err)
+		assert.Contains(t, output, "session-recent")
+		assert.Contains(t, output, "session-1h-ago")
+		assert.NotContains(t, output, "session-old")
+		assert.NotContains(t, output, "session-stale")
+	})
+
+	t.Run("filter by since with timestamp", func(t *testing.T) {
+		timestamp := now.Add(-2 * time.Hour).Format("2006-01-02")
+		output, err := executeCommand(rootCmd, "ls", "--since", timestamp)
+		require.NoError(t, err)
+		assert.Contains(t, output, "session-recent")
+		assert.Contains(t, output, "session-1h-ago")
+		// This might contain session-old depending on the exact time the test is run
+		// A more robust check is to ensure the ones that *shouldn't* be there are absent.
+		assert.NotContains(t, output, "session-stale")
+	})
+
+	t.Run("filter by stale", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "ls", "--stale", "7d")
+		require.NoError(t, err)
+		assert.NotContains(t, output, "session-recent")
+		assert.NotContains(t, output, "session-1h-ago")
+		assert.NotContains(t, output, "session-old")
+		assert.Contains(t, output, "session-stale")
+	})
+
+	t.Run("filter by since and stale", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "ls", "--since", "240h", "--stale", "7d")
+		require.NoError(t, err)
+		assert.NotContains(t, output, "session-recent")
+		assert.NotContains(t, output, "session-1h-ago")
+		assert.NotContains(t, output, "session-old")
+		assert.Contains(t, output, "session-stale")
+	})
+
+	t.Run("filter with invalid since value", func(t *testing.T) {
+		_, err := executeCommand(rootCmd, "ls", "--since", "invalid-time")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid 'since' value")
+	})
+
+	t.Run("filter with invalid stale value", func(t *testing.T) {
+		_, err := executeCommand(rootCmd, "ls", "--stale", "invalid-duration")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid 'stale' value")
+	})
+}

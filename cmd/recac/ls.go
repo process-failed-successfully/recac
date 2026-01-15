@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"recac/internal/runner"
+	"recac/internal/utils"
 
 	"github.com/spf13/cobra"
 )
@@ -15,6 +16,8 @@ import (
 func init() {
 	rootCmd.AddCommand(lsCmd)
 	lsCmd.Flags().String("status", "", "Filter sessions by status (e.g., 'running', 'completed', 'error')")
+	lsCmd.Flags().String("since", "", "Filter sessions started after a specific duration (e.g., '1h', '30m') or timestamp ('2006-01-02')")
+	lsCmd.Flags().String("stale", "", "Filter sessions that have been inactive for a given duration (e.g., '7d', '24h')")
 }
 
 var lsCmd = &cobra.Command{
@@ -33,13 +36,73 @@ var lsCmd = &cobra.Command{
 			return fmt.Errorf("failed to list sessions: %w", err)
 		}
 
+		// --- Filtering ---
 		statusFilter, _ := cmd.Flags().GetString("status")
-		if statusFilter != "" {
+		sinceFilter, _ := cmd.Flags().GetString("since")
+		staleFilter, _ := cmd.Flags().GetString("stale")
+
+		// Stale Time Calculation
+		var staleTime time.Time
+		if staleFilter != "" {
+			duration, err := utils.ParseStaleDuration(staleFilter)
+			if err != nil {
+				return fmt.Errorf("invalid 'stale' value %q: %w", staleFilter, err)
+			}
+			staleTime = time.Now().Add(-duration)
+		}
+
+		// Since Time Calculation
+		var sinceTime time.Time
+		if sinceFilter != "" {
+			duration, err := time.ParseDuration(sinceFilter)
+			if err == nil {
+				sinceTime = time.Now().Add(-duration)
+			} else {
+				layouts := []string{time.RFC3339, "2006-01-02"}
+				parsed := false
+				for _, layout := range layouts {
+					t, err := time.Parse(layout, sinceFilter)
+					if err == nil {
+						sinceTime = t
+						parsed = true
+						break
+					}
+				}
+				if !parsed {
+					return fmt.Errorf("invalid 'since' value %q: must be a duration or timestamp", sinceFilter)
+				}
+			}
+		}
+
+		// Apply filters in a single loop
+		if statusFilter != "" || sinceFilter != "" || staleFilter != "" {
 			var filteredSessions []*runner.SessionState
 			for _, s := range sessions {
-				if strings.EqualFold(s.Status, statusFilter) {
-					filteredSessions = append(filteredSessions, s)
+				// Status filter
+				if statusFilter != "" && !strings.EqualFold(s.Status, statusFilter) {
+					continue
 				}
+
+				// Since filter
+				if !sinceTime.IsZero() && s.StartTime.Before(sinceTime) {
+					continue
+				}
+
+				// Stale filter: if the flag is present, a session must be stale to be included.
+				if !staleTime.IsZero() {
+					// For `ls`, we use EndTime (or StartTime if the session is not finished) as a proxy for activity,
+					// to avoid the overhead of reading the agent state file like `ps` does.
+					activityTime := s.EndTime
+					if activityTime.IsZero() {
+						activityTime = s.StartTime
+					}
+					// If the session is NOT stale, skip it.
+					if activityTime.IsZero() || !activityTime.Before(staleTime) {
+						continue
+					}
+				}
+
+				filteredSessions = append(filteredSessions, s)
 			}
 			sessions = filteredSessions
 		}
