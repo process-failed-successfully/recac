@@ -110,6 +110,27 @@ func DisplaySessionDetail(cmd *cobra.Command, session *runner.SessionState, full
 	return nil
 }
 
+// filterSessionsByTime filters a slice of sessions based on a time window.
+func filterSessionsByTime(sessions []*runner.SessionState, since, until time.Time) []*runner.SessionState {
+	var filteredSessions []*runner.SessionState
+	for _, s := range sessions {
+		if s.StartTime.IsZero() {
+			continue
+		}
+
+		// Check if the session is outside the [since, until) interval.
+		// A zero 'since' or 'until' means that boundary is open.
+		if !since.IsZero() && s.StartTime.Before(since) {
+			continue // Too old
+		}
+		if !until.IsZero() && !s.StartTime.Before(until) {
+			continue // Too recent
+		}
+		filteredSessions = append(filteredSessions, s)
+	}
+	return filteredSessions
+}
+
 func DisplaySessionDiff(cmd *cobra.Command, sessionA, sessionB *runner.SessionState) error {
 	cmd.Println("📊 Metadata Comparison")
 	printMetadataDiff(cmd, sessionA, sessionB)

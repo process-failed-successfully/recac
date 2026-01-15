@@ -193,3 +193,72 @@ func TestCostCommand_Flags(t *testing.T) {
 	require.Equal(t, "false", flag.DefValue, "the --watch flag should default to false")
 	require.Equal(t, "Launch a real-time TUI to monitor session costs", flag.Usage, "the --watch flag should have the correct usage message")
 }
+
+func TestCostCommand_TimeFilter(t *testing.T) {
+	// --- Setup ---
+	tempDir := t.TempDir()
+	sessionsDir := filepath.Join(tempDir, "sessions")
+	err := os.Mkdir(sessionsDir, 0755)
+	require.NoError(t, err)
+
+	// --- Mock Data ---
+	// Session 1: Recent, high cost
+	session1State := &runner.SessionState{
+		Name:           "recent-session",
+		Status:         "COMPLETED",
+		StartTime:      time.Now().Add(-1 * time.Hour),
+		AgentStateFile: filepath.Join(sessionsDir, "agent_state_1.json"),
+	}
+	agent1State := &agent.State{
+		Model: "gpt-4-turbo",
+		TokenUsage: agent.TokenUsage{TotalTokens: 100000},
+	}
+	cost1 := agent.CalculateCost(agent1State.Model, agent1State.TokenUsage) // $3.00
+
+	// Session 2: Old, low cost
+	session2State := &runner.SessionState{
+		Name:           "old-session",
+		Status:         "COMPLETED",
+		StartTime:      time.Now().Add(-5 * 24 * time.Hour), // 5 days ago
+		AgentStateFile: filepath.Join(sessionsDir, "agent_state_2.json"),
+	}
+	agent2State := &agent.State{
+		Model: "gemini-1.5-pro-latest",
+		TokenUsage: agent.TokenUsage{TotalTokens: 10000},
+	}
+	// cost2 := agent.CalculateCost(agent2State.Model, agent2State.TokenUsage) // $0.098
+
+	// Write mock files
+	for _, session := range []*runner.SessionState{session1State, session2State} {
+		sessionBytes, err := json.Marshal(session)
+		require.NoError(t, err)
+		sessionFilePath := filepath.Join(sessionsDir, fmt.Sprintf("%s.json", session.Name))
+		err = os.WriteFile(sessionFilePath, sessionBytes, 0644)
+		require.NoError(t, err)
+	}
+	agent1Bytes, _ := json.Marshal(agent1State)
+	_ = os.WriteFile(session1State.AgentStateFile, agent1Bytes, 0644)
+	agent2Bytes, _ := json.Marshal(agent2State)
+	_ = os.WriteFile(session2State.AgentStateFile, agent2Bytes, 0644)
+
+	// --- Mock Factory ---
+	originalFactory := sessionManagerFactory
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return runner.NewSessionManagerWithDir(sessionsDir)
+	}
+	defer func() { sessionManagerFactory = originalFactory }()
+
+	// --- Execute & Assert ---
+	rootCmd, _, _ := newRootCmd()
+	// Filter for sessions in the last 2 days. This should *only* include the recent session.
+	output, err := executeCommand(rootCmd, "cost", "--since", "2d")
+	require.NoError(t, err)
+
+	// Check that only the recent session is included in the output
+	assert.Contains(t, output, "recent-session")
+	assert.NotContains(t, output, "old-session")
+
+	// Check that the total cost reflects *only* the filtered session
+	expectedTotalCost := fmt.Sprintf("$%.4f", cost1)
+	assert.Contains(t, output, expectedTotalCost)
+}

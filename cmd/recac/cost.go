@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"sort"
 	"text/tabwriter"
+	"time"
 
 	"recac/internal/agent"
 	"recac/internal/runner"
 	"recac/internal/ui"
+	"recac/internal/utils"
 
 	"github.com/spf13/cobra"
 )
@@ -16,6 +18,8 @@ func init() {
 	rootCmd.AddCommand(costCmd)
 	costCmd.Flags().Int("limit", 10, "Limit the number of sessions displayed in the 'Top Sessions by Cost' list")
 	costCmd.Flags().Bool("watch", false, "Launch a real-time TUI to monitor session costs")
+	costCmd.Flags().String("since", "", "Filter sessions started after a specific time (e.g., '7d', '24h', '2023-10-27')")
+	costCmd.Flags().String("until", "", "Filter sessions started before a specific time (e.g., '7d', '24h', '2023-10-27')")
 }
 
 var costCmd = &cobra.Command{
@@ -39,19 +43,42 @@ var costCmd = &cobra.Command{
 			return nil
 		}
 
+		// Time filtering logic
+		sinceStr, _ := cmd.Flags().GetString("since")
+		untilStr, _ := cmd.Flags().GetString("until")
+
+		var sinceTime, untilTime time.Time
+		if sinceStr != "" {
+			sinceTime, err = utils.ParseTime(sinceStr)
+			if err != nil {
+				return fmt.Errorf("invalid --since format: %w", err)
+			}
+		}
+		if untilStr != "" {
+			untilTime, err = utils.ParseTime(untilStr)
+			if err != nil {
+				return fmt.Errorf("invalid --until format: %w", err)
+			}
+		} else {
+			untilTime = time.Now()
+		}
+
 		sessions, err := sm.ListSessions()
 		if err != nil {
 			return fmt.Errorf("could not list sessions: %w", err)
 		}
 
-		if len(sessions) == 0 {
-			cmd.Println("No sessions found to analyze.")
+		// Apply filters
+		filteredSessions := filterSessionsByTime(sessions, sinceTime, untilTime)
+
+		if len(filteredSessions) == 0 {
+			cmd.Println("No sessions found within the specified time range.")
 			return nil
 		}
 
 		limit, _ := cmd.Flags().GetInt("limit")
 
-		analysis, err := analyzeSessionCosts(sessions, limit)
+		analysis, err := analyzeSessionCosts(filteredSessions, limit)
 		if err != nil {
 			return fmt.Errorf("error analyzing session costs: %w", err)
 		}

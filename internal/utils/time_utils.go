@@ -2,58 +2,61 @@ package utils
 
 import (
 	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
 	"time"
 )
 
-// FormatSince returns a human-readable string representing the time elapsed since t.
-func FormatSince(t time.Time) string {
-	if t.IsZero() {
-		return "never"
-	}
+// Supported layout for absolute time parsing
+const AbsoluteTimeLayout = "2006-01-02"
 
-	const (
-		day  = 24 * time.Hour
-		week = 7 * day
-	)
+// StaleDurationRegex matches patterns like "7d", "24h", "60m", "30s"
+var StaleDurationRegex = regexp.MustCompile(`^(\d+)([hmsd])$`)
 
-	since := time.Since(t)
-	if since < time.Minute {
-		return fmt.Sprintf("%ds ago", int(since.Seconds()))
-	}
-	if since < time.Hour {
-		return fmt.Sprintf("%dm ago", int(since.Minutes()))
-	}
-	if since < day {
-		return fmt.Sprintf("%dh ago", int(since.Hours()))
-	}
-	if since < week {
-		return fmt.Sprintf("%dd ago", int(since.Hours()/24))
-	}
-	// Fallback to absolute date for longer durations
-	return t.Format("2006-01-02")
-}
-
-// ParseStaleDuration parses a duration string like "7d" or "24h" into a time.Duration.
-// It's more flexible than time.ParseDuration by supporting days.
+// ParseStaleDuration parses a string like "7d" into a time.Duration.
+// It supports days (d), hours (h), and minutes (m).
 func ParseStaleDuration(durationStr string) (time.Duration, error) {
-	if len(durationStr) < 2 {
-		return 0, fmt.Errorf("duration string too short")
+	matches := StaleDurationRegex.FindStringSubmatch(durationStr)
+	if len(matches) != 3 {
+		return 0, fmt.Errorf("invalid duration format: %q. Expected format like '7d', '24h', '60m'", durationStr)
 	}
 
-	unit := durationStr[len(durationStr)-1]
-	valueStr := durationStr[:len(durationStr)-1]
-	value, err := time.ParseDuration(valueStr + "h") // Default to hours for parsing
-	if err != nil {
-		return 0, fmt.Errorf("invalid duration value: %w", err)
-	}
+	value, _ := strconv.Atoi(matches[1])
+	unit := matches[2]
 
 	switch unit {
-	case 'd':
-		return value * 24, nil
-	case 'h':
-		return value, nil
+	case "d":
+		return time.Duration(value) * 24 * time.Hour, nil
+	case "h":
+		return time.Duration(value) * time.Hour, nil
+	case "m":
+		return time.Duration(value) * time.Minute, nil
+	case "s":
+		return time.Duration(value) * time.Second, nil
 	default:
-		// Fallback to time.ParseDuration for standard units (m, s, etc.)
-		return time.ParseDuration(durationStr)
+		// This case should not be reached due to the regex, but is here for safety
+		return 0, fmt.Errorf("unsupported time unit: %s", unit)
 	}
+}
+
+// ParseTime parses a string that can be either a relative duration (e.g., "7d")
+// or an absolute timestamp in "YYYY-MM-DD" format. It returns the calculated time.
+func ParseTime(timeStr string) (time.Time, error) {
+	timeStr = strings.TrimSpace(timeStr)
+	if timeStr == "" {
+		return time.Time{}, fmt.Errorf("time string cannot be empty")
+	}
+
+	// Try parsing as a relative duration first
+	if duration, err := ParseStaleDuration(timeStr); err == nil {
+		return time.Now().Add(-duration), nil
+	}
+
+	// If it fails, try parsing as an absolute timestamp
+	if t, err := time.Parse(AbsoluteTimeLayout, timeStr); err == nil {
+		return t, nil
+	}
+
+	return time.Time{}, fmt.Errorf("invalid time format: %q. Use '7d'/'24h' or 'YYYY-MM-DD'", timeStr)
 }
