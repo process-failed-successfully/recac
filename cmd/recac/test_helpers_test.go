@@ -272,6 +272,14 @@ type MockGitClient struct {
 	DiffFunc             func(repoPath, commitA, commitB string) (string, error)
 	DiffStatFunc         func(repoPath, commitA, commitB string) (string, error)
 	CurrentCommitSHAFunc func(repoPath string) (string, error)
+	IsDirtyFunc          func(path string) (bool, error)
+}
+
+func (m *MockGitClient) IsDirty(path string) (bool, error) {
+	if m.IsDirtyFunc != nil {
+		return m.IsDirtyFunc(path)
+	}
+	return false, nil
 }
 
 func (m *MockGitClient) Checkout(repoPath, commitOrBranch string) error {

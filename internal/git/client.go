@@ -262,6 +262,24 @@ func (c *Client) CurrentBranch(dir string) (string, error) {
 	return strings.TrimSpace(out.String()), nil
 }
 
+// IsDirty checks for uncommitted changes.
+func (c *Client) IsDirty(dir string) (bool, error) {
+	cmd := exec.Command("git", "status", "--porcelain")
+	if dir != "" {
+		cmd.Dir = dir
+	}
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	// Stderr can be ignored for this check, as a non-zero exit code will be caught.
+	// A non-git directory will error, which is the desired behavior.
+	err := cmd.Run()
+	if err != nil {
+		return false, err
+	}
+	// If output is not empty, there are changes.
+	return out.String() != "", nil
+}
+
 // CurrentCommitSHA returns the SHA of the current commit (HEAD).
 func (c *Client) CurrentCommitSHA(dir string) (string, error) {
 	cmd := exec.Command("git", "rev-parse", "HEAD")

@@ -27,4 +27,5 @@ type IGitClient interface {
 	Diff(repoPath, commitA, commitB string) (string, error)
 	DiffStat(repoPath, commitA, commitB string) (string, error)
 	CurrentCommitSHA(repoPath string) (string, error)
+	IsDirty(path string) (bool, error)
 }
