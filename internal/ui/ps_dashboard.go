@@ -106,8 +106,8 @@ func (m *psDashboardModel) updateTableRows() {
 			lastUsed = utils.FormatSince(s.StartTime)
 		}
 		goal := s.Goal
-		if len(goal) > 57 {
-			goal = goal[:57] + "..."
+		if len(goal) > 54 {
+			goal = goal[:54] + "..."
 		}
 		rows = append(rows, table.Row{
 			s.Name,
