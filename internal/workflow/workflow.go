@@ -53,7 +53,7 @@ type SessionConfig struct {
 }
 
 // ProcessDirectTask handles a coding session from a direct repository and task description
-func ProcessDirectTask(ctx context.Context, cfg SessionConfig) error {
+var ProcessDirectTask = func(ctx context.Context, cfg SessionConfig) error {
 	// Initialize Logger
 	if cfg.Logger == nil {
 		cfg.Logger = telemetry.NewLogger(cfg.Debug, "", false)
@@ -111,7 +111,7 @@ func ProcessDirectTask(ctx context.Context, cfg SessionConfig) error {
 }
 
 // ProcessJiraTicket handles the Jira-specific workflow and then runs the project session
-func ProcessJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.Client, cfg SessionConfig, ignoredBlockers map[string]bool) error {
+var ProcessJiraTicket = func(ctx context.Context, jiraTicketID string, jClient *jira.Client, cfg SessionConfig, ignoredBlockers map[string]bool) error {
 	// Initialize Ticket Logger
 	if cfg.Logger == nil {
 		cfg.Logger = telemetry.NewLogger(cfg.Debug, "", false)
@@ -257,7 +257,7 @@ func ProcessJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.C
 }
 
 // RunWorkflow handles the execution of a single project session (local or Jira-based)
-func RunWorkflow(ctx context.Context, cfg SessionConfig) error {
+var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 	// Handle detached mode
 	if cfg.Detached {
 		if cfg.SessionName == "" {

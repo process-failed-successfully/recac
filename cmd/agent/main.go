@@ -16,10 +16,8 @@ import (
 	"github.com/spf13/viper"
 )
 
-func main() {
-	// Flags
-	var cfgFile string
-	pflag.StringVar(&cfgFile, "config", "", "config file (default is $HOME/.recac.yaml)")
+func initFlags(cfgFile *string) {
+	pflag.StringVar(cfgFile, "config", "", "config file (default is $HOME/.recac.yaml)")
 	pflag.BoolP("verbose", "v", false, "Enable verbose/debug logging")
 
 	// Session Flags
@@ -48,11 +46,9 @@ func main() {
 	pflag.String("provider", "", "Agent provider override")
 	pflag.String("model", "", "Agent model override")
 	pflag.Bool("mock", false, "Mock mode")
+}
 
-	pflag.Parse()
-
-	// Config Load
-	config.Load(cfgFile)
+func runApp(ctx context.Context) error {
 
 	// Bindings
 	viper.BindPFlag("verbose", pflag.Lookup("verbose"))
@@ -116,33 +112,43 @@ func main() {
 		CommandPrefix:     []string{}, // Agent binary doesn't use subcommands, unless needed.
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
 	// Logic
 	if cfg.JiraTicketID != "" {
 		jClient, err := cmdutils.GetJiraClient(ctx)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			return err
 		}
 		if err := workflow.ProcessJiraTicket(ctx, cfg.JiraTicketID, jClient, cfg, nil); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			return err
 		}
-		return
+		return nil
 	}
 
 	if cfg.RepoURL != "" {
 		if err := workflow.ProcessDirectTask(ctx, cfg); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			return err
 		}
-		return
+		return nil
 	}
 
 	// Normal Workflow
 	if err := workflow.RunWorkflow(ctx, cfg); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func main() {
+	var cfgFile string
+	initFlags(&cfgFile)
+	pflag.Parse()
+	config.Load(cfgFile)
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := runApp(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}

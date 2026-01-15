@@ -13,7 +13,7 @@ import (
 )
 
 // GetJiraClient initializes a Jira client using config or environment variables
-func GetJiraClient(ctx context.Context) (*jira.Client, error) {
+var GetJiraClient = func(ctx context.Context) (*jira.Client, error) {
 	baseURL := viper.GetString("jira.url")
 	username := viper.GetString("jira.username")
 	apiToken := viper.GetString("jira.api_token")
