@@ -17,7 +17,7 @@ import (
 type Client struct{}
 
 // NewClient creates a new Git client.
-func NewClient() *Client {
+var NewClient = func() IClient {
 	return &Client{}
 }
 

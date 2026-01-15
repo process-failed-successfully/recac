@@ -1,17 +1,155 @@
 package runner
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"recac/internal/git"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
+// MockGitClient is a mock of the git.Client for testing purposes.
+type MockGitClient struct {
+	mock.Mock
+}
+
+func (m *MockGitClient) DiffStat(workspace, startCommit, endCommit string) (string, error) {
+	args := m.Called(workspace, startCommit, endCommit)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockGitClient) CurrentCommitSHA(workspace string) (string, error) {
+	args := m.Called(workspace)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockGitClient) Clone(ctx context.Context, repoURL, directory string) error {
+	args := m.Called(ctx, repoURL, directory)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) RepoExists(directory string) bool {
+	args := m.Called(directory)
+	return args.Bool(0)
+}
+
+func (m *MockGitClient) Config(directory, key, value string) error {
+	args := m.Called(directory, key, value)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) ConfigAddGlobal(key, value string) error {
+	args := m.Called(key, value)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) RemoteBranchExists(directory, remote, branch string) (bool, error) {
+	args := m.Called(directory, remote, branch)
+	return args.Bool(0), args.Error(1)
+}
+
+func (m *MockGitClient) Fetch(directory, remote, branch string) error {
+	args := m.Called(directory, remote, branch)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) Stash(directory string) error {
+	args := m.Called(directory)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) Merge(directory, branchName string) error {
+	args := m.Called(directory, branchName)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) AbortMerge(directory string) error {
+	args := m.Called(directory)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) Recover(directory string) error {
+	args := m.Called(directory)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) Clean(directory string) error {
+	args := m.Called(directory)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) ResetHard(directory, remote, branch string) error {
+	args := m.Called(directory, remote, branch)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) StashPop(directory string) error {
+	args := m.Called(directory)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) DeleteRemoteBranch(directory, remote, branch string) error {
+	args := m.Called(directory, remote, branch)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) CurrentBranch(directory string) (string, error) {
+	args := m.Called(directory)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockGitClient) Commit(directory, message string) error {
+	args := m.Called(directory, message)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) Diff(directory, startCommit, endCommit string) (string, error) {
+	args := m.Called(directory, startCommit, endCommit)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockGitClient) SetRemoteURL(directory, name, url string) error {
+	args := m.Called(directory, name, url)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) DeleteLocalBranch(directory, branch string) error {
+	args := m.Called(directory, branch)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) LocalBranchExists(directory, branch string) (bool, error) {
+	args := m.Called(directory, branch)
+	return args.Bool(0), args.Error(1)
+}
+
+func (m *MockGitClient) Checkout(directory, branch string) error {
+	args := m.Called(directory, branch)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) CheckoutNewBranch(directory, branch string) error {
+	args := m.Called(directory, branch)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) Push(directory, branch string) error {
+	args := m.Called(directory, branch)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) Pull(directory, remote, branch string) error {
+	args := m.Called(directory, remote, branch)
+	return args.Error(0)
+}
 // setupSessionManager creates a new SessionManager in a temporary directory for isolated testing.
 func setupSessionManager(t *testing.T) (*SessionManager, func()) {
 	t.Helper()
@@ -349,6 +487,30 @@ func TestArchiveAndUnarchiveSession(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "cannot archive running session")
 	})
+
+	t.Run("fails to unarchive a session when an active one with the same name exists", func(t *testing.T) {
+		sm, cleanup := setupSessionManager(t)
+		defer cleanup()
+
+		sessionName := "test-conflict"
+
+		// Create an active session
+		activeSession := &SessionState{Name: sessionName, Status: "completed"}
+		err := sm.SaveSession(activeSession)
+		require.NoError(t, err)
+
+		// Create an archived session (manually, for the test)
+		archivedSession := &SessionState{Name: sessionName, Status: "completed"}
+		data, err := json.Marshal(archivedSession)
+		require.NoError(t, err)
+		err = os.WriteFile(filepath.Join(sm.archivedSessionsDir, sessionName+".json"), data, 0600)
+		require.NoError(t, err)
+
+		// Attempt to unarchive, which should fail
+		err = sm.UnarchiveSession(sessionName)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "an active session named 'test-conflict' already exists")
+	})
 }
 
 func TestListArchivedSessions(t *testing.T) {
@@ -367,4 +529,140 @@ func TestListArchivedSessions(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, archived, 1)
 	assert.Equal(t, archivedSessionName, archived[0].Name)
+}
+
+func TestRenameSession(t *testing.T) {
+	t.Run("renames a session successfully", func(t *testing.T) {
+		sm, cleanup := setupSessionManager(t)
+		defer cleanup()
+
+		oldName := "old-name"
+		newName := "new-name"
+
+		// Create a mock session
+		session := &SessionState{Name: oldName, Status: "completed", LogFile: filepath.Join(sm.sessionsDir, oldName+".log")}
+		err := sm.SaveSession(session)
+		require.NoError(t, err)
+		_, err = os.Create(session.LogFile)
+		require.NoError(t, err)
+
+		err = sm.RenameSession(oldName, newName)
+		require.NoError(t, err)
+
+		// Verify old files are gone
+		_, err = os.Stat(sm.GetSessionPath(oldName))
+		assert.True(t, os.IsNotExist(err))
+		_, err = os.Stat(filepath.Join(sm.sessionsDir, oldName+".log"))
+		assert.True(t, os.IsNotExist(err))
+
+		// Verify new files exist
+		_, err = os.Stat(sm.GetSessionPath(newName))
+		assert.NoError(t, err)
+		_, err = os.Stat(filepath.Join(sm.sessionsDir, newName+".log"))
+		assert.NoError(t, err)
+
+		// Verify the session content is updated
+		renamedSession, err := sm.LoadSession(newName)
+		require.NoError(t, err)
+		assert.Equal(t, newName, renamedSession.Name)
+		assert.Equal(t, filepath.Join(sm.sessionsDir, newName+".log"), renamedSession.LogFile)
+	})
+
+	t.Run("fails to rename a running session", func(t *testing.T) {
+		sm, cleanup := setupSessionManager(t)
+		defer cleanup()
+
+		sessionName := "running-session"
+		session := &SessionState{Name: sessionName, PID: os.Getpid(), Status: "running"}
+		err := sm.SaveSession(session)
+		require.NoError(t, err)
+
+		err = sm.RenameSession(sessionName, "new-name")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "session is running")
+	})
+
+	t.Run("fails to rename to an existing session name", func(t *testing.T) {
+		sm, cleanup := setupSessionManager(t)
+		defer cleanup()
+
+		// Create two sessions
+		session1 := &SessionState{Name: "session1", Status: "completed"}
+		err := sm.SaveSession(session1)
+		require.NoError(t, err)
+		session2 := &SessionState{Name: "session2", Status: "completed"}
+		err = sm.SaveSession(session2)
+		require.NoError(t, err)
+
+		err = sm.RenameSession("session1", "session2")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "a session named 'session2' already exists")
+	})
+
+	t.Run("fails to rename a non-existent session", func(t *testing.T) {
+		sm, cleanup := setupSessionManager(t)
+		defer cleanup()
+
+		err := sm.RenameSession("non-existent", "new-name")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "session 'non-existent' not found")
+	})
+}
+
+func TestGetSessionGitDiffStat(t *testing.T) {
+	originalNewClient := git.NewClient
+	git.NewClient = func() git.IClient {
+		return &MockGitClient{}
+	}
+	defer func() { git.NewClient = originalNewClient }()
+	t.Run("returns empty string when SHAs are missing", func(t *testing.T) {
+		sm, cleanup := setupSessionManager(t)
+		defer cleanup()
+
+		session := &SessionState{Name: "test-session", Workspace: "/tmp"}
+		err := sm.SaveSession(session)
+		require.NoError(t, err)
+
+		diff, err := sm.GetSessionGitDiffStat("test-session")
+		assert.NoError(t, err)
+		assert.Equal(t, "", diff)
+	})
+
+	t.Run("returns an error when git client fails", func(t *testing.T) {
+		sm, cleanup := setupSessionManager(t)
+		defer cleanup()
+
+		mockClient := new(MockGitClient)
+		mockClient.On("DiffStat", "/tmp", "start", "end").Return("", fmt.Errorf("git error"))
+		git.NewClient = func() git.IClient {
+			return mockClient
+		}
+
+		session := &SessionState{Name: "test-session", Workspace: "/tmp", StartCommitSHA: "start", EndCommitSHA: "end"}
+		err := sm.SaveSession(session)
+		require.NoError(t, err)
+
+		_, err = sm.GetSessionGitDiffStat("test-session")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get git diff stat")
+	})
+
+	t.Run("returns git diff stat successfully", func(t *testing.T) {
+		sm, cleanup := setupSessionManager(t)
+		defer cleanup()
+
+		mockClient := new(MockGitClient)
+		mockClient.On("DiffStat", "/tmp", "start", "end").Return("... diff output ...", nil)
+		git.NewClient = func() git.IClient {
+			return mockClient
+		}
+
+		session := &SessionState{Name: "test-session", Workspace: "/tmp", StartCommitSHA: "start", EndCommitSHA: "end"}
+		err := sm.SaveSession(session)
+		require.NoError(t, err)
+
+		diff, err := sm.GetSessionGitDiffStat("test-session")
+		assert.NoError(t, err)
+		assert.Equal(t, "... diff output ...", diff)
+	})
 }
