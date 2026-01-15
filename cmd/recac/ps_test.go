@@ -248,6 +248,69 @@ func TestPsCommandWithResourceUsage(t *testing.T) {
 	assert.Contains(t, completedLine, "N/A", "Expected 'N/A' for Memory of completed session")
 }
 
+func TestPsCommandWithLogs(t *testing.T) {
+	// --- Setup ---
+	sm, cleanup := setupTestSessionManager(t)
+	defer cleanup()
+
+	// Create a session and a corresponding log file with content
+	sessionName := "session-with-logs"
+	logFileName := filepath.Join(sm.SessionsDir(), sessionName+".log")
+	logContent := "line 1\nline 2\nline 3\nthis is the fourth line\nand the fifth"
+	err := os.WriteFile(logFileName, []byte(logContent), 0644)
+	require.NoError(t, err)
+
+	mockSession := &runner.SessionState{
+		Name:      sessionName,
+		Status:    "completed",
+		StartTime: time.Now().Add(-1 * time.Hour),
+		LogFile:   logFileName,
+	}
+	require.NoError(t, sm.SaveSession(mockSession))
+
+	testCases := []struct {
+		name              string
+		logArg            string
+		expectedToContain []string
+		expectedToOmit    []string
+	}{
+		{
+			name:              "show last 2 log lines",
+			logArg:            "--logs=2",
+			expectedToContain: []string{"this is the fourth line", "and the fifth"},
+			expectedToOmit:    []string{"line 1", "line 2", "line 3"},
+		},
+		{
+			name:              "show all log lines when arg is greater than lines",
+			logArg:            "--logs=10",
+			expectedToContain: []string{"line 1", "line 2", "line 3", "this is the fourth line", "and the fifth"},
+		},
+		{
+			name:           "show no logs when flag is not provided",
+			logArg:         "",
+			expectedToOmit: []string{"line 1", "line 2", "line 3", "this is the fourth line", "and the fifth"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			args := []string{"ps"}
+			if tc.logArg != "" {
+				args = append(args, tc.logArg)
+			}
+			output, err := executeCommand(rootCmd, args...)
+			require.NoError(t, err)
+
+			for _, expected := range tc.expectedToContain {
+				assert.Contains(t, output, expected)
+			}
+			for _, omit := range tc.expectedToOmit {
+				assert.NotContains(t, output, omit)
+			}
+		})
+	}
+}
+
 func TestPsCommandWithCosts(t *testing.T) {
 	tempDir := t.TempDir()
 	sessionsDir := filepath.Join(tempDir, "sessions")

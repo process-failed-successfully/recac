@@ -50,14 +50,9 @@ func init() {
 	if psCmd.Flags().Lookup("watch") == nil {
 		psCmd.Flags().BoolP("watch", "w", false, "Enter watch mode with real-time updates")
 	}
-}
-
-// psFilters holds the filter values for the ps command.
-type psFilters struct {
-	status string
-	since  string
-	stale  string
-	remote bool
+	if psCmd.Flags().Lookup("logs") == nil {
+		psCmd.Flags().Int("logs", 0, "Show the last N lines of logs for each session")
+	}
 }
 
 var psCmd = &cobra.Command{
@@ -73,12 +68,14 @@ var psCmd = &cobra.Command{
 		showDiff, _ := cmd.Flags().GetBool("show-diff")
 		sessionName, _ := cmd.Flags().GetString("session")
 		watch, _ := cmd.Flags().GetBool("watch")
+		logLines, _ := cmd.Flags().GetInt("logs")
 
 		filters := model.PsFilters{
-			Status: cmd.Flag("status").Value.String(),
-			Since:  cmd.Flag("since").Value.String(),
-			Stale:  cmd.Flag("stale").Value.String(),
-			Remote: cmd.Flag("remote").Value.String() == "true",
+			Status:   cmd.Flag("status").Value.String(),
+			Since:    cmd.Flag("since").Value.String(),
+			Stale:    cmd.Flag("stale").Value.String(),
+			Remote:   cmd.Flag("remote").Value.String() == "true",
+			LogLines: logLines,
 		}
 
 		// --- Handle Watch Mode ---
@@ -151,6 +148,17 @@ var psCmd = &cobra.Command{
 				}
 			} else {
 				fmt.Fprintf(w, "%s\n", baseOutput)
+			}
+
+			// --- Show Logs ---
+			if filters.LogLines > 0 && s.Logs != "" {
+				// Indent logs for readability
+				logLines := strings.Split(s.Logs, "\n")
+				for _, line := range logLines {
+					if line != "" {
+						fmt.Fprintf(w, "  └ %s\n", line)
+					}
+				}
 			}
 		}
 
@@ -232,6 +240,14 @@ func getUnifiedSessions(cmd *cobra.Command, filters model.PsFilters) ([]model.Un
 				if err == nil {
 					us.Memory = fmt.Sprintf("%dMB", memInfo.RSS/1024/1024)
 				}
+			}
+		}
+
+		// --- Get Logs if requested ---
+		if filters.LogLines > 0 {
+			logs, err := sm.GetSessionLogContent(s.Name, filters.LogLines)
+			if err == nil {
+				us.Logs = logs
 			}
 		}
 		allSessions = append(allSessions, us)

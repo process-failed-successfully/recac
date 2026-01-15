@@ -121,9 +121,30 @@ func (m *MockSessionManager) StopSession(name string) error {
 	}
 	return fmt.Errorf("session not found")
 }
+
 func (m *MockSessionManager) GetSessionLogs(name string) (string, error) {
 	if session, ok := m.Sessions[name]; ok {
 		return session.LogFile, nil
+	}
+	return "", fmt.Errorf("session not found")
+}
+
+func (m *MockSessionManager) GetSessionLogContent(name string, lines int) (string, error) {
+	if session, ok := m.Sessions[name]; ok {
+		// In a real scenario, we'd read the file. Here, we'll just return a mock string.
+		// We can make this more sophisticated if needed (e.g., storing mock logs).
+		if session.LogFile != "" {
+			mockLogs := "line 1\nline 2\nline 3\nline 4\nline 5\n"
+			if lines > 0 {
+				logLines := strings.Split(strings.TrimSpace(mockLogs), "\n")
+				if len(logLines) > lines {
+					return strings.Join(logLines[len(logLines)-lines:], "\n"), nil
+				}
+				return mockLogs, nil
+			}
+			return mockLogs, nil
+		}
+		return "", nil // No log file specified
 	}
 	return "", fmt.Errorf("session not found")
 }

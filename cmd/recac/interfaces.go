@@ -9,6 +9,7 @@ type ISessionManager interface {
 	LoadSession(name string) (*runner.SessionState, error)
 	StopSession(name string) error
 	GetSessionLogs(name string) (string, error)
+	GetSessionLogContent(name string, lines int) (string, error)
 	StartSession(name string, command []string, workspace string) (*runner.SessionState, error)
 	GetSessionPath(name string) string
 	IsProcessRunning(pid int) bool
