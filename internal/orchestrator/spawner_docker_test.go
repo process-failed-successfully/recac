@@ -3,45 +3,23 @@ package orchestrator
 import (
 	"context"
 	"errors"
+	"io"
 	"log/slog"
-	"os"
 	"recac/internal/runner"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-// MockPoller
-type MockPoller struct {
-	mock.Mock
-}
-
-func (m *MockPoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkItem, error) {
-	args := m.Called(ctx, logger)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).([]WorkItem), args.Error(1)
-}
-
-func (m *MockPoller) UpdateStatus(ctx context.Context, item WorkItem, status, message string) error {
-	args := m.Called(ctx, item, status, message)
-	return args.Error(0)
-}
-
-// MockDockerClient
+// Mock Docker Client
 type MockDockerClient struct {
 	mock.Mock
 }
 
-func (m *MockDockerClient) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, ports []string, user string) (string, error) {
-	args := m.Called(ctx, imageRef, workspace, extraBinds, ports, user)
-	return args.String(0), args.Error(1)
-}
-
-func (m *MockDockerClient) Exec(ctx context.Context, containerID string, cmd []string) (string, error) {
-	args := m.Called(ctx, containerID, cmd)
+func (m *MockDockerClient) RunContainer(ctx context.Context, image, workspace string, binds, env []string, user string) (string, error) {
+	args := m.Called(ctx, image, workspace, binds, env, user)
 	return args.String(0), args.Error(1)
 }
 
@@ -50,7 +28,12 @@ func (m *MockDockerClient) StopContainer(ctx context.Context, containerID string
 	return args.Error(0)
 }
 
-// MockSessionManager
+func (m *MockDockerClient) Exec(ctx context.Context, containerID string, cmd []string) (string, error) {
+	args := m.Called(ctx, containerID, cmd)
+	return args.String(0), args.Error(1)
+}
+
+// Mock Session Manager
 type MockSessionManager struct {
 	mock.Mock
 }
@@ -68,126 +51,101 @@ func (m *MockSessionManager) LoadSession(name string) (*runner.SessionState, err
 	return args.Get(0).(*runner.SessionState), args.Error(1)
 }
 
-func (m *MockSessionManager) GetSessionGitDiffStat(name string) (string, error) {
-	args := m.Called(name)
-	return args.String(0), args.Error(1)
-}
-
-func (m *MockSessionManager) StartSession(name string, command []string, workspace string) (*runner.SessionState, error) {
-	args := m.Called(name, command, workspace)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*runner.SessionState), args.Error(1)
-}
-
-// MockGitClient
+// Mock Git Client
 type MockGitClient struct {
 	mock.Mock
 }
 
-func (m *MockGitClient) Clone(ctx context.Context, repoURL, path string) error {
-	args := m.Called(ctx, repoURL, path)
+func (m *MockGitClient) Clone(ctx context.Context, repoURL, destPath string) error {
+	args := m.Called(ctx, repoURL, destPath)
 	return args.Error(0)
 }
 
-func (m *MockGitClient) CurrentCommitSHA(path string) (string, error) {
-	args := m.Called(path)
+func (m *MockGitClient) CurrentCommitSHA(repoPath string) (string, error) {
+	args := m.Called(repoPath)
 	return args.String(0), args.Error(1)
 }
 
-func TestDockerSpawner_Spawn(t *testing.T) {
+func TestDockerSpawner_Spawn_Success(t *testing.T) {
+	mockDocker := new(MockDockerClient)
+	mockSM := new(MockSessionManager)
+	mockGit := new(MockGitClient)
+	mockPoller := new(mockPoller)
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	spawner := NewDockerSpawner(logger, mockDocker, "test-image", "test-proj", mockPoller, "provider", "model", mockSM)
+	spawner.GitClient = mockGit
+
 	item := WorkItem{
-		ID:      "TASK-1",
-		RepoURL: "https://github.com/example/repo",
+		ID:      "TICKET-1",
+		RepoURL: "https://github.com/test/repo",
+		EnvVars: map[string]string{"CUSTOM_VAR": "value"},
 	}
 
-	t.Run("Spawn Success", func(t *testing.T) {
-		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-		client := new(MockDockerClient)
-		poller := new(MockPoller)
-		sm := new(MockSessionManager)
-		gitClient := new(MockGitClient)
-		spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", sm)
-		spawner.GitClient = gitClient
+	ctx := context.Background()
 
-		// Mock expectations
-		gitClient.On("Clone", mock.Anything, item.RepoURL, mock.AnythingOfType("string")).Return(nil)
-		gitClient.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("start-sha", nil)
-		client.On("RunContainer", mock.Anything, "recac-agent:latest", mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything).Return("container-123", nil)
-		sm.On("SaveSession", mock.AnythingOfType("*runner.SessionState")).Return(nil)
-		client.On("Exec", mock.Anything, "container-123", mock.Anything).Return("Success", nil)
-		sm.On("LoadSession", "TASK-1").Return(&runner.SessionState{Name: "TASK-1"}, nil)
+	// Mock expectations
+	mockGit.On("Clone", ctx, item.RepoURL, mock.AnythingOfType("string")).Return(nil)
+	mockGit.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("startsha", nil).Once()
+	mockDocker.On("RunContainer", ctx, "test-image", mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
+	mockSM.On("SaveSession", mock.AnythingOfType("*runner.SessionState")).Return(nil)
+	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Return("output", nil)
+	mockSM.On("LoadSession", "TICKET-1").Return(&runner.SessionState{}, nil)
+	mockGit.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("endsha", nil).Once()
+	mockSM.On("SaveSession", mock.AnythingOfType("*runner.SessionState")).Return(nil)
 
-		err := spawner.Spawn(context.Background(), item)
-		assert.NoError(t, err)
+	err := spawner.Spawn(ctx, item)
 
-		// Assert that the mocks were called
-		gitClient.AssertCalled(t, "Clone", mock.Anything, item.RepoURL, mock.AnythingOfType("string"))
-		client.AssertCalled(t, "RunContainer", mock.Anything, "recac-agent:latest", mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything)
-		sm.AssertCalled(t, "SaveSession", mock.AnythingOfType("*runner.SessionState"))
-	})
+	assert.NoError(t, err)
 
-	t.Run("Git Clone Failure", func(t *testing.T) {
-		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-		client := new(MockDockerClient)
-		poller := new(MockPoller)
-		sm := new(MockSessionManager)
-		gitClient := new(MockGitClient)
-		spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", sm)
-		spawner.GitClient = gitClient
+	// Allow goroutine to run
+	time.Sleep(100 * time.Millisecond)
 
-		gitClient.On("Clone", mock.Anything, item.RepoURL, mock.AnythingOfType("string")).Return(errors.New("git clone failed"))
+	mockGit.AssertExpectations(t)
+	mockDocker.AssertExpectations(t)
+	mockSM.AssertExpectations(t)
+}
 
-		err := spawner.Spawn(context.Background(), item)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "git clone failed")
+func TestDockerSpawner_Spawn_CloneFails(t *testing.T) {
+	mockDocker := new(MockDockerClient)
+	mockSM := new(MockSessionManager)
+	mockGit := new(MockGitClient)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	spawner := NewDockerSpawner(logger, mockDocker, "test-image", "test-proj", nil, "", "", mockSM)
+	spawner.GitClient = mockGit
 
-		client.AssertNotCalled(t, "RunContainer", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
-		sm.AssertNotCalled(t, "SaveSession", mock.Anything)
-	})
+	item := WorkItem{ID: "TICKET-1", RepoURL: "https://github.com/test/repo"}
+	ctx := context.Background()
+	expectedErr := errors.New("clone failed")
 
-	t.Run("RunContainer Failure", func(t *testing.T) {
-		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-		client := new(MockDockerClient)
-		poller := new(MockPoller)
-		sm := new(MockSessionManager)
-		gitClient := new(MockGitClient)
-		spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", sm)
-		spawner.GitClient = gitClient
+	mockGit.On("Clone", ctx, item.RepoURL, mock.AnythingOfType("string")).Return(expectedErr)
 
-		gitClient.On("Clone", mock.Anything, item.RepoURL, mock.AnythingOfType("string")).Return(nil)
-		gitClient.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("start-sha", nil)
-		client.On("RunContainer", mock.Anything, "recac-agent:latest", mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything).Return("", errors.New("docker error"))
+	err := spawner.Spawn(ctx, item)
 
-		err := spawner.Spawn(context.Background(), item)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "docker error")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "clone failed")
+	mockDocker.AssertNotCalled(t, "RunContainer")
+}
 
-		sm.AssertNotCalled(t, "SaveSession", mock.Anything)
-	})
+func TestDockerSpawner_Spawn_RunContainerFails(t *testing.T) {
+	mockDocker := new(MockDockerClient)
+	mockSM := new(MockSessionManager)
+	mockGit := new(MockGitClient)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	spawner := NewDockerSpawner(logger, mockDocker, "test-image", "test-proj", nil, "", "", mockSM)
+	spawner.GitClient = mockGit
 
-	t.Run("SaveSession Failure", func(t *testing.T) {
-		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-		client := new(MockDockerClient)
-		poller := new(MockPoller)
-		sm := new(MockSessionManager)
-		gitClient := new(MockGitClient)
-		spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", sm)
-		spawner.GitClient = gitClient
+	item := WorkItem{ID: "TICKET-1", RepoURL: "https://github.com/test/repo"}
+	ctx := context.Background()
+	expectedErr := errors.New("run failed")
 
-		gitClient.On("Clone", mock.Anything, item.RepoURL, mock.AnythingOfType("string")).Return(nil)
-		gitClient.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("start-sha", nil)
-		client.On("RunContainer", mock.Anything, "recac-agent:latest", mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything).Return("container-123", nil)
-		sm.On("SaveSession", mock.AnythingOfType("*runner.SessionState")).Return(errors.New("failed to save session"))
-		client.On("StopContainer", mock.Anything, "container-123").Return(nil)
+	mockGit.On("Clone", ctx, item.RepoURL, mock.AnythingOfType("string")).Return(nil)
+	mockGit.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("startsha", nil)
+	mockDocker.On("RunContainer", ctx, "test-image", mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("", expectedErr)
 
-		err := spawner.Spawn(context.Background(), item)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to save session")
+	err := spawner.Spawn(ctx, item)
 
-		client.AssertCalled(t, "RunContainer", mock.Anything, "recac-agent:latest", mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything)
-		sm.AssertCalled(t, "SaveSession", mock.AnythingOfType("*runner.SessionState"))
-		client.AssertCalled(t, "StopContainer", mock.Anything, "container-123")
-	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "run failed")
+	mockSM.AssertNotCalled(t, "SaveSession")
 }

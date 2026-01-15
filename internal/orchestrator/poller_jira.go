@@ -5,17 +5,18 @@ import (
 	"fmt"
 	"log/slog"
 	"recac/internal/jira"
+	"regexp"
 	"strings"
 )
 
 type JiraPoller struct {
-	Client  *jira.Client
+	Client  JiraClient
 	JQL     string
 	Label   string // Helper to construct JQL if JQL not provided
 	Project string // Helper to construct JQL
 }
 
-func NewJiraPoller(client *jira.Client, jql string) *JiraPoller {
+func NewJiraPoller(client JiraClient, jql string) *JiraPoller {
 	return &JiraPoller{
 		Client: client,
 		JQL:    jql,
@@ -84,7 +85,7 @@ func (p *JiraPoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkItem,
 		description := p.Client.ParseDescription(issue)
 
 		// Extract Repo
-		repoURL := extractRepoURL(description)
+		repoURL := extractRepoURL(description, jira.RepoRegex)
 
 		// If no Repo found, we can't run agent really.
 		// Unless we allow no-repo agents?
@@ -123,8 +124,11 @@ func (p *JiraPoller) UpdateStatus(ctx context.Context, item WorkItem, status str
 	return nil
 }
 
-func extractRepoURL(text string) string {
-	matches := jira.RepoRegex.FindStringSubmatch(text)
+func extractRepoURL(text string, repoRegex *regexp.Regexp) string {
+	if repoRegex == nil {
+		return ""
+	}
+	matches := repoRegex.FindStringSubmatch(text)
 	if len(matches) > 1 {
 		return strings.TrimSuffix(matches[1], ".git")
 	}

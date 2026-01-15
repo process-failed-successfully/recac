@@ -3,60 +3,59 @@ package orchestrator
 import (
 	"context"
 	"log/slog"
+	"recac/internal/jira"
 	"recac/internal/runner"
-	"time"
-
-	corev1 "k8s.io/api/core/v1"
 )
 
-// WorkItem represents a single task to be processed by an agent.
+// WorkItem represents a unit of work to be processed, e.g., a Jira ticket.
 type WorkItem struct {
 	ID          string
 	Summary     string
 	Description string
-	RepoURL     string
-	EnvVars     map[string]string // For secrets or other context
+	RepoURL     string // Repo to clone
+	EnvVars     map[string]string
 }
 
-// Poller defines the interface for retrieving work items.
+// Poller defines the interface for polling for work items.
 type Poller interface {
 	Poll(ctx context.Context, logger *slog.Logger) ([]WorkItem, error)
-	UpdateStatus(ctx context.Context, item WorkItem, status string, message string) error
+	UpdateStatus(ctx context.Context, item WorkItem, status string, comment string) error
 }
 
-// Spawner defines the interface for creating and managing agent instances.
+// Spawner defines the interface for spawning an agent to handle a work item.
 type Spawner interface {
 	Spawn(ctx context.Context, item WorkItem) error
 	Cleanup(ctx context.Context, item WorkItem) error
 }
 
-// K8sClient defines the interface for Kubernetes operations that the spawner needs.
-// This allows for mocking in tests.
-type K8sClient interface {
-	CreateJob(ctx context.Context, namespace string, jobName string, image string, args []string, env []corev1.EnvVar, pullPolicy corev1.PullPolicy) error
-	DeleteJob(ctx context.Context, namespace string, jobName string) error
-	GetPodLogs(ctx context.Context, namespace, podName string, since *time.Time) (string, error)
-	ListPods(ctx context.Context, namespace, labelSelector string) ([]corev1.Pod, error)
+// JiraClient defines the interface for a Jira client, created for mocking purposes.
+// It mirrors the methods of jira.Client used by JiraPoller.
+type JiraClient interface {
+	SearchIssues(ctx context.Context, jql string) ([]map[string]interface{}, error)
+	GetBlockers(issue map[string]interface{}) []string
+	ParseDescription(issue map[string]interface{}) string
+	AddComment(ctx context.Context, issueID string, comment string) error
+	SmartTransition(ctx context.Context, issueID string, status string) error
 }
 
-// ISessionManager defines the interface for session management operations.
-// This allows for mocking in tests.
+// Statically assert that the real client implements our interface.
+var _ JiraClient = (*jira.Client)(nil)
+
+// DockerClient defines the interface for Docker operations, created for mocking.
+type DockerClient interface {
+	RunContainer(ctx context.Context, image string, workspace string, binds []string, env []string, user string) (string, error)
+	StopContainer(ctx context.Context, containerID string) error
+	Exec(ctx context.Context, containerID string, cmd []string) (string, error)
+}
+
+// ISessionManager defines the interface for session management, created for mocking.
 type ISessionManager interface {
 	SaveSession(session *runner.SessionState) error
 	LoadSession(name string) (*runner.SessionState, error)
-	GetSessionGitDiffStat(name string) (string, error)
-	StartSession(name string, command []string, workspace string) (*runner.SessionState, error)
 }
 
-// DockerClient abstraction for testing
-type DockerClient interface {
-	RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, ports []string, user string) (string, error)
-	Exec(ctx context.Context, containerID string, cmd []string) (string, error)
-	StopContainer(ctx context.Context, containerID string) error
-}
-
-// IGitClient defines the interface for git operations.
+// IGitClient defines the interface for Git operations, created for mocking.
 type IGitClient interface {
-	Clone(ctx context.Context, repoURL, path string) error
-	CurrentCommitSHA(path string) (string, error)
+	Clone(ctx context.Context, repoURL, destPath string) error
+	CurrentCommitSHA(repoPath string) (string, error)
 }
