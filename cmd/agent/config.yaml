@@ -1,0 +1,22 @@
+agent_timeout: 300
+bash_timeout: 600
+docker_timeout: 600
+git_user_email: recac-agent@example.com
+git_user_name: RECAC Agent
+manager_frequency: 5
+max_iterations: 20
+metrics_port: 2112
+model: gemini-pro
+notifications:
+    slack:
+        channel: '#general'
+        enabled: false
+        events:
+            on_failure: true
+            on_project_complete: true
+            on_start: true
+            on_success: true
+            on_user_interaction: true
+provider: gemini
+timeout: 300
+verbose: false
