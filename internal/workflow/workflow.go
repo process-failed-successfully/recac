@@ -50,6 +50,7 @@ type SessionConfig struct {
 	Description       string
 	Logger            *slog.Logger
 	CommandPrefix     []string // Command arguments to prepend (e.g. "start")
+	SessionManager    ISessionManager
 }
 
 // ProcessDirectTask handles a coding session from a direct repository and task description
@@ -256,6 +257,14 @@ var ProcessJiraTicket = func(ctx context.Context, jiraTicketID string, jClient *
 	}
 }
 
+// ISessionManager defines the interface for session management.
+type ISessionManager interface {
+	StartSession(name string, command []string, cwd string) (*runner.SessionState, error)
+}
+
+// Statically assert that the real session manager implements our interface.
+var _ ISessionManager = (*runner.SessionManager)(nil)
+
 // RunWorkflow handles the execution of a single project session (local or Jira-based)
 var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 	// Handle detached mode
@@ -332,9 +341,13 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 			projectPath = "."
 		}
 
-		sm, err := runner.NewSessionManager()
-		if err != nil {
-			return fmt.Errorf("failed to create session manager: %v", err)
+		sm := cfg.SessionManager
+		if sm == nil {
+			var err error
+			sm, err = runner.NewSessionManager()
+			if err != nil {
+				return fmt.Errorf("failed to create session manager: %v", err)
+			}
 		}
 
 		session, err := sm.StartSession(cfg.SessionName, command, projectPath)
