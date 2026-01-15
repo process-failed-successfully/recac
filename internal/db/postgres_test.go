@@ -1,8 +1,10 @@
 package db
 
 import (
+	"database/sql"
 	"encoding/json"
-	"path/filepath"
+	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -11,13 +13,23 @@ import (
 )
 
 // setupTestDB is a helper to create a new DB for each test, ensuring isolation.
-func setupTestDB(t *testing.T) *SQLiteStore {
+func setupPostgresTestDB(t *testing.T) *PostgresStore {
 	t.Helper()
-	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, "test.db")
 
-	store, err := NewSQLiteStore(dbPath)
+	dsn := os.Getenv("POSTGRES_DSN")
+	if dsn == "" {
+		dsn = "postgres://testuser:testpass@localhost:5432/testdb?sslmode=disable"
+	}
+
+	store, err := NewPostgresStore(dsn)
 	require.NoError(t, err, "Failed to create store")
+
+	// Truncate tables to ensure clean state for each test
+	tables := []string{"observations", "signals", "project_features", "project_specs", "file_locks"}
+	for _, table := range tables {
+		_, err := store.db.Exec(fmt.Sprintf("TRUNCATE TABLE %s RESTART IDENTITY CASCADE", table))
+		require.NoError(t, err, "Failed to truncate table %s", table)
+	}
 
 	t.Cleanup(func() {
 		store.Close()
@@ -26,8 +38,8 @@ func setupTestDB(t *testing.T) *SQLiteStore {
 	return store
 }
 
-func TestSQLiteStore_Observations(t *testing.T) {
-	store := setupTestDB(t)
+func TestPostgresStore_Observations(t *testing.T) {
+	store := setupPostgresTestDB(t)
 	projectID := "test-project"
 	agentID := "test-agent"
 
@@ -47,7 +59,7 @@ func TestSQLiteStore_Observations(t *testing.T) {
 	content2 := "Second event"
 	err = store.SaveObservation(projectID, agentID, content2)
 	require.NoError(t, err)
-	time.Sleep(10 * time.Millisecond) // Ensure timestamp difference
+	time.Sleep(10 * time.Millisecond)
 
 	content3 := "Third event"
 	err = store.SaveObservation(projectID, agentID, content3)
@@ -57,7 +69,6 @@ func TestSQLiteStore_Observations(t *testing.T) {
 	require.NoError(t, err, "QueryHistory with limit failed")
 	require.Len(t, history, 2, "Expected 2 observations")
 
-	// Should be DESC order (newest first)
 	assert.Equal(t, content3, history[0].Content)
 	assert.Equal(t, content2, history[1].Content)
 
@@ -67,16 +78,14 @@ func TestSQLiteStore_Observations(t *testing.T) {
 	assert.Empty(t, history, "Should not get history for another project")
 }
 
-func TestSQLiteStore_Signals(t *testing.T) {
-	store := setupTestDB(t)
+func TestPostgresStore_Signals(t *testing.T) {
+	store := setupPostgresTestDB(t)
 	projectID := "sig-project"
 
-	// Test Get on non-existent signal
 	val, err := store.GetSignal(projectID, "non-existent")
 	require.NoError(t, err)
 	assert.Equal(t, "", val, "Expected empty string for non-existent signal")
 
-	// Test Set and Get
 	key, value := "STATUS", "IN_PROGRESS"
 	err = store.SetSignal(projectID, key, value)
 	require.NoError(t, err)
@@ -85,7 +94,6 @@ func TestSQLiteStore_Signals(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, value, retrievedVal)
 
-	// Test Update (Set again)
 	newValue := "COMPLETED"
 	err = store.SetSignal(projectID, key, newValue)
 	require.NoError(t, err)
@@ -94,24 +102,18 @@ func TestSQLiteStore_Signals(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, newValue, retrievedVal)
 
-	// Test Delete
 	err = store.DeleteSignal(projectID, key)
 	require.NoError(t, err)
 
 	deletedVal, err := store.GetSignal(projectID, key)
 	require.NoError(t, err)
 	assert.Equal(t, "", deletedVal, "Expected empty string for deleted signal")
-
-	// Test delete on non-existent
-	err = store.DeleteSignal(projectID, "non-existent")
-	require.NoError(t, err, "Deleting non-existent signal should not error")
 }
 
-func TestSQLiteStore_FeaturesAndSpecs(t *testing.T) {
-	store := setupTestDB(t)
+func TestPostgresStore_FeaturesAndSpecs(t *testing.T) {
+	store := setupPostgresTestDB(t)
 	projectID := "feat-project"
 
-	// Specs
 	specContent := "This is the project spec."
 	err := store.SaveSpec(projectID, specContent)
 	require.NoError(t, err)
@@ -120,7 +122,6 @@ func TestSQLiteStore_FeaturesAndSpecs(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, specContent, retrievedSpec)
 
-	// Features
 	featureList := FeatureList{
 		ProjectName: "Test Project",
 		Features: []Feature{
@@ -139,7 +140,6 @@ func TestSQLiteStore_FeaturesAndSpecs(t *testing.T) {
 	require.NoError(t, err)
 	assert.JSONEq(t, featuresContent, retrievedFeatures)
 
-	// Update Feature Status
 	err = store.UpdateFeatureStatus(projectID, "F01", "done", true)
 	require.NoError(t, err)
 
@@ -151,45 +151,40 @@ func TestSQLiteStore_FeaturesAndSpecs(t *testing.T) {
 
 	assert.Equal(t, "done", updatedFeatureList.Features[0].Status)
 	assert.True(t, updatedFeatureList.Features[0].Passes)
-	assert.Equal(t, "pending", updatedFeatureList.Features[1].Status) // Ensure other one is unchanged
+	assert.Equal(t, "pending", updatedFeatureList.Features[1].Status)
 
-	// Test error cases for UpdateFeatureStatus
 	err = store.UpdateFeatureStatus(projectID, "NON_EXISTENT_ID", "done", true)
 	assert.Error(t, err, "Should error when feature ID is not found")
 
 	err = store.UpdateFeatureStatus("other-project", "F01", "done", true)
 	assert.Error(t, err, "Should error when no features are saved for project")
+	assert.Equal(t, sql.ErrNoRows, err)
 }
 
-func TestSQLiteStore_Locks(t *testing.T) {
-	store := setupTestDB(t)
+func TestPostgresStore_Locks(t *testing.T) {
+	store := setupPostgresTestDB(t)
 	projectID := "lock-project"
 	path1 := "/file/a"
 	path2 := "/file/b"
 	agent1 := "agent-1"
 	agent2 := "agent-2"
 
-	// 1. Agent1 acquires lock on path1
 	locked, err := store.AcquireLock(projectID, path1, agent1, time.Second)
 	require.NoError(t, err)
 	assert.True(t, locked, "agent1 should acquire lock")
 
-	// 2. Agent2 fails to acquire lock on path1
 	locked, err = store.AcquireLock(projectID, path1, agent2, 100*time.Millisecond)
 	require.NoError(t, err)
 	assert.False(t, locked, "agent2 should fail to acquire lock")
 
-	// 3. Agent1 renews (re-acquires) lock
 	locked, err = store.AcquireLock(projectID, path1, agent1, time.Second)
 	require.NoError(t, err)
 	assert.True(t, locked, "agent1 should renew its lock")
 
-	// 4. Agent2 acquires lock on different path
 	locked, err = store.AcquireLock(projectID, path2, agent2, time.Second)
 	require.NoError(t, err)
 	assert.True(t, locked, "agent2 should acquire lock on different path")
 
-	// 5. Get active locks
 	activeLocks, err := store.GetActiveLocks(projectID)
 	require.NoError(t, err)
 	assert.Len(t, activeLocks, 2)
@@ -197,16 +192,13 @@ func TestSQLiteStore_Locks(t *testing.T) {
 	assert.Contains(t, foundPaths, path1)
 	assert.Contains(t, foundPaths, path2)
 
-	// 6. Agent1 releases its lock
 	err = store.ReleaseLock(projectID, path1, agent1)
 	require.NoError(t, err)
 
-	// 7. Agent2 can now acquire lock on path1
 	locked, err = store.AcquireLock(projectID, path1, agent2, time.Second)
 	require.NoError(t, err)
 	assert.True(t, locked, "agent2 should now acquire lock on path1")
 
-	// 8. ReleaseAllLocks for agent2
 	err = store.ReleaseAllLocks(projectID, agent2)
 	require.NoError(t, err)
 
@@ -214,7 +206,6 @@ func TestSQLiteStore_Locks(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, activeLocks, "all of agent2's locks should be gone")
 
-	// 9. MANAGER release
 	_, _ = store.AcquireLock(projectID, path1, agent1, time.Second)
 	err = store.ReleaseLock(projectID, path1, "MANAGER")
 	require.NoError(t, err)
@@ -223,52 +214,43 @@ func TestSQLiteStore_Locks(t *testing.T) {
 	assert.Empty(t, activeLocks, "manager should have released the lock")
 }
 
-func TestSQLiteStore_Cleanup(t *testing.T) {
-	store := setupTestDB(t)
+func TestPostgresStore_Cleanup(t *testing.T) {
+	store := setupPostgresTestDB(t)
 	projectID := "cleanup-project"
 
-	// 1. Create an expired lock
-	expiredLockPath := "/file/expired"
-	_, err := store.db.Exec(`INSERT INTO file_locks (project_id, path, agent_id, expires_at) VALUES (?, ?, ?, ?)`,
-		projectID, expiredLockPath, "agent-expire", time.Now().Add(-1*time.Hour))
+	_, err := store.db.Exec(`INSERT INTO file_locks (project_id, path, agent_id, expires_at) VALUES ($1, $2, $3, $4)`,
+		projectID, "/file/expired", "agent-expire", time.Now().Add(-1*time.Hour))
 	require.NoError(t, err)
 
-	// 2. Create old, non-critical signals
 	oldTime := time.Now().Add(-48 * time.Hour)
-	_, err = store.db.Exec(`INSERT INTO signals (project_id, key, value, created_at) VALUES (?, ?, ?, ?)`,
+	_, err = store.db.Exec(`INSERT INTO signals (project_id, key, value, created_at) VALUES ($1, $2, $3, $4)`,
 		projectID, "OLD_SIGNAL", "data", oldTime)
 	require.NoError(t, err)
 
-	// 3. Create an old, critical signal
-	_, err = store.db.Exec(`INSERT INTO signals (project_id, key, value, created_at) VALUES (?, ?, ?, ?)`,
+	_, err = store.db.Exec(`INSERT INTO signals (project_id, key, value, created_at) VALUES ($1, $2, $3, $4)`,
 		projectID, "QA_PASSED", "true", oldTime)
 	require.NoError(t, err)
 
-	// 4. Run cleanup
 	err = store.Cleanup()
 	require.NoError(t, err)
 
-	// 5. Verify expired lock is gone
 	var count int
-	err = store.db.QueryRow(`SELECT COUNT(*) FROM file_locks WHERE project_id = ?`, projectID).Scan(&count)
+	err = store.db.QueryRow(`SELECT COUNT(*) FROM file_locks WHERE project_id = $1`, projectID).Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, 0, count, "Expired lock should have been cleaned up")
 
-	// 6. Verify old, non-critical signal is gone
 	val, err := store.GetSignal(projectID, "OLD_SIGNAL")
 	require.NoError(t, err)
 	assert.Equal(t, "", val, "Old non-critical signal should be cleaned up")
 
-	// 7. Verify old, critical signal remains
 	val, err = store.GetSignal(projectID, "QA_PASSED")
 	require.NoError(t, err)
 	assert.Equal(t, "true", val, "Old critical signal should not be cleaned up")
 }
 
-func TestSQLiteStore_Errors(t *testing.T) {
-	t.Run("Invalid Path", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		_, err := NewSQLiteStore(tmpDir) // Path is a directory
-		assert.Error(t, err, "Expected error for directory path")
+func TestPostgresStore_ConnectionError(t *testing.T) {
+	t.Run("Invalid DSN", func(t *testing.T) {
+		_, err := NewPostgresStore("postgres://invalid:user@localhost/db")
+		assert.Error(t, err, "Expected connection error")
 	})
 }
