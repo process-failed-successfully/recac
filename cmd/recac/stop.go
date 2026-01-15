@@ -49,7 +49,7 @@ var stopCmd = &cobra.Command{
 var surveyAskOne = survey.AskOne
 
 // interactiveSessionSelect prompts the user to select a running session.
-func interactiveSessionSelect(sm *runner.SessionManager) (string, error) {
+func interactiveSessionSelect(sm runner.ISessionManager) (string, error) {
 	sessions, err := sm.ListSessions()
 	if err != nil {
 		return "", fmt.Errorf("could not list sessions: %w", err)
