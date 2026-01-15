@@ -93,130 +93,10 @@ func TestGetAgentClient(t *testing.T) {
 	})
 }
 
-type MockGitClient struct {
-	repoExists         bool
-	remoteBranchExists bool
-	cloneFn            func(ctx context.Context, repoURL, directory string) error
-	checkoutFn         func(directory, branch string) error
-	checkoutNewBranchFn func(directory, branch string) error
-}
-
-func (m *MockGitClient) Clone(ctx context.Context, repoURL, directory string) error {
-	if m.cloneFn != nil {
-		return m.cloneFn(ctx, repoURL, directory)
-	}
-	return nil
-}
-
-func (m *MockGitClient) RepoExists(directory string) bool {
-	return m.repoExists
-}
-
-func (m *MockGitClient) Config(directory, key, value string) error {
-	return nil
-}
-
-func (m *MockGitClient) ConfigAddGlobal(key, value string) error {
-	return nil
-}
-
-func (m *MockGitClient) RemoteBranchExists(directory, remote, branch string) (bool, error) {
-	return m.remoteBranchExists, nil
-}
-
-func (m *MockGitClient) Fetch(directory, remote, branch string) error {
-	return nil
-}
-
-func (m *MockGitClient) Checkout(directory, branch string) error {
-	if m.checkoutFn != nil {
-		return m.checkoutFn(directory, branch)
-	}
-	return nil
-}
-
-func (m *MockGitClient) CheckoutNewBranch(directory, branch string) error {
-	if m.checkoutNewBranchFn != nil {
-		return m.checkoutNewBranchFn(directory, branch)
-	}
-	return nil
-}
-
-func (m *MockGitClient) Push(directory, branch string) error {
-	return nil
-}
-
-func (m *MockGitClient) Pull(directory, remote, branch string) error {
-	return nil
-}
-
-func (m *MockGitClient) DiffStat(workspace, startCommit, endCommit string) (string, error) {
-	return "", nil
-}
-
-func (m *MockGitClient) CurrentCommitSHA(workspace string) (string, error) {
-	return "", nil
-}
-
-func (m *MockGitClient) Stash(directory string) error {
-	return nil
-}
-
-func (m *MockGitClient) Merge(directory, branchName string) error {
-	return nil
-}
-
-func (m *MockGitClient) AbortMerge(directory string) error {
-	return nil
-}
-
-func (m *MockGitClient) Recover(directory string) error {
-	return nil
-}
-
-func (m *MockGitClient) Clean(directory string) error {
-	return nil
-}
-
-func (m *MockGitClient) ResetHard(directory, remote, branch string) error {
-	return nil
-}
-
-func (m *MockGitClient) StashPop(directory string) error {
-	return nil
-}
-
-func (m *MockGitClient) DeleteRemoteBranch(directory, remote, branch string) error {
-	return nil
-}
-
-func (m *MockGitClient) CurrentBranch(directory string) (string, error) {
-	return "", nil
-}
-
-func (m *MockGitClient) Commit(directory, message string) error {
-	return nil
-}
-
-func (m *MockGitClient) Diff(directory, startCommit, endCommit string) (string, error) {
-	return "", nil
-}
-
-func (m *MockGitClient) SetRemoteURL(directory, name, url string) error {
-	return nil
-}
-
-func (m *MockGitClient) DeleteLocalBranch(directory, branch string) error {
-	return nil
-}
-
-func (m *MockGitClient) LocalBranchExists(directory, branch string) (bool, error) {
-	return false, nil
-}
 
 func TestSetupWorkspace(t *testing.T) {
 	t.Run("Empty Repo URL", func(t *testing.T) {
-		mockGitClient := &MockGitClient{}
+		mockGitClient := &git.MockGitClient{}
 		assert.Implements(t, (*git.IClient)(nil), mockGitClient)
 		url, err := SetupWorkspace(context.Background(), mockGitClient, "", "/tmp/recac-test", "TEST-1", "", "")
 		assert.NoError(t, err)
@@ -224,111 +104,111 @@ func TestSetupWorkspace(t *testing.T) {
 	})
 
 	t.Run("Clones when workspace does not exist", func(t *testing.T) {
-		cloned := false
-		mockGitClient := &MockGitClient{
-			repoExists: false,
-			cloneFn: func(ctx context.Context, repoURL, directory string) error {
-				cloned = true
-				return nil
-			},
-		}
+		mockGitClient := &git.MockGitClient{}
+		mockGitClient.On("RepoExists", "/tmp/recac-test").Return(false)
+		mockGitClient.On("Clone", context.Background(), "https://github.com/example/repo", "/tmp/recac-test").Return(nil)
+		mockGitClient.On("ConfigAddGlobal", "safe.directory", "/tmp/recac-test").Return(nil)
+		mockGitClient.On("Config", "/tmp/recac-test", "user.email", "agent@recac.com").Return(nil)
+		mockGitClient.On("Config", "/tmp/recac-test", "user.name", "Recac Agent").Return(nil)
+		mockGitClient.On("RemoteBranchExists", "/tmp/recac-test", "origin", "agent/TEST-1").Return(false, nil)
+		mockGitClient.On("CheckoutNewBranch", "/tmp/recac-test", "agent/TEST-1").Return(nil)
+		mockGitClient.On("Push", "/tmp/recac-test", "agent/TEST-1").Return(nil)
 		_, err := SetupWorkspace(context.Background(), mockGitClient, "https://github.com/example/repo", "/tmp/recac-test", "TEST-1", "", "")
 		assert.NoError(t, err)
-		assert.True(t, cloned)
+		mockGitClient.AssertExpectations(t)
 	})
 
 	t.Run("Skips clone when workspace exists", func(t *testing.T) {
-		cloned := false
-		mockGitClient := &MockGitClient{
-			repoExists: true,
-			cloneFn: func(ctx context.Context, repoURL, directory string) error {
-				cloned = true
-				return nil
-			},
-		}
+		mockGitClient := &git.MockGitClient{}
+		mockGitClient.On("RepoExists", "/tmp/recac-test").Return(true)
+		mockGitClient.On("ConfigAddGlobal", "safe.directory", "/tmp/recac-test").Return(nil)
+		mockGitClient.On("Config", "/tmp/recac-test", "user.email", "agent@recac.com").Return(nil)
+		mockGitClient.On("Config", "/tmp/recac-test", "user.name", "Recac Agent").Return(nil)
+		mockGitClient.On("RemoteBranchExists", "/tmp/recac-test", "origin", "agent/TEST-1").Return(false, nil)
+		mockGitClient.On("CheckoutNewBranch", "/tmp/recac-test", "agent/TEST-1").Return(nil)
+		mockGitClient.On("Push", "/tmp/recac-test", "agent/TEST-1").Return(nil)
 		_, err := SetupWorkspace(context.Background(), mockGitClient, "https://github.com/example/repo", "/tmp/recac-test", "TEST-1", "", "")
 		assert.NoError(t, err)
-		assert.False(t, cloned)
+		mockGitClient.AssertNotCalled(t, "Clone")
 	})
 
 	t.Run("Checks out existing epic branch", func(t *testing.T) {
-		checkedOut := ""
-		mockGitClient := &MockGitClient{
-			repoExists:         true,
-			remoteBranchExists: true,
-			checkoutFn: func(directory, branch string) error {
-				if branch == "agent-epic/EPIC-1" {
-					checkedOut = branch
-				}
-				return nil
-			},
-		}
+		mockGitClient := &git.MockGitClient{}
+		mockGitClient.On("RepoExists", "/tmp/recac-test").Return(true)
+		mockGitClient.On("ConfigAddGlobal", "safe.directory", "/tmp/recac-test").Return(nil)
+		mockGitClient.On("Config", "/tmp/recac-test", "user.email", "agent@recac.com").Return(nil)
+		mockGitClient.On("Config", "/tmp/recac-test", "user.name", "Recac Agent").Return(nil)
+		mockGitClient.On("RemoteBranchExists", "/tmp/recac-test", "origin", "agent-epic/EPIC-1").Return(true, nil)
+		mockGitClient.On("Fetch", "/tmp/recac-test", "origin", "agent-epic/EPIC-1").Return(nil)
+		mockGitClient.On("Checkout", "/tmp/recac-test", "agent-epic/EPIC-1").Return(nil)
+		mockGitClient.On("RemoteBranchExists", "/tmp/recac-test", "origin", "agent/TEST-1").Return(false, nil)
+		mockGitClient.On("CheckoutNewBranch", "/tmp/recac-test", "agent/TEST-1").Return(nil)
+		mockGitClient.On("Push", "/tmp/recac-test", "agent/TEST-1").Return(nil)
 		_, err := SetupWorkspace(context.Background(), mockGitClient, "https://github.com/example/repo", "/tmp/recac-test", "TEST-1", "EPIC-1", "")
 		assert.NoError(t, err)
-		assert.Equal(t, "agent-epic/EPIC-1", checkedOut)
+		mockGitClient.AssertExpectations(t)
 	})
 
 	t.Run("Creates new epic branch", func(t *testing.T) {
-		newBranch := ""
-		mockGitClient := &MockGitClient{
-			repoExists:         true,
-			remoteBranchExists: false,
-			checkoutNewBranchFn: func(directory, branch string) error {
-				if branch == "agent-epic/EPIC-1" {
-					newBranch = branch
-				}
-				return nil
-			},
-		}
+		mockGitClient := &git.MockGitClient{}
+		mockGitClient.On("RepoExists", "/tmp/recac-test").Return(true)
+		mockGitClient.On("ConfigAddGlobal", "safe.directory", "/tmp/recac-test").Return(nil)
+		mockGitClient.On("Config", "/tmp/recac-test", "user.email", "agent@recac.com").Return(nil)
+		mockGitClient.On("Config", "/tmp/recac-test", "user.name", "Recac Agent").Return(nil)
+		mockGitClient.On("RemoteBranchExists", "/tmp/recac-test", "origin", "agent-epic/EPIC-1").Return(false, nil)
+		mockGitClient.On("CheckoutNewBranch", "/tmp/recac-test", "agent-epic/EPIC-1").Return(nil)
+		mockGitClient.On("Push", "/tmp/recac-test", "agent-epic/EPIC-1").Return(nil)
+		mockGitClient.On("RemoteBranchExists", "/tmp/recac-test", "origin", "agent/TEST-1").Return(false, nil)
+		mockGitClient.On("CheckoutNewBranch", "/tmp/recac-test", "agent/TEST-1").Return(nil)
+		mockGitClient.On("Push", "/tmp/recac-test", "agent/TEST-1").Return(nil)
 		_, err := SetupWorkspace(context.Background(), mockGitClient, "https://github.com/example/repo", "/tmp/recac-test", "TEST-1", "EPIC-1", "")
 		assert.NoError(t, err)
-		assert.Equal(t, "agent-epic/EPIC-1", newBranch)
+		mockGitClient.AssertExpectations(t)
 	})
 
 	t.Run("Creates unique feature branch", func(t *testing.T) {
 		viper.Set("git.unique_branch_names", true)
 		defer viper.Set("git.unique_branch_names", false)
 
-		newBranch := ""
-		mockGitClient := &MockGitClient{
-			repoExists: true,
-			checkoutNewBranchFn: func(directory, branch string) error {
-				newBranch = branch
-				return nil
-			},
-		}
+		mockGitClient := &git.MockGitClient{}
+		mockGitClient.On("RepoExists", "/tmp/recac-test").Return(true)
+		mockGitClient.On("ConfigAddGlobal", "safe.directory", "/tmp/recac-test").Return(nil)
+		mockGitClient.On("Config", "/tmp/recac-test", "user.email", "agent@recac.com").Return(nil)
+		mockGitClient.On("Config", "/tmp/recac-test", "user.name", "Recac Agent").Return(nil)
+		mockGitClient.On("RemoteBranchExists", "/tmp/recac-test", "origin", "agent/TEST-1-20240101-120000").Return(false, nil)
+		mockGitClient.On("CheckoutNewBranch", "/tmp/recac-test", "agent/TEST-1-20240101-120000").Return(nil)
+		mockGitClient.On("Push", "/tmp/recac-test", "agent/TEST-1-20240101-120000").Return(nil)
 		_, err := SetupWorkspace(context.Background(), mockGitClient, "https://github.com/example/repo", "/tmp/recac-test", "TEST-1", "", "20240101-120000")
 		assert.NoError(t, err)
-		assert.Equal(t, "agent/TEST-1-20240101-120000", newBranch)
+		mockGitClient.AssertExpectations(t)
 	})
 
 	t.Run("Creates stable feature branch", func(t *testing.T) {
-		newBranch := ""
-		mockGitClient := &MockGitClient{
-			repoExists:         true,
-			remoteBranchExists: false,
-			checkoutNewBranchFn: func(directory, branch string) error {
-				newBranch = branch
-				return nil
-			},
-		}
+		mockGitClient := &git.MockGitClient{}
+		mockGitClient.On("RepoExists", "/tmp/recac-test").Return(true)
+		mockGitClient.On("ConfigAddGlobal", "safe.directory", "/tmp/recac-test").Return(nil)
+		mockGitClient.On("Config", "/tmp/recac-test", "user.email", "agent@recac.com").Return(nil)
+		mockGitClient.On("Config", "/tmp/recac-test", "user.name", "Recac Agent").Return(nil)
+		mockGitClient.On("RemoteBranchExists", "/tmp/recac-test", "origin", "agent/TEST-1").Return(false, nil)
+		mockGitClient.On("CheckoutNewBranch", "/tmp/recac-test", "agent/TEST-1").Return(nil)
+		mockGitClient.On("Push", "/tmp/recac-test", "agent/TEST-1").Return(nil)
 		_, err := SetupWorkspace(context.Background(), mockGitClient, "https://github.com/example/repo", "/tmp/recac-test", "TEST-1", "", "")
 		assert.NoError(t, err)
-		assert.Equal(t, "agent/TEST-1", newBranch)
+		mockGitClient.AssertExpectations(t)
 	})
 
 	t.Run("Checks out existing stable feature branch", func(t *testing.T) {
-		checkedOut := ""
-		mockGitClient := &MockGitClient{
-			repoExists:         true,
-			remoteBranchExists: true,
-			checkoutFn: func(directory, branch string) error {
-				checkedOut = branch
-				return nil
-			},
-		}
+		mockGitClient := &git.MockGitClient{}
+		mockGitClient.On("RepoExists", "/tmp/recac-test").Return(true)
+		mockGitClient.On("ConfigAddGlobal", "safe.directory", "/tmp/recac-test").Return(nil)
+		mockGitClient.On("Config", "/tmp/recac-test", "user.email", "agent@recac.com").Return(nil)
+		mockGitClient.On("Config", "/tmp/recac-test", "user.name", "Recac Agent").Return(nil)
+		mockGitClient.On("RemoteBranchExists", "/tmp/recac-test", "origin", "agent/TEST-1").Return(true, nil)
+		mockGitClient.On("Fetch", "/tmp/recac-test", "origin", "agent/TEST-1").Return(nil)
+		mockGitClient.On("Checkout", "/tmp/recac-test", "agent/TEST-1").Return(nil)
+		mockGitClient.On("Pull", "/tmp/recac-test", "origin", "agent/TEST-1").Return(nil)
 		_, err := SetupWorkspace(context.Background(), mockGitClient, "https://github.com/example/repo", "/tmp/recac-test", "TEST-1", "", "")
 		assert.NoError(t, err)
-		assert.Equal(t, "agent/TEST-1", checkedOut)
+		mockGitClient.AssertExpectations(t)
 	})
 }
