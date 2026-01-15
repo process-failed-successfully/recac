@@ -52,6 +52,26 @@ func doSearchLogs(sm ISessionManager, pattern string, cmd *cobra.Command, useReg
 		return fmt.Errorf("failed to list sessions: %w", err)
 	}
 
+	var matchFunc func(string) (bool, error)
+	if useRegexp {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			return fmt.Errorf("invalid regular expression: %w", err)
+		}
+		matchFunc = func(line string) (bool, error) {
+			return re.MatchString(line), nil
+		}
+	} else if caseSensitive {
+		matchFunc = func(line string) (bool, error) {
+			return strings.Contains(line, pattern), nil
+		}
+	} else {
+		lowerPattern := strings.ToLower(pattern)
+		matchFunc = func(line string) (bool, error) {
+			return strings.Contains(strings.ToLower(line), lowerPattern), nil
+		}
+	}
+
 	foundMatch := false
 	for _, session := range sessions {
 		logPath := filepath.Join(sm.SessionsDir(), session.Name+".log")
@@ -60,45 +80,31 @@ func doSearchLogs(sm ISessionManager, pattern string, cmd *cobra.Command, useReg
 			// Log file might not exist for some sessions, so we skip it.
 			continue
 		}
-		defer file.Close()
 
-		scanner := bufio.NewScanner(file)
+		// Use a closure to ensure file is closed immediately after processing
+		err = func() error {
+			defer file.Close()
+			scanner := bufio.NewScanner(file)
 
-		var matchFunc func(string) (bool, error)
-		if useRegexp {
-			re, err := regexp.Compile(pattern)
-			if err != nil {
-				return fmt.Errorf("invalid regular expression: %w", err)
-			}
-			matchFunc = func(line string) (bool, error) {
-				return re.MatchString(line), nil
-			}
-		} else if caseSensitive {
-			matchFunc = func(line string) (bool, error) {
-				return strings.Contains(line, pattern), nil
-			}
-		} else {
-			lowerPattern := strings.ToLower(pattern)
-			matchFunc = func(line string) (bool, error) {
-				return strings.Contains(strings.ToLower(line), lowerPattern), nil
-			}
-		}
+			for scanner.Scan() {
+				line := scanner.Text()
+				matches, err := matchFunc(line)
+				if err != nil {
+					return fmt.Errorf("error while matching line in session %s: %w", session.Name, err)
+				}
 
-		for scanner.Scan() {
-			line := scanner.Text()
-			matches, err := matchFunc(line)
-			if err != nil {
-				// This case should not be reached with the current funcs, but is good practice.
-				return fmt.Errorf("error while matching line in session %s: %w", session.Name, err)
+				if matches {
+					cmd.Println(fmt.Sprintf("[%s] %s", session.Name, line))
+					foundMatch = true
+				}
 			}
-
-			if matches {
-				cmd.Println(fmt.Sprintf("[%s] %s", session.Name, line))
-				foundMatch = true
+			if err := scanner.Err(); err != nil {
+				cmd.PrintErrln(fmt.Sprintf("warning: error reading log file for session %s: %v", session.Name, err))
 			}
-		}
-		if err := scanner.Err(); err != nil {
-			cmd.PrintErrln(fmt.Sprintf("warning: error reading log file for session %s: %v", session.Name, err))
+			return nil
+		}()
+		if err != nil {
+			return err
 		}
 	}
 
