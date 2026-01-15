@@ -2,143 +2,135 @@ package main
 
 import (
 	"fmt"
-	"recac/internal/agent"
-	"recac/internal/ui"
-	"sort"
+	"io"
+	"os"
 	"text/tabwriter"
 	"time"
+
+	"recac/internal/agent"
 
 	"github.com/spf13/cobra"
 )
 
+// Summary holds the calculated statistics for the summary command.
+type Summary struct {
+	TotalSessions       int
+	SuccessfulSessions  int
+	FailedSessions      int
+	RunningSessions     int
+	SuccessRate         float64
+	TotalTokens         int
+	TotalPromptTokens   int
+	TotalResponseTokens int
+	TotalCost           float64
+	Timeframe           string
+}
+
 func init() {
-	summaryCmd.Flags().BoolP("watch", "w", false, "Enable real-time dashboard view")
 	rootCmd.AddCommand(summaryCmd)
+	summaryCmd.Flags().String("since", "24h", "Summarize activity since a specific duration (e.g., '7d', '24h')")
 }
 
 var summaryCmd = &cobra.Command{
 	Use:   "summary",
-	Short: "Provide a high-level summary of all sessions",
-	Long: `The summary command gives a dashboard view of agent activity,
-including aggregate statistics, recent sessions, and costliest sessions.`,
+	Short: "Show a summary of session activity",
+	Long:  `Displays a summary of session activity, including success rates, token usage, and costs within a given timeframe.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		watch, _ := cmd.Flags().GetBool("watch")
-		if watch {
-			return ui.StartSummaryDashboard()
+		since, _ := cmd.Flags().GetString("since")
+
+		sm, err := sessionManagerFactory()
+		if err != nil {
+			return fmt.Errorf("could not create session manager: %w", err)
 		}
-		return doSummary(cmd)
+
+		summary, err := calculateSummary(sm, since)
+		if err != nil {
+			return fmt.Errorf("could not calculate summary: %w", err)
+		}
+
+		displaySummary(cmd.OutOrStdout(), summary)
+		return nil
 	},
 }
 
-func doSummary(cmd *cobra.Command) error {
-	sm, err := sessionManagerFactory()
-	if err != nil {
-		return fmt.Errorf("failed to create session manager: %w", err)
-	}
-
+// calculateSummary computes the summary statistics for sessions within the given timeframe.
+func calculateSummary(sm ISessionManager, since string) (*Summary, error) {
 	sessions, err := sm.ListSessions()
 	if err != nil {
-		return fmt.Errorf("failed to list sessions: %w", err)
+		return nil, fmt.Errorf("could not list sessions: %w", err)
 	}
 
-	if len(sessions) == 0 {
-		cmd.Println("No sessions found.")
-		return nil
+	sinceDuration, err := time.ParseDuration(since)
+	if err != nil {
+		return nil, fmt.Errorf("invalid duration format for --since: %w", err)
+	}
+	sinceTime := time.Now().Add(-sinceDuration)
+
+	summary := &Summary{
+		Timeframe: since,
 	}
 
-	// Aggregate Stats
-	var totalTokens int
-	var totalCost float64
-	completed, errored, running := 0, 0, 0
+	for _, session := range sessions {
+		if session.StartTime.Before(sinceTime) {
+			continue
+		}
 
-	sessionCosts := make(map[string]float64)
-
-	for _, s := range sessions {
-		switch s.Status {
+		summary.TotalSessions++
+		switch session.Status {
 		case "completed":
-			completed++
+			summary.SuccessfulSessions++
 		case "error":
-			errored++
+			summary.FailedSessions++
 		case "running":
-			running++
+			summary.RunningSessions++
 		}
 
-		if s.AgentStateFile != "" {
-			state, err := loadAgentState(s.AgentStateFile)
-			if err == nil && state != nil {
-				cost := agent.CalculateCost(state.Model, state.TokenUsage)
-				totalCost += cost
-				totalTokens += state.TokenUsage.TotalTokens
-				sessionCosts[s.Name] = cost
+		if session.AgentStateFile == "" {
+			continue
+		}
+
+		agentState, err := loadAgentState(session.AgentStateFile)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
 			}
+			return nil, fmt.Errorf("could not load agent state for session %s: %w", session.Name, err)
+		}
+
+		summary.TotalTokens += agentState.TokenUsage.TotalTokens
+		summary.TotalPromptTokens += agentState.TokenUsage.TotalPromptTokens
+		summary.TotalResponseTokens += agentState.TokenUsage.TotalResponseTokens
+		summary.TotalCost += agent.CalculateCost(agentState.Model, agentState.TokenUsage)
+	}
+
+	if summary.TotalSessions > 0 {
+		totalCompleted := summary.SuccessfulSessions + summary.FailedSessions
+		if totalCompleted > 0 {
+			summary.SuccessRate = (float64(summary.SuccessfulSessions) / float64(totalCompleted)) * 100
 		}
 	}
 
-	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
+	return summary, nil
+}
 
-	fmt.Fprintln(w, "📊 Aggregate Stats")
-	fmt.Fprintln(w, "-------------------")
-	fmt.Fprintf(w, "Total Sessions:\t%d\n", len(sessions))
-	fmt.Fprintf(w, "Completed:\t%d\n", completed)
-	fmt.Fprintf(w, "Errored:\t%d\n", errored)
-	fmt.Fprintf(w, "Running:\t%d\n", running)
-	if len(sessions) > 0 {
-		successRate := float64(completed) / float64(len(sessions)) * 100
-		fmt.Fprintf(w, "Success Rate:\t%.2f%%\n", successRate)
-	}
-	fmt.Fprintf(w, "Total Tokens:\t%d\n", totalTokens)
-	fmt.Fprintf(w, "Total Est. Cost:\t$%.4f\n", totalCost)
-	w.Flush()
-
-	// Recent Sessions
-	sort.Slice(sessions, func(i, j int) bool {
-		return sessions[i].StartTime.After(sessions[j].StartTime)
-	})
-
-	fmt.Fprintln(w, "\n🕒 Recent Sessions (Top 5)")
-	fmt.Fprintln(w, "-------------------------")
-	fmt.Fprintln(w, "NAME\tSTATUS\tSTART TIME\tDURATION")
-	for i, s := range sessions {
-		if i >= 5 {
-			break
-		}
-		duration := time.Since(s.StartTime).Round(time.Second)
-		if !s.EndTime.IsZero() {
-			duration = s.EndTime.Sub(s.StartTime).Round(time.Second)
-		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", s.Name, s.Status, s.StartTime.Format(time.RFC3339), duration)
-	}
-	w.Flush()
-
-	// Most Expensive Sessions
-	sort.Slice(sessions, func(i, j int) bool {
-		return sessionCosts[sessions[i].Name] > sessionCosts[sessions[j].Name]
-	})
-
-	fmt.Fprintln(w, "\n💰 Most Expensive Sessions (Top 5)")
+// displaySummary prints the summary statistics in a dashboard format.
+func displaySummary(out io.Writer, summary *Summary) {
+	w := tabwriter.NewWriter(out, 0, 0, 3, ' ', 0)
+	fmt.Fprintf(w, "SESSION SUMMARY (Last %s)\n", summary.Timeframe)
 	fmt.Fprintln(w, "---------------------------------")
-	fmt.Fprintln(w, "NAME\tCOST\tTOKENS\tMODEL")
-	for i, s := range sessions {
-		if i >= 5 {
-			break
-		}
-		cost := sessionCosts[s.Name]
-		if cost == 0 {
-			continue // Don't show sessions with no cost
-		}
-
-		tokens := 0
-		model := "N/A"
-		if s.AgentStateFile != "" {
-			state, err := loadAgentState(s.AgentStateFile)
-			if err == nil && state != nil {
-				tokens = state.TokenUsage.TotalTokens
-				model = state.Model
-			}
-		}
-		fmt.Fprintf(w, "%s\t$%.4f\t%d\t%s\n", s.Name, cost, tokens, model)
-	}
+	fmt.Fprintf(w, "Total Sessions:\t%d\n", summary.TotalSessions)
+	fmt.Fprintf(w, "  - Successful:\t%d\n", summary.SuccessfulSessions)
+	fmt.Fprintf(w, "  - Failed:\t%d\n", summary.FailedSessions)
+	fmt.Fprintf(w, "  - Running:\t%d\n", summary.RunningSessions)
+	fmt.Fprintf(w, "Success Rate:\t%.2f%%\n", summary.SuccessRate)
+	fmt.Fprintln(w, "")
+	fmt.Fprintln(w, "Token Usage:")
+	fmt.Fprintf(w, "  Total Tokens:\t%d\n", summary.TotalTokens)
+	fmt.Fprintf(w, "  Prompt Tokens:\t%d\n", summary.TotalPromptTokens)
+	fmt.Fprintf(w, "  Response Tokens:\t%d\n", summary.TotalResponseTokens)
+	fmt.Fprintln(w, "")
+	fmt.Fprintln(w, "Cost:")
+	fmt.Fprintf(w, "  Estimated Cost:\t$%.4f\n", summary.TotalCost)
+	fmt.Fprintln(w, "")
 	w.Flush()
-
-	return nil
 }
