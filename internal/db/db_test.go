@@ -317,7 +317,21 @@ func runStoreTests(t *testing.T, dbType string) {
 			t.Fatalf("UpdateFeatureStatus did not modify content as expected.\nGot: %s\nExp: %s", updatedFeatures, expectedUpdate)
 		}
 
-		// 4. Get non-existent
+		// 4. Update non-existent feature
+		err = store.UpdateFeatureStatus(projectID, "F2", "completed", true)
+		if err == nil {
+			t.Fatalf("Expected an error when updating a non-existent feature, but got none")
+		}
+
+		// 5. Update with invalid JSON
+		// Save invalid JSON first
+		store.SaveFeatures(projectID, `{"invalid_json": "test"`)
+		err = store.UpdateFeatureStatus(projectID, "F1", "completed", true)
+		if err == nil {
+			t.Fatalf("Expected an error when updating with invalid JSON, but got none")
+		}
+
+		// 6. Get non-existent
 		val, err := store.GetFeatures("non-existent")
 		if err != nil {
 			t.Fatalf("GetFeatures for non-existent project failed: %v", err)
@@ -331,6 +345,7 @@ func runStoreTests(t *testing.T, dbType string) {
 	t.Run("TestLockingAndCleanup", func(t *testing.T) {
 		path1 := "/file/one"
 		path2 := "/file/two"
+		otherAgent := "other-agent"
 
 		// 1. Acquire lock
 		acquired, err := store.AcquireLock(projectID, path1, agentID, time.Second)
@@ -341,8 +356,8 @@ func runStoreTests(t *testing.T, dbType string) {
 			t.Fatalf("Failed to acquire lock")
 		}
 
-		// 2. Try to acquire locked path
-		acquired, err = store.AcquireLock(projectID, path1, "other-agent", 100*time.Millisecond)
+		// 2. Try to acquire locked path (and fail due to timeout)
+		acquired, err = store.AcquireLock(projectID, path1, otherAgent, 100*time.Millisecond)
 		if err != nil {
 			t.Fatalf("AcquireLock on locked path failed: %v", err)
 		}
@@ -362,7 +377,22 @@ func runStoreTests(t *testing.T, dbType string) {
 			t.Errorf("Mismatched lock data")
 		}
 
-		// 4. Release lock
+		// 4. Renew lock
+		time.Sleep(10 * time.Millisecond) // ensure time passes
+		acquired, err = store.AcquireLock(projectID, path1, agentID, time.Second)
+		if err != nil {
+			t.Fatalf("Failed to renew lock: %v", err)
+		}
+		if !acquired {
+			t.Fatalf("Should have been able to renew lock")
+		}
+		locks, _ = store.GetActiveLocks(projectID)
+		if len(locks) != 1 {
+			t.Fatalf("Expected 1 active lock after renew, got %d", len(locks))
+		}
+		// Could check if expiry increased, but that's implementation-dependent.
+
+		// 5. Release lock
 		if err := store.ReleaseLock(projectID, path1, agentID); err != nil {
 			t.Fatalf("ReleaseLock failed: %v", err)
 		}
@@ -371,7 +401,34 @@ func runStoreTests(t *testing.T, dbType string) {
 			t.Fatalf("Expected 0 active locks after release, got %d", len(locks))
 		}
 
-		// 5. ReleaseAllLocks
+		// 6. Test expired lock hijacking
+		// Manually insert an expired lock
+		var expiredTime time.Time
+		switch s := store.(type) {
+		case *SQLiteStore:
+			// For SQLite, "-1 minute" is a valid time modifier.
+			// We need to execute a query that creates a timestamp in the past.
+			expiredTime = time.Now().Add(-1 * time.Minute)
+			s.db.Exec(`INSERT INTO file_locks (project_id, path, agent_id, expires_at) VALUES (?, ?, ?, ?)`, projectID, path2, agentID, expiredTime)
+		case *PostgresStore:
+			// For Postgres, we can use INTERVAL.
+			s.db.Exec(`INSERT INTO file_locks (project_id, path, agent_id, expires_at) VALUES ($1, $2, $3, NOW() - INTERVAL '1 minute')`, projectID, path2, agentID)
+		}
+
+		acquired, err = store.AcquireLock(projectID, path2, otherAgent, time.Second)
+		if err != nil {
+			t.Fatalf("AcquireLock on expired lock failed: %v", err)
+		}
+		if !acquired {
+			t.Fatalf("Failed to acquire expired lock")
+		}
+		locks, _ = store.GetActiveLocks(projectID)
+		if len(locks) != 1 || locks[0].AgentID != otherAgent {
+			t.Fatalf("Lock should have been hijacked by otherAgent")
+		}
+		store.ReleaseLock(projectID, path2, otherAgent) // cleanup
+
+		// 7. ReleaseAllLocks
 		store.AcquireLock(projectID, path1, agentID, time.Second)
 		store.AcquireLock(projectID, path2, agentID, time.Second)
 		if err := store.ReleaseAllLocks(projectID, agentID); err != nil {
@@ -382,16 +439,51 @@ func runStoreTests(t *testing.T, dbType string) {
 			t.Fatalf("Expected 0 active locks after ReleaseAll, got %d", len(locks))
 		}
 
-		// 6. Cleanup
-		// Create an expired lock
-		if _, ok := store.(*SQLiteStore); ok {
-			// SQLite doesn't have an easy way to manipulate time for this test,
-			// but we can ensure Cleanup() doesn't error.
-		} else if pg, ok := store.(*PostgresStore); ok {
-			pg.db.Exec(`INSERT INTO file_locks (project_id, path, agent_id, expires_at) VALUES ($1, $2, $3, NOW() - INTERVAL '1 minute')`, projectID, "/expired", agentID)
+		// 8. Test manager override for ReleaseLock
+		store.AcquireLock(projectID, path1, agentID, time.Second)
+		if err := store.ReleaseLock(projectID, path1, "MANAGER"); err != nil {
+			t.Fatalf("Manager failed to release lock: %v", err)
 		}
+		locks, _ = store.GetActiveLocks(projectID)
+		if len(locks) != 0 {
+			t.Fatalf("Expected 0 locks after manager release, got %d", len(locks))
+		}
+
+		// 9. Cleanup
+		// Manually add an expired lock, an old (but critical) signal, an old non-critical signal,
+		// and an old observation to test the cleanup logic.
+		switch s := store.(type) {
+		case *SQLiteStore:
+			s.db.Exec(`INSERT INTO file_locks (project_id, path, agent_id, expires_at) VALUES (?, ?, ?, ?)`, projectID, "/expired", agentID, time.Now().Add(-2*time.Minute))
+			s.db.Exec(`INSERT INTO signals (project_id, key, value, created_at) VALUES (?, ?, ?, ?)`, projectID, "COMPLETED", "true", time.Now().Add(-25*time.Hour))
+			s.db.Exec(`INSERT INTO signals (project_id, key, value, created_at) VALUES (?, ?, ?, ?)`, projectID, "old-signal", "value", time.Now().Add(-25*time.Hour))
+			// For observations, we can't easily fake the timestamp, but we can trust the query logic.
+		case *PostgresStore:
+			s.db.Exec(`INSERT INTO file_locks (project_id, path, agent_id, expires_at) VALUES ($1, $2, $3, NOW() - INTERVAL '2 minute')`, projectID, "/expired", agentID)
+			s.db.Exec(`INSERT INTO signals (project_id, key, value, created_at) VALUES ($1, $2, $3, NOW() - INTERVAL '25 hour')`, projectID, "COMPLETED", "true")
+			s.db.Exec(`INSERT INTO signals (project_id, key, value, created_at) VALUES ($1, $2, $3, NOW() - INTERVAL '25 hour')`, projectID, "old-signal", "value")
+		}
+
 		if err := store.Cleanup(); err != nil {
 			t.Fatalf("Cleanup failed: %v", err)
+		}
+
+		// Verify expired lock is gone
+		locks, _ = store.GetActiveLocks(projectID)
+		for _, lock := range locks {
+			if lock.Path == "/expired" {
+				t.Errorf("Expired lock was not cleaned up")
+			}
+		}
+
+		// Verify old signal is gone, but critical one remains
+		val, _ := store.GetSignal(projectID, "old-signal")
+		if val != "" {
+			t.Errorf("Old signal was not cleaned up")
+		}
+		val, _ = store.GetSignal(projectID, "COMPLETED")
+		if val == "" {
+			t.Errorf("Critical signal was incorrectly cleaned up")
 		}
 	})
 }
