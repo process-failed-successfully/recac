@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -15,8 +17,42 @@ import (
 // This func will be set by the caller in the cmd package
 var GetSessions func() ([]model.UnifiedSession, error)
 
+type psKeyMap struct {
+	Up   key.Binding
+	Down key.Binding
+	Quit key.Binding
+}
+
+func (k psKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Up, k.Down, k.Quit}
+}
+
+func (k psKeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.Up, k.Down},
+		{k.Quit},
+	}
+}
+
+var psKeys = psKeyMap{
+	Up: key.NewBinding(
+		key.WithKeys("up", "k"),
+		key.WithHelp("↑/k", "up"),
+	),
+	Down: key.NewBinding(
+		key.WithKeys("down", "j"),
+		key.WithHelp("↓/j", "down"),
+	),
+	Quit: key.NewBinding(
+		key.WithKeys("q", "ctrl+c"),
+		key.WithHelp("q", "quit"),
+	),
+}
+
 type psDashboardModel struct {
 	table      table.Model
+	help       help.Model
+	keys       psKeyMap
 	sessions   []model.UnifiedSession
 	lastUpdate time.Time
 	err        error
@@ -55,7 +91,11 @@ func NewPsDashboardModel() psDashboardModel {
 		Bold(false)
 	t.SetStyles(s)
 
-	return psDashboardModel{table: t}
+	return psDashboardModel{
+		table: t,
+		help:  help.New(),
+		keys:  psKeys,
+	}
 }
 
 func (m psDashboardModel) Init() tea.Cmd {
@@ -72,11 +112,12 @@ func (m psDashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.table.SetWidth(m.width)
 		m.table.SetHeight(m.height - 8) // Adjust for header/footer
+		m.help.Width = msg.Width        // Help needs width too
 		return m, nil
 
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "q", "ctrl+c":
+		switch {
+		case key.Matches(msg, m.keys.Quit):
 			return m, tea.Quit
 		}
 
@@ -127,9 +168,10 @@ func (m psDashboardModel) View() string {
 
 	var s strings.Builder
 	s.WriteString(psDashboardTitleStyle.Render(" RECAC PS Dashboard") + "\n")
-	s.WriteString(fmt.Sprintf("Last updated: %s (press 'q' to quit)\n\n", m.lastUpdate.Format(time.RFC1123)))
+	s.WriteString(fmt.Sprintf("Last updated: %s\n\n", m.lastUpdate.Format(time.RFC1123)))
 
 	s.WriteString(m.table.View())
+	s.WriteString("\n" + m.help.View(m.keys))
 	return s.String()
 }
 
@@ -153,4 +195,3 @@ var StartPsDashboard = func() error {
 	}
 	return nil
 }
-
