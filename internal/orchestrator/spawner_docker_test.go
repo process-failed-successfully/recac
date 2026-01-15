@@ -68,6 +68,11 @@ func (m *MockSessionManager) LoadSession(name string) (*runner.SessionState, err
 	return args.Get(0).(*runner.SessionState), args.Error(1)
 }
 
+func (m *MockSessionManager) GetSessionLogContent(name string, lines int) (string, error) {
+	args := m.Called(name, lines)
+	return args.String(0), args.Error(1)
+}
+
 func (m *MockSessionManager) GetSessionGitDiffStat(name string) (string, error) {
 	args := m.Called(name)
 	return args.String(0), args.Error(1)
