@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"recac/internal/git"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -523,6 +524,32 @@ func (sm *SessionManager) GetSessionLogs(name string) (string, error) {
 	}
 
 	return session.LogFile, nil
+}
+
+// GetSessionLogContent returns the last N lines of the log file for a session.
+func (sm *SessionManager) GetSessionLogContent(name string, lines int) (string, error) {
+	session, err := sm.LoadSession(name)
+	if err != nil {
+		return "", fmt.Errorf("session not found: %w", err)
+	}
+
+	logData, err := os.ReadFile(session.LogFile)
+	if err != nil {
+		return "", fmt.Errorf("could not read log file %s: %w", session.LogFile, err)
+	}
+
+	logStr := string(logData)
+	if lines <= 0 {
+		return logStr, nil
+	}
+
+	logLines := strings.Split(strings.TrimSpace(logStr), "\n")
+	if len(logLines) <= lines {
+		return logStr, nil
+	}
+
+	start := len(logLines) - lines
+	return strings.Join(logLines[start:], "\n"), nil
 }
 
 // ErrSessionRunning is returned when an operation cannot be performed on a running session without force.
