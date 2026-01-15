@@ -342,6 +342,45 @@ func (c *Client) ExecAsUser(ctx context.Context, containerID string, user string
 	return output, nil
 }
 
+// ExecInteractive executes a command in a running container with an interactive TTY.
+func (c *Client) ExecInteractive(ctx context.Context, containerID string, cmd []string) error {
+	telemetry.TrackDockerOp(c.project)
+	execConfig := container.ExecOptions{
+		Cmd:          cmd,
+		AttachStdout: true,
+		AttachStderr: true,
+		AttachStdin:  true,
+		Tty:          true,
+	}
+
+	respID, err := c.api.ContainerExecCreate(ctx, containerID, execConfig)
+	if err != nil {
+		return fmt.Errorf("failed to create exec: %w", err)
+	}
+
+	resp, err := c.api.ContainerExecAttach(ctx, respID.ID, container.ExecStartOptions{Tty: true})
+	if err != nil {
+		return fmt.Errorf("failed to attach exec: %w", err)
+	}
+	defer resp.Close()
+
+	// Connect stdin, stdout, stderr
+	go io.Copy(resp.Conn, os.Stdin)
+	io.Copy(os.Stdout, resp.Reader)
+
+	// After the stream closes, inspect the exec session to get the exit code.
+	inspect, err := c.api.ContainerExecInspect(ctx, respID.ID)
+	if err != nil {
+		return fmt.Errorf("failed to inspect exec session: %w", err)
+	}
+
+	if inspect.ExitCode != 0 {
+		return fmt.Errorf("command exited with code %d", inspect.ExitCode)
+	}
+
+	return nil
+}
+
 // StopContainer stops a running container.
 func (c *Client) StopContainer(ctx context.Context, containerID string) error {
 	telemetry.TrackDockerOp(c.project)

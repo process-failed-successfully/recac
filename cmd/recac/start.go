@@ -868,6 +868,7 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 		Type:           "interactive",
 		AgentStateFile: filepath.Join(projectPath, ".agent_state.json"),
 		StartCommitSHA: startSHA,
+		ContainerID:    session.GetContainerID(),
 	}
 	sm.SaveSession(interactiveSessionState)
 
