@@ -105,3 +105,84 @@ func TestLsCommand_FilterByStatus(t *testing.T) {
 		assert.Contains(t, output, "No sessions found.")
 	})
 }
+
+func TestLsCommand_FilterByTime(t *testing.T) {
+	teardown := setupLsTest(t)
+	defer teardown()
+
+	sm, err := sessionManagerFactory()
+	require.NoError(t, err)
+
+	now := time.Now()
+	sessionOld := &runner.SessionState{Name: "session-old", Status: "completed", StartTime: now.Add(-10 * 24 * time.Hour)}
+	sessionRecent := &runner.SessionState{Name: "session-recent", Status: "completed", StartTime: now.Add(-1 * time.Hour)}
+	sessionNew := &runner.SessionState{Name: "session-new", Status: "running", StartTime: now.Add(-1 * time.Minute)}
+
+	require.NoError(t, sm.SaveSession(sessionOld))
+	require.NoError(t, sm.SaveSession(sessionRecent))
+	require.NoError(t, sm.SaveSession(sessionNew))
+
+	t.Run("filter with --since duration", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "ls", "--since", "2h")
+		require.NoError(t, err)
+
+		assert.NotContains(t, output, "session-old")
+		assert.Contains(t, output, "session-recent")
+		assert.Contains(t, output, "session-new")
+	})
+
+	t.Run("filter with --since timestamp", func(t *testing.T) {
+		sinceTime := now.Add(-3 * time.Hour).Format("2006-01-02")
+		output, err := executeCommand(rootCmd, "ls", "--since", sinceTime)
+		require.NoError(t, err)
+
+		assert.NotContains(t, output, "session-old")
+		assert.Contains(t, output, "session-recent")
+		assert.Contains(t, output, "session-new")
+	})
+
+	t.Run("filter with --before duration", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "ls", "--before", "5h")
+		require.NoError(t, err)
+
+		assert.Contains(t, output, "session-old")
+		assert.NotContains(t, output, "session-recent")
+		assert.NotContains(t, output, "session-new")
+	})
+
+	t.Run("filter with --before timestamp", func(t *testing.T) {
+		beforeTime := now.Add(-5 * time.Hour).Format("2006-01-02T15:04:05Z07:00")
+		output, err := executeCommand(rootCmd, "ls", "--before", beforeTime)
+		require.NoError(t, err)
+
+		assert.Contains(t, output, "session-old")
+		assert.NotContains(t, output, "session-recent")
+		assert.NotContains(t, output, "session-new")
+	})
+
+	t.Run("filter with --since and --before", func(t *testing.T) {
+		output, err := executeCommand(rootCmd, "ls", "--since", "5d", "--before", "30m")
+		require.NoError(t, err)
+
+		assert.NotContains(t, output, "session-old")
+		assert.Contains(t, output, "session-recent")
+		assert.NotContains(t, output, "session-new")
+	})
+
+	t.Run("filter with invalid time value", func(t *testing.T) {
+		_, err := executeCommand(rootCmd, "ls", "--since", "invalid-time")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `invalid time value "invalid-time"`)
+	})
+
+	t.Run("combined filter with --status and --since", func(t *testing.T) {
+		// Note: The mock session manager transitions 'running' status to 'completed' upon listing.
+		// So we filter for 'completed' to find the 'running' session.
+		output, err := executeCommand(rootCmd, "ls", "--status", "completed", "--since", "2h")
+		require.NoError(t, err)
+
+		assert.NotContains(t, output, "session-old")
+		assert.Contains(t, output, "session-recent") // Is completed and recent
+		assert.Contains(t, output, "session-new")    // Was running, now completed and recent
+	})
+}
