@@ -53,6 +53,9 @@ func init() {
 	if psCmd.Flags().Lookup("logs") == nil {
 		psCmd.Flags().Int("logs", 0, "Show the last N lines of logs for each session")
 	}
+	if psCmd.Flags().Lookup("git-status") == nil {
+		psCmd.Flags().Bool("git-status", false, "Show git status for the session's workspace")
+	}
 }
 
 var psCmd = &cobra.Command{
@@ -69,13 +72,15 @@ var psCmd = &cobra.Command{
 		sessionName, _ := cmd.Flags().GetString("session")
 		watch, _ := cmd.Flags().GetBool("watch")
 		logLines, _ := cmd.Flags().GetInt("logs")
+		showGitStatus, _ := cmd.Flags().GetBool("git-status")
 
 		filters := model.PsFilters{
-			Status:   cmd.Flag("status").Value.String(),
-			Since:    cmd.Flag("since").Value.String(),
-			Stale:    cmd.Flag("stale").Value.String(),
-			Remote:   cmd.Flag("remote").Value.String() == "true",
-			LogLines: logLines,
+			Status:     cmd.Flag("status").Value.String(),
+			Since:      cmd.Flag("since").Value.String(),
+			Stale:      cmd.Flag("stale").Value.String(),
+			Remote:     cmd.Flag("remote").Value.String() == "true",
+			LogLines:   logLines,
+			GitStatus: showGitStatus,
 		}
 
 		// --- Handle Watch Mode ---
@@ -119,6 +124,9 @@ var psCmd = &cobra.Command{
 		// --- Print Output ---
 		w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 3, ' ', 0)
 		header := "NAME\tSTATUS\tCPU\tMEM\tLOCATION\tLAST USED\tGOAL"
+		if filters.GitStatus {
+			header += "\tGIT STATUS"
+		}
 		if showCosts {
 			header += "\tPROMPT_TOKENS\tCOMPLETION_TOKENS\tTOTAL_TOKENS\tCOST"
 		}
@@ -138,6 +146,10 @@ var psCmd = &cobra.Command{
 
 			baseOutput := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s",
 				s.Name, s.Status, s.CPU, s.Memory, s.Location, lastUsed, goal)
+
+			if filters.GitStatus {
+				baseOutput += "\t" + s.GitStatus
+			}
 
 			if showCosts {
 				if s.HasCost {
@@ -250,6 +262,20 @@ func getUnifiedSessions(cmd *cobra.Command, filters model.PsFilters) ([]model.Un
 				us.Logs = logs
 			}
 		}
+
+		// --- Get Git Status if requested ---
+		if filters.GitStatus && s.Workspace != "" {
+			gitClient := gitClientFactory()
+			status, err := gitClient.GetShortStatus(s.Workspace)
+			if err == nil {
+				us.GitStatus = status
+			} else {
+				us.GitStatus = "err"
+			}
+		} else {
+			us.GitStatus = "N/A"
+		}
+
 		allSessions = append(allSessions, us)
 	}
 

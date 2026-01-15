@@ -53,6 +53,53 @@ func TestPsAndListCommands(t *testing.T) {
 	}
 }
 
+func TestPsCommandWithGitStatus(t *testing.T) {
+	// --- Setup ---
+	sm, cleanup := setupTestSessionManager(t)
+	defer cleanup()
+
+	// Mock git client
+	mockGit := &MockGitClient{
+		GetShortStatusFunc: func(workspace string) (string, error) {
+			return "M1 A2 ??3", nil
+		},
+	}
+	originalGitFactory := gitClientFactory
+	gitClientFactory = func() IGitClient {
+		return mockGit
+	}
+	defer func() { gitClientFactory = originalGitFactory }()
+
+	// Create a mock session with a workspace
+	sessionWithWorkspace := &runner.SessionState{
+		Name:      "session-git",
+		Status:    "running",
+		Workspace: "/tmp/fake/ws",
+		StartTime: time.Now(),
+	}
+	require.NoError(t, sm.SaveSession(sessionWithWorkspace))
+
+	t.Run("with --git-status flag", func(t *testing.T) {
+		// --- Execution ---
+		output, err := executeCommand(rootCmd, "ps", "--git-status")
+
+		// --- Assertions ---
+		require.NoError(t, err)
+		assert.Contains(t, output, "GIT STATUS", "Output should contain the GIT STATUS header")
+		assert.Contains(t, output, "M1 A2 ??3", "Output should contain the mock git status")
+	})
+
+	t.Run("without --git-status flag", func(t *testing.T) {
+		// --- Execution ---
+		output, err := executeCommand(rootCmd, "ps")
+
+		// --- Assertions ---
+		require.NoError(t, err)
+		assert.NotContains(t, output, "GIT STATUS", "Output should not contain the GIT STATUS header")
+		assert.NotContains(t, output, "M1 A2 ??3", "Output should not contain the mock git status")
+	})
+}
+
 func TestPsCommandWithStaleFilter(t *testing.T) {
 	sm, cleanup := setupTestSessionManager(t)
 	defer cleanup()

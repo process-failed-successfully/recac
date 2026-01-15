@@ -21,13 +21,15 @@ type UnifiedSession struct {
 	CPU          string
 	Memory       string
 	Logs         string
+	GitStatus    string
 }
 
 // PsFilters holds the filter values for the ps command.
 type PsFilters struct {
 	Status   string
 	Since    string
-	Stale    string
-	Remote   bool
-	LogLines int
+	Stale     string
+	Remote    bool
+	LogLines  int
+	GitStatus bool
 }

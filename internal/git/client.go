@@ -262,6 +262,58 @@ func (c *Client) CurrentBranch(dir string) (string, error) {
 	return strings.TrimSpace(out.String()), nil
 }
 
+// GetShortStatus returns a compact summary of the git status.
+func (c *Client) GetShortStatus(workspace string) (string, error) {
+	cmd := exec.Command("git", "status", "--porcelain")
+	cmd.Dir = workspace
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("git status --porcelain failed: %w", err)
+	}
+
+	output := out.String()
+	lines := strings.Split(output, "\n")
+
+	counts := make(map[string]int)
+	for _, line := range lines {
+		if len(line) > 2 {
+			status := strings.TrimSpace(line[:2])
+			if status != "" {
+				counts[status]++
+			}
+		}
+	}
+
+	var summary []string
+	if m := counts["M"]; m > 0 {
+		summary = append(summary, fmt.Sprintf("M%d", m))
+	}
+	if a := counts["A"]; a > 0 {
+		summary = append(summary, fmt.Sprintf("A%d", a))
+	}
+	if d := counts["D"]; d > 0 {
+		summary = append(summary, fmt.Sprintf("D%d", d))
+	}
+	if r := counts["R"]; r > 0 {
+		summary = append(summary, fmt.Sprintf("R%d", r))
+	}
+	if c := counts["C"]; c > 0 {
+		summary = append(summary, fmt.Sprintf("C%d", c))
+	}
+	if qm := counts["??"]; qm > 0 {
+		summary = append(summary, fmt.Sprintf("??%d", qm))
+	}
+
+	if len(summary) == 0 {
+		return "clean", nil
+	}
+
+	return strings.Join(summary, " "), nil
+}
+
 // CurrentCommitSHA returns the SHA of the current commit (HEAD).
 func (c *Client) CurrentCommitSHA(dir string) (string, error) {
 	cmd := exec.Command("git", "rev-parse", "HEAD")

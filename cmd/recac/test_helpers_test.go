@@ -303,6 +303,14 @@ type MockGitClient struct {
 	DiffFunc             func(repoPath, commitA, commitB string) (string, error)
 	DiffStatFunc         func(repoPath, commitA, commitB string) (string, error)
 	CurrentCommitSHAFunc func(repoPath string) (string, error)
+	GetShortStatusFunc   func(workspace string) (string, error)
+}
+
+func (m *MockGitClient) GetShortStatus(workspace string) (string, error) {
+	if m.GetShortStatusFunc != nil {
+		return m.GetShortStatusFunc(workspace)
+	}
+	return "M1 A1 ??1", nil // Default mock status
 }
 
 func (m *MockGitClient) Checkout(repoPath, commitOrBranch string) error {
