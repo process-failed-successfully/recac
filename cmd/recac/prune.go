@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"recac/internal/runner"
+	"recac/internal/utils"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -11,11 +13,13 @@ import (
 var (
 	pruneDryRun bool
 	pruneAll    bool
+	pruneSince  string
 )
 
 func init() {
 	pruneCmd.Flags().BoolVar(&pruneDryRun, "dry-run", false, "Simulate pruning without deleting files")
 	pruneCmd.Flags().BoolVar(&pruneAll, "all", false, "Prune all sessions, including running ones")
+	pruneCmd.Flags().StringVar(&pruneSince, "since", "", "Prune sessions older than a duration (e.g., 7d, 24h)")
 	rootCmd.AddCommand(pruneCmd)
 }
 
@@ -24,6 +28,7 @@ var pruneCmd = &cobra.Command{
 	Short: "Remove session artifacts from disk",
 	Long: `Prune removes session artifacts (logs, state files) for completed, stopped, or errored sessions.
 Use the --all flag to remove all sessions, including running ones.
+Use the --since flag to remove sessions older than a specific duration (e.g., '7d', '24h').
 Use the --dry-run flag to see which sessions would be pruned without deleting them.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		sm, err := sessionManagerFactory()
@@ -36,16 +41,39 @@ Use the --dry-run flag to see which sessions would be pruned without deleting th
 			return fmt.Errorf("failed to list sessions: %w", err)
 		}
 
+		var cutoff time.Time
+		if pruneSince != "" {
+			duration, err := utils.ParseStaleDuration(pruneSince)
+			if err != nil {
+				return fmt.Errorf("invalid duration format for --since: %w", err)
+			}
+			cutoff = time.Now().Add(-duration)
+		}
+
 		var sessionsToPrune []*runner.SessionState
 		for _, s := range sessions {
+			// Determine if a session is a candidate for pruning based on its status.
+			isCandidate := false
 			if pruneAll {
-				sessionsToPrune = append(sessionsToPrune, s)
-				continue
+				isCandidate = true
+			} else {
+				switch s.Status {
+				case "completed", "stopped", "error":
+					isCandidate = true
+				}
 			}
 
-			switch s.Status {
-			case "completed", "stopped", "error":
-				sessionsToPrune = append(sessionsToPrune, s)
+			// If it's a candidate, check if it meets the time filter (if one is specified).
+			if isCandidate {
+				if !cutoff.IsZero() {
+					// Time filter is active; only prune if the session is old enough.
+					if s.StartTime.Before(cutoff) {
+						sessionsToPrune = append(sessionsToPrune, s)
+					}
+				} else {
+					// No time filter; prune all candidates.
+					sessionsToPrune = append(sessionsToPrune, s)
+				}
 			}
 		}
 
