@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"recac/internal/utils"
 	"sort"
 	"strings"
 	"text/tabwriter"
@@ -15,6 +16,8 @@ import (
 func init() {
 	rootCmd.AddCommand(lsCmd)
 	lsCmd.Flags().String("status", "", "Filter sessions by status (e.g., 'running', 'completed', 'error')")
+	lsCmd.Flags().String("since", "", "Filter sessions started after a specific duration (e.g., '1h', '30m') or timestamp ('2006-01-02')")
+	lsCmd.Flags().String("before", "", "Filter sessions started before a specific duration (e.g., '1h', '30m') or timestamp ('2006-01-02')")
 }
 
 var lsCmd = &cobra.Command{
@@ -34,10 +37,44 @@ var lsCmd = &cobra.Command{
 		}
 
 		statusFilter, _ := cmd.Flags().GetString("status")
+		sinceFilter, _ := cmd.Flags().GetString("since")
+		beforeFilter, _ := cmd.Flags().GetString("before")
+
+		// Apply status filter
 		if statusFilter != "" {
 			var filteredSessions []*runner.SessionState
 			for _, s := range sessions {
 				if strings.EqualFold(s.Status, statusFilter) {
+					filteredSessions = append(filteredSessions, s)
+				}
+			}
+			sessions = filteredSessions
+		}
+
+		// Apply 'since' time filter
+		if sinceFilter != "" {
+			sinceTime, err := parseTimeFilter(sinceFilter)
+			if err != nil {
+				return err
+			}
+			var filteredSessions []*runner.SessionState
+			for _, s := range sessions {
+				if s.StartTime.After(sinceTime) {
+					filteredSessions = append(filteredSessions, s)
+				}
+			}
+			sessions = filteredSessions
+		}
+
+		// Apply 'before' time filter
+		if beforeFilter != "" {
+			beforeTime, err := parseTimeFilter(beforeFilter)
+			if err != nil {
+				return err
+			}
+			var filteredSessions []*runner.SessionState
+			for _, s := range sessions {
+				if s.StartTime.Before(beforeTime) {
 					filteredSessions = append(filteredSessions, s)
 				}
 			}
@@ -71,4 +108,24 @@ var lsCmd = &cobra.Command{
 
 		return w.Flush()
 	},
+}
+
+// parseTimeFilter parses a string that can be either a duration (including days) or a timestamp.
+func parseTimeFilter(value string) (time.Time, error) {
+	// Try parsing as a duration first (e.g., "7d", "24h")
+	duration, err := utils.ParseStaleDuration(value)
+	if err == nil {
+		return time.Now().Add(-duration), nil
+	}
+
+	// If not a duration, try parsing as a timestamp
+	layouts := []string{time.RFC3339, "2006-01-02"}
+	for _, layout := range layouts {
+		t, err := time.Parse(layout, value)
+		if err == nil {
+			return t, nil
+		}
+	}
+
+	return time.Time{}, fmt.Errorf("invalid time value %q: must be a duration (e.g., '1h') or a timestamp (e.g., '2006-01-02')", value)
 }
