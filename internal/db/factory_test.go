@@ -49,6 +49,9 @@ func TestNewStore_SQLite(t *testing.T) {
 }
 
 func TestNewStore_Postgres(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping postgres test in short mode")
+	}
 	// DSN for a test database. Assumes a running postgres instance.
 	// This test will be skipped if the DSN is not available.
 	dsn := "postgres://testuser:testpass@localhost:5432/testdb?sslmode=disable"

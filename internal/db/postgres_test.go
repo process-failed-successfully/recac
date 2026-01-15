@@ -16,6 +16,9 @@ import (
 func setupPostgresTestDB(t *testing.T) *PostgresStore {
 	t.Helper()
 
+	if testing.Short() {
+		t.Skip("skipping postgres test in short mode")
+	}
 	dsn := os.Getenv("POSTGRES_DSN")
 	if dsn == "" {
 		dsn = "postgres://testuser:testpass@localhost:5432/testdb?sslmode=disable"
