@@ -214,6 +214,10 @@ func (m *MockGitClient) LocalBranchExists(directory, branch string) (bool, error
 	return false, nil
 }
 
+func (m *MockGitClient) IsDirty(directory string) (bool, error) {
+	return false, nil
+}
+
 func TestSetupWorkspace(t *testing.T) {
 	t.Run("Empty Repo URL", func(t *testing.T) {
 		mockGitClient := &MockGitClient{}
