@@ -666,3 +666,128 @@ func TestGetSessionGitDiffStat(t *testing.T) {
 		assert.Equal(t, "... diff output ...", diff)
 	})
 }
+
+func TestGetSessionLogContent(t *testing.T) {
+	testCases := []struct {
+		name          string
+		sessionName   string
+		logContent    string
+		linesToGet    int
+		createSession bool
+		createLog     bool
+		expected      string
+		expectError   bool
+	}{
+		{
+			name:          "Successfully get last 2 lines",
+			sessionName:   "session1",
+			logContent:    "line 1\nline 2\nline 3\nline 4\nline 5",
+			linesToGet:    2,
+			createSession: true,
+			createLog:     true,
+			expected:      "line 4\nline 5",
+			expectError:   false,
+		},
+		{
+			name:          "Get more lines than available",
+			sessionName:   "session2",
+			logContent:    "line 1\nline 2\nline 3",
+			linesToGet:    5,
+			createSession: true,
+			createLog:     true,
+			expected:      "line 1\nline 2\nline 3",
+			expectError:   false,
+		},
+		{
+			name:          "Get all lines when requesting 0",
+			sessionName:   "session3",
+			logContent:    "line 1\nline 2\nline 3",
+			linesToGet:    0,
+			createSession: true,
+			createLog:     true,
+			expected:      "line 1\nline 2\nline 3",
+			expectError:   false,
+		},
+		{
+			name:          "Get all lines when requesting negative number",
+			sessionName:   "session4",
+			logContent:    "line 1\nline 2\nline 3",
+			linesToGet:    -5,
+			createSession: true,
+			createLog:     true,
+			expected:      "line 1\nline 2\nline 3",
+			expectError:   false,
+		},
+		{
+			name:          "Handle empty log file",
+			sessionName:   "session5",
+			logContent:    "",
+			linesToGet:    10,
+			createSession: true,
+			createLog:     true,
+			expected:      "",
+			expectError:   false,
+		},
+		{
+			name:          "Handle log file with trailing newline",
+			sessionName:   "session6",
+			logContent:    "line 1\nline 2\n",
+			linesToGet:    1,
+			createSession: true,
+			createLog:     true,
+			// The function does a TrimSpace before splitting, so the trailing newline is ignored, and the last line is "line 2".
+			expected: "line 2",
+			expectError: false,
+		},
+		{
+			name:          "Error on session not found",
+			sessionName:   "non-existent",
+			linesToGet:    10,
+			createSession: false,
+			createLog:     false,
+			expected:      "",
+			expectError:   true,
+		},
+		{
+			name:          "Error on log file not found",
+			sessionName:   "session7",
+			linesToGet:    10,
+			createSession: true,
+			createLog:     false,
+			expected:      "",
+			expectError:   true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			sm, cleanup := setupSessionManager(t)
+			defer cleanup()
+
+			logFilePath := filepath.Join(sm.sessionsDir, tc.sessionName+".log")
+
+			if tc.createSession {
+				session := &SessionState{
+					Name:    tc.sessionName,
+					LogFile: logFilePath,
+				}
+				err := sm.SaveSession(session)
+				require.NoError(t, err)
+			}
+
+			if tc.createLog {
+				err := os.WriteFile(logFilePath, []byte(tc.logContent), 0600)
+				require.NoError(t, err)
+			}
+
+			content, err := sm.GetSessionLogContent(tc.sessionName, tc.linesToGet)
+
+			if tc.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expected, content)
+			}
+		})
+	}
+}
