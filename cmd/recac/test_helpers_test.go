@@ -238,8 +238,10 @@ func (m *MockSessionManager) ListArchivedSessions() ([]*runner.SessionState, err
 }
 
 // executeCommand executes a cobra command and returns its output.
-func executeCommand(root *cobra.Command, args ...string) (string, error) {
+func executeCommand(root *cobra.Command, args ...string) (output string, err error) {
 	resetFlags(root)
+	b := new(bytes.Buffer)
+
 	// Mock exit
 	oldExit := exit
 	exit = func(code int) {
@@ -248,23 +250,31 @@ func executeCommand(root *cobra.Command, args ...string) (string, error) {
 		}
 	}
 	defer func() { exit = oldExit }()
+
+	// Use a defer with recover to handle our mocked exit(1)
 	defer func() {
 		if r := recover(); r != nil {
 			if s, ok := r.(string); ok && strings.HasPrefix(s, "exit-") {
-				// This is an expected exit, don't re-panic
+				// This is an expected exit. We capture the buffer content
+				// and return it, suppressing the panic.
+				output = b.String()
+				err = nil // An exit is not a Go error
 				return
 			}
-			panic(r) // Re-panic actual panics
+			// This was a real panic, so re-panic
+			panic(r)
 		}
 	}()
+
 	root.SetArgs(args)
-	b := new(bytes.Buffer)
 	root.SetOut(b)
 	root.SetErr(b)
 	// Mock Stdin to avoid hanging on interactive prompts (e.g. wizard)
 	root.SetIn(bytes.NewBufferString(""))
-	err := root.Execute()
-	return b.String(), err
+
+	err = root.Execute()
+	output = b.String() // Capture output on the non-panic path
+	return
 }
 
 // resetFlags resets all flags to their default values.
