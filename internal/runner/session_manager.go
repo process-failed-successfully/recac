@@ -34,6 +34,7 @@ type SessionState struct {
 	Workspace      string    `json:"workspace"`
 	Status         string    `json:"status"` // "running", "paused", "completed", "stopped", "error"
 	Type           string    `json:"type"`   // "detached" or "interactive"
+	Goal           string    `json:"goal,omitempty"`
 	Error          string    `json:"error,omitempty"`
 	AgentStateFile string    `json:"agent_state_file"` // Path to agent state file (.agent_state.json)
 	StartCommitSHA string    `json:"start_commit_sha,omitempty"`
@@ -57,7 +58,7 @@ type ISessionManager interface {
 	ResumeSession(name string) error
 	GetSessionLogs(name string) (string, error)
 	GetSessionLogContent(name string, lines int) (string, error)
-	StartSession(name string, command []string, workspace string) (*SessionState, error)
+	StartSession(name, goal string, command []string, workspace string) (*SessionState, error)
 	GetSessionPath(name string) string
 	IsProcessRunning(pid int) bool
 	RemoveSession(name string, force bool) error
@@ -122,7 +123,7 @@ func (sm *SessionManager) SessionsDir() string {
 }
 
 // StartSession starts a session in detached mode
-func (sm *SessionManager) StartSession(name string, command []string, workspace string) (*SessionState, error) {
+func (sm *SessionManager) StartSession(name, goal string, command []string, workspace string) (*SessionState, error) {
 	if err := validateSessionName(name); err != nil {
 		return nil, err
 	}
@@ -190,14 +191,15 @@ func (sm *SessionManager) StartSession(name string, command []string, workspace 
 
 	// Create session state
 	session := &SessionState{
-		Name:          name,
-		PID:           cmd.Process.Pid,
-		StartTime:     time.Now(),
-		Command:       command,
-		LogFile:       logFile,
-		Workspace:     workspace,
-		Status:        "running",
-		Type:          "detached",
+		Name:           name,
+		PID:            cmd.Process.Pid,
+		StartTime:      time.Now(),
+		Command:        command,
+		LogFile:        logFile,
+		Workspace:      workspace,
+		Status:         "running",
+		Type:           "detached",
+		Goal:           goal,
 		AgentStateFile: agentStateFile,
 	}
 

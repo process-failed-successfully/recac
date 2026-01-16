@@ -54,7 +54,7 @@ The workspace will be checked out to the starting commit of the original session
 		}
 
 		// Start a new session with the original command and workspace
-		newSession, err := sm.StartSession(replayName, originalSession.Command, originalSession.Workspace)
+		newSession, err := sm.StartSession(replayName, originalSession.Goal, originalSession.Command, originalSession.Workspace)
 		if err != nil {
 			return fmt.Errorf("failed to start replay session: %w", err)
 		}

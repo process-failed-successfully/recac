@@ -397,6 +397,7 @@ var startCmd = &cobra.Command{
 
 // SessionConfig holds all parameters for a RECAC session
 type SessionConfig struct {
+	Goal              string
 	ProjectPath       string
 	ProjectName       string
 	IsMock            bool
@@ -623,6 +624,15 @@ func processJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.C
 
 // runWorkflow handles the execution of a single project session (local or Jira-based)
 func runWorkflow(ctx context.Context, cfg SessionConfig) error {
+	// Determine the goal for the session
+	if cfg.JiraTicketID != "" {
+		cfg.Goal = cfg.JiraTicketID
+	} else if cfg.ProjectName != "" {
+		cfg.Goal = cfg.ProjectName
+	} else {
+		cfg.Goal = "Local Session"
+	}
+
 	// Handle detached mode
 	if cfg.Detached {
 		if cfg.SessionName == "" {
@@ -693,7 +703,7 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 			startSHA = sha
 		}
 
-		session, err := sm.StartSession(cfg.SessionName, command, projectPath)
+		session, err := sm.StartSession(cfg.SessionName, cfg.Goal, command, projectPath)
 		if err != nil {
 			return fmt.Errorf("failed to start detached session: %v", err)
 		}
@@ -866,6 +876,7 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 		Workspace:      projectPath,
 		Status:         "running",
 		Type:           "interactive",
+		Goal:           cfg.Goal,
 		AgentStateFile: filepath.Join(projectPath, ".agent_state.json"),
 		StartCommitSHA: startSHA,
 		ContainerID:    session.GetContainerID(),

@@ -44,8 +44,8 @@ func TestLsCommand_WithSessions(t *testing.T) {
 	sm, err := sessionManagerFactory()
 	require.NoError(t, err)
 
-	session1 := &runner.SessionState{Name: "session-1", Status: "completed", StartTime: time.Now().Add(-1 * time.Hour)}
-	session2 := &runner.SessionState{Name: "session-2", Status: "running", StartTime: time.Now()}
+	session1 := &runner.SessionState{Name: "session-1", Status: "completed", StartTime: time.Now().Add(-1 * time.Hour), Goal: "Test Goal 1"}
+	session2 := &runner.SessionState{Name: "session-2", Status: "running", StartTime: time.Now(), Goal: "Test Goal 2"}
 	require.NoError(t, sm.SaveSession(session1))
 	require.NoError(t, sm.SaveSession(session2))
 
@@ -53,13 +53,36 @@ func TestLsCommand_WithSessions(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Contains(t, output, "SESSION_ID")
+	assert.Contains(t, output, "GOAL")
 	assert.Contains(t, output, "STATUS")
 	assert.Contains(t, output, "STARTED")
 	assert.Contains(t, output, "DURATION")
 
 	// The mock session manager transitions 'running' to 'completed'
-	assert.Regexp(t, `session-1\s+completed`, output)
-	assert.Regexp(t, `session-2\s+completed`, output)
+	assert.Regexp(t, `session-1\s+Test Goal 1\s+completed`, output)
+	assert.Regexp(t, `session-2\s+Test Goal 2\s+completed`, output)
+}
+
+func TestLsCommand_WithGoal(t *testing.T) {
+	teardown := setupLsTest(t)
+	defer teardown()
+
+	sm, err := sessionManagerFactory()
+	require.NoError(t, err)
+
+	session1 := &runner.SessionState{Name: "session-1", Status: "completed", StartTime: time.Now().Add(-1 * time.Hour), Goal: "Test Goal"}
+	require.NoError(t, sm.SaveSession(session1))
+
+	output, err := executeCommand(rootCmd, "ls")
+	require.NoError(t, err)
+
+	assert.Contains(t, output, "SESSION_ID")
+	assert.Contains(t, output, "GOAL")
+	assert.Contains(t, output, "STATUS")
+	assert.Contains(t, output, "STARTED")
+	assert.Contains(t, output, "DURATION")
+
+	assert.Regexp(t, `session-1\s+Test Goal\s+completed`, output)
 }
 
 func TestLsCommand_FilterByStatus(t *testing.T) {

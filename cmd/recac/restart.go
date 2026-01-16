@@ -49,7 +49,7 @@ var restartCmd = &cobra.Command{
 		}
 
 		// Start a new session with the same parameters
-		newSession, err := sm.StartSession(session.Name, session.Command, session.Workspace)
+		newSession, err := sm.StartSession(session.Name, session.Goal, session.Command, session.Workspace)
 		if err != nil {
 			return fmt.Errorf("failed to restart session '%s': %w", session.Name, err)
 		}

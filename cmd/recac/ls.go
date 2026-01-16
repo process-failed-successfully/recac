@@ -91,7 +91,7 @@ var lsCmd = &cobra.Command{
 		})
 
 		w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 3, ' ', 0)
-		fmt.Fprintln(w, "SESSION_ID\tSTATUS\tSTARTED\tDURATION")
+		fmt.Fprintln(w, "SESSION_ID\tGOAL\tSTATUS\tSTARTED\tDURATION")
 
 		for _, s := range sessions {
 			started := s.StartTime.Format("2006-01-02 15:04:05")
@@ -102,8 +102,13 @@ var lsCmd = &cobra.Command{
 				duration = s.EndTime.Sub(s.StartTime).Round(time.Second).String()
 			}
 
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
-				s.Name, s.Status, started, duration)
+			goal := s.Goal
+			if goal == "" {
+				goal = "N/A"
+			}
+
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+				s.Name, goal, s.Status, started, duration)
 		}
 
 		return w.Flush()
