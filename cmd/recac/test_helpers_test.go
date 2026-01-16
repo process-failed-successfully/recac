@@ -41,11 +41,12 @@ func setupTestSessionManager(t *testing.T) (*runner.SessionManager, func()) {
 
 // MockSessionManager is a mock implementation of the ISessionManager interface.
 type MockSessionManager struct {
-	Sessions             map[string]*runner.SessionState
-	FailOnLoad           bool
-	FailOnList           bool
-	IsProcessRunningFunc func(pid int) bool
-	SessionsDirFunc      func() string
+	Sessions                  map[string]*runner.SessionState
+	FailOnLoad                bool
+	FailOnList                bool
+	IsProcessRunningFunc      func(pid int) bool
+	SessionsDirFunc           func() string
+	GetSessionGitDiffStatFunc func(name string) (string, error)
 }
 
 func (m *MockSessionManager) SessionsDir() string {
@@ -217,6 +218,9 @@ func (m *MockSessionManager) RenameSession(oldName, newName string) error {
 }
 
 func (m *MockSessionManager) GetSessionGitDiffStat(name string) (string, error) {
+	if m.GetSessionGitDiffStatFunc != nil {
+		return m.GetSessionGitDiffStatFunc(name)
+	}
 	if session, ok := m.Sessions[name]; ok {
 		if session.StartCommitSHA != "" && session.EndCommitSHA != "" {
 			return " M README.md\n 1 file changed, 1 insertion(+)", nil

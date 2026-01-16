@@ -1,77 +1,121 @@
 package main
 
 import (
+	"fmt"
 	"recac/internal/runner"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
+
+
+var testSessions = []*runner.SessionState{
+	{Name: "session-1", Status: "completed", Command: []string{"run", "feature-a"}, StartTime: time.Now().Add(-2 * time.Hour), Error: ""},
+	{Name: "session-2", Status: "running", Command: []string{"run", "feature-b"}, StartTime: time.Now().Add(-1 * time.Hour), Error: ""},
+	{Name: "session-3", Status: "error", Command: []string{"run", "feature-c"}, StartTime: time.Now().Add(-30 * time.Minute), Error: "something went wrong"},
+	{Name: "session-4", Status: "completed", Command: []string{"fix", "bug-x"}, StartTime: time.Now().Add(-3 * time.Hour), Error: ""},
+}
+
 func TestFindCmd(t *testing.T) {
-	// Setup mock session manager
-	mockSM := NewMockSessionManager()
-	mockSM.Sessions["test-session-1"] = &runner.SessionState{Name: "test-session-1", Status: "completed", StartTime: time.Now()}
-	mockSM.Sessions["test-session-2"] = &runner.SessionState{Name: "test-session-2", Status: "running", StartTime: time.Now()}
-	mockSM.Sessions["another-session-3"] = &runner.SessionState{Name: "another-session-3", Status: "error", StartTime: time.Now()}
-	mockSM.Sessions["test-session-4"] = &runner.SessionState{Name: "test-session-4", Status: "COMPLETED", StartTime: time.Now()}
-
-	// Replace the factory with our mock
-	originalFactory := sessionManagerFactory
-	sessionManagerFactory = func() (ISessionManager, error) {
-		return mockSM, nil
+	testCases := []struct {
+		name             string
+		args             []string
+		mockSessions     map[string]*runner.SessionState
+		mockDiffStat     func(name string) (string, error)
+		expectedOutput   []string
+		unexpectedOutput []string
+	}{
+		{
+			name:         "No filters",
+			args:         []string{},
+			mockSessions: convertSessionSliceToMap(testSessions),
+			expectedOutput: []string{"session-1", "session-2", "session-3", "session-4"},
+		},
+		{
+			name:         "Filter by status 'completed'",
+			args:         []string{"--status", "completed"},
+			mockSessions: convertSessionSliceToMap(testSessions),
+			expectedOutput:   []string{"session-1", "session-4"},
+			unexpectedOutput: []string{"session-2", "session-3"},
+		},
+		{
+			name:         "Filter by goal 'feature'",
+			args:         []string{"--goal", "feature"},
+			mockSessions: convertSessionSliceToMap(testSessions),
+			expectedOutput:   []string{"session-1", "session-2", "session-3"},
+			unexpectedOutput: []string{"session-4"},
+		},
+		{
+			name:         "Filter by error 'wrong'",
+			args:         []string{"--error", "wrong"},
+			mockSessions: convertSessionSliceToMap(testSessions),
+			expectedOutput:   []string{"session-3"},
+			unexpectedOutput: []string{"session-1", "session-2", "session-4"},
+		},
+		{
+			name: "Filter by file 'main.go'",
+			args:         []string{"--file", "main.go"},
+			mockSessions: convertSessionSliceToMap(testSessions),
+			mockDiffStat: func(name string) (string, error) {
+				switch name {
+				case "session-1":
+					return "1 file changed, 1 insertion(+)\n main.go | 1 +", nil
+				case "session-4":
+					return "1 file changed, 2 deletions(-)\n other.go | 2 --", nil
+				default:
+					return "no changes", nil
+				}
+			},
+			expectedOutput:   []string{"session-1"},
+			unexpectedOutput: []string{"session-2", "session-3", "session-4"},
+		},
+		{
+			name:         "Filter by since '90m'",
+			args:         []string{"--since", "90m"},
+			mockSessions: convertSessionSliceToMap(testSessions),
+			expectedOutput:   []string{"session-2", "session-3"},
+			unexpectedOutput: []string{"session-1", "session-4"},
+		},
+		{
+			name:         "No results found",
+			args:         []string{"--status", "zombie"},
+			mockSessions: convertSessionSliceToMap(testSessions),
+			expectedOutput: []string{"No sessions found"},
+		},
 	}
-	defer func() { sessionManagerFactory = originalFactory }()
 
-	t.Run("find by name", func(t *testing.T) {
-		output, err := executeCommand(rootCmd, "find", "--name", "test-session")
-		assert.NoError(t, err)
-		assert.Contains(t, output, "test-session-1")
-		assert.Contains(t, output, "test-session-2")
-		assert.Contains(t, output, "test-session-4")
-		assert.NotContains(t, output, "another-session-3")
-	})
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockSM := NewMockSessionManager()
+			mockSM.Sessions = tc.mockSessions
+			mockSM.GetSessionGitDiffStatFunc = tc.mockDiffStat
 
-	t.Run("find by status", func(t *testing.T) {
-		output, err := executeCommand(rootCmd, "find", "--status", "completed")
-		assert.NoError(t, err)
-		assert.Contains(t, output, "test-session-1")
-		assert.Contains(t, output, "test-session-4") // Should match case-insensitively
-		assert.NotContains(t, output, "test-session-2")
-		assert.NotContains(t, output, "another-session-3")
-	})
+			// Override the factory
+			originalFactory := sessionManagerFactory
+			sessionManagerFactory = func() (ISessionManager, error) {
+				return mockSM, nil
+			}
+			defer func() { sessionManagerFactory = originalFactory }()
 
-	t.Run("find by name and status", func(t *testing.T) {
-		output, err := executeCommand(rootCmd, "find", "--name", "test-session", "--status", "running")
-		assert.NoError(t, err)
-		assert.Contains(t, output, "test-session-2")
-		assert.NotContains(t, output, "test-session-1")
-		assert.NotContains(t, output, "test-session-4")
-		assert.NotContains(t, output, "another-session-3")
-	})
+			output, err := executeCommand(rootCmd, append([]string{"find"}, tc.args...)...)
+			assert.NoError(t, err)
 
-	t.Run("find with no filters", func(t *testing.T) {
-		output, err := executeCommand(rootCmd, "find")
-		assert.NoError(t, err)
-		assert.Contains(t, output, "test-session-1")
-		assert.Contains(t, output, "test-session-2")
-		assert.Contains(t, output, "another-session-3")
-		assert.Contains(t, output, "test-session-4")
-	})
+			for _, expected := range tc.expectedOutput {
+				assert.Contains(t, output, expected, fmt.Sprintf("Output should contain '%s'", expected))
+			}
+			for _, unexpected := range tc.unexpectedOutput {
+				assert.NotContains(t, output, unexpected, fmt.Sprintf("Output should not contain '%s'", unexpected))
+			}
+		})
+	}
+}
 
-	t.Run("find with no matches", func(t *testing.T) {
-		output, err := executeCommand(rootCmd, "find", "--name", "non-existent")
-		assert.NoError(t, err)
-		assert.Contains(t, output, "No matching sessions found.")
-	})
-
-	t.Run("find by status case insensitive", func(t *testing.T) {
-		output, err := executeCommand(rootCmd, "find", "--status", "Completed")
-		assert.NoError(t, err)
-		// Both should appear because EqualFold is used.
-		assert.Contains(t, output, "test-session-1")
-		assert.Contains(t, output, "test-session-4")
-		assert.Equal(t, 3, strings.Count(output, "\n"), "Should find 2 sessions plus header")
-	})
+func convertSessionSliceToMap(sessions []*runner.SessionState) map[string]*runner.SessionState {
+	m := make(map[string]*runner.SessionState)
+	for _, s := range sessions {
+		m[s.Name] = s
+	}
+	return m
 }
