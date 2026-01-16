@@ -41,15 +41,6 @@ type JiraClient interface {
 // Statically assert that the real client implements our interface.
 var _ JiraClient = (*jira.Client)(nil)
 
-// DockerClient defines the interface for Docker operations, created for mocking.
-type DockerClient interface {
-	RunContainer(ctx context.Context, image string, workspace string, binds []string, env []string, user string) (string, error)
-	StopContainer(ctx context.Context, containerID string) error
-	Exec(ctx context.Context, containerID string, cmd []string) (string, error)
-	ImageExistsLocally(ctx context.Context, imageName string) (bool, error)
-	PullImage(ctx context.Context, imageName string) error
-}
-
 // ISessionManager defines the interface for session management, created for mocking.
 type ISessionManager interface {
 	SaveSession(session *runner.SessionState) error

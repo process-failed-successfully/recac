@@ -87,8 +87,8 @@ func (c *Client) CheckDaemon(ctx context.Context) error {
 	return nil
 }
 
-// ImageExistsLocally checks if an image with the given tag exists locally.
-func (c *Client) ImageExistsLocally(ctx context.Context, tag string) (bool, error) {
+// ImageExists checks if an image with the given tag exists locally.
+func (c *Client) ImageExists(ctx context.Context, tag string) (bool, error) {
 	images, err := c.api.ImageList(ctx, image.ListOptions{})
 	if err != nil {
 		return false, fmt.Errorf("failed to list images: %w", err)
@@ -184,7 +184,7 @@ func (c *Client) PullImage(ctx context.Context, imageRef string) error {
 
 // RunContainer starts a container with the specified image and mounts the workspace.
 // It returns the container ID or an error.
-func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, ports []string, user string) (string, error) {
+func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, user string) (string, error) {
 	telemetry.TrackDockerOp(c.project)
 	// Prepare binds
 	sourcePath := workspace
@@ -203,6 +203,7 @@ func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace st
 		&container.Config{
 			Image:      imageRef,
 			User:       user,
+			Env:        env,
 			Tty:        true, // Keep it running
 			OpenStdin:  true, // Keep stdin open
 			WorkingDir: "/workspace",
