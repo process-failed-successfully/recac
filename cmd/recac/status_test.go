@@ -2,127 +2,171 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
-	"recac/internal/k8s"
-	"recac/internal/runner"
-	"recac/internal/ui"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/spf13/viper"
+	"recac/internal/agent"
+	"recac/internal/runner"
+
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	k8sversion "k8s.io/apimachinery/pkg/version"
-	fakediscovery "k8s.io/client-go/discovery/fake"
-	"k8s.io/client-go/kubernetes/fake"
 )
 
-func TestGetStatus(t *testing.T) {
-	// Setup: Create a temporary directory for sessions
-	tempDir := t.TempDir()
-	t.Setenv("HOME", tempDir) // Isolate session manager
+// setupStatusTest initializes a mock session manager and injects it.
+func setupStatusTest(t *testing.T) (*MockSessionManager, func()) {
+	t.Helper()
+	mockSM := NewMockSessionManager()
 
-	// We need to initialize the session manager to create the .recac/sessions directory
-	_, err := runner.NewSessionManager()
-	require.NoError(t, err, "failed to create session manager")
-
-	// Create a fake session
-	sessionName := fmt.Sprintf("test-session-%d", time.Now().UnixNano())
-	fakeSession := &runner.SessionState{
-		Name:      sessionName,
-		PID:       os.Getpid(),
-		StartTime: time.Now().Add(-10 * time.Minute),
-		Status:    "running",
-		LogFile:   "/tmp/test.log",
+	originalFactory := sessionManagerFactory
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return mockSM, nil
 	}
-	// Correctly construct the path where the session manager will look for the file
-	sessionPath := filepath.Join(tempDir, ".recac", "sessions", fmt.Sprintf("%s.json", sessionName))
-	require.NoError(t, os.MkdirAll(filepath.Dir(sessionPath), 0755))
 
-	data, err := json.Marshal(fakeSession)
-	require.NoError(t, err, "failed to marshal fake session")
-
-	require.NoError(t, os.WriteFile(sessionPath, data, 0644), "failed to write fake session file")
-
-	// Setup viper config
-	viper.Set("provider", "test-provider")
-	viper.Set("model", "test-model")
-	viper.Set("config", "/tmp/config.yaml")
-	defer viper.Reset()
-
-	// Mock the k8s client
-	oldK8sNewClient := ui.K8sNewClient
-	defer func() { ui.SetK8sClient(oldK8sNewClient) }()
-	ui.SetK8sClient(func() (*k8s.Client, error) {
-		fakeClientset := fake.NewSimpleClientset(
-			&corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "recac-agent-123",
-					Namespace: "default",
-					Labels:    map[string]string{"app": "recac-agent"},
-				},
-				Status: corev1.PodStatus{
-					Phase: corev1.PodRunning,
-				},
-			},
-		)
-		fakeDiscovery, ok := fakeClientset.Discovery().(*fakediscovery.FakeDiscovery)
-		require.True(t, ok)
-		fakeDiscovery.FakedServerVersion = &k8sversion.Info{
-			GitVersion: "v1.2.3",
-		}
-		return &k8s.Client{
-			Clientset: fakeClientset,
-			Namespace: "default",
-		}, nil
-	})
-
-	// Execute the function
-	output := ui.GetStatus()
-
-	// Assertions
-	t.Run("Session Output", func(t *testing.T) {
-		assert.Contains(t, output, "[Sessions]")
-		assert.Contains(t, output, sessionName)
-		assert.Contains(t, output, fmt.Sprintf("PID: %d", fakeSession.PID))
-		assert.Contains(t, output, "Status: RUNNING") // The logic uppercases the status
-	})
-
-	t.Run("Docker Output", func(t *testing.T) {
-		assert.Contains(t, output, "[Docker Environment]")
-	})
-
-	t.Run("Configuration Output", func(t *testing.T) {
-		assert.Contains(t, output, "[Configuration]")
-		assert.Contains(t, output, "Provider: test-provider")
-		assert.Contains(t, output, "Model: test-model")
-		assert.Contains(t, output, "Config File: /tmp/config.yaml")
-	})
-
-	t.Run("Kubernetes Output", func(t *testing.T) {
-		assert.Contains(t, output, "[Kubernetes Environment]")
-		assert.Contains(t, output, "Server Version: v1.2.3")
-		assert.Contains(t, output, "RECAC Agent Pods: 1")
-		assert.Contains(t, output, "recac-agent-123 (Running)")
-	})
+	return mockSM, func() {
+		sessionManagerFactory = originalFactory
+	}
 }
 
-func TestGetStatus_NoSessions(t *testing.T) {
-	// Setup: Create a temporary directory for sessions
-	tempDir := t.TempDir()
-	t.Setenv("HOME", tempDir) // Isolate session manager
+func TestStatusCommand(t *testing.T) {
+	t.Run("show status for a running session", func(t *testing.T) {
+		mockSM, cleanup := setupStatusTest(t)
+		defer cleanup()
 
-	// Initialize session manager to ensure directories are created
-	_, err := runner.NewSessionManager()
-	require.NoError(t, err)
+		// --- Setup ---
+		tempDir := t.TempDir()
+		agentStateFile := filepath.Join(tempDir, ".agent_state.json")
 
-	// Execute the function with no sessions present
-	output := ui.GetStatus()
+		state := &agent.State{
+			Model: "test-model",
+			TokenUsage: agent.TokenUsage{
+				TotalPromptTokens:   100,
+				TotalResponseTokens: 200,
+				TotalTokens:         300,
+			},
+			History: []agent.Message{
+				{Role: "user", Content: "Initial goal", Timestamp: time.Now().Add(-10 * time.Minute)},
+				{Role: "assistant", Content: "Okay, I will start working.", Timestamp: time.Now().Add(-5 * time.Minute)},
+			},
+		}
+		stateBytes, _ := json.Marshal(state)
+		os.WriteFile(agentStateFile, stateBytes, 0644)
 
-	// Assertions
-	assert.Contains(t, output, "No active or past sessions found.")
+		mockSM.Sessions["my-session"] = &runner.SessionState{
+			Name:           "my-session",
+			Status:         "running",
+			Goal:           "Develop a new feature",
+			StartTime:      time.Now().Add(-15 * time.Minute),
+			AgentStateFile: agentStateFile,
+		}
+
+		// --- Execute ---
+		output, err := executeCommand(rootCmd, "status", "my-session")
+
+		// --- Assert ---
+		assert.NoError(t, err)
+		assert.Contains(t, output, "Session: my-session")
+		assert.Contains(t, output, "Goal: Develop a new feature")
+		assert.Contains(t, output, "Status: running")
+		assert.Contains(t, output, "Model: test-model")
+		assert.Contains(t, output, "Token Usage: Prompt=100, Completion=200, Total=300")
+		assert.Contains(t, output, "Estimated Cost:")
+		assert.Contains(t, output, "Role: assistant")
+		assert.Contains(t, output, "Content: Okay, I will start working.")
+	})
+
+	t.Run("show status for a completed session", func(t *testing.T) {
+		mockSM, cleanup := setupStatusTest(t)
+		defer cleanup()
+
+		// --- Setup ---
+		tempDir := t.TempDir()
+		agentStateFile := filepath.Join(tempDir, ".agent_state.json")
+		state := &agent.State{Model: "test-model-final"}
+		stateBytes, _ := json.Marshal(state)
+		os.WriteFile(agentStateFile, stateBytes, 0644)
+
+		startTime := time.Now().Add(-30 * time.Minute)
+		endTime := time.Now().Add(-5 * time.Minute)
+		mockSM.Sessions["completed-session"] = &runner.SessionState{
+			Name:           "completed-session",
+			Status:         "completed",
+			StartTime:      startTime,
+			EndTime:        endTime,
+			AgentStateFile: agentStateFile,
+		}
+
+		// --- Execute ---
+		output, err := executeCommand(rootCmd, "status", "completed-session")
+
+		// --- Assert ---
+		assert.NoError(t, err)
+		assert.Contains(t, output, "Session: completed-session")
+		assert.Contains(t, output, "Status: completed")
+		assert.True(t, strings.Contains(output, "25m0s")) // Duration
+	})
+
+	t.Run("gracefully handles missing agent state file", func(t *testing.T) {
+		mockSM, cleanup := setupStatusTest(t)
+		defer cleanup()
+
+		// --- Setup ---
+		mockSM.Sessions["no-state-session"] = &runner.SessionState{
+			Name:           "no-state-session",
+			Status:         "running",
+			AgentStateFile: "/path/to/non/existent/file.json",
+		}
+
+		// --- Execute ---
+		output, err := executeCommand(rootCmd, "status", "no-state-session")
+
+		// --- Assert ---
+		assert.NoError(t, err)
+		assert.Contains(t, output, "Session 'no-state-session' found, but agent state is not available.")
+		assert.Contains(t, output, "Status: running")
+	})
+
+	t.Run("defaults to most recent session when no name is provided", func(t *testing.T) {
+		mockSM, cleanup := setupStatusTest(t)
+		defer cleanup()
+
+		// --- Setup ---
+		tempDir := t.TempDir()
+		agentStateFile := filepath.Join(tempDir, ".agent_state.json")
+		state := &agent.State{Model: "recent-model"}
+		stateBytes, _ := json.Marshal(state)
+		os.WriteFile(agentStateFile, stateBytes, 0644)
+
+		mockSM.Sessions["older-session"] = &runner.SessionState{
+			Name:      "older-session",
+			StartTime: time.Now().Add(-1 * time.Hour),
+		}
+		mockSM.Sessions["recent-session"] = &runner.SessionState{
+			Name:           "recent-session",
+			StartTime:      time.Now().Add(-10 * time.Minute),
+			AgentStateFile: agentStateFile,
+		}
+
+		// --- Execute ---
+		output, err := executeCommand(rootCmd, "status")
+
+		// --- Assert ---
+		assert.NoError(t, err)
+		assert.Contains(t, output, "showing status for most recent session: recent-session")
+		assert.Contains(t, output, "Session: recent-session")
+		assert.Contains(t, output, "Model: recent-model")
+	})
+
+	t.Run("reports error for non-existent session", func(t *testing.T) {
+		_, cleanup := setupStatusTest(t)
+		defer cleanup()
+
+		// --- Execute ---
+		_, err := executeCommand(rootCmd, "status", "non-existent-session")
+
+		// --- Assert ---
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "could not load session 'non-existent-session'")
+	})
 }
