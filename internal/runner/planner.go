@@ -7,7 +7,6 @@ import (
 	"recac/internal/agent"
 	"recac/internal/agent/prompts"
 	"recac/internal/db"
-	"regexp"
 	"strings"
 )
 
@@ -36,47 +35,44 @@ func GenerateFeatureList(ctx context.Context, a agent.Agent, spec string) (*db.F
 	return &featureList, nil
 }
 
-var (
-	reJSONBlock = regexp.MustCompile("(?s)```json(.*?)```")
-	reBlock     = regexp.MustCompile("(?s)```(.*?)```")
-)
-
 func cleanJSON(input string) string {
 	input = strings.TrimSpace(input)
 	if input == "" {
 		return ""
 	}
 
-	// 1. Try regex for ```json ... ``` (Most explicit)
-	match := reJSONBlock.FindStringSubmatch(input)
-	if len(match) > 1 {
-		return strings.TrimSpace(match[1])
+	// 1. Try explicit JSON block
+	const jsonTag = "```json"
+	if idx := strings.Index(input, jsonTag); idx != -1 {
+		startContent := idx + len(jsonTag)
+		if endIdx := strings.Index(input[startContent:], "```"); endIdx != -1 {
+			return strings.TrimSpace(input[startContent : startContent+endIdx])
+		}
 	}
 
-	// 2. Try regex for ``` ... ``` (Any block)
-	// We need to be careful not to capture non-JSON blocks if possible, but usually the prompt asks for JSON.
-	match2 := reBlock.FindStringSubmatch(input)
-	if len(match2) > 1 {
-		content := strings.TrimSpace(match2[1])
-		// Remove language tag if present in the captured content (regex might have captured it if no newline)
-		// actually reBlock is ````(.*?)```, so match[1] includes the tag line if it's there?
-		// e.g. ```json\n{...}``` -> match[1] is "json\n{...}"
-		// or ```\n{...}``` -> match[1] is "\n{...}"
+	// 2. Try generic block
+	const blockTag = "```"
+	if idx := strings.Index(input, blockTag); idx != -1 {
+		startContent := idx + len(blockTag)
+		if endIdx := strings.Index(input[startContent:], "```"); endIdx != -1 {
+			content := strings.TrimSpace(input[startContent : startContent+endIdx])
 
-		if idx := strings.Index(content, "\n"); idx != -1 {
-			firstLine := strings.TrimSpace(content[:idx])
-			// If first line is short and looks like a tag (no spaces, e.g. "json", "json5"), skip it
-			if len(firstLine) < 10 && !strings.Contains(firstLine, " ") && !strings.Contains(firstLine, "{") && !strings.Contains(firstLine, "[") {
-				return strings.TrimSpace(content[idx+1:])
+			// Remove language tag if present in the captured content
+			if newlineIdx := strings.Index(content, "\n"); newlineIdx != -1 {
+				firstLine := strings.TrimSpace(content[:newlineIdx])
+				// If first line is short and looks like a tag (no spaces, e.g. "json", "json5"), skip it
+				if len(firstLine) < 10 && !strings.Contains(firstLine, " ") && !strings.Contains(firstLine, "{") && !strings.Contains(firstLine, "[") {
+					return strings.TrimSpace(content[newlineIdx+1:])
+				}
 			}
-		}
-		// If no newline, maybe it's just "{...}" or "json{...}" (rare)
-		// If it starts with "json" and then immediate brace?
-		if strings.HasPrefix(content, "json") {
-			return strings.TrimSpace(strings.TrimPrefix(content, "json"))
-		}
+			// If no newline, maybe it's just "{...}" or "json{...}" (rare)
+			// If it starts with "json" and then immediate brace?
+			if strings.HasPrefix(content, "json") {
+				return strings.TrimSpace(strings.TrimPrefix(content, "json"))
+			}
 
-		return content
+			return content
+		}
 	}
 
 	// 3. Fallback: If it looks like a JSON object/array but has text around it (and no backticks)
