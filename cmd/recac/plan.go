@@ -33,6 +33,10 @@ You can review the plan and save it to feature_list.json, which is used by 'reca
 		// 1. Determine Path
 		projectPath := viper.GetString("plan.path")
 		if projectPath == "" {
+			// Fallback to flag directly in case Viper binding fails (common in tests)
+			projectPath, _ = cmd.Flags().GetString("path")
+		}
+		if projectPath == "" {
 			var err error
 			projectPath, err = os.Getwd()
 			if err != nil {
