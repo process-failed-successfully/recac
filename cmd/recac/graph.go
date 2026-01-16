@@ -52,6 +52,7 @@ var graphCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("failed to open database at %s: %w", dbPath, err)
 		}
+		defer store.Close()
 
 		// Load Features
 		// We assume the project name matches the session name.
