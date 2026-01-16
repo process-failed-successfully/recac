@@ -9,9 +9,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// Helper to create a test root command with graph command attached
+func newTestRootCmd() *cobra.Command {
+	cmd := &cobra.Command{Use: "recac"}
+	initGraphCmd(cmd)
+	return cmd
+}
 
 func TestGraphCmd(t *testing.T) {
 	// 1. Setup Workspace and DB
@@ -74,7 +82,8 @@ func TestGraphCmd(t *testing.T) {
 	defer func() { sessionManagerFactory = originalFactory }()
 
 	// 4. Run Command
-	output, err := executeCommand(rootCmd, "graph", projectName)
+	testCmd := newTestRootCmd()
+	output, err := executeCommand(testCmd, "graph", projectName)
 	require.NoError(t, err)
 
 	// 5. Verify Output
@@ -119,7 +128,8 @@ func TestGraphCmd_NoFeatures(t *testing.T) {
 	defer func() { sessionManagerFactory = originalFactory }()
 
 	// 3. Run Command (expect error)
-	_, err = executeCommand(rootCmd, "graph", projectName)
+	testCmd := newTestRootCmd()
+	_, err = executeCommand(testCmd, "graph", projectName)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no features found")
 }
@@ -165,7 +175,8 @@ func TestGraphCmd_LatestSession(t *testing.T) {
 	defer func() { sessionManagerFactory = originalFactory }()
 
 	// 3. Run Command without args
-	output, err := executeCommand(rootCmd, "graph")
+	testCmd := newTestRootCmd()
+	output, err := executeCommand(testCmd, "graph")
 	require.NoError(t, err)
 
 	// 4. Verify Output (should use the latest session)
