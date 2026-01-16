@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"recac/internal/pkg/git"
+	"recac/internal/git"
 
 	"github.com/spf13/cobra"
 )
@@ -28,7 +28,7 @@ var featureStartCmd = &cobra.Command{
 		fmt.Printf("Starting feature: %s\n", name)
 		fmt.Printf("Creating branch: %s\n", branchName)
 
-		err := git.CreateBranch(branchName)
+		err := git.NewClient().CheckoutNewBranch("", branchName)
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
 			exit(1)
