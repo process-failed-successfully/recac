@@ -136,28 +136,25 @@ func TestCheckImage_Complex(t *testing.T) {
 
 }
 
-func TestRunContainer_Pull(t *testing.T) {
-
+// TestRunContainer_DoesNotPull asserts that RunContainer does not pull images.
+// Image pulling is handled by the orchestrator's pull policy logic.
+func TestRunContainer_DoesNotPull(t *testing.T) {
 	client, mock := NewMockClient()
-
 	pullCalled := false
-
 	mock.ImagePullFunc = func(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error) {
-
 		pullCalled = true
-
 		return io.NopCloser(strings.NewReader("{}")), nil
-
 	}
 
-	client.RunContainer(context.Background(), "image", "/tmp", nil, nil, "")
-
-	if !pullCalled {
-
-		t.Error("Expected ImagePull to be called")
-
+	// RunContainer should succeed based on the default mocks for create/start
+	_, err := client.RunContainer(context.Background(), "image", "/tmp", nil, nil, "")
+	if err != nil {
+		t.Fatalf("RunContainer failed unexpectedly: %v", err)
 	}
 
+	if pullCalled {
+		t.Error("Expected ImagePull to NOT be called by RunContainer")
+	}
 }
 
 func TestPullImage_Errors(t *testing.T) {

@@ -15,7 +15,7 @@ import (
 )
 
 type DockerSpawner struct {
-	Client         DockerClient
+	Client         runner.DockerClient
 	Image          string
 	PullPolicy     corev1.PullPolicy
 	Network        string
@@ -28,7 +28,7 @@ type DockerSpawner struct {
 	GitClient      IGitClient
 }
 
-func NewDockerSpawner(logger *slog.Logger, client DockerClient, image string, projectName string, poller Poller, provider, model string, sm ISessionManager, pullPolicy corev1.PullPolicy) *DockerSpawner {
+func NewDockerSpawner(logger *slog.Logger, client runner.DockerClient, image string, projectName string, poller Poller, provider, model string, sm ISessionManager, pullPolicy corev1.PullPolicy) *DockerSpawner {
 	return &DockerSpawner{
 		Client:         client,
 		Image:          image,
@@ -206,7 +206,7 @@ func (s *DockerSpawner) Cleanup(ctx context.Context, item WorkItem) error {
 }
 
 func (s *DockerSpawner) ensureImage(ctx context.Context) error {
-	exists, err := s.Client.ImageExistsLocally(ctx, s.Image)
+	exists, err := s.Client.ImageExists(ctx, s.Image)
 	if err != nil {
 		return fmt.Errorf("failed to check for local image: %w", err)
 	}

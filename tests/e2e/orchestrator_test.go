@@ -173,7 +173,7 @@ func TestOrchestrator_FullFlow_E2E(t *testing.T) {
 	// Assuming OpenAI/GPT-3.5-turbo or similar for speed/cost if available. Or OpenRouter.
 	provider := "openrouter"
 	model := "mistralai/devstral-2512:free"
-	spawner := orchestrator.NewDockerSpawner(logger, dClient, "recac-agent:e2e", poller, provider, model)
+	spawner := orchestrator.NewDockerSpawner(logger, dClient, "recac-agent:e2e", "recac-e2e", poller, provider, model, nil, "Always")
 
 	orch := orchestrator.New(poller, spawner, 5*time.Second)
 

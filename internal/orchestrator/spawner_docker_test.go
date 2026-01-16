@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"recac/internal/docker"
 	"recac/internal/runner"
 	"testing"
 	"time"
@@ -19,8 +20,13 @@ type MockDockerClient struct {
 	mock.Mock
 }
 
-func (m *MockDockerClient) RunContainer(ctx context.Context, image, workspace string, binds, env []string, user string) (string, error) {
-	args := m.Called(ctx, image, workspace, binds, env, user)
+func (m *MockDockerClient) CheckDaemon(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}
+
+func (m *MockDockerClient) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, user string) (string, error) {
+	args := m.Called(ctx, imageRef, workspace, extraBinds, env, user)
 	return args.String(0), args.Error(1)
 }
 
@@ -34,13 +40,23 @@ func (m *MockDockerClient) Exec(ctx context.Context, containerID string, cmd []s
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockDockerClient) ImageExistsLocally(ctx context.Context, imageName string) (bool, error) {
-	args := m.Called(ctx, imageName)
+func (m *MockDockerClient) ExecAsUser(ctx context.Context, containerID string, user string, cmd []string) (string, error) {
+	args := m.Called(ctx, containerID, user, cmd)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockDockerClient) ImageExists(ctx context.Context, tag string) (bool, error) {
+	args := m.Called(ctx, tag)
 	return args.Bool(0), args.Error(1)
 }
 
-func (m *MockDockerClient) PullImage(ctx context.Context, imageName string) error {
-	args := m.Called(ctx, imageName)
+func (m *MockDockerClient) ImageBuild(ctx context.Context, opts docker.ImageBuildOptions) (string, error) {
+	args := m.Called(ctx, opts)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockDockerClient) PullImage(ctx context.Context, imageRef string) error {
+	args := m.Called(ctx, imageRef)
 	return args.Error(0)
 }
 
@@ -96,7 +112,7 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 	ctx := context.Background()
 
 	// Mock expectations
-	mockDocker.On("ImageExistsLocally", ctx, "test-image").Return(true, nil)
+	mockDocker.On("ImageExists", ctx, "test-image").Return(true, nil)
 	mockDocker.On("PullImage", ctx, "test-image").Return(nil)
 	mockGit.On("Clone", ctx, item.RepoURL, mock.AnythingOfType("string")).Return(nil)
 	mockGit.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("startsha", nil).Once()
@@ -131,7 +147,7 @@ func TestDockerSpawner_Spawn_CloneFails(t *testing.T) {
 	ctx := context.Background()
 	expectedErr := errors.New("clone failed")
 
-	mockDocker.On("ImageExistsLocally", ctx, "test-image").Return(true, nil)
+	mockDocker.On("ImageExists", ctx, "test-image").Return(true, nil)
 	mockDocker.On("PullImage", ctx, "test-image").Return(nil)
 	mockGit.On("Clone", ctx, item.RepoURL, mock.AnythingOfType("string")).Return(expectedErr)
 
@@ -154,7 +170,7 @@ func TestDockerSpawner_Spawn_RunContainerFails(t *testing.T) {
 	ctx := context.Background()
 	expectedErr := errors.New("run failed")
 
-	mockDocker.On("ImageExistsLocally", ctx, "test-image").Return(true, nil)
+	mockDocker.On("ImageExists", ctx, "test-image").Return(true, nil)
 	mockDocker.On("PullImage", ctx, "test-image").Return(nil)
 	mockGit.On("Clone", ctx, item.RepoURL, mock.AnythingOfType("string")).Return(nil)
 	mockGit.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("startsha", nil)
@@ -186,7 +202,7 @@ func TestDockerSpawner_ensureImage(t *testing.T) {
 			pullPolicy:  corev1.PullAlways,
 			imageExists: true,
 			setupMocks: func(m *MockDockerClient) {
-				m.On("ImageExistsLocally", ctx, imageName).Return(true, nil)
+				m.On("ImageExists", ctx, imageName).Return(true, nil)
 				m.On("PullImage", ctx, imageName).Return(nil)
 			},
 			expectPull:  true,
@@ -197,7 +213,7 @@ func TestDockerSpawner_ensureImage(t *testing.T) {
 			pullPolicy:  corev1.PullAlways,
 			imageExists: false,
 			setupMocks: func(m *MockDockerClient) {
-				m.On("ImageExistsLocally", ctx, imageName).Return(false, nil)
+				m.On("ImageExists", ctx, imageName).Return(false, nil)
 				m.On("PullImage", ctx, imageName).Return(nil)
 			},
 			expectPull:  true,
@@ -208,7 +224,7 @@ func TestDockerSpawner_ensureImage(t *testing.T) {
 			pullPolicy:  corev1.PullNever,
 			imageExists: true,
 			setupMocks: func(m *MockDockerClient) {
-				m.On("ImageExistsLocally", ctx, imageName).Return(true, nil)
+				m.On("ImageExists", ctx, imageName).Return(true, nil)
 			},
 			expectPull:  false,
 			expectError: false,
@@ -218,7 +234,7 @@ func TestDockerSpawner_ensureImage(t *testing.T) {
 			pullPolicy:  corev1.PullNever,
 			imageExists: false,
 			setupMocks: func(m *MockDockerClient) {
-				m.On("ImageExistsLocally", ctx, imageName).Return(false, nil)
+				m.On("ImageExists", ctx, imageName).Return(false, nil)
 			},
 			expectPull:    false,
 			expectError:   true,
@@ -229,7 +245,7 @@ func TestDockerSpawner_ensureImage(t *testing.T) {
 			pullPolicy:  corev1.PullIfNotPresent,
 			imageExists: true,
 			setupMocks: func(m *MockDockerClient) {
-				m.On("ImageExistsLocally", ctx, imageName).Return(true, nil)
+				m.On("ImageExists", ctx, imageName).Return(true, nil)
 			},
 			expectPull:  false,
 			expectError: false,
@@ -239,7 +255,7 @@ func TestDockerSpawner_ensureImage(t *testing.T) {
 			pullPolicy:  corev1.PullIfNotPresent,
 			imageExists: false,
 			setupMocks: func(m *MockDockerClient) {
-				m.On("ImageExistsLocally", ctx, imageName).Return(false, nil)
+				m.On("ImageExists", ctx, imageName).Return(false, nil)
 				m.On("PullImage", ctx, imageName).Return(nil)
 			},
 			expectPull:  true,
