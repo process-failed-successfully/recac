@@ -32,7 +32,7 @@ type SessionState struct {
 	Command        []string  `json:"command"`
 	LogFile        string    `json:"log_file"`
 	Workspace      string    `json:"workspace"`
-	Status         string    `json:"status"` // "running", "completed", "stopped", "error"
+	Status         string    `json:"status"` // "running", "paused", "completed", "stopped", "error"
 	Type           string    `json:"type"`   // "detached" or "interactive"
 	Error          string    `json:"error,omitempty"`
 	AgentStateFile string    `json:"agent_state_file"` // Path to agent state file (.agent_state.json)
@@ -53,6 +53,8 @@ type ISessionManager interface {
 	SaveSession(*SessionState) error
 	LoadSession(name string) (*SessionState, error)
 	StopSession(name string) error
+	PauseSession(name string) error
+	ResumeSession(name string) error
 	GetSessionLogs(name string) (string, error)
 	GetSessionLogContent(name string, lines int) (string, error)
 	StartSession(name string, command []string, workspace string) (*SessionState, error)
@@ -246,6 +248,70 @@ func (sm *SessionManager) SaveSession(session *SessionState) error {
 	}
 
 	return nil
+}
+
+// PauseSession sends a SIGSTOP signal to pause a running session.
+func (sm *SessionManager) PauseSession(name string) error {
+	session, err := sm.LoadSession(name)
+	if err != nil {
+		return fmt.Errorf("session not found: %w", err)
+	}
+
+	if session.Status != "running" {
+		return fmt.Errorf("session '%s' is not running (status: %s)", name, session.Status)
+	}
+
+	if !sm.IsProcessRunning(session.PID) {
+		session.Status = "completed"
+		sm.SaveSession(session)
+		return fmt.Errorf("session '%s' is not running (process not found)", name)
+	}
+
+	process, err := os.FindProcess(session.PID)
+	if err != nil {
+		return fmt.Errorf("failed to find process %d: %w", session.PID, err)
+	}
+
+	// On Unix-like systems, os.Signal is an interface, and syscall.Signal is a concrete type.
+	// We send SIGSTOP to pause the process.
+	if err := process.Signal(syscall.SIGSTOP); err != nil {
+		return fmt.Errorf("failed to send SIGSTOP signal to process %d: %w", session.PID, err)
+	}
+
+	session.Status = "paused"
+	return sm.SaveSession(session)
+}
+
+// ResumeSession sends a SIGCONT signal to resume a paused session.
+func (sm *SessionManager) ResumeSession(name string) error {
+	session, err := sm.LoadSession(name)
+	if err != nil {
+		return fmt.Errorf("session not found: %w", err)
+	}
+
+	if session.Status != "paused" {
+		return fmt.Errorf("session '%s' is not paused (status: %s)", name, session.Status)
+	}
+
+	// A paused process is still "running" from the OS's perspective.
+	if !sm.IsProcessRunning(session.PID) {
+		session.Status = "stopped" // If it's not running anymore while paused, it's effectively stopped/crashed.
+		sm.SaveSession(session)
+		return fmt.Errorf("session '%s' is no longer running (process not found)", name)
+	}
+
+	process, err := os.FindProcess(session.PID)
+	if err != nil {
+		return fmt.Errorf("failed to find process %d: %w", session.PID, err)
+	}
+
+	// Send SIGCONT to resume the process.
+	if err := process.Signal(syscall.SIGCONT); err != nil {
+		return fmt.Errorf("failed to send SIGCONT signal to process %d: %w", session.PID, err)
+	}
+
+	session.Status = "running"
+	return sm.SaveSession(session)
 }
 
 // ArchiveSession moves a session's state and log files to the archived directory.
