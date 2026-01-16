@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"recac/internal/agent"
-	"recac/internal/git"
 	"recac/internal/runner"
 	"strings"
 	"text/tabwriter"
@@ -19,12 +18,6 @@ import (
 type gitClient interface {
 	Diff(workspace, fromSHA, toSHA string) (string, error)
 	CurrentCommitSHA(workspace string) (string, error)
-}
-
-// gitNewClient is a factory function that can be overridden in tests.
-var gitNewClient = func() gitClient {
-	// We need to wrap the concrete client in the interface type.
-	return git.NewClient()
 }
 
 // DisplaySessionDetail prints a detailed view of a single session.

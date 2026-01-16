@@ -122,6 +122,28 @@ func (m *MockSessionManager) StopSession(name string) error {
 	return fmt.Errorf("session not found")
 }
 
+func (m *MockSessionManager) PauseSession(name string) error {
+	if session, ok := m.Sessions[name]; ok {
+		if session.Status != "running" {
+			return fmt.Errorf("session is not running")
+		}
+		session.Status = "paused"
+		return nil
+	}
+	return fmt.Errorf("session not found")
+}
+
+func (m *MockSessionManager) ResumeSession(name string) error {
+	if session, ok := m.Sessions[name]; ok {
+		if session.Status != "paused" {
+			return fmt.Errorf("session is not paused")
+		}
+		session.Status = "running"
+		return nil
+	}
+	return fmt.Errorf("session not found")
+}
+
 func (m *MockSessionManager) GetSessionLogs(name string) (string, error) {
 	if session, ok := m.Sessions[name]; ok {
 		return session.LogFile, nil

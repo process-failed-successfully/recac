@@ -7,13 +7,13 @@ import (
 )
 
 func init() {
-	rootCmd.AddCommand(stopCmd)
+	rootCmd.AddCommand(unpauseCmd)
 }
 
-var stopCmd = &cobra.Command{
-	Use:   "stop [session-name]",
-	Short: "Stop a running session",
-	Long:  `Stop a running session gracefully. Sends SIGTERM first, then SIGKILL if needed.`,
+var unpauseCmd = &cobra.Command{
+	Use:   "unpause [session-name]",
+	Short: "Unpause a paused session",
+	Long:  `Unpause a paused session by sending it the SIGCONT signal.`,
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var sessionName string
@@ -25,7 +25,7 @@ var stopCmd = &cobra.Command{
 		}
 
 		if len(args) == 0 {
-			sessionName, err = interactiveSessionSelect(sm, "running", "Choose a session to stop:")
+			sessionName, err = interactiveSessionSelect(sm, "paused", "Choose a session to unpause:")
 			if err != nil {
 				return err
 			}
@@ -33,12 +33,11 @@ var stopCmd = &cobra.Command{
 			sessionName = args[0]
 		}
 
-		if err := sm.StopSession(sessionName); err != nil {
+		if err := sm.ResumeSession(sessionName); err != nil {
 			return err
 		}
 
-		fmt.Fprintf(cmd.OutOrStdout(), "Session '%s' stopped successfully\n", sessionName)
+		fmt.Fprintf(cmd.OutOrStdout(), "Session '%s' unpaused successfully\n", sessionName)
 		return nil
 	},
 }
-

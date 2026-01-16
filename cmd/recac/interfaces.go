@@ -8,6 +8,8 @@ type ISessionManager interface {
 	SaveSession(*runner.SessionState) error
 	LoadSession(name string) (*runner.SessionState, error)
 	StopSession(name string) error
+	PauseSession(name string) error
+	ResumeSession(name string) error
 	GetSessionLogs(name string) (string, error)
 	GetSessionLogContent(name string, lines int) (string, error)
 	StartSession(name string, command []string, workspace string) (*runner.SessionState, error)

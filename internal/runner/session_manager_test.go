@@ -666,3 +666,53 @@ func TestGetSessionGitDiffStat(t *testing.T) {
 		assert.Equal(t, "... diff output ...", diff)
 	})
 }
+
+func TestSessionManager_PauseResume(t *testing.T) {
+	sm, cleanup := setupSessionManager(t)
+	defer cleanup()
+
+	// Prepare a dummy executable (sleep)
+	sleepCmd, err := exec.LookPath("sleep")
+	if err != nil {
+		t.Skip("sleep command not found, skipping StartSession test")
+	}
+
+	// 1. Start a session
+	sessionName := "test-pause-resume"
+	command := []string{sleepCmd, "5"} // Sleep long enough to be paused
+	session, err := sm.StartSession(sessionName, command, sm.sessionsDir)
+	require.NoError(t, err, "Failed to start session")
+	require.Equal(t, "running", session.Status, "Session should be running")
+
+	// 2. Pause the session
+	err = sm.PauseSession(sessionName)
+	require.NoError(t, err, "Failed to pause session")
+
+	// 3. Verify status is 'paused'
+	pausedSession, err := sm.LoadSession(sessionName)
+	require.NoError(t, err, "Failed to load session after pause")
+	assert.Equal(t, "paused", pausedSession.Status, "Session status should be 'paused'")
+
+	// 4. Try to pause it again (should fail)
+	err = sm.PauseSession(sessionName)
+	assert.Error(t, err, "Should not be able to pause a paused session")
+	assert.Contains(t, err.Error(), "is not running")
+
+	// 5. Resume the session
+	err = sm.ResumeSession(sessionName)
+	require.NoError(t, err, "Failed to resume session")
+
+	// 6. Verify status is 'running' again
+	resumedSession, err := sm.LoadSession(sessionName)
+	require.NoError(t, err, "Failed to load session after resume")
+	assert.Equal(t, "running", resumedSession.Status, "Session status should be 'running' again")
+
+	// 7. Try to resume it again (should fail)
+	err = sm.ResumeSession(sessionName)
+	assert.Error(t, err, "Should not be able to resume a running session")
+	assert.Contains(t, err.Error(), "is not paused")
+
+	// 8. Clean up by stopping the session
+	err = sm.StopSession(sessionName)
+	require.NoError(t, err, "Failed to stop the session for cleanup")
+}

@@ -1,13 +1,14 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
-
 	"recac/internal/telemetry"
 	"recac/internal/ui"
 
+	"github.com/AlecAivazis/survey/v2"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -122,4 +123,40 @@ func RunInteractive(provider, model string) {
 
 func init() {
 	rootCmd.AddCommand(interactiveCmd)
+}
+
+var surveyAskOne = survey.AskOne
+
+// interactiveSessionSelect prompts the user to select a session with a specific status.
+func interactiveSessionSelect(sm ISessionManager, status, message string) (string, error) {
+	sessions, err := sm.ListSessions()
+	if err != nil {
+		return "", fmt.Errorf("could not list sessions: %w", err)
+	}
+
+	var selectableSessions []string
+	for _, s := range sessions {
+		if s.Status == status {
+			selectableSessions = append(selectableSessions, s.Name)
+		}
+	}
+
+	if len(selectableSessions) == 0 {
+		return "", fmt.Errorf("no sessions with status '%s' to select", status)
+	}
+
+	var selectedSession string
+	prompt := &survey.Select{
+		Message: message,
+		Options: selectableSessions,
+	}
+	if err := surveyAskOne(prompt, &selectedSession, survey.WithStdio(os.Stdin, os.Stderr, os.Stderr)); err != nil {
+		// Handle cases where the user cancels the prompt (e.g., Ctrl+C).
+		if err.Error() == "interrupt" {
+			return "", errors.New("operation cancelled by user")
+		}
+		return "", fmt.Errorf("failed to get user input: %w", err)
+	}
+
+	return selectedSession, nil
 }

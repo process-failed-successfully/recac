@@ -28,10 +28,14 @@ func (m *mockSessionManager) ListSessions() ([]*runner.SessionState, error) {
 }
 
 // All other ISessionManager methods are no-ops for this mock
-func (m *mockSessionManager) SaveSession(*runner.SessionState) error             { return nil }
-func (m *mockSessionManager) LoadSession(name string) (*runner.SessionState, error) { return nil, nil }
-func (m *mockSessionManager) StopSession(name string) error                      { return nil }
-func (m *mockSessionManager) GetSessionLogs(name string) (string, error)         { return "", nil }
+func (m *mockSessionManager) SaveSession(*runner.SessionState) error { return nil }
+func (m *mockSessionManager) LoadSession(name string) (*runner.SessionState, error) {
+	return nil, nil
+}
+func (m *mockSessionManager) StopSession(name string) error  { return nil }
+func (m *mockSessionManager) PauseSession(name string) error { return nil }
+func (m *mockSessionManager) ResumeSession(name string) error { return nil }
+func (m *mockSessionManager) GetSessionLogs(name string) (string, error) { return "", nil }
 func (m *mockSessionManager) GetSessionLogContent(name string, lines int) (string, error) {
 	return "", nil
 }
