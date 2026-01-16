@@ -246,95 +246,6 @@ type InteractiveModel struct {
 }
 
 func NewInteractiveModel(commands []SlashCommand, provider, model string) InteractiveModel {
-	ta := textarea.New()
-	ta.Placeholder = "Type a message..."
-	ta.Focus()
-	ta.Prompt = " ❯ "
-	ta.CharLimit = 0 // No limit
-	ta.SetWidth(50)
-	ta.SetHeight(3)
-	ta.ShowLineNumbers = false
-	ta.KeyMap.InsertNewline.SetEnabled(true) // Allow multi-line input
-
-	// Convert SlashCommands to CommandItems
-	// Custom Commands Injection
-	items := make([]list.Item, 0)
-	cmdItems := make([]CommandItem, 0)
-
-	hasModelCmd := false
-	hasAgentCmd := false
-	for _, c := range commands {
-		if c.Name == "/model" {
-			hasModelCmd = true
-		}
-		if c.Name == "/agent" {
-			hasAgentCmd = true
-		}
-	}
-
-	// Add built-in /model command
-	if !hasModelCmd {
-		modelCmd := CommandItem{
-			Name: "/model",
-			Desc: "Select active AI model from current Agent",
-			Action: func(m *InteractiveModel, args []string) tea.Cmd {
-				m.setMode(ModeModelSelect)
-				return nil
-			},
-		}
-		items = append(items, modelCmd)
-		cmdItems = append(cmdItems, modelCmd)
-	}
-
-	// Add built-in /agent command
-	if !hasAgentCmd {
-		agentCmd := CommandItem{
-			Name: "/agent",
-			Desc: "Select active Agent Provider (OpenAI, Gemini, etc)",
-			Action: func(m *InteractiveModel, args []string) tea.Cmd {
-				m.setMode(ModeAgentSelect)
-				return nil
-			},
-		}
-		items = append(items, agentCmd)
-		cmdItems = append(cmdItems, agentCmd)
-	}
-
-	for _, c := range commands {
-		item := CommandItem{
-			Name:   c.Name,
-			Desc:   c.Description,
-			Action: c.Action,
-		}
-		items = append(items, item)
-		cmdItems = append(cmdItems, item)
-	}
-
-	// Setup List
-	l := list.New(items, list.NewDefaultDelegate(), 0, 0)
-	l.Title = "Slash Commands"
-	l.SetShowHelp(false)
-	l.SetHeight(6)
-	l.DisableQuitKeybindings()
-	l.Styles.Title = interactiveTitleStyle
-
-	// Spinner
-	s := spinner.New()
-	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
-
-	vp := viewport.New(50, 10)
-	welcomeMsg := strings.Join([]string{
-		interactiveBotStyle.Render("Recac: ") + "Welcome to RECAC! 🎨",
-		"",
-		interactiveStatusMessageStyle.Render("  • Type / for commands (or press Tab)"),
-		interactiveStatusMessageStyle.Render("  • Type ! for shell execution"),
-		interactiveStatusMessageStyle.Render("  • Type anything else to chat"),
-		interactiveStatusMessageStyle.Render("  • Press Ctrl+C to quit"),
-		"",
-	}, "\n")
-	vp.SetContent(welcomeMsg)
-
 	// Define Agents/Providers
 	availableAgents := []AgentItem{
 		{Name: "Gemini", Value: "gemini", DescriptionDetails: "Google DeepMind Gemini Models"},
@@ -418,6 +329,105 @@ func NewInteractiveModel(commands []SlashCommand, provider, model string) Intera
 			model = "gemini-2.0-flash-auto" // Fallback
 		}
 	}
+
+	ta := textarea.New()
+	ta.Placeholder = "Type a message..."
+	ta.Focus()
+	ta.Prompt = " ❯ "
+	ta.CharLimit = 0 // No limit
+	ta.SetWidth(50)
+	ta.SetHeight(3)
+	ta.ShowLineNumbers = false
+	ta.KeyMap.InsertNewline.SetEnabled(true) // Allow multi-line input
+
+	// Convert SlashCommands to CommandItems
+	// Custom Commands Injection
+	items := make([]list.Item, 0)
+	cmdItems := make([]CommandItem, 0)
+
+	hasModelCmd := false
+	hasAgentCmd := false
+	for _, c := range commands {
+		if c.Name == "/model" {
+			hasModelCmd = true
+		}
+		if c.Name == "/agent" {
+			hasAgentCmd = true
+		}
+	}
+
+	// Add built-in /model command
+	if !hasModelCmd {
+		modelCmd := CommandItem{
+			Name: "/model",
+			Desc: "Select active AI model from current Agent",
+			Action: func(m *InteractiveModel, args []string) tea.Cmd {
+				m.setMode(ModeModelSelect)
+				return nil
+			},
+		}
+		items = append(items, modelCmd)
+		cmdItems = append(cmdItems, modelCmd)
+	}
+
+	// Add built-in /agent command
+	if !hasAgentCmd {
+		agentCmd := CommandItem{
+			Name: "/agent",
+			Desc: "Select active Agent Provider (OpenAI, Gemini, etc)",
+			Action: func(m *InteractiveModel, args []string) tea.Cmd {
+				m.setMode(ModeAgentSelect)
+				return nil
+			},
+		}
+		items = append(items, agentCmd)
+		cmdItems = append(cmdItems, agentCmd)
+	}
+
+	for _, c := range commands {
+		item := CommandItem{
+			Name:   c.Name,
+			Desc:   c.Description,
+			Action: c.Action,
+		}
+		items = append(items, item)
+		cmdItems = append(cmdItems, item)
+	}
+
+	// Setup List
+	l := list.New(items, list.NewDefaultDelegate(), 0, 0)
+	l.Title = "Slash Commands"
+	l.SetShowHelp(false)
+	l.SetHeight(6)
+	l.DisableQuitKeybindings()
+	l.Styles.Title = interactiveTitleStyle
+
+	// Spinner
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+
+	vp := viewport.New(50, 10)
+
+	// Prepare dynamic welcome message
+	displayProvider := strings.Title(provider)
+	displayModel := model
+
+	welcomeMsg := strings.Join([]string{
+		interactiveBotStyle.Render("Recac: ") + "Welcome to RECAC! 🎨",
+		"",
+		fmt.Sprintf("  🤖 Provider: %s", interactiveShellStyle.Render(displayProvider)),
+		fmt.Sprintf("  🧠 Model:    %s", interactiveShellStyle.Render(displayModel)),
+		"",
+		interactiveStatusMessageStyle.Render("  • Type / for commands (or press Tab)"),
+		interactiveStatusMessageStyle.Render("  • Type ! for shell execution"),
+		interactiveStatusMessageStyle.Render("  • Type anything else to chat"),
+		interactiveStatusMessageStyle.Render("  • Press Ctrl+C to quit"),
+		"",
+		interactiveStatusMessageStyle.Render("💡 Tip: Use /model to switch models anytime."),
+		"",
+	}, "\n")
+	vp.SetContent(welcomeMsg)
 
 	return InteractiveModel{
 		textarea:     ta,
