@@ -1,7 +1,6 @@
 package runner
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -12,144 +11,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
-// MockGitClient is a mock of the git.Client for testing purposes.
-type MockGitClient struct {
-	mock.Mock
-}
-
-func (m *MockGitClient) DiffStat(workspace, startCommit, endCommit string) (string, error) {
-	args := m.Called(workspace, startCommit, endCommit)
-	return args.String(0), args.Error(1)
-}
-
-func (m *MockGitClient) CurrentCommitSHA(workspace string) (string, error) {
-	args := m.Called(workspace)
-	return args.String(0), args.Error(1)
-}
-
-func (m *MockGitClient) Clone(ctx context.Context, repoURL, directory string) error {
-	args := m.Called(ctx, repoURL, directory)
-	return args.Error(0)
-}
-
-func (m *MockGitClient) RepoExists(directory string) bool {
-	args := m.Called(directory)
-	return args.Bool(0)
-}
-
-func (m *MockGitClient) Config(directory, key, value string) error {
-	args := m.Called(directory, key, value)
-	return args.Error(0)
-}
-
-func (m *MockGitClient) ConfigAddGlobal(key, value string) error {
-	args := m.Called(key, value)
-	return args.Error(0)
-}
-
-func (m *MockGitClient) RemoteBranchExists(directory, remote, branch string) (bool, error) {
-	args := m.Called(directory, remote, branch)
-	return args.Bool(0), args.Error(1)
-}
-
-func (m *MockGitClient) Fetch(directory, remote, branch string) error {
-	args := m.Called(directory, remote, branch)
-	return args.Error(0)
-}
-
-func (m *MockGitClient) Stash(directory string) error {
-	args := m.Called(directory)
-	return args.Error(0)
-}
-
-func (m *MockGitClient) Merge(directory, branchName string) error {
-	args := m.Called(directory, branchName)
-	return args.Error(0)
-}
-
-func (m *MockGitClient) AbortMerge(directory string) error {
-	args := m.Called(directory)
-	return args.Error(0)
-}
-
-func (m *MockGitClient) Recover(directory string) error {
-	args := m.Called(directory)
-	return args.Error(0)
-}
-
-func (m *MockGitClient) Clean(directory string) error {
-	args := m.Called(directory)
-	return args.Error(0)
-}
-
-func (m *MockGitClient) ResetHard(directory, remote, branch string) error {
-	args := m.Called(directory, remote, branch)
-	return args.Error(0)
-}
-
-func (m *MockGitClient) StashPop(directory string) error {
-	args := m.Called(directory)
-	return args.Error(0)
-}
-
-func (m *MockGitClient) DeleteRemoteBranch(directory, remote, branch string) error {
-	args := m.Called(directory, remote, branch)
-	return args.Error(0)
-}
-
-func (m *MockGitClient) CurrentBranch(directory string) (string, error) {
-	args := m.Called(directory)
-	return args.String(0), args.Error(1)
-}
-
-func (m *MockGitClient) Commit(directory, message string) error {
-	args := m.Called(directory, message)
-	return args.Error(0)
-}
-
-func (m *MockGitClient) Diff(directory, startCommit, endCommit string) (string, error) {
-	args := m.Called(directory, startCommit, endCommit)
-	return args.String(0), args.Error(1)
-}
-
-func (m *MockGitClient) SetRemoteURL(directory, name, url string) error {
-	args := m.Called(directory, name, url)
-	return args.Error(0)
-}
-
-func (m *MockGitClient) DeleteLocalBranch(directory, branch string) error {
-	args := m.Called(directory, branch)
-	return args.Error(0)
-}
-
-func (m *MockGitClient) LocalBranchExists(directory, branch string) (bool, error) {
-	args := m.Called(directory, branch)
-	return args.Bool(0), args.Error(1)
-}
-
-func (m *MockGitClient) Checkout(directory, branch string) error {
-	args := m.Called(directory, branch)
-	return args.Error(0)
-}
-
-func (m *MockGitClient) CheckoutNewBranch(directory, branch string) error {
-	args := m.Called(directory, branch)
-	return args.Error(0)
-}
-
-func (m *MockGitClient) Push(directory, branch string) error {
-	args := m.Called(directory, branch)
-	return args.Error(0)
-}
-
-func (m *MockGitClient) Pull(directory, remote, branch string) error {
-	args := m.Called(directory, remote, branch)
-	return args.Error(0)
-}
 // setupSessionManager creates a new SessionManager in a temporary directory for isolated testing.
 func setupSessionManager(t *testing.T) (*SessionManager, func()) {
 	t.Helper()
@@ -611,13 +475,16 @@ func TestRenameSession(t *testing.T) {
 
 func TestGetSessionGitDiffStat(t *testing.T) {
 	originalNewClient := git.NewClient
-	git.NewClient = func() git.IClient {
-		return &MockGitClient{}
-	}
 	defer func() { git.NewClient = originalNewClient }()
+
 	t.Run("returns empty string when SHAs are missing", func(t *testing.T) {
 		sm, cleanup := setupSessionManager(t)
 		defer cleanup()
+
+		// No need to mock the git client here as it shouldn't be called
+		git.NewClient = func() git.IClient {
+			return &git.MockGitClient{}
+		}
 
 		session := &SessionState{Name: "test-session", Workspace: "/tmp"}
 		err := sm.SaveSession(session)
@@ -632,7 +499,7 @@ func TestGetSessionGitDiffStat(t *testing.T) {
 		sm, cleanup := setupSessionManager(t)
 		defer cleanup()
 
-		mockClient := new(MockGitClient)
+		mockClient := &git.MockGitClient{}
 		mockClient.On("DiffStat", "/tmp", "start", "end").Return("", fmt.Errorf("git error"))
 		git.NewClient = func() git.IClient {
 			return mockClient
@@ -651,7 +518,7 @@ func TestGetSessionGitDiffStat(t *testing.T) {
 		sm, cleanup := setupSessionManager(t)
 		defer cleanup()
 
-		mockClient := new(MockGitClient)
+		mockClient := &git.MockGitClient{}
 		mockClient.On("DiffStat", "/tmp", "start", "end").Return("... diff output ...", nil)
 		git.NewClient = func() git.IClient {
 			return mockClient
