@@ -10,11 +10,14 @@ import (
 	"recac/internal/runner"
 	"strings"
 	"time"
+
+	corev1 "k8s.io/api/core/v1"
 )
 
 type DockerSpawner struct {
 	Client         DockerClient
 	Image          string
+	PullPolicy     corev1.PullPolicy
 	Network        string
 	Poller         Poller // To update status on completion
 	AgentProvider  string
@@ -25,7 +28,7 @@ type DockerSpawner struct {
 	GitClient      IGitClient
 }
 
-func NewDockerSpawner(logger *slog.Logger, client DockerClient, image string, projectName string, poller Poller, provider, model string, sm ISessionManager) *DockerSpawner {
+func NewDockerSpawner(logger *slog.Logger, client DockerClient, image string, projectName string, poller Poller, provider, model string, sm ISessionManager, pullPolicy corev1.PullPolicy) *DockerSpawner {
 	return &DockerSpawner{
 		Client:         client,
 		Image:          image,
@@ -36,10 +39,16 @@ func NewDockerSpawner(logger *slog.Logger, client DockerClient, image string, pr
 		Logger:         logger,
 		SessionManager: sm,
 		GitClient:      git.NewClient(),
+		PullPolicy:     pullPolicy,
 	}
 }
 
 func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
+	// Handle Image Pulling
+	err := s.ensureImage(ctx)
+	if err != nil {
+		return err
+	}
 	// 1. Create temporary workspace on host
 	tempDir, err := os.MkdirTemp("", fmt.Sprintf("recac-agent-%s-*", item.ID))
 	if err != nil {
@@ -194,4 +203,32 @@ func (s *DockerSpawner) Cleanup(ctx context.Context, item WorkItem) error {
 	// For now, we rely on the agent's own cleanup and don't manage the container lifecycle here.
 	// Future implementation could stop/remove the container.
 	return nil
+}
+
+func (s *DockerSpawner) ensureImage(ctx context.Context) error {
+	exists, err := s.Client.ImageExistsLocally(ctx, s.Image)
+	if err != nil {
+		return fmt.Errorf("failed to check for local image: %w", err)
+	}
+
+	switch s.PullPolicy {
+	case corev1.PullNever:
+		if !exists {
+			return fmt.Errorf("image %s not found locally and pull policy is 'Never'", s.Image)
+		}
+		s.Logger.Info("Using local image", "image", s.Image, "policy", s.PullPolicy)
+		return nil
+	case corev1.PullIfNotPresent:
+		if exists {
+			s.Logger.Info("Using local image", "image", s.Image, "policy", s.PullPolicy)
+			return nil
+		}
+		s.Logger.Info("Image not found locally, pulling...", "image", s.Image, "policy", s.PullPolicy)
+		return s.Client.PullImage(ctx, s.Image)
+	case corev1.PullAlways:
+		fallthrough
+	default:
+		s.Logger.Info("Pulling image", "image", s.Image, "policy", s.PullPolicy)
+		return s.Client.PullImage(ctx, s.Image)
+	}
 }

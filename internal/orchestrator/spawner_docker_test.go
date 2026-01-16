@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // Mock Docker Client
@@ -31,6 +32,16 @@ func (m *MockDockerClient) StopContainer(ctx context.Context, containerID string
 func (m *MockDockerClient) Exec(ctx context.Context, containerID string, cmd []string) (string, error) {
 	args := m.Called(ctx, containerID, cmd)
 	return args.String(0), args.Error(1)
+}
+
+func (m *MockDockerClient) ImageExistsLocally(ctx context.Context, imageName string) (bool, error) {
+	args := m.Called(ctx, imageName)
+	return args.Bool(0), args.Error(1)
+}
+
+func (m *MockDockerClient) PullImage(ctx context.Context, imageName string) error {
+	args := m.Called(ctx, imageName)
+	return args.Error(0)
 }
 
 // Mock Session Manager
@@ -73,7 +84,7 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 	mockPoller := new(mockPoller)
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	spawner := NewDockerSpawner(logger, mockDocker, "test-image", "test-proj", mockPoller, "provider", "model", mockSM)
+	spawner := NewDockerSpawner(logger, mockDocker, "test-image", "test-proj", mockPoller, "provider", "model", mockSM, corev1.PullAlways)
 	spawner.GitClient = mockGit
 
 	item := WorkItem{
@@ -85,6 +96,8 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 	ctx := context.Background()
 
 	// Mock expectations
+	mockDocker.On("ImageExistsLocally", ctx, "test-image").Return(true, nil)
+	mockDocker.On("PullImage", ctx, "test-image").Return(nil)
 	mockGit.On("Clone", ctx, item.RepoURL, mock.AnythingOfType("string")).Return(nil)
 	mockGit.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("startsha", nil).Once()
 	mockDocker.On("RunContainer", ctx, "test-image", mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
@@ -111,13 +124,15 @@ func TestDockerSpawner_Spawn_CloneFails(t *testing.T) {
 	mockSM := new(MockSessionManager)
 	mockGit := new(MockGitClient)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	spawner := NewDockerSpawner(logger, mockDocker, "test-image", "test-proj", nil, "", "", mockSM)
+	spawner := NewDockerSpawner(logger, mockDocker, "test-image", "test-proj", nil, "", "", mockSM, corev1.PullAlways)
 	spawner.GitClient = mockGit
 
 	item := WorkItem{ID: "TICKET-1", RepoURL: "https://github.com/test/repo"}
 	ctx := context.Background()
 	expectedErr := errors.New("clone failed")
 
+	mockDocker.On("ImageExistsLocally", ctx, "test-image").Return(true, nil)
+	mockDocker.On("PullImage", ctx, "test-image").Return(nil)
 	mockGit.On("Clone", ctx, item.RepoURL, mock.AnythingOfType("string")).Return(expectedErr)
 
 	err := spawner.Spawn(ctx, item)
@@ -132,13 +147,15 @@ func TestDockerSpawner_Spawn_RunContainerFails(t *testing.T) {
 	mockSM := new(MockSessionManager)
 	mockGit := new(MockGitClient)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	spawner := NewDockerSpawner(logger, mockDocker, "test-image", "test-proj", nil, "", "", mockSM)
+	spawner := NewDockerSpawner(logger, mockDocker, "test-image", "test-proj", nil, "", "", mockSM, corev1.PullAlways)
 	spawner.GitClient = mockGit
 
 	item := WorkItem{ID: "TICKET-1", RepoURL: "https://github.com/test/repo"}
 	ctx := context.Background()
 	expectedErr := errors.New("run failed")
 
+	mockDocker.On("ImageExistsLocally", ctx, "test-image").Return(true, nil)
+	mockDocker.On("PullImage", ctx, "test-image").Return(nil)
 	mockGit.On("Clone", ctx, item.RepoURL, mock.AnythingOfType("string")).Return(nil)
 	mockGit.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("startsha", nil)
 	mockDocker.On("RunContainer", ctx, "test-image", mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("", expectedErr)
@@ -148,4 +165,111 @@ func TestDockerSpawner_Spawn_RunContainerFails(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "run failed")
 	mockSM.AssertNotCalled(t, "SaveSession")
+}
+
+func TestDockerSpawner_ensureImage(t *testing.T) {
+	ctx := context.Background()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	imageName := "test-image:latest"
+
+	testCases := []struct {
+		name          string
+		pullPolicy    corev1.PullPolicy
+		imageExists   bool
+		setupMocks    func(*MockDockerClient)
+		expectPull    bool
+		expectError   bool
+		errorContains string
+	}{
+		{
+			name:        "PullAlways_ImageExists",
+			pullPolicy:  corev1.PullAlways,
+			imageExists: true,
+			setupMocks: func(m *MockDockerClient) {
+				m.On("ImageExistsLocally", ctx, imageName).Return(true, nil)
+				m.On("PullImage", ctx, imageName).Return(nil)
+			},
+			expectPull:  true,
+			expectError: false,
+		},
+		{
+			name:        "PullAlways_ImageMissing",
+			pullPolicy:  corev1.PullAlways,
+			imageExists: false,
+			setupMocks: func(m *MockDockerClient) {
+				m.On("ImageExistsLocally", ctx, imageName).Return(false, nil)
+				m.On("PullImage", ctx, imageName).Return(nil)
+			},
+			expectPull:  true,
+			expectError: false,
+		},
+		{
+			name:        "PullNever_ImageExists",
+			pullPolicy:  corev1.PullNever,
+			imageExists: true,
+			setupMocks: func(m *MockDockerClient) {
+				m.On("ImageExistsLocally", ctx, imageName).Return(true, nil)
+			},
+			expectPull:  false,
+			expectError: false,
+		},
+		{
+			name:        "PullNever_ImageMissing",
+			pullPolicy:  corev1.PullNever,
+			imageExists: false,
+			setupMocks: func(m *MockDockerClient) {
+				m.On("ImageExistsLocally", ctx, imageName).Return(false, nil)
+			},
+			expectPull:    false,
+			expectError:   true,
+			errorContains: "not found locally and pull policy is 'Never'",
+		},
+		{
+			name:        "PullIfNotPresent_ImageExists",
+			pullPolicy:  corev1.PullIfNotPresent,
+			imageExists: true,
+			setupMocks: func(m *MockDockerClient) {
+				m.On("ImageExistsLocally", ctx, imageName).Return(true, nil)
+			},
+			expectPull:  false,
+			expectError: false,
+		},
+		{
+			name:        "PullIfNotPresent_ImageMissing",
+			pullPolicy:  corev1.PullIfNotPresent,
+			imageExists: false,
+			setupMocks: func(m *MockDockerClient) {
+				m.On("ImageExistsLocally", ctx, imageName).Return(false, nil)
+				m.On("PullImage", ctx, imageName).Return(nil)
+			},
+			expectPull:  true,
+			expectError: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockDocker := new(MockDockerClient)
+			tc.setupMocks(mockDocker)
+
+			spawner := NewDockerSpawner(logger, mockDocker, imageName, "test-proj", nil, "", "", nil, tc.pullPolicy)
+
+			err := spawner.ensureImage(ctx)
+
+			if tc.expectError {
+				assert.Error(t, err)
+				if tc.errorContains != "" {
+					assert.Contains(t, err.Error(), tc.errorContains)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+
+			if tc.expectPull {
+				mockDocker.AssertCalled(t, "PullImage", ctx, imageName)
+			} else {
+				mockDocker.AssertNotCalled(t, "PullImage")
+			}
+		})
+	}
 }
