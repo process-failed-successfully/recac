@@ -160,3 +160,35 @@ func interactiveSessionSelect(sm ISessionManager, status, message string) (strin
 
 	return selectedSession, nil
 }
+
+// interactiveSelectRestartableSession prompts the user to select from a list of non-running sessions.
+func interactiveSelectRestartableSession(sm ISessionManager, message string) (string, error) {
+	sessions, err := sm.ListSessions()
+	if err != nil {
+		return "", fmt.Errorf("could not list sessions: %w", err)
+	}
+
+	var selectableSessions []string
+	for _, s := range sessions {
+		if s.Status != "running" {
+			selectableSessions = append(selectableSessions, s.Name)
+		}
+	}
+
+	if len(selectableSessions) == 0 {
+		return "", errors.New("no restartable sessions found")
+	}
+
+	var selectedSession string
+	prompt := &survey.Select{
+		Message: message,
+		Options: selectableSessions,
+	}
+	if err := surveyAskOne(prompt, &selectedSession); err != nil {
+		if err.Error() == "interrupt" {
+			return "", errors.New("operation cancelled by user")
+		}
+		return "", fmt.Errorf("failed to get user input: %w", err)
+	}
+	return selectedSession, nil
+}
