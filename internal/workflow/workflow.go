@@ -23,6 +23,7 @@ import (
 
 // SessionConfig holds all parameters for a RECAC session
 type SessionConfig struct {
+	Goal              string
 	ProjectPath       string
 	ProjectName       string
 	IsMock            bool
@@ -259,7 +260,7 @@ var ProcessJiraTicket = func(ctx context.Context, jiraTicketID string, jClient *
 
 // ISessionManager defines the interface for session management.
 type ISessionManager interface {
-	StartSession(name string, command []string, cwd string) (*runner.SessionState, error)
+	StartSession(name, goal string, command []string, cwd string) (*runner.SessionState, error)
 }
 
 // Statically assert that the real session manager implements our interface.
@@ -350,7 +351,7 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 			}
 		}
 
-		session, err := sm.StartSession(cfg.SessionName, command, projectPath)
+		session, err := sm.StartSession(cfg.SessionName, cfg.Goal, command, projectPath)
 		if err != nil {
 			return fmt.Errorf("failed to start detached session: %v", err)
 		}

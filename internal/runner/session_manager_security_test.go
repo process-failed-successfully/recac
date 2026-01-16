@@ -39,7 +39,7 @@ func TestSessionManager_Security_PathTraversal(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			command := []string{lsCmd}
-			_, err := sm.StartSession(tt.sessionName, command, tmpDir)
+			_, err := sm.StartSession(tt.sessionName, "test goal", command, tmpDir)
 			if err == nil {
 				t.Errorf("StartSession should fail for name '%s', but it succeeded", tt.sessionName)
 

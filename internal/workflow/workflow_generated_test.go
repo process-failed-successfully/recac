@@ -149,8 +149,8 @@ type MockSessionManager struct {
 	mock.Mock
 }
 
-func (m *MockSessionManager) StartSession(name string, command []string, cwd string) (*runner.SessionState, error) {
-	args := m.Called(name, command, cwd)
+func (m *MockSessionManager) StartSession(name, goal string, command []string, cwd string) (*runner.SessionState, error) {
+	args := m.Called(name, goal, command, cwd)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -161,7 +161,7 @@ func TestRunWorkflow_Detached_Error(t *testing.T) {
 	mockSM := new(MockSessionManager)
 
 	t.Run("StartSession fails", func(t *testing.T) {
-		mockSM.On("StartSession", "test", mock.Anything, mock.Anything).Return(nil, errors.New("failed to start")).Once()
+		mockSM.On("StartSession", "test", "", mock.Anything, mock.Anything).Return(nil, errors.New("failed to start")).Once()
 		cfg := SessionConfig{Detached: true, SessionName: "test", SessionManager: mockSM}
 		err := RunWorkflow(context.Background(), cfg)
 		assert.Error(t, err)

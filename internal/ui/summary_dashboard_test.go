@@ -39,7 +39,7 @@ func (m *mockSessionManager) GetSessionLogs(name string) (string, error) { retur
 func (m *mockSessionManager) GetSessionLogContent(name string, lines int) (string, error) {
 	return "", nil
 }
-func (m *mockSessionManager) StartSession(name string, command []string, workspace string) (*runner.SessionState, error) {
+func (m *mockSessionManager) StartSession(name, goal string, command []string, workspace string) (*runner.SessionState, error) {
 	return nil, nil
 }
 func (m *mockSessionManager) GetSessionPath(name string) string   { return "" }

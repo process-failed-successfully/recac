@@ -203,7 +203,7 @@ func TestSessionManager_Lifecycle(t *testing.T) {
 	command := []string{sleepCmd, "1"} // Sleep for 1 second
 	workspace := tmpDir
 
-	session, err := sm.StartSession(sessionName, command, workspace)
+	session, err := sm.StartSession(sessionName, "test goal", command, workspace)
 	if err != nil {
 		t.Fatalf("Failed to start session: %v", err)
 	}
@@ -680,7 +680,7 @@ func TestSessionManager_PauseResume(t *testing.T) {
 	// 1. Start a session
 	sessionName := "test-pause-resume"
 	command := []string{sleepCmd, "5"} // Sleep long enough to be paused
-	session, err := sm.StartSession(sessionName, command, sm.sessionsDir)
+	session, err := sm.StartSession(sessionName, "test goal", command, sm.sessionsDir)
 	require.NoError(t, err, "Failed to start session")
 	require.Equal(t, "running", session.Status, "Session should be running")
 

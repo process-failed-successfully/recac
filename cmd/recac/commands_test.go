@@ -300,7 +300,7 @@ func TestCommands(t *testing.T) {
 		// Using os.Executable() and a fake command to ensure we have a valid executable
 		// The actual command won't be run, but StartSession checks for it.
 		cmdToRun := []string{os.Args[0], "-test.run=^$", "--"}
-		_, err = sm.StartSession(sessionName, cmdToRun, t.TempDir())
+		_, err = sm.StartSession(sessionName, "test goal", cmdToRun, t.TempDir())
 		if err != nil {
 			t.Fatalf("Failed to start dummy session: %v", err)
 		}
