@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"recac/internal/agent"
 	"recac/internal/git"
 	"recac/internal/runner"
 )
@@ -14,4 +16,9 @@ var sessionManagerFactory = func() (ISessionManager, error) {
 // gitClientFactory is a factory function that can be overridden in tests.
 var gitClientFactory = func() IGitClient {
 	return git.NewClient()
+}
+
+// agentClientFactory is a factory function that can be overridden in tests.
+var agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+	return getAgentClient(ctx, provider, model, projectPath, projectName)
 }
