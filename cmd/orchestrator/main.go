@@ -36,8 +36,9 @@ func main() {
 	pflag.String("image-pull-policy", "Always", "Image pull policy for agents (Always, IfNotPresent, Never)")
 
 	pflag.String("jira-query", "", "Custom JQL query (overrides label)")
-	pflag.String("poller", "jira", "Poller type: 'jira' or 'file'")
+	pflag.String("poller", "jira", "Poller type: 'jira', 'file', or 'file-dir'")
 	pflag.String("work-file", "work_items.json", "Work items file (for 'file' poller)")
+	pflag.String("watch-dir", "", "Directory to watch for work item files (for 'file-dir' poller)")
 
 	pflag.Parse()
 
@@ -49,6 +50,7 @@ func main() {
 	viper.BindPFlag("orchestrator.jira_query", pflag.Lookup("jira-query"))
 	viper.BindPFlag("orchestrator.poller", pflag.Lookup("poller"))
 	viper.BindPFlag("orchestrator.work_file", pflag.Lookup("work-file"))
+	viper.BindPFlag("orchestrator.watch_dir", pflag.Lookup("watch-dir"))
 
 	viper.BindPFlag("orchestrator.mode", pflag.Lookup("mode"))
 	viper.BindPFlag("orchestrator.jira_label", pflag.Lookup("jira-label"))
@@ -64,6 +66,7 @@ func main() {
 	viper.BindEnv("orchestrator.agent_model", "RECAC_AGENT_MODEL")
 	viper.BindEnv("orchestrator.poller", "RECAC_POLLER")
 	viper.BindEnv("orchestrator.work_file", "RECAC_WORK_FILE")
+	viper.BindEnv("orchestrator.watch_dir", "RECAC_WATCH_DIR")
 	viper.BindEnv("orchestrator.mode", "RECAC_ORCHESTRATOR_MODE")
 	viper.BindEnv("orchestrator.image", "RECAC_ORCHESTRATOR_IMAGE")
 	viper.BindEnv("orchestrator.namespace", "RECAC_ORCHESTRATOR_NAMESPACE")
@@ -96,6 +99,19 @@ func main() {
 	pollerType := viper.GetString("orchestrator.poller")
 
 	switch pollerType {
+	case "file-dir":
+		watchDir := viper.GetString("orchestrator.watch_dir")
+		if watchDir == "" {
+			logger.Error("Watch directory must be specified in file-dir poller mode")
+			os.Exit(1)
+		}
+		var err error
+		poller, err = orchestrator.NewFileDirPoller(watchDir)
+		if err != nil {
+			logger.Error("Failed to initialize file directory poller", "error", err)
+			os.Exit(1)
+		}
+		logger.Info("Using file directory poller", "directory", watchDir)
 	case "file", "filesystem":
 		workFile := viper.GetString("orchestrator.work_file")
 		if workFile == "" {
