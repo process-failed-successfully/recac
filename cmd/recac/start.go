@@ -807,7 +807,7 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 
 	provider := cfg.Provider
 	model := cfg.Model
-	agentClient, err := getAgentClient(ctx, provider, model, projectPath, projectName)
+	agentClient, err := agentClientFactory(ctx, provider, model, projectPath, projectName)
 	if err != nil {
 		return fmt.Errorf("failed to initialize agent: %v", err)
 	}
