@@ -28,6 +28,9 @@ type ISessionManager interface {
 type IGitClient interface {
 	Checkout(repoPath, commitOrBranch string) error
 	Diff(repoPath, commitA, commitB string) (string, error)
+	DiffStaged(repoPath string) (string, error)
 	DiffStat(repoPath, commitA, commitB string) (string, error)
 	CurrentCommitSHA(repoPath string) (string, error)
+	RepoExists(repoPath string) bool
+	Commit(repoPath, message string) error
 }

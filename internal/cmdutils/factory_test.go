@@ -202,6 +202,10 @@ func (m *MockGitClient) Diff(directory, startCommit, endCommit string) (string, 
 	return "", nil
 }
 
+func (m *MockGitClient) DiffStaged(directory string) (string, error) {
+	return "", nil
+}
+
 func (m *MockGitClient) SetRemoteURL(directory, name, url string) error {
 	return nil
 }
