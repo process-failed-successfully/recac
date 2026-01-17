@@ -3,102 +3,140 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"recac/internal/agent"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-// SpyAgent captures prompts for verification
-type SpyAgent struct {
-	LastPrompt string
-	Response   string
+type MockExplainAgent struct {
+	Response      string
+	StreamChunks  []string
+	Err           error
+	LastPrompt    string
 }
 
-func (s *SpyAgent) Send(ctx context.Context, prompt string) (string, error) {
-	s.LastPrompt = prompt
-	return s.Response, nil
+func (m *MockExplainAgent) Send(ctx context.Context, prompt string) (string, error) {
+	m.LastPrompt = prompt
+	return m.Response, m.Err
 }
 
-func (s *SpyAgent) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
-	s.LastPrompt = prompt
-	if onChunk != nil {
-		onChunk(s.Response)
+func (m *MockExplainAgent) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+	m.LastPrompt = prompt
+	if m.Err != nil {
+		return "", m.Err
 	}
-	return s.Response, nil
+	for _, chunk := range m.StreamChunks {
+		onChunk(chunk)
+	}
+	return m.Response, nil
 }
 
-func TestExplainCmd_File(t *testing.T) {
-	// Setup
-	tempDir := t.TempDir()
-	filePath := filepath.Join(tempDir, "test.go")
-	content := "package main\nfunc main() {}"
-	err := os.WriteFile(filePath, []byte(content), 0644)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	spy := &SpyAgent{Response: "This is a Go main function."}
-
-	// Override factory
+func TestExplainCmd(t *testing.T) {
+	// Restore factory after tests
 	originalFactory := agentClientFactory
-	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
-		return spy, nil
-	}
 	defer func() { agentClientFactory = originalFactory }()
 
-	// Execute
-	cmd := NewExplainCmd()
-	buf := new(bytes.Buffer)
-	cmd.SetOut(buf)
-	cmd.SetErr(buf)
+	t.Run("File input", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		filePath := filepath.Join(tmpDir, "test.go")
+		err := os.WriteFile(filePath, []byte("package main\nfunc main() {}"), 0644)
+		assert.NoError(t, err)
 
-	err = cmd.RunE(cmd, []string{filePath})
-	if err != nil {
-		t.Fatalf("RunE failed: %v", err)
-	}
+		mockAgent := &MockExplainAgent{
+			Response:     "This is a main function.",
+			StreamChunks: []string{"This ", "is ", "a ", "main ", "function."},
+		}
 
-	// Verify
-	if !strings.Contains(spy.LastPrompt, content) {
-		t.Errorf("Prompt should contain file content. Got: %s", spy.LastPrompt)
-	}
-	if !strings.Contains(buf.String(), "This is a Go main function") {
-		t.Errorf("Output should contain agent response. Got: %s", buf.String())
-	}
-}
+		agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+			return mockAgent, nil
+		}
 
-func TestExplainCmd_Stdin(t *testing.T) {
-	content := "print('hello')"
-	spy := &SpyAgent{Response: "Python print statement."}
+		cmd := NewExplainCmd()
+		var stdout, stderr bytes.Buffer
+		cmd.SetOut(&stdout)
+		cmd.SetErr(&stderr)
+		cmd.SetArgs([]string{filePath})
 
-	// Override factory
-	originalFactory := agentClientFactory
-	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
-		return spy, nil
-	}
-	defer func() { agentClientFactory = originalFactory }()
+		err = cmd.Execute()
+		assert.NoError(t, err)
+		assert.Contains(t, stdout.String(), "This is a main function.")
+		assert.Contains(t, stderr.String(), "Analyzing code...")
+		assert.Contains(t, mockAgent.LastPrompt, "package main")
+	})
 
-	// Setup stdin
-	bufIn := bytes.NewBufferString(content)
+	t.Run("Stdin input", func(t *testing.T) {
+		mockAgent := &MockExplainAgent{
+			Response:     "Stdin explanation",
+			StreamChunks: []string{"Stdin ", "explanation"},
+		}
 
-	// Execute
-	cmd := NewExplainCmd()
-	bufOut := new(bytes.Buffer)
-	cmd.SetIn(bufIn)
-	cmd.SetOut(bufOut)
-	cmd.SetErr(bufOut)
+		agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+			return mockAgent, nil
+		}
 
-	err := cmd.RunE(cmd, []string{})
-	if err != nil {
-		t.Fatalf("RunE failed: %v", err)
-	}
+		cmd := NewExplainCmd()
+		var stdout, stderr bytes.Buffer
+		var stdin bytes.Buffer
+		stdin.WriteString("some code from stdin")
 
-	// Verify
-	if !strings.Contains(spy.LastPrompt, content) {
-		t.Errorf("Prompt should contain stdin content. Got: %s", spy.LastPrompt)
-	}
-	if !strings.Contains(bufOut.String(), "Python print statement") {
-		t.Errorf("Output should contain agent response. Got: %s", bufOut.String())
-	}
+		cmd.SetOut(&stdout)
+		cmd.SetErr(&stderr)
+		cmd.SetIn(&stdin)
+		cmd.SetArgs([]string{}) // No file arg
+
+		err := cmd.Execute()
+		assert.NoError(t, err)
+		assert.Contains(t, stdout.String(), "Stdin explanation")
+		assert.Contains(t, mockAgent.LastPrompt, "some code from stdin")
+	})
+
+	t.Run("Empty input", func(t *testing.T) {
+		cmd := NewExplainCmd()
+		var stdout, stderr bytes.Buffer
+		var stdin bytes.Buffer // Empty stdin
+
+		cmd.SetOut(&stdout)
+		cmd.SetErr(&stderr)
+		cmd.SetIn(&stdin)
+		cmd.SetArgs([]string{})
+
+		err := cmd.Execute()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "input is empty")
+	})
+
+	t.Run("File read error", func(t *testing.T) {
+		cmd := NewExplainCmd()
+		cmd.SetArgs([]string{"non-existent-file.go"})
+		cmd.SetOut(io.Discard)
+		cmd.SetErr(io.Discard)
+
+		err := cmd.Execute()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to read file")
+	})
+
+	t.Run("Agent error", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		filePath := filepath.Join(tmpDir, "test.go")
+		os.WriteFile(filePath, []byte("code"), 0644)
+
+		agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+			return nil, errors.New("agent creation failed")
+		}
+
+		cmd := NewExplainCmd()
+		cmd.SetArgs([]string{filePath})
+		cmd.SetOut(io.Discard)
+		cmd.SetErr(io.Discard)
+
+		err := cmd.Execute()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to create agent")
+	})
 }

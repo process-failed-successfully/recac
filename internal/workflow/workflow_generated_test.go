@@ -169,3 +169,32 @@ func TestRunWorkflow_Detached_Error(t *testing.T) {
 		mockSM.AssertExpectations(t)
 	})
 }
+
+func TestRunWorkflow_Detached_Success(t *testing.T) {
+	mockSM := new(MockSessionManager)
+
+	t.Run("StartSession success", func(t *testing.T) {
+		session := &runner.SessionState{PID: 1234, LogFile: "/tmp/logs.log"}
+		// Use mock.Anything for command as it changes depending on test binary name
+		mockSM.On("StartSession", "test-success", "goal", mock.Anything, "/tmp/cwd").Return(session, nil).Once()
+
+		cfg := SessionConfig{
+			Detached:       true,
+			SessionName:    "test-success",
+			Goal:           "goal",
+			ProjectPath:    "/tmp/cwd",
+			SessionManager: mockSM,
+		}
+
+		err := RunWorkflow(context.Background(), cfg)
+		assert.NoError(t, err)
+		mockSM.AssertExpectations(t)
+	})
+}
+
+func TestRunWorkflow_Detached_MissingName(t *testing.T) {
+	cfg := SessionConfig{Detached: true}
+	err := RunWorkflow(context.Background(), cfg)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "--name is required")
+}

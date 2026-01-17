@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/spf13/viper"
 )
 
@@ -18,6 +19,14 @@ var K8sNewClient = k8s.NewClient
 // SetK8sClient a setter for the k8s client factory for testing purposes
 func SetK8sClient(fn func() (*k8s.Client, error)) {
 	K8sNewClient = fn
+}
+
+type StatusDockerClient interface {
+	ServerVersion(ctx context.Context) (types.Version, error)
+}
+
+var NewStatusDockerClient = func() (StatusDockerClient, error) {
+	return docker.NewClient("")
 }
 
 // GetStatus gathers and formats the status of RECAC sessions, environment, and configuration.
@@ -49,7 +58,7 @@ func GetStatus() string {
 
 	// --- Docker ---
 	b.WriteString("\n[Docker Environment]\n")
-	dockerCli, err := docker.NewClient("") // Project name isn't needed for version check
+	dockerCli, err := NewStatusDockerClient()
 	if err != nil {
 		fmt.Fprintf(&b, "  Docker client failed to initialize. Is Docker running?\n")
 		fmt.Fprintf(&b, "  Error: %v\n", err)
