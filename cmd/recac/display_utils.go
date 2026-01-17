@@ -15,10 +15,34 @@ import (
 
 // displayStatus formats and prints the detailed session status.
 func displayStatus(cmd *cobra.Command, session *runner.SessionState, state *agent.State) {
-	cmd.Println("      Session:", session.Name)
-	cmd.Println("         Goal:", session.Goal)
-	cmd.Println("       Status:", session.Status)
-	cmd.Println("        Model:", state.Model)
+	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
+
+	// Status Colors
+	statusColor := ""
+	resetColor := "\x1b[0m"
+	switch strings.ToLower(session.Status) {
+	case "running":
+		statusColor = "\x1b[32m" // Green
+	case "completed":
+		statusColor = "\x1b[34m" // Blue
+	case "error", "failed":
+		statusColor = "\x1b[31m" // Red
+	}
+
+	fmt.Fprintf(w, "Session:\t%s\n", session.Name)
+
+	// Truncate goal if it's too long
+	goal := session.Goal
+	if len(goal) > 60 {
+		runes := []rune(goal)
+		if len(runes) > 57 {
+			goal = string(runes[:57]) + "..."
+		}
+	}
+	fmt.Fprintf(w, "Goal:\t%s\n", goal)
+
+	fmt.Fprintf(w, "Status:\t%s%s%s\n", statusColor, session.Status, resetColor)
+	fmt.Fprintf(w, "Model:\t%s\n", state.Model)
 
 	// --- Time & Duration ---
 	startTime := session.StartTime.Format(time.RFC822)
@@ -28,29 +52,59 @@ func displayStatus(cmd *cobra.Command, session *runner.SessionState, state *agen
 	} else {
 		duration = time.Since(session.StartTime).Round(time.Second).String()
 	}
-	cmd.Printf("   Start Time: %s (%s ago)\n", startTime, duration)
+	fmt.Fprintf(w, "Start Time:\t%s (%s ago)\n", startTime, duration)
+	w.Flush()
 
 	// --- Token Usage & Cost ---
-	cmd.Println("\n--- Usage ---")
+	fmt.Fprintln(cmd.OutOrStdout(), "\n--- Usage ---")
+	wUsage := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
 	cost := agent.CalculateCost(state.Model, state.TokenUsage)
-	cmd.Printf("   Token Usage: Prompt=%d, Completion=%d, Total=%d\n",
+
+	costStr := fmt.Sprintf("$%.6f", cost)
+	if cost > 0.5 {
+		costStr = fmt.Sprintf("\x1b[33m%s\x1b[0m", costStr) // Yellow warning for high cost
+	}
+
+	fmt.Fprintf(wUsage, "Tokens:\t%d (Prompt: %d, Completion: %d)\n",
+		state.TokenUsage.TotalTokens,
 		state.TokenUsage.TotalPromptTokens,
-		state.TokenUsage.TotalResponseTokens,
-		state.TokenUsage.TotalTokens)
-	cmd.Printf(" Estimated Cost: $%.6f\n", cost)
+		state.TokenUsage.TotalResponseTokens)
+	fmt.Fprintf(wUsage, "Est. Cost:\t%s\n", costStr)
+	wUsage.Flush()
 
 	// --- Last Agent Activity ---
 	if len(state.History) > 0 {
 		lastMessage := state.History[len(state.History)-1]
 		lastActivityTime := lastMessage.Timestamp
-		cmd.Println("\n--- Last Activity ---")
-		cmd.Printf("          Time: %s (%s ago)\n",
+
+		fmt.Fprintln(cmd.OutOrStdout(), "\n--- Last Activity ---")
+		wLast := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
+		fmt.Fprintf(wLast, "Time:\t%s (%s ago)\n",
 			lastActivityTime.Format(time.RFC822),
 			time.Since(lastActivityTime).Round(time.Second))
-		cmd.Printf("          Role: %s\n", lastMessage.Role)
-		cmd.Printf("       Content: %s\n", lastMessage.Content)
+
+		roleColor := "\x1b[36m" // Cyan
+		if lastMessage.Role == "user" {
+			roleColor = "\x1b[33m" // Yellow
+		}
+
+		fmt.Fprintf(wLast, "Role:\t%s%s%s\n", roleColor, lastMessage.Role, resetColor)
+
+		// Truncate content for display
+		content := strings.TrimSpace(lastMessage.Content)
+		if len(content) > 100 {
+			runes := []rune(content)
+			if len(runes) > 97 {
+				content = string(runes[:97]) + "..."
+			}
+		}
+		// Clean up newlines for the summary view
+		content = strings.ReplaceAll(content, "\n", " ↵ ")
+
+		fmt.Fprintf(wLast, "Content:\t%s\n", content)
+		wLast.Flush()
 	} else {
-		cmd.Println("\n--- No agent activity recorded yet ---")
+		fmt.Fprintln(cmd.OutOrStdout(), "\n--- No agent activity recorded yet ---")
 	}
 }
 
