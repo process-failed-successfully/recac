@@ -121,4 +121,120 @@ func TestImproveCmd(t *testing.T) {
 		cleaned := cleanCode(raw)
 		assert.Equal(t, "func foo() {}", cleaned)
 	})
+
+	t.Run("Improve from stdin", func(t *testing.T) {
+		mockAgent.On("Send", mock.Anything, mock.Anything).Return(improvedCode, nil).Once()
+
+		cmd := NewImproveCmd()
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+		cmd.SetErr(new(bytes.Buffer))
+
+		// Set stdin
+		cmd.SetIn(bytes.NewBufferString(originalCode))
+
+		// Run with no args
+		cmd.SetArgs([]string{})
+		err := cmd.Execute()
+		assert.NoError(t, err)
+
+		assert.Contains(t, buf.String(), "fmt.Println")
+	})
+
+	t.Run("Empty input error", func(t *testing.T) {
+		cmd := NewImproveCmd()
+		cmd.SetOut(new(bytes.Buffer))
+		cmd.SetErr(new(bytes.Buffer))
+		cmd.SetIn(bytes.NewBufferString("")) // Empty stdin
+
+		cmd.SetArgs([]string{})
+		err := cmd.Execute()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "input is empty")
+	})
+
+	t.Run("File read error", func(t *testing.T) {
+		cmd := NewImproveCmd()
+		cmd.SetOut(new(bytes.Buffer))
+		cmd.SetErr(new(bytes.Buffer))
+
+		cmd.SetArgs([]string{"nonexistent.go"})
+		err := cmd.Execute()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to read file")
+	})
+
+	t.Run("Agent factory error", func(t *testing.T) {
+		// Override factory to fail
+		agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+			return nil, assert.AnError
+		}
+		defer func() {
+			// Restore the mock factory
+			agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+				return mockAgent, nil
+			}
+		}()
+
+		cmd := NewImproveCmd()
+		cmd.SetOut(new(bytes.Buffer))
+		cmd.SetErr(new(bytes.Buffer))
+
+		cmd.SetIn(bytes.NewBufferString(originalCode))
+		cmd.SetArgs([]string{})
+
+		err := cmd.Execute()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to create agent")
+	})
+
+	t.Run("Agent error", func(t *testing.T) {
+		mockAgent.On("Send", mock.Anything, mock.Anything).Return("", assert.AnError).Once()
+
+		cmd := NewImproveCmd()
+		cmd.SetOut(new(bytes.Buffer))
+		cmd.SetErr(new(bytes.Buffer))
+
+		// Use stdin
+		cmd.SetIn(bytes.NewBufferString(originalCode))
+		cmd.SetArgs([]string{})
+
+		err := cmd.Execute()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "agent failed")
+	})
+
+	t.Run("In-place with stdin error", func(t *testing.T) {
+		mockAgent.On("Send", mock.Anything, mock.Anything).Return(improvedCode, nil).Once()
+
+		cmd := NewImproveCmd()
+		cmd.SetOut(new(bytes.Buffer))
+		cmd.SetErr(new(bytes.Buffer))
+
+		cmd.SetIn(bytes.NewBufferString(originalCode))
+		cmd.SetArgs([]string{"--in-place"})
+
+		err := cmd.Execute()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "cannot use --in-place with stdin")
+	})
+
+	t.Run("Diff with no changes", func(t *testing.T) {
+		// Reset file content
+		err = os.WriteFile(testFile, []byte(originalCode), 0644)
+		assert.NoError(t, err)
+
+		mockAgent.On("Send", mock.Anything, mock.Anything).Return(originalCode, nil).Once()
+
+		cmd := NewImproveCmd()
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+		cmd.SetErr(new(bytes.Buffer))
+
+		cmd.SetArgs([]string{"--diff", testFile})
+		err := cmd.Execute()
+		assert.NoError(t, err)
+
+		assert.Contains(t, buf.String(), "No changes")
+	})
 }
