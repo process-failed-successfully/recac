@@ -36,7 +36,7 @@ func TestCommands(t *testing.T) {
 	// Setup global test env
 	originalWd, _ := os.Getwd()
 	tmpDir := t.TempDir()
-	os.Setenv("HOME", tmpDir)
+	t.Setenv("HOME", tmpDir)
 
 	// Create dummy config
 	configDir := filepath.Join(tmpDir, ".recac")

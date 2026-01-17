@@ -40,6 +40,13 @@ func TestExportCmd(t *testing.T) {
 	err = sm.SaveSession(session)
 	require.NoError(t, err)
 
+	// Override factory to ensure command uses our session manager
+	originalFactory := sessionManagerFactory
+	defer func() { sessionManagerFactory = originalFactory }()
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return sm, nil
+	}
+
 	// 2. Setup Mock Git Client
 	originalGitFactory := gitClientFactory
 	defer func() { gitClientFactory = originalGitFactory }()
