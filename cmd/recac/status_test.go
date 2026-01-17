@@ -11,6 +11,8 @@ import (
 	"recac/internal/agent"
 	"recac/internal/runner"
 
+	"regexp"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,6 +29,18 @@ func setupStatusTest(t *testing.T) (*MockSessionManager, func()) {
 	return mockSM, func() {
 		sessionManagerFactory = originalFactory
 	}
+}
+
+// stripAnsi removes ANSI escape codes from a string
+func stripAnsi(str string) string {
+	ansi := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+	return ansi.ReplaceAllString(str, "")
+}
+
+// normalizeSpace replaces multiple spaces/tabs with a single space
+func normalizeSpace(str string) string {
+	space := regexp.MustCompile(`\s+`)
+	return space.ReplaceAllString(str, " ")
 }
 
 func TestStatusCommand(t *testing.T) {
@@ -62,7 +76,8 @@ func TestStatusCommand(t *testing.T) {
 		}
 
 		// --- Execute ---
-		output, err := executeCommand(rootCmd, "status", "my-session")
+		rawOutput, err := executeCommand(rootCmd, "status", "my-session")
+		output := normalizeSpace(stripAnsi(rawOutput))
 
 		// --- Assert ---
 		assert.NoError(t, err)
@@ -70,8 +85,8 @@ func TestStatusCommand(t *testing.T) {
 		assert.Contains(t, output, "Goal: Develop a new feature")
 		assert.Contains(t, output, "Status: running")
 		assert.Contains(t, output, "Model: test-model")
-		assert.Contains(t, output, "Token Usage: Prompt=100, Completion=200, Total=300")
-		assert.Contains(t, output, "Estimated Cost:")
+		assert.Contains(t, output, "Tokens: 300 (Prompt: 100, Completion: 200)")
+		assert.Contains(t, output, "Est. Cost:")
 		assert.Contains(t, output, "Role: assistant")
 		assert.Contains(t, output, "Content: Okay, I will start working.")
 	})
@@ -98,7 +113,8 @@ func TestStatusCommand(t *testing.T) {
 		}
 
 		// --- Execute ---
-		output, err := executeCommand(rootCmd, "status", "completed-session")
+		rawOutput, err := executeCommand(rootCmd, "status", "completed-session")
+		output := normalizeSpace(stripAnsi(rawOutput))
 
 		// --- Assert ---
 		assert.NoError(t, err)
@@ -120,11 +136,14 @@ func TestStatusCommand(t *testing.T) {
 
 		// --- Execute ---
 		output, err := executeCommand(rootCmd, "status", "no-state-session")
+		// Not stripping ANSI here because the error path might be plain text,
+		// but checking both is safer.
+		cleanOutput := stripAnsi(output)
 
 		// --- Assert ---
 		assert.NoError(t, err)
-		assert.Contains(t, output, "Session 'no-state-session' found, but agent state is not available.")
-		assert.Contains(t, output, "Status: running")
+		assert.Contains(t, cleanOutput, "Session 'no-state-session' found, but agent state is not available.")
+		assert.Contains(t, cleanOutput, "Status: running")
 	})
 
 	t.Run("defaults to most recent session when no name is provided", func(t *testing.T) {
@@ -149,7 +168,8 @@ func TestStatusCommand(t *testing.T) {
 		}
 
 		// --- Execute ---
-		output, err := executeCommand(rootCmd, "status")
+		rawOutput, err := executeCommand(rootCmd, "status")
+		output := normalizeSpace(stripAnsi(rawOutput))
 
 		// --- Assert ---
 		assert.NoError(t, err)
