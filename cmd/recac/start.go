@@ -27,6 +27,323 @@ import (
 )
 
 func init() {
+	rootCmd.AddCommand(NewStartCmd())
+}
+
+func NewStartCmd() *cobra.Command {
+	startCmd := &cobra.Command{
+		Use:   "start",
+		Short: "Start an autonomous coding session",
+		Long:  `Start the agent execution loop to perform coding tasks autonomously.`,
+		Run: func(cmd *cobra.Command, args []string) {
+			// Panic recovery for graceful shutdown
+			defer func() {
+				if r := recover(); r != nil {
+					fmt.Fprintf(os.Stderr, "\n=== CRITICAL ERROR: Session Panic ===\n")
+					fmt.Fprintf(os.Stderr, "Error: %v\n", r)
+					fmt.Fprintf(os.Stderr, "Attempting graceful shutdown...\n")
+					exit(1)
+				}
+			}()
+
+			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+			defer stop()
+
+			debug := viper.GetBool("debug")
+			isMock, _ := cmd.Flags().GetBool("mock")
+			if !isMock {
+				isMock = viper.GetBool("mock")
+			}
+			projectPath := viper.GetString("path")
+			if pathFlag, _ := cmd.Flags().GetString("path"); pathFlag != "" {
+				projectPath = pathFlag
+			}
+
+			provider, _ := cmd.Flags().GetString("provider")
+			if provider == "" {
+				provider = viper.GetString("provider")
+			}
+			model, _ := cmd.Flags().GetString("model")
+			if model == "" {
+				model = viper.GetString("model")
+			}
+
+			projectName := viper.GetString("project")
+			if projectFlag, _ := cmd.Flags().GetString("project"); projectFlag != "" {
+				projectName = projectFlag
+			}
+
+			maxIterations := viper.GetInt("max_iterations")
+			if maxIterFlag, _ := cmd.Flags().GetInt("max-iterations"); cmd.Flags().Changed("max-iterations") {
+				maxIterations = maxIterFlag
+			}
+			managerFrequency := viper.GetInt("manager_frequency")
+			maxAgents := viper.GetInt("max_agents")
+			taskMaxIterations := viper.GetInt("task_max_iterations")
+			detached := viper.GetBool("detached")
+			sessionName := viper.GetString("name")
+
+			jiraTicketID, _ := cmd.Flags().GetString("jira")
+			if jiraTicketID == "" {
+				jiraTicketID = viper.GetString("jira")
+			}
+
+			// Handle Jira Ticket Workflow
+			jiraLabel := viper.GetString("jira_label")
+
+			// Persistent Flags used in config
+			autoMergeFlag, _ := cmd.Flags().GetBool("auto-merge")
+			skipQAFlag, _ := cmd.Flags().GetBool("skip-qa")
+
+			repoURL, _ := cmd.Flags().GetString("repo-url")
+			summary, _ := cmd.Flags().GetString("summary")
+			description, _ := cmd.Flags().GetString("description")
+
+			// Global Configuration
+			cfg := SessionConfig{
+				ProjectPath:       projectPath,
+				IsMock:            isMock,
+				MaxIterations:     maxIterations,
+				ManagerFrequency:  managerFrequency,
+				MaxAgents:         maxAgents,
+				TaskMaxIterations: taskMaxIterations,
+				Detached:          detached,
+				SessionName:       sessionName,
+				AllowDirty:        viper.GetBool("allow_dirty"),
+				Stream:            viper.GetBool("stream"),
+				AutoMerge:         autoMergeFlag || viper.GetBool("auto_merge"),
+				SkipQA:            skipQAFlag || viper.GetBool("skip_qa"),
+				ManagerFirst:      viper.GetBool("manager_first"),
+				Image:             viper.GetString("image"),
+				Debug:             debug,
+				Provider:          provider,
+				Model:             model,
+				Cleanup:           viper.GetBool("cleanup"),
+				ProjectName:       projectName,
+				RepoURL:           repoURL,
+				Summary:           summary,
+				Description:       description,
+			}
+
+			// Handle session resumption
+			if resumePath, _ := cmd.Flags().GetString("resume-from"); resumePath != "" {
+				cfg.ProjectPath = resumePath
+				fmt.Printf("Resuming session '%s' from workspace: %s\n", cfg.SessionName, resumePath)
+				if err := runWorkflow(ctx, cfg); err != nil {
+					fmt.Fprintf(os.Stderr, "Resumed session failed: %v\n", err)
+					exit(1)
+				}
+				return
+			}
+
+			if repoURL != "" {
+				processDirectTask(ctx, cfg)
+				return
+			}
+
+			if jiraTicketID != "" || jiraLabel != "" {
+				jClient, err := getJiraClient(ctx)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+					exit(1)
+				}
+
+				// 1.5 Collect Ticket IDs
+				var ticketIDs []string
+				if jiraTicketID != "" {
+					ticketIDs = append(ticketIDs, jiraTicketID)
+				} else if jiraLabel != "" {
+					fmt.Printf("Searching for tickets with label '%s'...\n", jiraLabel)
+					jql := fmt.Sprintf("labels = \"%s\" AND statusCategory != Done ORDER BY created DESC", jiraLabel)
+					issues, err := jClient.SearchIssues(ctx, jql)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Error searching Jira tickets: %v\n", err)
+						exit(1)
+					}
+
+					if len(issues) == 0 {
+						fmt.Printf("No open tickets found with label '%s'. Exiting.\n", jiraLabel)
+						return
+					}
+
+					// Sort issues by dependencies (blockers first)
+					sortedIssues, err := jira.ResolveDependencies(issues, func(issue map[string]interface{}) ([]string, error) {
+						// We need to fetch the full issue to get links if not present?
+						// But our Search includes "issuelinks".
+						// Does ResolveDependencies expect keys?
+						// Yes, Update ResolveDependencies usage.
+						// Actually, GetBlockers returns formatted strings "KEY (Status)".
+						// We need just keys for dependency graph.
+						// Let's make a wrapper or update GetBlockers.
+						// For now, let's just extract the Key from GetBlockers output or reimplement simple key extraction here.
+
+						rawBlockers := jClient.GetBlockers(issue)
+						var keys []string
+						for _, b := range rawBlockers {
+							// Format is "KEY (Status)"
+							parts := strings.Split(b, " (")
+							if len(parts) > 0 {
+								keys = append(keys, parts[0])
+							}
+						}
+						return keys, nil
+					})
+
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Warning: Failed to sort issues by dependency: %v. Proceeding with default order.\n", err)
+						sortedIssues = issues
+					} else {
+						fmt.Println("Tickets sorted by dependency (blockers first).")
+					}
+
+					for _, issue := range sortedIssues {
+						if key, ok := issue["key"].(string); ok {
+							ticketIDs = append(ticketIDs, key)
+						}
+					}
+					fmt.Printf("Found %d tickets to process.\n", len(ticketIDs))
+				}
+
+				// Parallel Multi-Ticket Processing Loop
+				maxParallelTickets := viper.GetInt("max_parallel_tickets")
+				if maxParallelTickets < 1 {
+					maxParallelTickets = 1
+				}
+
+				// If only one ticket, run synchronously
+				if len(ticketIDs) == 1 {
+					processJiraTicket(ctx, ticketIDs[0], jClient, cfg, nil)
+					return
+				}
+
+				// Build Dependency Graphs
+				// Fetch metadata for all tickets to ensure we have dependency info
+				// (Even if we came from Search, we need to be sure we have the objects)
+				fmt.Println("Building dependency graph for parallel execution...")
+				issues := make([]map[string]interface{}, 0, len(ticketIDs))
+				for _, id := range ticketIDs {
+					t, err := jClient.GetTicket(ctx, id)
+					if err != nil {
+						fmt.Printf("Warning: Failed to fetch metadata for %s: %v. Assuming no dependencies.\n", id, err)
+						issues = append(issues, map[string]interface{}{"key": id})
+					} else {
+						issues = append(issues, t)
+					}
+				}
+
+				graph := jira.BuildGraphFromIssues(issues, func(issue map[string]interface{}) []string {
+					raw := jClient.GetBlockers(issue)
+					keys := make([]string, 0, len(raw))
+					for _, r := range raw {
+						// Format "KEY (Status)"
+						parts := strings.Split(r, " (")
+						if len(parts) > 0 {
+							keys = append(keys, parts[0])
+						}
+					}
+					return keys
+				})
+
+				// Channels
+				readyCh := make(chan string, len(ticketIDs))
+				completionCh := make(chan string, len(ticketIDs))
+
+				// Coordinator Routine
+				go func() {
+					completed := make(map[string]bool)
+					dispatched := make(map[string]bool)
+					count := 0
+					total := len(ticketIDs)
+
+					// Initial Dispatch
+					initial := graph.GetReadyTickets(completed)
+					for _, id := range initial {
+						readyCh <- id
+						dispatched[id] = true
+					}
+
+					for count < total {
+						doneID := <-completionCh
+						count++
+						completed[doneID] = true
+
+						// Check for new ready tickets
+						candidates := graph.GetReadyTickets(completed)
+						for _, id := range candidates {
+							if !dispatched[id] {
+								readyCh <- id
+								dispatched[id] = true
+							}
+						}
+					}
+					close(readyCh)
+				}()
+
+				// Worker Loop
+				var wg sync.WaitGroup
+				sem := make(chan struct{}, maxParallelTickets)
+
+				for id := range readyCh {
+					wg.Add(1)
+					go func(targetID string) {
+						defer wg.Done()
+
+						// Acquire Semaphore
+						sem <- struct{}{}
+						defer func() { <-sem }()
+
+						localTickets := graph.AllTickets
+						processJiraTicket(ctx, targetID, jClient, cfg, localTickets)
+
+						// Signal Completion
+						completionCh <- targetID
+					}(id)
+				}
+
+				wg.Wait()
+				return
+			}
+
+			// Local Path Workflow
+			if cfg.ProjectPath == "" {
+				p := tea.NewProgram(ui.NewWizardModel())
+				m, err := p.Run()
+				if err != nil {
+					fmt.Printf("Wizard error: %v", err)
+					exit(1)
+				}
+
+				wizardModel, ok := m.(ui.WizardModel)
+				if !ok {
+					fmt.Println("Could not retrieve wizard data")
+					exit(1)
+				}
+				cfg.ProjectPath = wizardModel.Path
+				if cfg.ProjectPath == "" {
+					fmt.Println("No project path selected. Exiting.")
+					return
+				}
+
+				if wizardModel.Provider != "" {
+					viper.Set("provider", wizardModel.Provider)
+				}
+				if wizardModel.MaxAgents > 0 {
+					cfg.MaxAgents = wizardModel.MaxAgents
+				}
+				if wizardModel.TaskMaxIterations > 0 {
+					cfg.TaskMaxIterations = wizardModel.TaskMaxIterations
+				}
+			} else {
+				fmt.Printf("Using project path: %s\n", cfg.ProjectPath)
+			}
+
+			if err := runWorkflow(ctx, cfg); err != nil {
+				fmt.Fprintf(os.Stderr, "Session failed: %v\n", err)
+				exit(1)
+			}
+		},
+	}
+
 	startCmd.Flags().String("path", "", "Project path (skips wizard)")
 	startCmd.Flags().Int("max-iterations", 30, "Maximum number of iterations")
 	startCmd.Flags().Int("manager-frequency", 5, "Frequency of manager reviews")
@@ -79,320 +396,7 @@ func init() {
 	viper.BindEnv("manager_frequency", "RECAC_MANAGER_FREQUENCY")
 	viper.BindEnv("task_max_iterations", "RECAC_TASK_MAX_ITERATIONS")
 
-	rootCmd.AddCommand(startCmd)
-}
-
-var startCmd = &cobra.Command{
-	Use:   "start",
-	Short: "Start an autonomous coding session",
-	Long:  `Start the agent execution loop to perform coding tasks autonomously.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		// Panic recovery for graceful shutdown
-		defer func() {
-			if r := recover(); r != nil {
-				fmt.Fprintf(os.Stderr, "\n=== CRITICAL ERROR: Session Panic ===\n")
-				fmt.Fprintf(os.Stderr, "Error: %v\n", r)
-				fmt.Fprintf(os.Stderr, "Attempting graceful shutdown...\n")
-				exit(1)
-			}
-		}()
-
-		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-		defer stop()
-
-		debug := viper.GetBool("debug")
-		isMock, _ := cmd.Flags().GetBool("mock")
-		if !isMock {
-			isMock = viper.GetBool("mock")
-		}
-		projectPath := viper.GetString("path")
-		if pathFlag, _ := cmd.Flags().GetString("path"); pathFlag != "" {
-			projectPath = pathFlag
-		}
-
-		provider, _ := cmd.Flags().GetString("provider")
-		if provider == "" {
-			provider = viper.GetString("provider")
-		}
-		model, _ := cmd.Flags().GetString("model")
-		if model == "" {
-			model = viper.GetString("model")
-		}
-
-		projectName := viper.GetString("project")
-		if projectFlag, _ := cmd.Flags().GetString("project"); projectFlag != "" {
-			projectName = projectFlag
-		}
-
-		maxIterations := viper.GetInt("max_iterations")
-		if maxIterFlag, _ := cmd.Flags().GetInt("max-iterations"); cmd.Flags().Changed("max-iterations") {
-			maxIterations = maxIterFlag
-		}
-		managerFrequency := viper.GetInt("manager_frequency")
-		maxAgents := viper.GetInt("max_agents")
-		taskMaxIterations := viper.GetInt("task_max_iterations")
-		detached := viper.GetBool("detached")
-		sessionName := viper.GetString("name")
-
-		jiraTicketID, _ := cmd.Flags().GetString("jira")
-		if jiraTicketID == "" {
-			jiraTicketID = viper.GetString("jira")
-		}
-
-		// Handle Jira Ticket Workflow
-		jiraLabel := viper.GetString("jira_label")
-
-		// Persistent Flags used in config
-		autoMergeFlag, _ := cmd.Flags().GetBool("auto-merge")
-		skipQAFlag, _ := cmd.Flags().GetBool("skip-qa")
-
-		repoURL, _ := cmd.Flags().GetString("repo-url")
-		summary, _ := cmd.Flags().GetString("summary")
-		description, _ := cmd.Flags().GetString("description")
-
-		// Global Configuration
-		cfg := SessionConfig{
-			ProjectPath:       projectPath,
-			IsMock:            isMock,
-			MaxIterations:     maxIterations,
-			ManagerFrequency:  managerFrequency,
-			MaxAgents:         maxAgents,
-			TaskMaxIterations: taskMaxIterations,
-			Detached:          detached,
-			SessionName:       sessionName,
-			AllowDirty:        viper.GetBool("allow_dirty"),
-			Stream:            viper.GetBool("stream"),
-			AutoMerge:         autoMergeFlag || viper.GetBool("auto_merge"),
-			SkipQA:            skipQAFlag || viper.GetBool("skip_qa"),
-			ManagerFirst:      viper.GetBool("manager_first"),
-			Image:             viper.GetString("image"),
-			Debug:             debug,
-			Provider:          provider,
-			Model:             model,
-			Cleanup:           viper.GetBool("cleanup"),
-			ProjectName:       projectName,
-			RepoURL:           repoURL,
-			Summary:           summary,
-			Description:       description,
-		}
-
-		// Handle session resumption
-		if resumePath, _ := cmd.Flags().GetString("resume-from"); resumePath != "" {
-			cfg.ProjectPath = resumePath
-			fmt.Printf("Resuming session '%s' from workspace: %s\n", cfg.SessionName, resumePath)
-			if err := runWorkflow(ctx, cfg); err != nil {
-				fmt.Fprintf(os.Stderr, "Resumed session failed: %v\n", err)
-				exit(1)
-			}
-			return
-		}
-
-		if repoURL != "" {
-			processDirectTask(ctx, cfg)
-			return
-		}
-
-		if jiraTicketID != "" || jiraLabel != "" {
-			jClient, err := getJiraClient(ctx)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-				exit(1)
-			}
-
-			// 1.5 Collect Ticket IDs
-			var ticketIDs []string
-			if jiraTicketID != "" {
-				ticketIDs = append(ticketIDs, jiraTicketID)
-			} else if jiraLabel != "" {
-				fmt.Printf("Searching for tickets with label '%s'...\n", jiraLabel)
-				jql := fmt.Sprintf("labels = \"%s\" AND statusCategory != Done ORDER BY created DESC", jiraLabel)
-				issues, err := jClient.SearchIssues(ctx, jql)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Error searching Jira tickets: %v\n", err)
-					exit(1)
-				}
-
-				if len(issues) == 0 {
-					fmt.Printf("No open tickets found with label '%s'. Exiting.\n", jiraLabel)
-					return
-				}
-
-				// Sort issues by dependencies (blockers first)
-				sortedIssues, err := jira.ResolveDependencies(issues, func(issue map[string]interface{}) ([]string, error) {
-					// We need to fetch the full issue to get links if not present?
-					// But our Search includes "issuelinks".
-					// Does ResolveDependencies expect keys?
-					// Yes, Update ResolveDependencies usage.
-					// Actually, GetBlockers returns formatted strings "KEY (Status)".
-					// We need just keys for dependency graph.
-					// Let's make a wrapper or update GetBlockers.
-					// For now, let's just extract the Key from GetBlockers output or reimplement simple key extraction here.
-
-					rawBlockers := jClient.GetBlockers(issue)
-					var keys []string
-					for _, b := range rawBlockers {
-						// Format is "KEY (Status)"
-						parts := strings.Split(b, " (")
-						if len(parts) > 0 {
-							keys = append(keys, parts[0])
-						}
-					}
-					return keys, nil
-				})
-
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Warning: Failed to sort issues by dependency: %v. Proceeding with default order.\n", err)
-					sortedIssues = issues
-				} else {
-					fmt.Println("Tickets sorted by dependency (blockers first).")
-				}
-
-				for _, issue := range sortedIssues {
-					if key, ok := issue["key"].(string); ok {
-						ticketIDs = append(ticketIDs, key)
-					}
-				}
-				fmt.Printf("Found %d tickets to process.\n", len(ticketIDs))
-			}
-
-			// Parallel Multi-Ticket Processing Loop
-			maxParallelTickets := viper.GetInt("max_parallel_tickets")
-			if maxParallelTickets < 1 {
-				maxParallelTickets = 1
-			}
-
-			// If only one ticket, run synchronously
-			if len(ticketIDs) == 1 {
-				processJiraTicket(ctx, ticketIDs[0], jClient, cfg, nil)
-				return
-			}
-
-			// Build Dependency Graphs
-			// Fetch metadata for all tickets to ensure we have dependency info
-			// (Even if we came from Search, we need to be sure we have the objects)
-			fmt.Println("Building dependency graph for parallel execution...")
-			issues := make([]map[string]interface{}, 0, len(ticketIDs))
-			for _, id := range ticketIDs {
-				t, err := jClient.GetTicket(ctx, id)
-				if err != nil {
-					fmt.Printf("Warning: Failed to fetch metadata for %s: %v. Assuming no dependencies.\n", id, err)
-					issues = append(issues, map[string]interface{}{"key": id})
-				} else {
-					issues = append(issues, t)
-				}
-			}
-
-			graph := jira.BuildGraphFromIssues(issues, func(issue map[string]interface{}) []string {
-				raw := jClient.GetBlockers(issue)
-				keys := make([]string, 0, len(raw))
-				for _, r := range raw {
-					// Format "KEY (Status)"
-					parts := strings.Split(r, " (")
-					if len(parts) > 0 {
-						keys = append(keys, parts[0])
-					}
-				}
-				return keys
-			})
-
-			// Channels
-			readyCh := make(chan string, len(ticketIDs))
-			completionCh := make(chan string, len(ticketIDs))
-
-			// Coordinator Routine
-			go func() {
-				completed := make(map[string]bool)
-				dispatched := make(map[string]bool)
-				count := 0
-				total := len(ticketIDs)
-
-				// Initial Dispatch
-				initial := graph.GetReadyTickets(completed)
-				for _, id := range initial {
-					readyCh <- id
-					dispatched[id] = true
-				}
-
-				for count < total {
-					doneID := <-completionCh
-					count++
-					completed[doneID] = true
-
-					// Check for new ready tickets
-					candidates := graph.GetReadyTickets(completed)
-					for _, id := range candidates {
-						if !dispatched[id] {
-							readyCh <- id
-							dispatched[id] = true
-						}
-					}
-				}
-				close(readyCh)
-			}()
-
-			// Worker Loop
-			var wg sync.WaitGroup
-			sem := make(chan struct{}, maxParallelTickets)
-
-			for id := range readyCh {
-				wg.Add(1)
-				go func(targetID string) {
-					defer wg.Done()
-
-					// Acquire Semaphore
-					sem <- struct{}{}
-					defer func() { <-sem }()
-
-					localTickets := graph.AllTickets
-					processJiraTicket(ctx, targetID, jClient, cfg, localTickets)
-
-					// Signal Completion
-					completionCh <- targetID
-				}(id)
-			}
-
-			wg.Wait()
-			return
-		}
-
-		// Local Path Workflow
-		if cfg.ProjectPath == "" {
-			p := tea.NewProgram(ui.NewWizardModel())
-			m, err := p.Run()
-			if err != nil {
-				fmt.Printf("Wizard error: %v", err)
-				exit(1)
-			}
-
-			wizardModel, ok := m.(ui.WizardModel)
-			if !ok {
-				fmt.Println("Could not retrieve wizard data")
-				exit(1)
-			}
-			cfg.ProjectPath = wizardModel.Path
-			if cfg.ProjectPath == "" {
-				fmt.Println("No project path selected. Exiting.")
-				return
-			}
-
-			if wizardModel.Provider != "" {
-				viper.Set("provider", wizardModel.Provider)
-			}
-			if wizardModel.MaxAgents > 0 {
-				cfg.MaxAgents = wizardModel.MaxAgents
-			}
-			if wizardModel.TaskMaxIterations > 0 {
-				cfg.TaskMaxIterations = wizardModel.TaskMaxIterations
-			}
-		} else {
-			fmt.Printf("Using project path: %s\n", cfg.ProjectPath)
-		}
-
-		if err := runWorkflow(ctx, cfg); err != nil {
-			fmt.Fprintf(os.Stderr, "Session failed: %v\n", err)
-			exit(1)
-		}
-	},
+	return startCmd
 }
 
 // SessionConfig holds all parameters for a RECAC session

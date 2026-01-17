@@ -14,18 +14,20 @@ var (
 )
 
 func init() {
-	versionCmd := &cobra.Command{
+	rootCmd.AddCommand(NewVersionCmd())
+}
+
+func NewVersionCmd() *cobra.Command {
+	return &cobra.Command{
 		Use:   "version",
 		Short: "Print the version information",
 		Long:  `Print the version information for recac CLI`,
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("recac version %s\n", version)
-			fmt.Printf("Commit: %s\n", commit)
-			fmt.Printf("Build Date: %s\n", date)
-			fmt.Printf("Go Version: %s\n", runtime.Version())
-			fmt.Printf("Platform: %s/%s\n", runtime.GOOS, runtime.GOARCH)
+			fmt.Fprintf(cmd.OutOrStdout(), "recac version %s\n", version)
+			fmt.Fprintf(cmd.OutOrStdout(), "Commit: %s\n", commit)
+			fmt.Fprintf(cmd.OutOrStdout(), "Build Date: %s\n", date)
+			fmt.Fprintf(cmd.OutOrStdout(), "Go Version: %s\n", runtime.Version())
+			fmt.Fprintf(cmd.OutOrStdout(), "Platform: %s/%s\n", runtime.GOOS, runtime.GOARCH)
 		},
 	}
-
-	rootCmd.AddCommand(versionCmd)
 }

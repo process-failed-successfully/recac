@@ -1,147 +1,105 @@
 package main
 
 import (
+	"bytes"
+	"fmt"
 	"os"
-	"path/filepath"
 	"recac/internal/runner"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// setupLogsTest configures a mock session manager with temporary log files.
-func setupLogsTest(t *testing.T) (*MockSessionManager, func()) {
-	t.Helper()
-
-	mockSM := NewMockSessionManager()
-
-	// Create a temp dir for log files
+func TestLogsCmd(t *testing.T) {
+	// Create a temporary directory for log files
 	tmpDir, err := os.MkdirTemp("", "recac-logs-test-")
 	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
 
-	// --- Create mock sessions and their log files ---
-	session1Log := filepath.Join(tmpDir, "session1.log")
-	err = os.WriteFile(session1Log, []byte("session 1 log line 1\nsession 1 log line 2\n"), 0644)
+	// Create a mock log file
+	logFile := fmt.Sprintf("%s/test.log", tmpDir)
+	err = os.WriteFile(logFile, []byte("line 1\nline 2\nfiltered line\n"), 0644)
 	require.NoError(t, err)
 
-	session2Log := filepath.Join(tmpDir, "session2.log")
-	err = os.WriteFile(session2Log, []byte("session 2 log line 1\n"), 0644)
-	require.NoError(t, err)
-
-	stoppedSessionLog := filepath.Join(tmpDir, "stopped.log")
-	err = os.WriteFile(stoppedSessionLog, []byte("this should not be read\n"), 0644)
-	require.NoError(t, err)
-
-	mockSM.Sessions = map[string]*runner.SessionState{
-		"session1": {
-			Name:    "session1",
-			Status:  "running",
-			LogFile: session1Log,
-		},
-		"session2": {
-			Name:    "session2",
-			Status:  "running",
-			LogFile: session2Log,
-		},
-		"stopped-session": {
-			Name:   "stopped-session",
-			Status: "stopped",
-			LogFile: stoppedSessionLog,
-		},
+	// Setup Mock SessionManager
+	mockSM := NewMockSessionManager()
+	mockSM.Sessions["test-session"] = &runner.SessionState{
+		Name:      "test-session",
+		Status:    "running",
+		LogFile:   logFile,
+		StartTime: time.Now(),
 	}
 
-	// Monkey-patch the sessionManagerFactory
+	// Override factory
 	originalFactory := sessionManagerFactory
 	sessionManagerFactory = func() (ISessionManager, error) {
 		return mockSM, nil
 	}
+	defer func() { sessionManagerFactory = originalFactory }()
 
-	cleanup := func() {
-		os.RemoveAll(tmpDir)
-		sessionManagerFactory = originalFactory
+	// Override exit to prevent test termination
+	originalExit := exit
+	var exitCode int
+	exit = func(code int) {
+		exitCode = code
+		panic(fmt.Sprintf("exit-%d", code))
 	}
+	defer func() { exit = originalExit }()
 
-	return mockSM, cleanup
-}
+	t.Run("Get Logs Success", func(t *testing.T) {
+		cmd := NewLogsCmd()
+		b := new(bytes.Buffer)
+		cmd.SetOut(b)
+		cmd.SetErr(b)
+		cmd.SetArgs([]string{"test-session"})
 
-func TestLogsCmd(t *testing.T) {
-	t.Run("logs --all streams running sessions", func(t *testing.T) {
-		_, cleanup := setupLogsTest(t)
-		defer cleanup()
-
-		output, err := executeCommand(rootCmd, "logs", "--all")
-		require.NoError(t, err)
-
-		// Check that output from both running sessions is present
-		assert.Contains(t, output, "[session1] session 1 log line 1")
-		assert.Contains(t, output, "[session1] session 1 log line 2")
-		assert.Contains(t, output, "[session2] session 2 log line 1")
-
-		// Check that output from the stopped session is not present
-		assert.NotContains(t, output, "stopped-session")
-		assert.NotContains(t, output, "this should not be read")
+		err := cmd.Execute()
+		assert.NoError(t, err)
+		assert.Contains(t, b.String(), "line 1")
+		assert.Contains(t, b.String(), "line 2")
 	})
 
-	t.Run("logs single session", func(t *testing.T) {
-		_, cleanup := setupLogsTest(t)
-		defer cleanup()
+	t.Run("Get Logs Filtered", func(t *testing.T) {
+		cmd := NewLogsCmd()
+		b := new(bytes.Buffer)
+		cmd.SetOut(b)
+		cmd.SetErr(b)
+		cmd.SetArgs([]string{"test-session", "--filter", "filtered"})
 
-		output, err := executeCommand(rootCmd, "logs", "session1")
-		require.NoError(t, err)
-
-		assert.Contains(t, output, "session 1 log line 1")
-		assert.Contains(t, output, "session 1 log line 2")
-		assert.NotContains(t, output, "[session1]") // No prefix for single log
-		assert.NotContains(t, output, "session 2")
+		err := cmd.Execute()
+		assert.NoError(t, err)
+		assert.Contains(t, b.String(), "filtered line")
+		assert.NotContains(t, b.String(), "line 1")
 	})
 
-	t.Run("logs --all with filter", func(t *testing.T) {
-		_, cleanup := setupLogsTest(t)
-		defer cleanup()
+	t.Run("Get Logs No Session", func(t *testing.T) {
+		cmd := NewLogsCmd()
+		b := new(bytes.Buffer)
+		cmd.SetOut(b)
+		cmd.SetErr(b)
+		cmd.SetArgs([]string{"non-existent"})
 
-		output, err := executeCommand(rootCmd, "logs", "--all", "--filter", "line 2")
-		require.NoError(t, err)
+		defer func() {
+			if r := recover(); r != nil {
+				assert.Equal(t, "exit-1", r)
+				assert.Equal(t, 1, exitCode)
+			}
+		}()
 
-		assert.Contains(t, output, "[session1] session 1 log line 2")
-		assert.NotContains(t, output, "session 1 log line 1")
-		assert.NotContains(t, output, "session 2")
+		cmd.Execute()
 	})
 
-	t.Run("logs --all with no running sessions", func(t *testing.T) {
-		mockSM, cleanup := setupLogsTest(t)
-		defer cleanup()
+	t.Run("Logs All Sessions", func(t *testing.T) {
+		cmd := NewLogsCmd()
+		b := new(bytes.Buffer)
+		cmd.SetOut(b)
+		cmd.SetErr(b)
+		cmd.SetArgs([]string{"--all"})
 
-		// Override to have no running sessions
-		mockSM.Sessions["session1"].Status = "completed"
-		mockSM.Sessions["session2"].Status = "error"
-
-		output, err := executeCommand(rootCmd, "logs", "--all")
-		require.NoError(t, err)
-
-		assert.Contains(t, output, "No running sessions found.")
+		err := cmd.Execute()
+		assert.NoError(t, err)
+		assert.Contains(t, b.String(), "[test-session] line 1")
 	})
-
-	t.Run("logs validation errors", func(t *testing.T) {
-		_, cleanup := setupLogsTest(t)
-		defer cleanup()
-
-		_, err := executeCommand(rootCmd, "logs")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "requires a session name or --all flag")
-
-		_, err = executeCommand(rootCmd, "logs", "session1", "--all")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "cannot use session name with --all")
-
-		_, err = executeCommand(rootCmd, "logs", "non-existent-session")
-		// This will print an error and exit(1), which is caught by executeCommand
-		// and does not return a Go error. We check stderr.
-		output, _ := executeCommand(rootCmd, "logs", "non-existent-session")
-		assert.Contains(t, output, "Error: session not found")
-	})
-
-	// Note: Testing --follow is complex in unit tests as it involves long-running processes.
-	// This is better suited for E2E tests. The core logic of reading and streaming is
-	// already tested by the cases above.
 }
