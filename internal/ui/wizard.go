@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	titleStyle = lipgloss.NewStyle().
+	wizardTitleStyle = lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("#7D56F4")).
 		MarginBottom(1)
@@ -153,7 +153,7 @@ func (m WizardModel) View() string {
 
 	if m.step == StepPath {
 		var b strings.Builder
-		b.WriteString(titleStyle.Render("Project Setup"))
+		b.WriteString(wizardTitleStyle.Render("Project Setup"))
 		b.WriteString("\n\n")
 		b.WriteString("Enter project directory:\n")
 		b.WriteString(m.textInput.View())
@@ -163,7 +163,7 @@ func (m WizardModel) View() string {
 		return "\n" + m.list.View()
 	} else if m.step == StepMaxAgents {
 		var b strings.Builder
-		b.WriteString(titleStyle.Render("Agent Configuration"))
+		b.WriteString(wizardTitleStyle.Render("Agent Configuration"))
 		b.WriteString("\n\n")
 		b.WriteString("Enter maximum parallel agents (default 1):\n")
 		b.WriteString(m.textInput.View())
@@ -171,7 +171,7 @@ func (m WizardModel) View() string {
 		return b.String()
 	} else if m.step == StepTaskMaxIterations {
 		var b strings.Builder
-		b.WriteString(titleStyle.Render("Agent Configuration"))
+		b.WriteString(wizardTitleStyle.Render("Agent Configuration"))
 		b.WriteString("\n\n")
 		b.WriteString("Enter maximum iterations per task (default 10):\n")
 		b.WriteString(m.textInput.View())

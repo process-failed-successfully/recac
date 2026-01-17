@@ -24,7 +24,7 @@ type sessionsRefreshedMsg []*runner.SessionState
 
 var (
 	summaryTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("62"))
-	headerStyle      = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("242"))
+	summaryHeaderStyle      = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("242"))
 	cellStyle        = lipgloss.NewStyle().Padding(0, 1)
 )
 
@@ -113,7 +113,7 @@ func (m summaryModel) View() string {
 func (m *summaryModel) renderStats(total, completed, errored, running, totalTokens int, totalCost float64) string {
 	var b strings.Builder
 	w := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "\n"+headerStyle.Render("Aggregate Stats"))
+	fmt.Fprintln(w, "\n"+summaryHeaderStyle.Render("Aggregate Stats"))
 	fmt.Fprintln(w, "-------------------")
 	fmt.Fprintf(w, "Total Sessions:\t%d\n", total)
 	fmt.Fprintf(w, "Completed:\t%d\n", completed)
@@ -136,7 +136,7 @@ func (m *summaryModel) renderRecentSessions() string {
 
 	var b strings.Builder
 	w := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "\n"+headerStyle.Render("Recent Sessions (Top 5)"))
+	fmt.Fprintln(w, "\n"+summaryHeaderStyle.Render("Recent Sessions (Top 5)"))
 	fmt.Fprintln(w, "-------------------------")
 	fmt.Fprintln(w, "NAME\tSTATUS\tSTART TIME\tDURATION")
 	for i, s := range m.sessions {
@@ -160,7 +160,7 @@ func (m *summaryModel) renderMostExpensiveSessions(sessionCosts map[string]float
 
 	var b strings.Builder
 	w := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "\n"+headerStyle.Render("Most Expensive Sessions (Top 5)"))
+	fmt.Fprintln(w, "\n"+summaryHeaderStyle.Render("Most Expensive Sessions (Top 5)"))
 	fmt.Fprintln(w, "---------------------------------")
 	fmt.Fprintln(w, "NAME\tCOST\tTOKENS\tMODEL")
 	for i, s := range m.sessions {
