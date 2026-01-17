@@ -2426,6 +2426,22 @@ func (s *Session) runInitScript(ctx context.Context) {
 		return
 	}
 
+	// SECURITY: Do not run init.sh in Local Mode on Host (not K8s/Docker)
+	// This prevents RCE when running recac on a developer machine against an untrusted repo.
+	if s.UseLocalAgent {
+		isK8s := os.Getenv("KUBERNETES_SERVICE_HOST") != ""
+		_, err := os.Stat("/.dockerenv")
+		isDocker := err == nil
+
+		if !isK8s && !isDocker {
+			fmt.Println("Security Warning: Skipping init.sh execution because we are running in Local Mode on a Host machine (not K8s/Docker container).")
+			if s.Logger != nil {
+				s.Logger.Warn("skipped init.sh execution (security)", "reason", "host_execution_prevented")
+			}
+			return
+		}
+	}
+
 	fmt.Println("Found init.sh. Executing in container...")
 
 	// 1. Ensure executable
