@@ -10,6 +10,7 @@ import (
 
 	"recac/internal/agent"
 	"recac/internal/runner"
+	"recac/internal/ui"
 
 	"regexp"
 
@@ -188,5 +189,33 @@ func TestStatusCommand(t *testing.T) {
 		// --- Assert ---
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "could not load session 'non-existent-session'")
+	})
+
+	t.Run("runs TUI dashboard when --watch is provided", func(t *testing.T) {
+		mockSM, cleanup := setupStatusTest(t)
+		defer cleanup()
+
+		// Mock the UI starter to avoid actually running Bubble Tea
+		originalStart := ui.StartStatusDashboard
+		called := false
+		ui.StartStatusDashboard = func(name string) error {
+			called = true
+			if name != "my-session" {
+				return assert.AnError
+			}
+			return nil
+		}
+		defer func() { ui.StartStatusDashboard = originalStart }()
+
+		// Setup session
+		mockSM.Sessions["my-session"] = &runner.SessionState{
+			Name: "my-session",
+		}
+
+		// Execute with --watch
+		_, err := executeCommand(rootCmd, "status", "my-session", "--watch")
+
+		assert.NoError(t, err)
+		assert.True(t, called, "Expected ui.StartStatusDashboard to be called")
 	})
 }
