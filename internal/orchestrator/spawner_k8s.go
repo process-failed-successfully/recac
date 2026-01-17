@@ -19,7 +19,7 @@ import (
 )
 
 type K8sSpawner struct {
-	Client        *kubernetes.Clientset
+	Client        kubernetes.Interface
 	Namespace     string
 	Image         string
 	AgentProvider string
