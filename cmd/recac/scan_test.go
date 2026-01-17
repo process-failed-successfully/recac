@@ -44,15 +44,8 @@ func TestScanCmd(t *testing.T) {
 	err = os.Chdir(tempDir)
 	require.NoError(t, err)
 
-	// Helper to reset flags
-	resetFlags := func() {
-		scanJSON = false
-		scanExportPlan = ""
-	}
-
 	t.Run("Scan Text Output", func(t *testing.T) {
-		resetFlags()
-		cmd := scanCmd
+		cmd := NewScanCmd()
 		buf := new(bytes.Buffer)
 		cmd.SetOut(buf)
 
@@ -68,13 +61,14 @@ func TestScanCmd(t *testing.T) {
 	})
 
 	t.Run("Scan JSON Output", func(t *testing.T) {
-		resetFlags()
-		scanJSON = true
-		cmd := scanCmd
+		cmd := NewScanCmd()
 		buf := new(bytes.Buffer)
 		cmd.SetOut(buf)
 
-		err := cmd.RunE(cmd, []string{})
+		err := cmd.Flags().Set("json", "true")
+		require.NoError(t, err)
+
+		err = cmd.RunE(cmd, []string{})
 		require.NoError(t, err)
 
 		output := buf.String()
@@ -99,13 +93,14 @@ func TestScanCmd(t *testing.T) {
 	})
 
 	t.Run("Export Plan", func(t *testing.T) {
-		resetFlags()
-		scanExportPlan = "plan.json"
-		cmd := scanCmd
+		cmd := NewScanCmd()
 		buf := new(bytes.Buffer)
 		cmd.SetOut(buf)
 
-		err := cmd.RunE(cmd, []string{})
+		err := cmd.Flags().Set("export-plan", "plan.json")
+		require.NoError(t, err)
+
+		err = cmd.RunE(cmd, []string{})
 		require.NoError(t, err)
 
 		// Verify plan.json exists
@@ -121,8 +116,7 @@ func TestScanCmd(t *testing.T) {
 	})
 
 	t.Run("False Positives", func(t *testing.T) {
-		resetFlags()
-		cmd := scanCmd
+		cmd := NewScanCmd()
 		buf := new(bytes.Buffer)
 		cmd.SetOut(buf)
 

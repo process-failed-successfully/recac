@@ -22,49 +22,57 @@ type ScanResult struct {
 }
 
 var (
-	scanJSON       bool
-	scanExportPlan string
-	markerRegex    = regexp.MustCompile(`(?i)\b(TODO|FIXME|BUG|HACK|XXX)\b(\((.+?)\))?:?\s*(.*)`)
+	markerRegex = regexp.MustCompile(`(?i)\b(TODO|FIXME|BUG|HACK|XXX)\b(\((.+?)\))?:?\s*(.*)`)
 )
 
-var scanCmd = &cobra.Command{
-	Use:   "scan",
-	Short: "Scan codebase for technical debt markers",
-	Long:  `Scans the current directory recursively for TODO, FIXME, BUG, HACK, and XXX markers.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		results, err := runScan(".")
-		if err != nil {
-			return err
-		}
+func NewScanCmd() *cobra.Command {
+	var (
+		scanJSON       bool
+		scanExportPlan string
+	)
 
-		if len(results) == 0 {
-			if !scanJSON {
-				fmt.Fprintln(cmd.OutOrStdout(), "No markers found. Great job!")
-			} else {
-				fmt.Fprintln(cmd.OutOrStdout(), "[]")
+	cmd := &cobra.Command{
+		Use:   "scan",
+		Short: "Scan codebase for technical debt markers",
+		Long:  `Scans the current directory recursively for TODO, FIXME, BUG, HACK, and XXX markers.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			results, err := runScan(".")
+			if err != nil {
+				return err
 			}
+
+			if len(results) == 0 {
+				if !scanJSON {
+					fmt.Fprintln(cmd.OutOrStdout(), "No markers found. Great job!")
+				} else {
+					fmt.Fprintln(cmd.OutOrStdout(), "[]")
+				}
+				return nil
+			}
+
+			if scanExportPlan != "" {
+				return exportPlan(results, scanExportPlan)
+			}
+
+			if scanJSON {
+				enc := json.NewEncoder(cmd.OutOrStdout())
+				enc.SetIndent("", "  ")
+				return enc.Encode(results)
+			}
+
+			printTable(cmd, results)
 			return nil
-		}
+		},
+	}
 
-		if scanExportPlan != "" {
-			return exportPlan(results, scanExportPlan)
-		}
+	cmd.Flags().BoolVar(&scanJSON, "json", false, "Output results as JSON")
+	cmd.Flags().StringVar(&scanExportPlan, "export-plan", "", "Export results as a feature list plan to the specified file (e.g., plan.json)")
 
-		if scanJSON {
-			enc := json.NewEncoder(cmd.OutOrStdout())
-			enc.SetIndent("", "  ")
-			return enc.Encode(results)
-		}
-
-		printTable(cmd, results)
-		return nil
-	},
+	return cmd
 }
 
 func init() {
-	rootCmd.AddCommand(scanCmd)
-	scanCmd.Flags().BoolVar(&scanJSON, "json", false, "Output results as JSON")
-	scanCmd.Flags().StringVar(&scanExportPlan, "export-plan", "", "Export results as a feature list plan to the specified file (e.g., plan.json)")
+	rootCmd.AddCommand(NewScanCmd())
 }
 
 func runScan(root string) ([]ScanResult, error) {
