@@ -330,6 +330,11 @@ func (c *Client) ResetHard(dir, remote, branch string) error {
 	return c.runWithMasking(context.Background(), dir, "reset", "--hard", target)
 }
 
+// Reset resets the current branch to the specified target (commit/branch), wiping local changes.
+func (c *Client) Reset(dir, target string) error {
+	return c.runWithMasking(context.Background(), dir, "reset", "--hard", target)
+}
+
 // Clean force cleans the repository of untracked files and directories.
 func (c *Client) Clean(dir string) error {
 	// Pre-cleanup: Handle read-only Go module files that git clean fails on
@@ -403,6 +408,20 @@ func (c *Client) DiffStat(dir, startCommit, endCommit string) (string, error) {
 			return "", fmt.Errorf("git diff --stat failed with exit code %d: %w\nOutput: %s", exitErr.ExitCode(), err, out.String())
 		}
 		return "", fmt.Errorf("git diff --stat failed: %w\nOutput: %s", err, out.String())
+	}
+	return strings.TrimSpace(out.String()), nil
+}
+
+// Log returns the log of commits.
+func (c *Client) Log(dir string, args ...string) (string, error) {
+	cmdArgs := append([]string{"log"}, args...)
+	cmd := exec.Command("git", cmdArgs...)
+	cmd.Dir = dir
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("git log failed: %w\nOutput: %s", err, out.String())
 	}
 	return strings.TrimSpace(out.String()), nil
 }
