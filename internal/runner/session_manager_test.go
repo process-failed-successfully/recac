@@ -116,6 +116,11 @@ func (m *MockGitClient) Diff(directory, startCommit, endCommit string) (string, 
 	return args.String(0), args.Error(1)
 }
 
+func (m *MockGitClient) DiffStaged(directory string) (string, error) {
+	args := m.Called(directory)
+	return args.String(0), args.Error(1)
+}
+
 func (m *MockGitClient) SetRemoteURL(directory, name, url string) error {
 	args := m.Called(directory, name, url)
 	return args.Error(0)
