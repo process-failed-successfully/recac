@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
+	"recac/internal/utils"
 
 	"github.com/pmezard/go-difflib/difflib"
 	"github.com/spf13/cobra"
@@ -86,7 +86,7 @@ Code to improve:
 				return fmt.Errorf("agent failed to improve code: %w", err)
 			}
 
-			improvedCode := cleanCode(resp)
+			improvedCode := utils.CleanMarkdown(resp)
 
 			showDiff, _ := cmd.Flags().GetBool("diff")
 			inPlace, _ := cmd.Flags().GetBool("in-place")
@@ -129,33 +129,6 @@ var improveCmd = NewImproveCmd()
 
 func init() {
 	rootCmd.AddCommand(improveCmd)
-}
-
-// cleanCode strips markdown code blocks if present, similar to cleanJSON but generic
-func cleanCode(content string) string {
-	content = strings.TrimSpace(content)
-
-	// Try to find markdown code blocks
-	start := strings.Index(content, "```")
-	if start != -1 {
-		// Found a code block start
-		// Skip the opening ``` and potential language identifier
-		codeStart := start + 3
-
-		// Find the end of the line to skip language identifier (e.g., ```go)
-		if idx := strings.Index(content[codeStart:], "\n"); idx != -1 {
-			codeStart += idx + 1
-		}
-
-		// Find the end of the block
-		end := strings.Index(content[codeStart:], "```")
-		if end != -1 {
-			// Extract the content inside the block
-			return strings.TrimSpace(content[codeStart : codeStart+end])
-		}
-	}
-
-	return content
 }
 
 func generateDiff(filename, original, improved string) (string, error) {

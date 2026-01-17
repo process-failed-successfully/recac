@@ -10,6 +10,7 @@ import (
 
 	"recac/internal/agent/prompts"
 	"recac/internal/db"
+	"recac/internal/utils"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -104,32 +105,14 @@ func NewPlanCmd() *cobra.Command {
 
 // cleanJSON strips markdown code blocks if present
 func cleanJSON(content string) string {
-	content = strings.TrimSpace(content)
-
-	// Try to find markdown code blocks
-	start := strings.Index(content, "```")
-	if start != -1 {
-		// Found a code block start
-		// Check if it's ```json or just ```
-		codeStart := start + 3
-		if strings.HasPrefix(content[codeStart:], "json") {
-			codeStart += 4
-		}
-
-		// Find the end of the block
-		end := strings.Index(content[codeStart:], "```")
-		if end != -1 {
-			// Extract the content inside the block
-			return strings.TrimSpace(content[codeStart : codeStart+end])
-		}
-	}
+	cleaned := utils.CleanMarkdown(content)
 
 	// Fallback: If no code blocks, look for the first '{' and last '}'
-	firstBrace := strings.Index(content, "{")
-	lastBrace := strings.LastIndex(content, "}")
+	firstBrace := strings.Index(cleaned, "{")
+	lastBrace := strings.LastIndex(cleaned, "}")
 	if firstBrace != -1 && lastBrace != -1 && lastBrace > firstBrace {
-		return strings.TrimSpace(content[firstBrace : lastBrace+1])
+		return strings.TrimSpace(cleaned[firstBrace : lastBrace+1])
 	}
 
-	return content
+	return cleaned
 }

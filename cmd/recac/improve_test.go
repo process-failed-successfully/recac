@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"recac/internal/agent"
+	"recac/internal/utils"
 )
 
 // MockAgent for testing
@@ -112,13 +113,13 @@ func TestImproveCmd(t *testing.T) {
 
 	t.Run("CleanCode extracts from markdown", func(t *testing.T) {
 		markdown := "Here is the code:\n```go\nfunc foo() {}\n```\nHope it helps."
-		cleaned := cleanCode(markdown)
+		cleaned := utils.CleanMarkdown(markdown)
 		assert.Equal(t, "func foo() {}", cleaned)
 	})
 
 	t.Run("CleanCode returns raw if no markdown", func(t *testing.T) {
 		raw := "func foo() {}"
-		cleaned := cleanCode(raw)
+		cleaned := utils.CleanMarkdown(raw)
 		assert.Equal(t, "func foo() {}", cleaned)
 	})
 }
