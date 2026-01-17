@@ -327,8 +327,11 @@ func newRootCmd() (*cobra.Command, *bytes.Buffer, *bytes.Buffer) {
 type MockGitClient struct {
 	CheckoutFunc         func(repoPath, commitOrBranch string) error
 	DiffFunc             func(repoPath, commitA, commitB string) (string, error)
+	DiffStagedFunc       func(repoPath string) (string, error)
 	DiffStatFunc         func(repoPath, commitA, commitB string) (string, error)
 	CurrentCommitSHAFunc func(repoPath string) (string, error)
+	RepoExistsFunc       func(repoPath string) bool
+	CommitFunc           func(repoPath, message string) error
 }
 
 func (m *MockGitClient) Checkout(repoPath, commitOrBranch string) error {
@@ -345,6 +348,13 @@ func (m *MockGitClient) Diff(repoPath, commitA, commitB string) (string, error) 
 	return "mock diff", nil
 }
 
+func (m *MockGitClient) DiffStaged(repoPath string) (string, error) {
+	if m.DiffStagedFunc != nil {
+		return m.DiffStagedFunc(repoPath)
+	}
+	return "mock staged diff", nil
+}
+
 func (m *MockGitClient) DiffStat(repoPath, commitA, commitB string) (string, error) {
 	if m.DiffStatFunc != nil {
 		return m.DiffStatFunc(repoPath, commitA, commitB)
@@ -357,4 +367,18 @@ func (m *MockGitClient) CurrentCommitSHA(repoPath string) (string, error) {
 		return m.CurrentCommitSHAFunc(repoPath)
 	}
 	return "mock-sha", nil
+}
+
+func (m *MockGitClient) RepoExists(repoPath string) bool {
+	if m.RepoExistsFunc != nil {
+		return m.RepoExistsFunc(repoPath)
+	}
+	return true
+}
+
+func (m *MockGitClient) Commit(repoPath, message string) error {
+	if m.CommitFunc != nil {
+		return m.CommitFunc(repoPath, message)
+	}
+	return nil
 }

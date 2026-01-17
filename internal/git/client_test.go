@@ -532,3 +532,38 @@ func TestClient_DeleteRemoteBranch(t *testing.T) {
 		t.Error("remote branch still exists after deletion")
 	}
 }
+
+func TestClient_DiffStaged(t *testing.T) {
+	localDir, _ := setupTestRepo(t)
+	defer os.RemoveAll(localDir)
+
+	c := NewClient()
+
+	// Initial commit
+	os.WriteFile(filepath.Join(localDir, "f1"), []byte("v1"), 0644)
+	c.Commit(localDir, "init")
+
+	// Modify file
+	os.WriteFile(filepath.Join(localDir, "f1"), []byte("v2"), 0644)
+
+	// Check diff staged before adding
+	diff, err := c.DiffStaged(localDir)
+	if err != nil {
+		t.Fatalf("DiffStaged failed: %v", err)
+	}
+	if diff != "" {
+		t.Errorf("Expected empty staged diff, got %s", diff)
+	}
+
+	// Stage changes
+	exec.Command("git", "-C", localDir, "add", ".").Run()
+
+	// Check diff staged after adding
+	diff, err = c.DiffStaged(localDir)
+	if err != nil {
+		t.Fatalf("DiffStaged failed: %v", err)
+	}
+	if !strings.Contains(diff, "v2") {
+		t.Errorf("Expected diff to contain 'v2', got %s", diff)
+	}
+}

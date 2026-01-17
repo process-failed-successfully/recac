@@ -387,6 +387,19 @@ func (c *Client) Diff(dir, startCommit, endCommit string) (string, error) {
 	return out.String(), nil
 }
 
+// DiffStaged returns the diff of staged changes.
+func (c *Client) DiffStaged(dir string) (string, error) {
+	cmd := exec.Command("git", "diff", "--staged")
+	cmd.Dir = dir
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("git diff --staged failed: %w\nOutput: %s", err, out.String())
+	}
+	return out.String(), nil
+}
+
 // DiffStat returns the stat summary of a diff between two commits.
 func (c *Client) DiffStat(dir, startCommit, endCommit string) (string, error) {
 	cmd := exec.Command("git", "diff", "--stat", startCommit, endCommit)
