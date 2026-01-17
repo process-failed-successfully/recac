@@ -131,12 +131,20 @@ var startCmd = &cobra.Command{
 		managerFrequency := viper.GetInt("manager_frequency")
 		maxAgents := viper.GetInt("max_agents")
 		taskMaxIterations := viper.GetInt("task_max_iterations")
-		detached := viper.GetBool("detached")
-		sessionName := viper.GetString("name")
 
-		jiraTicketID, _ := cmd.Flags().GetString("jira")
-		if jiraTicketID == "" {
-			jiraTicketID = viper.GetString("jira")
+		detached := viper.GetBool("detached")
+		if cmd.Flags().Changed("detached") {
+			detached, _ = cmd.Flags().GetBool("detached")
+		}
+
+		sessionName := viper.GetString("name")
+		if cmd.Flags().Changed("name") {
+			sessionName, _ = cmd.Flags().GetString("name")
+		}
+
+		jiraTicketID := viper.GetString("jira")
+		if cmd.Flags().Changed("jira") {
+			jiraTicketID, _ = cmd.Flags().GetString("jira")
 		}
 
 		// Handle Jira Ticket Workflow
@@ -688,7 +696,7 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 			projectPath = "."
 		}
 
-		sm, err := runner.NewSessionManager()
+		sm, err := sessionManagerFactory()
 		if err != nil {
 			return fmt.Errorf("failed to create session manager: %v", err)
 		}
@@ -865,7 +873,7 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 	}
 
 	// Create a session state for the interactive session to track commit SHAs
-	sm, err := runner.NewSessionManager()
+	sm, err := sessionManagerFactory()
 	if err != nil {
 		return fmt.Errorf("failed to create session manager for interactive session: %w", err)
 	}
