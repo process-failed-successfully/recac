@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -74,7 +75,9 @@ func TestGraphCmd(t *testing.T) {
 	defer func() { sessionManagerFactory = originalFactory }()
 
 	// 4. Run Command
-	output, err := executeCommand(rootCmd, "graph", projectName)
+	root := &cobra.Command{Use: "recac"}
+	root.AddCommand(NewGraphCmd())
+	output, err := executeCommand(root, "graph", projectName)
 	require.NoError(t, err)
 
 	// 5. Verify Output
@@ -119,7 +122,9 @@ func TestGraphCmd_NoFeatures(t *testing.T) {
 	defer func() { sessionManagerFactory = originalFactory }()
 
 	// 3. Run Command (expect error)
-	_, err = executeCommand(rootCmd, "graph", projectName)
+	root := &cobra.Command{Use: "recac"}
+	root.AddCommand(NewGraphCmd())
+	_, err = executeCommand(root, "graph", projectName)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no features found")
 }
@@ -165,7 +170,9 @@ func TestGraphCmd_LatestSession(t *testing.T) {
 	defer func() { sessionManagerFactory = originalFactory }()
 
 	// 3. Run Command without args
-	output, err := executeCommand(rootCmd, "graph")
+	root := &cobra.Command{Use: "recac"}
+	root.AddCommand(NewGraphCmd())
+	output, err := executeCommand(root, "graph")
 	require.NoError(t, err)
 
 	// 4. Verify Output (should use the latest session)
