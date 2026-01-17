@@ -150,6 +150,20 @@ func (m *MockGitClient) Pull(directory, remote, branch string) error {
 	args := m.Called(directory, remote, branch)
 	return args.Error(0)
 }
+
+func (m *MockGitClient) Log(directory string, args ...string) (string, error) {
+	// For variadic arguments, we pass the slice to Called.
+	// This allows matching On("Log", dir, []string{"arg1", "arg2"}) or similar.
+	// If exact matching isn't needed, mock.Anything can be used for the slice.
+	ret := m.Called(directory, args)
+	return ret.String(0), ret.Error(1)
+}
+
+func (m *MockGitClient) Reset(directory, target string) error {
+	args := m.Called(directory, target)
+	return args.Error(0)
+}
+
 // setupSessionManager creates a new SessionManager in a temporary directory for isolated testing.
 func setupSessionManager(t *testing.T) (*SessionManager, func()) {
 	t.Helper()
