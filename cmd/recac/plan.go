@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"recac/internal/utils"
+	"strings"
 
 	"recac/internal/agent/prompts"
 	"recac/internal/db"
@@ -72,7 +72,7 @@ func NewPlanCmd() *cobra.Command {
 			}
 
 			// Clean and Parse JSON
-			jsonContent := utils.CleanJSONBlock(resp)
+			jsonContent := cleanJSON(resp)
 
 			var featureList db.FeatureList
 			if err := json.Unmarshal([]byte(jsonContent), &featureList); err != nil {
@@ -100,4 +100,36 @@ func NewPlanCmd() *cobra.Command {
 
 	cmd.Flags().StringP("output", "o", "feature_list.json", "Output file for the generated feature list")
 	return cmd
+}
+
+// cleanJSON strips markdown code blocks if present
+func cleanJSON(content string) string {
+	content = strings.TrimSpace(content)
+
+	// Try to find markdown code blocks
+	start := strings.Index(content, "```")
+	if start != -1 {
+		// Found a code block start
+		// Check if it's ```json or just ```
+		codeStart := start + 3
+		if strings.HasPrefix(content[codeStart:], "json") {
+			codeStart += 4
+		}
+
+		// Find the end of the block
+		end := strings.Index(content[codeStart:], "```")
+		if end != -1 {
+			// Extract the content inside the block
+			return strings.TrimSpace(content[codeStart : codeStart+end])
+		}
+	}
+
+	// Fallback: If no code blocks, look for the first '{' and last '}'
+	firstBrace := strings.Index(content, "{")
+	lastBrace := strings.LastIndex(content, "}")
+	if firstBrace != -1 && lastBrace != -1 && lastBrace > firstBrace {
+		return strings.TrimSpace(content[firstBrace : lastBrace+1])
+	}
+
+	return content
 }

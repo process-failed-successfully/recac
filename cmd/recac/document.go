@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"recac/internal/utils"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -82,13 +81,13 @@ Code to document:
 				return fmt.Errorf("agent failed to document code: %w", err)
 			}
 
-			documentedCode := utils.CleanCodeBlock(resp)
+			documentedCode := cleanCode(resp)
 
 			showDiff, _ := cmd.Flags().GetBool("diff")
 			inPlace, _ := cmd.Flags().GetBool("in-place")
 
 			if showDiff {
-				diff, err := utils.GenerateDiff(filePath, string(content), documentedCode)
+				diff, err := generateDiff(filePath, string(content), documentedCode)
 				if err != nil {
 					return fmt.Errorf("failed to generate diff: %w", err)
 				}
@@ -133,3 +132,16 @@ var documentCmd = NewDocumentCmd()
 func init() {
 	rootCmd.AddCommand(documentCmd)
 }
+
+// Note: cleanCode and generateDiff are reused from improve.go if they are exported or if I duplicate them.
+// Since I can't guarantee they are exported or accessible (they are in the same package 'main', so if they are top-level they are accessible),
+// I will check if `improve.go` defines them as top-level functions in package main.
+// Based on previous read of `improve.go`, `cleanCode` and `generateDiff` ARE top-level functions in package main.
+// So I don't need to redefine them here if `improve.go` is part of the build.
+// However, to be safe and avoid compilation errors if `improve.go` changes, I might rename them or duplicate them if I'm not sure.
+// Wait, in Go, all files in the same package see each other's unexported symbols.
+// `cleanCode` in `improve.go` starts with lowercase, so it's unexported from the package, but visible within `package main`.
+// So I can use them directly!
+// BUT, if I redefine them, I'll get a "redeclared" error.
+// So I should NOT redefine them if they exist.
+// Let me verify `improve.go` content again to be 100% sure they are top level.

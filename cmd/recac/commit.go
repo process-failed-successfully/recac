@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"recac/internal/utils"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -65,7 +64,7 @@ Changes:
 				return fmt.Errorf("failed to generate commit message: %w", err)
 			}
 
-			msg = utils.CleanCodeBlock(msg)
+			msg = cleanCode(msg)
 
 			fmt.Fprintln(cmd.OutOrStdout(), "Generated Commit Message:")
 			fmt.Fprintln(cmd.OutOrStdout(), "-------------------------")
