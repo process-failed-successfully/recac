@@ -173,7 +173,6 @@ func TestCostCommand_WatchFlag(t *testing.T) {
 	// Restore the original function after the test
 	defer ui.SetStartCostTUIForTest(originalTUIStarter)
 
-
 	// --- Execute ---
 	rootCmd, _, _ := newRootCmd()
 	_, err = executeCommand(rootCmd, "cost", "--watch")

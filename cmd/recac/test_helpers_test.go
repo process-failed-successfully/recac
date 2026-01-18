@@ -325,15 +325,15 @@ func newRootCmd() (*cobra.Command, *bytes.Buffer, *bytes.Buffer) {
 
 // MockGitClient is a mock implementation of the IGitClient interface.
 type MockGitClient struct {
-	CheckoutFunc         func(repoPath, commitOrBranch string) error
-	DiffFunc             func(repoPath, commitA, commitB string) (string, error)
-	DiffStagedFunc       func(repoPath string) (string, error)
-	DiffStatFunc         func(repoPath, commitA, commitB string) (string, error)
-	CurrentCommitSHAFunc func(repoPath string) (string, error)
-	RepoExistsFunc       func(repoPath string) bool
-	CommitFunc           func(repoPath, message string) error
-	LogFunc              func(repoPath string, args ...string) ([]string, error)
-	CurrentBranchFunc    func(repoPath string) (string, error)
+	CheckoutFunc          func(repoPath, commitOrBranch string) error
+	DiffFunc              func(repoPath, commitA, commitB string) (string, error)
+	DiffStagedFunc        func(repoPath string) (string, error)
+	DiffStatFunc          func(repoPath, commitA, commitB string) (string, error)
+	CurrentCommitSHAFunc  func(repoPath string) (string, error)
+	RepoExistsFunc        func(repoPath string) bool
+	CommitFunc            func(repoPath, message string) error
+	LogFunc               func(repoPath string, args ...string) ([]string, error)
+	CurrentBranchFunc     func(repoPath string) (string, error)
 	CheckoutNewBranchFunc func(repoPath, branch string) error
 }
 

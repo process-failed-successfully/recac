@@ -47,4 +47,3 @@ func printConfig(writer io.Writer, settings map[string]interface{}, prefix strin
 		}
 	}
 }
-
