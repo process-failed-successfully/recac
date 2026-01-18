@@ -531,7 +531,9 @@ func TestPsCommandWithSinceFilter(t *testing.T) {
 	now := time.Now()
 	sessionRecent := &runner.SessionState{Name: "session-recent", Status: "completed", StartTime: now.Add(-5 * time.Minute)}
 	sessionHourOld := &runner.SessionState{Name: "session-hour-old", Status: "completed", StartTime: now.Add(-2 * time.Hour)}
-	sessionDayOld := &runner.SessionState{Name: "session-day-old", Status: "error", StartTime: now.Add(-25 * time.Hour)}
+	// Use 50 hours to ensure it falls into "day before yesterday" relative to "now" in edge cases (e.g. 2 AM),
+	// avoiding test flakiness when since filter is "yesterday" (date only).
+	sessionDayOld := &runner.SessionState{Name: "session-day-old", Status: "error", StartTime: now.Add(-50 * time.Hour)}
 
 	require.NoError(t, sm.SaveSession(sessionRecent))
 	require.NoError(t, sm.SaveSession(sessionHourOld))
