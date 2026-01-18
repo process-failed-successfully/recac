@@ -155,6 +155,13 @@ func (m *MockGitClient) Pull(directory, remote, branch string) error {
 	args := m.Called(directory, remote, branch)
 	return args.Error(0)
 }
+
+func (m *MockGitClient) Log(directory string, args ...string) ([]string, error) {
+	// For mocks, we pass the variadic arguments as a slice
+	callArgs := m.Called(directory, args)
+	return callArgs.Get(0).([]string), callArgs.Error(1)
+}
+
 // setupSessionManager creates a new SessionManager in a temporary directory for isolated testing.
 func setupSessionManager(t *testing.T) (*SessionManager, func()) {
 	t.Helper()

@@ -332,11 +332,35 @@ type MockGitClient struct {
 	CurrentCommitSHAFunc func(repoPath string) (string, error)
 	RepoExistsFunc       func(repoPath string) bool
 	CommitFunc           func(repoPath, message string) error
+	LogFunc              func(repoPath string, args ...string) ([]string, error)
+	CurrentBranchFunc    func(repoPath string) (string, error)
+	CheckoutNewBranchFunc func(repoPath, branch string) error
 }
 
 func (m *MockGitClient) Checkout(repoPath, commitOrBranch string) error {
 	if m.CheckoutFunc != nil {
 		return m.CheckoutFunc(repoPath, commitOrBranch)
+	}
+	return nil
+}
+
+func (m *MockGitClient) Log(repoPath string, args ...string) ([]string, error) {
+	if m.LogFunc != nil {
+		return m.LogFunc(repoPath, args...)
+	}
+	return []string{}, nil
+}
+
+func (m *MockGitClient) CurrentBranch(repoPath string) (string, error) {
+	if m.CurrentBranchFunc != nil {
+		return m.CurrentBranchFunc(repoPath)
+	}
+	return "main", nil
+}
+
+func (m *MockGitClient) CheckoutNewBranch(repoPath, branch string) error {
+	if m.CheckoutNewBranchFunc != nil {
+		return m.CheckoutNewBranchFunc(repoPath, branch)
 	}
 	return nil
 }

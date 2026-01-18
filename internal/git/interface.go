@@ -31,4 +31,5 @@ type IClient interface {
 	SetRemoteURL(directory, name, url string) error
 	DeleteLocalBranch(directory, branch string) error
 	LocalBranchExists(directory, branch string) (bool, error)
+	Log(directory string, args ...string) ([]string, error)
 }
