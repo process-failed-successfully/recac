@@ -17,7 +17,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-
 func init() {
 	rootCmd.AddCommand(psCmd)
 	if psCmd.Flags().Lookup("costs") == nil {
@@ -364,4 +363,3 @@ func handleSingleSessionDiff(cmd *cobra.Command, sm ISessionManager, sessionName
 	cmd.Println(diff)
 	return nil
 }
-

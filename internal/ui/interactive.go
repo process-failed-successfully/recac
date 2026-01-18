@@ -228,9 +228,10 @@ type InteractiveModel struct {
 	currentModel string      // Selected model ID
 	currentAgent string      // Selected agent/provider
 
-	mode     InputMode
-	showList bool
-	thinking bool // For spinner
+	mode          InputMode
+	showList      bool
+	thinking      bool // For spinner
+	statusMessage string
 
 	// Streaming state
 	chunkChan        chan string
@@ -420,21 +421,22 @@ func NewInteractiveModel(commands []SlashCommand, provider, model string) Intera
 	}
 
 	return InteractiveModel{
-		textarea:     ta,
-		viewport:     vp,
-		list:         l,
-		help:         help.New(),
-		spinner:      s,
-		keys:         keys,
-		commands:     cmdItems,
-		agents:       availableAgents,
-		agentModels:  agentModels,
-		currentModel: model,
-		currentAgent: provider,
-		messages:     []ChatMessage{{Role: RoleSystem, Content: welcomeMsg}},
-		mode:         ModeChat,
-		showList:     false,
-		thinking:     false,
+		textarea:      ta,
+		viewport:      vp,
+		list:          l,
+		help:          help.New(),
+		spinner:       s,
+		keys:          keys,
+		commands:      cmdItems,
+		agents:        availableAgents,
+		agentModels:   agentModels,
+		currentModel:  model,
+		currentAgent:  provider,
+		messages:      []ChatMessage{{Role: RoleSystem, Content: welcomeMsg}},
+		mode:          ModeChat,
+		showList:      false,
+		thinking:      true,
+		statusMessage: "Initializing Agent...",
 	}
 }
 
@@ -552,15 +554,19 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case AgentReadyMsg:
 		m.activeAgent = msg.Agent
 		// Optional: m.conversation("System: Agent backend ready.", false)
+		m.thinking = false
+		m.statusMessage = ""
 		return m, nil
 
 	case AgentErrorMsg:
 		m.thinking = false
+		m.statusMessage = ""
 		m.conversation(fmt.Sprintf("Error: %v", msg.Err), false)
 		return m, nil
 
 	case AgentResponseMsg:
 		m.thinking = false
+		m.statusMessage = ""
 		m.isStreaming = false
 		// Ensure final render is cached cleanly
 		if len(m.messages) > 0 {
@@ -1168,7 +1174,9 @@ func (m InteractiveModel) View() string {
 	status := ""
 	if m.thinking {
 		text := "Thinking..."
-		if m.mode == ModeShell {
+		if m.statusMessage != "" {
+			text = m.statusMessage
+		} else if m.mode == ModeShell {
 			text = "Executing..."
 		}
 		status = fmt.Sprintf(" %s %s", m.spinner.View(), text)

@@ -162,19 +162,19 @@ func (sm *SessionManager) StartSession(name, goal string, command []string, work
 			execPath = absPath
 		}
 	}
-	
+
 	// Resolve symlinks
 	if resolved, err := filepath.EvalSymlinks(execPath); err == nil {
 		execPath = resolved
 	}
-	
+
 	// Verify executable exists and is accessible
 	if stat, err := os.Stat(execPath); err != nil {
 		return nil, fmt.Errorf("executable not found at %s: %w", execPath, err)
 	} else if stat.Mode()&0111 == 0 {
 		return nil, fmt.Errorf("executable %s is not executable", execPath)
 	}
-	
+
 	cmd := exec.Command(execPath, command[1:]...)
 	cmd.Stdout = logFd
 	cmd.Stderr = logFd
