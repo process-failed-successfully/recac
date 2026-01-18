@@ -419,3 +419,23 @@ func (c *Client) DiffStat(dir, startCommit, endCommit string) (string, error) {
 	}
 	return strings.TrimSpace(out.String()), nil
 }
+
+// Log runs git log with optional arguments and returns the lines of output.
+func (c *Client) Log(dir string, args ...string) ([]string, error) {
+	cmdArgs := append([]string{"log"}, args...)
+	cmd := exec.Command("git", cmdArgs...)
+	cmd.Dir = dir
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("git log failed: %w", err)
+	}
+
+	output := strings.TrimSpace(out.String())
+	if output == "" {
+		return []string{}, nil
+	}
+	return strings.Split(output, "\n"), nil
+}

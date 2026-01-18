@@ -33,4 +33,7 @@ type IGitClient interface {
 	CurrentCommitSHA(repoPath string) (string, error)
 	RepoExists(repoPath string) bool
 	Commit(repoPath, message string) error
+	Log(repoPath string, args ...string) ([]string, error)
+	CurrentBranch(repoPath string) (string, error)
+	CheckoutNewBranch(repoPath, branch string) error
 }
