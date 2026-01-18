@@ -966,271 +966,26 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		// Handle Lifecycle Role Transitions (Agent-QA-Manager-Cleaner workflow)
 		// Prioritize these checks at the beginning of the iteration
 		if s.hasSignal("PROJECT_SIGNED_OFF") {
-			// MERGE GUARDRAIL: Check for upstream conflicts before accepting sign-off
-			if s.BaseBranch != "" {
-				s.Logger.Info("checking for upstream changes", "branch", s.BaseBranch)
-
-				// Git Recovery/Retry Loop
-				maxRetries := 3
-				gitClient := git.NewClient()
-				success := false
-
-				for i := 0; i < maxRetries; i++ {
-					// 1. Fix Permissions
-					if err := s.fixPermissions(ctx); err != nil {
-						fmt.Printf("Warning: Failed to fix permissions (attempt %d/%d): %v\n", i+1, maxRetries, err)
-					}
-
-					// 2. Fetch
-					if err := gitClient.Fetch(s.Workspace, "origin", s.BaseBranch); err == nil {
-						// Stash (ignore errors)
-						_ = gitClient.Stash(s.Workspace)
-
-						// 3. Attempt Merge
-						if err := gitClient.Merge(s.Workspace, "origin/"+s.BaseBranch); err != nil {
-							s.Logger.Warn("merge failed", "attempt", i+1, "max", maxRetries, "error", err)
-
-							// ENSURE WE ABORT to clear unmerged files
-							_ = gitClient.AbortMerge(s.Workspace)
-
-							// RECOVERY STRATEGIES
-							if i < maxRetries-1 {
-								s.Logger.Info("attempting git recovery")
-
-								// Recovery Step 1: Remove Locks
-								if err := gitClient.Recover(s.Workspace); err != nil {
-									s.Logger.Warn("recover failed", "error", err)
-								}
-
-								// Recovery Step 2: Clean aggressively
-								if err := gitClient.Clean(s.Workspace); err != nil {
-									s.Logger.Warn("clean failed", "error", err)
-								}
-
-								// Recovery Step 3: Hard Reset to origin/current_feature_branch
-								// This is safer than just 'reset --hard' without target
-								cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
-								cmd.Dir = s.Workspace
-								if out, err := cmd.Output(); err == nil {
-									currBranch := strings.TrimSpace(string(out))
-									_ = gitClient.ResetHard(s.Workspace, "origin", currBranch)
-								}
-							} else {
-								// Final Failure
-								s.Logger.Error("critical merge failure", "branch", s.BaseBranch, "attempts", maxRetries)
-							}
-						} else {
-							// Success
-							success = true
-							if err := gitClient.StashPop(s.Workspace); err != nil {
-								s.Logger.Warn("restore stash failed", "error", err)
-							}
-							s.Logger.Info("branch up-to-date with base")
-							break
-						}
-					} else {
-						s.Logger.Warn("fetch failed", "attempt", i+1, "max", maxRetries, "error", err)
-						gitClient.Recover(s.Workspace) // Try recovering for next loop
-					}
-					time.Sleep(2 * time.Second)
-				}
-
-				if !success {
-					s.Logger.Warn("merge conflict or persistent git error, revoking sign-off", "branch", s.BaseBranch)
-
-					// BRUTAL RECOVERY: If standard recovery fails, delete remote feature branch
-					// and let the agent start clean on next iteration.
-					if s.JiraTicketID != "" {
-						cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
-						cmd.Dir = s.Workspace
-						if out, err := cmd.Output(); err == nil {
-							featureBranch := strings.TrimSpace(string(out))
-							if featureBranch != s.BaseBranch && !strings.Contains(featureBranch, "HEAD") {
-								fmt.Printf("[%s] BRUTAL RECOVERY: Deleting remote branch %s to clear conflict.\n", s.JiraTicketID, featureBranch)
-								_ = gitClient.DeleteRemoteBranch(s.Workspace, "origin", featureBranch)
-							}
-						}
-						// Hard reset to base branch state to ensures clean slate
-						fmt.Printf("[%s] Resetting workspace to %s...\n", s.JiraTicketID, s.BaseBranch)
-						_ = gitClient.ResetHard(s.Workspace, "origin", s.BaseBranch)
-					}
-
-					s.clearSignal("PROJECT_SIGNED_OFF")
-					s.EnsureConflictTask()
-					s.clearSignal("QA_PASSED")
-					s.clearSignal("COMPLETED")
-					continue
-				}
+			result, err := s.handleProjectSignOff(ctx)
+			if err != nil {
+				return err
 			}
-
-			// CRITICAL: Guardrail against premature sign-off.
-			// Validate that ALL features are actually passing before accepting the sign-off.
-			features := s.loadFeatures()
-			incompleteFeatures := []string{}
-			for _, f := range features {
-				if !(f.Passes || f.Status == "done" || f.Status == "implemented") {
-					incompleteFeatures = append(incompleteFeatures, f.ID)
-				}
-			}
-
-			if len(incompleteFeatures) > 0 {
-
-				s.Logger.Warn("premature project sign-off detected", "incomplete_features", incompleteFeatures)
-
-				// Revoke signal
-				s.clearSignal("PROJECT_SIGNED_OFF")
-				// Also clear QA_PASSED to force re-verification
-				s.clearSignal("QA_PASSED")
-				// Also clear COMPLETED to force re-check
-				s.clearSignal("COMPLETED")
-
-				s.Logger.Info("returning to coding phase")
+			if result == "continue" {
 				continue
 			}
-
-			if s.SelectedTaskID != "" {
-				fmt.Println("Project signed off. Sub-session exiting.")
+			if result == "return" {
 				return nil
 			}
-
-			// Auto-Merge Logic
-			if s.AutoMerge && s.BaseBranch != "" {
-				fmt.Printf("Auto-Merge enabled. Preparing to merge changes into base branch: %s\n", s.BaseBranch)
-
-				// 0. COMMIT WORK: Ensure any pending changes are committed before merging
-				// We use a more careful commit strategy to avoid re-adding ignored files
-				commitCmd := exec.Command("sh", "-c", "git add . && git commit -m 'feat: implemented features for "+s.Project+"' || echo 'Nothing to commit'")
-				commitCmd.Dir = s.Workspace
-				if out, err := commitCmd.CombinedOutput(); err != nil {
-					fmt.Printf("Warning: Failed to auto-commit work: %v\nOutput: %s\n", err, out)
-				} else {
-					fmt.Printf("Auto-committed work: %s\n", strings.TrimSpace(string(out)))
-				}
-
-				fmt.Printf("Merging changes into base branch: %s\n", s.BaseBranch)
-				gitClient := git.NewClient()
-				// Actually, we are IN the workspace, so we can get current branch name
-				// But simpler: checkout BaseBranch -> Merge Previous -> Push
-
-				// 1. Get current branch name
-				cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
-				cmd.Dir = s.Workspace
-				out, err := cmd.Output()
-				if err != nil {
-					fmt.Printf("Warning: Failed to get current branch for auto-merge: %v\n", err)
-				} else {
-					featureBranch := strings.TrimSpace(string(out))
-
-					// 2. Checkout Base Branch
-					if err := gitClient.Checkout(s.Workspace, s.BaseBranch); err != nil {
-						fmt.Printf("Warning: Auto-merge failed (checkout base): %v\n", err)
-					} else {
-						// 3. Merge Feature Branch
-						if err := gitClient.Merge(s.Workspace, featureBranch); err != nil {
-							fmt.Printf("Warning: Auto-merge failed (merge): %v\n", err)
-							// ENSURE WE ABORT
-							_ = gitClient.AbortMerge(s.Workspace)
-							_ = gitClient.Recover(s.Workspace)
-						} else {
-							// 4. Push Base Branch
-							if err := gitClient.Push(s.Workspace, s.BaseBranch); err != nil {
-								fmt.Printf("Warning: Auto-merge failed (push): %v\n", err)
-								// If push fails (likely race), abort the merge locally too so we can retry from clean state
-								_ = gitClient.AbortMerge(s.Workspace)
-							} else {
-								fmt.Printf("Successfully auto-merged %s into %s and pushed.\n", featureBranch, s.BaseBranch)
-
-								// DELETE REMOTE FEATURE BRANCH (Cleanup)
-								// This keeps the repo clean and prevents branch accumulation
-								fmt.Printf("[%s] Deleting remote feature branch %s...\n", s.Project, featureBranch)
-								if err := gitClient.DeleteRemoteBranch(s.Workspace, "origin", featureBranch); err != nil {
-									fmt.Printf("[%s] Warning: Failed to delete remote branch: %v\n", s.Project, err)
-								}
-
-								// 6. Capture Commit SHA for links
-								commitSHA := ""
-								shaCmd := exec.Command("git", "rev-parse", "HEAD")
-								shaCmd.Dir = s.Workspace
-								if shaOut, err := shaCmd.Output(); err == nil {
-									commitSHA = strings.TrimSpace(string(shaOut))
-								}
-
-								// 7. Transition Jira and notify with commit link
-								gitLink := s.RepoURL
-								if commitSHA != "" {
-									gitLink = fmt.Sprintf("%s/commit/%s", s.RepoURL, commitSHA)
-								}
-								s.completeJiraTicket(ctx, gitLink)
-							}
-						}
-						// 5. Checkout back to feature branch (nice to have)
-						_ = gitClient.Checkout(s.Workspace, featureBranch)
-					}
-				}
-			} else {
-				// No auto-merge or no base branch. Just push the feature branch and complete.
-				cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
-				cmd.Dir = s.Workspace
-				if out, err := cmd.Output(); err == nil {
-					featureBranch := strings.TrimSpace(string(out))
-					// Push current branch
-					gitClient := git.NewClient()
-					if err := gitClient.Push(s.Workspace, featureBranch); err == nil {
-						gitLink := fmt.Sprintf("%s/tree/%s", s.RepoURL, featureBranch)
-						s.completeJiraTicket(ctx, gitLink)
-					}
-				}
-			}
-
-			s.Logger.Info("project signed off, running cleaner agent")
-			if err := s.runCleanerAgent(ctx); err != nil {
-				s.Logger.Error("cleaner agent error", "error", err)
-			}
-			s.Logger.Info("cleaner agent complete, session finished")
-			return nil
 		}
 
 		// Global Lifecycle Transitions (QA/Manager) - Main Session Only
 		if s.SelectedTaskID == "" {
-			if s.hasSignal("QA_PASSED") {
-				fmt.Println("QA passed. Running Manager agent for final review...")
-				if err := s.runManagerAgent(ctx); err != nil {
-					fmt.Printf("Manager agent error: %v\n", err)
-					fmt.Println("Manager review failed. Returning to coding phase.")
-				} else {
-					// Manager approved - create PROJECT_SIGNED_OFF
-					if err := s.createSignal("PROJECT_SIGNED_OFF"); err != nil {
-						fmt.Printf("Warning: Failed to create PROJECT_SIGNED_OFF: %v\n", err)
-					}
-					fmt.Println("Manager approved. Project signed off.")
-					s.Notifier.Notify(ctx, notify.EventSuccess, fmt.Sprintf("Project %s Signed Off by Manager!", s.Project), s.GetSlackThreadTS())
-					continue // Next iteration will run Cleaner
-				}
+			result, err := s.handleGlobalLifecycle(ctx)
+			if err != nil {
+				return err
 			}
-
-			if s.hasSignal("COMPLETED") {
-				// Skip QA if requested (useful for smoketests/verification)
-				if s.SkipQA {
-					fmt.Println("SkipQA enabled. Bypassing QA agent and Manager review.")
-					s.createSignal("PROJECT_SIGNED_OFF")
-					s.clearSignal("COMPLETED")
-					continue
-				}
-
-				fmt.Println("Project marked as COMPLETED. Running QA agent...")
-				if err := s.runQAAgent(ctx); err != nil {
-					fmt.Printf("QA agent error: %v\n", err)
-					// QA failed - clear COMPLETED and continue coding
-					s.clearSignal("COMPLETED")
-					fmt.Println("QA checks failed. Returning to coding phase.")
-				} else {
-					// QA passed - create QA_PASSED
-					if err := s.createSignal("QA_PASSED"); err != nil {
-						fmt.Printf("Warning: Failed to create QA_PASSED signal: %v\n", err)
-					}
-					fmt.Println("QA checks passed. Moving to Manager review.")
-					continue // Next iteration will run Manager
-				}
+			if result == "continue" {
+				continue
 			}
 		}
 
@@ -1302,6 +1057,275 @@ func (s *Session) RunLoop(ctx context.Context) error {
 
 	s.Logger.Info("session complete")
 	return nil
+}
+
+func (s *Session) handleProjectSignOff(ctx context.Context) (string, error) {
+	// MERGE GUARDRAIL: Check for upstream conflicts before accepting sign-off
+	if s.BaseBranch != "" {
+		s.Logger.Info("checking for upstream changes", "branch", s.BaseBranch)
+
+		// Git Recovery/Retry Loop
+		maxRetries := 3
+		gitClient := git.NewClient()
+		success := false
+
+		for i := 0; i < maxRetries; i++ {
+			// 1. Fix Permissions
+			if err := s.fixPermissions(ctx); err != nil {
+				fmt.Printf("Warning: Failed to fix permissions (attempt %d/%d): %v\n", i+1, maxRetries, err)
+			}
+
+			// 2. Fetch
+			if err := gitClient.Fetch(s.Workspace, "origin", s.BaseBranch); err == nil {
+				// Stash (ignore errors)
+				_ = gitClient.Stash(s.Workspace)
+
+				// 3. Attempt Merge
+				if err := gitClient.Merge(s.Workspace, "origin/"+s.BaseBranch); err != nil {
+					s.Logger.Warn("merge failed", "attempt", i+1, "max", maxRetries, "error", err)
+
+					// ENSURE WE ABORT to clear unmerged files
+					_ = gitClient.AbortMerge(s.Workspace)
+
+					// RECOVERY STRATEGIES
+					if i < maxRetries-1 {
+						s.Logger.Info("attempting git recovery")
+
+						// Recovery Step 1: Remove Locks
+						if err := gitClient.Recover(s.Workspace); err != nil {
+							s.Logger.Warn("recover failed", "error", err)
+						}
+
+						// Recovery Step 2: Clean aggressively
+						if err := gitClient.Clean(s.Workspace); err != nil {
+							s.Logger.Warn("clean failed", "error", err)
+						}
+
+						// Recovery Step 3: Hard Reset to origin/current_feature_branch
+						// This is safer than just 'reset --hard' without target
+						cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+						cmd.Dir = s.Workspace
+						if out, err := cmd.Output(); err == nil {
+							currBranch := strings.TrimSpace(string(out))
+							_ = gitClient.ResetHard(s.Workspace, "origin", currBranch)
+						}
+					} else {
+						// Final Failure
+						s.Logger.Error("critical merge failure", "branch", s.BaseBranch, "attempts", maxRetries)
+					}
+				} else {
+					// Success
+					success = true
+					if err := gitClient.StashPop(s.Workspace); err != nil {
+						s.Logger.Warn("restore stash failed", "error", err)
+					}
+					s.Logger.Info("branch up-to-date with base")
+					break
+				}
+			} else {
+				s.Logger.Warn("fetch failed", "attempt", i+1, "max", maxRetries, "error", err)
+				gitClient.Recover(s.Workspace) // Try recovering for next loop
+			}
+			time.Sleep(2 * time.Second)
+		}
+
+		if !success {
+			s.Logger.Warn("merge conflict or persistent git error, revoking sign-off", "branch", s.BaseBranch)
+
+			// BRUTAL RECOVERY: If standard recovery fails, delete remote feature branch
+			// and let the agent start clean on next iteration.
+			if s.JiraTicketID != "" {
+				cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+				cmd.Dir = s.Workspace
+				if out, err := cmd.Output(); err == nil {
+					featureBranch := strings.TrimSpace(string(out))
+					if featureBranch != s.BaseBranch && !strings.Contains(featureBranch, "HEAD") {
+						fmt.Printf("[%s] BRUTAL RECOVERY: Deleting remote branch %s to clear conflict.\n", s.JiraTicketID, featureBranch)
+						_ = gitClient.DeleteRemoteBranch(s.Workspace, "origin", featureBranch)
+					}
+				}
+				// Hard reset to base branch state to ensures clean slate
+				fmt.Printf("[%s] Resetting workspace to %s...\n", s.JiraTicketID, s.BaseBranch)
+				_ = gitClient.ResetHard(s.Workspace, "origin", s.BaseBranch)
+			}
+
+			s.clearSignal("PROJECT_SIGNED_OFF")
+			s.EnsureConflictTask()
+			s.clearSignal("QA_PASSED")
+			s.clearSignal("COMPLETED")
+			return "continue", nil
+		}
+	}
+
+	// CRITICAL: Guardrail against premature sign-off.
+	// Validate that ALL features are actually passing before accepting the sign-off.
+	features := s.loadFeatures()
+	incompleteFeatures := []string{}
+	for _, f := range features {
+		if !(f.Passes || f.Status == "done" || f.Status == "implemented") {
+			incompleteFeatures = append(incompleteFeatures, f.ID)
+		}
+	}
+
+	if len(incompleteFeatures) > 0 {
+
+		s.Logger.Warn("premature project sign-off detected", "incomplete_features", incompleteFeatures)
+
+		// Revoke signal
+		s.clearSignal("PROJECT_SIGNED_OFF")
+		// Also clear QA_PASSED to force re-verification
+		s.clearSignal("QA_PASSED")
+		// Also clear COMPLETED to force re-check
+		s.clearSignal("COMPLETED")
+
+		s.Logger.Info("returning to coding phase")
+		return "continue", nil
+	}
+
+	if s.SelectedTaskID != "" {
+		fmt.Println("Project signed off. Sub-session exiting.")
+		return "return", nil
+	}
+
+	// Auto-Merge Logic
+	if s.AutoMerge && s.BaseBranch != "" {
+		fmt.Printf("Auto-Merge enabled. Preparing to merge changes into base branch: %s\n", s.BaseBranch)
+
+		// 0. COMMIT WORK: Ensure any pending changes are committed before merging
+		// We use a more careful commit strategy to avoid re-adding ignored files
+		commitCmd := exec.Command("sh", "-c", "git add . && git commit -m 'feat: implemented features for "+s.Project+"' || echo 'Nothing to commit'")
+		commitCmd.Dir = s.Workspace
+		if out, err := commitCmd.CombinedOutput(); err != nil {
+			fmt.Printf("Warning: Failed to auto-commit work: %v\nOutput: %s\n", err, out)
+		} else {
+			fmt.Printf("Auto-committed work: %s\n", strings.TrimSpace(string(out)))
+		}
+
+		fmt.Printf("Merging changes into base branch: %s\n", s.BaseBranch)
+		gitClient := git.NewClient()
+		// Actually, we are IN the workspace, so we can get current branch name
+		// But simpler: checkout BaseBranch -> Merge Previous -> Push
+
+		// 1. Get current branch name
+		cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+		cmd.Dir = s.Workspace
+		out, err := cmd.Output()
+		if err != nil {
+			fmt.Printf("Warning: Failed to get current branch for auto-merge: %v\n", err)
+		} else {
+			featureBranch := strings.TrimSpace(string(out))
+
+			// 2. Checkout Base Branch
+			if err := gitClient.Checkout(s.Workspace, s.BaseBranch); err != nil {
+				fmt.Printf("Warning: Auto-merge failed (checkout base): %v\n", err)
+			} else {
+				// 3. Merge Feature Branch
+				if err := gitClient.Merge(s.Workspace, featureBranch); err != nil {
+					fmt.Printf("Warning: Auto-merge failed (merge): %v\n", err)
+					// ENSURE WE ABORT
+					_ = gitClient.AbortMerge(s.Workspace)
+					_ = gitClient.Recover(s.Workspace)
+				} else {
+					// 4. Push Base Branch
+					if err := gitClient.Push(s.Workspace, s.BaseBranch); err != nil {
+						fmt.Printf("Warning: Auto-merge failed (push): %v\n", err)
+						// If push fails (likely race), abort the merge locally too so we can retry from clean state
+						_ = gitClient.AbortMerge(s.Workspace)
+					} else {
+						fmt.Printf("Successfully auto-merged %s into %s and pushed.\n", featureBranch, s.BaseBranch)
+
+						// DELETE REMOTE FEATURE BRANCH (Cleanup)
+						// This keeps the repo clean and prevents branch accumulation
+						fmt.Printf("[%s] Deleting remote feature branch %s...\n", s.Project, featureBranch)
+						if err := gitClient.DeleteRemoteBranch(s.Workspace, "origin", featureBranch); err != nil {
+							fmt.Printf("[%s] Warning: Failed to delete remote branch: %v\n", s.Project, err)
+						}
+
+						// 6. Capture Commit SHA for links
+						commitSHA := ""
+						shaCmd := exec.Command("git", "rev-parse", "HEAD")
+						shaCmd.Dir = s.Workspace
+						if shaOut, err := shaCmd.Output(); err == nil {
+							commitSHA = strings.TrimSpace(string(shaOut))
+						}
+
+						// 7. Transition Jira and notify with commit link
+						gitLink := s.RepoURL
+						if commitSHA != "" {
+							gitLink = fmt.Sprintf("%s/commit/%s", s.RepoURL, commitSHA)
+						}
+						s.completeJiraTicket(ctx, gitLink)
+					}
+				}
+				// 5. Checkout back to feature branch (nice to have)
+				_ = gitClient.Checkout(s.Workspace, featureBranch)
+			}
+		}
+	} else {
+		// No auto-merge or no base branch. Just push the feature branch and complete.
+		cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+		cmd.Dir = s.Workspace
+		if out, err := cmd.Output(); err == nil {
+			featureBranch := strings.TrimSpace(string(out))
+			// Push current branch
+			gitClient := git.NewClient()
+			if err := gitClient.Push(s.Workspace, featureBranch); err == nil {
+				gitLink := fmt.Sprintf("%s/tree/%s", s.RepoURL, featureBranch)
+				s.completeJiraTicket(ctx, gitLink)
+			}
+		}
+	}
+
+	s.Logger.Info("project signed off, running cleaner agent")
+	if err := s.runCleanerAgent(ctx); err != nil {
+		s.Logger.Error("cleaner agent error", "error", err)
+	}
+	s.Logger.Info("cleaner agent complete, session finished")
+	return "return", nil
+}
+
+func (s *Session) handleGlobalLifecycle(ctx context.Context) (string, error) {
+	if s.hasSignal("QA_PASSED") {
+		fmt.Println("QA passed. Running Manager agent for final review...")
+		if err := s.runManagerAgent(ctx); err != nil {
+			fmt.Printf("Manager agent error: %v\n", err)
+			fmt.Println("Manager review failed. Returning to coding phase.")
+		} else {
+			// Manager approved - create PROJECT_SIGNED_OFF
+			if err := s.createSignal("PROJECT_SIGNED_OFF"); err != nil {
+				fmt.Printf("Warning: Failed to create PROJECT_SIGNED_OFF: %v\n", err)
+			}
+			fmt.Println("Manager approved. Project signed off.")
+			s.Notifier.Notify(ctx, notify.EventSuccess, fmt.Sprintf("Project %s Signed Off by Manager!", s.Project), s.GetSlackThreadTS())
+			return "continue", nil // Next iteration will run Cleaner
+		}
+	}
+
+	if s.hasSignal("COMPLETED") {
+		// Skip QA if requested (useful for smoketests/verification)
+		if s.SkipQA {
+			fmt.Println("SkipQA enabled. Bypassing QA agent and Manager review.")
+			s.createSignal("PROJECT_SIGNED_OFF")
+			s.clearSignal("COMPLETED")
+			return "continue", nil
+		}
+
+		fmt.Println("Project marked as COMPLETED. Running QA agent...")
+		if err := s.runQAAgent(ctx); err != nil {
+			fmt.Printf("QA agent error: %v\n", err)
+			// QA failed - clear COMPLETED and continue coding
+			s.clearSignal("COMPLETED")
+			fmt.Println("QA checks failed. Returning to coding phase.")
+		} else {
+			// QA passed - create QA_PASSED
+			if err := s.createSignal("QA_PASSED"); err != nil {
+				fmt.Printf("Warning: Failed to create QA_PASSED signal: %v\n", err)
+			}
+			fmt.Println("QA checks passed. Moving to Manager review.")
+			return "continue", nil // Next iteration will run Manager
+		}
+	}
+	return "", nil
 }
 
 // RunIteration executes a single turn of the autonomous agent.

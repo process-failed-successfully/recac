@@ -15,12 +15,12 @@ func TestSlackNotifier_Notify(t *testing.T) {
 		if r.Method != "POST" {
 			t.Errorf("expected POST request, got %s", r.Method)
 		}
-		
+
 		var payload map[string]string
 		body, _ := io.ReadAll(r.Body)
 		json.Unmarshal(body, &payload)
 		receivedMessage = payload["text"]
-		
+
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
@@ -47,7 +47,7 @@ func TestSlackNotifier_Notify_Error(t *testing.T) {
 
 	notifier := NewSlackNotifier(server.URL)
 	ctx := context.Background()
-	
+
 	err := notifier.Notify(ctx, "test")
 	if err == nil {
 		t.Error("expected error for non-OK status code, got nil")

@@ -72,18 +72,18 @@ type CostAnalysis struct {
 
 // ModelCost aggregates cost and token data for a specific model.
 type ModelCost struct {
-	Name              string
-	TotalTokens       int
-	TotalPromptTokens int
+	Name                string
+	TotalTokens         int
+	TotalPromptTokens   int
 	TotalResponseTokens int
-	TotalCost         float64
+	TotalCost           float64
 }
 
 // SessionCost holds cost data for a single session.
 type SessionCost struct {
-	Name      string
-	Model     string
-	Cost      float64
+	Name        string
+	Model       string
+	Cost        float64
 	TotalTokens int
 }
 
@@ -127,9 +127,9 @@ func analyzeSessionCosts(sessions []*runner.SessionState, limit int) (*CostAnaly
 
 		// Store session cost for sorting later
 		sessionCosts = append(sessionCosts, &SessionCost{
-			Name:      session.Name,
-			Model:     agentState.Model,
-			Cost:      cost,
+			Name:        session.Name,
+			Model:       agentState.Model,
+			Cost:        cost,
 			TotalTokens: agentState.TokenUsage.TotalTokens,
 		})
 	}
