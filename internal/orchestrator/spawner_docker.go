@@ -46,17 +46,9 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		return fmt.Errorf("failed to create temp workspace: %w", err)
 	}
 
-	// 2. Clone the repository into the workspace
-	if err := s.GitClient.Clone(ctx, item.RepoURL, tempDir); err != nil {
-		os.RemoveAll(tempDir)
-		return fmt.Errorf("failed to clone repository: %w", err)
-	}
-
-	// 3. Get the starting commit SHA
-	startSHA, err := s.GitClient.CurrentCommitSHA(tempDir)
-	if err != nil {
-		s.Logger.Warn("could not get start commit SHA", "workspace", tempDir, "error", err)
-	}
+	// 2. Prepare workspace mounts
+	// We no longer clone here (Host). We delegate cloning to the Agent (Container).
+	// This ensures consistency with K8s and reduces host dependency.
 
 	// Mounts
 	binds := []string{
@@ -64,7 +56,7 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		"/var/run/docker.sock:/var/run/docker.sock", // Enable DinD for agent
 	}
 
-	s.Logger.Info("Spawning agent for item", "id", item.ID, "workspace", tempDir, "start_sha", startSHA)
+	s.Logger.Info("Spawning agent for item", "id", item.ID, "workspace", tempDir)
 
 	user := ""
 	extraBinds := binds[1:] // only docker sock
@@ -84,6 +76,7 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		"--cleanup=false",
 		"--path", "/workspace",
 		"--verbose",
+		"--repo-url", item.RepoURL, // Delegate cloning
 	}
 
 	session := &runner.SessionState{
@@ -94,7 +87,7 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		Status:         "running",
 		Type:           "orchestrated-docker",
 		AgentStateFile: filepath.Join(tempDir, ".agent_state.json"),
-		StartCommitSHA: startSHA,
+		StartCommitSHA: "", // Unknown at start, populated at end
 	}
 
 	if err := s.SessionManager.SaveSession(session); err != nil {
