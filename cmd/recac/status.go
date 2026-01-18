@@ -53,24 +53,31 @@ var statusCmd = &cobra.Command{
 		watch, _ := cmd.Flags().GetBool("watch")
 		if watch {
 			// Hook up the data fetcher for the TUI
-			ui.GetSessionStatus = func(name string) (*runner.SessionState, *agent.State, error) {
+			ui.GetSessionStatus = func(name string) (*runner.SessionState, *agent.State, string, error) {
 				// Re-instantiate session manager here if needed, or capture 'sm' from closure
 				// 'sm' is safe to use if it's thread-safe or if we use a new instance each time.
 				// However, 'loadAgentState' reads from disk.
 
 				sess, err := sm.LoadSession(name)
 				if err != nil {
-					return nil, nil, err
+					return nil, nil, "", err
 				}
+
+				diffStat, err := sm.GetSessionGitDiffStat(name)
+				if err != nil {
+					// If git fails (e.g. no git repo), just ignore it for the dashboard
+					diffStat = ""
+				}
+
 				st, err := loadAgentState(sess.AgentStateFile)
 				// If state file doesn't exist yet, we can return nil state but valid session
 				if err != nil && errors.Is(err, os.ErrNotExist) {
-					return sess, nil, nil
+					return sess, nil, diffStat, nil
 				}
 				if err != nil {
-					return sess, nil, err
+					return sess, nil, diffStat, err
 				}
-				return sess, st, nil
+				return sess, st, diffStat, nil
 			}
 
 			return ui.StartStatusDashboard(sessionName)
