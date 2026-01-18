@@ -111,6 +111,9 @@ func (s *PostgresStore) migrate() error {
 	_, _ = s.db.Exec(`ALTER TABLE file_locks DROP CONSTRAINT IF EXISTS file_locks_pkey`)
 	_, _ = s.db.Exec(`ALTER TABLE file_locks ADD PRIMARY KEY (project_id, path)`)
 
+	// 3. Performance indexes
+	_, _ = s.db.Exec(`CREATE INDEX IF NOT EXISTS idx_observations_project_created ON observations(project_id, created_at DESC)`)
+
 	return nil
 }
 
