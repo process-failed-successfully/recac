@@ -22,6 +22,7 @@ smoke_test
 .env
 .env.local
 .env.*.local
+/config.yaml
 
 # Docker
 docker-compose.override.yml
@@ -56,6 +57,7 @@ test_projects/*/
 # Temporary files
 tmp/
 temp/
+test_output*.txt
 # Added by RECAC
 
 # RECAC Agent Artifacts
