@@ -26,11 +26,11 @@ func TestStatusDashboardModel_Update(t *testing.T) {
 		},
 	}
 
-	GetSessionStatus = func(name string) (*runner.SessionState, *agent.State, error) {
+	GetSessionStatus = func(name string) (*runner.SessionState, *agent.State, string, error) {
 		if name != sessionName {
-			return nil, nil, errors.New("wrong session name")
+			return nil, nil, "", errors.New("wrong session name")
 		}
-		return mockSession, mockAgentState, nil
+		return mockSession, mockAgentState, "1 file changed", nil
 	}
 
 	// Test Init
@@ -75,6 +75,10 @@ func TestStatusDashboardModel_Update(t *testing.T) {
 		t.Error("Model agentState not updated")
 	}
 
+	if m.gitDiffStat != "1 file changed" {
+		t.Errorf("Expected git diff stat '1 file changed', got '%s'", m.gitDiffStat)
+	}
+
 	// Test View
 	view := m.View()
 	if view == "" {
@@ -86,8 +90,8 @@ func TestStatusDashboardModel_Error(t *testing.T) {
 	m := NewStatusDashboardModel("test-session")
 
 	err := errors.New("fetch error")
-	GetSessionStatus = func(name string) (*runner.SessionState, *agent.State, error) {
-		return nil, nil, err
+	GetSessionStatus = func(name string) (*runner.SessionState, *agent.State, string, error) {
+		return nil, nil, "", err
 	}
 
 	// Trigger update via command execution simulation

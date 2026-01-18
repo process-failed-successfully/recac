@@ -13,7 +13,7 @@ import (
 )
 
 // GetSessionStatusFunc is the signature for the data fetching function
-type GetSessionStatusFunc func(sessionName string) (*runner.SessionState, *agent.State, error)
+type GetSessionStatusFunc func(sessionName string) (*runner.SessionState, *agent.State, string, error)
 
 // GetSessionStatus will be set by the caller in the cmd package
 var GetSessionStatus GetSessionStatusFunc
@@ -22,6 +22,7 @@ type statusDashboardModel struct {
 	sessionName string
 	session     *runner.SessionState
 	agentState  *agent.State
+	gitDiffStat string
 	lastUpdate  time.Time
 	err         error
 	width       int
@@ -30,8 +31,9 @@ type statusDashboardModel struct {
 
 type statusTickMsg time.Time
 type statusRefreshedMsg struct {
-	session    *runner.SessionState
-	agentState *agent.State
+	session     *runner.SessionState
+	agentState  *agent.State
+	gitDiffStat string
 }
 
 var (
@@ -84,6 +86,7 @@ func (m statusDashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case statusRefreshedMsg:
 		m.session = msg.session
 		m.agentState = msg.agentState
+		m.gitDiffStat = msg.gitDiffStat
 		m.lastUpdate = time.Now()
 		return m, nil
 
@@ -113,9 +116,19 @@ func (m statusDashboardModel) View() string {
 	// --- Usage Info ---
 	if m.agentState != nil {
 		s.WriteString(renderUsageInfo(m.agentState))
-		s.WriteString(renderLastActivity(m.agentState, m.width))
 	} else {
 		s.WriteString("\nAgent state not available.\n")
+	}
+
+	// --- Git Changes ---
+	if m.gitDiffStat != "" {
+		s.WriteString(sectionStyle.Render("\n--- Git Changes ---") + "\n")
+		s.WriteString(m.gitDiffStat + "\n")
+	}
+
+	// --- Last Activity ---
+	if m.agentState != nil {
+		s.WriteString(renderLastActivity(m.agentState, m.width))
 	}
 
 	return s.String()
@@ -219,11 +232,11 @@ func refreshStatusCmd(sessionName string) tea.Cmd {
 		if GetSessionStatus == nil {
 			return fmt.Errorf("GetSessionStatus function is not set")
 		}
-		session, state, err := GetSessionStatus(sessionName)
+		session, state, gitDiff, err := GetSessionStatus(sessionName)
 		if err != nil {
 			return err
 		}
-		return statusRefreshedMsg{session: session, agentState: state}
+		return statusRefreshedMsg{session: session, agentState: state, gitDiffStat: gitDiff}
 	}
 }
 
