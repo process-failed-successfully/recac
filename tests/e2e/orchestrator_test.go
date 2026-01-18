@@ -16,6 +16,7 @@ import (
 	"recac/internal/docker"
 	"recac/internal/jira"
 	"recac/internal/orchestrator"
+	"recac/internal/runner"
 
 	"github.com/joho/godotenv"
 )
@@ -41,6 +42,7 @@ func TestOrchestrator_Poller_E2E(t *testing.T) {
 
 	ctx := context.Background()
 	client := jira.NewClient(jiraURL, jiraUser, jiraToken)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	// 2. Create Test Data
 	timestamp := time.Now().Format("20060102150405")
@@ -68,7 +70,7 @@ func TestOrchestrator_Poller_E2E(t *testing.T) {
 
 	// 4. Poll
 	t.Log("Polling for work...")
-	items, err := poller.Poll(ctx)
+	items, err := poller.Poll(ctx, logger)
 	if err != nil {
 		t.Fatalf("Poll failed: %v", err)
 	}
@@ -82,10 +84,13 @@ func TestOrchestrator_Poller_E2E(t *testing.T) {
 		t.Errorf("Expected item ID %s, got %s", key, item.ID)
 	}
 
-	// 5. Claim
-	t.Log("Claiming work...")
-	if err := poller.Claim(ctx, item); err != nil {
-		t.Fatalf("Claim failed: %v", err)
+	// 5. Claim - Removed as Claim is no longer in Poller interface
+	// Instead, we can simulate what would happen, or just verify status update via UpdateStatus if needed.
+	// But simply polling successfully is good enough for this unit test of Poller (except it's E2E).
+	// Let's just update status to mimic claim
+	t.Log("Claiming work (simulated)...")
+	if err := poller.UpdateStatus(ctx, item, "In Progress", "Claimed by E2E test"); err != nil {
+		t.Fatalf("Claim (UpdateStatus) failed: %v", err)
 	}
 
 	// 6. Verify Status Change (In Progress)
@@ -169,11 +174,18 @@ func TestOrchestrator_FullFlow_E2E(t *testing.T) {
 		t.Fatalf("Failed to create docker client: %v", err)
 	}
 
+	// Session Manager
+	tmpDir := t.TempDir()
+	sm, err := runner.NewSessionManagerWithDir(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create session manager: %v", err)
+	}
+
 	// Spawner with explicit provider/model
 	// Assuming OpenAI/GPT-3.5-turbo or similar for speed/cost if available. Or OpenRouter.
 	provider := "openrouter"
 	model := "mistralai/devstral-2512:free"
-	spawner := orchestrator.NewDockerSpawner(logger, dClient, "recac-agent:e2e", poller, provider, model)
+	spawner := orchestrator.NewDockerSpawner(logger, dClient, "recac-agent:e2e", "", poller, provider, model, sm)
 
 	orch := orchestrator.New(poller, spawner, 5*time.Second)
 
