@@ -109,4 +109,16 @@ func TestImproveCmd(t *testing.T) {
 		assert.Contains(t, output, "-	println(\"hello\")")
 		assert.Contains(t, output, "+	fmt.Println(\"hello\")")
 	})
+
+	t.Run("CleanCode extracts from markdown", func(t *testing.T) {
+		markdown := "Here is the code:\n```go\nfunc foo() {}\n```\nHope it helps."
+		cleaned := cleanCode(markdown)
+		assert.Equal(t, "func foo() {}", cleaned)
+	})
+
+	t.Run("CleanCode returns raw if no markdown", func(t *testing.T) {
+		raw := "func foo() {}"
+		cleaned := cleanCode(raw)
+		assert.Equal(t, "func foo() {}", cleaned)
+	})
 }
