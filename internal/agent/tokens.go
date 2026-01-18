@@ -94,7 +94,7 @@ func TruncateToTokenLimit(text string, maxTokens int) string {
 			absoluteNL := scanPos + nextNL
 
 			// Length if we include this line (up to and including newline)
-			if absoluteNL + 1 > maxStartChars {
+			if absoluteNL+1 > maxStartChars {
 				break
 			}
 
@@ -127,7 +127,7 @@ func TruncateToTokenLimit(text string, maxTokens int) string {
 			// If we keep this line, we keep content + newline.
 			// Logic matches `lineChars + 1`.
 
-			if currLen + realLen + 1 > maxEndChars {
+			if currLen+realLen+1 > maxEndChars {
 				break
 			}
 

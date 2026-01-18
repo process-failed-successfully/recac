@@ -20,9 +20,9 @@ func TestNowCommand(t *testing.T) {
 		state := &agent.State{
 			Model: model,
 			TokenUsage: agent.TokenUsage{
-				TotalPromptTokens:  tokens / 2,
+				TotalPromptTokens:   tokens / 2,
 				TotalResponseTokens: tokens / 2,
-				TotalTokens:        tokens,
+				TotalTokens:         tokens,
 			},
 		}
 		content, err := json.Marshal(state)

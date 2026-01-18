@@ -21,10 +21,10 @@ func init() {
 }
 
 var lsCmd = &cobra.Command{
-	Use:     "ls",
-	Short:   "List sessions in a simple, script-friendly format",
-	Long:    `List all active and completed local sessions in a format suitable for scripting and piping.`,
-	Args:    cobra.NoArgs,
+	Use:   "ls",
+	Short: "List sessions in a simple, script-friendly format",
+	Long:  `List all active and completed local sessions in a format suitable for scripting and piping.`,
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		sm, err := sessionManagerFactory()
 		if err != nil {

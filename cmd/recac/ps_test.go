@@ -64,8 +64,8 @@ func TestPsCommandWithStaleFilter(t *testing.T) {
 	sessionStale8d := &runner.SessionState{Name: "session-stale-8d", Status: "completed", StartTime: now.Add(-9 * 24 * time.Hour)}
 
 	// Create corresponding agent states
-	createAgentState(t, sm, sessionActive, now.Add(-5*time.Minute))      // Active 5 mins ago
-	createAgentState(t, sm, sessionStale1d, now.Add(-25*time.Hour))     // Stale for 1 day
+	createAgentState(t, sm, sessionActive, now.Add(-5*time.Minute))   // Active 5 mins ago
+	createAgentState(t, sm, sessionStale1d, now.Add(-25*time.Hour))   // Stale for 1 day
 	createAgentState(t, sm, sessionStale8d, now.Add(-8*24*time.Hour)) // Stale for 8 days
 
 	require.NoError(t, sm.SaveSession(sessionActive))
@@ -180,7 +180,7 @@ func TestPsCmd_NewColumns(t *testing.T) {
 	// Check for new headers
 	assert.Contains(t, output, "LAST USED")
 	assert.Contains(t, output, "GOAL")
-	assert.NotContains(t, output, "STARTED") // Old header should be gone
+	assert.NotContains(t, output, "STARTED")  // Old header should be gone
 	assert.NotContains(t, output, "DURATION") // Old header should be gone
 
 	// Check for new column content
@@ -409,7 +409,7 @@ func TestPsCmdSort(t *testing.T) {
 	}
 
 	// Create mock agent states with different token counts for cost calculation
-	agentStateA := &agent.State{Model: "gemini-pro", TokenUsage: agent.TokenUsage{TotalPromptTokens: 500, TotalResponseTokens: 500, TotalTokens: 1000}}    // Low cost
+	agentStateA := &agent.State{Model: "gemini-pro", TokenUsage: agent.TokenUsage{TotalPromptTokens: 500, TotalResponseTokens: 500, TotalTokens: 1000}}   // Low cost
 	agentStateB := &agent.State{Model: "gemini-pro", TokenUsage: agent.TokenUsage{TotalPromptTokens: 1500, TotalResponseTokens: 1500, TotalTokens: 3000}} // High cost
 	agentStateC := &agent.State{Model: "gemini-pro", TokenUsage: agent.TokenUsage{TotalPromptTokens: 1000, TotalResponseTokens: 1000, TotalTokens: 2000}} // Medium cost
 
@@ -539,46 +539,46 @@ func TestPsCommandWithSinceFilter(t *testing.T) {
 	require.NoError(t, sm.SaveSession(sessionDayOld))
 
 	testCases := []struct {
-		name           string
-		sinceValue     string
-		expectError    bool
+		name              string
+		sinceValue        string
+		expectError       bool
 		expectedToContain []string
-		expectedToOmit  []string
+		expectedToOmit    []string
 	}{
 		{
-			name:           "relative duration '1h'",
-			sinceValue:     "1h",
-			expectError:    false,
+			name:              "relative duration '1h'",
+			sinceValue:        "1h",
+			expectError:       false,
 			expectedToContain: []string{"session-recent"},
-			expectedToOmit:  []string{"session-hour-old", "session-day-old"},
+			expectedToOmit:    []string{"session-hour-old", "session-day-old"},
 		},
 		{
-			name:           "relative duration '3h'",
-			sinceValue:     "3h",
-			expectError:    false,
+			name:              "relative duration '3h'",
+			sinceValue:        "3h",
+			expectError:       false,
 			expectedToContain: []string{"session-recent", "session-hour-old"},
-			expectedToOmit:  []string{"session-day-old"},
+			expectedToOmit:    []string{"session-day-old"},
 		},
 		{
-			name:           "absolute date",
-			sinceValue:     now.Add(-90 * time.Minute).Format("2006-01-02T15:04:05Z07:00"),
-			expectError:    false,
+			name:              "absolute date",
+			sinceValue:        now.Add(-90 * time.Minute).Format("2006-01-02T15:04:05Z07:00"),
+			expectError:       false,
 			expectedToContain: []string{"session-recent"},
-			expectedToOmit:  []string{"session-hour-old", "session-day-old"},
+			expectedToOmit:    []string{"session-hour-old", "session-day-old"},
 		},
 		{
-			name:           "simple absolute date",
-			sinceValue:     now.Add(-3 * time.Hour).Format("2006-01-02"),
-			expectError:    false,
+			name:              "simple absolute date",
+			sinceValue:        now.Add(-3 * time.Hour).Format("2006-01-02"),
+			expectError:       false,
 			expectedToContain: []string{"session-recent", "session-hour-old"},
-			expectedToOmit:  []string{"session-day-old"},
+			expectedToOmit:    []string{"session-day-old"},
 		},
 		{
-			name:           "no sessions match",
-			sinceValue:     "1m",
-			expectError:    false,
+			name:              "no sessions match",
+			sinceValue:        "1m",
+			expectError:       false,
 			expectedToContain: []string{"No sessions found."},
-			expectedToOmit:  []string{"session-recent", "session-hour-old", "session-day-old"},
+			expectedToOmit:    []string{"session-recent", "session-hour-old", "session-day-old"},
 		},
 		{
 			name:        "invalid since value",

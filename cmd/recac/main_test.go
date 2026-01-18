@@ -17,7 +17,7 @@ func TestMain_HappyPath(t *testing.T) {
 	// We can't really call main() directly because it calls exit(1) on panic-recover or implicitly exits.
 	// But `Execute()` is blocking until command is done.
 	// If we run `recac --help`, it should exit 0.
-	
+
 	if os.Getenv("TEST_RUN_MAIN") == "1" {
 		// Mock os.Args
 		os.Args = []string{"recac", "--help"}

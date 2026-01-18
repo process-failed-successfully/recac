@@ -13,7 +13,7 @@ import (
 var rollbackCmd = &cobra.Command{
 	Use:   "rollback [session-name]",
 	Short: "Rollback to a previous agent iteration",
-	Long:  `Reverts the repository and agent state to a previous iteration checkpoint.
+	Long: `Reverts the repository and agent state to a previous iteration checkpoint.
 It searches for git commits created by the agent ("chore: progress update") and allows you to reset the workspace to that point.
 This is a destructive action for any changes made after the selected checkpoint.`,
 	RunE: func(cmd *cobra.Command, args []string) error {

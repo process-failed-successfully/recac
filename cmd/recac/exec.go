@@ -23,7 +23,6 @@ type DockerExecClient interface {
 	ExecInteractive(ctx context.Context, containerID string, cmd []string) error
 }
 
-
 var execCmd = &cobra.Command{
 	Use:   "exec [session-name] [command...]",
 	Short: "Execute a command in a running session's container",
