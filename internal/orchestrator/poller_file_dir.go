@@ -11,7 +11,7 @@ import (
 
 // FileDirPoller reads work items from individual JSON files in a directory.
 type FileDirPoller struct {
-	watchDir    string
+	watchDir     string
 	processedDir string
 }
 
@@ -22,7 +22,7 @@ func NewFileDirPoller(watchDir string) (*FileDirPoller, error) {
 	}
 
 	return &FileDirPoller{
-		watchDir:    watchDir,
+		watchDir:     watchDir,
 		processedDir: processedDir,
 	}, nil
 }

@@ -85,13 +85,29 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 	ctx := context.Background()
 
 	// Mock expectations
-	mockGit.On("Clone", ctx, item.RepoURL, mock.AnythingOfType("string")).Return(nil)
-	mockGit.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("startsha", nil).Once()
+	// Note: Clone and first CurrentCommitSHA are REMOVED as they are now delegated to Agent
+
 	mockDocker.On("RunContainer", ctx, "test-image", mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
-	mockSM.On("SaveSession", mock.AnythingOfType("*runner.SessionState")).Return(nil)
+
+	// Verify SaveSession receives session with repo-url
+	mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		hasRepoURL := false
+		for _, arg := range s.Command {
+			if arg == "--repo-url" {
+				hasRepoURL = true
+				break
+			}
+		}
+		// Also verify StartCommitSHA is empty
+		return hasRepoURL && s.StartCommitSHA == ""
+	})).Return(nil)
+
 	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Return("output", nil)
 	mockSM.On("LoadSession", "TICKET-1").Return(&runner.SessionState{}, nil)
+
+	// This call happens at the END, so it's still there
 	mockGit.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("endsha", nil).Once()
+
 	mockSM.On("SaveSession", mock.AnythingOfType("*runner.SessionState")).Return(nil)
 
 	err := spawner.Spawn(ctx, item)
@@ -106,27 +122,6 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 	mockSM.AssertExpectations(t)
 }
 
-func TestDockerSpawner_Spawn_CloneFails(t *testing.T) {
-	mockDocker := new(MockDockerClient)
-	mockSM := new(MockSessionManager)
-	mockGit := new(MockGitClient)
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	spawner := NewDockerSpawner(logger, mockDocker, "test-image", "test-proj", nil, "", "", mockSM)
-	spawner.GitClient = mockGit
-
-	item := WorkItem{ID: "TICKET-1", RepoURL: "https://github.com/test/repo"}
-	ctx := context.Background()
-	expectedErr := errors.New("clone failed")
-
-	mockGit.On("Clone", ctx, item.RepoURL, mock.AnythingOfType("string")).Return(expectedErr)
-
-	err := spawner.Spawn(ctx, item)
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "clone failed")
-	mockDocker.AssertNotCalled(t, "RunContainer")
-}
-
 func TestDockerSpawner_Spawn_RunContainerFails(t *testing.T) {
 	mockDocker := new(MockDockerClient)
 	mockSM := new(MockSessionManager)
@@ -139,8 +134,7 @@ func TestDockerSpawner_Spawn_RunContainerFails(t *testing.T) {
 	ctx := context.Background()
 	expectedErr := errors.New("run failed")
 
-	mockGit.On("Clone", ctx, item.RepoURL, mock.AnythingOfType("string")).Return(nil)
-	mockGit.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("startsha", nil)
+	// No Clone or StartSHA calls expected
 	mockDocker.On("RunContainer", ctx, "test-image", mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("", expectedErr)
 
 	err := spawner.Spawn(ctx, item)
