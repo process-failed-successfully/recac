@@ -36,6 +36,34 @@ func TestNewInteractiveModel(t *testing.T) {
 	}
 }
 
+func TestInteractiveModel_InitializationUX(t *testing.T) {
+	// 1. Initialize
+	m := NewInteractiveModel(nil, "", "")
+
+	// Post-fix check: Expecting status message and thinking=true
+
+	if !m.thinking {
+		t.Error("UX: Expected agent to start in 'thinking' state during initialization to show spinner")
+	}
+
+	if m.statusMessage != "Initializing Agent..." {
+		t.Errorf("UX: Expected status message to be 'Initializing Agent...', got '%s'", m.statusMessage)
+	}
+
+	// 2. Simulate AgentReadyMsg
+	msg := AgentReadyMsg{}
+	updatedM, _ := m.Update(msg)
+	m = updatedM.(InteractiveModel)
+
+	if m.thinking {
+		t.Error("UX: Expected 'thinking' to be false after agent is ready")
+	}
+
+	if m.statusMessage != "" {
+		t.Errorf("UX: Expected status message to be cleared after agent ready, got '%s'", m.statusMessage)
+	}
+}
+
 func TestInteractiveModel_Update_ModeSwitching(t *testing.T) {
 	m := NewInteractiveModel(nil, "", "")
 
@@ -343,6 +371,10 @@ func TestInteractiveModel_ShellExecution(t *testing.T) {
 
 func TestInteractiveModel_Conversation(t *testing.T) {
 	m := NewInteractiveModel(nil, "", "")
+	// Simulate agent ready to ensure normal chat behavior (not system status)
+	m.thinking = false
+	m.statusMessage = ""
+
 	m.conversation("User Msg", true)
 	if len(m.messages) <= 1 {
 		t.Error("Messages should store user msg")
