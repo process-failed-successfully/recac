@@ -13,13 +13,14 @@ func init() {
 }
 
 var featureCmd = &cobra.Command{
-	Use:   "feature",
-	Short: "Manage features",
+	Use:     "feature",
+	Short:   "Manage features",
+	Aliases: []string{"task", "tasks"},
 }
 
 var featureStartCmd = &cobra.Command{
 	Use:   "start [name]",
-	Short: "Start a new feature",
+	Short: "Start a new feature branch",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
