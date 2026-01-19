@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 
+	"recac/internal/utils"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -64,7 +66,7 @@ Changes:
 				return fmt.Errorf("failed to generate commit message: %w", err)
 			}
 
-			msg = cleanCode(msg)
+			msg = utils.CleanCodeBlock(msg)
 
 			fmt.Fprintln(cmd.OutOrStdout(), "Generated Commit Message:")
 			fmt.Fprintln(cmd.OutOrStdout(), "-------------------------")

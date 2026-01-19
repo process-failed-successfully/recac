@@ -49,29 +49,39 @@ func (m *MockGitClientCommit) Commit(dir, message string) error {
 
 // Stub other methods
 func (m *MockGitClientCommit) Clone(ctx context.Context, repoURL, directory string) error { return nil }
-func (m *MockGitClientCommit) Config(directory, key, value string) error { return nil }
-func (m *MockGitClientCommit) ConfigAddGlobal(key, value string) error { return nil }
-func (m *MockGitClientCommit) RemoteBranchExists(directory, remote, branch string) (bool, error) { return false, nil }
-func (m *MockGitClientCommit) Fetch(directory, remote, branch string) error { return nil }
-func (m *MockGitClientCommit) Checkout(directory, branch string) error { return nil }
-func (m *MockGitClientCommit) Push(directory, branch string) error { return nil }
-func (m *MockGitClientCommit) Pull(directory, remote, branch string) error { return nil }
-func (m *MockGitClientCommit) Stash(directory string) error { return nil }
-func (m *MockGitClientCommit) Merge(directory, branchName string) error { return nil }
-func (m *MockGitClientCommit) AbortMerge(directory string) error { return nil }
-func (m *MockGitClientCommit) Recover(directory string) error { return nil }
-func (m *MockGitClientCommit) Clean(directory string) error { return nil }
-func (m *MockGitClientCommit) ResetHard(directory, remote, branch string) error { return nil }
-func (m *MockGitClientCommit) StashPop(directory string) error { return nil }
+func (m *MockGitClientCommit) Config(directory, key, value string) error                  { return nil }
+func (m *MockGitClientCommit) ConfigAddGlobal(key, value string) error                    { return nil }
+func (m *MockGitClientCommit) RemoteBranchExists(directory, remote, branch string) (bool, error) {
+	return false, nil
+}
+func (m *MockGitClientCommit) Fetch(directory, remote, branch string) error              { return nil }
+func (m *MockGitClientCommit) Checkout(directory, branch string) error                   { return nil }
+func (m *MockGitClientCommit) Push(directory, branch string) error                       { return nil }
+func (m *MockGitClientCommit) Pull(directory, remote, branch string) error               { return nil }
+func (m *MockGitClientCommit) Stash(directory string) error                              { return nil }
+func (m *MockGitClientCommit) Merge(directory, branchName string) error                  { return nil }
+func (m *MockGitClientCommit) AbortMerge(directory string) error                         { return nil }
+func (m *MockGitClientCommit) Recover(directory string) error                            { return nil }
+func (m *MockGitClientCommit) Clean(directory string) error                              { return nil }
+func (m *MockGitClientCommit) ResetHard(directory, remote, branch string) error          { return nil }
+func (m *MockGitClientCommit) StashPop(directory string) error                           { return nil }
 func (m *MockGitClientCommit) DeleteRemoteBranch(directory, remote, branch string) error { return nil }
-func (m *MockGitClientCommit) Diff(directory, startCommit, endCommit string) (string, error) { return "", nil }
-func (m *MockGitClientCommit) DiffStat(directory, startCommit, endCommit string) (string, error) { return "", nil }
+func (m *MockGitClientCommit) Diff(directory, startCommit, endCommit string) (string, error) {
+	return "", nil
+}
+func (m *MockGitClientCommit) DiffStat(directory, startCommit, endCommit string) (string, error) {
+	return "", nil
+}
 func (m *MockGitClientCommit) CurrentCommitSHA(directory string) (string, error) { return "", nil }
-func (m *MockGitClientCommit) SetRemoteURL(directory, name, url string) error { return nil }
-func (m *MockGitClientCommit) DeleteLocalBranch(directory, branch string) error { return nil }
-func (m *MockGitClientCommit) LocalBranchExists(directory, branch string) (bool, error) { return false, nil }
-func (m *MockGitClientCommit) Log(directory string, args ...string) ([]string, error) { return []string{}, nil }
-func (m *MockGitClientCommit) CurrentBranch(directory string) (string, error) { return "main", nil }
+func (m *MockGitClientCommit) SetRemoteURL(directory, name, url string) error    { return nil }
+func (m *MockGitClientCommit) DeleteLocalBranch(directory, branch string) error  { return nil }
+func (m *MockGitClientCommit) LocalBranchExists(directory, branch string) (bool, error) {
+	return false, nil
+}
+func (m *MockGitClientCommit) Log(directory string, args ...string) ([]string, error) {
+	return []string{}, nil
+}
+func (m *MockGitClientCommit) CurrentBranch(directory string) (string, error)   { return "main", nil }
 func (m *MockGitClientCommit) CheckoutNewBranch(directory, branch string) error { return nil }
 
 func TestCommitCmd(t *testing.T) {

@@ -177,7 +177,6 @@ func setupSessionManager(t *testing.T) (*SessionManager, func()) {
 	return sm, cleanup
 }
 
-
 func TestSessionManager_Lifecycle(t *testing.T) {
 	// Setup temporary home directory
 	tmpDir, err := os.MkdirTemp("", "recac-test-session")
@@ -261,17 +260,17 @@ func TestSessionManager_Lifecycle(t *testing.T) {
 	// Verify stopped
 	// Wait a bit for process to actually exit if StopSession sends signal
 	time.Sleep(100 * time.Millisecond)
-	
+
 	loaded, _ = sm.LoadSession(sessionName)
 	if loaded.Status != "stopped" && loaded.Status != "completed" {
 		t.Errorf("Expected status stopped/completed, got %s", loaded.Status)
 	}
-	
+
 	if sm.IsProcessRunning(session.PID) {
-		// It might take time to die, or be zombie. 
+		// It might take time to die, or be zombie.
 		// sleep 1 should be done by now anyway or killed.
 		// If it was killed by StopSession, it should be gone.
-		// However, waitpid is needed to reap zombies? 
+		// However, waitpid is needed to reap zombies?
 		// The manager doesn't Wait() on the process.
 		// But StopSession sends signal.
 	}
@@ -280,45 +279,45 @@ func TestSessionManager_Lifecycle(t *testing.T) {
 func TestSessionManager_Persistence(t *testing.T) {
 	tmpDir, _ := os.MkdirTemp("", "recac-test-persist")
 	defer os.RemoveAll(tmpDir)
-	
+
 	originalHome := os.Getenv("HOME")
 	os.Setenv("HOME", tmpDir)
 	defer os.Setenv("HOME", originalHome)
 
 	sm, _ := NewSessionManager()
-	
+
 	session := &SessionState{
-		Name: "persisted-session",
-		PID: 12345,
-		Status: "running",
+		Name:    "persisted-session",
+		PID:     12345,
+		Status:  "running",
 		Command: []string{"/bin/echo", "hello"},
 	}
-	
+
 	if err := sm.SaveSession(session); err != nil {
 		t.Fatalf("Failed to save session: %v", err)
 	}
-	
+
 	loaded, err := sm.LoadSession("persisted-session")
 	if err != nil {
 		t.Fatalf("Failed to load session: %v", err)
 	}
-	
+
 	if loaded.PID != 12345 {
 		t.Errorf("Expected PID 12345, got %d", loaded.PID)
 	}
-	
+
 	// Check ListSessions updates status for non-existent PID
 	// PID 12345 is unlikely to exist or be our child.
 	// Actually IsProcessRunning checks if process exists via Signal(0).
 	// If it doesn't exist, ListSessions should mark it completed.
-	
-	// Assuming PID 12345 doesn't exist (running as non-root, can't signal random PIDs usually, 
+
+	// Assuming PID 12345 doesn't exist (running as non-root, can't signal random PIDs usually,
 	// or if it exists it belongs to another user so Signal(0) might return error EPERM which means it exists?
 	// os.FindProcess always succeeds on Unix. Signal(0) returns error if not exists or no perm.
 	// If no perm, it exists.
-	
+
 	// We'll trust ListSessions logic for now, hard to test robustly without controlling PIDs.
-	
+
 	sessions, _ := sm.ListSessions()
 	if len(sessions) > 0 {
 		s := sessions[0]
@@ -335,15 +334,15 @@ func TestSessionManager_StopSession_NotRunning(t *testing.T) {
 	tmpDir, _ := os.MkdirTemp("", "recac-test-stop")
 	defer os.RemoveAll(tmpDir)
 	os.Setenv("HOME", tmpDir)
-	
+
 	sm, _ := NewSessionManager()
-	
+
 	session := &SessionState{
-		Name: "stopped-session",
+		Name:   "stopped-session",
 		Status: "stopped",
 	}
 	sm.SaveSession(session)
-	
+
 	err := sm.StopSession("stopped-session")
 	if err == nil {
 		t.Error("Expected error stopping already stopped session")
@@ -354,15 +353,15 @@ func TestSessionManager_GetSessionLogs(t *testing.T) {
 	tmpDir, _ := os.MkdirTemp("", "recac-test-logs")
 	defer os.RemoveAll(tmpDir)
 	os.Setenv("HOME", tmpDir)
-	
+
 	sm, _ := NewSessionManager()
-	
+
 	session := &SessionState{
-		Name: "log-session",
+		Name:    "log-session",
 		LogFile: "/tmp/foo.log",
 	}
 	sm.SaveSession(session)
-	
+
 	logPath, err := sm.GetSessionLogs("log-session")
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)

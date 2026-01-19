@@ -41,7 +41,6 @@ func TestExecCmd(t *testing.T) {
 		}
 	}()
 
-
 	// 2. Setup a mock session
 	sessionName := "test-exec-session"
 	sessionState := &runner.SessionState{
