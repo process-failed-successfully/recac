@@ -302,3 +302,66 @@ func TestGeminiClient_IterationIncrementOnError(t *testing.T) {
 		}
 	})
 }
+
+// TestBaseClient_SendStreamWithRetry verifies retry logic for streaming
+func TestBaseClient_SendStreamWithRetry(t *testing.T) {
+	t.Run("RetrySuccess", func(t *testing.T) {
+		calls := 0
+		client := NewBaseClient("test-project", 1000)
+		client.BackoffFn = func(i int) time.Duration { return time.Millisecond }
+
+		sendStreamOnce := func(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+			calls++
+			if calls < 3 {
+				return "", fmt.Errorf("temporary error")
+			}
+			onChunk("part1")
+			onChunk("part2")
+			return "part1part2", nil
+		}
+
+		var chunks []string
+		onChunk := func(c string) {
+			chunks = append(chunks, c)
+		}
+
+		result, err := client.SendStreamWithRetry(context.Background(), "prompt", sendStreamOnce, onChunk)
+		if err != nil {
+			t.Fatalf("expected success, got error: %v", err)
+		}
+
+		if result != "part1part2" {
+			t.Errorf("expected 'part1part2', got %q", result)
+		}
+		if calls != 3 {
+			t.Errorf("expected 3 calls, got %d", calls)
+		}
+		// Expect chunks from the SUCCESSFUL call only.
+		// Since we restart stream on retry, "part1" and "part2" should appear once.
+		if len(chunks) != 2 {
+			t.Errorf("expected 2 chunks, got %d", len(chunks))
+		}
+	})
+
+	t.Run("RetryFailure", func(t *testing.T) {
+		calls := 0
+		client := NewBaseClient("test-project", 1000)
+		client.BackoffFn = func(i int) time.Duration { return time.Millisecond }
+
+		sendStreamOnce := func(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+			calls++
+			return "", fmt.Errorf("persistent error")
+		}
+
+		result, err := client.SendStreamWithRetry(context.Background(), "prompt", sendStreamOnce, func(string) {})
+		if err == nil {
+			t.Error("expected error, got nil")
+		}
+		if result != "" {
+			t.Errorf("expected empty result, got %q", result)
+		}
+		if calls != 4 { // 1 initial + 3 retries
+			t.Errorf("expected 4 calls, got %d", calls)
+		}
+	})
+}
