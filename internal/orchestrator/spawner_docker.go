@@ -112,6 +112,21 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 			envExports = append(envExports, fmt.Sprintf("export RECAC_MODEL='%s'", s.AgentModel))
 		}
 		envExports = append(envExports, "export GIT_TERMINAL_PROMPT=0")
+		envExports = append(envExports, fmt.Sprintf("export RECAC_PROJECT_ID='%s'", item.ID))
+
+		// Inject Git Identity to prevent "Author identity unknown" errors
+		envExports = append(envExports, "export GIT_AUTHOR_NAME='RECAC Agent'")
+		envExports = append(envExports, "export GIT_AUTHOR_EMAIL='agent@recac.io'")
+		envExports = append(envExports, "export GIT_COMMITTER_NAME='RECAC Agent'")
+		envExports = append(envExports, "export GIT_COMMITTER_EMAIL='agent@recac.io'")
+
+		// Propagate Notifications Config
+		if val := os.Getenv("RECAC_NOTIFICATIONS_DISCORD_ENABLED"); val != "" {
+			envExports = append(envExports, fmt.Sprintf("export RECAC_NOTIFICATIONS_DISCORD_ENABLED='%s'", val))
+		}
+		if val := os.Getenv("RECAC_NOTIFICATIONS_SLACK_ENABLED"); val != "" {
+			envExports = append(envExports, fmt.Sprintf("export RECAC_NOTIFICATIONS_SLACK_ENABLED='%s'", val))
+		}
 
 		for k, v := range item.EnvVars {
 			envExports = append(envExports, fmt.Sprintf("export %s='%s'", k, v))

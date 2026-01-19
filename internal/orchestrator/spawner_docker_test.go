@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"strings"
 	"recac/internal/runner"
 	"testing"
 	"time"
@@ -12,6 +13,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
+
+// Helper function
+func contains(s, substr string) bool {
+	return strings.Contains(s, substr)
+}
 
 // Mock Docker Client
 type MockDockerClient struct {
@@ -70,7 +76,7 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 	mockDocker := new(MockDockerClient)
 	mockSM := new(MockSessionManager)
 	mockGit := new(MockGitClient)
-	mockPoller := new(mockPoller)
+	mockPoller := newMockPoller(nil)
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	spawner := NewDockerSpawner(logger, mockDocker, "test-image", "test-proj", mockPoller, "provider", "model", mockSM)
@@ -102,7 +108,13 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 		return hasRepoURL && s.StartCommitSHA == ""
 	})).Return(nil)
 
-	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Return("output", nil)
+	// Verify Exec includes git identity and project ID env vars
+	mockDocker.On("Exec", mock.Anything, "container123", mock.MatchedBy(func(cmd []string) bool {
+		cmdStr := cmd[2] // /bin/sh -c <cmdStr>
+		return contains(cmdStr, "export RECAC_PROJECT_ID='TICKET-1'") &&
+			contains(cmdStr, "export GIT_AUTHOR_NAME='RECAC Agent'") &&
+			contains(cmdStr, "export GIT_AUTHOR_EMAIL='agent@recac.io'")
+	})).Return("output", nil)
 	mockSM.On("LoadSession", "TICKET-1").Return(&runner.SessionState{}, nil)
 
 	// This call happens at the END, so it's still there
