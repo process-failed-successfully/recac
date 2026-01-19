@@ -71,6 +71,7 @@ func (s *PostgresStore) migrate() error {
 			expires_at TIMESTAMP NOT NULL,
 			PRIMARY KEY (project_id, path)
 		);`,
+		`CREATE INDEX IF NOT EXISTS idx_observations_project_created ON observations(project_id, created_at DESC);`,
 	}
 
 	for _, query := range queries {
