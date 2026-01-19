@@ -86,4 +86,3 @@ func init() {
 
 	rootCmd.AddCommand(contextCmd)
 }
-

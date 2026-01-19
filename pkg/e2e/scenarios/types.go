@@ -14,7 +14,7 @@ type TicketSpec struct {
 type Scenario interface {
 	// Name returns the unique name of the scenario.
 	Name() string
-	
+
 	// Description returns a human-readable description.
 	Description() string
 

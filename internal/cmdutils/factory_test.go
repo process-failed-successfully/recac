@@ -94,10 +94,10 @@ func TestGetAgentClient(t *testing.T) {
 }
 
 type MockGitClient struct {
-	repoExists         bool
-	remoteBranchExists bool
-	cloneFn            func(ctx context.Context, repoURL, directory string) error
-	checkoutFn         func(directory, branch string) error
+	repoExists          bool
+	remoteBranchExists  bool
+	cloneFn             func(ctx context.Context, repoURL, directory string) error
+	checkoutFn          func(directory, branch string) error
 	checkoutNewBranchFn func(directory, branch string) error
 }
 
