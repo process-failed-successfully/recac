@@ -28,7 +28,19 @@ func (m *SuggestTestMockAgent) SendStream(ctx context.Context, prompt string, on
 	return args.String(0), args.Error(1)
 }
 
+// resetSuggestFlags resets the global flags used by the suggest command.
+// This is necessary because global flags can persist between tests,
+// and pflag's handling of slice flags (like suggestIgnore) can be tricky to reset generically.
+func resetSuggestFlags() {
+	suggestIgnore = nil
+	suggestFocus = "."
+	suggestType = "general"
+	suggestLimit = 5
+}
+
 func TestSuggestCmd(t *testing.T) {
+	resetSuggestFlags()
+
 	// Setup temporary directory for TODO.md
 	tmpDir, err := os.MkdirTemp("", "recac-suggest-test")
 	assert.NoError(t, err)
@@ -103,6 +115,8 @@ func TestSuggestCmd(t *testing.T) {
 }
 
 func TestSuggestCmd_NoSuggestions(t *testing.T) {
+	resetSuggestFlags()
+
 	// Setup temporary directory
 	tmpDir, err := os.MkdirTemp("", "recac-suggest-test-empty")
 	assert.NoError(t, err)
@@ -129,6 +143,8 @@ func TestSuggestCmd_NoSuggestions(t *testing.T) {
 }
 
 func TestSuggestCmd_AgentFailure(t *testing.T) {
+	resetSuggestFlags()
+
 	// Setup temporary directory
 	tmpDir, err := os.MkdirTemp("", "recac-suggest-test-fail")
 	assert.NoError(t, err)
