@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"recac/internal/cmdutils"
 	"recac/internal/docker"
 	"recac/internal/orchestrator"
 	"recac/internal/runner"
@@ -57,7 +58,7 @@ var orchestrateCmd = &cobra.Command{
 			logger.Info("Using filesystem poller", "file", workFile)
 		default:
 			// Default to Jira
-			jClient, err := getJiraClient(ctx)
+			jClient, err := cmdutils.GetJiraClient(ctx)
 			if err != nil {
 				logger.Error("Failed to initialize Jira client", "error", err)
 				os.Exit(1)

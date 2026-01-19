@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"recac/internal/agent"
+	"recac/internal/cmdutils"
 	"recac/internal/git"
 	"recac/internal/runner"
 )
@@ -20,5 +21,5 @@ var gitClientFactory = func() IGitClient {
 
 // agentClientFactory is a factory function that can be overridden in tests.
 var agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
-	return defaultGetAgentClient(ctx, provider, model, projectPath, projectName)
+	return cmdutils.GetAgentClient(ctx, provider, model, projectPath, projectName)
 }
