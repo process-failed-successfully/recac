@@ -9,8 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-
-
 var testSessions = []*runner.SessionState{
 	{Name: "session-1", Status: "completed", Command: []string{"run", "feature-a"}, StartTime: time.Now().Add(-2 * time.Hour), Error: ""},
 	{Name: "session-2", Status: "running", Command: []string{"run", "feature-b"}, StartTime: time.Now().Add(-1 * time.Hour), Error: ""},
@@ -28,34 +26,34 @@ func TestFindCmd(t *testing.T) {
 		unexpectedOutput []string
 	}{
 		{
-			name:         "No filters",
-			args:         []string{},
-			mockSessions: convertSessionSliceToMap(testSessions),
+			name:           "No filters",
+			args:           []string{},
+			mockSessions:   convertSessionSliceToMap(testSessions),
 			expectedOutput: []string{"session-1", "session-2", "session-3", "session-4"},
 		},
 		{
-			name:         "Filter by status 'completed'",
-			args:         []string{"--status", "completed"},
-			mockSessions: convertSessionSliceToMap(testSessions),
+			name:             "Filter by status 'completed'",
+			args:             []string{"--status", "completed"},
+			mockSessions:     convertSessionSliceToMap(testSessions),
 			expectedOutput:   []string{"session-1", "session-4"},
 			unexpectedOutput: []string{"session-2", "session-3"},
 		},
 		{
-			name:         "Filter by goal 'feature'",
-			args:         []string{"--goal", "feature"},
-			mockSessions: convertSessionSliceToMap(testSessions),
+			name:             "Filter by goal 'feature'",
+			args:             []string{"--goal", "feature"},
+			mockSessions:     convertSessionSliceToMap(testSessions),
 			expectedOutput:   []string{"session-1", "session-2", "session-3"},
 			unexpectedOutput: []string{"session-4"},
 		},
 		{
-			name:         "Filter by error 'wrong'",
-			args:         []string{"--error", "wrong"},
-			mockSessions: convertSessionSliceToMap(testSessions),
+			name:             "Filter by error 'wrong'",
+			args:             []string{"--error", "wrong"},
+			mockSessions:     convertSessionSliceToMap(testSessions),
 			expectedOutput:   []string{"session-3"},
 			unexpectedOutput: []string{"session-1", "session-2", "session-4"},
 		},
 		{
-			name: "Filter by file 'main.go'",
+			name:         "Filter by file 'main.go'",
 			args:         []string{"--file", "main.go"},
 			mockSessions: convertSessionSliceToMap(testSessions),
 			mockDiffStat: func(name string) (string, error) {
@@ -72,16 +70,16 @@ func TestFindCmd(t *testing.T) {
 			unexpectedOutput: []string{"session-2", "session-3", "session-4"},
 		},
 		{
-			name:         "Filter by since '90m'",
-			args:         []string{"--since", "90m"},
-			mockSessions: convertSessionSliceToMap(testSessions),
+			name:             "Filter by since '90m'",
+			args:             []string{"--since", "90m"},
+			mockSessions:     convertSessionSliceToMap(testSessions),
 			expectedOutput:   []string{"session-2", "session-3"},
 			unexpectedOutput: []string{"session-1", "session-4"},
 		},
 		{
-			name:         "No results found",
-			args:         []string{"--status", "zombie"},
-			mockSessions: convertSessionSliceToMap(testSessions),
+			name:           "No results found",
+			args:           []string{"--status", "zombie"},
+			mockSessions:   convertSessionSliceToMap(testSessions),
 			expectedOutput: []string{"No sessions found"},
 		},
 	}

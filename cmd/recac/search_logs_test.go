@@ -1,12 +1,12 @@
 package main
 
 import (
+	"github.com/stretchr/testify/require"
 	"os"
 	"path/filepath"
+	"recac/internal/runner"
 	"strings"
 	"testing"
-    "recac/internal/runner"
-	"github.com/stretchr/testify/require"
 )
 
 // setupSearchTest creates a temporary directory with mock session logs.

@@ -100,7 +100,7 @@ func TestRunWorkflow_MockMode(t *testing.T) {
 		ProjectPath:   tmpDir,
 		SessionName:   "test-mock",
 		MaxIterations: 1,
-		Debug: true,
+		Debug:         true,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -143,7 +143,7 @@ func TestRunWorkflow_PreFlight_Dirty(t *testing.T) {
 		ProjectPath: tmpDir,
 		SessionName: "test-dirty",
 		AllowDirty:  false,
-		IsMock: false,
+		IsMock:      false,
 	}
 
 	err := RunWorkflow(context.Background(), cfg)
