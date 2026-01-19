@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"recac/internal/agent"
+	"recac/internal/cmdutils"
 	"recac/internal/docker"
 	"recac/internal/git"
 	"recac/internal/jira"
@@ -201,7 +202,7 @@ var startCmd = &cobra.Command{
 		}
 
 		if jiraTicketID != "" || jiraLabel != "" {
-			jClient, err := getJiraClient(ctx)
+			jClient, err := cmdutils.GetJiraClient(ctx)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				exit(1)
@@ -464,7 +465,7 @@ func processDirectTask(ctx context.Context, cfg SessionConfig) {
 		}
 	}
 
-	if _, err := setupWorkspace(ctx, cfg.RepoURL, cfg.ProjectPath, workID, "", timestamp); err != nil {
+	if _, err := cmdutils.SetupWorkspace(ctx, git.NewClient(), cfg.RepoURL, cfg.ProjectPath, workID, "", timestamp); err != nil {
 		logger.Error("Error: Failed to setup workspace", "error", err)
 		return
 	}
@@ -575,7 +576,7 @@ func processJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.C
 	repoURL := strings.TrimSuffix(matches[1], ".git")
 	logger.Info("Found repository URL in ticket", "repo_url", repoURL)
 
-	if _, err := setupWorkspace(ctx, repoURL, tempWorkspace, jiraTicketID, cfg.JiraEpicKey, timestamp); err != nil {
+	if _, err := cmdutils.SetupWorkspace(ctx, git.NewClient(), repoURL, tempWorkspace, jiraTicketID, cfg.JiraEpicKey, timestamp); err != nil {
 		logger.Error("Error: Failed to setup workspace", "error", err)
 		exit(1)
 	}

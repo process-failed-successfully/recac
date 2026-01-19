@@ -9,6 +9,7 @@ import (
 
 	"recac/internal/agent"
 	"recac/internal/agent/prompts"
+	"recac/internal/cmdutils"
 	"recac/internal/jira"
 
 	"time"
@@ -43,7 +44,7 @@ Or configure in config.yaml:
 	Run: func(cmd *cobra.Command, args []string) {
 		// Create Jira client using factory helper
 		ctx := context.Background()
-		client, err := getJiraClient(ctx)
+		client, err := cmdutils.GetJiraClient(ctx)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			exit(1)
@@ -86,7 +87,7 @@ Or configure in config.yaml:
 
 		// Create Jira client using factory helper
 		ctx := context.Background()
-		client, err := getJiraClient(ctx)
+		client, err := cmdutils.GetJiraClient(ctx)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			exit(1)
@@ -154,7 +155,7 @@ Or configure in config.yaml:
 
 		// Create Jira client using factory helper
 		ctx := context.Background()
-		client, err := getJiraClient(ctx)
+		client, err := cmdutils.GetJiraClient(ctx)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			exit(1)
@@ -198,7 +199,7 @@ func runGenerateTicketsCmd(cmd *cobra.Command, args []string) {
 
 	// 2. Setup Jira Client
 	ctx := context.Background()
-	jiraClient, err := getJiraClient(ctx)
+	jiraClient, err := cmdutils.GetJiraClient(ctx)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		exit(1)
