@@ -17,7 +17,7 @@ func NewChangelogCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "changelog",
 		Short: "Generate a changelog using AI",
-		Long:  `Generates a structured changelog (Markdown) from git commit history using the configured AI agent.
+		Long: `Generates a structured changelog (Markdown) from git commit history using the configured AI agent.
 It groups commits by type (Feature, Fix, Chore, etc.) and provides a summary.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()

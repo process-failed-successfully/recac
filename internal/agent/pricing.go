@@ -9,13 +9,13 @@ type PricePerMillionTokens struct {
 // PricingTable maps model names to their respective pricing information.
 var PricingTable = map[string]PricePerMillionTokens{
 	// Google Gemini
-	"gemini-1.5-pro-latest": {Prompt: 7.00, Completion: 21.00},
+	"gemini-1.5-pro-latest":   {Prompt: 7.00, Completion: 21.00},
 	"gemini-1.5-flash-latest": {Prompt: 0.70, Completion: 2.10},
 	"gemini-pro":              {Prompt: 0.50, Completion: 1.50},
 
 	// OpenAI
-	"gpt-4o":         {Prompt: 5.00, Completion: 15.00},
-	"gpt-4-turbo":    {Prompt: 10.00, Completion: 30.00},
+	"gpt-4o":        {Prompt: 5.00, Completion: 15.00},
+	"gpt-4-turbo":   {Prompt: 10.00, Completion: 30.00},
 	"gpt-3.5-turbo": {Prompt: 0.50, Completion: 1.50},
 
 	// Anthropic

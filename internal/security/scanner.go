@@ -67,7 +67,7 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 			}
 
 			matchedText := content[match[0]:match[1]]
-			
+
 			findings = append(findings, Finding{
 				Type:        name,
 				Description: fmt.Sprintf("Found potential %s", name),
@@ -76,7 +76,7 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 			})
 		}
 	}
-	
+
 	// Scan line by line for context-aware checks (optional optimization)
 	for i, line := range lines {
 		// Example: Check for hardcoded passwords in typical config patterns
@@ -84,7 +84,7 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 			// Very basic heuristic, improved by ensuring it's not a variable definition in code but a value assignment
 			// For now, we'll be conservative to avoid noise, relying mostly on strict regexes above.
 		}
-		_ = i 
+		_ = i
 	}
 
 	return findings, nil

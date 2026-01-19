@@ -26,7 +26,7 @@ func TestClient_Exec(t *testing.T) {
 		// Prepare a buffer with Docker-style multiplexed output
 		var buf bytes.Buffer
 		msg := "hello\n"
-		
+
 		// Stdout header (type 1). The last 4 bytes are BigEndian size.
 		header := [8]byte{1, 0, 0, 0, 0, 0, 0, byte(len(msg))}
 		buf.Write(header[:])

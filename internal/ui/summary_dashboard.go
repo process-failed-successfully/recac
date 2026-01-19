@@ -24,8 +24,8 @@ type sessionsRefreshedMsg []*runner.SessionState
 
 var (
 	summaryTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("62"))
-	headerStyle      = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("242"))
-	cellStyle        = lipgloss.NewStyle().Padding(0, 1)
+	headerStyle       = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("242"))
+	cellStyle         = lipgloss.NewStyle().Padding(0, 1)
 )
 
 func NewSummaryModel() summaryModel {
@@ -186,7 +186,6 @@ func (m *summaryModel) renderMostExpensiveSessions(sessionCosts map[string]float
 	return b.String()
 }
 
-
 func refreshSessionsCmd() tea.Cmd {
 	return func() tea.Msg {
 		sm, err := runner.NewSessionManager()
@@ -200,7 +199,6 @@ func refreshSessionsCmd() tea.Cmd {
 		return sessionsRefreshedMsg(sessions)
 	}
 }
-
 
 func StartSummaryDashboard() error {
 	p := tea.NewProgram(NewSummaryModel())

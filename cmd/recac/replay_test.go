@@ -111,11 +111,11 @@ func TestReplayCmd_SessionNotFound(t *testing.T) {
 
 func TestFindNextReplayName(t *testing.T) {
 	tests := []struct {
-		name           string
-		baseName       string
-		existing       []string
-		expectedName   string
-		expectErr      bool
+		name         string
+		baseName     string
+		existing     []string
+		expectedName string
+		expectErr    bool
 	}{
 		{
 			name:         "first replay",
@@ -167,7 +167,6 @@ func TestFindNextReplayName(t *testing.T) {
 		})
 	}
 }
-
 
 // This test setup is now simplified by using the shared helpers.
 // A mock implementation of ISessionManager is defined in test_helpers_test.go.

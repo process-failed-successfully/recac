@@ -32,9 +32,9 @@ func (m *mockSessionManager) SaveSession(*runner.SessionState) error { return ni
 func (m *mockSessionManager) LoadSession(name string) (*runner.SessionState, error) {
 	return nil, nil
 }
-func (m *mockSessionManager) StopSession(name string) error  { return nil }
-func (m *mockSessionManager) PauseSession(name string) error { return nil }
-func (m *mockSessionManager) ResumeSession(name string) error { return nil }
+func (m *mockSessionManager) StopSession(name string) error              { return nil }
+func (m *mockSessionManager) PauseSession(name string) error             { return nil }
+func (m *mockSessionManager) ResumeSession(name string) error            { return nil }
 func (m *mockSessionManager) GetSessionLogs(name string) (string, error) { return "", nil }
 func (m *mockSessionManager) GetSessionLogContent(name string, lines int) (string, error) {
 	return "", nil
@@ -42,11 +42,11 @@ func (m *mockSessionManager) GetSessionLogContent(name string, lines int) (strin
 func (m *mockSessionManager) StartSession(name, goal string, command []string, workspace string) (*runner.SessionState, error) {
 	return nil, nil
 }
-func (m *mockSessionManager) GetSessionPath(name string) string   { return "" }
-func (m *mockSessionManager) IsProcessRunning(pid int) bool       { return false }
+func (m *mockSessionManager) GetSessionPath(name string) string           { return "" }
+func (m *mockSessionManager) IsProcessRunning(pid int) bool               { return false }
 func (m *mockSessionManager) RemoveSession(name string, force bool) error { return nil }
 func (m *mockSessionManager) RenameSession(oldName, newName string) error { return nil }
-func (m *mockSessionManager) SessionsDir() string                 { return "" }
+func (m *mockSessionManager) SessionsDir() string                         { return "" }
 func (m *mockSessionManager) GetSessionGitDiffStat(name string) (string, error) {
 	return "", nil
 }

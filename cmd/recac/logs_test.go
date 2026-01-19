@@ -45,8 +45,8 @@ func setupLogsTest(t *testing.T) (*MockSessionManager, func()) {
 			LogFile: session2Log,
 		},
 		"stopped-session": {
-			Name:   "stopped-session",
-			Status: "stopped",
+			Name:    "stopped-session",
+			Status:  "stopped",
 			LogFile: stoppedSessionLog,
 		},
 	}
