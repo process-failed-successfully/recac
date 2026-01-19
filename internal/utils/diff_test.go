@@ -41,3 +41,20 @@ func TestGenerateDiff_NoChanges(t *testing.T) {
 		t.Errorf("Expected 'No changes.\n', got '%s'", diff)
 	}
 }
+
+func TestGenerateDiff_DefaultFilename(t *testing.T) {
+	original := "line1"
+	improved := "line2"
+
+	diff, err := GenerateDiff("", original, improved)
+	if err != nil {
+		t.Fatalf("GenerateDiff failed: %v", err)
+	}
+
+	if !strings.Contains(diff, "--- original") {
+		t.Errorf("Diff missing default original file header, got: %s", diff)
+	}
+	if !strings.Contains(diff, "+++ original (improved)") {
+		t.Errorf("Diff missing default improved file header, got: %s", diff)
+	}
+}
