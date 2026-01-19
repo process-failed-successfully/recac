@@ -307,7 +307,12 @@ func executeCommand(root *cobra.Command, args ...string) (output string, err err
 func resetFlags(cmd *cobra.Command) {
 	cmd.Flags().VisitAll(func(f *pflag.Flag) {
 		if f.Changed {
-			f.Value.Set(f.DefValue)
+			if strings.Contains(strings.ToLower(f.Value.Type()), "slice") {
+				// Special handling for slice types
+				f.Value.Set("")
+			} else {
+				f.Value.Set(f.DefValue)
+			}
 			f.Changed = false
 		}
 	})
