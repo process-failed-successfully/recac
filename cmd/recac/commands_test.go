@@ -31,7 +31,6 @@ func TestHelperProcess(t *testing.T) {
 	}
 }
 
-
 func TestCommands(t *testing.T) {
 	// Setup global test env
 	originalWd, _ := os.Getwd()

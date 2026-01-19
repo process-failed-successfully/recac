@@ -5,8 +5,8 @@ import (
 	"os/exec"
 	"testing"
 
-	"recac/internal/runner"
 	"github.com/stretchr/testify/require"
+	"recac/internal/runner"
 )
 
 func TestResumeCommand(t *testing.T) {

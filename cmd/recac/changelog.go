@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 
+	"recac/internal/utils"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -17,7 +19,7 @@ func NewChangelogCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "changelog",
 		Short: "Generate a changelog using AI",
-		Long:  `Generates a structured changelog (Markdown) from git commit history using the configured AI agent.
+		Long: `Generates a structured changelog (Markdown) from git commit history using the configured AI agent.
 It groups commits by type (Feature, Fix, Chore, etc.) and provides a summary.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
@@ -78,7 +80,7 @@ Output ONLY the Markdown content.`, strings.Join(logs, "\n"))
 				return fmt.Errorf("failed to generate changelog: %w", err)
 			}
 
-			changelog = cleanCode(changelog) // Remove potential markdown code blocks
+			changelog = utils.CleanCodeBlock(changelog) // Remove potential markdown code blocks
 
 			if outputFile != "" {
 				if err := os.WriteFile(outputFile, []byte(changelog), 0644); err != nil {

@@ -136,7 +136,7 @@ func TestValidateConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Reset viper for each test
 			viper.Reset()
-			
+
 			// Run setup
 			if tt.setup != nil {
 				tt.setup()

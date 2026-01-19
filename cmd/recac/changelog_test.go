@@ -47,13 +47,13 @@ func TestChangelogCmd(t *testing.T) {
 		cmd, _, _ := newRootCmd()
 		// We need to ensure we are calling the changelog subcommand
 		cmd.AddCommand(changelogCmd)
-        // Note: root.go likely adds it in init(), but when testing, we rely on executeCommand calling root.Execute()
-        // verify if init() runs. Yes.
+		// Note: root.go likely adds it in init(), but when testing, we rely on executeCommand calling root.Execute()
+		// verify if init() runs. Yes.
 
 		// However, executeCommand resets flags.
-        // Let's use executeCommand helper if possible.
+		// Let's use executeCommand helper if possible.
 
-        output, err := executeCommand(cmd, "changelog")
+		output, err := executeCommand(cmd, "changelog")
 		assert.NoError(t, err)
 		assert.Contains(t, output, "# Changelog")
 		assert.Contains(t, output, "feat: added login")
@@ -63,33 +63,33 @@ func TestChangelogCmd(t *testing.T) {
 		mockGit.LogFunc = func(repoPath string, args ...string) ([]string, error) {
 			return []string{}, nil
 		}
-        mockGit.RepoExistsFunc = func(repoPath string) bool { return true }
+		mockGit.RepoExistsFunc = func(repoPath string) bool { return true }
 
 		_, err := executeCommand(rootCmd, "changelog")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "no commits found")
 	})
 
-    t.Run("Output to File", func(t *testing.T) {
-        mockGit.LogFunc = func(repoPath string, args ...string) ([]string, error) {
+	t.Run("Output to File", func(t *testing.T) {
+		mockGit.LogFunc = func(repoPath string, args ...string) ([]string, error) {
 			return []string{"hash1 Author: msg"}, nil
 		}
-        mockGit.RepoExistsFunc = func(repoPath string) bool { return true }
+		mockGit.RepoExistsFunc = func(repoPath string) bool { return true }
 
-        expectedChangelog := "# Changelog"
+		expectedChangelog := "# Changelog"
 		mockAgent.On("Send", mock.Anything, mock.Anything).Return(expectedChangelog, nil).Once()
 
-        tmpDir, err := os.MkdirTemp("", "changelog-test")
-        assert.NoError(t, err)
-        defer os.RemoveAll(tmpDir)
+		tmpDir, err := os.MkdirTemp("", "changelog-test")
+		assert.NoError(t, err)
+		defer os.RemoveAll(tmpDir)
 
-        outFile := filepath.Join(tmpDir, "CHANGELOG.md")
+		outFile := filepath.Join(tmpDir, "CHANGELOG.md")
 
-        _, err = executeCommand(rootCmd, "changelog", "--output", outFile)
-        assert.NoError(t, err)
+		_, err = executeCommand(rootCmd, "changelog", "--output", outFile)
+		assert.NoError(t, err)
 
-        content, err := os.ReadFile(outFile)
-        assert.NoError(t, err)
-        assert.Equal(t, expectedChangelog, string(content))
-    })
+		content, err := os.ReadFile(outFile)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedChangelog, string(content))
+	})
 }

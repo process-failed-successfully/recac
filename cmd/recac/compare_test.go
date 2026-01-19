@@ -18,22 +18,22 @@ func TestCompareCmd(t *testing.T) {
 
 	// Create sessions
 	sA := &runner.SessionState{
-		Name:      "session-A",
-		Status:    "completed",
-		Goal:      "Fix bug X",
-		StartTime: time.Now().Add(-10 * time.Minute),
-		EndTime:   time.Now().Add(-5 * time.Minute),
+		Name:           "session-A",
+		Status:         "completed",
+		Goal:           "Fix bug X",
+		StartTime:      time.Now().Add(-10 * time.Minute),
+		EndTime:        time.Now().Add(-5 * time.Minute),
 		AgentStateFile: "state-A.json",
-		EndCommitSHA: "abcdef123456",
-		LogFile: "logs-A.log",
+		EndCommitSHA:   "abcdef123456",
+		LogFile:        "logs-A.log",
 	}
 	sB := &runner.SessionState{
-		Name:      "session-B",
-		Status:    "running",
-		Goal:      "Fix bug X",
-		StartTime: time.Now().Add(-5 * time.Minute),
+		Name:           "session-B",
+		Status:         "running",
+		Goal:           "Fix bug X",
+		StartTime:      time.Now().Add(-5 * time.Minute),
 		AgentStateFile: "state-B.json",
-		LogFile: "logs-B.log",
+		LogFile:        "logs-B.log",
 	}
 
 	mockSM.Sessions["session-A"] = sA
@@ -53,8 +53,8 @@ func TestCompareCmd(t *testing.T) {
 			return &agent.State{
 				Model: "gpt-4",
 				TokenUsage: agent.TokenUsage{
-					TotalTokens: 1000,
-					TotalPromptTokens: 800,
+					TotalTokens:         1000,
+					TotalPromptTokens:   800,
 					TotalResponseTokens: 200,
 				},
 			}, nil
@@ -63,8 +63,8 @@ func TestCompareCmd(t *testing.T) {
 			return &agent.State{
 				Model: "claude-3-opus",
 				TokenUsage: agent.TokenUsage{
-					TotalTokens: 500,
-					TotalPromptTokens: 400,
+					TotalTokens:         500,
+					TotalPromptTokens:   400,
 					TotalResponseTokens: 100,
 				},
 			}, nil
@@ -81,8 +81,8 @@ func TestCompareCmd(t *testing.T) {
 	assert.Contains(t, output, "Status")
 	assert.Contains(t, output, "gpt-4")
 	assert.Contains(t, output, "claude-3-opus")
-	assert.Contains(t, output, "1000") // Tokens A
-	assert.Contains(t, output, "500")  // Tokens B
+	assert.Contains(t, output, "1000")    // Tokens A
+	assert.Contains(t, output, "500")     // Tokens B
 	assert.Contains(t, output, "abcdef1") // Commit SHA prefix
 
 	// Test case: Analysis

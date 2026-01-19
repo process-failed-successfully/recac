@@ -62,7 +62,7 @@ func TestSpecCmd(t *testing.T) {
 	expectedSpec := "Project: My Project\nFeature: Main"
 
 	t.Run("Generate spec", func(t *testing.T) {
-        t.Log("Starting Generate spec test")
+		t.Log("Starting Generate spec test")
 		mockAgent.On("SendStream", mock.Anything, mock.Anything, mock.Anything).Return(expectedSpec, nil).Once()
 
 		cmd := &cobra.Command{RunE: runSpec}

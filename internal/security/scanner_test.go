@@ -33,8 +33,8 @@ func TestRegexScanner_Scan(t *testing.T) {
 			wantFinding: "Private Key",
 		},
 		{
-			name: "Generic API Key",
-			content: "api_key = \"abc1234567890abc1234567890\"",
+			name:        "Generic API Key",
+			content:     "api_key = \"abc1234567890abc1234567890\"",
 			wantFinding: "Generic API Token",
 		},
 	}
