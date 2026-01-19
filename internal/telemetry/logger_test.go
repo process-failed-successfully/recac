@@ -2,11 +2,13 @@ package telemetry
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestInitLogger_Configuration(t *testing.T) {
@@ -16,6 +18,9 @@ func TestInitLogger_Configuration(t *testing.T) {
 }
 
 func TestLogError(t *testing.T) {
+	oldLogger := slog.Default()
+	t.Cleanup(func() { slog.SetDefault(oldLogger) })
+
 	var buf bytes.Buffer
 	handler := slog.NewJSONHandler(&buf, nil)
 	slog.SetDefault(slog.New(handler))
@@ -35,6 +40,9 @@ func TestLogError(t *testing.T) {
 }
 
 func TestInitLogger_JSONOutput(t *testing.T) {
+	oldLogger := slog.Default()
+	t.Cleanup(func() { slog.SetDefault(oldLogger) })
+
 	// Capture stdout
 	var buf bytes.Buffer
 	handler := slog.NewJSONHandler(&buf, nil)
@@ -80,6 +88,9 @@ func TestInitLogger_JSONOutput(t *testing.T) {
 // Step 2: Check logs for 'DEBUG' level entries
 // Step 3: Verify sensitive info is NOT logged (API keys)
 func TestInitLogger_VerboseMode(t *testing.T) {
+	oldLogger := slog.Default()
+	t.Cleanup(func() { slog.SetDefault(oldLogger) })
+
 	// Step 1: Configure logger with verbose/debug mode enabled
 	var buf bytes.Buffer
 	handler := slog.NewJSONHandler(&buf, &slog.HandlerOptions{
@@ -117,5 +128,77 @@ func TestInitLogger_VerboseMode(t *testing.T) {
 	// In a real implementation, API keys should be masked or filtered.
 	if strings.Contains(output, "sk-secret123") {
 		t.Log("WARNING: API key is visible in logs - should be masked in production")
+	}
+}
+
+func TestNewLogger_InvalidFile(t *testing.T) {
+	// Should not panic and should still return a logger
+	logger := NewLogger(false, "/invalid/path/to/log.txt", false)
+	if logger == nil {
+		t.Error("NewLogger returned nil for invalid file path")
+	}
+}
+
+func TestLogInfof(t *testing.T) {
+	oldLogger := slog.Default()
+	t.Cleanup(func() { slog.SetDefault(oldLogger) })
+
+	var buf bytes.Buffer
+	handler := slog.NewJSONHandler(&buf, nil)
+	slog.SetDefault(slog.New(handler))
+
+	LogInfof("Hello %s", "World")
+
+	output := buf.String()
+	if !strings.Contains(output, `"msg":"Hello World"`) {
+		t.Errorf("Expected formatted message, got %s", output)
+	}
+}
+
+func TestMultiHandler(t *testing.T) {
+	var buf1, buf2 bytes.Buffer
+	h1 := slog.NewJSONHandler(&buf1, nil)
+	h2 := slog.NewJSONHandler(&buf2, nil)
+
+	mh := &multiHandler{handlers: []slog.Handler{h1, h2}}
+	ctx := context.Background()
+
+	// Test Enabled
+	if !mh.Enabled(ctx, slog.LevelInfo) {
+		t.Error("MultiHandler should be enabled")
+	}
+
+	// Test Handle
+	r := slog.Record{Time: time.Now(), Level: slog.LevelInfo, Message: "test handle"}
+	if err := mh.Handle(ctx, r); err != nil {
+		t.Errorf("Handle failed: %v", err)
+	}
+
+	if !strings.Contains(buf1.String(), "test handle") {
+		t.Error("buf1 missing log")
+	}
+	if !strings.Contains(buf2.String(), "test handle") {
+		t.Error("buf2 missing log")
+	}
+
+	// Test WithAttrs
+	mhAttrs := mh.WithAttrs([]slog.Attr{slog.String("a", "b")})
+	// mhAttrs should be a multiHandler too
+	mh2, ok := mhAttrs.(*multiHandler)
+	if !ok {
+		t.Fatal("WithAttrs did not return *multiHandler")
+	}
+	if len(mh2.handlers) != 2 {
+		t.Errorf("Expected 2 handlers, got %d", len(mh2.handlers))
+	}
+
+	// Test WithGroup
+	mhGroup := mh.WithGroup("g")
+	mh3, ok := mhGroup.(*multiHandler)
+	if !ok {
+		t.Fatal("WithGroup did not return *multiHandler")
+	}
+	if len(mh3.handlers) != 2 {
+		t.Errorf("Expected 2 handlers, got %d", len(mh3.handlers))
 	}
 }
