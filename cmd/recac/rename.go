@@ -10,10 +10,10 @@ import (
 )
 
 var renameCmd = &cobra.Command{
-	Use:   "rename [OLD_NAME] [NEW_NAME]",
-	Short: "Rename a session",
-	Long:  `Rename a session. This will rename the session's state and log files.`,
-	Args:  cobra.ExactArgs(2),
+	Use:          "rename [OLD_NAME] [NEW_NAME]",
+	Short:        "Rename a session",
+	Long:         `Rename a session. This will rename the session's state and log files.`,
+	Args:         cobra.ExactArgs(2),
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		sm, err := sessionManagerFactory()

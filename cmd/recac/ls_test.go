@@ -102,7 +102,7 @@ func TestLsCommand_FilterByStatus(t *testing.T) {
 	t.Run("filter by completed", func(t *testing.T) {
 		output, err := executeCommand(rootCmd, "ls", "--status", "completed")
 		require.NoError(t, err)
-		assert.Contains(t, output, "session-running")   // Transitioned
+		assert.Contains(t, output, "session-running") // Transitioned
 		assert.Contains(t, output, "session-completed")
 		assert.NotContains(t, output, "session-error")
 	})

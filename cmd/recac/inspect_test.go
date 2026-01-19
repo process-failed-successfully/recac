@@ -28,7 +28,7 @@ func TestInspectCmd(t *testing.T) {
 	state := &agent.State{
 		Model: "test-model",
 		TokenUsage: agent.TokenUsage{
-			TotalPromptTokens:     100,
+			TotalPromptTokens:   100,
 			TotalResponseTokens: 200,
 			TotalTokens:         300,
 		},
