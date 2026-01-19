@@ -88,3 +88,51 @@ func TestDebugCmd_WithFiles(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, out, "Fixing dummy")
 }
+
+func TestExtractFileContexts_EdgeCases(t *testing.T) {
+	t.Run("Phantom file", func(t *testing.T) {
+		// Output references a file that doesn't exist
+		out := "phantom.go:10: error"
+		context, err := extractFileContexts(out)
+		assert.NoError(t, err)
+		assert.Equal(t, "Files referenced in output could not be read.", context)
+	})
+
+	t.Run("Large file truncation", func(t *testing.T) {
+		// Create a large file
+		filename := "large.go"
+		content := strings.Repeat("a", 10*1024+100) // > 10KB
+		err := os.WriteFile(filename, []byte(content), 0644)
+		assert.NoError(t, err)
+		defer os.Remove(filename)
+
+		out := filename + ":1: error"
+		ctx, err := extractFileContexts(out)
+		assert.NoError(t, err)
+		assert.Contains(t, ctx, "... (truncated)")
+		assert.Less(t, len(ctx), len(content))
+	})
+
+	t.Run("File read error", func(t *testing.T) {
+		// Create a file with no read permissions
+		filename := "locked.go"
+		err := os.WriteFile(filename, []byte("secret"), 0000) // No permissions
+		// Skip if root (root can read 0000 files usually)
+		if os.Geteuid() == 0 {
+			os.Remove(filename)
+			t.Skip("Skipping permission test as root")
+		}
+		assert.NoError(t, err)
+		defer func() {
+			os.Chmod(filename, 0644) // cleanup needs write
+			os.Remove(filename)
+		}()
+
+		out := filename + ":1: error"
+		ctx, err := extractFileContexts(out)
+		assert.NoError(t, err)
+		// Should just skip the file or report error in context
+		// The code says: sb.WriteString(fmt.Sprintf("Could not read file %s: %v\n", path, err))
+		assert.Contains(t, ctx, "Could not read file")
+	})
+}

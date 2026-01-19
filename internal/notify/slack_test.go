@@ -53,3 +53,37 @@ func TestSlackNotifier_Notify_Error(t *testing.T) {
 		t.Error("expected error for non-OK status code, got nil")
 	}
 }
+
+func TestSlackNotifier_Notify_EdgeCases(t *testing.T) {
+	t.Run("empty webhook url", func(t *testing.T) {
+		notifier := NewSlackNotifier("")
+		ctx := context.Background()
+		err := notifier.Notify(ctx, "test")
+		if err == nil {
+			t.Error("expected error for empty webhook url, got nil")
+		}
+	})
+
+	t.Run("invalid url", func(t *testing.T) {
+		// Control character in URL to force http.NewRequest error
+		notifier := NewSlackNotifier("http://example.com/foo\x7f")
+		ctx := context.Background()
+		err := notifier.Notify(ctx, "test")
+		if err == nil {
+			t.Error("expected error for invalid url, got nil")
+		}
+	})
+
+	t.Run("network error", func(t *testing.T) {
+		// Create a server and close it immediately to force connection error
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+		server.Close()
+
+		notifier := NewSlackNotifier(server.URL)
+		ctx := context.Background()
+		err := notifier.Notify(ctx, "test")
+		if err == nil {
+			t.Error("expected error for closed server, got nil")
+		}
+	})
+}

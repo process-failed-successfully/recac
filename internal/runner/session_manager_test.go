@@ -727,3 +727,64 @@ func TestSessionManager_PauseResume(t *testing.T) {
 	err = sm.StopSession(sessionName)
 	require.NoError(t, err, "Failed to stop the session for cleanup")
 }
+
+func TestSessionManager_GetSessionLogs_NotFound(t *testing.T) {
+	sm, cleanup := setupSessionManager(t)
+	defer cleanup()
+
+	_, err := sm.GetSessionLogs("non-existent-session")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "session not found")
+}
+
+func TestListArchivedSessions_EdgeCases(t *testing.T) {
+	sm, cleanup := setupSessionManager(t)
+	defer cleanup()
+
+	// 1. Create a non-JSON file
+	err := os.WriteFile(filepath.Join(sm.archivedSessionsDir, "readme.txt"), []byte("not a json file"), 0600)
+	require.NoError(t, err)
+
+	// 2. Create a directory
+	err = os.Mkdir(filepath.Join(sm.archivedSessionsDir, "subdir"), 0700)
+	require.NoError(t, err)
+
+	// 3. Create a corrupted JSON file
+	err = os.WriteFile(filepath.Join(sm.archivedSessionsDir, "corrupt.json"), []byte("{ invalid json"), 0600)
+	require.NoError(t, err)
+
+	// 4. Create a valid JSON file
+	validSession := &SessionState{Name: "valid-archived"}
+	data, _ := json.Marshal(validSession)
+	err = os.WriteFile(filepath.Join(sm.archivedSessionsDir, "valid-archived.json"), data, 0600)
+	require.NoError(t, err)
+
+	sessions, err := sm.ListArchivedSessions()
+	require.NoError(t, err)
+
+	// Should only contain the valid session
+	require.Len(t, sessions, 1)
+	assert.Equal(t, "valid-archived", sessions[0].Name)
+}
+
+func TestStartSession_Failures(t *testing.T) {
+	sm, cleanup := setupSessionManager(t)
+	defer cleanup()
+
+	// 1. Non-existent executable
+	_, err := sm.StartSession("fail-session", "goal", []string{"/path/to/non/existent/exec"}, sm.sessionsDir)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "executable not found")
+
+	// 2. Non-executable file
+	// Create a file but don't give it executable permissions
+	nonExec := filepath.Join(sm.sessionsDir, "script.sh")
+	err = os.WriteFile(nonExec, []byte("#!/bin/sh\necho hello"), 0600) // rw- --- ---
+	require.NoError(t, err)
+
+	_, err = sm.StartSession("fail-exec-session", "goal", []string{nonExec}, sm.sessionsDir)
+	assert.Error(t, err)
+	// The error message depends on OS/platform but usually "is not executable" or "permission denied"
+	// The code explicitly checks permission bits and returns "is not executable"
+	assert.Contains(t, err.Error(), "is not executable")
+}
