@@ -19,7 +19,7 @@ import (
 )
 
 type K8sSpawner struct {
-	Client        *kubernetes.Clientset
+	Client        kubernetes.Interface
 	Namespace     string
 	Image         string
 	AgentProvider string
@@ -124,20 +124,21 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_MODEL", Value: s.AgentModel})
 	}
 
-	// Propagate Jira Config from Host Environment
-	if val := os.Getenv("JIRA_URL"); val != "" {
-		envVars = append(envVars, corev1.EnvVar{Name: "JIRA_URL", Value: val})
-	}
-	if val := os.Getenv("JIRA_USERNAME"); val != "" {
-		envVars = append(envVars, corev1.EnvVar{Name: "JIRA_USERNAME", Value: val})
+	// Propagate Secrets and Config from Host Environment
+	secrets := []string{
+		"JIRA_API_TOKEN", "JIRA_USERNAME", "JIRA_URL",
+		"GITHUB_TOKEN", "GITHUB_API_KEY",
+		"OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY",
+		"RECAC_DB_TYPE", "RECAC_DB_URL",
 	}
 
-	// Propagate DB Config
-	if val := os.Getenv("RECAC_DB_TYPE"); val != "" {
-		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_DB_TYPE", Value: val})
-	}
-	if val := os.Getenv("RECAC_DB_URL"); val != "" {
-		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_DB_URL", Value: val})
+	for _, secret := range secrets {
+		if val := os.Getenv(secret); val != "" {
+			envVars = append(envVars, corev1.EnvVar{Name: secret, Value: val})
+			if secret == "GITHUB_API_KEY" {
+				envVars = append(envVars, corev1.EnvVar{Name: "RECAC_GITHUB_API_KEY", Value: val})
+			}
+		}
 	}
 
 	// Propagate Notifications Config
