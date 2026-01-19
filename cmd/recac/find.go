@@ -107,7 +107,6 @@ to debug issues, analyze performance, or find specific examples of agent work.`,
 		}
 		sessions = filteredSessions
 
-
 		if len(sessions) == 0 {
 			cmd.Println("No sessions found matching the criteria.")
 			return nil
@@ -138,7 +137,6 @@ to debug issues, analyze performance, or find specific examples of agent work.`,
 			if len(errorMessage) > 40 {
 				errorMessage = errorMessage[:37] + "..."
 			}
-
 
 			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
 				s.Name, s.Status, goal, started, duration, errorMessage)

@@ -1,8 +1,8 @@
 package main
 
 import (
-	"testing"
 	"recac/internal/runner"
+	"testing"
 
 	"github.com/stretchr/testify/require"
 )

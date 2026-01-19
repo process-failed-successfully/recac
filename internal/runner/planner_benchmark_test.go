@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"recac/internal/utils"
 	"testing"
 )
 
@@ -16,7 +17,7 @@ func BenchmarkCleanJSON(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		cleanJSON(input)
+		utils.CleanJSONBlock(input)
 	}
 }
 
@@ -32,6 +33,6 @@ func BenchmarkCleanJSON_NoMarkdown(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		cleanJSON(input)
+		utils.CleanJSONBlock(input)
 	}
 }

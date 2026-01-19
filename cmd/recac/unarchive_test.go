@@ -30,7 +30,6 @@ func TestUnarchiveCmd(t *testing.T) {
 	_, err = os.Create(archivedLogPath) // Create a dummy log file
 	require.NoError(t, err)
 
-
 	// Execute the unarchive command
 	rootCmd, out, _ := newRootCmd()
 	rootCmd.SetArgs([]string{"unarchive", archivedSessionName})

@@ -100,9 +100,13 @@ func displayComparison(cmd *cobra.Command, sA, sB *runner.SessionState, stA, stB
 
 	// Model
 	modelA := stA.Model
-	if modelA == "" { modelA = "N/A" }
+	if modelA == "" {
+		modelA = "N/A"
+	}
 	modelB := stB.Model
-	if modelB == "" { modelB = "N/A" }
+	if modelB == "" {
+		modelB = "N/A"
+	}
 	fmt.Fprintf(w, "Model\t%s\t%s\n", modelA, modelB)
 
 	// Tokens

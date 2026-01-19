@@ -37,9 +37,9 @@ func TestHistoryCommand(t *testing.T) {
 	agentState := agent.State{
 		Model: "test-model",
 		TokenUsage: agent.TokenUsage{
-			TotalPromptTokens:     100,
+			TotalPromptTokens:   100,
 			TotalResponseTokens: 200,
-			TotalTokens:          300,
+			TotalTokens:         300,
 		},
 	}
 	agentStateContent, err := json.Marshal(agentState)
