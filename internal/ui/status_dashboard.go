@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -27,6 +28,7 @@ type statusDashboardModel struct {
 	err         error
 	width       int
 	height      int
+	spinner     spinner.Model
 }
 
 type statusTickMsg time.Time
@@ -41,20 +43,23 @@ var (
 	labelStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Bold(true)
 	valueStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
 	sectionStyle     = lipgloss.NewStyle().MarginTop(1).Foreground(lipgloss.Color("86")).Bold(true)
-	boxStyle         = lipgloss.NewStyle().
-				BorderStyle(lipgloss.RoundedBorder()).
-				BorderForeground(lipgloss.Color("240")).
-				Padding(0, 1)
+	statusHelpStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).MarginTop(2)
 )
 
 func NewStatusDashboardModel(sessionName string) statusDashboardModel {
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+
 	return statusDashboardModel{
 		sessionName: sessionName,
+		spinner:     s,
 	}
 }
 
 func (m statusDashboardModel) Init() tea.Cmd {
 	return tea.Batch(
+		m.spinner.Tick,
 		refreshStatusCmd(m.sessionName),
 		tea.Tick(1*time.Second, func(t time.Time) tea.Msg {
 			return statusTickMsg(t)
@@ -63,6 +68,7 @@ func (m statusDashboardModel) Init() tea.Cmd {
 }
 
 func (m statusDashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -74,6 +80,10 @@ func (m statusDashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q", "ctrl+c":
 			return m, tea.Quit
 		}
+
+	case spinner.TickMsg:
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
 
 	case statusTickMsg:
 		return m, tea.Batch(
@@ -102,13 +112,19 @@ func (m statusDashboardModel) View() string {
 	if m.err != nil {
 		return fmt.Sprintf("Error: %v", m.err)
 	}
-	if m.session == nil {
-		return "Loading..."
-	}
 
 	var s strings.Builder
-	s.WriteString(statusTitleStyle.Render(fmt.Sprintf(" RECAC Session Status: %s", m.sessionName)) + "\n")
-	s.WriteString(fmt.Sprintf("Last updated: %s (press 'q' to quit)\n\n", m.lastUpdate.Format(time.RFC1123)))
+
+	// Header with spinner
+	headerText := fmt.Sprintf(" RECAC Session Status: %s", m.sessionName)
+	s.WriteString(fmt.Sprintf("%s %s\n", m.spinner.View(), statusTitleStyle.Render(headerText)))
+
+	if m.session == nil {
+		s.WriteString("\n  Initializing session monitor...\n")
+		return s.String()
+	}
+
+	s.WriteString(fmt.Sprintf("Last updated: %s\n\n", m.lastUpdate.Format(time.RFC1123)))
 
 	// --- Session Info ---
 	s.WriteString(renderSessionInfo(m.session, m.agentState))
@@ -131,6 +147,9 @@ func (m statusDashboardModel) View() string {
 		s.WriteString(renderLastActivity(m.agentState, m.width))
 	}
 
+	// --- Help Footer ---
+	s.WriteString(statusHelpStyle.Render("Press 'q' to quit • Updates automatically"))
+
 	return s.String()
 }
 
@@ -138,17 +157,22 @@ func renderSessionInfo(s *runner.SessionState, a *agent.State) string {
 	var b strings.Builder
 
 	statusColor := lipgloss.Color("252")
+	statusIcon := "•"
+
 	switch strings.ToLower(s.Status) {
 	case "running":
 		statusColor = lipgloss.Color("46") // Green
+		statusIcon = "⚡"
 	case "completed":
 		statusColor = lipgloss.Color("39") // Blue
+		statusIcon = "✔"
 	case "error", "failed":
 		statusColor = lipgloss.Color("196") // Red
+		statusIcon = "✖"
 	}
 	statusStyle := lipgloss.NewStyle().Foreground(statusColor).Bold(true)
 
-	b.WriteString(fmt.Sprintf("%s %s\n", labelStyle.Render("Status:"), statusStyle.Render(s.Status)))
+	b.WriteString(fmt.Sprintf("%s %s %s\n", labelStyle.Render("Status:"), statusStyle.Render(statusIcon), statusStyle.Render(s.Status)))
 
 	goal := s.Goal
 	if len(goal) > 80 {
@@ -178,7 +202,9 @@ func renderUsageInfo(state *agent.State) string {
 	cost := agent.CalculateCost(state.Model, state.TokenUsage)
 	costStr := fmt.Sprintf("$%.6f", cost)
 	if cost > 0.5 {
-		costStr = lipgloss.NewStyle().Foreground(lipgloss.Color("220")).Render(costStr) // Yellow
+		// Add warning icon for high cost
+		warningStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("220")).Bold(true)
+		costStr = warningStyle.Render("⚠ " + costStr)
 	} else {
 		costStr = valueStyle.Render(costStr)
 	}
@@ -203,10 +229,12 @@ func renderLastActivity(state *agent.State, width int) string {
 			valueStyle.Render(time.Since(lastMessage.Timestamp).Round(time.Second).String())))
 
 		roleColor := lipgloss.Color("86") // Cyan
+		roleIcon := "🤖"
 		if lastMessage.Role == "user" {
 			roleColor = lipgloss.Color("220") // Yellow
+			roleIcon = "👤"
 		}
-		b.WriteString(fmt.Sprintf("%s   %s\n", labelStyle.Render("Role:"), lipgloss.NewStyle().Foreground(roleColor).Render(lastMessage.Role)))
+		b.WriteString(fmt.Sprintf("%s   %s\n", labelStyle.Render("Role:"), lipgloss.NewStyle().Foreground(roleColor).Render(fmt.Sprintf("%s %s", roleIcon, lastMessage.Role))))
 
 		content := strings.TrimSpace(lastMessage.Content)
 		// Basic wrapping or truncation
@@ -222,7 +250,8 @@ func renderLastActivity(state *agent.State, width int) string {
 
 		b.WriteString(fmt.Sprintf("%s %s\n", labelStyle.Render("Content:"), valueStyle.Render(content)))
 	} else {
-		b.WriteString(sectionStyle.Render("\n--- No agent activity ---") + "\n")
+		b.WriteString(sectionStyle.Render("\n--- Activity Log ---") + "\n")
+		b.WriteString(valueStyle.Render("Waiting for agent activity...") + "\n")
 	}
 	return b.String()
 }
