@@ -5,8 +5,8 @@ import (
 	"errors"
 	"io"
 	"log/slog"
-	"strings"
 	"recac/internal/runner"
+	"strings"
 	"testing"
 	"time"
 

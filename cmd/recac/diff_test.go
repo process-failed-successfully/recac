@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"recac/internal/agent"
 	"recac/internal/runner"
-	"github.com/stretchr/testify/require"
 )
 
 func setupDiffTest(t *testing.T, sm *MockSessionManager) {
@@ -20,18 +20,18 @@ func setupDiffTest(t *testing.T, sm *MockSessionManager) {
 
 	// --- Create Session A ---
 	sessionA := &runner.SessionState{
-		Name:      "session-a",
-		PID:       12345,
-		StartTime: time.Date(2023, 1, 1, 10, 0, 0, 0, time.UTC),
-		EndTime:   time.Date(2023, 1, 1, 10, 5, 0, 0, time.UTC),
-		Status:    "completed",
-		LogFile:   filepath.Join(tempDir, "session-a.log"),
+		Name:           "session-a",
+		PID:            12345,
+		StartTime:      time.Date(2023, 1, 1, 10, 0, 0, 0, time.UTC),
+		EndTime:        time.Date(2023, 1, 1, 10, 5, 0, 0, time.UTC),
+		Status:         "completed",
+		LogFile:        filepath.Join(tempDir, "session-a.log"),
 		AgentStateFile: filepath.Join(tempDir, "session-a.agent_state.json"),
 	}
 	err := os.WriteFile(sessionA.LogFile, []byte("line 1\ncommon line\nline 3a\n"), 0600)
 	require.NoError(t, err)
 	agentStateA := &agent.State{
-		Model: "gemini-pro",
+		Model:      "gemini-pro",
 		TokenUsage: agent.TokenUsage{TotalPromptTokens: 100, TotalResponseTokens: 200},
 	}
 	stateDataA, _ := json.Marshal(agentStateA)
@@ -39,22 +39,21 @@ func setupDiffTest(t *testing.T, sm *MockSessionManager) {
 	require.NoError(t, err)
 	sm.Sessions[sessionA.Name] = sessionA
 
-
 	// --- Create Session B ---
 	sessionB := &runner.SessionState{
-		Name:      "session-b",
-		PID:       54321,
-		StartTime: time.Date(2023, 1, 1, 11, 0, 0, 0, time.UTC),
-		EndTime:   time.Date(2023, 1, 1, 11, 18, 0, 0, time.UTC),
-		Status:    "error",
-		Error:     "Something went wrong",
-		LogFile:   filepath.Join(tempDir, "session-b.log"),
+		Name:           "session-b",
+		PID:            54321,
+		StartTime:      time.Date(2023, 1, 1, 11, 0, 0, 0, time.UTC),
+		EndTime:        time.Date(2023, 1, 1, 11, 18, 0, 0, time.UTC),
+		Status:         "error",
+		Error:          "Something went wrong",
+		LogFile:        filepath.Join(tempDir, "session-b.log"),
 		AgentStateFile: filepath.Join(tempDir, "session-b.agent_state.json"),
 	}
 	err = os.WriteFile(sessionB.LogFile, []byte("line 1\ncommon line\nline 3b\n"), 0600)
 	require.NoError(t, err)
 	agentStateB := &agent.State{
-		Model: "gpt-4",
+		Model:      "gpt-4",
 		TokenUsage: agent.TokenUsage{TotalPromptTokens: 300, TotalResponseTokens: 400},
 	}
 	stateDataB, _ := json.Marshal(agentStateB)
@@ -64,8 +63,8 @@ func setupDiffTest(t *testing.T, sm *MockSessionManager) {
 
 	// --- Create Identical Sessions (for no diff test) ---
 	sessionC := &runner.SessionState{
-		Name: "session-c",
-		LogFile:   filepath.Join(tempDir, "session-c.log"),
+		Name:           "session-c",
+		LogFile:        filepath.Join(tempDir, "session-c.log"),
 		AgentStateFile: filepath.Join(tempDir, "session-c.agent_state.json"),
 	}
 	err = os.WriteFile(sessionC.LogFile, []byte("identical line\n"), 0600)
@@ -75,8 +74,8 @@ func setupDiffTest(t *testing.T, sm *MockSessionManager) {
 	sm.Sessions[sessionC.Name] = sessionC
 
 	sessionD := &runner.SessionState{
-		Name: "session-d",
-		LogFile:   filepath.Join(tempDir, "session-d.log"),
+		Name:           "session-d",
+		LogFile:        filepath.Join(tempDir, "session-d.log"),
 		AgentStateFile: filepath.Join(tempDir, "session-d.agent_state.json"),
 	}
 	err = os.WriteFile(sessionD.LogFile, []byte("identical line\n"), 0600)
@@ -116,7 +115,6 @@ func TestDiffCmd(t *testing.T) {
 		require.Contains(t, output, "gpt-4")
 		require.Contains(t, output, "700")
 		require.Contains(t, output, "Something went wrong")
-
 
 		// Assert Log Diff
 		require.Contains(t, output, "📜 Log Diff")

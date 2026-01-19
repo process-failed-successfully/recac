@@ -11,7 +11,7 @@ import (
 
 // State represents the persistent state of an agent
 type State struct {
-	Model         string                 `json:"model,omitempty"`          // Name of the model used
+	Model         string                 `json:"model,omitempty"` // Name of the model used
 	Memory        []string               `json:"memory"`
 	History       []Message              `json:"history"`
 	Metadata      map[string]interface{} `json:"metadata"`
