@@ -27,6 +27,7 @@ This creates the features in the authoritative database.
   - **NO** "User Profiles", "Authentication", "Login", "FastAPI", or "Web Servers" unless explicitly requested in the Spec.
   - If the spec is for a CLI tool, build a CLI tool. Do not build a REST API.
   - **NO** "Future Proofing". Build EXACTLY what is asked.
+  - **STRICT MAPPING**: If the spec contains a section titled `REQUIRED FEATURES` or `ACCEPTANCE CRITERIA`, you **MUST** ensure every single item in that list is covered by a specific verification step in `feature_list.json`.
 
 **Format:**
 
@@ -61,7 +62,7 @@ This creates the features in the authoritative database.
 
 Create a script called `init.sh` to set up the dev environment:
 
-- Install dependencies (apk, npm, go, etc.).
+- Install dependencies (apt-get, npm, go, etc.).
 - Start services (if needed).
 - Print helpful information about project setup.
 

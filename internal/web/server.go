@@ -17,15 +17,20 @@ var staticFiles embed.FS
 
 // Server handles the web visualization
 type Server struct {
-	store db.Store
-	port  int
+	store     db.Store
+	port      int
+	projectID string
 }
 
 // NewServer creates a new web server
-func NewServer(store db.Store, port int) *Server {
+func NewServer(store db.Store, port int, projectID string) *Server {
+	if projectID == "" {
+		projectID = "default"
+	}
 	return &Server{
-		store: store,
-		port:  port,
+		store:     store,
+		port:      port,
+		projectID: projectID,
 	}
 }
 
@@ -41,23 +46,23 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/features", s.handleFeatures)
 	mux.HandleFunc("/api/graph", s.handleGraph)
 
-	addr := fmt.Sprintf(":%d", s.port)
-	fmt.Printf("Starting dashboard at http://localhost%s\n", addr)
+	// Bind to localhost for security
+	addr := fmt.Sprintf("127.0.0.1:%d", s.port)
+	fmt.Printf("Starting dashboard at http://%s\n", addr)
 	return http.ListenAndServe(addr, mux)
 }
 
 func (s *Server) handleFeatures(w http.ResponseWriter, r *http.Request) {
-	// For now, we assume a default project or try to find one.
-	// Since recac is often run in the project root, we can use the root dir name or just "default" project ID
-	// if that's how it's stored.
-	// However, the CLI usually passes the session name or workspace.
-	// We might need to query all projects or accept a query param.
-	// For simplicity, let's look for any features.
-
-	// Query 'default' project first
-	content, err := s.store.GetFeatures("default")
+	// Query features for the configured project
+	content, err := s.store.GetFeatures(s.projectID)
 	if err != nil || content == "" {
-		// Try to find ANY project features if default is empty (fallback)
+		// Try to find features for "default" if current project is empty (fallback)
+		if s.projectID != "default" {
+			content, err = s.store.GetFeatures("default")
+		}
+	}
+
+	if err != nil || content == "" {
 		// SQLite store doesn't easily support "ListProjects", so we might just fail gracefully.
 		// Wait, we can assume the user passed the project name in CLI, or we default to what's in DB.
 		// Let's return empty list if nothing found.
@@ -78,7 +83,13 @@ func (s *Server) handleFeatures(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleGraph(w http.ResponseWriter, r *http.Request) {
 	// Similar logic to handleFeatures, we need the task graph.
-	content, err := s.store.GetFeatures("default")
+	content, err := s.store.GetFeatures(s.projectID)
+	if err != nil || content == "" {
+		if s.projectID != "default" {
+			content, err = s.store.GetFeatures("default")
+		}
+	}
+
 	if err != nil || content == "" {
 		w.Write([]byte("graph TD;\nError[No Data Found]"))
 		return
@@ -135,8 +146,8 @@ func generateMermaid(g *runner.TaskGraph) string {
 		}
 
 		safeID := sanitizeMermaidID(node.ID)
-		safeName := strings.ReplaceAll(node.Name, "\"", "'")
-		safeName = strings.ReplaceAll(safeName, "\n", " ")
+		        		safeName := strings.ReplaceAll(node.Name, "\"", "'")
+		        		safeName = strings.ReplaceAll(safeName, "\n", " ")
 		if len(safeName) > 30 {
 			safeName = safeName[:27] + "..."
 		}

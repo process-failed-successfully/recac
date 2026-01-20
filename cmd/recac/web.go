@@ -67,7 +67,13 @@ var webCmd = &cobra.Command{
 		}
 		defer store.Close()
 
-		server := web.NewServer(store, webPort)
+		// Get project name from session or default
+		projectID := session.Name
+		if projectID == "" {
+			projectID = "default"
+		}
+
+		server := web.NewServer(store, webPort, projectID)
 		return server.Start()
 	},
 }

@@ -44,7 +44,16 @@ func TestKnowledgeCommands(t *testing.T) {
 		return mockAgent, nil
 	}
 
-	// Test Add
+	// Test List Rules Empty
+	t.Run("List Rules Empty", func(t *testing.T) {
+		buf := new(bytes.Buffer)
+		knowledgeListCmd.SetOut(buf)
+		err := knowledgeListCmd.RunE(knowledgeListCmd, []string{})
+		assert.NoError(t, err)
+		assert.Contains(t, buf.String(), "No AGENTS.md found")
+	})
+
+	// Test Add Rule
 	t.Run("Add Rule", func(t *testing.T) {
 		cmd := knowledgeAddCmd
 		// Reset flags if any (knowledgeAddCmd has none but args)
@@ -56,17 +65,29 @@ func TestKnowledgeCommands(t *testing.T) {
 		assert.Contains(t, string(content), "- Do not use global variables")
 	})
 
-	// Test List
+	// Test Add Second Rule (Cover append newline)
+	t.Run("Add Second Rule", func(t *testing.T) {
+		cmd := knowledgeAddCmd
+		err := cmd.RunE(cmd, []string{"Keep functions small"})
+		assert.NoError(t, err)
+
+		content, err := os.ReadFile("AGENTS.md")
+		assert.NoError(t, err)
+		assert.Contains(t, string(content), "\n- Keep functions small")
+	})
+
+	// Test List Rules
 	t.Run("List Rules", func(t *testing.T) {
 		buf := new(bytes.Buffer)
 		knowledgeListCmd.SetOut(buf)
 		err := knowledgeListCmd.RunE(knowledgeListCmd, []string{})
 		assert.NoError(t, err)
 		assert.Contains(t, buf.String(), "- Do not use global variables")
+		assert.Contains(t, buf.String(), "- Keep functions small")
 	})
 
-	// Test Check
-	t.Run("Check Rules", func(t *testing.T) {
+	// Test Check Rules (File)
+	t.Run("Check Rules File", func(t *testing.T) {
 		// Create a file to check
 		err := os.WriteFile("bad.go", []byte("var Global = 1"), 0644)
 		assert.NoError(t, err)
@@ -88,7 +109,28 @@ func TestKnowledgeCommands(t *testing.T) {
 		assert.Contains(t, buf.String(), "VIOLATIONS FOUND")
 	})
 
-	// Test Learn
+	// Test Check Rules (Stdin)
+	t.Run("Check Rules Stdin", func(t *testing.T) {
+		// Mock Agent to say PASS
+		mockAgent.Response = "PASS"
+
+		// Mock Stdin
+		r, w, _ := os.Pipe()
+		w.Write([]byte("package main\n"))
+		w.Close()
+
+		oldStdin := os.Stdin
+		defer func() { os.Stdin = oldStdin }()
+		os.Stdin = r
+
+		buf := new(bytes.Buffer)
+		knowledgeCheckCmd.SetOut(buf)
+		err := knowledgeCheckCmd.RunE(knowledgeCheckCmd, []string{})
+		assert.NoError(t, err)
+		assert.Contains(t, buf.String(), "PASS")
+	})
+
+	// Test Learn Rules
 	t.Run("Learn Rules", func(t *testing.T) {
 		// Create some dummy code to "learn" from
 		err := os.Mkdir("src", 0755)
@@ -111,12 +153,6 @@ func TestKnowledgeCommands(t *testing.T) {
 
 		buf := new(bytes.Buffer)
 		knowledgeLearnCmd.SetOut(buf)
-
-		// Set flags directly on the command
-		// Note: Viper/Cobra binding usually happens in Execute, but we are calling RunE directly.
-		// `knowledgeLearnCmd` uses `knowledgeFocus` variable which is bound in `init()`.
-		// Since we are running in the same process, we can just set the variable `knowledgeFocus` if it's exported or directly accessible.
-		// It is package-level `var knowledgeFocus string`.
 		knowledgeFocus = "src"
 
 		err = knowledgeLearnCmd.RunE(knowledgeLearnCmd, []string{})
@@ -125,5 +161,31 @@ func TestKnowledgeCommands(t *testing.T) {
 		content, err := os.ReadFile("AGENTS.md")
 		assert.NoError(t, err)
 		assert.Contains(t, string(content), "- Use contexts in all handlers")
+	})
+
+	// Test Learn Rules Abort
+	t.Run("Learn Rules Abort", func(t *testing.T) {
+		mockAgent.Response = "- Aborted Rule"
+
+		// Mock Input for interactive confirmation (send "n")
+		r, w, _ := os.Pipe()
+		w.Write([]byte("n\n"))
+		w.Close()
+
+		oldStdin := os.Stdin
+		defer func() { os.Stdin = oldStdin }()
+		os.Stdin = r
+
+		buf := new(bytes.Buffer)
+		knowledgeLearnCmd.SetOut(buf)
+		knowledgeFocus = "src"
+
+		err := knowledgeLearnCmd.RunE(knowledgeLearnCmd, []string{})
+		assert.NoError(t, err)
+		assert.Contains(t, buf.String(), "Aborted")
+
+		content, err := os.ReadFile("AGENTS.md")
+		assert.NoError(t, err)
+		assert.NotContains(t, string(content), "- Aborted Rule")
 	})
 }

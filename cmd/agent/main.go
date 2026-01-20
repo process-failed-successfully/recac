@@ -79,9 +79,20 @@ func runApp(ctx context.Context) error {
 	viper.BindEnv("manager_frequency", "RECAC_MANAGER_FREQUENCY")
 	viper.BindEnv("task_max_iterations", "RECAC_TASK_MAX_ITERATIONS")
 
+	// Explicitly bind Provider/Model to ensure Env vars take precedence over config file
+	viper.BindEnv("provider", "RECAC_PROVIDER", "RECAC_AGENT_PROVIDER")
+	viper.BindEnv("model", "RECAC_MODEL", "RECAC_AGENT_MODEL")
+
 	// Init Logger
 	telemetry.InitLogger(viper.GetBool("verbose"), "", false)
 	logger := telemetry.NewLogger(viper.GetBool("verbose"), "", false)
+
+	// Debug config resolution
+	logger.Info("Agent Configuration Resolved",
+		"provider", viper.GetString("provider"),
+		"model", viper.GetString("model"),
+		"env_recac_provider", os.Getenv("RECAC_PROVIDER"),
+	)
 
 	// Construct SessionConfig
 	cfg := workflow.SessionConfig{

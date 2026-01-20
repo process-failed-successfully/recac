@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"os"
 	"recac/internal/runner"
 	"strings"
 	"testing"
@@ -72,11 +73,26 @@ func (m *MockGitClient) CurrentCommitSHA(repoPath string) (string, error) {
 	return args.String(0), args.Error(1)
 }
 
+// Mock Poller (Minimal for this test)
+type MockPoller struct {
+	mock.Mock
+}
+
+func (m *MockPoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkItem, error) {
+	args := m.Called(ctx, logger)
+	return args.Get(0).([]WorkItem), args.Error(1)
+}
+
+func (m *MockPoller) UpdateStatus(ctx context.Context, item WorkItem, status string, comment string) error {
+	args := m.Called(ctx, item, status, comment)
+	return args.Error(0)
+}
+
 func TestDockerSpawner_Spawn_Success(t *testing.T) {
 	mockDocker := new(MockDockerClient)
 	mockSM := new(MockSessionManager)
 	mockGit := new(MockGitClient)
-	mockPoller := newMockPoller(nil)
+	mockPoller := new(MockPoller)
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	spawner := NewDockerSpawner(logger, mockDocker, "test-image", "test-proj", mockPoller, "provider", "model", mockSM)
@@ -91,8 +107,6 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 	ctx := context.Background()
 
 	// Mock expectations
-	// Note: Clone and first CurrentCommitSHA are REMOVED as they are now delegated to Agent
-
 	mockDocker.On("RunContainer", ctx, "test-image", mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
 
 	// Verify SaveSession receives session with repo-url
@@ -154,4 +168,52 @@ func TestDockerSpawner_Spawn_RunContainerFails(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "run failed")
 	mockSM.AssertNotCalled(t, "SaveSession")
+}
+
+func TestDockerSpawner_ShellInjection(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	client := new(MockDockerClient)
+	poller := new(MockPoller)
+	sm := new(MockSessionManager)
+	spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", sm)
+
+	injectionItem := WorkItem{
+		ID:      "TASK-1\"; echo \"injected",
+		RepoURL: "https://github.com/example/repo",
+	}
+
+	client.On("RunContainer", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("container-123", nil)
+
+	// Mock SessionManager
+	sm.On("SaveSession", mock.Anything).Return(nil)
+	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
+
+	// Capture the command passed to Exec using a channel for synchronization
+	capturedCmdChan := make(chan []string, 1)
+	client.On("Exec", mock.Anything, "container-123", mock.Anything).Run(func(args mock.Arguments) {
+		capturedCmd := args.Get(2).([]string)
+		capturedCmdChan <- capturedCmd
+	}).Return("Success", nil)
+
+	err := spawner.Spawn(context.Background(), injectionItem)
+	assert.NoError(t, err)
+
+	// Wait for the background goroutine to call Exec
+	var capturedCmd []string
+	select {
+	case capturedCmd = <-capturedCmdChan:
+		// Success
+	case <-time.After(2 * time.Second):
+		t.Fatal("Timed out waiting for Exec call")
+	}
+
+	// The command should be stringified and passed to sh -c.
+	// We want to ensure the ID is quoted.
+	assert.Len(t, capturedCmd, 3)
+	assert.Equal(t, "/bin/sh", capturedCmd[0])
+	assert.Equal(t, "-c", capturedCmd[1])
+
+	// Check if the ID is quoted in the command string
+	// Depending on implementation, checking for quoted ID:
+	assert.Contains(t, capturedCmd[2], "--jira \"TASK-1\\\"; echo \\\"injected\"")
 }

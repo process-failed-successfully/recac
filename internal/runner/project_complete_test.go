@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"recac/internal/agent"
 	"recac/internal/db"
 	"recac/internal/docker"
 
@@ -65,24 +64,18 @@ func TestProjectCompleteFlow(t *testing.T) {
 		return types.IDResponse{ID: "mock-exec-id"}, nil
 	}
 
-	agentClient := agent.NewMockAgent()
-
-	// Configure Mock Agent
-	// For QA, we want it to return "PASS" (and write .qa_result "PASS")
-	// For Manager, we want it to return "LGTM"
-
-	// Since MockAgent is simple, it returns "Mock response".
-	// We need to subclass or modify it, or use the real agent interface but a mock implementation.
-	// Actually, looking at session.go, the QA agent writes to .qa_result. The session reads it.
-	// The QA agent command execution is what writes the file.
-	// So the mock agent needs to return a command that writes "PASS" to .qa_result.
-
-	mockResponseCmd := fmt.Sprintf("```bash\necho PASS > %s/.qa_result\n```", workspace)
-	agentClient.SetResponse(mockResponseCmd)
+	agentClient := &MockAgentForQA{
+		Response:  "PASS",
+		Workspace: workspace,
+	}
 
 	// Create Session
 	session := NewSession(dockerCli, agentClient, workspace, "ubuntu:latest", "test-project", "gemini", "gemini-pro", 1)
 	session.FeatureContent = featureContent
+
+	// Inject Store and Project into MockAgent
+	agentClient.Store = session.DBStore
+	agentClient.Project = session.Project
 
 	// We also need to mock the QAAgent and ManagerAgent inside session specifically
 	// because RunLoop creates NEW agents if they are nil.

@@ -26,6 +26,7 @@ func EnsureStateIgnored(repoPath string) error {
 		".next/",
 		".env",
 		".DS_Store",
+		"agents/",
 	}
 
 	gitignorePath := repoPath + "/.gitignore"
@@ -63,10 +64,17 @@ func ensureInGitignore(gitignorePath string, files []string) error {
 
 	if len(toAdd) > 0 {
 		// Append to file
-		if _, err := f.Seek(0, 2); err != nil {
+		offset, err := f.Seek(0, 2)
+		if err != nil {
 			return err
 		}
-		if _, err := f.WriteString("\n# Added by RECAC Safeguard\n"); err != nil {
+
+		prefix := "\n"
+		if offset == 0 {
+			prefix = ""
+		}
+
+		if _, err := f.WriteString(prefix + "# Added by RECAC Safeguard\n"); err != nil {
 			return err
 		}
 		for _, file := range toAdd {

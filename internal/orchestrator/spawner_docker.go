@@ -70,8 +70,8 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	// 4. Create and save the initial session state
 	agentCmd := []string{
 		"/usr/local/bin/recac-agent",
-		"--jira", item.ID,
-		"--project", item.ID,
+		"--jira", fmt.Sprintf("%q", item.ID),
+		"--project", fmt.Sprintf("%q", item.ID),
 		"--detached=false",
 		"--cleanup=false",
 		"--path", "/workspace",
@@ -147,7 +147,7 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		cmdStr := "cd /workspace"
 		cmdStr += " && export RECAC_MAX_ITERATIONS=20"
 		cmdStr += " && " + strings.Join(envExports, " && ")
-		cmdStr += " && " + strings.Join(agentCmd, " ")
+		cmdStr += " && " + strings.Join(agentCmd, " ") + " --allow-dirty"
 		cmdStr += " && echo 'Recac Finished'"
 
 		cmd := []string{"/bin/sh", "-c", cmdStr}

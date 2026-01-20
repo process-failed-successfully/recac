@@ -29,7 +29,7 @@ func TestServer_Handlers(t *testing.T) {
 	}`
 	require.NoError(t, store.SaveFeatures("default", featuresJSON))
 
-	s := NewServer(store, 0)
+	s := NewServer(store, 0, "default")
 
 	// Test /api/features
 	req := httptest.NewRequest("GET", "/api/features", nil)

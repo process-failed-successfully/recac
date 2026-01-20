@@ -24,7 +24,7 @@ func NewOpenRouterClient(apiKey, model, project string) *OpenRouterClient {
 		apiKey:     apiKey,
 		model:      model,
 		httpClient: &http.Client{
-			Timeout: 300 * time.Second, // OpenRouter can be slower depending on the underlying model
+			Timeout: 600 * time.Second, // OpenRouter can be slower depending on the underlying model
 		},
 		apiURL: "https://openrouter.ai/api/v1/chat/completions",
 	}

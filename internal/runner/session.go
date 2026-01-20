@@ -1554,6 +1554,7 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 
 func (s *Session) loadFeatures() []db.Feature {
 	// 1. Try to fetch from DB first (Authoritative source)
+	var fromDB []db.Feature
 	if s.DBStore != nil {
 		s.Logger.Info("[DEBUG] Attempting to load features from DB", "project", s.Project)
 		content, err := s.DBStore.GetFeatures(s.Project)
@@ -1564,14 +1565,68 @@ func (s *Session) loadFeatures() []db.Feature {
 			var fl db.FeatureList
 			if err := json.Unmarshal([]byte(content), &fl); err == nil {
 				s.Logger.Info("loaded features from DB history", "count", len(fl.Features))
-				return fl.Features
+				fromDB = fl.Features
 			}
 		}
 	} else {
 		s.Logger.Info("[DEBUG] No DBStore available for feature lookup")
 	}
 
-	// 2. Fallback to FeatureContent (passed from Orchestrator/CLI)
+	// Helper to merge features (DB wins on conflict, but we add new ones)
+	mergeFeatures := func(existing []db.Feature, newFeatures []db.Feature) []db.Feature {
+		existMap := make(map[string]bool)
+		for _, f := range existing {
+			existMap[f.Description] = true // Using description as unique key for now as ID might be random
+		}
+		merged := existing
+		for _, f := range newFeatures {
+			if !existMap[f.Description] {
+				merged = append(merged, f)
+			}
+		}
+		return merged
+	}
+
+	// 2. Load Injected Features from Env (Priority Injection)
+	envFeaturesJSON := os.Getenv("RECAC_INJECTED_FEATURES")
+	if envFeaturesJSON != "" {
+		var fl db.FeatureList
+		if err := json.Unmarshal([]byte(envFeaturesJSON), &fl); err == nil {
+			s.Logger.Info("loaded injected features from env", "count", len(fl.Features))
+			// Merge with DB features (Injected features are "System" features, likely critical)
+			fromDB = mergeFeatures(fromDB, fl.Features)
+
+			// Persist the merged state immediately
+			if s.DBStore != nil {
+				// Re-serialize
+				finalList := db.FeatureList{
+					ProjectName: s.Project, // Reuse project ID/Name
+					Features:    fromDB,
+				}
+				if data, err := json.Marshal(finalList); err == nil {
+					_ = s.DBStore.SaveFeatures(s.Project, string(data))
+				}
+			}
+		}
+	}
+
+	if len(fromDB) > 0 {
+		// Sync DB -> Filesystem (Ensure agents see what's in DB, e.g. Injected Features)
+		listPath := filepath.Join(s.Workspace, "feature_list.json")
+		if _, err := os.Stat(listPath); os.IsNotExist(err) {
+			finalList := db.FeatureList{
+				ProjectName: s.Project,
+				Features:    fromDB,
+			}
+			if data, err := json.MarshalIndent(finalList, "", "  "); err == nil {
+				s.Logger.Info("syncing features from DB to feature_list.json", "path", listPath)
+				_ = os.WriteFile(listPath, data, 0644)
+			}
+		}
+		return fromDB
+	}
+
+	// 3. Fallback to FeatureContent (passed from Orchestrator/CLI legacy)
 	if s.FeatureContent != "" {
 		var fl db.FeatureList
 		if err := json.Unmarshal([]byte(s.FeatureContent), &fl); err == nil {
@@ -1584,7 +1639,7 @@ func (s *Session) loadFeatures() []db.Feature {
 		}
 	}
 
-	// 3. Fallback to feature_list.json file (Legacy/Local mode)
+	// 4. Fallback to feature_list.json file (Legacy/Local mode)
 	listPath := filepath.Join(s.Workspace, "feature_list.json")
 	if data, err := os.ReadFile(listPath); err == nil {
 		var fl db.FeatureList
@@ -1676,8 +1731,6 @@ func (s *Session) pushProgress(ctx context.Context) {
 			s.Logger.Warn("failed to fix permissions before push", "error", err)
 		}
 	}
-
-	s.debugGitState(ctx)
 
 	branch, err := gitClient.CurrentBranch(s.Workspace)
 	if err != nil || branch == "" || branch == "main" || branch == "master" {
@@ -1793,6 +1846,9 @@ func (s *Session) runQAAgent(ctx context.Context) error {
 		return fmt.Errorf("failed to load QA prompt: %w", err)
 	}
 
+	// 1.5 Clear any existing QA signal to ensure fresh result
+	s.clearSignal("QA_PASSED")
+
 	// 2. Send to Agent
 	s.Logger.Info("sending verification instructions to QA agent")
 	response, err := qaAgent.Send(ctx, prompt) // Use qaAgent
@@ -1806,30 +1862,26 @@ func (s *Session) runQAAgent(ctx context.Context) error {
 		s.Logger.Warn("QA agent command execution failed", "error", err)
 	}
 
-	// 3. Check Result File (.qa_result)
-	qaResultPath := filepath.Join(s.Workspace, ".qa_result")
-	data, err := os.ReadFile(qaResultPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("QA Agent did not produce .qa_result file")
-		}
-		return fmt.Errorf("failed to read .qa_result: %w", err)
-	}
-	defer os.Remove(qaResultPath) // Cleanup
+	// 3. Check DB Signal (Authoritative)
+	// We read the raw signal value. "true" = PASS, "false" (or missing) = FAIL.
+	// Note: checking "false" explicitly allows us to distinguish between "agent said fail" and "agent did nothing".
+	val, err := s.DBStore.GetSignal(s.Project, "QA_PASSED")
+	s.Logger.Info("QA result signal check", "signal", val, "error", err)
 
-	result := strings.TrimSpace(string(data))
-	s.Logger.Info("QA result", "result", result)
-
-	if result == "PASS" {
-		if err := s.createSignal("QA_PASSED"); err != nil {
-			s.Logger.Warn("failed to create QA_PASSED signal", "error", err)
-		}
-		s.Logger.Info("QA passed")
+	if err == nil && val == "true" {
+		s.Logger.Info("QA passed (signal verified)")
 		return nil
 	}
 
-	s.Logger.Error("QA failed")
-	return fmt.Errorf("QA failed with result: %s", result)
+	if val == "false" {
+		s.Logger.Error("QA failed (explicit signal)")
+		return fmt.Errorf("QA Agent explicitly signaled failure")
+	}
+
+	// Fallback/Legacy/Missing Signal
+	s.Logger.Error("QA failed (no signal set)",
+		"agent_response_snippet", response[:min(len(response), 1000)])
+	return fmt.Errorf("QA Agent did not signal success (QA_PASSED!=true)")
 }
 
 // runManagerAgent runs manager review of the QA report.
@@ -2017,9 +2069,12 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 			if strings.Contains(cmdScript, "go build") || strings.Contains(cmdScript, "npm run build") || strings.Contains(cmdScript, "make build") {
 				telemetry.TrackBuildResult(s.Project, false)
 			}
+
+			// Fail Fast: Do not execute subsequent commands if the current one fails
+			break
 		} else {
 			// Output Truncation to prevent context exhaustion
-			const MaxOutputChars = 2000
+			const MaxOutputChars = 20000
 			truncatedOutput := output
 			if len(output) > MaxOutputChars {
 				truncatedOutput = output[:MaxOutputChars] + fmt.Sprintf("\n... [Output Truncated. Total length: %d chars] ...", len(output))
@@ -2101,6 +2156,32 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 			}
 		}
 	}
+
+	// Metrics Collection
+	metrics := struct {
+		Commands      int
+		FilesModified int
+		OutputLines   int
+	}{
+		Commands: len(matches),
+	}
+
+	// Heuristic for files modified (counting write operations)
+	for _, match := range matches {
+		script := match[1]
+		if strings.Contains(script, " > ") || strings.Contains(script, " >> ") || strings.Contains(script, "touch ") {
+			metrics.FilesModified++
+		}
+	}
+
+	// Calculate output lines from the accumulated buffer
+	metrics.OutputLines = strings.Count(parsedOutput.String(), "\n")
+
+	s.Logger.Info("iteration metrics",
+		"commands_executed", metrics.Commands,
+		"files_modified_est", metrics.FilesModified,
+		"output_lines", metrics.OutputLines,
+		"response_chars", len(response))
 
 	return parsedOutput.String(), nil
 }
@@ -2520,24 +2601,4 @@ func (s *Session) completeJiraTicket(ctx context.Context, gitLink string) {
 	notificationMsg := fmt.Sprintf("Project %s is COMPLETE!\n\nJira: %s\nGit: %s", s.Project, jiraLink, gitLink)
 	s.Notifier.Notify(ctx, notify.EventProjectComplete, notificationMsg, s.GetSlackThreadTS())
 	s.Notifier.AddReaction(ctx, s.GetSlackThreadTS(), "white_check_mark")
-}
-
-func (s *Session) debugGitState(ctx context.Context) {
-	// Log Branches
-	cmd := exec.Command("git", "branch", "-avv")
-	cmd.Dir = s.Workspace
-	out, _ := cmd.CombinedOutput()
-	s.Logger.Info("debug git branches", "output", string(out))
-
-	// Log Status
-	cmd = exec.Command("git", "status", "--porcelain")
-	cmd.Dir = s.Workspace
-	out, _ = cmd.CombinedOutput()
-	s.Logger.Info("debug git status", "output", string(out))
-
-	// Log Refs
-	cmd = exec.Command("git", "show-ref")
-	cmd.Dir = s.Workspace
-	out, _ = cmd.CombinedOutput()
-	s.Logger.Info("debug git refs", "output", string(out))
 }

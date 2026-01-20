@@ -23,6 +23,10 @@ type Scenario interface {
 	// repoURL is the target repository URL for the agent.
 	Generate(uniqueID string, repoURL string) []TicketSpec
 
+	// AppSpec returns a textual application specification for the scenario.
+	// This is used by the TPM agent to generate Jira tickets.
+	AppSpec(repoURL string) string
+
 	// Verify validates the results in the cloned repository.
 	Verify(repoPath string, ticketKeys map[string]string) error
 }

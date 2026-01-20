@@ -5,15 +5,15 @@ This is a FRESH context window. The history of your recent actions and system ou
 
 ### CRITICAL: CONTAINER AWARENESS
 
-You are running inside an **Alpine Linux Docker container**. This has specific implications:
+You are running inside a **Debian/Ubuntu Docker container**. This has specific implications:
 
 - **Root User:** You are running as the **root** user. You do not need to use `sudo`.
-- **Package Manager:** Use `apk add --no-cache <package>` to install any missing system requirements.
-- **Ephemeral Environment:** System-level changes (apk packages) will not persist across restarts unless added to the init.sh. Use `init.sh` to install requirements and update as requirements change.
+- **Package Manager:** Use `apt-get update && apt-get install -y <package>` to install any missing tool.
+- **Ephemeral Environment:** System-level changes will not persist across restarts unless added to the `init.sh`. Use `init.sh` to install requirements.
 - **Dev Experience** Always introduce `Makefile` targets to make development tasks simpler. It should be able to run dev servers, run tests, run linting and formatting, etc.
 - **No GUI:** You have no graphical user interface.
 - **Feature Tracking:** The `feature_list.json` file is a mirrored view of a persistent database. Continue to update it manually to reflect your progress; the orchestrator will sync valid changes back to the database. If the file is corrupted, the orchestrator will restore it from the DB.
-- **Environment Bootstrapping:** The container image is **MINIMAL** by design to avoid bloat. You are RESPONSIBLE for your environment. If any tool (Node.js, Python, Make, etc.) is missing, YOU MUST install it immediately using `apk add --no-cache <package>`. Do not complain about missing tools; be an engineer and setup your workspace.
+- **Environment Bootstrapping:** The container image includes most common tools (`make`, `python3`, `node`, `npm`, `git`, `curl`). You are RESPONSIBLE for your environment. If any tool is missing, YOU MUST install it immediately using `apt-get add --no-cache <package>`. Do not complain about missing tools; be an engineer and setup your workspace.
 
 ### YOUR ASSIGNED TASK
 
@@ -71,8 +71,8 @@ Then read the specification and plan:
 ```bash
 cat app_spec.txt
 cat feature_list.json | head -50
-cat manager_directives.txt
-cat questions_answered.txt
+cat manager_directives.txt 2>/dev/null || echo "No directives."
+cat questions_answered.txt 2>/dev/null || echo "No answers."
 ```
 
 ### STEP 2: CHOOSE AND IMPLEMENT

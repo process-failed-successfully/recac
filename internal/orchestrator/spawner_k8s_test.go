@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	corev1 "k8s.io/api/core/v1"
 )
 
 func TestK8sSpawner_Spawn_PropagatesEnvVars(t *testing.T) {
@@ -61,4 +61,82 @@ func TestK8sSpawner_Spawn_PropagatesEnvVars(t *testing.T) {
 	assert.Equal(t, "test-openai-key", envMap["OPENAI_API_KEY"], "OPENAI_API_KEY should be propagated")
 	assert.Equal(t, "0", envMap["GIT_TERMINAL_PROMPT"], "GIT_TERMINAL_PROMPT should be 0")
 	assert.Equal(t, "20", envMap["RECAC_MAX_ITERATIONS"], "RECAC_MAX_ITERATIONS should be 20")
+}
+
+func TestK8sSpawner_Spawn_Lifecycle(t *testing.T) {
+	clientset := fake.NewSimpleClientset()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	
+	spawner := &K8sSpawner{
+		Client:        clientset,
+		Namespace:     "test-ns",
+		Image:         "recac-agent:latest",
+		AgentProvider: "gemini",
+		AgentModel:    "gemini-pro",
+		PullPolicy:    corev1.PullAlways,
+		Logger:        logger,
+	}
+
+	item := WorkItem{
+		ID:      "TASK-123",
+		RepoURL: "https://github.com/example/repo",
+		EnvVars: map[string]string{
+			"CUSTOM_VAR": "value",
+		},
+	}
+
+	t.Run("Create Success", func(t *testing.T) {
+		err := spawner.Spawn(context.Background(), item)
+		assert.NoError(t, err)
+
+		// Verify Job exists
+		job, err := clientset.BatchV1().Jobs("test-ns").Get(context.Background(), "recac-agent-task-123", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Equal(t, "recac-agent-task-123", job.Name)
+		
+		// Verify container image and env
+		container := job.Spec.Template.Spec.Containers[0]
+		assert.Equal(t, "recac-agent:latest", container.Image)
+		
+		envMap := make(map[string]string)
+		for _, e := range container.Env {
+			envMap[e.Name] = e.Value
+		}
+		assert.Equal(t, "value", envMap["CUSTOM_VAR"])
+		assert.Equal(t, "gemini", envMap["RECAC_PROVIDER"])
+		assert.Equal(t, "gemini-pro", envMap["RECAC_MODEL"])
+	})
+
+	t.Run("Retry Existing Failed Job", func(t *testing.T) {
+		// Set existing job to failed
+		job, _ := clientset.BatchV1().Jobs("test-ns").Get(context.Background(), "recac-agent-task-123", metav1.GetOptions{})
+		job.Status.Failed = 1
+		clientset.BatchV1().Jobs("test-ns").Update(context.Background(), job, metav1.UpdateOptions{})
+
+		err := spawner.Spawn(context.Background(), item)
+		// Should return error indicating cleanup and retry
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "cleaning up failed job")
+
+		// Verify Job was deleted (or deletion requested)
+		_, err = clientset.BatchV1().Jobs("test-ns").Get(context.Background(), "recac-agent-task-123", metav1.GetOptions{})
+		assert.Error(t, err) // Should be deleted in fake clientset immediately usually
+	})
+}
+
+func TestSanitizeK8sName(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"PROJ-123", "proj-123"},
+		{"Task_With_Underscores", "task-with-underscores"},
+		{"Multiple---Dashes", "multiple-dashes"},
+		{"Ends-With-Dash-", "ends-with-dash"},
+		{"$pecial#Chars!", "pecial-chars"},
+	}
+
+	for _, tc := range tests {
+		assert.Equal(t, tc.expected, sanitizeK8sName(tc.input))
+	}
 }

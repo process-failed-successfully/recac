@@ -49,6 +49,7 @@ type TicketTemplate struct {
 type GenericScenarioConfig struct {
 	Name        string
 	Description string
+	AppSpec     string // Template for textual spec
 	Tickets     []TicketTemplate
 	Validations []ValidationStep
 }
@@ -75,6 +76,24 @@ func (s *GenericScenario) Description() string {
 type TemplateData struct {
 	UniqueID string
 	RepoURL  string
+}
+
+func (s *GenericScenario) AppSpec(repoURL string) string {
+	data := TemplateData{
+		RepoURL: repoURL,
+	}
+
+	t, err := template.New("appspec").Parse(s.Config.AppSpec)
+	if err != nil {
+		return fmt.Sprintf("ERROR PARSING APPSPEC TEMPLATE: %s", s.Config.AppSpec)
+	}
+
+	var buf bytes.Buffer
+	if err := t.Execute(&buf, data); err != nil {
+		return fmt.Sprintf("ERROR EXECUTING APPSPEC TEMPLATE: %v", err)
+	}
+
+	return buf.String()
 }
 
 func (s *GenericScenario) Generate(uniqueID string, repoURL string) []TicketSpec {

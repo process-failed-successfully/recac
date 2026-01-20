@@ -40,6 +40,49 @@ This command:
 3. Deploys the system via Helm.
 4. Runs the E2E runner to verify the end-to-end flow within the cluster.
 
+## Refactored CLI (New)
+
+We have introduced a granular CLI tool `recac-e2e` to allow testing individual components of the E2E flow.
+
+### Usage
+
+1. **Build the tool**:
+   ```bash
+   go build -o recac-e2e ./cmd/e2e
+   ```
+
+2. **Setup (Jira/Repo)**:
+   ```bash
+   ./recac-e2e setup -scenario prime-python
+   ```
+   This creates the Jira tickets and prepares the git repo. It saves state to `e2e_state.json`.
+
+3. **Deploy (Helm)**:
+   ```bash
+   ./recac-e2e deploy
+   ```
+   This builds the docker image and deploys the Helm chart using the state from the previous step.
+
+4. **Verify**:
+   ```bash
+   ./recac-e2e verify
+   ```
+   This checks the results. Use `-keep-repo` to inspect the cloned repo on failure.
+
+5. **Cleanup**:
+   ```bash
+   ./recac-e2e cleanup
+   ```
+
+### Debugging
+
+If a test fails, you can inspect the state file `e2e_state.json` to see the Ticket IDs and Release names. You can then run `verify` repeatedly while fixing issues.
+
+To run the full simulated flow with the new tool:
+```bash
+make ci-simulate-v2
+```
+
 ## Scenarios
 
 Scenarios are defined in [`pkg/e2e/scenarios`](../pkg/e2e/scenarios). Each scenario defines:
