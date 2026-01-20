@@ -17,10 +17,10 @@ func getTestImpactCmd() *cobra.Command {
 		Use:   "impact [files...]",
 		RunE:  runImpact,
 	}
-	// Re-add flags since they are global
-	cmd.Flags().BoolVar(&impactJSON, "json", false, "Output results as JSON")
-	cmd.Flags().BoolVar(&impactSuggestTests, "suggest-tests", false, "Suggest relevant tests to run")
-	cmd.Flags().BoolVar(&impactGitDiff, "git-diff", false, "Analyze changes in current git diff")
+	// Define flags locally
+	cmd.Flags().Bool("json", false, "Output results as JSON")
+	cmd.Flags().Bool("suggest-tests", false, "Suggest relevant tests to run")
+	cmd.Flags().Bool("git-diff", false, "Analyze changes in current git diff")
 	return cmd
 }
 
@@ -88,11 +88,6 @@ func TestAPI(t *testing.T) { API() }
 		root := &cobra.Command{Use: "recac"}
 		root.AddCommand(cmd)
 
-		// Reset globals
-		impactJSON = false
-		impactSuggestTests = false
-		impactGitDiff = false
-
 		// We are already in tmpDir
 		output, err := executeCommand(root, "impact", "pkg/util/util.go")
 		require.NoError(t, err)
@@ -109,11 +104,6 @@ func TestAPI(t *testing.T) { API() }
 		root := &cobra.Command{Use: "recac"}
 		root.AddCommand(cmd)
 
-		// Reset globals
-		impactJSON = false
-		impactSuggestTests = false
-		impactGitDiff = false
-
 		output, err := executeCommand(root, "impact", "pkg/mid/mid.go")
 		require.NoError(t, err)
 
@@ -129,11 +119,6 @@ func TestAPI(t *testing.T) { API() }
 		root := &cobra.Command{Use: "recac"}
 		root.AddCommand(cmd)
 
-		// Reset globals
-		impactJSON = false
-		impactSuggestTests = false
-		impactGitDiff = false
-
 		output, err := executeCommand(root, "impact", "--suggest-tests", "pkg/util/util.go")
 		require.NoError(t, err)
 
@@ -147,11 +132,6 @@ func TestAPI(t *testing.T) { API() }
 		cmd := getTestImpactCmd()
 		root := &cobra.Command{Use: "recac"}
 		root.AddCommand(cmd)
-
-		// Reset globals
-		impactJSON = false
-		impactSuggestTests = false
-		impactGitDiff = false
 
 		output, err := executeCommand(root, "impact", "--json", "pkg/util/util.go")
 		require.NoError(t, err)

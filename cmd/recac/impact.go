@@ -26,17 +26,11 @@ Examples:
 	RunE: runImpact,
 }
 
-var (
-	impactJSON         bool
-	impactSuggestTests bool
-	impactGitDiff      bool
-)
-
 func init() {
 	rootCmd.AddCommand(impactCmd)
-	impactCmd.Flags().BoolVar(&impactJSON, "json", false, "Output results as JSON")
-	impactCmd.Flags().BoolVar(&impactSuggestTests, "suggest-tests", false, "Suggest relevant tests to run")
-	impactCmd.Flags().BoolVar(&impactGitDiff, "git-diff", false, "Analyze changes in current git diff (unstaged)")
+	impactCmd.Flags().Bool("json", false, "Output results as JSON")
+	impactCmd.Flags().Bool("suggest-tests", false, "Suggest relevant tests to run")
+	impactCmd.Flags().Bool("git-diff", false, "Analyze changes in current git diff (unstaged)")
 }
 
 type ImpactResult struct {
@@ -47,8 +41,13 @@ type ImpactResult struct {
 func runImpact(cmd *cobra.Command, args []string) error {
 	root := "."
 
+	// Read flags from the command object
+	useJSON, _ := cmd.Flags().GetBool("json")
+	suggestTests, _ := cmd.Flags().GetBool("suggest-tests")
+	useGitDiff, _ := cmd.Flags().GetBool("git-diff")
+
 	files := args
-	if impactGitDiff {
+	if useGitDiff {
 		diffFiles, err := getGitDiffFiles()
 		if err != nil {
 			return fmt.Errorf("failed to get git diff: %w", err)
@@ -79,7 +78,7 @@ func runImpact(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(changedPackages) == 0 {
-		if impactJSON {
+		if useJSON {
 			fmt.Fprintln(cmd.OutOrStdout(), "{}")
 			return nil
 		}
@@ -133,7 +132,7 @@ func runImpact(cmd *cobra.Command, args []string) error {
 	sort.Strings(sortedAffected)
 
 	var suggestedTests []string
-	if impactSuggestTests {
+	if suggestTests {
 		for _, pkg := range sortedAffected {
 			if strings.HasPrefix(pkg, moduleName) {
 				relPath := strings.TrimPrefix(pkg, moduleName)
@@ -155,7 +154,7 @@ func runImpact(cmd *cobra.Command, args []string) error {
 		SuggestedTests:   suggestedTests,
 	}
 
-	if impactJSON {
+	if useJSON {
 		enc := json.NewEncoder(cmd.OutOrStdout())
 		enc.SetIndent("", "  ")
 		return enc.Encode(res)
@@ -177,7 +176,7 @@ func runImpact(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(cmd.OutOrStdout(), "  - %s%s\n", pkg, marker)
 	}
 
-	if impactSuggestTests && len(suggestedTests) > 0 {
+	if suggestTests && len(suggestedTests) > 0 {
 		fmt.Println()
 		fmt.Fprintln(cmd.OutOrStdout(), "Suggested Tests:")
 		for _, testCmd := range suggestedTests {
