@@ -48,6 +48,19 @@ var orchestrateCmd = &cobra.Command{
 		pollerType := viper.GetString("orchestrator.poller")
 
 		switch pollerType {
+		case "file-dir":
+			watchDir := viper.GetString("orchestrator.watch_dir")
+			if watchDir == "" {
+				logger.Error("Watch directory must be specified in file-dir poller mode")
+				os.Exit(1)
+			}
+			var err error
+			poller, err = orchestrator.NewFileDirPoller(watchDir)
+			if err != nil {
+				logger.Error("Failed to initialize file directory poller", "error", err)
+				os.Exit(1)
+			}
+			logger.Info("Using file directory poller", "directory", watchDir)
 		case "file", "filesystem":
 			workFile := viper.GetString("orchestrator.work_file")
 			if workFile == "" {
@@ -126,12 +139,14 @@ func init() {
 	orchestrateCmd.Flags().String("image-pull-policy", "Always", "Image pull policy for agents (Always, IfNotPresent, Never)")
 
 	orchestrateCmd.Flags().String("jira-query", "", "Custom JQL query (overrides label)")
-	orchestrateCmd.Flags().String("poller", "jira", "Poller type: 'jira' or 'file'")
+	orchestrateCmd.Flags().String("poller", "jira", "Poller type: 'jira', 'file', or 'file-dir'")
 	orchestrateCmd.Flags().String("work-file", "work_items.json", "Work items file (for 'file' poller)")
+	orchestrateCmd.Flags().String("watch-dir", "", "Directory to watch for work item files (for 'file-dir' poller)")
 
 	viper.BindPFlag("orchestrator.jira_query", orchestrateCmd.Flags().Lookup("jira-query"))
 	viper.BindPFlag("orchestrator.poller", orchestrateCmd.Flags().Lookup("poller"))
 	viper.BindPFlag("orchestrator.work_file", orchestrateCmd.Flags().Lookup("work-file"))
+	viper.BindPFlag("orchestrator.watch_dir", orchestrateCmd.Flags().Lookup("watch-dir"))
 
 	viper.BindPFlag("orchestrator.mode", orchestrateCmd.Flags().Lookup("mode"))
 	viper.BindPFlag("orchestrator.jira_label", orchestrateCmd.Flags().Lookup("jira-label"))
@@ -147,6 +162,7 @@ func init() {
 	viper.BindEnv("orchestrator.agent_model", "RECAC_AGENT_MODEL")
 	viper.BindEnv("orchestrator.poller", "RECAC_POLLER")
 	viper.BindEnv("orchestrator.work_file", "RECAC_WORK_FILE")
+	viper.BindEnv("orchestrator.watch_dir", "RECAC_WATCH_DIR")
 	viper.BindEnv("orchestrator.mode", "RECAC_ORCHESTRATOR_MODE")
 	viper.BindEnv("orchestrator.image", "RECAC_ORCHESTRATOR_IMAGE")
 	viper.BindEnv("orchestrator.namespace", "RECAC_ORCHESTRATOR_NAMESPACE")
