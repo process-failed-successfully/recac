@@ -313,16 +313,19 @@ func getUnifiedSessions(cmd *cobra.Command, filters model.PsFilters) ([]model.Un
 		if err == nil {
 			sinceTime = time.Now().Add(-duration)
 		} else {
-			layouts := []string{time.RFC3339, "2006-01-02"}
 			parsed := false
-			for _, layout := range layouts {
-				t, err := time.Parse(layout, filters.Since)
-				if err == nil {
+			// Try RFC3339 first (absolute)
+			if t, err := time.Parse(time.RFC3339, filters.Since); err == nil {
+				sinceTime = t
+				parsed = true
+			} else {
+				// Try date-only in Local time
+				if t, err := time.ParseInLocation("2006-01-02", filters.Since, time.Local); err == nil {
 					sinceTime = t
 					parsed = true
-					break
 				}
 			}
+
 			if !parsed {
 				return nil, fmt.Errorf("invalid 'since' value %q: must be a duration or timestamp", filters.Since)
 			}

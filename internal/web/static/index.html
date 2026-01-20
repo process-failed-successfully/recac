@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recac Dashboard</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 20px; background: #f4f4f4; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        h1, h2 { color: #333; }
+        .section { margin-bottom: 30px; }
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
+        .status-done { background: #d4edda; color: #155724; }
+        .status-inprogress { background: #cce5ff; color: #004085; }
+        .status-pending { background: #e2e3e5; color: #383d41; }
+        .status-failed { background: #f8d7da; color: #721c24; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #ddd; }
+        th { background-color: #f8f9fa; }
+        #graph { width: 100%; height: 500px; border: 1px solid #ddd; background: white; overflow: hidden; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Recac Project Dashboard</h1>
+
+        <div class="section">
+            <h2>Task Dependency Graph</h2>
+            <div id="graph" class="mermaid">
+                <!-- Graph will be loaded here -->
+                graph TD;
+                  A[Loading...]
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Features & Tasks</h2>
+            <table id="features-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                        <th>Priority</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Features will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        mermaid.initialize({ startOnLoad: false });
+
+        async function loadData() {
+            try {
+                // Fetch Features
+                const featuresResp = await fetch('/api/features');
+                const features = await featuresResp.json();
+                renderFeatures(features);
+
+                // Fetch Graph
+                const graphResp = await fetch('/api/graph');
+                const graphData = await graphResp.text();
+                renderGraph(graphData);
+
+            } catch (e) {
+                console.error("Error loading data:", e);
+                document.getElementById('graph').innerHTML = "Error loading data. Is the server running?";
+            }
+        }
+
+        function renderFeatures(features) {
+            const tbody = document.querySelector('#features-table tbody');
+            tbody.innerHTML = '';
+            features.forEach(f => {
+                const tr = document.createElement('tr');
+                let statusClass = 'status-pending';
+                if (f.status === 'done') statusClass = 'status-done';
+                else if (f.status === 'in_progress') statusClass = 'status-inprogress';
+                else if (f.status === 'failed') statusClass = 'status-failed';
+
+                tr.innerHTML = `
+                    <td>${f.id}</td>
+                    <td>${f.description}</td>
+                    <td><span class="status-badge ${statusClass}">${f.status}</span></td>
+                    <td>${f.priority}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function renderGraph(graphDef) {
+            const element = document.getElementById('graph');
+            // Check if graphDef is valid mermaid syntax
+            if (!graphDef.trim().startsWith('graph')) {
+                 element.innerHTML = `<pre>${graphDef}</pre>`;
+                 return;
+            }
+            element.innerHTML = graphDef;
+            await mermaid.run({ nodes: [element] });
+        }
+
+        document.addEventListener('DOMContentLoaded', loadData);
+    </script>
+</body>
+</html>
