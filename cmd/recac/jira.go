@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"recac/internal/agent"
@@ -578,7 +579,7 @@ func runGenerateFromArchCmd(cmd *cobra.Command, args []string) {
 	tickets := []ticketNode{rootEpic}
 
 	// 3. Setup Jira Client
-	jiraClient, err := getJiraClient(ctx)
+	jiraClient, err := cmdutils.GetJiraClient(ctx)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		exit(1)
@@ -657,7 +658,7 @@ var jiraCleanupCmd = &cobra.Command{
 		}
 
 		ctx := context.Background()
-		client, err := getJiraClient(ctx)
+		client, err := cmdutils.GetJiraClient(ctx)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			exit(1)
@@ -691,9 +692,3 @@ var jiraCleanupCmd = &cobra.Command{
 	},
 }
 
-func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen-3] + "..."
-}

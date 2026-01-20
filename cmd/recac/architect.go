@@ -46,7 +46,7 @@ func runArchitectCmd(cmd *cobra.Command, args []string) {
 	// 2. Init Agent
 	provider := viper.GetString("provider")
 	model := viper.GetString("model")
-	ag, err := getAgentClient(ctx, provider, model, ".", "recac-architect")
+	ag, err := agentClientFactory(ctx, provider, model, ".", "recac-architect")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error initializing agent: %v\n", err)
 		os.Exit(1)
