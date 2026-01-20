@@ -153,7 +153,6 @@ func TestKnowledgeCommands(t *testing.T) {
 
 		buf := new(bytes.Buffer)
 		knowledgeLearnCmd.SetOut(buf)
-
 		knowledgeFocus = "src"
 
 		err = knowledgeLearnCmd.RunE(knowledgeLearnCmd, []string{})
