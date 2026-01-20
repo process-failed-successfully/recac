@@ -24,6 +24,30 @@ func TestHelperProcess(t *testing.T) {
 	defer os.Exit(0)
 
 	args := os.Args[3:]
+
+	// Handle special mocks that shouldn't go to rootCmd
+	if len(args) > 0 {
+		cmd := args[0]
+		if cmd == "go" {
+			// Mock pprof specifically
+			if len(args) > 2 && args[1] == "tool" && args[2] == "pprof" {
+				fmt.Print("mock pprof output: top cum flat")
+				os.Exit(0)
+			}
+			// Mock go test/run
+			if len(args) > 1 && (args[1] == "test" || args[1] == "run") {
+				// Just succeed, maybe write a file if args contain -cpuprofile
+				for _, arg := range args {
+					if strings.HasPrefix(arg, "-cpuprofile=") {
+						path := strings.TrimPrefix(arg, "-cpuprofile=")
+						os.WriteFile(path, []byte("mock profile"), 0644)
+					}
+				}
+				os.Exit(0)
+			}
+		}
+	}
+
 	rootCmd.SetArgs(args)
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "execution failed: %v", err)
