@@ -146,8 +146,8 @@ func generateMermaid(g *runner.TaskGraph) string {
 		}
 
 		safeID := sanitizeMermaidID(node.ID)
-		safeName := strings.ReplaceAll(node.Name, "\"", "'")
-		safeName = strings.ReplaceAll(safeName, "\n", " ")
+		        		safeName := strings.ReplaceAll(node.Name, "\"", "'")
+		        		safeName = strings.ReplaceAll(safeName, "\n", " ")
 		if len(safeName) > 30 {
 			safeName = safeName[:27] + "..."
 		}
