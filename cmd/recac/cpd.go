@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"crypto/sha256"
-	"encoding/hex"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"os"
 	"path/filepath"
 	"sort"
@@ -94,9 +97,46 @@ func init() {
 	cpdCmd.Flags().BoolVar(&cpdFail, "fail", false, "Exit with error code if duplicates found")
 }
 
+func hashLineBytes(b []byte) uint64 {
+	h := fnv.New64a()
+	h.Write(b)
+	return h.Sum64()
+}
+
+// readAndHashFile reads a file and returns a slice of hashes for each line (trimmed).
+// This avoids allocating strings for every line in the file.
+func readAndHashFile(path string) ([]uint64, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var hashes []uint64
+	// Use a reasonable buffer size for scanner if lines are long, but default is usually fine
+	scanner := bufio.NewScanner(file)
+
+	// Increase max token size if needed? Default 64k is usually enough for source code lines.
+
+	for scanner.Scan() {
+		// scanner.Bytes() returns a slice that may be overwritten by next Scan call.
+		// We use it immediately to hash.
+		// We trim space from the bytes.
+		lineBytes := scanner.Bytes()
+		trimmed := bytes.TrimSpace(lineBytes)
+		hashes = append(hashes, hashLineBytes(trimmed))
+	}
+
+	return hashes, scanner.Err()
+}
+
 func runCPD(root string, minLines int, ignorePatterns []string) ([]Duplication, error) {
-	// 1. Collect all lines from all files
-	fileLines := make(map[string][]string) // file -> lines
+	// Map: hash -> []Location
+	hashes := make(map[string][]Location)
+
+	// Reuse buffer for window hashing
+	// We map minLines uint64s to bytes: minLines * 8 bytes
+	windowBuf := make([]byte, minLines*8)
 
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -132,40 +172,26 @@ func runCPD(root string, minLines int, ignorePatterns []string) ([]Duplication, 
 			return nil
 		}
 
-		lines, err := readLines(path)
+		lineHashes, err := readAndHashFile(path)
 		if err != nil {
 			return nil // Skip unreadable files
 		}
 
 		// Filter out short files
-		if len(lines) < minLines {
+		if len(lineHashes) < minLines {
 			return nil
 		}
 
-		fileLines[path] = lines
-		return nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	// 2. Generate hashes for sliding windows
-	// Map: hash -> []Location
-	hashes := make(map[string][]Location)
-
-	for path, lines := range fileLines {
-		for i := 0; i <= len(lines)-minLines; i++ {
-			// Create window content
-			var window strings.Builder
+		// Sliding window over hashes
+		for i := 0; i <= len(lineHashes)-minLines; i++ {
+			// Create window content by serializing hashes
 			for j := 0; j < minLines; j++ {
-				// Normalize: trim whitespace
-				window.WriteString(strings.TrimSpace(lines[i+j]))
-				window.WriteString("\n")
+				binary.BigEndian.PutUint64(windowBuf[j*8:], lineHashes[i+j])
 			}
 
-			h := sha256.Sum256([]byte(window.String()))
-			hashStr := hex.EncodeToString(h[:])
+			h := sha256.Sum256(windowBuf)
+			// Use the raw bytes as the key map
+			hashStr := string(h[:])
 
 			hashes[hashStr] = append(hashes[hashStr], Location{
 				File:      path,
@@ -173,6 +199,12 @@ func runCPD(root string, minLines int, ignorePatterns []string) ([]Duplication, 
 				EndLine:   i + minLines,
 			})
 		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
 	}
 
 	// 3. Generate Pairwise Matches
