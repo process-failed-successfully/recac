@@ -6,6 +6,7 @@ func init() {
 	Register(NewGenericScenario(GenericScenarioConfig{
 		Name:        "simple-readme",
 		Description: "Asks the agent to create a README.md file with specific content.",
+		AppSpec:     "### ID:[README-1] Create README\n\nCreate a README.md file in the root of the repository. The README should contain the text 'Hello Recac E2E'.\n\nRepo: {{.RepoURL}}",
 		Tickets: []TicketTemplate{
 			{
 				ID:      "README-1",

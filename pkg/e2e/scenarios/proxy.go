@@ -15,6 +15,29 @@ func (s *HTTPProxyScenario) Description() string {
 	return "A complex scenario requiring the implementation of a Golang HTTP Reverse Proxy with multiple phases."
 }
 
+func (s *HTTPProxyScenario) AppSpec(repoURL string) string {
+	return fmt.Sprintf(`### ID:[PROXY] Golang HTTP Reverse Proxy
+
+Build a robust, production-ready HTTP reverse proxy in Go.
+
+The project should be organized into a standard Go structure (cmd/, internal/, pkg/).
+
+Key Phases & Features:
+1. Foundation: Initialize go module and define sentinel errors.
+2. Configuration: Load configuration (Port, TargetURL, Timeouts) from environment variables and validate it.
+3. Logging: Setup structured logging (slog).
+4. Middleware: Implement Request ID, Request Logging, and Panic Recovery middleware.
+5. Proxy Logic: Implement the reverse proxy handler using 'httputil.ReverseProxy' that rewrites requests to the target URL.
+6. Health Checks: Implement backend health checks and a '/healthz' endpoint.
+7. Assembly: Wire everything together in 'cmd/proxy/main.go' with graceful shutdown support.
+8. DevOps: Provide a multi-stage Dockerfile and a README.md.
+
+Use Go for the implementation.
+Ensure you use a bash block to create the source files.
+
+Repo: %s`, repoURL)
+}
+
 func (s *HTTPProxyScenario) Generate(uniqueID string, repoURL string) []TicketSpec {
 	return []TicketSpec{
 		// Phase 1: Foundation

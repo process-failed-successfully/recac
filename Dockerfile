@@ -16,6 +16,9 @@ RUN apt-get update && apt-get install -y \
     make \
     && rm -rf /var/lib/apt/lists/*
 
+# Allow pip to install global packages (Debian 12 PEP 668)
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
+
 # Configure NPM mirror
 # RUN npm config set registry https://registry.npmmirror.com/
 

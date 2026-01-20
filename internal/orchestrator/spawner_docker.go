@@ -147,7 +147,7 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		cmdStr := "cd /workspace"
 		cmdStr += " && export RECAC_MAX_ITERATIONS=20"
 		cmdStr += " && " + strings.Join(envExports, " && ")
-		cmdStr += " && " + strings.Join(agentCmd, " ")
+		cmdStr += " && " + strings.Join(agentCmd, " ") + " --allow-dirty"
 		cmdStr += " && echo 'Recac Finished'"
 
 		cmd := []string{"/bin/sh", "-c", cmdStr}

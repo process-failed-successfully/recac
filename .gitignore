@@ -16,6 +16,8 @@ clean_jira_data
 gen-jira-data
 gen_jira_data
 smoke_test
+/orchestrator
+/runner
 
 # Development environment
 .recac/
@@ -96,3 +98,6 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 test_state.json
+
+# Gemini Extension
+.gemini/*.local.md

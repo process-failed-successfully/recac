@@ -34,6 +34,12 @@ bridge: ## Build the agent-bridge binary
 test: image ## Run unit tests via Docker (skips E2E)
 	$(DOCKER_CMD) /bin/sh -c 'go test -buildvcs=false -v $$(go list -buildvcs=false ./... | grep -v /scripts/)'
 
+test-local: ## Run all tests locally (requires Go)
+	go test -mod=mod -v $$(go list ./... | grep -v /scripts/ | grep -v /tests/e2e)
+
+test-orch: ## Run orchestrator unit and integration tests locally
+	go test -mod=mod -v ./internal/orchestrator/...
+
 test-sharded: image ## Run a subset of tests (SHARD=x TOTAL_SHARDS=y)
 	$(DOCKER_CMD) /bin/sh scripts/test_sharded.sh $(SHARD) $(TOTAL_SHARDS)
 
@@ -99,6 +105,50 @@ ci-simulate: ## Run E2E test exactly like CI (but on local cluster)
 		-pull-policy IfNotPresent \
 		-skip-cleanup
 
+ci-simulate-v2: ## Run Refactored E2E test
+	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
+	./scripts/ci_simulate_refactored.sh -provider openrouter -model "mistralai/devstral-2512:free"
+
+# Scenario Defaults
+PROVIDER ?= openrouter
+MODEL ?= "mistralai/devstral-2512:free"
+
+e2e-local: ## Run a specific scenario locally (SCENARIO=x PROVIDER=y MODEL=z)
+	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
+	go run e2e/runner/main.go -local -scenario $(SCENARIO) -provider $(PROVIDER) -model $(MODEL)
+
+e2e-redis: ## Run Redis challenge scenario locally
+	@$(MAKE) e2e-local SCENARIO=redis-challenge
+
+e2e-lb: ## Run Load Balancer scenario locally
+	@$(MAKE) e2e-local SCENARIO=load-balancer
+
+e2e-log: ## Run Distributed Log scenario locally
+	@$(MAKE) e2e-local SCENARIO=distributed-log
+
+e2e-sql: ## Run SQL Parser scenario locally
+	@$(MAKE) e2e-local SCENARIO=sql-parser
+
+e2e-k8s: ## Run a specific scenario in k8s (SCENARIO=x PROVIDER=y MODEL=z ARCHITECT=true)
+	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
+	RECAC_ARCHITECT_MODE=$(ARCHITECT) go run e2e/runner/main.go -scenario $(SCENARIO) -provider $(PROVIDER) -model $(MODEL) $(ARGS)
+
+e2e-k8s-redis: ## Run Redis challenge scenario in k8s
+	@$(MAKE) e2e-k8s SCENARIO=redis-challenge
+
+e2e-k8s-lb: ## Run Load Balancer scenario in k8s
+	@$(MAKE) e2e-k8s SCENARIO=load-balancer
+
+e2e-k8s-log: ## Run Distributed Log scenario in k8s
+	@$(MAKE) e2e-k8s SCENARIO=distributed-log
+
+e2e-k8s-sql: ## Run SQL Parser scenario in k8s
+	@$(MAKE) e2e-k8s SCENARIO=sql-parser
+
+e2e-architect: image ## Run Architecture Generation Benchmark (PROVIDER=x MODEL=y)
+	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
+	$(DOCKER_CMD) /bin/sh -c 'RECAC_PROVIDER=$(PROVIDER) RECAC_MODEL=$(MODEL) go test -v -tags=e2e ./tests/e2e/architecture_bench_test.go'
+
 shell: image ## Launch a shell inside the build container
 	docker run -it $(DOCKER_RUN_OPTS) $(DOCKER_IMAGE) /bin/sh
 
@@ -151,7 +201,7 @@ remove-helm: ## Uninstall the Helm release
 
 # Dev Cycle Helpers
 # Use ttl.sh for ephemeral, fast, auth-less registry
-DEPLOY_REPO=ttl.sh/recac-dev-luke
+DEPLOY_REPO=ttl.sh/recac-dev-lukef
 DEPLOY_TAG=2h
 DEPLOY_IMAGE=$(DEPLOY_REPO):$(DEPLOY_TAG)
 

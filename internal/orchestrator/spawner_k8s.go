@@ -71,7 +71,12 @@ func NewK8sSpawner(logger *slog.Logger, image string, namespace, provider, model
 }
 
 func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
-	s.Logger.Info("Spawning K8s Job", "item", item.ID, "namespace", s.Namespace)
+	s.Logger.Info("Spawning K8s Job",
+		"item", item.ID,
+		"namespace", s.Namespace,
+		"inject_provider", s.AgentProvider,
+		"inject_model", s.AgentModel,
+	)
 
 	// Clean ID for K8s name (lowercase, replace invalid chars)
 	safeID := sanitizeK8sName(item.ID)
@@ -108,7 +113,7 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 
 	// Define Job
 	ttl := int32(3600)  // 1 Hour TTL
-	backoff := int32(0) // No retries for now (fail fast to let Orchestrator handle? or rely on K8s?)
+	backoff := int32(6) // Retries enabled (standard K8s default)
 	// Spec says: "RestartPolicy: Never". "Orchestrator monitors...".
 
 	// Construct Env Vars
@@ -155,6 +160,14 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	// Propagate Project ID
 	envVars = append(envVars, corev1.EnvVar{Name: "RECAC_PROJECT_ID", Value: item.ID})
 
+	// Propagate Agent Limits
+	if val := os.Getenv("RECAC_MAX_ITERATIONS"); val != "" {
+		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_MAX_ITERATIONS", Value: val})
+	}
+	if val := os.Getenv("RECAC_MANAGER_FREQUENCY"); val != "" {
+		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_MANAGER_FREQUENCY", Value: val})
+	}
+
 	// Inject Git Identity to prevent "Author identity unknown" errors
 	envVars = append(envVars, []corev1.EnvVar{
 		{Name: "GIT_AUTHOR_NAME", Value: "RECAC Agent"},
@@ -199,7 +212,7 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		if [ -n "$GITHUB_TOKEN" ]; then
 			git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
 		fi
-		recac-agent --jira %s --project %s --image %s --path /workspace --detached=false --cleanup=false --allow-dirty --repo-url %q
+		recac-agent --jira %q --project %q --image %s --path /workspace --detached=false --cleanup=false --allow-dirty --repo-url %q
 	`, item.ID, item.ID, s.Image, item.RepoURL)
 
 	job := &batchv1.Job{
@@ -217,7 +230,7 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 					},
 				},
 				Spec: corev1.PodSpec{
-					RestartPolicy:      corev1.RestartPolicyNever,
+					RestartPolicy:      corev1.RestartPolicyOnFailure,
 					EnableServiceLinks: boolPtr(false),
 					Containers: []corev1.Container{
 						{

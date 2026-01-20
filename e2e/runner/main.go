@@ -2,11 +2,16 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -19,7 +24,6 @@ import (
 
 var (
 	defaultRepo = "192.168.0.55:5000/recac-e2e"
-	deployTag   = "1h"
 	chartPath   = "./deploy/helm/recac"
 	namespace   = "default"
 	releaseName = "recac"
@@ -53,8 +57,8 @@ func run() error {
 	flag.StringVar(&deployRepo, "repo", defaultRepo, "Docker repository for deployment")
 	flag.StringVar(&targetRepo, "repo-url", repoURL, "Target Git repository for the agent")
 	flag.StringVar(&pullPolicy, "pull-policy", "IfNotPresent", "Image pull policy (Always, IfNotPresent, Never)")
-	flag.StringVar(&exactImage, "image", "", "Exact image name to use (overrides repo/timestamp logic)")
-	flag.BoolVar(&skipBuild, "skip-build", false, "Skip docker build")
+	flag.StringVar(&exactImage, "image", "", "Exact image name to use (overrides hash-based logic)")
+	flag.BoolVar(&skipBuild, "skip-build", false, "Force skip docker build")
 	flag.BoolVar(&skipCleanup, "skip-cleanup", false, "Skip cleanup on finish")
 	local := flag.Bool("local", false, "Run orchestrator locally instead of deploying to K8s")
 	flag.Parse()
@@ -64,7 +68,6 @@ func run() error {
 		repoURL = targetRepo
 	}
 
-	// Validate Env
 	// Validate Env
 	required := []string{"JIRA_URL", "JIRA_USERNAME", "JIRA_API_TOKEN", "GITHUB_API_KEY"}
 	for _, env := range required {
@@ -96,7 +99,7 @@ func run() error {
 			return fmt.Errorf("missing CURSOR_API_KEY for provider cursor")
 		}
 	}
-	// Note: SLACK/DISCORD tokens are optional for E2E but supported if present
+
 	// Fallback/Default for API key if token not set
 	if os.Getenv("JIRA_API_TOKEN") == "" && os.Getenv("JIRA_API_KEY") != "" {
 		os.Setenv("JIRA_API_TOKEN", os.Getenv("JIRA_API_KEY"))
@@ -125,20 +128,54 @@ func run() error {
 		imageName = exactImage
 		log.Printf("Using exact image: %s", imageName)
 	} else {
-		imageName = fmt.Sprintf("%s-%d:%s", deployRepo, time.Now().Unix(), deployTag)
+		// Compute Source Hash
+		log.Println("Computing source hash...")
+		hash, err := computeSourceHash()
+		if err != nil {
+			return fmt.Errorf("failed to compute source hash: %w", err)
+		}
+		// Shorten hash for tag
+		shortHash := hash[:12]
+		imageName = fmt.Sprintf("%s:%s", deployRepo, shortHash)
+		log.Printf("Computed Image Tag: %s", imageName)
+
+		// Check if image exists locally (unless skipBuild is explicitly set true, which assumes user knows)
+		imageExists := false
+		if !skipBuild {
+			cmd := exec.Command("docker", "image", "inspect", imageName)
+			if err := cmd.Run(); err == nil {
+				imageExists = true
+				log.Println("Image already exists locally. Skipping build.")
+			}
+		}
+
+		if !skipBuild && !imageExists {
+			log.Println("=== Building and Pushing Image ===")
+			// Use hash as cache bypass to ensure we build for this version, but can cache intermediate layers
+			// Actually, if we want Docker cache to work, we shouldn't bypass unless necessary.
+			// But sticking to the previous pattern of passing ARGS is fine, just use the hash.
+			if err := runCommand("make", "image-prod", fmt.Sprintf("DEPLOY_IMAGE=%s", imageName), fmt.Sprintf("ARGS=--build-arg CACHE_BYPASS=%s", shortHash)); err != nil {
+				return fmt.Errorf("failed to build image: %w", err)
+			}
+			if err := runCommand("docker", "push", imageName); err != nil {
+				return fmt.Errorf("failed to push image: %w", err)
+			}
+		} else if skipBuild {
+			log.Println("=== Skipping Build (Explicit Flag) ===")
+		} else {
+			// Image exists
+			log.Println("=== Pushing Existing Image (Ensure Registry has it) ===")
+			if err := runCommand("docker", "push", imageName); err != nil {
+				return fmt.Errorf("failed to push image: %w", err)
+			}
+		}
 	}
 
-	if !skipBuild {
-		log.Println("=== Building and Pushing Image ===")
-		bypass := fmt.Sprintf("CACHE_BYPASS=%d", time.Now().Unix())
-		if err := runCommand("make", "image-prod", fmt.Sprintf("DEPLOY_IMAGE=%s", imageName), fmt.Sprintf("ARGS=--build-arg %s", bypass)); err != nil {
-			return fmt.Errorf("failed to build image: %w", err)
-		}
-		if err := runCommand("docker", "push", imageName); err != nil {
-			return fmt.Errorf("failed to push image: %w", err)
-		}
-	} else {
-		log.Println("=== Skipping Build ===")
+	// 1b. Build recac CLI (Before generating scenario which might use it)
+	fmt.Println("=== Building recac CLI ===")
+	buildCmd := exec.Command("go", "build", "-o", "recac", "./cmd/recac")
+	if out, err := buildCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to build recac CLI: %v\nOutput: %s", err, out)
 	}
 
 	// 2. Setup Jira
@@ -147,7 +184,7 @@ func run() error {
 		return fmt.Errorf("unknown scenario: %s", scenarioName)
 	}
 
-	label, ticketMap, err := mgr.GenerateScenario(ctx, scenarioName, repoURL)
+	label, ticketMap, err := mgr.GenerateScenario(ctx, scenarioName, repoURL, provider, model)
 	if err != nil {
 		return fmt.Errorf("failed to generate scenario: %w", err)
 	}
@@ -163,7 +200,7 @@ func run() error {
 		}
 	}()
 
-	// 3. Prepare Repository (Cleanup stale branches)
+	// 3. Prepare Repository
 	log.Println("=== Preparing Repository (Cleaning stale branches) ===")
 	if err := prepareRepo(repoURL, ticketMap); err != nil {
 		log.Printf("Warning: Failed to prepare repository: %v", err)
@@ -231,6 +268,10 @@ func run() error {
 		return nil
 
 	} else {
+		log.Println("=== Scaling down old Orchestrator to prevent race conditions ===")
+		// Ignore error if deployment doesn't exist
+		_ = runCommand("kubectl", "scale", "deployment", releaseName, "--replicas=0", "-n", namespace)
+		
 		log.Println("=== Cleaning up old Jobs ===")
 		_ = runCommand("kubectl", "delete", "jobs", "-n", namespace, "-l", "app=recac-agent", "--cascade=foreground", "--wait=true")
 
@@ -266,7 +307,7 @@ func run() error {
 			"--set", fmt.Sprintf("config.jira_query=labels = \"%s\" AND issuetype != Epic AND statusCategory != Done ORDER BY created ASC", label),
 			"--set", "config.verbose=true",
 			"--set", "config.interval=10s",
-			"--set", "config.maxIterations=20",
+			"--set", fmt.Sprintf("config.maxIterations=%s", getEnvOrDefault("MAX_ITERATIONS", "20")),
 			"--set", fmt.Sprintf("config.provider=%s", provider),
 			"--set", fmt.Sprintf("config.model=%s", model),
 			"--set", "config.dbType=postgres",
@@ -362,6 +403,62 @@ func run() error {
 
 	log.Println("=== E2E Test PASSED ===")
 	return nil
+}
+
+func computeSourceHash() (string, error) {
+	hasher := sha256.New()
+	dirs := []string{"cmd", "internal", "pkg"}
+	files := []string{"go.mod", "go.sum", "Dockerfile"}
+
+	// Gather all files
+	var allFiles []string
+
+	// Add root files
+	for _, f := range files {
+		if _, err := os.Stat(f); err == nil {
+			allFiles = append(allFiles, f)
+		}
+	}
+
+	// Add dirs recursively
+	for _, d := range dirs {
+		if _, err := os.Stat(d); os.IsNotExist(err) {
+			continue
+		}
+		err := filepath.Walk(d, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if !info.IsDir() {
+				allFiles = append(allFiles, path)
+			}
+			return nil
+		})
+		if err != nil {
+			return "", err
+		}
+	}
+
+	// Sort to ensure determinism
+	sort.Strings(allFiles)
+
+	for _, file := range allFiles {
+		f, err := os.Open(file)
+		if err != nil {
+			return "", err
+		}
+
+		// Hash the file path first to detect renames/moves
+		hasher.Write([]byte(file))
+
+		if _, err := io.Copy(hasher, f); err != nil {
+			f.Close()
+			return "", err
+		}
+		f.Close()
+	}
+
+	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
 
 func verifyScenario(scenarioName, repo string, ticketMap map[string]string) error {
@@ -491,4 +588,10 @@ func prepareRepo(repoURL string, ticketMap map[string]string) error {
 	}
 
 	return nil
+}
+func getEnvOrDefault(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
 }

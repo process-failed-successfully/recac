@@ -189,47 +189,71 @@ func run(args []string, config db.StoreConfig, projectID string) error {
 		}
 
 	case "feature":
-		if len(args) < 5 || args[2] != "set" {
-			return fmt.Errorf("usage: agent-bridge feature set <id> --status <status> --passes <true/false>")
+		if len(args) < 3 {
+			return fmt.Errorf("usage: agent-bridge feature <set|list> [args]")
 		}
-		id := args[3]
-		var status string
-		var passes bool
-		for i := 4; i < len(args); i++ {
-			if args[i] == "--status" && i+1 < len(args) {
-				status = args[i+1]
-				i++
-			} else if args[i] == "--passes" && i+1 < len(args) {
-				passes = args[i+1] == "true"
-				i++
-			}
-		}
-		cmdErr = store.UpdateFeatureStatus(projectID, id, status, passes)
+		subCmd := args[2]
 
-		if cmdErr == nil {
-			fmt.Printf("Feature %s updated: status=%s, passes=%v\n", id, status, passes)
-
-			// Auto-Completion Check
-			// If all features are done/passed, signal completion automatically.
+		if subCmd == "list" {
+			// Usage: agent-bridge feature list [--json]
+			// We always return JSON for now as it's the efficient format
 			content, err := store.GetFeatures(projectID)
-			if err == nil && content != "" {
-				var fl db.FeatureList
-				if json.Unmarshal([]byte(content), &fl) == nil {
-					allDone := true
-					for _, f := range fl.Features {
-						if strings.ToLower(f.Status) != "done" || !f.Passes {
-							allDone = false
-							break
+			if err != nil {
+				return fmt.Errorf("failed to get features: %w", err)
+			}
+			if content == "" {
+				// Return empty feature list structure
+				content = `{"features":[]}`
+			}
+			fmt.Println(content)
+			return nil
+		}
+
+		if subCmd == "set" {
+			if len(args) < 5 {
+				return fmt.Errorf("usage: agent-bridge feature set <id> --status <status> --passes <true/false>")
+			}
+			id := args[3]
+			var status string
+			var passes bool
+			for i := 4; i < len(args); i++ {
+				if args[i] == "--status" && i+1 < len(args) {
+					status = args[i+1]
+					i++
+				} else if args[i] == "--passes" && i+1 < len(args) {
+					passes = args[i+1] == "true"
+					i++
+				}
+			}
+			cmdErr = store.UpdateFeatureStatus(projectID, id, status, passes)
+
+			if cmdErr == nil {
+				fmt.Printf("Feature %s updated: status=%s, passes=%v\n", id, status, passes)
+
+				// Auto-Completion Check
+				// If all features are done/passed, signal completion automatically.
+				content, err := store.GetFeatures(projectID)
+				if err == nil && content != "" {
+					var fl db.FeatureList
+					if json.Unmarshal([]byte(content), &fl) == nil {
+						allDone := true
+						for _, f := range fl.Features {
+							if strings.ToLower(f.Status) != "done" || !f.Passes {
+								allDone = false
+								break
+							}
 						}
-					}
-					if allDone {
-						fmt.Println("All features completed and passed. Auto-signaling COMPLETED.")
-						if err := store.SetSignal(projectID, "COMPLETED", "true"); err != nil {
-							fmt.Printf("Warning: Failed to set COMPLETED signal: %v\n", err)
+						if allDone {
+							fmt.Println("All features completed and passed. Auto-signaling COMPLETED.")
+							if err := store.SetSignal(projectID, "COMPLETED", "true"); err != nil {
+								fmt.Printf("Warning: Failed to set COMPLETED signal: %v\n", err)
+							}
 						}
 					}
 				}
 			}
+		} else {
+			return fmt.Errorf("unknown feature subcommand: %s", subCmd)
 		}
 
 	case "import":
@@ -275,4 +299,5 @@ func printUsage() {
 	fmt.Println("  verify <id> <pass/fail> Update UI verification request")
 	fmt.Println("  signal <key> <value>   Set a generic signal")
 	fmt.Println("  feature set <id> --status <status> --passes <true/false> Update feature status")
+	fmt.Println("  feature list           List features (JSON)")
 }

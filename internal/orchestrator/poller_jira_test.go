@@ -47,16 +47,19 @@ func (m *MockJiraClient) SmartTransition(ctx context.Context, issueID string, st
 func TestExtractRepoURL(t *testing.T) {
 	// This regex is a simplified version for testing purposes.
 	// The real regex is in the jira package.
-	testRegex := regexp.MustCompile(`(https?://[^\s]+|git@[^\s]+)`)
+	testRegex := regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
 
 	testCases := []struct {
 		name     string
 		text     string
 		expected string
 	}{
-		{"Valid HTTPS URL", "some text\nhttps://github.com/user/repo\nmore text", "https://github.com/user/repo"},
-		{"Valid HTTPS URL with .git", "some text\nhttps://github.com/user/repo.git\nmore text", "https://github.com/user/repo"},
-		{"Valid SSH URL", "another line\ngit@github.com:user/repo.git\nend", "git@github.com:user/repo"},
+		{"Valid HTTPS URL", "some text\nRepo: https://github.com/user/repo\nmore text", "https://github.com/user/repo"},
+		{"Valid HTTPS URL with .git", "some text\nRepo: https://github.com/user/repo.git\nmore text", "https://github.com/user/repo"},
+		{"Standard HTTPS", "Please fix this. Repo: https://github.com/org/repo.git", "https://github.com/org/repo"},
+		{"Standard HTTP", "Repo: http://github.com/org/repo", "http://github.com/org/repo"},
+		{"Case Insensitive", "repo: https://github.com/org/repo", "https://github.com/org/repo"},
+		{"In middle of text", "The repo is Repo: https://github.com/foo/bar and it is cool.", "https://github.com/foo/bar"},
 		{"No URL", "just some text without any url", ""},
 		{"Empty String", "", ""},
 	}
@@ -124,19 +127,19 @@ func TestJiraPoller_Poll(t *testing.T) {
 	ctx := context.Background()
 	originalRegex := jira.RepoRegex
 	defer func() { jira.RepoRegex = originalRegex }()
-	jira.RepoRegex = regexp.MustCompile(`(https?://[^\s]+|git@[^\s]+)`)
+	jira.RepoRegex = regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
 
 	// Mocks for different issues
-	issue1 := mockIssue("PROJ-1", "Task 1", "https://github.com/test/repo1")
+	issue1 := mockIssue("PROJ-1", "Task 1", "Repo: https://github.com/test/repo1")
 	issue2 := mockIssue("PROJ-2", "Task 2", "No repo here")
-	issue3 := mockIssue("PROJ-3", "Task 3", "https://github.com/test/repo3")
-	issue4 := mockIssue("PROJ-4", "Task 4", "https://github.com/test/repo4")
+	issue3 := mockIssue("PROJ-3", "Task 3", "Repo: https://github.com/test/repo3")
+	issue4 := mockIssue("PROJ-4", "Task 4", "Repo: https://github.com/test/repo4")
 
 	t.Run("Success - Finds Actionable Items", func(t *testing.T) {
 		mockClient := new(MockJiraClient)
 		poller := NewJiraPoller(mockClient, "status = 'To Do'")
 
-		issues := []map[string]interface{}{issue1, issue2, issue3, issue4}
+		issue := []map[string]interface{}{issue1, issue2, issue3, issue4}
 		mockClient.On("SearchIssues", ctx, "status = 'To Do'").Return(issues, nil)
 
 		// PROJ-1: Ready to go

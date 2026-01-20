@@ -76,7 +76,7 @@ func TestGenerateTickets(t *testing.T) {
 	mockJira.On("CreateTicket", mock.Anything, projectKey, "Epic 1", mock.Anything, "Epic", labels).Return("PROJ-1", nil)
 	mockJira.On("CreateChildTicket", mock.Anything, projectKey, "Story 1", mock.Anything, "Story", "PROJ-1", labels).Return("PROJ-2", nil)
 
-	err := generateTickets(context.Background(), specContent, projectKey, labels, mockJira, mockAgent)
+	_, err := generateTickets(context.Background(), specContent, projectKey, labels, mockJira, mockAgent)
 	assert.NoError(t, err)
 
 	mockJira.AssertExpectations(t)
@@ -89,7 +89,7 @@ func TestGenerateTickets_AgentFailure(t *testing.T) {
 
 	mockAgent.On("Send", mock.Anything, mock.Anything).Return("", assert.AnError)
 
-	err := generateTickets(context.Background(), "spec", "PROJ", []string{}, mockJira, mockAgent)
+	_, err := generateTickets(context.Background(), "spec", "PROJ", []string{}, mockJira, mockAgent)
 	assert.Error(t, err)
 }
 
@@ -107,7 +107,7 @@ func TestGenerateTickets_InvalidRepo(t *testing.T) {
 	jsonBytes, _ := json.Marshal(tickets)
 	mockAgent.On("Send", mock.Anything, mock.Anything).Return(string(jsonBytes), nil)
 
-	err := generateTickets(context.Background(), "spec", "PROJ", []string{}, mockJira, mockAgent)
+	_, err := generateTickets(context.Background(), "spec", "PROJ", []string{}, mockJira, mockAgent)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "missing repository URL")
 }
@@ -118,7 +118,7 @@ func TestGenerateTickets_InvalidJSON(t *testing.T) {
 
 	mockAgent.On("Send", mock.Anything, mock.Anything).Return("not json", nil)
 
-	err := generateTickets(context.Background(), "spec", "PROJ", []string{}, mockJira, mockAgent)
+	_, err := generateTickets(context.Background(), "spec", "PROJ", []string{}, mockJira, mockAgent)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to parse agent response")
 }
@@ -147,7 +147,7 @@ func TestGenerateTickets_JiraCreateError(t *testing.T) {
 	// Mock Jira Failure for Epic
 	mockJira.On("CreateTicket", mock.Anything, "PROJ", "Epic 1", mock.Anything, "Epic", mock.Anything).Return("", assert.AnError)
 
-	err := generateTickets(context.Background(), "spec", "PROJ", []string{}, mockJira, mockAgent)
+	_, err := generateTickets(context.Background(), "spec", "PROJ", []string{}, mockJira, mockAgent)
 	assert.NoError(t, err) // It logs error but returns nil
 
 	mockJira.AssertExpectations(t)
@@ -217,7 +217,7 @@ func TestGenerateTickets_ChildAndLinkLogic(t *testing.T) {
 	// Expect Link
 	mockJira.On("AddIssueLink", mock.Anything, "PROJ-10", "PROJ-11", "Blocks").Return(nil)
 
-	err := generateTickets(context.Background(), "spec", "PROJ", []string{}, mockJira, mockAgent)
+	_, err := generateTickets(context.Background(), "spec", "PROJ", []string{}, mockJira, mockAgent)
 	assert.NoError(t, err)
 
 	mockJira.AssertExpectations(t)
@@ -249,7 +249,7 @@ func TestGenerateTickets_LinkError(t *testing.T) {
 	// Mock Link Failure
 	mockJira.On("AddIssueLink", mock.Anything, "PROJ-1", "PROJ-2", "Blocks").Return(assert.AnError)
 
-	err := generateTickets(context.Background(), "spec", "PROJ", []string{}, mockJira, mockAgent)
+	_, err := generateTickets(context.Background(), "spec", "PROJ", []string{}, mockJira, mockAgent)
 	assert.NoError(t, err) // Should continue despite link error
 
 	mockJira.AssertExpectations(t)
@@ -281,7 +281,7 @@ func TestGenerateTickets_Defaults(t *testing.T) {
 	// Verify "Story" string is passed
 	mockJira.On("CreateChildTicket", mock.Anything, "PROJ", "Story 1", mock.Anything, "Story", "PROJ-1", mock.Anything).Return("PROJ-2", nil)
 
-	err := generateTickets(context.Background(), "spec", "PROJ", []string{}, mockJira, mockAgent)
+	_, err := generateTickets(context.Background(), "spec", "PROJ", []string{}, mockJira, mockAgent)
 	assert.NoError(t, err)
 
 	mockJira.AssertExpectations(t)
@@ -305,7 +305,7 @@ func TestGenerateTickets_MarkdownStripping(t *testing.T) {
 	mockAgent.On("Send", mock.Anything, mock.Anything).Return(jsonStr1, nil).Once()
 	mockJira.On("CreateTicket", mock.Anything, "PROJ", "Epic", mock.Anything, "Epic", mock.Anything).Return("PROJ-1", nil).Once()
 
-	err := generateTickets(context.Background(), "spec", "PROJ", []string{}, mockJira, mockAgent)
+	_, err := generateTickets(context.Background(), "spec", "PROJ", []string{}, mockJira, mockAgent)
 	assert.NoError(t, err)
 
 	// Test Case 2: Generic code block
@@ -313,7 +313,7 @@ func TestGenerateTickets_MarkdownStripping(t *testing.T) {
 	mockAgent.On("Send", mock.Anything, mock.Anything).Return(jsonStr2, nil).Once()
 	mockJira.On("CreateTicket", mock.Anything, "PROJ", "Epic", mock.Anything, "Epic", mock.Anything).Return("PROJ-2", nil).Once()
 
-	err = generateTickets(context.Background(), "spec", "PROJ", []string{}, mockJira, mockAgent)
+	_, err = generateTickets(context.Background(), "spec", "PROJ", []string{}, mockJira, mockAgent)
 	assert.NoError(t, err)
 
 	mockJira.AssertExpectations(t)
@@ -340,7 +340,7 @@ func TestGenerateTickets_StoryInvalidRepo(t *testing.T) {
 	jsonBytes, _ := json.Marshal(tickets)
 	mockAgent.On("Send", mock.Anything, mock.Anything).Return(string(jsonBytes), nil)
 
-	err := generateTickets(context.Background(), "spec", "PROJ", []string{}, mockJira, mockAgent)
+	_, err := generateTickets(context.Background(), "spec", "PROJ", []string{}, mockJira, mockAgent)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "missing repository URL")
 }
