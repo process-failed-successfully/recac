@@ -139,7 +139,7 @@ func TestJiraPoller_Poll(t *testing.T) {
 		mockClient := new(MockJiraClient)
 		poller := NewJiraPoller(mockClient, "status = 'To Do'")
 
-		issue := []map[string]interface{}{issue1, issue2, issue3, issue4}
+		issues := []map[string]interface{}{issue1, issue2, issue3, issue4}
 		mockClient.On("SearchIssues", ctx, "status = 'To Do'").Return(issues, nil)
 
 		// PROJ-1: Ready to go

@@ -62,6 +62,7 @@ func (p *JiraPoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkItem,
 
 	// Filter readyKeys for external blockers too (safe guard)
 	finalKeys := make([]string, 0, len(readyKeys))
+	seenKeys := make(map[string]bool)
 	issueMap := make(map[string]map[string]interface{})
 	for _, i := range issues {
 		k, _ := i["key"].(string)
@@ -69,6 +70,9 @@ func (p *JiraPoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkItem,
 	}
 
 	for _, key := range readyKeys {
+		if seenKeys[key] {
+			continue
+		}
 		issue := issueMap[key]
 		blockers := p.Client.GetBlockers(issue)
 		// If blockers exist (internal or external), skip.
@@ -77,6 +81,7 @@ func (p *JiraPoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkItem,
 			continue
 		}
 		finalKeys = append(finalKeys, key)
+		seenKeys[key] = true
 	}
 
 	// Construct WorkItems

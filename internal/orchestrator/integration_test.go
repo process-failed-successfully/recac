@@ -18,6 +18,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type callbackMockSpawner struct {
+	spawned  []WorkItem
+	spawnErr error
+	mu       sync.Mutex
+	onSpawn  func(WorkItem)
+}
+
+func (m *callbackMockSpawner) Spawn(ctx context.Context, item WorkItem) error {
+	m.mu.Lock()
+	m.spawned = append(m.spawned, item)
+	m.mu.Unlock()
+	if m.onSpawn != nil {
+		m.onSpawn(item)
+	}
+	return m.spawnErr
+}
+
+func (m *callbackMockSpawner) Cleanup(ctx context.Context, item WorkItem) error {
+	return nil
+}
+
 func TestOrchestrator_Integration_FileFlow(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "orch_integration_file")
 	require.NoError(t, err)
@@ -54,7 +75,7 @@ func TestOrchestrator_Integration_FileFlow(t *testing.T) {
 	spawner.mu.Unlock()
 
 	// Verify file is now empty (items claimed)
-	polled, _ := poller.Poll(context.Background())
+	polled, _ := poller.Poll(context.Background(), silentLogger)
 	assert.Empty(t, polled)
 }
 
@@ -176,7 +197,20 @@ func TestOrchestrator_Integration_JiraFlow(t *testing.T) {
 
 			jClient := jira.NewClient(server.URL, "user", "token")
 			poller := NewJiraPoller(jClient, "project = TEST")
-			spawner := &mockSpawner{}
+			spawner := &callbackMockSpawner{
+				onSpawn: func(item WorkItem) {
+					// Simulate successful transition so it's "claimed"
+					// We use "In Progress" ID 31 or "Failed" ID 99
+					status := "In Progress"
+					if tc.spawnErr {
+						status = "Failed"
+					}
+					// Fire update in background as spawner does
+					go func() {
+						_ = poller.UpdateStatus(context.Background(), item, status, "")
+					}()
+				},
+			}
 			if tc.spawnErr {
 				spawner.spawnErr = fmt.Errorf("spawn failed")
 			}

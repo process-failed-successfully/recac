@@ -70,8 +70,8 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	// 4. Create and save the initial session state
 	agentCmd := []string{
 		"/usr/local/bin/recac-agent",
-		"--jira", item.ID,
-		"--project", item.ID,
+		"--jira", fmt.Sprintf("%q", item.ID),
+		"--project", fmt.Sprintf("%q", item.ID),
 		"--detached=false",
 		"--cleanup=false",
 		"--path", "/workspace",

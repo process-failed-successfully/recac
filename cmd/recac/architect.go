@@ -11,6 +11,7 @@ import (
 	"recac/internal/agent"
 	"recac/internal/agent/prompts"
 	"recac/internal/architecture"
+	"recac/internal/cmdutils"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -46,7 +47,7 @@ func runArchitectCmd(cmd *cobra.Command, args []string) {
 	// 2. Init Agent
 	provider := viper.GetString("provider")
 	model := viper.GetString("model")
-	ag, err := getAgentClient(ctx, provider, model, ".", "recac-architect")
+	ag, err := cmdutils.GetAgentClient(ctx, provider, model, ".", "recac-architect")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error initializing agent: %v\n", err)
 		os.Exit(1)

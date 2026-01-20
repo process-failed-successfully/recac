@@ -37,12 +37,6 @@ func (m *MockDockerClient) StopContainer(ctx context.Context, containerID string
 
 func (m *MockDockerClient) Exec(ctx context.Context, containerID string, cmd []string) (string, error) {
 	args := m.Called(ctx, containerID, cmd)
-	// Execute run function if provided
-	if runFn := args.Get(2); runFn != nil {
-		if fn, ok := runFn.(func(mock.Arguments)); ok {
-			fn(args)
-		}
-	}
 	return args.String(0), args.Error(1)
 }
 
@@ -221,5 +215,5 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 
 	// Check if the ID is quoted in the command string
 	// Depending on implementation, checking for quoted ID:
-	assert.Contains(t, capturedCmd[2], "\"TASK-1\\\"; echo \\\"injected\"")
+	assert.Contains(t, capturedCmd[2], "--jira \"TASK-1\\\"; echo \\\"injected\"")
 }
