@@ -3,8 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"crypto/sha256"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
@@ -132,11 +130,7 @@ func readAndHashFile(path string) ([]uint64, error) {
 
 func runCPD(root string, minLines int, ignorePatterns []string) ([]Duplication, error) {
 	// Map: hash -> []Location
-	hashes := make(map[string][]Location)
-
-	// Reuse buffer for window hashing
-	// We map minLines uint64s to bytes: minLines * 8 bytes
-	windowBuf := make([]byte, minLines*8)
+	hashes := make(map[uint64][]Location)
 
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -183,17 +177,16 @@ func runCPD(root string, minLines int, ignorePatterns []string) ([]Duplication, 
 		}
 
 		// Sliding window over hashes
+		// Use FNV-1a logic to combine line hashes into a window hash.
+		// This avoids serializing to bytes and running SHA256, which is expensive.
 		for i := 0; i <= len(lineHashes)-minLines; i++ {
-			// Create window content by serializing hashes
+			var h uint64 = 0xcbf29ce484222325 // FNV offset basis
 			for j := 0; j < minLines; j++ {
-				binary.BigEndian.PutUint64(windowBuf[j*8:], lineHashes[i+j])
+				h ^= lineHashes[i+j]
+				h *= 1099511628211 // FNV prime
 			}
 
-			h := sha256.Sum256(windowBuf)
-			// Use the raw bytes as the key map
-			hashStr := string(h[:])
-
-			hashes[hashStr] = append(hashes[hashStr], Location{
+			hashes[h] = append(hashes[h], Location{
 				File:      path,
 				StartLine: i + 1,
 				EndLine:   i + minLines,
