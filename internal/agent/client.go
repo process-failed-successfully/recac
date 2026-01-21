@@ -222,6 +222,7 @@ func (c *BaseClient) SendStreamWithRetry(ctx context.Context, prompt string, sen
 		result, err := sendStreamOnce(ctx, prompt, onChunk)
 		if err == nil {
 			fullResponse.WriteString(result)
+			lastErr = nil // Clear error on success
 			break
 		}
 		lastErr = err
