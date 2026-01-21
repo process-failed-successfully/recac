@@ -12,6 +12,18 @@ import (
 
 var autoFixFlag bool
 
+type checkDockerClient interface {
+	CheckDaemon(ctx context.Context) error
+	CheckSocket(ctx context.Context) error
+	CheckImage(ctx context.Context, imageRef string) (bool, error)
+	PullImage(ctx context.Context, imageRef string) error
+	Close() error
+}
+
+var checkDockerClientFactory = func(project string) (checkDockerClient, error) {
+	return docker.NewClient(project)
+}
+
 // checkDockerCmd represents the check-docker command
 var checkDockerCmd = &cobra.Command{
 	Use:   "check-docker",
@@ -22,9 +34,12 @@ var checkDockerCmd = &cobra.Command{
 		allChecksPassed := true
 		autoFixAttempted := false
 
+		// Retrieve image from flag
+		checkImage, _ := cmd.Flags().GetString("image")
+
 		// Step 1: Check Docker daemon connectivity
 		fmt.Println("Checking Docker daemon connectivity...")
-		client, err := docker.NewClient("check-docker")
+		client, err := checkDockerClientFactory("check-docker")
 		if err != nil {
 			fmt.Printf("❌ Error creating docker client: %v\n", err)
 			exit(1)
@@ -66,7 +81,7 @@ var checkDockerCmd = &cobra.Command{
 
 		// Step 4: Check required Docker images
 		fmt.Println("\nChecking required Docker images...")
-		requiredImages := []string{"ubuntu:latest"}
+		requiredImages := []string{checkImage}
 		allImagesPresent := true
 		missingImages := []string{}
 		for _, imageRef := range requiredImages {
@@ -150,5 +165,6 @@ func checkDiskSpace() (bool, error) {
 
 func init() {
 	checkDockerCmd.Flags().BoolVar(&autoFixFlag, "auto-fix", false, "Automatically attempt to fix issues (pull missing images, check disk space)")
+	checkDockerCmd.Flags().String("image", "ghcr.io/process-failed-successfully/recac-agent:latest", "Docker image to check for")
 	rootCmd.AddCommand(checkDockerCmd)
 }
