@@ -9,7 +9,7 @@ func (s *Session) checkNoOpBreaker(executionOutput string) error {
 	if executionOutput == "" {
 		s.NoOpCount++
 		if s.NoOpCount >= 3 {
-			return fmt.Errorf("CIRCUIT BREAKER TRIPPED: NO-OP LOOP (Agent has produced 3 consecutive responses with no commands)")
+			return fmt.Errorf("CIRCUIT BREAKER TRIPPED: NO-OP LOOP (Agent has produced 3 consecutive responses with no commands): %w", ErrNoOp)
 		}
 	} else {
 		s.NoOpCount = 0 // Reset on valid action

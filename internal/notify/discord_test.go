@@ -78,8 +78,9 @@ func TestDiscordNotifier_Send_Bot(t *testing.T) {
 			t.Errorf("missing or invalid authorization header")
 		}
 
-		if !strings.Contains(r.URL.Path, channelID) {
-			t.Errorf("expected channel ID in path")
+		// Since we use BaseURL, the path will be /channels/...
+		if !strings.Contains(r.URL.Path, "/channels/"+channelID) {
+			t.Errorf("expected channel ID in path, got %s", r.URL.Path)
 		}
 
 		var payload map[string]interface{}
@@ -102,12 +103,8 @@ func TestDiscordNotifier_Send_Bot(t *testing.T) {
 	defer server.Close()
 
 	notifier := NewDiscordBotNotifier("my_token", channelID)
-	// Inject custom client that routes everything to test server
-	notifier.Client = &http.Client{
-		Transport: &testTransport{
-			TargetURL: server.URL,
-		},
-	}
+	// Set BaseURL to test server
+	notifier.BaseURL = server.URL
 
 	ctx := context.Background()
 	id, err := notifier.Send(ctx, "Hello Bot", "thread_123")
@@ -120,65 +117,78 @@ func TestDiscordNotifier_Send_Bot(t *testing.T) {
 	}
 }
 
-func TestDiscordNotifier_AddReaction(t *testing.T) {
-	channelID := "12345"
-	messageID := "msg_123"
-	reaction := "white_check_mark"
-	// mapEmoji converts "white_check_mark" to encoded unicode "✅" (%E2%9C%85)
-
+func TestDiscordNotifier_Send_Bot_Error(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "PUT" {
-			t.Errorf("expected PUT request, got %s", r.Method)
-		}
-
-		if r.Header.Get("Authorization") != "Bot my_token" {
-			t.Errorf("missing or invalid authorization header")
-		}
-
-		// Check if URL contains the reaction
-		// Ideally we check exact path but transport manipulation might affect it.
-		// Just ensure it's calling the reaction endpoint
-		if !strings.Contains(r.URL.Path, "/reactions/") {
-			t.Errorf("expected reactions endpoint, got %s", r.URL.Path)
-		}
-
-		w.WriteHeader(http.StatusNoContent)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("some error from discord"))
 	}))
 	defer server.Close()
 
-	notifier := NewDiscordBotNotifier("my_token", channelID)
-	notifier.Client = &http.Client{
-		Transport: &testTransport{
-			TargetURL: server.URL,
-		},
-	}
+	notifier := NewDiscordBotNotifier("token", "chan")
+	notifier.BaseURL = server.URL
 
-	ctx := context.Background()
-	err := notifier.AddReaction(ctx, messageID, reaction)
-	if err != nil {
-		t.Fatalf("AddReaction failed: %v", err)
+	_, err := notifier.Send(context.Background(), "msg", "")
+	if err == nil {
+		t.Error("expected error")
+	}
+	if !strings.Contains(err.Error(), "some error from discord") {
+		t.Errorf("expected error message to contain 'some error from discord', got %v", err)
 	}
 }
 
-type testTransport struct {
-	TargetURL string
+func TestDiscordNotifier_AddReaction(t *testing.T) {
+	channelID := "12345"
+	messageID := "msg_123"
+
+	tests := []struct {
+		inputEmoji         string
+		expectedEmojiInURL string
+	}{
+		{"white_check_mark", "✅"}, // ✅
+		{":x:", "❌"},              // ❌
+		{"custom:123", "custom:123"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.inputEmoji, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != "PUT" {
+					t.Errorf("expected PUT request, got %s", r.Method)
+				}
+
+				// Check reaction in URL
+				if !strings.Contains(r.URL.Path, tt.expectedEmojiInURL) {
+					t.Errorf("expected reaction %s in URL, got %s", tt.expectedEmojiInURL, r.URL.Path)
+				}
+
+				w.WriteHeader(http.StatusNoContent)
+			}))
+			defer server.Close()
+
+			notifier := NewDiscordBotNotifier("my_token", channelID)
+			notifier.BaseURL = server.URL
+
+			ctx := context.Background()
+			err := notifier.AddReaction(ctx, messageID, tt.inputEmoji)
+			if err != nil {
+				t.Fatalf("AddReaction failed: %v", err)
+			}
+		})
+	}
 }
 
-func (t *testTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	// Helper to redirect to test server but preserve the original path
-	// The original request is to https://discord.com/api/v10/channels/12345/messages
-	// The test server url is http://127.0.0.1:xxx
-	// We want http://127.0.0.1:xxx/api/v10/channels/12345/messages
+func TestDiscordNotifier_AddReaction_Error(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		w.Write([]byte("Forbidden"))
+	}))
+	defer server.Close()
 
-	// 1. Create request to TargetURL (this gives us base scheme/host)
-	targetReq, _ := http.NewRequest(req.Method, t.TargetURL, req.Body)
+	notifier := NewDiscordBotNotifier("token", "chan")
+	notifier.BaseURL = server.URL
 
-	// 2. Append original path
-	targetReq.URL.Path = req.URL.Path
-
-	// 3. Copy headers
-	targetReq.Header = req.Header
-
-	// 4. Send using default client (which handles test server local traffic)
-	return http.DefaultClient.Do(targetReq)
+	err := notifier.AddReaction(context.Background(), "msg", "smile")
+	if err == nil {
+		t.Error("expected error")
+	}
 }

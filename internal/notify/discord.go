@@ -15,6 +15,7 @@ type DiscordNotifier struct {
 	BotToken   string
 	ChannelID  string
 	Client     *http.Client
+	BaseURL    string // BaseURL for API calls, defaults to https://discord.com/api/v10
 }
 
 // NewDiscordNotifier creates a new DiscordNotifier using Webhook.
@@ -31,6 +32,7 @@ func NewDiscordBotNotifier(token, channelID string) *DiscordNotifier {
 		BotToken:  token,
 		ChannelID: channelID,
 		Client:    &http.Client{Timeout: 10 * time.Second},
+		BaseURL:   "https://discord.com/api/v10",
 	}
 }
 
@@ -88,7 +90,11 @@ func (n *DiscordNotifier) sendWebhookMessage(ctx context.Context, message string
 }
 
 func (n *DiscordNotifier) sendBotMessage(ctx context.Context, message, replyToID string) (string, error) {
-	url := fmt.Sprintf("https://discord.com/api/v10/channels/%s/messages", n.ChannelID)
+	baseURL := n.BaseURL
+	if baseURL == "" {
+		baseURL = "https://discord.com/api/v10"
+	}
+	url := fmt.Sprintf("%s/channels/%s/messages", baseURL, n.ChannelID)
 
 	payload := map[string]interface{}{
 		"content": message,
@@ -146,7 +152,11 @@ func (n *DiscordNotifier) AddReaction(ctx context.Context, messageID, reaction s
 	// Map common Slack emojis to Discord equivalents
 	reaction = mapEmoji(reaction)
 
-	url := fmt.Sprintf("https://discord.com/api/v10/channels/%s/messages/%s/reactions/%s/@me", n.ChannelID, messageID, reaction)
+	baseURL := n.BaseURL
+	if baseURL == "" {
+		baseURL = "https://discord.com/api/v10"
+	}
+	url := fmt.Sprintf("%s/channels/%s/messages/%s/reactions/%s/@me", baseURL, n.ChannelID, messageID, reaction)
 
 	req, err := http.NewRequestWithContext(ctx, "PUT", url, nil)
 	if err != nil {
