@@ -106,21 +106,74 @@ graph TD
     A1 -->|Notify| S[Slack/Discord]
 ```
 
-## End-to-End Example: Hello World
+## Workflow: Completing a Jira Ticket
 
-1.  **Init**: Create a new folder and run `recac init`.
-2.  **Spec**: Edit `app_spec.txt` and add:
-    ```text
-    Task: Create a file named hello.go that prints "Hello, Autonomous World!".
+1.  **Configure**: Ensure you have your AI provider and Jira credentials set in `.recac.yaml` or environment variables (see Configuration above).
+2.  **Start Orchestrator**:
+    ```bash
+    # Polls Jira for tickets with label "recac-agent"
+    ./bin/orchestrator --mode local --jira-label "recac-agent"
     ```
-3.  **Run**: Execute `recac start`.
-    - The agent analyzes the request.
-    - It spins up a Docker container.
-    - It writes the Go code inside the container.
-    - It runs `go run hello.go` to verify output.
-4.  **Verify**: Check your workspace for `hello.go`.
+3.  **Create Ticket**: Create a Jira ticket with clear instructions in the description.
+4.  **Label**: Add the label `recac-agent` to the ticket.
+5.  **Watch**: The orchestrator will pick it up, spawn an agent, and comment on the ticket with progress.
 
-### Deployment (Experimental)
+## Generating Specifications (Architect Mode)
+
+`recac` includes an "Architect Mode" to generate system architecture and contracts from a high-level spec.
+
+1.  Create an `app_spec.txt` with your requirements:
+    ```text
+    A distributed crypto-currency trading bot that listens to Binance websocket, 
+    calculates SMA(20), and executes trades via REST API.
+    ```
+2.  Run the architect command:
+    ```bash
+    recac architect --spec app_spec.txt --out .recac/architecture
+    ```
+3.  This will generate:
+    - `architecture.yaml`: System components and data flow.
+    - `contracts/*.yaml`: Interface definitions between components.
+4.  **From Spec to Jira**: (Coming Soon) The orchestrator will soon support breaking down `architecture.yaml` into individual Jira tickets automatically.
+
+## Deployment
+
+### Kubernetes (Helm)
+
+The recommended way to deploy `recac` in production is via the provided Helm chart.
+
+1.  **Prerequisites**:
+    - Kubernetes 1.19+
+    - Helm 3.0+
+    - Secrets for API keys (OpenAI/Gemini/Anthropic/Jira)
+
+2.  **Install**:
+    ```bash
+    helm upgrade --install recac ./deploy/helm/recac \
+      --namespace recac-system --create-namespace \
+      --set config.provider=openrouter \
+      --set config.model="mistralai/devstral-2512:free" \
+      --set config.jiraUrl="https://your-domain.atlassian.net" \
+      --set config.jiraUsername="user@example.com" \
+      --set secrets.openrouterApiKey="$OPENROUTER_KEY" \
+      --set secrets.jiraApiToken="$JIRA_TOKEN" \
+      --set postgresql.enabled=true \
+      --set config.dbType=postgres
+    ```
+
+3.  **Configuration**:
+    See [deploy/helm/recac/README.md](deploy/helm/recac/README.md) for a full list of configuration options, including:
+    - `config.maxIterations`: Limit agent loops (default: 20).
+    - `config.managerFrequency`: How often the "Manager" AI reviews code (default: 5).
+    - `persistence.enabled`: Enable persistent storage for agent workspaces.
+
+### Docker Compose
+
+For local testing without Kubernetes:
+
+```bash
+docker-compose up --build
+```
 
 To deploy the orchestrator in a Kubernetes cluster using Helm:
 
