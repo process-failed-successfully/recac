@@ -3,13 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 
 	"github.com/spf13/cobra"
 )
-
-// execCommand is a package-level variable to allow mocking in tests.
-var execCommand = exec.Command
 
 func init() {
 	rootCmd.AddCommand(resumeCmd)

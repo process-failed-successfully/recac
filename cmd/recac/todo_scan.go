@@ -72,21 +72,8 @@ func scanTodos(root string) ([]TodoItem, error) {
 	// Matches: (//|#|<!--|--|/*) [whitespace] (TODO|FIXME|...) [optional: (stuff)] [whitespace|:] (content)
 	re := regexp.MustCompile(`(?i)(\/\/|#|<!--|--|\/\*)\s*(TODO|FIXME|BUG|HACK|NOTE)(?:\(.*\))?[:\s]+(.*)`)
 
-	// Default ignores (similar to context_generator.go)
-	ignoreMap := map[string]bool{
-		".git":         true,
-		"node_modules": true,
-		"vendor":       true,
-		"dist":         true,
-		"build":        true,
-		".recac":       true,
-		".idea":        true,
-		".vscode":      true,
-		"bin":          true,
-		"obj":          true,
-		"__pycache__":  true,
-		"TODO.md":      true, // Don't scan the TODO list itself
-	}
+	// Default ignores
+	ignoreMap := DefaultIgnoreMap()
 
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
