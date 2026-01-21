@@ -46,6 +46,11 @@ func (m *MockGitClient) Config(directory, key, value string) error {
 	return args.Error(0)
 }
 
+func (m *MockGitClient) ConfigGlobal(key, value string) error {
+	args := m.Called(key, value)
+	return args.Error(0)
+}
+
 func (m *MockGitClient) ConfigAddGlobal(key, value string) error {
 	args := m.Called(key, value)
 	return args.Error(0)
@@ -368,6 +373,52 @@ func TestSessionManager_GetSessionLogs(t *testing.T) {
 	}
 	if logPath != "/tmp/foo.log" {
 		t.Errorf("Expected /tmp/foo.log, got %s", logPath)
+	}
+}
+
+func TestSessionManager_GetSessionLogContent(t *testing.T) {
+	tmpDir, _ := os.MkdirTemp("", "recac-test-log-content")
+	defer os.RemoveAll(tmpDir)
+	os.Setenv("HOME", tmpDir)
+
+	sm, _ := NewSessionManager()
+
+	logContent := "line1\nline2\nline3\nline4\nline5"
+	logFile := filepath.Join(tmpDir, "test.log")
+	os.WriteFile(logFile, []byte(logContent), 0644)
+
+	session := &SessionState{
+		Name:    "content-session",
+		LogFile: logFile,
+	}
+	sm.SaveSession(session)
+
+	// Test full content
+	content, err := sm.GetSessionLogContent("content-session", 0)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if content != logContent {
+		t.Errorf("Expected full content, got %s", content)
+	}
+
+	// Test tail content
+	content, err = sm.GetSessionLogContent("content-session", 2)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	expected := "line4\nline5"
+	if content != expected {
+		t.Errorf("Expected '%s', got '%s'", expected, content)
+	}
+
+	// Test tail content more than lines
+	content, err = sm.GetSessionLogContent("content-session", 10)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if content != logContent {
+		t.Errorf("Expected full content when lines > file lines, got %s", content)
 	}
 }
 
