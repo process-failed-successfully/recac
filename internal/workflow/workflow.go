@@ -266,6 +266,14 @@ type ISessionManager interface {
 // Statically assert that the real session manager implements our interface.
 var _ ISessionManager = (*runner.SessionManager)(nil)
 
+// Allow mocking SessionManager creation
+var NewSessionManagerFunc = func() (ISessionManager, error) {
+	return runner.NewSessionManager()
+}
+
+// Allow mocking Session creation
+var NewSessionFunc = runner.NewSession
+
 // RunWorkflow handles the execution of a single project session (local or Jira-based)
 var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 	// Handle detached mode
@@ -345,7 +353,7 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 		sm := cfg.SessionManager
 		if sm == nil {
 			var err error
-			sm, err = runner.NewSessionManager()
+			sm, err = NewSessionManagerFunc()
 			if err != nil {
 				return fmt.Errorf("failed to create session manager: %v", err)
 			}
@@ -377,7 +385,7 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 			projectName = "mock-project"
 		}
 
-		session := runner.NewSession(dockerCli, agentClient, projectPath, cfg.Image, projectName, cfg.Provider, cfg.Model, cfg.MaxAgents)
+		session := NewSessionFunc(dockerCli, agentClient, projectPath, cfg.Image, projectName, cfg.Provider, cfg.Model, cfg.MaxAgents)
 		if cfg.Logger != nil {
 			session.Logger = cfg.Logger
 		}
@@ -452,7 +460,7 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 		return fmt.Errorf("failed to initialize agent: %v", err)
 	}
 
-	session := runner.NewSession(dockerCli, agentClient, projectPath, cfg.Image, projectName, provider, model, cfg.MaxAgents)
+	session := NewSessionFunc(dockerCli, agentClient, projectPath, cfg.Image, projectName, provider, model, cfg.MaxAgents)
 	if cfg.Logger != nil {
 		session.Logger = cfg.Logger
 	}

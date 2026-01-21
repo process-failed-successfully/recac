@@ -47,7 +47,7 @@ var GetJiraClient = func(ctx context.Context) (*jira.Client, error) {
 }
 
 // GetAgentClient initializes an Agent client based on provider and configuration
-func GetAgentClient(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+var GetAgentClient = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
 	if provider == "" {
 		provider = viper.GetString("provider")
 		if provider == "" {
