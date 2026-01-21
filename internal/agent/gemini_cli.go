@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"recac/internal/telemetry"
 	"strings"
 	"time"
@@ -44,7 +43,7 @@ func (c *GeminiCLIClient) Send(ctx context.Context, prompt string) (string, erro
 	}
 
 	// Prepare command
-	cmd := exec.CommandContext(ctx, "gemini", args...)
+	cmd := execCommandContext(ctx, "gemini", args...)
 
 	// Set input
 	cmd.Stdin = strings.NewReader(prompt)
@@ -59,7 +58,15 @@ func (c *GeminiCLIClient) Send(ctx context.Context, prompt string) (string, erro
 	if c.workDir != "" {
 		cmd.Dir = c.workDir
 	}
-	cmd.Env = os.Environ()
+
+	env := cmd.Env
+	if len(env) == 0 {
+		env = os.Environ()
+	} else {
+		env = append(env, os.Environ()...)
+	}
+	cmd.Env = env
+
 	// Ensure stdout is captured in text mode
 	// Python side does: cmd = ["gemini", "--output-format", "text", "--approval-mode", "yolo"]
 

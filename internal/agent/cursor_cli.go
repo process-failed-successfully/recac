@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"recac/internal/telemetry"
 	"strings"
 	"time"
@@ -56,7 +55,7 @@ func (c *CursorCLIClient) Send(ctx context.Context, prompt string) (string, erro
 	}
 
 	// Prepare command
-	cmd := exec.CommandContext(ctx, "cursor-agent", args...)
+	cmd := execCommandContext(ctx, "cursor-agent", args...)
 
 	// Cursor CLI takes prompt as argument, not stdin (based on python client: cmd = ["cursor-agent", "agent", prompt, ...])
 	// CAUTION: passing large prompt as arg can hit shell limits.
@@ -70,7 +69,12 @@ func (c *CursorCLIClient) Send(ctx context.Context, prompt string) (string, erro
 
 	// Filter environment variables similar to Python implementation if needed,
 	// but for now we'll pass all and ensuring NO_OPEN_BROWSER=1
-	env := os.Environ()
+	env := cmd.Env
+	if len(env) == 0 {
+		env = os.Environ()
+	} else {
+		env = append(env, os.Environ()...)
+	}
 	env = append(env, "NO_OPEN_BROWSER=1")
 	cmd.Env = env
 
