@@ -189,6 +189,8 @@ func TestSessionManager_Coverage(t *testing.T) {
 
 	// 3. RemoveSession
 	err = sm.RemoveSession("test-session", true)
+	assert.Error(t, err)
+
 	// Actually RemoveSession expects a file named test-session.json in sessionsDir.
 	// My setup in previous attempt: os.MkdirAll(filepath.Join(tmpDir, "active", "test-session"), 0755)
 	// But SessionManager uses flat dir structure in sessionsDir (which is tmpDir).
@@ -252,8 +254,9 @@ func TestSession_RunInitScript_Local(t *testing.T) {
 
 	session.runInitScript(context.Background())
 
-	// Give it time to run
-	time.Sleep(100 * time.Millisecond)
-
-	assert.FileExists(t, filepath.Join(tmpDir, "init_output.txt"))
+	// Wait for async execution
+	assert.Eventually(t, func() bool {
+		_, err := os.Stat(filepath.Join(tmpDir, "init_output.txt"))
+		return err == nil
+	}, 2*time.Second, 50*time.Millisecond, "init script output file should be created")
 }
