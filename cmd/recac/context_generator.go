@@ -30,19 +30,7 @@ func GenerateCodebaseContext(opts ContextOptions) (string, error) {
 	var outputBuilder strings.Builder
 
 	// Default ignores
-	ignoreMap := map[string]bool{
-		".git":         true,
-		"node_modules": true,
-		"vendor":       true,
-		"dist":         true,
-		"build":        true,
-		".recac":       true,
-		".idea":        true,
-		".vscode":      true,
-		"bin":          true,
-		"obj":          true,
-		"__pycache__":  true,
-	}
+	ignoreMap := DefaultIgnoreMap()
 	for _, ign := range opts.Ignore {
 		ignoreMap[ign] = true
 	}
@@ -179,23 +167,3 @@ func generateTree(root string, ignoreMap map[string]bool) (string, error) {
 	return sb.String(), err
 }
 
-func isBinaryExt(ext string) bool {
-	switch ext {
-	case ".exe", ".dll", ".so", ".dylib", ".bin", ".jpg", ".png", ".gif", ".pdf", ".zip", ".tar", ".gz", ".iso":
-		return true
-	}
-	return false
-}
-
-func isBinaryContent(content []byte) bool {
-	limit := 512
-	if len(content) < limit {
-		limit = len(content)
-	}
-	for i := 0; i < limit; i++ {
-		if content[i] == 0 {
-			return true
-		}
-	}
-	return false
-}
