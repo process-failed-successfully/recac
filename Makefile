@@ -131,7 +131,7 @@ e2e-sql: ## Run SQL Parser scenario locally
 
 e2e-k8s: ## Run a specific scenario in k8s (SCENARIO=x PROVIDER=y MODEL=z ARCHITECT=true)
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
-	RECAC_ARCHITECT_MODE=$(ARCHITECT) go run e2e/runner/main.go -scenario $(SCENARIO) -provider $(PROVIDER) -model $(MODEL) $(ARGS)
+	MAX_ITERATIONS=1000 RECAC_ARCHITECT_MODE=$(ARCHITECT) go run e2e/runner/main.go -scenario $(SCENARIO) -provider $(PROVIDER) -model $(MODEL) $(ARGS)
 
 e2e-k8s-redis: ## Run Redis challenge scenario in k8s
 	@$(MAKE) e2e-k8s SCENARIO=redis-challenge
@@ -171,6 +171,8 @@ deploy-helm: ## Deploy with Helm using local .env and variables (PROVIDER=x MODE
 	@# Defaults
 	$(eval PROVIDER ?= openrouter)
 	$(eval MODEL ?= "")
+	$(eval DEPLOY_REPO ?= ghcr.io/process-failed-successfully/recac)
+	$(eval DEPLOY_TAG ?= latest)
 	@# Source .env if exists, then run helm (using '; true' ensures we proceed if .env missing)
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
 	helm upgrade --install recac ./deploy/helm/recac \
@@ -180,6 +182,7 @@ deploy-helm: ## Deploy with Helm using local .env and variables (PROVIDER=x MODE
 		--set config.jiraUsername=$${JIRA_USERNAME} \
 		--set image.repository=$(DEPLOY_REPO) \
 		--set image.tag=$(DEPLOY_TAG) \
+		--set config.image=ghcr.io/process-failed-successfully/recac-agent:latest \
 		--set secrets.apiKey=$${API_KEY} \
 		--set secrets.geminiApiKey=$${GEMINI_API_KEY} \
 		--set secrets.anthropicApiKey=$${ANTHROPIC_API_KEY} \
@@ -193,16 +196,16 @@ deploy-helm: ## Deploy with Helm using local .env and variables (PROVIDER=x MODE
 		--set secrets.slackAppToken=$${SLACK_APP_TOKEN} \
 		--set secrets.discordBotToken=$${DISCORD_BOT_TOKEN} \
 		--set secrets.discordChannelId=$${DISCORD_CHANNEL_ID}
-
+		--set config.jira_label="recac-agent*"
 .PHONY: remove-helm
 remove-helm: ## Uninstall the Helm release
 	@echo "Uninstalling recac from k8s context: $$(kubectl config current-context)"
 	helm uninstall recac || true
 
 # Dev Cycle Helpers
-# Use ttl.sh for ephemeral, fast, auth-less registry
-DEPLOY_REPO=ttl.sh/recac-dev-lukef
-DEPLOY_TAG=2h
+# Defaults to GHCR, but dev-cycle overrides this to use ttl.sh
+DEPLOY_REPO ?= ghcr.io/process-failed-successfully/recac
+DEPLOY_TAG ?= latest
 DEPLOY_IMAGE=$(DEPLOY_REPO):$(DEPLOY_TAG)
 
 .PHONY: image-prod push-prod dev-cycle
@@ -212,6 +215,9 @@ image-prod: ## Build the production docker image
 push-prod: image-prod ## Push the production docker image
 	docker push $(DEPLOY_IMAGE)
 
+# Override variables for dev-cycle to use ephemeral registry
+dev-cycle: DEPLOY_REPO = ttl.sh/recac-dev-lukef
+dev-cycle: DEPLOY_TAG = 2h
 dev-cycle: push-prod deploy-helm ## Build, Push, Deploy, and Restart
 	kubectl rollout restart deployment recac
 

@@ -18,7 +18,7 @@ gen_jira_data
 smoke_test
 /orchestrator
 /runner
-
+/bin
 # Development environment
 .recac/
 .env

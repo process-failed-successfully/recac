@@ -124,7 +124,7 @@ graph TD
 
 1.  Create an `app_spec.txt` with your requirements:
     ```text
-    A distributed crypto-currency trading bot that listens to Binance websocket, 
+    A distributed crypto-currency trading bot that listens to Binance websocket,
     calculates SMA(20), and executes trades via REST API.
     ```
 2.  Run the architect command:
@@ -134,7 +134,15 @@ graph TD
 3.  This will generate:
     - `architecture.yaml`: System components and data flow.
     - `contracts/*.yaml`: Interface definitions between components.
-4.  **From Spec to Jira**: (Coming Soon) The orchestrator will soon support breaking down `architecture.yaml` into individual Jira tickets automatically.
+4.  **From Spec to Jira**:
+    Once the architecture is valid, generate the Jira tickets. This command will deterministically create Epics for components and Stories/Tasks for implementation steps, inputs, and outputs.
+
+    ```bash
+    # Ensure you provide the --repo-url so the agents know where to work
+    recac jira generate-from-arch --repo-url "https://github.com/your-org/your-repo.git" --project "RD"
+    ```
+
+    This will output a JSON mapping of the created tickets (e.g., `ID:[USER-SERVICE] -> RD-101`).
 
 ## Deployment
 
@@ -148,13 +156,18 @@ The recommended way to deploy `recac` in production is via the provided Helm cha
     - Secrets for API keys (OpenAI/Gemini/Anthropic/Jira)
 
 2.  **Install**:
+
     ```bash
     helm upgrade --install recac ./deploy/helm/recac \
       --namespace recac-system --create-namespace \
+      --set image.repository=ghcr.io/process-failed-successfully/recac \
+      --set image.tag=latest \
+      --set config.image=ghcr.io/process-failed-successfully/recac-agent:latest \
       --set config.provider=openrouter \
       --set config.model="mistralai/devstral-2512:free" \
       --set config.jiraUrl="https://your-domain.atlassian.net" \
       --set config.jiraUsername="user@example.com" \
+      --set config.jira_label="recac-agent" \
       --set secrets.openrouterApiKey="$OPENROUTER_KEY" \
       --set secrets.jiraApiToken="$JIRA_TOKEN" \
       --set postgresql.enabled=true \
