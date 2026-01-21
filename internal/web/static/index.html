@@ -7,8 +7,14 @@
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 20px; background: #f4f4f4; }
         .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        h1, h2 { color: #333; }
+        h1, h2 { color: #333; margin: 0; }
+        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .section { margin-bottom: 30px; }
+        .btn { padding: 8px 16px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer; font-size: 14px; transition: background 0.2s; display: flex; align-items: center; gap: 6px; }
+        .btn:hover { background: #f0f0f0; }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .empty-state { text-align: center; color: #666; padding: 30px; font-style: italic; }
+        .error-state { text-align: center; color: #d32f2f; padding: 20px; }
         .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
         .status-done { background: #d4edda; color: #155724; }
         .status-inprogress { background: #cce5ff; color: #004085; }
@@ -23,7 +29,16 @@
 </head>
 <body>
     <div class="container">
-        <h1>Recac Project Dashboard</h1>
+        <div class="header-row">
+            <h1>Recac Project Dashboard</h1>
+            <button id="refresh-btn" class="btn" aria-label="Refresh dashboard data">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 4v6h-6M1 20v-6h6"></path>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+                Refresh
+            </button>
+        </div>
 
         <div class="section">
             <h2>Task Dependency Graph</h2>
@@ -56,6 +71,22 @@
         mermaid.initialize({ startOnLoad: false });
 
         async function loadData() {
+            const btn = document.getElementById('refresh-btn');
+            const tbody = document.querySelector('#features-table tbody');
+
+            btn.disabled = true;
+            // Simple loading text, preserving icon would require more complex DOM manip, simpler is better for now
+            const originalBtnContent = btn.innerHTML;
+            // Just update text node if possible, but innerHTML is easier for "Refreshing..."
+            // Let's just keep the icon and spin it? That's more CSS.
+            // Let's just change text for feedback.
+            btn.innerHTML = 'Refreshing...';
+
+            // Show loading state in table if it's empty
+            if (tbody.children.length === 0) {
+                 tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Loading features...</td></tr>';
+            }
+
             try {
                 // Fetch Features
                 const featuresResp = await fetch('/api/features');
@@ -70,12 +101,22 @@
             } catch (e) {
                 console.error("Error loading data:", e);
                 document.getElementById('graph').innerHTML = "Error loading data. Is the server running?";
+                tbody.innerHTML = '<tr><td colspan="4" class="error-state">Failed to load data. Is the server running?</td></tr>';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalBtnContent;
             }
         }
 
         function renderFeatures(features) {
             const tbody = document.querySelector('#features-table tbody');
             tbody.innerHTML = '';
+
+            if (!features || features.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No features found.</td></tr>';
+                return;
+            }
+
             features.forEach(f => {
                 const tr = document.createElement('tr');
                 let statusClass = 'status-pending';
@@ -120,7 +161,10 @@
             await mermaid.run({ nodes: [element] });
         }
 
-        document.addEventListener('DOMContentLoaded', loadData);
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            document.getElementById('refresh-btn').addEventListener('click', loadData);
+        });
     </script>
 </body>
 </html>
