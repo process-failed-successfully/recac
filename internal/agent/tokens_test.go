@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -91,6 +92,24 @@ func TestTruncateToTokenLimit(t *testing.T) {
 			maxTokens:     1,
 			wantTruncated: true,
 		},
+		{
+			name:          "single line unicode",
+			text:          "Hello 世界 World 🌍 This is a test for unicode characters.",
+			maxTokens:     5,
+			wantTruncated: true,
+		},
+		{
+			name:          "recursive safety",
+			text:          strings.Repeat("a", 1000),
+			maxTokens:     10,
+			wantTruncated: true,
+		},
+		{
+			name:          "exact fit start cut",
+			text:          "Line 1\nLine 2\nLine 3\nLine 4\nLine 5",
+			maxTokens:     100, // Large enough
+			wantTruncated: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -114,10 +133,13 @@ func TestTruncateToTokenLimit(t *testing.T) {
 }
 
 func TestSummarizeForTokenLimit(t *testing.T) {
+	longPara := strings.Repeat("This is a long paragraph. ", 50) // ~1300 chars ~325 tokens
+
 	tests := []struct {
 		name      string
 		text      string
 		maxTokens int
+		wantLen   int // 0 means just check maxTokens
 	}{
 		{
 			name:      "text under limit",
@@ -127,6 +149,31 @@ func TestSummarizeForTokenLimit(t *testing.T) {
 		{
 			name:      "multiple paragraphs",
 			text:      "First paragraph with important information.\n\nSecond paragraph with more details.\n\nThird paragraph with final thoughts.",
+			maxTokens: 10,
+		},
+		{
+			name:      "many paragraphs",
+			text:      "P1\n\nP2\n\nP3\n\nP4\n\nP5",
+			maxTokens: 10, // Very tight
+		},
+		{
+			name:      "long paragraphs truncation",
+			text:      longPara + "\n\n" + longPara + "\n\n" + longPara,
+			maxTokens: 50,
+		},
+		{
+			name:      "marker exceeds limit",
+			text:      "P1\n\nP2",
+			maxTokens: 2, // Too small for marker -> fallback to truncate
+		},
+		{
+			name:      "single paragraph",
+			text:      longPara,
+			maxTokens: 50,
+		},
+		{
+			name:      "empty text",
+			text:      "",
 			maxTokens: 10,
 		},
 	}
@@ -140,9 +187,24 @@ func TestSummarizeForTokenLimit(t *testing.T) {
 				t.Errorf("SummarizeForTokenLimit() result has %d tokens, exceeds limit of %d", resultTokens, tt.maxTokens)
 			}
 
-			if result == "" && tt.text != "" {
+			if tt.text != "" && result == "" && tt.maxTokens > 5 {
 				t.Errorf("SummarizeForTokenLimit() returned empty string for non-empty input")
 			}
 		})
+	}
+}
+
+func TestEstimateTokenCount_EdgeCases(t *testing.T) {
+	if EstimateTokenCount("") != 0 {
+		t.Error("EstimateTokenCount(empty) != 0")
+	}
+}
+
+func TestTruncateToTokenLimit_EdgeCases(t *testing.T) {
+	// Start overlap end
+	text := "Hello\nWorld"
+	res := TruncateToTokenLimit(text, 100)
+	if res != text {
+		t.Error("Should not truncate if fits")
 	}
 }

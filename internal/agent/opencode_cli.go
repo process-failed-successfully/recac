@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"recac/internal/telemetry"
 	"strings"
 	"time"
@@ -46,7 +45,7 @@ func (c *OpenCodeCLIClient) Send(ctx context.Context, prompt string) (string, er
 	args = append(args, prompt)
 
 	// Prepare command
-	cmd := exec.CommandContext(ctx, "opencode", args...)
+	cmd := execCommandContext(ctx, "opencode", args...)
 
 	// Set output buffers
 	var stdout, stderr bytes.Buffer

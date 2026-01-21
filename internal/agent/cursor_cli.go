@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"recac/internal/telemetry"
 	"strings"
 	"time"
@@ -56,7 +55,7 @@ func (c *CursorCLIClient) Send(ctx context.Context, prompt string) (string, erro
 	}
 
 	// Prepare command
-	cmd := exec.CommandContext(ctx, "cursor-agent", args...)
+	cmd := execCommandContext(ctx, "cursor-agent", args...)
 
 	// Cursor CLI takes prompt as argument, not stdin (based on python client: cmd = ["cursor-agent", "agent", prompt, ...])
 	// CAUTION: passing large prompt as arg can hit shell limits.

@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"recac/internal/telemetry"
 	"strings"
 	"time"
@@ -44,7 +43,7 @@ func (c *GeminiCLIClient) Send(ctx context.Context, prompt string) (string, erro
 	}
 
 	// Prepare command
-	cmd := exec.CommandContext(ctx, "gemini", args...)
+	cmd := execCommandContext(ctx, "gemini", args...)
 
 	// Set input
 	cmd.Stdin = strings.NewReader(prompt)
