@@ -2297,6 +2297,7 @@ func (s *Session) bootstrapGit(ctx context.Context) error {
 	ignoreContent := `
 # RECAC Agent Artifacts
 .recac.db
+.recac.db-wal
 .agent_state.json
 .agent_state_*.json
 .qa_result
