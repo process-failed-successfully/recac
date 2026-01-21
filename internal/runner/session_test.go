@@ -32,6 +32,7 @@ func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(
 	return m.Response, nil
 }
 
+
 func TestSession_ReadSpec(t *testing.T) {
 	tmpDir := t.TempDir()
 	specContent := "Application Specification v1.0"
@@ -580,5 +581,99 @@ func TestSession_PushProgress(t *testing.T) {
 	remoteOut, _ := exec.Command("git", "-C", remoteDir, "branch").Output()
 	if !strings.Contains(string(remoteOut), "agent/test-branch") {
 		t.Errorf("Expected branch to be pushed to remote, got: %s", string(remoteOut))
+	}
+}
+
+func TestSession_ProcessResponse_Commands(t *testing.T) {
+	d := &MockDockerClient{}
+	d.ExecFunc = func(ctx context.Context, containerID string, cmd []string) (string, error) {
+		if strings.Contains(cmd[2], "echo hello") {
+			return "hello\n", nil
+		}
+		if strings.Contains(cmd[2], "fail") {
+			return "", context.DeadlineExceeded
+		}
+		return "", nil
+	}
+
+	session := NewSession(d, &MockAgent{}, "/tmp", "alpine", "test-project", "gemini", "gemini-pro", 1)
+	session.ContainerID = "test-container"
+
+	// 1. Success
+	output, err := session.ProcessResponse(context.Background(), "```bash\necho hello\n```")
+	if err != nil {
+		t.Errorf("Expected success, got: %v", err)
+	}
+	if !strings.Contains(output, "hello") {
+		t.Errorf("Expected output to contain 'hello', got: %s", output)
+	}
+
+	// 2. Failure (Timeout)
+	output, err = session.ProcessResponse(context.Background(), "```bash\nfail\n```")
+	// ProcessResponse returns parsing error or ErrBlocker, it logs execution errors but continues or stops.
+	// We expect no error from the function itself, but the output should contain failure message.
+	if !strings.Contains(output, "Command Failed") {
+		t.Errorf("Expected output to report failure, got: %s", output)
+	}
+}
+
+func TestSession_ProcessResponse_Blockers(t *testing.T) {
+	d := &MockDockerClient{}
+	d.ExecFunc = func(ctx context.Context, containerID string, cmd []string) (string, error) {
+		// Simulate finding blocker file
+		if strings.Contains(cmd[2], "cat recac_blockers.txt") {
+			return "Critical API Issue", nil
+		}
+		return "", nil
+	}
+
+	session := NewSession(d, &MockAgent{}, "/tmp", "alpine", "test-project", "gemini", "gemini-pro", 1)
+	session.ContainerID = "test-container"
+
+	_, err := session.ProcessResponse(context.Background(), "some response")
+	if err != ErrBlocker {
+		t.Errorf("Expected ErrBlocker, got: %v", err)
+	}
+}
+
+func TestSession_BootstrapGit(t *testing.T) {
+	d := &MockDockerClient{}
+	execCalls := 0
+	d.ExecAsUserFunc = func(ctx context.Context, containerID, user string, cmd []string) (string, error) {
+		execCalls++
+		return "", nil
+	}
+
+	session := NewSession(d, &MockAgent{}, "/tmp", "alpine", "test-project", "gemini", "gemini-pro", 1)
+	session.ContainerID = "test-container"
+
+	if err := session.bootstrapGit(context.Background()); err != nil {
+		t.Errorf("bootstrapGit failed: %v", err)
+	}
+
+	if execCalls < 4 {
+		t.Errorf("Expected at least 4 git config commands, got %d", execCalls)
+	}
+}
+
+func TestSession_EnsureImage(t *testing.T) {
+	d := &MockDockerClient{}
+	pulled := false
+	d.ImageExistsFunc = func(ctx context.Context, image string) (bool, error) {
+		return false, nil
+	}
+	d.PullImageFunc = func(ctx context.Context, image string) error {
+		pulled = true
+		return nil
+	}
+
+	session := NewSession(d, &MockAgent{}, "/tmp", "ghcr.io/process-failed-successfully/recac-agent:latest", "test-project", "gemini", "gemini-pro", 1)
+
+	if err := session.ensureImage(context.Background()); err != nil {
+		t.Errorf("ensureImage failed: %v", err)
+	}
+
+	if !pulled {
+		t.Error("Expected image to be pulled")
 	}
 }
