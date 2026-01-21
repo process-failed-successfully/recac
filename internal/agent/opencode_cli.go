@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+var execCommandContext = exec.CommandContext
+
 // OpenCodeCLIClient implements the Agent interface for the OpenCode CLI
 type OpenCodeCLIClient struct {
 	model   string
@@ -46,7 +48,7 @@ func (c *OpenCodeCLIClient) Send(ctx context.Context, prompt string) (string, er
 	args = append(args, prompt)
 
 	// Prepare command
-	cmd := exec.CommandContext(ctx, "opencode", args...)
+	cmd := execCommandContext(ctx, "opencode", args...)
 
 	// Set output buffers
 	var stdout, stderr bytes.Buffer
@@ -56,7 +58,15 @@ func (c *OpenCodeCLIClient) Send(ctx context.Context, prompt string) (string, er
 	if c.workDir != "" {
 		cmd.Dir = c.workDir
 	}
-	cmd.Env = os.Environ()
+
+	// Preserve existing env (mocks) and append system env
+	env := cmd.Env
+	if len(env) == 0 {
+		env = os.Environ()
+	} else {
+		env = append(env, os.Environ()...)
+	}
+	cmd.Env = env
 
 	// Mask prompt in logs if too long
 	logArgs := args
