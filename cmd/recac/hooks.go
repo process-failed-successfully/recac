@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -52,6 +53,11 @@ func runHooksInstall(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Use hookForce and hookProfile from flags
+	return installHooks(cwd, hookProfile, hookForce, cmd.OutOrStdout())
+}
+
+func installHooks(cwd, profile string, force bool, out io.Writer) error {
 	gitDir := filepath.Join(cwd, ".git")
 	if _, err := os.Stat(gitDir); os.IsNotExist(err) {
 		return fmt.Errorf("not a git repository (or .git directory not found)")
@@ -64,7 +70,7 @@ func runHooksInstall(cmd *cobra.Command, args []string) error {
 
 	hookPath := filepath.Join(hooksDir, "pre-commit")
 
-	if _, err := os.Stat(hookPath); err == nil && !hookForce {
+	if _, err := os.Stat(hookPath); err == nil && !force {
 		return fmt.Errorf("pre-commit hook already exists. Use --force to overwrite")
 	}
 
@@ -74,13 +80,13 @@ func runHooksInstall(cmd *cobra.Command, args []string) error {
 		binPath = "recac"
 	}
 
-	script := generateHookScript(binPath, hookProfile)
+	script := generateHookScript(binPath, profile)
 
 	if err := os.WriteFile(hookPath, []byte(script), 0755); err != nil {
 		return fmt.Errorf("failed to write hook file: %w", err)
 	}
 
-	fmt.Printf("✅ Pre-commit hook installed (%s profile)\n", hookProfile)
+	fmt.Fprintf(out, "✅ Pre-commit hook installed (%s profile)\n", profile)
 	return nil
 }
 
