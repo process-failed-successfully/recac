@@ -19,11 +19,18 @@ func TestTodoSolveCmd(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Switch CWD
-	originalWd, _ := os.Getwd()
+	originalWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get cwd: %v", err)
+	}
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatalf("Failed to chdir: %v", err)
 	}
-	defer os.Chdir(originalWd)
+	defer func() {
+		if err := os.Chdir(originalWd); err != nil {
+			t.Errorf("Failed to restore cwd: %v", err)
+		}
+	}()
 
 	// 2. Setup Files
 	targetFile := "main.go"

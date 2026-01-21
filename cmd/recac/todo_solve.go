@@ -99,7 +99,10 @@ func runTodoSolve(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 	provider := viper.GetString("provider")
 	model := viper.GetString("model")
-	cwd, _ := os.Getwd()
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current working directory: %w", err)
+	}
 
 	ag, err := agentClientFactory(ctx, provider, model, cwd, "recac-todo-solve")
 	if err != nil {
