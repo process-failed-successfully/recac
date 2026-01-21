@@ -181,6 +181,35 @@ func TestManager_Notify_Success(t *testing.T) {
 	assert.True(t, discordCalled)
 }
 
+func TestManager_InitDiscord(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(func() { viper.Reset() })
+	viper.Set("notifications.discord.enabled", true)
+
+	// Test case 1: Bot token and Channel ID set in Env
+	t.Setenv("DISCORD_BOT_TOKEN", "bot_token")
+	t.Setenv("DISCORD_CHANNEL_ID", "1234")
+
+	m := NewManager(nil)
+	assert.NotNil(t, m.discordNotifier)
+	// Casting to *DiscordNotifier to check fields
+	dn, ok := m.discordNotifier.(*DiscordNotifier)
+	assert.True(t, ok)
+	assert.Equal(t, "1234", dn.ChannelID)
+	assert.Equal(t, "bot_token", dn.BotToken)
+
+	// Test case 2: Disabled
+	viper.Set("notifications.discord.enabled", false)
+	m2 := NewManager(nil)
+	assert.Nil(t, m2.discordNotifier)
+}
+
+func TestManager_Start(t *testing.T) {
+	// Just cover the nil check
+	m := &Manager{}
+	m.Start(context.Background())
+}
+
 func TestManager_Notify_Failure(t *testing.T) {
 	viper.Reset()
 	t.Cleanup(func() { viper.Reset() })

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -122,6 +123,35 @@ func TestK8sSpawner_Spawn_Lifecycle(t *testing.T) {
 		_, err = clientset.BatchV1().Jobs("test-ns").Get(context.Background(), "recac-agent-task-123", metav1.GetOptions{})
 		assert.Error(t, err) // Should be deleted in fake clientset immediately usually
 	})
+}
+
+func TestK8sSpawner_Cleanup(t *testing.T) {
+	clientset := fake.NewSimpleClientset()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	spawner := &K8sSpawner{
+		Client:    clientset,
+		Namespace: "default",
+		Logger:    logger,
+	}
+
+	item := WorkItem{ID: "TASK-123"}
+
+	// Create dummy job
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "recac-agent-task-123",
+			Namespace: "default",
+		},
+	}
+	_, err := clientset.BatchV1().Jobs("default").Create(context.Background(), job, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	err = spawner.Cleanup(context.Background(), item)
+	assert.NoError(t, err)
+
+	// Verify job STILL exists (Cleanup is no-op, relies on TTL)
+	_, err = clientset.BatchV1().Jobs("default").Get(context.Background(), "recac-agent-task-123", metav1.GetOptions{})
+	assert.NoError(t, err)
 }
 
 func TestSanitizeK8sName(t *testing.T) {

@@ -86,3 +86,16 @@ func TestFileDirPoller(t *testing.T) {
 	_, err = os.Stat(malformedPath)
 	assert.NoError(t, err) // Malformed json is not moved
 }
+
+func TestFileDirPoller_UpdateStatus(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "file-dir-update-test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	poller, err := NewFileDirPoller(tmpDir)
+	require.NoError(t, err)
+
+	item := WorkItem{ID: "task-1"}
+	err = poller.UpdateStatus(context.Background(), item, "done", "completed")
+	assert.NoError(t, err)
+}

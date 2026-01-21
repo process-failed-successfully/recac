@@ -567,3 +567,54 @@ func TestClient_DiffStaged(t *testing.T) {
 		t.Errorf("Expected diff to contain 'v2', got %s", diff)
 	}
 }
+
+func TestClient_AdditionalOperations(t *testing.T) {
+	localDir, _ := setupTestRepo(t)
+	defer os.RemoveAll(localDir)
+
+	c := NewClient()
+
+	// Initial commit
+	os.WriteFile(filepath.Join(localDir, "f1"), []byte("v1"), 0644)
+	c.Commit(localDir, "init")
+
+	// CurrentCommitSHA
+	sha, err := c.CurrentCommitSHA(localDir)
+	if err != nil {
+		t.Errorf("CurrentCommitSHA failed: %v", err)
+	}
+	if len(sha) == 0 {
+		t.Error("CurrentCommitSHA returned empty string")
+	}
+
+	// Diff (Commit vs Commit)
+	// Create another commit
+	os.WriteFile(filepath.Join(localDir, "f1"), []byte("v2"), 0644)
+	c.Commit(localDir, "v2")
+
+	diff, err := c.Diff(localDir, "HEAD~1", "HEAD")
+	if err != nil {
+		t.Errorf("Diff failed: %v", err)
+	}
+	if !strings.Contains(diff, "v2") {
+		t.Errorf("Expected diff to contain 'v2', got %s", diff)
+	}
+
+	// DiffStat
+	stat, err := c.DiffStat(localDir, "HEAD~1", "HEAD")
+	if err != nil {
+		t.Errorf("DiffStat failed: %v", err)
+	}
+	if !strings.Contains(stat, "f1") {
+		t.Errorf("Expected diff stat to contain 'f1', got %s", stat)
+	}
+
+	// Log
+	logs, err := c.Log(localDir, "-n", "5")
+	if err != nil {
+		t.Errorf("Log failed: %v", err)
+	}
+	if len(logs) == 0 {
+		t.Error("Log returned empty list")
+	}
+}
