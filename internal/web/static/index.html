@@ -83,12 +83,25 @@
                 else if (f.status === 'in_progress') statusClass = 'status-inprogress';
                 else if (f.status === 'failed') statusClass = 'status-failed';
 
-                tr.innerHTML = `
-                    <td>${f.id}</td>
-                    <td>${f.description}</td>
-                    <td><span class="status-badge ${statusClass}">${f.status}</span></td>
-                    <td>${f.priority}</td>
-                `;
+                const tdId = document.createElement('td');
+                tdId.textContent = f.id;
+                tr.appendChild(tdId);
+
+                const tdDesc = document.createElement('td');
+                tdDesc.textContent = f.description;
+                tr.appendChild(tdDesc);
+
+                const tdStatus = document.createElement('td');
+                const spanStatus = document.createElement('span');
+                spanStatus.className = `status-badge ${statusClass}`;
+                spanStatus.textContent = f.status;
+                tdStatus.appendChild(spanStatus);
+                tr.appendChild(tdStatus);
+
+                const tdPriority = document.createElement('td');
+                tdPriority.textContent = f.priority;
+                tr.appendChild(tdPriority);
+
                 tbody.appendChild(tr);
             });
         }
@@ -97,10 +110,13 @@
             const element = document.getElementById('graph');
             // Check if graphDef is valid mermaid syntax
             if (!graphDef.trim().startsWith('graph')) {
-                 element.innerHTML = `<pre>${graphDef}</pre>`;
+                 element.innerHTML = '';
+                 const pre = document.createElement('pre');
+                 pre.textContent = graphDef;
+                 element.appendChild(pre);
                  return;
             }
-            element.innerHTML = graphDef;
+            element.textContent = graphDef;
             await mermaid.run({ nodes: [element] });
         }
 
