@@ -6,17 +6,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 )
 
 // SlackNotifier sends notifications to Slack via a Webhook.
 type SlackNotifier struct {
 	WebhookURL string
+	Client     *http.Client
 }
 
 // NewSlackNotifier creates a new SlackNotifier.
 func NewSlackNotifier(webhookURL string) *SlackNotifier {
 	return &SlackNotifier{
 		WebhookURL: webhookURL,
+		Client:     &http.Client{Timeout: 10 * time.Second},
 	}
 }
 
@@ -40,7 +43,13 @@ func (s *SlackNotifier) Notify(ctx context.Context, message string) error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	// Use the configured client, fallback to DefaultClient (for backward compatibility if struct was created manually)
+	client := s.Client
+	if client == nil {
+		client = http.DefaultClient
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send slack notification: %w", err)
 	}

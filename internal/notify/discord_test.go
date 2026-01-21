@@ -120,6 +120,54 @@ func TestDiscordNotifier_Send_Bot(t *testing.T) {
 	}
 }
 
+func TestDiscordNotifier_Send_Bot_Error(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal Server Error"))
+	}))
+	defer server.Close()
+
+	notifier := NewDiscordBotNotifier("my_token", "12345")
+	notifier.Client = &http.Client{
+		Transport: &testTransport{
+			TargetURL: server.URL,
+		},
+	}
+
+	ctx := context.Background()
+	_, err := notifier.Send(ctx, "Hello Bot", "")
+	if err == nil {
+		t.Error("expected error for non-OK status code, got nil")
+	}
+	if !strings.Contains(err.Error(), "discord api error: 500") {
+		t.Errorf("expected 500 error, got %v", err)
+	}
+}
+
+func TestDiscordNotifier_Send_Bot_DecodeError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("invalid json"))
+	}))
+	defer server.Close()
+
+	notifier := NewDiscordBotNotifier("my_token", "12345")
+	notifier.Client = &http.Client{
+		Transport: &testTransport{
+			TargetURL: server.URL,
+		},
+	}
+
+	ctx := context.Background()
+	_, err := notifier.Send(ctx, "Hello Bot", "")
+	if err == nil {
+		t.Error("expected error for invalid json response, got nil")
+	}
+	if !strings.Contains(err.Error(), "failed to decode discord response") {
+		t.Errorf("expected decode error, got %v", err)
+	}
+}
+
 func TestDiscordNotifier_AddReaction(t *testing.T) {
 	channelID := "12345"
 	messageID := "msg_123"
@@ -157,6 +205,38 @@ func TestDiscordNotifier_AddReaction(t *testing.T) {
 	err := notifier.AddReaction(ctx, messageID, reaction)
 	if err != nil {
 		t.Fatalf("AddReaction failed: %v", err)
+	}
+}
+
+func TestDiscordNotifier_AddReaction_Error(t *testing.T) {
+	// Case 1: Missing credentials
+	notifier := NewDiscordBotNotifier("", "")
+	ctx := context.Background()
+	err := notifier.AddReaction(ctx, "msg_123", "check")
+	if err == nil {
+		t.Error("expected error for missing credentials, got nil")
+	}
+
+	// Case 2: API Error
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		w.Write([]byte("Forbidden"))
+	}))
+	defer server.Close()
+
+	notifier = NewDiscordBotNotifier("token", "channel")
+	notifier.Client = &http.Client{
+		Transport: &testTransport{
+			TargetURL: server.URL,
+		},
+	}
+
+	err = notifier.AddReaction(ctx, "msg_123", "check")
+	if err == nil {
+		t.Error("expected error for API failure, got nil")
+	}
+	if !strings.Contains(err.Error(), "discord api error: 403") {
+		t.Errorf("expected 403 error, got %v", err)
 	}
 }
 

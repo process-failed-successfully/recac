@@ -2,10 +2,12 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"recac/internal/agent"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -104,4 +106,32 @@ func TestStartCommand_Resume(t *testing.T) {
 
 	// Just check output
 	assert.Contains(t, output, fmt.Sprintf("Resuming session 'resume-test' from workspace: %s", tmpDir))
+}
+
+func TestStartCommand_NormalMode_Restricted(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
+
+	// Mock agentClientFactory
+	originalFactory := agentClientFactory
+	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+		return agent.NewMockAgent(), nil
+	}
+	defer func() { agentClientFactory = originalFactory }()
+
+	t.Setenv("HOME", t.TempDir())
+
+	var err error
+	output := captureOutput(func() {
+		_, err = executeCommand(rootCmd, "start",
+			"--path", tmpDir,
+			"--max-iterations", "1",
+			"--name", "normal-test",
+			"--allow-dirty",
+			"--project", "test-project",
+		)
+	})
+
+	require.NoError(t, err)
+	assert.Contains(t, output, "Starting RECAC session")
 }

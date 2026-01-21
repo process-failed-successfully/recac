@@ -53,3 +53,34 @@ func TestSlackNotifier_Notify_Error(t *testing.T) {
 		t.Error("expected error for non-OK status code, got nil")
 	}
 }
+
+func TestSlackNotifier_Notify_MissingURL(t *testing.T) {
+	notifier := NewSlackNotifier("")
+	ctx := context.Background()
+
+	err := notifier.Notify(ctx, "test")
+	if err == nil {
+		t.Error("expected error for missing webhook URL, got nil")
+	}
+}
+
+func TestSlackNotifier_Notify_ClientError(t *testing.T) {
+	// Using a dummy URL and closed server to simulate connection refused (client error)
+	// But clearer way is to use a client that always errors
+	notifier := NewSlackNotifier("http://invalid-url")
+	notifier.Client = &http.Client{
+		Transport: &errorTransport{},
+	}
+
+	ctx := context.Background()
+	err := notifier.Notify(ctx, "test")
+	if err == nil {
+		t.Error("expected error for client failure, got nil")
+	}
+}
+
+type errorTransport struct{}
+
+func (t *errorTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return nil, io.ErrUnexpectedEOF
+}
