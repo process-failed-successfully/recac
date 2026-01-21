@@ -127,7 +127,8 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 		cmdStr := cmd[2] // /bin/sh -c <cmdStr>
 		return contains(cmdStr, "export RECAC_PROJECT_ID='TICKET-1'") &&
 			contains(cmdStr, "export GIT_AUTHOR_NAME='RECAC Agent'") &&
-			contains(cmdStr, "export GIT_AUTHOR_EMAIL='agent@recac.io'")
+			contains(cmdStr, "export GIT_AUTHOR_EMAIL='agent@recac.io'") &&
+			contains(cmdStr, "export RECAC_MAX_ITERATIONS='20'")
 	})).Return("output", nil)
 	mockSM.On("LoadSession", "TICKET-1").Return(&runner.SessionState{}, nil)
 
@@ -216,4 +217,40 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 	// Check if the ID is quoted in the command string
 	// Depending on implementation, checking for quoted ID:
 	assert.Contains(t, capturedCmd[2], "--jira \"TASK-1\\\"; echo \\\"injected\"")
+}
+
+func TestDockerSpawner_Spawn_PropagatesEnvVars(t *testing.T) {
+	mockDocker := new(MockDockerClient)
+	mockSM := new(MockSessionManager)
+	mockGit := new(MockGitClient)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	spawner := NewDockerSpawner(logger, mockDocker, "test-image", "test-proj", nil, "", "", mockSM)
+	spawner.GitClient = mockGit
+
+	item := WorkItem{ID: "TICKET-1", RepoURL: "https://github.com/test/repo"}
+	ctx := context.Background()
+
+	// Set Environment Variables
+	os.Setenv("RECAC_MAX_ITERATIONS", "50")
+	os.Setenv("RECAC_MANAGER_FREQUENCY", "10")
+	defer os.Unsetenv("RECAC_MAX_ITERATIONS")
+	defer os.Unsetenv("RECAC_MANAGER_FREQUENCY")
+
+	mockDocker.On("RunContainer", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("container123", nil)
+	mockSM.On("SaveSession", mock.Anything).Return(nil)
+	mockSM.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
+	mockGit.On("CurrentCommitSHA", mock.Anything).Return("sha", nil)
+
+	mockDocker.On("Exec", mock.Anything, "container123", mock.MatchedBy(func(cmd []string) bool {
+		cmdStr := cmd[2]
+		return contains(cmdStr, "export RECAC_MAX_ITERATIONS='50'") &&
+			contains(cmdStr, "export RECAC_MANAGER_FREQUENCY='10'")
+	})).Return("output", nil)
+
+	err := spawner.Spawn(ctx, item)
+	assert.NoError(t, err)
+
+	// Wait for goroutine
+	time.Sleep(100 * time.Millisecond)
+	mockDocker.AssertExpectations(t)
 }
