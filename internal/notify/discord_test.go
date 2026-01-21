@@ -101,21 +101,6 @@ func TestDiscordNotifier_Send_Bot(t *testing.T) {
 	}))
 	defer server.Close()
 
-	// Intercept URL construction in SendBotMessage?
-	// The implementation hardcodes "https://discord.com/api/v10/...".
-	// We cannot easily test this without mocking http.Client or overriding URL.
-	// However, we can use a custom Transport in the client that redirects to our test server?
-	// But the URL in request is absolute.
-
-	// We'll skip deep mocking here and assume unit logic is sound if Webhook works,
-	// unless we refactor to allow BaseURL injection.
-	// For "parity" speed, I will refactor `discord.go` to allow BaseURL override?
-	// Or just trust it.
-	// Given "security focused", I should verify.
-	// But `internal/notify/discord.go` uses hardcoded URL.
-
-	// I will just test the struct logic, not the actual network call to discord.com unless I inject a custom client with Transport that hijacks requests.
-
 	notifier := NewDiscordBotNotifier("my_token", channelID)
 	// Inject custom client that routes everything to test server
 	notifier.Client = &http.Client{
@@ -132,6 +117,46 @@ func TestDiscordNotifier_Send_Bot(t *testing.T) {
 
 	if id != expectedID {
 		t.Errorf("expected message ID %s, got %s", expectedID, id)
+	}
+}
+
+func TestDiscordNotifier_AddReaction(t *testing.T) {
+	channelID := "12345"
+	messageID := "msg_123"
+	reaction := "white_check_mark"
+	// mapEmoji converts "white_check_mark" to encoded unicode "✅" (%E2%9C%85)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "PUT" {
+			t.Errorf("expected PUT request, got %s", r.Method)
+		}
+
+		if r.Header.Get("Authorization") != "Bot my_token" {
+			t.Errorf("missing or invalid authorization header")
+		}
+
+		// Check if URL contains the reaction
+		// Ideally we check exact path but transport manipulation might affect it.
+		// Just ensure it's calling the reaction endpoint
+		if !strings.Contains(r.URL.Path, "/reactions/") {
+			t.Errorf("expected reactions endpoint, got %s", r.URL.Path)
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	notifier := NewDiscordBotNotifier("my_token", channelID)
+	notifier.Client = &http.Client{
+		Transport: &testTransport{
+			TargetURL: server.URL,
+		},
+	}
+
+	ctx := context.Background()
+	err := notifier.AddReaction(ctx, messageID, reaction)
+	if err != nil {
+		t.Fatalf("AddReaction failed: %v", err)
 	}
 }
 

@@ -21,15 +21,28 @@ const (
 	EventProjectComplete = "on_project_complete"
 )
 
+// SlackPoster defines the interface for Slack operations.
+type SlackPoster interface {
+	PostMessageContext(ctx context.Context, channelID string, options ...slack.MsgOption) (string, string, error)
+	PostMessage(channelID string, options ...slack.MsgOption) (string, string, error)
+	AddReactionContext(ctx context.Context, name string, item slack.ItemRef) error
+}
+
+// DiscordPoster defines the interface for Discord operations.
+type DiscordPoster interface {
+	Send(ctx context.Context, message, threadID string) (string, error)
+	AddReaction(ctx context.Context, messageID, reaction string) error
+}
+
 // Manager handles notifications across different providers (Slack and Discord).
 type Manager struct {
 	// Slack
-	client       *slack.Client
+	client       SlackPoster
 	socketClient *socketmode.Client
 	channelID    string
 
 	// Discord
-	discordNotifier *DiscordNotifier
+	discordNotifier DiscordPoster
 
 	logger func(string, ...interface{})
 }
