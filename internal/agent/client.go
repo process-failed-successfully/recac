@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"recac/internal/telemetry"
-	"strings"
 	"time"
 )
 
@@ -196,7 +195,6 @@ func (c *BaseClient) SendStreamWithRetry(ctx context.Context, prompt string, sen
 		return "", err
 	}
 
-	var fullResponse strings.Builder
 	maxRetries := 3
 	var lastErr error
 
@@ -221,21 +219,13 @@ func (c *BaseClient) SendStreamWithRetry(ctx context.Context, prompt string, sen
 
 		result, err := sendStreamOnce(ctx, prompt, onChunk)
 		if err == nil {
-			fullResponse.WriteString(result)
-			break
+			if shouldUpdateState {
+				c.UpdateStateWithResponse(state, result)
+			}
+			return result, nil
 		}
 		lastErr = err
 	}
 
-	if lastErr != nil {
-		return "", fmt.Errorf("failed after %d retries: %w", maxRetries, lastErr)
-	}
-
-	result := fullResponse.String()
-
-	if shouldUpdateState {
-		c.UpdateStateWithResponse(state, result)
-	}
-
-	return result, nil
+	return "", fmt.Errorf("failed after %d retries: %w", maxRetries, lastErr)
 }
