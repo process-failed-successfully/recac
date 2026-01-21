@@ -12,6 +12,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// TodoItem represents a scanned TODO comment in the codebase.
+type TodoItem struct {
+	File    string
+	Line    int
+	Keyword string
+	Content string
+	Raw     string
+}
+
 var todoScanCmd = &cobra.Command{
 	Use:   "scan [path]",
 	Short: "Scan codebase for TODOs and add them to TODO.md",
@@ -56,8 +65,8 @@ func scanAndAddTodos(cmd *cobra.Command, root string) error {
 	return nil
 }
 
-func scanTodos(root string) ([]string, error) {
-	var tasks []string
+func scanTodos(root string) ([]TodoItem, error) {
+	var tasks []TodoItem
 
 	// Regex to catch TODOs.
 	// Matches: (//|#|<!--|--|/*) [whitespace] (TODO|FIXME|...) [optional: (stuff)] [whitespace|:] (content)
@@ -165,8 +174,15 @@ func scanTodos(root string) ([]string, error) {
 				}
 
 				// Format: [File:Line] Keyword: Content
-				task := fmt.Sprintf("[%s:%d] %s: %s", displayPath, lineNum, keyword, content)
-				tasks = append(tasks, task)
+				raw := fmt.Sprintf("[%s:%d] %s: %s", displayPath, lineNum, keyword, content)
+
+				tasks = append(tasks, TodoItem{
+					File:    displayPath,
+					Line:    lineNum,
+					Keyword: keyword,
+					Content: content,
+					Raw:     raw,
+				})
 			}
 		}
 
@@ -176,7 +192,7 @@ func scanTodos(root string) ([]string, error) {
 	return tasks, err
 }
 
-func addTasksToTodoFile(newTasks []string) (int, error) {
+func addTasksToTodoFile(newTasks []TodoItem) (int, error) {
 	if err := ensureTodoFile(); err != nil {
 		return 0, err
 	}
@@ -203,9 +219,9 @@ func addTasksToTodoFile(newTasks []string) (int, error) {
 	}
 	defer f.Close()
 
-	for _, task := range newTasks {
-		if !existingTasks[task] {
-			if _, err := f.WriteString(fmt.Sprintf("- [ ] %s\n", task)); err != nil {
+	for _, item := range newTasks {
+		if !existingTasks[item.Raw] {
+			if _, err := f.WriteString(fmt.Sprintf("- [ ] %s\n", item.Raw)); err != nil {
 				return addedCount, err
 			}
 			addedCount++

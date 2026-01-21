@@ -114,7 +114,12 @@ func runHealth(cmd *cobra.Command, args []string) error {
 	// 5. TODOs
 	todoRes, err := scanTodos(root)
 	if err == nil {
-		report.Todos = todoRes
+		// Convert TodoItem objects back to strings for the report
+		var todoStrings []string
+		for _, t := range todoRes {
+			todoStrings = append(todoStrings, t.Raw)
+		}
+		report.Todos = todoStrings
 		report.Overview.TodoCount = len(todoRes)
 	}
 
