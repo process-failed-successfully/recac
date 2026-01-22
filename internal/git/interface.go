@@ -32,4 +32,6 @@ type IClient interface {
 	DeleteLocalBranch(directory, branch string) error
 	LocalBranchExists(directory, branch string) (bool, error)
 	Log(directory string, args ...string) ([]string, error)
+	Tag(directory, tag, message string) error
+	PushTags(directory string) error
 }

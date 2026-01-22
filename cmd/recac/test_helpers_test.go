@@ -340,6 +340,30 @@ type MockGitClient struct {
 	LogFunc               func(repoPath string, args ...string) ([]string, error)
 	CurrentBranchFunc     func(repoPath string) (string, error)
 	CheckoutNewBranchFunc func(repoPath, branch string) error
+	TagFunc               func(repoPath, tag, message string) error
+	PushFunc              func(repoPath, branch string) error
+	PushTagsFunc          func(repoPath string) error
+}
+
+func (m *MockGitClient) Tag(repoPath, tag, message string) error {
+	if m.TagFunc != nil {
+		return m.TagFunc(repoPath, tag, message)
+	}
+	return nil
+}
+
+func (m *MockGitClient) Push(repoPath, branch string) error {
+	if m.PushFunc != nil {
+		return m.PushFunc(repoPath, branch)
+	}
+	return nil
+}
+
+func (m *MockGitClient) PushTags(repoPath string) error {
+	if m.PushTagsFunc != nil {
+		return m.PushTagsFunc(repoPath)
+	}
+	return nil
 }
 
 func (m *MockGitClient) Checkout(repoPath, commitOrBranch string) error {

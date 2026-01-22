@@ -83,6 +83,8 @@ func (m *MockGitClientCommit) Log(directory string, args ...string) ([]string, e
 }
 func (m *MockGitClientCommit) CurrentBranch(directory string) (string, error)   { return "main", nil }
 func (m *MockGitClientCommit) CheckoutNewBranch(directory, branch string) error { return nil }
+func (m *MockGitClientCommit) Tag(directory, tag, message string) error         { return nil }
+func (m *MockGitClientCommit) PushTags(directory string) error                  { return nil }
 
 func TestCommitCmd(t *testing.T) {
 	// Setup mocks
