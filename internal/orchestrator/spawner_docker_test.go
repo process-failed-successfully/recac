@@ -217,3 +217,50 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 	// Depending on implementation, checking for quoted ID:
 	assert.Contains(t, capturedCmd[2], "--jira \"TASK-1\\\"; echo \\\"injected\"")
 }
+
+func TestDockerSpawner_EnvPropagation(t *testing.T) {
+	// Set environment variables for the test process
+	os.Setenv("RECAC_MAX_ITERATIONS", "50")
+	os.Setenv("RECAC_MANAGER_FREQUENCY", "10m")
+	defer os.Unsetenv("RECAC_MAX_ITERATIONS")
+	defer os.Unsetenv("RECAC_MANAGER_FREQUENCY")
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	client := new(MockDockerClient)
+	poller := new(MockPoller)
+	sm := new(MockSessionManager)
+	spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", sm)
+
+	item := WorkItem{
+		ID:      "TASK-ENV-TEST",
+		RepoURL: "https://github.com/example/repo",
+	}
+
+	client.On("RunContainer", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("container-env", nil)
+	sm.On("SaveSession", mock.Anything).Return(nil)
+	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
+
+	// Capture the command passed to Exec
+	capturedCmdChan := make(chan []string, 1)
+	client.On("Exec", mock.Anything, "container-env", mock.Anything).Run(func(args mock.Arguments) {
+		capturedCmd := args.Get(2).([]string)
+		capturedCmdChan <- capturedCmd
+	}).Return("Success", nil)
+
+	err := spawner.Spawn(context.Background(), item)
+	assert.NoError(t, err)
+
+	var capturedCmd []string
+	select {
+	case capturedCmd = <-capturedCmdChan:
+		// Success
+	case <-time.After(2 * time.Second):
+		t.Fatal("Timed out waiting for Exec call")
+	}
+
+	cmdStr := capturedCmd[2]
+
+	// Check if environment variables are correctly propagated
+	assert.Contains(t, cmdStr, "export RECAC_MAX_ITERATIONS='50'", "Should propagate RECAC_MAX_ITERATIONS from host")
+	assert.Contains(t, cmdStr, "export RECAC_MANAGER_FREQUENCY='10m'", "Should propagate RECAC_MANAGER_FREQUENCY from host")
+}

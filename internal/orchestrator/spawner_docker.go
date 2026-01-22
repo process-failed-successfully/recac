@@ -144,8 +144,18 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 
 		envExports = append(envExports, fmt.Sprintf("export RECAC_HOST_WORKSPACE_PATH='%s'", tempDir))
 
+		// Propagate Agent Limits from Host (Default to 20 if unset)
+		maxIterations := "20"
+		if val := os.Getenv("RECAC_MAX_ITERATIONS"); val != "" {
+			maxIterations = val
+		}
+		envExports = append(envExports, fmt.Sprintf("export RECAC_MAX_ITERATIONS='%s'", maxIterations))
+
+		if val := os.Getenv("RECAC_MANAGER_FREQUENCY"); val != "" {
+			envExports = append(envExports, fmt.Sprintf("export RECAC_MANAGER_FREQUENCY='%s'", val))
+		}
+
 		cmdStr := "cd /workspace"
-		cmdStr += " && export RECAC_MAX_ITERATIONS=20"
 		cmdStr += " && " + strings.Join(envExports, " && ")
 		cmdStr += " && " + strings.Join(agentCmd, " ") + " --allow-dirty"
 		cmdStr += " && echo 'Recac Finished'"
