@@ -21,8 +21,8 @@ var (
 // EstimateResult represents the structured output from the AI
 type EstimateResult struct {
 	Summary             string   `json:"summary"`
-	Complexity          string   `json:"complexity"`     // Low, Medium, High
-	StoryPoints         int      `json:"story_points"`   // Fibonacci: 1, 2, 3, 5, 8, 13, 21
+	Complexity          string   `json:"complexity"`      // Low, Medium, High
+	StoryPoints         int      `json:"story_points"`    // Fibonacci: 1, 2, 3, 5, 8, 13, 21
 	EstimatedHours      string   `json:"estimated_hours"` // e.g. "2-4h"
 	Risks               []string `json:"risks"`
 	ImplementationSteps []string `json:"implementation_steps"`

@@ -13,8 +13,8 @@ import (
 // Helper to create an isolated map command for testing
 func getTestMapCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "map [path]",
-		RunE:  runMap,
+		Use:  "map [path]",
+		RunE: runMap,
 	}
 	initMapFlags(cmd)
 	return cmd

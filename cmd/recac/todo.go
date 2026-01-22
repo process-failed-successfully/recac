@@ -217,4 +217,3 @@ func removeTask(targetIndex int) error {
 	fmt.Printf("Removed task %d\n", targetIndex)
 	return writeLines(todoFile, newLines)
 }
-

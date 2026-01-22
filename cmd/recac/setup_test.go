@@ -76,9 +76,9 @@ func TestSetupCmd(t *testing.T) {
 
 	// Define mock answers
 	mockAnswers = map[string]interface{}{
-		"Choose your AI Provider:":                             "openai",
-		"Enter the Model name:":                                "gpt-4o",
-		"Enter your API Key (leave empty to skip):":            "sk-test-123",
+		"Choose your AI Provider:":                              "openai",
+		"Enter the Model name:":                                 "gpt-4o",
+		"Enter your API Key (leave empty to skip):":             "sk-test-123",
 		"Do you want to save the API Key to a local .env file?": true,
 		"Enable Slack notifications?":                           true,
 		"Slack Channel:":                                        "#alerts",

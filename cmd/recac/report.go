@@ -43,15 +43,15 @@ func init() {
 
 // ReportData holds all the data for the report
 type ReportData struct {
-	GeneratedAt    time.Time            `json:"generated_at"`
-	ProjectName    string               `json:"project_name"`
-	Complexity     []FunctionComplexity `json:"complexity"`
-	Smells         []SmellFinding       `json:"smells"`
-	Duplications   []Duplication        `json:"duplications"`
-	Todos          []TodoItem           `json:"todos"`
-	Stats          ProjectStats         `json:"stats"`
-	TotalIssues    int                  `json:"total_issues"`
-	HealthScore    int                  `json:"health_score"` // 0-100
+	GeneratedAt  time.Time            `json:"generated_at"`
+	ProjectName  string               `json:"project_name"`
+	Complexity   []FunctionComplexity `json:"complexity"`
+	Smells       []SmellFinding       `json:"smells"`
+	Duplications []Duplication        `json:"duplications"`
+	Todos        []TodoItem           `json:"todos"`
+	Stats        ProjectStats         `json:"stats"`
+	TotalIssues  int                  `json:"total_issues"`
+	HealthScore  int                  `json:"health_score"` // 0-100
 }
 
 type ProjectStats struct {

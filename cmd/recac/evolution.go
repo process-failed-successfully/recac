@@ -276,8 +276,12 @@ func printTrend(cmd *cobra.Command, label string, metrics []EvolutionMetric, ext
 	for i, m := range metrics {
 		v := extractor(m)
 		vals[i] = v
-		if v < minVal { minVal = v }
-		if v > maxVal { maxVal = v }
+		if v < minVal {
+			minVal = v
+		}
+		if v > maxVal {
+			maxVal = v
+		}
 	}
 
 	if maxVal == 0 {
