@@ -1,11 +1,15 @@
 agent_timeout: 300
+aliases: {}
 allow_dirty: false
 auto_merge: false
 bash_timeout: 600
+cleanup: true
+description: ""
 detached: false
 docker_timeout: 600
 git_user_email: recac-agent@example.com
 git_user_name: RECAC Agent
+image: ghcr.io/process-failed-successfully/recac-agent:latest
 jira: ""
 jira_label: ""
 manager_first: false
@@ -28,9 +32,26 @@ notifications:
             on_start: true
             on_success: true
             on_user_interaction: true
+orchestrator:
+    agent_model: mistralai/devstral-2512:free
+    agent_provider: openrouter
+    image: ghcr.io/process-failed-successfully/recac-agent:latest
+    image_pull_policy: Always
+    interval: 1m0s
+    jira_label: recac-agent
+    jira_query: ""
+    mode: local
+    namespace: default
+    poller: jira
+    watch_dir: ""
+    work_file: work_items.json
 path: ""
+project: ""
 provider: gemini
+repo_url: ""
+skip_qa: false
 stream: false
+summary: ""
 task_max_iterations: 10
 timeout: 300
 verbose: false
