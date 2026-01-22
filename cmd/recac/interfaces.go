@@ -36,4 +36,7 @@ type IGitClient interface {
 	Log(repoPath string, args ...string) ([]string, error)
 	CurrentBranch(repoPath string) (string, error)
 	CheckoutNewBranch(repoPath, branch string) error
+	Tag(repoPath, tag, message string) error
+	Push(repoPath, branch string) error
+	PushTags(repoPath string) error
 }

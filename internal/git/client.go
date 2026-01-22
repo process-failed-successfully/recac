@@ -439,3 +439,19 @@ func (c *Client) Log(dir string, args ...string) ([]string, error) {
 	}
 	return strings.Split(output, "\n"), nil
 }
+
+// Tag creates a new annotated tag.
+func (c *Client) Tag(dir, tag, message string) error {
+	cmd := exec.Command("git", "tag", "-a", tag, "-m", message)
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+// PushTags pushes all tags to the remote.
+func (c *Client) PushTags(dir string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	return c.runWithMasking(ctx, dir, "push", "origin", "--tags")
+}

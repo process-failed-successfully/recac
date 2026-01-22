@@ -28,6 +28,23 @@ func TestHelperProcess(t *testing.T) {
 	// Handle special mocks that shouldn't go to rootCmd
 	if len(args) > 0 {
 		cmd := args[0]
+		if cmd == "git-describe" {
+			fmt.Print("v1.0.0") // Mock git describe output
+			os.Exit(0)
+		}
+		if cmd == "git-log" {
+			// Check env for what to output
+			sep := "--RECAC-COMMIT-SEP--"
+			logType := os.Getenv("MOCK_GIT_LOG_TYPE")
+			if logType == "breaking" {
+				fmt.Printf("feat: regular feature%sfix: bug fix\n\nBREAKING CHANGE: API break%s", sep, sep)
+			} else if logType == "feat" {
+				fmt.Printf("feat: new feature%sfix: bug%s", sep, sep)
+			} else {
+				fmt.Printf("fix: bug%s", sep)
+			}
+			os.Exit(0)
+		}
 		if cmd == "go" {
 			// Mock pprof specifically
 			if len(args) > 2 && args[1] == "tool" && args[2] == "pprof" {
