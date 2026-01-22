@@ -146,6 +146,14 @@ func (m *MockGitClient) Push(directory, branch string) error {
 	return nil
 }
 
+func (m *MockGitClient) Tag(directory, tag, message string) error {
+	return nil
+}
+
+func (m *MockGitClient) PushTags(directory string) error {
+	return nil
+}
+
 func (m *MockGitClient) Pull(directory, remote, branch string) error {
 	return nil
 }

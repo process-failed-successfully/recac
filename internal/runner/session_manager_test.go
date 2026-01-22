@@ -151,6 +151,16 @@ func (m *MockGitClient) Push(directory, branch string) error {
 	return args.Error(0)
 }
 
+func (m *MockGitClient) Tag(directory, tag, message string) error {
+	args := m.Called(directory, tag, message)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) PushTags(directory string) error {
+	args := m.Called(directory)
+	return args.Error(0)
+}
+
 func (m *MockGitClient) Pull(directory, remote, branch string) error {
 	args := m.Called(directory, remote, branch)
 	return args.Error(0)
