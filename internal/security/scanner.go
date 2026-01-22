@@ -67,6 +67,11 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 			}
 
 			matchedText := content[match[0]:match[1]]
+			// Use rune-safe truncation
+			runes := []rune(matchedText)
+			if len(runes) > 100 {
+				matchedText = string(runes[:100]) + "..."
+			}
 
 			findings = append(findings, Finding{
 				Type:        name,
