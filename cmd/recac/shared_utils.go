@@ -10,6 +10,9 @@ import (
 // execCommand is a package-level variable to allow mocking in tests.
 var execCommand = exec.Command
 
+// lookPath is a package-level variable to allow mocking in tests.
+var lookPath = exec.LookPath
+
 // DefaultIgnoreMap returns a map of common directories and files to ignore during scans.
 func DefaultIgnoreMap() map[string]bool {
 	return map[string]bool{

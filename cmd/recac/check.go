@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -18,47 +17,55 @@ var checkCmd = &cobra.Command{
 	Long: `Perform pre-flight checks on the environment and dependencies.
 Use --fix to automatically attempt repairs for minor issues.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Running pre-flight checks...")
+		cmd.Println("Running pre-flight checks...")
 		allPassed := true
 
 		// 1. Check Config
 		if err := checkConfig(); err != nil {
 			allPassed = false
-			fmt.Printf("❌ Config: %v\n", err)
+			cmd.Printf("❌ Config: %v\n", err)
 			if fixFlag {
 				if err := fixConfig(); err != nil {
-					fmt.Printf("  Failed to fix config: %v\n", err)
+					cmd.Printf("  Failed to fix config: %v\n", err)
 				} else {
-					fmt.Printf("  ✅ Config fixed (created default)\n")
+					cmd.Printf("  ✅ Config fixed (created default)\n")
 					allPassed = true // reset? strictly speaking no, but for flow
 				}
 			}
 		} else {
-			fmt.Println("✅ Config found")
+			cmd.Println("✅ Config found")
 		}
 
 		// 2. Check Go
 		if err := checkGo(); err != nil {
 			allPassed = false
-			fmt.Printf("❌ Go: %v\n", err)
+			cmd.Printf("❌ Go: %v\n", err)
 		} else {
-			fmt.Println("✅ Go installed")
+			cmd.Println("✅ Go installed")
 		}
 
 		// 3. Check Docker
 		if err := checkDocker(); err != nil {
 			allPassed = false
-			fmt.Printf("❌ Docker: %v\n", err)
+			cmd.Printf("❌ Docker: %v\n", err)
 		} else {
-			fmt.Println("✅ Docker running")
+			cmd.Println("✅ Docker running")
+		}
+
+		// 4. Check Kubernetes
+		if err := checkK8s(); err != nil {
+			// Kubernetes is optional for local development, so we don't fail the check
+			cmd.Printf("⚠️  Kubernetes: %v\n", err)
+		} else {
+			cmd.Println("✅ Kubernetes (kubectl) installed")
 		}
 
 		if allPassed {
-			fmt.Println("\nAll checks passed! 🚀")
+			cmd.Println("\nAll checks passed! 🚀")
 		} else {
-			fmt.Println("\nSome checks failed.")
+			cmd.Println("\nSome checks failed.")
 			if !fixFlag {
-				fmt.Println("Run with --fix to attempt automatic repairs.")
+				cmd.Println("Run with --fix to attempt automatic repairs.")
 			}
 			exit(1)
 		}
@@ -89,7 +96,7 @@ func fixConfig() error {
 }
 
 func checkGo() error {
-	_, err := exec.LookPath("go")
+	_, err := lookPath("go")
 	if err != nil {
 		return fmt.Errorf("go binary not found in PATH")
 	}
@@ -97,6 +104,14 @@ func checkGo() error {
 }
 
 func checkDocker() error {
-	cmd := exec.Command("docker", "info")
+	cmd := execCommand("docker", "info")
 	return cmd.Run()
+}
+
+func checkK8s() error {
+	_, err := lookPath("kubectl")
+	if err != nil {
+		return fmt.Errorf("kubectl binary not found in PATH")
+	}
+	return nil
 }

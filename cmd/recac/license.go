@@ -114,57 +114,57 @@ func runLicenseCheck(cmd *cobra.Command, args []string) error {
 
 			// Try to find license file locally (if vendor exists)
 			// license, source := checkVendorLicense(root, pkg)
-            // For this implementation, we skip vendor check complexity and go straight to AI/Knowledge
-            // because in this sandbox we might not have vendor.
+			// For this implementation, we skip vendor check complexity and go straight to AI/Knowledge
+			// because in this sandbox we might not have vendor.
 
 			// Fallback to AI
 			sem <- struct{}{} // Acquire token
 			defer func() { <-sem }()
 
 			license := "Unknown"
-            source := "ai"
+			source := "ai"
 
-            // Lazily init agent
-            ctx := context.Background()
-            cwd, _ := os.Getwd()
-            ag, err := agentClientFactory(ctx, viper.GetString("provider"), viper.GetString("model"), cwd, "recac-license")
-            if err != nil {
-                 // handle error
-				 fmt.Fprintf(cmd.ErrOrStderr(), "Failed to init agent: %v\n", err)
-            } else {
-                 // Ask agent
-                 prompt := fmt.Sprintf(`Identify the open source license for the Go package '%s'.
+			// Lazily init agent
+			ctx := context.Background()
+			cwd, _ := os.Getwd()
+			ag, err := agentClientFactory(ctx, viper.GetString("provider"), viper.GetString("model"), cwd, "recac-license")
+			if err != nil {
+				// handle error
+				fmt.Fprintf(cmd.ErrOrStderr(), "Failed to init agent: %v\n", err)
+			} else {
+				// Ask agent
+				prompt := fmt.Sprintf(`Identify the open source license for the Go package '%s'.
 Respond with ONLY the SPDX identifier (e.g., MIT, Apache-2.0, BSD-3-Clause).
 If it is dual-licensed, list both separated by ' OR '.
 If you are unsure, respond with 'Unknown'.
 Do not explain.`, pkg)
 
-				 var sb strings.Builder
-                 _, err := ag.SendStream(ctx, prompt, func(chunk string) {
+				var sb strings.Builder
+				_, err := ag.SendStream(ctx, prompt, func(chunk string) {
 					sb.WriteString(chunk)
-				 })
-                 if err == nil {
-                     license = strings.TrimSpace(sb.String())
-                     // cleanup response
-					 license = strings.ReplaceAll(license, "\n", "")
-                     if strings.Contains(license, "I am unsure") || strings.Contains(license, "sorry") {
-						 license = "Unknown"
-					 }
-                 }
-            }
+				})
+				if err == nil {
+					license = strings.TrimSpace(sb.String())
+					// cleanup response
+					license = strings.ReplaceAll(license, "\n", "")
+					if strings.Contains(license, "I am unsure") || strings.Contains(license, "sorry") {
+						license = "Unknown"
+					}
+				}
+			}
 
-            status := checkPolicy(license, allowed, denied)
-            newEntry := LicenseEntry{
-                Package: pkg,
-                License: license,
-                Source: source,
-                Status: status,
-            }
+			status := checkPolicy(license, allowed, denied)
+			newEntry := LicenseEntry{
+				Package: pkg,
+				License: license,
+				Source:  source,
+				Status:  status,
+			}
 
-            mutex.Lock()
-            results = append(results, newEntry)
-            cache[pkg] = newEntry
-            mutex.Unlock()
+			mutex.Lock()
+			results = append(results, newEntry)
+			cache[pkg] = newEntry
+			mutex.Unlock()
 
 		}(dep)
 	}

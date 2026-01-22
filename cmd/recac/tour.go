@@ -294,8 +294,8 @@ func startTourLoop(cmd *cobra.Command, state *TourState) error {
 
 		var selection string
 		err := askOneFunc(&survey.Select{
-			Message: "What would you like to do?",
-			Options: options,
+			Message:  "What would you like to do?",
+			Options:  options,
 			PageSize: 10,
 		}, &selection)
 

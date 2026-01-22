@@ -166,4 +166,3 @@ func generateTree(root string, ignoreMap map[string]bool) (string, error) {
 
 	return sb.String(), err
 }
-

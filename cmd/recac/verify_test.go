@@ -271,7 +271,7 @@ index e69de29..d95f3ad 100644
 	intervals := parseDiffHunks(diff)
 
 	expected := []LineInterval{
-		{3, 6}, // +3,4 -> 3, 4, 5, 6 (start at 3, count 4)
+		{3, 6},   // +3,4 -> 3, 4, 5, 6 (start at 3, count 4)
 		{15, 16}, // +15,2 -> 15, 16
 	}
 
