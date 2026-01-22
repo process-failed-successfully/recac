@@ -76,10 +76,18 @@ This allows you to edit code locally and run it in the container, but be careful
 		}
 		defer cli.Close()
 
-		fmt.Fprintf(cmd.OutOrStdout(), "🚀 Starting sandbox environment...\n")
-		fmt.Fprintf(cmd.OutOrStdout(), "   Image: %s\n", imageRef)
-		fmt.Fprintf(cmd.OutOrStdout(), "   Mount: %s -> /workspace (RW)\n", cwd)
-		fmt.Fprintf(cmd.OutOrStdout(), "   ⚠️  Changes to files in /workspace will persist on host!\n")
+		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "🚀 Starting sandbox environment...\n"); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "   Image: %s\n", imageRef); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "   Mount: %s -> /workspace (RW)\n", cwd); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "   ⚠️  Changes to files in /workspace will persist on host!\n"); err != nil {
+			return err
+		}
 
 		// Start Container
 		containerID, err := cli.RunContainer(ctx, imageRef, cwd, nil, nil, user)
@@ -89,19 +97,32 @@ This allows you to edit code locally and run it in the container, but be careful
 
 		// Ensure cleanup
 		defer func() {
-			fmt.Fprintf(cmd.OutOrStdout(), "\n🧹 Cleaning up sandbox container %s...\n", containerID[:12])
+			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "\n🧹 Cleaning up sandbox container %s...\n", containerID[:12]); err != nil {
+				// We can't return error from defer, but we can log it to stderr.
+				// We also explicitly ignore the return value of this Fprintf call to satisfy strict linting.
+				_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "Error writing to stdout: %v\n", err)
+			}
 			// Use a fresh context for cleanup in case original is cancelled
 			cleanupCtx := context.Background()
 			if err := cli.StopContainer(cleanupCtx, containerID); err != nil {
-				fmt.Fprintf(cmd.ErrOrStderr(), "Warning: failed to stop container: %v\n", err)
+				if _, err := fmt.Fprintf(cmd.ErrOrStderr(), "Warning: failed to stop container: %v\n", err); err != nil {
+					// Last resort
+					_ = err
+				}
 			}
 			if err := cli.RemoveContainer(cleanupCtx, containerID, true); err != nil {
-				fmt.Fprintf(cmd.ErrOrStderr(), "Warning: failed to remove container: %v\n", err)
+				if _, err := fmt.Fprintf(cmd.ErrOrStderr(), "Warning: failed to remove container: %v\n", err); err != nil {
+					_ = err
+				}
 			}
 		}()
 
-		fmt.Fprintf(cmd.OutOrStdout(), "✅ Sandbox ready! Dropping into shell...\n")
-		fmt.Fprintf(cmd.OutOrStdout(), "Type 'exit' to quit.\n\n")
+		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "✅ Sandbox ready! Dropping into shell...\n"); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Type 'exit' to quit.\n\n"); err != nil {
+			return err
+		}
 
 		// Interactive Shell
 		shellCmd := []string{"/bin/bash"}
@@ -113,7 +134,9 @@ This allows you to edit code locally and run it in the container, but be careful
 		err = cli.ExecInteractive(ctx, containerID, shellCmd)
 		if err != nil {
 			// If bash failed, try sh
-			fmt.Fprintf(cmd.OutOrStdout(), "Bash not found or failed, falling back to sh...\n")
+			if _, fmtErr := fmt.Fprintf(cmd.OutOrStdout(), "Bash not found or failed, falling back to sh...\n"); fmtErr != nil {
+				return fmtErr
+			}
 			err = cli.ExecInteractive(ctx, containerID, []string{"/bin/sh"})
 		}
 
