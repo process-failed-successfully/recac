@@ -43,14 +43,7 @@ func (c *BaseClient) PreparePrompt(prompt string) (string, State, bool, error) {
 
 	// Check if prompt exceeds token limit
 	promptTokens := EstimateTokenCount(prompt)
-	maxTokens := state.MaxTokens
-	if maxTokens == 0 {
-		maxTokens = c.DefaultMaxTokens
-		// If still 0, default to a safe value (32k) to avoid division by zero
-		if maxTokens == 0 {
-			maxTokens = 32000
-		}
-	}
+	maxTokens := c.getMaxTokens(state.MaxTokens)
 
 	// Add message to history
 	state.History = append(state.History, Message{
@@ -114,14 +107,7 @@ func (c *BaseClient) UpdateStateWithResponse(state State, response string) {
 	currentIteration, _ := state.Metadata["iteration"].(float64)
 	state.Metadata["iteration"] = currentIteration + 1
 
-	// Log token usage after response
-	maxTokens := state.MaxTokens
-	if maxTokens == 0 {
-		maxTokens = c.DefaultMaxTokens
-		if maxTokens == 0 {
-			maxTokens = 32000
-		}
-	}
+	maxTokens := c.getMaxTokens(state.MaxTokens)
 
 	if maxTokens > 0 {
 		telemetry.SetContextUsage(c.Project, float64(state.CurrentTokens)/float64(maxTokens)*100)
@@ -239,4 +225,14 @@ func (c *BaseClient) SendStreamWithRetry(ctx context.Context, prompt string, sen
 	}
 
 	return result, nil
+}
+
+func (c *BaseClient) getMaxTokens(stateMaxTokens int) int {
+	if stateMaxTokens != 0 {
+		return stateMaxTokens
+	}
+	if c.DefaultMaxTokens != 0 {
+		return c.DefaultMaxTokens
+	}
+	return 32000
 }
