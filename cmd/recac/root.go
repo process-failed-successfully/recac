@@ -6,6 +6,7 @@ import (
 	"os"
 	"recac/internal/config"
 	"recac/internal/telemetry"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -39,6 +40,19 @@ func Execute() {
 
 	fmt.Fprintln(os.Stderr, "WARNING: The 'recac' binary is deprecated and will be removed in a future release.")
 	fmt.Fprintln(os.Stderr, "Please use 'orchestrator' or 'recac-agent' (agent) binaries instead.")
+
+	// Pre-load config to enable aliases
+	var preCfgFile string
+	for i := 0; i < len(os.Args); i++ {
+		arg := os.Args[i]
+		if strings.HasPrefix(arg, "--config=") {
+			preCfgFile = strings.TrimPrefix(arg, "--config=")
+		} else if arg == "--config" && i+1 < len(os.Args) {
+			preCfgFile = os.Args[i+1]
+		}
+	}
+	config.Load(preCfgFile)
+	registerAliasCommands()
 
 	err := rootCmd.Execute()
 	if err != nil {
