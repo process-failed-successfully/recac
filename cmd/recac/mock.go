@@ -18,10 +18,10 @@ import (
 )
 
 var (
-	mockInterface  string
-	mockOutput     string
-	mockFramework  string
-	mockTestify    bool
+	mockInterface string
+	mockOutput    string
+	mockFramework string
+	mockTestify   bool
 )
 
 var mockCmd = &cobra.Command{

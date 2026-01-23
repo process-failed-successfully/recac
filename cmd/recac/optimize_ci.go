@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"recac/internal/analysis"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"

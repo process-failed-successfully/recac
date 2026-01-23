@@ -99,4 +99,3 @@ Please analyze the error and the provided context. Suggest a specific fix or exp
 func init() {
 	rootCmd.AddCommand(debugCmd)
 }
-

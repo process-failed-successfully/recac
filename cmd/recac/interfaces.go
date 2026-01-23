@@ -36,4 +36,9 @@ type IGitClient interface {
 	Log(repoPath string, args ...string) ([]string, error)
 	CurrentBranch(repoPath string) (string, error)
 	CheckoutNewBranch(repoPath, branch string) error
+	BisectStart(repoPath, bad, good string) error
+	BisectGood(repoPath, rev string) error
+	BisectBad(repoPath, rev string) error
+	BisectReset(repoPath string) error
+	BisectLog(repoPath string) ([]string, error)
 }

@@ -34,7 +34,7 @@ func init() {
 func runArchitectCmd(cmd *cobra.Command, args []string) {
 	specPath, _ := cmd.Flags().GetString("spec")
 	outDir, _ := cmd.Flags().GetString("out")
-	
+
 	ctx := context.Background()
 
 	// 1. Read Spec

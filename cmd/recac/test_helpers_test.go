@@ -340,6 +340,11 @@ type MockGitClient struct {
 	LogFunc               func(repoPath string, args ...string) ([]string, error)
 	CurrentBranchFunc     func(repoPath string) (string, error)
 	CheckoutNewBranchFunc func(repoPath, branch string) error
+	BisectStartFunc       func(repoPath, bad, good string) error
+	BisectGoodFunc        func(repoPath, rev string) error
+	BisectBadFunc         func(repoPath, rev string) error
+	BisectResetFunc       func(repoPath string) error
+	BisectLogFunc         func(repoPath string) ([]string, error)
 }
 
 func (m *MockGitClient) Checkout(repoPath, commitOrBranch string) error {
@@ -347,6 +352,41 @@ func (m *MockGitClient) Checkout(repoPath, commitOrBranch string) error {
 		return m.CheckoutFunc(repoPath, commitOrBranch)
 	}
 	return nil
+}
+
+func (m *MockGitClient) BisectStart(repoPath, bad, good string) error {
+	if m.BisectStartFunc != nil {
+		return m.BisectStartFunc(repoPath, bad, good)
+	}
+	return nil
+}
+
+func (m *MockGitClient) BisectGood(repoPath, rev string) error {
+	if m.BisectGoodFunc != nil {
+		return m.BisectGoodFunc(repoPath, rev)
+	}
+	return nil
+}
+
+func (m *MockGitClient) BisectBad(repoPath, rev string) error {
+	if m.BisectBadFunc != nil {
+		return m.BisectBadFunc(repoPath, rev)
+	}
+	return nil
+}
+
+func (m *MockGitClient) BisectReset(repoPath string) error {
+	if m.BisectResetFunc != nil {
+		return m.BisectResetFunc(repoPath)
+	}
+	return nil
+}
+
+func (m *MockGitClient) BisectLog(repoPath string) ([]string, error) {
+	if m.BisectLogFunc != nil {
+		return m.BisectLogFunc(repoPath)
+	}
+	return []string{}, nil
 }
 
 func (m *MockGitClient) Log(repoPath string, args ...string) ([]string, error) {

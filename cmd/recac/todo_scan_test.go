@@ -39,7 +39,7 @@ import os`,
 		"README.md": `# Project
 <!-- TODO: Add usage instructions -->
 `,
-		"TODO.md":    "# TODO\n", // Should be ignored
+		"TODO.md": "# TODO\n", // Should be ignored
 	}
 
 	for name, content := range files {

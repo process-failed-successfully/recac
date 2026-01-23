@@ -96,9 +96,9 @@ func TestExtractFileContexts(t *testing.T) {
 	t.Chdir(tmpDir)
 
 	tests := []struct {
-		name    string
-		output  string
-		check   func(*testing.T, string, error)
+		name   string
+		output string
+		check  func(*testing.T, string, error)
 	}{
 		{
 			name:   "No match",
@@ -126,7 +126,7 @@ func TestExtractFileContexts(t *testing.T) {
 			},
 		},
 		{
-			name: "Truncated file",
+			name:   "Truncated file",
 			output: "Error in large.txt:1",
 			check: func(t *testing.T, s string, err error) {
 				// Create large file

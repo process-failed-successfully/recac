@@ -14,8 +14,8 @@ import (
 // Helper to create an isolated impact command for testing
 func getTestImpactCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "impact [files...]",
-		RunE:  runImpact,
+		Use:  "impact [files...]",
+		RunE: runImpact,
 	}
 	// Re-add flags since they are global
 	cmd.Flags().BoolVar(&impactJSON, "json", false, "Output results as JSON")
