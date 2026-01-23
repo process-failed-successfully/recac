@@ -222,6 +222,14 @@ func (m *MockGitClient) Log(directory string, args ...string) ([]string, error) 
 	return []string{}, nil
 }
 
+func (m *MockGitClient) BisectStart(directory, bad, good string) error    { return nil }
+func (m *MockGitClient) BisectBad(directory string) error                 { return nil }
+func (m *MockGitClient) BisectGood(directory string) error                { return nil }
+func (m *MockGitClient) BisectSkip(directory string) error                { return nil }
+func (m *MockGitClient) BisectReset(directory string) error               { return nil }
+func (m *MockGitClient) BisectLog(directory string) ([]string, error)     { return nil, nil }
+func (m *MockGitClient) BisectManualStart(directory string) error         { return nil }
+
 func TestSetupWorkspace(t *testing.T) {
 	t.Run("Empty Repo URL", func(t *testing.T) {
 		mockGitClient := &MockGitClient{}

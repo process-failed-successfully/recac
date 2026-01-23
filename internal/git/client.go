@@ -439,3 +439,59 @@ func (c *Client) Log(dir string, args ...string) ([]string, error) {
 	}
 	return strings.Split(output, "\n"), nil
 }
+
+// BisectStart starts the git bisect process with bad and good commits.
+func (c *Client) BisectStart(dir, bad, good string) error {
+	args := []string{"bisect", "start"}
+	if bad != "" {
+		args = append(args, bad)
+	}
+	if good != "" {
+		args = append(args, good)
+	}
+	return c.runWithMasking(context.Background(), dir, args...)
+}
+
+// BisectManualStart starts git bisect without arguments.
+func (c *Client) BisectManualStart(dir string) error {
+	return c.runWithMasking(context.Background(), dir, "bisect", "start")
+}
+
+// BisectBad marks the current (or specified) commit as bad.
+func (c *Client) BisectBad(dir string) error {
+	return c.runWithMasking(context.Background(), dir, "bisect", "bad")
+}
+
+// BisectGood marks the current (or specified) commit as good.
+func (c *Client) BisectGood(dir string) error {
+	return c.runWithMasking(context.Background(), dir, "bisect", "good")
+}
+
+// BisectSkip skips the current commit.
+func (c *Client) BisectSkip(dir string) error {
+	return c.runWithMasking(context.Background(), dir, "bisect", "skip")
+}
+
+// BisectReset resets the bisect state.
+func (c *Client) BisectReset(dir string) error {
+	return c.runWithMasking(context.Background(), dir, "bisect", "reset")
+}
+
+// BisectLog returns the bisect log.
+func (c *Client) BisectLog(dir string) ([]string, error) {
+	cmd := exec.Command("git", "bisect", "log")
+	cmd.Dir = dir
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("git bisect log failed: %w", err)
+	}
+
+	output := strings.TrimSpace(out.String())
+	if output == "" {
+		return []string{}, nil
+	}
+	return strings.Split(output, "\n"), nil
+}
