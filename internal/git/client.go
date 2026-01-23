@@ -439,3 +439,75 @@ func (c *Client) Log(dir string, args ...string) ([]string, error) {
 	}
 	return strings.Split(output, "\n"), nil
 }
+
+// BisectStart starts the bisect process.
+func (c *Client) BisectStart(dir, badCommit, goodCommit string) error {
+	cmd := exec.Command("git", "bisect", "start", badCommit, goodCommit)
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+// BisectGood marks the current commit as good.
+func (c *Client) BisectGood(dir string) error {
+	cmd := exec.Command("git", "bisect", "good")
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+// BisectBad marks the current commit as bad.
+func (c *Client) BisectBad(dir string) error {
+	cmd := exec.Command("git", "bisect", "bad")
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+// BisectSkip skips the current commit.
+func (c *Client) BisectSkip(dir string) error {
+	cmd := exec.Command("git", "bisect", "skip")
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+// BisectReset resets the bisect process.
+func (c *Client) BisectReset(dir string) error {
+	cmd := exec.Command("git", "bisect", "reset")
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+// BisectRun runs a script for each step of the bisect.
+func (c *Client) BisectRun(dir, scriptPath string) (string, error) {
+	cmd := exec.Command("git", "bisect", "run", scriptPath)
+	cmd.Dir = dir
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out // Capture both for analysis
+	err := cmd.Run()
+	if err != nil {
+		return out.String(), fmt.Errorf("git bisect run failed: %w\nOutput: %s", err, out.String())
+	}
+	return out.String(), nil
+}
+
+// BisectLog shows the bisect log.
+func (c *Client) BisectLog(dir string) (string, error) {
+	cmd := exec.Command("git", "bisect", "log")
+	cmd.Dir = dir
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("git bisect log failed: %w", err)
+	}
+	return out.String(), nil
+}

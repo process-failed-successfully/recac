@@ -340,6 +340,14 @@ type MockGitClient struct {
 	LogFunc               func(repoPath string, args ...string) ([]string, error)
 	CurrentBranchFunc     func(repoPath string) (string, error)
 	CheckoutNewBranchFunc func(repoPath, branch string) error
+
+	BisectStartFunc func(directory, badCommit, goodCommit string) error
+	BisectGoodFunc  func(directory string) error
+	BisectBadFunc   func(directory string) error
+	BisectSkipFunc  func(directory string) error
+	BisectResetFunc func(directory string) error
+	BisectRunFunc   func(directory, scriptPath string) (string, error)
+	BisectLogFunc   func(directory string) (string, error)
 }
 
 func (m *MockGitClient) Checkout(repoPath, commitOrBranch string) error {
@@ -347,6 +355,49 @@ func (m *MockGitClient) Checkout(repoPath, commitOrBranch string) error {
 		return m.CheckoutFunc(repoPath, commitOrBranch)
 	}
 	return nil
+}
+
+func (m *MockGitClient) BisectStart(directory, badCommit, goodCommit string) error {
+	if m.BisectStartFunc != nil {
+		return m.BisectStartFunc(directory, badCommit, goodCommit)
+	}
+	return nil
+}
+func (m *MockGitClient) BisectGood(directory string) error {
+	if m.BisectGoodFunc != nil {
+		return m.BisectGoodFunc(directory)
+	}
+	return nil
+}
+func (m *MockGitClient) BisectBad(directory string) error {
+	if m.BisectBadFunc != nil {
+		return m.BisectBadFunc(directory)
+	}
+	return nil
+}
+func (m *MockGitClient) BisectSkip(directory string) error {
+	if m.BisectSkipFunc != nil {
+		return m.BisectSkipFunc(directory)
+	}
+	return nil
+}
+func (m *MockGitClient) BisectReset(directory string) error {
+	if m.BisectResetFunc != nil {
+		return m.BisectResetFunc(directory)
+	}
+	return nil
+}
+func (m *MockGitClient) BisectRun(directory, scriptPath string) (string, error) {
+	if m.BisectRunFunc != nil {
+		return m.BisectRunFunc(directory, scriptPath)
+	}
+	return "mock bisect run output", nil
+}
+func (m *MockGitClient) BisectLog(directory string) (string, error) {
+	if m.BisectLogFunc != nil {
+		return m.BisectLogFunc(directory)
+	}
+	return "mock bisect log", nil
 }
 
 func (m *MockGitClient) Log(repoPath string, args ...string) ([]string, error) {

@@ -32,4 +32,13 @@ type IClient interface {
 	DeleteLocalBranch(directory, branch string) error
 	LocalBranchExists(directory, branch string) (bool, error)
 	Log(directory string, args ...string) ([]string, error)
+
+	// Bisect commands
+	BisectStart(directory, badCommit, goodCommit string) error
+	BisectGood(directory string) error
+	BisectBad(directory string) error
+	BisectSkip(directory string) error
+	BisectReset(directory string) error
+	BisectRun(directory, scriptPath string) (string, error)
+	BisectLog(directory string) (string, error)
 }
