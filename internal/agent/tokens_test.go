@@ -208,3 +208,37 @@ func TestTruncateToTokenLimit_EdgeCases(t *testing.T) {
 		t.Error("Should not truncate if fits")
 	}
 }
+
+func TestMin(t *testing.T) {
+	tests := []struct {
+		a, b     int
+		expected int
+	}{
+		{1, 2, 1},
+		{2, 1, 1},
+		{0, 0, 0},
+		{-1, 1, -1},
+	}
+	for _, tt := range tests {
+		if got := min(tt.a, tt.b); got != tt.expected {
+			t.Errorf("min(%d, %d) = %d; want %d", tt.a, tt.b, got, tt.expected)
+		}
+	}
+}
+
+func TestMax(t *testing.T) {
+	tests := []struct {
+		a, b     int
+		expected int
+	}{
+		{1, 2, 2},
+		{2, 1, 2},
+		{0, 0, 0},
+		{-1, 1, 1},
+	}
+	for _, tt := range tests {
+		if got := max(tt.a, tt.b); got != tt.expected {
+			t.Errorf("max(%d, %d) = %d; want %d", tt.a, tt.b, got, tt.expected)
+		}
+	}
+}
