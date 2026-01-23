@@ -49,7 +49,7 @@ func runImpact(cmd *cobra.Command, args []string) error {
 
 	files := args
 	if impactGitDiff {
-		diffFiles, err := getGitDiffFiles()
+		diffFiles, err := getGitDiffFiles(false)
 		if err != nil {
 			return fmt.Errorf("failed to get git diff: %w", err)
 		}
@@ -60,77 +60,24 @@ func runImpact(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("no files specified (use [files...] or --git-diff)")
 	}
 
-	// 1. Determine Module Name
+	sortedAffected, changedPackages, err := IdentifyImpactedPackages(files, root)
+	if err != nil {
+		if strings.Contains(err.Error(), "No Go packages found") {
+			if impactJSON {
+				fmt.Fprintln(cmd.OutOrStdout(), "{}")
+				return nil
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), "No Go packages found for the specified files.")
+			return nil
+		}
+		return err
+	}
+
+	// Determine module name for test suggestion path resolution
 	moduleName, err := getModuleName(root)
 	if err != nil {
 		return fmt.Errorf("could not determine module name: %w", err)
 	}
-
-	// 2. Map Files to Packages
-	changedPackages := make(map[string]bool)
-	for _, f := range files {
-		pkg, err := fileToPackage(root, moduleName, f)
-		if err != nil {
-			continue
-		}
-		if pkg != "" {
-			changedPackages[pkg] = true
-		}
-	}
-
-	if len(changedPackages) == 0 {
-		if impactJSON {
-			fmt.Fprintln(cmd.OutOrStdout(), "{}")
-			return nil
-		}
-		fmt.Fprintln(cmd.OutOrStdout(), "No Go packages found for the specified files.")
-		return nil
-	}
-
-	// 3. Analyze Dependencies (Full Graph)
-	deps, err := analyzeDependencies(root, moduleName, nil, false)
-	if err != nil {
-		return fmt.Errorf("dependency analysis failed: %w", err)
-	}
-
-	// 4. Invert Graph (Target -> Sources)
-	revDeps := invertDependencies(deps)
-
-	// 5. Find All Dependents (Transitive)
-	affected := make(map[string]bool)
-	var queue []string
-	for pkg := range changedPackages {
-		queue = append(queue, pkg)
-		affected[pkg] = true // The changed package itself is affected
-	}
-
-	visited := make(map[string]bool)
-	for _, p := range queue {
-		visited[p] = true
-	}
-
-	head := 0
-	for head < len(queue) {
-		current := queue[head]
-		head++
-
-		// Find who imports 'current'
-		importers := revDeps[current]
-		for _, importer := range importers {
-			if !visited[importer] {
-				visited[importer] = true
-				affected[importer] = true
-				queue = append(queue, importer)
-			}
-		}
-	}
-
-	// 6. Format Output
-	var sortedAffected []string
-	for pkg := range affected {
-		sortedAffected = append(sortedAffected, pkg)
-	}
-	sort.Strings(sortedAffected)
 
 	var suggestedTests []string
 	if impactSuggestTests {
@@ -188,6 +135,79 @@ func runImpact(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// IdentifyImpactedPackages analyzes dependencies and returns a list of affected packages.
+// It also returns the set of directly changed packages for reference.
+func IdentifyImpactedPackages(files []string, root string) ([]string, map[string]bool, error) {
+	// 1. Determine Module Name
+	moduleName, err := getModuleName(root)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not determine module name: %w", err)
+	}
+
+	// 2. Map Files to Packages
+	changedPackages := make(map[string]bool)
+	for _, f := range files {
+		pkg, err := fileToPackage(root, moduleName, f)
+		if err != nil {
+			continue
+		}
+		if pkg != "" {
+			changedPackages[pkg] = true
+		}
+	}
+
+	if len(changedPackages) == 0 {
+		return nil, nil, fmt.Errorf("No Go packages found for the specified files.")
+	}
+
+	// 3. Analyze Dependencies (Full Graph)
+	deps, err := analyzeDependencies(root, moduleName, nil, false)
+	if err != nil {
+		return nil, nil, fmt.Errorf("dependency analysis failed: %w", err)
+	}
+
+	// 4. Invert Graph (Target -> Sources)
+	revDeps := invertDependencies(deps)
+
+	// 5. Find All Dependents (Transitive)
+	affected := make(map[string]bool)
+	var queue []string
+	for pkg := range changedPackages {
+		queue = append(queue, pkg)
+		affected[pkg] = true // The changed package itself is affected
+	}
+
+	visited := make(map[string]bool)
+	for _, p := range queue {
+		visited[p] = true
+	}
+
+	head := 0
+	for head < len(queue) {
+		current := queue[head]
+		head++
+
+		// Find who imports 'current'
+		importers := revDeps[current]
+		for _, importer := range importers {
+			if !visited[importer] {
+				visited[importer] = true
+				affected[importer] = true
+				queue = append(queue, importer)
+			}
+		}
+	}
+
+	// 6. Format Output
+	var sortedAffected []string
+	for pkg := range affected {
+		sortedAffected = append(sortedAffected, pkg)
+	}
+	sort.Strings(sortedAffected)
+
+	return sortedAffected, changedPackages, nil
+}
+
 func fileToPackage(root, moduleName, file string) (string, error) {
 	if !strings.HasSuffix(file, ".go") {
 		return "", nil
@@ -243,8 +263,12 @@ func hasTests(dir string) bool {
 	return false
 }
 
-func getGitDiffFiles() ([]string, error) {
-	cmd := exec.Command("git", "diff", "--name-only")
+func getGitDiffFiles(staged bool) ([]string, error) {
+	args := []string{"diff", "--name-only"}
+	if staged {
+		args = append(args, "--cached")
+	}
+	cmd := exec.Command("git", args...)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err := cmd.Run()
