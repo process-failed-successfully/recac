@@ -85,6 +85,9 @@ func fixConfig() error {
 	// Simple fix: create default config if missing
 	viper.SetDefault("provider", "gemini")
 	viper.SetDefault("model", "gemini-pro")
+	if file := viper.ConfigFileUsed(); file != "" {
+		return viper.WriteConfigAs(file)
+	}
 	return viper.SafeWriteConfig()
 }
 

@@ -88,6 +88,7 @@ type Session struct {
 	SpecContent               string       // Explicit specification content (e.g. from Jira)
 	FeatureContent            string       // Explicit feature list JSON content (authoritative)
 	Logger                    *slog.Logger // Structured logger for this session
+	GitClient                 git.IClient  // Git client interface for testing
 
 	mu sync.RWMutex // Protects concurrent access to Iteration, SlackThreadTS, ContainerID
 }
@@ -763,6 +764,13 @@ func (s *Session) Stop(ctx context.Context) error {
 	return nil
 }
 
+func (s *Session) getGitClient() git.IClient {
+	if s.GitClient != nil {
+		return s.GitClient
+	}
+	return git.NewClient()
+}
+
 // Thread-safe Accessors
 
 func (s *Session) GetIteration() int {
@@ -972,7 +980,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 
 				// Git Recovery/Retry Loop
 				maxRetries := 3
-				gitClient := git.NewClient()
+				gitClient := s.getGitClient()
 				success := false
 
 				for i := 0; i < maxRetries; i++ {
@@ -1108,7 +1116,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 				}
 
 				fmt.Printf("Merging changes into base branch: %s\n", s.BaseBranch)
-				gitClient := git.NewClient()
+				gitClient := s.getGitClient()
 				// Actually, we are IN the workspace, so we can get current branch name
 				// But simpler: checkout BaseBranch -> Merge Previous -> Push
 
@@ -1174,7 +1182,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 				if out, err := cmd.Output(); err == nil {
 					featureBranch := strings.TrimSpace(string(out))
 					// Push current branch
-					gitClient := git.NewClient()
+					gitClient := s.getGitClient()
 					if err := gitClient.Push(s.Workspace, featureBranch); err == nil {
 						gitLink := fmt.Sprintf("%s/tree/%s", s.RepoURL, featureBranch)
 						s.completeJiraTicket(ctx, gitLink)
@@ -1717,7 +1725,7 @@ func (s *Session) pushProgress(ctx context.Context) {
 		return
 	}
 
-	gitClient := git.NewClient()
+	gitClient := s.getGitClient()
 	if !gitClient.RepoExists(s.Workspace) {
 		return
 	}
