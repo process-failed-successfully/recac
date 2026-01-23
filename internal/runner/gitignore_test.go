@@ -104,3 +104,35 @@ type mockDockerClient struct {
 func (m *mockDockerClient) ExecAsUser(ctx context.Context, id, user string, cmd []string) (string, error) {
 	return "", nil
 }
+
+func TestEnsureStateIgnored(t *testing.T) {
+	workspace := t.TempDir()
+
+	// Init git repo
+	exec.Command("git", "init", workspace).Run()
+	exec.Command("git", "-C", workspace, "config", "user.email", "test@example.com").Run()
+	exec.Command("git", "-C", workspace, "config", "user.name", "Test User").Run()
+
+	// Create a file that SHOULD be ignored but is tracked
+	badFile := filepath.Join(workspace, ".agent_state.json")
+	os.WriteFile(badFile, []byte("{}"), 0644)
+	exec.Command("git", "-C", workspace, "add", ".agent_state.json").Run()
+	exec.Command("git", "-C", workspace, "commit", "-m", "oops").Run()
+
+	if err := EnsureStateIgnored(workspace); err != nil {
+		t.Fatalf("EnsureStateIgnored failed: %v", err)
+	}
+
+	// Verify it was removed from index (cached)
+	out, _ := exec.Command("git", "-C", workspace, "ls-files", ".agent_state.json").Output()
+	if len(out) > 0 {
+		t.Errorf("Expected .agent_state.json to be untracked, got: %s", string(out))
+	}
+
+	// Verify .gitignore was updated
+	gitignore := filepath.Join(workspace, ".gitignore")
+	content, _ := os.ReadFile(gitignore)
+	if !strings.Contains(string(content), ".agent_state.json") {
+		t.Error("Expected .agent_state.json in .gitignore")
+	}
+}
