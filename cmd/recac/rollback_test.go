@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -162,5 +163,237 @@ func TestRollbackCmd(t *testing.T) {
 		output, err := executeCommand(rootCmd, "rollback", "test-session-3")
 		require.NoError(t, err)
 		assert.Contains(t, output, "Rollback cancelled")
+	})
+
+	t.Run("Resolve Workspace CWD", func(t *testing.T) {
+		tempDir, _ := os.MkdirTemp("", "recac-rollback-cwd")
+		defer os.RemoveAll(tempDir)
+
+		cwd, _ := os.Getwd()
+		defer os.Chdir(cwd)
+		os.Chdir(tempDir)
+
+		mockGit := &MockGitClient{}
+		gitClientFactory = func() IGitClient { return mockGit }
+
+		mockGit.RepoExistsFunc = func(path string) bool {
+			// Check if path matches tempDir (CWD)
+			absPath, _ := filepath.Abs(path)
+			absTemp, _ := filepath.Abs(tempDir)
+			return absPath == absTemp
+		}
+		mockGit.CurrentBranchFunc = func(path string) (string, error) { return "main", nil }
+		mockGit.LogFunc = func(path string, args ...string) ([]string, error) {
+			return []string{"sha123456789|msg|time"}, nil
+		}
+		mockGit.CheckoutFunc = func(repoPath, commitOrBranch string) error { return nil }
+		mockGit.CheckoutNewBranchFunc = func(directory, branch string) error { return nil }
+
+		askOne = func(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {
+			switch v := p.(type) {
+			case *survey.Select:
+				*(response.(*string)) = v.Options[0]
+				return nil
+			case *survey.Confirm:
+				*(response.(*bool)) = true
+				return nil
+			}
+			return nil
+		}
+
+		rollbackCmd.SetOut(nil)
+		rollbackCmd.SetErr(nil)
+		// Run without session arg
+		output, err := executeCommand(rootCmd, "rollback")
+		require.NoError(t, err)
+		assert.Contains(t, output, "Analyzing workspace")
+	})
+
+	t.Run("Resolve Workspace Interactive Selection", func(t *testing.T) {
+		tempDir, _ := os.MkdirTemp("", "recac-rollback-inter")
+		defer os.RemoveAll(tempDir)
+
+		cwd, _ := os.Getwd()
+		defer os.Chdir(cwd)
+		os.Chdir(tempDir)
+
+		mockGit := &MockGitClient{}
+		gitClientFactory = func() IGitClient { return mockGit }
+
+		// Simulate CWD is NOT a git repo
+		mockGit.RepoExistsFunc = func(path string) bool {
+			absPath, _ := filepath.Abs(path)
+			absTemp, _ := filepath.Abs(tempDir)
+			if absPath == absTemp {
+				return false
+			}
+			// But the session workspace IS a git repo
+			return true
+		}
+
+		mockSM := NewMockSessionManager()
+		sessionManagerFactory = func() (ISessionManager, error) { return mockSM, nil }
+		sessionDir := filepath.Join(tempDir, "session_dir")
+		os.Mkdir(sessionDir, 0755)
+		mockSM.StartSession("interactive-session", "goal", []string{}, sessionDir)
+
+		mockGit.CurrentBranchFunc = func(path string) (string, error) { return "main", nil }
+		mockGit.LogFunc = func(path string, args ...string) ([]string, error) {
+			return []string{"sha123456789|msg|time"}, nil
+		}
+		mockGit.CheckoutFunc = func(repoPath, commitOrBranch string) error { return nil }
+		mockGit.CheckoutNewBranchFunc = func(directory, branch string) error { return nil }
+
+		askOne = func(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {
+			switch v := p.(type) {
+			case *survey.Select:
+				if v.Message == "Select a session to rollback:" {
+					// Select the session
+					for _, opt := range v.Options {
+						if filepath.Base(opt) == "interactive-session (running)" || filepath.Base(opt) == "interactive-session (completed)" || filepath.Base(opt) == "interactive-session (failed)" || filepath.Base(opt) == "interactive-session (created)" {
+							*(response.(*string)) = opt
+							return nil
+						}
+						// Depending on mock implementation of status
+						if opt == "interactive-session (running)" {
+							*(response.(*string)) = opt
+							return nil
+						}
+					}
+					// Fallback
+					*(response.(*string)) = v.Options[0]
+					return nil
+				}
+				if v.Message == "Select a checkpoint to rollback to:" {
+					*(response.(*string)) = v.Options[0]
+					return nil
+				}
+			case *survey.Confirm:
+				*(response.(*bool)) = true
+				return nil
+			}
+			return nil
+		}
+
+		rollbackCmd.SetOut(nil)
+		rollbackCmd.SetErr(nil)
+		output, err := executeCommand(rootCmd, "rollback")
+		require.NoError(t, err)
+		assert.Contains(t, output, "Analyzing workspace")
+	})
+
+	t.Run("Error: Repo Check Fail", func(t *testing.T) {
+		tempDir, _ := os.MkdirTemp("", "recac-rollback-err")
+		defer os.RemoveAll(tempDir)
+
+		mockGit := &MockGitClient{}
+		gitClientFactory = func() IGitClient { return mockGit }
+		mockGit.RepoExistsFunc = func(path string) bool { return false } // Fail
+
+		mockSM := NewMockSessionManager()
+		sessionManagerFactory = func() (ISessionManager, error) { return mockSM, nil }
+		mockSM.StartSession("test-session-err", "goal", []string{}, tempDir)
+
+		rollbackCmd.SetOut(nil)
+		rollbackCmd.SetErr(nil)
+		_, err := executeCommand(rootCmd, "rollback", "test-session-err")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "workspace is not a git repository")
+	})
+
+	t.Run("Error: Log Fail", func(t *testing.T) {
+		tempDir, _ := os.MkdirTemp("", "recac-rollback-log-err")
+		defer os.RemoveAll(tempDir)
+
+		mockGit := &MockGitClient{}
+		gitClientFactory = func() IGitClient { return mockGit }
+		mockGit.RepoExistsFunc = func(path string) bool { return true }
+		mockGit.CurrentBranchFunc = func(path string) (string, error) { return "main", nil }
+		mockGit.LogFunc = func(path string, args ...string) ([]string, error) {
+			return nil, errors.New("git log failed")
+		}
+
+		mockSM := NewMockSessionManager()
+		sessionManagerFactory = func() (ISessionManager, error) { return mockSM, nil }
+		mockSM.StartSession("test-session-log-err", "goal", []string{}, tempDir)
+
+		rollbackCmd.SetOut(nil)
+		rollbackCmd.SetErr(nil)
+		_, err := executeCommand(rootCmd, "rollback", "test-session-log-err")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to search git log")
+	})
+
+	t.Run("Error: Checkout Fail", func(t *testing.T) {
+		tempDir, _ := os.MkdirTemp("", "recac-rollback-co-err")
+		defer os.RemoveAll(tempDir)
+
+		mockGit := &MockGitClient{}
+		gitClientFactory = func() IGitClient { return mockGit }
+		mockGit.RepoExistsFunc = func(path string) bool { return true }
+		mockGit.CurrentBranchFunc = func(path string) (string, error) { return "main", nil }
+		mockGit.LogFunc = func(path string, args ...string) ([]string, error) {
+			return []string{"sha123456789|msg|time"}, nil
+		}
+		mockGit.CheckoutFunc = func(repoPath, commitOrBranch string) error {
+			return errors.New("checkout failed")
+		}
+
+		mockSM := NewMockSessionManager()
+		sessionManagerFactory = func() (ISessionManager, error) { return mockSM, nil }
+		mockSM.StartSession("test-session-co-err", "goal", []string{}, tempDir)
+
+		askOne = func(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {
+			switch p.(type) {
+			case *survey.Select:
+				*(response.(*string)) = p.(*survey.Select).Options[0]
+			case *survey.Confirm:
+				*(response.(*bool)) = true
+			}
+			return nil
+		}
+
+		rollbackCmd.SetOut(nil)
+		rollbackCmd.SetErr(nil)
+		_, err := executeCommand(rootCmd, "rollback", "test-session-co-err")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to checkout checkpoint")
+	})
+
+	t.Run("Error: CheckoutNewBranch Fail", func(t *testing.T) {
+		tempDir, _ := os.MkdirTemp("", "recac-rollback-nb-err")
+		defer os.RemoveAll(tempDir)
+
+		mockGit := &MockGitClient{}
+		gitClientFactory = func() IGitClient { return mockGit }
+		mockGit.RepoExistsFunc = func(path string) bool { return true }
+		mockGit.CurrentBranchFunc = func(path string) (string, error) { return "main", nil }
+		mockGit.LogFunc = func(path string, args ...string) ([]string, error) {
+			return []string{"sha123456789|msg|time"}, nil
+		}
+		mockGit.CheckoutFunc = func(repoPath, commitOrBranch string) error { return nil }
+		mockGit.CheckoutNewBranchFunc = func(directory, branch string) error {
+			return errors.New("new branch failed")
+		}
+
+		mockSM := NewMockSessionManager()
+		sessionManagerFactory = func() (ISessionManager, error) { return mockSM, nil }
+		mockSM.StartSession("test-session-nb-err", "goal", []string{}, tempDir)
+
+		askOne = func(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {
+			switch p.(type) {
+			case *survey.Select:
+				*(response.(*string)) = p.(*survey.Select).Options[0]
+			case *survey.Confirm:
+				*(response.(*bool)) = true
+			}
+			return nil
+		}
+
+		rollbackCmd.SetOut(nil)
+		rollbackCmd.SetErr(nil)
+		_, err := executeCommand(rootCmd, "rollback", "test-session-nb-err")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to reset branch")
 	})
 }

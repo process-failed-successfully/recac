@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/spf13/viper"
 )
 
@@ -20,6 +21,19 @@ func SetK8sClient(fn func() (*k8s.Client, error)) {
 	K8sNewClient = fn
 }
 
+// StatusDockerClient defines the interface for Docker client methods used in status check
+type StatusDockerClient interface {
+	ServerVersion(ctx context.Context) (types.Version, error)
+}
+
+// NewDockerClientFunc is a factory for creating a docker client, can be mocked in tests
+var NewDockerClientFunc = func(project string) (StatusDockerClient, error) {
+	return docker.NewClient(project)
+}
+
+// NewSessionManagerFunc is a factory for creating a session manager, can be mocked in tests
+var NewSessionManagerFunc = runner.NewSessionManager
+
 // GetStatus gathers and formats the status of RECAC sessions, environment, and configuration.
 func GetStatus() string {
 	var b bytes.Buffer
@@ -28,7 +42,7 @@ func GetStatus() string {
 
 	// --- Sessions ---
 	b.WriteString("\n[Sessions]\n")
-	sm, err := runner.NewSessionManager()
+	sm, err := NewSessionManagerFunc()
 	if err != nil {
 		fmt.Fprintf(&b, "Error: failed to initialize session manager: %v\n", err)
 	} else {
@@ -49,7 +63,7 @@ func GetStatus() string {
 
 	// --- Docker ---
 	b.WriteString("\n[Docker Environment]\n")
-	dockerCli, err := docker.NewClient("") // Project name isn't needed for version check
+	dockerCli, err := NewDockerClientFunc("") // Project name isn't needed for version check
 	if err != nil {
 		fmt.Fprintf(&b, "  Docker client failed to initialize. Is Docker running?\n")
 		fmt.Fprintf(&b, "  Error: %v\n", err)
