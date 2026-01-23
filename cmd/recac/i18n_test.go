@@ -51,7 +51,7 @@ func TestI18nCmd(t *testing.T) {
 
 	// Mock Agent
 	expectedTranslation := map[string]interface{}{
-		"hello": "Hola Mundo",
+		"hello":        "Hola Mundo",
 		"nested.title": "Mi Título",
 	}
 	transBytes, _ := json.Marshal(expectedTranslation)
@@ -87,7 +87,7 @@ func TestI18nCmd(t *testing.T) {
 	err = json.Unmarshal(esReadBytes, &esResult)
 	require.NoError(t, err)
 
-	assert.Equal(t, "Adiós", esResult["bye"]) // Existing
+	assert.Equal(t, "Adiós", esResult["bye"])        // Existing
 	assert.Equal(t, "Hola Mundo", esResult["hello"]) // Translated
 
 	// Check nested

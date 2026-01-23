@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"os"
+	"recac/internal/agent"
 	"strings"
 	"testing"
-	"recac/internal/agent"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

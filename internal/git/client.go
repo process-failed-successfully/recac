@@ -439,3 +439,60 @@ func (c *Client) Log(dir string, args ...string) ([]string, error) {
 	}
 	return strings.Split(output, "\n"), nil
 }
+
+// BisectStart starts a git bisect session with bad and good commits.
+func (c *Client) BisectStart(dir, bad, good string) error {
+	cmd := exec.Command("git", "bisect", "start", bad, good)
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+// BisectGood marks the current or specified revision as good.
+func (c *Client) BisectGood(dir, rev string) error {
+	args := []string{"bisect", "good"}
+	if rev != "" {
+		args = append(args, rev)
+	}
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+// BisectBad marks the current or specified revision as bad.
+func (c *Client) BisectBad(dir, rev string) error {
+	args := []string{"bisect", "bad"}
+	if rev != "" {
+		args = append(args, rev)
+	}
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+// BisectReset resets the bisect session.
+func (c *Client) BisectReset(dir string) error {
+	cmd := exec.Command("git", "bisect", "reset")
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+// BisectLog returns the log of the current bisect session.
+func (c *Client) BisectLog(dir string) ([]string, error) {
+	cmd := exec.Command("git", "bisect", "log")
+	cmd.Dir = dir
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("git bisect log failed: %w", err)
+	}
+	return strings.Split(strings.TrimSpace(out.String()), "\n"), nil
+}

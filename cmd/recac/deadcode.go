@@ -15,8 +15,8 @@ import (
 )
 
 var (
-	deadcodeJSON  bool
-	deadcodeFail  bool
+	deadcodeJSON   bool
+	deadcodeFail   bool
 	deadcodeStrict bool
 )
 

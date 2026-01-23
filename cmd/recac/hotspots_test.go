@@ -93,7 +93,7 @@ func TestRunHotspotAnalysis(t *testing.T) {
 	commitFile(t, tmpDir, "simple.go", simpleCode)
 
 	// Modify complex.go to increase churn (Churn=2)
-	commitFile(t, tmpDir, "complex.go", complexCode + "\n// mod")
+	commitFile(t, tmpDir, "complex.go", complexCode+"\n// mod")
 
 	// Analyze
 	hotspots, err := runHotspotAnalysis(tmpDir, 30)

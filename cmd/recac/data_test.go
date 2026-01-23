@@ -61,8 +61,8 @@ func TestDataCmd(t *testing.T) {
 			},
 		},
 		{
-			name:     "Invalid Args",
-			args:     []string{}, // No schema or desc
+			name:        "Invalid Args",
+			args:        []string{}, // No schema or desc
 			expectError: true,
 		},
 	}

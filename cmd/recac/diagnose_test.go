@@ -5,9 +5,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"recac/internal/agent"
 	"strings"
 	"testing"
-	"recac/internal/agent"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -99,7 +99,7 @@ func TestDiagnoseCmd_File(t *testing.T) {
 	mockAgent.On("SendStream", mock.Anything, mock.MatchedBy(func(prompt string) bool {
 		return strings.Contains(prompt, "crash.log") || // The prompt contains the log content
 			(strings.Contains(prompt, "crash_source.go") && // And the extracted content
-			strings.Contains(prompt, "func panicMe()"))
+				strings.Contains(prompt, "func panicMe()"))
 	}), mock.Anything).Return("It crashed because you panicked.", nil)
 
 	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
