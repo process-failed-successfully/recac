@@ -727,3 +727,127 @@ func TestSessionManager_PauseResume(t *testing.T) {
 	err = sm.StopSession(sessionName)
 	require.NoError(t, err, "Failed to stop the session for cleanup")
 }
+
+func TestGetSessionLogContent(t *testing.T) {
+	sm, cleanup := setupSessionManager(t)
+	defer cleanup()
+
+	sessionName := "test-log-content"
+	logFile := filepath.Join(sm.SessionsDir(), sessionName+".log")
+	err := os.WriteFile(logFile, []byte("line1\nline2\nline3\nline4\n"), 0600)
+	require.NoError(t, err)
+
+	session := &SessionState{
+		Name:    sessionName,
+		LogFile: logFile,
+	}
+	err = sm.SaveSession(session)
+	require.NoError(t, err)
+
+	// Test full content
+	content, err := sm.GetSessionLogContent(sessionName, 0)
+	assert.NoError(t, err)
+	assert.Equal(t, "line1\nline2\nline3\nline4\n", content)
+
+	// Test last 2 lines
+	content, err = sm.GetSessionLogContent(sessionName, 2)
+	assert.NoError(t, err)
+	assert.Equal(t, "line3\nline4", content)
+
+	// Test more lines than exist
+	content, err = sm.GetSessionLogContent(sessionName, 10)
+	assert.NoError(t, err)
+	assert.Equal(t, "line1\nline2\nline3\nline4\n", content)
+}
+
+func TestPauseResume_ProcessNotFound(t *testing.T) {
+	sm, cleanup := setupSessionManager(t)
+	defer cleanup()
+
+	// 1. Create a "running" session with a non-existent PID
+	sessionName := "test-pause-dead"
+	// Use a PID that is unlikely to exist. Max PID is usually 32768 or higher.
+	// But we can't guarantee it.
+	// Safer is to start a process, let it die, then try to pause/resume.
+
+	// Create a short-lived process
+	sleepCmd, err := exec.LookPath("sleep")
+	if err != nil {
+		t.Skip("sleep command not found")
+	}
+
+	cmd := exec.Command(sleepCmd, "0.1")
+	err = cmd.Start()
+	require.NoError(t, err)
+	pid := cmd.Process.Pid
+
+	// Wait for it to die
+	cmd.Wait()
+
+	session := &SessionState{
+		Name:   sessionName,
+		PID:    pid,
+		Status: "running",
+	}
+	err = sm.SaveSession(session)
+	require.NoError(t, err)
+
+	// Try to pause - should fail and update status
+	err = sm.PauseSession(sessionName)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "process not found")
+
+	loaded, err := sm.LoadSession(sessionName)
+	require.NoError(t, err)
+	assert.Equal(t, "completed", loaded.Status)
+
+	// Now test Resume with dead process (pretend it was paused but died)
+	sessionName = "test-resume-dead"
+	session = &SessionState{
+		Name:   sessionName,
+		PID:    pid,
+		Status: "paused",
+	}
+	err = sm.SaveSession(session)
+	require.NoError(t, err)
+
+	err = sm.ResumeSession(sessionName)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "process not found")
+
+	loaded, err = sm.LoadSession(sessionName)
+	require.NoError(t, err)
+	assert.Equal(t, "stopped", loaded.Status)
+}
+
+func TestSessionManager_Validation(t *testing.T) {
+	sm, cleanup := setupSessionManager(t)
+	defer cleanup()
+
+	// Empty Name
+	_, err := sm.StartSession("", "goal", []string{"ls"}, sm.SessionsDir())
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "session name cannot be empty")
+
+	// Invalid Name (Path Traversal)
+	_, err = sm.StartSession("../badsession", "goal", []string{"ls"}, sm.SessionsDir())
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid session name")
+}
+
+func TestStartSession_Failures(t *testing.T) {
+	sm, cleanup := setupSessionManager(t)
+	defer cleanup()
+
+	// Executable not found
+	_, err := sm.StartSession("bad-exec", "goal", []string{"/non/existent/binary"}, sm.SessionsDir())
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "executable not found")
+
+	// Not executable
+	tmpFile := filepath.Join(sm.SessionsDir(), "not_exec")
+	os.WriteFile(tmpFile, []byte("echo hello"), 0644)
+	_, err = sm.StartSession("not-exec", "goal", []string{tmpFile}, sm.SessionsDir())
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "is not executable")
+}

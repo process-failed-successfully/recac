@@ -219,3 +219,49 @@ func TestNewClient_Defaults(t *testing.T) {
 	}
 
 }
+
+func TestServerVersion(t *testing.T) {
+	client, mock := NewMockClient()
+
+	mock.ServerVersionFunc = func(ctx context.Context) (types.Version, error) {
+		return types.Version{Version: "1.2.3"}, nil
+	}
+
+	v, err := client.ServerVersion(context.Background())
+	if err != nil {
+		t.Fatalf("ServerVersion failed: %v", err)
+	}
+	if v.Version != "1.2.3" {
+		t.Errorf("Expected version 1.2.3, got %s", v.Version)
+	}
+}
+
+func TestImageExists(t *testing.T) {
+	client, mock := NewMockClient()
+
+	// Case 1: Exists
+	mock.ImageListFunc = func(ctx context.Context, options image.ListOptions) ([]image.Summary, error) {
+		return []image.Summary{{ID: "sha256:123", RepoTags: []string{"test:latest"}}}, nil
+	}
+
+	exists, err := client.ImageExists(context.Background(), "test:latest")
+	if err != nil {
+		t.Errorf("ImageExists failed: %v", err)
+	}
+	if !exists {
+		t.Error("Expected image to exist")
+	}
+
+	// Case 2: Does not exist
+	mock.ImageListFunc = func(ctx context.Context, options image.ListOptions) ([]image.Summary, error) {
+		return []image.Summary{}, nil
+	}
+
+	exists, err = client.ImageExists(context.Background(), "missing:latest")
+	if err != nil {
+		t.Errorf("ImageExists failed: %v", err)
+	}
+	if exists {
+		t.Error("Expected image not to exist")
+	}
+}
