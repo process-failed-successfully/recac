@@ -9,7 +9,7 @@ func (s *Session) checkNoOpBreaker(executionOutput string) error {
 	if executionOutput == "" {
 		s.NoOpCount++
 		if s.NoOpCount >= 3 {
-			return fmt.Errorf("CIRCUIT BREAKER TRIPPED: NO-OP LOOP (Agent has produced 3 consecutive responses with no commands)")
+			return fmt.Errorf("CIRCUIT BREAKER TRIPPED: %w (Agent has produced 3 consecutive responses with no commands)", ErrNoOp)
 		}
 	} else {
 		s.NoOpCount = 0 // Reset on valid action
@@ -53,7 +53,7 @@ func (s *Session) checkStalledBreaker(role string, passingCount int) error {
 
 	// Hard stop if stalled too long (3x frequency)
 	if s.StalledCount >= s.ManagerFrequency*3 {
-		return fmt.Errorf("CIRCUIT BREAKER TRIPPED: STALLED PROGRESS (Stalled for %d iterations)", s.StalledCount)
+		return fmt.Errorf("CIRCUIT BREAKER TRIPPED: %w (Stalled for %d iterations)", ErrStalled, s.StalledCount)
 	}
 
 	return nil
