@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -119,29 +120,61 @@ func scanFile(path string) ([]ScanResult, error) {
 	scanner := bufio.NewScanner(f)
 	lineNum := 0
 
+	// Reusable buffer for uppercase conversion
+	var upperBuf []byte
+
+	// Byte slices for keywords
+	kwTODO := []byte("TODO")
+	kwFIXME := []byte("FIXME")
+	kwBUG := []byte("BUG")
+	kwHACK := []byte("HACK")
+	kwXXX := []byte("XXX")
+
 	for scanner.Scan() {
 		lineNum++
-		line := scanner.Text()
+		lineBytes := scanner.Bytes()
 
-		// Optimization: Check if line contains any marker before regex
-		upperLine := strings.ToUpper(line)
-		if !strings.Contains(upperLine, "TODO") &&
-			!strings.Contains(upperLine, "FIXME") &&
-			!strings.Contains(upperLine, "BUG") &&
-			!strings.Contains(upperLine, "HACK") &&
-			!strings.Contains(upperLine, "XXX") {
+		// Resize upperBuf if needed
+		if cap(upperBuf) < len(lineBytes) {
+			upperBuf = make([]byte, len(lineBytes)*2) // Grow with some slack
+		}
+		upperBuf = upperBuf[:len(lineBytes)]
+
+		// Copy and ToUpper inline
+		for i, b := range lineBytes {
+			if 'a' <= b && b <= 'z' {
+				upperBuf[i] = b - 'a' + 'A'
+			} else {
+				upperBuf[i] = b
+			}
+		}
+
+		// Check keywords on upperBuf
+		if !bytes.Contains(upperBuf, kwTODO) &&
+			!bytes.Contains(upperBuf, kwFIXME) &&
+			!bytes.Contains(upperBuf, kwBUG) &&
+			!bytes.Contains(upperBuf, kwHACK) &&
+			!bytes.Contains(upperBuf, kwXXX) {
 			continue
 		}
 
-		matches := markerRegex.FindStringSubmatch(line)
+		// Match regex on original lineBytes
+		matches := markerRegex.FindSubmatch(lineBytes)
 		if matches != nil {
 			// matches[1] = TYPE (e.g. TODO)
 			// matches[3] = Author/Context (optional, inside parens)
 			// matches[4] = Message
 
-			msg := strings.TrimSpace(matches[4])
-			if matches[3] != "" {
-				msg = fmt.Sprintf("[%s] %s", matches[3], msg)
+			var msg string
+			if len(matches) > 4 && matches[4] != nil {
+				msg = string(bytes.TrimSpace(matches[4]))
+			}
+
+			if len(matches) > 3 && matches[3] != nil {
+				author := string(matches[3])
+				if author != "" {
+					msg = fmt.Sprintf("[%s] %s", author, msg)
+				}
 			}
 			if msg == "" {
 				msg = "No description provided"
@@ -150,7 +183,7 @@ func scanFile(path string) ([]ScanResult, error) {
 			results = append(results, ScanResult{
 				File:    path,
 				Line:    lineNum,
-				Type:    strings.ToUpper(matches[1]),
+				Type:    strings.ToUpper(string(matches[1])),
 				Message: msg,
 			})
 		}
