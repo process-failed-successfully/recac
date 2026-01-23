@@ -162,6 +162,41 @@ func (m *MockGitClient) Log(directory string, args ...string) ([]string, error) 
 	return callArgs.Get(0).([]string), callArgs.Error(1)
 }
 
+func (m *MockGitClient) BisectStart(directory, badCommit, goodCommit string) error {
+	args := m.Called(directory, badCommit, goodCommit)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) BisectGood(directory string) error {
+	args := m.Called(directory)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) BisectBad(directory string) error {
+	args := m.Called(directory)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) BisectSkip(directory string) error {
+	args := m.Called(directory)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) BisectReset(directory string) error {
+	args := m.Called(directory)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) BisectRun(directory, scriptPath string) (string, error) {
+	args := m.Called(directory, scriptPath)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockGitClient) BisectLog(directory string) (string, error) {
+	args := m.Called(directory)
+	return args.String(0), args.Error(1)
+}
+
 // setupSessionManager creates a new SessionManager in a temporary directory for isolated testing.
 func setupSessionManager(t *testing.T) (*SessionManager, func()) {
 	t.Helper()
