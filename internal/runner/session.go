@@ -37,6 +37,8 @@ var ErrStalled = errors.New("circuit breaker: stalled progress")
 
 var bashBlockRegex = regexp.MustCompile("(?s)```bash\\s*(.*?)\\s*```")
 
+var newAgentFunc = agent.NewAgent
+
 type Session struct {
 	Docker           DockerClient
 	Agent            agent.Agent
@@ -1834,7 +1836,7 @@ func (s *Session) runQAAgent(ctx context.Context) error {
 		}
 
 		s.Logger.Info("initializing QA agent", "provider", provider, "model", model)
-		qaAgent, err = agent.NewAgent(provider, apiKey, model, s.Workspace, s.Project)
+		qaAgent, err = newAgentFunc(provider, apiKey, model, s.Workspace, s.Project)
 		if err != nil {
 			return fmt.Errorf("failed to create QA agent: %w", err)
 		}
@@ -1935,7 +1937,7 @@ func (s *Session) runManagerAgent(ctx context.Context) error {
 		}
 
 		fmt.Printf("Initialising Manager Agent with provider: %s, model: %s\n", provider, model)
-		managerAgent, err = agent.NewAgent(provider, apiKey, model, s.Workspace, s.Project)
+		managerAgent, err = newAgentFunc(provider, apiKey, model, s.Workspace, s.Project)
 		if err != nil {
 			return fmt.Errorf("failed to create manager agent: %w", err)
 		}
