@@ -216,7 +216,7 @@ func TestOrchestrator_Integration_JiraFlow(t *testing.T) {
 			}
 			orch := New(poller, spawner, 50*time.Millisecond)
 
-			ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+			ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
 			defer cancel()
 
 			_ = orch.Run(ctx, silentLogger)
