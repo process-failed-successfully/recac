@@ -145,3 +145,18 @@ func TestCostModel_Error(t *testing.T) {
 		t.Error("Expected error view")
 	}
 }
+
+func TestCostModel_Init_Cmds(t *testing.T) {
+	sm := &MockSessionManager{}
+	m := newCostModel(sm)
+
+	cmd := m.Init()
+	if cmd == nil {
+		t.Error("Expected not nil cmd")
+	}
+
+	// Init returns a Batch command, which is a func.
+	// Executing it returns a BatchMsg (slice of Msgs).
+	// We can't easily inspect BatchMsg without internal knowledge or executing it.
+	// But simply asserting it's not nil covers the code path in Init().
+}

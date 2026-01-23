@@ -173,3 +173,13 @@ func TestPsDashboardModel_UpdateTableRows(t *testing.T) {
 	assert.Equal(t, "10m ago", rows[1][3])
 	assert.Equal(t, "This is a very long goal that is definitely going to b...", rows[2][4])
 }
+
+func TestPsDashboardModel_Update_WindowSize(t *testing.T) {
+	m := NewPsDashboardModel()
+	updatedM, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
+	model := updatedM.(psDashboardModel)
+
+	// Height - 8 (minus borders = 40)
+	assert.Equal(t, 40, model.table.Height())
+	assert.Equal(t, 100, model.width)
+}
