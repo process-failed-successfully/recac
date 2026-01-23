@@ -91,6 +91,10 @@ var startCmd = &cobra.Command{
 		// Panic recovery for graceful shutdown
 		defer func() {
 			if r := recover(); r != nil {
+				// Allow test exit panics to propagate without logging critical error
+				if s, ok := r.(string); ok && strings.HasPrefix(s, "exit-") {
+					panic(r)
+				}
 				fmt.Fprintf(os.Stderr, "\n=== CRITICAL ERROR: Session Panic ===\n")
 				fmt.Fprintf(os.Stderr, "Error: %v\n", r)
 				fmt.Fprintf(os.Stderr, "Attempting graceful shutdown...\n")
