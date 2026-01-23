@@ -1099,10 +1099,23 @@ func (s *Session) RunLoop(ctx context.Context) error {
 
 				// 0. COMMIT WORK: Ensure any pending changes are committed before merging
 				// We use a more careful commit strategy to avoid re-adding ignored files
-				commitCmd := exec.Command("sh", "-c", "git add . && git commit -m 'feat: implemented features for "+s.Project+"' || echo 'Nothing to commit'")
+				// Use direct exec calls to avoid shell injection
+				addCmd := exec.Command("git", "add", ".")
+				addCmd.Dir = s.Workspace
+				if out, err := addCmd.CombinedOutput(); err != nil {
+					fmt.Printf("Warning: Failed to git add: %v\nOutput: %s\n", err, out)
+				}
+
+				commitMsg := fmt.Sprintf("feat: implemented features for %s", s.Project)
+				commitCmd := exec.Command("git", "commit", "-m", commitMsg)
 				commitCmd.Dir = s.Workspace
 				if out, err := commitCmd.CombinedOutput(); err != nil {
-					fmt.Printf("Warning: Failed to auto-commit work: %v\nOutput: %s\n", err, out)
+					// Git commit returns 1 if nothing to commit, which is expected/ignored in the original shell command
+					if strings.Contains(string(out), "nothing to commit") || strings.Contains(string(out), "working tree clean") {
+						fmt.Println("Nothing to commit")
+					} else {
+						fmt.Printf("Warning: Failed to auto-commit work: %v\nOutput: %s\n", err, out)
+					}
 				} else {
 					fmt.Printf("Auto-committed work: %s\n", strings.TrimSpace(string(out)))
 				}
