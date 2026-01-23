@@ -140,3 +140,25 @@ func TestSanitizeK8sName(t *testing.T) {
 		assert.Equal(t, tc.expected, sanitizeK8sName(tc.input))
 	}
 }
+func TestK8sSpawner_Cleanup(t *testing.T) {
+	spawner := &K8sSpawner{}
+	err := spawner.Cleanup(context.Background(), WorkItem{})
+	assert.NoError(t, err)
+}
+
+func TestExtractRepoPath(t *testing.T) {
+	tests := []struct {
+		url      string
+		expected string
+	}{
+		{"https://github.com/user/repo", "user/repo"},
+		{"https://github.com/user/repo.git", "user/repo.git"},
+		{"user/repo", "user/repo"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.url, func(t *testing.T) {
+			assert.Equal(t, tc.expected, extractRepoPath(tc.url))
+		})
+	}
+}
