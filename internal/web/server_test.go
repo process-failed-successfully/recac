@@ -1,12 +1,16 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"recac/internal/db"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -89,4 +93,51 @@ func TestHandleFeatures_Empty(t *testing.T) {
 
 	body := w.Body.String()
 	assert.Equal(t, "[]", body)
+}
+
+func TestServer_Start(t *testing.T) {
+	// 1. Get a free port
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	port := l.Addr().(*net.TCPAddr).Port
+	l.Close()
+
+	// 2. Initialize Server with Store
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".recac.db")
+	store, _ := db.NewSQLiteStore(dbPath)
+	defer store.Close()
+
+	s := NewServer(store, port, "default")
+
+	// 3. Start in goroutine
+	done := make(chan error)
+	go func() {
+		done <- s.Start()
+	}()
+
+	// 4. Wait for it to be ready
+	// We can retry connecting until successful or timeout
+	ready := false
+	for i := 0; i < 20; i++ {
+		resp, err := http.Get("http://127.0.0.1:" + strconv.Itoa(port) + "/api/features")
+		if err == nil {
+			resp.Body.Close()
+			ready = true
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	if !ready {
+		t.Fatal("Server failed to start")
+	}
+
+	// 5. Stop
+	err = s.Stop(context.Background())
+	require.NoError(t, err)
+
+	// 6. Ensure Start returns nil
+	err = <-done
+	require.NoError(t, err)
 }

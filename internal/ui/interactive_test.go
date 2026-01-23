@@ -3,6 +3,8 @@ package ui
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -625,5 +627,99 @@ func TestInteractiveModel_Update_ListSelection(t *testing.T) {
 
 	if !executed {
 		t.Error("Expected list selection to execute command")
+	}
+}
+
+func TestInteractiveModel_ClearHistory(t *testing.T) {
+	m := NewInteractiveModel(nil, "", "")
+	m.conversation("test msg", true)
+
+	if len(m.messages) <= 1 {
+		t.Error("Expected messages in history")
+	}
+
+	m.ClearHistory()
+
+	if len(m.messages) != 1 { // 1 because ClearHistory appends "cleared" msg
+		t.Errorf("Expected 1 message (cleared notification), got %d", len(m.messages))
+	}
+	if !strings.Contains(m.messages[0].Content, "history cleared") {
+		t.Error("Expected history cleared message")
+	}
+}
+
+func TestLoadModelsFromFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "models.json")
+
+	// Case 1: Valid File
+	content := `{
+		"models": [
+			{"name": "test-model", "displayName": "Test Model", "description": "A test model"}
+		]
+	}`
+	os.WriteFile(path, []byte(content), 0644)
+
+	models, err := loadModelsFromFile(path)
+	if err != nil {
+		t.Fatalf("loadModelsFromFile failed: %v", err)
+	}
+	if len(models) != 1 {
+		t.Errorf("Expected 1 model, got %d", len(models))
+	}
+	if models[0].Name != "Test Model" {
+		t.Errorf("Expected 'Test Model', got '%s'", models[0].Name)
+	}
+	if models[0].Value != "test-model" {
+		t.Errorf("Expected 'test-model', got '%s'", models[0].Value)
+	}
+
+	// Case 2: Invalid JSON
+	os.WriteFile(path, []byte("{invalid"), 0644)
+	_, err = loadModelsFromFile(path)
+	if err == nil {
+		t.Error("Expected error for invalid JSON")
+	}
+
+	// Case 3: Missing File
+	_, err = loadModelsFromFile("non-existent-file.json")
+	if err == nil {
+		t.Error("Expected error for missing file")
+	}
+}
+
+func TestInteractiveModel_Update_MenuNavigation(t *testing.T) {
+	m := NewInteractiveModel(nil, "", "")
+
+	// 1. Model Select - Back
+	m.setMode(ModeModelSelect)
+	msg := tea.KeyMsg{Type: tea.KeyEsc}
+	updatedM, _ := m.Update(msg)
+	m = updatedM.(InteractiveModel)
+
+	if m.mode != ModeChat {
+		t.Error("Expected to return to ModeChat from ModeModelSelect on Esc")
+	}
+
+	// 2. Agent Select - Back
+	m.setMode(ModeAgentSelect)
+	updatedM, _ = m.Update(msg)
+	m = updatedM.(InteractiveModel)
+
+	if m.mode != ModeChat {
+		t.Error("Expected to return to ModeChat from ModeAgentSelect on Esc")
+	}
+
+	// 3. Cmd List - Back
+	m.showList = true
+	m.setMode(ModeCmd)
+	updatedM, _ = m.Update(msg)
+	m = updatedM.(InteractiveModel)
+
+	if m.showList {
+		t.Error("Expected list to hide on Esc")
+	}
+	if m.mode != ModeChat {
+		t.Error("Expected to return to ModeChat")
 	}
 }

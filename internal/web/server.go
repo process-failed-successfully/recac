@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
 	"fmt"
@@ -8,8 +9,8 @@ import (
 	"net/http"
 	"recac/internal/db"
 	"recac/internal/runner"
-	"strings"
 	"sort"
+	"strings"
 )
 
 //go:embed static/*
@@ -17,9 +18,10 @@ var staticFiles embed.FS
 
 // Server handles the web visualization
 type Server struct {
-	store     db.Store
-	port      int
-	projectID string
+	store      db.Store
+	port       int
+	projectID  string
+	httpServer *http.Server
 }
 
 // NewServer creates a new web server
@@ -49,7 +51,24 @@ func (s *Server) Start() error {
 	// Bind to localhost for security
 	addr := fmt.Sprintf("127.0.0.1:%d", s.port)
 	fmt.Printf("Starting dashboard at http://%s\n", addr)
-	return http.ListenAndServe(addr, mux)
+
+	s.httpServer = &http.Server{Addr: addr, Handler: mux}
+
+	// ListenAndServe always returns a non-nil error. After Shutdown or Close,
+	// the returned error is ErrServerClosed.
+	err := s.httpServer.ListenAndServe()
+	if err == http.ErrServerClosed {
+		return nil
+	}
+	return err
+}
+
+// Stop gracefully shuts down the server
+func (s *Server) Stop(ctx context.Context) error {
+	if s.httpServer != nil {
+		return s.httpServer.Shutdown(ctx)
+	}
+	return nil
 }
 
 func (s *Server) handleFeatures(w http.ResponseWriter, r *http.Request) {
@@ -146,8 +165,8 @@ func generateMermaid(g *runner.TaskGraph) string {
 		}
 
 		safeID := sanitizeMermaidID(node.ID)
-		        		safeName := strings.ReplaceAll(node.Name, "\"", "'")
-		        		safeName = strings.ReplaceAll(safeName, "\n", " ")
+		safeName := strings.ReplaceAll(node.Name, "\"", "'")
+		safeName = strings.ReplaceAll(safeName, "\n", " ")
 		if len(safeName) > 30 {
 			safeName = safeName[:27] + "..."
 		}

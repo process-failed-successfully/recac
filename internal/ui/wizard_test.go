@@ -25,6 +25,10 @@ func TestWizardModel_Input(t *testing.T) {
 	// Initialize the model (important for textinput blink etc, though not strictly needed for logic test)
 	m.Init()
 
+	// Set window size
+	m.list.SetWidth(80)
+	m.list.SetHeight(20)
+
 	// Simulate typing "test-project"
 	input := "test-project"
 	for _, r := range input {
@@ -52,6 +56,12 @@ func TestWizardModel_Input(t *testing.T) {
 	}
 	if m.Path != "test-project" {
 		t.Errorf("Expected path 'test-project', got '%s'", m.Path)
+	}
+
+	// Verify View for StepProvider
+	view := m.View()
+	if !strings.Contains(view, "Gemini") {
+		t.Errorf("Expected provider list in view, got: %s", view)
 	}
 
 	// Step 2: Provider Selection
@@ -82,6 +92,12 @@ func TestWizardModel_Input(t *testing.T) {
 		t.Errorf("Expected provider 'gemini-cli', got '%s'", m.Provider)
 	}
 
+	// Verify View for StepMaxAgents
+	view = m.View()
+	if !strings.Contains(view, "Enter maximum parallel agents") {
+		t.Errorf("Expected Max Agents prompt in view, got: %s", view)
+	}
+
 	// Step 3: Max Agents Selection
 	// Simulate Enter with default 1
 	msg = tea.KeyMsg{Type: tea.KeyEnter}
@@ -93,6 +109,12 @@ func TestWizardModel_Input(t *testing.T) {
 	}
 	if m.step != StepTaskMaxIterations {
 		t.Error("Expected to transition to StepTaskMaxIterations")
+	}
+
+	// Verify View for StepTaskMaxIterations
+	view = m.View()
+	if !strings.Contains(view, "Enter maximum iterations per task") {
+		t.Errorf("Expected Max Iterations prompt in view, got: %s", view)
 	}
 
 	// Step 4: Task Max Iterations
@@ -109,7 +131,7 @@ func TestWizardModel_Input(t *testing.T) {
 	}
 
 	// Check final view
-	view := m.View()
+	view = m.View()
 	if !strings.Contains(view, "Selected project: test-project") {
 		t.Errorf("Expected final view to show selected project, got: %s", view)
 	}

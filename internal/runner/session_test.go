@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -789,7 +790,7 @@ func TestSession_RunLoop_Stall(t *testing.T) {
 	// checkNoOpBreaker trips if 3 consecutive iterations have 0 commands.
 
 	err := session.RunLoop(context.Background())
-	if err != ErrNoOp {
+	if !errors.Is(err, ErrNoOp) {
 		t.Errorf("Expected ErrNoOp, got: %v", err)
 	}
 }
