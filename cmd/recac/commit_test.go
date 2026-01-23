@@ -84,6 +84,16 @@ func (m *MockGitClientCommit) Log(directory string, args ...string) ([]string, e
 func (m *MockGitClientCommit) CurrentBranch(directory string) (string, error)   { return "main", nil }
 func (m *MockGitClientCommit) CheckoutNewBranch(directory, branch string) error { return nil }
 
+func (m *MockGitClientCommit) BisectStart(directory, badCommit, goodCommit string) error { return nil }
+func (m *MockGitClientCommit) BisectGood(directory string) error                         { return nil }
+func (m *MockGitClientCommit) BisectBad(directory string) error                          { return nil }
+func (m *MockGitClientCommit) BisectSkip(directory string) error                         { return nil }
+func (m *MockGitClientCommit) BisectReset(directory string) error                        { return nil }
+func (m *MockGitClientCommit) BisectRun(directory, scriptPath string) (string, error) {
+	return "", nil
+}
+func (m *MockGitClientCommit) BisectLog(directory string) (string, error) { return "", nil }
+
 func TestCommitCmd(t *testing.T) {
 	// Setup mocks
 	origGitFactory := gitClientFactory
