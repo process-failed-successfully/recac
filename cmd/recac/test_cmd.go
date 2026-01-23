@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -134,9 +135,12 @@ func runTestOnce(cmd *cobra.Command, args []string) error {
 
 	// Stream and capture
 	var outputBuf strings.Builder
+	var wg sync.WaitGroup
+	wg.Add(2)
 
 	// Use a scanner to read line by line and print/capture
 	go func() {
+		defer wg.Done()
 		scanner := bufio.NewScanner(stdoutPipe)
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -146,6 +150,7 @@ func runTestOnce(cmd *cobra.Command, args []string) error {
 	}()
 
 	go func() {
+		defer wg.Done()
 		scanner := bufio.NewScanner(stderrPipe)
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -154,6 +159,7 @@ func runTestOnce(cmd *cobra.Command, args []string) error {
 		}
 	}()
 
+	wg.Wait()
 	err = testExec.Wait()
 	if err != nil {
 		// Tests failed!
