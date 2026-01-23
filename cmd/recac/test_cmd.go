@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -134,26 +135,37 @@ func runTestOnce(cmd *cobra.Command, args []string) error {
 
 	// Stream and capture
 	var outputBuf strings.Builder
+	var bufMu sync.Mutex
+	var wg sync.WaitGroup
 
 	// Use a scanner to read line by line and print/capture
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		scanner := bufio.NewScanner(stdoutPipe)
 		for scanner.Scan() {
 			line := scanner.Text()
 			fmt.Fprintln(cmd.OutOrStdout(), line)
+			bufMu.Lock()
 			outputBuf.WriteString(line + "\n")
+			bufMu.Unlock()
 		}
 	}()
 
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		scanner := bufio.NewScanner(stderrPipe)
 		for scanner.Scan() {
 			line := scanner.Text()
 			fmt.Fprintln(cmd.ErrOrStderr(), line)
+			bufMu.Lock()
 			outputBuf.WriteString(line + "\n")
+			bufMu.Unlock()
 		}
 	}()
 
+	wg.Wait()
 	err = testExec.Wait()
 	if err != nil {
 		// Tests failed!
