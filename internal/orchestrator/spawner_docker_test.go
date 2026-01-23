@@ -73,6 +73,11 @@ func (m *MockGitClient) CurrentCommitSHA(repoPath string) (string, error) {
 	return args.String(0), args.Error(1)
 }
 
+func (m *MockGitClient) CreatePR(directory, title, body, base string) (string, error) {
+	args := m.Called(directory, title, body, base)
+	return args.String(0), args.Error(1)
+}
+
 // Mock Poller (Minimal for this test)
 type MockPoller struct {
 	mock.Mock
