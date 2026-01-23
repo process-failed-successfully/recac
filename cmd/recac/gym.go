@@ -42,6 +42,7 @@ var (
 	}
 	gymAgentFactory   = agent.NewAgent
 	gymSessionFactory = runner.NewSession
+	runGymSessionFunc = runGymSession
 )
 
 var gymCmd = &cobra.Command{
