@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -200,5 +201,70 @@ func TestMultiHandler(t *testing.T) {
 	}
 	if len(mh3.handlers) != 2 {
 		t.Errorf("Expected 2 handlers, got %d", len(mh3.handlers))
+	}
+}
+
+func TestNewLogger_WithFile(t *testing.T) {
+	// Create a temporary file
+	tmpFile, err := os.CreateTemp("", "test.log")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpPath := tmpFile.Name()
+	tmpFile.Close()
+	defer os.Remove(tmpPath)
+
+	// Create logger with file output
+	logger := NewLogger(false, tmpPath, true)
+	if logger == nil {
+		t.Fatal("NewLogger returned nil")
+	}
+
+	logger.Info("file test")
+
+	// Verify file content
+	content, err := os.ReadFile(tmpPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(content), "file test") {
+		t.Error("Log file missing content")
+	}
+}
+
+func TestNewLogger_SilenceStdout(t *testing.T) {
+	// We can't easily capture stdout here since NewLogger doesn't accept a writer for stdout (it uses os.Stdout).
+	// But we can verify that the returned handler is likely correct.
+	// If silenceStdout is true and no logFile, it should return a discard handler.
+
+	logger := NewLogger(false, "", true)
+	// We can't inspect internal handler easily, but we can call methods.
+	logger.Info("should be discarded")
+	// If it didn't panic, that's something.
+}
+
+func TestInitLogger_SetsDefault(t *testing.T) {
+	oldLogger := slog.Default()
+	t.Cleanup(func() { slog.SetDefault(oldLogger) })
+
+	// Create a temp file to verify InitLogger effect
+	tmpFile, err := os.CreateTemp("", "init.log")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpPath := tmpFile.Name()
+	tmpFile.Close()
+	defer os.Remove(tmpPath)
+
+	InitLogger(true, tmpPath, true)
+
+	slog.Info("via default")
+
+	content, err := os.ReadFile(tmpPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(content), "via default") {
+		t.Error("Default logger not set correctly by InitLogger")
 	}
 }

@@ -548,3 +548,82 @@ func assertNotNil(t *testing.T, obj interface{}) {
 		t.Error("Expected not nil")
 	}
 }
+
+func TestInteractiveModel_Update_TabCompletion(t *testing.T) {
+	cmds := []SlashCommand{
+		{Name: "/custom", Description: "Custom", Action: nil},
+	}
+	m := NewInteractiveModel(cmds, "", "")
+
+	// Case 1: Empty input -> Toggle List
+	msg := tea.KeyMsg{Type: tea.KeyTab}
+	updatedM, _ := m.Update(msg)
+	m = updatedM.(InteractiveModel)
+	if !m.showList {
+		t.Error("Tab on empty input should toggle list")
+	}
+
+	// Case 2: Partial match -> Complete
+	m.setMode(ModeCmd) // Ensure we are in command mode context for completion
+	m.textarea.SetValue("cust")
+	updatedM, _ = m.Update(msg)
+	m = updatedM.(InteractiveModel)
+
+	if m.textarea.Value() != "custom" {
+		t.Errorf("Expected completion to 'custom', got '%s'", m.textarea.Value())
+	}
+}
+
+func TestInteractiveModel_Update_EnterChat(t *testing.T) {
+	m := NewInteractiveModel(nil, "", "")
+	mockAgent := &MockAgent{Response: "Response"}
+	m.activeAgent = mockAgent
+
+	m.textarea.SetValue("Hello")
+	msg := tea.KeyMsg{Type: tea.KeyEnter}
+
+	updatedM, cmd := m.Update(msg)
+	m = updatedM.(InteractiveModel)
+
+	if !m.thinking {
+		t.Error("Expected thinking state after Enter")
+	}
+	if cmd == nil {
+		t.Error("Expected command to generate response")
+	}
+	// Verify textarea cleared
+	if m.textarea.Value() != "" {
+		t.Error("Expected textarea to be cleared")
+	}
+}
+
+func TestInteractiveModel_Update_ListSelection(t *testing.T) {
+	executed := false
+	cmds := []SlashCommand{
+		{
+			Name: "/exec",
+			Action: func(m *InteractiveModel, args []string) tea.Cmd {
+				executed = true
+				return nil
+			},
+		},
+	}
+	m := NewInteractiveModel(cmds, "", "")
+	m.showList = true
+	m.setMode(ModeCmd)
+
+	// Select item (assuming /exec is in list, we filter for it)
+	m.textarea.SetValue("/exec")
+	// Trigger filter update
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
+
+	// Select first item
+	m.list.Select(0)
+
+	msg := tea.KeyMsg{Type: tea.KeyEnter}
+	m.Update(msg)
+
+	if !executed {
+		t.Error("Expected list selection to execute command")
+	}
+}
