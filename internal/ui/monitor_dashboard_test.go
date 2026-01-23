@@ -56,8 +56,16 @@ func TestMonitorDashboardModel_Update_Kill(t *testing.T) {
 	m.updateTableRows()
 	m.table.SetCursor(0)
 
-	// Simulate 'k' key press
+	// 1. Simulate 'k' key press -> Enter confirmation mode
 	updatedM, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	model := updatedM.(MonitorDashboardModel)
+
+	assert.Nil(t, cmd)
+	assert.Equal(t, "confirm_kill", model.viewMode)
+	assert.Equal(t, "session-to-kill", model.sessionToKill)
+
+	// 2. Simulate 'y' key press -> Execute kill
+	updatedM, cmd = model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
 
 	// The cmd returned should be the function that calls Stop
 	assert.NotNil(t, cmd)
@@ -76,6 +84,25 @@ func TestMonitorDashboardModel_Update_Kill(t *testing.T) {
 	finalM, _ := updatedM.Update(msg)
 	finalModel := finalM.(MonitorDashboardModel)
 	assert.Equal(t, "Stopped session session-to-kill", finalModel.message)
+	assert.Equal(t, "list", finalModel.viewMode)
+}
+
+func TestMonitorDashboardModel_Update_Kill_Cancel(t *testing.T) {
+	m := NewMonitorDashboardModel(ActionCallbacks{})
+	m.sessions = []model.UnifiedSession{{Name: "s1"}}
+	m.updateTableRows()
+
+	// 1. Press 'k'
+	updatedM, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	model := updatedM.(MonitorDashboardModel)
+	assert.Equal(t, "confirm_kill", model.viewMode)
+
+	// 2. Press 'n'
+	updatedM, _ = model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	model = updatedM.(MonitorDashboardModel)
+
+	assert.Equal(t, "list", model.viewMode)
+	assert.Equal(t, "", model.sessionToKill)
 }
 
 func TestMonitorDashboardModel_Update_Kill_Error(t *testing.T) {
@@ -88,7 +115,12 @@ func TestMonitorDashboardModel_Update_Kill_Error(t *testing.T) {
 	m.sessions = []model.UnifiedSession{{Name: "s1"}}
 	m.updateTableRows()
 
-	updatedM, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	// 1. Press 'k'
+	updatedM, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	model := updatedM.(MonitorDashboardModel)
+
+	// 2. Press 'y'
+	updatedM, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
 	msg := cmd()
 
 	resMsg, ok := msg.(actionResultMsg)
@@ -229,4 +261,22 @@ func TestMonitorDashboardModel_View(t *testing.T) {
 	view := m.View()
 	assert.Contains(t, view, "RECAC Control Center")
 	assert.Contains(t, view, "Test Message")
+}
+
+func TestMonitorDashboardModel_View_EmptyState(t *testing.T) {
+	m := NewMonitorDashboardModel(ActionCallbacks{})
+	m.sessions = []model.UnifiedSession{}
+	view := m.View()
+	assert.Contains(t, view, "No active sessions found")
+	assert.Contains(t, view, "recac start")
+}
+
+func TestMonitorDashboardModel_View_ConfirmKill(t *testing.T) {
+	m := NewMonitorDashboardModel(ActionCallbacks{})
+	m.viewMode = "confirm_kill"
+	m.sessionToKill = "bad-session"
+	view := m.View()
+	assert.Contains(t, view, "DANGER ZONE")
+	assert.Contains(t, view, "bad-session")
+	assert.Contains(t, view, "(y/n)")
 }

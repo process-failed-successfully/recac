@@ -29,10 +29,11 @@ type MonitorDashboardModel struct {
 	err         error
 	width       int
 	height      int
-	selectedRow int
-	viewMode    string // "list", "logs"
-	logContent  string
-	message     string // Status message (e.g., "Session stopped")
+	selectedRow   int
+	viewMode      string // "list", "logs", "confirm_kill"
+	logContent    string
+	message       string // Status message (e.g., "Session stopped")
+	sessionToKill string
 }
 
 type monitorTickMsg time.Time
@@ -46,6 +47,7 @@ var (
 	monitorTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("62"))
 	monitorHelpStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).MarginTop(1)
 	messageStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Bold(true).MarginTop(1)
+	confirmStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("230")).Background(lipgloss.Color("160")).Padding(1, 2).Bold(true).Border(lipgloss.DoubleBorder()).MarginTop(1)
 )
 
 func NewMonitorDashboardModel(callbacks ActionCallbacks) MonitorDashboardModel {
@@ -119,12 +121,12 @@ func (m MonitorDashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
-		switch msg.String() {
-		case "q", "ctrl+c":
-			return m, tea.Quit
-		case "k":
-			if selected := m.table.SelectedRow(); selected != nil {
-				name := selected[0]
+		if m.viewMode == "confirm_kill" {
+			switch msg.String() {
+			case "y", "Y":
+				name := m.sessionToKill
+				m.sessionToKill = ""
+				m.viewMode = "list"
 				return m, func() tea.Msg {
 					err := m.callbacks.Stop(name)
 					if err != nil {
@@ -132,6 +134,22 @@ func (m MonitorDashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					return actionResultMsg{msg: fmt.Sprintf("Stopped session %s", name)}
 				}
+			case "n", "N", "esc", "q":
+				m.sessionToKill = ""
+				m.viewMode = "list"
+				return m, nil
+			}
+			return m, nil
+		}
+
+		switch msg.String() {
+		case "q", "ctrl+c":
+			return m, tea.Quit
+		case "k":
+			if selected := m.table.SelectedRow(); selected != nil {
+				m.sessionToKill = selected[0]
+				m.viewMode = "confirm_kill"
+				return m, nil
 			}
 		case "p":
 			if selected := m.table.SelectedRow(); selected != nil {
@@ -234,10 +252,20 @@ func (m MonitorDashboardModel) View() string {
 			m.viewport.View())
 	}
 
+	if m.viewMode == "confirm_kill" {
+		return fmt.Sprintf("\n%s\n\nAre you sure you want to kill session '%s'?\n\n(y/n)",
+			confirmStyle.Render("⚠️  DANGER ZONE"),
+			m.sessionToKill)
+	}
+
 	s := monitorTitleStyle.Render("RECAC Control Center") + "\n"
 	s += fmt.Sprintf("Last updated: %s\n\n", m.lastUpdate.Format("15:04:05"))
 
-	s += m.table.View() + "\n"
+	if len(m.sessions) == 0 {
+		s += "\n  No active sessions found.\n  Run 'recac start' to create a new session.\n\n"
+	} else {
+		s += m.table.View() + "\n"
+	}
 
 	if m.message != "" {
 		s += messageStyle.Render(m.message) + "\n"
