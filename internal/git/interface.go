@@ -23,6 +23,7 @@ type IClient interface {
 	Clean(directory string) error
 	ResetHard(directory, remote, branch string) error
 	StashPop(directory string) error
+	CreatePR(directory, title, body, base string) (string, error)
 	DeleteRemoteBranch(directory, remote, branch string) error
 	CurrentBranch(directory string) (string, error)
 	Commit(directory, message string) error

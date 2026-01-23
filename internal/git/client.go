@@ -21,6 +21,10 @@ var NewClient = func() IClient {
 	return &Client{}
 }
 
+// Allow mocking exec.Command for testing
+var execCommand = exec.Command
+var execCommandContext = exec.CommandContext
+
 // maskingWriter wraps an io.Writer and masks sensitive information.
 type maskingWriter struct {
 	w io.Writer
@@ -45,7 +49,7 @@ func (mw *maskingWriter) Write(p []byte) (n int, err error) {
 
 func (c *Client) runWithMasking(ctx context.Context, dir string, args ...string) error {
 	var outBuf, errBuf bytes.Buffer
-	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd := execCommandContext(ctx, "git", args...)
 	if dir != "" {
 		cmd.Dir = dir
 	}
@@ -73,7 +77,7 @@ func (c *Client) Clone(ctx context.Context, url, dest string) error {
 func (c *Client) CheckoutNewBranch(dir, branchName string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "git", "checkout", "-B", branchName)
+	cmd := execCommandContext(ctx, "git", "checkout", "-B", branchName)
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -126,7 +130,7 @@ func (c *Client) CreatePR(dir, title, body, base string) (string, error) {
 		args = append(args, "--base", base)
 	}
 
-	cmd := exec.Command("gh", args...)
+	cmd := execCommand("gh", args...)
 	cmd.Dir = dir
 
 	// Capture stdout to get the URL
@@ -151,7 +155,7 @@ func (c *Client) CreatePR(dir, title, body, base string) (string, error) {
 // Commit stages all changes and commits them with the given message.
 func (c *Client) Commit(dir, message string) error {
 	// git add .
-	addCmd := exec.Command("git", "add", ".")
+	addCmd := execCommand("git", "add", ".")
 	addCmd.Dir = dir
 	addCmd.Stdout = os.Stdout
 	addCmd.Stderr = os.Stderr
@@ -160,7 +164,7 @@ func (c *Client) Commit(dir, message string) error {
 	}
 
 	// git commit -m "message"
-	commitCmd := exec.Command("git", "commit", "-m", message)
+	commitCmd := execCommand("git", "commit", "-m", message)
 	commitCmd.Dir = dir
 	commitCmd.Stdout = os.Stdout
 	commitCmd.Stderr = os.Stderr
@@ -172,7 +176,7 @@ func (c *Client) Commit(dir, message string) error {
 
 // SetRemoteURL updates the remote URL (e.g. to include auth token).
 func (c *Client) SetRemoteURL(dir, name, url string) error {
-	cmd := exec.Command("git", "remote", "set-url", name, url)
+	cmd := execCommand("git", "remote", "set-url", name, url)
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -183,7 +187,7 @@ func (c *Client) SetRemoteURL(dir, name, url string) error {
 func (c *Client) Checkout(dir, branchName string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "git", "checkout", branchName)
+	cmd := execCommandContext(ctx, "git", "checkout", branchName)
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -199,7 +203,7 @@ func (c *Client) Pull(dir, remote, branchName string) error {
 
 // Merge merges the specified branch into the current branch.
 func (c *Client) Merge(dir, branchName string) error {
-	cmd := exec.Command("git", "merge", branchName)
+	cmd := execCommand("git", "merge", branchName)
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -216,7 +220,7 @@ func (c *Client) Fetch(dir, remote, branchName string) error {
 // RemoteBranchExists checks if a branch exists on the remote.
 func (c *Client) RemoteBranchExists(dir, remote, branch string) (bool, error) {
 	// git ls-remote --heads remote branch
-	cmd := exec.Command("git", "ls-remote", "--heads", remote, branch)
+	cmd := execCommand("git", "ls-remote", "--heads", remote, branch)
 	cmd.Dir = dir
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -231,7 +235,7 @@ func (c *Client) RemoteBranchExists(dir, remote, branch string) (bool, error) {
 // LocalBranchExists checks if a branch exists locally.
 func (c *Client) LocalBranchExists(dir, branch string) (bool, error) {
 	// git show-ref --verify refs/heads/branch
-	cmd := exec.Command("git", "show-ref", "--verify", "refs/heads/"+branch)
+	cmd := execCommand("git", "show-ref", "--verify", "refs/heads/"+branch)
 	cmd.Dir = dir
 	if err := cmd.Run(); err != nil {
 		return false, nil
@@ -244,14 +248,14 @@ func (c *Client) RepoExists(dir string) bool {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		return false
 	}
-	cmd := exec.Command("git", "rev-parse", "--is-inside-work-tree")
+	cmd := execCommand("git", "rev-parse", "--is-inside-work-tree")
 	cmd.Dir = dir
 	return cmd.Run() == nil
 }
 
 // CurrentBranch returns the name of the current branch.
 func (c *Client) CurrentBranch(dir string) (string, error) {
-	cmd := exec.Command("git", "branch", "--show-current")
+	cmd := execCommand("git", "branch", "--show-current")
 	cmd.Dir = dir
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -264,7 +268,7 @@ func (c *Client) CurrentBranch(dir string) (string, error) {
 
 // CurrentCommitSHA returns the SHA of the current commit (HEAD).
 func (c *Client) CurrentCommitSHA(dir string) (string, error) {
-	cmd := exec.Command("git", "rev-parse", "HEAD")
+	cmd := execCommand("git", "rev-parse", "HEAD")
 	cmd.Dir = dir
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -277,7 +281,7 @@ func (c *Client) CurrentCommitSHA(dir string) (string, error) {
 
 // Stash stashes local changes, including untracked files.
 func (c *Client) Stash(dir string) error {
-	cmd := exec.Command("git", "stash", "--include-untracked")
+	cmd := execCommand("git", "stash", "--include-untracked")
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -286,7 +290,7 @@ func (c *Client) Stash(dir string) error {
 
 // StashPop pops the latest stash.
 func (c *Client) StashPop(dir string) error {
-	cmd := exec.Command("git", "stash", "pop")
+	cmd := execCommand("git", "stash", "pop")
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -344,7 +348,7 @@ func (c *Client) Clean(dir string) error {
 	// Also try to remove go/pkg/mod manually if it exists, as it's often the culprit
 	os.RemoveAll(filepath.Join(dir, "go/pkg/mod"))
 
-	cmd := exec.Command("git", "clean", "-fdx")
+	cmd := execCommand("git", "clean", "-fdx")
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -353,7 +357,7 @@ func (c *Client) Clean(dir string) error {
 
 // AbortMerge aborts an in-progress merge.
 func (c *Client) AbortMerge(dir string) error {
-	cmd := exec.Command("git", "merge", "--abort")
+	cmd := execCommand("git", "merge", "--abort")
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -362,7 +366,7 @@ func (c *Client) AbortMerge(dir string) error {
 
 // DeleteLocalBranch deletes a local branch.
 func (c *Client) DeleteLocalBranch(dir, branch string) error {
-	cmd := exec.Command("git", "branch", "-D", branch)
+	cmd := execCommand("git", "branch", "-D", branch)
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -376,7 +380,7 @@ func (c *Client) DeleteRemoteBranch(dir, remote, branch string) error {
 
 // Diff returns the diff between two commits.
 func (c *Client) Diff(dir, startCommit, endCommit string) (string, error) {
-	cmd := exec.Command("git", "diff", startCommit, endCommit)
+	cmd := execCommand("git", "diff", startCommit, endCommit)
 	cmd.Dir = dir
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -389,7 +393,7 @@ func (c *Client) Diff(dir, startCommit, endCommit string) (string, error) {
 
 // DiffStaged returns the diff of staged changes.
 func (c *Client) DiffStaged(dir string) (string, error) {
-	cmd := exec.Command("git", "diff", "--staged")
+	cmd := execCommand("git", "diff", "--staged")
 	cmd.Dir = dir
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -402,7 +406,7 @@ func (c *Client) DiffStaged(dir string) (string, error) {
 
 // DiffStat returns the stat summary of a diff between two commits.
 func (c *Client) DiffStat(dir, startCommit, endCommit string) (string, error) {
-	cmd := exec.Command("git", "diff", "--stat", startCommit, endCommit)
+	cmd := execCommand("git", "diff", "--stat", startCommit, endCommit)
 	cmd.Dir = dir
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -423,7 +427,7 @@ func (c *Client) DiffStat(dir, startCommit, endCommit string) (string, error) {
 // Log runs git log with optional arguments and returns the lines of output.
 func (c *Client) Log(dir string, args ...string) ([]string, error) {
 	cmdArgs := append([]string{"log"}, args...)
-	cmd := exec.Command("git", cmdArgs...)
+	cmd := execCommand("git", cmdArgs...)
 	cmd.Dir = dir
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -442,7 +446,7 @@ func (c *Client) Log(dir string, args ...string) ([]string, error) {
 
 // BisectStart starts a git bisect session with bad and good commits.
 func (c *Client) BisectStart(dir, bad, good string) error {
-	cmd := exec.Command("git", "bisect", "start", bad, good)
+	cmd := execCommand("git", "bisect", "start", bad, good)
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -455,7 +459,7 @@ func (c *Client) BisectGood(dir, rev string) error {
 	if rev != "" {
 		args = append(args, rev)
 	}
-	cmd := exec.Command("git", args...)
+	cmd := execCommand("git", args...)
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -468,7 +472,7 @@ func (c *Client) BisectBad(dir, rev string) error {
 	if rev != "" {
 		args = append(args, rev)
 	}
-	cmd := exec.Command("git", args...)
+	cmd := execCommand("git", args...)
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -477,7 +481,7 @@ func (c *Client) BisectBad(dir, rev string) error {
 
 // BisectReset resets the bisect session.
 func (c *Client) BisectReset(dir string) error {
-	cmd := exec.Command("git", "bisect", "reset")
+	cmd := execCommand("git", "bisect", "reset")
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -486,7 +490,7 @@ func (c *Client) BisectReset(dir string) error {
 
 // BisectLog returns the log of the current bisect session.
 func (c *Client) BisectLog(dir string) ([]string, error) {
-	cmd := exec.Command("git", "bisect", "log")
+	cmd := execCommand("git", "bisect", "log")
 	cmd.Dir = dir
 	var out bytes.Buffer
 	cmd.Stdout = &out

@@ -186,6 +186,10 @@ func (m *MockGitClient) StashPop(directory string) error {
 	return nil
 }
 
+func (m *MockGitClient) CreatePR(directory, title, body, base string) (string, error) {
+	return "", nil
+}
+
 func (m *MockGitClient) DeleteRemoteBranch(directory, remote, branch string) error {
 	return nil
 }

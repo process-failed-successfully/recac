@@ -96,6 +96,11 @@ func (m *MockGitClient) StashPop(directory string) error {
 	return args.Error(0)
 }
 
+func (m *MockGitClient) CreatePR(directory, title, body, base string) (string, error) {
+	args := m.Called(directory, title, body, base)
+	return args.String(0), args.Error(1)
+}
+
 func (m *MockGitClient) DeleteRemoteBranch(directory, remote, branch string) error {
 	args := m.Called(directory, remote, branch)
 	return args.Error(0)
