@@ -9,6 +9,7 @@ type IClient interface {
 	Clone(ctx context.Context, repoURL, directory string) error
 	RepoExists(directory string) bool
 	Config(directory, key, value string) error
+	ConfigGlobal(key, value string) error
 	ConfigAddGlobal(key, value string) error
 	RemoteBranchExists(directory, remote, branch string) (bool, error)
 	Fetch(directory, remote, branch string) error
