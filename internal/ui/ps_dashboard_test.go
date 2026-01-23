@@ -158,9 +158,9 @@ func TestPsDashboardModel_UpdateTableRows(t *testing.T) {
 	longGoal := "This is a very long goal that is definitely going to be truncated"
 	m := NewPsDashboardModel()
 	m.sessions = []model.UnifiedSession{
-		{Name: "local-session", Status: "Running", Goal: "Local test", LastActivity: now, Location: "local"},
-		{Name: "k8s-session", Status: "Running", Goal: "K8s test", StartTime: now.Add(-10 * time.Minute), Location: "k8s"},
-		{Name: "long-goal-session", Status: "Running", Goal: longGoal, LastActivity: now, Location: "local"},
+		{Name: "local-session", Status: "Running", Goal: "Local test", LastActivity: now, Location: "local", CPU: "10%", Memory: "50MB"},
+		{Name: "k8s-session", Status: "Running", Goal: "K8s test", StartTime: now.Add(-10 * time.Minute), Location: "k8s", CPU: "N/A", Memory: "N/A"},
+		{Name: "long-goal-session", Status: "Running", Goal: longGoal, LastActivity: now, Location: "local", CPU: "5%", Memory: "100MB"},
 	}
 
 	m.updateTableRows()
@@ -168,10 +168,14 @@ func TestPsDashboardModel_UpdateTableRows(t *testing.T) {
 	rows := m.table.Rows()
 	assert.Len(t, rows, 3)
 	assert.Equal(t, "local-session", rows[0][0])
-	assert.True(t, strings.Contains(rows[0][3], "ago"))
+	assert.Equal(t, "10%", rows[0][2])
+	assert.Equal(t, "50MB", rows[0][3])
+	assert.True(t, strings.Contains(rows[0][5], "ago"))
 	assert.Equal(t, "k8s-session", rows[1][0])
-	assert.Equal(t, "10m ago", rows[1][3])
-	assert.Equal(t, "This is a very long goal that is definitely going to b...", rows[2][4])
+	assert.Equal(t, "N/A", rows[1][2])
+	assert.Equal(t, "N/A", rows[1][3])
+	assert.Equal(t, "10m ago", rows[1][5])
+	assert.Equal(t, "This is a very long goal that is definitely going to b...", rows[2][6])
 }
 
 func TestPsDashboardModel_Update_WindowSize(t *testing.T) {
