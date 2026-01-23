@@ -250,3 +250,12 @@ func TestManager_AddReaction(t *testing.T) {
 	assert.True(t, slackCalled)
 	assert.True(t, discordCalled)
 }
+
+func TestManager_Start(t *testing.T) {
+	m := NewManager(nil)
+	// socketClient is nil by default unless env vars set
+	assert.Nil(t, m.socketClient)
+
+	// Should not panic
+	m.Start(context.Background())
+}
