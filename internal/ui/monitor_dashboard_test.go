@@ -160,3 +160,73 @@ func TestMonitorDashboardModel_Update_Logs(t *testing.T) {
     backModel := backM.(MonitorDashboardModel)
     assert.Equal(t, "list", backModel.viewMode)
 }
+
+func TestMonitorDashboardModel_Update_Pause(t *testing.T) {
+	paused := ""
+	resumed := ""
+	callbacks := ActionCallbacks{
+		Pause: func(name string) error {
+			paused = name
+			return nil
+		},
+		Resume: func(name string) error {
+			resumed = name
+			return nil
+		},
+	}
+	m := NewMonitorDashboardModel(callbacks)
+
+	// Case 1: Pause running session
+	m.sessions = []model.UnifiedSession{{Name: "s1", Status: "running"}}
+	m.updateTableRows()
+	m.table.SetCursor(0)
+
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}})
+	msg := cmd()
+	assert.Equal(t, "s1", paused)
+	resMsg, ok := msg.(actionResultMsg)
+	assert.True(t, ok)
+	assert.Equal(t, "Paused session s1", resMsg.msg)
+
+	// Case 2: Resume paused session
+	m.sessions = []model.UnifiedSession{{Name: "s1", Status: "paused"}}
+	m.updateTableRows()
+	m.table.SetCursor(0)
+
+	_, cmd = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}})
+	msg = cmd()
+	assert.Equal(t, "s1", resumed)
+	resMsg, ok = msg.(actionResultMsg)
+	assert.True(t, ok)
+	assert.Equal(t, "Resumed session s1", resMsg.msg)
+
+	// Case 3: Invalid status
+	m.sessions = []model.UnifiedSession{{Name: "s1", Status: "stopped"}}
+	m.updateTableRows()
+	m.table.SetCursor(0)
+	_, cmd = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}})
+	msg = cmd()
+	resMsg, ok = msg.(actionResultMsg)
+	assert.True(t, ok)
+	assert.Error(t, resMsg.err)
+}
+
+func TestMonitorDashboardModel_Update_Resize(t *testing.T) {
+	m := NewMonitorDashboardModel(ActionCallbacks{})
+	updatedM, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
+	model := updatedM.(MonitorDashboardModel)
+
+	// Height - 10 for table (minus borders = 38)
+	assert.Equal(t, 38, model.table.Height())
+	// Height - 5 for viewport
+	assert.Equal(t, 45, model.viewport.Height)
+}
+
+func TestMonitorDashboardModel_View(t *testing.T) {
+	m := NewMonitorDashboardModel(ActionCallbacks{})
+	// Set message
+	m.message = "Test Message"
+	view := m.View()
+	assert.Contains(t, view, "RECAC Control Center")
+	assert.Contains(t, view, "Test Message")
+}

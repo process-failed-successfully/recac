@@ -66,3 +66,27 @@ func TestServer_Handlers(t *testing.T) {
 	assert.Contains(t, body, "B[\"Task B\"]:::pending")
 	assert.Contains(t, body, "A --> B")
 }
+func TestNewServer_Defaults(t *testing.T) {
+	s := NewServer(nil, 8080, "")
+	assert.Equal(t, "default", s.projectID)
+}
+
+func TestHandleFeatures_Empty(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".recac.db")
+	store, err := db.NewSQLiteStore(dbPath)
+	require.NoError(t, err)
+	defer store.Close()
+
+	s := NewServer(store, 0, "non-existent")
+
+	req := httptest.NewRequest("GET", "/api/features", nil)
+	w := httptest.NewRecorder()
+	s.handleFeatures(w, req)
+
+	resp := w.Result()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	body := w.Body.String()
+	assert.Equal(t, "[]", body)
+}

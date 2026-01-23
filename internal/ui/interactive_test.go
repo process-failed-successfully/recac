@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -435,5 +437,114 @@ func TestInteractiveModel_Update_StatusExecution(t *testing.T) {
 	last := m.messages[len(m.messages)-1]
 	if !strings.Contains(last.Content, "RECAC Status") {
 		t.Error("Expected status message in history")
+	}
+}
+
+// Mock Agent for testing
+type MockAgent struct {
+	Response string
+}
+
+func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
+	return m.Response, nil
+}
+
+func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+	// SendStream should be blocking for the duration of the stream
+	onChunk(m.Response)
+	return m.Response, nil
+}
+
+// Needed to satisfy interface if it has more methods?
+// Let's assume Agent interface only has Send/SendStream for now based on usage.
+// If not, I'll fix compilation error.
+// InteractiveModel uses activeAgent which is agent.Agent interface.
+
+func TestInteractiveModel_GenerateResponse(t *testing.T) {
+	m := NewInteractiveModel(nil, "", "")
+	mockAgent := &MockAgent{Response: "Hello"}
+	m.activeAgent = mockAgent // Inject mock
+
+	cmd := m.generateResponse("Hi")
+	assertNotNil(t, cmd)
+
+	msg := cmd()
+	streamMsg, ok := msg.(AgentStreamStartMsg)
+	if !ok {
+		t.Fatalf("Expected AgentStreamStartMsg, got %T", msg)
+	}
+
+	// Verify channels
+	if streamMsg.ChunkChan == nil {
+		t.Error("ChunkChan is nil")
+	}
+
+	// Wait for chunk
+	chunk := <-streamMsg.ChunkChan
+	if chunk != "Hello" {
+		t.Errorf("Expected 'Hello', got '%s'", chunk)
+	}
+}
+
+func TestInteractiveModel_WaitForChunkMsg(t *testing.T) {
+	m := NewInteractiveModel(nil, "", "")
+
+	// Setup channels
+	chunkChan := make(chan string, 1)
+	errChan := make(chan error, 1)
+
+	m.chunkChan = chunkChan
+	m.errChan = errChan
+
+	// Case 1: Chunk received
+	chunkChan <- "chunk"
+	cmd := m.waitForChunkMsg()
+	msg := cmd()
+
+	chunkMsg, ok := msg.(AgentChunkMsg)
+	if !ok {
+		t.Fatalf("Expected AgentChunkMsg, got %T", msg)
+	}
+	if chunkMsg.Content != "chunk" {
+		t.Errorf("Expected 'chunk', got '%s'", chunkMsg.Content)
+	}
+
+	// Case 2: Error received
+	errChan <- errors.New("stream error")
+	cmd = m.waitForChunkMsg()
+	msg = cmd()
+
+	errMsg, ok := msg.(AgentErrorMsg)
+	if !ok {
+		t.Fatalf("Expected AgentErrorMsg, got %T", msg)
+	}
+	if errMsg.Err.Error() != "stream error" {
+		t.Errorf("Expected 'stream error', got '%s'", errMsg.Err.Error())
+	}
+
+	// Case 3: Stream closed (Done)
+	close(chunkChan)
+	cmd = m.waitForChunkMsg()
+	msg = cmd()
+
+	respMsg, ok := msg.(AgentResponseMsg)
+	if !ok {
+		t.Fatalf("Expected AgentResponseMsg (Done), got %T", msg)
+	}
+	if respMsg.Content != "" {
+		t.Errorf("Expected empty content for done, got '%s'", respMsg.Content)
+	}
+}
+
+// Re-implement helper since we can't depend on other file's helper if running package test?
+// Wait, interactive_test.go is in same package.
+// But to be safe and avoid conflict if I named it differently, I'll use standard checks.
+// I used standard t.Error above.
+// Only assertNotNil used in GenerateResponse.
+
+func assertNotNil(t *testing.T, obj interface{}) {
+	if obj == nil {
+		t.Helper()
+		t.Error("Expected not nil")
 	}
 }
