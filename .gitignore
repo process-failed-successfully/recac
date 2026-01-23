@@ -58,6 +58,8 @@ test_projects/*/
 # Temporary files
 tmp/
 temp/
+test_output_*.txt
+test_spec
 # Added by RECAC
 
 # RECAC Agent Artifacts
