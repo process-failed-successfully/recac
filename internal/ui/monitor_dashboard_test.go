@@ -280,3 +280,43 @@ func TestMonitorDashboardModel_View_ConfirmKill(t *testing.T) {
 	assert.Contains(t, view, "bad-session")
 	assert.Contains(t, view, "(y/n)")
 }
+
+func TestMonitorDashboardModel_RefreshCmd(t *testing.T) {
+	// 1. Success case
+	sessions := []model.UnifiedSession{{Name: "s1"}}
+	getSessions := func() ([]model.UnifiedSession, error) {
+		return sessions, nil
+	}
+	cmd := refreshMonitorSessionsCmd(getSessions)
+	assert.NotNil(t, cmd)
+
+	msg := cmd()
+	refreshedMsg, ok := msg.(monitorSessionsRefreshedMsg)
+	assert.True(t, ok)
+	assert.Equal(t, 1, len(refreshedMsg))
+
+	// 2. Error case
+	getSessionsErr := func() ([]model.UnifiedSession, error) {
+		return nil, errors.New("fail")
+	}
+	cmdErr := refreshMonitorSessionsCmd(getSessionsErr)
+	msgErr := cmdErr()
+	actionRes, ok := msgErr.(actionResultMsg)
+	assert.True(t, ok)
+	assert.Error(t, actionRes.err)
+
+	// 3. Nil callback
+	cmdNil := refreshMonitorSessionsCmd(nil)
+	assert.Nil(t, cmdNil())
+}
+
+func TestMonitorDashboardModel_Update_Logs_Esc(t *testing.T) {
+	m := NewMonitorDashboardModel(ActionCallbacks{})
+	m.viewMode = "logs"
+	m.viewport.SetContent("logs")
+
+	// Press 'esc'
+	updatedM, _ := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	model := updatedM.(MonitorDashboardModel)
+	assert.Equal(t, "list", model.viewMode)
+}

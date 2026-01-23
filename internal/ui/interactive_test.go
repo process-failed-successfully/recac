@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"errors"
+	"os"
 	"strings"
 	"testing"
 
@@ -546,5 +547,147 @@ func assertNotNil(t *testing.T, obj interface{}) {
 	if obj == nil {
 		t.Helper()
 		t.Error("Expected not nil")
+	}
+}
+
+func TestInteractiveModel_InitAgentCmd(t *testing.T) {
+	t.Setenv("OPENAI_API_KEY", "test-key")
+	m := NewInteractiveModel(nil, "openai", "gpt-4")
+
+	cmd := m.initAgentCmd()
+	msg := cmd()
+
+	switch m := msg.(type) {
+	case AgentReadyMsg:
+		if m.Agent == nil {
+			t.Error("Agent should not be nil")
+		}
+	case AgentErrorMsg:
+		t.Errorf("Unexpected error: %v", m.Err)
+	default:
+		t.Errorf("Unexpected msg type: %T", msg)
+	}
+}
+
+func TestInteractiveModel_MenuSelection(t *testing.T) {
+	// 1. Agent Selection
+	m := NewInteractiveModel(nil, "", "")
+	m.setMode(ModeAgentSelect)
+	m.list.Select(0) // Assuming Gemini is 0
+
+	updatedM, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = updatedM.(InteractiveModel)
+
+	// Should switch back to ModeChat and re-init agent
+	if m.mode != ModeChat {
+		t.Errorf("Expected ModeChat, got %v", m.mode)
+	}
+	if cmd == nil {
+		t.Error("Expected cmd (initAgentCmd)")
+	}
+
+	// 2. Model Selection
+	m.setMode(ModeModelSelect)
+	m.list.Select(0)
+
+	updatedM, cmd = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = updatedM.(InteractiveModel)
+
+	if m.mode != ModeChat {
+		t.Errorf("Expected ModeChat after model select, got %v", m.mode)
+	}
+	if cmd == nil {
+		t.Error("Expected cmd (initAgentCmd)")
+	}
+}
+
+func TestInteractiveModel_TabCompletion(t *testing.T) {
+	// 1. Command completion
+	m := NewInteractiveModel(nil, "", "")
+	m.setMode(ModeCmd)         // / mode
+	m.textarea.SetValue("mod") // partial "/model"
+
+	msg := tea.KeyMsg{Type: tea.KeyTab}
+	updatedM, _ := m.Update(msg)
+	m = updatedM.(InteractiveModel)
+
+	// ModeCmd implies the prompt handles the slash, so value should complete to "model"
+	if m.textarea.Value() != "model" {
+		t.Errorf("Expected completion 'model', got '%s'", m.textarea.Value())
+	}
+
+	// 2. Chat mode slash completion
+	m.setMode(ModeChat)
+	m.textarea.SetValue("/agen")
+	updatedM, _ = m.Update(msg)
+	m = updatedM.(InteractiveModel)
+
+	if m.textarea.Value() != "/agent" {
+		t.Errorf("Expected completion '/agent', got '%s'", m.textarea.Value())
+	}
+}
+
+func TestInteractiveModel_MenuCancel(t *testing.T) {
+	m := NewInteractiveModel(nil, "", "")
+	m.setMode(ModeAgentSelect)
+
+	updatedM, _ := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	m = updatedM.(InteractiveModel)
+
+	if m.mode != ModeChat {
+		t.Errorf("Expected ModeChat after cancel, got %v", m.mode)
+	}
+}
+
+func TestInteractiveModel_ClearHistory(t *testing.T) {
+	m := NewInteractiveModel(nil, "", "")
+	m.conversation("Hello", true)
+	if len(m.messages) < 2 { // System + Hello
+		t.Error("Expected messages")
+	}
+
+	m.ClearHistory()
+	if len(m.messages) != 1 {
+		t.Errorf("History should have 1 message (confirmation), got %d", len(m.messages))
+	}
+	if !strings.Contains(m.messages[0].Content, "cleared") {
+		t.Errorf("Expected cleared message, got '%s'", m.messages[0].Content)
+	}
+}
+
+func TestLoadModelsFromFile(t *testing.T) {
+	// Create temp file
+	content := `{
+		"models": [
+			{"name": "model1", "displayName": "Model 1", "description": "Desc 1"},
+			{"name": "model2"}
+		]
+	}`
+
+	f, err := os.CreateTemp("", "models*.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(f.Name())
+
+	if _, err := f.Write([]byte(content)); err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	models, err := loadModelsFromFile(f.Name())
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if len(models) != 2 {
+		t.Errorf("Expected 2 models, got %d", len(models))
+	}
+
+	if models[0].Name != "Model 1" {
+		t.Errorf("Expected 'Model 1', got '%s'", models[0].Name)
+	}
+	if models[1].Name != "model2" { // Fallback to name if displayName empty
+		t.Errorf("Expected 'model2', got '%s'", models[1].Name)
 	}
 }

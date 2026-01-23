@@ -160,3 +160,84 @@ func TestCostModel_Init_Cmds(t *testing.T) {
 	// We can't easily inspect BatchMsg without internal knowledge or executing it.
 	// But simply asserting it's not nil covers the code path in Init().
 }
+
+func TestFetchSessionsCmd(t *testing.T) {
+	// Success
+	sm := &MockSessionManager{
+		ListSessionsFunc: func() ([]*runner.SessionState, error) {
+			return []*runner.SessionState{{Name: "test"}}, nil
+		},
+	}
+
+	cmd := fetchSessions(sm)
+	if cmd == nil {
+		t.Fatal("fetchSessions returned nil cmd")
+	}
+
+	msg := cmd()
+	sessionsMsg, ok := msg.(updateMsg)
+	if !ok {
+		t.Errorf("Expected updateMsg, got %T", msg)
+	}
+	if len(sessionsMsg) != 1 {
+		t.Errorf("Expected 1 session")
+	}
+
+	// Error
+	smErr := &MockSessionManager{
+		ListSessionsFunc: func() ([]*runner.SessionState, error) {
+			return nil, errors.New("fail")
+		},
+	}
+	cmdErr := fetchSessions(smErr)
+	msgErr := cmdErr()
+	errMsg, ok := msgErr.(errMsg)
+	if !ok {
+		t.Errorf("Expected errMsg, got %T", msgErr)
+	}
+	if errMsg.err.Error() != "fail" {
+		t.Errorf("Expected error fail, got %v", errMsg.err)
+	}
+}
+
+func TestTickCmd(t *testing.T) {
+	cmd := tickCmd()
+	if cmd == nil {
+		t.Error("tickCmd returned nil")
+	}
+	// We avoid executing it because it sleeps for 2 seconds
+}
+
+func TestStartCostTUI_Wrapper(t *testing.T) {
+	called := false
+	mockStart := func(sm SessionManager) error {
+		called = true
+		return nil
+	}
+
+	original := startCostTUI
+	defer func() { startCostTUI = original }()
+
+	SetStartCostTUIForTest(mockStart)
+
+	err := StartCostTUI(&MockSessionManager{})
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if !called {
+		t.Error("Expected mock start to be called")
+	}
+}
+
+func TestStartCostTUI_NoLoader(t *testing.T) {
+	// Reset LoadAgentState to nil to test error
+	originalLoader := LoadAgentState
+	defer func() { LoadAgentState = originalLoader }()
+	LoadAgentState = nil
+
+	// If LoadAgentState is nil, startCostTUI returns error immediately without starting TUI program.
+	err := startCostTUI(&MockSessionManager{})
+	if err == nil {
+		t.Error("Expected error when LoadAgentState is nil")
+	}
+}
