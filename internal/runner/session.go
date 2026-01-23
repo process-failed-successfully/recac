@@ -88,6 +88,7 @@ type Session struct {
 	SpecContent               string       // Explicit specification content (e.g. from Jira)
 	FeatureContent            string       // Explicit feature list JSON content (authoritative)
 	Logger                    *slog.Logger // Structured logger for this session
+	SleepFunc                 func(time.Duration) // Function for sleeping (mockable)
 
 	mu sync.RWMutex // Protects concurrent access to Iteration, SlackThreadTS, ContainerID
 }
@@ -207,6 +208,7 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 		Notifier:         notify.NewManager(telemetry.LogInfof),
 		UseLocalAgent:    os.Getenv("KUBERNETES_SERVICE_HOST") != "",
 		Logger:           logger,
+		SleepFunc:        time.Sleep,
 	}
 }
 
@@ -287,6 +289,7 @@ func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, pr
 		MaxAgents:        maxAgents,
 		Notifier:         notify.NewManager(telemetry.LogInfof),
 		Logger:           logger,
+		SleepFunc:        time.Sleep,
 	}
 }
 
@@ -846,6 +849,11 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		s.Notifier = notify.NewManager(func(string, ...interface{}) {})
 	}
 
+	// Guard: Ensure SleepFunc is initialized
+	if s.SleepFunc == nil {
+		s.SleepFunc = time.Sleep
+	}
+
 	s.Logger.Info("entering autonomous run loop")
 	// Note: We use the stored SlackThreadTS if available (from startup), otherwise we start a new thread here if needed?
 	// But Start() is called before RunLoop(), so s.SlackThreadTS should be set if notifications are enabled.
@@ -1032,7 +1040,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 						s.Logger.Warn("fetch failed", "attempt", i+1, "max", maxRetries, "error", err)
 						gitClient.Recover(s.Workspace) // Try recovering for next loop
 					}
-					time.Sleep(2 * time.Second)
+					s.SleepFunc(2 * time.Second)
 				}
 
 				if !success {
@@ -1261,8 +1269,8 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		// Check for Agent/API Error (e.g. 413, Network, etc)
 		if err != nil {
 			s.Logger.Error("iteration failed", "error", err)
-			time.Sleep(5 * time.Second) // Backoff
-			continue                    // Retry loop without tripping no-op breaker
+			s.SleepFunc(5 * time.Second) // Backoff
+			continue                     // Retry loop without tripping no-op breaker
 		}
 
 		// Circuit Breaker: No-Op Check
@@ -1291,7 +1299,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		// Push progress to remote periodically (to ensure visibility in Jira/Git)
 		s.pushProgress(ctx)
 
-		time.Sleep(1 * time.Second)
+		s.SleepFunc(1 * time.Second)
 	}
 
 	// Save final agent state before exiting
