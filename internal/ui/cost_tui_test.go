@@ -160,3 +160,53 @@ func TestCostModel_Init_Cmds(t *testing.T) {
 	// We can't easily inspect BatchMsg without internal knowledge or executing it.
 	// But simply asserting it's not nil covers the code path in Init().
 }
+
+func TestStartCostTUI_Error(t *testing.T) {
+	// Save original
+	orig := LoadAgentState
+	defer func() { LoadAgentState = orig }()
+
+	// Set to nil
+	LoadAgentState = nil
+
+	err := StartCostTUI(&MockSessionManager{})
+	if err == nil {
+		t.Error("Expected error when LoadAgentState is nil")
+	}
+}
+
+func TestFetchSessions(t *testing.T) {
+	sm := &MockSessionManager{
+		ListSessionsFunc: func() ([]*runner.SessionState, error) {
+			return []*runner.SessionState{{Name: "test"}}, nil
+		},
+	}
+
+	cmd := fetchSessions(sm)
+	msg := cmd()
+
+	update, ok := msg.(updateMsg)
+	if !ok {
+		t.Errorf("Expected updateMsg, got %T", msg)
+	}
+	if len(update) != 1 || update[0].Name != "test" {
+		t.Errorf("Expected 1 session with name test, got %v", update)
+	}
+
+	// Error case
+	smErr := &MockSessionManager{
+		ListSessionsFunc: func() ([]*runner.SessionState, error) {
+			return nil, errors.New("fail")
+		},
+	}
+	cmdErr := fetchSessions(smErr)
+	msgErr := cmdErr()
+
+	errMsgVal, ok := msgErr.(errMsg)
+	if !ok {
+		t.Errorf("Expected errMsg, got %T", msgErr)
+	}
+	if errMsgVal.err.Error() != "fail" {
+		t.Errorf("Expected fail error, got %v", errMsgVal.err)
+	}
+}

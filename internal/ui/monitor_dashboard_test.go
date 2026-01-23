@@ -280,3 +280,41 @@ func TestMonitorDashboardModel_View_ConfirmKill(t *testing.T) {
 	assert.Contains(t, view, "bad-session")
 	assert.Contains(t, view, "(y/n)")
 }
+
+func TestMonitorDashboardModel_Update_Logs_Navigation(t *testing.T) {
+	m := NewMonitorDashboardModel(ActionCallbacks{})
+	m.viewMode = "logs"
+	m.logContent = "logs"
+
+	// 1. Press 'esc' to go back
+	updatedM, _ := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	model := updatedM.(MonitorDashboardModel)
+	assert.Equal(t, "list", model.viewMode)
+
+	// Reset
+	m.viewMode = "logs"
+	// 2. Press 'q' to go back
+	updatedM, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	model = updatedM.(MonitorDashboardModel)
+	assert.Equal(t, "list", model.viewMode)
+}
+
+func TestMonitorDashboardModel_Update_Kill_Confirm_Navigation(t *testing.T) {
+	m := NewMonitorDashboardModel(ActionCallbacks{})
+	m.viewMode = "confirm_kill"
+	m.sessionToKill = "s1"
+
+	// 1. Press 'esc'
+	updatedM, _ := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	model := updatedM.(MonitorDashboardModel)
+	assert.Equal(t, "list", model.viewMode)
+	assert.Equal(t, "", model.sessionToKill)
+
+	// Reset
+	m.viewMode = "confirm_kill"
+	m.sessionToKill = "s1"
+	// 2. Press 'q'
+	updatedM, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	model = updatedM.(MonitorDashboardModel)
+	assert.Equal(t, "list", model.viewMode)
+}
