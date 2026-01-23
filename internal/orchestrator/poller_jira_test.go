@@ -206,3 +206,52 @@ func TestJiraPoller_Poll(t *testing.T) {
 		mockClient.AssertExpectations(t)
 	})
 }
+func TestExtractRequiredFeatures(t *testing.T) {
+	tests := []struct {
+		name     string
+		desc     string
+		expected int // number of features
+	}{
+		{
+			name: "Basic Format",
+			desc: "Some intro text.\nREQUIRED FEATURES:\n- Feature 1\n- Feature 2\n\nSome outro.",
+			expected: 2,
+		},
+		{
+			name: "Acceptance Criteria Header",
+			desc: "ACCEPTANCE CRITERIA:\n* Criteria A\n* Criteria B",
+			expected: 2,
+		},
+		{
+			name: "Case Insensitive",
+			desc: "required features:\n- f1",
+			expected: 1,
+		},
+		{
+			name: "Empty Description",
+			desc: "",
+			expected: 0,
+		},
+		{
+			name: "No Features Section",
+			desc: "Just description",
+			expected: 0,
+		},
+		{
+			name: "Terminated by new header",
+			desc: "REQUIRED FEATURES:\n- F1\n\nOTHER HEADER:\n- something else",
+			expected: 1,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			features := extractRequiredFeatures(tc.desc)
+			assert.Len(t, features, tc.expected)
+			if tc.expected > 0 {
+				assert.NotEmpty(t, features[0].ID)
+				assert.NotEmpty(t, features[0].Description)
+			}
+		})
+	}
+}
