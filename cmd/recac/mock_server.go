@@ -88,10 +88,13 @@ func runMockServer(cmd *cobra.Command, args []string) error {
 // NewMockServerHandler creates the HTTP handler for the mock server.
 // Exported for testing purposes.
 func NewMockServerHandler(ctx context.Context, ag agent.Agent, contextContent string, latency time.Duration, logOut io.Writer) http.HandlerFunc {
+	if logOut == nil {
+		logOut = io.Discard
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		defer func() {
-			fmt.Fprintf(logOut, "[%s] %s %s (%v)\n", time.Now().Format(time.TimeOnly), r.Method, r.URL.Path, time.Since(start))
+			_, _ = fmt.Fprintf(logOut, "[%s] %s %s (%v)\n", time.Now().Format(time.TimeOnly), r.Method, r.URL.Path, time.Since(start))
 		}()
 
 		if latency > 0 {
