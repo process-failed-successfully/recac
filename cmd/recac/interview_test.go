@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"testing"
 	"recac/internal/agent"
+	"testing"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/stretchr/testify/assert"
