@@ -242,6 +242,18 @@ func (m *MockGitClient) BisectLog(directory string) ([]string, error) {
 	return []string{}, nil
 }
 
+func (m *MockGitClient) Tag(directory, version string) error {
+	return nil
+}
+
+func (m *MockGitClient) PushTags(directory string) error {
+	return nil
+}
+
+func (m *MockGitClient) LatestTag(directory string) (string, error) {
+	return "v0.0.0", nil
+}
+
 func TestSetupWorkspace(t *testing.T) {
 	t.Run("Empty Repo URL", func(t *testing.T) {
 		mockGitClient := &MockGitClient{}

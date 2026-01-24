@@ -73,6 +73,26 @@ func (m *MockGitClient) CurrentCommitSHA(repoPath string) (string, error) {
 	return args.String(0), args.Error(1)
 }
 
+func (m *MockGitClient) Fetch(repoPath, remote, branch string) error {
+	args := m.Called(repoPath, remote, branch)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) Tag(repoPath, version string) error {
+	args := m.Called(repoPath, version)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) PushTags(repoPath string) error {
+	args := m.Called(repoPath)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) LatestTag(repoPath string) (string, error) {
+	args := m.Called(repoPath)
+	return args.String(0), args.Error(1)
+}
+
 // Mock Poller (Minimal for this test)
 type MockPoller struct {
 	mock.Mock

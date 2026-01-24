@@ -338,6 +338,7 @@ type MockGitClient struct {
 	RepoExistsFunc        func(repoPath string) bool
 	CommitFunc            func(repoPath, message string) error
 	LogFunc               func(repoPath string, args ...string) ([]string, error)
+	FetchFunc             func(repoPath, remote, branch string) error
 	CurrentBranchFunc     func(repoPath string) (string, error)
 	CheckoutNewBranchFunc func(repoPath, branch string) error
 	BisectStartFunc       func(repoPath, bad, good string) error
@@ -345,6 +346,30 @@ type MockGitClient struct {
 	BisectBadFunc         func(repoPath, rev string) error
 	BisectResetFunc       func(repoPath string) error
 	BisectLogFunc         func(repoPath string) ([]string, error)
+	TagFunc               func(repoPath, version string) error
+	PushTagsFunc          func(repoPath string) error
+	LatestTagFunc         func(repoPath string) (string, error)
+}
+
+func (m *MockGitClient) Tag(repoPath, version string) error {
+	if m.TagFunc != nil {
+		return m.TagFunc(repoPath, version)
+	}
+	return nil
+}
+
+func (m *MockGitClient) PushTags(repoPath string) error {
+	if m.PushTagsFunc != nil {
+		return m.PushTagsFunc(repoPath)
+	}
+	return nil
+}
+
+func (m *MockGitClient) LatestTag(repoPath string) (string, error) {
+	if m.LatestTagFunc != nil {
+		return m.LatestTagFunc(repoPath)
+	}
+	return "v0.0.0", nil
 }
 
 func (m *MockGitClient) Checkout(repoPath, commitOrBranch string) error {
@@ -394,6 +419,13 @@ func (m *MockGitClient) Log(repoPath string, args ...string) ([]string, error) {
 		return m.LogFunc(repoPath, args...)
 	}
 	return []string{}, nil
+}
+
+func (m *MockGitClient) Fetch(repoPath, remote, branch string) error {
+	if m.FetchFunc != nil {
+		return m.FetchFunc(repoPath, remote, branch)
+	}
+	return nil
 }
 
 func (m *MockGitClient) CurrentBranch(repoPath string) (string, error) {
