@@ -83,6 +83,11 @@ func (m *MockGitClient) Tag(repoPath, version string) error {
 	return args.Error(0)
 }
 
+func (m *MockGitClient) DeleteTag(repoPath, version string) error {
+	args := m.Called(repoPath, version)
+	return args.Error(0)
+}
+
 func (m *MockGitClient) PushTags(repoPath string) error {
 	args := m.Called(repoPath)
 	return args.Error(0)
