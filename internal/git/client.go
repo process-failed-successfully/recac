@@ -507,6 +507,16 @@ func (c *Client) Tag(dir, version string) error {
 	return cmd.Run()
 }
 
+// DeleteTag deletes a tag.
+func (c *Client) DeleteTag(dir, version string) error {
+	// git tag -d v1.0.0
+	cmd := exec.Command("git", "tag", "-d", version)
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
 // PushTags pushes tags to the remote.
 func (c *Client) PushTags(dir string) error {
 	// git push --tags

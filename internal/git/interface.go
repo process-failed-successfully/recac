@@ -38,6 +38,7 @@ type IClient interface {
 	BisectReset(directory string) error
 	BisectLog(directory string) ([]string, error)
 	Tag(directory, version string) error
+	DeleteTag(directory, version string) error
 	PushTags(directory string) error
 	LatestTag(directory string) (string, error)
 }

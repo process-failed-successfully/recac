@@ -192,6 +192,11 @@ func (m *MockGitClient) Tag(directory, version string) error {
 	return args.Error(0)
 }
 
+func (m *MockGitClient) DeleteTag(directory, version string) error {
+	args := m.Called(directory, version)
+	return args.Error(0)
+}
+
 func (m *MockGitClient) PushTags(directory string) error {
 	args := m.Called(directory)
 	return args.Error(0)

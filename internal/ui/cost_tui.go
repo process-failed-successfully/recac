@@ -3,8 +3,6 @@ package ui
 import (
 	"fmt"
 	"os"
-	"sort"
-	"strings"
 	"time"
 
 	"recac/internal/agent"
@@ -65,21 +63,6 @@ type costModel struct {
 	sm       SessionManager
 	sessions []*runner.SessionState
 	err      error
-
-	// Aggregated stats
-	totalCost   float64
-	totalTokens int
-	modelCosts  []*modelCost
-}
-
-// modelCost aggregates cost and token data for a specific model.
-// Defined locally to match CLI logic without circular dependency.
-type modelCost struct {
-	Name                string
-	TotalTokens         int
-	TotalPromptTokens   int
-	TotalResponseTokens int
-	TotalCost           float64
 }
 
 type updateMsg []*runner.SessionState
@@ -160,57 +143,11 @@ func (m *costModel) View() string {
 	}
 	title := " RECAC Live Session Monitor "
 	help := "\n  ↑/↓: Navigate • q: Quit"
-
-	stats := m.renderStats()
-
-	return lipgloss.JoinVertical(lipgloss.Left,
-		baseStyle.Render(title+"\n"+m.table.View()),
-		stats,
-		help,
-	)
-}
-
-func (m *costModel) renderStats() string {
-	if len(m.modelCosts) == 0 {
-		return ""
-	}
-
-	var sb strings.Builder
-	sb.WriteString("\n COST BY MODEL\n")
-	sb.WriteString(" -------------\n")
-
-	// Simple table-like formatting for stats
-	// MODEL  COST  TOTAL TOKENS  PROMPT  RESPONSE
-	header := fmt.Sprintf(" %-20s %-12s %-12s %-12s %-12s\n", "MODEL", "COST", "TOTAL", "PROMPT", "RESPONSE")
-	sb.WriteString(header)
-
-	for _, mc := range m.modelCosts {
-		line := fmt.Sprintf(" %-20s $%-11.4f %-12d %-12d %-12d\n",
-			mc.Name, mc.TotalCost, mc.TotalTokens, mc.TotalPromptTokens, mc.TotalResponseTokens)
-		sb.WriteString(line)
-	}
-
-	sb.WriteString("\n TOTALS\n")
-	sb.WriteString(" ------\n")
-	sb.WriteString(fmt.Sprintf(" Total Estimated Cost: $%.4f\n", m.totalCost))
-	sb.WriteString(fmt.Sprintf(" Total Tokens:         %d\n", m.totalTokens))
-
-	return lipgloss.NewStyle().
-		MarginTop(1).
-		Padding(0, 1).
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("240")).
-		Render(sb.String())
+	return baseStyle.Render(title+"\n"+m.table.View()) + help
 }
 
 func (m *costModel) updateTable() {
 	rows := make([]table.Row, len(m.sessions))
-
-	// Reset stats
-	m.totalCost = 0
-	m.totalTokens = 0
-	modelCostsMap := make(map[string]*modelCost)
-
 	for i, session := range m.sessions {
 		started := session.StartTime.Format("2006-01-02 15:04:05")
 		var duration string
@@ -233,24 +170,7 @@ func (m *costModel) updateTable() {
 				"N/A",
 			}
 		} else {
-			if agentState.Model == "" {
-				agentState.Model = "unknown"
-			}
 			cost := agent.CalculateCost(agentState.Model, agentState.TokenUsage)
-
-			// Aggregate stats
-			m.totalCost += cost
-			m.totalTokens += agentState.TokenUsage.TotalTokens
-
-			if _, ok := modelCostsMap[agentState.Model]; !ok {
-				modelCostsMap[agentState.Model] = &modelCost{Name: agentState.Model}
-			}
-			mc := modelCostsMap[agentState.Model]
-			mc.TotalTokens += agentState.TokenUsage.TotalTokens
-			mc.TotalPromptTokens += agentState.TokenUsage.TotalPromptTokens
-			mc.TotalResponseTokens += agentState.TokenUsage.TotalResponseTokens
-			mc.TotalCost += cost
-
 			rows[i] = table.Row{
 				session.Name,
 				session.Status,
@@ -264,15 +184,6 @@ func (m *costModel) updateTable() {
 		}
 	}
 	m.table.SetRows(rows)
-
-	// Sort model costs
-	m.modelCosts = make([]*modelCost, 0, len(modelCostsMap))
-	for _, mc := range modelCostsMap {
-		m.modelCosts = append(m.modelCosts, mc)
-	}
-	sort.Slice(m.modelCosts, func(i, j int) bool {
-		return m.modelCosts[i].TotalCost > m.modelCosts[j].TotalCost
-	})
 }
 
 type tickMsg time.Time
