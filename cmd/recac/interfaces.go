@@ -34,6 +34,7 @@ type IGitClient interface {
 	RepoExists(repoPath string) bool
 	Commit(repoPath, message string) error
 	Log(repoPath string, args ...string) ([]string, error)
+	Fetch(repoPath, remote, branch string) error
 	CurrentBranch(repoPath string) (string, error)
 	CheckoutNewBranch(repoPath, branch string) error
 	BisectStart(repoPath, bad, good string) error
@@ -41,4 +42,7 @@ type IGitClient interface {
 	BisectBad(repoPath, rev string) error
 	BisectReset(repoPath string) error
 	BisectLog(repoPath string) ([]string, error)
+	Tag(repoPath, version string) error
+	PushTags(repoPath string) error
+	LatestTag(repoPath string) (string, error)
 }

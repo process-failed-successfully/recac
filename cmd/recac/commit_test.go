@@ -89,6 +89,9 @@ func (m *MockGitClientCommit) BisectGood(directory, rev string) error        { r
 func (m *MockGitClientCommit) BisectBad(directory, rev string) error         { return nil }
 func (m *MockGitClientCommit) BisectReset(directory string) error            { return nil }
 func (m *MockGitClientCommit) BisectLog(directory string) ([]string, error)  { return []string{}, nil }
+func (m *MockGitClientCommit) Tag(directory, version string) error           { return nil }
+func (m *MockGitClientCommit) PushTags(directory string) error               { return nil }
+func (m *MockGitClientCommit) LatestTag(directory string) (string, error)    { return "v0.0.0", nil }
 
 func TestCommitCmd(t *testing.T) {
 	// Setup mocks

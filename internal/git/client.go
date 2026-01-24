@@ -496,3 +496,34 @@ func (c *Client) BisectLog(dir string) ([]string, error) {
 	}
 	return strings.Split(strings.TrimSpace(out.String()), "\n"), nil
 }
+
+// Tag creates an annotated tag.
+func (c *Client) Tag(dir, version string) error {
+	// git tag -a v1.0.0 -m "Release v1.0.0"
+	cmd := exec.Command("git", "tag", "-a", version, "-m", fmt.Sprintf("Release %s", version))
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+// PushTags pushes tags to the remote.
+func (c *Client) PushTags(dir string) error {
+	// git push --tags
+	return c.runWithMasking(context.Background(), dir, "push", "--tags")
+}
+
+// LatestTag returns the latest tag.
+func (c *Client) LatestTag(dir string) (string, error) {
+	// git describe --tags --abbrev=0
+	cmd := exec.Command("git", "describe", "--tags", "--abbrev=0")
+	cmd.Dir = dir
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	// Don't clutter stderr if no tags exist
+	if err := cmd.Run(); err != nil {
+		// It's normal to have no tags
+		return "", nil
+	}
+	return strings.TrimSpace(out.String()), nil
+}
