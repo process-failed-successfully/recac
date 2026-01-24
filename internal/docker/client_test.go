@@ -24,6 +24,7 @@ type mockAPIClient struct {
 	serverVersionFunc       func(ctx context.Context) (types.Version, error)
 	imageListFunc           func(ctx context.Context, options image.ListOptions) ([]image.Summary, error)
 	imagePullFunc           func(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error)
+	containerListFunc       func(ctx context.Context, options container.ListOptions) ([]types.Container, error)
 	containerStopFunc       func(ctx context.Context, containerID string, options container.StopOptions) error
 	containerCreateFunc     func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error)
 	containerExecCreateFunc func(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error)
@@ -60,6 +61,13 @@ func (m *mockAPIClient) ImagePull(ctx context.Context, ref string, options image
 
 func (m *mockAPIClient) ImageBuild(ctx context.Context, buildContext io.Reader, options build.ImageBuildOptions) (types.ImageBuildResponse, error) {
 	return types.ImageBuildResponse{Body: io.NopCloser(strings.NewReader(""))}, nil
+}
+
+func (m *mockAPIClient) ContainerList(ctx context.Context, options container.ListOptions) ([]types.Container, error) {
+	if m.containerListFunc != nil {
+		return m.containerListFunc(ctx, options)
+	}
+	return []types.Container{}, nil
 }
 
 func (m *mockAPIClient) ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error) {
