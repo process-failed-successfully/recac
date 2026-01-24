@@ -12,6 +12,12 @@ import (
 // execCommand is a package-level variable to allow mocking in tests.
 var execCommand = exec.Command
 
+// writeFileFunc is a package-level variable to allow mocking in tests.
+var writeFileFunc = os.WriteFile
+
+// mkdirAllFunc is a package-level variable to allow mocking in tests.
+var mkdirAllFunc = os.MkdirAll
+
 // DefaultIgnoreMap returns a map of common directories and files to ignore during scans.
 func DefaultIgnoreMap() map[string]bool {
 	return map[string]bool{
