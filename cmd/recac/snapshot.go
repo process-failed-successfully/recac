@@ -40,7 +40,7 @@ var snapshotSaveCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Fprintf(cmd.OutOrStdout(), "Snapshot '%s' saved successfully.\n", name)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Snapshot '%s' saved successfully.\n", name)
 		return nil
 	},
 }
@@ -68,7 +68,7 @@ var snapshotRestoreCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Fprintf(cmd.OutOrStdout(), "Snapshot '%s' restored successfully.\n", name)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Snapshot '%s' restored successfully.\n", name)
 		return nil
 	},
 }
@@ -95,21 +95,21 @@ var snapshotListCmd = &cobra.Command{
 		}
 
 		if len(snapshots) == 0 {
-			fmt.Fprintln(cmd.OutOrStdout(), "No snapshots found.")
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No snapshots found.")
 			return nil
 		}
 
 		w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 3, ' ', 0)
-		fmt.Fprintln(w, "NAME\tTIME\tCOMMIT\tDESCRIPTION")
+		_, _ = fmt.Fprintln(w, "NAME\tTIME\tCOMMIT\tDESCRIPTION")
 		for _, s := range snapshots {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
 				s.Name,
 				s.Timestamp.Format(time.RFC822),
 				s.CommitSHA[:7],
 				s.Description,
 			)
 		}
-		w.Flush()
+		_ = w.Flush()
 		return nil
 	},
 }
@@ -137,7 +137,7 @@ var snapshotDeleteCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Fprintf(cmd.OutOrStdout(), "Snapshot '%s' deleted successfully.\n", name)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Snapshot '%s' deleted successfully.\n", name)
 		return nil
 	},
 }
