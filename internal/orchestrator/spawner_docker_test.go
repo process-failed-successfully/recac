@@ -235,7 +235,13 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 
 	// Check if the ID is quoted in the command string
 	// Depending on implementation, checking for quoted ID:
-	assert.Contains(t, capturedCmd[2], "--jira \"TASK-1\\\"; echo \\\"injected\"")
+	// Our custom shellQuote always quotes and escapes single quotes.
+	// "TASK-1"; echo "injected" -> 'TASK-1"; echo "injected'
+	// Wait, "TASK-1\"; echo \"injected" (in Go string literal)
+	// Input ID: TASK-1"; echo "injected
+	// Quoted: 'TASK-1"; echo "injected'
+	// Note: shellJoin quotes all arguments, including flags
+	assert.Contains(t, capturedCmd[2], "'--jira' 'TASK-1\"; echo \"injected'")
 }
 
 func TestDockerSpawner_EnvPropagation(t *testing.T) {

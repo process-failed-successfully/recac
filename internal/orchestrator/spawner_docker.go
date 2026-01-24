@@ -68,10 +68,11 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	}
 
 	// 4. Create and save the initial session state
+	// Note: We don't quote here yet, we'll use shellquote.Join later to ensure safety
 	agentCmd := []string{
 		"/usr/local/bin/recac-agent",
-		"--jira", fmt.Sprintf("%q", item.ID),
-		"--project", fmt.Sprintf("%q", item.ID),
+		"--jira", item.ID,
+		"--project", item.ID,
 		"--detached=false",
 		"--cleanup=false",
 		"--path", "/workspace",
@@ -106,13 +107,13 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		// Construct Command
 		var envExports []string
 		if s.AgentProvider != "" {
-			envExports = append(envExports, fmt.Sprintf("export RECAC_PROVIDER='%s'", s.AgentProvider))
+			envExports = append(envExports, fmt.Sprintf("export RECAC_PROVIDER=%s", shellQuote(s.AgentProvider)))
 		}
 		if s.AgentModel != "" {
-			envExports = append(envExports, fmt.Sprintf("export RECAC_MODEL='%s'", s.AgentModel))
+			envExports = append(envExports, fmt.Sprintf("export RECAC_MODEL=%s", shellQuote(s.AgentModel)))
 		}
 		envExports = append(envExports, "export GIT_TERMINAL_PROMPT=0")
-		envExports = append(envExports, fmt.Sprintf("export RECAC_PROJECT_ID='%s'", item.ID))
+		envExports = append(envExports, fmt.Sprintf("export RECAC_PROJECT_ID=%s", shellQuote(item.ID)))
 
 		// Inject Git Identity to prevent "Author identity unknown" errors
 		envExports = append(envExports, "export GIT_AUTHOR_NAME='RECAC Agent'")
@@ -122,42 +123,43 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 
 		// Propagate Notifications Config
 		if val := os.Getenv("RECAC_NOTIFICATIONS_DISCORD_ENABLED"); val != "" {
-			envExports = append(envExports, fmt.Sprintf("export RECAC_NOTIFICATIONS_DISCORD_ENABLED='%s'", val))
+			envExports = append(envExports, fmt.Sprintf("export RECAC_NOTIFICATIONS_DISCORD_ENABLED=%s", shellQuote(val)))
 		}
 		if val := os.Getenv("RECAC_NOTIFICATIONS_SLACK_ENABLED"); val != "" {
-			envExports = append(envExports, fmt.Sprintf("export RECAC_NOTIFICATIONS_SLACK_ENABLED='%s'", val))
+			envExports = append(envExports, fmt.Sprintf("export RECAC_NOTIFICATIONS_SLACK_ENABLED=%s", shellQuote(val)))
 		}
 
 		for k, v := range item.EnvVars {
-			envExports = append(envExports, fmt.Sprintf("export %s='%s'", k, v))
+			envExports = append(envExports, fmt.Sprintf("export %s=%s", k, shellQuote(v)))
 		}
 
 		secrets := []string{"JIRA_API_TOKEN", "JIRA_USERNAME", "JIRA_URL", "GITHUB_TOKEN", "GITHUB_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY", "RECAC_DB_TYPE", "RECAC_DB_URL"}
 		for _, secret := range secrets {
 			if val := os.Getenv(secret); val != "" {
-				envExports = append(envExports, fmt.Sprintf("export %s='%s'", secret, val))
+				quotedVal := shellQuote(val)
+				envExports = append(envExports, fmt.Sprintf("export %s=%s", secret, quotedVal))
 				if secret == "GITHUB_API_KEY" {
-					envExports = append(envExports, fmt.Sprintf("export RECAC_GITHUB_API_KEY='%s'", val))
+					envExports = append(envExports, fmt.Sprintf("export RECAC_GITHUB_API_KEY=%s", quotedVal))
 				}
 			}
 		}
 
-		envExports = append(envExports, fmt.Sprintf("export RECAC_HOST_WORKSPACE_PATH='%s'", tempDir))
+		envExports = append(envExports, fmt.Sprintf("export RECAC_HOST_WORKSPACE_PATH=%s", shellQuote(tempDir)))
 
 		// Propagate Agent Limits from Host (Default to 20 if unset)
 		maxIterations := "20"
 		if val := os.Getenv("RECAC_MAX_ITERATIONS"); val != "" {
 			maxIterations = val
 		}
-		envExports = append(envExports, fmt.Sprintf("export RECAC_MAX_ITERATIONS='%s'", maxIterations))
+		envExports = append(envExports, fmt.Sprintf("export RECAC_MAX_ITERATIONS=%s", shellQuote(maxIterations)))
 
 		if val := os.Getenv("RECAC_MANAGER_FREQUENCY"); val != "" {
-			envExports = append(envExports, fmt.Sprintf("export RECAC_MANAGER_FREQUENCY='%s'", val))
+			envExports = append(envExports, fmt.Sprintf("export RECAC_MANAGER_FREQUENCY=%s", shellQuote(val)))
 		}
 
 		cmdStr := "cd /workspace"
 		cmdStr += " && " + strings.Join(envExports, " && ")
-		cmdStr += " && " + strings.Join(agentCmd, " ") + " --allow-dirty"
+		cmdStr += " && " + shellJoin(agentCmd...) + " --allow-dirty"
 		cmdStr += " && echo 'Recac Finished'"
 
 		cmd := []string{"/bin/sh", "-c", cmdStr}
@@ -212,4 +214,25 @@ func (s *DockerSpawner) Cleanup(ctx context.Context, item WorkItem) error {
 	// For now, we rely on the agent's own cleanup and don't manage the container lifecycle here.
 	// Future implementation could stop/remove the container.
 	return nil
+}
+
+// shellQuote returns a shell-escaped version of the string.
+// It uses single quotes to wrap the string and escapes internal single quotes.
+func shellQuote(s string) string {
+	if s == "" {
+		return "''"
+	}
+	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
+}
+
+// shellJoin joins multiple strings with spaces, quoting each one.
+func shellJoin(args ...string) string {
+	var sb strings.Builder
+	for i, arg := range args {
+		if i > 0 {
+			sb.WriteByte(' ')
+		}
+		sb.WriteString(shellQuote(arg))
+	}
+	return sb.String()
 }
