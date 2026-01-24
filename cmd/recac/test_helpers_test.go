@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -352,6 +353,24 @@ func (m *MockGitClient) Checkout(repoPath, commitOrBranch string) error {
 		return m.CheckoutFunc(repoPath, commitOrBranch)
 	}
 	return nil
+}
+
+// ThreadSafeBuffer is a bytes.Buffer wrapper that is safe for concurrent use.
+type ThreadSafeBuffer struct {
+	b  bytes.Buffer
+	mu sync.Mutex
+}
+
+func (b *ThreadSafeBuffer) Write(p []byte) (n int, err error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.b.Write(p)
+}
+
+func (b *ThreadSafeBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.b.String()
 }
 
 func (m *MockGitClient) BisectStart(repoPath, bad, good string) error {
