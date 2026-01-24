@@ -28,6 +28,8 @@ type mockAPIClient struct {
 	containerCreateFunc     func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error)
 	containerExecCreateFunc func(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error)
 	containerExecAttachFunc func(ctx context.Context, execID string, config container.ExecStartOptions) (types.HijackedResponse, error)
+	containerListFunc       func(ctx context.Context, options container.ListOptions) ([]types.Container, error)
+	containerKillFunc       func(ctx context.Context, containerID, signal string) error
 }
 
 func (m *mockAPIClient) Ping(ctx context.Context) (types.Ping, error) {
@@ -105,6 +107,20 @@ func (m *mockAPIClient) ContainerStop(ctx context.Context, containerID string, o
 func (m *mockAPIClient) ContainerRemove(ctx context.Context, containerID string, options container.RemoveOptions) error {
 	if containerID == "fail" {
 		return errors.New("remove failed")
+	}
+	return nil
+}
+
+func (m *mockAPIClient) ContainerList(ctx context.Context, options container.ListOptions) ([]types.Container, error) {
+	if m.containerListFunc != nil {
+		return m.containerListFunc(ctx, options)
+	}
+	return []types.Container{}, nil
+}
+
+func (m *mockAPIClient) ContainerKill(ctx context.Context, containerID, signal string) error {
+	if m.containerKillFunc != nil {
+		return m.containerKillFunc(ctx, containerID, signal)
 	}
 	return nil
 }

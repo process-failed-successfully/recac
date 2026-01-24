@@ -29,6 +29,8 @@ type MockAPI struct {
 	ContainerExecInspectFunc func(ctx context.Context, execID string) (container.ExecInspect, error)
 	ContainerStopFunc        func(ctx context.Context, containerID string, options container.StopOptions) error
 	ContainerRemoveFunc      func(ctx context.Context, containerID string, options container.RemoveOptions) error
+	ContainerListFunc        func(ctx context.Context, options container.ListOptions) ([]types.Container, error)
+	ContainerKillFunc        func(ctx context.Context, containerID, signal string) error
 	CloseFunc                func() error
 }
 
@@ -139,6 +141,20 @@ func (m *MockAPI) ContainerStop(ctx context.Context, containerID string, options
 func (m *MockAPI) ContainerRemove(ctx context.Context, containerID string, options container.RemoveOptions) error {
 	if m.ContainerRemoveFunc != nil {
 		return m.ContainerRemoveFunc(ctx, containerID, options)
+	}
+	return nil
+}
+
+func (m *MockAPI) ContainerList(ctx context.Context, options container.ListOptions) ([]types.Container, error) {
+	if m.ContainerListFunc != nil {
+		return m.ContainerListFunc(ctx, options)
+	}
+	return []types.Container{}, nil
+}
+
+func (m *MockAPI) ContainerKill(ctx context.Context, containerID, signal string) error {
+	if m.ContainerKillFunc != nil {
+		return m.ContainerKillFunc(ctx, containerID, signal)
 	}
 	return nil
 }
