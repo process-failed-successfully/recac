@@ -133,3 +133,45 @@ func TestWizardModel_Quit(t *testing.T) {
 	// but we can check the behavior in our app if we want.
 	// Actually, tea.Quit() returns a tea.Cmd which is a func() tea.Msg.
 }
+
+func TestWizardModel_ValidationFeedback(t *testing.T) {
+	m := NewWizardModel()
+	m.Init()
+
+	// 1. Simulate Enter with empty path
+	msg := tea.KeyMsg{Type: tea.KeyEnter}
+	updatedModel, _ := m.Update(msg)
+	m = updatedModel.(WizardModel)
+
+	// Should still be on StepPath
+	if m.step != StepPath {
+		t.Error("Expected to stay on StepPath when input is empty")
+	}
+
+	// Should show error message (UX Requirement)
+	view := m.View()
+	if !strings.Contains(view, "Path cannot be empty") {
+		t.Errorf("Expected view to show 'Path cannot be empty', got: %s", view)
+	}
+
+	// 2. Simulate typing clears error
+	msgKey := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}}
+	updatedModel, _ = m.Update(msgKey)
+	m = updatedModel.(WizardModel)
+
+	view = m.View()
+	if strings.Contains(view, "Path cannot be empty") {
+		t.Error("Expected error message to be cleared after typing")
+	}
+}
+
+func TestWizardModel_HelperText(t *testing.T) {
+	m := NewWizardModel()
+	m.step = StepMaxAgents // Fast forward to step
+
+	view := m.View()
+	// Check for the explicit default instruction
+	if !strings.Contains(view, "Press Enter for default") {
+		t.Errorf("Expected view to contain 'Press Enter for default', got: %s", view)
+	}
+}
