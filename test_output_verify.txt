@@ -1,0 +1,4 @@
+# recac/cmd/recac [recac/cmd/recac.test]
+cmd/recac/pair_test.go:4:2: "bytes" imported and not used
+FAIL	recac/cmd/recac [build failed]
+FAIL
