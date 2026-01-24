@@ -138,6 +138,13 @@ func runCPD(root string, minLines int, ignorePatterns []string) ([]Duplication, 
 	// We map minLines uint64s to bytes: minLines * 8 bytes
 	windowBuf := make([]byte, minLines*8)
 
+	defaultIgnores := DefaultIgnoreMap()
+	// Ensure critical directories are ignored for CPD, regardless of DefaultIgnoreMap defaults
+	defaultIgnores["node_modules"] = true
+	defaultIgnores["vendor"] = true
+	defaultIgnores["dist"] = true
+	defaultIgnores["build"] = true
+
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -147,10 +154,8 @@ func runCPD(root string, minLines int, ignorePatterns []string) ([]Duplication, 
 			if strings.HasPrefix(info.Name(), ".") && info.Name() != "." {
 				return filepath.SkipDir
 			}
-			for _, p := range []string{"vendor", "node_modules", "dist", "build"} {
-				if info.Name() == p {
-					return filepath.SkipDir
-				}
+			if defaultIgnores[info.Name()] {
+				return filepath.SkipDir
 			}
 			return nil
 		}
