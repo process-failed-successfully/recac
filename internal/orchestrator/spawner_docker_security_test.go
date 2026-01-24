@@ -71,4 +71,7 @@ func TestDockerSpawner_EnvInjection_Vulnerability(t *testing.T) {
 	// Or similar depending on how shellquote escapes (usually using single quotes around parts)
 	// Just checking that single quotes are escaped is generally sufficient.
 	assert.Contains(t, cmdStr, "'\\''", "Command string should contain escaped single quotes")
+
+	// Strict check: Ensure the value starts with a quote, which go-shellquote failed to do for unsafe strings
+	assert.Contains(t, cmdStr, "export MALICIOUS_VAR='", "Variable assignment should be quoted")
 }
