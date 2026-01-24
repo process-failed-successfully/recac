@@ -15,6 +15,8 @@ var (
 		Bold(true).
 		Foreground(lipgloss.Color("#7D56F4")).
 		MarginBottom(1)
+	errorStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000"))
+	subtleStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#666666"))
 )
 
 const (
@@ -33,6 +35,7 @@ type WizardModel struct {
 	Provider          string
 	MaxAgents         int
 	TaskMaxIterations int
+	errMsg            string
 	err               error
 }
 
@@ -77,6 +80,11 @@ func (m WizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		// Clear error message on any key press
+		if msg.Type != tea.KeyEnter {
+			m.errMsg = ""
+		}
+
 		switch msg.Type {
 		case tea.KeyCtrlC, tea.KeyEsc:
 			return m, tea.Quit
@@ -87,6 +95,8 @@ func (m WizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.step = StepProvider
 					// Resize list if needed, or just transition
 					return m, nil
+				} else {
+					m.errMsg = "Path cannot be empty"
 				}
 			} else if m.step == StepProvider {
 				if i := m.list.SelectedItem(); i != nil {
@@ -157,6 +167,10 @@ func (m WizardModel) View() string {
 		b.WriteString("\n\n")
 		b.WriteString("Enter project directory:\n")
 		b.WriteString(m.textInput.View())
+		if m.errMsg != "" {
+			b.WriteString("\n")
+			b.WriteString(errorStyle.Render(m.errMsg))
+		}
 		b.WriteString("\n\n(Esc to quit)")
 		return b.String()
 	} else if m.step == StepProvider {
@@ -165,16 +179,20 @@ func (m WizardModel) View() string {
 		var b strings.Builder
 		b.WriteString(titleStyle.Render("Agent Configuration"))
 		b.WriteString("\n\n")
-		b.WriteString("Enter maximum parallel agents (default 1):\n")
+		b.WriteString("Enter maximum parallel agents:\n")
 		b.WriteString(m.textInput.View())
+		b.WriteString("\n")
+		b.WriteString(subtleStyle.Render("(Press Enter for default: 1)"))
 		b.WriteString("\n\n(Esc to quit)")
 		return b.String()
 	} else if m.step == StepTaskMaxIterations {
 		var b strings.Builder
 		b.WriteString(titleStyle.Render("Agent Configuration"))
 		b.WriteString("\n\n")
-		b.WriteString("Enter maximum iterations per task (default 10):\n")
+		b.WriteString("Enter maximum iterations per task:\n")
 		b.WriteString(m.textInput.View())
+		b.WriteString("\n")
+		b.WriteString(subtleStyle.Render("(Press Enter for default: 10)"))
 		b.WriteString("\n\n(Esc to quit)")
 		return b.String()
 	}
