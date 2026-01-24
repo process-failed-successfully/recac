@@ -145,7 +145,9 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 	// Verify Exec includes git identity and project ID env vars
 	mockDocker.On("Exec", mock.Anything, "container123", mock.MatchedBy(func(cmd []string) bool {
 		cmdStr := cmd[2] // /bin/sh -c <cmdStr>
-		return contains(cmdStr, "export RECAC_PROJECT_ID='TICKET-1'") &&
+		// Note: RECAC_PROJECT_ID is now quoted with shellquote, so simple strings might not have quotes
+		// or use single quotes. 'TICKET-1' (no spaces) -> TICKET-1
+		return contains(cmdStr, "export RECAC_PROJECT_ID=TICKET-1") &&
 			contains(cmdStr, "export GIT_AUTHOR_NAME='RECAC Agent'") &&
 			contains(cmdStr, "export GIT_AUTHOR_EMAIL='agent@recac.io'")
 	})).Return("output", nil)
@@ -235,7 +237,8 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 
 	// Check if the ID is quoted in the command string
 	// Depending on implementation, checking for quoted ID:
-	assert.Contains(t, capturedCmd[2], "--jira \"TASK-1\\\"; echo \\\"injected\"")
+	// New implementation uses shellquote, so it should use single quotes for complex strings
+	assert.Contains(t, capturedCmd[2], "--jira 'TASK-1\"; echo \"injected'")
 }
 
 func TestDockerSpawner_EnvPropagation(t *testing.T) {
@@ -281,6 +284,6 @@ func TestDockerSpawner_EnvPropagation(t *testing.T) {
 	cmdStr := capturedCmd[2]
 
 	// Check if environment variables are correctly propagated
-	assert.Contains(t, cmdStr, "export RECAC_MAX_ITERATIONS='50'", "Should propagate RECAC_MAX_ITERATIONS from host")
-	assert.Contains(t, cmdStr, "export RECAC_MANAGER_FREQUENCY='10m'", "Should propagate RECAC_MANAGER_FREQUENCY from host")
+	assert.Contains(t, cmdStr, "export RECAC_MAX_ITERATIONS=50", "Should propagate RECAC_MAX_ITERATIONS from host")
+	assert.Contains(t, cmdStr, "export RECAC_MANAGER_FREQUENCY=10m", "Should propagate RECAC_MANAGER_FREQUENCY from host")
 }
