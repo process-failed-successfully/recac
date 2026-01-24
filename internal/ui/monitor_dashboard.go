@@ -21,14 +21,14 @@ type ActionCallbacks struct {
 }
 
 type MonitorDashboardModel struct {
-	table       table.Model
-	viewport    viewport.Model
-	callbacks   ActionCallbacks
-	sessions    []model.UnifiedSession
-	lastUpdate  time.Time
-	err         error
-	width       int
-	height      int
+	table         table.Model
+	viewport      viewport.Model
+	callbacks     ActionCallbacks
+	sessions      []model.UnifiedSession
+	lastUpdate    time.Time
+	err           error
+	width         int
+	height        int
 	selectedRow   int
 	viewMode      string // "list", "logs", "confirm_kill"
 	logContent    string

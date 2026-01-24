@@ -35,7 +35,7 @@ func TestReadmeCmd(t *testing.T) {
 	createDummyFile(t, tempDir, "go.mod", "module example.com/test")
 	createDummyFile(t, tempDir, "main.go", "package main\nfunc main() {}")
 	createDummyFile(t, tempDir, "subdir/ignored.go", "package ignored") // Should be in structure
-	createDummyFile(t, tempDir, ".git/config", "ignored")             // Should be ignored
+	createDummyFile(t, tempDir, ".git/config", "ignored")               // Should be ignored
 
 	// Mock Agent
 	mockAgent := new(ReadmeMockAgent)

@@ -143,7 +143,7 @@ Please rewrite the System Prompt to address the failure.
 - Be specific in your instructions to guide the agent better.
 - Do not remove core capabilities, but refine the strategy.
 - Output ONLY the new System Prompt content, no markdown fencing or explanations.`,
-		currentPromptContent, targetChallenge.Description, result.Output)
+			currentPromptContent, targetChallenge.Description, result.Output)
 
 		fmt.Println("🧠 Meta-Agent is rewriting the prompt...")
 		newPrompt, err := metaAgent.Send(ctx, metaPrompt)

@@ -155,42 +155,42 @@ func TestMonitorDashboardModel_Update_Logs(t *testing.T) {
 	// The outer func returns the inner msg.
 	// Let's trace carefully:
 	// return m, func() tea.Msg {
-    //    logs, _ := callbacks.GetLogs(name)
-    //    return func() tea.Msg { return logs }()
-    // }
-    // So the tea.Msg is `logs` (string).
+	//    logs, _ := callbacks.GetLogs(name)
+	//    return func() tea.Msg { return logs }()
+	// }
+	// So the tea.Msg is `logs` (string).
 
-    // BUT wait, `func() tea.Msg { return logs }()` calls the func and returns `logs` (string).
-    // So `msg` IS `string`.
+	// BUT wait, `func() tea.Msg { return logs }()` calls the func and returns `logs` (string).
+	// So `msg` IS `string`.
 
-    logStr, ok := msg.(string)
-    // If it failed, maybe it's actionResultMsg (error)
-    if !ok {
-	// Check if it's error
-	res, ok2 := msg.(actionResultMsg)
-	if ok2 {
-		t.Fatalf("Expected string logs, got error: %v", res.err)
+	logStr, ok := msg.(string)
+	// If it failed, maybe it's actionResultMsg (error)
+	if !ok {
+		// Check if it's error
+		res, ok2 := msg.(actionResultMsg)
+		if ok2 {
+			t.Fatalf("Expected string logs, got error: %v", res.err)
+		}
+		// It might be that my test logic for cmd execution is slightly off regarding nested funcs?
+		// No, `cmd()` executes the command function and returns `tea.Msg`.
+		// My code: `return func() tea.Msg { return logs }()`. This is a direct return of `logs`.
+		// So `msg` is `logs`.
 	}
-	// It might be that my test logic for cmd execution is slightly off regarding nested funcs?
-	// No, `cmd()` executes the command function and returns `tea.Msg`.
-	// My code: `return func() tea.Msg { return logs }()`. This is a direct return of `logs`.
-	// So `msg` is `logs`.
-    }
-    assert.True(t, ok)
-    assert.Equal(t, "log content", logStr)
+	assert.True(t, ok)
+	assert.Equal(t, "log content", logStr)
 
-    // 3. Update model with logs
-    finalM, _ := updatedM.Update(logContent)
-    finalModel := finalM.(MonitorDashboardModel)
+	// 3. Update model with logs
+	finalM, _ := updatedM.Update(logContent)
+	finalModel := finalM.(MonitorDashboardModel)
 
-    assert.Equal(t, "logs", finalModel.viewMode)
-    assert.Equal(t, "log content", finalModel.logContent)
-    assert.Contains(t, finalModel.View(), "Session Logs")
+	assert.Equal(t, "logs", finalModel.viewMode)
+	assert.Equal(t, "log content", finalModel.logContent)
+	assert.Contains(t, finalModel.View(), "Session Logs")
 
-    // 4. Press 'q' to go back
-    backM, _ := finalM.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
-    backModel := backM.(MonitorDashboardModel)
-    assert.Equal(t, "list", backModel.viewMode)
+	// 4. Press 'q' to go back
+	backM, _ := finalM.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	backModel := backM.(MonitorDashboardModel)
+	assert.Equal(t, "list", backModel.viewMode)
 }
 
 func TestMonitorDashboardModel_Update_Pause(t *testing.T) {
