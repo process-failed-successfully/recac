@@ -46,6 +46,11 @@ func (m *MockGitClient) Config(directory, key, value string) error {
 	return args.Error(0)
 }
 
+func (m *MockGitClient) ConfigGlobal(key, value string) error {
+	args := m.Called(key, value)
+	return args.Error(0)
+}
+
 func (m *MockGitClient) ConfigAddGlobal(key, value string) error {
 	args := m.Called(key, value)
 	return args.Error(0)

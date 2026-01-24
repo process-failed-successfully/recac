@@ -116,6 +116,10 @@ func (m *MockGitClient) Config(directory, key, value string) error {
 	return nil
 }
 
+func (m *MockGitClient) ConfigGlobal(key, value string) error {
+	return nil
+}
+
 func (m *MockGitClient) ConfigAddGlobal(key, value string) error {
 	return nil
 }

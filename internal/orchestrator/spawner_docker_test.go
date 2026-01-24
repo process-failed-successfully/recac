@@ -73,6 +73,166 @@ func (m *MockGitClient) CurrentCommitSHA(repoPath string) (string, error) {
 	return args.String(0), args.Error(1)
 }
 
+func (m *MockGitClient) DiffStat(workspace, startCommit, endCommit string) (string, error) {
+	args := m.Called(workspace, startCommit, endCommit)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockGitClient) RepoExists(directory string) bool {
+	args := m.Called(directory)
+	return args.Bool(0)
+}
+
+func (m *MockGitClient) Config(directory, key, value string) error {
+	args := m.Called(directory, key, value)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) ConfigGlobal(key, value string) error {
+	args := m.Called(key, value)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) ConfigAddGlobal(key, value string) error {
+	args := m.Called(key, value)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) RemoteBranchExists(directory, remote, branch string) (bool, error) {
+	args := m.Called(directory, remote, branch)
+	return args.Bool(0), args.Error(1)
+}
+
+func (m *MockGitClient) Fetch(directory, remote, branch string) error {
+	args := m.Called(directory, remote, branch)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) Checkout(directory, branch string) error {
+	args := m.Called(directory, branch)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) CheckoutNewBranch(directory, branch string) error {
+	args := m.Called(directory, branch)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) Push(directory, branch string) error {
+	args := m.Called(directory, branch)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) Pull(directory, remote, branch string) error {
+	args := m.Called(directory, remote, branch)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) Stash(directory string) error {
+	args := m.Called(directory)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) Merge(directory, branchName string) error {
+	args := m.Called(directory, branchName)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) AbortMerge(directory string) error {
+	args := m.Called(directory)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) Recover(directory string) error {
+	args := m.Called(directory)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) Clean(directory string) error {
+	args := m.Called(directory)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) ResetHard(directory, remote, branch string) error {
+	args := m.Called(directory, remote, branch)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) StashPop(directory string) error {
+	args := m.Called(directory)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) DeleteRemoteBranch(directory, remote, branch string) error {
+	args := m.Called(directory, remote, branch)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) CurrentBranch(directory string) (string, error) {
+	args := m.Called(directory)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockGitClient) Commit(directory, message string) error {
+	args := m.Called(directory, message)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) Diff(directory, startCommit, endCommit string) (string, error) {
+	args := m.Called(directory, startCommit, endCommit)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockGitClient) DiffStaged(directory string) (string, error) {
+	args := m.Called(directory)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockGitClient) SetRemoteURL(directory, name, url string) error {
+	args := m.Called(directory, name, url)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) DeleteLocalBranch(directory, branch string) error {
+	args := m.Called(directory, branch)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) LocalBranchExists(directory, branch string) (bool, error) {
+	args := m.Called(directory, branch)
+	return args.Bool(0), args.Error(1)
+}
+
+func (m *MockGitClient) Log(directory string, logArgs ...string) ([]string, error) {
+	args := m.Called(directory, logArgs)
+	return args.Get(0).([]string), args.Error(1)
+}
+
+func (m *MockGitClient) BisectStart(directory, bad, good string) error {
+	args := m.Called(directory, bad, good)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) BisectGood(directory, rev string) error {
+	args := m.Called(directory, rev)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) BisectBad(directory, rev string) error {
+	args := m.Called(directory, rev)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) BisectReset(directory string) error {
+	args := m.Called(directory)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) BisectLog(directory string) ([]string, error) {
+	args := m.Called(directory)
+	return args.Get(0).([]string), args.Error(1)
+}
+
 // Mock Poller (Minimal for this test)
 type MockPoller struct {
 	mock.Mock
