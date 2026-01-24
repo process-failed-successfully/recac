@@ -76,9 +76,9 @@ func runMockServer(cmd *cobra.Command, args []string) error {
 	handler := NewMockServerHandler(ctx, ag, contextContent, mockServerLatency, cmd.OutOrStdout())
 
 	addr := fmt.Sprintf(":%d", mockServerPort)
-	fmt.Fprintf(cmd.OutOrStdout(), "🚀 Mock Server listening on http://localhost%s\n", addr)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "🚀 Mock Server listening on http://localhost%s\n", addr)
 	if mockServerSpec != "" {
-		fmt.Fprintf(cmd.OutOrStdout(), "📘 Loaded spec: %s\n", mockServerSpec)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "📘 Loaded spec: %s\n", mockServerSpec)
 	}
 
 	// Use http.Server for control if needed, but simple ListenAndServe is fine for CLI
