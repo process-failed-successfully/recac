@@ -246,6 +246,10 @@ func (m *MockGitClient) Tag(directory, version string) error {
 	return nil
 }
 
+func (m *MockGitClient) DeleteTag(directory, version string) error {
+	return nil
+}
+
 func (m *MockGitClient) PushTags(directory string) error {
 	return nil
 }

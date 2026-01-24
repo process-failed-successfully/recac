@@ -347,6 +347,7 @@ type MockGitClient struct {
 	BisectResetFunc       func(repoPath string) error
 	BisectLogFunc         func(repoPath string) ([]string, error)
 	TagFunc               func(repoPath, version string) error
+	DeleteTagFunc         func(repoPath, version string) error
 	PushTagsFunc          func(repoPath string) error
 	LatestTagFunc         func(repoPath string) (string, error)
 }
@@ -354,6 +355,13 @@ type MockGitClient struct {
 func (m *MockGitClient) Tag(repoPath, version string) error {
 	if m.TagFunc != nil {
 		return m.TagFunc(repoPath, version)
+	}
+	return nil
+}
+
+func (m *MockGitClient) DeleteTag(repoPath, version string) error {
+	if m.DeleteTagFunc != nil {
+		return m.DeleteTagFunc(repoPath, version)
 	}
 	return nil
 }
