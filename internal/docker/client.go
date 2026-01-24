@@ -34,6 +34,7 @@ type APIClient interface {
 	ImageList(ctx context.Context, options image.ListOptions) ([]image.Summary, error)
 	ImagePull(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error)
 	ImageBuild(ctx context.Context, buildContext io.Reader, options build.ImageBuildOptions) (types.ImageBuildResponse, error)
+	ContainerList(ctx context.Context, options container.ListOptions) ([]types.Container, error)
 	ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error)
 	ContainerStart(ctx context.Context, containerID string, options container.StartOptions) error
 	ContainerExecCreate(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error)
@@ -76,6 +77,11 @@ func (c *Client) Close() error {
 // ServerVersion returns the version of the Docker server.
 func (c *Client) ServerVersion(ctx context.Context) (types.Version, error) {
 	return c.api.ServerVersion(ctx)
+}
+
+// ListContainers returns a list of containers matching the options.
+func (c *Client) ListContainers(ctx context.Context, options container.ListOptions) ([]types.Container, error) {
+	return c.api.ContainerList(ctx, options)
 }
 
 // CheckDaemon verifies that the Docker daemon is running and reachable.
