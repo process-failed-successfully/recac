@@ -158,3 +158,29 @@ line5
 		}
 	}
 }
+
+func TestCPD_DefaultIgnore(t *testing.T) {
+	tmpDir := t.TempDir()
+	content := `line1
+line2
+line3
+line4
+line5
+`
+	// Create duplicate files, one in root, one in node_modules
+	os.WriteFile(filepath.Join(tmpDir, "a.go"), []byte(content), 0644)
+
+	nodeModules := filepath.Join(tmpDir, "node_modules")
+	os.Mkdir(nodeModules, 0755)
+	os.WriteFile(filepath.Join(nodeModules, "b.go"), []byte(content), 0644)
+
+	// Should ignore node_modules by default
+	dups, err := runCPD(tmpDir, 5, nil)
+	if err != nil {
+		t.Fatalf("runCPD failed: %v", err)
+	}
+
+	if len(dups) != 0 {
+		t.Errorf("expected 0 duplicates when file is in node_modules, got %d", len(dups))
+	}
+}

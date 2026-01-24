@@ -135,7 +135,7 @@ func listTasks(cmd *cobra.Command) error {
 	return nil
 }
 
-func toggleTaskStatus(targetIndex int, done bool) error {
+func modifyTask(targetIndex int, action func(line string) (string, bool)) error {
 	if err := ensureTodoFile(); err != nil {
 		return err
 	}
@@ -153,18 +153,10 @@ func toggleTaskStatus(targetIndex int, done bool) error {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "- [ ]") || strings.HasPrefix(trimmed, "- [x]") {
 			if currentIndex == targetIndex {
-				content := ""
-				if strings.HasPrefix(trimmed, "- [ ]") {
-					content = strings.TrimPrefix(trimmed, "- [ ] ")
-				} else {
-					content = strings.TrimPrefix(trimmed, "- [x] ")
+				newLine, keep := action(trimmed)
+				if keep {
+					newLines = append(newLines, newLine)
 				}
-
-				prefix := "- [ ]"
-				if done {
-					prefix = "- [x]"
-				}
-				newLines = append(newLines, fmt.Sprintf("%s %s", prefix, content))
 				found = true
 			} else {
 				newLines = append(newLines, line)
@@ -182,38 +174,29 @@ func toggleTaskStatus(targetIndex int, done bool) error {
 	return writeLines(todoFile, newLines)
 }
 
-func removeTask(targetIndex int) error {
-	if err := ensureTodoFile(); err != nil {
-		return err
-	}
-
-	lines, err := readLines(todoFile)
-	if err != nil {
-		return err
-	}
-
-	newLines := make([]string, 0, len(lines))
-	currentIndex := 1
-	found := false
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "- [ ]") || strings.HasPrefix(trimmed, "- [x]") {
-			if currentIndex == targetIndex {
-				found = true
-			} else {
-				newLines = append(newLines, line)
-			}
-			currentIndex++
+func toggleTaskStatus(targetIndex int, done bool) error {
+	return modifyTask(targetIndex, func(trimmed string) (string, bool) {
+		content := ""
+		if strings.HasPrefix(trimmed, "- [ ]") {
+			content = strings.TrimPrefix(trimmed, "- [ ] ")
 		} else {
-			newLines = append(newLines, line)
+			content = strings.TrimPrefix(trimmed, "- [x] ")
 		}
-	}
 
-	if !found {
-		return fmt.Errorf("task index %d not found", targetIndex)
-	}
+		prefix := "- [ ]"
+		if done {
+			prefix = "- [x]"
+		}
+		return fmt.Sprintf("%s %s", prefix, content), true
+	})
+}
 
-	fmt.Printf("Removed task %d\n", targetIndex)
-	return writeLines(todoFile, newLines)
+func removeTask(targetIndex int) error {
+	err := modifyTask(targetIndex, func(trimmed string) (string, bool) {
+		return "", false
+	})
+	if err == nil {
+		fmt.Printf("Removed task %d\n", targetIndex)
+	}
+	return err
 }
