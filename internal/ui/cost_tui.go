@@ -3,6 +3,9 @@ package ui
 import (
 	"fmt"
 	"os"
+	"sort"
+	"strings"
+	"text/tabwriter"
 	"time"
 
 	"recac/internal/agent"
@@ -59,10 +62,21 @@ func SetStartCostTUIForTest(fn func(sm SessionManager) error) {
 }
 
 type costModel struct {
-	table    table.Model
-	sm       SessionManager
-	sessions []*runner.SessionState
-	err      error
+	table      table.Model
+	sm         SessionManager
+	sessions   []*runner.SessionState
+	err        error
+	modelCosts map[string]*ModelCost
+	totalCost  float64
+}
+
+// ModelCost aggregates cost and token data for a specific model.
+type ModelCost struct {
+	Name                string
+	TotalTokens         int
+	TotalPromptTokens   int
+	TotalResponseTokens int
+	TotalCost           float64
 }
 
 type updateMsg []*runner.SessionState
@@ -102,8 +116,9 @@ func newCostModel(sm SessionManager) *costModel {
 	t.SetStyles(s)
 
 	return &costModel{
-		table: t,
-		sm:    sm,
+		table:      t,
+		sm:         sm,
+		modelCosts: make(map[string]*ModelCost),
 	}
 }
 
@@ -142,12 +157,42 @@ func (m *costModel) View() string {
 		return fmt.Sprintf("Error: %v\n\nPress 'q' to quit.", m.err)
 	}
 	title := " RECAC Live Session Monitor "
+	stats := m.renderModelStats()
 	help := "\n  ↑/↓: Navigate • q: Quit"
-	return baseStyle.Render(title+"\n"+m.table.View()) + help
+	return baseStyle.Render(title+"\n"+stats+"\n"+m.table.View()) + help
+}
+
+func (m *costModel) renderModelStats() string {
+	if len(m.modelCosts) == 0 {
+		return ""
+	}
+
+	var b strings.Builder
+	// Sort models by cost (high to low)
+	sortedModels := make([]*ModelCost, 0, len(m.modelCosts))
+	for _, mc := range m.modelCosts {
+		sortedModels = append(sortedModels, mc)
+	}
+	sort.Slice(sortedModels, func(i, j int) bool {
+		return sortedModels[i].TotalCost > sortedModels[j].TotalCost
+	})
+
+	b.WriteString("COST BY MODEL\n")
+	w := tabwriter.NewWriter(&b, 0, 0, 3, ' ', 0)
+	fmt.Fprintln(w, "MODEL\tCOST\tTOKENS")
+	for _, model := range sortedModels {
+		fmt.Fprintf(w, "%s\t$%.4f\t%d\n", model.Name, model.TotalCost, model.TotalTokens)
+	}
+	fmt.Fprintf(w, "TOTAL\t$%.4f\t\n", m.totalCost)
+	w.Flush()
+	return b.String()
 }
 
 func (m *costModel) updateTable() {
 	rows := make([]table.Row, len(m.sessions))
+	m.modelCosts = make(map[string]*ModelCost)
+	m.totalCost = 0
+
 	for i, session := range m.sessions {
 		started := session.StartTime.Format("2006-01-02 15:04:05")
 		var duration string
@@ -181,6 +226,17 @@ func (m *costModel) updateTable() {
 				fmt.Sprintf("%d", agentState.TokenUsage.TotalTokens),
 				fmt.Sprintf("$%.6f", cost),
 			}
+
+			// Aggregate for stats
+			m.totalCost += cost
+			if _, ok := m.modelCosts[agentState.Model]; !ok {
+				m.modelCosts[agentState.Model] = &ModelCost{Name: agentState.Model}
+			}
+			model := m.modelCosts[agentState.Model]
+			model.TotalTokens += agentState.TokenUsage.TotalTokens
+			model.TotalPromptTokens += agentState.TokenUsage.TotalPromptTokens
+			model.TotalResponseTokens += agentState.TokenUsage.TotalResponseTokens
+			model.TotalCost += cost
 		}
 	}
 	m.table.SetRows(rows)

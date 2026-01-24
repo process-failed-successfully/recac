@@ -4,6 +4,7 @@ import (
 	"errors"
 	"recac/internal/agent"
 	"recac/internal/runner"
+	"strings"
 	"testing"
 	"time"
 
@@ -159,4 +160,44 @@ func TestCostModel_Init_Cmds(t *testing.T) {
 	// Executing it returns a BatchMsg (slice of Msgs).
 	// We can't easily inspect BatchMsg without internal knowledge or executing it.
 	// But simply asserting it's not nil covers the code path in Init().
+}
+
+func TestCostModel_View_HasModelBreakdown(t *testing.T) {
+	// Mock LoadAgentState
+	LoadAgentState = func(filePath string) (*agent.State, error) {
+		return &agent.State{
+			Model: "gpt-4",
+			TokenUsage: agent.TokenUsage{
+				TotalPromptTokens:   100,
+				TotalResponseTokens: 200,
+				TotalTokens:         300,
+			},
+		}, nil
+	}
+
+	sm := &MockSessionManager{
+		ListSessionsFunc: func() ([]*runner.SessionState, error) {
+			return []*runner.SessionState{
+				{
+					Name:           "session-1",
+					Status:         "Running",
+					StartTime:      time.Now(),
+					AgentStateFile: "mock_state.json",
+				},
+			}, nil
+		},
+	}
+	m := newCostModel(sm)
+
+	// Trigger update with sessions
+	sessions, _ := sm.ListSessions()
+	update := updateMsg(sessions)
+	updatedModel, _ := m.Update(update)
+	m = updatedModel.(*costModel)
+
+	// Check View
+	view := m.View()
+	if !strings.Contains(view, "COST BY MODEL") {
+		t.Error("Expected view to contain 'COST BY MODEL' breakdown")
+	}
 }
