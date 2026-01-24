@@ -43,6 +43,7 @@ type IGitClient interface {
 	BisectReset(repoPath string) error
 	BisectLog(repoPath string) ([]string, error)
 	Tag(repoPath, version string) error
+	DeleteTag(repoPath, version string) error
 	PushTags(repoPath string) error
 	LatestTag(repoPath string) (string, error)
 }

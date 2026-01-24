@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 	"path/filepath"
 	"strings"
 	"time"
@@ -60,14 +61,14 @@ func runTestOnce(cmd *cobra.Command, args []string) error {
 		packages = []string{"./..."}
 	} else {
 		// Smart Impact Analysis
-		fmt.Fprintln(cmd.OutOrStdout(), "🔍 Analyzing impact of changes...")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "🔍 Analyzing impact of changes...")
 		diffFiles, err := getGitDiffFilesFunc(testStaged)
 		if err != nil {
 			return fmt.Errorf("failed to get changed files: %w", err)
 		}
 
 		if len(diffFiles) == 0 {
-			fmt.Fprintln(cmd.OutOrStdout(), "No changed files found. Use --all to run all tests.")
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No changed files found. Use --all to run all tests.")
 			return nil
 		}
 
@@ -76,7 +77,7 @@ func runTestOnce(cmd *cobra.Command, args []string) error {
 			// Fallback or just report error?
 			// If no go packages found, maybe just warn and return
 			if strings.Contains(err.Error(), "No Go packages found") {
-				fmt.Fprintln(cmd.OutOrStdout(), "No affected Go packages found.")
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No affected Go packages found.")
 				return nil
 			}
 			return fmt.Errorf("impact analysis failed: %w", err)
@@ -85,7 +86,7 @@ func runTestOnce(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(packages) == 0 {
-		fmt.Fprintln(cmd.OutOrStdout(), "No packages to test.")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No packages to test.")
 		return nil
 	}
 
@@ -103,10 +104,10 @@ func runTestOnce(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "🏃 Running tests for %d packages...\n", len(targets))
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "🏃 Running tests for %d packages...\n", len(targets))
 	if len(targets) < 10 {
 		for _, t := range targets {
-			fmt.Fprintf(cmd.OutOrStdout(), "  - %s\n", t)
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  - %s\n", t)
 		}
 	}
 
@@ -134,30 +135,36 @@ func runTestOnce(cmd *cobra.Command, args []string) error {
 
 	// Stream and capture
 	var outputBuf strings.Builder
+	var wg sync.WaitGroup
 
 	// Use a scanner to read line by line and print/capture
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		scanner := bufio.NewScanner(stdoutPipe)
 		for scanner.Scan() {
 			line := scanner.Text()
-			fmt.Fprintln(cmd.OutOrStdout(), line)
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), line)
 			outputBuf.WriteString(line + "\n")
 		}
 	}()
 
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		scanner := bufio.NewScanner(stderrPipe)
 		for scanner.Scan() {
 			line := scanner.Text()
-			fmt.Fprintln(cmd.ErrOrStderr(), line)
+			_, _ = fmt.Fprintln(cmd.ErrOrStderr(), line)
 			outputBuf.WriteString(line + "\n")
 		}
 	}()
 
 	err = testExec.Wait()
+	wg.Wait()
 	if err != nil {
 		// Tests failed!
-		fmt.Fprintln(cmd.OutOrStdout(), "\n❌ Tests failed.")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "\n❌ Tests failed.")
 
 		if testDiagnose {
 			return diagnoseFailure(cmd, outputBuf.String())
@@ -165,17 +172,17 @@ func runTestOnce(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("tests failed") // Return error so exit code is non-zero
 	}
 
-	fmt.Fprintln(cmd.OutOrStdout(), "\n✅ All tests passed.")
+	_, _ = fmt.Fprintln(cmd.OutOrStdout(), "\n✅ All tests passed.")
 	return nil
 }
 
 func diagnoseFailure(cmd *cobra.Command, output string) error {
-	fmt.Fprintln(cmd.OutOrStdout(), "\n🧠 Diagnosing failure with AI...")
+	_, _ = fmt.Fprintln(cmd.OutOrStdout(), "\n🧠 Diagnosing failure with AI...")
 
 	// 1. Extract context
 	fileContexts, err := extractFileContexts(output)
 	if err != nil {
-		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: could not extract file contexts: %v\n", err)
+		_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "Warning: could not extract file contexts: %v\n", err)
 		fileContexts = "No local files could be linked to the output."
 	}
 
@@ -204,9 +211,9 @@ func diagnoseFailure(cmd *cobra.Command, output string) error {
 
 	// 4. Stream Response
 	_, err = ag.SendStream(ctx, prompt, func(chunk string) {
-		fmt.Fprint(cmd.OutOrStdout(), chunk)
+		_, _ = fmt.Fprint(cmd.OutOrStdout(), chunk)
 	})
-	fmt.Fprintln(cmd.OutOrStdout(), "") // Newline
+	_, _ = fmt.Fprintln(cmd.OutOrStdout(), "") // Newline
 
 	if err != nil {
 		return fmt.Errorf("agent failed during diagnosis: %w", err)
@@ -228,7 +235,7 @@ func runTestWatch(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Fprintln(cmd.OutOrStdout(), "👀 Watching for file changes...")
+	_, _ = fmt.Fprintln(cmd.OutOrStdout(), "👀 Watching for file changes...")
 
 	// Initial Run
 	runTestOnce(cmd, args) // Ignore error on initial run to keep watching
@@ -256,7 +263,7 @@ func runTestWatch(cmd *cobra.Command, args []string) error {
 				debounceTimer.Stop()
 			}
 			debounceTimer = time.AfterFunc(debounceDuration, func() {
-				fmt.Fprintln(cmd.OutOrStdout(), "\n🔄 File changed, re-running tests...")
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "\n🔄 File changed, re-running tests...")
 				// Re-run
 				// We need to run this in main goroutine? No, separate is fine, but output might interleave?
 				// For simple CLI watch, running in this goroutine (via channel or blocking) is better.
@@ -267,14 +274,14 @@ func runTestWatch(cmd *cobra.Command, args []string) error {
 				// Better approach: send to a 'trigger' channel.
 				// But to keep it simple, let's just run it.
 				_ = runTestOnce(cmd, args)
-				fmt.Fprintln(cmd.OutOrStdout(), "\n👀 Watching...")
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "\n👀 Watching...")
 			})
 
 		case err, ok := <-watcher.Errors:
 			if !ok {
 				return nil
 			}
-			fmt.Fprintf(cmd.ErrOrStderr(), "Watcher error: %v\n", err)
+			_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "Watcher error: %v\n", err)
 		}
 	}
 }
