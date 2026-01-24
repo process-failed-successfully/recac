@@ -42,6 +42,7 @@ var (
 	}
 	gymAgentFactory   = agent.NewAgent
 	gymSessionFactory = runner.NewSession
+	runGymSessionFunc = runGymSession
 )
 
 var gymCmd = &cobra.Command{
@@ -78,7 +79,7 @@ func runGym(cmd *cobra.Command, args []string) error {
 
 	for _, challenge := range challenges {
 		fmt.Printf("\nRunning challenge: %s\n", challenge.Name)
-		res, err := runGymSession(cmd.Context(), challenge)
+		res, err := runGymSessionFunc(cmd.Context(), challenge)
 		if err != nil {
 			fmt.Printf("Error running challenge %s: %v\n", challenge.Name, err)
 			results = append(results, GymResult{
