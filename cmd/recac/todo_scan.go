@@ -65,12 +65,12 @@ func scanAndAddTodos(cmd *cobra.Command, root string) error {
 	return nil
 }
 
+// Regex to catch TODOs.
+// Matches: (//|#|<!--|--|/*) [whitespace] (TODO|FIXME|...) [optional: (stuff)] [whitespace|:] (content)
+var todoRegex = regexp.MustCompile(`(?i)(\/\/|#|<!--|--|\/\*)\s*(TODO|FIXME|BUG|HACK|NOTE)(?:\(.*\))?[:\s]+(.*)`)
+
 func scanTodos(root string) ([]TodoItem, error) {
 	var tasks []TodoItem
-
-	// Regex to catch TODOs.
-	// Matches: (//|#|<!--|--|/*) [whitespace] (TODO|FIXME|...) [optional: (stuff)] [whitespace|:] (content)
-	re := regexp.MustCompile(`(?i)(\/\/|#|<!--|--|\/\*)\s*(TODO|FIXME|BUG|HACK|NOTE)(?:\(.*\))?[:\s]+(.*)`)
 
 	// Default ignores
 	ignoreMap := DefaultIgnoreMap()
@@ -135,7 +135,7 @@ func scanTodos(root string) ([]TodoItem, error) {
 		for scanner.Scan() {
 			lineNum++
 			line := scanner.Text()
-			matches := re.FindStringSubmatch(strings.TrimSpace(line))
+			matches := todoRegex.FindStringSubmatch(strings.TrimSpace(line))
 			if len(matches) > 3 {
 				// matches[2] is keyword (TODO)
 				// matches[3] is content
