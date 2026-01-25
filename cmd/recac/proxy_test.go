@@ -147,6 +147,7 @@ func TestProxyGeneration(t *testing.T) {
 	origGen := proxyGenerate
 	origTarget := proxyTarget
 	origLang := proxyLanguage
+	origFormat := proxyFormat
 
 	defer func() {
 		proxyRecordFile = origRecord
@@ -154,6 +155,7 @@ func TestProxyGeneration(t *testing.T) {
 		proxyGenerate = origGen
 		proxyTarget = origTarget
 		proxyLanguage = origLang
+		proxyFormat = origFormat
 	}()
 
 	proxyRecordFile = recordFile
@@ -161,6 +163,7 @@ func TestProxyGeneration(t *testing.T) {
 	proxyGenerate = true
 	proxyTarget = "" // trigger generation mode
 	proxyLanguage = "go"
+	proxyFormat = "test"
 
 	// Run Generation via command runner
 	// We create a dummy command because runProxy uses cmd.OutOrStdout

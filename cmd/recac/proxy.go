@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"recac/internal/agent"
 	"recac/internal/utils"
 
 	"github.com/spf13/cobra"
@@ -27,6 +28,7 @@ var (
 	proxyGenerate   bool
 	proxyOutput     string
 	proxyLanguage   string
+	proxyFormat     string
 )
 
 type Interaction struct {
@@ -68,13 +70,17 @@ func init() {
 	proxyCmd.Flags().StringVarP(&proxyTarget, "target", "t", "", "Target URL to proxy to (required for recording)")
 	proxyCmd.Flags().StringVarP(&proxyRecordFile, "record", "r", "recording.json", "File to save recordings to (or read from for generation)")
 	proxyCmd.Flags().BoolVarP(&proxyGenerate, "generate", "g", false, "Generate tests from the recording file")
-	proxyCmd.Flags().StringVarP(&proxyOutput, "output", "o", "proxy_test_gen.go", "Output file for generated tests")
+	proxyCmd.Flags().StringVarP(&proxyOutput, "output", "o", "proxy_test_gen.go", "Output file for generated tests or spec")
 	proxyCmd.Flags().StringVarP(&proxyLanguage, "lang", "l", "go", "Language for generated tests (go, python, js)")
+	proxyCmd.Flags().StringVarP(&proxyFormat, "format", "f", "test", "Generation format: 'test' (integration tests) or 'openapi' (OpenAPI 3.0 Spec)")
 }
 
 func runProxy(cmd *cobra.Command, args []string) error {
 	// Mode 1: Generate only (if target is missing but generate is set)
 	if proxyGenerate && proxyTarget == "" {
+		if !cmd.Flags().Changed("output") && proxyFormat == "openapi" {
+			proxyOutput = "openapi.yaml"
+		}
 		return runProxyGeneration(cmd)
 	}
 
@@ -202,8 +208,6 @@ func runProxyGeneration(cmd *cobra.Command) error {
 		return fmt.Errorf("recording is empty")
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Generating %s tests from %d interactions...\n", proxyLanguage, len(interactions))
-
 	ctx := context.Background()
 	cwd, _ := os.Getwd()
 	provider := viper.GetString("provider")
@@ -215,11 +219,21 @@ func runProxyGeneration(cmd *cobra.Command) error {
 	}
 
 	// limit interactions to avoid context window blowup
-	maxInt := 10
+	maxInt := 20
 	if len(interactions) > maxInt {
 		fmt.Fprintf(cmd.OutOrStdout(), "Warning: Truncating to first %d interactions for prompt size.\n", maxInt)
 		interactions = interactions[:maxInt]
 	}
+
+	if proxyFormat == "openapi" {
+		return generateOpenAPI(cmd, ag, interactions)
+	}
+
+	return generateTests(cmd, ag, interactions)
+}
+
+func generateTests(cmd *cobra.Command, ag agent.Agent, interactions []Interaction) error {
+	fmt.Fprintf(cmd.OutOrStdout(), "Generating %s tests from %d interactions...\n", proxyLanguage, len(interactions))
 
 	interactionsJSON, _ := json.MarshalIndent(interactions, "", "  ")
 
@@ -241,7 +255,7 @@ Requirements:
 Return the code in a markdown block.
 `, proxyLanguage, string(interactionsJSON), proxyLanguage)
 
-	resp, err := ag.Send(ctx, prompt)
+	resp, err := ag.Send(context.Background(), prompt)
 	if err != nil {
 		return err
 	}
@@ -252,6 +266,43 @@ Return the code in a markdown block.
 	}
 
 	fmt.Fprintf(cmd.OutOrStdout(), "✅ Generated tests saved to %s\n", proxyOutput)
+	return nil
+}
+
+func generateOpenAPI(cmd *cobra.Command, ag agent.Agent, interactions []Interaction) error {
+	fmt.Fprintf(cmd.OutOrStdout(), "Generating OpenAPI Spec from %d interactions...\n", len(interactions))
+
+	interactionsJSON, _ := json.MarshalIndent(interactions, "", "  ")
+
+	prompt := fmt.Sprintf(`You are an expert API Architect.
+Generate an OpenAPI 3.0 Specification (YAML format) based on the following recorded API interactions.
+
+Interactions:
+'''
+%s
+'''
+
+Requirements:
+- Infer paths and path parameters (e.g. /users/123 -> /users/{id}).
+- Infer schemas for request and response bodies.
+- Include response codes and descriptions.
+- Use standard OpenAPI 3.0 YAML syntax.
+- Do not include markdown formatting (like '''yaml), just the raw YAML content.
+
+Return ONLY the YAML content.
+`, string(interactionsJSON))
+
+	resp, err := ag.Send(context.Background(), prompt)
+	if err != nil {
+		return err
+	}
+
+	code := utils.CleanCodeBlock(resp)
+	if err := os.WriteFile(proxyOutput, []byte(code), 0644); err != nil {
+		return err
+	}
+
+	fmt.Fprintf(cmd.OutOrStdout(), "✅ Generated OpenAPI spec saved to %s\n", proxyOutput)
 	return nil
 }
 
