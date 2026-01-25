@@ -205,4 +205,25 @@ func TestJiraPoller_Poll(t *testing.T) {
 		assert.Equal(t, "statusCategory != Done ORDER BY created ASC", poller.JQL)
 		mockClient.AssertExpectations(t)
 	})
+
+	t.Run("Extract Required Features", func(t *testing.T) {
+		mockClient := new(MockJiraClient)
+		poller := NewJiraPoller(mockClient, "status = 'To Do'")
+
+		desc := "Repo: https://github.com/test/repo\nREQUIRED FEATURES:\n- Feature A\n* Feature B"
+		issue := mockIssue("PROJ-FEAT", "Feature Request", desc)
+
+		mockClient.On("SearchIssues", ctx, "status = 'To Do'").Return([]map[string]interface{}{issue}, nil)
+		mockClient.On("GetBlockers", issue).Return([]string{})
+		mockClient.On("ParseDescription", issue).Return(desc)
+
+		workItems, err := poller.Poll(ctx, nil)
+
+		assert.NoError(t, err)
+		assert.Len(t, workItems, 1)
+		assert.Contains(t, workItems[0].EnvVars, "RECAC_INJECTED_FEATURES")
+		assert.Contains(t, workItems[0].EnvVars["RECAC_INJECTED_FEATURES"], "Feature A")
+		assert.Contains(t, workItems[0].EnvVars["RECAC_INJECTED_FEATURES"], "Feature B")
+		mockClient.AssertExpectations(t)
+	})
 }
