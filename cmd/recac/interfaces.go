@@ -1,6 +1,16 @@
 package main
 
-import "recac/internal/runner"
+import (
+	"context"
+	"recac/internal/runner"
+)
+
+// IDockerClient defines the interface for Docker operations used by CLI commands.
+// This allows mocking the Docker client in tests.
+type IDockerClient interface {
+	RemoveContainer(ctx context.Context, containerID string, force bool) error
+	Close() error
+}
 
 // ISessionManager defines the interface for session management.
 type ISessionManager interface {

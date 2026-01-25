@@ -4,9 +4,15 @@ import (
 	"context"
 	"recac/internal/agent"
 	"recac/internal/cmdutils"
+	"recac/internal/docker"
 	"recac/internal/git"
 	"recac/internal/runner"
 )
+
+// dockerClientFactory is a factory function that can be overridden in tests.
+var dockerClientFactory = func(project string) (IDockerClient, error) {
+	return docker.NewClient(project)
+}
 
 // sessionManagerFactory is a variable that holds a function to create a session manager.
 // This allows us to override it in tests to inject a mock session manager.
