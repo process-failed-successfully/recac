@@ -1,145 +1,257 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
-	"recac/internal/db"
-	"strings"
 	"testing"
+
+	"recac/internal/db"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestRun_Blocker(t *testing.T) {
+func TestRun_Commands(t *testing.T) {
 	// Setup temp DB
-	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, ".recac.db")
+	tempDir := t.TempDir()
+	dbPath := filepath.Join(tempDir, ".recac.db")
 
-	// 1. Set Blocker
-	args := []string{"agent-bridge", "blocker", "Something is wrong"}
-	projectID := "test-project"
-	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err != nil {
-		t.Fatalf("run failed: %v", err)
+	// Create empty DB
+	// We rely on db.NewStore to create it or we create it explicitly
+	// db.NewSQLiteStore creates it.
+
+	config := db.StoreConfig{
+		Type:             "sqlite",
+		ConnectionString: dbPath,
 	}
 
-	// Ideally we check DB state, but 'run' just prints to stdout/stderr.
-	// We trust SetSignal is covered by db tests. Here we test the CLI wiring.
-}
+	tests := []struct {
+		name          string
+		args          []string
+		stdin         string
+		expectedOut   string
+		expectedErr   string
+		checkDB       func(t *testing.T, store db.Store)
+		setupDB       func(t *testing.T, store db.Store)
+		preRun        func(t *testing.T, dir string)
+	}{
+		{
+			name:        "Blocker",
+			args:        []string{"exe", "blocker", "Blocked by UI"},
+			expectedOut: "Blocker signal set.\n",
+			checkDB: func(t *testing.T, store db.Store) {
+				val, err := store.GetSignal("default", "BLOCKER")
+				assert.NoError(t, err)
+				assert.Equal(t, "Blocked by UI", val)
+			},
+		},
+		{
+			name:        "QA",
+			args:        []string{"exe", "qa"},
+			expectedOut: "QA trigger signal set.\n",
+			checkDB: func(t *testing.T, store db.Store) {
+				val, err := store.GetSignal("default", "TRIGGER_QA")
+				assert.NoError(t, err)
+				assert.Equal(t, "true", val)
+			},
+		},
+		{
+			name:        "Manager",
+			args:        []string{"exe", "manager"},
+			expectedOut: "Manager trigger signal set.\n",
+			checkDB: func(t *testing.T, store db.Store) {
+				val, err := store.GetSignal("default", "TRIGGER_MANAGER")
+				assert.NoError(t, err)
+				assert.Equal(t, "true", val)
+			},
+		},
+		{
+			name:        "Signal Generic",
+			args:        []string{"exe", "signal", "CUSTOM_KEY", "custom_val"},
+			expectedOut: "Signal CUSTOM_KEY set to custom_val.\n",
+			checkDB: func(t *testing.T, store db.Store) {
+				val, err := store.GetSignal("default", "CUSTOM_KEY")
+				assert.NoError(t, err)
+				assert.Equal(t, "custom_val", val)
+			},
+		},
+		{
+			name:        "Signal Privileged Error",
+			args:        []string{"exe", "signal", "PROJECT_SIGNED_OFF", "true"},
+			expectedErr: "signal 'PROJECT_SIGNED_OFF' is privileged",
+		},
+		{
+			name:        "Feature List Empty",
+			args:        []string{"exe", "feature", "list"},
+			expectedOut: `{"features":[]}`,
+		},
+		{
+			name:        "Import Features",
+			args:        []string{"exe", "import"},
+			stdin:       `{"features": [{"id": "feat-1", "description": "test feature", "status": "todo"}]}`,
+			expectedOut: "Successfully imported 1 features.\n",
+			checkDB: func(t *testing.T, store db.Store) {
+				content, err := store.GetFeatures("default")
+				assert.NoError(t, err)
+				assert.Contains(t, content, "feat-1")
+			},
+		},
+		{
+			name:        "Feature Set",
+			args:        []string{"exe", "feature", "set", "feat-1", "--status", "done", "--passes", "true"},
+			setupDB: func(t *testing.T, store db.Store) {
+				// Pre-populate
+				data := `{"features": [{"id": "feat-1", "description": "test feature", "status": "todo"}]}`
+				store.SaveFeatures("default", data)
+			},
+			expectedOut: "Feature feat-1 updated: status=done, passes=true\nAll features completed and passed. Auto-signaling COMPLETED.\n",
+			checkDB: func(t *testing.T, store db.Store) {
+				content, err := store.GetFeatures("default")
+				assert.NoError(t, err)
 
-func TestRun_QA(t *testing.T) {
-	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, ".recac.db")
+				var fl struct {
+					Features []struct {
+						ID     string `json:"id"`
+						Status string `json:"status"`
+						Passes bool   `json:"passes"`
+					} `json:"features"`
+				}
+				err = json.Unmarshal([]byte(content), &fl)
+				assert.NoError(t, err)
 
-	args := []string{"agent-bridge", "qa"}
-	projectID := "test-project"
-	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err != nil {
-		t.Fatalf("run failed: %v", err)
+				found := false
+				for _, f := range fl.Features {
+					if f.ID == "feat-1" {
+						assert.Equal(t, "done", f.Status)
+						assert.True(t, f.Passes)
+						found = true
+					}
+				}
+				assert.True(t, found)
+
+				// Check completion signal
+				sig, err := store.GetSignal("default", "COMPLETED")
+				assert.NoError(t, err)
+				assert.Equal(t, "true", sig)
+			},
+		},
+		{
+			name:        "Missing Command",
+			args:        []string{"exe"},
+			expectedErr: "missing command",
+			expectedOut: "Usage: agent-bridge <command> [arguments]",
+		},
+		{
+			name:        "Unknown Command",
+			args:        []string{"exe", "unknown"},
+			expectedErr: "unknown command: unknown",
+			expectedOut: "Usage: agent-bridge <command> [arguments]",
+		},
+		{
+			name:        "Verify Missing Args",
+			args:        []string{"exe", "verify", "id1"},
+			expectedErr: "usage: agent-bridge verify <id> <pass/fail>",
+		},
+		{
+			name:        "Verify File Error",
+			args:        []string{"exe", "verify", "id1", "pass"},
+			expectedErr: "could not read ui_verification.json",
+		},
+		{
+			name:        "Verify Success",
+			args:        []string{"exe", "verify", "feat-1", "pass"},
+			preRun: func(t *testing.T, dir string) {
+				wd, _ := os.Getwd()
+				t.Cleanup(func() { os.Chdir(wd) })
+				os.Chdir(dir)
+				content := `{"requests": [{"feature_id": "feat-1", "instruction": "check it", "status": "pending"}]}`
+				os.WriteFile("ui_verification.json", []byte(content), 0644)
+			},
+			expectedOut: "UI verification for feat-1 updated to pass.\n",
+			checkDB: func(t *testing.T, store db.Store) {
+				// Check file content
+				data, _ := os.ReadFile("ui_verification.json")
+				assert.Contains(t, string(data), `"status": "pass"`)
+			},
+		},
 	}
-}
 
-func TestRun_Signal(t *testing.T) {
-	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, ".recac.db")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.preRun != nil {
+				tt.preRun(t, tempDir)
+			}
 
-	args := []string{"agent-bridge", "signal", "MY_KEY", "MY_VALUE"}
-	projectID := "test-project"
-	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err != nil {
-		t.Fatalf("run failed: %v", err)
-	}
-}
+			// Redirect stdout/stderr
+			oldStdout := os.Stdout
+			oldStderr := os.Stderr
+			rOut, wOut, _ := os.Pipe()
+			rErr, wErr, _ := os.Pipe()
+			os.Stdout = wOut
+			os.Stderr = wErr
 
-func TestRun_Manager(t *testing.T) {
-	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, ".recac.db")
+			// Setup stdin if needed
+			oldStdin := os.Stdin
+			if tt.stdin != "" {
+				rIn, wIn, _ := os.Pipe()
+				wIn.Write([]byte(tt.stdin))
+				wIn.Close()
+				os.Stdin = rIn
+			}
 
-	args := []string{"agent-bridge", "manager"}
-	projectID := "test-project"
-	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err != nil {
-		t.Fatalf("run failed: %v", err)
-	}
-}
+			// Setup DB state if needed
+			if tt.setupDB != nil {
+				s, _ := db.NewStore(config)
+				tt.setupDB(t, s)
+				s.Close()
+			}
 
-func TestRun_Verify(t *testing.T) {
-	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, ".recac.db")
+			// Capture output in goroutine
+			outC := make(chan string)
+			errC := make(chan string)
+			go func() {
+				var buf bytes.Buffer
+				io.Copy(&buf, rOut)
+				outC <- buf.String()
+			}()
+			go func() {
+				var buf bytes.Buffer
+				io.Copy(&buf, rErr)
+				errC <- buf.String()
+			}()
 
-	// Create dummy ui_verification.json
-	uiPath := "ui_verification.json"
-	uiContent := `{
-		"requests": [
-			{"feature_id": "F1", "instruction": "Check UI", "status": "pending_human"}
-		]
-	}`
-	os.WriteFile(uiPath, []byte(uiContent), 0644)
-	defer os.Remove(uiPath)
+			err := run(tt.args, config, "default")
 
-	args := []string{"agent-bridge", "verify", "F1", "pass"}
-	projectID := "test-project"
-	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err != nil {
-		t.Fatalf("run failed: %v", err)
-	}
+			wOut.Close()
+			wErr.Close()
+			os.Stdout = oldStdout
+			os.Stderr = oldStderr
+			os.Stdin = oldStdin
 
-	// Verify file was updated
-	data, _ := os.ReadFile(uiPath)
-	if !strings.Contains(string(data), `"status": "pass"`) {
-		t.Errorf("Expected status to be updated to pass, got: %s", string(data))
-	}
-}
+			stdout := <-outC
+			_ = <-errC
 
-func TestRun_Feature(t *testing.T) {
-	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, ".recac.db")
-	projectID := "test-project"
+			if tt.expectedErr != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedErr)
+			} else {
+				assert.NoError(t, err)
+			}
 
-	store, _ := db.NewStore(db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}) // Fixed SaveFeatures call
-	store.SaveFeatures(projectID, `{"project_name": "Test", "features": [{"id": "F1", "name": "Feature 1"}]}`)
-	store.Close()
+			if tt.expectedOut != "" {
+				// Normalize newlines and trim whitespace for robust comparison if needed
+				// But exact match for meaningful output is better
+				assert.Contains(t, stdout, tt.expectedOut)
+			}
 
-	args := []string{"agent-bridge", "feature", "set", "F1", "--status", "done", "--passes", "true"}
-	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err != nil {
-		t.Fatalf("run failed: %v", err)
-	}
-}
-
-func TestMainEntry(t *testing.T) {
-	// We can't easily test os.Exit(1) without subprocess,
-	// but we can at least call main() with valid args to get coverage.
-	// We'll use a temp DB and valid args.
-	tmpDir := t.TempDir()
-
-	// Backup and restore os.Args and a way to control dbPath in main if possible?
-	// main() uses hardcoded ".recac.db". Let's temporarily change CWD.
-	oldWd, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldWd)
-
-	oldArgs := os.Args
-	defer func() { os.Args = oldArgs }()
-
-	os.Args = []string{"agent-bridge", "qa"}
-	main()
-}
-
-func TestRun_Invalid(t *testing.T) {
-	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, ".recac.db")
-	projectID := "test-project"
-
-	// No args
-	if err := run([]string{"agent-bridge"}, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err == nil {
-		t.Error("Expected error for no args")
-	}
-
-	// Unknown command
-	if err := run([]string{"agent-bridge", "unknown"}, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err == nil {
-		t.Error("Expected error for unknown command")
-	}
-
-	// verify missing args
-	if err := run([]string{"agent-bridge", "verify", "F1"}, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err == nil {
-		t.Error("Expected error for verify missing args")
-	}
-
-	// verify missing file
-	if err := run([]string{"agent-bridge", "verify", "F2", "pass"}, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err == nil {
-		t.Error("Expected error for verify missing file")
+			// Check DB
+			if tt.checkDB != nil {
+				s, _ := db.NewStore(config)
+				defer s.Close()
+				tt.checkDB(t, s)
+			}
+		})
 	}
 }
