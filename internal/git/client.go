@@ -43,6 +43,22 @@ func (mw *maskingWriter) Write(p []byte) (n int, err error) {
 	return len(p), err
 }
 
+// Run executes a git command and returns its output.
+func (c *Client) Run(dir string, args ...string) (string, error) {
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = os.Stderr // Capture stderr to console/logs, but return stdout
+	// Or maybe capture both? Usually for parsing we want stdout.
+	// runWithMasking sends both to stdout/stderr.
+
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("git %s failed: %w", strings.Join(args, " "), err)
+	}
+	return strings.TrimSpace(out.String()), nil
+}
+
 func (c *Client) runWithMasking(ctx context.Context, dir string, args ...string) error {
 	var outBuf, errBuf bytes.Buffer
 	cmd := exec.CommandContext(ctx, "git", args...)

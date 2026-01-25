@@ -101,6 +101,10 @@ type MockGitClient struct {
 	checkoutNewBranchFn func(directory, branch string) error
 }
 
+func (m *MockGitClient) Run(directory string, args ...string) (string, error) {
+	return "", nil
+}
+
 func (m *MockGitClient) Clone(ctx context.Context, repoURL, directory string) error {
 	if m.cloneFn != nil {
 		return m.cloneFn(ctx, repoURL, directory)

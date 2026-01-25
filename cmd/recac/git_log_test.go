@@ -57,6 +57,7 @@ func (m *MockGitClientLog) CurrentBranch(directory string) (string, error) { ret
 func (m *MockGitClientLog) Commit(directory, message string) error { return nil }
 func (m *MockGitClientLog) DiffStaged(directory string) (string, error) { return "", nil }
 func (m *MockGitClientLog) SetRemoteURL(directory, name, url string) error { return nil }
+func (m *MockGitClientLog) Run(directory string, args ...string) (string, error) { return "", nil }
 func (m *MockGitClientLog) DeleteLocalBranch(directory, branch string) error { return nil }
 func (m *MockGitClientLog) LocalBranchExists(directory, branch string) (bool, error) { return false, nil }
 func (m *MockGitClientLog) BisectStart(directory, bad, good string) error { return nil }

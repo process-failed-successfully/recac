@@ -44,6 +44,8 @@ type IGitClient interface {
 	RepoExists(repoPath string) bool
 	Commit(repoPath, message string) error
 	Log(repoPath string, args ...string) ([]string, error)
+	Run(repoPath string, args ...string) (string, error)
+	DeleteLocalBranch(repoPath, branch string) error
 	Fetch(repoPath, remote, branch string) error
 	CurrentBranch(repoPath string) (string, error)
 	CheckoutNewBranch(repoPath, branch string) error
