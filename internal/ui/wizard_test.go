@@ -2,6 +2,7 @@ package ui
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -174,7 +175,7 @@ func TestWizardModel_PathValidation_Real(t *testing.T) {
 	m.Init()
 
 	// Use a non-existent path
-	invalidPath := "/path/that/definitely/does/not/exist/12345"
+	invalidPath := filepath.Join(t.TempDir(), "non-existent-dir")
 
 	// Type the invalid path
 	for _, r := range invalidPath {
