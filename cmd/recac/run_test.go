@@ -78,7 +78,7 @@ func TestRunCmd_Success(t *testing.T) {
 		cs := []string{"-test.run=TestRunCmdHelperProcess", "--", command}
 		cs = append(cs, args...)
 		cmd := exec.Command(os.Args[0], cs...)
-		cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+		cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
 		return cmd
 	}
 
@@ -110,7 +110,7 @@ func TestRunCmd_Failure_CallsAI(t *testing.T) {
 		cs := []string{"-test.run=TestRunCmdHelperProcess", "--", command}
 		cs = append(cs, args...)
 		cmd := exec.Command(os.Args[0], cs...)
-		cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+		cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
 		return cmd
 	}
 
