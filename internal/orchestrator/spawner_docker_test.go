@@ -292,3 +292,12 @@ func TestDockerSpawner_EnvPropagation(t *testing.T) {
 	assert.Contains(t, cmdStr, "export RECAC_MAX_ITERATIONS=50", "Should propagate RECAC_MAX_ITERATIONS from host")
 	assert.Contains(t, cmdStr, "export RECAC_MANAGER_FREQUENCY=10m", "Should propagate RECAC_MANAGER_FREQUENCY from host")
 }
+
+func TestDockerSpawner_Cleanup(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	mockDocker := new(MockDockerClient)
+	spawner := NewDockerSpawner(logger, mockDocker, "img", "proj", nil, "", "", nil)
+
+	err := spawner.Cleanup(context.Background(), WorkItem{ID: "test"})
+	assert.NoError(t, err)
+}
