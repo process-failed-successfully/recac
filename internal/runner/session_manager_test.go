@@ -212,6 +212,11 @@ func (m *MockGitClient) LatestTag(directory string) (string, error) {
 	return args.String(0), args.Error(1)
 }
 
+func (m *MockGitClient) Run(dir string, args ...string) (string, error) {
+	callArgs := m.Called(dir, args)
+	return callArgs.String(0), callArgs.Error(1)
+}
+
 // setupSessionManager creates a new SessionManager in a temporary directory for isolated testing.
 func setupSessionManager(t *testing.T) (*SessionManager, func()) {
 	t.Helper()

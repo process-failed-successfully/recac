@@ -350,6 +350,14 @@ type MockGitClient struct {
 	DeleteTagFunc         func(repoPath, version string) error
 	PushTagsFunc          func(repoPath string) error
 	LatestTagFunc         func(repoPath string) (string, error)
+	RunFunc               func(dir string, args ...string) (string, error)
+}
+
+func (m *MockGitClient) Run(dir string, args ...string) (string, error) {
+	if m.RunFunc != nil {
+		return m.RunFunc(dir, args...)
+	}
+	return "mock output", nil
 }
 
 func (m *MockGitClient) Tag(repoPath, version string) error {

@@ -98,6 +98,11 @@ func (m *MockGitClient) LatestTag(repoPath string) (string, error) {
 	return args.String(0), args.Error(1)
 }
 
+func (m *MockGitClient) Run(dir string, args ...string) (string, error) {
+	callArgs := m.Called(dir, args)
+	return callArgs.String(0), callArgs.Error(1)
+}
+
 // Mock Poller (Minimal for this test)
 type MockPoller struct {
 	mock.Mock
