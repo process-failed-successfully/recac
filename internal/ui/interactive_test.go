@@ -3,6 +3,8 @@ package ui
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -625,5 +627,64 @@ func TestInteractiveModel_Update_ListSelection(t *testing.T) {
 
 	if !executed {
 		t.Error("Expected list selection to execute command")
+	}
+}
+
+func TestInteractiveModel_ClearHistory(t *testing.T) {
+	m := NewInteractiveModel(nil, "", "")
+	m.conversation("Test Message", true)
+
+	if len(m.messages) < 2 { // Welcome msg + Test Message
+		t.Errorf("Expected messages to be stored, got %d", len(m.messages))
+	}
+
+	m.ClearHistory()
+
+	if len(m.messages) == 0 {
+		t.Error("History should contain clearance confirmation")
+	}
+	last := m.messages[len(m.messages)-1]
+	if !strings.Contains(last.Content, "cleared") {
+		t.Error("Expected clearance message")
+	}
+}
+
+func TestInteractiveModel_LoadModelsFromFile(t *testing.T) {
+	// 1. Create temp file
+	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "models.json")
+
+	jsonContent := `{
+		"models": [
+			{"name": "TestModel", "displayName": "Display Test", "description": "Desc"}
+		]
+	}`
+
+	err := os.WriteFile(filePath, []byte(jsonContent), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 2. Load
+	models, err := loadModelsFromFile(filePath)
+	if err != nil {
+		t.Fatalf("Failed to load models: %v", err)
+	}
+
+	if len(models) != 1 {
+		t.Errorf("Expected 1 model, got %d", len(models))
+	}
+
+	if models[0].Name != "Display Test" {
+		t.Errorf("Expected Name 'Display Test', got '%s'", models[0].Name)
+	}
+	if models[0].Value != "TestModel" {
+		t.Errorf("Expected Value 'TestModel', got '%s'", models[0].Value)
+	}
+
+	// 3. Test non-existent file
+	_, err = loadModelsFromFile("non-existent.json")
+	if err == nil {
+		t.Error("Expected error for non-existent file")
 	}
 }
