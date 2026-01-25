@@ -627,3 +627,33 @@ func TestInteractiveModel_Update_ListSelection(t *testing.T) {
 		t.Error("Expected list selection to execute command")
 	}
 }
+
+func TestInteractiveModel_Coverage_Extras(t *testing.T) {
+	// 1. keyMap.ShortHelp
+	k := keys
+	if len(k.ShortHelp()) == 0 {
+		t.Error("keyMap.ShortHelp should not be empty")
+	}
+
+	// 2. contextualHelp.FullHelp
+	h := contextualHelp{keyMap: k, isMenu: false}
+	if len(h.FullHelp()) == 0 {
+		t.Error("contextualHelp.FullHelp should not be empty")
+	}
+
+	// 3. ClearHistory
+	m := NewInteractiveModel(nil, "", "")
+	m.conversation("test", true)
+	if len(m.messages) == 0 {
+		t.Error("Should have messages")
+	}
+	m.ClearHistory()
+	// ClearHistory resets messages to empty, but usually adds a "Cleared" message.
+	// Implementation: m.messages = []ChatMessage{}; m.conversation("Conversation history cleared.", false)
+	if len(m.messages) != 1 {
+		t.Errorf("Expected 1 message after clear, got %d", len(m.messages))
+	}
+	if !strings.Contains(m.messages[0].Content, "cleared") {
+		t.Error("Expected cleared message")
+	}
+}

@@ -98,6 +98,100 @@ func (m *MockGitClient) LatestTag(repoPath string) (string, error) {
 	return args.String(0), args.Error(1)
 }
 
+func (m *MockGitClient) RepoExists(directory string) bool {
+	return true
+}
+func (m *MockGitClient) Config(directory, key, value string) error {
+	return nil
+}
+func (m *MockGitClient) ConfigGlobal(key, value string) error {
+	return nil
+}
+func (m *MockGitClient) ConfigAddGlobal(key, value string) error {
+	return nil
+}
+func (m *MockGitClient) RemoteBranchExists(directory, remote, branch string) (bool, error) {
+	return false, nil
+}
+func (m *MockGitClient) Checkout(directory, branch string) error {
+	return nil
+}
+func (m *MockGitClient) CheckoutNewBranch(directory, branch string) error {
+	return nil
+}
+func (m *MockGitClient) Push(directory, branch string) error {
+	return nil
+}
+func (m *MockGitClient) Pull(directory, remote, branch string) error {
+	return nil
+}
+func (m *MockGitClient) Stash(directory string) error {
+	return nil
+}
+func (m *MockGitClient) Merge(directory, branchName string) error {
+	return nil
+}
+func (m *MockGitClient) AbortMerge(directory string) error {
+	return nil
+}
+func (m *MockGitClient) Recover(directory string) error {
+	return nil
+}
+func (m *MockGitClient) Clean(directory string) error {
+	return nil
+}
+func (m *MockGitClient) ResetHard(directory, remote, branch string) error {
+	return nil
+}
+func (m *MockGitClient) StashPop(directory string) error {
+	return nil
+}
+func (m *MockGitClient) DeleteRemoteBranch(directory, remote, branch string) error {
+	return nil
+}
+func (m *MockGitClient) CurrentBranch(directory string) (string, error) {
+	return "main", nil
+}
+func (m *MockGitClient) Commit(directory, message string) error {
+	return nil
+}
+func (m *MockGitClient) Diff(directory, startCommit, endCommit string) (string, error) {
+	return "", nil
+}
+func (m *MockGitClient) DiffStaged(directory string) (string, error) {
+	return "", nil
+}
+func (m *MockGitClient) DiffStat(directory, startCommit, endCommit string) (string, error) {
+	return "", nil
+}
+func (m *MockGitClient) SetRemoteURL(directory, name, url string) error {
+	return nil
+}
+func (m *MockGitClient) DeleteLocalBranch(directory, branch string) error {
+	return nil
+}
+func (m *MockGitClient) LocalBranchExists(directory, branch string) (bool, error) {
+	return false, nil
+}
+func (m *MockGitClient) Log(directory string, args ...string) ([]string, error) {
+	return []string{}, nil
+}
+func (m *MockGitClient) BisectStart(directory, bad, good string) error {
+	return nil
+}
+func (m *MockGitClient) BisectGood(directory, rev string) error {
+	return nil
+}
+func (m *MockGitClient) BisectBad(directory, rev string) error {
+	return nil
+}
+func (m *MockGitClient) BisectReset(directory string) error {
+	return nil
+}
+func (m *MockGitClient) BisectLog(directory string) ([]string, error) {
+	return []string{}, nil
+}
+
 // Mock Poller (Minimal for this test)
 type MockPoller struct {
 	mock.Mock
