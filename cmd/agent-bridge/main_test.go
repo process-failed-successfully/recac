@@ -143,3 +143,89 @@ func TestRun_Invalid(t *testing.T) {
 		t.Error("Expected error for verify missing file")
 	}
 }
+
+func TestRun_ClearSignal(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".recac.db")
+	projectName := filepath.Base(tmpDir)
+
+	// Set a signal first
+	store, _ := db.NewStore(db.StoreConfig{Type: "sqlite", ConnectionString: dbPath})
+	store.SetSignal(projectName, "KEY", "VALUE")
+	store.Close()
+
+	// Need to be in the project root
+	oldWd, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(oldWd)
+
+	args := []string{"agent-bridge", "clear-signal", "KEY"}
+	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, "ignored-id"); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	// Verify cleared
+	store, _ = db.NewStore(db.StoreConfig{Type: "sqlite", ConnectionString: dbPath})
+	val, _ := store.GetSignal(projectName, "KEY")
+	store.Close()
+	if val != "" {
+		t.Errorf("Signal not cleared, got %s", val)
+	}
+}
+
+func TestRun_Signal_Restricted(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".recac.db")
+
+	args := []string{"agent-bridge", "signal", "TRIGGER_QA", "true"}
+	err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, "test-project")
+	if err == nil {
+		t.Error("Expected error for restricted signal")
+	}
+	if !strings.Contains(err.Error(), "privileged") {
+		t.Errorf("Expected privileged error, got: %v", err)
+	}
+}
+
+func TestRun_Feature_List(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".recac.db")
+
+	store, _ := db.NewStore(db.StoreConfig{Type: "sqlite", ConnectionString: dbPath})
+	store.SaveFeatures("test-project", `{"features":[{"id":"F1"}]}`)
+	store.Close()
+
+	args := []string{"agent-bridge", "feature", "list"}
+	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, "test-project"); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+}
+
+func TestRun_Import(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".recac.db")
+
+	// Mock Stdin
+	input := `{"project_name": "Test", "features": [{"id": "F1", "name": "Imported"}]}`
+	r, w, _ := os.Pipe()
+	w.Write([]byte(input))
+	w.Close()
+
+	oldStdin := os.Stdin
+	defer func() { os.Stdin = oldStdin }()
+	os.Stdin = r
+
+	args := []string{"agent-bridge", "import"}
+	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, "test-project"); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	// Verify DB
+	store, _ := db.NewStore(db.StoreConfig{Type: "sqlite", ConnectionString: dbPath})
+	content, _ := store.GetFeatures("test-project")
+	store.Close()
+
+	if !strings.Contains(content, "Imported") {
+		t.Error("Features not imported")
+	}
+}

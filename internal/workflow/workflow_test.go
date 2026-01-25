@@ -161,8 +161,57 @@ func TestProcessDirectTask(t *testing.T) {
 	}
 }
 
+type mockSessionManager struct {
+	StartSessionFunc func(name, goal string, command []string, cwd string) (*runner.SessionState, error)
+}
+
+func (m *mockSessionManager) StartSession(name, goal string, command []string, cwd string) (*runner.SessionState, error) {
+	if m.StartSessionFunc != nil {
+		return m.StartSessionFunc(name, goal, command, cwd)
+	}
+	return nil, nil
+}
+
 func TestRunWorkflow_Detached(t *testing.T) {
-	t.Skip("Skipping detached test due to binary dependency")
+	mockSM := &mockSessionManager{
+		StartSessionFunc: func(name, goal string, command []string, cwd string) (*runner.SessionState, error) {
+			assert.Equal(t, "detached-session", name)
+			// We can check arguments if needed
+			return &runner.SessionState{
+				PID:     1234,
+				LogFile: "/tmp/log",
+			}, nil
+		},
+	}
+
+	// Mock NewSessionManagerFunc
+	originalNewSessionManagerFunc := NewSessionManagerFunc
+	defer func() { NewSessionManagerFunc = originalNewSessionManagerFunc }()
+	NewSessionManagerFunc = func() (ISessionManager, error) {
+		return mockSM, nil
+	}
+
+	tmpDir, _ := os.MkdirTemp("", "workflow-detached-test")
+	defer os.RemoveAll(tmpDir)
+
+	cfg := SessionConfig{
+		SessionName:    "detached-session",
+		Detached:       true,
+		ProjectPath:    tmpDir,
+		SessionManager: mockSM, // We can inject it directly too
+	}
+
+	// Ensure we have a valid executable context or fallback
+	// The code checks os.Executable() and falls back to recac-app in CWD
+	// We can't easily mock os.Executable.
+	// But if os.Executable succeeds (which it does in test), it proceeds.
+	// We just need to ensure os.Stat(executable) passes.
+	// `go test` compiles a test binary which is executable.
+	// So os.Executable returns the test binary path.
+	// And os.Stat should work.
+
+	err := RunWorkflow(context.Background(), cfg)
+	assert.NoError(t, err)
 }
 
 func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
