@@ -306,15 +306,15 @@ func executeCommand(root *cobra.Command, args ...string) (output string, err err
 // resetFlags resets all flags to their default values.
 func resetFlags(cmd *cobra.Command) {
 	cmd.Flags().VisitAll(func(f *pflag.Flag) {
-		if f.Changed {
-			if strings.Contains(strings.ToLower(f.Value.Type()), "slice") {
-				// Special handling for slice types
-				f.Value.Set("")
-			} else {
-				f.Value.Set(f.DefValue)
-			}
-			f.Changed = false
+		// Always reset flag to default value, regardless of Changed status.
+		// This handles cases where variables bound to flags were modified directly in tests.
+		if strings.Contains(strings.ToLower(f.Value.Type()), "slice") {
+			// Special handling for slice types
+			f.Value.Set("")
+		} else {
+			f.Value.Set(f.DefValue)
 		}
+		f.Changed = false
 	})
 	for _, c := range cmd.Commands() {
 		resetFlags(c)
