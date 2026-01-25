@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -356,6 +357,61 @@ func (m *MockGitClient) Tag(repoPath, version string) error {
 	if m.TagFunc != nil {
 		return m.TagFunc(repoPath, version)
 	}
+	return nil
+}
+
+func (m *MockGitClient) Clone(ctx context.Context, repoURL, directory string) error {
+	return nil
+}
+func (m *MockGitClient) Config(directory, key, value string) error {
+	return nil
+}
+func (m *MockGitClient) ConfigGlobal(key, value string) error {
+	return nil
+}
+func (m *MockGitClient) ConfigAddGlobal(key, value string) error {
+	return nil
+}
+func (m *MockGitClient) RemoteBranchExists(directory, remote, branch string) (bool, error) {
+	return false, nil
+}
+func (m *MockGitClient) Stash(directory string) error {
+	return nil
+}
+func (m *MockGitClient) Merge(directory, branchName string) error {
+	return nil
+}
+func (m *MockGitClient) AbortMerge(directory string) error {
+	return nil
+}
+func (m *MockGitClient) Recover(directory string) error {
+	return nil
+}
+func (m *MockGitClient) Clean(directory string) error {
+	return nil
+}
+func (m *MockGitClient) ResetHard(directory, remote, branch string) error {
+	return nil
+}
+func (m *MockGitClient) StashPop(directory string) error {
+	return nil
+}
+func (m *MockGitClient) DeleteRemoteBranch(directory, remote, branch string) error {
+	return nil
+}
+func (m *MockGitClient) SetRemoteURL(directory, name, url string) error {
+	return nil
+}
+func (m *MockGitClient) DeleteLocalBranch(directory, branch string) error {
+	return nil
+}
+func (m *MockGitClient) LocalBranchExists(directory, branch string) (bool, error) {
+	return false, nil
+}
+func (m *MockGitClient) Push(directory, branch string) error {
+	return nil
+}
+func (m *MockGitClient) Pull(directory, remote, branch string) error {
 	return nil
 }
 
