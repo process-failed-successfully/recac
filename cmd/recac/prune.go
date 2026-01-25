@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"recac/internal/runner"
 	"recac/internal/utils"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -26,7 +29,7 @@ func init() {
 var pruneCmd = &cobra.Command{
 	Use:   "prune",
 	Short: "Remove session artifacts from disk",
-	Long: `Prune removes session artifacts (logs, state files) for completed, stopped, or errored sessions.
+	Long: `Prune removes session artifacts (logs, state files, workspaces, docker containers) for completed, stopped, or errored sessions.
 Use the --all flag to remove all sessions, including running ones.
 Use the --since flag to remove sessions older than a specific duration (e.g., '7d', '24h').
 Use the --dry-run flag to see which sessions would be pruned without deleting them.`,
@@ -39,6 +42,15 @@ Use the --dry-run flag to see which sessions would be pruned without deleting th
 		sessions, err := sm.ListSessions()
 		if err != nil {
 			return fmt.Errorf("failed to list sessions: %w", err)
+		}
+
+		// Initialize Docker client (best effort)
+		dockerCli, err := dockerClientFactory("recac-prune")
+		if err != nil {
+			cmd.PrintErrf("Warning: Failed to initialize Docker client: %v\n", err)
+			dockerCli = nil
+		} else {
+			defer dockerCli.Close()
 		}
 
 		var cutoff time.Time
@@ -92,21 +104,45 @@ Use the --dry-run flag to see which sessions would be pruned without deleting th
 
 		prunedCount := 0
 		for _, s := range sessionsToPrune {
-			jsonPath := sm.GetSessionPath(s.Name)
-			logPath := s.LogFile
-
-			errs := []error{}
-			if err := os.Remove(jsonPath); err != nil && !os.IsNotExist(err) {
-				errs = append(errs, fmt.Errorf("failed to remove session file %s: %w", jsonPath, err))
-			}
-			if err := os.Remove(logPath); err != nil && !os.IsNotExist(err) {
-				errs = append(errs, fmt.Errorf("failed to remove log file %s: %w", logPath, err))
-			}
-
-			if len(errs) > 0 {
-				for _, e := range errs {
-					cmd.PrintErrln(e)
+			// 1. Cleanup Workspace
+			if s.Workspace != "" {
+				safe := false
+				// Safety checks to prevent deleting user directories
+				if filepath.IsAbs(s.Workspace) && s.Workspace != "/" {
+					base := filepath.Base(s.Workspace)
+					if strings.HasPrefix(base, "recac-agent-") || strings.Contains(s.Workspace, ".recac") {
+						safe = true
+					} else if strings.HasPrefix(s.Workspace, os.TempDir()) {
+						safe = true
+					}
 				}
+
+				if safe {
+					if err := os.RemoveAll(s.Workspace); err != nil {
+						// Only log error if file still exists (ignoring duplicate removal)
+						if !os.IsNotExist(err) {
+							cmd.PrintErrf("Failed to remove workspace %s: %v\n", s.Workspace, err)
+						}
+					}
+				}
+			}
+
+			// 2. Cleanup Docker Container
+			if s.ContainerID != "" && dockerCli != nil {
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				if err := dockerCli.RemoveContainer(ctx, s.ContainerID, true); err != nil {
+					// Check if error is "No such container" and ignore it
+					if !strings.Contains(err.Error(), "No such container") {
+						cmd.PrintErrf("Failed to remove container %s: %v\n", s.ContainerID, err)
+					}
+				}
+				cancel()
+			}
+
+			// 3. Remove Session Files
+			// Use RemoveSession with force=true to ensure cleanup even if status is stale
+			if err := sm.RemoveSession(s.Name, true); err != nil {
+				cmd.PrintErrln(err)
 				continue
 			}
 			cmd.Printf("Pruned session: %s\n", s.Name)
