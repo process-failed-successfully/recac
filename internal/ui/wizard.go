@@ -91,6 +91,10 @@ func (m WizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyEnter:
 			if m.step == StepPath {
 				rawPath := m.textInput.Value()
+				if strings.TrimSpace(rawPath) == "" {
+					m.errMsg = "Path does not exist"
+					return m, nil
+				}
 				expanded := expandPath(rawPath)
 
 				info, err := os.Stat(expanded)
