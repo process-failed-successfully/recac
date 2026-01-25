@@ -2,6 +2,9 @@ package main
 
 import (
 	"bytes"
+	"errors"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -90,4 +93,95 @@ func TestLinksCmd(t *testing.T) {
 
 	newAnchorContent, _ := os.ReadFile(filepath.Join(tmpDir, "doc_anchor.md"))
 	assert.Contains(t, string(newAnchorContent), "(sub/anchored.md#section)", "Link should update path but preserve anchor")
+}
+
+func TestLinksCmd_External(t *testing.T) {
+	// Restore original httpHeadFunc after test
+	originalHttpHeadFunc := httpHeadFunc
+	defer func() { httpHeadFunc = originalHttpHeadFunc }()
+
+	// Setup mock
+	mockResponses := map[string]int{
+		"http://valid.com":   200,
+		"http://broken.com":  404,
+		"http://error.com":   0, // simulates error
+	}
+
+	httpHeadFunc = func(url string) (*http.Response, error) {
+		code, ok := mockResponses[url]
+		if !ok {
+			return nil, errors.New("unknown url")
+		}
+		if code == 0 {
+			return nil, errors.New("network error")
+		}
+		return &http.Response{
+			StatusCode: code,
+			Body:       io.NopCloser(bytes.NewReader(nil)),
+		}, nil
+	}
+
+	// Setup fs
+	tmpDir := t.TempDir()
+	content := `
+[Valid](http://valid.com)
+[Broken](http://broken.com)
+[Error](http://error.com)
+[Ignored](http://unknown.com)
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "external.md"), []byte(content), 0644)
+	assert.NoError(t, err)
+
+	// Run
+	var outBuf bytes.Buffer
+	cmd := &cobra.Command{}
+	cmd.SetOut(&outBuf)
+	cmd.SetErr(&outBuf)
+
+	linksExternal = true
+	defer func() { linksExternal = false }()
+
+	err = runLinks(cmd, []string{tmpDir})
+	assert.Error(t, err) // broken links found
+
+	output := outBuf.String()
+	assert.Contains(t, output, "http://broken.com")
+	assert.Contains(t, output, "http://error.com") // checkURL returns false on error, so it appears as broken
+	assert.NotContains(t, output, "http://valid.com")
+}
+
+func TestLinksCmd_Errors(t *testing.T) {
+	// 1. Invalid root
+	cmd := &cobra.Command{}
+	var outBuf bytes.Buffer
+	cmd.SetOut(&outBuf)
+	cmd.SetErr(&outBuf)
+
+	err := runLinks(cmd, []string{"/non/existent/path"})
+	assert.Error(t, err)
+
+	// 2. Write error during fix
+	tmpDir := t.TempDir()
+
+	// Prepare files
+	os.Mkdir(filepath.Join(tmpDir, "sub"), 0755)
+	os.WriteFile(filepath.Join(tmpDir, "sub", "target.md"), []byte("Target"), 0644)
+	docPath := filepath.Join(tmpDir, "doc.md")
+	os.WriteFile(docPath, []byte("[Link](target.md)"), 0644) // target.md missing in root, exists in sub
+
+	// Mock writeFileFunc to fail
+	originalWriteFileFunc := writeFileFunc
+	defer func() { writeFileFunc = originalWriteFileFunc }()
+
+	writeFileFunc = func(filename string, data []byte, perm os.FileMode) error {
+		return errors.New("write failed")
+	}
+
+	linksFix = true
+	defer func() { linksFix = false }()
+
+	err = runLinks(cmd, []string{tmpDir})
+	assert.Error(t, err)
+	// Output should mention write failure
+	assert.Contains(t, outBuf.String(), "Failed to update")
 }

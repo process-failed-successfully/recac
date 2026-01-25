@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/spf13/cobra"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/stretchr/testify/assert"
@@ -148,4 +150,105 @@ func TestChaosFile_DryRun(t *testing.T) {
 	content, err := os.ReadFile(filePath)
 	assert.NoError(t, err)
 	assert.Equal(t, "original", string(content))
+}
+
+func TestChaosStress(t *testing.T) {
+	// Backup globals
+	oldCPU := chaosCPU
+	oldMem := chaosMemory
+	oldDur := chaosDuration
+	defer func() {
+		chaosCPU = oldCPU
+		chaosMemory = oldMem
+		chaosDuration = oldDur
+	}()
+
+	chaosCPU = 1
+	chaosMemory = 1
+	chaosDuration = 10 * time.Millisecond
+
+	cmd := &cobra.Command{}
+	err := runChaosStress(cmd, nil)
+	assert.NoError(t, err)
+}
+
+func TestChaosDocker_Errors(t *testing.T) {
+	originalFactory := chaosDockerClientFactory
+	defer func() { chaosDockerClientFactory = originalFactory }()
+
+	// Backup globals
+	oldPattern := chaosPattern
+	oldCount := chaosCount
+	oldDryRun := chaosDryRun
+	defer func() {
+		chaosPattern = oldPattern
+		chaosCount = oldCount
+		chaosDryRun = oldDryRun
+	}()
+
+	// Reset flags
+	chaosDryRun = false
+
+	t.Run("Factory Error", func(t *testing.T) {
+		chaosDockerClientFactory = func(project string) (chaosDockerClient, error) {
+			return nil, errors.New("factory failed")
+		}
+		chaosPattern = "anything"
+		err := runChaosDocker(&cobra.Command{}, nil)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "factory failed")
+	})
+
+	t.Run("List Error", func(t *testing.T) {
+		mock := &MockChaosDockerClient{
+			ListContainersFunc: func(ctx context.Context, options container.ListOptions) ([]types.Container, error) {
+				return nil, errors.New("list failed")
+			},
+		}
+		err := killRandomContainers(context.Background(), &cobra.Command{}, mock)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "list failed")
+	})
+
+	t.Run("Kill Error", func(t *testing.T) {
+		mock := &MockChaosDockerClient{
+			ListContainersFunc: func(ctx context.Context, options container.ListOptions) ([]types.Container, error) {
+				return []types.Container{{ID: "id1", Names: []string{"/target"}}}, nil
+			},
+			KillContainerFunc: func(ctx context.Context, containerID, signal string) error {
+				return errors.New("kill failed")
+			},
+		}
+		chaosPattern = "target"
+		chaosCount = 1
+		err := killRandomContainers(context.Background(), &cobra.Command{}, mock)
+		assert.Error(t, err)
+		if err != nil {
+			assert.Contains(t, err.Error(), "kill failed")
+		}
+	})
+
+	t.Run("No Matches", func(t *testing.T) {
+		mock := &MockChaosDockerClient{
+			ListContainersFunc: func(ctx context.Context, options container.ListOptions) ([]types.Container, error) {
+				return []types.Container{{ID: "id1", Names: []string{"/other"}}}, nil
+			},
+		}
+		chaosPattern = "target"
+		err := killRandomContainers(context.Background(), &cobra.Command{}, mock)
+		assert.NoError(t, err)
+	})
+}
+
+func TestChaosFile_Errors(t *testing.T) {
+	// Empty path
+	chaosPath = ""
+	err := runChaosFile(&cobra.Command{}, nil)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "path is required")
+
+	// Walk error
+	chaosPath = "/non/existent"
+	err = runChaosFile(&cobra.Command{}, nil)
+	assert.Error(t, err)
 }
