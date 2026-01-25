@@ -32,6 +32,7 @@ type IGitClient interface {
 	DiffStat(repoPath, commitA, commitB string) (string, error)
 	CurrentCommitSHA(repoPath string) (string, error)
 	RepoExists(repoPath string) bool
+	ConfigGlobal(key, value string) error
 	Commit(repoPath, message string) error
 	Log(repoPath string, args ...string) ([]string, error)
 	Fetch(repoPath, remote, branch string) error
