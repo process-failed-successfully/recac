@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -263,10 +264,40 @@ func (m *MockSessionManager) ListArchivedSessions() ([]*runner.SessionState, err
 	return archived, nil
 }
 
+// ThreadSafeBuffer is a bytes.Buffer that is safe for concurrent use.
+type ThreadSafeBuffer struct {
+	b bytes.Buffer
+	m sync.Mutex
+}
+
+func (b *ThreadSafeBuffer) Read(p []byte) (n int, err error) {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.b.Read(p)
+}
+
+func (b *ThreadSafeBuffer) Write(p []byte) (n int, err error) {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.b.Write(p)
+}
+
+func (b *ThreadSafeBuffer) String() string {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.b.String()
+}
+
+func (b *ThreadSafeBuffer) Reset() {
+	b.m.Lock()
+	defer b.m.Unlock()
+	b.b.Reset()
+}
+
 // executeCommand executes a cobra command and returns its output.
 func executeCommand(root *cobra.Command, args ...string) (output string, err error) {
 	resetFlags(root)
-	b := new(bytes.Buffer)
+	b := &ThreadSafeBuffer{}
 
 	// Mock exit
 	oldExit := exit

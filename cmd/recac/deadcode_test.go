@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
 
 func TestDeadcodeAnalysis(t *testing.T) {
@@ -107,5 +110,76 @@ func (u *UnusedType) UnusedMethodOnUnusedType() {
 	}
 	if len(b) == 0 {
 		t.Error("JSON output is empty")
+	}
+}
+
+func TestRunDeadcode(t *testing.T) {
+	// Setup
+	tmpDir := t.TempDir()
+	mainGo := `package main
+func UnusedFunc() {}
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainGo), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	var outBuf bytes.Buffer
+	cmd := &cobra.Command{}
+	cmd.SetOut(&outBuf)
+	cmd.SetErr(&outBuf)
+
+	// Test default output (table)
+	err := runDeadcode(cmd, []string{tmpDir})
+	if err != nil {
+		t.Errorf("runDeadcode failed: %v", err)
+	}
+	output := outBuf.String()
+	if !strings.Contains(output, "UnusedFunc") {
+		t.Errorf("Output should contain UnusedFunc, got: %s", output)
+	}
+
+	// Test JSON output
+	outBuf.Reset()
+	deadcodeJSON = true
+
+	err = runDeadcode(cmd, []string{tmpDir})
+	if err != nil {
+		t.Errorf("runDeadcode JSON failed: %v", err)
+	}
+	output = outBuf.String()
+	if !strings.Contains(output, "\"identifier\": \"UnusedFunc\"") {
+		t.Errorf("JSON output should contain UnusedFunc, got: %s", output)
+	}
+
+	// Reset JSON flag
+	deadcodeJSON = false
+
+	// Test Fail Flag
+	deadcodeFail = true
+	defer func() { deadcodeFail = false }()
+	err = runDeadcode(cmd, []string{tmpDir})
+	if err == nil {
+		t.Error("Expected error when deadcodeFail is true and findings exist")
+	}
+
+	// Test No Findings
+	os.Remove(filepath.Join(tmpDir, "main.go"))
+	// Create clean file
+	cleanGo := `package main
+func main() {}
+`
+	os.WriteFile(filepath.Join(tmpDir, "clean.go"), []byte(cleanGo), 0644)
+
+	outBuf.Reset()
+	deadcodeFail = true // Should not fail if no findings
+	deadcodeJSON = false
+
+	err = runDeadcode(cmd, []string{tmpDir})
+	if err != nil {
+		t.Errorf("runDeadcode failed on clean project: %v", err)
+	}
+	output = outBuf.String()
+	if !strings.Contains(output, "No dead code found") {
+		t.Errorf("Expected 'No dead code found', got: %s", output)
 	}
 }

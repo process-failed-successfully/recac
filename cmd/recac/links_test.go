@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -90,4 +92,57 @@ func TestLinksCmd(t *testing.T) {
 
 	newAnchorContent, _ := os.ReadFile(filepath.Join(tmpDir, "doc_anchor.md"))
 	assert.Contains(t, string(newAnchorContent), "(sub/anchored.md#section)", "Link should update path but preserve anchor")
+}
+
+func TestCheckURL(t *testing.T) {
+	// Setup mock server
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/ok" {
+			w.WriteHeader(http.StatusOK)
+		} else if r.URL.Path == "/404" {
+			w.WriteHeader(http.StatusNotFound)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	}))
+	defer ts.Close()
+
+	assert.True(t, checkURL(ts.URL+"/ok"))
+	assert.False(t, checkURL(ts.URL+"/404"))
+	assert.False(t, checkURL(ts.URL+"/error"))
+	assert.False(t, checkURL("http://invalid-url-that-does-not-exist"))
+}
+
+func TestScanLinks_External(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/ok" {
+			w.WriteHeader(http.StatusOK)
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer ts.Close()
+
+	tmpDir := t.TempDir()
+	content := "[Valid External](" + ts.URL + "/ok)\n[Broken External](" + ts.URL + "/404)"
+	err := os.WriteFile(filepath.Join(tmpDir, "external.md"), []byte(content), 0644)
+	assert.NoError(t, err)
+
+	// Test with external check enabled
+	broken, err := scanLinks(tmpDir, true)
+	assert.NoError(t, err)
+
+	// Should find 1 broken link
+	foundBroken := false
+	for _, bl := range broken {
+		if bl.IsExternal && bl.Target == ts.URL+"/404" {
+			foundBroken = true
+		}
+	}
+	assert.True(t, foundBroken, "Should have found broken external link")
+
+	// Test with external check disabled
+	broken, err = scanLinks(tmpDir, false)
+	assert.NoError(t, err)
+	assert.Len(t, broken, 0, "Should not find any broken links when external check is disabled")
 }
