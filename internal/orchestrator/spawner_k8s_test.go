@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,6 +13,79 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
+
+func TestExtractRepoPath(t *testing.T) {
+	tests := []struct {
+		url      string
+		expected string
+	}{
+		{"https://github.com/user/repo", "user/repo"},
+		{"https://github.com/org/project", "org/project"},
+		{"github.com/user/repo", "user/repo"},
+		{"user/repo", "user/repo"},
+	}
+
+	for _, tc := range tests {
+		assert.Equal(t, tc.expected, extractRepoPath(tc.url))
+	}
+}
+
+func TestK8sSpawner_Cleanup(t *testing.T) {
+	s := &K8sSpawner{}
+	err := s.Cleanup(context.Background(), WorkItem{})
+	assert.NoError(t, err)
+}
+
+func TestNewK8sSpawner_Config(t *testing.T) {
+	// 1. Test with invalid KUBECONFIG to verify error
+	t.Run("Invalid KUBECONFIG", func(t *testing.T) {
+		t.Setenv("KUBECONFIG", "/invalid/path/to/config")
+		t.Setenv("KUBERNETES_SERVICE_HOST", "") // Ensure not in-cluster
+
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		spawner, err := NewK8sSpawner(logger, "img", "ns", "p", "m", corev1.PullAlways)
+		assert.Error(t, err)
+		assert.Nil(t, spawner)
+	})
+
+	// 2. Test with valid (dummy) KUBECONFIG
+	t.Run("Valid KUBECONFIG", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		kubeConfigPath := filepath.Join(tmpDir, "kubeconfig")
+		// Minimal valid kubeconfig
+		kubeConfigContent := `
+apiVersion: v1
+clusters:
+- cluster:
+    server: https://1.2.3.4
+  name: test-cluster
+contexts:
+- context:
+    cluster: test-cluster
+    user: test-user
+  name: test-context
+current-context: test-context
+kind: Config
+preferences: {}
+users:
+- name: test-user
+  user:
+    token: test-token
+`
+		err := os.WriteFile(kubeConfigPath, []byte(kubeConfigContent), 0644)
+		assert.NoError(t, err)
+
+		t.Setenv("KUBECONFIG", kubeConfigPath)
+		t.Setenv("KUBERNETES_SERVICE_HOST", "")
+
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		spawner, err := NewK8sSpawner(logger, "img", "", "p", "m", corev1.PullAlways)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, spawner)
+		assert.Equal(t, "default", spawner.Namespace)
+	})
+}
 
 func TestK8sSpawner_Spawn_PropagatesEnvVars(t *testing.T) {
 	// Setup

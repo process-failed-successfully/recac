@@ -34,10 +34,10 @@ func NewK8sSpawner(logger *slog.Logger, image string, namespace, provider, model
 	if err != nil {
 		// 2. Fallback to ~/.kube/config
 		var kubeconfig string
-		if home := homedir.HomeDir(); home != "" {
-			kubeconfig = filepath.Join(home, ".kube", "config")
-		} else {
+		if os.Getenv("KUBECONFIG") != "" {
 			kubeconfig = os.Getenv("KUBECONFIG")
+		} else if home := homedir.HomeDir(); home != "" {
+			kubeconfig = filepath.Join(home, ".kube", "config")
 		}
 
 		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
