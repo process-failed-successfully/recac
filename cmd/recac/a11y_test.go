@@ -119,7 +119,8 @@ func TestA11yCmd_Run(t *testing.T) {
 		jsonOutput := output[jsonStart:]
 
 		var findings []A11yFinding
-		err = json.Unmarshal([]byte(jsonOutput), &findings)
+		// Use Decoder to stop after the first JSON value, ignoring trailing log text
+		err = json.NewDecoder(strings.NewReader(jsonOutput)).Decode(&findings)
 		require.NoError(t, err, "Output should be JSON: "+output)
 
 		assert.NotEmpty(t, findings)
@@ -143,7 +144,8 @@ func TestA11yCmd_Run(t *testing.T) {
 		jsonOutput := output[jsonStart:]
 
 		var findings []A11yFinding
-		err = json.Unmarshal([]byte(jsonOutput), &findings)
+		// Use Decoder to stop after the first JSON value, ignoring trailing log text
+		err = json.NewDecoder(strings.NewReader(jsonOutput)).Decode(&findings)
 		require.NoError(t, err)
 
 		foundAI := false
