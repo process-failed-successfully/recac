@@ -168,10 +168,10 @@ func TestPsDashboardModel_UpdateTableRows(t *testing.T) {
 	rows := m.table.Rows()
 	assert.Len(t, rows, 3)
 	assert.Equal(t, "local-session", rows[0][0])
-	assert.True(t, strings.Contains(rows[0][3], "ago"))
+	assert.True(t, strings.Contains(rows[0][5], "ago"))
 	assert.Equal(t, "k8s-session", rows[1][0])
-	assert.Equal(t, "10m ago", rows[1][3])
-	assert.Equal(t, "This is a very long goal that is definitely going to b...", rows[2][4])
+	assert.Equal(t, "10m ago", rows[1][5])
+	assert.Equal(t, "This is a very long goal that is definitely going to b...", rows[2][6])
 }
 
 func TestPsDashboardModel_Update_WindowSize(t *testing.T) {

@@ -33,6 +33,8 @@ func NewPsDashboardModel() psDashboardModel {
 	columns := []table.Column{
 		{Title: "NAME", Width: 25},
 		{Title: "STATUS", Width: 10},
+		{Title: "CPU", Width: 8},
+		{Title: "MEM", Width: 8},
 		{Title: "LOCATION", Width: 10},
 		{Title: "LAST USED", Width: 15},
 		{Title: "GOAL", Width: 60},
@@ -112,6 +114,8 @@ func (m *psDashboardModel) updateTableRows() {
 		rows = append(rows, table.Row{
 			s.Name,
 			s.Status,
+			s.CPU,
+			s.Memory,
 			s.Location,
 			lastUsed,
 			goal,
