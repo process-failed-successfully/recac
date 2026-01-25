@@ -17,8 +17,16 @@ var (
 	linksFix      bool
 	linksExternal bool
 	// Pre-compile regex for link finding and replacement
-	linkRegex      = regexp.MustCompile(`\[.*?\]\((.*?)\)`)
+	linkRegex        = regexp.MustCompile(`\[.*?\]\((.*?)\)`)
 	linkReplaceRegex = regexp.MustCompile(`(\[.*?\]\()(.*?)(\))`)
+
+	// httpHeadFunc allows mocking HTTP requests for testing
+	httpHeadFunc = func(url string) (*http.Response, error) {
+		client := http.Client{
+			Timeout: 5 * time.Second,
+		}
+		return client.Head(url)
+	}
 )
 
 var linksCmd = &cobra.Command{
@@ -213,10 +221,7 @@ func scanLinks(root string, checkExternal bool) ([]BrokenLink, error) {
 }
 
 func checkURL(url string) bool {
-	client := http.Client{
-		Timeout: 5 * time.Second,
-	}
-	resp, err := client.Head(url)
+	resp, err := httpHeadFunc(url)
 	if err != nil {
 		return false
 	}
