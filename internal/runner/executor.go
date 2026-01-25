@@ -248,9 +248,44 @@ func (s *Session) runCleanerAgent(ctx context.Context) error {
 		// Handle both relative and absolute paths
 		var filePath string
 		if filepath.IsAbs(line) {
-			filePath = line
+			filePath = filepath.Clean(line)
 		} else {
 			filePath = filepath.Join(s.Workspace, line)
+		}
+
+		// Security Check: Ensure path is inside workspace
+		// 1. Resolve symlinks in the target path
+		realPath, err := filepath.EvalSymlinks(filePath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue // File doesn't exist, nothing to clean
+			}
+			s.Logger.Warn("failed to resolve symlinks", "path", filePath, "error", err)
+			errors++
+			continue
+		}
+
+		// 2. Resolve symlinks in the workspace path (to compare apples to apples)
+		realWorkspace, err := filepath.EvalSymlinks(s.Workspace)
+		if err != nil {
+			s.Logger.Warn("failed to resolve workspace path", "path", s.Workspace, "error", err)
+			errors++
+			continue
+		}
+
+		// 3. Check containment
+		rel, err := filepath.Rel(realWorkspace, realPath)
+		if err != nil {
+			s.Logger.Warn("failed to resolve path relative to workspace", "path", realPath, "error", err)
+			errors++
+			continue
+		}
+
+		// Check for path traversal
+		if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+			s.Logger.Warn("security violation: attempted path traversal in cleaner agent", "attempted_path", line, "resolved_path", realPath)
+			errors++
+			continue
 		}
 
 		if err := os.Remove(filePath); err != nil {
