@@ -248,9 +248,24 @@ func (s *Session) runCleanerAgent(ctx context.Context) error {
 		// Handle both relative and absolute paths
 		var filePath string
 		if filepath.IsAbs(line) {
-			filePath = line
+			filePath = filepath.Clean(line)
 		} else {
 			filePath = filepath.Join(s.Workspace, line)
+		}
+
+		// Security Check: Ensure path is inside workspace
+		rel, err := filepath.Rel(s.Workspace, filePath)
+		if err != nil {
+			s.Logger.Warn("failed to resolve path relative to workspace", "path", filePath, "error", err)
+			errors++
+			continue
+		}
+
+		// Check for path traversal (starts with ..)
+		if rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			s.Logger.Warn("security violation: attempted path traversal in cleaner agent", "attempted_path", line, "resolved_path", filePath)
+			errors++
+			continue
 		}
 
 		if err := os.Remove(filePath); err != nil {
