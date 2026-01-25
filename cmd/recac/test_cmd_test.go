@@ -168,7 +168,6 @@ func TestRunTest_Fix_Success(t *testing.T) {
 	// Setup
 	cmd := rootCmd
 	resetFlags(cmd)
-	testFix = true // Enable fix mode
 	// Ensure diagnose is false to avoid that path (or let it be true, but fix should return success first)
 	// runTestOnce returns nil if fix succeeds.
 
@@ -229,7 +228,7 @@ func TestRunTest_Fix_Success(t *testing.T) {
 	defer func() { writeFileFunc = originalWriteFile }()
 
 	// Run
-	output, err := executeCommand(cmd, "test")
+	output, err := executeCommand(cmd, "test", "--fix")
 
 	// Assert
 	assert.NoError(t, err) // Should succeed eventually
@@ -242,8 +241,6 @@ func TestRunTest_Fix_GiveUp(t *testing.T) {
 	// Setup
 	cmd := rootCmd
 	resetFlags(cmd)
-	testFix = true
-	testFixAttempts = 2
 
 	// Mock getGitDiff/identifyPackages
 	originalGetGitDiff := getGitDiffFilesFunc
@@ -291,7 +288,7 @@ func TestRunTest_Fix_GiveUp(t *testing.T) {
 	defer func() { writeFileFunc = originalWriteFile }()
 
 	// Run
-	output, err := executeCommand(cmd, "test")
+	output, err := executeCommand(cmd, "test", "--fix", "--fix-attempts=2")
 
 	// Assert
 	assert.Error(t, err)
