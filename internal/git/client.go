@@ -262,6 +262,24 @@ func (c *Client) CurrentBranch(dir string) (string, error) {
 	return strings.TrimSpace(out.String()), nil
 }
 
+// Run executes an arbitrary git command and returns the output.
+func (c *Client) Run(directory string, args ...string) (string, error) {
+	var outBuf, errBuf bytes.Buffer
+	cmd := exec.Command("git", args...)
+	if directory != "" {
+		cmd.Dir = directory
+	}
+	// Enforce no prompting
+	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=/bin/true")
+	cmd.Stdout = &maskingWriter{w: &outBuf} // Only capture for return, no tee to stdout/stderr unless debug
+	cmd.Stderr = &maskingWriter{w: &errBuf}
+
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("git %s failed: %w\nOutput: %s\nStderr: %s", args[0], err, outBuf.String(), errBuf.String())
+	}
+	return strings.TrimSpace(outBuf.String()), nil
+}
+
 // CurrentCommitSHA returns the SHA of the current commit (HEAD).
 func (c *Client) CurrentCommitSHA(dir string) (string, error) {
 	cmd := exec.Command("git", "rev-parse", "HEAD")

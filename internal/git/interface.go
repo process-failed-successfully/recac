@@ -42,4 +42,5 @@ type IClient interface {
 	DeleteTag(directory, version string) error
 	PushTags(directory string) error
 	LatestTag(directory string) (string, error)
+	Run(directory string, args ...string) (string, error)
 }

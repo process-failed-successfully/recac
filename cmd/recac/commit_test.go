@@ -93,6 +93,9 @@ func (m *MockGitClientCommit) Tag(directory, version string) error           { r
 func (m *MockGitClientCommit) DeleteTag(directory, version string) error     { return nil }
 func (m *MockGitClientCommit) PushTags(directory string) error               { return nil }
 func (m *MockGitClientCommit) LatestTag(directory string) (string, error)    { return "v0.0.0", nil }
+func (m *MockGitClientCommit) Run(directory string, args ...string) (string, error) {
+	return "", nil
+}
 
 func TestCommitCmd(t *testing.T) {
 	// Setup mocks

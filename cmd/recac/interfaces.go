@@ -56,4 +56,6 @@ type IGitClient interface {
 	DeleteTag(repoPath, version string) error
 	PushTags(repoPath string) error
 	LatestTag(repoPath string) (string, error)
+	Run(repoPath string, args ...string) (string, error)
+	DeleteLocalBranch(repoPath, branch string) error
 }

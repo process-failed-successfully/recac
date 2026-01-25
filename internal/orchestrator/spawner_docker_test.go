@@ -98,6 +98,16 @@ func (m *MockGitClient) LatestTag(repoPath string) (string, error) {
 	return args.String(0), args.Error(1)
 }
 
+func (m *MockGitClient) Run(repoPath string, cmdArgs ...string) (string, error) {
+	args := m.Called(repoPath, cmdArgs)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockGitClient) DeleteLocalBranch(repoPath, branch string) error {
+	args := m.Called(repoPath, branch)
+	return args.Error(0)
+}
+
 // Mock Poller (Minimal for this test)
 type MockPoller struct {
 	mock.Mock
