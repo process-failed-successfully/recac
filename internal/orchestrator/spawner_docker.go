@@ -91,6 +91,7 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		Type:           "orchestrated-docker",
 		AgentStateFile: filepath.Join(tempDir, ".agent_state.json"),
 		StartCommitSHA: "", // Unknown at start, populated at end
+		ContainerID:    containerID,
 	}
 
 	if err := s.SessionManager.SaveSession(session); err != nil {
