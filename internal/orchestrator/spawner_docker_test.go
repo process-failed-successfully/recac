@@ -68,6 +68,11 @@ func (m *MockGitClient) Clone(ctx context.Context, repoURL, destPath string) err
 	return args.Error(0)
 }
 
+func (m *MockGitClient) ConfigGlobal(key, value string) error {
+	args := m.Called(key, value)
+	return args.Error(0)
+}
+
 func (m *MockGitClient) CurrentCommitSHA(repoPath string) (string, error) {
 	args := m.Called(repoPath)
 	return args.String(0), args.Error(1)
