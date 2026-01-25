@@ -2,6 +2,8 @@ package ui
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -57,7 +59,7 @@ func NewWizardModel() WizardModel {
 	}
 
 	l := list.New(items, list.NewDefaultDelegate(), 0, 0)
-	l.Title = "Select Agent Provider"
+	l.Title = "Select Agent Provider (Use ↑/↓ and Enter)"
 	l.SetShowHelp(false)
 	l.SetHeight(10)
 
@@ -88,13 +90,23 @@ func (m WizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case tea.KeyEnter:
 			if m.step == StepPath {
-				m.Path = m.textInput.Value()
-				if m.Path != "" {
+				rawPath := m.textInput.Value()
+				expanded := expandPath(rawPath)
+
+				info, err := os.Stat(expanded)
+				if err != nil {
+					if os.IsNotExist(err) {
+						m.errMsg = "Path does not exist"
+					} else {
+						m.errMsg = fmt.Sprintf("Error accessing path: %v", err)
+					}
+				} else if !info.IsDir() {
+					m.errMsg = "Path is not a directory"
+				} else {
+					m.Path = expanded
 					m.step = StepProvider
 					// Resize list if needed, or just transition
 					return m, nil
-				} else {
-					m.errMsg = "Path cannot be empty"
 				}
 			} else if m.step == StepProvider {
 				if i := m.list.SelectedItem(); i != nil {
@@ -152,6 +164,19 @@ func (m WizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list, cmd = m.list.Update(msg)
 	}
 	return m, cmd
+}
+
+func expandPath(path string) string {
+	if strings.HasPrefix(path, "~/") || path == "~" {
+		home, err := os.UserHomeDir()
+		if err == nil {
+			if path == "~" {
+				return home
+			}
+			return filepath.Join(home, path[2:])
+		}
+	}
+	return path
 }
 
 func (m WizardModel) View() string {

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -25,9 +26,11 @@ func TestWizardModel_Input(t *testing.T) {
 	// Initialize the model (important for textinput blink etc, though not strictly needed for logic test)
 	m.Init()
 
-	// Simulate typing "test-project"
-	input := "test-project"
-	for _, r := range input {
+	// Use a valid temporary directory for validation to pass
+	validPath := t.TempDir()
+
+	// Simulate typing the path
+	for _, r := range validPath {
 		msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}}
 		// We need to cast back to WizardModel because Update returns tea.Model
 		updatedModel, _ := m.Update(msg)
@@ -35,8 +38,8 @@ func TestWizardModel_Input(t *testing.T) {
 	}
 
 	// Verify text input value before Enter
-	if m.textInput.Value() != "test-project" {
-		t.Errorf("Expected text input value 'test-project', got '%s'", m.textInput.Value())
+	if m.textInput.Value() != validPath {
+		t.Errorf("Expected text input value '%s', got '%s'", validPath, m.textInput.Value())
 	}
 
 	// Simulate Enter to set path
@@ -50,8 +53,9 @@ func TestWizardModel_Input(t *testing.T) {
 	if m.step != StepProvider {
 		t.Error("Expected to transition to StepProvider")
 	}
-	if m.Path != "test-project" {
-		t.Errorf("Expected path 'test-project', got '%s'", m.Path)
+	// m.Path should now be the expanded validPath (which is absolute already from TempDir)
+	if m.Path != validPath {
+		t.Errorf("Expected path '%s', got '%s'", validPath, m.Path)
 	}
 
 	// Step 2: Provider Selection
@@ -110,7 +114,7 @@ func TestWizardModel_Input(t *testing.T) {
 
 	// Check final view
 	view := m.View()
-	if !strings.Contains(view, "Selected project: test-project") {
+	if !strings.Contains(view, "Selected project: "+validPath) {
 		t.Errorf("Expected final view to show selected project, got: %s", view)
 	}
 	if !strings.Contains(view, "Selected provider: gemini-cli") {
@@ -150,8 +154,8 @@ func TestWizardModel_ValidationFeedback(t *testing.T) {
 
 	// Should show error message (UX Requirement)
 	view := m.View()
-	if !strings.Contains(view, "Path cannot be empty") {
-		t.Errorf("Expected view to show 'Path cannot be empty', got: %s", view)
+	if !strings.Contains(view, "Path does not exist") {
+		t.Errorf("Expected view to show 'Path does not exist', got: %s", view)
 	}
 
 	// 2. Simulate typing clears error
@@ -160,8 +164,71 @@ func TestWizardModel_ValidationFeedback(t *testing.T) {
 	m = updatedModel.(WizardModel)
 
 	view = m.View()
-	if strings.Contains(view, "Path cannot be empty") {
+	if strings.Contains(view, "Path does not exist") {
 		t.Error("Expected error message to be cleared after typing")
+	}
+}
+
+func TestWizardModel_PathValidation_Real(t *testing.T) {
+	m := NewWizardModel()
+	m.Init()
+
+	// Use a non-existent path
+	invalidPath := "/path/that/definitely/does/not/exist/12345"
+
+	// Type the invalid path
+	for _, r := range invalidPath {
+		msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}}
+		updatedModel, _ := m.Update(msg)
+		m = updatedModel.(WizardModel)
+	}
+
+	// Simulate Enter
+	msg := tea.KeyMsg{Type: tea.KeyEnter}
+	updatedModel, _ := m.Update(msg)
+	m = updatedModel.(WizardModel)
+
+	// Should still be on StepPath
+	if m.step != StepPath {
+		t.Error("Expected to stay on StepPath when path is invalid")
+	}
+
+	// Check error message
+	if m.errMsg != "Path does not exist" {
+		t.Errorf("Expected error 'Path does not exist', got '%s'", m.errMsg)
+	}
+
+	// Try with a file instead of directory
+	tmpDir := t.TempDir()
+	tmpFile := tmpDir + "/testfile"
+	err := os.WriteFile(tmpFile, []byte("content"), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Reset input
+	m.textInput.Reset()
+
+	// Type the file path
+	for _, r := range tmpFile {
+		msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}}
+		updatedModel, _ := m.Update(msg)
+		m = updatedModel.(WizardModel)
+	}
+
+	// Simulate Enter
+	msg = tea.KeyMsg{Type: tea.KeyEnter}
+	updatedModel, _ = m.Update(msg)
+	m = updatedModel.(WizardModel)
+
+	// Should still be on StepPath
+	if m.step != StepPath {
+		t.Error("Expected to stay on StepPath when path is a file")
+	}
+
+	// Check error message
+	if m.errMsg != "Path is not a directory" {
+		t.Errorf("Expected error 'Path is not a directory', got '%s'", m.errMsg)
 	}
 }
 
