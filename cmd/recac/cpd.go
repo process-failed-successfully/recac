@@ -131,13 +131,21 @@ func readAndHashFile(path string) ([]uint64, error) {
 }
 
 func runCPD(root string, minLines int, ignorePatterns []string) ([]Duplication, error) {
-	// Map: hash -> []Location
+	hashes, err := collectFileHashes(root, minLines, ignorePatterns)
+	if err != nil {
+		return nil, err
+	}
+
+	pairs := findPairs(hashes)
+	merged := mergePairs(pairs)
+	results := pairsToDuplications(merged)
+
+	return results, nil
+}
+
+func collectFileHashes(root string, minLines int, ignorePatterns []string) (map[string][]Location, error) {
 	hashes := make(map[string][]Location)
-
-	// Reuse buffer for window hashing
-	// We map minLines uint64s to bytes: minLines * 8 bytes
 	windowBuf := make([]byte, minLines*8)
-
 	defaultIgnores := DefaultIgnoreMap()
 
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
@@ -155,7 +163,6 @@ func runCPD(root string, minLines int, ignorePatterns []string) ([]Duplication, 
 			return nil
 		}
 
-		// Check ignored patterns
 		for _, p := range ignorePatterns {
 			matched, _ := filepath.Match(p, info.Name())
 			if matched {
@@ -163,7 +170,6 @@ func runCPD(root string, minLines int, ignorePatterns []string) ([]Duplication, 
 			}
 		}
 
-		// Only check source-like files (heuristic)
 		ext := filepath.Ext(path)
 		allowedExts := map[string]bool{
 			".go": true, ".js": true, ".ts": true, ".py": true, ".java": true, ".c": true, ".cpp": true, ".h": true, ".rs": true,
@@ -174,23 +180,19 @@ func runCPD(root string, minLines int, ignorePatterns []string) ([]Duplication, 
 
 		lineHashes, err := readAndHashFile(path)
 		if err != nil {
-			return nil // Skip unreadable files
+			return nil
 		}
 
-		// Filter out short files
 		if len(lineHashes) < minLines {
 			return nil
 		}
 
-		// Sliding window over hashes
 		for i := 0; i <= len(lineHashes)-minLines; i++ {
-			// Create window content by serializing hashes
 			for j := 0; j < minLines; j++ {
 				binary.BigEndian.PutUint64(windowBuf[j*8:], lineHashes[i+j])
 			}
 
 			h := sha256.Sum256(windowBuf)
-			// Use the raw bytes as the key map
 			hashStr := string(h[:])
 
 			hashes[hashStr] = append(hashes[hashStr], Location{
@@ -203,11 +205,10 @@ func runCPD(root string, minLines int, ignorePatterns []string) ([]Duplication, 
 		return nil
 	})
 
-	if err != nil {
-		return nil, err
-	}
+	return hashes, err
+}
 
-	// 3. Generate Pairwise Matches
+func findPairs(hashes map[string][]Location) []MatchPair {
 	var pairs []MatchPair
 	for _, locs := range hashes {
 		if len(locs) < 2 {
@@ -217,7 +218,6 @@ func runCPD(root string, minLines int, ignorePatterns []string) ([]Duplication, 
 			for j := i + 1; j < len(locs); j++ {
 				l1, l2 := locs[i], locs[j]
 
-				// Canonicalize order: FileA < FileB, or StartA < StartB
 				if l1.File > l2.File || (l1.File == l2.File && l1.StartLine > l2.StartLine) {
 					l1, l2 = l2, l1
 				}
@@ -229,8 +229,10 @@ func runCPD(root string, minLines int, ignorePatterns []string) ([]Duplication, 
 			}
 		}
 	}
+	return pairs
+}
 
-	// 4. Sort Pairs
+func mergePairs(pairs []MatchPair) []MatchPair {
 	sort.Slice(pairs, func(i, j int) bool {
 		if pairs[i].FileA != pairs[j].FileA {
 			return pairs[i].FileA < pairs[j].FileA
@@ -244,25 +246,18 @@ func runCPD(root string, minLines int, ignorePatterns []string) ([]Duplication, 
 		return pairs[i].StartB < pairs[j].StartB
 	})
 
-	// 5. Merge Overlapping/Adjacent Pairs
 	var merged []MatchPair
 	if len(pairs) > 0 {
 		current := pairs[0]
 		for i := 1; i < len(pairs); i++ {
 			next := pairs[i]
 
-			// Check if same file pair
 			if current.FileA == next.FileA && current.FileB == next.FileB {
-				// Check constant offset (diagonal)
 				diffCurrent := current.StartB - current.StartA
 				diffNext := next.StartB - next.StartA
 
 				if diffCurrent == diffNext {
-					// Check if next starts within or immediately after current
-					// Since we sorted by StartA, next.StartA >= current.StartA
-					// Overlap or adjacency: next.StartA <= current.EndA + 1
 					if next.StartA <= current.EndA+1 {
-						// Merge: extend ends
 						if next.EndA > current.EndA {
 							current.EndA = next.EndA
 							current.EndB = next.EndB
@@ -277,8 +272,10 @@ func runCPD(root string, minLines int, ignorePatterns []string) ([]Duplication, 
 		}
 		merged = append(merged, current)
 	}
+	return merged
+}
 
-	// 6. Convert to Duplication Results
+func pairsToDuplications(merged []MatchPair) []Duplication {
 	var results []Duplication
 	for _, m := range merged {
 		results = append(results, Duplication{
@@ -290,12 +287,10 @@ func runCPD(root string, minLines int, ignorePatterns []string) ([]Duplication, 
 		})
 	}
 
-	// Sort results by line count (descending)
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].LineCount > results[j].LineCount
 	})
-
-	return results, nil
+	return results
 }
 
 func printCPDTable(cmd *cobra.Command, dups []Duplication) {
@@ -303,8 +298,6 @@ func printCPDTable(cmd *cobra.Command, dups []Duplication) {
 	fmt.Fprintln(w, "LINES\tFILES")
 
 	for _, d := range dups {
-		// Because we now report pairs, it's always 2 locations.
-		// But we can format it nicely.
 		l1 := d.Locations[0]
 		l2 := d.Locations[1]
 
