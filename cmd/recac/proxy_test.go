@@ -1,184 +1,198 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
 	"recac/internal/agent"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
-func TestProxyRecording(t *testing.T) {
-	// 1. Create Mock Target Server
+// MockRoundTripper for testing transport
+type MockRoundTripper struct {
+	mock.Mock
+}
+
+func (m *MockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	args := m.Called(req)
+	return args.Get(0).(*http.Response), args.Error(1)
+}
+
+func TestRecordingTransport(t *testing.T) {
+	mockRT := new(MockRoundTripper)
+
+	// Create a dummy response
+	resp := &http.Response{
+		StatusCode: 200,
+		Body:       io.NopCloser(bytes.NewBufferString("response body")),
+		Header:     make(http.Header),
+	}
+	resp.Header.Set("Content-Type", "text/plain")
+
+	mockRT.On("RoundTrip", mock.Anything).Return(resp, nil)
+
+	var captured Interaction
+	rt := &recordingTransport{
+		transport: mockRT,
+		onRecord: func(i Interaction) {
+			captured = i
+		},
+	}
+
+	req, _ := http.NewRequest("POST", "http://example.com/api", bytes.NewBufferString("request body"))
+	req.Header.Set("Content-Type", "application/json")
+
+	res, err := rt.RoundTrip(req)
+	assert.NoError(t, err)
+	assert.Equal(t, 200, res.StatusCode)
+
+	// Verify captured interaction
+	assert.Equal(t, "POST", captured.Request.Method)
+	assert.Equal(t, "http://example.com/api", captured.Request.URL)
+	assert.Equal(t, "request body", captured.Request.Body)
+	assert.Equal(t, "response body", captured.Response.Body)
+	assert.Equal(t, 200, captured.Response.Status)
+}
+
+func TestNewProxyHandler(t *testing.T) {
+	// Start a mock target server
 	targetServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/test" {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"message": "success"}`))
-			return
-		}
-		http.Error(w, "Not Found", http.StatusNotFound)
+		assert.Equal(t, "/test", r.URL.Path)
+		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte("target response"))
 	}))
 	defer targetServer.Close()
 
 	targetURL, _ := url.Parse(targetServer.URL)
-	recordFile := filepath.Join(t.TempDir(), "recording.json")
+	tempFile := t.TempDir() + "/recording.json"
 
-	// 2. Create Proxy Handler using the exported NewProxyHandler
-	var recorded []Interaction
+	var captured Interaction
 	handler := NewProxyHandler(targetURL, func(i Interaction) {
-		recorded = append(recorded, i)
-	}, recordFile)
+		captured = i
+	}, tempFile)
 
-	proxyServer := httptest.NewServer(handler)
-	defer proxyServer.Close()
+	req := httptest.NewRequest("GET", "/test", nil)
+	w := httptest.NewRecorder()
 
-	// 3. Send Request to Proxy
-	client := proxyServer.Client()
-	resp, err := client.Post(proxyServer.URL+"/api/test", "application/json", strings.NewReader(`{"foo":"bar"}`))
-	if err != nil {
-		t.Fatalf("Request failed: %v", err)
-	}
-	defer resp.Body.Close()
+	handler.ServeHTTP(w, req)
 
-	// 4. Verify Response
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("Expected status 200, got %d", resp.StatusCode)
-	}
+	resp := w.Result()
+	assert.Equal(t, http.StatusCreated, resp.StatusCode)
 	body, _ := io.ReadAll(resp.Body)
-	if !strings.Contains(string(body), "success") {
-		t.Errorf("Expected success in body, got %s", body)
-	}
+	assert.Equal(t, "target response", string(body))
 
-	// 5. Verify Recording (In-Memory)
-	if len(recorded) != 1 {
-		t.Errorf("Expected 1 recorded interaction, got %d", len(recorded))
-	} else {
-		// URL might be full URL or relative path depending on implementation details
-		// but ReqDump should capture it
-		if !strings.Contains(recorded[0].Request.URL, "/api/test") {
-			t.Errorf("Recorded URL mismatch: %s", recorded[0].Request.URL)
-		}
-		if recorded[0].Response.Status != 200 {
-			t.Errorf("Recorded status expected 200, got %d", recorded[0].Response.Status)
-		}
-	}
+	// Verify callback
+	// The URL captured is the one sent to the target, so it includes the full target URL
+	assert.Equal(t, targetServer.URL+"/test", captured.Request.URL)
+	assert.Equal(t, http.StatusCreated, captured.Response.Status)
+	assert.Equal(t, "target response", captured.Response.Body)
 
-	// 6. Verify Recording (File - JSONL)
-	content, err := os.ReadFile(recordFile)
-	if err != nil {
-		t.Fatalf("Failed to read record file: %v", err)
-	}
-	lines := strings.Split(strings.TrimSpace(string(content)), "\n")
-	if len(lines) != 1 {
-		t.Errorf("Expected 1 line in file, got %d. Content: %s", len(lines), string(content))
-	}
-	var fileI Interaction
-	if err := json.Unmarshal([]byte(lines[0]), &fileI); err != nil {
-		t.Fatalf("Failed to parse JSONL line: %v", err)
-	}
+	// Verify file write
+	content, err := os.ReadFile(tempFile)
+	assert.NoError(t, err)
+
+	var i Interaction
+	err = json.Unmarshal(content, &i) // It writes JSONL, but single line is valid JSON
+	assert.NoError(t, err)
+	assert.Equal(t, "target response", i.Response.Body)
 }
 
-// Local mock agent implementation
-type mockAgent struct {
-	SendFunc func(ctx context.Context, prompt string) (string, error)
+// ProxyMockAgent
+type ProxyMockAgent struct {
+	mock.Mock
 }
 
-func (m *mockAgent) Send(ctx context.Context, prompt string) (string, error) {
-	if m.SendFunc != nil {
-		return m.SendFunc(ctx, prompt)
-	}
+func (m *ProxyMockAgent) Send(ctx context.Context, prompt string) (string, error) {
+	args := m.Called(ctx, prompt)
+	return args.String(0), args.Error(1)
+}
+
+func (m *ProxyMockAgent) SendStream(ctx context.Context, prompt string, callback func(string)) (string, error) {
 	return "", nil
 }
 
-func (m *mockAgent) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
-	s, err := m.Send(ctx, prompt)
-	if err == nil && onChunk != nil {
-		onChunk(s)
-	}
-	return s, err
-}
+func (m *ProxyMockAgent) SetResponse(response string) {}
 
-func TestProxyGeneration(t *testing.T) {
-	// Setup Mock Agent
-	origFactory := agentClientFactory
-	defer func() { agentClientFactory = origFactory }()
+func (m *ProxyMockAgent) AddMemory(key, value string) {}
 
-	mockResponse := "```go\nfunc TestIntegration(t *testing.T) {}\n```"
-	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
-		return &mockAgent{
-			SendFunc: func(ctx context.Context, prompt string) (string, error) {
-				if strings.Contains(prompt, "Generate comprehensive integration tests") {
-					return mockResponse, nil
-				}
-				return "", fmt.Errorf("unexpected prompt: %s", prompt)
-			},
-		}, nil
-	}
-
-	// Create a dummy recording file
-	recordFile := filepath.Join(t.TempDir(), "recording.json")
+func TestRunProxy_Generation(t *testing.T) {
+	// Setup interaction file
 	interactions := []Interaction{
 		{
 			Timestamp: time.Now(),
-			Request:   ReqDump{Method: "GET", URL: "/api/test"},
-			Response:  ResDump{Status: 200, Body: "{}"},
+			Request: ReqDump{
+				Method: "GET",
+				URL:    "http://example.com/api/test",
+			},
+			Response: ResDump{
+				Status: 200,
+				Body:   `{"status": "ok"}`,
+			},
 		},
 	}
-	data, _ := json.Marshal(interactions)
-	os.WriteFile(recordFile, data, 0644)
 
-	outputFile := filepath.Join(t.TempDir(), "output_test.go")
+	tempDir := t.TempDir()
+	recordFile := tempDir + "/traffic.json"
+	outputFile := tempDir + "/test_gen.go"
 
-	// Setup Command Variables (global in package main)
-	// We need to be careful with global state in tests.
-	// Saving original values is good practice.
-	origRecord := proxyRecordFile
-	origOut := proxyOutput
-	origGen := proxyGenerate
-	origTarget := proxyTarget
-	origLang := proxyLanguage
+	f, _ := os.Create(recordFile)
+	data, _ := json.Marshal(interactions[0])
+	f.Write(data)
+	f.Close()
+
+	// Mock Agent
+	mockAgent := new(ProxyMockAgent)
+	mockAgent.On("Send", mock.Anything, mock.Anything).Return("package main\n\nfunc TestAPI() {}", nil)
+
+	// Override factory
+	origFactory := agentClientFactory
+	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+		return mockAgent, nil
+	}
+	defer func() { agentClientFactory = origFactory }()
+
+	// Set flags
+	// Note: We are testing runProxyGeneration logic indirectly via runProxy or directly if possible.
+	// Since runProxyGeneration takes *cobra.Command, we can call it if it was exported or accessible.
+	// But it is unexported in main package. We are in main package here (package main_test vs package main).
+	// Go tests in the same folder with package main can access unexported identifiers.
+
+	// Temporarily set global vars
+	oldProxyGenerate := proxyGenerate
+	oldProxyTarget := proxyTarget
+	oldProxyRecordFile := proxyRecordFile
+	oldProxyOutput := proxyOutput
 
 	defer func() {
-		proxyRecordFile = origRecord
-		proxyOutput = origOut
-		proxyGenerate = origGen
-		proxyTarget = origTarget
-		proxyLanguage = origLang
+		proxyGenerate = oldProxyGenerate
+		proxyTarget = oldProxyTarget
+		proxyRecordFile = oldProxyRecordFile
+		proxyOutput = oldProxyOutput
 	}()
 
+	proxyGenerate = true
+	proxyTarget = "" // Trigger generation mode
 	proxyRecordFile = recordFile
 	proxyOutput = outputFile
-	proxyGenerate = true
-	proxyTarget = "" // trigger generation mode
-	proxyLanguage = "go"
 
-	// Run Generation via command runner
-	// We create a dummy command because runProxy uses cmd.OutOrStdout
+	// Create dummy command
 	cmd := proxyCmd
-	cmd.SetOut(io.Discard)
-	cmd.SetErr(io.Discard)
 
 	err := runProxy(cmd, []string{})
-	if err != nil {
-		t.Fatalf("runProxy failed: %v", err)
-	}
+	assert.NoError(t, err)
 
-	// Verify Output File
-	outContent, err := os.ReadFile(outputFile)
-	if err != nil {
-		t.Fatalf("Output file not created: %v", err)
-	}
-	if !strings.Contains(string(outContent), "func TestIntegration") {
-		t.Errorf("Output file content wrong: %s", outContent)
-	}
+	// Verify file created
+	genContent, err := os.ReadFile(outputFile)
+	assert.NoError(t, err)
+	assert.Contains(t, string(genContent), "func TestAPI()")
 }
