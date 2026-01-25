@@ -262,6 +262,10 @@ func (m *MockGitClient) LatestTag(directory string) (string, error) {
 	return "v0.0.0", nil
 }
 
+func (m *MockGitClient) Run(directory string, args ...string) (string, error) {
+	return "", nil
+}
+
 func TestSetupWorkspace(t *testing.T) {
 	t.Run("Empty Repo URL", func(t *testing.T) {
 		mockGitClient := &MockGitClient{}
