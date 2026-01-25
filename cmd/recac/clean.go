@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -20,7 +19,7 @@ var cleanCmd = &cobra.Command{
 		fmt.Println("Cleaning up temporary files...")
 
 		tempFilesPath := "temp_files.txt"
-		file, err := os.Open(tempFilesPath)
+		lines, err := readLines(tempFilesPath)
 		if err != nil {
 			if os.IsNotExist(err) {
 				fmt.Println("No temporary files to clean.")
@@ -29,17 +28,13 @@ var cleanCmd = &cobra.Command{
 			fmt.Printf("Error opening %s: %v\n", tempFilesPath, err)
 			return
 		}
-		defer file.Close()
 
-		scanner := bufio.NewScanner(file)
 		var filesToRemove []string
-		for scanner.Scan() {
-			line := scanner.Text()
+		for _, line := range lines {
 			if line != "" {
 				filesToRemove = append(filesToRemove, line)
 			}
 		}
-		file.Close() // Close BEFORE removal
 
 		for _, f := range filesToRemove {
 			absPath, err := filepath.Abs(f)
