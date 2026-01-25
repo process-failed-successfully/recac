@@ -30,6 +30,8 @@ type mockAPIClient struct {
 	containerExecAttachFunc func(ctx context.Context, execID string, config container.ExecStartOptions) (types.HijackedResponse, error)
 	containerListFunc       func(ctx context.Context, options container.ListOptions) ([]types.Container, error)
 	containerKillFunc       func(ctx context.Context, containerID, signal string) error
+	containerRemoveFunc     func(ctx context.Context, containerID string, options container.RemoveOptions) error
+	containerStartFunc      func(ctx context.Context, containerID string, options container.StartOptions) error
 }
 
 func (m *mockAPIClient) Ping(ctx context.Context) (types.Ping, error) {
@@ -72,6 +74,9 @@ func (m *mockAPIClient) ContainerCreate(ctx context.Context, config *container.C
 }
 
 func (m *mockAPIClient) ContainerStart(ctx context.Context, containerID string, options container.StartOptions) error {
+	if m.containerStartFunc != nil {
+		return m.containerStartFunc(ctx, containerID, options)
+	}
 	return nil
 }
 
@@ -105,6 +110,9 @@ func (m *mockAPIClient) ContainerStop(ctx context.Context, containerID string, o
 }
 
 func (m *mockAPIClient) ContainerRemove(ctx context.Context, containerID string, options container.RemoveOptions) error {
+	if m.containerRemoveFunc != nil {
+		return m.containerRemoveFunc(ctx, containerID, options)
+	}
 	if containerID == "fail" {
 		return errors.New("remove failed")
 	}

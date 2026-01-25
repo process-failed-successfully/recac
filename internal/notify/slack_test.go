@@ -84,3 +84,12 @@ type errorTransport struct{}
 func (t *errorTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return nil, io.ErrUnexpectedEOF
 }
+
+func TestSlackNotifier_Notify_InvalidURL(t *testing.T) {
+	notifier := NewSlackNotifier(":") // Invalid URL
+	ctx := context.Background()
+	err := notifier.Notify(ctx, "test")
+	if err == nil {
+		t.Error("expected error for invalid URL, got nil")
+	}
+}
