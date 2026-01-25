@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/slack-go/slack"
 	"github.com/spf13/viper"
@@ -249,4 +250,70 @@ func TestManager_AddReaction(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, slackCalled)
 	assert.True(t, discordCalled)
+}
+
+func TestManager_InitDiscord(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(func() { viper.Reset() })
+
+	// Case 1: Disabled
+	viper.Set("notifications.discord.enabled", false)
+	m := NewManager(nil)
+	assert.Nil(t, m.discordNotifier)
+
+	// Case 2: Enabled but missing config
+	viper.Set("notifications.discord.enabled", true)
+	// Ensure env vars are cleared
+	t.Setenv("DISCORD_BOT_TOKEN", "")
+	t.Setenv("DISCORD_CHANNEL_ID", "")
+
+	logCalled := false
+	m = NewManager(func(format string, args ...interface{}) {
+		logCalled = true
+	})
+	assert.Nil(t, m.discordNotifier)
+	assert.True(t, logCalled, "should log warning for missing config")
+
+	// Case 3: Enabled and Configured via Env
+	t.Setenv("DISCORD_BOT_TOKEN", "test_token")
+	t.Setenv("DISCORD_CHANNEL_ID", "test_channel")
+
+	m = NewManager(nil)
+	assert.NotNil(t, m.discordNotifier)
+
+	// Case 4: Enabled and Configured via Viper
+	t.Setenv("DISCORD_BOT_TOKEN", "test_token_2")
+	t.Setenv("DISCORD_CHANNEL_ID", "") // Clear env to test viper fallback
+	viper.Set("notifications.discord.channel", "viper_channel")
+
+	m = NewManager(nil)
+	assert.NotNil(t, m.discordNotifier)
+	// Can't easily check internal fields of discordNotifier without reflection or exposing them,
+	// but NotNil confirms it was initialized.
+}
+
+func TestManager_Start(t *testing.T) {
+	// Just verify it doesn't panic.
+	// Since we can't easily mock socketClient internal field of Manager without changing struct,
+	// and Start only runs if socketClient is not nil.
+	// socketClient is only set in initSlack if app token starts with "xapp-".
+
+	viper.Reset()
+	t.Cleanup(func() { viper.Reset() })
+	viper.Set("notifications.slack.enabled", true)
+	t.Setenv("SLACK_BOT_USER_TOKEN", "xoxb-test")
+	t.Setenv("SLACK_APP_TOKEN", "xapp-test")
+
+	m := NewManager(nil)
+	// m.socketClient should be set (but might fail connection in real life)
+
+	// Start in background
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+
+	// This will try to connect and fail (or not), but shouldn't panic
+	m.Start(ctx)
+
+	// Wait for context to ensure goroutine started
+	<-ctx.Done()
 }
