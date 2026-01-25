@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -132,11 +131,16 @@ func readAndHashFile(path string) ([]uint64, error) {
 
 func runCPD(root string, minLines int, ignorePatterns []string) ([]Duplication, error) {
 	// Map: hash -> []Location
-	hashes := make(map[string][]Location)
+	hashes := make(map[[16]byte][]Location)
 
 	// Reuse buffer for window hashing
 	// We map minLines uint64s to bytes: minLines * 8 bytes
 	windowBuf := make([]byte, minLines*8)
+
+	// Reuse hasher to avoid allocations
+	hasher := fnv.New128a()
+	// Reuse buffer for hash output
+	hashOut := make([]byte, 0, 16)
 
 	defaultIgnores := DefaultIgnoreMap()
 
@@ -189,11 +193,14 @@ func runCPD(root string, minLines int, ignorePatterns []string) ([]Duplication, 
 				binary.BigEndian.PutUint64(windowBuf[j*8:], lineHashes[i+j])
 			}
 
-			h := sha256.Sum256(windowBuf)
-			// Use the raw bytes as the key map
-			hashStr := string(h[:])
+			hasher.Reset()
+			hasher.Write(windowBuf)
+			hashOut = hasher.Sum(hashOut[:0])
 
-			hashes[hashStr] = append(hashes[hashStr], Location{
+			var key [16]byte
+			copy(key[:], hashOut)
+
+			hashes[key] = append(hashes[key], Location{
 				File:      path,
 				StartLine: i + 1,
 				EndLine:   i + minLines,
