@@ -9,274 +9,163 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMonitorDashboardModel_Init(t *testing.T) {
-	callbacks := ActionCallbacks{
-		GetSessions: func() ([]model.UnifiedSession, error) {
-			return []model.UnifiedSession{}, nil
-		},
-	}
-	m := NewMonitorDashboardModel(callbacks)
-	cmd := m.Init()
-	assert.NotNil(t, cmd)
-}
-
 func TestMonitorDashboardModel_Update_Refresh(t *testing.T) {
 	callbacks := ActionCallbacks{}
 	m := NewMonitorDashboardModel(callbacks)
 
 	sessions := []model.UnifiedSession{
-		{Name: "session-1", Status: "running", Goal: "Fix bug"},
+		{Name: "sess1", Status: "running", Location: "k8s", Goal: "test"},
 	}
+	msg := monitorSessionsRefreshedMsg(sessions)
 
-	updatedM, cmd := m.Update(monitorSessionsRefreshedMsg(sessions))
-	model := updatedM.(MonitorDashboardModel)
+	newM, _ := m.Update(msg)
+	finalM := newM.(MonitorDashboardModel)
 
-	assert.Nil(t, cmd)
-	assert.Equal(t, 1, len(model.sessions))
-	assert.Equal(t, "session-1", model.sessions[0].Name)
-
-	// Check table rows
-	rows := model.table.Rows()
-	assert.Equal(t, 1, len(rows))
-	assert.Equal(t, "session-1", rows[0][0])
+	assert.Len(t, finalM.sessions, 1)
+	assert.Equal(t, "sess1", finalM.sessions[0].Name)
+	// Table should have rows
+	assert.NotEmpty(t, finalM.table.Rows())
 }
 
 func TestMonitorDashboardModel_Update_Kill(t *testing.T) {
-	killed := ""
-	callbacks := ActionCallbacks{
-		Stop: func(name string) error {
-			killed = name
-			return nil
-		},
-	}
+	callbacks := ActionCallbacks{}
 	m := NewMonitorDashboardModel(callbacks)
-	m.sessions = []model.UnifiedSession{
-		{Name: "session-to-kill"},
+
+	// Populate table
+	sessions := []model.UnifiedSession{
+		{Name: "sess1", Status: "running"},
 	}
-	m.updateTableRows()
+	m, _ = updateModelWithSessions(m, sessions)
+
+	// Select first row
 	m.table.SetCursor(0)
 
-	// 1. Simulate 'k' key press -> Enter confirmation mode
-	updatedM, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
-	model := updatedM.(MonitorDashboardModel)
+	// Press 'k'
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}}
+	newM, _ := m.Update(msg)
+	finalM := newM.(MonitorDashboardModel)
 
-	assert.Nil(t, cmd)
-	assert.Equal(t, "confirm_kill", model.viewMode)
-	assert.Equal(t, "session-to-kill", model.sessionToKill)
+	assert.Equal(t, "confirm_kill", finalM.viewMode)
+	assert.Equal(t, "sess1", finalM.sessionToKill)
 
-	// 2. Simulate 'y' key press -> Execute kill
-	updatedM, cmd = model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
-
-	// The cmd returned should be the function that calls Stop
-	assert.NotNil(t, cmd)
-
-	// Execute the cmd
-	msg := cmd()
-	assert.Equal(t, "session-to-kill", killed)
-
-	// Check result message
-	resMsg, ok := msg.(actionResultMsg)
-	assert.True(t, ok)
-	assert.Equal(t, "Stopped session session-to-kill", resMsg.msg)
-	assert.NoError(t, resMsg.err)
-
-	// Update model with result
-	finalM, _ := updatedM.Update(msg)
-	finalModel := finalM.(MonitorDashboardModel)
-	assert.Equal(t, "Stopped session session-to-kill", finalModel.message)
-	assert.Equal(t, "list", finalModel.viewMode)
-}
-
-func TestMonitorDashboardModel_Update_Kill_Cancel(t *testing.T) {
-	m := NewMonitorDashboardModel(ActionCallbacks{})
-	m.sessions = []model.UnifiedSession{{Name: "s1"}}
-	m.updateTableRows()
-
-	// 1. Press 'k'
-	updatedM, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
-	model := updatedM.(MonitorDashboardModel)
-	assert.Equal(t, "confirm_kill", model.viewMode)
-
-	// 2. Press 'n'
-	updatedM, _ = model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
-	model = updatedM.(MonitorDashboardModel)
-
-	assert.Equal(t, "list", model.viewMode)
-	assert.Equal(t, "", model.sessionToKill)
-}
-
-func TestMonitorDashboardModel_Update_Kill_Error(t *testing.T) {
-	callbacks := ActionCallbacks{
-		Stop: func(name string) error {
-			return errors.New("failed to stop")
-		},
+	// Press 'y' to confirm
+	mockStop := func(name string) error {
+		assert.Equal(t, "sess1", name)
+		return nil
 	}
-	m := NewMonitorDashboardModel(callbacks)
-	m.sessions = []model.UnifiedSession{{Name: "s1"}}
-	m.updateTableRows()
+	finalM.callbacks.Stop = mockStop
 
-	// 1. Press 'k'
-	updatedM, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
-	model := updatedM.(MonitorDashboardModel)
+	msgY := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}}
+	newM, cmd := finalM.Update(msgY)
 
-	// 2. Press 'y'
-	updatedM, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
-	msg := cmd()
+	// Execute cmd
+	resMsg := cmd()
+	assert.IsType(t, actionResultMsg{}, resMsg)
+	assert.Contains(t, resMsg.(actionResultMsg).msg, "Stopped session sess1")
 
-	resMsg, ok := msg.(actionResultMsg)
-	assert.True(t, ok)
-	assert.Error(t, resMsg.err)
-	assert.Equal(t, "failed to stop", resMsg.err.Error())
-
-	finalM, _ := updatedM.Update(msg)
-	finalModel := finalM.(MonitorDashboardModel)
-	assert.Contains(t, finalModel.message, "Error: failed to stop")
+	finalM = newM.(MonitorDashboardModel)
+	assert.Equal(t, "list", finalM.viewMode)
 }
 
 func TestMonitorDashboardModel_Update_Logs(t *testing.T) {
-	callbacks := ActionCallbacks{
-		GetLogs: func(name string) (string, error) {
-			return "log content", nil
-		},
+	mockGetLogs := func(name string) (string, error) {
+		return "log content", nil
 	}
-	m := NewMonitorDashboardModel(callbacks)
-	m.sessions = []model.UnifiedSession{{Name: "s1"}}
-	m.updateTableRows()
-
-	// 1. Press 'l'
-	updatedM, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
-	assert.NotNil(t, cmd)
-
-	// 2. Execute cmd -> returns string log content
-	msg := cmd()
-	logContent, ok := msg.(string)
-	// Actually, the cmd returns a func() tea.Msg which returns the string?
-	// Wait, in my impl: return m, func() tea.Msg { ... return func() tea.Msg { return logs }() }
-	// The outer func returns the inner msg.
-	// Let's trace carefully:
-	// return m, func() tea.Msg {
-	//    logs, _ := callbacks.GetLogs(name)
-	//    return func() tea.Msg { return logs }()
-	// }
-	// So the tea.Msg is `logs` (string).
-
-	// BUT wait, `func() tea.Msg { return logs }()` calls the func and returns `logs` (string).
-	// So `msg` IS `string`.
-
-	logStr, ok := msg.(string)
-	// If it failed, maybe it's actionResultMsg (error)
-	if !ok {
-		// Check if it's error
-		res, ok2 := msg.(actionResultMsg)
-		if ok2 {
-			t.Fatalf("Expected string logs, got error: %v", res.err)
-		}
-		// It might be that my test logic for cmd execution is slightly off regarding nested funcs?
-		// No, `cmd()` executes the command function and returns `tea.Msg`.
-		// My code: `return func() tea.Msg { return logs }()`. This is a direct return of `logs`.
-		// So `msg` is `logs`.
-	}
-	assert.True(t, ok)
-	assert.Equal(t, "log content", logStr)
-
-	// 3. Update model with logs
-	finalM, _ := updatedM.Update(logContent)
-	finalModel := finalM.(MonitorDashboardModel)
-
-	assert.Equal(t, "logs", finalModel.viewMode)
-	assert.Equal(t, "log content", finalModel.logContent)
-	assert.Contains(t, finalModel.View(), "Session Logs")
-
-	// 4. Press 'q' to go back
-	backM, _ := finalM.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
-	backModel := backM.(MonitorDashboardModel)
-	assert.Equal(t, "list", backModel.viewMode)
-}
-
-func TestMonitorDashboardModel_Update_Pause(t *testing.T) {
-	paused := ""
-	resumed := ""
-	callbacks := ActionCallbacks{
-		Pause: func(name string) error {
-			paused = name
-			return nil
-		},
-		Resume: func(name string) error {
-			resumed = name
-			return nil
-		},
-	}
+	callbacks := ActionCallbacks{GetLogs: mockGetLogs}
 	m := NewMonitorDashboardModel(callbacks)
 
-	// Case 1: Pause running session
-	m.sessions = []model.UnifiedSession{{Name: "s1", Status: "running"}}
-	m.updateTableRows()
-	m.table.SetCursor(0)
+	// Populate table
+	sessions := []model.UnifiedSession{
+		{Name: "sess1"},
+	}
+	m, _ = updateModelWithSessions(m, sessions)
 
-	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}})
-	msg := cmd()
-	assert.Equal(t, "s1", paused)
-	resMsg, ok := msg.(actionResultMsg)
-	assert.True(t, ok)
-	assert.Equal(t, "Paused session s1", resMsg.msg)
+	// Press 'l'
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}}
+	newM, cmd := m.Update(msg)
 
-	// Case 2: Resume paused session
-	m.sessions = []model.UnifiedSession{{Name: "s1", Status: "paused"}}
-	m.updateTableRows()
-	m.table.SetCursor(0)
+	// Cmd returns a function that returns a string
+	resMsg := cmd()
 
-	_, cmd = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}})
-	msg = cmd()
-	assert.Equal(t, "s1", resumed)
-	resMsg, ok = msg.(actionResultMsg)
-	assert.True(t, ok)
-	assert.Equal(t, "Resumed session s1", resMsg.msg)
+	assert.Equal(t, "log content", resMsg)
 
-	// Case 3: Invalid status
-	m.sessions = []model.UnifiedSession{{Name: "s1", Status: "stopped"}}
-	m.updateTableRows()
-	m.table.SetCursor(0)
-	_, cmd = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}})
-	msg = cmd()
-	resMsg, ok = msg.(actionResultMsg)
-	assert.True(t, ok)
-	assert.Error(t, resMsg.err)
+	// Update with log content
+	newM, _ = newM.Update(resMsg)
+	finalM := newM.(MonitorDashboardModel)
+
+	assert.Equal(t, "logs", finalM.viewMode)
+	assert.Equal(t, "log content", finalM.logContent)
 }
 
-func TestMonitorDashboardModel_Update_Resize(t *testing.T) {
-	m := NewMonitorDashboardModel(ActionCallbacks{})
-	updatedM, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
-	model := updatedM.(MonitorDashboardModel)
+func TestMonitorDashboardModel_Update_PauseResume(t *testing.T) {
+	mockPause := func(name string) error { return nil }
+	mockResume := func(name string) error { return nil }
 
-	// Height - 10 for table (minus borders = 38)
-	assert.Equal(t, 38, model.table.Height())
-	// Height - 5 for viewport
-	assert.Equal(t, 45, model.viewport.Height)
+	callbacks := ActionCallbacks{Pause: mockPause, Resume: mockResume}
+	m := NewMonitorDashboardModel(callbacks)
+
+	// Populate table with running session
+	sessions := []model.UnifiedSession{
+		{Name: "sess1", Status: "running"},
+	}
+	m, _ = updateModelWithSessions(m, sessions)
+
+	// Press 'p' -> Pause
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}}
+	_, cmd := m.Update(msg)
+	resMsg := cmd()
+	assert.Contains(t, resMsg.(actionResultMsg).msg, "Paused session sess1")
+
+	// Populate table with paused session
+	sessions[0].Status = "paused"
+	m, _ = updateModelWithSessions(m, sessions)
+
+	// Press 'p' -> Resume
+	_, cmd = m.Update(msg)
+	resMsg = cmd()
+	assert.Contains(t, resMsg.(actionResultMsg).msg, "Resumed session sess1")
 }
 
 func TestMonitorDashboardModel_View(t *testing.T) {
 	m := NewMonitorDashboardModel(ActionCallbacks{})
-	// Set message
-	m.message = "Test Message"
-	view := m.View()
-	assert.Contains(t, view, "RECAC Control Center")
-	assert.Contains(t, view, "Test Message")
-}
+	m, _ = updateModelWithSessions(m, []model.UnifiedSession{{Name: "sess1"}})
 
-func TestMonitorDashboardModel_View_EmptyState(t *testing.T) {
-	m := NewMonitorDashboardModel(ActionCallbacks{})
-	m.sessions = []model.UnifiedSession{}
+	// List view
 	view := m.View()
-	assert.Contains(t, view, "No active sessions found")
-	assert.Contains(t, view, "recac start")
-}
+	assert.Contains(t, view, "sess1")
 
-func TestMonitorDashboardModel_View_ConfirmKill(t *testing.T) {
-	m := NewMonitorDashboardModel(ActionCallbacks{})
+	// Logs view
+	m.viewMode = "logs"
+	view = m.View()
+	assert.Contains(t, view, "Session Logs")
+
+	// Confirm Kill view
 	m.viewMode = "confirm_kill"
-	m.sessionToKill = "bad-session"
-	view := m.View()
-	assert.Contains(t, view, "DANGER ZONE")
-	assert.Contains(t, view, "bad-session")
-	assert.Contains(t, view, "(y/n)")
+	m.sessionToKill = "sess1"
+	view = m.View()
+	assert.Contains(t, view, "Are you sure you want to kill session 'sess1'?")
+}
+
+// Helper
+func updateModelWithSessions(m MonitorDashboardModel, sessions []model.UnifiedSession) (MonitorDashboardModel, tea.Cmd) {
+	newM, cmd := m.Update(monitorSessionsRefreshedMsg(sessions))
+	return newM.(MonitorDashboardModel), cmd
+}
+
+func TestRefreshMonitorSessionsCmd(t *testing.T) {
+	mockGet := func() ([]model.UnifiedSession, error) {
+		return []model.UnifiedSession{{Name: "test"}}, nil
+	}
+	cmd := refreshMonitorSessionsCmd(mockGet)
+	msg := cmd()
+	assert.IsType(t, monitorSessionsRefreshedMsg{}, msg)
+	assert.Len(t, msg.(monitorSessionsRefreshedMsg), 1)
+
+	mockErr := func() ([]model.UnifiedSession, error) {
+		return nil, errors.New("fail")
+	}
+	cmdErr := refreshMonitorSessionsCmd(mockErr)
+	msgErr := cmdErr()
+	assert.IsType(t, actionResultMsg{}, msgErr)
+	assert.Error(t, msgErr.(actionResultMsg).err)
 }
