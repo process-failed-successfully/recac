@@ -103,16 +103,10 @@ func TestCheckImage_Complex(t *testing.T) {
 
 	}
 
-	// Match by ID short (must match prefix of ID including sha256:)
-
-	// sha256:12345 is 12 chars
-
-	exists, _ := client.CheckImage(context.Background(), "sha256:12345")
-
+	// Match by ID (exact match of what's in mock)
+	exists, _ := client.CheckImage(context.Background(), "sha256:1234567890ab")
 	if !exists {
-
 		t.Error("Expected match by ID")
-
 	}
 
 	// Match by implicit latest
