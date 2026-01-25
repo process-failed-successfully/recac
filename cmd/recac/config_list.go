@@ -22,10 +22,6 @@ type ModelItem struct {
 	DescriptionDetails string `json:"descriptionDetails"`
 }
 
-func (i ModelItem) FilterValue() string { return i.Name }
-func (i ModelItem) Title() string       { return i.Name }
-func (i ModelItem) Description() string { return i.DescriptionDetails }
-
 // listKeys lists all the configuration keys and their values.
 func listKeys(cmd *cobra.Command, args []string) error {
 	keys := viper.AllKeys()
