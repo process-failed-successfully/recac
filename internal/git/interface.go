@@ -29,6 +29,7 @@ type IClient interface {
 	Commit(directory, message string) error
 	Diff(directory, startCommit, endCommit string) (string, error)
 	DiffStaged(directory string) (string, error)
+	Run(directory string, args ...string) (string, error)
 	SetRemoteURL(directory, name, url string) error
 	DeleteLocalBranch(directory, branch string) error
 	LocalBranchExists(directory, branch string) (bool, error)
