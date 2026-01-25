@@ -84,7 +84,7 @@ var psCmd = &cobra.Command{
 				// We pass the *current* command instance to getUnifiedSessions
 				return getUnifiedSessions(cmd, filters)
 			}
-			return ui.StartPsDashboard()
+			return ui.StartPsDashboard(showCosts)
 		}
 
 		// --- Get Sessions ---

@@ -22,6 +22,7 @@ type psDashboardModel struct {
 	err        error
 	width      int
 	height     int
+	showCosts  bool
 }
 
 type psTickMsg time.Time
@@ -29,16 +30,9 @@ type psSessionsRefreshedMsg []model.UnifiedSession
 
 var psDashboardTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("62"))
 
-func NewPsDashboardModel() psDashboardModel {
-	columns := []table.Column{
-		{Title: "NAME", Width: 25},
-		{Title: "STATUS", Width: 10},
-		{Title: "CPU", Width: 8},
-		{Title: "MEM", Width: 8},
-		{Title: "LOCATION", Width: 10},
-		{Title: "LAST USED", Width: 15},
-		{Title: "GOAL", Width: 60},
-	}
+func NewPsDashboardModel(showCosts bool) psDashboardModel {
+	m := psDashboardModel{showCosts: showCosts}
+	columns := m.getColumns(showCosts)
 
 	t := table.New(
 		table.WithColumns(columns),
@@ -57,7 +51,31 @@ func NewPsDashboardModel() psDashboardModel {
 		Bold(false)
 	t.SetStyles(s)
 
-	return psDashboardModel{table: t}
+	m.table = t
+	return m
+}
+
+func (m psDashboardModel) getColumns(showCosts bool) []table.Column {
+	if showCosts {
+		return []table.Column{
+			{Title: "NAME", Width: 25},
+			{Title: "STATUS", Width: 10},
+			{Title: "COST", Width: 12},
+			{Title: "TOKENS", Width: 10},
+			{Title: "LOCATION", Width: 10},
+			{Title: "LAST USED", Width: 15},
+			{Title: "GOAL", Width: 60},
+		}
+	}
+	return []table.Column{
+		{Title: "NAME", Width: 25},
+		{Title: "STATUS", Width: 10},
+		{Title: "CPU", Width: 8},
+		{Title: "MEM", Width: 8},
+		{Title: "LOCATION", Width: 10},
+		{Title: "LAST USED", Width: 15},
+		{Title: "GOAL", Width: 60},
+	}
 }
 
 func (m psDashboardModel) Init() tea.Cmd {
@@ -80,6 +98,11 @@ func (m psDashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
+		case "c":
+			m.showCosts = !m.showCosts
+			m.table.SetColumns(m.getColumns(m.showCosts))
+			m.updateTableRows()
+			return m, nil
 		}
 
 	case psTickMsg:
@@ -111,15 +134,34 @@ func (m *psDashboardModel) updateTableRows() {
 		if len(goal) > 54 {
 			goal = goal[:54] + "..."
 		}
-		rows = append(rows, table.Row{
-			s.Name,
-			s.Status,
-			s.CPU,
-			s.Memory,
-			s.Location,
-			lastUsed,
-			goal,
-		})
+
+		if m.showCosts {
+			cost := "N/A"
+			tokens := "N/A"
+			if s.HasCost {
+				cost = fmt.Sprintf("$%.6f", s.Cost)
+				tokens = fmt.Sprintf("%d", s.Tokens.TotalTokens)
+			}
+			rows = append(rows, table.Row{
+				s.Name,
+				s.Status,
+				cost,
+				tokens,
+				s.Location,
+				lastUsed,
+				goal,
+			})
+		} else {
+			rows = append(rows, table.Row{
+				s.Name,
+				s.Status,
+				s.CPU,
+				s.Memory,
+				s.Location,
+				lastUsed,
+				goal,
+			})
+		}
 	}
 	m.table.SetRows(rows)
 }
@@ -131,7 +173,7 @@ func (m psDashboardModel) View() string {
 
 	var s strings.Builder
 	s.WriteString(psDashboardTitleStyle.Render(" RECAC PS Dashboard") + "\n")
-	s.WriteString(fmt.Sprintf("Last updated: %s (press 'q' to quit)\n\n", m.lastUpdate.Format(time.RFC1123)))
+	s.WriteString(fmt.Sprintf("Last updated: %s (press 'c' to toggle costs, 'q' to quit)\n\n", m.lastUpdate.Format(time.RFC1123)))
 
 	s.WriteString(m.table.View())
 	return s.String()
@@ -150,8 +192,8 @@ func refreshPsSessionsCmd() tea.Cmd {
 	}
 }
 
-var StartPsDashboard = func() error {
-	p := tea.NewProgram(NewPsDashboardModel(), tea.WithAltScreen())
+var StartPsDashboard = func(showCosts bool) error {
+	p := tea.NewProgram(NewPsDashboardModel(showCosts), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		return err
 	}
