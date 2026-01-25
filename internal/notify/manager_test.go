@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/slack-go/slack"
+	"github.com/slack-go/slack/socketmode"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 )
@@ -249,4 +251,101 @@ func TestManager_AddReaction(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, slackCalled)
 	assert.True(t, discordCalled)
+}
+
+func TestManager_Start_WithSocket(t *testing.T) {
+	api := slack.New("fake-token")
+	sm := socketmode.New(api)
+
+	logCh := make(chan string, 1)
+	logger := func(msg string, args ...interface{}) {
+		logCh <- msg
+	}
+
+	m := &Manager{
+		socketClient: sm,
+		logger:       logger,
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	m.Start(ctx)
+
+	select {
+	case msg := <-logCh:
+		assert.Equal(t, "Starting Slack Socket Mode...", msg)
+	case <-time.After(1 * time.Second):
+		t.Fatal("Timeout waiting for start log")
+	}
+}
+
+func TestManager_InitSlack_MissingToken(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(func() { viper.Reset() })
+	viper.Set("notifications.slack.enabled", true)
+
+	t.Setenv("SLACK_BOT_USER_TOKEN", "")
+
+	var logged string
+	logger := func(msg string, args ...interface{}) {
+		logged = msg
+	}
+
+	m := NewManager(logger)
+	assert.Nil(t, m.client)
+	assert.Contains(t, logged, "Warning: SLACK_BOT_USER_TOKEN not set")
+}
+
+func TestManager_InitDiscord_MissingToken(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(func() { viper.Reset() })
+	viper.Set("notifications.discord.enabled", true)
+
+	t.Setenv("DISCORD_BOT_TOKEN", "")
+	t.Setenv("DISCORD_CHANNEL_ID", "")
+	viper.Set("notifications.discord.channel", "")
+
+	var logged string
+	logger := func(msg string, args ...interface{}) {
+		logged = msg
+	}
+
+	m := NewManager(logger)
+	assert.Nil(t, m.discordNotifier)
+	assert.Contains(t, logged, "Warning: DISCORD_BOT_TOKEN or DISCORD_CHANNEL_ID not set")
+}
+
+func TestManager_HandleEvents(t *testing.T) {
+	api := slack.New("fake-token")
+	sm := socketmode.New(api)
+
+	// Replace Events channel
+	mockEvents := make(chan socketmode.Event)
+	sm.Events = mockEvents
+
+	logCh := make(chan string, 5) // Buffered to prevent blocking
+	logger := func(msg string, args ...interface{}) {
+		logCh <- msg
+	}
+
+	m := &Manager{
+		socketClient: sm,
+		logger:       logger,
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go m.HandleEvents(ctx)
+
+	// Send event
+	mockEvents <- socketmode.Event{Type: socketmode.EventTypeConnected}
+
+	select {
+	case msg := <-logCh:
+		assert.Equal(t, "Connected to Slack Socket Mode via WebSocket!", msg)
+	case <-time.After(1 * time.Second):
+		t.Fatal("Timeout waiting for event log")
+	}
 }
