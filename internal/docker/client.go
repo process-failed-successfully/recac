@@ -140,10 +140,24 @@ func (c *Client) CheckImage(ctx context.Context, imageRef string) (bool, error) 
 			}
 		}
 		// Check by image ID (short or full)
-		if len(img.ID) >= 12 && len(imageRef) >= 12 && imageRef == img.ID[:12] {
+		// Handle cases where imageRef is a short ID (hex) or full ID (with or without sha256:)
+
+		imgID := img.ID
+		// Strip prefix for comparison
+		if strings.HasPrefix(imgID, "sha256:") {
+			imgID = imgID[7:]
+		}
+
+		searchID := imageRef
+		if strings.HasPrefix(searchID, "sha256:") {
+			searchID = searchID[7:]
+		}
+
+		// Check for exact match or prefix match (if length is sufficient)
+		if searchID == imgID {
 			return true, nil
 		}
-		if imageRef == img.ID {
+		if len(searchID) >= 12 && len(imgID) >= len(searchID) && strings.HasPrefix(imgID, searchID) {
 			return true, nil
 		}
 	}
