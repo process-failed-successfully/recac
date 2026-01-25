@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestEvolutionAnalysis(t *testing.T) {
@@ -110,4 +112,79 @@ func complex() {
 	if m2.Complexity <= m1.Complexity {
 		t.Errorf("Commit 2 should be more complex than Commit 1")
 	}
+}
+
+func TestEvolutionAnalysis_Errors(t *testing.T) {
+	// Restore execCommand
+	originalExecCommand := execCommand
+	defer func() { execCommand = originalExecCommand }()
+
+	// 1. Get Commits Failure
+	t.Run("Get Commits Failure", func(t *testing.T) {
+		execCommand = func(name string, args ...string) *exec.Cmd {
+			return exec.Command("false") // Returns exit code 1
+		}
+
+		cmd := evolutionCmd
+		cmd.SetOut(os.Stdout)
+		cmd.SetErr(os.Stderr)
+
+		_, err := runEvolutionAnalysis(cmd, ".", 30)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "git log failed")
+	})
+
+	// 2. Worktree Failure
+	t.Run("Worktree Failure", func(t *testing.T) {
+		// We need getCommits to succeed, but worktree add to fail.
+		// getCommits calls `git log ...`. worktree calls `git worktree add ...`.
+		// We can switch based on args.
+
+		execCommand = func(name string, args ...string) *exec.Cmd {
+			if len(args) > 0 && args[0] == "log" {
+				// Return fake commits: HASH DATE
+				// Echo output
+				return exec.Command("echo", "hash123456789 2023-01-01")
+			}
+			if len(args) > 1 && args[0] == "worktree" && args[1] == "add" {
+				return exec.Command("false")
+			}
+			// Default success for other commands (like worktree prune/remove)
+			return exec.Command("true")
+		}
+
+		cmd := evolutionCmd
+		cmd.SetOut(os.Stdout)
+		cmd.SetErr(os.Stderr)
+
+		metrics, err := runEvolutionAnalysis(cmd, ".", 30)
+		assert.NoError(t, err) // Should continue on error?
+		// The code says:
+		/*
+			if out, err := gitCmd.CombinedOutput(); err != nil {
+				fmt.Fprintf(cmd.OutOrStderr(), "Warning: failed to checkout %s: %v\nOutput: %s\n", c.Hash, err, out)
+				continue
+			}
+		*/
+		// So it continues.
+		assert.Empty(t, metrics, "Should have no metrics if checkout failed")
+	})
+
+	// 3. No commits found
+	t.Run("No Commits Found", func(t *testing.T) {
+		execCommand = func(name string, args ...string) *exec.Cmd {
+			if len(args) > 0 && args[0] == "log" {
+				return exec.Command("true") // Empty output
+			}
+			return exec.Command("true")
+		}
+
+		cmd := evolutionCmd
+		cmd.SetOut(os.Stdout)
+		cmd.SetErr(os.Stderr)
+
+		_, err := runEvolutionAnalysis(cmd, ".", 30)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "no commits found")
+	})
 }
