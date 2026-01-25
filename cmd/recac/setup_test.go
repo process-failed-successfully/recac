@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"testing"
@@ -123,4 +124,111 @@ func TestSetupCmd(t *testing.T) {
 
 	// Cleanup .env created by test
 	os.Remove(".env")
+}
+
+func TestSetupCmd_Cancellation(t *testing.T) {
+	originalAskOne := askOneFunc
+	defer func() { askOneFunc = originalAskOne }()
+
+	askOneFunc = func(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {
+		return errors.New("cancelled")
+	}
+
+	cmd := &cobra.Command{Use: "test"}
+	err := runSetup(cmd, []string{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "cancelled")
+}
+
+func TestSetupCmd_Skips(t *testing.T) {
+	originalAskOne := askOneFunc
+	defer func() { askOneFunc = originalAskOne }()
+
+	mockAnswers = map[string]interface{}{
+		"Choose your AI Provider:":                  "openai",
+		"Enter the Model name:":                     "gpt-3.5",
+		"Enter your API Key (leave empty to skip):": "",    // skip
+		"Enable Slack notifications?":               false, // skip
+		"Run system check (recac doctor) now?":      false, // skip
+	}
+	askOneFunc = mockAskOne
+
+	viper.Reset()
+	viper.SetConfigFile("test_config_skips.yaml")
+	defer os.Remove("test_config_skips.yaml")
+
+	cmd := &cobra.Command{Use: "test"}
+	err := runSetup(cmd, []string{})
+	assert.NoError(t, err)
+
+	assert.Equal(t, "openai", viper.GetString("provider"))
+	assert.False(t, viper.GetBool("notifications.slack.enabled"))
+}
+
+func TestSetupCmd_AppendEnv(t *testing.T) {
+	originalAskOne := askOneFunc
+	defer func() { askOneFunc = originalAskOne }()
+
+	// Create existing .env
+	os.WriteFile(".env", []byte("EXISTING_VAR=foo\n"), 0600)
+	defer os.Remove(".env")
+
+	mockAnswers = map[string]interface{}{
+		"Choose your AI Provider:":                              "openai",
+		"Enter the Model name:":                                 "gpt-4",
+		"Enter your API Key (leave empty to skip):":             "new-key",
+		"Do you want to save the API Key to a local .env file?": true,
+		"Enable Slack notifications?":                           false,
+		"Run system check (recac doctor) now?":                  false,
+	}
+	askOneFunc = mockAskOne
+
+	viper.Reset()
+	viper.SetConfigFile("test_config_append.yaml")
+	defer os.Remove("test_config_append.yaml")
+
+	cmd := &cobra.Command{Use: "test"}
+	err := runSetup(cmd, []string{})
+	assert.NoError(t, err)
+
+	content, _ := os.ReadFile(".env")
+	str := string(content)
+	assert.Contains(t, str, "EXISTING_VAR=foo")
+	assert.Contains(t, str, "OPENAI_API_KEY=new-key")
+}
+
+func TestSetupCmd_DuplicateEnv(t *testing.T) {
+	originalAskOne := askOneFunc
+	defer func() { askOneFunc = originalAskOne }()
+
+	// Create existing .env with same key
+	os.WriteFile(".env", []byte("OPENAI_API_KEY=old-key\n"), 0600)
+	defer os.Remove(".env")
+
+	mockAnswers = map[string]interface{}{
+		"Choose your AI Provider:":                              "openai",
+		"Enter the Model name:":                                 "gpt-4",
+		"Enter your API Key (leave empty to skip):":             "new-key",
+		"Do you want to save the API Key to a local .env file?": true,
+		"Enable Slack notifications?":                           false,
+		"Run system check (recac doctor) now?":                  false,
+	}
+	askOneFunc = mockAskOne
+
+	viper.Reset()
+	viper.SetConfigFile("test_config_dup.yaml")
+	defer os.Remove("test_config_dup.yaml")
+
+	cmd := &cobra.Command{Use: "test"}
+	err := runSetup(cmd, []string{})
+	assert.NoError(t, err)
+
+	content, _ := os.ReadFile(".env")
+	str := string(content)
+	assert.Contains(t, str, "OPENAI_API_KEY=old-key")
+	// Should NOT contain new-key appended (unless old-key was prefix of new-key, but here they differ)
+	// But wait, if it appends "OPENAI_API_KEY=new-key", it will be there.
+	// Logic: if !strings.Contains(existingEnvStr, "OPENAI_API_KEY=") { append } else { skip }
+	// So it should skip.
+	assert.NotContains(t, str, "OPENAI_API_KEY=new-key")
 }
