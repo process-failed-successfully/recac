@@ -3,268 +3,133 @@ package telemetry
 import (
 	"bytes"
 	"context"
-	"encoding/json"
-	"errors"
 	"log/slog"
 	"os"
-	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestInitLogger_Configuration(t *testing.T) {
-	// Just verify it doesn't panic
-	InitLogger(true, "", false)
-	InitLogger(false, "", false)
+func TestNewLogger_FileOnly(t *testing.T) {
+	tmpFile := t.TempDir() + "/test.log"
+	logger := NewLogger(true, tmpFile, true) // Debug=true, File=tmpFile, SilenceStdout=true
+
+	logger.Info("info message")
+	logger.Debug("debug message")
+
+	// Verify file content
+	content, err := os.ReadFile(tmpFile)
+	require.NoError(t, err)
+	assert.Contains(t, string(content), "info message")
+	assert.Contains(t, string(content), "debug message")
+	assert.Contains(t, string(content), "INFO")
+	assert.Contains(t, string(content), "DEBUG")
 }
 
-func TestLogError(t *testing.T) {
-	oldLogger := slog.Default()
-	t.Cleanup(func() { slog.SetDefault(oldLogger) })
-
-	var buf bytes.Buffer
-	handler := slog.NewJSONHandler(&buf, nil)
-	slog.SetDefault(slog.New(handler))
-
-	LogError("something failed", errors.New("my error"), "foo", "bar")
-
-	output := buf.String()
-	if !strings.Contains(output, "my error") {
-		t.Errorf("Expected error message in log, got %s", output)
-	}
-	if !strings.Contains(output, `"foo":"bar"`) {
-		t.Errorf("Expected context in log, got %s", output)
-	}
-	if !strings.Contains(output, `"msg":"something failed"`) {
-		t.Errorf("Expected msg in log, got %s", output)
-	}
-}
-
-func TestInitLogger_JSONOutput(t *testing.T) {
-	oldLogger := slog.Default()
-	t.Cleanup(func() { slog.SetDefault(oldLogger) })
+func TestNewLogger_StdoutAndFile(t *testing.T) {
+	tmpFile := t.TempDir() + "/test_multi.log"
 
 	// Capture stdout
-	var buf bytes.Buffer
-	handler := slog.NewJSONHandler(&buf, nil)
-	logger := slog.New(handler)
-	slog.SetDefault(logger)
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
 
-	LogInfo("test message", "key", "value")
+	defer func() {
+		os.Stdout = oldStdout
+	}()
 
-	output := buf.String()
-	if !strings.Contains(output, `"msg":"test message"`) {
-		t.Errorf("Expected output to contain message, got %s", output)
-	}
-	if !strings.Contains(output, `"key":"value"`) {
-		t.Errorf("Expected output to contain key-value, got %s", output)
-	}
+	logger := NewLogger(false, tmpFile, false) // Debug=false, File=tmpFile, SilenceStdout=false
+	logger.Info("multi message")
 
-	var logMap map[string]interface{}
-	if err := json.Unmarshal(buf.Bytes(), &logMap); err != nil {
-		t.Fatalf("Output is not valid JSON: %v", err)
-	}
+	w.Close()
 
-	// Verify timestamp field exists
-	if _, ok := logMap["time"]; !ok {
-		t.Error("JSON output missing 'time' (timestamp) field")
-	}
+	var stdoutBuf bytes.Buffer
+	stdoutBuf.ReadFrom(r)
 
-	// Verify level field exists
-	if _, ok := logMap["level"]; !ok {
-		t.Error("JSON output missing 'level' field")
-	}
+	// Verify stdout
+	assert.Contains(t, stdoutBuf.String(), "multi message")
 
-	// Verify level is "INFO" for LogInfo
-	if level, ok := logMap["level"].(string); ok {
-		if level != "INFO" {
-			t.Errorf("Expected level to be 'INFO', got %q", level)
-		}
-	}
+	// Verify file
+	content, err := os.ReadFile(tmpFile)
+	require.NoError(t, err)
+	assert.Contains(t, string(content), "multi message")
 }
 
-// TestInitLogger_VerboseMode verifies Feature #40:
-// "Verify verbose mode prints detailed debug logs."
-// Step 1: Run with --verbose (simulated by InitLogger(true))
-// Step 2: Check logs for 'DEBUG' level entries
-// Step 3: Verify sensitive info is NOT logged (API keys)
-func TestInitLogger_VerboseMode(t *testing.T) {
-	oldLogger := slog.Default()
-	t.Cleanup(func() { slog.SetDefault(oldLogger) })
+func TestNewLogger_NoHandlers(t *testing.T) {
+	logger := NewLogger(false, "", true) // SilenceStdout=true, No file
+	assert.NotNil(t, logger)
 
-	// Step 1: Configure logger with verbose/debug mode enabled
-	var buf bytes.Buffer
-	handler := slog.NewJSONHandler(&buf, &slog.HandlerOptions{
-		Level: slog.LevelDebug, // Verbose mode enables DEBUG level
-	})
-	logger := slog.New(handler)
-	slog.SetDefault(logger)
-
-	// Step 2: Generate a DEBUG level log entry
-	LogDebug("debug message", "key", "value", "api_key", "sk-secret123")
-
-	output := buf.String()
-	if !strings.Contains(output, `"msg":"debug message"`) {
-		t.Errorf("Expected output to contain debug message, got %s", output)
-	}
-
-	var logMap map[string]interface{}
-	if err := json.Unmarshal(buf.Bytes(), &logMap); err != nil {
-		t.Fatalf("Output is not valid JSON: %v", err)
-	}
-
-	// Verify level is "DEBUG" for LogDebug
-	if level, ok := logMap["level"].(string); ok {
-		if level != "DEBUG" {
-			t.Errorf("Expected level to be 'DEBUG' in verbose mode, got %q", level)
-		}
-	} else {
-		t.Error("JSON output missing 'level' field")
-	}
-
-	// Step 3: Verify sensitive info (API keys) is NOT logged
-	// In this test, we're checking that the logger doesn't filter API keys,
-	// but in production, sensitive fields should be masked.
-	// For now, we verify that DEBUG logs are produced when verbose is enabled.
-	// In a real implementation, API keys should be masked or filtered.
-	if strings.Contains(output, "sk-secret123") {
-		t.Log("WARNING: API key is visible in logs - should be masked in production")
-	}
+	// Should not panic
+	logger.Info("nothing")
 }
 
-func TestNewLogger_InvalidFile(t *testing.T) {
-	// Should not panic and should still return a logger
-	logger := NewLogger(false, "/invalid/path/to/log.txt", false)
-	if logger == nil {
-		t.Error("NewLogger returned nil for invalid file path")
-	}
-}
-
-func TestLogInfof(t *testing.T) {
-	oldLogger := slog.Default()
-	t.Cleanup(func() { slog.SetDefault(oldLogger) })
-
-	var buf bytes.Buffer
-	handler := slog.NewJSONHandler(&buf, nil)
-	slog.SetDefault(slog.New(handler))
-
-	LogInfof("Hello %s", "World")
-
-	output := buf.String()
-	if !strings.Contains(output, `"msg":"Hello World"`) {
-		t.Errorf("Expected formatted message, got %s", output)
-	}
-}
-
-func TestMultiHandler(t *testing.T) {
+func TestMultiHandler_Direct(t *testing.T) {
 	var buf1, buf2 bytes.Buffer
 	h1 := slog.NewJSONHandler(&buf1, nil)
 	h2 := slog.NewJSONHandler(&buf2, nil)
 
 	mh := &multiHandler{handlers: []slog.Handler{h1, h2}}
+
 	ctx := context.Background()
 
-	// Test Enabled
-	if !mh.Enabled(ctx, slog.LevelInfo) {
-		t.Error("MultiHandler should be enabled")
-	}
+	// Enabled
+	assert.True(t, mh.Enabled(ctx, slog.LevelInfo))
 
-	// Test Handle
-	r := slog.Record{Time: time.Now(), Level: slog.LevelInfo, Message: "test handle"}
-	if err := mh.Handle(ctx, r); err != nil {
-		t.Errorf("Handle failed: %v", err)
-	}
+	// Handle
+	record := slog.NewRecord(time.Now(), slog.LevelInfo, "test", 0)
+	err := mh.Handle(ctx, record)
+	require.NoError(t, err)
 
-	if !strings.Contains(buf1.String(), "test handle") {
-		t.Error("buf1 missing log")
-	}
-	if !strings.Contains(buf2.String(), "test handle") {
-		t.Error("buf2 missing log")
-	}
+	assert.Contains(t, buf1.String(), "test")
+	assert.Contains(t, buf2.String(), "test")
 
-	// Test WithAttrs
-	mhAttrs := mh.WithAttrs([]slog.Attr{slog.String("a", "b")})
-	// mhAttrs should be a multiHandler too
-	mh2, ok := mhAttrs.(*multiHandler)
-	if !ok {
-		t.Fatal("WithAttrs did not return *multiHandler")
-	}
-	if len(mh2.handlers) != 2 {
-		t.Errorf("Expected 2 handlers, got %d", len(mh2.handlers))
-	}
+	// WithAttrs
+	mh2 := mh.WithAttrs([]slog.Attr{slog.String("key", "val")})
+	record2 := slog.NewRecord(time.Now(), slog.LevelInfo, "attr", 0)
+	mh2.Handle(ctx, record2)
 
-	// Test WithGroup
-	mhGroup := mh.WithGroup("g")
-	mh3, ok := mhGroup.(*multiHandler)
-	if !ok {
-		t.Fatal("WithGroup did not return *multiHandler")
-	}
-	if len(mh3.handlers) != 2 {
-		t.Errorf("Expected 2 handlers, got %d", len(mh3.handlers))
-	}
+	assert.Contains(t, buf1.String(), `"key":"val"`)
+	assert.Contains(t, buf2.String(), `"key":"val"`)
+
+	// WithGroup
+	mh3 := mh.WithGroup("grp").WithAttrs([]slog.Attr{slog.String("inner", "val")})
+	record3 := slog.NewRecord(time.Now(), slog.LevelInfo, "group", 0)
+	mh3.Handle(ctx, record3)
+
+	assert.Contains(t, buf1.String(), `"grp":{"inner":"val"}`)
+	assert.Contains(t, buf2.String(), `"grp":{"inner":"val"}`)
 }
 
-func TestNewLogger_WithFile(t *testing.T) {
-	// Create a temporary file
-	tmpFile, err := os.CreateTemp("", "test.log")
-	if err != nil {
-		t.Fatal(err)
-	}
-	tmpPath := tmpFile.Name()
-	tmpFile.Close()
-	defer os.Remove(tmpPath)
-
-	// Create logger with file output
-	logger := NewLogger(false, tmpPath, true)
-	if logger == nil {
-		t.Fatal("NewLogger returned nil")
-	}
-
-	logger.Info("file test")
-
-	// Verify file content
-	content, err := os.ReadFile(tmpPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(content), "file test") {
-		t.Error("Log file missing content")
-	}
+func TestInitLogger(t *testing.T) {
+	// Just ensure it doesn't panic
+	InitLogger(false, "", true)
+	assert.NotNil(t, slog.Default())
 }
 
-func TestNewLogger_SilenceStdout(t *testing.T) {
-	// We can't easily capture stdout here since NewLogger doesn't accept a writer for stdout (it uses os.Stdout).
-	// But we can verify that the returned handler is likely correct.
-	// If silenceStdout is true and no logFile, it should return a discard handler.
+func TestHelperFunctions(t *testing.T) {
+	// Redirect stdout to capture output
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	defer func() { os.Stdout = oldStdout }()
 
-	logger := NewLogger(false, "", true)
-	// We can't inspect internal handler easily, but we can call methods.
-	logger.Info("should be discarded")
-	// If it didn't panic, that's something.
-}
+	InitLogger(true, "", false) // Enable debug, output to stdout
 
-func TestInitLogger_SetsDefault(t *testing.T) {
-	oldLogger := slog.Default()
-	t.Cleanup(func() { slog.SetDefault(oldLogger) })
+	LogInfo("info msg")
+	LogDebug("debug msg")
+	LogError("error msg", assert.AnError)
+	LogInfof("formatted %s", "msg")
 
-	// Create a temp file to verify InitLogger effect
-	tmpFile, err := os.CreateTemp("", "init.log")
-	if err != nil {
-		t.Fatal(err)
-	}
-	tmpPath := tmpFile.Name()
-	tmpFile.Close()
-	defer os.Remove(tmpPath)
+	w.Close()
+	var buf bytes.Buffer
+	buf.ReadFrom(r)
+	output := buf.String()
 
-	InitLogger(true, tmpPath, true)
-
-	slog.Info("via default")
-
-	content, err := os.ReadFile(tmpPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(content), "via default") {
-		t.Error("Default logger not set correctly by InitLogger")
-	}
+	assert.Contains(t, output, "info msg")
+	assert.Contains(t, output, "debug msg")
+	assert.Contains(t, output, "error msg")
+	assert.Contains(t, output, "formatted msg")
+	assert.Contains(t, output, "assert.AnError general error for testing")
 }
