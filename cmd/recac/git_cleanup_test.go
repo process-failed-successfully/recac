@@ -4,33 +4,45 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
+	"recac/internal/ui"
+
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
 )
+
+type MockGitClientCleanup struct {
+	MockGitClient
+}
+
+// Ensure MockGitClientCleanup satisfies IGitClient
+var _ IGitClient = (*MockGitClientCleanup)(nil)
 
 func TestGitCleanupCmd(t *testing.T) {
 	// Setup Mocks
 	origGitFactory := gitClientFactory
-	defer func() { gitClientFactory = origGitFactory }()
+	origRunTUI := runGitCleanupTUI
+	defer func() {
+		gitClientFactory = origGitFactory
+		runGitCleanupTUI = origRunTUI
+	}()
 
-	// We use the shared MockGitClient from test_helpers_test.go
-	mockGit := &MockGitClient{}
+	mockGit := new(MockGitClientCleanup)
 	gitClientFactory = func() IGitClient {
 		return mockGit
 	}
 
 	// Change to temp dir
-	tempDir, _ := os.MkdirTemp("", "recac-git-cleanup-test")
+	tempDir, _ := os.MkdirTemp("", "recac-cleanup-test")
 	defer os.RemoveAll(tempDir)
 	cwd, _ := os.Getwd()
 	os.Chdir(tempDir)
 	defer os.Chdir(cwd)
 
 	t.Run("Not a Git Repo", func(t *testing.T) {
-		mockGit.RepoExistsFunc = func(dir string) bool { return false }
+		mockGit.RepoExistsFunc = func(path string) bool { return false }
 
 		cmd := gitCleanupCmd
 		cmd.SetOut(new(bytes.Buffer))
@@ -38,112 +50,121 @@ func TestGitCleanupCmd(t *testing.T) {
 
 		err := cmd.RunE(cmd, []string{})
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "not a git repository")
+		if err != nil {
+			assert.Contains(t, err.Error(), "not a git repository")
+		}
 	})
 
-	t.Run("Dry Run - Detect Merged and Stale", func(t *testing.T) {
-		mockGit.RepoExistsFunc = func(dir string) bool { return true }
-		mockGit.CurrentBranchFunc = func(dir string) (string, error) { return "main", nil }
-
-		mockGit.RunFunc = func(dir string, args ...string) (string, error) {
-			cmdStr := strings.Join(args, " ")
-			if strings.Contains(cmdStr, "--merged=HEAD") {
-				return "feature/merged\nmain", nil
-			}
-			if strings.Contains(cmdStr, "committerdate") {
-				// feature/stale is old
-				oldDate := time.Now().AddDate(0, 0, -60).Format("2006-01-02 15:04:05 -0700")
-				// feature/active is new
-				newDate := time.Now().Format("2006-01-02 15:04:05 -0700")
-				return fmt.Sprintf("%s|feature/stale\n%s|feature/active", oldDate, newDate), nil
+	t.Run("List Branches Error", func(t *testing.T) {
+		mockGit.RepoExistsFunc = func(path string) bool { return true }
+		mockGit.RunFunc = func(path string, args ...string) (string, error) {
+			if len(args) > 0 && args[0] == "for-each-ref" {
+				return "", fmt.Errorf("git error")
 			}
 			return "", nil
 		}
-
-		cleanupDryRun = true
-		cleanupForce = true // To avoid interactive prompt
-
-		cmd := gitCleanupCmd
-		outBuf := new(bytes.Buffer)
-		cmd.SetOut(outBuf)
-		cmd.SetErr(new(bytes.Buffer))
-
-		err := cmd.RunE(cmd, []string{})
-		assert.NoError(t, err)
-
-		out := outBuf.String()
-		assert.Contains(t, out, "[Dry Run] Would delete: feature/merged")
-		assert.Contains(t, out, "[Dry Run] Would delete: feature/stale")
-		assert.NotContains(t, out, "feature/active")
-	})
-
-	t.Run("Force Delete", func(t *testing.T) {
-		mockGit.RepoExistsFunc = func(dir string) bool { return true }
-		mockGit.CurrentBranchFunc = func(dir string) (string, error) { return "main", nil }
-
-		deleted := make(map[string]bool)
-		mockGit.DeleteLocalBranchFunc = func(dir, branch string) error {
-			deleted[branch] = true
-			return nil
-		}
-
-		mockGit.RunFunc = func(dir string, args ...string) (string, error) {
-			cmdStr := strings.Join(args, " ")
-			if strings.Contains(cmdStr, "--merged=HEAD") {
-				return "feature/merged", nil
-			}
-			return "", nil
-		}
-
-		cleanupDryRun = false
-		cleanupForce = true
-		cleanupMergedOnly = false
-
-		cmd := gitCleanupCmd
-		outBuf := new(bytes.Buffer)
-		cmd.SetOut(outBuf)
-		cmd.SetErr(new(bytes.Buffer))
-
-		err := cmd.RunE(cmd, []string{})
-		assert.NoError(t, err)
-
-		assert.True(t, deleted["feature/merged"])
-		assert.Contains(t, outBuf.String(), "Deleted feature/merged")
-	})
-
-	t.Run("Merged Only Flag", func(t *testing.T) {
-		mockGit.RepoExistsFunc = func(dir string) bool { return true }
-		mockGit.CurrentBranchFunc = func(dir string) (string, error) { return "main", nil }
-
-		mockGit.RunFunc = func(dir string, args ...string) (string, error) {
-			cmdStr := strings.Join(args, " ")
-			if strings.Contains(cmdStr, "--merged=HEAD") {
-				return "feature/merged", nil
-			}
-			if strings.Contains(cmdStr, "committerdate") {
-				return "2020-01-01 00:00:00 +0000|feature/stale", nil
-			}
-			return "", nil
-		}
-
-		deleted := make(map[string]bool)
-		mockGit.DeleteLocalBranchFunc = func(dir, branch string) error {
-			deleted[branch] = true
-			return nil
-		}
-
-		cleanupDryRun = false
-		cleanupForce = true
-		cleanupMergedOnly = true
 
 		cmd := gitCleanupCmd
 		cmd.SetOut(new(bytes.Buffer))
 		cmd.SetErr(new(bytes.Buffer))
 
 		err := cmd.RunE(cmd, []string{})
+		assert.Error(t, err)
+		if err != nil {
+			assert.Contains(t, err.Error(), "failed to list branches")
+		}
+	})
+
+	t.Run("No Other Branches", func(t *testing.T) {
+		mockGit.RepoExistsFunc = func(path string) bool { return true }
+		mockGit.RunFunc = func(path string, args ...string) (string, error) {
+			if len(args) > 0 && args[0] == "for-each-ref" {
+				now := time.Now().Format(time.RFC3339)
+				return fmt.Sprintf("main|%s|Alice", now), nil
+			}
+			if len(args) > 0 && args[0] == "branch" && args[1] == "--merged" {
+				return "main", nil
+			}
+			return "", nil
+		}
+		mockGit.CurrentBranchFunc = func(path string) (string, error) {
+			return "main", nil
+		}
+
+		cmd := gitCleanupCmd
+		cmd.SetOut(new(bytes.Buffer))
+		cmd.SetErr(new(bytes.Buffer))
+
+		// Capture stdout to check message
+		outBuf := new(bytes.Buffer)
+		cmd.SetOut(outBuf)
+
+		err := cmd.RunE(cmd, []string{})
+		assert.NoError(t, err)
+		assert.Contains(t, outBuf.String(), "No other local branches found")
+	})
+
+	t.Run("Delete Selected Branches", func(t *testing.T) {
+		mockGit.RepoExistsFunc = func(path string) bool { return true }
+		mockGit.CurrentBranchFunc = func(path string) (string, error) {
+			return "main", nil
+		}
+
+		// Mock branches
+		mockGit.RunFunc = func(path string, args ...string) (string, error) {
+			if len(args) > 0 && args[0] == "for-each-ref" {
+				now := time.Now().Format(time.RFC3339)
+				// main, feature-1, feature-2
+				return fmt.Sprintf("main|%s|Alice\nfeature-1|%s|Bob\nfeature-2|%s|Charlie", now, now, now), nil
+			}
+			if len(args) > 0 && args[0] == "branch" && args[1] == "--merged" {
+				return "main\nfeature-1", nil
+			}
+			return "", nil
+		}
+
+		// Mock TUI to select feature-1
+		runGitCleanupTUI = func(m tea.Model) (tea.Model, error) {
+			// m is the initial model.
+			cleanupModel, ok := m.(ui.GitCleanupModel)
+			if !ok {
+				return nil, fmt.Errorf("invalid model type")
+			}
+
+			// Simulate user interaction:
+			// Select feature-1 (index 0, as main is skipped)
+			cleanupModel, _ = updateCleanupModel(cleanupModel, tea.KeyMsg{Type: tea.KeySpace})
+			// Confirm
+			cleanupModel, _ = updateCleanupModel(cleanupModel, tea.KeyMsg{Type: tea.KeyEnter})
+			// Yes
+			cleanupModel, _ = updateCleanupModel(cleanupModel, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+
+			return cleanupModel, nil
+		}
+
+		// Track deletions
+		deleted := []string{}
+		mockGit.DeleteLocalBranchFunc = func(repoPath, branch string) error {
+			deleted = append(deleted, branch)
+			return nil
+		}
+
+		cmd := gitCleanupCmd
+		outBuf := new(bytes.Buffer)
+		cmd.SetOut(outBuf)
+		cmd.SetErr(new(bytes.Buffer))
+
+		err := cmd.RunE(cmd, []string{})
 		assert.NoError(t, err)
 
-		assert.True(t, deleted["feature/merged"])
-		assert.False(t, deleted["feature/stale"], "stale branch should not be deleted with merged-only flag")
+		assert.Contains(t, deleted, "feature-1")
+		assert.NotContains(t, deleted, "feature-2")
+		assert.Contains(t, outBuf.String(), "Deleted feature-1")
 	})
+}
+
+// Helper to update model with type assertion
+func updateCleanupModel(m ui.GitCleanupModel, msg tea.Msg) (ui.GitCleanupModel, tea.Cmd) {
+	newM, cmd := m.Update(msg)
+	return newM.(ui.GitCleanupModel), cmd
 }
