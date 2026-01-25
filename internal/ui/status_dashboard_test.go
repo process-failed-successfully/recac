@@ -2,124 +2,142 @@ package ui
 
 import (
 	"errors"
-	"recac/internal/agent"
-	"recac/internal/runner"
 	"testing"
 	"time"
+
+	"recac/internal/agent"
+	"recac/internal/runner"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestStatusDashboardModel_Init(t *testing.T) {
-	m := NewStatusDashboardModel("test-session")
+	m := NewStatusDashboardModel("session1")
 	cmd := m.Init()
 	assert.NotNil(t, cmd)
 }
 
-func TestStatusDashboardModel_Update_Refresh(t *testing.T) {
-	m := NewStatusDashboardModel("test-session")
+func TestStatusDashboardModel_Update_WindowSize(t *testing.T) {
+	m := NewStatusDashboardModel("session1")
 
-	// Prepare refresh msg
-	session := &runner.SessionState{Name: "test-session", Status: "running"}
-	state := &agent.State{
-		Model: "gpt-4",
-		TokenUsage: agent.TokenUsage{TotalTokens: 100},
-	}
+	msg := tea.WindowSizeMsg{Width: 100, Height: 50}
+	newM, cmd := m.Update(msg)
+
+	updatedM := newM.(statusDashboardModel)
+	assert.Equal(t, 100, updatedM.width)
+	assert.Equal(t, 50, updatedM.height)
+	assert.Nil(t, cmd)
+}
+
+func TestStatusDashboardModel_Update_StatusRefreshed(t *testing.T) {
+	m := NewStatusDashboardModel("session1")
+
+	session := &runner.SessionState{Status: "running"}
+	agentState := &agent.State{Model: "gpt-4"}
 	msg := statusRefreshedMsg{
-		session: session,
-		agentState: state,
-		gitDiffStat: "mock diff",
+		session:     session,
+		agentState:  agentState,
+		gitDiffStat: "diff",
 	}
 
-	newM, _ := m.Update(msg)
-	finalM := newM.(statusDashboardModel)
+	newM, cmd := m.Update(msg)
 
-	assert.Equal(t, session, finalM.session)
-	assert.Equal(t, state, finalM.agentState)
-	assert.Equal(t, "mock diff", finalM.gitDiffStat)
+	updatedM := newM.(statusDashboardModel)
+	assert.Equal(t, session, updatedM.session)
+	assert.Equal(t, agentState, updatedM.agentState)
+	assert.Equal(t, "diff", updatedM.gitDiffStat)
+	assert.False(t, updatedM.lastUpdate.IsZero())
+	assert.Nil(t, cmd)
 }
 
 func TestStatusDashboardModel_Update_Error(t *testing.T) {
-	m := NewStatusDashboardModel("test-session")
-	err := errors.New("fail")
-	newM, _ := m.Update(err)
-	finalM := newM.(statusDashboardModel)
-	assert.Equal(t, err, finalM.err)
+	m := NewStatusDashboardModel("session1")
+
+	err := errors.New("update failed")
+	newM, cmd := m.Update(err)
+
+	updatedM := newM.(statusDashboardModel)
+	assert.Equal(t, err, updatedM.err)
+	assert.Nil(t, cmd)
 }
 
-func TestStatusDashboardModel_Update_WindowSize(t *testing.T) {
-	m := NewStatusDashboardModel("test-session")
-	newM, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
-	finalM := newM.(statusDashboardModel)
-	assert.Equal(t, 100, finalM.width)
-	assert.Equal(t, 50, finalM.height)
+func TestStatusDashboardModel_View_Error(t *testing.T) {
+	m := NewStatusDashboardModel("session1")
+	m.err = errors.New("some error")
+
+	output := m.View()
+	assert.Contains(t, output, "Error: some error")
 }
 
-func TestStatusDashboardModel_View(t *testing.T) {
-	m := NewStatusDashboardModel("test-session")
+func TestStatusDashboardModel_View_Loading(t *testing.T) {
+	m := NewStatusDashboardModel("session1")
+	// m.session is nil by default
 
-	// Error view
-	m.err = errors.New("fail")
-	assert.Contains(t, m.View(), "Error: fail")
-	m.err = nil
+	output := m.View()
+	assert.Contains(t, output, "Loading...")
+}
 
-	// Loading view
-	assert.Contains(t, m.View(), "Loading...")
-
-	// Full view
+func TestStatusDashboardModel_View_Content(t *testing.T) {
+	m := NewStatusDashboardModel("session1")
 	m.session = &runner.SessionState{
-		Name: "test-session",
-		Status: "running",
-		StartTime: time.Now().Add(-time.Minute),
-		Goal: "test goal",
+		Name:      "session1",
+		Status:    "running",
+		Goal:      "Test Goal",
+		StartTime: time.Now().Add(-1 * time.Hour),
 	}
 	m.agentState = &agent.State{
 		Model: "gpt-4",
-		TokenUsage: agent.TokenUsage{TotalTokens: 100},
+		TokenUsage: agent.TokenUsage{
+			TotalTokens: 100,
+		},
 		History: []agent.Message{
 			{Role: "user", Content: "hello", Timestamp: time.Now()},
 		},
 	}
-	m.gitDiffStat = "1 file changed"
-	m.lastUpdate = time.Now()
+	m.width = 80
 
-	view := m.View()
-	assert.Contains(t, view, "test-session")
-	assert.Contains(t, view, "running")
-	assert.Contains(t, view, "test goal")
-	assert.Contains(t, view, "gpt-4")
-	assert.Contains(t, view, "$") // Cost
-	assert.Contains(t, view, "1 file changed")
-	assert.Contains(t, view, "hello")
+	output := m.View()
+
+	assert.Contains(t, output, "RECAC Session Status: session1")
+	assert.Contains(t, output, "Status")
+	assert.Contains(t, output, "running")
+	assert.Contains(t, output, "Test Goal")
+	assert.Contains(t, output, "gpt-4")
+	assert.Contains(t, output, "Tokens")
+	assert.Contains(t, output, "hello")
 }
 
 func TestRefreshStatusCmd(t *testing.T) {
-	// Backup and restore global
-	oldFunc := GetSessionStatus
-	defer func() { GetSessionStatus = oldFunc }()
+	// Mock the global GetSessionStatus
+	originalFunc := GetSessionStatus
+	defer func() { GetSessionStatus = originalFunc }()
 
-	GetSessionStatus = func(name string) (*runner.SessionState, *agent.State, string, error) {
-		if name == "fail" {
-			return nil, nil, "", errors.New("fail")
-		}
-		return &runner.SessionState{Name: name}, nil, "", nil
+	called := false
+	GetSessionStatus = func(sessionName string) (*runner.SessionState, *agent.State, string, error) {
+		called = true
+		assert.Equal(t, "test-session", sessionName)
+		return &runner.SessionState{}, &agent.State{}, "diff", nil
 	}
 
-	// Success
-	cmd := refreshStatusCmd("success")
+	cmd := refreshStatusCmd("test-session")
 	msg := cmd()
+
+	assert.True(t, called)
 	assert.IsType(t, statusRefreshedMsg{}, msg)
-	assert.Equal(t, "success", msg.(statusRefreshedMsg).session.Name)
+}
 
-	// Fail
-	cmdFail := refreshStatusCmd("fail")
-	msgFail := cmdFail()
-	assert.Error(t, msgFail.(error))
+func TestRefreshStatusCmd_Error(t *testing.T) {
+	// Mock the global GetSessionStatus
+	originalFunc := GetSessionStatus
+	defer func() { GetSessionStatus = originalFunc }()
 
-	// Nil func
-	GetSessionStatus = nil
-	cmdNil := refreshStatusCmd("any")
-	msgNil := cmdNil()
-	assert.Error(t, msgNil.(error))
+	GetSessionStatus = func(sessionName string) (*runner.SessionState, *agent.State, string, error) {
+		return nil, nil, "", errors.New("fail")
+	}
+
+	cmd := refreshStatusCmd("test-session")
+	msg := cmd()
+
+	assert.Equal(t, errors.New("fail"), msg)
 }

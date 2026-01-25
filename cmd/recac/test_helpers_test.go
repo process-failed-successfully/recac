@@ -266,7 +266,10 @@ func (m *MockSessionManager) ListArchivedSessions() ([]*runner.SessionState, err
 // executeCommand executes a cobra command and returns its output.
 func executeCommand(root *cobra.Command, args ...string) (output string, err error) {
 	resetFlags(root)
-	b := new(bytes.Buffer)
+	// Use separate buffers for stdout and stderr to prevent race conditions
+	// when subprocesses write to them concurrently via io.MultiWriter.
+	outBuf := new(bytes.Buffer)
+	errBuf := new(bytes.Buffer)
 
 	// Mock exit
 	oldExit := exit
@@ -283,7 +286,7 @@ func executeCommand(root *cobra.Command, args ...string) (output string, err err
 			if s, ok := r.(string); ok && strings.HasPrefix(s, "exit-") {
 				// This is an expected exit. We capture the buffer content
 				// and return it, suppressing the panic.
-				output = b.String()
+				output = outBuf.String() + errBuf.String()
 				err = nil // An exit is not a Go error
 				return
 			}
@@ -293,13 +296,13 @@ func executeCommand(root *cobra.Command, args ...string) (output string, err err
 	}()
 
 	root.SetArgs(args)
-	root.SetOut(b)
-	root.SetErr(b)
+	root.SetOut(outBuf)
+	root.SetErr(errBuf)
 	// Mock Stdin to avoid hanging on interactive prompts (e.g. wizard)
 	root.SetIn(bytes.NewBufferString(""))
 
 	err = root.Execute()
-	output = b.String() // Capture output on the non-panic path
+	output = outBuf.String() + errBuf.String() // Capture output on the non-panic path
 	return
 }
 
