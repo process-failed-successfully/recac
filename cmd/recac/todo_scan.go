@@ -81,10 +81,9 @@ func ScanForTodos(root string) ([]TodoItem, error) {
 		}
 
 		if path == root {
-			// Don't skip the root itself if it's the start
-			if path == "." {
-				return nil
-			}
+			// Don't skip the root itself if it's the start.
+			// Also avoid checking ignoreMap for the root directory, so explicit scans work.
+			return nil
 		}
 
 		if d.IsDir() {

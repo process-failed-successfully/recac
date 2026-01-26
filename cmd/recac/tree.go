@@ -69,9 +69,8 @@ func collectMetaData(root string) (map[string]*FileMeta, error) {
 	{
 		complexities, err := runComplexityAnalysis(root)
 		if err != nil {
-			// Don't fail the whole tree if complexity fails (e.g. syntax error)
-			// just log or ignore?
-			// Let's ignore errors here to be robust.
+			// Don't fail the whole tree if complexity fails, but log it.
+			fmt.Fprintf(os.Stderr, "Warning: Complexity analysis failed: %v\n", err)
 		} else {
 			for _, c := range complexities {
 				// c.File is absolute or relative depending on how runComplexityAnalysis was called.
@@ -88,7 +87,8 @@ func collectMetaData(root string) (map[string]*FileMeta, error) {
 	// Pre-fill with Todos
 	todos, err := ScanForTodos(root)
 	if err != nil {
-		// Ignore error
+		// Don't fail the whole tree, but log it.
+		fmt.Fprintf(os.Stderr, "Warning: TODO scan failed: %v\n", err)
 	} else {
 		for _, t := range todos {
 			// ScanForTodos returns paths relative to CWD if possible, or relative to root.
