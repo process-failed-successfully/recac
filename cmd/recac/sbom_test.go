@@ -16,13 +16,6 @@ func TestSBOMCommand(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(tmpDir)
 
-	// Change cwd to tmpDir because sbom command works on current dir
-	cwd, err := os.Getwd()
-	require.NoError(t, err)
-	defer os.Chdir(cwd)
-	err = os.Chdir(tmpDir)
-	require.NoError(t, err)
-
 	// 2. Create sample files
 	files := map[string]string{
 		"go.mod": `module example.com/myproject
@@ -57,7 +50,7 @@ require (
 	}
 
 	t.Run("Default (SPDX)", func(t *testing.T) {
-		output, err := executeCommand(rootCmd, "sbom")
+		output, err := executeCommand(rootCmd, "sbom", tmpDir)
 		require.NoError(t, err)
 
 		var doc SPDXDocument
@@ -90,7 +83,7 @@ require (
 	})
 
 	t.Run("CycloneDX", func(t *testing.T) {
-		output, err := executeCommand(rootCmd, "sbom", "--format", "cyclonedx")
+		output, err := executeCommand(rootCmd, "sbom", tmpDir, "--format", "cyclonedx")
 		require.NoError(t, err)
 
 		var doc CycloneDXDocument
@@ -111,7 +104,7 @@ require (
 	})
 
 	t.Run("Simple JSON", func(t *testing.T) {
-		output, err := executeCommand(rootCmd, "sbom", "--format", "json")
+		output, err := executeCommand(rootCmd, "sbom", tmpDir, "--format", "json")
 		require.NoError(t, err)
 
 		// Should be a list of Package
@@ -124,7 +117,7 @@ require (
 
 	t.Run("Output to File", func(t *testing.T) {
 		outFile := filepath.Join(tmpDir, "sbom.json")
-		_, err := executeCommand(rootCmd, "sbom", "-o", outFile)
+		_, err := executeCommand(rootCmd, "sbom", tmpDir, "-o", outFile)
 		require.NoError(t, err)
 
 		content, err := os.ReadFile(outFile)

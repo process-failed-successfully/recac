@@ -18,11 +18,12 @@ var (
 )
 
 var sbomCmd = &cobra.Command{
-	Use:   "sbom",
+	Use:   "sbom [path]",
 	Short: "Generate a Software Bill of Materials (SBOM)",
-	Long: `Generates a Software Bill of Materials (SBOM) for the current project.
+	Long: `Generates a Software Bill of Materials (SBOM) for the current project or specified directory.
 Scans 'go.mod' and 'package.json' to inventory dependencies.
 Supports SPDX (Lite) and CycloneDX (Lite) JSON formats.`,
+	Args: cobra.MaximumNArgs(1),
 	RunE: runSBOM,
 }
 
@@ -33,21 +34,28 @@ func init() {
 }
 
 func runSBOM(cmd *cobra.Command, args []string) error {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return err
+	var root string
+	if len(args) > 0 {
+		root = args[0]
+	} else {
+		wd, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+		root = wd
 	}
 
-	projectName := filepath.Base(cwd)
+	projectName := filepath.Base(root)
 
 	// 1. Collect Packages
-	packages := collectPackages(cmd, cwd)
+	packages := collectPackages(cmd, root)
 	if len(packages) == 0 {
 		return fmt.Errorf("no dependencies found (checked go.mod, package.json)")
 	}
 
 	// 2. Format Output
 	var output []byte
+	var err error
 	switch strings.ToLower(sbomFormat) {
 	case "spdx", "spdx-json":
 		output, err = formatSPDX(projectName, packages)
