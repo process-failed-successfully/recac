@@ -153,7 +153,7 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 	scanner := security.NewRegexScanner()
 
 	// Create agents/logs directory in the current working directory (host)
-	// This is where Promtail expects to find them based on docker-compose.monitoring.yml
+	// This is where Promtail expects to find them based on monitoring/docker-compose.yml
 	cwd, _ := os.Getwd()
 	agentsLogsDir := filepath.Join(cwd, "agents", "logs")
 	if err := os.MkdirAll(agentsLogsDir, 0755); err != nil {
@@ -241,7 +241,7 @@ func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, pr
 	scanner := security.NewRegexScanner()
 
 	// Create agents/logs directory in the current working directory (host)
-	// This is where Promtail expects to find them based on docker-compose.monitoring.yml
+	// This is where Promtail expects to find them based on monitoring/docker-compose.yml
 	cwd, _ := os.Getwd()
 	agentsLogsDir := filepath.Join(cwd, "agents", "logs")
 	if err := os.MkdirAll(agentsLogsDir, 0755); err != nil {
@@ -903,8 +903,3 @@ func (s *Session) loadFeatures() []db.Feature {
 
 	return nil
 }
-
-
-
-
-
