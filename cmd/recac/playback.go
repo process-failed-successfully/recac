@@ -10,12 +10,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// runPlaybackTUI allows mocking the TUI execution in tests
+var runPlaybackTUI = func(m tea.Model) error {
+	p := tea.NewProgram(m, tea.WithAltScreen())
+	_, err := p.Run()
+	return err
+}
+
 var playbackCmd = &cobra.Command{
 	Use:   "playback [session-name]",
 	Short: "Interactive session log playback",
 	Long:  `Replay and analyze session logs interactively using a TUI.
 Allows filtering, searching, and detailed inspection of agent actions and tool outputs.`,
-	Args:  cobra.ExactArgs(1),
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		sessionName := args[0]
 
@@ -49,9 +56,8 @@ Allows filtering, searching, and detailed inspection of agent actions and tool o
 
 		// Start TUI
 		m := ui.NewPlaybackModel(entries)
-		p := tea.NewProgram(m, tea.WithAltScreen())
 
-		if _, err := p.Run(); err != nil {
+		if err := runPlaybackTUI(m); err != nil {
 			return fmt.Errorf("error running playback TUI: %w", err)
 		}
 
