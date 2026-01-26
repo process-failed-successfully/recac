@@ -5,17 +5,19 @@ import (
 	"strings"
 )
 
+var (
+	// Regex to match <file path="..."> content </file>
+	// (?s) enables dot to match newlines
+	fileBlockRegex = regexp.MustCompile(`(?s)<file\s+path="([^"]+)">\s*(.*?)\s*</file>`)
+)
+
 // ParseFileBlocks extracts content wrapped in <file path="...">...</file> tags.
 // Returns a map of file path to content.
 // It trims whitespace from the extracted content.
 func ParseFileBlocks(input string) map[string]string {
 	result := make(map[string]string)
 
-	// Regex to match <file path="..."> content </file>
-	// (?s) enables dot to match newlines
-	re := regexp.MustCompile(`(?s)<file\s+path="([^"]+)">\s*(.*?)\s*</file>`)
-
-	matches := re.FindAllStringSubmatch(input, -1)
+	matches := fileBlockRegex.FindAllStringSubmatch(input, -1)
 
 	for _, match := range matches {
 		if len(match) == 3 {

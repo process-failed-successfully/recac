@@ -73,3 +73,18 @@ if a < b {
 		})
 	}
 }
+
+func BenchmarkParseFileBlocks(b *testing.B) {
+	input := `<file path="main.go">
+package main
+func main() {}
+</file>
+<file path="utils.go">
+package utils
+func Helper() {}
+</file>`
+
+	for i := 0; i < b.N; i++ {
+		ParseFileBlocks(input)
+	}
+}
