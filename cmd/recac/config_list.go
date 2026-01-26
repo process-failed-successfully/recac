@@ -57,7 +57,11 @@ func listModels(cmd *cobra.Command, args []string) error {
 	sort.Strings(providers)
 
 	for _, provider := range providers {
-		fmt.Fprintf(w, "Provider: %s\n", strings.Title(provider))
+		title := provider
+		if len(title) > 0 {
+			title = strings.ToUpper(title[:1]) + title[1:]
+		}
+		fmt.Fprintf(w, "Provider: %s\n", title)
 		fmt.Fprintln(w, "  NAME\tMODEL ID\tDESCRIPTION")
 		fmt.Fprintln(w, "  ----\t--------\t-----------")
 
