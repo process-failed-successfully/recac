@@ -156,13 +156,13 @@ shell: image ## Launch a shell inside the build container
 # Monitoring
 .PHONY: monitor-up monitor-down monitor-logs
 monitor-up: ## Start local monitoring stack (Prometheus, Grafana, Loki)
-	docker compose -f docker-compose.monitoring.yml up -d
+	docker compose -f monitoring/docker-compose.yml up -d
 
 monitor-down: ## Stop local monitoring stack
-	docker compose -f docker-compose.monitoring.yml down
+	docker compose -f monitoring/docker-compose.yml down
 
 monitor-logs: ## View monitoring stack logs
-	docker compose -f docker-compose.monitoring.yml logs -f
+	docker compose -f monitoring/docker-compose.yml logs -f
 
 # Deployment
 .PHONY: deploy-helm
