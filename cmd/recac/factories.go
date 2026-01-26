@@ -6,6 +6,7 @@ import (
 	"recac/internal/cmdutils"
 	"recac/internal/docker"
 	"recac/internal/git"
+	"recac/internal/k8s"
 	"recac/internal/runner"
 )
 
@@ -28,4 +29,9 @@ var gitClientFactory = func() IGitClient {
 // agentClientFactory is a factory function that can be overridden in tests.
 var agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
 	return cmdutils.GetAgentClient(ctx, provider, model, projectPath, projectName)
+}
+
+// k8sClientFactory is a factory function that can be overridden in tests.
+var k8sClientFactory = func() (IK8sClient, error) {
+	return k8s.NewClient()
 }
