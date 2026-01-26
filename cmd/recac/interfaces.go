@@ -22,6 +22,7 @@ type ISessionManager interface {
 	ArchiveSession(name string) error
 	UnarchiveSession(name string) error
 	ListArchivedSessions() ([]*runner.SessionState, error)
+	RecoverSession(name string) (*runner.SessionState, error)
 }
 
 // IGitClient defines the interface for git operations.

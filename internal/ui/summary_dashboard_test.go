@@ -55,6 +55,9 @@ func (m *mockSessionManager) UnarchiveSession(name string) error { return nil }
 func (m *mockSessionManager) ListArchivedSessions() ([]*runner.SessionState, error) {
 	return nil, nil
 }
+func (m *mockSessionManager) RecoverSession(name string) (*runner.SessionState, error) {
+	return nil, nil
+}
 
 func TestSummaryDashboard(t *testing.T) {
 	// Mock agent.LoadState
