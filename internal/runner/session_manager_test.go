@@ -782,3 +782,115 @@ func TestSessionManager_PauseResume(t *testing.T) {
 	err = sm.StopSession(sessionName)
 	require.NoError(t, err, "Failed to stop the session for cleanup")
 }
+
+func TestSessionManager_RecoverSession(t *testing.T) {
+	sm, cleanup := setupSessionManager(t)
+	defer cleanup()
+
+	// Prepare a dummy executable (sleep)
+	sleepCmd, err := exec.LookPath("sleep")
+	if err != nil {
+		t.Skip("sleep command not found, skipping RecoverSession test")
+	}
+
+	t.Run("recovers a dead session successfully", func(t *testing.T) {
+		sessionName := "test-recover"
+		logFile := filepath.Join(sm.sessionsDir, sessionName+".log")
+		os.Create(logFile) // Create log file
+
+		// Create a mock session that thinks it is running but PID doesn't exist (unless we are super unlucky)
+		// 999999 is usually safe.
+		session := &SessionState{
+			Name:      sessionName,
+			PID:       999999,
+			Status:    "running",
+			Command:   []string{sleepCmd, "1"},
+			Workspace: sm.sessionsDir,
+			LogFile:   logFile,
+		}
+		err := sm.SaveSession(session)
+		require.NoError(t, err)
+
+		// Recover
+		recovered, err := sm.RecoverSession(sessionName)
+		require.NoError(t, err)
+		assert.Equal(t, "running", recovered.Status)
+		assert.NotEqual(t, 999999, recovered.PID)
+		assert.True(t, sm.IsProcessRunning(recovered.PID))
+
+		// Check log file content for marker
+		content, _ := os.ReadFile(logFile)
+		assert.Contains(t, string(content), "SESSION RECOVERED AT")
+
+		// Cleanup
+		sm.StopSession(sessionName)
+	})
+
+	t.Run("fails to recover a running session", func(t *testing.T) {
+		sessionName := "test-running-recover"
+		command := []string{sleepCmd, "10"}
+		_, err := sm.StartSession(sessionName, "goal", command, sm.sessionsDir)
+		require.NoError(t, err)
+		defer sm.StopSession(sessionName)
+
+		_, err = sm.RecoverSession(sessionName)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "is still running")
+	})
+
+	t.Run("fails to recover non-existent session", func(t *testing.T) {
+		_, err := sm.RecoverSession("fake-session")
+		assert.Error(t, err)
+	})
+
+	t.Run("recovers session with PATH command", func(t *testing.T) {
+		sessionName := "test-recover-path"
+		logFile := filepath.Join(sm.sessionsDir, sessionName+".log")
+		os.Create(logFile)
+
+		// sleep is in PATH (we found it via LookPath earlier, but we pass just "sleep")
+		session := &SessionState{
+			Name:      sessionName,
+			PID:       999998,
+			Status:    "running",
+			Command:   []string{"sleep", "1"}, // Just "sleep"
+			Workspace: sm.sessionsDir,
+			LogFile:   logFile,
+		}
+		err := sm.SaveSession(session)
+		require.NoError(t, err)
+
+		recovered, err := sm.RecoverSession(sessionName)
+		require.NoError(t, err)
+		assert.Equal(t, "running", recovered.Status)
+		assert.True(t, sm.IsProcessRunning(recovered.PID))
+		sm.StopSession(sessionName)
+	})
+
+	t.Run("recovers session with relative path script", func(t *testing.T) {
+		sessionName := "test-recover-relative"
+		logFile := filepath.Join(sm.sessionsDir, sessionName+".log")
+		os.Create(logFile)
+
+		// Create a script in workspace
+		scriptPath := filepath.Join(sm.sessionsDir, "myscript.sh")
+		os.WriteFile(scriptPath, []byte("#!/bin/sh\nsleep 1"), 0755)
+
+		session := &SessionState{
+			Name:      sessionName,
+			PID:       999997,
+			Status:    "running",
+			Command:   []string{"./myscript.sh"},
+			Workspace: sm.sessionsDir,
+			LogFile:   logFile,
+		}
+		err := sm.SaveSession(session)
+		require.NoError(t, err)
+
+		recovered, err := sm.RecoverSession(sessionName)
+		require.NoError(t, err)
+		assert.Equal(t, "running", recovered.Status)
+		assert.True(t, sm.IsProcessRunning(recovered.PID))
+		sm.StopSession(sessionName)
+	})
+}

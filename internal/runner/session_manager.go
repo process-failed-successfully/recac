@@ -68,6 +68,7 @@ type ISessionManager interface {
 	ArchiveSession(name string) error
 	UnarchiveSession(name string) error
 	ListArchivedSessions() ([]*SessionState, error)
+	RecoverSession(name string) (*SessionState, error)
 }
 
 // NewSessionManager creates a new session manager
@@ -250,6 +251,94 @@ func (sm *SessionManager) SaveSession(session *SessionState) error {
 	}
 
 	return nil
+}
+
+// RecoverSession restarts a dead or stopped session, reusing its configuration.
+func (sm *SessionManager) RecoverSession(name string) (*SessionState, error) {
+	if err := validateSessionName(name); err != nil {
+		return nil, err
+	}
+
+	// 1. Load existing session
+	session, err := sm.LoadSession(name)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load session '%s': %w", name, err)
+	}
+
+	// 2. Verify process is NOT running
+	if sm.IsProcessRunning(session.PID) {
+		return nil, fmt.Errorf("session '%s' is still running (PID: %d). Use 'attach' or 'stop' instead", name, session.PID)
+	}
+
+	// 3. Prepare to restart
+	// Re-open log file in append mode
+	logFd, err := os.OpenFile(session.LogFile, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open log file for appending: %w", err)
+	}
+	defer logFd.Close()
+
+	// Log a separator to indicate recovery
+	timestamp := time.Now().Format(time.RFC3339)
+	fmt.Fprintf(logFd, "\n--- SESSION RECOVERED AT %s ---\n", timestamp)
+
+	// 4. Re-construct command
+	command := session.Command
+	if len(command) == 0 {
+		return nil, fmt.Errorf("session '%s' has no command stored", name)
+	}
+
+	cmdName := command[0]
+	var execPath string
+
+	if filepath.IsAbs(cmdName) {
+		execPath = cmdName
+	} else if strings.Contains(cmdName, string(os.PathSeparator)) {
+		// Relative path (e.g. ./script.sh), resolve relative to Workspace
+		execPath = filepath.Join(session.Workspace, cmdName)
+	} else {
+		// Command in PATH (e.g. npm, python)
+		path, err := exec.LookPath(cmdName)
+		if err != nil {
+			return nil, fmt.Errorf("command '%s' not found in PATH: %w", cmdName, err)
+		}
+		execPath = path
+	}
+
+	// Resolve symlinks
+	if resolved, err := filepath.EvalSymlinks(execPath); err == nil {
+		execPath = resolved
+	}
+
+	// Verify executable exists
+	if _, err := os.Stat(execPath); err != nil {
+		return nil, fmt.Errorf("executable not found at %s: %w", execPath, err)
+	}
+
+	cmd := exec.Command(execPath, command[1:]...)
+	cmd.Stdout = logFd
+	cmd.Stderr = logFd
+	cmd.Dir = session.Workspace
+	cmd.Env = os.Environ() // Preserve environment
+
+	// 5. Start process
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("failed to restart process: %w", err)
+	}
+
+	// 6. Update Session State
+	session.PID = cmd.Process.Pid
+	session.Status = "running"
+	// We don't change StartTime to preserve original start time? Or update it?
+	// Let's keep StartTime original, but maybe add "LastRecovered"?
+	// For simplicity, just update PID/Status.
+
+	if err := sm.SaveSession(session); err != nil {
+		cmd.Process.Kill()
+		return nil, fmt.Errorf("failed to save recovered session state: %w", err)
+	}
+
+	return session, nil
 }
 
 // PauseSession sends a SIGSTOP signal to pause a running session.
