@@ -75,3 +75,12 @@ func (c *Client) ListPods(ctx context.Context, labelSelector string) ([]corev1.P
 	}
 	return pods.Items, nil
 }
+
+// DeletePod deletes a pod by name in the client's namespace.
+func (c *Client) DeletePod(ctx context.Context, name string) error {
+	err := c.Clientset.CoreV1().Pods(c.Namespace).Delete(ctx, name, metav1.DeleteOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to delete Kubernetes pod %s: %w", name, err)
+	}
+	return nil
+}
