@@ -112,7 +112,7 @@ func runHealth(cmd *cobra.Command, args []string) error {
 	}
 
 	// 5. TODOs
-	todoRes, err := scanTodos(root)
+	todoRes, err := ScanForTodos(root)
 	if err == nil {
 		// Convert TodoItem objects back to strings for the report
 		var todoStrings []string

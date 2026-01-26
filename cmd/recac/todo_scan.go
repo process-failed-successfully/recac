@@ -41,7 +41,7 @@ func init() {
 }
 
 func scanAndAddTodos(cmd *cobra.Command, root string) error {
-	tasks, err := scanTodos(root)
+	tasks, err := ScanForTodos(root)
 	if err != nil {
 		return err
 	}
@@ -69,7 +69,7 @@ func scanAndAddTodos(cmd *cobra.Command, root string) error {
 // Matches: (//|#|<!--|--|/*) [whitespace] (TODO|FIXME|...) [optional: (stuff)] [whitespace|:] (content)
 var todoRegex = regexp.MustCompile(`(?i)(\/\/|#|<!--|--|\/\*)\s*(TODO|FIXME|BUG|HACK|NOTE)(?:\(.*\))?[:\s]+(.*)`)
 
-func scanTodos(root string) ([]TodoItem, error) {
+func ScanForTodos(root string) ([]TodoItem, error) {
 	var tasks []TodoItem
 
 	// Default ignores

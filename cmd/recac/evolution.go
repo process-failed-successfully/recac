@@ -200,8 +200,8 @@ func analyzeSnapshot(root string) (EvolutionMetric, error) {
 	m.Complexity = totalComp
 
 	// 3. TODOs
-	// scanTodos is from todo_scan.go (package main)
-	todos, err := scanTodos(root)
+	// ScanForTodos is from todo_scan.go (package main)
+	todos, err := ScanForTodos(root)
 	if err != nil {
 		// ignore
 	}

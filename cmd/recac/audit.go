@@ -142,8 +142,8 @@ func runAudit(root string) (*AuditResult, error) {
 	res.Duplication.Lines = dupLines
 
 	// 3. TODOs
-	// Reuse scanTodos from todo_scan.go
-	todoResults, err := scanTodos(root)
+	// Reuse ScanForTodos from todo_scan.go
+	todoResults, err := ScanForTodos(root)
 	if err != nil {
 		return nil, fmt.Errorf("todo scan failed: %w", err)
 	}
