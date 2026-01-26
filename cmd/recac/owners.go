@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -132,31 +131,30 @@ func resolveCodeOwners(root, targetRelPath string) ([]string, string, error) {
 	// Standard locations: CODEOWNERS, .github/CODEOWNERS, docs/CODEOWNERS
 	locations := []string{"CODEOWNERS", ".github/CODEOWNERS", "docs/CODEOWNERS"}
 
-	var content []byte
+	var lines []string
 	var loadedFile string
 
 	for _, loc := range locations {
 		path := filepath.Join(root, loc)
-		if data, err := os.ReadFile(path); err == nil {
-			content = data
+		if l, err := readLines(path); err == nil {
+			lines = l
 			loadedFile = loc
 			break
 		}
 	}
 
-	if loadedFile == "" {
-		return nil, "", fmt.Errorf("no CODEOWNERS file found")
+	if lines == nil {
+		return nil, "", nil
 	}
 
 	// Parse lines (last match wins)
-	scanner := bufio.NewScanner(strings.NewReader(string(content)))
 	var lastMatch []string
 
 	// Ensure target uses forward slash for matching
 	targetSlash := filepath.ToSlash(targetRelPath)
 
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}

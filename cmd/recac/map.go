@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"go/parser"
@@ -117,15 +116,13 @@ func runMap(cmd *cobra.Command, args []string) error {
 
 func getModuleName(root string) (string, error) {
 	goModPath := filepath.Join(root, "go.mod")
-	f, err := os.Open(goModPath)
+	lines, err := readLines(goModPath)
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
 
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "module ") {
 			fields := strings.Fields(line)
 			if len(fields) >= 2 {

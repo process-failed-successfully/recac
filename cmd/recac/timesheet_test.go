@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -9,10 +10,11 @@ import (
 
 func TestParseGitLogOutput(t *testing.T) {
 	// 2023-10-27T10:00:00Z
-	log := `a1b2c3d|jules|2023-10-27T10:00:00Z|Initial commit
-e5f6g7h|jules|2023-10-27T10:15:00Z|Second commit
-i9j0k1l|jules|2023-10-27T10:30:00Z|Third commit
-`
+	log := []string{
+		"a1b2c3d|jules|2023-10-27T10:00:00Z|Initial commit",
+		"e5f6g7h|jules|2023-10-27T10:15:00Z|Second commit",
+		"i9j0k1l|jules|2023-10-27T10:30:00Z|Third commit",
+	}
 	commits, err := parseGitLogOutput(log)
 	assert.NoError(t, err)
 	assert.Len(t, commits, 3)
@@ -88,4 +90,27 @@ func TestAggregateTimesheet(t *testing.T) {
 
 	assert.Equal(t, 1.5, report.DailyStats["2023-10-27"])
 	assert.Equal(t, 2.0, report.DailyStats["2023-10-28"])
+}
+
+func TestGetGitCommits_Arguments(t *testing.T) {
+	originalFactory := gitClientFactory
+	defer func() { gitClientFactory = originalFactory }()
+
+	mockClient := &MockGitClient{
+		LogFunc: func(repoPath string, args ...string) ([]string, error) {
+			// Check if "log" is passed as an argument.
+			// It should NOT be, because Log() method prepends it in implementation.
+			if len(args) > 0 && args[0] == "log" {
+				return nil, fmt.Errorf("unexpected argument 'log'")
+			}
+			return []string{}, nil
+		},
+	}
+
+	gitClientFactory = func() IGitClient {
+		return mockClient
+	}
+
+	_, err := getGitCommits(".", "24h", "")
+	assert.NoError(t, err)
 }
