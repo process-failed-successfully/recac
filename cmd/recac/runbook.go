@@ -137,14 +137,12 @@ func runRunbook(cmd *cobra.Command, args []string) error {
 }
 
 func parseRunbook(path string) ([]Block, error) {
-	f, err := os.Open(path)
+	lines, err := readLines(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
-	defer f.Close()
 
 	var blocks []Block
-	scanner := bufio.NewScanner(f)
 
 	var currentBuffer bytes.Buffer
 	inCodeBlock := false
@@ -161,9 +159,7 @@ func parseRunbook(path string) ([]Block, error) {
 		}
 	}
 
-	for scanner.Scan() {
-		line := scanner.Text()
-
+	for _, line := range lines {
 		if strings.HasPrefix(strings.TrimSpace(line), "```") {
 			if inCodeBlock {
 				// End of code block
@@ -195,7 +191,7 @@ func parseRunbook(path string) ([]Block, error) {
 		}
 	}
 
-	return blocks, scanner.Err()
+	return blocks, nil
 }
 
 func promptUser(cmd *cobra.Command, reader *bufio.Reader) (string, error) {
@@ -264,15 +260,13 @@ func executeBlock(code string, env map[string]string, tmpDir string, cmd *cobra.
 	}
 
 	// 2. Read new env
-	outData, err := os.ReadFile(outFile)
+	lines, err := readLines(outFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read output env: %w", err)
 	}
 
 	newEnv := make(map[string]string)
-	scanner := bufio.NewScanner(bytes.NewReader(outData))
-	for scanner.Scan() {
-		line := scanner.Text()
+	for _, line := range lines {
 		parts := strings.SplitN(line, "=", 2)
 		if len(parts) == 2 {
 			newEnv[parts[0]] = parts[1]

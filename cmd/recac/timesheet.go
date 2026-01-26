@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"sort"
 	"strings"
 	"text/tabwriter"
@@ -126,13 +125,12 @@ func runTimesheet(cmd *cobra.Command, args []string) error {
 }
 
 func getGitConfig(dir, key string) (string, error) {
-	cmd := exec.Command("git", "config", key)
-	cmd.Dir = dir
-	out, err := cmd.Output()
+	client := gitClientFactory()
+	out, err := client.Run(dir, "config", key)
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(string(out)), nil
+	return strings.TrimSpace(out), nil
 }
 
 func getGitCommits(dir, since, author string) ([]Commit, error) {
@@ -142,19 +140,17 @@ func getGitCommits(dir, since, author string) ([]Commit, error) {
 		args = append(args, "--author="+author)
 	}
 
-	cmd := exec.Command("git", args...)
-	cmd.Dir = dir
-	out, err := cmd.Output()
+	client := gitClientFactory()
+	lines, err := client.Log(dir, args...)
 	if err != nil {
 		return nil, fmt.Errorf("git log failed: %w", err)
 	}
 
-	return parseGitLogOutput(string(out))
+	return parseGitLogOutput(lines)
 }
 
-func parseGitLogOutput(output string) ([]Commit, error) {
+func parseGitLogOutput(lines []string) ([]Commit, error) {
 	var commits []Commit
-	lines := strings.Split(output, "\n")
 	for _, line := range lines {
 		if strings.TrimSpace(line) == "" {
 			continue
