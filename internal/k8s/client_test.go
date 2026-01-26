@@ -72,6 +72,32 @@ func TestListPodsError(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestDeletePod(t *testing.T) {
+	pod := corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod1", Namespace: "default"}}
+	fakeClientset := fake.NewSimpleClientset(&pod)
+
+	client := &Client{Clientset: fakeClientset, Namespace: "default"}
+
+	err := client.DeletePod(context.Background(), "pod1")
+	require.NoError(t, err)
+
+	// Verify pod is gone
+	_, err = fakeClientset.CoreV1().Pods("default").Get(context.Background(), "pod1", metav1.GetOptions{})
+	require.Error(t, err)
+}
+
+func TestDeletePodError(t *testing.T) {
+	fakeClientset := fake.NewSimpleClientset()
+	fakeClientset.PrependReactor("delete", "pods", func(action testclient.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, assert.AnError
+	})
+
+	client := &Client{Clientset: fakeClientset, Namespace: "default"}
+
+	err := client.DeletePod(context.Background(), "pod1")
+	require.Error(t, err)
+}
+
 func TestNewClient(t *testing.T) {
 	// No kubeconfig file
 	t.Run("No Kubeconfig", func(t *testing.T) {

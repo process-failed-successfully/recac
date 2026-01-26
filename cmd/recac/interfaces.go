@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"recac/internal/runner"
+
+	corev1 "k8s.io/api/core/v1"
 )
 
 // IDockerClient defines the interface for Docker operations used by CLI commands.
@@ -58,4 +60,10 @@ type IGitClient interface {
 	LatestTag(repoPath string) (string, error)
 	Run(repoPath string, args ...string) (string, error)
 	DeleteLocalBranch(repoPath, branch string) error
+}
+
+// IK8sClient defines the interface for Kubernetes operations.
+type IK8sClient interface {
+	ListPods(ctx context.Context, labelSelector string) ([]corev1.Pod, error)
+	DeletePod(ctx context.Context, name string) error
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"recac/internal/agent"
-	"recac/internal/k8s"
 	"recac/internal/model"
 	"recac/internal/ui"
 	"recac/internal/utils"
@@ -254,7 +253,7 @@ func getUnifiedSessions(cmd *cobra.Command, filters model.PsFilters) ([]model.Un
 
 	// --- Get Remote Pods (if requested) ---
 	if filters.Remote {
-		k8sClient, err := k8s.NewClient()
+		k8sClient, err := k8sClientFactory()
 		if err != nil {
 			cmd.PrintErrf("Warning: Could not connect to Kubernetes: %v\n", err)
 		} else {

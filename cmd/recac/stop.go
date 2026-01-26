@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -34,6 +36,25 @@ var stopCmd = &cobra.Command{
 		}
 
 		if err := sm.StopSession(sessionName); err != nil {
+			// If session not found locally, try K8s
+			if strings.Contains(err.Error(), "session not found") || strings.Contains(err.Error(), "no such file or directory") {
+				k8sClient, k8sErr := k8sClientFactory()
+				if k8sErr == nil {
+					pods, listErr := k8sClient.ListPods(context.Background(), "app=recac-agent")
+					if listErr == nil {
+						for _, pod := range pods {
+							// Check if the pod's ticket label matches the requested session name
+							if pod.Labels["ticket"] == sessionName {
+								if delErr := k8sClient.DeletePod(context.Background(), pod.Name); delErr != nil {
+									return fmt.Errorf("found K8s pod for session '%s' but failed to delete: %w", sessionName, delErr)
+								}
+								fmt.Fprintf(cmd.OutOrStdout(), "K8s pod for session '%s' (pod: %s) deleted successfully\n", sessionName, pod.Name)
+								return nil
+							}
+						}
+					}
+				}
+			}
 			return err
 		}
 
