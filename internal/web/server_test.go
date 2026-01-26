@@ -124,3 +124,27 @@ func TestSanitizeMermaidID(t *testing.T) {
 	sanitized := sanitizeMermaidID(id)
 	assert.Equal(t, "foo_bar_baz_qux", sanitized)
 }
+
+func TestServer_SecurityHeaders(t *testing.T) {
+	mockStore := &MockStore{}
+	server := NewServer(mockStore, 8080, "test-proj")
+
+	// Create a dummy handler
+	dummyHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	// Wrap it with securityHeaders
+	securedHandler := server.securityHeaders(dummyHandler)
+
+	req, _ := http.NewRequest("GET", "/", nil)
+	rr := httptest.NewRecorder()
+
+	securedHandler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; style-src 'self' 'unsafe-inline'", rr.Header().Get("Content-Security-Policy"))
+	assert.Equal(t, "nosniff", rr.Header().Get("X-Content-Type-Options"))
+	assert.Equal(t, "DENY", rr.Header().Get("X-Frame-Options"))
+	assert.Equal(t, "strict-origin-when-cross-origin", rr.Header().Get("Referrer-Policy"))
+}
