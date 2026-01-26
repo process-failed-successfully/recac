@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"recac/internal/runner"
 	"recac/internal/telemetry"
 	"recac/internal/ui"
 
@@ -127,8 +128,8 @@ func init() {
 
 var surveyAskOne = survey.AskOne
 
-// interactiveSessionSelect prompts the user to select a session with a specific status.
-func interactiveSessionSelect(sm ISessionManager, status, message string) (string, error) {
+// selectSession prompts the user to select a session based on a filter.
+func selectSession(sm ISessionManager, filter func(*runner.SessionState) bool, message string) (string, error) {
 	sessions, err := sm.ListSessions()
 	if err != nil {
 		return "", fmt.Errorf("could not list sessions: %w", err)
@@ -136,13 +137,13 @@ func interactiveSessionSelect(sm ISessionManager, status, message string) (strin
 
 	var selectableSessions []string
 	for _, s := range sessions {
-		if s.Status == status {
+		if filter(s) {
 			selectableSessions = append(selectableSessions, s.Name)
 		}
 	}
 
 	if len(selectableSessions) == 0 {
-		return "", fmt.Errorf("no sessions with status '%s' to select", status)
+		return "", errors.New("no matching sessions found")
 	}
 
 	var selectedSession string
@@ -150,45 +151,36 @@ func interactiveSessionSelect(sm ISessionManager, status, message string) (strin
 		Message: message,
 		Options: selectableSessions,
 	}
+	// Use WithStdio to ensure it works in various environments
 	if err := surveyAskOne(prompt, &selectedSession, survey.WithStdio(os.Stdin, os.Stderr, os.Stderr)); err != nil {
-		// Handle cases where the user cancels the prompt (e.g., Ctrl+C).
 		if err.Error() == "interrupt" {
 			return "", errors.New("operation cancelled by user")
 		}
 		return "", fmt.Errorf("failed to get user input: %w", err)
 	}
-
 	return selectedSession, nil
+}
+
+// interactiveSessionSelect prompts the user to select a session with a specific status.
+func interactiveSessionSelect(sm ISessionManager, status, message string) (string, error) {
+	filter := func(s *runner.SessionState) bool {
+		return s.Status == status
+	}
+	session, err := selectSession(sm, filter, message)
+	if err != nil && err.Error() == "no matching sessions found" {
+		return "", fmt.Errorf("no sessions with status '%s' to select", status)
+	}
+	return session, err
 }
 
 // interactiveSelectRestartableSession prompts the user to select from a list of non-running sessions.
 func interactiveSelectRestartableSession(sm ISessionManager, message string) (string, error) {
-	sessions, err := sm.ListSessions()
-	if err != nil {
-		return "", fmt.Errorf("could not list sessions: %w", err)
+	filter := func(s *runner.SessionState) bool {
+		return s.Status != "running"
 	}
-
-	var selectableSessions []string
-	for _, s := range sessions {
-		if s.Status != "running" {
-			selectableSessions = append(selectableSessions, s.Name)
-		}
-	}
-
-	if len(selectableSessions) == 0 {
+	session, err := selectSession(sm, filter, message)
+	if err != nil && err.Error() == "no matching sessions found" {
 		return "", errors.New("no restartable sessions found")
 	}
-
-	var selectedSession string
-	prompt := &survey.Select{
-		Message: message,
-		Options: selectableSessions,
-	}
-	if err := surveyAskOne(prompt, &selectedSession); err != nil {
-		if err.Error() == "interrupt" {
-			return "", errors.New("operation cancelled by user")
-		}
-		return "", fmt.Errorf("failed to get user input: %w", err)
-	}
-	return selectedSession, nil
+	return session, err
 }
