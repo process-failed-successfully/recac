@@ -1,5 +1,4 @@
 agent_timeout: 300
-aliases: {}
 allow_dirty: false
 auto_merge: false
 bash_timeout: 600
@@ -7,6 +6,10 @@ cleanup: true
 description: ""
 detached: false
 docker_timeout: 600
+feature_flags:
+    new-feature:
+        description: My new feature
+        enabled: true
 git_user_email: recac-agent@example.com
 git_user_name: RECAC Agent
 image: ghcr.io/process-failed-successfully/recac-agent:latest
