@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -356,8 +357,14 @@ func (s *PostgresStore) Cleanup() error {
 	}
 
 	// 2. Remove old signals (older than 24h, keeping critical ones)
-	criticalSignals := "'PROJECT_SIGNED_OFF', 'QA_PASSED', 'COMPLETED'"
-	_, err = s.db.Exec(fmt.Sprintf(`DELETE FROM signals WHERE created_at < NOW() - INTERVAL '1 day' AND key NOT IN (%s)`, criticalSignals))
+	criticalSignals := []interface{}{"PROJECT_SIGNED_OFF", "QA_PASSED", "COMPLETED"}
+	placeholders := make([]string, len(criticalSignals))
+	for i := range criticalSignals {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+	}
+	query := fmt.Sprintf(`DELETE FROM signals WHERE created_at < NOW() - INTERVAL '1 day' AND key NOT IN (%s)`, strings.Join(placeholders, ", "))
+
+	_, err = s.db.Exec(query, criticalSignals...)
 	if err != nil {
 		return fmt.Errorf("failed to clean old signals: %w", err)
 	}
