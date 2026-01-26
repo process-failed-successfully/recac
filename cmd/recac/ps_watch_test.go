@@ -28,7 +28,7 @@ func TestPsCommandWatchMode(t *testing.T) {
 	// Monkey-patch the TUI starter to avoid running the actual UI
 	var dashboardStarted bool
 	originalStartDashboard := ui.StartPsDashboard
-	ui.StartPsDashboard = func() error {
+	ui.StartPsDashboard = func(showCosts bool, sortBy string) error {
 		dashboardStarted = true
 		return nil
 	}

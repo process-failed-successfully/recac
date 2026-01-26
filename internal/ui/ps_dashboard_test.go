@@ -13,7 +13,7 @@ import (
 )
 
 func TestPsDashboardModel_Init(t *testing.T) {
-	m := NewPsDashboardModel()
+	m := NewPsDashboardModel(false, "time")
 	cmd := m.Init()
 	assert.NotNil(t, cmd)
 }
@@ -68,7 +68,7 @@ func TestPsDashboardModel_Update(t *testing.T) {
 				tc.mockSetup()
 			}
 
-			m := NewPsDashboardModel()
+			m := NewPsDashboardModel(false, "time")
 			updatedModel, cmd := m.Update(tc.msg)
 			tc.verify(t, updatedModel, cmd)
 		})
@@ -78,7 +78,7 @@ func TestPsDashboardModel_Update(t *testing.T) {
 func TestPsDashboardModel_View(t *testing.T) {
 	testTime := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	m := NewPsDashboardModel()
+	m := NewPsDashboardModel(false, "time")
 	// Set a width to avoid unexpected truncation by the table component.
 	// The component would normally receive this from a tea.WindowSizeMsg.
 	m.table.SetWidth(200)
@@ -156,7 +156,7 @@ func TestStartPsDashboard_Error(t *testing.T) {
 func TestPsDashboardModel_UpdateTableRows(t *testing.T) {
 	now := time.Now()
 	longGoal := "This is a very long goal that is definitely going to be truncated"
-	m := NewPsDashboardModel()
+	m := NewPsDashboardModel(false, "time")
 	m.sessions = []model.UnifiedSession{
 		{Name: "local-session", Status: "Running", Goal: "Local test", LastActivity: now, Location: "local"},
 		{Name: "k8s-session", Status: "Running", Goal: "K8s test", StartTime: now.Add(-10 * time.Minute), Location: "k8s"},
@@ -175,11 +175,39 @@ func TestPsDashboardModel_UpdateTableRows(t *testing.T) {
 }
 
 func TestPsDashboardModel_Update_WindowSize(t *testing.T) {
-	m := NewPsDashboardModel()
+	m := NewPsDashboardModel(false, "time")
 	updatedM, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
 	model := updatedM.(psDashboardModel)
 
 	// Height - 8 (minus borders = 40)
 	assert.Equal(t, 40, model.table.Height())
 	assert.Equal(t, 100, model.width)
+}
+
+func TestPsDashboardModel_SortingAndCosts(t *testing.T) {
+	now := time.Now()
+	sessions := []model.UnifiedSession{
+		{Name: "B", Cost: 2.0, HasCost: true, StartTime: now},
+		{Name: "A", Cost: 1.0, HasCost: true, StartTime: now.Add(-time.Hour)},
+	}
+
+	// Test Sort By Cost
+	m := NewPsDashboardModel(true, "cost")
+	m.sessions = sessions
+	m.sortSessions()
+	assert.Equal(t, "B", m.sessions[0].Name, "Should be sorted by cost desc")
+
+	// Test Sort By Name
+	m = NewPsDashboardModel(true, "name")
+	m.sessions = sessions
+	m.sortSessions()
+	assert.Equal(t, "A", m.sessions[0].Name, "Should be sorted by name asc")
+
+	// Test Cost Columns
+	m.updateTableRows()
+	rows := m.table.Rows()
+	// Original 7 columns + 4 cost columns = 11 columns
+	assert.Len(t, rows[0], 11, "Should have 11 columns when costs are enabled")
+	// Verify cost value in last column
+	assert.Contains(t, rows[0][10], "1.000000") // $1.0 for session A
 }

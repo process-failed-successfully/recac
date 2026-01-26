@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"recac/internal/model"
 	"recac/internal/utils"
+	"sort"
 	"strings"
 	"time"
 
@@ -22,6 +23,8 @@ type psDashboardModel struct {
 	err        error
 	width      int
 	height     int
+	showCosts  bool
+	sortBy     string
 }
 
 type psTickMsg time.Time
@@ -29,7 +32,7 @@ type psSessionsRefreshedMsg []model.UnifiedSession
 
 var psDashboardTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("62"))
 
-func NewPsDashboardModel() psDashboardModel {
+func NewPsDashboardModel(showCosts bool, sortBy string) psDashboardModel {
 	columns := []table.Column{
 		{Title: "NAME", Width: 25},
 		{Title: "STATUS", Width: 10},
@@ -38,6 +41,15 @@ func NewPsDashboardModel() psDashboardModel {
 		{Title: "LOCATION", Width: 10},
 		{Title: "LAST USED", Width: 15},
 		{Title: "GOAL", Width: 60},
+	}
+
+	if showCosts {
+		columns = append(columns, []table.Column{
+			{Title: "PROMPT", Width: 8},
+			{Title: "COMPL", Width: 8},
+			{Title: "TOTAL", Width: 8},
+			{Title: "COST", Width: 10},
+		}...)
 	}
 
 	t := table.New(
@@ -57,7 +69,11 @@ func NewPsDashboardModel() psDashboardModel {
 		Bold(false)
 	t.SetStyles(s)
 
-	return psDashboardModel{table: t}
+	return psDashboardModel{
+		table:     t,
+		showCosts: showCosts,
+		sortBy:    sortBy,
+	}
 }
 
 func (m psDashboardModel) Init() tea.Cmd {
@@ -88,6 +104,7 @@ func (m psDashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case psSessionsRefreshedMsg:
 		m.sessions = msg
 		m.lastUpdate = time.Now()
+		m.sortSessions()
 		m.updateTableRows()
 		return m, nil
 
@@ -98,6 +115,24 @@ func (m psDashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	m.table, cmd = m.table.Update(msg)
 	return m, cmd
+}
+
+func (m *psDashboardModel) sortSessions() {
+	sort.SliceStable(m.sessions, func(i, j int) bool {
+		switch m.sortBy {
+		case "cost":
+			if m.sessions[i].HasCost && m.sessions[j].HasCost {
+				return m.sessions[i].Cost > m.sessions[j].Cost
+			}
+			return m.sessions[i].HasCost
+		case "name":
+			return m.sessions[i].Name < m.sessions[j].Name
+		case "time":
+			fallthrough
+		default:
+			return m.sessions[i].StartTime.After(m.sessions[j].StartTime)
+		}
+	})
 }
 
 func (m *psDashboardModel) updateTableRows() {
@@ -111,7 +146,8 @@ func (m *psDashboardModel) updateTableRows() {
 		if len(goal) > 54 {
 			goal = goal[:54] + "..."
 		}
-		rows = append(rows, table.Row{
+
+		row := table.Row{
 			s.Name,
 			s.Status,
 			s.CPU,
@@ -119,7 +155,22 @@ func (m *psDashboardModel) updateTableRows() {
 			s.Location,
 			lastUsed,
 			goal,
-		})
+		}
+
+		if m.showCosts {
+			if s.HasCost {
+				row = append(row,
+					fmt.Sprintf("%d", s.Tokens.TotalPromptTokens),
+					fmt.Sprintf("%d", s.Tokens.TotalResponseTokens),
+					fmt.Sprintf("%d", s.Tokens.TotalTokens),
+					fmt.Sprintf("$%.6f", s.Cost),
+				)
+			} else {
+				row = append(row, "N/A", "N/A", "N/A", "N/A")
+			}
+		}
+
+		rows = append(rows, row)
 	}
 	m.table.SetRows(rows)
 }
@@ -150,8 +201,8 @@ func refreshPsSessionsCmd() tea.Cmd {
 	}
 }
 
-var StartPsDashboard = func() error {
-	p := tea.NewProgram(NewPsDashboardModel(), tea.WithAltScreen())
+var StartPsDashboard = func(showCosts bool, sortBy string) error {
+	p := tea.NewProgram(NewPsDashboardModel(showCosts, sortBy), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		return err
 	}
