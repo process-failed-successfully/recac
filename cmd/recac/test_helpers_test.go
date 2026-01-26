@@ -336,6 +336,7 @@ type MockGitClient struct {
 	DiffStatFunc          func(repoPath, commitA, commitB string) (string, error)
 	CurrentCommitSHAFunc  func(repoPath string) (string, error)
 	RepoExistsFunc        func(repoPath string) bool
+	ConfigGlobalFunc      func(key, value string) error
 	CommitFunc            func(repoPath, message string) error
 	LogFunc               func(repoPath string, args ...string) ([]string, error)
 	FetchFunc             func(repoPath, remote, branch string) error
@@ -483,6 +484,13 @@ func (m *MockGitClient) RepoExists(repoPath string) bool {
 		return m.RepoExistsFunc(repoPath)
 	}
 	return true
+}
+
+func (m *MockGitClient) ConfigGlobal(key, value string) error {
+	if m.ConfigGlobalFunc != nil {
+		return m.ConfigGlobalFunc(key, value)
+	}
+	return nil
 }
 
 func (m *MockGitClient) Commit(repoPath, message string) error {

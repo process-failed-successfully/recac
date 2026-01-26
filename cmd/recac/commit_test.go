@@ -50,6 +50,7 @@ func (m *MockGitClientCommit) Commit(dir, message string) error {
 // Stub other methods
 func (m *MockGitClientCommit) Clone(ctx context.Context, repoURL, directory string) error { return nil }
 func (m *MockGitClientCommit) Config(directory, key, value string) error                  { return nil }
+func (m *MockGitClientCommit) ConfigGlobal(key, value string) error                       { return nil }
 func (m *MockGitClientCommit) ConfigAddGlobal(key, value string) error                    { return nil }
 func (m *MockGitClientCommit) RemoteBranchExists(directory, remote, branch string) (bool, error) {
 	return false, nil
