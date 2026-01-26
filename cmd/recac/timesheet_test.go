@@ -9,10 +9,11 @@ import (
 
 func TestParseGitLogOutput(t *testing.T) {
 	// 2023-10-27T10:00:00Z
-	log := `a1b2c3d|jules|2023-10-27T10:00:00Z|Initial commit
-e5f6g7h|jules|2023-10-27T10:15:00Z|Second commit
-i9j0k1l|jules|2023-10-27T10:30:00Z|Third commit
-`
+	log := []string{
+		"a1b2c3d|jules|2023-10-27T10:00:00Z|Initial commit",
+		"e5f6g7h|jules|2023-10-27T10:15:00Z|Second commit",
+		"i9j0k1l|jules|2023-10-27T10:30:00Z|Third commit",
+	}
 	commits, err := parseGitLogOutput(log)
 	assert.NoError(t, err)
 	assert.Len(t, commits, 3)
