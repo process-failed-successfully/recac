@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -12,6 +13,7 @@ import (
 	"path/filepath"
 	"recac/internal/mutation"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -267,12 +269,21 @@ func findGoMod(path string) string {
 }
 
 func runGoTest(dir string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
 	// We use "go test ." so it runs only the package in the dir
-	cmd := exec.Command("go", "test", ".")
+	cmd := exec.CommandContext(ctx, "go", "test", ".")
 	cmd.Dir = dir
-	// We don't want output unless verbose, or maybe just errors?
-	// For mutation testing, we just care about exit code.
-	return cmd.Run()
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("test timed out after 2m: %v\nOutput:\n%s", err, string(output))
+		}
+		return fmt.Errorf("test failed: %v\nOutput:\n%s", err, string(output))
+	}
+	return nil
 }
 
 func copyDir(src, dst string) error {
