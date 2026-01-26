@@ -10,6 +10,7 @@ import (
 	"recac/internal/runner"
 	"strings"
 	"sort"
+	"time"
 )
 
 //go:embed static/*
@@ -49,7 +50,33 @@ func (s *Server) Start() error {
 	// Bind to localhost for security
 	addr := fmt.Sprintf("127.0.0.1:%d", s.port)
 	fmt.Printf("Starting dashboard at http://%s\n", addr)
-	return http.ListenAndServe(addr, mux)
+
+	// Wrap handler with security headers
+	handler := s.securityHeaders(mux)
+
+	server := &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+
+	return server.ListenAndServe()
+}
+
+func (s *Server) securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Content Security Policy
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; style-src 'self' 'unsafe-inline'")
+		// Other standard headers
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) handleFeatures(w http.ResponseWriter, r *http.Request) {
