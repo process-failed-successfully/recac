@@ -3,8 +3,10 @@ package prompts
 import (
 	"embed"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -53,4 +55,21 @@ func GetPrompt(name string, vars map[string]string) (string, error) {
 	}
 
 	return prompt, nil
+}
+
+// ListPrompts returns the names of all available embedded prompt templates.
+func ListPrompts() ([]string, error) {
+	entries, err := fs.ReadDir(templateFS, "templates")
+	if err != nil {
+		return nil, fmt.Errorf("failed to list prompts: %w", err)
+	}
+
+	var names []string
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".md") {
+			names = append(names, strings.TrimSuffix(e.Name(), ".md"))
+		}
+	}
+	sort.Strings(names)
+	return names, nil
 }
