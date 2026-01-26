@@ -50,7 +50,7 @@ func runDebt(cmd *cobra.Command, args []string) error {
 	}
 
 	// 1. Scan for TODOs
-	todos, err := scanTodos(root)
+	todos, err := ScanForTodos(root)
 	if err != nil {
 		return fmt.Errorf("scan failed: %w", err)
 	}

@@ -108,7 +108,7 @@ func runReport(cmd *cobra.Command, args []string) error {
 
 	// 4. TODOs
 	fmt.Fprintln(cmd.OutOrStdout(), "  - Scanning TODOs...")
-	todos, err := scanTodos(path)
+	todos, err := ScanForTodos(path)
 	if err != nil {
 		fmt.Fprintf(cmd.OutOrStdout(), "Warning: TODO scan failed: %v\n", err)
 	}

@@ -107,7 +107,7 @@ func TestStandupCmd(t *testing.T) {
 	assert.NotContains(t, prompt, "session-old")
 
 	// Verify TODO stats
-	// Since we are running in a test env, scanTodos might return nothing or real files if cwd is repo root.
+	// Since we are running in a test env, ScanForTodos might return nothing or real files if cwd is repo root.
 	// But we expect "Codebase TODOs:" text.
 	assert.Contains(t, prompt, "Codebase TODOs:")
 }

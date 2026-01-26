@@ -81,7 +81,7 @@ func runStandup(cmd *cobra.Command, args []string) error {
 
 	// 3. TODOs
 	// Scan code todos
-	codeTodos, _ := scanTodos(cwd)
+	codeTodos, _ := ScanForTodos(cwd)
 	// Read TODO.md
 	todoMdStats := "No TODO.md found"
 	if _, err := os.Stat("TODO.md"); err == nil {

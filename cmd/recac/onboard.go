@@ -81,7 +81,7 @@ Let's get you set up and ready to code.
 	fmt.Fprintln(cmd.OutOrStdout(), "\n🎯 Finding a 'Good First Issue'...")
 	fmt.Fprintln(cmd.OutOrStdout(), "----------------------------------")
 
-	tasks, err := scanTodos(cwd)
+	tasks, err := ScanForTodos(cwd)
 	if err != nil {
 		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: failed to scan TODOs: %v\n", err)
 	} else {
