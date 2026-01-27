@@ -291,14 +291,29 @@ func checkThreshold(stats LoadStats, threshold string) error {
 	// Determine actual value
 	switch metric {
 	case "p50":
+		if len(stats.Latencies) == 0 {
+			return fmt.Errorf("threshold failed: insufficient data for p50 metric")
+		}
 		actual = float64(percentile(stats.Latencies, 0.50).Milliseconds())
 	case "p90":
+		if len(stats.Latencies) == 0 {
+			return fmt.Errorf("threshold failed: insufficient data for p90 metric")
+		}
 		actual = float64(percentile(stats.Latencies, 0.90).Milliseconds())
 	case "p95":
+		if len(stats.Latencies) == 0 {
+			return fmt.Errorf("threshold failed: insufficient data for p95 metric")
+		}
 		actual = float64(percentile(stats.Latencies, 0.95).Milliseconds())
 	case "p99":
+		if len(stats.Latencies) == 0 {
+			return fmt.Errorf("threshold failed: insufficient data for p99 metric")
+		}
 		actual = float64(percentile(stats.Latencies, 0.99).Milliseconds())
 	case "mean":
+		if len(stats.Latencies) == 0 {
+			return fmt.Errorf("threshold failed: insufficient data for mean metric")
+		}
 		actual = float64(mean(stats.Latencies).Milliseconds())
 	case "error":
 		if stats.TotalRequests > 0 {
