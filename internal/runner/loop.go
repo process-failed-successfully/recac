@@ -278,16 +278,18 @@ func (s *Session) RunLoop(ctx context.Context) error {
 
 				// 0. COMMIT WORK: Ensure any pending changes are committed before merging
 				// We use a more careful commit strategy to avoid re-adding ignored files
-				commitCmd := exec.Command("sh", "-c", "git add . && git commit -m 'feat: implemented features for "+s.Project+"' || echo 'Nothing to commit'")
-				commitCmd.Dir = s.Workspace
-				if out, err := commitCmd.CombinedOutput(); err != nil {
-					fmt.Printf("Warning: Failed to auto-commit work: %v\nOutput: %s\n", err, out)
+				gitClient := git.NewClient()
+				if err := gitClient.Commit(s.Workspace, "feat: implemented features for "+s.Project); err != nil {
+					// We ignore error if it's just "nothing to commit", but git.Client doesn't easily distinguish.
+					// However, the original code used || echo, effectively ignoring failure.
+					// We can just log warning.
+					fmt.Printf("Warning: Failed to auto-commit work (might be nothing to commit): %v\n", err)
 				} else {
-					fmt.Printf("Auto-committed work: %s\n", strings.TrimSpace(string(out)))
+					fmt.Printf("Auto-committed work for %s\n", s.Project)
 				}
 
 				fmt.Printf("Merging changes into base branch: %s\n", s.BaseBranch)
-				gitClient := git.NewClient()
+				// gitClient is already initialized
 				// Actually, we are IN the workspace, so we can get current branch name
 				// But simpler: checkout BaseBranch -> Merge Previous -> Push
 
