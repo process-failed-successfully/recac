@@ -3,10 +3,14 @@ package workflow
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"recac/internal/agent"
@@ -301,4 +305,64 @@ func TestRunWorkflow_Normal(t *testing.T) {
 		// assert.NoError(t, err)
 		// It likely returns an error because of circuit breaker, which counts as covering the code.
 	}
+}
+
+func TestRunWorkflow_Normal_AgentInitFail(t *testing.T) {
+	// Mock cmdutils.GetAgentClient to fail
+	originalGetAgentClient := cmdutils.GetAgentClient
+	defer func() { cmdutils.GetAgentClient = originalGetAgentClient }()
+	cmdutils.GetAgentClient = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+		return nil, errors.New("agent init failed")
+	}
+
+	tmpDir := t.TempDir()
+	cfg := SessionConfig{
+		ProjectPath: tmpDir,
+		SessionName: "fail-test",
+		IsMock:      false,
+		AllowDirty:  true,
+	}
+
+	err := RunWorkflow(context.Background(), cfg)
+	if err == nil {
+		t.Error("Expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "agent init failed") {
+		t.Errorf("Expected 'agent init failed', got %v", err)
+	}
+}
+
+func TestRunWorkflow_Normal_DirtyCheck(t *testing.T) {
+	// Setup temp dir with dirty git repo
+	tmpDir := t.TempDir()
+
+	// Initialize git
+	// Note: This requires 'git' to be in PATH. Usually safe in dev env.
+	// If git is not available, we should skip.
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not found in PATH")
+	}
+
+	exec.Command("git", "-C", tmpDir, "init").Run()
+	exec.Command("git", "-C", tmpDir, "config", "user.email", "test@example.com").Run()
+	exec.Command("git", "-C", tmpDir, "config", "user.name", "Test").Run()
+
+	// Create a file and commit it
+	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte("content"), 0644)
+	exec.Command("git", "-C", tmpDir, "add", ".").Run()
+	exec.Command("git", "-C", tmpDir, "commit", "-m", "init").Run()
+
+	// Make it dirty
+	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte("modified"), 0644)
+
+	cfg := SessionConfig{
+		ProjectPath: tmpDir,
+		SessionName: "dirty-check",
+		IsMock:      false,
+		AllowDirty:  false,
+	}
+
+	err := RunWorkflow(context.Background(), cfg)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "uncommitted changes detected")
 }

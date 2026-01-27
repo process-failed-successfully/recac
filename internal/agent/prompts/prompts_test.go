@@ -69,3 +69,55 @@ func TestGetPrompt_Override(t *testing.T) {
 		t.Errorf("Expected %q, got %q", expected, got)
 	}
 }
+
+func TestListPrompts(t *testing.T) {
+	prompts, err := ListPrompts()
+	if err != nil {
+		t.Fatalf("ListPrompts failed: %v", err)
+	}
+	if len(prompts) == 0 {
+		t.Error("Expected prompts, got empty list")
+	}
+
+	found := false
+	for _, p := range prompts {
+		if p == Planner {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Expected 'planner' in prompts list, got %v", prompts)
+	}
+}
+
+func TestGetPrompt_NotFound(t *testing.T) {
+	_, err := GetPrompt("non_existent_prompt", nil)
+	if err == nil {
+		t.Error("Expected error for non-existent prompt, got nil")
+	}
+}
+
+func TestGetPrompt_MultipleVars(t *testing.T) {
+	// We'll create a fake override to test variable substitution without relying on specific template content
+	tmpDir := t.TempDir()
+	t.Setenv("RECAC_PROMPTS_DIR", tmpDir)
+
+	promptName := "multi_var"
+	content := "Hello {name}, your role is {role}."
+	os.WriteFile(filepath.Join(tmpDir, promptName+".md"), []byte(content), 0644)
+
+	vars := map[string]string{
+		"name": "Alice",
+		"role": "Engineer",
+	}
+	got, err := GetPrompt(promptName, vars)
+	if err != nil {
+		t.Fatalf("GetPrompt failed: %v", err)
+	}
+
+	expected := "Hello Alice, your role is Engineer."
+	if got != expected {
+		t.Errorf("Expected %q, got %q", expected, got)
+	}
+}
