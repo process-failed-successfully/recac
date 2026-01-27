@@ -260,7 +260,10 @@ func percentile(d []time.Duration, p float64) time.Duration {
 	if len(d) == 0 {
 		return 0
 	}
-	index := int(float64(len(d)-1) * p)
+	index := int(float64(len(d)) * p)
+	if index >= len(d) {
+		index = len(d) - 1
+	}
 	return d[index]
 }
 
