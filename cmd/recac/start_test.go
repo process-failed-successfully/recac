@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"recac/internal/agent"
+	"recac/internal/cmdutils"
+	"recac/internal/workflow"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -32,12 +34,12 @@ func TestStartCommand_Detached(t *testing.T) {
 	// Setup Mock SessionManager
 	mockSM := NewMockSessionManager()
 
-	// Override factory
-	originalFactory := sessionManagerFactory
-	sessionManagerFactory = func() (ISessionManager, error) {
+	// Override workflow.NewSessionManagerFunc
+	originalFactory := workflow.NewSessionManagerFunc
+	workflow.NewSessionManagerFunc = func() (workflow.ISessionManager, error) {
 		return mockSM, nil
 	}
-	defer func() { sessionManagerFactory = originalFactory }()
+	defer func() { workflow.NewSessionManagerFunc = originalFactory }()
 
 	tmpDir := t.TempDir()
 
@@ -112,12 +114,12 @@ func TestStartCommand_NormalMode_Restricted(t *testing.T) {
 	tmpDir := t.TempDir()
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
 
-	// Mock agentClientFactory
-	originalFactory := agentClientFactory
-	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+	// Mock cmdutils.GetAgentClient
+	originalFactory := cmdutils.GetAgentClient
+	cmdutils.GetAgentClient = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
 		return agent.NewMockAgent(), nil
 	}
-	defer func() { agentClientFactory = originalFactory }()
+	defer func() { cmdutils.GetAgentClient = originalFactory }()
 
 	t.Setenv("HOME", t.TempDir())
 
