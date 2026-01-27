@@ -160,6 +160,10 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 			envExports = append(envExports, fmt.Sprintf("export RECAC_MANAGER_FREQUENCY=%s", shellquote.Join(val)))
 		}
 
+		if val := os.Getenv("RECAC_TASK_MAX_ITERATIONS"); val != "" {
+			envExports = append(envExports, fmt.Sprintf("export RECAC_TASK_MAX_ITERATIONS=%s", shellquote.Join(val)))
+		}
+
 		cmdStr := "cd /workspace"
 		cmdStr += " && " + strings.Join(envExports, " && ")
 		cmdStr += " && " + shellquote.Join(agentCmd...) + " --allow-dirty"
