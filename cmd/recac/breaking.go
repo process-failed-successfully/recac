@@ -36,12 +36,14 @@ func init() {
 }
 
 func runBreaking(cmd *cobra.Command, args []string) error {
+	gitClient := gitClientFactory()
+
 	// Get Repo Root
-	repoRootBytes, err := execCommand("git", "rev-parse", "--show-toplevel").Output()
+	repoRoot, err := gitClient.Run(".", "rev-parse", "--show-toplevel")
 	if err != nil {
 		return fmt.Errorf("failed to get git repo root: %w", err)
 	}
-	repoRoot := strings.TrimSpace(string(repoRootBytes))
+	repoRoot = strings.TrimSpace(repoRoot)
 
 	// 1. Get List of Go Files in HEAD (local)
 	// We can walk the directory, ignoring common paths
@@ -100,11 +102,11 @@ func runBreaking(cmd *cobra.Command, args []string) error {
 		cmdArgs = append(cmdArgs, rootPath)
 	}
 
-	out, err := execCommand("git", cmdArgs...).Output()
+	out, err := gitClient.Run(repoRoot, cmdArgs...)
 	if err != nil {
 		return fmt.Errorf("failed to list files from git ref %s: %w", breakingBase, err)
 	}
-	gitFilesList := strings.Split(strings.TrimSpace(string(out)), "\n")
+	gitFilesList := strings.Split(strings.TrimSpace(out), "\n")
 	var gitFiles []string
 	for _, f := range gitFilesList {
 		if strings.HasSuffix(f, ".go") && !strings.HasSuffix(f, "_test.go") {
@@ -123,11 +125,11 @@ func runBreaking(cmd *cobra.Command, args []string) error {
 	gitLoader := func(path string) ([]byte, error) {
 		// git show <base>:<path>
 		// git show expects path relative to repo root.
-		out, err := execCommand("git", "show", fmt.Sprintf("%s:%s", breakingBase, path)).Output()
+		out, err := gitClient.Run(repoRoot, "show", fmt.Sprintf("%s:%s", breakingBase, path))
 		if err != nil {
 			return nil, err
 		}
-		return out, nil
+		return []byte(out), nil
 	}
 
 	baseAPI, err := breaking.ExtractAPI(gitFiles, gitLoader)
