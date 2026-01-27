@@ -110,7 +110,9 @@ func runLoad(cmd *cobra.Command, args []string) error {
 	defer ticker.Stop()
 
 	// Dispatcher
+	dispatcherDone := make(chan struct{})
 	go func() {
+		defer close(dispatcherDone)
 		for {
 			select {
 			case <-ctx.Done():
@@ -133,6 +135,7 @@ func runLoad(cmd *cobra.Command, args []string) error {
 
 	// Wait for duration
 	<-ctx.Done()
+	<-dispatcherDone
 
 	// Wait for workers to finish and close results channel
 	go func() {
