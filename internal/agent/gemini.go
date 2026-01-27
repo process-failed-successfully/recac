@@ -3,10 +3,14 @@ package agent
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -127,4 +131,103 @@ func (c *GeminiClient) SendStream(ctx context.Context, prompt string, onChunk fu
 		}
 		return resp, err
 	}, onChunk)
+}
+
+// SendImage sends a prompt with an image to Gemini
+func (c *GeminiClient) SendImage(ctx context.Context, prompt, imagePath string) (string, error) {
+	if c.mockResponder != nil {
+		return c.mockResponder(prompt)
+	}
+
+	if c.apiKey == "" {
+		return "", fmt.Errorf("API key is required")
+	}
+
+	// Read image file
+	imageData, err := os.ReadFile(imagePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read image file: %w", err)
+	}
+
+	// Detect MIME type
+	ext := strings.ToLower(filepath.Ext(imagePath))
+	var mimeType string
+	switch ext {
+	case ".png":
+		mimeType = "image/png"
+	case ".jpg", ".jpeg":
+		mimeType = "image/jpeg"
+	case ".webp":
+		mimeType = "image/webp"
+	case ".heic":
+		mimeType = "image/heic"
+	case ".heif":
+		mimeType = "image/heif"
+	default:
+		return "", fmt.Errorf("unsupported image format: %s", ext)
+	}
+
+	// Encode to Base64
+	base64Data := base64.StdEncoding.EncodeToString(imageData)
+
+	url := fmt.Sprintf("%s/%s:generateContent", c.apiURL, c.model)
+
+	requestBody := map[string]interface{}{
+		"contents": []map[string]interface{}{
+			{
+				"parts": []map[string]interface{}{
+					{"text": prompt},
+					{
+						"inlineData": map[string]string{
+							"mimeType": mimeType,
+							"data":     base64Data,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	jsonBody, err := json.Marshal(requestBody)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-goog-api-key", c.apiKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var response struct {
+		Candidates []struct {
+			Content struct {
+				Parts []struct {
+					Text string `json:"text"`
+				} `json:"parts"`
+			} `json:"content"`
+		} `json:"candidates"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if len(response.Candidates) == 0 || len(response.Candidates[0].Content.Parts) == 0 {
+		return "", fmt.Errorf("no content in response")
+	}
+
+	return response.Candidates[0].Content.Parts[0].Text, nil
 }

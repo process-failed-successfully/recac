@@ -16,6 +16,13 @@ type Agent interface {
 	SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error)
 }
 
+// VisionAgent extends the Agent interface to support image inputs
+type VisionAgent interface {
+	Agent
+	// SendImage sends a prompt with an image to the agent and returns the response
+	SendImage(ctx context.Context, prompt, imagePath string) (string, error)
+}
+
 // NewAgent is a factory function that returns an Agent based on the provider
 // For Ollama, apiKey is used as baseURL (optional, defaults to http://localhost:11434)
 func NewAgent(provider, apiKey, model, workDir, project string) (Agent, error) {
