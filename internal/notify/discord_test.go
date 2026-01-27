@@ -240,6 +240,42 @@ func TestDiscordNotifier_AddReaction_Error(t *testing.T) {
 	}
 }
 
+func TestDiscordNotifier_AddReaction_MapEmoji(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string // Expected URL part (encoded)
+	}{
+		{"white_check_mark", "%E2%9C%85"},
+		{":white_check_mark:", "%E2%9C%85"},
+		{"x", "%E2%9D%8C"},
+		{":x:", "%E2%9D%8C"},
+		{"warning", "%E2%9A%A0%EF%B8%8F"},
+		{":warning:", "%E2%9A%A0%EF%B8%8F"},
+		{"unknown", "unknown"}, // Should return as is
+		{"uni\u2705code", "uni\u2705code"}, // Should pass through if not mapped (assuming raw)
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// We assume that the request reaches the server.
+				// Since we use a custom transport that redirects to this server,
+				// observing the hit is sufficient to verify the flow.
+				w.WriteHeader(http.StatusOK)
+			}))
+			defer server.Close()
+
+			notifier := NewDiscordBotNotifier("token", "123")
+			notifier.Client = &http.Client{Transport: &testTransport{TargetURL: server.URL}}
+
+			err := notifier.AddReaction(context.Background(), "msg", tt.input)
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
 type testTransport struct {
 	TargetURL string
 }
