@@ -75,6 +75,35 @@ func TestManager_Config(t *testing.T) {
 	assert.False(t, m.isProviderEnabled("discord"))
 }
 
+func TestManager_Init(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(func() { viper.Reset() })
+
+	// Enable both
+	viper.Set("notifications.slack.enabled", true)
+	viper.Set("notifications.discord.enabled", true)
+
+	// Set Env Vars
+	t.Setenv("SLACK_BOT_USER_TOKEN", "xoxb-test-token")
+	t.Setenv("SLACK_APP_TOKEN", "xapp-test-token")
+	t.Setenv("DISCORD_BOT_TOKEN", "discord-test-token")
+	t.Setenv("DISCORD_CHANNEL_ID", "123456")
+
+	m := NewManager(func(fmt string, args ...interface{}) {})
+
+	// Assertions
+	assert.NotNil(t, m)
+	assert.NotNil(t, m.client, "Slack client should be initialized")
+	assert.NotNil(t, m.socketClient, "Slack socket client should be initialized due to xapp- token")
+	assert.NotNil(t, m.discordNotifier, "Discord notifier should be initialized")
+
+	// Test Start with valid client (though we can't wait for it as it blocks or connects)
+	// Just call it to ensure no panic if client is set
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel immediately so we don't block or leak
+	m.Start(ctx)
+}
+
 func TestManager_IsEnabled(t *testing.T) {
 	viper.Reset()
 	t.Cleanup(func() { viper.Reset() })
@@ -130,17 +159,40 @@ func TestManager_Notify_Disabled(t *testing.T) {
 }
 
 func TestManager_GetStyle(t *testing.T) {
-	title, color := getStyle(EventStart)
-	assert.NotEmpty(t, title)
-	assert.Equal(t, "#3498db", color)
+	tests := []struct {
+		event    string
+		expected string // Color
+	}{
+		{EventStart, "#3498db"},
+		{EventSuccess, "#2eb886"},
+		{EventFailure, "#a30200"},
+		{EventUserInteraction, "#f1c40f"},
+		{EventProjectComplete, "#2eb886"},
+		{"unknown_event", "#808080"},
+	}
 
-	title, color = getStyle(EventFailure)
-	assert.NotEmpty(t, title)
-	assert.Equal(t, "#a30200", color)
+	for _, tt := range tests {
+		title, color := getStyle(tt.event)
+		assert.NotEmpty(t, title)
+		assert.Equal(t, tt.expected, color)
+	}
+}
 
-	title, color = getStyle("unknown_event")
-	assert.Equal(t, "📢 Notification", title)
-	assert.Equal(t, "#808080", color)
+func TestManager_Init_DiscordWarning(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(func() { viper.Reset() })
+
+	viper.Set("notifications.discord.enabled", true)
+	// Missing tokens
+
+	logMsg := ""
+	logger := func(fmt string, args ...interface{}) {
+		logMsg = fmt
+	}
+
+	NewManager(logger)
+
+	assert.Contains(t, logMsg, "Warning: DISCORD_BOT_TOKEN or DISCORD_CHANNEL_ID not set")
 }
 
 func TestManager_Notify_Success(t *testing.T) {

@@ -69,3 +69,27 @@ func TestGetPrompt_Override(t *testing.T) {
 		t.Errorf("Expected %q, got %q", expected, got)
 	}
 }
+
+func TestListPrompts(t *testing.T) {
+	prompts, err := ListPrompts()
+	if err != nil {
+		t.Fatalf("ListPrompts failed: %v", err)
+	}
+
+	if len(prompts) == 0 {
+		t.Errorf("Expected prompts to be returned, got 0")
+	}
+
+	// Check for a known prompt
+	found := false
+	for _, p := range prompts {
+		if p == Planner {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Errorf("Expected prompt %q to be in the list, got %v", Planner, prompts)
+	}
+}

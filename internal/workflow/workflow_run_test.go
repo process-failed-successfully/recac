@@ -49,6 +49,57 @@ func TestRunWorkflow_Detached_Success(t *testing.T) {
 	}
 }
 
+func TestRunWorkflow_Detached_Options(t *testing.T) {
+	// Setup
+	expectedSession := &runner.SessionState{PID: 1234, LogFile: "test.log"}
+	mockSM := &ManualMockSessionManager{
+		StartSessionFunc: func(name, goal string, command []string, cwd string) (*runner.SessionState, error) {
+			// Verify flags
+			args := strings.Join(command, " ")
+			if !strings.Contains(args, "--mock") {
+				t.Error("Expected --mock flag")
+			}
+			if !strings.Contains(args, "--allow-dirty") {
+				t.Error("Expected --allow-dirty flag")
+			}
+			if !strings.Contains(args, "--max-iterations 100") {
+				t.Error("Expected --max-iterations 100")
+			}
+			if !strings.Contains(args, "--manager-frequency 10") {
+				t.Error("Expected --manager-frequency 10")
+			}
+			if !strings.Contains(args, "--task-max-iterations 50") {
+				t.Error("Expected --task-max-iterations 50")
+			}
+			if !strings.Contains(args, "--path /tmp/test") {
+				t.Error("Expected --path /tmp/test")
+			}
+			return expectedSession, nil
+		},
+	}
+
+	cfg := SessionConfig{
+		Detached:          true,
+		SessionName:       "test-session",
+		Goal:              "test-goal",
+		SessionManager:    mockSM,
+		ProjectPath:       "/tmp/test",
+		IsMock:            true,
+		AllowDirty:        true,
+		MaxIterations:     100,
+		ManagerFrequency:  10,
+		TaskMaxIterations: 50,
+	}
+
+	// Execute
+	err := RunWorkflow(context.Background(), cfg)
+
+	// Verify
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+}
+
 func TestRunWorkflow_Detached_Fail(t *testing.T) {
 	// Setup
 	mockSM := &ManualMockSessionManager{

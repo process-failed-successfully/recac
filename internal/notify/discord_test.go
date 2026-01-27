@@ -240,6 +240,50 @@ func TestDiscordNotifier_AddReaction_Error(t *testing.T) {
 	}
 }
 
+func TestDiscordNotifier_AddReaction_EmojiMapping(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		// mapEmoji returns URL-encoded strings, but httptest.Server decodes r.URL.Path.
+		// So we expect the decoded characters.
+		{"white_check_mark", "✅"},
+		{":white_check_mark:", "✅"},
+		{"x", "❌"},
+		{":x:", "❌"},
+		{"warning", "⚠️"},
+		{":warning:", "⚠️"},
+		{"other", "other"}, // Default case
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// Verify the URL path contains the expected mapped emoji
+				// Path format: /api/v10/channels/%s/messages/%s/reactions/%s/@me
+				expectedPathSuffix := "/reactions/" + tt.expected + "/@me"
+				if !strings.HasSuffix(r.URL.Path, expectedPathSuffix) {
+					t.Errorf("expected path suffix %q, got %q", expectedPathSuffix, r.URL.Path)
+				}
+				w.WriteHeader(http.StatusNoContent)
+			}))
+			defer server.Close()
+
+			notifier := NewDiscordBotNotifier("token", "channel")
+			notifier.Client = &http.Client{
+				Transport: &testTransport{
+					TargetURL: server.URL,
+				},
+			}
+
+			err := notifier.AddReaction(context.Background(), "msg_123", tt.input)
+			if err != nil {
+				t.Fatalf("AddReaction failed: %v", err)
+			}
+		})
+	}
+}
+
 type testTransport struct {
 	TargetURL string
 }
