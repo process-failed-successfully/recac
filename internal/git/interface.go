@@ -43,4 +43,5 @@ type IClient interface {
 	PushTags(directory string) error
 	LatestTag(directory string) (string, error)
 	Run(directory string, args ...string) (string, error)
+	CreatePR(directory, title, body, base string) (string, error)
 }

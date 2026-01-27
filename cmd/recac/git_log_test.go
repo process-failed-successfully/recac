@@ -69,7 +69,9 @@ func (m *MockGitClientLog) DeleteTag(directory, version string) error { return n
 func (m *MockGitClientLog) PushTags(directory string) error { return nil }
 func (m *MockGitClientLog) LatestTag(directory string) (string, error) { return "", nil }
 func (m *MockGitClientLog) Run(directory string, args ...string) (string, error) { return "", nil }
-
+func (m *MockGitClientLog) CreatePR(directory, title, body, base string) (string, error) {
+	return "", nil
+}
 
 func TestGitLogCmd(t *testing.T) {
 	// Setup Mocks

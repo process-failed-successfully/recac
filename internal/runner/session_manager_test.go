@@ -217,6 +217,11 @@ func (m *MockGitClient) Run(directory string, args ...string) (string, error) {
 	return callArgs.String(0), callArgs.Error(1)
 }
 
+func (m *MockGitClient) CreatePR(directory, title, body, base string) (string, error) {
+	args := m.Called(directory, title, body, base)
+	return args.String(0), args.Error(1)
+}
+
 // setupSessionManager creates a new SessionManager in a temporary directory for isolated testing.
 func setupSessionManager(t *testing.T) (*SessionManager, func()) {
 	t.Helper()

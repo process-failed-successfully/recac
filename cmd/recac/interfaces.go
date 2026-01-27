@@ -60,6 +60,7 @@ type IGitClient interface {
 	LatestTag(repoPath string) (string, error)
 	Run(repoPath string, args ...string) (string, error)
 	DeleteLocalBranch(repoPath, branch string) error
+	CreatePR(repoPath, title, body, base string) (string, error)
 }
 
 // IK8sClient defines the interface for Kubernetes operations.

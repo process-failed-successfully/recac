@@ -108,6 +108,11 @@ func (m *MockGitClient) DeleteLocalBranch(repoPath, branch string) error {
 	return args.Error(0)
 }
 
+func (m *MockGitClient) CreatePR(repoPath, title, body, base string) (string, error) {
+	args := m.Called(repoPath, title, body, base)
+	return args.String(0), args.Error(1)
+}
+
 // Mock Poller (Minimal for this test)
 type MockPoller struct {
 	mock.Mock

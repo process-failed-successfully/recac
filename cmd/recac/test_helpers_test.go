@@ -352,6 +352,14 @@ type MockGitClient struct {
 	LatestTagFunc         func(repoPath string) (string, error)
 	RunFunc               func(repoPath string, args ...string) (string, error)
 	DeleteLocalBranchFunc func(repoPath, branch string) error
+	CreatePRFunc          func(repoPath, title, body, base string) (string, error)
+}
+
+func (m *MockGitClient) CreatePR(repoPath, title, body, base string) (string, error) {
+	if m.CreatePRFunc != nil {
+		return m.CreatePRFunc(repoPath, title, body, base)
+	}
+	return "https://github.com/example/repo/pull/1", nil
 }
 
 func (m *MockGitClient) DeleteLocalBranch(repoPath, branch string) error {
