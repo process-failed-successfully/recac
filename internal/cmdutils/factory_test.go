@@ -99,6 +99,7 @@ type MockGitClient struct {
 	cloneFn             func(ctx context.Context, repoURL, directory string) error
 	checkoutFn          func(directory, branch string) error
 	checkoutNewBranchFn func(directory, branch string) error
+	hasUnpushedCommitsFn func(directory string) (bool, error)
 }
 
 func (m *MockGitClient) Clone(ctx context.Context, repoURL, directory string) error {
@@ -200,6 +201,13 @@ func (m *MockGitClient) CurrentBranch(directory string) (string, error) {
 
 func (m *MockGitClient) Commit(directory, message string) error {
 	return nil
+}
+
+func (m *MockGitClient) HasUnpushedCommits(directory string) (bool, error) {
+	if m.hasUnpushedCommitsFn != nil {
+		return m.hasUnpushedCommitsFn(directory)
+	}
+	return false, nil
 }
 
 func (m *MockGitClient) Diff(directory, startCommit, endCommit string) (string, error) {
