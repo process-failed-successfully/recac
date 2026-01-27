@@ -250,3 +250,32 @@ func TestManager_AddReaction(t *testing.T) {
 	assert.True(t, slackCalled)
 	assert.True(t, discordCalled)
 }
+
+func TestManager_Init_Env(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(func() { viper.Reset() })
+
+	// Case 1: All Enabled via Viper, but Env variables provided
+	viper.Set("notifications.slack.enabled", true)
+	viper.Set("notifications.discord.enabled", true)
+
+	t.Setenv("SLACK_BOT_USER_TOKEN", "xoxb-token")
+	t.Setenv("SLACK_APP_TOKEN", "xapp-token")
+	t.Setenv("DISCORD_BOT_TOKEN", "discord-token")
+	t.Setenv("DISCORD_CHANNEL_ID", "12345")
+
+	m := NewManager(nil)
+	assert.NotNil(t, m.client, "Slack client should be initialized")
+	assert.NotNil(t, m.discordNotifier, "Discord notifier should be initialized")
+	assert.NotNil(t, m.socketClient, "Slack socket client should be initialized (xapp token)")
+
+	// Case 2: Slack token missing
+	t.Setenv("SLACK_BOT_USER_TOKEN", "")
+	m2 := NewManager(nil)
+	assert.Nil(t, m2.client, "Slack client should NOT be initialized without token")
+
+	// Case 3: Discord token missing
+	t.Setenv("DISCORD_BOT_TOKEN", "")
+	m3 := NewManager(nil)
+	assert.Nil(t, m3.discordNotifier, "Discord notifier should NOT be initialized without token")
+}

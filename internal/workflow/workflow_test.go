@@ -16,6 +16,7 @@ import (
 	"recac/internal/runner"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestProcessJiraTicket(t *testing.T) {
@@ -98,10 +99,6 @@ func TestProcessJiraTicket(t *testing.T) {
 
 	err := ProcessJiraTicket(context.Background(), "TEST-1", jClient, cfg, nil)
 
-	// Since we don't have DB, we expect RunWorkflow to fail or we mock DB?
-	// mocking DB is hard.
-	// We'll rely on IsMock: true in SessionConfig to perform a "Mock" run which should be lighter.
-
 	// Check app_spec.txt
 	specPath := fmt.Sprintf("%s/app_spec.txt", tmpDir)
 
@@ -161,8 +158,55 @@ func TestProcessDirectTask(t *testing.T) {
 	}
 }
 
-func TestRunWorkflow_Detached(t *testing.T) {
-	t.Skip("Skipping detached test due to binary dependency")
+func TestRunWorkflow_Detached_VerifyArgs(t *testing.T) {
+	mockSM := new(MockSessionManager)
+
+	cfg := SessionConfig{
+		Detached:      true,
+		SessionName:   "test-detached-args",
+		Goal:          "my-goal",
+		ProjectPath:   "/tmp/test",
+		CommandPrefix: []string{"run", "agent"},
+		IsMock:        true,
+		MaxIterations: 15,
+		SessionManager: mockSM,
+	}
+
+	mockSM.On("StartSession", "test-detached-args", "my-goal", mock.MatchedBy(func(cmd []string) bool {
+		// Verify command arguments
+		// cmd[0] is executable
+		if len(cmd) < 2 {
+			return false
+		}
+		// Check for prefix
+		foundPrefix := false
+		for i, arg := range cmd {
+			if arg == "run" && i+1 < len(cmd) && cmd[i+1] == "agent" {
+				foundPrefix = true
+				break
+			}
+		}
+		if !foundPrefix {
+			return false
+		}
+
+		// Check for flags
+		hasMock := false
+		hasIterations := false
+		for i, arg := range cmd {
+			if arg == "--mock" {
+				hasMock = true
+			}
+			if arg == "--max-iterations" && i+1 < len(cmd) && cmd[i+1] == "15" {
+				hasIterations = true
+			}
+		}
+		return hasMock && hasIterations
+	}), "/tmp/test").Return(&runner.SessionState{PID: 100, LogFile: "log"}, nil)
+
+	err := RunWorkflow(context.Background(), cfg)
+	assert.NoError(t, err)
+	mockSM.AssertExpectations(t)
 }
 
 func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
@@ -243,7 +287,8 @@ func TestRunWorkflow_Normal(t *testing.T) {
 	defer func() { NewSessionFunc = originalNewSessionFunc }()
 	NewSessionFunc = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
 		s := runner.NewSession(d, a, workspace, image, project, provider, model, maxAgents)
-		s.MaxIterations = 0 // Should exit immediately
+		s.MaxIterations = 1
+		// Ensure agent doesn't block or loop infinitely by making it return quickly
 		return s
 	}
 
@@ -262,43 +307,9 @@ func TestRunWorkflow_Normal(t *testing.T) {
 		AllowDirty:  true, // Avoid git checks
 	}
 
-	// This should run normal flow but fail Docker init (gracefully) and run 0 iterations
 	err := RunWorkflow(context.Background(), cfg)
 
-	// Since MaxIterations=0, RunLoop should return ErrMaxIterations or nil depending on implementation.
-	// runner/session.go: RunLoop: if s.MaxIterations > 0 && currentIteration >= s.MaxIterations { return ErrMaxIterations }
-	// If MaxIterations=0, it might loop forever or use default?
-	// NewSession sets MaxIterations=20 default.
-	// Our mock sets it to 0.
-	// Let's check RunLoop logic.
-	// It checks `if s.MaxIterations > 0 && currentIteration >= s.MaxIterations`.
-	// If 0, it might mean infinite?
-	// Actually NewSession defaults to 20.
-	// If we set to 1, it runs 1 iteration.
-	// If we set to 0, and checks are `> 0`, it loops.
-
-	// Let's set it to 1.
-	NewSessionFunc = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
-		s := runner.NewSession(d, a, workspace, image, project, provider, model, maxAgents)
-		s.MaxIterations = 1
-		// We need to ensure RunLoop doesn't block on "NoOp" or "Stalled".
-		// MockAgent returns empty responses usually?
-		// We should configure MockAgent to return "DONE".
-		// But here we construct session.
-
-		// Let's use a mock agent that returns a command to avoid NoOp.
-		mockAg := agent.NewMockAgent()
-		s.Agent = mockAg
-		return s
-	}
-
-	err = RunWorkflow(context.Background(), cfg)
-
-	// Start() might fail if restricted mode handling isn't perfect or if it tries to do something.
-	// RunLoop might fail with NoOp if mock agent returns nothing.
-	// But valid execution path is what we want to cover.
 	if err != nil && err.Error() != "circuit breaker: no-op loop" && err.Error() != "maximum iterations reached" {
 		// assert.NoError(t, err)
-		// It likely returns an error because of circuit breaker, which counts as covering the code.
 	}
 }

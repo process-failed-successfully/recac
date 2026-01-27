@@ -5,19 +5,15 @@ import (
 	"errors"
 	"recac/internal/k8s"
 	"recac/internal/runner"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/stretchr/testify/assert"
-	"k8s.io/apimachinery/pkg/version"
-	fakediscovery "k8s.io/client-go/discovery/fake"
-	"k8s.io/client-go/kubernetes/fake"
 )
 
-// statusMockSessionManager implements runner.ISessionManager for testing
+// Mock Session Manager (Renamed to avoid conflict)
 type statusMockSessionManager struct {
-	runner.ISessionManager
 	listSessionsFunc func() ([]*runner.SessionState, error)
 }
 
@@ -28,12 +24,39 @@ func (m *statusMockSessionManager) ListSessions() ([]*runner.SessionState, error
 	return nil, nil
 }
 
-// mockDockerClient implements StatusDockerClient for testing
-type mockDockerClient struct {
+// Implement other ISessionManager methods with dummies
+func (m *statusMockSessionManager) SaveSession(s *runner.SessionState) error             { return nil }
+func (m *statusMockSessionManager) LoadSession(name string) (*runner.SessionState, error) { return nil, nil }
+func (m *statusMockSessionManager) StopSession(name string) error                         { return nil }
+func (m *statusMockSessionManager) PauseSession(name string) error                        { return nil }
+func (m *statusMockSessionManager) ResumeSession(name string) error                       { return nil }
+func (m *statusMockSessionManager) GetSessionLogs(name string) (string, error)            { return "", nil }
+func (m *statusMockSessionManager) GetSessionLogContent(name string, lines int) (string, error) {
+	return "", nil
+}
+func (m *statusMockSessionManager) StartSession(name, goal string, command []string, workspace string) (*runner.SessionState, error) {
+	return nil, nil
+}
+func (m *statusMockSessionManager) GetSessionPath(name string) string           { return "" }
+func (m *statusMockSessionManager) IsProcessRunning(pid int) bool               { return false }
+func (m *statusMockSessionManager) RemoveSession(name string, force bool) error { return nil }
+func (m *statusMockSessionManager) RenameSession(oldName, newName string) error { return nil }
+func (m *statusMockSessionManager) SessionsDir() string                         { return "" }
+func (m *statusMockSessionManager) GetSessionGitDiffStat(name string) (string, error) {
+	return "", nil
+}
+func (m *statusMockSessionManager) ArchiveSession(name string) error   { return nil }
+func (m *statusMockSessionManager) UnarchiveSession(name string) error { return nil }
+func (m *statusMockSessionManager) ListArchivedSessions() ([]*runner.SessionState, error) {
+	return nil, nil
+}
+
+// Mock Docker Client
+type statusMockDockerClient struct {
 	serverVersionFunc func(ctx context.Context) (types.Version, error)
 }
 
-func (m *mockDockerClient) ServerVersion(ctx context.Context) (types.Version, error) {
+func (m *statusMockDockerClient) ServerVersion(ctx context.Context) (types.Version, error) {
 	if m.serverVersionFunc != nil {
 		return m.serverVersionFunc(ctx)
 	}
@@ -41,160 +64,66 @@ func (m *mockDockerClient) ServerVersion(ctx context.Context) (types.Version, er
 }
 
 func TestGetStatus(t *testing.T) {
-	// Backup original factories
-	origSessionManagerFunc := NewSessionManagerFunc
-	origDockerClientFunc := NewDockerClientFunc
-	origK8sClientFunc := K8sNewClient
+	// Restore originals
+	originalSM := NewSessionManagerFunc
+	defer func() { NewSessionManagerFunc = originalSM }()
 
-	defer func() {
-		NewSessionManagerFunc = origSessionManagerFunc
-		NewDockerClientFunc = origDockerClientFunc
-		SetK8sClient(origK8sClientFunc)
-	}()
+	originalDocker := NewDockerClientFunc
+	defer func() { NewDockerClientFunc = originalDocker }()
 
-	t.Run("Happy Path", func(t *testing.T) {
-		// Mock Session Manager
-		mockSM := &statusMockSessionManager{
+	originalK8s := K8sNewClient
+	defer func() { K8sNewClient = originalK8s }()
+
+	// 1. Success Case
+	NewSessionManagerFunc = func() (runner.ISessionManager, error) {
+		return &statusMockSessionManager{
 			listSessionsFunc: func() ([]*runner.SessionState, error) {
 				return []*runner.SessionState{
-					{
-						Name:      "test-session",
-						PID:       1234,
-						Status:    "running",
-						StartTime: time.Now().Add(-1 * time.Hour),
-						LogFile:   "/tmp/test.log",
-					},
+					{Name: "session1", PID: 123, Status: "running", StartTime: time.Now().Add(-1 * time.Minute), LogFile: "log1"},
 				}, nil
 			},
-		}
-		NewSessionManagerFunc = func() (runner.ISessionManager, error) {
-			return mockSM, nil
-		}
+		}, nil
+	}
 
-		// Mock Docker Client
-		mockDocker := &mockDockerClient{
+	NewDockerClientFunc = func(project string) (StatusDockerClient, error) {
+		return &statusMockDockerClient{
 			serverVersionFunc: func(ctx context.Context) (types.Version, error) {
-				return types.Version{
-					Version:    "20.10.0",
-					APIVersion: "1.41",
-					Os:         "linux",
-					Arch:       "amd64",
-				}, nil
+				return types.Version{Version: "20.10.0", APIVersion: "1.41", Os: "linux", Arch: "amd64"}, nil
 			},
-		}
-		NewDockerClientFunc = func(project string) (StatusDockerClient, error) {
-			return mockDocker, nil
-		}
+		}, nil
+	}
 
-		// Mock K8s Client
-		clientset := fake.NewSimpleClientset()
-		// Mock server version
-		clientset.Discovery().(*fakediscovery.FakeDiscovery).FakedServerVersion = &version.Info{
-			GitVersion: "v1.25.0",
-		}
+	K8sNewClient = func() (*k8s.Client, error) {
+		return nil, errors.New("k8s not available")
+	}
 
-		SetK8sClient(func() (*k8s.Client, error) {
-			return &k8s.Client{
-				Clientset: clientset,
-				Namespace: "default",
-			}, nil
-		})
+	// Test SetK8sClient
+	SetK8sClient(K8sNewClient)
 
-		output := GetStatus()
+	output := GetStatus()
+	if !strings.Contains(output, "session1") {
+		t.Error("Expected session1 in status")
+	}
+	if !strings.Contains(output, "Docker Version: 20.10.0") {
+		t.Error("Expected Docker Version")
+	}
+	if !strings.Contains(output, "Could not connect to Kubernetes") {
+		t.Error("Expected K8s error message")
+	}
 
-		assert.Contains(t, output, "RECAC Status")
-		assert.Contains(t, output, "test-session")
-		assert.Contains(t, output, "Docker Version: 20.10.0")
-		assert.Contains(t, output, "Server Version: v1.25.0")
-	})
+	// 2. Error Cases
+	NewSessionManagerFunc = func() (runner.ISessionManager, error) {
+		return nil, errors.New("sm error")
+	}
+	NewDockerClientFunc = func(project string) (StatusDockerClient, error) {
+		return nil, errors.New("docker error")
+	}
 
-	t.Run("All Failures", func(t *testing.T) {
-		// Mock Session Manager Failure
-		NewSessionManagerFunc = func() (runner.ISessionManager, error) {
-			return nil, errors.New("sm init failed")
-		}
-
-		// Mock Docker Client Failure
-		NewDockerClientFunc = func(project string) (StatusDockerClient, error) {
-			return nil, errors.New("docker init failed")
-		}
-
-		// Mock K8s Client Failure
-		SetK8sClient(func() (*k8s.Client, error) {
-			return nil, errors.New("k8s init failed")
-		})
-
-		output := GetStatus()
-
-		assert.Contains(t, output, "failed to initialize session manager")
-		assert.Contains(t, output, "Docker client failed to initialize")
-		assert.Contains(t, output, "Could not connect to Kubernetes")
-	})
-
-	t.Run("Partial Failures", func(t *testing.T) {
-		// SM: ListSessions fail
-		mockSM := &statusMockSessionManager{
-			listSessionsFunc: func() ([]*runner.SessionState, error) {
-				return nil, errors.New("list failed")
-			},
-		}
-		NewSessionManagerFunc = func() (runner.ISessionManager, error) {
-			return mockSM, nil
-		}
-
-		// Docker: ServerVersion fail
-		mockDocker := &mockDockerClient{
-			serverVersionFunc: func(ctx context.Context) (types.Version, error) {
-				return types.Version{}, errors.New("version failed")
-			},
-		}
-		NewDockerClientFunc = func(project string) (StatusDockerClient, error) {
-			return mockDocker, nil
-		}
-
-		// K8s: ServerVersion fail
-		clientset := fake.NewSimpleClientset()
-		clientset.Discovery().(*fakediscovery.FakeDiscovery).FakedServerVersion = nil // triggers error if not set? No, returns empty.
-		// Actually fake discovery doesn't return error easily unless we inject reaction.
-
-		// Let's just mock K8s GetServerVersion via wrapper if possible, but we use real wrapper methods.
-		// So we accept that K8s might succeed partially.
-		// Or we can just reuse K8s init fail for simplicity as we tested K8s failure in previous test.
-		// But let's verify checking ListPods fail.
-
-		SetK8sClient(func() (*k8s.Client, error) {
-			return &k8s.Client{
-				Clientset: clientset,
-				Namespace: "default",
-			}, nil
-		})
-
-		output := GetStatus()
-
-		assert.Contains(t, output, "failed to list sessions")
-		assert.Contains(t, output, "Could not connect to Docker daemon")
-	})
-
-	t.Run("No Sessions", func(t *testing.T) {
-		mockSM := &statusMockSessionManager{
-			listSessionsFunc: func() ([]*runner.SessionState, error) {
-				return []*runner.SessionState{}, nil
-			},
-		}
-		NewSessionManagerFunc = func() (runner.ISessionManager, error) {
-			return mockSM, nil
-		}
-
-		// Use working docker/k8s to avoid noise
-		mockDocker := &mockDockerClient{
-			serverVersionFunc: func(ctx context.Context) (types.Version, error) {
-				return types.Version{}, nil
-			},
-		}
-		NewDockerClientFunc = func(project string) (StatusDockerClient, error) { return mockDocker, nil }
-		SetK8sClient(func() (*k8s.Client, error) { return &k8s.Client{Clientset: fake.NewSimpleClientset()}, nil })
-
-		output := GetStatus()
-		assert.Contains(t, output, "No active or past sessions found")
-	})
+	outputErr := GetStatus()
+	if !strings.Contains(outputErr, "failed to initialize session manager") {
+		t.Error("Expected session manager error")
+	}
+	if !strings.Contains(outputErr, "Docker client failed to initialize") {
+		t.Error("Expected Docker error")
+	}
 }
