@@ -108,6 +108,11 @@ func (m *MockGitClient) DeleteLocalBranch(repoPath, branch string) error {
 	return args.Error(0)
 }
 
+func (m *MockGitClient) HasUnpushedCommits(directory string) (bool, error) {
+	args := m.Called(directory)
+	return args.Bool(0), args.Error(1)
+}
+
 // Mock Poller (Minimal for this test)
 type MockPoller struct {
 	mock.Mock

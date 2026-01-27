@@ -352,6 +352,7 @@ type MockGitClient struct {
 	LatestTagFunc         func(repoPath string) (string, error)
 	RunFunc               func(repoPath string, args ...string) (string, error)
 	DeleteLocalBranchFunc func(repoPath, branch string) error
+	HasUnpushedCommitsFunc func(repoPath string) (bool, error)
 }
 
 func (m *MockGitClient) DeleteLocalBranch(repoPath, branch string) error {
@@ -359,6 +360,13 @@ func (m *MockGitClient) DeleteLocalBranch(repoPath, branch string) error {
 		return m.DeleteLocalBranchFunc(repoPath, branch)
 	}
 	return nil
+}
+
+func (m *MockGitClient) HasUnpushedCommits(repoPath string) (bool, error) {
+	if m.HasUnpushedCommitsFunc != nil {
+		return m.HasUnpushedCommitsFunc(repoPath)
+	}
+	return false, nil
 }
 
 func (m *MockGitClient) Run(repoPath string, args ...string) (string, error) {
