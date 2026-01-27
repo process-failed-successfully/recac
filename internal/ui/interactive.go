@@ -982,6 +982,9 @@ func (m *InteractiveModel) setListItemsToModels() {
 
 	items := make([]list.Item, len(models))
 	for i, mod := range models {
+		if mod.Value == m.currentModel {
+			mod.Name = mod.Name + " (Current)"
+		}
 		items[i] = mod
 	}
 	m.list.SetItems(items)
@@ -994,6 +997,9 @@ func (m *InteractiveModel) setListItemsToModels() {
 func (m *InteractiveModel) setListItemsToAgents() {
 	items := make([]list.Item, len(m.agents))
 	for i, ag := range m.agents {
+		if ag.Value == m.currentAgent {
+			ag.Name = ag.Name + " (Current)"
+		}
 		items[i] = ag
 	}
 	m.list.SetItems(items)
