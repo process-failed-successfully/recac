@@ -107,3 +107,64 @@ func internalFunc() {}
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
 }
+
+func TestGenerateCallGraph_AmbiguousPackages(t *testing.T) {
+	// Setup temporary directory
+	tmpDir := t.TempDir()
+
+	// structure:
+	// main.go imports "recac-test/subdir/pkg"
+	// pkg/lib.go (package pkg)
+	// subdir/pkg/lib.go (package pkg)
+
+	// main.go
+	mainContent := `package main
+import "recac-test/subdir/pkg"
+func main() {
+	pkg.DoSomething()
+}
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainContent), 0644)
+	require.NoError(t, err)
+
+	// pkg/lib.go (Wrong one)
+	pkgDir := filepath.Join(tmpDir, "pkg")
+	err = os.MkdirAll(pkgDir, 0755)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(pkgDir, "lib.go"), []byte(`package pkg
+func DoSomething() {}
+`), 0644)
+	require.NoError(t, err)
+
+	// subdir/pkg/lib.go (Correct one)
+	subdirPkgDir := filepath.Join(tmpDir, "subdir", "pkg")
+	err = os.MkdirAll(subdirPkgDir, 0755)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(subdirPkgDir, "lib.go"), []byte(`package pkg
+func DoSomething() {}
+`), 0644)
+	require.NoError(t, err)
+
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Check edges
+	// main.main -> subdir/pkg.DoSomething
+	// It should NOT be pkg.DoSomething
+
+	foundCorrect := false
+	foundWrong := false
+
+	for _, edge := range cg.Edges {
+		if edge.From == "main.main" {
+			if edge.To == "subdir/pkg.DoSomething" {
+				foundCorrect = true
+			} else if edge.To == "pkg.DoSomething" {
+				foundWrong = true
+			}
+		}
+	}
+
+	assert.True(t, foundCorrect, "Should link to subdir/pkg.DoSomething")
+	assert.False(t, foundWrong, "Should NOT link to pkg.DoSomething")
+}
