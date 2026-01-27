@@ -94,6 +94,14 @@ func TestAnalyzeRepo(t *testing.T) {
 		t.Errorf("Expected Alice lines added 35, got %d", alice.LinesAdded)
 	}
 
+	// Verify Languages
+	if alice.Languages["go"] != 30 {
+		t.Errorf("Expected Alice 30 lines of Go, got %d", alice.Languages["go"])
+	}
+	if alice.Languages["md"] != 5 {
+		t.Errorf("Expected Alice 5 lines of Markdown, got %d", alice.Languages["md"])
+	}
+
 	// Let's verify XP roughly matches expectations (allow for integer division nuances)
 	if alice.XP != 38 {
 		t.Errorf("Expected Alice XP 38, got %d", alice.XP)

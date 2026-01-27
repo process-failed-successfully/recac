@@ -25,6 +25,7 @@ type Player struct {
 	TestEdits   int
 	XP          int
 	Badges      []string
+	Languages   map[string]int
 	LastCommit  time.Time
 }
 
@@ -76,7 +77,10 @@ func AnalyzeRepo(client GitClient, dir string) (*Leaderboard, error) {
 			parsedDate, _ := time.Parse("2006-01-02 15:04:05 -0700", dateStr)
 
 			if _, exists := players[author]; !exists {
-				players[author] = &Player{Name: author}
+				players[author] = &Player{
+					Name:      author,
+					Languages: make(map[string]int),
+				}
 			}
 			currentPlayer = players[author]
 			currentPlayer.Commits++
@@ -122,6 +126,20 @@ func AnalyzeRepo(client GitClient, dir string) (*Leaderboard, error) {
 			if currentPlayer != nil {
 				currentPlayer.LinesAdded += added
 				currentPlayer.LinesDel += deleted
+
+				// Track Languages
+				if idx := strings.LastIndex(path, "."); idx != -1 {
+					ext := path[idx:] // e.g., ".go"
+					if len(ext) > 1 {
+						// Simple normalization
+						lang := strings.ToLower(ext[1:]) // "go"
+						currentPlayer.Languages[lang] += added
+					}
+				} else if strings.HasSuffix(strings.ToLower(path), "dockerfile") {
+					currentPlayer.Languages["docker"] += added
+				} else if strings.HasSuffix(strings.ToLower(path), "makefile") {
+					currentPlayer.Languages["make"] += added
+				}
 
 				// XP for Lines (capped at 100 per commit to prevent massive generated files gaming)
 				linesXP := added
