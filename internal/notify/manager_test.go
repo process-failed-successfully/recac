@@ -3,6 +3,7 @@ package notify
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/slack-go/slack"
@@ -179,6 +180,63 @@ func TestManager_Notify_Success(t *testing.T) {
 	assert.Contains(t, state, `"discord_id":"discord_id_1"`)
 	assert.True(t, slackCalled)
 	assert.True(t, discordCalled)
+}
+
+func TestManager_Init_MissingTokens(t *testing.T) {
+	tests := []struct {
+		name           string
+		slackEnabled   bool
+		discordEnabled bool
+		envVars        map[string]string
+		expectedLogs   []string
+	}{
+		{
+			name:         "Slack Enabled Missing Token",
+			slackEnabled: true,
+			envVars: map[string]string{
+				"SLACK_BOT_USER_TOKEN": "",
+			},
+			expectedLogs: []string{
+				"Warning: SLACK_BOT_USER_TOKEN not set, slack notifications disabled",
+			},
+		},
+		{
+			name:           "Discord Enabled Missing Token",
+			discordEnabled: true,
+			envVars: map[string]string{
+				"DISCORD_BOT_TOKEN":  "",
+				"DISCORD_CHANNEL_ID": "",
+			},
+			expectedLogs: []string{
+				"Warning: DISCORD_BOT_TOKEN or DISCORD_CHANNEL_ID not set, discord notifications disabled",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			viper.Reset()
+			t.Cleanup(func() { viper.Reset() })
+
+			viper.Set("notifications.slack.enabled", tt.slackEnabled)
+			viper.Set("notifications.discord.enabled", tt.discordEnabled)
+
+			for k, v := range tt.envVars {
+				t.Setenv(k, v)
+			}
+
+			var logs []string
+			logger := func(msg string, args ...interface{}) {
+				logs = append(logs, fmt.Sprintf(msg, args...))
+			}
+
+			NewManager(logger)
+
+			for _, expected := range tt.expectedLogs {
+				assert.Contains(t, logs, expected)
+			}
+		})
+	}
 }
 
 func TestManager_Notify_Failure(t *testing.T) {

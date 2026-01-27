@@ -15,12 +15,17 @@ func (m *Manager) HandleEvents(ctx context.Context) {
 	if m.socketClient == nil {
 		return
 	}
+	m.handleEventsLoop(ctx, m.socketClient.Events, func(req socketmode.Request) {
+		m.socketClient.Ack(req)
+	})
+}
 
+func (m *Manager) handleEventsLoop(ctx context.Context, events <-chan socketmode.Event, ackFunc func(socketmode.Request)) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case evt := <-m.socketClient.Events:
+		case evt := <-events:
 			switch evt.Type {
 			case socketmode.EventTypeConnecting:
 				if m.logger != nil {
@@ -39,7 +44,9 @@ func (m *Manager) HandleEvents(ctx context.Context) {
 				if !ok {
 					continue
 				}
-				m.socketClient.Ack(*evt.Request)
+				if evt.Request != nil {
+					ackFunc(*evt.Request)
+				}
 
 				switch eventsAPIEvent.Type {
 				case slackevents.CallbackEvent:
@@ -50,7 +57,9 @@ func (m *Manager) HandleEvents(ctx context.Context) {
 							m.logger("Received Mention: %s", ev.Text)
 						}
 						// Echo back just to prove it works
-						m.client.PostMessage(ev.Channel, slack.MsgOptionText(fmt.Sprintf("Yes, hello! I received: %s", ev.Text), false))
+						if m.client != nil {
+							m.client.PostMessage(ev.Channel, slack.MsgOptionText(fmt.Sprintf("Yes, hello! I received: %s", ev.Text), false))
+						}
 					}
 				}
 			}
