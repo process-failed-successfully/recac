@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"io/fs"
 	"path/filepath"
+	"recac/internal/astutils"
 	"strings"
 )
 
@@ -100,7 +101,10 @@ func parseAndIndexFiles(root string, fset *token.FileSet, cg *CallGraph) (map[st
 
 				if fn.Recv != nil {
 					// Method
-					typeName := getReceiverTypeName(fn.Recv)
+					typeName := astutils.GetReceiverTypeName(fn.Recv)
+					if typeName == "" {
+						typeName = "Unknown"
+					}
 					node.Receiver = typeName
 					node.ID = fmt.Sprintf("%s.(%s).%s", fullPkg, typeName, fn.Name.Name)
 				} else {
@@ -134,7 +138,11 @@ func resolveCalls(root string, parsedFiles map[string]*ast.File, fileImports map
 func processFunctionDecl(fn *ast.FuncDecl, fullPkg string, imports map[string]string, cg *CallGraph, edgeMap map[string]bool) {
 	var callerID string
 	if fn.Recv != nil {
-		callerID = fmt.Sprintf("%s.(%s).%s", fullPkg, getReceiverTypeName(fn.Recv), fn.Name.Name)
+		typeName := astutils.GetReceiverTypeName(fn.Recv)
+		if typeName == "" {
+			typeName = "Unknown"
+		}
+		callerID = fmt.Sprintf("%s.(%s).%s", fullPkg, typeName, fn.Name.Name)
 	} else {
 		callerID = fmt.Sprintf("%s.%s", fullPkg, fn.Name.Name)
 	}
@@ -213,25 +221,6 @@ func getApproximatePackagePath(root, path, pkgName string) string {
 		fullPkg = filepath.Join(relDir, pkgName)
 	}
 	return strings.TrimPrefix(fullPkg, "./")
-}
-
-func getReceiverTypeName(recv *ast.FieldList) string {
-	if len(recv.List) == 0 {
-		return ""
-	}
-	expr := recv.List[0].Type
-	if star, ok := expr.(*ast.StarExpr); ok {
-		expr = star.X
-	}
-	if ident, ok := expr.(*ast.Ident); ok {
-		return ident.Name
-	}
-	if index, ok := expr.(*ast.IndexExpr); ok {
-		if ident, ok := index.X.(*ast.Ident); ok {
-			return ident.Name
-		}
-	}
-	return "Unknown"
 }
 
 func resolveExternalCall(cg *CallGraph, importPath string, funcName string) string {

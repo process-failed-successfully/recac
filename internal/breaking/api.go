@@ -8,6 +8,7 @@ import (
 	"go/printer"
 	"go/token"
 	"path/filepath"
+	"recac/internal/astutils"
 	"strings"
 )
 
@@ -59,7 +60,7 @@ func ExtractAPI(paths []string, loader FileLoader) (*API, error) {
 				if d.Name.IsExported() {
 					name := d.Name.Name
 					if d.Recv != nil {
-						typeName := getReceiverTypeName(d.Recv)
+						typeName := astutils.GetReceiverTypeName(d.Recv)
 						if typeName != "" {
 							name = fmt.Sprintf("%s.%s", typeName, name)
 						}
@@ -97,25 +98,6 @@ func ExtractAPI(paths []string, loader FileLoader) (*API, error) {
 		}
 	}
 	return api, nil
-}
-
-func getReceiverTypeName(recv *ast.FieldList) string {
-	if len(recv.List) == 0 {
-		return ""
-	}
-	expr := recv.List[0].Type
-	if star, ok := expr.(*ast.StarExpr); ok {
-		expr = star.X
-	}
-	if ident, ok := expr.(*ast.Ident); ok {
-		return ident.Name
-	}
-	if index, ok := expr.(*ast.IndexExpr); ok {
-		if ident, ok := index.X.(*ast.Ident); ok {
-			return ident.Name
-		}
-	}
-	return ""
 }
 
 func nodeToString(fset *token.FileSet, node interface{}) string {
