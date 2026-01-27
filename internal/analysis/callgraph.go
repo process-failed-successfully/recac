@@ -154,6 +154,9 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 				}
 
 				// Inspect body
+				if fn.Body == nil {
+					continue
+				}
 				ast.Inspect(fn.Body, func(n ast.Node) bool {
 					call, ok := n.(*ast.CallExpr)
 					if !ok {
