@@ -15,6 +15,14 @@ func TestInvoiceCmd(t *testing.T) {
 	origFactory := gitClientFactory
 	defer func() { gitClientFactory = origFactory }()
 
+	// Save original nowFunc
+	origNow := nowFunc
+	defer func() { nowFunc = origNow }()
+
+	// Set fixed time (noon to avoid day boundary issues)
+	fixedTime := time.Date(2026, 1, 27, 12, 0, 0, 0, time.UTC)
+	nowFunc = func() time.Time { return fixedTime }
+
 	// Setup mock
 	mockGit := &MockGitClient{}
 	gitClientFactory = func() IGitClient {
@@ -33,7 +41,7 @@ func TestInvoiceCmd(t *testing.T) {
 	mockGit.LogFunc = func(dir string, args ...string) ([]string, error) {
 		// getGitCommits calls client.Log(dir, "--since=30d", "--format=%h|%an|%aI|%s", "--author=Test User")
 
-		now := time.Now()
+		now := fixedTime
 		ts1 := now.Add(-2 * time.Hour).Format(time.RFC3339)
 		ts2 := now.Add(-1 * time.Hour).Format(time.RFC3339) // 1 hour later (same session)
 		ts3 := now.Add(-25 * time.Hour).Format(time.RFC3339) // Yesterday (new session)

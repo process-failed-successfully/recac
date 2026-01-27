@@ -65,7 +65,7 @@ func runInvoice(cmd *cobra.Command, args []string) error {
 	}
 
 	if invoiceNumber == "" {
-		invoiceNumber = fmt.Sprintf("INV-%s", time.Now().Format("20060102"))
+		invoiceNumber = fmt.Sprintf("INV-%s", nowFunc().Format("20060102"))
 	}
 
 	// Parse Due Date
@@ -73,19 +73,19 @@ func runInvoice(cmd *cobra.Command, args []string) error {
 	if strings.HasSuffix(invoiceDue, "d") {
 		daysStr := strings.TrimSuffix(invoiceDue, "d")
 		if days, err := strconv.Atoi(daysStr); err == nil {
-			dueDate = time.Now().AddDate(0, 0, days)
+			dueDate = nowFunc().AddDate(0, 0, days)
 		}
 	}
 
 	if dueDate.IsZero() {
 		if duration, err := time.ParseDuration(invoiceDue); err == nil {
-			dueDate = time.Now().Add(duration)
+			dueDate = nowFunc().Add(duration)
 		} else {
 			// Try parsing date
 			if t, err := time.Parse("2006-01-02", invoiceDue); err == nil {
 				dueDate = t
 			} else {
-				dueDate = time.Now().AddDate(0, 0, 14) // Default 14 days
+				dueDate = nowFunc().AddDate(0, 0, 14) // Default 14 days
 			}
 		}
 	}
@@ -128,7 +128,7 @@ func runInvoice(cmd *cobra.Command, args []string) error {
 }
 
 func generateInvoiceHTML(report TimesheetReport, subtotal, tax, total float64, dueDate time.Time) string {
-	dateStr := time.Now().Format("Jan 02, 2006")
+	dateStr := nowFunc().Format("Jan 02, 2006")
 	dueStr := dueDate.Format("Jan 02, 2006")
 	address := strings.ReplaceAll(invoiceAddress, "\\n", "<br>")
 
