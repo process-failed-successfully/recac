@@ -98,29 +98,26 @@ func (s *A11yScanner) Scan(file string, content string) []A11yFinding {
 	lines := strings.Split(content, "\n")
 
 	// 1. Regex Checks
+	findings = append(findings, s.checkRegexPatterns(content, file)...)
+	findings = append(findings, s.checkImages(content, file)...)
+
+	// 2. Specific Logic Checks
+	findings = append(findings, s.checkAnchors(lines, file)...)
+
+	return findings
+}
+
+func (s *A11yScanner) checkRegexPatterns(content string, file string) []A11yFinding {
+	var findings []A11yFinding
 	for name, re := range s.patterns {
 		if s.ignored[name] {
 			continue
 		}
 
-		// Special handling for "Missing Alt Text" which is hard to regex purely
-		// We'll iterate matches of <img ...> and check content
 		if name == "Missing Alt Text" {
-			matches := s.imgRe.FindAllStringIndex(content, -1)
-			for _, loc := range matches {
-				tag := content[loc[0]:loc[1]]
-				if !strings.Contains(tag, "alt=") {
-					findings = append(findings, s.createFinding(name, "Image tag missing alt attribute", file, content, loc[0], tag))
-				} else {
-					// Check for empty alt (which might be valid for decorative, but let's warn if strictly missing)
-					// Actually alt="" is valid for decorative. alt=" " or missing is bad.
-					// Let's just flag missing alt attribute for now.
-				}
-			}
-			continue
+			continue // Handled separately
 		}
 
-		// Standard Regex Checks
 		matches := re.FindAllStringIndex(content, -1)
 		for _, loc := range matches {
 			matchText := content[loc[0]:loc[1]]
@@ -142,9 +139,26 @@ func (s *A11yScanner) Scan(file string, content string) []A11yFinding {
 			findings = append(findings, s.createFinding(name, fmt.Sprintf("Found %s", name), file, content, loc[0], matchText))
 		}
 	}
+	return findings
+}
 
-	// 2. Specific Logic Checks (Iterate lines for simpler things)
-	// We want to match <a> tags. Regex is safer than string contains for <a vs <article
+func (s *A11yScanner) checkImages(content string, file string) []A11yFinding {
+	var findings []A11yFinding
+	if s.ignored["Missing Alt Text"] {
+		return findings
+	}
+	matches := s.imgRe.FindAllStringIndex(content, -1)
+	for _, loc := range matches {
+		tag := content[loc[0]:loc[1]]
+		if !strings.Contains(tag, "alt=") {
+			findings = append(findings, s.createFinding("Missing Alt Text", "Image tag missing alt attribute", file, content, loc[0], tag))
+		}
+	}
+	return findings
+}
+
+func (s *A11yScanner) checkAnchors(lines []string, file string) []A11yFinding {
+	var findings []A11yFinding
 	for i, line := range lines {
 		matches := s.aTagRe.FindAllString(line, -1)
 		for _, match := range matches {
@@ -162,7 +176,6 @@ func (s *A11yScanner) Scan(file string, content string) []A11yFinding {
 			}
 		}
 	}
-
 	return findings
 }
 

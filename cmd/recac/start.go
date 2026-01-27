@@ -3,24 +3,16 @@ package main
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"os"
-	"os/exec"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
-	"time"
 
-	"recac/internal/agent"
 	"recac/internal/cmdutils"
-	"recac/internal/docker"
-	"recac/internal/git"
 	"recac/internal/jira"
-	"recac/internal/runner"
-	"recac/internal/telemetry"
 	"recac/internal/ui"
+	"recac/internal/workflow"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
@@ -159,8 +151,8 @@ var startCmd = &cobra.Command{
 		summary, _ := cmd.Flags().GetString("summary")
 		description, _ := cmd.Flags().GetString("description")
 
-		// Global Configuration
-		cfg := SessionConfig{
+		// Global Configuration (using workflow.SessionConfig)
+		cfg := workflow.SessionConfig{
 			ProjectPath:       projectPath,
 			IsMock:            isMock,
 			MaxIterations:     maxIterations,
@@ -189,7 +181,7 @@ var startCmd = &cobra.Command{
 		if resumePath, _ := cmd.Flags().GetString("resume-from"); resumePath != "" {
 			cfg.ProjectPath = resumePath
 			fmt.Printf("Resuming session '%s' from workspace: %s\n", cfg.SessionName, resumePath)
-			if err := runWorkflow(ctx, cfg); err != nil {
+			if err := workflow.RunWorkflow(ctx, cfg); err != nil {
 				fmt.Fprintf(os.Stderr, "Resumed session failed: %v\n", err)
 				exit(1)
 			}
@@ -197,7 +189,7 @@ var startCmd = &cobra.Command{
 		}
 
 		if repoURL != "" {
-			processDirectTask(ctx, cfg)
+			workflow.ProcessDirectTask(ctx, cfg)
 			return
 		}
 
@@ -272,7 +264,7 @@ var startCmd = &cobra.Command{
 
 			// If only one ticket, run synchronously
 			if len(ticketIDs) == 1 {
-				processJiraTicket(ctx, ticketIDs[0], jClient, cfg, nil)
+				workflow.ProcessJiraTicket(ctx, ticketIDs[0], jClient, cfg, nil)
 				return
 			}
 
@@ -353,7 +345,7 @@ var startCmd = &cobra.Command{
 					defer func() { <-sem }()
 
 					localTickets := graph.AllTickets
-					processJiraTicket(ctx, targetID, jClient, cfg, localTickets)
+					workflow.ProcessJiraTicket(ctx, targetID, jClient, cfg, localTickets)
 
 					// Signal Completion
 					completionCh <- targetID
@@ -397,519 +389,9 @@ var startCmd = &cobra.Command{
 			fmt.Printf("Using project path: %s\n", cfg.ProjectPath)
 		}
 
-		if err := runWorkflow(ctx, cfg); err != nil {
+		if err := workflow.RunWorkflow(ctx, cfg); err != nil {
 			fmt.Fprintf(os.Stderr, "Session failed: %v\n", err)
 			exit(1)
 		}
 	},
-}
-
-// SessionConfig holds all parameters for a RECAC session
-type SessionConfig struct {
-	Goal              string
-	ProjectPath       string
-	ProjectName       string
-	IsMock            bool
-	MaxIterations     int
-	ManagerFrequency  int
-	MaxAgents         int
-	TaskMaxIterations int
-	Detached          bool
-	SessionName       string
-	JiraEpicKey       string
-	AllowDirty        bool
-	Stream            bool
-	AutoMerge         bool
-	SkipQA            bool
-	ManagerFirst      bool
-	Debug             bool
-	JiraClient        *jira.Client
-	JiraTicketID      string
-	RepoURL           string
-	Image             string
-	Provider          string
-	Model             string
-	Cleanup           bool
-	Summary           string
-	Description       string
-	Logger            *slog.Logger
-}
-
-// processDirectTask handles a coding session from a direct repository and task description
-func processDirectTask(ctx context.Context, cfg SessionConfig) {
-	// Initialize Logger
-	if cfg.Logger == nil {
-		cfg.Logger = telemetry.NewLogger(cfg.Debug, "", false)
-	}
-	logger := cfg.Logger
-	if cfg.SessionName == "" {
-		cfg.SessionName = "direct-task"
-	}
-
-	workID := cfg.SessionName
-	if cfg.JiraTicketID != "" {
-		workID = cfg.JiraTicketID
-	}
-
-	logger.Info("Starting direct task session", "repo", cfg.RepoURL, "summary", cfg.Summary, "id", workID)
-
-	// Setup Workspace
-	timestamp := time.Now().Format("20060102-150405")
-
-	if cfg.ProjectPath == "" {
-		var err error
-		cfg.ProjectPath, err = os.MkdirTemp("", "recac-direct-*")
-		if err != nil {
-			logger.Error("Error creating temp workspace", "error", err)
-			return
-		}
-	}
-
-	if _, err := cmdutils.SetupWorkspace(ctx, git.NewClient(), cfg.RepoURL, cfg.ProjectPath, workID, "", timestamp); err != nil {
-		logger.Error("Error: Failed to setup workspace", "error", err)
-		return
-	}
-
-	// Force task context: Overwrite app_spec.txt and remove feature_list.json
-	if cfg.Summary != "" || cfg.Description != "" {
-		specContent := fmt.Sprintf("# Task Summary: %s\n\n%s", cfg.Summary, cfg.Description)
-		specPath := filepath.Join(cfg.ProjectPath, "app_spec.txt")
-		if err := os.WriteFile(specPath, []byte(specContent), 0644); err != nil {
-			logger.Error("Error writing app_spec.txt", "error", err)
-			return
-		}
-
-		logger.Info("Refreshed workspace context from task description")
-	}
-
-	// Update configuration for the session run
-	// cfg.ProjectPath is already set correctly above
-
-	// Run Workflow
-	if err := runWorkflow(ctx, cfg); err != nil {
-		logger.Error("Session failed", "error", err)
-	} else {
-		logger.Info("Session completed successfully")
-	}
-}
-
-// processJiraTicket handles the Jira-specific workflow and then runs the project session
-func processJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.Client, cfg SessionConfig, ignoredBlockers map[string]bool) {
-	// Initialize Ticket Logger
-	if cfg.Logger == nil {
-		cfg.Logger = telemetry.NewLogger(cfg.Debug, "", false)
-	}
-	logger := cfg.Logger.With("ticket_id", jiraTicketID)
-	cfg.Logger = logger // Pass it down
-
-	// 2. Fetch Ticket
-	ticket, err := jClient.GetTicket(ctx, jiraTicketID)
-	if err != nil {
-		logger.Error("Error fetching Jira ticket", "error", err)
-		return
-	}
-
-	// 2a. Check for Blockers
-	blockers := jClient.GetBlockers(ticket)
-	if len(blockers) > 0 {
-		var effectiveBlockers []string
-		for _, b := range blockers {
-			// Format is "KEY (Status)"
-			parts := strings.Split(b, " (")
-			key := parts[0]
-			if !ignoredBlockers[key] {
-				effectiveBlockers = append(effectiveBlockers, b)
-			}
-		}
-
-		if len(effectiveBlockers) > 0 {
-			logger.Info("SKIPPING: Ticket is blocked", "blockers", strings.Join(effectiveBlockers, ", "))
-			return
-		}
-	}
-
-	// Extract details
-	fields, ok := ticket["fields"].(map[string]interface{})
-	if !ok {
-		logger.Error("Error: Invalid ticket format (missing fields)")
-		return
-	}
-	summary, _ := fields["summary"].(string)
-	description := jClient.ParseDescription(ticket)
-
-	// Epic Detection
-	if parent, ok := fields["parent"].(map[string]interface{}); ok {
-		if parentKey, ok := parent["key"].(string); ok {
-			cfg.JiraEpicKey = parentKey
-			logger.Info("Detected parent Epic", "epic_key", cfg.JiraEpicKey)
-		}
-	}
-
-	logger.Info("Ticket Found", "summary", summary)
-
-	timestamp := time.Now().Format("20060102-150405")
-	var tempWorkspace string
-
-	if cfg.ProjectPath != "" {
-		tempWorkspace = cfg.ProjectPath
-		// Ensure directory exists
-		if err := os.MkdirAll(tempWorkspace, 0755); err != nil {
-			logger.Error("Error creating/verifying workspace path", "path", tempWorkspace, "error", err)
-			exit(1)
-		}
-		logger.Info("Using provided workspace path", "path", tempWorkspace)
-	} else {
-		pattern := fmt.Sprintf("recac-jira-%s-%s-*", jiraTicketID, timestamp)
-		tempWorkspace, err = os.MkdirTemp("", pattern)
-		if err != nil {
-			logger.Error("Error creating temp workspace", "error", err)
-			return
-		}
-	}
-
-	matches := jira.RepoRegex.FindStringSubmatch(description)
-	if len(matches) <= 1 {
-		logger.Error("Error: No repository URL found in ticket description (Repo: https://...)")
-		exit(1)
-	}
-
-	repoURL := strings.TrimSuffix(matches[1], ".git")
-	logger.Info("Found repository URL in ticket", "repo_url", repoURL)
-
-	if _, err := cmdutils.SetupWorkspace(ctx, git.NewClient(), repoURL, tempWorkspace, jiraTicketID, cfg.JiraEpicKey, timestamp); err != nil {
-		logger.Error("Error: Failed to setup workspace", "error", err)
-		exit(1)
-	}
-
-	// 5. Create app_spec.txt
-	specContent := fmt.Sprintf("# Jira Ticket: %s\n# Summary: %s\n\n%s", jiraTicketID, summary, description)
-	specPath := filepath.Join(tempWorkspace, "app_spec.txt")
-	if err := os.WriteFile(specPath, []byte(specContent), 0644); err != nil {
-		logger.Error("Error writing app_spec.txt", "error", err)
-		return
-	}
-
-	logger.Info("Workspace created", "path", tempWorkspace)
-
-	// Auto-cleanup
-	if cfg.Cleanup {
-		defer func() {
-			logger.Info("Cleaning up workspace", "path", tempWorkspace)
-			if err := os.RemoveAll(tempWorkspace); err != nil {
-				logger.Error("Failed to cleanup workspace", "path", tempWorkspace, "error", err)
-			}
-		}()
-	}
-
-	// 5. Transition Ticket Status
-	transition := viper.GetString("jira.transition")
-	if transition == "" {
-		transition = "In Progress"
-	}
-
-	logger.Info("Transitioning ticket", "transition", transition)
-	if err := jClient.SmartTransition(ctx, jiraTicketID, transition); err != nil {
-		logger.Warn("Failed to transition Jira ticket", "error", err)
-	} else {
-		logger.Info("Jira ticket status updated")
-	}
-
-	// Update configuration for the session run
-	cfg.ProjectPath = tempWorkspace
-	if cfg.SessionName == "" {
-		cfg.SessionName = jiraTicketID
-	}
-	cfg.JiraClient = jClient
-	cfg.JiraTicketID = jiraTicketID
-	cfg.RepoURL = repoURL
-
-	// Run Workflow
-	if err := runWorkflow(ctx, cfg); err != nil {
-		logger.Error("Session failed", "error", err)
-	} else {
-		logger.Info("Session completed successfully")
-	}
-}
-
-// runWorkflow handles the execution of a single project session (local or Jira-based)
-func runWorkflow(ctx context.Context, cfg SessionConfig) error {
-	// Determine the goal for the session
-	if cfg.JiraTicketID != "" {
-		cfg.Goal = cfg.JiraTicketID
-	} else if cfg.ProjectName != "" {
-		cfg.Goal = cfg.ProjectName
-	} else {
-		cfg.Goal = "Local Session"
-	}
-
-	// Handle detached mode
-	if cfg.Detached {
-		if cfg.SessionName == "" {
-			return fmt.Errorf("--name is required when using --detached")
-		}
-
-		executable, err := os.Executable()
-		if err != nil {
-			return fmt.Errorf("failed to get executable path: %v", err)
-		}
-
-		executable, err = filepath.EvalSymlinks(executable)
-		if err != nil {
-			executable, _ = filepath.Abs(executable)
-		} else {
-			executable, _ = filepath.Abs(executable)
-		}
-
-		// Verify executable
-		if stat, err := os.Stat(executable); err != nil || stat.Mode()&0111 == 0 {
-			// Fallback to recac-app in CWD
-			cwd, _ := os.Getwd()
-			fallback := filepath.Join(cwd, "recac-app")
-			if stat2, err2 := os.Stat(fallback); err2 == nil && stat2.Mode()&0111 != 0 {
-				executable = fallback
-			} else {
-				return fmt.Errorf("executable not found or not executable at %s", executable)
-			}
-		}
-
-		command := []string{executable, "start"}
-		if cfg.ProjectPath != "" {
-			command = append(command, "--path", cfg.ProjectPath)
-		}
-		if cfg.IsMock {
-			command = append(command, "--mock")
-		}
-		if cfg.MaxIterations != 20 {
-			command = append(command, "--max-iterations", fmt.Sprintf("%d", cfg.MaxIterations))
-		}
-		if cfg.ManagerFrequency != 5 {
-			command = append(command, "--manager-frequency", fmt.Sprintf("%d", cfg.ManagerFrequency))
-		}
-		if cfg.TaskMaxIterations != 10 {
-			command = append(command, "--task-max-iterations", fmt.Sprintf("%d", cfg.TaskMaxIterations))
-		}
-		if cfg.AllowDirty {
-			command = append(command, "--allow-dirty")
-		}
-
-		projectPath := cfg.ProjectPath
-		if projectPath == "" {
-			projectPath = "."
-		}
-
-		sm, err := sessionManagerFactory()
-		if err != nil {
-			return fmt.Errorf("failed to create session manager: %v", err)
-		}
-
-		// Get the starting commit SHA
-		var startSHA string
-		gitClient := git.NewClient()
-		sha, err := gitClient.CurrentCommitSHA(projectPath)
-		if err != nil {
-			fmt.Printf("Warning: could not get start commit SHA: %v\n", err)
-		} else {
-			startSHA = sha
-		}
-
-		session, err := sm.StartSession(cfg.SessionName, cfg.Goal, command, projectPath)
-		if err != nil {
-			return fmt.Errorf("failed to start detached session: %v", err)
-		}
-
-		// Save the start commit SHA to the session state
-		if startSHA != "" {
-			session.StartCommitSHA = startSHA
-			if err := sm.SaveSession(session); err != nil {
-				fmt.Printf("Warning: failed to save start commit SHA for session %s: %v\n", cfg.SessionName, err)
-			}
-		}
-
-		fmt.Printf("Session '%s' started in background (PID: %d)\n", cfg.SessionName, session.PID)
-		fmt.Printf("Log file: %s\n", session.LogFile)
-		return nil
-	}
-
-	// Mock mode
-	if cfg.IsMock {
-		fmt.Printf("[%s] Starting in MOCK MODE\n", cfg.SessionName)
-		dockerCli, _ := docker.NewMockClient()
-		agentClient := agent.NewMockAgent()
-
-		projectPath := cfg.ProjectPath
-		if projectPath == "" {
-			projectPath = "/tmp/recac-mock-workspace"
-		}
-
-		projectName := cfg.ProjectName
-		if projectName == "" {
-			projectName = "mock-project"
-		}
-
-		session := runner.NewSession(dockerCli, agentClient, projectPath, cfg.Image, projectName, cfg.Provider, cfg.Model, cfg.MaxAgents)
-		if cfg.Logger != nil {
-			session.Logger = cfg.Logger
-		}
-		session.MaxIterations = cfg.MaxIterations
-		session.TaskMaxIterations = cfg.TaskMaxIterations
-		session.ManagerFrequency = cfg.ManagerFrequency
-		session.StreamOutput = cfg.Stream
-		session.AutoMerge = cfg.AutoMerge
-		session.SkipQA = cfg.SkipQA
-		session.ManagerFirst = cfg.ManagerFirst
-
-		if cfg.JiraEpicKey != "" {
-			session.BaseBranch = fmt.Sprintf("agent-epic/%s", cfg.JiraEpicKey)
-		}
-
-		if err := session.Start(ctx); err != nil {
-			if ctx.Err() != nil {
-				return nil
-			}
-			return err
-		}
-		return session.RunLoop(ctx)
-	}
-
-	// Normal mode
-	fmt.Printf("[%s] Starting RECAC session...\n", cfg.SessionName)
-
-	projectPath := cfg.ProjectPath
-	if projectPath == "" {
-		projectPath = "."
-	}
-
-	// Pre-flight check
-	if !cfg.AllowDirty {
-		cmd := exec.Command("git", "rev-parse", "--is-inside-work-tree")
-		cmd.Dir = projectPath
-		if err := cmd.Run(); err == nil {
-			cmd := exec.Command("git", "status", "--porcelain")
-			cmd.Dir = projectPath
-			output, _ := cmd.Output()
-			if len(output) > 0 {
-				return fmt.Errorf("uncommitted changes detected in %s. Run with --allow-dirty to bypass", projectPath)
-			}
-		}
-	}
-
-	projectName := cfg.ProjectName
-	if projectName == "" {
-		projectName = filepath.Base(projectPath)
-		if projectName == "." || projectName == "/" {
-			cwd, _ := os.Getwd()
-			projectName = filepath.Base(cwd)
-		}
-	}
-
-	if cfg.SessionName == "" {
-		cfg.SessionName = projectName
-	}
-
-	var dockerCli *docker.Client
-	var err error
-	dockerCli, err = docker.NewClient(projectName)
-	if err != nil {
-		fmt.Printf("Warning: Failed to initialize Docker client: %v. Proceeding in restricted mode.\n", err)
-		dockerCli = nil
-	}
-
-	provider := cfg.Provider
-	model := cfg.Model
-	agentClient, err := agentClientFactory(ctx, provider, model, projectPath, projectName)
-	if err != nil {
-		return fmt.Errorf("failed to initialize agent: %v", err)
-	}
-
-	session := runner.NewSession(dockerCli, agentClient, projectPath, cfg.Image, projectName, provider, model, cfg.MaxAgents)
-	if cfg.Logger != nil {
-		session.Logger = cfg.Logger
-	}
-	session.MaxIterations = cfg.MaxIterations
-	session.TaskMaxIterations = cfg.TaskMaxIterations
-	session.ManagerFrequency = cfg.ManagerFrequency
-	session.ManagerFirst = cfg.ManagerFirst
-	session.StreamOutput = cfg.Stream
-	session.AutoMerge = cfg.AutoMerge
-	session.SkipQA = cfg.SkipQA
-	session.JiraClient = cfg.JiraClient
-	session.JiraTicketID = cfg.JiraTicketID
-	session.RepoURL = cfg.RepoURL
-
-	if cfg.JiraEpicKey != "" {
-		session.BaseBranch = fmt.Sprintf("agent-epic/%s", cfg.JiraEpicKey)
-	}
-
-	// State Management
-	if session.StateManager != nil {
-		maxTokens := viper.GetInt("agent.max_tokens")
-		if maxTokens == 0 {
-			maxTokens = 128000
-		}
-		session.InitializeAgentState(maxTokens)
-
-		if geminiClient, ok := agentClient.(*agent.GeminiClient); ok {
-			geminiClient.WithStateManager(session.StateManager)
-		} else if openAIClient, ok := agentClient.(*agent.OpenAIClient); ok {
-			openAIClient.WithStateManager(session.StateManager)
-		} else if openRouterClient, ok := agentClient.(*agent.OpenRouterClient); ok {
-			openRouterClient.WithStateManager(session.StateManager)
-		}
-	}
-
-	// Get the starting commit SHA for interactive sessions
-	var startSHA string
-	gitClient := git.NewClient()
-	if sha, err := gitClient.CurrentCommitSHA(projectPath); err == nil {
-		startSHA = sha
-	} else {
-		fmt.Printf("Warning: could not get start commit SHA: %v\n", err)
-	}
-
-	if err := session.Start(ctx); err != nil {
-		if ctx.Err() != nil {
-			return nil
-		}
-		return err
-	}
-
-	// Create a session state for the interactive session to track commit SHAs
-	sm, err := sessionManagerFactory()
-	if err != nil {
-		return fmt.Errorf("failed to create session manager for interactive session: %w", err)
-	}
-	interactiveSessionState := &runner.SessionState{
-		Name:           cfg.SessionName,
-		StartTime:      time.Now(),
-		Command:        os.Args,
-		Workspace:      projectPath,
-		Status:         "running",
-		Type:           "interactive",
-		Goal:           cfg.Goal,
-		AgentStateFile: filepath.Join(projectPath, ".agent_state.json"),
-		StartCommitSHA: startSHA,
-		ContainerID:    session.GetContainerID(),
-	}
-	sm.SaveSession(interactiveSessionState)
-
-	runErr := session.RunLoop(ctx)
-
-	// Now that the session is over, get the end commit SHA
-	endSHA, err := gitClient.CurrentCommitSHA(projectPath)
-	if err != nil {
-		fmt.Printf("Warning: could not get end commit SHA: %v\n", err)
-	}
-
-	// Update the session state
-	interactiveSessionState.EndCommitSHA = endSHA
-	interactiveSessionState.EndTime = time.Now()
-	if runErr != nil {
-		interactiveSessionState.Status = "error"
-		interactiveSessionState.Error = runErr.Error()
-	} else {
-		interactiveSessionState.Status = "completed"
-	}
-	sm.SaveSession(interactiveSessionState)
-
-	return runErr
 }
