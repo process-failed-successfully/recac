@@ -2,34 +2,34 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/fsnotify/fsnotify"
-	"github.com/kballard/go-shellquote"
+	"recac/internal/ui"
+
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
 
 // devExecCommand allows mocking exec.Command in tests
+// We alias this to the UI factory so tests modifying this will affect the UI
 var devExecCommand = exec.Command
 
 var (
-	devCmdFlag     string
-	devWatchDir    string
-	devExtensions  string
-	devRecursive   bool
-	devDebounce    time.Duration
+	devCmdFlag    string
+	devWatchDir   string
+	devExtensions string
+	devRecursive  bool
+	devDebounce   time.Duration
 )
 
 var devCmd = &cobra.Command{
 	Use:   "dev",
 	Short: "Watch mode for continuous development",
-	Long:  `Watches for file changes and runs a command (test, build, lint).
+	Long: `Watches for file changes and runs a command (test, build, lint).
 Auto-detects the project type (Go, Node, Make) if no command is provided.`,
 	RunE: runDev,
 }
@@ -44,6 +44,9 @@ func init() {
 }
 
 func runDev(cmd *cobra.Command, args []string) error {
+	// Sync the mock if it was changed (by tests)
+	ui.DevExecCmdFactory = devExecCommand
+
 	// 1. Determine Command
 	runCommand := devCmdFlag
 	if runCommand == "" {
@@ -58,86 +61,15 @@ func runDev(cmd *cobra.Command, args []string) error {
 	exts := parseExtensions(devExtensions, runCommand)
 	fmt.Printf("ℹ️  Watching extensions: %v\n", exts)
 
-	// 3. Setup Watcher
-	watcher, err := fsnotify.NewWatcher()
+	// 3. Start TUI
+	model, err := ui.NewDevDashboardModel(runCommand, devWatchDir, exts, devRecursive, devDebounce)
 	if err != nil {
-		return fmt.Errorf("failed to create watcher: %w", err)
-	}
-	defer watcher.Close()
-
-	// 4. Add Paths
-	if devRecursive {
-		if err := devAddRecursiveWatch(watcher, devWatchDir); err != nil {
-			return err
-		}
-	} else {
-		if err := watcher.Add(devWatchDir); err != nil {
-			return err
-		}
+		return err
 	}
 
-	fmt.Printf("👀 Watching %s for changes...\n", devWatchDir)
-
-	// 5. Watch Loop
-	var timer *time.Timer
-	var mu sync.Mutex
-
-	// Channel to signal execution
-	trigger := make(chan struct{}, 1)
-
-	// Initial run
-	go func() { trigger <- struct{}{} }()
-
-	// Event Loop
-	done := make(chan bool)
-	go func() {
-		for {
-			select {
-			case event, ok := <-watcher.Events:
-				if !ok {
-					return
-				}
-				// Filter events
-				if event.Op&fsnotify.Write == fsnotify.Write || event.Op&fsnotify.Create == fsnotify.Create || event.Op&fsnotify.Rename == fsnotify.Rename {
-					// Check extension
-					if shouldTrigger(event.Name, exts) {
-						mu.Lock()
-						if timer != nil {
-							timer.Stop()
-						}
-						timer = time.AfterFunc(devDebounce, func() {
-							trigger <- struct{}{}
-						})
-						mu.Unlock()
-					}
-
-					// If new directory created, add to watcher
-					if devRecursive && event.Op&fsnotify.Create == fsnotify.Create {
-						fi, err := os.Stat(event.Name)
-						if err == nil && fi.IsDir() {
-							watcher.Add(event.Name)
-						}
-					}
-				}
-
-			case err, ok := <-watcher.Errors:
-				if !ok {
-					return
-				}
-				fmt.Printf("Watcher error: %v\n", err)
-			}
-		}
-	}()
-
-	// Execution Loop
-	go func() {
-		for range trigger {
-			executeDevCommand(runCommand)
-		}
-	}()
-
-	<-done
-	return nil
+	p := tea.NewProgram(model, tea.WithAltScreen())
+	_, err = p.Run()
+	return err
 }
 
 func detectDevCommand(dir string) string {
@@ -183,78 +115,4 @@ func parseExtensions(flagExt, cmd string) []string {
 	}
 
 	return []string{} // Watch all? No, safer to default to common code files if unknown
-}
-
-func shouldTrigger(path string, exts []string) bool {
-	if len(exts) == 0 {
-		return true
-	}
-	for _, ext := range exts {
-		if strings.HasSuffix(path, ext) {
-			return true
-		}
-	}
-	return false
-}
-
-func devAddRecursiveWatch(watcher *fsnotify.Watcher, root string) error {
-	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsDir() {
-			name := info.Name()
-			// Skip hidden directories (like .git, .recac)
-			if strings.HasPrefix(name, ".") && name != "." {
-				return filepath.SkipDir
-			}
-			// Skip dependency and build directories
-			if name == "node_modules" || name == "vendor" || name == "dist" || name == "build" || name == "target" || name == "bin" {
-				return filepath.SkipDir
-			}
-			return watcher.Add(path)
-		}
-		return nil
-	})
-}
-
-func executeDevCommand(cmdStr string) {
-	fmt.Println("\n🔄 Running...")
-	start := time.Now()
-
-	// Split command string
-	parts, err := shellquote.Split(cmdStr)
-	if err != nil {
-		fmt.Printf("\n❌ Failed to parse command: %v\n", err)
-		return
-	}
-	if len(parts) == 0 {
-		return
-	}
-
-	head := parts[0]
-	args := parts[1:]
-
-	cmd := devExecCommand(head, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	// Use a pipe or buffer if we want to capture output for analysis, but direct to stdout is fine for dev mode
-
-	// Clear screen? Maybe not, it can be annoying.
-
-	err = cmd.Run()
-	duration := time.Since(start).Round(time.Millisecond)
-
-	if err != nil {
-		fmt.Printf("\n❌ Failed (%s)\n", duration)
-	} else {
-		fmt.Printf("\n✅ Passed (%s)\n", duration)
-	}
-	fmt.Println("--------------------------------------------------")
-}
-
-// Needed for mocking Stdin/Stdout in executeRunCmd but not dev command usually
-// But we might want to ensure IO is not blocking.
-func copyIO(w io.Writer, r io.Reader) {
-	io.Copy(w, r)
 }
