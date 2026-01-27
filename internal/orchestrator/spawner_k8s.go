@@ -116,21 +116,21 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	backoff := int32(6) // Retries enabled (standard K8s default)
 	// Spec says: "RestartPolicy: Never". "Orchestrator monitors...".
 
-	// Construct Env Vars
-	var envVars []corev1.EnvVar
+	// Construct Env Vars using a map to prevent duplicates
+	envMap := make(map[string]string)
 	for k, v := range item.EnvVars {
-		envVars = append(envVars, corev1.EnvVar{Name: k, Value: v})
+		envMap[k] = v
 	}
 
 	if s.AgentProvider != "" {
-		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_PROVIDER", Value: s.AgentProvider})
+		envMap["RECAC_PROVIDER"] = s.AgentProvider
 	}
 	if s.AgentModel != "" {
-		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_MODEL", Value: s.AgentModel})
+		envMap["RECAC_MODEL"] = s.AgentModel
 	}
 
 	// Inject Standard Env Vars
-	envVars = append(envVars, corev1.EnvVar{Name: "GIT_TERMINAL_PROMPT", Value: "0"})
+	envMap["GIT_TERMINAL_PROMPT"] = "0"
 
 	// Propagate Secrets and Config from Host Environment (Consistency with DockerSpawner)
 	secrets := []string{
@@ -141,45 +141,48 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	}
 	for _, secret := range secrets {
 		if val := os.Getenv(secret); val != "" {
-			envVars = append(envVars, corev1.EnvVar{Name: secret, Value: val})
+			envMap[secret] = val
 			if secret == "GITHUB_API_KEY" {
-				envVars = append(envVars, corev1.EnvVar{Name: "RECAC_GITHUB_API_KEY", Value: val})
+				envMap["RECAC_GITHUB_API_KEY"] = val
 			}
 		}
 	}
 
 	// Propagate Notifications Config
 	if val := os.Getenv("RECAC_NOTIFICATIONS_DISCORD_ENABLED"); val != "" {
-		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_NOTIFICATIONS_DISCORD_ENABLED", Value: val})
+		envMap["RECAC_NOTIFICATIONS_DISCORD_ENABLED"] = val
 	}
 	if val := os.Getenv("RECAC_NOTIFICATIONS_SLACK_ENABLED"); val != "" {
-		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_NOTIFICATIONS_SLACK_ENABLED", Value: val})
+		envMap["RECAC_NOTIFICATIONS_SLACK_ENABLED"] = val
 	}
 
 	// Propagate Project ID
-	envVars = append(envVars, corev1.EnvVar{Name: "RECAC_PROJECT_ID", Value: item.ID})
+	envMap["RECAC_PROJECT_ID"] = item.ID
 
 	// Propagate Agent Limits
 	maxIterations := "20"
 	if val := os.Getenv("RECAC_MAX_ITERATIONS"); val != "" {
 		maxIterations = val
 	}
-	envVars = append(envVars, corev1.EnvVar{Name: "RECAC_MAX_ITERATIONS", Value: maxIterations})
+	envMap["RECAC_MAX_ITERATIONS"] = maxIterations
 
 	if val := os.Getenv("RECAC_MANAGER_FREQUENCY"); val != "" {
-		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_MANAGER_FREQUENCY", Value: val})
+		envMap["RECAC_MANAGER_FREQUENCY"] = val
 	}
 	if val := os.Getenv("RECAC_TASK_MAX_ITERATIONS"); val != "" {
-		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_TASK_MAX_ITERATIONS", Value: val})
+		envMap["RECAC_TASK_MAX_ITERATIONS"] = val
 	}
 
 	// Inject Git Identity to prevent "Author identity unknown" errors
-	envVars = append(envVars, []corev1.EnvVar{
-		{Name: "GIT_AUTHOR_NAME", Value: "RECAC Agent"},
-		{Name: "GIT_AUTHOR_EMAIL", Value: "agent@recac.io"},
-		{Name: "GIT_COMMITTER_NAME", Value: "RECAC Agent"},
-		{Name: "GIT_COMMITTER_EMAIL", Value: "agent@recac.io"},
-	}...)
+	envMap["GIT_AUTHOR_NAME"] = "RECAC Agent"
+	envMap["GIT_AUTHOR_EMAIL"] = "agent@recac.io"
+	envMap["GIT_COMMITTER_NAME"] = "RECAC Agent"
+	envMap["GIT_COMMITTER_EMAIL"] = "agent@recac.io"
+
+	var envVars []corev1.EnvVar
+	for k, v := range envMap {
+		envVars = append(envVars, corev1.EnvVar{Name: k, Value: v})
+	}
 
 	// Auth Handling:
 	// Use Secret for sensitive data if available.
