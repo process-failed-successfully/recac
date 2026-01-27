@@ -7,10 +7,14 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // execCommand is a package-level variable to allow mocking in tests.
 var execCommand = exec.Command
+
+// nowFunc is a package-level variable to allow mocking time in tests.
+var nowFunc = time.Now
 
 // writeFileFunc is a package-level variable to allow mocking in tests.
 var writeFileFunc = os.WriteFile
