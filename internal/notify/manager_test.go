@@ -3,6 +3,8 @@ package notify
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/slack-go/slack"
@@ -249,4 +251,53 @@ func TestManager_AddReaction(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, slackCalled)
 	assert.True(t, discordCalled)
+}
+
+func TestManager_ConfigWarnings(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(func() { viper.Reset() })
+
+	// Capture Logs
+	var logs []string
+	logger := func(format string, args ...interface{}) {
+		logs = append(logs, fmt.Sprintf(format, args...))
+	}
+
+	// 1. Slack enabled but missing token
+	viper.Set("notifications.slack.enabled", true)
+	t.Setenv("SLACK_BOT_USER_TOKEN", "")
+	t.Setenv("SLACK_APP_TOKEN", "")
+
+	m := NewManager(logger)
+	assert.Nil(t, m.client)
+
+	foundSlackWarning := false
+	for _, l := range logs {
+		if strings.Contains(l, "SLACK_BOT_USER_TOKEN not set") {
+			foundSlackWarning = true
+			break
+		}
+	}
+	assert.True(t, foundSlackWarning, "Expected Slack warning log")
+
+	// Reset logs
+	logs = nil
+
+	// 2. Discord enabled but missing token
+	viper.Set("notifications.discord.enabled", true)
+	t.Setenv("DISCORD_BOT_TOKEN", "")
+	t.Setenv("DISCORD_CHANNEL_ID", "")
+	viper.Set("notifications.discord.channel", "") // Ensure backup is also empty
+
+	m = NewManager(logger)
+	assert.Nil(t, m.discordNotifier)
+
+	foundDiscordWarning := false
+	for _, l := range logs {
+		if strings.Contains(l, "DISCORD_BOT_TOKEN or DISCORD_CHANNEL_ID not set") {
+			foundDiscordWarning = true
+			break
+		}
+	}
+	assert.True(t, foundDiscordWarning, "Expected Discord warning log")
 }
