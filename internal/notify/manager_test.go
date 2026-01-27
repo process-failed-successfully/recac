@@ -250,3 +250,41 @@ func TestManager_AddReaction(t *testing.T) {
 	assert.True(t, slackCalled)
 	assert.True(t, discordCalled)
 }
+
+func TestNewManager_Initialization(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(func() { viper.Reset() })
+
+	// Case 1: All Disabled
+	viper.Set("notifications.slack.enabled", false)
+	viper.Set("notifications.discord.enabled", false)
+	m := NewManager(nil)
+	assert.Nil(t, m.client)
+	assert.Nil(t, m.discordNotifier)
+
+	// Case 2: Slack Enabled, No Token
+	viper.Set("notifications.slack.enabled", true)
+	t.Setenv("SLACK_BOT_USER_TOKEN", "")
+	m2 := NewManager(nil)
+	assert.Nil(t, m2.client) // Should abort if no token
+
+	// Case 3: Slack Enabled, With Token
+	t.Setenv("SLACK_BOT_USER_TOKEN", "xoxb-test")
+	t.Setenv("SLACK_APP_TOKEN", "xapp-test")
+	m3 := NewManager(nil)
+	assert.NotNil(t, m3.client)
+	assert.NotNil(t, m3.socketClient) // xapp token triggers socket mode
+
+	// Case 4: Discord Enabled, No Token
+	viper.Set("notifications.discord.enabled", true)
+	t.Setenv("DISCORD_BOT_TOKEN", "")
+	t.Setenv("DISCORD_CHANNEL_ID", "")
+	m4 := NewManager(nil)
+	assert.Nil(t, m4.discordNotifier)
+
+	// Case 5: Discord Enabled, With Token
+	t.Setenv("DISCORD_BOT_TOKEN", "discord-token")
+	t.Setenv("DISCORD_CHANNEL_ID", "12345")
+	m5 := NewManager(nil)
+	assert.NotNil(t, m5.discordNotifier)
+}
