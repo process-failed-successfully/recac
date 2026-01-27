@@ -567,3 +567,59 @@ func TestClient_DiffStaged(t *testing.T) {
 		t.Errorf("Expected diff to contain 'v2', got %s", diff)
 	}
 }
+
+func TestClient_HasUnpushedCommits(t *testing.T) {
+	localDir, remoteDir := setupTestRepo(t)
+	defer os.RemoveAll(localDir)
+	defer os.RemoveAll(remoteDir)
+
+	c := NewClient()
+
+	// Initial commit and push
+	os.WriteFile(filepath.Join(localDir, "f1"), []byte("v1"), 0644)
+	c.Commit(localDir, "init")
+
+	// Determine branch
+	cmd := exec.Command("git", "-C", localDir, "branch", "--show-current")
+	out, _ := cmd.Output()
+	branch := strings.TrimSpace(string(out))
+
+	c.Push(localDir, branch)
+
+	// Check unpushed (should be false)
+	unpushed, err := c.HasUnpushedCommits(localDir)
+	if err != nil {
+		t.Fatalf("HasUnpushedCommits failed: %v", err)
+	}
+	if unpushed {
+		t.Error("HasUnpushedCommits returned true for synced repo")
+	}
+
+	// Make changes and commit
+	os.WriteFile(filepath.Join(localDir, "f1"), []byte("v2"), 0644)
+	c.Commit(localDir, "update")
+
+	// Check unpushed (should be true)
+	unpushed, err = c.HasUnpushedCommits(localDir)
+	if err != nil {
+		t.Fatalf("HasUnpushedCommits failed: %v", err)
+	}
+	if !unpushed {
+		t.Error("HasUnpushedCommits returned false for ahead repo")
+	}
+
+	// Push
+	c.Push(localDir, branch)
+	unpushed, _ = c.HasUnpushedCommits(localDir)
+	if unpushed {
+		t.Error("HasUnpushedCommits returned true after push")
+	}
+
+	// New branch (no upstream)
+	c.CheckoutNewBranch(localDir, "feature-new")
+	unpushed, err = c.HasUnpushedCommits(localDir)
+	// Should return true (needs push to set upstream)
+	if !unpushed {
+		t.Error("HasUnpushedCommits returned false for new branch (no upstream)")
+	}
+}

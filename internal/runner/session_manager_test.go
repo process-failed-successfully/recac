@@ -212,6 +212,11 @@ func (m *MockGitClient) LatestTag(directory string) (string, error) {
 	return args.String(0), args.Error(1)
 }
 
+func (m *MockGitClient) HasUnpushedCommits(directory string) (bool, error) {
+	args := m.Called(directory)
+	return args.Bool(0), args.Error(1)
+}
+
 func (m *MockGitClient) Run(directory string, args ...string) (string, error) {
 	callArgs := m.Called(directory, args)
 	return callArgs.String(0), callArgs.Error(1)

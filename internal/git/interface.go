@@ -43,4 +43,5 @@ type IClient interface {
 	PushTags(directory string) error
 	LatestTag(directory string) (string, error)
 	Run(directory string, args ...string) (string, error)
+	HasUnpushedCommits(directory string) (bool, error)
 }
