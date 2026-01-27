@@ -107,61 +107,65 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 
 	// 5. Execute Work in Background
 	go func() {
-		// Construct Command
-		var envExports []string
+		// Construct Command using a map to prevent duplicates
+		envMap := make(map[string]string)
+		for k, v := range item.EnvVars {
+			envMap[k] = v
+		}
+
 		if s.AgentProvider != "" {
-			envExports = append(envExports, fmt.Sprintf("export RECAC_PROVIDER=%s", shellquote.Join(s.AgentProvider)))
+			envMap["RECAC_PROVIDER"] = s.AgentProvider
 		}
 		if s.AgentModel != "" {
-			envExports = append(envExports, fmt.Sprintf("export RECAC_MODEL=%s", shellquote.Join(s.AgentModel)))
+			envMap["RECAC_MODEL"] = s.AgentModel
 		}
-		envExports = append(envExports, "export GIT_TERMINAL_PROMPT=0")
-		envExports = append(envExports, fmt.Sprintf("export RECAC_PROJECT_ID=%s", shellquote.Join(item.ID)))
+		envMap["GIT_TERMINAL_PROMPT"] = "0"
+		envMap["RECAC_PROJECT_ID"] = item.ID
 
 		// Inject Git Identity to prevent "Author identity unknown" errors
-		envExports = append(envExports, "export GIT_AUTHOR_NAME='RECAC Agent'")
-		envExports = append(envExports, "export GIT_AUTHOR_EMAIL='agent@recac.io'")
-		envExports = append(envExports, "export GIT_COMMITTER_NAME='RECAC Agent'")
-		envExports = append(envExports, "export GIT_COMMITTER_EMAIL='agent@recac.io'")
+		envMap["GIT_AUTHOR_NAME"] = "RECAC Agent"
+		envMap["GIT_AUTHOR_EMAIL"] = "agent@recac.io"
+		envMap["GIT_COMMITTER_NAME"] = "RECAC Agent"
+		envMap["GIT_COMMITTER_EMAIL"] = "agent@recac.io"
 
 		// Propagate Notifications Config
 		if val := os.Getenv("RECAC_NOTIFICATIONS_DISCORD_ENABLED"); val != "" {
-			envExports = append(envExports, fmt.Sprintf("export RECAC_NOTIFICATIONS_DISCORD_ENABLED=%s", shellquote.Join(val)))
+			envMap["RECAC_NOTIFICATIONS_DISCORD_ENABLED"] = val
 		}
 		if val := os.Getenv("RECAC_NOTIFICATIONS_SLACK_ENABLED"); val != "" {
-			envExports = append(envExports, fmt.Sprintf("export RECAC_NOTIFICATIONS_SLACK_ENABLED=%s", shellquote.Join(val)))
-		}
-
-		for k, v := range item.EnvVars {
-			envExports = append(envExports, fmt.Sprintf("export %s=%s", k, shellquote.Join(v)))
+			envMap["RECAC_NOTIFICATIONS_SLACK_ENABLED"] = val
 		}
 
 		secrets := []string{"JIRA_API_TOKEN", "JIRA_USERNAME", "JIRA_URL", "GITHUB_TOKEN", "GITHUB_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY", "RECAC_DB_TYPE", "RECAC_DB_URL"}
 		for _, secret := range secrets {
 			if val := os.Getenv(secret); val != "" {
-				quotedVal := shellquote.Join(val)
-				envExports = append(envExports, fmt.Sprintf("export %s=%s", secret, quotedVal))
+				envMap[secret] = val
 				if secret == "GITHUB_API_KEY" {
-					envExports = append(envExports, fmt.Sprintf("export RECAC_GITHUB_API_KEY=%s", quotedVal))
+					envMap["RECAC_GITHUB_API_KEY"] = val
 				}
 			}
 		}
 
-		envExports = append(envExports, fmt.Sprintf("export RECAC_HOST_WORKSPACE_PATH=%s", shellquote.Join(tempDir)))
+		envMap["RECAC_HOST_WORKSPACE_PATH"] = tempDir
 
 		// Propagate Agent Limits from Host (Default to 20 if unset)
 		maxIterations := "20"
 		if val := os.Getenv("RECAC_MAX_ITERATIONS"); val != "" {
 			maxIterations = val
 		}
-		envExports = append(envExports, fmt.Sprintf("export RECAC_MAX_ITERATIONS=%s", shellquote.Join(maxIterations)))
+		envMap["RECAC_MAX_ITERATIONS"] = maxIterations
 
 		if val := os.Getenv("RECAC_MANAGER_FREQUENCY"); val != "" {
-			envExports = append(envExports, fmt.Sprintf("export RECAC_MANAGER_FREQUENCY=%s", shellquote.Join(val)))
+			envMap["RECAC_MANAGER_FREQUENCY"] = val
 		}
 
 		if val := os.Getenv("RECAC_TASK_MAX_ITERATIONS"); val != "" {
-			envExports = append(envExports, fmt.Sprintf("export RECAC_TASK_MAX_ITERATIONS=%s", shellquote.Join(val)))
+			envMap["RECAC_TASK_MAX_ITERATIONS"] = val
+		}
+
+		var envExports []string
+		for k, v := range envMap {
+			envExports = append(envExports, fmt.Sprintf("export %s=%s", k, shellquote.Join(v)))
 		}
 
 		cmdStr := "cd /workspace"

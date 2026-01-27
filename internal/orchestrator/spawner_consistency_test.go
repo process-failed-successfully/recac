@@ -34,6 +34,9 @@ func TestSpawnerConsistency_EnvPropagation(t *testing.T) {
 	item := WorkItem{
 		ID:      "TASK-CONSISTENCY",
 		RepoURL: "https://github.com/example/repo",
+		EnvVars: map[string]string{
+			"RECAC_MAX_ITERATIONS": "999", // Should be overridden by host env (50) and not duplicated
+		},
 	}
 
 	// 1. Check K8s Spawner
@@ -115,5 +118,29 @@ func TestSpawnerConsistency_EnvPropagation(t *testing.T) {
 		assert.Contains(t, cmdStr, "export RECAC_MAX_ITERATIONS=50", "Docker should propagate RECAC_MAX_ITERATIONS")
 		assert.Contains(t, cmdStr, "export RECAC_MANAGER_FREQUENCY=10m", "Docker should propagate RECAC_MANAGER_FREQUENCY")
 		assert.Contains(t, cmdStr, "export RECAC_TASK_MAX_ITERATIONS=5", "Docker should propagate RECAC_TASK_MAX_ITERATIONS")
+
+		// Check for duplicates in Docker (cmd string)
+		// We expect only one instance of "RECAC_MAX_ITERATIONS="
+		// Note: strings.Count(cmdStr, "export RECAC_MAX_ITERATIONS=") should be 1
+
+		// The issue with DockerSpawner is it appends. So we likely see:
+		// export RECAC_MAX_ITERATIONS=999 ... export RECAC_MAX_ITERATIONS=50
+		// We want to ensure it only appears once OR the final value is correct (which shell does naturally).
+		// However, for consistency with K8s (no dupes in spec), we demand no dupes in command string.
+
+		// A simple check is counting the occurrences of the variable assignment prefix
+		// "RECAC_MAX_ITERATIONS="
+		// We expect exactly 1, because our goal is to clean up duplicates.
+
+		// Note: "RECAC_MAX_ITERATIONS=" is safe enough
+		// We use a helper or simple loop
+		iterCount := 0
+		// Quick and dirty counting
+		for i := 0; i < len(cmdStr)-len("RECAC_MAX_ITERATIONS="); i++ {
+			if cmdStr[i:i+len("RECAC_MAX_ITERATIONS=")] == "RECAC_MAX_ITERATIONS=" {
+				iterCount++
+			}
+		}
+		assert.Equal(t, 1, iterCount, "Docker should not have duplicate RECAC_MAX_ITERATIONS env vars in command string")
 	})
 }

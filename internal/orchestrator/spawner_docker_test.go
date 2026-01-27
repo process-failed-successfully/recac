@@ -167,9 +167,10 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 		cmdStr := cmd[2] // /bin/sh -c <cmdStr>
 		// Note: RECAC_PROJECT_ID is now quoted with shellquote, so simple strings might not have quotes
 		// or use single quotes. 'TICKET-1' (no spaces) -> TICKET-1
+		// Also GIT_AUTHOR_EMAIL is clean so it won't be quoted by shellquote.
 		return contains(cmdStr, "export RECAC_PROJECT_ID=TICKET-1") &&
 			contains(cmdStr, "export GIT_AUTHOR_NAME='RECAC Agent'") &&
-			contains(cmdStr, "export GIT_AUTHOR_EMAIL='agent@recac.io'")
+			contains(cmdStr, "export GIT_AUTHOR_EMAIL=agent@recac.io")
 	})).Return("output", nil)
 	mockSM.On("LoadSession", "TICKET-1").Return(&runner.SessionState{}, nil)
 
