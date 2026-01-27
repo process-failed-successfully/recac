@@ -96,6 +96,9 @@ func (m *MockGitClientCommit) LatestTag(directory string) (string, error)    { r
 func (m *MockGitClientCommit) Run(directory string, args ...string) (string, error) {
 	return "", nil
 }
+func (m *MockGitClientCommit) CreatePR(directory, title, body, base string) (string, error) {
+	return "", nil
+}
 
 func TestCommitCmd(t *testing.T) {
 	// Setup mocks

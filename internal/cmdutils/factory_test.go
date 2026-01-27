@@ -266,6 +266,10 @@ func (m *MockGitClient) Run(directory string, args ...string) (string, error) {
 	return "", nil
 }
 
+func (m *MockGitClient) CreatePR(directory, title, body, base string) (string, error) {
+	return "", nil
+}
+
 func TestSetupWorkspace(t *testing.T) {
 	t.Run("Empty Repo URL", func(t *testing.T) {
 		mockGitClient := &MockGitClient{}
