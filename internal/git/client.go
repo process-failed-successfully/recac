@@ -262,6 +262,33 @@ func (c *Client) CurrentBranch(dir string) (string, error) {
 	return strings.TrimSpace(out.String()), nil
 }
 
+// HasUnpushedCommits checks if there are commits that haven't been pushed to the upstream.
+func (c *Client) HasUnpushedCommits(dir string) (bool, error) {
+	// Check if upstream is configured
+	// git rev-parse --abbrev-ref --symbolic-full-name @{u}
+	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
+	cmd.Dir = dir
+	// If this fails, it likely means no upstream is configured (e.g. new branch).
+	// In that case, we should assume there are unpushed changes (the whole branch).
+	if err := cmd.Run(); err != nil {
+		return true, nil
+	}
+
+	// Check for unpushed commits
+	// git rev-list --count @{u}..HEAD
+	cmd = exec.Command("git", "rev-list", "--count", "@{u}..HEAD")
+	cmd.Dir = dir
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return false, fmt.Errorf("git rev-list failed: %w", err)
+	}
+
+	count := strings.TrimSpace(out.String())
+	return count != "0", nil
+}
+
 // Run executes an arbitrary git command and returns the output.
 func (c *Client) Run(directory string, args ...string) (string, error) {
 	var outBuf, errBuf bytes.Buffer

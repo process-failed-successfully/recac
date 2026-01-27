@@ -171,7 +171,10 @@ func (s *Session) pushProgress(ctx context.Context) {
 
 	// Commit any changes (ignore error if nothing to commit)
 	msg := fmt.Sprintf("chore: progress update (iteration %d)", s.GetIteration())
-	_ = gitClient.Commit(s.Workspace, msg)
+	committed := false
+	if err := gitClient.Commit(s.Workspace, msg); err == nil {
+		committed = true
+	}
 
 	// Workaround: Agent might have run 'git init' which resets HEAD to master in the container
 	// We merge master into current branch to capture those commits if they exist
@@ -191,9 +194,24 @@ func (s *Session) pushProgress(ctx context.Context) {
 		}
 	}
 
+	shouldPush := committed
+	if !shouldPush {
+		// Check if we have unpushed commits
+		hasUnpushed, err := gitClient.HasUnpushedCommits(s.Workspace)
+		if err == nil && hasUnpushed {
+			shouldPush = true
+		} else if err != nil {
+			s.Logger.Debug("HasUnpushedCommits check failed", "error", err)
+		}
+	}
+
 	// Push progress
-	if err := gitClient.Push(s.Workspace, branch); err != nil {
-		s.Logger.Warn("failed to push progress", "error", err)
+	if shouldPush {
+		if err := gitClient.Push(s.Workspace, branch); err != nil {
+			s.Logger.Warn("failed to push progress", "error", err)
+		}
+	} else {
+		s.Logger.Debug("skipping push, no changes")
 	}
 }
 
