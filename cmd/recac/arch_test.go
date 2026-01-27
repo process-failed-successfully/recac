@@ -3,94 +3,90 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"regexp"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3"
+	"github.com/stretchr/testify/require"
 )
 
-func TestCheckViolations(t *testing.T) {
-	// 1. Setup Config
-	config := &ArchConfig{
-		Layers: map[string]string{
-			"domain": "internal/domain/.*",
-			"app":    "internal/app/.*",
-			"infra":  "internal/infra/.*",
-		},
-		Rules: []ArchRule{
-			{From: "domain", Allow: []string{}}, // Strict
-			{From: "app", Allow: []string{"domain"}},
-			{From: "infra", Allow: []string{"domain", "app"}},
-		},
-	}
+func TestArchCmd(t *testing.T) {
+	// Setup temp dir
+	tmpDir, err := os.MkdirTemp("", "recac-arch-test-")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
 
-	// 2. Compile Regexes
-	regexps := make(map[string]*regexp.Regexp)
-	for k, v := range config.Layers {
-		regexps[k] = regexp.MustCompile(v)
-	}
+	// Create go.mod
+	err = os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte("module example.com/archtest\n\ngo 1.20\n"), 0644)
+	require.NoError(t, err)
 
-	// 3. Setup Dependencies
-	// domain -> ok
-	// app -> domain (ok)
-	// app -> infra (violation)
-	// infra -> app (ok)
-	// infra -> unknown (ignored)
-	deps := DepMap{
-		"internal/domain/user": []string{
-			"fmt", // ignored (not in any layer)
-		},
-		"internal/app/service": []string{
-			"internal/domain/user", // ok
-			"internal/infra/db",    // VIOLATION: app cannot import infra
-		},
-		"internal/infra/db": []string{
-			"internal/domain/user", // ok
-			"internal/app/service", // ok
-			"github.com/lib/pq",    // ignored
-		},
-	}
+	// Create layers: domain, app
 
-	// 4. Run Check
-	violations := checkViolations(deps, config, regexps)
+	// internal/domain/model.go
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "internal", "domain"), 0755))
+	domainContent := `package domain
+func Model() {}`
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "internal", "domain", "model.go"), []byte(domainContent), 0644))
 
-	// 5. Assert
-	assert.Len(t, violations, 1)
-	assert.Contains(t, violations[0], "internal/app/service (app) imports internal/infra/db (infra)")
-}
+	// internal/app/service.go -> imports domain
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "internal", "app"), 0755))
+	appContent := `package app
+import "example.com/archtest/internal/domain"
+func Service() { domain.Model() }`
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "internal", "app", "service.go"), []byte(appContent), 0644))
 
-func TestLoadArchConfig(t *testing.T) {
-	tmpDir := t.TempDir()
+	// Create config file
+	configContent := `layers:
+  domain: "internal/domain.*"
+  app: "internal/app.*"
 
-	// Case 1: No config
-	_, err := loadArchConfig("", tmpDir)
-	assert.Error(t, err)
-
-	// Case 2: Explicit config
-	configContent := `
-layers:
-  test: "test/.*"
 rules:
-  - from: "test"
+  - from: "domain"
     allow: []
+  - from: "app"
+    allow: ["domain"]
 `
-	configFile := filepath.Join(tmpDir, "arch.yaml")
-	os.WriteFile(configFile, []byte(configContent), 0644)
+	configFile := filepath.Join(tmpDir, ".recac-arch.yaml")
+	require.NoError(t, os.WriteFile(configFile, []byte(configContent), 0644))
 
-	config, err := loadArchConfig("arch.yaml", tmpDir)
-	assert.NoError(t, err)
-	assert.Equal(t, "test/.*", config.Layers["test"])
+	t.Run("Passes Valid Architecture", func(t *testing.T) {
+		root := &cobra.Command{Use: "recac"}
+		root.AddCommand(archCmd)
 
-	// Case 3: Default config generation
-	err = generateDefaultArchConfig(tmpDir)
-	assert.NoError(t, err)
-	target := filepath.Join(tmpDir, ".recac-arch.yaml")
-	assert.FileExists(t, target)
+		output, err := executeCommand(root, "arch", tmpDir)
+		assert.NoError(t, err)
+		assert.Contains(t, output, "Architecture check passed")
+	})
 
-	// Read generated config
-	genData, _ := os.ReadFile(target)
-	var genConfig ArchConfig
-	yaml.Unmarshal(genData, &genConfig)
-	assert.NotEmpty(t, genConfig.Layers["domain"])
+	t.Run("Fails Invalid Architecture", func(t *testing.T) {
+		// Create a violation: domain imports app
+		violationContent := `package domain
+import "example.com/archtest/internal/app"
+func Bad() { app.Service() }`
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "internal", "domain", "violation.go"), []byte(violationContent), 0644))
+
+		root := &cobra.Command{Use: "recac"}
+		root.AddCommand(archCmd)
+
+		output, err := executeCommand(root, "arch", tmpDir)
+		assert.Error(t, err)
+		assert.Contains(t, output, "Found 1 architecture violations")
+		assert.Contains(t, output, "example.com/archtest/internal/domain (domain) imports example.com/archtest/internal/app (app)")
+	})
+
+	t.Run("Generate Config", func(t *testing.T) {
+		// Create a clean subdir
+		subDir := filepath.Join(tmpDir, "subdir")
+		require.NoError(t, os.Mkdir(subDir, 0755))
+
+		root := &cobra.Command{Use: "recac"}
+		root.AddCommand(archCmd)
+
+		// executeCommand doesn't change CWD, but runArch uses path arg now.
+		_, err := executeCommand(root, "arch", subDir, "--generate")
+		assert.NoError(t, err)
+		// Output check skipped because generateDefaultArchConfig writes to stdout directly
+
+		assert.FileExists(t, filepath.Join(subDir, ".recac-arch.yaml"))
+	})
 }

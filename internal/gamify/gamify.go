@@ -102,17 +102,22 @@ func AnalyzeRepo(client GitClient, dir string) (*Leaderboard, error) {
 			}
 
 		} else {
-			// Numstat line: "added deleted path"
-			// 10 5 src/main.go
-			parts := strings.Fields(line)
+			// Numstat line: "added	deleted	path"
+			// 10	5	src/main.go
+			// Note: git log --numstat uses tabs as delimiters
+			parts := strings.Split(line, "\t")
 			if len(parts) < 3 {
-				continue
+				// Fallback to Fields if split by tab fails (e.g. copied/pasted logs with spaces)
+				parts = strings.Fields(line)
+				if len(parts) < 3 {
+					continue
+				}
 			}
 
 			// Binary files have "-"
-			added, _ := strconv.Atoi(parts[0])
-			deleted, _ := strconv.Atoi(parts[1])
-			path := parts[2]
+			added, _ := strconv.Atoi(strings.TrimSpace(parts[0]))
+			deleted, _ := strconv.Atoi(strings.TrimSpace(parts[1]))
+			path := strings.TrimSpace(parts[2])
 
 			if currentPlayer != nil {
 				currentPlayer.LinesAdded += added

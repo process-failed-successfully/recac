@@ -28,7 +28,7 @@ type ArchRule struct {
 }
 
 var archCmd = &cobra.Command{
-	Use:   "arch",
+	Use:   "arch [path]",
 	Short: "Check architectural rules",
 	Long: `Enforce architectural boundaries by checking dependency rules.
 Define layers (regex) and rules (allowed dependencies) in a YAML config file.
@@ -57,6 +57,9 @@ func runArch(cmd *cobra.Command, args []string) error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
+	}
+	if len(args) > 0 {
+		cwd = args[0]
 	}
 
 	// Handle Generate
