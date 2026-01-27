@@ -102,3 +102,74 @@ func main() {
 		t.Errorf("Expected output to contain 'Mock description', got:\n%s", output)
 	}
 }
+
+func TestApiSpec(t *testing.T) {
+	// 1. Setup Temp Dir
+	tmpDir, err := os.MkdirTemp("", "recac-api-spec-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// 2. Create Sample Go File
+	goFile := filepath.Join(tmpDir, "server.go")
+	content := `package main
+import "net/http"
+func handleUser(w http.ResponseWriter, r *http.Request) {
+	// Logic
+}
+func main() {
+	http.HandleFunc("/user", handleUser)
+}
+`
+	if err := os.WriteFile(goFile, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// 3. Mock Agent
+	origFactory := agentClientFactory
+	defer func() { agentClientFactory = origFactory }()
+
+	mockYAML := `openapi: 3.0.0
+info:
+  title: Generated API
+  version: 1.0.0
+paths:
+  /user:
+    get:
+      summary: Get user
+`
+	mockAgent := agent.NewMockAgent()
+	mockAgent.SetResponse(mockYAML)
+
+	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+		return mockAgent, nil
+	}
+
+	// 4. Run Spec Command
+	cmd := &cobra.Command{}
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+	cmd.SetErr(buf)
+	cmd.SetContext(context.Background()) // Ensure context is set
+
+	// Set output file path (reset global flag)
+	outputFile := filepath.Join(tmpDir, "openapi.yaml")
+	apiSpecOutput = outputFile
+	defer func() { apiSpecOutput = "openapi.yaml" }() // Reset default
+
+	err = runApiSpec(cmd, []string{tmpDir})
+	if err != nil {
+		t.Fatalf("runApiSpec failed: %v", err)
+	}
+
+	// 5. Verify Output
+	outContent, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatalf("failed to read output file: %v", err)
+	}
+
+	if !strings.Contains(string(outContent), "openapi: 3.0.0") {
+		t.Errorf("Expected output to contain 'openapi: 3.0.0', got:\n%s", outContent)
+	}
+}

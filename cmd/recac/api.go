@@ -1,22 +1,27 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"go/ast"
 	"go/parser"
+	"go/printer"
 	"go/token"
 	"os"
 	"path/filepath"
 	"strings"
 	"text/tabwriter"
 
+	"recac/internal/utils"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 var (
-	apiDescribe bool
+	apiDescribe   bool
+	apiSpecOutput string
 )
 
 var apiCmd = &cobra.Command{
@@ -32,10 +37,19 @@ var apiScanCmd = &cobra.Command{
 	RunE:  runApiScan,
 }
 
+var apiSpecCmd = &cobra.Command{
+	Use:   "spec [path]",
+	Short: "Generate OpenAPI 3.0 specification from code",
+	Long:  `Scans for API endpoints and uses AI to generate an OpenAPI 3.0 specification file (YAML).`,
+	RunE:  runApiSpec,
+}
+
 func init() {
 	rootCmd.AddCommand(apiCmd)
 	apiCmd.AddCommand(apiScanCmd)
+	apiCmd.AddCommand(apiSpecCmd)
 	apiScanCmd.Flags().BoolVarP(&apiDescribe, "describe", "d", false, "Use AI to describe the endpoints")
+	apiSpecCmd.Flags().StringVarP(&apiSpecOutput, "output", "o", "openapi.yaml", "Output file for OpenAPI spec")
 }
 
 type ApiEndpoint struct {
@@ -95,20 +109,86 @@ func runApiScan(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+func runApiSpec(cmd *cobra.Command, args []string) error {
+	root := "."
+	if len(args) > 0 {
+		root = args[0]
+	}
+
+	endpoints, err := scanForEndpoints(root)
+	if err != nil {
+		return err
+	}
+
+	if len(endpoints) == 0 {
+		return fmt.Errorf("no API endpoints found to generate spec")
+	}
+
+	fmt.Fprintf(cmd.OutOrStdout(), "Found %d endpoints. Analyzing source code...\n", len(endpoints))
+
+	// Construct context for AI
+	var sb strings.Builder
+	for _, ep := range endpoints {
+		sb.WriteString(fmt.Sprintf("Endpoint: %s\nHandler: %s\n", ep.Path, ep.HandlerName))
+		if ep.SourceCode != "" {
+			sb.WriteString("Source Code:\n```go\n")
+			sb.WriteString(ep.SourceCode)
+			sb.WriteString("\n```\n")
+		} else {
+			sb.WriteString("(Source code not found)\n")
+		}
+		sb.WriteString("---\n")
+	}
+
+	prompt := fmt.Sprintf(`Generate an OpenAPI 3.0 specification (YAML) for the following Go API endpoints.
+Infer the request parameters and response schemas from the provided source code where possible.
+Use generic schemas (Object, String) if the types are not clear.
+Include a basic "info" section with title "Generated API" and version "1.0.0".
+
+Endpoints Context:
+%s
+
+Output ONLY the raw YAML content. Do not wrap in markdown blocks.`, sb.String())
+
+	ctx := cmd.Context()
+	cwd, _ := os.Getwd()
+	provider := viper.GetString("provider")
+	model := viper.GetString("model")
+
+	ag, err := agentClientFactory(ctx, provider, model, cwd, "recac-api-spec")
+	if err != nil {
+		return fmt.Errorf("failed to create agent: %w", err)
+	}
+
+	fmt.Fprintln(cmd.OutOrStdout(), "🤖 Generating OpenAPI spec...")
+	resp, err := ag.Send(ctx, prompt)
+	if err != nil {
+		return fmt.Errorf("agent failed: %w", err)
+	}
+
+	yamlContent := utils.CleanCodeBlock(resp)
+	if strings.TrimSpace(yamlContent) == "" {
+		return fmt.Errorf("agent returned empty response")
+	}
+
+	if err := os.WriteFile(apiSpecOutput, []byte(yamlContent), 0644); err != nil {
+		return fmt.Errorf("failed to write output file: %w", err)
+	}
+
+	fmt.Fprintf(cmd.OutOrStdout(), "✅ OpenAPI spec written to %s\n", apiSpecOutput)
+	return nil
+}
+
 func scanForEndpoints(root string) ([]*ApiEndpoint, error) {
 	var endpoints []*ApiEndpoint
 	fset := token.NewFileSet()
 
-	// Helper to find function source
-	findFuncSource := func(path, funcName string) string {
-		// This is a naive implementation. Ideally we parse the file again or keep the AST.
-		// For now, we will just return empty string if not easy to find.
-		// A better approach is to keep AST nodes.
-		return ""
+	// Helper to print AST node
+	printNode := func(n ast.Node) string {
+		var buf bytes.Buffer
+		printer.Fprint(&buf, fset, n)
+		return buf.String()
 	}
-
-	// We need to keep ASTs to extract source code later if needed
-	files := make(map[string]*ast.File)
 
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -129,7 +209,14 @@ func scanForEndpoints(root string) ([]*ApiEndpoint, error) {
 		if err != nil {
 			return nil
 		}
-		files[path] = node
+
+		// Collect declarations in the current file
+		declarations := make(map[string]*ast.FuncDecl)
+		for _, decl := range node.Decls {
+			if fn, ok := decl.(*ast.FuncDecl); ok {
+				declarations[fn.Name.Name] = fn
+			}
+		}
 
 		ast.Inspect(node, func(n ast.Node) bool {
 			// Look for CallExpr
@@ -171,14 +258,15 @@ func scanForEndpoints(root string) ([]*ApiEndpoint, error) {
 			switch h := call.Args[1].(type) {
 			case *ast.Ident:
 				handlerName = h.Name
-				sourceCode = findFuncSource(path, handlerName)
+				// Try to find the function declaration in the same file
+				if fnDecl, found := declarations[handlerName]; found {
+					sourceCode = printNode(fnDecl)
+				}
 			case *ast.SelectorExpr:
 				handlerName = fmt.Sprintf("%s.%s", h.X, h.Sel.Name)
 			case *ast.FuncLit:
 				handlerName = "func(...)"
-				// We can try to get source of anonymous func
-				// pos := fset.Position(h.Pos())
-				// end := fset.Position(h.End())
+				sourceCode = printNode(h)
 			case *ast.CallExpr:
 				// http.HandlerFunc(...) wrapper
 				// We need to unwrap it
@@ -186,6 +274,12 @@ func scanForEndpoints(root string) ([]*ApiEndpoint, error) {
 					if len(h.Args) > 0 {
 						if ident, ok := h.Args[0].(*ast.Ident); ok {
 							handlerName = ident.Name
+							if fnDecl, found := declarations[handlerName]; found {
+								sourceCode = printNode(fnDecl)
+							}
+						} else if lit, ok := h.Args[0].(*ast.FuncLit); ok {
+							handlerName = "func(...)"
+							sourceCode = printNode(lit)
 						}
 					}
 				}
@@ -197,7 +291,7 @@ func scanForEndpoints(root string) ([]*ApiEndpoint, error) {
 				HandlerName: handlerName,
 				File:        path,
 				Line:        fset.Position(call.Pos()).Line,
-				SourceCode:  sourceCode, // Placeholder
+				SourceCode:  sourceCode,
 			}
 			endpoints = append(endpoints, ep)
 
@@ -206,10 +300,6 @@ func scanForEndpoints(root string) ([]*ApiEndpoint, error) {
 
 		return nil
 	})
-
-	// If we need source code for descriptions, we need a second pass or better AST handling.
-	// For this MVP, we will only extract source if we can find the function declaration in the same package/file.
-	// To simplify, let's just use the function name for the prompt if source is hard to get.
 
 	return endpoints, err
 }
