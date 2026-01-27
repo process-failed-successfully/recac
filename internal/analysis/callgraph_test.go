@@ -168,3 +168,36 @@ func DoSomething() {}
 	assert.True(t, foundCorrect, "Should link to subdir/pkg.DoSomething")
 	assert.False(t, foundWrong, "Should NOT link to pkg.DoSomething")
 }
+
+func TestGenerateCallGraph_NoBody(t *testing.T) {
+	// Setup temporary directory
+	tmpDir := t.TempDir()
+
+	// Create a file with a function declaration without a body.
+	// As verified, parser.ParseFile can accept "func Foo()" without error.
+	content := `package main
+func Foo()
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "asm.go"), []byte(content), 0644)
+	require.NoError(t, err)
+
+	// We expect GenerateCallGraph not to panic and to return a graph.
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+	require.NotNil(t, cg)
+
+	// It should contain the node
+	// ID: "asm.Foo" (if in root) or ".Foo" depending on how root is handled.
+	// If tmpDir is root, package name is main.
+	// relDir is ".", fullPkg is "main".
+	// ID: "main.Foo"
+
+	found := false
+	for id := range cg.Nodes {
+		if id == "main.Foo" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "Should contain node for Foo")
+}
