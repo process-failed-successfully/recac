@@ -131,7 +131,6 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 
 	// Inject Standard Env Vars
 	envVars = append(envVars, corev1.EnvVar{Name: "GIT_TERMINAL_PROMPT", Value: "0"})
-	envVars = append(envVars, corev1.EnvVar{Name: "RECAC_MAX_ITERATIONS", Value: "20"})
 
 	// Propagate Secrets and Config from Host Environment (Consistency with DockerSpawner)
 	secrets := []string{
@@ -161,11 +160,17 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	envVars = append(envVars, corev1.EnvVar{Name: "RECAC_PROJECT_ID", Value: item.ID})
 
 	// Propagate Agent Limits
+	maxIterations := "20"
 	if val := os.Getenv("RECAC_MAX_ITERATIONS"); val != "" {
-		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_MAX_ITERATIONS", Value: val})
+		maxIterations = val
 	}
+	envVars = append(envVars, corev1.EnvVar{Name: "RECAC_MAX_ITERATIONS", Value: maxIterations})
+
 	if val := os.Getenv("RECAC_MANAGER_FREQUENCY"); val != "" {
 		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_MANAGER_FREQUENCY", Value: val})
+	}
+	if val := os.Getenv("RECAC_TASK_MAX_ITERATIONS"); val != "" {
+		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_TASK_MAX_ITERATIONS", Value: val})
 	}
 
 	// Inject Git Identity to prevent "Author identity unknown" errors
