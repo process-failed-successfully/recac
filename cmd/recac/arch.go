@@ -168,11 +168,11 @@ func loadArchConfig(path string, cwd string) (*ArchConfig, error) {
 func generateDefaultArchConfig(cwd string) error {
 	defaultConfig := `layers:
   # Adjust regex patterns to match your project structure
-  domain: "internal/domain/.*"
-  application: "internal/application/.*"
-  infrastructure: "internal/infrastructure/.*"
-  api: "internal/api/.*"
-  cmd: "cmd/.*"
+  domain: "internal/domain.*"
+  application: "internal/application.*"
+  infrastructure: "internal/infrastructure.*"
+  api: "internal/api.*"
+  cmd: "cmd.*"
 
 rules:
   # Define allowed dependencies (directed graph)
