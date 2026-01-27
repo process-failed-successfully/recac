@@ -30,9 +30,12 @@ func (m *MockAgentForPr) SendStream(ctx context.Context, prompt string, callback
 
 func TestRunPr(t *testing.T) {
 	// Restore original variables after test
+	originalExecCommand := execCommand
+	originalAgentClientFactory := agentClientFactory
+
 	defer func() {
-		execCommand = exec.Command
-		agentClientFactory = agentClientFactory // Original function
+		execCommand = originalExecCommand
+		agentClientFactory = originalAgentClientFactory
 		prBase = "main"
 		prCreate = false
 		prDraft = false
@@ -140,10 +143,14 @@ Body`,
 
 func TestPrCreate(t *testing.T) {
 	// Restore original variables after test
+	originalExecCommand := execCommand
+	originalLookPathFunc := lookPathFunc
+	originalAgentClientFactory := agentClientFactory
+
 	defer func() {
-		execCommand = exec.Command
-		lookPathFunc = exec.LookPath
-		agentClientFactory = agentClientFactory
+		execCommand = originalExecCommand
+		lookPathFunc = originalLookPathFunc
+		agentClientFactory = originalAgentClientFactory
 		prBase = "main"
 		prCreate = false
 		prDraft = false
