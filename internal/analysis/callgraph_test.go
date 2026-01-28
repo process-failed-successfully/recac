@@ -132,3 +132,32 @@ func ExternalFunc()
 	}
 	assert.Contains(t, nodeIDs, "pkg.ExternalFunc")
 }
+
+func TestGenerateCallGraph_Stress(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	files := map[string]string{
+		"1.go": "package p; func F()",
+		"2.go": "package p; type L[T any] []T; func (l L[T]) M() {}",
+		"3.go": "package p; type L[T any] []T; func (l *L[T]) M() {}",
+		"5.go": "package p",
+		"6.go": "// Just comment\npackage p",
+		"7.go": "package p; func {", // Syntax error
+		"8.go": `package p
+		func Outer() {
+			func() {
+				Inside()
+			}()
+		}
+		func Inside() {}`,
+	}
+
+	for name, content := range files {
+		err := os.WriteFile(filepath.Join(tmpDir, name), []byte(content), 0644)
+		require.NoError(t, err)
+	}
+
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+	require.NotNil(t, cg)
+}
