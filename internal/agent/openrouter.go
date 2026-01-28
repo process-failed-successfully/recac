@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -19,8 +20,16 @@ type OpenRouterClient struct {
 
 // NewOpenRouterClient creates a new OpenRouter client
 func NewOpenRouterClient(apiKey, model, project string) *OpenRouterClient {
+	// Default to 128000 tokens for context management
+	defaultMaxTokens := 128000
+
+	// In CI, we use a much lower limit to avoid OpenRouter 402 errors (insufficient credits)
+	if os.Getenv("RECAC_CI_MODE") == "true" || os.Getenv("CI") == "true" {
+		defaultMaxTokens = 1024
+	}
+
 	return &OpenRouterClient{
-		BaseClient: NewBaseClient(project, 128000), // Default generic limit
+		BaseClient: NewBaseClient(project, defaultMaxTokens),
 		apiKey:     apiKey,
 		model:      model,
 		httpClient: &http.Client{
@@ -50,6 +59,7 @@ func (c *OpenRouterClient) getConfig() HTTPClientConfig {
 		APIURL:        c.apiURL,
 		HTTPClient:    c.httpClient,
 		MockResponder: c.mockResponder,
+		MaxTokens:     c.DefaultMaxTokens,
 		Headers: map[string]string{
 			"HTTP-Referer": "https://github.com/process-failed-successfully/recac",
 			"X-Title":      "Process Failed Successfully",
