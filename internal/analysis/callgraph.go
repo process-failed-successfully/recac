@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"io/fs"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -53,7 +54,11 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 			return err
 		}
 		if d.IsDir() {
-			if strings.HasPrefix(d.Name(), ".") && d.Name() != "." {
+			name := d.Name()
+			if (strings.HasPrefix(name, ".") && name != ".") ||
+				name == "vendor" ||
+				name == "testdata" ||
+				name == "node_modules" {
 				return filepath.SkipDir
 			}
 			return nil
@@ -74,11 +79,11 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 
 		// Approximate full package path
 		relDir, _ := filepath.Rel(root, dir)
-		fullPkg := relDir
-		if relDir == "." {
+		fullPkg := filepath.ToSlash(relDir)
+		if fullPkg == "." {
 			fullPkg = pkgName
-		} else if filepath.Base(relDir) != pkgName {
-			fullPkg = filepath.Join(relDir, pkgName)
+		} else if filepath.Base(fullPkg) != pkgName {
+			fullPkg = filepath.ToSlash(filepath.Join(fullPkg, pkgName))
 		}
 		fullPkg = strings.TrimPrefix(fullPkg, "./")
 
@@ -130,15 +135,23 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 	// Use map to prevent duplicates
 	edgeMap := make(map[string]bool)
 
-	for path, f := range parsedFiles {
+	// Sort files for determinism
+	var paths []string
+	for path := range parsedFiles {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+
+	for _, path := range paths {
+		f := parsedFiles[path]
 		pkgName := f.Name.Name
 		dir := filepath.Dir(path)
 		relDir, _ := filepath.Rel(root, dir)
-		fullPkg := relDir
-		if relDir == "." {
+		fullPkg := filepath.ToSlash(relDir)
+		if fullPkg == "." {
 			fullPkg = pkgName
-		} else if filepath.Base(relDir) != pkgName {
-			fullPkg = filepath.Join(relDir, pkgName)
+		} else if filepath.Base(fullPkg) != pkgName {
+			fullPkg = filepath.ToSlash(filepath.Join(fullPkg, pkgName))
 		}
 		fullPkg = strings.TrimPrefix(fullPkg, "./")
 
@@ -151,6 +164,10 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 					callerID = fmt.Sprintf("%s.(%s).%s", fullPkg, getReceiverTypeName(fn.Recv), fn.Name.Name)
 				} else {
 					callerID = fmt.Sprintf("%s.%s", fullPkg, fn.Name.Name)
+				}
+
+				if fn.Body == nil {
+					continue
 				}
 
 				// Inspect body
@@ -261,22 +278,34 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 	// Import path is "recac/internal/foo".
 	// If we are running on "recac" repo, "internal/foo" matches.
 
-	// Normalize import path
-	// Remove module prefix if possible?
-	// This is hard without knowing module name.
-	// But we can scan all nodes and check if Node.Package matches the end of ImportPath?
-
+	var candidates []string
 	for id, node := range cg.Nodes {
 		if node.Name == funcName && node.Receiver == "" {
 			// Check if importPath ends with node.Package
 			// node.Package might be "internal/utils"
 			// importPath might be "recac/internal/utils"
 			if strings.HasSuffix(importPath, node.Package) {
-				return id
+				candidates = append(candidates, id)
 			}
 		}
 	}
-	return ""
+
+	if len(candidates) == 0 {
+		return ""
+	}
+
+	// Sort candidates by package length (descending) to prefer most specific match.
+	// If lengths equal, sort by ID for stability.
+	sort.Slice(candidates, func(i, j int) bool {
+		pkgI := cg.Nodes[candidates[i]].Package
+		pkgJ := cg.Nodes[candidates[j]].Package
+		if len(pkgI) != len(pkgJ) {
+			return len(pkgI) > len(pkgJ)
+		}
+		return candidates[i] < candidates[j]
+	})
+
+	return candidates[0]
 }
 
 func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {
@@ -286,5 +315,9 @@ func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {
 			results = append(results, node)
 		}
 	}
+	// Sort by ID for determinism
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].ID < results[j].ID
+	})
 	return results
 }
