@@ -79,6 +79,7 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		"--cleanup=false",
 		"--path", "/workspace",
 		"--verbose",
+		"--image", s.Image,
 		"--repo-url", item.RepoURL, // Delegate cloning
 	}
 
@@ -164,8 +165,18 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 			envExports = append(envExports, fmt.Sprintf("export RECAC_TASK_MAX_ITERATIONS=%s", shellquote.Join(val)))
 		}
 
+		// Git Configuration (Consistent with K8s)
+		var gitConfigCmds []string
+		if token := os.Getenv("GITHUB_TOKEN"); token != "" {
+			// Configure git to use the token for authentication
+			gitConfigCmds = append(gitConfigCmds, `git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"`)
+		}
+
 		cmdStr := "cd /workspace"
 		cmdStr += " && " + strings.Join(envExports, " && ")
+		if len(gitConfigCmds) > 0 {
+			cmdStr += " && " + strings.Join(gitConfigCmds, " && ")
+		}
 		cmdStr += " && " + shellquote.Join(agentCmd...) + " --allow-dirty"
 		cmdStr += " && echo 'Recac Finished'"
 
