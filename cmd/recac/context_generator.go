@@ -30,7 +30,11 @@ func GenerateCodebaseContext(opts ContextOptions) (string, error) {
 	var outputBuilder strings.Builder
 
 	// Default ignores
-	ignoreMap := DefaultIgnoreMap()
+	defaultIgnores := DefaultIgnoreMap()
+	ignoreMap := make(map[string]bool, len(defaultIgnores)+len(opts.Ignore))
+	for k, v := range defaultIgnores {
+		ignoreMap[k] = v
+	}
 	for _, ign := range opts.Ignore {
 		ignoreMap[ign] = true
 	}
