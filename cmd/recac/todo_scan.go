@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"strings"
 
+	"recac/internal/utils"
+
 	"github.com/spf13/cobra"
 )
 
@@ -109,7 +111,7 @@ func ScanForTodos(root string) ([]TodoItem, error) {
 
 		// Skip binary files (by extension)
 		ext := strings.ToLower(filepath.Ext(path))
-		if isBinaryExt(ext) {
+		if utils.IsBinaryExt(ext) {
 			return nil
 		}
 
@@ -123,7 +125,7 @@ func ScanForTodos(root string) ([]TodoItem, error) {
 		// Read first 512 bytes to check for binary
 		buf := make([]byte, 512)
 		n, _ := f.Read(buf)
-		if n > 0 && isBinaryContent(buf[:n]) {
+		if n > 0 && utils.IsBinaryContent(buf[:n]) {
 			return nil
 		}
 
@@ -184,7 +186,7 @@ func addTasksToTodoFile(newTasks []TodoItem) (int, error) {
 		return 0, err
 	}
 
-	lines, err := readLines(todoFile)
+	lines, err := utils.ReadLines(todoFile)
 	if err != nil {
 		return 0, err
 	}

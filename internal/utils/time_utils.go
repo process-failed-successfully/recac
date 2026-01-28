@@ -33,9 +33,9 @@ func FormatSince(t time.Time) string {
 	return t.Format("2006-01-02")
 }
 
-// ParseStaleDuration parses a duration string like "7d" or "24h" into a time.Duration.
+// ParseDurationWithDays parses a duration string like "7d" or "24h" into a time.Duration.
 // It's more flexible than time.ParseDuration by supporting days.
-func ParseStaleDuration(durationStr string) (time.Duration, error) {
+func ParseDurationWithDays(durationStr string) (time.Duration, error) {
 	if len(durationStr) < 2 {
 		return 0, fmt.Errorf("duration string too short")
 	}

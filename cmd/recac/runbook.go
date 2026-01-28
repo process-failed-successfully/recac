@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"recac/internal/utils"
+
 	"github.com/charmbracelet/glamour"
 	"github.com/spf13/cobra"
 )
@@ -137,7 +139,7 @@ func runRunbook(cmd *cobra.Command, args []string) error {
 }
 
 func parseRunbook(path string) ([]Block, error) {
-	lines, err := readLines(path)
+	lines, err := utils.ReadLines(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
@@ -260,7 +262,7 @@ func executeBlock(code string, env map[string]string, tmpDir string, cmd *cobra.
 	}
 
 	// 2. Read new env
-	lines, err := readLines(outFile)
+	lines, err := utils.ReadLines(outFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read output env: %w", err)
 	}

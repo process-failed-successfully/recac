@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"recac/internal/utils"
+
 	"github.com/spf13/cobra"
 )
 
@@ -113,7 +115,7 @@ func listTasks(cmd *cobra.Command) error {
 		return err
 	}
 
-	lines, err := readLines(todoFile)
+	lines, err := utils.ReadLines(todoFile)
 	if err != nil {
 		return err
 	}
@@ -140,7 +142,7 @@ func modifyTask(targetIndex int, action func(line string) (string, bool)) error 
 		return err
 	}
 
-	lines, err := readLines(todoFile)
+	lines, err := utils.ReadLines(todoFile)
 	if err != nil {
 		return err
 	}
@@ -171,7 +173,7 @@ func modifyTask(targetIndex int, action func(line string) (string, bool)) error 
 		return fmt.Errorf("task index %d not found", targetIndex)
 	}
 
-	return writeLines(todoFile, newLines)
+	return utils.WriteLines(todoFile, newLines)
 }
 
 func toggleTaskStatus(targetIndex int, done bool) error {

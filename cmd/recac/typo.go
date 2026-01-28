@@ -130,7 +130,7 @@ func scanFilesForTypo(root string, limit int) ([]string, error) {
 
 		// Only check text files
 		ext := filepath.Ext(path)
-		if isBinaryExt(ext) {
+		if utils.IsBinaryExt(ext) {
 			return nil
 		}
 		if strings.Contains(path, "lock") || strings.Contains(path, "sum") {

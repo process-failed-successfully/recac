@@ -32,19 +32,24 @@ type CallGraph struct {
 
 // GenerateCallGraph analyzes the Go code in root and returns a call graph.
 func GenerateCallGraph(root string) (*CallGraph, error) {
-	fset := token.NewFileSet()
 	cg := &CallGraph{
 		Nodes: make(map[string]*CallGraphNode),
 	}
 
-	// 1. First Pass: Index all functions and methods
-	// We also need to track imports per file to resolve calls later.
+	parsedFiles, fileImports, err := indexFunctions(root, cg)
+	if err != nil {
+		return nil, err
+	}
+
+	resolveCalls(root, cg, parsedFiles, fileImports)
+
+	return cg, nil
+}
+
+func indexFunctions(root string, cg *CallGraph) (map[string]*ast.File, map[string]map[string]string, error) {
+	fset := token.NewFileSet()
 	// Map: FilePath -> ImportMap (Alias -> PkgPath)
 	fileImports := make(map[string]map[string]string)
-
-	// Map: PackageName -> PkgPath (approximate, relative to root)
-	// We'll use "dir/pkg" as PkgPath for simplicity.
-
 	// Store parsed files to avoid re-parsing
 	parsedFiles := make(map[string]*ast.File)
 
@@ -123,10 +128,13 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	// 2. Second Pass: Resolve Calls
+	return parsedFiles, fileImports, nil
+}
+
+func resolveCalls(root string, cg *CallGraph, parsedFiles map[string]*ast.File, fileImports map[string]map[string]string) {
 	// Use map to prevent duplicates
 	edgeMap := make(map[string]bool)
 
@@ -233,8 +241,6 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 			}
 		}
 	}
-
-	return cg, nil
 }
 
 func getReceiverTypeName(recv *ast.FieldList) string {

@@ -30,7 +30,7 @@ func TestFormatSince(t *testing.T) {
 	}
 }
 
-func TestParseStaleDuration(t *testing.T) {
+func TestParseDurationWithDays(t *testing.T) {
 	tests := []struct {
 		input    string
 		expected time.Duration
@@ -47,13 +47,13 @@ func TestParseStaleDuration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			got, err := ParseStaleDuration(tt.input)
+			got, err := ParseDurationWithDays(tt.input)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ParseStaleDuration(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+				t.Errorf("ParseDurationWithDays(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
 				return
 			}
 			if got != tt.expected {
-				t.Errorf("ParseStaleDuration(%q) = %v; want %v", tt.input, got, tt.expected)
+				t.Errorf("ParseDurationWithDays(%q) = %v; want %v", tt.input, got, tt.expected)
 			}
 		})
 	}

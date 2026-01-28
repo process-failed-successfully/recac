@@ -286,7 +286,7 @@ func getUnifiedSessions(cmd *cobra.Command, filters model.PsFilters) ([]model.Un
 
 	// --- Filter by Stale ---
 	if filters.Stale != "" {
-		duration, err := utils.ParseStaleDuration(filters.Stale)
+		duration, err := utils.ParseDurationWithDays(filters.Stale)
 		if err != nil {
 			return nil, fmt.Errorf("invalid 'stale' value %q: %w", filters.Stale, err)
 		}

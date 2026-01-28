@@ -12,6 +12,8 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"recac/internal/utils"
+
 	"github.com/spf13/cobra"
 )
 
@@ -228,7 +230,7 @@ func countLOC(root string) (int, error) {
 			return nil
 		}
 		// Count lines
-		lines, err := readLines(path)
+		lines, err := utils.ReadLines(path)
 		if err != nil {
 			return nil
 		}
