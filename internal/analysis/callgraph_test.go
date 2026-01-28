@@ -107,3 +107,31 @@ func internalFunc() {}
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
 }
+
+func TestResolveExternalCall(t *testing.T) {
+	cg := &CallGraph{
+		Nodes: map[string]*CallGraphNode{
+			"pkg.Helper": {
+				ID:      "pkg.Helper",
+				Package: "pkg",
+				Name:    "Helper",
+			},
+		},
+	}
+
+	// 1. Exact match
+	id := resolveExternalCall(cg, "pkg", "Helper")
+	assert.Equal(t, "pkg.Helper", id)
+
+	// 2. Suffix match with slash (Correct)
+	// e.g. import "github.com/org/pkg" matches node package "pkg"
+	// Wait, if node.Package is "pkg", we assume it matches "any/path/pkg".
+	id = resolveExternalCall(cg, "github.com/org/pkg", "Helper")
+	assert.Equal(t, "pkg.Helper", id)
+
+	// 3. Partial suffix match (Bug reproduction)
+	// e.g. import "mypkg" matches node package "pkg" because "mypkg" ends with "pkg"
+	// This should NOT match.
+	id = resolveExternalCall(cg, "mypkg", "Helper")
+	assert.Empty(t, id, "Should not match partial suffix 'mypkg' against 'pkg'")
+}

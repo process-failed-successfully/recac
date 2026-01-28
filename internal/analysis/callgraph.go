@@ -271,7 +271,8 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 			// Check if importPath ends with node.Package
 			// node.Package might be "internal/utils"
 			// importPath might be "recac/internal/utils"
-			if strings.HasSuffix(importPath, node.Package) {
+			// Ensure we match whole path segments (ends with "/package" or equals "package")
+			if importPath == node.Package || strings.HasSuffix(importPath, "/"+node.Package) {
 				return id
 			}
 		}

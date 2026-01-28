@@ -159,6 +159,7 @@ var mermaidSanitizer = strings.NewReplacer(
 	"]", "_",
 	"/", "_",
 	"\\", "_",
+	"*", "_",
 )
 
 func sanitizeMermaidID(id string) string {
