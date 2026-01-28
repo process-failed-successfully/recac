@@ -74,11 +74,12 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 
 		// Approximate full package path
 		relDir, _ := filepath.Rel(root, dir)
+		relDir = filepath.ToSlash(relDir)
 		fullPkg := relDir
 		if relDir == "." {
 			fullPkg = pkgName
 		} else if filepath.Base(relDir) != pkgName {
-			fullPkg = filepath.Join(relDir, pkgName)
+			fullPkg = relDir + "/" + pkgName
 		}
 		fullPkg = strings.TrimPrefix(fullPkg, "./")
 
@@ -134,11 +135,12 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		pkgName := f.Name.Name
 		dir := filepath.Dir(path)
 		relDir, _ := filepath.Rel(root, dir)
+		relDir = filepath.ToSlash(relDir)
 		fullPkg := relDir
 		if relDir == "." {
 			fullPkg = pkgName
 		} else if filepath.Base(relDir) != pkgName {
-			fullPkg = filepath.Join(relDir, pkgName)
+			fullPkg = relDir + "/" + pkgName
 		}
 		fullPkg = strings.TrimPrefix(fullPkg, "./")
 
@@ -154,82 +156,84 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 				}
 
 				// Inspect body
-				ast.Inspect(fn.Body, func(n ast.Node) bool {
-					call, ok := n.(*ast.CallExpr)
-					if !ok {
-						return true
-					}
-
-					var calleeID string
-
-					switch fun := call.Fun.(type) {
-					case *ast.Ident:
-						// Local call: DoSomething()
-						// Likely same package, simple function
-						candidateID := fmt.Sprintf("%s.%s", fullPkg, fun.Name)
-						if _, exists := cg.Nodes[candidateID]; exists {
-							calleeID = candidateID
-						} else {
-							// Could be a method on 'this' implicitly? No, Go doesn't allow implicit 'this'.
-							// Must be a builtin or definition missing.
+				if fn.Body != nil {
+					ast.Inspect(fn.Body, func(n ast.Node) bool {
+						call, ok := n.(*ast.CallExpr)
+						if !ok {
+							return true
 						}
 
-					case *ast.SelectorExpr:
-						// X.Sel()
-						sel := fun.Sel.Name
+						var calleeID string
 
-						if xIdent, ok := fun.X.(*ast.Ident); ok {
-							// Ident.Sel()
-							// Check if Ident is a package import
-							if importPath, isImport := imports[xIdent.Name]; isImport {
-								// It is Pkg.Func()
-								// We need to match the package path structure we used for keys.
-								// We used "dir/pkgName". External imports won't match our local keys unless we handle external packages.
-								// For now, let's assume we only graph INTERNAL calls or we use a fallback ID.
-
-								// Try to find if we have nodes with this Package
-								// This is tricky because "importPath" is like "github.com/foo/bar"
-								// But our keys are "internal/bar.Func".
-								// We will try to match suffix.
-								calleeID = resolveExternalCall(cg, importPath, sel)
-								if calleeID == "" {
-									// Treat as external node
-									calleeID = fmt.Sprintf("%s.%s", importPath, sel)
-								}
+						switch fun := call.Fun.(type) {
+						case *ast.Ident:
+							// Local call: DoSomething()
+							// Likely same package, simple function
+							candidateID := fmt.Sprintf("%s.%s", fullPkg, fun.Name)
+							if _, exists := cg.Nodes[candidateID]; exists {
+								calleeID = candidateID
 							} else {
-								// Variable.Method()
-								// We don't know the type of Variable.
-								// Heuristic: Find ANY method named 'Sel' in our codebase.
-								candidates := findMethodsByName(cg, sel)
-								if len(candidates) == 1 {
-									calleeID = candidates[0].ID
-								} else if len(candidates) > 1 {
-									// Ambiguous. We can leave empty or point to a special "ambiguous" node.
-									// For now, let's skip or mark as ambiguous?
-									// Let's create an edge to the method name generic node?
-									// Or just pick one?
-									// Better: Create edges to ALL candidates but mark them as "heuristic" (dashed)?
-									// For simplicity in this v1:
-									// Create a "virtual" node for the method if we can't resolve.
-									calleeID = fmt.Sprintf("(Ambiguous).%s", sel)
+								// Could be a method on 'this' implicitly? No, Go doesn't allow implicit 'this'.
+								// Must be a builtin or definition missing.
+							}
+
+						case *ast.SelectorExpr:
+							// X.Sel()
+							sel := fun.Sel.Name
+
+							if xIdent, ok := fun.X.(*ast.Ident); ok {
+								// Ident.Sel()
+								// Check if Ident is a package import
+								if importPath, isImport := imports[xIdent.Name]; isImport {
+									// It is Pkg.Func()
+									// We need to match the package path structure we used for keys.
+									// We used "dir/pkgName". External imports won't match our local keys unless we handle external packages.
+									// For now, let's assume we only graph INTERNAL calls or we use a fallback ID.
+
+									// Try to find if we have nodes with this Package
+									// This is tricky because "importPath" is like "github.com/foo/bar"
+									// But our keys are "internal/bar.Func".
+									// We will try to match suffix.
+									calleeID = resolveExternalCall(cg, importPath, sel)
+									if calleeID == "" {
+										// Treat as external node
+										calleeID = fmt.Sprintf("%s.%s", importPath, sel)
+									}
+								} else {
+									// Variable.Method()
+									// We don't know the type of Variable.
+									// Heuristic: Find ANY method named 'Sel' in our codebase.
+									candidates := findMethodsByName(cg, sel)
+									if len(candidates) == 1 {
+										calleeID = candidates[0].ID
+									} else if len(candidates) > 1 {
+										// Ambiguous. We can leave empty or point to a special "ambiguous" node.
+										// For now, let's skip or mark as ambiguous?
+										// Let's create an edge to the method name generic node?
+										// Or just pick one?
+										// Better: Create edges to ALL candidates but mark them as "heuristic" (dashed)?
+										// For simplicity in this v1:
+										// Create a "virtual" node for the method if we can't resolve.
+										calleeID = fmt.Sprintf("(Ambiguous).%s", sel)
+									}
 								}
 							}
 						}
-					}
 
-					if calleeID != "" {
-						edgeKey := callerID + "->" + calleeID
-						if !edgeMap[edgeKey] {
-							cg.Edges = append(cg.Edges, CallGraphEdge{
-								From: callerID,
-								To:   calleeID,
-							})
-							edgeMap[edgeKey] = true
+						if calleeID != "" {
+							edgeKey := callerID + "->" + calleeID
+							if !edgeMap[edgeKey] {
+								cg.Edges = append(cg.Edges, CallGraphEdge{
+									From: callerID,
+									To:   calleeID,
+								})
+								edgeMap[edgeKey] = true
+							}
 						}
-					}
 
-					return true
-				})
+						return true
+					})
+				}
 			}
 		}
 	}
