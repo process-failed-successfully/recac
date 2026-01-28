@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"testing"
 
 	"recac/internal/runner"
@@ -11,11 +12,15 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sversion "k8s.io/apimachinery/pkg/version"
 )
 
 type MockK8sClient struct {
-	ListPodsFunc  func(ctx context.Context, labelSelector string) ([]corev1.Pod, error)
-	DeletePodFunc func(ctx context.Context, name string) error
+	ListPodsFunc         func(ctx context.Context, labelSelector string) ([]corev1.Pod, error)
+	DeletePodFunc        func(ctx context.Context, name string) error
+	GetServerVersionFunc func() (*k8sversion.Info, error)
+	GetNamespaceFunc     func() string
+	GetPodLogsFunc       func(ctx context.Context, name string, follow bool) (io.ReadCloser, error)
 }
 
 func (m *MockK8sClient) ListPods(ctx context.Context, labelSelector string) ([]corev1.Pod, error) {
@@ -30,6 +35,27 @@ func (m *MockK8sClient) DeletePod(ctx context.Context, name string) error {
 		return m.DeletePodFunc(ctx, name)
 	}
 	return nil
+}
+
+func (m *MockK8sClient) GetServerVersion() (*k8sversion.Info, error) {
+	if m.GetServerVersionFunc != nil {
+		return m.GetServerVersionFunc()
+	}
+	return &k8sversion.Info{}, nil
+}
+
+func (m *MockK8sClient) GetNamespace() string {
+	if m.GetNamespaceFunc != nil {
+		return m.GetNamespaceFunc()
+	}
+	return "default"
+}
+
+func (m *MockK8sClient) GetPodLogs(ctx context.Context, name string, follow bool) (io.ReadCloser, error) {
+	if m.GetPodLogsFunc != nil {
+		return m.GetPodLogsFunc(ctx, name, follow)
+	}
+	return nil, nil
 }
 
 func TestStopCmd_LocalSession(t *testing.T) {

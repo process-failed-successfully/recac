@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"io"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -96,6 +97,21 @@ func TestDeletePodError(t *testing.T) {
 
 	err := client.DeletePod(context.Background(), "pod1")
 	require.Error(t, err)
+}
+
+func TestGetPodLogs(t *testing.T) {
+	// Testing GetPodLogs with fake client.
+	fakeClientset := fake.NewSimpleClientset()
+	client := &Client{Clientset: fakeClientset, Namespace: "default"}
+
+	stream, err := client.GetPodLogs(context.Background(), "pod1", false)
+
+	// If it succeeds, stream should be readable (even if empty)
+	if err == nil {
+		require.NotNil(t, stream)
+		defer stream.Close()
+		_, _ = io.ReadAll(stream)
+	}
 }
 
 func TestNewClient(t *testing.T) {

@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"io"
 	"recac/internal/runner"
 
 	corev1 "k8s.io/api/core/v1"
+	k8sversion "k8s.io/apimachinery/pkg/version"
 )
 
 // IDockerClient defines the interface for Docker operations used by CLI commands.
@@ -67,4 +69,7 @@ type IGitClient interface {
 type IK8sClient interface {
 	ListPods(ctx context.Context, labelSelector string) ([]corev1.Pod, error)
 	DeletePod(ctx context.Context, name string) error
+	GetServerVersion() (*k8sversion.Info, error)
+	GetNamespace() string
+	GetPodLogs(ctx context.Context, name string, follow bool) (io.ReadCloser, error)
 }

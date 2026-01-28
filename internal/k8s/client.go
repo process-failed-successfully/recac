@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -83,4 +84,17 @@ func (c *Client) DeletePod(ctx context.Context, name string) error {
 		return fmt.Errorf("failed to delete Kubernetes pod %s: %w", name, err)
 	}
 	return nil
+}
+
+// GetNamespace returns the configured namespace.
+func (c *Client) GetNamespace() string {
+	return c.Namespace
+}
+
+// GetPodLogs streams logs from a pod.
+func (c *Client) GetPodLogs(ctx context.Context, name string, follow bool) (io.ReadCloser, error) {
+	req := c.Clientset.CoreV1().Pods(c.Namespace).GetLogs(name, &corev1.PodLogOptions{
+		Follow: follow,
+	})
+	return req.Stream(ctx)
 }
