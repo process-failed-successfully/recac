@@ -107,3 +107,56 @@ func internalFunc() {}
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
 }
+
+func TestGenerateCallGraph_Generics(t *testing.T) {
+	// Setup temporary directory
+	tmpDir := t.TempDir()
+
+	// Create generic_service.go
+	content := `package pkg
+
+type MultiMap[K, V any] struct {
+	data map[any]any
+}
+
+func (m *MultiMap[K, V]) Set(k K, v V) {
+	m.data = make(map[any]any)
+}
+
+func UseMultiMap() {
+	m := &MultiMap[string, int]{}
+	m.Set("foo", 1)
+}
+`
+	pkgDir := filepath.Join(tmpDir, "pkg")
+	err := os.MkdirAll(pkgDir, 0755)
+	require.NoError(t, err)
+
+	err = os.WriteFile(filepath.Join(pkgDir, "generic_service.go"), []byte(content), 0644)
+	require.NoError(t, err)
+
+	// Run Analysis
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// We expect "pkg.(MultiMap).Set"
+	// But current implementation might return "pkg.(Unknown).Set"
+
+	// Print all keys for debugging
+	for id := range cg.Nodes {
+		t.Logf("Node ID: %s", id)
+	}
+
+	expectedID := "pkg.(MultiMap).Set"
+	if _, exists := cg.Nodes[expectedID]; !exists {
+		// Check if it's there as Unknown
+		if _, exists := cg.Nodes["pkg.(Unknown).Set"]; exists {
+			t.Log("Found 'Unknown' receiver for MultiMap")
+			// This confirms the issue, but we want the test to fail if we fix it, or rather pass if we fix it.
+			// For now, let's assert it is correct, so it fails.
+			assert.Fail(t, "Found 'Unknown' receiver instead of 'MultiMap'")
+		} else {
+			assert.Fail(t, "Missing node for MultiMap.Set")
+		}
+	}
+}

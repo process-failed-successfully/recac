@@ -53,7 +53,9 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 			return err
 		}
 		if d.IsDir() {
-			if strings.HasPrefix(d.Name(), ".") && d.Name() != "." {
+			name := d.Name()
+			if (strings.HasPrefix(name, ".") && name != ".") ||
+				name == "vendor" || name == "node_modules" || name == "testdata" {
 				return filepath.SkipDir
 			}
 			return nil
@@ -250,6 +252,11 @@ func getReceiverTypeName(recv *ast.FieldList) string {
 	}
 	if index, ok := expr.(*ast.IndexExpr); ok {
 		if ident, ok := index.X.(*ast.Ident); ok {
+			return ident.Name
+		}
+	}
+	if indexList, ok := expr.(*ast.IndexListExpr); ok {
+		if ident, ok := indexList.X.(*ast.Ident); ok {
 			return ident.Name
 		}
 	}
