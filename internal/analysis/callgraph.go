@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"io/fs"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -53,7 +54,11 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 			return err
 		}
 		if d.IsDir() {
-			if strings.HasPrefix(d.Name(), ".") && d.Name() != "." {
+			name := d.Name()
+			if (strings.HasPrefix(name, ".") && name != ".") ||
+				name == "vendor" ||
+				name == "testdata" ||
+				name == "node_modules" {
 				return filepath.SkipDir
 			}
 			return nil
@@ -131,7 +136,15 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 	// Use map to prevent duplicates
 	edgeMap := make(map[string]bool)
 
-	for path, f := range parsedFiles {
+	// Sort files to ensure deterministic iteration order of parsedFiles
+	var filePaths []string
+	for path := range parsedFiles {
+		filePaths = append(filePaths, path)
+	}
+	sort.Strings(filePaths)
+
+	for _, path := range filePaths {
+		f := parsedFiles[path]
 		pkgName := f.Name.Name
 		dir := filepath.Dir(path)
 		relDir, _ := filepath.Rel(root, dir)
@@ -270,17 +283,34 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 	// This is hard without knowing module name.
 	// But we can scan all nodes and check if Node.Package matches the end of ImportPath?
 
-	for id, node := range cg.Nodes {
+	var matches []*CallGraphNode
+
+	for _, node := range cg.Nodes {
 		if node.Name == funcName && node.Receiver == "" {
 			// Check if importPath ends with node.Package
 			// node.Package might be "internal/utils"
 			// importPath might be "recac/internal/utils"
 			if strings.HasSuffix(importPath, node.Package) {
-				return id
+				matches = append(matches, node)
 			}
 		}
 	}
-	return ""
+
+	if len(matches) == 0 {
+		return ""
+	}
+
+	// Sort matches
+	sort.Slice(matches, func(i, j int) bool {
+		// Longer package match first
+		if len(matches[i].Package) != len(matches[j].Package) {
+			return len(matches[i].Package) > len(matches[j].Package)
+		}
+		// Tie-break with ID
+		return matches[i].ID < matches[j].ID
+	})
+
+	return matches[0].ID
 }
 
 func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {
@@ -290,5 +320,9 @@ func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {
 			results = append(results, node)
 		}
 	}
+	// Sort for determinism
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].ID < results[j].ID
+	})
 	return results
 }

@@ -107,3 +107,35 @@ func internalFunc() {}
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
 }
+
+func TestGenerateCallGraph_SkipsVendorAndTestdata(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a normal file
+	err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte("package main\nfunc Main() {}"), 0644)
+	require.NoError(t, err)
+
+	// Create vendor directory and file
+	vendorDir := filepath.Join(tmpDir, "vendor", "foo")
+	err = os.MkdirAll(vendorDir, 0755)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(vendorDir, "foo.go"), []byte("package foo\nfunc VendorFunc() {}"), 0644)
+	require.NoError(t, err)
+
+	// Create testdata directory and file
+	testdataDir := filepath.Join(tmpDir, "testdata")
+	err = os.MkdirAll(testdataDir, 0755)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(testdataDir, "bad.go"), []byte("package bad\nfunc BadFunc() {}"), 0644)
+	require.NoError(t, err)
+
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	for id := range cg.Nodes {
+		assert.NotContains(t, id, "vendor", "Should not contain vendor nodes")
+		assert.NotContains(t, id, "testdata", "Should not contain testdata nodes")
+		assert.NotEqual(t, "foo.VendorFunc", id) // Simplified check
+		assert.NotEqual(t, "bad.BadFunc", id)
+	}
+}
