@@ -83,6 +83,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		} else if filepath.Base(relDir) != pkgName {
 			fullPkg = filepath.Join(relDir, pkgName)
 		}
+		// Ensure cross-platform consistency
 		fullPkg = filepath.ToSlash(fullPkg)
 		fullPkg = strings.TrimPrefix(fullPkg, "./")
 
@@ -158,6 +159,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 					callerID = fmt.Sprintf("%s.%s", fullPkg, fn.Name.Name)
 				}
 
+				// Skip functions without body (e.g. assembly or forward decls)
 				if fn.Body == nil {
 					continue
 				}
@@ -192,14 +194,6 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 							// Check if Ident is a package import
 							if importPath, isImport := imports[xIdent.Name]; isImport {
 								// It is Pkg.Func()
-								// We need to match the package path structure we used for keys.
-								// We used "dir/pkgName". External imports won't match our local keys unless we handle external packages.
-								// For now, let's assume we only graph INTERNAL calls or we use a fallback ID.
-
-								// Try to find if we have nodes with this Package
-								// This is tricky because "importPath" is like "github.com/foo/bar"
-								// But our keys are "internal/bar.Func".
-								// We will try to match suffix.
 								calleeID = resolveExternalCall(cg, importPath, sel)
 								if calleeID == "" {
 									// Treat as external node
@@ -214,12 +208,6 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 									calleeID = candidates[0].ID
 								} else if len(candidates) > 1 {
 									// Ambiguous. We can leave empty or point to a special "ambiguous" node.
-									// For now, let's skip or mark as ambiguous?
-									// Let's create an edge to the method name generic node?
-									// Or just pick one?
-									// Better: Create edges to ALL candidates but mark them as "heuristic" (dashed)?
-									// For simplicity in this v1:
-									// Create a "virtual" node for the method if we can't resolve.
 									calleeID = fmt.Sprintf("(Ambiguous).%s", sel)
 								}
 							}
@@ -270,22 +258,27 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 	// Import path is "recac/internal/foo".
 	// If we are running on "recac" repo, "internal/foo" matches.
 
-	// Normalize import path
-	// Remove module prefix if possible?
-	// This is hard without knowing module name.
-	// But we can scan all nodes and check if Node.Package matches the end of ImportPath?
+	var bestMatchID string
+	var bestMatchLen int
 
 	for id, node := range cg.Nodes {
 		if node.Name == funcName && node.Receiver == "" {
 			// Check if importPath ends with node.Package
-			// node.Package might be "internal/utils"
-			// importPath might be "recac/internal/utils"
 			if strings.HasSuffix(importPath, node.Package) {
-				return id
+				matchLen := len(node.Package)
+				if matchLen > bestMatchLen {
+					bestMatchID = id
+					bestMatchLen = matchLen
+				} else if matchLen == bestMatchLen {
+					// Deterministic tie-breaking
+					if bestMatchID == "" || id < bestMatchID {
+						bestMatchID = id
+					}
+				}
 			}
 		}
 	}
-	return ""
+	return bestMatchID
 }
 
 func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {

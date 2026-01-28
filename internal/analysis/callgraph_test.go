@@ -112,12 +112,6 @@ func TestGenerateCallGraph_PanicOnNilBody(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create a Go file with a function declaration but no body (like in assembly)
-	// Note: Standard parser might error on this unless we are careful,
-	// but let's try to simulate a case where Body is nil.
-	// Actually, parser.ParseFile might complain "missing function body".
-	// But if we have a valid case, e.g. a forward declaration?
-	// Go spec says: "A function declaration may omit the body. Such a declaration provides the signature for a function implemented outside Go, such as an assembly routine."
-
 	content := `package pkg
 func AssemblyFunc()
 `
@@ -130,4 +124,68 @@ func AssemblyFunc()
 
 	_, err = GenerateCallGraph(tmpDir)
 	require.NoError(t, err)
+}
+
+func TestGenerateCallGraph_IgnoreDirs(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// vendor/pkg/ignored.go
+	vendorDir := filepath.Join(tmpDir, "vendor", "pkg")
+	err := os.MkdirAll(vendorDir, 0755)
+	require.NoError(t, err)
+
+	err = os.WriteFile(filepath.Join(vendorDir, "ignored.go"), []byte("package pkg\nfunc Ignored() {}"), 0644)
+	require.NoError(t, err)
+
+	// testdata/pkg/ignored.go
+	testdataDir := filepath.Join(tmpDir, "testdata", "pkg")
+	err = os.MkdirAll(testdataDir, 0755)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(testdataDir, "ignored.go"), []byte("package pkg\nfunc Ignored() {}"), 0644)
+	require.NoError(t, err)
+
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	for id := range cg.Nodes {
+		assert.NotContains(t, id, "vendor", "Should not contain vendor nodes")
+		assert.NotContains(t, id, "testdata", "Should not contain testdata nodes")
+	}
+}
+
+func TestResolveExternalCall_Determinism(t *testing.T) {
+	// Create a graph with ambiguous packages
+	cg := &CallGraph{
+		Nodes: map[string]*CallGraphNode{
+			"pkg.Func": {
+				ID: "pkg.Func", Package: "pkg", Name: "Func",
+			},
+			"sub/pkg.Func": {
+				ID: "sub/pkg.Func", Package: "sub/pkg", Name: "Func",
+			},
+			"other/pkg.Func": {
+				ID: "other/pkg.Func", Package: "other/pkg", Name: "Func",
+			},
+			// Test tie-breaking by ID
+			"b/pkg.Func": {
+				ID: "b/pkg.Func", Package: "b/pkg", Name: "Func",
+			},
+			"a/pkg.Func": {
+				ID: "a/pkg.Func", Package: "b/pkg", Name: "Func", // Same package "b/pkg"
+			},
+		},
+	}
+
+	// 1. Longest match wins
+	// "sub/pkg.Func" (len 7) vs "pkg.Func" (len 3)
+	// Import: "example.com/sub/pkg"
+	id := resolveExternalCall(cg, "example.com/sub/pkg", "Func")
+	assert.Equal(t, "sub/pkg.Func", id, "Should select longest suffix match")
+
+	// 2. ID Tie-breaking
+	// Import: "example.com/b/pkg"
+	// Matches "b/pkg" (used by "b/pkg.Func" and "a/pkg.Func")
+	// "a/pkg.Func" < "b/pkg.Func"
+	id = resolveExternalCall(cg, "example.com/b/pkg", "Func")
+	assert.Equal(t, "a/pkg.Func", id, "Should break ties using ID (lexicographically)")
 }
