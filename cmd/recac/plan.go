@@ -99,5 +99,6 @@ func NewPlanCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringP("output", "o", "feature_list.json", "Output file for the generated feature list")
+	cmd.AddCommand(planVisualizeCmd)
 	return cmd
 }
