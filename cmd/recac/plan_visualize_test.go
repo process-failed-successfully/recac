@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -50,14 +51,18 @@ func TestPlanVisualizeCmd(t *testing.T) {
 	err = os.WriteFile(jsonPath, []byte(featureListContent), 0644)
 	require.NoError(t, err)
 
-	// Execute Plan Visualize Command
-	visualizeCmd.SetArgs([]string{jsonPath})
+	// Execute Plan Visualize Command using a fresh root to avoid routing issues
+	cmd := NewPlanCmd()
+
+	testRoot := &cobra.Command{Use: "test"}
+	testRoot.AddCommand(cmd)
+	testRoot.SetArgs([]string{"plan", "visualize", jsonPath})
 
 	buf := new(bytes.Buffer)
-	visualizeCmd.SetOut(buf)
-	visualizeCmd.SetErr(buf)
+	testRoot.SetOut(buf)
+	testRoot.SetErr(buf)
 
-	err = visualizeCmd.Execute()
+	err = testRoot.Execute()
 	require.NoError(t, err)
 
 	output := buf.String()
@@ -95,12 +100,16 @@ func TestPlanVisualizeCmd_Unicode(t *testing.T) {
 	err = os.WriteFile("list.json", []byte(content), 0644)
 	require.NoError(t, err)
 
-	visualizeCmd.SetArgs([]string{"list.json"})
-	buf := new(bytes.Buffer)
-	visualizeCmd.SetOut(buf)
-	visualizeCmd.SetErr(buf)
+	cmd := NewPlanCmd()
+	testRoot := &cobra.Command{Use: "test"}
+	testRoot.AddCommand(cmd)
+	testRoot.SetArgs([]string{"plan", "visualize", "list.json"})
 
-	err = visualizeCmd.Execute()
+	buf := new(bytes.Buffer)
+	testRoot.SetOut(buf)
+	testRoot.SetErr(buf)
+
+	err = testRoot.Execute()
 	require.NoError(t, err)
 
 	// Check truncation
