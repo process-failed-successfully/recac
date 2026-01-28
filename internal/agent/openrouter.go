@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -19,8 +20,17 @@ type OpenRouterClient struct {
 
 // NewOpenRouterClient creates a new OpenRouter client
 func NewOpenRouterClient(apiKey, model, project string) *OpenRouterClient {
+	// Default generic limit
+	maxTokens := 128000
+
+	// Reduce context window in CI to avoid rate limits/credit exhaustion
+	// The smoke test logs showed HTTP 402 errors (insufficient credits) because it requested too many tokens.
+	if os.Getenv("CI") == "true" || os.Getenv("RECAC_CI_MODE") == "true" {
+		maxTokens = 4096
+	}
+
 	return &OpenRouterClient{
-		BaseClient: NewBaseClient(project, 128000), // Default generic limit
+		BaseClient: NewBaseClient(project, maxTokens),
 		apiKey:     apiKey,
 		model:      model,
 		httpClient: &http.Client{
