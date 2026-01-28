@@ -107,3 +107,59 @@ func internalFunc() {}
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
 }
+
+func TestGenerateCallGraph_StrictDeterminism(t *testing.T) {
+	// Setup temporary directory with sample code
+	tmpDir := t.TempDir()
+
+	// 1. Create main.go
+	mainContent := `package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("Hello")
+}
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainContent), 0644)
+	require.NoError(t, err)
+
+	// 2. Create ignored directories
+	// vendor/
+	err = os.MkdirAll(filepath.Join(tmpDir, "vendor"), 0755)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tmpDir, "vendor", "ignored.go"), []byte("package ignored\nfunc Ignored() {}"), 0644)
+	require.NoError(t, err)
+
+	// testdata/
+	err = os.MkdirAll(filepath.Join(tmpDir, "testdata"), 0755)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tmpDir, "testdata", "data.go"), []byte("package data\nfunc Data() {}"), 0644)
+	require.NoError(t, err)
+
+	// Run multiple times and compare results
+	var firstRun *CallGraph
+
+	for i := 0; i < 5; i++ {
+		cg, err := GenerateCallGraph(tmpDir)
+		require.NoError(t, err)
+		require.NotNil(t, cg)
+
+		// Verify ignored files are not in nodes
+		for id := range cg.Nodes {
+			assert.NotContains(t, id, "ignored", "Should ignore vendor directory")
+			assert.NotContains(t, id, "data", "Should ignore testdata directory")
+		}
+
+		if firstRun == nil {
+			firstRun = cg
+		} else {
+			// Compare edges strictly
+			require.Equal(t, len(firstRun.Edges), len(cg.Edges), "Edge count mismatch")
+			for j, edge := range firstRun.Edges {
+				require.Equal(t, edge.From, cg.Edges[j].From, "Edge From mismatch at index %d", j)
+				require.Equal(t, edge.To, cg.Edges[j].To, "Edge To mismatch at index %d", j)
+			}
+		}
+	}
+}
