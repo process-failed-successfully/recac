@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -106,4 +107,49 @@ func internalFunc() {}
 	assert.True(t, foundMainToHelper, "Missing edge: main -> Helper")
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
+}
+
+func TestGenerateCallGraph_StrictDeterminism(t *testing.T) {
+	// Setup temporary directory with sample code
+	tmpDir := t.TempDir()
+
+	// Create multiple files to trigger map iteration randomness
+	files := map[string]string{
+		"main.go": `package main
+import "recac-test/pkg"
+func main() { pkg.A(); pkg.B() }`,
+		"pkg/a.go": `package pkg
+func A() {}`,
+		"pkg/b.go": `package pkg
+func B() {}`,
+		"pkg/c.go": `package pkg
+func C() { A() }`,
+	}
+
+	for path, content := range files {
+		fullPath := filepath.Join(tmpDir, path)
+		err := os.MkdirAll(filepath.Dir(fullPath), 0755)
+		require.NoError(t, err)
+		err = os.WriteFile(fullPath, []byte(content), 0644)
+		require.NoError(t, err)
+	}
+
+	// Run multiple times and compare JSON output
+	var firstRun string
+	for i := 0; i < 20; i++ {
+		cg, err := GenerateCallGraph(tmpDir)
+		require.NoError(t, err)
+		require.NotEmpty(t, cg.Nodes)
+		require.NotEmpty(t, cg.Edges)
+
+		bytes, err := json.MarshalIndent(cg, "", "  ")
+		require.NoError(t, err)
+		currentRun := string(bytes)
+
+		if i == 0 {
+			firstRun = currentRun
+		} else {
+			assert.Equal(t, firstRun, currentRun, "Call graph generation should be deterministic on run %d", i)
+		}
+	}
 }
