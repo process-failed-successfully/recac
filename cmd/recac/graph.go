@@ -124,7 +124,7 @@ func generateMermaid(g *runner.TaskGraph) string {
 		}
 
 		// Sanitize ID and Name for Mermaid
-		safeID := sanitizeMermaidID(node.ID)
+		safeID := SanitizeMermaidID(node.ID)
 		safeName := strings.ReplaceAll(node.Name, "\"", "'")
 		safeName = strings.ReplaceAll(safeName, "\n", " ")
 		if len(safeName) > 30 {
@@ -134,7 +134,7 @@ func generateMermaid(g *runner.TaskGraph) string {
 		sb.WriteString(fmt.Sprintf("    %s[\"%s\"]%s\n", safeID, safeName, style))
 
 		for _, depID := range node.Dependencies {
-			safeDepID := sanitizeMermaidID(depID)
+			safeDepID := SanitizeMermaidID(depID)
 			sb.WriteString(fmt.Sprintf("    %s --> %s\n", safeDepID, safeID))
 		}
 	}
@@ -147,11 +147,4 @@ func generateMermaid(g *runner.TaskGraph) string {
 	sb.WriteString("    classDef pending fill:#D3D3D3,stroke:#333,stroke-width:1px,color:black;\n")
 
 	return sb.String()
-}
-
-func sanitizeMermaidID(id string) string {
-	id = strings.ReplaceAll(id, "-", "_")
-	id = strings.ReplaceAll(id, " ", "_")
-	id = strings.ReplaceAll(id, ".", "_")
-	return id
 }
