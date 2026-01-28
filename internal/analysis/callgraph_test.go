@@ -1,8 +1,10 @@
 package analysis
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -61,19 +63,11 @@ func internalFunc() {}
 	require.NotNil(t, cg)
 
 	// --- Verify Nodes ---
-	// Expected Nodes:
-	// main.main
-	// pkg.Helper
-	// pkg.(Service).DoWork
-	// pkg.internalFunc
-
-	// Note: Our IDs are "relPath/Package.Func".
-	// For main.go: ".main.main" (if in root)
-	// For pkg/helper.go: "pkg.Helper"
-
 	nodeIDs := make(map[string]bool)
 	for id := range cg.Nodes {
 		nodeIDs[id] = true
+		// Verify normalization
+		assert.False(t, strings.Contains(id, "\\"), "Node ID should not contain backslashes: %s", id)
 	}
 
 	assert.Contains(t, nodeIDs, "main.main", "Should contain main function")
@@ -94,7 +88,6 @@ func internalFunc() {}
 		if edge.From == "main.main" && edge.To == "pkg.Helper" {
 			foundMainToHelper = true
 		}
-		// Note: The heuristic might resolve s.DoWork() to pkg.(Service).DoWork if it's unique
 		if edge.From == "pkg.Helper" && edge.To == "pkg.(Service).DoWork" {
 			foundHelperToDoWork = true
 		}
@@ -106,4 +99,76 @@ func internalFunc() {}
 	assert.True(t, foundMainToHelper, "Missing edge: main -> Helper")
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
+}
+
+func TestGenerateCallGraph_StrictDeterminism(t *testing.T) {
+	// Create a complex structure with many files to increase chance of map iteration randomness affecting order
+	tmpDir := t.TempDir()
+
+	for i := 0; i < 20; i++ {
+		content := fmt.Sprintf(`package p%d
+		func F%d() {
+			F%d()
+		}`, i, i, i+1)
+		err := os.WriteFile(filepath.Join(tmpDir, fmt.Sprintf("f%d.go", i)), []byte(content), 0644)
+		require.NoError(t, err)
+	}
+
+	// Run twice
+	cg1, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	cg2, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Compare Edges
+	require.Equal(t, len(cg1.Edges), len(cg2.Edges))
+
+	for i := range cg1.Edges {
+		assert.Equal(t, cg1.Edges[i], cg2.Edges[i], "Edges at index %d mismatch", i)
+	}
+}
+
+func TestGenerateCallGraph_SkipsIgnoredDirs(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Valid code in root
+	err := os.WriteFile(filepath.Join(tmpDir, "root.go"), []byte("package main\nfunc Root(){}"), 0644)
+	require.NoError(t, err)
+
+	// Vendor directory
+	vendorDir := filepath.Join(tmpDir, "vendor")
+	err = os.Mkdir(vendorDir, 0755)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(vendorDir, "dep.go"), []byte("package dep\nfunc Dep(){}"), 0644)
+	require.NoError(t, err)
+
+	// Testdata directory
+	testdataDir := filepath.Join(tmpDir, "testdata")
+	err = os.Mkdir(testdataDir, 0755)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(testdataDir, "bad.go"), []byte("package bad\nfunc Bad(){}"), 0644)
+	require.NoError(t, err)
+
+	// node_modules directory
+	nodeModulesDir := filepath.Join(tmpDir, "node_modules")
+	err = os.Mkdir(nodeModulesDir, 0755)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(nodeModulesDir, "js.go"), []byte("package js\nfunc JS(){}"), 0644)
+	require.NoError(t, err)
+
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Check that ignored files are NOT in the graph
+	for id := range cg.Nodes {
+		assert.NotContains(t, id, "vendor", "Should not contain vendor nodes")
+		assert.NotContains(t, id, "testdata", "Should not contain testdata nodes")
+		assert.NotContains(t, id, "node_modules", "Should not contain node_modules nodes")
+		assert.NotContains(t, id, "Dep")
+		assert.NotContains(t, id, "Bad")
+		assert.NotContains(t, id, "JS")
+	}
+
+	assert.Contains(t, cg.Nodes, "main.Root", "Should contain root node")
 }
