@@ -189,3 +189,32 @@ func Call() {
 
 	assert.True(t, found, "Should find edge pkg.Call -> pkg.GenericFunc even with generic instantiation")
 }
+
+func TestGenerateCallGraph_Determinism(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create multiple files to ensure order matters
+	files := map[string]string{
+		"a.go": `package pkg; func A() { B() }`,
+		"b.go": `package pkg; func B() { C() }`,
+		"c.go": `package pkg; func C() {}`,
+	}
+
+	for name, content := range files {
+		err := os.WriteFile(filepath.Join(tmpDir, name), []byte(content), 0644)
+		require.NoError(t, err)
+	}
+
+	// Run multiple times
+	cg1, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	cg2, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Check Edge Order
+	require.Equal(t, len(cg1.Edges), len(cg2.Edges))
+	for i := range cg1.Edges {
+		assert.Equal(t, cg1.Edges[i], cg2.Edges[i], "Edge at index %d mismatch", i)
+	}
+}
