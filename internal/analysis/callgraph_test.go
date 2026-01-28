@@ -193,6 +193,10 @@ func TestGenerateCallGraph_StrictDeterminism(t *testing.T) {
 
 		if i == 0 {
 			firstOutput = output
+			// Check that we actually generated something to make the test meaningful
+			if output == "" {
+				t.Error("Warning: No edges generated in StrictDeterminism test")
+			}
 		} else {
 			assert.Equal(t, firstOutput, output, "Output should be deterministic across runs")
 		}
