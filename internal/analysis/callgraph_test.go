@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -160,4 +161,40 @@ func TestGenerateCallGraph_Stress(t *testing.T) {
 	cg, err := GenerateCallGraph(tmpDir)
 	require.NoError(t, err)
 	require.NotNil(t, cg)
+}
+
+func TestGenerateCallGraph_StrictDeterminism(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create multiple files to trigger potential map iteration randomness
+	for i := 0; i < 20; i++ {
+		content := fmt.Sprintf(`package p%d
+		import "fmt"
+		func Func%d() {
+			fmt.Println("Hi")
+			Func%d()
+		}
+		`, i, i, (i+1)%20)
+		err := os.WriteFile(filepath.Join(tmpDir, fmt.Sprintf("%d.go", i)), []byte(content), 0644)
+		require.NoError(t, err)
+	}
+
+	// Run multiple times and compare results
+	var firstOutput string
+	for i := 0; i < 5; i++ {
+		cg, err := GenerateCallGraph(tmpDir)
+		require.NoError(t, err)
+
+		// Serialize Edges to string for comparison
+		output := ""
+		for _, edge := range cg.Edges {
+			output += fmt.Sprintf("%s->%s\n", edge.From, edge.To)
+		}
+
+		if i == 0 {
+			firstOutput = output
+		} else {
+			assert.Equal(t, firstOutput, output, "Output should be deterministic across runs")
+		}
+	}
 }
