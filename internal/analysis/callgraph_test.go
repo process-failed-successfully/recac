@@ -202,3 +202,52 @@ func TestGenerateCallGraph_StrictDeterminism(t *testing.T) {
 		}
 	}
 }
+
+func TestGenerateCallGraph_Generics(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	content := `package pkg
+
+type Collection[T any] struct {
+	items []T
+}
+
+func (c *Collection[T]) Add(item T) {
+}
+
+func (c Collection[T]) Get() T {
+	var zero T
+	return zero
+}
+
+// Multi-type parameter (IndexListExpr)
+type Map[K comparable, V any] struct {
+	data map[K]V
+}
+
+func (m *Map[K, V]) Set(k K, v V) {
+}
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "generics.go"), []byte(content), 0644)
+	require.NoError(t, err)
+
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+	require.NotNil(t, cg)
+
+	nodeIDs := make(map[string]bool)
+	for id := range cg.Nodes {
+		nodeIDs[id] = true
+	}
+
+	// Verify generic methods are identified correctly
+	// The ID format is "pkg.(Type).Method"
+	// getReceiverTypeName returns the TypeName (Identifier), ignoring type params.
+
+	// Collection[T] -> Collection
+	assert.Contains(t, nodeIDs, "pkg.(Collection).Add")
+	assert.Contains(t, nodeIDs, "pkg.(Collection).Get")
+
+	// Map[K, V] -> Map
+	assert.Contains(t, nodeIDs, "pkg.(Map).Set")
+}
