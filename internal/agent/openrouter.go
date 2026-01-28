@@ -24,7 +24,7 @@ func NewOpenRouterClient(apiKey, model, project string) *OpenRouterClient {
 	// The previous 128k limit causes 402 errors when credits are low.
 	limit := 128000
 	if os.Getenv("CI") == "true" || os.Getenv("RECAC_CI_MODE") == "true" {
-		limit = 4096
+		limit = 1000
 	}
 
 	return &OpenRouterClient{

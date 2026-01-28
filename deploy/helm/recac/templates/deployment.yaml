@@ -41,6 +41,9 @@ spec:
               {{- else }}
               value: {{ .Values.config.dbUrl | quote }}
               {{- end }}
+            {{- with .Values.config.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           envFrom:
             - configMapRef:
                 name: {{ include "recac.fullname" . }}
