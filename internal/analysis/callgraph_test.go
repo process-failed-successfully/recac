@@ -107,3 +107,21 @@ func internalFunc() {}
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
 }
+
+func TestGenerateCallGraph_PanicOnNoBody(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a file with a function without body (forward declaration)
+	// Note: This is valid Go syntax only in specific contexts (like assembly),
+	// but parser.ParseFile handles it if we don't error out on it.
+	// Actually, standard Go parser parses it but AST has nil Body.
+	content := `package main
+
+func ExternalFunc()
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "asm.go"), []byte(content), 0644)
+	require.NoError(t, err)
+
+	_, err = GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+}
