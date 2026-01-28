@@ -10,6 +10,7 @@ import (
 	"recac/internal/agent"
 	"recac/internal/db"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -59,17 +60,20 @@ func TestPlanCmd(t *testing.T) {
 	defer func() { agentClientFactory = origFactory }()
 
 	// Execute Plan Command
-	// We create a new root command to ensure clean state
 	cmd := NewPlanCmd()
-	// Since we are running the command object directly, we can just call RunE or Execute
-	// But let's simulate passing arguments
-	cmd.SetArgs([]string{specPath})
+
+	// Create a fresh root command for testing to avoid global state issues
+	testRoot := &cobra.Command{Use: "test"}
+	testRoot.AddCommand(cmd)
 
 	// Redirect output
-	cmd.SetOut(os.Stdout)
-	cmd.SetErr(os.Stderr)
+	testRoot.SetOut(os.Stdout)
+	testRoot.SetErr(os.Stderr)
 
-	err = cmd.Execute()
+	// Set args including the subcommand name
+	testRoot.SetArgs([]string{"plan", specPath})
+
+	err = testRoot.Execute()
 	require.NoError(t, err)
 
 	// Verify Output File
@@ -107,9 +111,14 @@ func TestPlanCmd_MissingSpec(t *testing.T) {
 	defer func() { agentClientFactory = origFactory }()
 
 	cmd := NewPlanCmd()
-	cmd.SetArgs([]string{"non_existent_spec.txt"})
 
-	err = cmd.Execute()
+	testRoot := &cobra.Command{Use: "test"}
+	testRoot.AddCommand(cmd)
+	testRoot.SetArgs([]string{"plan", "non_existent_spec.txt"})
+	testRoot.SetOut(os.Stdout)
+	testRoot.SetErr(os.Stderr)
+
+	err = testRoot.Execute()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to read spec file")
 }
@@ -137,9 +146,14 @@ func TestPlanCmd_InvalidJSON(t *testing.T) {
 	defer func() { agentClientFactory = origFactory }()
 
 	cmd := NewPlanCmd()
-	cmd.SetArgs([]string{specPath})
 
-	err = cmd.Execute()
+	testRoot := &cobra.Command{Use: "test"}
+	testRoot.AddCommand(cmd)
+	testRoot.SetArgs([]string{"plan", specPath})
+	testRoot.SetOut(os.Stdout)
+	testRoot.SetErr(os.Stderr)
+
+	err = testRoot.Execute()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to parse agent response as JSON")
 }
@@ -178,9 +192,14 @@ Hope this helps!
 	defer func() { agentClientFactory = origFactory }()
 
 	cmd := NewPlanCmd()
-	cmd.SetArgs([]string{specPath})
 
-	err = cmd.Execute()
+	testRoot := &cobra.Command{Use: "test"}
+	testRoot.AddCommand(cmd)
+	testRoot.SetArgs([]string{"plan", specPath})
+	testRoot.SetOut(os.Stdout)
+	testRoot.SetErr(os.Stderr)
+
+	err = testRoot.Execute()
 	require.NoError(t, err)
 
 	outputPath := filepath.Join(tmpDir, "feature_list.json")
