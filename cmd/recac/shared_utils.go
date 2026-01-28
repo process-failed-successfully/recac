@@ -2,6 +2,8 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,6 +13,9 @@ import (
 
 // execCommand is a package-level variable to allow mocking in tests.
 var execCommand = exec.Command
+
+// ErrNoChanges is returned when no git changes are detected.
+var ErrNoChanges = errors.New("no changes detected")
 
 // writeFileFunc is a package-level variable to allow mocking in tests.
 var writeFileFunc = os.WriteFile
@@ -142,4 +147,32 @@ func extractFileContexts(output string) (string, error) {
 	}
 
 	return sb.String(), nil
+}
+
+// getGitDiff retrieves the current git changes (staged and unstaged).
+func getGitDiff() (string, error) {
+	// Try git diff HEAD (changes since last commit, including staged and unstaged)
+	diffCmd := execCommand("git", "diff", "HEAD")
+	var out bytes.Buffer
+	diffCmd.Stdout = &out
+	// We ignore stderr for now or maybe log it if verbose
+	if err := diffCmd.Run(); err != nil {
+		// Fallback: maybe no HEAD (fresh repo)?
+		// Try just "git diff" (unstaged changes)
+		diffCmd = execCommand("git", "diff")
+		out.Reset()
+		diffCmd.Stdout = &out
+		if err := diffCmd.Run(); err != nil {
+			return "", fmt.Errorf("failed to get git diff: %w", err)
+		}
+	}
+	content := out.String()
+	if len(content) == 0 {
+		// Try one more check for pure "git diff" if HEAD worked but returned nothing?
+		// No, if git diff HEAD worked and returned nothing, it means no changes.
+		// If git diff HEAD failed (fresh repo), we tried git diff.
+		// So if content is empty here, there are no changes.
+		return "", ErrNoChanges
+	}
+	return content, nil
 }

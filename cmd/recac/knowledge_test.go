@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"os"
+	"os/exec"
 	"recac/internal/agent"
 	"testing"
 
@@ -127,6 +128,35 @@ func TestKnowledgeCommands(t *testing.T) {
 		knowledgeCheckCmd.SetOut(buf)
 		err := knowledgeCheckCmd.RunE(knowledgeCheckCmd, []string{})
 		assert.NoError(t, err)
+		assert.Contains(t, buf.String(), "PASS")
+	})
+
+	// Test Check Rules (Diff)
+	t.Run("Check Rules Diff", func(t *testing.T) {
+		// Mock execCommand
+		oldExec := execCommand
+		defer func() { execCommand = oldExec }()
+		execCommand = func(name string, args ...string) *exec.Cmd {
+			cs := []string{"-test.run=TestSharedUtilsHelperProcess", "--", name}
+			cs = append(cs, args...)
+			cmd := exec.Command(os.Args[0], cs...)
+			cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+			return cmd
+		}
+
+		// Enable diff flag
+		knowledgeDiff = true
+		defer func() { knowledgeDiff = false }()
+
+		// Mock Agent to say PASS
+		mockAgent.Response = "PASS"
+
+		buf := new(bytes.Buffer)
+		knowledgeCheckCmd.SetOut(buf)
+		// No args, should use diff
+		err := knowledgeCheckCmd.RunE(knowledgeCheckCmd, []string{})
+		assert.NoError(t, err)
+		assert.Contains(t, buf.String(), "Checking current git changes")
 		assert.Contains(t, buf.String(), "PASS")
 	})
 

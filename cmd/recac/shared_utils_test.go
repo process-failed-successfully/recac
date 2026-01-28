@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -146,4 +148,89 @@ func TestExtractFileContexts(t *testing.T) {
 			tt.check(t, s, err)
 		})
 	}
+}
+
+func TestSharedUtilsHelperProcess(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+	defer func() {
+		os.Stdout.Sync()
+		os.Stderr.Sync()
+	}()
+
+	args := os.Args
+	for len(args) > 0 {
+		if args[0] == "--" {
+			args = args[1:]
+			break
+		}
+		args = args[1:]
+	}
+	if len(args) == 0 {
+		fmt.Fprintf(os.Stderr, "No command\n")
+		os.Exit(2)
+	}
+
+	cmd, cmdArgs := args[0], args[1:]
+
+	if cmd == "git" {
+		if len(cmdArgs) >= 1 && cmdArgs[0] == "diff" {
+			if len(cmdArgs) == 2 && cmdArgs[1] == "HEAD" {
+				if os.Getenv("MOCK_GIT_HEAD_FAIL") == "1" {
+					os.Exit(1)
+				}
+				if os.Getenv("MOCK_GIT_NO_CHANGES") == "1" {
+					os.Exit(0)
+				}
+				fmt.Print("diff --git a/file b/file\n...")
+				os.Exit(0)
+			}
+			if len(cmdArgs) == 1 {
+				// git diff (fallback)
+				if os.Getenv("MOCK_GIT_FALLBACK_FAIL") == "1" {
+					os.Exit(1)
+				}
+				fmt.Print("diff --git a/fallback b/fallback\n...")
+				os.Exit(0)
+			}
+		}
+	}
+	os.Exit(0)
+}
+
+func TestGetGitDiff(t *testing.T) {
+	oldExec := execCommand
+	defer func() { execCommand = oldExec }()
+	execCommand = func(name string, args ...string) *exec.Cmd {
+		cs := []string{"-test.run=TestSharedUtilsHelperProcess", "--", name}
+		cs = append(cs, args...)
+		cmd := exec.Command(os.Args[0], cs...)
+		cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+		return cmd
+	}
+
+	t.Run("HEAD success", func(t *testing.T) {
+		diff, err := getGitDiff()
+		require.NoError(t, err)
+		assert.Contains(t, diff, "diff --git a/file")
+	})
+
+	t.Run("HEAD fail, fallback success", func(t *testing.T) {
+		os.Setenv("MOCK_GIT_HEAD_FAIL", "1")
+		defer os.Unsetenv("MOCK_GIT_HEAD_FAIL")
+
+		diff, err := getGitDiff()
+		require.NoError(t, err)
+		assert.Contains(t, diff, "diff --git a/fallback")
+	})
+
+	t.Run("No changes", func(t *testing.T) {
+		os.Setenv("MOCK_GIT_NO_CHANGES", "1")
+		defer os.Unsetenv("MOCK_GIT_NO_CHANGES")
+
+		diff, err := getGitDiff()
+		assert.ErrorIs(t, err, ErrNoChanges)
+		assert.Empty(t, diff)
+	})
 }

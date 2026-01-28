@@ -17,6 +17,7 @@ import (
 var (
 	knowledgeLimit int
 	knowledgeFocus string
+	knowledgeDiff  bool
 )
 
 var knowledgeCmd = &cobra.Command{
@@ -67,16 +68,20 @@ var knowledgeCheckCmd = &cobra.Command{
 		}
 
 		var content string
-		if len(args) > 0 {
+		if knowledgeDiff {
+			content, err = getGitDiff()
+			if err != nil {
+				return err
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), "Checking current git changes against rules...")
+		} else if len(args) > 0 {
 			b, err := os.ReadFile(args[0])
 			if err != nil {
 				return err
 			}
 			content = string(b)
 		} else {
-			// Check diff? Or Stdin?
-			// For simplicity, let's require a file or suggest stdin later.
-			// Implementing stdin check similar to other commands:
+			// Check Stdin
 			stat, _ := os.Stdin.Stat()
 			if (stat.Mode() & os.ModeCharDevice) == 0 {
 				b, err := io.ReadAll(os.Stdin)
@@ -85,7 +90,7 @@ var knowledgeCheckCmd = &cobra.Command{
 				}
 				content = string(b)
 			} else {
-				return fmt.Errorf("please provide a file to check")
+				return fmt.Errorf("please provide a file to check or use --diff")
 			}
 		}
 
@@ -112,6 +117,8 @@ func init() {
 
 	knowledgeLearnCmd.Flags().IntVarP(&knowledgeLimit, "limit", "l", 5, "Maximum number of rules to learn")
 	knowledgeLearnCmd.Flags().StringVarP(&knowledgeFocus, "focus", "f", ".", "Focus analysis on a specific path")
+
+	knowledgeCheckCmd.Flags().BoolVar(&knowledgeDiff, "diff", false, "Check current git changes against rules")
 }
 
 func getAgentsMdPath() (string, error) {
