@@ -75,7 +75,10 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		dir := filepath.Dir(path)
 
 		// Approximate full package path
-		relDir, _ := filepath.Rel(root, dir)
+		relDir, err := filepath.Rel(root, dir)
+		if err != nil {
+			relDir = pkgName // Fallback
+		}
 		fullPkg := relDir
 		if relDir == "." {
 			fullPkg = pkgName
@@ -154,7 +157,10 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		f := parsedFiles[path]
 		pkgName := f.Name.Name
 		dir := filepath.Dir(path)
-		relDir, _ := filepath.Rel(root, dir)
+		relDir, err := filepath.Rel(root, dir)
+		if err != nil {
+			relDir = pkgName // Fallback
+		}
 		fullPkg := relDir
 		if relDir == "." {
 			fullPkg = pkgName
@@ -305,6 +311,10 @@ func resolveExternalCall(nodes []*CallGraphNode, importPath string, funcName str
 	// Remove module prefix if possible?
 	// This is hard without knowing module name.
 	// But we can scan all nodes and check if Node.Package matches the end of ImportPath?
+	// We want the LONGEST matching package suffix to ensure determinism and accuracy.
+
+	var bestMatch string
+	var maxLen int
 
 	for _, node := range nodes {
 		if node.Name == funcName && node.Receiver == "" {
@@ -312,11 +322,14 @@ func resolveExternalCall(nodes []*CallGraphNode, importPath string, funcName str
 			// node.Package might be "internal/utils"
 			// importPath might be "recac/internal/utils"
 			if strings.HasSuffix(importPath, node.Package) {
-				return node.ID
+				if len(node.Package) > maxLen {
+					maxLen = len(node.Package)
+					bestMatch = node.ID
+				}
 			}
 		}
 	}
-	return ""
+	return bestMatch
 }
 
 func findMethodsByName(nodes []*CallGraphNode, methodName string) []*CallGraphNode {
