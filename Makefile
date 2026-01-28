@@ -101,17 +101,17 @@ ci-simulate: ## Run E2E test exactly like CI (but on local cluster)
 	go run e2e/runner/main.go \
 		-scenario prime-python \
 		-provider openrouter \
-		-model "mistralai/devstral-2512:free" \
+		-model "mistralai/devstral-2512" \
 		-pull-policy IfNotPresent \
 		-skip-cleanup
 
 ci-simulate-v2: ## Run Refactored E2E test
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
-	./scripts/ci_simulate_refactored.sh -provider openrouter -model "mistralai/devstral-2512:free"
+	./scripts/ci_simulate_refactored.sh -provider openrouter -model "mistralai/devstral-2512"
 
 # Scenario Defaults
 PROVIDER ?= openrouter
-MODEL ?= "mistralai/devstral-2512:free"
+MODEL ?= "mistralai/devstral-2512"
 
 e2e-local: ## Run a specific scenario locally (SCENARIO=x PROVIDER=y MODEL=z)
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
