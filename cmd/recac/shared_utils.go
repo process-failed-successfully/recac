@@ -143,3 +143,22 @@ func extractFileContexts(output string) (string, error) {
 
 	return sb.String(), nil
 }
+
+// mermaidSanitizer is used to sanitize strings for use as Mermaid node IDs.
+var mermaidSanitizer = strings.NewReplacer(
+	"-", "_",
+	" ", "_",
+	".", "_",
+	"(", "_",
+	")", "_",
+	"[", "_",
+	"]", "_",
+	"/", "_",
+	"\\", "_",
+	"*", "_",
+)
+
+// sanitizeMermaidID sanitizes a string for use as a Mermaid node ID.
+func sanitizeMermaidID(id string) string {
+	return mermaidSanitizer.Replace(id)
+}

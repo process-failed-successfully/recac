@@ -33,10 +33,11 @@ func TestInvoiceCmd(t *testing.T) {
 	mockGit.LogFunc = func(dir string, args ...string) ([]string, error) {
 		// getGitCommits calls client.Log(dir, "--since=30d", "--format=%h|%an|%aI|%s", "--author=Test User")
 
-		now := time.Now()
-		ts1 := now.Add(-2 * time.Hour).Format(time.RFC3339)
-		ts2 := now.Add(-1 * time.Hour).Format(time.RFC3339) // 1 hour later (same session)
-		ts3 := now.Add(-25 * time.Hour).Format(time.RFC3339) // Yesterday (new session)
+		// Use fixed dates to ensure deterministic session grouping and day aggregation
+		baseDate := time.Date(2023, 1, 10, 12, 0, 0, 0, time.UTC)
+		ts1 := baseDate.Add(-2 * time.Hour).Format(time.RFC3339)  // Jan 10 10:00
+		ts2 := baseDate.Add(-1 * time.Hour).Format(time.RFC3339)  // Jan 10 11:00 (1h gap, same session)
+		ts3 := baseDate.Add(-26 * time.Hour).Format(time.RFC3339) // Jan 9 10:00 (Previous day)
 
 		return []string{
 			fmt.Sprintf("hash1|Test User|%s|Commit 1", ts1),

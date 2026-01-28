@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"io/fs"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -260,27 +261,32 @@ func getReceiverTypeName(recv *ast.FieldList) string {
 }
 
 func resolveExternalCall(cg *CallGraph, importPath string, funcName string) string {
-	// Our nodes are keyed by "relDir/pkg.Func".
-	// Import path is "recac/internal/foo".
-	// If we are running on "recac" repo, "internal/foo" matches.
-
-	// Normalize import path
-	// Remove module prefix if possible?
-	// This is hard without knowing module name.
-	// But we can scan all nodes and check if Node.Package matches the end of ImportPath?
+	var bestMatchID string
+	var maxMatchLen int
 
 	for id, node := range cg.Nodes {
 		if node.Name == funcName && node.Receiver == "" {
 			// Check if importPath ends with node.Package
 			// node.Package might be "internal/utils"
 			// importPath might be "recac/internal/utils"
+
+			// Exact match or Suffix match
 			// Ensure we match whole path segments (ends with "/package" or equals "package")
 			if importPath == node.Package || strings.HasSuffix(importPath, "/"+node.Package) {
-				return id
+				matchLen := len(node.Package)
+				if bestMatchID == "" || matchLen > maxMatchLen {
+					bestMatchID = id
+					maxMatchLen = matchLen
+				} else if matchLen == maxMatchLen {
+					// Deterministic tie-breaking
+					if id < bestMatchID {
+						bestMatchID = id
+					}
+				}
 			}
 		}
 	}
-	return ""
+	return bestMatchID
 }
 
 func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {
@@ -290,5 +296,9 @@ func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {
 			results = append(results, node)
 		}
 	}
+	// Sort for determinism
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].ID < results[j].ID
+	})
 	return results
 }
