@@ -139,3 +139,40 @@ func TestGenerateCallGraph_SkipsVendorAndTestdata(t *testing.T) {
 		assert.NotEqual(t, "bad.BadFunc", id)
 	}
 }
+
+func TestGenerateCallGraph_Generics(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a file with generic struct and method
+	content := `package main
+
+type MyMap[K any, V any] struct {
+	data map[K]V
+}
+
+func (m *MyMap[K, V]) Get(k K) V {
+	var v V
+	return v
+}
+
+func main() {
+	m := &MyMap[string, int]{}
+	m.Get("key")
+}
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(content), 0644)
+	require.NoError(t, err)
+
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	found := false
+	for id := range cg.Nodes {
+		// Expect "main.(MyMap).Get" (if in root)
+		if id == "main.(MyMap).Get" {
+			found = true
+		}
+		assert.NotContains(t, id, "(Unknown)", "Should not contain Unknown receiver")
+	}
+	assert.True(t, found, "Should find method of generic type")
+}
