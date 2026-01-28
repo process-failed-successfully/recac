@@ -3,7 +3,10 @@ package agent
 import (
 	"context"
 	"net/http"
+	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // MockRoundTripper implements http.RoundTripper
@@ -53,4 +56,37 @@ func TestOpenRouterClient(t *testing.T) {
 	if state.TokenUsage.TotalTokens == 0 {
 		t.Error("Expected token usage to be updated")
 	}
+}
+
+func TestOpenRouterClient_GetConfig_CI(t *testing.T) {
+	// Save original env
+	origCI := os.Getenv("CI")
+	origRecacCI := os.Getenv("RECAC_CI_MODE")
+	defer func() {
+		os.Setenv("CI", origCI)
+		os.Setenv("RECAC_CI_MODE", origRecacCI)
+	}()
+
+	t.Run("Default MaxTokens", func(t *testing.T) {
+		os.Unsetenv("CI")
+		os.Unsetenv("RECAC_CI_MODE")
+		client := NewOpenRouterClient("key", "model", "proj")
+		config := client.getConfig()
+		assert.Equal(t, 2048, config.MaxTokens)
+	})
+
+	t.Run("CI MaxTokens", func(t *testing.T) {
+		os.Setenv("CI", "true")
+		client := NewOpenRouterClient("key", "model", "proj")
+		config := client.getConfig()
+		assert.Equal(t, 1000, config.MaxTokens)
+	})
+
+	t.Run("RECAC_CI_MODE MaxTokens", func(t *testing.T) {
+		os.Unsetenv("CI")
+		os.Setenv("RECAC_CI_MODE", "true")
+		client := NewOpenRouterClient("key", "model", "proj")
+		config := client.getConfig()
+		assert.Equal(t, 1000, config.MaxTokens)
+	})
 }

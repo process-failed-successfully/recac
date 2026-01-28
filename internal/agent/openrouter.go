@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -43,6 +44,11 @@ func (c *OpenRouterClient) WithStateManager(sm *StateManager) *OpenRouterClient 
 }
 
 func (c *OpenRouterClient) getConfig() HTTPClientConfig {
+	maxTokens := 2048
+	if os.Getenv("CI") == "true" || os.Getenv("RECAC_CI_MODE") == "true" {
+		maxTokens = 1000 // Lower limit for CI to avoid OpenRouter 402 errors
+	}
+
 	return HTTPClientConfig{
 		BaseClient:    &c.BaseClient,
 		APIKey:        c.apiKey,
@@ -54,7 +60,7 @@ func (c *OpenRouterClient) getConfig() HTTPClientConfig {
 			"HTTP-Referer": "https://github.com/process-failed-successfully/recac",
 			"X-Title":      "Process Failed Successfully",
 		},
-		MaxTokens: 2048, // Restrict response tokens to prevent hitting credit limits (especially in CI)
+		MaxTokens: maxTokens, // Restrict response tokens to prevent hitting credit limits (especially in CI)
 	}
 }
 
