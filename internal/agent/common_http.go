@@ -42,6 +42,14 @@ func SendOnce(ctx context.Context, cfg HTTPClientConfig, prompt string) (string,
 		},
 	}
 
+	// Set max_tokens if available from BaseClient defaults.
+	// This helps avoid "insufficient credits" errors in CI where DefaultMaxTokens is reduced,
+	// and prevents the API from defaulting to the full context window.
+	if cfg.BaseClient != nil && cfg.BaseClient.DefaultMaxTokens > 0 {
+		// Reserve 50% for response, matching PreparePrompt logic
+		requestBody["max_tokens"] = cfg.BaseClient.DefaultMaxTokens / 2
+	}
+
 	jsonBody, err := json.Marshal(requestBody)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal request: %w", err)
@@ -100,6 +108,11 @@ func SendStreamOnce(ctx context.Context, cfg HTTPClientConfig, prompt string, on
 				"content": prompt,
 			},
 		},
+	}
+
+	// Set max_tokens if available from BaseClient defaults.
+	if cfg.BaseClient != nil && cfg.BaseClient.DefaultMaxTokens > 0 {
+		requestBody["max_tokens"] = cfg.BaseClient.DefaultMaxTokens / 2
 	}
 
 	jsonBody, err := json.Marshal(requestBody)
