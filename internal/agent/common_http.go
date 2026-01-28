@@ -20,6 +20,7 @@ type HTTPClientConfig struct {
 	HTTPClient    *http.Client
 	MockResponder func(string) (string, error)
 	Headers       map[string]string
+	MaxTokens     int
 }
 
 // SendOnce performs a single non-streaming request
@@ -40,6 +41,10 @@ func SendOnce(ctx context.Context, cfg HTTPClientConfig, prompt string) (string,
 				"content": prompt,
 			},
 		},
+	}
+
+	if cfg.MaxTokens > 0 {
+		requestBody["max_tokens"] = cfg.MaxTokens
 	}
 
 	jsonBody, err := json.Marshal(requestBody)
@@ -100,6 +105,10 @@ func SendStreamOnce(ctx context.Context, cfg HTTPClientConfig, prompt string, on
 				"content": prompt,
 			},
 		},
+	}
+
+	if cfg.MaxTokens > 0 {
+		requestBody["max_tokens"] = cfg.MaxTokens
 	}
 
 	jsonBody, err := json.Marshal(requestBody)

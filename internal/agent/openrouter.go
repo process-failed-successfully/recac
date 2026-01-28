@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -19,8 +20,13 @@ type OpenRouterClient struct {
 
 // NewOpenRouterClient creates a new OpenRouter client
 func NewOpenRouterClient(apiKey, model, project string) *OpenRouterClient {
+	defaultMax := 128000
+	if os.Getenv("CI") == "true" || os.Getenv("RECAC_CI_MODE") == "true" {
+		defaultMax = 4096
+	}
+
 	return &OpenRouterClient{
-		BaseClient: NewBaseClient(project, 128000), // Default generic limit
+		BaseClient: NewBaseClient(project, defaultMax), // Default generic limit
 		apiKey:     apiKey,
 		model:      model,
 		httpClient: &http.Client{
@@ -54,6 +60,7 @@ func (c *OpenRouterClient) getConfig() HTTPClientConfig {
 			"HTTP-Referer": "https://github.com/process-failed-successfully/recac",
 			"X-Title":      "Process Failed Successfully",
 		},
+		MaxTokens: c.DefaultMaxTokens / 2, // Assume 50% split for generation
 	}
 }
 
