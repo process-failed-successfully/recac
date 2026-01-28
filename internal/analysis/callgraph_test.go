@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -188,4 +189,33 @@ func TestResolveExternalCall_Determinism(t *testing.T) {
 	// "a/pkg.Func" < "b/pkg.Func"
 	id = resolveExternalCall(cg, "example.com/b/pkg", "Func")
 	assert.Equal(t, "a/pkg.Func", id, "Should break ties using ID (lexicographically)")
+}
+
+func TestGenerateCallGraph_StrictDeterminism(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create multiple files to induce map iteration randomness
+	for i := 0; i < 10; i++ {
+		content := "package pkg\nfunc Func%d() { Func%d() }"
+		// Circular calls: 0->1, 1->2 ... 9->10 (extern), etc.
+		// Just creating some edges.
+		next := (i + 1) % 10
+		src := fmt.Sprintf(content, i, next)
+		err := os.WriteFile(filepath.Join(tmpDir, fmt.Sprintf("file%d.go", i)), []byte(src), 0644)
+		require.NoError(t, err)
+	}
+
+	// Run 1
+	cg1, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Run 2
+	cg2, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Compare Edges order
+	require.Equal(t, len(cg1.Edges), len(cg2.Edges))
+	for i := range cg1.Edges {
+		assert.Equal(t, cg1.Edges[i], cg2.Edges[i], "Edge mismatch at index %d", i)
+	}
 }
