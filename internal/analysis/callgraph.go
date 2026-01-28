@@ -49,6 +49,9 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 	// Store parsed files to avoid re-parsing
 	parsedFiles := make(map[string]*ast.File)
 
+	// Collect all files first to ensure deterministic order
+	var filePaths []string
+
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -66,11 +69,22 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
 			return nil
 		}
+		filePaths = append(filePaths, path)
+		return nil
+	})
 
+	if err != nil {
+		return nil, err
+	}
+
+	// Sort files for determinism
+	sort.Strings(filePaths)
+
+	for _, path := range filePaths {
 		f, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
 		if err != nil {
 			// Skip malformed files
-			return nil
+			continue
 		}
 		parsedFiles[path] = f
 
@@ -126,26 +140,18 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 				cg.Nodes[node.ID] = node
 			}
 		}
-		return nil
-	})
-
-	if err != nil {
-		return nil, err
 	}
 
 	// 2. Second Pass: Resolve Calls
 	// Use map to prevent duplicates
 	edgeMap := make(map[string]bool)
 
-	// Sort files for determinism
-	var paths []string
-	for p := range parsedFiles {
-		paths = append(paths, p)
-	}
-	sort.Strings(paths)
-
-	for _, path := range paths {
-		f := parsedFiles[path]
+	// Reuse sorted filePaths from first pass (filtering those that parsed successfully)
+	for _, path := range filePaths {
+		f, ok := parsedFiles[path]
+		if !ok {
+			continue
+		}
 		pkgName := f.Name.Name
 		dir := filepath.Dir(path)
 		relDir, _ := filepath.Rel(root, dir)
