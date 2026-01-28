@@ -53,7 +53,7 @@ func TestInteractiveModel_InitializationUX(t *testing.T) {
 	}
 
 	// 2. Simulate AgentReadyMsg
-	msg := AgentReadyMsg{}
+	msg := AgentReadyMsg{Provider: "test-provider", Model: "test-model"}
 	updatedM, _ := m.Update(msg)
 	m = updatedM.(InteractiveModel)
 
