@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"io/fs"
 	"path/filepath"
+	"recac/internal/astutils"
 	"sort"
 	"strings"
 )
@@ -129,7 +130,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 
 				if fn.Recv != nil {
 					// Method
-					typeName := getReceiverTypeName(fn.Recv)
+					typeName := astutils.GetReceiverTypeName(fn.Recv)
 					node.Receiver = typeName
 					node.ID = fmt.Sprintf("%s.(%s).%s", fullPkg, typeName, fn.Name.Name)
 				} else {
@@ -171,7 +172,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 			if fn, ok := decl.(*ast.FuncDecl); ok {
 				var callerID string
 				if fn.Recv != nil {
-					callerID = fmt.Sprintf("%s.(%s).%s", fullPkg, getReceiverTypeName(fn.Recv), fn.Name.Name)
+					callerID = fmt.Sprintf("%s.(%s).%s", fullPkg, astutils.GetReceiverTypeName(fn.Recv), fn.Name.Name)
 				} else {
 					callerID = fmt.Sprintf("%s.%s", fullPkg, fn.Name.Name)
 				}
@@ -256,25 +257,6 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 	})
 
 	return cg, nil
-}
-
-func getReceiverTypeName(recv *ast.FieldList) string {
-	if len(recv.List) == 0 {
-		return ""
-	}
-	expr := recv.List[0].Type
-	if star, ok := expr.(*ast.StarExpr); ok {
-		expr = star.X
-	}
-	if ident, ok := expr.(*ast.Ident); ok {
-		return ident.Name
-	}
-	if index, ok := expr.(*ast.IndexExpr); ok {
-		if ident, ok := index.X.(*ast.Ident); ok {
-			return ident.Name
-		}
-	}
-	return "Unknown"
 }
 
 func resolveExternalCall(cg *CallGraph, importPath string, funcName string) string {
