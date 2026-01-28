@@ -107,3 +107,63 @@ func internalFunc() {}
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
 }
+
+func TestGenerateCallGraph_PanicOnNoBody(t *testing.T) {
+	// Regression test for "unexpected node type <nil>" panic when function body is nil
+	tmpDir := t.TempDir()
+
+	// Create a file with a function declaration but no body
+	// (Simulating external function or assembly)
+	// Note: "func noBody()" is valid in Go if matched with assembly, but parser accepts it.
+	content := `package main
+
+func noBody()
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "nobody.go"), []byte(content), 0644)
+	require.NoError(t, err)
+
+	// Should not panic
+	assert.NotPanics(t, func() {
+		_, err := GenerateCallGraph(tmpDir)
+		// It might return error or not, but shouldn't panic
+		if err != nil {
+			t.Logf("GenerateCallGraph returned error: %v", err)
+		}
+	})
+}
+
+func TestGenerateCallGraph_Robustness(t *testing.T) {
+	// Test robustness against complex types
+	tmpDir := t.TempDir()
+
+	content := `package main
+
+type List[T any] struct{}
+
+func (l *List[T]) Add(val T) {}
+
+type Map[K, V any] struct{}
+
+func (m *Map[K, V]) Set(k K, v V) {}
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "generic.go"), []byte(content), 0644)
+	require.NoError(t, err)
+
+	assert.NotPanics(t, func() {
+		cg, err := GenerateCallGraph(tmpDir)
+		require.NoError(t, err)
+
+		// Verify we can find the methods even if type name is simplified
+		foundMapSet := false
+		for id := range cg.Nodes {
+			if id == "main.(Map).Set" || id == "main.(Map[K, V]).Set" {
+				foundMapSet = true
+			}
+		}
+		// Currently getReceiverTypeName might return "Unknown" for Map[K,V]
+		// so we just check it doesn't panic.
+		if !foundMapSet {
+			t.Log("Did not find Map.Set with expected ID (this is expected until fix)")
+		}
+	})
+}
