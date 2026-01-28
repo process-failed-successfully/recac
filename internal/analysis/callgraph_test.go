@@ -135,3 +135,20 @@ func TestResolveExternalCall(t *testing.T) {
 	id = resolveExternalCall(cg, "mypkg", "Helper")
 	assert.Empty(t, id, "Should not match partial suffix 'mypkg' against 'pkg'")
 }
+
+func TestGenerateCallGraph_ForwardDeclaration(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	content := `package main
+func ForwardDecl() // No body
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "decl.go"), []byte(content), 0644)
+	require.NoError(t, err)
+
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+	require.NotNil(t, cg)
+
+	// Should contain ForwardDecl node
+	assert.Contains(t, cg.Nodes, "main.ForwardDecl")
+}
