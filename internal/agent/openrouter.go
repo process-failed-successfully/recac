@@ -22,7 +22,7 @@ type OpenRouterClient struct {
 func NewOpenRouterClient(apiKey, model, project string) *OpenRouterClient {
 	defaultMax := 128000
 	if os.Getenv("CI") == "true" || os.Getenv("RECAC_CI_MODE") == "true" {
-		defaultMax = 4096
+		defaultMax = 2048
 	}
 
 	return &OpenRouterClient{
