@@ -317,6 +317,7 @@ jobs:
       - name: "🚢 Merge PR"
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.GH_API_KEY }}
           script: |
             const pr = context.payload.pull_request;
             if (!pr) {
