@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"io/fs"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -53,7 +54,11 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 			return err
 		}
 		if d.IsDir() {
-			if strings.HasPrefix(d.Name(), ".") && d.Name() != "." {
+			name := d.Name()
+			if (strings.HasPrefix(name, ".") && name != ".") ||
+				name == "vendor" ||
+				name == "node_modules" ||
+				name == "testdata" {
 				return filepath.SkipDir
 			}
 			return nil
@@ -80,6 +85,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		} else if filepath.Base(relDir) != pkgName {
 			fullPkg = filepath.Join(relDir, pkgName)
 		}
+		fullPkg = filepath.ToSlash(fullPkg)
 		fullPkg = strings.TrimPrefix(fullPkg, "./")
 
 		// Index Imports
@@ -130,7 +136,15 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 	// Use map to prevent duplicates
 	edgeMap := make(map[string]bool)
 
-	for path, f := range parsedFiles {
+	// Sort files for determinism
+	var paths []string
+	for p := range parsedFiles {
+		paths = append(paths, p)
+	}
+	sort.Strings(paths)
+
+	for _, path := range paths {
+		f := parsedFiles[path]
 		pkgName := f.Name.Name
 		dir := filepath.Dir(path)
 		relDir, _ := filepath.Rel(root, dir)
@@ -140,6 +154,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		} else if filepath.Base(relDir) != pkgName {
 			fullPkg = filepath.Join(relDir, pkgName)
 		}
+		fullPkg = filepath.ToSlash(fullPkg)
 		fullPkg = strings.TrimPrefix(fullPkg, "./")
 
 		imports := fileImports[path]
@@ -234,6 +249,14 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		}
 	}
 
+	// Sort edges for determinism
+	sort.Slice(cg.Edges, func(i, j int) bool {
+		if cg.Edges[i].From != cg.Edges[j].From {
+			return cg.Edges[i].From < cg.Edges[j].From
+		}
+		return cg.Edges[i].To < cg.Edges[j].To
+	})
+
 	return cg, nil
 }
 
@@ -266,17 +289,29 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 	// This is hard without knowing module name.
 	// But we can scan all nodes and check if Node.Package matches the end of ImportPath?
 
+	var bestMatch string
+	var bestMatchLen int
+
 	for id, node := range cg.Nodes {
 		if node.Name == funcName && node.Receiver == "" {
 			// Check if importPath ends with node.Package
 			// node.Package might be "internal/utils"
 			// importPath might be "recac/internal/utils"
 			if strings.HasSuffix(importPath, node.Package) {
-				return id
+				matchLen := len(node.Package)
+				if matchLen > bestMatchLen {
+					bestMatch = id
+					bestMatchLen = matchLen
+				} else if matchLen == bestMatchLen {
+					// Tie-break by ID
+					if bestMatch == "" || id < bestMatch {
+						bestMatch = id
+					}
+				}
 			}
 		}
 	}
-	return ""
+	return bestMatch
 }
 
 func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {
