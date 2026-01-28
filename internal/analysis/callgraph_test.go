@@ -198,3 +198,54 @@ func TestGenerateCallGraph_StrictDeterminism(t *testing.T) {
 		}
 	}
 }
+
+func TestGenerateCallGraph_AmbiguousImport(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// 1. Create pkg/foo/foo.go (The target)
+	err := os.MkdirAll(filepath.Join(tmpDir, "pkg", "foo"), 0755)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tmpDir, "pkg", "foo", "foo.go"), []byte("package foo\nfunc Target() {}"), 0644)
+	require.NoError(t, err)
+
+	// 2. Create foo/foo.go (The decoy) - Shorter path, likely to be picked if not careful
+	err = os.MkdirAll(filepath.Join(tmpDir, "foo"), 0755)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tmpDir, "foo", "foo.go"), []byte("package foo\nfunc Target() {}"), 0644)
+	require.NoError(t, err)
+
+	// 3. Create main.go importing pkg/foo
+	// We use a fake module name "mod".
+	// Import path: "mod/pkg/foo"
+	mainContent := `package main
+import (
+	"mod/pkg/foo"
+)
+func main() {
+	foo.Target()
+}
+`
+	err = os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainContent), 0644)
+	require.NoError(t, err)
+
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Verify edge
+	// Expected: main.main -> pkg/foo.Target
+	foundCorrect := false
+	foundWrong := false
+	for _, edge := range cg.Edges {
+		if edge.From == "main.main" {
+			if edge.To == "pkg/foo.Target" {
+				foundCorrect = true
+			}
+			if edge.To == "foo.Target" {
+				foundWrong = true
+			}
+		}
+	}
+
+	assert.True(t, foundCorrect, "Should resolve to pkg/foo.Target")
+	assert.False(t, foundWrong, "Should NOT resolve to foo.Target")
+}
