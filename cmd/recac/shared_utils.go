@@ -144,22 +144,10 @@ func extractFileContexts(output string) (string, error) {
 	return sb.String(), nil
 }
 
-// mermaidSanitizer is a reusable Replacer for Mermaid IDs.
-var mermaidSanitizer = strings.NewReplacer(
-	"(", "_",
-	")", "_",
-	"[", "_",
-	"]", "_",
-	"/", "_",
-	"\\", "_",
-	"*", "_",
-	":", "_",
-	".", "_",
-	" ", "_",
-	"-", "_",
-)
+// mermaidInvalidChars matches any character that is NOT alphanumeric or underscore.
+var mermaidInvalidChars = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 
 // sanitizeMermaidID replaces invalid characters in a string to make it a safe Mermaid ID.
 func sanitizeMermaidID(id string) string {
-	return mermaidSanitizer.Replace(id)
+	return mermaidInvalidChars.ReplaceAllString(id, "_")
 }

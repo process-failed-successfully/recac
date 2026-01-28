@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"sync"
 
@@ -135,7 +136,7 @@ func StartMetricsServer(basePort int) error {
 		addr := ":" + strconv.Itoa(port)
 		listener, err = net.Listen("tcp", addr)
 		if err == nil {
-			fmt.Printf("Starting metrics server on %s\n", addr)
+			fmt.Fprintf(os.Stderr, "Starting metrics server on %s\n", addr)
 			return http.Serve(listener, nil)
 		}
 	}
