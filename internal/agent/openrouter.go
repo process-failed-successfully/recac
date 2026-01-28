@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -19,8 +20,12 @@ type OpenRouterClient struct {
 
 // NewOpenRouterClient creates a new OpenRouter client
 func NewOpenRouterClient(apiKey, model, project string) *OpenRouterClient {
+	maxTokens := 128000
+	if os.Getenv("CI") == "true" || os.Getenv("RECAC_CI_MODE") == "true" {
+		maxTokens = 1024 // Lower limit for CI to avoid 402 errors
+	}
 	return &OpenRouterClient{
-		BaseClient: NewBaseClient(project, 128000), // Default generic limit
+		BaseClient: NewBaseClient(project, maxTokens), // Default generic limit
 		apiKey:     apiKey,
 		model:      model,
 		httpClient: &http.Client{
