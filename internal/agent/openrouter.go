@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -13,20 +14,31 @@ type OpenRouterClient struct {
 	model      string
 	httpClient *http.Client
 	apiURL     string
+	maxTokens  int
 	// mockResponder is used for testing to bypass real API calls
 	mockResponder func(string) (string, error)
 }
 
 // NewOpenRouterClient creates a new OpenRouter client
 func NewOpenRouterClient(apiKey, model, project string) *OpenRouterClient {
+	// Default limit
+	limit := 128000
+
+	// In CI, we often have restricted token quotas (e.g., Free tier models or test keys).
+	// Lower the limit to prevent 402 errors (Payment Required).
+	if os.Getenv("RECAC_CI_MODE") == "true" || os.Getenv("CI") == "true" {
+		limit = 1024
+	}
+
 	return &OpenRouterClient{
-		BaseClient: NewBaseClient(project, 128000), // Default generic limit
+		BaseClient: NewBaseClient(project, limit),
 		apiKey:     apiKey,
 		model:      model,
 		httpClient: &http.Client{
 			Timeout: 600 * time.Second, // OpenRouter can be slower depending on the underlying model
 		},
-		apiURL: "https://openrouter.ai/api/v1/chat/completions",
+		apiURL:    "https://openrouter.ai/api/v1/chat/completions",
+		maxTokens: limit,
 	}
 }
 
@@ -50,6 +62,7 @@ func (c *OpenRouterClient) getConfig() HTTPClientConfig {
 		APIURL:        c.apiURL,
 		HTTPClient:    c.httpClient,
 		MockResponder: c.mockResponder,
+		MaxTokens:     c.maxTokens,
 		Headers: map[string]string{
 			"HTTP-Referer": "https://github.com/process-failed-successfully/recac",
 			"X-Title":      "Process Failed Successfully",
