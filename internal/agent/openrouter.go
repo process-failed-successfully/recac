@@ -24,7 +24,7 @@ func NewOpenRouterClient(apiKey, model, project string) *OpenRouterClient {
 	// Reduce context limit in CI to avoid "insufficient credits" errors (402)
 	// OpenRouter free models often have lower limits or shared rate limits.
 	if os.Getenv("CI") == "true" || os.Getenv("RECAC_CI_MODE") == "true" {
-		defaultMaxTokens = 4096
+		defaultMaxTokens = 1024
 	}
 
 	return &OpenRouterClient{
