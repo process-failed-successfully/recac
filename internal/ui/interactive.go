@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -79,7 +80,7 @@ type keyMap struct {
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Enter, k.Slash, k.Bang, k.Quit}
+	return []key.Binding{k.Enter, k.Slash, k.Bang, k.ToggleList, k.Quit}
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
@@ -476,7 +477,7 @@ func (m *InteractiveModel) initAgentCmd() tea.Cmd {
 		if err != nil {
 			return AgentErrorMsg{Err: err}
 		}
-		return AgentReadyMsg{Agent: ag}
+		return AgentReadyMsg{Agent: ag, Provider: provider, Model: m.currentModel}
 	}
 }
 
@@ -553,7 +554,7 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case AgentReadyMsg:
 		m.activeAgent = msg.Agent
-		// Optional: m.conversation("System: Agent backend ready.", false)
+		m.conversation(fmt.Sprintf("✨ Connected to %s (Model: %s)", titleCase(msg.Provider), msg.Model), false)
 		m.thinking = false
 		m.statusMessage = ""
 		return m, nil
@@ -847,7 +848,9 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // -- Agent Messages --
 
 type AgentReadyMsg struct {
-	Agent agent.Agent
+	Agent    agent.Agent
+	Provider string
+	Model    string
 }
 
 type AgentErrorMsg struct {
@@ -990,7 +993,7 @@ func (m *InteractiveModel) setListItemsToModels() {
 	m.list.SetItems(items)
 
 	// Dynamic Title
-	m.list.Title = fmt.Sprintf("Select Model for %s (Enter to confirm)", strings.Title(m.currentAgent))
+	m.list.Title = fmt.Sprintf("Select Model for %s (Enter to confirm)", titleCase(m.currentAgent))
 	m.list.Styles.Title = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFF")).Background(lipgloss.Color("#4285F4")).Padding(0, 1)
 }
 
@@ -1120,7 +1123,7 @@ func (m InteractiveModel) View() string {
 
 	providerSection := lipgloss.JoinHorizontal(lipgloss.Center,
 		infoLabelStyle.Render("Provider: "),
-		infoValueStyle.Render(strings.Title(m.currentAgent)),
+		infoValueStyle.Render(titleCase(m.currentAgent)),
 	)
 
 	modelSection := lipgloss.JoinHorizontal(lipgloss.Center,
@@ -1285,4 +1288,12 @@ func loadModelsFromFile(filename string) ([]ModelItem, error) {
 		})
 	}
 	return items, nil
+}
+
+func titleCase(s string) string {
+	if len(s) == 0 {
+		return s
+	}
+	r := []rune(s)
+	return string(unicode.ToUpper(r[0])) + string(r[1:])
 }
