@@ -42,6 +42,11 @@ func SendOnce(ctx context.Context, cfg HTTPClientConfig, prompt string) (string,
 		},
 	}
 
+	// Explicitly send max_tokens if configured (critical for CI/Cost limits)
+	if cfg.BaseClient != nil && cfg.BaseClient.DefaultMaxTokens > 0 {
+		requestBody["max_tokens"] = cfg.BaseClient.DefaultMaxTokens
+	}
+
 	jsonBody, err := json.Marshal(requestBody)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal request: %w", err)
@@ -100,6 +105,11 @@ func SendStreamOnce(ctx context.Context, cfg HTTPClientConfig, prompt string, on
 				"content": prompt,
 			},
 		},
+	}
+
+	// Explicitly send max_tokens if configured (critical for CI/Cost limits)
+	if cfg.BaseClient != nil && cfg.BaseClient.DefaultMaxTokens > 0 {
+		requestBody["max_tokens"] = cfg.BaseClient.DefaultMaxTokens
 	}
 
 	jsonBody, err := json.Marshal(requestBody)

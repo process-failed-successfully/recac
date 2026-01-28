@@ -58,15 +58,15 @@ func TestOpenRouterClient(t *testing.T) {
 func TestNewOpenRouterClient_CI(t *testing.T) {
 	t.Setenv("CI", "true")
 	client := NewOpenRouterClient("key", "model", "project")
-	if client.BaseClient.DefaultMaxTokens != 4096 {
-		t.Errorf("Expected DefaultMaxTokens to be 4096 in CI, got %d", client.BaseClient.DefaultMaxTokens)
+	if client.BaseClient.DefaultMaxTokens != 1000 {
+		t.Errorf("Expected DefaultMaxTokens to be 1000 in CI, got %d", client.BaseClient.DefaultMaxTokens)
 	}
 
 	t.Setenv("CI", "false")
 	t.Setenv("RECAC_CI_MODE", "true")
 	client2 := NewOpenRouterClient("key", "model", "project")
-	if client2.BaseClient.DefaultMaxTokens != 4096 {
-		t.Errorf("Expected DefaultMaxTokens to be 4096 in RECAC_CI_MODE, got %d", client2.BaseClient.DefaultMaxTokens)
+	if client2.BaseClient.DefaultMaxTokens != 1000 {
+		t.Errorf("Expected DefaultMaxTokens to be 1000 in RECAC_CI_MODE, got %d", client2.BaseClient.DefaultMaxTokens)
 	}
 
 	t.Setenv("CI", "")

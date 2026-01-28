@@ -22,7 +22,8 @@ type OpenRouterClient struct {
 func NewOpenRouterClient(apiKey, model, project string) *OpenRouterClient {
 	maxTokens := 128000
 	if os.Getenv("CI") == "true" || os.Getenv("RECAC_CI_MODE") == "true" {
-		maxTokens = 4096
+		// Reduced to avoid HTTP 402 "Insufficient credits" errors on test keys
+		maxTokens = 1000
 	}
 	return &OpenRouterClient{
 		BaseClient: NewBaseClient(project, maxTokens), // Default generic limit
