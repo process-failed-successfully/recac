@@ -107,3 +107,39 @@ func internalFunc() {}
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
 }
+
+func TestGenerateCallGraph_Robustness(t *testing.T) {
+	// Verify handling of complex receiver types (e.g. multi-parameter generics)
+	tmpDir := t.TempDir()
+
+	content := `package pkg
+
+type Multi[K any, V any] struct{}
+
+func (m *Multi[K, V]) Do() {}
+
+func Call() {
+    m := &Multi[int, string]{}
+    m.Do()
+}
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "multi.go"), []byte(content), 0644)
+	require.NoError(t, err)
+
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Check if node exists and has correct receiver
+	// ID should be "pkg.(Multi).Do" (without generic params in name for now, as implemented)
+	// If it fails to parse receiver, it might be "pkg.(Unknown).Do"
+
+	found := false
+	for id := range cg.Nodes {
+		if id == "pkg.(Multi).Do" {
+			found = true
+			break
+		}
+	}
+
+	assert.True(t, found, "Should find node pkg.(Multi).Do, checking support for IndexListExpr")
+}

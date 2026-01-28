@@ -253,6 +253,11 @@ func getReceiverTypeName(recv *ast.FieldList) string {
 			return ident.Name
 		}
 	}
+	if indexList, ok := expr.(*ast.IndexListExpr); ok {
+		if ident, ok := indexList.X.(*ast.Ident); ok {
+			return ident.Name
+		}
+	}
 	return "Unknown"
 }
 
