@@ -299,7 +299,40 @@ func (t *recordingTransport) RoundTrip(req *http.Request) (*http.Response, error
 		Response:  resDump,
 	}
 
-	t.onRecord(interaction)
+	sanitized := sanitizeInteraction(interaction)
+	t.onRecord(sanitized)
 
 	return res, nil
+}
+
+func sanitizeInteraction(i Interaction) Interaction {
+	// Deep copy to avoid modifying original if used elsewhere (though here it's fine)
+	// But maps need copy.
+	reqHeaders := make(map[string][]string)
+	for k, v := range i.Request.Headers {
+		reqHeaders[k] = v
+	}
+	resHeaders := make(map[string][]string)
+	for k, v := range i.Response.Headers {
+		resHeaders[k] = v
+	}
+
+	sensitiveKeys := []string{"Authorization", "Cookie", "Set-Cookie", "X-Api-Key", "Proxy-Authorization"}
+
+	redact := func(headers map[string][]string) {
+		for k := range headers {
+			for _, sensitive := range sensitiveKeys {
+				if strings.EqualFold(k, sensitive) {
+					headers[k] = []string{"[REDACTED]"}
+				}
+			}
+		}
+	}
+
+	redact(reqHeaders)
+	redact(resHeaders)
+
+	i.Request.Headers = reqHeaders
+	i.Response.Headers = resHeaders
+	return i
 }

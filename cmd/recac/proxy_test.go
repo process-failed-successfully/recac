@@ -182,3 +182,68 @@ func TestProxyGeneration(t *testing.T) {
 		t.Errorf("Output file content wrong: %s", outContent)
 	}
 }
+
+func TestProxyRedaction(t *testing.T) {
+	// 1. Create Mock Target Server
+	targetServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Set-Cookie", "session=secret123; HttpOnly")
+		w.Header().Set("X-Api-Key", "server-secret-key")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer targetServer.Close()
+
+	targetURL, _ := url.Parse(targetServer.URL)
+	recordFile := filepath.Join(t.TempDir(), "redacted.json")
+
+	// 2. Create Proxy Handler
+	var recorded []Interaction
+	handler := NewProxyHandler(targetURL, func(i Interaction) {
+		recorded = append(recorded, i)
+	}, recordFile)
+
+	proxyServer := httptest.NewServer(handler)
+	defer proxyServer.Close()
+
+	// 3. Send Request with Sensitive Headers
+	req, _ := http.NewRequest("GET", proxyServer.URL+"/api/secret", nil)
+	req.Header.Set("Authorization", "Bearer super-secret-token")
+	req.Header.Set("Cookie", "user=secretUser")
+
+	client := proxyServer.Client()
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("Request failed: %v", err)
+	}
+	resp.Body.Close()
+
+	// 4. Verify Recording Redaction
+	if len(recorded) != 1 {
+		t.Fatalf("Expected 1 recorded interaction")
+	}
+
+	i := recorded[0]
+
+	// Check Request Headers
+	if auth := i.Request.Headers["Authorization"]; len(auth) > 0 {
+		if auth[0] != "[REDACTED]" {
+			t.Errorf("Authorization header not redacted: %v", auth)
+		}
+	}
+	if cookie := i.Request.Headers["Cookie"]; len(cookie) > 0 {
+		if cookie[0] != "[REDACTED]" {
+			t.Errorf("Cookie header not redacted: %v", cookie)
+		}
+	}
+
+	// Check Response Headers
+	if setCookie := i.Response.Headers["Set-Cookie"]; len(setCookie) > 0 {
+		if setCookie[0] != "[REDACTED]" {
+			t.Errorf("Set-Cookie header not redacted: %v", setCookie)
+		}
+	}
+	if apiKey := i.Response.Headers["X-Api-Key"]; len(apiKey) > 0 {
+		if apiKey[0] != "[REDACTED]" {
+			t.Errorf("X-Api-Key header not redacted: %v", apiKey)
+		}
+	}
+}
