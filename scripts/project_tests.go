@@ -26,7 +26,7 @@ func main() {
 	}
 	model := os.Getenv("RECAC_MODEL")
 	if model == "" {
-		model = "mistralai/devstral-2512:free"
+		model = "mistralai/devstral-2512"
 	}
 
 	fmt.Printf("Starting Project Verification Suite...\n")

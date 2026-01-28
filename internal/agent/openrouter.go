@@ -13,6 +13,7 @@ type OpenRouterClient struct {
 	model      string
 	httpClient *http.Client
 	apiURL     string
+	maxTokens  int
 	// mockResponder is used for testing to bypass real API calls
 	mockResponder func(string) (string, error)
 }
@@ -26,7 +27,8 @@ func NewOpenRouterClient(apiKey, model, project string) *OpenRouterClient {
 		httpClient: &http.Client{
 			Timeout: 600 * time.Second, // OpenRouter can be slower depending on the underlying model
 		},
-		apiURL: "https://openrouter.ai/api/v1/chat/completions",
+		apiURL:    "https://openrouter.ai/api/v1/chat/completions",
+		maxTokens: 4096, // Safe default to avoid credit limits on high-context models
 	}
 }
 
@@ -50,6 +52,7 @@ func (c *OpenRouterClient) getConfig() HTTPClientConfig {
 		APIURL:        c.apiURL,
 		HTTPClient:    c.httpClient,
 		MockResponder: c.mockResponder,
+		MaxTokens:     c.maxTokens,
 		Headers: map[string]string{
 			"HTTP-Referer": "https://github.com/process-failed-successfully/recac",
 			"X-Title":      "Process Failed Successfully",
