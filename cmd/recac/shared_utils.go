@@ -143,3 +143,13 @@ func extractFileContexts(output string) (string, error) {
 
 	return sb.String(), nil
 }
+
+// sanitizeMermaidID replaces invalid characters in a string to be used as a Mermaid node ID.
+func sanitizeMermaidID(id string) string {
+	id = strings.ReplaceAll(id, "-", "_")
+	id = strings.ReplaceAll(id, " ", "_")
+	id = strings.ReplaceAll(id, ".", "_")
+	id = strings.ReplaceAll(id, "(", "_")
+	id = strings.ReplaceAll(id, ")", "_")
+	return id
+}
