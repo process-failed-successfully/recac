@@ -74,11 +74,12 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 
 		// Approximate full package path
 		relDir, _ := filepath.Rel(root, dir)
+		relDir = filepath.ToSlash(relDir)
 		fullPkg := relDir
 		if relDir == "." {
 			fullPkg = pkgName
 		} else if filepath.Base(relDir) != pkgName {
-			fullPkg = filepath.Join(relDir, pkgName)
+			fullPkg = relDir + "/" + pkgName
 		}
 		fullPkg = strings.TrimPrefix(fullPkg, "./")
 
@@ -134,11 +135,12 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		pkgName := f.Name.Name
 		dir := filepath.Dir(path)
 		relDir, _ := filepath.Rel(root, dir)
+		relDir = filepath.ToSlash(relDir)
 		fullPkg := relDir
 		if relDir == "." {
 			fullPkg = pkgName
 		} else if filepath.Base(relDir) != pkgName {
-			fullPkg = filepath.Join(relDir, pkgName)
+			fullPkg = relDir + "/" + pkgName
 		}
 		fullPkg = strings.TrimPrefix(fullPkg, "./")
 
@@ -154,13 +156,14 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 				}
 
 				// Inspect body
-				ast.Inspect(fn.Body, func(n ast.Node) bool {
-					call, ok := n.(*ast.CallExpr)
-					if !ok {
-						return true
-					}
+				if fn.Body != nil {
+					ast.Inspect(fn.Body, func(n ast.Node) bool {
+						call, ok := n.(*ast.CallExpr)
+						if !ok {
+							return true
+						}
 
-					var calleeID string
+						var calleeID string
 
 					switch fun := call.Fun.(type) {
 					case *ast.Ident:
@@ -217,19 +220,20 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 						}
 					}
 
-					if calleeID != "" {
-						edgeKey := callerID + "->" + calleeID
-						if !edgeMap[edgeKey] {
-							cg.Edges = append(cg.Edges, CallGraphEdge{
-								From: callerID,
-								To:   calleeID,
-							})
-							edgeMap[edgeKey] = true
+						if calleeID != "" {
+							edgeKey := callerID + "->" + calleeID
+							if !edgeMap[edgeKey] {
+								cg.Edges = append(cg.Edges, CallGraphEdge{
+									From: callerID,
+									To:   calleeID,
+								})
+								edgeMap[edgeKey] = true
+							}
 						}
-					}
 
-					return true
-				})
+						return true
+					})
+				}
 			}
 		}
 	}

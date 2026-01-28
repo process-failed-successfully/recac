@@ -18,6 +18,14 @@ var writeFileFunc = os.WriteFile
 // mkdirAllFunc is a package-level variable to allow mocking in tests.
 var mkdirAllFunc = os.MkdirAll
 
+// mermaidInvalidChars is a compiled regex to match characters that are invalid in Mermaid IDs.
+var mermaidInvalidChars = regexp.MustCompile("[^a-zA-Z0-9_]")
+
+// sanitizeMermaidID replaces invalid characters in a string to make it a safe Mermaid ID.
+func sanitizeMermaidID(id string) string {
+	return mermaidInvalidChars.ReplaceAllString(id, "_")
+}
+
 // DefaultIgnoreMap returns a map of common directories and files to ignore during scans.
 func DefaultIgnoreMap() map[string]bool {
 	return map[string]bool{
