@@ -54,7 +54,9 @@ func TestRunTest_ExplicitArgs(t *testing.T) {
 	// Assert
 	assert.NoError(t, err)
 	assert.Contains(t, output, "Running tests for 1 packages")
-	assert.Contains(t, output, "ok")
+	// CI environments may behave differently with echo or buffering, so we check for the command's own success message
+	// instead of the raw output "ok" which might be swallowed or interleaved differently.
+	assert.Contains(t, output, "✅ All tests passed.")
 }
 
 func TestRunTest_Impacted(t *testing.T) {
