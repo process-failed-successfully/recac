@@ -149,9 +149,3 @@ func generateMermaid(g *runner.TaskGraph) string {
 	return sb.String()
 }
 
-func sanitizeMermaidID(id string) string {
-	id = strings.ReplaceAll(id, "-", "_")
-	id = strings.ReplaceAll(id, " ", "_")
-	id = strings.ReplaceAll(id, ".", "_")
-	return id
-}
