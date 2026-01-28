@@ -92,6 +92,20 @@ func isBinaryContent(content []byte) bool {
 	return false
 }
 
+// SanitizeMermaidID sanitizes a string for use as a Mermaid node ID.
+func SanitizeMermaidID(id string) string {
+	id = strings.ReplaceAll(id, "-", "_")
+	id = strings.ReplaceAll(id, " ", "_")
+	id = strings.ReplaceAll(id, ".", "_")
+	id = strings.ReplaceAll(id, "/", "_")
+	id = strings.ReplaceAll(id, "*", "_")
+	id = strings.ReplaceAll(id, ":", "_")
+	id = strings.ReplaceAll(id, "&", "_")
+	id = strings.ReplaceAll(id, "(", "_")
+	id = strings.ReplaceAll(id, ")", "_")
+	return id
+}
+
 // extractFileContexts scans the output for file paths and returns their content formatted for the prompt.
 func extractFileContexts(output string) (string, error) {
 	// Regex to find file paths like "main.go:23" or "pkg/foo/bar.js:10:5"

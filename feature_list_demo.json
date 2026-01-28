@@ -1,0 +1,7 @@
+{
+  "project_name": "Demo",
+  "features": [
+    {"id": "A", "description": "Root", "status": "done", "dependencies": {}},
+    {"id": "B", "description": "Child", "status": "pending", "dependencies": {"depends_on_ids": ["A"]}}
+  ]
+}
