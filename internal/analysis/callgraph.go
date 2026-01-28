@@ -108,6 +108,15 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		for _, decl := range f.Decls {
 			if fn, ok := decl.(*ast.FuncDecl); ok {
 				func() {
+					// Safety: Skip body-less functions (e.g. assembly) to match second pass behavior
+					if fn.Body == nil {
+						// Note: We still might want to index them as nodes, but for now we skip to be safe/consistent
+						// Actually, we SHOULD index them as nodes so they can be callees.
+						// But the previous implementation didn't check this here, so it indexed them.
+						// The second pass skipped inspecting their bodies.
+						// Let's keep indexing them, but add a comment that we don't inspect body.
+					}
+
 					node := &CallGraphNode{
 						Package: fullPkg,
 						Name:    fn.Name.Name,
@@ -188,7 +197,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 					}
 					ast.Inspect(fn.Body, func(n ast.Node) bool {
 						call, ok := n.(*ast.CallExpr)
-						if !ok {
+						if !ok || call == nil {
 							return true
 						}
 
@@ -279,7 +288,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 }
 
 func getReceiverTypeName(recv *ast.FieldList) string {
-	if len(recv.List) == 0 {
+	if recv == nil || len(recv.List) == 0 {
 		return ""
 	}
 	expr := recv.List[0].Type
@@ -298,6 +307,9 @@ func getReceiverTypeName(recv *ast.FieldList) string {
 		if ident, ok := indexList.X.(*ast.Ident); ok {
 			return ident.Name
 		}
+	}
+	if sel, ok := expr.(*ast.SelectorExpr); ok {
+		return sel.Sel.Name
 	}
 	return "Unknown"
 }

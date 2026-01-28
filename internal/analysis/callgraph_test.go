@@ -251,3 +251,35 @@ func (m *Map[K, V]) Set(k K, v V) {
 	// Map[K, V] -> Map
 	assert.Contains(t, nodeIDs, "pkg.(Map).Set")
 }
+
+func TestGenerateCallGraph_Robustness(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	content := `package pkg
+
+	type MyType struct{}
+
+	// Complex receiver types (SelectorExpr)
+	// This would be syntactically valid but semantic error if pkg not imported,
+	// but we want to ensure analysis doesn't panic.
+	func (s *pkg.MyType) Method() {}
+
+	func (s MyType) Normal() {}
+	`
+	err := os.WriteFile(filepath.Join(tmpDir, "robustness.go"), []byte(content), 0644)
+	require.NoError(t, err)
+
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+	require.NotNil(t, cg)
+
+	nodeIDs := make(map[string]bool)
+	for id := range cg.Nodes {
+		nodeIDs[id] = true
+	}
+
+	// We expect "pkg.(MyType).Method"
+	// The selector "pkg.MyType" -> Sel.Name is "MyType"
+	assert.Contains(t, nodeIDs, "pkg.(MyType).Method")
+	assert.Contains(t, nodeIDs, "pkg.(MyType).Normal")
+}
