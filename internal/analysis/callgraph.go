@@ -309,17 +309,24 @@ func resolveExternalCall(nodes []*CallGraphNode, importPath string, funcName str
 	// This is hard without knowing module name.
 	// But we can scan all nodes and check if Node.Package matches the end of ImportPath?
 
+	var bestMatch string
+	var bestMatchLen int
+
 	for _, node := range nodes {
 		if node.Name == funcName && node.Receiver == "" {
 			// Check if importPath ends with node.Package
 			// node.Package might be "internal/utils"
 			// importPath might be "recac/internal/utils"
 			if strings.HasSuffix(importPath, node.Package) {
-				return node.ID
+				// We want the longest matching package path to avoid ambiguity (e.g. "foo" vs "pkg/foo")
+				if len(node.Package) > bestMatchLen {
+					bestMatch = node.ID
+					bestMatchLen = len(node.Package)
+				}
 			}
 		}
 	}
-	return ""
+	return bestMatch
 }
 
 func findMethodsByName(nodes []*CallGraphNode, methodName string) []*CallGraphNode {
