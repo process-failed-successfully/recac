@@ -24,6 +24,8 @@ var (
 	ignoreMapOnce   sync.Once
 	// fileContextRegex matches file paths like "main.go:23"
 	fileContextRegex = regexp.MustCompile(`(?m)([\w\-\./]+\.\w+):(\d+)`)
+	// mermaidInvalidChars matches characters that are not allowed in Mermaid node IDs (alphanumeric and underscore are allowed).
+	mermaidInvalidChars = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 )
 
 // DefaultIgnoreMap returns a map of common directories and files to ignore during scans.
@@ -154,18 +156,5 @@ func extractFileContexts(output string) (string, error) {
 
 // sanitizeMermaidID replaces characters invalid in Mermaid node IDs with underscores.
 func sanitizeMermaidID(id string) string {
-	replacer := strings.NewReplacer(
-		"-", "_",
-		" ", "_",
-		".", "_",
-		"(", "_",
-		")", "_",
-		"[", "_",
-		"]", "_",
-		"/", "_",
-		"\\", "_",
-		"*", "_",
-		":", "_",
-	)
-	return replacer.Replace(id)
+	return mermaidInvalidChars.ReplaceAllString(id, "_")
 }

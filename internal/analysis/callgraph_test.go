@@ -107,3 +107,28 @@ func internalFunc() {}
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
 }
+
+func TestGenerateCallGraph_WithForwardDecl(t *testing.T) {
+	// Setup temporary directory with sample code
+	tmpDir := t.TempDir()
+
+	// Create a file with a function forward declaration (no body)
+	content := `package pkg
+
+func ExternalFunc()
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "external.go"), []byte(content), 0644)
+	require.NoError(t, err)
+
+	// Run Analysis
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+	require.NotNil(t, cg)
+
+	// Should contain the node, but no panic
+	nodeIDs := make(map[string]bool)
+	for id := range cg.Nodes {
+		nodeIDs[id] = true
+	}
+	assert.Contains(t, nodeIDs, "pkg.ExternalFunc")
+}
