@@ -55,7 +55,7 @@ func (c *OpenRouterClient) WithStateManager(sm *StateManager) *OpenRouterClient 
 }
 
 func (c *OpenRouterClient) getConfig() HTTPClientConfig {
-	return HTTPClientConfig{
+	cfg := HTTPClientConfig{
 		BaseClient:    &c.BaseClient,
 		APIKey:        c.apiKey,
 		Model:         c.model,
@@ -67,6 +67,14 @@ func (c *OpenRouterClient) getConfig() HTTPClientConfig {
 			"X-Title":      "Process Failed Successfully",
 		},
 	}
+
+	// Only set MaxTokens if it's a reduced value (indicating CI or constrained environment)
+	// to avoid overriding model defaults with a large number like 128000.
+	if c.BaseClient.DefaultMaxTokens > 0 && c.BaseClient.DefaultMaxTokens <= 8192 {
+		cfg.MaxTokens = c.BaseClient.DefaultMaxTokens
+	}
+
+	return cfg
 }
 
 // Send sends a prompt to OpenRouter and returns the generated text
