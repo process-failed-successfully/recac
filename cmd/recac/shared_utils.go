@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 // execCommand is a package-level variable to allow mocking in tests.
@@ -18,22 +19,32 @@ var writeFileFunc = os.WriteFile
 // mkdirAllFunc is a package-level variable to allow mocking in tests.
 var mkdirAllFunc = os.MkdirAll
 
+var (
+	cachedIgnoreMap map[string]bool
+	ignoreMapOnce   sync.Once
+	// fileContextRegex matches file paths like "main.go:23"
+	fileContextRegex = regexp.MustCompile(`(?m)([\w\-\./]+\.\w+):(\d+)`)
+)
+
 // DefaultIgnoreMap returns a map of common directories and files to ignore during scans.
 func DefaultIgnoreMap() map[string]bool {
-	return map[string]bool{
-		".git":         true,
-		"node_modules": true,
-		"vendor":       true,
-		"dist":         true,
-		"build":        true,
-		".recac":       true,
-		".idea":        true,
-		".vscode":      true,
-		"bin":          true,
-		"obj":          true,
-		"__pycache__":  true,
-		"TODO.md":      true,
-	}
+	ignoreMapOnce.Do(func() {
+		cachedIgnoreMap = map[string]bool{
+			".git":         true,
+			"node_modules": true,
+			"vendor":       true,
+			"dist":         true,
+			"build":        true,
+			".recac":       true,
+			".idea":        true,
+			".vscode":      true,
+			"bin":          true,
+			"obj":          true,
+			"__pycache__":  true,
+			"TODO.md":      true,
+		}
+	})
+	return cachedIgnoreMap
 }
 
 // readLines reads a whole file into memory and returns a slice of its lines.
@@ -94,11 +105,8 @@ func isBinaryContent(content []byte) bool {
 
 // extractFileContexts scans the output for file paths and returns their content formatted for the prompt.
 func extractFileContexts(output string) (string, error) {
-	// Regex to find file paths like "main.go:23" or "pkg/foo/bar.js:10:5"
 	// We look for alphanumeric+dots+slashes, followed by a colon and a number
-	re := regexp.MustCompile(`(?m)([\w\-\./]+\.\w+):(\d+)`)
-
-	matches := re.FindAllStringSubmatch(output, -1)
+	matches := fileContextRegex.FindAllStringSubmatch(output, -1)
 	if len(matches) == 0 {
 		return "No specific files identified in error output.", nil
 	}
