@@ -13,13 +13,14 @@ import (
 
 // HTTPClientConfig defines the configuration for the shared HTTP client logic
 type HTTPClientConfig struct {
-	BaseClient    *BaseClient
-	APIKey        string
-	Model         string
-	APIURL        string
-	HTTPClient    *http.Client
-	MockResponder func(string) (string, error)
-	Headers       map[string]string
+	BaseClient        *BaseClient
+	APIKey            string
+	Model             string
+	APIURL            string
+	HTTPClient        *http.Client
+	MockResponder     func(string) (string, error)
+	Headers           map[string]string
+	MaxResponseTokens int
 }
 
 // SendOnce performs a single non-streaming request
@@ -40,6 +41,10 @@ func SendOnce(ctx context.Context, cfg HTTPClientConfig, prompt string) (string,
 				"content": prompt,
 			},
 		},
+	}
+
+	if cfg.MaxResponseTokens > 0 {
+		requestBody["max_tokens"] = cfg.MaxResponseTokens
 	}
 
 	jsonBody, err := json.Marshal(requestBody)
@@ -100,6 +105,10 @@ func SendStreamOnce(ctx context.Context, cfg HTTPClientConfig, prompt string, on
 				"content": prompt,
 			},
 		},
+	}
+
+	if cfg.MaxResponseTokens > 0 {
+		requestBody["max_tokens"] = cfg.MaxResponseTokens
 	}
 
 	jsonBody, err := json.Marshal(requestBody)

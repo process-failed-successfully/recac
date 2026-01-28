@@ -24,7 +24,7 @@ func NewOpenRouterClient(apiKey, model, project string) *OpenRouterClient {
 	// The previous 128k limit causes 402 errors when credits are low.
 	limit := 128000
 	if os.Getenv("CI") == "true" || os.Getenv("RECAC_CI_MODE") == "true" {
-		limit = 4096
+		limit = 900 // Reduced from 4096 to fit within strict credit limits (e.g. ~980 tokens)
 	}
 
 	return &OpenRouterClient{
@@ -51,7 +51,7 @@ func (c *OpenRouterClient) WithStateManager(sm *StateManager) *OpenRouterClient 
 }
 
 func (c *OpenRouterClient) getConfig() HTTPClientConfig {
-	return HTTPClientConfig{
+	cfg := HTTPClientConfig{
 		BaseClient:    &c.BaseClient,
 		APIKey:        c.apiKey,
 		Model:         c.model,
@@ -63,6 +63,14 @@ func (c *OpenRouterClient) getConfig() HTTPClientConfig {
 			"X-Title":      "Process Failed Successfully",
 		},
 	}
+
+	// Explicitly set max_tokens to prevent API from defaulting to model max (e.g., 65k),
+	// which causes 402 errors on low-credit accounts.
+	if c.BaseClient.DefaultMaxTokens > 0 {
+		cfg.MaxResponseTokens = c.BaseClient.DefaultMaxTokens / 2
+	}
+
+	return cfg
 }
 
 // Send sends a prompt to OpenRouter and returns the generated text
