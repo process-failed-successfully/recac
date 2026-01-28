@@ -154,6 +154,9 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 				}
 
 				// Inspect body
+				if fn.Body == nil {
+					continue
+				}
 				ast.Inspect(fn.Body, func(n ast.Node) bool {
 					call, ok := n.(*ast.CallExpr)
 					if !ok {
@@ -162,7 +165,19 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 
 					var calleeID string
 
-					switch fun := call.Fun.(type) {
+					// Unwrap generic instantiations (e.g. Func[T](), Func[T, U]())
+					funExpr := call.Fun
+					for {
+						if idx, ok := funExpr.(*ast.IndexExpr); ok {
+							funExpr = idx.X
+						} else if idxList, ok := funExpr.(*ast.IndexListExpr); ok {
+							funExpr = idxList.X
+						} else {
+							break
+						}
+					}
+
+					switch fun := funExpr.(type) {
 					case *ast.Ident:
 						// Local call: DoSomething()
 						// Likely same package, simple function
