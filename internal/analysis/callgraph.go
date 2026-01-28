@@ -105,10 +105,6 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		for _, decl := range f.Decls {
 			if fn, ok := decl.(*ast.FuncDecl); ok {
 				func() {
-					defer func() {
-						recover() // Ignore panic during indexing to continue
-					}()
-
 					node := &CallGraphNode{
 						Package: fullPkg,
 						Name:    fn.Name.Name,
@@ -173,10 +169,6 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		for _, decl := range f.Decls {
 			if fn, ok := decl.(*ast.FuncDecl); ok {
 				func() {
-					defer func() {
-						recover() // Ignore panic during analysis to continue
-					}()
-
 					var callerID string
 					if fn.Recv != nil {
 						callerID = fmt.Sprintf("%s.(%s).%s", fullPkg, getReceiverTypeName(fn.Recv), fn.Name.Name)
@@ -293,6 +285,11 @@ func getReceiverTypeName(recv *ast.FieldList) string {
 	}
 	if index, ok := expr.(*ast.IndexExpr); ok {
 		if ident, ok := index.X.(*ast.Ident); ok {
+			return ident.Name
+		}
+	}
+	if indexList, ok := expr.(*ast.IndexListExpr); ok {
+		if ident, ok := indexList.X.(*ast.Ident); ok {
 			return ident.Name
 		}
 	}
