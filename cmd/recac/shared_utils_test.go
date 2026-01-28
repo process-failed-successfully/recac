@@ -147,3 +147,23 @@ func TestExtractFileContexts(t *testing.T) {
 		})
 	}
 }
+
+func TestSanitizeMermaidID(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"simple", "simple"},
+		{"pkg.Func", "pkg_Func"},
+		{"pkg/path.Func", "pkg_path_Func"},
+		{"(Type).Method", "_Type__Method"},
+		{"pkg.(*Type).Method", "pkg___Type__Method"}, // * removed in receiver type name by getReceiverTypeName usually, but sanitize should handle it
+		{"weird*chars", "weird_chars"},
+		{"a:b&c", "a_b_c"},
+		{"spaces in id", "spaces_in_id"},
+	}
+
+	for _, tt := range tests {
+		assert.Equal(t, tt.expected, sanitizeMermaidID(tt.input), "Input: %s", tt.input)
+	}
+}
