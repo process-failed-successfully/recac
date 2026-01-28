@@ -55,7 +55,7 @@ Use the --dry-run flag to see which sessions would be pruned without deleting th
 
 		var cutoff time.Time
 		if pruneSince != "" {
-			duration, err := utils.ParseStaleDuration(pruneSince)
+			duration, err := utils.ParseDurationWithDays(pruneSince)
 			if err != nil {
 				return fmt.Errorf("invalid duration format for --since: %w", err)
 			}

@@ -10,24 +10,19 @@ import (
 func CleanCodeBlock(content string) string {
 	content = strings.TrimSpace(content)
 
-	// Try to find markdown code blocks
-	start := strings.Index(content, "```")
-	if start != -1 {
-		// Found a code block start
-		// Skip the opening ``` and potential language identifier
-		codeStart := start + 3
-
-		// Find the end of the line to skip language identifier (e.g., ```go)
-		if idx := strings.Index(content[codeStart:], "\n"); idx != -1 {
-			codeStart += idx + 1
+	// Try regex for ``` ... ```
+	match := reBlock.FindStringSubmatch(content)
+	if len(match) > 1 {
+		inner := strings.TrimSpace(match[1])
+		// Remove potential language tag
+		if idx := strings.Index(inner, "\n"); idx != -1 {
+			firstLine := strings.TrimSpace(inner[:idx])
+			// Heuristic: if first line is short and no spaces, assume it's language tag
+			if len(firstLine) < 20 && !strings.Contains(firstLine, " ") {
+				return strings.TrimSpace(inner[idx+1:])
+			}
 		}
-
-		// Find the end of the block
-		end := strings.Index(content[codeStart:], "```")
-		if end != -1 {
-			// Extract the content inside the block
-			return strings.TrimSpace(content[codeStart : codeStart+end])
-		}
+		return inner
 	}
 
 	return content

@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 
+	"recac/internal/utils"
+
 	"github.com/spf13/cobra"
 )
 
@@ -57,7 +59,7 @@ func runTodoSync(cmd *cobra.Command, args []string) error {
 	if err := ensureTodoFile(); err != nil {
 		return err
 	}
-	lines, err := readLines(todoFile)
+	lines, err := utils.ReadLines(todoFile)
 	if err != nil {
 		return err
 	}

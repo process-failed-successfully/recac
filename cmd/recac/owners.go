@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 
+	"recac/internal/utils"
+
 	"github.com/spf13/cobra"
 )
 
@@ -136,7 +138,7 @@ func resolveCodeOwners(root, targetRelPath string) ([]string, string, error) {
 
 	for _, loc := range locations {
 		path := filepath.Join(root, loc)
-		if l, err := readLines(path); err == nil {
+		if l, err := utils.ReadLines(path); err == nil {
 			lines = l
 			loadedFile = loc
 			break

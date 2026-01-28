@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"recac/internal/utils"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -85,7 +87,7 @@ func runStandup(cmd *cobra.Command, args []string) error {
 	// Read TODO.md
 	todoMdStats := "No TODO.md found"
 	if _, err := os.Stat("TODO.md"); err == nil {
-		lines, _ := readLines("TODO.md")
+		lines, _ := utils.ReadLines("TODO.md")
 		done, pending := 0, 0
 		for _, line := range lines {
 			if strings.HasPrefix(strings.TrimSpace(line), "- [x]") {

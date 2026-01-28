@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strings"
 
+	"recac/internal/utils"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -116,7 +118,7 @@ func runMap(cmd *cobra.Command, args []string) error {
 
 func getModuleName(root string) (string, error) {
 	goModPath := filepath.Join(root, "go.mod")
-	lines, err := readLines(goModPath)
+	lines, err := utils.ReadLines(goModPath)
 	if err != nil {
 		return "", err
 	}

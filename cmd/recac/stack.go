@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 
+	"recac/internal/utils"
+
 	"github.com/spf13/cobra"
 )
 
@@ -197,7 +199,7 @@ func getLanguage(ext, filename string) string {
 
 func scanGoMod(path string) []string {
 	var frameworks []string
-	lines, err := readLines(path)
+	lines, err := utils.ReadLines(path)
 	if err != nil {
 		return nil
 	}
@@ -233,7 +235,7 @@ func scanPackageJson(path string) []string {
 	// Simple grep for now, proper JSON parsing is better but this is a heuristic
 	// We check for "name": pattern to avoid false positives
 	var frameworks []string
-	lines, err := readLines(path)
+	lines, err := utils.ReadLines(path)
 	if err != nil {
 		return nil
 	}
@@ -271,7 +273,7 @@ func scanPackageJson(path string) []string {
 
 func scanRequirementsTxt(path string) []string {
 	var frameworks []string
-	lines, err := readLines(path)
+	lines, err := utils.ReadLines(path)
 	if err != nil {
 		return nil
 	}
@@ -304,7 +306,7 @@ func scanRequirementsTxt(path string) []string {
 
 func scanDockerCompose(path string) []string {
 	var dbs []string
-	lines, err := readLines(path)
+	lines, err := utils.ReadLines(path)
 	if err != nil {
 		return nil
 	}

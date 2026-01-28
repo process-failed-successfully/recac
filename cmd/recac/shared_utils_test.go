@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"recac/internal/utils"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,22 +25,22 @@ func TestWriteLines(t *testing.T) {
 	filePath := filepath.Join(tmpDir, "test_write.txt")
 	lines := []string{"line1", "line2", "line3"}
 
-	err := writeLines(filePath, lines)
+	err := utils.WriteLines(filePath, lines)
 	require.NoError(t, err)
 
-	readBack, err := readLines(filePath)
+	readBack, err := utils.ReadLines(filePath)
 	require.NoError(t, err)
 	assert.Equal(t, lines, readBack)
 
 	// Test error: create file in non-existent directory
 	invalidPath := filepath.Join(tmpDir, "non_existent_dir", "file.txt")
-	err = writeLines(invalidPath, lines)
+	err = utils.WriteLines(invalidPath, lines)
 	assert.Error(t, err)
 }
 
 func TestReadLines_Error(t *testing.T) {
 	// Test error: read non-existent file
-	_, err := readLines("non_existent_file.txt")
+	_, err := utils.ReadLines("non_existent_file.txt")
 	assert.Error(t, err)
 }
 
@@ -56,7 +58,7 @@ func TestIsBinaryExt(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		assert.Equal(t, tt.expected, isBinaryExt(tt.ext), "Extension: %s", tt.ext)
+		assert.Equal(t, tt.expected, utils.IsBinaryExt(tt.ext), "Extension: %s", tt.ext)
 	}
 }
 
@@ -77,7 +79,7 @@ func TestIsBinaryContent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, isBinaryContent(tt.content))
+			assert.Equal(t, tt.expected, utils.IsBinaryContent(tt.content))
 		})
 	}
 }

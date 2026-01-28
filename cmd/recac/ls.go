@@ -118,7 +118,7 @@ var lsCmd = &cobra.Command{
 // parseTimeFilter parses a string that can be either a duration (including days) or a timestamp.
 func parseTimeFilter(value string) (time.Time, error) {
 	// Try parsing as a duration first (e.g., "7d", "24h")
-	duration, err := utils.ParseStaleDuration(value)
+	duration, err := utils.ParseDurationWithDays(value)
 	if err == nil {
 		return time.Now().Add(-duration), nil
 	}
