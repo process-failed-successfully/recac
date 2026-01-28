@@ -107,3 +107,48 @@ func internalFunc() {}
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
 }
+
+func TestGenerateCallGraph_StrictDeterminism(t *testing.T) {
+	// Setup temporary directory with multiple files to trigger potential randomness
+	tmpDir := t.TempDir()
+
+	// Create a few files
+	files := map[string]string{
+		"a.go": "package main; func A() { B() }",
+		"b.go": "package main; func B() { C() }",
+		"c.go": "package main; func C() { A() }",
+		"d.go": "package main; func D() { A(); B() }",
+	}
+
+	for name, content := range files {
+		err := os.WriteFile(filepath.Join(tmpDir, name), []byte(content), 0644)
+		require.NoError(t, err)
+	}
+
+	// Run multiple times
+	cg1, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	cg2, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Compare Edges exactly
+	require.Equal(t, len(cg1.Edges), len(cg2.Edges), "Edge count mismatch")
+
+	for i := range cg1.Edges {
+		assert.Equal(t, cg1.Edges[i], cg2.Edges[i], "Edge mismatch at index %d", i)
+	}
+
+	// Also check that it's actually sorted
+	for i := 1; i < len(cg1.Edges); i++ {
+		prev := cg1.Edges[i-1]
+		curr := cg1.Edges[i]
+		isSorted := false
+		if prev.From < curr.From {
+			isSorted = true
+		} else if prev.From == curr.From && prev.To <= curr.To {
+			isSorted = true
+		}
+		assert.True(t, isSorted, "Edges not sorted at index %d: %v > %v", i, prev, curr)
+	}
+}
