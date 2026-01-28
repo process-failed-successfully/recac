@@ -125,3 +125,60 @@ func ExternalFunc()
 	_, err = GenerateCallGraph(tmpDir)
 	require.NoError(t, err)
 }
+
+func TestGenerateCallGraph_Robustness(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// 1. Generics with multiple type parameters (IndexListExpr)
+	// 2. Complex selectors
+	content := `package main
+
+type MyGeneric[K, V any] struct {
+	Key K
+	Val V
+}
+
+func (m *MyGeneric[K, V]) DoSomething() {
+	m.internal()
+}
+
+func (m *MyGeneric[K, V]) internal() {}
+
+type SingleGen[T any] struct {
+	Val T
+}
+
+func (s *SingleGen[T]) DoIt() {}
+
+func main() {
+	m := &MyGeneric[int, string]{}
+	m.DoSomething()
+
+	s := &SingleGen[int]{}
+	s.DoIt()
+}
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "robust.go"), []byte(content), 0644)
+	require.NoError(t, err)
+
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Check if nodes are created with correct names
+	// "MyGeneric" and "SingleGen"
+
+	foundMyGeneric := false
+	foundSingleGen := false
+
+	for _, node := range cg.Nodes {
+		if node.Receiver == "MyGeneric" {
+			foundMyGeneric = true
+		}
+		if node.Receiver == "SingleGen" {
+			foundSingleGen = true
+		}
+	}
+
+	assert.True(t, foundMyGeneric, "Should handle multi-param generics (IndexListExpr)")
+	assert.True(t, foundSingleGen, "Should handle single-param generics (IndexExpr)")
+}
