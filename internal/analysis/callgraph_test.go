@@ -107,3 +107,27 @@ func internalFunc() {}
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
 }
+
+func TestGenerateCallGraph_PanicOnNilBody(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a Go file with a function declaration but no body (like in assembly)
+	// Note: Standard parser might error on this unless we are careful,
+	// but let's try to simulate a case where Body is nil.
+	// Actually, parser.ParseFile might complain "missing function body".
+	// But if we have a valid case, e.g. a forward declaration?
+	// Go spec says: "A function declaration may omit the body. Such a declaration provides the signature for a function implemented outside Go, such as an assembly routine."
+
+	content := `package pkg
+func AssemblyFunc()
+`
+	pkgDir := filepath.Join(tmpDir, "pkg")
+	err := os.MkdirAll(pkgDir, 0755)
+	require.NoError(t, err)
+
+	err = os.WriteFile(filepath.Join(pkgDir, "assembly.go"), []byte(content), 0644)
+	require.NoError(t, err)
+
+	_, err = GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+}

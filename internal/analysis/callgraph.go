@@ -56,6 +56,9 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 			if strings.HasPrefix(d.Name(), ".") && d.Name() != "." {
 				return filepath.SkipDir
 			}
+			if d.Name() == "vendor" || d.Name() == "testdata" || d.Name() == "node_modules" {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
@@ -153,6 +156,10 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 					callerID = fmt.Sprintf("%s.(%s).%s", fullPkg, getReceiverTypeName(fn.Recv), fn.Name.Name)
 				} else {
 					callerID = fmt.Sprintf("%s.%s", fullPkg, fn.Name.Name)
+				}
+
+				if fn.Body == nil {
+					continue
 				}
 
 				// Inspect body
