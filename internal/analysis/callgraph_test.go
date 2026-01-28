@@ -139,3 +139,71 @@ func TestGenerateCallGraph_SkipsVendorAndTestdata(t *testing.T) {
 		assert.NotEqual(t, "bad.BadFunc", id)
 	}
 }
+
+func TestGenerateCallGraph_Generics(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create generic_struct.go
+	content := `package pkg
+
+type Container[T any] struct {
+	val T
+}
+
+func (c *Container[T]) Get() T {
+	return c.val
+}
+
+// Multi-type param
+type Pair[K, V any] struct {
+	k K
+	v V
+}
+
+func (p *Pair[K, V]) GetKey() K {
+	return p.k
+}
+
+func User() {
+	c := &Container[int]{val: 1}
+	c.Get()
+
+	p := &Pair[string, int]{k: "key", v: 1}
+	p.GetKey()
+}
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "generic.go"), []byte(content), 0644)
+	require.NoError(t, err)
+
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Verify Nodes
+	nodeIDs := make(map[string]bool)
+	for id := range cg.Nodes {
+		nodeIDs[id] = true
+	}
+
+	// pkgName="pkg". generic.go in root.
+	// relDir=".". fullPkg="pkg".
+
+	assert.Contains(t, nodeIDs, "pkg.(Container).Get")
+	assert.Contains(t, nodeIDs, "pkg.(Pair).GetKey")
+	assert.Contains(t, nodeIDs, "pkg.User")
+
+	// Verify Edges
+	foundUserToGet := false
+	foundUserToGetKey := false
+
+	for _, edge := range cg.Edges {
+		if edge.From == "pkg.User" && edge.To == "pkg.(Container).Get" {
+			foundUserToGet = true
+		}
+		if edge.From == "pkg.User" && edge.To == "pkg.(Pair).GetKey" {
+			foundUserToGetKey = true
+		}
+	}
+
+	assert.True(t, foundUserToGet, "Missing edge: User -> Container.Get")
+	assert.True(t, foundUserToGetKey, "Missing edge: User -> Pair.GetKey")
+}
