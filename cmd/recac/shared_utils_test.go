@@ -147,3 +147,25 @@ func TestExtractFileContexts(t *testing.T) {
 		})
 	}
 }
+
+func TestSanitizeMermaidID(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"simple", "simple"},
+		{"pkg.Func", "pkg_Func"},
+		{"pkg-name.Func", "pkg_name_Func"},
+		{"pkg.(Type).Method", "pkg__Type__Method"}, // Expecting parens to be replaced
+		{"path/to/pkg.Func", "path_to_pkg_Func"}, // Expecting slashes to be replaced
+		{"[ambiguous].Func", "_ambiguous__Func"}, // Expecting brackets to be replaced
+		{"*StarExpr", "_StarExpr"}, // Expecting asterisks to be replaced
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.input, func(t *testing.T) {
+			got := sanitizeMermaidID(tc.input)
+			assert.Equal(t, tc.expected, got)
+		})
+	}
+}
