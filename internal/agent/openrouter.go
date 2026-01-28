@@ -54,7 +54,7 @@ func (c *OpenRouterClient) getConfig() HTTPClientConfig {
 			"HTTP-Referer": "https://github.com/process-failed-successfully/recac",
 			"X-Title":      "Process Failed Successfully",
 		},
-		MaxTokens: 2048, // Restrict response tokens to prevent hitting credit limits (especially in CI)
+		MaxTokens: 1024, // Restrict response tokens to prevent hitting credit limits (especially in CI)
 	}
 }
 

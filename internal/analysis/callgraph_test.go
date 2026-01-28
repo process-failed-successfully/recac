@@ -139,6 +139,14 @@ func TestGenerateCallGraph_StrictDeterminism(t *testing.T) {
 		assert.Equal(t, cg1.Edges[i], cg2.Edges[i], "Edge mismatch at index %d", i)
 	}
 
+	// Compare Nodes exactly (IDs and content)
+	require.Equal(t, len(cg1.Nodes), len(cg2.Nodes), "Node count mismatch")
+	for id, node1 := range cg1.Nodes {
+		node2, exists := cg2.Nodes[id]
+		require.True(t, exists, "Node %s missing in second run", id)
+		assert.Equal(t, node1, node2, "Node %s mismatch", id)
+	}
+
 	// Also check that it's actually sorted
 	for i := 1; i < len(cg1.Edges); i++ {
 		prev := cg1.Edges[i-1]
