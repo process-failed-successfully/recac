@@ -143,3 +143,49 @@ func Call() {
 
 	assert.True(t, found, "Should find node pkg.(Multi).Do, checking support for IndexListExpr")
 }
+
+func TestGenerateCallGraph_PanicOnNoBody(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// assembly.go contains a forward declaration
+	content := `package pkg
+
+func AssemblyFunc()
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "assembly.go"), []byte(content), 0644)
+	require.NoError(t, err)
+
+	assert.NotPanics(t, func() {
+		_, err := GenerateCallGraph(tmpDir)
+		assert.NoError(t, err)
+	})
+}
+
+func TestGenerateCallGraph_GenericCalls(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	content := `package pkg
+
+func GenericFunc[T any]() {}
+
+func Call() {
+    GenericFunc[int]()
+}
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "generic_call.go"), []byte(content), 0644)
+	require.NoError(t, err)
+
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Check if edge exists: pkg.Call -> pkg.GenericFunc
+	found := false
+	for _, edge := range cg.Edges {
+		if edge.From == "pkg.Call" && edge.To == "pkg.GenericFunc" {
+			found = true
+			break
+		}
+	}
+
+	assert.True(t, found, "Should find edge pkg.Call -> pkg.GenericFunc even with generic instantiation")
+}
