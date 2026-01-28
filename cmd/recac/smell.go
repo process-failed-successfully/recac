@@ -139,17 +139,33 @@ func analyzeSmells(root string) ([]SmellFinding, error) {
 			return nil
 		}
 
-		for _, decl := range node.Decls {
-			if fn, ok := decl.(*ast.FuncDecl); ok {
-				metrics := analysis.AnalyzeFunction(fn, fset)
-				checkMetrics(metrics, path, &findings)
-			}
-		}
+		analyzeNodeSmells(node, fset, path, &findings)
 
 		return nil
 	})
 
 	return findings, err
+}
+
+func analyzeFileSmells(filename string, content []byte) ([]SmellFinding, error) {
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, filename, content, parser.ParseComments)
+	if err != nil {
+		return nil, err
+	}
+
+	var findings []SmellFinding
+	analyzeNodeSmells(node, fset, filename, &findings)
+	return findings, nil
+}
+
+func analyzeNodeSmells(node *ast.File, fset *token.FileSet, filename string, findings *[]SmellFinding) {
+	for _, decl := range node.Decls {
+		if fn, ok := decl.(*ast.FuncDecl); ok {
+			metrics := analysis.AnalyzeFunction(fn, fset)
+			checkMetrics(metrics, filename, findings)
+		}
+	}
 }
 
 func checkMetrics(m analysis.FunctionMetrics, file string, findings *[]SmellFinding) {

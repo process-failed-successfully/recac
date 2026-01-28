@@ -173,6 +173,11 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_TASK_MAX_ITERATIONS", Value: val})
 	}
 
+	// Propagate CI Mode
+	if val := os.Getenv("RECAC_CI_MODE"); val != "" {
+		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_CI_MODE", Value: val})
+	}
+
 	// Inject Git Identity to prevent "Author identity unknown" errors
 	envVars = append(envVars, []corev1.EnvVar{
 		{Name: "GIT_AUTHOR_NAME", Value: "RECAC Agent"},
