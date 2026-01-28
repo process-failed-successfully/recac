@@ -25,8 +25,10 @@ func NewOpenRouterClient(apiKey, model, project string) *OpenRouterClient {
 
 	// Reduce context window in CI to avoid rate limits/credit exhaustion
 	// The smoke test logs showed HTTP 402 errors (insufficient credits) because it requested too many tokens.
+	// Even with 4096, some models/plans might default to reserving a large completion buffer.
+	// We reduce it aggressively to 1000 to be safe.
 	if os.Getenv("CI") == "true" || os.Getenv("RECAC_CI_MODE") == "true" {
-		maxTokens = 4096
+		maxTokens = 1000
 	}
 
 	return &OpenRouterClient{

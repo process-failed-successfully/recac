@@ -14,8 +14,8 @@ func TestOpenRouterClient_MaxTokens_CI(t *testing.T) {
 	os.Setenv("CI", "true")
 	client := NewOpenRouterClient("key", "model", "project")
 	// Access the embedded BaseClient's DefaultMaxTokens
-	if client.BaseClient.DefaultMaxTokens != 4096 {
-		t.Errorf("Expected DefaultMaxTokens to be 4096 in CI, got %d", client.BaseClient.DefaultMaxTokens)
+	if client.BaseClient.DefaultMaxTokens != 1000 {
+		t.Errorf("Expected DefaultMaxTokens to be 1000 in CI, got %d", client.BaseClient.DefaultMaxTokens)
 	}
 
 	// Case 2: CI is false/unset
