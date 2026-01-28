@@ -160,6 +160,12 @@ func TestSanitizeMermaidID(t *testing.T) {
 		{"path/to/pkg.Func", "path_to_pkg_Func"}, // Expecting slashes to be replaced
 		{"[ambiguous].Func", "_ambiguous__Func"}, // Expecting brackets to be replaced
 		{"*StarExpr", "_StarExpr"}, // Expecting asterisks to be replaced
+		{"user@example.com", "user_example_com"}, // Special characters
+		{"a+b=c", "a_b_c"}, // Math operators
+		{"100%", "100_"}, // Percent
+		{"param,list", "param_list"}, // Comma
+		{"'quoted'", "_quoted_"}, // Quotes
+		{`"double"`, "_double_"}, // Double quotes
 	}
 
 	for _, tc := range tests {
