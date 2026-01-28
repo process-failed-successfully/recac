@@ -107,3 +107,45 @@ func internalFunc() {}
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
 }
+
+func TestGenerateCallGraph_StrictDeterminism(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	files := map[string]string{
+		"a.go": `package main
+			func A() { B() }`,
+		"b.go": `package main
+			func B() { C() }`,
+		"c.go": `package main
+			func C() {}`,
+		"subdir/d.go": `package subdir
+			func D() {}`,
+	}
+
+	for name, content := range files {
+		path := filepath.Join(tmpDir, name)
+		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0755))
+		require.NoError(t, os.WriteFile(path, []byte(content), 0644))
+	}
+
+	// Run analysis multiple times
+	cg1, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	cg2, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Verify Nodes Determinism
+	assert.Equal(t, len(cg1.Nodes), len(cg2.Nodes))
+	for id, n1 := range cg1.Nodes {
+		n2, exists := cg2.Nodes[id]
+		assert.True(t, exists, "Node %s missing in second run", id)
+		assert.Equal(t, n1, n2, "Node %s differs", id)
+	}
+
+	// Verify Edges Determinism (Content and Order)
+	assert.Equal(t, len(cg1.Edges), len(cg2.Edges))
+	for i := range cg1.Edges {
+		assert.Equal(t, cg1.Edges[i], cg2.Edges[i], "Edge at index %d differs", i)
+	}
+}
