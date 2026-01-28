@@ -56,6 +56,10 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 			if strings.HasPrefix(d.Name(), ".") && d.Name() != "." {
 				return filepath.SkipDir
 			}
+			switch d.Name() {
+			case "vendor", "testdata", "node_modules":
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {

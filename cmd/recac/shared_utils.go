@@ -41,6 +41,7 @@ func DefaultIgnoreMap() map[string]bool {
 		"obj":          true,
 		"__pycache__":  true,
 		"TODO.md":      true,
+		"testdata":     true,
 	}
 }
 
