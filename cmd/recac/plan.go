@@ -15,8 +15,10 @@ import (
 	"github.com/spf13/viper"
 )
 
+var planCmd = NewPlanCmd()
+
 func init() {
-	rootCmd.AddCommand(NewPlanCmd())
+	rootCmd.AddCommand(planCmd)
 }
 
 func NewPlanCmd() *cobra.Command {
