@@ -143,3 +143,17 @@ func extractFileContexts(output string) (string, error) {
 
 	return sb.String(), nil
 }
+
+// sanitizeMermaidID ensures the string is a valid Mermaid node ID.
+func sanitizeMermaidID(id string) string {
+	id = strings.ReplaceAll(id, "-", "_")
+	id = strings.ReplaceAll(id, " ", "_")
+	id = strings.ReplaceAll(id, ".", "_")
+	id = strings.ReplaceAll(id, "/", "_")
+	id = strings.ReplaceAll(id, "*", "_")
+	id = strings.ReplaceAll(id, "&", "_")
+	id = strings.ReplaceAll(id, ":", "_")
+	id = strings.ReplaceAll(id, "(", "_")
+	id = strings.ReplaceAll(id, ")", "_")
+	return id
+}
