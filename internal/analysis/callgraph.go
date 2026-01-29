@@ -127,6 +127,13 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		return nil, err
 	}
 
+	// Prepare sorted node IDs for deterministic and efficient lookup
+	var sortedNodeIDs []string
+	for id := range cg.Nodes {
+		sortedNodeIDs = append(sortedNodeIDs, id)
+	}
+	sort.Strings(sortedNodeIDs)
+
 	// 2. Second Pass: Resolve Calls
 	// Use map to prevent duplicates
 	edgeMap := make(map[string]bool)
@@ -200,7 +207,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 								// This is tricky because "importPath" is like "github.com/foo/bar"
 								// But our keys are "internal/bar.Func".
 								// We will try to match suffix.
-								calleeID = resolveExternalCall(cg, importPath, sel)
+								calleeID = resolveExternalCall(cg, sortedNodeIDs, importPath, sel)
 								if calleeID == "" {
 									// Treat as external node
 									calleeID = fmt.Sprintf("%s.%s", importPath, sel)
@@ -209,7 +216,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 								// Variable.Method()
 								// We don't know the type of Variable.
 								// Heuristic: Find ANY method named 'Sel' in our codebase.
-								candidates := findMethodsByName(cg, sel)
+								candidates := findMethodsByName(cg, sortedNodeIDs, sel)
 								if len(candidates) == 1 {
 									calleeID = candidates[0].ID
 								} else if len(candidates) > 1 {
@@ -243,6 +250,14 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		}
 	}
 
+	// Sort edges for deterministic output
+	sort.Slice(cg.Edges, func(i, j int) bool {
+		if cg.Edges[i].From != cg.Edges[j].From {
+			return cg.Edges[i].From < cg.Edges[j].From
+		}
+		return cg.Edges[i].To < cg.Edges[j].To
+	})
+
 	return cg, nil
 }
 
@@ -265,7 +280,7 @@ func getReceiverTypeName(recv *ast.FieldList) string {
 	return "Unknown"
 }
 
-func resolveExternalCall(cg *CallGraph, importPath string, funcName string) string {
+func resolveExternalCall(cg *CallGraph, sortedNodeIDs []string, importPath string, funcName string) string {
 	// Our nodes are keyed by "relDir/pkg.Func".
 	// Import path is "recac/internal/foo".
 	// If we are running on "recac" repo, "internal/foo" matches.
@@ -278,14 +293,7 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 	var matchID string
 	var matchPkgLen int
 
-	// Iterate deterministically
-	var nodeIDs []string
-	for id := range cg.Nodes {
-		nodeIDs = append(nodeIDs, id)
-	}
-	sort.Strings(nodeIDs)
-
-	for _, id := range nodeIDs {
+	for _, id := range sortedNodeIDs {
 		node := cg.Nodes[id]
 		if node.Name == funcName && node.Receiver == "" {
 			// Check if importPath ends with node.Package
@@ -314,17 +322,10 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 	return matchID
 }
 
-func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {
+func findMethodsByName(cg *CallGraph, sortedNodeIDs []string, methodName string) []*CallGraphNode {
 	var results []*CallGraphNode
 
-	// Iterate deterministically
-	var nodeIDs []string
-	for id := range cg.Nodes {
-		nodeIDs = append(nodeIDs, id)
-	}
-	sort.Strings(nodeIDs)
-
-	for _, id := range nodeIDs {
+	for _, id := range sortedNodeIDs {
 		node := cg.Nodes[id]
 		if node.Name == methodName && node.Receiver != "" {
 			results = append(results, node)

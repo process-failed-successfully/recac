@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -163,6 +164,13 @@ func TestResolveExternalCall_Ambiguity(t *testing.T) {
 	// because it's a longer suffix match.
 	// Current implementation picks first match (random map order), so this might fail.
 
-	match := resolveExternalCall(cg, "github.com/repo/internal/pkg/utils", "Helper")
+	// Sort node IDs for deterministic test behavior
+	var sortedNodeIDs []string
+	for id := range cg.Nodes {
+		sortedNodeIDs = append(sortedNodeIDs, id)
+	}
+	sort.Strings(sortedNodeIDs)
+
+	match := resolveExternalCall(cg, sortedNodeIDs, "github.com/repo/internal/pkg/utils", "Helper")
 	assert.Equal(t, "internal/pkg/utils.Helper", match)
 }
