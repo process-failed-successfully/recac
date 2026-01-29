@@ -109,7 +109,7 @@ func RunSetup(args []string) error {
 		return fmt.Errorf("failed to save state file: %w", err)
 	}
 
-	log.Printf("Setup complete. State saved to %s", stateFile)
+	log.Printf("Setup complete! State saved to %s", stateFile)
 	return nil
 }
 
