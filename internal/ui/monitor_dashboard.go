@@ -47,12 +47,31 @@ var (
 	monitorTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("62"))
 	monitorHelpStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).MarginTop(1)
 	messageStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Bold(true).MarginTop(1)
-	confirmStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("230")).Background(lipgloss.Color("160")).Padding(1, 2).Bold(true).Border(lipgloss.DoubleBorder()).MarginTop(1)
+
+	// Enhanced Modal Styles
+	confirmBoxStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("196")). // Red border
+			Padding(1, 4).
+			Align(lipgloss.Center)
+
+	confirmTitleStyle = lipgloss.NewStyle().
+				Background(lipgloss.Color("196")).
+				Foreground(lipgloss.Color("255")).
+				Bold(true).
+				Padding(0, 1).
+				MarginBottom(1)
+
+	// Logs View Styles
+	logsBorderStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("62")).
+			Padding(0, 1)
 )
 
 func NewMonitorDashboardModel(callbacks ActionCallbacks) MonitorDashboardModel {
 	columns := []table.Column{
-		{Title: "NAME", Width: 20},
+		{Title: "NAME", Width: 22}, // Increased width for marker
 		{Title: "STATUS", Width: 10},
 		{Title: "LOCATION", Width: 8},
 		{Title: "COST", Width: 10},
@@ -78,6 +97,7 @@ func NewMonitorDashboardModel(callbacks ActionCallbacks) MonitorDashboardModel {
 	t.SetStyles(s)
 
 	vp := viewport.New(0, 0)
+	vp.Style = lipgloss.NewStyle().Padding(0, 1)
 
 	return MonitorDashboardModel{
 		table:     t,
@@ -105,8 +125,12 @@ func (m MonitorDashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.table.SetWidth(m.width)
 		m.table.SetHeight(m.height - 10) // Reserve space for header/footer/help
-		m.viewport.Width = m.width
-		m.viewport.Height = m.height - 5
+
+		// Update viewport size
+		// Viewport has internal padding (2) + Border/Padding of container (4) = 6 overhead
+		// We use -8 to be safe and leave a slight margin
+		m.viewport.Width = m.width - 8
+		m.viewport.Height = m.height - 8
 
 	case tea.KeyMsg:
 		if m.viewMode == "logs" {
@@ -146,15 +170,16 @@ func (m MonitorDashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q", "ctrl+c":
 			return m, tea.Quit
 		case "k":
-			if selected := m.table.SelectedRow(); selected != nil {
-				m.sessionToKill = selected[0]
+			if len(m.sessions) > 0 && m.table.Cursor() < len(m.sessions) {
+				m.sessionToKill = m.sessions[m.table.Cursor()].Name
 				m.viewMode = "confirm_kill"
 				return m, nil
 			}
 		case "p":
-			if selected := m.table.SelectedRow(); selected != nil {
-				name := selected[0]
-				status := selected[1]
+			if len(m.sessions) > 0 && m.table.Cursor() < len(m.sessions) {
+				s := m.sessions[m.table.Cursor()]
+				name := s.Name
+				status := s.Status
 				return m, func() tea.Msg {
 					var err error
 					action := ""
@@ -174,8 +199,8 @@ func (m MonitorDashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		case "l", "enter":
-			if selected := m.table.SelectedRow(); selected != nil {
-				name := selected[0]
+			if len(m.sessions) > 0 && m.table.Cursor() < len(m.sessions) {
+				name := m.sessions[m.table.Cursor()].Name
 				return m, func() tea.Msg {
 					logs, err := m.callbacks.GetLogs(name)
 					if err != nil {
@@ -197,7 +222,7 @@ func (m MonitorDashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case monitorSessionsRefreshedMsg:
 		m.sessions = msg
 		m.lastUpdate = time.Now()
-		m.updateTableRows()
+		m.updateTableRows(m.table.Cursor())
 
 	case actionResultMsg:
 		if msg.err != nil {
@@ -214,16 +239,24 @@ func (m MonitorDashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.logContent = msg
 		m.viewMode = "logs"
 		m.viewport.SetContent(m.logContent)
+		m.viewport.GotoBottom()
 		return m, nil
 	}
 
+	oldCursor := m.table.Cursor()
 	m.table, cmd = m.table.Update(msg)
+	newCursor := m.table.Cursor()
+
+	if oldCursor != newCursor {
+		m.updateTableRows(newCursor)
+	}
+
 	return m, cmd
 }
 
-func (m *MonitorDashboardModel) updateTableRows() {
+func (m *MonitorDashboardModel) updateTableRows(cursorIndex int) {
 	rows := []table.Row{}
-	for _, s := range m.sessions {
+	for i, s := range m.sessions {
 		goal := s.Goal
 		if len(goal) > 50 {
 			goal = goal[:47] + "..."
@@ -233,8 +266,16 @@ func (m *MonitorDashboardModel) updateTableRows() {
 			cost = fmt.Sprintf("$%.4f", s.Cost)
 		}
 
+		// Add selection marker
+		name := s.Name
+		if i == cursorIndex {
+			name = "▶ " + name
+		} else {
+			name = "  " + name
+		}
+
 		rows = append(rows, table.Row{
-			s.Name,
+			name,
 			s.Status,
 			s.Location,
 			cost,
@@ -247,15 +288,30 @@ func (m *MonitorDashboardModel) updateTableRows() {
 
 func (m MonitorDashboardModel) View() string {
 	if m.viewMode == "logs" {
-		return fmt.Sprintf("%s\n\n%s\n\n(Press q/esc to back)",
-			monitorTitleStyle.Render("Session Logs"),
-			m.viewport.View())
+		title := monitorTitleStyle.Render("Session Logs")
+		logs := logsBorderStyle.
+			Width(m.width - 2).
+			Height(m.height - 4).
+			Render(m.viewport.View())
+
+		help := monitorHelpStyle.Render("Scroll: ↑/↓/k/j • Quit: q/esc")
+		return fmt.Sprintf("%s\n%s\n%s", title, logs, help)
 	}
 
 	if m.viewMode == "confirm_kill" {
-		return fmt.Sprintf("\n%s\n\nAre you sure you want to kill session '%s'?\n\n(y/n)",
-			confirmStyle.Render("⚠️  DANGER ZONE"),
-			m.sessionToKill)
+		// Calculate roughly center (lipgloss handles align but placing it in middle of screen needs Place)
+		content := fmt.Sprintf("Are you sure you want to stop session?\n\n%s\n\n(This action cannot be undone)", lipgloss.NewStyle().Bold(true).Render(m.sessionToKill))
+
+		dialog := confirmBoxStyle.Render(
+			lipgloss.JoinVertical(lipgloss.Center,
+				confirmTitleStyle.Render("⚠️  CONFIRM ACTION"),
+				content,
+				"\n[y] Yes    [n] No",
+			),
+		)
+
+		// Place dialog in center of screen
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, dialog)
 	}
 
 	s := monitorTitleStyle.Render("RECAC Control Center") + "\n"

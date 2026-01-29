@@ -143,7 +143,8 @@ func TestMonitorDashboardModel_View(t *testing.T) {
 	m.viewMode = "confirm_kill"
 	m.sessionToKill = "sess1"
 	view = m.View()
-	assert.Contains(t, view, "Are you sure you want to kill session 'sess1'?")
+	assert.Contains(t, view, "Are you sure you want to stop session?")
+	assert.Contains(t, view, "sess1")
 }
 
 // Helper
