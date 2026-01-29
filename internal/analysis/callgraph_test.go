@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -106,4 +107,62 @@ func internalFunc() {}
 	assert.True(t, foundMainToHelper, "Missing edge: main -> Helper")
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
+}
+
+func TestGenerateCallGraph_Determinism(t *testing.T) {
+	// Setup temporary directory with sample code
+	tmpDir := t.TempDir()
+
+	// Create multiple files to trigger random iteration order if not sorted.
+	for i := 0; i < 20; i++ {
+		fileName := fmt.Sprintf("file%d.go", i)
+		content := fmt.Sprintf(`package pkg
+func Func%d() {
+	Func%d()
+}
+`, i, (i+1)%20)
+		err := os.WriteFile(filepath.Join(tmpDir, fileName), []byte(content), 0644)
+		require.NoError(t, err)
+	}
+
+	// Run 1
+	cg1, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Run 2
+	cg2, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Compare Edges Order
+	require.Equal(t, len(cg1.Edges), len(cg2.Edges))
+	for i := range cg1.Edges {
+		assert.Equal(t, cg1.Edges[i], cg2.Edges[i], "Edge at index %d mismatch. Expected %v, got %v", i, cg1.Edges[i], cg2.Edges[i])
+	}
+}
+
+func TestResolveExternalCall_Ambiguity(t *testing.T) {
+	// Setup nodes directly
+	cg := &CallGraph{
+		Nodes: map[string]*CallGraphNode{
+			"pkg/utils.Helper": {
+				ID:      "pkg/utils.Helper",
+				Package: "pkg/utils",
+				Name:    "Helper",
+			},
+			"internal/pkg/utils.Helper": {
+				ID:      "internal/pkg/utils.Helper",
+				Package: "internal/pkg/utils",
+				Name:    "Helper",
+			},
+		},
+	}
+
+	// Ambiguous call
+	// Import: "github.com/repo/internal/pkg/utils"
+	// Should match "internal/pkg/utils" better than "pkg/utils"
+	// because it's a longer suffix match.
+	// Current implementation picks first match (random map order), so this might fail.
+
+	match := resolveExternalCall(cg, "github.com/repo/internal/pkg/utils", "Helper")
+	assert.Equal(t, "internal/pkg/utils.Helper", match)
 }

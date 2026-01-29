@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"io/fs"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -80,7 +81,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		} else if filepath.Base(relDir) != pkgName {
 			fullPkg = filepath.Join(relDir, pkgName)
 		}
-		fullPkg = strings.TrimPrefix(fullPkg, "./")
+		fullPkg = filepath.ToSlash(strings.TrimPrefix(fullPkg, "./"))
 
 		// Index Imports
 		imports := make(map[string]string)
@@ -130,7 +131,15 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 	// Use map to prevent duplicates
 	edgeMap := make(map[string]bool)
 
-	for path, f := range parsedFiles {
+	// Sort files for deterministic processing
+	var filePaths []string
+	for path := range parsedFiles {
+		filePaths = append(filePaths, path)
+	}
+	sort.Strings(filePaths)
+
+	for _, path := range filePaths {
+		f := parsedFiles[path]
 		pkgName := f.Name.Name
 		dir := filepath.Dir(path)
 		relDir, _ := filepath.Rel(root, dir)
@@ -140,7 +149,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		} else if filepath.Base(relDir) != pkgName {
 			fullPkg = filepath.Join(relDir, pkgName)
 		}
-		fullPkg = strings.TrimPrefix(fullPkg, "./")
+		fullPkg = filepath.ToSlash(strings.TrimPrefix(fullPkg, "./"))
 
 		imports := fileImports[path]
 
@@ -266,22 +275,57 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 	// This is hard without knowing module name.
 	// But we can scan all nodes and check if Node.Package matches the end of ImportPath?
 
-	for id, node := range cg.Nodes {
+	var matchID string
+	var matchPkgLen int
+
+	// Iterate deterministically
+	var nodeIDs []string
+	for id := range cg.Nodes {
+		nodeIDs = append(nodeIDs, id)
+	}
+	sort.Strings(nodeIDs)
+
+	for _, id := range nodeIDs {
+		node := cg.Nodes[id]
 		if node.Name == funcName && node.Receiver == "" {
 			// Check if importPath ends with node.Package
 			// node.Package might be "internal/utils"
 			// importPath might be "recac/internal/utils"
+			// Ensure we match full path segments, e.g. "pkg/utils" shouldn't match "my/autils"
+			// We check if it is an exact match or ends with "/"+pkg
+
+			// Simple suffix check is risky if package names overlap strings.
+			// e.g. "tils" matches "utils".
+			// But node.Package typically contains slashes.
+
 			if strings.HasSuffix(importPath, node.Package) {
-				return id
+				// Check for path boundary
+				prefix := strings.TrimSuffix(importPath, node.Package)
+				if prefix == "" || strings.HasSuffix(prefix, "/") {
+					// Found a match. Pick the longest one.
+					if len(node.Package) > matchPkgLen {
+						matchID = id
+						matchPkgLen = len(node.Package)
+					}
+				}
 			}
 		}
 	}
-	return ""
+	return matchID
 }
 
 func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {
 	var results []*CallGraphNode
-	for _, node := range cg.Nodes {
+
+	// Iterate deterministically
+	var nodeIDs []string
+	for id := range cg.Nodes {
+		nodeIDs = append(nodeIDs, id)
+	}
+	sort.Strings(nodeIDs)
+
+	for _, id := range nodeIDs {
+		node := cg.Nodes[id]
 		if node.Name == methodName && node.Receiver != "" {
 			results = append(results, node)
 		}
