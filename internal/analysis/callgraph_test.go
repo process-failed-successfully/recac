@@ -284,3 +284,40 @@ func Main() {
 		assert.Equal(t, expectedTarget, target, "Should resolve to longest matching suffix")
 	}
 }
+
+func TestGenerateCallGraph_StressDeterminism(t *testing.T) {
+	// Stress test determinism with more files and calls
+	tmpDir := t.TempDir()
+
+	// Create 50 packages
+	for i := 0; i < 50; i++ {
+		pkgName := fmt.Sprintf("p%d", i)
+		dir := filepath.Join(tmpDir, pkgName)
+		os.MkdirAll(dir, 0755)
+
+		// Function F calls F of next package
+		nextPkg := fmt.Sprintf("p%d", (i+1)%50)
+		content := fmt.Sprintf(`package %s
+import "recac-test/%s"
+func F() {
+	%s.F()
+}
+`, pkgName, nextPkg, nextPkg)
+
+		os.WriteFile(filepath.Join(dir, "f.go"), []byte(content), 0644)
+	}
+
+	// Run multiple times
+	var firstEdges string
+	for i := 0; i < 20; i++ {
+		cg, err := GenerateCallGraph(tmpDir)
+		require.NoError(t, err)
+
+		edges := fmt.Sprintf("%v", cg.Edges)
+		if firstEdges == "" {
+			firstEdges = edges
+		} else {
+			assert.Equal(t, firstEdges, edges, "Stress test: Call graph edges should be deterministic")
+		}
+	}
+}
