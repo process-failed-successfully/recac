@@ -20,7 +20,7 @@ type OpenRouterClient struct {
 // NewOpenRouterClient creates a new OpenRouter client
 func NewOpenRouterClient(apiKey, model, project string) *OpenRouterClient {
 	return &OpenRouterClient{
-		BaseClient: NewBaseClient(project, 128000), // Default generic limit
+		BaseClient: NewBaseClient(project, 4000), // Default generic limit (reduced to avoid 402 on limited accounts)
 		apiKey:     apiKey,
 		model:      model,
 		httpClient: &http.Client{
@@ -54,6 +54,7 @@ func (c *OpenRouterClient) getConfig() HTTPClientConfig {
 			"HTTP-Referer": "https://github.com/process-failed-successfully/recac",
 			"X-Title":      "Process Failed Successfully",
 		},
+		MaxTokens: c.BaseClient.DefaultMaxTokens,
 	}
 }
 
