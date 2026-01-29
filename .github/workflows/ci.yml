@@ -288,6 +288,7 @@ jobs:
               -scenario prime-python \
               -provider openrouter \
               -model "google/gemini-2.0-flash-lite-preview-02-05:free" \
+              # Updated model to prevent rate limits
               -image recac:smoke \
               -repo-url "https://github.com/process-failed-successfully/recac-jira-e2e" \
               -pull-policy IfNotPresent \
