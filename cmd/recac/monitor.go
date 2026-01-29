@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"recac/internal/model"
 	"recac/internal/ui"
 
 	"github.com/spf13/cobra"
 )
+
+// startMonitorDashboardFunc is a variable to allow mocking in tests
+var startMonitorDashboardFunc = ui.StartMonitorDashboard
 
 var monitorCmd = &cobra.Command{
 	Use:   "monitor",
@@ -29,7 +33,7 @@ var monitorCmd = &cobra.Command{
 			// But getUnifiedSessions is in ps.go (package main), so we can call it!
 			// We just need to ensure filters are correct.
 			filters := model.PsFilters{
-				Remote:   false, // Default to local only for safety, or maybe true? Let's say false for now unless flagged.
+				Remote:   true,
 				LogLines: 0,
 			}
 			return getUnifiedSessions(cmd, filters)
@@ -37,21 +41,41 @@ var monitorCmd = &cobra.Command{
 
 		callbacks := ui.ActionCallbacks{
 			GetSessions: getSessions,
-			Stop: func(name string) error {
-				return sm.StopSession(name)
+			Stop: func(session model.UnifiedSession) error {
+				if session.Location == "k8s" {
+					client, err := k8sClientFactory()
+					if err != nil {
+						return err
+					}
+					return client.DeletePod(context.Background(), session.ID)
+				}
+				return sm.StopSession(session.Name)
 			},
-			Pause: func(name string) error {
-				return sm.PauseSession(name)
+			Pause: func(session model.UnifiedSession) error {
+				if session.Location == "k8s" {
+					return fmt.Errorf("pausing k8s sessions is not supported")
+				}
+				return sm.PauseSession(session.Name)
 			},
-			Resume: func(name string) error {
-				return sm.ResumeSession(name)
+			Resume: func(session model.UnifiedSession) error {
+				if session.Location == "k8s" {
+					return fmt.Errorf("resuming k8s sessions is not supported")
+				}
+				return sm.ResumeSession(session.Name)
 			},
-			GetLogs: func(name string) (string, error) {
-				return sm.GetSessionLogContent(name, 1000)
+			GetLogs: func(session model.UnifiedSession) (string, error) {
+				if session.Location == "k8s" {
+					client, err := k8sClientFactory()
+					if err != nil {
+						return "", err
+					}
+					return client.GetPodLogs(context.Background(), session.ID, 1000)
+				}
+				return sm.GetSessionLogContent(session.Name, 1000)
 			},
 		}
 
-		return ui.StartMonitorDashboard(callbacks)
+		return startMonitorDashboardFunc(callbacks)
 	},
 }
 

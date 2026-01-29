@@ -201,6 +201,7 @@ func getUnifiedSessions(cmd *cobra.Command, filters model.PsFilters) ([]model.Un
 	}
 	for _, s := range localSessions {
 		us := model.UnifiedSession{
+			ID:        s.Name,
 			Name:      s.Name,
 			Status:    s.Status,
 			StartTime: s.StartTime,
@@ -263,6 +264,7 @@ func getUnifiedSessions(cmd *cobra.Command, filters model.PsFilters) ([]model.Un
 			}
 			for _, pod := range pods {
 				us := model.UnifiedSession{
+					ID:        pod.Name,
 					Name:      pod.Labels["ticket"],
 					Status:    string(pod.Status.Phase),
 					StartTime: pod.CreationTimestamp.Time,

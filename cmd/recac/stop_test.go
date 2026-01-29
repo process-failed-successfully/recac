@@ -14,8 +14,9 @@ import (
 )
 
 type MockK8sClient struct {
-	ListPodsFunc  func(ctx context.Context, labelSelector string) ([]corev1.Pod, error)
-	DeletePodFunc func(ctx context.Context, name string) error
+	ListPodsFunc   func(ctx context.Context, labelSelector string) ([]corev1.Pod, error)
+	DeletePodFunc  func(ctx context.Context, name string) error
+	GetPodLogsFunc func(ctx context.Context, name string, lines int) (string, error)
 }
 
 func (m *MockK8sClient) ListPods(ctx context.Context, labelSelector string) ([]corev1.Pod, error) {
@@ -30,6 +31,13 @@ func (m *MockK8sClient) DeletePod(ctx context.Context, name string) error {
 		return m.DeletePodFunc(ctx, name)
 	}
 	return nil
+}
+
+func (m *MockK8sClient) GetPodLogs(ctx context.Context, name string, lines int) (string, error) {
+	if m.GetPodLogsFunc != nil {
+		return m.GetPodLogsFunc(ctx, name, lines)
+	}
+	return "", nil
 }
 
 func TestStopCmd_LocalSession(t *testing.T) {
