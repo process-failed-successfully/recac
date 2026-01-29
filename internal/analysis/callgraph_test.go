@@ -196,3 +196,40 @@ func main() {
 	}
 	assert.True(t, found, "Missing edge to generic function instantiation")
 }
+
+func TestGenerateCallGraph_Determinism(t *testing.T) {
+	// Create a complex setup to ensure non-trivial traversal
+	tmpDir := t.TempDir()
+
+	// File 1: A.go
+	err := os.WriteFile(filepath.Join(tmpDir, "a.go"), []byte(`package main
+func A() { B() }
+`), 0644)
+	require.NoError(t, err)
+
+	// File 2: B.go
+	err = os.WriteFile(filepath.Join(tmpDir, "b.go"), []byte(`package main
+func B() { C() }
+`), 0644)
+	require.NoError(t, err)
+
+	// File 3: C.go
+	err = os.WriteFile(filepath.Join(tmpDir, "c.go"), []byte(`package main
+func C() { A() }
+`), 0644)
+	require.NoError(t, err)
+
+	// Run 1
+	cg1, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Run 2
+	cg2, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Verify Edges match exactly in order
+	require.Equal(t, len(cg1.Edges), len(cg2.Edges), "Edge count mismatch")
+	for i := range cg1.Edges {
+		assert.Equal(t, cg1.Edges[i], cg2.Edges[i], "Edge mismatch at index %d", i)
+	}
+}
