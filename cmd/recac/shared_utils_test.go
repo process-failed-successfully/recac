@@ -82,6 +82,26 @@ func TestIsBinaryContent(t *testing.T) {
 	}
 }
 
+func TestSanitizeMermaidID(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"simple", "simple"},
+		{"pkg.Func", "pkg_Func"},
+		{"pkg/sub.Func", "pkg_sub_Func"},
+		{"pkg.(Type).Method", "pkg__Type__Method"},
+		{"space and-dash", "space_and_dash"},
+		{"specialChars:&*[]", "specialChars_____"},
+		{"quotes\"'", "quotes__"},
+		{"windows\\path", "windows_path"},
+	}
+
+	for _, tt := range tests {
+		assert.Equal(t, tt.expected, SanitizeMermaidID(tt.input), "Input: %s", tt.input)
+	}
+}
+
 func TestExtractFileContexts(t *testing.T) {
 	tmpDir := t.TempDir()
 

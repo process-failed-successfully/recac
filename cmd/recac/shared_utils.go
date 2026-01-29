@@ -143,3 +143,31 @@ func extractFileContexts(output string) (string, error) {
 
 	return sb.String(), nil
 }
+
+// SanitizeMermaidID sanitizes a string to be used as a Mermaid node ID.
+// It replaces special characters that are invalid in Mermaid IDs with underscores.
+func SanitizeMermaidID(id string) string {
+	// Replace invalid characters with underscores
+	// Invalid: /, *, :, &, ., (, ), [, ], ", ', space, hyphen, backslash
+	// We use a whitelist approach or blacklist? Blacklist is easier for now given the memory hint.
+	// Memory said: /, *, :, &, ., (, ), [, ], ", ', spaces, and hyphens.
+	// Also adding backslash for Windows paths.
+
+	replacer := strings.NewReplacer(
+		"/", "_",
+		"\\", "_",
+		"*", "_",
+		":", "_",
+		"&", "_",
+		".", "_",
+		"(", "_",
+		")", "_",
+		"[", "_",
+		"]", "_",
+		"\"", "_",
+		"'", "_",
+		" ", "_",
+		"-", "_",
+	)
+	return replacer.Replace(id)
+}

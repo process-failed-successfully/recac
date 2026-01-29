@@ -53,7 +53,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 			return err
 		}
 		if d.IsDir() {
-			if strings.HasPrefix(d.Name(), ".") && d.Name() != "." {
+			if strings.HasPrefix(d.Name(), ".") && d.Name() != "." && d.Name() != ".." {
 				return filepath.SkipDir
 			}
 			return nil
@@ -74,6 +74,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 
 		// Approximate full package path
 		relDir, _ := filepath.Rel(root, dir)
+		relDir = filepath.ToSlash(relDir)
 		fullPkg := relDir
 		if relDir == "." {
 			fullPkg = pkgName
@@ -134,6 +135,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		pkgName := f.Name.Name
 		dir := filepath.Dir(path)
 		relDir, _ := filepath.Rel(root, dir)
+		relDir = filepath.ToSlash(relDir)
 		fullPkg := relDir
 		if relDir == "." {
 			fullPkg = pkgName
