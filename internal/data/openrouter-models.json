@@ -65,10 +65,6 @@
       "displayName": "Anthropic Claude Sonnet 4"
     },
     {
-      "name": "nvidia/nemotron-3-nano-30b-a3b:free",
-      "displayName": "NVIDIA Nemotron 3 Nano 30B (Free)"
-    },
-    {
       "name": "openai/gpt-oss-20b",
       "displayName": "OpenAI GPT OSS 20B"
     },
@@ -83,6 +79,10 @@
     {
       "name": "google/gemini-2.5-flash-preview-09-2025",
       "displayName": "Google Gemini 2.5 Flash Preview 09-2025"
+    },
+    {
+      "name": "google/gemini-2.0-flash-exp:free",
+      "displayName": "Google Gemini 2.0 Flash Experimental (Free)"
     }
   ]
 }
