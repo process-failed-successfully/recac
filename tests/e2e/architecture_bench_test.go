@@ -34,7 +34,7 @@ func TestArchitectureGenerationBenchmark(t *testing.T) {
 	}
 	model := os.Getenv("RECAC_MODEL")
 	if model == "" {
-		model = "mistralai/devstral-2512:free" // Default
+		model = "google/gemini-2.0-flash-lite-preview-02-05:free" // Default
 	}
 	runs := 5 // Number of iterations
 
