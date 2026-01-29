@@ -83,6 +83,10 @@
     {
       "name": "google/gemini-2.5-flash-preview-09-2025",
       "displayName": "Google Gemini 2.5 Flash Preview 09-2025"
+    },
+    {
+      "name": "google/gemini-2.0-flash-lite-preview-02-05:free",
+      "displayName": "Google Gemini 2.0 Flash Lite Preview 02-05 (Free)"
     }
   ]
 }
