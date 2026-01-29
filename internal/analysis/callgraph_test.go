@@ -163,6 +163,42 @@ func main() {
 	assert.True(t, foundU2, "Should resolve u2 to internal/pkg/utils.Do")
 }
 
+func TestResolveExternalCall_IncorrectSuffix_Root(t *testing.T) {
+	// Setup:
+	// - age/age.go (Package "age")
+	// - main.go imports "github.com/repo/image"
+	// Suffix "age" matches "image".
+
+	tmpDir := t.TempDir()
+
+	// 1. age/age.go
+	ageDir := filepath.Join(tmpDir, "age")
+	require.NoError(t, os.MkdirAll(ageDir, 0755))
+	os.WriteFile(filepath.Join(ageDir, "age.go"), []byte("package age\nfunc Do() {}"), 0644)
+
+	// 2. main.go
+	mainContent := `package main
+import (
+	img "github.com/repo/image"
+)
+func main() {
+	img.Do()
+}
+`
+	os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainContent), 0644)
+
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Check edges
+	// Should NOT resolve to age.Do
+	for _, edge := range cg.Edges {
+		if edge.From == "main.main" {
+			assert.NotEqual(t, "age.Do", edge.To, "Should NOT resolve image.Do to age.Do")
+		}
+	}
+}
+
 func TestGenerateCallGraph_Determinism(t *testing.T) {
     // Generate graph multiple times and compare edges order
     tmpDir := t.TempDir()

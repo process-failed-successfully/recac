@@ -276,10 +276,14 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 		node := cg.Nodes[id]
 		if node.Name == funcName && node.Receiver == "" {
 			if strings.HasSuffix(importPath, node.Package) {
-				// Keep the longest suffix match
-				if len(node.Package) > bestMatchLen {
-					bestMatch = id
-					bestMatchLen = len(node.Package)
+				// Check boundary: ensure it's a full path component match
+				suffixLen := len(node.Package)
+				if len(importPath) == suffixLen || importPath[len(importPath)-suffixLen-1] == '/' {
+					// Keep the longest suffix match
+					if len(node.Package) > bestMatchLen {
+						bestMatch = id
+						bestMatchLen = len(node.Package)
+					}
 				}
 			}
 		}
