@@ -147,7 +147,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 	for _, node := range cg.Nodes {
 		sortedNodes = append(sortedNodes, node)
 	}
-	sort.Slice(sortedNodes, func(i, j int) bool {
+	sort.SliceStable(sortedNodes, func(i, j int) bool {
 		return sortedNodes[i].ID < sortedNodes[j].ID
 	})
 
@@ -273,7 +273,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 	}
 
 	// Sort edges for determinism
-	sort.Slice(cg.Edges, func(i, j int) bool {
+	sort.SliceStable(cg.Edges, func(i, j int) bool {
 		if cg.Edges[i].From != cg.Edges[j].From {
 			return cg.Edges[i].From < cg.Edges[j].From
 		}
