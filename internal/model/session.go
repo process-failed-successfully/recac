@@ -7,6 +7,7 @@ import (
 
 // UnifiedSession represents both a local session and a remote K8s pod for display purposes.
 type UnifiedSession struct {
+	ID           string
 	Name         string
 	Status       string
 	StartTime    time.Time

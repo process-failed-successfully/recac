@@ -14,10 +14,10 @@ import (
 // Callbacks for actions
 type ActionCallbacks struct {
 	GetSessions func() ([]model.UnifiedSession, error)
-	Stop        func(name string) error
-	Pause       func(name string) error
-	Resume      func(name string) error
-	GetLogs     func(name string) (string, error)
+	Stop        func(session model.UnifiedSession) error
+	Pause       func(session model.UnifiedSession) error
+	Resume      func(session model.UnifiedSession) error
+	GetLogs     func(session model.UnifiedSession) (string, error)
 }
 
 type MonitorDashboardModel struct {
@@ -128,7 +128,11 @@ func (m MonitorDashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.sessionToKill = ""
 				m.viewMode = "list"
 				return m, func() tea.Msg {
-					err := m.callbacks.Stop(name)
+					session, found := m.getSessionByName(name)
+					if !found {
+						return actionResultMsg{err: fmt.Errorf("session %s not found", name)}
+					}
+					err := m.callbacks.Stop(session)
 					if err != nil {
 						return actionResultMsg{err: err}
 					}
@@ -156,13 +160,17 @@ func (m MonitorDashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				name := selected[0]
 				status := selected[1]
 				return m, func() tea.Msg {
+					session, found := m.getSessionByName(name)
+					if !found {
+						return actionResultMsg{err: fmt.Errorf("session %s not found", name)}
+					}
 					var err error
 					action := ""
 					if status == "paused" {
-						err = m.callbacks.Resume(name)
+						err = m.callbacks.Resume(session)
 						action = "Resumed"
 					} else if status == "running" {
-						err = m.callbacks.Pause(name)
+						err = m.callbacks.Pause(session)
 						action = "Paused"
 					} else {
 						return actionResultMsg{err: fmt.Errorf("cannot toggle pause for status: %s", status)}
@@ -177,7 +185,11 @@ func (m MonitorDashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if selected := m.table.SelectedRow(); selected != nil {
 				name := selected[0]
 				return m, func() tea.Msg {
-					logs, err := m.callbacks.GetLogs(name)
+					session, found := m.getSessionByName(name)
+					if !found {
+						return actionResultMsg{err: fmt.Errorf("session %s not found", name)}
+					}
+					logs, err := m.callbacks.GetLogs(session)
 					if err != nil {
 						return actionResultMsg{err: err}
 					}
@@ -219,6 +231,15 @@ func (m MonitorDashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	m.table, cmd = m.table.Update(msg)
 	return m, cmd
+}
+
+func (m MonitorDashboardModel) getSessionByName(name string) (model.UnifiedSession, bool) {
+	for _, s := range m.sessions {
+		if s.Name == name {
+			return s, true
+		}
+	}
+	return model.UnifiedSession{}, false
 }
 
 func (m *MonitorDashboardModel) updateTableRows() {

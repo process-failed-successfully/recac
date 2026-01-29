@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -83,4 +84,27 @@ func (c *Client) DeletePod(ctx context.Context, name string) error {
 		return fmt.Errorf("failed to delete Kubernetes pod %s: %w", name, err)
 	}
 	return nil
+}
+
+// GetPodLogs retrieves the logs for a specific pod.
+func (c *Client) GetPodLogs(ctx context.Context, name string, lines int) (string, error) {
+	opts := &corev1.PodLogOptions{}
+	if lines > 0 {
+		tailLines := int64(lines)
+		opts.TailLines = &tailLines
+	}
+
+	req := c.Clientset.CoreV1().Pods(c.Namespace).GetLogs(name, opts)
+	podLogs, err := req.Stream(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to open stream for pod logs: %w", err)
+	}
+	defer podLogs.Close()
+
+	buf := new(strings.Builder)
+	_, err = io.Copy(buf, podLogs)
+	if err != nil {
+		return "", fmt.Errorf("failed to read pod logs: %w", err)
+	}
+	return buf.String(), nil
 }

@@ -67,4 +67,5 @@ type IGitClient interface {
 type IK8sClient interface {
 	ListPods(ctx context.Context, labelSelector string) ([]corev1.Pod, error)
 	DeletePod(ctx context.Context, name string) error
+	GetPodLogs(ctx context.Context, name string, lines int) (string, error)
 }

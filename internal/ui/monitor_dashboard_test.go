@@ -49,8 +49,8 @@ func TestMonitorDashboardModel_Update_Kill(t *testing.T) {
 	assert.Equal(t, "sess1", finalM.sessionToKill)
 
 	// Press 'y' to confirm
-	mockStop := func(name string) error {
-		assert.Equal(t, "sess1", name)
+	mockStop := func(session model.UnifiedSession) error {
+		assert.Equal(t, "sess1", session.Name)
 		return nil
 	}
 	finalM.callbacks.Stop = mockStop
@@ -68,7 +68,7 @@ func TestMonitorDashboardModel_Update_Kill(t *testing.T) {
 }
 
 func TestMonitorDashboardModel_Update_Logs(t *testing.T) {
-	mockGetLogs := func(name string) (string, error) {
+	mockGetLogs := func(session model.UnifiedSession) (string, error) {
 		return "log content", nil
 	}
 	callbacks := ActionCallbacks{GetLogs: mockGetLogs}
@@ -98,8 +98,8 @@ func TestMonitorDashboardModel_Update_Logs(t *testing.T) {
 }
 
 func TestMonitorDashboardModel_Update_PauseResume(t *testing.T) {
-	mockPause := func(name string) error { return nil }
-	mockResume := func(name string) error { return nil }
+	mockPause := func(session model.UnifiedSession) error { return nil }
+	mockResume := func(session model.UnifiedSession) error { return nil }
 
 	callbacks := ActionCallbacks{Pause: mockPause, Resume: mockResume}
 	m := NewMonitorDashboardModel(callbacks)
