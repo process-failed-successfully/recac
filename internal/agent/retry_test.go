@@ -101,7 +101,7 @@ func TestGeminiClient_NetworkInterruption(t *testing.T) {
 	t.Run("NetworkDrop_FailsGracefully", func(t *testing.T) {
 		calls := 0
 		client := NewGeminiClient("fake-key", "gemini-pro", "test-project")
-		client.BackoffFn = func(i int) time.Duration { return 50 * time.Millisecond } // Fast backoff
+		client.BackoffFn = func(i int) time.Duration { return 1 * time.Microsecond } // Fast backoff for 11 retries
 
 		// Simulate persistent network failure
 		client.WithMockResponder(func(prompt string) (string, error) {
@@ -121,10 +121,10 @@ func TestGeminiClient_NetworkInterruption(t *testing.T) {
 
 		result, err := client.Send(ctx, "test prompt")
 
-		// Verify retries happened (maxRetries = 3, so 4 total attempts: initial + 3 retries)
-		expectedCalls := 4
+		// Verify retries happened (maxRetries = 10, so 11 total attempts: initial + 10 retries)
+		expectedCalls := 11
 		if calls != expectedCalls {
-			t.Errorf("expected %d calls (1 initial + 3 retries), got %d", expectedCalls, calls)
+			t.Errorf("expected %d calls (1 initial + 10 retries), got %d", expectedCalls, calls)
 		}
 
 		// Verify it returns an error (not a panic)
@@ -249,10 +249,10 @@ func TestGeminiClient_IterationIncrementOnError(t *testing.T) {
 	}
 
 	// Step 3: Verify the agent waits with exponential backoff before retrying
-	// Should have made 4 calls (1 initial + 3 retries)
-	expectedCalls := 4
+	// Should have made 11 calls (1 initial + 10 retries)
+	expectedCalls := 11
 	if calls != expectedCalls {
-		t.Errorf("Expected %d calls (1 initial + 3 retries), got %d", expectedCalls, calls)
+		t.Errorf("Expected %d calls (1 initial + 10 retries), got %d", expectedCalls, calls)
 	}
 
 	// Verify exponential backoff was applied (should take at least 1s + 2s + 4s = 7s)
