@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -128,5 +129,56 @@ func TestRunHotspotAnalysis(t *testing.T) {
 	}
 	if !foundSimple {
 		t.Error("simple.go not found in hotspots")
+	}
+}
+
+func TestGenerateMermaidQuadrant(t *testing.T) {
+	tests := []struct {
+		name     string
+		hotspots []Hotspot
+		contains []string
+	}{
+		{
+			name:     "No hotspots",
+			hotspots: []Hotspot{},
+			contains: []string{"graph TD", "NoData"},
+		},
+		{
+			name: "Normal hotspots",
+			hotspots: []Hotspot{
+				{File: "main.go", Churn: 10, Complexity: 10},
+				{File: "utils.go", Churn: 1, Complexity: 1},
+			},
+			contains: []string{
+				"quadrantChart",
+				"title Hotspots Analysis",
+				"quadrant-1 Refactor Candidates",
+				// main.go should be near top right: 0.05 + 0.9 = 0.95
+				"\"main.go\": [0.95, 0.95]",
+				// utils.go should be near bottom left: 0.05 + (1/10)*0.9 = 0.05 + 0.09 = 0.14
+				"\"utils.go\": [0.14, 0.14]",
+			},
+		},
+		{
+			name: "Edge case zero values",
+			hotspots: []Hotspot{
+				{File: "empty.go", Churn: 0, Complexity: 0},
+			},
+			contains: []string{
+				"quadrantChart",
+				"\"empty.go\": [0.05, 0.05]",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := generateMermaidQuadrant(tt.hotspots)
+			for _, c := range tt.contains {
+				if !strings.Contains(got, c) {
+					t.Errorf("expected output to contain %q, but got:\n%s", c, got)
+				}
+			}
+		})
 	}
 }

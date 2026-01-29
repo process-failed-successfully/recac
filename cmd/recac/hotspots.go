@@ -19,6 +19,7 @@ var (
 	hotspotsDays  int
 	hotspotsLimit int
 	hotspotsJSON  bool
+	hotspotsChart string
 )
 
 type Hotspot struct {
@@ -57,6 +58,11 @@ The score is calculated as: Score = Churn * Complexity
 			results = results[:hotspotsLimit]
 		}
 
+		if hotspotsChart == "quadrant" {
+			fmt.Fprintln(cmd.OutOrStdout(), generateMermaidQuadrant(results))
+			return nil
+		}
+
 		if hotspotsJSON {
 			enc := json.NewEncoder(cmd.OutOrStdout())
 			enc.SetIndent("", "  ")
@@ -73,6 +79,7 @@ func init() {
 	hotspotsCmd.Flags().IntVar(&hotspotsDays, "days", 30, "Number of days of git history to analyze")
 	hotspotsCmd.Flags().IntVar(&hotspotsLimit, "limit", 10, "Number of top hotspots to show")
 	hotspotsCmd.Flags().BoolVar(&hotspotsJSON, "json", false, "Output results as JSON")
+	hotspotsCmd.Flags().StringVar(&hotspotsChart, "chart", "", "Output format: 'quadrant' for Mermaid chart")
 }
 
 func runHotspotAnalysis(root string, days int) ([]Hotspot, error) {
@@ -168,4 +175,58 @@ func printHotspotsReport(cmd *cobra.Command, results []Hotspot) {
 		fmt.Fprintf(w, "%s\t%.0f\t%d\t%d\n", h.File, h.Score, h.Churn, h.Complexity)
 	}
 	w.Flush()
+}
+
+func generateMermaidQuadrant(hotspots []Hotspot) string {
+	if len(hotspots) == 0 {
+		return "graph TD\n    NoData[No Hotspots Found]"
+	}
+
+	maxChurn := 0
+	maxComplexity := 0
+
+	for _, h := range hotspots {
+		if h.Churn > maxChurn {
+			maxChurn = h.Churn
+		}
+		if h.Complexity > maxComplexity {
+			maxComplexity = h.Complexity
+		}
+	}
+
+	// Avoid division by zero
+	if maxChurn == 0 {
+		maxChurn = 1
+	}
+	if maxComplexity == 0 {
+		maxComplexity = 1
+	}
+
+	var sb strings.Builder
+	sb.WriteString("quadrantChart\n")
+	sb.WriteString("    title Hotspots Analysis (Churn vs Complexity)\n")
+	sb.WriteString("    x-axis Low Churn --> High Churn\n")
+	sb.WriteString("    y-axis Low Complexity --> High Complexity\n")
+	sb.WriteString("    quadrant-1 Refactor Candidates\n")
+	sb.WriteString("    quadrant-2 Complicated & Stable\n")
+	sb.WriteString("    quadrant-3 Healthy\n")
+	sb.WriteString("    quadrant-4 Rapid Prototyping\n")
+
+	for _, h := range hotspots {
+		// Normalize to 0.05 - 0.95 to avoid edge clipping
+		x := 0.05 + (float64(h.Churn)/float64(maxChurn))*0.9
+		y := 0.05 + (float64(h.Complexity)/float64(maxComplexity))*0.9
+
+		// Truncate long filenames
+		label := h.File
+		if len(label) > 30 {
+			label = "..." + label[len(label)-27:]
+		}
+		// Escape quotes in label if any (though filenames rarely have quotes)
+		label = strings.ReplaceAll(label, "\"", "'")
+
+		sb.WriteString(fmt.Sprintf("    \"%s\": [%.2f, %.2f]\n", label, x, y))
+	}
+
+	return sb.String()
 }
