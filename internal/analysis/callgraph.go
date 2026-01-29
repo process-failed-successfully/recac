@@ -134,7 +134,10 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		return nil, err
 	}
 
-	// Sort auxiliary indices for deterministic lookup
+	// Sort auxiliary indices for deterministic lookup.
+	// We iterate over the map values (slices) and sort them.
+	// Note: The order of iteration over map keys does not matter here,
+	// as we only modify the slice values in place.
 	for _, nodes := range functionsByName {
 		sort.Slice(nodes, func(i, j int) bool {
 			return nodes[i].ID < nodes[j].ID
@@ -150,7 +153,12 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 	// Use map to prevent duplicates
 	edgeMap := make(map[string]bool)
 
-	// Sort files for deterministic iteration
+	// Sort files for deterministic iteration.
+	// This is critical because the order in which we process files determines
+	// the order in which edges are appended to cg.Edges (before the final sort).
+	// While we sort cg.Edges at the end, maintaining deterministic processing order
+	// aids debugging and ensures stability.
+	// Note: parsedFiles keys are absolute paths from WalkDir, which are consistent.
 	var paths []string
 	for p := range parsedFiles {
 		paths = append(paths, p)

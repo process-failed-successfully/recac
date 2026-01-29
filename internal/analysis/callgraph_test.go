@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -303,4 +304,37 @@ func main() {
 
 	assert.True(t, foundCorrect, "Should resolve to zutils.Helper")
 	assert.False(t, foundIncorrect, "Should NOT resolve to utils.Helper (partial suffix match)")
+}
+
+func TestGenerateCallGraph_StressDeterminism(t *testing.T) {
+	// Create 20 files calling each other in a chain
+	tmpDir := t.TempDir()
+
+	for i := 0; i < 20; i++ {
+		next := (i + 1) % 20
+		content := fmt.Sprintf(`package main
+func Func%03d() {
+	Func%03d()
+}
+`, i, next)
+		fileName := fmt.Sprintf("file%03d.go", i)
+		err := os.WriteFile(filepath.Join(tmpDir, fileName), []byte(content), 0644)
+		require.NoError(t, err)
+	}
+
+	// Run 1
+	cg1, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Run 2
+	cg2, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Verify Edges match exactly in order
+	require.Equal(t, len(cg1.Edges), len(cg2.Edges), "Edge count mismatch")
+	for i := range cg1.Edges {
+		if cg1.Edges[i] != cg2.Edges[i] {
+			t.Fatalf("Edge mismatch at index %d: %v != %v", i, cg1.Edges[i], cg2.Edges[i])
+		}
+	}
 }
