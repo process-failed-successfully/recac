@@ -273,8 +273,6 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 	}
 
 	// Sort edges for determinism
-	// This ensures that even if the order of discovery varies (which it shouldn't, due to sorted paths),
-	// the final output is canonical.
 	sort.SliceStable(cg.Edges, func(i, j int) bool {
 		if cg.Edges[i].From != cg.Edges[j].From {
 			return cg.Edges[i].From < cg.Edges[j].From
