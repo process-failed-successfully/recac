@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,9 +30,12 @@ func (m *MockK8sClientTestify) DeletePod(ctx context.Context, name string) error
 	return args.Error(0)
 }
 
-func (m *MockK8sClientTestify) GetPodLogs(ctx context.Context, name string, tailLines int64) (string, error) {
+func (m *MockK8sClientTestify) GetPodLogs(ctx context.Context, name string, tailLines int64) (io.ReadCloser, error) {
 	args := m.Called(ctx, name, tailLines)
-	return args.String(0), args.Error(1)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(io.ReadCloser), args.Error(1)
 }
 
 func TestK8sList(t *testing.T) {
@@ -84,7 +89,8 @@ func TestK8sLogs(t *testing.T) {
 
 	// Case 1: By Pod Name
 	mockClient.On("ListPods", mock.Anything, "app=recac-agent").Return(pods, nil).Once()
-	mockClient.On("GetPodLogs", mock.Anything, "recac-agent-rd-123", int64(100)).Return("log content", nil).Once()
+	mockLogs := io.NopCloser(strings.NewReader("log content"))
+	mockClient.On("GetPodLogs", mock.Anything, "recac-agent-rd-123", int64(100)).Return(mockLogs, nil).Once()
 
 	output, err := executeCommand(rootCmd, "k8s", "logs", "recac-agent-rd-123")
 	assert.NoError(t, err)
@@ -92,7 +98,8 @@ func TestK8sLogs(t *testing.T) {
 
 	// Case 2: By Ticket ID
 	mockClient.On("ListPods", mock.Anything, "app=recac-agent").Return(pods, nil).Once()
-	mockClient.On("GetPodLogs", mock.Anything, "recac-agent-rd-123", int64(100)).Return("log content ticket", nil).Once()
+	mockLogs2 := io.NopCloser(strings.NewReader("log content ticket"))
+	mockClient.On("GetPodLogs", mock.Anything, "recac-agent-rd-123", int64(100)).Return(mockLogs2, nil).Once()
 
 	output, err = executeCommand(rootCmd, "k8s", "logs", "RD-123")
 	assert.NoError(t, err)

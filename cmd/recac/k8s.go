@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"text/tabwriter"
 
 	"recac/internal/utils"
@@ -118,13 +119,18 @@ func runK8sLogs(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("pod or ticket '%s' not found", target)
 	}
 
-	// 2. Fetch Logs
-	logs, err := client.GetPodLogs(ctx, podName, k8sTailLines)
+	// 2. Fetch Logs (Stream)
+	stream, err := client.GetPodLogs(ctx, podName, k8sTailLines)
 	if err != nil {
 		return fmt.Errorf("failed to get logs for %s: %w", podName, err)
 	}
+	defer stream.Close()
 
-	fmt.Fprint(cmd.OutOrStdout(), logs)
+	_, err = io.Copy(cmd.OutOrStdout(), stream)
+	if err != nil {
+		return fmt.Errorf("error reading logs: %w", err)
+	}
+
 	return nil
 }
 

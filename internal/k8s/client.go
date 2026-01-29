@@ -86,26 +86,13 @@ func (c *Client) DeletePod(ctx context.Context, name string) error {
 	return nil
 }
 
-// GetPodLogs fetches the logs for a specific pod.
-func (c *Client) GetPodLogs(ctx context.Context, name string, tailLines int64) (string, error) {
+// GetPodLogs returns a ReadCloser for the pod logs stream.
+func (c *Client) GetPodLogs(ctx context.Context, name string, tailLines int64) (io.ReadCloser, error) {
 	opts := &corev1.PodLogOptions{}
 	if tailLines > 0 {
 		opts.TailLines = &tailLines
 	}
 
 	req := c.Clientset.CoreV1().Pods(c.Namespace).GetLogs(name, opts)
-	stream, err := req.Stream(ctx)
-	if err != nil {
-		return "", fmt.Errorf("failed to open stream: %w", err)
-	}
-	defer stream.Close()
-
-	// Read logs
-	buf := new(strings.Builder)
-	_, err = io.Copy(buf, stream)
-	if err != nil {
-		return "", fmt.Errorf("failed to read stream: %w", err)
-	}
-
-	return buf.String(), nil
+	return req.Stream(ctx)
 }

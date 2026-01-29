@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
+	"strings"
 	"testing"
 
 	"recac/internal/runner"
@@ -16,7 +18,7 @@ import (
 type MockK8sClient struct {
 	ListPodsFunc   func(ctx context.Context, labelSelector string) ([]corev1.Pod, error)
 	DeletePodFunc  func(ctx context.Context, name string) error
-	GetPodLogsFunc func(ctx context.Context, name string, tailLines int64) (string, error)
+	GetPodLogsFunc func(ctx context.Context, name string, tailLines int64) (io.ReadCloser, error)
 }
 
 func (m *MockK8sClient) ListPods(ctx context.Context, labelSelector string) ([]corev1.Pod, error) {
@@ -33,11 +35,11 @@ func (m *MockK8sClient) DeletePod(ctx context.Context, name string) error {
 	return nil
 }
 
-func (m *MockK8sClient) GetPodLogs(ctx context.Context, name string, tailLines int64) (string, error) {
+func (m *MockK8sClient) GetPodLogs(ctx context.Context, name string, tailLines int64) (io.ReadCloser, error) {
 	if m.GetPodLogsFunc != nil {
 		return m.GetPodLogsFunc(ctx, name, tailLines)
 	}
-	return "", nil
+	return io.NopCloser(strings.NewReader("")), nil
 }
 
 func TestStopCmd_LocalSession(t *testing.T) {

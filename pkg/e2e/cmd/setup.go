@@ -34,7 +34,7 @@ func RunSetup(args []string) error {
 
 	fs.StringVar(&scenarioName, "scenario", "prime-python", "Scenario to run")
 	fs.StringVar(&provider, "provider", "openrouter", "AI Provider")
-	fs.StringVar(&model, "model", "google/gemini-2.0-flash-exp:free", "AI Model")
+	fs.StringVar(&model, "model", "google/gemini-2.0-pro-exp-02-05:free", "AI Model")
 	fs.StringVar(&targetRepo, "repo-url", repoURL, "Target Git repository for the agent")
 	fs.StringVar(&stateFile, "state-file", "e2e_state.json", "Path to save state file")
 	fs.Parse(args)

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io"
 	"recac/internal/runner"
 
 	corev1 "k8s.io/api/core/v1"
@@ -67,5 +68,5 @@ type IGitClient interface {
 type IK8sClient interface {
 	ListPods(ctx context.Context, labelSelector string) ([]corev1.Pod, error)
 	DeletePod(ctx context.Context, name string) error
-	GetPodLogs(ctx context.Context, name string, tailLines int64) (string, error)
+	GetPodLogs(ctx context.Context, name string, tailLines int64) (io.ReadCloser, error)
 }
