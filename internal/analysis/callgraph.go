@@ -54,8 +54,13 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 			return err
 		}
 		if d.IsDir() {
+			name := d.Name()
 			// Skip hidden directories, but allow root itself (even if it is "." or "..")
-			if strings.HasPrefix(d.Name(), ".") && d.Name() != "." && d.Name() != ".." {
+			if strings.HasPrefix(name, ".") && name != "." && name != ".." {
+				return filepath.SkipDir
+			}
+			// Skip common ignored directories
+			if name == "vendor" || name == "node_modules" || name == "testdata" || name == "dist" || name == "build" {
 				return filepath.SkipDir
 			}
 			return nil
