@@ -69,3 +69,33 @@ func TestGetPrompt_Override(t *testing.T) {
 		t.Errorf("Expected %q, got %q", expected, got)
 	}
 }
+
+func TestListPrompts(t *testing.T) {
+	prompts, err := ListPrompts()
+	if err != nil {
+		t.Fatalf("ListPrompts failed: %v", err)
+	}
+
+	if len(prompts) == 0 {
+		t.Error("Expected prompts list to be non-empty")
+	}
+
+	// Check if common prompts are present
+	hasPlanner := false
+	for _, p := range prompts {
+		if p == Planner {
+			hasPlanner = true
+			break
+		}
+	}
+	if !hasPlanner {
+		t.Error("Expected 'planner' to be in the prompts list")
+	}
+}
+
+func TestGetPrompt_NotFound(t *testing.T) {
+	_, err := GetPrompt("non_existent_prompt_xyz", nil)
+	if err == nil {
+		t.Error("Expected error for non-existent prompt, got nil")
+	}
+}

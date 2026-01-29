@@ -240,6 +240,46 @@ func TestDiscordNotifier_AddReaction_Error(t *testing.T) {
 	}
 }
 
+func TestDiscordNotifier_Send_NoConfig(t *testing.T) {
+	notifier := NewDiscordNotifier("")
+	ctx := context.Background()
+
+	_, err := notifier.Send(ctx, "test", "")
+	if err == nil {
+		t.Error("expected error when no config is present, got nil")
+	}
+	if err.Error() != "discord not configured (missing token/channel or webhook)" {
+		t.Errorf("expected configuration error, got %v", err)
+	}
+}
+
+func TestDiscordNotifier_AddReaction_Unmapped(t *testing.T) {
+	channelID := "12345"
+	messageID := "msg_123"
+	reaction := "unknown_emoji"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.Contains(r.URL.Path, reaction) {
+			t.Errorf("expected reaction %s in URL, got %s", reaction, r.URL.Path)
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	notifier := NewDiscordBotNotifier("my_token", channelID)
+	notifier.Client = &http.Client{
+		Transport: &testTransport{
+			TargetURL: server.URL,
+		},
+	}
+
+	ctx := context.Background()
+	err := notifier.AddReaction(ctx, messageID, reaction)
+	if err != nil {
+		t.Fatalf("AddReaction failed: %v", err)
+	}
+}
+
 type testTransport struct {
 	TargetURL string
 }

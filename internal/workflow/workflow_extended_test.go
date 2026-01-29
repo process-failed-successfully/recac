@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"recac/internal/agent"
 	"recac/internal/runner"
 
 	"github.com/stretchr/testify/assert"
@@ -149,4 +150,58 @@ func TestRunWorkflow_PreFlight_Dirty(t *testing.T) {
 	err := RunWorkflow(context.Background(), cfg)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "uncommitted changes detected")
+}
+
+func TestRunWorkflow_PreFlight_Dirty_Bypass(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not found")
+	}
+
+	tmpDir := t.TempDir()
+
+	runCmd := func(name string, args ...string) {
+		cmd := exec.Command(name, args...)
+		cmd.Dir = tmpDir
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("command failed: %s %v: %v", name, args, err)
+		}
+	}
+
+	runCmd("git", "init")
+	runCmd("git", "config", "user.email", "test@example.com")
+	runCmd("git", "config", "user.name", "Test User")
+
+	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte("content"), 0644)
+	runCmd("git", "add", ".")
+	runCmd("git", "commit", "-m", "init")
+
+	// Make dirty
+	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte("dirty"), 0644)
+
+	// Mock NewSessionFunc to exit early
+	originalNewSessionFunc := NewSessionFunc
+	defer func() { NewSessionFunc = originalNewSessionFunc }()
+	NewSessionFunc = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
+		s := runner.NewSession(d, a, workspace, image, project, provider, model, maxAgents)
+		s.MaxIterations = 0 // Exit immediately
+		return s
+	}
+
+	// Create app_spec.txt required by RunLoop
+	os.WriteFile(fmt.Sprintf("%s/app_spec.txt", tmpDir), []byte("test spec"), 0644)
+
+	cfg := SessionConfig{
+		ProjectPath: tmpDir,
+		SessionName: "test-dirty-bypass",
+		AllowDirty:  true,
+		IsMock:      false,
+		ProjectName: "test-project",
+	}
+
+	err := RunWorkflow(context.Background(), cfg)
+
+	// Should NOT fail with "uncommitted changes detected"
+	if err != nil {
+		assert.NotContains(t, err.Error(), "uncommitted changes detected")
+	}
 }
