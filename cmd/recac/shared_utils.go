@@ -143,3 +143,24 @@ func extractFileContexts(output string) (string, error) {
 
 	return sb.String(), nil
 }
+
+// SanitizeMermaidID replaces characters that are invalid in Mermaid IDs with underscores.
+func SanitizeMermaidID(id string) string {
+	replacer := strings.NewReplacer(
+		"/", "_",
+		"\\", "_",
+		"*", "_",
+		":", "_",
+		"&", "_",
+		".", "_",
+		"(", "_",
+		")", "_",
+		"[", "_",
+		"]", "_",
+		"\"", "_",
+		"'", "_",
+		" ", "_",
+		"-", "_",
+	)
+	return replacer.Replace(id)
+}
