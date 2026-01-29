@@ -20,7 +20,7 @@ type OpenRouterClient struct {
 // NewOpenRouterClient creates a new OpenRouter client
 func NewOpenRouterClient(apiKey, model, project string) *OpenRouterClient {
 	return &OpenRouterClient{
-		BaseClient: NewBaseClient(project, 128000), // Default generic limit
+		BaseClient: NewBaseClient(project, 2000), // Default safe limit to prevent credit exhaustion
 		apiKey:     apiKey,
 		model:      model,
 		httpClient: &http.Client{
@@ -50,6 +50,9 @@ func (c *OpenRouterClient) getConfig() HTTPClientConfig {
 		APIURL:        c.apiURL,
 		HTTPClient:    c.httpClient,
 		MockResponder: c.mockResponder,
+		// BaseClient.DefaultMaxTokens represents the total context window.
+		// We allocate 50% of it for the output tokens.
+		MaxTokens: c.BaseClient.DefaultMaxTokens / 2,
 		Headers: map[string]string{
 			"HTTP-Referer": "https://github.com/process-failed-successfully/recac",
 			"X-Title":      "Process Failed Successfully",
