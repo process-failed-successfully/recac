@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 )
 
 // HTTPClientConfig defines the configuration for the shared HTTP client logic
@@ -66,6 +68,9 @@ func SendOnce(ctx context.Context, cfg HTTPClientConfig, prompt string) (string,
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusTooManyRequests {
+			return "", checkRateLimit(resp)
+		}
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		return "", fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(bodyBytes))
 	}
@@ -126,6 +131,9 @@ func SendStreamOnce(ctx context.Context, cfg HTTPClientConfig, prompt string, on
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusTooManyRequests {
+			return "", checkRateLimit(resp)
+		}
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		return "", fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(bodyBytes))
 	}
@@ -180,4 +188,46 @@ func SendStreamOnce(ctx context.Context, cfg HTTPClientConfig, prompt string, on
 	}
 
 	return fullResponse.String(), nil
+}
+
+func checkRateLimit(resp *http.Response) error {
+	bodyBytes, _ := io.ReadAll(resp.Body)
+	msg := fmt.Sprintf("API returned status %d: %s", resp.StatusCode, string(bodyBytes))
+
+	var resetTime time.Time
+	var retryAfter time.Duration
+
+	// Check X-RateLimit-Reset
+	if resetStr := resp.Header.Get("X-RateLimit-Reset"); resetStr != "" {
+		// Try parsing as float or int (millis or seconds)
+		if resetMillis, err := strconv.ParseInt(resetStr, 10, 64); err == nil {
+			// Check if it looks like millis (very large number) or seconds
+			// 2026 in seconds is ~1.7e9, in millis ~1.7e12
+			if resetMillis > 100000000000 { // Likely millis
+				resetTime = time.UnixMilli(resetMillis)
+			} else {
+				resetTime = time.Unix(resetMillis, 0)
+			}
+		} else if resetFloat, err := strconv.ParseFloat(resetStr, 64); err == nil {
+			// Some APIs return float seconds
+			sec := int64(resetFloat)
+			nsec := int64((resetFloat - float64(sec)) * 1e9)
+			resetTime = time.Unix(sec, nsec)
+		}
+	}
+
+	// Check Retry-After
+	if retryStr := resp.Header.Get("Retry-After"); retryStr != "" {
+		if seconds, err := strconv.Atoi(retryStr); err == nil {
+			retryAfter = time.Duration(seconds) * time.Second
+		} else if date, err := http.ParseTime(retryStr); err == nil {
+			resetTime = date
+		}
+	}
+
+	return RateLimitError{
+		Message:    msg,
+		ResetTime:  resetTime,
+		RetryAfter: retryAfter,
+	}
 }

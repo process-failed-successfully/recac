@@ -175,6 +175,33 @@ func TestBaseClient_SendStreamWithRetry(t *testing.T) {
 	})
 }
 
+func TestBaseClient_SendWithRetry_RateLimit(t *testing.T) {
+	client := NewBaseClient("test-project", 1000)
+	client.BackoffFn = func(i int) time.Duration { return 0 }
+
+	t.Run("Retry on Rate Limit", func(t *testing.T) {
+		calls := 0
+		start := time.Now()
+
+		resp, err := client.SendWithRetry(context.Background(), "prompt", func(ctx context.Context, p string) (string, error) {
+			calls++
+			if calls < 2 {
+				return "", RateLimitError{
+					Message:    "Rate limit",
+					RetryAfter: 50 * time.Millisecond,
+				}
+			}
+			return "success", nil
+		})
+
+		assert.NoError(t, err)
+		assert.Equal(t, "success", resp)
+		assert.Equal(t, 2, calls)
+		// We expect at least 50ms wait + negligible execution time
+		assert.True(t, time.Since(start) >= 50*time.Millisecond, "Should wait for retry after duration")
+	})
+}
+
 func makeString(n int) string {
 	b := make([]byte, n)
 	for i := range b {

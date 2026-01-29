@@ -2,11 +2,23 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"recac/internal/telemetry"
 	"strings"
 	"time"
 )
+
+// RateLimitError represents a 429 Too Many Requests error with optional retry information.
+type RateLimitError struct {
+	Message    string
+	ResetTime  time.Time     // When the limit resets (if known)
+	RetryAfter time.Duration // How long to wait (if known)
+}
+
+func (e RateLimitError) Error() string {
+	return e.Message
+}
 
 // BaseClient provides shared logic for all agent clients,
 // including state management, token tracking, retry logic, and telemetry.
@@ -161,7 +173,21 @@ func (c *BaseClient) SendWithRetry(ctx context.Context, prompt string, sendOnce 
 	for i := 0; i <= maxRetries; i++ {
 		if i > 0 {
 			waitTime := c.BackoffFn(i)
-			telemetry.LogInfo("Retrying agent call", "project", c.Project, "retry", i, "wait", waitTime, "error", lastErr)
+
+			// Check for RateLimitError
+			var rateLimitErr RateLimitError
+			if errors.As(lastErr, &rateLimitErr) {
+				now := time.Now()
+				if !rateLimitErr.ResetTime.IsZero() && rateLimitErr.ResetTime.After(now) {
+					waitTime = rateLimitErr.ResetTime.Sub(now) + 1*time.Second
+				} else if rateLimitErr.RetryAfter > 0 {
+					waitTime = rateLimitErr.RetryAfter + 1*time.Second
+				}
+				telemetry.LogInfo("Rate limit hit, waiting...", "project", c.Project, "wait", waitTime)
+			} else {
+				telemetry.LogInfo("Retrying agent call", "project", c.Project, "retry", i, "wait", waitTime, "error", lastErr)
+			}
+
 			select {
 			case <-time.After(waitTime):
 			case <-ctx.Done():
@@ -203,7 +229,21 @@ func (c *BaseClient) SendStreamWithRetry(ctx context.Context, prompt string, sen
 	for i := 0; i <= maxRetries; i++ {
 		if i > 0 {
 			waitTime := c.BackoffFn(i)
-			telemetry.LogInfo("Retrying agent call", "project", c.Project, "retry", i, "wait", waitTime, "error", lastErr)
+
+			// Check for RateLimitError
+			var rateLimitErr RateLimitError
+			if errors.As(lastErr, &rateLimitErr) {
+				now := time.Now()
+				if !rateLimitErr.ResetTime.IsZero() && rateLimitErr.ResetTime.After(now) {
+					waitTime = rateLimitErr.ResetTime.Sub(now) + 1*time.Second
+				} else if rateLimitErr.RetryAfter > 0 {
+					waitTime = rateLimitErr.RetryAfter + 1*time.Second
+				}
+				telemetry.LogInfo("Rate limit hit, waiting...", "project", c.Project, "wait", waitTime)
+			} else {
+				telemetry.LogInfo("Retrying agent call", "project", c.Project, "retry", i, "wait", waitTime, "error", lastErr)
+			}
+
 			select {
 			case <-time.After(waitTime):
 			case <-ctx.Done():
