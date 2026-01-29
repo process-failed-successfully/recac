@@ -303,12 +303,33 @@ func getReceiverTypeName(recv *ast.FieldList) string {
 func resolveExternalCall(functionsByName map[string][]*CallGraphNode, importPath string, funcName string) string {
 	// Look up candidates by name
 	candidates := functionsByName[funcName]
+
+	var bestMatch string
+	var bestMatchLen int
+
 	for _, node := range candidates {
 		// node.Name is already funcName, and node.Receiver is already ""
 		// Check if importPath ends with node.Package
-		if strings.HasSuffix(importPath, node.Package) {
-			return node.ID
+		pkg := node.Package
+		if strings.HasSuffix(importPath, pkg) {
+			// Check boundary: Exact match OR preceded by '/'
+			isBoundary := false
+			if len(importPath) == len(pkg) {
+				isBoundary = true
+			} else if len(importPath) > len(pkg) {
+				// Check character before suffix
+				if importPath[len(importPath)-len(pkg)-1] == '/' {
+					isBoundary = true
+				}
+			}
+
+			if isBoundary {
+				if len(pkg) > bestMatchLen {
+					bestMatch = node.ID
+					bestMatchLen = len(pkg)
+				}
+			}
 		}
 	}
-	return ""
+	return bestMatch
 }

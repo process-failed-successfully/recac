@@ -233,3 +233,74 @@ func C() { A() }
 		assert.Equal(t, cg1.Edges[i], cg2.Edges[i], "Edge mismatch at index %d", i)
 	}
 }
+
+func TestResolveExternalCall_Ambiguity(t *testing.T) {
+	// Setup temporary directory
+	tmpDir := t.TempDir()
+
+	// 1. Create utils/helper.go -> utils.Helper
+	// ID: utils.Helper
+	utilsDir := filepath.Join(tmpDir, "utils")
+	err := os.MkdirAll(utilsDir, 0755)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(utilsDir, "helper.go"), []byte(`package utils
+func Helper() {}
+`), 0644)
+	require.NoError(t, err)
+
+	// 2. Create zutils/helper.go -> zutils.Helper
+	// ID: zutils.Helper
+	// zutils > utils, so utils comes first in sorted list.
+	zutilsDir := filepath.Join(tmpDir, "zutils")
+	err = os.MkdirAll(zutilsDir, 0755)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(zutilsDir, "helper.go"), []byte(`package zutils
+func Helper() {}
+`), 0644)
+	require.NoError(t, err)
+
+	// 3. Create main.go importing "example.com/project/zutils"
+	// We want to ensure it resolves to zutils.Helper, NOT utils.Helper
+	// utils is a suffix of zutils.
+	// utils comes before zutils in sort.
+	mainContent := `package main
+
+import (
+	"example.com/project/zutils"
+)
+
+func main() {
+	zutils.Helper()
+}
+`
+	err = os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainContent), 0644)
+	require.NoError(t, err)
+
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Verify Edge
+	// main.main -> zutils.Helper
+	// NOT utils.Helper
+
+	foundCorrect := false
+	foundIncorrect := false
+
+	// IDs are "relPath/Package.Func"
+	// utils -> "utils.Helper"
+	// zutils -> "zutils.Helper"
+
+	for _, edge := range cg.Edges {
+		if edge.From == "main.main" {
+			if edge.To == "zutils.Helper" {
+				foundCorrect = true
+			}
+			if edge.To == "utils.Helper" {
+				foundIncorrect = true
+			}
+		}
+	}
+
+	assert.True(t, foundCorrect, "Should resolve to zutils.Helper")
+	assert.False(t, foundIncorrect, "Should NOT resolve to utils.Helper (partial suffix match)")
+}
