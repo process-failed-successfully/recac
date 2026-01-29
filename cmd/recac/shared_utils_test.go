@@ -159,6 +159,7 @@ func TestSanitizeMermaidID(t *testing.T) {
 		{"(Type).Method", "_Type__Method"},
 		{"weird-chars & stuff", "weird_chars___stuff"},
 		{"foo*bar", "foo_bar"},
+		{"windows\\path", "windows_path"},
 	}
 
 	for _, tt := range tests {

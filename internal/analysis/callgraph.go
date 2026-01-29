@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"io/fs"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -264,19 +265,28 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 	// Import path is "recac/internal/foo".
 	// If we are running on "recac" repo, "internal/foo" matches.
 
-	// Normalize import path
-	// Remove module prefix if possible?
-	// This is hard without knowing module name.
-	// But we can scan all nodes and check if Node.Package matches the end of ImportPath?
-
-	for id, node := range cg.Nodes {
+	// Find candidates
+	var candidates []*CallGraphNode
+	for _, node := range cg.Nodes {
 		if node.Name == funcName && node.Receiver == "" {
-			// Check if importPath ends with node.Package
-			// node.Package might be "internal/utils"
-			// importPath might be "recac/internal/utils"
-			if strings.HasSuffix(importPath, node.Package) {
-				return id
-			}
+			candidates = append(candidates, node)
+		}
+	}
+
+	// Sort candidates by package length (descending) to prefer longest match,
+	// then by ID for determinism.
+	sort.Slice(candidates, func(i, j int) bool {
+		if len(candidates[i].Package) != len(candidates[j].Package) {
+			return len(candidates[i].Package) > len(candidates[j].Package)
+		}
+		return candidates[i].ID < candidates[j].ID
+	})
+
+	for _, node := range candidates {
+		// Strict suffix check:
+		// match if importPath == node.Package OR importPath ends with "/"+node.Package
+		if importPath == node.Package || strings.HasSuffix(importPath, "/"+node.Package) {
+			return node.ID
 		}
 	}
 	return ""
