@@ -271,7 +271,7 @@ func run() error {
 		log.Println("=== Scaling down old Orchestrator to prevent race conditions ===")
 		// Ignore error if deployment doesn't exist
 		_ = runCommand("kubectl", "scale", "deployment", releaseName, "--replicas=0", "-n", namespace)
-		
+
 		log.Println("=== Cleaning up old Jobs ===")
 		_ = runCommand("kubectl", "delete", "jobs", "-n", namespace, "-l", "app=recac-agent", "--cascade=foreground", "--wait=true")
 

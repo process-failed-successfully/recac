@@ -69,7 +69,7 @@ func main() {
 
 	todoContent, err = os.ReadFile("TODO.md")
 	require.NoError(t, err)
-	assert.Contains(t, string(todoContent), "[main.go:4] TODO: Task 1") // Shifted by 2
+	assert.Contains(t, string(todoContent), "[main.go:4] TODO: Task 1")        // Shifted by 2
 	assert.Contains(t, string(todoContent), "[main.go:7] FIXME: Critical bug") // Shifted by 3
 
 	// 4. Mark Done (Remove TODO)
@@ -183,7 +183,7 @@ func TestReconcileTodos(t *testing.T) {
 
 	entries, stats := reconcileTodos(entries, scanned)
 
-	assert.Equal(t, 1, stats.Added) // c.go
+	assert.Equal(t, 1, stats.Added)   // c.go
 	assert.Equal(t, 2, stats.Updated) // a.go (line), b.go (done->open + line)
 
 	// Verify entries modification
