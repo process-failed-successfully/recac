@@ -53,7 +53,7 @@ func run() error {
 
 	flag.StringVar(&scenarioName, "scenario", "http-proxy", "Scenario to run")
 	flag.StringVar(&provider, "provider", "openrouter", "AI Provider")
-	flag.StringVar(&model, "model", "tngtech/deepseek-r1t2-chimera:free", "AI Model")
+	flag.StringVar(&model, "model", "google/gemini-2.5-flash-preview-09-2025", "AI Model")
 	flag.StringVar(&deployRepo, "repo", defaultRepo, "Docker repository for deployment")
 	flag.StringVar(&targetRepo, "repo-url", repoURL, "Target Git repository for the agent")
 	flag.StringVar(&pullPolicy, "pull-policy", "IfNotPresent", "Image pull policy (Always, IfNotPresent, Never)")

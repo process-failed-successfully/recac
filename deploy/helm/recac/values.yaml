@@ -30,7 +30,7 @@ service:
 # Non-sensitive configuration
 config:
   provider: openrouter
-  model: tngtech/deepseek-r1t2-chimera:free
+  model: google/gemini-2.5-flash-preview-09-2025
   ollamaBaseUrl: ""
   verbose: true
   metricsPort: 9090

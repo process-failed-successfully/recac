@@ -32,7 +32,7 @@ func main() {
 	pflag.String("namespace", "default", "Kubernetes namespace (for k8s mode)")
 	pflag.Duration("interval", 1*time.Minute, "Polling interval")
 	pflag.String("agent-provider", "openrouter", "Provider for spawned agents")
-	pflag.String("agent-model", "tngtech/deepseek-r1t2-chimera:free", "Model for spawned agents")
+	pflag.String("agent-model", "google/gemini-2.5-flash-preview-09-2025", "Model for spawned agents")
 	pflag.String("image-pull-policy", "Always", "Image pull policy for agents (Always, IfNotPresent, Never)")
 
 	pflag.String("jira-query", "", "Custom JQL query (overrides label)")

@@ -101,17 +101,17 @@ ci-simulate: ## Run E2E test exactly like CI (but on local cluster)
 	go run e2e/runner/main.go \
 		-scenario prime-python \
 		-provider openrouter \
-		-model "tngtech/deepseek-r1t2-chimera:free" \
+		-model "google/gemini-2.5-flash-preview-09-2025" \
 		-pull-policy IfNotPresent \
 		-skip-cleanup
 
 ci-simulate-v2: ## Run Refactored E2E test
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
-	./scripts/ci_simulate_refactored.sh -provider openrouter -model "tngtech/deepseek-r1t2-chimera:free"
+	./scripts/ci_simulate_refactored.sh -provider openrouter -model "google/gemini-2.5-flash-preview-09-2025"
 
 # Scenario Defaults
 PROVIDER ?= openrouter
-MODEL ?= "tngtech/deepseek-r1t2-chimera:free"
+MODEL ?= "google/gemini-2.5-flash-preview-09-2025"
 
 e2e-local: ## Run a specific scenario locally (SCENARIO=x PROVIDER=y MODEL=z)
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \

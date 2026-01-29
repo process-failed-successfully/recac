@@ -33,7 +33,7 @@ notifications:
             on_success: true
             on_user_interaction: true
 orchestrator:
-    agent_model: tngtech/deepseek-r1t2-chimera:free
+    agent_model: google/gemini-2.5-flash-preview-09-2025
     agent_provider: openrouter
     image: ghcr.io/process-failed-successfully/recac-agent:latest
     image_pull_policy: Always
