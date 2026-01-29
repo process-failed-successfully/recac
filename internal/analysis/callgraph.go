@@ -325,7 +325,7 @@ func resolveExternalCall(nodes []*CallGraphNode, importPath string, funcName str
 			// Check if importPath ends with node.Package
 			// node.Package might be "internal/utils"
 			// importPath might be "recac/internal/utils"
-			if strings.HasSuffix(importPath, node.Package) {
+			if importPath == node.Package || strings.HasSuffix(importPath, "/"+node.Package) {
 				// We want the longest suffix match to be most specific.
 				// e.g. import "x/a/b" should match "a/b" (len 3) over "b" (len 1)
 				// Or if multiple matches with same length, use lexicographical order (since nodes are sorted)
