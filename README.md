@@ -59,7 +59,7 @@ Create a `.recac.yaml` in your home directory.
 ```yaml
 # AI Provider
 agent_provider: openrouter
-agent_model: "mistralai/devstral-2512"
+agent_model: "google/gemini-2.0-flash-lite-preview-02-05:free"
 api_key: "your-api-key"
 
 # Integrations
@@ -164,7 +164,7 @@ The recommended way to deploy `recac` in production is via the provided Helm cha
       --set image.tag=latest \
       --set config.image=ghcr.io/process-failed-successfully/recac-agent:latest \
       --set config.provider=openrouter \
-      --set config.model="mistralai/devstral-2512" \
+      --set config.model="google/gemini-2.0-flash-lite-preview-02-05:free" \
       --set config.jiraUrl="https://your-domain.atlassian.net" \
       --set config.jiraUsername="user@example.com" \
       --set config.jira_label="recac-agent" \
