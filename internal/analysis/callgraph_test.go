@@ -107,3 +107,49 @@ func internalFunc() {}
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
 }
+
+func TestGenerateCallGraph_ParentDir(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create main.go in tmpDir
+	mainContent := `package main
+func main() {}
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainContent), 0644)
+	require.NoError(t, err)
+
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	defer os.Chdir(wd)
+
+	subDir := filepath.Join(tmpDir, "subdir")
+	err = os.MkdirAll(subDir, 0755)
+	require.NoError(t, err)
+
+	err = os.Chdir(subDir)
+	require.NoError(t, err)
+
+	// Now analyze ".." which is tmpDir
+	// This tests if WalkDir logic correctly handles ".." as root
+	cg, err := GenerateCallGraph("..")
+	require.NoError(t, err)
+
+	found := false
+	for id := range cg.Nodes {
+		// Since root is "..", relDir of ".." is ".".
+		// pkgName is main.
+		// ID should be "main.main".
+		if id == "main.main" {
+			found = true
+		}
+	}
+
+	if !found {
+		// Debug info
+		var ids []string
+		for id := range cg.Nodes {
+			ids = append(ids, id)
+		}
+		t.Errorf("Expected node 'main.main', found: %v", ids)
+	}
+}
