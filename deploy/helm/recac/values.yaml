@@ -30,7 +30,7 @@ service:
 # Non-sensitive configuration
 config:
   provider: openrouter
-  model: google/gemini-2.0-flash-exp:free
+  model: google/gemini-2.0-flash-thinking-exp:free
   ollamaBaseUrl: ""
   verbose: true
   metricsPort: 9090
