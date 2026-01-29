@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"io/fs"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -130,7 +131,15 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 	// Use map to prevent duplicates
 	edgeMap := make(map[string]bool)
 
-	for path, f := range parsedFiles {
+	// Sort files for deterministic processing order
+	var paths []string
+	for path := range parsedFiles {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+
+	for _, path := range paths {
+		f := parsedFiles[path]
 		pkgName := f.Name.Name
 		dir := filepath.Dir(path)
 		relDir, _ := filepath.Rel(root, dir)
@@ -266,17 +275,40 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 	// This is hard without knowing module name.
 	// But we can scan all nodes and check if Node.Package matches the end of ImportPath?
 
+	var candidates []string
+
 	for id, node := range cg.Nodes {
 		if node.Name == funcName && node.Receiver == "" {
 			// Check if importPath ends with node.Package
 			// node.Package might be "internal/utils"
 			// importPath might be "recac/internal/utils"
 			if strings.HasSuffix(importPath, node.Package) {
-				return id
+				candidates = append(candidates, id)
 			}
 		}
 	}
-	return ""
+
+	if len(candidates) == 0 {
+		return ""
+	}
+
+	// Sort candidates for determinism
+	sort.Strings(candidates)
+
+	// Pick best candidate: the one with longest Package length (most specific match)
+	// e.g. "internal/pkg" vs "pkg" -> "internal/pkg" is better for "recac/internal/pkg"
+	bestID := candidates[0]
+	maxLen := len(cg.Nodes[bestID].Package)
+
+	for _, id := range candidates[1:] {
+		pkgLen := len(cg.Nodes[id].Package)
+		if pkgLen > maxLen {
+			bestID = id
+			maxLen = pkgLen
+		}
+	}
+
+	return bestID
 }
 
 func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {
@@ -286,5 +318,9 @@ func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {
 			results = append(results, node)
 		}
 	}
+	// Sort results for determinism
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].ID < results[j].ID
+	})
 	return results
 }
