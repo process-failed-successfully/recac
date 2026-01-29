@@ -147,3 +147,52 @@ func main() {
 	assert.Contains(t, nodeIDs, "main.(MyGeneric).DoOne")
 	assert.Contains(t, nodeIDs, "main.(MyMultiGeneric).DoTwo")
 }
+
+func TestGenerateCallGraph_PanicOnNoBody(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Function without body (forward declaration)
+	content := `package main
+func ForwardDecl()
+func main() {
+	ForwardDecl()
+}
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(content), 0644)
+	require.NoError(t, err)
+
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+	require.NotNil(t, cg)
+
+	// Should contain the node
+	assert.Contains(t, cg.Nodes, "main.ForwardDecl")
+}
+
+func TestGenerateCallGraph_GenericFuncCall(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	content := `package main
+
+func GenericFunc[T any]() {}
+
+func main() {
+	GenericFunc[int]()
+}
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(content), 0644)
+	require.NoError(t, err)
+
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Check edge: main -> GenericFunc
+	found := false
+	for _, edge := range cg.Edges {
+		if edge.From == "main.main" && edge.To == "main.GenericFunc" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "Missing edge to generic function instantiation")
+}
