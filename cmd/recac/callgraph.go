@@ -10,48 +10,51 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	callGraphFocus string
-	callGraphDir   string
-)
+func init() {
+	rootCmd.AddCommand(NewCallGraphCmd())
+}
 
-var callGraphCmd = &cobra.Command{
-	Use:   "callgraph",
-	Short: "Generate a static call graph of the codebase",
-	Long: `Generates a Mermaid flowchart of function calls.
+func NewCallGraphCmd() *cobra.Command {
+	var (
+		callGraphFocus string
+		callGraphDir   string
+	)
+
+	cmd := &cobra.Command{
+		Use:   "callgraph",
+		Short: "Generate a static call graph of the codebase",
+		Long: `Generates a Mermaid flowchart of function calls.
 Useful for understanding code flow and dependencies.
 Note: This uses static analysis and heuristics, so it may be approximate.`,
-	RunE: runCallGraph,
-}
+		RunE: func(cmd *cobra.Command, args []string) error {
+			dir := callGraphDir
+			if dir == "." {
+				var err error
+				dir, err = os.Getwd()
+				if err != nil {
+					return err
+				}
+			}
 
-func init() {
-	rootCmd.AddCommand(callGraphCmd)
-	callGraphCmd.Flags().StringVar(&callGraphFocus, "focus", "", "Focus on a specific function (show callers/callees)")
-	callGraphCmd.Flags().StringVar(&callGraphDir, "dir", ".", "Directory to analyze")
-}
+			cg, err := analysis.GenerateCallGraph(dir)
+			if err != nil {
+				return fmt.Errorf("failed to generate call graph: %w", err)
+			}
 
-func runCallGraph(cmd *cobra.Command, args []string) error {
-	dir := callGraphDir
-	if dir == "." {
-		var err error
-		dir, err = os.Getwd()
-		if err != nil {
-			return err
-		}
+			// Filter if focused
+			if callGraphFocus != "" {
+				cg = filterGraph(cg, callGraphFocus)
+			}
+
+			fmt.Fprintln(cmd.OutOrStdout(), generateMermaidCallGraph(cg))
+			return nil
+		},
 	}
 
-	cg, err := analysis.GenerateCallGraph(dir)
-	if err != nil {
-		return fmt.Errorf("failed to generate call graph: %w", err)
-	}
+	cmd.Flags().StringVar(&callGraphFocus, "focus", "", "Focus on a specific function (show callers/callees)")
+	cmd.Flags().StringVar(&callGraphDir, "dir", ".", "Directory to analyze")
 
-	// Filter if focused
-	if callGraphFocus != "" {
-		cg = filterGraph(cg, callGraphFocus)
-	}
-
-	fmt.Fprintln(cmd.OutOrStdout(), generateMermaidCallGraph(cg))
-	return nil
+	return cmd
 }
 
 func filterGraph(cg *analysis.CallGraph, focus string) *analysis.CallGraph {
@@ -61,7 +64,7 @@ func filterGraph(cg *analysis.CallGraph, focus string) *analysis.CallGraph {
 
 	for id, node := range cg.Nodes {
 		if strings.Contains(strings.ToLower(id), strings.ToLower(focus)) ||
-		   strings.Contains(strings.ToLower(node.Name), strings.ToLower(focus)) {
+			strings.Contains(strings.ToLower(node.Name), strings.ToLower(focus)) {
 			relevantNodes[id] = true
 		}
 	}

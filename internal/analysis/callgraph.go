@@ -73,7 +73,12 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		dir := filepath.Dir(path)
 
 		// Approximate full package path
-		relDir, _ := filepath.Rel(root, dir)
+		relDir, errRel := filepath.Rel(root, dir)
+		if errRel != nil {
+			// If we can't determine relative path, fall back to ".".
+			relDir = "."
+		}
+
 		fullPkg := relDir
 		if relDir == "." {
 			fullPkg = pkgName
@@ -133,7 +138,12 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 	for path, f := range parsedFiles {
 		pkgName := f.Name.Name
 		dir := filepath.Dir(path)
-		relDir, _ := filepath.Rel(root, dir)
+
+		relDir, errRel := filepath.Rel(root, dir)
+		if errRel != nil {
+			relDir = "."
+		}
+
 		fullPkg := relDir
 		if relDir == "." {
 			fullPkg = pkgName
@@ -250,6 +260,11 @@ func getReceiverTypeName(recv *ast.FieldList) string {
 	}
 	if index, ok := expr.(*ast.IndexExpr); ok {
 		if ident, ok := index.X.(*ast.Ident); ok {
+			return ident.Name
+		}
+	}
+	if indexList, ok := expr.(*ast.IndexListExpr); ok {
+		if ident, ok := indexList.X.(*ast.Ident); ok {
 			return ident.Name
 		}
 	}

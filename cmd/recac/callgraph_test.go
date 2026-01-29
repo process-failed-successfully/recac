@@ -30,8 +30,8 @@ func bar() {}
 	err := os.WriteFile(filepath.Join(tempDir, "main.go"), []byte(code), 0644)
 	require.NoError(t, err)
 
-	// Set flags
-	cmd := callGraphCmd
+	// Use factory to get a fresh command
+	cmd := NewCallGraphCmd()
 	cmd.Flags().Set("dir", tempDir)
 	cmd.Flags().Set("focus", "")
 
@@ -40,7 +40,10 @@ func bar() {}
 	cmd.SetOut(buf)
 
 	// Run
-	err = runCallGraph(cmd, []string{})
+	// Note: We shouldn't invoke runCallGraph directly if we want to test flag parsing,
+	// but here we are setting flags and running the RunE.
+	// RunE expects *cobra.Command and []string.
+	err = cmd.RunE(cmd, []string{})
 	require.NoError(t, err)
 
 	output := buf.String()
@@ -67,8 +70,8 @@ func bar() {}
 	err := os.WriteFile(filepath.Join(tempDir, "main.go"), []byte(code), 0644)
 	require.NoError(t, err)
 
-	// Set flags
-	cmd := callGraphCmd
+	// Use factory
+	cmd := NewCallGraphCmd()
 	cmd.Flags().Set("dir", tempDir)
 	cmd.Flags().Set("focus", "foo")
 
@@ -77,13 +80,28 @@ func bar() {}
 	cmd.SetOut(buf)
 
 	// Run
-	err = runCallGraph(cmd, []string{})
+	err = cmd.RunE(cmd, []string{})
 	require.NoError(t, err)
 
 	output := buf.String()
 	assert.Contains(t, output, "main_main --> main_foo")
 	assert.Contains(t, output, "main_foo --> main_bar")
-	// Should NOT contain random stuff if we had more, but here it's small.
+}
+
+func TestRunCallGraph_Error(t *testing.T) {
+	// Use factory
+	cmd := NewCallGraphCmd()
+	// Non-existent directory
+	cmd.Flags().Set("dir", "/non/existent/path/definitely")
+
+	// Capture output (though we expect error)
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+
+	// Run
+	err := cmd.RunE(cmd, []string{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to generate call graph")
 }
 
 func TestFilterGraph(t *testing.T) {
@@ -108,17 +126,7 @@ func TestFilterGraph(t *testing.T) {
 	assert.Contains(t, filtered.Nodes, "a")
 	assert.Contains(t, filtered.Nodes, "b")
 	assert.NotContains(t, filtered.Nodes, "c")
-	assert.NotContains(t, filtered.Nodes, "d") // Beta calls Delta, but we only expand 1 level?
-	// Logic in filterGraph:
-	// 1. Find relevant nodes (Alpha -> a)
-	// 2. Expand to 1 level (callers and callees).
-	// Edge a->b involves a. So b is added.
-	// Edge b->d involves b. b is NOT in relevantNodes initially, only in expandedNodes?
-	// Wait, let's check code:
-	// "for _, edge := range cg.Edges { if relevantNodes[edge.From] || relevantNodes[edge.To] ..."
-	// relevantNodes contains only "a".
-	// Edge a->b: From is "a", so yes. Adds b.
-	// Edge b->d: From is "b", To is "d". Neither is in relevantNodes ("a"). So NO.
+	assert.NotContains(t, filtered.Nodes, "d") // Beta calls Delta, but we only expand 1 level
 
 	assert.Len(t, filtered.Edges, 1)
 	assert.Equal(t, "a", filtered.Edges[0].From)
