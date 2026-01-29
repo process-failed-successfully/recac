@@ -134,6 +134,18 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		return nil, err
 	}
 
+	// Sort auxiliary indices for deterministic lookup
+	for _, nodes := range functionsByName {
+		sort.Slice(nodes, func(i, j int) bool {
+			return nodes[i].ID < nodes[j].ID
+		})
+	}
+	for _, nodes := range methodsByName {
+		sort.Slice(nodes, func(i, j int) bool {
+			return nodes[i].ID < nodes[j].ID
+		})
+	}
+
 	// 2. Second Pass: Resolve Calls
 	// Use map to prevent duplicates
 	edgeMap := make(map[string]bool)
