@@ -84,6 +84,11 @@ func SendOnce(ctx context.Context, cfg HTTPClientConfig, prompt string) (string,
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		// If the response body is empty or invalid JSON despite 200 OK, return a specific error
+		// that can be retried.
+		if err == io.EOF {
+			return "", fmt.Errorf("empty response from API")
+		}
 		return "", fmt.Errorf("failed to decode response: %w", err)
 	}
 
