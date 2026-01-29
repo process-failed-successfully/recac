@@ -141,6 +141,15 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 	}
 	sort.Strings(paths)
 
+	// Sort nodes for deterministic resolution
+	var sortedNodes []*CallGraphNode
+	for _, node := range cg.Nodes {
+		sortedNodes = append(sortedNodes, node)
+	}
+	sort.Slice(sortedNodes, func(i, j int) bool {
+		return sortedNodes[i].ID < sortedNodes[j].ID
+	})
+
 	for _, path := range paths {
 		f := parsedFiles[path]
 		pkgName := f.Name.Name
@@ -218,7 +227,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 								// This is tricky because "importPath" is like "github.com/foo/bar"
 								// But our keys are "internal/bar.Func".
 								// We will try to match suffix.
-								calleeID = resolveExternalCall(cg, importPath, sel)
+								calleeID = resolveExternalCall(sortedNodes, importPath, sel)
 								if calleeID == "" {
 									// Treat as external node
 									calleeID = fmt.Sprintf("%s.%s", importPath, sel)
@@ -227,7 +236,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 								// Variable.Method()
 								// We don't know the type of Variable.
 								// Heuristic: Find ANY method named 'Sel' in our codebase.
-								candidates := findMethodsByName(cg, sel)
+								candidates := findMethodsByName(sortedNodes, sel)
 								if len(candidates) == 1 {
 									calleeID = candidates[0].ID
 								} else if len(candidates) > 1 {
@@ -296,7 +305,7 @@ func getReceiverTypeName(recv *ast.FieldList) string {
 	return "Unknown"
 }
 
-func resolveExternalCall(cg *CallGraph, importPath string, funcName string) string {
+func resolveExternalCall(nodes []*CallGraphNode, importPath string, funcName string) string {
 	// Our nodes are keyed by "relDir/pkg.Func".
 	// Import path is "recac/internal/foo".
 	// If we are running on "recac" repo, "internal/foo" matches.
@@ -306,22 +315,22 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 	// This is hard without knowing module name.
 	// But we can scan all nodes and check if Node.Package matches the end of ImportPath?
 
-	for id, node := range cg.Nodes {
+	for _, node := range nodes {
 		if node.Name == funcName && node.Receiver == "" {
 			// Check if importPath ends with node.Package
 			// node.Package might be "internal/utils"
 			// importPath might be "recac/internal/utils"
 			if strings.HasSuffix(importPath, node.Package) {
-				return id
+				return node.ID
 			}
 		}
 	}
 	return ""
 }
 
-func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {
+func findMethodsByName(nodes []*CallGraphNode, methodName string) []*CallGraphNode {
 	var results []*CallGraphNode
-	for _, node := range cg.Nodes {
+	for _, node := range nodes {
 		if node.Name == methodName && node.Receiver != "" {
 			results = append(results, node)
 		}

@@ -174,7 +174,8 @@ func TestGenerateCallGraph_ParentDir(t *testing.T) {
 	// Run from tmpDir, pointing to "subdir/.."
 	// which resolves to tmpDir.
 
-	cwd, _ := os.Getwd()
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
 	defer os.Chdir(cwd)
 	os.Chdir(subdir)
 
@@ -217,4 +218,62 @@ func Main() {
 		}
 	}
 	assert.True(t, found, "Should find edge to generic function call")
+}
+
+func TestResolveExternalCall_Ambiguity(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Package 1: "a/b" (suffix "a/b")
+	// Function Target()
+	dir3 := filepath.Join(tmpDir, "a", "b")
+	os.MkdirAll(dir3, 0755)
+	os.WriteFile(filepath.Join(dir3, "f.go"), []byte("package b\nfunc Target() {}"), 0644)
+
+	// Package 2: "c/a/b" (suffix "c/a/b" AND "a/b")
+	// Function Target()
+	dir4 := filepath.Join(tmpDir, "c", "a", "b")
+	os.MkdirAll(dir4, 0755)
+	os.WriteFile(filepath.Join(dir4, "f.go"), []byte("package b\nfunc Target() {}"), 0644)
+
+	// Main calls "b.Target()" with import "x/c/a/b"
+	// Import path "x/c/a/b" ends with "a/b" (Package 1)
+	// Import path "x/c/a/b" ends with "c/a/b" (Package 2)
+	// So both are candidates.
+
+	dirMain := filepath.Join(tmpDir, "main")
+	os.MkdirAll(dirMain, 0755)
+	content := `package main
+import (
+	b "x/c/a/b"
+)
+func Main() {
+	b.Target()
+}
+`
+	os.WriteFile(filepath.Join(dirMain, "main.go"), []byte(content), 0644)
+
+	// We expect determinism.
+	// Run multiple times.
+
+	var firstTarget string
+
+	for i := 0; i < 20; i++ {
+		cg, err := GenerateCallGraph(tmpDir)
+		require.NoError(t, err)
+
+		// Find edge from Main
+		var target string
+		for _, edge := range cg.Edges {
+			if edge.From == "main.Main" {
+				target = edge.To
+				break
+			}
+		}
+
+		if firstTarget == "" {
+			firstTarget = target
+		} else {
+			assert.Equal(t, firstTarget, target, "Found different target for ambiguous call")
+		}
+	}
 }
