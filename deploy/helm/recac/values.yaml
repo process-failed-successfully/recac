@@ -30,7 +30,7 @@ service:
 # Non-sensitive configuration
 config:
   provider: openrouter
-  model: nvidia/nemotron-3-nano-30b-a3b:free
+  model: tngtech/deepseek-r1t2-chimera:free
   ollamaBaseUrl: ""
   verbose: true
   metricsPort: 9090
