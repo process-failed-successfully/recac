@@ -27,7 +27,7 @@ func LoadAllModels() map[string][]ModelInfo {
 		agentModels["openrouter"] = orModels
 	} else {
 		agentModels["openrouter"] = []ModelInfo{
-			{Name: "NVIDIA Nemotron 3 Nano (Free)", Value: "nvidia/nemotron-3-nano-30b-a3b:free", DescriptionDetails: "Open source, free tier"},
+			{Name: "NVIDIA Nemotron 3 Nano (Free)", Value: "mock-model", DescriptionDetails: "Open source, free tier"},
 			{Name: "Anthropic Claude 3.5 Sonnet", Value: "anthropic/claude-3.5-sonnet", DescriptionDetails: "High intelligence"},
 			{Name: "Google Gemini Pro 1.5", Value: "google/gemini-pro-1.5", DescriptionDetails: "Long context"},
 			{Name: "Meta Llama 3 70B", Value: "meta-llama/llama-3-70b-instruct", DescriptionDetails: "Open source"},

@@ -100,18 +100,18 @@ ci-simulate: ## Run E2E test exactly like CI (but on local cluster)
 	if [ -z "$$OPENROUTER_API_KEY" ]; then echo "Error: OPENROUTER_API_KEY is not set"; exit 1; fi; \
 	go run e2e/runner/main.go \
 		-scenario prime-python \
-		-provider openrouter \
-		-model "nvidia/nemotron-3-nano-30b-a3b:free" \
+		-provider mock \
+		-model "mock-model" \
 		-pull-policy IfNotPresent \
 		-skip-cleanup
 
 ci-simulate-v2: ## Run Refactored E2E test
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
-	./scripts/ci_simulate_refactored.sh -provider openrouter -model "nvidia/nemotron-3-nano-30b-a3b:free"
+	./scripts/ci_simulate_refactored.sh -provider mock -model "mock-model"
 
 # Scenario Defaults
-PROVIDER ?= openrouter
-MODEL ?= "nvidia/nemotron-3-nano-30b-a3b:free"
+PROVIDER ?= mock
+MODEL ?= "mock-model"
 
 e2e-local: ## Run a specific scenario locally (SCENARIO=x PROVIDER=y MODEL=z)
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
@@ -169,7 +169,7 @@ monitor-logs: ## View monitoring stack logs
 deploy-helm: ## Deploy with Helm using local .env and variables (PROVIDER=x MODEL=y)
 	@echo "Deploying to k8s context: $$(kubectl config current-context)"
 	@# Defaults
-	$(eval PROVIDER ?= openrouter)
+	$(eval PROVIDER ?= mock)
 	$(eval MODEL ?= "")
 	$(eval DEPLOY_REPO ?= ghcr.io/process-failed-successfully/recac)
 	$(eval DEPLOY_TAG ?= latest)
@@ -188,7 +188,7 @@ deploy-helm: ## Deploy with Helm using local .env and variables (PROVIDER=x MODE
 		--set secrets.anthropicApiKey=$${ANTHROPIC_API_KEY} \
 		--set secrets.cursorApiKey=$${CURSOR_API_KEY} \
 		--set secrets.openaiApiKey=$${OPENAI_API_KEY} \
-		--set secrets.openrouterApiKey=$${OPENROUTER_API_KEY} \
+		--set secrets.mockApiKey=$${OPENROUTER_API_KEY} \
 		--set secrets.jiraApiToken=$${JIRA_API_TOKEN} \
 		--set secrets.githubToken=$${GITHUB_TOKEN} \
 		--set secrets.githubApiKey=$${GITHUB_API_KEY} \

@@ -65,7 +65,7 @@
       "displayName": "Anthropic Claude Sonnet 4"
     },
     {
-      "name": "nvidia/nemotron-3-nano-30b-a3b:free",
+      "name": "mock-model",
       "displayName": "NVIDIA Nemotron 3 Nano 30B (Free)"
     },
     {

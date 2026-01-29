@@ -25,7 +25,7 @@ Credentials:
 .env has them
 
 Provider settings:
---provider openrouter --model "nvidia/nemotron-3-nano-30b-a3b:free"
+--provider openrouter --model "mock-model"
 This is a free token so use large iteration counts.
 
 Github:
