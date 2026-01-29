@@ -26,7 +26,7 @@ func main() {
 	}
 	model := os.Getenv("RECAC_MODEL")
 	if model == "" {
-		model = "google/gemini-2.0-flash-exp:free"
+		model = "tngtech/deepseek-r1t2-chimera:free"
 	}
 
 	fmt.Printf("Starting Project Verification Suite...\n")
