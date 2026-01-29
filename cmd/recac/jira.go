@@ -495,88 +495,7 @@ func runGenerateFromArchCmd(cmd *cobra.Command, args []string) {
 	}
 
 	// 2. Build Ticket Tree
-	// Level 1: System Epic
-	rootDesc := fmt.Sprintf("Implementation of %s system.\nRepo: %s", arch.SystemName, repoUrl)
-	if specContent != "" {
-		rootDesc += "\n\n# Application Specification\n\n" + specContent
-	}
-
-	rootEpic := ticketNode{
-		Title:       fmt.Sprintf("ID:[SYSTEM] %s Architecture", arch.SystemName),
-		Description: rootDesc,
-		Type:        "Epic",
-		Children:    []ticketNode{},
-	}
-
-	for _, comp := range arch.Components {
-		// Level 2: Component Story
-		compStory := ticketNode{
-			Title:       fmt.Sprintf("ID:[%s] [Service] %s", comp.ID, comp.ID),
-			Description: fmt.Sprintf("%s\n\nType: %s\nRepo: %s", comp.Description, comp.Type, repoUrl),
-			Type:        "Story", // Was Epic, now Story
-			Children:    []ticketNode{},
-		}
-
-		// Level 3: Implementation Steps (Subtasks)
-		for i, step := range comp.ImplementationSteps {
-			compStory.Children = append(compStory.Children, ticketNode{
-				Title:       fmt.Sprintf("ID:[%s-STEP-%d] %s", comp.ID, i+1, truncateString(step, 50)),
-				Description: fmt.Sprintf("Task: %s\nRepo: %s", step, repoUrl),
-				Type:        "Subtask",
-			})
-		}
-
-		// Level 3: Functions (Subtasks)
-		for _, fn := range comp.Functions {
-			desc := fmt.Sprintf("Implement Function: %s\n", fn.Name)
-			desc += fmt.Sprintf("Signature: (%s) -> (%s)\n", fn.Args, fn.Return)
-			desc += fmt.Sprintf("Description: %s\n", fn.Description)
-			desc += fmt.Sprintf("Repo: %s\n", repoUrl)
-
-			criteria := []string{
-				fmt.Sprintf("Function %s matches signature (%s) -> (%s)", fn.Name, fn.Args, fn.Return),
-			}
-			criteria = append(criteria, fn.Requirements...)
-
-			compStory.Children = append(compStory.Children, ticketNode{
-				Title:              fmt.Sprintf("ID:[%s-FUNC-%s] Func %s", comp.ID, fn.Name, fn.Name),
-				Description:        desc,
-				Type:               "Subtask",
-				AcceptanceCriteria: criteria,
-			})
-		}
-
-		// Level 3: Inputs (Subtasks)
-		for _, in := range comp.Consumes {
-			compStory.Children = append(compStory.Children, ticketNode{
-				Title:       fmt.Sprintf("ID:[%s-IN-%s] Implement Input %s", comp.ID, in.Type, in.Type),
-				Description: fmt.Sprintf("Implement consumption of %s from %s.\nSchema: %s\nRepo: %s", in.Type, in.Source, in.Schema, repoUrl),
-				Type:        "Subtask", // Was Story, now Subtask
-				AcceptanceCriteria: []string{
-					fmt.Sprintf("Component %s successfully parses %s", comp.ID, in.Type),
-				},
-			})
-		}
-
-		// Level 3: Outputs (Subtasks)
-		for _, out := range comp.Produces {
-			typeName := out.Type
-			if typeName == "" {
-				typeName = out.Event
-			}
-			compStory.Children = append(compStory.Children, ticketNode{
-				Title:       fmt.Sprintf("ID:[%s-OUT-%s] Implement Output %s", comp.ID, typeName, typeName),
-				Description: fmt.Sprintf("Implement production of %s.\nSchema: %s\nRepo: %s", typeName, out.Schema, repoUrl),
-				Type:        "Subtask", // Was Story, now Subtask
-				AcceptanceCriteria: []string{
-					fmt.Sprintf("Component %s successfully emits valid %s", comp.ID, typeName),
-				},
-			})
-		}
-		rootEpic.Children = append(rootEpic.Children, compStory)
-	}
-
-	tickets := []ticketNode{rootEpic}
+	tickets := buildTicketTreeFromArch(arch, repoUrl, specContent)
 
 	// 3. Setup Jira Client
 	jiraClient, err := cmdutils.GetJiraClient(ctx)
@@ -690,6 +609,91 @@ var jiraCleanupCmd = &cobra.Command{
 		}
 		fmt.Printf("Done. Deleted %d tickets.\n", count)
 	},
+}
+
+func buildTicketTreeFromArch(arch architecture.SystemArchitecture, repoUrl, specContent string) []ticketNode {
+	// Level 1: System Epic
+	rootDesc := fmt.Sprintf("Implementation of %s system.\nRepo: %s", arch.SystemName, repoUrl)
+	if specContent != "" {
+		rootDesc += "\n\n# Application Specification\n\n" + specContent
+	}
+
+	rootEpic := ticketNode{
+		Title:       fmt.Sprintf("ID:[SYSTEM] %s Architecture", arch.SystemName),
+		Description: rootDesc,
+		Type:        "Epic",
+		Children:    []ticketNode{},
+	}
+
+	for _, comp := range arch.Components {
+		// Level 2: Component Story
+		compStory := ticketNode{
+			Title:       fmt.Sprintf("ID:[%s] [Service] %s", comp.ID, comp.ID),
+			Description: fmt.Sprintf("%s\n\nType: %s\nRepo: %s", comp.Description, comp.Type, repoUrl),
+			Type:        "Story", // Was Epic, now Story
+			Children:    []ticketNode{},
+		}
+
+		// Level 3: Implementation Steps (Subtasks)
+		for i, step := range comp.ImplementationSteps {
+			compStory.Children = append(compStory.Children, ticketNode{
+				Title:       fmt.Sprintf("ID:[%s-STEP-%d] %s", comp.ID, i+1, truncateString(step, 50)),
+				Description: fmt.Sprintf("Task: %s\nRepo: %s", step, repoUrl),
+				Type:        "Subtask",
+			})
+		}
+
+		// Level 3: Functions (Subtasks)
+		for _, fn := range comp.Functions {
+			desc := fmt.Sprintf("Implement Function: %s\n", fn.Name)
+			desc += fmt.Sprintf("Signature: (%s) -> (%s)\n", fn.Args, fn.Return)
+			desc += fmt.Sprintf("Description: %s\n", fn.Description)
+			desc += fmt.Sprintf("Repo: %s\n", repoUrl)
+
+			criteria := []string{
+				fmt.Sprintf("Function %s matches signature (%s) -> (%s)", fn.Name, fn.Args, fn.Return),
+			}
+			criteria = append(criteria, fn.Requirements...)
+
+			compStory.Children = append(compStory.Children, ticketNode{
+				Title:              fmt.Sprintf("ID:[%s-FUNC-%s] Func %s", comp.ID, fn.Name, fn.Name),
+				Description:        desc,
+				Type:               "Subtask",
+				AcceptanceCriteria: criteria,
+			})
+		}
+
+		// Level 3: Inputs (Subtasks)
+		for _, in := range comp.Consumes {
+			compStory.Children = append(compStory.Children, ticketNode{
+				Title:       fmt.Sprintf("ID:[%s-IN-%s] Implement Input %s", comp.ID, in.Type, in.Type),
+				Description: fmt.Sprintf("Implement consumption of %s from %s.\nSchema: %s\nRepo: %s", in.Type, in.Source, in.Schema, repoUrl),
+				Type:        "Subtask", // Was Story, now Subtask
+				AcceptanceCriteria: []string{
+					fmt.Sprintf("Component %s successfully parses %s", comp.ID, in.Type),
+				},
+			})
+		}
+
+		// Level 3: Outputs (Subtasks)
+		for _, out := range comp.Produces {
+			typeName := out.Type
+			if typeName == "" {
+				typeName = out.Event
+			}
+			compStory.Children = append(compStory.Children, ticketNode{
+				Title:       fmt.Sprintf("ID:[%s-OUT-%s] Implement Output %s", comp.ID, typeName, typeName),
+				Description: fmt.Sprintf("Implement production of %s.\nSchema: %s\nRepo: %s", typeName, out.Schema, repoUrl),
+				Type:        "Subtask", // Was Story, now Subtask
+				AcceptanceCriteria: []string{
+					fmt.Sprintf("Component %s successfully emits valid %s", comp.ID, typeName),
+				},
+			})
+		}
+		rootEpic.Children = append(rootEpic.Children, compStory)
+	}
+
+	return []ticketNode{rootEpic}
 }
 
 func truncateString(s string, maxLen int) string {
