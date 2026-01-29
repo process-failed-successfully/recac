@@ -25,7 +25,7 @@ Credentials:
 .env has them
 
 Provider settings:
---provider openrouter --model "meta-llama/llama-3.3-70b-instruct:free"
+--provider openrouter --model "mistralai/mistral-7b-instruct:free"
 This is a free token so use large iteration counts.
 
 Github:
