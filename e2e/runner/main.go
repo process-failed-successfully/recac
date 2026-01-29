@@ -98,6 +98,8 @@ func run() error {
 		if os.Getenv("CURSOR_API_KEY") == "" {
 			return fmt.Errorf("missing CURSOR_API_KEY for provider cursor")
 		}
+	case "mock":
+		// No API key required for mock
 	}
 
 	// Fallback/Default for API key if token not set

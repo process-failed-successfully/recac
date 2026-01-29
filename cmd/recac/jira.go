@@ -275,9 +275,30 @@ func generateTickets(ctx context.Context, specContent, projectKey, repoURL strin
 	}
 
 	fmt.Println("Analyzing spec and generating ticket plan...")
-	resp, err := ag.Send(ctx, prompt)
-	if err != nil {
-		return nil, fmt.Errorf("agent failed to generate response: %w", err)
+
+	var resp string
+	if _, ok := ag.(*agent.MockAgent); ok {
+		fmt.Println("Using Mock Agent: Returning predefined tickets.")
+		resp = `[
+			{
+				"title": "PRIMES: Implement Prime Number Generator",
+				"description": "Create a Python service that generates prime numbers. Repo: https://github.com/example/repo",
+				"type": "Epic",
+				"children": [
+					{
+						"title": "Story: Basic Generator",
+						"description": "Implement basic generation logic.",
+						"type": "Story"
+					}
+				]
+			}
+		]`
+	} else {
+		var err error
+		resp, err = ag.Send(ctx, prompt)
+		if err != nil {
+			return nil, fmt.Errorf("agent failed to generate response: %w", err)
+		}
 	}
 
 	// Strip markdown code blocks if present
