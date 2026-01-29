@@ -151,11 +151,7 @@ func F%d() { p%d.F%d() }`, i, i+1, i, i+1, i+1)
 	cg4, err := GenerateCallGraph(tmpDir)
 	require.NoError(t, err)
 
-	// Serialize edges to compare order
-	edges3 := fmt.Sprintf("%v", cg3.Edges)
-	edges4 := fmt.Sprintf("%v", cg4.Edges)
-
-	assert.Equal(t, edges3, edges4, "Call graph edges should be deterministic")
+	assert.Equal(t, cg3.Edges, cg4.Edges, "Call graph edges should be deterministic")
 }
 
 func TestGenerateCallGraph_ParentDir(t *testing.T) {
@@ -273,7 +269,7 @@ func Main() {
 		// We expect the LONGEST suffix match to be chosen.
 		// Import "x/c/a/b" ends with "c/a/b" (package b in dir4).
 		// ID for dir4 is "c/a/b.Target" (relative to tmpDir).
-		expectedTarget := filepath.ToSlash(filepath.Join("c", "a", "b")) + ".Target"
+		expectedTarget := "c/a/b.Target"
 
 		if firstTarget == "" {
 			firstTarget = target
