@@ -45,6 +45,25 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 		}
 		s.Logger.Info("executing command block", "index", i+1, "total", len(matches), "script", cmdScript)
 
+		// Security Check: Scan the command script specifically
+		if s.Scanner != nil {
+			findings, err := s.Scanner.Scan(cmdScript)
+			if err != nil {
+				s.Logger.Warn("security scan failed during execution", "error", err)
+			} else if len(findings) > 0 {
+				var descriptions []string
+				for _, f := range findings {
+					descriptions = append(descriptions, f.Description)
+				}
+				errMsg := fmt.Sprintf("Security Violation Detected: %s", strings.Join(descriptions, ", "))
+				s.Logger.Error("blocking command execution due to security violation", "script", cmdScript, "findings", descriptions)
+
+				parsedOutput.WriteString(fmt.Sprintf("Command Blocked: %s\nError: %s\n", cmdScript, errMsg))
+				// Fail Fast
+				break
+			}
+		}
+
 		// Heuristic: If block starts with '{' or '[' and parses as JSON, it's likely data mislabeled as bash.
 		if (strings.HasPrefix(cmdScript, "{") || strings.HasPrefix(cmdScript, "[")) && json.Valid([]byte(cmdScript)) {
 			s.Logger.Warn("Skipping execution of likely JSON data block mislabeled as bash", "snippet", cmdScript[:min(len(cmdScript), 50)])
