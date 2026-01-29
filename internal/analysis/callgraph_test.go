@@ -233,3 +233,60 @@ func C() { A() }
 		assert.Equal(t, cg1.Edges[i], cg2.Edges[i], "Edge mismatch at index %d", i)
 	}
 }
+
+func TestResolveExternalCall_Ambiguity(t *testing.T) {
+	// Setup:
+	// - pkg/func.go  -> package pkg, func Target()
+	// - sub/pkg/func.go -> package pkg, func Target()
+	// - main.go -> imports "sub/pkg", calls pkg.Target()
+
+	tmpDir := t.TempDir()
+
+	// pkg/func.go
+	pkgDir := filepath.Join(tmpDir, "pkg")
+	err := os.MkdirAll(pkgDir, 0755)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(pkgDir, "func.go"), []byte("package pkg\nfunc Target() {}"), 0644)
+	require.NoError(t, err)
+
+	// sub/pkg/func.go
+	subPkgDir := filepath.Join(tmpDir, "sub", "pkg")
+	err = os.MkdirAll(subPkgDir, 0755)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(subPkgDir, "func.go"), []byte("package pkg\nfunc Target() {}"), 0644)
+	require.NoError(t, err)
+
+	// main.go
+	// Import path for sub/pkg should be resolved to "sub/pkg" relative to root
+	// We use "root/sub/pkg" as import string, assuming module name is "root"
+	mainContent := `package main
+import (
+	"root/sub/pkg"
+)
+func main() {
+	pkg.Target()
+}
+`
+	err = os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainContent), 0644)
+	require.NoError(t, err)
+
+	// Run Analysis
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Check edge
+	// Expected: main.main -> sub/pkg.Target
+	// NOT: main.main -> pkg.Target
+
+	found := false
+	for _, edge := range cg.Edges {
+		if edge.From == "main.main" {
+			if edge.To == "sub/pkg.Target" {
+				found = true
+			} else if edge.To == "pkg.Target" {
+				assert.Fail(t, "Resolved to wrong package: pkg.Target instead of sub/pkg.Target")
+			}
+		}
+	}
+	assert.True(t, found, "Did not resolve call to sub/pkg.Target")
+}
