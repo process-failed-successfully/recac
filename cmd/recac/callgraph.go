@@ -121,7 +121,7 @@ func generateMermaidCallGraph(cg *analysis.CallGraph) string {
 	for _, id := range nodeIDs {
 		node := cg.Nodes[id]
 		// Sanitize ID for Mermaid
-		safeID := SanitizeMermaidID(id)
+		safeID := sanitizeMermaidID(id)
 
 		// Label: "Pkg.Func" or "(Type).Method"
 		label := node.ID
@@ -147,8 +147,8 @@ func generateMermaidCallGraph(cg *analysis.CallGraph) string {
 	})
 
 	for _, edge := range cg.Edges {
-		safeFrom := SanitizeMermaidID(edge.From)
-		safeTo := SanitizeMermaidID(edge.To)
+		safeFrom := sanitizeMermaidID(edge.From)
+		safeTo := sanitizeMermaidID(edge.To)
 
 		sb.WriteString(fmt.Sprintf("    %s --> %s\n", safeFrom, safeTo))
 	}
