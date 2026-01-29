@@ -10,28 +10,30 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	callGraphFocus string
-	callGraphDir   string
-)
-
-var callGraphCmd = &cobra.Command{
-	Use:   "callgraph",
-	Short: "Generate a static call graph of the codebase",
-	Long: `Generates a Mermaid flowchart of function calls.
-Useful for understanding code flow and dependencies.
-Note: This uses static analysis and heuristics, so it may be approximate.`,
-	RunE: runCallGraph,
+func init() {
+	rootCmd.AddCommand(NewCallGraphCmd())
 }
 
-func init() {
-	rootCmd.AddCommand(callGraphCmd)
-	callGraphCmd.Flags().StringVar(&callGraphFocus, "focus", "", "Focus on a specific function (show callers/callees)")
-	callGraphCmd.Flags().StringVar(&callGraphDir, "dir", ".", "Directory to analyze")
+func NewCallGraphCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "callgraph",
+		Short: "Generate a static call graph of the codebase",
+		Long: `Generates a Mermaid flowchart of function calls.
+Useful for understanding code flow and dependencies.
+Note: This uses static analysis and heuristics, so it may be approximate.`,
+		RunE: runCallGraph,
+	}
+
+	cmd.Flags().String("focus", "", "Focus on a specific function (show callers/callees)")
+	cmd.Flags().String("dir", ".", "Directory to analyze")
+
+	return cmd
 }
 
 func runCallGraph(cmd *cobra.Command, args []string) error {
-	dir := callGraphDir
+	dir, _ := cmd.Flags().GetString("dir")
+	focus, _ := cmd.Flags().GetString("focus")
+
 	if dir == "." {
 		var err error
 		dir, err = os.Getwd()
@@ -46,8 +48,8 @@ func runCallGraph(cmd *cobra.Command, args []string) error {
 	}
 
 	// Filter if focused
-	if callGraphFocus != "" {
-		cg = filterGraph(cg, callGraphFocus)
+	if focus != "" {
+		cg = filterGraph(cg, focus)
 	}
 
 	fmt.Fprintln(cmd.OutOrStdout(), generateMermaidCallGraph(cg))
@@ -61,15 +63,18 @@ func filterGraph(cg *analysis.CallGraph, focus string) *analysis.CallGraph {
 
 	for id, node := range cg.Nodes {
 		if strings.Contains(strings.ToLower(id), strings.ToLower(focus)) ||
-		   strings.Contains(strings.ToLower(node.Name), strings.ToLower(focus)) {
+			strings.Contains(strings.ToLower(node.Name), strings.ToLower(focus)) {
 			relevantNodes[id] = true
 		}
 	}
 
 	if len(relevantNodes) == 0 {
-		return cg // Return all or empty? Let's return empty with warning?
-		// Actually, returning full graph might be annoying if they expected filter.
-		// Let's return empty but check later.
+		// Return empty graph if no match found for filter
+		// This is consistent with how other tools behave (return empty set)
+		return &analysis.CallGraph{
+			Nodes: make(map[string]*analysis.CallGraphNode),
+			Edges: nil,
+		}
 	}
 
 	// Expand to 1 level of depth (callers and callees)
