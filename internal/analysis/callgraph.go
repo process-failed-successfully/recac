@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"io/fs"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -131,7 +132,22 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 	// Use map to prevent duplicates
 	edgeMap := make(map[string]bool)
 
-	for path, f := range parsedFiles {
+	// Sort node IDs for deterministic lookup
+	var nodeIDs []string
+	for id := range cg.Nodes {
+		nodeIDs = append(nodeIDs, id)
+	}
+	sort.Strings(nodeIDs)
+
+	// Sort files for deterministic processing
+	var filePaths []string
+	for path := range parsedFiles {
+		filePaths = append(filePaths, path)
+	}
+	sort.Strings(filePaths)
+
+	for _, path := range filePaths {
+		f := parsedFiles[path]
 		pkgName := f.Name.Name
 		dir := filepath.Dir(path)
 		relDir, _ := filepath.Rel(root, dir)
@@ -193,7 +209,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 								// This is tricky because "importPath" is like "github.com/foo/bar"
 								// But our keys are "internal/bar.Func".
 								// We will try to match suffix.
-								calleeID = resolveExternalCall(cg, importPath, sel)
+								calleeID = resolveExternalCall(cg, nodeIDs, importPath, sel)
 								if calleeID == "" {
 									// Treat as external node
 									calleeID = fmt.Sprintf("%s.%s", importPath, sel)
@@ -202,7 +218,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 								// Variable.Method()
 								// We don't know the type of Variable.
 								// Heuristic: Find ANY method named 'Sel' in our codebase.
-								candidates := findMethodsByName(cg, sel)
+								candidates := findMethodsByName(cg, nodeIDs, sel)
 								if len(candidates) == 1 {
 									calleeID = candidates[0].ID
 								} else if len(candidates) > 1 {
@@ -236,6 +252,14 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		}
 	}
 
+	// Sort edges for determinism
+	sort.Slice(cg.Edges, func(i, j int) bool {
+		if cg.Edges[i].From != cg.Edges[j].From {
+			return cg.Edges[i].From < cg.Edges[j].From
+		}
+		return cg.Edges[i].To < cg.Edges[j].To
+	})
+
 	return cg, nil
 }
 
@@ -258,7 +282,7 @@ func getReceiverTypeName(recv *ast.FieldList) string {
 	return "Unknown"
 }
 
-func resolveExternalCall(cg *CallGraph, importPath string, funcName string) string {
+func resolveExternalCall(cg *CallGraph, nodeIDs []string, importPath string, funcName string) string {
 	// Our nodes are keyed by "relDir/pkg.Func".
 	// Import path is "recac/internal/foo".
 	// We want to find the node with the longest matching package suffix.
@@ -266,7 +290,8 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 	var bestMatch string
 	var maxLen int
 
-	for id, node := range cg.Nodes {
+	for _, id := range nodeIDs {
+		node := cg.Nodes[id]
 		if node.Name == funcName && node.Receiver == "" {
 			// Check if importPath ends with node.Package
 			if strings.HasSuffix(importPath, node.Package) {
@@ -305,9 +330,10 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 	return bestMatch
 }
 
-func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {
+func findMethodsByName(cg *CallGraph, nodeIDs []string, methodName string) []*CallGraphNode {
 	var results []*CallGraphNode
-	for _, node := range cg.Nodes {
+	for _, id := range nodeIDs {
+		node := cg.Nodes[id]
 		if node.Name == methodName && node.Receiver != "" {
 			results = append(results, node)
 		}

@@ -3,6 +3,7 @@ package analysis
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -134,7 +135,14 @@ func TestResolveExternalCall_Ambiguity(t *testing.T) {
 	importPath := "github.com/example/pkg/utils"
 	funcName := "Func"
 
-	resolvedID := resolveExternalCall(cg, importPath, funcName)
+	// Prepare nodeIDs
+	var nodeIDs []string
+	for id := range cg.Nodes {
+		nodeIDs = append(nodeIDs, id)
+	}
+	sort.Strings(nodeIDs)
+
+	resolvedID := resolveExternalCall(cg, nodeIDs, importPath, funcName)
 	assert.Equal(t, "pkg/utils.Func", resolvedID)
 }
 
@@ -155,6 +163,70 @@ func TestResolveExternalCall_PartialSuffix(t *testing.T) {
 	importPath := "github.com/example/autils"
 	funcName := "Func"
 
-	resolvedID := resolveExternalCall(cg, importPath, funcName)
+	// Prepare nodeIDs
+	var nodeIDs []string
+	for id := range cg.Nodes {
+		nodeIDs = append(nodeIDs, id)
+	}
+	sort.Strings(nodeIDs)
+
+	resolvedID := resolveExternalCall(cg, nodeIDs, importPath, funcName)
 	assert.Equal(t, "", resolvedID, "Should not resolve partial suffix match")
+}
+
+func TestGenerateCallGraph_Determinism(t *testing.T) {
+	// Setup temporary directory with sample code
+	tmpDir := t.TempDir()
+
+	// Create multiple files to trigger map iteration randomness
+	files := map[string]string{
+		"a.go": "package main\nfunc A() { B() }",
+		"b.go": "package main\nfunc B() { C() }",
+		"c.go": "package main\nfunc C() { A() }",
+		"d.go": "package main\nfunc D() { A() }",
+		"e.go": "package main\nfunc E() { B() }",
+	}
+
+	for name, content := range files {
+		err := os.WriteFile(filepath.Join(tmpDir, name), []byte(content), 0644)
+		require.NoError(t, err)
+	}
+
+	// Run 1
+	cg1, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Run 2
+	cg2, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Compare Edges (Order matters for slice equality)
+	assert.Equal(t, cg1.Edges, cg2.Edges, "Edges should be identical and in the same order")
+}
+
+func TestGenerateCallGraph_StressDeterminism(t *testing.T) {
+	// Setup temporary directory with sample code
+	tmpDir := t.TempDir()
+
+	files := map[string]string{
+		"a.go": "package main\nfunc A() { B() }",
+		"b.go": "package main\nfunc B() { C() }",
+		"c.go": "package main\nfunc C() { A() }",
+	}
+
+	for name, content := range files {
+		err := os.WriteFile(filepath.Join(tmpDir, name), []byte(content), 0644)
+		require.NoError(t, err)
+	}
+
+	// Run 1 as baseline
+	baseline, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Run 50 times
+	for i := 0; i < 50; i++ {
+		cg, err := GenerateCallGraph(tmpDir)
+		require.NoError(t, err)
+		assert.Equal(t, baseline.Edges, cg.Edges, "Edges mismatch at iteration %d", i)
+	}
 }
