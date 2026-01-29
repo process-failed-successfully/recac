@@ -326,21 +326,36 @@ func resolveExternalCall(nodes []*CallGraphNode, importPath string, funcName str
 			// node.Package might be "internal/utils"
 			// importPath might be "recac/internal/utils"
 			if strings.HasSuffix(importPath, node.Package) {
-				// We want the longest suffix match to be most specific.
-				// e.g. import "x/a/b" should match "a/b" (len 3) over "b" (len 1)
-				// Or if multiple matches with same length, use lexicographical order (since nodes are sorted)
-				if len(node.Package) > maxMatchLen {
-					maxMatchLen = len(node.Package)
-					bestMatchID = node.ID
+				// Verify strict boundary: prevent "bar" matching "foobar"
+				suffixLen := len(node.Package)
+				pathLen := len(importPath)
+				isBoundary := false
+				if pathLen == suffixLen {
+					isBoundary = true
+				} else if pathLen > suffixLen {
+					// Check preceding character
+					if importPath[pathLen-suffixLen-1] == '/' {
+						isBoundary = true
+					}
 				}
-				// Since nodes are sorted by ID, the first one we find for a given length is the "smallest".
-				// But we are finding MAX length.
-				// If we find another node with SAME length, should we take it?
-				// Since we want deterministic result, if we have tie in length, we want the one with smallest ID.
-				// Since nodes are sorted by ID, the FIRST one we encounter (with max length) is the correct one to keep
-				// IF we only update when > maxMatchLen.
-				// If we update when >= maxMatchLen, we would get the LAST one.
-				// So strict > is correct for "First in sorted list".
+
+				if isBoundary {
+					// We want the longest suffix match to be most specific.
+					// e.g. import "x/a/b" should match "a/b" (len 3) over "b" (len 1)
+					// Or if multiple matches with same length, use lexicographical order (since nodes are sorted)
+					if len(node.Package) > maxMatchLen {
+						maxMatchLen = len(node.Package)
+						bestMatchID = node.ID
+					}
+					// Since nodes are sorted by ID, the first one we find for a given length is the "smallest".
+					// But we are finding MAX length.
+					// If we find another node with SAME length, should we take it?
+					// Since we want deterministic result, if we have tie in length, we want the one with smallest ID.
+					// Since nodes are sorted by ID, the FIRST one we encounter (with max length) is the correct one to keep
+					// IF we only update when > maxMatchLen.
+					// If we update when >= maxMatchLen, we would get the LAST one.
+					// So strict > is correct for "First in sorted list".
+				}
 			}
 		}
 	}
