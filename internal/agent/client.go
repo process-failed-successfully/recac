@@ -24,7 +24,8 @@ func NewBaseClient(project string, defaultMaxTokens int) BaseClient {
 		Project:          project,
 		DefaultMaxTokens: defaultMaxTokens,
 		BackoffFn: func(retry int) time.Duration {
-			return time.Duration(1<<uint(retry-1)) * time.Second
+			// Increase initial backoff to 2s to better handle rate limits
+			return time.Duration(1<<uint(retry)) * time.Second
 		},
 	}
 }
@@ -155,7 +156,8 @@ func (c *BaseClient) SendWithRetry(ctx context.Context, prompt string, sendOnce 
 		return "", err
 	}
 
-	maxRetries := 3
+	// Increase max retries to 5 to cover >60s with exponential backoff (2+4+8+16+32 = 62s)
+	maxRetries := 5
 	var lastErr error
 
 	for i := 0; i <= maxRetries; i++ {
@@ -197,7 +199,7 @@ func (c *BaseClient) SendStreamWithRetry(ctx context.Context, prompt string, sen
 	}
 
 	var fullResponse strings.Builder
-	maxRetries := 3
+	maxRetries := 5
 	var lastErr error
 
 	for i := 0; i <= maxRetries; i++ {
