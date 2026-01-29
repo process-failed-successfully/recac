@@ -325,22 +325,14 @@ func resolveExternalCall(nodes []*CallGraphNode, importPath string, funcName str
 			// Check if importPath ends with node.Package
 			// node.Package might be "internal/utils"
 			// importPath might be "recac/internal/utils"
-			if strings.HasSuffix(importPath, node.Package) {
+			// Ensure boundary match to avoid partial suffix matches (e.g. "age" matching "image")
+			if importPath == node.Package || strings.HasSuffix(importPath, "/"+node.Package) {
 				// We want the longest suffix match to be most specific.
 				// e.g. import "x/a/b" should match "a/b" (len 3) over "b" (len 1)
-				// Or if multiple matches with same length, use lexicographical order (since nodes are sorted)
 				if len(node.Package) > maxMatchLen {
 					maxMatchLen = len(node.Package)
 					bestMatchID = node.ID
 				}
-				// Since nodes are sorted by ID, the first one we find for a given length is the "smallest".
-				// But we are finding MAX length.
-				// If we find another node with SAME length, should we take it?
-				// Since we want deterministic result, if we have tie in length, we want the one with smallest ID.
-				// Since nodes are sorted by ID, the FIRST one we encounter (with max length) is the correct one to keep
-				// IF we only update when > maxMatchLen.
-				// If we update when >= maxMatchLen, we would get the LAST one.
-				// So strict > is correct for "First in sorted list".
 			}
 		}
 	}
@@ -354,5 +346,9 @@ func findMethodsByName(nodes []*CallGraphNode, methodName string) []*CallGraphNo
 			results = append(results, node)
 		}
 	}
+	// Sort results for determinism
+	sort.SliceStable(results, func(i, j int) bool {
+		return results[i].ID < results[j].ID
+	})
 	return results
 }
