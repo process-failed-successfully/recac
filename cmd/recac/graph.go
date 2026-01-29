@@ -150,8 +150,21 @@ func generateMermaid(g *runner.TaskGraph) string {
 }
 
 func sanitizeMermaidID(id string) string {
-	id = strings.ReplaceAll(id, "-", "_")
-	id = strings.ReplaceAll(id, " ", "_")
-	id = strings.ReplaceAll(id, ".", "_")
-	return id
+	replacer := strings.NewReplacer(
+		"-", "_",
+		" ", "_",
+		".", "_",
+		"/", "_",
+		"\\", "_",
+		"*", "_",
+		":", "_",
+		"&", "_",
+		"(", "_",
+		")", "_",
+		"[", "_",
+		"]", "_",
+		"\"", "_",
+		"'", "_",
+	)
+	return replacer.Replace(id)
 }
