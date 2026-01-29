@@ -328,10 +328,19 @@ func resolveExternalCall(nodes []*CallGraphNode, importPath string, funcName str
 			if strings.HasSuffix(importPath, node.Package) {
 				// We want the longest suffix match to be most specific.
 				// e.g. import "x/a/b" should match "a/b" (len 3) over "b" (len 1)
+				// Or if multiple matches with same length, use lexicographical order (since nodes are sorted)
 				if len(node.Package) > maxMatchLen {
 					maxMatchLen = len(node.Package)
 					bestMatchID = node.ID
 				}
+				// Since nodes are sorted by ID, the first one we find for a given length is the "smallest".
+				// But we are finding MAX length.
+				// If we find another node with SAME length, should we take it?
+				// Since we want deterministic result, if we have tie in length, we want the one with smallest ID.
+				// Since nodes are sorted by ID, the FIRST one we encounter (with max length) is the correct one to keep
+				// IF we only update when > maxMatchLen.
+				// If we update when >= maxMatchLen, we would get the LAST one.
+				// So strict > is correct for "First in sorted list".
 			}
 		}
 	}
