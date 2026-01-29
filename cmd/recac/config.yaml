@@ -33,7 +33,7 @@ notifications:
             on_success: true
             on_user_interaction: true
 orchestrator:
-    agent_model: mistralai/devstral-2512
+    agent_model: nvidia/nemotron-3-nano-30b-a3b:free
     agent_provider: openrouter
     image: ghcr.io/process-failed-successfully/recac-agent:latest
     image_pull_policy: Always

@@ -30,7 +30,7 @@ service:
 # Non-sensitive configuration
 config:
   provider: openrouter
-  model: mistralai/devstral-2512
+  model: nvidia/nemotron-3-nano-30b-a3b:free
   ollamaBaseUrl: ""
   verbose: true
   metricsPort: 9090

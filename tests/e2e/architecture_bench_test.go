@@ -34,7 +34,7 @@ func TestArchitectureGenerationBenchmark(t *testing.T) {
 	}
 	model := os.Getenv("RECAC_MODEL")
 	if model == "" {
-		model = "mistralai/devstral-2512" // Default
+		model = "nvidia/nemotron-3-nano-30b-a3b:free" // Default
 	}
 	runs := 5 // Number of iterations
 

@@ -32,7 +32,7 @@ func main() {
 	pflag.String("namespace", "default", "Kubernetes namespace (for k8s mode)")
 	pflag.Duration("interval", 1*time.Minute, "Polling interval")
 	pflag.String("agent-provider", "openrouter", "Provider for spawned agents")
-	pflag.String("agent-model", "mistralai/devstral-2512", "Model for spawned agents")
+	pflag.String("agent-model", "nvidia/nemotron-3-nano-30b-a3b:free", "Model for spawned agents")
 	pflag.String("image-pull-policy", "Always", "Image pull policy for agents (Always, IfNotPresent, Never)")
 
 	pflag.String("jira-query", "", "Custom JQL query (overrides label)")
