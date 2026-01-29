@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"text/tabwriter"
 
@@ -35,7 +36,7 @@ var statsCmd = &cobra.Command{
 			return fmt.Errorf("could not calculate statistics: %w", err)
 		}
 
-		displayStats(stats)
+		displayStats(cmd.OutOrStdout(), stats)
 		return nil
 	},
 }
@@ -78,8 +79,8 @@ func calculateStats(sm ISessionManager) (*AggregateStats, error) {
 	return stats, nil
 }
 
-func displayStats(stats *AggregateStats) {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
+func displayStats(out io.Writer, stats *AggregateStats) {
+	w := tabwriter.NewWriter(out, 0, 0, 3, ' ', 0)
 	fmt.Fprintln(w, "AGGREGATE SESSION STATISTICS")
 	fmt.Fprintln(w, "----------------------------")
 	fmt.Fprintf(w, "Total Sessions:\t%d\n", stats.TotalSessions)

@@ -69,3 +69,75 @@ func TestGetPrompt_Override(t *testing.T) {
 		t.Errorf("Expected %q, got %q", expected, got)
 	}
 }
+
+func TestListPrompts(t *testing.T) {
+	names, err := ListPrompts()
+	if err != nil {
+		t.Fatalf("ListPrompts failed: %v", err)
+	}
+	if len(names) == 0 {
+		t.Error("Expected prompts, got empty list")
+	}
+
+	found := false
+	for _, n := range names {
+		if n == Planner {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("Expected 'planner' in prompts list")
+	}
+}
+
+func TestGetPrompt_LocalOverride(t *testing.T) {
+	// Create .recac/prompts in CWD
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create temporary directory structure
+	localDir := filepath.Join(cwd, ".recac", "prompts")
+	if err := os.MkdirAll(localDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(filepath.Join(cwd, ".recac"))
+
+	promptName := "planner"
+	overrideContent := "Local override {spec}"
+	path := filepath.Join(localDir, promptName+".md")
+	if err := os.WriteFile(path, []byte(overrideContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Ensure Env is cleared
+	t.Setenv("RECAC_PROMPTS_DIR", "")
+
+	got, err := GetPrompt(promptName, map[string]string{"spec": "FOO"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got != "Local override FOO" {
+		t.Errorf("Expected local override, got %q", got)
+	}
+}
+
+func TestGetPrompt_Fallback(t *testing.T) {
+	// Ensure no overrides
+	t.Setenv("RECAC_PROMPTS_DIR", "")
+
+	// We assume CWD doesn't have .recac/prompts (TestGetPrompt_LocalOverride cleans up)
+	// We assume user home doesn't have it either (or we can't easily control it).
+	// But we can check for an embedded one.
+
+	got, err := GetPrompt(CodingAgent, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) == 0 {
+		t.Error("Expected embedded prompt content")
+	}
+}

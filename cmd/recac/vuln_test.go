@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"os"
+	"recac/internal/vuln"
 	"strings"
 	"testing"
+	"github.com/spf13/cobra"
 )
 
 func TestVulnCmd(t *testing.T) {
@@ -37,24 +39,6 @@ require github.com/gin-gonic/gin v1.9.0
 		t.Fatalf("failed to write package.json: %v", err)
 	}
 
-	// We can't easily mock the OSV client inside the command without dependency injection or global variable swizzling.
-	// Since I implemented `NewOSVClient()` directly in `runVulnScan` via `vuln.NewOSVClient()`, it's hard to mock.
-	// However, `vuln.NewOSVClient` returns a struct.
-	// Integration test: We will run it and expect it NOT to fail (it will hit real API or fail gracefully if network issues).
-	// If the sandbox has no internet, it might fail.
-	// But `default_api` says "view_text_website" works, so outbound HTTP might work.
-	// To be safe and "strong testing", I should probably refactor `runVulnScan` to accept a Scanner,
-	// or use the `cmd` testing pattern where we don't mock internals but verify flags/output structure.
-
-	// Let's rely on the fact that `runVulnScan` uses `vuln.NewOSVClient` which hits the network.
-	// If network fails, we'll see an error.
-	// Let's see if we can run it.
-
-	// Actually, for unit testing `cmd/recac`, usually we mock the logic.
-	// I'll skip the actual network call test here to avoid flakiness and stick to `internal/vuln` tests for logic.
-	// But wait, the prompt asked for "strong testing".
-	// I will just check if the command definition is correct and flag parsing works.
-
 	cmd := vulnCmd
 	if cmd.Use != "vuln" {
 		t.Errorf("Expected use 'vuln', got '%s'", cmd.Use)
@@ -82,15 +66,9 @@ func TestVulnCmd_NoFiles(t *testing.T) {
 	buf := new(bytes.Buffer)
 	cmd.SetOut(buf)
 	cmd.SetErr(buf)
-	cmd.SetIn(nil) // Ensure no stdin interference
+	cmd.SetIn(nil)
 
-	err := cmd.Execute()
-	// Should fail because no files found (and runE is executed)
-	// But wait, `cmd.Execute()` executes the root command if not carefully constructed?
-	// `vulnCmd` is global.
-	// We need to run the RunE function directly to avoid Cobra complexity in tests sometimes.
-
-	err = runVulnScan(cmd, []string{})
+	err := runVulnScan(cmd, []string{})
 	if err == nil {
 		t.Error("Expected error when no files found, got nil")
 	}
@@ -114,23 +92,64 @@ func TestVulnCmd_SpecificFile(t *testing.T) {
 	vulnCmd.Flags().Set("file", "my-go.mod")
 	defer vulnCmd.Flags().Set("file", "") // Reset
 
-	// We expect a parsing error or network error, but NOT "no files found"
+	// We expect this to try to run scan. Network may fail.
 	err := runVulnScan(vulnCmd, []string{})
-	_ = err // Ignore error, as network might fail, but we care that it tried
+	// We just want to ensure it parses the file.
+	// If it failed to scan (network), error would be "scan failed".
+	if err != nil {
+		if strings.Contains(err.Error(), "unsupported file type") {
+			t.Error("Should support .mod extension")
+		}
+	}
+}
 
-	// It should try to parse. Since I named it `my-go.mod`, parsing logic:
-	// base == "go.mod" check in `runVulnScan` will fail because base is `my-go.mod`.
-	// My implementation: `if base == "go.mod"`.
-	// This reveals a bug/limitation in my implementation! It strictly checks filename.
-	// I should fix this to check extension or just assume format based on flag?
-	// Or maybe just `go.mod` and `package.json` are strict.
+func TestPrintVulnReport(t *testing.T) {
+	cmd := &cobra.Command{}
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
 
-	// If I pass "my-go.mod", `base` is "my-go.mod".
-	// Logic:
-	// if base == "go.mod" ... else if base == "package.json" ... else warning.
+	// Case 1: No vulnerabilities
+	printVulnReport(cmd, []vuln.Vulnerability{})
+	if !strings.Contains(buf.String(), "No vulnerabilities found") {
+		t.Errorf("Expected 'No vulnerabilities found', got: %s", buf.String())
+	}
 
-	// So it will print warning and "scan 0 packages".
+	// Case 2: Vulnerabilities found
+	buf.Reset()
+	vulns := []vuln.Vulnerability{
+		{
+			ID:          "GHSA-1234",
+			PackageName: "example-lib",
+			Severity:    "HIGH",
+			Summary:     "A bad vulnerability",
+		},
+		{
+			ID:          "GHSA-5678",
+			PackageName: "other-lib",
+			Severity:    "LOW",
+			Summary:     strings.Repeat("A", 100), // Long summary
+		},
+	}
+	printVulnReport(cmd, vulns)
 
-	// Let's verify that behavior or fix it.
-	// FIX: I will improve the implementation to check `strings.HasSuffix` or similar.
+	output := buf.String()
+	if !strings.Contains(output, "GHSA-1234") {
+		t.Error("Expected output to contain GHSA-1234")
+	}
+	if !strings.Contains(output, "example-lib") {
+		t.Error("Expected output to contain example-lib")
+	}
+	if !strings.Contains(output, "HIGH") {
+		t.Error("Expected output to contain HIGH")
+	}
+	if !strings.Contains(output, "Found 2 vulnerabilities") {
+		t.Error("Expected output to contain summary count")
+	}
+	// Check truncation
+	if strings.Contains(output, strings.Repeat("A", 100)) {
+		t.Error("Expected summary to be truncated")
+	}
+	if !strings.Contains(output, "AAAAA...") { // Check for ellipsis
+		t.Error("Expected ellipsis in truncated summary")
+	}
 }

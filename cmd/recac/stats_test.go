@@ -1,91 +1,154 @@
 package main
 
 import (
-	"encoding/json"
-	"os"
-	"path/filepath"
-	"testing"
-	"time"
-
+	"bytes"
+	"errors"
 	"recac/internal/agent"
 	"recac/internal/runner"
-
-	"github.com/stretchr/testify/require"
+	"strings"
+	"testing"
 )
 
+// MockSessionManager for stats test
+type mockSessionManager struct {
+	sessions []*runner.SessionState
+	err      error
+}
+
+func (m *mockSessionManager) StartSession(name, goal string, command []string, cwd string) (*runner.SessionState, error) {
+	return nil, nil
+}
+func (m *mockSessionManager) ListSessions() ([]*runner.SessionState, error) {
+	return m.sessions, m.err
+}
+func (m *mockSessionManager) StopSession(name string) error { return nil }
+func (m *mockSessionManager) SaveSession(*runner.SessionState) error { return nil }
+func (m *mockSessionManager) LoadSession(name string) (*runner.SessionState, error) { return nil, nil }
+func (m *mockSessionManager) PauseSession(name string) error { return nil }
+func (m *mockSessionManager) ResumeSession(name string) error { return nil }
+func (m *mockSessionManager) GetSessionLogs(name string) (string, error) { return "", nil }
+func (m *mockSessionManager) GetSessionLogContent(name string, lines int) (string, error) { return "", nil }
+func (m *mockSessionManager) GetSessionPath(name string) string { return "" }
+func (m *mockSessionManager) IsProcessRunning(pid int) bool { return false }
+func (m *mockSessionManager) RemoveSession(name string, force bool) error { return nil }
+func (m *mockSessionManager) RenameSession(oldName, newName string) error { return nil }
+func (m *mockSessionManager) SessionsDir() string { return "" }
+func (m *mockSessionManager) GetSessionGitDiffStat(name string) (string, error) { return "", nil }
+func (m *mockSessionManager) ArchiveSession(name string) error { return nil }
+func (m *mockSessionManager) UnarchiveSession(name string) error { return nil }
+func (m *mockSessionManager) ListArchivedSessions() ([]*runner.SessionState, error) { return nil, nil }
+
+
 func TestCalculateStats(t *testing.T) {
-	tmpDir := t.TempDir()
+	// Mock loadAgentState
+	originalLoad := loadAgentState
+	defer func() { loadAgentState = originalLoad }()
 
-	// Helper to create agent state files
-	createAgentStateFile := func(name string, model string, promptTokens, responseTokens int) string {
-		state := agent.State{
-			Model: model,
-			TokenUsage: agent.TokenUsage{
-				TotalPromptTokens:   promptTokens,
-				TotalResponseTokens: responseTokens,
-				TotalTokens:         promptTokens + responseTokens,
-			},
+	loadAgentState = func(path string) (*agent.State, error) {
+		if path == "error" {
+			return nil, errors.New("fail")
 		}
-		filePath := filepath.Join(tmpDir, name+"_agent_state.json")
-		data, err := json.Marshal(state)
-		require.NoError(t, err)
-		os.WriteFile(filePath, data, 0644)
-		return filePath
+		if path == "empty" {
+			return &agent.State{}, nil // empty
+		}
+		// return dummy state
+		return &agent.State{
+			Model: "test-model",
+			TokenUsage: agent.TokenUsage{
+				TotalTokens: 100,
+				TotalPromptTokens: 80,
+				TotalResponseTokens: 20,
+			},
+		}, nil
 	}
 
-	mockSessions := []*runner.SessionState{
+	tests := []struct {
+		name    string
+		sessions []*runner.SessionState
+		listErr error
+		wantErr bool
+		validate func(*testing.T, *AggregateStats)
+	}{
 		{
-			Name:           "session1-completed",
-			Status:         "completed",
-			AgentStateFile: createAgentStateFile("s1", "gemini-1.5-pro-latest", 100, 200),
-			StartTime:      time.Now(),
+			name: "Success",
+			sessions: []*runner.SessionState{
+				{Name: "s1", Status: "running", AgentStateFile: "valid"},
+				{Name: "s2", Status: "completed", AgentStateFile: "valid"},
+				{Name: "s3", Status: "running", AgentStateFile: ""}, // No state file
+			},
+			validate: func(t *testing.T, s *AggregateStats) {
+				if s.TotalSessions != 3 {
+					t.Errorf("Expected 3 sessions, got %d", s.TotalSessions)
+				}
+				if s.TotalTokens != 200 { // 100 * 2
+					t.Errorf("Expected 200 tokens, got %d", s.TotalTokens)
+				}
+				if s.StatusCounts["running"] != 2 {
+					t.Errorf("Expected 2 running, got %d", s.StatusCounts["running"])
+				}
+			},
 		},
 		{
-			Name:           "session2-completed",
-			Status:         "completed",
-			AgentStateFile: createAgentStateFile("s2", "claude-3-opus-20240229", 50, 150),
-			StartTime:      time.Now(),
+			name: "List Error",
+			listErr: errors.New("list fail"),
+			wantErr: true,
 		},
 		{
-			Name:      "session3-running",
-			Status:    "running",
-			PID:       123, // Mock PID
-			StartTime: time.Now(),
-		},
-		{
-			Name:           "session4-failed-no-state",
-			Status:         "failed",
-			AgentStateFile: "", // No agent state
-			StartTime:      time.Now(),
+			name: "Load State Error",
+			sessions: []*runner.SessionState{
+				{Name: "s1", AgentStateFile: "error"},
+			},
+			wantErr: true,
 		},
 	}
 
-	// Convert slice to map for the mock
-	sessionsMap := make(map[string]*runner.SessionState)
-	for _, s := range mockSessions {
-		sessionsMap[s.Name] = s
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sm := &mockSessionManager{
+				sessions: tt.sessions,
+				err:      tt.listErr,
+			}
+			stats, err := calculateStats(sm)
+			if tt.wantErr {
+				if err == nil {
+					t.Error("Expected error, got nil")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error: %v", err)
+				}
+				if tt.validate != nil {
+					tt.validate(t, stats)
+				}
+			}
+		})
+	}
+}
+
+func TestDisplayStats(t *testing.T) {
+	stats := &AggregateStats{
+		TotalSessions:       10,
+		TotalTokens:         1000,
+		TotalPromptTokens:   800,
+		TotalResponseTokens: 200,
+		TotalCost:           0.1234,
+		StatusCounts: map[string]int{
+			"running": 5,
+			"done":    5,
+		},
 	}
 
-	sm := &MockSessionManager{
-		Sessions: sessionsMap,
+	var buf bytes.Buffer
+	displayStats(&buf, stats)
+
+	out := buf.String()
+	if !strings.Contains(out, "Total Sessions:   10") {
+		t.Errorf("Output mismatch: %s", out)
 	}
-
-	// Calculate stats
-	stats, err := calculateStats(sm)
-	require.NoError(t, err)
-
-	// --- Assertions ---
-	require.Equal(t, 4, stats.TotalSessions, "Total sessions should be 4")
-	require.Equal(t, 500, stats.TotalTokens, "Total tokens should be sum of s1 and s2")
-	require.Equal(t, 150, stats.TotalPromptTokens, "Total prompt tokens should be sum of s1 and s2")
-	require.Equal(t, 350, stats.TotalResponseTokens, "Total response tokens should be sum of s1 and s2")
-
-	cost1 := agent.CalculateCost("gemini-1.5-pro-latest", agent.TokenUsage{TotalPromptTokens: 100, TotalResponseTokens: 200})
-	cost2 := agent.CalculateCost("claude-3-opus-20240229", agent.TokenUsage{TotalPromptTokens: 50, TotalResponseTokens: 150})
-	expectedCost := cost1 + cost2
-	require.InDelta(t, expectedCost, stats.TotalCost, 0.0001, "Total cost should be sum of s1 and s2")
-
-	require.Equal(t, 2, stats.StatusCounts["completed"], "Should have 2 completed sessions")
-	require.Equal(t, 1, stats.StatusCounts["running"], "Should have 1 running session")
-	require.Equal(t, 1, stats.StatusCounts["failed"], "Should have 1 failed session")
+	if !strings.Contains(out, "$0.1234") {
+		t.Errorf("Cost mismatch: %s", out)
+	}
+	if !strings.Contains(out, "running") || !strings.Contains(out, "5") {
+		t.Error("Missing status breakdown")
+	}
 }

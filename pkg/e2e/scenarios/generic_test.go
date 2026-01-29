@@ -7,76 +7,148 @@ import (
 	"testing"
 )
 
+func TestGenericScenario_AppSpec(t *testing.T) {
+	config := GenericScenarioConfig{
+		AppSpec: "Spec for {{.RepoURL}}",
+	}
+	s := NewGenericScenario(config)
+	got := s.AppSpec("http://repo.git")
+	if got != "Spec for http://repo.git" {
+		t.Errorf("AppSpec mismatch, got %q", got)
+	}
+}
+
 func TestGenericScenario_Generate(t *testing.T) {
 	config := GenericScenarioConfig{
-		Name: "Test Scenario",
 		Tickets: []TicketTemplate{
 			{
-				ID:      "TEST-1",
-				Summary: "Summary for {{.UniqueID}}",
-				Desc:    "Repo: {{.RepoURL}}",
+				ID:      "T1",
+				Summary: "Sum {{.UniqueID}}",
+				Desc:    "Desc {{.RepoURL}}",
 				Type:    "Task",
 			},
 		},
 	}
 	s := NewGenericScenario(config)
-
-	specs := s.Generate("12345", "https://example.com/repo")
+	specs := s.Generate("123", "http://repo.git")
 
 	if len(specs) != 1 {
-		t.Fatalf("Expected 1 ticket spec, got %d", len(specs))
+		t.Fatalf("Expected 1 spec, got %d", len(specs))
 	}
-	if specs[0].Summary != "Summary for 12345" {
-		t.Errorf("Expected summary 'Summary for 12345', got '%s'", specs[0].Summary)
+	if specs[0].Summary != "Sum 123" {
+		t.Errorf("Summary mismatch: %q", specs[0].Summary)
 	}
-	if specs[0].Desc != "Repo: https://example.com/repo" {
-		t.Errorf("Expected desc 'Repo: https://example.com/repo', got '%s'", specs[0].Desc)
+	if specs[0].Desc != "Desc http://repo.git" {
+		t.Errorf("Desc mismatch: %q", specs[0].Desc)
 	}
 }
 
-func TestGenericScenario_RunStep_FileContent(t *testing.T) {
-	// Setup generic scenario with no tickets needed for this specific test
-	s := NewGenericScenario(GenericScenarioConfig{})
-
+func TestGenericScenario_Verify_Validation(t *testing.T) {
+	// Setup temp repo
 	tmpDir := t.TempDir()
-	filePath := filepath.Join(tmpDir, "test.txt")
-	err := os.WriteFile(filePath, []byte("Hello World"), 0644)
+
+	// Create some files
+	os.WriteFile(filepath.Join(tmpDir, "exist.txt"), []byte("hello world"), 0644)
+
+	config := GenericScenarioConfig{
+		// No tickets to skip git checkout logic
+		Tickets: []TicketTemplate{},
+		Validations: []ValidationStep{
+			{
+				Name: "Check Exists",
+				Type: ValidateFileExists,
+				Path: "exist.txt",
+			},
+			{
+				Name: "Check Content",
+				Type: ValidateFileContent,
+				Path: "exist.txt",
+				ContentMustMatch: "world",
+				ContentMustNotMatch: "bad",
+			},
+			{
+				Name: "Check Command",
+				Type: ValidateRunCommand,
+				Path: "echo",
+				Args: []string{"foo"},
+				ContentMustMatch: "foo",
+			},
+		},
+	}
+
+	s := NewGenericScenario(config)
+	err := s.Verify(tmpDir, nil)
 	if err != nil {
-		t.Fatal(err)
+		t.Errorf("Verify failed: %v", err)
+	}
+}
+
+func TestGenericScenario_Verify_Failure(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	config := GenericScenarioConfig{
+		Tickets: []TicketTemplate{},
+		Validations: []ValidationStep{
+			{
+				Name: "Check Missing",
+				Type: ValidateFileExists,
+				Path: "missing.txt",
+			},
+		},
 	}
 
-	// Case 1: Success match
-	step := ValidationStep{
-		Name:             "Check Content",
-		Type:             ValidateFileContent,
-		Path:             "test.txt",
-		ContentMustMatch: "Hello",
+	s := NewGenericScenario(config)
+	err := s.Verify(tmpDir, nil)
+	if err == nil {
+		t.Error("Expected error for missing file")
 	}
-	if err := s.runStep(tmpDir, step); err != nil {
-		t.Errorf("Expected success, got error: %v", err)
+}
+
+func TestGenericScenario_Verify_ContentFailure(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte("hello"), 0644)
+
+	config := GenericScenarioConfig{
+		Tickets: []TicketTemplate{},
+		Validations: []ValidationStep{
+			{
+				Name: "Check Content",
+				Type: ValidateFileContent,
+				Path: "file.txt",
+				ContentMustMatch: "world",
+			},
+		},
 	}
 
-	// Case 2: Fail match
-	stepFail := ValidationStep{
-		Name:             "Check Missing",
-		Type:             ValidateFileContent,
-		Path:             "test.txt",
-		ContentMustMatch: "Missing",
+	s := NewGenericScenario(config)
+	err := s.Verify(tmpDir, nil)
+	if err == nil {
+		t.Error("Expected error for content mismatch")
 	}
-	if err := s.runStep(tmpDir, stepFail); err == nil {
-		t.Error("Expected error for missing content, got nil")
-	} else if !strings.Contains(err.Error(), "does not contain 'Missing'") {
-		t.Errorf("Expected specific error message, got: %v", err)
+	if !strings.Contains(err.Error(), "does not contain 'world'") {
+		t.Errorf("Unexpected error: %v", err)
+	}
+}
+
+func TestGenericScenario_Verify_ForbiddenContent(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte("hello world"), 0644)
+
+	config := GenericScenarioConfig{
+		Tickets: []TicketTemplate{},
+		Validations: []ValidationStep{
+			{
+				Name: "Check Forbidden",
+				Type: ValidateFileContent,
+				Path: "file.txt",
+				ContentMustNotMatch: "hello",
+			},
+		},
 	}
 
-	// Case 3: Fail forbidden
-	stepForbidden := ValidationStep{
-		Name:                "Check Forbidden",
-		Type:                ValidateFileContent,
-		Path:                "test.txt",
-		ContentMustNotMatch: "World",
-	}
-	if err := s.runStep(tmpDir, stepForbidden); err == nil {
-		t.Error("Expected error for forbidden content, got nil")
+	s := NewGenericScenario(config)
+	err := s.Verify(tmpDir, nil)
+	if err == nil {
+		t.Error("Expected error for forbidden content")
 	}
 }

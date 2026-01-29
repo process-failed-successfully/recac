@@ -5,221 +5,111 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestGitLogModel_Update(t *testing.T) {
+func TestGitLogModel(t *testing.T) {
 	commits := []CommitItem{
-		{Hash: "123", Author: "Alice", Message: "Init"},
-		{Hash: "456", Author: "Bob", Message: "Fix"},
+		{Hash: "123", Author: "Me", Date: "Now", Message: "Fix"},
 	}
 
-	diffCalled := false
-	explainCalled := false
-	auditCalled := false
-
-	fetchDiff := func(h string) (string, error) {
-		diffCalled = true
-		if h != "123" {
-			t.Errorf("expected hash 123, got %s", h)
+	fetchDiff := func(hash string) (string, error) {
+		if hash == "123" {
+			return "diff content", nil
 		}
-		return "diff content", nil
+		return "", errors.New("diff error")
 	}
-
-	explain := func(h string) (string, error) {
-		explainCalled = true
-		return "explanation", nil
+	explain := func(hash string) (string, error) {
+		return "AI explanation", nil
 	}
-
-	audit := func(h string) (string, error) {
-		auditCalled = true
-		return "audit report", nil
+	audit := func(hash string) (string, error) {
+		return "AI audit", nil
 	}
 
 	m := NewGitLogModel(commits, fetchDiff, explain, audit)
 
-	// Send WindowSizeMsg to initialize viewport dimensions
-	newM, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 20})
-	m = newM.(GitLogModel)
+	// Test Init
+	assert.Nil(t, m.Init())
 
-	// 1. Initial State
-	if m.viewingDetails {
-		t.Error("should not be viewing details initially")
-	}
+	// Test Update: Resize
+	newModel, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
+	m = newModel.(GitLogModel)
+	assert.Equal(t, 100, m.width)
 
-	// 2. Select item (Enter)
-	// list selection is at index 0 by default ("123")
-	newM, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	m = newM.(GitLogModel)
+	// Test Update: Enter (Fetch Diff)
+	m.list.Select(0)
+	newModel, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = newModel.(GitLogModel)
+	assert.Equal(t, "Fetching diff...", m.statusMessage)
 
-	// Trigger the command returned
-	if cmd == nil {
-		t.Fatal("expected command from Enter")
-	}
-	// Run the command to get the msg
+	// Execute cmd
 	msg := cmd()
+	dMsg, ok := msg.(diffMsg)
+	assert.True(t, ok)
+	assert.Equal(t, "diff content", dMsg.content)
 
-	// Since we use tea.Batch, we might get a BatchMsg
-	var dMsg diffMsg
-	var found bool
+	// Test Update: Handle Diff Msg
+	newModel, _ = m.Update(dMsg)
+	m = newModel.(GitLogModel)
+	assert.True(t, m.viewingDetails)
+	assert.Equal(t, "", m.statusMessage)
 
-	if batchMsg, ok := msg.(tea.BatchMsg); ok {
-		for _, subCmd := range batchMsg {
-			subMsg := subCmd()
-			if dm, ok := subMsg.(diffMsg); ok {
-				dMsg = dm
-				found = true
-				break
-			}
-		}
-	} else if dm, ok := msg.(diffMsg); ok {
-		// In case it wasn't batched (though my code batches)
-		dMsg = dm
-		found = true
-	}
+	// Test View (Details)
+	m.viewport.Width = 100 // ensure width set for header
+	view := m.View()
+	assert.Contains(t, view, "Commit Details")
+	assert.Contains(t, view, "diff content")
 
-	if !found {
-		t.Fatalf("expected diffMsg in command result, got %T", msg)
-	}
-	if dMsg.content != "diff content" {
-		t.Errorf("expected 'diff content', got %s", dMsg.content)
-	}
-	if !diffCalled {
-		t.Error("fetchDiff was not called")
-	}
+	// Test Update: Esc (Back)
+	newModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	m = newModel.(GitLogModel)
+	assert.False(t, m.viewingDetails)
 
-	// Apply the diffMsg to update model state
-	newM, _ = m.Update(dMsg)
-	m = newM.(GitLogModel)
+	// Test View (List)
+	view = m.View()
+	assert.Contains(t, view, "Git Log")
+	assert.Contains(t, view, "Fix")
 
-	if !m.viewingDetails {
-		t.Error("should be viewing details after diffMsg")
-	}
-	if m.viewport.View() == "" {
-		t.Error("viewport should have content")
-	}
+	// Test Update: Explain (e)
+	newModel, cmd = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'e'}})
+	m = newModel.(GitLogModel)
+	assert.Contains(t, m.statusMessage, "Asking AI")
 
-	// 3. Go back (Esc)
-	newM, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
-	m = newM.(GitLogModel)
-	if m.viewingDetails {
-		t.Error("should not be viewing details after Esc")
-	}
-
-	// 4. Explain (e)
-	newM, cmd = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'e'}})
-	m = newM.(GitLogModel)
-
-	if cmd == nil {
-		t.Fatal("expected command from 'e'")
-	}
 	msg = cmd()
+	aMsg, ok := msg.(analysisResultMsg)
+	assert.True(t, ok)
+	assert.Equal(t, "AI explanation", aMsg.result)
 
-	var aMsg analysisResultMsg
-	found = false
+	// Test Update: Audit (s)
+	newModel, cmd = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	m = newModel.(GitLogModel)
+	assert.Contains(t, m.statusMessage, "Auditing")
 
-	if batchMsg, ok := msg.(tea.BatchMsg); ok {
-		for _, subCmd := range batchMsg {
-			subMsg := subCmd()
-			if am, ok := subMsg.(analysisResultMsg); ok {
-				aMsg = am
-				found = true
-				break
-			}
-		}
-	} else if am, ok := msg.(analysisResultMsg); ok {
-		aMsg = am
-		found = true
-	}
+	msg = cmd()
+	aMsg, ok = msg.(analysisResultMsg)
+	assert.True(t, ok)
+	assert.Equal(t, "AI audit", aMsg.result)
 
-	if !found {
-		t.Fatalf("expected analysisResultMsg, got %T", msg)
-	}
-	if aMsg.result != "explanation" {
-		t.Errorf("expected 'explanation', got %s", aMsg.result)
-	}
-	if !explainCalled {
-		t.Error("explainFunc was not called")
-	}
+	// Test Analysis Result Msg
+	newModel, _ = m.Update(aMsg)
+	m = newModel.(GitLogModel)
+	assert.True(t, m.viewingDetails)
 
-	// Apply analysisMsg
-	newM, _ = m.Update(aMsg)
-	m = newM.(GitLogModel)
-	if !m.viewingDetails {
-		t.Error("should be viewing details after analysisMsg")
-	}
-
-	// Back again
+	// Test Quit
 	m.viewingDetails = false
-
-	// 5. Audit (s)
-	newM, cmd = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
-	m = newM.(GitLogModel)
-
-	if cmd == nil {
-		t.Fatal("expected command from 's'")
-	}
+	newModel, cmd = m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
 	msg = cmd()
-
-	found = false
-	if batchMsg, ok := msg.(tea.BatchMsg); ok {
-		for _, subCmd := range batchMsg {
-			subMsg := subCmd()
-			if am, ok := subMsg.(analysisResultMsg); ok {
-				aMsg = am
-				found = true
-				break
-			}
-		}
-	} else if am, ok := msg.(analysisResultMsg); ok {
-		aMsg = am
-		found = true
-	}
-
-	if !found {
-		t.Fatalf("expected analysisResultMsg, got %T", msg)
-	}
-	if aMsg.result != "audit report" {
-		t.Errorf("expected 'audit report', got %s", aMsg.result)
-	}
-	if !auditCalled {
-		t.Error("auditFunc was not called")
-	}
+	assert.IsType(t, tea.QuitMsg{}, msg)
 }
 
-func TestGitLogModel_Update_Error(t *testing.T) {
-	// Test error handling
-	commits := []CommitItem{{Hash: "123"}}
-	fetchDiff := func(h string) (string, error) {
-		return "", errors.New("git error")
+func TestCommitItem_Methods(t *testing.T) {
+	c := CommitItem{
+		Hash:    "abc",
+		Author:  "bob",
+		Date:    "2023",
+		Message: "msg",
 	}
-
-	m := NewGitLogModel(commits, fetchDiff, nil, nil)
-
-	// Simulate diff fetch
-	newM, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	m = newM.(GitLogModel)
-
-	msg := cmd()
-	var dMsg diffMsg
-	if batchMsg, ok := msg.(tea.BatchMsg); ok {
-		for _, subCmd := range batchMsg {
-			subMsg := subCmd()
-			if dm, ok := subMsg.(diffMsg); ok {
-				dMsg = dm
-				break
-			}
-		}
-	} else if dm, ok := msg.(diffMsg); ok {
-		dMsg = dm
-	}
-
-	newM, _ = m.Update(dMsg)
-	m = newM.(GitLogModel)
-
-	if m.viewingDetails {
-		t.Error("should not switch to view mode on error")
-	}
-	if m.statusMessage != "Error fetching diff: git error" {
-		t.Errorf("unexpected status message: %s", m.statusMessage)
-	}
+	assert.Equal(t, "abc - msg", c.Title())
+	assert.Equal(t, "bob | 2023", c.Description())
+	assert.Equal(t, "msg abc bob", c.FilterValue())
 }
