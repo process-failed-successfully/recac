@@ -20,7 +20,7 @@ type OpenRouterClient struct {
 // NewOpenRouterClient creates a new OpenRouter client
 func NewOpenRouterClient(apiKey, model, project string) *OpenRouterClient {
 	return &OpenRouterClient{
-		BaseClient: NewBaseClient(project, 4000), // Default generic limit (reduced to avoid 402 on limited accounts)
+		BaseClient: NewBaseClient(project, 256), // Drastically reduced for CI credit limits
 		apiKey:     apiKey,
 		model:      model,
 		httpClient: &http.Client{
