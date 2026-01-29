@@ -69,3 +69,34 @@ func TestGetPrompt_Override(t *testing.T) {
 		t.Errorf("Expected %q, got %q", expected, got)
 	}
 }
+
+func TestGetPrompt_LocalOverride(t *testing.T) {
+	// Setup temp dir as CWD
+	tmpDir := t.TempDir()
+	originalWd, _ := os.Getwd()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(originalWd)
+
+	// Create .recac/prompts/local_prompt.md
+	promptDir := filepath.Join(tmpDir, ".recac", "prompts")
+	if err := os.MkdirAll(promptDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	promptName := "local_prompt"
+	content := "Local override content"
+	if err := os.WriteFile(filepath.Join(promptDir, promptName+".md"), []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := GetPrompt(promptName, nil)
+	if err != nil {
+		t.Fatalf("GetPrompt failed: %v", err)
+	}
+
+	if got != content {
+		t.Errorf("Expected %q, got %q", content, got)
+	}
+}

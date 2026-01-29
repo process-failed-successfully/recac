@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"recac/internal/agent"
+	"recac/internal/cmdutils"
 	"recac/internal/runner"
 
 	"github.com/stretchr/testify/assert"
@@ -149,4 +151,48 @@ func TestRunWorkflow_PreFlight_Dirty(t *testing.T) {
 	err := RunWorkflow(context.Background(), cfg)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "uncommitted changes detected")
+}
+
+func TestRunWorkflow_Detached_NewSessionManagerFail(t *testing.T) {
+	// Mock NewSessionManagerFunc failure
+	originalFunc := NewSessionManagerFunc
+	defer func() { NewSessionManagerFunc = originalFunc }()
+	NewSessionManagerFunc = func() (ISessionManager, error) {
+		return nil, fmt.Errorf("mock init failed")
+	}
+
+	cfg := SessionConfig{
+		Detached:    true,
+		SessionName: "test-detached-fail",
+		Goal:        "goal",
+		ProjectPath: t.TempDir(),
+		// SessionManager is nil, so it calls factory
+	}
+
+	err := RunWorkflow(context.Background(), cfg)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "mock init failed")
+}
+
+func TestRunWorkflow_AgentInitFail(t *testing.T) {
+	// Mock cmdutils.GetAgentClient failure
+	originalGetAgentClient := cmdutils.GetAgentClient
+	defer func() { cmdutils.GetAgentClient = originalGetAgentClient }()
+	cmdutils.GetAgentClient = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+		return nil, fmt.Errorf("mock agent init failed")
+	}
+
+	cfg := SessionConfig{
+		SessionName: "test-agent-fail",
+		ProjectPath: t.TempDir(),
+		IsMock:      false,
+		AllowDirty:  true, // skip git check
+	}
+
+	// Create app_spec.txt to pass pre-checks if any (though AllowDirty skips git)
+	os.WriteFile(filepath.Join(cfg.ProjectPath, "app_spec.txt"), []byte("spec"), 0644)
+
+	err := RunWorkflow(context.Background(), cfg)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "mock agent init failed")
 }
