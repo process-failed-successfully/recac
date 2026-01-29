@@ -42,6 +42,10 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 	// Map: FilePath -> ImportMap (Alias -> PkgPath)
 	fileImports := make(map[string]map[string]string)
 
+	// Auxiliary Indices for Optimization
+	functionsByName := make(map[string][]*CallGraphNode)
+	methodsByName := make(map[string][]*CallGraphNode)
+
 	// Map: PackageName -> PkgPath (approximate, relative to root)
 	// We'll use "dir/pkg" as PkgPath for simplicity.
 
@@ -111,9 +115,11 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 					typeName := getReceiverTypeName(fn.Recv)
 					node.Receiver = typeName
 					node.ID = fmt.Sprintf("%s.(%s).%s", fullPkg, typeName, fn.Name.Name)
+					methodsByName[node.Name] = append(methodsByName[node.Name], node)
 				} else {
 					// Function
 					node.ID = fmt.Sprintf("%s.%s", fullPkg, fn.Name.Name)
+					functionsByName[node.Name] = append(functionsByName[node.Name], node)
 				}
 
 				cg.Nodes[node.ID] = node
@@ -183,34 +189,20 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 							// Check if Ident is a package import
 							if importPath, isImport := imports[xIdent.Name]; isImport {
 								// It is Pkg.Func()
-								// We need to match the package path structure we used for keys.
-								// We used "dir/pkgName". External imports won't match our local keys unless we handle external packages.
-								// For now, let's assume we only graph INTERNAL calls or we use a fallback ID.
-
-								// Try to find if we have nodes with this Package
-								// This is tricky because "importPath" is like "github.com/foo/bar"
-								// But our keys are "internal/bar.Func".
-								// We will try to match suffix.
-								calleeID = resolveExternalCall(cg, importPath, sel)
+								// Look up in functionsByName
+								calleeID = resolveExternalCall(functionsByName, importPath, sel)
 								if calleeID == "" {
 									// Treat as external node
 									calleeID = fmt.Sprintf("%s.%s", importPath, sel)
 								}
 							} else {
 								// Variable.Method()
-								// We don't know the type of Variable.
-								// Heuristic: Find ANY method named 'Sel' in our codebase.
-								candidates := findMethodsByName(cg, sel)
+								// Heuristic: Find ANY method named 'Sel' in our codebase using methodsByName index
+								candidates := methodsByName[sel]
 								if len(candidates) == 1 {
 									calleeID = candidates[0].ID
 								} else if len(candidates) > 1 {
-									// Ambiguous. We can leave empty or point to a special "ambiguous" node.
-									// For now, let's skip or mark as ambiguous?
-									// Let's create an edge to the method name generic node?
-									// Or just pick one?
-									// Better: Create edges to ALL candidates but mark them as "heuristic" (dashed)?
-									// For simplicity in this v1:
-									// Create a "virtual" node for the method if we can't resolve.
+									// Ambiguous.
 									calleeID = fmt.Sprintf("(Ambiguous).%s", sel)
 								}
 							}
@@ -256,35 +248,15 @@ func getReceiverTypeName(recv *ast.FieldList) string {
 	return "Unknown"
 }
 
-func resolveExternalCall(cg *CallGraph, importPath string, funcName string) string {
-	// Our nodes are keyed by "relDir/pkg.Func".
-	// Import path is "recac/internal/foo".
-	// If we are running on "recac" repo, "internal/foo" matches.
-
-	// Normalize import path
-	// Remove module prefix if possible?
-	// This is hard without knowing module name.
-	// But we can scan all nodes and check if Node.Package matches the end of ImportPath?
-
-	for id, node := range cg.Nodes {
-		if node.Name == funcName && node.Receiver == "" {
-			// Check if importPath ends with node.Package
-			// node.Package might be "internal/utils"
-			// importPath might be "recac/internal/utils"
-			if strings.HasSuffix(importPath, node.Package) {
-				return id
-			}
+func resolveExternalCall(functionsByName map[string][]*CallGraphNode, importPath string, funcName string) string {
+	// Look up candidates by name
+	candidates := functionsByName[funcName]
+	for _, node := range candidates {
+		// node.Name is already funcName, and node.Receiver is already ""
+		// Check if importPath ends with node.Package
+		if strings.HasSuffix(importPath, node.Package) {
+			return node.ID
 		}
 	}
 	return ""
-}
-
-func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {
-	var results []*CallGraphNode
-	for _, node := range cg.Nodes {
-		if node.Name == methodName && node.Receiver != "" {
-			results = append(results, node)
-		}
-	}
-	return results
 }
