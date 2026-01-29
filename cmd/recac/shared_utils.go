@@ -143,3 +143,14 @@ func extractFileContexts(output string) (string, error) {
 
 	return sb.String(), nil
 }
+
+// SanitizeMermaidID replaces characters that are invalid in Mermaid node IDs with underscores.
+func SanitizeMermaidID(id string) string {
+	return strings.Map(func(r rune) rune {
+		switch r {
+		case '/', '\\', '*', ':', '&', '.', '(', ')', '[', ']', '"', '\'', ' ', '-':
+			return '_'
+		}
+		return r
+	}, id)
+}
