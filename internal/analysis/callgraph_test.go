@@ -233,3 +233,68 @@ func C() { A() }
 		assert.Equal(t, cg1.Edges[i], cg2.Edges[i], "Edge mismatch at index %d", i)
 	}
 }
+
+func TestResolveExternalCall_Ambiguity(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// We want the shorter package to be sorted FIRST.
+	// "common" < "z/common".
+
+	shortPkg := "common"
+	nestedPkg := "common" // Same name
+	nestedDir := "z"      // "z" > "c"
+
+	// Create "common"
+	commonDir := filepath.Join(tmpDir, shortPkg)
+	err := os.MkdirAll(commonDir, 0755)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(commonDir, "lib.go"), []byte(`package common
+func Func() {}
+`), 0644)
+	require.NoError(t, err)
+
+	// Create "z/common"
+	zCommonDir := filepath.Join(tmpDir, nestedDir, nestedPkg)
+	err = os.MkdirAll(zCommonDir, 0755)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(zCommonDir, "lib.go"), []byte(`package common
+func Func() {}
+`), 0644)
+	require.NoError(t, err)
+
+	// Main uses "z/common"
+	mainContent := `package main
+import (
+	"fmt"
+	"example.com/z/common"
+)
+func main() {
+	common.Func()
+}
+`
+	err = os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainContent), 0644)
+	require.NoError(t, err)
+
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Expected: main.main -> z/common.Func
+	// Wrong:    main.main -> common.Func
+
+	foundCorrect := false
+	foundWrong := false
+
+	for _, edge := range cg.Edges {
+		if edge.From == "main.main" {
+			if edge.To == "z/common.Func" {
+				foundCorrect = true
+			}
+			if edge.To == "common.Func" {
+				foundWrong = true
+			}
+		}
+	}
+
+	assert.True(t, foundCorrect, "Should resolve to z/common.Func")
+	assert.False(t, foundWrong, "Should NOT resolve to common.Func")
+}
