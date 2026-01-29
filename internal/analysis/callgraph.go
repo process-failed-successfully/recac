@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"io/fs"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -53,7 +54,13 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 			return err
 		}
 		if d.IsDir() {
-			if strings.HasPrefix(d.Name(), ".") && d.Name() != "." {
+			name := d.Name()
+			if strings.HasPrefix(name, ".") && name != "." {
+				return filepath.SkipDir
+			}
+			// Skip common non-source directories
+			switch name {
+			case "vendor", "node_modules", "testdata", "dist", "build":
 				return filepath.SkipDir
 			}
 			return nil
@@ -74,11 +81,11 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 
 		// Approximate full package path
 		relDir, _ := filepath.Rel(root, dir)
-		fullPkg := relDir
+		fullPkg := filepath.ToSlash(relDir)
 		if relDir == "." {
 			fullPkg = pkgName
 		} else if filepath.Base(relDir) != pkgName {
-			fullPkg = filepath.Join(relDir, pkgName)
+			fullPkg = filepath.ToSlash(filepath.Join(relDir, pkgName))
 		}
 		fullPkg = strings.TrimPrefix(fullPkg, "./")
 
@@ -130,15 +137,23 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 	// Use map to prevent duplicates
 	edgeMap := make(map[string]bool)
 
-	for path, f := range parsedFiles {
+	// Sort files for determinism
+	var paths []string
+	for p := range parsedFiles {
+		paths = append(paths, p)
+	}
+	sort.Strings(paths)
+
+	for _, path := range paths {
+		f := parsedFiles[path]
 		pkgName := f.Name.Name
 		dir := filepath.Dir(path)
 		relDir, _ := filepath.Rel(root, dir)
-		fullPkg := relDir
+		fullPkg := filepath.ToSlash(relDir)
 		if relDir == "." {
 			fullPkg = pkgName
 		} else if filepath.Base(relDir) != pkgName {
-			fullPkg = filepath.Join(relDir, pkgName)
+			fullPkg = filepath.ToSlash(filepath.Join(relDir, pkgName))
 		}
 		fullPkg = strings.TrimPrefix(fullPkg, "./")
 
@@ -234,6 +249,14 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		}
 	}
 
+	// Sort Edges for determinism
+	sort.Slice(cg.Edges, func(i, j int) bool {
+		if cg.Edges[i].From != cg.Edges[j].From {
+			return cg.Edges[i].From < cg.Edges[j].From
+		}
+		return cg.Edges[i].To < cg.Edges[j].To
+	})
+
 	return cg, nil
 }
 
@@ -250,6 +273,11 @@ func getReceiverTypeName(recv *ast.FieldList) string {
 	}
 	if index, ok := expr.(*ast.IndexExpr); ok {
 		if ident, ok := index.X.(*ast.Ident); ok {
+			return ident.Name
+		}
+	}
+	if indexList, ok := expr.(*ast.IndexListExpr); ok {
+		if ident, ok := indexList.X.(*ast.Ident); ok {
 			return ident.Name
 		}
 	}

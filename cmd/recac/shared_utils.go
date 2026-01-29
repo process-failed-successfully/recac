@@ -92,6 +92,28 @@ func isBinaryContent(content []byte) bool {
 	return false
 }
 
+// SanitizeMermaidID replaces invalid characters in an ID with underscores for Mermaid compatibility.
+func SanitizeMermaidID(id string) string {
+	// Aggressively replace characters that are invalid or problematic in Mermaid IDs
+	replacer := strings.NewReplacer(
+		"/", "_",
+		"\\", "_",
+		"*", "_",
+		":", "_",
+		"&", "_",
+		".", "_",
+		"(", "_",
+		")", "_",
+		"[", "_",
+		"]", "_",
+		"\"", "_",
+		"'", "_",
+		" ", "_",
+		"-", "_",
+	)
+	return replacer.Replace(id)
+}
+
 // extractFileContexts scans the output for file paths and returns their content formatted for the prompt.
 func extractFileContexts(output string) (string, error) {
 	// Regex to find file paths like "main.go:23" or "pkg/foo/bar.js:10:5"
