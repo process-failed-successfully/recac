@@ -107,3 +107,43 @@ func internalFunc() {}
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
 }
+
+func TestGenerateCallGraph_Generics(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	content := `package main
+
+type MyGeneric[T any] struct{}
+
+func (g *MyGeneric[T]) DoOne() {}
+
+type MyMultiGeneric[K, V any] struct{}
+
+func (g *MyMultiGeneric[K, V]) DoTwo() {}
+
+func main() {
+	g1 := &MyGeneric[int]{}
+	g1.DoOne()
+
+	g2 := &MyMultiGeneric[int, string]{}
+	g2.DoTwo()
+}
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(content), 0644)
+	require.NoError(t, err)
+
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	nodeIDs := make(map[string]bool)
+	for id := range cg.Nodes {
+		nodeIDs[id] = true
+	}
+
+	// Check if methods are correctly identified with receiver type name
+	// MyGeneric[T] -> MyGeneric (via IndexExpr)
+	// MyMultiGeneric[K, V] -> MyMultiGeneric (via IndexListExpr)
+
+	assert.Contains(t, nodeIDs, "main.(MyGeneric).DoOne")
+	assert.Contains(t, nodeIDs, "main.(MyMultiGeneric).DoTwo")
+}
