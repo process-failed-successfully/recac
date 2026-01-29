@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"io/fs"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -53,7 +54,8 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 			return err
 		}
 		if d.IsDir() {
-			if strings.HasPrefix(d.Name(), ".") && d.Name() != "." {
+			// Skip hidden directories, but allow root itself (even if it is "." or "..")
+			if strings.HasPrefix(d.Name(), ".") && d.Name() != "." && d.Name() != ".." {
 				return filepath.SkipDir
 			}
 			return nil
@@ -80,7 +82,8 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		} else if filepath.Base(relDir) != pkgName {
 			fullPkg = filepath.Join(relDir, pkgName)
 		}
-		fullPkg = strings.TrimPrefix(fullPkg, "./")
+		// Ensure forward slashes for package paths
+		fullPkg = filepath.ToSlash(strings.TrimPrefix(fullPkg, "./"))
 
 		// Index Imports
 		imports := make(map[string]string)
@@ -130,7 +133,15 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 	// Use map to prevent duplicates
 	edgeMap := make(map[string]bool)
 
-	for path, f := range parsedFiles {
+	// Sort files for deterministic edge generation
+	var sortedPaths []string
+	for path := range parsedFiles {
+		sortedPaths = append(sortedPaths, path)
+	}
+	sort.Strings(sortedPaths)
+
+	for _, path := range sortedPaths {
+		f := parsedFiles[path]
 		pkgName := f.Name.Name
 		dir := filepath.Dir(path)
 		relDir, _ := filepath.Rel(root, dir)
@@ -140,7 +151,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		} else if filepath.Base(relDir) != pkgName {
 			fullPkg = filepath.Join(relDir, pkgName)
 		}
-		fullPkg = strings.TrimPrefix(fullPkg, "./")
+		fullPkg = filepath.ToSlash(strings.TrimPrefix(fullPkg, "./"))
 
 		imports := fileImports[path]
 
@@ -165,13 +176,9 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 					switch fun := call.Fun.(type) {
 					case *ast.Ident:
 						// Local call: DoSomething()
-						// Likely same package, simple function
 						candidateID := fmt.Sprintf("%s.%s", fullPkg, fun.Name)
 						if _, exists := cg.Nodes[candidateID]; exists {
 							calleeID = candidateID
-						} else {
-							// Could be a method on 'this' implicitly? No, Go doesn't allow implicit 'this'.
-							// Must be a builtin or definition missing.
 						}
 
 					case *ast.SelectorExpr:
@@ -180,37 +187,17 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 
 						if xIdent, ok := fun.X.(*ast.Ident); ok {
 							// Ident.Sel()
-							// Check if Ident is a package import
 							if importPath, isImport := imports[xIdent.Name]; isImport {
-								// It is Pkg.Func()
-								// We need to match the package path structure we used for keys.
-								// We used "dir/pkgName". External imports won't match our local keys unless we handle external packages.
-								// For now, let's assume we only graph INTERNAL calls or we use a fallback ID.
-
-								// Try to find if we have nodes with this Package
-								// This is tricky because "importPath" is like "github.com/foo/bar"
-								// But our keys are "internal/bar.Func".
-								// We will try to match suffix.
 								calleeID = resolveExternalCall(cg, importPath, sel)
 								if calleeID == "" {
-									// Treat as external node
 									calleeID = fmt.Sprintf("%s.%s", importPath, sel)
 								}
 							} else {
 								// Variable.Method()
-								// We don't know the type of Variable.
-								// Heuristic: Find ANY method named 'Sel' in our codebase.
 								candidates := findMethodsByName(cg, sel)
 								if len(candidates) == 1 {
 									calleeID = candidates[0].ID
 								} else if len(candidates) > 1 {
-									// Ambiguous. We can leave empty or point to a special "ambiguous" node.
-									// For now, let's skip or mark as ambiguous?
-									// Let's create an edge to the method name generic node?
-									// Or just pick one?
-									// Better: Create edges to ALL candidates but mark them as "heuristic" (dashed)?
-									// For simplicity in this v1:
-									// Create a "virtual" node for the method if we can't resolve.
 									calleeID = fmt.Sprintf("(Ambiguous).%s", sel)
 								}
 							}
@@ -234,6 +221,14 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		}
 	}
 
+	// Sort edges for deterministic output
+	sort.Slice(cg.Edges, func(i, j int) bool {
+		if cg.Edges[i].From != cg.Edges[j].From {
+			return cg.Edges[i].From < cg.Edges[j].From
+		}
+		return cg.Edges[i].To < cg.Edges[j].To
+	})
+
 	return cg, nil
 }
 
@@ -253,35 +248,51 @@ func getReceiverTypeName(recv *ast.FieldList) string {
 			return ident.Name
 		}
 	}
+	if indexList, ok := expr.(*ast.IndexListExpr); ok {
+		if ident, ok := indexList.X.(*ast.Ident); ok {
+			return ident.Name
+		}
+	}
 	return "Unknown"
 }
 
 func resolveExternalCall(cg *CallGraph, importPath string, funcName string) string {
-	// Our nodes are keyed by "relDir/pkg.Func".
-	// Import path is "recac/internal/foo".
-	// If we are running on "recac" repo, "internal/foo" matches.
+	var bestMatch string
+	var bestMatchLen int
 
-	// Normalize import path
-	// Remove module prefix if possible?
-	// This is hard without knowing module name.
-	// But we can scan all nodes and check if Node.Package matches the end of ImportPath?
+	// Deterministic iteration: sort node IDs
+	var nodeIDs []string
+	for id := range cg.Nodes {
+		nodeIDs = append(nodeIDs, id)
+	}
+	sort.Strings(nodeIDs)
 
-	for id, node := range cg.Nodes {
+	for _, id := range nodeIDs {
+		node := cg.Nodes[id]
 		if node.Name == funcName && node.Receiver == "" {
-			// Check if importPath ends with node.Package
-			// node.Package might be "internal/utils"
-			// importPath might be "recac/internal/utils"
 			if strings.HasSuffix(importPath, node.Package) {
-				return id
+				// Keep the longest suffix match
+				if len(node.Package) > bestMatchLen {
+					bestMatch = id
+					bestMatchLen = len(node.Package)
+				}
 			}
 		}
 	}
-	return ""
+	return bestMatch
 }
 
 func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {
 	var results []*CallGraphNode
-	for _, node := range cg.Nodes {
+	// Deterministic order
+	var nodeIDs []string
+	for id := range cg.Nodes {
+		nodeIDs = append(nodeIDs, id)
+	}
+	sort.Strings(nodeIDs)
+
+	for _, id := range nodeIDs {
+		node := cg.Nodes[id]
 		if node.Name == methodName && node.Receiver != "" {
 			results = append(results, node)
 		}
