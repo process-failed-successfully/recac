@@ -80,6 +80,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		} else if filepath.Base(relDir) != pkgName {
 			fullPkg = filepath.Join(relDir, pkgName)
 		}
+		fullPkg = filepath.ToSlash(fullPkg)
 		fullPkg = strings.TrimPrefix(fullPkg, "./")
 
 		// Index Imports
@@ -140,6 +141,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		} else if filepath.Base(relDir) != pkgName {
 			fullPkg = filepath.Join(relDir, pkgName)
 		}
+		fullPkg = filepath.ToSlash(fullPkg)
 		fullPkg = strings.TrimPrefix(fullPkg, "./")
 
 		imports := fileImports[path]
@@ -259,24 +261,48 @@ func getReceiverTypeName(recv *ast.FieldList) string {
 func resolveExternalCall(cg *CallGraph, importPath string, funcName string) string {
 	// Our nodes are keyed by "relDir/pkg.Func".
 	// Import path is "recac/internal/foo".
-	// If we are running on "recac" repo, "internal/foo" matches.
+	// We want to find the node with the longest matching package suffix.
 
-	// Normalize import path
-	// Remove module prefix if possible?
-	// This is hard without knowing module name.
-	// But we can scan all nodes and check if Node.Package matches the end of ImportPath?
+	var bestMatch string
+	var maxLen int
 
 	for id, node := range cg.Nodes {
 		if node.Name == funcName && node.Receiver == "" {
 			// Check if importPath ends with node.Package
-			// node.Package might be "internal/utils"
-			// importPath might be "recac/internal/utils"
 			if strings.HasSuffix(importPath, node.Package) {
-				return id
+				// Verify boundary conditions to prevent partial matches
+				// e.g. "my/autils" should not match "utils"
+				// Match is valid if:
+				// 1. importPath == node.Package (Exact match)
+				// 2. importPath ends with "/"+node.Package
+
+				suffixLen := len(node.Package)
+				isValid := false
+				if len(importPath) == suffixLen {
+					isValid = true
+				} else if len(importPath) > suffixLen {
+					// Check character before suffix
+					if importPath[len(importPath)-suffixLen-1] == '/' {
+						isValid = true
+					}
+				}
+
+				if isValid {
+					// Prefer longer match (more specific)
+					if suffixLen > maxLen {
+						maxLen = suffixLen
+						bestMatch = id
+					} else if suffixLen == maxLen {
+						// Deterministic tie-breaker
+						if bestMatch == "" || id < bestMatch {
+							bestMatch = id
+						}
+					}
+				}
 			}
 		}
 	}
-	return ""
+	return bestMatch
 }
 
 func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {

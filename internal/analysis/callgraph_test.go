@@ -107,3 +107,54 @@ func internalFunc() {}
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
 }
+
+func TestResolveExternalCall_Ambiguity(t *testing.T) {
+	cg := &CallGraph{
+		Nodes: make(map[string]*CallGraphNode),
+	}
+
+	// Node 1: pkg/utils.Func
+	node1 := &CallGraphNode{
+		ID:      "pkg/utils.Func",
+		Package: "pkg/utils",
+		Name:    "Func",
+	}
+	cg.Nodes[node1.ID] = node1
+
+	// Node 2: utils.Func (at root)
+	node2 := &CallGraphNode{
+		ID:      "utils.Func",
+		Package: "utils",
+		Name:    "Func",
+	}
+	cg.Nodes[node2.ID] = node2
+
+	// Import path that matches both suffixes
+	// Should match pkg/utils because it's longer
+	importPath := "github.com/example/pkg/utils"
+	funcName := "Func"
+
+	resolvedID := resolveExternalCall(cg, importPath, funcName)
+	assert.Equal(t, "pkg/utils.Func", resolvedID)
+}
+
+func TestResolveExternalCall_PartialSuffix(t *testing.T) {
+	cg := &CallGraph{
+		Nodes: make(map[string]*CallGraphNode),
+	}
+
+	// Node: utils.Func
+	node := &CallGraphNode{
+		ID:      "utils.Func",
+		Package: "utils",
+		Name:    "Func",
+	}
+	cg.Nodes[node.ID] = node
+
+	// Import path that ends with "utils" but as part of "autils"
+	importPath := "github.com/example/autils"
+	funcName := "Func"
+
+	resolvedID := resolveExternalCall(cg, importPath, funcName)
+	assert.Equal(t, "", resolvedID, "Should not resolve partial suffix match")
+}
