@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"io/fs"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -130,7 +131,15 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 	// Use map to prevent duplicates
 	edgeMap := make(map[string]bool)
 
-	for path, f := range parsedFiles {
+	// Collect and sort file paths for deterministic iteration
+	var paths []string
+	for path := range parsedFiles {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+
+	for _, path := range paths {
+		f := parsedFiles[path]
 		pkgName := f.Name.Name
 		dir := filepath.Dir(path)
 		relDir, _ := filepath.Rel(root, dir)
@@ -183,14 +192,6 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 							// Check if Ident is a package import
 							if importPath, isImport := imports[xIdent.Name]; isImport {
 								// It is Pkg.Func()
-								// We need to match the package path structure we used for keys.
-								// We used "dir/pkgName". External imports won't match our local keys unless we handle external packages.
-								// For now, let's assume we only graph INTERNAL calls or we use a fallback ID.
-
-								// Try to find if we have nodes with this Package
-								// This is tricky because "importPath" is like "github.com/foo/bar"
-								// But our keys are "internal/bar.Func".
-								// We will try to match suffix.
 								calleeID = resolveExternalCall(cg, importPath, sel)
 								if calleeID == "" {
 									// Treat as external node
@@ -204,13 +205,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 								if len(candidates) == 1 {
 									calleeID = candidates[0].ID
 								} else if len(candidates) > 1 {
-									// Ambiguous. We can leave empty or point to a special "ambiguous" node.
-									// For now, let's skip or mark as ambiguous?
-									// Let's create an edge to the method name generic node?
-									// Or just pick one?
-									// Better: Create edges to ALL candidates but mark them as "heuristic" (dashed)?
-									// For simplicity in this v1:
-									// Create a "virtual" node for the method if we can't resolve.
+									// Ambiguous
 									calleeID = fmt.Sprintf("(Ambiguous).%s", sel)
 								}
 							}
@@ -233,6 +228,14 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 			}
 		}
 	}
+
+	// Sort edges for determinism
+	sort.Slice(cg.Edges, func(i, j int) bool {
+		if cg.Edges[i].From != cg.Edges[j].From {
+			return cg.Edges[i].From < cg.Edges[j].From
+		}
+		return cg.Edges[i].To < cg.Edges[j].To
+	})
 
 	return cg, nil
 }
@@ -257,20 +260,17 @@ func getReceiverTypeName(recv *ast.FieldList) string {
 }
 
 func resolveExternalCall(cg *CallGraph, importPath string, funcName string) string {
-	// Our nodes are keyed by "relDir/pkg.Func".
-	// Import path is "recac/internal/foo".
-	// If we are running on "recac" repo, "internal/foo" matches.
+	// Sort nodes for deterministic resolution
+	var ids []string
+	for id := range cg.Nodes {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
 
-	// Normalize import path
-	// Remove module prefix if possible?
-	// This is hard without knowing module name.
-	// But we can scan all nodes and check if Node.Package matches the end of ImportPath?
-
-	for id, node := range cg.Nodes {
+	for _, id := range ids {
+		node := cg.Nodes[id]
 		if node.Name == funcName && node.Receiver == "" {
 			// Check if importPath ends with node.Package
-			// node.Package might be "internal/utils"
-			// importPath might be "recac/internal/utils"
 			if strings.HasSuffix(importPath, node.Package) {
 				return id
 			}
@@ -280,8 +280,16 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 }
 
 func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {
+	// Sort nodes for deterministic results
+	var ids []string
+	for id := range cg.Nodes {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+
 	var results []*CallGraphNode
-	for _, node := range cg.Nodes {
+	for _, id := range ids {
+		node := cg.Nodes[id]
 		if node.Name == methodName && node.Receiver != "" {
 			results = append(results, node)
 		}

@@ -107,3 +107,32 @@ func internalFunc() {}
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
 }
+
+func TestGenerateCallGraph_Determinism(t *testing.T) {
+	// Setup temporary directory with sample code
+	tmpDir := t.TempDir()
+
+	// Create multiple files to ensure map iteration randomness affects order if not handled
+	files := map[string]string{
+		"a.go": "package main\nfunc A() { B() }",
+		"b.go": "package main\nfunc B() { C() }",
+		"c.go": "package main\nfunc C() { A() }",
+		"d.go": "package main\nfunc D() { A() }",
+		"e.go": "package main\nfunc E() { B() }",
+	}
+
+	for name, content := range files {
+		err := os.WriteFile(filepath.Join(tmpDir, name), []byte(content), 0644)
+		require.NoError(t, err)
+	}
+
+	// Run Analysis multiple times
+	cg1, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	cg2, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Check Edges order
+	assert.Equal(t, cg1.Edges, cg2.Edges, "CallGraph Edges should be deterministic")
+}
