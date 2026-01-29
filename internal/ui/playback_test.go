@@ -151,7 +151,7 @@ func TestPlaybackModel_Update_Navigation(t *testing.T) {
 func TestPlaybackModel_Update_Quit(t *testing.T) {
 	m := NewPlaybackModel(nil)
 	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
-	assert.Equal(t, tea.Quit(), cmd())
+	assert.IsType(t, tea.QuitMsg{}, cmd())
 }
 
 func TestPlaybackModel_View(t *testing.T) {
