@@ -37,6 +37,55 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "api_key = \"abc1234567890abc1234567890\"",
 			wantFinding: "Generic API Token",
 		},
+		// Path Traversal Tests
+		{
+			name:        "Path Traversal - rm",
+			content:     "rm -rf ../secret.txt",
+			wantFinding: "Path Traversal",
+		},
+		{
+			name:        "Path Traversal - cp",
+			content:     "cp ../source .",
+			wantFinding: "Path Traversal",
+		},
+		{
+			name:        "Path Traversal - chained command",
+			content:     "cd /tmp; rm ../file",
+			wantFinding: "Path Traversal",
+		},
+		{
+			name:        "Path Traversal - piped command",
+			content:     "echo 'y' | rm ../file",
+			wantFinding: "Path Traversal",
+		},
+		{
+			name:        "Path Traversal - sudo",
+			content:     "sudo rm ../file",
+			wantFinding: "Path Traversal",
+		},
+		{
+			name:        "Path Traversal - subshell",
+			content:     "(rm ../file)",
+			wantFinding: "Path Traversal",
+		},
+		{
+			name:        "False Positive - echo rm",
+			content:     "echo \"rm ../file\"",
+			wantFinding: "", // Should NOT find Path Traversal
+		},
+		{
+			name:        "False Positive - echo with quote",
+			content:     "echo \"don't run rm ../file\"",
+			wantFinding: "",
+		},
+		{
+			name:        "False Positive - comment",
+			content:     "# This script uses rm ../file",
+			wantFinding: "", // Ideally shouldn't match, but regex might not handle comments yet.
+			// My regex `(?:^|...)` matches start of line `rm`.
+			// If `# ` precedes `rm`, it's not in separator list.
+			// `#` is NOT in separator list. So `# rm` should be safe.
+		},
 	}
 
 	for _, tt := range tests {
@@ -48,6 +97,8 @@ func TestRegexScanner_Scan(t *testing.T) {
 
 			if tt.wantFinding == "" {
 				if len(findings) > 0 {
+					// Filter for relevant finding if we care about specific ones, but here we expect NONE for the tested type
+					// However, if we trigger *other* findings, that's fine? No, we want clean output for safe content.
 					t.Errorf("Expected no findings, got %d: %v", len(findings), findings)
 				}
 			} else {
