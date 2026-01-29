@@ -147,3 +147,22 @@ func TestExtractFileContexts(t *testing.T) {
 		})
 	}
 }
+
+func TestSanitizeMermaidID(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"simple", "simple"},
+		{"with space", "with_space"},
+		{"with-dash", "with_dash"},
+		{"pkg.func", "pkg_func"},
+		{"path/to/file", "path_to_file"},
+		{"complex(args)", "complex_args_"},
+		{"invalid chars: &[]", "invalid_chars_____"},
+	}
+
+	for _, tt := range tests {
+		assert.Equal(t, tt.expected, SanitizeMermaidID(tt.input), "Input: %s", tt.input)
+	}
+}
