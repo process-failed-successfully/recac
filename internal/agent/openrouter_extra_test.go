@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestOpenRouterClient_HTTP_Success(t *testing.T) {
@@ -25,6 +26,7 @@ func TestOpenRouterClient_HTTP_Success(t *testing.T) {
 	defer server.Close()
 
 	client := NewOpenRouterClient("test-key", "model", "test-project")
+	client.BackoffFn = func(i int) time.Duration { return 0 }
 	client.apiURL = server.URL
 
 	resp, err := client.Send(context.Background(), "Hi")
@@ -78,6 +80,7 @@ func TestOpenRouterClient_HTTP_Errors(t *testing.T) {
 			defer server.Close()
 
 			client := NewOpenRouterClient("test-key", "model", "test-project")
+			client.BackoffFn = func(i int) time.Duration { return 0 }
 			client.apiURL = server.URL
 
 			_, err := client.Send(context.Background(), "Hi")
@@ -99,6 +102,7 @@ func TestOpenRouterClient_SendStream(t *testing.T) {
 	defer server.Close()
 
 	client := NewOpenRouterClient("test-key", "model", "test-project")
+	client.BackoffFn = func(i int) time.Duration { return 0 }
 	client.apiURL = server.URL
 
 	var fullChunk string
