@@ -273,7 +273,7 @@ func Main() {
 		// We expect the LONGEST suffix match to be chosen.
 		// Import "x/c/a/b" ends with "c/a/b" (package b in dir4).
 		// ID for dir4 is "c/a/b.Target" (relative to tmpDir).
-		expectedTarget := filepath.Join("c", "a", "b") + ".Target"
+		expectedTarget := filepath.ToSlash(filepath.Join("c", "a", "b")) + ".Target"
 
 		if firstTarget == "" {
 			firstTarget = target
