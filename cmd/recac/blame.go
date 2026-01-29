@@ -21,6 +21,12 @@ import (
 // blameExecCommand allows mocking
 var blameExecCommand = exec.Command
 
+// runBlameProgram allows mocking the TUI execution
+var runBlameProgram = func(m tea.Model) (tea.Model, error) {
+	p := tea.NewProgram(m, tea.WithAltScreen())
+	return p.Run()
+}
+
 var blameCmd = &cobra.Command{
 	Use:   "blame [file]",
 	Short: "Interactive AI-powered git blame",
@@ -92,9 +98,7 @@ Explain WHY this change was likely made and what it does. Be concise.`, sha, dif
 
 	// 4. Run TUI
 	m := ui.NewBlameModel(lines, fetchDiff, explainFunc)
-	p := tea.NewProgram(m, tea.WithAltScreen())
-
-	if _, err := p.Run(); err != nil {
+	if _, err := runBlameProgram(m); err != nil {
 		return fmt.Errorf("error running blame TUI: %w", err)
 	}
 

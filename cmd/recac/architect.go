@@ -11,7 +11,6 @@ import (
 	"recac/internal/agent"
 	"recac/internal/agent/prompts"
 	"recac/internal/architecture"
-	"recac/internal/cmdutils"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -41,16 +40,16 @@ func runArchitectCmd(cmd *cobra.Command, args []string) {
 	specContent, err := os.ReadFile(specPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error reading spec: %v\n", err)
-		os.Exit(1)
+		exit(1)
 	}
 
 	// 2. Init Agent
 	provider := viper.GetString("provider")
 	model := viper.GetString("model")
-	ag, err := cmdutils.GetAgentClient(ctx, provider, model, ".", "recac-architect")
+	ag, err := agentClientFactory(ctx, provider, model, ".", "recac-architect")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error initializing agent: %v\n", err)
-		os.Exit(1)
+		exit(1)
 	}
 
 	// 3. Generate
@@ -58,24 +57,24 @@ func runArchitectCmd(cmd *cobra.Command, args []string) {
 	files, err := generateArchitecture(ctx, ag, string(specContent))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Generation failed: %v\n", err)
-		os.Exit(1)
+		exit(1)
 	}
 
 	// 4. Write Files
 	if err := os.MkdirAll(outDir, 0755); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to create output dir: %v\n", err)
-		os.Exit(1)
+		exit(1)
 	}
 
 	for path, content := range files {
 		fullPath := filepath.Join(outDir, path)
 		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to create dir for %s: %v\n", path, err)
-			os.Exit(1)
+			exit(1)
 		}
 		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to write %s: %v\n", path, err)
-			os.Exit(1)
+			exit(1)
 		}
 		fmt.Printf("Wrote %s\n", path)
 	}
@@ -86,20 +85,20 @@ func runArchitectCmd(cmd *cobra.Command, args []string) {
 	archData, err := os.ReadFile(archPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Missing architecture.yaml: %v\n", err)
-		os.Exit(1)
+		exit(1)
 	}
 
 	var arch architecture.SystemArchitecture
 	if err := yaml.Unmarshal(archData, &arch); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to parse architecture.yaml: %v\n", err)
-		os.Exit(1)
+		exit(1)
 	}
 
 	// Use a validator that knows about the output directory base path
 	validator := architecture.NewValidator(&BasePathFS{Base: outDir})
 	if err := validator.Validate(&arch); err != nil {
 		fmt.Fprintf(os.Stderr, "VALIDATION FAILED:\n%v\n", err)
-		os.Exit(1)
+		exit(1)
 	}
 
 	fmt.Println("SUCCESS: Architecture is valid.")

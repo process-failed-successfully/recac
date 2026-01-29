@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -105,4 +106,49 @@ func runGitCmdForTest(t *testing.T, dir, name string, args ...string) {
 	if err != nil {
 		t.Fatalf("Command %s %v failed: %v\nOutput: %s", name, args, err, out)
 	}
+}
+
+func TestRunBlameCmd(t *testing.T) {
+	// Mock file existence
+	tmpFile, err := os.CreateTemp("", "testfile")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	// Mock blameExecCommand to return valid porcelain output
+	origExec := blameExecCommand
+	defer func() { blameExecCommand = origExec }()
+	blameExecCommand = func(name string, args ...string) *exec.Cmd {
+		// Just echo the output
+		output := `d6a04005b642407511475654308569528659543e 1 1 1
+author Test
+author-mail <test@example.com>
+author-time 1700000000
+author-tz +0000
+summary Commit
+boundary
+filename test.txt
+	Content
+`
+		// Using printf to handle newlines correctly if echo behaves oddly, but echo usually works with quoted string in shell.
+		// However, exec.Command doesn't use shell. It passes args directly.
+		// So echo "line1\nline2" will output "line1\nline2" literally (escaped) usually.
+		// Better to use a small Go script or just printf if available?
+		// Or creating a helper test function in the test binary itself to act as the command.
+
+		// Let's use `echo -e`? Not portable.
+		// Let's use `printf`.
+		return exec.Command("printf", "%s", output)
+	}
+
+	// Mock runBlameProgram
+	origRun := runBlameProgram
+	defer func() { runBlameProgram = origRun }()
+	runBlameProgram = func(m tea.Model) (tea.Model, error) {
+		return m, nil // Successful run
+	}
+
+	// Run command
+	cmd := blameCmd
+	err = runBlame(cmd, []string{tmpFile.Name()})
+	require.NoError(t, err)
 }
