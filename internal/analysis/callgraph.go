@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"io/fs"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -73,7 +74,10 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		dir := filepath.Dir(path)
 
 		// Approximate full package path
-		relDir, _ := filepath.Rel(root, dir)
+		relDir, err := filepath.Rel(root, dir)
+		if err != nil {
+			relDir = pkgName
+		}
 		fullPkg := relDir
 		if relDir == "." {
 			fullPkg = pkgName
@@ -130,10 +134,21 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 	// Use map to prevent duplicates
 	edgeMap := make(map[string]bool)
 
-	for path, f := range parsedFiles {
+	// Sort files for deterministic processing
+	var paths []string
+	for p := range parsedFiles {
+		paths = append(paths, p)
+	}
+	sort.Strings(paths)
+
+	for _, path := range paths {
+		f := parsedFiles[path]
 		pkgName := f.Name.Name
 		dir := filepath.Dir(path)
-		relDir, _ := filepath.Rel(root, dir)
+		relDir, err := filepath.Rel(root, dir)
+		if err != nil {
+			relDir = pkgName
+		}
 		fullPkg := relDir
 		if relDir == "." {
 			fullPkg = pkgName
@@ -162,7 +177,19 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 
 					var calleeID string
 
-					switch fun := call.Fun.(type) {
+					// Unwrap generics
+					funExpr := call.Fun
+					for {
+						if idx, ok := funExpr.(*ast.IndexExpr); ok {
+							funExpr = idx.X
+						} else if idxList, ok := funExpr.(*ast.IndexListExpr); ok {
+							funExpr = idxList.X
+						} else {
+							break
+						}
+					}
+
+					switch fun := funExpr.(type) {
 					case *ast.Ident:
 						// Local call: DoSomething()
 						// Likely same package, simple function
@@ -234,6 +261,14 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		}
 	}
 
+	// Sort edges for determinism
+	sort.Slice(cg.Edges, func(i, j int) bool {
+		if cg.Edges[i].From != cg.Edges[j].From {
+			return cg.Edges[i].From < cg.Edges[j].From
+		}
+		return cg.Edges[i].To < cg.Edges[j].To
+	})
+
 	return cg, nil
 }
 
@@ -250,6 +285,11 @@ func getReceiverTypeName(recv *ast.FieldList) string {
 	}
 	if index, ok := expr.(*ast.IndexExpr); ok {
 		if ident, ok := index.X.(*ast.Ident); ok {
+			return ident.Name
+		}
+	}
+	if indexList, ok := expr.(*ast.IndexListExpr); ok {
+		if ident, ok := indexList.X.(*ast.Ident); ok {
 			return ident.Name
 		}
 	}
