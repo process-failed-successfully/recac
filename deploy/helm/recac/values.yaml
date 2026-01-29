@@ -30,7 +30,7 @@ service:
 # Non-sensitive configuration
 config:
   provider: openrouter
-  model: mistralai/devstral-2512:free
+  model: google/gemma-3-12b-it:free
   ollamaBaseUrl: ""
   verbose: true
   metricsPort: 9090
