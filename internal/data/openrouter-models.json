@@ -57,7 +57,7 @@
       "displayName": "DeepSeek Chat V3.1"
     },
     {
-      "name": "nvidia/nemotron-3-nano-30b-a3b:free",
+      "name": "google/gemini-2.0-flash-lite-preview-02-05:free",
       "displayName": "NexAGI DeepSeek V3.1 Nex N1 (Free)"
     },
     {
@@ -65,7 +65,7 @@
       "displayName": "Anthropic Claude Sonnet 4"
     },
     {
-      "name": "nvidia/nemotron-3-nano-30b-a3b:free",
+      "name": "google/gemini-2.0-flash-lite-preview-02-05:free",
       "displayName": "NVIDIA Nemotron 3 Nano 30B (Free)"
     },
     {
