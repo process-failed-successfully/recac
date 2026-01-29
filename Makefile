@@ -110,7 +110,7 @@ ci-simulate-v2: ## Run Refactored E2E test
 
 # Scenario Defaults
 PROVIDER ?= openrouter
-MODEL ?= "nvidia/nemotron-3-nano-30b-a3b:free"
+MODEL ?= "mock-model"
 
 e2e-local: ## Run a specific scenario locally (SCENARIO=x PROVIDER=y MODEL=z)
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
