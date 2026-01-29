@@ -57,7 +57,7 @@
       "displayName": "DeepSeek Chat V3.1"
     },
     {
-      "name": "nex-agi/deepseek-v3.1-nex-n1:free",
+      "name": "nvidia/nemotron-3-nano-30b-a3b:free",
       "displayName": "NexAGI DeepSeek V3.1 Nex N1 (Free)"
     },
     {

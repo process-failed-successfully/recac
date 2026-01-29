@@ -158,7 +158,7 @@ func TestJiraEpicSmoketest_GoCalculator(t *testing.T) {
 
 	// 4. Run recac start for each ticket
 	provider := "openrouter"
-	model := "nex-agi/deepseek-v3.1-nex-n1:free"
+	model := "nvidia/nemotron-3-nano-30b-a3b:free"
 
 	for _, ticketID := range ticketIDs {
 		t.Logf("Starting work on ticket: %s", ticketID)
