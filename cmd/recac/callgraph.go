@@ -67,9 +67,7 @@ func filterGraph(cg *analysis.CallGraph, focus string) *analysis.CallGraph {
 	}
 
 	if len(relevantNodes) == 0 {
-		return cg // Return all or empty? Let's return empty with warning?
-		// Actually, returning full graph might be annoying if they expected filter.
-		// Let's return empty but check later.
+		return &analysis.CallGraph{Nodes: make(map[string]*analysis.CallGraphNode)}
 	}
 
 	// Expand to 1 level of depth (callers and callees)
@@ -129,6 +127,7 @@ func generateMermaidCallGraph(cg *analysis.CallGraph) string {
 		// e.g., "internal/analysis.GenerateCallGraph" -> "analysis.GenerateCallGraph"
 		parts := strings.Split(label, "/")
 		label = parts[len(parts)-1]
+		label = strings.ReplaceAll(label, "\"", "'")
 
 		sb.WriteString(fmt.Sprintf("    %s[\"%s\"]\n", safeID, label))
 
