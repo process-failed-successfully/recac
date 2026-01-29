@@ -287,7 +287,7 @@ jobs:
             if go run e2e/runner/main.go \
               -scenario prime-python \
               -provider openrouter \
-              -model "mistralai/devstral-2512:free" \
+              -model "nvidia/nemotron-3-nano-30b-a3b:free" \
               -image recac:smoke \
               -repo-url "https://github.com/process-failed-successfully/recac-jira-e2e" \
               -pull-policy IfNotPresent \
