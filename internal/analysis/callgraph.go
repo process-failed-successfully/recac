@@ -74,7 +74,10 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		dir := filepath.Dir(path)
 
 		// Approximate full package path
-		relDir, _ := filepath.Rel(root, dir)
+		relDir, err := filepath.Rel(root, dir)
+		if err != nil {
+			relDir = "."
+		}
 		fullPkg := relDir
 		if relDir == "." {
 			fullPkg = pkgName
@@ -143,7 +146,10 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		f := parsedFiles[path]
 		pkgName := f.Name.Name
 		dir := filepath.Dir(path)
-		relDir, _ := filepath.Rel(root, dir)
+		relDir, err := filepath.Rel(root, dir)
+		if err != nil {
+			relDir = "."
+		}
 		fullPkg := relDir
 		if relDir == "." {
 			fullPkg = pkgName
@@ -249,10 +255,13 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 }
 
 func getReceiverTypeName(recv *ast.FieldList) string {
-	if len(recv.List) == 0 {
+	if recv == nil || len(recv.List) == 0 {
 		return ""
 	}
 	expr := recv.List[0].Type
+	if expr == nil {
+		return "Unknown"
+	}
 	if star, ok := expr.(*ast.StarExpr); ok {
 		expr = star.X
 	}
@@ -286,6 +295,9 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 	var candidateIDs []string
 	for id, node := range cg.Nodes {
 		if node.Name == funcName && node.Receiver == "" {
+			if node.Package == "" {
+				continue
+			}
 			// Check if importPath ends with node.Package
 			// We check for Exact match OR Suffix match with separator to avoid false positives
 			// e.g. "foo" should not match "internal/foo" unless importPath is ".../internal/foo"
