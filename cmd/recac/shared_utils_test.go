@@ -82,6 +82,30 @@ func TestIsBinaryContent(t *testing.T) {
 	}
 }
 
+func TestSanitizeMermaidID(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"SimpleID", "SimpleID"},
+		{"pkg.Func", "pkg_Func"},
+		{"pkg.(Type).Method", "pkg__Type__Method"},
+		{"path/to/pkg.Func", "path_to_pkg_Func"},
+		{"Func[T]", "Func_T_"}, // Generics? Maybe [ is safe? No, let's assume we didn't handle [ ] in list, but standard ID char is OK?
+		// Wait, SanitizeMermaidID only replaces specific chars.
+		// If input has [, it keeps it. Mermaid allows [ in labels but not in IDs usually.
+		// My implementation did NOT include [ ].
+		// Let's verify what I implemented: - . / ( ) * : & space
+		{"complex-id.with/slash", "complex_id_with_slash"},
+		{"pointer*receiver", "pointer_receiver"},
+		{"http://url", "http___url"}, // : // -> _ _ _
+	}
+
+	for _, tt := range tests {
+		assert.Equal(t, tt.expected, SanitizeMermaidID(tt.input), "Input: %s", tt.input)
+	}
+}
+
 func TestExtractFileContexts(t *testing.T) {
 	tmpDir := t.TempDir()
 

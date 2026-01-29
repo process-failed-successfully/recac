@@ -53,7 +53,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 			return err
 		}
 		if d.IsDir() {
-			if strings.HasPrefix(d.Name(), ".") && d.Name() != "." {
+			if strings.HasPrefix(d.Name(), ".") && d.Name() != "." && d.Name() != ".." {
 				return filepath.SkipDir
 			}
 			return nil
