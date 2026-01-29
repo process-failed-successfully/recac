@@ -291,12 +291,19 @@ func getReceiverTypeName(recv *ast.FieldList) string {
 func resolveExternalCall(functionsByName map[string][]*CallGraphNode, importPath string, funcName string) string {
 	// Look up candidates by name
 	candidates := functionsByName[funcName]
+	var bestMatch string
+	var maxLen int
+
 	for _, node := range candidates {
 		// node.Name is already funcName, and node.Receiver is already ""
 		// Check if importPath ends with node.Package
 		if strings.HasSuffix(importPath, node.Package) {
-			return node.ID
+			// We want the longest suffix match (most specific package path)
+			if len(node.Package) > maxLen {
+				maxLen = len(node.Package)
+				bestMatch = node.ID
+			}
 		}
 	}
-	return ""
+	return bestMatch
 }

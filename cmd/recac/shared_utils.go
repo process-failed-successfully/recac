@@ -143,3 +143,23 @@ func extractFileContexts(output string) (string, error) {
 
 	return sb.String(), nil
 }
+
+// SanitizeMermaidID cleans up a string to be used as a valid Mermaid ID.
+// It replaces characters that are invalid in Mermaid node IDs with underscores.
+func SanitizeMermaidID(id string) string {
+	// Replacements for common invalid characters in Go package paths and method signatures
+	id = strings.ReplaceAll(id, "/", "_")
+	id = strings.ReplaceAll(id, "*", "_")
+	id = strings.ReplaceAll(id, ":", "_")
+	id = strings.ReplaceAll(id, "&", "_")
+	id = strings.ReplaceAll(id, ".", "_")
+	id = strings.ReplaceAll(id, "(", "_")
+	id = strings.ReplaceAll(id, ")", "_")
+	id = strings.ReplaceAll(id, "[", "_")
+	id = strings.ReplaceAll(id, "]", "_")
+	id = strings.ReplaceAll(id, "\"", "_")
+	id = strings.ReplaceAll(id, "'", "_")
+	id = strings.ReplaceAll(id, " ", "_")
+	id = strings.ReplaceAll(id, "-", "_")
+	return id
+}
