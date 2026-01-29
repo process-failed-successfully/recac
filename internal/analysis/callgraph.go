@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"io/fs"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -80,7 +81,8 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		} else if filepath.Base(relDir) != pkgName {
 			fullPkg = filepath.Join(relDir, pkgName)
 		}
-		fullPkg = strings.TrimPrefix(fullPkg, "./")
+		// Ensure forward slashes for package paths (fix for Windows)
+		fullPkg = filepath.ToSlash(strings.TrimPrefix(fullPkg, "./"))
 
 		// Index Imports
 		imports := make(map[string]string)
@@ -130,7 +132,15 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 	// Use map to prevent duplicates
 	edgeMap := make(map[string]bool)
 
-	for path, f := range parsedFiles {
+	// Sort file paths for deterministic iteration
+	var sortedPaths []string
+	for path := range parsedFiles {
+		sortedPaths = append(sortedPaths, path)
+	}
+	sort.Strings(sortedPaths)
+
+	for _, path := range sortedPaths {
+		f := parsedFiles[path]
 		pkgName := f.Name.Name
 		dir := filepath.Dir(path)
 		relDir, _ := filepath.Rel(root, dir)
@@ -140,7 +150,8 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		} else if filepath.Base(relDir) != pkgName {
 			fullPkg = filepath.Join(relDir, pkgName)
 		}
-		fullPkg = strings.TrimPrefix(fullPkg, "./")
+		// Ensure forward slashes for package paths (fix for Windows)
+		fullPkg = filepath.ToSlash(strings.TrimPrefix(fullPkg, "./"))
 
 		imports := fileImports[path]
 
@@ -253,6 +264,11 @@ func getReceiverTypeName(recv *ast.FieldList) string {
 			return ident.Name
 		}
 	}
+	if indexList, ok := expr.(*ast.IndexListExpr); ok {
+		if ident, ok := indexList.X.(*ast.Ident); ok {
+			return ident.Name
+		}
+	}
 	return "Unknown"
 }
 
@@ -266,16 +282,53 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 	// This is hard without knowing module name.
 	// But we can scan all nodes and check if Node.Package matches the end of ImportPath?
 
+	// Sort nodes for determinism
+	var candidateIDs []string
 	for id, node := range cg.Nodes {
 		if node.Name == funcName && node.Receiver == "" {
 			// Check if importPath ends with node.Package
-			// node.Package might be "internal/utils"
-			// importPath might be "recac/internal/utils"
-			if strings.HasSuffix(importPath, node.Package) {
-				return id
+			// We check for Exact match OR Suffix match with separator to avoid false positives
+			// e.g. "foo" should not match "internal/foo" unless importPath is ".../internal/foo"
+			// But here we compare importPath (full) with node.Package (local relative).
+
+			// Case 1: node.Package == "internal/foo", importPath == "recac/internal/foo"
+			// Suffix match "internal/foo" is correct.
+
+			// Case 2: node.Package == "foo", importPath == "recac/internal/foo"
+			// Suffix match "foo" is correct IF foo is the package name.
+			// But wait, if importPath is "recac/internal/foo", the package name is likely "foo".
+			// But node.Package is the RELATIVE path from root.
+
+			// If node.Package is "internal/foo", and importPath ends with "internal/foo", it's a match.
+			// If node.Package is "foo" (in root), and importPath ends with "foo", it's a match.
+
+			// We must ensure we match a full path component.
+			if importPath == node.Package || strings.HasSuffix(importPath, "/"+node.Package) {
+				candidateIDs = append(candidateIDs, id)
 			}
 		}
 	}
+
+	sort.Strings(candidateIDs)
+
+	if len(candidateIDs) > 0 {
+		// Pick the longest match? Or just the first one?
+		// If we have "foo" and "internal/foo", and import is "recac/internal/foo".
+		// "internal/foo" is a better match than "foo".
+		// So we should pick the one with the longest Package string.
+
+		bestID := candidateIDs[0]
+		maxLen := len(cg.Nodes[bestID].Package)
+
+		for _, id := range candidateIDs {
+			if len(cg.Nodes[id].Package) > maxLen {
+				bestID = id
+				maxLen = len(cg.Nodes[id].Package)
+			}
+		}
+		return bestID
+	}
+
 	return ""
 }
 
@@ -286,5 +339,9 @@ func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {
 			results = append(results, node)
 		}
 	}
+	// Sort results by ID for determinism
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].ID < results[j].ID
+	})
 	return results
 }
