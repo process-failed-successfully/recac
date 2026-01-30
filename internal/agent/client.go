@@ -179,6 +179,10 @@ func (c *BaseClient) SendWithRetry(ctx context.Context, prompt string, sendOnce 
 				waitTime = time.Duration(waitSecs) * time.Second
 				telemetry.LogInfo("Rate limit hit (429), backing off", "project", c.Project, "retry", i, "wait", waitTime)
 			} else {
+				// Check for 402 Payment Required (e.g. Venice API spend limit)
+				if lastErr != nil && strings.Contains(lastErr.Error(), "API returned status 402") {
+					return "", fmt.Errorf("payment required (402): %w", lastErr)
+				}
 				telemetry.LogInfo("Retrying agent call", "project", c.Project, "retry", i, "wait", waitTime, "error", lastErr)
 			}
 
@@ -240,6 +244,10 @@ func (c *BaseClient) SendStreamWithRetry(ctx context.Context, prompt string, sen
 				waitTime = time.Duration(waitSecs) * time.Second
 				telemetry.LogInfo("Rate limit hit (429), backing off", "project", c.Project, "retry", i, "wait", waitTime)
 			} else {
+				// Check for 402 Payment Required
+				if lastErr != nil && strings.Contains(lastErr.Error(), "API returned status 402") {
+					return "", fmt.Errorf("payment required (402): %w", lastErr)
+				}
 				telemetry.LogInfo("Retrying agent call", "project", c.Project, "retry", i, "wait", waitTime, "error", lastErr)
 			}
 
