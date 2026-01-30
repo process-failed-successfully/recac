@@ -15,7 +15,7 @@ import (
 )
 
 // RepoRegex matches strings like "Repo: https://github.com/owner/repo".
-var RepoRegex = regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
+var RepoRegex = regexp.MustCompile(`(?i)Repo: \x60?(https?://[^\x60\s]+)\x60?`)
 
 // GitHubPoller implements the Poller interface for GitHub Issues.
 type GitHubPoller struct {

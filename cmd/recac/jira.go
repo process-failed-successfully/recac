@@ -407,9 +407,13 @@ func createTicketRecursively(ctx context.Context, node ticketNode, parentKey, pr
 		}
 	}
 
-	// Inject Repo URL if provided and missing
-	if repoURL != "" && !strings.Contains(strings.ToLower(fullDescription), "repo: http") {
-		fullDescription += fmt.Sprintf("\n\nRepo: %s", repoURL)
+	// Inject Repo URL if provided (Override to ensure correctness and formatting)
+	if repoURL != "" {
+		// Strip existing Repo line to avoid duplicates or hallucinations
+		re := regexp.MustCompile(`(?i)\n*Repo: .*`)
+		fullDescription = re.ReplaceAllString(fullDescription, "")
+
+		fullDescription += fmt.Sprintf("\n\nRepo: `%s`", repoURL)
 	}
 
 	var key string
@@ -496,7 +500,7 @@ func runGenerateFromArchCmd(cmd *cobra.Command, args []string) {
 
 	// 2. Build Ticket Tree
 	// Level 1: System Epic
-	rootDesc := fmt.Sprintf("Implementation of %s system.\nRepo: %s", arch.SystemName, repoUrl)
+	rootDesc := fmt.Sprintf("Implementation of %s system.\nRepo: `%s`", arch.SystemName, repoUrl)
 	if specContent != "" {
 		rootDesc += "\n\n# Application Specification\n\n" + specContent
 	}
@@ -512,7 +516,7 @@ func runGenerateFromArchCmd(cmd *cobra.Command, args []string) {
 		// Level 2: Component Story
 		compStory := ticketNode{
 			Title:       fmt.Sprintf("ID:[%s] [Service] %s", comp.ID, comp.ID),
-			Description: fmt.Sprintf("%s\n\nType: %s\nRepo: %s", comp.Description, comp.Type, repoUrl),
+			Description: fmt.Sprintf("%s\n\nType: %s\nRepo: `%s`", comp.Description, comp.Type, repoUrl),
 			Type:        "Story", // Was Epic, now Story
 			Children:    []ticketNode{},
 		}
@@ -521,7 +525,7 @@ func runGenerateFromArchCmd(cmd *cobra.Command, args []string) {
 		for i, step := range comp.ImplementationSteps {
 			compStory.Children = append(compStory.Children, ticketNode{
 				Title:       fmt.Sprintf("ID:[%s-STEP-%d] %s", comp.ID, i+1, truncateString(step, 50)),
-				Description: fmt.Sprintf("Task: %s\nRepo: %s", step, repoUrl),
+				Description: fmt.Sprintf("Task: %s\nRepo: `%s`", step, repoUrl),
 				Type:        "Subtask",
 			})
 		}
@@ -531,7 +535,7 @@ func runGenerateFromArchCmd(cmd *cobra.Command, args []string) {
 			desc := fmt.Sprintf("Implement Function: %s\n", fn.Name)
 			desc += fmt.Sprintf("Signature: (%s) -> (%s)\n", fn.Args, fn.Return)
 			desc += fmt.Sprintf("Description: %s\n", fn.Description)
-			desc += fmt.Sprintf("Repo: %s\n", repoUrl)
+			desc += fmt.Sprintf("Repo: `%s`\n", repoUrl)
 
 			criteria := []string{
 				fmt.Sprintf("Function %s matches signature (%s) -> (%s)", fn.Name, fn.Args, fn.Return),
@@ -550,7 +554,7 @@ func runGenerateFromArchCmd(cmd *cobra.Command, args []string) {
 		for _, in := range comp.Consumes {
 			compStory.Children = append(compStory.Children, ticketNode{
 				Title:       fmt.Sprintf("ID:[%s-IN-%s] Implement Input %s", comp.ID, in.Type, in.Type),
-				Description: fmt.Sprintf("Implement consumption of %s from %s.\nSchema: %s\nRepo: %s", in.Type, in.Source, in.Schema, repoUrl),
+				Description: fmt.Sprintf("Implement consumption of %s from %s.\nSchema: %s\nRepo: `%s`", in.Type, in.Source, in.Schema, repoUrl),
 				Type:        "Subtask", // Was Story, now Subtask
 				AcceptanceCriteria: []string{
 					fmt.Sprintf("Component %s successfully parses %s", comp.ID, in.Type),
@@ -566,7 +570,7 @@ func runGenerateFromArchCmd(cmd *cobra.Command, args []string) {
 			}
 			compStory.Children = append(compStory.Children, ticketNode{
 				Title:       fmt.Sprintf("ID:[%s-OUT-%s] Implement Output %s", comp.ID, typeName, typeName),
-				Description: fmt.Sprintf("Implement production of %s.\nSchema: %s\nRepo: %s", typeName, out.Schema, repoUrl),
+				Description: fmt.Sprintf("Implement production of %s.\nSchema: %s\nRepo: `%s`", typeName, out.Schema, repoUrl),
 				Type:        "Subtask", // Was Story, now Subtask
 				AcceptanceCriteria: []string{
 					fmt.Sprintf("Component %s successfully emits valid %s", comp.ID, typeName),

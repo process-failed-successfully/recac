@@ -45,9 +45,8 @@ func (m *MockJiraClient) SmartTransition(ctx context.Context, issueID string, st
 }
 
 func TestExtractRepoURL(t *testing.T) {
-	// This regex is a simplified version for testing purposes.
-	// The real regex is in the jira package.
-	testRegex := regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
+	// This regex matches the updated logic in internal/jira/regex.go
+	testRegex := regexp.MustCompile(`(?i)Repo: \x60?(https?://[^\x60\s]+)\x60?`)
 
 	testCases := []struct {
 		name     string
@@ -55,6 +54,7 @@ func TestExtractRepoURL(t *testing.T) {
 		expected string
 	}{
 		{"Valid HTTPS URL", "some text\nRepo: https://github.com/user/repo\nmore text", "https://github.com/user/repo"},
+		{"Valid HTTPS URL with backticks", "some text\nRepo: `https://github.com/user/repo`\nmore text", "https://github.com/user/repo"},
 		{"Valid HTTPS URL with .git", "some text\nRepo: https://github.com/user/repo.git\nmore text", "https://github.com/user/repo"},
 		{"Standard HTTPS", "Please fix this. Repo: https://github.com/org/repo.git", "https://github.com/org/repo"},
 		{"Standard HTTP", "Repo: http://github.com/org/repo", "http://github.com/org/repo"},
@@ -127,7 +127,7 @@ func TestJiraPoller_Poll(t *testing.T) {
 	ctx := context.Background()
 	originalRegex := jira.RepoRegex
 	defer func() { jira.RepoRegex = originalRegex }()
-	jira.RepoRegex = regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
+	jira.RepoRegex = regexp.MustCompile(`(?i)Repo: \x60?(https?://[^\x60\s]+)\x60?`)
 
 	// Mocks for different issues
 	issue1 := mockIssue("PROJ-1", "Task 1", "Repo: https://github.com/test/repo1")
