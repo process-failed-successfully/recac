@@ -68,13 +68,16 @@ func main() {
 	// Execute heal
 	oldCmd := healCommand
 	oldRetries := healRetries
+	oldTimeout := healTimeout
 	defer func() {
 		healCommand = oldCmd
 		healRetries = oldRetries
+		healTimeout = oldTimeout
 	}()
 
 	healCommand = "go run main.go"
 	healRetries = 2
+	healTimeout = 10
 
 	// We pass empty args as they are not used by runHeal (it uses flags)
 	// We need to ensure healCmd is initialized properly or just pass it as context.
@@ -90,4 +93,36 @@ func main() {
 
 	// Verify it contains no failures now
 	assert.NotContains(t, string(content), "fmt.Printl(")
+}
+
+func TestHealCmd_Timeout(t *testing.T) {
+	oldCmd := healCommand
+	oldTimeout := healTimeout
+	oldRetries := healRetries
+	defer func() {
+		healCommand = oldCmd
+		healTimeout = oldTimeout
+		healRetries = oldRetries
+	}()
+
+	healCommand = "sleep 2"
+	healTimeout = 1
+	healRetries = 0
+
+	err := runHeal(healCmd, []string{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "command timed out")
+}
+
+func TestHealCmd_Dangerous(t *testing.T) {
+	oldCmd := healCommand
+	defer func() {
+		healCommand = oldCmd
+	}()
+
+	healCommand = "rm -rf /"
+
+	err := runHeal(healCmd, []string{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "dangerous pattern")
 }

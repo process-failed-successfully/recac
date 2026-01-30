@@ -8,6 +8,7 @@ import (
 	"recac/internal/utils"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -16,6 +17,7 @@ import (
 var (
 	healCommand string
 	healRetries int
+	healTimeout int
 )
 
 var healCmd = &cobra.Command{
@@ -30,6 +32,7 @@ func init() {
 	rootCmd.AddCommand(healCmd)
 	healCmd.Flags().StringVarP(&healCommand, "command", "c", "go test ./...", "Command to run and fix")
 	healCmd.Flags().IntVarP(&healRetries, "retries", "r", 3, "Maximum number of fix attempts")
+	healCmd.Flags().IntVarP(&healTimeout, "timeout", "t", 600, "Timeout for command execution in seconds")
 }
 
 func runHeal(cmd *cobra.Command, args []string) error {
@@ -44,11 +47,29 @@ func runHeal(cmd *cobra.Command, args []string) error {
 	for i := 0; i <= healRetries; i++ {
 		fmt.Fprintf(cmd.OutOrStdout(), "🔄 Attempt %d/%d: Running '%s'...\n", i+1, healRetries+1, healCommand)
 
+		// Create context with timeout
+		cmdCtx, cancel := context.WithTimeout(ctx, time.Duration(healTimeout)*time.Second)
+		defer cancel()
+
 		// Run the command
-		output, err := runCommand(healCommand)
+		output, err := runCommand(cmdCtx, healCommand)
 		if err == nil {
 			fmt.Fprintln(cmd.OutOrStdout(), "✅ Command succeeded!")
 			return nil
+		}
+
+		// Check for hard errors (validation, etc)
+		if strings.Contains(err.Error(), "rejected") {
+			return err
+		}
+
+		// Append error to output if significant (like timeout)
+		if strings.Contains(err.Error(), "timed out") {
+			output += fmt.Sprintf("\n[System Error]: %v", err)
+			// Return immediately on timeout as agent likely can't fix infrastructure timeout easily
+			// or we treat it as a failure to be fixed?
+			// For now, let's treat timeout as a hard failure to stop the loop.
+			return err
 		}
 
 		// Command failed
@@ -134,14 +155,35 @@ func runHeal(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func runCommand(command string) (string, error) {
+func runCommand(ctx context.Context, command string) (string, error) {
+	if err := validateCommand(command); err != nil {
+		return "", err
+	}
+
 	// Naive splitting handles spaces but not quotes.
 	// For "go test ./...", it's fine.
 	// For "go test -v 'foo bar'", it might break.
 	// Using sh -c is safer for complex commands.
-	cmd := exec.Command("sh", "-c", command)
+	cmd := exec.CommandContext(ctx, "sh", "-c", command)
 	out, err := cmd.CombinedOutput()
+	if ctx.Err() == context.DeadlineExceeded {
+		return string(out), fmt.Errorf("command timed out: %w", ctx.Err())
+	}
 	return string(out), err
+}
+
+func validateCommand(command string) error {
+	dangerousPatterns := []string{"rm -rf /", "mkfs", ":(){ :|:& };:"}
+	for _, p := range dangerousPatterns {
+		if strings.Contains(command, p) {
+			return fmt.Errorf("command rejected due to dangerous pattern: %s", p)
+		}
+	}
+	// Basic sudo check
+	if strings.HasPrefix(strings.TrimSpace(command), "sudo ") {
+		return fmt.Errorf("command rejected: sudo usage is not allowed")
+	}
+	return nil
 }
 
 func extractFailedFiles(output string) []string {
