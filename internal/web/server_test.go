@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"recac/internal/db"
 	"recac/internal/runner"
+	"recac/internal/utils"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -121,6 +122,6 @@ func TestGenerateMermaid(t *testing.T) {
 
 func TestSanitizeMermaidID(t *testing.T) {
 	id := "foo bar.baz-qux"
-	sanitized := sanitizeMermaidID(id)
+	sanitized := utils.SanitizeMermaidID(id)
 	assert.Equal(t, "foo_bar_baz_qux", sanitized)
 }
