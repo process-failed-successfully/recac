@@ -44,6 +44,19 @@ func TestMockAgent_PrimesScenario(t *testing.T) {
 	}
 }
 
+func TestMockAgent_TicketGeneration(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "You are the INITIALIZER AGENT. Please analyze app_spec.txt"
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "ID:[PRIMES]") {
+		t.Error("Response should contain ticket ID, got:", response)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {

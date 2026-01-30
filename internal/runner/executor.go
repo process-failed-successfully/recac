@@ -17,12 +17,16 @@ import (
 	"github.com/spf13/viper"
 )
 
-var bashBlockRegex = regexp.MustCompile("(?s)```bash\\s*(.*?)\\s*```")
+var bashBlockRegex = regexp.MustCompile("(?i)(?s)```bash\\s*(.*?)\\s*```")
 
 // ProcessResponse parses the agent response for commands, executes them, and handles blockers.
 func (s *Session) ProcessResponse(ctx context.Context, response string) (string, error) {
 	// 1. Extract Bash Blocks (More robust regex to handle variations in LLM output)
 	matches := bashBlockRegex.FindAllStringSubmatch(response, -1)
+
+	if len(matches) == 0 {
+		s.Logger.Info("no command blocks found in response", "response_preview", response[:min(len(response), 500)])
+	}
 
 	// Safety valve: Prevent LLM loops from flooding the execution
 	const maxCommandBlocks = 100
