@@ -128,3 +128,66 @@ func TestGenerateCallGraph_BacktickImports(t *testing.T) {
 	}
 	assert.True(t, foundEdge, "Should find edge to fmt.Println with backticked import")
 }
+
+func TestGenerateCallGraph_StrictImportMatching(t *testing.T) {
+	// Scenario:
+	// Root contains package "pkg".
+	// main.go imports "other/pkg" (which should NOT resolve to local "pkg").
+	// But current heuristic might resolve it.
+
+	tmpDir := t.TempDir()
+
+	// 1. Create pkg/helper.go (Local package)
+	pkgDir := filepath.Join(tmpDir, "pkg")
+	err := os.MkdirAll(pkgDir, 0755)
+	require.NoError(t, err)
+
+	pkgContent := `package pkg
+func Helper() {}
+`
+	err = os.WriteFile(filepath.Join(pkgDir, "helper.go"), []byte(pkgContent), 0644)
+	require.NoError(t, err)
+
+	// 2. Create main.go
+	// Imports "example.com/apkg" and calls pkg.Helper()
+	// Since "example.com/apkg" ends with "pkg" but is a different package ("apkg"),
+	// it should NOT resolve to local "pkg".
+	mainContent := `package main
+
+import (
+	pkg "example.com/apkg"
+)
+
+func main() {
+	pkg.Helper()
+}
+`
+	err = os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainContent), 0644)
+	require.NoError(t, err)
+
+	// Run Analysis
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Verify Edge
+	// main.main -> ...
+	// Should go to "example.com/other/pkg.Helper" (external/unresolved)
+	// Should NOT go to "pkg.Helper" (local)
+
+	foundLinkToLocal := false
+	foundLinkToExternal := false
+
+	for _, edge := range cg.Edges {
+		if edge.From == "main.main" || strings.HasSuffix(edge.From, ".main") { // main pkg ID depends on folder
+			if edge.To == "pkg.Helper" {
+				foundLinkToLocal = true
+			}
+			if edge.To == "example.com/apkg.Helper" {
+				foundLinkToExternal = true
+			}
+		}
+	}
+
+	assert.False(t, foundLinkToLocal, "Should NOT link to local pkg.Helper for unrelated import")
+	assert.True(t, foundLinkToExternal, "Should link to external ID for unrelated import")
+}

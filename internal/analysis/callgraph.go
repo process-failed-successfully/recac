@@ -273,7 +273,8 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 	var candidates []*CallGraphNode
 	for _, node := range cg.Nodes {
 		if node.Name == funcName && node.Receiver == "" {
-			if strings.HasSuffix(importPath, node.Package) {
+			// Strict suffix match: Check if importPath ends with "/"+node.Package or is exactly node.Package
+			if importPath == node.Package || strings.HasSuffix(importPath, "/"+node.Package) {
 				candidates = append(candidates, node)
 			}
 		}
