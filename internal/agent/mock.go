@@ -41,7 +41,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
       "title": "Implement Primes Script",
       "description": "Create a script to print prime numbers.",
       "id": "PRIMES",
-      "stories": [
+      "children": [
         {
           "title": "Write Python Script",
           "description": "Write a python script that prints primes up to 100.",
@@ -62,7 +62,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
       "title": "Smoke Test Epic",
       "description": "Epic for smoke testing.",
       "id": "SMOKE",
-      "stories": [
+      "children": [
         {
           "title": "Print Hello Smoke",
           "description": "Write a python script that prints 'Hello Smoke'.",
