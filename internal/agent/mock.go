@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,10 +31,26 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// Default bash block to prevent no-op
+	bashBlock := "\n```bash\necho 'Mock Agent processing...'\n```"
+
+	// Heuristic for Initializer
+	// If the prompt mentions feature_list.json, we simulate creating it to allow the workflow to complete.
+	if strings.Contains(strings.ToLower(prompt), "feature_list.json") {
+		// Use single quotes for inner JSON to avoid shell escaping issues with echo
+		// JSON itself must be valid
+		bashBlock = `
+` + "```bash" + `
+echo '[{"id":"mock-1","description":"Mock Feature","status":"done","passes":true}]' > feature_list.json
+echo "Created mock feature list."
+` + "```"
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
-		m.responsePrefix, len(prompt), truncateString(prompt, 100))
+	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...\n%s",
+		m.responsePrefix, len(prompt), truncateString(prompt, 100), bashBlock)
 	return response, nil
 }
 

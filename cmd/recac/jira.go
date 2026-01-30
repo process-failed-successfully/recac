@@ -303,7 +303,7 @@ func generateTickets(ctx context.Context, specContent, projectKey, repoURL strin
 	var tickets []ticketNode
 	if err := json.Unmarshal([]byte(jsonStr), &tickets); err != nil {
 		// Fallback for Mock Agent default response to allow smoke tests to pass
-		if strings.HasPrefix(jsonStr, "Mock agent response:") {
+		if strings.HasPrefix(jsonStr, "Mock agent response:") || strings.Contains(resp, "Mock agent response:") {
 			fmt.Println("Warning: Received Mock Agent response. Using dummy ticket plan.")
 			tickets = []ticketNode{
 				{
