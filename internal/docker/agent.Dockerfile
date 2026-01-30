@@ -1,4 +1,4 @@
-FROM golang:1.25-alpine
+FROM golang:1.24-alpine
 
 # Install essential tools
 RUN apk add --no-cache \
