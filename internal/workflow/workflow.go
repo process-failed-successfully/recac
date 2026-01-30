@@ -86,8 +86,12 @@ var ProcessDirectTask = func(ctx context.Context, cfg SessionConfig) error {
 
 	gitClient := git.NewClient()
 	if _, err := cmdutils.SetupWorkspace(ctx, gitClient, cfg.RepoURL, cfg.ProjectPath, workID, "", timestamp); err != nil {
-		logger.Error("Error: Failed to setup workspace", "error", err)
-		return err
+		if cfg.IsMock {
+			logger.Warn("Failed to setup workspace in mock mode (ignoring)", "error", err)
+		} else {
+			logger.Error("Error: Failed to setup workspace", "error", err)
+			return err
+		}
 	}
 
 	// Force task context: Overwrite app_spec.txt
@@ -206,8 +210,12 @@ var ProcessJiraTicket = func(ctx context.Context, jiraTicketID string, jClient *
 
 	gitClient := git.NewClient()
 	if _, err := cmdutils.SetupWorkspace(ctx, gitClient, repoURL, tempWorkspace, jiraTicketID, cfg.JiraEpicKey, timestamp); err != nil {
-		logger.Error("Error: Failed to setup workspace", "error", err)
-		return err
+		if cfg.IsMock {
+			logger.Warn("Failed to setup workspace in mock mode (ignoring)", "error", err)
+		} else {
+			logger.Error("Error: Failed to setup workspace", "error", err)
+			return err
+		}
 	}
 
 	// 5. Create app_spec.txt
