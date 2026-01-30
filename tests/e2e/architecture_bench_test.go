@@ -34,7 +34,7 @@ func TestArchitectureGenerationBenchmark(t *testing.T) {
 	}
 	model := os.Getenv("RECAC_MODEL")
 	if model == "" {
-		model = "nvidia/nemotron-3-nano-30b-a3b:free" // Default
+		model = "meta-llama/llama-3.3-70b-instruct:free" // Default
 	}
 	runs := 5 // Number of iterations
 

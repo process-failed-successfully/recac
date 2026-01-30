@@ -65,8 +65,8 @@
       "displayName": "Anthropic Claude Sonnet 4"
     },
     {
-      "name": "nvidia/nemotron-3-nano-30b-a3b:free",
-      "displayName": "NVIDIA Nemotron 3 Nano 30B (Free)"
+      "name": "meta-llama/llama-3.3-70b-instruct:free",
+      "displayName": "Meta Llama 3.3 70B Instruct (Free)"
     },
     {
       "name": "openai/gpt-oss-20b",
