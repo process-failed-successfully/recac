@@ -57,6 +57,25 @@ func TestMockAgent_TicketGeneration(t *testing.T) {
 	}
 }
 
+func TestMockAgent_TicketGenerationWithPrimesContent(t *testing.T) {
+	agent := NewMockAgent()
+	// This prompt simulates what happens when the spec contains "primes.py"
+	// It contains both the Ticket Generation keyword and the Implementation keyword.
+	prompt := "You are a Technical Program Manager. Analyze the spec: The app should contain a file named primes.py."
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Should return JSON tickets, NOT bash
+	if !strings.Contains(response, "ID:[PRIMES]") {
+		t.Error("Response should contain ticket ID, got:", response)
+	}
+	if strings.Contains(response, "```bash") {
+		t.Error("Response should NOT contain bash block, likely returned implementation response instead of tickets")
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {

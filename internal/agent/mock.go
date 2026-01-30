@@ -32,14 +32,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// Check if this is the "Prime Python" scenario implementation phase
-	// This must be checked BEFORE ticket generation to avoid false positives if prompt contains "app_spec.txt" or similar
-	if strings.Contains(prompt, "primes.py") {
-		return "Here is the implementation for primes.py:\n\n```bash\ncat << 'EOF' > primes.py\nimport json\n\ndef is_prime(n):\n    if n <= 1: return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0: return False\n    return True\n\nprimes = [x for x in range(10000) if is_prime(x)]\nwith open('primes.json', 'w') as f:\n    json.dump({\"primes\": primes}, f)\nEOF\n\npython3 primes.py\ngit add primes.py\ngit add -f primes.json\ngit commit -m \"Add primes script and output\"\n```", nil
-	}
-
 	// Check if this is a ticket generation request (based on prompt content or context)
 	// The smoke test sends a prompt with the app spec.
+	// This must be checked BEFORE the specific scenario implementation checks (like primes.py)
+	// because the app spec in the prompt might contain those keywords.
 	if strings.Contains(prompt, "INITIALIZER AGENT") || strings.Contains(prompt, "Technical Program Manager") {
 		// Return a valid JSON response for the ticket generator
 		return `[
@@ -64,6 +60,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     ]
   }
 ]`, nil
+	}
+
+	// Check if this is the "Prime Python" scenario implementation phase
+	if strings.Contains(prompt, "primes.py") {
+		return "Here is the implementation for primes.py:\n\n```bash\ncat << 'EOF' > primes.py\nimport json\n\ndef is_prime(n):\n    if n <= 1: return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0: return False\n    return True\n\nprimes = [x for x in range(10000) if is_prime(x)]\nwith open('primes.json', 'w') as f:\n    json.dump({\"primes\": primes}, f)\nEOF\n\npython3 primes.py\ngit add primes.py\ngit add -f primes.json\ngit commit -m \"Add primes script and output\"\n```", nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
