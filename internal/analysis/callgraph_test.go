@@ -107,3 +107,48 @@ func internalFunc() {}
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
 }
+
+func TestGenerateCallGraph_BacktickedImport(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// 1. Create main.go with backticked import
+	mainContent := `package main
+
+import (
+	` + "`" + `recac-test/pkg` + "`" + `
+)
+
+func main() {
+	pkg.Helper()
+}
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainContent), 0644)
+	require.NoError(t, err)
+
+	// 2. Create pkg/helper.go
+	pkgDir := filepath.Join(tmpDir, "pkg")
+	err = os.MkdirAll(pkgDir, 0755)
+	require.NoError(t, err)
+
+	pkgContent := `package pkg
+
+func Helper() {}
+`
+	err = os.WriteFile(filepath.Join(pkgDir, "helper.go"), []byte(pkgContent), 0644)
+	require.NoError(t, err)
+
+	// Run Analysis
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Verify Edge
+	// main.main -> pkg.Helper
+	found := false
+	for _, edge := range cg.Edges {
+		if edge.From == "main.main" && edge.To == "pkg.Helper" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "Should verify edge with backticked import")
+}

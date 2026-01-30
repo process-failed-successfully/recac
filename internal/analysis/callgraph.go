@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"io/fs"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -73,7 +74,10 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		dir := filepath.Dir(path)
 
 		// Approximate full package path
-		relDir, _ := filepath.Rel(root, dir)
+		relDir, err := filepath.Rel(root, dir)
+		if err != nil {
+			relDir = "."
+		}
 		fullPkg := relDir
 		if relDir == "." {
 			fullPkg = pkgName
@@ -85,7 +89,11 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		// Index Imports
 		imports := make(map[string]string)
 		for _, imp := range f.Imports {
-			pathVal := strings.Trim(imp.Path.Value, "\"")
+			pathVal, err := strconv.Unquote(imp.Path.Value)
+			if err != nil {
+				// Fallback if unquote fails (shouldn't happen for valid Go)
+				pathVal = strings.Trim(imp.Path.Value, "\"")
+			}
 			var alias string
 			if imp.Name != nil {
 				alias = imp.Name.Name
@@ -133,7 +141,10 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 	for path, f := range parsedFiles {
 		pkgName := f.Name.Name
 		dir := filepath.Dir(path)
-		relDir, _ := filepath.Rel(root, dir)
+		relDir, err := filepath.Rel(root, dir)
+		if err != nil {
+			relDir = "."
+		}
 		fullPkg := relDir
 		if relDir == "." {
 			fullPkg = pkgName
