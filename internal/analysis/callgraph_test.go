@@ -3,6 +3,7 @@ package analysis
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -106,4 +107,24 @@ func internalFunc() {}
 	assert.True(t, foundMainToHelper, "Missing edge: main -> Helper")
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
+}
+
+func TestGenerateCallGraph_BacktickImports(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	mainContent := "package main\n\nimport (\n\t`fmt`\n)\n\nfunc main() {\n\tfmt.Println(\"Hello\")\n}\n"
+	err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainContent), 0644)
+	require.NoError(t, err)
+
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	foundEdge := false
+	for _, edge := range cg.Edges {
+		if strings.HasSuffix(edge.To, "fmt.Println") {
+			foundEdge = true
+			break
+		}
+	}
+	assert.True(t, foundEdge, "Should find edge to fmt.Println with backticked import")
 }

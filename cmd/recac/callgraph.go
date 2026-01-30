@@ -3,35 +3,44 @@ package main
 import (
 	"fmt"
 	"os"
-	"recac/internal/analysis"
 	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"recac/internal/analysis"
 )
 
-var (
-	callGraphFocus string
-	callGraphDir   string
-)
+type callGraphOptions struct {
+	focus string
+	dir   string
+}
 
-var callGraphCmd = &cobra.Command{
-	Use:   "callgraph",
-	Short: "Generate a static call graph of the codebase",
-	Long: `Generates a Mermaid flowchart of function calls.
+func NewCallGraphCmd() *cobra.Command {
+	opts := &callGraphOptions{}
+	cmd := &cobra.Command{
+		Use:   "callgraph",
+		Short: "Generate a static call graph of the codebase",
+		Long: `Generates a Mermaid flowchart of function calls.
 Useful for understanding code flow and dependencies.
 Note: This uses static analysis and heuristics, so it may be approximate.`,
-	RunE: runCallGraph,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runCallGraph(cmd, opts)
+		},
+	}
+
+	cmd.Flags().StringVar(&opts.focus, "focus", "", "Focus on a specific function (show callers/callees)")
+	cmd.Flags().StringVar(&opts.dir, "dir", ".", "Directory to analyze")
+
+	return cmd
 }
 
 func init() {
-	rootCmd.AddCommand(callGraphCmd)
-	callGraphCmd.Flags().StringVar(&callGraphFocus, "focus", "", "Focus on a specific function (show callers/callees)")
-	callGraphCmd.Flags().StringVar(&callGraphDir, "dir", ".", "Directory to analyze")
+	rootCmd.AddCommand(NewCallGraphCmd())
 }
 
-func runCallGraph(cmd *cobra.Command, args []string) error {
-	dir := callGraphDir
+func runCallGraph(cmd *cobra.Command, opts *callGraphOptions) error {
+	dir := opts.dir
 	if dir == "." {
 		var err error
 		dir, err = os.Getwd()
@@ -46,8 +55,8 @@ func runCallGraph(cmd *cobra.Command, args []string) error {
 	}
 
 	// Filter if focused
-	if callGraphFocus != "" {
-		cg = filterGraph(cg, callGraphFocus)
+	if opts.focus != "" {
+		cg = filterGraph(cg, opts.focus)
 	}
 
 	fmt.Fprintln(cmd.OutOrStdout(), generateMermaidCallGraph(cg))
@@ -67,9 +76,10 @@ func filterGraph(cg *analysis.CallGraph, focus string) *analysis.CallGraph {
 	}
 
 	if len(relevantNodes) == 0 {
-		return cg // Return all or empty? Let's return empty with warning?
-		// Actually, returning full graph might be annoying if they expected filter.
-		// Let's return empty but check later.
+		return &analysis.CallGraph{
+			Nodes: make(map[string]*analysis.CallGraphNode),
+			Edges: nil,
+		}
 	}
 
 	// Expand to 1 level of depth (callers and callees)
