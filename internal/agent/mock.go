@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,7 +31,39 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
-	// Return a mock response that shows the agent received the prompt
+
+	// Smart Mocking for E2E Tests (prime-python scenario)
+	// If the prompt asks for primes.py, return a valid script generation command.
+	if strings.Contains(prompt, "primes.py") && strings.Contains(strings.ToLower(prompt), "python") {
+		return `Mock Agent: Generating Primes Script
+
+Here is the solution to calculate primes < 10000.
+
+` + "```bash" + `
+cat << 'EOF' > primes.py
+import json
+
+primes = []
+for n in range(2, 10000):
+    is_prime = True
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            is_prime = False
+            break
+    if is_prime:
+        primes.append(n)
+
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+python3 primes.py
+git add -f primes.json
+` + "```" + `
+`, nil
+	}
+
+	// Return a generic mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
