@@ -2,11 +2,14 @@ package main
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"recac/internal/analysis"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCallGraphCmd_Focus_NoMatch(t *testing.T) {
@@ -31,43 +34,18 @@ func TestCallGraphCmd_Focus_NoMatch(t *testing.T) {
 
 func TestCallGraphCmd_Mermaid_Sanitization(t *testing.T) {
 	// Setup a dummy graph with quotes in ID (simulating complex type)
-	// Note: ID itself is sanitized by sanitizeMermaidID, but we are testing the Label quoting.
-	// We want to ensure that if the label (derived from ID) contains quotes, they are escaped/replaced.
-
-	// Assume ID "pkg.(TypeWith\"Quote).Method" -> Label "TypeWith\"Quote).Method"
-	// This is unlikely in Go, but defensive coding is good.
-	// More likely: user has weird file names or something.
+	// We want to verify that the label generated from ID is sanitized in output.
 
 	cg := &analysis.CallGraph{
 		Nodes: map[string]*analysis.CallGraphNode{
-			"pkg.FuncA": {ID: "pkg.FuncA", Name: "FuncA", Package: "pkg"},
+			"pkg.Func\"Quote": {ID: "pkg.Func\"Quote", Name: "Func\"Quote", Package: "pkg"},
 		},
 		Edges: nil,
-	}
-
-	// We manually inject a node with quote in ID to test label generation
-	// But generateMermaidCallGraph takes *analysis.CallGraph.
-	// We can't easily inject a node with quote because GenerateCallGraph creates them.
-	// But we can construct the CallGraph manually as above.
-
-	// Let's try to verify generateMermaidCallGraph directly.
-	// But it's in main package, so we can call it.
-
-	// Override one node to have a label with quotes
-	// The label is derived from ID.
-	cg.Nodes["pkg.Func\"Quote"] = &analysis.CallGraphNode{
-		ID: "pkg.Func\"Quote",
-		Name: "Func\"Quote",
-		Package: "pkg",
 	}
 
 	output := generateMermaidCallGraph(cg)
 
 	// We expect the label to be sanitized.
-	// Current implementation: ["Func"Quote"] -> Syntax Error
-	// Expected: ["Func'Quote"] or similar.
-
-	// We check if the output contains invalid syntax
 	assert.NotContains(t, output, "[\"Func\"Quote\"]", "Should not contain double quotes inside label quotes")
 	assert.Contains(t, output, "Func'Quote", "Should replace double quote with single quote")
 }
@@ -97,37 +75,31 @@ func TestFilterGraph_PartialMatch(t *testing.T) {
 }
 
 func TestRunCallGraph_Integration(t *testing.T) {
-	// Minimal integration test invoking the command function
-	// We need to set flags.
-	// Since flags are global variables in callgraph.go, we must be careful with parallel tests.
-	// This test is not parallel.
+	// Setup temporary directory with sample code for analysis
+	tmpDir := t.TempDir()
 
-	oldDir := callGraphDir
-	oldFocus := callGraphFocus
-	defer func() {
-		callGraphDir = oldDir
-		callGraphFocus = oldFocus
-	}()
+	mainContent := `package main
+func main() {}
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainContent), 0644)
+	require.NoError(t, err)
 
-	callGraphDir = "."
-	callGraphFocus = "NonExistentFunctionXYZ"
-
-	cmd := callGraphCmd
+	// Use factory to create a fresh command instance
+	cmd := NewCallGraphCmd()
 	buf := new(bytes.Buffer)
 	cmd.SetOut(buf)
 
-	// We run against current directory (recac root).
-	// It should parse files.
-	// Focus is set to something that doesn't exist.
-	// Should return empty graph.
+	// Set flags
+	cmd.SetArgs([]string{"--dir", tmpDir, "--focus", "NonExistentFunctionXYZ"})
 
-	err := runCallGraph(cmd, []string{})
+	// Run command
+	// ExecuteC calls RunE
+	err = cmd.Execute()
 	assert.NoError(t, err)
 
 	output := buf.String()
 	assert.Contains(t, output, "graph LR")
-	// Should NOT contain any nodes except maybe style?
-	// If empty, it just has header.
+
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 	assert.Equal(t, 1, len(lines), "Should only contain graph header for empty result")
 	assert.Equal(t, "graph LR", lines[0])
