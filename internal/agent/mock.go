@@ -37,7 +37,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	lowerPrompt := strings.ToLower(prompt)
 
 	// 1. Ticket Generation Phase: Return JSON Plan
-	if strings.Contains(prompt, "ID:[PRIMES]") {
+	// We identify this phase by the unique instruction in the AppSpec
+	if strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "create exactly ONE ticket") {
 		return `
 [
   {
@@ -50,7 +51,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Implementation Phase: Return Python Script
-	if strings.Contains(lowerPrompt, "primes") && strings.Contains(lowerPrompt, "python") {
+	// We identify this phase by the requirement for a bash block
+	if strings.Contains(lowerPrompt, "primes") && strings.Contains(lowerPrompt, "python") && strings.Contains(lowerPrompt, "bash block") {
 		return `Here is the solution for the primes task:
 
 ` + "```bash" + `

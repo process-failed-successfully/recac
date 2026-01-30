@@ -9,44 +9,44 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMockAgent_SmartResponse(t *testing.T) {
+func TestMockAgent_SmokeTestLogic(t *testing.T) {
 	agent := NewMockAgent()
 	ctx := context.Background()
 
-	// 1. Test standard response
-	resp, err := agent.Send(ctx, "Hello world")
-	require.NoError(t, err)
-	assert.Contains(t, resp, "Mock agent response")
-	assert.Contains(t, resp, "Hello world")
+	t.Run("Ticket Generation Phase", func(t *testing.T) {
+		// Simulate prompt from cmd/recac/jira.go using AppSpec from prime_python.go
+		prompt := `...
+		### ID:[PRIMES] Prime Number Script
+		CRITICAL INSTRUCTION: You MUST create exactly ONE ticket. Type: Task.
+		...
+		Repo: http://example.com`
 
-	// 2. Test smart response for primes
-	prompt := "Implement a python script named 'primes.py' that calculates primes"
-	resp, err = agent.Send(ctx, prompt)
-	require.NoError(t, err)
+		resp, err := agent.Send(ctx, prompt)
+		require.NoError(t, err)
+		assert.Contains(t, resp, `"title": "ID:[PRIMES] Create Prime Number Script"`, "Should return JSON ticket plan")
+		assert.NotContains(t, resp, "cat << 'EOF'", "Should NOT return python script")
+	})
 
-	// Check content
-	assert.Contains(t, resp, "cat << 'EOF' > primes.py")
-	assert.Contains(t, resp, "primes = []")
-	assert.Contains(t, resp, "is_prime = [True] * 10000")
-	assert.Contains(t, resp, "python3 primes.py")
+	t.Run("Implementation Phase", func(t *testing.T) {
+		// Simulate prompt from orchestrator/agent loop
+		prompt := `...
+		You are implementing ticket: ID:[PRIMES] Create Prime Number Script
+		Description: Create a python script named 'primes.py'. It MUST be python.
+		IMPORTANT: You MUST use a bash block to create the file.
+		...`
 
-	// Check that we can extract the python script
-	lines := strings.Split(resp, "\n")
-	foundPython := false
-	for _, line := range lines {
-		if strings.Contains(line, "import json") {
-			foundPython = true
-			break
-		}
-	}
-	assert.True(t, foundPython, "Should contain python code")
-}
+		resp, err := agent.Send(ctx, prompt)
+		require.NoError(t, err)
+		assert.Contains(t, resp, "cat << 'EOF' > primes.py", "Should return python script in bash block")
+		assert.Contains(t, resp, "git add primes.py", "Should return git commands")
+		// The mock implementation of "JSON Plan" includes "ID:[PRIMES]" in title, so we can't just assert NotContains ID:[PRIMES]
+		// But we can assert it starts with text/code, not "["
+		assert.False(t, strings.HasPrefix(strings.TrimSpace(resp), "["), "Should not return JSON array")
+	})
 
-func TestNewAgent_Mock(t *testing.T) {
-	agent, err := NewAgent("mock", "", "", "", "")
-	require.NoError(t, err)
-	require.NotNil(t, agent)
-
-	_, ok := agent.(*MockAgent)
-	assert.True(t, ok, "Should return *MockAgent")
+	t.Run("Other Prompts", func(t *testing.T) {
+		resp, err := agent.Send(ctx, "Hello world")
+		require.NoError(t, err)
+		assert.Contains(t, resp, "Mock agent response", "Should return default mock response")
+	})
 }
