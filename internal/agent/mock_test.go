@@ -25,6 +25,23 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Primes(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Can you write a python script to calculate primes?" // Contains "python" and "primes"
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "Mock Agent: Generating Primes Script") {
+		t.Errorf("Response missing Smart Mock header, got: %s", response)
+	}
+	if !strings.Contains(response, "cat << 'EOF' > primes.py") {
+		t.Errorf("Response missing bash block, got: %s", response)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
