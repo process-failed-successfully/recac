@@ -33,8 +33,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Check if this is a ticket generation request (based on prompt content or context)
-	// The smoke test sends a prompt with the app spec.
-	if strings.Contains(prompt, "app_spec.txt") || strings.Contains(prompt, "Technical Program Manager") {
+	// The smoke test sends a prompt with the app spec for Prime Number Generator.
+	if (strings.Contains(prompt, "app_spec.txt") || strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "Prime Number Generator")) && !strings.Contains(prompt, "implementation for") {
 		// Return a valid JSON response for the ticket generator
 		return `[
   {
