@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,6 +31,69 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// Handle specific scenarios by inspecting the prompt
+	// Scenario: Jira Ticket Generation (TPM Agent)
+	if strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "Technical Program Manager") {
+		return `{
+  "epics": [
+    {
+      "title": "Implement Primes Script",
+      "description": "Create a script to print prime numbers.",
+      "id": "PRIMES",
+      "stories": [
+        {
+          "title": "Write Python Script",
+          "description": "Write a python script that prints primes up to 100.",
+          "type": "Task",
+          "id": "PRIMES-1"
+        }
+      ]
+    }
+  ]
+}`, nil
+	}
+
+	// Scenario: Mock Smoke Test (Hello World)
+	if strings.Contains(prompt, "Hello Smoke") {
+		return `{
+  "epics": [
+    {
+      "title": "Smoke Test Epic",
+      "description": "Epic for smoke testing.",
+      "id": "SMOKE",
+      "stories": [
+        {
+          "title": "Print Hello Smoke",
+          "description": "Write a python script that prints 'Hello Smoke'.",
+          "type": "Task",
+          "id": "SMOKE-1"
+        }
+      ]
+    }
+  ]
+}`, nil
+	}
+
+	// Scenario: Python Implementation (Coding Agent)
+	// Relaxed check for "primes" to catch various prompts
+	if strings.Contains(strings.ToLower(prompt), "primes") {
+		return `
+File: primes.py
+` + "```python" + `
+def is_prime(n):
+    if n <= 1: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0: return False
+    return True
+
+for i in range(100):
+    if is_prime(i):
+        print(i)
+` + "```" + `
+`, nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",

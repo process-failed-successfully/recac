@@ -302,7 +302,15 @@ func generateTickets(ctx context.Context, specContent, projectKey, repoURL strin
 
 	var tickets []ticketNode
 	if err := json.Unmarshal([]byte(jsonStr), &tickets); err != nil {
-		return nil, fmt.Errorf("failed to parse agent response as JSON: %w\nResponse was:\n%s", err, resp)
+		// Try unmarshalling as an object with "epics" key if array fails
+		var root struct {
+			Epics []ticketNode `json:"epics"`
+		}
+		if err2 := json.Unmarshal([]byte(jsonStr), &root); err2 == nil {
+			tickets = root.Epics
+		} else {
+			return nil, fmt.Errorf("failed to parse agent response as JSON: %w\nResponse was:\n%s", err, resp)
+		}
 	}
 
 	return createTicketsFromNodes(ctx, tickets, projectKey, repoURL, allLabels, jiraClient)
