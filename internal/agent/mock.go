@@ -47,11 +47,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     ],
     "children": [
       {
-        "title": "ID:[MOCK-STORY] Create Mock Interface",
-        "description": "Create the interface for the mock feature.",
+        "title": "ID:[PRIMES] Implement Prime Number Generator",
+        "description": "Create a function that generates prime numbers.",
         "type": "Story",
         "acceptance_criteria": [
-          "Interface is defined"
+          "Function returns primes"
         ],
         "children": []
       }
