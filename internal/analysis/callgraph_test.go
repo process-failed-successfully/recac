@@ -107,3 +107,59 @@ func internalFunc() {}
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
 }
+
+func TestGenerateCallGraph_StrictImportMatching(t *testing.T) {
+	// Reproduction for non-deterministic import matching
+	tmpDir := t.TempDir()
+
+	// Create "pkg" and "apkg"
+	// "apkg" has suffix "pkg".
+	// import "example.com/apkg" should match "apkg", NOT "pkg".
+
+	// 1. Create pkg/lib.go
+	pkgDir := filepath.Join(tmpDir, "pkg")
+	err := os.MkdirAll(pkgDir, 0755)
+	require.NoError(t, err)
+	os.WriteFile(filepath.Join(pkgDir, "lib.go"), []byte("package pkg\nfunc Do() {}"), 0644)
+
+	// 2. Create apkg/lib.go
+	apkgDir := filepath.Join(tmpDir, "apkg")
+	err = os.MkdirAll(apkgDir, 0755)
+	require.NoError(t, err)
+	os.WriteFile(filepath.Join(apkgDir, "lib.go"), []byte("package apkg\nfunc Do() {}"), 0644)
+
+	// 3. Create main.go importing apkg
+	mainContent := `package main
+import "example.com/apkg"
+func main() {
+	apkg.Do()
+}
+`
+	err = os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainContent), 0644)
+	require.NoError(t, err)
+
+	// Run Analysis
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Verify edge
+	// Should be main.main -> apkg.Do
+	// NOT main.main -> pkg.Do
+
+	foundCorrect := false
+	foundWrong := false
+
+	for _, edge := range cg.Edges {
+		if edge.From == "main.main" {
+			if edge.To == "apkg.Do" {
+				foundCorrect = true
+			}
+			if edge.To == "pkg.Do" {
+				foundWrong = true
+			}
+		}
+	}
+
+	assert.True(t, foundCorrect, "Should find edge to apkg.Do")
+	assert.False(t, foundWrong, "Should NOT find edge to pkg.Do")
+}
