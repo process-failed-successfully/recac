@@ -107,3 +107,61 @@ func internalFunc() {}
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
 }
+
+func TestGenerateCallGraph_Determinism(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create pkgA/a.go
+	pkgADir := filepath.Join(tmpDir, "pkgA")
+	err := os.MkdirAll(pkgADir, 0755)
+	require.NoError(t, err)
+
+	contentA := `package pkgA
+type TypeA struct{}
+func (t *TypeA) Process() {}
+`
+	err = os.WriteFile(filepath.Join(pkgADir, "a.go"), []byte(contentA), 0644)
+	require.NoError(t, err)
+
+	// Create pkgB/b.go
+	pkgBDir := filepath.Join(tmpDir, "pkgB")
+	err = os.MkdirAll(pkgBDir, 0755)
+	require.NoError(t, err)
+
+	contentB := `package pkgB
+type TypeB struct{}
+func (t *TypeB) Process() {}
+`
+	err = os.WriteFile(filepath.Join(pkgBDir, "b.go"), []byte(contentB), 0644)
+	require.NoError(t, err)
+
+	// Generate
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// 1. Verify IDs use forward slashes even if on Windows
+	// We expect "pkgA.(TypeA).Process" and "pkgB.(TypeB).Process"
+	// Not "pkgA\(TypeA).Process"
+	foundA := false
+	foundB := false
+	for id := range cg.Nodes {
+		if id == "pkgA.(TypeA).Process" {
+			foundA = true
+		}
+		if id == "pkgB.(TypeB).Process" {
+			foundB = true
+		}
+		// Assert no backslashes
+		assert.NotContains(t, id, "\\", "ID should not contain backslashes")
+	}
+	assert.True(t, foundA, "Missing pkgA node")
+	assert.True(t, foundB, "Missing pkgB node")
+
+	// 2. Verify findMethodsByName determinism
+	// We have two methods named "Process".
+	// The result should be sorted by ID.
+	results := findMethodsByName(cg, "Process")
+	assert.Len(t, results, 2)
+	assert.Equal(t, "pkgA.(TypeA).Process", results[0].ID)
+	assert.Equal(t, "pkgB.(TypeB).Process", results[1].ID)
+}
