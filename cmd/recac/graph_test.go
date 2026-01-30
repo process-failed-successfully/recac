@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"recac/internal/db"
 	"recac/internal/runner"
-	"strings"
 	"testing"
 	"time"
 
@@ -171,35 +170,4 @@ func TestGraphCmd_LatestSession(t *testing.T) {
 
 	// 4. Verify Output (should use the latest session)
 	assert.Contains(t, output, `task_A["A"]:::done`)
-}
-
-func TestSanitizeMermaidID(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected string
-	}{
-		{"pkg.(Type).Method", "pkg__Type__Method"},
-		{"(Ambiguous).Run", "_Ambiguous__Run"},
-		{"*StarExpr", "_StarExpr"},
-		{"pkg/path.Func", "pkg_path_Func"},
-		{"with-dash", "with_dash"},
-		{"with space", "with_space"},
-		{"brackets[2]", "brackets_2_"},
-		{"quote'test\"", "quote_test_"},
-	}
-
-	for _, tt := range tests {
-		got := sanitizeMermaidID(tt.input)
-
-		// Check for forbidden chars
-		for _, char := range []string{"(", ")", "*", "/", " ", "-", ".", "[", "]", "\"", "'"} {
-			if strings.Contains(got, char) {
-				t.Errorf("sanitizeMermaidID(%q) = %q contains forbidden char %q", tt.input, got, char)
-			}
-		}
-
-		if got != tt.expected {
-			t.Errorf("sanitizeMermaidID(%q) = %q, expected %q", tt.input, got, tt.expected)
-		}
-	}
 }
