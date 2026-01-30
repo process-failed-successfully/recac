@@ -107,3 +107,79 @@ func internalFunc() {}
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
 }
+
+func TestResolveExternalCall_StrictSuffix(t *testing.T) {
+	// Mock CodebaseIndex with manually populated PkgIndex
+	idx := &CodebaseIndex{
+		PkgIndex: map[string][]*CallGraphNode{
+			"pkg":        {{ID: "pkg.Func", Name: "Func"}},
+			"other/pkg":  {{ID: "other/pkg.Func", Name: "Func"}},
+			"mypkg":      {{ID: "mypkg.Func", Name: "Func"}},
+		},
+	}
+
+	tests := []struct {
+		name       string
+		importPath string
+		funcName   string
+		wantID     string
+	}{
+		{
+			name:       "Exact match",
+			importPath: "pkg",
+			funcName:   "Func",
+			wantID:     "pkg.Func",
+		},
+		{
+			name:       "Suffix match with slash",
+			importPath: "github.com/user/pkg",
+			funcName:   "Func",
+			wantID:     "pkg.Func",
+		},
+		{
+			name:       "Suffix match nested",
+			importPath: "github.com/user/other/pkg",
+			funcName:   "Func",
+			wantID:     "other/pkg.Func",
+		},
+		{
+			name:       "Partial suffix match should FAIL",
+			importPath: "github.com/user/mypkg",
+			funcName:   "Func",
+			wantID:     "mypkg.Func", // Matches mypkg exactly
+		},
+		{
+			name:       "Ambiguous partial suffix check",
+			// "pkg" is in index. "mypkg" ends with "pkg".
+			// But we expect it NOT to match "pkg".
+			importPath: "mypkg",
+			funcName:   "Func",
+			wantID:     "mypkg.Func", // Matches "mypkg" exactly.
+		},
+		{
+			name:       "Strict suffix boundary check",
+			// "github.com/somepkg" vs "pkg"
+			// "somepkg" ends with "pkg" but no slash.
+			// Should NOT match "pkg".
+			importPath: "github.com/somepkg",
+			funcName:   "Func",
+			wantID:     "",
+		},
+		{
+			name:       "Short exact match vs Long suffix match",
+			// If we have "foo/bar" and "bar".
+			// Import "foo/bar".
+			// Should match "foo/bar", not "bar".
+			importPath: "foo/bar",
+			funcName:   "Func",
+			wantID:     "", // We didn't put foo/bar in index, so empty.
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := resolveExternalCall(idx, tt.importPath, tt.funcName)
+			assert.Equal(t, tt.wantID, got)
+		})
+	}
+}

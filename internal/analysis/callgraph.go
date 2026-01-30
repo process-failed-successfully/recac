@@ -264,9 +264,11 @@ func resolveExternalCall(idx *CodebaseIndex, importPath string, funcName string)
 	}
 
 	// If multiple candidates, pick the longest match (most specific)
-	sort.Strings(candidates)
+	sort.Slice(candidates, func(i, j int) bool {
+		return len(candidates[i]) < len(candidates[j])
+	})
 
-	for i := len(candidates)-1; i >= 0; i-- {
+	for i := len(candidates) - 1; i >= 0; i-- {
 		pkg := candidates[i]
 		for _, node := range idx.PkgIndex[pkg] {
 			if node.Name == funcName {
