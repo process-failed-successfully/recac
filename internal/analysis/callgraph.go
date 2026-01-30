@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -85,22 +86,33 @@ func indexDeclarations(root string, fset *token.FileSet, cg *CallGraph) (map[str
 		dir := filepath.Dir(path)
 
 		// Approximate full package path
-		relDir, _ := filepath.Rel(root, dir)
+		relDir, errRel := filepath.Rel(root, dir)
 		// Fix for Rel returning error or .. if root is absolute and dir is not or vice versa
 		// But here we walk root so it should be fine.
 		// Handling "." case
-		fullPkg := relDir
-		if relDir == "." {
+		fullPkg := ""
+		if errRel == nil {
+			fullPkg = relDir
+			if relDir == "." {
+				fullPkg = pkgName
+			} else if filepath.Base(relDir) != pkgName {
+				fullPkg = filepath.Join(relDir, pkgName)
+			}
+			fullPkg = strings.TrimPrefix(fullPkg, "./")
+		} else {
 			fullPkg = pkgName
-		} else if filepath.Base(relDir) != pkgName {
-			fullPkg = filepath.Join(relDir, pkgName)
 		}
-		fullPkg = strings.TrimPrefix(fullPkg, "./")
 
 		// Index Imports
 		imports := make(map[string]string)
 		for _, imp := range f.Imports {
-			pathVal := strings.Trim(imp.Path.Value, "\"")
+			pathVal := imp.Path.Value
+			if unquoted, err := strconv.Unquote(pathVal); err == nil {
+				pathVal = unquoted
+			} else {
+				pathVal = strings.Trim(pathVal, "\"")
+			}
+
 			var alias string
 			if imp.Name != nil {
 				alias = imp.Name.Name
@@ -154,14 +166,19 @@ func resolveCalls(root string, parsedFiles map[string]*ast.File, fileImports map
 		f := parsedFiles[path]
 		pkgName := f.Name.Name
 		dir := filepath.Dir(path)
-		relDir, _ := filepath.Rel(root, dir)
-		fullPkg := relDir
-		if relDir == "." {
+		relDir, errRel := filepath.Rel(root, dir)
+		fullPkg := ""
+		if errRel == nil {
+			fullPkg = relDir
+			if relDir == "." {
+				fullPkg = pkgName
+			} else if filepath.Base(relDir) != pkgName {
+				fullPkg = filepath.Join(relDir, pkgName)
+			}
+			fullPkg = strings.TrimPrefix(fullPkg, "./")
+		} else {
 			fullPkg = pkgName
-		} else if filepath.Base(relDir) != pkgName {
-			fullPkg = filepath.Join(relDir, pkgName)
 		}
-		fullPkg = strings.TrimPrefix(fullPkg, "./")
 
 		imports := fileImports[path]
 
