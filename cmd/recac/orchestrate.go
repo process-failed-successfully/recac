@@ -135,7 +135,7 @@ func init() {
 	orchestrateCmd.Flags().String("namespace", "default", "Kubernetes namespace (for k8s mode)")
 	orchestrateCmd.Flags().Duration("interval", 1*time.Minute, "Polling interval")
 	orchestrateCmd.Flags().String("agent-provider", "openrouter", "Provider for spawned agents")
-	orchestrateCmd.Flags().String("agent-model", "nvidia/llama-3.1-nemotron-70b-instruct:free", "Model for spawned agents")
+	orchestrateCmd.Flags().String("agent-model", "meta-llama/llama-3.3-70b-instruct:free", "Model for spawned agents")
 	orchestrateCmd.Flags().String("image-pull-policy", "Always", "Image pull policy for agents (Always, IfNotPresent, Never)")
 
 	orchestrateCmd.Flags().String("jira-query", "", "Custom JQL query (overrides label)")
