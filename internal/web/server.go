@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"recac/internal/db"
 	"recac/internal/runner"
+	"recac/internal/utils"
 	"strings"
 	"sort"
 )
@@ -145,9 +146,9 @@ func generateMermaid(g *runner.TaskGraph) string {
 			style = ":::pending"
 		}
 
-		safeID := sanitizeMermaidID(node.ID)
-		        		safeName := strings.ReplaceAll(node.Name, "\"", "'")
-		        		safeName = strings.ReplaceAll(safeName, "\n", " ")
+		safeID := utils.SanitizeMermaidID(node.ID)
+		safeName := strings.ReplaceAll(node.Name, "\"", "'")
+		safeName = strings.ReplaceAll(safeName, "\n", " ")
 		if len(safeName) > 30 {
 			safeName = safeName[:27] + "..."
 		}
@@ -155,7 +156,7 @@ func generateMermaid(g *runner.TaskGraph) string {
 		sb.WriteString(fmt.Sprintf("    %s[\"%s\"]%s\n", safeID, safeName, style))
 
 		for _, depID := range node.Dependencies {
-			safeDepID := sanitizeMermaidID(depID)
+			safeDepID := utils.SanitizeMermaidID(depID)
 			sb.WriteString(fmt.Sprintf("    %s --> %s\n", safeDepID, safeID))
 		}
 	}
@@ -167,11 +168,4 @@ func generateMermaid(g *runner.TaskGraph) string {
 	sb.WriteString("    classDef pending fill:#D3D3D3,stroke:#333,stroke-width:1px,color:black;\n")
 
 	return sb.String()
-}
-
-func sanitizeMermaidID(id string) string {
-	id = strings.ReplaceAll(id, "-", "_")
-	id = strings.ReplaceAll(id, " ", "_")
-	id = strings.ReplaceAll(id, ".", "_")
-	return id
 }

@@ -119,8 +119,3 @@ func TestGenerateMermaid(t *testing.T) {
 	assert.Contains(t, out, ":::done")
 }
 
-func TestSanitizeMermaidID(t *testing.T) {
-	id := "foo bar.baz-qux"
-	sanitized := sanitizeMermaidID(id)
-	assert.Equal(t, "foo_bar_baz_qux", sanitized)
-}
