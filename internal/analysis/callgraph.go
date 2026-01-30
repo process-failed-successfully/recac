@@ -7,6 +7,8 @@ import (
 	"go/token"
 	"io/fs"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -85,7 +87,14 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		// Index Imports
 		imports := make(map[string]string)
 		for _, imp := range f.Imports {
-			pathVal := strings.Trim(imp.Path.Value, "\"")
+			pathVal := imp.Path.Value
+			if unquoted, err := strconv.Unquote(pathVal); err == nil {
+				pathVal = unquoted
+			} else {
+				// Fallback for safety, though Unquote should handle valid Go imports
+				pathVal = strings.Trim(pathVal, "\"")
+			}
+
 			var alias string
 			if imp.Name != nil {
 				alias = imp.Name.Name
@@ -130,7 +139,15 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 	// Use map to prevent duplicates
 	edgeMap := make(map[string]bool)
 
-	for path, f := range parsedFiles {
+	// Sort files for deterministic iteration
+	var paths []string
+	for path := range parsedFiles {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+
+	for _, path := range paths {
+		f := parsedFiles[path]
 		pkgName := f.Name.Name
 		dir := filepath.Dir(path)
 		relDir, _ := filepath.Rel(root, dir)
@@ -261,10 +278,7 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 	// Import path is "recac/internal/foo".
 	// If we are running on "recac" repo, "internal/foo" matches.
 
-	// Normalize import path
-	// Remove module prefix if possible?
-	// This is hard without knowing module name.
-	// But we can scan all nodes and check if Node.Package matches the end of ImportPath?
+	var candidates []string
 
 	for id, node := range cg.Nodes {
 		if node.Name == funcName && node.Receiver == "" {
@@ -272,11 +286,31 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 			// node.Package might be "internal/utils"
 			// importPath might be "recac/internal/utils"
 			if strings.HasSuffix(importPath, node.Package) {
-				return id
+				candidates = append(candidates, id)
 			}
 		}
 	}
-	return ""
+
+	if len(candidates) == 0 {
+		return ""
+	}
+
+	// Sort candidates by ID to be deterministic
+	sort.Strings(candidates)
+
+	// Pick the one with the longest Package length (most specific match)
+	bestID := ""
+	maxLen := -1
+
+	for _, id := range candidates {
+		node := cg.Nodes[id]
+		if len(node.Package) > maxLen {
+			maxLen = len(node.Package)
+			bestID = id
+		}
+	}
+
+	return bestID
 }
 
 func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {
@@ -286,5 +320,11 @@ func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {
 			results = append(results, node)
 		}
 	}
+	// Sort results for determinism?
+	// findMethodsByName is used to find candidates, if len > 1 we mark as ambiguous.
+	// if len == 1, we return it.
+	// So order doesn't matter for the "one candidate" case.
+	// For ambiguous case, we don't use the result list content in the graph, just existence.
+	// So it's fine.
 	return results
 }
