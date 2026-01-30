@@ -22,6 +22,22 @@ func TestSanitizeMermaidID(t *testing.T) {
 		{"'quoted'", "_quoted_"},
 		{"`quoted`", "_quoted_"},
 		{"Complex*ID", "Complex_ID"},
+		// New cases
+		{"pkg+name", "pkg_name"},
+		{"email@example.com", "email_example_com"},
+		{"comma,sep", "comma_sep"},
+		{"hash#tag", "hash_tag"},
+		{"pipe|line", "pipe_line"},
+		{"less<than", "less_than"},
+		{"greater>than", "greater_than"},
+		{"equals=val", "equals_val"},
+		{"percent%20", "percent_20"},
+		{"dollar$bill", "dollar_bill"},
+		{"exclamation!", "exclamation_"},
+		{"question?", "question_"},
+		{"curly{brace}", "curly_brace_"},
+		{"tilde~wave", "tilde_wave"},
+		{"caret^up", "caret_up"},
 	}
 
 	for _, tt := range tests {

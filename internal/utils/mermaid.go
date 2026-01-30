@@ -1,27 +1,13 @@
 package utils
 
-import "strings"
+import (
+	"regexp"
+)
+
+var mermaidIDRegex = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 
 // SanitizeMermaidID sanitizes a string for use as a Mermaid node ID.
-// It replaces invalid characters (space, hyphen, dot, slash, backslash, asterisk,
-// colon, ampersand, parentheses, brackets, quotes, backticks) with underscores.
+// It replaces any character that is not alphanumeric or an underscore with an underscore.
 func SanitizeMermaidID(id string) string {
-	replacer := strings.NewReplacer(
-		"-", "_",
-		" ", "_",
-		".", "_",
-		"(", "_",
-		")", "_",
-		"*", "_",
-		"/", "_",
-		"\\", "_",
-		"&", "_",
-		":", "_",
-		"[", "_",
-		"]", "_",
-		"\"", "_",
-		"'", "_",
-		"`", "_",
-	)
-	return replacer.Replace(id)
+	return mermaidIDRegex.ReplaceAllString(id, "_")
 }
