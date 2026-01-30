@@ -117,10 +117,15 @@ func TestProcessJiraTicket_ErrorHandling(t *testing.T) {
 			cfg:      SessionConfig{IsMock: true},
 		},
 		{
-			name:          "No Repo Found",
+			name:          "No Repo Found (Not Mock)",
 			ticketID:      "NO-REPO-1",
-			cfg:           SessionConfig{IsMock: true},
+			cfg:           SessionConfig{IsMock: false},
 			expectedError: "no repo url found",
+		},
+		{
+			name:     "No Repo Found (Mock Mode)",
+			ticketID: "NO-REPO-1",
+			cfg:      SessionConfig{IsMock: true},
 		},
 		{
 			name:     "Transition Fails (Graceful)",

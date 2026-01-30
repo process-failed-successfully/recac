@@ -189,13 +189,17 @@ var ProcessJiraTicket = func(ctx context.Context, jiraTicketID string, jClient *
 	repoURL := cfg.RepoURL
 	if repoURL == "" {
 		matches := jira.RepoRegex.FindStringSubmatch(description)
-		if len(matches) <= 1 {
+		if len(matches) > 1 {
+			repoURL = strings.TrimSuffix(matches[1], ".git")
+			repoURL = strings.TrimSuffix(repoURL, "/")
+			logger.Info("Found repository URL in ticket", "repo_url", repoURL)
+		} else if cfg.IsMock {
+			// In mock mode, allow proceeding without a repo URL if one isn't found
+			logger.Info("Mock mode: No repository URL found, proceeding with empty URL")
+		} else {
 			logger.Error("Error: No repository URL found in ticket description (Repo: https://...)")
 			return fmt.Errorf("no repo url found")
 		}
-		repoURL = strings.TrimSuffix(matches[1], ".git")
-		repoURL = strings.TrimSuffix(repoURL, "/")
-		logger.Info("Found repository URL in ticket", "repo_url", repoURL)
 	} else {
 		logger.Info("Using provided repository URL", "repo_url", repoURL)
 	}
