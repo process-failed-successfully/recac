@@ -82,6 +82,8 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 			fullPkg = filepath.Join(relDir, pkgName)
 		}
 		fullPkg = strings.TrimPrefix(fullPkg, "./")
+		// Normalize to forward slashes for consistency across platforms (e.g. Windows)
+		fullPkg = filepath.ToSlash(fullPkg)
 
 		// Index Imports
 		imports := make(map[string]string)
@@ -150,6 +152,8 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 			fullPkg = filepath.Join(relDir, pkgName)
 		}
 		fullPkg = strings.TrimPrefix(fullPkg, "./")
+		// Normalize to forward slashes for consistency across platforms (e.g. Windows)
+		fullPkg = filepath.ToSlash(fullPkg)
 
 		imports := fileImports[path]
 
@@ -312,5 +316,9 @@ func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {
 			results = append(results, node)
 		}
 	}
+	// Sort by ID to ensure determinism
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].ID < results[j].ID
+	})
 	return results
 }
