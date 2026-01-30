@@ -316,3 +316,51 @@ func TestDockerSpawner_Cleanup(t *testing.T) {
 	err := spawner.Cleanup(context.Background(), WorkItem{ID: "test"})
 	assert.NoError(t, err)
 }
+func TestDockerSpawner_Consistency_ImageFlag(t *testing.T) {
+	mockDocker := new(MockDockerClient)
+	mockSM := new(MockSessionManager)
+	mockGit := new(MockGitClient)
+	mockPoller := new(MockPoller)
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	imageName := "custom-image:v1.0"
+	spawner := NewDockerSpawner(logger, mockDocker, imageName, "test-proj", mockPoller, "provider", "model", mockSM)
+	spawner.GitClient = mockGit
+
+	item := WorkItem{
+		ID:      "TICKET-1",
+		RepoURL: "https://github.com/test/repo",
+	}
+
+	ctx := context.Background()
+
+	// Mock expectations
+	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
+	mockSM.On("SaveSession", mock.Anything).Return(nil)
+	mockSM.On("LoadSession", "TICKET-1").Return(&runner.SessionState{}, nil)
+	mockGit.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("endsha", nil).Maybe()
+
+	// Capture the command passed to Exec
+	capturedCmdChan := make(chan []string, 1)
+	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Run(func(args mock.Arguments) {
+		capturedCmd := args.Get(2).([]string)
+		capturedCmdChan <- capturedCmd
+	}).Return("output", nil)
+
+	err := spawner.Spawn(ctx, item)
+	assert.NoError(t, err)
+
+	var capturedCmd []string
+	select {
+	case capturedCmd = <-capturedCmdChan:
+		// Success
+	case <-time.After(2 * time.Second):
+		t.Fatal("Timed out waiting for Exec call")
+	}
+
+	cmdStr := capturedCmd[2]
+	// assert that --image is passed with the correct image name
+	// shellquote might wrap it in quotes
+	assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
+	assert.Contains(t, cmdStr, imageName, "Command should contain the image name")
+}

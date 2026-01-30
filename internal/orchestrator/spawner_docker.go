@@ -79,6 +79,7 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		"--cleanup=false",
 		"--path", "/workspace",
 		"--verbose",
+		"--image", s.Image,
 		"--repo-url", item.RepoURL, // Delegate cloning
 	}
 
