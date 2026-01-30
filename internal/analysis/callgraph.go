@@ -81,6 +81,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		} else if filepath.Base(relDir) != pkgName {
 			fullPkg = filepath.Join(relDir, pkgName)
 		}
+		fullPkg = filepath.ToSlash(fullPkg)
 		fullPkg = strings.TrimPrefix(fullPkg, "./")
 
 		// Index Imports
@@ -149,6 +150,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		} else if filepath.Base(relDir) != pkgName {
 			fullPkg = filepath.Join(relDir, pkgName)
 		}
+		fullPkg = filepath.ToSlash(fullPkg)
 		fullPkg = strings.TrimPrefix(fullPkg, "./")
 
 		imports := fileImports[path]
@@ -312,5 +314,8 @@ func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {
 			results = append(results, node)
 		}
 	}
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].ID < results[j].ID
+	})
 	return results
 }

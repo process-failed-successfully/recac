@@ -107,3 +107,53 @@ func internalFunc() {}
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
 }
+
+func TestResolveExternalCall_Ambiguous(t *testing.T) {
+	// Verifies determinism when packages overlap in suffix
+	tmpDir := t.TempDir()
+
+	// 1. Create pkg/func.go (path: pkg)
+	pkgDir := filepath.Join(tmpDir, "pkg")
+	err := os.MkdirAll(pkgDir, 0755)
+	require.NoError(t, err)
+
+	err = os.WriteFile(filepath.Join(pkgDir, "func.go"), []byte("package pkg\nfunc Func() {}"), 0644)
+	require.NoError(t, err)
+
+	// 2. Create sub/pkg/func.go (path: sub/pkg)
+	subPkgDir := filepath.Join(tmpDir, "sub", "pkg")
+	err = os.MkdirAll(subPkgDir, 0755)
+	require.NoError(t, err)
+
+	err = os.WriteFile(filepath.Join(subPkgDir, "func.go"), []byte("package pkg\nfunc Func() {}"), 0644)
+	require.NoError(t, err)
+
+	// 3. Create main.go calling sub/pkg
+	// We want to verify it resolves to sub/pkg.Func, not pkg.Func
+	mainContent := `package main
+import (
+	"fmt"
+	"example.com/sub/pkg"
+)
+func main() {
+	pkg.Func()
+	fmt.Println("ok")
+}
+`
+	err = os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainContent), 0644)
+	require.NoError(t, err)
+
+	// Run Analysis
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Check edge from main.main -> sub/pkg.Func
+	found := false
+	for _, edge := range cg.Edges {
+		if edge.From == "main.main" && edge.To == "sub/pkg.Func" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "Should resolve to sub/pkg.Func (longer match) instead of pkg.Func")
+}
