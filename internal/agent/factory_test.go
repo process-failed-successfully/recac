@@ -5,8 +5,17 @@ import (
 )
 
 func TestNewAgent(t *testing.T) {
+	// Test Mock
+	a, err := NewAgent("mock", "key", "model", "", "test-project")
+	if err != nil {
+		t.Fatalf("failed to create mock agent: %v", err)
+	}
+	if _, ok := a.(*MockAgent); !ok {
+		t.Errorf("expected *MockAgent, got %T", a)
+	}
+
 	// Test Gemini
-	a, err := NewAgent("gemini", "key", "gemini-pro", "", "test-project")
+	a, err = NewAgent("gemini", "key", "gemini-pro", "", "test-project")
 	if err != nil {
 		t.Fatalf("failed to create gemini agent: %v", err)
 	}
