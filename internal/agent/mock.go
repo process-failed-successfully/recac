@@ -33,9 +33,23 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Smart Mock for Primes Smoke Test
-	// If the prompt asks for a python script for primes, return a working solution.
 	// This enables deterministic smoke testing in CI without external API dependencies.
 	lowerPrompt := strings.ToLower(prompt)
+
+	// 1. Ticket Generation Phase: Return JSON Plan
+	if strings.Contains(prompt, "ID:[PRIMES]") {
+		return `
+[
+  {
+    "title": "ID:[PRIMES] Create Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.",
+    "type": "Task"
+  }
+]
+`, nil
+	}
+
+	// 2. Implementation Phase: Return Python Script
 	if strings.Contains(lowerPrompt, "primes") && strings.Contains(lowerPrompt, "python") {
 		return `Here is the solution for the primes task:
 
