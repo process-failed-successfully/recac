@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -103,7 +104,10 @@ func indexDeclarations(root string, fset *token.FileSet, cg *CallGraph) (map[str
 		// Index Imports
 		imports := make(map[string]string)
 		for _, imp := range f.Imports {
-			pathVal := strings.Trim(imp.Path.Value, "\"")
+			pathVal, err := strconv.Unquote(imp.Path.Value)
+			if err != nil {
+				pathVal = strings.Trim(imp.Path.Value, "\"") // Fallback
+			}
 			var alias string
 			if imp.Name != nil {
 				alias = imp.Name.Name
@@ -252,6 +256,11 @@ func getReceiverTypeName(recv *ast.FieldList) string {
 	}
 	if index, ok := expr.(*ast.IndexExpr); ok {
 		if ident, ok := index.X.(*ast.Ident); ok {
+			return ident.Name
+		}
+	}
+	if indexList, ok := expr.(*ast.IndexListExpr); ok {
+		if ident, ok := indexList.X.(*ast.Ident); ok {
 			return ident.Name
 		}
 	}
