@@ -304,7 +304,7 @@ func run() error {
 			"--set", "config.imagePullPolicy=IfNotPresent",
 			"--set", "config.poller=jira",
 			"--set", fmt.Sprintf("config.jira_label=%s", label),
-			"--set", fmt.Sprintf("config.jira_query=labels = \"%s\" AND issuetype != Epic AND statusCategory != Done ORDER BY created ASC", label),
+			"--set", fmt.Sprintf("config.jira_query=labels = \"%s\" AND statusCategory != Done ORDER BY created ASC", label),
 			"--set", "config.verbose=true",
 			"--set", "config.interval=10s",
 			"--set", fmt.Sprintf("config.maxIterations=%s", getEnvOrDefault("MAX_ITERATIONS", "20")),
