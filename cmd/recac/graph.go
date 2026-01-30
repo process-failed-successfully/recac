@@ -153,17 +153,5 @@ func sanitizeMermaidID(id string) string {
 	id = strings.ReplaceAll(id, "-", "_")
 	id = strings.ReplaceAll(id, " ", "_")
 	id = strings.ReplaceAll(id, ".", "_")
-	id = strings.ReplaceAll(id, "/", "_")
-	id = strings.ReplaceAll(id, "\\", "_")
-	id = strings.ReplaceAll(id, "*", "_")
-	id = strings.ReplaceAll(id, ":", "_")
-	id = strings.ReplaceAll(id, "&", "_")
-	id = strings.ReplaceAll(id, "(", "_")
-	id = strings.ReplaceAll(id, ")", "_")
-	id = strings.ReplaceAll(id, "[", "_")
-	id = strings.ReplaceAll(id, "]", "_")
-	id = strings.ReplaceAll(id, "\"", "_")
-	id = strings.ReplaceAll(id, "'", "_")
-	id = strings.ReplaceAll(id, "`", "_")
 	return id
 }

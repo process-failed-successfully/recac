@@ -59,7 +59,7 @@ Create a `.recac.yaml` in your home directory.
 ```yaml
 # AI Provider
 agent_provider: openrouter
-agent_model: "meta-llama/llama-3.3-70b-instruct:free"
+agent_model: "nvidia/llama-3.1-nemotron-70b-instruct:free"
 api_key: "your-api-key"
 
 # Integrations
@@ -164,7 +164,7 @@ The recommended way to deploy `recac` in production is via the provided Helm cha
       --set image.tag=latest \
       --set config.image=ghcr.io/process-failed-successfully/recac-agent:latest \
       --set config.provider=openrouter \
-      --set config.model="meta-llama/llama-3.3-70b-instruct:free" \
+      --set config.model="nvidia/llama-3.1-nemotron-70b-instruct:free" \
       --set config.jiraUrl="https://your-domain.atlassian.net" \
       --set config.jiraUsername="user@example.com" \
       --set config.jira_label="recac-agent" \
