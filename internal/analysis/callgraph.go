@@ -74,7 +74,10 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		dir := filepath.Dir(path)
 
 		// Approximate full package path
-		relDir, _ := filepath.Rel(root, dir)
+		relDir, err := filepath.Rel(root, dir)
+		if err != nil {
+			return nil
+		}
 		fullPkg := relDir
 		if relDir == "." {
 			fullPkg = pkgName
@@ -143,7 +146,10 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		f := parsedFiles[path]
 		pkgName := f.Name.Name
 		dir := filepath.Dir(path)
-		relDir, _ := filepath.Rel(root, dir)
+		relDir, err := filepath.Rel(root, dir)
+		if err != nil {
+			continue
+		}
 		fullPkg := relDir
 		if relDir == "." {
 			fullPkg = pkgName
@@ -284,7 +290,10 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 			// Check if importPath ends with node.Package
 			// node.Package might be "internal/utils"
 			// importPath might be "recac/internal/utils"
-			if strings.HasSuffix(importPath, node.Package) {
+
+			// Ensure we match "pkg" or "/pkg", not just substring suffix
+			suffix := "/" + node.Package
+			if importPath == node.Package || strings.HasSuffix(importPath, suffix) {
 				matches = append(matches, id)
 			}
 		}
