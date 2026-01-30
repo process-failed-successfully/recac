@@ -17,6 +17,7 @@ func TestSanitizeMermaidID(t *testing.T) {
 		{"illegal-chars:[]&*", "illegal_chars_____"},
 		{"quotes\"'`", "quotes___"},
 		{"back\\slash", "back_slash"},
+		{"unhandled_chars;{}|", "unhandled_chars____"},
 	}
 
 	for _, tt := range tests {

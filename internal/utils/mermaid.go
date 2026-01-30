@@ -3,25 +3,12 @@ package utils
 import "strings"
 
 // SanitizeMermaidID sanitizes a string to be a valid Mermaid node ID.
-// It replaces invalid characters with underscores.
-// Invalid characters include: space, hyphen, dot, slash, backslash, asterisk, colon, ampersand, parentheses, brackets, quotes, backticks.
+// It replaces invalid characters (anything not alphanumeric or underscore) with underscores.
 func SanitizeMermaidID(id string) string {
-	replacer := strings.NewReplacer(
-		" ", "_",
-		"-", "_",
-		".", "_",
-		"/", "_",
-		"\\", "_",
-		"*", "_",
-		":", "_",
-		"&", "_",
-		"(", "_",
-		")", "_",
-		"[", "_",
-		"]", "_",
-		"\"", "_",
-		"'", "_",
-		"`", "_",
-	)
-	return replacer.Replace(id)
+	return strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' {
+			return r
+		}
+		return '_'
+	}, id)
 }
