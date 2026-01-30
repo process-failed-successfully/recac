@@ -35,7 +35,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Handle specific scenarios by inspecting the prompt
 
 	// Scenario: Initializer Agent (Sets up features)
-	if strings.Contains(prompt, "INITIALIZER AGENT") {
+	if strings.Contains(prompt, "## YOUR ROLE - INITIALIZER AGENT") {
 		return `
 I'll set up the project.
 
@@ -66,7 +66,7 @@ chmod +x init.sh
 	}
 
 	// Scenario: QA Agent
-	if strings.Contains(prompt, "QA AGENT") || strings.Contains(prompt, "Quality Assurance") {
+	if strings.Contains(prompt, "## YOUR ROLE - QA AGENT") {
 		return `
 QA Passed.
 
@@ -77,7 +77,7 @@ agent-bridge signal QA_PASSED true
 	}
 
 	// Scenario: Manager Agent
-	if strings.Contains(prompt, "PROJECT MANAGER") {
+	if strings.Contains(prompt, "## YOUR ROLE - PROJECT MANAGER") {
 		return `
 Approved.
 
