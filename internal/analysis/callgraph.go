@@ -74,10 +74,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		dir := filepath.Dir(path)
 
 		// Approximate full package path
-		relDir, err := filepath.Rel(root, dir)
-		if err != nil {
-			return nil
-		}
+		relDir, _ := filepath.Rel(root, dir)
 		fullPkg := relDir
 		if relDir == "." {
 			fullPkg = pkgName
@@ -137,8 +134,8 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 
 	// Sort files for determinism
 	var paths []string
-	for p := range parsedFiles {
-		paths = append(paths, p)
+	for path := range parsedFiles {
+		paths = append(paths, path)
 	}
 	sort.Strings(paths)
 
@@ -146,10 +143,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		f := parsedFiles[path]
 		pkgName := f.Name.Name
 		dir := filepath.Dir(path)
-		relDir, err := filepath.Rel(root, dir)
-		if err != nil {
-			continue
-		}
+		relDir, _ := filepath.Rel(root, dir)
 		fullPkg := relDir
 		if relDir == "." {
 			fullPkg = pkgName
@@ -290,10 +284,8 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 			// Check if importPath ends with node.Package
 			// node.Package might be "internal/utils"
 			// importPath might be "recac/internal/utils"
-
-			// Ensure we match "pkg" or "/pkg", not just substring suffix
-			suffix := "/" + node.Package
-			if importPath == node.Package || strings.HasSuffix(importPath, suffix) {
+			// Use suffix match
+			if strings.HasSuffix(importPath, node.Package) {
 				matches = append(matches, id)
 			}
 		}
@@ -303,13 +295,17 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 		return ""
 	}
 
-	// Deterministic selection: prefer longest match (most specific), then alphabetical
+	// Sort matches to ensure determinism and preference
+	// Preference: Longest matching package path (most specific)
 	sort.Slice(matches, func(i, j int) bool {
 		pkgI := cg.Nodes[matches[i]].Package
 		pkgJ := cg.Nodes[matches[j]].Package
+
+		// Prefer longer package path
 		if len(pkgI) != len(pkgJ) {
-			return len(pkgI) > len(pkgJ) // Longest package path first
+			return len(pkgI) > len(pkgJ)
 		}
+		// Tie-breaker: ID string (lexicographical)
 		return matches[i] < matches[j]
 	})
 
@@ -323,6 +319,7 @@ func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {
 			results = append(results, node)
 		}
 	}
+	// Sort for determinism
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].ID < results[j].ID
 	})
