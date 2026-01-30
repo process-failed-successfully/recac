@@ -76,6 +76,8 @@
             } catch (e) {
                 console.error("Error loading data:", e);
                 document.getElementById('graph').innerHTML = "Error loading data. Is the server running?";
+                document.querySelector('#features-table tbody').innerHTML =
+                    '<tr><td colspan="4" class="status-failed">Error loading features. Is the server running?</td></tr>';
             }
         }
 
