@@ -37,7 +37,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	lowerPrompt := strings.ToLower(prompt)
 
 	// 1. Ticket Generation Phase: Return JSON Plan
-	if strings.Contains(prompt, "ID:[PRIMES]") {
+	// Only match if it's explicitly the TPM/Planning prompt to avoid clashing with the coding prompt which also contains the ID
+	if strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "Technical Program Manager") {
 		return `
 [
   {
