@@ -32,9 +32,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	fmt.Printf("[MockAgent] Received prompt (%d chars)\n", len(prompt))
+
 	// Check if this is a ticket generation request (based on prompt content or context)
 	// The smoke test sends a prompt with the app spec.
 	if strings.Contains(prompt, "app_spec.txt") || strings.Contains(prompt, "Technical Program Manager") {
+		fmt.Println("[MockAgent] Matched Ticket Generation Trigger")
 		// Return a valid JSON response for the ticket generator
 		return `[
   {
@@ -61,9 +64,15 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Check if this is the "Prime Python" scenario implementation phase
-	if strings.Contains(prompt, "primes.py") {
+	// Also check for [PRIMES] tag just in case
+	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
+		fmt.Println("[MockAgent] Matched Prime Python Trigger")
 		return "Here is the implementation for primes.py:\n\n```bash\ncat << 'EOF' > primes.py\nimport json\n\ndef is_prime(n):\n    if n <= 1: return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0: return False\n    return True\n\nprimes = [x for x in range(10000) if is_prime(x)]\nwith open('primes.json', 'w') as f:\n    json.dump({\"primes\": primes}, f)\nEOF\n\npython3 primes.py\ngit add primes.py\ngit add -f primes.json\ngit commit -m \"Add primes script and output\"\n```", nil
 	}
+
+	fmt.Println("[MockAgent] No trigger matched. Falling back to default response.")
+	// Debug: Print prompt snippet
+	fmt.Printf("[MockAgent] Prompt Snippet: %s\n", truncateString(prompt, 200))
 
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
