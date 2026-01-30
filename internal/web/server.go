@@ -8,8 +8,6 @@ import (
 	"net/http"
 	"recac/internal/db"
 	"recac/internal/runner"
-	"strings"
-	"sort"
 )
 
 //go:embed static/*
@@ -109,69 +107,5 @@ func (s *Server) handleGraph(w http.ResponseWriter, r *http.Request) {
 
 	// Generate Mermaid
 	w.Header().Set("Content-Type", "text/plain")
-	w.Write([]byte(generateMermaid(g)))
-}
-
-// generateMermaid matches the logic in cmd/recac/graph.go but reused here
-// Ideally we should refactor this into a shared package, but for now I'll duplicate to avoid
-// touching existing logic too much as per constraints, or I'll move it to `internal/runner` if I can.
-// Actually, `internal/runner/graph.go` is where I should have checked.
-// Since I can't easily move it without potentially breaking `cmd/recac/graph.go` (if I move it there),
-// I will just copy the helper here for now.
-func generateMermaid(g *runner.TaskGraph) string {
-	var sb strings.Builder
-	sb.WriteString("graph TD\n")
-
-	var nodes []*runner.TaskNode
-	for _, node := range g.Nodes {
-		nodes = append(nodes, node)
-	}
-	sort.Slice(nodes, func(i, j int) bool {
-		return nodes[i].ID < nodes[j].ID
-	})
-
-	for _, node := range nodes {
-		style := ""
-		switch node.Status {
-		case runner.TaskDone:
-			style = ":::done"
-		case runner.TaskInProgress:
-			style = ":::inprogress"
-		case runner.TaskFailed:
-			style = ":::failed"
-		case runner.TaskReady:
-			style = ":::ready"
-		default:
-			style = ":::pending"
-		}
-
-		safeID := sanitizeMermaidID(node.ID)
-		        		safeName := strings.ReplaceAll(node.Name, "\"", "'")
-		        		safeName = strings.ReplaceAll(safeName, "\n", " ")
-		if len(safeName) > 30 {
-			safeName = safeName[:27] + "..."
-		}
-
-		sb.WriteString(fmt.Sprintf("    %s[\"%s\"]%s\n", safeID, safeName, style))
-
-		for _, depID := range node.Dependencies {
-			safeDepID := sanitizeMermaidID(depID)
-			sb.WriteString(fmt.Sprintf("    %s --> %s\n", safeDepID, safeID))
-		}
-	}
-
-	sb.WriteString("\n    classDef done fill:#90EE90,stroke:#333,stroke-width:2px,color:black;\n")
-	sb.WriteString("    classDef inprogress fill:#87CEEB,stroke:#333,stroke-width:2px,color:black;\n")
-	sb.WriteString("    classDef failed fill:#FF6347,stroke:#333,stroke-width:2px,color:black;\n")
-	sb.WriteString("    classDef ready fill:#FFD700,stroke:#333,stroke-width:2px,color:black;\n")
-	sb.WriteString("    classDef pending fill:#D3D3D3,stroke:#333,stroke-width:1px,color:black;\n")
-
-	return sb.String()
-}
-
-func sanitizeMermaidID(id string) string {
-	id = strings.ReplaceAll(id, "-", "_")
-	id = strings.ReplaceAll(id, " ", "_")
-	id = strings.ReplaceAll(id, ".", "_")
-	return id
+	w.Write([]byte(runner.GenerateMermaid(g)))
 }

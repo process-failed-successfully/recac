@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"recac/internal/db"
 	"recac/internal/runner"
+	"recac/internal/utils"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -113,7 +114,7 @@ func TestGenerateMermaid(t *testing.T) {
 	// Set status
 	g.Nodes["node1"].Status = runner.TaskDone
 
-	out := generateMermaid(g)
+	out := runner.GenerateMermaid(g)
 	assert.Contains(t, out, "graph TD")
 	assert.Contains(t, out, "node1 --> node2")
 	assert.Contains(t, out, ":::done")
@@ -121,6 +122,6 @@ func TestGenerateMermaid(t *testing.T) {
 
 func TestSanitizeMermaidID(t *testing.T) {
 	id := "foo bar.baz-qux"
-	sanitized := sanitizeMermaidID(id)
+	sanitized := utils.SanitizeMermaidID(id)
 	assert.Equal(t, "foo_bar_baz_qux", sanitized)
 }
