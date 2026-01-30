@@ -270,11 +270,11 @@ func getReceiverTypeName(recv *ast.FieldList) string {
 }
 
 func resolveExternalCall(cg *CallGraph, importPath string, funcName string) string {
-	var candidates []string
-	for id, node := range cg.Nodes {
+	var candidates []*CallGraphNode
+	for _, node := range cg.Nodes {
 		if node.Name == funcName && node.Receiver == "" {
 			if strings.HasSuffix(importPath, node.Package) {
-				candidates = append(candidates, id)
+				candidates = append(candidates, node)
 			}
 		}
 	}
@@ -282,11 +282,18 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 		return ""
 	}
 	// Sort to ensure determinism
-	sort.Strings(candidates)
-	// Return the longest match if we were to implement that, but for now just the first sorted one
-	// Or maybe strict match if possible?
-	// The suffix check is loose.
-	return candidates[0]
+	sort.Slice(candidates, func(i, j int) bool {
+		return candidates[i].ID < candidates[j].ID
+	})
+
+	// Pick the one with longest Package path (best suffix match)
+	best := candidates[0]
+	for _, cand := range candidates {
+		if len(cand.Package) > len(best.Package) {
+			best = cand
+		}
+	}
+	return best.ID
 }
 
 func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {
