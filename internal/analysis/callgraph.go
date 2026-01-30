@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"io/fs"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -130,7 +131,15 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 	// Use map to prevent duplicates
 	edgeMap := make(map[string]bool)
 
-	for path, f := range parsedFiles {
+	// Sort files for deterministic iteration
+	var filePaths []string
+	for path := range parsedFiles {
+		filePaths = append(filePaths, path)
+	}
+	sort.Strings(filePaths)
+
+	for _, path := range filePaths {
+		f := parsedFiles[path]
 		pkgName := f.Name.Name
 		dir := filepath.Dir(path)
 		relDir, _ := filepath.Rel(root, dir)
@@ -266,17 +275,36 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 	// This is hard without knowing module name.
 	// But we can scan all nodes and check if Node.Package matches the end of ImportPath?
 
+	var candidates []string
+
 	for id, node := range cg.Nodes {
 		if node.Name == funcName && node.Receiver == "" {
 			// Check if importPath ends with node.Package
 			// node.Package might be "internal/utils"
 			// importPath might be "recac/internal/utils"
 			if strings.HasSuffix(importPath, node.Package) {
-				return id
+				candidates = append(candidates, id)
 			}
 		}
 	}
-	return ""
+
+	if len(candidates) == 0 {
+		return ""
+	}
+
+	// Sort candidates to find the best match
+	// Rule: Longest package path match first.
+	// Tie-breaker: Lexicographical order of ID.
+	sort.Slice(candidates, func(i, j int) bool {
+		nodeI := cg.Nodes[candidates[i]]
+		nodeJ := cg.Nodes[candidates[j]]
+		if len(nodeI.Package) != len(nodeJ.Package) {
+			return len(nodeI.Package) > len(nodeJ.Package)
+		}
+		return candidates[i] < candidates[j]
+	})
+
+	return candidates[0]
 }
 
 func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {

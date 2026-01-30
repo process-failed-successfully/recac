@@ -107,3 +107,73 @@ func internalFunc() {}
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
 }
+
+func TestGenerateCallGraph_AmbiguousPackages(t *testing.T) {
+	// Setup temporary directory with sample code
+	tmpDir := t.TempDir()
+
+	// 1. Create main.go
+	mainContent := `package main
+
+import (
+	"fmt"
+	"example.com/project/internal/pkg"
+)
+
+func main() {
+	pkg.Func()
+	fmt.Println("Done")
+}
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainContent), 0644)
+	require.NoError(t, err)
+
+	// 2. Create pkg/func.go (Ambiguous candidate)
+	pkgDir := filepath.Join(tmpDir, "pkg")
+	err = os.MkdirAll(pkgDir, 0755)
+	require.NoError(t, err)
+
+	pkgContent := `package pkg
+
+func Func() {}
+`
+	err = os.WriteFile(filepath.Join(pkgDir, "func.go"), []byte(pkgContent), 0644)
+	require.NoError(t, err)
+
+	// 3. Create internal/pkg/func.go (Correct target)
+	internalPkgDir := filepath.Join(tmpDir, "internal", "pkg")
+	err = os.MkdirAll(internalPkgDir, 0755)
+	require.NoError(t, err)
+
+	internalPkgContent := `package pkg
+
+func Func() {}
+`
+	err = os.WriteFile(filepath.Join(internalPkgDir, "func.go"), []byte(internalPkgContent), 0644)
+	require.NoError(t, err)
+
+	// Run Analysis
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Verify Edge from main to internal/pkg.Func, NOT pkg.Func
+	// IDs:
+	// main -> "internal/pkg.Func"
+
+	foundCorrectEdge := false
+	foundWrongEdge := false
+
+	for _, edge := range cg.Edges {
+		if edge.From == "main.main" {
+			if edge.To == "internal/pkg.Func" {
+				foundCorrectEdge = true
+			}
+			if edge.To == "pkg.Func" {
+				foundWrongEdge = true
+			}
+		}
+	}
+
+	assert.True(t, foundCorrectEdge, "Should link to internal/pkg.Func")
+	assert.False(t, foundWrongEdge, "Should NOT link to pkg.Func")
+}
