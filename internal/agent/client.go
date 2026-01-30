@@ -16,6 +16,8 @@ type BaseClient struct {
 	BackoffFn    func(int) time.Duration
 	// DefaultMaxTokens is the default context limit if not set in state
 	DefaultMaxTokens int
+	// MaxRetries is the maximum number of retries for API calls
+	MaxRetries int
 }
 
 // NewBaseClient creates a new BaseClient
@@ -23,8 +25,10 @@ func NewBaseClient(project string, defaultMaxTokens int) BaseClient {
 	return BaseClient{
 		Project:          project,
 		DefaultMaxTokens: defaultMaxTokens,
+		MaxRetries:       5,
 		BackoffFn: func(retry int) time.Duration {
-			return time.Duration(1<<uint(retry-1)) * time.Second
+			// Exponential backoff starting at 5s to handle strict rate limits (e.g., 8 RPM)
+			return time.Duration(1<<uint(retry-1)) * 5 * time.Second
 		},
 	}
 }
@@ -155,7 +159,10 @@ func (c *BaseClient) SendWithRetry(ctx context.Context, prompt string, sendOnce 
 		return "", err
 	}
 
-	maxRetries := 3
+	maxRetries := c.MaxRetries
+	if maxRetries == 0 {
+		maxRetries = 3
+	}
 	var lastErr error
 
 	for i := 0; i <= maxRetries; i++ {
@@ -197,7 +204,10 @@ func (c *BaseClient) SendStreamWithRetry(ctx context.Context, prompt string, sen
 	}
 
 	var fullResponse strings.Builder
-	maxRetries := 3
+	maxRetries := c.MaxRetries
+	if maxRetries == 0 {
+		maxRetries = 3
+	}
 	var lastErr error
 
 	for i := 0; i <= maxRetries; i++ {

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestOpenAIClient_HTTP_Success(t *testing.T) {
@@ -79,6 +80,7 @@ func TestOpenAIClient_HTTP_Errors(t *testing.T) {
 
 			client := NewOpenAIClient("test-key", "gpt-4", "test-project")
 			client.apiURL = server.URL + "/v1/chat/completions"
+			client.BackoffFn = func(i int) time.Duration { return 0 }
 
 			_, err := client.Send(context.Background(), "Hi")
 			if (err != nil) != tt.wantErr {
