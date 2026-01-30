@@ -281,11 +281,22 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 
 	for id, node := range cg.Nodes {
 		if node.Name == funcName && node.Receiver == "" {
-			// Check if importPath ends with node.Package
-			// node.Package might be "internal/utils"
-			// importPath might be "recac/internal/utils"
-			// Use suffix match
-			if strings.HasSuffix(importPath, node.Package) {
+			// Check if importPath matches node.Package
+			// We need strict suffix matching:
+			// importPath: "recac/internal/utils"
+			// node.Package: "internal/utils" -> MATCH
+			// node.Package: "utils" -> MATCH (if "recac/internal/utils")
+			// But check boundaries!
+			// If importPath is "example.com/smyth" and node.Package is "myth", it should NOT match.
+
+			pkg := node.Package
+			// 1. Exact match (e.g. import "fmt" vs node "fmt")
+			if importPath == pkg {
+				matches = append(matches, id)
+				continue
+			}
+			// 2. Suffix match with separator
+			if strings.HasSuffix(importPath, "/"+pkg) {
 				matches = append(matches, id)
 			}
 		}

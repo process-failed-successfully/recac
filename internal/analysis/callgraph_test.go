@@ -157,3 +157,44 @@ func main() {
 	}
 	assert.True(t, found, "Should resolve to sub/pkg.Func (longer match) instead of pkg.Func")
 }
+
+func TestResolveExternalCall_StrictSuffix(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// 1. Create myth/myth.go (package myth)
+	mythDir := filepath.Join(tmpDir, "myth")
+	err := os.MkdirAll(mythDir, 0755)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(mythDir, "myth.go"), []byte("package myth\nfunc Func() {}"), 0644)
+	require.NoError(t, err)
+
+	// 2. Main imports "example.com/smyth"
+	// Should NOT resolve to "myth"
+	mainContent := `package main
+import (
+	"fmt"
+	"example.com/smyth"
+)
+func main() {
+	smyth.Func()
+	fmt.Println("ok")
+}
+`
+	err = os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainContent), 0644)
+	require.NoError(t, err)
+
+	// Run Analysis
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	foundMyth := false
+
+	for _, edge := range cg.Edges {
+		// Strict check for internal node ID
+		if edge.To == "myth.Func" {
+			foundMyth = true
+		}
+	}
+
+	assert.False(t, foundMyth, "Should NOT resolve to myth.Func (false positive suffix match)")
+}
