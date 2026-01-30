@@ -32,7 +32,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
+	// We include a dummy command to prevent the "no-op" circuit breaker from tripping
+	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response.\n\nPrompt preview: %s...\n\n```bash\necho \"Mock agent processing iteration...\"\n```",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
 }
