@@ -33,6 +33,60 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Handle specific scenarios by inspecting the prompt
+
+	// Scenario: Initializer Agent (Sets up features)
+	if strings.Contains(prompt, "## YOUR ROLE - INITIALIZER AGENT") {
+		return `
+I'll set up the project.
+
+` + "```bash" + `
+cat << 'EOF' | agent-bridge import
+{
+  "project_name": "Primes Project",
+  "features": [
+    {
+      "id": "primes-script",
+      "description": "Write a python script that prints primes up to 100.",
+      "category": "functional",
+      "priority": "MVP",
+      "status": "pending",
+      "steps": ["Run python script", "Check output"]
+    }
+  ]
+}
+EOF
+
+cat << 'EOF' > init.sh
+#!/bin/bash
+echo "Initializing..."
+EOF
+chmod +x init.sh
+` + "```" + `
+`, nil
+	}
+
+	// Scenario: QA Agent
+	if strings.Contains(prompt, "## YOUR ROLE - QA AGENT") {
+		return `
+QA Passed.
+
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// Scenario: Manager Agent
+	if strings.Contains(prompt, "## YOUR ROLE - PROJECT MANAGER") {
+		return `
+Approved.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
+	}
+
 	// Scenario: Jira Ticket Generation (TPM Agent)
 	if strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "Technical Program Manager") {
 		return `{
@@ -90,6 +144,10 @@ def is_prime(n):
 for i in range(100):
     if is_prime(i):
         print(i)
+` + "```" + `
+
+` + "```bash" + `
+agent-bridge feature set primes-script --status implemented --passes true
 ` + "```" + `
 `, nil
 	}
