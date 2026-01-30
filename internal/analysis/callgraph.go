@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"io/fs"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -130,7 +131,15 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 	// Use map to prevent duplicates
 	edgeMap := make(map[string]bool)
 
-	for path, f := range parsedFiles {
+	// Sort files for determinism
+	var paths []string
+	for path := range parsedFiles {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+
+	for _, path := range paths {
+		f := parsedFiles[path]
 		pkgName := f.Name.Name
 		dir := filepath.Dir(path)
 		relDir, _ := filepath.Rel(root, dir)
@@ -261,22 +270,34 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 	// Import path is "recac/internal/foo".
 	// If we are running on "recac" repo, "internal/foo" matches.
 
-	// Normalize import path
-	// Remove module prefix if possible?
-	// This is hard without knowing module name.
-	// But we can scan all nodes and check if Node.Package matches the end of ImportPath?
+	var candidates []*CallGraphNode
 
-	for id, node := range cg.Nodes {
+	for _, node := range cg.Nodes {
 		if node.Name == funcName && node.Receiver == "" {
 			// Check if importPath ends with node.Package
 			// node.Package might be "internal/utils"
 			// importPath might be "recac/internal/utils"
 			if strings.HasSuffix(importPath, node.Package) {
-				return id
+				candidates = append(candidates, node)
 			}
 		}
 	}
-	return ""
+
+	if len(candidates) == 0 {
+		return ""
+	}
+
+	// Deterministic selection:
+	// 1. Sort by package length (descending) - longer match is likely better
+	// 2. Sort by ID (ascending) - stability
+	sort.Slice(candidates, func(i, j int) bool {
+		if len(candidates[i].Package) != len(candidates[j].Package) {
+			return len(candidates[i].Package) > len(candidates[j].Package)
+		}
+		return candidates[i].ID < candidates[j].ID
+	})
+
+	return candidates[0].ID
 }
 
 func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {
