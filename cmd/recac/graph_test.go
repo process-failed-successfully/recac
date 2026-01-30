@@ -171,3 +171,24 @@ func TestGraphCmd_LatestSession(t *testing.T) {
 	// 4. Verify Output (should use the latest session)
 	assert.Contains(t, output, `task_A["A"]:::done`)
 }
+
+func TestSanitizeMermaidID(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"simple", "simple"},
+		{"pkg.Func", "pkg_Func"},
+		{"pkg/path.Func", "pkg_path_Func"},
+		{"(Type).Method", "_Type__Method"},
+		{"internal/analysis.GenerateCallGraph", "internal_analysis_GenerateCallGraph"},
+		{"specialChars&*:", "specialChars___"},
+		{"quotes\"'", "quotes__"},
+		{"brackets[]", "brackets__"},
+	}
+
+	for _, tt := range tests {
+		actual := sanitizeMermaidID(tt.input)
+		assert.Equal(t, tt.expected, actual, "Input: %s", tt.input)
+	}
+}

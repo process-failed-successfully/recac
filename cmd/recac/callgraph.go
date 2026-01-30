@@ -134,6 +134,9 @@ func generateMermaidCallGraph(cg *analysis.CallGraph) string {
 		parts := strings.Split(label, "/")
 		label = parts[len(parts)-1]
 
+		// Escape quotes for Mermaid
+		label = strings.ReplaceAll(label, "\"", "'")
+
 		sb.WriteString(fmt.Sprintf("    %s[\"%s\"]\n", safeID, label))
 
 		// Style based on type
