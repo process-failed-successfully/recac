@@ -71,13 +71,13 @@ git push
 
 	// Jira Planning Scenario (Fallback)
 	// If it is a planning prompt, return a valid JSON structure if not handled elsewhere.
-	// The `recac` CLI often relies on heuristic parsing if the MockAgent just echoes.
-	// However, `cmd/recac/jira.go` expects a JSON list of tickets.
+	// The `cmd/recac/jira.go` expects a JSON list of tickets using the `ticketNode` struct.
+	// Fields: title, description, type, etc.
 	if isPlanningPrompt {
 		return `[
   {
-    "summary": "Implement Prime Number Script",
-    "description": "Create primes.py to calculate primes < 10000",
+    "title": "Implement Prime Number Script",
+    "description": "Create primes.py to calculate primes < 10000. Repo: https://github.com/example/repo",
     "type": "Task",
     "id": "PRIMES"
   }

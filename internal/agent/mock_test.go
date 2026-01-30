@@ -55,7 +55,7 @@ func TestMockAgent_Heuristics_PrimePython_Planning(t *testing.T) {
 	// Should return JSON, NOT code
 	assert.Contains(t, resp, "[")
 	assert.Contains(t, resp, "{")
-	assert.Contains(t, resp, "\"summary\"")
+	assert.Contains(t, resp, "\"title\"") // Updated expectation
 	assert.NotContains(t, resp, "cat << 'EOF' > primes.py")
 }
 
