@@ -3,6 +3,7 @@ package analysis
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -106,4 +107,63 @@ func internalFunc() {}
 	assert.True(t, foundMainToHelper, "Missing edge: main -> Helper")
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
+}
+
+func TestResolveExternalCall_Ambiguous(t *testing.T) {
+	// Setup tmp dir
+	tmpDir := t.TempDir()
+
+	// 1. Create main.go
+	mainContent := `package main
+import (
+    "recac/pkg/foo"
+)
+func main() {
+    foo.Do()
+}
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainContent), 0644)
+	require.NoError(t, err)
+
+	// 2. Create pkg/foo/foo.go (longer path)
+	err = os.MkdirAll(filepath.Join(tmpDir, "pkg", "foo"), 0755)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tmpDir, "pkg", "foo", "foo.go"), []byte(`package foo
+func Do() {}
+`), 0644)
+	require.NoError(t, err)
+
+	// 3. Create foo/foo.go (shorter path, also package foo)
+	err = os.MkdirAll(filepath.Join(tmpDir, "foo"), 0755)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tmpDir, "foo", "foo.go"), []byte(`package foo
+func Do() {}
+`), 0644)
+	require.NoError(t, err)
+
+	// Generate Graph
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Identify the call from main
+	var edge *CallGraphEdge
+	for _, e := range cg.Edges {
+		if strings.Contains(e.From, "main") && strings.HasSuffix(e.To, ".Do") {
+			v := e // copy loop var
+			edge = &v
+			break
+		}
+	}
+	require.NotNil(t, edge, "Should find edge from main to foo.Do")
+
+	// The import is "recac/pkg/foo".
+	// "pkg/foo" (pkg.foo) matches.
+	// "foo" (foo) matches suffix too if we just check suffix "foo".
+
+	// "recac/pkg/foo" ends with "pkg/foo".
+	// "recac/pkg/foo" ends with "foo".
+
+	// Since we prioritize longer package match, it should pick "pkg/foo.Do".
+
+	assert.Equal(t, "pkg/foo.Do", edge.To)
 }
