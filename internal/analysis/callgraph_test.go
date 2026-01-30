@@ -157,3 +157,60 @@ func main() {
 	}
 	assert.True(t, found, "Should resolve to sub/pkg.Func (longer match) instead of pkg.Func")
 }
+
+func TestResolveExternalCall_StrictSuffix(t *testing.T) {
+	// Verifies that partial suffix matches (e.g. "foopkg" matching "pkg") are avoided.
+	tmpDir := t.TempDir()
+
+	// 1. Create pkg/func.go (package pkg)
+	pkgDir := filepath.Join(tmpDir, "pkg")
+	err := os.MkdirAll(pkgDir, 0755)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(pkgDir, "func.go"), []byte("package pkg\nfunc Func() {}"), 0644)
+	require.NoError(t, err)
+
+	// 2. Create foopkg/func.go (package foopkg)
+	fooPkgDir := filepath.Join(tmpDir, "foopkg")
+	err = os.MkdirAll(fooPkgDir, 0755)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(fooPkgDir, "func.go"), []byte("package foopkg\nfunc Func() {}"), 0644)
+	require.NoError(t, err)
+
+	// 3. Create main.go calling foopkg
+	// Should resolve to foopkg.Func, NOT pkg.Func
+	mainContent := `package main
+import (
+	"fmt"
+	"example.com/foopkg"
+)
+func main() {
+	foopkg.Func()
+	fmt.Println("ok")
+}
+`
+	err = os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainContent), 0644)
+	require.NoError(t, err)
+
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Verify edge main.main -> foopkg.Func
+	found := false
+	for _, edge := range cg.Edges {
+		if edge.From == "main.main" && edge.To == "foopkg.Func" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "Should resolve to foopkg.Func")
+
+	// Verify NO edge to pkg.Func
+	foundWrong := false
+	for _, edge := range cg.Edges {
+		if edge.To == "pkg.Func" {
+			foundWrong = true
+			break
+		}
+	}
+	assert.False(t, foundWrong, "Should NOT resolve to pkg.Func (partial suffix match)")
+}
