@@ -107,3 +107,34 @@ func internalFunc() {}
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
 }
+
+func TestResolveExternalCall_Determinism(t *testing.T) {
+	// Setup a CallGraph with ambiguous packages
+	cg := &CallGraph{
+		Nodes: make(map[string]*CallGraphNode),
+	}
+
+	// Node 1: pkg/utils.Helper
+	cg.Nodes["pkg/utils.Helper"] = &CallGraphNode{
+		ID:      "pkg/utils.Helper",
+		Package: "pkg/utils",
+		Name:    "Helper",
+	}
+
+	// Node 2: internal/pkg/utils.Helper
+	cg.Nodes["internal/pkg/utils.Helper"] = &CallGraphNode{
+		ID:      "internal/pkg/utils.Helper",
+		Package: "internal/pkg/utils",
+		Name:    "Helper",
+	}
+
+	importPath := "github.com/example/repo/internal/pkg/utils"
+	funcName := "Helper"
+
+	// We want it to match "internal/pkg/utils" (Longer match)
+	expectedID := "internal/pkg/utils.Helper"
+
+	id := resolveExternalCall(cg, importPath, funcName)
+
+	assert.Equal(t, expectedID, id, "Should resolve to the longest suffix match")
+}
