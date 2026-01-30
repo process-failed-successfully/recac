@@ -85,7 +85,10 @@ func indexDeclarations(root string, fset *token.FileSet, cg *CallGraph) (map[str
 		dir := filepath.Dir(path)
 
 		// Approximate full package path
-		relDir, _ := filepath.Rel(root, dir)
+		relDir, err := filepath.Rel(root, dir)
+		if err != nil {
+			relDir = "."
+		}
 		// Fix for Rel returning error or .. if root is absolute and dir is not or vice versa
 		// But here we walk root so it should be fine.
 		// Handling "." case
@@ -154,7 +157,10 @@ func resolveCalls(root string, parsedFiles map[string]*ast.File, fileImports map
 		f := parsedFiles[path]
 		pkgName := f.Name.Name
 		dir := filepath.Dir(path)
-		relDir, _ := filepath.Rel(root, dir)
+		relDir, err := filepath.Rel(root, dir)
+		if err != nil {
+			relDir = "."
+		}
 		fullPkg := relDir
 		if relDir == "." {
 			fullPkg = pkgName
