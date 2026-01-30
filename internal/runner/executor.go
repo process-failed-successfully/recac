@@ -17,15 +17,31 @@ import (
 	"github.com/spf13/viper"
 )
 
-var bashBlockRegex = regexp.MustCompile("(?i)(?s)```bash\\s*(.*?)\\s*```")
+// Bash regex that handles potential leading newlines and case insensitivity
+var bashBlockRegex = regexp.MustCompile("(?i)(?s)```bash\\s+(.*?)\\s*```")
 
 // ProcessResponse parses the agent response for commands, executes them, and handles blockers.
 func (s *Session) ProcessResponse(ctx context.Context, response string) (string, error) {
 	// 1. Extract Bash Blocks (More robust regex to handle variations in LLM output)
 	matches := bashBlockRegex.FindAllStringSubmatch(response, -1)
 
+	// If standard regex fails, try a fallback for when the LLM forgets the language tag
 	if len(matches) == 0 {
-		s.Logger.Info("no command blocks found in response", "response_preview", response[:min(len(response), 500)])
+		// Fallback: match generic code blocks if they look like commands
+		fallbackRegex := regexp.MustCompile("(?s)```\\s*(.*?)\\s*```")
+		genericMatches := fallbackRegex.FindAllStringSubmatch(response, -1)
+		for _, m := range genericMatches {
+			content := strings.TrimSpace(m[1])
+			// Simple heuristic: if it contains "git " or "cat ", treat as bash
+			if strings.Contains(content, "git ") || strings.Contains(content, "cat ") || strings.Contains(content, "echo ") {
+				matches = append(matches, m)
+			}
+		}
+	}
+
+	if len(matches) == 0 {
+		// Log detailed debug info if we still find nothing
+		s.Logger.Info("no command blocks found in response", "response_len", len(response), "response_preview", response[:min(len(response), 500)])
 	}
 
 	// Safety valve: Prevent LLM loops from flooding the execution
