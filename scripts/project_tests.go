@@ -26,7 +26,7 @@ func main() {
 	}
 	model := os.Getenv("RECAC_MODEL")
 	if model == "" {
-		model = "nvidia/llama-3.1-nemotron-70b-instruct:free"
+		model = "openai/gpt-4o-mini"
 	}
 
 	fmt.Printf("Starting Project Verification Suite...\n")

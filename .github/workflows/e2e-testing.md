@@ -25,7 +25,7 @@ Credentials:
 .env has them
 
 Provider settings:
---provider openrouter --model "nvidia/llama-3.1-nemotron-70b-instruct:free"
+--provider openrouter --model "openai/gpt-4o-mini"
 This is a free token so use large iteration counts.
 
 Github:

@@ -69,7 +69,7 @@ Determine default model based on provider if not explicitly set
 {{- .Values.config.model }}
 {{- else }}
 {{- if eq .Values.config.provider "openrouter" }}
-{{- "nvidia/llama-3.1-nemotron-70b-instruct:free" }}
+{{- "openai/gpt-4o-mini" }}
 {{- else if eq .Values.config.provider "gemini" }}
 {{- "gemini-pro" }}
 {{- else if eq .Values.config.provider "openai" }}
