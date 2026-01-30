@@ -281,7 +281,9 @@ func generateTickets(ctx context.Context, specContent, projectKey, repoURL strin
 	}
 
 	// Handle Mock Agent Response (CI/Testing)
-	if strings.HasPrefix(resp, "Mock agent response") {
+	// The mock agent might return a generic response or a specific script solution (if it detects keywords).
+	// In either case, for the TPM phase, we need a ticket plan, not a script.
+	if strings.HasPrefix(resp, "Mock agent response") || strings.HasPrefix(resp, "Mock Agent:") {
 		fmt.Println("Detected Mock Agent response. Using dummy ticket plan for testing.")
 		// Return a generic plan that satisfies most basic E2E scenarios (like prime-python)
 		resp = `[
