@@ -19,6 +19,11 @@ type OpenRouterClient struct {
 
 // NewOpenRouterClient creates a new OpenRouter client
 func NewOpenRouterClient(apiKey, model, project string) *OpenRouterClient {
+	// Fallback for deprecated model
+	if model == "mistralai/devstral-2512:free" {
+		model = "nvidia/llama-3.1-nemotron-70b-instruct:free"
+	}
+
 	return &OpenRouterClient{
 		BaseClient: NewBaseClient(project, 128000), // Default generic limit
 		apiKey:     apiKey,
