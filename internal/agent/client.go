@@ -155,13 +155,33 @@ func (c *BaseClient) SendWithRetry(ctx context.Context, prompt string, sendOnce 
 		return "", err
 	}
 
+	// Dynamic retry limit based on error type
 	maxRetries := 3
 	var lastErr error
 
 	for i := 0; i <= maxRetries; i++ {
 		if i > 0 {
 			waitTime := c.BackoffFn(i)
-			telemetry.LogInfo("Retrying agent call", "project", c.Project, "retry", i, "wait", waitTime, "error", lastErr)
+
+			// Detect rate limit errors
+			isRateLimit := lastErr != nil && strings.Contains(lastErr.Error(), "API returned status 429")
+			if isRateLimit {
+				// Increase retry count for rate limits if we haven't already
+				if maxRetries < 10 {
+					maxRetries = 10
+				}
+				// More aggressive backoff for 429s (minimum 5s, exponential)
+				// For i=1: 5s, i=2: 10s, i=3: 20s, i=4: 40s, i=5+: 60s
+				waitSecs := 5 * (1 << uint(i-1))
+				if waitSecs > 60 {
+					waitSecs = 60
+				}
+				waitTime = time.Duration(waitSecs) * time.Second
+				telemetry.LogInfo("Rate limit hit (429), backing off", "project", c.Project, "retry", i, "wait", waitTime)
+			} else {
+				telemetry.LogInfo("Retrying agent call", "project", c.Project, "retry", i, "wait", waitTime, "error", lastErr)
+			}
+
 			select {
 			case <-time.After(waitTime):
 			case <-ctx.Done():
@@ -197,13 +217,32 @@ func (c *BaseClient) SendStreamWithRetry(ctx context.Context, prompt string, sen
 	}
 
 	var fullResponse strings.Builder
+	// Dynamic retry limit based on error type
 	maxRetries := 3
 	var lastErr error
 
 	for i := 0; i <= maxRetries; i++ {
 		if i > 0 {
 			waitTime := c.BackoffFn(i)
-			telemetry.LogInfo("Retrying agent call", "project", c.Project, "retry", i, "wait", waitTime, "error", lastErr)
+
+			// Detect rate limit errors
+			isRateLimit := lastErr != nil && strings.Contains(lastErr.Error(), "API returned status 429")
+			if isRateLimit {
+				// Increase retry count for rate limits if we haven't already
+				if maxRetries < 10 {
+					maxRetries = 10
+				}
+				// More aggressive backoff for 429s (minimum 5s, exponential)
+				waitSecs := 5 * (1 << uint(i-1))
+				if waitSecs > 60 {
+					waitSecs = 60
+				}
+				waitTime = time.Duration(waitSecs) * time.Second
+				telemetry.LogInfo("Rate limit hit (429), backing off", "project", c.Project, "retry", i, "wait", waitTime)
+			} else {
+				telemetry.LogInfo("Retrying agent call", "project", c.Project, "retry", i, "wait", waitTime, "error", lastErr)
+			}
+
 			select {
 			case <-time.After(waitTime):
 			case <-ctx.Done():

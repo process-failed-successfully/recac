@@ -125,6 +125,20 @@ func TestBaseClient_SendWithRetry(t *testing.T) {
 		assert.Equal(t, "", resp)
 		assert.Equal(t, 4, calls) // Initial + 3 retries
 	})
+
+	t.Run("Rate Limit Retry", func(t *testing.T) {
+		calls := 0
+		resp, err := client.SendWithRetry(context.Background(), "prompt", func(ctx context.Context, p string) (string, error) {
+			calls++
+			if calls < 5 {
+				return "", errors.New("API returned status 429: Rate limit exceeded")
+			}
+			return "response", nil
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, "response", resp)
+		assert.Equal(t, 5, calls) // It should retry more than 3 times
+	})
 }
 
 func TestBaseClient_SendStreamWithRetry(t *testing.T) {
