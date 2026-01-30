@@ -287,7 +287,7 @@ jobs:
             if go run e2e/runner/main.go \
               -scenario prime-python \
               -provider openrouter \
-              -model "mistralai/devstral-2512:free" \
+              -model "google/gemini-2.0-flash-lite-preview-02-05:free" \
               -image recac:smoke \
               -repo-url "https://github.com/process-failed-successfully/recac-jira-e2e" \
               -pull-policy IfNotPresent \
@@ -297,8 +297,8 @@ jobs:
             fi
             echo "Attempt $((i+1)) failed."
             if [ $i -lt $RETRIES ]; then
-              echo "Retrying in 10 seconds..."
-              sleep 10
+              echo "Retrying in 30 seconds..."
+              sleep 30
             fi
           done
           echo "All attempts failed."
