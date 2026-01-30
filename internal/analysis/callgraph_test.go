@@ -157,3 +157,45 @@ func main() {
 	}
 	assert.True(t, found, "Should resolve to sub/pkg.Func (longer match) instead of pkg.Func")
 }
+
+func TestResolveExternalCall_StrictSuffix(t *testing.T) {
+	// Verifies that partial suffix matches (without separator) are ignored.
+	tmpDir := t.TempDir()
+
+	// 1. Create pkg/func.go (path: pkg)
+	pkgDir := filepath.Join(tmpDir, "pkg")
+	err := os.MkdirAll(pkgDir, 0755)
+	require.NoError(t, err)
+
+	err = os.WriteFile(filepath.Join(pkgDir, "func.go"), []byte("package pkg\nfunc Func() {}"), 0644)
+	require.NoError(t, err)
+
+	// 2. Create main.go calling "otherpkg".
+	// We want to verify it DOES NOT resolve to "pkg.Func" just because "pkg" is a suffix of "otherpkg".
+	mainContent := `package main
+import (
+	"fmt"
+	"example.com/otherpkg"
+)
+func main() {
+	otherpkg.Func()
+	fmt.Println("ok")
+}
+`
+	err = os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainContent), 0644)
+	require.NoError(t, err)
+
+	// Run Analysis
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Check edge from main.main -> otherpkg.Func (External)
+	// It should NOT be pkg.Func (Internal)
+	foundInternal := false
+	for _, edge := range cg.Edges {
+		if edge.To == "pkg.Func" {
+			foundInternal = true
+		}
+	}
+	assert.False(t, foundInternal, "Should NOT resolve to internal pkg.Func for import example.com/otherpkg")
+}
