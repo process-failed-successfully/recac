@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,6 +31,36 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// Smart Mock for Primes Smoke Test
+	// If the prompt asks for a python script for primes, return a working solution.
+	// This enables deterministic smoke testing in CI without external API dependencies.
+	lowerPrompt := strings.ToLower(prompt)
+	if strings.Contains(lowerPrompt, "primes") && strings.Contains(lowerPrompt, "python") {
+		return `Here is the solution for the primes task:
+
+` + "```bash" + `
+cat << 'EOF' > primes.py
+import json
+
+primes = []
+is_prime = [True] * 10000
+for p in range(2, 10000):
+    if is_prime[p]:
+        primes.append(p)
+        for i in range(p * p, 10000, p):
+            is_prime[i] = False
+
+with open('primes.json', 'w') as f:
+    json.dump({'primes': primes}, f)
+EOF
+
+python3 primes.py
+git add primes.py primes.json
+` + "```" + `
+`, nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
