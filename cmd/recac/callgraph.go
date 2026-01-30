@@ -3,11 +3,12 @@ package main
 import (
 	"fmt"
 	"os"
-	"recac/internal/analysis"
 	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"recac/internal/analysis"
 )
 
 var (
