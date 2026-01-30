@@ -55,6 +55,7 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 		DBStore:          store,
 		Project:          "ui-test-project",
 		MaxIterations:    5, // Ensure it exits even if logic fails
+		SkipQA:           true,
 	}
 
 	// 6. Capture Stdout? (Hard to do in test without refactor).
