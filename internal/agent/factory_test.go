@@ -32,6 +32,15 @@ func TestNewAgent(t *testing.T) {
 		t.Errorf("expected *OllamaClient, got %T", a)
 	}
 
+	// Test Mock
+	a, err = NewAgent("mock", "", "", "", "test-project")
+	if err != nil {
+		t.Fatalf("failed to create mock agent: %v", err)
+	}
+	if _, ok := a.(*MockAgent); !ok {
+		t.Errorf("expected *MockAgent, got %T", a)
+	}
+
 	// Test Unknown
 	_, err = NewAgent("unknown", "key", "model", "", "test-project")
 	if err == nil {
