@@ -18,6 +18,8 @@
         th, td { text-align: left; padding: 12px; border-bottom: 1px solid #ddd; }
         th { background-color: #f8f9fa; }
         #graph { width: 100%; height: 500px; border: 1px solid #ddd; background: white; overflow: hidden; }
+        .empty-state { text-align: center; padding: 40px; color: #666; }
+        .empty-icon { font-size: 2em; margin-bottom: 10px; display: block; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
 </head>
@@ -56,6 +58,10 @@
         mermaid.initialize({ startOnLoad: false });
 
         async function loadData() {
+            // Loading state
+            document.querySelector('#features-table tbody').innerHTML =
+                '<tr><td colspan="4" class="empty-state">Loading features...</td></tr>';
+
             try {
                 // Fetch Features
                 const featuresResp = await fetch('/api/features');
@@ -76,6 +82,22 @@
         function renderFeatures(features) {
             const tbody = document.querySelector('#features-table tbody');
             tbody.innerHTML = '';
+
+            if (!features || features.length === 0) {
+                const tr = document.createElement('tr');
+                const td = document.createElement('td');
+                td.colSpan = 4;
+                td.className = 'empty-state';
+                td.innerHTML = `
+                    <span class="empty-icon">📋</span>
+                    <h3>No features found</h3>
+                    <p>Create a Jira ticket or a spec file to get started.</p>
+                `;
+                tr.appendChild(td);
+                tbody.appendChild(tr);
+                return;
+            }
+
             features.forEach(f => {
                 const tr = document.createElement('tr');
                 let statusClass = 'status-pending';
