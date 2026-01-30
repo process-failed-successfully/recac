@@ -141,9 +141,18 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build Agent Image for Tests
-        run: |
-          docker build -t recac-agent:latest -f internal/docker/agent.Dockerfile .
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: internal/docker/agent.Dockerfile
+          tags: recac-agent:latest
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Test Shard ${{ matrix.shard }}
         run: |

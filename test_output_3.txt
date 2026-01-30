@@ -253,3 +253,5 @@ Agent Factory: Corrected OpenRouter model from mixtral-8x7b to mistralai/mixtral
 2026/01/30 10:58:31 INFO Retrying agent call project=test-project retry=4 wait=16s error="API key is required"
 2026/01/30 10:58:47 INFO Retrying agent call project=test-project retry=5 wait=32s error="API key is required"
 2026/01/30 10:59:19 INFO Retrying agent call project=test-project retry=6 wait=1m4s error="API key is required"
+2026/01/30 11:10:27 INFO Retrying agent call project=test-project retry=7 wait=2m8s error="API key is required"
+2026/01/30 11:12:35 INFO Retrying agent call project=test-project retry=8 wait=4m16s error="API key is required"
