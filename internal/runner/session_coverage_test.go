@@ -24,35 +24,51 @@ type CoverageMockDockerClient struct {
 }
 
 func (m *CoverageMockDockerClient) CheckDaemon(ctx context.Context) error {
-	if m.CheckDaemonFunc != nil { return m.CheckDaemonFunc(ctx) }
+	if m.CheckDaemonFunc != nil {
+		return m.CheckDaemonFunc(ctx)
+	}
 	return nil
 }
 func (m *CoverageMockDockerClient) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, user string) (string, error) {
-	if m.RunContainerFunc != nil { return m.RunContainerFunc(ctx, imageRef, workspace, extraBinds, env, user) }
+	if m.RunContainerFunc != nil {
+		return m.RunContainerFunc(ctx, imageRef, workspace, extraBinds, env, user)
+	}
 	return "mock-container-id", nil
 }
 func (m *CoverageMockDockerClient) StopContainer(ctx context.Context, containerID string) error {
-	if m.StopContainerFunc != nil { return m.StopContainerFunc(ctx, containerID) }
+	if m.StopContainerFunc != nil {
+		return m.StopContainerFunc(ctx, containerID)
+	}
 	return nil
 }
 func (m *CoverageMockDockerClient) Exec(ctx context.Context, containerID string, cmd []string) (string, error) {
-	if m.ExecFunc != nil { return m.ExecFunc(ctx, containerID, cmd) }
+	if m.ExecFunc != nil {
+		return m.ExecFunc(ctx, containerID, cmd)
+	}
 	return "", nil
 }
 func (m *CoverageMockDockerClient) ExecAsUser(ctx context.Context, containerID string, user string, cmd []string) (string, error) {
-	if m.ExecAsUserFunc != nil { return m.ExecAsUserFunc(ctx, containerID, user, cmd) }
+	if m.ExecAsUserFunc != nil {
+		return m.ExecAsUserFunc(ctx, containerID, user, cmd)
+	}
 	return "", nil
 }
 func (m *CoverageMockDockerClient) ImageExists(ctx context.Context, tag string) (bool, error) {
-	if m.ImageExistsFunc != nil { return m.ImageExistsFunc(ctx, tag) }
+	if m.ImageExistsFunc != nil {
+		return m.ImageExistsFunc(ctx, tag)
+	}
 	return true, nil
 }
 func (m *CoverageMockDockerClient) ImageBuild(ctx context.Context, opts docker.ImageBuildOptions) (string, error) {
-	if m.ImageBuildFunc != nil { return m.ImageBuildFunc(ctx, opts) }
+	if m.ImageBuildFunc != nil {
+		return m.ImageBuildFunc(ctx, opts)
+	}
 	return "mock-image-id", nil
 }
 func (m *CoverageMockDockerClient) PullImage(ctx context.Context, imageRef string) error {
-	if m.PullImageFunc != nil { return m.PullImageFunc(ctx, imageRef) }
+	if m.PullImageFunc != nil {
+		return m.PullImageFunc(ctx, imageRef)
+	}
 	return nil
 }
 
