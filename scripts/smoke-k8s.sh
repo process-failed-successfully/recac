@@ -56,7 +56,7 @@ helm upgrade --install recac ./deploy/helm/recac \
     --set config.interval=10s \
     --set config.max_iterations=10 \
     --set config.provider=openrouter \
-    --set config.model="meta-llama/llama-3.3-70b-instruct:free" \
+    --set config.model="google/gemma-3-12b-it:free" \
     --set config.jiraUrl="$JIRA_URL" \
     --set config.jiraUsername="$JIRA_USERNAME" \
     --set secrets.openrouterApiKey="$OPENROUTER_API_KEY" \

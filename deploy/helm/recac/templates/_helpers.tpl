@@ -69,7 +69,7 @@ Determine default model based on provider if not explicitly set
 {{- .Values.config.model }}
 {{- else }}
 {{- if eq .Values.config.provider "openrouter" }}
-{{- "meta-llama/llama-3.3-70b-instruct:free" }}
+{{- "google/gemma-3-12b-it:free" }}
 {{- else if eq .Values.config.provider "gemini" }}
 {{- "gemini-pro" }}
 {{- else if eq .Values.config.provider "openai" }}
