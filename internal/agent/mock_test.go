@@ -28,7 +28,7 @@ func TestMockAgent_Send(t *testing.T) {
 	agent.SetResponse("")
 }
 
-func TestMockAgent_Heuristics_PrimePython(t *testing.T) {
+func TestMockAgent_Heuristics_PrimePython_Coding(t *testing.T) {
 	agent := NewMockAgent()
 
 	prompt := "Create a python script named 'primes.py' that calculates prime numbers"
@@ -42,6 +42,21 @@ func TestMockAgent_Heuristics_PrimePython(t *testing.T) {
 
 	// Ensure the script content is present and looks correct
 	assert.True(t, strings.Contains(resp, "range(10000)"), "Script should loop to 10000")
+}
+
+func TestMockAgent_Heuristics_PrimePython_Planning(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Simulating a planning prompt which contains the description but asks for tickets
+	prompt := "You are a Technical Program Manager. Break down the following requirement into Jira tickets: Create a python script named 'primes.py' that calculates prime numbers."
+	resp, err := agent.Send(context.Background(), prompt)
+	require.NoError(t, err)
+
+	// Should return JSON, NOT code
+	assert.Contains(t, resp, "[")
+	assert.Contains(t, resp, "{")
+	assert.Contains(t, resp, "\"summary\"")
+	assert.NotContains(t, resp, "cat << 'EOF' > primes.py")
 }
 
 func TestTruncateString(t *testing.T) {

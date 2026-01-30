@@ -35,8 +35,14 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristics for E2E scenarios
 	lowerPrompt := strings.ToLower(prompt)
 
-	// Prime Python Scenario
-	if strings.Contains(lowerPrompt, "primes.py") || strings.Contains(lowerPrompt, "prime number") {
+	// Jira Planning Prompt Check
+	// If the prompt is asking for a plan (TPM role), we must return JSON, not code.
+	isPlanningPrompt := strings.Contains(lowerPrompt, "technical program manager") ||
+		strings.Contains(lowerPrompt, "create a set of jira tickets")
+
+	// Prime Python Scenario (Coding Phase)
+	// Only trigger if it's NOT a planning prompt
+	if !isPlanningPrompt && (strings.Contains(lowerPrompt, "primes.py") || strings.Contains(lowerPrompt, "prime number")) {
 		return `Here is the python script to calculate primes:
 
 ` + "```bash" + `
@@ -61,6 +67,21 @@ git commit -m "Add primes script"
 git push
 ` + "```" + `
 `, nil
+	}
+
+	// Jira Planning Scenario (Fallback)
+	// If it is a planning prompt, return a valid JSON structure if not handled elsewhere.
+	// The `recac` CLI often relies on heuristic parsing if the MockAgent just echoes.
+	// However, `cmd/recac/jira.go` expects a JSON list of tickets.
+	if isPlanningPrompt {
+		return `[
+  {
+    "summary": "Implement Prime Number Script",
+    "description": "Create primes.py to calculate primes < 10000",
+    "type": "Task",
+    "id": "PRIMES"
+  }
+]`, nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
