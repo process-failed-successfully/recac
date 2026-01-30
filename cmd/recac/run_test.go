@@ -130,7 +130,7 @@ func TestRunCmd_Failure_CallsAI(t *testing.T) {
 	output, err := executeCommand(rootCmd, "run", "fail_cmd")
 
 	// Assertions
-	require.Error(t, err) // It should return an error
+	require.Error(t, err)                                       // It should return an error
 	assert.Contains(t, output, "Partial output before failure") // Stdout should be captured
 	// assert.Contains(t, output, "Command failed with error") // Stderr capture in main output seems flaky in test env, but verified in prompt below
 	assert.Contains(t, output, "Asking AI for help")

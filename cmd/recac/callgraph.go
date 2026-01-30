@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"recac/internal/analysis"
+	"recac/internal/utils"
 	"sort"
 	"strings"
 
@@ -61,7 +62,7 @@ func filterGraph(cg *analysis.CallGraph, focus string) *analysis.CallGraph {
 
 	for id, node := range cg.Nodes {
 		if strings.Contains(strings.ToLower(id), strings.ToLower(focus)) ||
-		   strings.Contains(strings.ToLower(node.Name), strings.ToLower(focus)) {
+			strings.Contains(strings.ToLower(node.Name), strings.ToLower(focus)) {
 			relevantNodes[id] = true
 		}
 	}
@@ -121,7 +122,7 @@ func generateMermaidCallGraph(cg *analysis.CallGraph) string {
 	for _, id := range nodeIDs {
 		node := cg.Nodes[id]
 		// Sanitize ID for Mermaid
-		safeID := sanitizeMermaidID(id)
+		safeID := utils.SanitizeMermaidID(id)
 
 		// Label: "Pkg.Func" or "(Type).Method"
 		label := node.ID
@@ -147,8 +148,8 @@ func generateMermaidCallGraph(cg *analysis.CallGraph) string {
 	})
 
 	for _, edge := range cg.Edges {
-		safeFrom := sanitizeMermaidID(edge.From)
-		safeTo := sanitizeMermaidID(edge.To)
+		safeFrom := utils.SanitizeMermaidID(edge.From)
+		safeTo := utils.SanitizeMermaidID(edge.To)
 
 		sb.WriteString(fmt.Sprintf("    %s --> %s\n", safeFrom, safeTo))
 	}
