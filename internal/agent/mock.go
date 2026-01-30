@@ -36,22 +36,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// This enables deterministic smoke testing in CI without external API dependencies.
 	lowerPrompt := strings.ToLower(prompt)
 
-	// 1. Ticket Generation Phase: Return JSON Plan
-	// We identify this phase by the unique instruction in the AppSpec
-	if strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "create exactly ONE ticket") {
-		return `
-[
-  {
-    "title": "ID:[PRIMES] Create Prime Number Script",
-    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.",
-    "type": "Task"
-  }
-]
-`, nil
-	}
-
-	// 2. Implementation Phase: Return Python Script
-	// We identify this phase by the requirement for a bash block
+	// 1. Implementation Phase: Return Python Script
+	// We check this FIRST because the implementation prompt might also contain the AppSpec (context),
+	// so we need to prioritize the "bash block" instruction which is specific to implementation.
 	if strings.Contains(lowerPrompt, "primes") && strings.Contains(lowerPrompt, "python") && strings.Contains(lowerPrompt, "bash block") {
 		return `Here is the solution for the primes task:
 
@@ -74,6 +61,21 @@ EOF
 python3 primes.py
 git add primes.py primes.json
 ` + "```" + `
+`, nil
+	}
+
+	// 2. Ticket Generation Phase: Return JSON Plan
+	// We identify this phase by the unique instruction in the AppSpec.
+	// Since we already checked for implementation, this will only trigger during planning.
+	if strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "create exactly ONE ticket") {
+		return `
+[
+  {
+    "title": "ID:[PRIMES] Create Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.",
+    "type": "Task"
+  }
+]
 `, nil
 	}
 
