@@ -24,7 +24,9 @@ func NewBaseClient(project string, defaultMaxTokens int) BaseClient {
 		Project:          project,
 		DefaultMaxTokens: defaultMaxTokens,
 		BackoffFn: func(retry int) time.Duration {
-			return time.Duration(1<<uint(retry-1)) * time.Second
+			// Exponential backoff: 2s, 4s, 8s, 16s, 32s...
+			// With 10 retries, this covers significant outages/rate limits.
+			return time.Duration(1<<uint(retry)) * time.Second
 		},
 	}
 }
@@ -155,7 +157,8 @@ func (c *BaseClient) SendWithRetry(ctx context.Context, prompt string, sendOnce 
 		return "", err
 	}
 
-	maxRetries := 3
+	// Increased retries to handle rate limits on free tier models
+	maxRetries := 10
 	var lastErr error
 
 	for i := 0; i <= maxRetries; i++ {
@@ -177,6 +180,9 @@ func (c *BaseClient) SendWithRetry(ctx context.Context, prompt string, sendOnce 
 			return result, nil
 		}
 
+		// Optimization: Check for fatal errors that shouldn't be retried?
+		// For now, we assume most errors in this context (network, 5xx, 429) are retryable.
+		// 400 (Bad Request) might not be, but identifying it requires parsing the error string or error type.
 		lastErr = err
 	}
 
@@ -197,7 +203,8 @@ func (c *BaseClient) SendStreamWithRetry(ctx context.Context, prompt string, sen
 	}
 
 	var fullResponse strings.Builder
-	maxRetries := 3
+	// Increased retries for streaming as well
+	maxRetries := 10
 	var lastErr error
 
 	for i := 0; i <= maxRetries; i++ {
