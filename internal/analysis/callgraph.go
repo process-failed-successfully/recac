@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"io/fs"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -73,7 +74,10 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		dir := filepath.Dir(path)
 
 		// Approximate full package path
-		relDir, _ := filepath.Rel(root, dir)
+		relDir, err := filepath.Rel(root, dir)
+		if err != nil {
+			relDir = dir // Fallback
+		}
 		fullPkg := relDir
 		if relDir == "." {
 			fullPkg = pkgName
@@ -130,10 +134,21 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 	// Use map to prevent duplicates
 	edgeMap := make(map[string]bool)
 
-	for path, f := range parsedFiles {
+	// Sort files for deterministic iteration
+	var paths []string
+	for p := range parsedFiles {
+		paths = append(paths, p)
+	}
+	sort.Strings(paths)
+
+	for _, path := range paths {
+		f := parsedFiles[path]
 		pkgName := f.Name.Name
 		dir := filepath.Dir(path)
-		relDir, _ := filepath.Rel(root, dir)
+		relDir, err := filepath.Rel(root, dir)
+		if err != nil {
+			relDir = dir
+		}
 		fullPkg := relDir
 		if relDir == "." {
 			fullPkg = pkgName
@@ -266,17 +281,43 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 	// This is hard without knowing module name.
 	// But we can scan all nodes and check if Node.Package matches the end of ImportPath?
 
-	for id, node := range cg.Nodes {
+	var candidates []*CallGraphNode
+
+	for _, node := range cg.Nodes {
 		if node.Name == funcName && node.Receiver == "" {
 			// Check if importPath ends with node.Package
 			// node.Package might be "internal/utils"
 			// importPath might be "recac/internal/utils"
 			if strings.HasSuffix(importPath, node.Package) {
-				return id
+				// Check boundary
+				valid := false
+				if len(importPath) == len(node.Package) {
+					valid = true
+				} else if len(importPath) > len(node.Package) {
+					if importPath[len(importPath)-len(node.Package)-1] == '/' {
+						valid = true
+					}
+				}
+				if valid {
+					candidates = append(candidates, node)
+				}
 			}
 		}
 	}
-	return ""
+
+	if len(candidates) == 0 {
+		return ""
+	}
+
+	// Sort candidates: Longest package path first, then ID
+	sort.Slice(candidates, func(i, j int) bool {
+		if len(candidates[i].Package) != len(candidates[j].Package) {
+			return len(candidates[i].Package) > len(candidates[j].Package)
+		}
+		return candidates[i].ID < candidates[j].ID
+	})
+
+	return candidates[0].ID
 }
 
 func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {

@@ -107,3 +107,82 @@ func internalFunc() {}
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
 }
+
+func TestGenerateCallGraph_AmbiguousPackages(t *testing.T) {
+	// Setup temporary directory
+	tmpDir := t.TempDir()
+
+	// Structure:
+	// main.go -> imports "example.com/project/sub/foo"
+	// foo/foo.go -> package foo, Func()
+	// sub/foo/foo.go -> package foo, Func()
+
+	// 1. Create main.go
+	mainContent := `package main
+
+import (
+	"fmt"
+	"example.com/project/sub/foo"
+)
+
+func main() {
+	foo.Func()
+	fmt.Println("Done")
+}
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainContent), 0644)
+	require.NoError(t, err)
+
+	// 2. Create foo/foo.go (The WRONG one)
+	fooDir := filepath.Join(tmpDir, "foo")
+	err = os.MkdirAll(fooDir, 0755)
+	require.NoError(t, err)
+
+	// We give it the same function name to make it a candidate
+	fooContent := `package foo
+func Func() {}
+`
+	err = os.WriteFile(filepath.Join(fooDir, "foo.go"), []byte(fooContent), 0644)
+	require.NoError(t, err)
+
+	// 3. Create sub/foo/foo.go (The RIGHT one)
+	subFooDir := filepath.Join(tmpDir, "sub", "foo")
+	err = os.MkdirAll(subFooDir, 0755)
+	require.NoError(t, err)
+
+	subFooContent := `package foo
+func Func() {}
+`
+	err = os.WriteFile(filepath.Join(subFooDir, "foo.go"), []byte(subFooContent), 0644)
+	require.NoError(t, err)
+
+	// Run Analysis multiple times to catch flakiness
+	for i := 0; i < 20; i++ {
+		cg, err := GenerateCallGraph(tmpDir)
+		require.NoError(t, err)
+
+		// Check edge from main.main to ...
+		// It should go to "sub/foo.Func", NOT "foo.Func"
+
+		foundCorrect := false
+		foundWrong := false
+
+		for _, edge := range cg.Edges {
+			if edge.From == "main.main" {
+				if edge.To == "sub/foo.Func" {
+					foundCorrect = true
+				}
+				if edge.To == "foo.Func" {
+					foundWrong = true
+				}
+			}
+		}
+
+		assert.True(t, foundCorrect, "Iteration %d: Should link to sub/foo.Func", i)
+		assert.False(t, foundWrong, "Iteration %d: Should NOT link to foo.Func", i)
+
+		if foundWrong || !foundCorrect {
+			t.FailNow()
+		}
+	}
+}
