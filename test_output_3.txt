@@ -1,0 +1,255 @@
+=== RUN   TestAgentHelperProcess
+--- PASS: TestAgentHelperProcess (0.00s)
+=== RUN   TestCursorCLIClient_Send
+=== RUN   TestCursorCLIClient_Send/Success
+Running Cursor CLI: cursor-agent agent <prompt> --workspace /app/internal/agent ...
+Cursor CLI completed in 10.155236ms. Output length: 19
+=== RUN   TestCursorCLIClient_Send/Failure
+Running Cursor CLI: cursor-agent agent <prompt> --workspace /app/internal/agent ...
+=== RUN   TestCursorCLIClient_Send/SendStream
+Running Cursor CLI: cursor-agent agent <prompt> --workspace /app/internal/agent ...
+Cursor CLI completed in 8.284775ms. Output length: 19
+--- PASS: TestCursorCLIClient_Send (0.03s)
+    --- PASS: TestCursorCLIClient_Send/Success (0.01s)
+    --- PASS: TestCursorCLIClient_Send/Failure (0.01s)
+    --- PASS: TestCursorCLIClient_Send/SendStream (0.01s)
+=== RUN   TestOpenCodeCLIClient_Send
+=== RUN   TestOpenCodeCLIClient_Send/Success
+Running OpenCode CLI: opencode run hello
+OpenCode CLI completed in 9.276036ms. Output length: 15
+=== RUN   TestOpenCodeCLIClient_Send/Failure
+Running OpenCode CLI: opencode run fail
+=== RUN   TestOpenCodeCLIClient_Send/SendStream
+Running OpenCode CLI: opencode run hello
+OpenCode CLI completed in 10.065859ms. Output length: 15
+--- PASS: TestOpenCodeCLIClient_Send (0.03s)
+    --- PASS: TestOpenCodeCLIClient_Send/Success (0.01s)
+    --- PASS: TestOpenCodeCLIClient_Send/Failure (0.01s)
+    --- PASS: TestOpenCodeCLIClient_Send/SendStream (0.01s)
+=== RUN   TestGeminiCLIClient_Send
+=== RUN   TestGeminiCLIClient_Send/Success
+Running Gemini CLI: gemini --output-format text --approval-mode yolo
+Gemini CLI completed in 9.323132ms. Output length: 13
+=== RUN   TestGeminiCLIClient_Send/Failure
+Running Gemini CLI: gemini --output-format text --approval-mode yolo --model fail
+=== RUN   TestGeminiCLIClient_Send/SendStream
+Running Gemini CLI: gemini --output-format text --approval-mode yolo
+Gemini CLI completed in 10.024381ms. Output length: 13
+--- PASS: TestGeminiCLIClient_Send (0.03s)
+    --- PASS: TestGeminiCLIClient_Send/Success (0.01s)
+    --- PASS: TestGeminiCLIClient_Send/Failure (0.01s)
+    --- PASS: TestGeminiCLIClient_Send/SendStream (0.01s)
+=== RUN   TestBaseClient_PreparePrompt
+=== RUN   TestBaseClient_PreparePrompt/Normal_Prompt
+=== RUN   TestBaseClient_PreparePrompt/Truncated_Prompt
+2026/01/30 10:58:15 INFO Prompt exceeds token limit, truncating... project=test-project actual=76 available=50
+--- PASS: TestBaseClient_PreparePrompt (0.00s)
+    --- PASS: TestBaseClient_PreparePrompt/Normal_Prompt (0.00s)
+    --- PASS: TestBaseClient_PreparePrompt/Truncated_Prompt (0.00s)
+=== RUN   TestBaseClient_UpdateStateWithResponse
+2026/01/30 10:58:15 INFO Token usage (response) project=test-project response=2 current=12 max=1000 total=12 prompt=10 response_total=2
+--- PASS: TestBaseClient_UpdateStateWithResponse (0.00s)
+=== RUN   TestBaseClient_SendWithRetry
+=== RUN   TestBaseClient_SendWithRetry/Success_First_Try
+=== RUN   TestBaseClient_SendWithRetry/Success_After_Retry
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=1 wait=0s error="temp error"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=2 wait=0s error="temp error"
+=== RUN   TestBaseClient_SendWithRetry/Fail_Max_Retries
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=1 wait=0s error="persistent error"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=2 wait=0s error="persistent error"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=3 wait=0s error="persistent error"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=4 wait=0s error="persistent error"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=5 wait=0s error="persistent error"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=6 wait=0s error="persistent error"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=7 wait=0s error="persistent error"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=8 wait=0s error="persistent error"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=9 wait=0s error="persistent error"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=10 wait=0s error="persistent error"
+--- PASS: TestBaseClient_SendWithRetry (0.00s)
+    --- PASS: TestBaseClient_SendWithRetry/Success_First_Try (0.00s)
+    --- PASS: TestBaseClient_SendWithRetry/Success_After_Retry (0.00s)
+    --- PASS: TestBaseClient_SendWithRetry/Fail_Max_Retries (0.00s)
+=== RUN   TestBaseClient_SendStreamWithRetry
+=== RUN   TestBaseClient_SendStreamWithRetry/Success_Streaming
+=== RUN   TestBaseClient_SendStreamWithRetry/Retry_Streaming
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=1 wait=0s error=fail
+--- PASS: TestBaseClient_SendStreamWithRetry (0.00s)
+    --- PASS: TestBaseClient_SendStreamWithRetry/Success_Streaming (0.00s)
+    --- PASS: TestBaseClient_SendStreamWithRetry/Retry_Streaming (0.00s)
+=== RUN   TestNewAgent
+--- PASS: TestNewAgent (0.00s)
+=== RUN   TestNewAgent_OpenRouterModelCorrection
+Agent Factory: Corrected OpenRouter model from gemini-pro-latest to google/gemini-pro-latest
+Agent Factory: Corrected OpenRouter model from gpt-4-turbo to openai/gpt-4-turbo
+Agent Factory: Corrected OpenRouter model from claude-3-opus to anthropic/claude-3-opus
+Agent Factory: Corrected OpenRouter model from llama-3-70b to meta-llama/llama-3-70b
+Agent Factory: Corrected OpenRouter model from mistral-large to mistralai/mistral-large
+Agent Factory: Corrected OpenRouter model from mixtral-8x7b to mistralai/mixtral-8x7b
+--- PASS: TestNewAgent_OpenRouterModelCorrection (0.00s)
+=== RUN   TestGeminiClient_HTTP_Success
+--- PASS: TestGeminiClient_HTTP_Success (0.00s)
+=== RUN   TestGeminiClient_HTTP_Errors
+=== RUN   TestGeminiClient_HTTP_Errors/Status_500
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=1 wait=0s error="API returned status 500: Internal Server Error"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=2 wait=0s error="API returned status 500: Internal Server Error"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=3 wait=0s error="API returned status 500: Internal Server Error"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=4 wait=0s error="API returned status 500: Internal Server Error"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=5 wait=0s error="API returned status 500: Internal Server Error"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=6 wait=0s error="API returned status 500: Internal Server Error"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=7 wait=0s error="API returned status 500: Internal Server Error"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=8 wait=0s error="API returned status 500: Internal Server Error"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=9 wait=0s error="API returned status 500: Internal Server Error"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=10 wait=0s error="API returned status 500: Internal Server Error"
+=== RUN   TestGeminiClient_HTTP_Errors/Malformed_JSON
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=1 wait=0s error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=2 wait=0s error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=3 wait=0s error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=4 wait=0s error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=5 wait=0s error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=6 wait=0s error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=7 wait=0s error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=8 wait=0s error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=9 wait=0s error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=10 wait=0s error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+=== RUN   TestGeminiClient_HTTP_Errors/Empty_Candidates
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=1 wait=0s error="no content in response"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=2 wait=0s error="no content in response"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=3 wait=0s error="no content in response"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=4 wait=0s error="no content in response"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=5 wait=0s error="no content in response"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=6 wait=0s error="no content in response"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=7 wait=0s error="no content in response"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=8 wait=0s error="no content in response"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=9 wait=0s error="no content in response"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=10 wait=0s error="no content in response"
+--- PASS: TestGeminiClient_HTTP_Errors (0.01s)
+    --- PASS: TestGeminiClient_HTTP_Errors/Status_500 (0.00s)
+    --- PASS: TestGeminiClient_HTTP_Errors/Malformed_JSON (0.00s)
+    --- PASS: TestGeminiClient_HTTP_Errors/Empty_Candidates (0.00s)
+=== RUN   TestGeminiClient_SendStream
+--- PASS: TestGeminiClient_SendStream (0.00s)
+=== RUN   TestGeminiClient_MockResponse
+--- PASS: TestGeminiClient_MockResponse (0.00s)
+=== RUN   TestGeminiClient_RealCallValidation
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=1 wait=1ms error="API key is required"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=2 wait=1ms error="API key is required"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=3 wait=1ms error="API key is required"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=4 wait=1ms error="API key is required"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=5 wait=1ms error="API key is required"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=6 wait=1ms error="API key is required"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=7 wait=1ms error="API key is required"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=8 wait=1ms error="API key is required"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=9 wait=1ms error="API key is required"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=10 wait=1ms error="API key is required"
+--- PASS: TestGeminiClient_RealCallValidation (0.01s)
+=== RUN   TestGeminiClient_TokenTracking
+2026/01/30 10:58:15 INFO Prompt exceeds token limit, truncating... project=test-project actual=17501 available=500
+2026/01/30 10:58:15 INFO Token usage (response) project=test-project response=4 current=504 max=1000 total=504 prompt=500 response_total=4
+--- PASS: TestGeminiClient_TokenTracking (0.03s)
+=== RUN   TestGeminiClient_TokenTrackingNoTruncation
+2026/01/30 10:58:15 INFO Token usage (response) project=test-project response=4 current=12 max=32000 total=12 prompt=8 response_total=4
+--- PASS: TestGeminiClient_TokenTrackingNoTruncation (0.00s)
+=== RUN   TestMockAgent
+--- PASS: TestMockAgent (0.00s)
+=== RUN   TestTruncateString
+--- PASS: TestTruncateString (0.00s)
+=== RUN   TestOllamaClient_StateTracking
+2026/01/30 10:58:15 INFO Token usage (response) project=test-project response=5 current=7 max=1000 total=7 prompt=2 response_total=5
+--- PASS: TestOllamaClient_StateTracking (0.00s)
+=== RUN   TestNewOllamaClient
+--- PASS: TestNewOllamaClient (0.00s)
+=== RUN   TestOllamaClient_Send_Success
+--- PASS: TestOllamaClient_Send_Success (0.00s)
+=== RUN   TestOllamaClient_Send_WithMockResponder
+--- PASS: TestOllamaClient_Send_WithMockResponder (0.00s)
+=== RUN   TestOllamaClient_Send_ErrorHandling
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=1 wait=0s error="model is required for Ollama"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=2 wait=0s error="model is required for Ollama"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=3 wait=0s error="model is required for Ollama"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=4 wait=0s error="model is required for Ollama"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=5 wait=0s error="model is required for Ollama"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=6 wait=0s error="model is required for Ollama"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=7 wait=0s error="model is required for Ollama"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=8 wait=0s error="model is required for Ollama"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=9 wait=0s error="model is required for Ollama"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=10 wait=0s error="model is required for Ollama"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=1 wait=0s error="Ollama API error: model not found"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=2 wait=0s error="Ollama API error: model not found"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=3 wait=0s error="Ollama API error: model not found"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=4 wait=0s error="Ollama API error: model not found"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=5 wait=0s error="Ollama API error: model not found"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=6 wait=0s error="Ollama API error: model not found"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=7 wait=0s error="Ollama API error: model not found"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=8 wait=0s error="Ollama API error: model not found"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=9 wait=0s error="Ollama API error: model not found"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=10 wait=0s error="Ollama API error: model not found"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=1 wait=0s error="Ollama API returned status 500: Internal Server Error"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=2 wait=0s error="Ollama API returned status 500: Internal Server Error"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=3 wait=0s error="Ollama API returned status 500: Internal Server Error"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=4 wait=0s error="Ollama API returned status 500: Internal Server Error"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=5 wait=0s error="Ollama API returned status 500: Internal Server Error"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=6 wait=0s error="Ollama API returned status 500: Internal Server Error"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=7 wait=0s error="Ollama API returned status 500: Internal Server Error"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=8 wait=0s error="Ollama API returned status 500: Internal Server Error"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=9 wait=0s error="Ollama API returned status 500: Internal Server Error"
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=10 wait=0s error="Ollama API returned status 500: Internal Server Error"
+--- PASS: TestOllamaClient_Send_ErrorHandling (0.01s)
+=== RUN   TestOllamaClient_Send_ContextCancellation
+2026/01/30 10:58:15 INFO Retrying agent call project=test-project retry=1 wait=2s error="failed to send request to Ollama: Post \"http://127.0.0.1:40535/api/generate\": context deadline exceeded"
+--- PASS: TestOllamaClient_Send_ContextCancellation (2.00s)
+=== RUN   TestOllamaProvider_Integration
+--- PASS: TestOllamaProvider_Integration (0.00s)
+=== RUN   TestOpenAIClient_HTTP_Success
+--- PASS: TestOpenAIClient_HTTP_Success (0.00s)
+=== RUN   TestOpenAIClient_HTTP_Errors
+=== RUN   TestOpenAIClient_HTTP_Errors/Status_500
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=1 wait=0s error="API returned status 500: Internal Server Error"
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=2 wait=0s error="API returned status 500: Internal Server Error"
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=3 wait=0s error="API returned status 500: Internal Server Error"
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=4 wait=0s error="API returned status 500: Internal Server Error"
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=5 wait=0s error="API returned status 500: Internal Server Error"
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=6 wait=0s error="API returned status 500: Internal Server Error"
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=7 wait=0s error="API returned status 500: Internal Server Error"
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=8 wait=0s error="API returned status 500: Internal Server Error"
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=9 wait=0s error="API returned status 500: Internal Server Error"
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=10 wait=0s error="API returned status 500: Internal Server Error"
+=== RUN   TestOpenAIClient_HTTP_Errors/Malformed_JSON
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=1 wait=0s error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=2 wait=0s error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=3 wait=0s error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=4 wait=0s error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=5 wait=0s error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=6 wait=0s error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=7 wait=0s error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=8 wait=0s error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=9 wait=0s error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=10 wait=0s error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+=== RUN   TestOpenAIClient_HTTP_Errors/Empty_Choices
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=1 wait=0s error="no content in response"
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=2 wait=0s error="no content in response"
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=3 wait=0s error="no content in response"
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=4 wait=0s error="no content in response"
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=5 wait=0s error="no content in response"
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=6 wait=0s error="no content in response"
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=7 wait=0s error="no content in response"
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=8 wait=0s error="no content in response"
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=9 wait=0s error="no content in response"
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=10 wait=0s error="no content in response"
+--- PASS: TestOpenAIClient_HTTP_Errors (0.01s)
+    --- PASS: TestOpenAIClient_HTTP_Errors/Status_500 (0.01s)
+    --- PASS: TestOpenAIClient_HTTP_Errors/Malformed_JSON (0.00s)
+    --- PASS: TestOpenAIClient_HTTP_Errors/Empty_Choices (0.00s)
+=== RUN   TestOpenAIClient_SendStream
+--- PASS: TestOpenAIClient_SendStream (0.00s)
+=== RUN   TestOpenAIClient_Mock
+--- PASS: TestOpenAIClient_Mock (0.00s)
+=== RUN   TestOpenAIClient_StateTracking
+2026/01/30 10:58:17 INFO Token usage (response) project=test-project response=4 current=6 max=128000 total=6 prompt=2 response_total=4
+--- PASS: TestOpenAIClient_StateTracking (0.00s)
+=== RUN   TestOpenAIClient_NoKey
+2026/01/30 10:58:17 INFO Retrying agent call project=test-project retry=1 wait=2s error="API key is required"
+2026/01/30 10:58:19 INFO Retrying agent call project=test-project retry=2 wait=4s error="API key is required"
+2026/01/30 10:58:23 INFO Retrying agent call project=test-project retry=3 wait=8s error="API key is required"
+2026/01/30 10:58:31 INFO Retrying agent call project=test-project retry=4 wait=16s error="API key is required"
+2026/01/30 10:58:47 INFO Retrying agent call project=test-project retry=5 wait=32s error="API key is required"
+2026/01/30 10:59:19 INFO Retrying agent call project=test-project retry=6 wait=1m4s error="API key is required"

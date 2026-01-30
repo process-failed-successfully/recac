@@ -1,0 +1,338 @@
+=== RUN   TestAgentHelperProcess
+--- PASS: TestAgentHelperProcess (0.00s)
+=== RUN   TestCursorCLIClient_Send
+=== RUN   TestCursorCLIClient_Send/Success
+Running Cursor CLI: cursor-agent agent <prompt> --workspace /app/internal/agent ...
+Cursor CLI completed in 13.366376ms. Output length: 19
+=== RUN   TestCursorCLIClient_Send/Failure
+Running Cursor CLI: cursor-agent agent <prompt> --workspace /app/internal/agent ...
+=== RUN   TestCursorCLIClient_Send/SendStream
+Running Cursor CLI: cursor-agent agent <prompt> --workspace /app/internal/agent ...
+Cursor CLI completed in 13.69267ms. Output length: 19
+--- PASS: TestCursorCLIClient_Send (0.04s)
+    --- PASS: TestCursorCLIClient_Send/Success (0.01s)
+    --- PASS: TestCursorCLIClient_Send/Failure (0.01s)
+    --- PASS: TestCursorCLIClient_Send/SendStream (0.01s)
+=== RUN   TestOpenCodeCLIClient_Send
+=== RUN   TestOpenCodeCLIClient_Send/Success
+Running OpenCode CLI: opencode run hello
+OpenCode CLI completed in 14.582975ms. Output length: 15
+=== RUN   TestOpenCodeCLIClient_Send/Failure
+Running OpenCode CLI: opencode run fail
+=== RUN   TestOpenCodeCLIClient_Send/SendStream
+Running OpenCode CLI: opencode run hello
+OpenCode CLI completed in 13.215618ms. Output length: 15
+--- PASS: TestOpenCodeCLIClient_Send (0.04s)
+    --- PASS: TestOpenCodeCLIClient_Send/Success (0.01s)
+    --- PASS: TestOpenCodeCLIClient_Send/Failure (0.01s)
+    --- PASS: TestOpenCodeCLIClient_Send/SendStream (0.01s)
+=== RUN   TestGeminiCLIClient_Send
+=== RUN   TestGeminiCLIClient_Send/Success
+Running Gemini CLI: gemini --output-format text --approval-mode yolo
+Gemini CLI completed in 15.073945ms. Output length: 13
+=== RUN   TestGeminiCLIClient_Send/Failure
+Running Gemini CLI: gemini --output-format text --approval-mode yolo --model fail
+=== RUN   TestGeminiCLIClient_Send/SendStream
+Running Gemini CLI: gemini --output-format text --approval-mode yolo
+Gemini CLI completed in 12.994652ms. Output length: 13
+--- PASS: TestGeminiCLIClient_Send (0.04s)
+    --- PASS: TestGeminiCLIClient_Send/Success (0.02s)
+    --- PASS: TestGeminiCLIClient_Send/Failure (0.01s)
+    --- PASS: TestGeminiCLIClient_Send/SendStream (0.01s)
+=== RUN   TestBaseClient_PreparePrompt
+=== RUN   TestBaseClient_PreparePrompt/Normal_Prompt
+=== RUN   TestBaseClient_PreparePrompt/Truncated_Prompt
+2026/01/30 10:42:31 INFO Prompt exceeds token limit, truncating... project=test-project actual=76 available=50
+--- PASS: TestBaseClient_PreparePrompt (0.01s)
+    --- PASS: TestBaseClient_PreparePrompt/Normal_Prompt (0.00s)
+    --- PASS: TestBaseClient_PreparePrompt/Truncated_Prompt (0.00s)
+=== RUN   TestBaseClient_UpdateStateWithResponse
+2026/01/30 10:42:31 INFO Token usage (response) project=test-project response=2 current=12 max=1000 total=12 prompt=10 response_total=2
+--- PASS: TestBaseClient_UpdateStateWithResponse (0.00s)
+=== RUN   TestBaseClient_SendWithRetry
+=== RUN   TestBaseClient_SendWithRetry/Success_First_Try
+=== RUN   TestBaseClient_SendWithRetry/Success_After_Retry
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=1 wait=0s error="temp error"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=2 wait=0s error="temp error"
+=== RUN   TestBaseClient_SendWithRetry/Fail_Max_Retries
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=1 wait=0s error="persistent error"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=2 wait=0s error="persistent error"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=3 wait=0s error="persistent error"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=4 wait=0s error="persistent error"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=5 wait=0s error="persistent error"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=6 wait=0s error="persistent error"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=7 wait=0s error="persistent error"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=8 wait=0s error="persistent error"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=9 wait=0s error="persistent error"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=10 wait=0s error="persistent error"
+--- PASS: TestBaseClient_SendWithRetry (0.00s)
+    --- PASS: TestBaseClient_SendWithRetry/Success_First_Try (0.00s)
+    --- PASS: TestBaseClient_SendWithRetry/Success_After_Retry (0.00s)
+    --- PASS: TestBaseClient_SendWithRetry/Fail_Max_Retries (0.00s)
+=== RUN   TestBaseClient_SendStreamWithRetry
+=== RUN   TestBaseClient_SendStreamWithRetry/Success_Streaming
+=== RUN   TestBaseClient_SendStreamWithRetry/Retry_Streaming
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=1 wait=0s error=fail
+--- PASS: TestBaseClient_SendStreamWithRetry (0.00s)
+    --- PASS: TestBaseClient_SendStreamWithRetry/Success_Streaming (0.00s)
+    --- PASS: TestBaseClient_SendStreamWithRetry/Retry_Streaming (0.00s)
+=== RUN   TestNewAgent
+--- PASS: TestNewAgent (0.00s)
+=== RUN   TestNewAgent_OpenRouterModelCorrection
+Agent Factory: Corrected OpenRouter model from gemini-pro-latest to google/gemini-pro-latest
+Agent Factory: Corrected OpenRouter model from gpt-4-turbo to openai/gpt-4-turbo
+Agent Factory: Corrected OpenRouter model from claude-3-opus to anthropic/claude-3-opus
+Agent Factory: Corrected OpenRouter model from llama-3-70b to meta-llama/llama-3-70b
+Agent Factory: Corrected OpenRouter model from mistral-large to mistralai/mistral-large
+Agent Factory: Corrected OpenRouter model from mixtral-8x7b to mistralai/mixtral-8x7b
+--- PASS: TestNewAgent_OpenRouterModelCorrection (0.00s)
+=== RUN   TestGeminiClient_HTTP_Success
+--- PASS: TestGeminiClient_HTTP_Success (0.00s)
+=== RUN   TestGeminiClient_HTTP_Errors
+=== RUN   TestGeminiClient_HTTP_Errors/Status_500
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=1 wait=1ms error="API returned status 500: Internal Server Error"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=2 wait=1ms error="API returned status 500: Internal Server Error"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=3 wait=1ms error="API returned status 500: Internal Server Error"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=4 wait=1ms error="API returned status 500: Internal Server Error"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=5 wait=1ms error="API returned status 500: Internal Server Error"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=6 wait=1ms error="API returned status 500: Internal Server Error"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=7 wait=1ms error="API returned status 500: Internal Server Error"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=8 wait=1ms error="API returned status 500: Internal Server Error"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=9 wait=1ms error="API returned status 500: Internal Server Error"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=10 wait=1ms error="API returned status 500: Internal Server Error"
+=== RUN   TestGeminiClient_HTTP_Errors/Malformed_JSON
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=1 wait=1ms error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=2 wait=1ms error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=3 wait=1ms error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=4 wait=1ms error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=5 wait=1ms error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=6 wait=1ms error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=7 wait=1ms error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=8 wait=1ms error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=9 wait=1ms error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=10 wait=1ms error="failed to decode response: invalid character 'i' looking for beginning of object key string"
+=== RUN   TestGeminiClient_HTTP_Errors/Empty_Candidates
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=1 wait=1ms error="no content in response"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=2 wait=1ms error="no content in response"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=3 wait=1ms error="no content in response"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=4 wait=1ms error="no content in response"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=5 wait=1ms error="no content in response"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=6 wait=1ms error="no content in response"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=7 wait=1ms error="no content in response"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=8 wait=1ms error="no content in response"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=9 wait=1ms error="no content in response"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=10 wait=1ms error="no content in response"
+--- PASS: TestGeminiClient_HTTP_Errors (0.07s)
+    --- PASS: TestGeminiClient_HTTP_Errors/Status_500 (0.02s)
+    --- PASS: TestGeminiClient_HTTP_Errors/Malformed_JSON (0.03s)
+    --- PASS: TestGeminiClient_HTTP_Errors/Empty_Candidates (0.02s)
+=== RUN   TestGeminiClient_SendStream
+--- PASS: TestGeminiClient_SendStream (0.00s)
+=== RUN   TestGeminiClient_MockResponse
+--- PASS: TestGeminiClient_MockResponse (0.00s)
+=== RUN   TestGeminiClient_RealCallValidation
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=1 wait=1ms error="API key is required"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=2 wait=1ms error="API key is required"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=3 wait=1ms error="API key is required"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=4 wait=1ms error="API key is required"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=5 wait=1ms error="API key is required"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=6 wait=1ms error="API key is required"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=7 wait=1ms error="API key is required"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=8 wait=1ms error="API key is required"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=9 wait=1ms error="API key is required"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=10 wait=1ms error="API key is required"
+--- PASS: TestGeminiClient_RealCallValidation (0.01s)
+=== RUN   TestGeminiClient_TokenTracking
+2026/01/30 10:42:31 INFO Prompt exceeds token limit, truncating... project=test-project actual=17501 available=500
+2026/01/30 10:42:31 INFO Token usage (response) project=test-project response=4 current=504 max=1000 total=504 prompt=500 response_total=4
+--- PASS: TestGeminiClient_TokenTracking (0.04s)
+=== RUN   TestGeminiClient_TokenTrackingNoTruncation
+2026/01/30 10:42:31 INFO Token usage (response) project=test-project response=4 current=12 max=32000 total=12 prompt=8 response_total=4
+--- PASS: TestGeminiClient_TokenTrackingNoTruncation (0.00s)
+=== RUN   TestMockAgent
+--- PASS: TestMockAgent (0.00s)
+=== RUN   TestTruncateString
+--- PASS: TestTruncateString (0.00s)
+=== RUN   TestOllamaClient_StateTracking
+2026/01/30 10:42:31 INFO Token usage (response) project=test-project response=5 current=7 max=1000 total=7 prompt=2 response_total=5
+--- PASS: TestOllamaClient_StateTracking (0.00s)
+=== RUN   TestNewOllamaClient
+--- PASS: TestNewOllamaClient (0.00s)
+=== RUN   TestOllamaClient_Send_Success
+--- PASS: TestOllamaClient_Send_Success (0.00s)
+=== RUN   TestOllamaClient_Send_WithMockResponder
+--- PASS: TestOllamaClient_Send_WithMockResponder (0.00s)
+=== RUN   TestOllamaClient_Send_ErrorHandling
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=1 wait=0s error="model is required for Ollama"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=2 wait=0s error="model is required for Ollama"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=3 wait=0s error="model is required for Ollama"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=4 wait=0s error="model is required for Ollama"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=5 wait=0s error="model is required for Ollama"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=6 wait=0s error="model is required for Ollama"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=7 wait=0s error="model is required for Ollama"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=8 wait=0s error="model is required for Ollama"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=9 wait=0s error="model is required for Ollama"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=10 wait=0s error="model is required for Ollama"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=1 wait=0s error="Ollama API error: model not found"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=2 wait=0s error="Ollama API error: model not found"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=3 wait=0s error="Ollama API error: model not found"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=4 wait=0s error="Ollama API error: model not found"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=5 wait=0s error="Ollama API error: model not found"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=6 wait=0s error="Ollama API error: model not found"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=7 wait=0s error="Ollama API error: model not found"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=8 wait=0s error="Ollama API error: model not found"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=9 wait=0s error="Ollama API error: model not found"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=10 wait=0s error="Ollama API error: model not found"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=1 wait=0s error="Ollama API returned status 500: Internal Server Error"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=2 wait=0s error="Ollama API returned status 500: Internal Server Error"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=3 wait=0s error="Ollama API returned status 500: Internal Server Error"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=4 wait=0s error="Ollama API returned status 500: Internal Server Error"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=5 wait=0s error="Ollama API returned status 500: Internal Server Error"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=6 wait=0s error="Ollama API returned status 500: Internal Server Error"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=7 wait=0s error="Ollama API returned status 500: Internal Server Error"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=8 wait=0s error="Ollama API returned status 500: Internal Server Error"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=9 wait=0s error="Ollama API returned status 500: Internal Server Error"
+2026/01/30 10:42:31 INFO Retrying agent call project=test-project retry=10 wait=0s error="Ollama API returned status 500: Internal Server Error"
+--- PASS: TestOllamaClient_Send_ErrorHandling (0.01s)
+=== RUN   TestOllamaClient_Send_ContextCancellation
+2026/01/30 10:42:32 INFO Retrying agent call project=test-project retry=1 wait=2s error="failed to send request to Ollama: Post \"http://127.0.0.1:36131/api/generate\": context deadline exceeded"
+--- PASS: TestOllamaClient_Send_ContextCancellation (2.00s)
+=== RUN   TestOllamaProvider_Integration
+--- PASS: TestOllamaProvider_Integration (0.00s)
+=== RUN   TestOpenAIClient_HTTP_Success
+--- PASS: TestOpenAIClient_HTTP_Success (0.00s)
+=== RUN   TestOpenAIClient_HTTP_Errors
+=== RUN   TestOpenAIClient_HTTP_Errors/Status_500
+2026/01/30 10:42:33 INFO Retrying agent call project=test-project retry=1 wait=2s error="API returned status 500: Internal Server Error"
+2026/01/30 10:42:35 INFO Retrying agent call project=test-project retry=2 wait=4s error="API returned status 500: Internal Server Error"
+2026/01/30 10:42:39 INFO Retrying agent call project=test-project retry=3 wait=8s error="API returned status 500: Internal Server Error"
+2026/01/30 10:42:47 INFO Retrying agent call project=test-project retry=4 wait=16s error="API returned status 500: Internal Server Error"
+2026/01/30 10:43:03 INFO Retrying agent call project=test-project retry=5 wait=32s error="API returned status 500: Internal Server Error"
+2026/01/30 10:43:36 INFO Retrying agent call project=test-project retry=6 wait=1m4s error="API returned status 500: Internal Server Error"
+2026/01/30 10:44:40 INFO Retrying agent call project=test-project retry=7 wait=2m8s error="API returned status 500: Internal Server Error"
+2026/01/30 10:46:48 INFO Retrying agent call project=test-project retry=8 wait=4m16s error="API returned status 500: Internal Server Error"
+2026/01/30 10:51:04 INFO Retrying agent call project=test-project retry=9 wait=8m32s error="API returned status 500: Internal Server Error"
+panic: test timed out after 10m0s
+	running tests:
+		TestOpenAIClient_HTTP_Errors (9m58s)
+		TestOpenAIClient_HTTP_Errors/Status_500 (9m58s)
+
+goroutine 261 [running]:
+testing.(*M).startAlarm.func1()
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:2682 +0x345
+created by time.goFunc
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/time/sleep.go:215 +0x2d
+
+goroutine 1 [chan receive, 9 minutes]:
+testing.(*T).Run(0xc0000a8fc0, {0x965be1?, 0xc000187b30?}, 0x985558)
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:2005 +0x485
+testing.runTests.func1(0xc0000a8fc0)
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:2477 +0x37
+testing.tRunner(0xc0000a8fc0, 0xc000187c70)
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:1934 +0xea
+testing.runTests(0xc000010420, {0xd6f120, 0x31, 0x31}, {0x7?, 0xc000081640?, 0xd772a0?})
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:2475 +0x4b4
+testing.(*M).Run(0xc00019ad20)
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:2337 +0x63a
+main.main()
+	_testmain.go:141 +0x9b
+
+goroutine 204 [chan receive, 9 minutes]:
+testing.(*T).Run(0xc000102fc0, {0x95a8cf?, 0x6ee?}, 0xc000142480)
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:2005 +0x485
+recac/internal/agent.TestOpenAIClient_HTTP_Errors(0xc000102fc0)
+	/app/internal/agent/openai_extra_test.go:76 +0x169
+testing.tRunner(0xc000102fc0, 0x985558)
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:1934 +0xea
+created by testing.(*T).Run in goroutine 1
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:1997 +0x465
+
+goroutine 205 [select, 3 minutes]:
+recac/internal/agent.(*BaseClient).SendWithRetry(0xc0000ca690, {0xa181c8, 0xd98b40}, {0x9583d6, 0x2}, 0xc000183f48)
+	/app/internal/agent/client.go:168 +0x448
+recac/internal/agent.(*OpenAIClient).Send(...)
+	/app/internal/agent/openai.go:59
+recac/internal/agent.TestOpenAIClient_HTTP_Errors.func4(0xc000103180)
+	/app/internal/agent/openai_extra_test.go:83 +0x21e
+testing.tRunner(0xc000103180, 0xc000142480)
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:1934 +0xea
+created by testing.(*T).Run in goroutine 204
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:1997 +0x465
+
+goroutine 252 [IO wait, 3 minutes]:
+internal/poll.runtime_pollWait(0x7f0031874c00, 0x72)
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/runtime/netpoll.go:351 +0x85
+internal/poll.(*pollDesc).wait(0xc0002ac000?, 0xc0001ad000?, 0x0)
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/internal/poll/fd_poll_runtime.go:84 +0x27
+internal/poll.(*pollDesc).waitRead(...)
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0xc0002ac000, {0xc0001ad000, 0x1000, 0x1000})
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/internal/poll/fd_unix.go:165 +0x279
+net.(*netFD).Read(0xc0002ac000, {0xc0001ad000?, 0x4082d4?, 0x0?})
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/net/fd_posix.go:68 +0x25
+net.(*conn).Read(0xc000114080, {0xc0001ad000?, 0x4080c5?, 0xc00031a030?})
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/net/net.go:196 +0x45
+net/http.(*persistConn).Read(0xc00011e360, {0xc0001ad000?, 0x6f5365?, 0xa142e0?})
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/net/http/transport.go:2122 +0x47
+bufio.(*Reader).fill(0xc000130ea0)
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/bufio/bufio.go:113 +0x103
+bufio.(*Reader).Peek(0xc000130ea0, 0x1)
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/bufio/bufio.go:152 +0x53
+net/http.(*persistConn).readLoop(0xc00011e360)
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/net/http/transport.go:2275 +0x172
+created by net/http.(*Transport).dialConn in goroutine 250
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/net/http/transport.go:1944 +0x174f
+
+goroutine 253 [select, 3 minutes]:
+net/http.(*persistConn).writeLoop(0xc00011e360)
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/net/http/transport.go:2597 +0xe7
+created by net/http.(*Transport).dialConn in goroutine 250
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/net/http/transport.go:1945 +0x17a5
+
+goroutine 239 [IO wait, 3 minutes]:
+internal/poll.runtime_pollWait(0x7f0031874400, 0x72)
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/runtime/netpoll.go:351 +0x85
+internal/poll.(*pollDesc).wait(0xc00025a000?, 0xc000176000?, 0x0)
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/internal/poll/fd_poll_runtime.go:84 +0x27
+internal/poll.(*pollDesc).waitRead(...)
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0xc00025a000, {0xc000176000, 0x1000, 0x1000})
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/internal/poll/fd_unix.go:165 +0x279
+net.(*netFD).Read(0xc00025a000, {0xc000176000?, 0x0?, 0xc0001fdac8?})
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/net/fd_posix.go:68 +0x25
+net.(*conn).Read(0xc000058000, {0xc000176000?, 0xc00021aa50?, 0x0?})
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/net/net.go:196 +0x45
+net/http.(*connReader).Read(0xc000142100, {0xc000176000, 0x1000, 0x1000})
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/net/http/server.go:812 +0x154
+bufio.(*Reader).fill(0xc0002143c0)
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/bufio/bufio.go:113 +0x103
+bufio.(*Reader).Peek(0xc0002143c0, 0x4)
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/bufio/bufio.go:152 +0x53
+net/http.(*conn).serve(0xc0000f0240, {0xa18238, 0xc00033e0c0})
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/net/http/server.go:2145 +0x7c5
+created by net/http.(*Server).Serve in goroutine 206
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/net/http/server.go:3493 +0x485
+
+goroutine 206 [IO wait, 3 minutes]:
+internal/poll.runtime_pollWait(0x7f0031874a00, 0x72)
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/runtime/netpoll.go:351 +0x85
+internal/poll.(*pollDesc).wait(0xc00025a180?, 0x900419757?, 0x0)
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/internal/poll/fd_poll_runtime.go:84 +0x27
+internal/poll.(*pollDesc).waitRead(...)
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Accept(0xc00025a180)
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/internal/poll/fd_unix.go:613 +0x28c
+net.(*netFD).accept(0xc00025a180)
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/net/fd_unix.go:161 +0x29
+net.(*TCPListener).accept(0xc000142540)
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/net/tcpsock_posix.go:159 +0x1b
+net.(*TCPListener).Accept(0xc000142540)
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/net/tcpsock.go:380 +0x30
+net/http.(*Server).Serve(0xc0001a6100, {0xa17d20, 0xc000142540})
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/net/http/server.go:3463 +0x30c
+net/http/httptest.(*Server).goServe.func1()
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/net/http/httptest/server.go:311 +0x55
+created by net/http/httptest.(*Server).goServe in goroutine 205
+	/home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/net/http/httptest/server.go:309 +0x65
+FAIL	recac/internal/agent	600.021s
+FAIL

@@ -100,6 +100,9 @@ func TestOllamaClient_Send_WithMockResponder(t *testing.T) {
 func TestOllamaClient_Send_ErrorHandling(t *testing.T) {
 	// Test with empty model
 	client := NewOllamaClient("", "", "test-project")
+	// Override backoff to prevent timeouts
+	client.BackoffFn = func(i int) time.Duration { return 0 }
+
 	ctx := context.Background()
 
 	_, err := client.Send(ctx, "test")
@@ -120,6 +123,7 @@ func TestOllamaClient_Send_ErrorHandling(t *testing.T) {
 	defer server.Close()
 
 	client = NewOllamaClient(server.URL, "nonexistent", "test-project")
+	client.BackoffFn = func(i int) time.Duration { return 0 }
 	_, err = client.Send(ctx, "test")
 	if err == nil {
 		t.Error("expected error for API error response, got nil")
@@ -136,6 +140,7 @@ func TestOllamaClient_Send_ErrorHandling(t *testing.T) {
 	defer server.Close()
 
 	client = NewOllamaClient(server.URL, "llama2", "test-project")
+	client.BackoffFn = func(i int) time.Duration { return 0 }
 	_, err = client.Send(ctx, "test")
 	if err == nil {
 		t.Error("expected error for HTTP 500, got nil")
