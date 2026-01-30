@@ -37,8 +37,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 1. Ticket Generation Phase (Plan)
 	// Check for "Technical Program Manager" OR ("ID:[PRIMES]" AND ("Ticket" OR "Jira"))
+	// Also checking for "app_spec.txt" which is common in the prompt
 	isPlanPhase := strings.Contains(prompt, "Technical Program Manager") ||
-		(strings.Contains(prompt, "ID:[PRIMES]") && (strings.Contains(prompt, "Ticket") || strings.Contains(prompt, "Jira")))
+		(strings.Contains(prompt, "ID:[PRIMES]") && (strings.Contains(prompt, "Ticket") || strings.Contains(prompt, "Jira") || strings.Contains(prompt, "JSON"))) ||
+		strings.Contains(prompt, "app_spec.txt")
 
 	if isPlanPhase {
 		// Return JSON for the ticket generation phase
