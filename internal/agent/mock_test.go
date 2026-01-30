@@ -25,6 +25,21 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_PrimePython(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Create a python script named 'primes.py' that outputs to 'primes.json'"
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(response, "cat << 'EOF' > primes.py") {
+		t.Errorf("Expected bash block in response, got: %s", response)
+	}
+	if !strings.Contains(response, "git commit -m") {
+		t.Errorf("Expected git commit in response, got: %s", response)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
