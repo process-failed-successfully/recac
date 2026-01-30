@@ -36,7 +36,7 @@ notifications:
             on_success: true
             on_user_interaction: true
 orchestrator:
-    agent_model: nvidia/llama-3.1-nemotron-70b-instruct:free
+    agent_model: google/gemini-2.0-flash-exp:free
     agent_provider: openrouter
     image: ghcr.io/process-failed-successfully/recac-agent:latest
     image_pull_policy: Always
