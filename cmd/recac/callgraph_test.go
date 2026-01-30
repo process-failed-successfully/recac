@@ -141,3 +141,35 @@ func D() {}
 	assert.Contains(t, output, "main_C")
 	assert.NotContains(t, output, "main_D")
 }
+
+func TestCallGraphCmd_FocusNoMatch(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	content := `package main
+func A() {}
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(content), 0644)
+	require.NoError(t, err)
+
+	oldDir := callGraphDir
+	oldFocus := callGraphFocus
+	defer func() {
+		callGraphDir = oldDir
+		callGraphFocus = oldFocus
+	}()
+
+	callGraphDir = tmpDir
+	callGraphFocus = "Z" // No match
+
+	cmd := &cobra.Command{}
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+
+	err = runCallGraph(cmd, []string{})
+	require.NoError(t, err)
+
+	output := out.String()
+	// Should be empty graph (just header)
+	assert.Contains(t, output, "graph LR")
+	assert.NotContains(t, output, "main_A")
+}

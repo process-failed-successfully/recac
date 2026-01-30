@@ -255,27 +255,41 @@ func getReceiverTypeName(recv *ast.FieldList) string {
 			return ident.Name
 		}
 	}
+	// Handle generic types with multiple parameters (Go 1.18+)
+	if indexList, ok := expr.(*ast.IndexListExpr); ok {
+		if ident, ok := indexList.X.(*ast.Ident); ok {
+			return ident.Name
+		}
+	}
 	return "Unknown"
 }
 
 func resolveExternalCall(cg *CallGraph, importPath string, funcName string) string {
-	var candidates []string
-	for id, node := range cg.Nodes {
+	var candidates []*CallGraphNode
+	for _, node := range cg.Nodes {
 		if node.Name == funcName && node.Receiver == "" {
 			if strings.HasSuffix(importPath, node.Package) {
-				candidates = append(candidates, id)
+				candidates = append(candidates, node)
 			}
 		}
 	}
 	if len(candidates) == 0 {
 		return ""
 	}
-	// Sort to ensure determinism
-	sort.Strings(candidates)
-	// Return the longest match if we were to implement that, but for now just the first sorted one
-	// Or maybe strict match if possible?
-	// The suffix check is loose.
-	return candidates[0]
+
+	// Sort candidates:
+	// 1. Longest Package path (most specific match)
+	// 2. ID (lexicographically, for determinism)
+	sort.Slice(candidates, func(i, j int) bool {
+		lenI := len(candidates[i].Package)
+		lenJ := len(candidates[j].Package)
+		if lenI != lenJ {
+			return lenI > lenJ // Descending length
+		}
+		return candidates[i].ID < candidates[j].ID
+	})
+
+	return candidates[0].ID
 }
 
 func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {
