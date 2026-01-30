@@ -78,6 +78,7 @@ type Session struct {
 	SlackThreadTS             string       // Thread Timestamp for Slack conversations
 	SuppressStartNotification bool         // Suppress "Session Started" notification (for sub-tasks)
 	UseLocalAgent             bool         // Execute commands locally (e.g. inside K8s pod) instead of spawning Docker container
+	MockMode                  bool         // If true, simulate successful execution without invoking agent loop
 	SpecContent               string       // Explicit specification content (e.g. from Jira)
 	FeatureContent            string       // Explicit feature list JSON content (authoritative)
 	Logger                    *slog.Logger // Structured logger for this session
@@ -200,6 +201,7 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 		MaxAgents:        maxAgents,
 		Notifier:         notify.NewManager(telemetry.LogInfof),
 		UseLocalAgent:    os.Getenv("KUBERNETES_SERVICE_HOST") != "",
+		MockMode:         provider == "mock",
 		Logger:           logger,
 		SleepFunc:        time.Sleep,
 	}

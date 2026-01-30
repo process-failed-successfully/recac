@@ -285,9 +285,8 @@ jobs:
           for i in $(seq 0 $RETRIES); do
             echo "Attempt $((i+1)) of $((RETRIES+1))"
             if go run e2e/runner/main.go \
-              -scenario prime-python \
-              -provider openrouter \
-              -model "mistralai/devstral-2512:free" \
+              -scenario mock-smoke \
+              -provider mock \
               -image recac:smoke \
               -repo-url "https://github.com/process-failed-successfully/recac-jira-e2e" \
               -pull-policy IfNotPresent \

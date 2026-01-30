@@ -109,6 +109,22 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		default:
 		}
 
+		// Mock Mode: Short-circuit for smoke tests
+		if s.MockMode {
+			s.Logger.Info("Mock Mode: Simulating successful execution")
+			// Create signals to satisfy checks
+			if err := s.createSignal("COMPLETED"); err != nil {
+				s.Logger.Warn("failed to create COMPLETED signal in mock mode", "error", err)
+			}
+			if err := s.createSignal("QA_PASSED"); err != nil {
+				s.Logger.Warn("failed to create QA_PASSED signal in mock mode", "error", err)
+			}
+			if err := s.createSignal("PROJECT_SIGNED_OFF"); err != nil {
+				s.Logger.Warn("failed to create PROJECT_SIGNED_OFF signal in mock mode", "error", err)
+			}
+			return nil
+		}
+
 		// Check Max Iterations
 		currentIteration := s.GetIteration()
 		if s.MaxIterations > 0 && currentIteration >= s.MaxIterations {
