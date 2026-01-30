@@ -107,3 +107,51 @@ func internalFunc() {}
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
 }
+
+func TestGenerateCallGraph_StrictImportMatching(t *testing.T) {
+	// This test ensures that an import like "example.com/apkg"
+	// does NOT falsely match a local package "pkg".
+	tmpDir := t.TempDir()
+
+	// 1. Create main.go that imports "example.com/apkg"
+	mainContent := `package main
+
+import (
+	"example.com/apkg"
+)
+
+func main() {
+	apkg.Func()
+}
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainContent), 0644)
+	require.NoError(t, err)
+
+	// 2. Create "pkg" directory with "Func"
+	pkgDir := filepath.Join(tmpDir, "pkg")
+	err = os.MkdirAll(pkgDir, 0755)
+	require.NoError(t, err)
+
+	pkgContent := `package pkg
+func Func() {}
+`
+	err = os.WriteFile(filepath.Join(pkgDir, "func.go"), []byte(pkgContent), 0644)
+	require.NoError(t, err)
+
+	// Run Analysis
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Expectation:
+	// main.main calls apkg.Func
+	// pkg.Func exists as a node.
+	// But there should contain NO edge from main.main to pkg.Func because "apkg" != "pkg".
+
+	pkgFuncID := "pkg.Func"
+
+	for _, edge := range cg.Edges {
+		if edge.To == pkgFuncID {
+			t.Errorf("Found unexpected edge to %s from %s. Loose import matching suspected.", edge.To, edge.From)
+		}
+	}
+}
