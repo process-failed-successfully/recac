@@ -6,22 +6,26 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
+	"recac/internal/docker"
+
 	"github.com/spf13/viper"
 )
 
 // Function variables for mocking
 var (
-	execLookPath            = exec.LookPath
-	clientNewClientWithOpts = client.NewClientWithOpts
+	execLookPath    = exec.LookPath
+	newDockerClient = func(project string) (DockerClient, error) {
+		return docker.NewClient(project)
+	}
 	viperConfigFileUsed     = viper.ConfigFileUsed
 	checkDockerConnectivity = checkDockerConnectivityFunc
 )
 
 // DockerClient defines the interface for Docker client operations needed by the doctor.
 type DockerClient interface {
-	Ping(ctx context.Context) (types.Ping, error)
+	CheckDaemon(ctx context.Context) error
+	CheckSocket(ctx context.Context) error
+	Close() error
 }
 
 // GetDoctor returns a string containing the results of the environment checks.
@@ -38,7 +42,7 @@ func GetDoctor() string {
 	builder.WriteString(checkDependencies())
 
 	// Check 3: Docker Connectivity
-	dockerCli, err := clientNewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	dockerCli, err := newDockerClient("recac-doctor")
 	builder.WriteString(checkDockerConnectivity(dockerCli, err))
 
 	return builder.String()
@@ -69,13 +73,18 @@ func checkDockerConnectivityFunc(cli DockerClient, err error) string {
 	if err != nil {
 		return fmt.Sprintf("[✖] Docker: Failed to create client: %v\n", err)
 	}
+	defer cli.Close()
 
-	_, err = cli.Ping(context.Background())
-	if err != nil {
-		if strings.Contains(err.Error(), "Is the docker daemon running?") {
-			return "[✖] Docker: Daemon not running or socket permission error\n"
-		}
-		return fmt.Sprintf("[✖] Docker: Failed to ping daemon: %v\n", err)
+	ctx := context.Background()
+
+	// Check Daemon
+	if err := cli.CheckDaemon(ctx); err != nil {
+		return fmt.Sprintf("[✖] Docker: Daemon not reachable: %v\n", err)
+	}
+
+	// Check Socket
+	if err := cli.CheckSocket(ctx); err != nil {
+		return fmt.Sprintf("[✖] Docker: Socket not accessible: %v\n", err)
 	}
 
 	return "[✔] Docker: Daemon is responsive\n"

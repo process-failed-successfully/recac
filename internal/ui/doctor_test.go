@@ -7,31 +7,38 @@ import (
 	"os/exec"
 	"testing"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
 	"github.com/stretchr/testify/assert"
 )
 
 // MockDockerClient is a mock implementation of the DockerClient interface for testing.
 type MockDockerClient struct {
-	PingErr error
+	CheckDaemonErr error
+	CheckSocketErr error
 }
 
-func (m *MockDockerClient) Ping(ctx context.Context) (types.Ping, error) {
-	return types.Ping{}, m.PingErr
+func (m *MockDockerClient) CheckDaemon(ctx context.Context) error {
+	return m.CheckDaemonErr
+}
+
+func (m *MockDockerClient) CheckSocket(ctx context.Context) error {
+	return m.CheckSocketErr
+}
+
+func (m *MockDockerClient) Close() error {
+	return nil
 }
 
 func TestGetDoctor(t *testing.T) {
 	// Backup and restore original functions to ensure test isolation
 	setup := func(t *testing.T) func() {
 		originalExecLookPath := execLookPath
-		originalClientNewClientWithOpts := clientNewClientWithOpts
+		originalNewDockerClient := newDockerClient
 		originalViperConfigFileUsed := viperConfigFileUsed
 		originalCheckDockerConnectivity := checkDockerConnectivity
 
 		return func() {
 			execLookPath = originalExecLookPath
-			clientNewClientWithOpts = originalClientNewClientWithOpts
+			newDockerClient = originalNewDockerClient
 			viperConfigFileUsed = originalViperConfigFileUsed
 			checkDockerConnectivity = originalCheckDockerConnectivity
 		}
@@ -45,8 +52,8 @@ func TestGetDoctor(t *testing.T) {
 		execLookPath = func(file string) (string, error) {
 			return fmt.Sprintf("/usr/bin/%s", file), nil
 		}
-		clientNewClientWithOpts = func(ops ...client.Opt) (*client.Client, error) {
-			return &client.Client{}, nil
+		newDockerClient = func(project string) (DockerClient, error) {
+			return &MockDockerClient{}, nil
 		}
 		checkDockerConnectivity = func(cli DockerClient, err error) string {
 			return "[✔] Docker: Daemon is responsive\n"
@@ -96,7 +103,7 @@ func TestGetDoctor(t *testing.T) {
 
 		viperConfigFileUsed = func() string { return "config.yaml" }
 		execLookPath = func(file string) (string, error) { return "/bin/true", nil }
-		clientNewClientWithOpts = func(ops ...client.Opt) (*client.Client, error) {
+		newDockerClient = func(project string) (DockerClient, error) {
 			return nil, errors.New("docker client error")
 		}
 		// Use the real implementation of checkDockerConnectivity
@@ -115,22 +122,22 @@ func TestCheckDockerConnectivity(t *testing.T) {
 		expectedOutput string
 	}{
 		{
-			name:           "Ping successful",
-			cli:            &MockDockerClient{PingErr: nil},
+			name:           "All checks pass",
+			cli:            &MockDockerClient{},
 			err:            nil,
 			expectedOutput: "[✔] Docker: Daemon is responsive\n",
 		},
 		{
-			name:           "Ping fails with daemon error",
-			cli:            &MockDockerClient{PingErr: errors.New("Is the docker daemon running?")},
+			name:           "Daemon check fails",
+			cli:            &MockDockerClient{CheckDaemonErr: errors.New("daemon unreachable")},
 			err:            nil,
-			expectedOutput: "[✖] Docker: Daemon not running or socket permission error\n",
+			expectedOutput: "[✖] Docker: Daemon not reachable: daemon unreachable\n",
 		},
 		{
-			name:           "Ping fails with other error",
-			cli:            &MockDockerClient{PingErr: errors.New("some other error")},
+			name:           "Socket check fails",
+			cli:            &MockDockerClient{CheckSocketErr: errors.New("socket inaccessible")},
 			err:            nil,
-			expectedOutput: "[✖] Docker: Failed to ping daemon: some other error\n",
+			expectedOutput: "[✖] Docker: Socket not accessible: socket inaccessible\n",
 		},
 		{
 			name:           "Client creation fails",
