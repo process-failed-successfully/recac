@@ -39,6 +39,16 @@ func TestNewAgent(t *testing.T) {
 	}
 }
 
+func TestNewAgent_Mock(t *testing.T) {
+	a, err := NewAgent("mock", "", "mock-model", "", "test-project")
+	if err != nil {
+		t.Fatalf("failed to create mock agent: %v", err)
+	}
+	if _, ok := a.(*MockAgent); !ok {
+		t.Errorf("expected *MockAgent, got %T", a)
+	}
+}
+
 func TestNewAgent_OpenRouterModelCorrection(t *testing.T) {
 	tests := []struct {
 		model    string
