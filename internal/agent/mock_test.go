@@ -25,6 +25,25 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_PrimesScenario(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Please implement a python script named 'primes.py'"
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "```bash") {
+		t.Error("Response should contain bash block")
+	}
+	if !strings.Contains(response, "primes.py") {
+		t.Error("Response should contain primes.py")
+	}
+	if !strings.Contains(response, "json.dump") {
+		t.Error("Response should contain json logic")
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
