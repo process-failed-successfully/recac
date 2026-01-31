@@ -67,6 +67,43 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "rm -rf /tmp/foo",
 			wantFinding: "",
 		},
+		// False Positive Cases
+		{
+			name:        "Command inside double quotes",
+			content:     `echo "rm -rf /"`,
+			wantFinding: "",
+		},
+		{
+			name:        "Command inside double quotes with space",
+			content:     `echo "rm -rf / "`,
+			wantFinding: "",
+		},
+		{
+			name:        "Command inside single quotes",
+			content:     `echo 'rm -rf /'`,
+			wantFinding: "",
+		},
+		{
+			name:        "Command inside comment",
+			content:     `# rm -rf /`,
+			wantFinding: "",
+		},
+		{
+			name:        "Command inside inline comment",
+			content:     `echo hello # rm -rf /`,
+			wantFinding: "",
+		},
+		{
+			name:        "Secret in comment (Should be detected)",
+			content:     `# key = "AKIAIOSFODNN7EXAMPLE"`,
+			wantFinding: "AWS Access Key",
+		},
+		// Regression Test for Backticks
+		{
+			name:        "Command Substitution Backticks",
+			content:     "echo `rm -rf /`",
+			wantFinding: "Root Deletion",
+		},
 	}
 
 	for _, tt := range tests {
