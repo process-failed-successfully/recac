@@ -32,10 +32,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// Heuristics for "prime-python" scenario
-	// 1. Planning Phase: Asking for ticket generation (prompt contains "ID:[PRIMES]" and likely "Generate" or context of ticket creation)
-	// The prompt usually contains the full AppSpec which has "ID:[PRIMES]"
-	if strings.Contains(prompt, "ID:[PRIMES]") {
+	// 1. Planning Phase (TPM Agent - generate-from-spec)
+	// Prompt contains "Technical Program Manager" or "decompose" or "ID:[PRIMES]"
+	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "ID:[PRIMES]") {
 		// Return JSON ticket plan
 		return `
 [
@@ -48,7 +47,39 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
-	// 2. Execution Phase: Asking for implementation of the ticket
+	// 2. Initialization Phase (Initializer Agent - feature list)
+	// Prompt asks to create feature list using agent-bridge
+	if strings.Contains(prompt, "agent-bridge import") || strings.Contains(prompt, "Create a JSON object containing a feature list") {
+		return `I will generate the feature list.
+
+` + "```bash" + `
+cat << 'EOF' | agent-bridge import
+{
+  "project_name": "Prime Number Script",
+  "features": [
+    {
+      "id": "PRIMES",
+      "category": "functional",
+      "priority": "MVP",
+      "description": "Implement a python script named 'primes.py' that calculates primes < 10000. Output to 'primes.json'.",
+      "status": "pending",
+      "steps": [
+        "Run python3 primes.py",
+        "Check if primes.json exists",
+        "Validate JSON structure"
+      ],
+      "dependencies": {
+        "exclusive_write_paths": ["primes.py", "primes.json"]
+      }
+    }
+  ]
+}
+EOF
+` + "```" + `
+`, nil
+	}
+
+	// 3. Execution Phase (Coding Agent - implementation)
 	// The prompt usually asks to "Implement ... primes.py" and output to "primes.json"
 	if strings.Contains(prompt, "primes.py") && strings.Contains(prompt, "primes.json") {
 		return `I will create the primes script.
