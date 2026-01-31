@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,6 +31,25 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// Heuristic for 'prime-python' scenario (used in CI smoke tests)
+	if strings.Contains(prompt, "ID:[PRIMES]") {
+		// Extract Repo URL from prompt to maintain consistency
+		repoURL := "https://github.com/example/repo"
+		if idx := strings.LastIndex(prompt, "Repo: "); idx != -1 {
+			repoURL = strings.TrimSpace(prompt[idx+6:])
+		}
+
+		return fmt.Sprintf(`[
+  {
+    "title": "ID:[PRIMES] Create Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.\n\nThe JSON format must have a single key 'primes' containing the list of integers.\nExample: {\"primes\": [2, 3, 5, ...]}\n\nThe script MUST be named 'primes.py'.\nThe output file MUST be named 'primes.json'.\n\nIMPORTANT: You MUST use a bash block to create the file.\nCommit 'primes.json' IMMEDIATELY after creating/running the script. Do NOT leave it untracked.\n\nRepo: %s",
+    "type": "Task",
+    "children": []
+  }
+]`, repoURL), nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
