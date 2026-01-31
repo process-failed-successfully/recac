@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -22,6 +23,31 @@ func TestMockAgent(t *testing.T) {
 
 	if !strings.Contains(response, "I received your prompt") {
 		t.Errorf("Response missing body, got: %s", response)
+	}
+}
+
+func TestMockAgent_PrimesTicket(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Please generate tickets for ID:[PRIMES]..."
+
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Verify it's valid JSON
+	var tickets []map[string]interface{}
+	if err := json.Unmarshal([]byte(resp), &tickets); err != nil {
+		t.Fatalf("Failed to parse response as JSON: %v\nResponse: %s", err, resp)
+	}
+
+	if len(tickets) == 0 {
+		t.Fatal("Expected at least one ticket")
+	}
+
+	title, ok := tickets[0]["title"].(string)
+	if !ok || !strings.Contains(title, "[PRIMES]") {
+		t.Errorf("Expected title to contain [PRIMES], got: %v", tickets[0]["title"])
 	}
 }
 
