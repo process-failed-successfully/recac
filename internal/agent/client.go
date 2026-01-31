@@ -155,12 +155,19 @@ func (c *BaseClient) SendWithRetry(ctx context.Context, prompt string, sendOnce 
 		return "", err
 	}
 
-	maxRetries := 3
+	maxRetries := 5 // Increased retries for rate limits
 	var lastErr error
 
 	for i := 0; i <= maxRetries; i++ {
 		if i > 0 {
 			waitTime := c.BackoffFn(i)
+			// Aggressive backoff for 429
+			if lastErr != nil && strings.Contains(lastErr.Error(), "429") {
+				// Free models often have RPM limits around 5-10. 15s wait is safer.
+				// Exponential backoff on top: 15, 30, 60...
+				waitTime = time.Duration(15*(1<<(i-1))) * time.Second
+			}
+
 			telemetry.LogInfo("Retrying agent call", "project", c.Project, "retry", i, "wait", waitTime, "error", lastErr)
 			select {
 			case <-time.After(waitTime):
@@ -197,12 +204,17 @@ func (c *BaseClient) SendStreamWithRetry(ctx context.Context, prompt string, sen
 	}
 
 	var fullResponse strings.Builder
-	maxRetries := 3
+	maxRetries := 5 // Increased retries
 	var lastErr error
 
 	for i := 0; i <= maxRetries; i++ {
 		if i > 0 {
 			waitTime := c.BackoffFn(i)
+			// Aggressive backoff for 429
+			if lastErr != nil && strings.Contains(lastErr.Error(), "429") {
+				waitTime = time.Duration(15*(1<<(i-1))) * time.Second
+			}
+
 			telemetry.LogInfo("Retrying agent call", "project", c.Project, "retry", i, "wait", waitTime, "error", lastErr)
 			select {
 			case <-time.After(waitTime):
