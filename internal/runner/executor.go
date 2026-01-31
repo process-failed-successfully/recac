@@ -45,6 +45,19 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 		}
 		s.Logger.Info("executing command block", "index", i+1, "total", len(matches), "script", cmdScript)
 
+		// Security Scan
+		if s.Scanner != nil {
+			findings, err := s.Scanner.Scan(cmdScript)
+			if err != nil {
+				s.Logger.Warn("security scanner error", "error", err, "script", cmdScript)
+			}
+			if len(findings) > 0 {
+				s.Logger.Warn("security violation: blocked dangerous command", "script", cmdScript, "findings", findings)
+				parsedOutput.WriteString(fmt.Sprintf("\n[BLOCKED] Command %d blocked by security scanner: %s\n", i+1, findings[0].Description))
+				continue
+			}
+		}
+
 		// Heuristic: If block starts with '{' or '[' and parses as JSON, it's likely data mislabeled as bash.
 		if (strings.HasPrefix(cmdScript, "{") || strings.HasPrefix(cmdScript, "[")) && json.Valid([]byte(cmdScript)) {
 			s.Logger.Warn("Skipping execution of likely JSON data block mislabeled as bash", "snippet", cmdScript[:min(len(cmdScript), 50)])
