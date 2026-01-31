@@ -51,12 +51,10 @@ func TestSelectPrompt_DeterministicAssignment(t *testing.T) {
 		t.Fatalf("SelectPrompt failed: %v", err)
 	}
 
-	// Verify Prompt Variables (Accounting for Markdown formatting)
-	// Template: - **Feature ID**: {task_id}
+	// Verify Prompt Variables
 	if !strings.Contains(prompt, "**Feature ID**: feat-1") {
 		t.Errorf("Expected prompt to contain Feature ID 'feat-1', got:\n%s", prompt)
 	}
-	// Template: - **Description**: {task_description}
 	if !strings.Contains(prompt, "**Description**: Implement login") {
 		t.Errorf("Expected prompt to contain Description 'Implement login', got:\n%s", prompt)
 	}
