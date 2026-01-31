@@ -35,7 +35,7 @@ var (
 	// while capturing quoted paths (e.g. ".config").
 	reDangerousCmd    = regexp.MustCompile(`(?i)\b(rm|cat|cp|mv|chmod|chown)\b.*(?:[^\w]|^)(\.ssh|\.aws|\.config|\.gemini|/?etc/passwd|/?etc/shadow)(?:[^\w]|$)`)
 
-	reRootDeletion    = regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+(/+\*?|~(/+\*?)?)$`)
+	reRootDeletion    = regexp.MustCompile(`(?im)\brm\s+-[rRf]+\s+(/+\*?|~(/+\*?)?)$`)
 )
 
 // NewRegexScanner creates a new scanner with default patterns
