@@ -61,4 +61,14 @@ func TestMockAgent_Scenario_PrimePython(t *testing.T) {
 	if !strings.Contains(respExec, "agent-bridge feature set PRIMES --status done --passes true") {
 		t.Errorf("Expected Execution response to mark feature as done, got: %s", respExec)
 	}
+
+	// 4. Test Verification Prompt (QA Agent)
+	promptQA := "## YOUR ROLE - QA AGENT"
+	respQA, err := agent.Send(ctx, promptQA)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(respQA, "agent-bridge signal QA_PASSED true") {
+		t.Errorf("Expected QA response to signal success, got: %s", respQA)
+	}
 }

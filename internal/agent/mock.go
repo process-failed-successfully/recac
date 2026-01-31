@@ -127,6 +127,26 @@ agent-bridge feature set PRIMES --status done --passes true
 `, nil
 	}
 
+	// 4. Verification Phase (QA Agent)
+	// Triggered after completion.
+	// Prompt contains "YOUR ROLE - QA AGENT"
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return `I will verify the project.
+
+` + "```bash" + `
+# Verify file exists
+if [ -f primes.json ]; then
+    echo "primes.json exists"
+    # Signal Success
+    agent-bridge signal QA_PASSED true
+else
+    echo "primes.json missing"
+    agent-bridge signal QA_PASSED false
+fi
+` + "```" + `
+`, nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
