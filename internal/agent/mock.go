@@ -32,9 +32,17 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// Check if this is a ticket generation request (based on prompt content or context)
-	// The smoke test sends a prompt with the app spec.
-	if strings.Contains(prompt, "app_spec.txt") || strings.Contains(prompt, "Technical Program Manager") {
+	// 1. Check for specific Implementation Prompts (Highest Priority)
+	// These must come before generic context checks to prevent false positives.
+	// E.g. "primes.py" implementation should return bash, not JSON.
+	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "req-primes") {
+		return "Here is the implementation for primes.py:\n\n```bash\ncat << 'EOF' > primes.py\nimport json\n\ndef is_prime(n):\n    if n <= 1: return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0: return False\n    return True\n\nprimes = [x for x in range(10000) if is_prime(x)]\nwith open('primes.json', 'w') as f:\n    json.dump({\"primes\": primes}, f)\nEOF\n\npython3 primes.py\ngit add primes.py\ngit add -f primes.json\ngit commit -m \"Add primes script and output\"\n```", nil
+	}
+
+	// 2. Check for Ticket Planning Prompts (TPM)
+	// Only trigger if explicitly asked to be a Technical Program Manager.
+	// We do NOT check for "app_spec.txt" alone because that file appears in context for Coding Agents too.
+	if strings.Contains(prompt, "Technical Program Manager") {
 		// Return a valid JSON response for the ticket generator
 		return `[
   {
@@ -60,14 +68,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
-	// Check if this is the "Prime Python" scenario implementation phase
-	if strings.Contains(prompt, "primes.py") {
-		return "Here is the implementation for primes.py:\n\n```bash\ncat << 'EOF' > primes.py\nimport json\n\ndef is_prime(n):\n    if n <= 1: return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0: return False\n    return True\n\nprimes = [x for x in range(10000) if is_prime(x)]\nwith open('primes.json', 'w') as f:\n    json.dump({\"primes\": primes}, f)\nEOF\n\npython3 primes.py\ngit add primes.py\ngit add -f primes.json\ngit commit -m \"Add primes script and output\"\n```", nil
-	}
-
-	// Return a mock response that shows the agent received the prompt
-	// This allows the session to run without requiring real API keys
-	// We include a dummy bash block to prevent the circuit breaker from tripping due to "no-op loop"
+	// 3. Default / Fallback Response
+	// Return a mock response that shows the agent received the prompt.
+	// We include a dummy bash block to prevent the circuit breaker from tripping due to "no-op loop".
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response.\n\nPrompt preview: %s...\n\n```bash\n# no-op to satisfy runner\necho 'Mock Agent processed prompt'\n```",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
