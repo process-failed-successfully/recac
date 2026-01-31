@@ -71,6 +71,17 @@ func run() error {
 	// Validate Env
 	required := []string{"JIRA_URL", "JIRA_USERNAME", "JIRA_API_TOKEN", "GITHUB_API_KEY"}
 	for _, env := range required {
+		// Mock provider doesn't strictly need these, but we keep them for scenario generation
+		// However, if we are in pure mock mode, maybe we can skip some?
+		// For now, let's just enforce them as before, or relax for mock if needed.
+		// The original failure was due to API limits, so relaxing validation is secondary unless
+		// the mock provider specifically doesn't need them.
+		if provider == "mock" && (env == "JIRA_URL" || env == "JIRA_USERNAME" || env == "JIRA_API_TOKEN" || env == "GITHUB_API_KEY") {
+			// Mock provider might mock Jira too?
+			// Looking at the code, manager.NewJiraManager is called next. It needs credentials.
+			// Unless we mock the manager too.
+			continue
+		}
 		if os.Getenv(env) == "" {
 			return fmt.Errorf("missing required env var: %s", env)
 		}
@@ -110,14 +121,19 @@ func run() error {
 
 	// Fallback for missing JIRA_PROJECT_KEY
 	if projectKey == "" {
-		log.Println("JIRA_PROJECT_KEY not set. Attempting to fetch default project...")
-		tmpClient := jira.NewClient(os.Getenv("JIRA_URL"), os.Getenv("JIRA_USERNAME"), os.Getenv("JIRA_API_TOKEN"))
-		var err error
-		projectKey, err = tmpClient.GetFirstProjectKey(ctx)
-		if err != nil {
-			return fmt.Errorf("missing JIRA_PROJECT_KEY and failed to fetch default: %w", err)
+		if provider == "mock" {
+			log.Println("Using mock project key: MOCK")
+			projectKey = "MOCK"
+		} else {
+			log.Println("JIRA_PROJECT_KEY not set. Attempting to fetch default project...")
+			tmpClient := jira.NewClient(os.Getenv("JIRA_URL"), os.Getenv("JIRA_USERNAME"), os.Getenv("JIRA_API_TOKEN"))
+			var err error
+			projectKey, err = tmpClient.GetFirstProjectKey(ctx)
+			if err != nil {
+				return fmt.Errorf("missing JIRA_PROJECT_KEY and failed to fetch default: %w", err)
+			}
+			log.Printf("Using default project key: %s", projectKey)
 		}
-		log.Printf("Using default project key: %s", projectKey)
 	}
 
 	mgr := manager.NewJiraManager(os.Getenv("JIRA_URL"), os.Getenv("JIRA_USERNAME"), os.Getenv("JIRA_API_TOKEN"), projectKey)

@@ -161,6 +161,14 @@ func (c *BaseClient) SendWithRetry(ctx context.Context, prompt string, sendOnce 
 	for i := 0; i <= maxRetries; i++ {
 		if i > 0 {
 			waitTime := c.BackoffFn(i)
+			// Handle Rate Limiting (429) specifically
+			if lastErr != nil && strings.Contains(lastErr.Error(), "429") {
+				waitTime = 10 * time.Second // Wait at least 10 seconds for rate limits
+				if i == 1 {
+					waitTime = 5 * time.Second
+				}
+			}
+
 			telemetry.LogInfo("Retrying agent call", "project", c.Project, "retry", i, "wait", waitTime, "error", lastErr)
 			select {
 			case <-time.After(waitTime):
