@@ -157,3 +157,51 @@ func main() {
 	}
 	assert.True(t, found, "Should resolve to sub/pkg.Func (longer match) instead of pkg.Func")
 }
+
+func TestGenerateCallGraph_ExternalCallAmbiguity(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// 1. Create short/match.go -> produces package path "short/match"
+	path1 := filepath.Join(tmpDir, "short/match.go")
+	require.NoError(t, os.MkdirAll(filepath.Dir(path1), 0755))
+	require.NoError(t, os.WriteFile(path1, []byte("package match\nfunc Do() {}"), 0644))
+
+	// 2. Create long/short/match.go -> produces package path "long/short/match"
+	path2 := filepath.Join(tmpDir, "long/short/match.go")
+	require.NoError(t, os.MkdirAll(filepath.Dir(path2), 0755))
+	require.NoError(t, os.WriteFile(path2, []byte("package match\nfunc Do() {}"), 0644))
+
+	// 3. Create main.go importing "example.com/long/short/match"
+	// This import path ends with BOTH "short/match" and "long/short/match"
+	mainContent := `package main
+import (
+	"fmt"
+	m "example.com/long/short/match"
+)
+func main() {
+	m.Do()
+	fmt.Println("Done")
+}
+`
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainContent), 0644))
+
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Verify that the call is resolved to "long/short/match.Do" (the more specific match)
+	foundSpecific := false
+	foundAmbiguous := false
+
+	for _, edge := range cg.Edges {
+		if edge.From == "main.main" {
+			if edge.To == "long/short/match.Do" {
+				foundSpecific = true
+			} else if edge.To == "short/match.Do" {
+				foundAmbiguous = true
+			}
+		}
+	}
+
+	assert.True(t, foundSpecific, "Should resolve to long/short/match.Do")
+	assert.False(t, foundAmbiguous, "Should NOT resolve to short/match.Do")
+}

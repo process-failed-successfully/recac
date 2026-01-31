@@ -38,7 +38,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		Nodes: make(map[string]*CallGraphNode),
 	}
 
-	// Indices for deterministic lookup
+	// Indices for lookup
 	pkgIndex := make(map[string][]*CallGraphNode)    // PackagePath -> Nodes
 	methodIndex := make(map[string][]*CallGraphNode) // MethodName -> Nodes
 
@@ -62,6 +62,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 
 		f, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
 		if err != nil {
+			// Skip malformed files
 			return nil
 		}
 		parsedFiles[path] = f
@@ -69,19 +70,19 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		pkgName := f.Name.Name
 		dir := filepath.Dir(path)
 
-		relDir, err := filepath.Rel(root, dir)
-		if err != nil {
-			return nil
-		}
+		// Approximate full package path
+		relDir, _ := filepath.Rel(root, dir)
 		fullPkg := relDir
 		if relDir == "." {
 			fullPkg = pkgName
 		} else if filepath.Base(relDir) != pkgName {
 			fullPkg = filepath.Join(relDir, pkgName)
 		}
+		// Ensure slash separator for consistent IDs
 		fullPkg = filepath.ToSlash(fullPkg)
 		fullPkg = strings.TrimPrefix(fullPkg, "./")
 
+		// Index Imports
 		imports := make(map[string]string)
 		for _, imp := range f.Imports {
 			pathVal := strings.Trim(imp.Path.Value, "\"")
@@ -89,6 +90,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 			if imp.Name != nil {
 				alias = imp.Name.Name
 			} else {
+				// Default alias is last part of path
 				parts := strings.Split(pathVal, "/")
 				alias = parts[len(parts)-1]
 			}
@@ -96,6 +98,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		}
 		fileImports[path] = imports
 
+		// Index Functions
 		for _, decl := range f.Decls {
 			if fn, ok := decl.(*ast.FuncDecl); ok {
 				node := &CallGraphNode{
@@ -104,11 +107,13 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 				}
 
 				if fn.Recv != nil {
+					// Method
 					typeName := getReceiverTypeName(fn.Recv)
 					node.Receiver = typeName
 					node.ID = fmt.Sprintf("%s.(%s).%s", fullPkg, typeName, fn.Name.Name)
 					methodIndex[fn.Name.Name] = append(methodIndex[fn.Name.Name], node)
 				} else {
+					// Function
 					node.ID = fmt.Sprintf("%s.%s", fullPkg, fn.Name.Name)
 					pkgIndex[fullPkg] = append(pkgIndex[fullPkg], node)
 				}
@@ -123,42 +128,22 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		return nil, err
 	}
 
-	// Sort indices for determinism
-	for _, nodes := range pkgIndex {
-		sort.Slice(nodes, func(i, j int) bool {
-			return nodes[i].ID < nodes[j].ID
-		})
-	}
-	for _, nodes := range methodIndex {
-		sort.Slice(nodes, func(i, j int) bool {
-			return nodes[i].ID < nodes[j].ID
-		})
-	}
-
-	// Prepare sorted package keys for deterministic iteration
-	var sortedPkgKeys []string
-	for pkg := range pkgIndex {
-		sortedPkgKeys = append(sortedPkgKeys, pkg)
-	}
-	sort.Strings(sortedPkgKeys)
-
 	// 2. Second Pass: Resolve Calls
+	// Use map to prevent duplicates
 	edgeMap := make(map[string]bool)
 
-	var paths []string
+	// Deterministic iteration over files
+	var sortedPaths []string
 	for p := range parsedFiles {
-		paths = append(paths, p)
+		sortedPaths = append(sortedPaths, p)
 	}
-	sort.Strings(paths)
+	sort.Strings(sortedPaths)
 
-	for _, path := range paths {
+	for _, path := range sortedPaths {
 		f := parsedFiles[path]
 		pkgName := f.Name.Name
 		dir := filepath.Dir(path)
-		relDir, err := filepath.Rel(root, dir)
-		if err != nil {
-			continue
-		}
+		relDir, _ := filepath.Rel(root, dir)
 		fullPkg := relDir
 		if relDir == "." {
 			fullPkg = pkgName
@@ -179,6 +164,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 					callerID = fmt.Sprintf("%s.%s", fullPkg, fn.Name.Name)
 				}
 
+				// Inspect body
 				ast.Inspect(fn.Body, func(n ast.Node) bool {
 					call, ok := n.(*ast.CallExpr)
 					if !ok {
@@ -189,19 +175,31 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 
 					switch fun := call.Fun.(type) {
 					case *ast.Ident:
+						// Local call: DoSomething()
 						candidateID := fmt.Sprintf("%s.%s", fullPkg, fun.Name)
 						if _, exists := cg.Nodes[candidateID]; exists {
 							calleeID = candidateID
+						} else {
+							// Could be a method on 'this' implicitly? No, Go doesn't allow implicit 'this'.
 						}
+
 					case *ast.SelectorExpr:
+						// X.Sel()
 						sel := fun.Sel.Name
+
 						if xIdent, ok := fun.X.(*ast.Ident); ok {
+							// Ident.Sel()
+							// Check if Ident is a package import
 							if importPath, isImport := imports[xIdent.Name]; isImport {
-								calleeID = resolveExternalCall(pkgIndex, sortedPkgKeys, importPath, sel)
+								// It is Pkg.Func()
+								// Use improved resolveExternalCall
+								calleeID = resolveExternalCall(pkgIndex, importPath, sel)
 								if calleeID == "" {
+									// Treat as external node
 									calleeID = fmt.Sprintf("%s.%s", importPath, sel)
 								}
 							} else {
+								// Variable.Method()
 								candidates := findMethodsByName(methodIndex, sel)
 								if len(candidates) == 1 {
 									calleeID = candidates[0].ID
@@ -251,38 +249,51 @@ func getReceiverTypeName(recv *ast.FieldList) string {
 	return "Unknown"
 }
 
-func resolveExternalCall(pkgIndex map[string][]*CallGraphNode, sortedPkgKeys []string, importPath string, funcName string) string {
-	var matches []string
+func resolveExternalCall(pkgIndex map[string][]*CallGraphNode, importPath string, funcName string) string {
+	// Find all matching packages
+	var candidates []string
 
-	for _, pkg := range sortedPkgKeys {
-		// Check if importPath ends with node.Package (which is pkg)
-		// Ensure we match "pkg" or "/pkg", not just substring suffix
-		suffix := "/" + pkg
-		if importPath == pkg || strings.HasSuffix(importPath, suffix) {
-			// Search nodes in this package
-			nodes := pkgIndex[pkg]
-			for _, node := range nodes {
-				if node.Name == funcName {
-					matches = append(matches, node.ID)
+	for pkg, nodes := range pkgIndex {
+		// pkg is "internal/foo"
+		// importPath is "github.com/recac/internal/foo"
+		// Match suffix
+		// IMPORTANT: Match strict suffix (starts with / or is full match)
+		// e.g. "pkg/a" matches "example.com/pkg/a"
+		// "pkg/a" should NOT match "example.com/sub/pkg/a" if "sub/pkg/a" exists?
+		// But here we just find candidates.
+
+		if strings.HasSuffix(importPath, pkg) {
+			// Check if boundary is correct
+			// importPath: .../pkg
+			// suffix: pkg
+			// diff: .../
+			// It must be empty or end in /
+			prefixLen := len(importPath) - len(pkg)
+			if prefixLen == 0 || importPath[prefixLen-1] == '/' {
+				for _, node := range nodes {
+					if node.Name == funcName {
+						candidates = append(candidates, node.ID)
+					}
 				}
 			}
 		}
 	}
 
-	if len(matches) == 0 {
+	if len(candidates) == 0 {
 		return ""
 	}
 
-	// Deterministic selection
-	sort.Slice(matches, func(i, j int) bool {
-		// Longest ID (Package) first
-		if len(matches[i]) != len(matches[j]) {
-			return len(matches[i]) > len(matches[j])
+	// Deterministic selection:
+	// 1. Longest ID length (proxy for longest package match)
+	// 2. Lexicographically first
+	sort.Slice(candidates, func(i, j int) bool {
+		if len(candidates[i]) != len(candidates[j]) {
+			return len(candidates[i]) > len(candidates[j])
 		}
-		return matches[i] < matches[j]
+		return candidates[i] < candidates[j]
 	})
 
-	return matches[0]
+	return candidates[0]
 }
 
 func findMethodsByName(methodIndex map[string][]*CallGraphNode, methodName string) []*CallGraphNode {
