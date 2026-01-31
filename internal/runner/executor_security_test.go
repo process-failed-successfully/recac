@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"log/slog"
+	"recac/internal/agent"
 	"recac/internal/notify"
 	"recac/internal/security"
 	"strings"
@@ -62,5 +63,52 @@ func TestProcessResponse_Security(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("Safe command was NOT executed")
+	}
+}
+
+func TestProcessResponse_MockAgentSafe(t *testing.T) {
+	// Verify that the standard MockAgent response for 'prime-python' is NOT blocked
+	mockAgent := agent.NewMockAgent()
+	resp, err := mockAgent.Send(context.Background(), "create primes.py")
+	if err != nil {
+		t.Fatalf("Failed to get mock response: %v", err)
+	}
+
+	mockDocker := &MockDockerForExec{}
+	s := &Session{
+		Docker:      mockDocker,
+		ContainerID: "test-container",
+		Notifier:    notify.NewManager(func(string, ...interface{}) {}),
+		Logger:      slog.Default(),
+		Scanner:     security.NewRegexScanner(),
+	}
+
+	out, err := s.ProcessResponse(context.Background(), resp)
+	if err != nil {
+		t.Fatalf("ProcessResponse failed: %v", err)
+	}
+
+	if strings.Contains(out, "[BLOCKED]") {
+		t.Fatalf("MockAgent response was blocked by security scanner!\nOutput: %s", out)
+	}
+
+	// Verify execution
+	// The mock response contains "cat << 'EOF' > primes.py" and "python3 primes.py"
+	// Note: ProcessResponse splits commands by bash blocks.
+	// The mock response has 1 bash block containing multiple commands.
+
+	if len(mockDocker.ExecutedCmds) == 0 {
+		t.Errorf("No commands executed for MockAgent response")
+	}
+
+	found := false
+	for _, cmd := range mockDocker.ExecutedCmds {
+		if strings.Contains(cmd, "primes.py") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Expected primes.py commands to be executed. Executed: %v", mockDocker.ExecutedCmds)
 	}
 }

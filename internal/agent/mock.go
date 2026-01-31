@@ -32,10 +32,14 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	// Helper for case-insensitive matching
+	promptLower := strings.ToLower(prompt)
+
 	// Heuristic for "prime-python" scenario planning phase.
 	// The planner prompt includes the AppSpec.
 	// We check for the specific ID used in the spec.
-	if strings.Contains(prompt, "ID:[PRIMES]") && (strings.Contains(prompt, "AppSpec") || strings.Contains(prompt, "Specification")) {
+	// Use case-insensitive check for ID and spec keywords
+	if strings.Contains(prompt, "ID:[PRIMES]") && (strings.Contains(promptLower, "appspec") || strings.Contains(promptLower, "specification")) {
 		// Return a JSON ARRAY of tickets, as expected by cmd/recac/jira.go
 		return `[
     {
@@ -49,9 +53,15 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristic for "prime-python" scenario execution phase.
 	// We want to match the task execution prompt but NOT the planning prompt.
 	// The planning prompt also contains "primes.py" and "Create", so we must exclude it.
-	isPlanning := strings.Contains(prompt, "AppSpec") || strings.Contains(prompt, "Specification")
-	if !isPlanning && (strings.Contains(prompt, "Task: [PRIMES]") || (strings.Contains(prompt, "primes.py") && strings.Contains(prompt, "Create"))) {
-		return fmt.Sprintf(`
+	isPlanning := strings.Contains(promptLower, "appspec") || strings.Contains(promptLower, "specification")
+
+	// Check for implementation triggers:
+	// 1. Task ID: [PRIMES] (often in prompt as "Task: [PRIMES]" or similar)
+	// 2. File + Action: "primes.py" AND "create" (case insensitive)
+	isImplementation := strings.Contains(prompt, "[PRIMES]") || (strings.Contains(promptLower, "primes.py") && strings.Contains(promptLower, "create"))
+
+	if !isPlanning && isImplementation {
+		return `
 I will implement the prime number script.
 
 ` + "```bash" + `
@@ -61,7 +71,7 @@ import json
 def is_prime(n):
     if n < 2: return False
     for i in range(2, int(n**0.5) + 1):
-        if n %% i == 0: return False
+        if n % i == 0: return False
     return True
 
 primes = [p for p in range(10000) if is_prime(p)]
@@ -76,7 +86,7 @@ python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json"
 ` + "```" + `
-`), nil
+`, nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
