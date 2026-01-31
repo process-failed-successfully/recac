@@ -113,13 +113,15 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	return findings, nil
 }
 
-// maskComments replaces comments (including inline) with spaces, preserving length.
+// maskComments replaces comments (including inline) and commands inside quotes with spaces, preserving length.
 func maskComments(line string) string {
 	b := []byte(line)
 	n := len(b)
 	inQuote := false
 	var quoteChar byte
 	escaped := false
+
+	keywords := []string{"rm", "cat", "cp", "mv", "chmod", "chown"}
 
 	for i := 0; i < n; i++ {
 		c := b[i]
@@ -135,6 +137,17 @@ func maskComments(line string) string {
 				}
 			} else if c == quoteChar {
 				inQuote = false
+			} else {
+				// Mask keywords inside quotes to avoid false positives in explanations
+				// e.g., print("Do not run rm -rf /") -> print("Do not run    -rf /")
+				for _, kw := range keywords {
+					if i+len(kw) <= n && string(b[i:i+len(kw)]) == kw {
+						// Found a keyword inside quote. Mask it.
+						for k := 0; k < len(kw); k++ {
+							b[i+k] = ' '
+						}
+					}
+				}
 			}
 		} else {
 			if c == '"' || c == '\'' {

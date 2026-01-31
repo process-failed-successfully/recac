@@ -34,6 +34,21 @@ func TestScanner_Robustness(t *testing.T) {
 			content:     "rm -rf tmp/*",
 			shouldBlock: false,
 		},
+		{
+			name:        "echo \"rm -rf /\"",
+			content:     "echo \"rm -rf /\"",
+			shouldBlock: false,
+		},
+		{
+			name:        "print(\"Don't cat .config\")",
+			content:     "print(\"Don't cat .config\")",
+			shouldBlock: false,
+		},
+		{
+			name:        "echo \"cat .config\"",
+			content:     "echo \"cat .config\"",
+			shouldBlock: false,
+		},
 		// Blocked cases (True Positives)
 		{
 			name:         "rm -rf /",
