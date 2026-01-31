@@ -7,6 +7,50 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestBlameModel_Init(t *testing.T) {
+	m := NewBlameModel(nil, nil, nil)
+	cmd := m.Init()
+	assert.Nil(t, cmd)
+}
+
+func TestBlameModel_View(t *testing.T) {
+	lines := []BlameLine{
+		{SHA: "abc12345", Date: "2023-01-01", Author: "John", Content: "fmt.Println()"},
+	}
+	m := NewBlameModel(lines, nil, nil)
+	m.Height = 20
+	m.Width = 80
+
+	// Default view (list)
+	view := m.View()
+	assert.Contains(t, view, "abc1234")
+	assert.Contains(t, view, "John")
+	assert.Contains(t, view, "fmt.Println()")
+
+	// Details view
+	m.viewingDetails = true
+	m.detailsViewport.Width = 80
+	m.detailsViewport.Height = 20
+	m.detailsViewport.SetContent("diff content")
+
+	view = m.View()
+	assert.Contains(t, view, "Commit Details")
+	assert.Contains(t, view, "diff content")
+}
+
+func TestBlameModel_Update_WindowSize(t *testing.T) {
+	m := NewBlameModel(nil, nil, nil)
+	msg := tea.WindowSizeMsg{Width: 100, Height: 50}
+
+	newM, _ := m.Update(msg)
+	m = newM.(BlameModel)
+
+	assert.Equal(t, 100, m.Width)
+	assert.Equal(t, 50, m.Height)
+	assert.Equal(t, 100, m.detailsViewport.Width)
+	assert.Equal(t, 49, m.detailsViewport.Height)
+}
+
 func TestBlameModel_Update_Navigation(t *testing.T) {
 	lines := []BlameLine{
 		{Content: "Line 1"},

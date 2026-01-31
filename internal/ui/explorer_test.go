@@ -164,3 +164,45 @@ func TestExplorerModel_Update_ExitView(t *testing.T) {
 
 	assert.False(t, finalM.viewingFile)
 }
+
+func TestFileItem_Methods(t *testing.T) {
+	fi := FileItem{Name: "test.txt", IsDir: false, DescStr: "desc"}
+	assert.Equal(t, "📄 test.txt", fi.Title())
+	assert.Equal(t, "desc", fi.Description())
+	assert.Equal(t, "test.txt", fi.FilterValue())
+
+	fiDir := FileItem{Name: "dir", IsDir: true, DescStr: "desc"}
+	assert.Equal(t, "📁 dir", fiDir.Title())
+}
+
+func TestFormatSize(t *testing.T) {
+	// Need to expose formatSize or test it via description
+	// Since formatSize is unexported, we can only test it if we are in the same package (we are 'package ui')
+	// Wait, formatSize is in explorer.go which is package ui. Test is package ui. So we can access it.
+
+	assert.Equal(t, "100 B", formatSize(100))
+	assert.Equal(t, "1.0 KB", formatSize(1024))
+	assert.Equal(t, "1.0 MB", formatSize(1024*1024))
+	assert.Equal(t, "1.5 MB", formatSize(1024*1024 + 512*1024))
+}
+
+func TestMax(t *testing.T) {
+	assert.Equal(t, 10, max(5, 10))
+	assert.Equal(t, 10, max(10, 5))
+}
+
+func TestExplorerModel_HeaderAndStatusView(t *testing.T) {
+	m, _ := NewExplorerModel(".", nil, nil, nil)
+	m.width = 100
+	m.viewport.Width = 100
+
+	// Test Status View
+	m.statusMessage = "Status Check"
+	view := m.View()
+	assert.Contains(t, view, "Status Check")
+
+	// Test Header View (only shows when viewing file)
+	m.viewingFile = true
+	view = m.View()
+	assert.Contains(t, view, "File View")
+}

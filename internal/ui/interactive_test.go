@@ -3,10 +3,14 @@ package ui
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewInteractiveModel(t *testing.T) {
@@ -626,4 +630,85 @@ func TestInteractiveModel_Update_ListSelection(t *testing.T) {
 	if !executed {
 		t.Error("Expected list selection to execute command")
 	}
+}
+
+func TestLoadModelsFromFile(t *testing.T) {
+	// Create valid JSON file
+	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "models.json")
+	content := `{
+		"models": [
+			{"name": "test-model", "displayName": "Test Model", "description": "A test model"}
+		]
+	}`
+	err := os.WriteFile(filePath, []byte(content), 0644)
+	require.NoError(t, err)
+
+	models, err := loadModelsFromFile(filePath)
+	require.NoError(t, err)
+	assert.Len(t, models, 1)
+	assert.Equal(t, "test-model", models[0].Value)
+	assert.Equal(t, "Test Model", models[0].Name)
+	assert.Equal(t, "A test model", models[0].DescriptionDetails)
+
+	// Test invalid path
+	_, err = loadModelsFromFile("non-existent-file.json")
+	assert.Error(t, err)
+
+	// Test invalid JSON
+	invalidPath := filepath.Join(tmpDir, "invalid.json")
+	err = os.WriteFile(invalidPath, []byte("{invalid"), 0644)
+	require.NoError(t, err)
+	_, err = loadModelsFromFile(invalidPath)
+	assert.Error(t, err)
+}
+
+func TestInitAgentCmd(t *testing.T) {
+	// We can't easily mock agent.NewAgent logic fully without dependency injection in interactive.go
+	// But we can check that it returns a command that produces a Msg
+	m := NewInteractiveModel(nil, "gemini", "gemini-1.5-pro")
+
+	cmd := m.initAgentCmd()
+	assert.NotNil(t, cmd)
+
+	// Execute cmd
+	// Since we don't have API keys, it might return AgentErrorMsg or AgentReadyMsg (mock fallback)
+	msg := cmd()
+
+	// We expect either Ready (if mock provider works without key) or Error
+	switch msg.(type) {
+	case AgentReadyMsg:
+		// pass
+	case AgentErrorMsg:
+		// pass, expected if no key
+	default:
+		t.Errorf("Unexpected msg type from initAgentCmd: %T", msg)
+	}
+}
+
+func TestInteractiveModel_ClearHistory(t *testing.T) {
+	m := NewInteractiveModel(nil, "", "")
+	m.conversation("test", true)
+
+	assert.NotEmpty(t, m.messages)
+
+	m.ClearHistory()
+	// ClearHistory resets to empty but calls conversation to add "cleared" msg
+	assert.Len(t, m.messages, 1)
+	assert.Contains(t, m.messages[0].Content, "cleared")
+}
+
+func TestInteractiveModel_Help(t *testing.T) {
+	m := NewInteractiveModel(nil, "", "")
+
+	// Default Chat Mode
+	assert.Len(t, m.keys.ShortHelp(), 4)
+
+	// Menu Mode (using contextualHelp via View logic checks)
+	// We can test contextualHelp struct directly
+	h := contextualHelp{keyMap: m.keys, isMenu: true}
+	assert.Len(t, h.ShortHelp(), 5) // Up, Down, Enter, Back, Quit
+
+	h = contextualHelp{keyMap: m.keys, isMenu: false}
+	assert.Len(t, h.ShortHelp(), 4) // Enter, Slash, Bang, Quit
 }
