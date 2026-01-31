@@ -82,9 +82,8 @@ git commit -m "Add primes.py and primes.json"
 	// Heuristic for Initializer Prompt (Feature List)
 	// This handles the "no-op loop" where the agent is asked to initialize features but returns nothing useful.
 	if strings.Contains(prompt, "agent-bridge import") || (strings.Contains(prompt, "Feature List") && strings.Contains(prompt, "initialize")) {
-		// Only trigger if it's the prime-python scenario (generic enough, but targeted)
-		if strings.Contains(prompt, "prime-python") || strings.Contains(prompt, "Prime Number") {
-			return `
+		// Return generic feature list for ANY project initialization prompt
+		return `
 I will initialize the project features.
 
 ` + "```bash" + `
@@ -107,7 +106,6 @@ EOF
 agent-bridge import feature_list.json
 ` + "```" + `
 `, nil
-		}
 	}
 
 	// Default Mock Response (Avoid empty response which trips No-Op circuit breaker)
