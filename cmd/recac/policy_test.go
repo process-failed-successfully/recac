@@ -3,17 +3,18 @@ package main
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestPolicyInitCmd(t *testing.T) {
-	// Change CWD to temp dir to avoid messing with repo
+	// Configure init to use temp dir
 	tmpDir := t.TempDir()
-	cwd, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(cwd)
+	oldConfigDir := policyConfigDir
+	policyConfigDir = tmpDir
+	defer func() { policyConfigDir = oldConfigDir }()
 
 	cmd := policyInitCmd
 	buf := new(bytes.Buffer)
@@ -24,32 +25,31 @@ func TestPolicyInitCmd(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, buf.String(), "Created default policy")
 
-	assert.FileExists(t, ".recac/policies.yaml")
+	assert.FileExists(t, filepath.Join(tmpDir, "policies.yaml"))
 }
 
 func TestPolicyCheckCmd(t *testing.T) {
 	tmpDir := t.TempDir()
-	cwd, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(cwd)
 
-	// Create policy file in root
+	// Create policy file in temp dir
 	policyContent := `
 rules:
   - type: banned_content
     pattern: "bad"
 `
-	os.WriteFile("policy.yaml", []byte(policyContent), 0644)
+	policyPath := filepath.Join(tmpDir, "policy.yaml")
+	os.WriteFile(policyPath, []byte(policyContent), 0644)
 
-	// Create src dir
-	os.Mkdir("src", 0755)
+	// Create src dir in temp dir
+	srcDir := filepath.Join(tmpDir, "src")
+	os.Mkdir(srcDir, 0755)
 
 	// Create bad file in src
-	os.WriteFile("src/test.txt", []byte("this is bad"), 0644)
+	os.WriteFile(filepath.Join(srcDir, "test.txt"), []byte("this is bad"), 0644)
 
 	// Set global flag variable manually since we aren't parsing flags via root
 	oldPolicyFile := policyFile
-	policyFile = "policy.yaml"
+	policyFile = policyPath
 	defer func() { policyFile = oldPolicyFile }()
 
 	cmd := policyCheckCmd
@@ -57,30 +57,29 @@ rules:
 	cmd.SetOut(buf)
 	cmd.SetErr(buf)
 
-	err := cmd.RunE(cmd, []string{"src"}) // Check src dir only
-	assert.Error(t, err)                  // Should fail
+	err := cmd.RunE(cmd, []string{srcDir}) // Check src dir only
+	assert.Error(t, err)                   // Should fail
 	assert.Contains(t, buf.String(), "Found 1 policy violations")
 	assert.Contains(t, buf.String(), "Found banned content: bad")
 }
 
 func TestPolicyCheckCmd_Pass(t *testing.T) {
 	tmpDir := t.TempDir()
-	cwd, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(cwd)
 
 	policyContent := `
 rules:
   - type: banned_content
     pattern: "bad"
 `
-	os.WriteFile("policy.yaml", []byte(policyContent), 0644)
+	policyPath := filepath.Join(tmpDir, "policy.yaml")
+	os.WriteFile(policyPath, []byte(policyContent), 0644)
 
-	os.Mkdir("src", 0755)
-	os.WriteFile("src/test.txt", []byte("this is good"), 0644)
+	srcDir := filepath.Join(tmpDir, "src")
+	os.Mkdir(srcDir, 0755)
+	os.WriteFile(filepath.Join(srcDir, "test.txt"), []byte("this is good"), 0644)
 
 	oldPolicyFile := policyFile
-	policyFile = "policy.yaml"
+	policyFile = policyPath
 	defer func() { policyFile = oldPolicyFile }()
 
 	cmd := policyCheckCmd
@@ -88,7 +87,7 @@ rules:
 	cmd.SetOut(buf)
 	cmd.SetErr(buf)
 
-	err := cmd.RunE(cmd, []string{"src"})
+	err := cmd.RunE(cmd, []string{srcDir})
 	assert.NoError(t, err)
 	assert.Contains(t, buf.String(), "Policy check passed")
 }

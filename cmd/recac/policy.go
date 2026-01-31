@@ -9,7 +9,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var policyFile string
+var (
+	policyFile      string
+	policyConfigDir = ".recac"
+)
 
 var policyCmd = &cobra.Command{
 	Use:   "policy",
@@ -21,14 +24,13 @@ var policyInitCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize a default policy file",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		dir := ".recac"
-		if _, err := os.Stat(dir); os.IsNotExist(err) {
-			if err := os.Mkdir(dir, 0755); err != nil {
+		if _, err := os.Stat(policyConfigDir); os.IsNotExist(err) {
+			if err := os.Mkdir(policyConfigDir, 0755); err != nil {
 				return fmt.Errorf("failed to create directory: %w", err)
 			}
 		}
 
-		path := filepath.Join(dir, "policies.yaml")
+		path := filepath.Join(policyConfigDir, "policies.yaml")
 		if _, err := os.Stat(path); err == nil {
 			return fmt.Errorf("policy file already exists at %s", path)
 		}
