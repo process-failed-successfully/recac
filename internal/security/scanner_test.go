@@ -37,6 +37,36 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "api_key = \"abc1234567890abc1234567890\"",
 			wantFinding: "Generic API Token",
 		},
+		{
+			name:        "Root Deletion",
+			content:     "rm -rf /",
+			wantFinding: "Root Deletion",
+		},
+		{
+			name:        "Root Deletion Tilde",
+			content:     "rm -rf ~",
+			wantFinding: "Root Deletion",
+		},
+		{
+			name:        "Root Deletion Multiline",
+			content:     "echo start\nrm -rf /\necho end",
+			wantFinding: "Root Deletion",
+		},
+		{
+			name:        "Safe Star Deletion",
+			content:     "rm -rf *",
+			wantFinding: "",
+		},
+		{
+			name:        "Safe Relative Deletion",
+			content:     "rm -rf myfolder",
+			wantFinding: "",
+		},
+		{
+			name:        "Safe Tmp Deletion",
+			content:     "rm -rf /tmp/foo",
+			wantFinding: "",
+		},
 	}
 
 	for _, tt := range tests {
