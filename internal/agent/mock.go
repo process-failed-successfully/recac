@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,11 +31,36 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// Smart Mock: Detect scenario based on prompt content and return valid JSON for tools
+	if containsAny(prompt, "Technical Program Manager", "agile software development", "User Story", "Epic") {
+		// This looks like the Jira ticket generation prompt from recac jira generate-from-spec
+		// Return a valid JSON mapping as expected by the tool
+		return `{
+  "PRIMES": "MFLP-1",
+  "PRIMES-1": "MFLP-2",
+  "PRIMES-2": "MFLP-3"
+}`, nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
+}
+
+func containsAny(s string, substrings ...string) bool {
+	for _, sub := range substrings {
+		if contains(s, sub) {
+			return true
+		}
+	}
+	return false
+}
+
+func contains(s, substr string) bool {
+	return strings.Contains(s, substr)
 }
 
 // SendStream implements the Agent interface
