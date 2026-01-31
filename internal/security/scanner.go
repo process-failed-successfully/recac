@@ -3,6 +3,7 @@ package security
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -30,8 +31,10 @@ var (
 	reGenericAPIToken = regexp.MustCompile(`(api|access)[_-]?key\s*[:=]\s*['"][a-zA-Z0-9_\-]{20,}['"]`)
 	reSlackToken      = regexp.MustCompile(`xox[baprs]-([0-9a-zA-Z]{10,48})`)
 	reGitHubToken     = regexp.MustCompile(`gh[pousr]_[a-zA-Z0-9]{36,255}`)
-	reDangerousCmd    = regexp.MustCompile(`(?i)\b(rm|cat|cp|mv|chmod|chown)\b.*(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
-	reRootDeletion    = regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+([/~*]+|/)$`)
+	// Updated regexes with stricter boundaries and better string/comment handling awareness
+	// Note: We include '\\' in the boundary to catch escaped commands like '\rm'
+	reDangerousCmd = regexp.MustCompile(`(?i)(?:^|[\s;&|()<>` + "`" + `\\])(rm|cat|cp|mv|chmod|chown)\b.*(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
+	reRootDeletion = regexp.MustCompile(`(?im)(?:^|[\s;&|()<>` + "`" + `\\])rm\s+-[rRf]+\s+([/~*]+|/)\s*$`)
 )
 
 // NewRegexScanner creates a new scanner with default patterns
@@ -54,8 +57,27 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	var findings []Finding
 	lines := strings.Split(content, "\n")
 
-	for name, pattern := range s.patterns {
-		matches := pattern.FindAllStringIndex(content, -1)
+	// Pre-process content for command checks (mask comments)
+	maskedContent := maskComments(content)
+
+	// Get keys and sort them for deterministic order
+	keys := make([]string, 0, len(s.patterns))
+	for k := range s.patterns {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, name := range keys {
+		pattern := s.patterns[name]
+
+		// For sensitive data (Secrets), scan the ORIGINAL content (leaked secrets in comments are still leaks).
+		// For command validation (Dangerous Command), scan the MASKED content (commented commands are safe).
+		targetContent := content
+		if name == "Dangerous Command" || name == "Root Deletion" {
+			targetContent = maskedContent
+		}
+
+		matches := pattern.FindAllStringIndex(targetContent, -1)
 		for _, match := range matches {
 			// Find line number
 			start := match[0]
@@ -66,6 +88,7 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 				}
 			}
 
+			// Extract matched text from ORIGINAL content to show what was found
 			matchedText := content[match[0]:match[1]]
 
 			findings = append(findings, Finding{
@@ -88,4 +111,95 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	}
 
 	return findings, nil
+}
+
+// maskComments replaces comments in Bash scripts with spaces, preserving layout.
+// It handles strings (single/double quotes) to avoid masking '#' inside them.
+func maskComments(content string) string {
+	var masked []byte
+	// Convert to byte slice for mutability
+	masked = make([]byte, len(content))
+	copy(masked, content)
+
+	inSingle := false
+	inDouble := false
+	inComment := false
+
+	for i := 0; i < len(content); i++ {
+		char := content[i]
+
+		if inComment {
+			if char == '\n' {
+				inComment = false
+				// Newline is preserved
+			} else {
+				masked[i] = ' '
+			}
+			continue
+		}
+
+		if inSingle {
+			if char == '\'' {
+				inSingle = false
+			}
+			continue
+		}
+
+		if inDouble {
+			if char == '"' {
+				// Handle escaped quote
+				if i > 0 && content[i-1] == '\\' {
+					// check for double escape (backslash itself escaped)
+					// e.g. "foo\\" -> escape, "foo\\\"" -> quote escaped
+					escaped := false
+					// count preceding backslashes
+					bsCount := 0
+					for j := i - 1; j >= 0; j-- {
+						if content[j] == '\\' {
+							bsCount++
+						} else {
+							break
+						}
+					}
+					if bsCount%2 != 0 {
+						escaped = true
+					}
+
+					if !escaped {
+						inDouble = false
+					}
+				} else {
+					inDouble = false
+				}
+			}
+			continue
+		}
+
+		// Not in string or comment
+		if char == '#' {
+			// Check if it's a valid comment start
+			// Must be at start of line OR preceded by whitespace/control operator
+			isStart := false
+			if i == 0 {
+				isStart = true
+			} else {
+				prev := content[i-1]
+				switch prev {
+				case ' ', '\t', '\n', ';', '|', '&', '(', ')', '<', '>', '`':
+					isStart = true
+				}
+			}
+
+			if isStart {
+				inComment = true
+				masked[i] = ' '
+			}
+		} else if char == '\'' {
+			inSingle = true
+		} else if char == '"' {
+			inDouble = true
+		}
+	}
+
+	return string(masked)
 }
