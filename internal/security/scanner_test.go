@@ -37,6 +37,31 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "api_key = \"abc1234567890abc1234567890\"",
 			wantFinding: "Generic API Token",
 		},
+		{
+			name:        "Comment after Semicolon",
+			content:     "ls -la;# rm -rf /",
+			wantFinding: "", // Should be masked as comment
+		},
+		{
+			name:        "Command in Quote",
+			content:     "echo \"rm -rf /\"",
+			wantFinding: "", // Should be ignored by regex
+		},
+		{
+			name:        "Command in Single Quote",
+			content:     "echo 'rm -rf /'",
+			wantFinding: "", // Should be ignored by regex
+		},
+		{
+			name:        "Actual Root Deletion",
+			content:     "rm -rf /",
+			wantFinding: "Root Deletion",
+		},
+		{
+			name:        "Root Deletion with Semicolon",
+			content:     "cd /; rm -rf /",
+			wantFinding: "Root Deletion",
+		},
 	}
 
 	for _, tt := range tests {
