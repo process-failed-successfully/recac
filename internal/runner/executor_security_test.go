@@ -83,4 +83,46 @@ func TestProcessResponse_Security(t *testing.T) {
 	if strings.Contains(outAllowed2, "[BLOCKED]") {
 		t.Errorf("Benign Config should be allowed, but was blocked! %s", outAllowed2)
 	}
+
+	// 5. Allowed: Dangerous command in quotes (echo "rm -rf /")
+	respAllowed3 := "I will echo a command.\n```bash\necho \"rm -rf /\"\n```"
+	outAllowed3, err := s.ProcessResponse(context.Background(), respAllowed3)
+	if err != nil {
+		t.Fatalf("ProcessResponse failed: %v", err)
+	}
+	if strings.Contains(outAllowed3, "[BLOCKED]") {
+		t.Errorf("Echoing dangerous command should be allowed, but was blocked! %s", outAllowed3)
+	}
+
+	// 6. Blocked: Accessing .config (cat ~/.config/foo)
+	respBlockedConfig := "I will read secret config.\n```bash\ncat ~/.config/foo\n```"
+	outBlockedConfig, err := s.ProcessResponse(context.Background(), respBlockedConfig)
+	if err != nil {
+		t.Fatalf("ProcessResponse failed: %v", err)
+	}
+	if !strings.Contains(outBlockedConfig, "[BLOCKED]") {
+		t.Errorf("Reading .config should be blocked! %s", outBlockedConfig)
+	}
+
+	// 7. Allowed: False positive check (rm file; echo .config)
+	// The scanner should see that .config is an argument to echo, not rm
+	respFalsePositive := "I will clean and log.\n```bash\nrm old_file; echo .config\n```"
+	outFalsePositive, err := s.ProcessResponse(context.Background(), respFalsePositive)
+	if err != nil {
+		t.Fatalf("ProcessResponse failed: %v", err)
+	}
+	if strings.Contains(outFalsePositive, "[BLOCKED]") {
+		t.Errorf("Multi-command line was falsely blocked! %s", outFalsePositive)
+	}
+
+	// 8. Allowed: Multi-line false positive (rm file \n echo .config)
+	// Newlines should act as separators and reset the context
+	respMultiLine := "I will clean.\n```bash\nrm old_file\necho .config\n```"
+	outMultiLine, err := s.ProcessResponse(context.Background(), respMultiLine)
+	if err != nil {
+		t.Fatalf("ProcessResponse failed: %v", err)
+	}
+	if strings.Contains(outMultiLine, "[BLOCKED]") {
+		t.Errorf("Multi-line script was falsely blocked! %s", outMultiLine)
+	}
 }

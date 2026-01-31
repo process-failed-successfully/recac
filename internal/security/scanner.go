@@ -36,7 +36,7 @@ var (
 	// We deliberately exclude quotes '"' so that matches inside strings are ignored.
 	boundary = `(?:^|[\s;&|()<>` + "`" + `])`
 
-	reDangerousCmd = regexp.MustCompile(`(?i)` + boundary + `(rm|cat|cp|mv|chmod|chown)\b.*(?:^|[/\s"'])(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
+	reDangerousCmd = regexp.MustCompile(`(?i)` + boundary + `(rm|cat|cp|mv|chmod|chown)\b[^;&|\n]*(?:^|[/\s"'])(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
 	// Allow trailing whitespace (\s*) because masking replaces comments with spaces
 	reRootDeletion = regexp.MustCompile(`(?i)` + boundary + `rm\s+-[rRf]+\s+(/+\*?|~(/+\*?)?)\s*$`)
 )
