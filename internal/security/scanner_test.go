@@ -37,6 +37,53 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "api_key = \"abc1234567890abc1234567890\"",
 			wantFinding: "Generic API Token",
 		},
+		// Dangerous Command Tests
+		{
+			name:        "Block rm -rf /",
+			content:     "rm -rf /",
+			wantFinding: "Root Deletion",
+		},
+		{
+			name:        "Block rm -rf ~",
+			content:     "rm -rf ~",
+			wantFinding: "Root Deletion",
+		},
+		{
+			name:        "Block rm -rf /*",
+			content:     "rm -rf /*",
+			wantFinding: "Root Deletion",
+		},
+		{
+			name:        "Block rm .config",
+			content:     "rm .config",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "Block rm ~/.aws/credentials",
+			content:     "rm ~/.aws/credentials",
+			wantFinding: "Dangerous Command",
+		},
+		// Safe Command Tests (False Positives Prevention)
+		{
+			name:        "Allow rm -rf * (current dir)",
+			content:     "rm -rf *",
+			wantFinding: "",
+		},
+		{
+			name:        "Allow rm my.config.json",
+			content:     "rm my.config.json",
+			wantFinding: "",
+		},
+		{
+			name:        "Allow rm foo.ssh",
+			content:     "rm foo.ssh",
+			wantFinding: "",
+		},
+		{
+			name:        "Allow rm with quoted config in name",
+			content:     "rm \"my.config.json\"",
+			wantFinding: "",
+		},
 	}
 
 	for _, tt := range tests {
