@@ -34,7 +34,8 @@ var (
 	// Improved regexes to avoid matching inside strings/quotes by checking boundaries
 	// Added backtick (`) to allowed boundaries to catch command substitution
 	// Use non-greedy match .*? to avoid ReDoS and improve performance
-	reDangerousCmd = regexp.MustCompile(`(?i)(?:^|[\s;&|()<>` + "`" + `])(rm|cat|cp|mv|chmod|chown)(?:$|[\s;&|()<>` + "`" + `]).*?(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
+	// Updated to enforce sensitive files are path components (preceded by space or slash)
+	reDangerousCmd = regexp.MustCompile(`(?i)(?:^|[\s;&|()<>` + "`" + `])(rm|cat|cp|mv|chmod|chown)(?:$|[\s;&|()<>` + "`" + `])(?:.*?[\s/])?(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)(?:$|[\s/])`)
 	reRootDeletion = regexp.MustCompile(`(?im)(?:^|[\s;&|()<>` + "`" + `])rm\s+-[rRf]+\s+([/~]+[/*.]*)(?:\s|;|` + "`" + `|$)`)
 )
 

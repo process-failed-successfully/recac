@@ -104,6 +104,46 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "echo `rm -rf /`",
 			wantFinding: "Root Deletion",
 		},
+		{
+			name:        "Safe Config File (suffix)",
+			content:     "cat my.config",
+			wantFinding: "",
+		},
+		{
+			name:        "Safe Config File (JSON)",
+			content:     "cat config.json",
+			wantFinding: "",
+		},
+		{
+			name:        "Dangerous Config File (Hidden)",
+			content:     "cat .config",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "Dangerous Config File (Path)",
+			content:     "cat foo/.config",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "Dangerous SSH Key (Tilde)",
+			content:     "cat ~/.ssh/id_rsa",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "Dangerous SSH Key (Relative)",
+			content:     "cat .ssh/id_rsa",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "Dangerous Etc Passwd",
+			content:     "cat /etc/passwd",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "Safe Delete Config",
+			content:     "rm -rf some.config",
+			wantFinding: "",
+		},
 	}
 
 	for _, tt := range tests {
