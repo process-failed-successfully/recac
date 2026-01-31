@@ -67,6 +67,7 @@ Keep the code absolutely minimal. Finish as quickly as possible.
 
 CRITICAL: You MUST name the script 'primes.py'. Do not use 'feature_implementation.py' or any other generic name.
 CRITICAL: Do NOT run 'pytest' or any test framework. Do NOT try to create test files. Just run the script and verify 'primes.json' exists.
+CRITICAL: Do NOT delete any files. Do NOT run 'rm -rf *'.
 
 Repo: %s`, "`", "`", repoURL),
 			Type: "Task",

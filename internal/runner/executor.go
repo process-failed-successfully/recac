@@ -17,7 +17,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var bashBlockRegex = regexp.MustCompile("(?s)```bash\\s*(.*?)\\s*```")
+var bashBlockRegex = regexp.MustCompile("(?s)```(shell|bash|sh)?\\s+(.*?)\\s*```")
 
 // ProcessResponse parses the agent response for commands, executes them, and handles blockers.
 func (s *Session) ProcessResponse(ctx context.Context, response string) (string, error) {
@@ -39,7 +39,7 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 	}
 
 	for i, match := range matches {
-		cmdScript := strings.TrimSpace(match[1])
+		cmdScript := strings.TrimSpace(match[2])
 		if cmdScript == "" {
 			continue
 		}
@@ -213,7 +213,7 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 
 	// Heuristic for files modified (counting write operations)
 	for _, match := range matches {
-		script := match[1]
+		script := match[2]
 		if strings.Contains(script, " > ") || strings.Contains(script, " >> ") || strings.Contains(script, "touch ") {
 			metrics.FilesModified++
 		}

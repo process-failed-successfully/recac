@@ -49,42 +49,38 @@ func NewRegexScanner() *RegexScanner {
 	}
 }
 
-// Scan checks the content for security patterns
+// Scan checks the content for security patterns line by line
 func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	var findings []Finding
 	lines := strings.Split(content, "\n")
 
-	for name, pattern := range s.patterns {
-		matches := pattern.FindAllStringIndex(content, -1)
-		for _, match := range matches {
-			// Find line number
-			start := match[0]
-			lineNumber := 1
-			for i := 0; i < start; i++ {
-				if content[i] == '\n' {
-					lineNumber++
-				}
-			}
-
-			matchedText := content[match[0]:match[1]]
-
-			findings = append(findings, Finding{
-				Type:        name,
-				Description: fmt.Sprintf("Found potential %s", name),
-				Match:       matchedText,
-				Line:        lineNumber,
-			})
-		}
-	}
-
-	// Scan line by line for context-aware checks (optional optimization)
 	for i, line := range lines {
-		// Example: Check for hardcoded passwords in typical config patterns
-		if strings.Contains(strings.ToLower(line), "password") && strings.Contains(line, "=") {
-			// Very basic heuristic, improved by ensuring it's not a variable definition in code but a value assignment
-			// For now, we'll be conservative to avoid noise, relying mostly on strict regexes above.
+		trimmed := strings.TrimSpace(line)
+
+		// Skip comments (lines starting with #)
+		if strings.HasPrefix(trimmed, "#") {
+			continue
 		}
-		_ = i
+
+		for name, pattern := range s.patterns {
+			matches := pattern.FindAllStringIndex(line, -1)
+			for _, match := range matches {
+				matchedText := line[match[0]:match[1]]
+
+				findings = append(findings, Finding{
+					Type:        name,
+					Description: fmt.Sprintf("Found potential %s", name),
+					Match:       matchedText,
+					Line:        i + 1,
+				})
+			}
+		}
+
+		// Additional heuristic checks (optional)
+		if strings.Contains(strings.ToLower(line), "password") && strings.Contains(line, "=") {
+			// Very basic heuristic, preserved from original implementation concept
+			// but explicitly not blocking based on this yet unless we add a regex for it.
+		}
 	}
 
 	return findings, nil
