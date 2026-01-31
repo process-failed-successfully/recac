@@ -30,8 +30,9 @@ var (
 	reGenericAPIToken = regexp.MustCompile(`(api|access)[_-]?key\s*[:=]\s*['"][a-zA-Z0-9_\-]{20,}['"]`)
 	reSlackToken      = regexp.MustCompile(`xox[baprs]-([0-9a-zA-Z]{10,48})`)
 	reGitHubToken     = regexp.MustCompile(`gh[pousr]_[a-zA-Z0-9]{36,255}`)
-	reDangerousCmd    = regexp.MustCompile(`(?i)\b(rm|cat|cp|mv|chmod|chown)\b.*(?:^|[/\s"'])(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)(?:[/\s"']|$)`)
-	reRootDeletion    = regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+(/+\*?|~(/+\*?)?)$`)
+	// Improved regex to avoid false positives in echo/comments (requires command context)
+	reDangerousCmd = regexp.MustCompile(`(?im)(?:^|[|&;({` + "`" + `]|\b(?:sudo|xargs|nohup|do|then|else)\b)\s*\b(rm|cat|cp|mv|chmod|chown)\b.*(?:^|[/\s"'])(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)(?:[/\s"']|$)`)
+	reRootDeletion = regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+(/+\*?|~(/+\*?)?)$`)
 )
 
 // NewRegexScanner creates a new scanner with default patterns

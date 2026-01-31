@@ -64,6 +64,20 @@ func TestProcessResponse_Security(t *testing.T) {
 		t.Errorf("Safe command was NOT executed")
 	}
 
+	// 2.5 Dangerous Command (Sensitive File)
+	respSensitive := "I will cat secret.\n```bash\ncat /etc/passwd\n```"
+	outSensitive, err := s.ProcessResponse(context.Background(), respSensitive)
+	if err != nil {
+		t.Fatalf("ProcessResponse failed: %v", err)
+	}
+
+	if !strings.Contains(outSensitive, "[BLOCKED]") {
+		t.Errorf("Sensitive file command was NOT blocked! %s", outSensitive)
+	}
+	if !strings.Contains(outSensitive, "Dangerous Command") {
+		t.Errorf("Expected description 'Dangerous Command', got: %s", outSensitive)
+	}
+
 	// 3. Commented Dangerous Command (False Positive Check)
 	// This ensures that dangerous commands inside comments are ignored.
 	respComment := "I am explaining rm -rf /\n```bash\n# Do not run rm .ssh keys\necho 'safe'\n```"
