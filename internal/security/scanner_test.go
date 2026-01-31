@@ -1,6 +1,7 @@
 package security
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -67,5 +68,40 @@ func TestRegexScanner_Scan(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestScanner_Determinism(t *testing.T) {
+	scanner := NewRegexScanner()
+	// Create content that triggers multiple rules
+	// "rm -rf /" triggers Root Deletion (must be at end of string due to regex anchor)
+	// "api_key = ..." triggers Generic API Token
+	content := "api_key = '1234567890123456789012345'\nrm -rf /"
+
+	var firstFindings string
+	for i := 0; i < 50; i++ {
+		findings, err := scanner.Scan(content)
+		if err != nil {
+			t.Fatalf("Scan failed: %v", err)
+		}
+
+		if len(findings) < 2 {
+			t.Fatalf("Expected at least 2 findings, got %d", len(findings))
+		}
+
+		// Concatenate finding types to check order
+		var types []string
+		for _, f := range findings {
+			types = append(types, f.Type)
+		}
+		currentFindings := strings.Join(types, ",")
+
+		if firstFindings == "" {
+			firstFindings = currentFindings
+		} else {
+			if firstFindings != currentFindings {
+				t.Fatalf("Non-deterministic findings order at iter %d: expected %s, got %s", i, firstFindings, currentFindings)
+			}
+		}
 	}
 }

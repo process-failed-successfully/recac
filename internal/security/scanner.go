@@ -3,6 +3,7 @@ package security
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -54,7 +55,15 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	var findings []Finding
 	lines := strings.Split(content, "\n")
 
-	for name, pattern := range s.patterns {
+	// Sort pattern keys for deterministic execution
+	var keys []string
+	for k := range s.patterns {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, name := range keys {
+		pattern := s.patterns[name]
 		matches := pattern.FindAllStringIndex(content, -1)
 		for _, match := range matches {
 			// Find line number
