@@ -53,7 +53,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 2. Feature List Planning Prompt (from recac init / planner.md)
 	// Requires FeatureList (JSON Object)
 	if strings.Contains(prompt, "Create a JSON object containing a feature list") {
-		return `{
+		return `I have created the feature list.
+
+` + "```bash" + `
+cat << 'EOF' | agent-bridge import
+{
   "project_name": "Prime Number Generator",
   "features": [
     {
@@ -73,7 +77,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
       }
     }
   ]
-}`, nil
+}
+EOF
+` + "```" + `
+`, nil
 	}
 
 	// 3. Implementation Prompt (from CodingAgent)
