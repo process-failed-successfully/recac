@@ -42,7 +42,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     {
       "id": "PRIMES",
       "category": "functional",
-      "description": "Calculate prime numbers using Python. Create a file named primes.py that prints prime numbers up to 100.",
+      "description": "Calculate prime numbers using Python. Create a file named primes.py that prints prime numbers up to 10,000.",
       "status": "pending",
       "steps": [
         "Create primes.py",
@@ -67,18 +67,25 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ` + "```bash" + `
 # Create primes.py
 cat << 'EOF' > primes.py
+import json
+
 def is_prime(n):
     if n <= 1: return False
     for i in range(2, int(n**0.5) + 1):
         if n % i == 0: return False
     return True
 
-primes = [n for n in range(101) if is_prime(n)]
-print(primes)
+primes = [n for n in range(10001) if is_prime(n)]
+print(f"Calculated {len(primes)} primes.")
+
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
 EOF
 
-# Verify
+# Verify and Commit
 python3 primes.py
+git add primes.py primes.json
+git commit -m "Add primes script and output"
 ` + "```" + `
 
 Done.
