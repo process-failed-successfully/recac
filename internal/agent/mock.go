@@ -73,7 +73,28 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
-	// 3. Implementation Prompt (Coding Agent)
+	// 3. Initializer Prompt (Agent Bridge Import)
+	// Triggered when feature list is missing. We MUST import features to stop the loop.
+	if strings.Contains(prompt, "agent-bridge import") {
+		return `I will import the features as requested.
+
+` + "```bash" + `
+cat << 'EOF' | agent-bridge import
+{
+  "features": [
+    {
+      "id": "[PRIMES]",
+      "description": "Implement prime number calculation script",
+      "type": "Task"
+    }
+  ]
+}
+EOF
+` + "```" + `
+`, nil
+	}
+
+	// 4. Implementation Prompt (Coding Agent)
 	// Triggered if it asks for primes.py implementation details
 	if strings.Contains(prompt, "primes.py") {
 		return `I will create the primes.py script and the output file.
