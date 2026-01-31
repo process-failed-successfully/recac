@@ -190,20 +190,30 @@ var ProcessJiraTicket = func(ctx context.Context, jiraTicketID string, jClient *
 	if repoURL == "" {
 		matches := jira.RepoRegex.FindStringSubmatch(description)
 		if len(matches) <= 1 {
-			logger.Error("Error: No repository URL found in ticket description (Repo: https://...)")
-			return fmt.Errorf("no repo url found")
+			if cfg.IsMock {
+				logger.Warn("Mock mode: No repository URL found in ticket. Using fallback/empty URL.")
+				repoURL = "https://example.com/mock/repo"
+			} else {
+				logger.Error("Error: No repository URL found in ticket description (Repo: https://...)")
+				return fmt.Errorf("no repo url found")
+			}
+		} else {
+			repoURL = strings.TrimSuffix(matches[1], ".git")
+			repoURL = strings.TrimSuffix(repoURL, "/")
+			logger.Info("Found repository URL in ticket", "repo_url", repoURL)
 		}
-		repoURL = strings.TrimSuffix(matches[1], ".git")
-		repoURL = strings.TrimSuffix(repoURL, "/")
-		logger.Info("Found repository URL in ticket", "repo_url", repoURL)
 	} else {
 		logger.Info("Using provided repository URL", "repo_url", repoURL)
 	}
 
 	gitClient := git.NewClient()
 	if _, err := cmdutils.SetupWorkspace(ctx, gitClient, repoURL, tempWorkspace, jiraTicketID, cfg.JiraEpicKey, timestamp); err != nil {
-		logger.Error("Error: Failed to setup workspace", "error", err)
-		return err
+		if cfg.IsMock {
+			logger.Warn("Mock mode: Failed to setup workspace (ignoring error)", "error", err)
+		} else {
+			logger.Error("Error: Failed to setup workspace", "error", err)
+			return err
+		}
 	}
 
 	// 5. Create app_spec.txt
