@@ -34,16 +34,14 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Smart Mock Logic for Smoke Tests
 	// 1. Ticket Generation Request (Prime Python Scenario)
 	if strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "JSON format") {
-		return `{
-  "plan": [
-    {
-      "id": "PRIMES",
-      "summary": "[GEN] Create Prime Number Script",
-      "description": "Create a python script named 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'.",
-      "type": "Task"
-    }
-  ]
-}`, nil
+		return `[
+  {
+    "title": "[GEN] Create Prime Number Script",
+    "description": "Create a python script named 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'. ID:[PRIMES]",
+    "type": "Task",
+    "children": []
+  }
+]`, nil
 	}
 
 	// 2. Implementation Request (Writing the file)
