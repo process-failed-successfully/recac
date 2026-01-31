@@ -52,7 +52,41 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
-	// 2. Implementation for 'prime-python' scenario
+	// 2. Initialization for 'prime-python' scenario
+	// Detects "agent-bridge import" or "Feature List" + "initialize" to generate the feature list.
+	// This must come BEFORE implementation check if there's overlap in keywords, or we ensure implementation check is specific enough.
+	if strings.Contains(prompt, "agent-bridge import") || (strings.Contains(prompt, "Feature List") && strings.Contains(prompt, "initialize")) {
+		return `I will create the feature list and import it.
+
+` + "```bash" + `
+cat << 'EOF' > feature_list.json
+{
+  "project_name": "primes-project",
+  "features": [
+    {
+      "id": "req-primes",
+      "category": "core",
+      "priority": "MVP",
+      "description": "Calculate primes",
+      "status": "todo",
+      "passes": false,
+      "steps": [],
+      "dependencies": {
+          "depends_on_ids": [],
+          "exclusive_write_paths": [],
+          "read_only_paths": []
+      }
+    }
+  ]
+}
+EOF
+
+agent-bridge import --file feature_list.json
+` + "```" + `
+`, nil
+	}
+
+	// 3. Implementation for 'prime-python' scenario
 	// The prompt will typically contain the ticket description or "primes.py" instructions.
 	// We use a "greedy" match here: if it talks about the primes task AND it's NOT the ticket generation prompt (checked above),
 	// assume it's the coding task.
@@ -89,8 +123,15 @@ git commit -m "Add primes.py and primes.json"
 
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
-		m.responsePrefix, len(prompt), truncateString(prompt, 100))
+	response := fmt.Sprintf(`%s:
+
+I received your prompt (%d characters). In mock mode, I would process this request and provide a response.
+
+`+"```bash"+`
+# no-op
+echo "Acknowledged"
+`+"```"+`
+`, m.responsePrefix, len(prompt))
 	return response, nil
 }
 
