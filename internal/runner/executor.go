@@ -17,7 +17,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var bashBlockRegex = regexp.MustCompile("(?s)```bash\\s*(.*?)\\s*```")
+var bashBlockRegex = regexp.MustCompile("(?is)```(?:bash|sh|shell|zsh)\\s*(.*?)\\s*```")
 
 // ProcessResponse parses the agent response for commands, executes them, and handles blockers.
 func (s *Session) ProcessResponse(ctx context.Context, response string) (string, error) {
@@ -50,6 +50,19 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 			s.Logger.Warn("Skipping execution of likely JSON data block mislabeled as bash", "snippet", cmdScript[:min(len(cmdScript), 50)])
 			parsedOutput.WriteString(fmt.Sprintf("\n[Skipped JSON Block %d - Use 'cat' to write files]\n", i+1))
 			continue
+		}
+
+		// Security Scan
+		if s.Scanner != nil {
+			findings, err := s.Scanner.Scan(cmdScript)
+			if err != nil {
+				s.Logger.Warn("security scanner error", "error", err, "script", cmdScript)
+			}
+			if len(findings) > 0 {
+				s.Logger.Warn("security violation: blocked dangerous command", "script", cmdScript, "findings", findings)
+				parsedOutput.WriteString(fmt.Sprintf("\n[BLOCKED] Command %d blocked by security scanner: %s\n", i+1, findings[0].Description))
+				continue
+			}
 		}
 
 		// Create timeout context for this specific command
