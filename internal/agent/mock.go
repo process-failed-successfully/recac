@@ -36,8 +36,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(prompt, "ID:[PRIMES]") {
 		// Differentiate between Planner (JSON Request) and Coding Agent (Bash Script Request)
 
-		// Planner Prompt Detection
-		if strings.Contains(prompt, "Create a JSON object containing a feature list") {
+		// Planner Prompt Detection (Broader Check)
+		if strings.Contains(prompt, "feature list") || strings.Contains(prompt, "JSON object") {
 			return `{
   "project_name": "Prime Number Script",
   "features": [
