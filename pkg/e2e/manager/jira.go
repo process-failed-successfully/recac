@@ -105,6 +105,15 @@ func (m *JiraManager) GenerateScenario(ctx context.Context, scenarioName, repoUR
 		}
 	} else {
 		// Legacy Flow
+		// If provider is 'mock', we need to pass a valid model flag, but the CLI validation logic in cmd/recac might still fail
+		// if it tries to initialize a real provider client.
+		// However, recac CLI commands typically use the agent factory which supports 'mock'.
+		// The error "unknown provider: mock" suggests the CLI's validation or factory doesn't support 'mock' string
+		// OR we need to pass a specific flag/env var to enable mock mode if it's hidden.
+
+		// Checking internal/agent/factory.go (or similar) would confirm if 'mock' is a valid provider key.
+		// Assuming 'mock' is supported by the agent factory used by the CLI.
+
 		cmdArgs := []string{"jira", "generate-from-spec",
 			"--spec", specFile,
 			"--project", m.ProjectKey,
