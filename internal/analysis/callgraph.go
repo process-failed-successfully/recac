@@ -268,11 +268,16 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 
 	for id, node := range cg.Nodes {
 		if node.Name == funcName && node.Receiver == "" {
-			// Check if importPath ends with node.Package
+			// Check if importPath strictly ends with node.Package
 			// node.Package might be "internal/utils"
 			// importPath might be "recac/internal/utils"
+			// Strict validation: pathLen == pkgLen || (pathLen > pkgLen && importPath[pathLen-pkgLen-1] == '/')
 			if strings.HasSuffix(importPath, node.Package) {
-				return id
+				pathLen := len(importPath)
+				pkgLen := len(node.Package)
+				if pathLen == pkgLen || (pathLen > pkgLen && importPath[pathLen-pkgLen-1] == '/') {
+					return id
+				}
 			}
 		}
 	}

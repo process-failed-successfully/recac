@@ -107,3 +107,28 @@ func internalFunc() {}
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
 }
+
+func TestResolveExternalCall_StrictSuffix(t *testing.T) {
+	// Setup a graph with a node in package "auth"
+	cg := &CallGraph{
+		Nodes: map[string]*CallGraphNode{
+			"auth.Login": {
+				ID:      "auth.Login",
+				Package: "auth", // Local package name
+				Name:    "Login",
+			},
+		},
+	}
+
+	// Case 1: Exact match - should match
+	match := resolveExternalCall(cg, "recac/auth", "Login")
+	assert.Equal(t, "auth.Login", match, "Should match exact suffix")
+
+	// Case 2: Partial match - should NOT match
+	matchBad := resolveExternalCall(cg, "recac/myauth", "Login")
+	assert.Equal(t, "", matchBad, "Should NOT match partial suffix 'myauth' with 'auth'")
+
+	// Case 3: Exact package match
+	matchExact := resolveExternalCall(cg, "auth", "Login")
+	assert.Equal(t, "auth.Login", matchExact, "Should match exact package name")
+}
