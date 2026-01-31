@@ -80,6 +80,10 @@ func init() {
 	viper.BindEnv("manager_frequency", "RECAC_MANAGER_FREQUENCY")
 	viper.BindEnv("task_max_iterations", "RECAC_TASK_MAX_ITERATIONS")
 
+	// Bind Agent Model/Provider env vars explicitly to handle Helm/K8s config maps
+	viper.BindEnv("model", "RECAC_AGENT_MODEL", "RECAC_MODEL")
+	viper.BindEnv("provider", "RECAC_AGENT_PROVIDER", "RECAC_PROVIDER")
+
 	rootCmd.AddCommand(startCmd)
 }
 

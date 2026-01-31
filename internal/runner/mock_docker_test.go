@@ -2,7 +2,10 @@ package runner
 
 import (
 	"context"
+	"fmt"
 	"recac/internal/docker"
+	"strings"
+	"time"
 )
 
 type MockDockerClient struct {
@@ -70,4 +73,38 @@ func (m *MockDockerClient) ImageBuild(ctx context.Context, options docker.ImageB
 		return m.ImageBuildFunc(ctx, options)
 	}
 	return "mock-image-id", nil
+}
+
+// MockDockerForExec is a more specialized mock for testing execution logic
+type MockDockerForExec struct {
+	DockerClient
+	ExecutedCmds []string
+	ExecDelay    time.Duration
+}
+
+func (m *MockDockerForExec) Exec(ctx context.Context, id string, cmd []string) (string, error) {
+	fullCmd := strings.Join(cmd, " ")
+	m.ExecutedCmds = append(m.ExecutedCmds, fullCmd)
+
+	if m.ExecDelay > 0 {
+		select {
+		case <-time.After(m.ExecDelay):
+		case <-ctx.Done():
+			return "", ctx.Err()
+		}
+	}
+
+	// Simulate success for most commands
+	if strings.Contains(fullCmd, "fail") {
+		return "", fmt.Errorf("simulated failure")
+	}
+	// Blocker checks should be empty unless we want to test blockers
+	if strings.Contains(fullCmd, "cat recac_blockers.txt") || strings.Contains(fullCmd, "cat blockers.txt") {
+		return "", nil
+	}
+	return "Success: " + fullCmd, nil
+}
+
+func (m *MockDockerForExec) ExecAsUser(ctx context.Context, id string, user string, cmd []string) (string, error) {
+	return m.Exec(ctx, id, cmd)
 }

@@ -4,10 +4,14 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNewSessionWithConfig(t *testing.T) {
+	viper.Set("security.scan_enabled", true)
+	defer viper.Set("security.scan_enabled", false)
+
 	workspace := t.TempDir()
 	project := "test-project"
 	provider := "test-provider"

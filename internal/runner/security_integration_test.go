@@ -7,6 +7,8 @@ import (
 	"recac/internal/docker"
 	"strings"
 	"testing"
+
+	"github.com/spf13/viper"
 )
 
 // MockUnsafeAgent outputs a secret
@@ -28,6 +30,9 @@ func (m *MockUnsafeAgent) SendStream(ctx context.Context, prompt string, onChunk
 
 func TestSecurityIntegration_BlocksSecrets(t *testing.T) {
 	// Setup
+	viper.Set("security.scan_enabled", true)
+	defer viper.Set("security.scan_enabled", false)
+
 	tmpDir := t.TempDir()
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
 	mockDocker, _ := docker.NewMockClient()

@@ -150,7 +150,10 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 	}
 
 	// Initialize Security Scanner
-	scanner := security.NewRegexScanner()
+	var scanner security.Scanner
+	if viper.GetBool("security.scan_enabled") {
+		scanner = security.NewRegexScanner()
+	}
 
 	// Create agents/logs directory in the current working directory (host)
 	// This is where Promtail expects to find them based on docker-compose.monitoring.yml
@@ -238,7 +241,10 @@ func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, pr
 	}
 
 	// Initialize Security Scanner
-	scanner := security.NewRegexScanner()
+	var scanner security.Scanner
+	if viper.GetBool("security.scan_enabled") {
+		scanner = security.NewRegexScanner()
+	}
 
 	// Create agents/logs directory in the current working directory (host)
 	// This is where Promtail expects to find them based on docker-compose.monitoring.yml
@@ -300,7 +306,10 @@ func NewSessionWithConfig(workspace, project, provider, model string, dbStore db
 	stateManager := agent.NewStateManager(agentStateFile)
 
 	// Initialize Security Scanner
-	scanner := security.NewRegexScanner()
+	var scanner security.Scanner
+	if viper.GetBool("security.scan_enabled") {
+		scanner = security.NewRegexScanner()
+	}
 
 	// Create agents/logs directory in the current working directory (host)
 	cwd, _ := os.Getwd()
