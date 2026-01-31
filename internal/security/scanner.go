@@ -30,7 +30,11 @@ var (
 	reGenericAPIToken = regexp.MustCompile(`(api|access)[_-]?key\s*[:=]\s*['"][a-zA-Z0-9_\-]{20,}['"]`)
 	reSlackToken      = regexp.MustCompile(`xox[baprs]-([0-9a-zA-Z]{10,48})`)
 	reGitHubToken     = regexp.MustCompile(`gh[pousr]_[a-zA-Z0-9]{36,255}`)
-	reDangerousCmd    = regexp.MustCompile(`(?i)\b(rm|cat|cp|mv|chmod|chown)\b.*(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
+
+	// Updated: Use strict path boundaries (non-word chars) to avoid false positives (e.g. my.config.json)
+	// while capturing quoted paths (e.g. ".config").
+	reDangerousCmd    = regexp.MustCompile(`(?i)\b(rm|cat|cp|mv|chmod|chown)\b.*(?:[^\w]|^)(\.ssh|\.aws|\.config|\.gemini|/?etc/passwd|/?etc/shadow)(?:[^\w]|$)`)
+
 	reRootDeletion    = regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+([/~*]+|/)$`)
 )
 
@@ -52,21 +56,38 @@ func NewRegexScanner() *RegexScanner {
 // Scan checks the content for security patterns
 func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	var findings []Finding
+
+	// Mask comments to prevent false positives (e.g. "# rm -rf /")
+	// We replace comment lines with spaces to preserve offsets and line numbers.
+	var sb strings.Builder
+	sb.Grow(len(content))
 	lines := strings.Split(content, "\n")
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "#") {
+			sb.WriteString(strings.Repeat(" ", len(line)))
+		} else {
+			sb.WriteString(line)
+		}
+		if i < len(lines)-1 {
+			sb.WriteString("\n")
+		}
+	}
+	maskedContent := sb.String()
 
 	for name, pattern := range s.patterns {
-		matches := pattern.FindAllStringIndex(content, -1)
+		matches := pattern.FindAllStringIndex(maskedContent, -1)
 		for _, match := range matches {
 			// Find line number
 			start := match[0]
 			lineNumber := 1
 			for i := 0; i < start; i++ {
-				if content[i] == '\n' {
+				if maskedContent[i] == '\n' {
 					lineNumber++
 				}
 			}
 
-			matchedText := content[match[0]:match[1]]
+			matchedText := maskedContent[match[0]:match[1]]
 
 			findings = append(findings, Finding{
 				Type:        name,
@@ -75,16 +96,6 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 				Line:        lineNumber,
 			})
 		}
-	}
-
-	// Scan line by line for context-aware checks (optional optimization)
-	for i, line := range lines {
-		// Example: Check for hardcoded passwords in typical config patterns
-		if strings.Contains(strings.ToLower(line), "password") && strings.Contains(line, "=") {
-			// Very basic heuristic, improved by ensuring it's not a variable definition in code but a value assignment
-			// For now, we'll be conservative to avoid noise, relying mostly on strict regexes above.
-		}
-		_ = i
 	}
 
 	return findings, nil

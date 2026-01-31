@@ -37,6 +37,82 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "api_key = \"abc1234567890abc1234567890\"",
 			wantFinding: "Generic API Token",
 		},
+		// New Regression Tests
+		{
+			name:        "Safe File Config",
+			content:     "cat my.config.json",
+			wantFinding: "",
+		},
+		{
+			name:        "Safe File Webpack",
+			content:     "cat webpack.config.js",
+			wantFinding: "",
+		},
+		{
+			name:        "Dangerous Config Access",
+			content:     "cat .config/foo",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "Dangerous Config Access Quoted",
+			content:     "cat \".config\"",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "Dangerous Config Access Single Quoted",
+			content:     "cat '.config'",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "Dangerous Config Access Home",
+			content:     "cat ~/.config/foo",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "Dangerous SSH Access",
+			content:     "cat .ssh/id_rsa",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "Dangerous Etc Passwd",
+			content:     "cat /etc/passwd",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "Dangerous Etc Passwd Relative",
+			content:     "cat etc/passwd",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "Dangerous Etc Passwd Quoted",
+			content:     "cat \"etc/passwd\"",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "Safe Etc Similar",
+			content:     "cat fooetc/passwd",
+			wantFinding: "",
+		},
+		{
+			name:        "Commented Dangerous Command",
+			content:     "# rm -rf /",
+			wantFinding: "",
+		},
+		{
+			name:        "Indented Commented Dangerous Command",
+			content:     "  # rm -rf /",
+			wantFinding: "",
+		},
+		{
+			name:        "Real Dangerous Command",
+			content:     "rm -rf /",
+			wantFinding: "Root Deletion",
+		},
+		{
+			name:        "Real Dangerous Command Multiline",
+			content:     "echo hi\nrm -rf /",
+			wantFinding: "Root Deletion",
+		},
 	}
 
 	for _, tt := range tests {
