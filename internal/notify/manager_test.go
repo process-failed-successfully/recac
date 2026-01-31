@@ -3,6 +3,7 @@ package notify
 import (
 	"context"
 	"errors"
+	"os"
 	"testing"
 
 	"github.com/slack-go/slack"
@@ -249,4 +250,47 @@ func TestManager_AddReaction(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, slackCalled)
 	assert.True(t, discordCalled)
+}
+
+func TestManager_InitDiscord(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(func() { viper.Reset() })
+
+	// Set env vars
+	os.Setenv("DISCORD_BOT_TOKEN", "dummy-token")
+	os.Setenv("DISCORD_CHANNEL_ID", "dummy-channel")
+	defer func() {
+		os.Unsetenv("DISCORD_BOT_TOKEN")
+		os.Unsetenv("DISCORD_CHANNEL_ID")
+	}()
+
+	viper.Set("notifications.discord.enabled", true)
+
+	m := NewManager(nil)
+	assert.NotNil(t, m.discordNotifier)
+}
+
+func TestManager_Start(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(func() { viper.Reset() })
+
+	os.Setenv("SLACK_BOT_USER_TOKEN", "xoxb-dummy")
+	os.Setenv("SLACK_APP_TOKEN", "xapp-dummy")
+	defer func() {
+		os.Unsetenv("SLACK_BOT_USER_TOKEN")
+		os.Unsetenv("SLACK_APP_TOKEN")
+	}()
+
+	viper.Set("notifications.slack.enabled", true)
+
+	m := NewManager(func(fmt string, args ...interface{}) {})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	m.Start(ctx)
+
+	// Cancel immediately to stop RunContext
+	cancel()
+
+	// Assert socketClient is initialized
+	assert.NotNil(t, m.socketClient)
 }
