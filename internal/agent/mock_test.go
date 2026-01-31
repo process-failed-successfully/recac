@@ -44,6 +44,26 @@ func TestMockAgent_PrimesScenario(t *testing.T) {
 	}
 }
 
+func TestMockAgent_PrimesScenario_Triggers(t *testing.T) {
+	agent := NewMockAgent()
+	triggers := []string{
+		"Please implement a python script named 'primes.py'",
+		"ID:[PRIMES] Implement Prime Number Generator",
+		"Work on the Prime Number Generator task",
+	}
+
+	for _, prompt := range triggers {
+		response, err := agent.Send(context.Background(), prompt)
+		if err != nil {
+			t.Fatalf("Send failed for trigger '%s': %v", prompt, err)
+		}
+
+		if !strings.Contains(response, "```bash") {
+			t.Errorf("Response for trigger '%s' should contain bash block", prompt)
+		}
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
