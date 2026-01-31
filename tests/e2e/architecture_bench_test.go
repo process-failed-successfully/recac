@@ -34,7 +34,7 @@ func TestArchitectureGenerationBenchmark(t *testing.T) {
 	}
 	model := os.Getenv("RECAC_MODEL")
 	if model == "" {
-		model = "meta-llama/llama-3.1-8b-instruct:free" // Default
+		model = "meta-llama/llama-3.3-70b-instruct:free" // Default
 	}
 	runs := 5 // Number of iterations
 
