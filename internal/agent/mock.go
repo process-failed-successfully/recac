@@ -52,8 +52,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 2. Planning Phase (Initializer Agent / Loop)
 	// Triggered by Orchestrator at start of session
-	// Prompt contains "Create feature_list.json" and "ID:[PRIMES]" (from spec)
-	if strings.Contains(prompt, "Create feature_list.json") && strings.Contains(prompt, "ID:[PRIMES]") {
+	// Prompt contains "Create feature_list.json" (from spec)
+	if strings.Contains(prompt, "Create feature_list.json") {
 		return `I will generate the feature list.
 
 ` + "```bash" + `
