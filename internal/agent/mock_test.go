@@ -72,3 +72,16 @@ func TestMockAgent_TicketGeneration_Type(t *testing.T) {
 		t.Error("MockAgent should generate a Task.")
 	}
 }
+
+func TestMockAgent_DefaultResponse_HasNoOp(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Just a chat message"
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "# no-op") {
+		t.Error("Default response should contain '# no-op' to prevent circuit breaker trips")
+	}
+}
