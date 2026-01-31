@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,12 +31,29 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// Handle "generate-from-spec" prompt (used by recac CLI)
+	// The CLI expects a raw JSON array of tickets.
+	// We check for "generate-from-spec" or "Technical Program Manager" which are key parts of that prompt.
+	promptLower := strings.ToLower(prompt)
+	if strings.Contains(promptLower, "generate-from-spec") || strings.Contains(promptLower, "technical program manager") {
+		return `[
+  {
+    "summary": "Implement Core Features",
+    "description": "Implement the core features described in the specification.",
+    "type": "Task",
+    "dependencies": []
+  }
+]`, nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
 }
+
 
 // SendStream implements the Agent interface
 func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
