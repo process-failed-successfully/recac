@@ -34,7 +34,23 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// SCENARIO: PRIME PYTHON
 	// This matches the specific E2E test case [PRIMES]
-	// We need to generate a valid primes.py and primes.json
+	// We need to differentiate between Ticket Generation (Planning) and Implementation (Coding).
+
+	// 1. Ticket Generation (Planning)
+	// Triggers: Must explicitly ask for Ticket Type or use the Planning keywords from the Spec
+	if strings.Contains(prompt, "[PRIMES]") && strings.Contains(prompt, "Type: Task") {
+		// Return JSON Plan
+		return `[
+  {
+    "summary": "[PRIMES] Create Prime Number Script",
+    "description": "Implement the prime number calculation script.",
+    "type": "Task"
+  }
+]`, nil
+	}
+
+	// 2. Implementation (Coding)
+	// Triggers: "PRIMES" or "primes.py" AND NOT Ticket Generation
 	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
 		return `I will create the prime number script as requested.
 
@@ -66,11 +82,9 @@ git commit -m "Add primes.py and primes.json" || echo "No changes to commit"
 	}
 
 	// Default Fallback
-	// Return a mock response that shows the agent received the prompt
-	// This allows the session to run without requiring real API keys
-	// Added # no-op block to prevent circuit breaker loops in the runner
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response.\n\n"+
-		"```bash\n# no-op to prevent loop\necho 'Mock Agent No-Op'\n```",
+	// Return a mock response that shows the agent received the prompt.
+	// IMPORTANT: Do NOT include a Bash block here.
+	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response.",
 		m.responsePrefix, len(prompt))
 	return response, nil
 }
