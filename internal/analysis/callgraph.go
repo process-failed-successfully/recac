@@ -262,7 +262,8 @@ func resolveExternalCall(pkgIndex map[string][]*CallGraphNode, sortedPkgKeys []s
 			// Search nodes in this package
 			nodes := pkgIndex[pkg]
 			for _, node := range nodes {
-				if node.Name == funcName {
+				// Only match functions, not methods
+				if node.Name == funcName && node.Receiver == "" {
 					matches = append(matches, node.ID)
 				}
 			}
