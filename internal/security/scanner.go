@@ -3,6 +3,7 @@ package security
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -54,8 +55,26 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	var findings []Finding
 	lines := strings.Split(content, "\n")
 
-	for name, pattern := range s.patterns {
-		matches := pattern.FindAllStringIndex(content, -1)
+	// Pre-calculate masked content for command checks
+	maskedContent := maskComments(content)
+
+	// Sort keys for deterministic iteration order
+	keys := make([]string, 0, len(s.patterns))
+	for k := range s.patterns {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, name := range keys {
+		pattern := s.patterns[name]
+
+		// Use masked content for command checks, original for secrets
+		targetContent := content
+		if name == "Dangerous Command" || name == "Root Deletion" {
+			targetContent = maskedContent
+		}
+
+		matches := pattern.FindAllStringIndex(targetContent, -1)
 		for _, match := range matches {
 			// Find line number
 			start := match[0]
@@ -66,6 +85,8 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 				}
 			}
 
+			// Use original content for the match text to show what was found
+			// (even if we matched on masked content, the text corresponds to the command)
 			matchedText := content[match[0]:match[1]]
 
 			findings = append(findings, Finding{
@@ -81,11 +102,95 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	for i, line := range lines {
 		// Example: Check for hardcoded passwords in typical config patterns
 		if strings.Contains(strings.ToLower(line), "password") && strings.Contains(line, "=") {
-			// Very basic heuristic, improved by ensuring it's not a variable definition in code but a value assignment
-			// For now, we'll be conservative to avoid noise, relying mostly on strict regexes above.
+			// Very basic heuristic
 		}
 		_ = i
 	}
 
 	return findings, nil
+}
+
+// maskComments replaces Bash-style comments with spaces to avoid false positives in command scanning.
+// It preserves string length and line numbers.
+func maskComments(content string) string {
+	lines := strings.Split(content, "\n")
+	var maskedLines []string
+
+	for _, line := range lines {
+		idx := findCommentStart(line)
+		if idx != -1 {
+			// Convert to bytes to modify in place (conceptually) and handle length correctly
+			// We replace comment chars with spaces
+			lineBytes := []byte(line)
+			for i := idx; i < len(lineBytes); i++ {
+				lineBytes[i] = ' '
+			}
+			maskedLines = append(maskedLines, string(lineBytes))
+		} else {
+			maskedLines = append(maskedLines, line)
+		}
+	}
+	// Rejoin with newline. Note: this normalizes line endings to \n if they were different.
+	// But since we split by \n, we assume \n is the separator.
+	return strings.Join(maskedLines, "\n")
+}
+
+// findCommentStart returns the index of the start of a comment (#), or -1 if none.
+// It handles single/double quotes and ensures # is preceded by a delimiter.
+func findCommentStart(line string) int {
+	inSingle := false
+	inDouble := false
+	escaped := false
+
+	for i := 0; i < len(line); i++ {
+		char := line[i]
+
+		if escaped {
+			escaped = false
+			continue
+		}
+
+		if char == '\\' {
+			escaped = true
+			continue
+		}
+
+		if char == '\'' && !inDouble {
+			inSingle = !inSingle
+			continue
+		}
+
+		if char == '"' && !inSingle {
+			inDouble = !inDouble
+			continue
+		}
+
+		if !inSingle && !inDouble {
+			if char == '#' {
+				// Check if it's a valid comment start
+				if i == 0 {
+					return i
+				}
+				prev := line[i-1]
+				// Check if prev is a delimiter
+				if isDelimiter(prev) {
+					return i
+				}
+			}
+		}
+	}
+	return -1
+}
+
+func isDelimiter(b byte) bool {
+	// Space, tab
+	if b == ' ' || b == '\t' {
+		return true
+	}
+	// Bash control operators
+	switch b {
+	case ';', '|', '&', '(', ')', '<', '>':
+		return true
+	}
+	return false
 }
