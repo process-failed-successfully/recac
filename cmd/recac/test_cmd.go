@@ -165,8 +165,8 @@ func runTestCore(cmd *cobra.Command, args []string) (string, error) {
 		scanner := bufio.NewScanner(stdoutPipe)
 		for scanner.Scan() {
 			line := scanner.Text()
-			fmt.Fprintln(cmd.OutOrStdout(), line)
 			mu.Lock()
+			fmt.Fprintln(cmd.OutOrStdout(), line)
 			outputBuf.WriteString(line + "\n")
 			mu.Unlock()
 		}
@@ -177,8 +177,8 @@ func runTestCore(cmd *cobra.Command, args []string) (string, error) {
 		scanner := bufio.NewScanner(stderrPipe)
 		for scanner.Scan() {
 			line := scanner.Text()
-			fmt.Fprintln(cmd.ErrOrStderr(), line)
 			mu.Lock()
+			fmt.Fprintln(cmd.ErrOrStderr(), line)
 			outputBuf.WriteString(line + "\n")
 			mu.Unlock()
 		}

@@ -77,3 +77,62 @@ func TestProcessResponse_Security(t *testing.T) {
 		t.Errorf("Safe command was NOT executed")
 	}
 }
+
+func TestProcessResponse_MockAgentSafe(t *testing.T) {
+	var executedCmds []string
+	mockDocker := &MockDockerClient{
+		ExecFunc: func(ctx context.Context, containerID string, cmd []string) (string, error) {
+			fullCmd := strings.Join(cmd, " ")
+			// Return empty for blocker check
+			if strings.Contains(fullCmd, "recac_blockers.txt") || strings.Contains(fullCmd, "blockers.txt") {
+				return "", nil
+			}
+			executedCmds = append(executedCmds, strings.Join(cmd, " "))
+			return "mock output", nil
+		},
+	}
+
+	s := &Session{
+		Docker:      mockDocker,
+		ContainerID: "test-container",
+		Notifier:    notify.NewManager(func(string, ...interface{}) {}),
+		Logger:      slog.Default(),
+		Scanner:     security.NewRegexScanner(),
+	}
+
+	// Mock Agent Script (from internal/agent/mock.go)
+	script := `cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n <= 1: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0: return False
+    return True
+
+primes = [x for x in range(10000) if is_prime(x)]
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+python3 primes.py
+git add primes.py
+git add -f primes.json
+git commit -m "Add primes script and output"
+`
+	resp := "Here is the implementation:\n```bash\n" + script + "\n```"
+
+	out, err := s.ProcessResponse(context.Background(), resp)
+	if err != nil {
+		t.Fatalf("ProcessResponse failed: %v", err)
+	}
+
+	if strings.Contains(out, "[BLOCKED]") {
+		t.Errorf("Mock Agent script was blocked! %s", out)
+	}
+
+	// Verify execution
+	if len(executedCmds) == 0 {
+		t.Errorf("Mock Agent script was NOT executed")
+	}
+}
