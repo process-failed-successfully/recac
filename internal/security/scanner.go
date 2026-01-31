@@ -31,7 +31,7 @@ var (
 	reSlackToken      = regexp.MustCompile(`xox[baprs]-([0-9a-zA-Z]{10,48})`)
 	reGitHubToken     = regexp.MustCompile(`gh[pousr]_[a-zA-Z0-9]{36,255}`)
 	reDangerousCmd    = regexp.MustCompile(`(?i)\b(rm|cat|cp|mv|chmod|chown)\b.*(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
-	reRootDeletion    = regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+([/~*]+|/)$`)
+	reRootDeletion    = regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+([/~*]+|/)(?:[\s;]|$)`)
 )
 
 // NewRegexScanner creates a new scanner with default patterns
@@ -58,8 +58,10 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	// This prevents regexes from matching patterns inside comments while preserving line numbers/indices
 	maskedLines := make([]string, len(lines))
 	for i, line := range lines {
-		if strings.HasPrefix(strings.TrimSpace(line), "#") {
-			maskedLines[i] = strings.Repeat(" ", len(line))
+		// Mask comments (anything after #) with spaces to prevent false positives
+		// This handles both full-line comments and inline comments, respecting quotes
+		if idx := findCommentStart(line); idx != -1 {
+			maskedLines[i] = line[:idx] + strings.Repeat(" ", len(line)-idx)
 		} else {
 			maskedLines[i] = line
 		}
@@ -100,4 +102,39 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	}
 
 	return findings, nil
+}
+
+// findCommentStart returns the index of the first unquoted #, or -1 if none found.
+func findCommentStart(line string) int {
+	inSingleQuote := false
+	inDoubleQuote := false
+	escaped := false
+
+	for i, r := range line {
+		if escaped {
+			escaped = false
+			continue
+		}
+
+		switch r {
+		case '\\':
+			// Escape only works outside single quotes (and mostly inside double quotes)
+			if !inSingleQuote {
+				escaped = true
+			}
+		case '\'':
+			if !inDoubleQuote {
+				inSingleQuote = !inSingleQuote
+			}
+		case '"':
+			if !inSingleQuote {
+				inDoubleQuote = !inDoubleQuote
+			}
+		case '#':
+			if !inSingleQuote && !inDoubleQuote {
+				return i
+			}
+		}
+	}
+	return -1
 }

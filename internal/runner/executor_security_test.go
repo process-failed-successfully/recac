@@ -75,4 +75,37 @@ func TestProcessResponse_Security(t *testing.T) {
 	if strings.Contains(outComment, "[BLOCKED]") {
 		t.Errorf("Commented dangerous command was blocked! %s", outComment)
 	}
+
+	// 4. Inline Comment (False Positive Check)
+	// This ensures that dangerous commands inside inline comments are ignored.
+	respInline := "Inline comment.\n```bash\necho 'safe' # rm -rf /\n```"
+	outInline, err := s.ProcessResponse(context.Background(), respInline)
+	if err != nil {
+		t.Fatalf("ProcessResponse failed: %v", err)
+	}
+	if strings.Contains(outInline, "[BLOCKED]") {
+		t.Errorf("Inline comment was blocked! %s", outInline)
+	}
+
+	// 5. Bypass Attempt (Security Check)
+	// This ensures that dangerous commands followed by other commands are still blocked.
+	respBypass := "Trying to bypass.\n```bash\nrm -rf /\necho 'done'\n```"
+	outBypass, err := s.ProcessResponse(context.Background(), respBypass)
+	if err != nil {
+		t.Fatalf("ProcessResponse failed: %v", err)
+	}
+	if !strings.Contains(outBypass, "[BLOCKED]") {
+		t.Errorf("Bypass attempt was NOT blocked! %s", outBypass)
+	}
+
+	// 6. Exploit Attempt (Quote Hijacking)
+	// This ensures that comments inside quotes are NOT masked, and dangerous commands after them are detected.
+	respExploit := "Exploit attempt.\n```bash\necho \"This is a # trick\"; rm -rf /\n```"
+	outExploit, err := s.ProcessResponse(context.Background(), respExploit)
+	if err != nil {
+		t.Fatalf("ProcessResponse failed: %v", err)
+	}
+	if !strings.Contains(outExploit, "[BLOCKED]") {
+		t.Errorf("Exploit attempt was NOT blocked! %s", outExploit)
+	}
 }
