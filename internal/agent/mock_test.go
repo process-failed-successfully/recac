@@ -25,6 +25,25 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_DefaultResponse_HasNoOp(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Generic prompt not matching any triggers"
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "```bash") {
+		t.Errorf("Default response missing bash block start")
+	}
+	if !strings.Contains(response, "# no-op") {
+		t.Errorf("Default response missing no-op comment")
+	}
+	if !strings.Contains(response, "echo 'mock agent alive'") {
+		t.Errorf("Default response missing echo command")
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {

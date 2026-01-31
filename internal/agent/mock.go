@@ -82,7 +82,8 @@ git commit -m "Add primes script and output"
 	}
 
 	// Default Mock Response
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
+	// We include a no-op bash block to ensure the executor doesn't trip the "no commands" circuit breaker
+	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...\n\n```bash\n# no-op to prevent circuit breaker\necho 'mock agent alive'\n```",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
 }
