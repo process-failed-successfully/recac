@@ -36,16 +36,14 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// The planner prompt includes the AppSpec.
 	// We check for the specific ID used in the spec.
 	if strings.Contains(prompt, "ID:[PRIMES]") && (strings.Contains(prompt, "AppSpec") || strings.Contains(prompt, "Specification")) {
-		return `{
-  "features": [
+		// Return a JSON ARRAY of tickets, as expected by cmd/recac/jira.go
+		return `[
     {
-      "ID": "[PRIMES]",
-      "Summary": "[PRIMES] Create Prime Number Script",
-      "Desc": "Create a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to 'primes.json'.",
-      "Type": "Task"
+      "title": "ID:[PRIMES] Create Prime Number Script",
+      "description": "Create a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to 'primes.json'.",
+      "type": "Task"
     }
-  ]
-}`, nil
+  ]`, nil
 	}
 
 	// Heuristic for "prime-python" scenario execution phase.
