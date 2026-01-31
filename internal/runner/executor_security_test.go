@@ -63,4 +63,39 @@ func TestProcessResponse_Security(t *testing.T) {
 	if !found {
 		t.Errorf("Safe command was NOT executed")
 	}
+
+	// 3. Allowed Wildcard Deletion (Regression Test for #1062)
+	// "rm -rf *" should be allowed (current directory), but "rm -rf /" or "rm -rf /*" blocked.
+	respWildcard := "I will delete current directory content.\n```bash\nrm -rf *\n```"
+	outWildcard, err := s.ProcessResponse(context.Background(), respWildcard)
+	if err != nil {
+		t.Fatalf("ProcessResponse failed: %v", err)
+	}
+
+	if strings.Contains(outWildcard, "[BLOCKED]") {
+		t.Errorf("Wildcard deletion (rm -rf *) was blocked! Output: %s", outWildcard)
+	}
+
+	// Verify it WAS executed
+	foundWildcard := false
+	for _, executed := range mockDocker.ExecutedCmds {
+		if strings.Contains(executed, "rm -rf *") {
+			foundWildcard = true
+			break
+		}
+	}
+	if !foundWildcard {
+		t.Errorf("Wildcard deletion (rm -rf *) was NOT executed")
+	}
+
+	// 4. Blocked Root Wildcard Deletion (Defense against rm -rf /*)
+	respRootWildcard := "I will delete root content.\n```bash\nrm -rf /*\n```"
+	outRootWildcard, err := s.ProcessResponse(context.Background(), respRootWildcard)
+	if err != nil {
+		t.Fatalf("ProcessResponse failed: %v", err)
+	}
+
+	if !strings.Contains(outRootWildcard, "[BLOCKED]") {
+		t.Errorf("Root wildcard deletion (rm -rf /*) was NOT blocked! Output: %s", outRootWildcard)
+	}
 }
