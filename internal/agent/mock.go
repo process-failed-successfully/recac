@@ -61,6 +61,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// This allows the session to run without requiring real API keys
 	// We include a bash no-op to prevent the circuit breaker from tripping due to "no commands"
 	// We place the bash block at the start to ensure it is always detected, regardless of prompt content
+	// NOTE: We ensure there is a clear newline before and after the block
 	response := fmt.Sprintf("%s:\n\n```bash\n# no-op\n```\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
