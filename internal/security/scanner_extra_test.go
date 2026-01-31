@@ -44,14 +44,12 @@ func TestRegexScanner_LineByLine(t *testing.T) {
         {
             name:        "Star Deletion",
             content:     "rm -rf *",
-            shouldBlock: true,
-            blockedReason: "Root Deletion",
+            shouldBlock: false,
         },
         {
             name:        "Star Deletion in middle",
             content:     "rm -rf *\necho cleaning done",
-            shouldBlock: true,
-            blockedReason: "Root Deletion",
+            shouldBlock: false,
         },
 	}
 

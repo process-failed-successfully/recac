@@ -63,4 +63,24 @@ func TestProcessResponse_Security(t *testing.T) {
 	if !found {
 		t.Errorf("Safe command was NOT executed")
 	}
+
+	// 3. Allowed: Star Deletion (rm -rf *)
+	respAllowed1 := "I will clean up.\n```bash\nrm -rf *\n```"
+	outAllowed1, err := s.ProcessResponse(context.Background(), respAllowed1)
+	if err != nil {
+		t.Fatalf("ProcessResponse failed: %v", err)
+	}
+	if strings.Contains(outAllowed1, "[BLOCKED]") {
+		t.Errorf("Star Deletion should be allowed, but was blocked! %s", outAllowed1)
+	}
+
+	// 4. Allowed: Benign Config (cat my.config)
+	respAllowed2 := "I will read config.\n```bash\ncat my.config\n```"
+	outAllowed2, err := s.ProcessResponse(context.Background(), respAllowed2)
+	if err != nil {
+		t.Fatalf("ProcessResponse failed: %v", err)
+	}
+	if strings.Contains(outAllowed2, "[BLOCKED]") {
+		t.Errorf("Benign Config should be allowed, but was blocked! %s", outAllowed2)
+	}
 }
