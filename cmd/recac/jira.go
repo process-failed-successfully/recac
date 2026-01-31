@@ -633,6 +633,8 @@ func init() {
 	jiraGenerateFromSpecCmd.Flags().StringSliceP("label", "l", []string{}, "Custom labels to add to generated tickets")
 	jiraGenerateFromSpecCmd.Flags().String("output-json", "", "Path to write the created ticket mapping (Title -> Key) in JSON format")
 	jiraGenerateFromSpecCmd.Flags().String("repo-url", "", "Repository URL to include in ticket descriptions")
+	jiraGenerateFromSpecCmd.Flags().String("provider", "", "AI Provider (e.g., openrouter, openai)")
+	jiraGenerateFromSpecCmd.Flags().String("model", "", "AI Model to use")
 	jiraCmd.AddCommand(jiraGenerateFromSpecCmd)
 
 	jiraGenerateFromArchCmd.Flags().String("arch", ".recac/architecture/architecture.yaml", "Path to architecture.yaml")
