@@ -42,9 +42,10 @@ func TestRunTest_ExplicitArgs(t *testing.T) {
 			// Verify args
 			expected := []string{"test", "-v", "pkg/a"}
 			assert.Equal(t, expected, arg)
-			return exec.Command("echo", "ok")
+			// Use shell to ensure echo works predictably across environments
+			return exec.Command("sh", "-c", "echo ok")
 		}
-		return exec.Command("echo", "unexpected")
+		return exec.Command("sh", "-c", "echo unexpected")
 	}
 	defer func() { execCommand = exec.Command }()
 
