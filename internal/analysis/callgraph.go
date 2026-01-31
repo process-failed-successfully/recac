@@ -280,7 +280,18 @@ func resolveExternalCall(pkgIndex map[string]map[string]*CallGraphNode, importPa
 	// We iterate over the known packages and check if the importPath ends with the package key.
 	// This avoids iterating over all nodes.
 	for pkgName, funcs := range pkgIndex {
-		if strings.HasSuffix(importPath, pkgName) {
+		// Strict suffix check: check for exact match or suffix preceded by '/'
+		match := false
+		pathLen := len(importPath)
+		pkgLen := len(pkgName)
+
+		if pathLen == pkgLen && importPath == pkgName {
+			match = true
+		} else if pathLen > pkgLen && strings.HasSuffix(importPath, pkgName) && importPath[pathLen-pkgLen-1] == '/' {
+			match = true
+		}
+
+		if match {
 			if node, ok := funcs[funcName]; ok {
 				return node.ID
 			}

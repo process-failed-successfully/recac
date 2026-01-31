@@ -107,3 +107,53 @@ func internalFunc() {}
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
 }
+
+func TestResolveExternalCall_StrictSuffix(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// 1. Create pkg/target.go with DoSomething
+	pkgDir := filepath.Join(tmpDir, "pkg")
+	err := os.MkdirAll(pkgDir, 0755)
+	require.NoError(t, err)
+
+	pkgContent := `package pkg
+func DoSomething() {}
+`
+	err = os.WriteFile(filepath.Join(pkgDir, "target.go"), []byte(pkgContent), 0644)
+	require.NoError(t, err)
+
+	// 2. Create main.go that imports "example.com/nopkg" and calls DoSomething
+	// Note: "example.com/nopkg" ends with "pkg", so it triggers the bug if lax suffix check is used.
+	mainContent := `package main
+
+import (
+	"fmt"
+	"example.com/nopkg"
+)
+
+func main() {
+	nopkg.DoSomething()
+	fmt.Println("Done")
+}
+`
+	err = os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainContent), 0644)
+	require.NoError(t, err)
+
+	// Run Analysis
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+	require.NotNil(t, cg)
+
+	// Verify that main -> pkg.DoSomething does NOT exist
+	// pkg.DoSomething ID should be "pkg.DoSomething"
+
+	unexpectedEdge := false
+	for _, edge := range cg.Edges {
+		if edge.To == "pkg.DoSomething" {
+			unexpectedEdge = true
+			break
+		}
+	}
+
+	assert.False(t, unexpectedEdge, "Should not resolve example.com/nopkg.DoSomething to local pkg.DoSomething")
+}
