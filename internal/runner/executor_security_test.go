@@ -66,6 +66,40 @@ func TestProcessResponse_Security(t *testing.T) {
 	}
 }
 
+func TestProcessResponse_AllowedCleanup(t *testing.T) {
+	mockDocker := &MockDockerForExec{}
+	s := &Session{
+		Docker:      mockDocker,
+		ContainerID: "test-container",
+		Notifier:    notify.NewManager(func(string, ...interface{}) {}),
+		Logger:      slog.Default(),
+		Scanner:     security.NewRegexScanner(), // Use real scanner
+	}
+
+	// Allowed Cleanup
+	resp := "I will clean up.\n```bash\nrm -rf *\n```"
+	out, err := s.ProcessResponse(context.Background(), resp)
+	if err != nil {
+		t.Fatalf("ProcessResponse failed: %v", err)
+	}
+
+	if strings.Contains(out, "[BLOCKED]") {
+		t.Errorf("Cleanup command was blocked! %s", out)
+	}
+
+	// Verify it WAS executed
+	found := false
+	for _, executed := range mockDocker.ExecutedCmds {
+		if strings.Contains(executed, "rm -rf *") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Cleanup command was NOT executed")
+	}
+}
+
 func TestProcessResponse_MockAgentSafe(t *testing.T) {
 	// Verify that the standard MockAgent response for 'prime-python' is NOT blocked
 	mockAgent := agent.NewMockAgent()

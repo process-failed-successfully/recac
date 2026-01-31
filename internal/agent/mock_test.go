@@ -48,6 +48,9 @@ func TestMockAgent_PrimePython(t *testing.T) {
 	if !strings.Contains(resp1, "cat << 'EOF' > primes.py") {
 		t.Errorf("Expected Implementation Bash, got: %s", resp1)
 	}
+	if !strings.Contains(resp1, "git config") {
+		t.Errorf("Expected git config in response, got: %s", resp1)
+	}
 
 	// Case 2: No Task ID, but has keywords (case insensitive)
 	implPrompt2 := "Please cReaTe a python script called Primes.py"
@@ -57,6 +60,9 @@ func TestMockAgent_PrimePython(t *testing.T) {
 	}
 	if !strings.Contains(resp2, "cat << 'EOF' > primes.py") {
 		t.Errorf("Expected Implementation Bash (Case Insensitive), got: %s", resp2)
+	}
+	if !strings.Contains(resp2, "git config") {
+		t.Errorf("Expected git config in response (Case Insensitive), got: %s", resp2)
 	}
 }
 

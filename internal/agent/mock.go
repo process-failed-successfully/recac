@@ -83,6 +83,8 @@ EOF
 python3 primes.py
 
 # Add to git
+git config user.email "mock-agent@recac.io"
+git config user.name "Mock Agent"
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json"
 ` + "```" + `
