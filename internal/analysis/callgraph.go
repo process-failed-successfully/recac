@@ -131,6 +131,28 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		return nil, err
 	}
 
+	// Build indices for faster resolution
+	// pkgIndex: package path -> []nodeID
+	// methodIndex: method name -> []nodeID
+	pkgIndex := make(map[string][]string)
+	methodIndex := make(map[string][]string)
+
+	// To ensure determinism in indices, we should insert in sorted order of node IDs.
+	// cg.Nodes keys are IDs.
+	var allIDs []string
+	for id := range cg.Nodes {
+		allIDs = append(allIDs, id)
+	}
+	sort.Strings(allIDs)
+
+	for _, id := range allIDs {
+		node := cg.Nodes[id]
+		pkgIndex[node.Package] = append(pkgIndex[node.Package], id)
+		if node.Receiver != "" {
+			methodIndex[node.Name] = append(methodIndex[node.Name], id)
+		}
+	}
+
 	// 2. Second Pass: Resolve Calls
 	// Use map to prevent duplicates
 	edgeMap := make(map[string]bool)
@@ -208,7 +230,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 								// This is tricky because "importPath" is like "github.com/foo/bar"
 								// But our keys are "internal/bar.Func".
 								// We will try to match suffix.
-								calleeID = resolveExternalCall(cg, importPath, sel)
+								calleeID = resolveExternalCall(pkgIndex, cg, importPath, sel)
 								if calleeID == "" {
 									// Treat as external node
 									calleeID = fmt.Sprintf("%s.%s", importPath, sel)
@@ -217,7 +239,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 								// Variable.Method()
 								// We don't know the type of Variable.
 								// Heuristic: Find ANY method named 'Sel' in our codebase.
-								candidates := findMethodsByName(cg, sel)
+								candidates := findMethodsByName(methodIndex, cg, sel)
 								if len(candidates) == 1 {
 									calleeID = candidates[0].ID
 								} else if len(candidates) > 1 {
@@ -273,7 +295,7 @@ func getReceiverTypeName(recv *ast.FieldList) string {
 	return "Unknown"
 }
 
-func resolveExternalCall(cg *CallGraph, importPath string, funcName string) string {
+func resolveExternalCall(pkgIndex map[string][]string, cg *CallGraph, importPath string, funcName string) string {
 	// Our nodes are keyed by "relDir/pkg.Func".
 	// Import path is "recac/internal/foo".
 	// If we are running on "recac" repo, "internal/foo" matches.
@@ -285,16 +307,19 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 
 	var matches []string
 
-	for id, node := range cg.Nodes {
-		if node.Name == funcName && node.Receiver == "" {
-			// Check if importPath ends with node.Package
-			// node.Package might be "internal/utils"
-			// importPath might be "recac/internal/utils"
+	// Optimization: Instead of scanning all nodes, we scan potential matching packages.
+	// We generate suffixes of importPath and check if they exist in pkgIndex.
+	// e.g., "example.com/foo/bar" -> "bar", "foo/bar", "example.com/foo/bar"
 
-			// Ensure we match "pkg" or "/pkg", not just substring suffix
-			suffix := "/" + node.Package
-			if importPath == node.Package || strings.HasSuffix(importPath, suffix) {
-				matches = append(matches, id)
+	parts := strings.Split(importPath, "/")
+	for i := len(parts) - 1; i >= 0; i-- {
+		suffix := strings.Join(parts[i:], "/")
+		if ids, ok := pkgIndex[suffix]; ok {
+			for _, id := range ids {
+				node := cg.Nodes[id]
+				if node.Name == funcName && node.Receiver == "" {
+					matches = append(matches, id)
+				}
 			}
 		}
 	}
@@ -316,15 +341,15 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 	return matches[0]
 }
 
-func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {
+func findMethodsByName(methodIndex map[string][]string, cg *CallGraph, methodName string) []*CallGraphNode {
 	var results []*CallGraphNode
-	for _, node := range cg.Nodes {
-		if node.Name == methodName && node.Receiver != "" {
-			results = append(results, node)
+	if ids, ok := methodIndex[methodName]; ok {
+		for _, id := range ids {
+			if node, exists := cg.Nodes[id]; exists {
+				results = append(results, node)
+			}
 		}
 	}
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].ID < results[j].ID
-	})
+	// The ids in methodIndex are already sorted by ID during index construction.
 	return results
 }
