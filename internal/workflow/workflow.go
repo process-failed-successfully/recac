@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"encoding/json"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -12,6 +13,7 @@ import (
 
 	"recac/internal/agent"
 	"recac/internal/cmdutils"
+	"recac/internal/db"
 	"recac/internal/docker"
 	"recac/internal/git"
 	"recac/internal/jira"
@@ -165,6 +167,18 @@ var ProcessJiraTicket = func(ctx context.Context, jiraTicketID string, jClient *
 	}
 
 	logger.Info("Ticket Found", "summary", summary)
+
+	// Inject Required Features if present (bypasses Initializer loop)
+	if features := jira.ExtractRequiredFeatures(description); len(features) > 0 {
+		fl := db.FeatureList{
+			ProjectName: summary,
+			Features:    features,
+		}
+		if data, err := json.Marshal(fl); err == nil {
+			logger.Info("Injecting features from ticket description", "count", len(features))
+			os.Setenv("RECAC_INJECTED_FEATURES", string(data))
+		}
+	}
 
 	timestamp := time.Now().Format("20060102-150405")
 	var tempWorkspace string
@@ -389,9 +403,15 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 		if cfg.Logger != nil {
 			session.Logger = cfg.Logger
 		}
-		session.MaxIterations = cfg.MaxIterations
-		session.TaskMaxIterations = cfg.TaskMaxIterations
-		session.ManagerFrequency = cfg.ManagerFrequency
+		if cfg.MaxIterations > 0 {
+			session.MaxIterations = cfg.MaxIterations
+		}
+		if cfg.TaskMaxIterations > 0 {
+			session.TaskMaxIterations = cfg.TaskMaxIterations
+		}
+		if cfg.ManagerFrequency > 0 {
+			session.ManagerFrequency = cfg.ManagerFrequency
+		}
 		session.StreamOutput = cfg.Stream
 		session.AutoMerge = cfg.AutoMerge
 		session.SkipQA = cfg.SkipQA
@@ -464,9 +484,15 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 	if cfg.Logger != nil {
 		session.Logger = cfg.Logger
 	}
-	session.MaxIterations = cfg.MaxIterations
-	session.TaskMaxIterations = cfg.TaskMaxIterations
-	session.ManagerFrequency = cfg.ManagerFrequency
+	if cfg.MaxIterations > 0 {
+		session.MaxIterations = cfg.MaxIterations
+	}
+	if cfg.TaskMaxIterations > 0 {
+		session.TaskMaxIterations = cfg.TaskMaxIterations
+	}
+	if cfg.ManagerFrequency > 0 {
+		session.ManagerFrequency = cfg.ManagerFrequency
+	}
 	session.ManagerFirst = cfg.ManagerFirst
 	session.StreamOutput = cfg.Stream
 	session.AutoMerge = cfg.AutoMerge

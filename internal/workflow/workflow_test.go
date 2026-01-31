@@ -190,7 +190,7 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 				"description": map[string]interface{}{
 					"type": "doc", "version": 1,
 					"content": []map[string]interface{}{
-						{"type": "paragraph", "content": []map[string]interface{}{{"type": "text", "text": "No repo here"}}},
+						{"type": "paragraph", "content": []map[string]interface{}{{"type": "text", "text": "No repo here\n\nREQUIRED FEATURES:\n- Feature 1\n- Feature 2"}}},
 					},
 				},
 				"issuelinks": []interface{}{},
