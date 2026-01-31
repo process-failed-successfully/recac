@@ -17,7 +17,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var bashBlockRegex = regexp.MustCompile("(?s)```(?:bash|sh)?\\s*(.*?)\\s*```")
+var bashBlockRegex = regexp.MustCompile("(?s)```(.*?)```")
 
 // ProcessResponse parses the agent response for commands, executes them, and handles blockers.
 func (s *Session) ProcessResponse(ctx context.Context, response string) (string, error) {
@@ -39,7 +39,18 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 	}
 
 	for i, match := range matches {
-		cmdScript := strings.TrimSpace(match[1])
+		// Robust Parsing: Strip language identifiers manually
+		// This handles ```bash, ```sh, ``` (no tag), and variations better than regex alone
+		rawContent := match[1]
+		cmdScript := strings.TrimSpace(rawContent)
+
+		if strings.HasPrefix(cmdScript, "bash") {
+			cmdScript = strings.TrimPrefix(cmdScript, "bash")
+		} else if strings.HasPrefix(cmdScript, "sh") {
+			cmdScript = strings.TrimPrefix(cmdScript, "sh")
+		}
+		cmdScript = strings.TrimSpace(cmdScript)
+
 		if cmdScript == "" {
 			continue
 		}
