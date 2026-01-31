@@ -248,7 +248,7 @@ type InteractiveModel struct {
 
 func NewInteractiveModel(commands []SlashCommand, provider, model string) InteractiveModel {
 	ta := textarea.New()
-	ta.Placeholder = "Type a message..."
+	ta.Placeholder = "Type a message or / for commands..."
 	ta.Focus()
 	ta.Prompt = " ❯ "
 	ta.CharLimit = 0 // No limit
@@ -326,12 +326,15 @@ func NewInteractiveModel(commands []SlashCommand, provider, model string) Intera
 
 	vp := viewport.New(50, 10)
 	welcomeMsg := strings.Join([]string{
-		interactiveBotStyle.Render("Recac: ") + "Welcome to RECAC! 🎨",
+		interactiveBotStyle.Render("Recac") + " 🎨 " + interactiveStatusMessageStyle.Render("Autonomous Coding Agent"),
 		"",
-		interactiveStatusMessageStyle.Render("  • Type / for commands (or press Tab)"),
-		interactiveStatusMessageStyle.Render("  • Type ! for shell execution"),
-		interactiveStatusMessageStyle.Render("  • Type anything else to chat"),
-		interactiveStatusMessageStyle.Render("  • Press Ctrl+C to quit"),
+		"I'm ready to help you code. Here's how we can work together:",
+		"",
+		interactiveStatusMessageStyle.Render("  💬 Chat") + "   Type your request naturally",
+		interactiveStatusMessageStyle.Render("  ⚡ Cmds") + "   Type / to see available commands",
+		interactiveStatusMessageStyle.Render("  🐚 Shell") + "  Type ! to run shell commands",
+		"",
+		interactiveStatusMessageStyle.Render("  💡 Tip:") + "   Use /model to switch AI brains!",
 		"",
 	}, "\n")
 	vp.SetContent(welcomeMsg)
