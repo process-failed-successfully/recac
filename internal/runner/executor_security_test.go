@@ -9,8 +9,25 @@ import (
 	"testing"
 )
 
+// SecurityMockDocker is a local mock for testing security features
+// independent of agent_exec_test.go's MockDockerForExec
+type SecurityMockDocker struct {
+	DockerClient
+	ExecutedCmds []string
+}
+
+func (m *SecurityMockDocker) Exec(ctx context.Context, id string, cmd []string) (string, error) {
+	fullCmd := strings.Join(cmd, " ")
+	m.ExecutedCmds = append(m.ExecutedCmds, fullCmd)
+	// Simulate empty blocker file to avoid triggering blocker detection
+	if strings.Contains(fullCmd, "cat recac_blockers.txt") || strings.Contains(fullCmd, "cat blockers.txt") {
+		return "", nil
+	}
+	return "Success: " + fullCmd, nil
+}
+
 func TestProcessResponse_Security(t *testing.T) {
-	mockDocker := &MockDockerForExec{}
+	mockDocker := &SecurityMockDocker{}
 	s := &Session{
 		Docker:      mockDocker,
 		ContainerID: "test-container",

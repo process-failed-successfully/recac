@@ -33,7 +33,8 @@ var (
 	reGitHubToken     = regexp.MustCompile(`gh[pousr]_[a-zA-Z0-9]{36,255}`)
 	// Improved regexes to avoid matching inside strings/quotes by checking boundaries
 	// Added backtick (`) to allowed boundaries to catch command substitution
-	reDangerousCmd = regexp.MustCompile(`(?i)(?:^|[\s;&|()<>` + "`" + `])(rm|cat|cp|mv|chmod|chown)(?:$|[\s;&|()<>` + "`" + `]).*(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
+	// Use non-greedy match .*? to avoid ReDoS and improve performance
+	reDangerousCmd = regexp.MustCompile(`(?i)(?:^|[\s;&|()<>` + "`" + `])(rm|cat|cp|mv|chmod|chown)(?:$|[\s;&|()<>` + "`" + `]).*?(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
 	reRootDeletion = regexp.MustCompile(`(?im)(?:^|[\s;&|()<>` + "`" + `])rm\s+-[rRf]+\s+([/~]+[/*.]*)(?:\s|;|` + "`" + `|$)`)
 )
 

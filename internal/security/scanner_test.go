@@ -136,3 +136,32 @@ func TestRegexScanner_Scan(t *testing.T) {
 		})
 	}
 }
+
+func TestScanner_Determinism(t *testing.T) {
+	scanner := NewRegexScanner()
+	content := `
+rm -rf /
+var key = "AKIAIOSFODNN7EXAMPLE"
+`
+
+	// Run multiple times to ensure order is consistent
+	for i := 0; i < 10; i++ {
+		findings, err := scanner.Scan(content)
+		if err != nil {
+			t.Fatalf("Scan failed: %v", err)
+		}
+
+		if len(findings) != 2 {
+			t.Fatalf("Expected 2 findings, got %d", len(findings))
+		}
+
+		// Findings should be sorted by key (map iteration order is random, but we sort keys)
+		// "AWS Access Key" < "Root Deletion"
+		if findings[0].Type != "AWS Access Key" {
+			t.Errorf("Iteration %d: Expected first finding 'AWS Access Key', got '%s'", i, findings[0].Type)
+		}
+		if findings[1].Type != "Root Deletion" {
+			t.Errorf("Iteration %d: Expected second finding 'Root Deletion', got '%s'", i, findings[1].Type)
+		}
+	}
+}
