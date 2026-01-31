@@ -32,8 +32,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// Heuristic for "prime-python" scenario planning phase
-	if strings.Contains(prompt, "AppSpec: ### ID:[PRIMES]") {
+	// Heuristic for "prime-python" scenario planning phase.
+	// The planner prompt includes the AppSpec.
+	// We check for the specific ID used in the spec.
+	if strings.Contains(prompt, "ID:[PRIMES]") && (strings.Contains(prompt, "AppSpec") || strings.Contains(prompt, "Specification")) {
 		return `{
   "features": [
     {
@@ -46,8 +48,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 }`, nil
 	}
 
-	// Heuristic for "prime-python" scenario execution phase
-	if strings.Contains(prompt, "Task: [PRIMES]") || (strings.Contains(prompt, "primes.py") && strings.Contains(prompt, "Create")) {
+	// Heuristic for "prime-python" scenario execution phase.
+	// We want to match the task execution prompt but NOT the planning prompt.
+	// The planning prompt also contains "primes.py" and "Create", so we must exclude it.
+	isPlanning := strings.Contains(prompt, "AppSpec") || strings.Contains(prompt, "Specification")
+	if !isPlanning && (strings.Contains(prompt, "Task: [PRIMES]") || (strings.Contains(prompt, "primes.py") && strings.Contains(prompt, "Create"))) {
 		return fmt.Sprintf(`
 I will implement the prime number script.
 
@@ -78,8 +83,7 @@ git commit -m "Add primes.py and primes.json"
 
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
-	// We add a # no-op block to satisfy the runner's requirement for at least one command block
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...\n\n```bash\n# no-op\n```",
+	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
 }
