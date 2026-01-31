@@ -61,6 +61,12 @@ func TestMockAgent_Scenarios(t *testing.T) {
 	if !strings.Contains(resp, "cat << 'EOF' > primes.py") {
 		t.Errorf("Expected implementation bash script, got: %s", resp)
 	}
+	if !strings.Contains(resp, "git config user.email") {
+		t.Errorf("Expected git config setup, got: %s", resp)
+	}
+	if !strings.Contains(resp, "|| echo \"Nothing to commit\"") {
+		t.Errorf("Expected idempotent commit, got: %s", resp)
+	}
 }
 
 func TestTruncateString(t *testing.T) {

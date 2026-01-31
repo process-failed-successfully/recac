@@ -100,6 +100,9 @@ EOF
 		return `I will create the primes.py script and the output file.
 
 ` + "```bash" + `
+git config user.email "agent@recac.com"
+git config user.name "Recac Agent"
+
 cat << 'EOF' > primes.py
 import json
 
@@ -117,7 +120,7 @@ EOF
 
 python3 primes.py
 git add primes.py primes.json
-git commit -m "Implement primes script"
+git commit -m "Implement primes script" || echo "Nothing to commit"
 ` + "```" + `
 `, nil
 	}
