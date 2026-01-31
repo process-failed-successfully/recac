@@ -32,7 +32,44 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// Check if this is a ticket generation request (based on prompt content or context)
+	// 1. Check if this is the "Prime Python" scenario implementation phase
+	// This must come first because the prompt might also contain "app_spec.txt" from context.
+	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
+		return "Here is the implementation for primes.py:\n\n```bash\ncat << 'EOF' > primes.py\nimport json\n\ndef is_prime(n):\n    if n <= 1: return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0: return False\n    return True\n\nprimes = [x for x in range(10000) if is_prime(x)]\nwith open('primes.json', 'w') as f:\n    json.dump({\"primes\": primes}, f)\nEOF\n\npython3 primes.py\ngit add primes.py\ngit add -f primes.json\ngit commit -m \"Add primes script and output\"\n```", nil
+	}
+
+	// 2. Check if this is the "Initializer" phase (loading features)
+	if strings.Contains(prompt, "agent-bridge import") {
+		return `Here is the feature list for the project:
+
+` + "```bash" + `
+cat << 'EOF' > feature_list.json
+{
+  "project_name": "prime-python",
+  "features": [
+    {
+      "id": "1",
+      "category": "Core",
+      "priority": "MVP",
+      "description": "Implement Prime Number Generator",
+      "status": "pending",
+      "passes": false,
+      "steps": [],
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": [],
+        "read_only_paths": []
+      }
+    }
+  ]
+}
+EOF
+
+agent-bridge import
+` + "```", nil
+	}
+
+	// 3. Check if this is a ticket generation request (based on prompt content or context)
 	// The smoke test sends a prompt with the app spec.
 	if strings.Contains(prompt, "app_spec.txt") || strings.Contains(prompt, "Technical Program Manager") {
 		// Return a valid JSON response for the ticket generator
@@ -51,14 +88,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
-	// Check if this is the "Prime Python" scenario implementation phase
-	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
-		return "Here is the implementation for primes.py:\n\n```bash\ncat << 'EOF' > primes.py\nimport json\n\ndef is_prime(n):\n    if n <= 1: return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0: return False\n    return True\n\nprimes = [x for x in range(10000) if is_prime(x)]\nwith open('primes.json', 'w') as f:\n    json.dump({\"primes\": primes}, f)\nEOF\n\npython3 primes.py\ngit add primes.py\ngit add -f primes.json\ngit commit -m \"Add primes script and output\"\n```", nil
-	}
-
-	// Return a mock response that shows the agent received the prompt
+	// 4. Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
+	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...\n\n```bash\n# no-op to satisfy circuit breaker\n```",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
 }

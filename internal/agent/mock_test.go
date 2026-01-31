@@ -44,6 +44,34 @@ func TestMockAgent_PrimesScenario(t *testing.T) {
 	}
 }
 
+func TestMockAgent_DefaultResponse_HasNoOp(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Hello"
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(response, "# no-op") {
+		t.Error("Default response should contain # no-op block to prevent circuit breaker trips")
+	}
+}
+
+func TestMockAgent_Initializer(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Please run agent-bridge import"
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "agent-bridge import") {
+		t.Error("Response should contain agent-bridge import command")
+	}
+	if !strings.Contains(response, "feature_list.json") {
+		t.Error("Response should create feature_list.json")
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
