@@ -60,6 +60,35 @@ func TestMockAgent_PrimePython(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Initializer(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Standard Initializer prompt
+	initPrompt := "You are the Initializer Agent. Create a file named 'feature_list.json' based on the following AppSpec..."
+	resp, err := agent.Send(context.Background(), initPrompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(resp, "cat << 'EOF' > feature_list.json") {
+		t.Errorf("Expected FeatureList creation script, got: %s", resp)
+	}
+
+	if !strings.Contains(resp, "agent-bridge import") {
+		t.Errorf("Expected agent-bridge import command, got: %s", resp)
+	}
+
+	// Verify Initializer takes precedence over Planning even if AppSpec is present
+	initPromptWithSpec := "Create feature_list.json... AppSpec: ID:[PRIMES]..."
+	resp2, err := agent.Send(context.Background(), initPromptWithSpec)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(resp2, "cat << 'EOF' > feature_list.json") {
+		t.Errorf("Expected FeatureList creation script (Precedence), got: %s", resp2)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {

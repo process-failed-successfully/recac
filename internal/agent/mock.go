@@ -35,6 +35,41 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Helper for case-insensitive matching
 	promptLower := strings.ToLower(prompt)
 
+	// Heuristic for Initializer (feature_list.json)
+	// Must check this BEFORE planning, because the Initializer prompt often includes the AppSpec.
+	if strings.Contains(promptLower, "feature_list.json") && (strings.Contains(promptLower, "create") || strings.Contains(promptLower, "initialize")) {
+		return `
+I will create the feature list.
+
+` + "```bash" + `
+cat << 'EOF' > feature_list.json
+{
+    "project_name": "Prime Number Script",
+    "features": [
+        {
+            "id": "1",
+            "category": "core",
+            "priority": "MVP",
+            "description": "Calculate primes under 10000",
+            "status": "todo",
+            "passes": false,
+            "steps": [],
+            "dependencies": {
+                "depends_on_ids": [],
+                "exclusive_write_paths": [],
+                "read_only_paths": []
+            }
+        }
+    ]
+}
+EOF
+
+# Import it
+agent-bridge import --file feature_list.json
+` + "```" + `
+`, nil
+	}
+
 	// Heuristic for "prime-python" scenario planning phase.
 	// The planner prompt includes the AppSpec.
 	// We check for the specific ID used in the spec.
