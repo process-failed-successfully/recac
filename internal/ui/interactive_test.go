@@ -3,6 +3,8 @@ package ui
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -625,5 +627,92 @@ func TestInteractiveModel_Update_ListSelection(t *testing.T) {
 
 	if !executed {
 		t.Error("Expected list selection to execute command")
+	}
+}
+
+func TestInteractiveModel_ShortHelp_FullHelp(t *testing.T) {
+	k := keys
+	if len(k.ShortHelp()) == 0 {
+		t.Error("ShortHelp should not be empty")
+	}
+
+	h := contextualHelp{keyMap: k, isMenu: true}
+	if len(h.ShortHelp()) == 0 {
+		t.Error("Menu ShortHelp should not be empty")
+	}
+	if len(h.FullHelp()) == 0 {
+		t.Error("Menu FullHelp should not be empty")
+	}
+
+	h = contextualHelp{keyMap: k, isMenu: false}
+	if len(h.ShortHelp()) == 0 {
+		t.Error("Normal ShortHelp should not be empty")
+	}
+}
+
+func TestInteractiveModel_ClearHistory(t *testing.T) {
+	m := NewInteractiveModel(nil, "", "")
+	m.conversation("Hello", true)
+	if len(m.messages) <= 1 { // Should have System Welcome + User Msg
+		t.Error("Expected messages in history")
+	}
+
+	m.ClearHistory()
+	if len(m.messages) != 1 { // Cleared + "Conversation history cleared."
+		t.Errorf("Expected 1 message (confirmation), got %d", len(m.messages))
+	}
+	if !strings.Contains(m.messages[0].Content, "cleared") {
+		t.Error("Expected confirmation message")
+	}
+}
+
+func TestLoadModelsFromFile(t *testing.T) {
+	// 1. Valid File
+	content := `{
+		"models": [
+			{
+				"name": "test-model",
+				"displayName": "Test Model",
+				"description": "A test model"
+			}
+		]
+	}`
+
+	tmpDir := t.TempDir()
+	filename := filepath.Join(tmpDir, "test-models.json")
+	if err := os.WriteFile(filename, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	models, err := loadModelsFromFile(filename)
+	if err != nil {
+		t.Errorf("loadModelsFromFile failed: %v", err)
+	}
+	if len(models) != 1 {
+		t.Errorf("Expected 1 model, got %d", len(models))
+	}
+	if len(models) > 0 {
+		if models[0].Name != "Test Model" {
+			t.Errorf("Expected name 'Test Model', got '%s'", models[0].Name)
+		}
+		if models[0].Value != "test-model" {
+			t.Errorf("Expected value 'test-model', got '%s'", models[0].Value)
+		}
+	}
+
+	// 2. Invalid File
+	_, err = loadModelsFromFile(filepath.Join(tmpDir, "non-existent.json"))
+	if err == nil {
+		t.Error("Expected error for non-existent file")
+	}
+
+	// 3. Bad JSON
+	badFilename := filepath.Join(tmpDir, "bad.json")
+	if err := os.WriteFile(badFilename, []byte("{ bad json"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	_, err = loadModelsFromFile(badFilename)
+	if err == nil {
+		t.Error("Expected error for bad json")
 	}
 }

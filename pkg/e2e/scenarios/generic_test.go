@@ -3,80 +3,163 @@ package scenarios
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
+func TestGenericScenario_Basic(t *testing.T) {
+	cfg := GenericScenarioConfig{
+		Name:        "Test Scenario",
+		Description: "A test description",
+		AppSpec:     "App Spec for {{.RepoURL}}",
+	}
+	s := NewGenericScenario(cfg)
+
+	if s.Name() != "Test Scenario" {
+		t.Errorf("Expected name 'Test Scenario', got '%s'", s.Name())
+	}
+	if s.Description() != "A test description" {
+		t.Errorf("Expected description 'A test description', got '%s'", s.Description())
+	}
+
+	spec := s.AppSpec("http://repo.url")
+	if spec != "App Spec for http://repo.url" {
+		t.Errorf("AppSpec template expansion failed: %s", spec)
+	}
+}
+
 func TestGenericScenario_Generate(t *testing.T) {
-	config := GenericScenarioConfig{
-		Name: "Test Scenario",
+	cfg := GenericScenarioConfig{
 		Tickets: []TicketTemplate{
 			{
-				ID:      "TEST-1",
-				Summary: "Summary for {{.UniqueID}}",
-				Desc:    "Repo: {{.RepoURL}}",
+				ID:      "T-1",
+				Summary: "Summary {{.UniqueID}}",
+				Desc:    "Desc {{.RepoURL}}",
 				Type:    "Task",
 			},
 		},
 	}
-	s := NewGenericScenario(config)
+	s := NewGenericScenario(cfg)
 
-	specs := s.Generate("12345", "https://example.com/repo")
+	tickets := s.Generate("uid123", "http://repo")
+	if len(tickets) != 1 {
+		t.Fatalf("Expected 1 ticket, got %d", len(tickets))
+	}
 
-	if len(specs) != 1 {
-		t.Fatalf("Expected 1 ticket spec, got %d", len(specs))
+	if tickets[0].Summary != "Summary uid123" {
+		t.Errorf("Summary expansion failed: %s", tickets[0].Summary)
 	}
-	if specs[0].Summary != "Summary for 12345" {
-		t.Errorf("Expected summary 'Summary for 12345', got '%s'", specs[0].Summary)
-	}
-	if specs[0].Desc != "Repo: https://example.com/repo" {
-		t.Errorf("Expected desc 'Repo: https://example.com/repo', got '%s'", specs[0].Desc)
+	if tickets[0].Desc != "Desc http://repo" {
+		t.Errorf("Desc expansion failed: %s", tickets[0].Desc)
 	}
 }
 
-func TestGenericScenario_RunStep_FileContent(t *testing.T) {
-	// Setup generic scenario with no tickets needed for this specific test
-	s := NewGenericScenario(GenericScenarioConfig{})
-
-	tmpDir := t.TempDir()
-	filePath := filepath.Join(tmpDir, "test.txt")
-	err := os.WriteFile(filePath, []byte("Hello World"), 0644)
+func TestGenericScenario_Verify_FileExists(t *testing.T) {
+	// Setup temp dir
+	tmpDir, err := os.MkdirTemp("", "scenario_test")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.RemoveAll(tmpDir)
 
-	// Case 1: Success match
-	step := ValidationStep{
-		Name:             "Check Content",
-		Type:             ValidateFileContent,
-		Path:             "test.txt",
-		ContentMustMatch: "Hello",
-	}
-	if err := s.runStep(tmpDir, step); err != nil {
-		t.Errorf("Expected success, got error: %v", err)
+	// Create a file
+	filename := "testfile.txt"
+	if err := os.WriteFile(filepath.Join(tmpDir, filename), []byte("content"), 0644); err != nil {
+		t.Fatal(err)
 	}
 
-	// Case 2: Fail match
-	stepFail := ValidationStep{
-		Name:             "Check Missing",
-		Type:             ValidateFileContent,
-		Path:             "test.txt",
-		ContentMustMatch: "Missing",
+	cfg := GenericScenarioConfig{
+		Validations: []ValidationStep{
+			{
+				Name: "Check File",
+				Type: ValidateFileExists,
+				Path: filename,
+			},
+		},
 	}
-	if err := s.runStep(tmpDir, stepFail); err == nil {
-		t.Error("Expected error for missing content, got nil")
-	} else if !strings.Contains(err.Error(), "does not contain 'Missing'") {
-		t.Errorf("Expected specific error message, got: %v", err)
+	s := NewGenericScenario(cfg)
+
+	if err := s.Verify(tmpDir, nil); err != nil {
+		t.Errorf("Verify failed for existing file: %v", err)
 	}
 
-	// Case 3: Fail forbidden
-	stepForbidden := ValidationStep{
-		Name:                "Check Forbidden",
-		Type:                ValidateFileContent,
-		Path:                "test.txt",
-		ContentMustNotMatch: "World",
+	// Negative test
+	cfg.Validations[0].Path = "missing.txt"
+	if err := s.Verify(tmpDir, nil); err == nil {
+		t.Error("Verify should fail for missing file")
 	}
-	if err := s.runStep(tmpDir, stepForbidden); err == nil {
-		t.Error("Expected error for forbidden content, got nil")
+}
+
+func TestGenericScenario_Verify_FileContent(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scenario_test")
+	if err != nil {
+		t.Fatal(err)
 	}
+	defer os.RemoveAll(tmpDir)
+
+	filename := "testfile.txt"
+	content := "foo bar baz"
+	if err := os.WriteFile(filepath.Join(tmpDir, filename), []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Success case
+	cfg := GenericScenarioConfig{
+		Validations: []ValidationStep{
+			{
+				Name:             "Check Content",
+				Type:             ValidateFileContent,
+				Path:             filename,
+				ContentMustMatch: "bar",
+			},
+		},
+	}
+	s := NewGenericScenario(cfg)
+	if err := s.Verify(tmpDir, nil); err != nil {
+		t.Errorf("Verify failed for matching content: %v", err)
+	}
+
+	// Fail case (MustMatch)
+	cfg.Validations[0].ContentMustMatch = "qux"
+	if err := s.Verify(tmpDir, nil); err == nil {
+		t.Error("Verify should fail when content missing")
+	}
+
+	// Fail case (MustNotMatch)
+	cfg.Validations[0].ContentMustMatch = ""
+	cfg.Validations[0].ContentMustNotMatch = "foo"
+	if err := s.Verify(tmpDir, nil); err == nil {
+		t.Error("Verify should fail when forbidden content present")
+	}
+}
+
+func TestGenericScenario_Verify_RunCommand(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scenario_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// We'll use 'echo' command which should exist
+	cfg := GenericScenarioConfig{
+		Validations: []ValidationStep{
+			{
+				Name:             "Check Echo",
+				Type:             ValidateRunCommand,
+				Path:             "echo",
+				Args:             []string{"hello world"},
+				ContentMustMatch: "hello",
+			},
+		},
+	}
+	s := NewGenericScenario(cfg)
+
+	if err := s.Verify(tmpDir, nil); err != nil {
+		t.Errorf("Verify failed for command: %v", err)
+	}
+
+    // Fail case
+    cfg.Validations[0].ContentMustMatch = "goodbye"
+    if err := s.Verify(tmpDir, nil); err == nil {
+        t.Error("Verify should fail for matching content mismatch")
+    }
 }
