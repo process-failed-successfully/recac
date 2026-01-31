@@ -68,6 +68,9 @@ func TestMockAgent_TicketGenerationWithPrimesContent(t *testing.T) {
 	if !strings.Contains(response, "cat << 'EOF' > primes.py") {
 		t.Errorf("Expected file creation command, got: %s", response)
 	}
+	if !strings.Contains(response, "feature_list.json") {
+		t.Errorf("Expected feature list creation, got: %s", response)
+	}
 	if !strings.Contains(response, "git commit") {
 		t.Errorf("Expected git commit command, got: %s", response)
 	}

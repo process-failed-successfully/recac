@@ -79,9 +79,23 @@ EOF
 # Run the script to generate the output file
 python3 primes.py
 
-# Commit the files
-git add primes.py primes.json
-git commit -m "Add primes.py and primes.json"
+# Create feature list to signal completion (triggers checkAutoQA -> COMPLETED)
+cat << 'JSON' > feature_list.json
+{
+  "features": [
+    {
+      "id": "PRIMES",
+      "description": "Calculate primes",
+      "status": "done",
+      "passes": true
+    }
+  ]
+}
+JSON
+
+# Commit the files (idempotent)
+git add primes.py primes.json feature_list.json
+git diff --cached --quiet || git commit -m "Add primes.py and primes.json"
 ` + "```" + `
 `, nil
 	}
