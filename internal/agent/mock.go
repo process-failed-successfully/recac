@@ -33,7 +33,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Heuristic for 'prime-python' scenario (used in CI smoke tests)
-	if strings.Contains(prompt, "ID:[PRIMES]") {
+	// We check for "Output purely JSON" to distinguish the TPM/Planner prompt from the Coding prompt
+	if strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "Output purely JSON") {
 		// Extract Repo URL from prompt to maintain consistency
 		repoURL := "https://github.com/example/repo"
 		if idx := strings.LastIndex(prompt, "Repo: "); idx != -1 {
@@ -48,6 +49,41 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     "children": []
   }
 ]`, repoURL), nil
+	}
+
+	// Heuristic for the 'prime-python' coding task (keywords: "primes.py", "prime numbers")
+	if strings.Contains(prompt, "primes.py") && strings.Contains(prompt, "prime numbers") {
+		return `I will create the 'primes.py' script as requested.
+
+` + "```bash" + `
+cat << 'EOF' > primes.py
+import json
+
+def get_primes(n):
+    primes = []
+    for i in range(2, n):
+        is_prime = True
+        for j in range(2, int(i**0.5) + 1):
+            if i % j == 0:
+                is_prime = False
+                break
+        if is_prime:
+            primes.append(i)
+    return primes
+
+primes = get_primes(10000)
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+# Run the script to generate the output file
+python3 primes.py
+
+# Commit the files
+git add primes.py primes.json
+git commit -m "Add primes.py and primes.json"
+` + "```" + `
+`, nil
 	}
 
 	// Return a mock response that shows the agent received the prompt

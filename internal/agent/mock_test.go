@@ -27,7 +27,8 @@ func TestMockAgent(t *testing.T) {
 
 func TestMockAgent_TicketGeneration_Type(t *testing.T) {
 	agent := NewMockAgent()
-	prompt := "Application Specification:\n\n### ID:[PRIMES] Prime Number Script\nRepo: https://example.com/repo"
+	// Simulate TPM prompt which includes "Output purely JSON"
+	prompt := "Application Specification:\n\n### ID:[PRIMES] Prime Number Script\nRepo: https://example.com/repo\n\nOutput purely JSON"
 
 	response, err := agent.Send(context.Background(), prompt)
 	if err != nil {
@@ -45,6 +46,30 @@ func TestMockAgent_TicketGeneration_Type(t *testing.T) {
 	}
 	if !strings.Contains(response, "https://example.com/repo") {
 		t.Errorf("Expected repo URL to be preserved, got: %s", response)
+	}
+}
+
+func TestMockAgent_TicketGenerationWithPrimesContent(t *testing.T) {
+	agent := NewMockAgent()
+	// This prompt simulates what the Coding Agent receives
+	prompt := "Create a python script named 'primes.py' that calculates all prime numbers less than 10,000."
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Verify it returns bash code
+	if !strings.Contains(response, "```bash") {
+		t.Errorf("Expected bash block in response, got: %s", response)
+	}
+
+	// Verify content
+	if !strings.Contains(response, "cat << 'EOF' > primes.py") {
+		t.Errorf("Expected file creation command, got: %s", response)
+	}
+	if !strings.Contains(response, "git commit") {
+		t.Errorf("Expected git commit command, got: %s", response)
 	}
 }
 
