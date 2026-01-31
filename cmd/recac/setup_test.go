@@ -101,8 +101,7 @@ func TestSetupCmd(t *testing.T) {
 	}
 
 	// Execute command
-	cmd := &cobra.Command{Use: "test"}
-	err := runSetup(cmd, []string{})
+	err := RunSetupWizard(false)
 	assert.NoError(t, err)
 
 	// Verify Viper settings (which would be written to config.yaml)
@@ -134,8 +133,7 @@ func TestSetupCmd_Cancellation(t *testing.T) {
 		return errors.New("cancelled")
 	}
 
-	cmd := &cobra.Command{Use: "test"}
-	err := runSetup(cmd, []string{})
+	err := RunSetupWizard(false)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "cancelled")
 }
@@ -157,8 +155,7 @@ func TestSetupCmd_Skips(t *testing.T) {
 	viper.SetConfigFile("test_config_skips.yaml")
 	defer os.Remove("test_config_skips.yaml")
 
-	cmd := &cobra.Command{Use: "test"}
-	err := runSetup(cmd, []string{})
+	err := RunSetupWizard(false)
 	assert.NoError(t, err)
 
 	assert.Equal(t, "openai", viper.GetString("provider"))
@@ -187,8 +184,7 @@ func TestSetupCmd_AppendEnv(t *testing.T) {
 	viper.SetConfigFile("test_config_append.yaml")
 	defer os.Remove("test_config_append.yaml")
 
-	cmd := &cobra.Command{Use: "test"}
-	err := runSetup(cmd, []string{})
+	err := RunSetupWizard(false)
 	assert.NoError(t, err)
 
 	content, _ := os.ReadFile(".env")
@@ -219,8 +215,7 @@ func TestSetupCmd_DuplicateEnv(t *testing.T) {
 	viper.SetConfigFile("test_config_dup.yaml")
 	defer os.Remove("test_config_dup.yaml")
 
-	cmd := &cobra.Command{Use: "test"}
-	err := runSetup(cmd, []string{})
+	err := RunSetupWizard(false)
 	assert.NoError(t, err)
 
 	content, _ := os.ReadFile(".env")

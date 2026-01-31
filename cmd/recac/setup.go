@@ -34,14 +34,18 @@ var setupCmd = &cobra.Command{
 	Use:   "setup",
 	Short: "Interactively set up RECAC configuration",
 	Long:  `Runs an interactive wizard to configure RECAC settings, including provider, model, and API keys.`,
-	RunE:  runSetup,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return RunSetupWizard(false)
+	},
 }
 
 func init() {
 	rootCmd.AddCommand(setupCmd)
 }
 
-func runSetup(cmd *cobra.Command, args []string) error {
+// RunSetupWizard runs the interactive setup.
+// skipDoctor determines if the doctor check should be skipped at the end.
+func RunSetupWizard(skipDoctor bool) error {
 	fmt.Println("Welcome to RECAC Setup!")
 	fmt.Println("-----------------------")
 
@@ -210,6 +214,11 @@ func runSetup(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	if skipDoctor {
+		fmt.Println("\nSetup complete! You are ready to code.")
+		return nil
+	}
+
 	// Run Doctor
 	runDoctor := false
 	err = askOneFunc(&survey.Confirm{
@@ -222,7 +231,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 
 	if runDoctor {
 		fmt.Println("\nRunning Doctor...")
-		runDoctorFunc(cmd, args)
+		runDoctorFunc(doctorCmd, []string{})
 	}
 
 	fmt.Println("\nSetup complete! You are ready to code.")
