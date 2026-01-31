@@ -48,6 +48,7 @@ func Load(cfgFile string) {
 	viper.SetDefault("verbose", false)
 	viper.SetDefault("git_user_email", "recac-agent@example.com")
 	viper.SetDefault("git_user_name", "RECAC Agent")
+	viper.SetDefault("security.scan_enabled", true)
 
 	// Notification Defaults
 	slackEnabled := false

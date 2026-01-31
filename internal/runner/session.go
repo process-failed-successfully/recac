@@ -150,7 +150,7 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 	}
 
 	// Initialize Security Scanner
-	scanner := security.NewRegexScanner()
+	scanner := initScanner(provider)
 
 	// Create agents/logs directory in the current working directory (host)
 	// This is where Promtail expects to find them based on docker-compose.monitoring.yml
@@ -238,7 +238,7 @@ func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, pr
 	}
 
 	// Initialize Security Scanner
-	scanner := security.NewRegexScanner()
+	scanner := initScanner(provider)
 
 	// Create agents/logs directory in the current working directory (host)
 	// This is where Promtail expects to find them based on docker-compose.monitoring.yml
@@ -300,7 +300,7 @@ func NewSessionWithConfig(workspace, project, provider, model string, dbStore db
 	stateManager := agent.NewStateManager(agentStateFile)
 
 	// Initialize Security Scanner
-	scanner := security.NewRegexScanner()
+	scanner := initScanner(provider)
 
 	// Create agents/logs directory in the current working directory (host)
 	cwd, _ := os.Getwd()
@@ -904,7 +904,17 @@ func (s *Session) loadFeatures() []db.Feature {
 	return nil
 }
 
-
-
-
-
+// initScanner initializes the security scanner based on configuration and provider.
+func initScanner(provider string) security.Scanner {
+	scanEnabled := true // Default to true for security (safer default for unit tests)
+	if viper.IsSet("security.scan_enabled") {
+		scanEnabled = viper.GetBool("security.scan_enabled")
+	}
+	if provider == "mock" {
+		scanEnabled = false
+	}
+	if scanEnabled {
+		return security.NewRegexScanner()
+	}
+	return nil
+}

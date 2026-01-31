@@ -63,4 +63,46 @@ func TestProcessResponse_Security(t *testing.T) {
 	if !found {
 		t.Errorf("Safe command was NOT executed")
 	}
+
+	// 3. Mock Agent Output (Prime Python Scenario)
+	mockResp := `I will create the primes script.
+
+` + "```bash" + `
+# Create primes.py
+cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n <= 1:
+        return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+primes = [n for n in range(10000) if is_prime(n)]
+
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+# Run the script
+python3 primes.py
+
+# Verify output
+cat primes.json
+
+# Commit results
+git add primes.py primes.json
+git commit -m "Add primes script and output"
+` + "```" + `
+`
+	outMock, err := s.ProcessResponse(context.Background(), mockResp)
+	if err != nil {
+		t.Fatalf("ProcessResponse failed for mock output: %v", err)
+	}
+
+	if strings.Contains(outMock, "[BLOCKED]") {
+		t.Errorf("Mock output was blocked! %s", outMock)
+	}
 }
