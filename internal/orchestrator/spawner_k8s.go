@@ -190,13 +190,31 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		secretName = "recac-agent-secrets" // fallback
 	}
 
-	envFrom := []corev1.EnvFromSource{
-		{
+	// Graceful Secret Handling: Check if secret exists before mounting
+	var envFrom []corev1.EnvFromSource
+	_, err = s.Client.CoreV1().Secrets(s.Namespace).Get(ctx, secretName, metav1.GetOptions{})
+	if err == nil {
+		envFrom = append(envFrom, corev1.EnvFromSource{
 			SecretRef: &corev1.SecretEnvSource{
 				LocalObjectReference: corev1.LocalObjectReference{Name: secretName},
 				Optional:             boolPtr(true),
 			},
-		},
+		})
+	} else {
+		// Log warning but proceed. K8s will fail pod startup if we mount a missing secret (unless Optional=true, but EnvFrom behavior varies)
+		// Actually, we set Optional=true above, so it SHOULD be fine.
+		// However, the error "MountVolume.SetUp failed for volume ... failed to sync configmap cache" suggests a different issue or volume mount.
+		// Wait, the log showed: "MountVolume.SetUp failed for volume "kube-api-access-..."
+		// But later "Warning BackOff ... restarting failed container".
+		// The container terminated with Exit Code 1.
+		// Let's look at logs: "Session failed ... circuit breaker: no-op loop".
+		// Ah, the PREVIOUS failure was no-op loop.
+		// The LATEST failure (attempt 4) shows "Back-off restarting failed container".
+		// AND "MountVolume.SetUp failed for volume ... kube-api-access ... timed out".
+		// This suggests API server latency or networking issues in k3d.
+		// BUT, "Optional: true" in EnvFrom SHOULD work.
+		// Let's be safe and only mount if it exists to reduce noise/issues.
+		s.Logger.Warn("agent secret not found, skipping envFrom mount", "secret", secretName, "error", err)
 	}
 
 	// Command:
