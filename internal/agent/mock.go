@@ -32,8 +32,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Smart Mock Logic for Smoke Tests
-	// 1. Ticket Generation Request (Prime Python Scenario)
-	if strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "JSON format") {
+
+	// 1. Ticket Generation Request (Prime Python Scenario - TPM Phase)
+	if strings.Contains(prompt, "Technical Program Manager") || (strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "JSON format")) {
 		return `[
   {
     "title": "[GEN] Create Prime Number Script",
@@ -44,9 +45,36 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
-	// 2. Implementation Request (Writing the file)
-	// Matches prompt asking to implement "PRIMES" or "primes.py"
-	if strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "primes.py") {
+	// 2. Initializer Request (Create feature list)
+	if strings.Contains(prompt, "Create feature_list.json") {
+		return `I will create the feature_list.json for this task.
+
+` + "```bash" + `
+agent-bridge import <<EOF
+{
+  "project_name": "MFLP-2408",
+  "features": [
+    {
+      "description": "Create a python script named 'primes.py' that calculates primes < 10000",
+      "status": "pending",
+      "passes": false
+    },
+    {
+      "description": "Output primes to 'primes.json'",
+      "status": "pending",
+      "passes": false
+    }
+  ]
+}
+EOF
+` + "```" + `
+`, nil
+	}
+
+	// 3. Implementation Request (Writing the file)
+	// Matches prompt asking to implement "PRIMES", "primes.py", or just "prime number"
+	lowerPrompt := strings.ToLower(prompt)
+	if strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "primes.py") || strings.Contains(lowerPrompt, "prime number") {
 		return `I will create the primes.py script and the json output as requested.
 
 ` + "```bash" + `
@@ -75,16 +103,59 @@ EOF
 python3 primes.py
 
 # Add and commit
-git add primes.py primes.json
-git commit -m "Add primes script and output"
+git add primes.py primes.json || true
+git commit -m "Add primes script and output" || true
+` + "```" + `
+`, nil
+	}
+
+	// 4. Completion Signal (All features done)
+	if strings.Contains(prompt, "All features are marked as done") || strings.Contains(prompt, "signal completion") {
+		return `It looks like all features are implemented. I will signal completion.
+
+` + "```bash" + `
+agent-bridge signal COMPLETED true
+` + "```" + `
+`, nil
+	}
+
+	// 5. QA Agent Request
+	if strings.Contains(prompt, "QA AGENT") {
+		return `I have verified the implementation. All features are working correctly.
+
+` + "```bash" + `
+# Signal QA passed
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// 6. Manager Review Request
+	if strings.Contains(prompt, "QA Report") || strings.Contains(prompt, "Manager") {
+		return `I have reviewed the work and it looks good. Signing off.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
+	}
+
+	// 7. UI Verification Request
+	if strings.Contains(prompt, "UI VERIFICATION AGENT") || strings.Contains(prompt, "ui_verification.json") {
+		return `I have verified the UI changes.
+
+` + "```bash" + `
+# Signal UI Verification passed
+agent-bridge signal UI_VERIFIED true
 ` + "```" + `
 `, nil
 	}
 
 	// Default Mock Response
 	// We include a no-op bash block to ensure the executor doesn't trip the "no commands" circuit breaker
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...\n\n```bash\n# no-op to prevent circuit breaker\necho 'mock agent alive'\n```",
-		m.responsePrefix, len(prompt), truncateString(prompt, 100))
+	// Note: We avoid "echo" with quotes in the preview to prevent confusion with the security scanner's string masking logic in tests
+	response := fmt.Sprintf("%s:\n\nI received your prompt. In mock mode, I would process this request.\n\nPrompt snippet: %.50s...\n\n```bash\n# no-op to prevent circuit breaker\necho 'mock agent alive'\n```",
+		m.responsePrefix, prompt)
 	return response, nil
 }
 
