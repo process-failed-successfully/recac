@@ -17,7 +17,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var bashBlockRegex = regexp.MustCompile("(?s)```bash\\s*(.*?)\\s*```")
+var bashBlockRegex = regexp.MustCompile("(?is)```(?:bash|shell|zsh|sh)\\b\\s*(.*?)\\s*```")
 
 // ProcessResponse parses the agent response for commands, executes them, and handles blockers.
 func (s *Session) ProcessResponse(ctx context.Context, response string) (string, error) {

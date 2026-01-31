@@ -113,6 +113,16 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "echo hi\nrm -rf /",
 			wantFinding: "Root Deletion",
 		},
+		{
+			name:        "Root Deletion Bypass",
+			content:     "rm -rf / # comment",
+			wantFinding: "Root Deletion",
+		},
+		{
+			name:        "Root Deletion Separator",
+			content:     "rm -rf /; echo bye",
+			wantFinding: "Root Deletion",
+		},
 	}
 
 	for _, tt := range tests {
