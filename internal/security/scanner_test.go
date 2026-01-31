@@ -37,6 +37,26 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "api_key = \"abc1234567890abc1234567890\"",
 			wantFinding: "Generic API Token",
 		},
+		{
+			name:        "Dangerous Config Access",
+			content:     "cat ~/.config/foo",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "Safe Config File Extension",
+			content:     "cat webpack.config.js",
+			wantFinding: "",
+		},
+		{
+			name:        "Safe Custom Config File",
+			content:     "cat > my.config",
+			wantFinding: "",
+		},
+		{
+			name:        "Dangerous Root Deletion",
+			content:     "rm -rf *",
+			wantFinding: "Root Deletion",
+		},
 	}
 
 	for _, tt := range tests {
