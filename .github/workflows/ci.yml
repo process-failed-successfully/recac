@@ -283,7 +283,7 @@ jobs:
         run: |
           RETRIES=3
           for i in $(seq 0 $RETRIES); do
-            echo "Attempt $((i+1)) of $((RETRIES+1))"
+            echo "Attempt $((i+1)) of $((RETRIES+1)) (Using model: meta-llama/llama-3.3-70b-instruct:free)"
             if go run e2e/runner/main.go \
               -scenario prime-python \
               -provider openrouter \
