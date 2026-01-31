@@ -36,7 +36,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 1. Ticket Generation for 'prime-python' scenario
 	// Matches strict requirements from AppSpec (ID:[PRIMES] header + Task instruction)
-	if strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "Type: Task") {
+	// We specifically look for the instruction to CREATE the ticket.
+	if strings.Contains(prompt, "ID:[PRIMES]") && (strings.Contains(prompt, "Type: Task") || strings.Contains(prompt, "create exactly ONE ticket")) {
 		return `[
   {
     "title": "ID:[PRIMES] Prime Number Script",
@@ -52,13 +53,13 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Implementation for 'prime-python' scenario
-	// The prompt will typically contain the ticket description or "primes.py" instructions
-	// We check for keywords related to the task AND a signal that we are in the Coding Phase (not planning).
-	// "**Feature ID**" is present in the `coding_agent.md` template but not `planner.md`.
+	// The prompt will typically contain the ticket description or "primes.py" instructions.
+	// We use a "greedy" match here: if it talks about the primes task AND it's NOT the ticket generation prompt (checked above),
+	// assume it's the coding task.
+	// We check for keywords related to the task.
 	isPrimesTask := strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "primes.json") || strings.Contains(prompt, "req-primes")
-	isCodingPrompt := strings.Contains(prompt, "**Feature ID**") || strings.Contains(prompt, "YOUR ASSIGNED TASK")
 
-	if isPrimesTask && isCodingPrompt {
+	if isPrimesTask {
 		return `I will create the primes.py script and generate the JSON file as requested.
 
 ` + "```bash" + `
