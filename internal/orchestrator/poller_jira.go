@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"recac/internal/db"
 	"recac/internal/jira"
-	"regexp"
+	"recac/internal/utils"
 	"strings"
 )
 
@@ -92,7 +92,7 @@ func (p *JiraPoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkItem,
 		description := p.Client.ParseDescription(issue)
 
 		// Extract Repo
-		repoURL := extractRepoURL(description, jira.RepoRegex)
+		repoURL := utils.ExtractRepoURL(description, utils.RepoRegex)
 
 		// If no Repo found, we can't run agent really.
 		// Unless we allow no-repo agents?
@@ -113,7 +113,7 @@ func (p *JiraPoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkItem,
 		}
 
 		// Inject Required Features if present
-		if features := extractRequiredFeatures(description); len(features) > 0 {
+		if features := jira.ExtractRequiredFeatures(description); len(features) > 0 {
 			fl := db.FeatureList{
 				ProjectName: summary,
 				Features:    features,
@@ -143,68 +143,3 @@ func (p *JiraPoller) UpdateStatus(ctx context.Context, item WorkItem, status str
 	return nil
 }
 
-func extractRepoURL(text string, repoRegex *regexp.Regexp) string {
-	if repoRegex == nil {
-		return ""
-	}
-	matches := repoRegex.FindStringSubmatch(text)
-	if len(matches) > 1 {
-		return strings.TrimSuffix(matches[1], ".git")
-	}
-	return ""
-}
-
-func extractRequiredFeatures(text string) []db.Feature {
-	// Look for REQUIRED FEATURES: or ACCEPTANCE CRITERIA: block
-	// Regex matches headers case-insensitively
-	// Then captures lines starting with "- " or "* " until a blank line or new section
-	var features []db.Feature
-
-	lines := strings.Split(text, "\n")
-	inSection := false
-
-	headerRegex := regexp.MustCompile(`(?i)^(REQUIRED FEATURES|ACCEPTANCE CRITERIA):?\s*$`)
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-
-		if headerRegex.MatchString(line) {
-			inSection = true
-			continue
-		}
-
-		if inSection {
-			if line == "" || strings.HasPrefix(line, "#") || (strings.HasSuffix(line, ":") && !strings.HasPrefix(line, "-") && !strings.HasPrefix(line, "*")) {
-				// End of section (empty line, comment, or new header)
-				if line != "" {
-					if strings.Contains(line, ":") {
-						break
-					}
-				}
-			}
-
-			if strings.HasPrefix(line, "- ") || strings.HasPrefix(line, "* ") {
-				// Extract feature description
-				desc := strings.TrimSpace(line[2:])
-				// Create a simplified Feature
-				slug := strings.ToLower(desc)
-				reg, _ := regexp.Compile("[^a-z0-9]+")
-				slug = reg.ReplaceAllString(slug, "-")
-				slug = strings.Trim(slug, "-")
-				if len(slug) > 30 {
-					slug = slug[:30]
-				}
-
-				f := db.Feature{
-					ID:          fmt.Sprintf("req-%s", slug),
-					Description: desc,
-					Category:    "functional",
-					Priority:    "critical",
-					Status:      "pending",
-				}
-				features = append(features, f)
-			}
-		}
-	}
-	return features
-}

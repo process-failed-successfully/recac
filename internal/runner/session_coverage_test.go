@@ -75,7 +75,7 @@ func TestSession_ProcessResponse_Timeout_Coverage(t *testing.T) {
 		return "", nil
 	}
 
-	session := NewSession(mockDocker, &MockAgent{}, "/tmp", "alpine", "test-project", "gemini", "gemini-pro", 1)
+	session := NewSession(mockDocker, &SessionMockAgent{}, "/tmp", "alpine", "test-project", "gemini", "gemini-pro", 1)
 	session.ContainerID = "test-container"
 
 	response := "```bash\nsleep 2\n```"
@@ -92,7 +92,7 @@ func TestSession_ProcessResponse_Timeout_Coverage(t *testing.T) {
 }
 
 func TestSession_ProcessResponse_JSONBlock_Coverage(t *testing.T) {
-	session := NewSession(nil, &MockAgent{}, "/tmp", "alpine", "test-project", "gemini", "gemini-pro", 1)
+	session := NewSession(nil, &SessionMockAgent{}, "/tmp", "alpine", "test-project", "gemini", "gemini-pro", 1)
 
 	response := "```bash\n{\"key\": \"value\"}\n```"
 	output, _ := session.ProcessResponse(context.Background(), response)
@@ -108,7 +108,7 @@ func TestSession_BootstrapGit_Error_Coverage(t *testing.T) {
 		return "", errors.New("exec error")
 	}
 
-	session := NewSession(mockDocker, &MockAgent{}, "/tmp", "alpine", "test-project", "gemini", "gemini-pro", 1)
+	session := NewSession(mockDocker, &SessionMockAgent{}, "/tmp", "alpine", "test-project", "gemini", "gemini-pro", 1)
 	session.ContainerID = "test-container"
 
 	err := session.bootstrapGit(context.Background())
@@ -123,7 +123,7 @@ func TestSession_FixPermissions_Error_Coverage(t *testing.T) {
 		return "", errors.New("chown error")
 	}
 
-	session := NewSession(mockDocker, &MockAgent{}, "/tmp", "alpine", "test-project", "gemini", "gemini-pro", 1)
+	session := NewSession(mockDocker, &SessionMockAgent{}, "/tmp", "alpine", "test-project", "gemini", "gemini-pro", 1)
 	session.ContainerID = "test-container"
 
 	err := session.fixPermissions(context.Background())

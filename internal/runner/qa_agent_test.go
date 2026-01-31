@@ -11,15 +11,15 @@ import (
 	"testing"
 )
 
-// MockAgentForQA simulates the agent interaction for QA
-type MockAgentForQA struct {
+// SessionMockAgentForQA simulates the agent interaction for QA
+type SessionMockAgentForQA struct {
 	Response  string
 	Workspace string
 	Store     db.Store
 	Project   string
 }
 
-func (m *MockAgentForQA) Send(ctx context.Context, prompt string) (string, error) {
+func (m *SessionMockAgentForQA) Send(ctx context.Context, prompt string) (string, error) {
 	// Simulate agent action: set signal in DB directly
 	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
 		if m.Response == "PASS" {
@@ -32,14 +32,14 @@ func (m *MockAgentForQA) Send(ctx context.Context, prompt string) (string, error
 	return "Unknown prompt", nil
 }
 
-func (m *MockAgentForQA) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+func (m *SessionMockAgentForQA) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
 	if onChunk != nil {
 		onChunk(m.Response)
 	}
 	return m.Response, nil
 }
 
-func (m *MockAgentForQA) SetResponse(response string) {
+func (m *SessionMockAgentForQA) SetResponse(response string) {
 	m.Response = response
 }
 
@@ -56,7 +56,7 @@ func TestRunQAAgent_Pass(t *testing.T) {
 	defer store.Close()
 
 	// 3. Setup Mock Agent
-	mockAgent := &MockAgentForQA{
+	mockAgent := &SessionMockAgentForQA{
 		Response: "PASS",
 		Store:    store,
 		Project:  "test-project",
@@ -104,7 +104,7 @@ func TestRunQAAgent_Fail(t *testing.T) {
 	defer store.Close()
 
 	// 3. Setup Mock Agent
-	mockAgent := &MockAgentForQA{
+	mockAgent := &SessionMockAgentForQA{
 		Response: "FAIL",
 		Store:    store,
 		Project:  "test-project",

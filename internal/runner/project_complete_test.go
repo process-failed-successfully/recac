@@ -64,7 +64,7 @@ func TestProjectCompleteFlow(t *testing.T) {
 		return types.IDResponse{ID: "mock-exec-id"}, nil
 	}
 
-	agentClient := &MockAgentForQA{
+	agentClient := &SessionMockAgentForQA{
 		Response:  "PASS",
 		Workspace: workspace,
 	}
@@ -73,7 +73,7 @@ func TestProjectCompleteFlow(t *testing.T) {
 	session := NewSession(dockerCli, agentClient, workspace, "ubuntu:latest", "test-project", "gemini", "gemini-pro", 1)
 	session.FeatureContent = featureContent
 
-	// Inject Store and Project into MockAgent
+	// Inject Store and Project into SessionMockAgent
 	agentClient.Store = session.DBStore
 	agentClient.Project = session.Project
 
@@ -98,7 +98,7 @@ func TestProjectCompleteFlow(t *testing.T) {
 	// 4. Loop continues (but MaxIterations might stop it, or we rely on loop continue)
 	// Actually, if we set MaxIterations=2, we can see the transition.
 
-	// However, MockAgent returns the SAME response every time currently.
+	// However, SessionMockAgent returns the SAME response every time currently.
 	// Iteration 1 (QA): Returns command "echo PASS > .qa_result"
 	// Session executes command.
 	// Session sees result PASS. Sets QA_PASSED.

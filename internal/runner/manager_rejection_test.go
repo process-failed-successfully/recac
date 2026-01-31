@@ -1,4 +1,4 @@
-package runner // MockAgentForManager simulates the agent interaction for Manager
+package runner // SessionMockAgentForManager simulates the agent interaction for Manager
 import (
 	"context"
 	"path/filepath"
@@ -8,15 +8,15 @@ import (
 	"testing"
 )
 
-type MockAgentForManager struct {
+type SessionMockAgentForManager struct {
 	Response string
 }
 
-func (m *MockAgentForManager) Send(ctx context.Context, prompt string) (string, error) {
+func (m *SessionMockAgentForManager) Send(ctx context.Context, prompt string) (string, error) {
 	return m.Response, nil
 }
 
-func (m *MockAgentForManager) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+func (m *SessionMockAgentForManager) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
 	if onChunk != nil {
 		onChunk(m.Response)
 	}
@@ -58,8 +58,8 @@ func TestManagerRejection_ClearsSignals(t *testing.T) {
 		Workspace:    workspace,
 		Project:      projectID,
 		DBStore:      store,
-		Agent:        &MockAgentForManager{Response: "I reject this."},
-		ManagerAgent: &MockAgentForManager{Response: "I reject this."},
+		Agent:        &SessionMockAgentForManager{Response: "I reject this."},
+		ManagerAgent: &SessionMockAgentForManager{Response: "I reject this."},
 		Notifier:     notify.NewManager(func(string, ...interface{}) {}),
 		Logger:       telemetry.NewLogger(true, "", false),
 	}

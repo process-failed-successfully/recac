@@ -8,14 +8,11 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"regexp"
+	"recac/internal/utils"
 	"strconv"
 	"strings"
 	"time"
 )
-
-// RepoRegex matches strings like "Repo: https://github.com/owner/repo".
-var RepoRegex = regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
 
 // GitHubPoller implements the Poller interface for GitHub Issues.
 type GitHubPoller struct {
@@ -80,7 +77,7 @@ func (p *GitHubPoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkIte
 		body, _ := issue["body"].(string)
 
 		// Extract Repo URL from body or default to current repo
-		repoURL := extractRepoURL(body, RepoRegex)
+		repoURL := utils.ExtractRepoURL(body, utils.RepoRegex)
 		if repoURL == "" {
 			// Default to the repo where the issue is hosted
 			repoURL = fmt.Sprintf("https://github.com/%s/%s", p.Owner, p.Repo)

@@ -50,7 +50,7 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 
 	// Since all features pass, it should mark COMPLETED and print UI verification msg.
 	// We mainly verify it DOESN'T fail or block.
-	// ErrNoOp is expected because the MockAgent returns empty responses.
+	// ErrNoOp is expected because the SessionMockAgent returns empty responses.
 	if err != nil && !errors.Is(err, ErrNoOp) {
 		t.Errorf("RunLoop failed: %v", err)
 	}

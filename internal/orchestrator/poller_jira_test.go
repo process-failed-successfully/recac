@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"recac/internal/jira"
+	"recac/internal/utils"
 	"regexp"
 	"testing"
 
@@ -66,7 +67,7 @@ func TestExtractRepoURL(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.expected, extractRepoURL(tc.text, testRegex))
+			assert.Equal(t, tc.expected, utils.ExtractRepoURL(tc.text, testRegex))
 		})
 	}
 }

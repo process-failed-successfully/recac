@@ -18,14 +18,14 @@ import (
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// MockAgent for testing
-type MockAgentForMount struct{}
+// SessionMockAgent for testing
+type SessionMockAgentForMount struct{}
 
-func (m *MockAgentForMount) Send(ctx context.Context, prompt string) (string, error) {
+func (m *SessionMockAgentForMount) Send(ctx context.Context, prompt string) (string, error) {
 	return "Agent processed " + prompt, nil
 }
 
-func (m *MockAgentForMount) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+func (m *SessionMockAgentForMount) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
 	resp := "Agent processed " + prompt
 	if onChunk != nil {
 		onChunk(resp)
@@ -33,8 +33,8 @@ func (m *MockAgentForMount) SendStream(ctx context.Context, prompt string, onChu
 	return resp, nil
 }
 
-// Ensure MockAgentForMount implements agent.Agent interface
-var _ agent.Agent = (*MockAgentForMount)(nil)
+// Ensure SessionMockAgentForMount implements agent.Agent interface
+var _ agent.Agent = (*SessionMockAgentForMount)(nil)
 
 // TestSession_WorkspaceMounting verifies that the workspace directory is correctly
 // mounted into the container and can be accessed via exec commands.
@@ -151,7 +151,7 @@ func TestSession_WorkspaceMounting(t *testing.T) {
 	}
 
 	// Step 3: Start session and execute ls command
-	session := NewSession(dockerClient, &MockAgentForMount{}, tmpDir, "alpine:latest", "test-project", "gemini", "gemini-pro", 1)
+	session := NewSession(dockerClient, &SessionMockAgentForMount{}, tmpDir, "alpine:latest", "test-project", "gemini", "gemini-pro", 1)
 
 	ctx := context.Background()
 	if err := session.Start(ctx); err != nil {

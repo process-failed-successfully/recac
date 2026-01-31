@@ -114,7 +114,7 @@ func (m *MockRunLoopDBStore) ReleaseAllLocks(projectID, agentID string) error   
 func (m *MockRunLoopDBStore) GetActiveLocks(projectID string) ([]db.Lock, error) { return nil, nil }
 func (m *MockRunLoopDBStore) Cleanup() error                                    { return nil }
 
-// MockAgent implements agent.Agent with testify/mock for better control
+// SessionMockAgent implements agent.Agent with testify/mock for better control
 type MockTestifyAgent struct {
 	mock.Mock
 }

@@ -11,17 +11,17 @@ import (
 	"github.com/spf13/viper"
 )
 
-// MockAgentForInheritance records which model/provider it was initialized with
-type MockAgentForInheritance struct {
+// SessionMockAgentForInheritance records which model/provider it was initialized with
+type SessionMockAgentForInheritance struct {
 	Provider string
 	Model    string
 }
 
-func (m *MockAgentForInheritance) Send(ctx context.Context, prompt string) (string, error) {
+func (m *SessionMockAgentForInheritance) Send(ctx context.Context, prompt string) (string, error) {
 	return "PASS", nil
 }
 
-func (m *MockAgentForInheritance) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+func (m *SessionMockAgentForInheritance) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
 	return "PASS", nil
 }
 
@@ -37,7 +37,7 @@ func TestAgentInheritance(t *testing.T) {
 	customProvider := "openrouter"
 	customModel := "mistralai/mistral-large"
 
-	s := NewSession(mockDocker, &MockAgent{}, tmpDir, "alpine", "test-project", customProvider, customModel, 1)
+	s := NewSession(mockDocker, &SessionMockAgent{}, tmpDir, "alpine", "test-project", customProvider, customModel, 1)
 
 	// Mock DB
 	dbPath := filepath.Join(tmpDir, ".recac.db")

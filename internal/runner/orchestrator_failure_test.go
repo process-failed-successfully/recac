@@ -125,7 +125,7 @@ func TestOrchestrator_FaultTolerance_HighFailureRate(t *testing.T) {
 	// But Session logic is what calls RunLoop.
 	// Wait, we generate NewSession inside ExecuteTask.
 	// It uses o.Agent as template.
-	// If o.Agent is a MockAgent, it's shared/copied?
+	// If o.Agent is a SessionMockAgent, it's shared/copied?
 	// `session.Agent = o.Agent` (assignment).
 
 	// We need a way to make ExecuteTask fail.
@@ -133,13 +133,13 @@ func TestOrchestrator_FaultTolerance_HighFailureRate(t *testing.T) {
 	// If we want RunLoop to fail, we need the agent to emit "blocker" or trigger circuit breaker.
 	// Or we can just mock session.RunLoop if we could inject it. But we can't.
 
-	// Alternative: Use a MockAgent that tracks iterations and returns predictable responses causing failure.
+	// Alternative: Use a SessionMockAgent that tracks iterations and returns predictable responses causing failure.
 	// Problem: Orchestrator runs in parallel. Order is non-deterministic.
 	// BUT, we can make the agent response depend on the task ID if we can see it.
 	// The prompt usually contains the task description.
 
-	// Let's create a SmartMockAgent
-	smartAgent := &SmartMockAgent{
+	// Let's create a SmartSessionMockAgent
+	smartAgent := &SmartSessionMockAgent{
 		FailTasks: map[string]bool{"task 1": true, "task 2": true},
 	}
 
@@ -158,7 +158,7 @@ func TestOrchestrator_FaultTolerance_HighFailureRate(t *testing.T) {
 	// Manually populate the graph with Failed tasks and call the logic snippet?
 	// No, we want to test the loop integration.
 
-	// Let's rely on SmartMockAgent to cause RunLoop to return error.
+	// Let's rely on SmartSessionMockAgent to cause RunLoop to return error.
 	// RunLoop returns error if checkNoOpBreaker trips.
 	// If agent returns empty response repeatedly, NoOp breaker trips.
 
@@ -191,11 +191,11 @@ func TestOrchestrator_FaultTolerance_HighFailureRate(t *testing.T) {
 	// }
 }
 
-type SmartMockAgent struct {
+type SmartSessionMockAgent struct {
 	FailTasks map[string]bool
 }
 
-func (m *SmartMockAgent) Send(ctx context.Context, prompt string) (string, error) {
+func (m *SmartSessionMockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Naive check: if prompt contains "task 1" or "task 2"
 	// return error to force failure.
 	if strings.Contains(prompt, "task 1") || strings.Contains(prompt, "task 2") {
@@ -208,9 +208,9 @@ func (m *SmartMockAgent) Send(ctx context.Context, prompt string) (string, error
 	return "echo done", nil
 }
 
-func (m *SmartMockAgent) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+func (m *SmartSessionMockAgent) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
 	return m.Send(ctx, prompt)
 }
 
 // Needed for Orchestrator to accept it as agent.Agent
-func (m *SmartMockAgent) WithStateManager(sm *agent.StateManager) agent.Agent { return m }
+func (m *SmartSessionMockAgent) WithStateManager(sm *agent.StateManager) agent.Agent { return m }

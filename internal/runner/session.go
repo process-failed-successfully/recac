@@ -802,58 +802,21 @@ func (s *Session) SetContainerID(id string) {
 
 func (s *Session) loadFeatures() []db.Feature {
 	// 1. Try to fetch from DB first (Authoritative source)
-	var fromDB []db.Feature
-	if s.DBStore != nil {
-		s.Logger.Info("[DEBUG] Attempting to load features from DB", "project", s.Project)
-		content, err := s.DBStore.GetFeatures(s.Project)
-		if err != nil {
-			s.Logger.Info("[DEBUG] DB GetFeatures error", "error", err)
-		}
-		if err == nil && content != "" {
-			var fl db.FeatureList
-			if err := json.Unmarshal([]byte(content), &fl); err == nil {
-				s.Logger.Info("loaded features from DB history", "count", len(fl.Features))
-				fromDB = fl.Features
-			}
-		}
-	} else {
-		s.Logger.Info("[DEBUG] No DBStore available for feature lookup")
-	}
-
-	// Helper to merge features (DB wins on conflict, but we add new ones)
-	mergeFeatures := func(existing []db.Feature, newFeatures []db.Feature) []db.Feature {
-		existMap := make(map[string]bool)
-		for _, f := range existing {
-			existMap[f.Description] = true // Using description as unique key for now as ID might be random
-		}
-		merged := existing
-		for _, f := range newFeatures {
-			if !existMap[f.Description] {
-				merged = append(merged, f)
-			}
-		}
-		return merged
-	}
+	fromDB := s.loadFeaturesFromDB()
 
 	// 2. Load Injected Features from Env (Priority Injection)
-	envFeaturesJSON := os.Getenv("RECAC_INJECTED_FEATURES")
-	if envFeaturesJSON != "" {
-		var fl db.FeatureList
-		if err := json.Unmarshal([]byte(envFeaturesJSON), &fl); err == nil {
-			s.Logger.Info("loaded injected features from env", "count", len(fl.Features))
-			// Merge with DB features (Injected features are "System" features, likely critical)
-			fromDB = mergeFeatures(fromDB, fl.Features)
+	if envFeatures := s.loadFeaturesFromEnv(); len(envFeatures) > 0 {
+		// Merge with DB features (Injected features are "System" features, likely critical)
+		fromDB = s.mergeFeatures(fromDB, envFeatures)
 
-			// Persist the merged state immediately
-			if s.DBStore != nil {
-				// Re-serialize
-				finalList := db.FeatureList{
-					ProjectName: s.Project, // Reuse project ID/Name
-					Features:    fromDB,
-				}
-				if data, err := json.Marshal(finalList); err == nil {
-					_ = s.DBStore.SaveFeatures(s.Project, string(data))
-				}
+		// Persist the merged state immediately
+		if s.DBStore != nil {
+			finalList := db.FeatureList{
+				ProjectName: s.Project, // Reuse project ID/Name
+				Features:    fromDB,
+			}
+			if data, err := json.Marshal(finalList); err == nil {
+				_ = s.DBStore.SaveFeatures(s.Project, string(data))
 			}
 		}
 	}
@@ -875,33 +838,109 @@ func (s *Session) loadFeatures() []db.Feature {
 	}
 
 	// 3. Fallback to FeatureContent (passed from Orchestrator/CLI legacy)
-	if s.FeatureContent != "" {
-		var fl db.FeatureList
-		if err := json.Unmarshal([]byte(s.FeatureContent), &fl); err == nil {
-			s.Logger.Info("loaded features from injected content")
-			// Sync to DB
-			if s.DBStore != nil {
-				_ = s.DBStore.SaveFeatures(s.Project, s.FeatureContent)
-			}
-			return fl.Features
-		}
+	if features := s.loadFeaturesFromContent(); len(features) > 0 {
+		return features
 	}
 
 	// 4. Fallback to feature_list.json file (Legacy/Local mode)
-	listPath := filepath.Join(s.Workspace, "feature_list.json")
-	if data, err := os.ReadFile(listPath); err == nil {
-		var fl db.FeatureList
-		if err := json.Unmarshal(data, &fl); err == nil {
-			s.Logger.Info("loaded features from file", "path", listPath)
-			// Sync to DB
-			if s.DBStore != nil {
-				_ = s.DBStore.SaveFeatures(s.Project, string(data))
-			}
-			return fl.Features
-		}
+	if features := s.loadFeaturesFromFile(); len(features) > 0 {
+		return features
 	}
 
 	return nil
+}
+
+func (s *Session) loadFeaturesFromDB() []db.Feature {
+	if s.DBStore == nil {
+		s.Logger.Info("[DEBUG] No DBStore available for feature lookup")
+		return nil
+	}
+
+	s.Logger.Info("[DEBUG] Attempting to load features from DB", "project", s.Project)
+	content, err := s.DBStore.GetFeatures(s.Project)
+	if err != nil {
+		s.Logger.Info("[DEBUG] DB GetFeatures error", "error", err)
+		return nil
+	}
+
+	if content == "" {
+		return nil
+	}
+
+	var fl db.FeatureList
+	if err := json.Unmarshal([]byte(content), &fl); err != nil {
+		return nil
+	}
+
+	s.Logger.Info("loaded features from DB history", "count", len(fl.Features))
+	return fl.Features
+}
+
+func (s *Session) loadFeaturesFromEnv() []db.Feature {
+	envFeaturesJSON := os.Getenv("RECAC_INJECTED_FEATURES")
+	if envFeaturesJSON == "" {
+		return nil
+	}
+
+	var fl db.FeatureList
+	if err := json.Unmarshal([]byte(envFeaturesJSON), &fl); err != nil {
+		return nil
+	}
+
+	s.Logger.Info("loaded injected features from env", "count", len(fl.Features))
+	return fl.Features
+}
+
+func (s *Session) loadFeaturesFromContent() []db.Feature {
+	if s.FeatureContent == "" {
+		return nil
+	}
+
+	var fl db.FeatureList
+	if err := json.Unmarshal([]byte(s.FeatureContent), &fl); err != nil {
+		return nil
+	}
+
+	s.Logger.Info("loaded features from injected content")
+	// Sync to DB
+	if s.DBStore != nil {
+		_ = s.DBStore.SaveFeatures(s.Project, s.FeatureContent)
+	}
+	return fl.Features
+}
+
+func (s *Session) loadFeaturesFromFile() []db.Feature {
+	listPath := filepath.Join(s.Workspace, "feature_list.json")
+	data, err := os.ReadFile(listPath)
+	if err != nil {
+		return nil
+	}
+
+	var fl db.FeatureList
+	if err := json.Unmarshal(data, &fl); err != nil {
+		return nil
+	}
+
+	s.Logger.Info("loaded features from file", "path", listPath)
+	// Sync to DB
+	if s.DBStore != nil {
+		_ = s.DBStore.SaveFeatures(s.Project, string(data))
+	}
+	return fl.Features
+}
+
+func (s *Session) mergeFeatures(existing []db.Feature, newFeatures []db.Feature) []db.Feature {
+	existMap := make(map[string]bool)
+	for _, f := range existing {
+		existMap[f.Description] = true // Using description as unique key for now as ID might be random
+	}
+	merged := existing
+	for _, f := range newFeatures {
+		if !existMap[f.Description] {
+			merged = append(merged, f)
+		}
+	}
+	return merged
 }
 
 
