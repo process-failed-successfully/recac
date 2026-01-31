@@ -300,6 +300,7 @@ func run() error {
 			"--namespace", namespace,
 			"--set", fmt.Sprintf("image.repository=%s", pullRepo),
 			"--set", fmt.Sprintf("image.tag=%s", tagPart),
+			"--set", fmt.Sprintf("config.image=%s", imageName),
 			"--set", fmt.Sprintf("image.pullPolicy=%s", pullPolicy),
 			"--set", "config.imagePullPolicy=IfNotPresent",
 			"--set", "config.poller=jira",
