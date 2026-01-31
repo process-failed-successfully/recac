@@ -33,14 +33,27 @@ var GetJiraClient = func(ctx context.Context) (*jira.Client, error) {
 	}
 
 	// Validate required fields
-	if baseURL == "" {
-		return nil, fmt.Errorf("JIRA_URL environment variable or jira.url config is required")
-	}
-	if username == "" {
-		return nil, fmt.Errorf("JIRA_USERNAME environment variable or jira.username config is required")
-	}
-	if apiToken == "" {
-		return nil, fmt.Errorf("JIRA_API_TOKEN environment variable or jira.api_token config is required")
+	if viper.GetString("provider") != "mock" {
+		if baseURL == "" {
+			return nil, fmt.Errorf("JIRA_URL environment variable or jira.url config is required")
+		}
+		if username == "" {
+			return nil, fmt.Errorf("JIRA_USERNAME environment variable or jira.username config is required")
+		}
+		if apiToken == "" {
+			return nil, fmt.Errorf("JIRA_API_TOKEN environment variable or jira.api_token config is required")
+		}
+	} else {
+		// Mock Provider Defaults
+		if baseURL == "" {
+			baseURL = "https://mock.jira.com"
+		}
+		if username == "" {
+			username = "mock-user"
+		}
+		if apiToken == "" {
+			apiToken = "mock-token"
+		}
 	}
 
 	return jira.NewClient(baseURL, username, apiToken), nil

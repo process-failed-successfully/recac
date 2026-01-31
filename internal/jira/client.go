@@ -202,6 +202,13 @@ func (c *Client) DeleteIssue(ctx context.Context, ticketID string) error {
 
 // CreateTicket creates a new Jira ticket.
 func (c *Client) CreateTicket(ctx context.Context, projectKey, summary, description, issueType string, labels []string) (string, error) {
+	// Mock Mode Logic
+	if c.BaseURL == "https://mock.jira.com" {
+		// Return a deterministic mock ID based on summary hash or counter
+		// For simplicity, just return a fixed ID or hash
+		return fmt.Sprintf("MOCK-%d", len(summary)), nil
+	}
+
 	url := fmt.Sprintf("%s/rest/api/3/issue", c.BaseURL)
 
 	payload := map[string]interface{}{
