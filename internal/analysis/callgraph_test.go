@@ -107,3 +107,62 @@ func internalFunc() {}
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
 }
+
+func TestResolveExternalCall_StrictSuffix(t *testing.T) {
+	// Setup temporary directory with sample code
+	tmpDir := t.TempDir()
+
+	// 1. Create main.go which imports "example.com/foopkg"
+	// But we have a local package "pkg"
+	// We want to make sure calling foopkg.Func() does NOT resolve to pkg.Func()
+
+	mainContent := `package main
+
+import (
+	"fmt"
+	"example.com/foopkg"
+)
+
+func main() {
+	foopkg.DoSomething()
+	fmt.Println("Done")
+}
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainContent), 0644)
+	require.NoError(t, err)
+
+	// 2. Create local package "pkg"
+	pkgDir := filepath.Join(tmpDir, "pkg")
+	err = os.MkdirAll(pkgDir, 0755)
+	require.NoError(t, err)
+
+	pkgContent := `package pkg
+
+func DoSomething() {}
+`
+	err = os.WriteFile(filepath.Join(pkgDir, "lib.go"), []byte(pkgContent), 0644)
+	require.NoError(t, err)
+
+	// Run Analysis
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// Verify that main.main calls "example.com/foopkg.DoSomething" (external)
+	// AND NOT "pkg.DoSomething" (local)
+
+	// Our implementation of resolveExternalCall iterates over all nodes.
+	// "pkg.DoSomething" is a node in the graph (ID: "pkg.DoSomething").
+	// main.go imports "example.com/foopkg".
+	// The call is `foopkg.DoSomething()`.
+	// logic: if strings.HasSuffix("example.com/foopkg", "pkg") -> True!
+	// So it might resolve to "pkg.DoSomething" incorrectly.
+
+	foundIncorrectLink := false
+	for _, edge := range cg.Edges {
+		if edge.From == "main.main" && edge.To == "pkg.DoSomething" {
+			foundIncorrectLink = true
+		}
+	}
+
+	assert.False(t, foundIncorrectLink, "Should not resolve foopkg.DoSomething to pkg.DoSomething")
+}

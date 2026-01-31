@@ -272,7 +272,14 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 			// node.Package might be "internal/utils"
 			// importPath might be "recac/internal/utils"
 			if strings.HasSuffix(importPath, node.Package) {
-				return id
+				// Ensure strict suffix match (exact or slash-preceded)
+				// e.g. "foopkg" should NOT match "pkg"
+				// "path/pkg" SHOULD match "pkg"
+				pathLen := len(importPath)
+				pkgLen := len(node.Package)
+				if pathLen == pkgLen || (pathLen > pkgLen && importPath[pathLen-pkgLen-1] == '/') {
+					return id
+				}
 			}
 		}
 	}
