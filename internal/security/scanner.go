@@ -3,7 +3,6 @@ package security
 import (
 	"fmt"
 	"regexp"
-	"strings"
 )
 
 // Scanner defines the interface for security scanning
@@ -19,9 +18,16 @@ type Finding struct {
 	Line        int
 }
 
+// PatternConfig defines a regex pattern and its scanning behavior
+type PatternConfig struct {
+	Name           string
+	Pattern        *regexp.Regexp
+	IgnoreInQuotes bool
+}
+
 // RegexScanner implements Scanner using regular expressions
 type RegexScanner struct {
-	patterns map[string]*regexp.Regexp
+	patterns []PatternConfig
 }
 
 var (
@@ -37,14 +43,15 @@ var (
 // NewRegexScanner creates a new scanner with default patterns
 func NewRegexScanner() *RegexScanner {
 	return &RegexScanner{
-		patterns: map[string]*regexp.Regexp{
-			"AWS Access Key":    reAWSAccessKey,
-			"Private Key":       rePrivateKey,
-			"Generic API Token": reGenericAPIToken,
-			"Slack Token":       reSlackToken,
-			"GitHub Token":      reGitHubToken,
-			"Dangerous Command": reDangerousCmd,
-			"Root Deletion":     reRootDeletion,
+		patterns: []PatternConfig{
+			{Name: "AWS Access Key", Pattern: reAWSAccessKey, IgnoreInQuotes: false},
+			{Name: "Private Key", Pattern: rePrivateKey, IgnoreInQuotes: false},
+			{Name: "Generic API Token", Pattern: reGenericAPIToken, IgnoreInQuotes: false},
+			{Name: "Slack Token", Pattern: reSlackToken, IgnoreInQuotes: false},
+			{Name: "GitHub Token", Pattern: reGitHubToken, IgnoreInQuotes: false},
+			// Dangerous commands should be ignored inside quotes (likely explanations)
+			{Name: "Dangerous Command", Pattern: reDangerousCmd, IgnoreInQuotes: true},
+			{Name: "Root Deletion", Pattern: reRootDeletion, IgnoreInQuotes: true},
 		},
 	}
 }
@@ -52,97 +59,135 @@ func NewRegexScanner() *RegexScanner {
 // Scan checks the content for security patterns
 func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	var findings []Finding
-	lines := strings.Split(content, "\n")
 
-	// Create a masked version of content where comments are replaced with spaces
-	// This prevents regexes from matching patterns inside comments while preserving line numbers/indices
-	maskedLines := make([]string, len(lines))
-	for i, line := range lines {
-		// Mask comments (anything after #) with spaces to prevent false positives
-		// This handles both full-line comments and inline comments, respecting quotes
-		if idx := findCommentStart(line); idx != -1 {
-			maskedLines[i] = line[:idx] + strings.Repeat(" ", len(line)-idx)
+	// Generate masked versions once
+	maskedCommentsOnly := maskContent(content, false)
+	maskedQuotesAndComments := maskContent(content, true)
+
+	for _, config := range s.patterns {
+		var targetContent string
+		if config.IgnoreInQuotes {
+			targetContent = maskedQuotesAndComments
 		} else {
-			maskedLines[i] = line
+			targetContent = maskedCommentsOnly
 		}
-	}
-	maskedContent := strings.Join(maskedLines, "\n")
 
-	for name, pattern := range s.patterns {
-		matches := pattern.FindAllStringIndex(maskedContent, -1)
+		matches := config.Pattern.FindAllStringIndex(targetContent, -1)
 		for _, match := range matches {
 			// Find line number
 			start := match[0]
 			lineNumber := 1
 			for i := 0; i < start; i++ {
-				if maskedContent[i] == '\n' {
+				if targetContent[i] == '\n' {
 					lineNumber++
 				}
 			}
 
-			matchedText := maskedContent[match[0]:match[1]]
+			// Use original content for the match text so it's readable
+			matchedText := content[match[0]:match[1]]
 
 			findings = append(findings, Finding{
-				Type:        name,
-				Description: fmt.Sprintf("Found potential %s", name),
+				Type:        config.Name,
+				Description: fmt.Sprintf("Found potential %s", config.Name),
 				Match:       matchedText,
 				Line:        lineNumber,
 			})
 		}
 	}
 
-	// Scan line by line for context-aware checks (optional optimization)
-	for i, line := range lines {
-		// Example: Check for hardcoded passwords in typical config patterns
-		if strings.Contains(strings.ToLower(line), "password") && strings.Contains(line, "=") {
-			// Very basic heuristic, improved by ensuring it's not a variable definition in code but a value assignment
-			// For now, we'll be conservative to avoid noise, relying mostly on strict regexes above.
-		}
-		_ = i
-	}
-
 	return findings, nil
 }
 
-// findCommentStart returns the index of the first unquoted #, or -1 if none found.
-func findCommentStart(line string) int {
+// maskContent replaces comments and optionally quoted strings with spaces using byte-level iteration.
+// maskQuotes: if true, content inside quotes is also masked.
+func maskContent(content string, maskQuotes bool) string {
+	bytes := []byte(content)
+	n := len(bytes)
+
 	inSingleQuote := false
 	inDoubleQuote := false
 	escaped := false
+	inComment := false
 
-	for i, r := range line {
-		if escaped {
+	for i := 0; i < n; i++ {
+		b := bytes[i]
+
+		// Reset state on newline
+		if b == '\n' {
+			inComment = false
 			escaped = false
 			continue
 		}
 
-		switch r {
-		case '\\':
-			// Escape only works outside single quotes (and mostly inside double quotes)
-			if !inSingleQuote {
+		if inComment {
+			bytes[i] = ' '
+			continue
+		}
+
+		if escaped {
+			// If inside quote, we are processing content
+			if inSingleQuote || inDoubleQuote {
+				if maskQuotes {
+					bytes[i] = ' '
+				}
+			}
+			escaped = false
+			continue
+		}
+
+		if b == '\\' {
+			if inSingleQuote {
+				// Backslash is literal in single quotes
+				if maskQuotes {
+					bytes[i] = ' '
+				}
+			} else {
+				// Start escape sequence
 				escaped = true
-			}
-		case '\'':
-			if !inDoubleQuote {
-				inSingleQuote = !inSingleQuote
-			}
-		case '"':
-			if !inSingleQuote {
-				inDoubleQuote = !inDoubleQuote
-			}
-		case '#':
-			if !inSingleQuote && !inDoubleQuote {
-				// In Bash, # starts a comment only if it's the start of a word
-				// (preceded by whitespace or start of line or control operators)
-				if i == 0 {
-					return i
+				if inDoubleQuote {
+					if maskQuotes {
+						bytes[i] = ' ' // Mask the backslash itself if inside double quote
+					}
 				}
-				prev := line[i-1]
+			}
+			continue
+		}
+
+		if b == '\'' && !inDoubleQuote {
+			inSingleQuote = !inSingleQuote
+			continue
+		}
+
+		if b == '"' && !inSingleQuote {
+			inDoubleQuote = !inDoubleQuote
+			continue
+		}
+
+		if inSingleQuote || inDoubleQuote {
+			if maskQuotes {
+				bytes[i] = ' '
+			}
+			continue
+		}
+
+		// Check for comment start
+		if b == '#' {
+			isComment := false
+			if i == 0 {
+				isComment = true
+			} else {
+				prev := bytes[i-1]
+				// Bash comment start conditions
 				if prev == ' ' || prev == '\t' || prev == ';' || prev == '|' || prev == '&' || prev == '(' || prev == ')' || prev == '<' || prev == '>' {
-					return i
+					isComment = true
 				}
+			}
+
+			if isComment {
+				inComment = true
+				bytes[i] = ' '
 			}
 		}
 	}
-	return -1
+	return string(bytes)
 }

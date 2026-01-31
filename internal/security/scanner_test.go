@@ -53,6 +53,16 @@ func TestRegexScanner_Scan(t *testing.T) {
 			wantFinding: "", // Should be ignored by regex
 		},
 		{
+			name:        "Command Deep inside Double Quote",
+			content:     "echo \"Do not run rm -rf /\"",
+			wantFinding: "",
+		},
+		{
+			name:        "Command Deep inside Single Quote",
+			content:     "echo 'Do not run rm -rf /'",
+			wantFinding: "",
+		},
+		{
 			name:        "Actual Root Deletion",
 			content:     "rm -rf /",
 			wantFinding: "Root Deletion",
