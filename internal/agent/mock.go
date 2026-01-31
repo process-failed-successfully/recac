@@ -33,8 +33,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Heuristic for "prime-python" scenario
-	// 1. Planning Phase: Prompt contains ID:[PRIMES] (from scenario AppSpec) AND "Create a JSON object" (from prompt template)
-	if strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "Create a JSON object") {
+	// 1. Planning Phase: Prompt contains ID:[PRIMES] (from scenario AppSpec) AND "Technical Program Manager" (from TPM prompt template)
+	// We use "Technical Program Manager" because that's the role definition in internal/agent/prompts/templates/tpm_agent.md
+	if strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "Technical Program Manager") {
 		return "```json\n" +
 			`{
   "tickets": [
@@ -48,10 +49,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 }` + "\n```", nil
 	}
 
-	// 2. Execution Phase: Prompt contains "primes.py" but NOT "ID:[PRIMES]" (which is in the spec, not the task instruction usually)
-	// Actually, task instructions might contain ID if passed from Jira.
-	// A safer heuristic for execution is if it asks to "Implement" or contains code-like instructions without "Create a JSON object".
-	if strings.Contains(prompt, "primes.py") && !strings.Contains(prompt, "Create a JSON object") {
+	// 2. Execution Phase: Prompt contains "primes.py" but NOT "Technical Program Manager" (which would indicate planning phase)
+	if strings.Contains(prompt, "primes.py") && !strings.Contains(prompt, "Technical Program Manager") {
 		// Return a bash script to do the work
 		return "```bash\n" +
 			`# Create the python script
@@ -82,7 +81,9 @@ git push
 	}
 
 	// Default Mock Response
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...\n\n```bash\n# no-op to satisfy circuit breaker\necho 'mock agent alive'\n```",
+	// Note: We intentionally do NOT return a code block here to allow the circuit breaker (NoOpCount) to trip
+	// in tests that expect the loop to terminate when no work is done.
+	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
 }
