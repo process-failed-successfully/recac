@@ -56,12 +56,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 [
   {
     "title": "ID:[PRIMES] Prime Number Implementation",
-    "description": "Implement the prime number generation script. Repo: https://github.com/example/repo",
+    "description": "Implement the prime number generation script. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
     "type": "Epic",
     "children": [
       {
         "title": "ID:[PRIMES] Create primes.py",
-        "description": "Create a python script named 'primes.py' that calculates primes < 10000. Repo: https://github.com/example/repo",
+        "description": "Create a python script named 'primes.py' that calculates primes < 10000. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
         "type": "Task",
         "acceptance_criteria": [
           "Script is named primes.py",

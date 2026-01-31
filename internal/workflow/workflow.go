@@ -389,9 +389,15 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 		if cfg.Logger != nil {
 			session.Logger = cfg.Logger
 		}
+	if cfg.MaxIterations > 0 {
 		session.MaxIterations = cfg.MaxIterations
+	}
+	if cfg.TaskMaxIterations > 0 {
 		session.TaskMaxIterations = cfg.TaskMaxIterations
+	}
+	if cfg.ManagerFrequency > 0 {
 		session.ManagerFrequency = cfg.ManagerFrequency
+	}
 		session.StreamOutput = cfg.Stream
 		session.AutoMerge = cfg.AutoMerge
 		session.SkipQA = cfg.SkipQA
