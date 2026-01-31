@@ -107,3 +107,69 @@ func internalFunc() {}
 	assert.True(t, foundHelperToDoWork, "Missing edge: Helper -> DoWork")
 	assert.True(t, foundDoWorkToInternal, "Missing edge: DoWork -> internalFunc")
 }
+
+func TestResolveExternalCall_StrictSuffix(t *testing.T) {
+	// Regression test for issue where "foopkg" was matched by "pkg" suffix.
+	cg := &CallGraph{
+		Nodes: map[string]*CallGraphNode{
+			"pkg.Func": {
+				ID:      "pkg.Func",
+				Package: "pkg",
+				Name:    "Func",
+			},
+			"foopkg.Func": {
+				ID:      "foopkg.Func",
+				Package: "foopkg",
+				Name:    "Func",
+			},
+			"internal/pkg.Func": {
+				ID:      "internal/pkg.Func",
+				Package: "internal/pkg",
+				Name:    "Func",
+			},
+		},
+	}
+
+	tests := []struct {
+		name       string
+		importPath string
+		wantID     string
+	}{
+		{
+			name:       "Exact match",
+			importPath: "pkg",
+			wantID:     "pkg.Func",
+		},
+		{
+			name:       "Suffix match with slash",
+			importPath: "github.com/example/pkg",
+			wantID:     "pkg.Func",
+		},
+		{
+			name:       "Suffix mismatch (foopkg vs pkg)",
+			importPath: "github.com/example/foopkg",
+			wantID:     "foopkg.Func",
+		},
+		{
+			name:       "Nested package match",
+			importPath: "github.com/example/internal/pkg",
+			wantID:     "internal/pkg.Func",
+		},
+		{
+			name:       "Ambiguous match favors longest package",
+			// If we had "pkg" and "internal/pkg", and import is ".../internal/pkg"
+			// "pkg" matches suffix (internal/pkg ends with pkg)
+			// "internal/pkg" matches suffix (exact)
+			// Should pick internal/pkg (len 12) over pkg (len 3)
+			importPath: "github.com/example/internal/pkg",
+			wantID:     "internal/pkg.Func",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := resolveExternalCall(cg, tt.importPath, "Func")
+			assert.Equal(t, tt.wantID, got)
+		})
+	}
+}
