@@ -31,31 +31,45 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// Heuristic to detect Plan request (from cmd/recac/plan.go)
-	if strings.Contains(prompt, "app_spec.txt") || strings.Contains(prompt, "Feature Implementation Plan") || strings.Contains(prompt, "spec") {
-		// Return a valid JSON FeatureList for the prime-python scenario
-		// We assume the spec asks for prime numbers
-		return `{
-  "project_name": "prime-calculator",
-  "features": [
-    {
-      "id": "PRIMES",
-      "category": "core",
-      "priority": "MVP",
-      "description": "Implement a Python script to calculate prime numbers",
-      "status": "pending",
-      "passes": false,
-      "steps": [
-        "Create primes.py",
-        "Implement is_prime function",
-        "Add main block to print primes up to 100"
-      ],
-      "dependencies": {
-        "exclusive_write_paths": ["primes.py"]
+	// Heuristic to detect Plan request (from cmd/recac/plan.go or jira.go)
+	// cmd/recac/jira.go uses: prompts.TPMAgent
+	if strings.Contains(prompt, "app_spec.txt") || strings.Contains(prompt, "Feature Implementation Plan") || strings.Contains(prompt, "spec") || strings.Contains(prompt, "Technical Product Manager") {
+		// Return a valid JSON list of ticketNode for the prime-python scenario (expected by cmd/recac/jira.go)
+		// The type definition in jira.go expects:
+		/*
+			type ticketNode struct {
+				Title              string       `json:"title"`
+				Description        string       `json:"description"`
+				Type               string       `json:"type"`
+				BlockedBy          []string     `json:"blocked_by"`
+				AcceptanceCriteria []string     `json:"acceptance_criteria"`
+				Children           []ticketNode `json:"children"`
+			}
+		*/
+		return `[
+  {
+    "title": "ID:[PRIMES] Implement Prime Number Calculator",
+    "description": "Create a Python script that calculates prime numbers up to 100.\nRepo: https://github.com/process-failed-successfully/recac-jira-e2e",
+    "type": "Story",
+    "acceptance_criteria": [
+      "Script is named primes.py",
+      "Calculates primes correctly",
+      "Prints output to stdout"
+    ],
+    "children": [
+      {
+        "title": "Implement is_prime function",
+        "description": "Write the core logic for primality test.",
+        "type": "Subtask"
+      },
+      {
+        "title": "Implement main execution block",
+        "description": "Write the main block to iterate and print.",
+        "type": "Subtask"
       }
-    }
-  ]
-}`, nil
+    ]
+  }
+]`, nil
 	}
 
 	// Heuristic to detect Agent implementation request
