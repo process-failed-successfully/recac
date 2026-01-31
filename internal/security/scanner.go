@@ -31,7 +31,7 @@ var (
 	reSlackToken      = regexp.MustCompile(`xox[baprs]-([0-9a-zA-Z]{10,48})`)
 	reGitHubToken     = regexp.MustCompile(`gh[pousr]_[a-zA-Z0-9]{36,255}`)
 	reDangerousCmd    = regexp.MustCompile(`(?i)\b(rm|cat|cp|mv|chmod|chown)\b.*(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
-	reRootDeletion    = regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+([/~]+|/|/\*)$`)
+	reRootDeletion    = regexp.MustCompile(`(?mi)\brm\s+-[rRf]+\s+([/~]+|/|/\*)$`)
 )
 
 // NewRegexScanner creates a new scanner with default patterns
@@ -51,13 +51,26 @@ func NewRegexScanner() *RegexScanner {
 
 // Scan checks the content for security patterns
 func (s *RegexScanner) Scan(content string) ([]Finding, error) {
-	var findings []Finding
+	// Mask comments to avoid false positives
 	lines := strings.Split(content, "\n")
+	maskedLines := make([]string, len(lines))
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "#") {
+			// Replace with spaces to preserve byte offsets
+			maskedLines[i] = strings.Repeat(" ", len(line))
+		} else {
+			maskedLines[i] = line
+		}
+	}
+	maskedContent := strings.Join(maskedLines, "\n")
+
+	var findings []Finding
 
 	for name, pattern := range s.patterns {
-		matches := pattern.FindAllStringIndex(content, -1)
+		matches := pattern.FindAllStringIndex(maskedContent, -1)
 		for _, match := range matches {
-			// Find line number
+			// Find line number using original content (though newlines are preserved)
 			start := match[0]
 			lineNumber := 1
 			for i := 0; i < start; i++ {
@@ -66,6 +79,7 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 				}
 			}
 
+			// Extract matched text from ORIGINAL content
 			matchedText := content[match[0]:match[1]]
 
 			findings = append(findings, Finding{
