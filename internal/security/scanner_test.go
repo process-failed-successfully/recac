@@ -37,6 +37,41 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "api_key = \"abc1234567890abc1234567890\"",
 			wantFinding: "Generic API Token",
 		},
+		{
+			name:        "Root Deletion (/) - Blocked",
+			content:     "rm -rf /",
+			wantFinding: "Root Deletion",
+		},
+		{
+			name:        "Root Deletion (/*) - Blocked",
+			content:     "rm -rf /*",
+			wantFinding: "Root Deletion",
+		},
+		{
+			name:        "Home Deletion (~) - Blocked",
+			content:     "rm -rf ~",
+			wantFinding: "Root Deletion",
+		},
+		{
+			name:        "Current Dir Wildcard (*) - Allowed",
+			content:     "rm -rf *",
+			wantFinding: "",
+		},
+		{
+			name:        "Safe Config File (my.config.json) - Allowed",
+			content:     "rm my.config.json",
+			wantFinding: "",
+		},
+		{
+			name:        "Sensitive Config (.config) - Blocked",
+			content:     "rm -rf .config",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "Sensitive File in Home (~/.ssh/id_rsa) - Blocked",
+			content:     "cat ~/.ssh/id_rsa",
+			wantFinding: "Dangerous Command",
+		},
 	}
 
 	for _, tt := range tests {
