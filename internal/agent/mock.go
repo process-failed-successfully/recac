@@ -31,11 +31,28 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
-	// Return a mock response that shows the agent received the prompt
-	// This allows the session to run without requiring real API keys
 
-	// Heuristic for "Plan Generation" prompt (e.g. Jira ticket creation)
-	if isPlanningPrompt(prompt) {
+	// 1. Ticket Generation Prompt (from PrimePythonScenario.AppSpec via recac jira generate-from-spec)
+	// Requires []ticketNode (JSON Array)
+	if strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "MUST create exactly ONE ticket") {
+		return `[
+  {
+    "title": "ID:[PRIMES] Create Prime Number Script",
+    "description": "Create a python script named 'primes.py'. It must calculate all prime numbers less than 10,000 and output to a file named 'primes.json'.\n\nREQUIRED FEATURES:\n- Implement prime calculation logic in primes.py\n- Output results to primes.json\n- Validate that the output file contains a 'primes' list\n- Verify that exactly 1229 primes are calculated\n- Commit primes.json to the repository",
+    "type": "Task",
+    "acceptance_criteria": [
+      "primes.py created",
+      "primes.json created with 1229 primes",
+      "files committed"
+    ],
+    "children": []
+  }
+]`, nil
+	}
+
+	// 2. Feature List Planning Prompt (from recac init / planner.md)
+	// Requires FeatureList (JSON Object)
+	if strings.Contains(prompt, "Create a JSON object containing a feature list") {
 		return `{
   "project_name": "Prime Number Generator",
   "features": [
@@ -59,8 +76,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 }`, nil
 	}
 
-	// Heuristic for "Task Execution" prompt (e.g. actually writing code)
-	// If the prompt mentions "primes.py" or the description from above, return code.
+	// 3. Implementation Prompt (from CodingAgent)
+	// Requires Bash Script
 	if isImplementationPrompt(prompt) {
 		return `Here is the solution:
 
@@ -95,16 +112,6 @@ Done.
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
-}
-
-func isPlanningPrompt(prompt string) bool {
-	// Key phrase from internal/agent/prompts/templates/planner.md
-	// "Create a JSON object containing a feature list"
-	// Also checking specific project keywords might help if we have multiple scenarios
-	// But for now, we assume the smoke test is running the prime-python scenario or generic.
-	// However, the prompt might vary.
-	// Let's use a very specific check for the CI smoke test case if possible, or generic json plan.
-	return len(prompt) > 0 && (contains(prompt, "Create a JSON object containing a feature list") || contains(prompt, "ID:[PRIMES]"))
 }
 
 func isImplementationPrompt(prompt string) bool {
