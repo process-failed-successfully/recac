@@ -33,23 +33,46 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Heuristics for "prime-python" scenario
-	// 1. Planning Phase: Asking for ticket generation (prompt contains "ID:[PRIMES]" and likely "Generate" or context of ticket creation)
+
+	// 1. Planning Phase (Initializer Agent)
 	// The prompt usually contains the full AppSpec which has "ID:[PRIMES]"
+	// The Initializer is expected to create 'feature_list.json' via 'agent-bridge import'
 	if strings.Contains(prompt, "ID:[PRIMES]") {
-		// Return JSON ticket plan
-		return `
-[
-  {
-    "title": "ID:[PRIMES] Create Prime Number Script",
-    "description": "Implement a python script named 'primes.py' that calculates primes < 10000. Output to 'primes.json'. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
-    "type": "Task",
-    "children": []
-  }
-]`, nil
+		return `I will generate the feature list.
+
+` + "```bash" + `
+cat << 'EOF' | agent-bridge import
+{
+  "project_name": "Prime Number Script",
+  "features": [
+    {
+      "id": "PRIMES",
+      "category": "functional",
+      "priority": "MVP",
+      "description": "Implement a python script named 'primes.py' that calculates primes < 10000. Output to 'primes.json'.",
+      "status": "pending",
+      "passes": false,
+      "steps": [
+        "Run python3 primes.py",
+        "Check if primes.json exists",
+        "Validate JSON structure"
+      ],
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": ["primes.py", "primes.json"],
+        "read_only_paths": []
+      }
+    }
+  ]
+}
+EOF
+` + "```" + `
+`, nil
 	}
 
-	// 2. Execution Phase: Asking for implementation of the ticket
+	// 2. Execution Phase (Coding Agent)
 	// The prompt usually asks to "Implement ... primes.py" and output to "primes.json"
+	// It comes from the "PRIMES" feature description we just created.
 	if strings.Contains(prompt, "primes.py") && strings.Contains(prompt, "primes.json") {
 		return `I will create the primes script.
 
@@ -81,6 +104,9 @@ cat primes.json
 # Commit results
 git add primes.py primes.json
 git commit -m "Add primes script and output"
+
+# Mark feature as done
+agent-bridge feature set PRIMES --status done --passes true
 ` + "```" + `
 `, nil
 	}
