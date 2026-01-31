@@ -63,4 +63,50 @@ func TestProcessResponse_Security(t *testing.T) {
 	if !found {
 		t.Errorf("Safe command was NOT executed")
 	}
+
+	// 3. Wildcard Deletion (Should be Allowed)
+	respWildcard := "I will clean up.\n```bash\nrm -rf *\n```"
+	outWildcard, err := s.ProcessResponse(context.Background(), respWildcard)
+	if err != nil {
+		t.Fatalf("ProcessResponse failed: %v", err)
+	}
+
+	if strings.Contains(outWildcard, "[BLOCKED]") {
+		t.Errorf("Wildcard deletion was blocked! %s", outWildcard)
+	}
+
+	// Verify it WAS executed
+	foundWildcard := false
+	for _, executed := range mockDocker.ExecutedCmds {
+		if strings.Contains(executed, "rm -rf *") {
+			foundWildcard = true
+			break
+		}
+	}
+	if !foundWildcard {
+		t.Errorf("Wildcard deletion was NOT executed")
+	}
+
+	// 4. Commented Dangerous Command (Should be Allowed/Ignored)
+	respComment := "I will not delete root.\n```bash\n# rm -rf /\necho safe\n```"
+	outComment, err := s.ProcessResponse(context.Background(), respComment)
+	if err != nil {
+		t.Fatalf("ProcessResponse failed: %v", err)
+	}
+
+	if strings.Contains(outComment, "[BLOCKED]") {
+		t.Errorf("Commented command was blocked! %s", outComment)
+	}
+
+	// Verify `echo safe` WAS executed
+	foundSafe := false
+	for _, executed := range mockDocker.ExecutedCmds {
+		if strings.Contains(executed, "echo safe") {
+			foundSafe = true
+			break
+		}
+	}
+	if !foundSafe {
+		t.Errorf("Safe command in commented block was NOT executed")
+	}
 }

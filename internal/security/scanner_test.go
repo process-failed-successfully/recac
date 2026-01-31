@@ -37,6 +37,52 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "api_key = \"abc1234567890abc1234567890\"",
 			wantFinding: "Generic API Token",
 		},
+		// New tests for Root Deletion and False Positives
+		{
+			name:        "Root Deletion Blocked",
+			content:     "rm -rf /",
+			wantFinding: "Root Deletion",
+		},
+		{
+			name:        "Root Deletion Blocked (Trailing Space)",
+			content:     "rm -rf /   ",
+			wantFinding: "Root Deletion",
+		},
+		{
+			name:        "Wildcard Deletion Allowed",
+			content:     "rm -rf *",
+			wantFinding: "",
+		},
+		{
+			name:        "Wildcard Deletion Allowed (Trailing Space)",
+			content:     "rm -rf * ",
+			wantFinding: "",
+		},
+		{
+			name:        "Dot Wildcard Deletion Allowed",
+			content:     "rm -rf ./*",
+			wantFinding: "",
+		},
+		{
+			name:        "Commented Dangerous Command",
+			content:     "# rm -rf /",
+			wantFinding: "",
+		},
+		{
+			name:        "Commented Dangerous Command with Leading Space",
+			content:     "  # rm -rf /",
+			wantFinding: "",
+		},
+		{
+			name:        "Commented AWS Key",
+			content:     "# var key = \"AKIAIOSFODNN7EXAMPLE\"",
+			wantFinding: "",
+		},
+		{
+			name:        "Multibyte Comment Masking",
+			content:     "# 🧹 cleaning up \nrm -rf /",
+			wantFinding: "Root Deletion",
+		},
 	}
 
 	for _, tt := range tests {

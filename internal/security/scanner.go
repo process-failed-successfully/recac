@@ -31,7 +31,7 @@ var (
 	reSlackToken      = regexp.MustCompile(`xox[baprs]-([0-9a-zA-Z]{10,48})`)
 	reGitHubToken     = regexp.MustCompile(`gh[pousr]_[a-zA-Z0-9]{36,255}`)
 	reDangerousCmd    = regexp.MustCompile(`(?i)\b(rm|cat|cp|mv|chmod|chown)\b.*(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
-	reRootDeletion    = regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+([/~*]+|/)$`)
+	reRootDeletion    = regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+(/|/\*|~)\s*$`)
 )
 
 // NewRegexScanner creates a new scanner with default patterns
@@ -52,12 +52,16 @@ func NewRegexScanner() *RegexScanner {
 // Scan checks the content for security patterns
 func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	var findings []Finding
+
+	// Mask comments to avoid false positives (preserve length for indices)
+	maskedContent := maskComments(content)
+
 	lines := strings.Split(content, "\n")
 
 	for name, pattern := range s.patterns {
-		matches := pattern.FindAllStringIndex(content, -1)
+		matches := pattern.FindAllStringIndex(maskedContent, -1)
 		for _, match := range matches {
-			// Find line number
+			// Find line number using original content (safe since length preserved)
 			start := match[0]
 			lineNumber := 1
 			for i := 0; i < start; i++ {
@@ -88,4 +92,29 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	}
 
 	return findings, nil
+}
+
+// maskComments replaces lines starting with # with spaces
+func maskComments(content string) string {
+	var sb strings.Builder
+	// Process line by line manually to preserve exact length including newlines
+
+	// Use strings.SplitAfter to keep newlines
+	lines := strings.SplitAfter(content, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "#") {
+			// Iterate over bytes directly to preserve exact length for accurate regex indices
+			for i := 0; i < len(line); i++ {
+				if line[i] == '\n' {
+					sb.WriteByte('\n')
+				} else {
+					sb.WriteByte(' ')
+				}
+			}
+		} else {
+			sb.WriteString(line)
+		}
+	}
+	return sb.String()
 }
