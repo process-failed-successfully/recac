@@ -111,11 +111,17 @@ Done.
 
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
+
+	// CRITICAL: Append a no-op bash block to prevent Circuit Breaker "No-Op Loop" errors
+	// when the mock agent doesn't know what to do but the session loop expects commands.
+	response += "\n\n```bash\n# no-op\n```"
+
 	return response, nil
 }
 
 func isImplementationPrompt(prompt string) bool {
-	return len(prompt) > 0 && (contains(prompt, "primes.py") || contains(prompt, "Calculate prime numbers"))
+	// Broaden matching for the E2E scenario
+	return len(prompt) > 0 && (contains(prompt, "primes.py") || contains(prompt, "Calculate prime numbers") || contains(prompt, "ID:[PRIMES]"))
 }
 
 func contains(s, substr string) bool {
