@@ -33,6 +33,12 @@ func TestSelectPrompt_DeterministicAssignment(t *testing.T) {
 					ReadOnlyPaths:       []string{"file2"},
 				},
 			},
+			{
+				ID:          "task-2",
+				Description: "Task 2 Description [SECONDARY]",
+				Status:      "pending",
+				Passes:      false,
+			},
 		},
 	}
 	data, _ := json.Marshal(features)
