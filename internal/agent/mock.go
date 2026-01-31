@@ -108,6 +108,8 @@ EOF
 
 # Verify and Commit
 python3 primes.py
+git config user.email "agent@recac.com"
+git config user.name "Recac Agent"
 git add primes.py primes.json
 git commit -m "Add primes script and output"
 ` + "```" + `
