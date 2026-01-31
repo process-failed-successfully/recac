@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,6 +31,60 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// Heuristics for "prime-python" scenario
+	// 1. Planning Phase: Asking for ticket generation (prompt contains "ID:[PRIMES]" and likely "Generate" or context of ticket creation)
+	// The prompt usually contains the full AppSpec which has "ID:[PRIMES]"
+	if strings.Contains(prompt, "ID:[PRIMES]") {
+		// Return JSON ticket plan
+		return `
+[
+  {
+    "title": "ID:[PRIMES] Create Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates primes < 10000. Output to 'primes.json'. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
+    "type": "Task",
+    "children": []
+  }
+]`, nil
+	}
+
+	// 2. Execution Phase: Asking for implementation of the ticket
+	// The prompt usually asks to "Implement ... primes.py" and output to "primes.json"
+	if strings.Contains(prompt, "primes.py") && strings.Contains(prompt, "primes.json") {
+		return `I will create the primes script.
+
+` + "```bash" + `
+# Create primes.py
+cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n <= 1:
+        return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+primes = [n for n in range(10000) if is_prime(n)]
+
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+# Run the script
+python3 primes.py
+
+# Verify output
+cat primes.json
+
+# Commit results
+git add primes.py primes.json
+git commit -m "Add primes script and output"
+` + "```" + `
+`, nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
