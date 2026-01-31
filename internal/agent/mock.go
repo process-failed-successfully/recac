@@ -60,7 +60,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic to detect Agent implementation request
 	// The agent receives the task ID/Description.
-	if strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "prime numbers") {
+	// Normalize prompt to lowercase for case-insensitive matching
+	promptLower := strings.ToLower(prompt)
+	if strings.Contains(prompt, "PRIMES") || strings.Contains(promptLower, "prime") || strings.Contains(promptLower, "block") || strings.Contains(promptLower, "python") {
 		// Return a bash script to implement the code
 		return `
 Explanation: I will create a Python script to calculate prime numbers.
