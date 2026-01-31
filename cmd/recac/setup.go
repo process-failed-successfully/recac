@@ -42,6 +42,32 @@ func init() {
 }
 
 func runSetup(cmd *cobra.Command, args []string) error {
+	if err := RunSetupWizard(); err != nil {
+		return err
+	}
+
+	// Run Doctor
+	runDoctor := false
+	err := askOneFunc(&survey.Confirm{
+		Message: "Run system check (recac doctor) now?",
+		Default: true,
+	}, &runDoctor)
+	if err != nil {
+		return err
+	}
+
+	if runDoctor {
+		fmt.Println("\nRunning Doctor...")
+		runDoctorFunc(cmd, args)
+	}
+
+	fmt.Println("\nSetup complete! You are ready to code.")
+	return nil
+}
+
+// RunSetupWizard runs the interactive setup wizard logic.
+// It is exported to be reusable by other commands (e.g. doctor --fix).
+func RunSetupWizard() error {
 	fmt.Println("Welcome to RECAC Setup!")
 	fmt.Println("-----------------------")
 
@@ -210,21 +236,5 @@ func runSetup(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Run Doctor
-	runDoctor := false
-	err = askOneFunc(&survey.Confirm{
-		Message: "Run system check (recac doctor) now?",
-		Default: true,
-	}, &runDoctor)
-	if err != nil {
-		return err
-	}
-
-	if runDoctor {
-		fmt.Println("\nRunning Doctor...")
-		runDoctorFunc(cmd, args)
-	}
-
-	fmt.Println("\nSetup complete! You are ready to code.")
-	return nil
+    return nil
 }
