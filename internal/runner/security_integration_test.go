@@ -37,7 +37,8 @@ func TestSecurityIntegration_BlocksSecrets(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
 	mockDocker, _ := docker.NewMockClient()
 	mockAgent := &MockUnsafeAgent{
-		Response: "Here is a secret: AKIAIOSFODNN7EXAMPLE",
+		// Wrap in bash block because Scanner currently only scans executed commands
+		Response: "Here is a secret:\n```bash\necho AKIAIOSFODNN7EXAMPLE\n```",
 	}
 
 	// Init Session

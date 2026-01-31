@@ -52,7 +52,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 2. Implementation for 'prime-python' scenario
 	// The prompt will typically contain the ticket description or "primes.py" instructions
-	if strings.Contains(prompt, "primes.py") && (strings.Contains(prompt, "primes.json") || strings.Contains(prompt, "Prime Number Script")) {
+	// Heuristic relaxed to match "primes.py" alone because injected features might isolate the description.
+	if strings.Contains(prompt, "primes.py") {
 		return `I will create the primes.py script and generate the JSON file as requested.
 
 ` + "```bash" + `
