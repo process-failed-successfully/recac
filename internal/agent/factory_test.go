@@ -37,6 +37,15 @@ func TestNewAgent(t *testing.T) {
 	if err == nil {
 		t.Error("expected error for unknown provider, got nil")
 	}
+
+	// Test Mock
+	a, err = NewAgent("mock", "", "mock-model", "", "test-project")
+	if err != nil {
+		t.Fatalf("failed to create mock agent: %v", err)
+	}
+	if _, ok := a.(*MockAgent); !ok {
+		t.Errorf("expected *MockAgent, got %T", a)
+	}
 }
 
 func TestNewAgent_OpenRouterModelCorrection(t *testing.T) {
