@@ -384,7 +384,7 @@ func run() error {
 
 	// Wait for Job Completion
 	log.Println("Waiting for Agent Job to complete...")
-	if err := waitForJobCompletion(namespace, jobName, 2400*time.Second); err != nil {
+	if err := waitForJobCompletion(namespace, jobName, 3600*time.Second); err != nil {
 		printKubeDebugInfo(namespace)
 		printLogs(namespace, "app=recac-agent")
 		return fmt.Errorf("agent job failed to complete: %w", err)
@@ -553,7 +553,16 @@ func prepareRepo(repoURL string, ticketMap map[string]string) error {
 	cmd := exec.Command("git", "ls-remote", "--heads", authRepo)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to ls-remote: %w\nOutput: %s", err, string(output))
+		// Retry without auth if auth failed (e.g. repo not found / 404 with token)
+		if strings.Contains(string(output), "Repository not found") || strings.Contains(string(output), "Authentication failed") || strings.Contains(string(output), "exit status 128") {
+			log.Printf("Warning: Authenticated ls-remote failed, retrying anonymously: %v", err)
+			cmd = exec.Command("git", "ls-remote", "--heads", repoURL) // Use repoURL directly (no auth)
+			output, err = cmd.CombinedOutput()
+		}
+
+		if err != nil {
+			return fmt.Errorf("failed to ls-remote: %w\nOutput: %s", err, string(output))
+		}
 	}
 
 	lines := strings.Split(string(output), "\n")
