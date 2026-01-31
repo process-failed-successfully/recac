@@ -26,7 +26,8 @@ func main() {
 	pflag.StringVar(&cfgFile, "config", "", "config file (default is $HOME/.recac.yaml)")
 	pflag.BoolP("verbose", "v", false, "Enable verbose/debug logging")
 
-	pflag.String("mode", "local", "Orchestrator mode: 'local' (Docker) or 'k8s' (Kubernetes Job)")
+	pflag.String("mode", "local", "Orchestrator mode: 'local' (Docker), 'process' (Subprocess), or 'k8s' (Kubernetes Job)")
+	pflag.String("agent-binary", "recac-agent", "Path to recac-agent binary (for 'process' mode)")
 	pflag.String("jira-label", "recac-agent", "Jira label to poll for")
 	pflag.String("image", "ghcr.io/process-failed-successfully/recac-agent:latest", "Agent image to spawn")
 	pflag.String("namespace", "default", "Kubernetes namespace (for k8s mode)")
@@ -63,6 +64,7 @@ func main() {
 	viper.BindPFlag("orchestrator.github_label", pflag.Lookup("github-label"))
 
 	viper.BindPFlag("orchestrator.mode", pflag.Lookup("mode"))
+	viper.BindPFlag("orchestrator.agent_binary", pflag.Lookup("agent-binary"))
 	viper.BindPFlag("orchestrator.jira_label", pflag.Lookup("jira-label"))
 	viper.BindPFlag("orchestrator.image", pflag.Lookup("image"))
 	viper.BindPFlag("orchestrator.namespace", pflag.Lookup("namespace"))
@@ -82,6 +84,7 @@ func main() {
 	viper.BindEnv("orchestrator.github_repo", "RECAC_GITHUB_REPO")
 	viper.BindEnv("orchestrator.github_label", "RECAC_GITHUB_LABEL")
 	viper.BindEnv("orchestrator.mode", "RECAC_ORCHESTRATOR_MODE")
+	viper.BindEnv("orchestrator.agent_binary", "RECAC_AGENT_BINARY")
 	viper.BindEnv("orchestrator.image", "RECAC_ORCHESTRATOR_IMAGE")
 	viper.BindEnv("orchestrator.namespace", "RECAC_ORCHESTRATOR_NAMESPACE")
 	viper.BindEnv("orchestrator.interval", "RECAC_ORCHESTRATOR_INTERVAL")
@@ -195,8 +198,18 @@ func main() {
 		}
 
 		spawner = orchestrator.NewDockerSpawner(logger, dockerCli, image, projectName, poller, agentProvider, agentModel, sm)
+	case "process":
+		agentBinary := viper.GetString("orchestrator.agent_binary")
+		sm, err := runner.NewSessionManager()
+		if err != nil {
+			logger.Error("Failed to initialize Session Manager", "error", err)
+			os.Exit(1)
+		}
+		spawner = orchestrator.NewProcessSpawner(logger, agentBinary, poller, agentProvider, agentModel, sm)
+		logger.Info("Using Process Spawner", "binary", agentBinary)
+
 	default:
-		logger.Error("Invalid mode. Use 'local' or 'k8s'", "mode", mode)
+		logger.Error("Invalid mode. Use 'local', 'process', or 'k8s'", "mode", mode)
 		os.Exit(1)
 	}
 
