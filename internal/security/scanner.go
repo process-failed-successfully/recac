@@ -53,9 +53,16 @@ func NewRegexScanner() *RegexScanner {
 func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	var findings []Finding
 	lines := strings.Split(content, "\n")
+	maskedContent := maskComments(content)
 
 	for name, pattern := range s.patterns {
-		matches := pattern.FindAllStringIndex(content, -1)
+		targetContent := content
+		// For command-related checks, scan the masked content to ignore comments
+		if name == "Dangerous Command" || name == "Root Deletion" {
+			targetContent = maskedContent
+		}
+
+		matches := pattern.FindAllStringIndex(targetContent, -1)
 		for _, match := range matches {
 			// Find line number
 			start := match[0]
@@ -66,6 +73,8 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 				}
 			}
 
+			// We extract the matched text from the ORIGINAL content so the user sees what matched.
+			// Since maskComments preserves length and indices, this is safe.
 			matchedText := content[match[0]:match[1]]
 
 			findings = append(findings, Finding{
@@ -88,4 +97,93 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	}
 
 	return findings, nil
+}
+
+// maskComments replaces comments with spaces, preserving string length (byte-wise).
+func maskComments(content string) string {
+	b := []byte(content)
+	masked := make([]byte, len(b))
+	copy(masked, b)
+
+	inSingleQuote := false
+	inDoubleQuote := false
+	inComment := false
+	escaped := false
+	wasSpace := true // Start of line counts as space
+
+	for i := 0; i < len(b); i++ {
+		c := b[i]
+
+		if inComment {
+			if c == '\n' {
+				inComment = false
+				// keep newline
+				wasSpace = true
+			} else {
+				masked[i] = ' '
+				// wasSpace irrelevant inside comment
+			}
+			continue
+		}
+
+		if inSingleQuote {
+			if c == '\'' {
+				inSingleQuote = false
+			}
+			wasSpace = false
+			continue
+		}
+
+		if inDoubleQuote {
+			if escaped {
+				escaped = false
+			} else if c == '\\' {
+				escaped = true
+			} else if c == '"' {
+				inDoubleQuote = false
+			}
+			wasSpace = false
+			continue
+		}
+
+		// Outside quotes
+		if escaped {
+			escaped = false
+			wasSpace = false
+			continue
+		}
+
+		if c == '\\' {
+			escaped = true
+			wasSpace = false
+			continue
+		}
+
+		if c == '\'' {
+			inSingleQuote = true
+			wasSpace = false
+			continue
+		}
+
+		if c == '"' {
+			inDoubleQuote = true
+			wasSpace = false
+			continue
+		}
+
+		if c == '#' && wasSpace {
+			inComment = true
+			masked[i] = ' '
+			continue
+		}
+
+		// Update wasSpace
+		if c == ' ' || c == '\t' || c == '\n' {
+			wasSpace = true
+		} else {
+			wasSpace = false
+		}
+	}
+
+	return string(masked)
 }
