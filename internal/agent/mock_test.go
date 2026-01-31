@@ -25,6 +25,44 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Scenarios(t *testing.T) {
+	agent := NewMockAgent()
+	ctx := context.Background()
+
+	// 1. Planner Scenario
+	plannerPrompt := "Create a JSON object containing a feature list"
+	resp, err := agent.Send(ctx, plannerPrompt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(resp, `"features": [`) {
+		t.Errorf("Expected features JSON, got: %s", resp)
+	}
+
+	// 2. TPM Scenario (CLI) - even with "primes.py" in text
+	tpmPrompt := "You are an expert Technical Program Manager (TPM). Here is the spec: implement primes.py"
+	resp, err = agent.Send(ctx, tpmPrompt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(resp, `"title": "ID:[PRIMES] Prime Number Implementation"`) {
+		t.Errorf("Expected TPM JSON array, got: %s", resp)
+	}
+	if !strings.HasPrefix(strings.TrimSpace(resp), "[") {
+		t.Errorf("Expected response to start with '[', got: %s", resp)
+	}
+
+	// 3. Implementation Scenario
+	implPrompt := "Please implement the script primes.py now."
+	resp, err = agent.Send(ctx, implPrompt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(resp, "cat << 'EOF' > primes.py") {
+		t.Errorf("Expected implementation bash script, got: %s", resp)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {

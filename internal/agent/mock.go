@@ -32,9 +32,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// Heuristics for prime-python scenario
+	// 1. Planner Prompt (Autonomous Agent Loop)
+	// Expects: { "features": [...] }
 	if strings.Contains(prompt, "Create a JSON object containing a feature list") {
-		// Planner response
 		return `
 {
   "features": [
@@ -47,8 +47,35 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 }`, nil
 	}
 
+	// 2. TPM Agent Prompt (CLI: recac jira generate-from-spec)
+	// Expects: [ { "title": "...", "children": [...] } ]
+	if strings.Contains(prompt, "You are an expert Technical Program Manager (TPM)") {
+		// Extract repo URL if present in prompt to include in description, ensuring validation passes
+		// (though usually injected by the caller, we mock it here)
+		return `
+[
+  {
+    "title": "ID:[PRIMES] Prime Number Implementation",
+    "description": "Implement the prime number generation script. Repo: https://github.com/example/repo",
+    "type": "Epic",
+    "children": [
+      {
+        "title": "ID:[PRIMES] Create primes.py",
+        "description": "Create a python script named 'primes.py' that calculates primes < 10000. Repo: https://github.com/example/repo",
+        "type": "Task",
+        "acceptance_criteria": [
+          "Script is named primes.py",
+          "Output is named primes.json"
+        ]
+      }
+    ]
+  }
+]`, nil
+	}
+
+	// 3. Implementation Prompt (Coding Agent)
+	// Triggered if it asks for primes.py implementation details
 	if strings.Contains(prompt, "primes.py") {
-		// Implementation response
 		return `I will create the primes.py script and the output file.
 
 ` + "```bash" + `
