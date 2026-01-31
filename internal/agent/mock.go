@@ -79,6 +79,38 @@ git commit -m "Add primes.py and primes.json"
 `), nil
 	}
 
+	// Heuristic for Initializer Prompt (Feature List)
+	// This handles the "no-op loop" where the agent is asked to initialize features but returns nothing useful.
+	if strings.Contains(prompt, "agent-bridge import") || (strings.Contains(prompt, "Feature List") && strings.Contains(prompt, "initialize")) {
+		// Only trigger if it's the prime-python scenario (generic enough, but targeted)
+		if strings.Contains(prompt, "prime-python") || strings.Contains(prompt, "Prime Number") {
+			return `
+I will initialize the project features.
+
+` + "```bash" + `
+cat << 'EOF' > feature_list.json
+{
+  "project_name": "prime-python",
+  "features": [
+    {
+      "id": "1",
+      "description": "Calculate prime numbers up to 10,000",
+      "status": "pending",
+      "file_paths": ["primes.py"],
+      "test_paths": []
+    }
+  ]
+}
+EOF
+
+# Import features to DB
+agent-bridge import feature_list.json
+` + "```" + `
+`, nil
+		}
+	}
+
+	// Default Mock Response (Avoid empty response which trips No-Op circuit breaker)
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
