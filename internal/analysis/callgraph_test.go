@@ -150,13 +150,6 @@ func DoSomething() {}
 	// Verify that main.main calls "example.com/foopkg.DoSomething" (external)
 	// AND NOT "pkg.DoSomething" (local)
 
-	// Our implementation of resolveExternalCall iterates over all nodes.
-	// "pkg.DoSomething" is a node in the graph (ID: "pkg.DoSomething").
-	// main.go imports "example.com/foopkg".
-	// The call is `foopkg.DoSomething()`.
-	// logic: if strings.HasSuffix("example.com/foopkg", "pkg") -> True!
-	// So it might resolve to "pkg.DoSomething" incorrectly.
-
 	foundIncorrectLink := false
 	for _, edge := range cg.Edges {
 		if edge.From == "main.main" && edge.To == "pkg.DoSomething" {
@@ -165,4 +158,77 @@ func DoSomething() {}
 	}
 
 	assert.False(t, foundIncorrectLink, "Should not resolve foopkg.DoSomething to pkg.DoSomething")
+}
+
+func TestResolveExternalCall_AmbiguousSuffix(t *testing.T) {
+	// Scenario:
+	// main.go imports "example.com/project/long/path/utils"
+	// We have local packages:
+	// 1. "utils" (at root/utils)
+	// 2. "path/utils" (at root/path/utils)
+	// Both have "Helper()" function.
+	// The import should match "path/utils" better than "utils"?
+	// Or actually, wait.
+	// If import is "example.com/project/long/path/utils".
+	// Local package 1: "utils". pathLen=len("...utils"), pkgLen=5. Suffix matches. Slash check? "...utils"[len-5-1] is '/'. Match!
+	// Local package 2: "path/utils". Matches too.
+	// We should pick the Longest Match (most specific).
+
+	tmpDir := t.TempDir()
+
+	// main.go
+	mainContent := `package main
+
+import (
+	"fmt"
+	"example.com/project/long/path/utils"
+)
+
+func main() {
+	utils.Helper()
+	fmt.Println("Done")
+}
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainContent), 0644)
+	require.NoError(t, err)
+
+	// 1. Create utils (shallow)
+	utilsDir := filepath.Join(tmpDir, "utils")
+	err = os.MkdirAll(utilsDir, 0755)
+	require.NoError(t, err)
+	os.WriteFile(filepath.Join(utilsDir, "utils.go"), []byte("package utils\nfunc Helper() {}"), 0644)
+
+	// 2. Create path/utils (deeper)
+	deepUtilsDir := filepath.Join(tmpDir, "path", "utils")
+	err = os.MkdirAll(deepUtilsDir, 0755)
+	require.NoError(t, err)
+	os.WriteFile(filepath.Join(deepUtilsDir, "utils.go"), []byte("package utils\nfunc Helper() {}"), 0644)
+
+	// Run Analysis
+	cg, err := GenerateCallGraph(tmpDir)
+	require.NoError(t, err)
+
+	// We expect main -> path/utils.Helper
+	// NOT main -> utils.Helper
+
+	// IDs:
+	// utils.Helper
+	// path/utils.Helper
+
+	foundCorrect := false
+	foundIncorrect := false
+
+	for _, edge := range cg.Edges {
+		if edge.From == "main.main" {
+			if edge.To == "path/utils.Helper" {
+				foundCorrect = true
+			}
+			if edge.To == "utils.Helper" {
+				foundIncorrect = true
+			}
+		}
+	}
+
+	assert.True(t, foundCorrect, "Should resolve to path/utils.Helper (longest suffix match)")
+	assert.False(t, foundIncorrect, "Should NOT resolve to utils.Helper (shorter suffix match)")
 }
