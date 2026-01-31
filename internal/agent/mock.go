@@ -32,7 +32,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Heuristic to detect Plan request (from cmd/recac/plan.go)
-	if strings.Contains(prompt, "app_spec.txt") || strings.Contains(prompt, "Feature Implementation Plan") || strings.Contains(prompt, "spec") {
+	// We must be careful not to match Coding Agent prompts which also reference app_spec.txt (via `cat app_spec.txt`)
+	// We require "feature list" or "JSON object" combined with "app_spec.txt", OR explicit "Feature Implementation Plan"
+	if strings.Contains(prompt, "Feature Implementation Plan") || (strings.Contains(prompt, "app_spec.txt") && (strings.Contains(prompt, "feature list") || strings.Contains(prompt, "JSON object"))) {
 		// Return a valid JSON FeatureList for the prime-python scenario
 		// We assume the spec asks for prime numbers
 		return `{
