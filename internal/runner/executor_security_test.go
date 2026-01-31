@@ -63,4 +63,16 @@ func TestProcessResponse_Security(t *testing.T) {
 	if !found {
 		t.Errorf("Safe command was NOT executed")
 	}
+
+	// 3. Commented Dangerous Command (False Positive Check)
+	// This ensures that dangerous commands inside comments are ignored.
+	respComment := "I am explaining rm -rf /\n```bash\n# Do not run rm .ssh keys\necho 'safe'\n```"
+	outComment, err := s.ProcessResponse(context.Background(), respComment)
+	if err != nil {
+		t.Fatalf("ProcessResponse failed: %v", err)
+	}
+
+	if strings.Contains(outComment, "[BLOCKED]") {
+		t.Errorf("Commented dangerous command was blocked! %s", outComment)
+	}
 }

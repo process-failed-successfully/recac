@@ -54,19 +54,31 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	var findings []Finding
 	lines := strings.Split(content, "\n")
 
+	// Create a masked version of content where comments are replaced with spaces
+	// This prevents regexes from matching patterns inside comments while preserving line numbers/indices
+	maskedLines := make([]string, len(lines))
+	for i, line := range lines {
+		if strings.HasPrefix(strings.TrimSpace(line), "#") {
+			maskedLines[i] = strings.Repeat(" ", len(line))
+		} else {
+			maskedLines[i] = line
+		}
+	}
+	maskedContent := strings.Join(maskedLines, "\n")
+
 	for name, pattern := range s.patterns {
-		matches := pattern.FindAllStringIndex(content, -1)
+		matches := pattern.FindAllStringIndex(maskedContent, -1)
 		for _, match := range matches {
 			// Find line number
 			start := match[0]
 			lineNumber := 1
 			for i := 0; i < start; i++ {
-				if content[i] == '\n' {
+				if maskedContent[i] == '\n' {
 					lineNumber++
 				}
 			}
 
-			matchedText := content[match[0]:match[1]]
+			matchedText := maskedContent[match[0]:match[1]]
 
 			findings = append(findings, Finding{
 				Type:        name,
