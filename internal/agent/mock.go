@@ -114,6 +114,10 @@ with open('primes.json', 'w') as f:
     json.dump({"primes": primes}, f)
 EOF
 
+# Configure git for commit
+git config user.email "mock@example.com"
+git config user.name "Mock Agent"
+
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json"
