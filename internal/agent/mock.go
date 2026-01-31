@@ -52,14 +52,16 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Check if this is the "Prime Python" scenario implementation phase
-	if strings.Contains(prompt, "primes.py") {
+	// Matches file name, feature ID prefix (req-primes), or project ID tag ([PRIMES])
+	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "req-primes") || strings.Contains(prompt, "[PRIMES]") {
 		return "Here is the implementation for primes.py:\n\n```bash\ncat << 'EOF' > primes.py\nimport json\n\ndef is_prime(n):\n    if n <= 1: return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0: return False\n    return True\n\nprimes = [x for x in range(10000) if is_prime(x)]\nwith open('primes.json', 'w') as f:\n    json.dump({\"primes\": primes}, f)\nEOF\n\npython3 primes.py\ngit add primes.py\ngit add -f primes.json\ngit commit -m \"Add primes script and output\"\n```", nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	// We include a bash no-op to prevent the circuit breaker from tripping due to "no commands"
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...\n\n```bash\n# no-op\n```",
+	// We place the bash block at the start to ensure it is always detected, regardless of prompt content
+	response := fmt.Sprintf("%s:\n\n```bash\n# no-op\n```\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
 }
@@ -73,10 +75,11 @@ func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(
 	return resp, err
 }
 
-// truncateString truncates a string to a maximum length
+// truncateString truncates a string to a maximum length and sanitizes backticks
 func truncateString(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
+	if len(s) > maxLen {
+		s = s[:maxLen]
 	}
-	return s[:maxLen]
+	// Sanitize backticks to prevent breaking markdown blocks in response
+	return strings.ReplaceAll(s, "`", "'")
 }

@@ -44,6 +44,30 @@ func TestMockAgent_PrimesScenario(t *testing.T) {
 	}
 }
 
+func TestMockAgent_PrimesScenario_Variants(t *testing.T) {
+	agent := NewMockAgent()
+	// Test without explicit "primes.py" but with feature ID
+	prompt := "Task: req-primes-py-is-created. Please implement."
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "```bash") {
+		t.Error("Response should contain bash block (req-primes variant)")
+	}
+
+	// Test with project tag
+	prompt2 := "Working on ticket ID:[PRIMES] summary..."
+	response2, err := agent.Send(context.Background(), prompt2)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(response2, "```bash") {
+		t.Error("Response should contain bash block ([PRIMES] variant)")
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
@@ -51,6 +75,12 @@ func TestTruncateString(t *testing.T) {
 	}
 	if truncateString(s, 20) != "hello world" {
 		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
+	}
+
+	// Test backtick sanitization
+	s2 := "hello `world`"
+	if truncateString(s2, 20) != "hello 'world'" {
+		t.Errorf("Expected backticks replaced, got '%s'", truncateString(s2, 20))
 	}
 }
 
