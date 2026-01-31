@@ -108,4 +108,26 @@ func TestProcessResponse_Security(t *testing.T) {
 	if !strings.Contains(outExploit, "[BLOCKED]") {
 		t.Errorf("Exploit attempt was NOT blocked! %s", outExploit)
 	}
+
+	// 7. Parameter Expansion Exploit (Bash Syntax Check)
+	// This ensures that # inside parameter expansion (e.g., ${VAR#pattern}) is NOT treated as a comment start.
+	respParam := "Parameter expansion.\n```bash\necho ${VAR#pattern}; rm -rf /\n```"
+	outParam, err := s.ProcessResponse(context.Background(), respParam)
+	if err != nil {
+		t.Fatalf("ProcessResponse failed: %v", err)
+	}
+	if !strings.Contains(outParam, "[BLOCKED]") {
+		t.Errorf("Parameter expansion exploit was NOT blocked! %s", outParam)
+	}
+
+	// 8. Background Process Bypass Attempt
+	// This ensures that using & separator doesn't bypass the check
+	respBg := "Background process.\n```bash\nrm -rf /&\n```"
+	outBg, err := s.ProcessResponse(context.Background(), respBg)
+	if err != nil {
+		t.Fatalf("ProcessResponse failed: %v", err)
+	}
+	if !strings.Contains(outBg, "[BLOCKED]") {
+		t.Errorf("Background process bypass was NOT blocked! %s", outBg)
+	}
 }

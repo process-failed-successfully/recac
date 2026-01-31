@@ -31,7 +31,7 @@ var (
 	reSlackToken      = regexp.MustCompile(`xox[baprs]-([0-9a-zA-Z]{10,48})`)
 	reGitHubToken     = regexp.MustCompile(`gh[pousr]_[a-zA-Z0-9]{36,255}`)
 	reDangerousCmd    = regexp.MustCompile(`(?i)\b(rm|cat|cp|mv|chmod|chown)\b.*(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
-	reRootDeletion    = regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+([/~*]+|/)(?:[\s;]|$)`)
+	reRootDeletion    = regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+([/~*]+|/)(?:[\s;&|<>)]|$)`)
 )
 
 // NewRegexScanner creates a new scanner with default patterns
@@ -132,7 +132,11 @@ func findCommentStart(line string) int {
 			}
 		case '#':
 			if !inSingleQuote && !inDoubleQuote {
-				return i
+				// In Bash, # starts a comment only if it's the start of a word
+				// (preceded by whitespace or start of line)
+				if i == 0 || line[i-1] == ' ' || line[i-1] == '\t' {
+					return i
+				}
 			}
 		}
 	}
