@@ -130,4 +130,15 @@ func TestProcessResponse_Security(t *testing.T) {
 	if !strings.Contains(outBg, "[BLOCKED]") {
 		t.Errorf("Background process bypass was NOT blocked! %s", outBg)
 	}
+
+	// 9. Dangerous Command in String (False Positive Check)
+	// This ensures that dangerous commands inside strings (e.g. echo warnings) are ignored.
+	respStr := "I am warning you.\n```bash\necho \"Do not run rm -rf /\"\n```"
+	outStr, err := s.ProcessResponse(context.Background(), respStr)
+	if err != nil {
+		t.Fatalf("ProcessResponse failed: %v", err)
+	}
+	if strings.Contains(outStr, "[BLOCKED]") {
+		t.Errorf("Dangerous command in string was blocked! %s", outStr)
+	}
 }

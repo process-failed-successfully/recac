@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 )
 
 // Scanner defines the interface for security scanning
@@ -52,35 +53,35 @@ func NewRegexScanner() *RegexScanner {
 // Scan checks the content for security patterns
 func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	var findings []Finding
-	lines := strings.Split(content, "\n")
 
-	// Create a masked version of content where comments are replaced with spaces
-	// This prevents regexes from matching patterns inside comments while preserving line numbers/indices
-	maskedLines := make([]string, len(lines))
-	for i, line := range lines {
-		// Mask comments (anything after #) with spaces to prevent false positives
-		// This handles both full-line comments and inline comments, respecting quotes
-		if idx := findCommentStart(line); idx != -1 {
-			maskedLines[i] = line[:idx] + strings.Repeat(" ", len(line)-idx)
-		} else {
-			maskedLines[i] = line
-		}
-	}
-	maskedContent := strings.Join(maskedLines, "\n")
+	// Generate two masked versions:
+	// 1. Strings masked (for dangerous commands to avoid false positives in echo/print)
+	// 2. Strings preserved (for secrets which are often in strings)
+	contentMaskedStrings := maskContent(content, true)
+	contentPreservedStrings := maskContent(content, false)
 
 	for name, pattern := range s.patterns {
-		matches := pattern.FindAllStringIndex(maskedContent, -1)
+		var targetContent string
+
+		// Select the appropriate content version
+		if name == "Dangerous Command" || name == "Root Deletion" {
+			targetContent = contentMaskedStrings
+		} else {
+			targetContent = contentPreservedStrings
+		}
+
+		matches := pattern.FindAllStringIndex(targetContent, -1)
 		for _, match := range matches {
 			// Find line number
 			start := match[0]
 			lineNumber := 1
 			for i := 0; i < start; i++ {
-				if maskedContent[i] == '\n' {
+				if targetContent[i] == '\n' {
 					lineNumber++
 				}
 			}
 
-			matchedText := maskedContent[match[0]:match[1]]
+			matchedText := targetContent[match[0]:match[1]]
 
 			findings = append(findings, Finding{
 				Type:        name,
@@ -92,6 +93,7 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	}
 
 	// Scan line by line for context-aware checks (optional optimization)
+	lines := strings.Split(content, "\n")
 	for i, line := range lines {
 		// Example: Check for hardcoded passwords in typical config patterns
 		if strings.Contains(strings.ToLower(line), "password") && strings.Contains(line, "=") {
@@ -104,45 +106,91 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	return findings, nil
 }
 
-// findCommentStart returns the index of the first unquoted #, or -1 if none found.
-func findCommentStart(line string) int {
+// maskContent replaces comments and optionally string literals with spaces.
+// It preserves newlines and byte lengths to maintain correct line numbers and indices.
+func maskContent(content string, maskStrings bool) string {
+	var sb strings.Builder
+	sb.Grow(len(content))
+
 	inSingleQuote := false
 	inDoubleQuote := false
+	inComment := false
 	escaped := false
 
-	for i, r := range line {
-		if escaped {
-			escaped = false
-			continue
+	for i, r := range content {
+		shouldMask := false
+
+		if inComment {
+			shouldMask = true
+			if r == '\n' {
+				inComment = false
+				shouldMask = false
+			}
+		} else if inSingleQuote {
+			if maskStrings {
+				shouldMask = true
+			}
+			if r == '\'' && !escaped {
+				inSingleQuote = false
+				if maskStrings {
+					shouldMask = false
+				}
+			}
+		} else if inDoubleQuote {
+			if maskStrings {
+				shouldMask = true
+			}
+			if r == '"' && !escaped {
+				inDoubleQuote = false
+				if maskStrings {
+					shouldMask = false
+				}
+			}
+		} else {
+			// Normal state
+			if r == '#' {
+				// Check if it's a valid comment start
+				isComment := false
+				if i == 0 {
+					isComment = true
+				} else {
+					// Check previous byte
+					prev := content[i-1]
+					if prev == ' ' || prev == '\t' || prev == '\n' || prev == ';' || prev == '|' || prev == '&' || prev == '(' || prev == ')' || prev == '<' || prev == '>' {
+						isComment = true
+					}
+				}
+
+				if isComment {
+					inComment = true
+					shouldMask = true
+				}
+			} else if r == '\'' && !escaped {
+				inSingleQuote = true
+			} else if r == '"' && !escaped {
+				inDoubleQuote = true
+			}
 		}
 
-		switch r {
-		case '\\':
-			// Escape only works outside single quotes (and mostly inside double quotes)
-			if !inSingleQuote {
-				escaped = true
-			}
-		case '\'':
-			if !inDoubleQuote {
-				inSingleQuote = !inSingleQuote
-			}
-		case '"':
-			if !inSingleQuote {
-				inDoubleQuote = !inDoubleQuote
-			}
-		case '#':
-			if !inSingleQuote && !inDoubleQuote {
-				// In Bash, # starts a comment only if it's the start of a word
-				// (preceded by whitespace or start of line or control operators)
-				if i == 0 {
-					return i
-				}
-				prev := line[i-1]
-				if prev == ' ' || prev == '\t' || prev == ';' || prev == '|' || prev == '&' || prev == '(' || prev == ')' || prev == '<' || prev == '>' {
-					return i
+		// Handle escape state
+		if r == '\\' && !inSingleQuote {
+			escaped = !escaped
+		} else {
+			escaped = false
+		}
+
+		if shouldMask {
+			if r == '\n' {
+				sb.WriteRune(r)
+			} else {
+				l := utf8.RuneLen(r)
+				for k := 0; k < l; k++ {
+					sb.WriteByte(' ')
 				}
 			}
+		} else {
+			sb.WriteRune(r)
 		}
 	}
-	return -1
+	return sb.String()
 }
