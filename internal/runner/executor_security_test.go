@@ -75,4 +75,16 @@ func TestProcessResponse_Security(t *testing.T) {
 	if strings.Contains(outComment, "[BLOCKED]") {
 		t.Errorf("Commented dangerous command was blocked! %s", outComment)
 	}
+
+	// 4. Safe Wildcard Deletion (rm -rf *)
+	// This ensures that we can clean the current directory.
+	respWildcard := "I will clean the current directory.\n```bash\nrm -rf *\n```"
+	outWildcard, err := s.ProcessResponse(context.Background(), respWildcard)
+	if err != nil {
+		t.Fatalf("ProcessResponse failed: %v", err)
+	}
+
+	if strings.Contains(outWildcard, "[BLOCKED]") {
+		t.Errorf("Wildcard deletion (rm -rf *) was blocked! %s", outWildcard)
+	}
 }
