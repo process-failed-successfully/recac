@@ -16,6 +16,7 @@ import (
 	"recac/internal/docker"
 	"recac/internal/jira"
 	"recac/internal/orchestrator"
+	"recac/internal/runner"
 
 	"github.com/joho/godotenv"
 )
@@ -68,7 +69,7 @@ func TestOrchestrator_Poller_E2E(t *testing.T) {
 
 	// 4. Poll
 	t.Log("Polling for work...")
-	items, err := poller.Poll(ctx)
+	items, err := poller.Poll(ctx, slog.Default())
 	if err != nil {
 		t.Fatalf("Poll failed: %v", err)
 	}
@@ -82,10 +83,10 @@ func TestOrchestrator_Poller_E2E(t *testing.T) {
 		t.Errorf("Expected item ID %s, got %s", key, item.ID)
 	}
 
-	// 5. Claim
+	// 5. Update Status (Claim)
 	t.Log("Claiming work...")
-	if err := poller.Claim(ctx, item); err != nil {
-		t.Fatalf("Claim failed: %v", err)
+	if err := poller.UpdateStatus(ctx, item, "In Progress", ""); err != nil {
+		t.Fatalf("UpdateStatus (Claim) failed: %v", err)
 	}
 
 	// 6. Verify Status Change (In Progress)
@@ -173,7 +174,15 @@ func TestOrchestrator_FullFlow_E2E(t *testing.T) {
 	// Assuming OpenAI/GPT-3.5-turbo or similar for speed/cost if available. Or OpenRouter.
 	provider := "openrouter"
 	model := "meta-llama/llama-3.3-70b-instruct:free"
-	spawner := orchestrator.NewDockerSpawner(logger, dClient, "recac-agent:e2e", poller, provider, model)
+
+	// Create Session Manager
+	tempDir := t.TempDir()
+	sm, err := runner.NewSessionManagerWithDir(tempDir)
+	if err != nil {
+		t.Fatalf("Failed to create session manager: %v", err)
+	}
+
+	spawner := orchestrator.NewDockerSpawner(logger, dClient, "recac-agent:e2e", "recac-e2e", poller, provider, model, sm)
 
 	orch := orchestrator.New(poller, spawner, 5*time.Second)
 
