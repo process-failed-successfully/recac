@@ -34,10 +34,26 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristics for "prime-python" scenario
 
-	// 1. Planning Phase (Initializer Agent)
-	// The prompt usually contains the full AppSpec which has "ID:[PRIMES]"
-	// The Initializer is expected to create 'feature_list.json' via 'agent-bridge import'
-	if strings.Contains(prompt, "ID:[PRIMES]") {
+	// 1. Ticket Generation Phase (TPM Agent / CLI)
+	// Triggered by "recac jira generate-from-spec"
+	// Prompt contains "Technical Program Manager" and "ID:[PRIMES]" (from spec)
+	if strings.Contains(prompt, "Technical Program Manager") && strings.Contains(prompt, "ID:[PRIMES]") {
+		// Expects pure JSON list of tickets
+		return `
+[
+  {
+    "title": "ID:[PRIMES] Create Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates primes < 10000. Output to 'primes.json'. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
+    "type": "Task",
+    "children": []
+  }
+]`, nil
+	}
+
+	// 2. Planning Phase (Initializer Agent / Loop)
+	// Triggered by Orchestrator at start of session
+	// Prompt contains "Create feature_list.json" and "ID:[PRIMES]" (from spec)
+	if strings.Contains(prompt, "Create feature_list.json") && strings.Contains(prompt, "ID:[PRIMES]") {
 		return `I will generate the feature list.
 
 ` + "```bash" + `
@@ -70,7 +86,7 @@ EOF
 `, nil
 	}
 
-	// 2. Execution Phase (Coding Agent)
+	// 3. Execution Phase (Coding Agent)
 	// The prompt usually asks to "Implement ... primes.py" and output to "primes.json"
 	// It comes from the "PRIMES" feature description we just created.
 	if strings.Contains(prompt, "primes.py") && strings.Contains(prompt, "primes.json") {
