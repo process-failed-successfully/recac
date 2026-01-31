@@ -109,6 +109,21 @@ yarn-error.log*
 		}
 	} else {
 		fmt.Println("Skipping system-level git bootstrap in local mode (relying on env vars).")
+
+		// In local mode (e.g. K8s), git requires identity config.
+		// If not set in env, inject defaults to allow commits to succeed.
+		if os.Getenv("GIT_AUTHOR_EMAIL") == "" {
+			os.Setenv("GIT_AUTHOR_EMAIL", email)
+		}
+		if os.Getenv("GIT_AUTHOR_NAME") == "" {
+			os.Setenv("GIT_AUTHOR_NAME", name)
+		}
+		if os.Getenv("GIT_COMMITTER_EMAIL") == "" {
+			os.Setenv("GIT_COMMITTER_EMAIL", email)
+		}
+		if os.Getenv("GIT_COMMITTER_NAME") == "" {
+			os.Setenv("GIT_COMMITTER_NAME", name)
+		}
 	}
 
 	return nil
