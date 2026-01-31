@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,9 +31,55 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// Heuristic for "prime-python" scenario planning phase
+	if strings.Contains(prompt, "AppSpec: ### ID:[PRIMES]") {
+		return `{
+  "features": [
+    {
+      "ID": "[PRIMES]",
+      "Summary": "[PRIMES] Create Prime Number Script",
+      "Desc": "Create a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to 'primes.json'.",
+      "Type": "Task"
+    }
+  ]
+}`, nil
+	}
+
+	// Heuristic for "prime-python" scenario execution phase
+	if strings.Contains(prompt, "Task: [PRIMES]") || (strings.Contains(prompt, "primes.py") && strings.Contains(prompt, "Create")) {
+		return fmt.Sprintf(`
+I will implement the prime number script.
+
+` + "```bash" + `
+cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n < 2: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n %% i == 0: return False
+    return True
+
+primes = [p for p in range(10000) if is_prime(p)]
+
+with open("primes.json", "w") as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+python3 primes.py
+
+# Add to git
+git add primes.py primes.json
+git commit -m "Add primes.py and primes.json"
+` + "```" + `
+`), nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
+	// We add a # no-op block to satisfy the runner's requirement for at least one command block
+	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...\n\n```bash\n# no-op\n```",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
 }
