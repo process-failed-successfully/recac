@@ -30,8 +30,14 @@ var (
 	reGenericAPIToken = regexp.MustCompile(`(api|access)[_-]?key\s*[:=]\s*['"][a-zA-Z0-9_\-]{20,}['"]`)
 	reSlackToken      = regexp.MustCompile(`xox[baprs]-([0-9a-zA-Z]{10,48})`)
 	reGitHubToken     = regexp.MustCompile(`gh[pousr]_[a-zA-Z0-9]{36,255}`)
-	reDangerousCmd    = regexp.MustCompile(`(?i)\b(rm|cat|cp|mv|chmod|chown)\b.*(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
-	reRootDeletion    = regexp.MustCompile(`(?mi)\brm\s+-[rRf]+\s+([/~]+|/|/\*)$`)
+
+	// Command matching patterns to avoid false positives (e.g. echo "rm -rf /")
+	// We require the command to be at the start of a line, or preceded by a separator/grouper, or a known command runner.
+	// We use \W+ to handle spaces, quotes, parens etc. after the runner.
+	cmdPrefix      = `(?:^|[;&|{(]|\b(?:sudo|xargs|time|nice|nohup|watch|env|start|exec|eval)\W+)\s*`
+	reDangerousCmd = regexp.MustCompile(`(?mi)` + cmdPrefix + `\b(rm|cat|cp|mv|chmod|chown)\b.*(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
+	// reRootDeletion must ensure it matches the specific path and not a prefix (e.g. /tmp), but allow trailing separators/quotes.
+	reRootDeletion = regexp.MustCompile(`(?mi)` + cmdPrefix + `\brm\s+-[rRf]+\s+([/~]+|/|/\*)(?:$|[\s;&|)'"])`)
 )
 
 // NewRegexScanner creates a new scanner with default patterns
