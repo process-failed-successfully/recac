@@ -34,6 +34,35 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// CI Smoke Test Support: prime-python scenario
 	if strings.Contains(prompt, "ID:[PRIMES]") {
+		// Differentiate between Planner (JSON Request) and Coding Agent (Bash Script Request)
+
+		// Planner Prompt Detection
+		if strings.Contains(prompt, "Create a JSON object containing a feature list") {
+			return `{
+  "project_name": "Prime Number Script",
+  "features": [
+    {
+      "id": "TASK-1",
+      "category": "functional",
+      "description": "Implement prime number script",
+      "status": "pending",
+      "steps": [
+        "Create primes.py",
+        "Implement prime calculation logic",
+        "Run script",
+        "Verify primes.json exists"
+      ],
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": [],
+        "read_only_paths": []
+      }
+    }
+  ]
+}`, nil
+		}
+
+		// Fallback: Assume Coding Agent request (or any request asking for execution/script)
 		return `I will create the prime number script as requested.
 
 ` + "```bash" + `
