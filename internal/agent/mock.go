@@ -88,6 +88,19 @@ agent-bridge import --file feature_list.json
 
 	// 3. Implementation for 'prime-python' scenario
 	// The prompt will typically contain the ticket description or "primes.py" instructions.
+
+	// Check for completion signals in the prompt (from previous command output)
+	// If git commit failed because nothing to commit, it means we are done.
+	if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
+		return `The implementation seems complete and committed. I will mark the task as done.
+
+` + "```bash" + `
+# Mark feature as done
+agent-bridge update --id req-primes --status done --passes true
+` + "```" + `
+`, nil
+	}
+
 	// We use a "greedy" match here: if it talks about the primes task AND it's NOT the ticket generation prompt (checked above),
 	// assume it's the coding task.
 	// We check for keywords related to the task.
@@ -120,7 +133,8 @@ git config user.name "Mock Agent"
 
 python3 primes.py
 git add primes.py primes.json
-git commit -m "Add primes.py and primes.json"
+# Allow empty commit failure to detect idempotency (exit 0 so runner doesn't stop, but prints output)
+git commit -m "Add primes.py and primes.json" || echo "nothing to commit"
 ` + "```" + `
 `, nil
 	}

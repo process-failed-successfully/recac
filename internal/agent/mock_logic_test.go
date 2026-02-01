@@ -34,3 +34,20 @@ func TestMockAgent_NoOp(t *testing.T) {
 		t.Errorf("Expected # no-op, got: %s", resp)
 	}
 }
+
+func TestMockAgent_Completion(t *testing.T) {
+	agent := NewMockAgent()
+	// Simulate prompt containing git status output indicating nothing to commit
+	prompt := "Command Output:\nOn branch master\nnothing to commit, working tree clean\n"
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(resp, "agent-bridge update") {
+		t.Errorf("Expected agent-bridge update command for completion, got: %s", resp)
+	}
+	if !strings.Contains(resp, "--status done") {
+		t.Errorf("Expected status done, got: %s", resp)
+	}
+}
