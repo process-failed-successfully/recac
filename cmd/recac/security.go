@@ -116,8 +116,8 @@ func runSecurityScan(root string, scanner *security.RegexScanner) ([]SecurityRes
 }
 
 func scanFileForSecurity(path string, scanner *security.RegexScanner) ([]SecurityResult, error) {
-	// Exclude scanner source code to prevent self-flagging
-	if strings.HasSuffix(path, "internal/security/scanner.go") || strings.HasSuffix(path, "internal/security/scanner_test.go") {
+	// Exclude scanner source code and all test files to prevent self-flagging
+	if strings.HasSuffix(path, "internal/security/scanner.go") || strings.HasSuffix(path, "_test.go") {
 		return nil, nil
 	}
 
@@ -141,7 +141,8 @@ func scanFileForSecurity(path string, scanner *security.RegexScanner) ([]Securit
 	var results []SecurityResult
 	for _, finding := range findings {
 		// Exclude common build patterns in Dockerfiles
-		if finding.Type == "Pipe to Shell" && (filepath.Base(path) == "Dockerfile" || filepath.Base(path) == "test.Dockerfile") {
+		base := filepath.Base(path)
+		if finding.Type == "Pipe to Shell" && (base == "Dockerfile" || strings.HasSuffix(base, ".Dockerfile")) {
 			continue
 		}
 

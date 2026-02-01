@@ -151,4 +151,36 @@ func main() {
 		output := buf.String()
 		assert.Contains(t, output, "No security issues found")
 	})
+
+	t.Run("Exclusions", func(t *testing.T) {
+		resetFlags()
+
+		// Create a test file with a secret (should be ignored)
+		testFile := filepath.Join(tempDir, "vulnerable_test.go")
+		err := os.WriteFile(testFile, []byte(`package main
+func TestSomething(t *testing.T) {
+	key := "AKIA1234567890123456"
+}`), 0644)
+		require.NoError(t, err)
+
+		// Create a .Dockerfile with pipe (should be ignored)
+		dockerFile := filepath.Join(tempDir, "agent.Dockerfile")
+		err = os.WriteFile(dockerFile, []byte(`RUN curl | bash`), 0644)
+		require.NoError(t, err)
+
+		cmd := securityCmd
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+
+		err = cmd.RunE(cmd, []string{})
+		require.NoError(t, err)
+
+		output := buf.String()
+
+		// vulnerable_test.go should be ignored
+		assert.NotContains(t, output, "vulnerable_test.go", "Should ignore _test.go files")
+
+		// agent.Dockerfile should be ignored for Pipe to Shell
+		assert.NotContains(t, output, "agent.Dockerfile", "Should ignore *.Dockerfile for pipe-to-shell")
+	})
 }
