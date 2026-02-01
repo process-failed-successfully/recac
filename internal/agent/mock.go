@@ -31,6 +31,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	// 0. Idempotency Check
 	// Break loop if we see "nothing to commit" in the prompt, indicating idempotency
 	if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
 		return `It seems the work is already done and committed.
@@ -42,7 +43,27 @@ fi
 ` + "```", nil
 	}
 
-	// 1. Initializer: Create feature_list.json
+	// 1. Generate Plan (Technical Program Manager)
+	// Check for "generate-from-spec" or "technical program manager"
+	// MOVED TO TOP: Prioritize plan generation because the prompt might contain triggers for implementation (like [PRIMES])
+	// explicitly appearing in the spec.
+	lowerPrompt := strings.ToLower(prompt)
+	if (strings.Contains(lowerPrompt, "generate-from-spec") || strings.Contains(lowerPrompt, "technical program manager")) &&
+		!strings.Contains(prompt, "Initializer") && !strings.Contains(prompt, "feature list") && !strings.Contains(prompt, "extract") {
+		return `Here is the plan.
+` + "```json" + `
+[
+  {
+    "id": "req-primes",
+    "title": "Primes Script",
+    "description": "Calculate primes less than 10000",
+    "type": "Task"
+  }
+]
+` + "```", nil
+	}
+
+	// 2. Initializer: Create feature_list.json
 	// Explicitly check for INITIALIZER role or specific request to create feature list
 	if strings.Contains(prompt, "INITIALIZER") || (strings.Contains(prompt, "Initialize") && strings.Contains(prompt, "feature_list.json")) {
 		// Create feature_list.json
@@ -69,7 +90,7 @@ fi
 ` + "```", nil
 	}
 
-	// 2. Implementation: Prime Python
+	// 3. Implementation: Prime Python
 	// Triggers: req-primes, [PRIMES], primes.py
 	// Only if NOT Initializer, QA, or Manager
 	if strings.Contains(prompt, "req-primes") || strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
@@ -117,7 +138,7 @@ fi
 ` + "```", nil
 	}
 
-	// 3. QA Agent
+	// 4. QA Agent
 	if strings.Contains(prompt, "QA AGENT") {
 		return `I have verified the changes.
 ` + "```bash" + `
@@ -127,7 +148,7 @@ fi
 ` + "```", nil
 	}
 
-	// 4. Project Manager
+	// 5. Project Manager
 	if strings.Contains(prompt, "PROJECT MANAGER") {
 		return `Approved.
 ` + "```bash" + `
@@ -136,24 +157,6 @@ if command -v agent-bridge >/dev/null 2>&1; then
 fi
 ` + "```", nil
 	}
-
-    // 5. Generate Plan (Technical Program Manager)
-    // Check for "generate-from-spec" or "technical program manager"
-    lowerPrompt := strings.ToLower(prompt)
-    if (strings.Contains(lowerPrompt, "generate-from-spec") || strings.Contains(lowerPrompt, "technical program manager")) &&
-       !strings.Contains(prompt, "Initializer") && !strings.Contains(prompt, "feature list") {
-           return `Here is the plan.
-` + "```json" + `
-[
-  {
-    "id": "req-primes",
-    "title": "Primes Script",
-    "description": "Calculate primes less than 10000",
-    "type": "Task"
-  }
-]
-` + "```", nil
-    }
 
 	// Default response
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",

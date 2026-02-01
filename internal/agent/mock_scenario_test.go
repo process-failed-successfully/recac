@@ -15,10 +15,11 @@ func TestMockAgent_Scenarios(t *testing.T) {
 		prompt         string
 		wantSubstring  string
 		wantBashScript bool
+		wantJsonBlock  bool
 	}{
 		{
 			name:           "Initializer",
-			prompt:         "Please Initialize the project and create feature_list.json",
+			prompt:         "Please INITIALIZER: Initialize the project and create feature_list.json",
 			wantSubstring:  "cat << 'EOF' > feature_list.json",
 			wantBashScript: true,
 		},
@@ -50,7 +51,13 @@ func TestMockAgent_Scenarios(t *testing.T) {
 			name:           "Generate Plan",
 			prompt:         "You are the technical program manager. generate-from-spec",
 			wantSubstring:  `"id": "req-primes"`,
-			wantBashScript: false,
+			wantJsonBlock:  true,
+		},
+		{
+			name:           "Generate Plan Conflict",
+			prompt:         "You are the technical program manager. generate-from-spec. Spec: Implement [PRIMES] logic.",
+			wantSubstring:  `"id": "req-primes"`,
+			wantJsonBlock:  true,
 		},
 	}
 
@@ -67,11 +74,12 @@ func TestMockAgent_Scenarios(t *testing.T) {
 				if !strings.Contains(got, "```bash") {
 					t.Errorf("Send() expected bash block")
 				}
-			} else if tt.name == "Generate Plan" {
-                if !strings.Contains(got, "```json") {
+			}
+			if tt.wantJsonBlock {
+				if !strings.Contains(got, "```json") {
 					t.Errorf("Send() expected json block")
 				}
-            }
+			}
 		})
 	}
 }
