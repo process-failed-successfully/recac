@@ -53,7 +53,7 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 	}
 
 	// 2. Manager Review (Triggered by file or frequency) - Main Session Only
-	if s.SelectedTaskID == "" && (s.GetIteration()%s.ManagerFrequency == 0 || s.hasSignal("TRIGGER_MANAGER")) {
+	if s.SelectedTaskID == "" && ((s.ManagerFrequency > 0 && s.GetIteration()%s.ManagerFrequency == 0) || s.hasSignal("TRIGGER_MANAGER")) {
 		// Cleanup signal
 		s.clearSignal("TRIGGER_MANAGER")
 

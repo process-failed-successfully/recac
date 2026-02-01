@@ -190,7 +190,7 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 				"description": map[string]interface{}{
 					"type": "doc", "version": 1,
 					"content": []map[string]interface{}{
-						{"type": "paragraph", "content": []map[string]interface{}{{"type": "text", "text": "No repo here"}}},
+						{"type": "paragraph", "content": []map[string]interface{}{{"type": "text", "text": "REQUIRED FEATURES\n- Feature 1\n- Feature 2"}}},
 					},
 				},
 				"issuelinks": []interface{}{},
@@ -211,16 +211,21 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	cfg := SessionConfig{
-		ProjectPath: tmpDir,
-		RepoURL:     "https://github.com/example/already-provided",
-		IsMock:      true,
-		Cleanup:     false,
+		ProjectPath:   tmpDir,
+		RepoURL:       "https://github.com/example/already-provided",
+		IsMock:        true,
+		Cleanup:       false,
+		MaxIterations: 5,
 	}
+
+	// Set Inject Features to prevent Initializer loop in tests
+	os.Setenv("RECAC_INJECTED_FEATURES", `{"project_name":"test","features":[{"id":"1","description":"test feature","status":"todo"}]}`)
+	defer os.Unsetenv("RECAC_INJECTED_FEATURES")
 
 	err := ProcessJiraTicket(context.Background(), "TEST-1", jClient, cfg, nil)
 
 	// Should NOT return "no repo url found" error because RepoURL was provided in cfg.
-	if err != nil {
+	if err != nil && err.Error() != "circuit breaker: no-op loop" {
 		assert.NotContains(t, err.Error(), "no repo url found")
 	}
 
@@ -268,11 +273,6 @@ func TestRunWorkflow_Normal(t *testing.T) {
 	// Since MaxIterations=0, RunLoop should return ErrMaxIterations or nil depending on implementation.
 	// runner/session.go: RunLoop: if s.MaxIterations > 0 && currentIteration >= s.MaxIterations { return ErrMaxIterations }
 	// If MaxIterations=0, it might loop forever or use default?
-	// NewSession sets MaxIterations=20 default.
-	// Our mock sets it to 0.
-	// Let's check RunLoop logic.
-	// It checks `if s.MaxIterations > 0 && currentIteration >= s.MaxIterations`.
-	// If 0, it might mean infinite?
 	// Actually NewSession defaults to 20.
 	// If we set to 1, it runs 1 iteration.
 	// If we set to 0, and checks are `> 0`, it loops.

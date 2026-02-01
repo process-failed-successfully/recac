@@ -44,16 +44,18 @@ func (s *Session) checkStalledBreaker(role string, passingCount int) error {
 	}
 
 	// Trigger Manager if stalled
-	if s.StalledCount >= s.ManagerFrequency && s.StalledCount%s.ManagerFrequency == 0 {
-		fmt.Printf("Warning: Progress stalled for %d iterations. Summoning Manager.\n", s.StalledCount)
-		s.createSignal("TRIGGER_MANAGER")
-		s.createSignal("STALLED_WARNING") // Flag for prompt construction
-		return nil                        // Give Manager a chance!
-	}
+	if s.ManagerFrequency > 0 {
+		if s.StalledCount >= s.ManagerFrequency && s.StalledCount%s.ManagerFrequency == 0 {
+			fmt.Printf("Warning: Progress stalled for %d iterations. Summoning Manager.\n", s.StalledCount)
+			s.createSignal("TRIGGER_MANAGER")
+			s.createSignal("STALLED_WARNING") // Flag for prompt construction
+			return nil                        // Give Manager a chance!
+		}
 
-	// Hard stop if stalled too long (3x frequency)
-	if s.StalledCount >= s.ManagerFrequency*3 {
-		return fmt.Errorf("CIRCUIT BREAKER TRIPPED: STALLED PROGRESS (Stalled for %d iterations)", s.StalledCount)
+		// Hard stop if stalled too long (3x frequency)
+		if s.StalledCount >= s.ManagerFrequency*3 {
+			return fmt.Errorf("CIRCUIT BREAKER TRIPPED: STALLED PROGRESS (Stalled for %d iterations)", s.StalledCount)
+		}
 	}
 
 	return nil
