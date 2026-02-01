@@ -32,8 +32,44 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Smart Mock Logic for Smoke Tests
-	// 1. Ticket Generation Request (Prime Python Scenario)
-	if strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "JSON format") {
+
+	// 0. Initializer (High Priority)
+	// Detects "Initializer Agent" (from prompt template) or "feature_list.json" request
+	if strings.Contains(prompt, "Initializer Agent") || strings.Contains(prompt, "feature_list.json") {
+		return `I will generate the feature list using agent-bridge import as requested.
+
+` + "```bash" + `
+# Import feature list to DB
+cat << 'EOF' | agent-bridge import --project "$RECAC_PROJECT_ID"
+[
+  {
+    "id": "req-primes",
+    "title": "Create Prime Number Script",
+    "description": "Create a python script named 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'.",
+    "type": "Task",
+    "status": "todo",
+    "steps": [
+        "Check if primes.py exists",
+        "Check if primes.json is generated"
+    ]
+  }
+]
+EOF
+
+# Create init.sh as requested
+echo '#!/bin/bash' > init.sh
+echo 'echo "Initializing environment..."' >> init.sh
+chmod +x init.sh
+
+# Commit changes
+git add init.sh
+git commit -m "Initialize project" || echo "Nothing to commit"
+` + "```" + `
+`, nil
+	}
+
+	// 1. Ticket Generation Request (Prime Python Scenario) - EXCLUDE Initializer prompts
+	if strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "JSON format") && !strings.Contains(prompt, "feature_list.json") {
 		return `[
   {
     "title": "[GEN] Create Prime Number Script",
@@ -76,7 +112,12 @@ python3 primes.py
 
 # Add and commit
 git add primes.py primes.json
-git commit -m "Add primes script and output"
+git commit -m "Add primes script and output" || echo "Nothing to commit"
+
+# Update feature status
+if command -v agent-bridge >/dev/null; then
+    agent-bridge update --id req-primes --status implemented --passes true
+fi
 ` + "```" + `
 `, nil
 	}

@@ -53,3 +53,43 @@ func TestTruncateString(t *testing.T) {
 		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
 	}
 }
+
+func TestMockAgent_Initializer(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "You are the Initializer Agent. Create feature_list.json based on [GEN] Create Prime Number Script ID:[PRIMES] JSON format"
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "agent-bridge import") {
+		t.Errorf("Initializer response missing agent-bridge import")
+	}
+	if !strings.Contains(response, "feature_list.json") && !strings.Contains(response, "req-primes") {
+		t.Errorf("Initializer response missing feature list content")
+	}
+	if !strings.Contains(response, "```bash") {
+		t.Errorf("Initializer response missing bash block")
+	}
+}
+
+func TestMockAgent_Implementation(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Implement the requirements. Spec: PRIMES. Create primes.py."
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "primes.py") {
+		t.Errorf("Implementation response missing primes.py creation")
+	}
+	if !strings.Contains(response, "agent-bridge update") {
+		t.Errorf("Implementation response missing feature update")
+	}
+	if !strings.Contains(response, "req-primes") {
+		t.Errorf("Implementation response missing correct feature ID")
+	}
+}
