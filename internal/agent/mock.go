@@ -78,7 +78,7 @@ cat << 'EOF' > feature_list.json
       }
     },
     {
-      "id": "req-primes-json-contains-correct-primes",
+      "id": "req-primes-json-contains-correct-p",
       "category": "core",
       "priority": "MVP",
       "description": "primes.json contains correct primes",
@@ -112,7 +112,7 @@ cat feature_list.json | agent-bridge import || true
 ` + "```bash" + `
 # Mark features as done
 agent-bridge feature set req-primes-py-exists --status done --passes true
-agent-bridge feature set req-primes-json-contains-correct-primes --status done --passes true
+agent-bridge feature set req-primes-json-contains-correct-p --status done --passes true
 ` + "```" + `
 `, nil
 	}

@@ -47,8 +47,8 @@ func TestMockAgent_Completion(t *testing.T) {
 	if !strings.Contains(resp, "agent-bridge feature set req-primes-py-exists") {
 		t.Errorf("Expected agent-bridge feature set for req-primes-py-exists, got: %s", resp)
 	}
-	if !strings.Contains(resp, "agent-bridge feature set req-primes-json-contains-correct-primes") {
-		t.Errorf("Expected agent-bridge feature set for req-primes-json-contains-correct-primes, got: %s", resp)
+	if !strings.Contains(resp, "agent-bridge feature set req-primes-json-contains-correct-p") {
+		t.Errorf("Expected agent-bridge feature set for req-primes-json-contains-correct-p, got: %s", resp)
 	}
 	if !strings.Contains(resp, "--status done") {
 		t.Errorf("Expected status done, got: %s", resp)
