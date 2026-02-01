@@ -46,7 +46,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 2. Implementation Request (Writing the file)
 	// Matches prompt asking to implement "PRIMES" or "primes.py"
-	if strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "primes.py") {
+	// Also check for [GEN] tag which appears in E2E tests
+	if strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[GEN]") {
 		return `I will create the primes.py script and the json output as requested.
 
 ` + "```bash" + `
@@ -83,8 +84,10 @@ git commit -m "Add primes script and output"
 
 	// Default Mock Response
 	// We include a no-op bash block to ensure the executor doesn't trip the "no commands" circuit breaker
+	// We strip backticks from the preview to avoid confusing the regex parser
+	preview := strings.ReplaceAll(truncateString(prompt, 100), "`", "'")
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...\n\n```bash\n# no-op to prevent circuit breaker\necho 'mock agent alive'\n```",
-		m.responsePrefix, len(prompt), truncateString(prompt, 100))
+		m.responsePrefix, len(prompt), preview)
 	return response, nil
 }
 

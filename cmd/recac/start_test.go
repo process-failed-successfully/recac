@@ -119,6 +119,13 @@ func TestStartCommand_NormalMode_Restricted(t *testing.T) {
 	}
 	defer func() { agentClientFactory = originalFactory }()
 
+	// Override exit func to prevent test crash on panic recovery
+	originalExit := exitFunc
+	exitFunc = func(code int) {
+		// No-op for test
+	}
+	defer func() { exitFunc = originalExit }()
+
 	t.Setenv("HOME", t.TempDir())
 
 	var err error

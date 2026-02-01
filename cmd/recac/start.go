@@ -83,6 +83,8 @@ func init() {
 	rootCmd.AddCommand(startCmd)
 }
 
+var exitFunc = os.Exit
+
 var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start an autonomous coding session",
@@ -94,7 +96,7 @@ var startCmd = &cobra.Command{
 				fmt.Fprintf(os.Stderr, "\n=== CRITICAL ERROR: Session Panic ===\n")
 				fmt.Fprintf(os.Stderr, "Error: %v\n", r)
 				fmt.Fprintf(os.Stderr, "Attempting graceful shutdown...\n")
-				exit(1)
+				exitFunc(1)
 			}
 		}()
 
