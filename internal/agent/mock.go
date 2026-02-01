@@ -123,7 +123,7 @@ git add primes.py primes.json
 git commit -m "Add primes.py and primes.json"
 
 # Update status
-agent-bridge update --id req-primes --status done --passes true
+agent-bridge feature set req-primes --status done --passes true
 ` + "```" + `
 `, nil
 	}
