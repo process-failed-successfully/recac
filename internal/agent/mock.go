@@ -54,15 +54,24 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Triggers: "initialize", "feature_list.json"
 	if strings.Contains(lowerPrompt, "initialize") || strings.Contains(lowerPrompt, "feature_list.json") {
 		// Return script to create feature_list.json
+		// Updated to match db.FeatureList structure
 		return `
 ` + "```bash" + `
 echo '{
-  "req-the-list-of-primes-in-primes-j": {
-    "id": "req-the-list-of-primes-in-primes-j",
-    "description": "The list of primes in primes.json contains exactly 1229 primes",
-    "files": ["primes.json"],
-    "content": "1229"
-  }
+  "project_name": "mock-project",
+  "features": [
+    {
+      "id": "req-the-list-of-primes-in-primes-j",
+      "description": "The list of primes in primes.json contains exactly 1229 primes",
+      "status": "todo",
+      "priority": "MVP",
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": [],
+        "read_only_paths": []
+      }
+    }
+  ]
 }' > feature_list.json
 echo "Initialized feature list"
 ` + "```" + `
