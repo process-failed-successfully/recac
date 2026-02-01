@@ -113,6 +113,11 @@ func runSecurityScan(root string, scanner *security.RegexScanner) ([]SecurityRes
 			return nil
 		}
 
+		// Exclude log files
+		if strings.HasSuffix(normPath, ".log") {
+			return nil
+		}
+
 		// Scan file
 		fileResults, err := scanFileForSecurity(path, scanner)
 		if err != nil {
@@ -139,6 +144,18 @@ func scanFileForSecurity(path string, scanner *security.RegexScanner) ([]Securit
 	content, err := io.ReadAll(f)
 	if err != nil {
 		return nil, err
+	}
+
+	// Simple binary check: look for null bytes in the first 512 bytes
+	limit := 512
+	if len(content) < limit {
+		limit = len(content)
+	}
+	for i := 0; i < limit; i++ {
+		if content[i] == 0 {
+			// Skip binary file
+			return nil, nil
+		}
 	}
 
 	findings, err := scanner.Scan(string(content))
