@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"recac/internal/security"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -150,5 +151,50 @@ func main() {
 
 		output := buf.String()
 		assert.Contains(t, output, "No security issues found")
+	})
+}
+
+func TestSecurityExclusionsAndSuppressions(t *testing.T) {
+	// This test runs against the actual codebase files to ensure exclusions work as intended
+	wd, _ := os.Getwd()
+	defer os.Chdir(wd)
+
+	// Attempt to find repo root
+	// If running from cmd/recac, it's ../..
+	// If running from root, it's .
+	if _, err := os.Stat("go.mod"); os.IsNotExist(err) {
+		if err := os.Chdir("../.."); err != nil {
+			t.Skip("Could not find repo root")
+		}
+	}
+
+	scanner := security.NewRegexScanner()
+
+	t.Run("Dockerfile Suppression", func(t *testing.T) {
+		if _, err := os.Stat("Dockerfile"); os.IsNotExist(err) {
+			t.Skip("Dockerfile not found")
+		}
+
+		results, err := scanFileForSecurity("Dockerfile", scanner)
+		require.NoError(t, err)
+
+		for _, res := range results {
+			assert.NotEqual(t, "Pipe to Shell", res.Type, "Found 'Pipe to Shell' in Dockerfile, should be suppressed")
+		}
+	})
+
+	t.Run("Internal Security Exclusion", func(t *testing.T) {
+		if _, err := os.Stat("internal/security"); os.IsNotExist(err) {
+			t.Skip("internal/security not found")
+		}
+
+		results, err := runSecurityScan("internal/security", scanner)
+		require.NoError(t, err)
+
+		for _, res := range results {
+			normalized := filepath.ToSlash(filepath.Clean(res.File))
+			assert.NotEqual(t, "internal/security/scanner.go", normalized, "Scanner source should be excluded")
+			assert.NotEqual(t, "internal/security/scanner_test.go", normalized, "Scanner tests should be excluded")
+		}
 	})
 }

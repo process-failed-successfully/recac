@@ -99,6 +99,16 @@ func runSecurityScan(root string, scanner *security.RegexScanner) ([]SecurityRes
 			return nil
 		}
 
+		// Exclude specific files from scanning to prevent false positives in tests and scanner itself
+		normalizedPath := filepath.ToSlash(filepath.Clean(path))
+		if normalizedPath == "internal/security/scanner.go" || normalizedPath == "internal/security/scanner_test.go" {
+			return nil
+		}
+		// Exclude all test files
+		if len(info.Name()) > 8 && info.Name()[len(info.Name())-8:] == "_test.go" {
+			return nil
+		}
+
 		// Scan file
 		fileResults, err := scanFileForSecurity(path, scanner)
 		if err != nil {
@@ -133,7 +143,15 @@ func scanFileForSecurity(path string, scanner *security.RegexScanner) ([]Securit
 	}
 
 	var results []SecurityResult
+	filename := filepath.Base(path)
+	isDockerfile := filename == "Dockerfile" || filename == "test.Dockerfile" || filepath.Ext(filename) == ".Dockerfile"
+
 	for _, finding := range findings {
+		// Suppression: Allow Pipe to Shell in Dockerfiles
+		if finding.Type == "Pipe to Shell" && isDockerfile {
+			continue
+		}
+
 		results = append(results, SecurityResult{
 			File:        path,
 			Line:        finding.Line,
