@@ -36,6 +36,9 @@ var (
 	// Use non-greedy match .*? to avoid ReDoS and improve performance
 	reDangerousCmd = regexp.MustCompile(`(?i)(?:^|[\s;&|()<>` + "`" + `])(rm|cat|cp|mv|chmod|chown)(?:$|[\s;&|()<>` + "`" + `]).*?(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
 	reRootDeletion = regexp.MustCompile(`(?im)(?:^|[\s;&|()<>` + "`" + `])rm\s+-[rRf]+\s+([/~]+[/*.]*)(?:\s|;|` + "`" + `|$)`)
+	// Robust regexes for Pipe/Reverse shell that handle line continuations and boundaries
+	rePipeShell    = regexp.MustCompile(`(?i)\b(curl|wget)\b\s+(?:\\\r?\n|.)*?\|\s*(bash|sh|zsh|python|perl|php|ruby)\b`)
+	reReverseShell = regexp.MustCompile(`(?i)\bnc\b\s+(?:\\\r?\n|[^;|&])*-e\b`)
 )
 
 // NewRegexScanner creates a new scanner with default patterns
@@ -49,6 +52,8 @@ func NewRegexScanner() *RegexScanner {
 			"GitHub Token":      reGitHubToken,
 			"Dangerous Command": reDangerousCmd,
 			"Root Deletion":     reRootDeletion,
+			"Pipe to Shell":     rePipeShell,
+			"Reverse Shell":     reReverseShell,
 		},
 	}
 }
@@ -58,8 +63,11 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	var findings []Finding
 	lines := strings.Split(content, "\n")
 
-	// Pre-compute masked content for command checks
-	maskedContent := maskComments(content)
+	// Pre-compute masked content
+	// maskedComments: masks only comments (for standard command checks)
+	maskedComments := maskContent(content, false)
+	// maskedAll: masks comments AND strings (for pipe/reverse shell checks to avoid matches in strings)
+	maskedAll := maskContent(content, true)
 
 	// Sort keys for deterministic output
 	keys := make([]string, 0, len(s.patterns))
@@ -72,9 +80,12 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 		pattern := s.patterns[name]
 		targetContent := content
 
-		// Use masked content for command checks to ignore comments
-		if name == "Dangerous Command" || name == "Root Deletion" {
-			targetContent = maskedContent
+		// Select appropriate masked content
+		switch name {
+		case "Dangerous Command", "Root Deletion":
+			targetContent = maskedComments
+		case "Pipe to Shell", "Reverse Shell":
+			targetContent = maskedAll
 		}
 
 		matches := pattern.FindAllStringIndex(targetContent, -1)
@@ -112,9 +123,9 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	return findings, nil
 }
 
-// maskComments replaces Bash-style comments with spaces to prevent false positives.
-// It respects string literals (single and double quotes) to avoid masking # inside strings.
-func maskComments(content string) string {
+// maskContent replaces comments and optionally string content with spaces.
+// If maskStrings is true, content inside single and double quotes is also masked.
+func maskContent(content string, maskStrings bool) string {
 	bytes := []byte(content)
 	n := len(bytes)
 	inSingleQuote := false
@@ -126,14 +137,23 @@ func maskComments(content string) string {
 
 		if escaped {
 			escaped = false
+			if maskStrings && (inSingleQuote || inDoubleQuote) {
+				bytes[i] = ' '
+			}
 			continue
 		}
 
 		if b == '\\' {
 			if inSingleQuote {
 				// Backslash is literal in single quotes
+				if maskStrings {
+					bytes[i] = ' '
+				}
 			} else {
 				escaped = true
+				if maskStrings && inDoubleQuote {
+					bytes[i] = ' '
+				}
 			}
 			continue
 		}
@@ -141,6 +161,8 @@ func maskComments(content string) string {
 		if inSingleQuote {
 			if b == '\'' {
 				inSingleQuote = false
+			} else if maskStrings {
+				bytes[i] = ' '
 			}
 			continue
 		}
@@ -148,6 +170,8 @@ func maskComments(content string) string {
 		if inDoubleQuote {
 			if b == '"' {
 				inDoubleQuote = false
+			} else if maskStrings {
+				bytes[i] = ' '
 			}
 			continue
 		}
