@@ -77,6 +77,31 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "inc -e",
 			wantFinding: "",
 		},
+		{
+			name:        "Wget Pipe Sha256sum",
+			content:     "wget https://example.com/file | sha256sum",
+			wantFinding: "",
+		},
+		{
+			name:        "Sync -e",
+			content:     "sync -e",
+			wantFinding: "",
+		},
+		{
+			name:        "Conc -e",
+			content:     "conc -e",
+			wantFinding: "",
+		},
+		{
+			name:        "Uncurl Pipe Bash",
+			content:     "uncurl https://example.com | bash",
+			wantFinding: "",
+		},
+		{
+			name:        "Func Execution",
+			content:     "echo \"func execution\"",
+			wantFinding: "",
+		},
 	}
 
 	for _, tt := range tests {
