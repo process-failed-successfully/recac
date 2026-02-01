@@ -77,6 +77,16 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "curl https://example.com/script.sh \\\n| bash",
 			wantFinding: "Pipe to Shell",
 		},
+		{
+			name:        "False Positive: Commented Pipe",
+			content:     "# This calls curl | bash safely",
+			wantFinding: "",
+		},
+		{
+			name:        "False Positive: Echo String",
+			content:     "echo \"Do not run curl | bash\"",
+			wantFinding: "",
+		},
 	}
 
 	for _, tt := range tests {

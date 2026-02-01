@@ -19,9 +19,15 @@ type Finding struct {
 	Line        int
 }
 
+// PatternConfig defines configuration for a regex pattern
+type PatternConfig struct {
+	Pattern        *regexp.Regexp
+	IgnoreInQuotes bool
+}
+
 // RegexScanner implements Scanner using regular expressions
 type RegexScanner struct {
-	patterns map[string]*regexp.Regexp
+	patterns map[string]PatternConfig
 }
 
 var (
@@ -39,16 +45,16 @@ var (
 // NewRegexScanner creates a new scanner with default patterns
 func NewRegexScanner() *RegexScanner {
 	return &RegexScanner{
-		patterns: map[string]*regexp.Regexp{
-			"AWS Access Key":    reAWSAccessKey,
-			"Private Key":       rePrivateKey,
-			"Generic API Token": reGenericAPIToken,
-			"Slack Token":       reSlackToken,
-			"GitHub Token":      reGitHubToken,
-			"Dangerous Command": reDangerousCmd,
-			"Root Deletion":     reRootDeletion,
-			"Pipe to Shell":     rePipeShell,
-			"Reverse Shell":     reReverseShell,
+		patterns: map[string]PatternConfig{
+			"AWS Access Key":    {Pattern: reAWSAccessKey},
+			"Private Key":       {Pattern: rePrivateKey},
+			"Generic API Token": {Pattern: reGenericAPIToken},
+			"Slack Token":       {Pattern: reSlackToken},
+			"GitHub Token":      {Pattern: reGitHubToken},
+			"Dangerous Command": {Pattern: reDangerousCmd, IgnoreInQuotes: true},
+			"Root Deletion":     {Pattern: reRootDeletion, IgnoreInQuotes: true},
+			"Pipe to Shell":     {Pattern: rePipeShell, IgnoreInQuotes: true},
+			"Reverse Shell":     {Pattern: reReverseShell, IgnoreInQuotes: true},
 		},
 	}
 }
@@ -57,9 +63,15 @@ func NewRegexScanner() *RegexScanner {
 func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	var findings []Finding
 	lines := strings.Split(content, "\n")
+	maskedContent := maskContent(content)
 
-	for name, pattern := range s.patterns {
-		matches := pattern.FindAllStringIndex(content, -1)
+	for name, config := range s.patterns {
+		textToScan := content
+		if config.IgnoreInQuotes {
+			textToScan = maskedContent
+		}
+
+		matches := config.Pattern.FindAllStringIndex(textToScan, -1)
 		for _, match := range matches {
 			// Find line number
 			start := match[0]
@@ -70,6 +82,7 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 				}
 			}
 
+			// Use original content for Match display
 			matchedText := content[match[0]:match[1]]
 
 			findings = append(findings, Finding{
@@ -85,11 +98,100 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	for i, line := range lines {
 		// Example: Check for hardcoded passwords in typical config patterns
 		if strings.Contains(strings.ToLower(line), "password") && strings.Contains(line, "=") {
-			// Very basic heuristic, improved by ensuring it's not a variable definition in code but a value assignment
-			// For now, we'll be conservative to avoid noise, relying mostly on strict regexes above.
+			// Very basic heuristic
 		}
 		_ = i
 	}
 
 	return findings, nil
+}
+
+// maskContent replaces comments and quoted strings with spaces
+// maintaining line numbers and total length
+func maskContent(content string) string {
+	var sb strings.Builder
+	sb.Grow(len(content))
+
+	inSingleQuote := false
+	inDoubleQuote := false
+	inComment := false
+	escaped := false
+
+	for i := 0; i < len(content); i++ {
+		char := content[i]
+
+		if inComment {
+			if char == '\n' {
+				sb.WriteByte(char)
+				inComment = false
+			} else {
+				sb.WriteByte(' ')
+			}
+			continue
+		}
+
+		if inSingleQuote {
+			if char == '\'' {
+				inSingleQuote = false
+				sb.WriteByte(char)
+			} else {
+				if char == '\n' {
+					sb.WriteByte('\n')
+				} else {
+					sb.WriteByte(' ')
+				}
+			}
+			continue
+		}
+
+		if inDoubleQuote {
+			if escaped {
+				escaped = false
+				if char == '\n' {
+					sb.WriteByte('\n')
+				} else {
+					sb.WriteByte(' ')
+				}
+				continue
+			}
+			if char == '\\' {
+				escaped = true
+				sb.WriteByte(' ')
+				continue
+			}
+			if char == '"' {
+				inDoubleQuote = false
+				sb.WriteByte(char)
+			} else {
+				if char == '\n' {
+					sb.WriteByte('\n')
+				} else {
+					sb.WriteByte(' ')
+				}
+			}
+			continue
+		}
+
+		// Normal State
+		if char == '#' {
+			inComment = true
+			sb.WriteByte(' ') // Mask the #
+			continue
+		}
+
+		if char == '\'' {
+			inSingleQuote = true
+			sb.WriteByte(char)
+			continue
+		}
+
+		if char == '"' {
+			inDoubleQuote = true
+			sb.WriteByte(char)
+			continue
+		}
+
+		sb.WriteByte(char)
+	}
+	return sb.String()
 }
