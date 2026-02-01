@@ -280,6 +280,7 @@ jobs:
           GITHUB_API_KEY: "mock-gh-key"
           GITHUB_EMAIL: "mock@example.com"
           OPENROUTER_API_KEY: "mock-key"
+          JIRA_PROJECT_KEY: "MOCK"
         run: |
           RETRIES=3
           for i in $(seq 0 $RETRIES); do
