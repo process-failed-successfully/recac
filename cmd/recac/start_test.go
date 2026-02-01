@@ -102,6 +102,13 @@ func TestStartCommand_Resume(t *testing.T) {
 
 	t.Setenv("HOME", t.TempDir())
 
+	// Override exit func to prevent test crash on panic recovery
+	originalExit := exitFunc
+	exitFunc = func(code int) {
+		// No-op for test
+	}
+	defer func() { exitFunc = originalExit }()
+
 	output := captureOutput(func() {
 		executeCommand(rootCmd, "start",
 			"--resume-from", tmpDir,

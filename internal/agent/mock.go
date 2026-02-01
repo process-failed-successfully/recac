@@ -50,7 +50,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 2. Implementation Request (Writing the file)
 	// Matches prompt asking to implement "PRIMES" or "primes.py"
 	// Also check for [GEN] tag which appears in E2E tests
-	if strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[GEN]") {
+	// Robustness: Check case-insensitive variations and additional keywords from summary
+	lowerPrompt := strings.ToLower(prompt)
+	if strings.Contains(prompt, "PRIMES") ||
+		strings.Contains(prompt, "primes.py") ||
+		strings.Contains(prompt, "[GEN]") ||
+		strings.Contains(lowerPrompt, "create prime number script") {
 		return `I will create the primes.py script and the json output as requested.
 
 ` + "```bash" + `

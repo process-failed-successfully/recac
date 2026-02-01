@@ -24,6 +24,11 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 	// 1. Extract Bash Blocks (More robust regex to handle variations in LLM output)
 	matches := bashBlockRegex.FindAllStringSubmatch(response, -1)
 
+	// Debugging: Warn if we see what looks like a bash block but regex failed
+	if len(matches) == 0 && (strings.Contains(response, "```bash") || strings.Contains(response, "```sh")) {
+		s.Logger.Warn("Potential bash block detected but regex did not match", "response_snippet", response[:min(len(response), 200)])
+	}
+
 	// Safety valve: Prevent LLM loops from flooding the execution
 	const maxCommandBlocks = 100
 	if len(matches) > maxCommandBlocks {
