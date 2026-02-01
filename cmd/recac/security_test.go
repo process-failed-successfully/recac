@@ -152,3 +152,54 @@ func main() {
 		assert.Contains(t, output, "No security issues found")
 	})
 }
+
+func TestSecurityExclusionsAndSuppressions(t *testing.T) {
+	// Setup temp directory
+	tempDir, err := os.MkdirTemp("", "recac-security-exclusions-test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	// 1. Create a _test.go file with a secret (Should be ignored)
+	testFile := filepath.Join(tempDir, "sensitive_test.go")
+	// This contains a "Generic API Token" pattern
+	err = os.WriteFile(testFile, []byte("var apiKey = \"abcdefghijklmnopqrstuvwxyz123456\""), 0644)
+	require.NoError(t, err)
+
+	// 2. Create a Dockerfile with Pipe to Shell (Should be suppressed)
+	dockerfile := filepath.Join(tempDir, "Dockerfile")
+	// This contains "Pipe to Shell" pattern
+	err = os.WriteFile(dockerfile, []byte("RUN curl https://example.com/install.sh | bash"), 0644)
+	require.NoError(t, err)
+
+	// 3. Create a normal file with Pipe to Shell (Should be flagged)
+	scriptFile := filepath.Join(tempDir, "install.sh")
+	err = os.WriteFile(scriptFile, []byte("curl https://example.com/install.sh | bash"), 0755)
+	require.NoError(t, err)
+
+	// Switch to temp dir
+	cwd, _ := os.Getwd()
+	defer os.Chdir(cwd)
+	err = os.Chdir(tempDir)
+	require.NoError(t, err)
+
+	// Run scan
+	resetFlags := func() {
+		securityJSON = false
+		securityFail = false
+	}
+	resetFlags()
+
+	cmd := securityCmd
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+
+	err = cmd.RunE(cmd, []string{})
+	require.NoError(t, err)
+
+	output := buf.String()
+
+	// Assertions
+	assert.NotContains(t, output, "sensitive_test.go", "Should ignore _test.go files")
+	assert.NotContains(t, output, "Dockerfile", "Should suppress Pipe to Shell in Dockerfile")
+	assert.Contains(t, output, "install.sh", "Should flag Pipe to Shell in normal scripts")
+}
