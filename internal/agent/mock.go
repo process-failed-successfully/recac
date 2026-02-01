@@ -38,8 +38,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristic for "prime-python" scenario planning phase.
 	// The planner prompt includes the AppSpec.
 	// We check for the specific ID used in the spec.
-	// Use case-insensitive check for ID and spec keywords
-	if strings.Contains(prompt, "ID:[PRIMES]") && (strings.Contains(promptLower, "appspec") || strings.Contains(promptLower, "specification")) {
+	// Use case-insensitive check for ID and spec keywords.
+	// CRITICAL: We must EXCLUDE the Initializer prompt, which also contains the spec but starts with "INITIALIZER".
+	if strings.Contains(prompt, "ID:[PRIMES]") &&
+		(strings.Contains(promptLower, "appspec") || strings.Contains(promptLower, "specification")) &&
+		!strings.Contains(prompt, "INITIALIZER") {
 		// Return a JSON ARRAY of tickets, as expected by cmd/recac/jira.go
 		return `[
     {

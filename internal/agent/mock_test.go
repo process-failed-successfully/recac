@@ -66,6 +66,36 @@ func TestMockAgent_PrimePython(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Initializer_NotBlockedByPlanner(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Simulating the actual Initializer prompt which triggered the bug.
+	// It contains "INITIALIZER" (role), "feature_list.json" (task), and the Spec (which contains ID:[PRIMES] and "Specification").
+	initializerPrompt := `
+## YOUR ROLE - INITIALIZER AGENT
+
+### TASKS:
+2. **Create feature_list.json**: Create a complete and detailed list...
+
+### Application Specification:
+... ID:[PRIMES] ...
+`
+	resp, err := agent.Send(context.Background(), initializerPrompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Should NOT match Planning trigger (JSON Array)
+	if strings.HasPrefix(strings.TrimSpace(resp), "[") {
+		t.Errorf("FAIL: Initializer prompt triggered Planning JSON response instead of Bash script.\nResponse: %s", resp)
+	}
+
+	// Should match Initializer trigger
+	if !strings.Contains(resp, "I will create the feature list") {
+		t.Errorf("Expected Initializer response, got: %s", resp)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
