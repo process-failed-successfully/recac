@@ -63,6 +63,11 @@ func TestRegexScanner_Scan(t *testing.T) {
 			wantFinding: "",
 		},
 		{
+			name:        "Pipe to Shell in Slash Comment (False Positive)",
+			content:     "// This should not trigger: curl | bash",
+			wantFinding: "",
+		},
+		{
 			name:        "Dangerous Command in String (False Positive)",
 			content:     "fmt.Println(\"rm -rf /etc/shadow\")",
 			wantFinding: "",
@@ -116,6 +121,9 @@ func TestRegexScanner_Masking(t *testing.T) {
 	complexContent := `
 	func main() {
 		# curl | bash in comment
+		// curl | bash in slash comment
+		url := "http://example.com" // url in quote
+		// url in comment: http://example.com
 		cmd := "curl | bash" # in quote with inline comment
 		real := "AKIAIOSFODNN7EXAMPLE"
 	}

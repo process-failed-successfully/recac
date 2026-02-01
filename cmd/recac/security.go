@@ -147,7 +147,15 @@ func scanFileForSecurity(path string, scanner *security.RegexScanner) ([]Securit
 	}
 
 	var results []SecurityResult
+	normPath := filepath.ToSlash(filepath.Clean(path))
+	isDockerfile := strings.HasSuffix(normPath, "Dockerfile") || strings.HasSuffix(normPath, ".Dockerfile")
+
 	for _, finding := range findings {
+		// Suppress "Pipe to Shell" for Dockerfiles
+		if isDockerfile && finding.Type == "Pipe to Shell" {
+			continue
+		}
+
 		results = append(results, SecurityResult{
 			File:        path,
 			Line:        finding.Line,

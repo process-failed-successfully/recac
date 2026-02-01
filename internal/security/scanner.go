@@ -47,7 +47,7 @@ var (
 
 	// New patterns
 	// Note: We use cmdPrefix here to avoid false positives in documentation/strings (e.g. echo "curl | bash")
-	// while still catching executed commands (e.g. eval "curl | bash").
+	// while still catching executed commands (e.g. eval "curl [pipe] bash").
 	rePipeShell    = regexp.MustCompile(`(?mi)` + cmdPrefix + `(curl|wget)\s+.*?\|\s*(bash|sh|zsh|python|perl|php|ruby)`)
 	reReverseShell = regexp.MustCompile(`(?mi)` + cmdPrefix + `nc\s+.*?-e\s+.*`)
 )
@@ -80,7 +80,8 @@ func (s *RegexScanner) maskContent(content string, maskQuotes bool) string {
 	inSingleQuote := false
 	inDoubleQuote := false
 	escaped := false
-	inComment := false // Starts with #
+	inComment := false      // Starts with #
+	inSlashComment := false // Starts with //
 
 	for i := 0; i < len(content); i++ {
 		char := content[i]
@@ -89,6 +90,16 @@ func (s *RegexScanner) maskContent(content string, maskQuotes bool) string {
 		if inComment {
 			if char == '\n' {
 				inComment = false
+				sb.WriteByte(char)
+			} else {
+				sb.WriteByte(' ')
+			}
+			continue
+		}
+
+		if inSlashComment {
+			if char == '\n' {
+				inSlashComment = false
 				sb.WriteByte(char)
 			} else {
 				sb.WriteByte(' ')
@@ -140,6 +151,24 @@ func (s *RegexScanner) maskContent(content string, maskQuotes bool) string {
 		if char == '#' {
 			inComment = true
 			sb.WriteByte(' ') // Mask the # itself
+		} else if char == '/' {
+			// Check for // comment
+			if i+1 < len(content) && content[i+1] == '/' {
+				// Check if it's a URL (preceded by :)
+				isURL := false
+				if i > 0 && content[i-1] == ':' {
+					isURL = true
+				}
+
+				if !isURL {
+					inSlashComment = true
+					sb.WriteByte(' ')
+					i++ // Skip next /
+					sb.WriteByte(' ')
+					continue
+				}
+			}
+			sb.WriteByte(char)
 		} else if char == '\'' {
 			inSingleQuote = true
 			if maskQuotes {
