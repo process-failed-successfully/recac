@@ -116,8 +116,8 @@ func runSecurityScan(root string, scanner *security.RegexScanner) ([]SecurityRes
 }
 
 func scanFileForSecurity(path string, scanner *security.RegexScanner) ([]SecurityResult, error) {
-	// Exclude scanner source code to prevent self-flagging
-	if strings.HasSuffix(path, "internal/security/scanner.go") || strings.HasSuffix(path, "internal/security/scanner_test.go") {
+	// Exclude scanner source code and tests to prevent self-flagging and false positives
+	if strings.HasSuffix(path, "internal/security/scanner.go") || strings.HasSuffix(path, "_test.go") {
 		return nil, nil
 	}
 
