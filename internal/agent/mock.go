@@ -31,9 +31,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	upperPrompt := strings.ToUpper(prompt)
+
 	// Smart Mock Logic for Smoke Tests
 	// 1. Ticket Generation Request (Prime Python Scenario)
-	if strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "JSON format") {
+	if strings.Contains(upperPrompt, "ID:[PRIMES]") && strings.Contains(upperPrompt, "JSON FORMAT") {
 		return `[
   {
     "title": "[GEN] Create Prime Number Script",
@@ -46,7 +48,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 2. Initializer Logic
 	// Matches prompt from Initializer Agent asking to create feature list
-	if strings.Contains(prompt, "INITIALIZER AGENT") || strings.Contains(prompt, "feature_list.json") {
+	if strings.Contains(upperPrompt, "INITIALIZER AGENT") || strings.Contains(upperPrompt, "FEATURE_LIST.JSON") {
 		return `I will create the initial feature list based on the requirements.
 
 ` + "```bash" + `
@@ -73,7 +75,7 @@ fi
 	// 3. Implementation Request (Writing the file)
 	// Matches prompt asking to implement "PRIMES" or "primes.py"
 	// Also check for [GEN] tag which appears in E2E tests
-	if strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[GEN]") {
+	if strings.Contains(upperPrompt, "PRIMES") || strings.Contains(upperPrompt, "PRIMES.PY") || strings.Contains(upperPrompt, "[GEN]") {
 		return `I will create the primes.py script and the json output as requested.
 
 ` + "```bash" + `
@@ -112,8 +114,12 @@ git commit -m "Add primes script and output"
 	// We include a no-op bash block to ensure the executor doesn't trip the "no commands" circuit breaker
 	// We strip backticks from the preview to avoid confusing the regex parser
 	preview := strings.ReplaceAll(truncateString(prompt, 100), "`", "'")
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...\n\n```bash\n# no-op to prevent circuit breaker\necho 'mock agent alive'\n```",
-		m.responsePrefix, len(prompt), preview)
+
+	// Explicitly construct the response with the bash block to avoid accidental truncation or missing blocks
+	bashBlock := "\n\n```bash\n# no-op to prevent circuit breaker\necho 'mock agent alive'\n```"
+
+	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...%s",
+		m.responsePrefix, len(prompt), preview, bashBlock)
 	return response, nil
 }
 
