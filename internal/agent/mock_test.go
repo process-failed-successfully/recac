@@ -79,7 +79,8 @@ func TestMockAgent_Initializer(t *testing.T) {
 	}
 
 	// Verify Initializer takes precedence over Planning even if AppSpec is present
-	initPromptWithSpec := "Create feature_list.json... AppSpec: ID:[PRIMES]..."
+	// We must include "Initializer Agent" to match the strict heuristic
+	initPromptWithSpec := "You are the Initializer Agent. Create feature_list.json... AppSpec: ID:[PRIMES]..."
 	resp2, err := agent.Send(context.Background(), initPromptWithSpec)
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
@@ -97,6 +98,21 @@ func TestMockAgent_Initializer(t *testing.T) {
 	}
 	if strings.Contains(resp3, "cat << 'EOF' > feature_list.json") {
 		t.Errorf("Planner prompt incorrectly triggered Initializer response, got: %s", resp3)
+	}
+
+	// Regression test for "explanation" containing "plan" causing Initializer match failure
+	initPromptWithExplanation := `
+## YOUR ROLE - INITIALIZER AGENT
+Create feature_list.json.
+DO NOT use bash blocks for data explanation.
+AppSpec: ID:[PRIMES]...
+`
+	resp4, err := agent.Send(context.Background(), initPromptWithExplanation)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(resp4, "cat << 'EOF' > feature_list.json") {
+		t.Errorf("Expected FeatureList creation script (Regression Explanation), got: %s", resp4)
 	}
 }
 

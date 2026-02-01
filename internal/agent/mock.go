@@ -37,10 +37,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic for Initializer (feature_list.json)
 	// Must check this BEFORE planning, because the Initializer prompt often includes the AppSpec.
-	// We explicitly exclude "plan" to avoid false positives when the Planner is asked to plan based on the feature list.
+	// We strictly check for "initializer agent" to match the role definition in the prompt template.
+	// We REMOVE the brittle "!plan" exclusion because "explanation" contains "plan" which caused false negatives.
 	if strings.Contains(promptLower, "feature_list.json") &&
 		(strings.Contains(promptLower, "create") || strings.Contains(promptLower, "initialize")) &&
-		!strings.Contains(promptLower, "plan") {
+		strings.Contains(promptLower, "initializer agent") {
 		return `
 I will create the feature list.
 
@@ -85,8 +86,11 @@ fi
 	// Heuristic for "prime-python" scenario planning phase.
 	// The planner prompt includes the AppSpec.
 	// We check for the specific ID used in the spec.
-	// Use case-insensitive check for ID and spec keywords
-	if strings.Contains(prompt, "ID:[PRIMES]") && (strings.Contains(promptLower, "appspec") || strings.Contains(promptLower, "specification")) {
+	// We EXCLUDE "initializer agent" to ensure we don't accidentally hijack the Initializer phase
+	// if it happens to contain the spec ID (which it does).
+	if strings.Contains(prompt, "ID:[PRIMES]") &&
+		(strings.Contains(promptLower, "appspec") || strings.Contains(promptLower, "specification")) &&
+		!strings.Contains(promptLower, "initializer agent") {
 		// Return a JSON ARRAY of tickets, as expected by cmd/recac/jira.go
 		return `[
     {
