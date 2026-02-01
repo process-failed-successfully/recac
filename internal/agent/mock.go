@@ -37,11 +37,16 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic for Initializer (feature_list.json)
 	// Must check this BEFORE planning, because the Initializer prompt often includes the AppSpec.
-	if strings.Contains(promptLower, "feature_list.json") && (strings.Contains(promptLower, "create") || strings.Contains(promptLower, "initialize")) {
+	// We explicitly exclude "plan" to avoid false positives when the Planner is asked to plan based on the feature list.
+	if strings.Contains(promptLower, "feature_list.json") &&
+		(strings.Contains(promptLower, "create") || strings.Contains(promptLower, "initialize")) &&
+		!strings.Contains(promptLower, "plan") {
 		return `
 I will create the feature list.
 
 ` + "```bash" + `
+set -x # Enable debug logging
+
 cat << 'EOF' > feature_list.json
 {
     "project_name": "Prime Number Script",
@@ -64,8 +69,15 @@ cat << 'EOF' > feature_list.json
 }
 EOF
 
-# Import it
-agent-bridge import --file feature_list.json
+# Import it with output capture for debugging
+# We don't fail if import fails because in mock/smoke-test environments (e.g. CI without DB),
+# we still want the file to exist so the session can continue using the file-based source.
+if command -v agent-bridge >/dev/null 2>&1; then
+    agent-bridge import --file feature_list.json > import.log 2>&1 || echo "Warning: agent-bridge import failed (ignoring in mock mode)"
+    cat import.log
+else
+    echo "Warning: agent-bridge not found, skipping import."
+fi
 ` + "```" + `
 `, nil
 	}

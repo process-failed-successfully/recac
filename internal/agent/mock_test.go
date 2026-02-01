@@ -87,6 +87,17 @@ func TestMockAgent_Initializer(t *testing.T) {
 	if !strings.Contains(resp2, "cat << 'EOF' > feature_list.json") {
 		t.Errorf("Expected FeatureList creation script (Precedence), got: %s", resp2)
 	}
+
+	// Verify Planner prompt (containing "plan") does NOT trigger Initializer
+	// even if it mentions feature_list.json in context
+	plannerPrompt := "You are the Planner. Create a plan based on feature_list.json..."
+	resp3, err := agent.Send(context.Background(), plannerPrompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if strings.Contains(resp3, "cat << 'EOF' > feature_list.json") {
+		t.Errorf("Planner prompt incorrectly triggered Initializer response, got: %s", resp3)
+	}
 }
 
 func TestTruncateString(t *testing.T) {
