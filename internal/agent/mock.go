@@ -64,10 +64,24 @@ cat << 'EOF' > feature_list.json
   "project_name": "primes-project",
   "features": [
     {
-      "id": "req-primes",
+      "id": "req-primes-py-exists",
       "category": "core",
       "priority": "MVP",
-      "description": "Calculate primes",
+      "description": "primes.py exists",
+      "status": "todo",
+      "passes": false,
+      "steps": [],
+      "dependencies": {
+          "depends_on_ids": [],
+          "exclusive_write_paths": [],
+          "read_only_paths": []
+      }
+    },
+    {
+      "id": "req-primes-json-contains-correct-primes",
+      "category": "core",
+      "priority": "MVP",
+      "description": "primes.json contains correct primes",
       "status": "todo",
       "passes": false,
       "steps": [],
@@ -81,7 +95,8 @@ cat << 'EOF' > feature_list.json
 }
 EOF
 
-cat feature_list.json | agent-bridge import
+# Import features (ignore failure if they conflict with injected ones)
+cat feature_list.json | agent-bridge import || true
 ` + "```" + `
 `, nil
 	}
@@ -95,8 +110,9 @@ cat feature_list.json | agent-bridge import
 		return `The implementation seems complete and committed. I will mark the task as done.
 
 ` + "```bash" + `
-# Mark feature as done
-agent-bridge feature set req-primes --status done --passes true
+# Mark features as done
+agent-bridge feature set req-primes-py-exists --status done --passes true
+agent-bridge feature set req-primes-json-contains-correct-primes --status done --passes true
 ` + "```" + `
 `, nil
 	}
