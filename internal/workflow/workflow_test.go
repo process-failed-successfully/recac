@@ -3,6 +3,7 @@ package workflow
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +17,7 @@ import (
 	"recac/internal/runner"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestProcessJiraTicket(t *testing.T) {
@@ -162,7 +164,22 @@ func TestProcessDirectTask(t *testing.T) {
 }
 
 func TestRunWorkflow_Detached(t *testing.T) {
-	t.Skip("Skipping detached test due to binary dependency")
+	// Mock SessionManager
+	mockSM := new(MockSessionManager)
+	mockSM.On("StartSession", "detached-test", "", mock.Anything, mock.Anything).Return(
+		&runner.SessionState{PID: 123, LogFile: "test.log"}, nil,
+	)
+
+	cfg := SessionConfig{
+		Detached:       true,
+		SessionName:    "detached-test",
+		IsMock:         true,
+		SessionManager: mockSM,
+	}
+
+	err := RunWorkflow(context.Background(), cfg)
+	assert.NoError(t, err)
+	mockSM.AssertExpectations(t)
 }
 
 func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
@@ -230,6 +247,61 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 	assert.Contains(t, string(content), "TEST-1")
 }
 
+func TestProcessJiraTicket_Errors(t *testing.T) {
+	// Mock Jira Server (error)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	jClient := jira.NewClient(server.URL, "user", "token")
+
+	cfg := SessionConfig{
+		ProjectPath: os.TempDir(),
+		IsMock: true,
+	}
+
+	// 1. Fetch failure
+	err := ProcessJiraTicket(context.Background(), "TEST-ERR", jClient, cfg, nil)
+	assert.Error(t, err)
+
+	// 2. SetupWorkspace failure
+	// We need to restore mocks from other tests or just rely on default real implementation which requires git/network or fails.
+	// But previous tests mocked SetupWorkspace globally (var).
+	// We need to reset it.
+
+	// Reset SetupWorkspace to fail
+	originalSetup := cmdutils.SetupWorkspace
+	defer func() { cmdutils.SetupWorkspace = originalSetup }()
+	cmdutils.SetupWorkspace = func(ctx context.Context, gitClient git.IClient, repoURL, workspace, ticketID, epicKey, timestamp string) (string, error) {
+		return "", errors.New("setup failed")
+	}
+
+	// Use a client that returns valid ticket but setup fails
+	mux := http.NewServeMux()
+	server2 := httptest.NewServer(mux)
+	defer server2.Close()
+	mux.HandleFunc("/rest/api/3/issue/TEST-2", func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"key": "TEST-2",
+			"fields": map[string]interface{}{
+				"summary": "Valid Ticket",
+				"description": map[string]interface{}{
+					"type": "doc", "version": 1,
+					"content": []map[string]interface{}{
+						{"type": "paragraph", "content": []map[string]interface{}{{"type": "text", "text": "Repo: https://github.com/example/repo"}}},
+					},
+				},
+			},
+		})
+	})
+	jClient2 := jira.NewClient(server2.URL, "user", "token")
+
+	err = ProcessJiraTicket(context.Background(), "TEST-2", jClient2, cfg, nil)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "setup failed")
+}
+
 func TestRunWorkflow_Normal(t *testing.T) {
 	// Mock cmdutils.GetAgentClient
 	originalGetAgentClient := cmdutils.GetAgentClient
@@ -243,7 +315,9 @@ func TestRunWorkflow_Normal(t *testing.T) {
 	defer func() { NewSessionFunc = originalNewSessionFunc }()
 	NewSessionFunc = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
 		s := runner.NewSession(d, a, workspace, image, project, provider, model, maxAgents)
-		s.MaxIterations = 0 // Should exit immediately
+		s.MaxIterations = 1
+		mockAg := agent.NewMockAgent()
+		s.Agent = mockAg
 		return s
 	}
 
@@ -259,46 +333,12 @@ func TestRunWorkflow_Normal(t *testing.T) {
 		IsMock:      false,
 		ProjectName: "test-project",
 		Debug:       true,
-		AllowDirty:  true, // Avoid git checks
+		AllowDirty:  true,
 	}
 
-	// This should run normal flow but fail Docker init (gracefully) and run 0 iterations
 	err := RunWorkflow(context.Background(), cfg)
 
-	// Since MaxIterations=0, RunLoop should return ErrMaxIterations or nil depending on implementation.
-	// runner/session.go: RunLoop: if s.MaxIterations > 0 && currentIteration >= s.MaxIterations { return ErrMaxIterations }
-	// If MaxIterations=0, it might loop forever or use default?
-	// NewSession sets MaxIterations=20 default.
-	// Our mock sets it to 0.
-	// Let's check RunLoop logic.
-	// It checks `if s.MaxIterations > 0 && currentIteration >= s.MaxIterations`.
-	// If 0, it might mean infinite?
-	// Actually NewSession defaults to 20.
-	// If we set to 1, it runs 1 iteration.
-	// If we set to 0, and checks are `> 0`, it loops.
-
-	// Let's set it to 1.
-	NewSessionFunc = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
-		s := runner.NewSession(d, a, workspace, image, project, provider, model, maxAgents)
-		s.MaxIterations = 1
-		// We need to ensure RunLoop doesn't block on "NoOp" or "Stalled".
-		// MockAgent returns empty responses usually?
-		// We should configure MockAgent to return "DONE".
-		// But here we construct session.
-
-		// Let's use a mock agent that returns a command to avoid NoOp.
-		mockAg := agent.NewMockAgent()
-		s.Agent = mockAg
-		return s
-	}
-
-	err = RunWorkflow(context.Background(), cfg)
-
-	// Start() might fail if restricted mode handling isn't perfect or if it tries to do something.
-	// RunLoop might fail with NoOp if mock agent returns nothing.
-	// But valid execution path is what we want to cover.
 	if err != nil && err.Error() != "circuit breaker: no-op loop" && err.Error() != "maximum iterations reached" {
 		// assert.NoError(t, err)
-		// It likely returns an error because of circuit breaker, which counts as covering the code.
 	}
 }

@@ -262,3 +262,30 @@ func (t *testTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	// 4. Send using default client (which handles test server local traffic)
 	return http.DefaultClient.Do(targetReq)
 }
+
+func TestDiscordNotifier_Send_RequestError(t *testing.T) {
+	// 1. Webhook Request Error
+	notifier := NewDiscordNotifier("http://invalid\nurl")
+	ctx := context.Background()
+	_, err := notifier.Send(ctx, "test", "")
+	if err == nil {
+		t.Error("expected error for invalid Webhook URL, got nil")
+	}
+
+	// 2. Bot Request Error (via invalid ChannelID injecting into URL)
+	notifierBot := NewDiscordBotNotifier("token", "invalid\nchannel")
+	_, err = notifierBot.Send(ctx, "test", "")
+	if err == nil {
+		t.Error("expected error for invalid Bot ChannelID, got nil")
+	}
+}
+
+func TestDiscordNotifier_AddReaction_RequestError(t *testing.T) {
+	// Inject invalid chars into ChannelID
+	notifier := NewDiscordBotNotifier("token", "invalid\nchannel")
+	ctx := context.Background()
+	err := notifier.AddReaction(ctx, "msg", "check")
+	if err == nil {
+		t.Error("expected error for invalid ChannelID, got nil")
+	}
+}

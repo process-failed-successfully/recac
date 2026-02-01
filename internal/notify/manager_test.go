@@ -250,3 +250,27 @@ func TestManager_AddReaction(t *testing.T) {
 	assert.True(t, slackCalled)
 	assert.True(t, discordCalled)
 }
+
+func TestManager_Init_Real(t *testing.T) {
+	// 1. Test Slack Init
+	viper.Reset()
+	defer viper.Reset()
+	t.Setenv("SLACK_BOT_USER_TOKEN", "xoxb-test")
+	t.Setenv("SLACK_APP_TOKEN", "xapp-test")
+	viper.Set("notifications.slack.enabled", true)
+	viper.Set("notifications.slack.channel", "#test")
+
+	m := NewManager(nil)
+	assert.NotNil(t, m.client)
+	// We can't check if socketClient is connected without running it, but it should be initialized.
+	// m.socketClient is unexported but we can check indirectly? No easily.
+	// But m.client should be set.
+
+	// 2. Test Discord Init
+	t.Setenv("DISCORD_BOT_TOKEN", "test-token")
+	t.Setenv("DISCORD_CHANNEL_ID", "12345")
+	viper.Set("notifications.discord.enabled", true)
+
+	m2 := NewManager(nil)
+	assert.NotNil(t, m2.discordNotifier)
+}

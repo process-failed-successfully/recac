@@ -455,11 +455,6 @@ func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(
 	return m.Response, nil
 }
 
-// Needed to satisfy interface if it has more methods?
-// Let's assume Agent interface only has Send/SendStream for now based on usage.
-// If not, I'll fix compilation error.
-// InteractiveModel uses activeAgent which is agent.Agent interface.
-
 func TestInteractiveModel_GenerateResponse(t *testing.T) {
 	m := NewInteractiveModel(nil, "", "")
 	mockAgent := &MockAgent{Response: "Hello"}
@@ -535,12 +530,6 @@ func TestInteractiveModel_WaitForChunkMsg(t *testing.T) {
 		t.Errorf("Expected empty content for done, got '%s'", respMsg.Content)
 	}
 }
-
-// Re-implement helper since we can't depend on other file's helper if running package test?
-// Wait, interactive_test.go is in same package.
-// But to be safe and avoid conflict if I named it differently, I'll use standard checks.
-// I used standard t.Error above.
-// Only assertNotNil used in GenerateResponse.
 
 func assertNotNil(t *testing.T, obj interface{}) {
 	if obj == nil {
@@ -625,5 +614,68 @@ func TestInteractiveModel_Update_ListSelection(t *testing.T) {
 
 	if !executed {
 		t.Error("Expected list selection to execute command")
+	}
+}
+
+func TestInteractiveModel_View_Extended(t *testing.T) {
+	m := NewInteractiveModel(nil, "", "")
+
+	// 1. Shell Mode
+	m.setMode(ModeShell)
+	view := m.View()
+	if !strings.Contains(view, "SHELL") {
+		t.Error("View should indicate SHELL mode")
+	}
+
+	// 2. Cmd Mode
+	m.setMode(ModeCmd)
+	view = m.View()
+	if !strings.Contains(view, "CMD") {
+		t.Error("View should indicate CMD mode")
+	}
+
+	// 3. Model Select
+	m.setMode(ModeModelSelect)
+	view = m.View()
+	if !strings.Contains(view, "MODEL") {
+		t.Error("View should indicate MODEL mode")
+	}
+
+	// 4. Agent Select
+	m.setMode(ModeAgentSelect)
+	view = m.View()
+	if !strings.Contains(view, "AGENT") {
+		t.Error("View should indicate AGENT mode")
+	}
+
+	// 5. Thinking
+	m.setMode(ModeChat)
+	m.thinking = true
+	m.statusMessage = "Processing..."
+	view = m.View()
+	if !strings.Contains(view, "Processing...") {
+		t.Error("View should show status message when thinking")
+	}
+}
+
+func TestInteractiveModel_RenderMessageRoles(t *testing.T) {
+	m := NewInteractiveModel(nil, "", "")
+
+	// RoleError
+	msg := ChatMessage{Role: RoleError, Content: "Error occurred"}
+	msg.Rendered = m.renderSingleMessage(msg)
+	m.messages = append(m.messages, msg)
+
+	out := m.renderAll()
+	if !strings.Contains(out, "Error:") {
+		t.Error("Render output should contain Error:")
+	}
+
+	// RoleSystem
+	m.messages = []ChatMessage{{Role: RoleSystem, Content: "System info"}}
+	m.messages[0].Rendered = m.renderSingleMessage(m.messages[0])
+	out = m.renderAll()
+	if !strings.Contains(out, "System info") {
+		t.Error("Render output should contain System info")
 	}
 }

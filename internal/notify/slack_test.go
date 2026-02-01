@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -76,6 +77,20 @@ func TestSlackNotifier_Notify_ClientError(t *testing.T) {
 	err := notifier.Notify(ctx, "test")
 	if err == nil {
 		t.Error("expected error for client failure, got nil")
+	}
+}
+
+func TestSlackNotifier_Notify_RequestError(t *testing.T) {
+	// Invalid URL to trigger NewRequest error
+	notifier := NewSlackNotifier("http://invalid\nurl")
+	ctx := context.Background()
+
+	err := notifier.Notify(ctx, "test")
+	if err == nil {
+		t.Error("expected error for invalid URL, got nil")
+	}
+	if !strings.Contains(err.Error(), "failed to create request") {
+		t.Errorf("Expected 'failed to create request', got %v", err)
 	}
 }
 

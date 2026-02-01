@@ -268,3 +268,28 @@ func TestInitLogger_SetsDefault(t *testing.T) {
 		t.Error("Default logger not set correctly by InitLogger")
 	}
 }
+
+type errorHandler struct{}
+
+func (h *errorHandler) Enabled(ctx context.Context, level slog.Level) bool { return true }
+func (h *errorHandler) Handle(ctx context.Context, record slog.Record) error {
+	return errors.New("handler error")
+}
+func (h *errorHandler) WithAttrs(attrs []slog.Attr) slog.Handler { return h }
+func (h *errorHandler) WithGroup(name string) slog.Handler       { return h }
+
+func TestMultiHandler_Error(t *testing.T) {
+	h1 := &errorHandler{}
+	var buf bytes.Buffer
+	h2 := slog.NewJSONHandler(&buf, nil)
+
+	mh := &multiHandler{handlers: []slog.Handler{h1, h2}}
+
+	err := mh.Handle(context.Background(), slog.Record{Time: time.Now(), Level: slog.LevelInfo, Message: "msg"})
+	if err == nil {
+		t.Error("Expected error from multiHandler, got nil")
+	}
+	if !strings.Contains(err.Error(), "handler error") {
+		t.Errorf("Expected 'handler error', got %v", err)
+	}
+}
