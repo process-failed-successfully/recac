@@ -270,11 +270,30 @@ func run(args []string, config db.StoreConfig, projectID string) error {
 
 		// Validate JSON
 		var fl db.FeatureList
+		var featuresJSON []byte
+
+		// Try unmarshalling as FeatureList (Object)
 		if err := json.Unmarshal(data, &fl); err != nil {
-			return fmt.Errorf("invalid json: %w", err)
+			// Failed? Try unmarshalling as []Feature (Array)
+			var features []db.Feature
+			if err2 := json.Unmarshal(data, &features); err2 != nil {
+				return fmt.Errorf("invalid json: %w (also failed as array: %v)", err, err2)
+			}
+			// Success as array: wrap it
+			fl = db.FeatureList{
+				ProjectName: projectID,
+				Features:    features,
+			}
 		}
 
-		if err := store.SaveFeatures(projectID, string(data)); err != nil {
+		// Always ensure we save as valid FeatureList JSON structure
+		// so future reads (which expect FeatureList) work correctly.
+		featuresJSON, err = json.Marshal(fl)
+		if err != nil {
+			return fmt.Errorf("failed to marshal features: %w", err)
+		}
+
+		if err := store.SaveFeatures(projectID, string(featuresJSON)); err != nil {
 			return fmt.Errorf("failed to save features to DB: %w", err)
 		}
 		fmt.Printf("Successfully imported %d features.\n", len(fl.Features))
