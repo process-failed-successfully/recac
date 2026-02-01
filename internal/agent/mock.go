@@ -54,7 +54,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Triggers: "initialize", "feature_list.json"
 	if strings.Contains(lowerPrompt, "initialize") || strings.Contains(lowerPrompt, "feature_list.json") {
 		// Return script to create feature_list.json
-		return `
+		return "\n```bash\n" + `
 echo '{
   "req-the-list-of-primes-in-primes-j": {
     "id": "req-the-list-of-primes-in-primes-j",
@@ -64,13 +64,13 @@ echo '{
   }
 }' > feature_list.json
 echo "Initialized feature list"
-`, nil
+` + "\n```\n", nil
 	}
 
 	// 3. Implementation (Coder Agent)
 	// Triggers: "primes", "python" (specific to prime-python scenario)
 	if strings.Contains(lowerPrompt, "primes") || strings.Contains(lowerPrompt, "python") {
-		return `
+		return "\n```bash\n" + `
 # Configure git
 git config --global user.email "mock@example.com"
 git config --global user.name "Mock Agent"
@@ -112,7 +112,7 @@ if command -v agent-bridge &> /dev/null; then
     agent-bridge feature set req-the-list-of-primes-in-primes-j --status done --passes true
     agent-bridge run update --status done
 fi
-`, nil
+` + "\n```\n", nil
 	}
 
 	// 4. QA / Manager
