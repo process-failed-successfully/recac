@@ -96,6 +96,26 @@ func TestMockAgent_Initializer_NotBlockedByPlanner(t *testing.T) {
 	}
 }
 
+func TestMockAgent_ManagerReview_Approves(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Simulate Manager Review prompt
+	managerPrompt := `
+## YOUR ROLE - PROJECT MANAGER
+
+Review the QA Report...
+`
+	resp, err := agent.Send(context.Background(), managerPrompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Should contain sign-off signal
+	if !strings.Contains(resp, "agent-bridge signal PROJECT_SIGNED_OFF true") {
+		t.Errorf("Expected Manager sign-off signal, got: %s", resp)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {

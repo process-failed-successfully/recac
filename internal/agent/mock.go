@@ -138,6 +138,20 @@ fi
 `, nil
 	}
 
+	// Heuristic for Manager Review
+	// Trigger: Prompt mentions "QA Report" or role "Manager"
+	// Action: Approve project and signal completion
+	if strings.Contains(prompt, "QA Report") || strings.Contains(prompt, "Manager") {
+		return `
+The QA report looks good. I approve the project.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true
+echo "Project signed off by Manager"
+` + "```" + `
+`, nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
