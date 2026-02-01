@@ -44,6 +44,19 @@ func TestMockAgent_PrimesScenario(t *testing.T) {
 	}
 }
 
+func TestMockAgent_LoopBreaking(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Previous command output: nothing to commit, working tree clean"
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "agent-bridge update --status done") {
+		t.Errorf("Expected loop breaking command, got: %s", response)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
