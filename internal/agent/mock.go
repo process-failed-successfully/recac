@@ -32,8 +32,33 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Smart Mock Logic for Smoke Tests
+
+	// 0. Initializer / Feature List Request (Priority 0)
+	// This must come BEFORE Ticket Generation because the prompt for Initializer often contains
+	// the ticket ID and "JSON format" which triggers the Ticket Generation rule.
+	if (strings.Contains(prompt, "Initializer") || strings.Contains(prompt, "feature list")) && strings.Contains(prompt, "ID:[PRIMES]") {
+		return `I have identified the required features.
+
+` + "```bash" + `
+cat << 'EOF' > feature_list.json
+[
+  {
+    "name": "Primes Script",
+    "description": "Python script to calculate primes",
+    "file": "primes.py"
+  }
+]
+EOF
+echo "Feature list created."
+` + "```" + `
+`, nil
+	}
+
+
 	// 1. Ticket Generation Request (Prime Python Scenario)
-	if strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "JSON format") {
+	// Must ensure this doesn't trigger on Initializer prompts
+	if strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "JSON format") &&
+	   !strings.Contains(prompt, "Initializer") && !strings.Contains(prompt, "feature list") {
 		return `[
   {
     "title": "[GEN] Create Prime Number Script",
