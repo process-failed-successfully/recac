@@ -34,7 +34,7 @@ var (
 	reRootDeletion    = regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+([/~*]+|/)$`)
 	// Use boundaries \b to prevent false positives (e.g. sync -e matching nc -e)
 	// Use non-greedy match that allows backslash-newline for line continuation but stops at other newlines
-	rePipeShell       = regexp.MustCompile(`(?i)\b(curl|wget)\b\s+(?:\\\r?\n|.)*?\|\s*(bash|sh|zsh|python|perl|php|ruby)\b`)
+	rePipeShell       = regexp.MustCompile(`(?i)\b(curl|wget)\b\s+(?:\\\r?\n|.)*?\|\s*(bash|sh|zsh|python|perl|php|ruby|python2|python3)\b`)
 	reReverseShell    = regexp.MustCompile(`(?i)\bnc\b\s+.*?-e\s+.*`)
 )
 
