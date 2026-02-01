@@ -215,6 +215,7 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 		RepoURL:     "https://github.com/example/already-provided",
 		IsMock:      true,
 		Cleanup:     false,
+		MaxIterations: 5, // Prevent infinite loop in mock environment
 	}
 
 	err := ProcessJiraTicket(context.Background(), "TEST-1", jClient, cfg, nil)
@@ -268,7 +269,7 @@ func TestRunWorkflow_Normal(t *testing.T) {
 	// Since MaxIterations=0, RunLoop should return ErrMaxIterations or nil depending on implementation.
 	// runner/session.go: RunLoop: if s.MaxIterations > 0 && currentIteration >= s.MaxIterations { return ErrMaxIterations }
 	// If MaxIterations=0, it might loop forever or use default?
-	// NewSession sets MaxIterations=20 default.
+	// NewSession defaults to 20.
 	// Our mock sets it to 0.
 	// Let's check RunLoop logic.
 	// It checks `if s.MaxIterations > 0 && currentIteration >= s.MaxIterations`.

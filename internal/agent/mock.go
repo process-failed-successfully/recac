@@ -42,15 +42,10 @@ fi
 ` + "```", nil
 	}
 
-	// 1. Initializer: feature_list.json
-	// We check for "Initialize" or "feature_list.json" but exclude "generate-from-spec" context if possible,
-	// though Initializer usually runs first.
-	if strings.Contains(prompt, "Initialize") || strings.Contains(prompt, "feature_list.json") {
+	// 1. Initializer: Create feature_list.json
+	// Explicitly check for INITIALIZER role or specific request to create feature list
+	if strings.Contains(prompt, "INITIALIZER") || (strings.Contains(prompt, "Initialize") && strings.Contains(prompt, "feature_list.json")) {
 		// Create feature_list.json
-		// We use echo to avoid Heredoc complexity if needed, but cat << 'EOF' is standard.
-		// Memory says: "generates a response using echo ... to create the file"
-		// But let's use cat << 'EOF' as it is cleaner for multiline JSON.
-		// Adding set -x for debugging.
 		return `I will initialize the project.
 ` + "```bash" + `
 set -x
@@ -76,6 +71,7 @@ fi
 
 	// 2. Implementation: Prime Python
 	// Triggers: req-primes, [PRIMES], primes.py
+	// Only if NOT Initializer, QA, or Manager
 	if strings.Contains(prompt, "req-primes") || strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
 		// Python script to calculate primes
 		pythonScript := `
