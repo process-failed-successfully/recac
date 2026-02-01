@@ -97,6 +97,8 @@ agent-bridge import --file feature_list.json
 		return `I will create the primes.py script and generate the JSON file as requested.
 
 ` + "```bash" + `
+set -x # Enable verbose logging for debugging
+
 cat << 'EOF' > primes.py
 import json
 
@@ -118,12 +120,20 @@ EOF
 git config user.email "mock@example.com"
 git config user.name "Mock Agent"
 
-python3 primes.py
+# Run python script with error handling
+if ! python3 primes.py; then
+    echo "Error: Failed to run primes.py"
+    exit 1
+fi
+
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
 
-# Update status
-agent-bridge feature set req-primes --status done --passes true
+# Update status with error handling
+if ! agent-bridge feature set req-primes --status done --passes true; then
+    echo "Error: Failed to update feature status"
+    exit 1
+fi
 ` + "```" + `
 `, nil
 	}
