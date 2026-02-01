@@ -185,9 +185,9 @@ func runTestCore(cmd *cobra.Command, args []string) (string, error) {
 		done <- true
 	}()
 
+	<-done
+	<-done
 	err = testExec.Wait()
-	<-done
-	<-done
 
 	return outputBuf.String(), err
 }
