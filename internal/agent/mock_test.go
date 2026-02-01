@@ -65,3 +65,34 @@ func TestMockAgent_TPM(t *testing.T) {
 		t.Errorf("Expected reference to primes.py, got: %s", resp)
 	}
 }
+
+func TestMockAgent_SmokeTestFlow(t *testing.T) {
+	agent := NewMockAgent()
+	ctx := context.Background()
+
+	// 1. Initializer
+	initPrompt := "You are the INITIALIZER AGENT..."
+	initResp, err := agent.Send(ctx, initPrompt)
+	if err != nil {
+		t.Fatalf("Init Send failed: %v", err)
+	}
+	if !strings.Contains(initResp, "feature_list.json") {
+		t.Errorf("Expected creation of feature_list.json, got: %s", initResp)
+	}
+	if !strings.Contains(initResp, "req-primes-py-exists") {
+		t.Errorf("Expected prime requirement, got: %s", initResp)
+	}
+
+	// 2. Implementation
+	implPrompt := "Please implement primes.py..."
+	implResp, err := agent.Send(ctx, implPrompt)
+	if err != nil {
+		t.Fatalf("Impl Send failed: %v", err)
+	}
+	if !strings.Contains(implResp, "def is_prime(n):") {
+		t.Errorf("Expected python implementation, got: %s", implResp)
+	}
+	if !strings.Contains(implResp, "agent-bridge feature set") {
+		t.Errorf("Expected agent-bridge feature update, got: %s", implResp)
+	}
+}

@@ -57,6 +57,56 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
+	// Detect Initializer Agent prompts (creates feature_list.json)
+	if strings.Contains(prompt, "INITIALIZER AGENT") {
+		// Create a feature list for the primes scenario
+		return `cat << 'EOF' > feature_list.json
+[
+  {
+    "id": "req-primes-py-exists",
+    "description": "Create primes.py script",
+    "status": "pending",
+    "verification_cmd": "test -f primes.py"
+  },
+  {
+    "id": "req-primes-json-contains-correct-primes",
+    "description": "Run primes.py and verify primes.json output",
+    "status": "pending",
+    "verification_cmd": "python3 primes.py && grep -q 'primes' primes.json"
+  }
+]
+EOF
+`, nil
+	}
+
+	// Detect Implementation Prompts (Coding Agent)
+	if strings.Contains(prompt, "primes.py") {
+		// Return a script that implements the solution
+		return `cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n < 2:
+        return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+primes = [n for n in range(10000) if is_prime(n)]
+
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+python3 primes.py
+git add primes.py primes.json
+git commit -m "Add primes script" || echo "Nothing to commit"
+agent-bridge feature set req-primes-py-exists --status done --passes true
+agent-bridge feature set req-primes-json-contains-correct-primes --status done --passes true
+`, nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
