@@ -169,7 +169,8 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 			vars["exclusive_paths"] = "None"
 			vars["read_only_paths"] = "None"
 		}
-	} else {
+	} else if assignedFeature == nil {
+		// Only overwrite if we didn't find an assigned feature above
 		vars["task_id"] = "Multiple/Not Assigned"
 		vars["task_description"] = "Continue implementing pending features in feature_list.json"
 		vars["exclusive_paths"] = "All available files"
