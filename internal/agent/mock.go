@@ -31,12 +31,16 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	// Normalize for case-insensitive matching
+	promptLower := strings.ToLower(prompt)
+
 	// Smart Mock Logic for Smoke Tests
 
 	// 0. Initializer / Feature List Request (Priority 0)
 	// This must come BEFORE Ticket Generation because the prompt for Initializer often contains
 	// the ticket ID and "JSON format" which triggers the Ticket Generation rule.
-	if (strings.Contains(prompt, "Initializer") || strings.Contains(prompt, "feature list")) && strings.Contains(prompt, "ID:[PRIMES]") {
+	// Matches "initializer" (case-insensitive) OR "feature_list" (handles feature_list.json)
+	if (strings.Contains(promptLower, "initializer") || strings.Contains(promptLower, "feature_list") || strings.Contains(promptLower, "feature list")) && strings.Contains(prompt, "ID:[PRIMES]") {
 		return `I have identified the required features.
 
 ` + "```bash" + `
@@ -58,7 +62,7 @@ echo "Feature list created."
 	// 1. Ticket Generation Request (Prime Python Scenario)
 	// Must ensure this doesn't trigger on Initializer prompts
 	if strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "JSON format") &&
-	   !strings.Contains(prompt, "Initializer") && !strings.Contains(prompt, "feature list") {
+	   !strings.Contains(promptLower, "initializer") && !strings.Contains(promptLower, "feature_list") && !strings.Contains(promptLower, "feature list") {
 		return `[
   {
     "title": "[GEN] Create Prime Number Script",
