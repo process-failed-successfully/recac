@@ -31,6 +31,8 @@ var (
 	reGenericAPIToken = regexp.MustCompile(`(api|access)[_-]?key\s*[:=]\s*['"][a-zA-Z0-9_\-]{20,}['"]`)
 	reSlackToken      = regexp.MustCompile(`xox[baprs]-([0-9a-zA-Z]{10,48})`)
 	reGitHubToken     = regexp.MustCompile(`gh[pousr]_[a-zA-Z0-9]{36,255}`)
+	rePipeShell       = regexp.MustCompile(`(?i)(curl|wget)\s+(?:[^;&|\n"']|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')*(?:\|\s*(?:[^;&|\n"']|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')+)*\|\s*(bash|sh|zsh|python|perl|php|ruby)`)
+	reReverseShell    = regexp.MustCompile(`(?i)nc\s+(?:[^;&|\n"']|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')*-e`)
 	// Updated regexes with stricter boundaries and better string/comment handling awareness
 	// Note: We include '\\' in the boundary to catch escaped commands like '\rm'
 	reDangerousCmd = regexp.MustCompile(`(?i)(?:^|[\s;&|()<>` + "`" + `\\])(rm|cat|cp|mv|chmod|chown)\b.*(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
@@ -48,6 +50,8 @@ func NewRegexScanner() *RegexScanner {
 			"GitHub Token":      reGitHubToken,
 			"Dangerous Command": reDangerousCmd,
 			"Root Deletion":     reRootDeletion,
+			"Pipe to Shell":     rePipeShell,
+			"Reverse Shell":     reReverseShell,
 		},
 	}
 }
@@ -73,7 +77,7 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 		// For sensitive data (Secrets), scan the ORIGINAL content (leaked secrets in comments are still leaks).
 		// For command validation (Dangerous Command), scan the MASKED content (commented commands are safe).
 		targetContent := content
-		if name == "Dangerous Command" || name == "Root Deletion" {
+		if name == "Dangerous Command" || name == "Root Deletion" || name == "Pipe to Shell" || name == "Reverse Shell" {
 			targetContent = maskedContent
 		}
 
