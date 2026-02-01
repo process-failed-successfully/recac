@@ -69,6 +69,33 @@ func TestMockAgent_Scenarios(t *testing.T) {
 	}
 }
 
+func TestMockAgent_StatefulPrimes(t *testing.T) {
+	agent := NewMockAgent()
+	ctx := context.Background()
+	prompt := "Please implement primes.py"
+
+	// First call: Should return implementation
+	resp1, err := agent.Send(ctx, prompt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(resp1, "cat << 'EOF' > primes.py") {
+		t.Errorf("Expected implementation on first call, got: %s", resp1)
+	}
+
+	// Second call: Should return verification
+	resp2, err := agent.Send(ctx, prompt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(resp2, "cat << 'EOF' > primes.py") {
+		t.Errorf("Did not expect implementation on second call")
+	}
+	if !strings.Contains(resp2, "already been implemented") {
+		t.Errorf("Expected already implemented message, got: %s", resp2)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {

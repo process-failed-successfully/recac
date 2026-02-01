@@ -9,8 +9,9 @@ import (
 // MockAgent is a simple mock agent for testing and mock mode
 // It returns predefined responses without making actual API calls
 type MockAgent struct {
-	responsePrefix string
-	forcedResponse string
+	responsePrefix    string
+	forcedResponse    string
+	primesImplemented bool
 }
 
 // NewMockAgent creates a new mock agent
@@ -97,6 +98,17 @@ EOF
 	// 4. Implementation Prompt (Coding Agent)
 	// Triggered if it asks for primes.py implementation details
 	if strings.Contains(prompt, "primes.py") {
+		if m.primesImplemented {
+			return `The primes.py script has already been implemented and committed. I will now verify the results.
+
+` + "```bash" + `
+ls -l primes.py primes.json
+cat primes.json | head -c 100
+` + "```" + `
+`, nil
+		}
+
+		m.primesImplemented = true
 		return `I will create the primes.py script and the output file.
 
 ` + "```bash" + `
