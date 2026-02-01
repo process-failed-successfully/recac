@@ -40,8 +40,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// We check for the specific ID used in the spec.
 	// Use case-insensitive check for ID and spec keywords
 	// EXCEPTION: Initializer prompt also contains spec, so we must exclude it.
+	// EXCEPTION: Coding agent prompt also contains spec, so we require "Technical Program Manager" or "TPM" to be present.
 	if strings.Contains(prompt, "ID:[PRIMES]") &&
-		(strings.Contains(promptLower, "appspec") || strings.Contains(promptLower, "specification")) &&
+		(strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM")) &&
 		!strings.Contains(prompt, "INITIALIZER") {
 		// Return a JSON ARRAY of tickets, as expected by cmd/recac/jira.go
 		return `[
@@ -56,7 +57,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristic for "prime-python" scenario execution phase.
 	// We want to match the task execution prompt but NOT the planning prompt.
 	// The planning prompt also contains "primes.py" and "Create", so we must exclude it.
-	isPlanning := strings.Contains(promptLower, "appspec") || strings.Contains(promptLower, "specification")
+	// We check if it is the TPM agent (Planning) to exclude it.
+	isPlanning := strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM")
 
 	// Check for implementation triggers:
 	// 1. Task ID: [PRIMES] (often in prompt as "Task: [PRIMES]" or similar)

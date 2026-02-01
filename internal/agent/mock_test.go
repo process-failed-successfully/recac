@@ -28,8 +28,8 @@ func TestMockAgent(t *testing.T) {
 func TestMockAgent_PrimePython(t *testing.T) {
 	agent := NewMockAgent()
 
-	// 1. Planning Trigger (ID:[PRIMES] + AppSpec)
-	planningPrompt := "This contains ID:[PRIMES] and AppSpec..."
+	// 1. Planning Trigger (ID:[PRIMES] + TPM Marker)
+	planningPrompt := "You are a Technical Program Manager. This contains ID:[PRIMES] and AppSpec..."
 	resp, err := agent.Send(context.Background(), planningPrompt)
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
@@ -38,7 +38,18 @@ func TestMockAgent_PrimePython(t *testing.T) {
 		t.Errorf("Expected Planning JSON, got: %s", resp)
 	}
 
-	// 2. Implementation Trigger (Task:[PRIMES] or 'primes.py' + 'create')
+	// 2. Coding Agent Trigger (Has ID:[PRIMES] + specification, but NO TPM marker)
+	// This simulates the actual bug where "specification" caused it to be treated as Planning or skipped.
+	codingPrompt := "You are a CODING AGENT. Read the specification. Task: ID:[PRIMES] create primes.py"
+	respCoding, err := agent.Send(context.Background(), codingPrompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(respCoding, "cat << 'EOF' > primes.py") {
+		t.Errorf("Expected Implementation Bash for Coding Agent prompt, got: %s", respCoding)
+	}
+
+	// 3. Implementation Trigger (Task:[PRIMES] or 'primes.py' + 'create')
 	// Case 1: Standard
 	implPrompt1 := "Task: [PRIMES] Description: create primes.py"
 	resp1, err := agent.Send(context.Background(), implPrompt1)
