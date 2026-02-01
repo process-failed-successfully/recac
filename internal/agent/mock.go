@@ -36,7 +36,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Check if this is a ticket generation request (TPM role)
 	// The recac CLI expects a JSON array of tickets in response
 	if isTicketGenerationPrompt(prompt) {
-		return `[{"id": "MOCK-1", "summary": "Implement Core Features", "description": "Implement the core functionality as requested in the specification.", "type": "Task"}]`, nil
+		return `[{"id": "MOCK-1", "title": "Implement Core Features", "description": "Implement the core functionality as requested in the specification. Repo: https://github.com/example/repo", "type": "Task"}]`, nil
 	}
 
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
