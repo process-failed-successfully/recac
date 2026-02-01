@@ -24,4 +24,7 @@ RUN apk add --no-cache \
 # Configure sudo for passwordless access (if needed, though we often run as root)
 RUN echo "ALL ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
+# Copy agent-bridge binary (assumes it is in the build context)
+COPY agent-bridge /usr/local/bin/agent-bridge
+
 WORKDIR /workspace
