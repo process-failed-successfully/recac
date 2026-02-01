@@ -147,7 +147,15 @@ func scanFileForSecurity(path string, scanner *security.RegexScanner) ([]Securit
 	}
 
 	var results []SecurityResult
+	baseName := filepath.Base(path)
+	isDockerfile := baseName == "Dockerfile" || baseName == "test.Dockerfile" || strings.HasSuffix(baseName, ".Dockerfile")
+
 	for _, finding := range findings {
+		// Dockerfiles often pipe curl to bash for installation, which is acceptable in that context
+		if isDockerfile && finding.Type == "Pipe to Shell" {
+			continue
+		}
+
 		results = append(results, SecurityResult{
 			File:        path,
 			Line:        finding.Line,
