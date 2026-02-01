@@ -3,8 +3,11 @@ package agent
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 )
+
+var reFeatureID = regexp.MustCompile(`(?i)Feature ID\**:\s*([a-zA-Z0-9_\-]+)`)
 
 // MockAgent is a simple mock agent for testing and mock mode
 // It returns predefined responses without making actual API calls
@@ -103,9 +106,16 @@ EOF
 	// 3. Implementation Prompt (from CodingAgent)
 	// Requires Bash Script
 	if isImplementationPrompt(prompt) {
-		return `Here is the solution:
+		// Extract Feature ID to mark as done
+		featureID := "PRIMES" // Fallback
+		matches := reFeatureID.FindStringSubmatch(prompt)
+		if len(matches) > 1 {
+			featureID = matches[1]
+		}
 
-` + "```bash" + `
+		return fmt.Sprintf(`Here is the solution for %s:
+
+`+"```bash"+`
 # Create primes.py
 cat << 'EOF' > primes.py
 import json
@@ -113,7 +123,7 @@ import json
 def is_prime(n):
     if n <= 1: return False
     for i in range(2, int(n**0.5) + 1):
-        if n % i == 0: return False
+        if n %% i == 0: return False
     return True
 
 primes = [n for n in range(10001) if is_prime(n)]
@@ -131,11 +141,11 @@ git add primes.py primes.json
 git commit -m "Add primes script and output" || echo "Nothing to commit"
 
 # Mark Feature Done
-agent-bridge feature set PRIMES --status done --passes true
-` + "```" + `
+agent-bridge feature set %s --status done --passes true
+`+"```"+`
 
 Done.
-`, nil
+`, featureID, featureID), nil
 	}
 
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
@@ -144,7 +154,12 @@ Done.
 }
 
 func isImplementationPrompt(prompt string) bool {
-	return len(prompt) > 0 && (contains(prompt, "primes.py") || contains(prompt, "Calculate prime numbers"))
+	p := strings.ToLower(prompt)
+	return len(p) > 0 && (strings.Contains(p, "primes.py") ||
+		strings.Contains(p, "calculate prime numbers") ||
+		strings.Contains(p, "primes.json") ||
+		strings.Contains(p, "req-implement-prime") ||
+		strings.Contains(p, "req-primes"))
 }
 
 func contains(s, substr string) bool {
