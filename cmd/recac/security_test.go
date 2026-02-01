@@ -152,3 +152,93 @@ func main() {
 		assert.Contains(t, output, "No security issues found")
 	})
 }
+
+func TestSecurityExclusionsAndSuppressions(t *testing.T) {
+	// Setup temp directory
+	tempDir, err := os.MkdirTemp("", "recac-security-exclusions-test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	// 1. _test.go file with dangerous content (should be ignored)
+	testFile := filepath.Join(tempDir, "dangerous_test.go")
+	testContent := `
+package main
+import "testing"
+func TestSomething(t *testing.T) {
+	// curl | bash
+	_ = "curl https://example.com | bash"
+}
+`
+	err = os.WriteFile(testFile, []byte(testContent), 0644)
+	require.NoError(t, err)
+
+	// 2. .log file with dangerous content (should be ignored)
+	logFile := filepath.Join(tempDir, "app.log")
+	logContent := "2023-01-01: Executing: curl https://example.com | bash"
+	err = os.WriteFile(logFile, []byte(logContent), 0644)
+	require.NoError(t, err)
+
+	// 3. Dockerfile with "curl | bash" (should be suppressed for "Pipe to Shell")
+	dockerfile := filepath.Join(tempDir, "Dockerfile")
+	dockerContent := `
+FROM alpine:latest
+RUN curl -fsS https://example.com/install.sh | bash
+`
+	err = os.WriteFile(dockerfile, []byte(dockerContent), 0644)
+	require.NoError(t, err)
+
+	// 4. Dockerfile with Secret (should NOT be suppressed)
+	dockerfileSecret := filepath.Join(tempDir, "Secret.Dockerfile")
+	dockerSecretContent := `
+FROM alpine:latest
+ENV API_KEY="AKIAIOSFODNN7EXAMPLE"
+`
+	err = os.WriteFile(dockerfileSecret, []byte(dockerSecretContent), 0644)
+	require.NoError(t, err)
+
+	// Switch to temp dir
+	cwd, _ := os.Getwd()
+	defer os.Chdir(cwd)
+	err = os.Chdir(tempDir)
+	require.NoError(t, err)
+
+	// Reset flags
+	securityJSON = true
+	securityFail = false
+	cmd := securityCmd
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+
+	err = cmd.RunE(cmd, []string{})
+	require.NoError(t, err)
+
+	output := buf.String()
+	var results []SecurityResult
+	err = json.Unmarshal([]byte(output), &results)
+	require.NoError(t, err)
+
+	// Verification
+	foundPipeToShell := false
+	foundSecret := false
+
+	for _, r := range results {
+		if r.File == "dangerous_test.go" {
+			t.Errorf("Should ignore _test.go files, but found: %v", r)
+		}
+		if r.File == "app.log" {
+			t.Errorf("Should ignore .log files, but found: %v", r)
+		}
+		if r.File == "Dockerfile" && r.Type == "Pipe to Shell" {
+			t.Errorf("Should suppress Pipe to Shell in Dockerfile, but found: %v", r)
+		} else if r.Type == "Pipe to Shell" {
+			foundPipeToShell = true
+		}
+
+		if r.File == "Secret.Dockerfile" && r.Type == "AWS Access Key" {
+			foundSecret = true
+		}
+	}
+
+	assert.True(t, foundSecret, "Should detect secrets even in Dockerfiles")
+	assert.False(t, foundPipeToShell, "Should not have found any Pipe to Shell in this setup")
+}
