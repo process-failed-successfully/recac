@@ -7,10 +7,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 )
 
 // CreateChildTicket creates a new Jira ticket with a parent (e.g., for Epic links or Sub-tasks).
 func (c *Client) CreateChildTicket(ctx context.Context, projectKey, summary, description, issueType, parentKey string, labels []string) (string, error) {
+	if c.MockMode {
+		return fmt.Sprintf("MOCK-%d", time.Now().UnixNano()%1000), nil
+	}
 	url := fmt.Sprintf("%s/rest/api/3/issue", c.BaseURL)
 
 	payload := map[string]interface{}{

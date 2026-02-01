@@ -17,14 +17,17 @@ type Client struct {
 	Username   string
 	APIToken   string
 	HTTPClient *http.Client
+	MockMode   bool
 }
 
 // NewClient creates a new Jira client.
 func NewClient(baseURL, username, apiToken string) *Client {
+	mockMode := strings.Contains(baseURL, "mock.jira.com") || strings.Contains(baseURL, "mock://")
 	return &Client{
 		BaseURL:  baseURL,
 		Username: username,
 		APIToken: apiToken,
+		MockMode: mockMode,
 		HTTPClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
@@ -33,6 +36,9 @@ func NewClient(baseURL, username, apiToken string) *Client {
 
 // Authenticate verifies the credentials by calling the Current User endpoint.
 func (c *Client) Authenticate(ctx context.Context) error {
+	if c.MockMode {
+		return nil
+	}
 	url := fmt.Sprintf("%s/rest/api/3/myself", c.BaseURL)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -58,6 +64,28 @@ func (c *Client) Authenticate(ctx context.Context) error {
 
 // GetTicket fetches a Jira ticket by ID.
 func (c *Client) GetTicket(ctx context.Context, ticketID string) (map[string]interface{}, error) {
+	if c.MockMode {
+		return map[string]interface{}{
+			"key": ticketID,
+			"fields": map[string]interface{}{
+				"summary": "Mock Ticket Summary",
+				"description": map[string]interface{}{
+					"type": "doc",
+					"content": []interface{}{
+						map[string]interface{}{
+							"type": "paragraph",
+							"content": []interface{}{
+								map[string]interface{}{
+									"type": "text",
+									"text": "Mock Description",
+								},
+							},
+						},
+					},
+				},
+			},
+		}, nil
+	}
 	url := fmt.Sprintf("%s/rest/api/3/issue/%s", c.BaseURL, ticketID)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -88,6 +116,9 @@ func (c *Client) GetTicket(ctx context.Context, ticketID string) (map[string]int
 
 // TransitionIssue moves a ticket to a new status (e.g., "In Progress").
 func (c *Client) TransitionIssue(ctx context.Context, ticketID, transitionID string) error {
+	if c.MockMode {
+		return nil
+	}
 	url := fmt.Sprintf("%s/rest/api/3/issue/%s/transitions", c.BaseURL, ticketID)
 
 	payload := map[string]interface{}{
@@ -127,6 +158,9 @@ func (c *Client) TransitionIssue(ctx context.Context, ticketID, transitionID str
 // AddComment adds a comment to a Jira ticket.
 // The comment text is formatted in ADF (Atlassian Document Format) to preserve formatting.
 func (c *Client) AddComment(ctx context.Context, ticketID, commentText string) error {
+	if c.MockMode {
+		return nil
+	}
 	url := fmt.Sprintf("%s/rest/api/3/issue/%s/comment", c.BaseURL, ticketID)
 
 	// Format comment in ADF format to preserve formatting
@@ -177,6 +211,9 @@ func (c *Client) AddComment(ctx context.Context, ticketID, commentText string) e
 
 // DeleteIssue deletes a Jira ticket.
 func (c *Client) DeleteIssue(ctx context.Context, ticketID string) error {
+	if c.MockMode {
+		return nil
+	}
 	url := fmt.Sprintf("%s/rest/api/3/issue/%s", c.BaseURL, ticketID)
 
 	req, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
@@ -202,6 +239,11 @@ func (c *Client) DeleteIssue(ctx context.Context, ticketID string) error {
 
 // CreateTicket creates a new Jira ticket.
 func (c *Client) CreateTicket(ctx context.Context, projectKey, summary, description, issueType string, labels []string) (string, error) {
+	if c.MockMode {
+		// Return a deterministic dummy ID based on summary if possible, or random
+		// In mock, we usually want deterministic behavior for testing
+		return fmt.Sprintf("MOCK-%d", time.Now().UnixNano()%1000), nil
+	}
 	url := fmt.Sprintf("%s/rest/api/3/issue", c.BaseURL)
 
 	payload := map[string]interface{}{
@@ -306,6 +348,9 @@ func extractTextFromADF(node map[string]interface{}) string {
 
 // SearchIssues searches for Jira tickets using JQL.
 func (c *Client) SearchIssues(ctx context.Context, jql string) ([]map[string]interface{}, error) {
+	if c.MockMode {
+		return []map[string]interface{}{}, nil
+	}
 	url := fmt.Sprintf("%s/rest/api/3/search/jql", c.BaseURL)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -349,6 +394,12 @@ func (c *Client) LoadLabelIssues(ctx context.Context, label string) ([]map[strin
 
 // GetTransitions fetches available transitions for a Jira ticket.
 func (c *Client) GetTransitions(ctx context.Context, ticketID string) ([]map[string]interface{}, error) {
+	if c.MockMode {
+		return []map[string]interface{}{
+			{"id": "31", "name": "In Progress"},
+			{"id": "41", "name": "Done"},
+		}, nil
+	}
 	url := fmt.Sprintf("%s/rest/api/3/issue/%s/transitions", c.BaseURL, ticketID)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -455,6 +506,9 @@ func (c *Client) GetBlockers(ticket map[string]interface{}) []string {
 
 // AddIssueLink creates a link between two Jira tickets (e.g., "Blocks").
 func (c *Client) AddIssueLink(ctx context.Context, inwardKey, outwardKey, linkType string) error {
+	if c.MockMode {
+		return nil
+	}
 	url := fmt.Sprintf("%s/rest/api/3/issueLink", c.BaseURL)
 
 	payload := map[string]interface{}{
@@ -499,7 +553,10 @@ func (c *Client) AddIssueLink(ctx context.Context, inwardKey, outwardKey, linkTy
 
 // SetParent sets the parent of an issue (e.g. for Subtasks or Epics).
 func (c *Client) SetParent(ctx context.Context, issueKey, parentKey string) error {
-	url := fmt.Sprintf("%s/rest/api/3/issue/%s", c.BaseURL, issueKey)
+	if c.MockMode {
+		return nil
+	}
+	url := fmt.Sprintf("%s/rest/api/3/issue/%s", c.BaseURL)
 
 	// Start with "parent" field (standard for subtasks and next-gen epics)
 	payload := map[string]interface{}{
@@ -539,6 +596,9 @@ func (c *Client) SetParent(ctx context.Context, issueKey, parentKey string) erro
 
 // AddLabel adds a label to an existing ticket.
 func (c *Client) AddLabel(ctx context.Context, key, label string) error {
+	if c.MockMode {
+		return nil
+	}
 	url := fmt.Sprintf("%s/rest/api/3/issue/%s", c.BaseURL, key)
 	payload := map[string]interface{}{
 		"update": map[string]interface{}{
@@ -587,6 +647,9 @@ func isDoneStatus(status string) bool {
 
 // GetFirstProjectKey fetches the key of the first visible project.
 func (c *Client) GetFirstProjectKey(ctx context.Context) (string, error) {
+	if c.MockMode {
+		return "MOCK", nil
+	}
 	url := fmt.Sprintf("%s/rest/api/3/project", c.BaseURL)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
