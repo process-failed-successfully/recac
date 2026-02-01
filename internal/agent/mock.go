@@ -33,12 +33,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 1. Check for Prime Python Scenario - Ticket Generation
-	if strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "CRITICAL INSTRUCTION: You MUST create exactly ONE ticket") {
+	// Matches against the TPM Agent prompt structure (internal/agent/prompts/templates/tpm_agent.md)
+	if strings.Contains(prompt, "Technical Program Manager") && strings.Contains(prompt, "ID:[PRIMES]") {
 		return `[
   {
-    "id": "PRIMES",
-    "summary": "[PRIMES] Create Prime Number Script",
-    "description": "Create a python script named 'primes.py'. It MUST be python.\\nIt must calculate all prime numbers less than 10,000 and output to a file named 'primes.json'.\\nIMPORTANT: You MUST use a bash block to create the file. Do not output raw python code.\\nCommit 'primes.py' and 'primes.json' IMMEDIATELY.\\nThe JSON format must have a single key 'primes' containing the list of integers.\\nExample: {\\\"primes\\\": [2, 3, 5, ...]}.\\nIMPORTANT: Ensure the FINAL primes.json committed to the repository contains ALL primes less than 10,000 (Exactly 1229 primes).",
+    "title": "ID:[PRIMES] Create Prime Number Script",
+    "description": "Create a python script named 'primes.py'. It MUST be python.\\nIt must calculate all prime numbers less than 10,000 and output to a file named 'primes.json'.\\nIMPORTANT: You MUST use a bash block to create the file. Do not output raw python code.\\nCommit 'primes.py' and 'primes.json' IMMEDIATELY.\\nThe JSON format must have a single key 'primes' containing the list of integers.\\nExample: {\\\"primes\\\": [2, 3, 5, ...]}.\\nIMPORTANT: Ensure the FINAL primes.json committed to the repository contains ALL primes less than 10,000 (Exactly 1229 primes).\\nRepo: https://github.com/process-failed-successfully/recac-jira-e2e",
     "type": "Task"
   }
 ]`, nil
