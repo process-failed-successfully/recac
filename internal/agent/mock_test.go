@@ -94,6 +94,11 @@ func TestMockAgent_Initializer_NotBlockedByPlanner(t *testing.T) {
 	if !strings.Contains(resp, "I will create the feature list") {
 		t.Errorf("Expected Initializer response, got: %s", resp)
 	}
+
+	// Should match correct agent-bridge import syntax (using pipe)
+	if !strings.Contains(resp, "cat feature_list.json | agent-bridge import") {
+		t.Errorf("Expected pipe syntax for agent-bridge import, got: %s", resp)
+	}
 }
 
 func TestMockAgent_ManagerReview_Approves(t *testing.T) {
