@@ -165,16 +165,31 @@ func TestCommands(t *testing.T) {
 
 		// Also use --stream to cover that path
 
-		_, err := executeCommand(rootCmd, "start", "--mock", "--path", ".", "--max-iterations", "1", "--stream")
+		// Mock exitFunc to catch the exit call from start.go
+		oldExitFunc := exitFunc
+		exitFunc = func(code int) {
+			if code != 0 {
+				panic(fmt.Sprintf("exit-%d", code))
+			}
+		}
+		defer func() { exitFunc = oldExitFunc }()
 
 		// It might exit with code 1 due to max iterations, which is caught by executeCommand
+		// as we propagate the panic string "exit-1" inside executeCommand helper (see test_helpers_test.go)
+		// executeCommand catches `exit` variable, but start.go uses `exitFunc`.
+		// Let's ensure start.go's `exitFunc` usage is compatible with executeCommand's recovery logic.
+		// executeCommand replaces `exit`, but start.go uses `exitFunc` variable.
+		// We just replaced `exitFunc` above to panic with same format "exit-%d".
 
-		// We just want to ensure it runs some code.
+		// Use variable shadowing or a new variable to avoid redeclaration error
+		// when using executeCommand multiple times in same scope if not carefully handled.
+		// Since this is a distinct test block, := is usually fine, but if I edited it multiple times...
+		// Just using = or specific var is safer.
+		var cmdErr error
+		_, cmdErr = executeCommand(rootCmd, "start", "--mock", "--path", ".", "--max-iterations", "1", "--stream")
 
-		if err != nil {
-
-			t.Logf("Start mock finished with: %v", err)
-
+		if cmdErr != nil {
+			t.Logf("Start mock finished with: %v", cmdErr)
 		}
 
 	})
