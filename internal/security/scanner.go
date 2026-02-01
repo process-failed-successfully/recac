@@ -46,8 +46,10 @@ var (
 	reRootDeletion = regexp.MustCompile(`(?mi)` + cmdPrefix + `\brm\s+-[rRf]+\s+([/~]+|/|/\*)(?:$|[\s;&|)'"])`)
 
 	// New patterns
-	rePipeShell    = regexp.MustCompile(`(?i)(curl|wget)\s+.*?\|\s*(bash|sh|zsh|python|perl|php|ruby)`)
-	reReverseShell = regexp.MustCompile(`(?i)nc\s+.*?-e\s+.*`)
+	// Note: We use cmdPrefix here to avoid false positives in documentation/strings (e.g. echo "curl | bash")
+	// while still catching executed commands (e.g. eval "curl | bash").
+	rePipeShell    = regexp.MustCompile(`(?mi)` + cmdPrefix + `(curl|wget)\s+.*?\|\s*(bash|sh|zsh|python|perl|php|ruby)`)
+	reReverseShell = regexp.MustCompile(`(?mi)` + cmdPrefix + `nc\s+.*?-e\s+.*`)
 )
 
 // NewRegexScanner creates a new scanner with default patterns
@@ -59,10 +61,12 @@ func NewRegexScanner() *RegexScanner {
 			"Generic API Token": {Pattern: reGenericAPIToken, IgnoreInQuotes: false},
 			"Slack Token":       {Pattern: reSlackToken, IgnoreInQuotes: false},
 			"GitHub Token":      {Pattern: reGitHubToken, IgnoreInQuotes: false},
-			"Dangerous Command": {Pattern: reDangerousCmd, IgnoreInQuotes: true},
-			"Root Deletion":     {Pattern: reRootDeletion, IgnoreInQuotes: true},
-			"Pipe to Shell":     {Pattern: rePipeShell, IgnoreInQuotes: true},
-			"Reverse Shell":     {Pattern: reReverseShell, IgnoreInQuotes: true},
+			// We disable IgnoreInQuotes for commands because we MUST catch commands inside 'eval', 'bash -c', etc.
+			// The cmdPrefix regex handles false positives (like 'echo') correctly.
+			"Dangerous Command": {Pattern: reDangerousCmd, IgnoreInQuotes: false},
+			"Root Deletion":     {Pattern: reRootDeletion, IgnoreInQuotes: false},
+			"Pipe to Shell":     {Pattern: rePipeShell, IgnoreInQuotes: false},
+			"Reverse Shell":     {Pattern: reReverseShell, IgnoreInQuotes: false},
 		},
 	}
 }
