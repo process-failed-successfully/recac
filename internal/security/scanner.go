@@ -38,6 +38,8 @@ var (
 	reGitHubToken     = regexp.MustCompile(`gh[pousr]_[a-zA-Z0-9]{36,255}`)
 	reDangerousCmd    = regexp.MustCompile(`(?i)(?:^|[\s;&|()<>])(rm|cat|cp|mv|chmod|chown)\b.*(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
 	reRootDeletion    = regexp.MustCompile(`(?i)(?:^|[\s;&|()<>])rm\s+-[rRf]+\s+([/~*]+|/)(?:[\s;&|<>)]|$)`)
+	rePipeShell       = regexp.MustCompile(`(?i)(curl|wget)\s+.*?\|\s*(bash|sh|zsh|python|perl|php|ruby)`)
+	reReverseShell    = regexp.MustCompile(`(?i)nc\s+.*?-e\s+.*`)
 )
 
 // NewRegexScanner creates a new scanner with default patterns
@@ -52,6 +54,8 @@ func NewRegexScanner() *RegexScanner {
 			// Dangerous commands should be ignored inside quotes (likely explanations)
 			{Name: "Dangerous Command", Pattern: reDangerousCmd, IgnoreInQuotes: true},
 			{Name: "Root Deletion", Pattern: reRootDeletion, IgnoreInQuotes: true},
+			{Name: "Pipe to Shell", Pattern: rePipeShell, IgnoreInQuotes: true},
+			{Name: "Reverse Shell", Pattern: reReverseShell, IgnoreInQuotes: true},
 		},
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"recac/internal/security"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -134,6 +135,20 @@ func scanFileForSecurity(path string, scanner *security.RegexScanner) ([]Securit
 
 	var results []SecurityResult
 	for _, finding := range findings {
+		// Exclusion Logic
+		// 1. Exclude test files and scanner implementation from all checks
+		if strings.HasSuffix(path, "_test.go") || filepath.Base(path) == "scanner.go" {
+			continue
+		}
+
+		// 2. Exclude Dockerfiles from "Pipe to Shell" checks (common pattern)
+		if finding.Type == "Pipe to Shell" {
+			base := filepath.Base(path)
+			if base == "Dockerfile" || base == "test.Dockerfile" || strings.HasSuffix(base, ".Dockerfile") {
+				continue
+			}
+		}
+
 		results = append(results, SecurityResult{
 			File:        path,
 			Line:        finding.Line,
