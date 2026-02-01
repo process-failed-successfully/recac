@@ -50,7 +50,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return fmt.Sprintf(`[
   {
     "title": "%s",
-    "description": "Mock description for %s. Repo: https://github.com/mock/repo",
+    "description": "Mock description for %s. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
     "type": "Task",
     "acceptance_criteria": ["Mock criteria 1"],
     "children": []
