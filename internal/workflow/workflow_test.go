@@ -162,7 +162,38 @@ func TestProcessDirectTask(t *testing.T) {
 }
 
 func TestRunWorkflow_Detached(t *testing.T) {
-	t.Skip("Skipping detached test due to binary dependency")
+	mockSM := &mockSessionManager{}
+
+	tmpDir := t.TempDir()
+
+	cfg := SessionConfig{
+		Detached:       true,
+		SessionName:    "detached-test",
+		ProjectPath:    tmpDir,
+		SessionManager: mockSM,
+		IsMock:         true,
+	}
+
+	err := RunWorkflow(context.Background(), cfg)
+	assert.NoError(t, err)
+	assert.True(t, mockSM.startSessionCalled)
+}
+
+type mockSessionManager struct {
+	startSessionCalled bool
+}
+
+func (m *mockSessionManager) StartSession(name, goal string, command []string, cwd string) (*runner.SessionState, error) {
+	m.startSessionCalled = true
+	return &runner.SessionState{PID: 123, LogFile: "test.log"}, nil
+}
+
+func TestRunWorkflow_Detached_Validation(t *testing.T) {
+	// Case 1: Missing name
+	cfg := SessionConfig{Detached: true}
+	err := RunWorkflow(context.Background(), cfg)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "--name is required")
 }
 
 func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
