@@ -30,7 +30,13 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "ui_verification.json"), []byte("Verify Button Color"), 0644)
 
 	// 5. Initialize Session
-	mockDocker := &MockDockerForExec{}
+	// Use FaultToleranceMockDB to allow signals to be "set" via intercepted commands
+	mockDB := &FaultToleranceMockDB{}
+	mockDocker := &MockDockerForExec{
+		SignalCallback: func(key, value string) {
+			_ = mockDB.SetSignal("test-project", key, value)
+		},
+	}
 	mockAgent := agent.NewMockAgent()
 	s := &Session{
 		Docker:           mockDocker,
@@ -40,6 +46,8 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 		ManagerFrequency: 5,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
 		Logger:           telemetry.NewLogger(true, "", false),
+		DBStore:          mockDB,
+		Project:          "test-project",
 	}
 
 	// 6. Capture Stdout? (Hard to do in test without refactor).

@@ -14,8 +14,9 @@ import (
 
 type MockDockerForExec struct {
 	DockerClient
-	ExecutedCmds []string
-	ExecDelay    time.Duration
+	ExecutedCmds   []string
+	ExecDelay      time.Duration
+	SignalCallback func(key, value string)
 }
 
 func (m *MockDockerForExec) Exec(ctx context.Context, id string, cmd []string) (string, error) {
@@ -38,6 +39,43 @@ func (m *MockDockerForExec) Exec(ctx context.Context, id string, cmd []string) (
 	if strings.Contains(fullCmd, "cat recac_blockers.txt") || strings.Contains(fullCmd, "cat blockers.txt") {
 		return "", nil
 	}
+
+	// Handle agent-bridge signals for UI tests
+	// Simulate success for signal commands so the session doesn't block on them?
+	// But in tests, we need the session to actually see the signal if it checks for it via DB.
+	// Since MockDockerForExec doesn't have access to the DBStore of the session (it's decoupled),
+	// we assume the test might inject a DB-aware mock or we just return success.
+	// However, TestSession_RunLoop_UIVerification relies on the signal effectively terminating the loop?
+	// The loop terminates if MaxIterations reached OR if project complete.
+	// We return success here. The Session RunLoop calls `session.hasSignal` which checks DBStore.
+	// If MockDocker doesn't update DBStore, then `hasSignal` remains false.
+	// That explains why it loops forever!
+	// We need MockDockerForExec to be aware of the store if we want end-to-end signal testing without real binary.
+
+	// BUT, `agent-bridge signal ...` is executed inside the container.
+	// In a real run, the binary connects to DB and updates it.
+	// In this mock, we just say "Success".
+	// The session.RunLoop doesn't re-check DB instantly after exec unless we tell it to?
+	// Actually, `checkCompletion` checks signals.
+	// If `agent-bridge signal QA_PASSED true` is executed, the mock returns "Success".
+	// The DB is NOT updated.
+	// So `session.hasSignal("QA_PASSED")` returns false.
+	// So the loop continues.
+
+	// FIX: We need to intercept "agent-bridge signal" commands in this mock and update a map or store if injected.
+	// MockDockerForExec needs a way to callback or update state.
+	if strings.Contains(fullCmd, "agent-bridge signal") && m.SignalCallback != nil {
+		parts := strings.Fields(fullCmd)
+		// expected: ... agent-bridge signal KEY VALUE
+		// Find 'signal' and take next two
+		for i, p := range parts {
+			if p == "signal" && i+2 < len(parts) {
+				m.SignalCallback(parts[i+1], parts[i+2])
+				break
+			}
+		}
+	}
+
 	return "Success: " + fullCmd, nil
 }
 

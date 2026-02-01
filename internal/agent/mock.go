@@ -75,8 +75,8 @@ fi
 ` + "```", nil
 	}
 
-	// 3. QA Agent
-	if strings.Contains(prompt, "QA AGENT") {
+	// 3. QA Agent (and UI Verification)
+	if strings.Contains(prompt, "QA AGENT") || strings.Contains(lowerPrompt, "ui verification") {
 		return `I have verified the features.
 
 ` + "```bash" + `
