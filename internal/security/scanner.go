@@ -38,8 +38,8 @@ var (
 	reDangerousCmd = regexp.MustCompile(`(?mi)` + cmdPrefix + `\b(rm|cat|cp|mv|chmod|chown)\b.*(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
 	// reRootDeletion must ensure it matches the specific path and not a prefix (e.g. /tmp), but allow trailing separators/quotes.
 	reRootDeletion = regexp.MustCompile(`(?mi)` + cmdPrefix + `\brm\s+-[rRf]+\s+([/~]+|/|/\*)(?:$|[\s;&|)'"])`)
-	rePipeShell    = regexp.MustCompile(`(?i)(curl|wget)\s+.*?\|\s*(bash|sh|zsh|python|perl|php|ruby)`)
-	reReverseShell = regexp.MustCompile(`(?i)nc\s+.*?-e\s+.*`)
+	rePipeShell    = regexp.MustCompile(`(?mi)` + cmdPrefix + `\b(curl|wget)\b\s+.*?\|\s*(bash|sh|zsh|python|perl|php|ruby)\b`)
+	reReverseShell = regexp.MustCompile(`(?mi)` + cmdPrefix + `\bnc\b\s+.*?-e\s+.*`)
 )
 
 // NewRegexScanner creates a new scanner with default patterns

