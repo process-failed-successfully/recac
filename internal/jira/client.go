@@ -33,6 +33,10 @@ func NewClient(baseURL, username, apiToken string) *Client {
 
 // Authenticate verifies the credentials by calling the Current User endpoint.
 func (c *Client) Authenticate(ctx context.Context) error {
+	if c.isMock() {
+		return nil
+	}
+
 	url := fmt.Sprintf("%s/rest/api/3/myself", c.BaseURL)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -58,6 +62,10 @@ func (c *Client) Authenticate(ctx context.Context) error {
 
 // GetTicket fetches a Jira ticket by ID.
 func (c *Client) GetTicket(ctx context.Context, ticketID string) (map[string]interface{}, error) {
+	if c.isMock() {
+		return c.getMockTicket(), nil
+	}
+
 	url := fmt.Sprintf("%s/rest/api/3/issue/%s", c.BaseURL, ticketID)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -88,6 +96,10 @@ func (c *Client) GetTicket(ctx context.Context, ticketID string) (map[string]int
 
 // TransitionIssue moves a ticket to a new status (e.g., "In Progress").
 func (c *Client) TransitionIssue(ctx context.Context, ticketID, transitionID string) error {
+	if c.isMock() {
+		return nil
+	}
+
 	url := fmt.Sprintf("%s/rest/api/3/issue/%s/transitions", c.BaseURL, ticketID)
 
 	payload := map[string]interface{}{
@@ -127,6 +139,10 @@ func (c *Client) TransitionIssue(ctx context.Context, ticketID, transitionID str
 // AddComment adds a comment to a Jira ticket.
 // The comment text is formatted in ADF (Atlassian Document Format) to preserve formatting.
 func (c *Client) AddComment(ctx context.Context, ticketID, commentText string) error {
+	if c.isMock() {
+		return nil
+	}
+
 	url := fmt.Sprintf("%s/rest/api/3/issue/%s/comment", c.BaseURL, ticketID)
 
 	// Format comment in ADF format to preserve formatting
@@ -177,6 +193,10 @@ func (c *Client) AddComment(ctx context.Context, ticketID, commentText string) e
 
 // DeleteIssue deletes a Jira ticket.
 func (c *Client) DeleteIssue(ctx context.Context, ticketID string) error {
+	if c.isMock() {
+		return nil
+	}
+
 	url := fmt.Sprintf("%s/rest/api/3/issue/%s", c.BaseURL, ticketID)
 
 	req, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
@@ -202,6 +222,10 @@ func (c *Client) DeleteIssue(ctx context.Context, ticketID string) error {
 
 // CreateTicket creates a new Jira ticket.
 func (c *Client) CreateTicket(ctx context.Context, projectKey, summary, description, issueType string, labels []string) (string, error) {
+	if c.isMock() {
+		return "MOCK-1", nil
+	}
+
 	url := fmt.Sprintf("%s/rest/api/3/issue", c.BaseURL)
 
 	payload := map[string]interface{}{
@@ -306,6 +330,10 @@ func extractTextFromADF(node map[string]interface{}) string {
 
 // SearchIssues searches for Jira tickets using JQL.
 func (c *Client) SearchIssues(ctx context.Context, jql string) ([]map[string]interface{}, error) {
+	if c.isMock() {
+		return []map[string]interface{}{c.getMockTicket()}, nil
+	}
+
 	url := fmt.Sprintf("%s/rest/api/3/search/jql", c.BaseURL)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -349,6 +377,14 @@ func (c *Client) LoadLabelIssues(ctx context.Context, label string) ([]map[strin
 
 // GetTransitions fetches available transitions for a Jira ticket.
 func (c *Client) GetTransitions(ctx context.Context, ticketID string) ([]map[string]interface{}, error) {
+	if c.isMock() {
+		return []map[string]interface{}{
+			{"id": "1", "name": "To Do"},
+			{"id": "2", "name": "In Progress"},
+			{"id": "3", "name": "Done"},
+		}, nil
+	}
+
 	url := fmt.Sprintf("%s/rest/api/3/issue/%s/transitions", c.BaseURL, ticketID)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -455,6 +491,10 @@ func (c *Client) GetBlockers(ticket map[string]interface{}) []string {
 
 // AddIssueLink creates a link between two Jira tickets (e.g., "Blocks").
 func (c *Client) AddIssueLink(ctx context.Context, inwardKey, outwardKey, linkType string) error {
+	if c.isMock() {
+		return nil
+	}
+
 	url := fmt.Sprintf("%s/rest/api/3/issueLink", c.BaseURL)
 
 	payload := map[string]interface{}{
@@ -499,6 +539,10 @@ func (c *Client) AddIssueLink(ctx context.Context, inwardKey, outwardKey, linkTy
 
 // SetParent sets the parent of an issue (e.g. for Subtasks or Epics).
 func (c *Client) SetParent(ctx context.Context, issueKey, parentKey string) error {
+	if c.isMock() {
+		return nil
+	}
+
 	url := fmt.Sprintf("%s/rest/api/3/issue/%s", c.BaseURL, issueKey)
 
 	// Start with "parent" field (standard for subtasks and next-gen epics)
@@ -539,6 +583,10 @@ func (c *Client) SetParent(ctx context.Context, issueKey, parentKey string) erro
 
 // AddLabel adds a label to an existing ticket.
 func (c *Client) AddLabel(ctx context.Context, key, label string) error {
+	if c.isMock() {
+		return nil
+	}
+
 	url := fmt.Sprintf("%s/rest/api/3/issue/%s", c.BaseURL, key)
 	payload := map[string]interface{}{
 		"update": map[string]interface{}{
@@ -587,6 +635,10 @@ func isDoneStatus(status string) bool {
 
 // GetFirstProjectKey fetches the key of the first visible project.
 func (c *Client) GetFirstProjectKey(ctx context.Context) (string, error) {
+	if c.isMock() {
+		return "MOCK", nil
+	}
+
 	url := fmt.Sprintf("%s/rest/api/3/project", c.BaseURL)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -619,4 +671,68 @@ func (c *Client) GetFirstProjectKey(ctx context.Context) (string, error) {
 	}
 
 	return "", fmt.Errorf("invalid project response format")
+}
+
+func (c *Client) isMock() bool {
+	return strings.Contains(c.BaseURL, "mock")
+}
+
+func (c *Client) getMockTicket() map[string]interface{} {
+	// Hardcoded spec for prime-python scenario
+	spec := `### ID:[PRIMES] Prime Number Script
+
+CRITICAL INSTRUCTION: You MUST create exactly ONE ticket. Type: Task.
+Do NOT create an Epic. Do NOT create subtasks.
+The ID [PRIMES] must map to this single Task.
+
+Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.
+
+The JSON format must have a single key 'primes' containing the list of integers.
+Example: {"primes": [2, 3, 5, ...]}
+
+The script MUST be named 'primes.py'.
+The output file MUST be named 'primes.json'.
+
+IMPORTANT: You MUST use a bash block to create the file.
+Commit 'primes.json' IMMEDIATELY after creating/running the script. Do NOT leave it untracked.
+
+REQUIRED FEATURES:
+- Implement prime calculation logic in primes.py
+- Output results to primes.json
+- Validate that the output file contains a 'primes' list
+- Verify that exactly 1229 primes are calculated
+- Commit primes.json to the repository
+
+CRITICAL INSTRUCTION FOR TICKET GENERATION:
+Create a SINGLE Ticket (Task) for this work. Do not create an Epic or subtasks. The ID [PRIMES] must map to this single Task.
+CRITICAL: Do NOT run 'pytest' or any test framework. Do NOT try to create test files. Just run the script and verify 'primes.json' exists.
+
+Repo: https://github.com/process-failed-successfully/recac-jira-e2e`
+
+	return map[string]interface{}{
+		"key": "MOCK-1",
+		"fields": map[string]interface{}{
+			"summary": "[MOCK] Create Prime Number Script",
+			"description": map[string]interface{}{
+				"type":    "doc",
+				"version": 1,
+				"content": []map[string]interface{}{
+					{
+						"type": "paragraph",
+						"content": []map[string]interface{}{
+							{
+								"type": "text",
+								"text": spec,
+							},
+						},
+					},
+				},
+			},
+			"status": map[string]interface{}{
+				"name": "To Do",
+			},
+			"labels":     []interface{}{"recac-e2e-mock"},
+			"issuelinks": []interface{}{},
+		},
+	}
 }

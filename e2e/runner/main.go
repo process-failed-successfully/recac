@@ -104,6 +104,13 @@ func run() error {
 	if os.Getenv("JIRA_API_TOKEN") == "" && os.Getenv("JIRA_API_KEY") != "" {
 		os.Setenv("JIRA_API_TOKEN", os.Getenv("JIRA_API_KEY"))
 	}
+
+	// For mock provider, default the project key to avoid network calls
+	if provider == "mock" && os.Getenv("JIRA_PROJECT_KEY") == "" {
+		os.Setenv("JIRA_PROJECT_KEY", "MOCK")
+		log.Println("Mock provider detected: Defaulting JIRA_PROJECT_KEY to MOCK")
+	}
+
 	projectKey := os.Getenv("JIRA_PROJECT_KEY")
 
 	ctx := context.Background()
