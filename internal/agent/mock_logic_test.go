@@ -34,3 +34,27 @@ func TestMockAgent_NoOp(t *testing.T) {
 		t.Errorf("Expected # no-op, got: %s", resp)
 	}
 }
+
+func TestMockAgent_Completion(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Test case 1: "nothing to commit"
+	prompt1 := "git commit output: nothing to commit, working tree clean"
+	resp1, err := agent.Send(context.Background(), prompt1)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(resp1, "agent-bridge signal COMPLETED true") {
+		t.Errorf("Expected completion signal for 'nothing to commit', got: %s", resp1)
+	}
+
+	// Test case 2: "Nothing to commit" (capitalized, from echo fallback)
+	prompt2 := "command output: Nothing to commit"
+	resp2, err := agent.Send(context.Background(), prompt2)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(resp2, "agent-bridge signal COMPLETED true") {
+		t.Errorf("Expected completion signal for 'Nothing to commit', got: %s", resp2)
+	}
+}

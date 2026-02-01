@@ -125,6 +125,23 @@ git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
 `, nil
 	}
 
+	// 4. Completion Check
+	// If the previous command output indicates nothing to commit (clean working tree), we are done.
+	// This prevents infinite loops in smoke tests where the agent keeps trying to commit.
+	promptLower := strings.ToLower(prompt)
+	if strings.Contains(promptLower, "nothing to commit") || strings.Contains(promptLower, "working tree clean") {
+		return `It seems there are no more changes to commit. The task is complete.
+
+` + "```bash" + `
+if command -v agent-bridge >/dev/null 2>&1; then
+    agent-bridge signal COMPLETED true
+else
+    echo "agent-bridge not found, cannot signal completion."
+fi
+` + "```" + `
+`, nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf(`%s:
