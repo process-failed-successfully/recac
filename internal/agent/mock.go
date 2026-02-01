@@ -31,6 +31,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	// Debugging: Log prompt content to help diagnose match failures in CI
+	fmt.Printf("[MockAgent] Received prompt (%d chars): %s...\n", len(prompt), truncateString(prompt, 200))
+
 	// Smart Mock Logic for Smoke Tests
 	// 1. Ticket Generation Request (Prime Python Scenario)
 	if strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "JSON format") {

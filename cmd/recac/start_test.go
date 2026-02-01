@@ -72,6 +72,13 @@ func TestStartCommand_MockMode_Interactive(t *testing.T) {
 	homeDir := t.TempDir()
 	t.Setenv("HOME", homeDir)
 
+	// Override exit func to prevent test crash on panic recovery
+	originalExit := exitFunc
+	exitFunc = func(code int) {
+		// No-op for test
+	}
+	defer func() { exitFunc = originalExit }()
+
 	var err error
 	output := captureOutput(func() {
 		_, err = executeCommand(rootCmd, "start",
