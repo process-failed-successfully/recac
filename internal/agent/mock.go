@@ -42,6 +42,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 I will create the feature list.
 
 ` + "```bash" + `
+set -x # Enable debug logging
+
 cat << 'EOF' > feature_list.json
 {
     "project_name": "Prime Number Script",
@@ -54,8 +56,7 @@ cat << 'EOF' > feature_list.json
             "status": "todo",
             "passes": false,
             "steps": [],
-            "dependencies": {
-                "depends_on_ids": [],
+            "dependencies": {\n                "depends_on_ids": [],
                 "exclusive_write_paths": [],
                 "read_only_paths": []
             }
@@ -64,8 +65,13 @@ cat << 'EOF' > feature_list.json
 }
 EOF
 
-# Import it
-agent-bridge import --file feature_list.json
+# Import it with output capture for debugging
+if command -v agent-bridge >/dev/null 2>&1; then
+    agent-bridge import --file feature_list.json > import.log 2>&1 || { cat import.log; exit 1; }
+    cat import.log
+else
+    echo "Warning: agent-bridge not found, skipping import."
+fi
 ` + "```" + `
 `, nil
 	}
