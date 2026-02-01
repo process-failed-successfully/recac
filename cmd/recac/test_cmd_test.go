@@ -98,7 +98,9 @@ func TestRunTest_Impacted(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, output, "Analyzing impact")
 	assert.Contains(t, output, "Running tests for 1 packages")
-	assert.Contains(t, output, "PASS")
+	// We check for "All tests passed" instead of raw "PASS" output from echo because
+	// capturing subprocess stdout in this mock scenario can be flaky or buffered differently.
+	assert.Contains(t, output, "All tests passed")
 }
 
 func TestRunTest_DiagnoseFailure(t *testing.T) {

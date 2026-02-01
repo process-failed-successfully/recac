@@ -34,14 +34,36 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Smart Mock Logic for Smoke Tests
 	// 1. Ticket Generation Request (Prime Python Scenario)
 	if strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "JSON format") {
-		return `[
-  {
-    "title": "[GEN] Create Prime Number Script",
-    "description": "Create a python script named 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'. ID:[PRIMES]",
-    "type": "Task",
-    "children": []
-  }
-]`, nil
+		return `I will generate the ticket plan.
+
+` + "```bash" + `
+cat << 'EOF' > feature_list.json
+{
+  "project_name": "MFLP-2553",
+  "features": [
+    {
+      "id": "PRIMES-1",
+      "title": "[GEN] Create Prime Number Script",
+      "description": "Create a python script named 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'. ID:[PRIMES]",
+      "type": "Task",
+      "status": "pending",
+      "dependencies": {
+        "exclusive_write_paths": [],
+        "read_only_paths": []
+      }
+    }
+  ]
+}
+EOF
+
+# Import the feature list
+if command -v agent-bridge >/dev/null 2>&1; then
+  agent-bridge import feature_list.json
+else
+  echo "agent-bridge not found, skipping import"
+fi
+` + "```" + `
+`, nil
 	}
 
 	// 2. Implementation Request (Writing the file)
