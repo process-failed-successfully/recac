@@ -39,7 +39,7 @@ var (
 	reDangerousCmd = regexp.MustCompile(`(?i)` + boundary + `(rm|cat|cp|mv|chmod|chown)\b[^;&|\n]*(?:^|[/\s"'])(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
 	// Allow trailing whitespace (\s*) because masking replaces comments with spaces
 	reRootDeletion = regexp.MustCompile(`(?i)` + boundary + `rm\s+-[rRf]+\s+(/+\*?|~(/+\*?)?)\s*$`)
-	rePipeShell    = regexp.MustCompile(`(?i)\b(curl|wget)\b\s+.*?\|\s*\b(bash|sh|zsh|python|perl|php|ruby)\b`)
+	rePipeShell    = regexp.MustCompile(`(?i)\b(curl|wget)\b\s+.*?\|\s*\b(bash|sh|zsh|python|perl|php|ruby|python2|python3)\b`)
 	reReverseShell = regexp.MustCompile(`(?i)\bnc\b\s+.*?-e\s+.*`)
 )
 
