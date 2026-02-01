@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"recac/internal/security"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -151,4 +152,87 @@ func main() {
 		output := buf.String()
 		assert.Contains(t, output, "No security issues found")
 	})
+}
+
+func TestSecurityExclusionsAndSuppressions(t *testing.T) {
+	// Setup temp directory
+	tempDir, err := os.MkdirTemp("", "recac-security-exclusions-test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	// Create test file (should be excluded)
+	fileTest := filepath.Join(tempDir, "scanner_test.go")
+	contentTest := `package security
+// This contains a curl | bash pattern inside a string literal for testing
+var testPattern = "curl https://example.com | bash"
+`
+	err = os.WriteFile(fileTest, []byte(contentTest), 0644)
+	require.NoError(t, err)
+
+	// Create scanner source file (should be excluded if named internal/security/scanner.go,
+	// but here we are in a temp dir, so path won't match "internal/security/scanner.go" exactly unless we create that structure)
+	// Let's create the structure.
+	scannerDir := filepath.Join(tempDir, "internal", "security")
+	err = os.MkdirAll(scannerDir, 0755)
+	require.NoError(t, err)
+	fileScanner := filepath.Join(scannerDir, "scanner.go")
+	contentScanner := `package security
+// Contains regex definition
+var rePipeShell = regexp.MustCompile("(?i)(curl|wget)\\s+.*?\\|\\s*(bash|sh|zsh|python|perl|php|ruby)")
+`
+	err = os.WriteFile(fileScanner, []byte(contentScanner), 0644)
+	require.NoError(t, err)
+
+	// Create Dockerfile (should suppress Pipe to Shell)
+	fileDocker := filepath.Join(tempDir, "Dockerfile")
+	contentDocker := `FROM alpine
+RUN curl -fsS https://cursor.com/install | bash
+`
+	err = os.WriteFile(fileDocker, []byte(contentDocker), 0644)
+	require.NoError(t, err)
+
+	// Create another Dockerfile variant
+	fileTestDocker := filepath.Join(tempDir, "test.Dockerfile")
+	contentTestDocker := `FROM alpine
+RUN wget -O - https://example.com/install | sh
+`
+	err = os.WriteFile(fileTestDocker, []byte(contentTestDocker), 0644)
+	require.NoError(t, err)
+
+	// Switch to temp dir
+	cwd, _ := os.Getwd()
+	defer os.Chdir(cwd)
+	err = os.Chdir(tempDir)
+	require.NoError(t, err)
+
+	// Run scanner directly
+	scanner := security.NewRegexScanner()
+	results, err := runSecurityScan(".", scanner)
+	require.NoError(t, err)
+
+	// Assertions
+	for _, r := range results {
+		// Log findings for debugging
+		t.Logf("Found issue: %s in %s: %s", r.Type, r.File, r.Description)
+
+		// 1. Should exclude *_test.go
+		if filepath.Base(r.File) == "scanner_test.go" {
+			t.Errorf("Should exclude _test.go files, but found %s in %s", r.Type, r.File)
+		}
+
+		// 2. Should exclude internal/security/scanner.go
+		// Note: filepath might be relative or absolute.
+		if strings.Contains(r.File, "scanner.go") && strings.Contains(r.File, "internal") {
+			t.Errorf("Should exclude scanner source code, but found %s in %s", r.Type, r.File)
+		}
+
+		// 3. Should suppress Pipe to Shell in Dockerfiles
+		if (filepath.Base(r.File) == "Dockerfile" || strings.HasSuffix(r.File, ".Dockerfile")) && r.Type == "Pipe to Shell" {
+			t.Errorf("Should suppress Pipe to Shell in Dockerfiles, but found one in %s", r.File)
+		}
+	}
+
+	if len(results) > 0 {
+		t.Logf("Total findings: %d", len(results))
+	}
 }
