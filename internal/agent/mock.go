@@ -32,6 +32,20 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	// CI Loop Prevention: If the previous command said "nothing to commit" or "clean",
+	// assume we are done to prevent infinite loops.
+	if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
+		// Attempt to extract feature ID from prompt if possible, or default to generic
+		// For MOCK-STORY, we know the ID.
+		featureID := "req-interface-is-defined"
+		if strings.Contains(prompt, "ID:[MOCK-STORY]") {
+			featureID = "req-mock-story"
+		}
+
+		// Check if command -v agent-bridge exists to avoid failures in local tests without it
+		return fmt.Sprintf("It seems the work is already done.\n\n```bash\nif command -v agent-bridge >/dev/null 2>&1; then\n  agent-bridge feature set %s --status done --passes true\nelse\n  echo \"agent-bridge not found, skipping status update\"\nfi\n```", featureID), nil
+	}
+
 	// Check for MOCK-STORY implementation (prevent No-Op loop)
 	if strings.Contains(prompt, "ID:[MOCK-STORY]") || strings.Contains(prompt, "req-interface-is-defined") {
 		return "Implementing mock interface:\n\n```bash\ngit config user.email \"you@example.com\"\ngit config user.name \"Your Name\"\ntouch interface.txt\necho 'interface defined' > interface.txt\ngit add interface.txt\ngit commit -m 'Define interface' || echo \"Nothing to commit\"\n```", nil
