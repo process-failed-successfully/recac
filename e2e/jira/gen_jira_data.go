@@ -43,8 +43,17 @@ func main() {
 		log.Fatalf("Authentication failed: %v", err)
 	}
 
+	provider := os.Getenv("RECAC_PROVIDER")
+	if provider == "" {
+		provider = "mock"
+	}
+	model := os.Getenv("RECAC_MODEL")
+	if model == "" {
+		model = "mock-model"
+	}
+
 	repoURL := "https://github.com/process-failed-successfully/recac-jira-e2e"
-	label, _, err := mgr.GenerateScenario(ctx, scenarioName, repoURL)
+	label, _, err := mgr.GenerateScenario(ctx, scenarioName, repoURL, provider, model)
 	if err != nil {
 		log.Fatalf("Failed to generate scenario: %v", err)
 	}
