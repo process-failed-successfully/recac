@@ -99,11 +99,13 @@ EOF
 	// Triggered if it asks for primes.py implementation details
 	if strings.Contains(prompt, "primes.py") {
 		if m.primesImplemented {
-			return `The primes.py script has already been implemented and committed. I will now verify the results.
+			return `The primes.py script has already been implemented and committed. I will now mark the task as complete to finish the workflow.
 
 ` + "```bash" + `
 ls -l primes.py primes.json
-cat primes.json | head -c 100
+if command -v agent-bridge >/dev/null 2>&1; then
+  agent-bridge feature set "[PRIMES]" --status done --passes true
+fi
 ` + "```" + `
 `, nil
 		}
