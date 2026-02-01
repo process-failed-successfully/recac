@@ -57,6 +57,19 @@ func TestMockAgent_LoopBreaking(t *testing.T) {
 	}
 }
 
+func TestMockAgent_QAScenario(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "## YOUR ROLE - QA AGENT\n\nYour job is to verify the project."
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "agent-bridge signal QA_PASSED true") {
+		t.Errorf("Expected QA pass signal, got: %s", response)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {

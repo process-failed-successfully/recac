@@ -37,6 +37,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return "It seems the work is already done. Marking as complete.\n\n```bash\nif command -v agent-bridge >/dev/null 2>&1; then\n  agent-bridge signal COMPLETED true\nelse\n  echo \"Mock agent finished (agent-bridge not found)\"\nfi\n```", nil
 	}
 
+	// Check for QA Agent prompt
+	if strings.Contains(prompt, "QA AGENT") {
+		return "QA Check Passed.\n\n```bash\nif command -v agent-bridge >/dev/null 2>&1; then\n  agent-bridge signal QA_PASSED true\nelse\n  echo \"Mock agent finished (agent-bridge not found)\"\nfi\n```", nil
+	}
+
 	// Check for MOCK-STORY implementation (prevent No-Op loop)
 	if strings.Contains(prompt, "ID:[MOCK-STORY]") || strings.Contains(prompt, "req-interface-is-defined") {
 		return "Implementing mock interface:\n\n```bash\ngit config user.email \"you@example.com\"\ngit config user.name \"Your Name\"\ntouch interface.txt\necho 'interface defined' > interface.txt\ngit add interface.txt\ngit commit -m 'Define interface' || echo \"Nothing to commit\"\n```", nil
