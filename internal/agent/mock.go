@@ -81,7 +81,7 @@ cat << 'EOF' > feature_list.json
 }
 EOF
 
-agent-bridge import --file feature_list.json
+cat feature_list.json | agent-bridge import
 ` + "```" + `
 `, nil
 	}
@@ -96,7 +96,7 @@ agent-bridge import --file feature_list.json
 
 ` + "```bash" + `
 # Mark feature as done
-agent-bridge update --id req-primes --status done --passes true
+agent-bridge feature set req-primes --status done --passes true
 ` + "```" + `
 `, nil
 	}
