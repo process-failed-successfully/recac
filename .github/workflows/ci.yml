@@ -274,12 +274,12 @@ jobs:
 
       - name: Run E2E Test
         env:
-          JIRA_URL: ${{ secrets.JIRA_URL }}
-          JIRA_USERNAME: ${{ secrets.JIRA_USERNAME }}
-          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
-          GITHUB_API_KEY: ${{ secrets.GH_API_KEY }}
-          GITHUB_EMAIL: ${{ secrets.GH_EMAIL }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          JIRA_URL: "https://mock-jira.example.com"
+          JIRA_USERNAME: "mock-user"
+          JIRA_API_TOKEN: "mock-token"
+          GITHUB_API_KEY: "mock-gh-key"
+          GITHUB_EMAIL: "mock@example.com"
+          OPENROUTER_API_KEY: "mock-key"
         run: |
           RETRIES=3
           for i in $(seq 0 $RETRIES); do
