@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,11 +31,43 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// Detect "Ticket Generation" prompts (e.g. from generate-from-spec)
+	// We check for keywords likely used in the prompt for the TPM agent
+	if strings.Contains(strings.ToLower(prompt), "technical program manager") ||
+		strings.Contains(prompt, "generate-from-spec") {
+		return m.generateMockTickets(prompt), nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
+}
+
+// generateMockTickets returns a JSON response simulating ticket generation
+func (m *MockAgent) generateMockTickets(prompt string) string {
+	// Simple heuristic to extract project or ID if needed, or just return a standard set
+	return `[
+  {
+    "title": "ID:[MOCK-EPIC] Implement Mock Feature",
+    "description": "Epic for the mock feature implementation.\n\nRepo: https://github.com/example/repo",
+    "type": "Epic",
+    "children": [
+      {
+        "title": "ID:[MOCK-STORY] Create Basic Structure",
+        "description": "Create the basic file structure for the mock feature.\n\nRepo: https://github.com/example/repo",
+        "type": "Story",
+        "acceptance_criteria": [
+          "File structure created",
+          "Tests passed"
+        ],
+        "children": []
+      }
+    ]
+  }
+]`
 }
 
 // SendStream implements the Agent interface
