@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // Scanner defines the interface for security scanning
@@ -58,8 +60,16 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	var findings []Finding
 	lines := strings.Split(content, "\n")
 
+	maskedContent := maskComments(content)
+
 	for name, pattern := range s.patterns {
-		matches := pattern.FindAllStringIndex(content, -1)
+		targetContent := content
+		// Code patterns that should ignore comments
+		if name == "Pipe to Shell" || name == "Reverse Shell" || name == "Dangerous Command" || name == "Root Deletion" {
+			targetContent = maskedContent
+		}
+
+		matches := pattern.FindAllStringIndex(targetContent, -1)
 		for _, match := range matches {
 			// Find line number
 			start := match[0]
@@ -70,6 +80,8 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 				}
 			}
 
+			// Extract from original content even if we matched on masked content
+			// (Indices should align because maskComments preserves length)
 			matchedText := content[match[0]:match[1]]
 
 			findings = append(findings, Finding{
@@ -92,4 +104,97 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	}
 
 	return findings, nil
+}
+
+// maskComments replaces comments with spaces, preserving original length and line offsets.
+// It handles // and # style comments, respecting strings.
+func maskComments(content string) string {
+	var builder strings.Builder
+	builder.Grow(len(content))
+
+	runes := []rune(content)
+	n := len(runes)
+
+	inString := false
+	var stringChar rune
+	inLineComment := false
+
+	for i := 0; i < n; i++ {
+		r := runes[i]
+		shouldMask := false
+
+		if inLineComment {
+			if r == '\n' {
+				inLineComment = false
+			} else {
+				shouldMask = true
+			}
+		} else if inString {
+			if r == stringChar {
+				// Handle escape sequence
+				escaped := false
+				if i > 0 && runes[i-1] == '\\' {
+					// Count consecutive backslashes
+					backslashes := 0
+					for j := i - 1; j >= 0; j-- {
+						if runes[j] == '\\' {
+							backslashes++
+						} else {
+							break
+						}
+					}
+					if backslashes%2 != 0 {
+						escaped = true
+					}
+				}
+				if !escaped {
+					inString = false
+				}
+			}
+		} else {
+			// Start of string?
+			if r == '"' || r == '\'' || r == '`' {
+				inString = true
+				stringChar = r
+			} else if r == '/' && i+1 < n && runes[i+1] == '/' {
+				// Check for URL protocol (://)
+				isURL := false
+				if i > 0 && runes[i-1] == ':' {
+					isURL = true
+				}
+
+				if !isURL {
+					inLineComment = true
+					shouldMask = true
+				}
+			} else if r == '#' {
+				// Check bash comment
+				isComment := false
+				if i == 0 {
+					isComment = true
+				} else {
+					if unicode.IsSpace(runes[i-1]) {
+						isComment = true
+					}
+				}
+
+				if isComment {
+					inLineComment = true
+					shouldMask = true
+				}
+			}
+		}
+
+		if shouldMask {
+			// Replace with spaces equal to byte length to preserve indices
+			len := utf8.RuneLen(r)
+			for k := 0; k < len; k++ {
+				builder.WriteByte(' ')
+			}
+		} else {
+			builder.WriteRune(r)
+		}
+	}
+
+	return builder.String()
 }
