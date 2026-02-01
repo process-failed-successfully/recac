@@ -36,11 +36,8 @@ func TestMockAgent(t *testing.T) {
 		if !strings.Contains(response, "```bash") {
 			t.Error("Initializer response missing bash code block")
 		}
-		if !strings.Contains(response, "echo '{") {
-			t.Error("Initializer response missing echo start")
-		}
-		if !strings.Contains(response, "req-the-list-of-primes") {
-			t.Error("Initializer response missing feature ID")
+		if !strings.Contains(response, "echo '{\n  \"req-the-list-of-primes") {
+			t.Error("Initializer response missing JSON echo with newlines")
 		}
 	})
 
