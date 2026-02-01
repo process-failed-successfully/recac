@@ -111,6 +111,36 @@ func TestProcessResponse_Security(t *testing.T) {
 			expectedDesc: "Root Deletion",
 			cmdToVerify:  "exec rm -rf /",
 		},
+		{
+			name:        "Mock Agent Git Config (Allowed)",
+			input:       "Configure git.\n```bash\ngit config user.email \"mock@example.com\"\n```",
+			shouldBlock: false,
+			cmdToVerify: "git config user.email \"mock@example.com\"",
+		},
+		{
+			name:        "Agent Bridge Import (Allowed)",
+			input:       "Import features.\n```bash\nagent-bridge import --file feature_list.json\n```",
+			shouldBlock: false,
+			cmdToVerify: "agent-bridge import",
+		},
+		{
+			name:        "Agent Bridge Signal Set (Allowed)",
+			input:       "Set signal.\n```bash\nagent-bridge signal set QA_PASSED true\n```",
+			shouldBlock: false,
+			cmdToVerify: "agent-bridge signal set",
+		},
+		{
+			name:        "Agent Bridge Update (Allowed)",
+			input:       "Update status.\n```bash\nagent-bridge update --id req-primes --status done --passes true\n```",
+			shouldBlock: false,
+			cmdToVerify: "agent-bridge update",
+		},
+		{
+			name:        "Python Script Creation (Allowed)",
+			input:       "Create script.\n```bash\ncat << 'EOF' > primes.py\nimport json\nEOF\n```",
+			shouldBlock: false,
+			cmdToVerify: "cat << 'EOF' > primes.py",
+		},
 	}
 
 	for _, tc := range testCases {

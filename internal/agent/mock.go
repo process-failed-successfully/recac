@@ -121,7 +121,34 @@ git config user.name "Mock Agent"
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json"
+
+# Update status
+agent-bridge update --id req-primes --status done --passes true
 ` + "```" + `
+`, nil
+	}
+
+	// 4. QA Agent for 'prime-python' scenario
+	if strings.Contains(prompt, "QA AGENT") || strings.Contains(prompt, "verification instructions") {
+		return `I have verified the implementation.
+
+` + "```bash" + `
+# Signal success
+agent-bridge signal set QA_PASSED true
+` + "```" + `
+QA Passed.
+`, nil
+	}
+
+	// 5. Manager Agent for 'prime-python' scenario
+	if strings.Contains(prompt, "Manager Review") || strings.Contains(prompt, "PROJECT MANAGER") {
+		return `I approve the changes.
+
+` + "```bash" + `
+# Signal completion
+agent-bridge signal set PROJECT_SIGNED_OFF true
+` + "```" + `
+Approved.
 `, nil
 	}
 
