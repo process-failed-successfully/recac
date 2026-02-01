@@ -19,9 +19,15 @@ type Finding struct {
 	Line        int
 }
 
+// PatternConfig defines configuration for a regex pattern
+type PatternConfig struct {
+	Pattern        *regexp.Regexp
+	IgnoreInQuotes bool
+}
+
 // RegexScanner implements Scanner using regular expressions
 type RegexScanner struct {
-	patterns map[string]*regexp.Regexp
+	patterns map[string]PatternConfig
 }
 
 var (
@@ -39,16 +45,16 @@ var (
 // NewRegexScanner creates a new scanner with default patterns
 func NewRegexScanner() *RegexScanner {
 	return &RegexScanner{
-		patterns: map[string]*regexp.Regexp{
-			"AWS Access Key":    reAWSAccessKey,
-			"Private Key":       rePrivateKey,
-			"Generic API Token": reGenericAPIToken,
-			"Slack Token":       reSlackToken,
-			"GitHub Token":      reGitHubToken,
-			"Dangerous Command": reDangerousCmd,
-			"Root Deletion":     reRootDeletion,
-			"Pipe to Shell":     rePipeShell,
-			"Reverse Shell":     reReverseShell,
+		patterns: map[string]PatternConfig{
+			"AWS Access Key":    {Pattern: reAWSAccessKey, IgnoreInQuotes: false},
+			"Private Key":       {Pattern: rePrivateKey, IgnoreInQuotes: false},
+			"Generic API Token": {Pattern: reGenericAPIToken, IgnoreInQuotes: false},
+			"Slack Token":       {Pattern: reSlackToken, IgnoreInQuotes: false},
+			"GitHub Token":      {Pattern: reGitHubToken, IgnoreInQuotes: false},
+			"Dangerous Command": {Pattern: reDangerousCmd, IgnoreInQuotes: true},
+			"Root Deletion":     {Pattern: reRootDeletion, IgnoreInQuotes: true},
+			"Pipe to Shell":     {Pattern: rePipeShell, IgnoreInQuotes: true},
+			"Reverse Shell":     {Pattern: reReverseShell, IgnoreInQuotes: true},
 		},
 	}
 }
@@ -56,35 +62,28 @@ func NewRegexScanner() *RegexScanner {
 // Scan checks the content for security patterns
 func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	var findings []Finding
-	lines := strings.Split(content, "\n")
 
-	// Create a masked version of content where comments are replaced with spaces
-	// This prevents regexes from matching patterns inside comments while preserving line numbers/indices
-	maskedLines := make([]string, len(lines))
-	for i, line := range lines {
-		// Mask comments (anything after #) with spaces to prevent false positives
-		// This handles both full-line comments and inline comments, respecting quotes
-		if idx := findCommentStart(line); idx != -1 {
-			maskedLines[i] = line[:idx] + strings.Repeat(" ", len(line)-idx)
-		} else {
-			maskedLines[i] = line
+	maskedComments := maskContent(content, false)
+	maskedAll := maskContent(content, true)
+
+	for name, config := range s.patterns {
+		contentToSearch := maskedComments
+		if config.IgnoreInQuotes {
+			contentToSearch = maskedAll
 		}
-	}
-	maskedContent := strings.Join(maskedLines, "\n")
 
-	for name, pattern := range s.patterns {
-		matches := pattern.FindAllStringIndex(maskedContent, -1)
+		matches := config.Pattern.FindAllStringIndex(contentToSearch, -1)
 		for _, match := range matches {
 			// Find line number
 			start := match[0]
 			lineNumber := 1
 			for i := 0; i < start; i++ {
-				if maskedContent[i] == '\n' {
+				if contentToSearch[i] == '\n' {
 					lineNumber++
 				}
 			}
 
-			matchedText := maskedContent[match[0]:match[1]]
+			matchedText := contentToSearch[match[0]:match[1]]
 
 			findings = append(findings, Finding{
 				Type:        name,
@@ -96,6 +95,7 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	}
 
 	// Scan line by line for context-aware checks (optional optimization)
+	lines := strings.Split(content, "\n")
 	for i, line := range lines {
 		// Example: Check for hardcoded passwords in typical config patterns
 		if strings.Contains(strings.ToLower(line), "password") && strings.Contains(line, "=") {
@@ -108,45 +108,85 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	return findings, nil
 }
 
-// findCommentStart returns the index of the first unquoted #, or -1 if none found.
-func findCommentStart(line string) int {
+func maskContent(content string, maskStrings bool) string {
+	lines := strings.Split(content, "\n")
+	maskedLines := make([]string, len(lines))
+	for i, line := range lines {
+		maskedLines[i] = maskLine(line, maskStrings)
+	}
+	return strings.Join(maskedLines, "\n")
+}
+
+func maskLine(line string, maskStrings bool) string {
+	var sb strings.Builder
 	inSingleQuote := false
 	inDoubleQuote := false
 	escaped := false
 
-	for i, r := range line {
+	for i := 0; i < len(line); i++ {
+		char := line[i]
+
 		if escaped {
 			escaped = false
+			if maskStrings && (inSingleQuote || inDoubleQuote) {
+				sb.WriteByte(' ')
+			} else {
+				sb.WriteByte(char)
+			}
 			continue
 		}
 
-		switch r {
-		case '\\':
-			// Escape only works outside single quotes (and mostly inside double quotes)
+		if char == '\\' {
 			if !inSingleQuote {
 				escaped = true
 			}
-		case '\'':
+			if maskStrings && inDoubleQuote {
+				sb.WriteByte(' ')
+			} else {
+				sb.WriteByte(char)
+			}
+			continue
+		}
+
+		if char == '\'' {
 			if !inDoubleQuote {
 				inSingleQuote = !inSingleQuote
-			}
-		case '"':
-			if !inSingleQuote {
-				inDoubleQuote = !inDoubleQuote
-			}
-		case '#':
-			if !inSingleQuote && !inDoubleQuote {
-				// In Bash, # starts a comment only if it's the start of a word
-				// (preceded by whitespace or start of line or control operators)
-				if i == 0 {
-					return i
-				}
-				prev := line[i-1]
-				if prev == ' ' || prev == '\t' || prev == ';' || prev == '|' || prev == '&' || prev == '(' || prev == ')' || prev == '<' || prev == '>' {
-					return i
-				}
+				sb.WriteByte(char)
+				continue
 			}
 		}
+
+		if char == '"' {
+			if !inSingleQuote {
+				inDoubleQuote = !inDoubleQuote
+				sb.WriteByte(char)
+				continue
+			}
+		}
+
+		// Check for comment
+		if char == '#' && !inSingleQuote && !inDoubleQuote {
+			isComment := false
+			if i == 0 {
+				isComment = true
+			} else {
+				prev := line[i-1]
+				if prev == ' ' || prev == '\t' || prev == ';' || prev == '|' || prev == '&' || prev == '(' || prev == ')' || prev == '<' || prev == '>' {
+					isComment = true
+				}
+			}
+
+			if isComment {
+				sb.WriteString(strings.Repeat(" ", len(line)-i))
+				return sb.String()
+			}
+		}
+
+		if maskStrings && (inSingleQuote || inDoubleQuote) {
+			sb.WriteByte(' ')
+		} else {
+			sb.WriteByte(char)
+		}
 	}
-	return -1
+	return sb.String()
 }
