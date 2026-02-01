@@ -44,6 +44,7 @@ func TestSession_ReadSpec(t *testing.T) {
 	}
 
 	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 
 	content, err := session.ReadSpec()
 	if err != nil {
@@ -58,6 +59,7 @@ func TestSession_ReadSpec(t *testing.T) {
 func TestSession_ReadSpec_Missing(t *testing.T) {
 	tmpDir := t.TempDir()
 	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 
 	_, err := session.ReadSpec()
 	if err == nil {
@@ -76,6 +78,7 @@ func TestSession_AgentReadsSpec(t *testing.T) {
 
 	mockDocker, _ := docker.NewMockClient()
 	session := NewSession(mockDocker, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 
 	spec, err := session.ReadSpec()
 	if err != nil {
@@ -113,6 +116,7 @@ func TestSession_Start_PassesUser(t *testing.T) {
 	}
 
 	session := NewSession(d, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 	if err := session.Start(context.Background()); err != nil {
 		t.Fatalf("Start failed: %v", err)
 	}
@@ -129,6 +133,7 @@ func TestSession_SelectPrompt(t *testing.T) {
 	os.WriteFile(specPath, []byte(specContent), 0644)
 
 	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 	session.ManagerFrequency = 3
 
 	// Session 1: Initializer
@@ -199,6 +204,7 @@ func TestSession_AgentStatePersistence(t *testing.T) {
 	stateFile := filepath.Join(tmpDir, ".agent_state.json")
 
 	session := NewSessionWithStateFile(nil, &MockAgent{}, tmpDir, "alpine", "test-project", stateFile, "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 
 	// Initialize
 	if err := session.InitializeAgentState(1000); err != nil {
@@ -230,6 +236,7 @@ func TestSession_AgentStatePersistence(t *testing.T) {
 func TestSession_Signals(t *testing.T) {
 	tmpDir := t.TempDir()
 	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 
 	// Test createSignal
 	if err := session.createSignal("TEST_SIGNAL"); err != nil {
@@ -282,6 +289,7 @@ func TestSession_Stop(t *testing.T) {
 func TestSession_RunCleanerAgent(t *testing.T) {
 	tmpDir := t.TempDir()
 	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 
 	// Create temp file to delete
 	tmpFile := filepath.Join(tmpDir, "to_delete.txt")
@@ -309,6 +317,7 @@ func TestSession_RunCleanerAgent(t *testing.T) {
 func TestSession_LoadFeatures(t *testing.T) {
 	tmpDir := t.TempDir()
 	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 
 	features := session.loadFeatures()
 	if features != nil {
@@ -335,6 +344,7 @@ func TestSession_RunLoop_SingleIteration(t *testing.T) {
 
 	mockDocker, _ := docker.NewMockClient()
 	session := NewSession(mockDocker, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 	session.MaxIterations = 1
 
 	ctx := context.Background()
@@ -350,6 +360,7 @@ func TestSession_RunQAAgent(t *testing.T) {
 		Workspace: tmpDir,
 	}
 	session := NewSession(nil, mockAgent, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 	
 	// Inject Store and Project into MockAgent now that session is created with DBStore
 	mockAgent.Store = session.DBStore
@@ -380,6 +391,7 @@ func TestSession_RunManagerAgent(t *testing.T) {
 	tmpDir := t.TempDir()
 	mockAgent := &MockAgent{}
 	session := NewSession(nil, mockAgent, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 	session.ManagerAgent = mockAgent
 
 	// 1. All passing -> Approved
@@ -436,6 +448,7 @@ func TestSession_Start_MountsBridge(t *testing.T) {
 	}
 
 	session := NewSession(d, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 	if err := session.Start(context.Background()); err != nil {
 		t.Fatalf("Start failed: %v", err)
 	}
@@ -462,6 +475,7 @@ func TestSession_FixPermissions(t *testing.T) {
 	tmpDir := t.TempDir()
 	d, _ := docker.NewMockClient()
 	session := NewSession(d, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 	session.ContainerID = "test-container"
 
 	// fixPermissions calls ExecAsUser, which in MockClient returns mock-exec-id and nil error by default.
@@ -486,6 +500,7 @@ func TestSession_EnsureConflictTask(t *testing.T) {
 	}
 
 	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 	session.DBStore = mockDB
 	session.Project = "test-project"
 
@@ -598,6 +613,7 @@ func TestSession_ProcessResponse_Commands(t *testing.T) {
 	}
 
 	session := NewSession(d, &MockAgent{}, "/tmp", "alpine", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 	session.ContainerID = "test-container"
 
 	// 1. Success
@@ -629,6 +645,7 @@ func TestSession_ProcessResponse_Blockers(t *testing.T) {
 	}
 
 	session := NewSession(d, &MockAgent{}, "/tmp", "alpine", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 	session.ContainerID = "test-container"
 
 	_, err := session.ProcessResponse(context.Background(), "some response")
@@ -646,6 +663,7 @@ func TestSession_BootstrapGit(t *testing.T) {
 	}
 
 	session := NewSession(d, &MockAgent{}, "/tmp", "alpine", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 	session.ContainerID = "test-container"
 
 	if err := session.bootstrapGit(context.Background()); err != nil {
@@ -669,6 +687,7 @@ func TestSession_EnsureImage(t *testing.T) {
 	}
 
 	session := NewSession(d, &MockAgent{}, "/tmp", "ghcr.io/process-failed-successfully/recac-agent:latest", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 
 	if err := session.ensureImage(context.Background()); err != nil {
 		t.Errorf("ensureImage failed: %v", err)
@@ -682,6 +701,7 @@ func TestSession_EnsureImage(t *testing.T) {
 func TestSession_ProcessResponse_JSON(t *testing.T) {
 	d := &MockDockerClient{}
 	session := NewSession(d, &MockAgent{}, "/tmp", "alpine", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 
 	// JSON block that looks like it might be bash but should be skipped
 	response := "```bash\n{\"key\": \"value\"}\n```"
@@ -711,6 +731,7 @@ func TestSession_RunInitScript(t *testing.T) {
 	}
 
 	session := NewSession(d, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 	session.ContainerID = "test-container"
 
 	// It runs in background, so we need to wait a bit or just verify it didn't crash
@@ -739,6 +760,7 @@ func TestSession_FixPasswdDatabase(t *testing.T) {
 	}
 
 	session := NewSession(d, &MockAgent{}, "/tmp", "alpine", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 	session.ContainerID = "test-container"
 
 	session.fixPasswdDatabase(context.Background(), "1000:1000")
@@ -765,6 +787,7 @@ func TestSession_RunLoop_Stall(t *testing.T) {
 	mockAgent := &MockAgent{Response: "I am thinking..."}
 
 	session := NewSession(d, mockAgent, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 	session.MaxIterations = 5
 	session.Project = "test-project"
 
@@ -810,6 +833,7 @@ func TestSession_EnsureImage_CustomDockerfile(t *testing.T) {
 	}
 
 	session := NewSession(d, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 
 	err := session.ensureImage(context.Background())
 	if err != nil {
@@ -843,6 +867,7 @@ func TestSession_RunLoop_QAPassed(t *testing.T) {
 	mockManager := &MockAgent{Response: "Approved"}
 
 	session := NewSession(d, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 	session.ManagerAgent = mockManager
 	session.MaxIterations = 2
 

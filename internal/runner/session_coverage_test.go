@@ -76,6 +76,7 @@ func TestSession_ProcessResponse_Timeout_Coverage(t *testing.T) {
 	}
 
 	session := NewSession(mockDocker, &MockAgent{}, "/tmp", "alpine", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 	session.ContainerID = "test-container"
 
 	response := "```bash\nsleep 2\n```"
@@ -93,6 +94,7 @@ func TestSession_ProcessResponse_Timeout_Coverage(t *testing.T) {
 
 func TestSession_ProcessResponse_JSONBlock_Coverage(t *testing.T) {
 	session := NewSession(nil, &MockAgent{}, "/tmp", "alpine", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 
 	response := "```bash\n{\"key\": \"value\"}\n```"
 	output, _ := session.ProcessResponse(context.Background(), response)
@@ -109,6 +111,7 @@ func TestSession_BootstrapGit_Error_Coverage(t *testing.T) {
 	}
 
 	session := NewSession(mockDocker, &MockAgent{}, "/tmp", "alpine", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 	session.ContainerID = "test-container"
 
 	err := session.bootstrapGit(context.Background())
@@ -124,6 +127,7 @@ func TestSession_FixPermissions_Error_Coverage(t *testing.T) {
 	}
 
 	session := NewSession(mockDocker, &MockAgent{}, "/tmp", "alpine", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 	session.ContainerID = "test-container"
 
 	err := session.fixPermissions(context.Background())

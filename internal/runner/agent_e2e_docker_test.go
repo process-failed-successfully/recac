@@ -30,6 +30,7 @@ func TestSession_E2E_DockerFileWrite(t *testing.T) {
 	// but let's use RunIteration for a full flow.
 
 	s := NewSession(dockerCli, mockAgent, tmpWorkspace, "recac-agent:latest", "e2e-test", "gemini", "gemini-pro", 1)
+	defer s.Stop(ctx)
 	s.MaxIterations = 1
 
 	// 4. Start Session (this should trigger fixPasswdDatabase)

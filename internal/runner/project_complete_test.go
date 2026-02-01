@@ -71,6 +71,7 @@ func TestProjectCompleteFlow(t *testing.T) {
 
 	// Create Session
 	session := NewSession(dockerCli, agentClient, workspace, "ubuntu:latest", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 	session.FeatureContent = featureContent
 
 	// Inject Store and Project into MockAgent
