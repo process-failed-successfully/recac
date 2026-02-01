@@ -200,12 +200,29 @@ func runGenerateTicketsCmd(cmd *cobra.Command, args []string) {
 		exit(1)
 	}
 
-	// 2. Setup Jira Client
+	// 2. Setup Provider & Model
+	provider, _ := cmd.Flags().GetString("provider")
+	if provider == "" {
+		provider = viper.GetString("provider")
+	}
+	model, _ := cmd.Flags().GetString("model")
+	if model == "" {
+		model = viper.GetString("model")
+	}
+
+	// 3. Setup Jira Client
 	ctx := context.Background()
-	jiraClient, err := cmdutils.GetJiraClient(ctx)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		exit(1)
+	var jiraClient jira.ClientInterface
+
+	if provider == "mock" {
+		fmt.Println("Using Mock Jira Client")
+		jiraClient = jira.NewMockClient()
+	} else {
+		jiraClient, err = cmdutils.GetJiraClient(ctx)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			exit(1)
+		}
 	}
 
 	projectKey, _ := cmd.Flags().GetString("project")
@@ -220,15 +237,7 @@ func runGenerateTicketsCmd(cmd *cobra.Command, args []string) {
 		exit(1)
 	}
 
-	// 3. Setup Agent
-	provider, _ := cmd.Flags().GetString("provider")
-	if provider == "" {
-		provider = viper.GetString("provider")
-	}
-	model, _ := cmd.Flags().GetString("model")
-	if model == "" {
-		model = viper.GetString("model")
-	}
+	// 4. Setup Agent
 
 	ag, err := agentClientFactory(ctx, provider, model, ".", "recac-jira-gen")
 	if err != nil {
