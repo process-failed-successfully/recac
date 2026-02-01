@@ -61,6 +61,16 @@ func TestMockAgent_Scenarios(t *testing.T) {
 	if !strings.Contains(resp, "cat << 'EOF' > primes.py") {
 		t.Errorf("Expected implementation bash script, got: %s", resp)
 	}
+
+	// 4. Completion Loop Scenario
+	loopPrompt := "Implement primes.py. History: git commit output: nothing to commit, working tree clean"
+	resp, err = agent.Send(ctx, loopPrompt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(resp, "agent-bridge update --id \"[PRIMES]\" --status done") {
+		t.Errorf("Expected agent-bridge update command, got: %s", resp)
+	}
 }
 
 func TestTruncateString(t *testing.T) {

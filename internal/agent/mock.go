@@ -97,6 +97,18 @@ EOF
 	// 4. Implementation Prompt (Coding Agent)
 	// Triggered if it asks for primes.py implementation details
 	if strings.Contains(prompt, "primes.py") {
+		// LOOP BREAK: If we see "nothing to commit" in the prompt (which includes history),
+		// it means we already implemented it. Mark as done to break the loop.
+		if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") || strings.Contains(prompt, "Nothing to commit") {
+			return `It looks like the work is already done and committed. I will mark the task as completed.
+
+` + "```bash" + `
+agent-bridge update --id "[PRIMES]" --status done
+echo "Task marked as done."
+` + "```" + `
+`, nil
+		}
+
 		return `I will create the primes.py script and the output file.
 
 ` + "```bash" + `
