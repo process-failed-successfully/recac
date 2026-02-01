@@ -94,6 +94,17 @@ agent-bridge import --file feature_list.json
 	isPrimesTask := strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "primes.json") || strings.Contains(prompt, "req-primes")
 
 	if isPrimesTask {
+		// Smart Check: If the prompt indicates that we already tried to commit and it was empty,
+		// it means the files are already there and correct. We should mark the task as done.
+		if strings.Contains(prompt, "Nothing to commit") || strings.Contains(prompt, "working tree clean") {
+			return `The task seems to be completed. I will mark it as done.
+
+` + "```bash" + `
+agent-bridge feature set req-primes --status done --passes true
+` + "```" + `
+`, nil
+		}
+
 		return `I will create the primes.py script and generate the JSON file as requested.
 
 ` + "```bash" + `

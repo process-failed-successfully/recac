@@ -34,3 +34,30 @@ func TestTruncateString(t *testing.T) {
 		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
 	}
 }
+
+func TestMockAgent_PrimesLoop(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Simulate the prompt received after a successful (but empty) commit
+	prompt := `
+output:
+On branch agent/MFLP-2901
+nothing to commit, working tree clean
+Nothing to commit
+
+primes.py content...
+`
+	// We need to make sure isPrimesTask triggers. It looks for "primes.py" or "primes.json" or "req-primes".
+	prompt += " primes.py "
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// We expect the response to contain the completion command
+	expectedCmd := "agent-bridge feature set req-primes --status done --passes true"
+	if !strings.Contains(response, expectedCmd) {
+		t.Errorf("Expected response to contain completion command '%s', got: %s", expectedCmd, response)
+	}
+}
