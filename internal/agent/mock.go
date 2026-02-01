@@ -107,7 +107,7 @@ python3 primes.py
 
 # Add and commit
 git add primes.py primes.json
-git commit -m "Add primes script and output"
+git commit -m "Add primes script and output" || echo "Nothing to commit"
 ` + "```" + `
 `, nil
 	}

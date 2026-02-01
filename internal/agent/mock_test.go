@@ -53,3 +53,18 @@ func TestTruncateString(t *testing.T) {
 		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
 	}
 }
+
+func TestMockAgent_CommitFallback(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Please implement primes.py"
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	expected := `git commit -m "Add primes script and output" || echo "Nothing to commit"`
+	if !strings.Contains(response, expected) {
+		t.Errorf("Expected fallback logic in commit command. Got:\n%s", response)
+	}
+}
