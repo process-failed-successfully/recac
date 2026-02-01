@@ -13,25 +13,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type MockK8sClient struct {
-	ListPodsFunc  func(ctx context.Context, labelSelector string) ([]corev1.Pod, error)
-	DeletePodFunc func(ctx context.Context, name string) error
-}
-
-func (m *MockK8sClient) ListPods(ctx context.Context, labelSelector string) ([]corev1.Pod, error) {
-	if m.ListPodsFunc != nil {
-		return m.ListPodsFunc(ctx, labelSelector)
-	}
-	return nil, nil
-}
-
-func (m *MockK8sClient) DeletePod(ctx context.Context, name string) error {
-	if m.DeletePodFunc != nil {
-		return m.DeletePodFunc(ctx, name)
-	}
-	return nil
-}
-
 func TestStopCmd_LocalSession(t *testing.T) {
 	// Setup MockSessionManager
 	mockSM := NewMockSessionManager()

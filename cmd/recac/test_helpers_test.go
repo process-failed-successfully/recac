@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // setupTestSessionManager creates a real SessionManager in a temporary directory for integration tests.
@@ -367,6 +369,34 @@ func (m *MockGitClient) DeleteLocalBranch(repoPath, branch string) error {
 		return m.DeleteLocalBranchFunc(repoPath, branch)
 	}
 	return nil
+}
+
+// MockK8sClient is a mock implementation of the IK8sClient interface.
+type MockK8sClient struct {
+	ListPodsFunc   func(ctx context.Context, labelSelector string) ([]corev1.Pod, error)
+	DeletePodFunc  func(ctx context.Context, name string) error
+	GetPodLogsFunc func(ctx context.Context, name string, tailLines int64) (string, error)
+}
+
+func (m *MockK8sClient) ListPods(ctx context.Context, labelSelector string) ([]corev1.Pod, error) {
+	if m.ListPodsFunc != nil {
+		return m.ListPodsFunc(ctx, labelSelector)
+	}
+	return nil, nil
+}
+
+func (m *MockK8sClient) DeletePod(ctx context.Context, name string) error {
+	if m.DeletePodFunc != nil {
+		return m.DeletePodFunc(ctx, name)
+	}
+	return nil
+}
+
+func (m *MockK8sClient) GetPodLogs(ctx context.Context, name string, tailLines int64) (string, error) {
+	if m.GetPodLogsFunc != nil {
+		return m.GetPodLogsFunc(ctx, name, tailLines)
+	}
+	return "", nil
 }
 
 func (m *MockGitClient) Run(repoPath string, args ...string) (string, error) {

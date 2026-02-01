@@ -1,7 +1,10 @@
 package main
 
 import (
+	"context"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"path/filepath"
 	"recac/internal/runner"
@@ -131,12 +134,22 @@ func TestSearchLogs(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			matchFunc, err := getMatchFunc(tc.pattern, tc.useRegexp, tc.caseSensitive)
+			if tc.expectedError != "" {
+				if err != nil {
+					require.Contains(t, err.Error(), tc.expectedError)
+					return
+				}
+				// If error was expected but getMatchFunc succeeded, we might fail later or passing invalid regex is caught here.
+				// For invalid regex, getMatchFunc returns error.
+			}
+			require.NoError(t, err)
+
 			// Use a dummy cobra command to capture output
 			cmd, out, _ := newRootCmd()
-			err := doSearchLogs(mockSM, tc.pattern, cmd, tc.useRegexp, tc.caseSensitive)
+			err = doSearchLogs(mockSM, matchFunc, cmd)
 
-			if tc.expectedError != "" {
-				require.Error(t, err)
+			if tc.expectedError != "" && err != nil {
 				require.Contains(t, err.Error(), tc.expectedError)
 			} else {
 				require.NoError(t, err)
@@ -151,6 +164,63 @@ func TestSearchLogs(t *testing.T) {
 					require.ElementsMatch(t, tc.expectedLines, outputLines)
 				}
 			}
+		})
+	}
+}
+
+func TestSearchLogs_Remote(t *testing.T) {
+	mockK8s := &MockK8sClient{
+		ListPodsFunc: func(ctx context.Context, labelSelector string) ([]corev1.Pod, error) {
+			return []corev1.Pod{
+				{ObjectMeta: metav1.ObjectMeta{Name: "pod-1"}},
+				{ObjectMeta: metav1.ObjectMeta{Name: "pod-2"}},
+			}, nil
+		},
+		GetPodLogsFunc: func(ctx context.Context, name string, tailLines int64) (string, error) {
+			if name == "pod-1" {
+				return "INFO: System started\nERROR: Connection failed", nil
+			}
+			if name == "pod-2" {
+				return "DEBUG: Processing request\nINFO: Connection successful", nil
+			}
+			return "", nil
+		},
+	}
+
+	testCases := []struct {
+		name          string
+		pattern       string
+		expectedLines []string
+	}{
+		{
+			name:    "Remote Search Match",
+			pattern: "Connection",
+			expectedLines: []string{
+				"[pod-1] ERROR: Connection failed",
+				"[pod-2] INFO: Connection successful",
+			},
+		},
+		{
+			name:    "Remote Search Specific Pod",
+			pattern: "failed",
+			expectedLines: []string{
+				"[pod-1] ERROR: Connection failed",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			matchFunc, err := getMatchFunc(tc.pattern, false, false)
+			require.NoError(t, err)
+
+			cmd, out, _ := newRootCmd()
+			err = doSearchLogsRemote(mockK8s, matchFunc, cmd)
+			require.NoError(t, err)
+
+			output := out.String()
+			outputLines := strings.Split(strings.TrimSpace(strings.ReplaceAll(output, "\r\n", "\n")), "\n")
+			require.ElementsMatch(t, tc.expectedLines, outputLines)
 		})
 	}
 }
