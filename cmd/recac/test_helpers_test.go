@@ -277,6 +277,15 @@ func executeCommand(root *cobra.Command, args ...string) (output string, err err
 	}
 	defer func() { exit = oldExit }()
 
+	// Mock exitFunc (used by start.go)
+	oldExitFunc := exitFunc
+	exitFunc = func(code int) {
+		if code != 0 {
+			panic(fmt.Sprintf("exit-%d", code))
+		}
+	}
+	defer func() { exitFunc = oldExitFunc }()
+
 	// Use a defer with recover to handle our mocked exit(1)
 	defer func() {
 		if r := recover(); r != nil {

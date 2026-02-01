@@ -44,7 +44,33 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
-	// 2. Implementation Request (Writing the file)
+	// 2. Initializer Logic
+	// Matches prompt from Initializer Agent asking to create feature list
+	if strings.Contains(prompt, "INITIALIZER AGENT") || strings.Contains(prompt, "feature_list.json") {
+		return `I will create the initial feature list based on the requirements.
+
+` + "```bash" + `
+cat << 'EOF' > feature_list.json
+[
+  {
+    "id": "req-primes",
+    "name": "Implement Prime Number Script",
+    "description": "Create a python script to calculate primes.",
+    "status": "pending",
+    "files": ["primes.py"]
+  }
+]
+EOF
+
+# Verify agent-bridge is available (for debug)
+if command -v agent-bridge > /dev/null; then
+  echo "agent-bridge available"
+fi
+` + "```" + `
+`, nil
+	}
+
+	// 3. Implementation Request (Writing the file)
 	// Matches prompt asking to implement "PRIMES" or "primes.py"
 	// Also check for [GEN] tag which appears in E2E tests
 	if strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[GEN]") {
