@@ -11,7 +11,7 @@ import (
 
 func TestServer_Handlers_Error(t *testing.T) {
 	mockStore := &MockStore{}
-	s := NewServer(mockStore, 0, "test-project")
+	s := NewServer(mockStore, 0, "test-project", ".")
 
 	// Case 1: GetFeatures Error
 	mockStore.GetFeaturesFunc = func(projectID string) (string, error) {

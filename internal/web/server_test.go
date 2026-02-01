@@ -13,7 +13,7 @@ import (
 
 func TestServer_HandleFeatures(t *testing.T) {
 	mockStore := &MockStore{}
-	server := NewServer(mockStore, 8080, "test-proj")
+	server := NewServer(mockStore, 8080, "test-proj", ".")
 
 	// Prepare mock data
 	featureList := db.FeatureList{
@@ -48,7 +48,7 @@ func TestServer_HandleFeatures(t *testing.T) {
 
 func TestServer_HandleFeatures_Empty(t *testing.T) {
 	mockStore := &MockStore{}
-	server := NewServer(mockStore, 8080, "test-proj")
+	server := NewServer(mockStore, 8080, "test-proj", ".")
 
 	mockStore.GetFeaturesFunc = func(projectID string) (string, error) {
 		return "", nil
@@ -66,7 +66,7 @@ func TestServer_HandleFeatures_Empty(t *testing.T) {
 
 func TestServer_HandleGraph(t *testing.T) {
 	mockStore := &MockStore{}
-	server := NewServer(mockStore, 8080, "test-proj")
+	server := NewServer(mockStore, 8080, "test-proj", ".")
 
 	featureList := db.FeatureList{
 		ProjectName: "test-proj",

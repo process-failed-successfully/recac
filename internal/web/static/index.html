@@ -3,78 +3,264 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Recac Dashboard</title>
+    <title>Recac Explorer</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 20px; background: #f4f4f4; }
-        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        h1, h2 { color: #333; }
-        .section { margin-bottom: 30px; }
+        body, html { height: 100%; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow: hidden; }
+        .app-container { display: flex; height: 100%; }
+
+        /* Sidebar */
+        .sidebar { width: 300px; background: #f8f9fa; border-right: 1px solid #ddd; display: flex; flex-direction: column; }
+        .sidebar-header { padding: 15px; border-bottom: 1px solid #ddd; background: #343a40; color: white; }
+        .sidebar-header h1 { margin: 0; font-size: 1.2em; }
+        .file-tree { flex: 1; overflow-y: auto; padding: 10px; }
+        .file-node { cursor: pointer; padding: 4px 8px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.9em; }
+        .file-node:hover { background: #e9ecef; }
+        .file-node.selected { background: #007bff; color: white; }
+        .dir-node { font-weight: bold; margin-top: 5px; color: #495057; }
+        .dir-children { margin-left: 15px; border-left: 1px solid #ddd; }
+
+        /* Main Content */
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .top-bar { padding: 10px 20px; border-bottom: 1px solid #ddd; background: white; display: flex; align-items: center; justify-content: space-between; }
+        .tabs { display: flex; gap: 10px; }
+        .tab { padding: 8px 16px; cursor: pointer; border-radius: 4px; border: 1px solid #ddd; background: #f8f9fa; }
+        .tab.active { background: #007bff; color: white; border-color: #007bff; }
+
+        .content-area { flex: 1; overflow: auto; padding: 20px; background: white; position: relative; }
+
+        /* Views */
+        #code-view pre { margin: 0; padding: 15px; background: #f8f9fa; border-radius: 4px; border: 1px solid #ddd; font-family: 'Courier New', Courier, monospace; }
+        #diagram-view { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+        #features-view table { width: 100%; border-collapse: collapse; }
+        #features-view th, #features-view td { text-align: left; padding: 12px; border-bottom: 1px solid #ddd; }
+        #features-view th { background-color: #f8f9fa; }
+
+        .hidden { display: none !important; }
+
         .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
         .status-done { background: #d4edda; color: #155724; }
         .status-inprogress { background: #cce5ff; color: #004085; }
         .status-pending { background: #e2e3e5; color: #383d41; }
         .status-failed { background: #f8d7da; color: #721c24; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #ddd; }
-        th { background-color: #f8f9fa; }
-        #graph { width: 100%; height: 500px; border: 1px solid #ddd; background: white; overflow: hidden; }
+
+        /* Spinner */
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <h1>Recac Project Dashboard</h1>
-
-        <div class="section">
-            <h2>Task Dependency Graph</h2>
-            <div id="graph" class="mermaid">
-                <!-- Graph will be loaded here -->
-                graph TD;
-                  A[Loading...]
+    <div class="app-container">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1>Recac Explorer</h1>
+            </div>
+            <div id="file-tree" class="file-tree">
+                <!-- File tree loaded here -->
             </div>
         </div>
+        <div class="main-content">
+            <div class="top-bar">
+                <div class="tabs">
+                    <div class="tab" id="tab-dashboard" onclick="switchTab('dashboard')">Dashboard</div>
+                    <div class="tab hidden" id="tab-code" onclick="switchTab('code')">Code</div>
+                    <div class="tab hidden" id="tab-diagram" onclick="switchTab('diagram')">Diagram</div>
+                </div>
+                <div id="current-file" style="font-weight: bold; color: #555;"></div>
+            </div>
+            <div id="content-area" class="content-area">
+                <!-- Dashboard View -->
+                <div id="view-dashboard">
+                    <h2>Project Status</h2>
+                    <div id="project-graph" class="mermaid">
+                         graph TD; A[Loading...]
+                    </div>
+                    <h3>Features</h3>
+                    <div id="features-view">
+                         <table>
+                            <thead><tr><th>ID</th><th>Description</th><th>Status</th></tr></thead>
+                            <tbody id="features-tbody"></tbody>
+                         </table>
+                    </div>
+                </div>
 
-        <div class="section">
-            <h2>Features & Tasks</h2>
-            <table id="features-table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Description</th>
-                        <th>Status</th>
-                        <th>Priority</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Features will be loaded here -->
-                </tbody>
-            </table>
+                <!-- Code View -->
+                <div id="view-code" class="hidden">
+                    <pre><code id="code-content">Select a file...</code></pre>
+                </div>
+
+                <!-- Diagram View -->
+                <div id="view-diagram" class="hidden">
+                    <div id="diagram-content" class="mermaid"></div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
         mermaid.initialize({ startOnLoad: false });
 
-        async function loadData() {
+        let currentFile = null;
+
+        // Init
+        document.addEventListener('DOMContentLoaded', async () => {
+            switchTab('dashboard');
+            loadDashboard();
+            loadFileTree();
+        });
+
+        async function loadDashboard() {
             try {
-                // Fetch Features
-                const featuresResp = await fetch('/api/features');
-                const features = await featuresResp.json();
+                // Features
+                const fResp = await fetch('/api/features');
+                const features = await fResp.json();
                 renderFeatures(features);
 
-                // Fetch Graph
-                const graphResp = await fetch('/api/graph');
-                const graphData = await graphResp.text();
-                renderGraph(graphData);
-
+                // Graph
+                const gResp = await fetch('/api/graph');
+                const gData = await gResp.text();
+                renderGraph('project-graph', gData);
             } catch (e) {
-                console.error("Error loading data:", e);
-                document.getElementById('graph').innerHTML = "Error loading data. Is the server running?";
+                console.error("Dashboard load failed", e);
+            }
+        }
+
+        async function loadFileTree() {
+            try {
+                const resp = await fetch('/api/files');
+                const tree = await resp.json();
+                const container = document.getElementById('file-tree');
+                container.innerHTML = '';
+                if (tree) {
+                    tree.forEach(node => container.appendChild(createFileNode(node)));
+                } else {
+                    container.textContent = "No files found or error.";
+                }
+            } catch (e) {
+                console.error("File tree load failed", e);
+            }
+        }
+
+        function createFileNode(node) {
+            const div = document.createElement('div');
+
+            if (node.type === 'dir') {
+                const title = document.createElement('div');
+                title.className = 'file-node dir-node';
+                title.textContent = '📁 ' + node.name;
+                div.appendChild(title);
+
+                const childrenContainer = document.createElement('div');
+                childrenContainer.className = 'dir-children hidden'; // Start collapsed? Maybe expanded for root?
+                // Let's check depth or just expand root
+                childrenContainer.classList.remove('hidden');
+
+                if (node.children) {
+                    node.children.forEach(child => childrenContainer.appendChild(createFileNode(child)));
+                }
+                div.appendChild(childrenContainer);
+
+                title.onclick = (e) => {
+                    e.stopPropagation();
+                    childrenContainer.classList.toggle('hidden');
+                };
+
+            } else {
+                div.className = 'file-node';
+                div.textContent = '📄 ' + node.name;
+                div.onclick = () => selectFile(node.path, div);
+            }
+            return div;
+        }
+
+        async function selectFile(path, element) {
+            // Highlight
+            document.querySelectorAll('.file-node').forEach(el => el.classList.remove('selected'));
+            element.classList.add('selected');
+
+            currentFile = path;
+            document.getElementById('current-file').textContent = path.split('/').pop(); // Simple name
+
+            // Show Tabs
+            document.getElementById('tab-code').classList.remove('hidden');
+            if (path.endsWith('.go')) {
+                document.getElementById('tab-diagram').classList.remove('hidden');
+            } else {
+                document.getElementById('tab-diagram').classList.add('hidden');
+            }
+
+            // Switch to Code
+            switchTab('code');
+
+            // Load Content
+            const codeEl = document.getElementById('code-content');
+            codeEl.textContent = "Loading...";
+            try {
+                const resp = await fetch(`/api/file?path=${encodeURIComponent(path)}`);
+                const text = await resp.text();
+                codeEl.textContent = text;
+            } catch (e) {
+                codeEl.textContent = "Error loading file: " + e;
+            }
+
+            // Reset Diagram
+            document.getElementById('diagram-content').innerHTML = '';
+        }
+
+        function switchTab(tabName) {
+            // Tabs
+            document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+            const activeTab = document.getElementById(`tab-${tabName}`);
+            if(activeTab) activeTab.classList.add('active');
+
+            // Views
+            document.getElementById('view-dashboard').classList.add('hidden');
+            document.getElementById('view-code').classList.add('hidden');
+            document.getElementById('view-diagram').classList.add('hidden');
+
+            document.getElementById(`view-${tabName}`).classList.remove('hidden');
+
+            if (tabName === 'diagram' && currentFile && currentFile.endsWith('.go')) {
+                loadDiagram(currentFile);
+            }
+        }
+
+        async function loadDiagram(path) {
+            const container = document.getElementById('diagram-content');
+            container.innerHTML = '<div class="spinner"></div>';
+
+            try {
+                const resp = await fetch(`/api/diagram?path=${encodeURIComponent(path)}`);
+                const text = await resp.text();
+                renderGraph('diagram-content', text);
+            } catch (e) {
+                container.innerHTML = 'Error loading diagram: ' + e;
+            }
+        }
+
+        async function renderGraph(elementId, graphDef) {
+            const element = document.getElementById(elementId);
+            element.removeAttribute('data-processed'); // Force re-render
+
+            if (!graphDef.trim().startsWith('graph') && !graphDef.trim().startsWith('classDiagram')) {
+                 element.innerHTML = '';
+                 const pre = document.createElement('pre');
+                 pre.textContent = graphDef;
+                 element.appendChild(pre);
+                 return;
+            }
+
+            element.textContent = graphDef;
+            try {
+                await mermaid.run({ nodes: [element] });
+            } catch (e) {
+                console.error("Mermaid error", e);
+                // element.innerHTML = "Mermaid syntax error (see console)";
             }
         }
 
         function renderFeatures(features) {
-            const tbody = document.querySelector('#features-table tbody');
+            const tbody = document.getElementById('features-tbody');
             tbody.innerHTML = '';
             features.forEach(f => {
                 const tr = document.createElement('tr');
@@ -83,44 +269,14 @@
                 else if (f.status === 'in_progress') statusClass = 'status-inprogress';
                 else if (f.status === 'failed') statusClass = 'status-failed';
 
-                const tdId = document.createElement('td');
-                tdId.textContent = f.id;
-                tr.appendChild(tdId);
-
-                const tdDesc = document.createElement('td');
-                tdDesc.textContent = f.description;
-                tr.appendChild(tdDesc);
-
-                const tdStatus = document.createElement('td');
-                const spanStatus = document.createElement('span');
-                spanStatus.className = `status-badge ${statusClass}`;
-                spanStatus.textContent = f.status;
-                tdStatus.appendChild(spanStatus);
-                tr.appendChild(tdStatus);
-
-                const tdPriority = document.createElement('td');
-                tdPriority.textContent = f.priority;
-                tr.appendChild(tdPriority);
-
+                tr.innerHTML = `
+                    <td>${f.id}</td>
+                    <td>${f.description}</td>
+                    <td><span class="status-badge ${statusClass}">${f.status}</span></td>
+                `;
                 tbody.appendChild(tr);
             });
         }
-
-        async function renderGraph(graphDef) {
-            const element = document.getElementById('graph');
-            // Check if graphDef is valid mermaid syntax
-            if (!graphDef.trim().startsWith('graph')) {
-                 element.innerHTML = '';
-                 const pre = document.createElement('pre');
-                 pre.textContent = graphDef;
-                 element.appendChild(pre);
-                 return;
-            }
-            element.textContent = graphDef;
-            await mermaid.run({ nodes: [element] });
-        }
-
-        document.addEventListener('DOMContentLoaded', loadData);
     </script>
 </body>
 </html>

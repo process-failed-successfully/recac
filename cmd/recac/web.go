@@ -73,7 +73,7 @@ var webCmd = &cobra.Command{
 			projectID = "default"
 		}
 
-		server := web.NewServer(store, webPort, projectID)
+		server := web.NewServer(store, webPort, projectID, session.Workspace)
 		return server.Start()
 	},
 }
