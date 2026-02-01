@@ -2,12 +2,12 @@ package runner
 
 import (
 	"context"
-	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"recac/internal/agent"
+	"recac/internal/db"
 	"recac/internal/notify"
 	"recac/internal/telemetry"
 )
@@ -29,6 +29,14 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	// 4. Setup: ui_verification.json (Should be detected)
 	os.WriteFile(filepath.Join(tmpDir, "ui_verification.json"), []byte("Verify Button Color"), 0644)
 
+	// 5. Initialize DB
+	dbPath := filepath.Join(tmpDir, "test.db")
+	store, err := db.NewSQLiteStore(dbPath)
+	if err != nil {
+		t.Fatalf("Failed to init db: %v", err)
+	}
+	defer store.Close()
+
 	// 5. Initialize Session
 	mockDocker := &MockDockerForExec{}
 	mockAgent := agent.NewMockAgent()
@@ -39,6 +47,9 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 		FeatureContent:   features,
 		ManagerFrequency: 5,
 		MaxIterations:    5,
+		DBStore:          store,
+		Project:          "test-project",
+		SkipQA:           true,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
 		Logger:           telemetry.NewLogger(true, "", false),
 	}
@@ -51,8 +62,14 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 
 	// Since all features pass, it should mark COMPLETED and print UI verification msg.
 	// We mainly verify it DOESN'T fail or block.
-	// ErrNoOp is expected because the MockAgent returns empty responses.
-	if err != nil && !errors.Is(err, ErrNoOp) {
+	// It should return nil (Success) because COMPLETED signal is set.
+	if err != nil {
 		t.Errorf("RunLoop failed: %v", err)
+	}
+
+	// Verify Signal
+	val, err := store.GetSignal("test-project", "PROJECT_SIGNED_OFF")
+	if err != nil || val != "true" {
+		t.Errorf("Expected PROJECT_SIGNED_OFF signal to be true, got %s (err: %v)", val, err)
 	}
 }

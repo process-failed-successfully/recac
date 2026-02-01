@@ -32,6 +32,23 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	// 0. QA/Manager Prompts (Higher Priority)
+	if strings.Contains(prompt, "QA AGENT") {
+		return `QA Checks Passed.
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	if strings.Contains(prompt, "PROJECT MANAGER") || strings.Contains(prompt, "manager agent") {
+		return `Project Approved.
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
+	}
+
 	// 1. Ticket Generation Prompt (from PrimePythonScenario.AppSpec via recac jira generate-from-spec)
 	// Requires []ticketNode (JSON Array)
 	if strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "MUST create exactly ONE ticket") {
@@ -111,7 +128,10 @@ python3 primes.py
 git config user.email "agent@recac.com"
 git config user.name "Recac Agent"
 git add primes.py primes.json
-git commit -m "Add primes script and output"
+git commit -m "Add primes script and output" || echo "Nothing to commit"
+
+# Mark Feature Done
+agent-bridge feature set PRIMES --status done --passes true
 ` + "```" + `
 
 Done.
