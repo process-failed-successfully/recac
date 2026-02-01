@@ -32,6 +32,31 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	// 0. Ticket Generation Phase (generate-from-spec)
+	if strings.Contains(prompt, "generate-from-spec") || strings.Contains(prompt, "Ticket Generation") || strings.Contains(prompt, "ticket plan") {
+		return `[
+  {
+    "id": "MOCK-1",
+    "title": "Setup Project Structure",
+    "description": "Initialize the project with required files.",
+    "type": "Task",
+    "status": "Todo",
+    "points": 1,
+    "priority": "High"
+  },
+  {
+    "id": "MOCK-2",
+    "title": "Implement Core Logic",
+    "description": "Implement the main functionality.",
+    "type": "Story",
+    "status": "Todo",
+    "points": 3,
+    "priority": "Medium",
+    "blockers": ["MOCK-1"]
+  }
+]`, nil
+	}
+
 	// 1. Initializer Phase (creation of feature_list.json)
 	if strings.Contains(prompt, "feature_list.json") || strings.Contains(prompt, "Initialize") {
 		return `I will initialize the project by creating the feature list.
