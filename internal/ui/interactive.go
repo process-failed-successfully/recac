@@ -71,6 +71,7 @@ type keyMap struct {
 	Up         key.Binding
 	Down       key.Binding
 	Enter      key.Binding
+	Newline    key.Binding // Alt+Enter for multiline
 	Slash      key.Binding
 	Bang       key.Binding // '!' for shell
 	Quit       key.Binding
@@ -79,12 +80,12 @@ type keyMap struct {
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Enter, k.Slash, k.Bang, k.Quit}
+	return []key.Binding{k.Enter, k.Newline, k.Slash, k.Bang, k.Quit}
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Up, k.Down, k.Enter},
+		{k.Up, k.Down, k.Enter, k.Newline},
 		{k.Slash, k.Bang, k.ToggleList, k.Quit},
 	}
 }
@@ -118,6 +119,10 @@ var keys = keyMap{
 	Enter: key.NewBinding(
 		key.WithKeys("enter"),
 		key.WithHelp("enter", "send"),
+	),
+	Newline: key.NewBinding(
+		key.WithKeys("alt+enter"),
+		key.WithHelp("alt+enter", "newline"),
 	),
 	Slash: key.NewBinding(
 		key.WithKeys("/"),
@@ -697,6 +702,12 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.toggleList()
 				return m, nil
 			}
+
+		case key.Matches(msg, m.keys.Newline):
+			// Simulate Enter key press to textarea to insert newline
+			var cmd tea.Cmd
+			m.textarea, cmd = m.textarea.Update(tea.KeyMsg{Type: tea.KeyEnter})
+			return m, cmd
 
 		case key.Matches(msg, m.keys.Enter):
 			// 1. Model Selection Mode
