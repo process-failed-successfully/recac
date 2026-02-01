@@ -112,6 +112,18 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
+	// QA Agent Logic
+	// If the prompt asks for QA/verification (contains "QA AGENT"), we should simulate a successful QA check.
+	if strings.Contains(prompt, "QA AGENT") {
+		return "Running QA checks...\n\n```bash\necho \"Running tests...\"\n# Simulate passing tests\necho \"Tests passed!\"\n\nif command -v agent-bridge >/dev/null 2>&1; then\n  agent-bridge signal QA_PASSED true\nelse\n  echo \"agent-bridge not found, skipping signal\"\nfi\n```", nil
+	}
+
+	// Project Manager Logic
+	// If the prompt asks for PM review (contains "PROJECT MANAGER"), we should simulate approval.
+	if strings.Contains(prompt, "PROJECT MANAGER") {
+		return "Reviewing project...\n\n```bash\necho \"Project looks good!\"\n\nif command -v agent-bridge >/dev/null 2>&1; then\n  agent-bridge signal PM_APPROVED true\nelse\n  echo \"agent-bridge not found, skipping signal\"\nfi\n```", nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
