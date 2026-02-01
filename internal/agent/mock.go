@@ -122,8 +122,12 @@ python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json"
 
-# Update status
-agent-bridge update --id req-primes --status done --passes true
+# Update status (check if bridge exists to avoid errors in local tests)
+if command -v agent-bridge > /dev/null; then
+  agent-bridge update --id req-primes --status done --passes true || true
+  agent-bridge update --id req-primes-py-exists --status done --passes true || true
+  agent-bridge update --id req-primes-json-contains-correct-p --status done --passes true || true
+fi
 ` + "```" + `
 `, nil
 	}
@@ -134,7 +138,9 @@ agent-bridge update --id req-primes --status done --passes true
 
 ` + "```bash" + `
 # Signal success
-agent-bridge signal set QA_PASSED true
+if command -v agent-bridge > /dev/null; then
+  agent-bridge signal set QA_PASSED true
+fi
 ` + "```" + `
 QA Passed.
 `, nil
@@ -146,7 +152,9 @@ QA Passed.
 
 ` + "```bash" + `
 # Signal completion
-agent-bridge signal set PROJECT_SIGNED_OFF true
+if command -v agent-bridge > /dev/null; then
+  agent-bridge signal set PROJECT_SIGNED_OFF true
+fi
 ` + "```" + `
 Approved.
 `, nil
