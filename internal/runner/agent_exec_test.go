@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"recac/internal/db"
 	"recac/internal/notify"
 	"strings"
 	"testing"
@@ -16,6 +17,8 @@ type MockDockerForExec struct {
 	DockerClient
 	ExecutedCmds []string
 	ExecDelay    time.Duration
+	Store        db.Store
+	Project      string
 }
 
 func (m *MockDockerForExec) Exec(ctx context.Context, id string, cmd []string) (string, error) {
@@ -38,6 +41,22 @@ func (m *MockDockerForExec) Exec(ctx context.Context, id string, cmd []string) (
 	if strings.Contains(fullCmd, "cat recac_blockers.txt") || strings.Contains(fullCmd, "cat blockers.txt") {
 		return "", nil
 	}
+
+	// Intercept agent-bridge signal commands to update MockDB
+	if strings.Contains(fullCmd, "agent-bridge signal") && m.Store != nil {
+		// Parse: agent-bridge signal <KEY> <VALUE>
+		// fullCmd might be: /bin/bash -c agent-bridge signal QA_PASSED true
+		parts := strings.Fields(fullCmd)
+		for i, p := range parts {
+			if p == "signal" && i+2 < len(parts) {
+				key := parts[i+1]
+				val := parts[i+2]
+				_ = m.Store.SetSignal(m.Project, key, val)
+				break
+			}
+		}
+	}
+
 	return "Success: " + fullCmd, nil
 }
 

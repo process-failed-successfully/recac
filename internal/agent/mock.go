@@ -91,6 +91,24 @@ git commit -m "Add primes.py and primes.json"
 `, nil
 	}
 
+	// Heuristic for QA Agent
+	if strings.Contains(prompt, "QA AGENT") {
+		return `I will verify the project.
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// Heuristic for Project Manager
+	if strings.Contains(prompt, "PROJECT MANAGER") {
+		return `I will sign off.
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
+	}
+
 	// Heuristic for Initializer (create feature_list.json)
 	// Trigger: Prompt mentions "feature_list.json" or "Initialize" AND we are not just reporting success.
 	if strings.Contains(prompt, "feature_list.json") || strings.Contains(prompt, "Initialize") {
@@ -129,7 +147,7 @@ fi
 
 # Import it if agent-bridge is available
 if command -v agent-bridge >/dev/null 2>&1; then
-  agent-bridge import --file feature_list.json || echo "Import failed but continuing (mock mode)"
+  agent-bridge import --file feature_list.json || echo "Import skipped but continuing (mock mode)"
 else
   echo "agent-bridge not found (mock mode)"
 fi

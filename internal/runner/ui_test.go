@@ -30,7 +30,11 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "ui_verification.json"), []byte("Verify Button Color"), 0644)
 
 	// 5. Initialize Session
-	mockDocker := &MockDockerForExec{}
+	mockDB := &FaultToleranceMockDB{Signals: make(map[string]string)}
+	mockDocker := &MockDockerForExec{
+		Store:   mockDB,
+		Project: "test-project",
+	}
 	mockAgent := agent.NewMockAgent()
 	s := &Session{
 		Docker:           mockDocker,
@@ -41,6 +45,9 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 		MaxIterations:    5, // Prevent infinite loop
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
 		Logger:           telemetry.NewLogger(true, "", false),
+		DBStore:          mockDB,
+		Project:          "test-project",
+		AgentProvider:    "mock", // Enable Mock Agent for QA
 	}
 
 	// 6. Capture Stdout? (Hard to do in test without refactor).
