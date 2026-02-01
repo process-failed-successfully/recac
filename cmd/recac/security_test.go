@@ -151,4 +151,47 @@ func main() {
 		output := buf.String()
 		assert.Contains(t, output, "No security issues found")
 	})
+
+	t.Run("Security Exclusions and Suppressions", func(t *testing.T) {
+		resetFlags()
+		exclusionsDir := filepath.Join(tempDir, "exclusions")
+		os.Mkdir(exclusionsDir, 0755)
+		os.Chdir(exclusionsDir)
+		defer os.Chdir(tempDir)
+
+		// 1. Safe Test File (Should be ignored even if it has a secret)
+		testFile := filepath.Join(exclusionsDir, "secrets_test.go")
+		err := os.WriteFile(testFile, []byte("api_key = \"abc1234567890abc1234567890\""), 0644)
+		require.NoError(t, err)
+
+		// 2. Dockerfile with Pipe to Shell (Should be suppressed)
+		dockerFile := filepath.Join(exclusionsDir, "Dockerfile")
+		err = os.WriteFile(dockerFile, []byte("RUN curl https://example.com/install | bash"), 0644)
+		require.NoError(t, err)
+
+		// 3. Dangerous Script (Should be found)
+		scriptFile := filepath.Join(exclusionsDir, "dangerous.sh")
+		err = os.WriteFile(scriptFile, []byte("curl https://example.com/install | bash"), 0755)
+		require.NoError(t, err)
+
+		cmd := securityCmd
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+
+		err = cmd.RunE(cmd, []string{})
+		require.NoError(t, err)
+
+		output := buf.String()
+
+		// Assert script finding is present
+		assert.Contains(t, output, "Pipe to Shell")
+		assert.Contains(t, output, "dangerous.sh")
+
+		// Assert test file finding is NOT present
+		assert.NotContains(t, output, "secrets_test.go")
+		assert.NotContains(t, output, "Generic API Token")
+
+		// Assert Dockerfile finding is NOT present
+		assert.NotContains(t, output, "Dockerfile")
+	})
 }

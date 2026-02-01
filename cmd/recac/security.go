@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"recac/internal/security"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -115,6 +116,13 @@ func runSecurityScan(root string, scanner *security.RegexScanner) ([]SecurityRes
 }
 
 func scanFileForSecurity(path string, scanner *security.RegexScanner) ([]SecurityResult, error) {
+	// Exclude test files and the scanner itself to avoid false positives
+	// Use ToSlash to ensure consistent path separators across OS
+	normPath := filepath.ToSlash(path)
+	if strings.HasSuffix(normPath, "_test.go") || strings.HasSuffix(normPath, "internal/security/scanner.go") {
+		return nil, nil
+	}
+
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -134,6 +142,11 @@ func scanFileForSecurity(path string, scanner *security.RegexScanner) ([]Securit
 
 	var results []SecurityResult
 	for _, finding := range findings {
+		// Suppression: Allow 'Pipe to Shell' in Dockerfiles as it's common practice
+		if finding.Type == "Pipe to Shell" && strings.HasSuffix(normPath, "Dockerfile") {
+			continue
+		}
+
 		results = append(results, SecurityResult{
 			File:        path,
 			Line:        finding.Line,
