@@ -54,8 +54,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 2. Initialization for 'prime-python' scenario
 	// Detects "agent-bridge import" or "Feature List" + "initialize" to generate the feature list.
+	// Also explicitly checks for "INITIALIZER AGENT" role definition from templates.
 	// This must come BEFORE implementation check if there's overlap in keywords, or we ensure implementation check is specific enough.
-	if strings.Contains(prompt, "agent-bridge import") || (strings.Contains(prompt, "Feature List") && strings.Contains(prompt, "initialize")) {
+	if strings.Contains(prompt, "agent-bridge import") || strings.Contains(prompt, "INITIALIZER AGENT") || (strings.Contains(prompt, "Feature List") && strings.Contains(prompt, "initialize")) {
+		fmt.Println("MockAgent: Detected Initialization Prompt")
 		return `I will create the feature list and import it.
 
 ` + "```bash" + `
@@ -91,9 +93,11 @@ agent-bridge import --file feature_list.json
 	// We use a "greedy" match here: if it talks about the primes task AND it's NOT the ticket generation prompt (checked above),
 	// assume it's the coding task.
 	// We check for keywords related to the task.
-	isPrimesTask := strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "primes.json") || strings.Contains(prompt, "req-primes")
+	// CRITICAL: We strictly verify this is NOT an initialization prompt to prevent false positives.
+	isPrimesTask := (strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "primes.json") || strings.Contains(prompt, "req-primes")) && !strings.Contains(prompt, "INITIALIZER AGENT")
 
 	if isPrimesTask {
+		fmt.Println("MockAgent: Detected Implementation Prompt")
 		return `I will create the primes.py script and generate the JSON file as requested.
 
 ` + "```bash" + `
@@ -123,7 +127,7 @@ git add primes.py primes.json
 git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
 
 # Update status
-agent-bridge feature set req-primes --status done --passes true
+agent-bridge feature set req-primes --status done --passes true || echo "Failed to update status"
 ` + "```" + `
 `, nil
 	}
