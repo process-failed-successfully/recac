@@ -114,7 +114,15 @@ agent-bridge signal PROJECT_SIGNED_OFF true
 
 	// Heuristic for Initializer (create feature_list.json)
 	// Trigger: Prompt mentions "feature_list.json" or "Initialize" AND we are not just reporting success.
-	if strings.Contains(prompt, "feature_list.json") || strings.Contains(prompt, "Initialize") {
+	// EXCEPTION: If prompt mentions "feature_list.json already exists", we assume it's done and don't trigger again.
+	// EXCEPTION: If prompt mentions "[PRIMES]", we prefer Implementation logic (handled above, but fallthrough might happen if logic above isn't triggered).
+	// Actually, Implementation logic above has !isPlanning. If isPlanning is true, we might fall here.
+	// But Planning is handled by the first block.
+
+	shouldInitialize := (strings.Contains(prompt, "feature_list.json") || strings.Contains(prompt, "Initialize")) &&
+		!strings.Contains(prompt, "feature_list.json already exists")
+
+	if shouldInitialize {
 		// Only run if we haven't already done it (avoid infinite loop)
 		// We check if prompt implies current state has it? Hard to know.
 		// We rely on the script to be idempotent/safe.
