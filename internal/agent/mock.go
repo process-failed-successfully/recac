@@ -51,8 +51,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Initializer (Feature List)
-	// Triggers: "initialize", "feature_list.json"
-	if strings.Contains(lowerPrompt, "initialize") || strings.Contains(lowerPrompt, "feature_list.json") {
+	// Triggers: "initializer agent" (Specific Role) AND "feature_list.json"
+	// We use strict AND to avoid triggering on Coding Agent prompts which also contain "feature_list.json"
+	if strings.Contains(lowerPrompt, "initializer agent") && strings.Contains(lowerPrompt, "feature_list.json") {
 		// Return script to create feature_list.json
 		// Updated to match db.FeatureList structure
 		return `
