@@ -36,6 +36,8 @@ var (
 	// Use non-greedy match .*? to avoid ReDoS and improve performance
 	reDangerousCmd = regexp.MustCompile(`(?i)(?:^|[\s;&|()<>` + "`" + `])(rm|cat|cp|mv|chmod|chown)(?:$|[\s;&|()<>` + "`" + `]).*?(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
 	reRootDeletion = regexp.MustCompile(`(?im)(?:^|[\s;&|()<>` + "`" + `])rm\s+-[rRf]+\s+([/~]+[/*.]*)(?:\s|;|` + "`" + `|$)`)
+	rePipeShell       = regexp.MustCompile(`(?i)(curl|wget)\s+[^;&\n]*?\|\s*(bash|sh|zsh|python|perl|php|ruby)`)
+	reReverseShell    = regexp.MustCompile(`(?i)nc\s+.*?-e\s+.*`)
 )
 
 // NewRegexScanner creates a new scanner with default patterns
@@ -49,6 +51,8 @@ func NewRegexScanner() *RegexScanner {
 			"GitHub Token":      reGitHubToken,
 			"Dangerous Command": reDangerousCmd,
 			"Root Deletion":     reRootDeletion,
+			"Pipe to Shell":     rePipeShell,
+			"Reverse Shell":     reReverseShell,
 		},
 	}
 }
@@ -59,7 +63,8 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	lines := strings.Split(content, "\n")
 
 	// Pre-compute masked content for command checks
-	maskedContent := maskComments(content)
+	maskedComments := maskContent(content, false)
+	maskedAll := maskContent(content, true)
 
 	// Sort keys for deterministic output
 	keys := make([]string, 0, len(s.patterns))
@@ -72,9 +77,12 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 		pattern := s.patterns[name]
 		targetContent := content
 
-		// Use masked content for command checks to ignore comments
-		if name == "Dangerous Command" || name == "Root Deletion" {
-			targetContent = maskedContent
+		// Use masked content for command checks
+		switch name {
+		case "Dangerous Command", "Root Deletion":
+			targetContent = maskedComments
+		case "Pipe to Shell", "Reverse Shell":
+			targetContent = maskedAll
 		}
 
 		matches := pattern.FindAllStringIndex(targetContent, -1)
@@ -112,9 +120,8 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	return findings, nil
 }
 
-// maskComments replaces Bash-style comments with spaces to prevent false positives.
-// It respects string literals (single and double quotes) to avoid masking # inside strings.
-func maskComments(content string) string {
+// maskContent replaces Bash-style comments and optionally string content with spaces.
+func maskContent(content string, maskStrings bool) string {
 	bytes := []byte(content)
 	n := len(bytes)
 	inSingleQuote := false
@@ -126,14 +133,23 @@ func maskComments(content string) string {
 
 		if escaped {
 			escaped = false
+			if maskStrings && inDoubleQuote {
+				bytes[i] = ' '
+			}
 			continue
 		}
 
 		if b == '\\' {
 			if inSingleQuote {
 				// Backslash is literal in single quotes
+				if maskStrings {
+					bytes[i] = ' '
+				}
 			} else {
 				escaped = true
+				if maskStrings && inDoubleQuote {
+					bytes[i] = ' '
+				}
 			}
 			continue
 		}
@@ -141,6 +157,8 @@ func maskComments(content string) string {
 		if inSingleQuote {
 			if b == '\'' {
 				inSingleQuote = false
+			} else if maskStrings {
+				bytes[i] = ' '
 			}
 			continue
 		}
@@ -148,6 +166,8 @@ func maskComments(content string) string {
 		if inDoubleQuote {
 			if b == '"' {
 				inDoubleQuote = false
+			} else if maskStrings {
+				bytes[i] = ' '
 			}
 			continue
 		}

