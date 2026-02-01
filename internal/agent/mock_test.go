@@ -34,3 +34,34 @@ func TestTruncateString(t *testing.T) {
 		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
 	}
 }
+
+func TestMockAgent_TPM(t *testing.T) {
+	agent := NewMockAgent()
+	ctx := context.Background()
+
+	// 1. Test Generic TPM Prompt
+	tpmPrompt := "You are an expert Technical Program Manager... Application Specification: ..."
+	resp, err := agent.Send(ctx, tpmPrompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(resp, "ID:[MOCK-1]") {
+		t.Errorf("Expected generic mock ticket response, got: %s", resp)
+	}
+	if !strings.HasPrefix(strings.TrimSpace(resp), "[") {
+		t.Errorf("Expected JSON array response, got: %s", resp)
+	}
+
+	// 2. Test Primes Scenario
+	primesPrompt := "You are an expert Technical Program Manager... Application Specification: ... ID:[PRIMES] ..."
+	resp, err = agent.Send(ctx, primesPrompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(resp, "ID:[PRIMES]") {
+		t.Errorf("Expected PRIMES ticket response, got: %s", resp)
+	}
+	if !strings.Contains(resp, "primes.py") {
+		t.Errorf("Expected reference to primes.py, got: %s", resp)
+	}
+}
