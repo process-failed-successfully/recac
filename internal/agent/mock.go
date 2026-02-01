@@ -81,7 +81,7 @@ cat << 'EOF' > feature_list.json
 }
 EOF
 
-agent-bridge import --file feature_list.json
+cat feature_list.json | agent-bridge import
 ` + "```" + `
 `, nil
 	}

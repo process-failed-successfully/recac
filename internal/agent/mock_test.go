@@ -61,3 +61,18 @@ primes.py content...
 		t.Errorf("Expected response to contain completion command '%s', got: %s", expectedCmd, response)
 	}
 }
+
+func TestMockAgent_ImportCommand(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Please initialize the project with agent-bridge import"
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	expectedCmd := "cat feature_list.json | agent-bridge import"
+	if !strings.Contains(response, expectedCmd) {
+		t.Errorf("Expected response to contain import command '%s', got: %s", expectedCmd, response)
+	}
+}
