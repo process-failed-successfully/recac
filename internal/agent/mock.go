@@ -36,12 +36,18 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 1. Initializer / Feature List Phase
 	// Check for "Initialize" or "feature_list.json" in the prompt
+	// The CLI might send "generate-from-spec" which also needs special handling (returning JSON plan)
+	if strings.Contains(lowerPrompt, "generate-from-spec") || strings.Contains(lowerPrompt, "technical program manager") {
+		return m.handleTicketPlan(), nil
+	}
+
 	if strings.Contains(lowerPrompt, "initialize") || strings.Contains(lowerPrompt, "feature_list.json") {
 		return m.handleInitializer(), nil
 	}
 
 	// 2. Prime Python Scenario
 	// Check for [PRIMES] tag or primes.py filename
+	// Prioritize this over generic handlers if specific file is mentioned
 	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(lowerPrompt, "primes.py") {
 		return m.handlePrimes(), nil
 	}
@@ -56,6 +62,20 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
+}
+
+func (m *MockAgent) handleTicketPlan() string {
+	// Return a JSON array of tickets as expected by `jira generate-from-spec`
+	return `[
+  {
+    "id": "PRIMES",
+    "title": "Create Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to 'primes.json'.",
+    "type": "Task",
+    "status": "todo",
+    "points": 3
+  }
+]`
 }
 
 func (m *MockAgent) handleInitializer() string {
