@@ -39,6 +39,8 @@ var (
 	reDangerousCmd = regexp.MustCompile(`(?i)` + boundary + `(rm|cat|cp|mv|chmod|chown)\b[^;&|\n]*(?:^|[/\s"'])(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
 	// Allow trailing whitespace (\s*) because masking replaces comments with spaces
 	reRootDeletion = regexp.MustCompile(`(?i)` + boundary + `rm\s+-[rRf]+\s+(/+\*?|~(/+\*?)?)\s*$`)
+	rePipeShell    = regexp.MustCompile(`(?i)\b(curl|wget)\b\s+.*?\|\s*\b(bash|sh|zsh|python|perl|php|ruby)\b`)
+	reReverseShell = regexp.MustCompile(`(?i)\bnc\b\s+.*?-e\s+.*`)
 )
 
 // NewRegexScanner creates a new scanner with default patterns
@@ -52,6 +54,8 @@ func NewRegexScanner() *RegexScanner {
 			"GitHub Token":      reGitHubToken,
 			"Dangerous Command": reDangerousCmd,
 			"Root Deletion":     reRootDeletion,
+			"Pipe to Shell":     rePipeShell,
+			"Reverse Shell":     reReverseShell,
 		},
 	}
 }
