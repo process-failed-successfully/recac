@@ -103,9 +103,13 @@ EOF
 
 ` + "```bash" + `
 ls -l primes.py primes.json
+# Try to mark the feature as done, but ensure we don't fail the step if it fails
 if command -v agent-bridge >/dev/null 2>&1; then
-  agent-bridge feature set "[PRIMES]" --status done --passes true
+  agent-bridge feature set "[PRIMES]" --status done --passes true || echo "Warning: Failed to update feature status"
+else
+  echo "Warning: agent-bridge not found"
 fi
+exit 0
 ` + "```" + `
 `, nil
 		}
