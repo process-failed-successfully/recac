@@ -19,9 +19,15 @@ type Finding struct {
 	Line        int
 }
 
+// PatternConfig defines configuration for a specific security pattern
+type PatternConfig struct {
+	Pattern        *regexp.Regexp
+	IgnoreInQuotes bool
+}
+
 // RegexScanner implements Scanner using regular expressions
 type RegexScanner struct {
-	patterns map[string]*regexp.Regexp
+	patterns map[string]PatternConfig
 }
 
 var (
@@ -38,45 +44,138 @@ var (
 	reDangerousCmd = regexp.MustCompile(`(?mi)` + cmdPrefix + `\b(rm|cat|cp|mv|chmod|chown)\b.*(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
 	// reRootDeletion must ensure it matches the specific path and not a prefix (e.g. /tmp), but allow trailing separators/quotes.
 	reRootDeletion = regexp.MustCompile(`(?mi)` + cmdPrefix + `\brm\s+-[rRf]+\s+([/~]+|/|/\*)(?:$|[\s;&|)'"])`)
+
+	// New patterns
+	rePipeShell    = regexp.MustCompile(`(?i)(curl|wget)\s+.*?\|\s*(bash|sh|zsh|python|perl|php|ruby)`)
+	reReverseShell = regexp.MustCompile(`(?i)nc\s+.*?-e\s+.*`)
 )
 
 // NewRegexScanner creates a new scanner with default patterns
 func NewRegexScanner() *RegexScanner {
 	return &RegexScanner{
-		patterns: map[string]*regexp.Regexp{
-			"AWS Access Key":    reAWSAccessKey,
-			"Private Key":       rePrivateKey,
-			"Generic API Token": reGenericAPIToken,
-			"Slack Token":       reSlackToken,
-			"GitHub Token":      reGitHubToken,
-			"Dangerous Command": reDangerousCmd,
-			"Root Deletion":     reRootDeletion,
+		patterns: map[string]PatternConfig{
+			"AWS Access Key":    {Pattern: reAWSAccessKey, IgnoreInQuotes: false},
+			"Private Key":       {Pattern: rePrivateKey, IgnoreInQuotes: false},
+			"Generic API Token": {Pattern: reGenericAPIToken, IgnoreInQuotes: false},
+			"Slack Token":       {Pattern: reSlackToken, IgnoreInQuotes: false},
+			"GitHub Token":      {Pattern: reGitHubToken, IgnoreInQuotes: false},
+			"Dangerous Command": {Pattern: reDangerousCmd, IgnoreInQuotes: true},
+			"Root Deletion":     {Pattern: reRootDeletion, IgnoreInQuotes: true},
+			"Pipe to Shell":     {Pattern: rePipeShell, IgnoreInQuotes: true},
+			"Reverse Shell":     {Pattern: reReverseShell, IgnoreInQuotes: true},
 		},
 	}
 }
 
-// Scan checks the content for security patterns
-func (s *RegexScanner) Scan(content string) ([]Finding, error) {
-	// Mask comments to avoid false positives
-	lines := strings.Split(content, "\n")
-	maskedLines := make([]string, len(lines))
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "#") {
-			// Replace with spaces to preserve byte offsets
-			maskedLines[i] = strings.Repeat(" ", len(line))
+// maskContent replaces comments and optionally quoted content with spaces.
+// It uses a stateful parser to handle quotes and comments correctly.
+func (s *RegexScanner) maskContent(content string, maskQuotes bool) string {
+	var sb strings.Builder
+	sb.Grow(len(content))
+
+	inSingleQuote := false
+	inDoubleQuote := false
+	escaped := false
+	inComment := false // Starts with #
+
+	for i := 0; i < len(content); i++ {
+		char := content[i]
+
+		// Handle state transitions
+		if inComment {
+			if char == '\n' {
+				inComment = false
+				sb.WriteByte(char)
+			} else {
+				sb.WriteByte(' ')
+			}
+			continue
+		}
+
+		if inSingleQuote {
+			if escaped {
+				escaped = false
+			} else if char == '\\' {
+				escaped = true
+			} else if char == '\'' {
+				inSingleQuote = false
+			}
+			if maskQuotes {
+				if char == '\n' {
+					sb.WriteByte(char)
+				} else {
+					sb.WriteByte(' ')
+				}
+			} else {
+				sb.WriteByte(char)
+			}
+			continue
+		}
+
+		if inDoubleQuote {
+			if escaped {
+				escaped = false
+			} else if char == '\\' {
+				escaped = true
+			} else if char == '"' {
+				inDoubleQuote = false
+			}
+			if maskQuotes {
+				if char == '\n' {
+					sb.WriteByte(char)
+				} else {
+					sb.WriteByte(' ')
+				}
+			} else {
+				sb.WriteByte(char)
+			}
+			continue
+		}
+
+		// Normal state
+		if char == '#' {
+			inComment = true
+			sb.WriteByte(' ') // Mask the # itself
+		} else if char == '\'' {
+			inSingleQuote = true
+			if maskQuotes {
+				sb.WriteByte(' ')
+			} else {
+				sb.WriteByte(char)
+			}
+		} else if char == '"' {
+			inDoubleQuote = true
+			if maskQuotes {
+				sb.WriteByte(' ')
+			} else {
+				sb.WriteByte(char)
+			}
 		} else {
-			maskedLines[i] = line
+			sb.WriteByte(char)
 		}
 	}
-	maskedContent := strings.Join(maskedLines, "\n")
+	return sb.String()
+}
+
+// Scan checks the content for security patterns
+func (s *RegexScanner) Scan(content string) ([]Finding, error) {
+	// Pre-calculate masked contents
+	maskedWithQuotes := s.maskContent(content, true)
+	maskedWithoutQuotes := s.maskContent(content, false)
 
 	var findings []Finding
 
-	for name, pattern := range s.patterns {
-		matches := pattern.FindAllStringIndex(maskedContent, -1)
+	for name, config := range s.patterns {
+		var contentToScan string
+		if config.IgnoreInQuotes {
+			contentToScan = maskedWithQuotes
+		} else {
+			contentToScan = maskedWithoutQuotes
+		}
+
+		matches := config.Pattern.FindAllStringIndex(contentToScan, -1)
 		for _, match := range matches {
-			// Find line number using original content (though newlines are preserved)
+			// Find line number using original content
 			start := match[0]
 			lineNumber := 1
 			for i := 0; i < start; i++ {
@@ -98,11 +197,11 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	}
 
 	// Scan line by line for context-aware checks (optional optimization)
+	lines := strings.Split(content, "\n")
 	for i, line := range lines {
 		// Example: Check for hardcoded passwords in typical config patterns
 		if strings.Contains(strings.ToLower(line), "password") && strings.Contains(line, "=") {
-			// Very basic heuristic, improved by ensuring it's not a variable definition in code but a value assignment
-			// For now, we'll be conservative to avoid noise, relying mostly on strict regexes above.
+			// Very basic heuristic
 		}
 		_ = i
 	}
