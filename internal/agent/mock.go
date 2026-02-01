@@ -34,7 +34,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Check for MOCK-STORY implementation (prevent No-Op loop)
 	if strings.Contains(prompt, "ID:[MOCK-STORY]") || strings.Contains(prompt, "req-interface-is-defined") {
-		return "Implementing mock interface:\n\n```bash\ngit config user.email \"you@example.com\"\ngit config user.name \"Your Name\"\ntouch interface.txt\necho 'interface defined' > interface.txt\ngit add interface.txt\ngit commit -m 'Define interface'\n```", nil
+		return "Implementing mock interface:\n\n```bash\ngit config user.email \"you@example.com\"\ngit config user.name \"Your Name\"\ntouch interface.txt\necho 'interface defined' > interface.txt\ngit add interface.txt\ngit commit -m 'Define interface' || echo \"Nothing to commit\"\n```", nil
 	}
 
 	// Check if this is a ticket generation request (based on prompt content or context)
@@ -69,7 +69,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Check if this is the "Prime Python" scenario implementation phase
 	// This is the fallback for implementation prompts that don't match the specific MOCK-STORY check
 	if strings.Contains(prompt, "primes.py") {
-		return "Here is the implementation for primes.py:\n\n```bash\ngit config user.email \"you@example.com\"\ngit config user.name \"Your Name\"\ncat << 'EOF' > primes.py\nimport json\n\ndef is_prime(n):\n    if n <= 1: return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0: return False\n    return True\n\nprimes = [x for x in range(10000) if is_prime(x)]\nwith open('primes.json', 'w') as f:\n    json.dump({\"primes\": primes}, f)\nEOF\n\npython3 primes.py\ngit add primes.py\ngit add -f primes.json\ngit commit -m \"Add primes script and output\"\n```", nil
+		return "Here is the implementation for primes.py:\n\n```bash\ngit config user.email \"you@example.com\"\ngit config user.name \"Your Name\"\ncat << 'EOF' > primes.py\nimport json\n\ndef is_prime(n):\n    if n <= 1: return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0: return False\n    return True\n\nprimes = [x for x in range(10000) if is_prime(x)]\nwith open('primes.json', 'w') as f:\n    json.dump({\"primes\": primes}, f)\nEOF\n\npython3 primes.py\ngit add primes.py\ngit add -f primes.json\ngit commit -m \"Add primes script and output\" || echo \"Nothing to commit\"\n```", nil
 	}
 
 	// Legacy Planning Check (Fallback)
