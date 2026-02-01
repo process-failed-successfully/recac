@@ -112,6 +112,7 @@ cat primes.json | head -c 100
 		return `I will create the primes.py script and the output file.
 
 ` + "```bash" + `
+set +e # Don't exit on intermediate errors
 git config user.email "agent@recac.com"
 git config user.name "Recac Agent"
 
@@ -133,6 +134,7 @@ EOF
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Implement primes script" || echo "Nothing to commit"
+exit 0 # Always exit success to prevent container restart
 ` + "```" + `
 `, nil
 	}

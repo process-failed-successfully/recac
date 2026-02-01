@@ -67,6 +67,12 @@ func TestMockAgent_Scenarios(t *testing.T) {
 	if !strings.Contains(resp, "|| echo \"Nothing to commit\"") {
 		t.Errorf("Expected idempotent commit, got: %s", resp)
 	}
+	if !strings.Contains(resp, "exit 0") {
+		t.Errorf("Expected forced exit 0, got: %s", resp)
+	}
+	if !strings.Contains(resp, "set +e") {
+		t.Errorf("Expected set +e, got: %s", resp)
+	}
 }
 
 func TestMockAgent_StatefulPrimes(t *testing.T) {
