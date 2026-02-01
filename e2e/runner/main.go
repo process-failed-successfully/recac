@@ -301,6 +301,11 @@ func run() error {
 			log.Printf("Detected local registry. Using %s for pull.", pullRepo)
 		}
 
+		pollerType := "jira"
+		if provider == "mock" {
+			pollerType = "mock"
+		}
+
 		helmLargestCmd := []string{
 			"upgrade", "--install", releaseName, chartPath,
 			"--namespace", namespace,
@@ -308,7 +313,7 @@ func run() error {
 			"--set", fmt.Sprintf("image.tag=%s", tagPart),
 			"--set", fmt.Sprintf("image.pullPolicy=%s", pullPolicy),
 			"--set", "config.imagePullPolicy=IfNotPresent",
-			"--set", "config.poller=jira",
+			"--set", fmt.Sprintf("config.poller=%s", pollerType),
 			"--set", fmt.Sprintf("config.jira_label=%s", label),
 			"--set", fmt.Sprintf("config.jira_query=labels = \"%s\" AND issuetype != Epic AND statusCategory != Done ORDER BY created ASC", label),
 			"--set", "config.verbose=true",

@@ -149,6 +149,9 @@ func main() {
 		}
 		poller = orchestrator.NewGitHubPoller(token, owner, repo, ghLabel)
 		logger.Info("Using GitHub poller", "owner", owner, "repo", repo, "label", ghLabel)
+	case "mock":
+		poller = orchestrator.NewStaticMockPoller()
+		logger.Info("Using Static Mock poller")
 	default:
 		// Default to Jira
 		jClient, err := cmdutils.GetJiraClient(ctx) // Use shared cmdutils
