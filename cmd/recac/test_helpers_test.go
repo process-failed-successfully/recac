@@ -268,7 +268,7 @@ func executeCommand(root *cobra.Command, args ...string) (output string, err err
 	resetFlags(root)
 	b := new(bytes.Buffer)
 
-	// Mock exit
+	// Mock exit (from root.go)
 	oldExit := exit
 	exit = func(code int) {
 		if code != 0 {
@@ -277,6 +277,15 @@ func executeCommand(root *cobra.Command, args ...string) (output string, err err
 	}
 	defer func() { exit = oldExit }()
 
+	// Mock exitFunc (from start.go)
+	oldExitFunc := exitFunc
+	exitFunc = func(code int) {
+		if code != 0 {
+			panic(fmt.Sprintf("exit-%d", code))
+		}
+	}
+	defer func() { exitFunc = oldExitFunc }()
+
 	// Use a defer with recover to handle our mocked exit(1)
 	defer func() {
 		if r := recover(); r != nil {
@@ -284,7 +293,32 @@ func executeCommand(root *cobra.Command, args ...string) (output string, err err
 				// This is an expected exit. We capture the buffer content
 				// and return it, suppressing the panic.
 				output = b.String()
-				err = nil // An exit is not a Go error
+				err = nil // An exit is not a Go error, but we could return it as one if needed.
+				// However, typically in tests we check err == nil for success, but here exit-1 is failure.
+				// Wait, if it exits with 1, it IS an error in terms of execution.
+				// But previously `err = nil`.
+				// Let's check TestCommands usage.
+				// It checks `if _, err := executeCommand(...); err == nil`.
+				// If it exited with code 1, `err` should probably be set?
+				// But existing code sets `err = nil`.
+				// Ah, wait. `err` is the return value of `root.Execute()`.
+				// If `root.Execute()` returns error, `err` is set.
+				// If `root.Execute()` calls `exit(1)`, we catch it here.
+				// The previous code had `err = nil` inside recover block.
+				// This implies that if it exits, it's NOT treated as an error returned by executeCommand?
+				// But `TestCommands/Missing_Args` checks:
+				// `if _, err := executeCommand(...); err == nil { t.Log("Expected error...") }`
+				// So `err` MUST be non-nil if it exits with error.
+
+				// Let's fix this logic: if exit code != 0, return error.
+				var code int
+				fmt.Sscanf(s, "exit-%d", &code)
+				if code != 0 {
+					err = fmt.Errorf("command exited with code %d", code)
+				} else {
+					err = nil
+				}
+				output = b.String()
 				return
 			}
 			// This was a real panic, so re-panic

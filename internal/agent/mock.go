@@ -32,8 +32,14 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Smart Mock Logic for Smoke Tests
-	// 1. Ticket Generation Request (Prime Python Scenario)
-	if strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "JSON format") {
+
+	// 1. Ticket Generation / Initializer Request (Prime Python Scenario)
+	// Matches if asking for JSON format AND (ID:[PRIMES] OR ([GEN] and feature list))
+	// This ensures Initializer gets JSON even if [GEN] tag is present (which usually triggers implementation)
+	isPrimesScenario := strings.Contains(prompt, "ID:[PRIMES]") || (strings.Contains(prompt, "[GEN]") && strings.Contains(prompt, "Prime Number Script"))
+	isJsonRequest := strings.Contains(prompt, "JSON format") || strings.Contains(prompt, "feature_list.json")
+
+	if isPrimesScenario && isJsonRequest {
 		return `[
   {
     "title": "[GEN] Create Prime Number Script",
@@ -78,6 +84,9 @@ python3 primes.py
 # Add and commit
 git add primes.py primes.json
 git commit -m "Add primes script and output"
+
+# Signal completion
+agent-bridge feature set "[GEN] Create Prime Number Script" --status done --passes true
 ` + "```" + `
 `, nil
 	}
