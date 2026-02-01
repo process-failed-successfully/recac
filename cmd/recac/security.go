@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"recac/internal/security"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -94,6 +95,20 @@ func runSecurityScan(root string, scanner *security.RegexScanner) ([]SecurityRes
 			return nil
 		}
 
+		// Exclude specific files
+		// 1. Scanner source itself
+		if filepath.ToSlash(path) == "internal/security/scanner.go" {
+			return nil
+		}
+		// 2. Test files
+		if strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		// 3. Log files
+		if strings.HasSuffix(path, ".log") {
+			return nil
+		}
+
 		// Skip binary files and likely large files (simple check)
 		if info.Size() > 1024*1024 { // Skip files > 1MB
 			return nil
@@ -106,7 +121,17 @@ func runSecurityScan(root string, scanner *security.RegexScanner) ([]SecurityRes
 			// For now, let's just ignore read errors on single files
 			return nil
 		}
-		results = append(results, fileResults...)
+
+		// Filter findings for Dockerfiles
+		// Check if file is a Dockerfile (either named Dockerfile exactly, or ends with .Dockerfile)
+		isDockerfile := info.Name() == "Dockerfile" || strings.HasSuffix(info.Name(), ".Dockerfile")
+
+		for _, res := range fileResults {
+			if isDockerfile && res.Type == "Pipe to Shell" {
+				continue
+			}
+			results = append(results, res)
+		}
 
 		return nil
 	})
