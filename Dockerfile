@@ -3,7 +3,7 @@ ARG GO_VERSION=1.25
 FROM golang:${GO_VERSION} AS base
 
 # Install essential tools
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     nodejs \
     npm \
     python3 \
