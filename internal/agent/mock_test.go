@@ -52,7 +52,7 @@ func TestMockAgent_LoopBreaking(t *testing.T) {
 		t.Fatalf("Send failed: %v", err)
 	}
 
-	if !strings.Contains(response, "agent-bridge update --status done") {
+	if !strings.Contains(response, "agent-bridge signal COMPLETED true") {
 		t.Errorf("Expected loop breaking command, got: %s", response)
 	}
 }

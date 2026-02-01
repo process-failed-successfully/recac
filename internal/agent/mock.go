@@ -34,7 +34,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Check for completion signals in the prompt (idempotency check)
 	if strings.Contains(strings.ToLower(prompt), "nothing to commit") || strings.Contains(strings.ToLower(prompt), "working tree clean") {
-		return "It seems the work is already done. Marking as complete.\n\n```bash\nif command -v agent-bridge >/dev/null 2>&1; then\n  agent-bridge update --status done\nelse\n  echo \"Mock agent finished (agent-bridge not found)\"\nfi\n```", nil
+		return "It seems the work is already done. Marking as complete.\n\n```bash\nif command -v agent-bridge >/dev/null 2>&1; then\n  agent-bridge signal COMPLETED true\nelse\n  echo \"Mock agent finished (agent-bridge not found)\"\nfi\n```", nil
 	}
 
 	// Check for MOCK-STORY implementation (prevent No-Op loop)
