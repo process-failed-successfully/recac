@@ -113,8 +113,9 @@ agent-bridge signal PROJECT_SIGNED_OFF true
 	}
 
 	// Heuristic for Initializer (create feature_list.json)
-	// Trigger: Prompt mentions "feature_list.json" or "Initialize" AND we are not just reporting success.
-	if strings.Contains(prompt, "feature_list.json") || strings.Contains(prompt, "Initialize") {
+	// Trigger: Prompt mentions "INITIALIZER AGENT" (from template header).
+	// We MUST be specific to avoid triggering on Coding Agent prompts which also mention feature_list.json.
+	if strings.Contains(prompt, "INITIALIZER AGENT") {
 		// Only run if we haven't already done it (avoid infinite loop)
 		// We check if prompt implies current state has it? Hard to know.
 		// We rely on the script to be idempotent/safe.
