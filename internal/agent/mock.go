@@ -104,8 +104,7 @@ I will create the feature list.
 if [ -f feature_list.json ]; then
   echo "feature_list.json already exists."
 else
-cat << 'EOF' > feature_list.json
-{
+echo '{
     "project_name": "Prime Number Script",
     "features": [
         {
@@ -123,8 +122,7 @@ cat << 'EOF' > feature_list.json
             }
         }
     ]
-}
-EOF
+}' > feature_list.json
 fi
 
 # Import it if agent-bridge is available

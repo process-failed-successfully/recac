@@ -166,6 +166,13 @@ func TestRunWorkflow_Detached(t *testing.T) {
 }
 
 func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
+	// Mock RunWorkflow
+	originalRunWorkflow := RunWorkflow
+	defer func() { RunWorkflow = originalRunWorkflow }()
+	RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
+		return nil // Prevent running the full session
+	}
+
 	// Mock SetupWorkspace
 	originalSetup := cmdutils.SetupWorkspace
 	defer func() { cmdutils.SetupWorkspace = originalSetup }()
@@ -243,7 +250,10 @@ func TestRunWorkflow_Normal(t *testing.T) {
 	defer func() { NewSessionFunc = originalNewSessionFunc }()
 	NewSessionFunc = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
 		s := runner.NewSession(d, a, workspace, image, project, provider, model, maxAgents)
-		s.MaxIterations = 0 // Should exit immediately
+		s.MaxIterations = 1 // Should run exactly one iteration
+		// Avoid NoOp loop error in test
+		mockAg := agent.NewMockAgent()
+		s.Agent = mockAg
 		return s
 	}
 
@@ -276,21 +286,6 @@ func TestRunWorkflow_Normal(t *testing.T) {
 	// Actually NewSession defaults to 20.
 	// If we set to 1, it runs 1 iteration.
 	// If we set to 0, and checks are `> 0`, it loops.
-
-	// Let's set it to 1.
-	NewSessionFunc = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
-		s := runner.NewSession(d, a, workspace, image, project, provider, model, maxAgents)
-		s.MaxIterations = 1
-		// We need to ensure RunLoop doesn't block on "NoOp" or "Stalled".
-		// MockAgent returns empty responses usually?
-		// We should configure MockAgent to return "DONE".
-		// But here we construct session.
-
-		// Let's use a mock agent that returns a command to avoid NoOp.
-		mockAg := agent.NewMockAgent()
-		s.Agent = mockAg
-		return s
-	}
 
 	err = RunWorkflow(context.Background(), cfg)
 
