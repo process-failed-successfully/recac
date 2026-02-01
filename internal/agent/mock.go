@@ -86,7 +86,20 @@ agent-bridge import --file feature_list.json
 `, nil
 	}
 
-	// 3. Implementation for 'prime-python' scenario
+	// 3. Completion for 'prime-python' scenario
+	// If the system reports "nothing to commit", it means our script ran successfully and idempotently.
+	// We should mark the task as done using the correct CLI command.
+	if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
+		return `Task appears complete. Updating status.
+
+` + "```bash" + `
+# Mark feature as done
+agent-bridge feature set req-primes --status done --passes true
+` + "```" + `
+`, nil
+	}
+
+	// 4. Implementation for 'prime-python' scenario
 	// The prompt will typically contain the ticket description or "primes.py" instructions.
 	// We use a "greedy" match here: if it talks about the primes task AND it's NOT the ticket generation prompt (checked above),
 	// assume it's the coding task.
