@@ -110,17 +110,18 @@ func run() error {
 
 	// Fallback for missing JIRA_PROJECT_KEY
 	if projectKey == "" {
-		if provider == "mock" {
-			projectKey = "MOCK-101"
-			log.Printf("Provider is mock, defaulting JIRA_PROJECT_KEY to %s", projectKey)
-		} else {
-			log.Println("JIRA_PROJECT_KEY not set. Attempting to fetch default project...")
-			tmpClient := jira.NewClient(os.Getenv("JIRA_URL"), os.Getenv("JIRA_USERNAME"), os.Getenv("JIRA_API_TOKEN"))
-			var err error
-			projectKey, err = tmpClient.GetFirstProjectKey(ctx)
-			if err != nil {
+		log.Println("JIRA_PROJECT_KEY not set. Attempting to fetch default project...")
+		tmpClient := jira.NewClient(os.Getenv("JIRA_URL"), os.Getenv("JIRA_USERNAME"), os.Getenv("JIRA_API_TOKEN"))
+		var err error
+		projectKey, err = tmpClient.GetFirstProjectKey(ctx)
+		if err != nil {
+			if provider == "mock" {
+				projectKey = "MOCK-101"
+				log.Printf("Failed to fetch default project (%v), but provider is mock. Defaulting to JIRA_PROJECT_KEY=%s", err, projectKey)
+			} else {
 				return fmt.Errorf("missing JIRA_PROJECT_KEY and failed to fetch default: %w", err)
 			}
+		} else {
 			log.Printf("Using default project key: %s", projectKey)
 		}
 	}
