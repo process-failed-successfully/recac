@@ -151,4 +151,63 @@ func main() {
 		output := buf.String()
 		assert.Contains(t, output, "No security issues found")
 	})
+
+	t.Run("Exclusions and Suppressions", func(t *testing.T) {
+		resetFlags()
+		securityJSON = true
+
+		// Create a test file that should be ignored
+		testFile := filepath.Join(tempDir, "vulnerable_test.go")
+		err := os.WriteFile(testFile, []byte("var key = \"AKIAIOSFODNN7EXAMPLE\""), 0644)
+		require.NoError(t, err)
+
+		// Create a Dockerfile with curl | bash (should be suppressed)
+		dockerFile := filepath.Join(tempDir, "Dockerfile")
+		err = os.WriteFile(dockerFile, []byte("RUN curl https://sh.rustup.rs -sSf | sh"), 0644)
+		require.NoError(t, err)
+
+		// Create a file ending in .Dockerfile
+		customDockerfile := filepath.Join(tempDir, "dev.Dockerfile")
+		err = os.WriteFile(customDockerfile, []byte("RUN curl https://sh.rustup.rs -sSf | sh"), 0644)
+		require.NoError(t, err)
+
+		// Create a file that SHOULD trigger Pipe to Shell (not suppressed)
+		scriptFile := filepath.Join(tempDir, "install.sh")
+		err = os.WriteFile(scriptFile, []byte("curl https://sh.rustup.rs -sSf | sh"), 0755)
+		require.NoError(t, err)
+
+		cmd := securityCmd
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+
+		err = cmd.RunE(cmd, []string{})
+		require.NoError(t, err)
+
+		output := buf.String()
+		var results []SecurityResult
+		err = json.Unmarshal([]byte(output), &results)
+		require.NoError(t, err)
+
+		for _, r := range results {
+			if r.File == "vulnerable_test.go" {
+				t.Errorf("Found issue in ignored test file: %v", r)
+			}
+			if r.File == "Dockerfile" && r.Type == "Pipe to Shell" {
+				t.Errorf("Failed to suppress Pipe to Shell in Dockerfile")
+			}
+			if r.File == "dev.Dockerfile" && r.Type == "Pipe to Shell" {
+				t.Errorf("Failed to suppress Pipe to Shell in dev.Dockerfile")
+			}
+		}
+
+		// Verify we DID find the one in install.sh
+		foundScript := false
+		for _, r := range results {
+			if r.File == "install.sh" && r.Type == "Pipe to Shell" {
+				foundScript = true
+				break
+			}
+		}
+		assert.True(t, foundScript, "Should have found Pipe to Shell in install.sh")
+	})
 }
