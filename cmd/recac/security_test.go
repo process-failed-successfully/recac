@@ -151,4 +151,42 @@ func main() {
 		output := buf.String()
 		assert.Contains(t, output, "No security issues found")
 	})
+
+	t.Run("Exclusions and Suppression", func(t *testing.T) {
+		resetFlags()
+
+		// Create Dockerfile with Pipe to Shell (should be suppressed)
+		dockerFile := filepath.Join(tempDir, "Dockerfile")
+		err := os.WriteFile(dockerFile, []byte("RUN curl https://sh.rustup.rs -sSf | sh"), 0644)
+		require.NoError(t, err)
+
+		// Create test file with Pipe to Shell (should be excluded)
+		testFile := filepath.Join(tempDir, "some_test.go")
+		err = os.WriteFile(testFile, []byte("func TestX() { cmd := \"curl | bash\" }"), 0644)
+		require.NoError(t, err)
+
+		// Create normal file with Pipe to Shell (should be caught)
+		normalFile := filepath.Join(tempDir, "install.sh")
+		err = os.WriteFile(normalFile, []byte("curl https://sh.rustup.rs -sSf | sh"), 0755)
+		require.NoError(t, err)
+
+		cmd := securityCmd
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+
+		err = cmd.RunE(cmd, []string{})
+		require.NoError(t, err)
+
+		output := buf.String()
+
+		// Dockerfile should NOT be reported (finding suppressed)
+		assert.NotContains(t, output, "Dockerfile")
+
+		// test file should NOT be reported (file excluded)
+		assert.NotContains(t, output, "some_test.go")
+
+		// normal file SHOULD be reported
+		assert.Contains(t, output, "install.sh")
+		assert.Contains(t, output, "Pipe to Shell")
+	})
 }
