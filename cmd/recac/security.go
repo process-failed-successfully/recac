@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"recac/internal/security"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -96,6 +97,19 @@ func runSecurityScan(root string, scanner *security.RegexScanner) ([]SecurityRes
 
 		// Skip binary files and likely large files (simple check)
 		if info.Size() > 1024*1024 { // Skip files > 1MB
+			return nil
+		}
+
+		// Normalize path for exclusion check
+		normPath := filepath.ToSlash(filepath.Clean(path))
+
+		// Exclude scanner definition to avoid false positives on regex patterns
+		if strings.HasSuffix(normPath, "internal/security/scanner.go") {
+			return nil
+		}
+
+		// Exclude tests as they often contain test vectors that match patterns
+		if strings.HasSuffix(normPath, "_test.go") {
 			return nil
 		}
 
