@@ -70,9 +70,9 @@ fi
 	}
 
 	// 2. Implementation: Prime Python
-	// Triggers: req-primes, [PRIMES], primes.py
+	// Triggers: req-primes, [PRIMES], primes.py, or description keywords
 	// Only if NOT Initializer, QA, or Manager
-	if strings.Contains(prompt, "req-primes") || strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
+	if strings.Contains(prompt, "req-primes") || strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "Calculate primes") || strings.Contains(prompt, "Primes Script") {
 		// Python script to calculate primes
 		pythonScript := `
 import json

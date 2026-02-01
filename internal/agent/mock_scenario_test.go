@@ -29,6 +29,12 @@ func TestMockAgent_Scenarios(t *testing.T) {
 			wantBashScript: true,
 		},
 		{
+			name:           "Prime Implementation (Description Only)",
+			prompt:         "Title: Primes Script\nDescription: Calculate primes < 10000",
+			wantSubstring:  "cat << 'EOF' > primes.py",
+			wantBashScript: true,
+		},
+		{
 			name:           "QA Agent",
 			prompt:         "You are the QA AGENT. Verify changes.",
 			wantSubstring:  "agent-bridge signal QA_PASSED true",
