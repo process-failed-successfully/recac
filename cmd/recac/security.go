@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"recac/internal/security"
 	"text/tabwriter"
 
@@ -99,6 +100,12 @@ func runSecurityScan(root string, scanner *security.RegexScanner) ([]SecurityRes
 			return nil
 		}
 
+		// Skip test files, log files, and the scanner itself (to avoid self-detection)
+		cleanPath := filepath.ToSlash(filepath.Clean(path))
+		if strings.HasSuffix(cleanPath, "_test.go") || strings.HasSuffix(cleanPath, ".log") || strings.HasSuffix(cleanPath, "internal/security/scanner.go") {
+			return nil
+		}
+
 		// Scan file
 		fileResults, err := scanFileForSecurity(path, scanner)
 		if err != nil {
@@ -133,7 +140,15 @@ func scanFileForSecurity(path string, scanner *security.RegexScanner) ([]Securit
 	}
 
 	var results []SecurityResult
+	baseName := filepath.Base(path)
+	isDockerfile := baseName == "Dockerfile" || baseName == "test.Dockerfile" || strings.HasSuffix(baseName, ".Dockerfile")
+
 	for _, finding := range findings {
+		// Suppress "Pipe to Shell" in Dockerfiles as it's a common pattern there
+		if finding.Type == "Pipe to Shell" && isDockerfile {
+			continue
+		}
+
 		results = append(results, SecurityResult{
 			File:        path,
 			Line:        finding.Line,
