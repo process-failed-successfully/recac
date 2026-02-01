@@ -77,6 +77,26 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "cd /; rm -rf /",
 			wantFinding: "Root Deletion",
 		},
+		{
+			name:        "Sync -e (False Positive Reverse Shell)",
+			content:     "sync -e /tmp",
+			wantFinding: "",
+		},
+		{
+			name:        "Uncurl (False Positive Pipe to Shell)",
+			content:     "uncurl | bash",
+			wantFinding: "",
+		},
+		{
+			name:        "Conc Dependency (False Positive Reverse Shell)",
+			content:     "go get github.com/sourcegraph/conc",
+			wantFinding: "",
+		},
+		{
+			name:        "Safe Curl String (False Positive Pipe to Shell)",
+			content:     "echo \"curl | bash\"",
+			wantFinding: "",
+		},
 	}
 
 	for _, tt := range tests {

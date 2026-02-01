@@ -38,8 +38,8 @@ var (
 	reGitHubToken     = regexp.MustCompile(`gh[pousr]_[a-zA-Z0-9]{36,255}`)
 	reDangerousCmd    = regexp.MustCompile(`(?i)(?:^|[\s;&|()<>])(rm|cat|cp|mv|chmod|chown)\b.*(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
 	reRootDeletion    = regexp.MustCompile(`(?i)(?:^|[\s;&|()<>])rm\s+-[rRf]+\s+([/~*]+|/)(?:[\s;&|<>)]|$)`)
-	rePipeShell       = regexp.MustCompile(`(?i)(curl|wget)\s+.*?\|\s*(bash|sh|zsh|python|perl|php|ruby)`)
-	reReverseShell    = regexp.MustCompile(`(?i)nc\s+.*?-e\s+.*`)
+	rePipeShell       = regexp.MustCompile(`(?i)(?:^|[\s;&|()<>])(curl|wget)\b\s+.*?\|\s*(bash|sh|zsh|python|perl|php|ruby)\b`)
+	reReverseShell    = regexp.MustCompile(`(?i)(?:^|[\s;&|()<>])nc\b\s+.*?-e\s+.*`)
 )
 
 // NewRegexScanner creates a new scanner with default patterns
