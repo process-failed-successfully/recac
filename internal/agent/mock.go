@@ -32,8 +32,21 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	// QA Agent Logic - Prioritize this over loop prevention (history might contain "nothing to commit")
+	// If the prompt asks for QA/verification (contains "QA AGENT"), we should simulate a successful QA check.
+	if strings.Contains(prompt, "QA AGENT") {
+		return "Running QA checks...\n\n```bash\necho \"Running tests...\"\n# Simulate passing tests\necho \"Tests passed!\"\n\nif command -v agent-bridge >/dev/null 2>&1; then\n  agent-bridge signal QA_PASSED true\nelse\n  echo \"agent-bridge not found, skipping signal\"\nfi\n```", nil
+	}
+
+	// Project Manager Logic - Prioritize this over loop prevention
+	// If the prompt asks for PM review (contains "PROJECT MANAGER"), we should simulate approval.
+	if strings.Contains(prompt, "PROJECT MANAGER") {
+		return "Reviewing project...\n\n```bash\necho \"Project looks good!\"\n\nif command -v agent-bridge >/dev/null 2>&1; then\n  agent-bridge signal PM_APPROVED true\nelse\n  echo \"agent-bridge not found, skipping signal\"\nfi\n```", nil
+	}
+
 	// CI Loop Prevention: If the previous command said "nothing to commit" or "clean",
 	// assume we are done to prevent infinite loops.
+	// We only do this for the Coding Agent (default role) or if explicit role is missing.
 	if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
 		// Attempt to extract feature ID from prompt if possible, or default to generic
 		// For MOCK-STORY, we know the ID.
@@ -110,18 +123,6 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     ]
   }
 ]`, nil
-	}
-
-	// QA Agent Logic
-	// If the prompt asks for QA/verification (contains "QA AGENT"), we should simulate a successful QA check.
-	if strings.Contains(prompt, "QA AGENT") {
-		return "Running QA checks...\n\n```bash\necho \"Running tests...\"\n# Simulate passing tests\necho \"Tests passed!\"\n\nif command -v agent-bridge >/dev/null 2>&1; then\n  agent-bridge signal QA_PASSED true\nelse\n  echo \"agent-bridge not found, skipping signal\"\nfi\n```", nil
-	}
-
-	// Project Manager Logic
-	// If the prompt asks for PM review (contains "PROJECT MANAGER"), we should simulate approval.
-	if strings.Contains(prompt, "PROJECT MANAGER") {
-		return "Reviewing project...\n\n```bash\necho \"Project looks good!\"\n\nif command -v agent-bridge >/dev/null 2>&1; then\n  agent-bridge signal PM_APPROVED true\nelse\n  echo \"agent-bridge not found, skipping signal\"\nfi\n```", nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
