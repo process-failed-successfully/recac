@@ -105,16 +105,19 @@ EOF
 ls -l primes.py primes.json
 
 # Try to update status, capture output for debugging
-if agent-bridge feature set "PRIMES" --status done --passes true > /tmp/bridge.log 2>&1; then
-  echo "Feature marked done successfully"
+# We dynamically list features and mark ALL of them done to handle both PRIMES and injected features
+echo "Marking all features as done..."
+agent-bridge feature list --json > features.json
+if [ -s features.json ]; then
+  # Use jq to extract IDs and loop through them
+  for id in $(jq -r '.features[].id' features.json); do
+    echo "Marking feature $id as done..."
+    agent-bridge feature set "$id" --status done --passes true || echo "Failed to set $id"
+  done
 else
-  echo "WARNING: Failed to mark feature done. Debug info:"
-  cat /tmp/bridge.log
-  echo "Current features:"
-  agent-bridge feature list || echo "Failed to list features"
-
-  # Fail safely but loudly so we can debug, but don't exit 1 to keep loop alive for potential retry or manual check
-  echo "Continuing despite bridge failure..."
+  # Fallback for legacy behavior if list fails or is empty
+  echo "No features listed or list failed. Trying legacy ID..."
+  agent-bridge feature set "PRIMES" --status done --passes true || echo "Failed to set legacy PRIMES"
 fi
 ` + "```" + `
 `, nil
