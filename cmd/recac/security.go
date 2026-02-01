@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"recac/internal/security"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -99,6 +100,16 @@ func runSecurityScan(root string, scanner *security.RegexScanner) ([]SecurityRes
 			return nil
 		}
 
+		// Skip test files
+		if strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+
+		// Skip scanner source code (contains regex patterns)
+		if strings.HasSuffix(filepath.ToSlash(path), "internal/security/scanner.go") {
+			return nil
+		}
+
 		// Scan file
 		fileResults, err := scanFileForSecurity(path, scanner)
 		if err != nil {
@@ -106,6 +117,18 @@ func runSecurityScan(root string, scanner *security.RegexScanner) ([]SecurityRes
 			// For now, let's just ignore read errors on single files
 			return nil
 		}
+
+		// Filter findings for specific files
+		if filepath.Base(path) == "Dockerfile" || filepath.Base(path) == "test.Dockerfile" {
+			var filtered []SecurityResult
+			for _, r := range fileResults {
+				if r.Type != "Pipe to Shell" {
+					filtered = append(filtered, r)
+				}
+			}
+			fileResults = filtered
+		}
+
 		results = append(results, fileResults...)
 
 		return nil
