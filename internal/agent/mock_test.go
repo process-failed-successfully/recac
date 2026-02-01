@@ -45,7 +45,8 @@ func TestMockAgent_Scenarios(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(resp, `"title": "ID:[PRIMES] Prime Number Implementation"`) {
+	// Updated expectation: ID:PRIMES without brackets
+	if !strings.Contains(resp, `"title": "ID:PRIMES Prime Number Implementation"`) {
 		t.Errorf("Expected TPM JSON array, got: %s", resp)
 	}
 	if !strings.HasPrefix(strings.TrimSpace(resp), "[") {

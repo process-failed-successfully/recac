@@ -40,7 +40,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 {
   "features": [
     {
-      "id": "[PRIMES]",
+      "id": "PRIMES",
       "description": "Implement prime number calculation script",
       "type": "Task"
     }
@@ -56,12 +56,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return `
 [
   {
-    "title": "ID:[PRIMES] Prime Number Implementation",
+    "title": "ID:PRIMES Prime Number Implementation",
     "description": "Implement the prime number generation script. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
     "type": "Epic",
     "children": [
       {
-        "title": "ID:[PRIMES] Create primes.py",
+        "title": "ID:PRIMES Create primes.py",
         "description": "Create a python script named 'primes.py' that calculates primes < 10000. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
         "type": "Task",
         "acceptance_criteria": [
@@ -84,7 +84,7 @@ cat << 'EOF' | agent-bridge import
 {
   "features": [
     {
-      "id": "[PRIMES]",
+      "id": "PRIMES",
       "description": "Implement prime number calculation script",
       "type": "Task"
     }
@@ -103,8 +103,18 @@ EOF
 
 ` + "```bash" + `
 ls -l primes.py primes.json
-if command -v agent-bridge >/dev/null 2>&1; then
-  agent-bridge feature set "[PRIMES]" --status done --passes true
+
+# Try to update status, capture output for debugging
+if agent-bridge feature set "PRIMES" --status done --passes true > /tmp/bridge.log 2>&1; then
+  echo "Feature marked done successfully"
+else
+  echo "WARNING: Failed to mark feature done. Debug info:"
+  cat /tmp/bridge.log
+  echo "Current features:"
+  agent-bridge feature list || echo "Failed to list features"
+
+  # Fail safely but loudly so we can debug, but don't exit 1 to keep loop alive for potential retry or manual check
+  echo "Continuing despite bridge failure..."
 fi
 ` + "```" + `
 `, nil

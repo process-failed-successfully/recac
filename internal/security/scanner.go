@@ -37,6 +37,7 @@ var (
 	reDangerousCmd = regexp.MustCompile(`(?i)(?:^|[\s;&|()<>` + "`" + `])(rm|cat|cp|mv|chmod|chown)(?:$|[\s;&|()<>` + "`" + `]).*?(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
 	reRootDeletion = regexp.MustCompile(`(?im)(?:^|[\s;&|()<>` + "`" + `])rm\s+-[rRf]+\s+([/~]+[/*.]*)(?:\s|;|` + "`" + `|$)`)
 	// Robust regexes for Pipe/Reverse shell that handle line continuations and boundaries
+	// Use \b for word boundaries to prevent false positives like 'uncurl' or 'conc'
 	rePipeShell    = regexp.MustCompile(`(?i)\b(curl|wget)\b\s+(?:\\\r?\n|.)*?\|\s*(bash|sh|zsh|python|perl|php|ruby)\b`)
 	reReverseShell = regexp.MustCompile(`(?i)\bnc\b\s+(?:\\\r?\n|[^;|&])*-e\b`)
 )
