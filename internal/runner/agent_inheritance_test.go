@@ -35,7 +35,7 @@ func TestAgentInheritance(t *testing.T) {
 
 	// Create Session with custom config
 	customProvider := "openrouter"
-	customModel := "mistralai/mistral-large"
+	customModel := "meta-llama/llama-3.3-70b-instruct:free"
 
 	s := NewSession(mockDocker, &MockAgent{}, tmpDir, "alpine", "test-project", customProvider, customModel, 1)
 

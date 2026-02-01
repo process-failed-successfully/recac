@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"log/slog"
+	"recac/internal/agent"
 	"recac/internal/notify"
 	"recac/internal/security"
 	"strings"
@@ -129,5 +130,59 @@ func TestProcessResponse_Security(t *testing.T) {
 	}
 	if !strings.Contains(outBg, "[BLOCKED]") {
 		t.Errorf("Background process bypass was NOT blocked! %s", outBg)
+	}
+}
+
+// TestProcessResponse_MockAgentSafe ensures that the MockAgent's standard response
+// for the prime-python scenario is NOT blocked by the security scanner.
+// This is critical for CI smoke tests.
+func TestProcessResponse_MockAgentSafe(t *testing.T) {
+	mockDocker := &MockDockerForExec{}
+	s := &Session{
+		Docker:      mockDocker,
+		ContainerID: "test-container",
+		Notifier:    notify.NewManager(func(string, ...interface{}) {}),
+		Logger:      slog.Default(),
+		Scanner:     security.NewRegexScanner(),
+	}
+
+	mockAgent := agent.NewMockAgent()
+	ctx := context.Background()
+
+	// Simulate the exact prompt sent in the E2E test
+	// The prompt usually contains "Implement the solution... ID:[PRIMES]"
+	prompt := "Implement the solution for task ID:[PRIMES]. Create a python script named 'primes.py'..."
+
+	resp, err := mockAgent.Send(ctx, prompt)
+	if err != nil {
+		t.Fatalf("MockAgent failed: %v", err)
+	}
+
+	// Ensure the response contains the expected bash block
+	if !strings.Contains(resp, "cat << 'EOF' > primes.py") {
+		t.Fatalf("MockAgent response does not contain expected script:\n%s", resp)
+	}
+
+	out, err := s.ProcessResponse(ctx, resp)
+	if err != nil {
+		t.Fatalf("ProcessResponse failed: %v", err)
+	}
+
+	// Verify it was NOT blocked
+	if strings.Contains(out, "[BLOCKED]") {
+		t.Errorf("MockAgent response was blocked by security scanner!\nOutput: %s", out)
+	}
+
+	// Verify commands were executed
+	// The entire script is executed as a single bash block, plus blocker checks.
+	foundScript := false
+	for _, cmd := range mockDocker.ExecutedCmds {
+		if strings.Contains(cmd, "cat << 'EOF' > primes.py") {
+			foundScript = true
+			break
+		}
+	}
+	if !foundScript {
+		t.Errorf("Expected script execution not found in commands: %v", mockDocker.ExecutedCmds)
 	}
 }
