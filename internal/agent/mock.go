@@ -91,6 +91,52 @@ git commit -m "Add primes.py and primes.json"
 `, nil
 	}
 
+	// Heuristic for Initializer (create feature_list.json)
+	// Trigger: Prompt mentions "feature_list.json" or "Initialize" AND we are not just reporting success.
+	if strings.Contains(prompt, "feature_list.json") || strings.Contains(prompt, "Initialize") {
+		// Only run if we haven't already done it (avoid infinite loop)
+		// We check if prompt implies current state has it? Hard to know.
+		// We rely on the script to be idempotent/safe.
+		return `
+I will create the feature list.
+
+` + "```bash" + `
+if [ -f feature_list.json ]; then
+  echo "feature_list.json already exists."
+else
+cat << 'EOF' > feature_list.json
+{
+    "project_name": "Prime Number Script",
+    "features": [
+        {
+            "id": "1",
+            "category": "core",
+            "priority": "MVP",
+            "description": "Calculate primes under 10000",
+            "status": "todo",
+            "passes": false,
+            "steps": [],
+            "dependencies": {
+                "depends_on_ids": [],
+                "exclusive_write_paths": [],
+                "read_only_paths": []
+            }
+        }
+    ]
+}
+EOF
+fi
+
+# Import it if agent-bridge is available
+if command -v agent-bridge >/dev/null 2>&1; then
+  agent-bridge import --file feature_list.json || echo "Import failed but continuing (mock mode)"
+else
+  echo "agent-bridge not found (mock mode)"
+fi
+` + "```" + `
+`, nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
