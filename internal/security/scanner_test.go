@@ -145,6 +145,27 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "nc -v 127.0.0.1 80",
 			wantFinding: "",
 		},
+		// Regression Tests for False Positives (Word Boundaries)
+		{
+			name:        "Uncurl Pipe Bash (False Positive)",
+			content:     "uncurl | bash",
+			wantFinding: "",
+		},
+		{
+			name:        "Curl Pipe Bashrc (False Positive)",
+			content:     "curl | bashrc",
+			wantFinding: "",
+		},
+		{
+			name:        "Conc Reverse Shell (False Positive)",
+			content:     "conc -e",
+			wantFinding: "",
+		},
+		{
+			name:        "Sync -e (False Positive)",
+			content:     "sync -e",
+			wantFinding: "",
+		},
 	}
 
 	for _, tt := range tests {
