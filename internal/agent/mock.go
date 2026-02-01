@@ -3,6 +3,8 @@ package agent
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,6 +32,85 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// 1. Handle TPM / Ticket Generation Prompt (JSON output)
+	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "generate-from-spec") {
+		// Extract ID if present, e.g., ID:[PRIMES]
+		reID := regexp.MustCompile(`ID:\[(.*?)\]`)
+		matches := reID.FindStringSubmatch(prompt)
+		id := "TASK-1"
+		title := "Mock Task"
+		if len(matches) > 1 {
+			id = matches[1]
+			title = fmt.Sprintf("ID:[%s] Mock Task", id)
+		}
+
+		// Return JSON for recac CLI
+		// We extract extracted ID to ensure it maps correctly in the runner
+		return fmt.Sprintf(`[
+  {
+    "title": "%s",
+    "description": "Mock description for %s. Repo: https://github.com/mock/repo",
+    "type": "Task",
+    "acceptance_criteria": ["Mock criteria 1"],
+    "children": []
+  }
+]`, title, id), nil
+	}
+
+	// 2. Handle Initializer (feature_list.json) - if requested
+	if strings.Contains(prompt, "Initialize") && strings.Contains(prompt, "feature_list.json") {
+		return `cat << 'EOF' > feature_list.json
+{
+  "project_name": "mock-project",
+  "features": [
+    {"id": "req-primes-py-exists", "description": "primes.py exists", "status": "todo", "type": "file_exists", "target": "primes.py"}
+  ]
+}
+EOF
+`, nil
+	}
+
+	// 3. Handle Coding Agent (primes.py)
+	if strings.Contains(prompt, "primes.py") {
+		return `#!/bin/bash
+set -e
+
+# Configure git if needed
+git config user.email "mock@agent.com" || true
+git config user.name "Mock Agent" || true
+
+# Create primes.py
+cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n < 2: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+primes = [i for i in range(10000) if is_prime(i)]
+
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+# Run it to generate output
+python3 primes.py
+
+# Add and commit
+git add primes.py primes.json
+git commit -m "Add primes.py and output" || echo "Nothing to commit"
+
+# Signal completion if bridge is available
+if command -v agent-bridge &> /dev/null; then
+    agent-bridge update --status done --feature req-primes-py-exists || true
+fi
+`, nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
