@@ -39,7 +39,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// The planner prompt includes the AppSpec.
 	// We check for the specific ID used in the spec.
 	// Use case-insensitive check for ID and spec keywords
-	if strings.Contains(prompt, "ID:[PRIMES]") && (strings.Contains(promptLower, "appspec") || strings.Contains(promptLower, "specification")) {
+	// EXCEPTION: Initializer prompt also contains spec, so we must exclude it.
+	if strings.Contains(prompt, "ID:[PRIMES]") &&
+		(strings.Contains(promptLower, "appspec") || strings.Contains(promptLower, "specification")) &&
+		!strings.Contains(prompt, "INITIALIZER") {
 		// Return a JSON ARRAY of tickets, as expected by cmd/recac/jira.go
 		return `[
     {
