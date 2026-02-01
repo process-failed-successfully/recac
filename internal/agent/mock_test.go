@@ -25,6 +25,20 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_TPMTrigger(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "You are an expert Technical Program Manager (TPM)... Application Specification: ### ID:[PRIMES] Prime Number Script"
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "[GEN] Create Prime Number Script") {
+		t.Errorf("Expected JSON plan for TPM prompt, got: %s", response)
+	}
+}
+
 func TestMockAgent_DefaultResponse_HasNoOp(t *testing.T) {
 	agent := NewMockAgent()
 	prompt := "Generic prompt not matching any triggers"

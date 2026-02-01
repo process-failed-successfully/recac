@@ -33,7 +33,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Smart Mock Logic for Smoke Tests
 	// 1. Ticket Generation Request (Prime Python Scenario)
-	if strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "JSON format") {
+	// We check for "Technical Program Manager" (from tpm_agent.md) or the specific ID + "JSON format" (legacy/direct check)
+	// This ensures we catch the 'generate-from-spec' request even if it doesn't explicitly say "JSON format" in the same way.
+	if (strings.Contains(prompt, "Technical Program Manager") && strings.Contains(prompt, "ID:[PRIMES]")) ||
+		(strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "JSON format")) {
 		return `[
   {
     "title": "[GEN] Create Prime Number Script",
