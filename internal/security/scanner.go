@@ -32,6 +32,8 @@ var (
 	reGitHubToken     = regexp.MustCompile(`gh[pousr]_[a-zA-Z0-9]{36,255}`)
 	reDangerousCmd    = regexp.MustCompile(`(?i)\b(rm|cat|cp|mv|chmod|chown)\b.*(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
 	reRootDeletion    = regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+([/~*]+|/)$`)
+	rePipeShell       = regexp.MustCompile(`(?i)(curl|wget)\s+("[^"]*"|'[^']*'|\\\n|[^;&|\n])*?\|\s*(bash|sh|zsh|python|perl|php|ruby)`)
+	reReverseShell    = regexp.MustCompile(`(?i)nc\s+("[^"]*"|'[^']*'|\\\n|[^;&|\n])*?-e\s+.*`)
 )
 
 // NewRegexScanner creates a new scanner with default patterns
@@ -45,6 +47,8 @@ func NewRegexScanner() *RegexScanner {
 			"GitHub Token":      reGitHubToken,
 			"Dangerous Command": reDangerousCmd,
 			"Root Deletion":     reRootDeletion,
+			"Pipe to Shell":     rePipeShell,
+			"Reverse Shell":     reReverseShell,
 		},
 	}
 }
