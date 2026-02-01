@@ -56,7 +56,8 @@ cat << 'EOF' > feature_list.json
             "status": "todo",
             "passes": false,
             "steps": [],
-            "dependencies": {\n                "depends_on_ids": [],
+            "dependencies": {
+                "depends_on_ids": [],
                 "exclusive_write_paths": [],
                 "read_only_paths": []
             }
