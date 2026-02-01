@@ -46,7 +46,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 2. Initializer Logic
 	// Matches prompt from Initializer Agent asking to create feature list
-	if strings.Contains(prompt, "INITIALIZER AGENT") || strings.Contains(prompt, "feature_list.json") {
+	// We use Case Insensitive matching and check for "INITIALIZER" to be robust.
+	upperPrompt := strings.ToUpper(prompt)
+	if strings.Contains(upperPrompt, "INITIALIZER") || strings.Contains(prompt, "feature_list.json") {
+		// Debug logging to help identify why this branch is taken (or not)
+		fmt.Println("[MockAgent] Matched Initializer Logic")
 		return `I will create the initial feature list based on the requirements.
 
 ` + "```bash" + `
@@ -111,6 +115,7 @@ git commit -m "Add primes script and output"
 	// Default Mock Response
 	// We include a no-op bash block to ensure the executor doesn't trip the "no commands" circuit breaker
 	// We strip backticks from the preview to avoid confusing the regex parser
+	fmt.Println("[MockAgent] Fallback to default response (No matcher triggered)")
 	preview := strings.ReplaceAll(truncateString(prompt, 100), "`", "'")
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...\n\n```bash\n# no-op to prevent circuit breaker\necho 'mock agent alive'\n```",
 		m.responsePrefix, len(prompt), preview)
