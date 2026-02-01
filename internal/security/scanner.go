@@ -77,7 +77,7 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 		// For sensitive data (Secrets), scan the ORIGINAL content (leaked secrets in comments are still leaks).
 		// For command validation (Dangerous Command), scan the MASKED content (commented commands are safe).
 		targetContent := content
-		if name == "Dangerous Command" || name == "Root Deletion" {
+		if name == "Dangerous Command" || name == "Root Deletion" || name == "Pipe to Shell" || name == "Reverse Shell" {
 			targetContent = maskedContent
 		}
 

