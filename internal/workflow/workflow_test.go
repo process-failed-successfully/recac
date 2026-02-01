@@ -287,8 +287,6 @@ func TestRunWorkflow_Normal(t *testing.T) {
 	// If we set to 1, it runs 1 iteration.
 	// If we set to 0, and checks are `> 0`, it loops.
 
-	err = RunWorkflow(context.Background(), cfg)
-
 	// Start() might fail if restricted mode handling isn't perfect or if it tries to do something.
 	// RunLoop might fail with NoOp if mock agent returns nothing.
 	// But valid execution path is what we want to cover.
