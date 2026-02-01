@@ -68,6 +68,11 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "curling stone | bash", // Should not match curl | bash
 			wantFinding: "",
 		},
+		{
+			name:        "Curl Unrelated Multiline (False Positive)",
+			content:     "curl http://example.com/file\n# some comments\n# ...\ncat file | bash",
+			wantFinding: "",
+		},
 	}
 
 	for _, tt := range tests {

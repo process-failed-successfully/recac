@@ -33,8 +33,8 @@ var (
 	reDangerousCmd    = regexp.MustCompile(`(?i)\b(rm|cat|cp|mv|chmod|chown)\b.*(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
 	reRootDeletion    = regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+([/~*]+|/)$`)
 	// Use boundaries \b to prevent false positives (e.g. sync -e matching nc -e)
-	// Use (?s) to allow dot matching newlines for multiline bypass prevention
-	rePipeShell       = regexp.MustCompile(`(?is)\b(curl|wget)\b\s+.*?\|\s*(bash|sh|zsh|python|perl|php|ruby)\b`)
+	// Use non-greedy match that allows backslash-newline for line continuation but stops at other newlines
+	rePipeShell       = regexp.MustCompile(`(?i)\b(curl|wget)\b\s+(?:\\\r?\n|.)*?\|\s*(bash|sh|zsh|python|perl|php|ruby)\b`)
 	reReverseShell    = regexp.MustCompile(`(?i)\bnc\b\s+.*?-e\s+.*`)
 )
 
