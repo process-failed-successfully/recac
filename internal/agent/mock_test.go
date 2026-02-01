@@ -36,6 +36,9 @@ func TestMockAgent(t *testing.T) {
 		if !strings.Contains(response, "```bash") {
 			t.Error("Initializer response missing bash code block")
 		}
+		if !strings.Contains(response, "#!/bin/bash") {
+			t.Error("Initializer response missing shebang")
+		}
 		if !strings.Contains(response, "echo '{\n  \"req-the-list-of-primes") {
 			t.Error("Initializer response missing JSON echo with newlines")
 		}
@@ -50,6 +53,9 @@ func TestMockAgent(t *testing.T) {
 
 		if !strings.Contains(response, "```bash") {
 			t.Error("Implementation response missing bash code block")
+		}
+		if !strings.Contains(response, "#!/bin/bash") {
+			t.Error("Implementation response missing shebang")
 		}
 		if !strings.Contains(response, "def calculate_primes") {
 			t.Error("Implementation response missing python code")
