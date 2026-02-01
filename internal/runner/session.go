@@ -891,13 +891,31 @@ func (s *Session) loadFeatures() []db.Feature {
 	listPath := filepath.Join(s.Workspace, "feature_list.json")
 	if data, err := os.ReadFile(listPath); err == nil {
 		var fl db.FeatureList
-		if err := json.Unmarshal(data, &fl); err == nil {
-			s.Logger.Info("loaded features from file", "path", listPath)
+		// Try standard FeatureList format
+		if err := json.Unmarshal(data, &fl); err == nil && len(fl.Features) > 0 {
+			s.Logger.Info("loaded features from file (FeatureList)", "path", listPath)
 			// Sync to DB
 			if s.DBStore != nil {
 				_ = s.DBStore.SaveFeatures(s.Project, string(data))
 			}
 			return fl.Features
+		}
+
+		// Try legacy Array format (MockAgent/Simple format)
+		var features []db.Feature
+		if err := json.Unmarshal(data, &features); err == nil && len(features) > 0 {
+			s.Logger.Info("loaded features from file (Array)", "path", listPath)
+			// Convert to FeatureList for DB Sync
+			fl = db.FeatureList{
+				ProjectName: s.Project,
+				Features:    features,
+			}
+			if s.DBStore != nil {
+				if jsonData, err := json.Marshal(fl); err == nil {
+					_ = s.DBStore.SaveFeatures(s.Project, string(jsonData))
+				}
+			}
+			return features
 		}
 	}
 
