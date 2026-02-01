@@ -40,6 +40,12 @@ func TestScanner_Reproduction_FalsePositives(t *testing.T) {
 			expectedMatch: "rm -rf /etc/passwd",
 		},
 		{
+			name:        "Real Dangerous Command Quoted Path",
+			content:     "rm -rf \"/etc/passwd\"",
+			shouldBlock: true,
+			expectedMatch: "rm -rf \"/etc/passwd\"",
+		},
+		{
 			name:        "Real Dangerous Command with trailing comment",
 			content:     "rm -rf /etc/passwd # deleting everything",
 			shouldBlock: true,
@@ -124,42 +130,68 @@ func TestScanner_Reproduction_FalsePositives(t *testing.T) {
 	}
 }
 
-func TestMaskComments_Internal(t *testing.T) {
+func TestMaskContent_Internal(t *testing.T) {
 	tests := []struct {
-		input    string
-		expected string
+		name        string
+		input       string
+		maskStrings bool
+		expected    string
 	}{
 		{
-			input:    "echo hello # comment",
-			expected: "echo hello          ",
+			name:        "Basic Comment (MaskComments)",
+			input:       "echo hello # comment",
+			maskStrings: false,
+			expected:    "echo hello          ",
 		},
 		{
-			input:    "# full line comment",
-			expected: "                   ",
+			name:        "Full Line Comment (MaskComments)",
+			input:       "# full line comment",
+			maskStrings: false,
+			expected:    "                   ",
 		},
 		{
-			input:    "echo \"# not a comment\"",
-			expected: "echo \"# not a comment\"",
+			name:        "String Preserved (MaskComments)",
+			input:       "echo \"# not a comment\"",
+			maskStrings: false,
+			expected:    "echo \"# not a comment\"",
 		},
 		{
-			input:    "echo '# not a comment'",
-			expected: "echo '# not a comment'",
+			name:        "String Preserved Single (MaskComments)",
+			input:       "echo '# not a comment'",
+			maskStrings: false,
+			expected:    "echo '# not a comment'",
 		},
 		{
-			input:    "echo \"foo\" # comment",
-			expected: "echo \"foo\"          ",
+			name:        "String Masked (MaskAll)",
+			input:       "echo \"# not a comment\"",
+			maskStrings: true,
+			expected:    "echo \"               \"",
 		},
 		{
-			input:    "echo \"foo \\\" bar\" # comment",
-			expected: "echo \"foo \\\" bar\"          ",
+			name:        "String Masked Single (MaskAll)",
+			input:       "echo '# not a comment'",
+			maskStrings: true,
+			expected:    "echo '               '",
+		},
+		{
+			name:        "String and Comment (MaskAll)",
+			input:       "echo \"foo\" # comment",
+			maskStrings: true,
+			expected:    "echo \"   \"          ",
+		},
+		{
+			name:        "String with Escapes (MaskAll)",
+			input:       "echo \"foo \\\" bar\" # comment",
+			maskStrings: true,
+			expected:    "echo \"          \"          ",
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			got := maskComments(tt.input)
+		t.Run(tt.name, func(t *testing.T) {
+			got := maskContent(tt.input, tt.maskStrings)
 			if got != tt.expected {
-				t.Errorf("maskComments(%q) = %q; want %q", tt.input, got, tt.expected)
+				t.Errorf("maskContent(%q, %v) = %q; want %q", tt.input, tt.maskStrings, got, tt.expected)
 			}
 			if len(got) != len(tt.input) {
 				t.Errorf("Length mismatch! input: %d, output: %d", len(tt.input), len(got))

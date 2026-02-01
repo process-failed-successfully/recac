@@ -35,6 +35,8 @@ var (
 	// Note: We include '\\' in the boundary to catch escaped commands like '\rm'
 	reDangerousCmd = regexp.MustCompile(`(?i)(?:^|[\s;&|()<>` + "`" + `\\])(rm|cat|cp|mv|chmod|chown)\b.*(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
 	reRootDeletion = regexp.MustCompile(`(?im)(?:^|[\s;&|()<>` + "`" + `\\])rm\s+-[rRf]+\s+(/\*?|~(/+\*?)?)\s*$`)
+	rePipeShell    = regexp.MustCompile(`(?i)\b(curl|wget)\b\s+(?:\\\r?\n|[^;|&]|\|[^|])+\|\s*\b(bash|sh|zsh|python|perl|php|ruby)\b`)
+	reReverseShell = regexp.MustCompile(`(?i)\bnc\b\s+(?:\\\r?\n|[^;|&])*-e\b`)
 )
 
 // NewRegexScanner creates a new scanner with default patterns
@@ -48,6 +50,8 @@ func NewRegexScanner() *RegexScanner {
 			"GitHub Token":      reGitHubToken,
 			"Dangerous Command": reDangerousCmd,
 			"Root Deletion":     reRootDeletion,
+			"Pipe to Shell":     rePipeShell,
+			"Reverse Shell":     reReverseShell,
 		},
 	}
 }
@@ -57,8 +61,9 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	var findings []Finding
 	lines := strings.Split(content, "\n")
 
-	// Pre-process content for command checks (mask comments)
-	maskedContent := maskComments(content)
+	// Pre-process content for command checks
+	maskedComments := maskContent(content, false) // Only mask comments
+	maskedAll := maskContent(content, true)       // Mask comments and strings
 
 	// Get keys and sort them for deterministic order
 	keys := make([]string, 0, len(s.patterns))
@@ -71,10 +76,16 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 		pattern := s.patterns[name]
 
 		// For sensitive data (Secrets), scan the ORIGINAL content (leaked secrets in comments are still leaks).
-		// For command validation (Dangerous Command), scan the MASKED content (commented commands are safe).
+		// For command validation:
+		// - "Dangerous Command" & "Root Deletion": scan content with comments masked but strings preserved
+		//   (because we want to catch `rm -rf "/etc/passwd"`).
+		// - "Pipe to Shell" & "Reverse Shell": scan content with comments AND strings masked
+		//   (because we don't want to catch `echo "curl | bash"`).
 		targetContent := content
 		if name == "Dangerous Command" || name == "Root Deletion" {
-			targetContent = maskedContent
+			targetContent = maskedComments
+		} else if name == "Pipe to Shell" || name == "Reverse Shell" {
+			targetContent = maskedAll
 		}
 
 		matches := pattern.FindAllStringIndex(targetContent, -1)
@@ -113,9 +124,8 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	return findings, nil
 }
 
-// maskComments replaces comments in Bash scripts with spaces, preserving layout.
-// It handles strings (single/double quotes) to avoid masking '#' inside them.
-func maskComments(content string) string {
+// maskContent replaces comments (and optionally strings) with spaces, preserving layout.
+func maskContent(content string, maskStrings bool) string {
 	var masked []byte
 	// Convert to byte slice for mutability
 	masked = make([]byte, len(content))
@@ -141,6 +151,8 @@ func maskComments(content string) string {
 		if inSingle {
 			if char == '\'' {
 				inSingle = false
+			} else if maskStrings {
+				masked[i] = ' '
 			}
 			continue
 		}
@@ -167,10 +179,14 @@ func maskComments(content string) string {
 
 					if !escaped {
 						inDouble = false
+					} else if maskStrings {
+						masked[i] = ' '
 					}
 				} else {
 					inDouble = false
 				}
+			} else if maskStrings {
+				masked[i] = ' '
 			}
 			continue
 		}

