@@ -12,6 +12,7 @@ data:
   RECAC_METRICS_PORT: {{ .Values.config.metricsPort | quote }}
   RECAC_VERBOSE: {{ .Values.config.verbose | default false | quote }}
   RECAC_MAX_ITERATIONS: {{ .Values.config.maxIterations | quote }}
+  RECAC_TASK_MAX_ITERATIONS: {{ .Values.config.taskMaxIterations | quote }}
   RECAC_MANAGER_FREQUENCY: {{ .Values.config.managerFrequency | quote }}
   RECAC_MAX_TOKENS: {{ .Values.config.maxTokens | quote }}
   JIRA_URL: {{ .Values.config.jiraUrl | quote }}

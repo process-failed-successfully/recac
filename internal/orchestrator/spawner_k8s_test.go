@@ -104,8 +104,10 @@ func TestK8sSpawner_Spawn_PropagatesEnvVars(t *testing.T) {
 	// Set Environment Variables
 	os.Setenv("GITHUB_API_KEY", "test-github-key")
 	os.Setenv("OPENAI_API_KEY", "test-openai-key")
+	os.Setenv("RECAC_TASK_MAX_ITERATIONS", "15")
 	defer os.Unsetenv("GITHUB_API_KEY")
 	defer os.Unsetenv("OPENAI_API_KEY")
+	defer os.Unsetenv("RECAC_TASK_MAX_ITERATIONS")
 
 	item := WorkItem{
 		ID:      "TICKET-1",
@@ -135,6 +137,7 @@ func TestK8sSpawner_Spawn_PropagatesEnvVars(t *testing.T) {
 	assert.Equal(t, "test-openai-key", envMap["OPENAI_API_KEY"], "OPENAI_API_KEY should be propagated")
 	assert.Equal(t, "0", envMap["GIT_TERMINAL_PROMPT"], "GIT_TERMINAL_PROMPT should be 0")
 	assert.Equal(t, "20", envMap["RECAC_MAX_ITERATIONS"], "RECAC_MAX_ITERATIONS should be 20")
+	assert.Equal(t, "15", envMap["RECAC_TASK_MAX_ITERATIONS"], "RECAC_TASK_MAX_ITERATIONS should be 15")
 }
 
 func TestK8sSpawner_Spawn_Lifecycle(t *testing.T) {
