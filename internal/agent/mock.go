@@ -53,7 +53,9 @@ cat << 'EOF' > feature_list.json
   }
 ]
 EOF
-echo "Feature list created."
+# Import into database as required by system
+cat feature_list.json | agent-bridge import
+echo "Feature list created and imported."
 ` + "```" + `
 `, nil
 	}
