@@ -32,9 +32,32 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
+
+	// Check if this is a ticket generation request (TPM role)
+	// The recac CLI expects a JSON array of tickets in response
+	if isTicketGenerationPrompt(prompt) {
+		return `[{"id": "MOCK-1", "summary": "Implement Core Features", "description": "Implement the core functionality as requested in the specification.", "type": "Task"}]`, nil
+	}
+
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
+}
+
+// isTicketGenerationPrompt checks if the prompt is asking for ticket generation
+func isTicketGenerationPrompt(prompt string) bool {
+	// Look for keywords associated with the TPM prompt in cmd/recac/generate.go
+	return len(prompt) > 0 && (contains(prompt, "Technical Program Manager") || contains(prompt, "generate ticket") || contains(prompt, "ticket plan"))
+}
+
+func contains(s, substr string) bool {
+	// Simple containment check, can be replaced with strings.Contains
+	for i := 0; i < len(s)-len(substr)+1; i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }
 
 // SendStream implements the Agent interface

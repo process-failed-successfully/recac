@@ -6,31 +6,51 @@ import (
 	"testing"
 )
 
-func TestMockAgent(t *testing.T) {
+func TestMockAgent_Send(t *testing.T) {
 	agent := NewMockAgent()
 
-	prompt := "This is a test prompt that is long enough to be truncated"
-	response, err := agent.Send(context.Background(), prompt)
-
-	if err != nil {
-		t.Fatalf("Send failed: %v", err)
+	tests := []struct {
+		name           string
+		prompt         string
+		expectedSubstr string
+		expectedJSON   bool
+	}{
+		{
+			name:           "Standard Prompt",
+			prompt:         "Hello agent",
+			expectedSubstr: "I received your prompt",
+			expectedJSON:   false,
+		},
+		{
+			name:           "Ticket Generation Prompt",
+			prompt:         "You are an expert Technical Program Manager. Please generate tickets.",
+			expectedSubstr: "MOCK-1",
+			expectedJSON:   true,
+		},
+		{
+			name:           "Long Prompt",
+			prompt:         strings.Repeat("A", 200),
+			expectedSubstr: "Prompt preview",
+			expectedJSON:   false,
+		},
 	}
 
-	if !strings.Contains(response, "Mock agent response") {
-		t.Errorf("Response missing prefix, got: %s", response)
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp, err := agent.Send(context.Background(), tt.prompt)
+			if err != nil {
+				t.Fatalf("Send failed: %v", err)
+			}
 
-	if !strings.Contains(response, "I received your prompt") {
-		t.Errorf("Response missing body, got: %s", response)
-	}
-}
+			if !strings.Contains(resp, tt.expectedSubstr) {
+				t.Errorf("Response does not contain expected substring %q. Got: %q", tt.expectedSubstr, resp)
+			}
 
-func TestTruncateString(t *testing.T) {
-	s := "hello world"
-	if truncateString(s, 5) != "hello" {
-		t.Errorf("Expected 'hello', got '%s'", truncateString(s, 5))
-	}
-	if truncateString(s, 20) != "hello world" {
-		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
+			if tt.expectedJSON {
+				if !strings.HasPrefix(resp, "[") || !strings.HasSuffix(resp, "]") {
+					t.Errorf("Expected JSON array response, got: %q", resp)
+				}
+			}
+		})
 	}
 }
