@@ -155,12 +155,23 @@ func (c *BaseClient) SendWithRetry(ctx context.Context, prompt string, sendOnce 
 		return "", err
 	}
 
-	maxRetries := 3
+	// Retry configuration
+	maxRetries := 10 // Increased for rate limits
 	var lastErr error
 
 	for i := 0; i <= maxRetries; i++ {
 		if i > 0 {
 			waitTime := c.BackoffFn(i)
+			// Check for rate limit error specifically to increase backoff
+			if lastErr != nil && (strings.Contains(lastErr.Error(), "429") || strings.Contains(strings.ToLower(lastErr.Error()), "rate limit")) {
+				// Use a more aggressive backoff for rate limits: 5s, 10s, 20s, 30s...
+				baseWait := 5 * time.Second
+				waitTime = baseWait * time.Duration(1<<uint(i-1))
+				if waitTime > 60*time.Second {
+					waitTime = 60 * time.Second
+				}
+			}
+
 			telemetry.LogInfo("Retrying agent call", "project", c.Project, "retry", i, "wait", waitTime, "error", lastErr)
 			select {
 			case <-time.After(waitTime):
@@ -197,12 +208,22 @@ func (c *BaseClient) SendStreamWithRetry(ctx context.Context, prompt string, sen
 	}
 
 	var fullResponse strings.Builder
-	maxRetries := 3
+	maxRetries := 10 // Increased for rate limits
 	var lastErr error
 
 	for i := 0; i <= maxRetries; i++ {
 		if i > 0 {
 			waitTime := c.BackoffFn(i)
+			// Check for rate limit error specifically to increase backoff
+			if lastErr != nil && (strings.Contains(lastErr.Error(), "429") || strings.Contains(strings.ToLower(lastErr.Error()), "rate limit")) {
+				// Use a more aggressive backoff for rate limits: 5s, 10s, 20s, 30s...
+				baseWait := 5 * time.Second
+				waitTime = baseWait * time.Duration(1<<uint(i-1))
+				if waitTime > 60*time.Second {
+					waitTime = 60 * time.Second
+				}
+			}
+
 			telemetry.LogInfo("Retrying agent call", "project", c.Project, "retry", i, "wait", waitTime, "error", lastErr)
 			select {
 			case <-time.After(waitTime):
