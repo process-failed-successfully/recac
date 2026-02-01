@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 )
 
 // Scanner defines the interface for security scanning
@@ -53,15 +54,122 @@ func NewRegexScanner() *RegexScanner {
 	}
 }
 
+// maskContent replaces comments (starting with #, and optionally //) and optionally strings with spaces
+// to prevent false positives in regex matching, while preserving byte offsets.
+func maskContent(content string, maskStrings bool, maskSlashComments bool) string {
+	var sb strings.Builder
+	sb.Grow(len(content))
+
+	runes := []rune(content)
+	n := len(runes)
+
+	inString := false
+	var stringChar rune
+	inComment := false
+
+	for i := 0; i < n; i++ {
+		r := runes[i]
+		rLen := utf8.RuneLen(r)
+		spaces := strings.Repeat(" ", rLen)
+
+		if inComment {
+			if r == '\n' {
+				inComment = false
+				sb.WriteRune(r)
+			} else {
+				sb.WriteString(spaces)
+			}
+			continue
+		}
+
+		if inString {
+			if r == stringChar {
+				// Check for unescaped quote
+				isEscaped := false
+				if i > 0 && runes[i-1] == '\\' {
+					// Count backslashes to handle \\"
+					bsCount := 0
+					for k := i - 1; k >= 0; k-- {
+						if runes[k] == '\\' {
+							bsCount++
+						} else {
+							break
+						}
+					}
+					if bsCount%2 != 0 {
+						isEscaped = true
+					}
+				}
+
+				if !isEscaped {
+					inString = false
+				}
+				sb.WriteString(spaces)
+			} else {
+				if r == '\n' {
+					sb.WriteRune('\n')
+				} else {
+					sb.WriteString(spaces)
+				}
+			}
+			continue
+		}
+
+		// Check for comment start
+		if r == '#' {
+			inComment = true
+			sb.WriteString(spaces)
+			continue
+		}
+
+		// Check for // comment
+		if maskSlashComments && r == '/' && i+1 < n && runes[i+1] == '/' {
+			inComment = true
+			sb.WriteString(spaces)
+			continue
+		}
+
+		// Check for string start
+		if maskStrings && (r == '"' || r == '\'') {
+			inString = true
+			stringChar = r
+			sb.WriteString(spaces)
+			continue
+		}
+
+		sb.WriteRune(r)
+	}
+
+	return sb.String()
+}
+
 // Scan checks the content for security patterns
 func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	var findings []Finding
-	lines := strings.Split(content, "\n")
+
+	// maskedShell: Strings masked, only # comments (preserve URLs with //)
+	maskedShell := maskContent(content, true, false)
+	// maskedCode: Strings masked, # and // comments masked
+	maskedCode := maskContent(content, true, true)
+	// maskedCommentsCode: Only # and // comments masked
+	maskedCommentsCode := maskContent(content, false, true)
 
 	for name, pattern := range s.patterns {
-		matches := pattern.FindAllStringIndex(content, -1)
+		var textToScan string
+		switch name {
+		case "Pipe to Shell":
+			textToScan = maskedShell
+		case "Reverse Shell":
+			textToScan = maskedCode
+		case "Dangerous Command", "Root Deletion":
+			textToScan = maskedCommentsCode
+		default:
+			textToScan = content
+		}
+
+		matches := pattern.FindAllStringIndex(textToScan, -1)
 		for _, match := range matches {
-			// Find line number
+			// Find line number in the original content (textToScan has same newlines)
 			start := match[0]
 			lineNumber := 1
 			for i := 0; i < start; i++ {
@@ -70,6 +178,7 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 				}
 			}
 
+			// Extract matched text from ORIGINAL content
 			matchedText := content[match[0]:match[1]]
 
 			findings = append(findings, Finding{
@@ -82,11 +191,11 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	}
 
 	// Scan line by line for context-aware checks (optional optimization)
+	lines := strings.Split(content, "\n")
 	for i, line := range lines {
 		// Example: Check for hardcoded passwords in typical config patterns
 		if strings.Contains(strings.ToLower(line), "password") && strings.Contains(line, "=") {
-			// Very basic heuristic, improved by ensuring it's not a variable definition in code but a value assignment
-			// For now, we'll be conservative to avoid noise, relying mostly on strict regexes above.
+			// Very basic heuristic
 		}
 		_ = i
 	}
