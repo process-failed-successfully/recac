@@ -131,3 +131,40 @@ func (c *OllamaClient) SendStream(ctx context.Context, prompt string, onChunk fu
 	}
 	return resp, err
 }
+
+// ListModels returns a list of available model names from Ollama
+func (c *OllamaClient) ListModels(ctx context.Context) ([]string, error) {
+	apiURL := fmt.Sprintf("%s/api/tags", c.baseURL)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch models from Ollama: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("Ollama API returned status %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var response struct {
+		Models []struct {
+			Name string `json:"name"`
+		} `json:"models"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	var models []string
+	for _, m := range response.Models {
+		models = append(models, m.Name)
+	}
+	return models, nil
+}

@@ -2,6 +2,9 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"time"
 )
@@ -68,4 +71,42 @@ func (c *OpenAIClient) SendStream(ctx context.Context, prompt string, onChunk fu
 	return c.SendStreamWithRetry(ctx, prompt, func(ctx context.Context, p string, oc func(string)) (string, error) {
 		return SendStreamOnce(ctx, c.getConfig(), p, oc)
 	}, onChunk)
+}
+
+// ListModels returns a list of available model IDs from OpenAI
+func (c *OpenAIClient) ListModels(ctx context.Context) ([]string, error) {
+	apiURL := "https://api.openai.com/v1/models"
+
+	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch models from OpenAI: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("OpenAI API returned status %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var response struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	var models []string
+	for _, m := range response.Data {
+		models = append(models, m.ID)
+	}
+	return models, nil
 }

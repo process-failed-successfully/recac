@@ -16,6 +16,12 @@ type Agent interface {
 	SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error)
 }
 
+// ModelLister is an optional interface for agents that support listing available models
+type ModelLister interface {
+	// ListModels returns a list of available model names
+	ListModels(ctx context.Context) ([]string, error)
+}
+
 // NewAgent is a factory function that returns an Agent based on the provider
 // For Ollama, apiKey is used as baseURL (optional, defaults to http://localhost:11434)
 func NewAgent(provider, apiKey, model, workDir, project string) (Agent, error) {
