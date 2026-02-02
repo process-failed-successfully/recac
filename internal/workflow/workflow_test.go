@@ -94,6 +94,7 @@ func TestProcessJiraTicket(t *testing.T) {
 		SessionName: "test-run",
 		Cleanup:     true,
 		IsMock:      true,
+		MaxIterations: 1, // Prevent infinite loops
 	}
 
 	err := ProcessJiraTicket(context.Background(), "TEST-1", jClient, cfg, nil)
@@ -215,6 +216,7 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 		RepoURL:     "https://github.com/example/already-provided",
 		IsMock:      true,
 		Cleanup:     false,
+		MaxIterations: 5, // Allow a few iterations for mock flow
 	}
 
 	err := ProcessJiraTicket(context.Background(), "TEST-1", jClient, cfg, nil)
