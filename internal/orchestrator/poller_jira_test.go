@@ -29,6 +29,11 @@ func (m *MockJiraClient) GetBlockers(issue map[string]interface{}) []string {
 	return args.Get(0).([]string)
 }
 
+func (m *MockJiraClient) GetBlockerKeys(issue map[string]interface{}) []string {
+	args := m.Called(issue)
+	return args.Get(0).([]string)
+}
+
 func (m *MockJiraClient) ParseDescription(issue map[string]interface{}) string {
 	args := m.Called(issue)
 	return args.String(0)
@@ -143,18 +148,18 @@ func TestJiraPoller_Poll(t *testing.T) {
 		mockClient.On("SearchIssues", ctx, "status = 'To Do'").Return(issues, nil)
 
 		// PROJ-1: Ready to go
-		mockClient.On("GetBlockers", issue1).Return([]string{})
+		mockClient.On("GetBlockerKeys", issue1).Return([]string{})
 		mockClient.On("ParseDescription", issue1).Return("Repo: https://github.com/test/repo1")
 
 		// PROJ-2: No repo
-		mockClient.On("GetBlockers", issue2).Return([]string{})
+		mockClient.On("GetBlockerKeys", issue2).Return([]string{})
 		mockClient.On("ParseDescription", issue2).Return("No repo here")
 
 		// PROJ-3: Blocked by PROJ-4 (internal)
-		mockClient.On("GetBlockers", issue3).Return([]string{"PROJ-4 (To Do)"})
+		mockClient.On("GetBlockerKeys", issue3).Return([]string{"PROJ-4"})
 
 		// PROJ-4: Blocked externally
-		mockClient.On("GetBlockers", issue4).Return([]string{"EXT-1 (In Progress)"})
+		mockClient.On("GetBlockerKeys", issue4).Return([]string{"EXT-1"})
 
 		workItems, err := poller.Poll(ctx, nil)
 
@@ -214,7 +219,7 @@ func TestJiraPoller_Poll(t *testing.T) {
 		issue := mockIssue("PROJ-FEAT", "Feature Request", desc)
 
 		mockClient.On("SearchIssues", ctx, "status = 'To Do'").Return([]map[string]interface{}{issue}, nil)
-		mockClient.On("GetBlockers", issue).Return([]string{})
+		mockClient.On("GetBlockerKeys", issue).Return([]string{})
 		mockClient.On("ParseDescription", issue).Return(desc)
 
 		workItems, err := poller.Poll(ctx, nil)
