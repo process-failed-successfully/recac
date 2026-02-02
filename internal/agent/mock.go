@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,10 +31,67 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
-	// Return a mock response that shows the agent received the prompt
-	// This allows the session to run without requiring real API keys
+
+	upperPrompt := strings.ToUpper(prompt)
+
+	// Mock Logic for Smoke Tests
+	if strings.Contains(upperPrompt, "PRIMES") || strings.Contains(upperPrompt, "PRIME NUMBERS") {
+		return `I will create a python script to calculate prime numbers.
+
+` + "```bash" + `
+cat <<EOF > primes.py
+def is_prime(n):
+    if n <= 1:
+        return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+if __name__ == "__main__":
+    import sys
+    n = int(sys.argv[1]) if len(sys.argv) > 1 else 10
+    print([x for x in range(n) if is_prime(x)])
+EOF
+
+python3 primes.py 20
+
+git add primes.py
+git commit -m "feat: add primes.py" || echo "Nothing to commit"
+
+if command -v agent-bridge >/dev/null 2>&1; then
+    agent-bridge signal COMPLETED true
+fi
+` + "```", nil
+	}
+
+	if strings.Contains(upperPrompt, "SPEC") {
+		return `I have analyzed the spec.
+
+` + "```bash" + `
+if command -v agent-bridge >/dev/null 2>&1; then
+    agent-bridge signal COMPLETED true
+fi
+` + "```", nil
+	}
+
+	if strings.Contains(upperPrompt, "NOTHING TO COMMIT") || strings.Contains(upperPrompt, "WORKING TREE CLEAN") {
+		return `It seems there is nothing to commit. I will mark the task as completed.
+
+` + "```bash" + `
+if command -v agent-bridge >/dev/null 2>&1; then
+    agent-bridge signal COMPLETED true
+fi
+` + "```", nil
+	}
+
+	// Default response
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
+
+	// Ensure valid bash block for tests that expect it
+	response += "\n\n```bash\n# No-op command to satisfy runner\necho 'Mock agent received command'\nif command -v agent-bridge >/dev/null 2>&1; then\n    agent-bridge signal COMPLETED true\nfi\n```"
+
 	return response, nil
 }
 
