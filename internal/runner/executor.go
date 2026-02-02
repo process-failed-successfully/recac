@@ -109,6 +109,7 @@ func (s *Session) checkBlockers(ctx context.Context) error {
 				cleanStr = strings.ReplaceAll(cleanStr, "*", "")
 				cleanStr = strings.ReplaceAll(cleanStr, "-", "")
 				cleanStr = strings.Join(strings.Fields(cleanStr), " ") // Normalize internal whitespace
+				cleanStr = strings.TrimRight(cleanStr, ".")            // Remove trailing punctuation
 
 				isFalsePositive := strings.Contains(cleanStr, "no blockers") ||
 					strings.HasPrefix(cleanStr, "none") ||
