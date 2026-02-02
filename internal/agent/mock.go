@@ -90,6 +90,9 @@ git config user.email "mock-agent@recac.io"
 git config user.name "Mock Agent"
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json"
+
+# Update feature status to Done so the Runner knows we are finished
+agent-bridge feature set 1 --status done --passes true || echo "Failed to update feature status (mock mode)"
 ` + "```" + `
 `, nil
 	}
@@ -130,7 +133,7 @@ fi
 
 # Import it if agent-bridge is available
 if command -v agent-bridge >/dev/null 2>&1; then
-  agent-bridge import --file feature_list.json || echo "Import failed but continuing (mock mode)"
+  cat feature_list.json | agent-bridge import || echo "Import failed but continuing (mock mode)"
 else
   echo "agent-bridge not found (mock mode)"
 fi
