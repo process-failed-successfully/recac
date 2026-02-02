@@ -32,6 +32,54 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	// Heuristic for Initializer (create feature_list.json)
+	// Trigger: Prompt mentions "INITIALIZER AGENT" (from template header).
+	// We MUST be specific to avoid triggering on Coding Agent prompts which also mention feature_list.json.
+	// Priority: Must be checked BEFORE implementation triggers to avoid false positives.
+	if strings.Contains(prompt, "INITIALIZER AGENT") {
+		// Only run if we haven't already done it (avoid infinite loop)
+		// We check if prompt implies current state has it? Hard to know.
+		// We rely on the script to be idempotent/safe.
+		return `
+I will create the feature list.
+
+` + "```bash" + `
+if [ -f feature_list.json ]; then
+  echo "feature_list.json already exists."
+else
+cat << 'EOF' > feature_list.json
+{
+    "project_name": "Prime Number Script",
+    "features": [
+        {
+            "id": "1",
+            "category": "core",
+            "priority": "MVP",
+            "description": "Calculate primes under 10000",
+            "status": "todo",
+            "passes": false,
+            "steps": [],
+            "dependencies": {
+                "depends_on_ids": [],
+                "exclusive_write_paths": [],
+                "read_only_paths": []
+            }
+        }
+    ]
+}
+EOF
+fi
+
+# Import it if agent-bridge is available
+if command -v agent-bridge >/dev/null 2>&1; then
+  agent-bridge import --file feature_list.json || echo "Import skipped but continuing (mock mode)"
+else
+  echo "agent-bridge not found (mock mode)"
+fi
+` + "```" + `
+`, nil
+	}
+
 	// Helper for case-insensitive matching
 	promptLower := strings.ToLower(prompt)
 
@@ -119,53 +167,6 @@ agent-bridge signal QA_PASSED true
 		return `I will sign off.
 ` + "```bash" + `
 agent-bridge signal PROJECT_SIGNED_OFF true
-` + "```" + `
-`, nil
-	}
-
-	// Heuristic for Initializer (create feature_list.json)
-	// Trigger: Prompt mentions "INITIALIZER AGENT" (from template header).
-	// We MUST be specific to avoid triggering on Coding Agent prompts which also mention feature_list.json.
-	if strings.Contains(prompt, "INITIALIZER AGENT") {
-		// Only run if we haven't already done it (avoid infinite loop)
-		// We check if prompt implies current state has it? Hard to know.
-		// We rely on the script to be idempotent/safe.
-		return `
-I will create the feature list.
-
-` + "```bash" + `
-if [ -f feature_list.json ]; then
-  echo "feature_list.json already exists."
-else
-cat << 'EOF' > feature_list.json
-{
-    "project_name": "Prime Number Script",
-    "features": [
-        {
-            "id": "1",
-            "category": "core",
-            "priority": "MVP",
-            "description": "Calculate primes under 10000",
-            "status": "todo",
-            "passes": false,
-            "steps": [],
-            "dependencies": {
-                "depends_on_ids": [],
-                "exclusive_write_paths": [],
-                "read_only_paths": []
-            }
-        }
-    ]
-}
-EOF
-fi
-
-# Import it if agent-bridge is available
-if command -v agent-bridge >/dev/null 2>&1; then
-  agent-bridge import --file feature_list.json || echo "Import skipped but continuing (mock mode)"
-else
-  echo "agent-bridge not found (mock mode)"
-fi
 ` + "```" + `
 `, nil
 	}
