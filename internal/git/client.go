@@ -215,9 +215,15 @@ func (c *Client) Fetch(dir, remote, branchName string) error {
 
 // RemoteBranchExists checks if a branch exists on the remote.
 func (c *Client) RemoteBranchExists(dir, remote, branch string) (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
 	// git ls-remote --heads remote branch
-	cmd := exec.Command("git", "ls-remote", "--heads", remote, branch)
+	cmd := exec.CommandContext(ctx, "git", "ls-remote", "--heads", remote, branch)
 	cmd.Dir = dir
+	// Enforce no prompting to prevent hangs
+	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=/bin/true")
+
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = os.Stderr
