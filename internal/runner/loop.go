@@ -132,6 +132,12 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		// Ensure feature list is synced and mirror is up to date
 		features = s.loadFeatures()
 
+		// Auto-completion check: If all features are done, mark as COMPLETED
+		// This handles the case where a single agent completes all work without multi-agent delegation
+		if s.checkAutoQA() {
+			s.Logger.Info("auto-completion triggered: all features passed")
+		}
+
 		// Single-Task Termination: If we are assigned a specific task and it's done, exit.
 		if s.SelectedTaskID != "" {
 			for _, f := range features {

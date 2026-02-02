@@ -51,8 +51,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Initializer (Feature List)
-	// Triggers: "initialize", "feature_list.json"
-	if strings.Contains(lowerPrompt, "initialize") || strings.Contains(lowerPrompt, "feature_list.json") {
+	// Triggers: "initializer agent" (explicit role check)
+	// Note: We avoid checking "feature_list.json" loosely because it persists in context
+	if strings.Contains(lowerPrompt, "initializer agent") {
 		// Return script to create feature_list.json
 		return "```bash\n#!/bin/bash\n" + `
 echo '{
@@ -115,9 +116,14 @@ fi
 ` + "\n```\n", nil
 	}
 
-	// 4. QA / Manager
-	if strings.Contains(lowerPrompt, "qa agent") || strings.Contains(lowerPrompt, "project manager") {
-		return "Approved. QA Passed.", nil
+	// 4. QA Agent
+	if strings.Contains(lowerPrompt, "qa agent") {
+		return "Approved. QA Passed.\n```bash\nagent-bridge signal QA_PASSED true\n```", nil
+	}
+
+	// 5. Manager Agent
+	if strings.Contains(lowerPrompt, "project manager") {
+		return "Approved. Project Signed Off.\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
 	}
 
 	// Default fallback
