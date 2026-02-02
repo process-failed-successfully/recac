@@ -96,8 +96,14 @@ func TestSession_ProcessResponse_Blocker(t *testing.T) {
 	// Manually set blocker signal to simulate "agent did it"
 	store.SetSignal("test-project", "BLOCKER", "I am stuck")
 
-	_, err := s.ProcessResponse(context.Background(), "some commands")
+	response := "Here is code:\n```bash\necho hello\n```"
+	output, err := s.ProcessResponse(context.Background(), response)
 	if err != ErrBlocker {
 		t.Errorf("Expected ErrBlocker, got %v", err)
+	}
+
+	expected := "Command Output:\nBlocker reported\n"
+	if output != expected {
+		t.Errorf("Expected output preserved despite blocker, got %q", output)
 	}
 }
