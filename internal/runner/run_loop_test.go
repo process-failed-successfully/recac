@@ -105,19 +105,24 @@ func TestSession_RunLoop_Success(t *testing.T) {
 	// Intercept agent-bridge signal command to update DB state
 	mockDocker.ExecFunc = func(ctx context.Context, containerID string, cmd []string) (string, error) {
 		cmdStr := strings.Join(cmd, " ")
+		t.Logf("MockDocker Exec: %s", cmdStr)
 		if strings.Contains(cmdStr, "agent-bridge signal COMPLETED true") {
+			t.Log("Setting COMPLETED signal")
 			store.SetSignal("test-project", "COMPLETED", "true")
 			return "Success", nil
 		}
 		if strings.Contains(cmdStr, "agent-bridge signal QA_PASSED true") {
+			t.Log("Setting QA_PASSED signal")
 			store.SetSignal("test-project", "QA_PASSED", "true")
 			return "Success", nil
 		}
 		if strings.Contains(cmdStr, "agent-bridge signal PROJECT_SIGNED_OFF true") {
+			t.Log("Setting PROJECT_SIGNED_OFF signal")
 			store.SetSignal("test-project", "PROJECT_SIGNED_OFF", "true")
 			return "Success", nil
 		}
-		return "Success", nil
+		// Default to empty output to avoid triggering legacy blocker checks (which interpret any output as blocker content)
+		return "", nil
 	}
 
 	mockManager := &MockLoopAgent{Response: "Approved.\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```"}
