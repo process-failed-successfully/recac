@@ -280,6 +280,7 @@ jobs:
           GITHUB_API_KEY: ${{ secrets.GH_API_KEY }}
           GITHUB_EMAIL: ${{ secrets.GH_EMAIL }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          MAX_ITERATIONS: "50"
         run: |
           RETRIES=3
           for i in $(seq 0 $RETRIES); do
