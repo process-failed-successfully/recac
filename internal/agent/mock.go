@@ -41,7 +41,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     "type": "Epic",
     "title": "Implement Prime Number Generator",
     "description": "Create a python script to generate prime numbers. Repo: https://github.com/process-failed-successfully/recac",
-    "dependencies": []
+    "dependencies": {}
   },
   {
     "id": "req-primes-json-contains-correct-p",
@@ -49,7 +49,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     "title": "Implement primes.py",
     "description": "Implement the prime number generation logic.",
     "parent_id": "PRIMES",
-    "dependencies": []
+    "dependencies": {}
   }
 ]`, nil
 	}
@@ -67,7 +67,7 @@ cat <<EOF > feature_list.json
       "name": "Implement primes.py",
       "description": "Implement the prime number generation logic.",
       "status": "pending",
-      "dependencies": []
+      "dependencies": {}
     }
   ]
 }
