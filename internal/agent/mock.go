@@ -86,7 +86,24 @@ agent-bridge import --file feature_list.json
 `, nil
 	}
 
-	// 3. Implementation for 'prime-python' scenario
+	// 3. Completion Check (Must be before Implementation Check)
+	// If the previous command output indicates nothing to commit (clean working tree), we are done.
+	// This prevents infinite loops in smoke tests where the agent keeps trying to commit.
+	promptLower := strings.ToLower(prompt)
+	if strings.Contains(promptLower, "nothing to commit") || strings.Contains(promptLower, "working tree clean") {
+		return `It seems there are no more changes to commit. The task is complete.
+
+` + "```bash" + `
+if command -v agent-bridge >/dev/null 2>&1; then
+    agent-bridge signal COMPLETED true
+else
+    echo "agent-bridge not found, cannot signal completion."
+fi
+` + "```" + `
+`, nil
+	}
+
+	// 4. Implementation for 'prime-python' scenario
 	// The prompt will typically contain the ticket description or "primes.py" instructions.
 	// We use a "greedy" match here: if it talks about the primes task AND it's NOT the ticket generation prompt (checked above),
 	// assume it's the coding task.
@@ -121,23 +138,6 @@ git config user.name "Mock Agent"
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
-` + "```" + `
-`, nil
-	}
-
-	// 4. Completion Check
-	// If the previous command output indicates nothing to commit (clean working tree), we are done.
-	// This prevents infinite loops in smoke tests where the agent keeps trying to commit.
-	promptLower := strings.ToLower(prompt)
-	if strings.Contains(promptLower, "nothing to commit") || strings.Contains(promptLower, "working tree clean") {
-		return `It seems there are no more changes to commit. The task is complete.
-
-` + "```bash" + `
-if command -v agent-bridge >/dev/null 2>&1; then
-    agent-bridge signal COMPLETED true
-else
-    echo "agent-bridge not found, cannot signal completion."
-fi
 ` + "```" + `
 `, nil
 	}

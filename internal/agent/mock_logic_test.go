@@ -57,4 +57,18 @@ func TestMockAgent_Completion(t *testing.T) {
 	if !strings.Contains(resp2, "agent-bridge signal COMPLETED true") {
 		t.Errorf("Expected completion signal for 'Nothing to commit', got: %s", resp2)
 	}
+
+	// Test case 3: Conflict priority - "primes.py" AND "nothing to commit"
+	// Should prioritize completion over re-implementation
+	prompt3 := "I implemented primes.py. Output: nothing to commit, working tree clean."
+	resp3, err := agent.Send(context.Background(), prompt3)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if strings.Contains(resp3, "cat << 'EOF' > primes.py") {
+		t.Errorf("Agent tried to re-implement primes.py instead of completing!")
+	}
+	if !strings.Contains(resp3, "agent-bridge signal COMPLETED true") {
+		t.Errorf("Expected completion signal when both keywords present, got: %s", resp3)
+	}
 }
