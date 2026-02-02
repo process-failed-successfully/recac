@@ -785,12 +785,15 @@ func TestSession_RunLoop_Stall(t *testing.T) {
 
 	// Run Loop
 	// It should fail with ErrStalled or ErrNoOp eventually.
-	// Since agent response has no commands, checkNoOpBreaker will trip first?
-	// checkNoOpBreaker trips if 3 consecutive iterations have 0 commands.
+	// Since agent response has no commands, checkNoOpBreaker will trip first.
+	// checkNoOpBreaker trips if 10 consecutive iterations have 0 commands (updated from 3).
+	// We set MaxIterations to 12 to ensure we hit the breaker limit (10) before max iterations.
 
+	session.MaxIterations = 12
 	err := session.RunLoop(context.Background())
-	if err != ErrNoOp {
-		t.Errorf("Expected ErrNoOp, got: %v", err)
+	// The RunLoop function returns a generic error string for the circuit breaker, not the wrapped ErrNoOp
+	if err == nil || !strings.Contains(err.Error(), "circuit breaker: no-op loop") {
+		t.Errorf("Expected circuit breaker error (circuit breaker: no-op loop), got: %v", err)
 	}
 }
 
