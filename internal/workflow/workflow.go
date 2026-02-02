@@ -129,15 +129,12 @@ var ProcessJiraTicket = func(ctx context.Context, jiraTicketID string, jClient *
 	}
 
 	// 2a. Check for Blockers
-	blockers := jClient.GetBlockers(ticket)
-	if len(blockers) > 0 {
+	blockerKeys := jClient.GetBlockerKeys(ticket)
+	if len(blockerKeys) > 0 {
 		var effectiveBlockers []string
-		for _, b := range blockers {
-			// Format is "KEY (Status)"
-			parts := strings.Split(b, " (")
-			key := parts[0]
+		for _, key := range blockerKeys {
 			if !ignoredBlockers[key] {
-				effectiveBlockers = append(effectiveBlockers, b)
+				effectiveBlockers = append(effectiveBlockers, key)
 			}
 		}
 

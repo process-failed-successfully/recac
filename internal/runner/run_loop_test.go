@@ -10,6 +10,7 @@ import (
 	"recac/internal/notify"
 	"recac/internal/telemetry"
 	"testing"
+	"time"
 )
 
 // MockLoopDocker implements DockerClient interface
@@ -148,4 +149,44 @@ func TestSession_RunLoop_Success(t *testing.T) {
 func TestSession_RunLoop_StalledBreaker(t *testing.T) {
 	// Setup logic for stalled breaker...
 	// This might duplicate session_circuit_breaker_test.go logic but integrated.
+}
+
+func TestSession_RunLoop_BlockerInfiniteLoop(t *testing.T) {
+	// Setup
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
+	dbPath := filepath.Join(tmpDir, ".recac.db")
+	store, _ := db.NewSQLiteStore(dbPath)
+	defer store.Close()
+
+    // Set BLOCKER signal
+    store.SetSignal("test-project", "BLOCKER", "Something is wrong")
+
+	mockDocker := &MockLoopDocker{}
+	mockAgent := &MockLoopAgent{
+		Response: "Doing nothing...",
+	}
+
+	s := &Session{
+        Project:          "test-project",
+		Workspace:        tmpDir,
+		Docker:           mockDocker,
+		Agent:            mockAgent,
+		DBStore:          store,
+		MaxIterations:    5, // If it loops, it will hit this
+		ManagerFrequency: 10,
+		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
+		Logger:           telemetry.NewLogger(true, "", false),
+        SleepFunc:        func(d time.Duration) {}, // Skip sleep
+	}
+
+	ctx := context.Background()
+	err := s.RunLoop(ctx)
+
+    // In current buggy implementation, it will loop until MaxIterations and return ErrMaxIterations.
+    // If fixed, it should return ErrBlocker immediately.
+
+	if !errors.Is(err, ErrBlocker) {
+		t.Errorf("Expected ErrBlocker, got %v", err)
+	}
 }
