@@ -61,7 +61,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Check for implementation triggers:
 	// 1. Task ID: [PRIMES] (often in prompt as "Task: [PRIMES]" or similar)
 	// 2. File + Action: "primes.py" AND "create" (case insensitive)
-	isImplementation := strings.Contains(prompt, "[PRIMES]") || (strings.Contains(promptLower, "primes.py") && strings.Contains(promptLower, "create"))
+	// 3. Task Description keyword: "calculate primes"
+	isImplementation := strings.Contains(prompt, "[PRIMES]") ||
+		(strings.Contains(promptLower, "primes.py") && strings.Contains(promptLower, "create")) ||
+		strings.Contains(promptLower, "calculate primes")
 
 	if !isPlanning && isImplementation {
 		return `
