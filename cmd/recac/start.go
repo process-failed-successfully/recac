@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -195,6 +196,10 @@ var startCmd = &cobra.Command{
 			cfg.ProjectPath = resumePath
 			fmt.Printf("Resuming session '%s' from workspace: %s\n", cfg.SessionName, resumePath)
 			if err := runWorkflow(ctx, cfg); err != nil {
+				if errors.Is(err, runner.ErrMaxIterations) {
+					fmt.Fprintf(os.Stderr, "Resumed session stopped: %v\n", err)
+					return
+				}
 				fmt.Fprintf(os.Stderr, "Resumed session failed: %v\n", err)
 				exit(1)
 			}
@@ -403,6 +408,10 @@ var startCmd = &cobra.Command{
 		}
 
 		if err := runWorkflow(ctx, cfg); err != nil {
+			if errors.Is(err, runner.ErrMaxIterations) {
+				fmt.Fprintf(os.Stderr, "Session stopped: %v\n", err)
+				return
+			}
 			fmt.Fprintf(os.Stderr, "Session failed: %v\n", err)
 			exit(1)
 		}
