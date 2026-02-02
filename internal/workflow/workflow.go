@@ -258,6 +258,7 @@ var ProcessJiraTicket = func(ctx context.Context, jiraTicketID string, jClient *
 // ISessionManager defines the interface for session management.
 type ISessionManager interface {
 	StartSession(name, goal string, command []string, cwd string) (*runner.SessionState, error)
+	SaveSession(session *runner.SessionState) error
 }
 
 // Statically assert that the real session manager implements our interface.
@@ -499,5 +500,58 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 		}
 		return err
 	}
-	return session.RunLoop(ctx)
+
+	// Get the starting commit SHA for interactive sessions
+	var startSHA string
+	gitClient := git.NewClient()
+	if sha, err := gitClient.CurrentCommitSHA(projectPath); err == nil {
+		startSHA = sha
+	} else {
+		fmt.Printf("Warning: could not get start commit SHA: %v\n", err)
+	}
+
+	// Create a session state for the interactive session to track commit SHAs
+	sm := cfg.SessionManager
+	if sm == nil {
+		var err error
+		sm, err = NewSessionManagerFunc()
+		if err != nil {
+			return fmt.Errorf("failed to create session manager for interactive session: %w", err)
+		}
+	}
+
+	interactiveSessionState := &runner.SessionState{
+		Name:           cfg.SessionName,
+		StartTime:      time.Now(),
+		Command:        os.Args,
+		Workspace:      projectPath,
+		Status:         "running",
+		Type:           "interactive",
+		Goal:           cfg.Goal,
+		AgentStateFile: filepath.Join(projectPath, ".agent_state.json"),
+		StartCommitSHA: startSHA,
+		ContainerID:    session.GetContainerID(),
+	}
+	sm.SaveSession(interactiveSessionState)
+
+	runErr := session.RunLoop(ctx)
+
+	// Now that the session is over, get the end commit SHA
+	endSHA, err := gitClient.CurrentCommitSHA(projectPath)
+	if err != nil {
+		fmt.Printf("Warning: could not get end commit SHA: %v\n", err)
+	}
+
+	// Update the session state
+	interactiveSessionState.EndCommitSHA = endSHA
+	interactiveSessionState.EndTime = time.Now()
+	if runErr != nil {
+		interactiveSessionState.Status = "error"
+		interactiveSessionState.Error = runErr.Error()
+	} else {
+		interactiveSessionState.Status = "completed"
+	}
+	sm.SaveSession(interactiveSessionState)
+
+	return runErr
 }

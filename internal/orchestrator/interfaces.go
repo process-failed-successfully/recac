@@ -32,7 +32,6 @@ type Spawner interface {
 // It mirrors the methods of jira.Client used by JiraPoller.
 type JiraClient interface {
 	SearchIssues(ctx context.Context, jql string) ([]map[string]interface{}, error)
-	GetBlockers(issue map[string]interface{}) []string
 	GetBlockerKeys(issue map[string]interface{}) []string
 	ParseDescription(issue map[string]interface{}) string
 	AddComment(ctx context.Context, issueID string, comment string) error
