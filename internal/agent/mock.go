@@ -58,6 +58,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Triggers when "Initializer" role or JSON format request is detected
 	if strings.Contains(prompt, "Initializer") || strings.Contains(prompt, "JSON format") {
 		return `
+` + "```bash" + `
 cat <<EOF > feature_list.json
 {
   "features": [
@@ -72,6 +73,7 @@ cat <<EOF > feature_list.json
 }
 EOF
 cat feature_list.json | agent-bridge import || echo "Warning: agent-bridge import failed"
+` + "```" + `
 `, nil
 	}
 
@@ -79,6 +81,7 @@ cat feature_list.json | agent-bridge import || echo "Warning: agent-bridge impor
 	// Triggers when specific files or tasks are mentioned
 	if strings.Contains(prompt, "primes.py") {
 		return `
+` + "```bash" + `
 cat <<EOF > primes.py
 import json
 
@@ -100,6 +103,7 @@ if command -v agent-bridge > /dev/null; then
     # Important: Signal completion to the orchestrator to stop the loop
     agent-bridge signal COMPLETED true
 fi
+` + "```" + `
 `, nil
 	}
 
@@ -107,11 +111,13 @@ fi
 	lowerPrompt := strings.ToLower(prompt)
 	if strings.Contains(lowerPrompt, "nothing to commit") || strings.Contains(lowerPrompt, "working tree clean") {
 		return `
+` + "```bash" + `
 if command -v agent-bridge > /dev/null; then
     agent-bridge signal COMPLETED true
 else
     echo "agent-bridge not found"
 fi
+` + "```" + `
 `, nil
 	}
 
