@@ -146,7 +146,7 @@ fi
 The QA report looks good. I approve the project.
 
 ` + "```bash" + `
-agent-bridge signal PROJECT_SIGNED_OFF true
+agent-bridge signoff
 echo "Project signed off by Manager"
 ` + "```" + `
 `, nil

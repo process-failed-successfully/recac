@@ -114,6 +114,12 @@ func run(args []string, config db.StoreConfig, projectID string) error {
 			fmt.Println("Manager trigger signal set.")
 		}
 
+	case "signoff":
+		cmdErr = store.SetSignal(projectID, "PROJECT_SIGNED_OFF", "true")
+		if cmdErr == nil {
+			fmt.Println("Project signed off.")
+		}
+
 	case "verify":
 		if len(args) < 4 {
 			return fmt.Errorf("usage: agent-bridge verify <id> <pass/fail>")
@@ -296,6 +302,7 @@ func printUsage() {
 	fmt.Println("  blocker <message>      Set a blocker signal")
 	fmt.Println("  qa                     Trigger QA process")
 	fmt.Println("  manager                Trigger Manager review")
+	fmt.Println("  signoff                Sign off the project (Manager only)")
 	fmt.Println("  verify <id> <pass/fail> Update UI verification request")
 	fmt.Println("  signal <key> <value>   Set a generic signal")
 	fmt.Println("  feature set <id> --status <status> --passes <true/false> Update feature status")

@@ -111,8 +111,8 @@ Review the QA Report...
 	}
 
 	// Should contain sign-off signal
-	if !strings.Contains(resp, "agent-bridge signal PROJECT_SIGNED_OFF true") {
-		t.Errorf("Expected Manager sign-off signal, got: %s", resp)
+	if !strings.Contains(resp, "agent-bridge signoff") {
+		t.Errorf("Expected Manager sign-off signal (agent-bridge signoff), got: %s", resp)
 	}
 }
 
