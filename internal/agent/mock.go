@@ -98,7 +98,7 @@ EOF
 
 # Mark as done
 if command -v agent-bridge > /dev/null; then
-	agent-bridge feature set req-primes-json-contains-correct-p status=completed || echo "Warning: failed to update feature status"
+	agent-bridge feature set req-primes-json-contains-correct-p --status done --passes true || echo "Warning: failed to update feature status"
 fi
 ` + "```", nil
 	}
