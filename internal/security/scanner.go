@@ -2,13 +2,15 @@ package security
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 )
 
 // Scanner defines the interface for security scanning
 type Scanner interface {
-	Scan(content string) ([]Finding, error)
+	Scan(filename, content string) ([]Finding, error)
 }
 
 // Finding represents a security issue found in the content
@@ -34,6 +36,10 @@ var (
 	reRootDeletion    = regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+([/~*]+|/)$`)
 	rePipeShell       = regexp.MustCompile(`(?i)(curl|wget)\s+.*?\|\s*(bash|sh|zsh|python|perl|php|ruby)`)
 	reReverseShell    = regexp.MustCompile(`(?i)nc\s+.*?-e\s+.*`)
+
+	// Masking Regexes
+	reCBlockComment = regexp.MustCompile(`(?s)/\*.*?\*/`)
+	reCLineComment  = regexp.MustCompile(`//.*`)
 )
 
 // NewRegexScanner creates a new scanner with default patterns
@@ -53,24 +59,64 @@ func NewRegexScanner() *RegexScanner {
 	}
 }
 
+// maskCComments replaces C-style comments with spaces, preserving line numbers, newlines, and byte length.
+func maskCComments(content string) string {
+	// 1. Block comments /* ... */
+	content = reCBlockComment.ReplaceAllStringFunc(content, func(s string) string {
+		// Replace with spaces, preserve newlines and byte length
+		var sb strings.Builder
+		sb.Grow(len(s))
+		for _, r := range s {
+			if r == '\n' {
+				sb.WriteByte('\n')
+			} else {
+				n := utf8.RuneLen(r)
+				for i := 0; i < n; i++ {
+					sb.WriteByte(' ')
+				}
+			}
+		}
+		return sb.String()
+	})
+
+	// 2. Line comments // ...
+	content = reCLineComment.ReplaceAllStringFunc(content, func(s string) string {
+		return strings.Repeat(" ", len(s))
+	})
+
+	return content
+}
+
 // Scan checks the content for security patterns
-func (s *RegexScanner) Scan(content string) ([]Finding, error) {
+func (s *RegexScanner) Scan(filename, content string) ([]Finding, error) {
+	maskedContent := content
+	ext := strings.ToLower(filepath.Ext(filename))
+	cStyleExts := map[string]bool{
+		".go": true, ".js": true, ".ts": true, ".java": true,
+		".c": true, ".cpp": true, ".h": true, ".cs": true,
+		".php": true, ".rs": true, ".swift": true, ".kt": true, ".scala": true,
+	}
+
+	if cStyleExts[ext] {
+		maskedContent = maskCComments(content)
+	}
+
 	var findings []Finding
-	lines := strings.Split(content, "\n")
+	lines := strings.Split(maskedContent, "\n")
 
 	for name, pattern := range s.patterns {
-		matches := pattern.FindAllStringIndex(content, -1)
+		matches := pattern.FindAllStringIndex(maskedContent, -1)
 		for _, match := range matches {
 			// Find line number
 			start := match[0]
 			lineNumber := 1
 			for i := 0; i < start; i++ {
-				if content[i] == '\n' {
+				if maskedContent[i] == '\n' {
 					lineNumber++
 				}
 			}
 
-			matchedText := content[match[0]:match[1]]
+			matchedText := content[match[0]:match[1]] // Use original content for display
 
 			findings = append(findings, Finding{
 				Type:        name,
