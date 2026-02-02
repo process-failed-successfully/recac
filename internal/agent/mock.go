@@ -108,6 +108,45 @@ python3 primes.py
 # Add and commit
 git add primes.py primes.json
 git commit -m "Add primes script and output"
+
+# Update feature status to Done
+# We use $(agent-bridge feature list --json | jq -r '.features[0].id') to get the ID dynamically if needed,
+# but for smoke tests we know the ID is likely 'req-primes' or 'req-primes-json-contains-correct-primes'
+# Let's try to be robust and set 'req-primes' (from Initializer) AND 'req-primes-json-contains-correct-primes' (from Environment Injection if any)
+agent-bridge feature set req-primes --status done --passes true
+agent-bridge feature set req-primes-json-contains-correct-primes --status done --passes true
+` + "```" + `
+`, nil
+	}
+
+	// 4. Nothing to Commit (Completion Guard)
+	// If the agent sees "nothing to commit", it implies the coding task is done.
+	// We signal COMPLETED to trigger QA.
+	if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
+		return `It seems the work is complete and there are no more changes to commit.
+
+` + "```bash" + `
+agent-bridge signal COMPLETED true
+` + "```" + `
+`, nil
+	}
+
+	// 5. QA Agent Role
+	if strings.Contains(upperPrompt, "QA AGENT") {
+		return `QA verification passed.
+
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// 6. Project Manager Role
+	if strings.Contains(upperPrompt, "PROJECT MANAGER") {
+		return `Project approved.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true
 ` + "```" + `
 `, nil
 	}
