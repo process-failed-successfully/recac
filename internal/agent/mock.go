@@ -34,6 +34,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Detect Prime Python Scenario
 	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "prime numbers") {
+		// Differentiate between Planning (Ticket Generation) and Implementation
+		if strings.Contains(prompt, "CRITICAL INSTRUCTION FOR TICKET GENERATION") {
+			return m.generatePrimesTickets(), nil
+		}
 		return m.generatePrimesResponse(), nil
 	}
 
@@ -41,6 +45,17 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
+}
+
+func (m *MockAgent) generatePrimesTickets() string {
+	return `[
+  {
+    "id": "PRIMES",
+    "type": "Task",
+    "summary": "[PRIMES] Create Prime Number Script",
+    "description": "Create a python script named 'primes.py'. It MUST be python.\nIt must calculate all prime numbers less than 10,000 and output to a file named 'primes.json'.\nIMPORTANT: You MUST use a bash block to create the file."
+  }
+]`
 }
 
 func (m *MockAgent) generatePrimesResponse() string {
