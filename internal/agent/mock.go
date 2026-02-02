@@ -39,6 +39,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// Return JSON array of ticket nodes
 		return `[
   {
+    "id": "PRIMES",
     "title": "Implement Primes",
     "description": "Create a python script that calculates primes",
     "type": "Story",

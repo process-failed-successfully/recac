@@ -399,6 +399,7 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 		session.AutoMerge = cfg.AutoMerge
 		session.SkipQA = cfg.SkipQA
 		session.ManagerFirst = cfg.ManagerFirst
+		session.UseLocalAgent = true // Ensure file operations work in mock mode
 
 		if cfg.JiraEpicKey != "" {
 			session.BaseBranch = fmt.Sprintf("agent-epic/%s", cfg.JiraEpicKey)
