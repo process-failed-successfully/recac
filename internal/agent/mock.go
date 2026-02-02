@@ -96,7 +96,7 @@ cat feature_list.json | agent-bridge import
 	if isPrimesTask {
 		// Smart Check: If the prompt indicates that we already tried to commit and it was empty,
 		// it means the files are already there and correct. We should mark the task as done.
-		if strings.Contains(prompt, "Nothing to commit") || strings.Contains(prompt, "working tree clean") {
+		if strings.Contains(prompt, "Nothing to commit") || strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
 			return `The task seems to be completed. I will mark it as done.
 
 ` + "```bash" + `
