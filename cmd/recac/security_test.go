@@ -54,12 +54,6 @@ func main() {
 	err = os.WriteFile(fileIgnored, []byte("api_key = 'ignored_secret_key_1234567890'"), 0644)
 	require.NoError(t, err)
 
-	// Switch to temp dir so the command runs there
-	cwd, _ := os.Getwd()
-	defer os.Chdir(cwd)
-	err = os.Chdir(tempDir)
-	require.NoError(t, err)
-
 	// Helper to reset flags
 	resetFlags := func() {
 		securityJSON = false
@@ -72,7 +66,7 @@ func main() {
 		buf := new(bytes.Buffer)
 		cmd.SetOut(buf)
 
-		err := cmd.RunE(cmd, []string{})
+		err := cmd.RunE(cmd, []string{tempDir})
 		require.NoError(t, err)
 
 		output := buf.String()
@@ -94,7 +88,7 @@ func main() {
 		buf := new(bytes.Buffer)
 		cmd.SetOut(buf)
 
-		err := cmd.RunE(cmd, []string{})
+		err := cmd.RunE(cmd, []string{tempDir})
 		require.NoError(t, err)
 
 		output := buf.String()
@@ -126,7 +120,7 @@ func main() {
 		buf := new(bytes.Buffer)
 		cmd.SetOut(buf)
 
-		err := cmd.RunE(cmd, []string{})
+		err := cmd.RunE(cmd, []string{tempDir})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "security scan failed")
 	})
@@ -138,14 +132,11 @@ func main() {
 		cleanDir := filepath.Join(tempDir, "clean_subdir")
 		os.Mkdir(cleanDir, 0755)
 
-		os.Chdir(cleanDir)
-		defer os.Chdir(tempDir)
-
 		cmd := securityCmd
 		buf := new(bytes.Buffer)
 		cmd.SetOut(buf)
 
-		err := cmd.RunE(cmd, []string{})
+		err := cmd.RunE(cmd, []string{cleanDir})
 		require.NoError(t, err)
 
 		output := buf.String()

@@ -23,8 +23,13 @@ var securityCmd = &cobra.Command{
 	Short: "Scan codebase for security vulnerabilities and secrets",
 	Long:  `Scans the current directory recursively for potential security issues, including hardcoded secrets, keys, and dangerous command patterns.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		root := "."
+		if len(args) > 0 {
+			root = args[0]
+		}
+
 		scanner := security.NewRegexScanner()
-		results, err := runSecurityScan(".", scanner)
+		results, err := runSecurityScan(root, scanner)
 		if err != nil {
 			return err
 		}
