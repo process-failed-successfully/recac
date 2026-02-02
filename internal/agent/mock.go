@@ -90,6 +90,18 @@ git config user.email "mock-agent@recac.io"
 git config user.name "Mock Agent"
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json"
+
+# Update feature status
+if command -v agent-bridge >/dev/null 2>&1; then
+  # Get the first feature ID (assuming we are working on the first pending one)
+  FEATURE_ID=$(agent-bridge feature list --json | jq -r '.features[] | select(.status != "done") | .id' | head -n 1)
+  if [ -n "$FEATURE_ID" ]; then
+    agent-bridge feature set "$FEATURE_ID" --status done --passes true
+    echo "Marked feature $FEATURE_ID as done."
+  else
+    echo "No pending feature found to update."
+  fi
+fi
 ` + "```" + `
 `, nil
 	}
