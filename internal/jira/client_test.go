@@ -308,3 +308,69 @@ func TestClient_ParseDescription(t *testing.T) {
 		t.Errorf("expected %q, got %q", expected, result)
 	}
 }
+
+func TestGetBlockerKeys(t *testing.T) {
+	client := NewClient("http://jira.local", "user", "token")
+
+	mockTicket := map[string]interface{}{
+		"fields": map[string]interface{}{
+			"issuelinks": []interface{}{
+				// Blocker (Inward: is blocked by) - Not Done
+				map[string]interface{}{
+					"type": map[string]interface{}{
+						"inward": "is blocked by",
+					},
+					"inwardIssue": map[string]interface{}{
+						"key": "BLOCK-1",
+						"fields": map[string]interface{}{
+							"status": map[string]interface{}{
+								"name": "To Do",
+							},
+						},
+					},
+				},
+				// Blocker - Done (Should be ignored)
+				map[string]interface{}{
+					"type": map[string]interface{}{
+						"inward": "is blocked by",
+					},
+					"inwardIssue": map[string]interface{}{
+						"key": "BLOCK-2",
+						"fields": map[string]interface{}{
+							"status": map[string]interface{}{
+								"name": "Done",
+							},
+						},
+					},
+				},
+				// Relates to (Ignored)
+				map[string]interface{}{
+					"type": map[string]interface{}{
+						"inward": "relates to",
+					},
+					"inwardIssue": map[string]interface{}{
+						"key": "REL-1",
+					},
+				},
+				// Outward (blocks) - Ignored, we care about what blocks US
+				map[string]interface{}{
+					"type": map[string]interface{}{
+						"outward": "blocks",
+					},
+					"outwardIssue": map[string]interface{}{
+						"key": "BLOCKED-BY-US",
+					},
+				},
+			},
+		},
+	}
+
+	keys := client.GetBlockerKeys(mockTicket)
+
+	if len(keys) != 1 {
+		t.Errorf("Expected 1 blocker key, got %d", len(keys))
+	}
+	if len(keys) > 0 && keys[0] != "BLOCK-1" {
+		t.Errorf("Expected blocker key 'BLOCK-1', got %q", keys[0])
+	}
+}
