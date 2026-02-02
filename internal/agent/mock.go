@@ -73,7 +73,10 @@ EOF
 
 	// 3. Handle Coding Agent (primes.py)
 	if strings.Contains(prompt, "primes.py") {
-		return `#!/bin/bash
+		return `Here is the solution for primes.py:
+
+` + "```bash" + `
+#!/bin/bash
 set -e
 
 # Configure git if needed
@@ -106,8 +109,9 @@ git commit -m "Add primes.py and output" || echo "Nothing to commit"
 
 # Signal completion if bridge is available
 if command -v agent-bridge &> /dev/null; then
-    agent-bridge update --status done --feature req-primes-py-exists || true
+    agent-bridge update --status done --feature req-create-primes-py || true
 fi
+` + "```" + `
 `, nil
 	}
 
