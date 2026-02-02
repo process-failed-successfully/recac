@@ -46,7 +46,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.generatePrimesImplementation(), nil
 	}
 
-	// Detect generic "Spec" prompt from unit tests (TestStartCommand)
+	// Detect generic "Spec" prompt from unit tests (TestStartCommand, TestProcessJiraTicket)
 	// If the prompt is just "Spec" or very short/generic, just complete.
 	if strings.Contains(prompt, "Spec") {
 		return "Mock Agent: Task Completed.\n```bash\nagent-bridge signal COMPLETED true\n```", nil
@@ -66,7 +66,7 @@ func (m *MockAgent) generateMockTickets(prompt string) string {
 		return `[
   {
     "title": "ID:[PRIMES] Create Prime Number Script",
-    "description": "Implement a python script named 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'.\n\nRepo: https://github.com/example/repo",
+    "description": "Implement a python script named 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'.\n\nRepo: https://github.com/process-failed-successfully/recac-jira-e2e",
     "type": "Task"
   }
 ]`

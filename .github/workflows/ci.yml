@@ -141,6 +141,9 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Build agent-bridge for tests
+        run: go build -o agent-bridge ./cmd/agent-bridge
+
       - name: Build Agent Image for Tests
         run: |
           docker build -t recac-agent:latest -f internal/docker/agent.Dockerfile .
