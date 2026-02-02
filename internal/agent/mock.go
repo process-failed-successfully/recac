@@ -89,13 +89,23 @@ with open("primes.json", "w") as f:
     json.dump({"primes": primes}, f)
 EOF
 
-python3 primes.py
+if command -v python3 >/dev/null 2>&1; then
+  python3 primes.py
+else
+  python primes.py
+fi
 
 # Add to git
 git config user.email "mock-agent@recac.io"
 git config user.name "Mock Agent"
 git add primes.py primes.json
-git commit -m "Add primes.py and primes.json"
+git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
+
+# Signal completion
+if command -v agent-bridge >/dev/null 2>&1; then
+  agent-bridge feature set --id "req-primes-json-contains-correct-primes" --status done || echo "Feature update failed"
+  agent-bridge signal COMPLETED true || echo "Signal failed"
+fi
 ` + "```" + `
 `, nil
 	}
