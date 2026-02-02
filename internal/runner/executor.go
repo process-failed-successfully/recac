@@ -50,7 +50,8 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 
 	// Check for Blockers
 	if err := s.checkBlockers(ctx); err != nil {
-		return "", err
+		parsedOutput.WriteString(fmt.Sprintf("\n[BLOCKER DETECTED] %v\n", err))
+		return parsedOutput.String(), err
 	}
 
 	// Metrics Collection
