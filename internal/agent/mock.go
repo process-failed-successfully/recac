@@ -47,6 +47,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 cat << 'EOF' > feature_list.json
 [
   {
+    "id": "PRIMES",
     "name": "Primes Script",
     "description": "Python script to calculate primes",
     "file": "primes.py"
@@ -108,6 +109,9 @@ python3 primes.py
 # Add and commit
 git add primes.py primes.json
 git commit -m "Add primes script and output" || echo "Nothing to commit"
+
+# Signal completion
+agent-bridge feature set PRIMES --status done --passes true
 ` + "```" + `
 `, nil
 	}

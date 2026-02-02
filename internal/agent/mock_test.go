@@ -67,4 +67,23 @@ func TestMockAgent_CommitFallback(t *testing.T) {
 	if !strings.Contains(response, expected) {
 		t.Errorf("Expected fallback logic in commit command. Got:\n%s", response)
 	}
+
+	expectedStatus := `agent-bridge feature set PRIMES --status done --passes true`
+	if !strings.Contains(response, expectedStatus) {
+		t.Errorf("Expected status update command. Got:\n%s", response)
+	}
+}
+
+func TestMockAgent_Initializer_HasID(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "initializer agent feature list ID:[PRIMES]"
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, `"id": "PRIMES"`) {
+		t.Errorf("Expected feature list to contain explicit ID. Got:\n%s", response)
+	}
 }
