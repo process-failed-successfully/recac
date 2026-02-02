@@ -102,7 +102,12 @@ func runSecurityScan(root string, scanner *security.RegexScanner) ([]SecurityRes
 
 		// Normalize path for exclusion checks
 		cleanPath := filepath.ToSlash(filepath.Clean(path))
-		if strings.HasSuffix(cleanPath, "_test.go") || strings.HasSuffix(cleanPath, "internal/security/scanner.go") {
+		baseName := filepath.Base(path)
+		if strings.HasSuffix(cleanPath, "_test.go") ||
+			strings.HasSuffix(cleanPath, "internal/security/scanner.go") ||
+			baseName == "test_spec" ||
+			baseName == "go.sum" ||
+			strings.HasSuffix(baseName, ".log") {
 			return nil
 		}
 
