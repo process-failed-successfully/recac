@@ -32,6 +32,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	// Detect Ticket Generation (TPM Agent) - Check this BEFORE primes scenario to avoid ambiguity
+	// The prompt usually contains the spec content.
+	if strings.Contains(prompt, "Analyze the following application specification") || strings.Contains(prompt, "recac-jira-gen") || (strings.Contains(prompt, "app_spec.txt") && strings.Contains(prompt, "JSON")) {
+		return m.generateTicketPlanResponse(), nil
+	}
+
 	// Detect Prime Python Scenario
 	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "prime numbers") {
 		return m.generatePrimesResponse(), nil
@@ -41,6 +47,18 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
+}
+
+func (m *MockAgent) generateTicketPlanResponse() string {
+	// Return a JSON list of tickets as expected by cmd/recac/jira.go
+	return `[
+  {
+    "title": "PRIMES",
+    "description": "Implement prime number calculation script",
+    "type": "Story",
+    "children": []
+  }
+]`
 }
 
 func (m *MockAgent) generatePrimesResponse() string {
