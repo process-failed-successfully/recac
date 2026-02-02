@@ -154,6 +154,7 @@ func TestRunLoop_Blocker(t *testing.T) {
 		Notifier:      notify.NewManager(func(string, ...interface{}) {}),
 		Logger:        telemetry.NewLogger(true, "", false),
 		MaxIterations: 5,
+		SleepFunc:     func(d time.Duration) {}, // No-op sleep for testing
 	}
 
 	// Execution
