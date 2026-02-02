@@ -100,7 +100,7 @@ cat feature_list.json | agent-bridge import
 			return `The task seems to be completed. I will mark it as done.
 
 ` + "```bash" + `
-agent-bridge feature set req-primes --status done --passes true
+agent-bridge feature list --json | jq -r '.features[].id' | xargs -I {} agent-bridge feature set {} --status done --passes true
 ` + "```" + `
 `, nil
 		}

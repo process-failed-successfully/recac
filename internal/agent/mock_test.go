@@ -56,7 +56,7 @@ primes.py content...
 	}
 
 	// We expect the response to contain the completion command
-	expectedCmd := "agent-bridge feature set req-primes --status done --passes true"
+	expectedCmd := "agent-bridge feature list --json | jq -r '.features[].id' | xargs -I {} agent-bridge feature set {} --status done --passes true"
 	if !strings.Contains(response, expectedCmd) {
 		t.Errorf("Expected response to contain completion command '%s', got: %s", expectedCmd, response)
 	}
