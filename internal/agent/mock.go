@@ -114,8 +114,13 @@ fi
 ` + "\n```\n", nil
 	}
 
-	// 4. QA / Manager
-	if strings.Contains(lowerPrompt, "qa agent") || strings.Contains(lowerPrompt, "project manager") {
+	// 4. QA Agent
+	if strings.Contains(lowerPrompt, "qa agent") {
+		return "```bash\nif command -v agent-bridge &> /dev/null; then\n    agent-bridge signal QA_PASSED true\nfi\necho \"QA Approved\"\n```", nil
+	}
+
+	// 5. Manager Agent
+	if strings.Contains(lowerPrompt, "project manager") {
 		return "Approved. QA Passed.", nil
 	}
 
