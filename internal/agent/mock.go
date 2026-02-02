@@ -79,7 +79,8 @@ EOF
 
 	// 2. Check for Prime Python Scenario - Implementation
 	// Looking for the ticket description content or keywords
-	if strings.Contains(prompt, "primes.py") && strings.Contains(prompt, "calculate all prime numbers") {
+	// We use a broader check (OR condition) to be robust against description formatting changes
+	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "primes-impl") || strings.Contains(prompt, "Prime Number Script") {
 		return `I will implement the prime number script as requested.
 
 ` + "```bash" + `
