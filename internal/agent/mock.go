@@ -147,7 +147,7 @@ cat << 'EOF' > feature_list.json
     "project_name": "Prime Number Script",
     "features": [
         {
-            "id": "1",
+            "id": "req-primes-json-contains-correct-primes",
             "category": "core",
             "priority": "MVP",
             "description": "Calculate primes under 10000",
@@ -167,7 +167,7 @@ fi
 
 # Import it if agent-bridge is available
 if command -v agent-bridge >/dev/null 2>&1; then
-  agent-bridge import --file feature_list.json || echo "Import skipped but continuing (mock mode)"
+  cat feature_list.json | agent-bridge import || echo "Import skipped but continuing (mock mode)"
 else
   echo "agent-bridge not found (mock mode)"
 fi
