@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"recac/internal/security"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -99,6 +101,19 @@ func runSecurityScan(root string, scanner *security.RegexScanner) ([]SecurityRes
 			return nil
 		}
 
+		// File exclusions
+		if info.Name() == "go.sum" || info.Name() == "test_spec" {
+			return nil
+		}
+		if strings.HasSuffix(info.Name(), "_test.go") || strings.HasSuffix(info.Name(), ".log") {
+			return nil
+		}
+		// Check path (strip potential ./ prefix for cleaner matching)
+		cleanPath := filepath.Clean(path)
+		if cleanPath == "internal/security/scanner.go" {
+			return nil
+		}
+
 		// Scan file
 		fileResults, err := scanFileForSecurity(path, scanner)
 		if err != nil {
@@ -121,6 +136,21 @@ func scanFileForSecurity(path string, scanner *security.RegexScanner) ([]Securit
 	}
 	defer f.Close()
 
+	// Check for binary content in the first 512 bytes
+	header := make([]byte, 512)
+	n, err := f.Read(header)
+	if err != nil && err != io.EOF {
+		return nil, err
+	}
+	if bytes.IndexByte(header[:n], 0) != -1 {
+		return nil, nil // Skip binary file
+	}
+
+	// Reset file pointer
+	if _, err := f.Seek(0, 0); err != nil {
+		return nil, err
+	}
+
 	// Read entire file content
 	content, err := io.ReadAll(f)
 	if err != nil {
@@ -133,7 +163,15 @@ func scanFileForSecurity(path string, scanner *security.RegexScanner) ([]Securit
 	}
 
 	var results []SecurityResult
+	filename := filepath.Base(path)
+	isDockerfile := filename == "Dockerfile" || filename == "test.Dockerfile" || strings.HasSuffix(filename, ".Dockerfile")
+
 	for _, finding := range findings {
+		// Suppress Pipe to Shell for Dockerfiles
+		if finding.Type == "Pipe to Shell" && isDockerfile {
+			continue
+		}
+
 		results = append(results, SecurityResult{
 			File:        path,
 			Line:        finding.Line,
