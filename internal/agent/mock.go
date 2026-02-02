@@ -32,9 +32,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	upperPrompt := strings.ToUpper(prompt)
+
 	// 0. Check for Initializer Agent (Session Bootstrap)
 	// Matches against the Initializer Agent prompt structure (internal/agent/prompts/templates/initializer.md)
-	if strings.Contains(prompt, "INITIALIZER AGENT") {
+	if strings.Contains(upperPrompt, "INITIALIZER AGENT") {
 		return `I will initialize the project features.
 
 ` + "```bash" + `
@@ -52,8 +54,7 @@ cat << 'EOF' | agent-bridge import
         "Run primes.py",
         "Check if primes.json exists"
       ],
-      "passes": false,
-      "dependencies": {
+      "passes": false,\n      "dependencies": {
         "exclusive_write_paths": ["primes.py", "primes.json"]
       }
     }
@@ -66,7 +67,7 @@ EOF
 
 	// 1. Check for Prime Python Scenario - Ticket Generation
 	// Matches against the TPM Agent prompt structure (internal/agent/prompts/templates/tpm_agent.md)
-	if strings.Contains(prompt, "Technical Program Manager") && strings.Contains(prompt, "ID:[PRIMES]") {
+	if strings.Contains(upperPrompt, "TECHNICAL PROGRAM MANAGER") && strings.Contains(upperPrompt, "ID:[PRIMES]") {
 		return `[
   {
     "title": "ID:[PRIMES] Create Prime Number Script",
@@ -77,8 +78,12 @@ EOF
 	}
 
 	// 2. Check for Prime Python Scenario - Implementation
-	// Looking for the ticket description content or keywords
-	if strings.Contains(prompt, "primes.py") && strings.Contains(prompt, "calculate all prime numbers") {
+	// Looking for the ticket description content or keywords, or if it's the ID:[PRIMES] ticket but NOT the manager
+	isPrimesTicket := strings.Contains(upperPrompt, "ID:[PRIMES]")
+	// Relaxing content check to be safe
+	isImplementationContentUpper := strings.Contains(upperPrompt, "PRIMES.PY")
+
+	if isImplementationContentUpper || (isPrimesTicket && !strings.Contains(upperPrompt, "TECHNICAL PROGRAM MANAGER")) {
 		return `I will implement the prime number script as requested.
 
 ` + "```bash" + `
