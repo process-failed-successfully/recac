@@ -145,6 +145,26 @@ git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
 `, nil
 	}
 
+	// 4. QA Agent Logic
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return `I have verified the implementation. All tests passed.
+
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// 5. Manager Agent Logic
+	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") {
+		return `I have reviewed the work. It meets all requirements.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf(`%s:
