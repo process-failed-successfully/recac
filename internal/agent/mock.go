@@ -103,7 +103,25 @@ fi
 `, nil
 	}
 
-	// 4. Implementation for 'prime-python' scenario
+	// 4. QA Agent (Smoke Test)
+	// Detects QA prompt (usually contains "verification" or "QA").
+	// We want to simulate a successful QA pass.
+	// We check for "YOUR ROLE - QA AGENT" which is in the prompt template.
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return `I will run the tests and verify.
+
+` + "```bash" + `
+# Run tests (mock)
+echo "Running tests..."
+echo "PASS"
+
+# Signal success
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// 5. Implementation for 'prime-python' scenario
 	// The prompt will typically contain the ticket description or "primes.py" instructions.
 	// We use a "greedy" match here: if it talks about the primes task AND it's NOT the ticket generation prompt (checked above),
 	// assume it's the coding task.
