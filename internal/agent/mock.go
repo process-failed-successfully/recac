@@ -34,7 +34,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 0. Check for Initializer Agent (Session Bootstrap)
 	// Matches against the Initializer Agent prompt structure (internal/agent/prompts/templates/initializer.md)
-	if strings.Contains(prompt, "INITIALIZER AGENT") {
+	// Case-insensitive check to be robust against template changes
+	if strings.Contains(strings.ToUpper(prompt), "INITIALIZER") {
 		return `I will initialize the project features.
 
 ` + "```bash" + `

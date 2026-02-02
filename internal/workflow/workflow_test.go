@@ -210,6 +210,10 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 	tmpDir, _ := os.MkdirTemp("", "workflow-jira-repo-test")
 	defer os.RemoveAll(tmpDir)
 
+	// Inject features to bypass Initializer loop in Mock mode (since MockDocker can't update DB)
+	os.Setenv("RECAC_INJECTED_FEATURES", `{"project_name":"test","features":[{"id":"test-1","description":"test","status":"pending"}]}`)
+	defer os.Unsetenv("RECAC_INJECTED_FEATURES")
+
 	cfg := SessionConfig{
 		ProjectPath: tmpDir,
 		RepoURL:     "https://github.com/example/already-provided",
