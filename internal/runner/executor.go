@@ -177,7 +177,17 @@ func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, ind
 		// Execute Locally
 		cmd := exec.CommandContext(cmdCtx, "/bin/bash", "-c", cmdScript)
 		// Propagate Environment + Inject Project ID
-		cmd.Env = append(os.Environ(), fmt.Sprintf("RECAC_PROJECT_ID=%s", s.Project))
+		// Explicitly inject DB vars to ensure they are passed to child processes like agent-bridge
+		env := os.Environ()
+		env = append(env, fmt.Sprintf("RECAC_PROJECT_ID=%s", s.Project))
+		if dbURL := os.Getenv("RECAC_DB_URL"); dbURL != "" {
+			env = append(env, fmt.Sprintf("RECAC_DB_URL=%s", dbURL))
+		}
+		if dbType := os.Getenv("RECAC_DB_TYPE"); dbType != "" {
+			env = append(env, fmt.Sprintf("RECAC_DB_TYPE=%s", dbType))
+		}
+		cmd.Env = env
+
 		// Debug: Log key env vars for troubleshooting
 		s.Logger.Info("[DEBUG] Local exec env vars",
 			"RECAC_PROJECT_ID", s.Project,
@@ -206,7 +216,7 @@ func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, ind
 		}
 
 		result := fmt.Sprintf("Command Failed: %s\nError: %s\nOutput:\n%s\n", cmdScript, errMsg, output)
-		s.Logger.Error("command failed", "script", cmdScript, "error", errMsg)
+		s.Logger.Error("command failed", "script", cmdScript, "error", errMsg, "output", output)
 
 		// Telemetry: Build Failure
 		if strings.Contains(cmdScript, "go build") || strings.Contains(cmdScript, "npm run build") || strings.Contains(cmdScript, "make build") {
