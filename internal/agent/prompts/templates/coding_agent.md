@@ -102,7 +102,7 @@ You are assigned to work on **EXACTLY ONE** feature. Once you have completed the
 ### STEP 3: COMMIT AND PROGRESS
 
 1. `git add .`
-2. `git commit -m "Implement [feature-name] - verified end-to-end"`
+2. `git commit -m "Implement [feature-name] - verified end-to-end" || echo "Nothing to commit"`
 
 ### COMMUNICATE WITH MANAGER
 
