@@ -52,7 +52,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     "title": "%s",
     "description": "Mock description for %s. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
     "type": "Task",
-    "acceptance_criteria": ["Mock criteria 1"],
+    "acceptance_criteria": ["Create primes.py"],
     "children": []
   }
 ]`, title, id), nil
