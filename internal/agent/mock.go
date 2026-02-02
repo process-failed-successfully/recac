@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -32,9 +33,37 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
+
+	// Heuristic for Jira Ticket Generation (TPM Agent)
+	if isTPMPrompt(prompt) {
+		return `[
+  {
+    "title": "ID:[PRIMES] Implement Prime Number Generator",
+    "description": "Implement a Python script that generates prime numbers.\nRepo: https://github.com/process-failed-successfully/recac-jira-e2e",
+    "type": "Story",
+    "acceptance_criteria": [
+      "Create primes.py",
+      "Implement verify_prime function",
+      "Add unit tests"
+    ],
+    "children": []
+  }
+]`, nil
+	}
+
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
+}
+
+func isTPMPrompt(prompt string) bool {
+	p := truncateString(prompt, 200) // Optimization
+	return (containsIgnoreCase(p, "Technical Program Manager") || containsIgnoreCase(p, "TPM"))
+}
+
+func containsIgnoreCase(s, substr string) bool {
+	s, substr = strings.ToLower(s), strings.ToLower(substr)
+	return strings.Contains(s, substr)
 }
 
 // SendStream implements the Agent interface
