@@ -46,6 +46,16 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.generatePrimesImplementation(), nil
 	}
 
+	// Detect "QA Agent" prompt (e.g. "YOUR ROLE - QA AGENT")
+	if strings.Contains(strings.ToUpper(prompt), "QA AGENT") {
+		return "Mock QA: Checks passed.\n```bash\nagent-bridge signal QA_PASSED true\n```", nil
+	}
+
+	// Detect "Manager Agent" prompt (e.g. "YOUR ROLE - PROJECT MANAGER")
+	if strings.Contains(strings.ToUpper(prompt), "PROJECT MANAGER") {
+		return "Mock Manager: Approved.\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
+	}
+
 	// Detect generic "Spec" prompt from unit tests (TestStartCommand)
 	// If the prompt is just "Spec" or very short/generic, just complete.
 	if strings.Contains(prompt, "Spec") {
