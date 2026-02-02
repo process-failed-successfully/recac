@@ -46,10 +46,41 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.generatePrimesImplementation(), nil
 	}
 
-	// Detect generic "Spec" prompt from unit tests (TestStartCommand)
+	// Detect "Spec" prompt from unit tests (TestStartCommand)
 	// If the prompt is just "Spec" or very short/generic, just complete.
 	if strings.Contains(prompt, "Spec") {
 		return "Mock Agent: Task Completed.\n```bash\nagent-bridge signal COMPLETED true\n```", nil
+	}
+
+	// Detect QA Agent role
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return "Mock QA Agent: Verification Passed.\n```bash\nagent-bridge signal QA_PASSED true\n```", nil
+	}
+
+	// Detect Project Manager role
+	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") {
+		return "Mock Manager: Project Approved.\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
+	}
+
+	// Detect Initializer Agent role
+	if strings.Contains(strings.ToLower(prompt), "initializer agent") && strings.Contains(prompt, "feature_list.json") {
+		return `Mock Initializer: Features Identified.
+` + "```bash" + `
+cat << 'EOF' > feature_list.json
+[
+  {
+    "id": "mock-feature-1",
+    "description": "Mock Feature 1",
+    "category": "functional",
+    "priority": "high",
+    "status": "pending",
+    "dependencies": []
+  }
+]
+EOF
+
+cat feature_list.json | agent-bridge import || echo "Import skipped..."
+` + "```", nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
@@ -121,7 +152,7 @@ python3 primes.py
 # Commit
 if [ -d .git ]; then
     git add primes.py primes.json
-    git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
+    git commit -m "Add primes.py and primes.json" || echo \"Nothing to commit\"
 fi
 
 # Signal Completion
