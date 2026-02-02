@@ -8,8 +8,8 @@ import (
 func (s *Session) checkNoOpBreaker(executionOutput string) error {
 	if executionOutput == "" {
 		s.NoOpCount++
-		if s.NoOpCount >= 3 {
-			return fmt.Errorf("CIRCUIT BREAKER TRIPPED: NO-OP LOOP (Agent has produced 3 consecutive responses with no commands)")
+		if s.NoOpCount >= 10 {
+			return fmt.Errorf("CIRCUIT BREAKER TRIPPED: NO-OP LOOP (Agent has produced 10 consecutive responses with no commands)")
 		}
 	} else {
 		s.NoOpCount = 0 // Reset on valid action

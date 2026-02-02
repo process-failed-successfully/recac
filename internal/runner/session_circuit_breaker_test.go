@@ -40,15 +40,21 @@ func TestSession_CheckNoOpBreaker(t *testing.T) {
 		t.Errorf("Expected NoOpCount 0 after reset, got %d", s.NoOpCount)
 	}
 
-	// 4. Three consecutive No-Ops
-	s.checkNoOpBreaker("")
-	s.checkNoOpBreaker("")
-	err = s.checkNoOpBreaker("")
-	if err == nil {
-		t.Error("Expected error for 3rd consecutive no-op")
+	// 4. 10 consecutive No-Ops
+	for i := 0; i < 7; i++ { // Add 7 more to reach 9 total (since we had 2 before reset, but then reset)
+		// Wait, we reset at step 3.
+		// So we are at 0.
+		s.checkNoOpBreaker("")
 	}
-	if s.NoOpCount != 3 {
-		t.Errorf("Expected NoOpCount 3, got %d", s.NoOpCount)
+	// Now at 7
+	s.checkNoOpBreaker("") // 8
+	s.checkNoOpBreaker("") // 9
+	err = s.checkNoOpBreaker("") // 10
+	if err == nil {
+		t.Error("Expected error for 10th consecutive no-op")
+	}
+	if s.NoOpCount != 10 {
+		t.Errorf("Expected NoOpCount 10, got %d", s.NoOpCount)
 	}
 }
 
