@@ -154,6 +154,30 @@ exit 0 # Always exit success to prevent container restart
 `, nil
 	}
 
+	// 5. QA Agent Prompt
+	// Triggered by the QA agent prompt header
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return `QA checks passed.
+
+` + "```bash" + `
+echo "QA Checks Passed"
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// 6. Manager Agent Prompt
+	// Triggered by the Manager agent prompt header
+	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") {
+		return `Project approved.
+
+` + "```bash" + `
+echo "Project Approved"
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
+	}
+
 	// Default response with no-op bash block to prevent circuit breaker trip
 	format := "%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...\n\n```bash\n# no-op\necho 'mock agent alive'\n```"
 	response := fmt.Sprintf(format,
