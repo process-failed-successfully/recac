@@ -2,6 +2,7 @@ package runner
 
 import (
 	"fmt"
+	"recac/internal/db"
 )
 
 // checkNoOpBreaker checks if the agent is looping without action.
@@ -18,8 +19,7 @@ func (s *Session) checkNoOpBreaker(executionOutput string) error {
 }
 
 // checkStalledBreaker checks if the agent is making progress on features.
-func (s *Session) checkFeatures() int {
-	features := s.loadFeatures()
+func (s *Session) checkFeatures(features []db.Feature) int {
 	passed := 0
 	for _, f := range features {
 		if f.Passes || f.Status == "done" || f.Status == "implemented" {
