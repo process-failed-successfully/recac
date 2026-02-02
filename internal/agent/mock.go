@@ -95,6 +95,12 @@ git config user.email "mock-agent@recac.io"
 git config user.name "Mock Agent"
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
+
+# Signal completion
+if command -v agent-bridge >/dev/null 2>&1; then
+  agent-bridge feature set 1 --status done --passes true || echo "Failed to set feature status"
+  agent-bridge signal COMPLETED true || echo "Failed to signal completion"
+fi
 ` + "```" + `
 `, nil
 	}
