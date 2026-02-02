@@ -15,7 +15,7 @@ func TestExplorerModel_Init(t *testing.T) {
 	m, err := NewExplorerModel(".", nil, nil, nil)
 	require.NoError(t, err)
 	cmd := m.Init()
-	assert.Nil(t, cmd)
+	assert.NotNil(t, cmd)
 }
 
 func TestExplorerModel_New(t *testing.T) {
@@ -109,6 +109,18 @@ func TestExplorerModel_Update_Analysis(t *testing.T) {
 
 	// Execute cmd to get result msg
 	resultMsg := cmd()
+
+	// Handle Batch (Spinner + Analysis)
+	if batch, ok := resultMsg.(tea.BatchMsg); ok {
+		for _, c := range batch {
+			msg := c()
+			if _, ok := msg.(analysisMsg); ok {
+				resultMsg = msg
+				break
+			}
+		}
+	}
+
 	assert.IsType(t, analysisMsg{}, resultMsg)
 
 	// Update with result
@@ -137,6 +149,17 @@ func TestExplorerModel_Update_AnalysisError(t *testing.T) {
 
 	// Execute cmd
 	resultMsg := cmd()
+
+	// Handle Batch (Spinner + Analysis)
+	if batch, ok := resultMsg.(tea.BatchMsg); ok {
+		for _, c := range batch {
+			msg := c()
+			if _, ok := msg.(analysisMsg); ok {
+				resultMsg = msg
+				break
+			}
+		}
+	}
 
 	// Update with result
 	newM, _ = newM.Update(resultMsg)

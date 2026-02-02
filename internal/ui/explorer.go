@@ -10,6 +10,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -44,8 +45,10 @@ func (i FileItem) FilterValue() string { return i.Name }
 type ExplorerModel struct {
 	list           list.Model
 	viewport       viewport.Model
+	spinner        spinner.Model
 	currentPath    string
 	viewingFile    bool   // If true, showing viewport
+	thinking       bool   // If true, analysis is in progress
 	statusMessage  string // For temporary status like "Analyzing..."
 
 	explainFunc    AnalysisFunc
@@ -63,8 +66,14 @@ func NewExplorerModel(startPath string, explain, complexity, security AnalysisFu
 		return ExplorerModel{}, err
 	}
 
+	// Initialize Spinner
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+
 	m := ExplorerModel{
 		currentPath:    absPath,
+		spinner:        s,
 		explainFunc:    explain,
 		complexityFunc: complexity,
 		securityFunc:   security,
@@ -164,7 +173,7 @@ type analysisMsg struct {
 }
 
 func (m ExplorerModel) Init() tea.Cmd {
-	return nil
+	return m.spinner.Tick
 }
 
 func (m ExplorerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -172,6 +181,11 @@ func (m ExplorerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
+
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -236,28 +250,32 @@ func (m ExplorerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			item := m.list.SelectedItem()
 			if item != nil && !item.(FileItem).IsDir && m.explainFunc != nil {
 				path := item.(FileItem).Path
-				m.statusMessage = "🤖 Asking AI to explain..."
-				return m, m.runAnalysis(m.explainFunc, path)
+				m.statusMessage = " Asking AI to explain..."
+				m.thinking = true
+				return m, tea.Batch(m.runAnalysis(m.explainFunc, path), m.spinner.Tick)
 			}
 
 		case "c": // Complexity
 			item := m.list.SelectedItem()
 			if item != nil && !item.(FileItem).IsDir && m.complexityFunc != nil {
 				path := item.(FileItem).Path
-				m.statusMessage = "Calculating complexity..."
-				return m, m.runAnalysis(m.complexityFunc, path)
+				m.statusMessage = " Calculating complexity..."
+				m.thinking = true
+				return m, tea.Batch(m.runAnalysis(m.complexityFunc, path), m.spinner.Tick)
 			}
 
 		case "s": // Security
 			item := m.list.SelectedItem()
 			if item != nil && !item.(FileItem).IsDir && m.securityFunc != nil {
 				path := item.(FileItem).Path
-				m.statusMessage = "Scanning for security issues..."
-				return m, m.runAnalysis(m.securityFunc, path)
+				m.statusMessage = " Scanning for security issues..."
+				m.thinking = true
+				return m, tea.Batch(m.runAnalysis(m.securityFunc, path), m.spinner.Tick)
 			}
 		}
 
 	case analysisMsg:
+		m.thinking = false
 		m.statusMessage = ""
 		if msg.err != nil {
 			m.statusMessage = fmt.Sprintf("Error: %v", msg.err)
@@ -300,7 +318,11 @@ func (m ExplorerModel) statusView() string {
 	if m.statusMessage == "" {
 		return ""
 	}
-	return lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Render(m.statusMessage)
+	prefix := ""
+	if m.thinking {
+		prefix = m.spinner.View()
+	}
+	return lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Render(prefix + m.statusMessage)
 }
 
 func max(a, b int) int {
