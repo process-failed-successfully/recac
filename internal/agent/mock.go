@@ -55,6 +55,17 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ` + "```", nil
 	}
 
+	// Mock Logic for QA Agent (Smoke Tests)
+	if strings.Contains(upperPrompt, "QA AGENT") || strings.Contains(upperPrompt, "VERIFY THE PROJECT") {
+		return `I have verified the project and it looks good.
+
+` + "```bash" + `
+if command -v agent-bridge >/dev/null 2>&1; then
+    agent-bridge signal QA_PASSED true
+fi
+` + "```", nil
+	}
+
 	// Mock Logic for Smoke Tests (Task Execution)
 	// Only trigger if it's NOT a ticket generation prompt
 	if (strings.Contains(upperPrompt, "PRIMES") || strings.Contains(upperPrompt, "PRIME NUMBERS")) && !strings.Contains(upperPrompt, "TPM") {
