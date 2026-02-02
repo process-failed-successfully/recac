@@ -152,7 +152,7 @@ func scanFileForSecurity(path string, scanner *security.RegexScanner) ([]Securit
 		return nil, err
 	}
 
-	findings, err := scanner.Scan(string(content))
+	findings, err := scanner.Scan(path, string(content))
 	if err != nil {
 		return nil, err
 	}

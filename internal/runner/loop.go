@@ -522,7 +522,7 @@ func (s *Session) RunIteration(ctx context.Context, prompt string, isManager boo
 
 	// Security Scan
 	if s.Scanner != nil {
-		findings, err := s.Scanner.Scan(response)
+		findings, err := s.Scanner.Scan("agent_response.txt", response)
 		if err != nil {
 			s.Logger.Warn("security scan failed", "error", err)
 		} else if len(findings) > 0 {

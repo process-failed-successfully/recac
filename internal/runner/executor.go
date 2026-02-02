@@ -47,7 +47,8 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 
 		// Security Scan
 		if s.Scanner != nil {
-			findings, err := s.Scanner.Scan(cmdScript)
+			// Use a dummy filename to indicate this is a shell script (avoids masking // comments which are valid in bash)
+			findings, err := s.Scanner.Scan("agent_command.sh", cmdScript)
 			if err != nil {
 				s.Logger.Warn("security scanner error", "error", err, "script", cmdScript)
 			}
