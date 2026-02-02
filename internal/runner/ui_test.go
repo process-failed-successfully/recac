@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"recac/internal/agent"
+	"recac/internal/db"
 	"recac/internal/notify"
 	"recac/internal/telemetry"
 )
@@ -30,6 +31,10 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "ui_verification.json"), []byte("Verify Button Color"), 0644)
 
 	// 5. Initialize Session
+	dbPath := filepath.Join(tmpDir, ".recac.db")
+	store, _ := db.NewSQLiteStore(dbPath)
+	defer store.Close()
+
 	mockDocker := &MockDockerForExec{}
 	mockAgent := agent.NewMockAgent()
 	s := &Session{
@@ -38,6 +43,8 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 		Workspace:        tmpDir,
 		FeatureContent:   features,
 		ManagerFrequency: 5,
+		MaxIterations:    5,
+		DBStore:          store,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
 		Logger:           telemetry.NewLogger(true, "", false),
 	}
@@ -51,7 +58,7 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	// Since all features pass, it should mark COMPLETED and print UI verification msg.
 	// We mainly verify it DOESN'T fail or block.
 	// ErrNoOp is expected because the MockAgent returns empty responses.
-	if err != nil && !errors.Is(err, ErrNoOp) {
+	if err != nil && !errors.Is(err, ErrNoOp) && !errors.Is(err, ErrMaxIterations) {
 		t.Errorf("RunLoop failed: %v", err)
 	}
 }

@@ -34,6 +34,26 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	upperPrompt := strings.ToUpper(prompt)
 
+	// Feature List Detection (Priority over Primes)
+	if strings.Contains(upperPrompt, "FEATURE_LIST.JSON") || strings.Contains(upperPrompt, "FEATURES") {
+		return `Here is the feature list in JSON format.
+
+` + "```json" + `
+{
+  "project_name": "recac-e2e",
+  "features": [
+    {
+      "id": "1",
+      "description": "Calculate prime numbers",
+      "category": "core",
+      "priority": "high",
+      "status": "pending"
+    }
+  ]
+}
+` + "```", nil
+	}
+
 	// Mock Logic for Smoke Tests
 	if strings.Contains(upperPrompt, "PRIMES") || strings.Contains(upperPrompt, "PRIME NUMBERS") {
 		return `I will create a python script to calculate prime numbers.
