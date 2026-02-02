@@ -33,7 +33,24 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Smart Mock Logic for Smoke Tests
 
-	// 1. Ticket Generation / Initializer Request (Prime Python Scenario)
+	// 1. Completion Check (Clean Working Tree)
+	// If the prompt indicates that git has nothing to commit, we should signal completion
+	// to prevent infinite no-op loops in smoke tests.
+	// We check this FIRST to override any other logic (e.g. if we are in a loop).
+	if strings.Contains(strings.ToLower(prompt), "nothing to commit") || strings.Contains(strings.ToLower(prompt), "working tree clean") {
+		return `It seems there are no changes to commit. The task is complete.
+
+` + "```bash" + `
+if command -v agent-bridge >/dev/null 2>&1; then
+    agent-bridge signal COMPLETED true
+else
+    echo "agent-bridge not found, skipping signal"
+fi
+` + "```" + `
+`, nil
+	}
+
+	// 2. Ticket Generation / Initializer Request (Prime Python Scenario)
 	// Matches if asking for JSON format AND (ID:[PRIMES] OR ([GEN] and feature list))
 	// This ensures Initializer gets JSON even if [GEN] tag is present (which usually triggers implementation)
 	isPrimesScenario := strings.Contains(prompt, "ID:[PRIMES]") || (strings.Contains(prompt, "[GEN]") && strings.Contains(prompt, "Prime Number Script"))
@@ -50,7 +67,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
-	// 2. Implementation Request (Writing the file)
+	// 3. Implementation Request (Writing the file)
 	// Matches prompt asking to implement "PRIMES" or "primes.py"
 	// Also check for [GEN] tag which appears in E2E tests
 	if strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[GEN]") {
@@ -83,7 +100,7 @@ python3 primes.py
 
 # Add and commit
 git add primes.py primes.json
-git commit -m "Add primes script and output"
+git commit -m "Add primes script and output" || echo "Nothing to commit"
 
 # Signal completion
 agent-bridge feature set "[GEN] Create Prime Number Script" --status done --passes true
@@ -93,9 +110,10 @@ agent-bridge feature set "[GEN] Create Prime Number Script" --status done --pass
 
 	// Default Mock Response
 	// We include a no-op bash block to ensure the executor doesn't trip the "no commands" circuit breaker
+	// We also signal completion to ensure unit tests with limited iterations finish successfully.
 	// We strip backticks from the preview to avoid confusing the regex parser
 	preview := strings.ReplaceAll(truncateString(prompt, 100), "`", "'")
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...\n\n```bash\n# no-op to prevent circuit breaker\necho 'mock agent alive'\n```",
+	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...\n\n```bash\n# no-op to prevent circuit breaker\necho 'mock agent alive'\nif command -v agent-bridge >/dev/null 2>&1; then agent-bridge signal COMPLETED true || echo 'Agent Bridge Failed'; fi\n```",
 		m.responsePrefix, len(prompt), preview)
 	return response, nil
 }
