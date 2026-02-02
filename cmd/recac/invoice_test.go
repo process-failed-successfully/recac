@@ -36,7 +36,8 @@ func TestInvoiceCmd(t *testing.T) {
 		now := time.Now()
 		ts1 := now.Add(-2 * time.Hour).Format(time.RFC3339)
 		ts2 := now.Add(-1 * time.Hour).Format(time.RFC3339) // 1 hour later (same session)
-		ts3 := now.Add(-25 * time.Hour).Format(time.RFC3339) // Yesterday (new session)
+		// Use -48 hours to guarantee it's on a different day regardless of timezone or execution time boundaries
+		ts3 := now.Add(-48 * time.Hour).Format(time.RFC3339) // 2 days ago (new session)
 
 		return []string{
 			fmt.Sprintf("hash1|Test User|%s|Commit 1", ts1),
