@@ -75,4 +75,9 @@ func TestMockAgent_ImportCommand(t *testing.T) {
 	if !strings.Contains(response, expectedCmd) {
 		t.Errorf("Expected response to contain import command '%s', got: %s", expectedCmd, response)
 	}
+
+	// Check for error handling
+	if !strings.Contains(response, "|| exit 1") {
+		t.Errorf("Expected response to contain error handling '|| exit 1', got: %s", response)
+	}
 }

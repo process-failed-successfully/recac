@@ -81,7 +81,11 @@ cat << 'EOF' > feature_list.json
 }
 EOF
 
-cat feature_list.json | agent-bridge import
+if command -v agent-bridge >/dev/null 2>&1; then
+    cat feature_list.json | agent-bridge import || exit 1
+else
+    echo "Warning: agent-bridge not found"
+fi
 ` + "```" + `
 `, nil
 	}
