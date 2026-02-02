@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"text/tabwriter"
 
 	"recac/internal/agent"
 	"recac/internal/agent/prompts"
@@ -617,6 +618,114 @@ func runGenerateFromArchCmd(cmd *cobra.Command, args []string) {
 	}
 }
 
+// jiraListCmd represents the jira list command
+var jiraListCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List Jira tickets",
+	Long:  "List Jira tickets based on criteria.",
+	Run: func(cmd *cobra.Command, args []string) {
+		ctx := context.Background()
+		client, err := cmdutils.GetJiraClient(ctx)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			exit(1)
+		}
+
+		jql, _ := cmd.Flags().GetString("jql")
+		if jql == "" {
+			parts := []string{}
+
+			assignedToMe, _ := cmd.Flags().GetBool("assigned-to-me")
+			if assignedToMe {
+				parts = append(parts, "assignee = currentUser()")
+			}
+
+			status, _ := cmd.Flags().GetString("status")
+			if status != "" {
+				parts = append(parts, fmt.Sprintf("status = \"%s\"", status))
+			} else {
+				// Default to open tickets if not specified
+				parts = append(parts, "status != Done")
+			}
+
+			project, _ := cmd.Flags().GetString("project")
+			if project != "" {
+				parts = append(parts, fmt.Sprintf("project = \"%s\"", project))
+			}
+
+			jql = strings.Join(parts, " AND ")
+			jql += " ORDER BY updated DESC"
+		}
+
+		limit, _ := cmd.Flags().GetInt("limit")
+		// NOTE: API limit handling needs to be inside SearchIssues if it supports it,
+		// or we filter after. For simplicity, JQL supports limits via REST API params
+		// but SearchIssues impl might not expose it.
+		// Assuming SearchIssues fetches page or all.
+		// Let's assume default behavior for now, we can append "maxResults" logic if supported by client.
+
+		fmt.Fprintf(cmd.OutOrStdout(), "Searching with JQL: %s\n", jql)
+		issues, err := client.SearchIssues(ctx, jql)
+		if err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error: %v\n", err)
+			exit(1)
+		}
+
+		if len(issues) > limit && limit > 0 {
+			issues = issues[:limit]
+		}
+
+		w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
+		fmt.Fprintln(w, "KEY\tSUMMARY\tSTATUS\tASSIGNEE")
+		for _, issue := range issues {
+			key, _ := issue["key"].(string)
+			fields, _ := issue["fields"].(map[string]interface{})
+			summary, _ := fields["summary"].(string)
+
+			statusMap, _ := fields["status"].(map[string]interface{})
+			status, _ := statusMap["name"].(string)
+
+			assigneeMap, _ := fields["assignee"].(map[string]interface{})
+			assignee := "Unassigned"
+			if assigneeMap != nil {
+				assignee, _ = assigneeMap["displayName"].(string)
+			}
+
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", key, truncateString(summary, 50), status, assignee)
+		}
+		w.Flush()
+	},
+}
+
+// jiraCommentCmd represents the jira comment command
+var jiraCommentCmd = &cobra.Command{
+	Use:   "comment",
+	Short: "Add a comment to a Jira ticket",
+	Run: func(cmd *cobra.Command, args []string) {
+		id, _ := cmd.Flags().GetString("id")
+		message, _ := cmd.Flags().GetString("message")
+
+		if id == "" || message == "" {
+			fmt.Fprintln(cmd.ErrOrStderr(), "Error: --id and --message are required")
+			exit(1)
+		}
+
+		ctx := context.Background()
+		client, err := cmdutils.GetJiraClient(ctx)
+		if err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error: %v\n", err)
+			exit(1)
+		}
+
+		if err := client.AddComment(ctx, id, message); err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error: %v\n", err)
+			exit(1)
+		}
+
+		fmt.Fprintf(cmd.OutOrStdout(), "Comment added to %s\n", id)
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(jiraCmd)
 	jiraCmd.AddCommand(jiraTestAuthCmd)
@@ -643,6 +752,23 @@ func init() {
 	jiraGenerateFromArchCmd.Flags().String("output-json", "", "Output JSON path")
 	viper.BindPFlag("repo_url", jiraGenerateFromArchCmd.Flags().Lookup("repo-url"))
 	jiraCmd.AddCommand(jiraGenerateFromArchCmd)
+
+	jiraCleanupCmd.Flags().String("label", "", "Label to filter tickets for deletion")
+	jiraCleanupCmd.MarkFlagRequired("label")
+	jiraCmd.AddCommand(jiraCleanupCmd)
+
+	jiraListCmd.Flags().Bool("assigned-to-me", true, "Filter by assignee = currentUser()")
+	jiraListCmd.Flags().String("status", "", "Filter by status")
+	jiraListCmd.Flags().String("project", "", "Filter by project")
+	jiraListCmd.Flags().Int("limit", 50, "Limit number of results")
+	jiraListCmd.Flags().String("jql", "", "Custom JQL query")
+	jiraCmd.AddCommand(jiraListCmd)
+
+	jiraCommentCmd.Flags().String("id", "", "Ticket ID")
+	jiraCommentCmd.Flags().String("message", "", "Comment message")
+	jiraCommentCmd.MarkFlagRequired("id")
+	jiraCommentCmd.MarkFlagRequired("message")
+	jiraCmd.AddCommand(jiraCommentCmd)
 }
 
 // jiraCleanupCmd represents the jira cleanup command

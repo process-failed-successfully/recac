@@ -29,6 +29,16 @@ func (m *MockJiraClient) AddIssueLink(ctx context.Context, inwardKey, outwardKey
 	return args.Error(0)
 }
 
+func (m *MockJiraClient) SearchIssues(ctx context.Context, jql string) ([]map[string]interface{}, error) {
+	args := m.Called(ctx, jql)
+	return args.Get(0).([]map[string]interface{}), args.Error(1)
+}
+
+func (m *MockJiraClient) AddComment(ctx context.Context, ticketID, commentText string) error {
+	args := m.Called(ctx, ticketID, commentText)
+	return args.Error(0)
+}
+
 // MockAgent
 type MockAgent struct {
 	mock.Mock
