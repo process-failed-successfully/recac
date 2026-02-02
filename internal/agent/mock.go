@@ -94,7 +94,7 @@ python3 primes.py
 git config user.email "mock-agent@recac.io"
 git config user.name "Mock Agent"
 git add primes.py primes.json
-git commit -m "Add primes.py and primes.json"
+git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
 ` + "```" + `
 `, nil
 	}
