@@ -93,7 +93,11 @@ git commit -m "Add primes.py and primes.json"
 
 # Signal Completion (Smoke Test Support)
 if command -v agent-bridge >/dev/null 2>&1; then
-  agent-bridge feature update 1 --status done
+  # Dynamically find the feature ID and update it (handles environment injection)
+  FEATURE_ID=$(agent-bridge feature list --json | jq -r '.features[0].id')
+  if [ -n "$FEATURE_ID" ] && [ "$FEATURE_ID" != "null" ]; then
+      agent-bridge feature update "$FEATURE_ID" --status done
+  fi
   agent-bridge signal COMPLETED true
 fi
 ` + "```" + `
