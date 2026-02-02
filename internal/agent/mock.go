@@ -57,6 +57,25 @@ fi
 	isJsonRequest := strings.Contains(prompt, "JSON format") || strings.Contains(prompt, "feature_list.json")
 
 	if isPrimesScenario && isJsonRequest {
+		// If asking for feature_list.json specifically, return FeatureList format
+		if strings.Contains(prompt, "feature_list.json") {
+			return "```json\n" + `[
+  {
+    "id": "[GEN] Create Prime Number Script",
+    "title": "[GEN] Create Prime Number Script",
+    "name": "[GEN] Create Prime Number Script",
+    "description": "Create a python script named 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'. ID:[PRIMES]",
+    "category": "Core",
+    "priority": "MVP",
+    "status": "pending",
+    "dependencies": {
+      "depends_on_ids": []
+    }
+  }
+]` + "\n```", nil
+		}
+
+		// Otherwise (Ticket Gen), return ticketNode format
 		return `[
   {
     "title": "[GEN] Create Prime Number Script",
