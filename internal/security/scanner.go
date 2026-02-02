@@ -8,7 +8,7 @@ import (
 
 // Scanner defines the interface for security scanning
 type Scanner interface {
-	Scan(content string) ([]Finding, error)
+	Scan(filename, content string) ([]Finding, error)
 }
 
 // Finding represents a security issue found in the content
@@ -56,7 +56,12 @@ func NewRegexScanner() *RegexScanner {
 }
 
 // Scan checks the content for security patterns
-func (s *RegexScanner) Scan(content string) ([]Finding, error) {
+func (s *RegexScanner) Scan(filename, content string) ([]Finding, error) {
+	// Mask C-style comments for relevant file types
+	if shouldMaskCComments(filename) {
+		content = maskCComments(content)
+	}
+
 	var findings []Finding
 	lines := strings.Split(content, "\n")
 
@@ -94,4 +99,103 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	}
 
 	return findings, nil
+}
+
+func shouldMaskCComments(filename string) bool {
+	exts := []string{".c", ".cpp", ".h", ".hpp", ".go", ".java", ".js", ".ts", ".rs", ".kt", ".scala", ".swift", ".cs"}
+	for _, ext := range exts {
+		if strings.HasSuffix(filename, ext) {
+			return true
+		}
+	}
+	return false
+}
+
+// maskCComments replaces C-style comments with spaces, preserving line numbers and respecting string literals
+func maskCComments(input string) string {
+	var output strings.Builder
+	runes := []rune(input)
+	length := len(runes)
+
+	inLineComment := false
+	inBlockComment := false
+	inString := false
+	stringQuote := rune(0)
+
+	for i := 0; i < length; i++ {
+		char := runes[i]
+
+		// Inside Comment
+		if inLineComment {
+			if char == '\n' {
+				inLineComment = false
+				output.WriteRune(char)
+			} else {
+				output.WriteRune(' ')
+			}
+			continue
+		}
+
+		if inBlockComment {
+			if char == '*' && i+1 < length && runes[i+1] == '/' {
+				inBlockComment = false
+				output.WriteRune(' ')
+				output.WriteRune(' ')
+				i++
+			} else if char == '\n' {
+				output.WriteRune('\n')
+			} else {
+				output.WriteRune(' ')
+			}
+			continue
+		}
+
+		// Inside String
+		if inString {
+			output.WriteRune(char)
+			// Handle escape
+			if char == '\\' {
+				// Skip next char (escaped)
+				if i+1 < length {
+					output.WriteRune(runes[i+1])
+					i++
+				}
+				continue
+			}
+			if char == stringQuote {
+				inString = false
+			}
+			continue
+		}
+
+		// Check for start of string/char/backtick
+		if char == '"' || char == '\'' || char == '`' {
+			inString = true
+			stringQuote = char
+			output.WriteRune(char)
+			continue
+		}
+
+		// Check for Comment Start
+		if i+1 < length && char == '/' && runes[i+1] == '/' {
+			inLineComment = true
+			output.WriteRune(' ') // Replace /
+			output.WriteRune(' ') // Replace /
+			i++
+			continue
+		}
+
+		if i+1 < length && char == '/' && runes[i+1] == '*' {
+			inBlockComment = true
+			output.WriteRune(' ')
+			output.WriteRune(' ')
+			i++
+			continue
+		}
+
+		// Normal Character
+		output.WriteRune(char)
+	}
+
+	return output.String()
 }

@@ -21,8 +21,8 @@ type MockScanner struct {
 	mock.Mock
 }
 
-func (m *MockScanner) Scan(content string) ([]security.Finding, error) {
-	args := m.Called(content)
+func (m *MockScanner) Scan(filename, content string) ([]security.Finding, error) {
+	args := m.Called(filename, content)
 	return args.Get(0).([]security.Finding), args.Error(1)
 }
 
@@ -106,7 +106,7 @@ func TestRunLoop_SecurityViolation(t *testing.T) {
 	mockAgent.On("Send", mock.Anything, mock.Anything).Return("bad code", nil)
 
 	mockScanner := new(MockScanner)
-	mockScanner.On("Scan", "bad code").Return([]security.Finding{{Type: "Secret"}}, nil)
+	mockScanner.On("Scan", "agent_response.txt", "bad code").Return([]security.Finding{{Type: "Secret"}}, nil)
 
 	sleepCalled := false
 	s := &Session{
