@@ -76,3 +76,29 @@ func TestMockAgent_CompletionPriority(t *testing.T) {
 		t.Errorf("Expected completion signal, got: %s", resp)
 	}
 }
+
+func TestMockAgent_QA(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Context: ... YOUR ROLE - QA AGENT ..."
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(resp, "agent-bridge signal QA_PASSED true") {
+		t.Errorf("Expected QA_PASSED signal, got: %s", resp)
+	}
+}
+
+func TestMockAgent_Manager(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Context: ... YOUR ROLE - PROJECT MANAGER ..."
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(resp, "agent-bridge signal PROJECT_SIGNED_OFF true") {
+		t.Errorf("Expected PROJECT_SIGNED_OFF signal, got: %s", resp)
+	}
+}
