@@ -87,6 +87,31 @@ func main() {
 		assert.NotContains(t, output, "clean.go")
 	})
 
+	t.Run("Security Scan Exclusions", func(t *testing.T) {
+		resetFlags()
+		cmd := securityCmd
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+
+		// Create files that should be excluded but contain secrets
+		goSum := filepath.Join(tempDir, "go.sum")
+		err := os.WriteFile(goSum, []byte("api_key = \"secret_key_in_go_sum\""), 0644)
+		require.NoError(t, err)
+
+		testSpec := filepath.Join(tempDir, "test_spec")
+		err = os.WriteFile(testSpec, []byte("aws_key = \"AKIA1234567890123456\""), 0644)
+		require.NoError(t, err)
+
+		err = cmd.RunE(cmd, []string{})
+		require.NoError(t, err)
+
+		output := buf.String()
+		// Should NOT match go.sum
+		assert.NotContains(t, output, "go.sum")
+		// Should NOT match test_spec
+		assert.NotContains(t, output, "test_spec")
+	})
+
 	t.Run("Security Scan JSON Output", func(t *testing.T) {
 		resetFlags()
 		securityJSON = true

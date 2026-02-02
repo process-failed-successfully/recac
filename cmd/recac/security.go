@@ -108,6 +108,14 @@ func runSecurityScan(root string, scanner *security.RegexScanner) ([]SecurityRes
 		if strings.HasSuffix(path, ".log") {
 			return nil
 		}
+		// 4. Go Sum files
+		if filepath.Base(path) == "go.sum" {
+			return nil
+		}
+		// 5. Test Spec files
+		if filepath.Base(path) == "test_spec" {
+			return nil
+		}
 
 		// Skip binary files and likely large files (simple check)
 		if info.Size() > 1024*1024 { // Skip files > 1MB
