@@ -34,8 +34,30 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	upperPrompt := strings.ToUpper(prompt)
 
-	// Mock Logic for Smoke Tests
-	if strings.Contains(upperPrompt, "PRIMES") || strings.Contains(upperPrompt, "PRIME NUMBERS") {
+	// Mock Logic for Ticket Generation (TPM Agent)
+	// Detects if the prompt is asking to generate tickets from a spec
+	if strings.Contains(upperPrompt, "TPM") || (strings.Contains(upperPrompt, "GENERATE") && strings.Contains(upperPrompt, "TICKET")) {
+		return `
+` + "```json" + `
+[
+  {
+    "title": "ID:[PRIMES] Create Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.\n\nRepo: https://github.com/process-failed-successfully/recac-jira-e2e",
+    "type": "Task",
+    "acceptance_criteria": [
+      "Create primes.py",
+      "Output primes.json",
+      "Verify 1229 primes"
+    ],
+    "children": []
+  }
+]
+` + "```", nil
+	}
+
+	// Mock Logic for Smoke Tests (Task Execution)
+	// Only trigger if it's NOT a ticket generation prompt
+	if (strings.Contains(upperPrompt, "PRIMES") || strings.Contains(upperPrompt, "PRIME NUMBERS")) && !strings.Contains(upperPrompt, "TPM") {
 		return `I will create a python script to calculate prime numbers.
 
 ` + "```bash" + `
