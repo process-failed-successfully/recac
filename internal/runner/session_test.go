@@ -765,7 +765,7 @@ func TestSession_RunLoop_Stall(t *testing.T) {
 	mockAgent := &MockAgent{Response: "I am thinking..."}
 
 	session := NewSession(d, mockAgent, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
-	session.MaxIterations = 5
+	session.MaxIterations = 15
 	session.Project = "test-project"
 
 	// Setup features

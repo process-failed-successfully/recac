@@ -9,7 +9,9 @@ import (
 	"recac/internal/docker"
 	"recac/internal/notify"
 	"recac/internal/telemetry"
+	"strings"
 	"testing"
+	"time"
 )
 
 // MockLoopDocker implements DockerClient interface
@@ -100,15 +102,33 @@ func TestSession_RunLoop_Success(t *testing.T) {
 	defer store.Close()
 
 	mockDocker := &MockLoopDocker{}
-	mockManager := &MockLoopAgent{Response: "Approved."}
+	// Intercept agent-bridge signal command to update DB state
+	mockDocker.ExecFunc = func(ctx context.Context, containerID string, cmd []string) (string, error) {
+		cmdStr := strings.Join(cmd, " ")
+		if strings.Contains(cmdStr, "agent-bridge signal COMPLETED true") {
+			store.SetSignal("test-project", "COMPLETED", "true")
+			return "Success", nil
+		}
+		if strings.Contains(cmdStr, "agent-bridge signal QA_PASSED true") {
+			store.SetSignal("test-project", "QA_PASSED", "true")
+			return "Success", nil
+		}
+		if strings.Contains(cmdStr, "agent-bridge signal PROJECT_SIGNED_OFF true") {
+			store.SetSignal("test-project", "PROJECT_SIGNED_OFF", "true")
+			return "Success", nil
+		}
+		return "Success", nil
+	}
+
+	mockManager := &MockLoopAgent{Response: "Approved.\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```"}
 	mockAgent := &MockLoopAgent{
 		Responses: []string{
 			"I will do success.\n```bash\necho success\n```",
-			"I am done.",
+			"I am done.\n```bash\nagent-bridge signal COMPLETED true\n```",
 		},
 	}
 	mockCleaner := &MockLoopAgent{Response: "Cleaned."}
-	mockQA := &MockLoopAgent{Response: "PASS"}
+	mockQA := &MockLoopAgent{Response: "PASS\n```bash\nagent-bridge signal QA_PASSED true\n```"}
 
 	s := &Session{
 		Workspace:        tmpDir,
@@ -118,10 +138,11 @@ func TestSession_RunLoop_Success(t *testing.T) {
 		CleanerAgent:     mockCleaner,
 		QAAgent:          mockQA,
 		DBStore:          store,
-		MaxIterations:    5,
+		MaxIterations:    15,
 		ManagerFrequency: 10,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
 		Logger:           telemetry.NewLogger(true, "", false),
+		SleepFunc:        func(d time.Duration) {}, // Fast sleep
 	}
 
 	// Wait, RunLoop will loop until MaxIterations or COMPLETED.

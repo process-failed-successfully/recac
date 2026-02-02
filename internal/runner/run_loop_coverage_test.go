@@ -39,7 +39,7 @@ func TestRunLoop_NoOp_Integrated(t *testing.T) {
 		Agent:            mockAgent,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
 		Logger:           telemetry.NewLogger(true, "", false),
-		MaxIterations:    5,
+		MaxIterations:    15,
 		ManagerFrequency: 10,
 		SleepFunc:        func(d time.Duration) {}, // Fast sleep
 	}
