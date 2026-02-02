@@ -7,4 +7,5 @@ type ClientInterface interface {
 	CreateTicket(ctx context.Context, projectKey, summary, description, issueType string, labels []string) (string, error)
 	CreateChildTicket(ctx context.Context, projectKey, summary, description, issueType, parentKey string, labels []string) (string, error)
 	AddIssueLink(ctx context.Context, inwardKey, outwardKey, linkType string) error
+	SearchIssues(ctx context.Context, jql string) ([]map[string]interface{}, error)
 }
