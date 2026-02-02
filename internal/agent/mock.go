@@ -48,6 +48,19 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
+	// Heuristic for QA Role - specific to E2E smoke tests
+	if contains(strings.ToUpper(prompt), "QA AGENT") {
+		return `I have verified the changes and they look good.
+` + "```bash" + `
+# Run tests (simulated)
+echo "Running tests..."
+# Signal QA success
+if command -v agent-bridge >/dev/null 2>&1; then
+    agent-bridge signal QA_PASSED true
+fi
+` + "```", nil
+	}
+
 	// Heuristic for Implementation (Coding) - specific to E2E smoke tests
 	if contains(strings.ToUpper(prompt), "PRIMES") || contains(strings.ToUpper(prompt), "PRIME NUMBER") {
 		return `I will implement the prime number service in Python.

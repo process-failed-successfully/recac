@@ -215,6 +215,7 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 		RepoURL:     "https://github.com/example/already-provided",
 		IsMock:      true,
 		Cleanup:     false,
+		MaxIterations: 1, // Prevent infinite loop with MockAgent
 	}
 
 	err := ProcessJiraTicket(context.Background(), "TEST-1", jClient, cfg, nil)
