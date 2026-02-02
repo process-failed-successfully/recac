@@ -142,6 +142,36 @@ git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
 `, nil
 	}
 
+	// 5. QA Agent Response
+	// If the prompt indicates we are the QA Agent, we should signal QA_PASSED.
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return `I have verified the changes and they meet the requirements.
+
+` + "```bash" + `
+if command -v agent-bridge >/dev/null 2>&1; then
+    agent-bridge signal QA_PASSED true
+else
+    echo "agent-bridge not found, cannot signal QA_PASSED."
+fi
+` + "```" + `
+`, nil
+	}
+
+	// 6. Manager Agent Response
+	// If the prompt indicates we are the Project Manager, we should signal PROJECT_SIGNED_OFF.
+	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") {
+		return `I have reviewed the work and it looks good.
+
+` + "```bash" + `
+if command -v agent-bridge >/dev/null 2>&1; then
+    agent-bridge signal PROJECT_SIGNED_OFF true
+else
+    echo "agent-bridge not found, cannot signal PROJECT_SIGNED_OFF."
+fi
+` + "```" + `
+`, nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf(`%s:

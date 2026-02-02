@@ -72,3 +72,27 @@ func TestMockAgent_Completion(t *testing.T) {
 		t.Errorf("Expected completion signal when both keywords present, got: %s", resp3)
 	}
 }
+
+func TestMockAgent_Roles(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Test QA Role
+	promptQA := "YOUR ROLE - QA AGENT. Please verify."
+	respQA, err := agent.Send(context.Background(), promptQA)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(respQA, "agent-bridge signal QA_PASSED true") {
+		t.Errorf("Expected QA_PASSED signal for QA role, got: %s", respQA)
+	}
+
+	// Test Manager Role
+	promptMgr := "YOUR ROLE - PROJECT MANAGER. Please review."
+	respMgr, err := agent.Send(context.Background(), promptMgr)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(respMgr, "agent-bridge signal PROJECT_SIGNED_OFF true") {
+		t.Errorf("Expected PROJECT_SIGNED_OFF signal for Manager role, got: %s", respMgr)
+	}
+}
