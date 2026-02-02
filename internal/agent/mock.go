@@ -13,9 +13,9 @@ type MockAgent struct {
 }
 
 // NewMockAgent creates a new mock agent
-func NewMockAgent() *MockAgent {
+func NewMockAgent(project string) *MockAgent {
 	return &MockAgent{
-		responsePrefix: "Mock agent response",
+		responsePrefix: fmt.Sprintf("[%s] Mock agent response", project),
 	}
 }
 
