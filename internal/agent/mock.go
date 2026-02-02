@@ -56,14 +56,16 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristic for "prime-python" scenario execution phase.
 	// We want to match the task execution prompt but NOT the planning prompt.
 	// The planning prompt also contains "primes.py" and "Create", so we must exclude it.
-	isPlanning := strings.Contains(promptLower, "appspec") || strings.Contains(promptLower, "specification")
+	// Fix: Coding agent prompts DO contain "AppSpec" as context, so we can't just check for its presence.
+	// Instead, we check if we are EXPLICITLY asked to plan (e.g. "Create a plan", "Break down").
+	isExplicitPlanningRequest := strings.Contains(promptLower, "create a plan") || strings.Contains(promptLower, "break down")
 
 	// Check for implementation triggers:
 	// 1. Task ID: [PRIMES] (often in prompt as "Task: [PRIMES]" or similar)
 	// 2. File + Action: "primes.py" AND "create" (case insensitive)
 	isImplementation := strings.Contains(prompt, "[PRIMES]") || (strings.Contains(promptLower, "primes.py") && strings.Contains(promptLower, "create"))
 
-	if !isPlanning && isImplementation {
+	if !isExplicitPlanningRequest && isImplementation {
 		return `
 I will implement the prime number script.
 
