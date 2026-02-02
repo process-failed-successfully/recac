@@ -94,9 +94,11 @@ primes = [p for p in range(1, 101) if is_prime(p)]
 print(json.dumps(primes))
 EOF
 
-# Mark as done
+# Mark as done and verify
 if command -v agent-bridge > /dev/null; then
 	agent-bridge feature set req-primes-json-contains-correct-p status=completed || echo "Warning: failed to update feature status"
+    # Important: Signal completion to the orchestrator to stop the loop
+    agent-bridge signal COMPLETED true
 fi
 `, nil
 	}
