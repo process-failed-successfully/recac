@@ -2,6 +2,7 @@ package security
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -9,7 +10,7 @@ import (
 
 // Scanner defines the interface for security scanning
 type Scanner interface {
-	Scan(content string) ([]Finding, error)
+	Scan(filename, content string) ([]Finding, error)
 }
 
 // Finding represents a security issue found in the content
@@ -35,8 +36,8 @@ var (
 	// Note: We include '\\' in the boundary to catch escaped commands like '\rm'
 	reDangerousCmd = regexp.MustCompile(`(?i)(?:^|[\s;&|()<>` + "`" + `\\])(rm|cat|cp|mv|chmod|chown)\b.*(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
 	reRootDeletion = regexp.MustCompile(`(?im)(?:^|[\s;&|()<>` + "`" + `\\])rm\s+-[rRf]+\s+(/\*?|~(/+\*?)?)\s*$`)
-	rePipeShell       = regexp.MustCompile(`(?i)\b(curl|wget)\s+.*?\|\s*(bash|sh|zsh|python|perl|php|ruby)\b`)
-	reReverseShell    = regexp.MustCompile(`(?i)\bnc\s+.*?-e\s+.*`)
+	rePipeShell    = regexp.MustCompile(`(?i)\b(curl|wget)\s+.*?\|\s*(bash|sh|zsh|python|perl|php|ruby)\b`)
+	reReverseShell = regexp.MustCompile(`(?i)\bnc\s+.*?-e\s+.*`)
 )
 
 // NewRegexScanner creates a new scanner with default patterns
@@ -57,12 +58,29 @@ func NewRegexScanner() *RegexScanner {
 }
 
 // Scan checks the content for security patterns
-func (s *RegexScanner) Scan(content string) ([]Finding, error) {
+func (s *RegexScanner) Scan(filename, content string) ([]Finding, error) {
 	var findings []Finding
 	lines := strings.Split(content, "\n")
 
-	// Pre-process content for command checks (mask comments)
-	maskedContent := maskComments(content)
+	// Determine masking strategy based on file extension
+	var maskedContent string
+	ext := strings.ToLower(filepath.Ext(filename))
+
+	switch ext {
+	case ".go", ".js", ".ts", ".java", ".c", ".cpp", ".h", ".cs", ".php":
+		maskedContent = maskCComments(content)
+	case ".sh", ".py", ".rb", ".yaml", ".yml", ".dockerfile":
+		maskedContent = maskShellComments(content)
+	default:
+		// Check for specific filenames (like Dockerfile with no ext)
+		if strings.HasSuffix(filename, "Dockerfile") {
+			maskedContent = maskShellComments(content)
+		} else {
+			// Default to shell-style comments as it's most common for scripts
+			// or maybe no masking? Let's use shell-style as safe default for scripts.
+			maskedContent = maskShellComments(content)
+		}
+	}
 
 	// Get keys and sort them for deterministic order
 	keys := make([]string, 0, len(s.patterns))
@@ -117,9 +135,9 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	return findings, nil
 }
 
-// maskComments replaces comments in Bash scripts with spaces, preserving layout.
+// maskShellComments replaces comments in Bash/Python scripts with spaces, preserving layout.
 // It handles strings (single/double quotes) to avoid masking '#' inside them.
-func maskComments(content string) string {
+func maskShellComments(content string) string {
 	var masked []byte
 	// Convert to byte slice for mutability
 	masked = make([]byte, len(content))
@@ -202,6 +220,82 @@ func maskComments(content string) string {
 			inSingle = true
 		} else if char == '"' {
 			inDouble = true
+		}
+	}
+
+	return string(masked)
+}
+
+// maskCComments replaces C-style comments (// and /* */) with spaces.
+func maskCComments(content string) string {
+	var masked []byte
+	masked = make([]byte, len(content))
+	copy(masked, content)
+
+	inSingle := false
+	inDouble := false
+	inLineComment := false
+	inBlockComment := false
+
+	for i := 0; i < len(content); i++ {
+		char := content[i]
+
+		if inLineComment {
+			if char == '\n' {
+				inLineComment = false
+			} else {
+				masked[i] = ' '
+			}
+			continue
+		}
+
+		if inBlockComment {
+			if char == '*' && i+1 < len(content) && content[i+1] == '/' {
+				inBlockComment = false
+				masked[i] = ' '
+				masked[i+1] = ' '
+				i++ // Skip /
+			} else if char != '\n' {
+				masked[i] = ' '
+			}
+			continue
+		}
+
+		if inSingle {
+			if char == '\'' && (i == 0 || content[i-1] != '\\') {
+				inSingle = false
+			}
+			continue
+		}
+
+		if inDouble {
+			if char == '"' && (i == 0 || content[i-1] != '\\') {
+				inDouble = false
+			}
+			continue
+		}
+
+		// Check for comment start
+		if i+1 < len(content) && char == '/' {
+			if content[i+1] == '/' {
+				inLineComment = true
+				masked[i] = ' '
+				masked[i+1] = ' '
+				i++
+				continue
+			} else if content[i+1] == '*' {
+				inBlockComment = true
+				masked[i] = ' '
+				masked[i+1] = ' '
+				i++
+				continue
+			}
+		}
+
+		if char == '"' {
+			inDouble = true
+		} else if char == '\'' {
+			inSingle = true
 		}
 	}
 

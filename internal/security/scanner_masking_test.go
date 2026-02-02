@@ -80,7 +80,7 @@ func TestScanner_Reproduction_FalsePositives(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			findings, err := scanner.Scan(tt.content)
+			findings, err := scanner.Scan("test.sh", tt.content)
 			if err != nil {
 				t.Fatalf("Scan failed: %v", err)
 			}
@@ -157,9 +157,9 @@ func TestMaskComments_Internal(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			got := maskComments(tt.input)
+			got := maskShellComments(tt.input)
 			if got != tt.expected {
-				t.Errorf("maskComments(%q) = %q; want %q", tt.input, got, tt.expected)
+				t.Errorf("maskShellComments(%q) = %q; want %q", tt.input, got, tt.expected)
 			}
 			if len(got) != len(tt.input) {
 				t.Errorf("Length mismatch! input: %d, output: %d", len(tt.input), len(got))

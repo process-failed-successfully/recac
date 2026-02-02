@@ -56,7 +56,8 @@ func TestRegexScanner_Scan(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			findings, err := scanner.Scan(tt.content)
+			// Default to .sh for old tests to maintain behavior
+			findings, err := scanner.Scan("test.sh", tt.content)
 			if err != nil {
 				t.Fatalf("Scan failed: %v", err)
 			}
@@ -79,6 +80,92 @@ func TestRegexScanner_Scan(t *testing.T) {
 					if !found {
 						t.Errorf("Expected finding type %q, got %v", tt.wantFinding, findings)
 					}
+				}
+			}
+		})
+	}
+}
+
+func TestRegexScanner_Scan_Masking(t *testing.T) {
+	scanner := NewRegexScanner()
+
+	tests := []struct {
+		name        string
+		filename    string
+		content     string
+		wantFinding string
+	}{
+		{
+			name:        "Shell Comment Masking",
+			filename:    "script.sh",
+			content:     "# rm -rf /",
+			wantFinding: "", // Should be masked
+		},
+		{
+			name:        "Shell Code Detection",
+			filename:    "script.sh",
+			content:     "rm -rf /",
+			wantFinding: "Root Deletion",
+		},
+		{
+			name:        "Go Comment Masking (Line)",
+			filename:    "main.go",
+			content:     "// rm -rf /",
+			wantFinding: "", // Should be masked
+		},
+		{
+			name:        "Go Comment Masking (Block)",
+			filename:    "main.go",
+			content:     "/* rm -rf / */",
+			wantFinding: "", // Should be masked
+		},
+		{
+			name:        "Go Code Detection",
+			filename:    "main.go",
+			content:     "func main() { /* safe */ } \n // unsafe below \n // exec.Command(\"rm\", \"-rf\", \"/\")",
+			wantFinding: "", // Still commented
+		},
+		{
+			name:        "Go String NOT Masked (Code)",
+			filename:    "main.go",
+			content:     "cmd := `\nrm -rf /\n`", // Backticks not masked, on new line satisfies regex
+			wantFinding: "Root Deletion",
+		},
+		{
+			name:        "Mixed Shell in Go (False Positive scenario)",
+			filename:    "executor.go",
+			content:     "// Executes: rm -rf /",
+			wantFinding: "", // Should be masked by C-style masking
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			findings, err := scanner.Scan(tt.filename, tt.content)
+			if err != nil {
+				t.Fatalf("Scan failed: %v", err)
+			}
+
+			if tt.wantFinding == "" {
+				if len(findings) > 0 {
+					// Check if any finding is actually related to what we expect to be masked
+					// e.g. if we expect NO "Root Deletion" but got one.
+					for _, f := range findings {
+						if f.Type == "Root Deletion" || f.Type == "Dangerous Command" {
+							t.Errorf("Expected no dangerous findings, got %v", f)
+						}
+					}
+				}
+			} else {
+				found := false
+				for _, f := range findings {
+					if f.Type == tt.wantFinding {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Expected finding type %q, got %v", tt.wantFinding, findings)
 				}
 			}
 		})

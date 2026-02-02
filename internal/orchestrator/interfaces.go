@@ -33,6 +33,7 @@ type Spawner interface {
 type JiraClient interface {
 	SearchIssues(ctx context.Context, jql string) ([]map[string]interface{}, error)
 	GetBlockers(issue map[string]interface{}) []string
+	GetBlockerKeys(issue map[string]interface{}) []string
 	ParseDescription(issue map[string]interface{}) string
 	AddComment(ctx context.Context, issueID string, comment string) error
 	SmartTransition(ctx context.Context, issueID string, status string) error
