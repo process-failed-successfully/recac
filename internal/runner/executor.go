@@ -49,8 +49,11 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 	}
 
 	// Check for Blockers
-	if err := s.checkBlockers(ctx); err != nil {
-		return "", err
+	if blockerMsg, err := s.checkBlockers(ctx); err != nil {
+		if errors.Is(err, ErrBlocker) {
+			parsedOutput.WriteString(fmt.Sprintf("\n[SYSTEM] BLOCKER DETECTED: %s\n", blockerMsg))
+		}
+		return parsedOutput.String(), err
 	}
 
 	// Metrics Collection
@@ -83,14 +86,14 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 }
 
 // checkBlockers checks for blocker signals in DB or files.
-func (s *Session) checkBlockers(ctx context.Context) error {
+func (s *Session) checkBlockers(ctx context.Context) (string, error) {
 	// Check for Blocker Signal (DB)
 	if s.DBStore != nil {
 		blockerMsg, err := s.DBStore.GetSignal(s.Project, "BLOCKER")
 		if err == nil && blockerMsg != "" {
 			fmt.Printf("\n!!! AGENT BLOCKED: %s !!!\n", blockerMsg)
 			fmt.Println("Waiting for blocker to be resolved...")
-			return ErrBlocker
+			return blockerMsg, ErrBlocker
 		}
 	}
 
@@ -130,11 +133,11 @@ func (s *Session) checkBlockers(ctx context.Context) error {
 				s.Logger.Warn("agent reported blocker file", "file", bf)
 				s.Logger.Warn("blocker content", "content", blockerContent)
 				s.Logger.Info("session stopping to allow human resolution")
-				return ErrBlocker
+				return blockerContent, ErrBlocker
 			}
 		}
 	}
-	return nil
+	return "", nil
 }
 
 // executeCommandBlock handles the execution of a single command block.
