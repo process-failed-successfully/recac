@@ -32,6 +32,38 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	// 0. Check for Initializer Agent (Session Bootstrap)
+	// Matches against the Initializer Agent prompt structure (internal/agent/prompts/templates/initializer.md)
+	if strings.Contains(prompt, "INITIALIZER AGENT") {
+		return `I will initialize the project features.
+
+` + "```bash" + `
+cat << 'EOF' | agent-bridge import
+{
+  "project_name": "primes",
+  "features": [
+    {
+      "id": "primes-impl",
+      "description": "Create primes.py to calculate all prime numbers less than 10,000",
+      "priority": "MVP",
+      "status": "pending",
+      "steps": [
+        "Check if primes.py exists",
+        "Run primes.py",
+        "Check if primes.json exists"
+      ],
+      "passes": false,
+      "dependencies": {
+        "exclusive_write_paths": ["primes.py", "primes.json"]
+      }
+    }
+  ]
+}
+EOF
+` + "```" + `
+`, nil
+	}
+
 	// 1. Check for Prime Python Scenario - Ticket Generation
 	// Matches against the TPM Agent prompt structure (internal/agent/prompts/templates/tpm_agent.md)
 	if strings.Contains(prompt, "Technical Program Manager") && strings.Contains(prompt, "ID:[PRIMES]") {
