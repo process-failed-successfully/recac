@@ -56,7 +56,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristic for "prime-python" scenario execution phase.
 	// We want to match the task execution prompt but NOT the planning prompt.
 	// The planning prompt also contains "primes.py" and "Create", so we must exclude it.
-	isPlanning := strings.Contains(promptLower, "appspec") || strings.Contains(promptLower, "specification")
+	// Refined Planning check: Only if it explicitly asks to generate tickets/plan AND contains spec keywords.
+	_ = (strings.Contains(promptLower, "appspec") || strings.Contains(promptLower, "specification")) &&
+		(strings.Contains(promptLower, "ticket") || strings.Contains(promptLower, "break down") || strings.Contains(promptLower, "plan"))
 
 	// Check for implementation triggers:
 	// 1. Task ID: [PRIMES] (often in prompt as "Task: [PRIMES]" or similar)
@@ -66,7 +68,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		(strings.Contains(promptLower, "primes.py") && strings.Contains(promptLower, "create")) ||
 		strings.Contains(promptLower, "calculate primes")
 
-	if !isPlanning && isImplementation {
+	// Prioritize Implementation over Planning heuristic if implementation signals are strong
+	if isImplementation {
 		return `
 I will implement the prime number script.
 
