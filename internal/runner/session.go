@@ -890,14 +890,32 @@ func (s *Session) loadFeatures() []db.Feature {
 	// 4. Fallback to feature_list.json file (Legacy/Local mode)
 	listPath := filepath.Join(s.Workspace, "feature_list.json")
 	if data, err := os.ReadFile(listPath); err == nil {
+		// Try unmarshalling as FeatureList (Object)
 		var fl db.FeatureList
 		if err := json.Unmarshal(data, &fl); err == nil {
-			s.Logger.Info("loaded features from file", "path", listPath)
+			s.Logger.Info("loaded features from file (object format)", "path", listPath)
 			// Sync to DB
 			if s.DBStore != nil {
 				_ = s.DBStore.SaveFeatures(s.Project, string(data))
 			}
 			return fl.Features
+		}
+
+		// Try unmarshalling as []Feature (Array)
+		var features []db.Feature
+		if err := json.Unmarshal(data, &features); err == nil {
+			s.Logger.Info("loaded features from file (array format)", "path", listPath)
+			// Sync to DB (Wrap in FeatureList for consistency)
+			finalList := db.FeatureList{
+				ProjectName: s.Project,
+				Features:    features,
+			}
+			if wrappedData, err := json.Marshal(finalList); err == nil {
+				if s.DBStore != nil {
+					_ = s.DBStore.SaveFeatures(s.Project, string(wrappedData))
+				}
+			}
+			return features
 		}
 	}
 
