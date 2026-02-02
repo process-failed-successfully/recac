@@ -32,11 +32,24 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	promptLower := strings.ToLower(prompt)
+
 	// Detect "Ticket Generation" prompts (e.g. from generate-from-spec)
 	// We check for keywords likely used in the prompt for the TPM agent
-	if strings.Contains(strings.ToLower(prompt), "technical program manager") ||
+	if strings.Contains(promptLower, "technical program manager") ||
 		strings.Contains(prompt, "generate-from-spec") {
 		return m.generateMockTickets(prompt), nil
+	}
+
+	// Detect "Implementation" prompt for PRIMES (Scenario: prime-python)
+	if strings.Contains(prompt, "primes.py") || strings.Contains(promptLower, "prime number script") {
+		return m.generatePrimesImplementation(), nil
+	}
+
+	// Detect generic "Spec" prompt from unit tests (TestStartCommand)
+	// If the prompt is just "Spec" or very short/generic, just complete.
+	if strings.Contains(prompt, "Spec") {
+		return "Mock Agent: Task Completed.\n```bash\nagent-bridge signal COMPLETED true\n```", nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
@@ -48,7 +61,18 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 // generateMockTickets returns a JSON response simulating ticket generation
 func (m *MockAgent) generateMockTickets(prompt string) string {
-	// Simple heuristic to extract project or ID if needed, or just return a standard set
+	// If the prompt asks for PRIMES (e.g. ID:[PRIMES]), return the specific task ticket
+	if strings.Contains(strings.ToUpper(prompt), "[PRIMES]") || strings.Contains(strings.ToLower(prompt), "prime number script") {
+		return `[
+  {
+    "title": "ID:[PRIMES] Create Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'.\n\nRepo: https://github.com/example/repo",
+    "type": "Task"
+  }
+]`
+	}
+
+	// Default Mock Tickets
 	return `[
   {
     "title": "ID:[MOCK-EPIC] Implement Mock Feature",
@@ -68,6 +92,45 @@ func (m *MockAgent) generateMockTickets(prompt string) string {
     ]
   }
 ]`
+}
+
+func (m *MockAgent) generatePrimesImplementation() string {
+	return `I will implement the primes script as requested.
+
+` + "```bash" + `
+# Create primes.py
+cat << 'EOF' > primes.py
+import json
+
+def get_primes(n):
+    primes = []
+    for num in range(2, n):
+        if all(num % i != 0 for i in range(2, int(num ** 0.5) + 1)):
+            primes.append(num)
+    return primes
+
+if __name__ == "__main__":
+    primes = get_primes(10000)
+    with open('primes.json', 'w') as f:
+        json.dump({"primes": primes}, f)
+EOF
+
+# Run it
+python3 primes.py
+
+# Commit
+if [ -d .git ]; then
+    git add primes.py primes.json
+    git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
+fi
+
+# Signal Completion
+if command -v agent-bridge >/dev/null 2>&1; then
+    agent-bridge signal COMPLETED true
+else
+    echo "agent-bridge not found, skipping signal"
+fi
+` + "```"
 }
 
 // SendStream implements the Agent interface
