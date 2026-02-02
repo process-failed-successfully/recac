@@ -32,174 +32,25 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 	}
 
 	var parsedOutput strings.Builder
-	// Get timeout from config
-	timeoutSeconds := viper.GetInt("bash_timeout")
-	if timeoutSeconds == 0 {
-		timeoutSeconds = 600 // Default 10 minutes
-	}
 
 	for i, match := range matches {
 		cmdScript := strings.TrimSpace(match[1])
 		if cmdScript == "" {
 			continue
 		}
-		s.Logger.Info("executing command block", "index", i+1, "total", len(matches), "script", cmdScript)
 
-		// Security Scan
-		if s.Scanner != nil {
-			findings, err := s.Scanner.Scan(cmdScript)
-			if err != nil {
-				s.Logger.Warn("security scanner error", "error", err, "script", cmdScript)
-			}
-			if len(findings) > 0 {
-				s.Logger.Warn("security violation: blocked dangerous command", "script", cmdScript, "findings", findings)
-				parsedOutput.WriteString(fmt.Sprintf("\n[BLOCKED] Command %d blocked by security scanner: %s\n", i+1, findings[0].Description))
-				continue
-			}
-		}
-
-		// Heuristic: If block starts with '{' or '[' and parses as JSON, it's likely data mislabeled as bash.
-		if (strings.HasPrefix(cmdScript, "{") || strings.HasPrefix(cmdScript, "[")) && json.Valid([]byte(cmdScript)) {
-			s.Logger.Warn("Skipping execution of likely JSON data block mislabeled as bash", "snippet", cmdScript[:min(len(cmdScript), 50)])
-			parsedOutput.WriteString(fmt.Sprintf("\n[Skipped JSON Block %d - Use 'cat' to write files]\n", i+1))
-			continue
-		}
-
-		// Create timeout context for this specific command
-		cmdCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
-
-		// Execute via Docker or Local
-		var output string
-		var err error
-
-		if s.UseLocalAgent {
-			// Execute Locally
-			cmd := exec.CommandContext(cmdCtx, "/bin/bash", "-c", cmdScript)
-			// Propagate Environment + Inject Project ID
-			cmd.Env = append(os.Environ(), fmt.Sprintf("RECAC_PROJECT_ID=%s", s.Project))
-			// Debug: Log key env vars for troubleshooting
-			s.Logger.Info("[DEBUG] Local exec env vars",
-				"RECAC_PROJECT_ID", s.Project,
-				"RECAC_DB_TYPE", os.Getenv("RECAC_DB_TYPE"),
-				"RECAC_DB_URL_set", os.Getenv("RECAC_DB_URL") != "")
-			cmd.Dir = s.Workspace // Run in workspace
-			// Capture Combined Output
-			var outBuf bytes.Buffer
-			cmd.Stdout = &outBuf
-			cmd.Stderr = &outBuf
-			err = cmd.Run()
-			output = outBuf.String()
-		} else {
-			// Execute via Docker
-			output, err = s.Docker.Exec(cmdCtx, s.GetContainerID(), []string{"/bin/bash", "-c", cmdScript})
-		}
-
-		cancel() // Ensure we release resources
+		output, err := s.executeCommandBlock(ctx, cmdScript, i+1, len(matches))
+		parsedOutput.WriteString(output)
 
 		if err != nil {
-			var errMsg string
-			if cmdCtx.Err() == context.DeadlineExceeded {
-				errMsg = fmt.Sprintf("Command timed out after %d seconds.", timeoutSeconds)
-			} else if errors.Is(err, context.DeadlineExceeded) {
-				errMsg = fmt.Sprintf("Command timed out after %d seconds.", timeoutSeconds)
-			} else {
-				errMsg = err.Error()
-			}
-
-			result := fmt.Sprintf("Command Failed: %s\nError: %s\nOutput:\n%s\n", cmdScript, errMsg, output)
-			s.Logger.Error("command failed", "script", cmdScript, "error", errMsg)
-			parsedOutput.WriteString(result)
-
-			// Telemetry: Build Failure
-			if strings.Contains(cmdScript, "go build") || strings.Contains(cmdScript, "npm run build") || strings.Contains(cmdScript, "make build") {
-				telemetry.TrackBuildResult(s.Project, false)
-			}
-
 			// Fail Fast: Do not execute subsequent commands if the current one fails
 			break
-		} else {
-			// Output Truncation to prevent context exhaustion
-			const MaxOutputChars = 20000
-			truncatedOutput := output
-			if len(output) > MaxOutputChars {
-				truncatedOutput = output[:MaxOutputChars] + fmt.Sprintf("\n... [Output Truncated. Total length: %d chars] ...", len(output))
-				// Also truncate for display to avoid flooding user console
-				s.Logger.Info("command output truncated", "truncated_output", truncatedOutput)
-			} else {
-				// result := fmt.Sprintf("Command Output:\n%s\n", output)
-				if len(output) > 0 {
-					s.Logger.Info("command output", "output", output)
-				}
-			}
-
-			// Append valid (possibly truncated) output to the result buffer
-			parsedOutput.WriteString(fmt.Sprintf("Command Output:\n%s\n", truncatedOutput))
-
-			// Telemetry: Lines Generated (Approximate based on cat/echo)
-			lines := strings.Count(cmdScript, "\n")
-			telemetry.TrackLineGenerated(s.Project, lines)
-
-			// Telemetry: Build Success
-			if strings.Contains(cmdScript, "go build") || strings.Contains(cmdScript, "npm run build") || strings.Contains(cmdScript, "make build") {
-				telemetry.TrackBuildResult(s.Project, true)
-			}
-
-			// Telemetry: Files Created/Modified
-			if strings.Contains(cmdScript, "touch ") || strings.Contains(cmdScript, "> ") {
-				telemetry.TrackFileCreated(s.Project)
-			}
 		}
 	}
 
-	// Check for Blocker Signal (DB)
-	if s.DBStore != nil {
-		blockerMsg, err := s.DBStore.GetSignal(s.Project, "BLOCKER")
-		if err == nil && blockerMsg != "" {
-			fmt.Printf("\n!!! AGENT BLOCKED: %s !!!\n", blockerMsg)
-			fmt.Println("Waiting for blocker to be resolved...")
-			return "", ErrBlocker
-		}
-	}
-
-	// Legacy File Check (Deprecating, but keeping for compatibility)
-	if s.Docker != nil {
-		blockerFiles := []string{"recac_blockers.txt", "blockers.txt"}
-		for _, bf := range blockerFiles {
-			checkCmd := []string{"/bin/sh", "-c", fmt.Sprintf("test -f %s && cat %s", bf, bf)}
-			blockerContent, err := s.Docker.Exec(ctx, s.GetContainerID(), checkCmd)
-			trimmed := strings.TrimSpace(blockerContent)
-			if err == nil && len(trimmed) > 0 {
-				// Check for false positives (status messages instead of blockers)
-				// 1. Normalize: lowercase and remove common comment/bullet chars (#, *, -, whitespace)
-				cleanStr := strings.ToLower(trimmed)
-				cleanStr = strings.ReplaceAll(cleanStr, "#", "")
-				cleanStr = strings.ReplaceAll(cleanStr, "*", "")
-				cleanStr = strings.ReplaceAll(cleanStr, "-", "")
-				cleanStr = strings.Join(strings.Fields(cleanStr), " ") // Normalize internal whitespace
-
-				isFalsePositive := strings.Contains(cleanStr, "no blockers") ||
-					strings.HasPrefix(cleanStr, "none") ||
-					strings.Contains(cleanStr, "no technical obstacles") ||
-					strings.Contains(cleanStr, "progressing smoothly") ||
-					strings.Contains(cleanStr, "initial setup complete") ||
-					strings.Contains(cleanStr, "all requirements met") ||
-					strings.Contains(cleanStr, "ready for next feature") ||
-					strings.Contains(cleanStr, "ui verification required")
-
-				if isFalsePositive {
-					s.Logger.Info("ignoring false positive blocker", "file", bf, "content", trimmed)
-					// Cleanup the file so it doesn't re-trigger
-					s.Docker.Exec(ctx, s.GetContainerID(), []string{"rm", bf})
-					continue
-				}
-
-				// Real Blocker found!
-				s.Logger.Warn("agent reported blocker file", "file", bf)
-				s.Logger.Warn("blocker content", "content", blockerContent)
-				s.Logger.Info("session stopping to allow human resolution")
-				return "", ErrBlocker
-			}
-		}
+	// Check for Blockers
+	if err := s.checkBlockers(ctx); err != nil {
+		return "", err
 	}
 
 	// Metrics Collection
@@ -229,6 +80,165 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 		"response_chars", len(response))
 
 	return parsedOutput.String(), nil
+}
+
+// checkBlockers checks for blocker signals in DB or files.
+func (s *Session) checkBlockers(ctx context.Context) error {
+	// Check for Blocker Signal (DB)
+	if s.DBStore != nil {
+		blockerMsg, err := s.DBStore.GetSignal(s.Project, "BLOCKER")
+		if err == nil && blockerMsg != "" {
+			fmt.Printf("\n!!! AGENT BLOCKED: %s !!!\n", blockerMsg)
+			fmt.Println("Waiting for blocker to be resolved...")
+			return ErrBlocker
+		}
+	}
+
+	// Check for Local Blocker Files (recac_blockers.txt or blockers.txt)
+	// This allows human-in-the-loop to pause execution by creating a file
+	blockerFiles := []string{"recac_blockers.txt", "blockers.txt"}
+	for _, bf := range blockerFiles {
+		// Use cat to check file existence and read content
+		// We execute this as a separate command
+		checkCmd := fmt.Sprintf("[ -f %s ] && cat %s", bf, bf)
+		var checkOut string
+		var checkErr error
+
+		if s.UseLocalAgent {
+			cmd := exec.Command("/bin/bash", "-c", checkCmd)
+			cmd.Dir = s.Workspace
+			var outBuf bytes.Buffer
+			cmd.Stdout = &outBuf
+			checkErr = cmd.Run()
+			checkOut = outBuf.String()
+		} else {
+			// Docker
+			checkOut, checkErr = s.Docker.Exec(ctx, s.GetContainerID(), []string{"/bin/bash", "-c", checkCmd})
+		}
+
+		if checkErr == nil && checkOut != "" {
+			// File exists and has content (or empty, but existence is enough?)
+			// Let's require content to be useful
+			blockerContent := strings.TrimSpace(checkOut)
+			// Filter out "passed" or "no blockers"
+			if blockerContent != "" && !strings.Contains(strings.ToLower(blockerContent), "passed") && !strings.Contains(strings.ToLower(blockerContent), "no blockers") {
+				s.Logger.Warn("agent reported blocker file", "file", bf)
+				s.Logger.Warn("blocker content", "content", blockerContent)
+				s.Logger.Info("session stopping to allow human resolution")
+				return ErrBlocker
+			}
+		}
+	}
+	return nil
+}
+
+// executeCommandBlock handles the execution of a single command block.
+func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, index, total int) (string, error) {
+	s.Logger.Info("executing command block", "index", index, "total", total, "script", cmdScript)
+
+	// Security Scan
+	if s.Scanner != nil {
+		findings, err := s.Scanner.Scan(cmdScript)
+		if err != nil {
+			s.Logger.Warn("security scanner error", "error", err, "script", cmdScript)
+		}
+		if len(findings) > 0 {
+			s.Logger.Warn("security violation: blocked dangerous command", "script", cmdScript, "findings", findings)
+			return fmt.Sprintf("\n[BLOCKED] Command %d blocked by security scanner: %s\n", index, findings[0].Description), nil
+		}
+	}
+
+	// Heuristic: If block starts with '{' or '[' and parses as JSON, it's likely data mislabeled as bash.
+	if (strings.HasPrefix(cmdScript, "{") || strings.HasPrefix(cmdScript, "[")) && json.Valid([]byte(cmdScript)) {
+		s.Logger.Warn("Skipping execution of likely JSON data block mislabeled as bash", "snippet", cmdScript[:min(len(cmdScript), 50)])
+		return fmt.Sprintf("\n[Skipped JSON Block %d - Use 'cat' to write files]\n", index), nil
+	}
+
+	// Get timeout from config
+	timeoutSeconds := viper.GetInt("bash_timeout")
+	if timeoutSeconds == 0 {
+		timeoutSeconds = 600 // Default 10 minutes
+	}
+
+	// Create timeout context for this specific command
+	cmdCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
+	defer cancel()
+
+	// Execute via Docker or Local
+	var output string
+	var err error
+
+	if s.UseLocalAgent {
+		// Execute Locally
+		cmd := exec.CommandContext(cmdCtx, "/bin/bash", "-c", cmdScript)
+		// Propagate Environment + Inject Project ID
+		cmd.Env = append(os.Environ(), fmt.Sprintf("RECAC_PROJECT_ID=%s", s.Project))
+		// Debug: Log key env vars for troubleshooting
+		s.Logger.Info("[DEBUG] Local exec env vars",
+			"RECAC_PROJECT_ID", s.Project,
+			"RECAC_DB_TYPE", os.Getenv("RECAC_DB_TYPE"),
+			"RECAC_DB_URL_set", os.Getenv("RECAC_DB_URL") != "")
+		cmd.Dir = s.Workspace // Run in workspace
+		// Capture Combined Output
+		var outBuf bytes.Buffer
+		cmd.Stdout = &outBuf
+		cmd.Stderr = &outBuf
+		err = cmd.Run()
+		output = outBuf.String()
+	} else {
+		// Execute via Docker
+		output, err = s.Docker.Exec(cmdCtx, s.GetContainerID(), []string{"/bin/bash", "-c", cmdScript})
+	}
+
+	if err != nil {
+		var errMsg string
+		if cmdCtx.Err() == context.DeadlineExceeded {
+			errMsg = fmt.Sprintf("Command timed out after %d seconds.", timeoutSeconds)
+		} else if errors.Is(err, context.DeadlineExceeded) {
+			errMsg = fmt.Sprintf("Command timed out after %d seconds.", timeoutSeconds)
+		} else {
+			errMsg = err.Error()
+		}
+
+		result := fmt.Sprintf("Command Failed: %s\nError: %s\nOutput:\n%s\n", cmdScript, errMsg, output)
+		s.Logger.Error("command failed", "script", cmdScript, "error", errMsg)
+
+		// Telemetry: Build Failure
+		if strings.Contains(cmdScript, "go build") || strings.Contains(cmdScript, "npm run build") || strings.Contains(cmdScript, "make build") {
+			telemetry.TrackBuildResult(s.Project, false)
+		}
+
+		return result, fmt.Errorf("command execution failed: %w", err)
+	}
+
+	// Output Truncation to prevent context exhaustion
+	const MaxOutputChars = 20000
+	truncatedOutput := output
+	if len(output) > MaxOutputChars {
+		truncatedOutput = output[:MaxOutputChars] + fmt.Sprintf("\n... [Output Truncated. Total length: %d chars] ...", len(output))
+		// Also truncate for display to avoid flooding user console
+		s.Logger.Info("command output truncated", "truncated_output", truncatedOutput)
+	} else {
+		if len(output) > 0 {
+			s.Logger.Info("command output", "output", output)
+		}
+	}
+
+	// Telemetry: Lines Generated (Approximate based on cat/echo)
+	lines := strings.Count(cmdScript, "\n")
+	telemetry.TrackLineGenerated(s.Project, lines)
+
+	// Telemetry: Build Success
+	if strings.Contains(cmdScript, "go build") || strings.Contains(cmdScript, "npm run build") || strings.Contains(cmdScript, "make build") {
+		telemetry.TrackBuildResult(s.Project, true)
+	}
+
+	// Telemetry: Files Created/Modified
+	if strings.Contains(cmdScript, "touch ") || strings.Contains(cmdScript, "> ") {
+		telemetry.TrackFileCreated(s.Project)
+	}
+
+	return fmt.Sprintf("Command Output:\n%s\n", truncatedOutput), nil
 }
 
 // runCleanerAgent removes temporary files listed in temp_files.txt.
