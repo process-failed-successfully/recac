@@ -101,3 +101,39 @@ func TestSession_ProcessResponse_Blocker(t *testing.T) {
 		t.Errorf("Expected ErrBlocker, got %v", err)
 	}
 }
+
+func TestSession_ProcessResponse_Blocker_ReturnsOutput(t *testing.T) {
+	mockDocker := &MockDockerClient{
+		ExecFunc: func(ctx context.Context, containerID string, cmd []string) (string, error) {
+			return "Command Executed Successfully", nil
+		},
+	}
+
+	workspace := t.TempDir()
+	dbPath := filepath.Join(workspace, ".recac.db")
+	store, _ := db.NewSQLiteStore(dbPath)
+	defer store.Close()
+
+	s := &Session{
+		Docker:    mockDocker,
+		Workspace: workspace,
+		DBStore:   store,
+		Logger:    slog.Default(),
+		Notifier:  notify.NewManager(func(string, ...interface{}) {}),
+		Project:   "test-project",
+	}
+
+	// Manually set blocker signal to simulate "agent did it"
+	store.SetSignal("test-project", "BLOCKER", "I am stuck")
+
+	response := "Execute this:\n```bash\necho test\n```"
+	output, err := s.ProcessResponse(context.Background(), response)
+
+	if err != ErrBlocker {
+		t.Errorf("Expected ErrBlocker, got %v", err)
+	}
+
+	if !strings.Contains(output, "Command Executed Successfully") {
+		t.Errorf("Expected output to contain execution logs, got: %q", output)
+	}
+}
