@@ -102,18 +102,14 @@ func (s *Session) checkBlockers(ctx context.Context) error {
 			lowerContent := strings.ToLower(blockerContent)
 
 			// Check for blocking content (filtering out false positives)
-			isBlocker := blockerContent != "" &&
-				!strings.Contains(lowerContent, "no blockers") &&
-				!strings.Contains(lowerContent, "passed") &&
-				!strings.Contains(lowerContent, "none") &&
-				!strings.Contains(lowerContent, "initial setup complete")
+			// We check if any of the false positive phrases are present. If so, it's NOT a blocker.
+			isFalsePositive := strings.Contains(lowerContent, "no blockers") ||
+				strings.Contains(lowerContent, "passed") ||
+				strings.Contains(lowerContent, "none") ||
+				strings.Contains(lowerContent, "initial setup complete") ||
+				strings.Contains(lowerContent, "ui verification required")
 
-			if isBlocker {
-				// Special case: UI Verification is NOT a blocker in this context (handled by QA agent)
-				if strings.Contains(lowerContent, "ui verification required") {
-					isBlocker = false
-				}
-			}
+			isBlocker := blockerContent != "" && !isFalsePositive
 
 			if isBlocker {
 				fmt.Printf("\n!!! AGENT REPORTED BLOCKER: %s !!!\n%s\n", bf, blockerContent)
