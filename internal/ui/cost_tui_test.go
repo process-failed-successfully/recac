@@ -45,7 +45,7 @@ func TestCostModel_Update(t *testing.T) {
 			}, nil
 		},
 	}
-	m := newCostModel(sm)
+	m := newCostModel(sm, 0)
 
 	// Test Init
 	cmd := m.Init()
@@ -93,7 +93,7 @@ func TestCostModel_Update(t *testing.T) {
 
 func TestCostModel_UpdateTable(t *testing.T) {
 	sm := &MockSessionManager{}
-	m := newCostModel(sm)
+	m := newCostModel(sm, 0)
 
 	// Mock LoadAgentState
 	LoadAgentState = func(filePath string) (*agent.State, error) {
@@ -129,7 +129,7 @@ func TestCostModel_UpdateTable(t *testing.T) {
 
 func TestCostModel_Error(t *testing.T) {
 	sm := &MockSessionManager{}
-	m := newCostModel(sm)
+	m := newCostModel(sm, 0)
 
 	err := errors.New("fetch error")
 	msg := errMsg{err}
@@ -148,15 +148,77 @@ func TestCostModel_Error(t *testing.T) {
 
 func TestCostModel_Init_Cmds(t *testing.T) {
 	sm := &MockSessionManager{}
-	m := newCostModel(sm)
+	m := newCostModel(sm, 0)
 
 	cmd := m.Init()
 	if cmd == nil {
 		t.Error("Expected not nil cmd")
 	}
+}
 
-	// Init returns a Batch command, which is a func.
-	// Executing it returns a BatchMsg (slice of Msgs).
-	// We can't easily inspect BatchMsg without internal knowledge or executing it.
-	// But simply asserting it's not nil covers the code path in Init().
+func TestCostModel_UpdateTable_Limit(t *testing.T) {
+	sm := &MockSessionManager{}
+	m := newCostModel(sm, 1) // Limit 1
+
+	// Mock LoadAgentState
+	LoadAgentState = func(filePath string) (*agent.State, error) {
+		return &agent.State{
+			Model: "gpt-4",
+			TokenUsage: agent.TokenUsage{TotalTokens: 100},
+		}, nil
+	}
+
+	m.sessions = []*runner.SessionState{
+		{Name: "s1", AgentStateFile: "f1"},
+		{Name: "s2", AgentStateFile: "f2"},
+	}
+
+	m.updateTable()
+
+	rows := m.table.Rows()
+	if len(rows) != 1 {
+		t.Errorf("Expected 1 row, got %d", len(rows))
+	}
+}
+
+func TestCostModel_UpdateTable_Sort(t *testing.T) {
+	sm := &MockSessionManager{}
+	m := newCostModel(sm, 0)
+
+	// Mock LoadAgentState
+	LoadAgentState = func(filePath string) (*agent.State, error) {
+		// Mock different costs based on file path
+		tokens := 100
+		if filePath == "high" {
+			tokens = 1000
+		}
+		return &agent.State{
+			Model: "gpt-4-turbo", // Use a model with known pricing in agent package
+			TokenUsage: agent.TokenUsage{
+				TotalPromptTokens:   tokens,
+				TotalResponseTokens: tokens,
+				TotalTokens:         tokens * 2,
+			},
+		}, nil
+	}
+
+	m.sessions = []*runner.SessionState{
+		{Name: "low-cost", AgentStateFile: "low"},
+		{Name: "high-cost", AgentStateFile: "high"},
+	}
+
+	m.updateTable()
+
+	rows := m.table.Rows()
+	if len(rows) != 2 {
+		t.Fatalf("Expected 2 rows, got %d", len(rows))
+	}
+
+	// First row should be high cost
+	if rows[0][0] != "high-cost" {
+		t.Errorf("Expected first row to be high-cost, got %s", rows[0][0])
+	}
+	if rows[1][0] != "low-cost" {
+		t.Errorf("Expected second row to be low-cost, got %s", rows[1][0])
+	}
 }

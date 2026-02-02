@@ -165,7 +165,7 @@ func TestCostCommand_WatchFlag(t *testing.T) {
 
 	// Temporarily replace the TUI starter with our mock
 	originalTUIStarter := ui.StartCostTUI
-	ui.SetStartCostTUIForTest(func(sm ui.SessionManager) error {
+	ui.SetStartCostTUIForTest(func(sm ui.SessionManager, limit int) error {
 		tuiStarted = true
 		receivedSm = sm
 		return nil

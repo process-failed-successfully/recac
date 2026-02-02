@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"os"
+	"sort"
 	"time"
 
 	"recac/internal/agent"
@@ -33,12 +34,12 @@ var (
 			BorderForeground(lipgloss.Color("240"))
 )
 
-var startCostTUI = func(sm SessionManager) error {
+var startCostTUI = func(sm SessionManager, limit int) error {
 	if LoadAgentState == nil {
 		return fmt.Errorf("LoadAgentState function must be set before starting the Cost TUI")
 	}
 
-	model := newCostModel(sm)
+	model := newCostModel(sm, limit)
 	p := tea.NewProgram(model, tea.WithAltScreen())
 
 	if err := p.Start(); err != nil {
@@ -49,12 +50,12 @@ var startCostTUI = func(sm SessionManager) error {
 }
 
 // StartCostTUI is a wrapper that can be mocked for testing.
-func StartCostTUI(sm SessionManager) error {
-	return startCostTUI(sm)
+func StartCostTUI(sm SessionManager, limit int) error {
+	return startCostTUI(sm, limit)
 }
 
 // SetStartCostTUIForTest allows tests to replace the TUI starter function.
-func SetStartCostTUIForTest(fn func(sm SessionManager) error) {
+func SetStartCostTUIForTest(fn func(sm SessionManager, limit int) error) {
 	startCostTUI = fn
 }
 
@@ -62,13 +63,14 @@ type costModel struct {
 	table    table.Model
 	sm       SessionManager
 	sessions []*runner.SessionState
+	limit    int
 	err      error
 }
 
 type updateMsg []*runner.SessionState
 type errMsg struct{ err error }
 
-func newCostModel(sm SessionManager) *costModel {
+func newCostModel(sm SessionManager, limit int) *costModel {
 	columns := []table.Column{
 		{Title: "NAME", Width: 20},
 		{Title: "STATUS", Width: 10},
@@ -104,6 +106,7 @@ func newCostModel(sm SessionManager) *costModel {
 	return &costModel{
 		table: t,
 		sm:    sm,
+		limit: limit,
 	}
 }
 
@@ -146,9 +149,48 @@ func (m *costModel) View() string {
 	return baseStyle.Render(title+"\n"+m.table.View()) + help
 }
 
+type displayItem struct {
+	session        *runner.SessionState
+	cost           float64
+	promptTokens   int
+	responseTokens int
+	totalTokens    int
+	hasAgentState  bool
+}
+
 func (m *costModel) updateTable() {
-	rows := make([]table.Row, len(m.sessions))
-	for i, session := range m.sessions {
+	var items []displayItem
+
+	for _, session := range m.sessions {
+		item := displayItem{
+			session: session,
+		}
+
+		agentState, err := LoadAgentState(session.AgentStateFile)
+		if err == nil && agentState != nil {
+			item.hasAgentState = true
+			item.cost = agent.CalculateCost(agentState.Model, agentState.TokenUsage)
+			item.promptTokens = agentState.TokenUsage.TotalPromptTokens
+			item.responseTokens = agentState.TokenUsage.TotalResponseTokens
+			item.totalTokens = agentState.TokenUsage.TotalTokens
+		}
+
+		items = append(items, item)
+	}
+
+	// Sort by cost descending
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].cost > items[j].cost
+	})
+
+	// Apply limit
+	if m.limit > 0 && len(items) > m.limit {
+		items = items[:m.limit]
+	}
+
+	rows := make([]table.Row, len(items))
+	for i, item := range items {
+		session := item.session
 		started := session.StartTime.Format("2006-01-02 15:04:05")
 		var duration string
 		if session.EndTime.IsZero() {
@@ -157,8 +199,7 @@ func (m *costModel) updateTable() {
 			duration = session.EndTime.Sub(session.StartTime).Round(time.Second).String()
 		}
 
-		agentState, err := LoadAgentState(session.AgentStateFile)
-		if err != nil || agentState == nil {
+		if !item.hasAgentState {
 			rows[i] = table.Row{
 				session.Name,
 				session.Status,
@@ -170,16 +211,15 @@ func (m *costModel) updateTable() {
 				"N/A",
 			}
 		} else {
-			cost := agent.CalculateCost(agentState.Model, agentState.TokenUsage)
 			rows[i] = table.Row{
 				session.Name,
 				session.Status,
 				started,
 				duration,
-				fmt.Sprintf("%d", agentState.TokenUsage.TotalPromptTokens),
-				fmt.Sprintf("%d", agentState.TokenUsage.TotalResponseTokens),
-				fmt.Sprintf("%d", agentState.TokenUsage.TotalTokens),
-				fmt.Sprintf("$%.6f", cost),
+				fmt.Sprintf("%d", item.promptTokens),
+				fmt.Sprintf("%d", item.responseTokens),
+				fmt.Sprintf("%d", item.totalTokens),
+				fmt.Sprintf("$%.6f", item.cost),
 			}
 		}
 	}

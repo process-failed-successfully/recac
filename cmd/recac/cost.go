@@ -29,11 +29,13 @@ var costCmd = &cobra.Command{
 		}
 
 		watch, _ := cmd.Flags().GetBool("watch")
+		limit, _ := cmd.Flags().GetInt("limit")
+
 		if watch {
 			// Inject the agent state loader from this package into the ui package
 			ui.LoadAgentState = loadAgentState
 			// Start the TUI
-			if err := ui.StartCostTUI(sm); err != nil {
+			if err := ui.StartCostTUI(sm, limit); err != nil {
 				return fmt.Errorf("could not start cost TUI: %w", err)
 			}
 			return nil
@@ -48,8 +50,6 @@ var costCmd = &cobra.Command{
 			cmd.Println("No sessions found to analyze.")
 			return nil
 		}
-
-		limit, _ := cmd.Flags().GetInt("limit")
 
 		analysis, err := analyzeSessionCosts(sessions, limit)
 		if err != nil {
