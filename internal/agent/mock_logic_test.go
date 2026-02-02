@@ -58,3 +58,21 @@ func TestMockAgent_Completion(t *testing.T) {
 		t.Errorf("Expected completion signal for 'Nothing to commit', got: %s", resp2)
 	}
 }
+
+func TestMockAgent_CompletionPriority(t *testing.T) {
+	agent := NewMockAgent()
+	// Prompt containing both "primes.py" (context) and "nothing to commit" (output)
+	prompt := "history: wrote primes.py... output: nothing to commit, working tree clean"
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Should prioritize completion over implementation
+	if strings.Contains(resp, "cat << 'EOF' > primes.py") {
+		t.Errorf("MockAgent stuck in loop: returned implementation again instead of completion signal")
+	}
+	if !strings.Contains(resp, "agent-bridge signal COMPLETED true") {
+		t.Errorf("Expected completion signal, got: %s", resp)
+	}
+}
