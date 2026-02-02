@@ -7,6 +7,7 @@ import (
 	"recac/internal/docker"
 	"strings"
 	"testing"
+	"time"
 )
 
 // MockUnsafeAgent outputs a secret
@@ -38,6 +39,7 @@ func TestSecurityIntegration_BlocksSecrets(t *testing.T) {
 	// Init Session
 	session := NewSession(mockDocker, mockAgent, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 	session.MaxIterations = 1
+	session.SleepFunc = func(time.Duration) {}
 
 	// Capture output to verify blocking
 	// Since we print to stdout, we can't easily capture it in a unit test without redirecting os.Stdout.

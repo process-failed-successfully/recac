@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"recac/internal/agent"
 	"recac/internal/db"
@@ -75,6 +76,7 @@ func TestSession_Guardrail_PrematureSignoff(t *testing.T) {
 		DBStore:          dbStore,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
 		Logger:           telemetry.NewLogger(true, "", false),
+		SleepFunc:        func(time.Duration) {},
 	}
 
 	// 3. Run Loop
