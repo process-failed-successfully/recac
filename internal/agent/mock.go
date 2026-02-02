@@ -60,7 +60,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Detect Initializer Agent prompts (creates feature_list.json)
 	if strings.Contains(prompt, "INITIALIZER AGENT") {
 		// Create a feature list for the primes scenario
-		return `cat << 'EOF' > feature_list.json
+		return "```bash\n" + `cat << 'EOF' > feature_list.json
 [
   {
     "id": "req-primes-py-exists",
@@ -76,13 +76,13 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
   }
 ]
 EOF
-`, nil
+` + "\n```", nil
 	}
 
 	// Detect Implementation Prompts (Coding Agent)
 	if strings.Contains(prompt, "primes.py") {
 		// Return a script that implements the solution
-		return `cat << 'EOF' > primes.py
+		return "```bash\n" + `cat << 'EOF' > primes.py
 import json
 
 def is_prime(n):
@@ -104,7 +104,7 @@ git add primes.py primes.json
 git commit -m "Add primes script" || echo "Nothing to commit"
 agent-bridge feature set req-primes-py-exists --status done --passes true
 agent-bridge feature set req-primes-json-contains-correct-primes --status done --passes true
-`, nil
+` + "\n```", nil
 	}
 
 	// Return a mock response that shows the agent received the prompt

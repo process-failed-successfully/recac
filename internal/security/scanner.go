@@ -40,7 +40,8 @@ var (
 	reDangerousCmd    = regexp.MustCompile(`(?i)\b(rm|cat|cp|mv|chmod|chown)\b.*(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
 	reRootDeletion    = regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+([/~*]+|/)$`)
 	// Note: rePipeShell and reReverseShell patterns are robust but we also rely on IgnoreInQuotes for extra safety
-	rePipeShell    = regexp.MustCompile(`(?i)` + cmdPrefix + `(curl|wget)\s+("[^"]*"|'[^']*'|\\\n|[^;&|\n])*?\|\s*(bash|sh|zsh|python|perl|php|ruby)`)
+	// We allow intermediate pipes (swallowed by the non-capturing group) to catch 'curl ... | cat | bash'
+	rePipeShell    = regexp.MustCompile(`(?i)` + cmdPrefix + `(curl|wget)\s+("[^"]*"|'[^']*'|\\\n|[^;&\n])*?\|\s*(bash|sh|zsh|python|perl|php|ruby)`)
 	reReverseShell = regexp.MustCompile(`(?i)` + cmdPrefix + `nc\s+("[^"]*"|'[^']*'|\\\n|[^;&|\n])*?-e\s+.*`)
 )
 
