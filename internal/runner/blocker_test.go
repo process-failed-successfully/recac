@@ -3,47 +3,28 @@ package runner
 import (
 	"context"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"recac/internal/notify"
 	"strings"
 	"testing"
 )
 
-// MockDocker is a simple mock for DockerClient
+// MockDocker is a simple mock for DockerClient - unused for checking blockers now
 type MockDockerForBlocker struct {
 	DockerClient
-	Files map[string]string
-}
-
-func (m *MockDockerForBlocker) Exec(ctx context.Context, id string, cmd []string) (string, error) {
-	// Simple mock for: test -f bf && cat bf
-	if len(cmd) > 2 && strings.Contains(cmd[2], "cat") {
-		// Extract filename
-		parts := strings.Split(cmd[2], " ")
-		filename := parts[len(parts)-1]
-		if content, ok := m.Files[filename]; ok {
-			return content, nil
-		}
-	}
-	// Mock for rm
-	if cmd[0] == "rm" {
-		delete(m.Files, cmd[1])
-		return "", nil
-	}
-	return "", nil
-}
-
-func (m *MockDockerForBlocker) ExecAsUser(ctx context.Context, id string, user string, cmd []string) (string, error) {
-	return m.Exec(ctx, id, cmd)
 }
 
 func TestProcessResponse_BlockerFalsePositives(t *testing.T) {
 	ctx := context.Background()
-	mockDocker := &MockDockerForBlocker{
-		Files: make(map[string]string),
-	}
+	// Use temp dir for workspace
+	tmpDir := t.TempDir()
+
+	mockDocker := &MockDockerForBlocker{}
 
 	s := &Session{
 		Docker:      mockDocker,
+		Workspace:   tmpDir,
 		ContainerID: "test-container",
 		Notifier:    notify.NewManager(func(string, ...interface{}) {}),
 		Logger:      slog.Default(),
@@ -65,9 +46,14 @@ func TestProcessResponse_BlockerFalsePositives(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		mockDocker.Files[tc.filename] = tc.content
+		// Write file to workspace
+		filePath := filepath.Join(tmpDir, tc.filename)
+		err := os.WriteFile(filePath, []byte(tc.content), 0644)
+		if err != nil {
+			t.Fatalf("Failed to write test file: %v", err)
+		}
 
-		_, err := s.ProcessResponse(ctx, "some response")
+		_, err = s.ProcessResponse(ctx, "some response")
 
 		if tc.shouldBlock {
 			if err == nil || !strings.Contains(err.Error(), "blocker detected") {
@@ -77,13 +63,13 @@ func TestProcessResponse_BlockerFalsePositives(t *testing.T) {
 			if err != nil {
 				t.Errorf("Did NOT expect blocker for content '%s', but it triggered: %v", tc.content, err)
 			}
-			// Verify file was cleaned up (removed from mock map)
-			if _, ok := mockDocker.Files[tc.filename]; ok {
+			// Verify file was cleaned up (removed) for false positives
+			if _, err := os.Stat(filePath); !os.IsNotExist(err) {
 				t.Errorf("Expected file '%s' to be deleted for false positive, but it still exists", tc.filename)
 			}
 		}
 
-		// Reset for next test
-		delete(mockDocker.Files, tc.filename)
+		// Cleanup for next test if it still exists (e.g. true positive)
+		os.Remove(filePath)
 	}
 }

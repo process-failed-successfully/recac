@@ -635,18 +635,15 @@ func TestSession_ProcessResponse_Commands(t *testing.T) {
 }
 
 func TestSession_ProcessResponse_Blockers(t *testing.T) {
+	tmpDir := t.TempDir()
 	d := &MockDockerClient{}
-	d.ExecFunc = func(ctx context.Context, containerID string, cmd []string) (string, error) {
-		// Simulate finding blocker file
-		if strings.Contains(cmd[2], "cat recac_blockers.txt") {
-			return "Critical API Issue", nil
-		}
-		return "", nil
-	}
 
-	session := NewSession(d, &MockAgent{}, "/tmp", "alpine", "test-project", "gemini", "gemini-pro", 1)
+	session := NewSession(d, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 	defer session.Stop(context.Background())
 	session.ContainerID = "test-container"
+
+	// Create blocker file
+	os.WriteFile(filepath.Join(tmpDir, "recac_blockers.txt"), []byte("Critical API Issue"), 0644)
 
 	_, err := session.ProcessResponse(context.Background(), "some response")
 	if err != ErrBlocker {
