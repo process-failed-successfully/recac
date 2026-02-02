@@ -66,7 +66,7 @@ func (m *MockAgent) generateMockTickets(prompt string) string {
 		return `[
   {
     "title": "ID:[PRIMES] Create Prime Number Script",
-    "description": "Implement a python script named 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'.\n\nRepo: https://github.com/example/repo",
+    "description": "Implement a python script named 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'.\n\nRepo: https://github.com/process-failed-successfully/recac-jira-e2e",
     "type": "Task"
   }
 ]`
@@ -76,12 +76,12 @@ func (m *MockAgent) generateMockTickets(prompt string) string {
 	return `[
   {
     "title": "ID:[MOCK-EPIC] Implement Mock Feature",
-    "description": "Epic for the mock feature implementation.\n\nRepo: https://github.com/example/repo",
+    "description": "Epic for the mock feature implementation.\n\nRepo: https://github.com/process-failed-successfully/recac-jira-e2e",
     "type": "Epic",
     "children": [
       {
         "title": "ID:[MOCK-STORY] Create Basic Structure",
-        "description": "Create the basic file structure for the mock feature.\n\nRepo: https://github.com/example/repo",
+        "description": "Create the basic file structure for the mock feature.\n\nRepo: https://github.com/process-failed-successfully/recac-jira-e2e",
         "type": "Story",
         "acceptance_criteria": [
           "File structure created",

