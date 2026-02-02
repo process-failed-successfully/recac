@@ -42,16 +42,7 @@ func (p *JiraPoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkItem,
 
 	// Build Dependency Graph to find actionable items
 	graph := jira.BuildGraphFromIssues(issues, func(issue map[string]interface{}) []string {
-		raw := p.Client.GetBlockers(issue)
-		keys := make([]string, 0, len(raw))
-		for _, r := range raw {
-			// Format "KEY (Status)"
-			parts := strings.Split(r, " (")
-			if len(parts) > 0 {
-				keys = append(keys, parts[0])
-			}
-		}
-		return keys
+		return p.Client.GetBlockerKeys(issue)
 	})
 
 	// We only want items that are READY (no local blockers and no external blockers).
@@ -74,9 +65,9 @@ func (p *JiraPoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkItem,
 			continue
 		}
 		issue := issueMap[key]
-		blockers := p.Client.GetBlockers(issue)
+		blockers := p.Client.GetBlockerKeys(issue)
 		// If blockers exist (internal or external), skip.
-		// GetReadyTickets ensures no internal blockers, but GetBlockers checks JQL-independent status.
+		// GetReadyTickets ensures no internal blockers, but GetBlockerKeys checks JQL-independent status.
 		if len(blockers) > 0 {
 			continue
 		}
@@ -95,10 +86,8 @@ func (p *JiraPoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkItem,
 		repoURL := extractRepoURL(description, jira.RepoRegex)
 
 		// If no Repo found, we can't run agent really.
-		// Unless we allow no-repo agents?
-		// For now, require repo or skip/log.
 		if repoURL == "" {
-			// Maybe log warning?
+			// No repo URL found, skipping
 			continue
 		}
 
@@ -136,8 +125,7 @@ func (p *JiraPoller) UpdateStatus(ctx context.Context, item WorkItem, status str
 	// Map status to transition?
 	// This might be fuzzy. "Failed", "Done", etc.
 	if status != "" {
-		// Only attempt transition if mapped clearly.
-		// TODO: Configurable mapping
+		// Attempt transition using SmartTransition which handles ID or Name matching.
 		return p.Client.SmartTransition(ctx, item.ID, status)
 	}
 	return nil
