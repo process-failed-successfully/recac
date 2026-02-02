@@ -293,21 +293,6 @@ func TestRunWorkflow_Normal(t *testing.T) {
 		AllowDirty:  true, // Avoid git checks
 	}
 
-	// This should run normal flow but fail Docker init (gracefully) and run 0 iterations
-	err := RunWorkflow(context.Background(), cfg)
-
-	// Since MaxIterations=0, RunLoop should return ErrMaxIterations or nil depending on implementation.
-	// runner/session.go: RunLoop: if s.MaxIterations > 0 && currentIteration >= s.MaxIterations { return ErrMaxIterations }
-	// If MaxIterations=0, it might loop forever or use default?
-	// NewSession sets MaxIterations=20 default.
-	// Our mock sets it to 0.
-	// Let's check RunLoop logic.
-	// It checks `if s.MaxIterations > 0 && currentIteration >= s.MaxIterations`.
-	// If 0, it might mean infinite?
-	// Actually NewSession defaults to 20.
-	// If we set to 1, it runs 1 iteration.
-	// If we set to 0, and checks are `> 0`, it loops.
-
 	// Let's set it to 1.
 	NewSessionFunc = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
 		s := runner.NewSession(d, a, workspace, image, project, provider, model, maxAgents)
@@ -323,7 +308,7 @@ func TestRunWorkflow_Normal(t *testing.T) {
 		return s
 	}
 
-	err = RunWorkflow(context.Background(), cfg)
+	err := RunWorkflow(context.Background(), cfg)
 
 	// Start() might fail if restricted mode handling isn't perfect or if it tries to do something.
 	// RunLoop might fail with NoOp if mock agent returns nothing.
