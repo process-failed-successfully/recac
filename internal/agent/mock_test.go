@@ -87,3 +87,33 @@ func TestMockAgent_Initializer_HasID(t *testing.T) {
 		t.Errorf("Expected feature list to contain explicit ID. Got:\n%s", response)
 	}
 }
+
+func TestMockAgent_QASignal(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "YOUR ROLE - QA AGENT"
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	expected := `agent-bridge signal QA_PASSED true`
+	if !strings.Contains(response, expected) {
+		t.Errorf("Expected QA signal command. Got:\n%s", response)
+	}
+}
+
+func TestMockAgent_ManagerSignal(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "YOUR ROLE - PROJECT MANAGER"
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	expected := `agent-bridge signal PROJECT_SIGNED_OFF true`
+	if !strings.Contains(response, expected) {
+		t.Errorf("Expected Manager signal command. Got:\n%s", response)
+	}
+}

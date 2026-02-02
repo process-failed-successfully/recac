@@ -116,6 +116,28 @@ agent-bridge feature set PRIMES --status done --passes true
 `, nil
 	}
 
+	// 3. QA Agent Request
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return `I have verified the project and it looks good.
+
+` + "```bash" + `
+echo "QA verification passed"
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// 4. Project Manager Request
+	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") {
+		return `I have reviewed the project and it meets all requirements.
+
+` + "```bash" + `
+echo "Project Manager sign-off approved"
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
+	}
+
 	// Default Mock Response
 	// We include a no-op bash block to ensure the executor doesn't trip the "no commands" circuit breaker
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...\n\n```bash\n# no-op to prevent circuit breaker\necho 'mock agent alive'\n```",
