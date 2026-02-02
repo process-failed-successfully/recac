@@ -5,3 +5,7 @@
 ## 2025-05-15 - Explicit Selection Indicators in TUI Lists
 **Learning:** In TUI lists, the cursor position is often confused with the 'active' state. When a list is used for selection (like a settings menu), users need to see which item is *currently* active, separate from which item they are *hovering* over.
 **Action:** When rendering selection lists, always append a visual marker (like " (Current)" or a checkmark icon) to the item that represents the current state.
+
+## 2026-01-24 - TUI Inline Validation
+**Learning:** In terminal UIs (Bubble Tea), error states must be explicitly cleared on user input. Unlike web frameworks, there's no automatic "dirty" state handling.
+**Action:** When adding validation to TUI inputs, always include a handler in the `Update` loop to reset error messages on `tea.KeyMsg`.

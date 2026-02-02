@@ -24,6 +24,7 @@ smoke_test
 .env
 .env.local
 .env.*.local
+config.yaml
 
 # Docker
 docker-compose.override.yml
