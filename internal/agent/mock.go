@@ -104,7 +104,12 @@ fi
 			return `The task seems to be completed. I will mark it as done.
 
 ` + "```bash" + `
-agent-bridge feature set req-primes --status done --passes true
+# Try updating standard feature ID (if imported)
+agent-bridge feature set req-primes --status done --passes true || echo "Skipping req-primes (not found)"
+
+# Try updating injected feature IDs (generated from Acceptance Criteria)
+agent-bridge feature set req-primes-py-exists --status done --passes true || echo "Skipping req-primes-py-exists (not found)"
+agent-bridge feature set req-primes-json-contains-correct-p --status done --passes true || echo "Skipping req-primes-json-contains-correct-p (not found)"
 ` + "```" + `
 `, nil
 		}
