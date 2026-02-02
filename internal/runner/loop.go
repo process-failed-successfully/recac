@@ -4,12 +4,15 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"encoding/json"
 	"os/exec"
 	"path/filepath"
 	"recac/internal/agent/prompts"
+	"recac/internal/db"
 	"recac/internal/git"
 	"recac/internal/notify"
 	"recac/internal/telemetry"
+	"recac/internal/utils"
 	"strings"
 	"time"
 )
@@ -435,13 +438,42 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		}
 
 		// Run iteration using determined prompt
-		executionOutput, err := s.RunIteration(ctx, prompt, isManager)
+		response, executionOutput, err := s.RunIteration(ctx, prompt, isManager)
 
 		// Check for Agent/API Error (e.g. 413, Network, etc)
 		if err != nil {
 			s.Logger.Error("iteration failed", "error", err)
 			s.SleepFunc(5 * time.Second) // Backoff
 			continue                     // Retry loop without tripping no-op breaker
+		}
+
+		// Handle Initializer Response (Parse Feature JSON)
+		if role == prompts.Initializer {
+			s.Logger.Info("parsing initializer response for feature list")
+			cleaned := utils.CleanJSONBlock(response)
+			var featureList []db.Feature
+			// It might be a FeatureList struct or just array of features.
+			// MockAgent returns array of features directly or wrapped?
+			// Planner returns FeatureList struct.
+			// Let's try array first as per E2E spec usually.
+			// MockAgent says: returns JSON array of features.
+			if err := json.Unmarshal([]byte(cleaned), &featureList); err == nil && len(featureList) > 0 {
+				s.Logger.Info("successfully parsed features from initializer", "count", len(featureList))
+				// Save to DB
+				fl := db.FeatureList{
+					ProjectName: s.Project,
+					Features:    featureList,
+				}
+				if data, err := json.Marshal(fl); err == nil {
+					if s.DBStore != nil {
+						s.DBStore.SaveFeatures(s.Project, string(data))
+					}
+				}
+				// Consider this a valid operation to reset NoOp breaker
+				executionOutput = "Features Initialized"
+			} else {
+				s.Logger.Warn("failed to parse features from initializer response", "response_snippet", response[:min(len(response), 100)])
+			}
 		}
 
 		// Circuit Breaker: No-Op Check
@@ -484,7 +516,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 }
 
 // RunIteration executes a single turn of the autonomous agent.
-func (s *Session) RunIteration(ctx context.Context, prompt string, isManager bool) (string, error) {
+func (s *Session) RunIteration(ctx context.Context, prompt string, isManager bool) (string, string, error) {
 	role := "Agent"
 	if isManager {
 		role = "Manager"
@@ -508,7 +540,7 @@ func (s *Session) RunIteration(ctx context.Context, prompt string, isManager boo
 
 	if err != nil {
 		s.Logger.Error("agent error, retrying", "error", err)
-		return "", err
+		return "", "", err
 	}
 
 	s.Logger.Info("agent response received", "role", role, "chars", len(response))
@@ -530,7 +562,7 @@ func (s *Session) RunIteration(ctx context.Context, prompt string, isManager boo
 			for _, f := range findings {
 				s.Logger.Error("security finding", "type", f.Type, "desc", f.Description, "line", f.Line)
 			}
-			return "", fmt.Errorf("security violation detected")
+			return response, "", fmt.Errorf("security violation detected")
 		} else {
 			s.Logger.Info("security scan passed")
 		}
@@ -560,7 +592,7 @@ func (s *Session) RunIteration(ctx context.Context, prompt string, isManager boo
 		}
 	}
 
-	return executionOutput, execErr
+	return response, executionOutput, execErr
 }
 
 // checkAutoQA checks if all features pass and we haven't already passed QA/Completed
