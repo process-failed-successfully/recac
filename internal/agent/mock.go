@@ -67,7 +67,7 @@ cat <<EOF > feature_list.json
       "name": "Implement primes.py",
       "description": "Implement the prime number generation logic.",
       "status": "pending",
-      "dependencies": []
+      "dependencies": {}
     }
   ]
 }
