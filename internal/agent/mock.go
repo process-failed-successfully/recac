@@ -54,7 +54,8 @@ cat << 'EOF' | agent-bridge import
         "Run primes.py",
         "Check if primes.json exists"
       ],
-      "passes": false,\n      "dependencies": {
+      "passes": false,
+      "dependencies": {
         "exclusive_write_paths": ["primes.py", "primes.json"]
       }
     }
