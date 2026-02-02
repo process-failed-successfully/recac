@@ -110,7 +110,6 @@ git commit -m "Implement primes" || echo "Nothing to commit"
 # Signal completion
 if command -v agent-bridge &> /dev/null; then
     agent-bridge feature set req-the-list-of-primes-in-primes-j --status done --passes true
-    agent-bridge run update --status done
 fi
 ` + "\n```\n", nil
 	}
