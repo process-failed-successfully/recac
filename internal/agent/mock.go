@@ -103,7 +103,37 @@ fi
 `, nil
 	}
 
-	// 4. Implementation for 'prime-python' scenario
+	// 4. QA Agent Response (Must be before Implementation Check)
+	// If the prompt indicates we are the QA Agent, we should signal QA_PASSED.
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return `I have verified the changes and they meet the requirements.
+
+` + "```bash" + `
+if command -v agent-bridge >/dev/null 2>&1; then
+    agent-bridge signal QA_PASSED true
+else
+    echo "agent-bridge not found, cannot signal QA_PASSED."
+fi
+` + "```" + `
+`, nil
+	}
+
+	// 5. Manager Agent Response (Must be before Implementation Check)
+	// If the prompt indicates we are the Project Manager, we should signal PROJECT_SIGNED_OFF.
+	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") {
+		return `I have reviewed the work and it looks good.
+
+` + "```bash" + `
+if command -v agent-bridge >/dev/null 2>&1; then
+    agent-bridge signal PROJECT_SIGNED_OFF true
+else
+    echo "agent-bridge not found, cannot signal PROJECT_SIGNED_OFF."
+fi
+` + "```" + `
+`, nil
+	}
+
+	// 6. Implementation for 'prime-python' scenario
 	// The prompt will typically contain the ticket description or "primes.py" instructions.
 	// We use a "greedy" match here: if it talks about the primes task AND it's NOT the ticket generation prompt (checked above),
 	// assume it's the coding task.
@@ -138,36 +168,6 @@ git config user.name "Mock Agent"
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
-` + "```" + `
-`, nil
-	}
-
-	// 5. QA Agent Response
-	// If the prompt indicates we are the QA Agent, we should signal QA_PASSED.
-	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
-		return `I have verified the changes and they meet the requirements.
-
-` + "```bash" + `
-if command -v agent-bridge >/dev/null 2>&1; then
-    agent-bridge signal QA_PASSED true
-else
-    echo "agent-bridge not found, cannot signal QA_PASSED."
-fi
-` + "```" + `
-`, nil
-	}
-
-	// 6. Manager Agent Response
-	// If the prompt indicates we are the Project Manager, we should signal PROJECT_SIGNED_OFF.
-	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") {
-		return `I have reviewed the work and it looks good.
-
-` + "```bash" + `
-if command -v agent-bridge >/dev/null 2>&1; then
-    agent-bridge signal PROJECT_SIGNED_OFF true
-else
-    echo "agent-bridge not found, cannot signal PROJECT_SIGNED_OFF."
-fi
 ` + "```" + `
 `, nil
 	}

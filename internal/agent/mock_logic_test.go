@@ -95,4 +95,18 @@ func TestMockAgent_Roles(t *testing.T) {
 	if !strings.Contains(respMgr, "agent-bridge signal PROJECT_SIGNED_OFF true") {
 		t.Errorf("Expected PROJECT_SIGNED_OFF signal for Manager role, got: %s", respMgr)
 	}
+
+	// Test Priority: Manager Role vs Implementation
+	// Should prioritize Manager role response even if "primes.py" is in the context
+	promptMgrConflict := "YOUR ROLE - PROJECT MANAGER. Review implementation of primes.py"
+	respMgrConflict, err := agent.Send(context.Background(), promptMgrConflict)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if strings.Contains(respMgrConflict, "cat << 'EOF' > primes.py") {
+		t.Errorf("Agent tried to re-implement primes.py instead of acting as Manager!")
+	}
+	if !strings.Contains(respMgrConflict, "agent-bridge signal PROJECT_SIGNED_OFF true") {
+		t.Errorf("Expected PROJECT_SIGNED_OFF signal for Manager role with conflict, got: %s", respMgrConflict)
+	}
 }
