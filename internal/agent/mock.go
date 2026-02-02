@@ -57,7 +57,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 2. Initialization (Feature List)
 	// Triggers when "Initializer" role or JSON format request is detected
 	if strings.Contains(prompt, "Initializer") || strings.Contains(prompt, "JSON format") {
-		return `
+		return `Here is the feature list:
+` + "```bash" + `
 cat <<EOF > feature_list.json
 {
   "features": [
@@ -72,13 +73,14 @@ cat <<EOF > feature_list.json
 }
 EOF
 cat feature_list.json | agent-bridge import || echo "Warning: agent-bridge import failed"
-`, nil
+` + "```", nil
 	}
 
 	// 3. Coding Phase (Implementation)
 	// Triggers when specific files or tasks are mentioned
 	if strings.Contains(prompt, "primes.py") {
-		return `
+		return `I'll implement the primes script:
+` + "```bash" + `
 cat <<EOF > primes.py
 import json
 
@@ -98,19 +100,20 @@ EOF
 if command -v agent-bridge > /dev/null; then
 	agent-bridge feature set req-primes-json-contains-correct-p status=completed || echo "Warning: failed to update feature status"
 fi
-`, nil
+` + "```", nil
 	}
 
 	// 4. Completion / Loop Prevention
 	lowerPrompt := strings.ToLower(prompt)
 	if strings.Contains(lowerPrompt, "nothing to commit") || strings.Contains(lowerPrompt, "working tree clean") {
-		return `
+		return `Nothing to commit, marking as done:
+` + "```bash" + `
 if command -v agent-bridge > /dev/null; then
     agent-bridge signal COMPLETED true
 else
     echo "agent-bridge not found"
 fi
-`, nil
+` + "```", nil
 	}
 
 	// Default fallback
