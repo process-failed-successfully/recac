@@ -174,6 +174,108 @@ Or configure in config.yaml:
 	},
 }
 
+// jiraListCmd represents the jira list command
+var jiraListCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List Jira tickets",
+	Long:  `List Jira tickets based on JQL or status/assignee filters.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		jql, _ := cmd.Flags().GetString("jql")
+		status, _ := cmd.Flags().GetString("status")
+		assignedToMe, _ := cmd.Flags().GetBool("assigned-to-me")
+
+		if jql == "" {
+			parts := []string{}
+			if assignedToMe {
+				parts = append(parts, "assignee = currentUser()")
+			}
+			if status != "" {
+				parts = append(parts, fmt.Sprintf("status = \"%s\"", status))
+			}
+			if len(parts) == 0 {
+				// Default to open tickets if no filters provided
+				parts = append(parts, "assignee = currentUser() AND status != Done")
+			}
+			jql = strings.Join(parts, " AND ")
+		}
+
+		ctx := context.Background()
+		client, err := cmdutils.GetJiraClient(ctx)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			exit(1)
+		}
+
+		issues, err := client.SearchIssues(ctx, jql)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: Failed to search issues: %v\n", err)
+			exit(1)
+		}
+
+		if len(issues) == 0 {
+			fmt.Println("No tickets found.")
+			return
+		}
+
+		fmt.Printf("Found %d tickets:\n", len(issues))
+		for _, issue := range issues {
+			key, _ := issue["key"].(string)
+			fields, _ := issue["fields"].(map[string]interface{})
+			summary, _ := fields["summary"].(string)
+			statusMap, _ := fields["status"].(map[string]interface{})
+			statusName, _ := statusMap["name"].(string)
+			assigneeMap, _ := fields["assignee"].(map[string]interface{})
+			assigneeName, _ := assigneeMap["displayName"].(string)
+			if assigneeName == "" {
+				assigneeName = "Unassigned"
+			}
+
+			fmt.Printf("%s: %s [%s] (%s)\n", key, summary, statusName, assigneeName)
+		}
+	},
+}
+
+// jiraCommentCmd represents the jira comment command
+var jiraCommentCmd = &cobra.Command{
+	Use:   "comment",
+	Short: "Add a comment to a Jira ticket",
+	Long:  `Add a comment to a Jira ticket.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		ticketID, _ := cmd.Flags().GetString("id")
+		if ticketID == "" {
+			// Check args if flag is missing
+			if len(args) > 0 {
+				ticketID = args[0]
+			}
+		}
+
+		if ticketID == "" {
+			fmt.Fprintf(os.Stderr, "Error: Ticket ID is required via --id or argument\n")
+			exit(1)
+		}
+
+		message, _ := cmd.Flags().GetString("message")
+		if message == "" {
+			fmt.Fprintf(os.Stderr, "Error: --message is required\n")
+			exit(1)
+		}
+
+		ctx := context.Background()
+		client, err := cmdutils.GetJiraClient(ctx)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			exit(1)
+		}
+
+		if err := client.AddComment(ctx, ticketID, message); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: Failed to add comment: %v\n", err)
+			exit(1)
+		}
+
+		fmt.Printf("Success: Comment added to %s\n", ticketID)
+	},
+}
+
 type ticketNode struct {
 	Title              string       `json:"title"`
 	Description        string       `json:"description"`
@@ -627,6 +729,20 @@ func init() {
 	jiraTransitionCmd.Flags().String("transition", "", "Transition Name or ID (defaults to 'In Progress')")
 	jiraTransitionCmd.MarkFlagRequired("id")
 	jiraCmd.AddCommand(jiraTransitionCmd)
+
+	jiraListCmd.Flags().String("jql", "", "Custom JQL query")
+	jiraListCmd.Flags().String("status", "", "Filter by status (e.g. 'In Progress')")
+	jiraListCmd.Flags().Bool("assigned-to-me", true, "Filter by tickets assigned to current user (default true)")
+	jiraCmd.AddCommand(jiraListCmd)
+
+	jiraCommentCmd.Flags().String("id", "", "Jira ticket ID")
+	jiraCommentCmd.Flags().StringP("message", "m", "", "Comment message")
+	jiraCommentCmd.MarkFlagRequired("message")
+	jiraCmd.AddCommand(jiraCommentCmd)
+
+	jiraCleanupCmd.Flags().String("label", "", "Label to filter tickets by")
+	jiraCleanupCmd.MarkFlagRequired("label")
+	jiraCmd.AddCommand(jiraCleanupCmd)
 
 	jiraGenerateFromSpecCmd.Flags().String("spec", "app_spec.txt", "Path to application specification file")
 	jiraGenerateFromSpecCmd.Flags().String("project", "", "Jira project key (overrides JIRA_PROJECT_KEY env var and config)")
