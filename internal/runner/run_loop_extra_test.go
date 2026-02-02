@@ -160,8 +160,8 @@ func TestRunLoop_Blocker(t *testing.T) {
 	err := s.RunLoop(context.Background())
 
 	// Verification
-	// RunLoop swallows ErrBlocker and retries until MaxIterations
-	assert.ErrorIs(t, err, ErrMaxIterations)
+	// RunLoop should stop on ErrBlocker
+	assert.ErrorIs(t, err, ErrBlocker)
 }
 
 func TestRunLoop_QAWorkflow(t *testing.T) {
