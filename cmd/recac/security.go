@@ -81,6 +81,7 @@ func runSecurityScan(root string, scanner *security.RegexScanner) ([]SecurityRes
 		"dist":         true,
 		"build":        true,
 		".recac":       true,
+		"logs":         true,
 	}
 
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
@@ -102,7 +103,11 @@ func runSecurityScan(root string, scanner *security.RegexScanner) ([]SecurityRes
 
 		// Normalize path for exclusion checks
 		cleanPath := filepath.ToSlash(filepath.Clean(path))
-		if strings.HasSuffix(cleanPath, "_test.go") || strings.HasSuffix(cleanPath, "internal/security/scanner.go") {
+		if strings.HasSuffix(cleanPath, "_test.go") ||
+			strings.HasSuffix(cleanPath, "internal/security/scanner.go") ||
+			strings.HasSuffix(cleanPath, "go.sum") ||
+			strings.HasSuffix(cleanPath, "test_spec") ||
+			strings.HasSuffix(cleanPath, ".log") {
 			return nil
 		}
 
