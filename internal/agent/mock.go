@@ -61,6 +61,17 @@ fi
 ` + "```", nil
 	}
 
+	// Heuristic for Manager Role - specific to E2E smoke tests
+	if contains(strings.ToUpper(prompt), "MANAGER") {
+		return `I have reviewed the work and it looks complete.
+` + "```bash" + `
+echo "Manager approving project..."
+if command -v agent-bridge >/dev/null 2>&1; then
+    agent-bridge signal PROJECT_SIGNED_OFF true
+fi
+` + "```", nil
+	}
+
 	// Heuristic for Implementation (Coding) - specific to E2E smoke tests
 	if contains(strings.ToUpper(prompt), "PRIMES") || contains(strings.ToUpper(prompt), "PRIME NUMBER") {
 		return `I will implement the prime number service in Python.
