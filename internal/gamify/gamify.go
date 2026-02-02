@@ -62,84 +62,11 @@ func AnalyzeRepo(client GitClient, dir string) (*Leaderboard, error) {
 		}
 
 		if strings.HasPrefix(line, "COMMIT|") {
-			parts := strings.SplitN(line, "|", 5)
-			if len(parts) < 5 {
-				continue
+			if p, err := parseCommitLine(line, players, bugFixRe); err == nil {
+				currentPlayer = p
 			}
-			author := parts[2]
-			dateStr := parts[3]
-			msg := parts[4]
-
-			// Parse date (Git ISO format: 2006-01-02 15:04:05 -0700)
-			// Go's time.Parse might need adjustment or use specific layout
-			// Git ISO output: "2023-10-25 14:30:00 +0000"
-			parsedDate, _ := time.Parse("2006-01-02 15:04:05 -0700", dateStr)
-
-			if _, exists := players[author]; !exists {
-				players[author] = &Player{Name: author}
-			}
-			currentPlayer = players[author]
-			currentPlayer.Commits++
-			if parsedDate.After(currentPlayer.LastCommit) {
-				currentPlayer.LastCommit = parsedDate
-			}
-
-			// Base XP
-			currentPlayer.XP += 10
-
-			// Bug Fix XP
-			if bugFixRe.MatchString(msg) {
-				currentPlayer.BugFixes++
-				currentPlayer.XP += 20
-			}
-
-			// Night Owl Check (between 00:00 and 05:00 local time of the committer)
-			// Note: parsedDate includes offset, so .Hour() returns hour in that offset.
-			hour := parsedDate.Hour()
-			if hour >= 0 && hour < 5 {
-				// We'll award badge logic later, but maybe track "NightCommits" if we want
-				// For now, let's just use a flag or check commits
-			}
-
 		} else {
-			// Numstat line: "added	deleted	path"
-			// 10	5	src/main.go
-			// Note: git log --numstat uses tabs as delimiters
-			parts := strings.Split(line, "\t")
-			if len(parts) < 3 {
-				// Fallback to Fields if split by tab fails (e.g. copied/pasted logs with spaces)
-				parts = strings.Fields(line)
-				if len(parts) < 3 {
-					continue
-				}
-			}
-
-			// Binary files have "-"
-			added, _ := strconv.Atoi(strings.TrimSpace(parts[0]))
-			deleted, _ := strconv.Atoi(strings.TrimSpace(parts[1]))
-			path := strings.TrimSpace(parts[2])
-
-			if currentPlayer != nil {
-				currentPlayer.LinesAdded += added
-				currentPlayer.LinesDel += deleted
-
-				// XP for Lines (capped at 100 per commit to prevent massive generated files gaming)
-				linesXP := added
-				if linesXP > 100 {
-					linesXP = 100
-				}
-				currentPlayer.XP += linesXP / 10 // 1 XP per 10 lines
-
-				// File Type Bonuses
-				if strings.HasSuffix(path, ".md") || strings.HasSuffix(path, ".txt") {
-					currentPlayer.DocEdits++
-					currentPlayer.XP += 5
-				}
-				if strings.HasSuffix(path, "_test.go") || strings.HasSuffix(path, ".test.js") {
-					currentPlayer.TestEdits++
-					currentPlayer.XP += 10
-				}
-			}
+			parseNumstatLine(line, currentPlayer)
 		}
 	}
 
@@ -155,6 +82,83 @@ func AnalyzeRepo(client GitClient, dir string) (*Leaderboard, error) {
 	})
 
 	return &leaderboard, nil
+}
+
+func parseCommitLine(line string, players map[string]*Player, bugFixRe *regexp.Regexp) (*Player, error) {
+	parts := strings.SplitN(line, "|", 5)
+	if len(parts) < 5 {
+		return nil, fmt.Errorf("invalid commit line")
+	}
+	author := parts[2]
+	dateStr := parts[3]
+	msg := parts[4]
+
+	// Parse date (Git ISO format: 2006-01-02 15:04:05 -0700)
+	parsedDate, _ := time.Parse("2006-01-02 15:04:05 -0700", dateStr)
+
+	if _, exists := players[author]; !exists {
+		players[author] = &Player{Name: author}
+	}
+	player := players[author]
+	player.Commits++
+	if parsedDate.After(player.LastCommit) {
+		player.LastCommit = parsedDate
+	}
+
+	// Base XP
+	player.XP += 10
+
+	// Bug Fix XP
+	if bugFixRe.MatchString(msg) {
+		player.BugFixes++
+		player.XP += 20
+	}
+
+	return player, nil
+}
+
+func parseNumstatLine(line string, player *Player) {
+	if player == nil {
+		return
+	}
+	// Numstat line: "added	deleted	path"
+	parts := strings.Split(line, "\t")
+	if len(parts) < 3 {
+		// Fallback to Fields if split by tab fails
+		parts = strings.Fields(line)
+		if len(parts) < 3 {
+			return
+		}
+	}
+
+	// Binary files have "-"
+	added, _ := strconv.Atoi(strings.TrimSpace(parts[0]))
+	deleted, _ := strconv.Atoi(strings.TrimSpace(parts[1]))
+	path := strings.TrimSpace(parts[2])
+
+	updatePlayerStats(player, added, deleted, path)
+}
+
+func updatePlayerStats(player *Player, added, deleted int, path string) {
+	player.LinesAdded += added
+	player.LinesDel += deleted
+
+	// XP for Lines (capped at 100 per commit to prevent massive generated files gaming)
+	linesXP := added
+	if linesXP > 100 {
+		linesXP = 100
+	}
+	player.XP += linesXP / 10 // 1 XP per 10 lines
+
+	// File Type Bonuses
+	if strings.HasSuffix(path, ".md") || strings.HasSuffix(path, ".txt") {
+		player.DocEdits++
+		player.XP += 5
+	}
+	if strings.HasSuffix(path, "_test.go") || strings.HasSuffix(path, ".test.js") {
+		player.TestEdits++
+		player.XP += 10
+	}
 }
 
 func awardBadges(p *Player) {

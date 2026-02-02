@@ -315,9 +315,3 @@ func (s *Session) runCleanerAgent(ctx context.Context) error {
 	return nil
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
