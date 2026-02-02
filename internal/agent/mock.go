@@ -51,8 +51,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Initializer (Feature List)
-	// Triggers: "initialize", "feature_list.json"
-	if strings.Contains(lowerPrompt, "initialize") || strings.Contains(lowerPrompt, "feature_list.json") {
+	// Triggers: "initializer agent" AND "feature_list.json"
+	if strings.Contains(lowerPrompt, "initializer agent") && strings.Contains(lowerPrompt, "feature_list.json") {
 		// Return script to create feature_list.json
 		return "```bash\n" + `
 echo '{
