@@ -121,7 +121,20 @@ agent-bridge signal QA_PASSED true
 `, nil
 	}
 
-	// 5. Implementation for 'prime-python' scenario
+	// 5. Manager Agent (Smoke Test)
+	// Detects Manager Review prompt (usually contains "Manager Agent" and "QA Report").
+	// We want to simulate a successful sign-off.
+	if strings.Contains(prompt, "Manager Agent") && strings.Contains(prompt, "QA Report") {
+		return `I have reviewed the work and the QA report. Everything looks good.
+
+` + "```bash" + `
+# Signal project sign-off
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
+	}
+
+	// 6. Implementation for 'prime-python' scenario
 	// The prompt will typically contain the ticket description or "primes.py" instructions.
 	// We use a "greedy" match here: if it talks about the primes task AND it's NOT the ticket generation prompt (checked above),
 	// assume it's the coding task.
