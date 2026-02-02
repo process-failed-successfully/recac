@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,11 +31,56 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
-	// Return a mock response that shows the agent received the prompt
-	// This allows the session to run without requiring real API keys
+
+	// Detect Prime Python Scenario
+	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "prime numbers") {
+		return m.generatePrimesResponse(), nil
+	}
+
+	// Default response
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
+}
+
+func (m *MockAgent) generatePrimesResponse() string {
+	primesContent := `import json
+
+primes = []
+for num in range(2, 10000):
+    is_prime = True
+    for i in range(2, int(num ** 0.5) + 1):
+        if num % i == 0:
+            is_prime = False
+            break
+    if is_prime:
+        primes.append(num)
+
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+`
+
+	// We wrap the python content in a bash block to write it
+	// We also commit it and signal completion
+	return fmt.Sprintf(`I will implement the prime number script as requested.
+
+` + "```bash" + `
+# Create the python script
+cat << 'EOF' > primes.py
+%s
+EOF
+
+# Run the script to generate output
+python3 primes.py
+
+# Commit the files
+git add primes.py primes.json
+git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
+
+# Signal completion
+agent-bridge signal COMPLETED true
+` + "```" + `
+`, primesContent)
 }
 
 // SendStream implements the Agent interface
