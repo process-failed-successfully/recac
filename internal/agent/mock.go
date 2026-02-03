@@ -171,7 +171,12 @@ git add primes.py primes.json
 git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
 
 # Set feature status to done (DB Update)
+# Try standard ID (if Initializer ran)
 agent-bridge feature set req-primes --status done --passes true || echo "Feature update skipped (ID mismatch?)"
+# Try inferred IDs from poller_jira injection (if Initializer skipped)
+agent-bridge feature set req-primes-py-exists --status done --passes true || echo "Feature update skipped (ID mismatch?)"
+agent-bridge feature set req-primes-json-contains-correct-p --status done --passes true || echo "Feature update skipped (ID mismatch?)"
+# Legacy/Fallback
 agent-bridge feature set 1 --status done --passes true || echo "Feature update skipped (ID mismatch?)"
 ` + "```" + `
 `, nil

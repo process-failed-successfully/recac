@@ -404,6 +404,54 @@ func (c *Client) SmartTransition(ctx context.Context, ticketID, targetNameOrID s
 	return c.TransitionIssue(ctx, ticketID, foundID)
 }
 
+// GetBlockerKeys returns a list of keys of tickets that block the given ticket and are not "Done".
+func (c *Client) GetBlockerKeys(ticket map[string]interface{}) []string {
+	fields, ok := ticket["fields"].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+
+	links, ok := fields["issuelinks"].([]interface{})
+	if !ok {
+		return nil
+	}
+
+	var blockers []string
+	for _, link := range links {
+		linkMap, ok := link.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		linkType, ok := linkMap["type"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		// Look for "is blocked by" relationship (inward)
+		inward, _ := linkType["inward"].(string)
+		if strings.EqualFold(inward, "is blocked by") {
+			inwardIssue, ok := linkMap["inwardIssue"].(map[string]interface{})
+			if ok {
+				key, _ := inwardIssue["key"].(string)
+				fields, _ := inwardIssue["fields"].(map[string]interface{})
+				if fields != nil {
+					status, _ := fields["status"].(map[string]interface{})
+					if status != nil {
+						statusName, _ := status["name"].(string)
+						// If status is not "Done" or equivalent, it's a blocker
+						if !isDoneStatus(statusName) {
+							blockers = append(blockers, key)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return blockers
+}
+
 // GetBlockers returns a list of tickets that block the given ticket and are not "Done".
 func (c *Client) GetBlockers(ticket map[string]interface{}) []string {
 	fields, ok := ticket["fields"].(map[string]interface{})
