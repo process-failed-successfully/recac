@@ -86,15 +86,41 @@ agent-bridge import --file feature_list.json
 `, nil
 	}
 
-	// 3. Completion Check
+	// 3. Special Roles (QA/Manager)
+	// These roles need priority over "Implementation" or "Completion" logic because their prompts
+	// might contain the same keywords (e.g. "primes.py") but require different actions.
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return `I have verified the implementation. All tests passed.
+
+` + "```bash" + `
+# Run verification (mock)
+python3 primes.py
+if [ -f primes.json ]; then
+    echo "Verification successful"
+    agent-bridge signal QA_PASSED true
+else
+    echo "Verification failed"
+fi
+` + "```" + `
+`, nil
+	}
+
+	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") {
+		return `I have reviewed the work and it meets all requirements.
+
+` + "```bash" + `
+echo "Project signed off"
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
+	}
+
+	// 4. Completion Check
 	// If the previous command output indicates nothing to commit (clean working tree), we are done.
 	// This prevents infinite loops in smoke tests where the agent keeps trying to commit.
 	// This MUST be checked before Implementation logic because the prompt will contain both the task context AND the "nothing to commit" output.
-	// However, we MUST skip this check if the prompt is for QA or Manager roles, as they need to run verification steps even if the code is committed.
 	promptLower := strings.ToLower(prompt)
-	isSpecialRole := strings.Contains(prompt, "YOUR ROLE - QA AGENT") || strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER")
-
-	if (strings.Contains(promptLower, "nothing to commit") || strings.Contains(promptLower, "working tree clean")) && !isSpecialRole {
+	if strings.Contains(promptLower, "nothing to commit") || strings.Contains(promptLower, "working tree clean") {
 		return `It seems there are no more changes to commit. The task is complete.
 
 ` + "```bash" + `
@@ -107,7 +133,7 @@ fi
 `, nil
 	}
 
-	// 4. Implementation for 'prime-python' scenario
+	// 5. Implementation for 'prime-python' scenario
 	// The prompt will typically contain the ticket description or "primes.py" instructions.
 	// We use a "greedy" match here: if it talks about the primes task AND it's NOT the ticket generation prompt (checked above),
 	// assume it's the coding task.
@@ -146,33 +172,6 @@ git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
 `, nil
 	}
 
-	// 5. QA Agent
-	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
-		return `I have verified the implementation. All tests passed.
-
-` + "```bash" + `
-# Run verification (mock)
-python3 primes.py
-if [ -f primes.json ]; then
-    echo "Verification successful"
-    agent-bridge signal QA_PASSED true
-else
-    echo "Verification failed"
-fi
-` + "```" + `
-`, nil
-	}
-
-	// 6. Manager Agent
-	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") {
-		return `I have reviewed the work and it meets all requirements.
-
-` + "```bash" + `
-echo "Project signed off"
-agent-bridge signal PROJECT_SIGNED_OFF true
-` + "```" + `
-`, nil
-	}
 
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
