@@ -115,6 +115,9 @@ python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
 git push
+
+# Mark feature as done
+agent-bridge feature update primes-impl done
 ` + "```" + `
 
 Implementation complete.
