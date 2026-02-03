@@ -80,6 +80,18 @@ EOF
 ]`, nil
 	}
 
+	// 1.5 Check for QA/Manager Roles (Smoke Test)
+	// These must be checked BEFORE the implementation logic because the prompts often contain
+	// the keywords "primes.py" etc. when reporting failures.
+
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") || strings.Contains(prompt, "verify the changes") {
+		return "QA passed.\n```bash\nagent-bridge signal QA_PASSED true\n```", nil
+	}
+
+	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") || strings.Contains(prompt, "review the project") {
+		return "Project approved.\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
+	}
+
 	// 2. Check for Prime Python Scenario - Implementation
 	// Looking for the ticket description content or keywords
 	// Relaxed check to ensure it catches the prompt even if exact wording varies
