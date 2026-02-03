@@ -28,6 +28,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Generate Safe Branch Tag
+        id: branch-tag
+        if: github.event_name != 'tag'
+        shell: bash
+        run: |
+          REF_NAME="${{ github.ref_name }}"
+          # Replace / with -
+          CLEAN_REF="${REF_NAME//\//-}"
+          # Remove special chars (keep alphanumeric, -, _, .)
+          CLEAN_REF=$(echo "$CLEAN_REF" | tr -cd 'a-zA-Z0-9._-')
+          # Truncate to 120 chars
+          TRUNCATED_REF="${CLEAN_REF:0:120}"
+          echo "tag=$TRUNCATED_REF" >> $GITHUB_OUTPUT
+
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -35,7 +49,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
-            type=ref,event=branch
+            type=raw,value=${{ steps.branch-tag.outputs.tag }},enable=${{ github.ref_type == 'branch' }}
             type=semver,pattern={{version}}
             type=sha
 
