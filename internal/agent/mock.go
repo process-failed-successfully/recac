@@ -101,6 +101,7 @@ cat feature_list.json | agent-bridge import
 
 ` + "```bash" + `
 agent-bridge feature list --json | jq -r '.features[].id' | xargs -I {} agent-bridge feature set {} --status done --passes true
+agent-bridge signal COMPLETED true
 ` + "```" + `
 `, nil
 		}
