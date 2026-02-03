@@ -16,6 +16,7 @@ import (
 	"recac/internal/docker"
 	"recac/internal/jira"
 	"recac/internal/orchestrator"
+	"recac/internal/runner"
 
 	"github.com/joho/godotenv"
 )
@@ -68,7 +69,8 @@ func TestOrchestrator_Poller_E2E(t *testing.T) {
 
 	// 4. Poll
 	t.Log("Polling for work...")
-	items, err := poller.Poll(ctx)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	items, err := poller.Poll(ctx, logger)
 	if err != nil {
 		t.Fatalf("Poll failed: %v", err)
 	}
@@ -84,7 +86,7 @@ func TestOrchestrator_Poller_E2E(t *testing.T) {
 
 	// 5. Claim
 	t.Log("Claiming work...")
-	if err := poller.Claim(ctx, item); err != nil {
+	if err := poller.UpdateStatus(ctx, item, "In Progress", "Claimed by E2E Test"); err != nil {
 		t.Fatalf("Claim failed: %v", err)
 	}
 
@@ -169,11 +171,16 @@ func TestOrchestrator_FullFlow_E2E(t *testing.T) {
 		t.Fatalf("Failed to create docker client: %v", err)
 	}
 
+	sm, err := runner.NewSessionManager()
+	if err != nil {
+		t.Fatalf("Failed to create session manager: %v", err)
+	}
+
 	// Spawner with explicit provider/model
 	// Assuming OpenAI/GPT-3.5-turbo or similar for speed/cost if available. Or OpenRouter.
 	provider := "openrouter"
 	model := "meta-llama/llama-3.3-70b-instruct:free"
-	spawner := orchestrator.NewDockerSpawner(logger, dClient, "recac-agent:e2e", poller, provider, model)
+	spawner := orchestrator.NewDockerSpawner(logger, dClient, "recac-agent:e2e", "e2e-project", poller, provider, model, sm)
 
 	orch := orchestrator.New(poller, spawner, 5*time.Second)
 
