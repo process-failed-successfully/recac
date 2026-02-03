@@ -31,8 +31,27 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
-	// Return a mock response that shows the agent received the prompt
-	// This allows the session to run without requiring real API keys
+
+	// Role detection (Case insensitive)
+	isQA := containsIgnoreCase(prompt, "QA AGENT") || containsIgnoreCase(prompt, "QA_AGENT")
+	isManager := containsIgnoreCase(prompt, "Manager Agent") || containsIgnoreCase(prompt, "Manager")
+	// "Role: Manager" or similar contexts
+	isManager = isManager || (containsIgnoreCase(prompt, "Role") && containsIgnoreCase(prompt, "Manager"))
+
+	// Implementation detection
+	isImpl := containsIgnoreCase(prompt, "PRIMES") || containsIgnoreCase(prompt, "Prime Number Generator")
+
+	// Priority: Role > Impl (to avoid confusion if prompt contains both context)
+
+	// QA Logic
+	if isQA {
+		return "QA Passed.\n\n```bash\nagent-bridge signal set QA_PASSED\n```", nil
+	}
+
+	// Manager Logic
+	if isManager {
+		return "Project Signed Off.\n\n```bash\nagent-bridge signal set PROJECT_SIGNED_OFF\n```", nil
+	}
 
 	// Heuristic for Jira Ticket Generation (TPM Agent)
 	if isTPMPrompt(prompt) {
@@ -49,6 +68,25 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     "children": []
   }
 ]`, nil
+	}
+
+	// Implementation Logic (Primes)
+	// We check this last among roles, but before generic response.
+	// But ensure we don't trigger this for Manager/QA if they mention "PRIMES" in context.
+	// (The Role checks above should handle that, as they return early).
+	if isImpl {
+		return "I will implement the prime number generator.\n\n```bash\n" +
+			"echo 'Implementing primes.py'\n" +
+			"cat <<EOF > primes.py\n" +
+			"def is_prime(n):\n" +
+			"    if n <= 1: return False\n" +
+			"    for i in range(2, int(n**0.5) + 1):\n" +
+			"        if n % i == 0: return False\n" +
+			"    return True\n" +
+			"EOF\n\n" +
+			"# Mark features as done\n" +
+			"agent-bridge feature list --json | jq -r '.features[].id' | xargs -I {} agent-bridge feature set {} --status done --passes true\n" +
+			"```", nil
 	}
 
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
