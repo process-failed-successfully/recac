@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"recac/internal/db"
 	"recac/internal/notify"
+	"strings"
 	"testing"
 )
 
@@ -114,5 +115,43 @@ func TestSession_ProcessResponse_Blocker(t *testing.T) {
 	// Check if file was removed
 	if _, err := os.Stat(blockerFile); !os.IsNotExist(err) {
 		t.Errorf("Expected blocker file to be removed after false positive detection")
+	}
+}
+
+func TestProcessResponse_MockDefaultRegex(t *testing.T) {
+	// Reproduction of Smoke Test failure where MockAgent default response yields 0 commands
+	defaultResponse := "Mock agent response:\n\nI received your prompt (100 characters). ...\n\n```bash\n# no-op to prevent circuit breaker\necho 'mock agent alive'\n```"
+
+	s := &Session{
+		Logger: slog.Default(),
+	}
+	// Note: We need to access the regex or the method. ProcessResponse is on Session.
+	// We'll mock executeCommandBlock by having a dummy Session?
+	// ProcessResponse calls executeCommandBlock which calls Docker/Local.
+	// We can set UseLocalAgent=true and rely on local execution failing or succeeding?
+	// Or we can just check if it finds the command.
+
+	// Better: Expose the regex for testing or copy it here to verify.
+	// Since regex is private var in executor.go, we test ProcessResponse behavior.
+
+	mockDocker := &MockDockerClient{
+		ExecFunc: func(ctx context.Context, containerID string, cmd []string) (string, error) {
+			return "Success", nil
+		},
+	}
+	s.Docker = mockDocker
+
+	output, _ := s.ProcessResponse(context.Background(), defaultResponse)
+
+	// If the regex matched, executeCommandBlock would run "echo 'mock agent alive'"
+	// and produce "Command Output:..." (or success from mock).
+	// If matches=0, output is empty (since no commands).
+
+	if output == "" {
+		t.Errorf("ProcessResponse found 0 commands in default mock response. Regex failed.")
+	}
+	if !strings.Contains(output, "Success") && !strings.Contains(output, "Command Output") {
+		// Verify it tried to execute
+		t.Logf("Output: %s", output)
 	}
 }

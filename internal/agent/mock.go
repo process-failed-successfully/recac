@@ -77,7 +77,7 @@ fi
 	// 3. Implementation Request (Writing the file)
 	// Matches prompt asking to implement "PRIMES" or "primes.py"
 	// Also check for [GEN] tag which appears in E2E tests
-	if strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[GEN]") {
+	if strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[GEN]") || strings.Contains(upperPrompt, "PRIME") {
 		return `I will create the primes.py script and the json output as requested.
 
 ` + "```bash" + `
@@ -156,7 +156,7 @@ agent-bridge signal PROJECT_SIGNED_OFF true
 	// We strip backticks from the preview to avoid confusing the regex parser
 	fmt.Println("[MockAgent] Fallback to default response (No matcher triggered)")
 	preview := strings.ReplaceAll(truncateString(prompt, 100), "`", "'")
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...\n\n```bash\n# no-op to prevent circuit breaker\necho 'mock agent alive'\n```",
+	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...\n\n```bash\n# no-op to prevent circuit breaker\necho 'mock agent alive'\n```\n",
 		m.responsePrefix, len(prompt), preview)
 	return response, nil
 }

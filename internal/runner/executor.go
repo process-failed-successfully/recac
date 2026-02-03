@@ -17,11 +17,13 @@ import (
 	"github.com/spf13/viper"
 )
 
-var bashBlockRegex = regexp.MustCompile("(?si)```(?:bash|sh)?\\s*(.*?)\\s*```")
+// Support both backticks and triple-single-quotes, with optional language specifier
+var bashBlockRegex = regexp.MustCompile(`(?si)(?:'''|` + "```" + `)(?:bash|sh)?\s*(.*?)\s*(?:'''|` + "```" + `)`)
 
 // ProcessResponse parses the agent response for commands, executes them, and handles blockers.
 func (s *Session) ProcessResponse(ctx context.Context, response string) (string, error) {
 	// 1. Extract Bash Blocks (More robust regex to handle variations in LLM output)
+	// Match groups: 0=full match, 1=content (since (?:...) is non-capturing)
 	matches := bashBlockRegex.FindAllStringSubmatch(response, -1)
 
 	// Safety valve: Prevent LLM loops from flooding the execution
