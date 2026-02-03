@@ -7,7 +7,8 @@ import (
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
-// It returns predefined responses without making actual API calls
+// It returns predefined responses without making actual API calls.
+// Note: Canned responses must use valid JSON (no literal newlines in strings).
 type MockAgent struct {
 	responsePrefix string
 	forcedResponse string
