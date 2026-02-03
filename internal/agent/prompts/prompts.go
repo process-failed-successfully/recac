@@ -38,6 +38,16 @@ func ListPrompts() ([]string, error) {
 	return names, nil
 }
 
+// GetEmbeddedPrompt returns the raw content of an embedded prompt template.
+func GetEmbeddedPrompt(name string) (string, error) {
+	templatePath := filepath.Join("templates", name+".md")
+	content, err := templateFS.ReadFile(templatePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read embedded prompt template %s: %w", name, err)
+	}
+	return string(content), nil
+}
+
 // GetPrompt loads a template and injects variables.
 // It checks in this order:
 // 1. RECAC_PROMPTS_DIR (Env)

@@ -7,6 +7,7 @@ import (
 	"recac/internal/agent/prompts"
 	"text/tabwriter"
 
+	"github.com/pmezard/go-difflib/difflib"
 	"github.com/spf13/cobra"
 )
 
@@ -20,6 +21,7 @@ func init() {
 	promptCmd.AddCommand(promptShowCmd)
 	promptCmd.AddCommand(promptOverrideCmd)
 	promptCmd.AddCommand(promptResetCmd)
+	promptCmd.AddCommand(promptDiffCmd)
 
 	promptOverrideCmd.Flags().BoolVarP(&promptGlobal, "global", "g", false, "Override globally (~/.recac/prompts)")
 	promptResetCmd.Flags().BoolVarP(&promptGlobal, "global", "g", false, "Reset global override")
@@ -138,6 +140,45 @@ var promptResetCmd = &cobra.Command{
 		}
 
 		fmt.Fprintf(cmd.OutOrStdout(), "Override removed: %s\n", targetPath)
+		return nil
+	},
+}
+
+var promptDiffCmd = &cobra.Command{
+	Use:   "diff [name]",
+	Short: "Show differences between embedded and active prompt",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		name := args[0]
+
+		// 1. Get Embedded (Source)
+		embedded, err := prompts.GetEmbeddedPrompt(name)
+		if err != nil {
+			return err
+		}
+
+		// 2. Get Active (Target)
+		active, err := prompts.GetPrompt(name, nil)
+		if err != nil {
+			return err
+		}
+
+		if embedded == active {
+			fmt.Fprintln(cmd.OutOrStdout(), "No differences found (using embedded prompt).")
+			return nil
+		}
+
+		// 3. Diff
+		diff := difflib.UnifiedDiff{
+			A:        difflib.SplitLines(embedded),
+			B:        difflib.SplitLines(active),
+			FromFile: "Embedded",
+			ToFile:   "Active",
+			Context:  3,
+		}
+		text, _ := difflib.GetUnifiedDiffString(diff)
+
+		fmt.Fprintln(cmd.OutOrStdout(), text)
 		return nil
 	},
 }
