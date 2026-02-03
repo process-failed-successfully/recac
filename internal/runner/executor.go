@@ -233,7 +233,7 @@ func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, ind
 		}
 
 		result := fmt.Sprintf("Command Failed: %s\nError: %s\nOutput:\n%s\n", cmdScript, errMsg, output)
-		s.Logger.Error("command failed", "script", cmdScript, "error", errMsg)
+		s.Logger.Error("command failed", "script", cmdScript, "error", errMsg, "output", output)
 
 		// Telemetry: Build Failure
 		if strings.Contains(cmdScript, "go build") || strings.Contains(cmdScript, "npm run build") || strings.Contains(cmdScript, "make build") {

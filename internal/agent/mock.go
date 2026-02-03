@@ -89,7 +89,14 @@ python3 primes.py
 git config user.email "mock-agent@recac.io"
 git config user.name "Mock Agent"
 git add primes.py primes.json
-git commit -m "Add primes.py and primes.json"
+git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
+
+# Update feature status to prevent loop
+if command -v agent-bridge >/dev/null 2>&1; then
+  agent-bridge feature update 1 status=done || echo "Feature update failed but continuing"
+else
+  echo "agent-bridge not found (mock mode)"
+fi
 ` + "```" + `
 `, nil
 	}
