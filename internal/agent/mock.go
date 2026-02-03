@@ -60,7 +60,7 @@ EOF
 if command -v agent-bridge > /dev/null; then
   echo "agent-bridge available"
   # Import features to DB to ensure persistence
-  cat feature_list.json | agent-bridge import
+  cat feature_list.json | agent-bridge import || echo "Warning: agent-bridge import failed"
 fi
 ` + "```" + `
 `, nil
