@@ -137,6 +137,28 @@ git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
 `, nil
 	}
 
+	// 4. QA Agent Handling
+	// If the agent is acting as QA (detected by role prompt), it should signal success.
+	if strings.Contains(prompt, "YOUR ROLE: QA Agent") || strings.Contains(prompt, "verify the changes") {
+		return `I have verified the changes and they look correct.
+
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// 5. Manager Agent Handling
+	// If the agent is acting as Manager (detected by role prompt), it should signal project sign-off.
+	if strings.Contains(prompt, "YOUR ROLE: Manager Agent") || strings.Contains(prompt, "review the project") {
+		return `I have reviewed the project and it meets all requirements.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf(`%s:
