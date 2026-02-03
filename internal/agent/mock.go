@@ -77,20 +77,20 @@ fi
 		return `I will implement the prime number service in Python.
 ` + "```bash" + `
 cat <<EOF > primes.py
+import json
+
 def get_primes(n):
-    primes = []
-    for i in range(2, n + 1):
-        is_prime = True
-        for j in range(2, int(i ** 0.5) + 1):
-            if i % j == 0:
-                is_prime = False
-                break
-        if is_prime:
-            primes.append(i)
-    return primes
+    sieve = [True] * n
+    for i in range(3, int(n**0.5) + 1, 2):
+        if sieve[i]:
+            sieve[i*i::2*i] = [False] * ((n - i*i - 1) // (2*i) + 1)
+    return [2] + [i for i in range(3, n, 2) if sieve[i]]
 
 if __name__ == "__main__":
-    print(get_primes(20))
+    primes = get_primes(10000)
+    with open("primes.json", "w") as f:
+        json.dump({"primes": primes}, f)
+    print(f"Generated {len(primes)} primes to primes.json")
 EOF
 
 # Verify it works
