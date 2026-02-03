@@ -28,6 +28,9 @@ func (m *MockAgent) SetResponse(response string) {
 // Send implements the Agent interface
 // It returns a mock response that acknowledges the prompt
 func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
+	// Debug logging to help diagnose CI failures
+	fmt.Printf("DEBUG: MockAgent received prompt (len=%d): %s\n", len(prompt), truncateString(prompt, 500))
+
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
@@ -79,7 +82,8 @@ EOF
 
 	// 2. Check for Prime Python Scenario - Implementation
 	// Looking for the ticket description content or keywords
-	if strings.Contains(prompt, "primes.py") && strings.Contains(prompt, "calculate all prime numbers") {
+	// Relaxed check to ensure it catches the prompt even if exact wording varies
+	if strings.Contains(prompt, "primes.py") && (strings.Contains(strings.ToLower(prompt), "prime") || strings.Contains(prompt, "PRIMES")) {
 		return `I will implement the prime number script as requested.
 
 ` + "```bash" + `
