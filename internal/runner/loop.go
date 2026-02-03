@@ -205,6 +205,8 @@ func (s *Session) RunLoop(ctx context.Context) error {
 								s.Logger.Warn("restore stash failed", "error", err)
 							}
 							s.Logger.Info("branch up-to-date with base")
+							// Merge modified workspace, so reload features to be safe
+							features = s.loadFeatures()
 							break
 						}
 					} else {
@@ -244,7 +246,6 @@ func (s *Session) RunLoop(ctx context.Context) error {
 
 			// CRITICAL: Guardrail against premature sign-off.
 			// Validate that ALL features are actually passing before accepting the sign-off.
-			features := s.loadFeatures()
 			incompleteFeatures := []string{}
 			for _, f := range features {
 				if !(f.Passes || f.Status == "done" || f.Status == "implemented") {
@@ -453,7 +454,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		}
 
 		// Circuit Breaker: Stalled Progress Check
-		passingCount := s.checkFeatures()
+		passingCount := s.checkFeatures(features)
 		if err := s.checkStalledBreaker(role, passingCount); err != nil {
 			telemetry.TrackAgentStall(s.Project)
 			fmt.Println(err)
