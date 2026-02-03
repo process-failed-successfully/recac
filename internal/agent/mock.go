@@ -40,7 +40,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
   {
     "id": "MOCK-1",
     "key": "PRIMES",
-    "title": "Implement Prime Number Service",
+    "title": "ID:[PRIMES] Implement Prime Number Service",
     "description": "Create a Python service that calculates prime numbers.",
     "type": "Task",
     "dependencies": []
