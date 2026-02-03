@@ -192,14 +192,6 @@ func SetActiveAgents(project string, count int) {
 	ActiveAgents.WithLabelValues(project).Set(float64(count))
 }
 
-func IncActiveAgents(project string) {
-	ActiveAgents.WithLabelValues(project).Inc()
-}
-
-func DecActiveAgents(project string) {
-	ActiveAgents.WithLabelValues(project).Dec()
-}
-
 func SetTasksPending(project string, count int) {
 	TasksPending.WithLabelValues(project).Set(float64(count))
 }

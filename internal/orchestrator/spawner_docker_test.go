@@ -7,12 +7,10 @@ import (
 	"log/slog"
 	"os"
 	"recac/internal/runner"
-	"recac/internal/telemetry"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -317,56 +315,4 @@ func TestDockerSpawner_Cleanup(t *testing.T) {
 
 	err := spawner.Cleanup(context.Background(), WorkItem{ID: "test"})
 	assert.NoError(t, err)
-}
-
-func TestDockerSpawner_Telemetry(t *testing.T) {
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	client := new(MockDockerClient)
-	poller := new(MockPoller)
-	sm := new(MockSessionManager)
-
-	projectName := "test-project-telemetry"
-	spawner := NewDockerSpawner(logger, client, "recac-agent:latest", projectName, poller, "gemini", "gemini-pro", sm)
-
-	item := WorkItem{
-		ID:      "TASK-TELEMETRY",
-		RepoURL: "https://github.com/example/repo",
-	}
-
-	client.On("RunContainer", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("container-tel", nil)
-	sm.On("SaveSession", mock.Anything).Return(nil)
-	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
-
-	// Use a channel to synchronize completion
-	done := make(chan struct{})
-	client.On("Exec", mock.Anything, "container-tel", mock.Anything).Run(func(args mock.Arguments) {
-		// Exec called
-	}).Return("Success", nil).Run(func(args mock.Arguments) {
-		close(done)
-	})
-
-	// Initial check
-	initialAgents := testutil.ToFloat64(telemetry.ActiveAgents.WithLabelValues(projectName))
-
-	err := spawner.Spawn(context.Background(), item)
-	assert.NoError(t, err)
-
-	// After Spawn (but before finish), ActiveAgents should be incremented
-	// Wait a tiny bit for goroutine to start?
-	// Since Spawn calls IncActiveAgents synchronously before go func, it should be immediate.
-	currentAgents := testutil.ToFloat64(telemetry.ActiveAgents.WithLabelValues(projectName))
-	assert.Equal(t, initialAgents+1, currentAgents, "ActiveAgents should be incremented")
-
-	// Wait for background work to finish
-	select {
-	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Fatal("Timeout waiting for background work")
-	}
-
-	// Wait for defer to run
-	time.Sleep(50 * time.Millisecond)
-
-	finalAgents := testutil.ToFloat64(telemetry.ActiveAgents.WithLabelValues(projectName))
-	assert.Equal(t, initialAgents, finalAgents, "ActiveAgents should be decremented back")
 }

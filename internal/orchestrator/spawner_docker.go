@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"recac/internal/git"
 	"recac/internal/runner"
-	"recac/internal/telemetry"
 	"strings"
 	"time"
 
@@ -106,12 +105,8 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 
 	s.Logger.Info("Container started", "id", containerID, "work_item", item.ID)
 
-	// Metric: Active Agents
-	telemetry.IncActiveAgents(s.projectName)
-
 	// 5. Execute Work in Background
 	go func() {
-		defer telemetry.DecActiveAgents(s.projectName)
 		// Construct Command
 		var envExports []string
 		if s.AgentProvider != "" {
@@ -177,11 +172,7 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		cmd := []string{"/bin/sh", "-c", cmdStr}
 
 		s.Logger.Info("Executing agent command", "item", item.ID)
-		telemetry.TrackDockerOp(s.projectName)
 		output, execErr := s.Client.Exec(context.Background(), containerID, cmd)
-		if execErr != nil {
-			telemetry.TrackDockerError(s.projectName)
-		}
 
 		// 6. Update session state
 		finalSession, loadErr := s.SessionManager.LoadSession(item.ID)
