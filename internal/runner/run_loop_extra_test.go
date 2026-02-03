@@ -316,9 +316,14 @@ func TestRunLoop_AutoMerge(t *testing.T) {
 	}
 	defer func() { git.NewClient = originalNewClient }()
 
+	// Mock Agent (needed now that loop falls through after clearing signal)
+	mockAgent := new(MockTestifyAgent)
+	mockAgent.On("Send", mock.Anything, mock.Anything).Return("I am running", nil)
+
 	s := &Session{
 		Workspace:     tmpDir,
 		DBStore:       mockDB,
+		Agent:         mockAgent,
 		Notifier:      notify.NewManager(func(string, ...interface{}) {}),
 		Logger:        telemetry.NewLogger(true, "", false),
 		BaseBranch:    "main",
@@ -369,18 +374,39 @@ func TestRunLoop_GitSafeguard_MergeConflict(t *testing.T) {
 	// Safeguard check
 	mockGit.On("Fetch", mock.Anything, "origin", "main").Return(nil)
 	mockGit.On("Stash", mock.Anything).Return(nil)
-	// Fail merge
+
+	// Fail merge for Safeguard (Explicitly match origin/main)
+	// We expect this to be called 3 times (retries) + maybe more if loop continues?
+	// Actually, the loop continues and retries.
+	// We'll use .Times(3) or just allow it.
 	mockGit.On("Merge", mock.Anything, "origin/main").Return(errors.New("conflict"))
+
 	// Abort
 	mockGit.On("AbortMerge", mock.Anything).Return(nil)
 	// Recovery attempts (simplified expectation: it retries or eventually fails)
-	// We expect multiple calls maybe?
 	mockGit.On("Recover", mock.Anything).Return(nil).Maybe()
 	mockGit.On("Clean", mock.Anything).Return(nil).Maybe()
 
 	// If brutal recovery kicks in (after 3 retries):
 	mockGit.On("DeleteRemoteBranch", mock.Anything, "origin", mock.Anything).Return(nil).Maybe()
 	mockGit.On("ResetHard", mock.Anything, "origin", "main").Return(nil).Maybe()
+
+	// Mocks for pushProgress (called after loop falls through)
+	mockGit.On("RepoExists", mock.Anything).Return(true).Maybe()
+	mockGit.On("CurrentBranch", mock.Anything).Return("agent/branch", nil).Maybe()
+	mockGit.On("Status", mock.Anything).Return("M file", nil).Maybe()
+	mockGit.On("Commit", mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	// pushProgress attempts to merge refs/heads/master etc.
+	// We match anything NOT origin/main here, or just allow wildcard if arguments don't match above.
+	// Note: testify mock matches in order or specific? It matches most specific?
+	// Actually, best to just return error for other merges to avoid side effects in test
+	mockGit.On("Merge", mock.Anything, "refs/heads/master").Return(errors.New("skip")).Maybe()
+	mockGit.On("Merge", mock.Anything, "refs/heads/main").Return(errors.New("skip")).Maybe()
+	mockGit.On("Merge", mock.Anything, "master").Return(errors.New("skip")).Maybe()
+	mockGit.On("Merge", mock.Anything, "main").Return(errors.New("skip")).Maybe()
+
+	mockGit.On("Push", mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Override git.NewClient
 	originalNewClient := git.NewClient
@@ -389,9 +415,14 @@ func TestRunLoop_GitSafeguard_MergeConflict(t *testing.T) {
 	}
 	defer func() { git.NewClient = originalNewClient }()
 
+	// Mock Agent (needed now that loop falls through after clearing signal)
+	mockAgent := new(MockTestifyAgent)
+	mockAgent.On("Send", mock.Anything, mock.Anything).Return("I am running", nil)
+
 	s := &Session{
 		Workspace:     tmpDir,
 		DBStore:       mockDB,
+		Agent:         mockAgent,
 		Notifier:      notify.NewManager(func(string, ...interface{}) {}),
 		Logger:        telemetry.NewLogger(true, "", false),
 		BaseBranch:    "main",
