@@ -94,10 +94,15 @@ func runApp(ctx context.Context) error {
 		"env_recac_provider", os.Getenv("RECAC_PROVIDER"),
 	)
 
+	isMock := viper.GetBool("mock")
+	if viper.GetString("provider") == "mock" {
+		isMock = true
+	}
+
 	// Construct SessionConfig
 	cfg := workflow.SessionConfig{
 		ProjectPath:       viper.GetString("path"),
-		IsMock:            viper.GetBool("mock"),
+		IsMock:            isMock,
 		MaxIterations:     viper.GetInt("max_iterations"),
 		ManagerFrequency:  viper.GetInt("manager_frequency"),
 		MaxAgents:         viper.GetInt("max_agents"),

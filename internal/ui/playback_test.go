@@ -172,7 +172,7 @@ func TestPlaybackModel_Update_View(t *testing.T) {
 
 	// Quit
 	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
-	assert.Equal(t, tea.Quit(), cmd())
+	assert.Equal(t, tea.QuitMsg{}, cmd())
 
 	// Resize
 	updatedModel, _ = m.Update(tea.WindowSizeMsg{Width: 100, Height: 50})

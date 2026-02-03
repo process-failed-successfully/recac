@@ -115,6 +115,10 @@ var startCmd = &cobra.Command{
 		if provider == "" {
 			provider = viper.GetString("provider")
 		}
+		if provider == "mock" {
+			isMock = true
+		}
+
 		model, _ := cmd.Flags().GetString("model")
 		if model == "" {
 			model = viper.GetString("model")
