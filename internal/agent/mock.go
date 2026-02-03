@@ -68,8 +68,8 @@ echo "Feature list created and imported."
 	   !strings.Contains(promptLower, "initializer") && !strings.Contains(promptLower, "feature_list") && !strings.Contains(promptLower, "feature list") {
 		return `[
   {
-    "title": "[GEN] Create Prime Number Script",
-    "description": "Create a python script named 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'. ID:[PRIMES]",
+    "title": "ID:[PRIMES] [GEN] Create Prime Number Script",
+    "description": "Create a python script named 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'.",
     "type": "Task",
     "children": []
   }
@@ -112,6 +112,28 @@ git commit -m "Add primes script and output" || echo "Nothing to commit"
 
 # Signal completion
 agent-bridge feature set PRIMES --status done --passes true
+` + "```" + `
+`, nil
+	}
+
+	// 3. QA Agent Request
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return `I have verified the project and it looks good.
+
+` + "```bash" + `
+echo "QA verification passed"
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// 4. Project Manager Request
+	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") {
+		return `I have reviewed the project and it meets all requirements.
+
+` + "```bash" + `
+echo "Project Manager sign-off approved"
+agent-bridge signal PROJECT_SIGNED_OFF true
 ` + "```" + `
 `, nil
 	}
