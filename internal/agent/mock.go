@@ -93,7 +93,7 @@ git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
 
 # Update feature status to prevent loop
 if command -v agent-bridge >/dev/null 2>&1; then
-  agent-bridge feature update 1 status=done || echo "Feature update failed but continuing"
+  agent-bridge feature set 1 --status done --passes true || echo "Feature update failed but continuing"
 else
   echo "agent-bridge not found (mock mode)"
 fi
