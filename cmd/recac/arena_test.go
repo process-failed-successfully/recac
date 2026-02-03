@@ -27,13 +27,34 @@ func (m *MockArenaAgent) SendStream(ctx context.Context, prompt string, onChunk 
 }
 
 func TestArenaCmd(t *testing.T) {
-	// Save original factory
-	originalFactory := agentClientFactory
+	// Save original factory and global flags
+	origFactory := agentClientFactory
+	origCompetitors := arenaCompetitors
+	origTask := arenaTask
+	origFile := arenaFile
+	origJudgeProv := arenaJudgeProv
+	origJudgeModel := arenaJudgeModel
+
 	defer func() {
-		agentClientFactory = originalFactory
+		agentClientFactory = origFactory
+		arenaCompetitors = origCompetitors
+		arenaTask = origTask
+		arenaFile = origFile
+		arenaJudgeProv = origJudgeProv
+		arenaJudgeModel = origJudgeModel
 	}()
 
+	resetGlobals := func() {
+		arenaCompetitors = ""
+		arenaTask = ""
+		arenaFile = ""
+		arenaJudgeProv = ""
+		arenaJudgeModel = ""
+		agentClientFactory = origFactory
+	}
+
 	t.Run("Run Arena Success", func(t *testing.T) {
+		resetGlobals()
 		// Setup mock factory
 		agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
 			if strings.Contains(projectName, "recac-arena-judge") {
@@ -65,28 +86,31 @@ func TestArenaCmd(t *testing.T) {
 	})
 
 	t.Run("Run Arena Validation Error", func(t *testing.T) {
+		resetGlobals()
 		arenaCompetitors = "openai:gpt-4" // Only one
+		// arenaTask is empty, but validation should fail before that matters
 		err := runArena(arenaCmd, []string{})
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "requires at least 2 competitors")
 	})
 
-    t.Run("Run Arena With File Context", func(t *testing.T) {
-        tmpDir := t.TempDir()
-        tmpFile := tmpDir + "/context.txt"
-        os.WriteFile(tmpFile, []byte("some context"), 0644)
+	t.Run("Run Arena With File Context", func(t *testing.T) {
+		resetGlobals()
+		tmpDir := t.TempDir()
+		tmpFile := tmpDir + "/context.txt"
+		os.WriteFile(tmpFile, []byte("some context"), 0644)
 
-        arenaCompetitors = "openai:gpt-4, gemini:gemini-pro"
-        arenaTask = "Read file"
-        arenaFile = tmpFile
-        arenaJudgeProv = "mock"
-        arenaJudgeModel = "judge"
+		arenaCompetitors = "openai:gpt-4, gemini:gemini-pro"
+		arenaTask = "Read file"
+		arenaFile = tmpFile
+		arenaJudgeProv = "mock"
+		arenaJudgeModel = "judge"
 
-        agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
-             return &MockArenaAgent{Response: "OK"}, nil
-        }
+		agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+			return &MockArenaAgent{Response: "OK"}, nil
+		}
 
-        err := runArena(arenaCmd, []string{})
-        assert.NoError(t, err)
-    })
+		err := runArena(arenaCmd, []string{})
+		assert.NoError(t, err)
+	})
 }
