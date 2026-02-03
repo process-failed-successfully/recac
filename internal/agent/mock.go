@@ -32,9 +32,35 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	lowerPrompt := strings.ToLower(prompt)
+
 	// Smart Mock Logic for Smoke Tests
-	// 1. Check for Prime Number Scenario
-	if strings.Contains(strings.ToLower(prompt), "primes.py") || strings.Contains(strings.ToLower(prompt), "prime number script") {
+
+	// 1. Ticket Generation Phase (Check this FIRST)
+	// The prompt from PrimePythonScenario.AppSpec contains "CRITICAL INSTRUCTION FOR TICKET GENERATION"
+	// and typically asks to generate tickets based on the spec.
+	if strings.Contains(lowerPrompt, "critical instruction for ticket generation") {
+		// Return a valid JSON response for ticket generation
+		return `
+{
+  "tickets": [
+    {
+      "title": "ID:[PRIMES] Create Prime Number Script",
+      "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to 'primes.json'.\n\nREQUIRED FEATURES:\n- Implement prime calculation logic in primes.py\n- Output results to primes.json\n- Validate that the output file contains a 'primes' list\n- Verify that exactly 1229 primes are calculated\n- Commit primes.json to the repository",
+      "type": "Task"
+    }
+  ]
+}
+`, nil
+	}
+
+	// 2. Implementation Phase
+	// Check for "primes.py" or "prime number script" BUT ensure it's not the AppSpec itself.
+	// The AppSpec prompt is usually long and contains "ID:[PRIMES]". The implementation prompt
+	// sent by the agent loop is usually focused on the specific task.
+	// However, the safest way is simply the order: we already handled the Ticket Generation prompt above.
+	// So if we are here, it might be the implementation prompt.
+	if strings.Contains(lowerPrompt, "primes.py") || strings.Contains(lowerPrompt, "prime number script") {
 		// Return a response that creates the python file and the json output
 		return `
 I will implement the prime number script.
