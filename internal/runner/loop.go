@@ -437,6 +437,12 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		// Run iteration using determined prompt
 		executionOutput, err := s.RunIteration(ctx, prompt, isManager)
 
+		// Check for Blockers (Stop immediately)
+		if err == ErrBlocker {
+			s.Logger.Info("session blocked, stopping run loop")
+			return ErrBlocker
+		}
+
 		// Check for Agent/API Error (e.g. 413, Network, etc)
 		if err != nil {
 			s.Logger.Error("iteration failed", "error", err)
