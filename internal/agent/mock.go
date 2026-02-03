@@ -103,8 +103,32 @@ fi
 ` + "```", nil
 	}
 
-	// 4. Completion / Loop Prevention
+	// 4. QA Phase
 	lowerPrompt := strings.ToLower(prompt)
+	if strings.Contains(lowerPrompt, "qa agent") {
+		return `QA checks passed:
+` + "```bash" + `
+if command -v agent-bridge > /dev/null; then
+    agent-bridge signal QA_PASSED true
+else
+    echo "agent-bridge not found"
+fi
+` + "```", nil
+	}
+
+	// 5. Manager Phase
+	if strings.Contains(lowerPrompt, "project manager") {
+		return `Project signed off:
+` + "```bash" + `
+if command -v agent-bridge > /dev/null; then
+    agent-bridge signal PROJECT_SIGNED_OFF true
+else
+    echo "agent-bridge not found"
+fi
+` + "```", nil
+	}
+
+	// 6. Completion / Loop Prevention
 	if strings.Contains(lowerPrompt, "nothing to commit") || strings.Contains(lowerPrompt, "working tree clean") {
 		return `Nothing to commit, marking as done:
 ` + "```bash" + `
