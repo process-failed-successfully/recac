@@ -25,6 +25,14 @@ func TestAgentBridgeRestrictions(t *testing.T) {
 		})
 	}
 
+	t.Run("Allow_PROJECT_SIGNED_OFF", func(t *testing.T) {
+		args := []string{"agent-bridge", "signal", "PROJECT_SIGNED_OFF", "true"}
+		err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID)
+		if err != nil {
+			t.Errorf("Expected success when setting PROJECT_SIGNED_OFF, got error: %v", err)
+		}
+	})
+
 	t.Run("Verify_Missing_File", func(t *testing.T) {
 		if err := run([]string{"agent-bridge", "verify", "F2", "pass"}, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err == nil {
 			t.Error("Expected error for verify missing file")
