@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -447,6 +448,10 @@ func (s *Session) RunLoop(ctx context.Context) error {
 
 		// Check for Agent/API Error (e.g. 413, Network, etc)
 		if err != nil {
+			if errors.Is(err, ErrBlocker) {
+				s.Logger.Warn("session blocked, exiting run loop")
+				return err
+			}
 			s.Logger.Error("iteration failed", "error", err)
 			s.SleepFunc(5 * time.Second) // Backoff
 			continue                     // Retry loop without tripping no-op breaker
