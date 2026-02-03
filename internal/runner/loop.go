@@ -454,7 +454,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		}
 
 		// Circuit Breaker: Stalled Progress Check
-		passingCount := s.checkFeatures(features)
+		passingCount := s.checkFeatures(s.loadFeatures())
 		if err := s.checkStalledBreaker(role, passingCount); err != nil {
 			telemetry.TrackAgentStall(s.Project)
 			fmt.Println(err)
