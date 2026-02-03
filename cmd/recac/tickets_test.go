@@ -217,7 +217,8 @@ func TestGenerateTickets_ChildAndLinkLogic(t *testing.T) {
 	mockJira.On("CreateTicket", mock.Anything, "PROJ", "Blocked Epic", mock.Anything, "Epic", mock.Anything).Return("PROJ-11", nil)
 
 	// Expect Link
-	mockJira.On("AddIssueLink", mock.Anything, "PROJ-10", "PROJ-11", "Blocks").Return(nil)
+	// Expect AddIssueLink(ctx, nodeKey=PROJ-11, blockerKey=PROJ-10, linkType="Blocks")
+	mockJira.On("AddIssueLink", mock.Anything, "PROJ-11", "PROJ-10", "Blocks").Return(nil)
 
 	_, err := generateTickets(context.Background(), "spec", "PROJ", "", []string{}, mockJira, mockAgent)
 	assert.NoError(t, err)
@@ -249,7 +250,8 @@ func TestGenerateTickets_LinkError(t *testing.T) {
 	mockJira.On("CreateTicket", mock.Anything, "PROJ", "Blocked", mock.Anything, "Epic", mock.Anything).Return("PROJ-2", nil)
 
 	// Mock Link Failure
-	mockJira.On("AddIssueLink", mock.Anything, "PROJ-1", "PROJ-2", "Blocks").Return(assert.AnError)
+	// Expect AddIssueLink(ctx, nodeKey=PROJ-2, blockerKey=PROJ-1, linkType="Blocks")
+	mockJira.On("AddIssueLink", mock.Anything, "PROJ-2", "PROJ-1", "Blocks").Return(assert.AnError)
 
 	_, err := generateTickets(context.Background(), "spec", "PROJ", "", []string{}, mockJira, mockAgent)
 	assert.NoError(t, err) // Should continue despite link error

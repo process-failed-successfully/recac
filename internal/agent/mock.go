@@ -45,15 +45,18 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 ` + "```bash" + `
 cat << 'EOF' > feature_list.json
-[
-  {
-    "id": "req-primes",
-    "name": "Implement Prime Number Script",
-    "description": "Create a python script to calculate primes.",
-    "status": "pending",
-    "files": ["primes.py"]
-  }
-]
+{
+  "project_name": "Prime Calculation",
+  "features": [
+    {
+      "id": "req-primes",
+      "name": "Implement Prime Number Script",
+      "description": "Create a python script to calculate primes.",
+      "status": "pending",
+      "files": ["primes.py"]
+    }
+  ]
+}
 EOF
 
 # Verify agent-bridge is available (for debug)
