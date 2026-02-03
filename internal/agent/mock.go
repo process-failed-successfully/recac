@@ -60,7 +60,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 2. Handle Initializer (feature_list.json) - if requested
 	if strings.Contains(prompt, "Initialize") && strings.Contains(prompt, "feature_list.json") {
-		return "```bash\n" + `cat << 'EOF' > feature_list.json
+		return `cat << 'EOF' > feature_list.json
 {
   "project_name": "mock-project",
   "features": [
@@ -68,12 +68,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
   ]
 }
 EOF
-` + "\n```", nil
+`, nil
 	}
 
 	// 3. Handle Coding Agent (primes.py)
 	if strings.Contains(prompt, "primes.py") {
-		return "```bash\n" + `#!/bin/bash
+		return `#!/bin/bash
 set -e
 
 # Configure git if needed
@@ -108,7 +108,7 @@ git commit -m "Add primes.py and output" || echo "Nothing to commit"
 if command -v agent-bridge &> /dev/null; then
     agent-bridge update --status done --feature req-primes-py-exists || true
 fi
-` + "\n```", nil
+`, nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
