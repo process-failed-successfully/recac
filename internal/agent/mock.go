@@ -77,9 +77,33 @@ EOF
 ]`, nil
 	}
 
-	// 2. Check for Prime Python Scenario - Implementation
+	// 2. QA Agent Check
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return "QA Checks Passed.\n```bash\nagent-bridge signal QA_PASSED true\n```", nil
+	}
+
+	// 3. Project Manager Check
+	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") {
+		return "Project Signed Off.\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
+	}
+
+	// 4. Completion Check (Coding Agent Loop Break)
+	// If the agent sees "nothing to commit", it means the implementation is done and committed.
+	// We should mark the feature as done to stop the loop.
+	if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
+		return `Task appears complete. Updating status.
+
+` + "```bash" + `
+agent-bridge feature set primes-impl --status done --passes true || echo "Feature updated"
+agent-bridge feature set req-primes --status done --passes true || echo "Feature updated"
+` + "```" + `
+`, nil
+	}
+
+	// 5. Check for Prime Python Scenario - Implementation
 	// Looking for the ticket description content or keywords
-	if strings.Contains(prompt, "primes.py") && strings.Contains(prompt, "calculate all prime numbers") {
+	// We use a broader check (OR condition) to be robust against description formatting changes
+	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "primes-impl") || strings.Contains(prompt, "Prime Number Script") {
 		return `I will implement the prime number script as requested.
 
 ` + "```bash" + `
