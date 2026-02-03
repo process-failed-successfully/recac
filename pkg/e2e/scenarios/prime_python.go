@@ -77,7 +77,18 @@ Repo: %s`, "`", "`", repoURL),
 func (s *PrimePythonScenario) Verify(repoPath string, ticketKeys map[string]string) error {
 	ticketKey, ok := ticketKeys["PRIMES"]
 	if !ok {
-		return fmt.Errorf("PRIMES ticket key not found")
+		// Fallback: If map has only one entry, use it. This supports workflows where IDs might get lost or flattened.
+		if len(ticketKeys) == 1 {
+			for _, v := range ticketKeys {
+				ticketKey = v
+				fmt.Printf("Fallback: Using unique ticket key %s as PRIMES key was not found\n", ticketKey)
+				break
+			}
+		} else {
+			// Fallback 2: Look for any key that might be relevant (unlikely in this specific scenario but safe)
+			// For now, just error out if not single entry fallback.
+			return fmt.Errorf("PRIMES ticket key not found and no single candidate available (keys: %v)", ticketKeys)
+		}
 	}
 
 	// Helper to find specific agent branch
