@@ -106,7 +106,7 @@ git commit -m "Add primes.py and output" || echo "Nothing to commit"
 
 # Signal completion if bridge is available
 if command -v agent-bridge &> /dev/null; then
-    agent-bridge update --status done --feature req-primes-py-exists || true
+    agent-bridge feature set req-primes-py-exists --status done --passes true || true
 fi
 ` + "\n```", nil
 	}
