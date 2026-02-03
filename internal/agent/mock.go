@@ -78,8 +78,10 @@ EOF
 	}
 
 	// 2. Check for Prime Python Scenario - Implementation
-	// Looking for the ticket description content or keywords
-	if strings.Contains(prompt, "primes.py") && strings.Contains(prompt, "calculate all prime numbers") {
+	// Looking for the ticket description content or keywords, OR the Ticket ID in the prompt (summary/spec)
+	// We verify it's NOT the TPM/Ticket Generation phase by checking for absence of "Technical Program Manager"
+	if ((strings.Contains(prompt, "primes.py") && strings.Contains(prompt, "calculate all prime numbers")) ||
+		(strings.Contains(prompt, "ID:[PRIMES]") && !strings.Contains(prompt, "Technical Program Manager"))) {
 		return `I will implement the prime number script as requested.
 
 ` + "```bash" + `
@@ -112,6 +114,26 @@ git push
 ` + "```" + `
 
 Implementation complete.
+`, nil
+	}
+
+	// 3. QA Agent
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return `QA Checks Passed.
+
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// 4. Project Manager
+	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") {
+		return `Project Approved.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```" + `
 `, nil
 	}
 
