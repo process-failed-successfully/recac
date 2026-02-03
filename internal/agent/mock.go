@@ -32,6 +32,13 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	// Debug: Log prompt snippet to help diagnose matching issues in CI
+	snippet := prompt
+	if len(snippet) > 200 {
+		snippet = snippet[:200]
+	}
+	fmt.Printf("[MockAgent] Received prompt: %q\n", snippet)
+
 	// Smart Mock Logic for Smoke Tests
 
 	// 1. Ticket Generation for 'prime-python' scenario
@@ -105,7 +112,7 @@ fi
 `, nil
 	}
 
-	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") {
+	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") || strings.Contains(prompt, "PROJECT MANAGER") {
 		return `I have reviewed the work and it meets all requirements.
 
 ` + "```bash" + `
@@ -138,9 +145,11 @@ fi
 	// We use a "greedy" match here: if it talks about the primes task AND it's NOT the ticket generation prompt (checked above),
 	// assume it's the coding task.
 	// We check for keywords related to the task.
+	// CRITICAL: Ensure we are NOT in a Manager/QA prompt that coincidentally mentions primes.py
 	isPrimesTask := strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "primes.json") || strings.Contains(prompt, "req-primes")
+	isNotManager := !strings.Contains(prompt, "PROJECT MANAGER") && !strings.Contains(prompt, "QA AGENT")
 
-	if isPrimesTask {
+	if isPrimesTask && isNotManager {
 		return `I will create the primes.py script and generate the JSON file as requested.
 
 ` + "```bash" + `
