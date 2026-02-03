@@ -57,9 +57,8 @@ func (m *MockAgent) generatePrimesTickets() string {
 	// Let's refine the summary/description to match the spec exactly to be safe.
 	return `[
   {
-    "id": "PRIMES",
+    "title": "ID:[PRIMES] Create Prime Number Script",
     "type": "Task",
-    "summary": "[PRIMES] Create Prime Number Script",
     "description": "Create a python script named 'primes.py'. It MUST be python.\nIt must calculate all prime numbers less than 10,000 and output to a file named 'primes.json'.\nIMPORTANT: You MUST use a bash block to create the file.",
     "labels": ["recac-smoke-test"]
   }
