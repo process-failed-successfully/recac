@@ -95,13 +95,32 @@ func (s *Session) checkBlockers(ctx context.Context) error {
 	}
 
 	// Legacy File Check (Deprecating, but keeping for compatibility)
-	if s.Docker != nil {
-		blockerFiles := []string{"recac_blockers.txt", "blockers.txt"}
-		for _, bf := range blockerFiles {
+	blockerFiles := []string{"recac_blockers.txt", "blockers.txt"}
+	for _, bf := range blockerFiles {
+		var content string
+		var fileExists bool
+
+		if s.UseLocalAgent {
+			// Local Check
+			path := filepath.Join(s.Workspace, bf)
+			data, readErr := os.ReadFile(path)
+			if readErr == nil {
+				content = string(data)
+				fileExists = true
+			}
+		} else if s.Docker != nil {
+			// Docker Check
 			checkCmd := []string{"/bin/sh", "-c", fmt.Sprintf("test -f %s && cat %s", bf, bf)}
-			blockerContent, err := s.Docker.Exec(ctx, s.GetContainerID(), checkCmd)
-			trimmed := strings.TrimSpace(blockerContent)
-			if err == nil && len(trimmed) > 0 {
+			out, execErr := s.Docker.Exec(ctx, s.GetContainerID(), checkCmd)
+			if execErr == nil && len(strings.TrimSpace(out)) > 0 {
+				content = out
+				fileExists = true
+			}
+		}
+
+		if fileExists {
+			trimmed := strings.TrimSpace(content)
+			if len(trimmed) > 0 {
 				// Check for false positives (status messages instead of blockers)
 				// 1. Normalize: lowercase and remove common comment/bullet chars (#, *, -, whitespace)
 				cleanStr := strings.ToLower(trimmed)
@@ -122,13 +141,17 @@ func (s *Session) checkBlockers(ctx context.Context) error {
 				if isFalsePositive {
 					s.Logger.Info("ignoring false positive blocker", "file", bf, "content", trimmed)
 					// Cleanup the file so it doesn't re-trigger
-					s.Docker.Exec(ctx, s.GetContainerID(), []string{"rm", bf})
+					if s.UseLocalAgent {
+						os.Remove(filepath.Join(s.Workspace, bf))
+					} else if s.Docker != nil {
+						s.Docker.Exec(ctx, s.GetContainerID(), []string{"rm", bf})
+					}
 					continue
 				}
 
 				// Real Blocker found!
 				s.Logger.Warn("agent reported blocker file", "file", bf)
-				s.Logger.Warn("blocker content", "content", blockerContent)
+				s.Logger.Warn("blocker content", "content", content)
 				s.Logger.Info("session stopping to allow human resolution")
 				return ErrBlocker
 			}
