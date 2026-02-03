@@ -94,32 +94,36 @@ func (s *Session) checkBlockers(ctx context.Context) error {
 		}
 	}
 
-	// Legacy File Check (Deprecating, but keeping for compatibility)
+	blockerFiles := []string{"recac_blockers.txt", "blockers.txt"}
+
+	// Local Agent Check
+	if s.UseLocalAgent {
+		for _, bf := range blockerFiles {
+			path := filepath.Join(s.Workspace, bf)
+			if data, err := os.ReadFile(path); err == nil && len(bytes.TrimSpace(data)) > 0 {
+				content := string(data)
+				if s.isFalsePositiveBlocker(content) {
+					s.Logger.Info("ignoring false positive blocker", "file", bf, "content", content)
+					os.Remove(path)
+					continue
+				}
+				s.Logger.Warn("agent reported blocker file", "file", bf)
+				s.Logger.Warn("blocker content", "content", content)
+				s.Logger.Info("session stopping to allow human resolution")
+				return ErrBlocker
+			}
+		}
+		return nil
+	}
+
+	// Legacy File Check (Docker)
 	if s.Docker != nil {
-		blockerFiles := []string{"recac_blockers.txt", "blockers.txt"}
 		for _, bf := range blockerFiles {
 			checkCmd := []string{"/bin/sh", "-c", fmt.Sprintf("test -f %s && cat %s", bf, bf)}
 			blockerContent, err := s.Docker.Exec(ctx, s.GetContainerID(), checkCmd)
 			trimmed := strings.TrimSpace(blockerContent)
 			if err == nil && len(trimmed) > 0 {
-				// Check for false positives (status messages instead of blockers)
-				// 1. Normalize: lowercase and remove common comment/bullet chars (#, *, -, whitespace)
-				cleanStr := strings.ToLower(trimmed)
-				cleanStr = strings.ReplaceAll(cleanStr, "#", "")
-				cleanStr = strings.ReplaceAll(cleanStr, "*", "")
-				cleanStr = strings.ReplaceAll(cleanStr, "-", "")
-				cleanStr = strings.Join(strings.Fields(cleanStr), " ") // Normalize internal whitespace
-
-				isFalsePositive := strings.Contains(cleanStr, "no blockers") ||
-					strings.HasPrefix(cleanStr, "none") ||
-					strings.Contains(cleanStr, "no technical obstacles") ||
-					strings.Contains(cleanStr, "progressing smoothly") ||
-					strings.Contains(cleanStr, "initial setup complete") ||
-					strings.Contains(cleanStr, "all requirements met") ||
-					strings.Contains(cleanStr, "ready for next feature") ||
-					strings.Contains(cleanStr, "ui verification required")
-
-				if isFalsePositive {
+				if s.isFalsePositiveBlocker(trimmed) {
 					s.Logger.Info("ignoring false positive blocker", "file", bf, "content", trimmed)
 					// Cleanup the file so it doesn't re-trigger
 					s.Docker.Exec(ctx, s.GetContainerID(), []string{"rm", bf})
@@ -135,6 +139,24 @@ func (s *Session) checkBlockers(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func (s *Session) isFalsePositiveBlocker(content string) bool {
+	// 1. Normalize: lowercase and remove common comment/bullet chars (#, *, -, whitespace)
+	cleanStr := strings.ToLower(content)
+	cleanStr = strings.ReplaceAll(cleanStr, "#", "")
+	cleanStr = strings.ReplaceAll(cleanStr, "*", "")
+	cleanStr = strings.ReplaceAll(cleanStr, "-", "")
+	cleanStr = strings.Join(strings.Fields(cleanStr), " ") // Normalize internal whitespace
+
+	return strings.Contains(cleanStr, "no blockers") ||
+		strings.HasPrefix(cleanStr, "none") ||
+		strings.Contains(cleanStr, "no technical obstacles") ||
+		strings.Contains(cleanStr, "progressing smoothly") ||
+		strings.Contains(cleanStr, "initial setup complete") ||
+		strings.Contains(cleanStr, "all requirements met") ||
+		strings.Contains(cleanStr, "ready for next feature") ||
+		strings.Contains(cleanStr, "ui verification required")
 }
 
 // executeCommandBlock handles the execution of a single command block.
