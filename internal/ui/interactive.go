@@ -321,7 +321,7 @@ func NewInteractiveModel(commands []SlashCommand, provider, model string) Intera
 
 	// Spinner
 	s := spinner.New()
-	s.Spinner = spinner.Dot
+	s.Spinner = spinner.MiniDot
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 
 	vp := viewport.New(50, 10)
@@ -1195,7 +1195,12 @@ func (m InteractiveModel) View() string {
 	if status != "" {
 		views = append(views, status)
 	} else {
-		views = append(views, " ") // Maintain layout stability
+		// Maintain layout stability & show helpful hint
+		hint := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240")).
+			PaddingLeft(1).
+			Render("Press / for menu • ! for shell")
+		views = append(views, hint)
 	}
 	views = append(views, promptStyle.Render(m.textarea.View()))
 
