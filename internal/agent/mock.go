@@ -32,22 +32,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Smart Mock Logic for Smoke Tests
-	// 1. Ticket Generation Request (Prime Python Scenario)
-	if strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "JSON format") {
-		return `[
-  {
-    "title": "[GEN] Create Prime Number Script",
-    "description": "Create a python script named 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'. ID:[PRIMES]",
-    "type": "Task",
-    "children": []
-  }
-]`, nil
-	}
+	upperPrompt := strings.ToUpper(prompt)
 
-	// 2. Initializer Logic
+	// 1. Initializer Logic (Role)
 	// Matches prompt from Initializer Agent asking to create feature list
 	// We use Case Insensitive matching and check for "INITIALIZER" to be robust.
-	upperPrompt := strings.ToUpper(prompt)
 	if strings.Contains(upperPrompt, "INITIALIZER") || strings.Contains(prompt, "feature_list.json") {
 		// Debug logging to help identify why this branch is taken (or not)
 		fmt.Println("[MockAgent] Matched Initializer Logic")
@@ -74,7 +63,51 @@ fi
 `, nil
 	}
 
-	// 3. Implementation Request (Writing the file)
+	// 2. QA Agent Role
+	if strings.Contains(upperPrompt, "QA AGENT") {
+		return `QA verification passed.
+
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// 3. Project Manager Role
+	if strings.Contains(upperPrompt, "PROJECT MANAGER") {
+		return `Project approved.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
+	}
+
+	// 4. Completion Guard ("nothing to commit")
+	// If the agent sees "nothing to commit", it implies the coding task is done.
+	// We signal COMPLETED to trigger QA.
+	if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
+		return `It seems the work is complete and there are no more changes to commit.
+
+` + "```bash" + `
+agent-bridge signal COMPLETED true
+` + "```" + `
+`, nil
+	}
+
+	// 5. Ticket Generation Request (Content)
+	if strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "JSON format") {
+		return `[
+  {
+    "title": "[GEN] Create Prime Number Script",
+    "description": "Create a python script named 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'. ID:[PRIMES]",
+    "type": "Task",
+    "children": []
+  }
+]`, nil
+	}
+
+	// 6. Implementation Request (Content)
 	// Matches prompt asking to implement "PRIMES" or "primes.py"
 	// Also check for [GEN] tag which appears in E2E tests
 	if strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[GEN]") || strings.Contains(upperPrompt, "PRIME") {
@@ -115,38 +148,6 @@ git commit -m "Add primes script and output"
 # Let's try to be robust and set 'req-primes' (from Initializer) AND 'req-primes-json-contains-correct-primes' (from Environment Injection if any)
 agent-bridge feature set req-primes --status done --passes true
 agent-bridge feature set req-primes-json-contains-correct-primes --status done --passes true
-` + "```" + `
-`, nil
-	}
-
-	// 4. Nothing to Commit (Completion Guard)
-	// If the agent sees "nothing to commit", it implies the coding task is done.
-	// We signal COMPLETED to trigger QA.
-	if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
-		return `It seems the work is complete and there are no more changes to commit.
-
-` + "```bash" + `
-agent-bridge signal COMPLETED true
-` + "```" + `
-`, nil
-	}
-
-	// 5. QA Agent Role
-	if strings.Contains(upperPrompt, "QA AGENT") {
-		return `QA verification passed.
-
-` + "```bash" + `
-agent-bridge signal QA_PASSED true
-` + "```" + `
-`, nil
-	}
-
-	// 6. Project Manager Role
-	if strings.Contains(upperPrompt, "PROJECT MANAGER") {
-		return `Project approved.
-
-` + "```bash" + `
-agent-bridge signal PROJECT_SIGNED_OFF true
 ` + "```" + `
 `, nil
 	}
