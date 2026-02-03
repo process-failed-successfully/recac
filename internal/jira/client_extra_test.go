@@ -275,3 +275,90 @@ func TestGetBlockers(t *testing.T) {
 		})
 	}
 }
+
+func TestGetBlockerKeys_ReleasedStatus(t *testing.T) {
+	client := NewClient("", "", "")
+
+	ticket := map[string]interface{}{
+		"fields": map[string]interface{}{
+			"issuelinks": []interface{}{
+				map[string]interface{}{
+					"type": map[string]interface{}{
+						"inward": "is blocked by",
+					},
+					"inwardIssue": map[string]interface{}{
+						"key": "RD-160",
+						"fields": map[string]interface{}{
+							"status": map[string]interface{}{
+								"name": "Released",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	blockers := client.GetBlockerKeys(ticket)
+	if len(blockers) != 0 {
+		t.Errorf("expected 0 blockers for 'Released' status, got %v", blockers)
+	}
+}
+
+func TestGetBlockerKeys_DeployedStatus(t *testing.T) {
+	client := NewClient("", "", "")
+
+	ticket := map[string]interface{}{
+		"fields": map[string]interface{}{
+			"issuelinks": []interface{}{
+				map[string]interface{}{
+					"type": map[string]interface{}{
+						"inward": "is blocked by",
+					},
+					"inwardIssue": map[string]interface{}{
+						"key": "RD-161",
+						"fields": map[string]interface{}{
+							"status": map[string]interface{}{
+								"name": "Deployed",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	blockers := client.GetBlockerKeys(ticket)
+	if len(blockers) != 0 {
+		t.Errorf("expected 0 blockers for 'Deployed' status, got %v", blockers)
+	}
+}
+
+func TestGetBlockerKeys_CancelledStatus(t *testing.T) {
+	client := NewClient("", "", "")
+
+	ticket := map[string]interface{}{
+		"fields": map[string]interface{}{
+			"issuelinks": []interface{}{
+				map[string]interface{}{
+					"type": map[string]interface{}{
+						"inward": "is blocked by",
+					},
+					"inwardIssue": map[string]interface{}{
+						"key": "RD-162",
+						"fields": map[string]interface{}{
+							"status": map[string]interface{}{
+								"name": "Cancelled",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	blockers := client.GetBlockerKeys(ticket)
+	if len(blockers) != 0 {
+		t.Errorf("expected 0 blockers for 'Cancelled' status, got %v", blockers)
+	}
+}
