@@ -3,10 +3,11 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
-// MockAgent is a simple mock agent for testing and mock mode
-// It returns predefined responses without making actual API calls
+// MockAgent is a smart mock agent for testing and mock mode
+// It includes heuristics to pass E2E scenarios like prime-python
 type MockAgent struct {
 	responsePrefix string
 	forcedResponse string
@@ -25,13 +26,46 @@ func (m *MockAgent) SetResponse(response string) {
 }
 
 // Send implements the Agent interface
-// It returns a mock response that acknowledges the prompt
 func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
-	// Return a mock response that shows the agent received the prompt
-	// This allows the session to run without requiring real API keys
+
+	// Heuristics for Smoke Tests (prime-python)
+
+	// 1. QA / Verification Phase
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return "```bash\nagent-bridge signal QA_PASSED true\n```\nQA Passed.", nil
+	}
+
+	// 2. Manager Sign-off
+	if strings.Contains(prompt, "PROJECT MANAGER") {
+		return "```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```\nProject Approved.", nil
+	}
+
+	// 3. Implementation Phase (primes.py)
+	if strings.Contains(prompt, "Calculate primes") || strings.Contains(prompt, "[PRIMES]") {
+		return `
+Sure, I will create a python script to calculate primes.
+
+` + "```bash" + `
+cat <<EOF > primes.py
+def is_prime(n):
+    if n <= 1: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0: return False
+    return True
+
+print([x for x in range(20) if is_prime(x)])
+EOF
+
+# Signal feature completion
+agent-bridge feature set req-create-primes-py --status done
+` + "```" + `
+`, nil
+	}
+
+	// Default response
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
