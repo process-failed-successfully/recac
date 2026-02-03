@@ -62,7 +62,7 @@ fi
 	}
 
 	// Heuristic for Manager Role - specific to E2E smoke tests
-	if contains(strings.ToUpper(prompt), "YOUR ROLE - MANAGER") || contains(strings.ToUpper(prompt), "MANAGER AGENT") {
+	if contains(strings.ToUpper(prompt), "YOUR ROLE - PROJECT MANAGER") || contains(strings.ToUpper(prompt), "PROJECT MANAGER") || contains(strings.ToUpper(prompt), "MANAGER AGENT") {
 		return `I have reviewed the project and it looks ready for sign-off.
 ` + "```bash" + `
 # Review progress (simulated)
