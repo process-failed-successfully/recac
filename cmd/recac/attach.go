@@ -1,11 +1,11 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"os"
-	"recac/internal/runner"
+	"recac/internal/ui"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
 
@@ -21,7 +21,7 @@ var attachCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		sessionName := args[0]
 
-		sm, err := runner.NewSessionManager()
+		sm, err := sessionManagerFactory()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to create session manager: %v\n", err)
 			exit(1)
@@ -33,38 +33,19 @@ var attachCmd = &cobra.Command{
 			exit(1)
 		}
 
-		if session.Status != "running" {
-			fmt.Fprintf(os.Stderr, "Error: session '%s' is not running (status: %s)\n", sessionName, session.Status)
-			exit(1)
-		}
-
-		fmt.Printf("Attaching to session '%s' (PID: %d)\n", sessionName, session.PID)
-		fmt.Println("Press Ctrl+C to detach")
-		fmt.Println("===========================================")
-
-		// Stream logs
 		logFile, err := sm.GetSessionLogs(sessionName)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			exit(1)
 		}
 
-		file, err := os.Open(logFile)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: failed to open log file: %v\n", err)
+		// Start TUI
+		m := ui.NewAttachDashboardModel(sessionName, logFile, session.Status)
+		p := tea.NewProgram(m, tea.WithAltScreen())
+
+		if _, err := p.Run(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error running attach TUI: %v\n", err)
 			exit(1)
 		}
-		defer file.Close()
-
-		// Read and display existing logs
-		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
-			fmt.Println(scanner.Text())
-		}
-
-		// Note: Real-time following would require file watching
-		// For now, we just show the current logs
-		fmt.Println("\n(Real-time following not yet implemented - showing current logs)")
-		fmt.Println("Use 'recac-app logs --follow' for continuous updates")
 	},
 }
