@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"fmt"
 	"strings"
 )
 
@@ -36,11 +35,13 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(prompt, "Technical Program Manager (TPM)") || strings.Contains(prompt, "generate tickets") {
 		return `[
   {
+    "id": "PRIMES",
     "title": "Epic: Implement Core Features",
     "description": "Repo: https://github.com/process-failed-successfully/recac-jira-e2e\nImplement the core functionality described in the spec.",
     "type": "Epic",
     "children": [
       {
+        "id": "PRIMES-1",
         "title": "Story: Implement Primary Logic",
         "description": "Repo: https://github.com/process-failed-successfully/recac-jira-e2e\nDevelop the main script/application logic.",
         "type": "Story",
@@ -51,11 +52,51 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
-	// Return a mock response that shows the agent received the prompt
-	// This allows the session to run without requiring real API keys
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
-		m.responsePrefix, len(prompt), truncateString(prompt, 100))
-	return response, nil
+	// 1. Initializer Role
+	if strings.Contains(strings.ToLower(prompt), "initializer agent") {
+		return `I will initialize the project features.
+` + "```bash" + `
+echo '{"features": [{"id": "req-1", "description": "impl", "status": "todo"}]}' > feature_list.json
+cat feature_list.json | agent-bridge import
+` + "```", nil
+	}
+
+	// 2. QA Role
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return `QA Checks Passed.
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```", nil
+	}
+
+	// 3. Manager Role
+	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") {
+		return `Project Approved.
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```", nil
+	}
+
+	// 4. Completion Check (Prevent Loop)
+	if strings.Contains(strings.ToLower(prompt), "nothing to commit") {
+		return `No changes to commit. Marking features as done to proceed.
+` + "```bash" + `
+agent-bridge feature list --json | jq -r '.features[].id' | xargs -I {} agent-bridge feature set {} --status done --passes true
+agent-bridge signal COMPLETED true
+` + "```", nil
+	}
+
+	// 5. Default Coding Agent (Smoke Test Logic)
+	// If we are in a coding loop (default), generate code and update features.
+	// We use a generic approach that works for the smoke test "prime-python" or similar.
+	return `I will implement the requested logic and update feature status.
+` + "```bash" + `
+# Create a dummy implementation file to satisfy requirements
+echo "def is_prime(n): return n > 1" > primes.py
+
+# Mark all features as done and passing
+agent-bridge feature list --json | jq -r '.features[].id' | xargs -I {} agent-bridge feature set {} --status done --passes true
+` + "```", nil
 }
 
 // SendStream implements the Agent interface
@@ -67,10 +108,3 @@ func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(
 	return resp, err
 }
 
-// truncateString truncates a string to a maximum length
-func truncateString(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen]
-}

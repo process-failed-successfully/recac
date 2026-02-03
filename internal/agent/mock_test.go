@@ -6,31 +6,38 @@ import (
 	"testing"
 )
 
-func TestMockAgent(t *testing.T) {
+func TestMockAgent_TPM(t *testing.T) {
 	agent := NewMockAgent()
-
-	prompt := "This is a test prompt that is long enough to be truncated"
+	prompt := "You are a Technical Program Manager (TPM)"
 	response, err := agent.Send(context.Background(), prompt)
-
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
 	}
-
-	if !strings.Contains(response, "Mock agent response") {
-		t.Errorf("Response missing prefix, got: %s", response)
-	}
-
-	if !strings.Contains(response, "I received your prompt") {
-		t.Errorf("Response missing body, got: %s", response)
+	if !strings.Contains(response, "Epic: Implement Core Features") {
+		t.Errorf("Expected TPM response, got: %s", response)
 	}
 }
 
-func TestTruncateString(t *testing.T) {
-	s := "hello world"
-	if truncateString(s, 5) != "hello" {
-		t.Errorf("Expected 'hello', got '%s'", truncateString(s, 5))
+func TestMockAgent_Coding(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Implement the features" // Generic prompt
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
 	}
-	if truncateString(s, 20) != "hello world" {
-		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
+	if !strings.Contains(response, "agent-bridge feature set") {
+		t.Errorf("Expected coding response with feature update, got: %s", response)
+	}
+}
+
+func TestMockAgent_QA(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "YOUR ROLE - QA AGENT"
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(response, "QA_PASSED") {
+		t.Errorf("Expected QA signal, got: %s", response)
 	}
 }
