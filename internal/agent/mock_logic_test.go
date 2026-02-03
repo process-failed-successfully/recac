@@ -102,3 +102,21 @@ func TestMockAgent_Manager(t *testing.T) {
 		t.Errorf("Expected PROJECT_SIGNED_OFF signal, got: %s", resp)
 	}
 }
+
+func TestMockAgent_ManagerPriority(t *testing.T) {
+	agent := NewMockAgent()
+	// Prompt containing both "primes.py" (task context) and "YOUR ROLE - PROJECT MANAGER"
+	prompt := "History: implemented primes.py ... YOUR ROLE - PROJECT MANAGER ... QA Report for primes.py"
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Should prioritize Manager Sign-off over Implementation
+	if strings.Contains(resp, "cat << 'EOF' > primes.py") {
+		t.Errorf("MockAgent stuck in loop: returned implementation script instead of Manager sign-off")
+	}
+	if !strings.Contains(resp, "agent-bridge signal PROJECT_SIGNED_OFF true") {
+		t.Errorf("Expected PROJECT_SIGNED_OFF signal, got: %s", resp)
+	}
+}

@@ -104,7 +104,35 @@ fi
 `, nil
 	}
 
-	// 4. Implementation for 'prime-python' scenario
+	// 4. QA Agent
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return `I have verified the implementation. All tests passed.
+
+` + "```bash" + `
+# Run verification (mock)
+python3 primes.py
+if [ -f primes.json ]; then
+    echo "Verification successful"
+    agent-bridge signal QA_PASSED true
+else
+    echo "Verification failed"
+fi
+` + "```" + `
+`, nil
+	}
+
+	// 5. Manager Agent
+	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") {
+		return `I have reviewed the work and it meets all requirements.
+
+` + "```bash" + `
+echo "Project signed off"
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
+	}
+
+	// 6. Implementation for 'prime-python' scenario
 	// The prompt will typically contain the ticket description or "primes.py" instructions.
 	// We use a "greedy" match here: if it talks about the primes task AND it's NOT the ticket generation prompt (checked above),
 	// assume it's the coding task.
@@ -139,34 +167,6 @@ git config user.name "Mock Agent"
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
-` + "```" + `
-`, nil
-	}
-
-	// 5. QA Agent
-	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
-		return `I have verified the implementation. All tests passed.
-
-` + "```bash" + `
-# Run verification (mock)
-python3 primes.py
-if [ -f primes.json ]; then
-    echo "Verification successful"
-    agent-bridge signal QA_PASSED true
-else
-    echo "Verification failed"
-fi
-` + "```" + `
-`, nil
-	}
-
-	// 6. Manager Agent
-	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") {
-		return `I have reviewed the work and it meets all requirements.
-
-` + "```bash" + `
-echo "Project signed off"
-agent-bridge signal PROJECT_SIGNED_OFF true
 ` + "```" + `
 `, nil
 	}
