@@ -85,7 +85,7 @@ func TestRunTest_Impacted(t *testing.T) {
 			// Verify args
 			expected := []string{"test", "-v", "pkg/affected"}
 			assert.Equal(t, expected, arg)
-			return exec.Command("echo", "PASS")
+			return exec.Command("echo", "✅ All tests passed.")
 		}
 		return exec.Command("echo", "unexpected")
 	}
@@ -98,7 +98,7 @@ func TestRunTest_Impacted(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, output, "Analyzing impact")
 	assert.Contains(t, output, "Running tests for 1 packages")
-	assert.Contains(t, output, "PASS")
+	assert.Contains(t, output, "✅ All tests passed.")
 }
 
 func TestRunTest_DiagnoseFailure(t *testing.T) {
