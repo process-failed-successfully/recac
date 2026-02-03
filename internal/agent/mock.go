@@ -28,13 +28,27 @@ func (m *MockAgent) SetResponse(response string) {
 // Send implements the Agent interface
 // It returns a mock response that acknowledges the prompt
 func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
+	// Debug logging to help trace mock agent behavior in CI
+	fmt.Printf("[MockAgent] Received Prompt: %s...\n", truncateString(prompt, 50))
+
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
-	// Return a mock response that shows the agent received the prompt
-	// This allows the session to run without requiring real API keys
 
-	// Heuristic for Jira Ticket Generation (TPM Agent)
+	// 1. QA Agent Heuristic
+	// Detects if the agent is acting as QA to approve the project
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return "QA_PASSED", nil
+	}
+
+	// 2. Manager Agent Heuristic
+	// Detects if the agent is the Manager receiving a report to sign off
+	if strings.Contains(prompt, "Manager Agent") && (strings.Contains(prompt, "QA Report") || strings.Contains(prompt, "status report")) {
+		return "PROJECT_SIGNED_OFF", nil
+	}
+
+	// 3. TPM (Ticket Generation) Heuristic
+	// Returns a valid JSON plan for the prime-python scenario
 	if isTPMPrompt(prompt) {
 		return `[
   {
@@ -51,9 +65,35 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
-		m.responsePrefix, len(prompt), truncateString(prompt, 100))
-	return response, nil
+	// 4. Initializer Heuristic
+	// If it's the initializer, we return a simple acknowledgement.
+	// We check for "INITIALIZER" but explicitly NOT "implementation" to avoid overlap if prompt leaks context.
+	if strings.Contains(prompt, "INITIALIZER") {
+		return "I have analyzed the spec and created the plan.", nil
+	}
+
+	// 5. Implementation (Default) Heuristic
+	// This is the critical part for preventing NO-OP loops.
+	// We MUST return bash commands that:
+	// a) Do some work (create files)
+	// b) Update feature status via agent-bridge so the loop progresses
+	// c) Signal completion
+
+	return `
+I will implement the requested features.
+
+` + "```bash" + `
+# Create the file
+echo "def is_prime(n): return n > 1" > primes.py
+
+# Mark features as done
+# Dynamic discovery to handle injected features
+agent-bridge feature list --json | jq -r '.features[].id' | xargs -I {} agent-bridge feature set {} --status done --passes true
+
+# Signal completion to break the loop
+echo "COMPLETED"
+` + "```" + `
+`, nil
 }
 
 func isTPMPrompt(prompt string) bool {
