@@ -624,7 +624,7 @@ func (c *Client) AddLabel(ctx context.Context, key, label string) error {
 }
 
 func isDoneStatus(status string) bool {
-	doneStatuses := []string{"Done", "Closed", "Resolved", "Finished", "Passed"}
+	doneStatuses := []string{"Done", "Closed", "Resolved", "Finished", "Passed", "Cancelled", "Released", "Deployed"}
 	for _, s := range doneStatuses {
 		if strings.EqualFold(s, status) {
 			return true
