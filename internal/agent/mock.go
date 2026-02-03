@@ -33,7 +33,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Detect Ticket Generation Request (jira generate-from-spec)
-	// This uses the TPM Agent prompt which mentions "INVEST" principle and outputting Epics/Stories.
+	// Uses 'tpm_agent.md' template which starts with "You are an expert Technical Program Manager"
 	if isTicketGenerationPrompt(prompt) {
 		return `[
   {
@@ -56,6 +56,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Detect Planner Request (recac plan)
+	// Uses 'planner.md' template which starts with "## ROLE: Lead Software Architect"
 	if isPlannerPrompt(prompt) {
 		return `{
   "project_name": "Mock Project",
@@ -80,28 +81,15 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 }
 
 func isTicketGenerationPrompt(prompt string) bool {
-	// The TPM Agent prompt mentions "INVEST" and "User Stories"
-	return contains(prompt, "Technical Program Manager") &&
-		contains(prompt, "INVEST") &&
-		contains(prompt, "User Stories")
+	// 'tpm_agent.md' specific role
+	return contains(prompt, "Technical Program Manager")
 }
 
 func isPlannerPrompt(prompt string) bool {
-	// Simple keyword detection for the planner prompt
-	// The Planner prompt asks for a JSON list of features and usually mentions "feature_list.json" or similar.
-	// We need to ensure we don't accidentally match the Ticket Generation prompt if that also mentions JSON.
-	// The Ticket Generation prompt uses "Epics" and "User Stories".
-	// The Planner prompt usually focuses on "Features".
-
-	isTPM := contains(prompt, "Technical Program Manager") || contains(prompt, "Planner")
-	hasJSON := contains(prompt, "JSON") || contains(prompt, "feature_list")
-
-	// Exclude if it looks like the Ticket Generation prompt
-	if contains(prompt, "INVEST") {
-		return false
-	}
-
-	return isTPM && hasJSON
+	// 'planner.md' specific role
+	return contains(prompt, "Lead Software Architect") ||
+	       // Legacy/Fallback check if planner.md is different in other environments
+	       (contains(prompt, "Planner") && contains(prompt, "feature_list"))
 }
 
 func contains(s, substr string) bool {
