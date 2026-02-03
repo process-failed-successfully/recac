@@ -47,7 +47,7 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 
 	// Check for Blockers
 	if err := s.checkBlockers(ctx); err != nil {
-		return "", err
+		return parsedOutput.String(), err
 	}
 
 	// Metrics Collection
