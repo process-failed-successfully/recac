@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -37,12 +38,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return `[
   {
     "title": "Mock Epic",
-    "description": "Repo: https://github.com/example/repo\nMock description",
+    "description": "Repo: https://github.com/process-failed-successfully/recac-jira-e2e\nMock description",
     "type": "Epic",
     "children": [
       {
         "title": "Mock Story",
-        "description": "Repo: https://github.com/example/repo\nMock story description",
+        "description": "Repo: https://github.com/process-failed-successfully/recac-jira-e2e\nMock story description",
         "type": "Story"
       }
     ]
@@ -61,32 +62,12 @@ func containsTicketKeywords(prompt string) bool {
 	// Simple check for keywords likely present in ticket generation prompts
 	keywords := []string{"ticket", "jira", "spec", "epic", "story", "Technical Program Manager", "application specification"}
 	for _, k := range keywords {
-		if stringContains(prompt, k) {
+		if strings.Contains(prompt, k) {
 			return true
 		}
 	}
 	// Better heuristic: checks if the prompt is asking for a plan
-	return len(prompt) > 0 && (stringContains(prompt, "generate ticket plan") || stringContains(prompt, "app_spec"))
-}
-
-func stringContains(s, substr string) bool {
-    // Basic contains implementation to avoid imports if needed, but strings is standard
-    // Since we are in 'agent' package which likely imports strings, we can use it.
-    // But wait, we need to import "strings" if not already imported.
-    // "strings" is already imported in mock.go? Let's check the file content.
-    // Yes, 'truncateString' uses slicing, but imports block shows "fmt".
-    // I need to ensure "strings" is imported.
-    // Actually, let's just use a simple loop or assume strings is available if I add it.
-    // The previous read_file showed "fmt" only.
-
-    // I will use a simple implementation here to avoid import issues if I can't see the top.
-    // Actually, I can replace the import block too.
-    for i := 0; i < len(s)-len(substr)+1; i++ {
-        if s[i:i+len(substr)] == substr {
-            return true
-        }
-    }
-    return false
+	return len(prompt) > 0 && (strings.Contains(prompt, "generate ticket plan") || strings.Contains(prompt, "app_spec"))
 }
 
 // SendStream implements the Agent interface
