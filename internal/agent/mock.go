@@ -124,7 +124,7 @@ agent-bridge signal QA_PASSED true
 	// 5. Manager Agent (Smoke Test)
 	// Detects Manager Review prompt (usually contains "Manager Agent" and "QA Report").
 	// We want to simulate a successful sign-off.
-	if strings.Contains(prompt, "Manager Agent") && strings.Contains(prompt, "QA Report") {
+	if (strings.Contains(prompt, "Manager Agent") || strings.Contains(prompt, "PROJECT MANAGER")) && strings.Contains(prompt, "QA Report") {
 		return `I have reviewed the work and the QA report. Everything looks good.
 
 ` + "```bash" + `

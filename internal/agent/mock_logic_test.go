@@ -72,3 +72,39 @@ func TestMockAgent_Completion(t *testing.T) {
 		t.Errorf("Expected completion signal when both keywords present, got: %s", resp3)
 	}
 }
+
+func TestMockAgent_QA(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "## YOUR ROLE - QA AGENT\n\nPlease verify the project."
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(resp, "agent-bridge signal QA_PASSED true") {
+		t.Errorf("Expected QA_PASSED signal, got: %s", resp)
+	}
+}
+
+func TestMockAgent_Manager(t *testing.T) {
+	agent := NewMockAgent()
+	// Matches the actual prompt template
+	prompt := "## YOUR ROLE - PROJECT MANAGER\n\nQA Report:\nQA Passed."
+
+	// Also emulate the scenario where "primes.py" is in the prompt (from QA report content)
+	// which caused the regression (falling back to implementation)
+	promptWithContext := prompt + "\nVerified primes.py implementation."
+
+	resp, err := agent.Send(context.Background(), promptWithContext)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if strings.Contains(resp, "cat << 'EOF' > primes.py") {
+		t.Errorf("Agent tried to re-implement primes.py instead of signing off!")
+	}
+
+	if !strings.Contains(resp, "agent-bridge signal PROJECT_SIGNED_OFF true") {
+		t.Errorf("Expected PROJECT_SIGNED_OFF signal, got: %s", resp)
+	}
+}
