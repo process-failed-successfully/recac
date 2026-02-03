@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"recac/internal/docker"
@@ -237,13 +238,17 @@ func runChaosStress(cmd *cobra.Command, args []string) error {
 	fmt.Fprintf(cmd.OutOrStdout(), "Starting Chaos Stress (CPU: %d, Mem: %dMB, Duration: %s)\n", chaosCPU, chaosMemory, chaosDuration)
 
 	done := make(chan struct{})
+	var wg sync.WaitGroup
+
 	time.AfterFunc(chaosDuration, func() {
 		close(done)
 	})
 
 	// Memory stress
 	if chaosMemory > 0 {
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			blockSize := 1024 * 1024 // 1MB
 			blocks := make([][]byte, 0)
 			for i := 0; i < int(chaosMemory); i++ {
@@ -264,7 +269,9 @@ func runChaosStress(cmd *cobra.Command, args []string) error {
 
 	// CPU stress
 	for i := 0; i < chaosCPU; i++ {
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			for {
 				select {
 				case <-done:
@@ -281,6 +288,7 @@ func runChaosStress(cmd *cobra.Command, args []string) error {
 	}
 
 	<-done
+	wg.Wait()
 	fmt.Fprintln(cmd.OutOrStdout(), "Chaos Stress Finished.")
 	return nil
 }

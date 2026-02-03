@@ -1,11 +1,11 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"os"
 	"path/filepath"
 	"recac/internal/agent"
+	"sync"
 	"testing"
 	"time"
 
@@ -44,15 +44,27 @@ func (m *MockFileWatcher) AddRecursive(root string) error {
 // PairTestMockAgent implements agent.Agent for testing
 type PairTestMockAgent struct {
 	Response string
+	mu       sync.Mutex
+}
+
+func (m *PairTestMockAgent) SetResponse(r string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.Response = r
 }
 
 func (m *PairTestMockAgent) Send(ctx context.Context, prompt string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	return m.Response, nil
 }
 
 func (m *PairTestMockAgent) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
-	onChunk(m.Response)
-	return m.Response, nil
+	m.mu.Lock()
+	resp := m.Response
+	m.mu.Unlock()
+	onChunk(resp)
+	return resp, nil
 }
 
 func TestPairCmd(t *testing.T) {
@@ -88,9 +100,10 @@ func TestPairCmd(t *testing.T) {
 
 	// Create command
 	cmd := &cobra.Command{Use: "pair", RunE: runPair}
-	var outBuf, errBuf bytes.Buffer
-	cmd.SetOut(&outBuf)
-	cmd.SetErr(&errBuf)
+	outBuf := &threadSafeBuffer{}
+	errBuf := &threadSafeBuffer{}
+	cmd.SetOut(outBuf)
+	cmd.SetErr(errBuf)
 
 	// Create context with cancel
 	ctx, cancel := context.WithCancel(context.Background())
@@ -121,7 +134,7 @@ func TestPairCmd(t *testing.T) {
 	assert.Contains(t, output, "LGTM")
 
 	// Test "feedback" case
-	mockAgent.Response = "Found a bug on line 1."
+	mockAgent.SetResponse("Found a bug on line 1.")
 
 	// Trigger another event
 	mockWatcher.events <- fsnotify.Event{

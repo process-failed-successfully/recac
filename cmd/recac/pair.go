@@ -125,6 +125,10 @@ func runPair(cmd *cobra.Command, args []string) error {
 	// Map to track pending updates per file
 	var mu sync.Mutex
 	timers := make(map[string]*time.Timer)
+	var wg sync.WaitGroup
+	var analysisWg sync.WaitGroup
+	var shutdown bool
+	var shutdownMu sync.Mutex
 
 	// Use command context for cancellation
 	ctx := cmd.Context()
@@ -142,7 +146,23 @@ func runPair(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to initialize agent: %w", err)
 	}
 
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
+		defer func() {
+			shutdownMu.Lock()
+			shutdown = true
+			shutdownMu.Unlock()
+
+			mu.Lock()
+			for _, t := range timers {
+				t.Stop()
+			}
+			mu.Unlock()
+
+			analysisWg.Wait()
+		}()
+
 		for {
 			select {
 			case event, ok := <-watcher.Events():
@@ -180,6 +200,15 @@ func runPair(cmd *cobra.Command, args []string) error {
 				}
 				var t *time.Timer
 				t = time.AfterFunc(pairDebounce, func() {
+					shutdownMu.Lock()
+					if shutdown {
+						shutdownMu.Unlock()
+						return
+					}
+					analysisWg.Add(1)
+					shutdownMu.Unlock()
+					defer analysisWg.Done()
+
 					analyzeFile(cmd, ag, filename)
 					mu.Lock()
 					// Only delete if it's still the same timer
@@ -203,6 +232,7 @@ func runPair(cmd *cobra.Command, args []string) error {
 	}()
 
 	<-ctx.Done()
+	wg.Wait()
 	return nil
 }
 
