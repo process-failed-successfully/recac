@@ -161,7 +161,11 @@ func TestRunLoop_Blocker(t *testing.T) {
 
 	// Verification
 	// RunLoop exits immediately on ErrBlocker
-	assert.ErrorIs(t, err, ErrBlocker)
+	// Note: RunLoop may wrap errors, so we check if ErrBlocker is in the chain.
+	// However, if it returned explicitly, it should be exactly ErrBlocker or wrapped.
+	if !errors.Is(err, ErrBlocker) {
+		t.Errorf("Expected error to contain ErrBlocker, got: %v", err)
+	}
 }
 
 func TestRunLoop_QAWorkflow(t *testing.T) {

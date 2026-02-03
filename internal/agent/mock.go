@@ -34,34 +34,6 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	lowerPrompt := strings.ToLower(prompt)
 
-	// 0. TPM Agent Check (Planning)
-	// We must check this BEFORE the Coding Agent check because the plan prompt contains the full spec,
-	// which might trigger the Coding Agent keywords (e.g. "primes.py").
-	if strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "tpm") {
-		return `
-[
-  {
-    "title": "ID:[PRIMES] Prime Number Calculation System",
-    "description": "Implementation of the prime number calculation script.\nRepo: https://github.com/process-failed-successfully/recac-jira-e2e",
-    "type": "Epic",
-    "children": [
-      {
-        "title": "ID:[PRIMES-MVP] Calculate Primes",
-        "description": "Implement the core logic to calculate primes up to 10000 and save to JSON.\nRepo: https://github.com/process-failed-successfully/recac-jira-e2e",
-        "type": "Story",
-        "acceptance_criteria": [
-          "Script runs without error",
-          "primes.json is generated",
-          "Contains 1229 primes"
-        ],
-        "blocked_by": []
-      }
-    ]
-  }
-]
-`, nil
-	}
-
 	// 1. Initializer Check (Creating feature_list.json)
 	if strings.Contains(lowerPrompt, "initializer agent") || (strings.Contains(lowerPrompt, "feature_list.json") && strings.Contains(lowerPrompt, "create")) {
 		return `Here is the feature list for the project:
