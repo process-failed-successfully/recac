@@ -33,7 +33,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Detect Ticket Generation Prompt
-	if strings.Contains(prompt, "Technical Program Manager") && strings.Contains(prompt, "tickets") {
+	if strings.Contains(prompt, "Technical Program Manager") {
 		// Return valid JSON ticket list to satisfy parser
 		return `[
   {
