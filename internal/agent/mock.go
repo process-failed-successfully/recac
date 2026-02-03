@@ -56,9 +56,14 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
   ]`, nil
 	}
 
+	// Heuristic: Check if this is the Initializer agent
+	if strings.Contains(prompt, "Initializer") || strings.Contains(prompt, "feature_list.json") {
+		return "Mock Initializer: Creating feature list.\n```bash\necho '[]' > feature_list.json\n```", nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
+	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...\n\n```bash\necho 'Mock Agent: Processing request...'\n```",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
 }
