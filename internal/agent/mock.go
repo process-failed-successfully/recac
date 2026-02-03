@@ -38,13 +38,25 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 1. QA Agent Heuristic
 	// Detects if the agent is acting as QA to approve the project
 	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
-		return "QA_PASSED", nil
+		return `
+I have verified the project and it looks good.
+
+` + "```bash" + `
+agent-bridge signal set QA_PASSED true
+` + "```" + `
+`, nil
 	}
 
 	// 2. Manager Agent Heuristic
 	// Detects if the agent is the Manager receiving a report to sign off
-	if strings.Contains(prompt, "Manager Agent") && (strings.Contains(prompt, "QA Report") || strings.Contains(prompt, "status report")) {
-		return "PROJECT_SIGNED_OFF", nil
+	if strings.Contains(prompt, "Manager Agent") || (strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER")) {
+		return `
+I approve the project.
+
+` + "```bash" + `
+agent-bridge signal set PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
 	}
 
 	// 3. TPM (Ticket Generation) Heuristic

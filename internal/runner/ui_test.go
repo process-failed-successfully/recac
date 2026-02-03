@@ -2,12 +2,15 @@ package runner
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"recac/internal/agent"
+	"recac/internal/db"
 	"recac/internal/notify"
 	"recac/internal/telemetry"
 )
@@ -23,35 +26,115 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	// 2. Setup: app_spec.txt (required)
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
 
-	// 3. Setup: feature_list.json with ALL PASSING (Use FeatureContent)
-	features := `{"features":[{"id":"1","description":"feat","status":"done","passes":true}]}`
+	// 3. Setup: DBStore (SQLite)
+	dbPath := filepath.Join(tmpDir, "test.db")
+	dbStore, err := db.NewStore(db.StoreConfig{Type: "sqlite", ConnectionString: dbPath})
+	if err != nil {
+		t.Fatalf("Failed to create DBStore: %v", err)
+	}
+	defer dbStore.Close()
 
-	// 4. Setup: ui_verification.json (Should be detected)
-	os.WriteFile(filepath.Join(tmpDir, "ui_verification.json"), []byte("Verify Button Color"), 0644)
+	// 4. Setup: Pre-populate Features in DB (to simulate existing features)
+	features := []db.Feature{
+		{ID: "feat-1", Description: "Feature 1", Status: "pending", Passes: false},
+	}
+	fl := db.FeatureList{ProjectName: "ui-test", Features: features}
+	data, _ := json.Marshal(fl)
+	dbStore.SaveFeatures("ui-test", string(data))
 
-	// 5. Initialize Session
-	mockDocker := &MockDockerForExec{}
+	// 5. Initialize Session with MockDockerClient
+	mockDocker := &MockDockerClient{
+		ExecFunc: func(ctx context.Context, containerID string, cmd []string) (string, error) {
+			fullCmd := strings.Join(cmd, " ")
+
+			// IGNORE BLOCKER CHECKS (Critical for avoiding infinite loops)
+			if strings.Contains(fullCmd, "recac_blockers.txt") || strings.Contains(fullCmd, "blockers.txt") {
+				return "", nil
+			}
+
+			// Detect signal setting commands and update DB
+			if strings.Contains(fullCmd, "agent-bridge signal set") {
+				parts := strings.Fields(fullCmd)
+				for i, part := range parts {
+					if part == "set" && i+1 < len(parts) {
+						signalName := parts[i+1]
+						signalValue := "true"
+						if i+2 < len(parts) {
+							signalValue = parts[i+2]
+						}
+						dbStore.SetSignal("ui-test", signalName, signalValue)
+						return "Signal set: " + signalName + "=" + signalValue, nil
+					}
+				}
+			}
+
+			// Detect feature setting commands and update DB
+			updated := false
+			if strings.Contains(fullCmd, "agent-bridge feature set") {
+				// Handle piped xargs case specifically (MockAgent output)
+				if strings.Contains(fullCmd, "xargs") {
+					fs, _ := dbStore.GetFeatures("ui-test")
+					var list db.FeatureList
+					json.Unmarshal([]byte(fs), &list)
+					for _, f := range list.Features {
+						dbStore.UpdateFeatureStatus("ui-test", f.ID, "done", true)
+					}
+					updated = true
+				} else {
+					// Handle direct feature set
+					parts := strings.Fields(fullCmd)
+					var id string
+					for i, part := range parts {
+						if part == "set" && i+1 < len(parts) {
+							id = parts[i+1]
+							dbStore.UpdateFeatureStatus("ui-test", id, "done", true)
+							updated = true
+							break
+						}
+					}
+				}
+			}
+
+			// Auto-Complete Check (Simulate agent-bridge logic)
+			if updated {
+				fs, _ := dbStore.GetFeatures("ui-test")
+				var list db.FeatureList
+				json.Unmarshal([]byte(fs), &list)
+				allDone := true
+				for _, f := range list.Features {
+					if f.Status != "done" || !f.Passes {
+						allDone = false
+						break
+					}
+				}
+				if allDone {
+					dbStore.SetSignal("ui-test", "COMPLETED", "true")
+				}
+			}
+
+			return "Success: " + fullCmd, nil
+		},
+	}
+
 	mockAgent := agent.NewMockAgent()
 	s := &Session{
 		Docker:           mockDocker,
 		Agent:            mockAgent,
+		QAAgent:          mockAgent, // Inject mock for QA
+		ManagerAgent:     mockAgent, // Inject mock for Manager
 		Workspace:        tmpDir,
-		FeatureContent:   features,
+		Project:          "ui-test",
+		DBStore:          dbStore,
 		ManagerFrequency: 5,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
 		Logger:           telemetry.NewLogger(true, "", false),
+		SleepFunc:        func(d time.Duration) {}, // Skip sleep for tests
 	}
 
-	// 6. Capture Stdout? (Hard to do in test without refactor).
-	// We can trust the code if it compiles and logic flows.
-	// Or we can observe if it creates the COMPLETED signal.
-
+	// 6. Run Loop
 	err = s.RunLoop(context.Background())
 
-	// Since all features pass, it should mark COMPLETED and print UI verification msg.
-	// We mainly verify it DOESN'T fail or block.
-	// ErrNoOp is expected because the MockAgent returns empty responses.
-	if err != nil && !errors.Is(err, ErrNoOp) {
+	if err != nil {
 		t.Errorf("RunLoop failed: %v", err)
 	}
 }
