@@ -31,6 +31,12 @@ func TestArenaCmd(t *testing.T) {
 	originalFactory := agentClientFactory
 	defer func() {
 		agentClientFactory = originalFactory
+		// Reset flags to prevent test pollution
+		arenaCompetitors = ""
+		arenaTask = ""
+		arenaFile = ""
+		arenaJudgeProv = ""
+		arenaJudgeModel = ""
 	}()
 
 	t.Run("Run Arena Success", func(t *testing.T) {
