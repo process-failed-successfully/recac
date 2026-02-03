@@ -34,19 +34,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	fmt.Printf("[MockAgent] Received prompt: %q\n", truncateString(prompt, 500))
 
 	// Smart Mock Logic for Smoke Tests
-	// 1. Ticket Generation Request (Prime Python Scenario)
-	if strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "JSON format") {
-		return `[
-  {
-    "title": "[GEN] Create Prime Number Script",
-    "description": "Create a python script named 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'. ID:[PRIMES]",
-    "type": "Task",
-    "children": []
-  }
-]`, nil
-	}
 
-	// 2. Initializer Logic
+	// 1. Initializer Logic (Must be checked BEFORE Ticket Generation to avoid false positives)
 	// Matches prompt from Initializer Agent asking to create feature list
 	// We use Case Insensitive matching and check for "INITIALIZER" to be robust.
 	upperPrompt := strings.ToUpper(prompt)
@@ -74,6 +63,18 @@ if command -v agent-bridge > /dev/null; then
 fi
 ` + "```" + `
 `, nil
+	}
+
+	// 2. Ticket Generation Request (Prime Python Scenario)
+	if strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "JSON format") {
+		return `[
+  {
+    "title": "[GEN] Create Prime Number Script",
+    "description": "Create a python script named 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'. ID:[PRIMES]",
+    "type": "Task",
+    "children": []
+  }
+]`, nil
 	}
 
 	// 3. Implementation Request (Writing the file)
