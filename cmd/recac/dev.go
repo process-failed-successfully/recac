@@ -91,6 +91,7 @@ func runDev(cmd *cobra.Command, args []string) error {
 	// Event Loop
 	done := make(chan bool)
 	go func() {
+		defer close(done)
 		for {
 			select {
 			case event, ok := <-watcher.Events:
@@ -125,6 +126,8 @@ func runDev(cmd *cobra.Command, args []string) error {
 					return
 				}
 				fmt.Printf("Watcher error: %v\n", err)
+			case <-cmd.Context().Done():
+				return
 			}
 		}
 	}()
@@ -132,7 +135,12 @@ func runDev(cmd *cobra.Command, args []string) error {
 	// Execution Loop
 	go func() {
 		for range trigger {
-			executeDevCommand(runCommand)
+			select {
+			case <-cmd.Context().Done():
+				return
+			default:
+				executeDevCommand(runCommand)
+			}
 		}
 	}()
 

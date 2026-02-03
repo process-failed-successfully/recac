@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -263,10 +264,28 @@ func (m *MockSessionManager) ListArchivedSessions() ([]*runner.SessionState, err
 	return archived, nil
 }
 
+// SyncBuffer is a thread-safe bytes.Buffer
+type SyncBuffer struct {
+	b bytes.Buffer
+	m sync.Mutex
+}
+
+func (b *SyncBuffer) Write(p []byte) (n int, err error) {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.b.Write(p)
+}
+
+func (b *SyncBuffer) String() string {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.b.String()
+}
+
 // executeCommand executes a cobra command and returns its output.
 func executeCommand(root *cobra.Command, args ...string) (output string, err error) {
 	resetFlags(root)
-	b := new(bytes.Buffer)
+	b := &SyncBuffer{}
 
 	// Mock exit
 	oldExit := exit

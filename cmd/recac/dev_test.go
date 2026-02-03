@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -65,11 +66,12 @@ func TestDevCmd(t *testing.T) {
 	devDebounce = 100 * time.Millisecond // Short debounce for test
 
 	// 4. Run Dev Loop in Goroutine
-	// We can't easily stop it, so we'll just let it leak or we need to refactor dev.go to be cancellable.
-	// For this test, leaking one goroutine is acceptable, or we can use a context if we modify dev.go.
-	// But let's verify logic first.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	devCmd.SetContext(ctx)
 
 	// Note: runDev blocks. We run it in a goroutine.
+	done := make(chan struct{})
 	go func() {
 		// Suppress stdout for clean test output
 		// devCmd.SetOut(io.Discard)
@@ -78,6 +80,7 @@ func TestDevCmd(t *testing.T) {
 		// So we can't easily suppress all output without capturing stdout/stderr of the process,
 		// but since we are in a test binary, we can just let it print.
 		runDev(devCmd, []string{})
+		close(done)
 	}()
 
 	// Wait for watcher to start (heuristic)
@@ -109,6 +112,14 @@ func TestDevCmd(t *testing.T) {
 		assert.Contains(t, executedCommands[0], "go test ./...", "Should execute auto-detected command")
 	}
 	mu.Unlock()
+
+	// Stop runDev
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Error("runDev did not exit")
+	}
 }
 
 func TestDevCmd_Manual(t *testing.T) {
@@ -138,8 +149,14 @@ func TestDevCmd_Manual(t *testing.T) {
 	devRecursive = false
 	devDebounce = 100 * time.Millisecond
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	devCmd.SetContext(ctx)
+
+	done := make(chan struct{})
 	go func() {
 		runDev(devCmd, []string{})
+		close(done)
 	}()
 
 	time.Sleep(500 * time.Millisecond)
@@ -159,4 +176,11 @@ func TestDevCmd_Manual(t *testing.T) {
 
 	assert.GreaterOrEqual(t, count, 2)
 	assert.Contains(t, lastCmd, "echo manual")
+
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Error("runDev did not exit")
+	}
 }
