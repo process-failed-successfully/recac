@@ -111,7 +111,7 @@ func (s *Session) checkBlockers(ctx context.Context) error {
 			cmd.Stdout = &outBuf
 			checkErr = cmd.Run()
 			checkOut = outBuf.String()
-		} else {
+		} else if s.Docker != nil {
 			// Docker
 			checkOut, checkErr = s.Docker.Exec(ctx, s.GetContainerID(), []string{"/bin/bash", "-c", checkCmd})
 		}
@@ -120,8 +120,36 @@ func (s *Session) checkBlockers(ctx context.Context) error {
 			// File exists and has content (or empty, but existence is enough?)
 			// Let's require content to be useful
 			blockerContent := strings.TrimSpace(checkOut)
-			// Filter out "passed" or "no blockers"
-			if blockerContent != "" && !strings.Contains(strings.ToLower(blockerContent), "passed") && !strings.Contains(strings.ToLower(blockerContent), "no blockers") {
+
+			// Check for false positives (status messages instead of blockers)
+			// 1. Normalize: lowercase and remove common comment/bullet chars (#, *, -, whitespace)
+			cleanStr := strings.ToLower(blockerContent)
+			cleanStr = strings.ReplaceAll(cleanStr, "#", "")
+			cleanStr = strings.ReplaceAll(cleanStr, "*", "")
+			cleanStr = strings.ReplaceAll(cleanStr, "-", "")
+			cleanStr = strings.Join(strings.Fields(cleanStr), " ") // Normalize internal whitespace
+
+			isFalsePositive := strings.Contains(cleanStr, "no blockers") ||
+				strings.HasPrefix(cleanStr, "none") ||
+				strings.Contains(cleanStr, "no technical obstacles") ||
+				strings.Contains(cleanStr, "progressing smoothly") ||
+				strings.Contains(cleanStr, "initial setup complete") ||
+				strings.Contains(cleanStr, "all requirements met") ||
+				strings.Contains(cleanStr, "ready for next feature") ||
+				strings.Contains(cleanStr, "ui verification required")
+
+			if isFalsePositive {
+				s.Logger.Info("ignoring false positive blocker", "file", bf, "content", blockerContent)
+				// Cleanup the file so it doesn't re-trigger
+				if s.UseLocalAgent {
+					os.Remove(filepath.Join(s.Workspace, bf))
+				} else if s.Docker != nil {
+					s.Docker.Exec(ctx, s.GetContainerID(), []string{"rm", bf})
+				}
+				continue
+			}
+
+			if blockerContent != "" {
 				s.Logger.Warn("agent reported blocker file", "file", bf)
 				s.Logger.Warn("blocker content", "content", blockerContent)
 				s.Logger.Info("session stopping to allow human resolution")
@@ -185,9 +213,11 @@ func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, ind
 		cmd.Stderr = &outBuf
 		err = cmd.Run()
 		output = outBuf.String()
-	} else {
+	} else if s.Docker != nil {
 		// Execute via Docker
 		output, err = s.Docker.Exec(cmdCtx, s.GetContainerID(), []string{"/bin/bash", "-c", cmdScript})
+	} else {
+		err = fmt.Errorf("no execution environment available (Docker is nil and UseLocalAgent is false)")
 	}
 
 	if err != nil {
