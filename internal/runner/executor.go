@@ -53,6 +53,7 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 		if errors.Is(err, ErrBlocker) {
 			parsedOutput.WriteString(fmt.Sprintf("\n[SYSTEM] BLOCKER DETECTED: %s\n", blockerMsg))
 		}
+		// Preserves output even if blocked
 		return parsedOutput.String(), err
 	}
 
