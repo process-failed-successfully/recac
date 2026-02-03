@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"recac/internal/telemetry"
 	"sync"
 	"time"
 )
@@ -38,6 +39,7 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 			wg.Wait()
 			return ctx.Err()
 		case <-ticker.C:
+			telemetry.TrackOrchestratorLoop("orchestrator")
 			// Poll for work
 			logger.Debug("Polling for work...")
 			items, err := o.Poller.Poll(ctx, logger)
@@ -46,6 +48,7 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 				continue
 			}
 
+			telemetry.SetTasksPending("orchestrator", len(items))
 			if len(items) == 0 {
 				continue
 			}

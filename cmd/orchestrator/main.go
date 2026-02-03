@@ -44,6 +44,7 @@ func main() {
 	pflag.String("github-owner", "", "GitHub Repository Owner (for 'github' poller)")
 	pflag.String("github-repo", "", "GitHub Repository Name (for 'github' poller)")
 	pflag.String("github-label", "", "GitHub Label to poll for (defaults to jira-label if not set)")
+	pflag.Int("metrics-port", 9090, "Port to expose Prometheus metrics")
 
 	pflag.Parse()
 
@@ -61,6 +62,7 @@ func main() {
 	viper.BindPFlag("orchestrator.github_owner", pflag.Lookup("github-owner"))
 	viper.BindPFlag("orchestrator.github_repo", pflag.Lookup("github-repo"))
 	viper.BindPFlag("orchestrator.github_label", pflag.Lookup("github-label"))
+	viper.BindPFlag("orchestrator.metrics_port", pflag.Lookup("metrics-port"))
 
 	viper.BindPFlag("orchestrator.mode", pflag.Lookup("mode"))
 	viper.BindPFlag("orchestrator.jira_label", pflag.Lookup("jira-label"))
@@ -93,6 +95,15 @@ func main() {
 	// Logger
 	logger := telemetry.NewLogger(viper.GetBool("verbose"), "orchestrator", false)
 	telemetry.InitLogger(viper.GetBool("verbose"), "orchestrator", false) // Ensure global logger is set
+
+	// Start Metrics Server
+	metricsPort := viper.GetInt("orchestrator.metrics_port")
+	go func() {
+		logger.Info("Starting metrics server", "port", metricsPort)
+		if err := telemetry.StartMetricsServer(metricsPort); err != nil {
+			logger.Error("Failed to start metrics server", "error", err)
+		}
+	}()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
