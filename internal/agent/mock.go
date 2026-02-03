@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,6 +31,75 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// Heuristics for Smoke Test Scenarios (e.g. prime-python)
+
+	// 1. Ticket Generation (TPM Agent)
+	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "ticket plan") {
+		return "```json\n" +
+			`[
+  {
+    "title": "Calculate Primes ID:[PRIMES]",
+    "description": "Implement a python script to calculate primes.",
+    "type": "Epic",
+    "children": [
+        {
+            "title": "Implement Primes Script",
+            "description": "Create primes.py that calculates primes.",
+            "type": "Story"
+        }
+    ]
+  }
+]` + "\n```", nil
+	}
+
+	// 2. Implementation Phase (Coding Agent)
+	// Check for prime-python specific prompt
+	if (strings.Contains(prompt, "Calculate Primes") || strings.Contains(prompt, "[PRIMES]")) &&
+		(strings.Contains(prompt, "implementation") || strings.Contains(prompt, "code") || strings.Contains(prompt, "script")) {
+		return `Here is the implementation for primes.py:
+
+` + "```bash" + `
+cat <<EOF > primes.py
+def is_prime(n):
+    if n <= 1:
+        return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) > 1:
+        print(is_prime(int(sys.argv[1])))
+EOF
+
+# Signal completion
+agent-bridge feature set req-create-primes-py status=done
+` + "```", nil
+	}
+
+	// 3. QA Agent
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return `
+The tests passed successfully.
+
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```", nil
+	}
+
+	// 4. Project Manager (Sign Off)
+	if strings.Contains(prompt, "PROJECT MANAGER") {
+		return `
+The project is complete and meets all requirements.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```", nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
