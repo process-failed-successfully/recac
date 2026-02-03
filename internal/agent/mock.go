@@ -55,6 +55,43 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
+	// Heuristic: Check for implementation request for COMP-1 (from the mock ticket)
+	// We also check for "req-feature-works" to cover the injected feature ID.
+	if strings.Contains(prompt, "COMP-1") || strings.Contains(prompt, "req-feature-works") || strings.Contains(prompt, "Implement Core Feature") {
+		return `Mock agent implementation for COMP-1:
+
+` + "```bash" + `
+echo "Implementing COMP-1 Core Feature..."
+# Simulate work
+echo "Work done."
+# Mark feature as complete
+agent-bridge feature set req-feature-works --status done --passes true
+` + "```" + `
+`, nil
+	}
+
+	// Heuristic: Check for QA role
+	if strings.Contains(strings.ToUpper(prompt), "QA AGENT") {
+		return `Mock QA agent response:
+
+` + "```bash" + `
+echo "QA Checks Passed."
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// Heuristic: Check for Manager role
+	if strings.Contains(strings.ToUpper(prompt), "PROJECT MANAGER") {
+		return `Mock Manager response:
+
+` + "```bash" + `
+echo "Project Approved."
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
