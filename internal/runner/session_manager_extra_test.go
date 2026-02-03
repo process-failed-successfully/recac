@@ -72,12 +72,12 @@ func TestStartSession_Errors(t *testing.T) {
 	defer cleanup()
 
 	t.Run("Invalid Name", func(t *testing.T) {
-		_, err := sm.StartSession("../badname", "goal", []string{"echo"}, ".")
+		_, err := sm.StartSession("../badname", "goal", []string{"echo"}, ".", "test-project")
 		assert.Error(t, err)
 	})
 
 	t.Run("Executable Not Found", func(t *testing.T) {
-		_, err := sm.StartSession("exec-fail", "goal", []string{"/non/existent/exec"}, ".")
+		_, err := sm.StartSession("exec-fail", "goal", []string{"/non/existent/exec"}, ".", "test-project")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "executable not found")
 	})
@@ -92,7 +92,7 @@ func TestStartSession_Errors(t *testing.T) {
 		}
 		sm.SaveSession(session)
 
-		_, err := sm.StartSession(sessionName, "goal", []string{"echo"}, ".")
+		_, err := sm.StartSession(sessionName, "goal", []string{"echo"}, ".", "test-project")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "already running")
 	})

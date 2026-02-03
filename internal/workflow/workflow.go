@@ -279,6 +279,20 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 			return fmt.Errorf("--name is required when using --detached")
 		}
 
+		// Determine project name for detached session
+		projectName := cfg.ProjectName
+		if projectName == "" {
+			pPath := cfg.ProjectPath
+			if pPath == "" {
+				pPath = "."
+			}
+			projectName = filepath.Base(pPath)
+			if (projectName == "." || projectName == "/") && (pPath == "." || pPath == "") {
+				cwd, _ := os.Getwd()
+				projectName = filepath.Base(cwd)
+			}
+		}
+
 		executable, err := os.Executable()
 		if err != nil {
 			return fmt.Errorf("failed to get executable path: %v", err)
@@ -356,7 +370,7 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 			}
 		}
 
-		session, err := sm.StartSession(cfg.SessionName, cfg.Goal, command, projectPath)
+		session, err := sm.StartSession(cfg.SessionName, cfg.Goal, command, projectPath, projectName)
 		if err != nil {
 			return fmt.Errorf("failed to start detached session: %v", err)
 		}

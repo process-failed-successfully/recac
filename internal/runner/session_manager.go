@@ -32,6 +32,7 @@ type SessionState struct {
 	Command        []string  `json:"command"`
 	LogFile        string    `json:"log_file"`
 	Workspace      string    `json:"workspace"`
+	Project        string    `json:"project,omitempty"`
 	Status         string    `json:"status"` // "running", "paused", "completed", "stopped", "error"
 	Type           string    `json:"type"`   // "detached" or "interactive"
 	Goal           string    `json:"goal,omitempty"`
@@ -58,7 +59,7 @@ type ISessionManager interface {
 	ResumeSession(name string) error
 	GetSessionLogs(name string) (string, error)
 	GetSessionLogContent(name string, lines int) (string, error)
-	StartSession(name, goal string, command []string, workspace string) (*SessionState, error)
+	StartSession(name, goal string, command []string, workspace, project string) (*SessionState, error)
 	GetSessionPath(name string) string
 	IsProcessRunning(pid int) bool
 	RemoveSession(name string, force bool) error
@@ -123,7 +124,7 @@ func (sm *SessionManager) SessionsDir() string {
 }
 
 // StartSession starts a session in detached mode
-func (sm *SessionManager) StartSession(name, goal string, command []string, workspace string) (*SessionState, error) {
+func (sm *SessionManager) StartSession(name, goal string, command []string, workspace, project string) (*SessionState, error) {
 	if err := validateSessionName(name); err != nil {
 		return nil, err
 	}
@@ -197,6 +198,7 @@ func (sm *SessionManager) StartSession(name, goal string, command []string, work
 		Command:        command,
 		LogFile:        logFile,
 		Workspace:      workspace,
+		Project:        project,
 		Status:         "running",
 		Type:           "detached",
 		Goal:           goal,

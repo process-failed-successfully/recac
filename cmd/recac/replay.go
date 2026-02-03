@@ -53,8 +53,14 @@ The workspace will be checked out to the starting commit of the original session
 			return err
 		}
 
+		// Determine project name
+		project := originalSession.Project
+		if project == "" {
+			project = originalSession.Name // Fallback for legacy sessions
+		}
+
 		// Start a new session with the original command and workspace
-		newSession, err := sm.StartSession(replayName, originalSession.Goal, originalSession.Command, originalSession.Workspace)
+		newSession, err := sm.StartSession(replayName, originalSession.Goal, originalSession.Command, originalSession.Workspace, project)
 		if err != nil {
 			return fmt.Errorf("failed to start replay session: %w", err)
 		}

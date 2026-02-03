@@ -177,6 +177,16 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 	}
 
 	prompt, err := prompts.GetPrompt(prompts.CodingAgent, vars)
+	if err == nil {
+		// Check for User Hint
+		if s.DBStore != nil {
+			if hint, err := s.DBStore.GetSignal(s.Project, "USER_HINT"); err == nil && hint != "" {
+				s.Logger.Info("injecting user hint into prompt", "hint", hint)
+				prompt = prompt + fmt.Sprintf("\n\n### USER INTERVENTION\nThe user has provided the following guidance:\n%s\n", hint)
+				_ = s.DBStore.DeleteSignal(s.Project, "USER_HINT")
+			}
+		}
+	}
 	return prompt, prompts.CodingAgent, false, err
 }
 
