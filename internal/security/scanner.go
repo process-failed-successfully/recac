@@ -30,8 +30,10 @@ var (
 	reGenericAPIToken = regexp.MustCompile(`(api|access)[_-]?key\s*[:=]\s*['"][a-zA-Z0-9_\-]{20,}['"]`)
 	reSlackToken      = regexp.MustCompile(`xox[baprs]-([0-9a-zA-Z]{10,48})`)
 	reGitHubToken     = regexp.MustCompile(`gh[pousr]_[a-zA-Z0-9]{36,255}`)
+	reGoogleAPIKey    = regexp.MustCompile(`AIza[0-9A-Za-z-_]{35}`)
 	reDangerousCmd    = regexp.MustCompile(`(?i)\b(rm|cat|cp|mv|chmod|chown)\b.*(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
 	reRootDeletion    = regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+([/~*]+|/)$`)
+	reSystemDeletion  = regexp.MustCompile(`(?i)\brm\b.*[\s"']/(bin|boot|dev|etc|home|lib|lib64|media|mnt|opt|proc|root|run|sbin|srv|sys|usr|var)(?:/|\s|"|'|$)`)
 	rePipeShell       = regexp.MustCompile(`(?i)(curl|wget)\s+.*?\|\s*(bash|sh|zsh|python|perl|php|ruby)`)
 	reReverseShell    = regexp.MustCompile(`(?i)nc\s+.*?-e\s+.*`)
 )
@@ -41,12 +43,14 @@ func NewRegexScanner() *RegexScanner {
 	return &RegexScanner{
 		patterns: map[string]*regexp.Regexp{
 			"AWS Access Key":    reAWSAccessKey,
+			"Google API Key":    reGoogleAPIKey,
 			"Private Key":       rePrivateKey,
 			"Generic API Token": reGenericAPIToken,
 			"Slack Token":       reSlackToken,
 			"GitHub Token":      reGitHubToken,
 			"Dangerous Command": reDangerousCmd,
 			"Root Deletion":     reRootDeletion,
+			"System Deletion":   reSystemDeletion,
 			"Pipe to Shell":     rePipeShell,
 			"Reverse Shell":     reReverseShell,
 		},
