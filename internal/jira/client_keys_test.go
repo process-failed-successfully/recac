@@ -20,6 +20,29 @@ func TestGetBlockerKeys(t *testing.T) {
 			expected: nil,
 		},
 		{
+			name: "Cancelled blocker",
+			ticket: map[string]interface{}{
+				"fields": map[string]interface{}{
+					"issuelinks": []interface{}{
+						map[string]interface{}{
+							"type": map[string]interface{}{
+								"inward": "is blocked by",
+							},
+							"inwardIssue": map[string]interface{}{
+								"key": "RD-160",
+								"fields": map[string]interface{}{
+									"status": map[string]interface{}{
+										"name": "Cancelled",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: nil,
+		},
+		{
 			name: "No blockers",
 			ticket: map[string]interface{}{
 				"fields": map[string]interface{}{
