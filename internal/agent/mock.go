@@ -104,7 +104,12 @@ fi
 			return `The task seems to be completed. I will mark it as done.
 
 ` + "```bash" + `
-agent-bridge feature set req-primes --status done --passes true
+# Try updating standard feature ID (if imported)
+agent-bridge feature set req-primes --status done --passes true || echo "Skipping req-primes (not found)"
+
+# Try updating injected feature IDs (generated from Acceptance Criteria)
+agent-bridge feature set req-primes-py-exists --status done --passes true || echo "Skipping req-primes-py-exists (not found)"
+agent-bridge feature set req-primes-json-contains-correct-p --status done --passes true || echo "Skipping req-primes-json-contains-correct-p (not found)"
 ` + "```" + `
 `, nil
 		}
@@ -136,6 +141,26 @@ git config user.name "Mock Agent"
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
+` + "```" + `
+`, nil
+	}
+
+	// 4. QA Agent Logic
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return `I have verified the implementation. All tests passed.
+
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// 5. Manager Agent Logic
+	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") {
+		return `I have reviewed the work. It meets all requirements.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true
 ` + "```" + `
 `, nil
 	}
