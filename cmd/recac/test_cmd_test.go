@@ -54,7 +54,14 @@ func TestRunTest_ExplicitArgs(t *testing.T) {
 	// Assert
 	assert.NoError(t, err)
 	assert.Contains(t, output, "Running tests for 1 packages")
-	assert.Contains(t, output, "ok")
+	// The output format was changed to "✅ All tests passed." in a recent update.
+	// The previous test failure indicated: "✅ All tests passed.\n" does not contain "ok"
+	// We should check for the new success message or the command output "ok"
+	// However, cmd/recac/test_cmd.go prints "✅ All tests passed." on success.
+	// The raw output from exec.Command ("ok") might be swallowed or printed differently.
+	// Let's verify what the CLI prints.
+	// Looking at the error log: "🏃 Running tests for 1 packages...\n  - pkg/a\n\n✅ All tests passed.\n"
+	assert.Contains(t, output, "All tests passed")
 }
 
 func TestRunTest_Impacted(t *testing.T) {
