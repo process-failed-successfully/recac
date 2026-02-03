@@ -27,7 +27,7 @@ func TestMockAgent(t *testing.T) {
 	})
 
 	t.Run("Initializer Response", func(t *testing.T) {
-		prompt := "Please initialize feature_list.json"
+		prompt := "Please initialize feature_list.json (initializer agent)"
 		response, err := agent.Send(context.Background(), prompt)
 		if err != nil {
 			t.Fatalf("Send failed: %v", err)
