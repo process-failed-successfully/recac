@@ -59,18 +59,14 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 func containsTicketKeywords(prompt string) bool {
 	// Simple check for keywords likely present in ticket generation prompts
-	keywords := []string{"ticket", "jira", "spec", "epic", "story"}
+	keywords := []string{"ticket", "jira", "spec", "epic", "story", "Technical Program Manager", "application specification"}
 	for _, k := range keywords {
-		if len(prompt) > 1000 && len(k) > 0 { // Optimization: only scan if prompt is large enough to be a spec
-             // Actually, 'contains' on large strings is fast enough.
-             // We just need a heuristic.
+		if stringContains(prompt, k) {
+			return true
 		}
-        // Basic check
-        // Check if "ticket" appears in first 200 chars or so?
-        // Let's just check full string, it's fine for mock.
 	}
-    // Better heuristic: checks if the prompt is asking for a plan
-    return len(prompt) > 0 && (stringContains(prompt, "generate ticket plan") || stringContains(prompt, "app_spec"))
+	// Better heuristic: checks if the prompt is asking for a plan
+	return len(prompt) > 0 && (stringContains(prompt, "generate ticket plan") || stringContains(prompt, "app_spec"))
 }
 
 func stringContains(s, substr string) bool {
