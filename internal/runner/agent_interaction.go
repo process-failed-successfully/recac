@@ -176,6 +176,20 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 		vars["read_only_paths"] = "All available files"
 	}
 
+	// Check for User Hint (poke)
+	if s.DBStore != nil {
+		if userHint, err := s.DBStore.GetSignal(s.Project, "USER_HINT"); err == nil && userHint != "" {
+			s.Logger.Info("injecting user hint into prompt", "hint", userHint)
+			if desc, ok := vars["task_description"]; ok {
+				vars["task_description"] = desc + "\n\n### USER INTERVENTION\nThe user has provided a specific hint/instruction:\n" + userHint
+			}
+			// Consume the hint
+			if err := s.DBStore.DeleteSignal(s.Project, "USER_HINT"); err != nil {
+				s.Logger.Warn("failed to delete user hint signal", "error", err)
+			}
+		}
+	}
+
 	prompt, err := prompts.GetPrompt(prompts.CodingAgent, vars)
 	return prompt, prompts.CodingAgent, false, err
 }
