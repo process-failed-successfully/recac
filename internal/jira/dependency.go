@@ -3,7 +3,6 @@ package jira
 import (
 	"fmt"
 	"sort"
-	"strings"
 )
 
 // DependencyGraph represents the dependency relationship between tickets
@@ -127,20 +126,14 @@ func BuildGraphFromIssues(issues []map[string]interface{}, getBlockers func(map[
 	}
 
 	for key, issue := range issueMap {
-		// Get blockers (e.g. "KEY (Status)")
-		rawBlockers := getBlockers(issue)
-		for _, rb := range rawBlockers {
-			// Parse "KEY (Status)"
-			parts := strings.Split(rb, " (")
-			if len(parts) > 0 {
-				blockerKey := parts[0]
-
-				// Only consider blockers that are in our scope (issues list)
-				if _, exists := issueMap[blockerKey]; exists {
-					// Ignore self-references
-					if blockerKey != key {
-						g.AddDependency(blockerKey, key)
-					}
+		// Get blockers (Keys)
+		blockers := getBlockers(issue)
+		for _, blockerKey := range blockers {
+			// Only consider blockers that are in our scope (issues list)
+			if _, exists := issueMap[blockerKey]; exists {
+				// Ignore self-references
+				if blockerKey != key {
+					g.AddDependency(blockerKey, key)
 				}
 			}
 		}
