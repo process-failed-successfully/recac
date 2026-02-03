@@ -142,7 +142,10 @@ func runPair(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to initialize agent: %w", err)
 	}
 
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		for {
 			select {
 			case event, ok := <-watcher.Events():
@@ -197,12 +200,19 @@ func runPair(cmd *cobra.Command, args []string) error {
 				}
 				fmt.Fprintf(cmd.ErrOrStderr(), "Watcher error: %v\n", err)
 			case <-ctx.Done():
+				// Cleanup timers
+				mu.Lock()
+				for _, t := range timers {
+					t.Stop()
+				}
+				mu.Unlock()
 				return
 			}
 		}
 	}()
 
 	<-ctx.Done()
+	wg.Wait()
 	return nil
 }
 
@@ -242,9 +252,18 @@ Code:
 %s
 '''`, filepath.Base(path), strings.TrimPrefix(ext, "."), string(content))
 
-	resp, err := ag.Send(context.Background(), prompt)
+	// Use command context if available, otherwise background
+	ctx := cmd.Context()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	resp, err := ag.Send(ctx, prompt)
 	if err != nil {
-		fmt.Fprintf(cmd.ErrOrStderr(), "Agent failed: %v\n", err)
+		// Don't print error if context cancelled
+		if ctx.Err() == nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Agent failed: %v\n", err)
+		}
 		return
 	}
 

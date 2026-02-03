@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"recac/internal/agent"
+	"sync"
 	"testing"
 	"time"
 
@@ -55,6 +56,24 @@ func (m *PairTestMockAgent) SendStream(ctx context.Context, prompt string, onChu
 	return m.Response, nil
 }
 
+// SafeBuffer is a thread-safe buffer
+type SafeBuffer struct {
+	b  bytes.Buffer
+	mu sync.Mutex
+}
+
+func (s *SafeBuffer) Write(p []byte) (n int, err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.Write(p)
+}
+
+func (s *SafeBuffer) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.String()
+}
+
 func TestPairCmd(t *testing.T) {
 	// Setup temp dir and file
 	tmpDir := t.TempDir()
@@ -88,7 +107,7 @@ func TestPairCmd(t *testing.T) {
 
 	// Create command
 	cmd := &cobra.Command{Use: "pair", RunE: runPair}
-	var outBuf, errBuf bytes.Buffer
+	var outBuf, errBuf SafeBuffer
 	cmd.SetOut(&outBuf)
 	cmd.SetErr(&errBuf)
 
