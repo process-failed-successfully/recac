@@ -15,18 +15,29 @@ type MockDockerForBlocker struct {
 }
 
 func (m *MockDockerForBlocker) Exec(ctx context.Context, id string, cmd []string) (string, error) {
-	// Simple mock for: test -f bf && cat bf
-	if len(cmd) > 2 && strings.Contains(cmd[2], "cat") {
-		// Extract filename
-		parts := strings.Split(cmd[2], " ")
-		filename := parts[len(parts)-1]
-		if content, ok := m.Files[filename]; ok {
-			return content, nil
+	if len(cmd) > 2 {
+		cmdStr := cmd[2]
+
+		// Mock for checking blocker files
+		if strings.Contains(cmdStr, "test -f") && strings.Contains(cmdStr, "cat") {
+			for f, content := range m.Files {
+				if strings.Contains(cmdStr, f) {
+					return content, nil
+				}
+			}
+		}
+
+		// Mock for regular command execution
+		if strings.Contains(cmdStr, "echo") {
+			return "Command Output", nil
 		}
 	}
+
 	// Mock for rm
 	if cmd[0] == "rm" {
-		delete(m.Files, cmd[1])
+		if len(cmd) > 1 {
+			delete(m.Files, cmd[1])
+		}
 		return "", nil
 	}
 	return "", nil
@@ -85,5 +96,34 @@ func TestProcessResponse_BlockerFalsePositives(t *testing.T) {
 
 		// Reset for next test
 		delete(mockDocker.Files, tc.filename)
+	}
+}
+
+func TestProcessResponse_BlockerPreservesOutput(t *testing.T) {
+	ctx := context.Background()
+	mockDocker := &MockDockerForBlocker{
+		Files: map[string]string{
+			"blockers.txt": "I am blocked!",
+		},
+	}
+
+	s := &Session{
+		Docker:      mockDocker,
+		ContainerID: "test-container",
+		Notifier:    notify.NewManager(func(string, ...interface{}) {}),
+		Logger:      slog.Default(),
+	}
+
+	// Response with command AND a blocker (simulated by having blockers.txt present)
+	response := "Doing work...\n```bash\necho test\n```"
+
+	output, err := s.ProcessResponse(ctx, response)
+
+	if err != ErrBlocker {
+		t.Errorf("Expected ErrBlocker, got %v", err)
+	}
+
+	if !strings.Contains(output, "Command Output") {
+		t.Errorf("Expected output to contain 'Command Output', got: %s", output)
 	}
 }
