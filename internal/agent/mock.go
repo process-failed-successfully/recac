@@ -169,6 +169,10 @@ git config user.name "Mock Agent"
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
+
+# Set feature status to done (DB Update)
+agent-bridge feature set req-primes --status done --passes true || echo "Feature update skipped (ID mismatch?)"
+agent-bridge feature set 1 --status done --passes true || echo "Feature update skipped (ID mismatch?)"
 ` + "```" + `
 `, nil
 	}
