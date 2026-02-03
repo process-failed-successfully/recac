@@ -118,7 +118,7 @@ func TestSession_RunLoop_Success(t *testing.T) {
 		CleanerAgent:     mockCleaner,
 		QAAgent:          mockQA,
 		DBStore:          store,
-		MaxIterations:    5,
+		MaxIterations:    15,
 		ManagerFrequency: 10,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
 		Logger:           telemetry.NewLogger(true, "", false),

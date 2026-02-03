@@ -61,7 +61,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Check for implementation triggers:
 	// 1. Task ID: [PRIMES] (often in prompt as "Task: [PRIMES]" or similar)
 	// 2. File + Action: "primes.py" AND "create" (case insensitive)
-	isImplementation := strings.Contains(prompt, "[PRIMES]") || (strings.Contains(promptLower, "primes.py") && strings.Contains(promptLower, "create"))
+	// 3. Feature Description: "calculate" AND "prime" AND "10000" (from feature_list.json)
+	isImplementation := strings.Contains(prompt, "[PRIMES]") ||
+		(strings.Contains(promptLower, "primes.py") && strings.Contains(promptLower, "create")) ||
+		(strings.Contains(promptLower, "calculate") && strings.Contains(promptLower, "prime") && strings.Contains(promptLower, "10000"))
 
 	if !isPlanning && isImplementation {
 		return `
@@ -90,6 +93,13 @@ git config user.email "mock-agent@recac.io"
 git config user.name "Mock Agent"
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json"
+
+# Update Feature Status
+if command -v agent-bridge >/dev/null 2>&1; then
+  agent-bridge feature set 1 --status done --passes true
+else
+  echo "agent-bridge not found (mock mode)"
+fi
 ` + "```" + `
 `, nil
 	}
