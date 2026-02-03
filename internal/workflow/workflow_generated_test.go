@@ -157,6 +157,11 @@ func (m *MockSessionManager) StartSession(name, goal string, command []string, c
 	return args.Get(0).(*runner.SessionState), args.Error(1)
 }
 
+func (m *MockSessionManager) SaveSession(session *runner.SessionState) error {
+	args := m.Called(session)
+	return args.Error(0)
+}
+
 func TestRunWorkflow_Detached_Error(t *testing.T) {
 	mockSM := new(MockSessionManager)
 

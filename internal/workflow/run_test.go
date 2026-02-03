@@ -12,6 +12,7 @@ import (
 // ManualMockSessionManager implements ISessionManager for testing
 type ManualMockSessionManager struct {
 	StartSessionFunc func(name, goal string, command []string, cwd string) (*runner.SessionState, error)
+	SaveSessionFunc  func(session *runner.SessionState) error
 }
 
 func (m *ManualMockSessionManager) StartSession(name, goal string, command []string, cwd string) (*runner.SessionState, error) {
@@ -19,6 +20,13 @@ func (m *ManualMockSessionManager) StartSession(name, goal string, command []str
 		return m.StartSessionFunc(name, goal, command, cwd)
 	}
 	return &runner.SessionState{PID: 1234, Name: name, LogFile: "/tmp/mock.log"}, nil
+}
+
+func (m *ManualMockSessionManager) SaveSession(session *runner.SessionState) error {
+	if m.SaveSessionFunc != nil {
+		return m.SaveSessionFunc(session)
+	}
+	return nil
 }
 
 func TestRunWorkflow_Detached_Mocked(t *testing.T) {
