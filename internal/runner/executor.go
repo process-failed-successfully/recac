@@ -178,11 +178,20 @@ func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, ind
 		cmd := exec.CommandContext(cmdCtx, "/bin/bash", "-c", cmdScript)
 		// Propagate Environment + Inject Project ID
 		cmd.Env = append(os.Environ(), fmt.Sprintf("RECAC_PROJECT_ID=%s", s.Project))
+
+		// Explicitly inject DB Config
+		if s.DBType != "" {
+			cmd.Env = append(cmd.Env, fmt.Sprintf("RECAC_DB_TYPE=%s", s.DBType))
+		}
+		if s.DBURL != "" {
+			cmd.Env = append(cmd.Env, fmt.Sprintf("RECAC_DB_URL=%s", s.DBURL))
+		}
+
 		// Debug: Log key env vars for troubleshooting
 		s.Logger.Info("[DEBUG] Local exec env vars",
 			"RECAC_PROJECT_ID", s.Project,
-			"RECAC_DB_TYPE", os.Getenv("RECAC_DB_TYPE"),
-			"RECAC_DB_URL_set", os.Getenv("RECAC_DB_URL") != "")
+			"RECAC_DB_TYPE", s.DBType,
+			"RECAC_DB_URL_set", s.DBURL != "")
 		cmd.Dir = s.Workspace // Run in workspace
 		// Capture Combined Output
 		var outBuf bytes.Buffer

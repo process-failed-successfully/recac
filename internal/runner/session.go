@@ -45,6 +45,8 @@ type Session struct {
 	AgentStateFile   string              // Path to agent state file (.agent_state.json)
 	StateManager     *agent.StateManager // State manager for agent state persistence
 	DBStore          db.Store            // Persistent database store
+	DBType           string              // Database type (e.g. sqlite, postgres)
+	DBURL            string              // Database connection string
 	Scanner          security.Scanner    // Security scanner
 	ContainerID      string              // Container ID for cleanup
 
@@ -195,6 +197,8 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 		AgentStateFile:   agentStateFile,
 		StateManager:     stateManager,
 		DBStore:          dbStore,
+		DBType:           dbType,
+		DBURL:            dbURL,
 		OwnsDB:           true,
 		Scanner:          scanner,
 		MaxAgents:        maxAgents,
@@ -277,6 +281,8 @@ func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, pr
 		AgentStateFile:   agentStateFile,
 		StateManager:     stateManager,
 		DBStore:          dbStore,
+		DBType:           dbType,
+		DBURL:            dbURL,
 		OwnsDB:           true,
 		Scanner:          scanner,
 		MaxAgents:        maxAgents,
@@ -288,7 +294,7 @@ func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, pr
 
 // NewSessionWithConfig creates a session with specific provider/model settings.
 // This is used for sub-agents or when overriding global config.
-func NewSessionWithConfig(workspace, project, provider, model string, dbStore db.Store) *Session {
+func NewSessionWithConfig(workspace, project, provider, model string, dbStore db.Store, dbType, dbURL string) *Session {
 	// Default to "unknown" if project is empty
 	if project == "" {
 		project = "unknown"
@@ -329,6 +335,8 @@ func NewSessionWithConfig(workspace, project, provider, model string, dbStore db
 		AgentProvider:    provider,
 		AgentModel:       model,
 		DBStore:          dbStore,
+		DBType:           dbType,
+		DBURL:            dbURL,
 		SpecFile:         "app_spec.txt",
 		MaxIterations:    20, // Default
 		ManagerFrequency: 5,  // Default

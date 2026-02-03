@@ -15,7 +15,7 @@ func TestNewSessionWithConfig(t *testing.T) {
 
 	// We can pass nil for dbStore as we are just testing struct initialization logic
 	// and ensuring no panics occur.
-	session := NewSessionWithConfig(workspace, project, provider, model, nil)
+	session := NewSessionWithConfig(workspace, project, provider, model, nil, "", "")
 
 	assert.NotNil(t, session)
 	assert.Equal(t, workspace, session.Workspace)
@@ -39,7 +39,7 @@ func TestNewSessionWithConfig(t *testing.T) {
 
 func TestNewSessionWithConfig_EmptyProject(t *testing.T) {
 	workspace := t.TempDir()
-	session := NewSessionWithConfig(workspace, "", "prov", "mod", nil)
+	session := NewSessionWithConfig(workspace, "", "prov", "mod", nil, "", "")
 
 	assert.Equal(t, "unknown", session.Project)
 }
