@@ -374,5 +374,6 @@ jobs:
               console.log(`Successfully merged PR #${prNumber}`);
             } catch (error) {
               console.error(`Failed to process PR #${prNumber}:`, error.message);
-              core.setFailed(`Auto-merge failed: ${error.message}`);
+              // Do not fail the job if auto-merge fails. It allows manual merging.
+              console.log(`Auto-merge failed (non-fatal): ${error.message}`);
             }
