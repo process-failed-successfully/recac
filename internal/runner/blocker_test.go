@@ -3,6 +3,8 @@ package runner
 import (
 	"context"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"recac/internal/notify"
 	"strings"
 	"testing"
@@ -85,5 +87,46 @@ func TestProcessResponse_BlockerFalsePositives(t *testing.T) {
 
 		// Reset for next test
 		delete(mockDocker.Files, tc.filename)
+	}
+}
+
+func TestProcessResponse_LocalBlocker(t *testing.T) {
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	s := &Session{
+		UseLocalAgent: true,
+		Workspace:     tmpDir,
+		Notifier:      notify.NewManager(func(string, ...interface{}) {}),
+		Logger:        slog.Default(),
+		// Docker is intentionally nil or not relevant for local check
+	}
+
+	// Case 1: Real Blocker
+	blockerFile := filepath.Join(tmpDir, "recac_blockers.txt")
+	err := os.WriteFile(blockerFile, []byte("I am truly blocked"), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write blocker file: %v", err)
+	}
+
+	_, err = s.ProcessResponse(ctx, "some response")
+	if err == nil || !strings.Contains(err.Error(), "blocker detected") {
+		t.Errorf("Expected blocker detected error for local file, got: %v", err)
+	}
+
+	// Case 2: False Positive
+	err = os.WriteFile(blockerFile, []byte("No blockers identified"), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write false positive file: %v", err)
+	}
+
+	_, err = s.ProcessResponse(ctx, "some response")
+	if err != nil {
+		t.Errorf("Did not expect error for false positive, got: %v", err)
+	}
+
+	// Check if file was deleted
+	if _, err := os.Stat(blockerFile); !os.IsNotExist(err) {
+		t.Errorf("Expected false positive file to be deleted, but it exists")
 	}
 }
