@@ -21,19 +21,19 @@ Using config file: /app/cmd/recac/config.yaml
     --- PASS: TestA11yCmd_Run/Static_Scan (0.01s)
     --- PASS: TestA11yCmd_Run/AI_Scan (0.00s)
 === RUN   TestAdrInit
-Initialized ADRs at /tmp/TestAdrInit2635853049/001/docs/adr
+Initialized ADRs at /tmp/TestAdrInit593424801/001/docs/adr
 --- PASS: TestAdrInit (0.00s)
 === RUN   TestAdrNew
-Initialized ADRs at /tmp/TestAdrNew3009746722/001/docs/adr
-Created ADR: /tmp/TestAdrNew3009746722/001/docs/adr/0001-my-decision.md
-Created ADR: /tmp/TestAdrNew3009746722/001/docs/adr/0002-another-one.md
+Initialized ADRs at /tmp/TestAdrNew1891037606/001/docs/adr
+Created ADR: /tmp/TestAdrNew1891037606/001/docs/adr/0001-my-decision.md
+Created ADR: /tmp/TestAdrNew1891037606/001/docs/adr/0002-another-one.md
 --- PASS: TestAdrNew (0.00s)
 === RUN   TestAdrList
-Initialized ADRs at /tmp/TestAdrList255072400/001/docs/adr
-Created ADR: /tmp/TestAdrList255072400/001/docs/adr/0001-first.md
+Initialized ADRs at /tmp/TestAdrList3565556432/001/docs/adr
+Created ADR: /tmp/TestAdrList3565556432/001/docs/adr/0001-first.md
 --- PASS: TestAdrList (0.00s)
 === RUN   TestAdrGenerate
-Initialized ADRs at /tmp/TestAdrGenerate2941919850/001/docs/adr
+Initialized ADRs at /tmp/TestAdrGenerate909330987/001/docs/adr
 🤖 Drafting ADR for: Switch to Postgres...
 
 Draft Content:
@@ -50,7 +50,7 @@ AI decision.
 
 AI consequences.
 ------------------------------------------------
-Save this ADR? [y/N]: Created ADR: /tmp/TestAdrGenerate2941919850/001/docs/adr/0001-switch-to-postgres.md
+Save this ADR? [y/N]: Created ADR: /tmp/TestAdrGenerate909330987/001/docs/adr/0001-switch-to-postgres.md
 --- PASS: TestAdrGenerate (0.00s)
 === RUN   TestAliasCommands
 === RUN   TestAliasCommands/Set_Alias
@@ -78,7 +78,7 @@ Using config file: test_config_alias.yaml
 === RUN   TestArchCmd/Passes_Valid_Architecture
 === RUN   TestArchCmd/Fails_Invalid_Architecture
 === RUN   TestArchCmd/Generate_Config
-✅ Created default architecture config: /tmp/recac-arch-test-1992955186/subdir/.recac-arch.yaml
+✅ Created default architecture config: /tmp/recac-arch-test-3468188796/subdir/.recac-arch.yaml
 --- PASS: TestArchCmd (0.01s)
     --- PASS: TestArchCmd/Passes_Valid_Architecture (0.00s)
     --- PASS: TestArchCmd/Fails_Invalid_Architecture (0.00s)
@@ -87,153 +87,14 @@ Using config file: test_config_alias.yaml
 --- PASS: TestArchiveCmd (0.00s)
 === RUN   TestArenaCmd
 === RUN   TestArenaCmd/Run_Arena_Success
-==================
-WARNING: DATA RACE
-Write at 0x00c00067d9a0 by goroutine 65:
-  bytes.(*Buffer).Write()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/bytes/buffer.go:182 +0x3a
-  fmt.Fprintf()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/fmt/print.go:225 +0xaa
-  recac/cmd/recac.runArena.func1()
-      /app/cmd/recac/arena.go:140 +0xa84
-  recac/cmd/recac.runArena.gowrap1()
-      /app/cmd/recac/arena.go:143 +0x61
-
-Previous write at 0x00c00067d9a0 by goroutine 66:
-  bytes.(*Buffer).Write()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/bytes/buffer.go:182 +0x3a
-  fmt.Fprintf()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/fmt/print.go:225 +0xaa
-  recac/cmd/recac.runArena.func1()
-      /app/cmd/recac/arena.go:140 +0xa84
-  recac/cmd/recac.runArena.gowrap1()
-      /app/cmd/recac/arena.go:143 +0x61
-
-Goroutine 65 (running) created at:
-  recac/cmd/recac.runArena()
-      /app/cmd/recac/arena.go:100 +0x791
-  recac/cmd/recac.TestArenaCmd.func2()
-      /app/cmd/recac/arena_test.go:63 +0x1ae
-  testing.tRunner()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:1934 +0x21c
-  testing.(*T).Run.gowrap1()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:1997 +0x44
-
-Goroutine 66 (finished) created at:
-  recac/cmd/recac.runArena()
-      /app/cmd/recac/arena.go:100 +0x791
-  recac/cmd/recac.TestArenaCmd.func2()
-      /app/cmd/recac/arena_test.go:63 +0x1ae
-  testing.tRunner()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:1934 +0x21c
-  testing.(*T).Run.gowrap1()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:1997 +0x44
-==================
-==================
-WARNING: DATA RACE
-Read at 0x00c00067d980 by goroutine 65:
-  bytes.(*Buffer).tryGrowByReslice()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/bytes/buffer.go:122 +0x48
-  bytes.(*Buffer).Write()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/bytes/buffer.go:183 +0xb9
-  fmt.Fprintf()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/fmt/print.go:225 +0xaa
-  recac/cmd/recac.runArena.func1()
-      /app/cmd/recac/arena.go:140 +0xa84
-  recac/cmd/recac.runArena.gowrap1()
-      /app/cmd/recac/arena.go:143 +0x61
-
-Previous write at 0x00c00067d980 by goroutine 66:
-  bytes.(*Buffer).tryGrowByReslice()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/bytes/buffer.go:123 +0xa5
-  bytes.(*Buffer).Write()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/bytes/buffer.go:183 +0xb9
-  fmt.Fprintf()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/fmt/print.go:225 +0xaa
-  recac/cmd/recac.runArena.func1()
-      /app/cmd/recac/arena.go:140 +0xa84
-  recac/cmd/recac.runArena.gowrap1()
-      /app/cmd/recac/arena.go:143 +0x61
-
-Goroutine 65 (running) created at:
-  recac/cmd/recac.runArena()
-      /app/cmd/recac/arena.go:100 +0x791
-  recac/cmd/recac.TestArenaCmd.func2()
-      /app/cmd/recac/arena_test.go:63 +0x1ae
-  testing.tRunner()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:1934 +0x21c
-  testing.(*T).Run.gowrap1()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:1997 +0x44
-
-Goroutine 66 (finished) created at:
-  recac/cmd/recac.runArena()
-      /app/cmd/recac/arena.go:100 +0x791
-  recac/cmd/recac.TestArenaCmd.func2()
-      /app/cmd/recac/arena_test.go:63 +0x1ae
-  testing.tRunner()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:1934 +0x21c
-  testing.(*T).Run.gowrap1()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:1997 +0x44
-==================
-==================
-WARNING: DATA RACE
-Read at 0x00c000758dd0 by goroutine 65:
-  runtime.slicecopy()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/runtime/slice.go:355 +0x0
-  bytes.growSlice()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/bytes/buffer.go:256 +0x16b
-  bytes.(*Buffer).grow()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/bytes/buffer.go:157 +0x2b0
-  bytes.(*Buffer).Write()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/bytes/buffer.go:185 +0xc4
-  fmt.Fprintf()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/fmt/print.go:225 +0xaa
-  recac/cmd/recac.runArena.func1()
-      /app/cmd/recac/arena.go:140 +0xa84
-  recac/cmd/recac.runArena.gowrap1()
-      /app/cmd/recac/arena.go:143 +0x61
-
-Previous write at 0x00c000758dd2 by goroutine 66:
-  runtime.slicecopy()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/runtime/slice.go:355 +0x0
-  bytes.(*Buffer).Write()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/bytes/buffer.go:187 +0x118
-  fmt.Fprintf()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/fmt/print.go:225 +0xaa
-  recac/cmd/recac.runArena.func1()
-      /app/cmd/recac/arena.go:140 +0xa84
-  recac/cmd/recac.runArena.gowrap1()
-      /app/cmd/recac/arena.go:143 +0x61
-
-Goroutine 65 (running) created at:
-  recac/cmd/recac.runArena()
-      /app/cmd/recac/arena.go:100 +0x791
-  recac/cmd/recac.TestArenaCmd.func2()
-      /app/cmd/recac/arena_test.go:63 +0x1ae
-  testing.tRunner()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:1934 +0x21c
-  testing.(*T).Run.gowrap1()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:1997 +0x44
-
-Goroutine 66 (finished) created at:
-  recac/cmd/recac.runArena()
-      /app/cmd/recac/arena.go:100 +0x791
-  recac/cmd/recac.TestArenaCmd.func2()
-      /app/cmd/recac/arena_test.go:63 +0x1ae
-  testing.tRunner()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:1934 +0x21c
-  testing.(*T).Run.gowrap1()
-      /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:1997 +0x44
-==================
-    testing.go:1617: race detected during execution of test
 === RUN   TestArenaCmd/Run_Arena_Validation_Error
 === RUN   TestArenaCmd/Run_Arena_With_File_Context
---- FAIL: TestArenaCmd (0.05s)
-    --- FAIL: TestArenaCmd/Run_Arena_Success (0.02s)
+--- PASS: TestArenaCmd (0.04s)
+    --- PASS: TestArenaCmd/Run_Arena_Success (0.02s)
     --- PASS: TestArenaCmd/Run_Arena_Validation_Error (0.00s)
     --- PASS: TestArenaCmd/Run_Arena_With_File_Context (0.02s)
 === RUN   TestAskCmd
---- PASS: TestAskCmd (0.27s)
+--- PASS: TestAskCmd (0.48s)
 === RUN   TestAuditCmd
 Using config file: /app/cmd/recac/config.yaml
 Using config file: /app/cmd/recac/config.yaml
@@ -244,7 +105,7 @@ Using config file: /app/cmd/recac/config.yaml
 === RUN   TestParseBenchOutput
 --- PASS: TestParseBenchOutput (0.00s)
 === RUN   TestBenchCommand
---- PASS: TestBenchCommand (4.93s)
+--- PASS: TestBenchCommand (5.04s)
 === RUN   TestBenchComparisonLogic
 --- PASS: TestBenchComparisonLogic (0.00s)
 === RUN   TestBisectCmd
@@ -262,7 +123,7 @@ Using config file: /app/cmd/recac/config.yaml
 === RUN   TestParseBlameOutput
 --- PASS: TestParseBlameOutput (0.00s)
 === RUN   TestBlameCommand_Integration
---- PASS: TestBlameCommand_Integration (0.03s)
+--- PASS: TestBlameCommand_Integration (0.05s)
 === RUN   TestBoardCmd
 Using config file: /app/cmd/recac/config.yaml
 --- PASS: TestBoardCmd (0.01s)
@@ -270,7 +131,7 @@ Using config file: /app/cmd/recac/config.yaml
 --- PASS: TestBreakingHelperProcess (0.00s)
 === RUN   TestBreakingCommand
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestBreakingCommand (4.19s)
+--- PASS: TestBreakingCommand (4.32s)
 === RUN   TestCatchupCmd
 --- PASS: TestCatchupCmd (1.24s)
 === RUN   TestCatchupCmd_NoCommits
@@ -284,24 +145,24 @@ Using config file: /app/cmd/recac/config.yaml
 Using config file: /app/cmd/recac/config.yaml
 === RUN   TestChangelogCmd/Output_to_File
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestChangelogCmd (0.03s)
-    --- PASS: TestChangelogCmd/Success (0.01s)
-    --- PASS: TestChangelogCmd/No_Commits (0.01s)
-    --- PASS: TestChangelogCmd/Output_to_File (0.01s)
+--- PASS: TestChangelogCmd (0.01s)
+    --- PASS: TestChangelogCmd/Success (0.00s)
+    --- PASS: TestChangelogCmd/No_Commits (0.00s)
+    --- PASS: TestChangelogCmd/Output_to_File (0.00s)
 === RUN   TestChaosDocker
 === RUN   TestChaosDocker/Kill_matching_containers
 Using config file: /app/cmd/recac/config.yaml
 === RUN   TestChaosDocker/Dry_Run
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestChaosDocker (0.06s)
+--- PASS: TestChaosDocker (0.05s)
     --- PASS: TestChaosDocker/Kill_matching_containers (0.05s)
-    --- PASS: TestChaosDocker/Dry_Run (0.01s)
+    --- PASS: TestChaosDocker/Dry_Run (0.00s)
 === RUN   TestChaosFile
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestChaosFile (0.01s)
+--- PASS: TestChaosFile (0.00s)
 === RUN   TestChaosFile_DryRun
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestChaosFile_DryRun (0.01s)
+--- PASS: TestChaosFile_DryRun (0.00s)
 === RUN   TestChaosStress
 Starting Chaos Stress (CPU: 1, Mem: 1MB, Duration: 10ms)
 Chaos Stress Finished.
@@ -435,13 +296,13 @@ Checking required Docker images...
 === Docker Check Summary ===
 🔧 Auto-fix was attempted
 ✅ All checks passed: Docker is available and ready
---- PASS: TestCheckDockerCmd (0.02s)
-    --- PASS: TestCheckDockerCmd/Default_Image (0.01s)
-    --- PASS: TestCheckDockerCmd/Custom_Image (0.01s)
-    --- PASS: TestCheckDockerCmd/Missing_Image_AutoFix (0.01s)
+--- PASS: TestCheckDockerCmd (0.01s)
+    --- PASS: TestCheckDockerCmd/Default_Image (0.00s)
+    --- PASS: TestCheckDockerCmd/Custom_Image (0.00s)
+    --- PASS: TestCheckDockerCmd/Missing_Image_AutoFix (0.00s)
 === RUN   TestCICmd_DefaultGithub
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestCICmd_DefaultGithub (0.01s)
+--- PASS: TestCICmd_DefaultGithub (0.00s)
 === RUN   TestCICmd_CustomPlatform
 Using config file: /app/cmd/recac/config.yaml
 --- PASS: TestCICmd_CustomPlatform (0.00s)
@@ -460,7 +321,7 @@ Generating feature list (this may take a moment)...
 Created initial_features.json. Run 'cat initial_features.json | agent-bridge import' to load features.
 Project structure created successfully.
 === RUN   TestCommands/Config_Get_Command
-Using config file: /tmp/TestCommandsConfig_Get_Command3553424251/001/config-3791030693.yaml
+Using config file: /tmp/TestCommandsConfig_Get_Command76266850/001/config-2840225618.yaml
 === RUN   TestCommands/Config_Command
 Using config file: /app/cmd/recac/config.yaml
 === RUN   TestCommands/Start_Mock_Command
@@ -468,34 +329,34 @@ Using config file: /app/cmd/recac/config.yaml
 Using project path: .
 [] Starting in MOCK MODE
 [Session] DB Store initialized successfully: type=sqlite, project=mock-project
-{"time":"2026-02-03T15:56:09.717748335Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"mock-project"}
-Session logs will be written to: /tmp/TestCommands4291450352/001/start-test/agents/logs/mock-project_agent_mock-project_20260203-155609.log
+{"time":"2026-02-03T15:59:48.974921373Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"mock-project"}
+Session logs will be written to: /tmp/TestCommands2058254906/001/start-test/agents/logs/mock-project_agent_mock-project_20260203-155948.log
 Initializing session with image: ghcr.io/process-failed-successfully/recac-agent:latest
 Loaded spec: 9 bytes
 Default agent image 'ghcr.io/process-failed-successfully/recac-agent:latest' not found locally. Pulling...
 Agent image pulled successfully.
-Warning: Failed to locate agent-bridge binary: agent-bridge binary not found at /tmp/TestCommands4291450352/001/start-test/agent-bridge. Did you run 'make bridge'?. Agent CLI tools will not work.
+Warning: Failed to locate agent-bridge binary: agent-bridge binary not found at /tmp/TestCommands2058254906/001/start-test/agent-bridge. Did you run 'make bridge'?. Agent CLI tools will not work.
 Container started successfully. ID: mock-container-id
 Fixing container passwd database for UID:GID 1001:1001...
 Updated workspace .gitignore with agent patterns.
 Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent, excludes: /etc/gitignore_global)...
-{"time":"2026-02-03T15:56:09.724186252Z","level":"INFO","msg":"Checking notification for event: on_start"}
-{"time":"2026-02-03T15:56:09.72436136Z","level":"INFO","msg":"entering autonomous run loop","project":"mock-project"}
-{"time":"2026-02-03T15:56:09.724395251Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-02-03T15:59:48.980282778Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-02-03T15:59:48.980519782Z","level":"INFO","msg":"entering autonomous run loop","project":"mock-project"}
+{"time":"2026-02-03T15:59:48.980601263Z","level":"INFO","msg":"Checking notification for event: on_start"}
 Warning: Failed to ensure state files are ignored: failed to untrack state files: exit status 128
-{"time":"2026-02-03T15:56:09.732158275Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"mock-project","project":"mock-project"}
-{"time":"2026-02-03T15:56:09.733003976Z","level":"INFO","msg":"starting iteration","project":"mock-project","iteration":1,"task_id":"","agent_provider":"mock","agent_model":"gemini-pro"}
-{"time":"2026-02-03T15:56:09.733101902Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"mock-project","project":"mock-project"}
-{"time":"2026-02-03T15:56:09.736310962Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"mock-project","project":"mock-project"}
+{"time":"2026-02-03T15:59:48.986031171Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"mock-project","project":"mock-project"}
+{"time":"2026-02-03T15:59:48.986692365Z","level":"INFO","msg":"starting iteration","project":"mock-project","iteration":1,"task_id":"","agent_provider":"mock","agent_model":"gemini-pro"}
+{"time":"2026-02-03T15:59:48.986784702Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"mock-project","project":"mock-project"}
+{"time":"2026-02-03T15:59:48.988895382Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"mock-project","project":"mock-project"}
 Feature list not found (in DB, Content, or File). Running Initializer.
-{"time":"2026-02-03T15:56:09.739655341Z","level":"INFO","msg":"agent role selected","project":"mock-project","role":"Agent"}
-{"time":"2026-02-03T15:56:09.739737664Z","level":"INFO","msg":"sending prompt to agent","project":"mock-project"}
-{"time":"2026-02-03T15:56:09.74141459Z","level":"INFO","msg":"agent response received","project":"mock-project","role":"Agent","chars":403}
-{"time":"2026-02-03T15:56:09.743074266Z","level":"INFO","msg":"security scan passed","project":"mock-project"}
-{"time":"2026-02-03T15:56:09.745528411Z","level":"INFO","msg":"executing command block","project":"mock-project","index":1,"total":1,"script":"# No-op to prevent circuit breaker\n:"}
-{"time":"2026-02-03T15:56:09.747702823Z","level":"INFO","msg":"iteration metrics","project":"mock-project","commands_executed":1,"files_modified_est":0,"output_lines":2,"response_chars":403}
-{"time":"2026-02-03T15:56:09.750658295Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"mock-project","project":"mock-project"}
-{"time":"2026-02-03T15:56:10.755789194Z","level":"INFO","msg":"reached max iterations","project":"mock-project","max_iterations":1}
+{"time":"2026-02-03T15:59:48.991720498Z","level":"INFO","msg":"agent role selected","project":"mock-project","role":"Agent"}
+{"time":"2026-02-03T15:59:48.991814163Z","level":"INFO","msg":"sending prompt to agent","project":"mock-project"}
+{"time":"2026-02-03T15:59:48.99323888Z","level":"INFO","msg":"agent response received","project":"mock-project","role":"Agent","chars":403}
+{"time":"2026-02-03T15:59:48.994936668Z","level":"INFO","msg":"security scan passed","project":"mock-project"}
+{"time":"2026-02-03T15:59:48.997124394Z","level":"INFO","msg":"executing command block","project":"mock-project","index":1,"total":1,"script":"# No-op to prevent circuit breaker\n:"}
+{"time":"2026-02-03T15:59:48.998939804Z","level":"INFO","msg":"iteration metrics","project":"mock-project","commands_executed":1,"files_modified_est":0,"output_lines":2,"response_chars":403}
+{"time":"2026-02-03T15:59:49.001029199Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"mock-project","project":"mock-project"}
+{"time":"2026-02-03T15:59:50.006141272Z","level":"INFO","msg":"reached max iterations","project":"mock-project","max_iterations":1}
 Cleaning up container: mock-container-id
 Container cleaned up successfully
 Session failed: maximum iterations reached
@@ -518,7 +379,7 @@ All checks passed! 🚀
 === RUN   TestCommands/Clean_Command
 Using config file: /app/cmd/recac/config.yaml
 Cleaning up temporary files...
-Removed /tmp/TestCommandsClean_Command3748685778/001/dummy.txt
+Removed /tmp/TestCommandsClean_Command1545158415/001/dummy.txt
 Cleanup complete.
 === RUN   TestCommands/Version_Command
 Using config file: /app/cmd/recac/config.yaml
@@ -541,18 +402,18 @@ Attempting graceful shutdown...
 === RUN   TestCommands/Stop_Command_Interactive
 Using config file: /app/cmd/recac/config.yaml
 fatal: not a git repository (or any of the parent directories): .git
---- PASS: TestCommands (4.47s)
+--- PASS: TestCommands (4.49s)
     --- PASS: TestCommands/Init_Command (0.01s)
     --- PASS: TestCommands/Config_Get_Command (0.00s)
     --- PASS: TestCommands/Config_Command (0.00s)
-    --- PASS: TestCommands/Start_Mock_Command (1.08s)
+    --- PASS: TestCommands/Start_Mock_Command (1.07s)
     --- PASS: TestCommands/Signal_Command (0.01s)
     --- PASS: TestCommands/Logs_Command (0.00s)
-    --- PASS: TestCommands/Check_Command (0.10s)
+    --- PASS: TestCommands/Check_Command (0.11s)
     --- PASS: TestCommands/Clean_Command (0.00s)
     --- PASS: TestCommands/Version_Command (0.00s)
     --- PASS: TestCommands/Missing_Args (0.01s)
-    --- PASS: TestCommands/Interactive_Slash_Command (1.23s)
+    --- PASS: TestCommands/Interactive_Slash_Command (1.24s)
     --- PASS: TestCommands/Stop_Command_Interactive (2.01s)
 === RUN   TestCommitCmd
 === RUN   TestCommitCmd/No_Staged_Changes
@@ -588,14 +449,14 @@ Using config file: /app/cmd/recac/config.yaml
 Using config file: /app/cmd/recac/config.yaml
 === RUN   TestComplexityCommand/Ignore_non-go_files
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestComplexityCommand (0.01s)
+--- PASS: TestComplexityCommand (0.02s)
     --- PASS: TestComplexityCommand/Default_Threshold (0.00s)
     --- PASS: TestComplexityCommand/High_Threshold (0.00s)
     --- PASS: TestComplexityCommand/JSON_Output (0.00s)
     --- PASS: TestComplexityCommand/Ignore_non-go_files (0.00s)
 === RUN   TestListKeysCommand
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestListKeysCommand (0.01s)
+--- PASS: TestListKeysCommand (0.00s)
 === RUN   TestListModelsCommand
 Using config file: /app/cmd/recac/config.yaml
 --- PASS: TestListModelsCommand (0.00s)
@@ -603,7 +464,7 @@ Using config file: /app/cmd/recac/config.yaml
 === RUN   TestContainerize/Generate_Files_Successfully
 === RUN   TestContainerize/Handle_Malformed_Response
 === RUN   TestContainerize/Respect_Force_Flag
---- PASS: TestContainerize (0.00s)
+--- PASS: TestContainerize (0.01s)
     --- PASS: TestContainerize/Generate_Files_Successfully (0.00s)
     --- PASS: TestContainerize/Handle_Malformed_Response (0.00s)
     --- PASS: TestContainerize/Respect_Force_Flag (0.00s)
@@ -624,7 +485,7 @@ Using config file: /app/cmd/recac/config.yaml
 === RUN   TestContextCmd/NoContent
 === RUN   TestContextCmd/Tokens
 === RUN   TestContextCmd/OutputFile
---- PASS: TestContextCmd (0.00s)
+--- PASS: TestContextCmd (0.01s)
     --- PASS: TestContextCmd/Basic (0.00s)
     --- PASS: TestContextCmd/IgnoreCustom (0.00s)
     --- PASS: TestContextCmd/IgnoreFile (0.00s)
@@ -642,7 +503,7 @@ Using config file: /app/cmd/recac/config.yaml
 === RUN   TestCoverageHelperProcess
 --- PASS: TestCoverageHelperProcess (0.00s)
 === RUN   TestCoverage
---- PASS: TestCoverage (4.96s)
+--- PASS: TestCoverage (4.95s)
 === RUN   TestCPD_RunCPD
 --- PASS: TestCPD_RunCPD (0.00s)
 === RUN   TestCPD_Merging
@@ -676,19 +537,19 @@ Using config file: /app/cmd/recac/config.yaml
 Using config file: /app/cmd/recac/config.yaml
 --- PASS: TestDataCmd_File (0.00s)
 === RUN   TestDeadcodeAnalysis
-    deadcode_test.go:72: Finding: UsedType.UnusedMethod (Function)
     deadcode_test.go:72: Finding: UnusedType.UnusedMethodOnUnusedType (Function)
     deadcode_test.go:72: Finding: UnusedFunc (Function)
     deadcode_test.go:72: Finding: UsedType (Type)
     deadcode_test.go:72: Finding: UnusedType (Type)
     deadcode_test.go:72: Finding: UsedType.UsedMethod (Function)
+    deadcode_test.go:72: Finding: UsedType.UnusedMethod (Function)
 --- PASS: TestDeadcodeAnalysis (0.00s)
 === RUN   TestDebtCmd
 --- PASS: TestDebtCmd (1.24s)
 === RUN   TestDebtCmd_FilterAge
---- PASS: TestDebtCmd_FilterAge (1.27s)
+--- PASS: TestDebtCmd_FilterAge (1.24s)
 === RUN   TestDebtCmd_JSON
---- PASS: TestDebtCmd_JSON (1.25s)
+--- PASS: TestDebtCmd_JSON (1.27s)
 === RUN   TestDebtHelperProcess
 --- PASS: TestDebtHelperProcess (0.00s)
 === RUN   TestDebugCmd_Success
@@ -710,11 +571,11 @@ Running: echo 'dummy.go:3: error'; exit 1
 === RUN   TestDevCmd
 ℹ️  Auto-detected command: go test ./...
 ℹ️  Watching extensions: [.go .mod]
-👀 Watching /tmp/recac-dev-test592430914 for changes...
+👀 Watching /tmp/recac-dev-test1318634772 for changes...
 
 🔄 Running...
 
-✅ Passed (1.24s)
+✅ Passed (1.258s)
 --------------------------------------------------
 
 🔄 Running...
@@ -759,14 +620,14 @@ Goroutine 305 (running) created at:
       /app/cmd/recac/dev_test.go:80 +0x3a
 ==================
 ℹ️  Watching extensions: [.txt]
-👀 Watching /tmp/recac-dev-manual-test1427354874 for changes...
+👀 Watching /tmp/recac-dev-manual-test3636419738 for changes...
 
 🔄 Running...
 
-✅ Passed (1.281s)
+✅ Passed (1.234s)
 --------------------------------------------------
 
-✅ Passed (1.242s)
+✅ Passed (1.231s)
 --------------------------------------------------
 
 🔄 Running...
@@ -777,7 +638,7 @@ Using config file: /app/cmd/recac/config.yaml
 --- PASS: TestDiagnoseCmd_File (0.01s)
 === RUN   TestDiagnoseCmd_Stdin
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestDiagnoseCmd_Stdin (0.00s)
+--- PASS: TestDiagnoseCmd_Stdin (0.01s)
 === RUN   TestDiagramCommand
 === RUN   TestDiagramCommand/Basic_Diagram_Generation
 Using config file: /app/cmd/recac/config.yaml
@@ -787,11 +648,11 @@ Using config file: /app/cmd/recac/config.yaml
 Using config file: /app/cmd/recac/config.yaml
 === RUN   TestDiagramCommand/No_Fields
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestDiagramCommand (0.01s)
-    --- PASS: TestDiagramCommand/Basic_Diagram_Generation (0.00s)
-    --- PASS: TestDiagramCommand/Focus_Filtering (0.00s)
-    --- PASS: TestDiagramCommand/Output_to_File (0.00s)
-    --- PASS: TestDiagramCommand/No_Fields (0.00s)
+--- PASS: TestDiagramCommand (0.03s)
+    --- PASS: TestDiagramCommand/Basic_Diagram_Generation (0.01s)
+    --- PASS: TestDiagramCommand/Focus_Filtering (0.01s)
+    --- PASS: TestDiagramCommand/Output_to_File (0.01s)
+    --- PASS: TestDiagramCommand/No_Fields (0.01s)
 === RUN   TestDiffExplainCmd_Stdin
 Using config file: /app/cmd/recac/config.yaml
 --- PASS: TestDiffExplainCmd_Stdin (0.00s)
@@ -806,28 +667,28 @@ Using config file: /app/cmd/recac/config.yaml
 === RUN   TestDiffCmd/handles_missing_sessions
 Using config file: /app/cmd/recac/config.yaml
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestDiffCmd (0.02s)
+--- PASS: TestDiffCmd (0.03s)
     --- PASS: TestDiffCmd/displays_metadata_and_log_diff (0.01s)
     --- PASS: TestDiffCmd/handles_no_differences_in_logs (0.01s)
     --- PASS: TestDiffCmd/handles_missing_sessions (0.01s)
 === RUN   TestDoctest
 === RUN   TestDoctest/valid-go
 
-✅ Passed (1.228s)
+✅ Passed (1.271s)
 --------------------------------------------------
 === RUN   TestDoctest/invalid-go
 === RUN   TestDoctest/valid-json
 === RUN   TestDoctest/invalid-json
 === RUN   TestDoctest/mixed
---- PASS: TestDoctest (6.21s)
-    --- PASS: TestDoctest/valid-go (5.97s)
-    --- PASS: TestDoctest/invalid-go (0.06s)
+--- PASS: TestDoctest (7.27s)
+    --- PASS: TestDoctest/valid-go (7.00s)
+    --- PASS: TestDoctest/invalid-go (0.07s)
     --- PASS: TestDoctest/valid-json (0.00s)
     --- PASS: TestDoctest/invalid-json (0.00s)
-    --- PASS: TestDoctest/mixed (0.17s)
+    --- PASS: TestDoctest/mixed (0.19s)
 === RUN   TestDoctorCmd
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestDoctorCmd (0.00s)
+--- PASS: TestDoctorCmd (0.01s)
 === RUN   TestDocumentCmd
 === RUN   TestDocumentCmd/Document_file_(stdout)
 Using config file: /app/cmd/recac/config.yaml
@@ -840,19 +701,19 @@ Using config file: /app/cmd/recac/config.yaml
     --- PASS: TestDocumentCmd/Document_file_in-place_preserves_permissions (0.00s)
     --- PASS: TestDocumentCmd/Document_with_diff (0.00s)
 === RUN   TestEnvCheck
-✅ /tmp/TestEnvCheck1356185988/001/.env is in sync with /tmp/TestEnvCheck1356185988/001/example.env (all required keys present)
-❌ /tmp/TestEnvCheck1356185988/001/.env is missing 1 keys from /tmp/TestEnvCheck1356185988/001/example.env:
+✅ /tmp/TestEnvCheck1628105724/001/.env is in sync with /tmp/TestEnvCheck1628105724/001/example.env (all required keys present)
+❌ /tmp/TestEnvCheck1628105724/001/.env is missing 1 keys from /tmp/TestEnvCheck1628105724/001/example.env:
   - BAZ
 --- PASS: TestEnvCheck (0.00s)
 === RUN   TestEnvSync
-Added NEW_KEY to /tmp/TestEnvSync1148393709/001/example.env
-Added PASSWORD to /tmp/TestEnvSync1148393709/001/example.env
+Added NEW_KEY to /tmp/TestEnvSync1034424854/001/example.env
+Added PASSWORD to /tmp/TestEnvSync1034424854/001/example.env
 --- PASS: TestEnvSync (0.00s)
 === RUN   TestEnvGenerate
 🤖 Analyzing project to generate environment configuration...
-✅ Generated /tmp/TestEnvGenerate2094325424/001/.env from /tmp/TestEnvGenerate2094325424/001/example.env
+✅ Generated /tmp/TestEnvGenerate1427232136/001/.env from /tmp/TestEnvGenerate1427232136/001/example.env
 🤖 Analyzing project to generate environment configuration...
-✅ Generated /tmp/TestEnvGenerate2094325424/001/.env from /tmp/TestEnvGenerate2094325424/001/example.env
+✅ Generated /tmp/TestEnvGenerate1427232136/001/.env from /tmp/TestEnvGenerate1427232136/001/example.env
 --- PASS: TestEnvGenerate (0.00s)
 === RUN   TestEstimateCommand
 === RUN   TestEstimateCommand/Basic_Estimation
@@ -875,9 +736,9 @@ Using config file: /app/cmd/recac/config.yaml
     --- PASS: TestEstimateCommand/Bad_JSON_Response (0.00s)
 === RUN   TestEvolutionAnalysis
 Found 2 commits. Analyzing...
-Analyzing 1c34565 (2026-02-03)...
-Analyzing 957d702 (2026-02-03)...
---- PASS: TestEvolutionAnalysis (1.07s)
+Analyzing fd06904 (2026-02-03)...
+Analyzing c97e705 (2026-02-03)...
+--- PASS: TestEvolutionAnalysis (1.08s)
 === RUN   TestEvolutionAnalysis_Errors
 === RUN   TestEvolutionAnalysis_Errors/Get_Commits_Failure
 === RUN   TestEvolutionAnalysis_Errors/Worktree_Failure
@@ -926,7 +787,7 @@ Using config file: /app/cmd/recac/config.yaml
     --- PASS: TestFindCmd/Filter_by_since_'90m' (0.00s)
     --- PASS: TestFindCmd/No_results_found (0.00s)
 === RUN   TestFlakyRun
---- PASS: TestFlakyRun (3.79s)
+--- PASS: TestFlakyRun (3.72s)
 === RUN   TestFlakyHelperProcess
 --- PASS: TestFlakyHelperProcess (0.00s)
 === RUN   TestFocusCmd_Flags
@@ -936,11 +797,11 @@ Using config file: /app/cmd/recac/config.yaml
 === RUN   TestFocusCmd_Structure
 --- PASS: TestFocusCmd_Structure (0.00s)
 === RUN   TestFuzzCmd
---- PASS: TestFuzzCmd (1.25s)
+--- PASS: TestFuzzCmd (1.23s)
 === RUN   TestHelperProcess_FuzzSuccess
 --- PASS: TestHelperProcess_FuzzSuccess (0.00s)
 === RUN   TestFuzzCmd_NoFunc
---- PASS: TestFuzzCmd_NoFunc (1.23s)
+--- PASS: TestFuzzCmd_NoFunc (1.25s)
 === RUN   TestGamifyCmd
 Using config file: /app/cmd/recac/config.yaml
 --- PASS: TestGamifyCmd (0.00s)
@@ -957,7 +818,7 @@ Using config file: /app/cmd/recac/config.yaml
 --- PASS: TestGenerateTestsCmd_Framework (0.00s)
 === RUN   TestGenerateTestsCmd_Output
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestGenerateTestsCmd_Output (0.01s)
+--- PASS: TestGenerateTestsCmd_Output (0.00s)
 === RUN   TestExtractCodeBlock
 --- PASS: TestExtractCodeBlock (0.00s)
 === RUN   TestGitCleanupCmd
@@ -978,7 +839,7 @@ Using config file: /app/cmd/recac/config.yaml
     --- PASS: TestGitLogCmd/Empty_Log (0.00s)
 === RUN   TestGlossaryCmd
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestGlossaryCmd (0.00s)
+--- PASS: TestGlossaryCmd (0.01s)
 === RUN   TestGlossaryCmd_File
 Using config file: /app/cmd/recac/config.yaml
 --- PASS: TestGlossaryCmd_File (0.00s)
@@ -987,17 +848,17 @@ Using config file: /app/cmd/recac/config.yaml
 --- PASS: TestGlossaryCmd_NoTerms (0.00s)
 === RUN   TestGraphCmd
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestGraphCmd (0.05s)
+--- PASS: TestGraphCmd (0.06s)
 === RUN   TestGraphCmd_NoFeatures
 Using config file: /app/cmd/recac/config.yaml
 --- PASS: TestGraphCmd_NoFeatures (0.05s)
 === RUN   TestGraphCmd_LatestSession
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestGraphCmd_LatestSession (0.06s)
+--- PASS: TestGraphCmd_LatestSession (0.05s)
 === RUN   TestRunGymSession
-[Session] DB Store initialized successfully: type=sqlite, project=gym-Test-Challenge-1770134199
-{"time":"2026-02-03T15:56:39.905484345Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"gym-Test-Challenge-1770134199"}
-Session logs will be written to: /app/cmd/recac/agents/logs/gym-Test-Challenge-1770134199_agent_gym-Test-Challenge-1770134199_20260203-155639.log
+[Session] DB Store initialized successfully: type=sqlite, project=gym-Test-Challenge-1770134420
+{"time":"2026-02-03T16:00:20.191486266Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"gym-Test-Challenge-1770134420"}
+Session logs will be written to: /app/cmd/recac/agents/logs/gym-Test-Challenge-1770134420_agent_gym-Test-Challenge-1770134420_20260203-160020.log
 Initializing session with image: recac-agent:latest
 Loaded spec: 12 bytes
 Warning: Failed to locate agent-bridge binary: agent-bridge binary not found at /app/agent-bridge. Did you run 'make bridge'?. Agent CLI tools will not work.
@@ -1005,36 +866,36 @@ Container started successfully. ID: mock-container-id
 Fixing container passwd database for UID:GID 1001:1001...
 Updated workspace .gitignore with agent patterns.
 Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent, excludes: /etc/gitignore_global)...
-{"time":"2026-02-03T15:56:39.910248302Z","level":"INFO","msg":"Checking notification for event: on_start"}
-{"time":"2026-02-03T15:56:39.910486533Z","level":"INFO","msg":"entering autonomous run loop","project":"gym-Test-Challenge-1770134199"}
-{"time":"2026-02-03T15:56:39.910564445Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-02-03T16:00:20.19526669Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-02-03T16:00:20.195461499Z","level":"INFO","msg":"entering autonomous run loop","project":"gym-Test-Challenge-1770134420"}
+{"time":"2026-02-03T16:00:20.195521273Z","level":"INFO","msg":"Checking notification for event: on_start"}
 Warning: Failed to ensure state files are ignored: failed to untrack state files: exit status 128
-{"time":"2026-02-03T15:56:39.916487445Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"gym-Test-Challenge-1770134199","project":"gym-Test-Challenge-1770134199"}
-{"time":"2026-02-03T15:56:39.917353873Z","level":"INFO","msg":"starting iteration","project":"gym-Test-Challenge-1770134199","iteration":1,"task_id":"","agent_provider":"gemini","agent_model":"gemini-1.5-flash-latest"}
-{"time":"2026-02-03T15:56:39.91744367Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"gym-Test-Challenge-1770134199","project":"gym-Test-Challenge-1770134199"}
-{"time":"2026-02-03T15:56:39.920454419Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"gym-Test-Challenge-1770134199","project":"gym-Test-Challenge-1770134199"}
+{"time":"2026-02-03T16:00:20.200450684Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"gym-Test-Challenge-1770134420","project":"gym-Test-Challenge-1770134420"}
+{"time":"2026-02-03T16:00:20.201009587Z","level":"INFO","msg":"starting iteration","project":"gym-Test-Challenge-1770134420","iteration":1,"task_id":"","agent_provider":"gemini","agent_model":"gemini-1.5-flash-latest"}
+{"time":"2026-02-03T16:00:20.20107797Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"gym-Test-Challenge-1770134420","project":"gym-Test-Challenge-1770134420"}
+{"time":"2026-02-03T16:00:20.203184923Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"gym-Test-Challenge-1770134420","project":"gym-Test-Challenge-1770134420"}
 Feature list not found (in DB, Content, or File). Running Initializer.
-{"time":"2026-02-03T15:56:39.924414583Z","level":"INFO","msg":"agent role selected","project":"gym-Test-Challenge-1770134199","role":"Agent"}
-{"time":"2026-02-03T15:56:39.924503911Z","level":"INFO","msg":"sending prompt to agent","project":"gym-Test-Challenge-1770134199"}
-{"time":"2026-02-03T15:56:39.924531143Z","level":"INFO","msg":"agent response received","project":"gym-Test-Challenge-1770134199","role":"Agent","chars":36}
-{"time":"2026-02-03T15:56:39.924880761Z","level":"INFO","msg":"security scan passed","project":"gym-Test-Challenge-1770134199"}
-{"time":"2026-02-03T15:56:39.927832857Z","level":"WARN","msg":"agent reported blocker file","project":"gym-Test-Challenge-1770134199","file":"recac_blockers.txt"}
-{"time":"2026-02-03T15:56:39.927893286Z","level":"WARN","msg":"blocker content","project":"gym-Test-Challenge-1770134199","content":"PASSED"}
-{"time":"2026-02-03T15:56:39.927920242Z","level":"INFO","msg":"session stopping to allow human resolution","project":"gym-Test-Challenge-1770134199"}
-{"time":"2026-02-03T15:56:39.927943872Z","level":"ERROR","msg":"iteration failed","project":"gym-Test-Challenge-1770134199","error":"blocker detected"}
+{"time":"2026-02-03T16:00:20.205806307Z","level":"INFO","msg":"agent role selected","project":"gym-Test-Challenge-1770134420","role":"Agent"}
+{"time":"2026-02-03T16:00:20.205864441Z","level":"INFO","msg":"sending prompt to agent","project":"gym-Test-Challenge-1770134420"}
+{"time":"2026-02-03T16:00:20.20588968Z","level":"INFO","msg":"agent response received","project":"gym-Test-Challenge-1770134420","role":"Agent","chars":36}
+{"time":"2026-02-03T16:00:20.206169932Z","level":"INFO","msg":"security scan passed","project":"gym-Test-Challenge-1770134420"}
+{"time":"2026-02-03T16:00:20.2086628Z","level":"WARN","msg":"agent reported blocker file","project":"gym-Test-Challenge-1770134420","file":"recac_blockers.txt"}
+{"time":"2026-02-03T16:00:20.208725717Z","level":"WARN","msg":"blocker content","project":"gym-Test-Challenge-1770134420","content":"PASSED"}
+{"time":"2026-02-03T16:00:20.208749139Z","level":"INFO","msg":"session stopping to allow human resolution","project":"gym-Test-Challenge-1770134420"}
+{"time":"2026-02-03T16:00:20.208773046Z","level":"ERROR","msg":"iteration failed","project":"gym-Test-Challenge-1770134420","error":"blocker detected"}
 Cleaning up container: mock-container-id
 Container cleaned up successfully
 Stopping container: mock-container-id
 Container stopped successfully
---- PASS: TestRunGymSession (5.07s)
+--- PASS: TestRunGymSession (5.06s)
 === RUN   TestHealCmd
---- PASS: TestHealCmd (0.41s)
+--- PASS: TestHealCmd (0.29s)
 === RUN   TestHealthCmd
 === RUN   TestHealthCmd/JSON_Output
 === RUN   TestHealthCmd/Text_Output
---- PASS: TestHealthCmd (0.02s)
+--- PASS: TestHealthCmd (0.01s)
     --- PASS: TestHealthCmd/JSON_Output (0.01s)
-    --- PASS: TestHealthCmd/Text_Output (0.01s)
+    --- PASS: TestHealthCmd/Text_Output (0.00s)
 === RUN   TestHintCommand
 Using config file: /app/cmd/recac/config.yaml
 --- PASS: TestHintCommand (0.00s)
@@ -1045,9 +906,9 @@ Using config file: /app/cmd/recac/config.yaml
 Using config file: /app/cmd/recac/config.yaml
 === RUN   TestHistoryCommand/Interactive_History_Compare
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestHistoryCommand (0.03s)
-    --- PASS: TestHistoryCommand/Standard_History (0.01s)
-    --- PASS: TestHistoryCommand/Full_Logs_History (0.01s)
+--- PASS: TestHistoryCommand (0.02s)
+    --- PASS: TestHistoryCommand/Standard_History (0.00s)
+    --- PASS: TestHistoryCommand/Full_Logs_History (0.00s)
     --- PASS: TestHistoryCommand/Interactive_History_Compare (0.01s)
 === RUN   TestGenerateHookScript
 === RUN   TestGenerateHookScript/default_profile
@@ -1064,15 +925,15 @@ Using config file: /app/cmd/recac/config.yaml
 No pre-commit hook found.
 --- PASS: TestHooksInstallUninstall (0.00s)
 === RUN   TestGetGitChurn
---- PASS: TestGetGitChurn (0.09s)
+--- PASS: TestGetGitChurn (0.06s)
 === RUN   TestRunHotspotAnalysis
---- PASS: TestRunHotspotAnalysis (0.08s)
+--- PASS: TestRunHotspotAnalysis (0.06s)
 === RUN   TestI18nCmd
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestI18nCmd (0.01s)
+--- PASS: TestI18nCmd (0.00s)
 === RUN   TestI18nCmd_Verify
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestI18nCmd_Verify (0.01s)
+--- PASS: TestI18nCmd_Verify (0.00s)
 === RUN   TestIgnoreCmd
 === RUN   TestIgnoreCmd/Add_Pattern_to_.gitignore
 Using config file: /app/cmd/recac/config.yaml
@@ -1092,8 +953,8 @@ Using config file: /app/cmd/recac/config.yaml
 Using config file: /app/cmd/recac/config.yaml
 === RUN   TestIgnoreCmd/List_Non-Existent_File
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestIgnoreCmd (0.04s)
-    --- PASS: TestIgnoreCmd/Add_Pattern_to_.gitignore (0.01s)
+--- PASS: TestIgnoreCmd (0.03s)
+    --- PASS: TestIgnoreCmd/Add_Pattern_to_.gitignore (0.00s)
     --- PASS: TestIgnoreCmd/Add_Duplicate_Pattern (0.00s)
     --- PASS: TestIgnoreCmd/Add_Another_Pattern (0.00s)
     --- PASS: TestIgnoreCmd/Remove_Pattern (0.00s)
@@ -1115,11 +976,11 @@ Using config file: /app/cmd/recac/config.yaml
 
 === RUN   TestImpactCmd/JSON_Output
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestImpactCmd (0.03s)
-    --- PASS: TestImpactCmd/Change_Leaf_Node (0.01s)
-    --- PASS: TestImpactCmd/Change_Middle_Node (0.01s)
-    --- PASS: TestImpactCmd/Suggest_Tests (0.01s)
-    --- PASS: TestImpactCmd/JSON_Output (0.01s)
+--- PASS: TestImpactCmd (0.02s)
+    --- PASS: TestImpactCmd/Change_Leaf_Node (0.00s)
+    --- PASS: TestImpactCmd/Change_Middle_Node (0.00s)
+    --- PASS: TestImpactCmd/Suggest_Tests (0.00s)
+    --- PASS: TestImpactCmd/JSON_Output (0.00s)
 === RUN   TestImproveCmd
 === RUN   TestImproveCmd/Improve_file_(stdout)
 Using config file: /app/cmd/recac/config.yaml
@@ -1127,10 +988,10 @@ Using config file: /app/cmd/recac/config.yaml
 Using config file: /app/cmd/recac/config.yaml
 === RUN   TestImproveCmd/Improve_with_diff
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestImproveCmd (0.02s)
+--- PASS: TestImproveCmd (0.01s)
     --- PASS: TestImproveCmd/Improve_file_(stdout) (0.00s)
-    --- PASS: TestImproveCmd/Improve_file_in-place (0.01s)
-    --- PASS: TestImproveCmd/Improve_with_diff (0.01s)
+    --- PASS: TestImproveCmd/Improve_file_in-place (0.00s)
+    --- PASS: TestImproveCmd/Improve_with_diff (0.00s)
 === RUN   TestInspectCmd
 === RUN   TestInspectCmd/InspectCompletedSession
 Using config file: /app/cmd/recac/config.yaml
@@ -1144,12 +1005,12 @@ Using config file: /app/cmd/recac/config.yaml
 Using config file: /app/cmd/recac/config.yaml
 === RUN   TestInspectCmd/InspectNoSessions
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestInspectCmd (0.03s)
-    --- PASS: TestInspectCmd/InspectCompletedSession (0.01s)
-    --- PASS: TestInspectCmd/InspectRunningSession (0.01s)
+--- PASS: TestInspectCmd (0.02s)
+    --- PASS: TestInspectCmd/InspectCompletedSession (0.00s)
+    --- PASS: TestInspectCmd/InspectRunningSession (0.00s)
     --- PASS: TestInspectCmd/InspectErroredSession (0.00s)
     --- PASS: TestInspectCmd/InspectNonExistentSession (0.00s)
-    --- PASS: TestInspectCmd/InspectMostRecent (0.01s)
+    --- PASS: TestInspectCmd/InspectMostRecent (0.00s)
     --- PASS: TestInspectCmd/InspectNoSessions (0.00s)
 === RUN   TestInterviewCmd
 === RUN   TestInterviewCmd/Success_Flow_with_Prompt
@@ -1177,17 +1038,17 @@ Using config file: /app/cmd/recac/config.yaml
 === RUN   TestKnowledgeCommands
 === RUN   TestKnowledgeCommands/List_Rules_Empty
 === RUN   TestKnowledgeCommands/Add_Rule
-Added rule to /tmp/recac-knowledge-test922976273/AGENTS.md
+Added rule to /tmp/recac-knowledge-test4272179510/AGENTS.md
 === RUN   TestKnowledgeCommands/Add_Second_Rule
-Added rule to /tmp/recac-knowledge-test922976273/AGENTS.md
+Added rule to /tmp/recac-knowledge-test4272179510/AGENTS.md
 === RUN   TestKnowledgeCommands/List_Rules
 === RUN   TestKnowledgeCommands/Check_Rules_File
 === RUN   TestKnowledgeCommands/Check_Rules_Stdin
 === RUN   TestKnowledgeCommands/Learn_Rules
-Append these rules to AGENTS.md? [y/N]: Rules appended to /tmp/recac-knowledge-test922976273/AGENTS.md
+Append these rules to AGENTS.md? [y/N]: Rules appended to /tmp/recac-knowledge-test4272179510/AGENTS.md
 === RUN   TestKnowledgeCommands/Learn_Rules_Abort
 Append these rules to AGENTS.md? [y/N]: Aborted.
---- PASS: TestKnowledgeCommands (0.01s)
+--- PASS: TestKnowledgeCommands (0.00s)
     --- PASS: TestKnowledgeCommands/List_Rules_Empty (0.00s)
     --- PASS: TestKnowledgeCommands/Add_Rule (0.00s)
     --- PASS: TestKnowledgeCommands/Add_Second_Rule (0.00s)
@@ -1205,19 +1066,19 @@ Using config file: /app/cmd/recac/config.yaml
 Using config file: /app/cmd/recac/config.yaml
 === RUN   TestLicenseCheckCmd/Verify_Cache
 --- PASS: TestLicenseCheckCmd (0.01s)
-    --- PASS: TestLicenseCheckCmd/JSON_Output (0.01s)
-    --- PASS: TestLicenseCheckCmd/Fail_on_Denied (0.01s)
+    --- PASS: TestLicenseCheckCmd/JSON_Output (0.00s)
+    --- PASS: TestLicenseCheckCmd/Fail_on_Denied (0.00s)
     --- PASS: TestLicenseCheckCmd/Verify_Cache (0.00s)
 === RUN   TestLinksCmd
-    links_test.go:78: 🔍 Scanning /tmp/TestLinksCmd1316465723/001 for broken links...
+    links_test.go:78: 🔍 Scanning /tmp/TestLinksCmd3872492754/001 for broken links...
         Found 2 broken links:
-          📁 /tmp/TestLinksCmd1316465723/001/doc.md: [Broken Link](missing.md) -> missing.md
-          📁 /tmp/TestLinksCmd1316465723/001/doc_fix.md: [Moved Link](moved.md) -> moved.md
+          📁 /tmp/TestLinksCmd3872492754/001/doc.md: [Broken Link](missing.md) -> missing.md
+          📁 /tmp/TestLinksCmd3872492754/001/doc_fix.md: [Moved Link](moved.md) -> moved.md
             ❌ Could not find missing.md in project.
             ✅ Fixed: moved.md -> sub/moved.md
         Fixed 1 links.
 
---- PASS: TestLinksCmd (0.01s)
+--- PASS: TestLinksCmd (0.00s)
 === RUN   TestLinksCmd_External
 --- PASS: TestLinksCmd_External (0.00s)
 === RUN   TestLinksCmd_Errors
@@ -1236,21 +1097,21 @@ Using config file: /app/cmd/recac/config.yaml
 Using config file: /app/cmd/recac/config.yaml
 Using config file: /app/cmd/recac/config.yaml
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestLogsCmd (0.04s)
-    --- PASS: TestLogsCmd/logs_--all_streams_running_sessions (0.01s)
-    --- PASS: TestLogsCmd/logs_single_session (0.01s)
-    --- PASS: TestLogsCmd/logs_--all_with_filter (0.01s)
-    --- PASS: TestLogsCmd/logs_--all_with_no_running_sessions (0.01s)
-    --- PASS: TestLogsCmd/logs_validation_errors (0.02s)
+--- PASS: TestLogsCmd (0.03s)
+    --- PASS: TestLogsCmd/logs_--all_streams_running_sessions (0.00s)
+    --- PASS: TestLogsCmd/logs_single_session (0.00s)
+    --- PASS: TestLogsCmd/logs_--all_with_filter (0.00s)
+    --- PASS: TestLogsCmd/logs_--all_with_no_running_sessions (0.00s)
+    --- PASS: TestLogsCmd/logs_validation_errors (0.01s)
 === RUN   TestLsCommand_NoSessions
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestLsCommand_NoSessions (0.01s)
+--- PASS: TestLsCommand_NoSessions (0.00s)
 === RUN   TestLsCommand_WithSessions
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestLsCommand_WithSessions (0.01s)
+--- PASS: TestLsCommand_WithSessions (0.00s)
 === RUN   TestLsCommand_WithGoal
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestLsCommand_WithGoal (0.01s)
+--- PASS: TestLsCommand_WithGoal (0.00s)
 === RUN   TestLsCommand_FilterByStatus
 === RUN   TestLsCommand_FilterByStatus/filter_by_completed
 Using config file: /app/cmd/recac/config.yaml
@@ -1261,8 +1122,8 @@ Using config file: /app/cmd/recac/config.yaml
 === RUN   TestLsCommand_FilterByStatus/filter_with_no_matches
 Using config file: /app/cmd/recac/config.yaml
 --- PASS: TestLsCommand_FilterByStatus (0.02s)
-    --- PASS: TestLsCommand_FilterByStatus/filter_by_completed (0.01s)
-    --- PASS: TestLsCommand_FilterByStatus/filter_by_error (0.01s)
+    --- PASS: TestLsCommand_FilterByStatus/filter_by_completed (0.00s)
+    --- PASS: TestLsCommand_FilterByStatus/filter_by_error (0.00s)
     --- PASS: TestLsCommand_FilterByStatus/filter_is_case-insensitive (0.01s)
     --- PASS: TestLsCommand_FilterByStatus/filter_with_no_matches (0.00s)
 === RUN   TestLsCommand_FilterByTime
@@ -1280,16 +1141,16 @@ Using config file: /app/cmd/recac/config.yaml
 Using config file: /app/cmd/recac/config.yaml
 === RUN   TestLsCommand_FilterByTime/combined_filter_with_--status_and_--since
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestLsCommand_FilterByTime (0.05s)
-    --- PASS: TestLsCommand_FilterByTime/filter_with_--since_duration (0.01s)
-    --- PASS: TestLsCommand_FilterByTime/filter_with_--since_timestamp (0.01s)
-    --- PASS: TestLsCommand_FilterByTime/filter_with_--before_duration (0.01s)
-    --- PASS: TestLsCommand_FilterByTime/filter_with_--before_timestamp (0.01s)
-    --- PASS: TestLsCommand_FilterByTime/filter_with_--since_and_--before (0.01s)
-    --- PASS: TestLsCommand_FilterByTime/filter_with_invalid_time_value (0.01s)
-    --- PASS: TestLsCommand_FilterByTime/combined_filter_with_--status_and_--since (0.01s)
+--- PASS: TestLsCommand_FilterByTime (0.03s)
+    --- PASS: TestLsCommand_FilterByTime/filter_with_--since_duration (0.00s)
+    --- PASS: TestLsCommand_FilterByTime/filter_with_--since_timestamp (0.00s)
+    --- PASS: TestLsCommand_FilterByTime/filter_with_--before_duration (0.00s)
+    --- PASS: TestLsCommand_FilterByTime/filter_with_--before_timestamp (0.00s)
+    --- PASS: TestLsCommand_FilterByTime/filter_with_--since_and_--before (0.00s)
+    --- PASS: TestLsCommand_FilterByTime/filter_with_invalid_time_value (0.00s)
+    --- PASS: TestLsCommand_FilterByTime/combined_filter_with_--status_and_--since (0.00s)
 === RUN   TestMain_HappyPath
---- PASS: TestMain_HappyPath (1.39s)
+--- PASS: TestMain_HappyPath (1.24s)
 === RUN   TestMapCmd
 === RUN   TestMapCmd/Mermaid_Output
 Using config file: /app/cmd/recac/config.yaml
@@ -1314,10 +1175,10 @@ Using config file: /app/cmd/recac/config.yaml
     --- PASS: TestMapCmd/Focus_Flag_DOT (0.00s)
     --- PASS: TestMapCmd/Invalid_Regex (0.00s)
 === RUN   TestMockServer_Handler
-[15:56:47] POST /users (94.97µs)
+[16:00:27] POST /users (83.777µs)
 --- PASS: TestMockServer_Handler (0.00s)
 === RUN   TestMockServer_Handler_Fallback
-[15:56:47] GET /unknown (34.969µs)
+[16:00:27] GET /unknown (90.921µs)
 --- PASS: TestMockServer_Handler_Fallback (0.00s)
 === RUN   TestMockCmd
 --- PASS: TestMockCmd (0.00s)
@@ -1328,7 +1189,7 @@ Using config file: /app/cmd/recac/config.yaml
 === RUN   TestMonitorCmd_Registered
 --- PASS: TestMonitorCmd_Registered (0.00s)
 === RUN   TestMutationCmdIntegration
-📂 Created temp workspace: /tmp/recac-mutation-1598457236
+📂 Created temp workspace: /tmp/recac-mutation-1633291262
 📦 Copying module to sandbox...
 running baseline tests...
 [1/4] Mutating main.go:4 (+ -> -)... ✅ Killed
@@ -1336,7 +1197,7 @@ running baseline tests...
 [3/4] Mutating main.go:9 (true -> false)... ✅ Killed
 [4/4] Mutating main.go:11 (false -> true)... ❌ Survived
     mutation_test.go:102: Mutation Output:
-        Found 4 possible mutations in /tmp/mutation-test-pkg-2874112706
+        Found 4 possible mutations in /tmp/mutation-test-pkg-3292508552
         ❌ Mutant Survived: main.go:11 (false -> true)
 
         Mutation Testing Results:
@@ -1344,7 +1205,7 @@ running baseline tests...
         Killed:        3
         Survived:      1
         Mutation Score: 75.00%
---- PASS: TestMutationCmdIntegration (4.96s)
+--- PASS: TestMutationCmdIntegration (5.22s)
 === RUN   TestMutationGeneration
 --- PASS: TestMutationGeneration (0.00s)
 === RUN   TestNowCommand
@@ -1368,7 +1229,7 @@ Using config file: /app/cmd/recac/config.yaml
 --- PASS: TestOnboardHelperProcess (0.00s)
 === RUN   TestRunOnboard
 ✅ Pre-commit hook installed (default profile)
---- PASS: TestRunOnboard (2.47s)
+--- PASS: TestRunOnboard (2.50s)
 === RUN   TestOptimizeDockerCmd
 === RUN   TestOptimizeDockerCmd/Basic_Analysis
 Using config file: /app/cmd/recac/config.yaml
@@ -1376,10 +1237,10 @@ Using config file: /app/cmd/recac/config.yaml
 Using config file: /app/cmd/recac/config.yaml
 === RUN   TestOptimizeDockerCmd/JSON_Output
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestOptimizeDockerCmd (0.02s)
-    --- PASS: TestOptimizeDockerCmd/Basic_Analysis (0.01s)
-    --- PASS: TestOptimizeDockerCmd/Ignore_Rule (0.01s)
-    --- PASS: TestOptimizeDockerCmd/JSON_Output (0.01s)
+--- PASS: TestOptimizeDockerCmd (0.01s)
+    --- PASS: TestOptimizeDockerCmd/Basic_Analysis (0.00s)
+    --- PASS: TestOptimizeDockerCmd/Ignore_Rule (0.00s)
+    --- PASS: TestOptimizeDockerCmd/JSON_Output (0.00s)
 === RUN   TestOptimizePromptsCmd
 Optimizing prompt 'coding_agent' against challenge 'Test Challenge'
 
@@ -1390,7 +1251,7 @@ Optimizing prompt 'coding_agent' against challenge 'Test Challenge'
 --- Iteration 2/3 ---
 ✅ Challenge PASSED!
 Optimization successful.
-Saved optimized prompt to /tmp/TestOptimizePromptsCmd1643136669/001/final.md
+Saved optimized prompt to /tmp/TestOptimizePromptsCmd233786865/001/final.md
 --- PASS: TestOptimizePromptsCmd (0.00s)
 === RUN   TestOrchestrateFlags
 --- PASS: TestOrchestrateFlags (0.00s)
@@ -1408,7 +1269,7 @@ Using config file: /app/cmd/recac/config.yaml
 Using config file: /app/cmd/recac/config.yaml
 ==================
 WARNING: DATA RACE
-Read at 0x00c00067dcf8 by goroutine 612:
+Read at 0x00c0008d8ac8 by goroutine 612:
   bytes.(*Buffer).String()
       /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/bytes/buffer.go:77 +0xa33
   recac/cmd/recac.TestPairCmd()
@@ -1418,7 +1279,7 @@ Read at 0x00c00067dcf8 by goroutine 612:
   testing.(*T).Run.gowrap1()
       /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:1997 +0x44
 
-Previous write at 0x00c00067dcf8 by goroutine 615:
+Previous write at 0x00c0008d8ac8 by goroutine 615:
   bytes.(*Buffer).grow()
       /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/bytes/buffer.go:160 +0x3b1
   bytes.(*Buffer).Write()
@@ -1454,7 +1315,7 @@ Goroutine 615 (finished) created at:
 ==================
 ==================
 WARNING: DATA RACE
-Read at 0x00c00067dce0 by goroutine 612:
+Read at 0x00c0008d8ab0 by goroutine 612:
   bytes.(*Buffer).String()
       /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/bytes/buffer.go:77 +0xa4c
   recac/cmd/recac.TestPairCmd()
@@ -1464,7 +1325,7 @@ Read at 0x00c00067dce0 by goroutine 612:
   testing.(*T).Run.gowrap1()
       /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:1997 +0x44
 
-Previous write at 0x00c00067dce0 by goroutine 615:
+Previous write at 0x00c0008d8ab0 by goroutine 615:
   bytes.(*Buffer).grow()
       /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/bytes/buffer.go:157 +0x2cc
   bytes.(*Buffer).Write()
@@ -1500,7 +1361,7 @@ Goroutine 615 (finished) created at:
 ==================
 ==================
 WARNING: DATA RACE
-Read at 0x00c000860200 by goroutine 612:
+Read at 0x00c000910300 by goroutine 612:
   runtime.slicebytetostring()
       /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/runtime/string.go:133 +0x0
   bytes.(*Buffer).String()
@@ -1512,7 +1373,7 @@ Read at 0x00c000860200 by goroutine 612:
   testing.(*T).Run.gowrap1()
       /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:1997 +0x44
 
-Previous write at 0x00c000860200 by goroutine 615:
+Previous write at 0x00c000910300 by goroutine 615:
   runtime.slicecopy()
       /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/runtime/slice.go:355 +0x0
   bytes.growSlice()
@@ -1552,7 +1413,7 @@ Goroutine 615 (finished) created at:
 ==================
 ==================
 WARNING: DATA RACE
-Write at 0x00c000a98030 by goroutine 612:
+Write at 0x00c00070b460 by goroutine 612:
   recac/cmd/recac.TestPairCmd()
       /app/cmd/recac/pair_test.go:124 +0xb6a
   testing.tRunner()
@@ -1560,7 +1421,7 @@ Write at 0x00c000a98030 by goroutine 612:
   testing.(*T).Run.gowrap1()
       /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:1997 +0x44
 
-Previous read at 0x00c000a98030 by goroutine 615:
+Previous read at 0x00c00070b460 by goroutine 615:
   recac/cmd/recac.(*PairTestMockAgent).Send()
       /app/cmd/recac/pair_test.go:50 +0x28
   recac/cmd/recac.analyzeFile()
@@ -1592,7 +1453,7 @@ Goroutine 615 (finished) created at:
 ==================
 ==================
 WARNING: DATA RACE
-Read at 0x00c00067dcf8 by goroutine 612:
+Read at 0x00c0008d8ac8 by goroutine 612:
   bytes.(*Buffer).String()
       /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/bytes/buffer.go:77 +0xc32
   recac/cmd/recac.TestPairCmd()
@@ -1602,7 +1463,7 @@ Read at 0x00c00067dcf8 by goroutine 612:
   testing.(*T).Run.gowrap1()
       /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:1997 +0x44
 
-Previous write at 0x00c00067dcf8 by goroutine 616:
+Previous write at 0x00c0008d8ac8 by goroutine 616:
   bytes.(*Buffer).grow()
       /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/bytes/buffer.go:160 +0x3b1
   bytes.(*Buffer).Write()
@@ -1638,7 +1499,7 @@ Goroutine 616 (finished) created at:
 ==================
 ==================
 WARNING: DATA RACE
-Read at 0x00c00067dce0 by goroutine 612:
+Read at 0x00c0008d8ab0 by goroutine 612:
   bytes.(*Buffer).String()
       /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/bytes/buffer.go:77 +0xc4b
   recac/cmd/recac.TestPairCmd()
@@ -1648,7 +1509,7 @@ Read at 0x00c00067dce0 by goroutine 612:
   testing.(*T).Run.gowrap1()
       /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:1997 +0x44
 
-Previous write at 0x00c00067dce0 by goroutine 616:
+Previous write at 0x00c0008d8ab0 by goroutine 616:
   bytes.(*Buffer).tryGrowByReslice()
       /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/bytes/buffer.go:123 +0xa5
   bytes.(*Buffer).Write()
@@ -1684,7 +1545,7 @@ Goroutine 616 (finished) created at:
 ==================
 ==================
 WARNING: DATA RACE
-Read at 0x00c000870600 by goroutine 612:
+Read at 0x00c000364600 by goroutine 612:
   runtime.slicebytetostring()
       /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/runtime/string.go:133 +0x0
   bytes.(*Buffer).String()
@@ -1696,7 +1557,7 @@ Read at 0x00c000870600 by goroutine 612:
   testing.(*T).Run.gowrap1()
       /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/testing/testing.go:1997 +0x44
 
-Previous write at 0x00c000870600 by goroutine 616:
+Previous write at 0x00c000364600 by goroutine 616:
   runtime.slicecopy()
       /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/runtime/slice.go:355 +0x0
   bytes.growSlice()
@@ -1783,7 +1644,7 @@ Goroutine 614 (finished) created at:
       /app/cmd/recac/pair_test.go:102 +0xa5
 ==================
     testing.go:1617: race detected during execution of test
---- FAIL: TestPairCmd (0.26s)
+--- FAIL: TestPairCmd (0.25s)
 === RUN   TestPairCmdRecursiveAdd
 --- PASS: TestPairCmdRecursiveAdd (0.00s)
 === RUN   TestPauseCmd
@@ -1805,7 +1666,7 @@ Using config file: /app/cmd/recac/config.yaml
     --- PASS: TestPauseCmd/interactive_prompt_with_no_running_sessions (0.00s)
 === RUN   TestPlanCmd
 Using config file: /app/cmd/recac/config.yaml
-Analyzing spec from /tmp/recac-plan-test3769150351/app_spec.txt...
+Analyzing spec from /tmp/recac-plan-test2523374860/app_spec.txt...
 Consulting Planner Agent...
 Plan generated successfully!
 Project: Calculator
@@ -1825,7 +1686,7 @@ Flags:
 --- PASS: TestPlanCmd_MissingSpec (0.00s)
 === RUN   TestPlanCmd_InvalidJSON
 Using config file: /app/cmd/recac/config.yaml
-Analyzing spec from /tmp/recac-plan-test-invalid2824094191/app_spec.txt...
+Analyzing spec from /tmp/recac-plan-test-invalid2080834477/app_spec.txt...
 Consulting Planner Agent...
 Error: failed to parse agent response as JSON: invalid character 'T' looking for beginning of value
 Response: This is not JSON
@@ -1839,7 +1700,7 @@ Flags:
 --- PASS: TestPlanCmd_InvalidJSON (0.00s)
 === RUN   TestPlanCmd_TextBeforeJSON
 Using config file: /app/cmd/recac/config.yaml
-Analyzing spec from /tmp/recac-plan-test-text2703424776/app_spec.txt...
+Analyzing spec from /tmp/recac-plan-test-text182976247/app_spec.txt...
 Consulting Planner Agent...
 Plan generated successfully!
 Project: Text Project
@@ -1881,21 +1742,21 @@ Using config file: /app/cmd/recac/config.yaml
 === RUN   TestTopologicalSortWithPriority
 --- PASS: TestTopologicalSortWithPriority (0.00s)
 === RUN   TestProfileCmd_AnalyzeExisting
-Analyzing existing profile: /tmp/TestProfileCmd_AnalyzeExisting1902968554/001/test.prof
+Analyzing existing profile: /tmp/TestProfileCmd_AnalyzeExisting1353990365/001/test.prof
 Parsing profile data...
 🤖 Consulting AI agent for performance analysis...
 
 Analysis: optimize loop
---- PASS: TestProfileCmd_AnalyzeExisting (1.24s)
+--- PASS: TestProfileCmd_AnalyzeExisting (1.22s)
 === RUN   TestProfileCmd_RunCommand
-Injected CPU profile flag: -cpuprofile=/tmp/TestProfileCmd_RunCommand4191162570/001/cpu.prof
-Running: go test ./... -cpuprofile=/tmp/TestProfileCmd_RunCommand4191162570/001/cpu.prof
-Profile generated successfully at /tmp/TestProfileCmd_RunCommand4191162570/001/cpu.prof
+Injected CPU profile flag: -cpuprofile=/tmp/TestProfileCmd_RunCommand2262614765/001/cpu.prof
+Running: go test ./... -cpuprofile=/tmp/TestProfileCmd_RunCommand2262614765/001/cpu.prof
+Profile generated successfully at /tmp/TestProfileCmd_RunCommand2262614765/001/cpu.prof
 Parsing profile data...
 🤖 Consulting AI agent for performance analysis...
 
 Analysis: optimize loop
---- PASS: TestProfileCmd_RunCommand (2.45s)
+--- PASS: TestProfileCmd_RunCommand (2.47s)
 === RUN   TestPromptListCmd
 --- PASS: TestPromptListCmd (0.00s)
 === RUN   TestPromptOverrideAndResetCmd
@@ -1942,7 +1803,7 @@ Using config file: /app/cmd/recac/config.yaml
     --- PASS: TestPruneCommand/prune_--since_24h_(does_not_prune_running-old) (0.01s)
     --- PASS: TestPruneCommand/prune_--all_--since_24h_(prunes_running-old) (0.01s)
     --- PASS: TestPruneCommand/prune_--dry-run_with_--since (0.01s)
-    --- PASS: TestPruneCommand/prune_--since_100h_(no_match) (0.00s)
+    --- PASS: TestPruneCommand/prune_--since_100h_(no_match) (0.01s)
     --- PASS: TestPruneCommand/invalid_since_value (0.00s)
 === RUN   TestPsAndListCommands
 === RUN   TestPsAndListCommands/ps_command_with_no_sessions
@@ -1950,7 +1811,7 @@ Using config file: /app/cmd/recac/config.yaml
 === RUN   TestPsAndListCommands/list_alias_with_no_sessions
 Using config file: /app/cmd/recac/config.yaml
 --- PASS: TestPsAndListCommands (0.01s)
-    --- PASS: TestPsAndListCommands/ps_command_with_no_sessions (0.01s)
+    --- PASS: TestPsAndListCommands/ps_command_with_no_sessions (0.00s)
     --- PASS: TestPsAndListCommands/list_alias_with_no_sessions (0.00s)
 === RUN   TestPsCommandWithStaleFilter
 === RUN   TestPsCommandWithStaleFilter/stale_duration_'12h'
@@ -1963,7 +1824,7 @@ Using config file: /app/cmd/recac/config.yaml
 Using config file: /app/cmd/recac/config.yaml
 --- PASS: TestPsCommandWithStaleFilter (0.02s)
     --- PASS: TestPsCommandWithStaleFilter/stale_duration_'12h' (0.00s)
-    --- PASS: TestPsCommandWithStaleFilter/stale_duration_'7d' (0.00s)
+    --- PASS: TestPsCommandWithStaleFilter/stale_duration_'7d' (0.01s)
     --- PASS: TestPsCommandWithStaleFilter/no_sessions_match (0.00s)
     --- PASS: TestPsCommandWithStaleFilter/invalid_stale_value (0.00s)
 === RUN   TestPsCmd_NewColumns
@@ -2077,7 +1938,7 @@ Using config file: /app/cmd/recac/config.yaml
 Using config file: /app/cmd/recac/config.yaml
 === RUN   TestReleaseCmd/Interactive_Abort
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestReleaseCmd (0.01s)
+--- PASS: TestReleaseCmd (0.02s)
     --- PASS: TestReleaseCmd/Full_Flow_with_Push (0.00s)
     --- PASS: TestReleaseCmd/No_changes (0.00s)
     --- PASS: TestReleaseCmd/First_Release (0.00s)
@@ -2101,7 +1962,7 @@ Using config file: /app/cmd/recac/config.yaml
     --- PASS: TestRenameCmd/too_many_arguments (0.00s)
 === RUN   TestReplayCmd
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestReplayCmd (0.00s)
+--- PASS: TestReplayCmd (0.01s)
 === RUN   TestReplayCmd_RunningSession
 Using config file: /app/cmd/recac/config.yaml
 --- PASS: TestReplayCmd_RunningSession (0.00s)
@@ -2214,7 +2075,7 @@ Using config file: /app/cmd/recac/config.yaml
 === RUN   TestRollbackCmd/Error:_CheckoutNewBranch_Fail
 Using config file: /app/cmd/recac/config.yaml
 --- PASS: TestRollbackCmd (0.03s)
-    --- PASS: TestRollbackCmd/Rollback_Successful (0.00s)
+    --- PASS: TestRollbackCmd/Rollback_Successful (0.01s)
     --- PASS: TestRollbackCmd/No_Checkpoints_Found (0.00s)
     --- PASS: TestRollbackCmd/Cancelled_by_User (0.00s)
     --- PASS: TestRollbackCmd/Resolve_Workspace_CWD (0.00s)
@@ -2224,26 +2085,26 @@ Using config file: /app/cmd/recac/config.yaml
     --- PASS: TestRollbackCmd/Error:_Checkout_Fail (0.00s)
     --- PASS: TestRollbackCmd/Error:_CheckoutNewBranch_Fail (0.00s)
 === RUN   TestInitConfig
-Using config file: /tmp/config_test_2240960765.yaml
+Using config file: /tmp/config_test_3921772802.yaml
 --- PASS: TestInitConfig (0.00s)
 === RUN   TestExecute_PanicRecovery
 WARNING: The 'recac' binary is deprecated and will be removed in a future release.
 Please use 'orchestrator' or 'recac-agent' (agent) binaries instead.
 Using config file: /app/cmd/recac/config.yaml
 Using config file: /app/cmd/recac/config.yaml
-Error: command not found: failed to load session 'test-session-nb-err': failed to read session file: open /tmp/TestResumeCommandFail_on_non-resumable_status790420056/001/test-session-nb-err.json: no such file or directory
+Error: command not found: failed to load session 'test-session-nb-err': failed to read session file: open /tmp/TestResumeCommandFail_on_non-resumable_status2859946400/001/test-session-nb-err.json: no such file or directory
 Run 'recac --help' for usage.
 --- PASS: TestExecute_PanicRecovery (0.00s)
 === RUN   TestRunCmdHelperProcess
 --- PASS: TestRunCmdHelperProcess (0.00s)
 === RUN   TestRunCmd_Success
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestRunCmd_Success (1.23s)
+--- PASS: TestRunCmd_Success (1.24s)
 === RUN   TestRunCmd_Failure_CallsAI
 Using config file: /app/cmd/recac/config.yaml
 ==================
 WARNING: DATA RACE
-Write at 0x00c0009a6740 by goroutine 826:
+Write at 0x00c0002d8e00 by goroutine 826:
   bytes.(*Buffer).Write()
       /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/bytes/buffer.go:182 +0x3a
   io.(*multiWriter).Write()
@@ -2269,7 +2130,7 @@ Write at 0x00c0009a6740 by goroutine 826:
   os/exec.(*Cmd).Start.gowrap1()
       /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/os/exec/exec.go:761 +0x41
 
-Previous write at 0x00c0009a6740 by goroutine 827:
+Previous write at 0x00c0002d8e00 by goroutine 827:
   bytes.(*Buffer).Write()
       /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/bytes/buffer.go:182 +0x3a
   io.(*multiWriter).Write()
@@ -2341,7 +2202,7 @@ Goroutine 827 (running) created at:
 ==================
 ==================
 WARNING: DATA RACE
-Read at 0x00c0009a6720 by goroutine 826:
+Read at 0x00c0002d8de0 by goroutine 826:
   bytes.(*Buffer).tryGrowByReslice()
       /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/bytes/buffer.go:122 +0x48
   bytes.(*Buffer).Write()
@@ -2369,7 +2230,7 @@ Read at 0x00c0009a6720 by goroutine 826:
   os/exec.(*Cmd).Start.gowrap1()
       /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/os/exec/exec.go:761 +0x41
 
-Previous write at 0x00c0009a6720 by goroutine 827:
+Previous write at 0x00c0002d8de0 by goroutine 827:
   bytes.(*Buffer).grow()
       /home/jules/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.linux-amd64/src/bytes/buffer.go:143 +0x439
   bytes.(*Buffer).Write()
@@ -2524,7 +2385,7 @@ Using config file: /app/cmd/recac/config.yaml
 === RUN   TestSettingsCmd/get/non-existing_key
 === RUN   TestSettingsCmd/set
 === RUN   TestSettingsCmd/view
---- PASS: TestSettingsCmd (0.01s)
+--- PASS: TestSettingsCmd (0.00s)
     --- PASS: TestSettingsCmd/get (0.00s)
         --- PASS: TestSettingsCmd/get/existing_key (0.00s)
         --- PASS: TestSettingsCmd/get/non-existing_key (0.00s)
@@ -2609,9 +2470,9 @@ Using config file: /app/cmd/recac/config.yaml
 Using config file: /app/cmd/recac/config.yaml
 === RUN   TestSmellCommand/Clean_Code
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestSmellCommand (0.01s)
-    --- PASS: TestSmellCommand/Detect_Smells (0.00s)
-    --- PASS: TestSmellCommand/JSON_Output (0.00s)
+--- PASS: TestSmellCommand (0.02s)
+    --- PASS: TestSmellCommand/Detect_Smells (0.01s)
+    --- PASS: TestSmellCommand/JSON_Output (0.01s)
     --- PASS: TestSmellCommand/Clean_Code (0.00s)
 === RUN   TestSnapshotCreate
 Using config file: /app/cmd/recac/config.yaml
@@ -2661,7 +2522,7 @@ Using config file: /app/cmd/recac/config.yaml
     --- PASS: TestStackCommand/Table_Output (0.00s)
 === RUN   TestStandupCmd
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestStandupCmd (3.89s)
+--- PASS: TestStandupCmd (4.00s)
 === RUN   TestStartCommand_Detached
 Using config file: /app/cmd/recac/config.yaml
 fatal: not a git repository (or any of the parent directories): .git
@@ -2688,12 +2549,12 @@ Attempting graceful shutdown...
 Using config file: /app/cmd/recac/config.yaml
 [Session] DB Store initialized successfully: type=sqlite, project=test-project
 fatal: not a git repository (or any of the parent directories): .git
-Session failed: failed to create container: Error response from daemon: failed to mount /tmp/containerd-mount2661315511: mount source: "overlay", target: "/tmp/containerd-mount2661315511", fstype: overlay, flags: 0, data: "workdir=/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/10/work,upperdir=/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/10/fs,lowerdir=/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/8/fs:/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/7/fs:/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/6/fs:/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/5/fs:/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/4/fs:/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/3/fs:/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/2/fs:/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/1/fs,index=off", err: invalid argument
+Session failed: failed to create container: Error response from daemon: failed to mount /tmp/containerd-mount3112705921: mount source: "overlay", target: "/tmp/containerd-mount3112705921", fstype: overlay, flags: 0, data: "workdir=/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/11/work,upperdir=/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/11/fs,lowerdir=/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/8/fs:/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/7/fs:/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/6/fs:/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/5/fs:/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/4/fs:/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/3/fs:/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/2/fs:/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/1/fs,index=off", err: invalid argument
 
 === CRITICAL ERROR: Session Panic ===
 Error: exit-1
 Attempting graceful shutdown...
---- PASS: TestStartCommand_NormalMode_Restricted (0.96s)
+--- PASS: TestStartCommand_NormalMode_Restricted (13.76s)
 === RUN   TestCalculateStats
 --- PASS: TestCalculateStats (0.00s)
 === RUN   TestStatusCommand
@@ -2710,7 +2571,7 @@ Using config file: /app/cmd/recac/config.yaml
 === RUN   TestStatusCommand/runs_TUI_dashboard_when_--watch_is_provided
 Using config file: /app/cmd/recac/config.yaml
 --- PASS: TestStatusCommand (0.02s)
-    --- PASS: TestStatusCommand/show_status_for_a_running_session (0.00s)
+    --- PASS: TestStatusCommand/show_status_for_a_running_session (0.01s)
     --- PASS: TestStatusCommand/show_status_for_a_completed_session (0.00s)
     --- PASS: TestStatusCommand/gracefully_handles_missing_agent_state_file (0.00s)
     --- PASS: TestStatusCommand/defaults_to_most_recent_session_when_no_name_is_provided (0.00s)
@@ -2922,7 +2783,7 @@ Mock AskOneFunc called. Step: 2
 Input prompt (Enter to continue)
 Mock AskOneFunc called. Step: 2
 Selecting Quit
---- PASS: TestTourCmd (0.01s)
+--- PASS: TestTourCmd (0.00s)
 === RUN   TestTourCmd_Methods
 Using config file: /app/cmd/recac/config.yaml
 --- PASS: TestTourCmd_Methods (0.00s)
@@ -2956,7 +2817,7 @@ Using config file: /app/cmd/recac/config.yaml
 Using config file: /app/cmd/recac/config.yaml
 === RUN   TestUnpauseCmd/interactive_prompt_with_no_paused_sessions
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestUnpauseCmd (0.02s)
+--- PASS: TestUnpauseCmd (0.01s)
     --- PASS: TestUnpauseCmd/successfully_unpauses_a_paused_session (0.00s)
     --- PASS: TestUnpauseCmd/fails_to_unpause_a_session_that_is_not_paused (0.00s)
     --- PASS: TestUnpauseCmd/fails_to_unpause_a_non-existent_session (0.00s)
@@ -2966,14 +2827,14 @@ Using config file: /app/cmd/recac/config.yaml
 --- PASS: TestUpgradeHelperProcess (0.00s)
 === RUN   TestRunUpgrade_Flow
 Checking Go modules...
---- PASS: TestRunUpgrade_Flow (3.71s)
+--- PASS: TestRunUpgrade_Flow (3.70s)
 === RUN   TestRunUpgrade_FixLoop
 Checking Go modules...
---- PASS: TestRunUpgrade_FixLoop (2.46s)
+--- PASS: TestRunUpgrade_FixLoop (2.47s)
 === RUN   TestRepoRegex
 --- PASS: TestRepoRegex (0.00s)
 === RUN   TestVerifyCmd_Integration
---- PASS: TestVerifyCmd_Integration (0.07s)
+--- PASS: TestVerifyCmd_Integration (0.08s)
 === RUN   TestParseDiffHunks
 --- PASS: TestParseDiffHunks (0.00s)
 === RUN   Test_printConfig
@@ -2986,9 +2847,9 @@ Checking Go modules...
     --- PASS: Test_printConfig/nested_sensitive_values (0.00s)
 === RUN   TestConfigViewCommand
 === RUN   TestConfigViewCommand/redacted_output
-Using config file: /tmp/config-2701684816.yaml
+Using config file: /tmp/config-2722955403.yaml
 === RUN   TestConfigViewCommand/show_sensitive_output
-Using config file: /tmp/config-2701684816.yaml
+Using config file: /tmp/config-2722955403.yaml
 --- PASS: TestConfigViewCommand (0.00s)
     --- PASS: TestConfigViewCommand/redacted_output (0.00s)
     --- PASS: TestConfigViewCommand/show_sensitive_output (0.00s)
@@ -2997,14 +2858,14 @@ Using config file: /tmp/config-2701684816.yaml
 === RUN   TestVulnCmd_NoFiles
 --- PASS: TestVulnCmd_NoFiles (0.00s)
 === RUN   TestVulnCmd_SpecificFile
---- PASS: TestVulnCmd_SpecificFile (0.22s)
+--- PASS: TestVulnCmd_SpecificFile (0.31s)
 === RUN   TestWebCommand_Run
 --- PASS: TestWebCommand_Run (0.04s)
 === RUN   TestWebServer_Integration
 --- PASS: TestWebServer_Integration (0.04s)
 === RUN   TestWorkdiffCmd
 Using config file: /app/cmd/recac/config.yaml
---- PASS: TestWorkdiffCmd (0.05s)
+--- PASS: TestWorkdiffCmd (0.06s)
 === RUN   TestShowAliasCmd
 === RUN   TestShowAliasCmd/show_with_one_argument_should_succeed
 Using config file: /app/cmd/recac/config.yaml
@@ -3017,5 +2878,5 @@ Using config file: /app/cmd/recac/config.yaml
     --- PASS: TestShowAliasCmd/show_with_two_arguments_should_fail (0.00s)
     --- PASS: TestShowAliasCmd/show_with_no_arguments_should_fail (0.00s)
 FAIL
-FAIL	recac/cmd/recac	78.816s
+FAIL	recac/cmd/recac	93.122s
 FAIL
