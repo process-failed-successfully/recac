@@ -120,19 +120,13 @@ func TestSession_ProcessResponse_Blocker(t *testing.T) {
 
 func TestProcessResponse_MockDefaultRegex(t *testing.T) {
 	// Reproduction of Smoke Test failure where MockAgent default response yields 0 commands
-	defaultResponse := "Mock agent response:\n\nI received your prompt (100 characters). ...\n\n```bash\n# no-op to prevent circuit breaker\necho 'mock agent alive'\n```"
+	// The default response format in mock.go includes a trailing newline inside the backticks?
+	// "...\n```bash\n# no-op to prevent circuit breaker\necho 'mock agent alive'\n```\n"
+	defaultResponse := "Mock agent response:\n\nI received your prompt (100 characters). ...\n\n```bash\n# no-op to prevent circuit breaker\necho 'mock agent alive'\n```\n"
 
 	s := &Session{
 		Logger: slog.Default(),
 	}
-	// Note: We need to access the regex or the method. ProcessResponse is on Session.
-	// We'll mock executeCommandBlock by having a dummy Session?
-	// ProcessResponse calls executeCommandBlock which calls Docker/Local.
-	// We can set UseLocalAgent=true and rely on local execution failing or succeeding?
-	// Or we can just check if it finds the command.
-
-	// Better: Expose the regex for testing or copy it here to verify.
-	// Since regex is private var in executor.go, we test ProcessResponse behavior.
 
 	mockDocker := &MockDockerClient{
 		ExecFunc: func(ctx context.Context, containerID string, cmd []string) (string, error) {
@@ -142,10 +136,6 @@ func TestProcessResponse_MockDefaultRegex(t *testing.T) {
 	s.Docker = mockDocker
 
 	output, _ := s.ProcessResponse(context.Background(), defaultResponse)
-
-	// If the regex matched, executeCommandBlock would run "echo 'mock agent alive'"
-	// and produce "Command Output:..." (or success from mock).
-	// If matches=0, output is empty (since no commands).
 
 	if output == "" {
 		t.Errorf("ProcessResponse found 0 commands in default mock response. Regex failed.")

@@ -156,6 +156,7 @@ agent-bridge signal PROJECT_SIGNED_OFF true
 	// We strip backticks from the preview to avoid confusing the regex parser
 	fmt.Println("[MockAgent] Fallback to default response (No matcher triggered)")
 	preview := strings.ReplaceAll(truncateString(prompt, 100), "`", "'")
+	// Ensure regex matching by surrounding content with whitespace inside delimiters
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...\n\n```bash\n# no-op to prevent circuit breaker\necho 'mock agent alive'\n```\n",
 		m.responsePrefix, len(prompt), preview)
 	return response, nil

@@ -18,7 +18,12 @@ import (
 )
 
 // Support both backticks and triple-single-quotes, with optional language specifier
-var bashBlockRegex = regexp.MustCompile(`(?si)(?:'''|` + "```" + `)(?:bash|sh)?\s*(.*?)\s*(?:'''|` + "```" + `)`)
+// Matches:
+// 1. Delimiter: ''' or ```
+// 2. Optional Language: bash, sh, etc (or nothing)
+// 3. Content: Non-greedy match until closing delimiter
+// 4. Closing Delimiter: same as opening (conceptually, though regex allows mixed for simplicity unless backrefs used)
+var bashBlockRegex = regexp.MustCompile(`(?si)(?:'''|` + "```" + `)(?:[\w]+)?\s*([\s\S]*?)\s*(?:'''|` + "```" + `)`)
 
 // ProcessResponse parses the agent response for commands, executes them, and handles blockers.
 func (s *Session) ProcessResponse(ctx context.Context, response string) (string, error) {
