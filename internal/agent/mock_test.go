@@ -64,6 +64,16 @@ func TestMockAgent_PrimePython(t *testing.T) {
 	if !strings.Contains(resp2, "git config") {
 		t.Errorf("Expected git config in response (Case Insensitive), got: %s", resp2)
 	}
+
+	// Case 3: Feature Description Only
+	implPrompt3 := "Task: Calculate primes under 10000"
+	resp3, err := agent.Send(context.Background(), implPrompt3)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(resp3, "cat << 'EOF' > primes.py") {
+		t.Errorf("Expected Implementation Bash (Feature Desc), got: %s", resp3)
+	}
 }
 
 func TestMockAgent_Initializer_NotBlockedByPlanner(t *testing.T) {
