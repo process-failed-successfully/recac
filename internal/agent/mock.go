@@ -105,11 +105,23 @@ python3 primes.py
 
 # Add and commit
 git add primes.py primes.json
-git commit -m "Add primes.py and output" || echo "Nothing to commit"
+git commit -m "Add primes.py and output" || echo \"Nothing to commit\"
 
 # Signal completion if bridge is available
 if command -v agent-bridge &> /dev/null; then
     agent-bridge feature set req-create-primes-py --status done --passes true || true
+fi
+` + "```" + `
+`, nil
+	}
+
+	// 4. Handle QA Agent
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return `QA verification complete.
+
+` + "```bash" + `
+if command -v agent-bridge &> /dev/null; then
+    agent-bridge signal QA_PASSED true
 fi
 ` + "```" + `
 `, nil
