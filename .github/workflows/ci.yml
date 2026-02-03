@@ -365,13 +365,23 @@ jobs:
               }
 
               // 4. Merge the PR
-              await github.rest.pulls.merge({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: prNumber,
-                merge_method: 'squash'
-              });
-              console.log(`Successfully merged PR #${prNumber}`);
+              try {
+                await github.rest.pulls.merge({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: prNumber,
+                  merge_method: 'squash'
+                });
+                console.log(`Successfully merged PR #${prNumber}`);
+              } catch (mergeError) {
+                // If merge fails due to "not mergeable" (e.g. missing reviews), log it but don't fail the job.
+                // This allows the CI pipeline to stay green even if human approval is still pending.
+                if (mergeError.message.includes("not mergeable") || mergeError.status === 405) {
+                  console.log(`PR #${prNumber} is not currently mergeable (likely waiting for review). Skipping auto-merge.`);
+                } else {
+                  throw mergeError;
+                }
+              }
             } catch (error) {
               console.error(`Failed to process PR #${prNumber}:`, error.message);
               core.setFailed(`Auto-merge failed: ${error.message}`);
