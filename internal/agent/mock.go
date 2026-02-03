@@ -34,28 +34,26 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic: Check for "TPM" or "Technical Program Manager" role to generate a ticket plan
 	if strings.Contains(prompt, "TPM") || strings.Contains(prompt, "Technical Program Manager") {
-		// Return a valid JSON response for ticket generation
-		return `{
-  "tickets": [
+		// Return a valid JSON response for ticket generation (Array of tickets)
+		return `[
     {
-      "summary": "Implement Core Feature",
+      "title": "Implement Core Feature",
       "description": "Implement the core functionality as requested.",
       "type": "Epic",
       "children": [
         {
-          "summary": "Setup Project Structure",
+          "title": "Setup Project Structure",
           "description": "Initialize the project structure.",
           "type": "Story"
         },
         {
-          "summary": "Implement Logic",
+          "title": "Implement Logic",
           "description": "Write the business logic.",
           "type": "Story"
         }
       ]
     }
-  ]
-}`, nil
+  ]`, nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
