@@ -57,12 +57,18 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// Return script to create feature_list.json
 		return "```bash\n" + `
 echo '{
-  "req-the-list-of-primes-in-primes-j": {
-    "id": "req-the-list-of-primes-in-primes-j",
-    "description": "The list of primes in primes.json contains exactly 1229 primes",
-    "files": ["primes.json"],
-    "content": "1229"
-  }
+  "project_name": "Implement Primes",
+  "features": [
+    {
+      "id": "req-the-list-of-primes-in-primes-j",
+      "description": "The list of primes in primes.json contains exactly 1229 primes",
+      "files": ["primes.json"],
+      "content": "1229",
+      "category": "functional",
+      "priority": "critical",
+      "status": "pending"
+    }
+  ]
 }' > feature_list.json
 echo "Initialized feature list"
 ` + "\n```\n", nil
