@@ -5,6 +5,8 @@ import (
 	"context"
 	"io"
 	"net"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -34,9 +36,9 @@ type MockAPI struct {
 	ContainerKillFunc        func(ctx context.Context, containerID, signal string) error
 	CloseFunc                func() error
 
-	// State for simple filesystem simulation
-	filesMu sync.Mutex
-	files   map[string]string
+	// State for filesystem simulation
+	mu      sync.Mutex
+	mounts  map[string]string   // containerPath -> hostPath
 	execCmd map[string][]string // Map execID to command
 }
 
@@ -100,6 +102,25 @@ func (m *MockAPI) ContainerCreate(ctx context.Context, config *container.Config,
 	if m.ContainerCreateFunc != nil {
 		return m.ContainerCreateFunc(ctx, config, hostConfig, networkingConfig, platform, containerName)
 	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.mounts == nil {
+		m.mounts = make(map[string]string)
+	}
+
+	// Parse Binds
+	if hostConfig != nil {
+		for _, bind := range hostConfig.Binds {
+			parts := strings.Split(bind, ":")
+			if len(parts) >= 2 {
+				hostPath := parts[0]
+				containerPath := parts[1]
+				m.mounts[containerPath] = hostPath
+			}
+		}
+	}
+
 	return container.CreateResponse{ID: "mock-container-id"}, nil
 }
 
@@ -115,21 +136,13 @@ func (m *MockAPI) ContainerExecCreate(ctx context.Context, container string, con
 		return m.ContainerExecCreateFunc(ctx, container, config)
 	}
 
-	// Store command for simulation
-	execID := "mock-exec-id"
-	// Generate unique ID if needed, but for now fixed is fine as we usually run sequentially or can append random
-	// A simple counter would be better if parallel
-
-	m.filesMu.Lock()
-	defer m.filesMu.Unlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.execCmd == nil {
 		m.execCmd = make(map[string][]string)
 	}
-	// Simple unique ID generation
-	// But `docker.Client.Exec` logic creates a new exec each time.
-	// We'll just assume sequential for the basic test case or overwrite.
-	// Actually, `Exec` calls `ExecCreate` then `ExecAttach`.
-	// We need to persist the command to `ExecAttach`.
+	// Simple ID generation using command hash or length to be slightly unique
+	execID := "mock-exec-id"
 	m.execCmd[execID] = config.Cmd
 
 	return types.IDResponse{ID: execID}, nil
@@ -140,51 +153,53 @@ func (m *MockAPI) ContainerExecAttach(ctx context.Context, execID string, config
 		return m.ContainerExecAttachFunc(ctx, execID, config)
 	}
 
-	m.filesMu.Lock()
-	if m.files == nil {
-		m.files = make(map[string]string)
-	}
-	if m.execCmd == nil {
-		m.execCmd = make(map[string][]string)
-	}
-	cmd := m.execCmd[execID]
-	m.filesMu.Unlock()
+	m.mu.Lock()
+	cmd, ok := m.execCmd[execID]
+	mounts := m.mounts // Copy reference
+	m.mu.Unlock()
 
 	var output string
 
-	if len(cmd) >= 3 && cmd[0] == "/bin/bash" && cmd[1] == "-c" {
-		script := cmd[2]
-
-		// Simple Write Simulation: echo 'content' > file
-		// Note: This is fragile parsing but sufficient for the specific "echo > feature_list.json" case
-		if strings.HasPrefix(strings.TrimSpace(script), "echo '") && strings.Contains(script, " > ") {
-			parts := strings.SplitN(script, " > ", 2)
-			if len(parts) == 2 {
-				contentPart := parts[0]
-				filePart := strings.TrimSpace(parts[1])
-
-				// Extract content from echo '...'
-				content := strings.TrimPrefix(strings.TrimSpace(contentPart), "echo '")
-				content = strings.TrimSuffix(content, "'")
-
-				// Unescape newlines
-				content = strings.ReplaceAll(content, "\\n", "\n")
-
-				m.filesMu.Lock()
-				m.files[filePart] = content
-				m.filesMu.Unlock()
-				output = "" // No stdout for write
-			}
+	if ok && len(cmd) > 0 {
+		var script string
+		if len(cmd) >= 3 && cmd[0] == "/bin/bash" && cmd[1] == "-c" {
+			script = cmd[2]
+		} else if len(cmd) == 2 && cmd[0] == "cat" {
+			// Direct cat command: ["cat", "file"]
+			script = "cat " + cmd[1]
 		}
 
-		// Simple Read Simulation: cat file
-		if strings.HasPrefix(strings.TrimSpace(script), "cat ") {
-			file := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(script), "cat "))
-			m.filesMu.Lock()
-			content, ok := m.files[file]
-			m.filesMu.Unlock()
-			if ok {
-				output = content
+		if script != "" {
+			// Write Simulation: echo 'content' > file
+			if strings.HasPrefix(strings.TrimSpace(script), "echo '") && strings.Contains(script, " > ") {
+				parts := strings.SplitN(script, " > ", 2)
+				if len(parts) == 2 {
+					contentPart := parts[0]
+					filePart := strings.TrimSpace(parts[1])
+
+					content := strings.TrimPrefix(strings.TrimSpace(contentPart), "echo '")
+					content = strings.TrimSuffix(content, "'")
+					content = strings.ReplaceAll(content, "\\n", "\n")
+
+					// Resolve path
+					hostPath := resolveContainerPath(filePart, mounts)
+					if hostPath != "" {
+						_ = os.WriteFile(hostPath, []byte(content), 0644)
+					}
+					output = ""
+				}
+			}
+
+			// Read Simulation: cat file
+			if strings.HasPrefix(strings.TrimSpace(script), "cat ") {
+				file := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(script), "cat "))
+				hostPath := resolveContainerPath(file, mounts)
+				if hostPath != "" {
+					data, err := os.ReadFile(hostPath)
+					if err == nil {
+						output = string(data)
+					}
+				}
 			}
 		}
 	}
@@ -202,6 +217,32 @@ func (m *MockAPI) ContainerExecAttach(ctx context.Context, execID string, config
 		Conn:   client,
 		Reader: bufio.NewReader(client),
 	}, nil
+}
+
+func resolveContainerPath(path string, mounts map[string]string) string {
+	// Assume /workspace is default if relative
+	if !filepath.IsAbs(path) {
+		path = filepath.Join("/workspace", path)
+	}
+
+	// Find longest matching mount point
+	var bestMatch string
+	var bestHost string
+
+	for containerPath, hostPath := range mounts {
+		if strings.HasPrefix(path, containerPath) {
+			if len(containerPath) > len(bestMatch) {
+				bestMatch = containerPath
+				bestHost = hostPath
+			}
+		}
+	}
+
+	if bestMatch != "" {
+		rel, _ := filepath.Rel(bestMatch, path)
+		return filepath.Join(bestHost, rel)
+	}
+	return ""
 }
 
 func (m *MockAPI) ContainerExecInspect(ctx context.Context, execID string) (container.ExecInspect, error) {
