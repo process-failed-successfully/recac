@@ -353,7 +353,9 @@ func createTicketsFromNodes(ctx context.Context, tickets []ticketNode, projectKe
 				for _, blockerTitle := range node.BlockedBy {
 					if blockerKey, ok := titleToKey[blockerTitle]; ok {
 						fmt.Printf("Linking %s as blocked by %s\n", nodeKey, blockerKey)
-						if err := jiraClient.AddIssueLink(ctx, blockerKey, nodeKey, "Blocks"); err != nil {
+						// Link type "Blocks" implies Inward "is blocked by" Outward.
+						// So Inward should be the blocked node (nodeKey), Outward the blocker (blockerKey).
+						if err := jiraClient.AddIssueLink(ctx, nodeKey, blockerKey, "Blocks"); err != nil {
 							fmt.Fprintf(os.Stderr, "Warning: Failed to link %s as blocked by %s: %v\n", nodeKey, blockerKey, err)
 						}
 					}
