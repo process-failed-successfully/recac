@@ -77,7 +77,11 @@ Repo: %s`, "`", "`", repoURL),
 func (s *PrimePythonScenario) Verify(repoPath string, ticketKeys map[string]string) error {
 	ticketKey, ok := ticketKeys["PRIMES"]
 	if !ok {
-		return fmt.Errorf("PRIMES ticket key not found")
+		// Fallback for Mock Agent which returns "Implement Primes" as title/key
+		ticketKey, ok = ticketKeys["Implement Primes"]
+		if !ok {
+			return fmt.Errorf("PRIMES ticket key not found (checked 'PRIMES' and 'Implement Primes')")
+		}
 	}
 
 	// Helper to find specific agent branch
