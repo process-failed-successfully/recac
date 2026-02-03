@@ -32,6 +32,29 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	// Detect Ticket Generation Request (jira generate-from-spec)
+	// This uses the TPM Agent prompt which mentions "INVEST" principle and outputting Epics/Stories.
+	if isTicketGenerationPrompt(prompt) {
+		return `[
+  {
+    "title": "ID:[PRIMES] Prime Number Calculation Feature",
+    "description": "Implement the core prime number calculation logic.\n\nRepo: https://github.com/process-failed-successfully/recac-jira-e2e",
+    "type": "Epic",
+    "children": [
+      {
+        "title": "Implement Sieve of Eratosthenes",
+        "description": "Write a Python script to calculate primes using the Sieve algorithm.\n\nRepo: https://github.com/process-failed-successfully/recac-jira-e2e",
+        "type": "Story",
+        "acceptance_criteria": [
+          "Script calculates primes up to 100 correctly",
+          "Output matches expected values"
+        ]
+      }
+    ]
+  }
+]`, nil
+	}
+
 	// Detect Planner Request (recac plan)
 	if isPlannerPrompt(prompt) {
 		return `{
@@ -56,15 +79,29 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	return response, nil
 }
 
+func isTicketGenerationPrompt(prompt string) bool {
+	// The TPM Agent prompt mentions "INVEST" and "User Stories"
+	return contains(prompt, "Technical Program Manager") &&
+		contains(prompt, "INVEST") &&
+		contains(prompt, "User Stories")
+}
+
 func isPlannerPrompt(prompt string) bool {
 	// Simple keyword detection for the planner prompt
-	// "You are an expert Technical Program Manager" is the start of prompts.TPMAgent / Planner?
-	// Actually prompts.Planner usually has "feature_list.json" or "JSON" instructions.
-	// But let's check for keywords often found in the Planner prompt.
-	// The prompt template is likely 'planner.md'.
-	// A safe bet is checking if it asks for a JSON list of features.
-	return (contains(prompt, "Technical Program Manager") || contains(prompt, "Planner")) &&
-		(contains(prompt, "JSON") || contains(prompt, "feature_list"))
+	// The Planner prompt asks for a JSON list of features and usually mentions "feature_list.json" or similar.
+	// We need to ensure we don't accidentally match the Ticket Generation prompt if that also mentions JSON.
+	// The Ticket Generation prompt uses "Epics" and "User Stories".
+	// The Planner prompt usually focuses on "Features".
+
+	isTPM := contains(prompt, "Technical Program Manager") || contains(prompt, "Planner")
+	hasJSON := contains(prompt, "JSON") || contains(prompt, "feature_list")
+
+	// Exclude if it looks like the Ticket Generation prompt
+	if contains(prompt, "INVEST") {
+		return false
+	}
+
+	return isTPM && hasJSON
 }
 
 func contains(s, substr string) bool {
