@@ -125,6 +125,7 @@ func runPair(cmd *cobra.Command, args []string) error {
 	// Map to track pending updates per file
 	var mu sync.Mutex
 	timers := make(map[string]*time.Timer)
+	var wg sync.WaitGroup
 
 	// Use command context for cancellation
 	ctx := cmd.Context()
@@ -142,7 +143,9 @@ func runPair(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to initialize agent: %w", err)
 	}
 
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		for {
 			select {
 			case event, ok := <-watcher.Events():
@@ -176,11 +179,15 @@ func runPair(cmd *cobra.Command, args []string) error {
 				// Debounce logic
 				mu.Lock()
 				if t, exists := timers[filename]; exists {
-					t.Stop()
+					if t.Stop() {
+						wg.Done()
+					}
 				}
 				var t *time.Timer
+				wg.Add(1)
 				t = time.AfterFunc(pairDebounce, func() {
-					analyzeFile(cmd, ag, filename)
+					defer wg.Done()
+					analyzeFile(ctx, cmd, ag, filename)
 					mu.Lock()
 					// Only delete if it's still the same timer
 					if timers[filename] == t {
@@ -203,10 +210,16 @@ func runPair(cmd *cobra.Command, args []string) error {
 	}()
 
 	<-ctx.Done()
+	wg.Wait()
 	return nil
 }
 
-func analyzeFile(cmd *cobra.Command, ag agent.Agent, path string) {
+func analyzeFile(ctx context.Context, cmd *cobra.Command, ag agent.Agent, path string) {
+	// Check context first
+	if ctx.Err() != nil {
+		return
+	}
+
 	// Re-check file existence
 	info, err := os.Stat(path)
 	if err != nil {
@@ -242,9 +255,12 @@ Code:
 %s
 '''`, filepath.Base(path), strings.TrimPrefix(ext, "."), string(content))
 
-	resp, err := ag.Send(context.Background(), prompt)
+	resp, err := ag.Send(ctx, prompt)
 	if err != nil {
-		fmt.Fprintf(cmd.ErrOrStderr(), "Agent failed: %v\n", err)
+		// Only print error if context is not cancelled
+		if ctx.Err() == nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Agent failed: %v\n", err)
+		}
 		return
 	}
 

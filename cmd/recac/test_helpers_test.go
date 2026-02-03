@@ -267,7 +267,7 @@ func (m *MockSessionManager) ListArchivedSessions() ([]*runner.SessionState, err
 // executeCommand executes a cobra command and returns its output.
 func executeCommand(root *cobra.Command, args ...string) (output string, err error) {
 	resetFlags(root)
-	b := new(bytes.Buffer)
+	b := new(SafeBuffer)
 
 	// Mock exit
 	oldExit := exit
@@ -321,9 +321,9 @@ func resetFlags(cmd *cobra.Command) {
 		resetFlags(c)
 	}
 }
-func newRootCmd() (*cobra.Command, *bytes.Buffer, *bytes.Buffer) {
-	outBuf := new(bytes.Buffer)
-	errBuf := new(bytes.Buffer)
+func newRootCmd() (*cobra.Command, *SafeBuffer, *SafeBuffer) {
+	outBuf := new(SafeBuffer)
+	errBuf := new(SafeBuffer)
 	rootCmd.SetOut(outBuf)
 	rootCmd.SetErr(errBuf)
 	return rootCmd, outBuf, errBuf

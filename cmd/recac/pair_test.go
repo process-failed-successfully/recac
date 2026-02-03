@@ -12,8 +12,28 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"sync"
+
 	"github.com/stretchr/testify/require"
 )
+
+// SafeBuffer is a thread-safe buffer
+type SafeBuffer struct {
+	b bytes.Buffer
+	m sync.Mutex
+}
+
+func (s *SafeBuffer) Write(p []byte) (n int, err error) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	return s.b.Write(p)
+}
+
+func (s *SafeBuffer) String() string {
+	s.m.Lock()
+	defer s.m.Unlock()
+	return s.b.String()
+}
 
 // MockFileWatcher implements FileWatcher for testing
 type MockFileWatcher struct {
@@ -88,7 +108,7 @@ func TestPairCmd(t *testing.T) {
 
 	// Create command
 	cmd := &cobra.Command{Use: "pair", RunE: runPair}
-	var outBuf, errBuf bytes.Buffer
+	var outBuf, errBuf SafeBuffer
 	cmd.SetOut(&outBuf)
 	cmd.SetErr(&errBuf)
 

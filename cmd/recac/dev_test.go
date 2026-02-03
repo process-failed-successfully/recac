@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -65,19 +67,14 @@ func TestDevCmd(t *testing.T) {
 	devDebounce = 100 * time.Millisecond // Short debounce for test
 
 	// 4. Run Dev Loop in Goroutine
-	// We can't easily stop it, so we'll just let it leak or we need to refactor dev.go to be cancellable.
-	// For this test, leaking one goroutine is acceptable, or we can use a context if we modify dev.go.
-	// But let's verify logic first.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	// Note: runDev blocks. We run it in a goroutine.
+	cmd := &cobra.Command{}
+	cmd.SetContext(ctx)
+
 	go func() {
-		// Suppress stdout for clean test output
-		// devCmd.SetOut(io.Discard)
-		// devCmd.SetErr(io.Discard)
-		// Actually runDev uses fmt.Printf / os.Stdout directly in some places (bad practice but common in CLIs)
-		// So we can't easily suppress all output without capturing stdout/stderr of the process,
-		// but since we are in a test binary, we can just let it print.
-		runDev(devCmd, []string{})
+		runDev(cmd, []string{})
 	}()
 
 	// Wait for watcher to start (heuristic)
@@ -138,8 +135,14 @@ func TestDevCmd_Manual(t *testing.T) {
 	devRecursive = false
 	devDebounce = 100 * time.Millisecond
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	cmd := &cobra.Command{}
+	cmd.SetContext(ctx)
+
 	go func() {
-		runDev(devCmd, []string{})
+		runDev(cmd, []string{})
 	}()
 
 	time.Sleep(500 * time.Millisecond)

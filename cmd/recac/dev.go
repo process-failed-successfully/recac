@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -44,10 +45,17 @@ func init() {
 }
 
 func runDev(cmd *cobra.Command, args []string) error {
+	// Capture globals to avoid races
+	recursive := devRecursive
+	watchDir := devWatchDir
+	debounce := devDebounce
+	extensions := devExtensions
+	cmdFlag := devCmdFlag
+
 	// 1. Determine Command
-	runCommand := devCmdFlag
+	runCommand := cmdFlag
 	if runCommand == "" {
-		runCommand = detectDevCommand(devWatchDir)
+		runCommand = detectDevCommand(watchDir)
 		if runCommand == "" {
 			return fmt.Errorf("could not auto-detect command. Please provide one with --cmd")
 		}
@@ -55,7 +63,7 @@ func runDev(cmd *cobra.Command, args []string) error {
 	}
 
 	// 2. Determine Extensions
-	exts := parseExtensions(devExtensions, runCommand)
+	exts := parseExtensions(extensions, runCommand)
 	fmt.Printf("ℹ️  Watching extensions: %v\n", exts)
 
 	// 3. Setup Watcher
@@ -66,17 +74,17 @@ func runDev(cmd *cobra.Command, args []string) error {
 	defer watcher.Close()
 
 	// 4. Add Paths
-	if devRecursive {
-		if err := devAddRecursiveWatch(watcher, devWatchDir); err != nil {
+	if recursive {
+		if err := devAddRecursiveWatch(watcher, watchDir); err != nil {
 			return err
 		}
 	} else {
-		if err := watcher.Add(devWatchDir); err != nil {
+		if err := watcher.Add(watchDir); err != nil {
 			return err
 		}
 	}
 
-	fmt.Printf("👀 Watching %s for changes...\n", devWatchDir)
+	fmt.Printf("👀 Watching %s for changes...\n", watchDir)
 
 	// 5. Watch Loop
 	var timer *time.Timer
@@ -89,8 +97,14 @@ func runDev(cmd *cobra.Command, args []string) error {
 	go func() { trigger <- struct{}{} }()
 
 	// Event Loop
-	done := make(chan bool)
+	done := make(chan struct{})
+	ctx := cmd.Context()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	go func() {
+		defer close(done)
 		for {
 			select {
 			case event, ok := <-watcher.Events:
@@ -105,14 +119,18 @@ func runDev(cmd *cobra.Command, args []string) error {
 						if timer != nil {
 							timer.Stop()
 						}
-						timer = time.AfterFunc(devDebounce, func() {
-							trigger <- struct{}{}
+						timer = time.AfterFunc(debounce, func() {
+							select {
+							case trigger <- struct{}{}:
+							default:
+								// Already triggered
+							}
 						})
 						mu.Unlock()
 					}
 
 					// If new directory created, add to watcher
-					if devRecursive && event.Op&fsnotify.Create == fsnotify.Create {
+					if recursive && event.Op&fsnotify.Create == fsnotify.Create {
 						fi, err := os.Stat(event.Name)
 						if err == nil && fi.IsDir() {
 							watcher.Add(event.Name)
@@ -125,14 +143,21 @@ func runDev(cmd *cobra.Command, args []string) error {
 					return
 				}
 				fmt.Printf("Watcher error: %v\n", err)
+			case <-ctx.Done():
+				return
 			}
 		}
 	}()
 
 	// Execution Loop
 	go func() {
-		for range trigger {
-			executeDevCommand(runCommand)
+		for {
+			select {
+			case <-trigger:
+				executeDevCommand(runCommand)
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
 
