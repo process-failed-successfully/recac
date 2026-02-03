@@ -90,8 +90,11 @@ agent-bridge import --file feature_list.json
 	// If the previous command output indicates nothing to commit (clean working tree), we are done.
 	// This prevents infinite loops in smoke tests where the agent keeps trying to commit.
 	// This MUST be checked before Implementation logic because the prompt will contain both the task context AND the "nothing to commit" output.
+	// However, we MUST skip this check if the prompt is for QA or Manager roles, as they need to run verification steps even if the code is committed.
 	promptLower := strings.ToLower(prompt)
-	if strings.Contains(promptLower, "nothing to commit") || strings.Contains(promptLower, "working tree clean") {
+	isSpecialRole := strings.Contains(prompt, "YOUR ROLE - QA AGENT") || strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER")
+
+	if (strings.Contains(promptLower, "nothing to commit") || strings.Contains(promptLower, "working tree clean")) && !isSpecialRole {
 		return `It seems there are no more changes to commit. The task is complete.
 
 ` + "```bash" + `
