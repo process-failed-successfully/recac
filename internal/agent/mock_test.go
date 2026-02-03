@@ -25,6 +25,33 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Roles(t *testing.T) {
+	agent := NewMockAgent()
+	ctx := context.Background()
+
+	t.Run("QA Agent", func(t *testing.T) {
+		prompt := "## YOUR ROLE - QA AGENT\nVerify the project."
+		resp, err := agent.Send(ctx, prompt)
+		if err != nil {
+			t.Fatalf("Send failed: %v", err)
+		}
+		if !strings.Contains(resp, "agent-bridge signal QA_PASSED true") {
+			t.Errorf("Expected QA_PASSED signal, got: %s", resp)
+		}
+	})
+
+	t.Run("Project Manager", func(t *testing.T) {
+		prompt := "## YOUR ROLE - PROJECT MANAGER\nReview the project."
+		resp, err := agent.Send(ctx, prompt)
+		if err != nil {
+			t.Fatalf("Send failed: %v", err)
+		}
+		if !strings.Contains(resp, "agent-bridge signal PROJECT_SIGNED_OFF true") {
+			t.Errorf("Expected PROJECT_SIGNED_OFF signal, got: %s", resp)
+		}
+	})
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {

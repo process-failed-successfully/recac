@@ -107,7 +107,35 @@ fi
 `, nil
 	}
 
-	// 4. Completion / Loop Prevention
+	// 4. QA Role
+	// Triggers when "QA AGENT" role is detected
+	if strings.Contains(strings.ToUpper(prompt), "QA AGENT") {
+		return `
+` + "```bash" + `
+if command -v agent-bridge > /dev/null; then
+    agent-bridge signal QA_PASSED true
+else
+    echo "agent-bridge not found"
+fi
+` + "```" + `
+`, nil
+	}
+
+	// 5. Project Manager Role
+	// Triggers when "PROJECT MANAGER" role is detected
+	if strings.Contains(strings.ToUpper(prompt), "PROJECT MANAGER") {
+		return `
+` + "```bash" + `
+if command -v agent-bridge > /dev/null; then
+    agent-bridge signal PROJECT_SIGNED_OFF true
+else
+    echo "agent-bridge not found"
+fi
+` + "```" + `
+`, nil
+	}
+
+	// 6. Completion / Loop Prevention
 	lowerPrompt := strings.ToLower(prompt)
 	if strings.Contains(lowerPrompt, "nothing to commit") || strings.Contains(lowerPrompt, "working tree clean") {
 		return `
