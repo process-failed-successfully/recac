@@ -115,8 +115,12 @@ fi
 	}
 
 	// 4. QA / Manager
-	if strings.Contains(lowerPrompt, "qa agent") || strings.Contains(lowerPrompt, "project manager") {
-		return "Approved. QA Passed.", nil
+	if strings.Contains(lowerPrompt, "qa agent") {
+		return "```bash\nif command -v agent-bridge &> /dev/null; then\n    agent-bridge signal QA_PASSED true\nfi\n```\nApproved. QA Passed.", nil
+	}
+
+	if strings.Contains(lowerPrompt, "project manager") {
+		return "```bash\nif command -v agent-bridge &> /dev/null; then\n    agent-bridge signal PROJECT_SIGNED_OFF true\nfi\n```\nApproved. Project Signed Off.", nil
 	}
 
 	// Default fallback
