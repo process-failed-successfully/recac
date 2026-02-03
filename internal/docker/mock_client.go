@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"strings"
+	"sync"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/build"
@@ -32,6 +33,11 @@ type MockAPI struct {
 	ContainerListFunc        func(ctx context.Context, options container.ListOptions) ([]types.Container, error)
 	ContainerKillFunc        func(ctx context.Context, containerID, signal string) error
 	CloseFunc                func() error
+
+	// State for simple filesystem simulation
+	filesMu sync.Mutex
+	files   map[string]string
+	execCmd map[string][]string // Map execID to command
 }
 
 func (m *MockAPI) Ping(ctx context.Context) (types.Ping, error) {
@@ -108,16 +114,90 @@ func (m *MockAPI) ContainerExecCreate(ctx context.Context, container string, con
 	if m.ContainerExecCreateFunc != nil {
 		return m.ContainerExecCreateFunc(ctx, container, config)
 	}
-	return types.IDResponse{ID: "mock-exec-id"}, nil
+
+	// Store command for simulation
+	execID := "mock-exec-id"
+	// Generate unique ID if needed, but for now fixed is fine as we usually run sequentially or can append random
+	// A simple counter would be better if parallel
+
+	m.filesMu.Lock()
+	defer m.filesMu.Unlock()
+	if m.execCmd == nil {
+		m.execCmd = make(map[string][]string)
+	}
+	// Simple unique ID generation
+	// But `docker.Client.Exec` logic creates a new exec each time.
+	// We'll just assume sequential for the basic test case or overwrite.
+	// Actually, `Exec` calls `ExecCreate` then `ExecAttach`.
+	// We need to persist the command to `ExecAttach`.
+	m.execCmd[execID] = config.Cmd
+
+	return types.IDResponse{ID: execID}, nil
 }
 
 func (m *MockAPI) ContainerExecAttach(ctx context.Context, execID string, config container.ExecStartOptions) (types.HijackedResponse, error) {
 	if m.ContainerExecAttachFunc != nil {
 		return m.ContainerExecAttachFunc(ctx, execID, config)
 	}
-	// Return valid empty response to avoid panic
+
+	m.filesMu.Lock()
+	if m.files == nil {
+		m.files = make(map[string]string)
+	}
+	if m.execCmd == nil {
+		m.execCmd = make(map[string][]string)
+	}
+	cmd := m.execCmd[execID]
+	m.filesMu.Unlock()
+
+	var output string
+
+	if len(cmd) >= 3 && cmd[0] == "/bin/bash" && cmd[1] == "-c" {
+		script := cmd[2]
+
+		// Simple Write Simulation: echo 'content' > file
+		// Note: This is fragile parsing but sufficient for the specific "echo > feature_list.json" case
+		if strings.HasPrefix(strings.TrimSpace(script), "echo '") && strings.Contains(script, " > ") {
+			parts := strings.SplitN(script, " > ", 2)
+			if len(parts) == 2 {
+				contentPart := parts[0]
+				filePart := strings.TrimSpace(parts[1])
+
+				// Extract content from echo '...'
+				content := strings.TrimPrefix(strings.TrimSpace(contentPart), "echo '")
+				content = strings.TrimSuffix(content, "'")
+
+				// Unescape newlines
+				content = strings.ReplaceAll(content, "\\n", "\n")
+
+				m.filesMu.Lock()
+				m.files[filePart] = content
+				m.filesMu.Unlock()
+				output = "" // No stdout for write
+			}
+		}
+
+		// Simple Read Simulation: cat file
+		if strings.HasPrefix(strings.TrimSpace(script), "cat ") {
+			file := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(script), "cat "))
+			m.filesMu.Lock()
+			content, ok := m.files[file]
+			m.filesMu.Unlock()
+			if ok {
+				output = content
+			}
+		}
+	}
+
+	// Return response with simulated output
 	server, client := net.Pipe()
-	go server.Close() // Close immediately to simulate empty stream
+	go func() {
+		defer server.Close()
+		if output != "" {
+			server.Write([]byte(output))
+		}
+	}()
+
 	return types.HijackedResponse{
 		Conn:   client,
 		Reader: bufio.NewReader(client),

@@ -37,9 +37,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Triggers: "generate-from-spec", "technical program manager"
 	if strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "generate-from-spec") {
 		// Return JSON array of ticket nodes
+		// Note: Title must match regex `ID:\[?([\w-]+)\]?` for e2e tests to map it back to ID.
 		return `[
   {
-    "title": "Implement Primes",
+    "title": "ID:[PRIMES] Implement Primes",
     "description": "Create a python script that calculates primes",
     "type": "Story",
     "acceptance_criteria": [
