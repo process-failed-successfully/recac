@@ -116,6 +116,14 @@ fi
 ` + "```", nil
 	}
 
+	// 5. QA Role
+	if strings.Contains(prompt, "QA AGENT") || strings.Contains(prompt, "VERIFY THE PROJECT") {
+		return `I have verified the project. All tests pass.
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```", nil
+	}
+
 	// Default fallback
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
