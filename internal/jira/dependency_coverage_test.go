@@ -48,7 +48,7 @@ func TestBuildGraphFromIssues(t *testing.T) {
 	// Assume B blocks A
 	getBlockers := func(issue map[string]interface{}) []string {
 		if issue["key"] == "A" {
-			return []string{"B (Done)"} // B blocks A
+			return []string{"B"} // B blocks A
 		}
 		return nil
 	}
@@ -79,10 +79,10 @@ func TestBuildGraphFromIssues_Complex(t *testing.T) {
 	getBlockers := func(issue map[string]interface{}) []string {
 		key := issue["key"].(string)
 		if key == "B" {
-			return []string{"A (Done)"}
+			return []string{"A"}
 		}
 		if key == "C" {
-			return []string{"B (Done)"}
+			return []string{"B"}
 		}
 		return nil
 	}
@@ -124,7 +124,7 @@ func TestDependencyGraph_SelfRef(t *testing.T) {
 	}
 
 	getBlockers := func(issue map[string]interface{}) []string {
-		return []string{"A (Status)"} // Self reference
+		return []string{"A"} // Self reference
 	}
 
 	graph := BuildGraphFromIssues(issues, getBlockers)
