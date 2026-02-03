@@ -140,6 +140,14 @@ func (s *Session) RunLoop(ctx context.Context) error {
 					return nil
 				}
 			}
+
+			// Check for Explicit Completion Signal (e.g. from Mock Agent or manual override)
+			// This allows agents to signal task completion even if they can't update feature status directly.
+			if s.hasSignal("COMPLETED") {
+				s.Logger.Info("COMPLETED signal received in task mode, exiting", "task_id", s.SelectedTaskID)
+				s.clearSignal("COMPLETED")
+				return nil
+			}
 		}
 
 		// Handle Lifecycle Role Transitions (Agent-QA-Manager-Cleaner workflow)
