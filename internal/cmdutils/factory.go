@@ -55,6 +55,11 @@ var GetAgentClient = func(ctx context.Context, provider, model, projectPath, pro
 		}
 	}
 
+	// Use mock agent if provider is "mock" (this ensures agent logic matches CI expectations)
+	if provider == "mock" {
+		return agent.NewMockAgent(), nil
+	}
+
 	apiKey := viper.GetString("api_key")
 	if apiKey == "" {
 		apiKey = os.Getenv("API_KEY")
