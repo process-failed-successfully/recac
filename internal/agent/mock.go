@@ -37,7 +37,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return `
 Here is the plan for the Prime Number Script:
 
-'''json
+` + "```json" + `
 [
   {
     "id": "PRIMES",
@@ -49,7 +49,7 @@ Here is the plan for the Prime Number Script:
     "assigned_to": "agent"
   }
 ]
-'''
+` + "```" + `
 `, nil
 	}
 
@@ -60,7 +60,7 @@ Here is the plan for the Prime Number Script:
 		return `
 I will implement the prime number script as requested.
 
-'''bash
+` + "```bash" + `
 #!/bin/bash
 set -e
 
@@ -98,7 +98,7 @@ git push origin HEAD
 # Signal completion
 agent-bridge feature update --id PRIMES --status in_progress
 agent-bridge signal --signal QA_PASSED
-'''
+` + "```" + `
 `, nil
 	}
 
@@ -107,9 +107,9 @@ agent-bridge signal --signal QA_PASSED
 		return `
 The changes look correct. The 'primes.py' script is implemented and 'primes.json' is generated.
 
-'''bash
+` + "```bash" + `
 agent-bridge signal --signal QA_PASSED
-'''
+` + "```" + `
 `, nil
 	}
 
@@ -118,9 +118,9 @@ agent-bridge signal --signal QA_PASSED
 		return `
 The project requirements are met.
 
-'''bash
+` + "```bash" + `
 agent-bridge signal --signal PROJECT_SIGNED_OFF
-'''
+` + "```" + `
 `, nil
 	}
 
