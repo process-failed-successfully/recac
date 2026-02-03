@@ -196,6 +196,12 @@ func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, ind
 	}
 
 	if err != nil {
+		// Special Handling: Git Commit with no changes (exit code 1)
+		if strings.Contains(cmdScript, "git commit") && (strings.Contains(output, "nothing to commit") || strings.Contains(output, "clean")) {
+			s.Logger.Info("git commit failed but clean - treating as success", "output", output)
+			return fmt.Sprintf("Command Succeeded (No Changes to Commit):\n%s\n", output), nil
+		}
+
 		var errMsg string
 		if cmdCtx.Err() == context.DeadlineExceeded {
 			errMsg = fmt.Sprintf("Command timed out after %d seconds.", timeoutSeconds)

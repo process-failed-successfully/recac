@@ -30,6 +30,11 @@ func (m *MockDockerForExec) Exec(ctx context.Context, id string, cmd []string) (
 		}
 	}
 
+	// Simulate git commit failure with specific message
+	if strings.Contains(fullCmd, "git commit") && strings.Contains(fullCmd, "fail-clean") {
+		return "nothing to commit, working tree clean", fmt.Errorf("exit status 1")
+	}
+
 	// Simulate success for most commands
 	if strings.Contains(fullCmd, "fail") {
 		return "", fmt.Errorf("simulated failure")
@@ -133,5 +138,29 @@ func TestSession_ProcessResponse_Timeout(t *testing.T) {
 	}
 	if !strings.Contains(out, "Command Failed") {
 		t.Errorf("Expected command to be marked as failed")
+	}
+}
+
+func TestSession_ProcessResponse_GitCommitClean(t *testing.T) {
+	mockDocker := &MockDockerForExec{}
+	s := &Session{
+		Docker:      mockDocker,
+		ContainerID: "test-container",
+		Notifier:    notify.NewManager(func(string, ...interface{}) {}),
+		Logger:      slog.Default(),
+	}
+
+	// Command that triggers the "fail-clean" logic in mock
+	resp := "Committing...\n```bash\ngit commit -m 'fail-clean'\n```"
+	out, err := s.ProcessResponse(context.Background(), resp)
+	if err != nil {
+		t.Fatalf("ProcessResponse failed: %v", err)
+	}
+
+	if !strings.Contains(out, "Command Succeeded (No Changes to Commit)") {
+		t.Errorf("Expected success message for clean commit, got: %s", out)
+	}
+	if strings.Contains(out, "Command Failed") {
+		t.Errorf("Did not expect command failure")
 	}
 }
