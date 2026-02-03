@@ -1,12 +1,10 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"os"
 	"path/filepath"
 	"recac/internal/agent"
-	"sync"
 	"testing"
 	"time"
 
@@ -54,24 +52,6 @@ func (m *PairTestMockAgent) Send(ctx context.Context, prompt string) (string, er
 func (m *PairTestMockAgent) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
 	onChunk(m.Response)
 	return m.Response, nil
-}
-
-// SafeBuffer is a thread-safe buffer
-type SafeBuffer struct {
-	b  bytes.Buffer
-	mu sync.Mutex
-}
-
-func (s *SafeBuffer) Write(p []byte) (n int, err error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.b.Write(p)
-}
-
-func (s *SafeBuffer) String() string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.b.String()
 }
 
 func TestPairCmd(t *testing.T) {

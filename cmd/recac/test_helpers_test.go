@@ -11,9 +11,29 @@ import (
 	"recac/internal/runner"
 
 	"github.com/spf13/cobra"
+	"sync"
+
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/require"
 )
+
+// SafeBuffer is a thread-safe buffer for capturing command output
+type SafeBuffer struct {
+	b  bytes.Buffer
+	mu sync.Mutex
+}
+
+func (s *SafeBuffer) Write(p []byte) (n int, err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.Write(p)
+}
+
+func (s *SafeBuffer) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.String()
+}
 
 // setupTestSessionManager creates a real SessionManager in a temporary directory for integration tests.
 func setupTestSessionManager(t *testing.T) (*runner.SessionManager, func()) {
@@ -266,7 +286,7 @@ func (m *MockSessionManager) ListArchivedSessions() ([]*runner.SessionState, err
 // executeCommand executes a cobra command and returns its output.
 func executeCommand(root *cobra.Command, args ...string) (output string, err error) {
 	resetFlags(root)
-	b := new(bytes.Buffer)
+	b := new(SafeBuffer)
 
 	// Mock exit
 	oldExit := exit
