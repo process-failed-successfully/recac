@@ -94,44 +94,63 @@ func (s *Session) checkBlockers(ctx context.Context) error {
 		}
 	}
 
-	// Legacy File Check (Deprecating, but keeping for compatibility)
-	if s.Docker != nil {
-		blockerFiles := []string{"recac_blockers.txt", "blockers.txt"}
-		for _, bf := range blockerFiles {
-			checkCmd := []string{"/bin/sh", "-c", fmt.Sprintf("test -f %s && cat %s", bf, bf)}
-			blockerContent, err := s.Docker.Exec(ctx, s.GetContainerID(), checkCmd)
-			trimmed := strings.TrimSpace(blockerContent)
-			if err == nil && len(trimmed) > 0 {
-				// Check for false positives (status messages instead of blockers)
-				// 1. Normalize: lowercase and remove common comment/bullet chars (#, *, -, whitespace)
-				cleanStr := strings.ToLower(trimmed)
-				cleanStr = strings.ReplaceAll(cleanStr, "#", "")
-				cleanStr = strings.ReplaceAll(cleanStr, "*", "")
-				cleanStr = strings.ReplaceAll(cleanStr, "-", "")
-				cleanStr = strings.Join(strings.Fields(cleanStr), " ") // Normalize internal whitespace
+	blockerFiles := []string{"recac_blockers.txt", "blockers.txt"}
 
-				isFalsePositive := strings.Contains(cleanStr, "no blockers") ||
-					strings.HasPrefix(cleanStr, "none") ||
-					strings.Contains(cleanStr, "no technical obstacles") ||
-					strings.Contains(cleanStr, "progressing smoothly") ||
-					strings.Contains(cleanStr, "initial setup complete") ||
-					strings.Contains(cleanStr, "all requirements met") ||
-					strings.Contains(cleanStr, "ready for next feature") ||
-					strings.Contains(cleanStr, "ui verification required")
+	for _, bf := range blockerFiles {
+		var blockerContent string
+		var err error
 
-				if isFalsePositive {
-					s.Logger.Info("ignoring false positive blocker", "file", bf, "content", trimmed)
-					// Cleanup the file so it doesn't re-trigger
-					s.Docker.Exec(ctx, s.GetContainerID(), []string{"rm", bf})
-					continue
-				}
-
-				// Real Blocker found!
-				s.Logger.Warn("agent reported blocker file", "file", bf)
-				s.Logger.Warn("blocker content", "content", blockerContent)
-				s.Logger.Info("session stopping to allow human resolution")
-				return ErrBlocker
+		if s.UseLocalAgent {
+			// Check Local
+			path := filepath.Join(s.Workspace, bf)
+			var content []byte
+			content, err = os.ReadFile(path)
+			if err == nil {
+				blockerContent = string(content)
 			}
+		} else if s.Docker != nil {
+			// Check Docker
+			checkCmd := []string{"/bin/sh", "-c", fmt.Sprintf("test -f %s && cat %s", bf, bf)}
+			blockerContent, err = s.Docker.Exec(ctx, s.GetContainerID(), checkCmd)
+		} else {
+			continue
+		}
+
+		trimmed := strings.TrimSpace(blockerContent)
+		if err == nil && len(trimmed) > 0 {
+			// Check for false positives (status messages instead of blockers)
+			// 1. Normalize: lowercase and remove common comment/bullet chars (#, *, -, whitespace)
+			cleanStr := strings.ToLower(trimmed)
+			cleanStr = strings.ReplaceAll(cleanStr, "#", "")
+			cleanStr = strings.ReplaceAll(cleanStr, "*", "")
+			cleanStr = strings.ReplaceAll(cleanStr, "-", "")
+			cleanStr = strings.Join(strings.Fields(cleanStr), " ") // Normalize internal whitespace
+
+			isFalsePositive := strings.Contains(cleanStr, "no blockers") ||
+				strings.HasPrefix(cleanStr, "none") ||
+				strings.Contains(cleanStr, "no technical obstacles") ||
+				strings.Contains(cleanStr, "progressing smoothly") ||
+				strings.Contains(cleanStr, "initial setup complete") ||
+				strings.Contains(cleanStr, "all requirements met") ||
+				strings.Contains(cleanStr, "ready for next feature") ||
+				strings.Contains(cleanStr, "ui verification required")
+
+			if isFalsePositive {
+				s.Logger.Info("ignoring false positive blocker", "file", bf, "content", trimmed)
+				// Cleanup the file so it doesn't re-trigger
+				if s.UseLocalAgent {
+					os.Remove(filepath.Join(s.Workspace, bf))
+				} else if s.Docker != nil {
+					s.Docker.Exec(ctx, s.GetContainerID(), []string{"rm", bf})
+				}
+				continue
+			}
+
+			// Real Blocker found!
+			s.Logger.Warn("agent reported blocker file", "file", bf)
+			s.Logger.Warn("blocker content", "content", blockerContent)
+			s.Logger.Info("session stopping to allow human resolution")
+			return ErrBlocker
 		}
 	}
 	return nil
