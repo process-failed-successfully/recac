@@ -32,45 +32,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// Heuristic: Check if prompt is asking for ticket generation (contains app_spec or ticket-related keywords)
-	// This allows the smoke test to pass by returning valid JSON when expected
-	if strings.Contains(prompt, "app_spec") || strings.Contains(prompt, "ticket") || strings.Contains(prompt, "Epic") {
-		return `[
-  {
-    "title": "ID:[SYSTEM] Mock System Implementation",
-    "description": "Implementation of the system based on spec.",
-    "type": "Epic",
-    "children": [
-      {
-        "title": "ID:[COMP-1] Implement Core Feature",
-        "description": "Implement the core functionality.",
-        "type": "Story",
-        "acceptance_criteria": [
-          "Feature works"
-        ],
-        "children": []
-      }
-    ]
-  }
-]`, nil
-	}
-
-	// Heuristic: Check for implementation request for COMP-1 (from the mock ticket)
-	// We also check for "req-feature-works" to cover the injected feature ID.
-	if strings.Contains(prompt, "COMP-1") || strings.Contains(prompt, "req-feature-works") || strings.Contains(prompt, "Implement Core Feature") {
-		return `Mock agent implementation for COMP-1:
-
-` + "```bash" + `
-echo "Implementing COMP-1 Core Feature..."
-# Simulate work
-echo "Work done."
-# Mark feature as complete
-agent-bridge feature set req-feature-works --status done --passes true
-` + "```" + `
-`, nil
-	}
-
-	// Heuristic: Check for QA role
+	// Heuristic 1: Check for QA role
 	if strings.Contains(strings.ToUpper(prompt), "QA AGENT") {
 		return `Mock QA agent response:
 
@@ -81,13 +43,60 @@ agent-bridge signal QA_PASSED true
 `, nil
 	}
 
-	// Heuristic: Check for Manager role
+	// Heuristic 2: Check for Manager role
 	if strings.Contains(strings.ToUpper(prompt), "PROJECT MANAGER") {
 		return `Mock Manager response:
 
 ` + "```bash" + `
 echo "Project Approved."
 agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
+	}
+
+	// Heuristic 3: Check for Implementation request (Prioritize over Initializer)
+	// We check for "COMP-1" or "req-feature-works" or "Calculate primes" (common in e2e)
+	if strings.Contains(prompt, "COMP-1") || strings.Contains(prompt, "req-feature-works") || strings.Contains(prompt, "Implement Core Feature") || strings.Contains(prompt, "Calculate primes") || strings.Contains(prompt, "primes.py") {
+		return `Mock agent implementation:
+
+` + "```bash" + `
+echo "Implementing Feature..."
+# Simulate work
+echo "Work done."
+# Mark feature as complete (using 'update' alias for compatibility)
+agent-bridge feature set req-feature-works --status done --passes true || agent-bridge feature set req-primes-json-contains-correct-p --status done --passes true
+` + "```" + `
+`, nil
+	}
+
+	// Heuristic 4: Check for Initializer Logic (Ticket Generation)
+	// Must contain "feature_list.json" AND ("INITIALIZER" or "Initialize") to be specific.
+	if strings.Contains(prompt, "feature_list.json") && (strings.Contains(strings.ToUpper(prompt), "INITIALIZER") || strings.Contains(prompt, "Initialize")) {
+		return `Mock Initializer Response:
+
+` + "```bash" + `
+cat << 'EOF' | agent-bridge import
+{
+  "project_name": "Mock System",
+  "features": [
+    {
+      "id": "req-feature-works",
+      "category": "functional",
+      "priority": "MVP",
+      "description": "Feature works",
+      "status": "pending",
+      "steps": ["Verify feature"],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": [],
+        "read_only_paths": []
+      }
+    }
+  ]
+}
+EOF
+echo "Initialized features."
 ` + "```" + `
 `, nil
 	}

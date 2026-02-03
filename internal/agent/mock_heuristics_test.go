@@ -17,11 +17,11 @@ func TestMockAgent_Send_Heuristics(t *testing.T) {
 	}{
 		{
 			name:   "Implementation - COMP-1",
-			prompt: "Please Implement Core Feature (COMP-1)",
+			prompt: "Please Implement Core Feature (COMP-1) and check app_spec.txt",
 			expectContains: []string{
-				"Mock agent implementation for COMP-1",
+				"Mock agent implementation",
 				"```bash",
-				"echo \"Implementing COMP-1 Core Feature...\"",
+				"echo \"Implementing Feature...\"",
 				"agent-bridge feature set req-feature-works --status done",
 			},
 		},
@@ -29,8 +29,24 @@ func TestMockAgent_Send_Heuristics(t *testing.T) {
 			name:   "Implementation - req-feature-works",
 			prompt: "Work on req-feature-works",
 			expectContains: []string{
-				"Mock agent implementation for COMP-1",
+				"Mock agent implementation",
 				"agent-bridge feature set req-feature-works --status done",
+			},
+		},
+		{
+			name:   "CodingAgent Prompt - Should Trigger Implementation NOT Initializer",
+			prompt: "## YOUR ROLE - CODING AGENT\n... cat app_spec.txt ... Feature ID: req-feature-works",
+			expectContains: []string{
+				"Mock agent implementation",
+				"agent-bridge feature set req-feature-works",
+			},
+		},
+		{
+			name:   "Initializer Prompt - Should Trigger Initializer",
+			prompt: "## YOUR ROLE - INITIALIZER AGENT\n... Create feature_list.json ...",
+			expectContains: []string{
+				"Mock Initializer Response",
+				"agent-bridge import",
 			},
 		},
 		{
