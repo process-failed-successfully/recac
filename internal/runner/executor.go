@@ -95,13 +95,15 @@ func (s *Session) checkBlockers(ctx context.Context) error {
 	}
 
 	// Legacy File Check (Deprecating, but keeping for compatibility)
-	if s.Docker != nil {
-		blockerFiles := []string{"recac_blockers.txt", "blockers.txt"}
-		for _, bf := range blockerFiles {
-			checkCmd := []string{"/bin/sh", "-c", fmt.Sprintf("test -f %s && cat %s", bf, bf)}
-			blockerContent, err := s.Docker.Exec(ctx, s.GetContainerID(), checkCmd)
+	// We read directly from the workspace to avoid Docker exec overhead/failures.
+	blockerFiles := []string{"recac_blockers.txt", "blockers.txt"}
+	for _, bf := range blockerFiles {
+		path := filepath.Join(s.Workspace, bf)
+		data, err := os.ReadFile(path)
+		if err == nil && len(data) > 0 {
+			blockerContent := string(data)
 			trimmed := strings.TrimSpace(blockerContent)
-			if err == nil && len(trimmed) > 0 {
+			if len(trimmed) > 0 {
 				// Check for false positives (status messages instead of blockers)
 				// 1. Normalize: lowercase and remove common comment/bullet chars (#, *, -, whitespace)
 				cleanStr := strings.ToLower(trimmed)
@@ -112,17 +114,19 @@ func (s *Session) checkBlockers(ctx context.Context) error {
 
 				isFalsePositive := strings.Contains(cleanStr, "no blockers") ||
 					strings.HasPrefix(cleanStr, "none") ||
+					strings.Contains(cleanStr, "blockers: none") ||
 					strings.Contains(cleanStr, "no technical obstacles") ||
 					strings.Contains(cleanStr, "progressing smoothly") ||
 					strings.Contains(cleanStr, "initial setup complete") ||
 					strings.Contains(cleanStr, "all requirements met") ||
 					strings.Contains(cleanStr, "ready for next feature") ||
-					strings.Contains(cleanStr, "ui verification required")
+					strings.Contains(cleanStr, "ui verification required") ||
+					strings.Contains(cleanStr, "passed")
 
 				if isFalsePositive {
 					s.Logger.Info("ignoring false positive blocker", "file", bf, "content", trimmed)
 					// Cleanup the file so it doesn't re-trigger
-					s.Docker.Exec(ctx, s.GetContainerID(), []string{"rm", bf})
+					os.Remove(path)
 					continue
 				}
 

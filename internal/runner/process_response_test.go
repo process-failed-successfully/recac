@@ -3,10 +3,10 @@ package runner
 import (
 	"context"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"recac/internal/db"
 	"recac/internal/notify"
-	"strings"
 	"testing"
 )
 
@@ -31,10 +31,6 @@ func TestSession_ProcessResponse_NoCommands(t *testing.T) {
 func TestSession_ProcessResponse_WithCommands(t *testing.T) {
 	mockDocker := &MockDockerClient{
 		ExecFunc: func(ctx context.Context, containerID string, cmd []string) (string, error) {
-			// Check if this is the legacy blocker check
-			if len(cmd) > 2 && (strings.Contains(cmd[2], "cat recac_blockers.txt") || strings.Contains(cmd[2], "cat blockers.txt")) {
-				return "", nil // No legacy blocker found
-			}
 			return "Success", nil
 		},
 	}
@@ -72,10 +68,7 @@ func TestSession_ProcessResponse_WithCommands(t *testing.T) {
 func TestSession_ProcessResponse_Blocker(t *testing.T) {
 	mockDocker := &MockDockerClient{
 		ExecFunc: func(ctx context.Context, containerID string, cmd []string) (string, error) {
-			if len(cmd) > 2 && strings.Contains(cmd[2], "cat recac_blockers.txt") {
-				return "", nil
-			}
-			return "Blocker reported", nil
+			return "Success", nil
 		},
 	}
 
@@ -93,11 +86,33 @@ func TestSession_ProcessResponse_Blocker(t *testing.T) {
 		Project:   "test-project",
 	}
 
-	// Manually set blocker signal to simulate "agent did it"
+	// Test 1: DB Signal Blocker
 	store.SetSignal("test-project", "BLOCKER", "I am stuck")
-
 	_, err := s.ProcessResponse(context.Background(), "some commands")
 	if err != ErrBlocker {
-		t.Errorf("Expected ErrBlocker, got %v", err)
+		t.Errorf("Expected ErrBlocker from DB signal, got %v", err)
+	}
+
+	// Test 2: File Blocker
+	store.DeleteSignal("test-project", "BLOCKER") // Clear DB signal
+
+	blockerFile := filepath.Join(workspace, "recac_blockers.txt")
+	os.WriteFile(blockerFile, []byte("I am blocked by missing API key"), 0644)
+
+	_, err = s.ProcessResponse(context.Background(), "some commands")
+	if err != ErrBlocker {
+		t.Errorf("Expected ErrBlocker from file, got %v", err)
+	}
+
+	// Test 3: False Positive Blocker
+	os.WriteFile(blockerFile, []byte("No blockers found. All tests passed."), 0644)
+	_, err = s.ProcessResponse(context.Background(), "some commands")
+	if err != nil {
+		t.Errorf("Expected no error for false positive blocker, got %v", err)
+	}
+
+	// Check if file was removed
+	if _, err := os.Stat(blockerFile); !os.IsNotExist(err) {
+		t.Errorf("Expected blocker file to be removed after false positive detection")
 	}
 }
