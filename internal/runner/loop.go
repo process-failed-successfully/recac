@@ -410,7 +410,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		// Check Max Iterations
 		// We check this AFTER successful completion signals and Lifecycle transitions to ensure we don't error out during QA/Manager phases
 		currentIteration := s.GetIteration()
-		if s.MaxIterations > 0 && currentIteration > s.MaxIterations {
+		if s.MaxIterations > 0 && currentIteration >= s.MaxIterations {
 			s.Logger.Info("reached max iterations", "max_iterations", s.MaxIterations)
 			return ErrMaxIterations
 		}
