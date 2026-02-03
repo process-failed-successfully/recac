@@ -48,12 +48,20 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 }
 
 func (m *MockAgent) generatePrimesTickets() string {
+	// IMPORTANT: The format must explicitly match what the runner expects.
+	// The logs showed a "You must specify a summary of the issue" error, which implies the runner might be
+	// sending separate API calls or the JSON structure for creating tickets is being parsed/used incorrectly
+	// if it's just a raw list.
+	// However, usually the agent output is parsed by `GenerateTickets` which expects a JSON list of objects.
+	// The AppSpec says: "CRITICAL INSTRUCTION: You MUST create exactly ONE ticket. Type: Task."
+	// Let's refine the summary/description to match the spec exactly to be safe.
 	return `[
   {
     "id": "PRIMES",
     "type": "Task",
     "summary": "[PRIMES] Create Prime Number Script",
-    "description": "Create a python script named 'primes.py'. It MUST be python.\nIt must calculate all prime numbers less than 10,000 and output to a file named 'primes.json'.\nIMPORTANT: You MUST use a bash block to create the file."
+    "description": "Create a python script named 'primes.py'. It MUST be python.\nIt must calculate all prime numbers less than 10,000 and output to a file named 'primes.json'.\nIMPORTANT: You MUST use a bash block to create the file.",
+    "labels": ["recac-smoke-test"]
   }
 ]`
 }
