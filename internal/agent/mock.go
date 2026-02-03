@@ -60,55 +60,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 2. Handle Initializer (feature_list.json) - if requested
 	if strings.Contains(prompt, "Initialize") && strings.Contains(prompt, "feature_list.json") {
-		return `cat << 'EOF' > feature_list.json
-{
-  "project_name": "mock-project",
-  "features": [
-    {"id": "req-primes-py-exists", "description": "primes.py exists", "status": "todo", "type": "file_exists", "target": "primes.py"}
-  ]
-}
-EOF
-`, nil
+		return "Here is the initialization script:\n\n```bash\ncat << 'EOF' > feature_list.json\n{\n  \"project_name\": \"mock-project\",\n  \"features\": [\n    {\"id\": \"req-primes-py-exists\", \"description\": \"primes.py exists\", \"status\": \"todo\", \"type\": \"file_exists\", \"target\": \"primes.py\"}\n  ]\n}\nEOF\n```\n", nil
 	}
 
 	// 3. Handle Coding Agent (primes.py)
 	if strings.Contains(prompt, "primes.py") {
-		return `#!/bin/bash
-set -e
-
-# Configure git if needed
-git config user.email "mock@agent.com" || true
-git config user.name "Mock Agent" || true
-
-# Create primes.py
-cat << 'EOF' > primes.py
-import json
-
-def is_prime(n):
-    if n < 2: return False
-    for i in range(2, int(n**0.5) + 1):
-        if n % i == 0:
-            return False
-    return True
-
-primes = [i for i in range(10000) if is_prime(i)]
-
-with open('primes.json', 'w') as f:
-    json.dump({"primes": primes}, f)
-EOF
-
-# Run it to generate output
-python3 primes.py
-
-# Add and commit
-git add primes.py primes.json
-git commit -m "Add primes.py and output" || echo "Nothing to commit"
-
-# Signal completion if bridge is available
-if command -v agent-bridge &> /dev/null; then
-    agent-bridge update --status done --feature req-primes-py-exists || true
-fi
-`, nil
+		return "Here is the script to generate primes:\n\n```bash\n#!/bin/bash\nset -e\n\n# Configure git if needed\ngit config user.email \"mock@agent.com\" || true\ngit config user.name \"Mock Agent\" || true\n\n# Create primes.py\ncat << 'EOF' > primes.py\nimport json\n\ndef is_prime(n):\n    if n < 2: return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0:\n            return False\n    return True\n\nprimes = [i for i in range(10000) if is_prime(i)]\n\nwith open('primes.json', 'w') as f:\n    json.dump({\"primes\": primes}, f)\nEOF\n\n# Run it to generate output\npython3 primes.py\n\n# Add and commit\ngit add primes.py primes.json\ngit commit -m \"Add primes.py and output\" || echo \"Nothing to commit\"\n\n# Signal completion if bridge is available\nif command -v agent-bridge &> /dev/null; then\n    agent-bridge update --status done --feature req-primes-py-exists || true\nfi\n```\n", nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
