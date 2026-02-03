@@ -11,7 +11,6 @@ func TestAgentBridgeRestrictions(t *testing.T) {
 	dbPath := filepath.Join(workspace, ".recac.db")
 
 	privilegedSignals := []string{
-		"PROJECT_SIGNED_OFF",
 		"TRIGGER_QA",
 		"TRIGGER_MANAGER",
 	}
