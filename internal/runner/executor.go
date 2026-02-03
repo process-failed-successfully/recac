@@ -50,7 +50,7 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 
 	// Check for Blockers
 	if err := s.checkBlockers(ctx); err != nil {
-		return parsedOutput.String(), err
+		return "", err
 	}
 
 	// Metrics Collection
@@ -315,3 +315,9 @@ func (s *Session) runCleanerAgent(ctx context.Context) error {
 	return nil
 }
 
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}

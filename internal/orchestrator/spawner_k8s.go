@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -119,19 +118,68 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 
 	// Construct Env Vars
 	var envVars []corev1.EnvVar
-	envMap := BuildAgentEnvVars(item, s.AgentProvider, s.AgentModel)
-
-	// Sort keys for deterministic output
-	var keys []string
-	for k := range envMap {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	for _, k := range keys {
-		v := envMap[k]
+	for k, v := range item.EnvVars {
 		envVars = append(envVars, corev1.EnvVar{Name: k, Value: v})
 	}
+
+	if s.AgentProvider != "" {
+		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_PROVIDER", Value: s.AgentProvider})
+	}
+	if s.AgentModel != "" {
+		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_MODEL", Value: s.AgentModel})
+	}
+
+	// Inject Standard Env Vars
+	envVars = append(envVars, corev1.EnvVar{Name: "GIT_TERMINAL_PROMPT", Value: "0"})
+
+	// Propagate Secrets and Config from Host Environment (Consistency with DockerSpawner)
+	secrets := []string{
+		"JIRA_API_TOKEN", "JIRA_USERNAME", "JIRA_URL",
+		"GITHUB_TOKEN", "GITHUB_API_KEY",
+		"OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY",
+		"RECAC_DB_TYPE", "RECAC_DB_URL",
+	}
+	for _, secret := range secrets {
+		if val := os.Getenv(secret); val != "" {
+			envVars = append(envVars, corev1.EnvVar{Name: secret, Value: val})
+			if secret == "GITHUB_API_KEY" {
+				envVars = append(envVars, corev1.EnvVar{Name: "RECAC_GITHUB_API_KEY", Value: val})
+			}
+		}
+	}
+
+	// Propagate Notifications Config
+	if val := os.Getenv("RECAC_NOTIFICATIONS_DISCORD_ENABLED"); val != "" {
+		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_NOTIFICATIONS_DISCORD_ENABLED", Value: val})
+	}
+	if val := os.Getenv("RECAC_NOTIFICATIONS_SLACK_ENABLED"); val != "" {
+		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_NOTIFICATIONS_SLACK_ENABLED", Value: val})
+	}
+
+	// Propagate Project ID
+	envVars = append(envVars, corev1.EnvVar{Name: "RECAC_PROJECT_ID", Value: item.ID})
+
+	// Propagate Agent Limits
+	maxIterations := "20"
+	if val := os.Getenv("RECAC_MAX_ITERATIONS"); val != "" {
+		maxIterations = val
+	}
+	envVars = append(envVars, corev1.EnvVar{Name: "RECAC_MAX_ITERATIONS", Value: maxIterations})
+
+	if val := os.Getenv("RECAC_MANAGER_FREQUENCY"); val != "" {
+		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_MANAGER_FREQUENCY", Value: val})
+	}
+	if val := os.Getenv("RECAC_TASK_MAX_ITERATIONS"); val != "" {
+		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_TASK_MAX_ITERATIONS", Value: val})
+	}
+
+	// Inject Git Identity to prevent "Author identity unknown" errors
+	envVars = append(envVars, []corev1.EnvVar{
+		{Name: "GIT_AUTHOR_NAME", Value: "RECAC Agent"},
+		{Name: "GIT_AUTHOR_EMAIL", Value: "agent@recac.io"},
+		{Name: "GIT_COMMITTER_NAME", Value: "RECAC Agent"},
+		{Name: "GIT_COMMITTER_EMAIL", Value: "agent@recac.io"},
+	}...)
 
 	// Auth Handling:
 	// Use Secret for sensitive data if available.
