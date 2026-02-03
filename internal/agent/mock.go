@@ -68,7 +68,7 @@ echo "Feature list created and imported."
 	   !strings.Contains(promptLower, "initializer") && !strings.Contains(promptLower, "feature_list") && !strings.Contains(promptLower, "feature list") {
 		return `[
   {
-    "title": "[GEN] Create Prime Number Script",
+    "title": "ID:[PRIMES] [GEN] Create Prime Number Script",
     "description": "Create a python script named 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'. ID:[PRIMES]",
     "type": "Task",
     "children": []
