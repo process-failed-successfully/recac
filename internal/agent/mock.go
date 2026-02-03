@@ -40,7 +40,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// This must come BEFORE Ticket Generation because the prompt for Initializer often contains
 	// the ticket ID and "JSON format" which triggers the Ticket Generation rule.
 	// Matches "initializer" (case-insensitive) OR "feature_list" (handles feature_list.json)
-	if (strings.Contains(promptLower, "initializer") || strings.Contains(promptLower, "feature_list") || strings.Contains(promptLower, "feature list")) && strings.Contains(prompt, "ID:[PRIMES]") {
+	// Must NOT contain "agent-bridge import" (which implies we are past initialization).
+	if (strings.Contains(promptLower, "initializer") || strings.Contains(promptLower, "feature_list") || strings.Contains(promptLower, "feature list")) &&
+		strings.Contains(prompt, "ID:[PRIMES]") &&
+		!strings.Contains(promptLower, "agent-bridge import") {
 		return `I have identified the required features.
 
 ` + "```bash" + `
@@ -79,8 +82,11 @@ echo "Feature list created and imported."
 	// 2. Implementation Request (Writing the file)
 	// Matches prompt asking to implement "PRIMES" or "primes.py"
 	// Must not be Initializer (which might also mention the filename in context)
-	if (strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "primes.py")) &&
-		!strings.Contains(promptLower, "initializer") && !strings.Contains(promptLower, "feature_list") {
+	// We allow "feature_list" if "agent-bridge import" is present, as that indicates the feature list was already created in history.
+	hasImport := strings.Contains(promptLower, "agent-bridge import")
+	isInitializer := !hasImport && (strings.Contains(promptLower, "initializer") || strings.Contains(promptLower, "feature_list") || strings.Contains(promptLower, "feature list"))
+
+	if (strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "primes.py")) && !isInitializer {
 		return `I will create the primes.py script and the json output as requested.
 
 ` + "```bash" + `
