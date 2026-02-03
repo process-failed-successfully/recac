@@ -113,9 +113,36 @@ python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
 git push
+
+# Mark feature as done
+agent-bridge feature set --id primes-impl --status done --passes true
 ` + "```" + `
 
 Implementation complete.
+`, nil
+	}
+
+	// 3. Check for QA Agent
+	if strings.Contains(strings.ToUpper(prompt), "QA AGENT") || strings.Contains(prompt, "Quality Assurance") {
+		return `I have verified the implementation. All checks passed.
+
+` + "```bash" + `
+agent-bridge signal set QA_PASSED true
+` + "```" + `
+
+QA checks passed.
+`, nil
+	}
+
+	// 4. Check for Project Manager
+	if strings.Contains(strings.ToUpper(prompt), "PROJECT MANAGER") {
+		return `I approve the project.
+
+` + "```bash" + `
+agent-bridge signal set PROJECT_SIGNED_OFF true
+` + "```" + `
+
+Project approved.
 `, nil
 	}
 
