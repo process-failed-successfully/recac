@@ -95,6 +95,9 @@ agent-bridge import --file feature_list.json
 		return `It seems there are no more changes to commit. The task is complete.
 
 ` + "```bash" + `
+# Ensure features are marked done (in case we skipped implementation)
+agent-bridge feature list --json | jq -r '.features[].id' | xargs -I {} agent-bridge feature set {} --status done --passes true
+
 if command -v agent-bridge >/dev/null 2>&1; then
     agent-bridge signal COMPLETED true
 else
@@ -167,6 +170,9 @@ git config user.name "Mock Agent"
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
+
+# Mark all features as done to satisfy Runner guardrails
+agent-bridge feature list --json | jq -r '.features[].id' | xargs -I {} agent-bridge feature set {} --status done --passes true
 ` + "```" + `
 `, nil
 	}

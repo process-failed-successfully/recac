@@ -47,6 +47,10 @@ func TestMockAgent_Completion(t *testing.T) {
 	if !strings.Contains(resp1, "agent-bridge signal COMPLETED true") {
 		t.Errorf("Expected completion signal for 'nothing to commit', got: %s", resp1)
 	}
+	// Verify it also updates feature status
+	if !strings.Contains(resp1, "agent-bridge feature set {} --status done") {
+		t.Errorf("Expected feature update command in completion block, got: %s", resp1)
+	}
 
 	// Test case 2: "Nothing to commit" (capitalized, from echo fallback)
 	prompt2 := "command output: Nothing to commit"
@@ -118,5 +122,25 @@ func TestMockAgent_ManagerPriority(t *testing.T) {
 	}
 	if !strings.Contains(resp, "agent-bridge signal PROJECT_SIGNED_OFF true") {
 		t.Errorf("Expected PROJECT_SIGNED_OFF signal, got: %s", resp)
+	}
+}
+
+func TestMockAgent_ImplementationUpdatesFeatures(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Please create primes.py"
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(resp, "cat << 'EOF' > primes.py") {
+		t.Errorf("Expected implementation script, got: %s", resp)
+	}
+	// Check for dynamic feature update
+	if !strings.Contains(resp, "agent-bridge feature list --json") {
+		t.Errorf("Expected dynamic feature list query, got: %s", resp)
+	}
+	if !strings.Contains(resp, "agent-bridge feature set {} --status done --passes true") {
+		t.Errorf("Expected feature status update command, got: %s", resp)
 	}
 }
