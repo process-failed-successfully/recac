@@ -110,13 +110,6 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		default:
 		}
 
-		// Check Max Iterations
-		currentIteration := s.GetIteration()
-		if s.MaxIterations > 0 && currentIteration >= s.MaxIterations {
-			s.Logger.Info("reached max iterations", "max_iterations", s.MaxIterations)
-			return ErrMaxIterations
-		}
-
 		newIteration := s.IncrementIteration()
 		s.Logger.Info("starting iteration", "iteration", newIteration, "task_id", s.SelectedTaskID, "agent_provider", s.AgentProvider, "agent_model", s.AgentModel)
 		if s.SelectedTaskID != "" {
@@ -412,6 +405,14 @@ func (s *Session) RunLoop(ctx context.Context) error {
 					continue // Next iteration will run Manager
 				}
 			}
+		}
+
+		// Check Max Iterations
+		// We check this AFTER successful completion signals and Lifecycle transitions to ensure we don't error out during QA/Manager phases
+		currentIteration := s.GetIteration()
+		if s.MaxIterations > 0 && currentIteration > s.MaxIterations {
+			s.Logger.Info("reached max iterations", "max_iterations", s.MaxIterations)
+			return ErrMaxIterations
 		}
 
 		// Select appropriate prompt and role

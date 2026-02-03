@@ -316,9 +316,14 @@ func TestRunLoop_AutoMerge(t *testing.T) {
 	}
 	defer func() { git.NewClient = originalNewClient }()
 
+	// Mock Agent (needed because loop might proceed to coding phase after clearing signal)
+	mockAgent := new(MockTestifyAgent)
+	mockAgent.On("Send", mock.Anything, mock.Anything).Return("Agent response", nil)
+
 	s := &Session{
 		Workspace:     tmpDir,
 		DBStore:       mockDB,
+		Agent:         mockAgent,
 		Notifier:      notify.NewManager(func(string, ...interface{}) {}),
 		Logger:        telemetry.NewLogger(true, "", false),
 		BaseBranch:    "main",
@@ -389,6 +394,9 @@ func TestRunLoop_GitSafeguard_MergeConflict(t *testing.T) {
 	}
 	defer func() { git.NewClient = originalNewClient }()
 
+	mockAgent := new(MockTestifyAgent)
+	mockAgent.On("Send", mock.Anything, mock.Anything).Return("response", nil)
+
 	s := &Session{
 		Workspace:     tmpDir,
 		DBStore:       mockDB,
@@ -398,6 +406,7 @@ func TestRunLoop_GitSafeguard_MergeConflict(t *testing.T) {
 		AutoMerge:     true,
 		Project:       "test-proj",
 		MaxIterations: 1, // Only one iteration needed to trigger safeguard and fail
+		Agent:         mockAgent,
 	}
 
 	// Execution
