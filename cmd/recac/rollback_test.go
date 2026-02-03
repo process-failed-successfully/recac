@@ -36,7 +36,7 @@ func TestRollbackCmd(t *testing.T) {
 		// Mock session manager to return tempDir
 		mockSM := NewMockSessionManager()
 		sessionManagerFactory = func() (ISessionManager, error) { return mockSM, nil }
-		mockSM.StartSession("test-session", "goal", []string{}, tempDir)
+		mockSM.StartSession("test-session", "goal", []string{}, tempDir, "test-project")
 
 		// Mock Git Interactions
 		mockGit.RepoExistsFunc = func(path string) bool { return true }
@@ -116,7 +116,7 @@ func TestRollbackCmd(t *testing.T) {
 
 		mockSM := NewMockSessionManager()
 		sessionManagerFactory = func() (ISessionManager, error) { return mockSM, nil }
-		mockSM.StartSession("test-session-2", "goal", []string{}, tempDir)
+		mockSM.StartSession("test-session-2", "goal", []string{}, tempDir, "test-project")
 
 		rollbackCmd.SetOut(nil)
 		rollbackCmd.SetErr(nil)
@@ -141,7 +141,7 @@ func TestRollbackCmd(t *testing.T) {
 
 		mockSM := NewMockSessionManager()
 		sessionManagerFactory = func() (ISessionManager, error) { return mockSM, nil }
-		mockSM.StartSession("test-session-3", "goal", []string{}, tempDir)
+		mockSM.StartSession("test-session-3", "goal", []string{}, tempDir, "test-project")
 
 		// User cancels at confirmation
 		askOne = func(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {
@@ -235,7 +235,7 @@ func TestRollbackCmd(t *testing.T) {
 		sessionManagerFactory = func() (ISessionManager, error) { return mockSM, nil }
 		sessionDir := filepath.Join(tempDir, "session_dir")
 		os.Mkdir(sessionDir, 0755)
-		mockSM.StartSession("interactive-session", "goal", []string{}, sessionDir)
+		mockSM.StartSession("interactive-session", "goal", []string{}, sessionDir, "test-project")
 
 		mockGit.CurrentBranchFunc = func(path string) (string, error) { return "main", nil }
 		mockGit.LogFunc = func(path string, args ...string) ([]string, error) {
@@ -292,7 +292,7 @@ func TestRollbackCmd(t *testing.T) {
 
 		mockSM := NewMockSessionManager()
 		sessionManagerFactory = func() (ISessionManager, error) { return mockSM, nil }
-		mockSM.StartSession("test-session-err", "goal", []string{}, tempDir)
+		mockSM.StartSession("test-session-err", "goal", []string{}, tempDir, "test-project")
 
 		rollbackCmd.SetOut(nil)
 		rollbackCmd.SetErr(nil)
@@ -315,7 +315,7 @@ func TestRollbackCmd(t *testing.T) {
 
 		mockSM := NewMockSessionManager()
 		sessionManagerFactory = func() (ISessionManager, error) { return mockSM, nil }
-		mockSM.StartSession("test-session-log-err", "goal", []string{}, tempDir)
+		mockSM.StartSession("test-session-log-err", "goal", []string{}, tempDir, "test-project")
 
 		rollbackCmd.SetOut(nil)
 		rollbackCmd.SetErr(nil)
@@ -341,7 +341,7 @@ func TestRollbackCmd(t *testing.T) {
 
 		mockSM := NewMockSessionManager()
 		sessionManagerFactory = func() (ISessionManager, error) { return mockSM, nil }
-		mockSM.StartSession("test-session-co-err", "goal", []string{}, tempDir)
+		mockSM.StartSession("test-session-co-err", "goal", []string{}, tempDir, "test-project")
 
 		askOne = func(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {
 			switch p.(type) {
@@ -378,7 +378,7 @@ func TestRollbackCmd(t *testing.T) {
 
 		mockSM := NewMockSessionManager()
 		sessionManagerFactory = func() (ISessionManager, error) { return mockSM, nil }
-		mockSM.StartSession("test-session-nb-err", "goal", []string{}, tempDir)
+		mockSM.StartSession("test-session-nb-err", "goal", []string{}, tempDir, "test-project")
 
 		askOne = func(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {
 			switch p.(type) {

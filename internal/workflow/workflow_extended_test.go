@@ -20,8 +20,8 @@ type ExtendedMockSessionManager struct {
 	mock.Mock
 }
 
-func (m *ExtendedMockSessionManager) StartSession(name, goal string, command []string, cwd string) (*runner.SessionState, error) {
-	args := m.Called(name, goal, command, cwd)
+func (m *ExtendedMockSessionManager) StartSession(name, goal string, command []string, cwd, project string) (*runner.SessionState, error) {
+	args := m.Called(name, goal, command, cwd, project)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -50,7 +50,7 @@ func TestRunWorkflow_Detached_Mock(t *testing.T) {
 		LogFile: "test.log",
 	}
 
-	mockSM.On("StartSession", "test-detached", "goal", mock.Anything, tmpDir).Return(expectedState, nil)
+	mockSM.On("StartSession", "test-detached", "goal", mock.Anything, tmpDir, mock.Anything).Return(expectedState, nil)
 
 	err := RunWorkflow(context.Background(), cfg)
 	assert.NoError(t, err)
@@ -69,7 +69,7 @@ func TestRunWorkflow_Detached_Error_Extended(t *testing.T) {
 		SessionManager: mockSM,
 	}
 
-	mockSM.On("StartSession", "test-detached-err", "goal", mock.Anything, tmpDir).Return(nil, fmt.Errorf("start failed"))
+	mockSM.On("StartSession", "test-detached-err", "goal", mock.Anything, tmpDir, mock.Anything).Return(nil, fmt.Errorf("start failed"))
 
 	err := RunWorkflow(context.Background(), cfg)
 	assert.Error(t, err)

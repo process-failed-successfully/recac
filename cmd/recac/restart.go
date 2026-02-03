@@ -48,8 +48,14 @@ var restartCmd = &cobra.Command{
 			return fmt.Errorf("failed to remove old session files for '%s': %w", sessionName, err)
 		}
 
+		// Determine project name (use Session Name as fallback if Project not set in old session)
+		project := session.Project
+		if project == "" {
+			project = session.Name
+		}
+
 		// Start a new session with the same parameters
-		newSession, err := sm.StartSession(session.Name, session.Goal, session.Command, session.Workspace)
+		newSession, err := sm.StartSession(session.Name, session.Goal, session.Command, session.Workspace, project)
 		if err != nil {
 			return fmt.Errorf("failed to restart session '%s': %w", session.Name, err)
 		}

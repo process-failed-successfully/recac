@@ -11,12 +11,12 @@ import (
 
 // ManualMockSessionManager implements ISessionManager for testing
 type ManualMockSessionManager struct {
-	StartSessionFunc func(name, goal string, command []string, cwd string) (*runner.SessionState, error)
+	StartSessionFunc func(name, goal string, command []string, cwd, project string) (*runner.SessionState, error)
 }
 
-func (m *ManualMockSessionManager) StartSession(name, goal string, command []string, cwd string) (*runner.SessionState, error) {
+func (m *ManualMockSessionManager) StartSession(name, goal string, command []string, cwd, project string) (*runner.SessionState, error) {
 	if m.StartSessionFunc != nil {
-		return m.StartSessionFunc(name, goal, command, cwd)
+		return m.StartSessionFunc(name, goal, command, cwd, project)
 	}
 	return &runner.SessionState{PID: 1234, Name: name, LogFile: "/tmp/mock.log"}, nil
 }
@@ -24,7 +24,7 @@ func (m *ManualMockSessionManager) StartSession(name, goal string, command []str
 func TestRunWorkflow_Detached_Mocked(t *testing.T) {
 	// Setup
 	mockSM := &ManualMockSessionManager{
-		StartSessionFunc: func(name, goal string, command []string, cwd string) (*runner.SessionState, error) {
+		StartSessionFunc: func(name, goal string, command []string, cwd, project string) (*runner.SessionState, error) {
 			assert.Equal(t, "test-detached", name)
 			assert.Equal(t, "/tmp/test", cwd)
 			// Verify mock flag is passed
@@ -69,7 +69,7 @@ func TestRunWorkflow_Detached_MissingName(t *testing.T) {
 func TestRunWorkflow_Detached_CommandConstruction(t *testing.T) {
 	tmpDir := "/tmp/workspace"
 	mockSM := &ManualMockSessionManager{
-		StartSessionFunc: func(name, goal string, command []string, cwd string) (*runner.SessionState, error) {
+		StartSessionFunc: func(name, goal string, command []string, cwd, project string) (*runner.SessionState, error) {
 			// Check flags
 			// Checking specific flags were appended
 			foundMaxIter := false
@@ -108,7 +108,7 @@ func TestRunWorkflow_Detached_CommandConstruction(t *testing.T) {
 func TestRunWorkflow_Detached_ExecutableSearch(t *testing.T) {
 	// This tests the executable finding logic.
 	mockSM := &ManualMockSessionManager{
-		StartSessionFunc: func(name, goal string, command []string, cwd string) (*runner.SessionState, error) {
+		StartSessionFunc: func(name, goal string, command []string, cwd, project string) (*runner.SessionState, error) {
 			// Verify command[0] is not empty
 			if len(command) > 0 {
 				assert.NotEmpty(t, command[0])

@@ -257,7 +257,7 @@ var ProcessJiraTicket = func(ctx context.Context, jiraTicketID string, jClient *
 
 // ISessionManager defines the interface for session management.
 type ISessionManager interface {
-	StartSession(name, goal string, command []string, cwd string) (*runner.SessionState, error)
+	StartSession(name, goal string, command []string, cwd, project string) (*runner.SessionState, error)
 }
 
 // Statically assert that the real session manager implements our interface.

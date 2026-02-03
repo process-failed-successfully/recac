@@ -20,7 +20,7 @@ func TestRunWorkflow_Detached_Success(t *testing.T) {
 	expectedSession := &runner.SessionState{PID: 1234, LogFile: "test.log"}
 	called := false
 	mockSM := &ManualMockSessionManager{
-		StartSessionFunc: func(name, goal string, command []string, cwd string) (*runner.SessionState, error) {
+		StartSessionFunc: func(name, goal string, command []string, cwd, project string) (*runner.SessionState, error) {
 			called = true
 			if name != "test-session" {
 				t.Errorf("Expected session name 'test-session', got '%s'", name)
@@ -52,7 +52,7 @@ func TestRunWorkflow_Detached_Success(t *testing.T) {
 func TestRunWorkflow_Detached_Fail(t *testing.T) {
 	// Setup
 	mockSM := &ManualMockSessionManager{
-		StartSessionFunc: func(name, goal string, command []string, cwd string) (*runner.SessionState, error) {
+		StartSessionFunc: func(name, goal string, command []string, cwd, project string) (*runner.SessionState, error) {
 			return nil, errors.New("start failed")
 		},
 	}

@@ -24,7 +24,7 @@ type ISessionManager interface {
 	ResumeSession(name string) error
 	GetSessionLogs(name string) (string, error)
 	GetSessionLogContent(name string, lines int) (string, error)
-	StartSession(name, goal string, command []string, workspace string) (*runner.SessionState, error)
+	StartSession(name, goal string, command []string, workspace, project string) (*runner.SessionState, error)
 	GetSessionPath(name string) string
 	IsProcessRunning(pid int) bool
 	RemoveSession(name string, force bool) error

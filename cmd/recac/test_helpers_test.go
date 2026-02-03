@@ -61,7 +61,7 @@ func NewMockSessionManager() *MockSessionManager {
 		Sessions: make(map[string]*runner.SessionState),
 	}
 }
-func (m *MockSessionManager) StartSession(name, goal string, command []string, workspace string) (*runner.SessionState, error) {
+func (m *MockSessionManager) StartSession(name, goal string, command []string, workspace, project string) (*runner.SessionState, error) {
 	if _, exists := m.Sessions[name]; exists {
 		return nil, fmt.Errorf("session '%s' already exists", name)
 	}
@@ -72,6 +72,7 @@ func (m *MockSessionManager) StartSession(name, goal string, command []string, w
 		Status:    "running",
 		Command:   command,
 		Workspace: workspace,
+		Project:   project,
 		LogFile:   "/tmp/mock.log",
 	}
 	m.Sessions[name] = session

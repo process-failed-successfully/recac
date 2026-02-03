@@ -712,7 +712,17 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 			startSHA = sha
 		}
 
-		session, err := sm.StartSession(cfg.SessionName, cfg.Goal, command, projectPath)
+		// Determine project name for detached session
+		projectName := cfg.ProjectName
+		if projectName == "" {
+			projectName = filepath.Base(projectPath)
+			if (projectName == "." || projectName == "/") && (projectPath == "." || projectPath == "") {
+				cwd, _ := os.Getwd()
+				projectName = filepath.Base(cwd)
+			}
+		}
+
+		session, err := sm.StartSession(cfg.SessionName, cfg.Goal, command, projectPath, projectName)
 		if err != nil {
 			return fmt.Errorf("failed to start detached session: %v", err)
 		}

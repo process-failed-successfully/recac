@@ -87,6 +87,7 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		StartTime:      time.Now(),
 		Command:        agentCmd,
 		Workspace:      tempDir,
+		Project:        item.ID, // Project ID is same as Work Item ID here
 		Status:         "running",
 		Type:           "orchestrated-docker",
 		AgentStateFile: filepath.Join(tempDir, ".agent_state.json"),
