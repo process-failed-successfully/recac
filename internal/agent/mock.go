@@ -34,6 +34,29 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Smart Mock Logic for Smoke Tests
 
+	// 0. Role-Specific Logic (QA & Manager)
+	// These specific roles are detected by the header in the prompt.
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return `I have run the tests and they passed.
+
+` + "```bash" + `
+echo "Running tests..."
+# Simulate passing tests
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") {
+		return `I have reviewed the project and it meets all requirements.
+
+` + "```bash" + `
+echo "Project Approved"
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
+	}
+
 	// 1. Ticket Generation for 'prime-python' scenario
 	// Matches strict requirements from AppSpec (ID:[PRIMES] header + Task instruction)
 	// We specifically look for the instruction to CREATE the ticket.

@@ -22,6 +22,32 @@ func TestMockAgent_Initializer(t *testing.T) {
 	}
 }
 
+func TestMockAgent_QA(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "## YOUR ROLE - QA AGENT\n\nPlease run tests."
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(resp, "agent-bridge signal QA_PASSED true") {
+		t.Errorf("Expected QA_PASSED signal, got: %s", resp)
+	}
+}
+
+func TestMockAgent_Manager(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "## YOUR ROLE - PROJECT MANAGER\n\nDecide."
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(resp, "agent-bridge signal PROJECT_SIGNED_OFF true") {
+		t.Errorf("Expected PROJECT_SIGNED_OFF signal, got: %s", resp)
+	}
+}
+
 func TestMockAgent_NoOp(t *testing.T) {
 	agent := NewMockAgent()
 	prompt := "Just a random chat."
