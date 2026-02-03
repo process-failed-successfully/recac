@@ -59,6 +59,8 @@ EOF
 # Verify agent-bridge is available (for debug)
 if command -v agent-bridge > /dev/null; then
   echo "agent-bridge available"
+  # Import features to DB to ensure persistence
+  cat feature_list.json | agent-bridge import
 fi
 ` + "```" + `
 `, nil
