@@ -35,6 +35,35 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Helper for case-insensitive matching
 	promptLower := strings.ToLower(prompt)
 
+	// Heuristic for Manager Review (Highest Priority)
+	// Trigger: Prompt mentions "QA Report" or role "Manager"
+	// Action: Approve project and signal completion
+	// We prioritize this to prevent "Implementation" logic from hijacking Manager prompts.
+	if strings.Contains(prompt, "QA Report") || strings.Contains(prompt, "Manager") {
+		return `
+The QA report looks good. I approve the project.
+
+` + "```bash" + `
+agent-bridge signoff
+echo "Project signed off by Manager"
+` + "```" + `
+`, nil
+	}
+
+	// Heuristic for Recovery (Nothing to Commit / Command Failed)
+	// If the agent sees it failed to commit (likely because files are identical),
+	// it assumes the work is done and forces a completion update to break loops.
+	if strings.Contains(promptLower, "nothing to commit") || strings.Contains(promptLower, "command failed") {
+		return `
+It seems the code is already up to date. I will mark the feature as complete.
+
+` + "```bash" + `
+agent-bridge feature set 1 --status done --passes true
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
 	// Heuristic for "prime-python" scenario planning phase.
 	// The planner prompt includes the AppSpec.
 	// We check for the specific ID used in the spec.
@@ -63,7 +92,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 2. File + Action: "primes.py" AND "create" (case insensitive)
 	isImplementation := strings.Contains(prompt, "[PRIMES]") || (strings.Contains(promptLower, "primes.py") && strings.Contains(promptLower, "create"))
 
-	if !isPlanning && isImplementation {
+	// We also exclude "INITIALIZER" role/context to prevent confusion
+	if !isPlanning && isImplementation && !strings.Contains(prompt, "INITIALIZER") {
 		return `
 I will implement the prime number script.
 
@@ -89,14 +119,18 @@ python3 primes.py
 git config user.email "mock-agent@recac.io"
 git config user.name "Mock Agent"
 git add primes.py primes.json
-git commit -m "Add primes.py and primes.json"
+git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
+
+# Update Feature Status (CRITICAL for loop termination)
+agent-bridge feature set 1 --status done --passes true
 ` + "```" + `
 `, nil
 	}
 
 	// Heuristic for Initializer (create feature_list.json)
-	// Trigger: Prompt mentions "feature_list.json" or "Initialize" AND we are not just reporting success.
-	if strings.Contains(prompt, "feature_list.json") || strings.Contains(prompt, "Initialize") {
+	// Trigger: Prompt explicitly mentions "INITIALIZER" role/context AND "feature_list.json".
+	// We make this stricter to avoid false positives when Coding Agent prompt mentions "feature_list.json".
+	if (strings.Contains(prompt, "INITIALIZER") || strings.Contains(prompt, "Initialize")) && strings.Contains(prompt, "feature_list.json") {
 		// Only run if we haven't already done it (avoid infinite loop)
 		// We check if prompt implies current state has it? Hard to know.
 		// We rely on the script to be idempotent/safe.
@@ -134,20 +168,6 @@ if command -v agent-bridge >/dev/null 2>&1; then
 else
   echo "agent-bridge not found (mock mode)"
 fi
-` + "```" + `
-`, nil
-	}
-
-	// Heuristic for Manager Review
-	// Trigger: Prompt mentions "QA Report" or role "Manager"
-	// Action: Approve project and signal completion
-	if strings.Contains(prompt, "QA Report") || strings.Contains(prompt, "Manager") {
-		return `
-The QA report looks good. I approve the project.
-
-` + "```bash" + `
-agent-bridge signoff
-echo "Project signed off by Manager"
 ` + "```" + `
 `, nil
 	}

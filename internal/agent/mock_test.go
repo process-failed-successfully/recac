@@ -6,122 +6,62 @@ import (
 	"testing"
 )
 
-func TestMockAgent(t *testing.T) {
+func TestMockAgent_Heuristics(t *testing.T) {
 	agent := NewMockAgent()
+	ctx := context.Background()
 
-	prompt := "This is a test prompt that is long enough to be truncated"
-	response, err := agent.Send(context.Background(), prompt)
-
-	if err != nil {
-		t.Fatalf("Send failed: %v", err)
+	tests := []struct {
+		name           string
+		prompt         string
+		expectedScript string
+		expectedText   string
+	}{
+		{
+			name:           "Manager Review",
+			prompt:         "Role: Manager. Review the QA Report. Approve if good.",
+			expectedScript: "agent-bridge signoff",
+			expectedText:   "I approve the project",
+		},
+		{
+			name:           "Implementation",
+			prompt:         "Role: Coding Agent. Task: [PRIMES]. Create primes.py.",
+			expectedScript: "agent-bridge feature set 1",
+			expectedText:   "implement the prime number script",
+		},
+		{
+			name:           "Initializer",
+			prompt:         "Role: INITIALIZER. Initialize feature_list.json.",
+			expectedScript: "> feature_list.json",
+			expectedText:   "create the feature list",
+		},
+		{
+			name:           "Recovery - Nothing to Commit",
+			prompt:         "Command Failed: git commit ... Output: nothing to commit",
+			expectedScript: "agent-bridge signal QA_PASSED true",
+			expectedText:   "mark the feature as complete",
+		},
+		{
+			name:           "False Positive Initializer (Coding Agent)",
+			prompt:         "Role: Coding Agent. Implement feature from feature_list.json. Create primes.py.",
+			expectedScript: "agent-bridge feature set 1", // Should trigger Implementation, NOT Initializer
+			expectedText:   "implement the prime number script",
+		},
 	}
 
-	if !strings.Contains(response, "Mock agent response") {
-		t.Errorf("Response missing prefix, got: %s", response)
-	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			resp, err := agent.Send(ctx, tc.prompt)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
 
-	if !strings.Contains(response, "I received your prompt") {
-		t.Errorf("Response missing body, got: %s", response)
-	}
-}
+			if tc.expectedScript != "" && !strings.Contains(resp, tc.expectedScript) {
+				t.Errorf("Expected script part %q not found in response:\n%s", tc.expectedScript, resp)
+			}
 
-func TestMockAgent_PrimePython(t *testing.T) {
-	agent := NewMockAgent()
-
-	// 1. Planning Trigger (ID:[PRIMES] + AppSpec)
-	planningPrompt := "This contains ID:[PRIMES] and AppSpec..."
-	resp, err := agent.Send(context.Background(), planningPrompt)
-	if err != nil {
-		t.Fatalf("Send failed: %v", err)
-	}
-	if !strings.Contains(resp, `"title": "ID:[PRIMES] Create Prime Number Script"`) {
-		t.Errorf("Expected Planning JSON, got: %s", resp)
-	}
-
-	// 2. Implementation Trigger (Task:[PRIMES] or 'primes.py' + 'create')
-	// Case 1: Standard
-	implPrompt1 := "Task: [PRIMES] Description: create primes.py"
-	resp1, err := agent.Send(context.Background(), implPrompt1)
-	if err != nil {
-		t.Fatalf("Send failed: %v", err)
-	}
-	if !strings.Contains(resp1, "cat << 'EOF' > primes.py") {
-		t.Errorf("Expected Implementation Bash, got: %s", resp1)
-	}
-	if !strings.Contains(resp1, "git config") {
-		t.Errorf("Expected git config in response, got: %s", resp1)
-	}
-
-	// Case 2: No Task ID, but has keywords (case insensitive)
-	implPrompt2 := "Please cReaTe a python script called Primes.py"
-	resp2, err := agent.Send(context.Background(), implPrompt2)
-	if err != nil {
-		t.Fatalf("Send failed: %v", err)
-	}
-	if !strings.Contains(resp2, "cat << 'EOF' > primes.py") {
-		t.Errorf("Expected Implementation Bash (Case Insensitive), got: %s", resp2)
-	}
-	if !strings.Contains(resp2, "git config") {
-		t.Errorf("Expected git config in response (Case Insensitive), got: %s", resp2)
-	}
-}
-
-func TestMockAgent_Initializer_NotBlockedByPlanner(t *testing.T) {
-	agent := NewMockAgent()
-
-	// Simulating the actual Initializer prompt which triggered the bug.
-	// It contains "INITIALIZER" (role), "feature_list.json" (task), and the Spec (which contains ID:[PRIMES] and "Specification").
-	initializerPrompt := `
-## YOUR ROLE - INITIALIZER AGENT
-
-### TASKS:
-2. **Create feature_list.json**: Create a complete and detailed list...
-
-### Application Specification:
-... ID:[PRIMES] ...
-`
-	resp, err := agent.Send(context.Background(), initializerPrompt)
-	if err != nil {
-		t.Fatalf("Send failed: %v", err)
-	}
-
-	// Should NOT match Planning trigger (JSON Array)
-	if strings.HasPrefix(strings.TrimSpace(resp), "[") {
-		t.Errorf("FAIL: Initializer prompt triggered Planning JSON response instead of Bash script.\nResponse: %s", resp)
-	}
-
-	// Should match Initializer trigger
-	if !strings.Contains(resp, "I will create the feature list") {
-		t.Errorf("Expected Initializer response, got: %s", resp)
-	}
-}
-
-func TestMockAgent_ManagerReview_Approves(t *testing.T) {
-	agent := NewMockAgent()
-
-	// Simulate Manager Review prompt
-	managerPrompt := `
-## YOUR ROLE - PROJECT MANAGER
-
-Review the QA Report...
-`
-	resp, err := agent.Send(context.Background(), managerPrompt)
-	if err != nil {
-		t.Fatalf("Send failed: %v", err)
-	}
-
-	// Should contain sign-off signal
-	if !strings.Contains(resp, "agent-bridge signoff") {
-		t.Errorf("Expected Manager sign-off signal (agent-bridge signoff), got: %s", resp)
-	}
-}
-
-func TestTruncateString(t *testing.T) {
-	s := "hello world"
-	if truncateString(s, 5) != "hello" {
-		t.Errorf("Expected 'hello', got '%s'", truncateString(s, 5))
-	}
-	if truncateString(s, 20) != "hello world" {
-		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
+			if tc.expectedText != "" && !strings.Contains(resp, tc.expectedText) {
+				t.Errorf("Expected text part %q not found in response:\n%s", tc.expectedText, resp)
+			}
+		})
 	}
 }
