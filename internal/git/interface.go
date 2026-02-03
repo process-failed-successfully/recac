@@ -44,4 +44,6 @@ type IClient interface {
 	LatestTag(directory string) (string, error)
 	Run(directory string, args ...string) (string, error)
 	CreatePR(directory, title, body, base string) (string, error)
+	SyncBranch(ctx context.Context, directory, branchName, logPrefix string) error
+	ConfigureIdentity(directory, name, email string) error
 }

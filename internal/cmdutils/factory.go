@@ -122,40 +122,17 @@ var SetupWorkspace = func(ctx context.Context, gitClient git.IClient, repoURL, w
 	}
 
 	// Configure Git Identity for Agent
-	if err := gitClient.Config(workspace, "user.email", "agent@recac.com"); err != nil {
-		fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to set git email: %v\n", ticketID, err)
-	}
-	if err := gitClient.Config(workspace, "user.name", "Recac Agent"); err != nil {
-		fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to set git name: %v\n", ticketID, err)
+	if err := gitClient.ConfigureIdentity(workspace, "Recac Agent", "agent@recac.com"); err != nil {
+		fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to configure git identity: %v\n", ticketID, err)
 	}
 
 	// Handle Epic Branching Strategy
 	if epicKey != "" {
 		epicBranch := fmt.Sprintf("agent-epic/%s", epicKey)
-		fmt.Printf("[%s] Checking for Epic branch: %s\n", ticketID, epicBranch)
+		fmt.Printf("[%s] Syncing Epic branch: %s\n", ticketID, epicBranch)
 
-		exists, err := gitClient.RemoteBranchExists(workspace, "origin", epicBranch)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to check remote for epic branch: %v\n", ticketID, err)
-		}
-
-		if exists {
-			fmt.Printf("[%s] Epic branch '%s' found. Checking out...\n", ticketID, epicBranch)
-			if err := gitClient.Fetch(workspace, "origin", epicBranch); err != nil {
-				fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to fetch epic branch: %v\n", ticketID, err)
-			}
-			if err := gitClient.Checkout(workspace, epicBranch); err != nil {
-				fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to checkout epic branch: %v\n", ticketID, err)
-			}
-		} else {
-			fmt.Printf("[%s] Epic branch '%s' not found. Creating from default branch...\n", ticketID, epicBranch)
-			if err := gitClient.CheckoutNewBranch(workspace, epicBranch); err != nil {
-				fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to create epic branch: %v\n", ticketID, err)
-			} else {
-				if err := gitClient.Push(workspace, epicBranch); err != nil {
-					fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to push epic branch: %v\n", ticketID, err)
-				}
-			}
+		if err := gitClient.SyncBranch(ctx, workspace, epicBranch, fmt.Sprintf("[%s] ", ticketID)); err != nil {
+			fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to sync epic branch: %v\n", ticketID, err)
 		}
 	}
 
@@ -169,38 +146,10 @@ var SetupWorkspace = func(ctx context.Context, gitClient git.IClient, repoURL, w
 	}
 
 	// Create and Checkout Feature Branch
-	fmt.Printf("[%s] preparing feature branch: %s\n", ticketID, branchName)
+	fmt.Printf("[%s] Syncing feature branch: %s\n", ticketID, branchName)
 
-	// Check if branch already exists remotely (for stable names)
-	remoteExists, err := gitClient.RemoteBranchExists(workspace, "origin", branchName)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to check remote for branch: %v\n", ticketID, err)
-	}
-
-	if remoteExists {
-		fmt.Printf("[%s] Branch '%s' found remotely. Using existing branch.\n", ticketID, branchName)
-		if err := gitClient.Fetch(workspace, "origin", branchName); err != nil {
-			fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to fetch branch: %v\n", ticketID, err)
-		}
-		if err := gitClient.Checkout(workspace, branchName); err != nil {
-			fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to checkout branch: %v\n", ticketID, err)
-		}
-		// Pull latest changes to be sure (rebase preferred strictly but merge ok for agent)
-		if err := gitClient.Pull(workspace, "origin", branchName); err != nil {
-			fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to pull branch: %v\n", ticketID, err)
-		}
-	} else {
-		// New Branch
-		fmt.Printf("[%s] Creating and switching to new feature branch: %s\n", ticketID, branchName)
-		if err := gitClient.CheckoutNewBranch(workspace, branchName); err != nil {
-			fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to create branch: %v\n", ticketID, err)
-		} else {
-			// Push the branch immediately
-			fmt.Printf("[%s] Pushing branch to remote: %s\n", ticketID, branchName)
-			if err := gitClient.Push(workspace, branchName); err != nil {
-				fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to push branch: %v\n", ticketID, err)
-			}
-		}
+	if err := gitClient.SyncBranch(ctx, workspace, branchName, fmt.Sprintf("[%s] ", ticketID)); err != nil {
+		fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to sync feature branch: %v\n", ticketID, err)
 	}
 
 	return repoURL, nil

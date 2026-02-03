@@ -262,6 +262,54 @@ func (c *Client) CurrentBranch(dir string) (string, error) {
 	return strings.TrimSpace(out.String()), nil
 }
 
+// ConfigureIdentity sets the user.name and user.email for the repository.
+func (c *Client) ConfigureIdentity(dir, name, email string) error {
+	if err := c.Config(dir, "user.email", email); err != nil {
+		return fmt.Errorf("failed to set git email: %w", err)
+	}
+	if err := c.Config(dir, "user.name", name); err != nil {
+		return fmt.Errorf("failed to set git name: %w", err)
+	}
+	return nil
+}
+
+// SyncBranch handles ensuring the local branch is up to date with remote, or creating it if it doesn't exist.
+func (c *Client) SyncBranch(ctx context.Context, dir, branchName, logPrefix string) error {
+	// Check if branch already exists remotely
+	remoteExists, err := c.RemoteBranchExists(dir, "origin", branchName)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%sWarning: Failed to check remote for branch: %v\n", logPrefix, err)
+		// Fall through to creating new branch if check fails, matching original behavior
+	}
+
+	if remoteExists {
+		fmt.Printf("%sBranch '%s' found remotely. Using existing branch.\n", logPrefix, branchName)
+		if err := c.Fetch(dir, "origin", branchName); err != nil {
+			return fmt.Errorf("failed to fetch branch: %w", err)
+		}
+		if err := c.Checkout(dir, branchName); err != nil {
+			return fmt.Errorf("failed to checkout branch: %w", err)
+		}
+		// Pull latest changes to be sure
+		if err := c.Pull(dir, "origin", branchName); err != nil {
+			return fmt.Errorf("failed to pull branch: %w", err)
+		}
+	} else {
+		// New Branch
+		fmt.Printf("%sCreating and switching to new feature branch: %s\n", logPrefix, branchName)
+		if err := c.CheckoutNewBranch(dir, branchName); err != nil {
+			return fmt.Errorf("failed to create branch: %w", err)
+		}
+		// Push the branch immediately
+		fmt.Printf("%sPushing branch to remote: %s\n", logPrefix, branchName)
+		if err := c.Push(dir, branchName); err != nil {
+			return fmt.Errorf("failed to push branch: %w", err)
+		}
+	}
+
+	return nil
+}
+
 // Run executes an arbitrary git command and returns the output.
 func (c *Client) Run(directory string, args ...string) (string, error) {
 	var outBuf, errBuf bytes.Buffer

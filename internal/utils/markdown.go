@@ -5,38 +5,23 @@ import (
 	"strings"
 )
 
+var (
+	reCodeBlock = regexp.MustCompile("(?s)```(?:.*?\n)?(.*?)```")
+	reJSONBlock = regexp.MustCompile("(?s)```json(.*?)```")
+)
+
 // CleanCodeBlock strips markdown code blocks if present.
 // It returns the content of the first code block found, or the original content if no block is found.
 func CleanCodeBlock(content string) string {
 	content = strings.TrimSpace(content)
 
-	// Try to find markdown code blocks
-	start := strings.Index(content, "```")
-	if start != -1 {
-		// Found a code block start
-		// Skip the opening ``` and potential language identifier
-		codeStart := start + 3
-
-		// Find the end of the line to skip language identifier (e.g., ```go)
-		if idx := strings.Index(content[codeStart:], "\n"); idx != -1 {
-			codeStart += idx + 1
-		}
-
-		// Find the end of the block
-		end := strings.Index(content[codeStart:], "```")
-		if end != -1 {
-			// Extract the content inside the block
-			return strings.TrimSpace(content[codeStart : codeStart+end])
-		}
+	match := reCodeBlock.FindStringSubmatch(content)
+	if len(match) > 1 {
+		return strings.TrimSpace(match[1])
 	}
 
 	return content
 }
-
-var (
-	reJSONBlock = regexp.MustCompile("(?s)```json(.*?)```")
-	reBlock     = regexp.MustCompile("(?s)```(.*?)```")
-)
 
 // CleanJSONBlock attempts to extract a JSON object or array from a string.
 // It handles markdown code blocks (```json ... ```) and raw JSON wrapped in text.
@@ -46,30 +31,19 @@ func CleanJSONBlock(input string) string {
 		return ""
 	}
 
-	// 1. Try regex for ```json ... ``` (Most explicit)
+	// 1. Try explicit regex for ```json ... ``` (Priority for explicit json)
 	match := reJSONBlock.FindStringSubmatch(input)
 	if len(match) > 1 {
 		return strings.TrimSpace(match[1])
 	}
 
-	// 2. Try regex for ``` ... ``` (Any block)
-	match2 := reBlock.FindStringSubmatch(input)
-	if len(match2) > 1 {
-		content := strings.TrimSpace(match2[1])
-		// Remove language tag if present in the captured content
-		if idx := strings.Index(content, "\n"); idx != -1 {
-			firstLine := strings.TrimSpace(content[:idx])
-			// If first line is short and looks like a tag, skip it
-			if len(firstLine) < 10 && !strings.Contains(firstLine, " ") && !strings.Contains(firstLine, "{") && !strings.Contains(firstLine, "[") {
-				return strings.TrimSpace(content[idx+1:])
-			}
-		}
-		// If it starts with "json" and then immediate brace?
-		if strings.HasPrefix(content, "json") {
-			return strings.TrimSpace(strings.TrimPrefix(content, "json"))
-		}
+	// 2. Fallback: Use generic CleanCodeBlock to strip any other wrappers
+	// Check if it was a block to safely strip "json" prefix if it was inside
+	isBlock := reCodeBlock.MatchString(input)
+	input = CleanCodeBlock(input)
 
-		return content
+	if isBlock && strings.HasPrefix(input, "json") {
+		input = strings.TrimSpace(strings.TrimPrefix(input, "json"))
 	}
 
 	// 3. Fallback: If it looks like a JSON object/array but has text around it

@@ -99,6 +99,22 @@ type MockGitClient struct {
 	cloneFn             func(ctx context.Context, repoURL, directory string) error
 	checkoutFn          func(directory, branch string) error
 	checkoutNewBranchFn func(directory, branch string) error
+	syncBranchFn        func(ctx context.Context, directory, branchName, logPrefix string) error
+	configureIdentityFn func(directory, name, email string) error
+}
+
+func (m *MockGitClient) ConfigureIdentity(directory, name, email string) error {
+	if m.configureIdentityFn != nil {
+		return m.configureIdentityFn(directory, name, email)
+	}
+	return nil
+}
+
+func (m *MockGitClient) SyncBranch(ctx context.Context, directory, branchName, logPrefix string) error {
+	if m.syncBranchFn != nil {
+		return m.syncBranchFn(ctx, directory, branchName, logPrefix)
+	}
+	return nil
 }
 
 func (m *MockGitClient) Clone(ctx context.Context, repoURL, directory string) error {
@@ -308,83 +324,83 @@ func TestSetupWorkspace(t *testing.T) {
 	})
 
 	t.Run("Checks out existing epic branch", func(t *testing.T) {
-		checkedOut := ""
+		synced := ""
 		mockGitClient := &MockGitClient{
 			repoExists:         true,
 			remoteBranchExists: true,
-			checkoutFn: func(directory, branch string) error {
-				if branch == "agent-epic/EPIC-1" {
-					checkedOut = branch
+			syncBranchFn: func(ctx context.Context, directory, branchName, logPrefix string) error {
+				if branchName == "agent-epic/EPIC-1" {
+					synced = branchName
 				}
 				return nil
 			},
 		}
 		_, err := SetupWorkspace(context.Background(), mockGitClient, "https://github.com/example/repo", "/tmp/recac-test", "TEST-1", "EPIC-1", "")
 		assert.NoError(t, err)
-		assert.Equal(t, "agent-epic/EPIC-1", checkedOut)
+		assert.Equal(t, "agent-epic/EPIC-1", synced)
 	})
 
 	t.Run("Creates new epic branch", func(t *testing.T) {
-		newBranch := ""
+		synced := ""
 		mockGitClient := &MockGitClient{
 			repoExists:         true,
 			remoteBranchExists: false,
-			checkoutNewBranchFn: func(directory, branch string) error {
-				if branch == "agent-epic/EPIC-1" {
-					newBranch = branch
+			syncBranchFn: func(ctx context.Context, directory, branchName, logPrefix string) error {
+				if branchName == "agent-epic/EPIC-1" {
+					synced = branchName
 				}
 				return nil
 			},
 		}
 		_, err := SetupWorkspace(context.Background(), mockGitClient, "https://github.com/example/repo", "/tmp/recac-test", "TEST-1", "EPIC-1", "")
 		assert.NoError(t, err)
-		assert.Equal(t, "agent-epic/EPIC-1", newBranch)
+		assert.Equal(t, "agent-epic/EPIC-1", synced)
 	})
 
 	t.Run("Creates unique feature branch", func(t *testing.T) {
 		viper.Set("git.unique_branch_names", true)
 		defer viper.Set("git.unique_branch_names", false)
 
-		newBranch := ""
+		synced := ""
 		mockGitClient := &MockGitClient{
 			repoExists: true,
-			checkoutNewBranchFn: func(directory, branch string) error {
-				newBranch = branch
+			syncBranchFn: func(ctx context.Context, directory, branchName, logPrefix string) error {
+				synced = branchName
 				return nil
 			},
 		}
 		_, err := SetupWorkspace(context.Background(), mockGitClient, "https://github.com/example/repo", "/tmp/recac-test", "TEST-1", "", "20240101-120000")
 		assert.NoError(t, err)
-		assert.Equal(t, "agent/TEST-1-20240101-120000", newBranch)
+		assert.Equal(t, "agent/TEST-1-20240101-120000", synced)
 	})
 
 	t.Run("Creates stable feature branch", func(t *testing.T) {
-		newBranch := ""
+		synced := ""
 		mockGitClient := &MockGitClient{
 			repoExists:         true,
 			remoteBranchExists: false,
-			checkoutNewBranchFn: func(directory, branch string) error {
-				newBranch = branch
+			syncBranchFn: func(ctx context.Context, directory, branchName, logPrefix string) error {
+				synced = branchName
 				return nil
 			},
 		}
 		_, err := SetupWorkspace(context.Background(), mockGitClient, "https://github.com/example/repo", "/tmp/recac-test", "TEST-1", "", "")
 		assert.NoError(t, err)
-		assert.Equal(t, "agent/TEST-1", newBranch)
+		assert.Equal(t, "agent/TEST-1", synced)
 	})
 
 	t.Run("Checks out existing stable feature branch", func(t *testing.T) {
-		checkedOut := ""
+		synced := ""
 		mockGitClient := &MockGitClient{
 			repoExists:         true,
 			remoteBranchExists: true,
-			checkoutFn: func(directory, branch string) error {
-				checkedOut = branch
+			syncBranchFn: func(ctx context.Context, directory, branchName, logPrefix string) error {
+				synced = branchName
 				return nil
 			},
 		}
 		_, err := SetupWorkspace(context.Background(), mockGitClient, "https://github.com/example/repo", "/tmp/recac-test", "TEST-1", "", "")
 		assert.NoError(t, err)
-		assert.Equal(t, "agent/TEST-1", checkedOut)
+		assert.Equal(t, "agent/TEST-1", synced)
 	})
 }
