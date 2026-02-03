@@ -39,9 +39,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// Return JSON array of ticket nodes
 		return `[
   {
-    "title": "Implement Primes",
+    "title": "ID:[PRIMES] Implement Primes",
     "description": "Create a python script that calculates primes",
-    "type": "Story",
+    "type": "Task",
     "acceptance_criteria": [
       "The list of primes in 'primes.json' contains exactly 1229 primes"
     ],
