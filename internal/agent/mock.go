@@ -32,7 +32,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Heuristic: Detect Ticket Generation Request (TPM Agent)
-	if strings.Contains(prompt, "Technical Program Manager (TPM)") || strings.Contains(prompt, "generate tickets") {
+	// We check for the explicit role definition to avoid false positives in prompt history
+	if strings.Contains(prompt, "You are a Technical Program Manager") {
 		return `[
   {
     "id": "PRIMES",

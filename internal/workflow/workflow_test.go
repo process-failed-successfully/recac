@@ -211,10 +211,23 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	cfg := SessionConfig{
-		ProjectPath: tmpDir,
-		RepoURL:     "https://github.com/example/already-provided",
-		IsMock:      true,
-		Cleanup:     false,
+		ProjectPath:   tmpDir,
+		RepoURL:       "https://github.com/example/already-provided",
+		IsMock:        true,
+		Cleanup:       false,
+		MaxIterations: 1, // Prevent infinite loops in unit tests
+	}
+
+	// Mock RunWorkflow to handle MaxIterations properly if it wasn't already
+	originalRunWorkflow := RunWorkflow
+	defer func() { RunWorkflow = originalRunWorkflow }()
+	RunWorkflow = func(ctx context.Context, c SessionConfig) error {
+		// Just verify config propagation
+		if c.MaxIterations != 1 {
+			return fmt.Errorf("MaxIterations not propagated")
+		}
+		// Return ErrMaxIterations to simulate end of loop
+		return runner.ErrMaxIterations
 	}
 
 	err := ProcessJiraTicket(context.Background(), "TEST-1", jClient, cfg, nil)
