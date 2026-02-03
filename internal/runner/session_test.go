@@ -329,6 +329,24 @@ func TestSession_LoadFeatures(t *testing.T) {
 	}
 }
 
+func TestSession_LoadFeatures_ArrayFormat(t *testing.T) {
+	tmpDir := t.TempDir()
+	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
+
+	// Write feature list as array (agent output style)
+	listPath := filepath.Join(tmpDir, "feature_list.json")
+	content := `[{"id":"1", "description":"feat array", "status":"done"}]`
+	os.WriteFile(listPath, []byte(content), 0644)
+
+	features := session.loadFeatures()
+	if len(features) != 1 {
+		t.Errorf("Expected 1 feature from array format, got %d", len(features))
+	}
+	if features[0].Description != "feat array" {
+		t.Errorf("Expected feat array, got %s", features[0].Description)
+	}
+}
+
 func TestSession_RunLoop_SingleIteration(t *testing.T) {
 	tmpDir := t.TempDir()
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)

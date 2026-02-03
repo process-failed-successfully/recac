@@ -107,6 +107,16 @@ agent-bridge feature set req-primes-json-contains-correct-primes --status done -
 ` + "\n```", nil
 	}
 
+	// Detect QA Agent
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return "```bash\nagent-bridge signal QA_PASSED true\n```", nil
+	}
+
+	// Detect Manager Agent
+	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") {
+		return "```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
