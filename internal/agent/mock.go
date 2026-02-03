@@ -105,7 +105,7 @@ fi
 
 	// 4. QA Phase
 	lowerPrompt := strings.ToLower(prompt)
-	if strings.Contains(lowerPrompt, "qa agent") {
+	if strings.Contains(lowerPrompt, "## your role - qa agent") {
 		return `QA checks passed:
 ` + "```bash" + `
 if command -v agent-bridge > /dev/null; then
@@ -117,7 +117,7 @@ fi
 	}
 
 	// 5. Manager Phase
-	if strings.Contains(lowerPrompt, "project manager") {
+	if strings.Contains(lowerPrompt, "## your role - project manager") {
 		return `Project signed off:
 ` + "```bash" + `
 if command -v agent-bridge > /dev/null; then
