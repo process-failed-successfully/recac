@@ -32,13 +32,6 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// Debug: Log prompt snippet to help diagnose matching issues in CI
-	snippet := prompt
-	if len(snippet) > 200 {
-		snippet = snippet[:200]
-	}
-	fmt.Printf("[MockAgent] Received prompt: %q\n", snippet)
-
 	// Smart Mock Logic for Smoke Tests
 
 	// 1. Ticket Generation for 'prime-python' scenario
@@ -112,7 +105,8 @@ fi
 `, nil
 	}
 
-	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") || strings.Contains(prompt, "PROJECT MANAGER") {
+	// Broaden Manager check to include key phrases from the prompt body
+	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") || strings.Contains(prompt, "PROJECT MANAGER") || strings.Contains(prompt, "Approve or Reject") {
 		return `I have reviewed the work and it meets all requirements.
 
 ` + "```bash" + `
