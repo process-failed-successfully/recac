@@ -56,12 +56,24 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristic for "prime-python" scenario execution phase.
 	// We want to match the task execution prompt but NOT the planning prompt.
 	// The planning prompt also contains "primes.py" and "Create", so we must exclude it.
-	isPlanning := strings.Contains(promptLower, "appspec") || strings.Contains(promptLower, "specification")
+	// Refined Planning check: Must be explicitly asking to PLAN or GENERATE TICKETS, not just containing "specification".
+	isPlanning := (strings.Contains(promptLower, "appspec") || strings.Contains(promptLower, "specification")) &&
+		(strings.Contains(promptLower, "plan") || strings.Contains(promptLower, "break down") || strings.Contains(promptLower, "generate tickets"))
 
 	// Check for implementation triggers:
 	// 1. Task ID: [PRIMES] (often in prompt as "Task: [PRIMES]" or similar)
 	// 2. File + Action: "primes.py" AND "create" (case insensitive)
-	isImplementation := strings.Contains(prompt, "[PRIMES]") || (strings.Contains(promptLower, "primes.py") && strings.Contains(promptLower, "create"))
+	// 3. Robustness: "primes" AND "create" (if file extension missing or mapped)
+	// CRITICAL: Ensure we are NOT in the Initializer phase (which also sees the spec/ID).
+	isImplementation := (strings.Contains(prompt, "[PRIMES]") ||
+		(strings.Contains(promptLower, "primes.py") && strings.Contains(promptLower, "create")) ||
+		(strings.Contains(promptLower, "primes") && strings.Contains(promptLower, "create") && strings.Contains(promptLower, "python"))) &&
+		!strings.Contains(prompt, "INITIALIZER")
+
+	// If it looks like implementation, prioritize it over loose planning matches unless explicitly planning
+	if isImplementation {
+		isPlanning = false
+	}
 
 	if !isPlanning && isImplementation {
 		return `
