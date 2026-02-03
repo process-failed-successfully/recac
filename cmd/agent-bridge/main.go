@@ -217,12 +217,18 @@ func run(args []string, config db.StoreConfig, projectID string) error {
 			var status string
 			var passes bool
 			for i := 4; i < len(args); i++ {
-				if args[i] == "--status" && i+1 < len(args) {
+				arg := args[i]
+				if arg == "--status" && i+1 < len(args) {
 					status = args[i+1]
 					i++
-				} else if args[i] == "--passes" && i+1 < len(args) {
+				} else if strings.HasPrefix(arg, "status=") {
+					status = strings.TrimPrefix(arg, "status=")
+				} else if arg == "--passes" && i+1 < len(args) {
 					passes = args[i+1] == "true"
 					i++
+				} else if strings.HasPrefix(arg, "passes=") {
+					val := strings.TrimPrefix(arg, "passes=")
+					passes = val == "true"
 				}
 			}
 			cmdErr = store.UpdateFeatureStatus(projectID, id, status, passes)

@@ -35,6 +35,22 @@ func TestRun_QA(t *testing.T) {
 	}
 }
 
+func TestRun_Feature_KeyValue(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".recac.db")
+	projectID := "test-project"
+
+	store, _ := db.NewStore(db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}) // Fixed SaveFeatures call
+	store.SaveFeatures(projectID, `{"project_name": "Test", "features": [{"id": "F1", "name": "Feature 1"}]}`)
+	store.Close()
+
+	// Test with key=value syntax which LLMs often use
+	args := []string{"agent-bridge", "feature", "set", "F1", "status=done", "passes=true"}
+	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+}
+
 func TestRun_Signal(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".recac.db")
