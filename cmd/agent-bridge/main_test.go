@@ -35,6 +35,17 @@ func TestRun_QA(t *testing.T) {
 	}
 }
 
+func TestRun_Signoff(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".recac.db")
+
+	args := []string{"agent-bridge", "signoff"}
+	projectID := "test-project"
+	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+}
+
 func TestRun_Signal(t *testing.T) {
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, ".recac.db")

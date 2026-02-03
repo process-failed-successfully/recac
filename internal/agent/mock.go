@@ -69,7 +69,7 @@ fi
 echo "Reviewing progress..."
 # Signal Project Sign-off
 if command -v agent-bridge >/dev/null 2>&1; then
-    agent-bridge signal PROJECT_SIGNED_OFF true
+    agent-bridge signoff
 fi
 ` + "```", nil
 	}

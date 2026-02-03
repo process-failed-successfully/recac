@@ -114,6 +114,12 @@ func run(args []string, config db.StoreConfig, projectID string) error {
 			fmt.Println("Manager trigger signal set.")
 		}
 
+	case "signoff":
+		cmdErr = store.SetSignal(projectID, "PROJECT_SIGNED_OFF", "true")
+		if cmdErr == nil {
+			fmt.Println("Project signed off.")
+		}
+
 	case "verify":
 		if len(args) < 4 {
 			return fmt.Errorf("usage: agent-bridge verify <id> <pass/fail>")
