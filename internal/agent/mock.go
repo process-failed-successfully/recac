@@ -106,7 +106,14 @@ git commit -m "Add primes.py and output" || echo "Nothing to commit"
 
 # Signal completion if bridge is available
 if command -v agent-bridge &> /dev/null; then
+    # Try to update specific known IDs or discover them
     agent-bridge feature set req-primes-py-exists --status done --passes true || true
+    agent-bridge feature set req-create-primes-py --status done --passes true || true
+
+    # Fallback: Update all pending features
+    if command -v jq &> /dev/null; then
+        agent-bridge feature list --json | jq -r '.features[] | select(.status!="done") | .id' | xargs -r -I {} agent-bridge feature set {} --status done --passes true || true
+    fi
 fi
 ` + "\n```", nil
 	}
