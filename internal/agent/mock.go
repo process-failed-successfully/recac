@@ -84,9 +84,20 @@ def is_prime(n):
             return False
     return True
 
-primes = [p for p in range(1, 101) if is_prime(p)]
-print(json.dumps(primes))
+primes = [p for p in range(2, 10000) if is_prime(p)]
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
 EOF
+
+# Execute the script to generate the json file
+python3 primes.py
+
+# Configure git and push changes
+git config --global user.email "agent@recac.io"
+git config --global user.name "RECAC Agent"
+git add primes.py primes.json
+git commit -m "Implement primes.py and generate primes.json"
+git push
 
 # Mark as done
 if command -v agent-bridge > /dev/null; then
