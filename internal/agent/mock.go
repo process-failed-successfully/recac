@@ -174,6 +174,10 @@ git config user.name "Mock Agent"
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
+
+# Signal features passed
+agent-bridge feature set req-primes-py-exists passed
+agent-bridge feature set req-primes-json-contains-correct-p passed
 ` + "```" + `
 `, nil
 	}

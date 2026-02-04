@@ -25,6 +25,28 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_PrimesImplementation(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Implement primes.py" // Keywords to trigger implementation logic
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	expectedCommands := []string{
+		"cat << 'EOF' > primes.py",
+		"agent-bridge feature set req-primes-py-exists passed",
+		"agent-bridge feature set req-primes-json-contains-correct-p passed",
+	}
+
+	for _, cmd := range expectedCommands {
+		if !strings.Contains(response, cmd) {
+			t.Errorf("Response missing expected command %q. Got:\n%s", cmd, response)
+		}
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
