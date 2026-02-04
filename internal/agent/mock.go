@@ -33,16 +33,17 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Detect Ticket Generation Prompt (TPM Role)
-	if strings.Contains(prompt, "Technical Program Manager") && strings.Contains(prompt, "tickets") {
+	// We check for "Technical Program Manager" as defined in tpm_agent.md template.
+	// We avoid checking for "tickets" as the template might use "ticket" (singular) or "Stories".
+	if strings.Contains(prompt, "Technical Program Manager") {
 		// Return a valid JSON array of tickets to satisfy the parser
+		// Matches ticketNode struct in cmd/recac/jira.go
 		return `[
   {
     "title": "Implement Prime Number Generator",
     "description": "Create a Python script that generates prime numbers.",
     "type": "Story",
-    "status": "To Do",
-    "id": "PROJ-1",
-    "dependencies": []
+    "children": []
   }
 ]`, nil
 	}

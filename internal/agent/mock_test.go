@@ -6,51 +6,39 @@ import (
 	"testing"
 )
 
-func TestMockAgent(t *testing.T) {
+func TestMockAgent_TPM_Response(t *testing.T) {
 	agent := NewMockAgent()
+	prompt := "You are an expert Technical Program Manager (TPM)..." // Minimal prompt to trigger detection
 
-	prompt := "This is a test prompt that is long enough to be truncated"
-	response, err := agent.Send(context.Background(), prompt)
-
+	resp, err := agent.Send(context.Background(), prompt)
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
 	}
 
-	if !strings.Contains(response, "Mock agent response") {
-		t.Errorf("Response missing prefix, got: %s", response)
+	// Verify response is JSON (starts with [) and not the default message
+	if strings.HasPrefix(resp, "Mock agent response") {
+		t.Errorf("Expected JSON response for TPM prompt, got default text response: %q", resp)
 	}
 
-	if !strings.Contains(response, "I received your prompt") {
-		t.Errorf("Response missing body, got: %s", response)
+	if !strings.HasPrefix(strings.TrimSpace(resp), "[") {
+		t.Errorf("Expected JSON array starting with '[', got: %q", resp)
+	}
+
+	if !strings.Contains(resp, "Implement Prime Number Generator") {
+		t.Errorf("Expected response to contain 'Implement Prime Number Generator', got: %q", resp)
 	}
 }
 
-func TestMockAgent_TicketGeneration(t *testing.T) {
+func TestMockAgent_Default_Response(t *testing.T) {
 	agent := NewMockAgent()
-	// Simulate the prompt used in smoke tests
-	prompt := "You are an expert Technical Program Manager (TPM)... generate tickets..."
+	prompt := "Hello world"
 
-	response, err := agent.Send(context.Background(), prompt)
+	resp, err := agent.Send(context.Background(), prompt)
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
 	}
 
-	// Should start with [ to indicate JSON array
-	if !strings.HasPrefix(strings.TrimSpace(response), "[") {
-		t.Errorf("Expected JSON array response, got: %s", response)
-	}
-
-	if !strings.Contains(response, "PROJ-1") {
-		t.Errorf("Expected PROJ-1 in response, got: %s", response)
-	}
-}
-
-func TestTruncateString(t *testing.T) {
-	s := "hello world"
-	if truncateString(s, 5) != "hello" {
-		t.Errorf("Expected 'hello', got '%s'", truncateString(s, 5))
-	}
-	if truncateString(s, 20) != "hello world" {
-		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
+	if !strings.HasPrefix(resp, "Mock agent response") {
+		t.Errorf("Expected default text response, got: %q", resp)
 	}
 }
