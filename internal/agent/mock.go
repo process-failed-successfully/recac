@@ -33,17 +33,36 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristics for Smoke Tests (prime-python)
 
-	// 1. QA / Verification Phase
+	// 1. Ticket Generation (TPM Agent)
+	// Check this FIRST to avoid confusion with implementation keywords that might appear in the spec.
+	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "tickets") {
+		return `
+[
+  {
+    "title": "ID:[PRIMES] Implement Prime Number Calculator",
+    "description": "Implement a Python script to calculate prime numbers.",
+    "type": "Story",
+    "acceptance_criteria": [
+      "Must correctly identify prime numbers",
+      "Must print primes up to 20"
+    ],
+    "children": []
+  }
+]
+`, nil
+	}
+
+	// 2. QA / Verification Phase
 	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
 		return "```bash\nagent-bridge signal QA_PASSED true\n```\nQA Passed.", nil
 	}
 
-	// 2. Manager Sign-off
+	// 3. Manager Sign-off
 	if strings.Contains(prompt, "PROJECT MANAGER") {
 		return "```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```\nProject Approved.", nil
 	}
 
-	// 3. Implementation Phase (primes.py)
+	// 4. Implementation Phase (primes.py)
 	if strings.Contains(prompt, "Calculate primes") || strings.Contains(prompt, "[PRIMES]") {
 		return `
 Sure, I will create a python script to calculate primes.
