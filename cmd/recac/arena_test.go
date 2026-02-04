@@ -29,8 +29,23 @@ func (m *MockArenaAgent) SendStream(ctx context.Context, prompt string, onChunk 
 func TestArenaCmd(t *testing.T) {
 	// Save original factory
 	originalFactory := agentClientFactory
+
+	// Save original flags
+	origCompetitors := arenaCompetitors
+	origTask := arenaTask
+	origFile := arenaFile
+	origJudgeProv := arenaJudgeProv
+	origJudgeModel := arenaJudgeModel
+
 	defer func() {
 		agentClientFactory = originalFactory
+
+		// Restore flags
+		arenaCompetitors = origCompetitors
+		arenaTask = origTask
+		arenaFile = origFile
+		arenaJudgeProv = origJudgeProv
+		arenaJudgeModel = origJudgeModel
 	}()
 
 	t.Run("Run Arena Success", func(t *testing.T) {
