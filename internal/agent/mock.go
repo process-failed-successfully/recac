@@ -84,7 +84,40 @@ agent-bridge signal PROJECT_SIGNED_OFF true
 		return "I have analyzed the spec and created the plan.", nil
 	}
 
-	// 5. Implementation (Default) Heuristic
+	// 5. Primes Implementation Heuristic
+	// Handles the specific prime-python scenario which requires generating a JSON file
+	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
+		return `
+I will implement the prime number generator.
+
+` + "```bash" + `
+# Create the python file that generates the json
+cat <<EOF > primes.py
+import json
+
+def is_prime(n):
+    if n <= 1: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0: return False
+    return True
+
+primes = [i for i in range(1, 21) if is_prime(i)]
+with open("primes.json", "w") as f:
+    json.dump(primes, f)
+print("Generated primes.json")
+EOF
+
+# Mark features as done
+# Dynamic discovery to handle injected features
+agent-bridge feature list --json | jq -r '.features[].id' | xargs -I {} agent-bridge feature set {} --status done --passes true
+
+# Signal completion to break the loop
+echo "COMPLETED"
+` + "```" + `
+`, nil
+	}
+
+	// 6. Implementation (Default) Heuristic
 	// This is the critical part for preventing NO-OP loops.
 	// We MUST return bash commands that:
 	// a) Do some work (create files)
