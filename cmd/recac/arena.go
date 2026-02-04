@@ -11,14 +11,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-var (
-	arenaCompetitors string
-	arenaTask        string
-	arenaFile        string
-	arenaJudgeProv   string
-	arenaJudgeModel  string
-)
-
 var arenaCmd = &cobra.Command{
 	Use:   "arena",
 	Short: "Pit multiple AI models against each other",
@@ -31,11 +23,11 @@ Example:
 
 func init() {
 	rootCmd.AddCommand(arenaCmd)
-	arenaCmd.Flags().StringVarP(&arenaCompetitors, "competitors", "c", "", "Comma-separated list of provider:model pairs (e.g., openai:gpt-4,gemini:gemini-pro)")
-	arenaCmd.Flags().StringVarP(&arenaTask, "task", "t", "", "The task or question to evaluate")
-	arenaCmd.Flags().StringVarP(&arenaFile, "file", "f", "", "Optional file to include as context")
-	arenaCmd.Flags().StringVar(&arenaJudgeProv, "judge-provider", "", "Provider for the judge (default: config)")
-	arenaCmd.Flags().StringVar(&arenaJudgeModel, "judge-model", "", "Model for the judge (default: config)")
+	arenaCmd.Flags().StringP("competitors", "c", "", "Comma-separated list of provider:model pairs (e.g., openai:gpt-4,gemini:gemini-pro)")
+	arenaCmd.Flags().StringP("task", "t", "", "The task or question to evaluate")
+	arenaCmd.Flags().StringP("file", "f", "", "Optional file to include as context")
+	arenaCmd.Flags().String("judge-provider", "", "Provider for the judge (default: config)")
+	arenaCmd.Flags().String("judge-model", "", "Model for the judge (default: config)")
 
 	arenaCmd.MarkFlagRequired("competitors")
 	arenaCmd.MarkFlagRequired("task")
@@ -50,7 +42,13 @@ type ArenaResult struct {
 }
 
 func runArena(cmd *cobra.Command, args []string) error {
-	competitorList := strings.Split(arenaCompetitors, ",")
+	competitorsStr, _ := cmd.Flags().GetString("competitors")
+	taskStr, _ := cmd.Flags().GetString("task")
+	fileStr, _ := cmd.Flags().GetString("file")
+	judgeProv, _ := cmd.Flags().GetString("judge-provider")
+	judgeMod, _ := cmd.Flags().GetString("judge-model")
+
+	competitorList := strings.Split(competitorsStr, ",")
 	// Trim spaces
 	for i := range competitorList {
 		competitorList[i] = strings.TrimSpace(competitorList[i])
@@ -76,8 +74,8 @@ func runArena(cmd *cobra.Command, args []string) error {
 
 	// Read context file
 	var fileContext string
-	if arenaFile != "" {
-		content, err := os.ReadFile(arenaFile)
+	if fileStr != "" {
+		content, err := os.ReadFile(fileStr)
 		if err != nil {
 			return fmt.Errorf("failed to read context file: %w", err)
 		}
@@ -85,7 +83,7 @@ func runArena(cmd *cobra.Command, args []string) error {
 	}
 
 	// Prepare Prompt
-	fullPrompt := arenaTask
+	fullPrompt := taskStr
 	if fileContext != "" {
 		fullPrompt += fmt.Sprintf("\n\nContext:\n```\n%s\n```", fileContext)
 	}
@@ -166,11 +164,9 @@ func runArena(cmd *cobra.Command, args []string) error {
 	}
 
 	// Judging Phase
-	judgeProv := arenaJudgeProv
 	if judgeProv == "" {
 		judgeProv = viper.GetString("provider")
 	}
-	judgeMod := arenaJudgeModel
 	if judgeMod == "" {
 		judgeMod = viper.GetString("model")
 	}
@@ -184,7 +180,7 @@ func runArena(cmd *cobra.Command, args []string) error {
 
 	var judgePromptBuilder strings.Builder
 	judgePromptBuilder.WriteString("You are an impartial Judge. Evaluate the following responses to the task.\n")
-	judgePromptBuilder.WriteString(fmt.Sprintf("Task: %s\n\n", arenaTask))
+	judgePromptBuilder.WriteString(fmt.Sprintf("Task: %s\n\n", taskStr))
 
 	for i, res := range validResults {
 		judgePromptBuilder.WriteString(fmt.Sprintf("--- Candidate %d ---\n", i+1))
