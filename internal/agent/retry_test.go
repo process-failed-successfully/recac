@@ -121,10 +121,10 @@ func TestGeminiClient_NetworkInterruption(t *testing.T) {
 
 		result, err := client.Send(ctx, "test prompt")
 
-		// Verify retries happened (maxRetries = 3, so 4 total attempts: initial + 3 retries)
-		expectedCalls := 4
+		// Verify retries happened (maxRetries = 5, so 6 total attempts: initial + 5 retries)
+		expectedCalls := 6
 		if calls != expectedCalls {
-			t.Errorf("expected %d calls (1 initial + 3 retries), got %d", expectedCalls, calls)
+			t.Errorf("expected %d calls (1 initial + 5 retries), got %d", expectedCalls, calls)
 		}
 
 		// Verify it returns an error (not a panic)
@@ -249,10 +249,10 @@ func TestGeminiClient_IterationIncrementOnError(t *testing.T) {
 	}
 
 	// Step 3: Verify the agent waits with exponential backoff before retrying
-	// Should have made 4 calls (1 initial + 3 retries)
-	expectedCalls := 4
+	// Should have made 6 calls (1 initial + 5 retries)
+	expectedCalls := 6
 	if calls != expectedCalls {
-		t.Errorf("Expected %d calls (1 initial + 3 retries), got %d", expectedCalls, calls)
+		t.Errorf("Expected %d calls (1 initial + 5 retries), got %d", expectedCalls, calls)
 	}
 
 	// Verify exponential backoff was applied (should take at least 1s + 2s + 4s = 7s)
