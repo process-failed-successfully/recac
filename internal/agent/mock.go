@@ -3,6 +3,8 @@ package agent
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,6 +32,22 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// 1. Technical Program Manager (TPM) - Generate Tickets
+	if strings.Contains(prompt, "Technical Program Manager") {
+		return m.handleTPM(prompt), nil
+	}
+
+	// 2. QA Agent
+	if strings.Contains(prompt, "QA AGENT") {
+		return "```bash\nagent-bridge signal QA_PASSED true\n```", nil
+	}
+
+	// 3. Project Manager
+	if strings.Contains(prompt, "PROJECT MANAGER") {
+		return "```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
@@ -44,6 +62,43 @@ func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(
 		onChunk(resp)
 	}
 	return resp, err
+}
+
+func (m *MockAgent) handleTPM(prompt string) string {
+	// Extract ID:[...] from prompt
+	re := regexp.MustCompile(`ID:\[(.*?)\]`)
+	matches := re.FindStringSubmatch(prompt)
+
+	idTag := "EXAMPLE"
+	if len(matches) > 1 {
+		idTag = matches[1]
+	}
+	fullTag := fmt.Sprintf("ID:[%s]", idTag)
+
+	// Return valid JSON tickets
+	// Note: We include Repo: url in description as required by parser validation
+
+	// Construct JSON using standard string literals to avoid backtick issues
+	jsonBody := fmt.Sprintf(`[
+  {
+    "title": "%s Feature Implementation",
+    "description": "Implementation of the requested feature.\nRepo: https://example.com/repo",
+    "type": "Epic",
+    "children": [
+      {
+        "title": "%s Core Logic",
+        "description": "Implement the core logic.\nRepo: https://example.com/repo",
+        "type": "Story",
+        "acceptance_criteria": [
+          "Logic is implemented",
+          "Tests pass"
+        ]
+      }
+    ]
+  }
+]`, fullTag, fullTag)
+
+	return fmt.Sprintf("```json\n%s\n```", jsonBody)
 }
 
 // truncateString truncates a string to a maximum length
