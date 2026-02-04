@@ -30,7 +30,7 @@ func Add(a, b int) int { return a + b }`
 	// 2. Mock Agent Factory
 	originalFactory := agentClientFactory
 	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
-		mock := agent.NewMockAgent()
+		mock := agent.NewMockAgent("test-model", "test-project")
 		// Return a valid JSON response
 		mock.SetResponse(`{
 			"question": "What does this function do?",

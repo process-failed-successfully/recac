@@ -370,7 +370,6 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 	if cfg.IsMock {
 		fmt.Printf("[%s] Starting in MOCK MODE\n", cfg.SessionName)
 		dockerCli, _ := docker.NewMockClient()
-		agentClient := agent.NewMockAgent()
 
 		projectPath := cfg.ProjectPath
 		if projectPath == "" {
@@ -381,6 +380,8 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 		if projectName == "" {
 			projectName = "mock-project"
 		}
+
+		agentClient := agent.NewMockAgent(cfg.Model, projectName)
 
 		session := NewSessionFunc(dockerCli, agentClient, projectPath, cfg.Image, projectName, cfg.Provider, cfg.Model, cfg.MaxAgents)
 		if cfg.Logger != nil {

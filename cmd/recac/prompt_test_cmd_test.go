@@ -114,7 +114,7 @@ func TestPromptTestCmd_LiveAgent(t *testing.T) {
 	os.WriteFile(filepath.Join(promptsDir, "test_live.md"), []byte("Hello {name}!"), 0644)
 
 	// Setup Mock Agent
-	mockAgent := &MockAgentCaptor{MockAgent: agent.NewMockAgent()}
+	mockAgent := &MockAgentCaptor{MockAgent: agent.NewMockAgent("test-model", "test-project")}
 	mockAgent.SetResponse("I am AI")
 
 	// Override factory
@@ -164,7 +164,7 @@ func TestPromptTestCmd_SaveFile(t *testing.T) {
 	os.WriteFile(filepath.Join(promptsDir, "test_save.md"), []byte("Test"), 0644)
 
 	// Setup Mock Agent
-	mockAgent := agent.NewMockAgent()
+	mockAgent := agent.NewMockAgent("test-model", "test-project")
 	mockAgent.SetResponse("Saved Response")
 
 	// Override factory
