@@ -104,6 +104,8 @@ func (m PlaybackModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		if m.viewingDetails {
 			switch msg.String() {
+			case "ctrl+c":
+				return m, tea.Quit
 			case "esc", "q", "backspace":
 				m.viewingDetails = false
 				return m, nil
@@ -144,7 +146,11 @@ func (m PlaybackModel) View() string {
 
 func (m PlaybackModel) headerView() string {
 	title := "Entry Details"
-	line := strings.Repeat("─", max(0, m.viewport.Width-len(title)))
+	width := m.viewport.Width - len(title)
+	if width < 0 {
+		width = 0
+	}
+	line := strings.Repeat("─", width)
 	return lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Render(title + line)
 }
 

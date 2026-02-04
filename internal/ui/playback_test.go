@@ -145,3 +145,24 @@ func TestPlaybackModel_ComplexContent(t *testing.T) {
 		t.Error("Content should contain pretty printed array")
 	}
 }
+
+func TestPlaybackModel_CtrlCInDetails(t *testing.T) {
+	entries := []LogEntry{
+		{Time: time.Now(), Level: "INFO", Msg: "Line 1", Content: "Details 1"},
+	}
+	initialModel := NewPlaybackModel(entries)
+	var model tea.Model = initialModel
+
+	// Enter details view
+	model, _ = model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m := model.(PlaybackModel)
+	if !m.viewingDetails {
+		t.Error("Should be in details view")
+	}
+
+	// Test Ctrl+C in details view
+	_, cmd := model.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	if cmd == nil {
+		t.Error("Ctrl+C in details view should return a Quit command")
+	}
+}
