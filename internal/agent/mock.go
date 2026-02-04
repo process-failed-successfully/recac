@@ -93,7 +93,7 @@ python3 primes.py
 # Git operations
 git add primes.py primes.json
 git commit -m "feat: implement primes.py and generate primes.json" || echo "No changes to commit"
-git push origin HEAD
+git push origin HEAD || echo "Push skipped"
 
 # Signal completion
 agent-bridge feature update --id PRIMES --status in_progress
