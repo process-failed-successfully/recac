@@ -126,6 +126,7 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 		Project:          "ui-test",
 		DBStore:          dbStore,
 		ManagerFrequency: 5,
+		MaxIterations:    20, // Limit iterations to prevent infinite loops (timeout protection)
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
 		Logger:           telemetry.NewLogger(true, "", false),
 		SleepFunc:        func(d time.Duration) {}, // Skip sleep for tests
