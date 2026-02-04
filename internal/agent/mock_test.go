@@ -25,6 +25,19 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_TPM(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "You are a Technical Program Manager..."
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "[EPIC-1]") {
+		t.Errorf("Response should contain mock epic JSON, got: %s", response)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
