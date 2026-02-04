@@ -50,7 +50,11 @@ type ArenaResult struct {
 }
 
 func runArena(cmd *cobra.Command, args []string) error {
-	competitorList := strings.Split(arenaCompetitors, ",")
+	competitors, err := cmd.Flags().GetString("competitors")
+	if err != nil {
+		return err
+	}
+	competitorList := strings.Split(competitors, ",")
 	// Trim spaces
 	for i := range competitorList {
 		competitorList[i] = strings.TrimSpace(competitorList[i])
@@ -76,8 +80,13 @@ func runArena(cmd *cobra.Command, args []string) error {
 
 	// Read context file
 	var fileContext string
-	if arenaFile != "" {
-		content, err := os.ReadFile(arenaFile)
+	fileVal, err := cmd.Flags().GetString("file")
+	if err != nil {
+		return err
+	}
+
+	if fileVal != "" {
+		content, err := os.ReadFile(fileVal)
 		if err != nil {
 			return fmt.Errorf("failed to read context file: %w", err)
 		}
@@ -85,7 +94,12 @@ func runArena(cmd *cobra.Command, args []string) error {
 	}
 
 	// Prepare Prompt
-	fullPrompt := arenaTask
+	taskVal, err := cmd.Flags().GetString("task")
+	if err != nil {
+		return err
+	}
+
+	fullPrompt := taskVal
 	if fileContext != "" {
 		fullPrompt += fmt.Sprintf("\n\nContext:\n```\n%s\n```", fileContext)
 	}
@@ -166,11 +180,17 @@ func runArena(cmd *cobra.Command, args []string) error {
 	}
 
 	// Judging Phase
-	judgeProv := arenaJudgeProv
+	judgeProv, err := cmd.Flags().GetString("judge-provider")
+	if err != nil {
+		return err
+	}
 	if judgeProv == "" {
 		judgeProv = viper.GetString("provider")
 	}
-	judgeMod := arenaJudgeModel
+	judgeMod, err := cmd.Flags().GetString("judge-model")
+	if err != nil {
+		return err
+	}
 	if judgeMod == "" {
 		judgeMod = viper.GetString("model")
 	}
@@ -184,7 +204,7 @@ func runArena(cmd *cobra.Command, args []string) error {
 
 	var judgePromptBuilder strings.Builder
 	judgePromptBuilder.WriteString("You are an impartial Judge. Evaluate the following responses to the task.\n")
-	judgePromptBuilder.WriteString(fmt.Sprintf("Task: %s\n\n", arenaTask))
+	judgePromptBuilder.WriteString(fmt.Sprintf("Task: %s\n\n", taskVal))
 
 	for i, res := range validResults {
 		judgePromptBuilder.WriteString(fmt.Sprintf("--- Candidate %d ---\n", i+1))
