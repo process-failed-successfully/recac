@@ -34,6 +34,7 @@ var (
 	reRootDeletion    = regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+([/~*]+|/)$`)
 	rePipeShell       = regexp.MustCompile(`(?i)(curl|wget)\s+.*?\|\s*(bash|sh|zsh|python|perl|php|ruby)`)
 	reReverseShell    = regexp.MustCompile(`(?i)nc\s+.*?-e\s+.*`)
+	rePathTraversal   = regexp.MustCompile(`(?i)\b(cd|cp|mv|rm|cat|touch|mkdir)\b.*\s['"]?(\.\.|/|~)`)
 )
 
 // NewRegexScanner creates a new scanner with default patterns
@@ -49,6 +50,7 @@ func NewRegexScanner() *RegexScanner {
 			"Root Deletion":     reRootDeletion,
 			"Pipe to Shell":     rePipeShell,
 			"Reverse Shell":     reReverseShell,
+			"Path Traversal":    rePathTraversal,
 		},
 	}
 }
