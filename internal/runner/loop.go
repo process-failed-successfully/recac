@@ -454,6 +454,16 @@ func (s *Session) RunLoop(ctx context.Context) error {
 
 		// Circuit Breaker: Stalled Progress Check
 		passingCount := s.checkFeatures()
+
+		// Fix: Auto-complete if all features passed (and we are not in a specific sub-task)
+		if passingCount == len(features) && len(features) > 0 && s.SelectedTaskID == "" {
+			if !s.hasSignal("COMPLETED") && !s.hasSignal("QA_PASSED") && !s.hasSignal("PROJECT_SIGNED_OFF") {
+				s.Logger.Info("All features passed. Signaling COMPLETED.")
+				s.createSignal("COMPLETED")
+				continue
+			}
+		}
+
 		if err := s.checkStalledBreaker(role, passingCount); err != nil {
 			telemetry.TrackAgentStall(s.Project)
 			fmt.Println(err)

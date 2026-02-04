@@ -79,7 +79,8 @@ print([x for x in range(20) if is_prime(x)])
 EOF
 
 # Signal feature completion
-agent-bridge feature set req-create-primes-py --status done
+agent-bridge feature set req-must-correctly-identify-prime- --status done --passes true
+agent-bridge feature set req-must-print-primes-up-to-20 --status done --passes true
 ` + "```" + `
 `, nil
 	}
