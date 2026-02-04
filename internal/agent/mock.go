@@ -51,6 +51,19 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
+	// Detect Completion (Nothing to commit) - Must be BEFORE Implementation Check
+	// If the prompt says "nothing to commit", it means we already ran the script and git is clean.
+	// We should mark the feature as done.
+	if strings.Contains(strings.ToLower(prompt), "nothing to commit") {
+		return `Work appears to be complete and committed. Marking feature as done.
+
+` + "```bash" + `
+# Mark the feature as done
+agent-bridge feature set req-create-primes-py --status done --passes true
+` + "```" + `
+`, nil
+	}
+
 	// Detect Implementation Prompt (primes.py)
 	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "Implement Core Feature") {
 		// Return bash script to implement the feature
