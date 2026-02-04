@@ -142,7 +142,10 @@ func runPair(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to initialize agent: %w", err)
 	}
 
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		for {
 			select {
 			case event, ok := <-watcher.Events():
@@ -176,10 +179,14 @@ func runPair(cmd *cobra.Command, args []string) error {
 				// Debounce logic
 				mu.Lock()
 				if t, exists := timers[filename]; exists {
-					t.Stop()
+					if t.Stop() {
+						wg.Done()
+					}
 				}
+				wg.Add(1)
 				var t *time.Timer
 				t = time.AfterFunc(pairDebounce, func() {
+					defer wg.Done()
 					analyzeFile(cmd, ag, filename)
 					mu.Lock()
 					// Only delete if it's still the same timer
@@ -203,6 +210,17 @@ func runPair(cmd *cobra.Command, args []string) error {
 	}()
 
 	<-ctx.Done()
+
+	// Cleanup pending timers
+	mu.Lock()
+	for _, t := range timers {
+		if t.Stop() {
+			wg.Done()
+		}
+	}
+	mu.Unlock()
+
+	wg.Wait()
 	return nil
 }
 
