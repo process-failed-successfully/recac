@@ -54,19 +54,19 @@ func TestArenaCmd(t *testing.T) {
 			return &MockArenaAgent{Response: "Unknown"}, nil
 		}
 
-		// Set flags directly on variables since we might not be parsing args via cobra in unit test easily without resetting flags
-		arenaCompetitors = "openai:gpt-4, gemini:gemini-pro"
-		arenaTask = "Who are you?"
-		arenaFile = ""
-		arenaJudgeProv = "mock"
-		arenaJudgeModel = "judge"
+		// Set flags using cmd.Flags().Set()
+		arenaCmd.Flags().Set("competitors", "openai:gpt-4, gemini:gemini-pro")
+		arenaCmd.Flags().Set("task", "Who are you?")
+		arenaCmd.Flags().Set("file", "")
+		arenaCmd.Flags().Set("judge-provider", "mock")
+		arenaCmd.Flags().Set("judge-model", "judge")
 
 		err := runArena(arenaCmd, []string{})
 		assert.NoError(t, err)
 	})
 
 	t.Run("Run Arena Validation Error", func(t *testing.T) {
-		arenaCompetitors = "openai:gpt-4" // Only one
+		arenaCmd.Flags().Set("competitors", "openai:gpt-4") // Only one
 		err := runArena(arenaCmd, []string{})
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "requires at least 2 competitors")
@@ -78,11 +78,11 @@ func TestArenaCmd(t *testing.T) {
 		err := os.WriteFile(tmpFile, []byte("some context"), 0644)
 		assert.NoError(t, err)
 
-		arenaCompetitors = "openai:gpt-4, gemini:gemini-pro"
-		arenaTask = "Read file"
-		arenaFile = tmpFile
-		arenaJudgeProv = "mock"
-		arenaJudgeModel = "judge"
+		arenaCmd.Flags().Set("competitors", "openai:gpt-4, gemini:gemini-pro")
+		arenaCmd.Flags().Set("task", "Read file")
+		arenaCmd.Flags().Set("file", tmpFile)
+		arenaCmd.Flags().Set("judge-provider", "mock")
+		arenaCmd.Flags().Set("judge-model", "judge")
 
 		agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
 			return &MockArenaAgent{Response: "OK"}, nil
