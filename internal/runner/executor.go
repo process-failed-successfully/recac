@@ -177,13 +177,24 @@ func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, ind
 		// Execute Locally
 		cmd := exec.CommandContext(cmdCtx, "/bin/bash", "-c", cmdScript)
 		// Propagate Environment + Inject Project ID
-		cmd.Env = append(os.Environ(), fmt.Sprintf("RECAC_PROJECT_ID=%s", s.Project))
-		// Debug: Log key env vars for troubleshooting
-		s.Logger.Info("[DEBUG] Local exec env vars",
-			"RECAC_PROJECT_ID", s.Project,
-			"RECAC_DB_TYPE", os.Getenv("RECAC_DB_TYPE"),
-			"RECAC_DB_URL_set", os.Getenv("RECAC_DB_URL") != "")
+		env := append(os.Environ(), fmt.Sprintf("RECAC_PROJECT_ID=%s", s.Project))
+
+		// Explicitly inject RECAC_DB_URL if not already present in environment
+		// This is critical for local tests where the DB might be a temp file
+		// but the environment variable isn't set for subprocesses.
+		if os.Getenv("RECAC_DB_URL") == "" && s.DBStore != nil {
+			defaultDBPath := filepath.Join(s.Workspace, ".recac.db")
+			env = append(env, fmt.Sprintf("RECAC_DB_URL=%s", defaultDBPath))
+		}
+
+		// Also inject RECAC_DB_TYPE if missing, defaulting to sqlite
+		if os.Getenv("RECAC_DB_TYPE") == "" {
+			env = append(env, "RECAC_DB_TYPE=sqlite")
+		}
+
+		cmd.Env = env
 		cmd.Dir = s.Workspace // Run in workspace
+
 		// Capture Combined Output
 		var outBuf bytes.Buffer
 		cmd.Stdout = &outBuf

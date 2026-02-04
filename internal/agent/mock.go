@@ -63,10 +63,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(prompt, "Initialize") && strings.Contains(prompt, "feature_list.json") {
 		// Use agent-bridge import to properly initialize features in the DB
 		// We use a robust script that fails fast if agent-bridge is missing or fails.
+		// We use unquoted EOF to allow variable expansion for project_name to match env.
 		return "```bash\n" + `set -e
-cat << 'EOF' > /tmp/features.json
+cat << EOF > /tmp/features.json
 {
-  "project_name": "mock-project",
+  "project_name": "${RECAC_PROJECT_ID:-mock-project}",
   "features": [
     {"id": "req-primes-py-exists", "description": "primes.py exists", "status": "todo", "type": "file_exists", "target": "primes.py"}
   ]

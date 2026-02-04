@@ -29,7 +29,12 @@ func TestMockAgent_Send(t *testing.T) {
 		{
 			name:         "Initializer Agent",
 			prompt:       "Initialize feature_list.json",
-			wantContains: "agent-bridge import < /tmp/features.json",
+			wantContains: "cat << EOF > /tmp/features.json", // Checks for unquoted EOF (variable expansion)
+		},
+		{
+			name:         "Initializer Agent - Project ID Var",
+			prompt:       "Initialize feature_list.json",
+			wantContains: "${RECAC_PROJECT_ID:-mock-project}",
 		},
 		{
 			name:         "QA Agent",
