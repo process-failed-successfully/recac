@@ -53,15 +53,21 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 			}
 
 			// Detect signal setting commands and update DB
-			if strings.Contains(fullCmd, "agent-bridge signal set") {
+			if strings.Contains(fullCmd, "agent-bridge signal") {
 				parts := strings.Fields(fullCmd)
+				// Format: agent-bridge signal <key> <value>
+				// Search for "signal"
 				for i, part := range parts {
-					if part == "set" && i+1 < len(parts) {
+					if part == "signal" && i+2 < len(parts) {
 						signalName := parts[i+1]
-						signalValue := "true"
-						if i+2 < len(parts) {
-							signalValue = parts[i+2]
+						signalValue := parts[i+2]
+
+						// Skip "set" if present (legacy support, though not used by MockAgent anymore)
+						if signalName == "set" && i+3 < len(parts) {
+							signalName = parts[i+2]
+							signalValue = parts[i+3]
 						}
+
 						dbStore.SetSignal("ui-test", signalName, signalValue)
 						return "Signal set: " + signalName + "=" + signalValue, nil
 					}

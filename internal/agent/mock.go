@@ -42,7 +42,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 I have verified the project and it looks good.
 
 ` + "```bash" + `
-agent-bridge signal set QA_PASSED true
+agent-bridge signal QA_PASSED true
 ` + "```" + `
 `, nil
 	}
@@ -54,7 +54,7 @@ agent-bridge signal set QA_PASSED true
 I approve the project.
 
 ` + "```bash" + `
-agent-bridge signal set PROJECT_SIGNED_OFF true
+agent-bridge signal PROJECT_SIGNED_OFF true
 ` + "```" + `
 `, nil
 	}
