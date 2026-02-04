@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"recac/internal/agent"
 	"testing"
@@ -26,6 +27,13 @@ func captureOutput(f func()) string {
 	var buf bytes.Buffer
 	io.Copy(&buf, r)
 	return buf.String()
+}
+
+func runGitCmd(t *testing.T, dir string, args ...string) {
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "git command failed: %s\nOutput: %s", args, out)
 }
 
 func TestStartCommand_Detached(t *testing.T) {
@@ -110,6 +118,11 @@ func TestStartCommand_Resume(t *testing.T) {
 
 func TestStartCommand_NormalMode_Restricted(t *testing.T) {
 	tmpDir := t.TempDir()
+	// Initialize git repo to satisfy git checks
+	runGitCmd(t, tmpDir, "init")
+	runGitCmd(t, tmpDir, "config", "user.email", "you@example.com")
+	runGitCmd(t, tmpDir, "config", "user.name", "Your Name")
+
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
 
 	// Mock agentClientFactory
