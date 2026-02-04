@@ -81,6 +81,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			"EOF\n" +
 			"\n" +
 			"python3 primes.py\n" +
+			"\n" +
+			"git config user.email \"agent@recac.io\"\n" +
+			"git config user.name \"RECAC Agent\"\n" +
+			"git add primes.py primes.json\n" +
+			"git commit -m \"Add primes script and results\"\n" +
+			"git push || echo \"Push skipped\"\n" +
 			"```\n" +
 			"\n" +
 			"COMPLETED\n", nil
