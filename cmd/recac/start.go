@@ -228,7 +228,25 @@ var startCmd = &cobra.Command{
 
 				// Sort issues by dependencies (blockers first)
 				sortedIssues, err := jira.ResolveDependencies(issues, func(issue map[string]interface{}) ([]string, error) {
-					return jClient.GetBlockerKeys(issue), nil
+					// We need to fetch the full issue to get links if not present?
+					// But our Search includes "issuelinks".
+					// Does ResolveDependencies expect keys?
+					// Yes, Update ResolveDependencies usage.
+					// Actually, GetBlockers returns formatted strings "KEY (Status)".
+					// We need just keys for dependency graph.
+					// Let's make a wrapper or update GetBlockers.
+					// For now, let's just extract the Key from GetBlockers output or reimplement simple key extraction here.
+
+					rawBlockers := jClient.GetBlockers(issue)
+					var keys []string
+					for _, b := range rawBlockers {
+						// Format is "KEY (Status)"
+						parts := strings.Split(b, " (")
+						if len(parts) > 0 {
+							keys = append(keys, parts[0])
+						}
+					}
+					return keys, nil
 				})
 
 				if err != nil {
@@ -274,7 +292,16 @@ var startCmd = &cobra.Command{
 			}
 
 			graph := jira.BuildGraphFromIssues(issues, func(issue map[string]interface{}) []string {
-				return jClient.GetBlockerKeys(issue)
+				raw := jClient.GetBlockers(issue)
+				keys := make([]string, 0, len(raw))
+				for _, r := range raw {
+					// Format "KEY (Status)"
+					parts := strings.Split(r, " (")
+					if len(parts) > 0 {
+						keys = append(keys, parts[0])
+					}
+				}
+				return keys
 			})
 
 			// Channels
@@ -483,12 +510,15 @@ func processJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.C
 	}
 
 	// 2a. Check for Blockers
-	blockerKeys := jClient.GetBlockerKeys(ticket)
-	if len(blockerKeys) > 0 {
+	blockers := jClient.GetBlockers(ticket)
+	if len(blockers) > 0 {
 		var effectiveBlockers []string
-		for _, key := range blockerKeys {
+		for _, b := range blockers {
+			// Format is "KEY (Status)"
+			parts := strings.Split(b, " (")
+			key := parts[0]
 			if !ignoredBlockers[key] {
-				effectiveBlockers = append(effectiveBlockers, key)
+				effectiveBlockers = append(effectiveBlockers, b)
 			}
 		}
 

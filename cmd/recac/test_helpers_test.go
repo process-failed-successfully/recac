@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// ThreadSafeBuffer is a goroutine-safe bytes.Buffer
 type ThreadSafeBuffer struct {
 	b  bytes.Buffer
 	mu sync.Mutex
@@ -32,6 +31,18 @@ func (tsb *ThreadSafeBuffer) String() string {
 	tsb.mu.Lock()
 	defer tsb.mu.Unlock()
 	return tsb.b.String()
+}
+
+func (tsb *ThreadSafeBuffer) Reset() {
+	tsb.mu.Lock()
+	defer tsb.mu.Unlock()
+	tsb.b.Reset()
+}
+
+func (tsb *ThreadSafeBuffer) Len() int {
+	tsb.mu.Lock()
+	defer tsb.mu.Unlock()
+	return tsb.b.Len()
 }
 
 // setupTestSessionManager creates a real SessionManager in a temporary directory for integration tests.
@@ -339,9 +350,9 @@ func resetFlags(cmd *cobra.Command) {
 		resetFlags(c)
 	}
 }
-func newRootCmd() (*cobra.Command, *bytes.Buffer, *bytes.Buffer) {
-	outBuf := new(bytes.Buffer)
-	errBuf := new(bytes.Buffer)
+func newRootCmd() (*cobra.Command, *ThreadSafeBuffer, *ThreadSafeBuffer) {
+	outBuf := &ThreadSafeBuffer{}
+	errBuf := &ThreadSafeBuffer{}
 	rootCmd.SetOut(outBuf)
 	rootCmd.SetErr(errBuf)
 	return rootCmd, outBuf, errBuf

@@ -386,19 +386,9 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 		if cfg.Logger != nil {
 			session.Logger = cfg.Logger
 		}
-		// Ensure QA and Manager agents use the mock agent in mock mode
-		session.QAAgent = agentClient
-		session.ManagerAgent = agentClient
-
-		if cfg.MaxIterations > 0 {
-			session.MaxIterations = cfg.MaxIterations
-		}
-		if cfg.TaskMaxIterations > 0 {
-			session.TaskMaxIterations = cfg.TaskMaxIterations
-		}
-		if cfg.ManagerFrequency > 0 {
-			session.ManagerFrequency = cfg.ManagerFrequency
-		}
+		session.MaxIterations = cfg.MaxIterations
+		session.TaskMaxIterations = cfg.TaskMaxIterations
+		session.ManagerFrequency = cfg.ManagerFrequency
 		session.StreamOutput = cfg.Stream
 		session.AutoMerge = cfg.AutoMerge
 		session.SkipQA = cfg.SkipQA
