@@ -107,7 +107,7 @@ echo "Project initialized."
 	}
 
 	// 4. Implementation Phase (primes.py)
-	if strings.Contains(prompt, "Calculate primes") || strings.Contains(prompt, "[PRIMES]") {
+	if strings.Contains(prompt, "Calculate primes") || strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "prime numbers") {
 		return `
 Sure, I will create a python script to calculate primes.
 
