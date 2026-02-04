@@ -11,14 +11,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-var (
-	arenaCompetitors string
-	arenaTask        string
-	arenaFile        string
-	arenaJudgeProv   string
-	arenaJudgeModel  string
-)
-
 var arenaCmd = &cobra.Command{
 	Use:   "arena",
 	Short: "Pit multiple AI models against each other",
@@ -31,11 +23,11 @@ Example:
 
 func init() {
 	rootCmd.AddCommand(arenaCmd)
-	arenaCmd.Flags().StringVarP(&arenaCompetitors, "competitors", "c", "", "Comma-separated list of provider:model pairs (e.g., openai:gpt-4,gemini:gemini-pro)")
-	arenaCmd.Flags().StringVarP(&arenaTask, "task", "t", "", "The task or question to evaluate")
-	arenaCmd.Flags().StringVarP(&arenaFile, "file", "f", "", "Optional file to include as context")
-	arenaCmd.Flags().StringVar(&arenaJudgeProv, "judge-provider", "", "Provider for the judge (default: config)")
-	arenaCmd.Flags().StringVar(&arenaJudgeModel, "judge-model", "", "Model for the judge (default: config)")
+	arenaCmd.Flags().StringP("competitors", "c", "", "Comma-separated list of provider:model pairs (e.g., openai:gpt-4,gemini:gemini-pro)")
+	arenaCmd.Flags().StringP("task", "t", "", "The task or question to evaluate")
+	arenaCmd.Flags().StringP("file", "f", "", "Optional file to include as context")
+	arenaCmd.Flags().String("judge-provider", "", "Provider for the judge (default: config)")
+	arenaCmd.Flags().String("judge-model", "", "Model for the judge (default: config)")
 
 	arenaCmd.MarkFlagRequired("competitors")
 	arenaCmd.MarkFlagRequired("task")
@@ -50,6 +42,12 @@ type ArenaResult struct {
 }
 
 func runArena(cmd *cobra.Command, args []string) error {
+	arenaCompetitors, _ := cmd.Flags().GetString("competitors")
+	arenaTask, _ := cmd.Flags().GetString("task")
+	arenaFile, _ := cmd.Flags().GetString("file")
+	arenaJudgeProv, _ := cmd.Flags().GetString("judge-provider")
+	arenaJudgeModel, _ := cmd.Flags().GetString("judge-model")
+
 	competitorList := strings.Split(arenaCompetitors, ",")
 	// Trim spaces
 	for i := range competitorList {
