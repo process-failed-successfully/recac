@@ -73,26 +73,9 @@ cat feature_list.json | agent-bridge import
 `, nil
 	}
 
-	// 3. QA Role
-	if strings.Contains(promptLower, "qa agent") || strings.Contains(promptLower, "verify the project") {
-		return `
-` + "```bash" + `
-agent-bridge signal QA_PASSED true
-` + "```" + `
-`, nil
-	}
-
-	// 4. Manager Role (Sign-off)
-	if strings.Contains(promptLower, "project manager") || strings.Contains(promptLower, "qa report") {
-		return `
-` + "```bash" + `
-agent-bridge signal PROJECT_SIGNED_OFF true
-` + "```" + `
-`, nil
-	}
-
-	// 5. Completion Check (Loop breaker)
+	// 3. Completion Check (Loop breaker) - MOVED UP PRIORITY
 	// If git says "nothing to commit", we assume we are done with the implementation loop.
+	// This must be checked BEFORE the generic QA check, because the prompt might contain "QA Agent" in the instructions/history.
 	if strings.Contains(promptLower, "nothing to commit") {
 		return `
 ` + "```bash" + `
@@ -101,6 +84,25 @@ agent-bridge feature set 1 --status done --passes true
 # Signal completion to break loop
 agent-bridge signal QA_PASSED true
 agent-bridge signal COMPLETED true
+` + "```" + `
+`, nil
+	}
+
+	// 4. QA Role
+	// Used stricter check for Role Header to avoid false positives from instructions
+	if strings.Contains(promptLower, "## your role - qa agent") || (strings.Contains(promptLower, "qa agent") && strings.Contains(promptLower, "verify the project")) {
+		return `
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// 5. Manager Role (Sign-off)
+	if strings.Contains(promptLower, "project manager") || strings.Contains(promptLower, "qa report") {
+		return `
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true
 ` + "```" + `
 `, nil
 	}
