@@ -34,7 +34,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic: Detect ticket generation prompt
 	// The prompt often contains "app_spec.txt" or identifies as "Technical Program Manager"
-	if strings.Contains(prompt, "app_spec.txt") || strings.Contains(prompt, "tickets") || strings.Contains(prompt, "Technical Program Manager") {
+	// We use case-insensitive matching to be robust.
+	promptLower := strings.ToLower(prompt)
+	if strings.Contains(promptLower, "app_spec.txt") ||
+	   strings.Contains(promptLower, "tickets") ||
+	   strings.Contains(promptLower, "technical program manager") ||
+	   strings.Contains(promptLower, "tpm") {
 		return `[
   {
     "title": "ID:[PRIMES] Implement Primes Calculation",
