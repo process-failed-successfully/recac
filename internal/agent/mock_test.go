@@ -43,6 +43,24 @@ func TestMockAgent_Primes(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Primes_EnvVar(t *testing.T) {
+	// Setup env var
+	t.Setenv("RECAC_INJECTED_FEATURES", `{"project_name":"ID:[PRIMES] Implement Prime Number Generator"}`)
+
+	agent := NewMockAgent()
+	// Prompt DOES NOT contain [PRIMES]
+	prompt := "Task: Generic Task"
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Should still contain the robust python script because of the env var
+	if !strings.Contains(response, "import json") {
+		t.Error("Response for [PRIMES] via EnvVar should contain 'import json'")
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {

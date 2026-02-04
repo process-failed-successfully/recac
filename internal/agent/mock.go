@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -85,8 +86,10 @@ agent-bridge signal PROJECT_SIGNED_OFF true
 	}
 
 	// 5. Primes Implementation Heuristic
-	// Handles the specific prime-python scenario which requires generating a JSON file
-	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
+	// Handles the specific prime-python scenario which requires generating a JSON file.
+	// We check prompt content OR the environment variable injected by the runner.
+	injectedFeatures := os.Getenv("RECAC_INJECTED_FEATURES")
+	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") || strings.Contains(injectedFeatures, "[PRIMES]") {
 		return `
 I will implement the prime number generator.
 
