@@ -107,6 +107,8 @@ func (m PlaybackModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "esc", "q", "backspace":
 				m.viewingDetails = false
 				return m, nil
+			case "ctrl+c":
+				return m, tea.Quit
 			default:
 				m.viewport, cmd = m.viewport.Update(msg)
 				return m, cmd
@@ -116,6 +118,9 @@ func (m PlaybackModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+c":
 			return m, tea.Quit
+		}
+
+		switch msg.String() {
 		case "enter":
 			item := m.list.SelectedItem()
 			if item != nil {
