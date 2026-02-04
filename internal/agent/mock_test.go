@@ -25,6 +25,26 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_TicketGeneration(t *testing.T) {
+	agent := NewMockAgent()
+	// Simulate the prompt used in smoke tests
+	prompt := "You are an expert Technical Program Manager (TPM)... generate tickets..."
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Should start with [ to indicate JSON array
+	if !strings.HasPrefix(strings.TrimSpace(response), "[") {
+		t.Errorf("Expected JSON array response, got: %s", response)
+	}
+
+	if !strings.Contains(response, "PROJ-1") {
+		t.Errorf("Expected PROJ-1 in response, got: %s", response)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
