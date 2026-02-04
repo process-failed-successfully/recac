@@ -280,10 +280,22 @@ func run(args []string, config db.StoreConfig, projectID string) error {
 			return fmt.Errorf("empty input")
 		}
 
-		// Validate JSON
+		// Validate and Normalize JSON
 		var fl db.FeatureList
-		if err := json.Unmarshal(data, &fl); err != nil {
-			return fmt.Errorf("invalid json: %w", err)
+		var features []db.Feature
+
+		// Try unmarshalling as a list of features (Array) first
+		if err := json.Unmarshal(data, &features); err == nil {
+			// It's an array, wrap it
+			fl.Features = features
+			// We need to re-serialize it to store it as a standardized object
+			normalized, _ := json.Marshal(fl)
+			data = normalized
+		} else {
+			// Try unmarshalling as FeatureList (Object)
+			if err := json.Unmarshal(data, &fl); err != nil {
+				return fmt.Errorf("invalid json (expected array or FeatureList object): %w", err)
+			}
 		}
 
 		if err := store.SaveFeatures(projectID, string(data)); err != nil {
