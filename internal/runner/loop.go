@@ -146,7 +146,8 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		// Prioritize these checks at the beginning of the iteration
 		if s.hasSignal("PROJECT_SIGNED_OFF") {
 			// MERGE GUARDRAIL: Check for upstream conflicts before accepting sign-off
-			if s.BaseBranch != "" {
+			// Skip for mock provider to avoid E2E smoke test loops due to missing git remotes
+			if s.BaseBranch != "" && s.AgentProvider != "mock" {
 				s.Logger.Info("checking for upstream changes", "branch", s.BaseBranch)
 
 				// Git Recovery/Retry Loop
