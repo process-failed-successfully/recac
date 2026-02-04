@@ -59,7 +59,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristic: Check if this is the Initializer agent
 	if strings.Contains(prompt, "Initializer") || strings.Contains(prompt, "feature_list.json") {
 		// Create the file AND import it to DB to satisfy loadFeatures
-		return "Mock Initializer: Creating feature list.\n```bash\necho '[]' > feature_list.json && agent-bridge import feature_list.json || echo 'Bridge skipped'\n```", nil
+		// We must provide a non-empty list so agent-bridge import succeeds
+		return "Mock Initializer: Creating feature list.\n```bash\necho '[{\"id\": \"mock-feature\", \"description\": \"A mock feature for testing\", \"status\": \"todo\", \"file_paths\": []}]' > feature_list.json && agent-bridge import feature_list.json || echo 'Bridge skipped'\n```", nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
