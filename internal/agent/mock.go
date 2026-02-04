@@ -117,7 +117,7 @@ git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
 git push
 
 # Mark feature as done
-agent-bridge feature update primes-impl done
+agent-bridge feature set primes-impl --status done --passes true
 ` + "```" + `
 
 Implementation complete.
