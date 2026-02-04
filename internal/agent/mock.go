@@ -126,8 +126,8 @@ echo "COMPLETED"
 I will implement the requested features.
 
 ` + "```bash" + `
-# Create the file
-echo "def is_prime(n): return n > 1" > primes.py
+# Create a dummy file to ensure work is detected
+echo "task completed" > task_done.txt
 
 # Mark features as done
 # Dynamic discovery to handle injected features
