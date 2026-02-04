@@ -1,25 +1,17 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"io/fs"
 	"os"
-	"path/filepath"
-	"regexp"
+	"recac/internal/analysis/todo"
+	"recac/internal/utils"
 	"strings"
 
 	"github.com/spf13/cobra"
 )
 
-// TodoItem represents a scanned TODO comment in the codebase.
-type TodoItem struct {
-	File    string
-	Line    int
-	Keyword string
-	Content string
-	Raw     string
-}
+// TodoItem is an alias for the shared todo.Item type.
+type TodoItem = todo.Item
 
 var todoScanCmd = &cobra.Command{
 	Use:   "scan [path]",
@@ -65,118 +57,9 @@ func scanAndAddTodos(cmd *cobra.Command, root string) error {
 	return nil
 }
 
-// Regex to catch TODOs.
-// Matches: (//|#|<!--|--|/*) [whitespace] (TODO|FIXME|...) [optional: (stuff)] [whitespace|:] (content)
-var todoRegex = regexp.MustCompile(`(?i)(\/\/|#|<!--|--|\/\*)\s*(TODO|FIXME|BUG|HACK|NOTE)(?:\(.*\))?[:\s]+(.*)`)
-
+// ScanForTodos scans the root directory for TODO items using the shared logic.
 func ScanForTodos(root string) ([]TodoItem, error) {
-	var tasks []TodoItem
-
-	// Default ignores
-	ignoreMap := DefaultIgnoreMap()
-
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if path == root {
-			// Don't skip the root itself if it's the start
-			if path == "." {
-				return nil
-			}
-		}
-
-		if d.IsDir() {
-			if ignoreMap[d.Name()] {
-				return filepath.SkipDir
-			}
-			// Skip hidden dirs
-			if strings.HasPrefix(d.Name(), ".") && d.Name() != "." && d.Name() != ".." {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
-		if ignoreMap[d.Name()] {
-			return nil
-		}
-
-		// Skip hidden files
-		if strings.HasPrefix(d.Name(), ".") {
-			return nil
-		}
-
-		// Skip binary files (by extension)
-		ext := strings.ToLower(filepath.Ext(path))
-		if isBinaryExt(ext) {
-			return nil
-		}
-
-		// Check content for binary
-		f, err := os.Open(path)
-		if err != nil {
-			return nil // Skip unreadable
-		}
-		defer f.Close()
-
-		// Read first 512 bytes to check for binary
-		buf := make([]byte, 512)
-		n, _ := f.Read(buf)
-		if n > 0 && isBinaryContent(buf[:n]) {
-			return nil
-		}
-
-		// Reset file pointer
-		f.Seek(0, 0)
-
-		scanner := bufio.NewScanner(f)
-		lineNum := 0
-		for scanner.Scan() {
-			lineNum++
-			line := scanner.Text()
-			matches := todoRegex.FindStringSubmatch(strings.TrimSpace(line))
-			if len(matches) > 3 {
-				// matches[2] is keyword (TODO)
-				// matches[3] is content
-
-				keyword := strings.ToUpper(matches[2])
-				content := strings.TrimSpace(matches[3])
-
-				// Remove trailing comment closers like */ or -->
-				content = strings.TrimSuffix(content, "*/")
-				content = strings.TrimSuffix(content, "-->")
-				content = strings.TrimSpace(content)
-
-				if content == "" {
-					continue
-				}
-
-				displayPath := path
-				// Try to make path relative to CWD
-				if cwd, err := os.Getwd(); err == nil {
-					if rel, err := filepath.Rel(cwd, path); err == nil {
-						displayPath = rel
-					}
-				}
-
-				// Format: [File:Line] Keyword: Content
-				raw := fmt.Sprintf("[%s:%d] %s: %s", displayPath, lineNum, keyword, content)
-
-				tasks = append(tasks, TodoItem{
-					File:    displayPath,
-					Line:    lineNum,
-					Keyword: keyword,
-					Content: content,
-					Raw:     raw,
-				})
-			}
-		}
-
-		return nil
-	})
-
-	return tasks, err
+	return todo.Scan(root, utils.DefaultIgnoreMap())
 }
 
 func addTasksToTodoFile(newTasks []TodoItem) (int, error) {

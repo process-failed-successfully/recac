@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"recac/internal/utils"
 	"sort"
 	"strings"
 	"time"
@@ -128,7 +129,7 @@ func printDir(cmd *cobra.Command, path string, prefix string, currentDepth int, 
 
 	// Filter
 	var visible []fs.DirEntry
-	ignore := DefaultIgnoreMap()
+	ignore := utils.DefaultIgnoreMap()
 	for _, e := range entries {
 		if strings.HasPrefix(e.Name(), ".") && e.Name() != "." {
 			continue

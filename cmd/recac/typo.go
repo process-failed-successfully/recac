@@ -115,7 +115,7 @@ func runTypo(cmd *cobra.Command, args []string) error {
 
 func scanFilesForTypo(root string, limit int) ([]string, error) {
 	var files []string
-	ignored := DefaultIgnoreMap()
+	ignored := utils.DefaultIgnoreMap()
 
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -130,7 +130,7 @@ func scanFilesForTypo(root string, limit int) ([]string, error) {
 
 		// Only check text files
 		ext := filepath.Ext(path)
-		if isBinaryExt(ext) {
+		if utils.IsBinaryExt(ext) {
 			return nil
 		}
 		if strings.Contains(path, "lock") || strings.Contains(path, "sum") {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os/exec"
 	"sort"
+	"recac/internal/analysis/todo"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -36,7 +37,7 @@ func init() {
 }
 
 type DebtItem struct {
-	TodoItem
+	todo.Item
 	Author     string    `json:"author"`
 	CommitHash string    `json:"commit"`
 	Date       time.Time `json:"date"`
@@ -97,7 +98,7 @@ func runDebt(cmd *cobra.Command, args []string) error {
 		}
 
 		item := DebtItem{
-			TodoItem:   todo,
+			Item:       todo,
 			Author:     blame.Author,
 			CommitHash: blame.CommitHash,
 			Date:       blame.Date,

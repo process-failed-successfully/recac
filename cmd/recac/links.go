@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"recac/internal/utils"
 	"regexp"
 	"strings"
 	"time"
@@ -231,7 +232,7 @@ func checkURL(url string) bool {
 
 func findFilesByName(root, name string) ([]string, error) {
 	var candidates []string
-	ignored := DefaultIgnoreMap()
+	ignored := utils.DefaultIgnoreMap()
 
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {

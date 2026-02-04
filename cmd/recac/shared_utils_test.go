@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"recac/internal/utils"
 	"strings"
 	"testing"
 
@@ -11,7 +12,7 @@ import (
 )
 
 func TestDefaultIgnoreMap(t *testing.T) {
-	m := DefaultIgnoreMap()
+	m := utils.DefaultIgnoreMap()
 	assert.True(t, m[".git"])
 	assert.True(t, m["node_modules"])
 	assert.True(t, m["TODO.md"])
@@ -56,7 +57,7 @@ func TestIsBinaryExt(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		assert.Equal(t, tt.expected, isBinaryExt(tt.ext), "Extension: %s", tt.ext)
+		assert.Equal(t, tt.expected, utils.IsBinaryExt(tt.ext), "Extension: %s", tt.ext)
 	}
 }
 
@@ -77,7 +78,7 @@ func TestIsBinaryContent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, isBinaryContent(tt.content))
+			assert.Equal(t, tt.expected, utils.IsBinaryContent(tt.content))
 		})
 	}
 }

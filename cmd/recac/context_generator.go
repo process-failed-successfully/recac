@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"recac/internal/utils"
 	"strings"
 )
 
@@ -30,7 +31,7 @@ func GenerateCodebaseContext(opts ContextOptions) (string, error) {
 	var outputBuilder strings.Builder
 
 	// Default ignores
-	ignoreMap := DefaultIgnoreMap()
+	ignoreMap := utils.DefaultIgnoreMap()
 	for _, ign := range opts.Ignore {
 		ignoreMap[ign] = true
 	}
@@ -93,7 +94,7 @@ func GenerateCodebaseContext(opts ContextOptions) (string, error) {
 				}
 
 				ext := strings.ToLower(filepath.Ext(path))
-				if isBinaryExt(ext) {
+				if utils.IsBinaryExt(ext) {
 					return nil
 				}
 
@@ -104,7 +105,7 @@ func GenerateCodebaseContext(opts ContextOptions) (string, error) {
 				}
 
 				// Check for null bytes
-				if isBinaryContent(content) {
+				if utils.IsBinaryContent(content) {
 					return nil
 				}
 

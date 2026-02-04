@@ -18,24 +18,6 @@ var writeFileFunc = os.WriteFile
 // mkdirAllFunc is a package-level variable to allow mocking in tests.
 var mkdirAllFunc = os.MkdirAll
 
-// DefaultIgnoreMap returns a map of common directories and files to ignore during scans.
-func DefaultIgnoreMap() map[string]bool {
-	return map[string]bool{
-		".git":         true,
-		"node_modules": true,
-		"vendor":       true,
-		"dist":         true,
-		"build":        true,
-		".recac":       true,
-		".idea":        true,
-		".vscode":      true,
-		"bin":          true,
-		"obj":          true,
-		"__pycache__":  true,
-		"TODO.md":      true,
-	}
-}
-
 // readLines reads a whole file into memory and returns a slice of its lines.
 func readLines(path string) ([]string, error) {
 	file, err := os.Open(path)
@@ -67,29 +49,6 @@ func writeLines(path string, lines []string) error {
 		}
 	}
 	return w.Flush()
-}
-
-// isBinaryExt checks if the file extension corresponds to a binary file.
-func isBinaryExt(ext string) bool {
-	switch ext {
-	case ".exe", ".dll", ".so", ".dylib", ".bin", ".jpg", ".png", ".gif", ".pdf", ".zip", ".tar", ".gz", ".iso", ".class", ".jar":
-		return true
-	}
-	return false
-}
-
-// isBinaryContent checks the first few bytes of a file to see if it contains null bytes, indicating binary content.
-func isBinaryContent(content []byte) bool {
-	limit := 512
-	if len(content) < limit {
-		limit = len(content)
-	}
-	for i := 0; i < limit; i++ {
-		if content[i] == 0 {
-			return true
-		}
-	}
-	return false
 }
 
 // extractFileContexts scans the output for file paths and returns their content formatted for the prompt.

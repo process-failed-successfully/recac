@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"recac/internal/utils"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -101,7 +102,7 @@ func collectReadmeContext(root string) (string, error) {
 	var sb strings.Builder
 	var structure strings.Builder
 
-	ignoreMap := DefaultIgnoreMap()
+	ignoreMap := utils.DefaultIgnoreMap()
 
 	// Priority files to include content for
 	priorityFiles := map[string]bool{

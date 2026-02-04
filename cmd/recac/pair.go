@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"recac/internal/agent"
+	"recac/internal/utils"
 	"strings"
 	"sync"
 	"time"
@@ -75,7 +76,7 @@ func (w *FSNotifyWatcher) Close() error {
 }
 
 func (w *FSNotifyWatcher) AddRecursive(root string) error {
-	ignoreMap := DefaultIgnoreMap()
+	ignoreMap := utils.DefaultIgnoreMap()
 
 	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -166,7 +167,7 @@ func runPair(cmd *cobra.Command, args []string) error {
 				filename := event.Name
 				// Check ignore
 				base := filepath.Base(filename)
-				if DefaultIgnoreMap()[base] {
+				if utils.DefaultIgnoreMap()[base] {
 					continue
 				}
 				if strings.HasPrefix(base, ".") {
@@ -218,7 +219,7 @@ func analyzeFile(cmd *cobra.Command, ag agent.Agent, path string) {
 
 	// Check binary
 	ext := strings.ToLower(filepath.Ext(path))
-	if isBinaryExt(ext) {
+	if utils.IsBinaryExt(ext) {
 		return
 	}
 
@@ -227,7 +228,7 @@ func analyzeFile(cmd *cobra.Command, ag agent.Agent, path string) {
 		fmt.Fprintf(cmd.ErrOrStderr(), "Failed to read %s: %v\n", path, err)
 		return
 	}
-	if isBinaryContent(content) {
+	if utils.IsBinaryContent(content) {
 		return
 	}
 

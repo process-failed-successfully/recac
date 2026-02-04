@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"recac/internal/utils"
 	"sort"
 	"strings"
 
@@ -71,7 +72,7 @@ func analyzeStack(root string) (*StackInfo, error) {
 		CI:             make([]string, 0),
 	}
 
-	ignore := DefaultIgnoreMap()
+	ignore := utils.DefaultIgnoreMap()
 
 	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {

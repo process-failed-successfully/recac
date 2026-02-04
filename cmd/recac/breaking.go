@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"recac/internal/breaking"
+	"recac/internal/utils"
 	"strings"
 	"text/tabwriter"
 
@@ -58,7 +59,7 @@ func runBreaking(cmd *cobra.Command, args []string) error {
 			if strings.HasPrefix(info.Name(), ".") && info.Name() != "." {
 				return filepath.SkipDir
 			}
-			ignores := DefaultIgnoreMap()
+			ignores := utils.DefaultIgnoreMap()
 			if ignores[info.Name()] {
 				return filepath.SkipDir
 			}

@@ -87,10 +87,10 @@ func TestScanCmd(t *testing.T) {
 		foundTodo := false
 		foundFixme := false
 		for _, r := range results {
-			if r.Type == "TODO" {
+			if r.Keyword == "TODO" {
 				foundTodo = true
 			}
-			if r.Type == "FIXME" {
+			if r.Keyword == "FIXME" {
 				foundFixme = true
 			}
 		}
