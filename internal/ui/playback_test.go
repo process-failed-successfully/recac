@@ -155,3 +155,16 @@ func TestPlaybackModel_View(t *testing.T) {
 	v = m.View()
 	assert.Contains(t, v, "Entry Details")
 }
+
+func TestPlaybackModel_ComplexContent(t *testing.T) {
+	rawJSON := `{"nested":{"key":"value"},"array":[1,2,3]}`
+	entries, err := ParseLogLines([]byte(rawJSON))
+	assert.NoError(t, err)
+
+	assert.Len(t, entries, 1)
+
+	entry := entries[0]
+	// Check for pretty printed content
+	assert.Contains(t, entry.Content, "\"key\": \"value\"")
+	assert.Contains(t, entry.Content, "[")
+}
