@@ -38,17 +38,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return `[
   {
     "id": "PRIMES",
-    "type": "Epic",
+    "type": "Task",
     "title": "ID:[PRIMES] Implement Prime Number Generator",
     "description": "Create a python script to generate prime numbers. Repo: https://github.com/process-failed-successfully/recac",
-    "dependencies": {}
-  },
-  {
-    "id": "req-primes-json-contains-correct-p",
-    "type": "Task",
-    "title": "Implement primes.py",
-    "description": "Implement the prime number generation logic.",
-    "parent_id": "PRIMES",
     "dependencies": {}
   }
 ]`, nil
