@@ -78,7 +78,9 @@ echo "Feature list created and imported."
 
 	// 2. Implementation Request (Writing the file)
 	// Matches prompt asking to implement "PRIMES" or "primes.py"
-	if strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "primes.py") {
+	// Must not be Initializer (which might also mention the filename in context)
+	if (strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "primes.py")) &&
+		!strings.Contains(promptLower, "initializer") {
 		return `I will create the primes.py script and the json output as requested.
 
 ` + "```bash" + `
