@@ -58,7 +58,7 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 		DBStore:          dbStore,
 		FeatureContent:   features,
 		ManagerFrequency: 5,
-		MaxIterations:    10, // Allow enough iterations for lifecycle (Start -> QA -> Manager -> Done)
+		MaxIterations:    15, // Allow enough iterations for lifecycle (Start -> QA -> Manager -> Done)
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
 		Logger:           telemetry.NewLogger(true, "", false),
 	}
