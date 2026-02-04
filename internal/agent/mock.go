@@ -60,7 +60,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 2. Initializer (Project Setup)
 	if strings.Contains(prompt, "agent-bridge import") || strings.Contains(prompt, "Initializer") {
-		return "```bash\n# Create features.json first to avoid import error\ncat <<EOF > features.json\n{\n  \"project_name\": \"Mock Project\",\n  \"features\": []\n}\nEOF\n\nagent-bridge import --file features.json\n```", nil
+		return "```bash\n# Create features.json first to avoid import error\ncat <<EOF > features.json\n{\n  \"project_name\": \"Mock Project\",\n  \"features\": [\n    {\n      \"id\": \"req-initial-setup\",\n      \"description\": \"Initial setup\",\n      \"category\": \"core\",\n      \"priority\": \"critical\",\n      \"status\": \"pending\"\n    }\n  ]\n}\nEOF\n\ncat features.json | agent-bridge import\n```", nil
 	}
 
 	// 3. QA Agent
