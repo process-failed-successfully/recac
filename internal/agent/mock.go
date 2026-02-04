@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,6 +31,60 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// TPM: Generate Tickets
+	// Detects the prompt asking for ticket creation (usually contains "Technical Program Manager" and "Ticket")
+	if strings.Contains(prompt, "Technical Program Manager") && (strings.Contains(prompt, "Ticket") || strings.Contains(prompt, "tickets")) {
+		return `[
+  {
+    "id": "PRIMES",
+    "title": "ID:[PRIMES] Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000.",
+    "type": "Task"
+  }
+]`, nil
+	}
+
+	// Developer: Implement primes.py
+	// Detects the prompt asking for the primes script
+	if strings.Contains(prompt, "primes.py") && !strings.Contains(prompt, "Technical Program Manager") {
+		return "```bash\n" +
+			"cat << 'EOF' > primes.py\n" +
+			"import json\n" +
+			"\n" +
+			"def get_primes(n):\n" +
+			"    primes = []\n" +
+			"    for num in range(2, n):\n" +
+			"        is_prime = True\n" +
+			"        for i in range(2, int(num ** 0.5) + 1):\n" +
+			"            if num % i == 0:\n" +
+			"                is_prime = False\n" +
+			"                break\n" +
+			"        if is_prime:\n" +
+			"            primes.append(num)\n" +
+			"    return primes\n" +
+			"\n" +
+			"primes = get_primes(10000)\n" +
+			"with open('primes.json', 'w') as f:\n" +
+			"    json.dump({\"primes\": primes}, f)\n" +
+			"EOF\n" +
+			"\n" +
+			"python3 primes.py\n" +
+			"git add primes.py primes.json\n" +
+			"git commit -m \"Implement primes.py and generate primes.json\"\n" +
+			"```", nil
+	}
+
+	// QA Agent: Approve
+	if strings.Contains(prompt, "QA AGENT") {
+		return "```bash\nagent-bridge signal QA_PASSED true\n```", nil
+	}
+
+	// Project Manager: Sign off
+	if strings.Contains(prompt, "PROJECT MANAGER") {
+		return "```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",

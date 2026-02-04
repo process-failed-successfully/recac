@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestMockAgent(t *testing.T) {
+func TestMockAgent_Generic(t *testing.T) {
 	agent := NewMockAgent()
 
 	prompt := "This is a test prompt that is long enough to be truncated"
@@ -22,6 +22,54 @@ func TestMockAgent(t *testing.T) {
 
 	if !strings.Contains(response, "I received your prompt") {
 		t.Errorf("Response missing body, got: %s", response)
+	}
+}
+
+func TestMockAgent_E2E_TPM(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "You are an expert Technical Program Manager (TPM). Please create a Ticket for the work."
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "PRIMES") {
+		t.Errorf("Expected TPM response to contain PRIMES ticket, got: %s", response)
+	}
+	if !strings.Contains(response, "[") || !strings.Contains(response, "{") {
+		t.Errorf("Expected TPM response to be JSON, got: %s", response)
+	}
+}
+
+func TestMockAgent_E2E_Developer(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Implement the primes.py script."
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "cat << 'EOF' > primes.py") {
+		t.Errorf("Expected Developer response to contain file creation, got: %s", response)
+	}
+	if !strings.Contains(response, "def get_primes(n):") {
+		t.Errorf("Expected Developer response to contain python code, got: %s", response)
+	}
+}
+
+func TestMockAgent_E2E_QA(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "You are the QA AGENT."
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "agent-bridge signal QA_PASSED true") {
+		t.Errorf("Expected QA response to signal pass, got: %s", response)
 	}
 }
 
