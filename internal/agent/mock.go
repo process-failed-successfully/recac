@@ -31,6 +31,34 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	// --- 0. Initializer (Feature Loading) ---
+	if strings.Contains(prompt, "feature_list.json") || strings.Contains(prompt, "Initializer") {
+		return `
+I will initialize the project features.
+
+` + "```bash" + `
+#!/bin/bash
+set -e
+
+cat << 'EOF' > /tmp/features.json
+{
+    "features": [
+        {
+            "id": "PRIMES",
+            "name": "Primes Script",
+            "type": "requirement",
+            "description": "Create a python script named 'primes.py' that calculates all prime numbers less than 10,000.",
+            "status": "pending"
+        }
+    ]
+}
+EOF
+
+agent-bridge import < /tmp/features.json
+` + "```" + `
+`, nil
+	}
+
 	// --- 1. Initializer / Ticket Generation ---
 	if strings.Contains(prompt, "CRITICAL INSTRUCTION: You MUST create exactly ONE ticket") && strings.Contains(prompt, "ID:[PRIMES]") {
 		// Return the JSON ticket list expected by the orchestrator
