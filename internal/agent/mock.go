@@ -40,7 +40,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Check for "initializer agent" OR ("initialize" AND "feature_list.json")
 	if strings.Contains(promptLower, "initializer agent") || (strings.Contains(promptLower, "initialize") && strings.Contains(promptLower, "feature_list.json")) {
 		return `
-'''bash
+` + "```bash" + `
 cat << 'EOF' > feature_list.json
 {
   "project_name": "prime-python",
@@ -56,7 +56,7 @@ cat << 'EOF' > feature_list.json
 EOF
 # Import features to DB immediately
 cat feature_list.json | agent-bridge import
-'''
+` + "```" + `
 `, nil
 	}
 
@@ -76,18 +76,18 @@ cat feature_list.json | agent-bridge import
 	// 3. QA Role
 	if strings.Contains(promptLower, "qa agent") || strings.Contains(promptLower, "verify the project") {
 		return `
-'''bash
+` + "```bash" + `
 agent-bridge signal QA_PASSED true
-'''
+` + "```" + `
 `, nil
 	}
 
 	// 4. Manager Role (Sign-off)
 	if strings.Contains(promptLower, "project manager") || strings.Contains(promptLower, "qa report") {
 		return `
-'''bash
+` + "```bash" + `
 agent-bridge signal PROJECT_SIGNED_OFF true
-'''
+` + "```" + `
 `, nil
 	}
 
@@ -95,13 +95,13 @@ agent-bridge signal PROJECT_SIGNED_OFF true
 	// If git says "nothing to commit", we assume we are done with the implementation loop.
 	if strings.Contains(promptLower, "nothing to commit") {
 		return `
-'''bash
+` + "```bash" + `
 # Mark feature as done
 agent-bridge feature set 1 --status done --passes true
 # Signal completion to break loop
 agent-bridge signal QA_PASSED true
 agent-bridge signal COMPLETED true
-'''
+` + "```" + `
 `, nil
 	}
 
@@ -109,7 +109,7 @@ agent-bridge signal COMPLETED true
 	// Matches specific keywords for the prime number task
 	if strings.Contains(promptLower, "primes.py") || strings.Contains(promptLower, "calculate primes") || strings.Contains(prompt, "[PRIMES]") {
 		return `
-'''bash
+` + "```bash" + `
 cat << 'EOF' > primes.py
 import json
 
@@ -135,12 +135,12 @@ ls -l primes.json
 # Commit
 git add .
 git commit -m "Implement primes.py" || echo "Nothing to commit"
-'''
+` + "```" + `
 `, nil
 	}
 
 	// Default response: Return a benign command to avoid "NO-OP LOOP" circuit breaker
-	response := fmt.Sprintf("%s:\n\nI received your prompt. \n'''bash\necho 'Mock Agent: Processing...'\n'''", m.responsePrefix)
+	response := fmt.Sprintf("%s:\n\nI received your prompt. \n```bash\necho 'Mock Agent: Processing...'\n```", m.responsePrefix)
 	return response, nil
 }
 
