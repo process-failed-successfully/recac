@@ -106,6 +106,18 @@ with open("primes.json", "w") as f:
     json.dump({"primes": primes}, f)
 EOF
 
+# Ensure git configuration
+if [ -n "$GITHUB_TOKEN" ]; then
+  git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
+fi
+git config --global user.email "agent@recac.io"
+git config --global user.name "RECAC Agent"
+
+# Add and push files
+git add primes.py
+git commit -m "Add primes.py and primes.json"
+git push origin HEAD || echo "Push skipped"
+
 # Mark features as done
 agent-bridge feature list --json | jq -r '.features[].id' | xargs -I {} agent-bridge feature set {} --status done --passes true
 

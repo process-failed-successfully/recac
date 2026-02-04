@@ -16,11 +16,11 @@ func TestMockAgent(t *testing.T) {
 		t.Fatalf("Send failed: %v", err)
 	}
 
-	if !strings.Contains(response, "Mock agent response") {
+	if !strings.Contains(response, "I will implement the requested features") {
 		t.Errorf("Response missing prefix, got: %s", response)
 	}
 
-	if !strings.Contains(response, "I received your prompt") {
+	if !strings.Contains(response, "agent-bridge feature list") {
 		t.Errorf("Response missing body, got: %s", response)
 	}
 }
