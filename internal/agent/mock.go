@@ -35,6 +35,20 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// We check for the explicit role definition to avoid false positives in prompt history
 	// Note: prompt template might say "You are an expert Technical Program Manager"
 	if strings.Contains(prompt, "Technical Program Manager") {
+		// Specific handling for the [PRIMES] scenario (Smoke Test) which strictly requires a single Task
+		if strings.Contains(prompt, "[PRIMES]") {
+			return `[
+  {
+    "id": "PRIMES",
+    "title": "ID:[PRIMES] Prime Number Script",
+    "description": "Repo: https://github.com/process-failed-successfully/recac-jira-e2e\nImplement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.",
+    "type": "Task",
+    "acceptance_criteria": ["Script exists", "Output correct"]
+  }
+]`, nil
+		}
+
+		// Default fallback for other scenarios
 		return `[
   {
     "id": "PRIMES",
@@ -90,7 +104,34 @@ agent-bridge signal COMPLETED true
 
 	// 5. Default Coding Agent (Smoke Test Logic)
 	// If we are in a coding loop (default), generate code and update features.
-	// We use a generic approach that works for the smoke test "prime-python" or similar.
+
+	// Specific handling for primes.py (Smoke Test)
+	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
+		return `I will implement the primes script.
+` + "```bash" + `
+cat << 'EOF' > primes.py
+import json
+
+primes = []
+for n in range(2, 10000):
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            break
+    else:
+        primes.append(n)
+
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+python3 primes.py
+git add primes.py primes.json
+agent-bridge feature list --json | jq -r '.features[].id' | xargs -I {} agent-bridge feature set {} --status done --passes true
+agent-bridge signal COMPLETED true
+` + "```", nil
+	}
+
+	// Fallback generic approach
 	return `I will implement the requested logic and update feature status.
 ` + "```bash" + `
 # Create a dummy implementation file to satisfy requirements

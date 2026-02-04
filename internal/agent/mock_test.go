@@ -18,6 +18,18 @@ func TestMockAgent_TPM(t *testing.T) {
 	}
 }
 
+func TestMockAgent_TPM_Primes(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "You are a Technical Program Manager (TPM)... [PRIMES]"
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(response, "Task") || !strings.Contains(response, "Prime Number Script") {
+		t.Errorf("Expected TPM response to contain Task and Prime Number Script, got: %s", response)
+	}
+}
+
 func TestMockAgent_Coding(t *testing.T) {
 	agent := NewMockAgent()
 	prompt := "Implement the features" // Generic prompt
@@ -27,6 +39,21 @@ func TestMockAgent_Coding(t *testing.T) {
 	}
 	if !strings.Contains(response, "agent-bridge feature set") {
 		t.Errorf("Expected coding response with feature update, got: %s", response)
+	}
+}
+
+func TestMockAgent_Coding_Primes(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Implement primes.py"
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(response, "python3 primes.py") {
+		t.Errorf("Expected coding response to run primes.py, got: %s", response)
+	}
+	if !strings.Contains(response, "import json") {
+		t.Errorf("Expected python implementation, got: %s", response)
 	}
 }
 
