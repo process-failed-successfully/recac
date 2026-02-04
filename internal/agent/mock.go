@@ -84,8 +84,11 @@ def is_prime(n):
             return False
     return True
 
-primes = [p for p in range(1, 101) if is_prime(p)]
-print(json.dumps(primes))
+primes = [p for p in range(1, 10000) if is_prime(p)]
+output = {"primes": primes}
+with open('primes.json', 'w') as f:
+    json.dump(output, f)
+print(json.dumps(output))
 EOF
 
 # Mark as done
