@@ -25,6 +25,26 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_TicketGeneration(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Simulate TPM prompt
+	prompt := "You are an expert Technical Program Manager (TPM)..."
+	response, err := agent.Send(context.Background(), prompt)
+
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "ID:[PRIMES]") {
+		t.Errorf("Response should contain ticket ID, got: %s", response)
+	}
+
+	if !strings.Contains(response, "Repo: https://github.com/process-failed-successfully/recac-jira-e2e") {
+		t.Errorf("Response should contain repo URL, got: %s", response)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {

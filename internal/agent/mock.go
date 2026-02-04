@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,6 +31,24 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// Heuristic to detect Ticket Generation (TPM) prompt from recac CLI
+	// This ensures E2E smoke tests pass by returning valid JSON
+	if strings.Contains(prompt, "Technical Program Manager") {
+		return `[
+  {
+    "title": "ID:[PRIMES] Create Prime Number Script",
+    "description": "Create a python script that calculates prime numbers.\nRepo: https://github.com/process-failed-successfully/recac-jira-e2e",
+    "type": "Story",
+    "acceptance_criteria": [
+      "Script must be named primes.py",
+      "Must calculate primes up to 100"
+    ],
+    "children": []
+  }
+]`, nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
