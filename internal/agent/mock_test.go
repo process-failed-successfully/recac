@@ -18,13 +18,18 @@ func TestMockAgent_Send(t *testing.T) {
 	}{
 		{
 			name:         "TPM Agent",
-			prompt:       "You are a Technical Program Manager. ID:[PRIMES]",
+			prompt:       "You are a Technical Program Manager. ### ID:[PRIMES] Spec...",
+			wantContains: "ID:[PRIMES] Mock Task",
+		},
+		{
+			name:         "TPM Agent - Avoid Example ID",
+			prompt:       "You are a Technical Program Manager. Example: ID:[XYZ]. Spec: ### ID:[PRIMES]",
 			wantContains: "ID:[PRIMES] Mock Task",
 		},
 		{
 			name:         "Initializer Agent",
 			prompt:       "Initialize feature_list.json",
-			wantContains: "cat << 'EOF' | agent-bridge import",
+			wantContains: "agent-bridge import < /tmp/features.json",
 		},
 		{
 			name:         "QA Agent",

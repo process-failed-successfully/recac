@@ -35,8 +35,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 1. Handle TPM / Ticket Generation Prompt (JSON output)
 	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "generate-from-spec") {
-		// Extract ID if present, e.g., ID:[PRIMES]
-		reID := regexp.MustCompile(`ID:\[(.*?)\]`)
+		// Extract ID from the spec header, e.g., ### ID:[PRIMES]
+		// We use ### to avoid matching "markers like ID:[XYZ]" in the instructions.
+		reID := regexp.MustCompile(`### ID:\[(.*?)\]`)
 		matches := reID.FindStringSubmatch(prompt)
 		id := "TASK-1"
 		title := "Mock Task"
@@ -61,7 +62,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 2. Handle Initializer (feature_list.json) - if requested
 	if strings.Contains(prompt, "Initialize") && strings.Contains(prompt, "feature_list.json") {
 		// Use agent-bridge import to properly initialize features in the DB
-		return "```bash\n" + `cat << 'EOF' | agent-bridge import
+		// We use a robust script that fails fast if agent-bridge is missing or fails.
+		return "```bash\n" + `set -e
+cat << 'EOF' > /tmp/features.json
 {
   "project_name": "mock-project",
   "features": [
@@ -69,6 +72,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
   ]
 }
 EOF
+agent-bridge import < /tmp/features.json
+rm /tmp/features.json
 ` + "\n```", nil
 	}
 
