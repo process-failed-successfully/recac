@@ -104,6 +104,8 @@ func (m PlaybackModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		if m.viewingDetails {
 			switch msg.String() {
+			case "ctrl+c":
+				return m, tea.Quit
 			case "esc", "q", "backspace":
 				m.viewingDetails = false
 				return m, nil
@@ -144,8 +146,15 @@ func (m PlaybackModel) View() string {
 
 func (m PlaybackModel) headerView() string {
 	title := "Entry Details"
-	line := strings.Repeat("─", max(0, m.viewport.Width-len(title)))
+	line := strings.Repeat("─", intMax(0, m.viewport.Width-len(title)))
 	return lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Render(title + line)
+}
+
+func intMax(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 // ParseLogLines parses raw bytes from a JSONL file into LogEntries.
