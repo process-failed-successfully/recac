@@ -76,6 +76,7 @@ type keyMap struct {
 	Quit       key.Binding
 	ToggleList key.Binding
 	Back       key.Binding // Esc to go back from menus
+	Newline    key.Binding
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
@@ -84,7 +85,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Up, k.Down, k.Enter},
+		{k.Up, k.Down, k.Enter, k.Newline},
 		{k.Slash, k.Bang, k.ToggleList, k.Quit},
 	}
 }
@@ -138,6 +139,10 @@ var keys = keyMap{
 	Back: key.NewBinding(
 		key.WithKeys("esc"),
 		key.WithHelp("esc", "back"),
+	),
+	Newline: key.NewBinding(
+		key.WithKeys("alt+enter"),
+		key.WithHelp("alt+enter", "new line"),
 	),
 }
 
@@ -248,14 +253,14 @@ type InteractiveModel struct {
 
 func NewInteractiveModel(commands []SlashCommand, provider, model string) InteractiveModel {
 	ta := textarea.New()
-	ta.Placeholder = "Type a message..."
+	ta.Placeholder = "Type a message... (Alt+Enter for new line)"
 	ta.Focus()
 	ta.Prompt = " ❯ "
 	ta.CharLimit = 0 // No limit
 	ta.SetWidth(50)
 	ta.SetHeight(3)
 	ta.ShowLineNumbers = false
-	ta.KeyMap.InsertNewline.SetEnabled(true) // Allow multi-line input
+	ta.KeyMap.InsertNewline.SetKeys("alt+enter", "ctrl+j") // Explicitly set newline keys
 
 	// Convert SlashCommands to CommandItems
 	// Custom Commands Injection

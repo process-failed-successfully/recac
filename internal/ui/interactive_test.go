@@ -613,9 +613,10 @@ func TestInteractiveModel_Update_ListSelection(t *testing.T) {
 	m.setMode(ModeCmd)
 
 	// Select item (assuming /exec is in list, we filter for it)
-	m.textarea.SetValue("/exec")
+	m.textarea.SetValue("/exe")
 	// Trigger filter update
-	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
+	updatedM, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
+	m = updatedM.(InteractiveModel)
 
 	// Select first item
 	m.list.Select(0)
