@@ -100,6 +100,9 @@ var watcherFactory = func() (FileWatcher, error) {
 }
 
 func runPair(cmd *cobra.Command, args []string) error {
+	// Capture globals to avoid races in tests
+	debounce := pairDebounce
+
 	root := "."
 	if len(args) > 0 {
 		root = args[0]
@@ -179,7 +182,7 @@ func runPair(cmd *cobra.Command, args []string) error {
 					t.Stop()
 				}
 				var t *time.Timer
-				t = time.AfterFunc(pairDebounce, func() {
+				t = time.AfterFunc(debounce, func() {
 					analyzeFile(cmd, ag, filename)
 					mu.Lock()
 					// Only delete if it's still the same timer

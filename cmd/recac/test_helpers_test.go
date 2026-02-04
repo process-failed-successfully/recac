@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -266,7 +267,7 @@ func (m *MockSessionManager) ListArchivedSessions() ([]*runner.SessionState, err
 // executeCommand executes a cobra command and returns its output.
 func executeCommand(root *cobra.Command, args ...string) (output string, err error) {
 	resetFlags(root)
-	b := new(bytes.Buffer)
+	b := &threadSafeBuffer{}
 
 	// Mock exit
 	oldExit := exit
@@ -367,6 +368,24 @@ func (m *MockGitClient) DeleteLocalBranch(repoPath, branch string) error {
 		return m.DeleteLocalBranchFunc(repoPath, branch)
 	}
 	return nil
+}
+
+// threadSafeBuffer is a buffer that is safe for concurrent use.
+type threadSafeBuffer struct {
+	b bytes.Buffer
+	m sync.Mutex
+}
+
+func (b *threadSafeBuffer) Write(p []byte) (n int, err error) {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.b.Write(p)
+}
+
+func (b *threadSafeBuffer) String() string {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.b.String()
 }
 
 func (m *MockGitClient) Run(repoPath string, args ...string) (string, error) {
