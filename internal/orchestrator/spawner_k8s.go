@@ -219,10 +219,26 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	}
 
 	cmd := fmt.Sprintf(`
+		set -x
+		echo "Starting agent setup..."
+
+		# Disable tracing to prevent secret leakage
+		set +x
+		# Fallback to RECAC_GITHUB_API_KEY if GITHUB_TOKEN is missing
+		if [ -z "$GITHUB_TOKEN" ] && [ -n "$RECAC_GITHUB_API_KEY" ]; then
+			export GITHUB_TOKEN="$RECAC_GITHUB_API_KEY"
+		fi
+
 		if [ -n "$GITHUB_TOKEN" ]; then
 			git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
 		fi
-		recac-agent --jira %q --project %q --image %s --path /workspace --detached=false --cleanup=false --allow-dirty --repo-url %q %s
+		# Re-enable tracing for non-sensitive commands
+		set -x
+
+		# Debug checks
+		ls -l /usr/local/bin/recac-agent || echo "recac-agent binary not found in /usr/local/bin"
+
+		/usr/local/bin/recac-agent --jira %q --project %q --image %s --path /workspace --detached=false --cleanup=false --allow-dirty --repo-url %q %s
 	`, item.ID, item.ID, s.Image, item.RepoURL, mockFlag)
 
 	job := &batchv1.Job{
