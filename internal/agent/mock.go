@@ -33,7 +33,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Check for TPM/Ticket generation prompt
-	if strings.Contains(prompt, "Technical Program Manager") && strings.Contains(prompt, "tickets") {
+	// Note: We check for "Technical Program Manager" which is the role definition.
+	// We removed the check for "tickets" because the prompt template might use singular "ticket"
+	// or the user might change the phrasing, but the role remains constant.
+	if strings.Contains(prompt, "Technical Program Manager") {
 		// Return a valid JSON list of tickets
 		return `[
   {

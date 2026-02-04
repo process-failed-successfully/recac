@@ -25,6 +25,26 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_TPM(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Prompt that triggers TPM logic (without explicit "tickets" plural)
+	prompt := "You are an expert Technical Program Manager (TPM)..."
+	response, err := agent.Send(context.Background(), prompt)
+
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Should return JSON
+	if !strings.Contains(response, "\"id\": \"PROJ-1\"") {
+		t.Errorf("Expected JSON response for TPM prompt, got: %s", response)
+	}
+	if strings.Contains(response, "Mock agent response") {
+		t.Error("TPM prompt should not return generic mock response")
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
