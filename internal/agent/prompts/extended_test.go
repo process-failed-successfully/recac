@@ -11,12 +11,7 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	promptName := "test_prompt"
 	overrideContent := "Override Template"
 
-	// 1. Test Embedded/Fallback (simulated by failure of others)
-	// We can't easily add to embed.FS at runtime, but we can test that GetPrompt returns error for non-existent if no override exists.
-	// Or we can rely on existing templates.
-	// Let's rely on existing "planner" template if it exists, or handle error.
-
-	// Check ListPrompts first
+	// 1. Test Embedded/Fallback
 	prompts, err := ListPrompts()
 	if err != nil {
 		t.Fatalf("ListPrompts failed: %v", err)
@@ -24,7 +19,6 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	if len(prompts) == 0 {
 		t.Log("No embedded prompts found, skipping embedded test verification")
 	} else {
-		// Use the first available prompt
 		pName := prompts[0]
 		pContent, err := GetPrompt(pName, nil)
 		if err != nil {
@@ -36,12 +30,7 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	}
 
 	// 2. Test RECAC_PROMPTS_DIR
-	tmpDir, err := os.MkdirTemp("", "recac-prompts-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
+	tmpDir := t.TempDir()
 	err = os.WriteFile(filepath.Join(tmpDir, promptName+".md"), []byte(overrideContent), 0644)
 	if err != nil {
 		t.Fatalf("Failed to write override file: %v", err)
@@ -58,23 +47,15 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	}
 
 	// 3. Test Local .recac/prompts
-	// Unset env via Setenv with empty string? No, Setenv sets it.
-	// t.Setenv restores value after test.
-	// But to test step 3, we need RECAC_PROMPTS_DIR to be NOT set.
-	// Since we set it in step 2, we need to unset it or run step 3 in subtest or separate test.
-	// But wait, t.Setenv scopes to the test/subtest.
-	// So if I used t.Setenv in top level, it applies to subsequent code.
-	// I should run these in subtests or just overwrite it to empty?
-	// GetPrompt checks: if overrideDir := os.Getenv("RECAC_PROMPTS_DIR"); overrideDir != ""
-	// So setting it to empty string disables it.
-
 	t.Setenv("RECAC_PROMPTS_DIR", "")
 
-	// Create a temp dir to act as CWD
+	// Use a temp dir as CWD to avoid dirtying the source tree
+	// t.Chdir was added in Go 1.20 and cleans up automatically.
 	tempCwd := t.TempDir()
 	t.Chdir(tempCwd)
 
-	// Create .recac/prompts in the new CWD
+	// Create .recac/prompts in the new CWD (tempCwd)
+	// We use tempCwd explicitly to be clear, but os.Getwd() would also return it.
 	localRecacDir := filepath.Join(tempCwd, ".recac", "prompts")
 	if err := os.MkdirAll(localRecacDir, 0755); err != nil {
 		t.Fatalf("Failed to create local .recac dir: %v", err)
@@ -116,7 +97,6 @@ func TestListPrompts(t *testing.T) {
 		t.Fatalf("ListPrompts failed: %v", err)
 	}
 
-	// We expect at least some standard prompts
 	expected := []string{"planner", "coding_agent", "initializer"}
 
 	for _, exp := range expected {
