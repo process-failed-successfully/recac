@@ -40,18 +40,20 @@ I have analyzed the requirements. Here is the feature list import:
 
 ` + "```bash" + `
 agent-bridge import <<EOF
-[
-  {
-    "id": "req-primes-py-exists",
-    "description": "primes.py exists",
-    "status": "pending"
-  },
-  {
-    "id": "req-primes-json-contains-correct-p",
-    "description": "primes.json contains correct primes",
-    "status": "pending"
-  }
-]
+{
+  "features": [
+    {
+      "id": "req-primes-py-exists",
+      "description": "primes.py exists",
+      "status": "pending"
+    },
+    {
+      "id": "req-primes-json-contains-correct-p",
+      "description": "primes.json contains correct primes",
+      "status": "pending"
+    }
+  ]
+}
 EOF
 ` + "```" + `
 `, nil
