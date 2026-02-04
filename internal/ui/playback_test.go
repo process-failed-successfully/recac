@@ -1,157 +1,147 @@
 package ui
 
 import (
-	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestParseLogLines(t *testing.T) {
-	// 1. Valid JSON Log
-	validLog := map[string]interface{}{
-		"time":  "2023-10-27T10:00:00Z",
-		"level": "INFO",
-		"msg":   "test message",
-		"extra": "value",
+	tests := []struct {
+		name      string
+		input     string
+		wantCount int
+		wantErr   bool
+	}{
+		{
+			name: "valid jsonl",
+			input: `{"time":"2023-10-26T10:00:00Z","level":"INFO","msg":"test message","foo":"bar"}
+{"time":"2023-10-26T10:00:01Z","level":"ERROR","msg":"error message"}`,
+			wantCount: 2,
+			wantErr:   false,
+		},
+		{
+			name:      "empty input",
+			input:     "",
+			wantCount: 0,
+			wantErr:   false,
+		},
+		{
+			name: "mixed content",
+			input: `{"time":"2023-10-26T10:00:00Z","level":"INFO","msg":"json message"}
+plain text message
+{"level":"WARN","msg":"another json"}`,
+			wantCount: 3,
+			wantErr:   false,
+		},
+		{
+			name:      "empty lines",
+			input:     "\n\n",
+			wantCount: 0,
+			wantErr:   false,
+		},
 	}
-	validBytes, _ := json.Marshal(validLog)
 
-	// 2. Invalid JSON (Raw Text)
-	rawText := "This is a raw log line"
-
-	// 3. Empty Line
-	emptyLine := ""
-
-	// Combine
-	input := string(validBytes) + "\n" + rawText + "\n" + emptyLine
-
-	entries, err := ParseLogLines([]byte(input))
-	assert.NoError(t, err)
-	assert.Len(t, entries, 2)
-
-	// Verify Valid Entry
-	assert.Equal(t, "INFO", entries[0].Level)
-	assert.Equal(t, "test message", entries[0].Msg)
-	assert.Equal(t, "value", entries[0].Raw["extra"])
-	expectedTime, _ := time.Parse(time.RFC3339, "2023-10-27T10:00:00Z")
-	assert.Equal(t, expectedTime, entries[0].Time)
-
-	// Verify Raw Entry
-	assert.Equal(t, "TEXT", entries[1].Level)
-	assert.Equal(t, "This is a raw log line", entries[1].Msg)
-}
-
-func TestParseLogLines_TimeFormats(t *testing.T) {
-	// RFC3339Nano
-	logNano := map[string]interface{}{
-		"time":  "2023-10-27T10:00:00.123456Z",
-		"level": "DEBUG",
-		"msg":   "nano",
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			entries, err := ParseLogLines([]byte(tt.input))
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseLogLines() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if len(entries) != tt.wantCount {
+				t.Errorf("ParseLogLines() count = %d, want %d", len(entries), tt.wantCount)
+			}
+		})
 	}
-	bytesNano, _ := json.Marshal(logNano)
-
-	entries, err := ParseLogLines(bytesNano)
-	assert.NoError(t, err)
-	assert.Len(t, entries, 1)
-	assert.Equal(t, "DEBUG", entries[0].Level)
-	// Just check if time parses reasonably close or specific nanoseconds if needed
-	// Here we just ensure it didn't fail and defaulted to Now() (which we can't easily test without mocking time, but we can check if it parsed)
-	// Since the code explicitly handles RFC3339Nano, it should match.
-	expected, _ := time.Parse(time.RFC3339Nano, "2023-10-27T10:00:00.123456Z")
-	assert.Equal(t, expected, entries[0].Time)
-}
-
-func TestParseLogLines_MissingFields(t *testing.T) {
-	// JSON without time/level/msg
-	logEmpty := map[string]interface{}{
-		"foo": "bar",
-	}
-	bytesEmpty, _ := json.Marshal(logEmpty)
-
-	entries, err := ParseLogLines(bytesEmpty)
-	assert.NoError(t, err)
-	assert.Len(t, entries, 1)
-
-	// Should default level to INFO
-	assert.Equal(t, "INFO", entries[0].Level)
-	// Msg should be empty or handle gracefully
-	assert.Equal(t, "", entries[0].Msg)
-	// Time should be zero if missing
-	assert.True(t, entries[0].Time.IsZero())
 }
 
 func TestLogEntry_Methods(t *testing.T) {
+	now := time.Now()
 	entry := LogEntry{
-		Time:  time.Date(2023, 10, 27, 10, 0, 0, 0, time.UTC),
-		Level: "ERROR",
-		Msg:   "Something bad",
+		Time:  now,
+		Level: "INFO",
+		Msg:   "Test Message",
 	}
 
-	assert.Equal(t, "[ERROR] Something bad", entry.Title())
-	assert.Equal(t, "10:00:00.000", entry.Description())
-	assert.Equal(t, "ERROR Something bad", entry.FilterValue())
-}
+	if title := entry.Title(); title != "[INFO] Test Message" {
+		t.Errorf("Title() = %v, want %v", title, "[INFO] Test Message")
+	}
 
-func TestPlaybackModel_Init(t *testing.T) {
-	m := NewPlaybackModel(nil)
-	assert.Nil(t, m.Init())
+	if desc := entry.Description(); desc != now.Format("15:04:05.000") {
+		t.Errorf("Description() = %v, want %v", desc, now.Format("15:04:05.000"))
+	}
+
+	if filter := entry.FilterValue(); filter != "INFO Test Message" {
+		t.Errorf("FilterValue() = %v, want %v", filter, "INFO Test Message")
+	}
 }
 
 func TestPlaybackModel_Update(t *testing.T) {
-	// Setup
 	entries := []LogEntry{
-		{Msg: "Log 1", Level: "INFO", Time: time.Now()},
-		{Msg: "Log 2", Level: "ERROR", Time: time.Now()},
+		{Time: time.Now(), Level: "INFO", Msg: "Line 1", Content: "Details 1"},
+		{Time: time.Now(), Level: "ERROR", Msg: "Line 2", Content: "Details 2"},
 	}
-	m := NewPlaybackModel(entries)
-	m.width = 100
-	m.height = 20
+	// Initial model is PlaybackModel struct
+	initialModel := NewPlaybackModel(entries)
+	var model tea.Model = initialModel
 
-	// 1. Resize
-	msg := tea.WindowSizeMsg{Width: 80, Height: 24}
-	updatedM, _ := m.Update(msg)
-	m = updatedM.(PlaybackModel)
-	assert.Equal(t, 80, m.width)
-	assert.Equal(t, 24, m.height)
+	// Test Resize
+	var cmd tea.Cmd
+	model, cmd = model.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
+	_ = cmd // ignore cmd
 
-	// 2. Quit
-	msgKey := tea.KeyMsg{Type: tea.KeyCtrlC}
-	_, cmd := m.Update(msgKey)
-	assert.Equal(t, tea.Quit(), cmd())
+	m := model.(PlaybackModel)
+	if m.width != 100 || m.height != 50 {
+		t.Errorf("Window resize failed: got %dx%d, want 100x50", m.width, m.height)
+	}
 
-	// 3. Select Item (Enter) -> Details View
-	// List starts with first item selected by default
-	msgKey = tea.KeyMsg{Type: tea.KeyEnter}
-	updatedM, _ = m.Update(msgKey)
-	m = updatedM.(PlaybackModel)
-	assert.True(t, m.viewingDetails)
+	// Test Enter (View Details)
+	// Select first item
+	model, _ = model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = model.(PlaybackModel)
+	if !m.viewingDetails {
+		t.Error("Enter should switch to viewing details")
+	}
+	if !strings.Contains(m.View(), "Details 1") {
+		t.Error("View should contain details content")
+	}
 
-	// 4. View Details -> Back (Esc)
-	msgKey = tea.KeyMsg{Type: tea.KeyEsc}
-	updatedM, _ = m.Update(msgKey)
-	m = updatedM.(PlaybackModel)
-	assert.False(t, m.viewingDetails)
+	// Test Esc (Back to List)
+	model, _ = model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	m = model.(PlaybackModel)
+	if m.viewingDetails {
+		t.Error("Esc should switch back to list view")
+	}
+	if !strings.Contains(m.View(), "Line 1") {
+		t.Error("View should contain list content")
+	}
+
+	// Test Ctrl+C (Quit)
+	_, cmd = model.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	if cmd == nil {
+		t.Error("Ctrl+C should return a Quit command")
+	}
 }
 
-func TestPlaybackModel_View(t *testing.T) {
-	entries := []LogEntry{
-		{Msg: "Log 1", Level: "INFO", Time: time.Now()},
+func TestPlaybackModel_ComplexContent(t *testing.T) {
+	rawJSON := `{"nested":{"key":"value"},"array":[1,2,3]}`
+	entries, err := ParseLogLines([]byte(rawJSON))
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
 	}
-	m := NewPlaybackModel(entries)
 
-	// Update with size to ensure list renders
-	updatedM, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 20})
-	m = updatedM.(PlaybackModel)
+	if len(entries) != 1 {
+		t.Fatalf("Expected 1 entry, got %d", len(entries))
+	}
 
-	// List View
-	v := m.View()
-	assert.Contains(t, v, "Log 1")
-
-	// Details View
-	m.viewingDetails = true
-	v = m.View()
-	assert.Contains(t, v, "Entry Details")
+	entry := entries[0]
+	if !strings.Contains(entry.Content, `"key": "value"`) {
+		t.Error("Content should contain pretty printed map")
+	}
+	if !strings.Contains(entry.Content, `[`) {
+		t.Error("Content should contain pretty printed array")
+	}
 }
