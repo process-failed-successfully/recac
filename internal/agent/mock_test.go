@@ -42,3 +42,33 @@ func TestMockAgent_Default_Response(t *testing.T) {
 		t.Errorf("Expected default text response, got: %q", resp)
 	}
 }
+
+func TestMockAgent_Prime_Response(t *testing.T) {
+	agent := NewMockAgent()
+	// Simulate the prompt sent to the Agent for the Prime scenario
+	// It should contain the role definition and the task description
+	prompt := `## YOUR ROLE - CODING AGENT
+...
+### YOUR ASSIGNED TASK
+- **Feature ID**: PRIMES
+- **Description**: Create a python script named 'primes.py'...
+...`
+
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Verify we got the bash implementation script, not the fallback
+	if strings.HasPrefix(resp, "Mock agent response") {
+		t.Errorf("Expected bash implementation script, got fallback response: %q", resp)
+	}
+
+	if !strings.Contains(resp, "cat << 'EOF' > primes.py") {
+		t.Errorf("Response missing file creation command")
+	}
+
+	if !strings.Contains(resp, "agent-bridge feature set PRIMES --status done --passes true") {
+		t.Errorf("Response missing completion signal")
+	}
+}
