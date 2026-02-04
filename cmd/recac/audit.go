@@ -89,7 +89,13 @@ func init() {
 	auditCmd.Flags().IntVar(&auditCompThresh, "complexity-threshold", 15, "Threshold for high complexity functions")
 }
 
+var runAuditFunc = runAuditImpl
+
 func runAudit(root string) (*AuditResult, error) {
+	return runAuditFunc(root)
+}
+
+func runAuditImpl(root string) (*AuditResult, error) {
 	res := &AuditResult{
 		Score: 100,
 	}
