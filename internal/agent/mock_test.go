@@ -45,6 +45,56 @@ func TestMockAgent_TicketGeneration(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Implementation(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Simulate Implementation prompt
+	prompt := "Create a python script named primes.py"
+	response, err := agent.Send(context.Background(), prompt)
+
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "cat << 'EOF' > primes.py") {
+		t.Errorf("Response should contain bash command to create file, got: %s", response)
+	}
+
+	if !strings.Contains(response, "agent-bridge feature set") {
+		t.Errorf("Response should contain agent-bridge command, got: %s", response)
+	}
+}
+
+func TestMockAgent_QA(t *testing.T) {
+	agent := NewMockAgent()
+
+	prompt := "YOUR ROLE - QA AGENT"
+	response, err := agent.Send(context.Background(), prompt)
+
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "agent-bridge signal set QA_PASSED true") {
+		t.Errorf("Response should contain QA signal, got: %s", response)
+	}
+}
+
+func TestMockAgent_Manager(t *testing.T) {
+	agent := NewMockAgent()
+
+	prompt := "YOUR ROLE - PROJECT MANAGER"
+	response, err := agent.Send(context.Background(), prompt)
+
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "agent-bridge signal set PROJECT_SIGNED_OFF true") {
+		t.Errorf("Response should contain PM signal, got: %s", response)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {

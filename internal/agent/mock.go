@@ -49,6 +49,55 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
+	// Heuristic for "Implementation" role (Agent) in E2E smoke tests
+	if strings.Contains(prompt, "primes.py") && strings.Contains(strings.ToLower(prompt), "create") {
+		return `I will create the python script to calculate primes.
+
+` + "```bash" + `
+cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n <= 1:
+        return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+primes = [x for x in range(10000) if is_prime(x)]
+
+with open('primes.json', 'w') as f:
+    json.dump({'primes': primes}, f)
+EOF
+
+python3 primes.py
+git add primes.py primes.json
+git commit -m "Implement primes calculation"
+
+# Signal progress to avoid no-op loop
+agent-bridge feature set req-script-must-be-named-primes-py --status done --passes true
+agent-bridge feature set req-must-calculate-primes-up-to-10 --status done --passes true
+` + "```" + `
+`, nil
+	}
+
+	// Heuristic for "QA AGENT" role
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return `Tests passed.
+` + "```bash" + `
+agent-bridge signal set QA_PASSED true
+` + "```", nil
+	}
+
+	// Heuristic for "PROJECT MANAGER" role (Sign off)
+	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") {
+		return `Project looks good.
+` + "```bash" + `
+agent-bridge signal set PROJECT_SIGNED_OFF true
+` + "```", nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
