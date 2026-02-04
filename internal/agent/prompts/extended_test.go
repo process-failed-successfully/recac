@@ -58,23 +58,38 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	}
 
 	// 3. Test Local .recac/prompts
-	// Unset env via Setenv with empty string? No, Setenv sets it.
-	// t.Setenv restores value after test.
-	// But to test step 3, we need RECAC_PROMPTS_DIR to be NOT set.
-	// Since we set it in step 2, we need to unset it or run step 3 in subtest or separate test.
-	// But wait, t.Setenv scopes to the test/subtest.
-	// So if I used t.Setenv in top level, it applies to subsequent code.
-	// I should run these in subtests or just overwrite it to empty?
-	// GetPrompt checks: if overrideDir := os.Getenv("RECAC_PROMPTS_DIR"); overrideDir != ""
-	// So setting it to empty string disables it.
-
+	// Unset env for this part of test
 	t.Setenv("RECAC_PROMPTS_DIR", "")
 
-	// Create .recac/prompts in CWD
-	cwd, _ := os.Getwd()
-	localRecacDir := filepath.Join(cwd, ".recac", "prompts")
-	os.MkdirAll(localRecacDir, 0755)
-	defer os.RemoveAll(filepath.Join(cwd, ".recac")) // Cleanup .recac
+	// Use a clean temp dir as CWD to avoid polluting source tree
+	localTestDir, err := os.MkdirTemp("", "recac-local-test")
+	if err != nil {
+		t.Fatalf("Failed to create local test dir: %v", err)
+	}
+	defer os.RemoveAll(localTestDir)
+
+	// Save original CWD
+	originalWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current working directory: %v", err)
+	}
+
+	// Change to temp dir
+	if err := os.Chdir(localTestDir); err != nil {
+		t.Fatalf("Failed to chdir to local test dir: %v", err)
+	}
+	// Defer restoring CWD
+	defer func() {
+		if err := os.Chdir(originalWd); err != nil {
+			t.Errorf("Failed to restore CWD: %v", err)
+		}
+	}()
+
+	// Create .recac/prompts in the temp CWD
+	localRecacDir := filepath.Join(localTestDir, ".recac", "prompts")
+	if err := os.MkdirAll(localRecacDir, 0755); err != nil {
+		t.Fatalf("Failed to create local prompts dir: %v", err)
+	}
 
 	localContent := "Local Override"
 	err = os.WriteFile(filepath.Join(localRecacDir, promptName+".md"), []byte(localContent), 0644)

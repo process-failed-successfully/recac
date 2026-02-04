@@ -104,6 +104,8 @@ func (m PlaybackModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		if m.viewingDetails {
 			switch msg.String() {
+			case "ctrl+c":
+				return m, tea.Quit
 			case "esc", "q", "backspace":
 				m.viewingDetails = false
 				return m, nil
