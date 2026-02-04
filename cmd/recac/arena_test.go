@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"recac/internal/agent"
@@ -33,6 +34,12 @@ func TestArenaCmd(t *testing.T) {
 		agentClientFactory = originalFactory
 	}()
 
+	// Reset arenaCmd output after tests
+	defer func() {
+		arenaCmd.SetOut(nil)
+		arenaCmd.SetErr(nil)
+	}()
+
 	t.Run("Run Arena Success", func(t *testing.T) {
 		// Setup mock factory
 		agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
@@ -60,12 +67,23 @@ func TestArenaCmd(t *testing.T) {
 		arenaJudgeProv = "mock"
 		arenaJudgeModel = "judge"
 
+		// Capture output to trigger race detector on buffer writes
+		buf := new(bytes.Buffer)
+		arenaCmd.SetOut(buf)
+		arenaCmd.SetErr(buf)
+
 		err := runArena(arenaCmd, []string{})
 		assert.NoError(t, err)
 	})
 
 	t.Run("Run Arena Validation Error", func(t *testing.T) {
 		arenaCompetitors = "openai:gpt-4" // Only one
+
+		// Reset output to avoid capturing previous test output if shared (though new buffer is safer)
+		buf := new(bytes.Buffer)
+		arenaCmd.SetOut(buf)
+		arenaCmd.SetErr(buf)
+
 		err := runArena(arenaCmd, []string{})
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "requires at least 2 competitors")
@@ -85,6 +103,11 @@ func TestArenaCmd(t *testing.T) {
         agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
              return &MockArenaAgent{Response: "OK"}, nil
         }
+
+		// Reset output for this subtest
+		buf := new(bytes.Buffer)
+		arenaCmd.SetOut(buf)
+		arenaCmd.SetErr(buf)
 
         err := runArena(arenaCmd, []string{})
         assert.NoError(t, err)
