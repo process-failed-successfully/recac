@@ -87,6 +87,9 @@ EOF
 		return `I will implement the prime number script as requested.
 
 ` + "```bash" + `
+# Debug mode
+set -x
+
 # Configure git
 git config user.email "bot@recac.com"
 git config user.name "Recac Bot"

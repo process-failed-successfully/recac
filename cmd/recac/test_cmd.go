@@ -190,9 +190,10 @@ func runTestCore(cmd *cobra.Command, args []string) (string, error) {
 		done <- true
 	}()
 
+	// Wait for output processing to finish before waiting for command (which closes pipes)
+	<-done
+	<-done
 	err = testExec.Wait()
-	<-done
-	<-done
 
 	return outputBuf.String(), err
 }
