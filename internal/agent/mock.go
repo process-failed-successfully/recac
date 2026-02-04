@@ -174,6 +174,13 @@ git config user.name "Mock Agent"
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
+
+# Mark features as passed (Mock Agent specific)
+# This prevents the runner from rejecting the sign-off due to incomplete features
+if command -v agent-bridge >/dev/null 2>&1; then
+    agent-bridge feature set req-primes-py-exists --status done --passes true || true
+    agent-bridge feature set req-primes-json-contains-correct-p --status done --passes true || true
+fi
 ` + "```" + `
 `, nil
 	}
