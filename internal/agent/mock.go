@@ -33,10 +33,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Heuristic: Detect ticket generation prompt
-	if strings.Contains(prompt, "app_spec.txt") || strings.Contains(prompt, "tickets") {
+	// The prompt often contains "app_spec.txt" or identifies as "Technical Program Manager"
+	if strings.Contains(prompt, "app_spec.txt") || strings.Contains(prompt, "tickets") || strings.Contains(prompt, "Technical Program Manager") {
 		return `[
   {
-    "title": "Implement Primes Calculation",
+    "title": "ID:[PRIMES] Implement Primes Calculation",
     "description": "Create a Python script to calculate prime numbers.",
     "type": "Story",
     "acceptance_criteria": [
