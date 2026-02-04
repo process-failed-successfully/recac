@@ -38,13 +38,13 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return `[
   {
     "id": "PRIMES",
-    "title": "Epic: Implement Core Features",
+    "title": "ID:[PRIMES] Epic: Implement Core Features",
     "description": "Repo: https://github.com/process-failed-successfully/recac-jira-e2e\nImplement the core functionality described in the spec.",
     "type": "Epic",
     "children": [
       {
         "id": "PRIMES-1",
-        "title": "Story: Implement Primary Logic",
+        "title": "ID:[PRIMES-1] Story: Implement Primary Logic",
         "description": "Repo: https://github.com/process-failed-successfully/recac-jira-e2e\nDevelop the main script/application logic.",
         "type": "Story",
         "acceptance_criteria": ["Logic is implemented", "Tests pass"]
