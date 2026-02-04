@@ -78,6 +78,8 @@ func run() error {
 
 	// Provider specific validation
 	switch provider {
+	case "mock":
+		// No API key required for mock provider
 	case "openrouter":
 		if os.Getenv("OPENROUTER_API_KEY") == "" {
 			return fmt.Errorf("missing OPENROUTER_API_KEY for provider openrouter")
@@ -98,6 +100,8 @@ func run() error {
 		if os.Getenv("CURSOR_API_KEY") == "" {
 			return fmt.Errorf("missing CURSOR_API_KEY for provider cursor")
 		}
+	default:
+		return fmt.Errorf("unknown provider: %s", provider)
 	}
 
 	// Fallback/Default for API key if token not set
