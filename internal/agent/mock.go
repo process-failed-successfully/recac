@@ -61,7 +61,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Check for implementation triggers:
 	// 1. Task ID: [PRIMES] (often in prompt as "Task: [PRIMES]" or similar)
 	// 2. File + Action: "primes.py" AND "create" (case insensitive)
-	isImplementation := strings.Contains(prompt, "[PRIMES]") || (strings.Contains(promptLower, "primes.py") && strings.Contains(promptLower, "create"))
+	// 3. Description Match: "calculate primes" (case insensitive)
+	isImplementation := strings.Contains(prompt, "[PRIMES]") ||
+		(strings.Contains(promptLower, "primes.py") && strings.Contains(promptLower, "create")) ||
+		strings.Contains(promptLower, "calculate primes")
 
 	if !isPlanning && isImplementation {
 		return `
@@ -146,7 +149,7 @@ cat << 'EOF' > feature_list.json
             "id": "1",
             "category": "core",
             "priority": "MVP",
-            "description": "Calculate primes under 10000",
+            "description": "Calculate primes under 10000. Create primes.py.",
             "status": "todo",
             "passes": false,
             "steps": [],
