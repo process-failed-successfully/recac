@@ -60,7 +60,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 2. Handle Initializer (feature_list.json) - if requested
 	if strings.Contains(prompt, "Initialize") && strings.Contains(prompt, "feature_list.json") {
-		return "```bash\n" + `cat << 'EOF' > feature_list.json
+		// Use agent-bridge import to properly initialize features in the DB
+		return "```bash\n" + `cat << 'EOF' | agent-bridge import
 {
   "project_name": "mock-project",
   "features": [
@@ -71,7 +72,19 @@ EOF
 ` + "\n```", nil
 	}
 
-	// 3. Handle Coding Agent (primes.py)
+	// 3. Handle QA Agent
+	// Matches: ## YOUR ROLE - QA AGENT
+	if strings.Contains(prompt, "QA AGENT") {
+		return "```bash\n# Mock QA Checks\nmake test || echo \"Tests failed\"\n\n# Signal Success\nagent-bridge signal QA_PASSED true\n```", nil
+	}
+
+	// 4. Handle Project Manager
+	// Matches: ## YOUR ROLE - PROJECT MANAGER
+	if strings.Contains(prompt, "PROJECT MANAGER") {
+		return "```bash\n# Mock Project Sign-Off\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
+	}
+
+	// 5. Handle Coding Agent (primes.py)
 	if strings.Contains(prompt, "primes.py") {
 		return "```bash\n" + `#!/bin/bash
 set -e
