@@ -36,11 +36,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if isTicketGenerationPrompt(prompt) {
 		// Return a hardcoded list of tickets expected by the 'generate-from-spec' command
 		// The key must match what the E2E test expects (e.g. PRIMES)
+		// CRITICAL: The title MUST contain the ID tag (e.g. ID:[PRIMES]) for the orchestrator to map it back.
 		return `[
   {
     "id": "MOCK-1",
     "key": "PRIMES",
-    "title": "Implement Prime Number Service",
+    "title": "ID:[PRIMES] Implement Prime Number Service",
     "description": "Create a Python service that calculates prime numbers.",
     "type": "Task",
     "dependencies": []
@@ -79,9 +80,11 @@ fi
 		return `I will implement the prime number service in Python.
 ` + "```bash" + `
 cat <<EOF > primes.py
+import json
+
 def get_primes(n):
     primes = []
-    for i in range(2, n + 1):
+    for i in range(2, n):
         is_prime = True
         for j in range(2, int(i ** 0.5) + 1):
             if i % j == 0:
@@ -92,14 +95,17 @@ def get_primes(n):
     return primes
 
 if __name__ == "__main__":
-    print(get_primes(20))
+    primes = get_primes(10000)
+    with open("primes.json", "w") as f:
+        json.dump({"primes": primes}, f)
+    print(f"Generated {len(primes)} primes")
 EOF
 
 # Verify it works
 python3 primes.py
 
 # Commit the change
-git add primes.py
+git add primes.py primes.json
 git commit -m "Implement prime number service" || echo "Nothing to commit"
 
 # Signal completion
