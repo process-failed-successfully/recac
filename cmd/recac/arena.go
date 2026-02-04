@@ -94,6 +94,7 @@ func runArena(cmd *cobra.Command, args []string) error {
 
 	results := make([]ArenaResult, len(cleanCompetitors))
 	var wg sync.WaitGroup
+	var outputMu sync.Mutex
 
 	for i, compStr := range cleanCompetitors {
 		wg.Add(1)
@@ -134,11 +135,13 @@ func runArena(cmd *cobra.Command, args []string) error {
 				Error:    err,
 			}
 
+			outputMu.Lock()
 			if err != nil {
 				fmt.Fprintf(cmd.ErrOrStderr(), "❌ %s:%s failed: %v\n", provider, model, err)
 			} else {
 				fmt.Fprintf(cmd.OutOrStdout(), "✅ %s:%s finished in %v\n", provider, model, duration)
 			}
+			outputMu.Unlock()
 
 		}(i, compStr)
 	}
