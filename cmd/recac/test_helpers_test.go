@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -263,10 +264,34 @@ func (m *MockSessionManager) ListArchivedSessions() ([]*runner.SessionState, err
 	return archived, nil
 }
 
+// ThreadSafeBuffer is a goroutine-safe implementation of bytes.Buffer
+type ThreadSafeBuffer struct {
+	b bytes.Buffer
+	m sync.Mutex
+}
+
+func (b *ThreadSafeBuffer) Read(p []byte) (n int, err error) {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.b.Read(p)
+}
+
+func (b *ThreadSafeBuffer) Write(p []byte) (n int, err error) {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.b.Write(p)
+}
+
+func (b *ThreadSafeBuffer) String() string {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.b.String()
+}
+
 // executeCommand executes a cobra command and returns its output.
 func executeCommand(root *cobra.Command, args ...string) (output string, err error) {
 	resetFlags(root)
-	b := new(bytes.Buffer)
+	b := &ThreadSafeBuffer{}
 
 	// Mock exit
 	oldExit := exit
@@ -297,6 +322,12 @@ func executeCommand(root *cobra.Command, args ...string) (output string, err err
 	root.SetErr(b)
 	// Mock Stdin to avoid hanging on interactive prompts (e.g. wizard)
 	root.SetIn(bytes.NewBufferString(""))
+
+	// Cleanup output/error streams to avoid polluting other tests
+	defer func() {
+		root.SetOut(nil)
+		root.SetErr(nil)
+	}()
 
 	err = root.Execute()
 	output = b.String() // Capture output on the non-panic path
