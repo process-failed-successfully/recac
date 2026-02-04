@@ -60,7 +60,18 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(prompt, "Initializer") || strings.Contains(prompt, "feature_list.json") {
 		// Create the file AND import it to DB to satisfy loadFeatures
 		// We must provide a non-empty list so agent-bridge import succeeds
-		return "Mock Initializer: Creating feature list.\n```bash\necho '[{\"id\": \"mock-feature\", \"description\": \"A mock feature for testing\", \"status\": \"todo\", \"file_paths\": []}]' > feature_list.json && agent-bridge import feature_list.json || echo 'Bridge skipped'\n```", nil
+		// Pipe to stdin for agent-bridge import
+		return "Mock Initializer: Creating feature list.\n```bash\necho '[{\"id\": \"mock-feature\", \"description\": \"A mock feature for testing\", \"status\": \"todo\", \"file_paths\": []}]' > feature_list.json && cat feature_list.json | agent-bridge import || echo 'Bridge skipped'\n```", nil
+	}
+
+	// Heuristic: Check for QA Role
+	if strings.Contains(prompt, "QA AGENT") {
+		return "Mock QA Agent: All tests passed.\n```bash\nagent-bridge signal QA_PASSED true\n```", nil
+	}
+
+	// Heuristic: Check for Project Manager Role
+	if strings.Contains(prompt, "PROJECT MANAGER") || strings.Contains(prompt, "Project Manager") {
+		return "Mock Manager: Project approved.\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
