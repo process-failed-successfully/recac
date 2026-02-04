@@ -12,17 +12,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// DigestMockGitClient implements IGitClient for digest tests
+// DigestMockGitClient implements IGitClient for digest tests.
+// It embeds MockGitClient to reuse existing mock functionality and adds no-op implementations
+// for any other methods required by the interface but not used in these tests.
 type DigestMockGitClient struct {
-	MockGitClient // Embed the existing mock to inherit methods
+	MockGitClient
 }
-
-// Ensure it implements the interface (add missing no-op methods if necessary)
-// The existing MockGitClient in test_helpers_test.go might be incomplete.
-// We'll implement missing ones here if the compiler complains, but for now let's assume
-// we only need Log and RepoExists which are in MockGitClient.
-// If IGitClient has more methods, we need to implement them to satisfy the interface.
-// Since I can't see all compilation errors yet, I'll implement a few common ones just in case.
 
 func (m *DigestMockGitClient) Clone(ctx context.Context, repoURL, directory string) error { return nil }
 func (m *DigestMockGitClient) Config(directory, key, value string) error                  { return nil }
