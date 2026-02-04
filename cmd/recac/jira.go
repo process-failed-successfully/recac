@@ -13,6 +13,7 @@ import (
 	"recac/internal/architecture"
 	"recac/internal/cmdutils"
 	"recac/internal/jira"
+	"recac/internal/utils"
 	"regexp"
 
 	"time"
@@ -282,24 +283,7 @@ func generateTickets(ctx context.Context, specContent, projectKey, repoURL strin
 	}
 
 	// Strip markdown code blocks if present
-	jsonStr := resp
-	if strings.Contains(jsonStr, "```json") {
-		parts := strings.Split(jsonStr, "```json")
-		if len(parts) > 1 {
-			jsonStr = parts[1]
-		}
-		parts = strings.Split(jsonStr, "```")
-		jsonStr = parts[0]
-	} else if strings.Contains(jsonStr, "```") {
-		// Generic code block
-		parts := strings.Split(jsonStr, "```")
-		if len(parts) > 1 {
-			jsonStr = parts[1]
-		}
-		parts = strings.Split(jsonStr, "```")
-		jsonStr = parts[0]
-	}
-	jsonStr = strings.TrimSpace(jsonStr)
+	jsonStr := utils.CleanJSONBlock(resp)
 
 	var tickets []ticketNode
 	if err := json.Unmarshal([]byte(jsonStr), &tickets); err != nil {

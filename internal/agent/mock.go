@@ -79,22 +79,9 @@ agent-bridge signal PROJECT_SIGNED_OFF true
 `, nil
 	}
 
-	// 4. Check for Implementation (Primes Scenario)
-	if strings.Contains(prompt, "primes.py") {
-		return `
-I will implement the primes.py script.
-
-` + "```bash" + `
-echo "def primes(n):" > primes.py
-echo "    pass" >> primes.py
-agent-bridge feature set req-primes-py-exists completed
-agent-bridge feature set req-primes-json-contains-correct-p completed
-` + "```" + `
-`, nil
-	}
-
-	// 5. Detect if the prompt expects JSON (simple heuristic for ticket generation)
+	// 4. Detect if the prompt expects JSON (simple heuristic for ticket generation)
 	// This fixes 'jira generate-from-spec' failing in smoke tests when using mock provider
+	// PRIORITIZE THIS over "primes.py" check to avoid returning bash scripts for TPM prompts
 	if len(prompt) > 0 && (prompt[0] == '{' || prompt[0] == '[' || containsTicketKeywords(prompt)) {
 		return `[
   {
@@ -110,6 +97,20 @@ agent-bridge feature set req-primes-json-contains-correct-p completed
     ]
   }
 ]`, nil
+	}
+
+	// 5. Check for Implementation (Primes Scenario)
+	if strings.Contains(prompt, "primes.py") {
+		return `
+I will implement the primes.py script.
+
+` + "```bash" + `
+echo "def primes(n):" > primes.py
+echo "    pass" >> primes.py
+agent-bridge feature set req-primes-py-exists completed
+agent-bridge feature set req-primes-json-contains-correct-p completed
+` + "```" + `
+`, nil
 	}
 
 	// Return a mock response that shows the agent received the prompt

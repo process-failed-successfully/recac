@@ -575,6 +575,28 @@ func (s *Session) Start(ctx context.Context) error {
 		env = append(env, fmt.Sprintf("RECAC_PROJECT_ID=%s", s.Project))
 	}
 
+	// Inject DB Configuration if not already present
+	// This ensures agent-bridge running inside the container uses the same DB as the session.
+	hasDBType := false
+	hasDBURL := false
+	for _, e := range env {
+		if strings.HasPrefix(e, "RECAC_DB_TYPE=") {
+			hasDBType = true
+		}
+		if strings.HasPrefix(e, "RECAC_DB_URL=") {
+			hasDBURL = true
+		}
+	}
+
+	if !hasDBType {
+		env = append(env, "RECAC_DB_TYPE=sqlite")
+	}
+	if !hasDBURL {
+		// Default to workspace DB mapped inside container
+		// We assume standard mapping: s.Workspace (host) -> /workspace (container)
+		env = append(env, "RECAC_DB_URL=/workspace/.recac.db")
+	}
+
 	// Run Container (or Skip if Local/Restricted)
 	if s.UseLocalAgent || s.Docker == nil {
 		if s.Logger != nil {
