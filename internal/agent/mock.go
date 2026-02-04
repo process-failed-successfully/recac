@@ -66,7 +66,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic: Check for QA Role
 	if strings.Contains(prompt, "QA AGENT") {
-		return "Mock QA Agent: All tests passed.\n```bash\nagent-bridge signal QA_PASSED true\n```", nil
+		return "Mock QA Agent: All tests passed.\n```bash\nagent-bridge feature set mock-feature --status done --passes true\nagent-bridge signal QA_PASSED true\n```", nil
 	}
 
 	// Heuristic: Check for Project Manager Role
