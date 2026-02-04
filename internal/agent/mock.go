@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,6 +31,25 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// Heuristic: Check for TPM Agent prompt (Ticket Generation)
+	if strings.Contains(prompt, "Technical Program Manager") && strings.Contains(prompt, "Output purely JSON") {
+		// Detect specific scenarios if possible, or return a generic valid ticket structure
+		if strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "prime number") {
+			return `[
+  {
+    "title": "ID:[PRIMES] Create Prime Number Generator Script",
+    "description": "Create a Python script that generates prime numbers. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
+    "type": "Task",
+    "acceptance_criteria": [
+      "Script generates primes up to 100",
+      "Output is printed to stdout"
+    ]
+  }
+]`, nil
+		}
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
