@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"recac/internal/agent"
 	"strings"
 	"sync"
 	"time"
@@ -11,34 +13,45 @@ import (
 	"github.com/spf13/viper"
 )
 
-var (
-	arenaCompetitors string
-	arenaTask        string
-	arenaFile        string
-	arenaJudgeProv   string
-	arenaJudgeModel  string
-)
+// AgentFactory defines the function signature for creating an agent.
+type AgentFactory func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error)
 
-var arenaCmd = &cobra.Command{
-	Use:   "arena",
-	Short: "Pit multiple AI models against each other",
-	Long: `Run the same task against multiple AI models in parallel and use a Judge Agent to evaluate the results.
+func init() {
+	rootCmd.AddCommand(NewArenaCmd(agentClientFactory))
+}
+
+// NewArenaCmd creates the arena command with a specific agent factory.
+func NewArenaCmd(factory AgentFactory) *cobra.Command {
+	var (
+		competitors string
+		task        string
+		file        string
+		judgeProv   string
+		judgeModel  string
+	)
+
+	cmd := &cobra.Command{
+		Use:   "arena",
+		Short: "Pit multiple AI models against each other",
+		Long: `Run the same task against multiple AI models in parallel and use a Judge Agent to evaluate the results.
 
 Example:
   recac arena --competitors "openai:gpt-4,gemini:gemini-pro" --task "Explain quantum computing"`,
-	RunE: runArena,
-}
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runArena(cmd, factory, competitors, task, file, judgeProv, judgeModel)
+		},
+	}
 
-func init() {
-	rootCmd.AddCommand(arenaCmd)
-	arenaCmd.Flags().StringVarP(&arenaCompetitors, "competitors", "c", "", "Comma-separated list of provider:model pairs (e.g., openai:gpt-4,gemini:gemini-pro)")
-	arenaCmd.Flags().StringVarP(&arenaTask, "task", "t", "", "The task or question to evaluate")
-	arenaCmd.Flags().StringVarP(&arenaFile, "file", "f", "", "Optional file to include as context")
-	arenaCmd.Flags().StringVar(&arenaJudgeProv, "judge-provider", "", "Provider for the judge (default: config)")
-	arenaCmd.Flags().StringVar(&arenaJudgeModel, "judge-model", "", "Model for the judge (default: config)")
+	cmd.Flags().StringVarP(&competitors, "competitors", "c", "", "Comma-separated list of provider:model pairs (e.g., openai:gpt-4,gemini:gemini-pro)")
+	cmd.Flags().StringVarP(&task, "task", "t", "", "The task or question to evaluate")
+	cmd.Flags().StringVarP(&file, "file", "f", "", "Optional file to include as context")
+	cmd.Flags().StringVar(&judgeProv, "judge-provider", "", "Provider for the judge (default: config)")
+	cmd.Flags().StringVar(&judgeModel, "judge-model", "", "Model for the judge (default: config)")
 
-	arenaCmd.MarkFlagRequired("competitors")
-	arenaCmd.MarkFlagRequired("task")
+	cmd.MarkFlagRequired("competitors")
+	cmd.MarkFlagRequired("task")
+
+	return cmd
 }
 
 type ArenaResult struct {
@@ -49,8 +62,8 @@ type ArenaResult struct {
 	Error    error
 }
 
-func runArena(cmd *cobra.Command, args []string) error {
-	competitorList := strings.Split(arenaCompetitors, ",")
+func runArena(cmd *cobra.Command, factory AgentFactory, competitors, task, file, judgeProv, judgeModel string) error {
+	competitorList := strings.Split(competitors, ",")
 	// Trim spaces
 	for i := range competitorList {
 		competitorList[i] = strings.TrimSpace(competitorList[i])
@@ -76,8 +89,8 @@ func runArena(cmd *cobra.Command, args []string) error {
 
 	// Read context file
 	var fileContext string
-	if arenaFile != "" {
-		content, err := os.ReadFile(arenaFile)
+	if file != "" {
+		content, err := os.ReadFile(file)
 		if err != nil {
 			return fmt.Errorf("failed to read context file: %w", err)
 		}
@@ -85,7 +98,7 @@ func runArena(cmd *cobra.Command, args []string) error {
 	}
 
 	// Prepare Prompt
-	fullPrompt := arenaTask
+	fullPrompt := task
 	if fileContext != "" {
 		fullPrompt += fmt.Sprintf("\n\nContext:\n```\n%s\n```", fileContext)
 	}
@@ -118,7 +131,7 @@ func runArena(cmd *cobra.Command, args []string) error {
 
 			projName := fmt.Sprintf("recac-arena-%d", index)
 
-			ag, err := agentClientFactory(ctx, provider, model, cwd, projName)
+			ag, err := factory(ctx, provider, model, cwd, projName)
 			if err != nil {
 				results[index] = ArenaResult{Provider: provider, Model: model, Error: err, Duration: time.Since(start)}
 				return
@@ -166,25 +179,23 @@ func runArena(cmd *cobra.Command, args []string) error {
 	}
 
 	// Judging Phase
-	judgeProv := arenaJudgeProv
 	if judgeProv == "" {
 		judgeProv = viper.GetString("provider")
 	}
-	judgeMod := arenaJudgeModel
-	if judgeMod == "" {
-		judgeMod = viper.GetString("model")
+	if judgeModel == "" {
+		judgeModel = viper.GetString("model")
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "\n⚖️  Judging with %s:%s...\n", judgeProv, judgeMod)
+	fmt.Fprintf(cmd.OutOrStdout(), "\n⚖️  Judging with %s:%s...\n", judgeProv, judgeModel)
 
-	judgeAgent, err := agentClientFactory(ctx, judgeProv, judgeMod, cwd, "recac-arena-judge")
+	judgeAgent, err := factory(ctx, judgeProv, judgeModel, cwd, "recac-arena-judge")
 	if err != nil {
 		return fmt.Errorf("failed to create judge agent: %w", err)
 	}
 
 	var judgePromptBuilder strings.Builder
 	judgePromptBuilder.WriteString("You are an impartial Judge. Evaluate the following responses to the task.\n")
-	judgePromptBuilder.WriteString(fmt.Sprintf("Task: %s\n\n", arenaTask))
+	judgePromptBuilder.WriteString(fmt.Sprintf("Task: %s\n\n", task))
 
 	for i, res := range validResults {
 		judgePromptBuilder.WriteString(fmt.Sprintf("--- Candidate %d ---\n", i+1))
