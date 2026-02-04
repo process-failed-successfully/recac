@@ -50,6 +50,27 @@ type ArenaResult struct {
 }
 
 func runArena(cmd *cobra.Command, args []string) error {
+	arenaCompetitors, err := cmd.Flags().GetString("competitors")
+	if err != nil {
+		return err
+	}
+	arenaTask, err := cmd.Flags().GetString("task")
+	if err != nil {
+		return err
+	}
+	arenaFile, err := cmd.Flags().GetString("file")
+	if err != nil {
+		return err
+	}
+	arenaJudgeProv, err := cmd.Flags().GetString("judge-provider")
+	if err != nil {
+		return err
+	}
+	arenaJudgeModel, err := cmd.Flags().GetString("judge-model")
+	if err != nil {
+		return err
+	}
+
 	competitorList := strings.Split(arenaCompetitors, ",")
 	// Trim spaces
 	for i := range competitorList {
@@ -94,6 +115,7 @@ func runArena(cmd *cobra.Command, args []string) error {
 
 	results := make([]ArenaResult, len(cleanCompetitors))
 	var wg sync.WaitGroup
+	var outputMutex sync.Mutex
 
 	for i, compStr := range cleanCompetitors {
 		wg.Add(1)
@@ -134,6 +156,8 @@ func runArena(cmd *cobra.Command, args []string) error {
 				Error:    err,
 			}
 
+			outputMutex.Lock()
+			defer outputMutex.Unlock()
 			if err != nil {
 				fmt.Fprintf(cmd.ErrOrStderr(), "❌ %s:%s failed: %v\n", provider, model, err)
 			} else {
