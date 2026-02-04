@@ -60,7 +60,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 3. Implementation (Primes)
-	if strings.Contains(prompt, "calculate primes") || strings.Contains(prompt, "[PRIMES]") {
+	if strings.Contains(prompt, "calculate prime") || strings.Contains(prompt, "[PRIMES]") {
 		return "I will implement the prime number calculation script.\n\n" +
 			"```bash\n" +
 			"cat <<EOF > primes.py\n" +
@@ -87,7 +87,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 4. QA Agent
-	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") || strings.Contains(prompt, "QA Agent") {
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
 		return "QA_PASSED", nil
 	}
 
