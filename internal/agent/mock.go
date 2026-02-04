@@ -41,10 +41,27 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.generatePrimesResponse(), nil
 	}
 
+	// Detect QA Agent Role
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return m.generateQAPassedResponse(), nil
+	}
+
 	// Default response
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
+}
+
+func (m *MockAgent) generateQAPassedResponse() string {
+	return `I have verified the project and all tests pass.
+
+` + "```bash" + `
+# Run tests (simulated)
+echo "Running tests..."
+# Signal QA Passed
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`
 }
 
 func (m *MockAgent) generatePrimesTickets() string {
