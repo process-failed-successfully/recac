@@ -60,7 +60,7 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	// 3. Test Local .recac/prompts
 	t.Setenv("RECAC_PROMPTS_DIR", "")
 
-	// Use a temp directory as CWD to avoid writing to the source tree
+	// Use a temp directory as CWD to avoid writing to the source tree (prevents dirty git tree in CI)
 	tempCwd := t.TempDir()
 	originalCwd, err := os.Getwd()
 	if err != nil {
