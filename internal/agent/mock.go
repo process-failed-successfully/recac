@@ -40,7 +40,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     "id": "PRIMES",
     "type": "Task",
     "title": "ID:[PRIMES] Implement Prime Number Generator",
-    "description": "Create a python script to generate prime numbers. Repo: https://github.com/process-failed-successfully/recac",
+    "description": "Create a python script to generate prime numbers.",
     "dependencies": {}
   }
 ]`, nil
@@ -84,8 +84,11 @@ def is_prime(n):
             return False
     return True
 
-primes = [p for p in range(1, 101) if is_prime(p)]
-print(json.dumps(primes))
+primes = [p for p in range(1, 10000) if is_prime(p)]
+output = {"primes": primes}
+with open('primes.json', 'w') as f:
+    json.dump(output, f)
+print(json.dumps(output))
 EOF
 
 # Mark as done
