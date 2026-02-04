@@ -25,6 +25,22 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_TPM(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "You are an expert Technical Program Manager (TPM)..."
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "[") {
+		t.Errorf("Expected JSON array response for TPM prompt, got: %s", response)
+	}
+	if !strings.Contains(response, "Implement Primes Calculation") {
+		t.Errorf("Expected prime calculation ticket, got: %s", response)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
