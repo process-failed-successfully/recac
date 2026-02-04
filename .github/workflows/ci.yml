@@ -89,10 +89,8 @@ jobs:
         env:
           PACKAGES_PER_SHARD: 5
         run: |
-          PACKAGE_COUNT=$(go list ./... | wc -l)
-          # Calculate total shards (ceil(PACKAGE_COUNT / PACKAGES_PER_SHARD))
-          TOTAL_SHARDS=$(( (PACKAGE_COUNT + PACKAGES_PER_SHARD - 1) / PACKAGES_PER_SHARD ))
-          if [ "$TOTAL_SHARDS" -lt "1" ]; then TOTAL_SHARDS=1; fi
+          # Explicitly set TOTAL_SHARDS to 10 to maintain consistent job names for branch protection
+          TOTAL_SHARDS=10
           MATRIX_JSON=$(jq -n -c "[range(1; $TOTAL_SHARDS + 1)]")
           echo "matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
           echo "total_shards=$TOTAL_SHARDS" >> $GITHUB_OUTPUT
