@@ -222,6 +222,16 @@ func (m *MockGitClient) CreatePR(directory, title, body, base string) (string, e
 	return args.String(0), args.Error(1)
 }
 
+func (m *MockGitClient) ConfigureIdentity(directory, name, email string) error {
+	args := m.Called(directory, name, email)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) SyncBranch(ctx context.Context, directory, branchName, logPrefix string) error {
+	args := m.Called(ctx, directory, branchName, logPrefix)
+	return args.Error(0)
+}
+
 // setupSessionManager creates a new SessionManager in a temporary directory for isolated testing.
 func setupSessionManager(t *testing.T) (*SessionManager, func()) {
 	t.Helper()
