@@ -58,7 +58,7 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	// Unset env via Setenv (empty string effectively disables it in GetPrompt logic)
 	t.Setenv("RECAC_PROMPTS_DIR", "")
 
-	// Create a new temp dir to act as CWD
+	// Create a new temp dir to act as CWD (safely avoids writing to source tree)
 	cwdDir := t.TempDir()
 
 	// Switch CWD
