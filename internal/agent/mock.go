@@ -63,12 +63,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic: Manager Agent (Check BEFORE QA to avoid false positives from history)
 	if strings.Contains(prompt, "Manager") || strings.Contains(prompt, "PROJECT_SIGNED_OFF") {
-		return "Mock Manager: Project approved.\n```bash\nagent-bridge signal set PROJECT_SIGNED_OFF true\n```", nil
+		return "Mock Manager: Project approved.\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
 	}
 
 	// Heuristic: QA Agent
 	if strings.Contains(prompt, "QA Agent") || strings.Contains(prompt, "QA_PASSED") {
-		return "Mock QA: All checks passed.\n```bash\nagent-bridge signal set QA_PASSED true\n```", nil
+		return "Mock QA: All checks passed.\n```bash\nagent-bridge signal QA_PASSED true\n```", nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
