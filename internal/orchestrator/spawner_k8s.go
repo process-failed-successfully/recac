@@ -133,13 +133,7 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	envVars = append(envVars, corev1.EnvVar{Name: "GIT_TERMINAL_PROMPT", Value: "0"})
 
 	// Propagate Secrets and Config from Host Environment (Consistency with DockerSpawner)
-	secrets := []string{
-		"JIRA_API_TOKEN", "JIRA_USERNAME", "JIRA_URL",
-		"GITHUB_TOKEN", "GITHUB_API_KEY",
-		"OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY",
-		"RECAC_DB_TYPE", "RECAC_DB_URL",
-	}
-	for _, secret := range secrets {
+	for _, secret := range Secrets {
 		if val := os.Getenv(secret); val != "" {
 			envVars = append(envVars, corev1.EnvVar{Name: secret, Value: val})
 			if secret == "GITHUB_API_KEY" {

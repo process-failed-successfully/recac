@@ -132,20 +132,9 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 			envExports = append(envExports, fmt.Sprintf("export RECAC_NOTIFICATIONS_SLACK_ENABLED=%s", shellquote.Join(val)))
 		}
 
-		for k, v := range item.EnvVars {
-			envExports = append(envExports, fmt.Sprintf("export %s=%s", k, shellquote.Join(v)))
-		}
-
-		secrets := []string{"JIRA_API_TOKEN", "JIRA_USERNAME", "JIRA_URL", "GITHUB_TOKEN", "GITHUB_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY", "RECAC_DB_TYPE", "RECAC_DB_URL"}
-		for _, secret := range secrets {
-			if val := os.Getenv(secret); val != "" {
-				quotedVal := shellquote.Join(val)
-				envExports = append(envExports, fmt.Sprintf("export %s=%s", secret, quotedVal))
-				if secret == "GITHUB_API_KEY" {
-					envExports = append(envExports, fmt.Sprintf("export RECAC_GITHUB_API_KEY=%s", quotedVal))
-				}
-			}
-		}
+		// Use shared logic for deterministic environment variables
+		envExports = append(envExports, BuildEnvExports(item.EnvVars)...)
+		envExports = append(envExports, BuildSecretExports()...)
 
 		envExports = append(envExports, fmt.Sprintf("export RECAC_HOST_WORKSPACE_PATH=%s", shellquote.Join(tempDir)))
 

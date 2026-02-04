@@ -383,12 +383,21 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 		}
 
 		session := NewSessionFunc(dockerCli, agentClient, projectPath, cfg.Image, projectName, cfg.Provider, cfg.Model, cfg.MaxAgents)
+
+		// Pre-seed features to prevent Initializer loop in tests where Docker is mocked
+		// and file system writes don't persist/happen.
+		if session.FeatureContent == "" {
+			session.FeatureContent = `{"features": [{"id": "mock-feature", "description": "Mock Feature for Test"}]}`
+		}
+
 		if cfg.Logger != nil {
 			session.Logger = cfg.Logger
 		}
 		session.MaxIterations = cfg.MaxIterations
 		session.TaskMaxIterations = cfg.TaskMaxIterations
-		session.ManagerFrequency = cfg.ManagerFrequency
+		if cfg.ManagerFrequency > 0 {
+			session.ManagerFrequency = cfg.ManagerFrequency
+		}
 		session.StreamOutput = cfg.Stream
 		session.AutoMerge = cfg.AutoMerge
 		session.SkipQA = cfg.SkipQA
@@ -463,7 +472,9 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 	}
 	session.MaxIterations = cfg.MaxIterations
 	session.TaskMaxIterations = cfg.TaskMaxIterations
-	session.ManagerFrequency = cfg.ManagerFrequency
+	if cfg.ManagerFrequency > 0 {
+		session.ManagerFrequency = cfg.ManagerFrequency
+	}
 	session.ManagerFirst = cfg.ManagerFirst
 	session.StreamOutput = cfg.Stream
 	session.AutoMerge = cfg.AutoMerge

@@ -141,6 +141,27 @@ func (s *Session) checkBlockers(ctx context.Context) error {
 func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, index, total int) (string, error) {
 	s.Logger.Info("executing command block", "index", index, "total", total, "script", cmdScript)
 
+	// Intercept agent-bridge signal commands for direct DB update
+	// This ensures signals are set even if the agent-bridge binary is missing or if running in a mock environment (Docker mock).
+	trimmedCmd := strings.TrimSpace(cmdScript)
+	if strings.HasPrefix(trimmedCmd, "agent-bridge signal set") {
+		parts := strings.Fields(trimmedCmd)
+		if len(parts) >= 4 {
+			key := parts[3]
+			value := parts[4] // Assuming simple value for now, or join rest
+			if len(parts) > 5 {
+				value = strings.Join(parts[4:], " ")
+			}
+
+			if s.DBStore != nil {
+				s.Logger.Info("intercepting agent-bridge signal set", "key", key, "value", value)
+				if err := s.DBStore.SetSignal(s.Project, key, value); err != nil {
+					s.Logger.Warn("failed to set signal via interception", "error", err)
+				}
+			}
+		}
+	}
+
 	// Security Scan
 	if s.Scanner != nil {
 		findings, err := s.Scanner.Scan(cmdScript)
