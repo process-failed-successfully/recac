@@ -87,10 +87,24 @@ cat << 'EOF' > feature_list.json
   "project_name": "primes-project",
   "features": [
     {
-      "id": "req-primes",
-      "category": "core",
-      "priority": "MVP",
-      "description": "Calculate primes",
+      "id": "req-primes-py-exists",
+      "category": "functional",
+      "priority": "critical",
+      "description": "primes.py exists",
+      "status": "todo",
+      "passes": false,
+      "steps": [],
+      "dependencies": {
+          "depends_on_ids": [],
+          "exclusive_write_paths": [],
+          "read_only_paths": []
+      }
+    },
+    {
+      "id": "req-primes-json-contains-correct-p",
+      "category": "functional",
+      "priority": "critical",
+      "description": "primes.json contains correct primes",
       "status": "todo",
       "passes": false,
       "steps": [],
