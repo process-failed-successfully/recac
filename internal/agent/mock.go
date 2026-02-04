@@ -32,7 +32,68 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// Detect if the prompt expects JSON (simple heuristic for ticket generation)
+	// 1. Check for Initializer (Feature List Import)
+	// Must happen before ticket keywords check to avoid false positives
+	if strings.Contains(prompt, "feature_list.json") {
+		return `
+I have analyzed the requirements. Here is the feature list import:
+
+` + "```bash" + `
+agent-bridge import <<EOF
+[
+  {
+    "id": "req-primes-py-exists",
+    "description": "primes.py exists",
+    "status": "pending"
+  },
+  {
+    "id": "req-primes-json-contains-correct-p",
+    "description": "primes.json contains correct primes",
+    "status": "pending"
+  }
+]
+EOF
+` + "```" + `
+`, nil
+	}
+
+	// 2. Check for QA Agent
+	if strings.Contains(strings.ToUpper(prompt), "ROLE - QA AGENT") {
+		return `
+I have verified the changes.
+
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// 3. Check for Project Manager
+	if strings.Contains(strings.ToUpper(prompt), "ROLE - PROJECT MANAGER") || strings.Contains(strings.ToUpper(prompt), "PROJECT MANAGER") {
+		return `
+Project looks good. Signed off.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
+	}
+
+	// 4. Check for Implementation (Primes Scenario)
+	if strings.Contains(prompt, "primes.py") {
+		return `
+I will implement the primes.py script.
+
+` + "```bash" + `
+echo "def primes(n):" > primes.py
+echo "    pass" >> primes.py
+agent-bridge feature set req-primes-py-exists completed
+agent-bridge feature set req-primes-json-contains-correct-p completed
+` + "```" + `
+`, nil
+	}
+
+	// 5. Detect if the prompt expects JSON (simple heuristic for ticket generation)
 	// This fixes 'jira generate-from-spec' failing in smoke tests when using mock provider
 	if len(prompt) > 0 && (prompt[0] == '{' || prompt[0] == '[' || containsTicketKeywords(prompt)) {
 		return `[
