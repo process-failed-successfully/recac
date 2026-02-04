@@ -129,7 +129,10 @@ cat feature_list.json | agent-bridge import
 	// assume it's the coding task.
 	// We check for keywords related to the task.
 	lowerPrompt := strings.ToLower(prompt)
-	isPrimesTask := strings.Contains(lowerPrompt, "primes") || strings.Contains(lowerPrompt, "req-primes")
+	// Broaden match: If it mentions primes/req-primes OR contains "feature_list.json" (Coding Agent template) without being initializer
+	isPrimesTask := strings.Contains(lowerPrompt, "primes") ||
+		strings.Contains(lowerPrompt, "req-primes") ||
+		(strings.Contains(lowerPrompt, "feature_list.json") && !strings.Contains(lowerPrompt, "initialize"))
 
 	if isPrimesTask {
 		// Smart Check: If the prompt indicates that we already tried to commit and it was empty,
@@ -177,6 +180,15 @@ git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
 
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
+
+	// Debugging: Log the prompt to help diagnose why heuristics failed
+	// This will show up in CI logs (stdout)
+	if len(prompt) < 1000 {
+		fmt.Printf("[MockAgent] Fallback Triggered. Prompt: %s\n", prompt)
+	} else {
+		fmt.Printf("[MockAgent] Fallback Triggered. Prompt (truncated): %s...\n", prompt[:1000])
+	}
+
 	response := fmt.Sprintf(`%s:
 
 I received your prompt (%d characters). In mock mode, I would process this request and provide a response.
