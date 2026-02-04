@@ -60,7 +60,8 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	// 3. Test Local .recac/prompts
 	t.Setenv("RECAC_PROMPTS_DIR", "")
 
-	// Use t.TempDir and t.Chdir to simulate local directory without polluting source tree
+	// Use t.TempDir and t.Chdir to simulate local directory without polluting source tree.
+	// This is crucial for CI environments where the source tree might be read-only or to prevent "dirty git tree" failures.
 	localCwd := t.TempDir()
 	t.Chdir(localCwd)
 
