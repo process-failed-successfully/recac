@@ -36,11 +36,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if isTicketGenerationPrompt(prompt) {
 		// Return a hardcoded list of tickets expected by the 'generate-from-spec' command
 		// The key must match what the E2E test expects (e.g. PRIMES)
+		// CRITICAL: The title MUST contain the ID tag (e.g. ID:[PRIMES]) for the orchestrator to map it back.
 		return `[
   {
     "id": "MOCK-1",
     "key": "PRIMES",
-    "title": "Implement Prime Number Service",
+    "title": "ID:[PRIMES] Implement Prime Number Service",
     "description": "Create a Python service that calculates prime numbers.",
     "type": "Task",
     "dependencies": []
