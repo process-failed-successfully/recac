@@ -128,12 +128,13 @@ cat feature_list.json | agent-bridge import
 	// We use a "greedy" match here: if it talks about the primes task AND it's NOT the ticket generation prompt (checked above),
 	// assume it's the coding task.
 	// We check for keywords related to the task.
-	isPrimesTask := strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "primes.json") || strings.Contains(prompt, "req-primes")
+	lowerPrompt := strings.ToLower(prompt)
+	isPrimesTask := strings.Contains(lowerPrompt, "primes") || strings.Contains(lowerPrompt, "req-primes")
 
 	if isPrimesTask {
 		// Smart Check: If the prompt indicates that we already tried to commit and it was empty,
 		// it means the files are already there and correct. We should mark the task as done.
-		if strings.Contains(prompt, "Nothing to commit") || strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
+		if strings.Contains(lowerPrompt, "nothing to commit") || strings.Contains(lowerPrompt, "working tree clean") {
 			return `The task seems to be completed. I will mark it as done.
 
 ` + "```bash" + `
