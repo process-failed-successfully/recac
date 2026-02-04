@@ -87,6 +87,8 @@ EOF
 		return `I will implement the prime number script as requested.
 
 ` + "```bash" + `
+set -x # Enable verbose logging for debugging
+
 # Configure git
 git config user.email "bot@recac.com"
 git config user.name "Recac Bot"
@@ -107,7 +109,8 @@ with open('primes.json', 'w') as f:
 EOF
 
 # Run it to generate the json
-python3 primes.py
+echo "Running primes.py..."
+python3 primes.py || { echo "python3 primes.py failed"; exit 1; }
 
 # Commit files
 git add primes.py primes.json
@@ -115,7 +118,8 @@ git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
 git push || echo "Push skipped"
 
 # Mark feature as done
-agent-bridge feature set --id primes-impl --status done --passes true
+echo "Updating feature status..."
+agent-bridge feature set --id primes-impl --status done --passes true || { echo "agent-bridge failed"; exit 1; }
 ` + "```" + `
 
 Implementation complete.

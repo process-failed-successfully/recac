@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -263,8 +264,14 @@ func (m *MockSessionManager) ListArchivedSessions() ([]*runner.SessionState, err
 	return archived, nil
 }
 
+// Global mutex to prevent race conditions on rootCmd and exit variable
+var cmdLock sync.Mutex
+
 // executeCommand executes a cobra command and returns its output.
 func executeCommand(root *cobra.Command, args ...string) (output string, err error) {
+	cmdLock.Lock()
+	defer cmdLock.Unlock()
+
 	resetFlags(root)
 	b := new(bytes.Buffer)
 
