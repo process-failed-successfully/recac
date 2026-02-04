@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,6 +31,34 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// Heuristic: If prompt looks like a ticket generation request, return JSON
+	// The prompt usually comes from "Technical Program Manager" role
+	if (strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "Jira")) && strings.Contains(prompt, "tickets") {
+		// Return a valid JSON ticket plan
+		return `
+{
+  "tickets": [
+    {
+      "summary": "Implement prime number generator",
+      "description": "Create a Python script that generates prime numbers.",
+      "type": "Task",
+      "acceptance_criteria": [
+        "Script exists",
+        "Generates primes correctly"
+      ]
+    }
+  ]
+}
+`, nil
+	}
+
+	// Heuristic: If prompt asks for "primes.py" implementation (Agent role)
+	if strings.Contains(prompt, "prime") || strings.Contains(prompt, "python") {
+		// Return a bash script to create the file
+		return "```bash\necho 'def is_prime(n): return n > 1 and all(n % i != 0 for i in range(2, int(n**0.5) + 1))' > primes.py\n```", nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",

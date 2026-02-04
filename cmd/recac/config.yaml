@@ -33,8 +33,8 @@ notifications:
             on_success: true
             on_user_interaction: true
 orchestrator:
-    agent_model: meta-llama/llama-3.3-70b-instruct:free
-    agent_provider: openrouter
+    agent_model: mock
+    agent_provider: mock
     image: ghcr.io/process-failed-successfully/recac-agent:latest
     image_pull_policy: Always
     interval: 1m0s
