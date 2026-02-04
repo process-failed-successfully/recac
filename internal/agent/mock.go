@@ -84,7 +84,13 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return "```bash\nagent-bridge signal QA_PASSED true\n```", nil
 	}
 
-	// 5. Implementation / Coding Tasks
+	// 5. Manager Review (Final Sign-off)
+	// Must check this BEFORE generic implementation to catch the manager role
+	if isManagerPrompt(prompt) {
+		return "```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
+	}
+
+	// 6. Implementation / Coding Tasks
 	if isImplementationPrompt(prompt) {
 		return "```bash\n# Create dummy implementation\necho \"print('primes')\" > primes.py\n# Signal completion\nagent-bridge feature set req-mock-1 --status done --passes true\n```", nil
 	}
@@ -114,6 +120,10 @@ func isInitializerPrompt(prompt string) bool {
 
 func isQAPrompt(prompt string) bool {
 	return contains(prompt, "QA AGENT") || contains(prompt, "QA_PASSED")
+}
+
+func isManagerPrompt(prompt string) bool {
+	return contains(prompt, "PROJECT MANAGER") || contains(prompt, "manager_review")
 }
 
 func isImplementationPrompt(prompt string) bool {
