@@ -109,8 +109,10 @@ agent-bridge signal COMPLETED true
 	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
 		return `I will implement the primes script.
 ` + "```bash" + `
+set -e
 cat << 'EOF' > primes.py
 import json
+import sys
 
 primes = []
 for n in range(2, 10000):
@@ -122,9 +124,16 @@ for n in range(2, 10000):
 
 with open('primes.json', 'w') as f:
     json.dump({"primes": primes}, f)
+
+print(f"Generated {len(primes)} primes to primes.json")
 EOF
 
 python3 primes.py
+if [ ! -f primes.json ]; then
+    echo "Error: primes.json was not created"
+    exit 1
+fi
+
 git add primes.py primes.json
 agent-bridge feature list --json | jq -r '.features[].id' | xargs -I {} agent-bridge feature set {} --status done --passes true
 agent-bridge signal COMPLETED true
