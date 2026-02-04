@@ -139,7 +139,12 @@ agent-bridge signal PROJECT_SIGNED_OFF true
 	// We use a "greedy" match here: if it talks about the primes task AND it's NOT the ticket generation prompt (checked above),
 	// assume it's the coding task.
 	// We check for keywords related to the task.
-	isPrimesTask := strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "primes.json") || strings.Contains(prompt, "req-primes")
+	// We also check for "Signal PROJECT_SIGNED_OFF set to true" which implies a failed sign-off (otherwise the loop would have ended),
+	// forcing the agent to retry implementation.
+	isPrimesTask := strings.Contains(prompt, "primes.py") ||
+		strings.Contains(prompt, "primes.json") ||
+		strings.Contains(prompt, "req-primes") ||
+		strings.Contains(prompt, "Signal PROJECT_SIGNED_OFF set to true")
 
 	if isPrimesTask {
 		return `I will create the primes.py script and generate the JSON file as requested.
@@ -169,6 +174,13 @@ git config user.name "Mock Agent"
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
+
+# Mark features as passed (Mock Agent specific)
+# This prevents the runner from rejecting the sign-off due to incomplete features
+if command -v agent-bridge >/dev/null 2>&1; then
+    agent-bridge feature set req-primes-py-exists --status done --passes true || true
+    agent-bridge feature set req-primes-json-contains-correct-p --status done --passes true || true
+fi
 ` + "```" + `
 `, nil
 	}
