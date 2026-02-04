@@ -258,10 +258,22 @@ func run(args []string, config db.StoreConfig, projectID string) error {
 
 	case "import":
 		// Usage: cat features.json | agent-bridge import
-		// Reads JSON from Stdin and saves to DB
-		data, err := io.ReadAll(os.Stdin)
-		if err != nil {
-			return fmt.Errorf("failed to read from stdin: %w", err)
+		// OR: agent-bridge import features.json
+		var data []byte
+		var err error
+
+		if len(args) > 2 {
+			// Read from file argument
+			data, err = os.ReadFile(args[2])
+			if err != nil {
+				return fmt.Errorf("failed to read file %s: %w", args[2], err)
+			}
+		} else {
+			// Read from Stdin
+			data, err = io.ReadAll(os.Stdin)
+			if err != nil {
+				return fmt.Errorf("failed to read from stdin: %w", err)
+			}
 		}
 
 		if len(data) == 0 {
