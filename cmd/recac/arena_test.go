@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"recac/internal/agent"
@@ -89,4 +90,38 @@ func TestArenaCmd(t *testing.T) {
         err := runArena(arenaCmd, []string{})
         assert.NoError(t, err)
     })
+}
+
+func TestArenaCmd_ConcurrencySafe(t *testing.T) {
+	// This test specifically targets the race condition when output is a buffer (non-thread-safe)
+	// which happens in CI/tests where output is captured.
+
+	originalFactory := agentClientFactory
+	defer func() {
+		agentClientFactory = originalFactory
+	}()
+
+	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+		return &MockArenaAgent{Response: "Response"}, nil
+	}
+
+	arenaCompetitors = "p1:m1, p2:m2, p3:m3, p4:m4"
+	arenaTask = "Race Test"
+	arenaFile = ""
+	arenaJudgeProv = "mock"
+	arenaJudgeModel = "judge"
+
+	// Force arenaCmd to write to a bytes.Buffer, which is NOT thread-safe.
+	// If the code doesn't synchronize writes, the race detector will catch this.
+	buf := new(bytes.Buffer)
+	arenaCmd.SetOut(buf)
+	arenaCmd.SetErr(buf)
+	// Reset output after test
+	defer func() {
+		arenaCmd.SetOut(nil)
+		arenaCmd.SetErr(nil)
+	}()
+
+	err := runArena(arenaCmd, []string{})
+	assert.NoError(t, err)
 }

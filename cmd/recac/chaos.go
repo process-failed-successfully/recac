@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"recac/internal/docker"
@@ -234,19 +235,28 @@ func runChaosFile(cmd *cobra.Command, args []string) error {
 }
 
 func runChaosStress(cmd *cobra.Command, args []string) error {
-	fmt.Fprintf(cmd.OutOrStdout(), "Starting Chaos Stress (CPU: %d, Mem: %dMB, Duration: %s)\n", chaosCPU, chaosMemory, chaosDuration)
+	// Capture globals to locals to prevent races
+	cpu := chaosCPU
+	mem := chaosMemory
+	dur := chaosDuration
+
+	fmt.Fprintf(cmd.OutOrStdout(), "Starting Chaos Stress (CPU: %d, Mem: %dMB, Duration: %s)\n", cpu, mem, dur)
 
 	done := make(chan struct{})
-	time.AfterFunc(chaosDuration, func() {
+	time.AfterFunc(dur, func() {
 		close(done)
 	})
 
+	var wg sync.WaitGroup
+
 	// Memory stress
-	if chaosMemory > 0 {
+	if mem > 0 {
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			blockSize := 1024 * 1024 // 1MB
 			blocks := make([][]byte, 0)
-			for i := 0; i < int(chaosMemory); i++ {
+			for i := 0; i < int(mem); i++ {
 				select {
 				case <-done:
 					return
@@ -263,8 +273,10 @@ func runChaosStress(cmd *cobra.Command, args []string) error {
 	}
 
 	// CPU stress
-	for i := 0; i < chaosCPU; i++ {
+	for i := 0; i < cpu; i++ {
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			for {
 				select {
 				case <-done:
@@ -281,6 +293,7 @@ func runChaosStress(cmd *cobra.Command, args []string) error {
 	}
 
 	<-done
+	wg.Wait()
 	fmt.Fprintln(cmd.OutOrStdout(), "Chaos Stress Finished.")
 	return nil
 }
