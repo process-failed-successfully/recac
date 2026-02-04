@@ -240,6 +240,8 @@ jobs:
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /opt/ghc
           sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "/usr/local/share/powershell"
+          sudo rm -rf /usr/local/lib/node_modules
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
           df -h
 
@@ -302,6 +304,16 @@ jobs:
             fi
           done
           echo "All attempts failed."
+
+          echo "::group::Debug Info"
+          kubectl get pods -A -o wide
+          kubectl get events --sort-by='.lastTimestamp' -A
+          kubectl describe pods -l job-name
+          kubectl logs -l app=recac --all-containers=true --tail=200 --prefix || true
+          # Try to get logs from failed agent jobs if any exist
+          kubectl logs --selector job-name --all-containers=true --tail=200 --prefix || true
+          echo "::endgroup::"
+
           exit 1
 
   # 8. Auto-Merge PR (Consolidated from mergy.yml)
