@@ -65,9 +65,8 @@ cat feature_list.json | agent-bridge import
 		return `
 [
   {
-    "id": "PRIMES",
+    "title": "ID:[PRIMES] Implement Prime Number Script",
     "type": "story",
-    "summary": "Implement Prime Number Script",
     "description": "Implement primes.py to calculate primes under 10000"
   }
 ]
