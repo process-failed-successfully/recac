@@ -44,12 +44,10 @@ func getSpecificAgentBranch(repoPath, ticketKey string) (string, error) {
 
 	// Retry loop to handle eventual consistency
 	for i := 0; i < 5; i++ {
-		// Use git ls-remote to check the server directly, bypassing local fetch/refspec issues
-		// We look for refs/heads/agent/*TICKET*
-		// Note: The pattern needs to match the remote ref name.
-		// Agent branches are typically "agent/TICKET" or "agent/TICKET-SUFFIX"
-		pattern := fmt.Sprintf("refs/heads/agent/*%s*", ticketKey)
-		cmd := exec.Command("git", "ls-remote", "--heads", "origin", pattern)
+		// Use git ls-remote to check the server directly
+		// Broader pattern to ensure we match "refs/heads/agent/..." or similar
+		pattern := fmt.Sprintf("*%s*", ticketKey)
+		cmd := exec.Command("git", "ls-remote", "origin", pattern)
 		cmd.Dir = repoPath
 
 		out, err := cmd.Output()
@@ -72,22 +70,23 @@ func getSpecificAgentBranch(repoPath, ticketKey string) (string, error) {
 		for _, line := range lines {
 			parts := strings.Fields(line)
 			if len(parts) >= 2 {
-				ref := parts[1] // refs/heads/agent/MFLP-4968
-				if strings.Contains(ref, ticketKey) {
-					// We found it on remote. Now verify we can use it.
-					// For the verification logic to work, we might need to fetch it to local if checking out.
-					// But the caller just needs the branch name (e.g. agent/MFLP-4968) to checkout or diff.
-					// We return "agent/MFLP-4968" (without origin/ or refs/heads/)
+				ref := parts[1]
+				// Check for agent branch specifically to avoid matching other tags/branches
+				if strings.Contains(ref, "/agent/") && strings.Contains(ref, ticketKey) {
+					// Extract branch name for fetch
 					branchName := strings.TrimPrefix(ref, "refs/heads/")
 
 					// Explicitly fetch this branch to ensure it's available locally
-					fetchCmd := exec.Command("git", "fetch", "origin", branchName+":"+branchName)
+					// Using refspec +refs/heads/BRANCH:refs/remotes/origin/BRANCH to map it correctly
+					// or just fetch it to FETCH_HEAD.
+					// The caller likely expects a branch name they can checkout or diff.
+					// If we fetch to refs/remotes/origin/..., then "agent/MFLP..." works if it resolves to that.
+					// Let's fetch it to a local tracking branch or just ensure origin/BRANCH exists.
+					fetchCmd := exec.Command("git", "fetch", "origin", fmt.Sprintf("%s:%s", ref, ref))
 					fetchCmd.Dir = repoPath
 					if err := fetchCmd.Run(); err != nil {
-						// If direct fetch fails (e.g. permission), fallback to simple fetch
-						// but mostly we just return the name found.
-						// We'll log warning but proceed as ls-remote confirmed existence.
-						fmt.Printf("Warning: failed to fetch specific branch %s: %v\n", branchName, err)
+						// Fallback: try simple fetch of the branch name
+						_ = exec.Command("git", "fetch", "origin", branchName).Run()
 					}
 
 					return branchName, nil
@@ -95,7 +94,7 @@ func getSpecificAgentBranch(repoPath, ticketKey string) (string, error) {
 			}
 		}
 
-		lastErr = fmt.Errorf("parsed ls-remote output but found no match for %s in: %s", ticketKey, outputStr)
+		lastErr = fmt.Errorf("parsed ls-remote output but found no agent branch for %s in: %s", ticketKey, outputStr)
 		time.Sleep(2 * time.Second)
 	}
 
