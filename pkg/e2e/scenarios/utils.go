@@ -39,6 +39,13 @@ func getAgentBranch(repoPath string) (string, error) {
 }
 
 func getSpecificAgentBranch(repoPath, ticketKey string) (string, error) {
+	// Fetch remote branches first to ensure we see the new agent branch
+	fetchCmd := exec.Command("git", "fetch", "--all")
+	fetchCmd.Dir = repoPath
+	if err := fetchCmd.Run(); err != nil {
+		return "", fmt.Errorf("failed to fetch branches: %w", err)
+	}
+
 	cmd := exec.Command("git", "branch", "-r")
 	cmd.Dir = repoPath
 	out, err := cmd.Output()
