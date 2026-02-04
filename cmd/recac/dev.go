@@ -78,19 +78,29 @@ func runDev(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("👀 Watching %s for changes...\n", devWatchDir)
 
+	// Capture global for race safety
+	localDebounce := devDebounce
+
 	// 5. Watch Loop
 	var timer *time.Timer
 	var mu sync.Mutex
 
 	// Channel to signal execution
 	trigger := make(chan struct{}, 1)
+	var wg sync.WaitGroup
 
 	// Initial run
-	go func() { trigger <- struct{}{} }()
+	go func() {
+		select {
+		case trigger <- struct{}{}:
+		case <-cmd.Context().Done():
+		}
+	}()
 
 	// Event Loop
-	done := make(chan bool)
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		for {
 			select {
 			case event, ok := <-watcher.Events:
@@ -105,8 +115,11 @@ func runDev(cmd *cobra.Command, args []string) error {
 						if timer != nil {
 							timer.Stop()
 						}
-						timer = time.AfterFunc(devDebounce, func() {
-							trigger <- struct{}{}
+						timer = time.AfterFunc(localDebounce, func() {
+							select {
+							case trigger <- struct{}{}:
+							case <-cmd.Context().Done():
+							}
 						})
 						mu.Unlock()
 					}
@@ -125,18 +138,29 @@ func runDev(cmd *cobra.Command, args []string) error {
 					return
 				}
 				fmt.Printf("Watcher error: %v\n", err)
+			case <-cmd.Context().Done():
+				return
 			}
 		}
 	}()
 
 	// Execution Loop
+	wg.Add(1)
 	go func() {
-		for range trigger {
-			executeDevCommand(runCommand)
+		defer wg.Done()
+		for {
+			select {
+			case <-trigger:
+				executeDevCommand(runCommand)
+			case <-cmd.Context().Done():
+				return
+			}
 		}
 	}()
 
-	<-done
+	// Wait for context cancellation
+	<-cmd.Context().Done()
+	wg.Wait()
 	return nil
 }
 

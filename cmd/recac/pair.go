@@ -126,6 +126,9 @@ func runPair(cmd *cobra.Command, args []string) error {
 	var mu sync.Mutex
 	timers := make(map[string]*time.Timer)
 
+	// Capture global for race safety
+	localDebounce := pairDebounce
+
 	// Use command context for cancellation
 	ctx := cmd.Context()
 	if ctx == nil {
@@ -179,7 +182,7 @@ func runPair(cmd *cobra.Command, args []string) error {
 					t.Stop()
 				}
 				var t *time.Timer
-				t = time.AfterFunc(pairDebounce, func() {
+				t = time.AfterFunc(localDebounce, func() {
 					analyzeFile(cmd, ag, filename)
 					mu.Lock()
 					// Only delete if it's still the same timer

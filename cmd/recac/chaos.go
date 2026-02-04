@@ -234,19 +234,24 @@ func runChaosFile(cmd *cobra.Command, args []string) error {
 }
 
 func runChaosStress(cmd *cobra.Command, args []string) error {
-	fmt.Fprintf(cmd.OutOrStdout(), "Starting Chaos Stress (CPU: %d, Mem: %dMB, Duration: %s)\n", chaosCPU, chaosMemory, chaosDuration)
+	// Capture globals to local vars to prevent race conditions during tests
+	localCPU := chaosCPU
+	localMemory := chaosMemory
+	localDuration := chaosDuration
+
+	fmt.Fprintf(cmd.OutOrStdout(), "Starting Chaos Stress (CPU: %d, Mem: %dMB, Duration: %s)\n", localCPU, localMemory, localDuration)
 
 	done := make(chan struct{})
-	time.AfterFunc(chaosDuration, func() {
+	time.AfterFunc(localDuration, func() {
 		close(done)
 	})
 
 	// Memory stress
-	if chaosMemory > 0 {
+	if localMemory > 0 {
 		go func() {
 			blockSize := 1024 * 1024 // 1MB
 			blocks := make([][]byte, 0)
-			for i := 0; i < int(chaosMemory); i++ {
+			for i := 0; i < int(localMemory); i++ {
 				select {
 				case <-done:
 					return
@@ -263,7 +268,7 @@ func runChaosStress(cmd *cobra.Command, args []string) error {
 	}
 
 	// CPU stress
-	for i := 0; i < chaosCPU; i++ {
+	for i := 0; i < localCPU; i++ {
 		go func() {
 			for {
 				select {
