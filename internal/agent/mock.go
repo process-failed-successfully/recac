@@ -64,6 +64,20 @@ I will implement the prime number script as requested.
 #!/bin/bash
 set -e
 
+# Initialize features (ensure PRIMES exists in DB)
+cat << 'JSON' | agent-bridge import
+{
+  "features": [
+    {
+      "id": "PRIMES",
+      "description": "Create a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to 'primes.json'.",
+      "status": "todo",
+      "passes": false
+    }
+  ]
+}
+JSON
+
 # Create primes.py
 cat << 'EOF' > primes.py
 import json
