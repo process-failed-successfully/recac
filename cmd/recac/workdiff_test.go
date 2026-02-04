@@ -102,6 +102,14 @@ func TestShowAliasCmd(t *testing.T) {
 	sm, sessionName, repoDir := setupWorkdiffTest(t)
 	defer os.RemoveAll(repoDir)
 
+	// Ensure the alias is registered for the test environment
+	// (Though workdiff.go hardcodes it, this ensures robustness if registration logic changes)
+	// Actually, workdiffCmd has Aliases: []string{"show"}, so it should work without viper alias config.
+	// But let's verify if that's sufficient.
+	// Yes, Cobra aliases work without viper.
+	// The issue might be that `newRootCmd` doesn't include `workdiffCmd` if `init()` hasn't run?
+	// `init()` runs on package load.
+
 	rootCmd, _, _ := newRootCmd()
 	originalFactory := sessionManagerFactory
 	sessionManagerFactory = func() (ISessionManager, error) {

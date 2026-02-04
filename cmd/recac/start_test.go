@@ -134,4 +134,6 @@ func TestStartCommand_NormalMode_Restricted(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Contains(t, output, "Starting RECAC session")
+	// Since max iterations is 1, we expect it to fail completion
+	assert.Contains(t, output, "Session failed: maximum iterations reached")
 }
