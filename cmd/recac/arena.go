@@ -50,7 +50,8 @@ type ArenaResult struct {
 }
 
 func runArena(cmd *cobra.Command, args []string) error {
-	competitorList := strings.Split(arenaCompetitors, ",")
+	competitors, _ := cmd.Flags().GetString("competitors")
+	competitorList := strings.Split(competitors, ",")
 	// Trim spaces
 	for i := range competitorList {
 		competitorList[i] = strings.TrimSpace(competitorList[i])
@@ -76,8 +77,9 @@ func runArena(cmd *cobra.Command, args []string) error {
 
 	// Read context file
 	var fileContext string
-	if arenaFile != "" {
-		content, err := os.ReadFile(arenaFile)
+	arenaFileVal, _ := cmd.Flags().GetString("file")
+	if arenaFileVal != "" {
+		content, err := os.ReadFile(arenaFileVal)
 		if err != nil {
 			return fmt.Errorf("failed to read context file: %w", err)
 		}
@@ -85,7 +87,8 @@ func runArena(cmd *cobra.Command, args []string) error {
 	}
 
 	// Prepare Prompt
-	fullPrompt := arenaTask
+	arenaTaskVal, _ := cmd.Flags().GetString("task")
+	fullPrompt := arenaTaskVal
 	if fileContext != "" {
 		fullPrompt += fmt.Sprintf("\n\nContext:\n```\n%s\n```", fileContext)
 	}
@@ -94,6 +97,7 @@ func runArena(cmd *cobra.Command, args []string) error {
 
 	results := make([]ArenaResult, len(cleanCompetitors))
 	var wg sync.WaitGroup
+	var outputMu sync.Mutex
 
 	for i, compStr := range cleanCompetitors {
 		wg.Add(1)
@@ -134,11 +138,13 @@ func runArena(cmd *cobra.Command, args []string) error {
 				Error:    err,
 			}
 
+			outputMu.Lock()
 			if err != nil {
 				fmt.Fprintf(cmd.ErrOrStderr(), "❌ %s:%s failed: %v\n", provider, model, err)
 			} else {
 				fmt.Fprintf(cmd.OutOrStdout(), "✅ %s:%s finished in %v\n", provider, model, duration)
 			}
+			outputMu.Unlock()
 
 		}(i, compStr)
 	}
@@ -163,11 +169,11 @@ func runArena(cmd *cobra.Command, args []string) error {
 	}
 
 	// Judging Phase
-	judgeProv := arenaJudgeProv
+	judgeProv, _ := cmd.Flags().GetString("judge-provider")
 	if judgeProv == "" {
 		judgeProv = viper.GetString("provider")
 	}
-	judgeMod := arenaJudgeModel
+	judgeMod, _ := cmd.Flags().GetString("judge-model")
 	if judgeMod == "" {
 		judgeMod = viper.GetString("model")
 	}
@@ -181,7 +187,7 @@ func runArena(cmd *cobra.Command, args []string) error {
 
 	var judgePromptBuilder strings.Builder
 	judgePromptBuilder.WriteString("You are an impartial Judge. Evaluate the following responses to the task.\n")
-	judgePromptBuilder.WriteString(fmt.Sprintf("Task: %s\n\n", arenaTask))
+	judgePromptBuilder.WriteString(fmt.Sprintf("Task: %s\n\n", arenaTaskVal))
 
 	for i, res := range validResults {
 		judgePromptBuilder.WriteString(fmt.Sprintf("--- Candidate %d ---\n", i+1))
