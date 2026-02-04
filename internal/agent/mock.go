@@ -34,7 +34,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 1. Initializer / Architect Role (Creating Tickets)
 	// Detect based on keywords from PrimePythonScenario.AppSpec
-	if strings.Contains(prompt, "Create exactly ONE ticket") || strings.Contains(prompt, "ID:[PRIMES]") {
+	// We need to be careful not to match the developer prompt which might also contain ID:[PRIMES]
+	// The Initializer prompt typically asks to "Create exactly ONE ticket" or contains "feature_list.json" context.
+	if (strings.Contains(prompt, "Create exactly ONE ticket") || strings.Contains(prompt, "feature_list.json")) && !strings.Contains(prompt, "implement") {
 		// Return a JSON list of tickets as expected by the Jira/Spec parser
 		return `
 [
@@ -48,8 +50,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Developer Role (Implementation)
-	// Detect request to implement the script
-	if strings.Contains(prompt, "primes.py") && !strings.Contains(prompt, "Review") && !strings.Contains(prompt, "QA") {
+	// Detect request to implement the script. The runner usually sends the ticket description.
+	// The prompt will contain the task description "Implement a python script...".
+	if strings.Contains(prompt, "Implement a python script") || (strings.Contains(prompt, "primes.py") && !strings.Contains(prompt, "Review") && !strings.Contains(prompt, "QA")) {
 		return `
 I will implement the prime number script as requested.
 
