@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io"
 	"os"
 	"recac/internal/agent"
 	"strings"
@@ -27,15 +28,9 @@ func (m *MockArenaAgent) SendStream(ctx context.Context, prompt string, onChunk 
 }
 
 func TestArenaCmd(t *testing.T) {
-	// Save original factory
-	originalFactory := agentClientFactory
-	defer func() {
-		agentClientFactory = originalFactory
-	}()
-
 	t.Run("Run Arena Success", func(t *testing.T) {
 		// Setup mock factory
-		agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+		mockFactory := func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
 			if strings.Contains(projectName, "recac-arena-judge") {
 				return &MockArenaAgent{
 					Response: "WINNER: Candidate 1\nREASONING: Better response.",
@@ -53,40 +48,58 @@ func TestArenaCmd(t *testing.T) {
 			return &MockArenaAgent{Response: "Unknown"}, nil
 		}
 
-		// Set flags directly on variables since we might not be parsing args via cobra in unit test easily without resetting flags
-		arenaCompetitors = "openai:gpt-4, gemini:gemini-pro"
-		arenaTask = "Who are you?"
-		arenaFile = ""
-		arenaJudgeProv = "mock"
-		arenaJudgeModel = "judge"
+		cmd := NewArenaCmd(mockFactory)
+		// Set flags directly
+		cmd.Flags().Set("competitors", "openai:gpt-4, gemini:gemini-pro")
+		cmd.Flags().Set("task", "Who are you?")
+		cmd.Flags().Set("judge-provider", "mock")
+		cmd.Flags().Set("judge-model", "judge")
 
-		err := runArena(arenaCmd, []string{})
+		// Silence output for tests
+		cmd.SetOut(io.Discard)
+		cmd.SetErr(io.Discard)
+
+		err := cmd.RunE(cmd, []string{})
 		assert.NoError(t, err)
 	})
 
 	t.Run("Run Arena Validation Error", func(t *testing.T) {
-		arenaCompetitors = "openai:gpt-4" // Only one
-		err := runArena(arenaCmd, []string{})
+		mockFactory := func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+			return &MockArenaAgent{Response: "OK"}, nil
+		}
+		cmd := NewArenaCmd(mockFactory)
+		cmd.Flags().Set("competitors", "openai:gpt-4") // Only one
+
+		// Silence output for tests
+		cmd.SetOut(io.Discard)
+		cmd.SetErr(io.Discard)
+
+		err := cmd.RunE(cmd, []string{})
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "requires at least 2 competitors")
 	})
 
-    t.Run("Run Arena With File Context", func(t *testing.T) {
-        tmpDir := t.TempDir()
-        tmpFile := tmpDir + "/context.txt"
-        os.WriteFile(tmpFile, []byte("some context"), 0644)
+	t.Run("Run Arena With File Context", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		tmpFile := tmpDir + "/context.txt"
+		os.WriteFile(tmpFile, []byte("some context"), 0644)
 
-        arenaCompetitors = "openai:gpt-4, gemini:gemini-pro"
-        arenaTask = "Read file"
-        arenaFile = tmpFile
-        arenaJudgeProv = "mock"
-        arenaJudgeModel = "judge"
+		mockFactory := func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+			return &MockArenaAgent{Response: "OK"}, nil
+		}
 
-        agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
-             return &MockArenaAgent{Response: "OK"}, nil
-        }
+		cmd := NewArenaCmd(mockFactory)
+		cmd.Flags().Set("competitors", "openai:gpt-4, gemini:gemini-pro")
+		cmd.Flags().Set("task", "Read file")
+		cmd.Flags().Set("file", tmpFile)
+		cmd.Flags().Set("judge-provider", "mock")
+		cmd.Flags().Set("judge-model", "judge")
 
-        err := runArena(arenaCmd, []string{})
-        assert.NoError(t, err)
-    })
+		// Silence output for tests
+		cmd.SetOut(io.Discard)
+		cmd.SetErr(io.Discard)
+
+		err := cmd.RunE(cmd, []string{})
+		assert.NoError(t, err)
+	})
 }
