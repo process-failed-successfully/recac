@@ -33,6 +33,50 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristics for Smoke Tests (prime-python)
 
+	// 0. Initializer (Feature List Creation)
+	if strings.Contains(prompt, "INITIALIZER AGENT") {
+		return `
+I will set up the project and create the feature list.
+
+` + "```bash" + `
+cat << 'EOF' | agent-bridge import
+{
+  "features": [
+    {
+      "id": "req-must-correctly-identify-prime-",
+      "category": "functional",
+      "description": "Must correctly identify prime numbers",
+      "status": "pending",
+      "steps": ["Verify is_prime(5) returns True", "Verify is_prime(4) returns False"],
+      "priority": "MVP",
+      "passes": false,
+      "dependencies": {
+          "exclusive_write_paths": ["primes.py"],
+          "read_only_paths": []
+      }
+    },
+    {
+      "id": "req-must-print-primes-up-to-20",
+      "category": "functional",
+      "description": "Must print primes up to 20",
+      "status": "pending",
+      "steps": ["Run script and check output"],
+      "priority": "MVP",
+      "passes": false,
+      "dependencies": {
+          "exclusive_write_paths": ["primes.py"],
+          "read_only_paths": []
+      }
+    }
+  ]
+}
+EOF
+
+echo "Project initialized."
+` + "```" + `
+`, nil
+	}
+
 	// 1. Ticket Generation (TPM Agent)
 	// Check this FIRST to avoid confusion with implementation keywords that might appear in the spec.
 	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "tickets") {
