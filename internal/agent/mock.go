@@ -78,15 +78,37 @@ agent-bridge signal PROJECT_SIGNED_OFF true
 	}
 
 	// 4. Initializer Heuristic
-	// If it's the initializer, we return a simple acknowledgement.
-	// We check for "INITIALIZER" but explicitly NOT "implementation" to avoid overlap if prompt leaks context.
+	// If it's the initializer, we return a bash script to initialize features.
+	// This fixes the infinite loop in TestRunWorkflow_Normal by creating the necessary state.
 	if strings.Contains(prompt, "INITIALIZER") {
-		return "I have analyzed the spec and created the plan.", nil
+		return `
+I have analyzed the spec.
+
+` + "```bash" + `
+# Create a default feature list to unblock the workflow
+cat << 'EOF' | agent-bridge import
+{
+  "project_name": "Mock Project",
+  "features": [
+    {
+      "id": "req-init",
+      "category": "core",
+      "priority": "critical",
+      "description": "Initial setup",
+      "status": "pending"
+    }
+  ]
+}
+EOF
+` + "```" + `
+`, nil
 	}
 
 	// 5. Prime Python Heuristic
-	// Detects the prime-python scenario and generates the correct script
-	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
+	// Detects the prime-python scenario and generates the correct script.
+	// We broaden the check to ensure it catches the prompt even if [PRIMES] is missing/formatted differently.
+	// The prompt usually contains the ticket description.
+	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") || (strings.Contains(prompt, "prime") && strings.Contains(prompt, "python")) {
 		return `
 I will implement the prime number generator.
 
