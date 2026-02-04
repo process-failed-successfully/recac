@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"recac/internal/agent"
+	"recac/internal/db"
 	"recac/internal/notify"
 	"recac/internal/telemetry"
 )
@@ -32,12 +33,16 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	// 5. Initialize Session
 	mockDocker := &MockDockerForExec{}
 	mockAgent := agent.NewMockAgent()
+	store, _ := db.NewSQLiteStore(filepath.Join(tmpDir, ".recac.db"))
 	s := &Session{
+		Project:          "mock-project",
 		Docker:           mockDocker,
 		Agent:            mockAgent,
 		Workspace:        tmpDir,
 		FeatureContent:   features,
 		ManagerFrequency: 5,
+		MaxIterations:    10, // Prevent infinite loops
+		DBStore:          store,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
 		Logger:           telemetry.NewLogger(true, "", false),
 	}

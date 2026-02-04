@@ -32,7 +32,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// --- 0. Initializer (Feature Loading) ---
-	if strings.Contains(prompt, "feature_list.json") || strings.Contains(prompt, "Initializer") {
+	// Use stricter check to avoid matching normal Agent prompts that contain "feature_list.json" in context
+	if strings.Contains(prompt, "YOUR ROLE: Initializer") || (strings.Contains(prompt, "feature_list.json") && strings.Contains(prompt, "initialize")) {
 		return `
 I will initialize the project features.
 
@@ -90,7 +91,7 @@ I will implement the prime number script as requested.
 
 ` + "```bash" + `
 #!/bin/bash
-set -e
+# Note: set -e is disabled to prevent the script from crashing on non-critical errors (like git push failures)
 
 # Create primes.py
 cat << 'EOF' > primes.py
