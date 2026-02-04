@@ -154,6 +154,7 @@ func TestRunLoop_Blocker(t *testing.T) {
 		Notifier:      notify.NewManager(func(string, ...interface{}) {}),
 		Logger:        telemetry.NewLogger(true, "", false),
 		MaxIterations: 5,
+		SleepFunc:     func(d time.Duration) {}, // Skip sleep for tests
 	}
 
 	// Execution
@@ -398,6 +399,7 @@ func TestRunLoop_GitSafeguard_MergeConflict(t *testing.T) {
 		AutoMerge:     true,
 		Project:       "test-proj",
 		MaxIterations: 1, // Only one iteration needed to trigger safeguard and fail
+		SleepFunc:     func(d time.Duration) {}, // Skip sleep for tests
 	}
 
 	// Execution
