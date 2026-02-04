@@ -32,8 +32,32 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// Heuristic: If prompt asks for JSON ticket plan (TPM role), return valid JSON
+	// 1. Initializer Role: Detect request for feature list
+	if strings.Contains(prompt, "feature_list.json") || strings.Contains(prompt, "Initializer") {
+		return `I will initialize the project features.
+` + "```bash" + `
+set -e
+cat <<EOF > /tmp/features.json
+[
+  {
+    "id": "req-prime-1",
+    "description": "Must correctly identify prime numbers",
+    "type": "functional"
+  },
+  {
+    "id": "req-prime-2",
+    "description": "Must print primes up to 20",
+    "type": "functional"
+  }
+]
+EOF
+agent-bridge feature import /tmp/features.json
+` + "```", nil
+	}
+
+	// 2. TPM Role: If prompt asks for JSON ticket plan
 	if strings.Contains(prompt, "Technical Program Manager") && strings.Contains(prompt, "JSON") {
+		// TPM usually returns raw JSON
 		return `{
   "id": "PRIMES",
   "project_name": "prime-python",
@@ -43,16 +67,53 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
       "description": "Create a Python script to generate prime numbers.",
       "type": "Task",
       "status": "Todo",
-      "id": "PRIMES-1",
+      "id": "MFLP-4985",
       "dependencies": []
     }
   ]
 }`, nil
 	}
 
-	// Heuristic: If prompt asks for implementation (primes.py), return code
-	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "Calculate primes") {
-		return "Here is the code:\n```python\ndef is_prime(n):\n    if n <= 1: return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0: return False\n    return True\n```", nil
+	// 3. Agent Role (Implementation): Detect prime number task
+	// Matches "Implement Prime Number Generator" or "primes.py"
+	if strings.Contains(prompt, "Prime Number Generator") || strings.Contains(prompt, "primes.py") {
+		return `I will implement the prime number generator.
+` + "```bash" + `
+set -e
+cat <<EOF > primes.py
+import json
+
+def is_prime(n):
+    if n <= 1: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0: return False
+    return True
+
+primes = [x for x in range(2, 21) if is_prime(x)]
+print(f"Primes: {primes}")
+
+with open('primes.json', 'w') as f:
+    json.dump(primes, f)
+EOF
+
+# Verify it works
+python3 primes.py
+
+# Commit
+git add primes.py primes.json || true
+git commit -m "Add prime number generator" || echo "Commit failed or nothing to commit"
+# Push skipped in mock mode to avoid auth errors
+echo "Push skipped"
+` + "```", nil
+	}
+
+	// 4. QA / Manager Roles: Signal completion
+	if strings.Contains(prompt, "QA AGENT") || strings.Contains(prompt, "PROJECT MANAGER") {
+		return `Tests passed. Signing off.
+` + "```bash" + `
+agent-bridge signal set QA_PASSED true
+agent-bridge signal set PROJECT_SIGNED_OFF true
+` + "```", nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
