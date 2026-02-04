@@ -84,6 +84,16 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			"git add primes.py primes.json\n" +
 			"git commit -m \"Implement prime number calculation\"\n" +
 			"git push\n" +
+			"# Signal completion to the runner\n" +
+			"echo \"Implementation completed\"\n" +
+			"```", nil
+	}
+
+	// 3. QA/Sign-off Role
+	// Check if this is a QA request or if we've already done the work (preventing loop)
+	if strings.Contains(prompt, "QA") || strings.Contains(prompt, "Verify") {
+		return "```bash\n" +
+			"echo \"QA Passed\"\n" +
 			"```", nil
 	}
 
