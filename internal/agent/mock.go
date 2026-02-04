@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -69,48 +70,13 @@ func isTPMPrompt(prompt string) bool {
 		"app_spec",
 		"JSON list of tickets",
 	}
+	promptLower := strings.ToLower(prompt)
 	for _, kw := range keywords {
-		if containsIgnoreCase(prompt, kw) {
+		if strings.Contains(promptLower, strings.ToLower(kw)) {
 			return true
 		}
 	}
 	return false
-}
-
-func containsIgnoreCase(s, substr string) bool {
-	// Use stdlib logic by just importing strings if we could, but let's just use strings package since it's already imported
-	// Wait, strings is NOT imported in the truncated view I saw earlier?
-	// I'll assume I can add it or write a simple one. The file header wasn't fully visible but usually mock.go imports fmt.
-	// Let's rely on adding "strings" to imports if needed, but since I can't see the top, I'll write a safe one or assume `strings` is available if I added it.
-	// Actually, I can just use a simple loop implementation without `strings` package dependency if I want to be safe,
-	// OR I can use `replace_with_git_merge_diff` to add the import.
-	// Checking the file content from earlier... "package agent\n\nimport (\n\t"context"\n\t"fmt"\n)"
-	// So `strings` is NOT imported. I should implement a simple case-insensitive contains.
-
-	if len(substr) > len(s) {
-		return false
-	}
-
-	// Convert both to lower case manually for a simple ascii check (sufficient for these keywords)
-	sLower := toLowerAscii(s)
-	subLower := toLowerAscii(substr)
-
-	for i := 0; i <= len(sLower)-len(subLower); i++ {
-		if sLower[i:i+len(subLower)] == subLower {
-			return true
-		}
-	}
-	return false
-}
-
-func toLowerAscii(s string) string {
-	b := []byte(s)
-	for i, c := range b {
-		if c >= 'A' && c <= 'Z' {
-			b[i] = c + ('a' - 'A')
-		}
-	}
-	return string(b)
 }
 
 // SendStream implements the Agent interface
