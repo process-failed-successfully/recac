@@ -92,7 +92,7 @@ python3 primes.py
 
 # Git operations
 git add primes.py primes.json
-git commit -m "feat: implement primes.py and generate primes.json"
+git commit -m "feat: implement primes.py and generate primes.json" || echo "No changes to commit"
 git push origin HEAD
 
 # Signal completion
