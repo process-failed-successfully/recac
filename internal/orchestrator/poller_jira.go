@@ -11,13 +11,6 @@ import (
 	"strings"
 )
 
-// Pre-compile regexes to avoid recompilation on every poll cycle.
-// This significantly improves performance when processing many issues with features.
-var (
-	featuresHeaderRegex = regexp.MustCompile(`(?i)^(REQUIRED FEATURES|ACCEPTANCE CRITERIA):?\s*$`)
-	slugSanitizerRegex  = regexp.MustCompile("[^a-z0-9]+")
-)
-
 type JiraPoller struct {
 	Client  JiraClient
 	JQL     string
@@ -158,10 +151,13 @@ func extractRequiredFeatures(text string) []db.Feature {
 	lines := strings.Split(text, "\n")
 	inSection := false
 
+	headerRegex := regexp.MustCompile(`(?i)^(REQUIRED FEATURES|ACCEPTANCE CRITERIA):?\s*$`)
+	slugRegex := regexp.MustCompile("[^a-z0-9]+")
+
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 
-		if featuresHeaderRegex.MatchString(line) {
+		if headerRegex.MatchString(line) {
 			inSection = true
 			continue
 		}
@@ -181,7 +177,7 @@ func extractRequiredFeatures(text string) []db.Feature {
 				desc := strings.TrimSpace(line[2:])
 				// Create a simplified Feature
 				slug := strings.ToLower(desc)
-				slug = slugSanitizerRegex.ReplaceAllString(slug, "-")
+				slug = slugRegex.ReplaceAllString(slug, "-")
 				slug = strings.Trim(slug, "-")
 				if len(slug) > 30 {
 					slug = slug[:30]

@@ -21,6 +21,11 @@ var bashBlockRegex = regexp.MustCompile("(?s)```bash\\s*(.*?)\\s*```")
 
 // ProcessResponse parses the agent response for commands, executes them, and handles blockers.
 func (s *Session) ProcessResponse(ctx context.Context, response string) (string, error) {
+	// Fail Fast: Check for blockers before processing
+	if err := s.checkBlockers(ctx); err != nil {
+		return "", err
+	}
+
 	// 1. Extract Bash Blocks (More robust regex to handle variations in LLM output)
 	matches := bashBlockRegex.FindAllStringSubmatch(response, -1)
 

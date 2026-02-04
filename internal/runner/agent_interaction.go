@@ -125,7 +125,20 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 		}
 	}
 
-	// Prioritize explicitly assigned task (from manager/user)
+	if assignedFeature != nil {
+		vars["task_id"] = assignedFeature.ID
+		vars["task_description"] = assignedFeature.Description
+		vars["exclusive_paths"] = strings.Join(assignedFeature.Dependencies.ExclusiveWritePaths, ", ")
+		vars["read_only_paths"] = strings.Join(assignedFeature.Dependencies.ReadOnlyPaths, ", ")
+
+		// s.SelectedTaskID = assignedFeature.ID // DO NOT SET THIS: It prevents Manager interruptions in subsequent turns.
+	} else {
+		// All done?
+		vars["task_id"] = "NONE_ALL_COMPLETE"
+		vars["task_description"] = "All features are marked as done/passing. Please run final verification and signal completion."
+		vars["exclusive_paths"] = "none"
+		vars["read_only_paths"] = "all"
+	}
 	if s.SelectedTaskID != "" {
 		features := s.loadFeatures()
 		var target db.Feature
@@ -156,20 +169,11 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 			vars["exclusive_paths"] = "None"
 			vars["read_only_paths"] = "None"
 		}
-	} else if assignedFeature != nil {
-		// Auto-assigned feature (Standard flow)
-		vars["task_id"] = assignedFeature.ID
-		vars["task_description"] = assignedFeature.Description
-		vars["exclusive_paths"] = strings.Join(assignedFeature.Dependencies.ExclusiveWritePaths, ", ")
-		vars["read_only_paths"] = strings.Join(assignedFeature.Dependencies.ReadOnlyPaths, ", ")
 	} else {
-		// No task selected and no pending features found?
-		// Fallback to "All Complete" or "Multiple" depending on context.
-		// If we are here, assignedFeature is nil, meaning all features are done/passing.
-		vars["task_id"] = "NONE_ALL_COMPLETE"
-		vars["task_description"] = "All features are marked as done/passing. Please run final verification and signal completion."
-		vars["exclusive_paths"] = "none"
-		vars["read_only_paths"] = "all"
+		vars["task_id"] = "Multiple/Not Assigned"
+		vars["task_description"] = "Continue implementing pending features in feature_list.json"
+		vars["exclusive_paths"] = "All available files"
+		vars["read_only_paths"] = "All available files"
 	}
 
 	prompt, err := prompts.GetPrompt(prompts.CodingAgent, vars)

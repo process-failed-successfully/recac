@@ -266,11 +266,11 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          make image-prod DEPLOY_IMAGE=docker.io/library/recac:smoke
+          make image-prod DEPLOY_IMAGE=recac:smoke
 
       - name: Load Image into k3d
         run: |
-          k3d image import docker.io/library/recac:smoke -c recac-smoke
+          k3d image import recac:smoke -c recac-smoke
 
       - name: Run E2E Test
         env:
@@ -287,8 +287,8 @@ jobs:
             if go run e2e/runner/main.go \
               -scenario prime-python \
               -provider mock \
-              -model "mock-model" \
-              -image docker.io/library/recac:smoke \
+              -model mock \
+              -image recac:smoke \
               -repo-url "https://github.com/process-failed-successfully/recac-jira-e2e" \
               -pull-policy IfNotPresent \
               -skip-build; then

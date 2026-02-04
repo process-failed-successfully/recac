@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"recac/internal/security"
-	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -81,7 +80,6 @@ func runSecurityScan(root string, scanner *security.RegexScanner) ([]SecurityRes
 		"dist":         true,
 		"build":        true,
 		".recac":       true,
-		"logs":         true,
 	}
 
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
@@ -98,16 +96,6 @@ func runSecurityScan(root string, scanner *security.RegexScanner) ([]SecurityRes
 
 		// Skip binary files and likely large files (simple check)
 		if info.Size() > 1024*1024 { // Skip files > 1MB
-			return nil
-		}
-
-		// Normalize path for exclusion checks
-		cleanPath := filepath.ToSlash(filepath.Clean(path))
-		if strings.HasSuffix(cleanPath, "_test.go") ||
-			strings.HasSuffix(cleanPath, "internal/security/scanner.go") ||
-			strings.HasSuffix(cleanPath, "go.sum") ||
-			strings.HasSuffix(cleanPath, "test_spec") ||
-			strings.HasSuffix(cleanPath, ".log") {
 			return nil
 		}
 
@@ -144,16 +132,8 @@ func scanFileForSecurity(path string, scanner *security.RegexScanner) ([]Securit
 		return nil, err
 	}
 
-	// Suppression logic
-	baseName := filepath.Base(path)
-	suppressPipeShell := baseName == "Dockerfile" || baseName == "test.Dockerfile" || strings.HasSuffix(baseName, ".Dockerfile")
-
 	var results []SecurityResult
 	for _, finding := range findings {
-		if suppressPipeShell && finding.Type == "Pipe to Shell" {
-			continue
-		}
-
 		results = append(results, SecurityResult{
 			File:        path,
 			Line:        finding.Line,
