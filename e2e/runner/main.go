@@ -184,9 +184,32 @@ func run() error {
 		return fmt.Errorf("unknown scenario: %s", scenarioName)
 	}
 
-	label, ticketMap, err := mgr.GenerateScenario(ctx, scenarioName, repoURL, provider, model)
+	var label string
+	var ticketMap map[string]string
+	var err error
+
+	// Retry loop for ticket generation to handle 429 Rate Limits
+	maxRetries := 5
+	backoff := 30 * time.Second
+
+	for i := 0; i < maxRetries; i++ {
+		label, ticketMap, err = mgr.GenerateScenario(ctx, scenarioName, repoURL, provider, model)
+		if err == nil {
+			break
+		}
+
+		if strings.Contains(err.Error(), "429") || strings.Contains(err.Error(), "Rate limit") {
+			log.Printf("Rate limit hit during scenario generation (attempt %d/%d). Retrying in %v...", i+1, maxRetries, backoff)
+			time.Sleep(backoff)
+			backoff *= 2 // Exponential backoff: 30s, 60s, 120s...
+		} else {
+			// Fatal error
+			return fmt.Errorf("failed to generate scenario: %w", err)
+		}
+	}
+
 	if err != nil {
-		return fmt.Errorf("failed to generate scenario: %w", err)
+		return fmt.Errorf("failed to generate scenario after %d retries: %w", maxRetries, err)
 	}
 	log.Printf("Scenario generated with label: %s", label)
 
