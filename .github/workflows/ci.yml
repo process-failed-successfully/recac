@@ -267,10 +267,12 @@ jobs:
       - name: Build Docker Image
         run: |
           make image-prod DEPLOY_IMAGE=recac:smoke
+          # Explicitly tag for k3d to avoid ambiguity
+          docker tag recac:smoke docker.io/library/recac:smoke
 
       - name: Load Image into k3d
         run: |
-          k3d image import recac:smoke -c recac-smoke
+          k3d image import docker.io/library/recac:smoke -c recac-smoke
 
       - name: Run E2E Test
         env:
@@ -288,7 +290,7 @@ jobs:
               -scenario prime-python \
               -provider openrouter \
               -model "meta-llama/llama-3.3-70b-instruct:free" \
-              -image recac:smoke \
+              -image docker.io/library/recac:smoke \
               -repo-url "https://github.com/process-failed-successfully/recac-jira-e2e" \
               -pull-policy IfNotPresent \
               -skip-build; then
