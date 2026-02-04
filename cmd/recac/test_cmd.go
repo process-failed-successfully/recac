@@ -156,6 +156,7 @@ func runTestCore(cmd *cobra.Command, args []string) (string, error) {
 	// Stream and capture
 	var outputBuf strings.Builder
 	var mu sync.Mutex
+	var ioMu sync.Mutex // Protect stdout/stderr writes
 
 	// Use a scanner to read line by line and print/capture
 	// We use channels to wait for reading to finish
@@ -165,7 +166,9 @@ func runTestCore(cmd *cobra.Command, args []string) (string, error) {
 		scanner := bufio.NewScanner(stdoutPipe)
 		for scanner.Scan() {
 			line := scanner.Text()
+			ioMu.Lock()
 			fmt.Fprintln(cmd.OutOrStdout(), line)
+			ioMu.Unlock()
 			mu.Lock()
 			outputBuf.WriteString(line + "\n")
 			mu.Unlock()
@@ -177,7 +180,9 @@ func runTestCore(cmd *cobra.Command, args []string) (string, error) {
 		scanner := bufio.NewScanner(stderrPipe)
 		for scanner.Scan() {
 			line := scanner.Text()
+			ioMu.Lock()
 			fmt.Fprintln(cmd.ErrOrStderr(), line)
+			ioMu.Unlock()
 			mu.Lock()
 			outputBuf.WriteString(line + "\n")
 			mu.Unlock()

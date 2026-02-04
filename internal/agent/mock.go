@@ -112,7 +112,7 @@ python3 primes.py
 # Commit files
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
-git push
+git push || echo "Push skipped"
 
 # Mark feature as done
 agent-bridge feature set --id primes-impl --status done --passes true
