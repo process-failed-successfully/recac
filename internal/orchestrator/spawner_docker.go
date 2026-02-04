@@ -82,6 +82,10 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		"--repo-url", item.RepoURL, // Delegate cloning
 	}
 
+	if s.AgentProvider == "mock" {
+		agentCmd = append(agentCmd, "--mock")
+	}
+
 	session := &runner.SessionState{
 		Name:           item.ID,
 		StartTime:      time.Now(),
