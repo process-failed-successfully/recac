@@ -74,6 +74,7 @@ func init() {
 	// Initialize commands
 	initHistoryCmd(rootCmd)
 	initHintCmd(rootCmd)
+	initArenaCmd(rootCmd)
 
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
