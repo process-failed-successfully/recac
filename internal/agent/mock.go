@@ -61,7 +61,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// Create the file AND import it to DB to satisfy loadFeatures
 		// We must provide a non-empty list so agent-bridge import succeeds
 		// Pipe to stdin for agent-bridge import
-		return "Mock Initializer: Creating feature list.\n```bash\necho '[{\"id\": \"mock-feature\", \"description\": \"A mock feature for testing\", \"status\": \"todo\", \"file_paths\": []}]' > feature_list.json && cat feature_list.json | agent-bridge import || echo 'Bridge skipped'\n```", nil
+		return "Mock Initializer: Creating feature list.\n```bash\necho '{\"features\": [{\"id\": \"mock-feature\", \"description\": \"A mock feature for testing\", \"status\": \"todo\", \"file_paths\": []}]}' > feature_list.json && cat feature_list.json | agent-bridge import || echo 'Bridge skipped'\n```", nil
 	}
 
 	// Heuristic: Check for QA Role
