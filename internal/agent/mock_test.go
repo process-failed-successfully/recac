@@ -46,11 +46,10 @@ func TestMockAgent_Default_Response(t *testing.T) {
 func TestMockAgent_Prime_Response(t *testing.T) {
 	agent := NewMockAgent()
 	// Simulate the prompt sent to the Agent for the Prime scenario
-	// It should contain the role definition and the task description
-	prompt := `## YOUR ROLE - CODING AGENT
-...
+	// Use a minimal prompt that might occur if role header is missing/changed, but task is present.
+	prompt := `...
 ### YOUR ASSIGNED TASK
-- **Feature ID**: PRIMES
+- **Feature ID**: [PRIMES]
 - **Description**: Create a python script named 'primes.py'...
 ...`
 
@@ -70,5 +69,20 @@ func TestMockAgent_Prime_Response(t *testing.T) {
 
 	if !strings.Contains(resp, "agent-bridge feature set PRIMES --status done --passes true") {
 		t.Errorf("Response missing completion signal")
+	}
+}
+
+func TestMockAgent_Prime_Response_Keywords(t *testing.T) {
+	agent := NewMockAgent()
+	// Simulate prompt with just keywords if ID is missing (robustness check)
+	prompt := `Task: Create primes.py that outputs json.`
+
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if strings.HasPrefix(resp, "Mock agent response") {
+		t.Errorf("Expected bash implementation script for keyword match, got fallback: %q", resp)
 	}
 }

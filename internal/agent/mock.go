@@ -45,10 +45,18 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Detect Prime Number Implementation Prompt (Coding Agent Role)
-	if strings.Contains(prompt, "CODING AGENT") && (strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "PRIMES")) {
+	// We broaden the detection to be robust against template changes or missing "CODING AGENT" header.
+	// We specifically look for the unique task identifier [PRIMES] or the filename primes.py AND json (to avoid matching other contexts).
+	if strings.Contains(prompt, "[PRIMES]") || (strings.Contains(prompt, "primes.py") && strings.Contains(prompt, "json")) {
 		return `I will implement the prime number generator script as requested.
 
 ` + "```bash" + `
+# Set git config if not already set (robustness)
+if [ -z "$(git config user.email)" ]; then
+  git config user.email "agent@example.com"
+  git config user.name "Recac Agent"
+fi
+
 cat << 'EOF' > primes.py
 import json
 
