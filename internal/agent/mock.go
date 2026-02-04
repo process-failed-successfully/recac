@@ -32,7 +32,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// Detect Ticket Generation Request (jira generate-from-spec)
+	// 1. Ticket Generation Request (jira generate-from-spec)
 	// Uses 'tpm_agent.md' template which starts with "You are an expert Technical Program Manager"
 	if isTicketGenerationPrompt(prompt) {
 		return `[
@@ -55,7 +55,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
-	// Detect Planner Request (recac plan)
+	// 2. Planner Request (recac plan)
 	// Uses 'planner.md' template which starts with "## ROLE: Lead Software Architect"
 	if isPlannerPrompt(prompt) {
 		return `{
@@ -73,10 +73,25 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 }`, nil
 	}
 
-	// Return a mock response that shows the agent received the prompt
-	// This allows the session to run without requiring real API keys
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
-		m.responsePrefix, len(prompt), truncateString(prompt, 100))
+	// 3. Initializer (Coding Agent Start)
+	// Checks for 'initializer.md' cues or 'feature_list.json' creation requests
+	if isInitializerPrompt(prompt) {
+		return "```bash\n# Initialize feature list\necho '[]' > feature_list.json\nagent-bridge import feature_list.json\n```", nil
+	}
+
+	// 4. QA Agent
+	if isQAPrompt(prompt) {
+		return "```bash\nagent-bridge signal QA_PASSED true\n```", nil
+	}
+
+	// 5. Implementation / Coding Tasks
+	if isImplementationPrompt(prompt) {
+		return "```bash\n# Create dummy implementation\necho \"print('primes')\" > primes.py\n# Signal completion\nagent-bridge feature set req-mock-1 --status done --passes true\n```", nil
+	}
+
+	// Default fallback with a benign command to prevent NO-OP LOOP circuit breaker
+	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response.\n\n```bash\necho 'Mock Agent processing...'\n```",
+		m.responsePrefix, len(prompt))
 	return response, nil
 }
 
@@ -90,6 +105,20 @@ func isPlannerPrompt(prompt string) bool {
 	return contains(prompt, "Lead Software Architect") ||
 	       // Legacy/Fallback check if planner.md is different in other environments
 	       (contains(prompt, "Planner") && contains(prompt, "feature_list"))
+}
+
+func isInitializerPrompt(prompt string) bool {
+	return contains(prompt, "Initializer") ||
+	       (contains(prompt, "feature_list.json") && contains(prompt, "CREATE"))
+}
+
+func isQAPrompt(prompt string) bool {
+	return contains(prompt, "QA AGENT") || contains(prompt, "QA_PASSED")
+}
+
+func isImplementationPrompt(prompt string) bool {
+	return contains(prompt, "PRIMES") || contains(prompt, "primes.py") ||
+	       contains(prompt, "Implement") || contains(prompt, "Coding Agent")
 }
 
 func contains(s, substr string) bool {
