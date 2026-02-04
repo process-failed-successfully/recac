@@ -30,14 +30,15 @@ Allows filtering, searching, and detailed inspection of agent actions and tool o
 			return fmt.Errorf("failed to get logs for session '%s': %w", sessionName, err)
 		}
 
-		// Read log file
-		content, err := os.ReadFile(logPath)
+		// Open log file
+		f, err := os.Open(logPath)
 		if err != nil {
-			return fmt.Errorf("failed to read log file: %w", err)
+			return fmt.Errorf("failed to open log file: %w", err)
 		}
+		defer f.Close()
 
 		// Parse logs
-		entries, err := ui.ParseLogLines(content)
+		entries, err := ui.ParseLogLines(f)
 		if err != nil {
 			return fmt.Errorf("failed to parse logs: %w", err)
 		}

@@ -1,8 +1,11 @@
 package ui
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 	"time"
@@ -148,27 +151,33 @@ func (m PlaybackModel) headerView() string {
 	return lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Render(title + line)
 }
 
-// ParseLogLines parses raw bytes from a JSONL file into LogEntries.
-func ParseLogLines(data []byte) ([]LogEntry, error) {
+// ParseLogLines parses log lines from a reader into LogEntries.
+func ParseLogLines(r io.Reader) ([]LogEntry, error) {
 	var entries []LogEntry
-	lines := strings.Split(string(data), "\n")
+	scanner := bufio.NewScanner(r)
+	// Increase buffer size to 5MB to handle large JSON lines
+	buf := make([]byte, 0, 64*1024)
+	scanner.Buffer(buf, 5*1024*1024)
 
-	for _, line := range lines {
-		if strings.TrimSpace(line) == "" {
+	for scanner.Scan() {
+		lineBytes := scanner.Bytes()
+		// Check for empty line (after trim)
+		if len(bytes.TrimSpace(lineBytes)) == 0 {
 			continue
 		}
 
 		var raw map[string]interface{}
 		// Try to parse as JSON
-		if err := json.Unmarshal([]byte(line), &raw); err != nil {
+		if err := json.Unmarshal(lineBytes, &raw); err != nil {
 			// If not JSON, treat as raw text log
 			// We synthesize a log entry for it
+			lineStr := scanner.Text()
 			entry := LogEntry{
 				Time:    time.Now(), // Unknown time
 				Level:   "TEXT",
-				Msg:     line,
-				Content: line,
-				Raw:     map[string]interface{}{"msg": line},
+				Msg:     lineStr,
+				Content: lineStr,
+				Raw:     map[string]interface{}{"msg": lineStr},
 			}
 			entries = append(entries, entry)
 			continue
@@ -235,6 +244,10 @@ func ParseLogLines(data []byte) ([]LogEntry, error) {
 
 		entry.Content = sb.String()
 		entries = append(entries, entry)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return entries, err
 	}
 
 	return entries, nil

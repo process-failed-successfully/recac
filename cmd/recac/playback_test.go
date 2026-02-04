@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,7 +24,7 @@ Non-JSON line here
 `
 
 	// 2. Parse
-	entries, err := ui.ParseLogLines([]byte(jsonl))
+	entries, err := ui.ParseLogLines(strings.NewReader(jsonl))
 	require.NoError(t, err)
 
 	// 3. Assertions
