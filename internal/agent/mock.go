@@ -34,7 +34,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristics for E2E Smoke Tests
 
 	// 1. Ticket Generation
-	if strings.Contains(prompt, "critical instruction for ticket generation") {
+	if strings.Contains(prompt, "critical instruction for ticket generation") || strings.Contains(prompt, "Technical Program Manager") {
 		return `[
   {
     "title": "ID:[PRIMES] Prime Number Script Task",
