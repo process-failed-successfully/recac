@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"recac/internal/agent"
+	"sync"
 	"testing"
 	"time"
 
@@ -44,15 +45,21 @@ func (m *MockFileWatcher) AddRecursive(root string) error {
 // PairTestMockAgent implements agent.Agent for testing
 type PairTestMockAgent struct {
 	Response string
+	mu       sync.Mutex
 }
 
 func (m *PairTestMockAgent) Send(ctx context.Context, prompt string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	return m.Response, nil
 }
 
 func (m *PairTestMockAgent) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
-	onChunk(m.Response)
-	return m.Response, nil
+	m.mu.Lock()
+	resp := m.Response
+	m.mu.Unlock()
+	onChunk(resp)
+	return resp, nil
 }
 
 func TestPairCmd(t *testing.T) {
@@ -88,7 +95,8 @@ func TestPairCmd(t *testing.T) {
 
 	// Create command
 	cmd := &cobra.Command{Use: "pair", RunE: runPair}
-	var outBuf, errBuf bytes.Buffer
+	var outBuf SafeBuffer
+	var errBuf bytes.Buffer
 	cmd.SetOut(&outBuf)
 	cmd.SetErr(&errBuf)
 
@@ -121,7 +129,9 @@ func TestPairCmd(t *testing.T) {
 	assert.Contains(t, output, "LGTM")
 
 	// Test "feedback" case
+	mockAgent.mu.Lock()
 	mockAgent.Response = "Found a bug on line 1."
+	mockAgent.mu.Unlock()
 
 	// Trigger another event
 	mockWatcher.events <- fsnotify.Event{

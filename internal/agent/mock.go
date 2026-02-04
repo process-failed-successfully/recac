@@ -36,7 +36,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 1. Handle TPM / Ticket Generation Prompt (JSON output)
 	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "generate-from-spec") {
 		// Extract ID if present, e.g., ID:[PRIMES]
-		reID := regexp.MustCompile(`ID:\[(.*?)\]`)
+		// We use ### prefix to match the header in the spec and avoid matching examples in the instructions (e.g. ID:[XYZ])
+		reID := regexp.MustCompile(`### ID:\[(.*?)\]`)
 		matches := reID.FindStringSubmatch(prompt)
 		id := "TASK-1"
 		title := "Mock Task"
