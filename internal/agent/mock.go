@@ -57,6 +57,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
+	// Heuristic: Handle Implementation phase to avoid NO-OP loops in E2E tests
+	if strings.Contains(prompt, "Implement") || strings.Contains(prompt, "YOUR ROLE - IMPLEMENTATION AGENT") {
+		return "```bash\necho \"Mock implementation complete\"\n```", nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
