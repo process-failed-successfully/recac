@@ -61,6 +61,16 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return "Mock Initializer: Creating feature list.\n```bash\necho '[]' > feature_list.json\n```", nil
 	}
 
+	// Heuristic: QA Agent
+	if strings.Contains(prompt, "QA Agent") || strings.Contains(prompt, "QA_PASSED") {
+		return "Mock QA: All checks passed.\n```bash\nagent-bridge signal set QA_PASSED true\n```", nil
+	}
+
+	// Heuristic: Manager Agent
+	if strings.Contains(prompt, "Manager") || strings.Contains(prompt, "PROJECT_SIGNED_OFF") {
+		return "Mock Manager: Project approved.\n```bash\nagent-bridge signal set PROJECT_SIGNED_OFF true\n```", nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...\n\n```bash\necho 'Mock Agent: Processing request...'\n```",

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"recac/internal/agent"
+	"recac/internal/db"
 	"recac/internal/notify"
 	"recac/internal/telemetry"
 )
@@ -32,14 +33,27 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	// 5. Initialize Session
 	mockDocker := &MockDockerForExec{}
 	mockAgent := agent.NewMockAgent()
+
+	dbStore, err := db.NewStore(db.StoreConfig{
+		Type:             "sqlite",
+		ConnectionString: filepath.Join(tmpDir, ".recac.db"),
+	})
+	if err != nil {
+		t.Fatalf("Failed to create db store: %v", err)
+	}
+
 	s := &Session{
 		Docker:           mockDocker,
 		Agent:            mockAgent,
+		QAAgent:          mockAgent,
+		ManagerAgent:     mockAgent,
+		AgentProvider:    "mock",
 		Workspace:        tmpDir,
 		FeatureContent:   features,
 		ManagerFrequency: 5,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
 		Logger:           telemetry.NewLogger(true, "", false),
+		DBStore:          dbStore,
 	}
 
 	// 6. Capture Stdout? (Hard to do in test without refactor).

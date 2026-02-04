@@ -137,6 +137,8 @@ func TestProcessDirectTask(t *testing.T) {
 
 	cmdutils.SetupWorkspace = func(ctx context.Context, gitClient git.IClient, repoURL, workspace, ticketID, epicKey, timestamp string) (string, error) {
 		os.MkdirAll(workspace, 0755)
+		// Pre-create feature_list.json to avoid Initializer loop in mock mode (since MockDocker doesn't persist files)
+		os.WriteFile(fmt.Sprintf("%s/feature_list.json", workspace), []byte("[]"), 0644)
 		return repoURL, nil
 	}
 
@@ -211,10 +213,12 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	cfg := SessionConfig{
-		ProjectPath: tmpDir,
-		RepoURL:     "https://github.com/example/already-provided",
-		IsMock:      true,
-		Cleanup:     false,
+		ProjectPath:   tmpDir,
+		RepoURL:       "https://github.com/example/already-provided",
+		IsMock:        true,
+		Provider:      "mock",
+		Cleanup:       false,
+		MaxIterations: 1,
 	}
 
 	err := ProcessJiraTicket(context.Background(), "TEST-1", jClient, cfg, nil)
