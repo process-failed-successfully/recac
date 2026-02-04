@@ -76,18 +76,18 @@ func (m *MockAgent) handleTPM(prompt string) string {
 	fullTag := fmt.Sprintf("ID:[%s]", idTag)
 
 	// Return valid JSON tickets
-	// Note: We include Repo: url in description as required by parser validation
+	// Note: We exclude Repo: url here so that the CLI can inject the correct one from flags.
 
 	// Construct JSON using standard string literals to avoid backtick issues
 	jsonBody := fmt.Sprintf(`[
   {
     "title": "%s Feature Implementation",
-    "description": "Implementation of the requested feature.\nRepo: https://example.com/repo",
+    "description": "Implementation of the requested feature.",
     "type": "Epic",
     "children": [
       {
         "title": "%s Core Logic",
-        "description": "Implement the core logic.\nRepo: https://example.com/repo",
+        "description": "Implement the core logic.",
         "type": "Story",
         "acceptance_criteria": [
           "Logic is implemented",
