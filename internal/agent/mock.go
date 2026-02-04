@@ -32,6 +32,33 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	// Heuristic: If prompt is for Initializer Agent (Feature List), return valid JSON import
+	if strings.Contains(prompt, "INITIALIZER AGENT") {
+		return `I will initialize the feature list.
+
+` + "```bash" + `
+cat << 'EOF' | agent-bridge import
+{
+  "features": [
+    {
+      "id": "req-primes-py-exists",
+      "description": "primes.py file exists",
+      "status": "pending",
+      "passes": false
+    },
+    {
+      "id": "req-primes-py-runs",
+      "description": "primes.py runs successfully",
+      "status": "pending",
+      "passes": false
+    }
+  ]
+}
+EOF
+` + "```" + `
+`, nil
+	}
+
 	// Heuristic: If prompt asks for JSON ticket plan (TPM role), return valid JSON
 	if strings.Contains(prompt, "Technical Program Manager") && strings.Contains(prompt, "JSON") {
 		return `{
@@ -72,6 +99,10 @@ if __name__ == "__main__":
         n = int(sys.argv[1])
         print(is_prime(n))
 EOF
+
+# Signal completion of features
+agent-bridge feature set req-primes-py-exists passed
+agent-bridge feature set req-primes-py-runs passed
 ` + "```" + `
 
 I have created the primes.py file.

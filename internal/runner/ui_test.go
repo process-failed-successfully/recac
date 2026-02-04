@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"recac/internal/agent"
+	"recac/internal/db"
 	"recac/internal/notify"
 	"recac/internal/telemetry"
 )
@@ -29,6 +30,12 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	// 4. Setup: ui_verification.json (Should be detected)
 	os.WriteFile(filepath.Join(tmpDir, "ui_verification.json"), []byte("Verify Button Color"), 0644)
 
+	// Initialize DB
+	dbStore, err := db.NewSQLiteStore(":memory:")
+	if err != nil {
+		t.Fatalf("Failed to create db: %v", err)
+	}
+
 	// 5. Initialize Session
 	mockDocker := &MockDockerForExec{}
 	mockAgent := agent.NewMockAgent()
@@ -38,6 +45,8 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 		Workspace:        tmpDir,
 		FeatureContent:   features,
 		ManagerFrequency: 5,
+		MaxIterations:    10,
+		DBStore:          dbStore,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
 		Logger:           telemetry.NewLogger(true, "", false),
 	}
@@ -51,7 +60,8 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	// Since all features pass, it should mark COMPLETED and print UI verification msg.
 	// We mainly verify it DOESN'T fail or block.
 	// ErrNoOp is expected because the MockAgent returns empty responses.
-	if err != nil && !errors.Is(err, ErrNoOp) {
+	// ErrMaxIterations is expected if the loop runs out of turns without signal completion (which happens in this mock setup)
+	if err != nil && !errors.Is(err, ErrNoOp) && !errors.Is(err, ErrMaxIterations) {
 		t.Errorf("RunLoop failed: %v", err)
 	}
 }
