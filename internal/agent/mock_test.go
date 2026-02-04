@@ -16,12 +16,13 @@ func TestMockAgent(t *testing.T) {
 		t.Fatalf("Send failed: %v", err)
 	}
 
-	if !strings.Contains(response, "Mock agent response") {
-		t.Errorf("Response missing prefix, got: %s", response)
+	// Mock agent now returns an implementation plan (bash script) by default for generic prompts
+	if !strings.Contains(response, "I will implement the requested features") {
+		t.Errorf("Response missing implementation text, got: %s", response)
 	}
 
-	if !strings.Contains(response, "I received your prompt") {
-		t.Errorf("Response missing body, got: %s", response)
+	if !strings.Contains(response, "COMPLETED") {
+		t.Errorf("Response missing COMPLETED signal, got: %s", response)
 	}
 }
 
