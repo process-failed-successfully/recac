@@ -116,7 +116,10 @@ git config --global user.name "RECAC Agent"
 # Add and push files
 git add primes.py
 git commit -m "Add primes.py and primes.json"
-git push origin HEAD || echo "Push skipped"
+# Explicitly push to the current branch on origin to ensure the remote is updated
+# We strip 'refs/heads/' to get the branch name if needed, or just push HEAD
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+git push origin HEAD:refs/heads/$CURRENT_BRANCH
 
 # Mark features as done
 agent-bridge feature list --json | jq -r '.features[].id' | xargs -I {} agent-bridge feature set {} --status done --passes true
