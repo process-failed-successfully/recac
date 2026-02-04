@@ -35,8 +35,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 1. Handle TPM / Ticket Generation Prompt (JSON output)
 	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "generate-from-spec") {
-		// Extract ID if present, e.g., ID:[PRIMES]
-		reID := regexp.MustCompile(`ID:\[(.*?)\]`)
+		// Extract ID from the spec header, e.g., ### ID:[PRIMES]
+		// We use ### to avoid matching "markers like ID:[XYZ]" in the instructions.
+		reID := regexp.MustCompile(`### ID:\[(.*?)\]`)
 		matches := reID.FindStringSubmatch(prompt)
 		id := "TASK-1"
 		title := "Mock Task"
@@ -60,18 +61,36 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 2. Handle Initializer (feature_list.json) - if requested
 	if strings.Contains(prompt, "Initialize") && strings.Contains(prompt, "feature_list.json") {
-		return "```bash\n" + `cat << 'EOF' > feature_list.json
+		// Use agent-bridge import to properly initialize features in the DB
+		// We use a robust script that fails fast if agent-bridge is missing or fails.
+		// We use unquoted EOF to allow variable expansion for project_name to match env.
+		return "```bash\n" + `set -e
+cat << EOF > /tmp/features.json
 {
-  "project_name": "mock-project",
+  "project_name": "${RECAC_PROJECT_ID:-mock-project}",
   "features": [
     {"id": "req-primes-py-exists", "description": "primes.py exists", "status": "todo", "type": "file_exists", "target": "primes.py"}
   ]
 }
 EOF
+agent-bridge import < /tmp/features.json
+rm /tmp/features.json
 ` + "\n```", nil
 	}
 
-	// 3. Handle Coding Agent (primes.py)
+	// 3. Handle QA Agent
+	// Matches: ## YOUR ROLE - QA AGENT
+	if strings.Contains(prompt, "QA AGENT") {
+		return "```bash\n# Mock QA Checks\nmake test || echo \"Tests failed\"\n\n# Signal Success\nagent-bridge signal QA_PASSED true\n```", nil
+	}
+
+	// 4. Handle Project Manager
+	// Matches: ## YOUR ROLE - PROJECT MANAGER
+	if strings.Contains(prompt, "PROJECT MANAGER") {
+		return "```bash\n# Mock Project Sign-Off\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
+	}
+
+	// 5. Handle Coding Agent (primes.py)
 	if strings.Contains(prompt, "primes.py") {
 		return "```bash\n" + `#!/bin/bash
 set -e
