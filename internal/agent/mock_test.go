@@ -25,6 +25,25 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_TPM(t *testing.T) {
+	agent := NewMockAgent()
+
+	prompt := "You are a Technical Program Manager. Please generate tickets for Jira."
+	response, err := agent.Send(context.Background(), prompt)
+
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.HasPrefix(strings.TrimSpace(response), "[") {
+		t.Errorf("Response should start with [, got: %s", response)
+	}
+
+	if !strings.Contains(response, "ID:[PRIMES]") {
+		t.Errorf("Response should contain prime task, got: %s", response)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
