@@ -24,6 +24,11 @@ func (m *MockJiraClient) SearchIssues(ctx context.Context, jql string) ([]map[st
 	return args.Get(0).([]map[string]interface{}), args.Error(1)
 }
 
+func (m *MockJiraClient) GetBlockers(issue map[string]interface{}) []string {
+	args := m.Called(issue)
+	return args.Get(0).([]string)
+}
+
 func (m *MockJiraClient) GetBlockerKeys(issue map[string]interface{}) []string {
 	args := m.Called(issue)
 	return args.Get(0).([]string)

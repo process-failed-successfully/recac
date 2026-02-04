@@ -183,7 +183,7 @@ func TestCreateChildTicket_Success(t *testing.T) {
 	}
 }
 
-func TestGetBlockerKeys(t *testing.T) {
+func TestGetBlockers(t *testing.T) {
 	client := NewClient("", "", "")
 
 	tests := []struct {
@@ -234,7 +234,7 @@ func TestGetBlockerKeys(t *testing.T) {
 					},
 				},
 			},
-			expected: []string{"RD-158"},
+			expected: []string{"RD-158 (In Progress)"},
 		},
 		{
 			name: "Resolved blocker",
@@ -263,7 +263,7 @@ func TestGetBlockerKeys(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			blockers := client.GetBlockerKeys(tt.ticket)
+			blockers := client.GetBlockers(tt.ticket)
 			if len(blockers) != len(tt.expected) {
 				t.Errorf("expected %d blockers, got %d", len(tt.expected), len(blockers))
 			}

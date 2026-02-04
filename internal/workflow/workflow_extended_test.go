@@ -28,11 +28,6 @@ func (m *ExtendedMockSessionManager) StartSession(name, goal string, command []s
 	return args.Get(0).(*runner.SessionState), args.Error(1)
 }
 
-func (m *ExtendedMockSessionManager) SaveSession(session *runner.SessionState) error {
-	args := m.Called(session)
-	return args.Error(0)
-}
-
 func TestRunWorkflow_Detached_Mock(t *testing.T) {
 	mockSM := new(ExtendedMockSessionManager)
 
