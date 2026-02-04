@@ -139,6 +139,8 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 		vars["exclusive_paths"] = "none"
 		vars["read_only_paths"] = "all"
 	}
+
+	// Override if SelectedTaskID is explicitly set (e.g. by Manager or CLI)
 	if s.SelectedTaskID != "" {
 		features := s.loadFeatures()
 		var target db.Feature
@@ -169,7 +171,8 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 			vars["exclusive_paths"] = "None"
 			vars["read_only_paths"] = "None"
 		}
-	} else {
+	} else if vars["task_id"] == "" {
+		// Only set fallback if task_id wasn't set by assignedFeature logic above
 		vars["task_id"] = "Multiple/Not Assigned"
 		vars["task_description"] = "Continue implementing pending features in feature_list.json"
 		vars["exclusive_paths"] = "All available files"
