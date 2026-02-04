@@ -292,7 +292,7 @@ func (m ExplorerModel) View() string {
 
 func (m ExplorerModel) headerView() string {
 	title := "File View"
-	line := strings.Repeat("─", max(0, m.viewport.Width-len(title)))
+	line := strings.Repeat("─", intMax(0, m.viewport.Width-len(title)))
 	return lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Render(title + line)
 }
 
@@ -303,7 +303,7 @@ func (m ExplorerModel) statusView() string {
 	return lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Render(m.statusMessage)
 }
 
-func max(a, b int) int {
+func intMax(a, b int) int {
 	if a > b {
 		return a
 	}
