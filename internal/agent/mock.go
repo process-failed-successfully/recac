@@ -104,9 +104,10 @@ def is_prime(n):
         if n % i == 0: return False
     return True
 
-primes = [i for i in range(1, 21) if is_prime(i)]
+primes = [i for i in range(1, 10000) if is_prime(i)]
+result = {"primes": primes}
 with open("primes.json", "w") as f:
-    json.dump(primes, f)
+    json.dump(result, f)
 print("Generated primes.json")
 EOF
 

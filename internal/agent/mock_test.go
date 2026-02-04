@@ -38,7 +38,7 @@ func TestMockAgent_Primes(t *testing.T) {
 	if !strings.Contains(response, "import json") {
 		t.Error("Response for [PRIMES] should contain 'import json' in the python script")
 	}
-	if !strings.Contains(response, "json.dump(primes, f)") {
+	if !strings.Contains(response, "json.dump(result, f)") {
 		t.Error("Response for [PRIMES] should contain json dumping logic")
 	}
 }
