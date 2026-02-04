@@ -41,16 +41,15 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// and typically asks to generate tickets based on the spec.
 	if strings.Contains(lowerPrompt, "critical instruction for ticket generation") {
 		// Return a valid JSON response for ticket generation
+		// Note: The CLI expects a JSON array of objects, not an object with a "tickets" key.
 		return `
-{
-  "tickets": [
-    {
-      "title": "ID:[PRIMES] Create Prime Number Script",
-      "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to 'primes.json'.\n\nREQUIRED FEATURES:\n- Implement prime calculation logic in primes.py\n- Output results to primes.json\n- Validate that the output file contains a 'primes' list\n- Verify that exactly 1229 primes are calculated\n- Commit primes.json to the repository",
-      "type": "Task"
-    }
-  ]
-}
+[
+  {
+    "title": "ID:[PRIMES] Create Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to 'primes.json'.\n\nREQUIRED FEATURES:\n- Implement prime calculation logic in primes.py\n- Output results to primes.json\n- Validate that the output file contains a 'primes' list\n- Verify that exactly 1229 primes are calculated\n- Commit primes.json to the repository",
+    "type": "Task"
+  }
+]
 `, nil
 	}
 
