@@ -172,6 +172,9 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	if val := os.Getenv("RECAC_TASK_MAX_ITERATIONS"); val != "" {
 		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_TASK_MAX_ITERATIONS", Value: val})
 	}
+	if val := os.Getenv("RECAC_MAX_TOKENS"); val != "" {
+		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_MAX_TOKENS", Value: val})
+	}
 
 	// Inject Git Identity to prevent "Author identity unknown" errors
 	envVars = append(envVars, []corev1.EnvVar{

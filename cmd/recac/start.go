@@ -65,6 +65,9 @@ func init() {
 	startCmd.Flags().String("project", "", "Project name override")
 	viper.BindPFlag("project", startCmd.Flags().Lookup("project"))
 
+	startCmd.Flags().Int("max-tokens", 128000, "Maximum number of tokens for agent context")
+	viper.BindPFlag("max_tokens", startCmd.Flags().Lookup("max-tokens"))
+
 	// Internal flag for resuming sessions
 	startCmd.Flags().String("resume-from", "", "Resume from a specific workspace path")
 	startCmd.Flags().MarkHidden("resume-from")
@@ -79,6 +82,7 @@ func init() {
 	viper.BindEnv("max_iterations", "RECAC_MAX_ITERATIONS")
 	viper.BindEnv("manager_frequency", "RECAC_MANAGER_FREQUENCY")
 	viper.BindEnv("task_max_iterations", "RECAC_TASK_MAX_ITERATIONS")
+	viper.BindEnv("max_tokens", "RECAC_MAX_TOKENS")
 
 	rootCmd.AddCommand(startCmd)
 }
@@ -132,6 +136,7 @@ var startCmd = &cobra.Command{
 		managerFrequency := viper.GetInt("manager_frequency")
 		maxAgents := viper.GetInt("max_agents")
 		taskMaxIterations := viper.GetInt("task_max_iterations")
+		maxTokens := viper.GetInt("max_tokens")
 
 		detached := viper.GetBool("detached")
 		if cmd.Flags().Changed("detached") {
@@ -167,6 +172,7 @@ var startCmd = &cobra.Command{
 			ManagerFrequency:  managerFrequency,
 			MaxAgents:         maxAgents,
 			TaskMaxIterations: taskMaxIterations,
+			MaxTokens:         maxTokens,
 			Detached:          detached,
 			SessionName:       sessionName,
 			AllowDirty:        viper.GetBool("allow_dirty"),
@@ -429,6 +435,7 @@ type SessionConfig struct {
 	Image             string
 	Provider          string
 	Model             string
+	MaxTokens         int
 	Cleanup           bool
 	Summary           string
 	Description       string
@@ -685,6 +692,9 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 		if cfg.ManagerFrequency != 5 {
 			command = append(command, "--manager-frequency", fmt.Sprintf("%d", cfg.ManagerFrequency))
 		}
+		if cfg.MaxTokens != 0 && cfg.MaxTokens != 128000 {
+			command = append(command, "--max-tokens", fmt.Sprintf("%d", cfg.MaxTokens))
+		}
 		if cfg.TaskMaxIterations != 10 {
 			command = append(command, "--task-max-iterations", fmt.Sprintf("%d", cfg.TaskMaxIterations))
 		}
@@ -842,7 +852,10 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 
 	// State Management
 	if session.StateManager != nil {
-		maxTokens := viper.GetInt("agent.max_tokens")
+		maxTokens := cfg.MaxTokens
+		if maxTokens == 0 {
+			maxTokens = viper.GetInt("agent.max_tokens")
+		}
 		if maxTokens == 0 {
 			maxTokens = 128000
 		}

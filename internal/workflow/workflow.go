@@ -46,6 +46,7 @@ type SessionConfig struct {
 	Image             string
 	Provider          string
 	Model             string
+	MaxTokens         int
 	Cleanup           bool
 	Summary           string
 	Description       string
@@ -335,6 +336,9 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 		if cfg.ManagerFrequency != 5 {
 			command = append(command, "--manager-frequency", fmt.Sprintf("%d", cfg.ManagerFrequency))
 		}
+		if cfg.MaxTokens != 0 && cfg.MaxTokens != 128000 {
+			command = append(command, "--max-tokens", fmt.Sprintf("%d", cfg.MaxTokens))
+		}
 		if cfg.TaskMaxIterations != 10 {
 			command = append(command, "--task-max-iterations", fmt.Sprintf("%d", cfg.TaskMaxIterations))
 		}
@@ -478,7 +482,10 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 
 	// State Management
 	if session.StateManager != nil {
-		maxTokens := viper.GetInt("agent.max_tokens")
+		maxTokens := cfg.MaxTokens
+		if maxTokens == 0 {
+			maxTokens = viper.GetInt("agent.max_tokens")
+		}
 		if maxTokens == 0 {
 			maxTokens = 128000
 		}

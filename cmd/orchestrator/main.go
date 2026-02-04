@@ -34,6 +34,7 @@ func main() {
 	pflag.String("agent-provider", "openrouter", "Provider for spawned agents")
 	pflag.String("agent-model", "meta-llama/llama-3.3-70b-instruct:free", "Model for spawned agents")
 	pflag.String("image-pull-policy", "Always", "Image pull policy for agents (Always, IfNotPresent, Never)")
+	pflag.Int("agent-max-tokens", 0, "Max tokens for spawned agents (0 = default)")
 
 	pflag.String("jira-query", "", "Custom JQL query (overrides label)")
 	pflag.String("poller", "jira", "Poller type: 'jira', 'github', 'file', or 'file-dir'")
@@ -70,6 +71,7 @@ func main() {
 	viper.BindPFlag("orchestrator.agent_provider", pflag.Lookup("agent-provider"))
 	viper.BindPFlag("orchestrator.agent_model", pflag.Lookup("agent-model"))
 	viper.BindPFlag("orchestrator.image_pull_policy", pflag.Lookup("image-pull-policy"))
+	viper.BindPFlag("orchestrator.max_tokens", pflag.Lookup("agent-max-tokens"))
 
 	// Explicitly bind cleaner env vars
 	viper.BindEnv("orchestrator.agent_provider", "RECAC_AGENT_PROVIDER")
@@ -89,6 +91,7 @@ func main() {
 	viper.BindEnv("orchestrator.max_iterations", "RECAC_MAX_ITERATIONS")
 	viper.BindEnv("orchestrator.manager_frequency", "RECAC_MANAGER_FREQUENCY")
 	viper.BindEnv("orchestrator.task_max_iterations", "RECAC_TASK_MAX_ITERATIONS")
+	viper.BindEnv("orchestrator.max_tokens", "RECAC_MAX_TOKENS")
 
 	// Logger
 	logger := telemetry.NewLogger(viper.GetBool("verbose"), "orchestrator", false)

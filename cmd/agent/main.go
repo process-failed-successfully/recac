@@ -46,6 +46,7 @@ func initFlags(cfgFile *string) {
 	pflag.String("provider", "", "Agent provider override")
 	pflag.String("model", "", "Agent model override")
 	pflag.Bool("mock", false, "Mock mode")
+	pflag.Int("max-tokens", 128000, "Maximum number of tokens for agent context")
 }
 
 func runApp(ctx context.Context) error {
@@ -74,10 +75,12 @@ func runApp(ctx context.Context) error {
 	viper.BindPFlag("provider", pflag.Lookup("provider"))
 	viper.BindPFlag("model", pflag.Lookup("model"))
 	viper.BindPFlag("mock", pflag.Lookup("mock"))
+	viper.BindPFlag("max_tokens", pflag.Lookup("max-tokens"))
 
 	viper.BindEnv("max_iterations", "RECAC_MAX_ITERATIONS")
 	viper.BindEnv("manager_frequency", "RECAC_MANAGER_FREQUENCY")
 	viper.BindEnv("task_max_iterations", "RECAC_TASK_MAX_ITERATIONS")
+	viper.BindEnv("max_tokens", "RECAC_MAX_TOKENS")
 
 	// Explicitly bind Provider/Model to ensure Env vars take precedence over config file
 	viper.BindEnv("provider", "RECAC_PROVIDER", "RECAC_AGENT_PROVIDER")
@@ -113,6 +116,7 @@ func runApp(ctx context.Context) error {
 		Debug:             viper.GetBool("verbose"),
 		Provider:          viper.GetString("provider"),
 		Model:             viper.GetString("model"),
+		MaxTokens:         viper.GetInt("max_tokens"),
 		Cleanup:           viper.GetBool("cleanup"),
 		ProjectName:       viper.GetString("project"),
 		RepoURL:           viper.GetString("repo_url"),
