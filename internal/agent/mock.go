@@ -86,7 +86,8 @@ agent-bridge feature set req-must-print-primes-up-to-20 --status done --passes t
 	}
 
 	// Default response
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
+	// We include a valid shell command to prevent the "NO-OP LOOP" circuit breaker from tripping
+	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...\n\n```bash\necho \"Mock Agent: Processing generic request...\"\n```",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
 }
