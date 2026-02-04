@@ -27,7 +27,7 @@ func TestMockAgent(t *testing.T) {
 	})
 
 	t.Run("Initializer Response", func(t *testing.T) {
-		prompt := "Please initialize feature_list.json"
+		prompt := "Please initialize feature_list.json (Role: Initializer Agent)"
 		response, err := agent.Send(context.Background(), prompt)
 		if err != nil {
 			t.Fatalf("Send failed: %v", err)
@@ -36,8 +36,11 @@ func TestMockAgent(t *testing.T) {
 		if !strings.Contains(response, "```bash") {
 			t.Error("Initializer response missing bash code block")
 		}
-		if !strings.Contains(response, "echo '{\n  \"req-the-list-of-primes") {
-			t.Error("Initializer response missing JSON echo with newlines")
+		if !strings.Contains(response, "\"project_name\": \"Implement Primes\"") {
+			t.Error("Initializer response missing project name")
+		}
+		if !strings.Contains(response, "\"id\": \"req-the-list-of-primes-in-primes-j\"") {
+			t.Error("Initializer response missing feature ID")
 		}
 	})
 
