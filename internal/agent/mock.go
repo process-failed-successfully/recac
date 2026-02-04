@@ -96,8 +96,8 @@ git commit -m "feat: implement primes.py and generate primes.json" || echo "No c
 git push origin HEAD
 
 # Signal completion
-agent-bridge feature update --id PRIMES --status in_progress
-agent-bridge signal --signal QA_PASSED
+agent-bridge feature set PRIMES --status in_progress
+agent-bridge signal QA_PASSED true
 ` + "```" + `
 `, nil
 	}
@@ -108,7 +108,7 @@ agent-bridge signal --signal QA_PASSED
 The changes look correct. The 'primes.py' script is implemented and 'primes.json' is generated.
 
 ` + "```bash" + `
-agent-bridge signal --signal QA_PASSED
+agent-bridge signal QA_PASSED true
 ` + "```" + `
 `, nil
 	}
@@ -119,7 +119,7 @@ agent-bridge signal --signal QA_PASSED
 The project requirements are met.
 
 ` + "```bash" + `
-agent-bridge signal --signal PROJECT_SIGNED_OFF
+agent-bridge signal PROJECT_SIGNED_OFF true
 ` + "```" + `
 `, nil
 	}
