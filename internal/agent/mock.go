@@ -46,6 +46,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.generateQAPassedResponse(), nil
 	}
 
+	// Detect Manager Agent Role
+	if strings.Contains(prompt, "PROJECT MANAGER") {
+		return m.generateManagerSignOffResponse(), nil
+	}
+
 	// Default response
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
@@ -60,6 +65,16 @@ func (m *MockAgent) generateQAPassedResponse() string {
 echo "Running tests..."
 # Signal QA Passed
 agent-bridge signal QA_PASSED true
+` + "```" + `
+`
+}
+
+func (m *MockAgent) generateManagerSignOffResponse() string {
+	return `I have reviewed the QA report and the project implementation. Everything looks good.
+
+` + "```bash" + `
+# Sign off on the project
+agent-bridge signal PROJECT_SIGNED_OFF true
 ` + "```" + `
 `
 }
