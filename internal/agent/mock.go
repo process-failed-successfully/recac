@@ -3,10 +3,11 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
-// MockAgent is a simple mock agent for testing and mock mode
-// It returns predefined responses without making actual API calls
+// MockAgent is a smart mock agent for testing and smoke tests
+// It returns specific bash scripts based on the prompt content to pass E2E scenarios
 type MockAgent struct {
 	responsePrefix string
 	forcedResponse string
@@ -25,16 +26,25 @@ func (m *MockAgent) SetResponse(response string) {
 }
 
 // Send implements the Agent interface
-// It returns a mock response that acknowledges the prompt
 func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
-	// Return a mock response that shows the agent received the prompt
-	// This allows the session to run without requiring real API keys
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
-		m.responsePrefix, len(prompt), truncateString(prompt, 100))
-	return response, nil
+
+	// [PRIMES] Scenario Logic
+	// Detect if we are being asked to implement the primes.py script
+	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
+		return m.generatePrimesResponse(), nil
+	}
+
+	// [INITIALIZER] Logic
+	// Detect if we are initializing the repo (Orchestrator might send "Initializing..." or similar,
+	// but usually the agent is started with a goal.
+	// If the prompt mentions "git init" or "setup", we might need a specific response.
+	// For now, let's provide a generic helpful response that tries to prevent "NO-OP LOOP".
+
+	return fmt.Sprintf("%s:\n\nI received your prompt (%d characters). I am ready to work.\n\n```bash\nls -la\n```\n",
+		m.responsePrefix, len(prompt)), nil
 }
 
 // SendStream implements the Agent interface
@@ -44,6 +54,30 @@ func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(
 		onChunk(resp)
 	}
 	return resp, err
+}
+
+func (m *MockAgent) generatePrimesResponse() string {
+	script := `
+cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n < 2: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0: return False
+    return True
+
+primes = [p for p in range(10000) if is_prime(p)]
+with open('primes.json', 'w') as f:
+    json.dump({'primes': primes}, f)
+EOF
+
+python3 primes.py
+git add primes.py primes.json
+git commit -m "Implement primes.py"
+git push origin HEAD
+`
+	return fmt.Sprintf("I will implement the primes.py script as requested.\n\n```bash%s```\n", script)
 }
 
 // truncateString truncates a string to a maximum length
