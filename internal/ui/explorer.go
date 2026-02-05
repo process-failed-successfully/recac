@@ -302,10 +302,3 @@ func (m ExplorerModel) statusView() string {
 	}
 	return lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Render(m.statusMessage)
 }
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
