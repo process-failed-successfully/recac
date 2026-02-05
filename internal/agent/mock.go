@@ -159,8 +159,8 @@ EOF
 python3 primes.py
 
 # Signal features passed
-agent-bridge feature set req-primes-py-exists passed
-agent-bridge feature set req-primes-json-exists passed
+agent-bridge feature set req-primes-py-exists --status done --passes true
+agent-bridge feature set req-primes-json-exists --status done --passes true
 ` + "\n```"
 }
 
