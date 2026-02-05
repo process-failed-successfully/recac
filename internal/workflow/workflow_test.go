@@ -98,20 +98,8 @@ func TestProcessJiraTicket(t *testing.T) {
 
 	err := ProcessJiraTicket(context.Background(), "TEST-1", jClient, cfg, nil)
 
-	// Since we don't have DB, we expect RunWorkflow to fail or we mock DB?
-	// mocking DB is hard.
-	// We'll rely on IsMock: true in SessionConfig to perform a "Mock" run which should be lighter.
-
-	// Check app_spec.txt
-	specPath := fmt.Sprintf("%s/app_spec.txt", tmpDir)
-
-	// If we want to verify, we should use Cleanup=false
-	cfg.Cleanup = false
-
-	err = ProcessJiraTicket(context.Background(), "TEST-1", jClient, cfg, nil)
-
 	// Assert steps
-	assert.FileExists(t, specPath)
+	assert.FileExists(t, specPath := fmt.Sprintf("%s/app_spec.txt", tmpDir))
 	if err != nil {
 		assert.Contains(t, err.Error(), "circuit breaker")
 	} else {
@@ -166,6 +154,13 @@ func TestRunWorkflow_Detached(t *testing.T) {
 }
 
 func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
+	// Mock RunWorkflow to avoid executing the full runner loop (which can timeout)
+	originalRunWorkflow := RunWorkflow
+	defer func() { RunWorkflow = originalRunWorkflow }()
+	RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
+		return nil
+	}
+
 	// Mock SetupWorkspace
 	originalSetup := cmdutils.SetupWorkspace
 	defer func() { cmdutils.SetupWorkspace = originalSetup }()
@@ -243,7 +238,10 @@ func TestRunWorkflow_Normal(t *testing.T) {
 	defer func() { NewSessionFunc = originalNewSessionFunc }()
 	NewSessionFunc = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
 		s := runner.NewSession(d, a, workspace, image, project, provider, model, maxAgents)
-		s.MaxIterations = 0 // Should exit immediately
+		s.MaxIterations = 1
+		// Let's use a mock agent that returns a command to avoid NoOp.
+		mockAg := agent.NewMockAgent()
+		s.Agent = mockAg
 		return s
 	}
 
@@ -264,35 +262,6 @@ func TestRunWorkflow_Normal(t *testing.T) {
 
 	// This should run normal flow but fail Docker init (gracefully) and run 0 iterations
 	err := RunWorkflow(context.Background(), cfg)
-
-	// Since MaxIterations=0, RunLoop should return ErrMaxIterations or nil depending on implementation.
-	// runner/session.go: RunLoop: if s.MaxIterations > 0 && currentIteration >= s.MaxIterations { return ErrMaxIterations }
-	// If MaxIterations=0, it might loop forever or use default?
-	// NewSession sets MaxIterations=20 default.
-	// Our mock sets it to 0.
-	// Let's check RunLoop logic.
-	// It checks `if s.MaxIterations > 0 && currentIteration >= s.MaxIterations`.
-	// If 0, it might mean infinite?
-	// Actually NewSession defaults to 20.
-	// If we set to 1, it runs 1 iteration.
-	// If we set to 0, and checks are `> 0`, it loops.
-
-	// Let's set it to 1.
-	NewSessionFunc = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
-		s := runner.NewSession(d, a, workspace, image, project, provider, model, maxAgents)
-		s.MaxIterations = 1
-		// We need to ensure RunLoop doesn't block on "NoOp" or "Stalled".
-		// MockAgent returns empty responses usually?
-		// We should configure MockAgent to return "DONE".
-		// But here we construct session.
-
-		// Let's use a mock agent that returns a command to avoid NoOp.
-		mockAg := agent.NewMockAgent()
-		s.Agent = mockAg
-		return s
-	}
-
-	err = RunWorkflow(context.Background(), cfg)
 
 	// Start() might fail if restricted mode handling isn't perfect or if it tries to do something.
 	// RunLoop might fail with NoOp if mock agent returns nothing.
