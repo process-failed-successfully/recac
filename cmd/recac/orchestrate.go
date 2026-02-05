@@ -52,20 +52,20 @@ var orchestrateCmd = &cobra.Command{
 			watchDir := viper.GetString("orchestrator.watch_dir")
 			if watchDir == "" {
 				logger.Error("Watch directory must be specified in file-dir poller mode")
-				os.Exit(1)
+				exit(1)
 			}
 			var err error
 			poller, err = orchestrator.NewFileDirPoller(watchDir)
 			if err != nil {
 				logger.Error("Failed to initialize file directory poller", "error", err)
-				os.Exit(1)
+				exit(1)
 			}
 			logger.Info("Using file directory poller", "directory", watchDir)
 		case "file", "filesystem":
 			workFile := viper.GetString("orchestrator.work_file")
 			if workFile == "" {
 				logger.Error("Work file must be specified in file poller mode")
-				os.Exit(1)
+				exit(1)
 			}
 			poller = orchestrator.NewFilePoller(workFile)
 			logger.Info("Using filesystem poller", "file", workFile)
@@ -74,7 +74,7 @@ var orchestrateCmd = &cobra.Command{
 			jClient, err := cmdutils.GetJiraClient(ctx)
 			if err != nil {
 				logger.Error("Failed to initialize Jira client", "error", err)
-				os.Exit(1)
+				exit(1)
 			}
 			jql := viper.GetString("orchestrator.jira_query")
 			if jql == "" && label != "" {
@@ -95,24 +95,24 @@ var orchestrateCmd = &cobra.Command{
 			spawner, err = orchestrator.NewK8sSpawner(logger, image, namespace, agentProvider, agentModel, pullPolicy)
 			if err != nil {
 				logger.Error("Failed to initialize K8s spawner", "error", err)
-				os.Exit(1)
+				exit(1)
 			}
 		case "local", "docker":
 			projectName := "recac-orchestrator" // Or similar
 			dockerCli, err := docker.NewClient(projectName)
 			if err != nil {
 				logger.Error("Failed to initialize Docker client", "error", err)
-				os.Exit(1)
+				exit(1)
 			}
 			sm, err := runner.NewSessionManager()
 			if err != nil {
 				logger.Error("Failed to initialize Session Manager", "error", err)
-				os.Exit(1)
+				exit(1)
 			}
 			spawner = orchestrator.NewDockerSpawner(logger, dockerCli, image, projectName, poller, agentProvider, agentModel, sm)
 		default:
 			logger.Error("Invalid mode. Use 'local' or 'k8s'", "mode", mode)
-			os.Exit(1)
+			exit(1)
 		}
 
 		// 4. Orchestrator
@@ -123,7 +123,7 @@ var orchestrateCmd = &cobra.Command{
 				return
 			}
 			logger.Error("Orchestrator failure", "error", err)
-			os.Exit(1)
+			exit(1)
 		}
 	},
 }
