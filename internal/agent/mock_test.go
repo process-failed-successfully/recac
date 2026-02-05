@@ -10,7 +10,10 @@ func TestMockAgent_TPM_RepoExtraction(t *testing.T) {
 	agent := NewMockAgent()
 
 	// Simulating the prompt from the CI logs
+	// We MUST include the critical instruction marker to trigger the TPM (ticket generation) logic
+	// instead of the implementation logic.
 	prompt := `
+CRITICAL INSTRUCTION FOR TICKET GENERATION
 ID:[PRIMES] Prime Number Script
 Repo: https://github.com/example/repo. Use the repository associated with the project.
 6. **Blockers**: ...
