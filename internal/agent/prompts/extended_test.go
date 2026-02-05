@@ -69,10 +69,8 @@ func TestGetPrompt_Overrides(t *testing.T) {
 			t.Fatalf("Failed to write local override: %v", err)
 		}
 
-		// Change working directory to the temp dir to simulate running from project root.
-		// NOTE: We use t.Chdir(tmpDir) instead of os.Getwd() writes to ensure we don't pollute
-		// the source tree or cause "dirty git tree" CI failures.
-		// t.Chdir cleans up after the test automatically.
+		// Change working directory to the temp dir to simulate running from project root
+		// t.Chdir cleans up after the test automatically
 		t.Chdir(tmpDir)
 
 		content, err := GetPrompt(promptName, nil)

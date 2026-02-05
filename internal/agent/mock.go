@@ -80,7 +80,7 @@ func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(
 
 func (m *MockAgent) initializerResponse() string {
 	// Returns a script to import the feature list
-	return `
+	return "```bash\n" + `
 cat << 'EOF' | agent-bridge import
 {
   "features": [
@@ -89,7 +89,7 @@ cat << 'EOF' | agent-bridge import
   ]
 }
 EOF
-`
+` + "\n```"
 }
 
 func (m *MockAgent) tpmResponse(prompt string) string {
