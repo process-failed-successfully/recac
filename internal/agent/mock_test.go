@@ -37,8 +37,11 @@ func TestMockAgent_Roles(t *testing.T) {
 	if strings.Contains(response, "cat << 'EOF' > primes.py") {
 		t.Error("TPM prompt incorrectly triggered Developer response")
 	}
-	if !strings.Contains(response, `"title": "ID:[PRIMES] Implement Prime Number Script"`) {
-		t.Error("TPM prompt failed to return ticket JSON")
+	if !strings.Contains(response, "agent-bridge import") {
+		t.Error("TPM prompt failed to return agent-bridge import command")
+	}
+	if !strings.Contains(response, `"title": "Implement Prime Number Script"`) {
+		t.Error("TPM prompt failed to return correct ticket title in JSON")
 	}
 
 	// 2. Test Developer Role detection

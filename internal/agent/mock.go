@@ -42,15 +42,41 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(prompt, "Create exactly ONE ticket") ||
 		strings.Contains(prompt, "feature_list.json") ||
 		strings.Contains(prompt, "Technical Program Manager") {
-		// Return a JSON list of tickets as expected by the Jira/Spec parser
+		// Return a bash script that uses agent-bridge import to define features
 		return `
-[
-  {
-    "title": "ID:[PRIMES] Implement Prime Number Script",
-    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.",
-    "type": "Task"
-  }
-]
+I will set up the project and import the feature list.
+
+` + "```bash" + `
+# Initialize git
+git init
+git config user.email "agent@recac.io"
+git config user.name "Recac Agent"
+
+# Create init.sh
+cat << 'EOF' > init.sh
+#!/bin/sh
+echo "Initializing environment..."
+EOF
+chmod +x init.sh
+
+# Import features
+cat << 'EOF' | agent-bridge import
+{
+  "project_name": "Prime Python",
+  "features": [
+    {
+      "id": "PRIMES",
+      "title": "Implement Prime Number Script",
+      "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.",
+      "priority": "MVP",
+      "status": "todo",
+      "category": "functional",
+      "steps": ["Run python3 primes.py", "Check primes.json"]
+    }
+  ]
+}
+EOF
+` + "```" + `
 `, nil
 	}
 
