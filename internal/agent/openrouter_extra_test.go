@@ -27,6 +27,8 @@ func TestOpenRouterClient_HTTP_Success(t *testing.T) {
 
 	client := NewOpenRouterClient("test-key", "model", "test-project")
 	client.apiURL = server.URL
+			// Disable backoff for tests to prevent timeout
+			client.BackoffFn = func(int) time.Duration { return 0 }
 
 	resp, err := client.Send(context.Background(), "Hi")
 	if err != nil {
