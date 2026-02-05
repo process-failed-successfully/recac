@@ -11,11 +11,7 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	promptName := "test_prompt"
 	overrideContent := "Override Template"
 
-	// 1. Test Embedded/Fallback (simulated by failure of others)
-	// We can't easily add to embed.FS at runtime, but we can test that GetPrompt returns error for non-existent if no override exists.
-	// Or we can rely on existing templates.
-	// Let's rely on existing "planner" template if it exists, or handle error.
-
+	// 1. Test Embedded/Fallback
 	// Check ListPrompts first
 	prompts, err := ListPrompts()
 	if err != nil {
@@ -36,11 +32,7 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	}
 
 	// 2. Test RECAC_PROMPTS_DIR
-	tmpDir, err := os.MkdirTemp("", "recac-prompts-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	err = os.WriteFile(filepath.Join(tmpDir, promptName+".md"), []byte(overrideContent), 0644)
 	if err != nil {
@@ -69,6 +61,12 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get current wd: %v", err)
 	}
+	defer func() {
+		// Restore CWD
+		if err := os.Chdir(originalWd); err != nil {
+			t.Errorf("Failed to restore CWD: %v", err)
+		}
+	}()
 
 	// Create temp dir for CWD simulation
 	localDir := t.TempDir()
@@ -77,12 +75,6 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	if err := os.Chdir(localDir); err != nil {
 		t.Fatalf("Failed to chdir: %v", err)
 	}
-	defer func() {
-		// Restore CWD
-		if err := os.Chdir(originalWd); err != nil {
-			t.Errorf("Failed to restore CWD: %v", err)
-		}
-	}()
 
 	// Create .recac/prompts in the temp CWD
 	localRecacDir := filepath.Join(localDir, ".recac", "prompts")
