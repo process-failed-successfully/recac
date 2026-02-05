@@ -49,13 +49,17 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	// 3. Test Local .recac/prompts
 	t.Setenv("RECAC_PROMPTS_DIR", "")
 
-	// Use a temp dir as CWD to avoid dirtying the source tree
-	// t.Chdir was added in Go 1.20 and cleans up automatically.
+	// Use a temp dir and mock getwd
 	tempCwd := t.TempDir()
-	t.Chdir(tempCwd)
 
-	// Create .recac/prompts in the new CWD (tempCwd)
-	// We use tempCwd explicitly to be clear, but os.Getwd() would also return it.
+	// Mock getwd
+	oldGetwd := getwd
+	defer func() { getwd = oldGetwd }()
+	getwd = func() (string, error) {
+		return tempCwd, nil
+	}
+
+	// Create .recac/prompts in the tempCwd
 	localRecacDir := filepath.Join(tempCwd, ".recac", "prompts")
 	if err := os.MkdirAll(localRecacDir, 0755); err != nil {
 		t.Fatalf("Failed to create local .recac dir: %v", err)
