@@ -59,3 +59,24 @@ func TestTruncateString(t *testing.T) {
 		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
 	}
 }
+
+func TestMockAgent_TicketGeneration_Primes(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := `
+You are a Technical Program Manager.
+Generate a ticket plan for the following spec:
+### ID:[PRIMES] Prime Number Script
+Implement a python script named 'primes.py'
+`
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "[PRIMES] Create Prime Number Script") {
+		t.Errorf("Expected Primes ticket plan, got: %s", response)
+	}
+	if !strings.Contains(response, "primes.py") {
+		t.Errorf("Expected primes.py in description, got: %s", response)
+	}
+}

@@ -86,6 +86,18 @@ agent-bridge signal PROJECT_SIGNED_OFF true
 	// IMPORTANT: This check must happen BEFORE the generic "primes.py" check below,
 	// because ticket generation prompts might contain "primes.py" in the requirement description.
 	if len(prompt) > 0 && (prompt[0] == '{' || prompt[0] == '[' || containsTicketKeywords(prompt)) {
+		// Special handling for the Primes scenario to ensure the generated ticket
+		// contains the necessary keywords ("primes.py") for the Coding Agent mock (Rule #5).
+		if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
+			return `[
+  {
+    "title": "[PRIMES] Create Prime Number Script",
+    "description": "Create a python script named 'primes.py'.\nIt must calculate all prime numbers less than 10,000 and output to a file named 'primes.json'.\nIMPORTANT: You MUST use a bash block to create the file.\nRepo: https://github.com/process-failed-successfully/recac-jira-e2e",
+    "type": "Task"
+  }
+]`, nil
+		}
+
 		return `[
   {
     "title": "Mock Epic",
