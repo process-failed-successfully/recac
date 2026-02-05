@@ -7,96 +7,89 @@ import (
 )
 
 func TestGetPrompt_Overrides(t *testing.T) {
-	// Setup
 	promptName := "test_prompt"
 	overrideContent := "Override Template"
 
-	// 1. Test Embedded/Fallback (simulated by failure of others)
-	// We can't easily add to embed.FS at runtime, but we can test that GetPrompt returns error for non-existent if no override exists.
-	// Or we can rely on existing templates.
-	// Let's rely on existing "planner" template if it exists, or handle error.
-
-	// Check ListPrompts first
-	prompts, err := ListPrompts()
-	if err != nil {
-		t.Fatalf("ListPrompts failed: %v", err)
-	}
-	if len(prompts) == 0 {
-		t.Log("No embedded prompts found, skipping embedded test verification")
-	} else {
-		// Use the first available prompt
-		pName := prompts[0]
-		pContent, err := GetPrompt(pName, nil)
+	t.Run("Embedded", func(t *testing.T) {
+		prompts, err := ListPrompts()
 		if err != nil {
-			t.Errorf("GetPrompt failed for embedded %s: %v", pName, err)
+			t.Fatalf("ListPrompts failed: %v", err)
 		}
-		if len(pContent) == 0 {
-			t.Error("Embedded prompt content is empty")
+		if len(prompts) == 0 {
+			t.Log("No embedded prompts found, skipping embedded test verification")
+		} else {
+			// Use the first available prompt
+			pName := prompts[0]
+			pContent, err := GetPrompt(pName, nil)
+			if err != nil {
+				t.Errorf("GetPrompt failed for embedded %s: %v", pName, err)
+			}
+			if len(pContent) == 0 {
+				t.Error("Embedded prompt content is empty")
+			}
 		}
-	}
+	})
 
-	// 2. Test RECAC_PROMPTS_DIR
-	tmpDir := t.TempDir()
+	t.Run("RECAC_PROMPTS_DIR", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		err := os.WriteFile(filepath.Join(tmpDir, promptName+".md"), []byte(overrideContent), 0644)
+		if err != nil {
+			t.Fatalf("Failed to write override file: %v", err)
+		}
 
-	err = os.WriteFile(filepath.Join(tmpDir, promptName+".md"), []byte(overrideContent), 0644)
-	if err != nil {
-		t.Fatalf("Failed to write override file: %v", err)
-	}
+		t.Setenv("RECAC_PROMPTS_DIR", tmpDir)
 
-	t.Setenv("RECAC_PROMPTS_DIR", tmpDir)
+		content, err := GetPrompt(promptName, nil)
+		if err != nil {
+			t.Fatalf("GetPrompt failed with override: %v", err)
+		}
+		if content != overrideContent {
+			t.Errorf("GetPrompt returned %q, want %q", content, overrideContent)
+		}
+	})
 
-	content, err := GetPrompt(promptName, nil)
-	if err != nil {
-		t.Fatalf("GetPrompt failed with override: %v", err)
-	}
-	if content != overrideContent {
-		t.Errorf("GetPrompt returned %q, want %q", content, overrideContent)
-	}
+	t.Run("Local .recac/prompts", func(t *testing.T) {
+		// Use a temp dir and chdir into it to avoid polluting the source tree
+		tmpDir := t.TempDir()
+		t.Chdir(tmpDir)
 
-	// 3. Test Local .recac/prompts
-	// Unset env via Setenv with empty string to disable the override from step 2
-	t.Setenv("RECAC_PROMPTS_DIR", "")
+		localRecacDir := filepath.Join(tmpDir, ".recac", "prompts")
+		if err := os.MkdirAll(localRecacDir, 0755); err != nil {
+			t.Fatalf("Failed to create local recac dir: %v", err)
+		}
 
-	// Use a new temp dir to simulate local workspace
-	localCwd := t.TempDir()
+		localContent := "Local Override"
+		err := os.WriteFile(filepath.Join(localRecacDir, promptName+".md"), []byte(localContent), 0644)
+		if err != nil {
+			t.Fatalf("Failed to write local override: %v", err)
+		}
 
-	// Change directory to the temp dir for the duration of this test
-	// This allows GetPrompt's os.Getwd() check to find the local .recac folder
-	t.Chdir(localCwd)
+		// Ensure env var is unset
+		t.Setenv("RECAC_PROMPTS_DIR", "")
 
-	localRecacDir := filepath.Join(localCwd, ".recac", "prompts")
-	if err := os.MkdirAll(localRecacDir, 0755); err != nil {
-		t.Fatalf("Failed to create local recac dir: %v", err)
-	}
+		content, err := GetPrompt(promptName, nil)
+		if err != nil {
+			t.Fatalf("GetPrompt failed with local override: %v", err)
+		}
+		if content != localContent {
+			t.Errorf("GetPrompt returned %q, want %q", content, localContent)
+		}
 
-	localContent := "Local Override"
-	err = os.WriteFile(filepath.Join(localRecacDir, promptName+".md"), []byte(localContent), 0644)
-	if err != nil {
-		t.Fatalf("Failed to write local override: %v", err)
-	}
+		// Test Variable Injection
+		varContent := "Hello {name}"
+		err = os.WriteFile(filepath.Join(localRecacDir, promptName+".md"), []byte(varContent), 0644)
+		if err != nil {
+			t.Fatalf("Failed to write var override: %v", err)
+		}
 
-	content, err = GetPrompt(promptName, nil)
-	if err != nil {
-		t.Fatalf("GetPrompt failed with local override: %v", err)
-	}
-	if content != localContent {
-		t.Errorf("GetPrompt returned %q, want %q", content, localContent)
-	}
-
-	// 4. Test Variable Injection
-	varContent := "Hello {name}"
-	err = os.WriteFile(filepath.Join(localRecacDir, promptName+".md"), []byte(varContent), 0644)
-	if err != nil {
-		t.Fatalf("Failed to write var override: %v", err)
-	}
-
-	content, err = GetPrompt(promptName, map[string]string{"name": "World"})
-	if err != nil {
-		t.Fatalf("GetPrompt failed with vars: %v", err)
-	}
-	if content != "Hello World" {
-		t.Errorf("GetPrompt returned %q, want %q", content, "Hello World")
-	}
+		content, err = GetPrompt(promptName, map[string]string{"name": "World"})
+		if err != nil {
+			t.Fatalf("GetPrompt failed with vars: %v", err)
+		}
+		if content != "Hello World" {
+			t.Errorf("GetPrompt returned %q, want %q", content, "Hello World")
+		}
+	})
 }
 
 func TestListPrompts(t *testing.T) {
