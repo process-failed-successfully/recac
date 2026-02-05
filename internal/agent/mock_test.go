@@ -86,3 +86,18 @@ func TestMockAgent_Coding_Primes(t *testing.T) {
 		}
 	}
 }
+
+func TestMockAgent_Coding_With_History(t *testing.T) {
+	agent := NewMockAgent()
+	// Simulate prompt containing both role and history command
+	prompt := "YOUR ROLE - CODING AGENT. Previous command: agent-bridge import features.json"
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Should NOT return Initializer response (which contains "echo '{\"features\"")
+	if strings.Contains(response, "echo '{\"features\"") && !strings.Contains(response, "primes.py") {
+		t.Error("Incorrectly matched Initializer agent instead of Coding agent")
+	}
+}
