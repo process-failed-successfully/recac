@@ -73,10 +73,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 2. Implementation (Coding Agent)
 	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "calculate primes") || strings.Contains(prompt, "[PRIMES]") {
-		return `
-Here is the implementation for the prime number script.
-
-'''bash
+		script := `
 # Create the python script
 cat << 'EOF' > primes.py
 import json
@@ -101,18 +98,37 @@ print(f"Calculated {len(primes)} primes.")
 EOF
 
 # Run it to generate the json
-python3 primes.py
+python3 primes.py || exit 1
 
 # Git operations
-git add primes.py primes.json
+git add primes.py
+git add -f primes.json
 git commit -m "Add primes.py and generated json"
 git push origin HEAD
 
 # Signal completion
 agent-bridge signal QA_PASSED true
 agent-bridge signal PROJECT_SIGNED_OFF true
-'''
-`, nil
+`
+		return fmt.Sprintf(`
+Here is the implementation for the prime number script.
+
+%sbash%s
+%s
+`, "```", script, "```"), nil
+	}
+
+	// 3. Initializer
+	if strings.Contains(prompt, "Initializer") || strings.Contains(prompt, "git init") {
+		return fmt.Sprintf(`
+I will initialize the repository.
+
+%sbash
+git init
+agent-bridge import || true
+echo "Initialized"
+%s
+`, "```", "```"), nil
 	}
 
 	// Return a generic mock response for other cases
