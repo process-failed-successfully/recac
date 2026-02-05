@@ -70,25 +70,17 @@ func TestGetPrompt_Overrides(t *testing.T) {
 
 	t.Setenv("RECAC_PROMPTS_DIR", "")
 
-	// Create .recac/prompts in CWD (simulated via Chdir)
-	originalWd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current working directory: %v", err)
-	}
-	tempDir := t.TempDir()
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir to temp dir: %v", err)
-	}
-	defer func() {
-		if err := os.Chdir(originalWd); err != nil {
-			t.Errorf("Failed to restore working directory: %v", err)
-		}
-	}()
-
-	localRecacDir := filepath.Join(tempDir, ".recac", "prompts")
+	// Create temp dir for CWD simulation
+	tempCwd := t.TempDir()
+	localRecacDir := filepath.Join(tempCwd, ".recac", "prompts")
 	if err := os.MkdirAll(localRecacDir, 0755); err != nil {
 		t.Fatalf("Failed to create local recac dir: %v", err)
 	}
+
+	// Mock getwd
+	originalGetwd := getwd
+	getwd = func() (string, error) { return tempCwd, nil }
+	defer func() { getwd = originalGetwd }()
 
 	localContent := "Local Override"
 	err = os.WriteFile(filepath.Join(localRecacDir, promptName+".md"), []byte(localContent), 0644)
@@ -104,9 +96,39 @@ func TestGetPrompt_Overrides(t *testing.T) {
 		t.Errorf("GetPrompt returned %q, want %q", content, localContent)
 	}
 
-	// 4. Test Variable Injection
+	// 4. Test Global ~/.recac/prompts
+	// Create temp dir for Home simulation
+	tempHome := t.TempDir()
+	globalRecacDir := filepath.Join(tempHome, ".recac", "prompts")
+	if err := os.MkdirAll(globalRecacDir, 0755); err != nil {
+		t.Fatalf("Failed to create global recac dir: %v", err)
+	}
+
+	// Mock userHomeDir
+	originalUserHomeDir := userHomeDir
+	userHomeDir = func() (string, error) { return tempHome, nil }
+	defer func() { userHomeDir = originalUserHomeDir }()
+
+	globalContent := "Global Override"
+	// Ensure local override doesn't exist for this test (or use a new name, but let's reuse promptName and remove local)
+	os.Remove(filepath.Join(localRecacDir, promptName+".md"))
+
+	err = os.WriteFile(filepath.Join(globalRecacDir, promptName+".md"), []byte(globalContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write global override: %v", err)
+	}
+
+	content, err = GetPrompt(promptName, nil)
+	if err != nil {
+		t.Fatalf("GetPrompt failed with global override: %v", err)
+	}
+	if content != globalContent {
+		t.Errorf("GetPrompt returned %q, want %q", content, globalContent)
+	}
+
+	// 5. Test Variable Injection (using Global or Local)
 	varContent := "Hello {name}"
-	err = os.WriteFile(filepath.Join(localRecacDir, promptName+".md"), []byte(varContent), 0644)
+	err = os.WriteFile(filepath.Join(globalRecacDir, promptName+".md"), []byte(varContent), 0644)
 	if err != nil {
 		t.Fatalf("Failed to write var override: %v", err)
 	}
