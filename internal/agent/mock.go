@@ -77,7 +77,6 @@ EOF
 	// We check for these strong signals first. Even if the prompt contains "implement" (e.g. in the spec description),
 	// we should prioritize the ticket creation role if the explicit instruction is present.
 	if strings.Contains(prompt, "Create exactly ONE ticket") ||
-		strings.Contains(prompt, "feature_list.json") ||
 		strings.Contains(prompt, "Technical Program Manager") {
 		// Return a JSON list of tickets as expected by the Jira/Spec parser
 		return `
@@ -96,7 +95,7 @@ EOF
 	// The prompt will contain the task description "Implement a python script...".
 	if strings.Contains(prompt, "Implement a python script") ||
 		strings.Contains(prompt, "Implement Prime Number Script") ||
-		(strings.Contains(prompt, "[PRIMES]") && !strings.Contains(prompt, "Review") && !strings.Contains(prompt, "QA") && !strings.Contains(prompt, "feature_list.json")) ||
+		(strings.Contains(prompt, "[PRIMES]") && !strings.Contains(prompt, "Review") && !strings.Contains(prompt, "QA")) ||
 		(strings.Contains(prompt, "primes.py") && !strings.Contains(prompt, "Review") && !strings.Contains(prompt, "QA")) {
 		return `
 I will implement the prime number script as requested.
