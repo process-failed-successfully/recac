@@ -51,7 +51,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Check for Initializer Agent prompt
 	if strings.Contains(prompt, "YOUR ROLE - INITIALIZER AGENT") {
-		return `#!/bin/bash
+		return "```bash\n" + `#!/bin/bash
 set -x
 git init
 git config user.name "RECAC Agent"
@@ -75,14 +75,14 @@ cat << 'EOF' | agent-bridge import
   ]
 }
 EOF
-`, nil
+` + "\n```", nil
 	}
 
 	// Check for Coding Agent prompt
 	if strings.Contains(prompt, "## YOUR ROLE - CODING AGENT") {
 		// For the prime-python scenario (detected via [PRIMES] marker)
 		if strings.Contains(prompt, "[PRIMES]") {
-			return `#!/bin/bash
+			return "```bash\n" + `#!/bin/bash
 set -x
 
 # Configure git
@@ -114,14 +114,14 @@ python3 primes.py
 # Signal completion
 agent-bridge feature set req-primes-py-exists --status done --passes true
 agent-bridge signal COMPLETED true
-`, nil
+` + "\n```", nil
 		}
 
 		// Generic Coding Agent response
-		return `#!/bin/bash
+		return "```bash\n" + `#!/bin/bash
 echo "Mock Coding Agent: Working on task..."
 ls -la
-`, nil
+` + "\n```", nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
