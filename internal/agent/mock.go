@@ -134,7 +134,8 @@ if [ ! -f primes.json ]; then
     exit 1
 fi
 
-git add primes.py primes.json
+git add primes.py
+git add -f primes.json
 git commit --author="Recac Agent <agent@recac.io>" -m "Add primes script"
 git push
 agent-bridge feature list --json | jq -r '.features[].id' | xargs -I {} agent-bridge feature set {} --status done --passes true

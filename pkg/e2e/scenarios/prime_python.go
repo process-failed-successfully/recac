@@ -144,7 +144,14 @@ func (s *PrimePythonScenario) Verify(repoPath string, ticketKeys map[string]stri
 		// After running script, try reading the file it produced
 		fileOut, err := os.ReadFile(fullJsonPath)
 		if err != nil {
-			return fmt.Errorf("script ran but failed to read %s: %v\nScript Output: %s", jsonPath, err, string(cmdOut))
+			// Debug: Inspect state
+			lsCmd := exec.Command("ls", "-R", repoPath)
+			lsOut, _ := lsCmd.CombinedOutput()
+
+			scriptContent, _ := os.ReadFile(filepath.Join(repoPath, scriptPath))
+
+			return fmt.Errorf("script ran but failed to read %s: %v\nScript Output: %s\nRepo Content:\n%s\nScript Content:\n%s",
+				jsonPath, err, string(cmdOut), string(lsOut), string(scriptContent))
 		}
 		out = fileOut
 		fmt.Printf("Successfully generated and read %s\n", jsonPath)
