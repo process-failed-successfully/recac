@@ -92,7 +92,9 @@ I will implement the prime number generator.
 
 ` + "```bash" + `
 # Create the python script
-cat << 'EOF' > primes.py
+# Using EOF without quotes to allow variable expansion if needed, but here simple cat is fine.
+# Added error handling for python execution
+cat <<EOF > primes.py
 import json
 
 def is_prime(n):
@@ -106,8 +108,8 @@ with open("primes.json", "w") as f:
     json.dump({"primes": primes}, f)
 EOF
 
-# Run the script to generate the JSON
-python3 primes.py
+# Run the script to generate the JSON, fail if it fails
+python3 primes.py || { echo "Python script execution failed"; exit 1; }
 
 # Ensure git configuration
 if [ -n "$GITHUB_TOKEN" ]; then
