@@ -59,3 +59,45 @@ func TestMockAgent_Send_QARole(t *testing.T) {
 		t.Errorf("Expected response to contain feature completion command (priority check), got: %s", respMixed)
 	}
 }
+
+func TestMockAgent_Send_ManagerRole_FalsePositive(t *testing.T) {
+	agent := NewMockAgent()
+	ctx := context.Background()
+
+	// Test case: QA Agent prompt that mentions "QA Report" in instructions
+	// This should NOT trigger the Manager role logic
+	prompt := "## YOUR ROLE - QA AGENT\n\nGenerate a detailed QA Report..."
+
+	resp, err := agent.Send(ctx, prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Verify it does NOT return PROJECT_SIGNED_OFF
+	if strings.Contains(resp, "agent-bridge signal PROJECT_SIGNED_OFF true") {
+		t.Errorf("QA Agent prompt incorrectly triggered Manager response: %s", resp)
+	}
+
+	// Verify it returns QA_PASSED (as it is the QA agent)
+	if !strings.Contains(resp, "agent-bridge signal QA_PASSED true") {
+		t.Errorf("Expected QA response, got: %s", resp)
+	}
+}
+
+func TestMockAgent_Send_ManagerRole_TruePositive(t *testing.T) {
+	agent := NewMockAgent()
+	ctx := context.Background()
+
+	// Test case: Actual Manager prompt
+	prompt := "## YOUR ROLE - PROJECT MANAGER\n\nApprove or Reject the project based on the QA Report..."
+
+	resp, err := agent.Send(ctx, prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Verify it returns PROJECT_SIGNED_OFF
+	if !strings.Contains(resp, "agent-bridge signal PROJECT_SIGNED_OFF true") {
+		t.Errorf("Expected Manager response, got: %s", resp)
+	}
+}

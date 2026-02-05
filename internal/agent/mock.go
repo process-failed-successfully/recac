@@ -99,7 +99,8 @@ agent-bridge signal QA_PASSED true
 	}
 
 	// 5. Manager Role (Sign-off)
-	if strings.Contains(promptLower, "project manager") || strings.Contains(promptLower, "qa report") {
+	// Used stricter check to avoid triggering on "QA Report" mentions in other agent prompts
+	if strings.Contains(promptLower, "## your role - project manager") || (strings.Contains(promptLower, "project manager") && strings.Contains(promptLower, "approve or reject")) {
 		return `
 ` + "```bash" + `
 agent-bridge signal PROJECT_SIGNED_OFF true
