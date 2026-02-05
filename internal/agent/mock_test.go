@@ -76,7 +76,7 @@ func TestMockAgent_Coding_Primes(t *testing.T) {
 		"python3 primes.py",
 		"git add primes.py primes.json",
 		"git commit",
-		"agent-bridge feature set --id PRIMES",
+		"agent-bridge feature set PRIMES --status implemented",
 	}
 
 	for _, exp := range expected {
