@@ -32,7 +32,44 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// 1. Initializer / Architect Role (Creating Tickets)
+	// 0. Initializer Agent (Start of Project) - Specific for E2E Smoke Test
+	// The Initializer Agent is responsible for creating feature_list.json using agent-bridge import.
+	if strings.Contains(prompt, "INITIALIZER AGENT") {
+		return `
+I will set up the project and create the feature list as requested.
+
+` + "```bash" + `
+# Create feature_list.json via agent-bridge
+cat << 'EOF' | agent-bridge import
+{
+  "project_name": "Prime Number Script",
+  "features": [
+    {
+      "id": "PRIMES",
+      "category": "functional",
+      "priority": "MVP",
+      "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.",
+      "status": "pending",
+      "steps": [
+        "Run python3 primes.py",
+        "Check that primes.json is created",
+        "Verify primes.json contains valid prime numbers"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": ["primes.py", "primes.json"],
+        "read_only_paths": []
+      }
+    }
+  ]
+}
+EOF
+` + "```" + `
+`, nil
+	}
+
+	// 1. Initializer / Architect Role (Creating Tickets) - Legacy/Fallback
 	// Detect based on keywords from PrimePythonScenario.AppSpec or TPM prompts
 	// We need to be careful not to match the developer prompt which might also contain ID:[PRIMES]
 	// The Initializer/TPM prompt typically asks to "Create exactly ONE ticket", contains "feature_list.json" context,
