@@ -32,6 +32,35 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	// Initializer Agent
+	if strings.Contains(prompt, "YOUR ROLE - INITIALIZER AGENT") || (strings.Contains(prompt, "feature_list.json") && strings.Contains(prompt, "initialize")) {
+		return "```bash\n" +
+			"git init\n" +
+			"git config user.email \"agent@recac.com\"\n" +
+			"git config user.name \"Recac Agent\"\n" +
+			"cat << 'EOF' | agent-bridge import\n" +
+			"{\n" +
+			"  \"project_name\": \"Prime Number Generator\",\n" +
+			"  \"features\": [\n" +
+			"    {\n" +
+			"      \"id\": \"primes-impl\",\n" +
+			"      \"category\": \"functional\",\n" +
+			"      \"priority\": \"MVP\",\n" +
+			"      \"description\": \"Implement python script to calculate primes\",\n" +
+			"      \"status\": \"pending\",\n" +
+			"      \"steps\": [\n" +
+			"        \"Run python3 primes.py\",\n" +
+			"        \"Check primes.json output\"\n" +
+			"      ],\n" +
+			"      \"passes\": false,\n" +
+			"      \"dependencies\": {}\n" +
+			"    }\n" +
+			"  ]\n" +
+			"}\n" +
+			"EOF\n" +
+			"```", nil
+	}
+
 	// TPM: Generate Tickets
 	// Detects the prompt asking for ticket creation (usually contains "Technical Program Manager" and "Ticket")
 	if strings.Contains(prompt, "Technical Program Manager") && (strings.Contains(prompt, "Ticket") || strings.Contains(prompt, "tickets")) {
