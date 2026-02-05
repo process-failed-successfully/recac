@@ -242,12 +242,12 @@ func runGenerateTicketsCmd(cmd *cobra.Command, args []string) {
 			mockJSON := `[
   {
     "title": "ID:[SYSTEM] Mock System Architecture",
-    "description": "Mock system implementation.\nRepo: https://github.com/example/repo",
+    "description": "Mock system implementation.",
     "type": "Epic",
     "children": [
       {
         "title": "ID:[SERVICE] Mock Service",
-        "description": "Mock service description.\nRepo: https://github.com/example/repo",
+        "description": "Mock service description.",
         "type": "Story",
         "children": []
       }
