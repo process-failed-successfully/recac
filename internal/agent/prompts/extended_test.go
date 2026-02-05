@@ -56,17 +56,12 @@ func TestGetPrompt_Overrides(t *testing.T) {
 
 		// Setup temp CWD to simulate local override
 		tmpDir := t.TempDir()
-		oldCwd, err := os.Getwd()
-		if err != nil {
-			t.Fatalf("Failed to get current working directory: %v", err)
-		}
-		if err := os.Chdir(tmpDir); err != nil {
-			t.Fatalf("Failed to chdir: %v", err)
+		origGetwd := getwd
+		getwd = func() (string, error) {
+			return tmpDir, nil
 		}
 		defer func() {
-			if err := os.Chdir(oldCwd); err != nil {
-				t.Errorf("Failed to restore CWD: %v", err)
-			}
+			getwd = origGetwd
 		}()
 
 		// Create .recac/prompts in the temp dir
@@ -76,7 +71,7 @@ func TestGetPrompt_Overrides(t *testing.T) {
 		}
 
 		localContent := "Local Override"
-		err = os.WriteFile(filepath.Join(localRecacDir, promptName+".md"), []byte(localContent), 0644)
+		err := os.WriteFile(filepath.Join(localRecacDir, promptName+".md"), []byte(localContent), 0644)
 		if err != nil {
 			t.Fatalf("Failed to write local override: %v", err)
 		}
