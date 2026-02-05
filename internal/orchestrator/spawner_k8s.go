@@ -213,12 +213,7 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	// We'll trust the Orchestrator passed a clone-able URL or we use env var injection in the shell command.
 	// item.RepoURL is plain.
 	// Command:
-	cmd := fmt.Sprintf(`
-		if [ -n "$GITHUB_TOKEN" ]; then
-			git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
-		fi
-		recac-agent --jira %q --project %q --image %s --path /workspace --detached=false --cleanup=false --allow-dirty --repo-url %q
-	`, item.ID, item.ID, s.Image, item.RepoURL)
+	cmd := s.generateStartCommand(item)
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -295,4 +290,27 @@ func sanitizeK8sName(name string) string {
 	name = strings.ToLower(name)
 	name = k8sNameSanitizerRegex.ReplaceAllString(name, "-")
 	return strings.Trim(name, "-")
+}
+
+func (s *K8sSpawner) generateStartCommand(item WorkItem) string {
+	return fmt.Sprintf(`
+		# Token Discovery (Fallback Priority: GITHUB_TOKEN -> GITHUB_API_KEY -> RECAC_GITHUB_API_KEY)
+		TOKEN=""
+		if [ -n "$GITHUB_TOKEN" ]; then
+			TOKEN="$GITHUB_TOKEN"
+		elif [ -n "$GITHUB_API_KEY" ]; then
+			TOKEN="$GITHUB_API_KEY"
+		elif [ -n "$RECAC_GITHUB_API_KEY" ]; then
+			TOKEN="$RECAC_GITHUB_API_KEY"
+		fi
+
+		if [ -n "$TOKEN" ]; then
+			echo "Configuring git credentials..."
+			git config --global url."https://${TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
+		else
+			echo "Warning: No GitHub token found in env (checked GITHUB_TOKEN, GITHUB_API_KEY, RECAC_GITHUB_API_KEY)."
+		fi
+
+		recac-agent --jira %q --project %q --image %s --path /workspace --detached=false --cleanup=false --allow-dirty --repo-url %q
+	`, item.ID, item.ID, s.Image, item.RepoURL)
 }
