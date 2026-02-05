@@ -20,8 +20,12 @@ func TestMockAgent(t *testing.T) {
 		t.Errorf("Response missing prefix, got: %s", response)
 	}
 
-	if !strings.Contains(response, "I received your prompt") {
-		t.Errorf("Response missing body, got: %s", response)
+	// Verify that it returns a bash script to prevent NO-OP loops
+	if !strings.Contains(response, "```bash") {
+		t.Error("Response should contain a bash block")
+	}
+	if !strings.Contains(response, "echo \"Mock Agent executing default action...\"") {
+		t.Error("Response should contain execution echo")
 	}
 }
 
