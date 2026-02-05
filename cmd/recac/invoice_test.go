@@ -37,7 +37,7 @@ func TestInvoiceCmd(t *testing.T) {
 		// This prevents edge cases near midnight where "now" and "now+1h" might span two different days.
 		refTime := time.Now().Truncate(24 * time.Hour).Add(12 * time.Hour)
 
-		ts3 := refTime.AddDate(0, 0, -1).Format(time.RFC3339) // Yesterday noon (new session)
+		ts3 := refTime.Add(-25 * time.Hour).Format(time.RFC3339) // Yesterday noon (new session)
 		ts1 := refTime.Format(time.RFC3339)                   // Today noon (start of session)
 		ts2 := refTime.Add(1 * time.Hour).Format(time.RFC3339) // Today 1 PM (same session)
 
