@@ -33,12 +33,15 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 1. Initializer / Architect Role (Creating Tickets)
-	// Detect based on keywords from PrimePythonScenario.AppSpec
+	// Detect based on keywords from PrimePythonScenario.AppSpec or TPM prompts
 	// We need to be careful not to match the developer prompt which might also contain ID:[PRIMES]
-	// The Initializer prompt typically asks to "Create exactly ONE ticket" or contains "feature_list.json" context.
+	// The Initializer/TPM prompt typically asks to "Create exactly ONE ticket", contains "feature_list.json" context,
+	// or identifies as "Technical Program Manager".
 	// We check for these strong signals first. Even if the prompt contains "implement" (e.g. in the spec description),
 	// we should prioritize the ticket creation role if the explicit instruction is present.
-	if strings.Contains(prompt, "Create exactly ONE ticket") || strings.Contains(prompt, "feature_list.json") {
+	if strings.Contains(prompt, "Create exactly ONE ticket") ||
+		strings.Contains(prompt, "feature_list.json") ||
+		strings.Contains(prompt, "Technical Program Manager") {
 		// Return a JSON list of tickets as expected by the Jira/Spec parser
 		return `
 [

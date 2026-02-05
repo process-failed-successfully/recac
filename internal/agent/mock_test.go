@@ -25,6 +25,33 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Roles(t *testing.T) {
+	agent := NewMockAgent()
+
+	// 1. Test TPM Role detection
+	tpmPrompt := "You are an expert Technical Program Manager (TPM)... Application Specification: ... Implement a python script..."
+	response, err := agent.Send(context.Background(), tpmPrompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if strings.Contains(response, "cat << 'EOF' > primes.py") {
+		t.Error("TPM prompt incorrectly triggered Developer response")
+	}
+	if !strings.Contains(response, `"title": "ID:[PRIMES] Implement Prime Number Script"`) {
+		t.Error("TPM prompt failed to return ticket JSON")
+	}
+
+	// 2. Test Developer Role detection
+	devPrompt := "Implement a python script named 'primes.py'"
+	response, err = agent.Send(context.Background(), devPrompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(response, "cat << 'EOF' > primes.py") {
+		t.Error("Developer prompt failed to trigger implementation response")
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {

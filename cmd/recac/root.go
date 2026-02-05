@@ -99,10 +99,12 @@ func init() {
 func initConfig() {
 	config.Load(cfgFile)
 
-	// Validate configuration values
-	if err := config.ValidateConfig(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		exit(1)
+	// Validate configuration values, unless in mock mode
+	if !viper.GetBool("mock") {
+		if err := config.ValidateConfig(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			exit(1)
+		}
 	}
 
 	telemetry.InitLogger(viper.GetBool("verbose"), "", false)
