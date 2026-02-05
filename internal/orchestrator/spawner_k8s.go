@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log/slog"
@@ -88,6 +89,24 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		// Job exists
 		if existingJob.Status.Failed > 0 {
 			s.Logger.Info("Found failed job, deleting to retry", "name", jobName)
+
+			// Attempt to fetch logs from pods for debugging
+			labelSelector := fmt.Sprintf("job-name=%s", jobName)
+			pods, _ := s.Client.CoreV1().Pods(s.Namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
+			if pods != nil {
+				for _, pod := range pods.Items {
+					req := s.Client.CoreV1().Pods(s.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{})
+					if podLogs, err := req.Stream(ctx); err == nil {
+						buf := new(bytes.Buffer)
+						_, _ = buf.ReadFrom(podLogs)
+						_ = podLogs.Close()
+						s.Logger.Error("Pod Logs for failed job", "pod", pod.Name, "logs", buf.String())
+					} else {
+						s.Logger.Warn("Failed to fetch pod logs", "pod", pod.Name, "error", err)
+					}
+				}
+			}
+
 			// Delete background
 			delPolicy := metav1.DeletePropagationBackground
 			if err := s.Client.BatchV1().Jobs(s.Namespace).Delete(ctx, jobName, metav1.DeleteOptions{PropagationPolicy: &delPolicy}); err != nil {
