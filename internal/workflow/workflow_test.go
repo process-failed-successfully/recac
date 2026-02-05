@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"recac/internal/agent"
 	"recac/internal/cmdutils"
@@ -175,6 +176,15 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 		return repoURL, nil
 	}
 
+	// Mock NewSessionFunc to override SleepFunc
+	originalNewSessionFunc := NewSessionFunc
+	defer func() { NewSessionFunc = originalNewSessionFunc }()
+	NewSessionFunc = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
+		s := runner.NewSession(d, a, workspace, image, project, provider, model, maxAgents)
+		s.SleepFunc = func(time.Duration) {} // No-op sleep
+		return s
+	}
+
 	// Mock Jira Server (minimal)
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
@@ -215,11 +225,13 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 		RepoURL:     "https://github.com/example/already-provided",
 		IsMock:      true,
 		Cleanup:     false,
+		MaxIterations: 5,
 	}
 
 	err := ProcessJiraTicket(context.Background(), "TEST-1", jClient, cfg, nil)
 
 	// Should NOT return "no repo url found" error because RepoURL was provided in cfg.
+	// It might return ErrMaxIterations, which is fine
 	if err != nil {
 		assert.NotContains(t, err.Error(), "no repo url found")
 	}
@@ -244,6 +256,7 @@ func TestRunWorkflow_Normal(t *testing.T) {
 	NewSessionFunc = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
 		s := runner.NewSession(d, a, workspace, image, project, provider, model, maxAgents)
 		s.MaxIterations = 0 // Should exit immediately
+		s.SleepFunc = func(time.Duration) {} // No-op sleep
 		return s
 	}
 
@@ -281,6 +294,7 @@ func TestRunWorkflow_Normal(t *testing.T) {
 	NewSessionFunc = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
 		s := runner.NewSession(d, a, workspace, image, project, provider, model, maxAgents)
 		s.MaxIterations = 1
+		s.SleepFunc = func(time.Duration) {} // No-op sleep
 		// We need to ensure RunLoop doesn't block on "NoOp" or "Stalled".
 		// MockAgent returns empty responses usually?
 		// We should configure MockAgent to return "DONE".
