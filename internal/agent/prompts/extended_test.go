@@ -70,6 +70,7 @@ func TestGetPrompt_Overrides(t *testing.T) {
 		}
 
 		// Mock getwd to return the temp dir
+		// This prevents the test from trying to write to the actual CWD, which can cause CI failures.
 		oldGetwd := getwd
 		getwd = func() (string, error) {
 			return tmpDir, nil
