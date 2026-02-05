@@ -166,6 +166,13 @@ func TestRunWorkflow_Detached(t *testing.T) {
 }
 
 func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
+	// Mock RunWorkflow to prevent infinite loops
+	originalRunWorkflow := RunWorkflow
+	defer func() { RunWorkflow = originalRunWorkflow }()
+	RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
+		return nil // Prevent running the full session
+	}
+
 	// Mock SetupWorkspace
 	originalSetup := cmdutils.SetupWorkspace
 	defer func() { cmdutils.SetupWorkspace = originalSetup }()
@@ -211,10 +218,11 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	cfg := SessionConfig{
-		ProjectPath: tmpDir,
-		RepoURL:     "https://github.com/example/already-provided",
-		IsMock:      true,
-		Cleanup:     false,
+		ProjectPath:   tmpDir,
+		RepoURL:       "https://github.com/example/already-provided",
+		IsMock:        true,
+		Cleanup:       false,
+		MaxIterations: 1, // Safety net
 	}
 
 	err := ProcessJiraTicket(context.Background(), "TEST-1", jClient, cfg, nil)
