@@ -90,7 +90,36 @@ func truncateString(s string, maxLen int) string {
 func (m *MockAgent) initializerResponse() string {
 	// Returns a script to initialize the repo and run agent-bridge import
 	// Use standard markdown code block
-	return "Here is the initialization script:\n\n```bash\n#!/bin/bash\ngit init\ngit config user.email \"bot@recac.com\"\ngit config user.name \"Recac Bot\"\ngit add .\ngit commit --allow-empty -m \"Initial commit\"\nagent-bridge import\n```"
+	script := `#!/bin/bash
+git init
+git config user.email "bot@recac.com"
+git config user.name "Recac Bot"
+git add .
+git commit --allow-empty -m "Initial commit"
+
+cat <<EOF | agent-bridge import
+{
+  "project_name": "Mock Project",
+  "features": [
+    {
+      "id": "PRIMES",
+      "category": "Backend",
+      "priority": "MVP",
+      "description": "Create a script primes.py that calculates prime numbers up to 100 and saves them to primes.json. [PRIMES]",
+      "status": "pending",
+      "passes": false,
+      "steps": [],
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": [],
+        "read_only_paths": []
+      }
+    }
+  ]
+}
+EOF
+`
+	return fmt.Sprintf("Here is the initialization script:\n\n```bash\n%s\n```", script)
 }
 
 func (m *MockAgent) primesPlanResponse() string {

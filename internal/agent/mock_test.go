@@ -39,8 +39,9 @@ func TestMockAgent_SmartLogic(t *testing.T) {
 			prompt: "Your role is Initializer Agent. Please setup the repo.",
 			expectContains: []string{
 				"git init",
-				"agent-bridge import",
+				"cat <<EOF | agent-bridge import",
 				"```bash",
+				`"project_name": "Mock Project"`,
 			},
 		},
 		{
