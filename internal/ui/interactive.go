@@ -256,6 +256,7 @@ func NewInteractiveModel(commands []SlashCommand, provider, model string) Intera
 	ta.SetHeight(3)
 	ta.ShowLineNumbers = false
 	ta.KeyMap.InsertNewline.SetEnabled(true) // Allow multi-line input
+	ta.KeyMap.InsertNewline.SetKeys("alt+enter", "ctrl+j")
 
 	// Convert SlashCommands to CommandItems
 	// Custom Commands Injection
@@ -516,10 +517,11 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					// Filter commands
 					var filtered []list.Item
 					for _, c := range m.commands {
-						if strings.Contains(strings.ToLower(c.Name), strings.ToLower(query)) { // Match /name against /query
+						// Match name OR description (fuzzy finding)
+						if strings.Contains(strings.ToLower(c.Name), strings.ToLower(query)) ||
+							strings.Contains(strings.ToLower(c.Desc), strings.ToLower(query)) {
 							filtered = append(filtered, c)
 						}
-						// Also match description?
 					}
 					m.list.SetItems(filtered)
 				}
