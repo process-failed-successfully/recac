@@ -69,6 +69,33 @@ EOF
 `, nil
 	}
 
+	// 0.5 Planner / Architect Role (Decomposing Spec)
+	// Return a valid JSON object as requested by internal/runner/planner.go
+	if strings.Contains(prompt, "Lead Software Architect") {
+		return `{
+  "project_name": "Prime Number Script",
+  "features": [
+    {
+      "id": "PRIMES",
+      "category": "functional",
+      "priority": "MVP",
+      "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.",
+      "status": "pending",
+      "steps": [
+        "Run python3 primes.py",
+        "Check that primes.json is created",
+        "Verify primes.json contains valid prime numbers"
+      ],
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": ["primes.py", "primes.json"],
+        "read_only_paths": []
+      }
+    }
+  ]
+}`, nil
+	}
+
 	// 1. Initializer / Architect Role (Creating Tickets) - Legacy/Fallback
 	// Detect based on keywords from PrimePythonScenario.AppSpec or TPM prompts
 	// We need to be careful not to match the developer prompt which might also contain ID:[PRIMES]

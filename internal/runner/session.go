@@ -124,9 +124,9 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 		ConnectionString: dbURL,
 	}
 
-	// Retry loop for DB connection (up to 30 seconds)
+	// Retry loop for DB connection (up to 150 seconds)
 	var err error
-	maxRetries := 6
+	maxRetries := 30
 	for i := 0; i < maxRetries; i++ {
 		if i > 0 {
 			fmt.Fprintf(os.Stderr, "[Session] Retrying DB connection (%d/%d)...\n", i+1, maxRetries)
