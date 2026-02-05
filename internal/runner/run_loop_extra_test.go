@@ -445,7 +445,7 @@ func TestSession_LoadFeatures_Priority(t *testing.T) {
 	// Execution: loadFeatures is private, but we can trigger it via SelectPrompt or RunLoop?
 	// Or just test it if we export it or use reflection?
 	// Since we are in 'package runner', we can call private methods!
-	features := s.loadFeatures()
+	features, _ := s.loadFeatures()
 
 	// Verification
 	// Should have merged Env + DB.

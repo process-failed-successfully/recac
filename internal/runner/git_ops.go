@@ -202,7 +202,7 @@ func (s *Session) EnsureConflictTask() {
 	if s.DBStore == nil {
 		return
 	}
-	features := s.loadFeatures()
+	features, _ := s.loadFeatures()
 	conflictTaskID := "CONFLICT_RES"
 	needsUpdate := false
 

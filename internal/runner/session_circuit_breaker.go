@@ -19,7 +19,7 @@ func (s *Session) checkNoOpBreaker(executionOutput string) error {
 
 // checkStalledBreaker checks if the agent is making progress on features.
 func (s *Session) checkFeatures() int {
-	features := s.loadFeatures()
+	features, _ := s.loadFeatures()
 	passed := 0
 	for _, f := range features {
 		if f.Passes || f.Status == "done" || f.Status == "implemented" {

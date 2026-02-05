@@ -33,7 +33,7 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 		}
 
 		// Check for existing features (DB, Injected, or File)
-		features := s.loadFeatures()
+		features, _ := s.loadFeatures()
 		if len(features) > 0 {
 			// Features exist, so we don't need to run Initializer.
 			// s.loadFeatures() automatically syncs to file if found in DB.
@@ -57,7 +57,7 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 		// Cleanup signal
 		s.clearSignal("TRIGGER_MANAGER")
 
-		features := s.loadFeatures()
+		features, _ := s.loadFeatures()
 
 		qaReport := RunQA(features)
 
@@ -117,7 +117,14 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 	// 4. Deterministic Task Assignment (User Request: Remove agent reliance on jq)
 	// Find the first pending feature and assign it explicitly.
 	var assignedFeature *db.Feature
-	features := s.loadFeatures() // Refresh from DB/File
+	features, projectName := s.loadFeatures() // Refresh from DB/File
+
+	// Fallback to Session Project ID if projectName is empty
+	if vars["project_name"] == "" || vars["project_name"] == s.Project {
+		if projectName != "" {
+			vars["project_name"] = projectName
+		}
+	}
 
 	for i := range features {
 		if features[i].Status != "done" && !features[i].Passes {
@@ -143,7 +150,7 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 		vars["read_only_paths"] = "all"
 	}
 	if s.SelectedTaskID != "" {
-		features := s.loadFeatures()
+		features, _ := s.loadFeatures()
 		var target db.Feature
 		for _, f := range features {
 			if f.ID == s.SelectedTaskID {
@@ -344,7 +351,7 @@ func (s *Session) runManagerAgent(ctx context.Context) error {
 		}
 	}
 
-	features := s.loadFeatures()
+	features, _ := s.loadFeatures()
 	qaReport := RunQA(features)
 
 	// Create manager review prompt

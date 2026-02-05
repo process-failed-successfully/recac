@@ -800,9 +800,11 @@ func (s *Session) SetContainerID(id string) {
 
 
 
-func (s *Session) loadFeatures() []db.Feature {
+func (s *Session) loadFeatures() ([]db.Feature, string) {
 	// 1. Try to fetch from DB first (Authoritative source)
 	var fromDB []db.Feature
+	var projectName string
+
 	if s.DBStore != nil {
 		s.Logger.Info("[DEBUG] Attempting to load features from DB", "project", s.Project)
 		content, err := s.DBStore.GetFeatures(s.Project)
@@ -814,6 +816,9 @@ func (s *Session) loadFeatures() []db.Feature {
 			if err := json.Unmarshal([]byte(content), &fl); err == nil {
 				s.Logger.Info("loaded features from DB history", "count", len(fl.Features))
 				fromDB = fl.Features
+				if fl.ProjectName != "" {
+					projectName = fl.ProjectName
+				}
 			}
 		}
 	} else {
@@ -843,6 +848,9 @@ func (s *Session) loadFeatures() []db.Feature {
 			s.Logger.Info("loaded injected features from env", "count", len(fl.Features))
 			// Merge with DB features (Injected features are "System" features, likely critical)
 			fromDB = mergeFeatures(fromDB, fl.Features)
+			if fl.ProjectName != "" {
+				projectName = fl.ProjectName
+			}
 
 			// Persist the merged state immediately
 			if s.DBStore != nil {
@@ -851,6 +859,13 @@ func (s *Session) loadFeatures() []db.Feature {
 					ProjectName: s.Project, // Reuse project ID/Name
 					Features:    fromDB,
 				}
+				// If we have a better project name, preserve it?
+				// But DB stores under s.Project ID.
+				// Let's store the injected Project Name if available.
+				if fl.ProjectName != "" {
+					finalList.ProjectName = fl.ProjectName
+				}
+
 				if data, err := json.Marshal(finalList); err == nil {
 					_ = s.DBStore.SaveFeatures(s.Project, string(data))
 				}
@@ -866,12 +881,15 @@ func (s *Session) loadFeatures() []db.Feature {
 				ProjectName: s.Project,
 				Features:    fromDB,
 			}
+			if projectName != "" {
+				finalList.ProjectName = projectName
+			}
 			if data, err := json.MarshalIndent(finalList, "", "  "); err == nil {
 				s.Logger.Info("syncing features from DB to feature_list.json", "path", listPath)
 				_ = os.WriteFile(listPath, data, 0644)
 			}
 		}
-		return fromDB
+		return fromDB, projectName
 	}
 
 	// 3. Fallback to FeatureContent (passed from Orchestrator/CLI legacy)
@@ -883,7 +901,7 @@ func (s *Session) loadFeatures() []db.Feature {
 			if s.DBStore != nil {
 				_ = s.DBStore.SaveFeatures(s.Project, s.FeatureContent)
 			}
-			return fl.Features
+			return fl.Features, fl.ProjectName
 		}
 	}
 
@@ -897,11 +915,11 @@ func (s *Session) loadFeatures() []db.Feature {
 			if s.DBStore != nil {
 				_ = s.DBStore.SaveFeatures(s.Project, string(data))
 			}
-			return fl.Features
+			return fl.Features, fl.ProjectName
 		}
 	}
 
-	return nil
+	return nil, ""
 }
 
 

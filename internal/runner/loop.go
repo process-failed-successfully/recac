@@ -64,7 +64,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 	}
 
 	// Startup Check: If feature list exists and all passed, mark COMPLETED
-	features := s.loadFeatures()
+	features, _ := s.loadFeatures()
 	if len(features) > 0 {
 		allPassed := true
 		for _, f := range features {
@@ -130,7 +130,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		}
 
 		// Ensure feature list is synced and mirror is up to date
-		features = s.loadFeatures()
+		features, _ = s.loadFeatures()
 
 		// Single-Task Termination: If we are assigned a specific task and it's done, exit.
 		if s.SelectedTaskID != "" {
@@ -244,7 +244,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 
 			// CRITICAL: Guardrail against premature sign-off.
 			// Validate that ALL features are actually passing before accepting the sign-off.
-			features := s.loadFeatures()
+			features, _ := s.loadFeatures()
 			incompleteFeatures := []string{}
 			for _, f := range features {
 				if !(f.Passes || f.Status == "done" || f.Status == "implemented") {
@@ -569,7 +569,7 @@ func (s *Session) checkAutoQA() bool {
 		return false
 	}
 
-	features := s.loadFeatures()
+	features, _ := s.loadFeatures()
 	if len(features) == 0 {
 		return false
 	}
