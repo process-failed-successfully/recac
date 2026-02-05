@@ -76,7 +76,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// Detect specific tasks if possible, or return generic success
 		// The prompt for primes often refers to "Prime Number" or "python script"
 		if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "Prime") || strings.Contains(prompt, "python") {
-			return "```bash\ncat <<EOF > primes.py\nimport json\n\ndef is_prime(n):\n    if n <= 1: return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0: return False\n    return True\n\nprimes = [x for x in range(100) if is_prime(x)]\nprint(f\"Calculated {len(primes)} primes\")\n\nwith open('primes.json', 'w') as f:\n    json.dump(primes, f)\nEOF\n\npython3 primes.py\ngit add primes.py primes.json\ngit commit -m \"Implement primes calculation\" --author=\"Recac Agent <agent@recac.ai>\"\nagent-bridge feature set PRIMES --status implemented\n```", nil
+			return "```bash\ncat <<EOF > primes.py\nimport json\n\ndef is_prime(n):\n    if n <= 1: return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0: return False\n    return True\n\nprimes = [x for x in range(100) if is_prime(x)]\nprint(f\"Calculated {len(primes)} primes\")\n\nwith open('primes.json', 'w') as f:\n    json.dump(primes, f)\nEOF\n\npython3 primes.py\ngit add primes.py primes.json\ngit commit -m \"Implement primes calculation\" --author=\"Recac Agent <agent@recac.ai>\"\necho '{\"features\": [{\"id\": \"PRIMES\", \"description\": \"Calculate primes\", \"status\": \"todo\", \"passes\": false}]}' | agent-bridge import\nagent-bridge feature set PRIMES --status implemented\n```", nil
 		}
 		return "```bash\n# Mock Coding Action\necho 'Working...'\n```", nil
 	}
