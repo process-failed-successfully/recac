@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -87,6 +88,12 @@ func ensureInGitignore(gitignorePath string, files []string) error {
 }
 
 func untrackFiles(repoPath string, files []string) error {
+	// Check if directory is a git repo first to avoid exit status 128
+	if _, err := os.Stat(filepath.Join(repoPath, ".git")); os.IsNotExist(err) {
+		// Not a git repo, skip untracking
+		return nil
+	}
+
 	// Check if files are tracked
 	cmd := exec.Command("git", append([]string{"ls-files"}, files...)...)
 	cmd.Dir = repoPath
