@@ -53,6 +53,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// This supports the E2E smoke test scenario
 	// We check the prompt AND the injected features env var (for robustness)
 	injectedFeatures := os.Getenv("RECAC_INJECTED_FEATURES")
+	// Debug logging for troubleshooting CI - use stderr to ensure it appears in logs
+	fmt.Fprintf(os.Stderr, "[DEBUG] MockAgent: injectedFeatures=%q\n", injectedFeatures)
 	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") || strings.Contains(injectedFeatures, "[PRIMES]") {
 		return `I will implement the primes calculation script as requested.
 
