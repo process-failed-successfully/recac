@@ -111,7 +111,11 @@ echo "Project initialized."
 	// 4. Implementation Phase (primes.py)
 	// Case-insensitive check for robustness
 	promptLower := strings.ToLower(prompt)
-	if strings.Contains(promptLower, "calculate primes") || strings.Contains(prompt, "[PRIMES]") || strings.Contains(promptLower, "prime numbers") {
+	// Heuristics refined based on actual prompts seen in CI
+	if strings.Contains(promptLower, "calculate primes") ||
+	   strings.Contains(prompt, "[PRIMES]") ||
+	   strings.Contains(promptLower, "prime numbers") ||
+	   strings.Contains(promptLower, "implement prime number calculator") {
 		return `
 Sure, I will create a python script to calculate primes.
 
