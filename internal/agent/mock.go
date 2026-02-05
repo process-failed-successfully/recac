@@ -47,6 +47,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 				fields := strings.Fields(afterRepo)
 				if len(fields) > 0 {
 					repo = fields[0]
+					// Trim trailing punctuation (dot, comma, etc.) which might appear if the prompt is "Repo: <url>."
+					repo = strings.TrimRight(repo, ".,;)")
 				}
 			}
 		}
