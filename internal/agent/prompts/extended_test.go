@@ -60,13 +60,22 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	// 3. Test Local .recac/prompts
 	t.Setenv("RECAC_PROMPTS_DIR", "")
 
-	// Mock getwd to return a temp dir
+	// Mock getwd and userHomeDir to return a temp dir
 	mockCwd := t.TempDir()
 	originalGetwd := getwd
+	originalUserHomeDir := userHomeDir
+
 	getwd = func() (string, error) {
 		return mockCwd, nil
 	}
-	defer func() { getwd = originalGetwd }()
+	userHomeDir = func() (string, error) {
+		return mockCwd, nil
+	}
+
+	defer func() {
+		getwd = originalGetwd
+		userHomeDir = originalUserHomeDir
+	}()
 
 	// Create .recac/prompts in mock CWD
 	localRecacDir := filepath.Join(mockCwd, ".recac", "prompts")
