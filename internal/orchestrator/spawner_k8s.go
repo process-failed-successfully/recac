@@ -112,8 +112,8 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	}
 
 	// Define Job
-	ttl := int32(3600)  // 1 Hour TTL
-	backoff := int32(6) // Retries enabled (standard K8s default)
+	ttl := int32(3600)   // 1 Hour TTL
+	backoff := int32(20) // Increased backoff to prevent premature failure during smoke tests
 	// Spec says: "RestartPolicy: Never". "Orchestrator monitors...".
 
 	// Construct Env Vars
