@@ -17,6 +17,7 @@ func TestHandleChatCommand_Persona(t *testing.T) {
 	session := &ChatSession{
 		CurrentPersona: defaultPersonas["default"],
 		ContextFiles:   make(map[string]string),
+		AllPersonas:    defaultPersonas, // Use default map
 	}
 
 	// 1. Switch to existing persona
@@ -55,6 +56,7 @@ func TestHandleChatCommand_Add(t *testing.T) {
 	session := &ChatSession{
 		CurrentPersona: defaultPersonas["default"],
 		ContextFiles:   make(map[string]string),
+		AllPersonas:    defaultPersonas,
 	}
 
 	// Create temp file

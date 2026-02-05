@@ -5,20 +5,17 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
+	"sort"
 	"strings"
+
+	"recac/internal/agent"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-// Persona defines a role for the AI agent.
-type Persona struct {
-	Name        string
-	Description string
-	SystemPrompt string
-}
-
-var defaultPersonas = map[string]Persona{
+var defaultPersonas = map[string]agent.Persona{
 	"default": {
 		Name:        "Default",
 		Description: "A helpful and versatile software engineer assistant.",
@@ -53,6 +50,9 @@ var defaultPersonas = map[string]Persona{
 
 var chatPersona string
 
+// getWd can be mocked for testing
+var getWd = os.Getwd
+
 var chatCmd = &cobra.Command{
 	Use:   "chat",
 	Short: "Interactive chat with the AI agent",
@@ -69,13 +69,43 @@ func init() {
 
 type ChatSession struct {
 	History        string
-	CurrentPersona Persona
+	CurrentPersona agent.Persona
 	ContextFiles   map[string]string // path -> content
+	AllPersonas    map[string]agent.Persona
+}
+
+func getPersonasPath() string {
+	// Look for .recac/personas.yaml in home directory or current repo?
+	// For repo-specific personas, we check .recac/personas.yaml in cwd.
+	// For user-specific, we check ~/.recac/personas.yaml.
+	// For simplicity, let's just check cwd/.recac/personas.yaml first.
+	cwd, _ := getWd()
+	return filepath.Join(cwd, ".recac", "personas.yaml")
+}
+
+func loadAllPersonas() map[string]agent.Persona {
+	all := make(map[string]agent.Persona)
+	// 1. Defaults
+	for k, v := range defaultPersonas {
+		all[k] = v
+	}
+	// 2. Custom
+	path := getPersonasPath()
+	custom, err := agent.LoadPersonas(path)
+	if err == nil {
+		for k, v := range custom {
+			all[k] = v
+		}
+	}
+	return all
 }
 
 func runChat(cmd *cobra.Command, args []string) error {
+	// Load all personas
+	allPersonas := loadAllPersonas()
+
 	// Initialize Session
-	p, ok := defaultPersonas[chatPersona]
+	p, ok := allPersonas[chatPersona]
 	if !ok {
 		// Fallback to default if unknown, but warn
 		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: Persona '%s' not found. Using 'default'.\n", chatPersona)
@@ -85,6 +115,7 @@ func runChat(cmd *cobra.Command, args []string) error {
 	session := &ChatSession{
 		CurrentPersona: p,
 		ContextFiles:   make(map[string]string),
+		AllPersonas:    allPersonas,
 	}
 
 	// Print Welcome
@@ -182,14 +213,20 @@ func handleChatCommand(cmd *cobra.Command, session *ChatSession, input string) b
 		if len(parts) < 2 {
 			fmt.Fprintln(cmd.OutOrStdout(), "Usage: /persona <name>")
 			fmt.Print("Available personas: ")
-			for k := range defaultPersonas {
+			// Sort keys
+			var keys []string
+			for k := range session.AllPersonas {
+				keys = append(keys, k)
+			}
+			sort.Strings(keys)
+			for _, k := range keys {
 				fmt.Printf("%s ", k)
 			}
 			fmt.Println()
 			return true
 		}
 		name := parts[1]
-		if p, ok := defaultPersonas[name]; ok {
+		if p, ok := session.AllPersonas[name]; ok {
 			session.CurrentPersona = p
 			// We might want to clear history or annotate the switch?
 			// Let's annotate history so agent knows the role changed, or just rely on system prompt update in next turn.
