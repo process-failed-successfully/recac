@@ -54,30 +54,20 @@ func TestGetPrompt_Overrides(t *testing.T) {
 		// Ensure RECAC_PROMPTS_DIR is not interfering
 		t.Setenv("RECAC_PROMPTS_DIR", "")
 
-		// Setup temp CWD to simulate local override
-		// We use os.Chdir to avoid writing to the actual source tree, which would cause "dirty git tree" failures in CI.
-		tmpDir := t.TempDir()
-		oldCwd, err := os.Getwd()
-		if err != nil {
-			t.Fatalf("Failed to get current working directory: %v", err)
-		}
-		if err := os.Chdir(tmpDir); err != nil {
-			t.Fatalf("Failed to chdir: %v", err)
-		}
-		defer func() {
-			if err := os.Chdir(oldCwd); err != nil {
-				t.Errorf("Failed to restore CWD: %v", err)
-			}
-		}()
+		// Mock getwd to point to a temp dir
+		mockCwd := t.TempDir()
+		origGetwd := getwd
+		getwd = func() (string, error) { return mockCwd, nil }
+		defer func() { getwd = origGetwd }()
 
-		// Create .recac/prompts in the temp dir
-		localRecacDir := filepath.Join(tmpDir, ".recac", "prompts")
+		// Create .recac/prompts in mock CWD
+		localRecacDir := filepath.Join(mockCwd, ".recac", "prompts")
 		if err := os.MkdirAll(localRecacDir, 0755); err != nil {
 			t.Fatalf("Failed to create local dir: %v", err)
 		}
 
 		localContent := "Local Override"
-		err = os.WriteFile(filepath.Join(localRecacDir, promptName+".md"), []byte(localContent), 0644)
+		err := os.WriteFile(filepath.Join(localRecacDir, promptName+".md"), []byte(localContent), 0644)
 		if err != nil {
 			t.Fatalf("Failed to write local override: %v", err)
 		}
