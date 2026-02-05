@@ -72,3 +72,33 @@ Triggers Manager Review: agent-bridge manager
 		t.Errorf("Expected generic mock response, got: %s", resp)
 	}
 }
+
+func TestMockAgent_InitializerDetection(t *testing.T) {
+	agent := NewMockAgent()
+	ctx := context.Background()
+
+	// 1. Positive Case
+	initPrompt := "## YOUR ROLE - INITIALIZER AGENT\n\nCreate feature_list.json..."
+	resp, err := agent.Send(ctx, initPrompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(resp, "agent-bridge import") {
+		t.Error("Expected Initializer response for 'ROLE - INITIALIZER AGENT'")
+	}
+
+	// 2. Negative Case (Coding Agent with feature_list.json)
+	codingPrompt := `## YOUR ROLE - CODING AGENT
+
+Reading feature_list.json to understand tasks...
+`
+	resp, err = agent.Send(ctx, codingPrompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Should NOT return the Initializer response
+	if strings.Contains(resp, "agent-bridge import") {
+		t.Error("Coding Agent prompt incorrectly triggered Initializer response")
+	}
+}

@@ -34,7 +34,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 1. Check for Initializer (Feature List Import)
 	// Must happen before ticket keywords check to avoid false positives
-	if strings.Contains(prompt, "feature_list.json") {
+	if strings.Contains(strings.ToUpper(prompt), "ROLE - INITIALIZER AGENT") {
 		return `
 I have analyzed the requirements. Here is the feature list import:
 
