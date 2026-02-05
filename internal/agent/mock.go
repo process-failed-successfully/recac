@@ -35,8 +35,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristic: Detect Primes Implementation Task (Coding Agent)
 	// This supports the E2E smoke test scenario. We prioritize this over TPM if it looks like a coding task.
 	// We check for "Coding Agent", "Developer", "primes.py", or the specific ID tag.
+	// CRITICAL: We must EXCLUDE "Technical Program Manager" or "app_spec.txt" to prevent false positives
+	// when the TPM prompt contains the spec (which includes "[PRIMES]" and "primes.py").
 	if (strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py")) &&
-		(strings.Contains(prompt, "Coding Agent") || strings.Contains(prompt, "Developer") || strings.Contains(prompt, "primes.py")) {
+		(strings.Contains(prompt, "Coding Agent") || strings.Contains(prompt, "Developer") || strings.Contains(prompt, "primes.py")) &&
+		!strings.Contains(prompt, "Technical Program Manager") && !strings.Contains(prompt, "app_spec.txt") {
 		return `I will implement the primes calculation script as requested.
 
 ` + "```bash" + `
