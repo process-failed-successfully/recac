@@ -11,6 +11,9 @@ import (
 //go:embed templates/*.md
 var templateFS embed.FS
 
+// getwd is a wrapper around os.Getwd to allow mocking in tests.
+var getwd = os.Getwd
+
 // List of available prompt templates
 const (
 	Planner        = "planner"
@@ -58,7 +61,7 @@ func GetPrompt(name string, vars map[string]string) (string, error) {
 
 	// 2. Check Local .recac/prompts
 	if len(content) == 0 {
-		cwd, err := os.Getwd()
+		cwd, err := getwd()
 		if err == nil {
 			localPath := filepath.Join(cwd, ".recac", "prompts", name+".md")
 			if c, e := os.ReadFile(localPath); e == nil {
