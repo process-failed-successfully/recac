@@ -45,6 +45,36 @@ func TestMockAgent_TPM(t *testing.T) {
 	}
 }
 
+func TestMockAgent_CodingAgent(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Test Generic Coding Agent Prompt
+	prompt := "## YOUR ROLE - CODING AGENT\n\nTask: Fix bug"
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(response, "#!/bin/bash") {
+		t.Errorf("Expected bash script response for Coding Agent, got: %s", response)
+	}
+	if !strings.Contains(response, "Mock Coding Agent") {
+		t.Error("Expected mock coding agent echo")
+	}
+
+	// Test Primes Scenario
+	promptPrimes := "## YOUR ROLE - CODING AGENT\n\nTask: Implement [PRIMES] feature"
+	responsePrimes, err := agent.Send(context.Background(), promptPrimes)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(responsePrimes, "cat << 'EOF' > primes.py") {
+		t.Error("Expected primes.py creation script")
+	}
+	if !strings.Contains(responsePrimes, "agent-bridge signal COMPLETED true") {
+		t.Error("Expected completion signal")
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {

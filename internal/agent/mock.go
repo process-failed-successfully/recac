@@ -49,6 +49,52 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
+	// Check for Coding Agent prompt
+	if strings.Contains(prompt, "## YOUR ROLE - CODING AGENT") {
+		// For the prime-python scenario (detected via [PRIMES] marker)
+		if strings.Contains(prompt, "[PRIMES]") {
+			return `#!/bin/bash
+set -x
+
+# Configure git
+git config user.name "RECAC Agent"
+git config user.email "agent@recac.io"
+
+# Create primes.py
+cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n <= 1:
+        return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+primes = [x for x in range(2, 21) if is_prime(x)]
+print(f"Primes: {primes}")
+
+with open("primes.json", "w") as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+# Run it
+python3 primes.py
+
+# Signal completion
+agent-bridge feature set req-primes-py-exists --status done --passes true
+agent-bridge signal COMPLETED true
+`, nil
+		}
+
+		// Generic Coding Agent response
+		return `#!/bin/bash
+echo "Mock Coding Agent: Working on task..."
+ls -la
+`, nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
