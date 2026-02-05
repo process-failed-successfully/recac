@@ -70,11 +70,25 @@ func TestGetPrompt_Overrides(t *testing.T) {
 
 	t.Setenv("RECAC_PROMPTS_DIR", "")
 
-	// Create .recac/prompts in CWD
-	cwd, _ := os.Getwd()
-	localRecacDir := filepath.Join(cwd, ".recac", "prompts")
-	os.MkdirAll(localRecacDir, 0755)
-	defer os.RemoveAll(filepath.Join(cwd, ".recac")) // Cleanup .recac
+	// Use a temporary directory as CWD to avoid polluting the source tree
+	tempCwd := t.TempDir()
+	originalCwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current working directory: %v", err)
+	}
+	if err := os.Chdir(tempCwd); err != nil {
+		t.Fatalf("Failed to chdir: %v", err)
+	}
+	defer func() {
+		if err := os.Chdir(originalCwd); err != nil {
+			t.Errorf("Failed to restore CWD: %v", err)
+		}
+	}()
+
+	localRecacDir := filepath.Join(tempCwd, ".recac", "prompts")
+	if err := os.MkdirAll(localRecacDir, 0755); err != nil {
+		t.Fatalf("Failed to create local .recac dir: %v", err)
+	}
 
 	localContent := "Local Override"
 	err = os.WriteFile(filepath.Join(localRecacDir, promptName+".md"), []byte(localContent), 0644)
