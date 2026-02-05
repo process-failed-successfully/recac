@@ -60,7 +60,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 3. Implementation (Primes)
-	if strings.Contains(prompt, "calculate primes") || strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
+	// Match against task description, ID, or file name
+	if strings.Contains(prompt, "calculate primes") ||
+	   strings.Contains(prompt, "[PRIMES]") ||
+	   strings.Contains(prompt, "primes.py") ||
+	   strings.Contains(prompt, "req-the-script-primes-py-is-implem") {
 		return "I will implement the prime number calculation script.\n\n" +
 			"```bash\n" +
 			"cat <<EOF > primes.py\n" +
@@ -109,6 +113,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Default Echo
+	fmt.Printf("[MockAgent] UNMATCHED PROMPT: %s\n", truncateString(prompt, 200)) // Log for debugging in CI
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
