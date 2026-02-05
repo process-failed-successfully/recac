@@ -36,6 +36,19 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 1. Technical Program Manager (TPM) - Jira Ticket Generation
 	if strings.Contains(prompt, "Technical Program Manager") {
+		if strings.Contains(prompt, "[PRIMES]") {
+			return `[
+  {
+    "title": "ID:[PRIMES] Calculate Primes",
+    "description": "Calculate prime numbers and save to primes.json",
+    "type": "Task",
+    "acceptance_criteria": [
+      "primes.py exists",
+      "primes.json exists"
+    ]
+  }
+]`, nil
+		}
 		return `[
   {
     "title": "ID:[EPIC-1] Mock Epic",
@@ -63,7 +76,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// Detect specific tasks if possible, or return generic success
 		// The prompt for primes often refers to "Prime Number" or "python script"
 		if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "Prime") || strings.Contains(prompt, "python") {
-			return "```bash\n# Mock Implementation\necho 'def fibonacci(n): return n' > primes.py\nagent-bridge feature set --id 1 --status implemented\n```", nil
+			return "```bash\ncat <<EOF > primes.py\nimport json\n\ndef is_prime(n):\n    if n <= 1: return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0: return False\n    return True\n\nprimes = [x for x in range(100) if is_prime(x)]\nprint(f\"Calculated {len(primes)} primes\")\n\nwith open('primes.json', 'w') as f:\n    json.dump(primes, f)\nEOF\n\npython3 primes.py\ngit add primes.py primes.json\ngit commit -m \"Implement primes calculation\" --author=\"Recac Agent <agent@recac.ai>\"\nagent-bridge feature set --id PRIMES --status implemented\n```", nil
 		}
 		return "```bash\n# Mock Coding Action\necho 'Working...'\n```", nil
 	}
