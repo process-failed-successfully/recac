@@ -36,11 +36,7 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	}
 
 	// 2. Test RECAC_PROMPTS_DIR
-	tmpDir, err := os.MkdirTemp("", "recac-prompts-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	err = os.WriteFile(filepath.Join(tmpDir, promptName+".md"), []byte(overrideContent), 0644)
 	if err != nil {
@@ -61,32 +57,15 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	// Unset env for this part of test
 	t.Setenv("RECAC_PROMPTS_DIR", "")
 
-	// Use a clean temp dir as CWD to avoid polluting source tree
-	localTestDir, err := os.MkdirTemp("", "recac-local-test")
-	if err != nil {
-		t.Fatalf("Failed to create local test dir: %v", err)
-	}
-	defer os.RemoveAll(localTestDir)
-
-	// Save original CWD
-	originalWd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current working directory: %v", err)
-	}
-
-	// Change to temp dir
-	if err := os.Chdir(localTestDir); err != nil {
-		t.Fatalf("Failed to chdir to local test dir: %v", err)
-	}
-	// Defer restoring CWD
-	defer func() {
-		if err := os.Chdir(originalWd); err != nil {
-			t.Errorf("Failed to restore CWD: %v", err)
-		}
-	}()
+	// Mock getwd to return a temp directory
+	// This avoids using os.Chdir which changes process state and is dangerous in tests
+	tmpCwd := t.TempDir()
+	originalGetwd := getwd
+	getwd = func() (string, error) { return tmpCwd, nil }
+	defer func() { getwd = originalGetwd }()
 
 	// Create .recac/prompts in the temp CWD
-	localRecacDir := filepath.Join(localTestDir, ".recac", "prompts")
+	localRecacDir := filepath.Join(tmpCwd, ".recac", "prompts")
 	if err := os.MkdirAll(localRecacDir, 0755); err != nil {
 		t.Fatalf("Failed to create local prompts dir: %v", err)
 	}
