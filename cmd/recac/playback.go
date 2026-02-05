@@ -18,6 +18,7 @@ Allows filtering, searching, and detailed inspection of agent actions and tool o
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		sessionName := args[0]
+		follow, _ := cmd.Flags().GetBool("follow")
 
 		sm, err := sessionManagerFactory()
 		if err != nil {
@@ -42,13 +43,16 @@ Allows filtering, searching, and detailed inspection of agent actions and tool o
 			return fmt.Errorf("failed to parse logs: %w", err)
 		}
 
-		if len(entries) == 0 {
+		// Start TUI
+		m := ui.NewPlaybackModel(entries)
+
+		if follow {
+			m = m.WithLiveMode(logPath, int64(len(content)))
+		} else if len(entries) == 0 {
 			fmt.Println("No log entries found.")
 			return nil
 		}
 
-		// Start TUI
-		m := ui.NewPlaybackModel(entries)
 		p := tea.NewProgram(m, tea.WithAltScreen())
 
 		if _, err := p.Run(); err != nil {
@@ -60,5 +64,6 @@ Allows filtering, searching, and detailed inspection of agent actions and tool o
 }
 
 func init() {
+	playbackCmd.Flags().BoolP("follow", "f", false, "Follow log output (live updates)")
 	rootCmd.AddCommand(playbackCmd)
 }

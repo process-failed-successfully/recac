@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -143,5 +145,58 @@ func TestPlaybackModel_ComplexContent(t *testing.T) {
 	}
 	if !strings.Contains(entry.Content, `[`) {
 		t.Error("Content should contain pretty printed array")
+	}
+}
+
+func TestPlaybackModel_LiveUpdate(t *testing.T) {
+	// Create temp dir and file
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, "test.log")
+
+	// Write initial content
+	initialContent := `{"msg":"Line 1"}` + "\n"
+	err := os.WriteFile(logPath, []byte(initialContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write initial content: %v", err)
+	}
+
+	// Initialize model
+	entries, _ := ParseLogLines([]byte(initialContent))
+	model := NewPlaybackModel(entries)
+	model = model.WithLiveMode(logPath, int64(len(initialContent)))
+
+	// Check initial state
+	if len(model.list.Items()) != 1 {
+		t.Errorf("Initial count = %d, want 1", len(model.list.Items()))
+	}
+
+	// Append new content
+	f, err := os.OpenFile(logPath, os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		t.Fatalf("Failed to open file for append: %v", err)
+	}
+
+	newContent := `{"msg":"Line 2"}` + "\n"
+	if _, err := f.WriteString(newContent); err != nil {
+		t.Fatalf("Failed to append content: %v", err)
+	}
+	f.Close()
+
+	// Trigger update manually by sending the tick message
+	// Since playbackTickMsg is unexported (but in same package), we can use it.
+	msg := playbackTickMsg(time.Now())
+
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(PlaybackModel)
+
+	// Check if new item is added
+	if len(m.list.Items()) != 2 {
+		t.Errorf("Updated count = %d, want 2", len(m.list.Items()))
+	}
+
+	// Check content of second item
+	item := m.list.Items()[1].(LogEntry)
+	if item.Msg != "Line 2" {
+		t.Errorf("Second item msg = %s, want Line 2", item.Msg)
 	}
 }

@@ -1,8 +1,10 @@
 package ui
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -45,6 +47,29 @@ type PlaybackModel struct {
 	filtered       []LogEntry // For future advanced filtering if needed beyond list's built-in
 	width          int
 	height         int
+
+	// Live update fields
+	logPath  string
+	liveMode bool
+	offset   int64
+	buffer   []byte
+}
+
+type playbackTickMsg time.Time
+
+func playbackTickCmd() tea.Cmd {
+	return tea.Tick(500*time.Millisecond, func(t time.Time) tea.Msg {
+		return playbackTickMsg(t)
+	})
+}
+
+// WithLiveMode enables live updates from the log file.
+func (m PlaybackModel) WithLiveMode(path string, offset int64) PlaybackModel {
+	m.logPath = path
+	m.liveMode = true
+	m.offset = offset
+	m.list.Title = "Session Playback (Live)"
+	return m
 }
 
 // NewPlaybackModel creates a new playback model.
@@ -79,6 +104,9 @@ func NewPlaybackModel(entries []LogEntry) PlaybackModel {
 }
 
 func (m PlaybackModel) Init() tea.Cmd {
+	if m.liveMode {
+		return playbackTickCmd()
+	}
 	return nil
 }
 
@@ -87,6 +115,58 @@ func (m PlaybackModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
+	case playbackTickMsg:
+		if !m.liveMode {
+			return m, nil
+		}
+
+		f, err := os.Open(m.logPath)
+		if err != nil {
+			return m, playbackTickCmd()
+		}
+		defer f.Close()
+
+		info, err := f.Stat()
+		if err != nil {
+			return m, playbackTickCmd()
+		}
+
+		if info.Size() <= m.offset {
+			if info.Size() < m.offset {
+				m.offset = 0
+			}
+			return m, playbackTickCmd()
+		}
+
+		newBytes := make([]byte, info.Size()-m.offset)
+		_, err = f.ReadAt(newBytes, m.offset)
+		if err != nil {
+			return m, playbackTickCmd()
+		}
+		m.offset += int64(len(newBytes))
+
+		m.buffer = append(m.buffer, newBytes...)
+
+		// Find last newline
+		lastNL := bytes.LastIndexByte(m.buffer, '\n')
+		if lastNL != -1 {
+			toParse := m.buffer[:lastNL+1]
+			m.buffer = m.buffer[lastNL+1:]
+
+			newEntries, _ := ParseLogLines(toParse)
+			for _, e := range newEntries {
+				m.entries = append(m.entries, e)
+				m.list.InsertItem(len(m.list.Items()), e)
+			}
+			// Auto-scroll to bottom if we are at the bottom or close to it
+			// For simplicity, always auto-scroll in live mode if not viewing details
+			if !m.viewingDetails {
+				m.list.Select(len(m.list.Items()) - 1)
+			}
+		}
+
+		return m, playbackTickCmd()
+
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
