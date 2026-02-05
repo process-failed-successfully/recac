@@ -15,7 +15,7 @@ import (
 )
 
 // RunLoop executes the autonomous agent loop.
-func (s *Session) RunLoop(ctx context.Context) error {
+func (s *Session) RunLoop(ctx context.Context) (err error) {
 	// Guard: Ensure Notifier is initialized (mostly for tests using manual struct initialization)
 	if s.Notifier == nil {
 		s.Notifier = notify.NewManager(func(string, ...interface{}) {})
@@ -25,6 +25,14 @@ func (s *Session) RunLoop(ctx context.Context) error {
 	if s.SleepFunc == nil {
 		s.SleepFunc = time.Sleep
 	}
+
+	// Panic Recovery
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("panic in RunLoop: %v", r)
+			s.Logger.Error("panic in RunLoop", "panic", r)
+		}
+	}()
 
 	s.Logger.Info("entering autonomous run loop")
 	// Note: We use the stored SlackThreadTS if available (from startup), otherwise we start a new thread here if needed?

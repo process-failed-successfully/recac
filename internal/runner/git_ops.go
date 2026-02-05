@@ -180,7 +180,8 @@ func (s *Session) pushProgress(ctx context.Context) {
 		candidates := []string{"refs/heads/master", "refs/heads/main", "master", "main"}
 		merged := false
 		for _, ref := range candidates {
-			if err := gitClient.Merge(s.Workspace, ref); err == nil {
+			// Use Run to suppress output/error for speculative merges
+			if _, err := gitClient.Run(s.Workspace, "merge", ref); err == nil {
 				s.Logger.Info("merged stranded commits from ref", "ref", ref)
 				merged = true
 				break
