@@ -20,7 +20,8 @@ func TestMain_HappyPath(t *testing.T) {
 
 	if os.Getenv("TEST_RUN_MAIN") == "1" {
 		// Mock os.Args
-		os.Args = []string{"recac", "--help"}
+		// Use --mock to skip strict config validation which might cause exit(1) if env vars are missing
+		os.Args = []string{"recac", "--help", "--mock"}
 		main()
 		return
 	}
