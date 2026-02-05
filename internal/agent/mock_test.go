@@ -28,23 +28,33 @@ func TestMockAgent(t *testing.T) {
 func TestMockAgent_Roles(t *testing.T) {
 	agent := NewMockAgent()
 
-	// 1. Test TPM Role detection
+	// 1. Test TPM Role detection (Should return JSON)
 	tpmPrompt := "You are an expert Technical Program Manager (TPM)... Application Specification: ... Implement a python script..."
 	response, err := agent.Send(context.Background(), tpmPrompt)
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
 	}
-	if strings.Contains(response, "cat << 'EOF' > primes.py") {
-		t.Error("TPM prompt incorrectly triggered Developer response")
+	if strings.Contains(response, "cat << 'EOF'") {
+		t.Error("TPM prompt incorrectly returned bash script instead of JSON")
 	}
-	if !strings.Contains(response, "agent-bridge import") {
-		t.Error("TPM prompt failed to return agent-bridge import command")
-	}
-	if !strings.Contains(response, `"title": "Implement Prime Number Script"`) {
+	if !strings.Contains(response, `"title": "ID:[PRIMES] Implement Prime Number Script"`) {
 		t.Error("TPM prompt failed to return correct ticket title in JSON")
 	}
 
-	// 2. Test Developer Role detection
+	// 2. Test Initializer Role detection (Should return Bash)
+	initPrompt := "## YOUR ROLE - INITIALIZER AGENT\n\nCreate feature_list.json"
+	response, err = agent.Send(context.Background(), initPrompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(response, "agent-bridge import") {
+		t.Error("Initializer prompt failed to return agent-bridge import command")
+	}
+	if !strings.Contains(response, "cat << 'EOF' > init.sh") {
+		t.Error("Initializer prompt failed to return init.sh creation")
+	}
+
+	// 3. Test Developer Role detection
 	devPrompt := "Implement a python script named 'primes.py'"
 	response, err = agent.Send(context.Background(), devPrompt)
 	if err != nil {

@@ -32,17 +32,23 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// 1. Initializer / Architect Role (Creating Tickets)
-	// Detect based on keywords from PrimePythonScenario.AppSpec or TPM prompts
-	// We need to be careful not to match the developer prompt which might also contain ID:[PRIMES]
-	// The Initializer/TPM prompt typically asks to "Create exactly ONE ticket", contains "feature_list.json" context,
-	// or identifies as "Technical Program Manager".
-	// We check for these strong signals first. Even if the prompt contains "implement" (e.g. in the spec description),
-	// we should prioritize the ticket creation role if the explicit instruction is present.
-	if strings.Contains(prompt, "Create exactly ONE ticket") ||
-		strings.Contains(prompt, "feature_list.json") ||
-		strings.Contains(prompt, "Technical Program Manager") {
-		// Return a bash script that uses agent-bridge import to define features
+	// 1. TPM Agent (Jira Ticket Generation)
+	// This agent is used by 'recac jira generate-from-spec' and expects JSON output.
+	if strings.Contains(prompt, "Technical Program Manager") {
+		return `
+[
+  {
+    "title": "ID:[PRIMES] Implement Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'. Repo: https://github.com/example/repo",
+    "type": "Task"
+  }
+]
+`, nil
+	}
+
+	// 2. Initializer Agent (Runner Setup)
+	// This agent is used by the runner loop to setup the workspace and expects Bash output.
+	if strings.Contains(prompt, "INITIALIZER AGENT") || strings.Contains(prompt, "Create feature_list.json") {
 		return `
 I will set up the project and import the feature list.
 
