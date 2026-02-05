@@ -58,30 +58,24 @@ func TestGetPrompt_Overrides(t *testing.T) {
 		// Ensure ENV is unset for this subtest (t.Setenv from other subtests doesn't leak, but just in case of global pollution)
 		t.Setenv("RECAC_PROMPTS_DIR", "")
 
-		// Create temp dir and switch CWD
+		// Mock CWD
 		tmpDir := t.TempDir()
-		oldWd, err := os.Getwd()
-		if err != nil {
-			t.Fatalf("Failed to get CWD: %v", err)
+		oldGetwd := getwd
+		getwd = func() (string, error) {
+			return tmpDir, nil
 		}
-		if err := os.Chdir(tmpDir); err != nil {
-			t.Fatalf("Failed to chdir: %v", err)
-		}
-		// Restore CWD at end of subtest
 		defer func() {
-			if err := os.Chdir(oldWd); err != nil {
-				t.Errorf("Failed to restore CWD: %v", err)
-			}
+			getwd = oldGetwd
 		}()
 
-		// Create .recac/prompts in the TEMP dir (which is now CWD)
+		// Create .recac/prompts in the TEMP dir
 		localRecacDir := filepath.Join(tmpDir, ".recac", "prompts")
 		if err := os.MkdirAll(localRecacDir, 0755); err != nil {
 			t.Fatalf("Failed to create local recac dir: %v", err)
 		}
 
 		localContent := "Local Override"
-		err = os.WriteFile(filepath.Join(localRecacDir, promptName+".md"), []byte(localContent), 0644)
+		err := os.WriteFile(filepath.Join(localRecacDir, promptName+".md"), []byte(localContent), 0644)
 		if err != nil {
 			t.Fatalf("Failed to write local override: %v", err)
 		}
