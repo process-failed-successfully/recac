@@ -271,6 +271,9 @@ var NewSessionManagerFunc = func() (ISessionManager, error) {
 // Allow mocking Session creation
 var NewSessionFunc = runner.NewSession
 
+// Allow mocking Docker client creation
+var NewDockerClientFunc = docker.NewClient
+
 // RunWorkflow handles the execution of a single project session (local or Jira-based)
 var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 	// Handle detached mode
@@ -444,7 +447,7 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 
 	var dockerCli *docker.Client
 	var err error
-	dockerCli, err = docker.NewClient(projectName)
+	dockerCli, err = NewDockerClientFunc(projectName)
 	if err != nil {
 		fmt.Printf("Warning: Failed to initialize Docker client: %v. Proceeding in restricted mode.\n", err)
 		dockerCli = nil

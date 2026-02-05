@@ -8,9 +8,11 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"recac/internal/agent"
 	"recac/internal/cmdutils"
+	"recac/internal/docker"
 	"recac/internal/git"
 	"recac/internal/jira"
 	"recac/internal/runner"
@@ -231,6 +233,15 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 }
 
 func TestRunWorkflow_Normal(t *testing.T) {
+	// Mock Docker Client
+	originalNewDockerClientFunc := NewDockerClientFunc
+	defer func() { NewDockerClientFunc = originalNewDockerClientFunc }()
+	NewDockerClientFunc = func(project string) (*docker.Client, error) {
+		// Return a mock docker client so we don't need real docker or images
+		cli, _ := docker.NewMockClient()
+		return cli, nil
+	}
+
 	// Mock cmdutils.GetAgentClient
 	originalGetAgentClient := cmdutils.GetAgentClient
 	defer func() { cmdutils.GetAgentClient = originalGetAgentClient }()
@@ -254,12 +265,13 @@ func TestRunWorkflow_Normal(t *testing.T) {
 	os.WriteFile(fmt.Sprintf("%s/app_spec.txt", tmpDir), []byte("test spec"), 0644)
 
 	cfg := SessionConfig{
-		ProjectPath: tmpDir,
-		SessionName: "normal-test",
-		IsMock:      false,
-		ProjectName: "test-project",
-		Debug:       true,
-		AllowDirty:  true, // Avoid git checks
+		ProjectPath:   tmpDir,
+		SessionName:   "normal-test",
+		IsMock:        false,
+		ProjectName:   "test-project",
+		Debug:         true,
+		AllowDirty:    true, // Avoid git checks
+		MaxIterations: 1,    // Prevent infinite loop
 	}
 
 	// This should run normal flow but fail Docker init (gracefully) and run 0 iterations
@@ -270,6 +282,7 @@ func TestRunWorkflow_Normal(t *testing.T) {
 	NewSessionFunc = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
 		s := runner.NewSession(d, a, workspace, image, project, provider, model, maxAgents)
 		s.MaxIterations = 1
+		s.SleepFunc = func(time.Duration) {} // Disable sleep for tests
 
 		// Use a MockAgent that returns a valid command to avoid NO-OP Loop
 		mockAg := agent.NewMockAgent()
