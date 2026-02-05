@@ -11,12 +11,7 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	promptName := "test_prompt"
 	overrideContent := "Override Template"
 
-	// 1. Test Embedded/Fallback (simulated by failure of others)
-	// We can't easily add to embed.FS at runtime, but we can test that GetPrompt returns error for non-existent if no override exists.
-	// Or we can rely on existing templates.
-	// Let's rely on existing "planner" template if it exists, or handle error.
-
-	// Check ListPrompts first
+	// 1. Test Embedded/Fallback
 	prompts, err := ListPrompts()
 	if err != nil {
 		t.Fatalf("ListPrompts failed: %v", err)
@@ -24,7 +19,6 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	if len(prompts) == 0 {
 		t.Log("No embedded prompts found, skipping embedded test verification")
 	} else {
-		// Use the first available prompt
 		pName := prompts[0]
 		pContent, err := GetPrompt(pName, nil)
 		if err != nil {
@@ -36,11 +30,7 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	}
 
 	// 2. Test RECAC_PROMPTS_DIR
-	tmpDir, err := os.MkdirTemp("", "recac-prompts-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir() // Automatically cleaned up
 
 	err = os.WriteFile(filepath.Join(tmpDir, promptName+".md"), []byte(overrideContent), 0644)
 	if err != nil {
@@ -58,21 +48,24 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	}
 
 	// 3. Test Local .recac/prompts
-	// Use t.TempDir and os.Chdir to simulate local directory without modifying source tree
-	// This prevents "dirty git tree" failures in CI.
-	tempCwd := t.TempDir()
-	originalCwd, _ := os.Getwd()
-	if err := os.Chdir(tempCwd); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
-	defer func() {
-		_ = os.Chdir(originalCwd)
-	}()
+	// We use the package-level mock 'getwd' to simulate running from a directory
+	// containing .recac/prompts, without changing the actual process CWD.
 
+	// Unset the env override
 	t.Setenv("RECAC_PROMPTS_DIR", "")
 
-	// Create .recac/prompts in tempCwd
-	localRecacDir := filepath.Join(tempCwd, ".recac", "prompts")
+	// Create a temp dir to act as the "current working directory"
+	mockCwd := t.TempDir()
+
+	// Mock getwd
+	originalGetwd := getwd
+	getwd = func() (string, error) {
+		return mockCwd, nil
+	}
+	defer func() { getwd = originalGetwd }()
+
+	// Create .recac/prompts in the mock CWD
+	localRecacDir := filepath.Join(mockCwd, ".recac", "prompts")
 	if err := os.MkdirAll(localRecacDir, 0755); err != nil {
 		t.Fatalf("Failed to mkdir: %v", err)
 	}
