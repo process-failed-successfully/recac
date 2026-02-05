@@ -35,7 +35,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristics for E2E Tests (Smoke Test)
 
 	// 1. Ticket Generation (TPM Agent)
-	if strings.Contains(prompt, "CRITICAL INSTRUCTION FOR TICKET GENERATION") || strings.Contains(prompt, "ID:[PRIMES]") {
+	// We check for "Technical Program Manager" to differentiate from the Coding Agent prompt
+	// which might also contain "ID:[PRIMES]" in the ticket title.
+	if strings.Contains(prompt, "CRITICAL INSTRUCTION FOR TICKET GENERATION") ||
+		(strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "Technical Program Manager")) {
 		// Extract Repo URL if possible, otherwise placeholder
 		repo := "https://github.com/example/repo"
 		if strings.Contains(prompt, "Repo: http") {
