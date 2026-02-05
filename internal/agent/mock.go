@@ -50,7 +50,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic: Detect Primes Implementation Task
 	// This supports the E2E smoke test scenario
-	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
+	// We use Case-Insensitive check to be robust against prompt variations
+	lowerPrompt := strings.ToLower(prompt)
+	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(lowerPrompt, "primes") || strings.Contains(prompt, "primes.py") {
 		return `I will implement the primes calculation script as requested.
 
 ` + "```bash" + `
