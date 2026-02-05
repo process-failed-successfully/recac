@@ -122,7 +122,7 @@ func TestPlaybackModel_Update(t *testing.T) {
 	// Test Ctrl+C (Quit)
 	_, cmd = model.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
 	if cmd == nil {
-		t.Error("Ctrl+C should return a Quit command")
+		t.Error("Ctrl+C should return a Quit command, got nil")
 	}
 }
 
@@ -163,6 +163,6 @@ func TestPlaybackModel_CtrlCInDetails(t *testing.T) {
 	// Test Ctrl+C in details view
 	_, cmd := model.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
 	if cmd == nil {
-		t.Error("Ctrl+C in details view should return a Quit command")
+		t.Error("Ctrl+C in details view should return a Quit command, got nil")
 	}
 }
