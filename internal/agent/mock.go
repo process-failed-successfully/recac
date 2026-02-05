@@ -90,7 +90,7 @@ func truncateString(s string, maxLen int) string {
 func (m *MockAgent) initializerResponse() string {
 	// Returns a script to initialize the repo and run agent-bridge import
 	// Use standard markdown code block
-	return "Here is the initialization script:\n\n```bash\n#!/bin/bash\ngit init\ngit config user.email \"bot@recac.com\"\ngit config user.name \"Recac Bot\"\ngit add .\ngit commit -m \"Initial commit\" || true\nagent-bridge import\n```"
+	return "Here is the initialization script:\n\n```bash\n#!/bin/bash\ngit init\ngit config user.email \"bot@recac.com\"\ngit config user.name \"Recac Bot\"\necho \"# Project\" > README.md\ngit add .\ngit commit -m \"Initial commit\" || true\nagent-bridge import\n```"
 }
 
 func (m *MockAgent) primesPlanResponse() string {
