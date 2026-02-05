@@ -23,6 +23,27 @@ func TestMockAgent_Primes(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Primes_TPM(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Simulating a TPM prompt
+	prompt := "You are a Technical Program Manager. Task: [PRIMES] Create a python script."
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// It should NOT contain the bash script
+	if strings.Contains(resp, "cat << 'EOF' > primes.py") {
+		t.Errorf("Response contained bash script for TPM prompt, expected JSON plan:\n%s", resp)
+	}
+
+	// It SHOULD contain JSON list of tickets
+	if !strings.Contains(resp, `"id": "PRIMES"`) {
+		t.Errorf("Response missing JSON ticket ID 'PRIMES':\n%s", resp)
+	}
+}
+
 func TestMockAgent_Normal(t *testing.T) {
 	agent := NewMockAgent()
 

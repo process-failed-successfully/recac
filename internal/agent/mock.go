@@ -32,7 +32,14 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// Heuristic for E2E Prime Python Scenario
+	// Heuristic for Technical Program Manager (TPM) - Prioritize over general keyword checks
+	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM") || strings.Contains(prompt, "Application Specification") {
+		if strings.Contains(prompt, "[PRIMES]") {
+			return m.handlePrimesTPMScenario()
+		}
+	}
+
+	// Heuristic for E2E Prime Python Scenario (Coding Phase)
 	if strings.Contains(prompt, "[PRIMES]") || (strings.Contains(prompt, "primes.py") && strings.Contains(prompt, "python")) {
 		return m.handlePrimesScenario()
 	}
@@ -48,6 +55,21 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
+}
+
+func (m *MockAgent) handlePrimesTPMScenario() (string, error) {
+	// Return a JSON list of tickets
+	json := `[
+  {
+    "id": "PRIMES",
+    "title": "Implement Primes Script",
+    "description": "Create a python script that calculates primes up to 10000 and saves them to primes.json. The script should be named primes.py.",
+    "type": "Task",
+    "status": "To Do",
+    "assignee": "recac-agent"
+  }
+]`
+	return json, nil
 }
 
 func (m *MockAgent) handlePrimesScenario() (string, error) {
