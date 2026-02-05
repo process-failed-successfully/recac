@@ -52,7 +52,7 @@ func TestGetPrompt_Overrides(t *testing.T) {
 
 	// 3. Test Local .recac/prompts
 	t.Run("LocalDirOverride", func(t *testing.T) {
-		// Ensure Env is unset (though t.Setenv in sibling subtests shouldn't leak, we want to be sure regarding parent env)
+		// Ensure Env is unset
 		t.Setenv("RECAC_PROMPTS_DIR", "")
 
 		tmpDir := t.TempDir()
@@ -69,9 +69,14 @@ func TestGetPrompt_Overrides(t *testing.T) {
 			t.Fatalf("Failed to write local override: %v", err)
 		}
 
-		// Change working directory to the temp dir to simulate running from project root
-		// t.Chdir cleans up after the test automatically
-		t.Chdir(tmpDir)
+		// Mock getwd to return the temp dir
+		oldGetwd := getwd
+		getwd = func() (string, error) {
+			return tmpDir, nil
+		}
+		t.Cleanup(func() {
+			getwd = oldGetwd
+		})
 
 		content, err := GetPrompt(promptName, nil)
 		if err != nil {
