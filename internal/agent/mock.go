@@ -65,8 +65,14 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Fallback generic response
 	// We include a dummy command to prevent the "NO-OP LOOP" circuit breaker from tripping
+	// Sanitize prompt preview to prevent breaking bash string
+	preview := truncateString(prompt, 20)
+	preview = strings.ReplaceAll(preview, "\"", "")
+	preview = strings.ReplaceAll(preview, "`", "")
+	preview = strings.ReplaceAll(preview, "\n", " ")
+
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...\n\n```bash\necho \"Mock Agent: Processing %s\"\n```",
-		m.responsePrefix, len(prompt), truncateString(prompt, 100), truncateString(prompt, 20))
+		m.responsePrefix, len(prompt), truncateString(prompt, 100), preview)
 	return response, nil
 }
 
@@ -81,7 +87,8 @@ func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(
 
 func (m *MockAgent) initializerResponse() string {
 	// Returns a script to import the feature list
-	return `
+	// MUST be wrapped in markdown code block for the runner to execute it
+	return "```bash\n" + `
 cat << 'EOF' | agent-bridge import
 {
   "features": [
@@ -90,7 +97,7 @@ cat << 'EOF' | agent-bridge import
   ]
 }
 EOF
-`
+` + "\n```"
 }
 
 func (m *MockAgent) tpmResponse(prompt string) string {
