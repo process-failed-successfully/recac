@@ -60,8 +60,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 3. Implementation (Primes)
-	// Matches "calculate prime", "calculates prime", "calculates all prime", "[PRIMES]", etc.
-	if (strings.Contains(prompt, "calculate") && strings.Contains(prompt, "prime")) || strings.Contains(prompt, "[PRIMES]") {
+	// Matches "calculate prime", "calculates prime", "calculates all prime", "[PRIMES]", "primes.py", etc.
+	lowerPrompt := strings.ToLower(prompt)
+	if (strings.Contains(lowerPrompt, "calculate") && strings.Contains(lowerPrompt, "prime")) ||
+	   strings.Contains(prompt, "[PRIMES]") ||
+	   strings.Contains(lowerPrompt, "primes.py") {
 		return "I will implement the prime number calculation script.\n\n" +
 			"```bash\n" +
 			"cat <<EOF > primes.py\n" +
