@@ -66,7 +66,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Implementation (Coding Agent)
-	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "calculate primes") {
+	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "calculate primes") || strings.Contains(prompt, "task_id=req-primes-py-exists") {
 		return `
 Here is the implementation for the prime number script.
 

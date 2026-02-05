@@ -177,6 +177,13 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 	}
 
 	prompt, err := prompts.GetPrompt(prompts.CodingAgent, vars)
+
+	// In Mock mode, append metadata to ensure the MockAgent can identify the task
+	// even if the prompt template is overridden or modified.
+	if err == nil && s.AgentProvider == "mock" && vars["task_id"] != "" {
+		prompt += fmt.Sprintf("\n\n<!-- RECAC_METADATA: task_id=%s -->", vars["task_id"])
+	}
+
 	return prompt, prompts.CodingAgent, false, err
 }
 
