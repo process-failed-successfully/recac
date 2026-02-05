@@ -109,8 +109,25 @@ agent-bridge signal PROJECT_SIGNED_OFF true
 I will implement the primes.py script.
 
 ` + "```bash" + `
-echo "def primes(n):" > primes.py
-echo "    pass" >> primes.py
+cat <<EOF > primes.py
+import json
+
+def sieve(n):
+    is_prime = [True] * n
+    is_prime[0] = is_prime[1] = False
+    for i in range(2, int(n**0.5) + 1):
+        if is_prime[i]:
+            for j in range(i*i, n, i):
+                is_prime[j] = False
+    return [x for x in range(n) if is_prime[x]]
+
+primes = sieve(10000)
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+python3 primes.py
+
 agent-bridge feature set req-primes-py-exists completed
 agent-bridge feature set req-primes-json-contains-correct-p completed
 ` + "```" + `
