@@ -26,6 +26,24 @@ func TestMockAgent_Primes(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Primes_EnvInjection(t *testing.T) {
+	// Simulate environment variable injection
+	t.Setenv("RECAC_INJECTED_FEATURES", `{"project_name":"ID:[PRIMES] Implement Primes Calculation"}`)
+
+	agent := NewMockAgent()
+	// Prompt DOES NOT contain [PRIMES]
+	prompt := "Please implement the task for MFLP-5825"
+
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(resp, "cat << 'EOF' > primes.py") {
+		t.Error("Response should contain primes.py creation script (triggered by env var)")
+	}
+}
+
 func TestMockAgent_GenericFallback(t *testing.T) {
 	agent := NewMockAgent()
 	prompt := "Hello world"

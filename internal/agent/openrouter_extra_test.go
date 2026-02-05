@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestOpenRouterClient_HTTP_Success(t *testing.T) {
@@ -79,6 +80,8 @@ func TestOpenRouterClient_HTTP_Errors(t *testing.T) {
 
 			client := NewOpenRouterClient("test-key", "model", "test-project")
 			client.apiURL = server.URL
+			// Disable backoff for tests to prevent timeout
+			client.BackoffFn = func(int) time.Duration { return 0 }
 
 			_, err := client.Send(context.Background(), "Hi")
 			if (err != nil) != tt.wantErr {
