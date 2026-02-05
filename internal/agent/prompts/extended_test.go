@@ -11,11 +11,27 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	promptName := "test_prompt"
 	overrideContent := "Override Template"
 
-	// 1. Test Embedded/Fallback (simulated by failure of others)
-	// We can't easily add to embed.FS at runtime, but we can test that GetPrompt returns error for non-existent if no override exists.
-	// Or we can rely on existing templates.
-	// Let's rely on existing "planner" template if it exists, or handle error.
+	// Mock both getwd and userHomeDir to ensure isolation
+	mockCwd := t.TempDir()
+	mockHome := t.TempDir()
 
+	originalGetwd := getwd
+	originalUserHomeDir := userHomeDir
+
+	getwd = func() (string, error) {
+		return mockCwd, nil
+	}
+	userHomeDir = func() (string, error) {
+		return mockHome, nil
+	}
+
+	// Restore after test
+	defer func() {
+		getwd = originalGetwd
+		userHomeDir = originalUserHomeDir
+	}()
+
+	// 1. Test Embedded/Fallback (simulated by failure of others)
 	// Check ListPrompts first
 	prompts, err := ListPrompts()
 	if err != nil {
@@ -36,6 +52,7 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	}
 
 	// 2. Test RECAC_PROMPTS_DIR
+	// We create a separate temp dir for this test to verify env var override
 	tmpDir, err := os.MkdirTemp("", "recac-prompts-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
@@ -58,15 +75,8 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	}
 
 	// 3. Test Local .recac/prompts
+	// Unset env var to allow falling back to local
 	t.Setenv("RECAC_PROMPTS_DIR", "")
-
-	// Mock getwd to return a temp dir
-	mockCwd := t.TempDir()
-	originalGetwd := getwd
-	getwd = func() (string, error) {
-		return mockCwd, nil
-	}
-	defer func() { getwd = originalGetwd }()
 
 	// Create .recac/prompts in mock CWD
 	localRecacDir := filepath.Join(mockCwd, ".recac", "prompts")
