@@ -33,6 +33,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic for E2E Prime Python Scenario
 	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
+		// Detect Role to decide between Plan (JSON) and Implementation (Bash)
+		if strings.Contains(prompt, "ROLE: Lead Software Architect") || strings.Contains(prompt, "ROLE - PROJECT MANAGER") {
+			return m.generatePrimesPlan(), nil
+		}
+		// Default to implementation if it looks like a task or coding request
 		return m.generatePrimesResponse(), nil
 	}
 
@@ -40,6 +45,30 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
+}
+
+func (m *MockAgent) generatePrimesPlan() string {
+	return `{
+"project_name": "Prime Number Script",
+"features": [
+{
+"id": "PRIMES",
+"category": "functional",
+"description": "Implement primes.py to calculate primes < 10000 and save to primes.json",
+"status": "pending",
+"steps": [
+"Create primes.py with prime calculation logic",
+"Run the script to generate primes.json",
+"Verify output file exists and is valid JSON"
+],
+"dependencies": {
+"depends_on_ids": [],
+"exclusive_write_paths": ["primes.py", "primes.json"],
+"read_only_paths": []
+}
+}
+]
+}`
 }
 
 // SendStream implements the Agent interface
