@@ -69,8 +69,8 @@ agent-bridge signal PROJECT_SIGNED_OFF true
     "type": "Story",
     "acceptance_criteria": [
       "Create primes.py",
-      "Implement verify_prime function",
-      "Add unit tests"
+      "Implement verify_prime function in primes.py",
+      "Add unit tests for primes.py"
     ],
     "children": []
   }
@@ -86,7 +86,7 @@ agent-bridge signal PROJECT_SIGNED_OFF true
 
 	// 5. Prime Python Heuristic
 	// Detects the prime-python scenario and generates the correct script
-	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
+	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "verify_prime") {
 		return `
 I will implement the prime number generator.
 
@@ -145,7 +145,7 @@ I will implement the requested features.
 
 ` + "```bash" + `
 # Create the file
-echo "def is_prime(n): return n > 1" > primes.py
+echo "def feature_implemented(): return True" > mock_impl.py
 
 # Mark features as done
 # Dynamic discovery to handle injected features
