@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,7 +31,13 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
-	// Return a mock response that shows the agent received the prompt
+
+	// Smart Mock Logic for Primes Scenario (E2E Test)
+	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "prime-python") || strings.Contains(prompt, "Prime Number Script") {
+		return m.generatePrimesResponse(), nil
+	}
+
+	// Default response
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
@@ -44,6 +51,36 @@ func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(
 		onChunk(resp)
 	}
 	return resp, err
+}
+
+func (m *MockAgent) generatePrimesResponse() string {
+	// Script to implement primes.py, run it, and commit the results
+	script := `
+cat << 'EOF' > primes.py
+import json
+
+def get_primes(n):
+    primes = []
+    for i in range(2, n):
+        is_prime = True
+        for j in range(2, int(i ** 0.5) + 1):
+            if i % j == 0:
+                is_prime = False
+                break
+        if is_prime:
+            primes.append(i)
+    return primes
+
+primes = get_primes(10000)
+with open('primes.json', 'w') as f:
+    json.dump({'primes': primes}, f)
+EOF
+
+python3 primes.py
+git add -f primes.py primes.json
+git commit -m "Implement primes.py"
+`
+	return fmt.Sprintf("Here is the solution for the Primes task:\n\n```bash\n%s\n```", script)
 }
 
 // truncateString truncates a string to a maximum length
