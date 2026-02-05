@@ -38,7 +38,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
   {
     "id": "PRIMES",
     "type": "Task",
-    "summary": "Implement prime number script",
+    "title": "Implement prime number script",
     "description": "Implement a python script 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'."
   }
 ]
@@ -93,11 +93,6 @@ agent-bridge feature set PRIMES --status implemented
 	// Return a mock response that shows the agent received the prompt
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
-
-	// Avoid "NO-OP LOOP" by providing a dummy command if nothing else matched
-	if !strings.Contains(response, "```bash") {
-		response += "\n\n" + "```bash" + "\necho 'Mock agent fallback'\n" + "```"
-	}
 
 	return response, nil
 }
