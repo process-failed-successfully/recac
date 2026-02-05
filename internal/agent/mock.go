@@ -63,6 +63,42 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return "Mock Initializer: Creating feature list.\n```bash\necho '[{\"id\": \"mock-feature\", \"description\": \"A mock feature for testing\", \"status\": \"todo\", \"file_paths\": []}]' > feature_list.json && agent-bridge import feature_list.json || echo 'Bridge skipped'\n```", nil
 	}
 
+	// Heuristic: Check for Prime Number script task (used in smoke tests/CI)
+	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "Prime Number") || strings.Contains(prompt, "[PRIMES]") {
+		// Return a bash script that implements the prime number calculator
+		// This must satisfy the verification logic in pkg/e2e/scenarios/prime_python.go
+		return `Mock Agent: Implementing prime number script.
+` + "```bash" + `
+cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n < 2:
+        return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+primes = [x for x in range(10000) if is_prime(x)]
+
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+# Run the script to generate the output
+python3 primes.py
+
+# Configure git if needed (for CI environments)
+git config user.email "mock-agent@example.com"
+git config user.name "Mock Agent"
+
+# Commit the changes
+git add primes.py primes.json
+git commit -m "Implement prime number calculator"
+` + "```", nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...\n\n```bash\necho 'Mock Agent: Processing request...'\n```",
