@@ -79,7 +79,9 @@ echo "Project initialized."
 
 	// 1. Ticket Generation (TPM Agent)
 	// Check this FIRST to avoid confusion with implementation keywords that might appear in the spec.
-	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "tickets") {
+	// STRICTER CHECK: Must be Technical Program Manager AND contain "tickets" or "ID:[PRIMES]"
+	// This prevents false positives where the Coding Agent prompt mentions "tickets".
+	if strings.Contains(prompt, "Technical Program Manager") && (strings.Contains(prompt, "tickets") || strings.Contains(prompt, "ID:[PRIMES]")) {
 		return `
 [
   {
@@ -107,7 +109,9 @@ echo "Project initialized."
 	}
 
 	// 4. Implementation Phase (primes.py)
-	if strings.Contains(prompt, "Calculate primes") || strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "prime numbers") {
+	// Case-insensitive check for robustness
+	promptLower := strings.ToLower(prompt)
+	if strings.Contains(promptLower, "calculate primes") || strings.Contains(prompt, "[PRIMES]") || strings.Contains(promptLower, "prime numbers") {
 		return `
 Sure, I will create a python script to calculate primes.
 
@@ -130,7 +134,8 @@ agent-bridge feature set req-must-print-primes-up-to-20 --status done --passes t
 	}
 
 	// Default response
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
+	// Includes a dummy command to prevent "NO-OP LOOP" circuit breaker
+	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...\n\n```bash\necho \"Mock agent received prompt\"\n```",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
 }
