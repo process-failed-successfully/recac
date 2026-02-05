@@ -49,6 +49,35 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
+	// Check for Initializer Agent prompt
+	if strings.Contains(prompt, "YOUR ROLE - INITIALIZER AGENT") {
+		return `#!/bin/bash
+set -x
+git init
+git config user.name "RECAC Agent"
+git config user.email "agent@recac.io"
+
+# Import a dummy feature list to satisfy the runner
+cat << 'EOF' | agent-bridge import
+{
+  "project_name": "Mock Project",
+  "features": [
+    {
+      "id": "init-task",
+      "category": "functional",
+      "priority": "MVP",
+      "description": "Initial Setup",
+      "status": "pending",
+      "steps": ["Step 1"],
+      "passes": false,
+      "dependencies": {}
+    }
+  ]
+}
+EOF
+`, nil
+	}
+
 	// Check for Coding Agent prompt
 	if strings.Contains(prompt, "## YOUR ROLE - CODING AGENT") {
 		// For the prime-python scenario (detected via [PRIMES] marker)
