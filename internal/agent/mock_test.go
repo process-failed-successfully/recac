@@ -25,6 +25,31 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_RoleConfusion(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Simulating a Coding Agent prompt that mentions the Project Manager in context
+	prompt := `
+## YOUR ROLE - CODING AGENT
+
+The Project Manager has approved the plan.
+Task: Implement primes.py.
+`
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// We expect the implementation logic (creating primes.py)
+	if strings.Contains(response, "PROJECT_SIGNED_OFF") {
+		t.Errorf("MockAgent mistakenly triggered Project Manager sign-off for a Coding Agent prompt")
+	}
+
+	if !strings.Contains(response, "primes.py") || !strings.Contains(response, "cat <<EOF > primes.py") {
+		t.Errorf("MockAgent failed to trigger primes.py implementation logic. Got: %s", response)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
