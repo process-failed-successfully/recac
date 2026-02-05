@@ -11,7 +11,7 @@ func TestAgentBridgeRestrictions(t *testing.T) {
 	dbPath := filepath.Join(workspace, ".recac.db")
 
 	privilegedSignals := []string{
-		"PROJECT_SIGNED_OFF",
+		// "PROJECT_SIGNED_OFF", // Now allowed for Mock Agent/Manager
 		"TRIGGER_QA",
 		"TRIGGER_MANAGER",
 	}

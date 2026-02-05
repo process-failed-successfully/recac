@@ -71,6 +71,49 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return "Mock QA: All checks passed.\n```bash\nagent-bridge signal QA_PASSED true\n```", nil
 	}
 
+	// Heuristic: Coding Agent for Prime Number Scenario (Smoke Test)
+	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
+		return `Mock Agent: Implementing primes.py
+` + "```bash" + `
+# Configure Git
+git config --global user.email "agent@recac.io"
+git config --global user.name "RECAC Agent"
+
+# Create primes.py
+cat << 'EOF' > primes.py
+import json
+
+def get_primes(n):
+    primes = []
+    for i in range(2, n):
+        is_prime = True
+        for j in range(2, int(i ** 0.5) + 1):
+            if i % j == 0:
+                is_prime = False
+                break
+        if is_prime:
+            primes.append(i)
+    return primes
+
+primes = get_primes(10000)
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+# Run script
+python3 primes.py
+
+# Commit and Push
+git add primes.py primes.json
+git commit -m "Add primes script and output" --author="RECAC Agent <agent@recac.io>"
+# Try pushing to current branch, fallback to main if detached
+git push origin HEAD || echo "Push skipped"
+
+# Signal Completion
+agent-bridge signal COMPLETED true
+` + "```", nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...\n\n```bash\necho 'Mock Agent: Processing request...'\n```",
