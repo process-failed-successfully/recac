@@ -34,6 +34,16 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic: Check for "TPM" or "Technical Program Manager" role to generate a ticket plan
 	if strings.Contains(prompt, "TPM") || strings.Contains(prompt, "Technical Program Manager") {
+		// Heuristic: Check for PRIMES scenario
+		if strings.Contains(prompt, "[PRIMES]") {
+			return `[
+    {
+      "title": "ID:[PRIMES] Prime Number Script",
+      "description": "Implement primes.py to calculate primes < 10000.",
+      "type": "Task"
+    }
+  ]`, nil
+		}
 		// Return a valid JSON response for ticket generation (Array of tickets)
 		return `[
     {
