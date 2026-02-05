@@ -82,6 +82,7 @@ agent-bridge feature set req-script-is-runnable passed
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 
 	// Append a dummy command to prevent NO-OP loop detection in the runner
+	// Note: We use triple backticks here which should be matched by bashBlockRegex
 	response += "\n\nI will execute a dummy command to signal liveness:\n```bash\necho \"Mock Agent is alive\"\n```"
 
 	return response, nil
