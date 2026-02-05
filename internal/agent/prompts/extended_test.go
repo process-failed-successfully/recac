@@ -59,30 +59,20 @@ func TestGetPrompt_Overrides(t *testing.T) {
 
 	// 3. Test Local .recac/prompts
 	// We need to simulate running from a directory that has .recac/prompts.
-	// We cannot safely write to CWD in CI/parallel tests, so we change CWD to a temp dir.
+	// We mock getwd to return a temp directory.
 
 	// Disable Env Override
 	t.Setenv("RECAC_PROMPTS_DIR", "")
 
-	// Save original CWD
-	originalWd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current wd: %v", err)
-	}
-
 	// Create temp dir for CWD simulation
 	localDir := t.TempDir()
 
-	// Change CWD
-	if err := os.Chdir(localDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
+	// Mock getwd
+	originalGetwd := getwd
+	getwd = func() (string, error) {
+		return localDir, nil
 	}
-	defer func() {
-		// Restore CWD
-		if err := os.Chdir(originalWd); err != nil {
-			t.Errorf("Failed to restore CWD: %v", err)
-		}
-	}()
+	defer func() { getwd = originalGetwd }()
 
 	// Create .recac/prompts in the temp CWD
 	localRecacDir := filepath.Join(localDir, ".recac", "prompts")
