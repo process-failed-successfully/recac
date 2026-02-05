@@ -55,21 +55,34 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 2. Initializer Agent
 	if strings.Contains(prompt, "Initializer Agent") || strings.Contains(prompt, "agent-bridge import") {
-		return "```bash\n# Mock Initialization\necho '{\"features\": []}' | agent-bridge import\n```", nil
+		// Return a non-empty feature list to ensure the session progresses
+		return "```bash\n# Mock Initialization\necho '{\"features\": [{\"id\": \"1\", \"description\": \"Mock Feature\", \"status\": \"pending\"}]}' | agent-bridge import\n```", nil
 	}
 
 	// 3. Coding Agent (Primes Python Scenario)
 	if strings.Contains(prompt, "CODING AGENT") {
+		// Completion Check
+		if strings.Contains(prompt, "NONE_ALL_COMPLETE") || strings.Contains(prompt, "signal completion") {
+			return "```bash\n# Mock Completion\nagent-bridge signal set --key COMPLETED --value true\n```", nil
+		}
+
 		// Detect specific tasks if possible, or return generic success
 		if strings.Contains(prompt, "primes.py") {
 			return "```bash\n# Mock Implementation\necho 'def fibonacci(n): return n' > primes.py\nagent-bridge feature set --id 1 --status implemented\n```", nil
 		}
-		return "```bash\n# Mock Coding Action\necho 'Working...'\n```", nil
+		// Generic fallback: Mark feature 1 as done to ensure progress
+		return "```bash\n# Mock Coding Action\necho 'Working...'\nagent-bridge feature set --id 1 --status done\n```", nil
 	}
 
-	// 4. Manager / Reviewer
+	// 4. QA Agent
+	if strings.Contains(prompt, "QA AGENT") {
+		return "```bash\n# Mock QA Pass\nagent-bridge signal set --key QA_PASSED --value true\n```", nil
+	}
+
+	// 5. Manager / Reviewer
 	if strings.Contains(prompt, "PROJECT MANAGER") {
-		return "QA_PASSED", nil
+		// Manager should also signal completion
+		return "```bash\n# Mock Manager Approval\nagent-bridge signal set --key PROJECT_SIGNED_OFF --value true\n```", nil
 	}
 
 	// Default response

@@ -109,41 +109,9 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		default:
 		}
 
-		// Check Max Iterations
-		currentIteration := s.GetIteration()
-		if s.MaxIterations > 0 && currentIteration >= s.MaxIterations {
-			s.Logger.Info("reached max iterations", "max_iterations", s.MaxIterations)
-			return ErrMaxIterations
-		}
-
-		newIteration := s.IncrementIteration()
-		s.Logger.Info("starting iteration", "iteration", newIteration, "task_id", s.SelectedTaskID, "agent_provider", s.AgentProvider, "agent_model", s.AgentModel)
-		if s.SelectedTaskID != "" {
-			// Log task description snippet for debugging context
-			descSnippet := ""
-			if len(s.SpecContent) > 50 {
-				descSnippet = s.SpecContent[:50] + "..."
-			} else {
-				descSnippet = s.SpecContent
-			}
-			s.Logger.Info("assigned task details", "task_id", s.SelectedTaskID, "desc_snippet", descSnippet)
-		}
-
-		// Ensure feature list is synced and mirror is up to date
-		features = s.loadFeatures()
-
-		// Single-Task Termination: If we are assigned a specific task and it's done, exit.
-		if s.SelectedTaskID != "" {
-			for _, f := range features {
-				if f.ID == s.SelectedTaskID && (f.Passes || f.Status == "done" || f.Status == "implemented") {
-					s.Logger.Info("task completed", "task_id", s.SelectedTaskID)
-					return nil
-				}
-			}
-		}
-
 		// Handle Lifecycle Role Transitions (Agent-QA-Manager-Cleaner workflow)
 		// Prioritize these checks at the beginning of the iteration
+		// Check signals BEFORE MaxIterations to allow a final successful iteration to complete gracefully
 		if s.hasSignal("PROJECT_SIGNED_OFF") {
 			// MERGE GUARDRAIL: Check for upstream conflicts before accepting sign-off
 			if s.BaseBranch != "" {
@@ -367,6 +335,30 @@ func (s *Session) RunLoop(ctx context.Context) error {
 			}
 			s.Logger.Info("cleaner agent complete, session finished")
 			return nil
+		}
+
+		if s.SelectedTaskID != "" {
+			// Log task description snippet for debugging context
+			descSnippet := ""
+			if len(s.SpecContent) > 50 {
+				descSnippet = s.SpecContent[:50] + "..."
+			} else {
+				descSnippet = s.SpecContent
+			}
+			s.Logger.Info("assigned task details", "task_id", s.SelectedTaskID, "desc_snippet", descSnippet)
+		}
+
+		// Ensure feature list is synced and mirror is up to date
+		features = s.loadFeatures()
+
+		// Single-Task Termination: If we are assigned a specific task and it's done, exit.
+		if s.SelectedTaskID != "" {
+			for _, f := range features {
+				if f.ID == s.SelectedTaskID && (f.Passes || f.Status == "done" || f.Status == "implemented") {
+					s.Logger.Info("task completed", "task_id", s.SelectedTaskID)
+					return nil
+				}
+			}
 		}
 
 		// Global Lifecycle Transitions (QA/Manager) - Main Session Only
