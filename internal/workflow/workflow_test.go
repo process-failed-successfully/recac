@@ -175,6 +175,13 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 		return repoURL, nil
 	}
 
+	// Mock RunWorkflow to avoid executing the full runner loop (which requires Docker and takes time)
+	originalRunWorkflow := RunWorkflow
+	defer func() { RunWorkflow = originalRunWorkflow }()
+	RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
+		return nil
+	}
+
 	// Mock Jira Server (minimal)
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)

@@ -43,7 +43,7 @@ func TestMockAgent_Scenarios(t *testing.T) {
 			wantContains: []string{
 				"```bash",
 				"cat << 'EOF' > primes.py",
-				"agent-bridge feature set req-primes-py-exists passed",
+				"agent-bridge feature set req-primes-py-exists --status done --passes true",
 			},
 		},
 		{
