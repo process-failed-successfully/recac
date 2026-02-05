@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"recac/internal/agent"
 	"recac/internal/cmdutils"
@@ -90,10 +91,12 @@ func TestProcessJiraTicket(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	cfg := SessionConfig{
-		ProjectPath: tmpDir,
-		SessionName: "test-run",
-		Cleanup:     true,
-		IsMock:      true,
+		ProjectPath:   tmpDir,
+		ProjectName:   fmt.Sprintf("test-run-%d", time.Now().UnixNano()), // Unique project ID to avoid DB collisions
+		SessionName:   "test-run",
+		Cleanup:       true,
+		IsMock:        true,
+		MaxIterations: 5,
 	}
 
 	err := ProcessJiraTicket(context.Background(), "TEST-1", jClient, cfg, nil)
@@ -211,10 +214,12 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	cfg := SessionConfig{
-		ProjectPath: tmpDir,
-		RepoURL:     "https://github.com/example/already-provided",
-		IsMock:      true,
-		Cleanup:     false,
+		ProjectPath:   tmpDir,
+		ProjectName:   fmt.Sprintf("test-jira-repo-%d", time.Now().UnixNano()), // Unique project ID
+		RepoURL:       "https://github.com/example/already-provided",
+		IsMock:        true,
+		Cleanup:       false,
+		MaxIterations: 5,
 	}
 
 	err := ProcessJiraTicket(context.Background(), "TEST-1", jClient, cfg, nil)
