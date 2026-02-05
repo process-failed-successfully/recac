@@ -22,6 +22,8 @@ const (
 	ArchitectAgent = "architect_agent"
 )
 
+var getwd = os.Getwd
+
 // ListPrompts returns a list of available embedded prompts.
 func ListPrompts() ([]string, error) {
 	entries, err := templateFS.ReadDir("templates")
@@ -58,7 +60,7 @@ func GetPrompt(name string, vars map[string]string) (string, error) {
 
 	// 2. Check Local .recac/prompts
 	if len(content) == 0 {
-		cwd, err := os.Getwd()
+		cwd, err := getwd()
 		if err == nil {
 			localPath := filepath.Join(cwd, ".recac", "prompts", name+".md")
 			if c, e := os.ReadFile(localPath); e == nil {

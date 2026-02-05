@@ -35,13 +35,9 @@ func TestGetPrompt_Overrides(t *testing.T) {
 
 	// 2. Test RECAC_PROMPTS_DIR
 	t.Run("EnvOverride", func(t *testing.T) {
-		tmpDir, err := os.MkdirTemp("", "recac-prompts-test")
-		if err != nil {
-			t.Fatalf("Failed to create temp dir: %v", err)
-		}
-		defer os.RemoveAll(tmpDir)
+		tmpDir := t.TempDir()
 
-		err = os.WriteFile(filepath.Join(tmpDir, promptName+".md"), []byte(overrideContent), 0644)
+		err := os.WriteFile(filepath.Join(tmpDir, promptName+".md"), []byte(overrideContent), 0644)
 		if err != nil {
 			t.Fatalf("Failed to write override file: %v", err)
 		}
@@ -59,33 +55,26 @@ func TestGetPrompt_Overrides(t *testing.T) {
 
 	// 3. Test Local .recac/prompts
 	t.Run("LocalOverride", func(t *testing.T) {
-		// We need to change CWD to a temp dir so we don't pollute source tree
-		oldWd, err := os.Getwd()
-		if err != nil {
-			t.Fatalf("Failed to get cwd: %v", err)
-		}
+		// Mock getwd instead of changing CWD
+		originalGetwd := getwd
+		defer func() { getwd = originalGetwd }()
 
 		tmpDir := t.TempDir()
-		if err := os.Chdir(tmpDir); err != nil {
-			t.Fatalf("Failed to chdir: %v", err)
+		getwd = func() (string, error) {
+			return tmpDir, nil
 		}
-		defer func() {
-			if err := os.Chdir(oldWd); err != nil {
-				t.Errorf("Failed to restore cwd: %v", err)
-			}
-		}()
 
 		// Ensure env var is not set
 		t.Setenv("RECAC_PROMPTS_DIR", "")
 
-		// Create .recac/prompts in tmpDir (which is now CWD)
+		// Create .recac/prompts in tmpDir (which mimics CWD)
 		localRecacDir := filepath.Join(tmpDir, ".recac", "prompts")
 		if err := os.MkdirAll(localRecacDir, 0755); err != nil {
 			t.Fatalf("Failed to mkdir: %v", err)
 		}
 
 		localContent := "Local Override"
-		err = os.WriteFile(filepath.Join(localRecacDir, promptName+".md"), []byte(localContent), 0644)
+		err := os.WriteFile(filepath.Join(localRecacDir, promptName+".md"), []byte(localContent), 0644)
 		if err != nil {
 			t.Fatalf("Failed to write local override: %v", err)
 		}
