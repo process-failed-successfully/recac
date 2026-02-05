@@ -34,6 +34,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 
+	// Heuristic for Initializer Agent
+	if strings.Contains(prompt, "YOUR ROLE - INITIALIZER AGENT") {
+		return `{"files": ["primes.py"]}`, nil
+	}
+
 	// Heuristic to detect TPM / Planner prompt requesting JSON tickets
 	if isTPMPrompt(prompt) {
 		return `[
@@ -54,6 +59,41 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     ]
   }
 ]`, nil
+	}
+
+	// Heuristic for Coding Agent (PRIMES)
+	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
+		return `I will implement the prime number generator.
+
+` + "```bash" + `
+#!/bin/bash
+set -x
+
+# Create the python script
+cat <<EOF > primes.py
+import json
+
+def is_prime(n):
+    if n <= 1:
+        return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+primes = [x for x in range(10000) if is_prime(x)]
+result = {"primes": primes}
+
+with open("primes.json", "w") as f:
+    json.dump(result, f)
+EOF
+
+# Run it
+python3 primes.py
+
+# Signal completion
+agent-bridge signal set COMPLETED true
+` + "```", nil
 	}
 
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",

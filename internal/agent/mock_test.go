@@ -61,6 +61,27 @@ func TestMockAgent_TPMResponse(t *testing.T) {
 	}
 }
 
+func TestMockAgent_CodingResponse(t *testing.T) {
+	agent := NewMockAgent("test-model", "test-project")
+
+	// Prompt simulating the Coding Agent prompt for PRIMES
+	prompt := "You are a Senior Software Engineer. Please implement ID:[PRIMES] Prime Number Generator System."
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "#!/bin/bash") {
+		t.Error("Response should contain bash script")
+	}
+	if !strings.Contains(response, "primes.py") {
+		t.Error("Response should contain primes.py creation")
+	}
+	if !strings.Contains(response, "agent-bridge signal set COMPLETED true") {
+		t.Error("Response should contain completion signal")
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
