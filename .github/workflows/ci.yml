@@ -289,7 +289,7 @@ jobs:
               -provider mock \
               -model mock-model \
               -image recac:smoke \
-              -repo-url "https://github.com/process-failed-successfully/recac-jira-e2e" \
+              -repo-url "https://github.com/process-failed-successfully/recac" \
               -pull-policy IfNotPresent \
               -skip-build; then
               echo "Test passed!"
