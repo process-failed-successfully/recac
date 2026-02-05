@@ -70,9 +70,15 @@ func TestGetPrompt_Overrides(t *testing.T) {
 			t.Fatalf("Failed to write local override: %v", err)
 		}
 
-		// Change working directory to the temp dir to simulate running from project root
-		// t.Chdir cleans up after the test automatically
-		t.Chdir(tmpDir)
+		// Mock current working directory to the temp dir to simulate running from project root
+		// We avoid using t.Chdir as it affects process state and can cause issues in parallel tests or CI
+		origGetwd := getwd
+		getwd = func() (string, error) {
+			return tmpDir, nil
+		}
+		t.Cleanup(func() {
+			getwd = origGetwd
+		})
 
 		content, err := GetPrompt(promptName, nil)
 		if err != nil {
