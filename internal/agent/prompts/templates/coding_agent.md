@@ -17,6 +17,7 @@ You are running inside a **Debian/Ubuntu Docker container**. This has specific i
 
 ### YOUR ASSIGNED TASK
 
+- **Project**: {project_name}
 - **Feature ID**: {task_id}
 - **Description**: {task_description}
 - **Exclusive Write Access**: {exclusive_paths}

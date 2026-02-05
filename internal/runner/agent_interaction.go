@@ -109,7 +109,8 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 	}
 
 	vars := map[string]string{
-		"history": historyStr,
+		"history":      historyStr,
+		"project_name": s.Project,
 	}
 
 	// Populate task-specific variables if set
@@ -126,6 +127,7 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 	}
 
 	if assignedFeature != nil {
+		s.Logger.Info("assigned deterministic task", "task_id", assignedFeature.ID)
 		vars["task_id"] = assignedFeature.ID
 		vars["task_description"] = assignedFeature.Description
 		vars["exclusive_paths"] = strings.Join(assignedFeature.Dependencies.ExclusiveWritePaths, ", ")
@@ -133,6 +135,7 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 
 		// s.SelectedTaskID = assignedFeature.ID // DO NOT SET THIS: It prevents Manager interruptions in subsequent turns.
 	} else {
+		s.Logger.Info("no pending task found for assignment", "features_total", len(features))
 		// All done?
 		vars["task_id"] = "NONE_ALL_COMPLETE"
 		vars["task_description"] = "All features are marked as done/passing. Please run final verification and signal completion."

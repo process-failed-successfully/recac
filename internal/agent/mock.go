@@ -29,7 +29,8 @@ func (m *MockAgent) SetResponse(response string) {
 // It returns a mock response that acknowledges the prompt
 func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Debug logging to help trace mock agent behavior in CI
-	fmt.Printf("[MockAgent] Received Prompt: %s...\n", truncateString(prompt, 50))
+	// We log the first 200 chars to better see the context (e.g. Role/Project)
+	fmt.Printf("[MockAgent] Received Prompt: %s...\n", truncateString(prompt, 200))
 
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
@@ -86,7 +87,8 @@ agent-bridge signal PROJECT_SIGNED_OFF true
 
 	// 5. Prime Python Heuristic
 	// Detects the prime-python scenario and generates the correct script
-	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "verify_prime") {
+	// Now case-insensitive and robust
+	if containsIgnoreCase(prompt, "[PRIMES]") || containsIgnoreCase(prompt, "primes.py") || containsIgnoreCase(prompt, "verify_prime") {
 		return `
 I will implement the prime number generator.
 
