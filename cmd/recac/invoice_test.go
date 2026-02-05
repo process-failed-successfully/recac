@@ -34,9 +34,24 @@ func TestInvoiceCmd(t *testing.T) {
 		// getGitCommits calls client.Log(dir, "--since=30d", "--format=%h|%an|%aI|%s", "--author=Test User")
 
 		now := time.Now()
-		ts1 := now.Add(-2 * time.Hour).Format(time.RFC3339)
-		ts2 := now.Add(-1 * time.Hour).Format(time.RFC3339) // 1 hour later (same session)
-		ts3 := now.Add(-25 * time.Hour).Format(time.RFC3339) // Yesterday (new session)
+		// Ensure ts1 and ts2 are definitely "today" and ts3 is "yesterday"
+		// even if running near midnight.
+		// Session 2 (Today): Gap 1h.
+		// We use small offsets from now to keep it in the same day (unless now is exactly 00:00:00)
+		// To be safe against midnight crossing, we could mock now, but simply using recent times is usually enough.
+		// If now is 00:30, -2h is yesterday.
+		// Let's use -60m and -0m (now) to be safe? No, we need 1h gap.
+		// Let's use hardcoded dates? No, logic depends on "Since 30d".
+		// Best approach: Use 25h ago for yesterday. For today, use 10m ago and 70m ago (1h gap).
+		// But 70m ago might cross midnight if now is 01:00.
+		// Let's just force the timestamps to be clearly separated days if possible, or accept that
+		// if they fall on same day, the test fails.
+		// To fix reliably: set "now" to noon today for calculation purposes? We can't easily mock time.Now inside the command.
+		// So we construct timestamps relative to a fixed "noon today".
+		noonToday := time.Date(now.Year(), now.Month(), now.Day(), 12, 0, 0, 0, now.Location())
+		ts1 := noonToday.Add(-1 * time.Hour).Format(time.RFC3339) // 11:00 Today
+		ts2 := noonToday.Format(time.RFC3339)                     // 12:00 Today (1h gap)
+		ts3 := noonToday.Add(-25 * time.Hour).Format(time.RFC3339) // 11:00 Yesterday (new session)
 
 		return []string{
 			fmt.Sprintf("hash1|Test User|%s|Commit 1", ts1),
