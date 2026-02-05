@@ -12,6 +12,7 @@ import (
 	"recac/internal/telemetry"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -767,6 +768,7 @@ func TestSession_RunLoop_Stall(t *testing.T) {
 	session := NewSession(d, mockAgent, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 	session.MaxIterations = 5
 	session.Project = "test-project"
+	session.SleepFunc = func(time.Duration) {} // No-op sleep for test speed
 
 	// Setup features
 	features := []db.Feature{{ID: "1", Status: "todo"}}
@@ -845,6 +847,7 @@ func TestSession_RunLoop_QAPassed(t *testing.T) {
 	session := NewSession(d, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 	session.ManagerAgent = mockManager
 	session.MaxIterations = 2
+	session.SleepFunc = func(time.Duration) {} // No-op sleep for test speed
 
 	// Inject QA_PASSED directly into DB since file-based is ignored for privileged signals
 	if session.DBStore != nil {
