@@ -106,6 +106,9 @@ with open("primes.json", "w") as f:
     json.dump({"primes": primes}, f)
 EOF
 
+# Run the script to generate the JSON
+python3 primes.py
+
 # Ensure git configuration
 if [ -n "$GITHUB_TOKEN" ]; then
   git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
@@ -114,7 +117,7 @@ git config --global user.email "agent@recac.io"
 git config --global user.name "RECAC Agent"
 
 # Add and push files
-git add primes.py
+git add primes.py primes.json
 git commit -m "Add primes.py and primes.json"
 # Explicitly push to the current branch on origin to ensure the remote is updated
 # We strip 'refs/heads/' to get the branch name if needed, or just push HEAD
