@@ -79,6 +79,65 @@ func TestMockAgent_CodingAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Initializer(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Test Initializer Prompt
+	prompt := "## YOUR ROLE - INITIALIZER AGENT\n..."
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(response, "git init") {
+		t.Error("Expected git init in initializer response")
+	}
+	if !strings.Contains(response, "agent-bridge import") {
+		t.Error("Expected agent-bridge import in initializer response")
+	}
+}
+
+func TestMockAgent_Sanitization(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Prompt with characters that could break markdown in fallback response
+	prompt := "Check this `code` and \"quotes\"\nNew Line"
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Response should contain the code block
+	if !strings.Contains(response, "```bash") {
+		t.Error("Response should contain bash block")
+	}
+
+	// Check content
+	// The preview in the echo should not contain backticks or quotes
+	// The sanitized prompt should be: "Check this code and quotes New Line"
+	expectedPreview := "Check this code and quotes New Line"
+	if !strings.Contains(response, expectedPreview) {
+		t.Errorf("Response should contain sanitized preview %q, got: %s", expectedPreview, response)
+	}
+
+	// Ensure no backticks inside the echo statement (which is inside the code block)
+	// We extract the block content
+	start := strings.Index(response, "```bash")
+	block := response[start:]
+	// There should be exactly 2 sets of triple backticks (start and end)
+	// But `strings.Count` counts occurrences.
+	// The sanitized string is inside the block.
+	// Just checking that we don't have stray backticks in the middle.
+
+	// The only backticks should be the code block delimiters.
+	// Note: We might have an echo "..." command.
+
+	// Let's just ensure the echo command itself doesn't contain backticks
+	// echo "Mock agent response: ... Prompt preview: Check this code..."
+	if strings.Contains(block, "Prompt preview: Check this `code`") {
+		t.Error("Echo command contains unsanitized backticks")
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {

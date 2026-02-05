@@ -33,9 +33,6 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Check for TPM/Ticket generation prompt
-	// Note: We check for "Technical Program Manager" which is the role definition.
-	// We removed the check for "tickets" because the prompt template might use singular "ticket"
-	// or the user might change the phrasing, but the role remains constant.
 	if strings.Contains(prompt, "Technical Program Manager") {
 		// Return a valid JSON list of tickets
 		return `[
@@ -50,7 +47,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Check for Initializer Agent prompt
-	if strings.Contains(prompt, "YOUR ROLE - INITIALIZER AGENT") {
+	// Matches "YOUR ROLE - INITIALIZER AGENT" or just "INITIALIZER AGENT"
+	if strings.Contains(prompt, "INITIALIZER AGENT") {
 		return `#!/bin/bash
 set -x
 git init
@@ -79,7 +77,7 @@ EOF
 	}
 
 	// Check for Coding Agent prompt
-	if strings.Contains(prompt, "## YOUR ROLE - CODING AGENT") {
+	if strings.Contains(prompt, "CODING AGENT") {
 		// For the prime-python scenario (detected via [PRIMES] marker)
 		if strings.Contains(prompt, "[PRIMES]") {
 			return `#!/bin/bash
@@ -124,11 +122,18 @@ ls -la
 `, nil
 	}
 
-	// Return a mock response that shows the agent received the prompt
-	// This allows the session to run without requiring real API keys
-	// We return a bash script to prevent the "NO-OP LOOP" circuit breaker in tests.
-	response := fmt.Sprintf("I will implement the requested features.\n\n```bash\n#!/bin/bash\necho \"%s: Received prompt (%d chars)\"\necho \"Mock Agent executing default action...\"\n```\n\nPrompt preview: %s...",
-		m.responsePrefix, len(prompt), truncateString(prompt, 100))
+	// Fallback Response
+	// Sanitize the prompt preview to ensure it doesn't break the markdown block of the response
+	// The runner expects a code block to execute commands.
+
+	// Truncate and sanitize
+	preview := truncateString(prompt, 100)
+	preview = strings.ReplaceAll(preview, "`", "")
+	preview = strings.ReplaceAll(preview, "\"", "")
+	preview = strings.ReplaceAll(preview, "\n", " ")
+
+	response := fmt.Sprintf("I will implement the requested features.\n\n```bash\n#!/bin/bash\necho \"%s: Received prompt (%d chars)\"\necho \"Prompt preview: %s\"\necho \"Mock Agent executing default action...\"\n```",
+		m.responsePrefix, len(prompt), preview)
 	return response, nil
 }
 
