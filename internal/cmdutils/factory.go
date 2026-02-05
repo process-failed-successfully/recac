@@ -182,13 +182,16 @@ var SetupWorkspace = func(ctx context.Context, gitClient git.IClient, repoURL, w
 		if err := gitClient.Fetch(workspace, "origin", branchName); err != nil {
 			fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to fetch branch: %v\n", ticketID, err)
 		}
+		fmt.Printf("[%s] Fetched branch '%s'. Checking out...\n", ticketID, branchName)
 		if err := gitClient.Checkout(workspace, branchName); err != nil {
 			fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to checkout branch: %v\n", ticketID, err)
 		}
+		fmt.Printf("[%s] Checked out branch '%s'. Pulling...\n", ticketID, branchName)
 		// Pull latest changes to be sure (rebase preferred strictly but merge ok for agent)
 		if err := gitClient.Pull(workspace, "origin", branchName); err != nil {
 			fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to pull branch: %v\n", ticketID, err)
 		}
+		fmt.Printf("[%s] Pulled branch '%s'.\n", ticketID, branchName)
 	} else {
 		// New Branch
 		fmt.Printf("[%s] Creating and switching to new feature branch: %s\n", ticketID, branchName)
