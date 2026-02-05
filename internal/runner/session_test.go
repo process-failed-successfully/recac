@@ -12,6 +12,7 @@ import (
 	"recac/internal/telemetry"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -336,6 +337,7 @@ func TestSession_RunLoop_SingleIteration(t *testing.T) {
 	mockDocker, _ := docker.NewMockClient()
 	session := NewSession(mockDocker, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 	session.MaxIterations = 1
+	session.SleepFunc = func(time.Duration) {}
 
 	ctx := context.Background()
 	if err := session.RunLoop(ctx); err != nil && err != ErrMaxIterations {
@@ -766,6 +768,7 @@ func TestSession_RunLoop_Stall(t *testing.T) {
 
 	session := NewSession(d, mockAgent, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 	session.MaxIterations = 5
+	session.SleepFunc = func(time.Duration) {}
 	session.Project = "test-project"
 
 	// Setup features

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"recac/internal/agent"
 	"recac/internal/db"
@@ -49,6 +50,7 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 		Project:          "ui-test",
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
 		Logger:           telemetry.NewLogger(true, "", false),
+		SleepFunc:        func(time.Duration) {},
 	}
 
 	// 6. Capture Stdout? (Hard to do in test without refactor).
