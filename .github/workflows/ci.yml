@@ -278,6 +278,7 @@ jobs:
           JIRA_USERNAME: ${{ secrets.JIRA_USERNAME }}
           JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
           GITHUB_API_KEY: ${{ secrets.GH_API_KEY }}
+          RECAC_GITHUB_API_KEY: ${{ secrets.GH_API_KEY }}
           GITHUB_EMAIL: ${{ secrets.GH_EMAIL }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
