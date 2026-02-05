@@ -50,6 +50,36 @@ Task: Implement primes.py.
 	}
 }
 
+func TestMockAgent_CodingAgentInterception(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Simulating a Coding Agent prompt that includes ticket context (which triggers the Ticket heuristic)
+	// ensuring lowercase keywords to trigger containsTicketKeywords
+	prompt := `
+## YOUR ROLE - CODING AGENT
+
+Context:
+- ticket: jira-123
+- type: story
+- Description: Implement primes.py for the epic.
+
+Task: Write the code.
+`
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// We expect implementation logic, NOT JSON ticket list
+	if strings.Contains(response, "\"type\": \"Epic\"") {
+		t.Errorf("MockAgent mistakenly returned JSON ticket list for Coding Agent prompt")
+	}
+
+	if !strings.Contains(response, "cat <<EOF > primes.py") {
+		t.Errorf("MockAgent failed to trigger primes.py implementation. Got: %s", response)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
