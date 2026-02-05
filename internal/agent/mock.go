@@ -32,25 +32,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// Heuristic: Detect ticket generation prompt
-	// The prompt often contains "app_spec.txt" or identifies as "Technical Program Manager"
-	if strings.Contains(prompt, "app_spec.txt") || strings.Contains(prompt, "tickets") || strings.Contains(prompt, "Technical Program Manager") {
-		return `[
-  {
-    "title": "ID:[PRIMES] Implement Primes Calculation",
-    "description": "Create a Python script to calculate prime numbers.",
-    "type": "Story",
-    "acceptance_criteria": [
-      "Script prints primes up to 100",
-      "Script is runnable"
-    ]
-  }
-]`, nil
-	}
-
-	// Heuristic: Detect Primes Implementation Task
-	// This supports the E2E smoke test scenario
-	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
+	// Heuristic: Detect Primes Implementation Task (Coding Agent)
+	// This supports the E2E smoke test scenario. We prioritize this over TPM if it looks like a coding task.
+	// We check for "Coding Agent", "Developer", "primes.py", or the specific ID tag.
+	if (strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py")) &&
+		(strings.Contains(prompt, "Coding Agent") || strings.Contains(prompt, "Developer") || strings.Contains(prompt, "primes.py")) {
 		return `I will implement the primes calculation script as requested.
 
 ` + "```bash" + `
@@ -74,6 +60,23 @@ agent-bridge feature set req-script-prints-primes-up-to-100 passed
 agent-bridge feature set req-script-is-runnable passed
 ` + "```" + `
 `, nil
+	}
+
+	// Heuristic: Detect ticket generation prompt (TPM)
+	// The prompt often contains "app_spec.txt" or identifies as "Technical Program Manager"
+	// We check this AFTER the coding agent check to avoid false positives from history
+	if strings.Contains(prompt, "app_spec.txt") || strings.Contains(prompt, "tickets") || strings.Contains(prompt, "Technical Program Manager") {
+		return `[
+  {
+    "title": "ID:[PRIMES] Implement Primes Calculation",
+    "description": "Create a Python script to calculate prime numbers.",
+    "type": "Story",
+    "acceptance_criteria": [
+      "Script prints primes up to 100",
+      "Script is runnable"
+    ]
+  }
+]`, nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
