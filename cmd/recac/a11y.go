@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"text/tabwriter"
 
@@ -95,7 +96,14 @@ func NewA11yScanner(ignoreList string) *A11yScanner {
 
 func (s *A11yScanner) Scan(file string, content string) []A11yFinding {
 	var findings []A11yFinding
-	lines := strings.Split(content, "\n")
+
+	// Precompute line offsets for O(log N) line number lookup
+	var lineOffsets []int
+	for i, r := range content {
+		if r == '\n' {
+			lineOffsets = append(lineOffsets, i)
+		}
+	}
 
 	// 1. Regex Checks
 	for name, re := range s.patterns {
@@ -110,7 +118,7 @@ func (s *A11yScanner) Scan(file string, content string) []A11yFinding {
 			for _, loc := range matches {
 				tag := content[loc[0]:loc[1]]
 				if !strings.Contains(tag, "alt=") {
-					findings = append(findings, s.createFinding(name, "Image tag missing alt attribute", file, content, loc[0], tag))
+					findings = append(findings, s.createFinding(name, "Image tag missing alt attribute", file, content, loc[0], tag, lineOffsets))
 				} else {
 					// Check for empty alt (which might be valid for decorative, but let's warn if strictly missing)
 					// Actually alt="" is valid for decorative. alt=" " or missing is bad.
@@ -139,26 +147,20 @@ func (s *A11yScanner) Scan(file string, content string) []A11yFinding {
 				}
 			}
 
-			findings = append(findings, s.createFinding(name, fmt.Sprintf("Found %s", name), file, content, loc[0], matchText))
+			findings = append(findings, s.createFinding(name, fmt.Sprintf("Found %s", name), file, content, loc[0], matchText, lineOffsets))
 		}
 	}
 
-	// 2. Specific Logic Checks (Iterate lines for simpler things)
+	// 2. Specific Logic Checks
+	// Optimized: Run regex on full content instead of line-by-line
 	// We want to match <a> tags. Regex is safer than string contains for <a vs <article
-	for i, line := range lines {
-		matches := s.aTagRe.FindAllString(line, -1)
-		for _, match := range matches {
+	if !s.ignored["Missing Href"] {
+		matches := s.aTagRe.FindAllStringIndex(content, -1)
+		for _, loc := range matches {
+			match := content[loc[0]:loc[1]]
 			if !strings.Contains(match, "href=") && !strings.Contains(match, "name=") {
-				if !s.ignored["Missing Href"] {
-					findings = append(findings, A11yFinding{
-						Type:        "Missing Href",
-						Description: "Anchor tag missing href attribute",
-						File:        file,
-						Line:        i + 1,
-						Match:       match,
-						Severity:    "error",
-					})
-				}
+				findings = append(findings, s.createFinding("Missing Href", "Anchor tag missing href attribute", file, content, loc[0], match, lineOffsets))
+				findings[len(findings)-1].Severity = "error"
 			}
 		}
 	}
@@ -166,13 +168,9 @@ func (s *A11yScanner) Scan(file string, content string) []A11yFinding {
 	return findings
 }
 
-func (s *A11yScanner) createFinding(typ, desc, file, content string, offset int, match string) A11yFinding {
-	line := 1
-	for i := 0; i < offset; i++ {
-		if content[i] == '\n' {
-			line++
-		}
-	}
+func (s *A11yScanner) createFinding(typ, desc, file, content string, offset int, match string, lineOffsets []int) A11yFinding {
+	line := sort.SearchInts(lineOffsets, offset) + 1
+
 	return A11yFinding{
 		Type:        typ,
 		Description: desc,
