@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 
 	"recac/internal/agent"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -57,29 +59,32 @@ func TestSeedCmd_SQLite(t *testing.T) {
 		}, nil
 	}
 
-	// 3. Run Command
-	// We use resetFlags helper from test_helpers_test.go if available, or just manually set flags?
-	// The helpers are in the same package (main), so they are available.
-	// But `resetFlags` is called inside `executeCommand`.
-	// I'll try to use `executeCommand` if possible, but `seedCmd` is global.
-	// `seedCmd` uses flags bound to global vars `seedTable`, `seedCount`, `seedYes`.
-	// I need to reset them manually or trust `executeCommand`'s resetFlags.
+	// 3. Run Command Directly
+	// Set global flags manually
+	seedTable = "users"
+	seedCount = 2
+	seedYes = true // Skip confirmation prompt
 
-	// Since `executeCommand` calls `root.Execute()`, I should call `seedCmd` via `seed`.
-	// But `seedCmd` is a subcommand.
+	// Create dummy command
+	cmd := &cobra.Command{}
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+	cmd.SetErr(buf)
+	// cmd.SetContext is not needed if we don't use it, but runSeed might use cmd.Context()
+	// runSeed uses cmd.Context() for agentClientFactory and execInsert.
+	// Default cmd context is background if not set? No, likely nil.
+	cmd.SetContext(context.Background())
 
-	// Let's invoke runSeed directly or via root command.
-	// Invoking via root command is safer for flag parsing.
+	// Call runSeed directly
+	args := []string{dbPath}
+	err = runSeed(cmd, args)
 
-	args := []string{"seed", dbPath, "--table", "users", "--count", "2", "--yes"}
-
-	// Reset global flags manually just in case
+	// Reset flags to defaults to avoid polluting other tests
 	seedTable = ""
 	seedCount = 10
 	seedYes = false
 
-	output, err := executeCommand(rootCmd, args...)
-	require.NoError(t, err, "Command failed: %s", output)
+	require.NoError(t, err, "runSeed failed: %s", buf.String())
 
 	// 4. Verify DB Content
 	db, err = sql.Open("sqlite", dbPath)
