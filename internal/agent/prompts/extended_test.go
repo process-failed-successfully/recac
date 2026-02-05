@@ -62,12 +62,16 @@ func TestGetPrompt_Overrides(t *testing.T) {
 		// Unset env via Setenv to ensure we hit the local check
 		t.Setenv("RECAC_PROMPTS_DIR", "")
 
-		// Use a temp dir as CWD to simulate local override without polluting source tree
 		tmpDir := t.TempDir()
-		// Change directory to the temp dir for this test
-		t.Chdir(tmpDir)
 
-		// Create .recac/prompts in the temp CWD
+		// Mock getwd to return the temp dir
+		origGetwd := getwd
+		getwd = func() (string, error) {
+			return tmpDir, nil
+		}
+		defer func() { getwd = origGetwd }()
+
+		// Create .recac/prompts in the temp dir
 		localRecacDir := filepath.Join(tmpDir, ".recac", "prompts")
 		if err := os.MkdirAll(localRecacDir, 0755); err != nil {
 			t.Fatalf("Failed to mkdir: %v", err)
