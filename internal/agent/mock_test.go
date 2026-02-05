@@ -34,3 +34,41 @@ func TestTruncateString(t *testing.T) {
 		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
 	}
 }
+
+func TestMockAgent_RoleDetection(t *testing.T) {
+	agent := NewMockAgent()
+	ctx := context.Background()
+
+	// 1. Test Manager Role Detection (Positive)
+	managerPrompt := "## YOUR ROLE - PROJECT MANAGER\n\nReview the QA report..."
+	resp, err := agent.Send(ctx, managerPrompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(resp, "PROJECT_SIGNED_OFF") {
+		t.Error("Expected Manager response for 'ROLE - PROJECT MANAGER', got generic response")
+	}
+
+	// 2. Test Coding Agent Confusion (Negative)
+	// This prompt mentions 'Project Manager' in the body but defines 'ROLE - CODING AGENT'
+	codingPrompt := `## YOUR ROLE - CODING AGENT
+
+### COMMUNICATE WITH MANAGER
+You have a Project Manager who reviews your work periodically.
+Triggers Manager Review: agent-bridge manager
+`
+	resp, err = agent.Send(ctx, codingPrompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Should NOT return the Manager response
+	if strings.Contains(resp, "PROJECT_SIGNED_OFF") {
+		t.Error("Coding Agent prompt incorrectly triggered Manager response because of loose keyword matching")
+	}
+
+	// Should match default generic response (or Primes logic if triggered, but here generic)
+	if !strings.Contains(resp, "Mock agent response") {
+		t.Errorf("Expected generic mock response, got: %s", resp)
+	}
+}
