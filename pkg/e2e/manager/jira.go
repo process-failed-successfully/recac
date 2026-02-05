@@ -115,11 +115,6 @@ func (m *JiraManager) GenerateScenario(ctx context.Context, scenarioName, repoUR
 			"--repo-url", repoURL,
 		}
 
-		// Inject mock agent flag if provider is mock
-		if provider == "mock" {
-			cmdArgs = append(cmdArgs, "--mock-agent")
-		}
-
 		var cmd *exec.Cmd
 		if strings.HasPrefix(recacCmd, "go run") {
 			args := append(strings.Split(recacCmd, " ")[1:], cmdArgs...)
