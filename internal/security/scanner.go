@@ -9,6 +9,7 @@ import (
 // Scanner defines the interface for security scanning
 type Scanner interface {
 	Scan(content string) ([]Finding, error)
+	Redact(content string) string
 }
 
 // Finding represents a security issue found in the content
@@ -92,4 +93,24 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 	}
 
 	return findings, nil
+}
+
+// Redact replaces sensitive information in the content with [REDACTED]
+func (s *RegexScanner) Redact(content string) string {
+	redacted := content
+	for name, pattern := range s.patterns {
+		// Only redact secrets, not behavioral patterns
+		if isSecret(name) {
+			redacted = pattern.ReplaceAllString(redacted, "[REDACTED]")
+		}
+	}
+	return redacted
+}
+
+func isSecret(name string) bool {
+	switch name {
+	case "AWS Access Key", "Private Key", "Generic API Token", "Slack Token", "GitHub Token":
+		return true
+	}
+	return false
 }

@@ -221,11 +221,23 @@ func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, ind
 	truncatedOutput := output
 	if len(output) > MaxOutputChars {
 		truncatedOutput = output[:MaxOutputChars] + fmt.Sprintf("\n... [Output Truncated. Total length: %d chars] ...", len(output))
+
+		// Redact secrets before logging
+		logOutput := truncatedOutput
+		if s.Scanner != nil {
+			logOutput = s.Scanner.Redact(logOutput)
+		}
+
 		// Also truncate for display to avoid flooding user console
-		s.Logger.Info("command output truncated", "truncated_output", truncatedOutput)
+		s.Logger.Info("command output truncated", "truncated_output", logOutput)
 	} else {
 		if len(output) > 0 {
-			s.Logger.Info("command output", "output", output)
+			// Redact secrets before logging
+			logOutput := output
+			if s.Scanner != nil {
+				logOutput = s.Scanner.Redact(logOutput)
+			}
+			s.Logger.Info("command output", "output", logOutput)
 		}
 	}
 

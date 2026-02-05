@@ -26,6 +26,11 @@ func (m *MockScanner) Scan(content string) ([]security.Finding, error) {
 	return args.Get(0).([]security.Finding), args.Error(1)
 }
 
+func (m *MockScanner) Redact(content string) string {
+	// Simple passthrough for most tests, or use expectations if needed
+	return content
+}
+
 func TestRunLoop_NoOp_Integrated(t *testing.T) {
 	tmpDir := t.TempDir()
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)

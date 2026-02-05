@@ -84,3 +84,46 @@ func TestRegexScanner_Scan(t *testing.T) {
 		})
 	}
 }
+
+func TestRegexScanner_Redact(t *testing.T) {
+	scanner := NewRegexScanner()
+
+	tests := []struct {
+		name     string
+		content  string
+		expected string
+	}{
+		{
+			name:     "No Secrets",
+			content:  "Hello World",
+			expected: "Hello World",
+		},
+		{
+			name:     "AWS Key",
+			content:  "Key: AKIAIOSFODNN7EXAMPLE",
+			expected: "Key: [REDACTED]",
+		},
+		{
+			name:     "Mixed Content",
+			content:  "Use AKIAIOSFODNN7EXAMPLE for access.",
+			expected: "Use [REDACTED] for access.",
+		},
+		{
+			name:     "Dangerous Command (Should NOT be redacted)",
+			content:  "rm -rf /",
+			expected: "rm -rf /",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := scanner.Redact(tt.content)
+			if got != tt.expected {
+				t.Errorf("Redact() = %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}
+
+// Ensure interface compatibility
+var _ Scanner = (*RegexScanner)(nil)
