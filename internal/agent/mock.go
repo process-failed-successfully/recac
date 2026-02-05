@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -25,15 +26,79 @@ func (m *MockAgent) SetResponse(response string) {
 }
 
 // Send implements the Agent interface
-// It returns a mock response that acknowledges the prompt
 func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// 1. TPM Agent - Generates the plan
+	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "Application Specification") {
+		return `
+[
+  {
+    "id": "PRIMES",
+    "type": "Task",
+    "summary": "Implement prime number script",
+    "description": "Implement a python script 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'."
+  }
+]
+`, nil
+	}
+
+	// 2. Initializer Agent - Sets up the repo
+	if strings.Contains(prompt, "Initializer") || strings.Contains(prompt, "git init") {
+		return `
+I will initialize the repository and import the plan.
+
+` + "```bash" + `
+git init
+git config user.email "you@example.com"
+git config user.name "Your Name"
+agent-bridge import --file /app/ticket_plan.json
+` + "```" + `
+`, nil
+	}
+
+	// 3. Coding Agent - Implements the feature
+	// We detect the [PRIMES] ID or the file request
+	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
+		return `
+I will implement the prime number script as requested.
+
+` + "```bash" + `
+cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n < 2: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0: return False
+    return True
+
+primes = [x for x in range(10000) if is_prime(x)]
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+python3 primes.py
+git add primes.py primes.json
+git commit -m "Add primes.py and primes.json"
+git push
+agent-bridge feature set PRIMES --status implemented
+` + "```" + `
+`, nil
+	}
+
+	// 4. Default / Fallback
 	// Return a mock response that shows the agent received the prompt
-	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
+
+	// Avoid "NO-OP LOOP" by providing a dummy command if nothing else matched
+	if !strings.Contains(response, "```bash") {
+		response += "\n\n" + "```bash" + "\necho 'Mock agent fallback'\n" + "```"
+	}
+
 	return response, nil
 }
 
