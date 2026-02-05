@@ -225,6 +225,12 @@ func runGenerateTicketsCmd(cmd *cobra.Command, args []string) {
 	if provider == "" {
 		provider = viper.GetString("provider")
 	}
+	// Override for mock
+	mockAgent, _ := cmd.Flags().GetBool("mock-agent")
+	if mockAgent {
+		provider = "mock"
+	}
+
 	model, _ := cmd.Flags().GetString("model")
 	if model == "" {
 		model = viper.GetString("model")
@@ -633,6 +639,7 @@ func init() {
 	jiraGenerateFromSpecCmd.Flags().StringSliceP("label", "l", []string{}, "Custom labels to add to generated tickets")
 	jiraGenerateFromSpecCmd.Flags().String("output-json", "", "Path to write the created ticket mapping (Title -> Key) in JSON format")
 	jiraGenerateFromSpecCmd.Flags().String("repo-url", "", "Repository URL to include in ticket descriptions")
+	jiraGenerateFromSpecCmd.Flags().Bool("mock-agent", false, "Use mock agent for testing")
 	jiraCmd.AddCommand(jiraGenerateFromSpecCmd)
 
 	jiraGenerateFromArchCmd.Flags().String("arch", ".recac/architecture/architecture.yaml", "Path to architecture.yaml")
