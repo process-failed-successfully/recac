@@ -103,6 +103,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			"python3 primes.py\n" +
 			"git add primes.py primes.json\n" +
 			"git commit -m \"Implement primes.py and generate primes.json\" --author=\"Recac Agent <agent@recac.com>\"\n" +
+			"agent-bridge feature set primes-impl --status done --passes true\n" +
 			"```", nil
 	}
 
