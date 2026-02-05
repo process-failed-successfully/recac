@@ -105,6 +105,12 @@ echo "Project initialized."
 
 	// 3. Manager Sign-off
 	if strings.Contains(prompt, "PROJECT MANAGER") {
+		// If prompt indicates pending/incomplete features, DO NOT sign off.
+		// Instead, instruct to proceed with implementation.
+		lowerPrompt := strings.ToLower(prompt)
+		if strings.Contains(lowerPrompt, "pending") || strings.Contains(lowerPrompt, "incomplete") || strings.Contains(lowerPrompt, "passes: false") {
+			return "Project is not ready for sign-off. Please complete the pending features.", nil
+		}
 		return "```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```\nProject Approved.", nil
 	}
 

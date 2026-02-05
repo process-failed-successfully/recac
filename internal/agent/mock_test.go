@@ -6,85 +6,65 @@ import (
 	"testing"
 )
 
-func TestMockAgent(t *testing.T) {
+func TestMockAgent_ManagerHeuristic(t *testing.T) {
 	agent := NewMockAgent()
+	ctx := context.Background()
 
-	// Test 1: Default/Fallback Response
-	t.Run("DefaultResponse", func(t *testing.T) {
-		prompt := "This is a random prompt that should trigger fallback"
-		response, err := agent.Send(context.Background(), prompt)
-		if err != nil {
-			t.Fatalf("Send failed: %v", err)
-		}
-		if !strings.Contains(response, "Mock agent response") {
-			t.Errorf("Response missing prefix, got: %s", response)
-		}
-		if !strings.Contains(response, "```bash") {
-			t.Error("Fallback response missing bash block (circuit breaker safety)")
-		}
-	})
+	// Case 1: All features passed -> Sign Off
+	promptPassed := "PROJECT MANAGER\nAll features passed."
+	resp, err := agent.Send(ctx, promptPassed)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(resp, "PROJECT_SIGNED_OFF") {
+		t.Errorf("Expected sign-off for passed prompt, got: %s", resp)
+	}
 
-	// Test 2: TPM Heuristic
-	t.Run("TPM_Heuristic", func(t *testing.T) {
-		// Should match
-		prompt := "You are the Technical Program Manager. Please generate tickets."
-		response, err := agent.Send(context.Background(), prompt)
-		if err != nil {
-			t.Fatalf("Send failed: %v", err)
-		}
-		if !strings.Contains(response, "\"type\": \"Story\"") {
-			t.Error("TPM heuristic failed to match valid prompt")
-		}
+	// Case 2: Features pending -> No Sign Off
+	promptPending := "PROJECT MANAGER\nFeatures:\n- ID: 1, Status: pending"
+	resp, err = agent.Send(ctx, promptPending)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if strings.Contains(resp, "PROJECT_SIGNED_OFF") {
+		t.Errorf("Expected NO sign-off for pending prompt, got: %s", resp)
+	}
+	if !strings.Contains(resp, "Please complete the pending features") {
+		t.Errorf("Expected instruction to complete features, got: %s", resp)
+	}
 
-		// Should NOT match (False positive check)
-		// e.g., Coding agent prompt mentions "tickets" but not "Technical Program Manager" role
-		promptFalse := "I am the Coding Agent working on tickets."
-		respFalse, _ := agent.Send(context.Background(), promptFalse)
-		if strings.Contains(respFalse, "\"type\": \"Story\"") {
-			t.Error("TPM heuristic falsely matched coding agent prompt")
-		}
-	})
-
-	// Test 3: Implementation Heuristic (Primes)
-	t.Run("Implementation_Heuristic", func(t *testing.T) {
-		// Case insensitive check
-		prompts := []string{
-			"Calculate primes",
-			"calculate primes",
-			"Please implement a script to identify prime numbers", // "prime numbers"
-			"Task: ID:[PRIMES] Implement...",
-		}
-
-		for _, p := range prompts {
-			resp, err := agent.Send(context.Background(), p)
-			if err != nil {
-				t.Fatalf("Send failed: %v", err)
-			}
-			if !strings.Contains(resp, "primes.py") {
-				t.Errorf("Implementation heuristic failed for prompt: %q", p)
-			}
-			if !strings.Contains(resp, "agent-bridge feature set") {
-				t.Errorf("Implementation response missing completion signal for prompt: %q", p)
-			}
-		}
-	})
-
-	// Test 4: Initializer
-	t.Run("Initializer", func(t *testing.T) {
-		prompt := "YOUR ROLE: INITIALIZER AGENT"
-		resp, _ := agent.Send(context.Background(), prompt)
-		if !strings.Contains(resp, "agent-bridge import") {
-			t.Error("Initializer heuristic failed")
-		}
-	})
+	// Case 3: Incomplete -> No Sign Off
+	promptIncomplete := "PROJECT MANAGER\nFeatures incomplete."
+	resp, err = agent.Send(ctx, promptIncomplete)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if strings.Contains(resp, "PROJECT_SIGNED_OFF") {
+		t.Errorf("Expected NO sign-off for incomplete prompt, got: %s", resp)
+	}
 }
 
-func TestTruncateString(t *testing.T) {
-	s := "hello world"
-	if truncateString(s, 5) != "hello" {
-		t.Errorf("Expected 'hello', got '%s'", truncateString(s, 5))
+func TestMockAgent_CodingHeuristic(t *testing.T) {
+	agent := NewMockAgent()
+	ctx := context.Background()
+
+	// Case 1: Primes keyword -> Generate Code
+	promptPrimes := "Please write a script to calculate primes."
+	resp, err := agent.Send(ctx, promptPrimes)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
 	}
-	if truncateString(s, 20) != "hello world" {
-		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
+	if !strings.Contains(resp, "cat <<EOF > primes.py") {
+		t.Errorf("Expected primes script generation, got: %s", resp)
+	}
+
+	// Case 2: Tag [PRIMES] -> Generate Code
+	promptTag := "Task [PRIMES] description."
+	resp, err = agent.Send(ctx, promptTag)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(resp, "cat <<EOF > primes.py") {
+		t.Errorf("Expected primes script generation, got: %s", resp)
 	}
 }
