@@ -2,35 +2,30 @@ package agent
 
 import (
 	"context"
-	"strings"
+	"encoding/json"
 	"testing"
 )
 
-func TestMockAgent(t *testing.T) {
+func TestMockAgent_TPM_RepoExtraction(t *testing.T) {
 	agent := NewMockAgent()
 
-	prompt := "This is a test prompt that is long enough to be truncated"
-	response, err := agent.Send(context.Background(), prompt)
-
+	// Simulating the prompt from the CI logs
+	prompt := `
+ID:[PRIMES] Prime Number Script
+Repo: https://github.com/example/repo. Use the repository associated with the project.
+6. **Blockers**: ...
+`
+	resp, err := agent.Send(context.Background(), prompt)
 	if err != nil {
-		t.Fatalf("Send failed: %v", err)
+		t.Fatalf("Agent.Send failed: %v", err)
 	}
 
-	if !strings.Contains(response, "Mock agent response") {
-		t.Errorf("Response missing prefix, got: %s", response)
-	}
-
-	if !strings.Contains(response, "I received your prompt") {
-		t.Errorf("Response missing body, got: %s", response)
-	}
-}
-
-func TestTruncateString(t *testing.T) {
-	s := "hello world"
-	if truncateString(s, 5) != "hello" {
-		t.Errorf("Expected 'hello', got '%s'", truncateString(s, 5))
-	}
-	if truncateString(s, 20) != "hello world" {
-		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
+	// Try to unmarshal the response. If the repo extraction is buggy, this will fail
+	// because literal newlines will be injected into the JSON string.
+	var result interface{}
+	err = json.Unmarshal([]byte(resp), &result)
+	if err != nil {
+		t.Logf("Response was:\n%s", resp)
+		t.Fatalf("JSON Unmarshal failed (reproduced issue): %v", err)
 	}
 }

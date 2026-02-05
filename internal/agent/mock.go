@@ -41,7 +41,13 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		if strings.Contains(prompt, "Repo: http") {
 			parts := strings.Split(prompt, "Repo: ")
 			if len(parts) > 1 {
-				repo = strings.TrimSpace(parts[1])
+				// Take the rest of the string after "Repo: "
+				afterRepo := parts[1]
+				// Split by whitespace to get just the URL, ignoring subsequent text/newlines
+				fields := strings.Fields(afterRepo)
+				if len(fields) > 0 {
+					repo = fields[0]
+				}
 			}
 		}
 
