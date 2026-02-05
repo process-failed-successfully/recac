@@ -99,7 +99,8 @@ func TestProcessJiraTicket(t *testing.T) {
 	err := ProcessJiraTicket(context.Background(), "TEST-1", jClient, cfg, nil)
 
 	// Assert steps
-	assert.FileExists(t, specPath := fmt.Sprintf("%s/app_spec.txt", tmpDir))
+	specPath := fmt.Sprintf("%s/app_spec.txt", tmpDir)
+	assert.FileExists(t, specPath)
 	if err != nil {
 		assert.Contains(t, err.Error(), "circuit breaker")
 	} else {

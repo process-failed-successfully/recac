@@ -158,9 +158,9 @@ EOF
 # Run it to generate the json
 python3 primes.py
 
-# Signal features passed
-agent-bridge feature set req-primes-py-exists passed
-agent-bridge feature set req-primes-json-exists passed
+# Signal features passed (Using explicit flags for agent-bridge)
+agent-bridge feature set req-primes-py-exists --status done --passes true
+agent-bridge feature set req-primes-json-exists --status done --passes true
 ` + "\n```"
 }
 
