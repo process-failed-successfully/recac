@@ -37,6 +37,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 1. Ticket Generation (TPM Agent)
 	// We check for TPM specific markers. We also handle the [PRIMES] case but ensure we aren't in the Coding Agent role.
 	isCodingAgent := strings.Contains(prompt, "YOUR ROLE - CODING AGENT")
+	// If the prompt contains TPM markers, or [PRIMES] without Coding Agent markers, it's a TPM task.
 	if strings.Contains(prompt, "CRITICAL INSTRUCTION FOR TICKET GENERATION") || (strings.Contains(prompt, "ID:[PRIMES]") && !isCodingAgent) {
 		// Extract Repo URL if possible, otherwise placeholder
 		repo := "https://github.com/example/repo"
@@ -72,7 +73,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Implementation (Coding Agent)
-	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "calculate primes") || strings.Contains(prompt, "[PRIMES]") {
+	// We check for Coding Agent markers combined with the task ID or specific task keywords.
+	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "calculate primes") || (strings.Contains(prompt, "[PRIMES]") && isCodingAgent) {
 		return `
 Here is the implementation for the prime number script.
 
