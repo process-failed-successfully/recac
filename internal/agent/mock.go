@@ -35,7 +35,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristics for E2E Tests (Smoke Test)
 
 	// 1. Ticket Generation (TPM Agent)
-	if strings.Contains(prompt, "CRITICAL INSTRUCTION FOR TICKET GENERATION") || strings.Contains(prompt, "ID:[PRIMES]") {
+	// Must check for TPM role specifically to avoid false positives from Coding Agent prompt
+	isTPM := strings.Contains(prompt, "Technical Program Manager")
+	if strings.Contains(prompt, "CRITICAL INSTRUCTION FOR TICKET GENERATION") || (strings.Contains(prompt, "ID:[PRIMES]") && isTPM) {
 		// Extract Repo URL if possible, otherwise placeholder
 		repo := "https://github.com/example/repo"
 		if strings.Contains(prompt, "Repo: http") {
@@ -97,7 +99,7 @@ python3 primes.py
 # Git operations
 git add primes.py primes.json
 git commit -m "Add primes.py and generated json"
-git push origin HEAD
+git push origin HEAD || echo "Push skipped"
 
 # Signal completion
 agent-bridge signal QA_PASSED true
@@ -107,7 +109,16 @@ agent-bridge signal PROJECT_SIGNED_OFF true
 	}
 
 	// Return a generic mock response for other cases
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
+	// Include a dummy bash block to prevent "no-op loop" circuit breaker failures
+	response := fmt.Sprintf(`%s:
+
+I received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.
+
+'''bash
+echo "Mock agent acknowledgement"
+'''
+
+Prompt preview: %s...`,
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
 }

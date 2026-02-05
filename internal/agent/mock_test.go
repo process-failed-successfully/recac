@@ -38,7 +38,8 @@ func TestTruncateString(t *testing.T) {
 func TestMockAgent_TPM_RepoExtraction(t *testing.T) {
 	agent := NewMockAgent()
 	// Simulating a prompt that triggers the TPM logic and has text after the Repo URL
-	prompt := "Please create tickets for ID:[PRIMES].\nRepo: https://github.com/test/repo\n\n6. **Blockers**: None."
+	// Updated to include role marker required by stricter heuristic
+	prompt := "You are the Technical Program Manager.\nPlease create tickets for ID:[PRIMES].\nRepo: https://github.com/test/repo\n\n6. **Blockers**: None."
 
 	response, err := agent.Send(context.Background(), prompt)
 	if err != nil {
@@ -70,5 +71,28 @@ func TestMockAgent_Implementation_PrimesJson(t *testing.T) {
 	// We expect the implementation script (bash), not the generic response
 	if !strings.Contains(response, "cat << 'EOF' > primes.py") {
 		t.Errorf("Response should contain implementation script. Got generic response:\n%s", response)
+	}
+}
+
+func TestMockAgent_CodingAgent_Avoids_TPM(t *testing.T) {
+	agent := NewMockAgent()
+	// Coding Agent prompt contains the ticket title which has the ID
+	// But it also contains the role marker
+	prompt := "## YOUR ROLE - CODING AGENT\n\nTask: ID:[PRIMES] Prime Number Script\nDescription: primes.py exists"
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// It should NOT return the JSON ticket list (TPM response)
+	// TPM response contains "type": "Task" or "type": "Epic"
+	if strings.Contains(response, "\"type\": \"Task\"") {
+		t.Errorf("Coding Agent prompt incorrectly triggered TPM response:\n%s", response)
+	}
+
+	// It SHOULD return the implementation (since it has "primes.py")
+	if !strings.Contains(response, "cat << 'EOF' > primes.py") {
+		t.Errorf("Coding Agent prompt failed to trigger implementation response:\n%s", response)
 	}
 }
