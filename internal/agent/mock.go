@@ -34,6 +34,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic for E2E Prime Python Scenario
 	if strings.Contains(prompt, "[PRIMES]") || (strings.Contains(prompt, "primes.py") && strings.Contains(prompt, "calculate")) {
+		// 1. TPM Agent (Ticket Generation)
+		if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM") {
+			return m.generatePrimesPlan(), nil
+		}
+		// 2. Coding Agent (Implementation)
+		// Default to implementation if role is ambiguous but scenario is clearly primes (legacy behavior support)
 		return m.generatePrimesResponse(), nil
 	}
 
@@ -78,6 +84,23 @@ git commit --author="Sentinel <sentinel@recac.com>" -m "Add primes script and ou
 git push origin HEAD || echo "Push skipped"
 `
 	return fmt.Sprintf("I will implement the prime number script as requested.\n\n```bash%s```", script)
+}
+
+func (m *MockAgent) generatePrimesPlan() string {
+	return `
+[
+  {
+    "title": "ID:[PRIMES] Prime Number Script",
+    "description": "Implement a Python script that calculates prime numbers up to 10,000 and saves them to a JSON file.",
+    "type": "Task",
+    "acceptance_criteria": [
+      "Script calculates primes correctly",
+      "Output is saved to primes.json",
+      "Contains exactly 1229 primes"
+    ]
+  }
+]
+`
 }
 
 // truncateString truncates a string to a maximum length

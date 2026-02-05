@@ -34,3 +34,44 @@ func TestTruncateString(t *testing.T) {
 		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
 	}
 }
+
+func TestMockAgent_PrimesScenario(t *testing.T) {
+	agent := NewMockAgent()
+	ctx := context.Background()
+
+	// 1. Test TPM Prompt
+	tpmPrompt := "You are an expert Technical Program Manager... [PRIMES] ..."
+	resp, err := agent.Send(ctx, tpmPrompt)
+	if err != nil {
+		t.Fatalf("Failed to send TPM prompt: %v", err)
+	}
+	if !strings.Contains(resp, `"type": "Task"`) {
+		t.Errorf("Expected JSON plan for TPM prompt, got: %s", resp)
+	}
+	if strings.Contains(resp, "cat << 'EOF' > primes.py") {
+		t.Error("TPM response should not contain implementation script")
+	}
+
+	// 2. Test Coding Prompt
+	codingPrompt := "## YOUR ROLE - CODING AGENT ... [PRIMES] ..."
+	resp, err = agent.Send(ctx, codingPrompt)
+	if err != nil {
+		t.Fatalf("Failed to send Coding prompt: %v", err)
+	}
+	if !strings.Contains(resp, "cat << 'EOF' > primes.py") {
+		t.Errorf("Expected implementation script for Coding prompt, got: %s", resp)
+	}
+	if strings.Contains(resp, `"type": "Task"`) {
+		t.Error("Coding response should not contain JSON plan")
+	}
+
+	// 3. Test Ambiguous Prompt (Fallback)
+	ambiguousPrompt := "Just do the [PRIMES] thing"
+	resp, err = agent.Send(ctx, ambiguousPrompt)
+	if err != nil {
+		t.Fatalf("Failed to send Ambiguous prompt: %v", err)
+	}
+	if !strings.Contains(resp, "cat << 'EOF' > primes.py") {
+		t.Errorf("Expected fallback to implementation, got: %s", resp)
+	}
+}
