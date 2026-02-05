@@ -64,8 +64,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Fallback generic response
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
-		m.responsePrefix, len(prompt), truncateString(prompt, 100))
+	// We include a dummy command to prevent the "NO-OP LOOP" circuit breaker from tripping
+	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...\n\n```bash\necho \"Mock Agent: Processing %s\"\n```",
+		m.responsePrefix, len(prompt), truncateString(prompt, 100), truncateString(prompt, 20))
 	return response, nil
 }
 

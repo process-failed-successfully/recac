@@ -65,6 +65,8 @@ func TestMockAgent_Scenarios(t *testing.T) {
 			wantContains: []string{
 				"Mock agent response",
 				"I received your prompt",
+				"```bash",
+				"echo \"Mock Agent: Processing",
 			},
 		},
 	}
