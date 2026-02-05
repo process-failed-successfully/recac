@@ -34,6 +34,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// [PRIMES] Scenario Logic
 	// Detect if we are being asked to implement the primes.py script
 	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
+		// Differentiate between TPM (Planning) and Coding Agent (Implementation)
+		if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "tpm_agent") {
+			return m.generatePrimesJSONResponse(), nil
+		}
 		return m.generatePrimesResponse(), nil
 	}
 
@@ -78,6 +82,19 @@ git commit -m "Implement primes.py"
 git push origin HEAD
 `
 	return fmt.Sprintf("I will implement the primes.py script as requested.\n\n```bash%s```\n", script)
+}
+
+func (m *MockAgent) generatePrimesJSONResponse() string {
+	return "```json\n" +
+		"[\n" +
+		"  {\n" +
+		"    \"title\": \"ID:[PRIMES] Create Prime Number Script\",\n" +
+		"    \"description\": \"Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'. Repo: https://github.com/process-failed-successfully/recac-jira-e2e\",\n" +
+		"    \"type\": \"Task\",\n" +
+		"    \"children\": []\n" +
+		"  }\n" +
+		"]\n" +
+		"```\n"
 }
 
 // truncateString truncates a string to a maximum length
