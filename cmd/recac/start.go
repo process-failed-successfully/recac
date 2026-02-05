@@ -631,6 +631,9 @@ func processJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.C
 	}
 }
 
+// Mockable function for testing
+var runWorkflowFunc = runWorkflow
+
 // runWorkflow handles the execution of a single project session (local or Jira-based)
 func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 	// Determine the goal for the session
