@@ -55,6 +55,7 @@ func TestGetPrompt_Overrides(t *testing.T) {
 		// Ensure Env is unset (though t.Setenv in sibling subtests shouldn't leak, we want to be sure regarding parent env)
 		t.Setenv("RECAC_PROMPTS_DIR", "")
 
+		// Fix: Use t.TempDir to prevent source tree pollution
 		tmpDir := t.TempDir()
 
 		// Create .recac/prompts in the temp dir
