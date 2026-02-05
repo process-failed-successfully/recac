@@ -20,6 +20,7 @@ func TestMockAgent_Scenarios(t *testing.T) {
 			name:   "Initializer",
 			prompt: "You are the INITIALIZER AGENT.",
 			wantContains: []string{
+				"```bash",
 				"agent-bridge import",
 				"req-primes-py-exists",
 			},
