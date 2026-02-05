@@ -61,7 +61,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 3. Coding Agent (Primes Python Scenario)
 	if strings.Contains(prompt, "CODING AGENT") {
 		// Detect specific tasks if possible, or return generic success
-		if strings.Contains(prompt, "primes.py") {
+		// The prompt for primes often refers to "Prime Number" or "python script"
+		if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "Prime") || strings.Contains(prompt, "python") {
 			return "```bash\n# Mock Implementation\necho 'def fibonacci(n): return n' > primes.py\nagent-bridge feature set --id 1 --status implemented\n```", nil
 		}
 		return "```bash\n# Mock Coding Action\necho 'Working...'\n```", nil
