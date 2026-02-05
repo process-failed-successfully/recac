@@ -56,3 +56,19 @@ func TestMockAgent_TPM_RepoExtraction(t *testing.T) {
 		t.Errorf("Response should NOT contain trailing prompt text. Got:\n%s", response)
 	}
 }
+
+func TestMockAgent_Implementation_PrimesJson(t *testing.T) {
+	agent := NewMockAgent()
+	// Simulating a prompt that asks for "primes.json exists" but doesn't mention "primes.py"
+	prompt := "Task Description: primes.json exists and contains correct primes"
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// We expect the implementation script (bash), not the generic response
+	if !strings.Contains(response, "cat << 'EOF' > primes.py") {
+		t.Errorf("Response should contain implementation script. Got generic response:\n%s", response)
+	}
+}
