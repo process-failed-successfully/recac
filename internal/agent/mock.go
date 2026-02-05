@@ -32,60 +32,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// Heuristic: Check for "TPM" or "Technical Program Manager" role to generate a ticket plan
-	if strings.Contains(prompt, "TPM") || strings.Contains(prompt, "Technical Program Manager") {
-		// Sub-Heuristic: If the prompt is for the [PRIMES] scenario, return the specific plan
-		if strings.Contains(prompt, "[PRIMES]") {
-			return `[
-  {
-    "id": "PRIMES",
-    "title": "Create Prime Number Script",
-    "description": "Calculate primes < 10000 and output to primes.json. The script MUST be named 'primes.py'.",
-    "type": "Task"
-  }
-]`, nil
-		}
-
-		// Default TPM response (Ticket generation)
-		return `[
-    {
-      "title": "Implement Core Feature",
-      "description": "Implement the core functionality as requested.",
-      "type": "Epic",
-      "children": [
-        {
-          "title": "Setup Project Structure",
-          "description": "Initialize the project structure.",
-          "type": "Story"
-        },
-        {
-          "title": "Implement Logic",
-          "description": "Write the business logic.",
-          "type": "Story"
-        }
-      ]
-    }
-  ]`, nil
-	}
-
-	// Heuristic: Check if this is the Initializer agent
-	if strings.Contains(prompt, "Initializer") || strings.Contains(prompt, "feature_list.json") {
-		return "Mock Initializer: Creating feature list.\n```bash\necho '[]' > feature_list.json\n```", nil
-	}
-
-	// Heuristic: Manager Agent (Check BEFORE QA to avoid false positives from history)
-	if strings.Contains(prompt, "Manager") || strings.Contains(prompt, "PROJECT_SIGNED_OFF") {
-		return "Mock Manager: Project approved.\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
-	}
-
-	// Heuristic: QA Agent
-	if strings.Contains(prompt, "QA Agent") || strings.Contains(prompt, "QA_PASSED") {
-		return "Mock QA: All checks passed.\n```bash\nagent-bridge signal QA_PASSED true\n```", nil
-	}
-
-	// Heuristic: Coding Agent for Prime Number Scenario (Smoke Test)
-	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
-		return `Mock Agent: Implementing primes.py
+	// [PRIMES] Scenario Handling
+	// This must be checked carefully to distinguish between Planning (TPM) and Coding phases.
+	if strings.Contains(prompt, "[PRIMES]") {
+		// 1. Coding Phase: If asking to "implement" or explicitly "primes.py"
+		if strings.Contains(prompt, "primes.py") || strings.Contains(strings.ToLower(prompt), "implement") || strings.Contains(strings.ToLower(prompt), "coding agent") {
+			return `Mock Agent: Implementing primes.py
 ` + "```bash" + `
 # Configure Git
 git config --global user.email "agent@recac.io"
@@ -124,6 +76,59 @@ git push origin HEAD || echo "Push skipped"
 # Signal Completion
 agent-bridge signal COMPLETED true
 ` + "```", nil
+		}
+
+		// 2. Planning Phase (TPM/Architect): Default if [PRIMES] is present but not coding
+		// This captures the initial "Plan tickets" request even if "TPM" keyword is missing/different.
+		return `[
+  {
+    "id": "PRIMES",
+    "title": "Create Prime Number Script",
+    "description": "Calculate primes < 10000 and output to primes.json. The script MUST be named 'primes.py'.",
+    "type": "Task"
+  }
+]`, nil
+	}
+
+	// Standard Heuristics (Fallbacks)
+
+	// Heuristic: Check for "TPM" or "Technical Program Manager" role to generate a ticket plan
+	if strings.Contains(prompt, "TPM") || strings.Contains(prompt, "Technical Program Manager") {
+		// Return a valid JSON response for ticket generation (Array of tickets)
+		return `[
+    {
+      "title": "Implement Core Feature",
+      "description": "Implement the core functionality as requested.",
+      "type": "Epic",
+      "children": [
+        {
+          "title": "Setup Project Structure",
+          "description": "Initialize the project structure.",
+          "type": "Story"
+        },
+        {
+          "title": "Implement Logic",
+          "description": "Write the business logic.",
+          "type": "Story"
+        }
+      ]
+    }
+  ]`, nil
+	}
+
+	// Heuristic: Check if this is the Initializer agent
+	if strings.Contains(prompt, "Initializer") || strings.Contains(prompt, "feature_list.json") {
+		return "Mock Initializer: Creating feature list.\n```bash\necho '[]' > feature_list.json\n```", nil
+	}
+
+	// Heuristic: Manager Agent (Check BEFORE QA to avoid false positives from history)
+	if strings.Contains(prompt, "Manager") || strings.Contains(prompt, "PROJECT_SIGNED_OFF") {
+		return "Mock Manager: Project approved.\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
+	}
+
+	// Heuristic: QA Agent
+	if strings.Contains(prompt, "QA Agent") || strings.Contains(prompt, "QA_PASSED") {
+		return "Mock QA: All checks passed.\n```bash\nagent-bridge signal QA_PASSED true\n```", nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
