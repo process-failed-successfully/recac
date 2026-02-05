@@ -35,7 +35,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristics for E2E Tests (Smoke Test)
 
 	// 1. Ticket Generation (TPM Agent)
-	if strings.Contains(prompt, "CRITICAL INSTRUCTION FOR TICKET GENERATION") || strings.Contains(prompt, "ID:[PRIMES]") {
+	// We check for TPM specific markers. We also handle the [PRIMES] case but ensure we aren't in the Coding Agent role.
+	isCodingAgent := strings.Contains(prompt, "YOUR ROLE - CODING AGENT")
+	if strings.Contains(prompt, "CRITICAL INSTRUCTION FOR TICKET GENERATION") || (strings.Contains(prompt, "ID:[PRIMES]") && !isCodingAgent) {
 		// Extract Repo URL if possible, otherwise placeholder
 		repo := "https://github.com/example/repo"
 		if strings.Contains(prompt, "Repo: http") {
@@ -70,7 +72,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Implementation (Coding Agent)
-	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "calculate primes") {
+	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "calculate primes") || strings.Contains(prompt, "[PRIMES]") {
 		return `
 Here is the implementation for the prime number script.
 
