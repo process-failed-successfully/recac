@@ -71,7 +71,7 @@ agent-bridge signal QA_PASSED true
 	}
 
 	// 3. Check for Project Manager
-	if strings.Contains(strings.ToUpper(prompt), "ROLE - PROJECT MANAGER") {
+	if strings.Contains(prompt, "## YOUR ROLE - PROJECT MANAGER") {
 		return `
 Project looks good. Signed off.
 
