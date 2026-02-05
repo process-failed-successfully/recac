@@ -145,3 +145,11 @@ func TestPlaybackModel_ComplexContent(t *testing.T) {
 		t.Error("Content should contain pretty printed array")
 	}
 }
+
+func TestPlaybackModel_Init(t *testing.T) {
+	entries := []LogEntry{}
+	m := NewPlaybackModel(entries)
+	if cmd := m.Init(); cmd != nil {
+		t.Error("Init should return nil")
+	}
+}
