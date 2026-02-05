@@ -101,6 +101,17 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		}
 	}()
 
+	// QA Mode Short-Circuit
+	if s.Mode == "qa" {
+		fmt.Println("Running in QA Mode...")
+		if err := s.runQAAgent(ctx); err != nil {
+			fmt.Printf("QA Failed: %v\n", err)
+			return err
+		}
+		fmt.Println("QA Passed.")
+		return nil
+	}
+
 	for {
 		// Check for cancellation
 		select {
@@ -442,6 +453,12 @@ func (s *Session) RunLoop(ctx context.Context) error {
 			s.Logger.Error("iteration failed", "error", err)
 			s.SleepFunc(5 * time.Second) // Backoff
 			continue                     // Retry loop without tripping no-op breaker
+		}
+
+		// Single-Run Mode Exit
+		if s.Mode == "plan" || s.Mode == "review" {
+			s.Logger.Info("single-run mode complete", "mode", s.Mode)
+			return nil
 		}
 
 		// Circuit Breaker: No-Op Check
