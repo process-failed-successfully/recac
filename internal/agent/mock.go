@@ -159,14 +159,14 @@ agent-bridge feature set req-primes-json-exists --status done --passes true
 func (m *MockAgent) qaResponse() string {
 	return "```bash\n" + `
 echo "QA Checks Passed"
-agent-bridge signal QA_PASSED
+agent-bridge signal QA_PASSED true
 ` + "\n```"
 }
 
 func (m *MockAgent) managerResponse() string {
 	return "```bash\n" + `
 echo "Project Sign Off"
-agent-bridge signal PROJECT_SIGNED_OFF
+agent-bridge signal PROJECT_SIGNED_OFF true
 ` + "\n```"
 }
 

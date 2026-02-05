@@ -49,14 +49,14 @@ func TestMockAgent_Scenarios(t *testing.T) {
 			name:   "QA Agent",
 			prompt: "You are the QA AGENT",
 			wantContains: []string{
-				"agent-bridge signal QA_PASSED",
+				"agent-bridge signal QA_PASSED true",
 			},
 		},
 		{
 			name:   "Project Manager",
 			prompt: "You are the PROJECT MANAGER. Signal PROJECT_SIGNED_OFF set to true",
 			wantContains: []string{
-				"agent-bridge signal PROJECT_SIGNED_OFF",
+				"agent-bridge signal PROJECT_SIGNED_OFF true",
 			},
 		},
 		{
