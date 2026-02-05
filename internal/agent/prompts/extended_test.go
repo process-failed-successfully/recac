@@ -56,9 +56,15 @@ func TestGetPrompt_Overrides(t *testing.T) {
 		// Unset env via Setenv with empty string just in case
 		t.Setenv("RECAC_PROMPTS_DIR", "")
 
-		// Create a temp dir to use as CWD to avoid polluting source tree
+		// Mock getWd to return a temp dir
 		tmpCwd := t.TempDir()
-		t.Chdir(tmpCwd)
+		originalGetWd := getWd
+		getWd = func() (string, error) {
+			return tmpCwd, nil
+		}
+		t.Cleanup(func() {
+			getWd = originalGetWd
+		})
 
 		localRecacDir := filepath.Join(tmpCwd, ".recac", "prompts")
 		if err := os.MkdirAll(localRecacDir, 0755); err != nil {
