@@ -87,6 +87,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			"git add primes.py primes.json\n" +
 			"git commit -m \"Add primes script and results\"\n" +
 			"git push || echo \"Push skipped\"\n" +
+			"\n" +
+			"agent-bridge feature set req-the-script-primes-py-is-implem passed\n" +
+			"agent-bridge feature set req-the-results-are-output-to-a-fi passed\n" +
+			"agent-bridge feature set req-the-output-file-primes-json-co passed\n" +
+			"agent-bridge feature set req-exactly-1229-primes-are-calcul passed\n" +
+			"agent-bridge feature set req-the-primes-json-file-is-commit passed\n" +
 			"```\n" +
 			"\n" +
 			"COMPLETED\n", nil
