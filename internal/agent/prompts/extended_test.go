@@ -58,16 +58,15 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	}
 
 	// 3. Test Local .recac/prompts
-	// Use t.TempDir and os.Chdir to simulate local directory without modifying source tree
-	// This prevents "dirty git tree" failures in CI.
+	// Use mocked getwd to simulate local directory without modifying source tree or process state
 	tempCwd := t.TempDir()
-	originalCwd, _ := os.Getwd()
-	if err := os.Chdir(tempCwd); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
+
+	// Mock getwd
+	oldGetwd := getwd
+	defer func() { getwd = oldGetwd }()
+	getwd = func() (string, error) {
+		return tempCwd, nil
 	}
-	defer func() {
-		_ = os.Chdir(originalCwd)
-	}()
 
 	t.Setenv("RECAC_PROMPTS_DIR", "")
 
