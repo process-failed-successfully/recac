@@ -274,6 +274,11 @@ jobs:
         run: |
           k3d image import docker.io/library/recac:smoke -c recac-smoke
 
+      - name: Setup Git Identity
+        run: |
+          git config --global user.email "ci@recac.io"
+          git config --global user.name "RECAC CI"
+
       - name: Run E2E Test
         env:
           JIRA_URL: ${{ secrets.JIRA_URL }}
