@@ -31,6 +31,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	// Debug logging to help diagnose CI failures
+	fmt.Printf("DEBUG: MockAgent Prompt: %s\n", prompt)
+
 	// Heuristics for Smoke Tests (prime-python)
 
 	// 0. Initializer (Feature List Creation)
@@ -110,12 +113,10 @@ echo "Project initialized."
 
 	// 4. Implementation Phase (primes.py)
 	// Case-insensitive check for robustness
+	// Simplified Heuristic: If it mentions "prime" or "primes" (and isn't the TPM/Initializer above), do the implementation.
+	// This is safe because we've already handled the Planning/Manager phases.
 	promptLower := strings.ToLower(prompt)
-	// Heuristics refined based on actual prompts seen in CI
-	if strings.Contains(promptLower, "calculate primes") ||
-	   strings.Contains(prompt, "[PRIMES]") ||
-	   strings.Contains(promptLower, "prime numbers") ||
-	   strings.Contains(promptLower, "implement prime number calculator") {
+	if strings.Contains(promptLower, "prime") {
 		return `
 Sure, I will create a python script to calculate primes.
 
