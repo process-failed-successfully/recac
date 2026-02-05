@@ -52,10 +52,10 @@ func TestGetPrompt_Overrides(t *testing.T) {
 
 	// 3. Test Local .recac/prompts
 	t.Run("LocalDirOverride", func(t *testing.T) {
-		// Ensure Env is unset (though t.Setenv in sibling subtests shouldn't leak, we want to be sure regarding parent env)
+		// Ensure Env is unset
 		t.Setenv("RECAC_PROMPTS_DIR", "")
 
-		// Fix: Use t.TempDir to prevent source tree pollution
+		// Use t.TempDir to prevent source tree pollution
 		tmpDir := t.TempDir()
 
 		// Create .recac/prompts in the temp dir
@@ -85,7 +85,6 @@ func TestGetPrompt_Overrides(t *testing.T) {
 
 	// 4. Test Variable Injection
 	t.Run("VariableInjection", func(t *testing.T) {
-		// We can reuse the Env override mechanism for this test
 		tmpDir := t.TempDir()
 		varContent := "Hello {name}"
 		err := os.WriteFile(filepath.Join(tmpDir, promptName+".md"), []byte(varContent), 0644)
@@ -123,7 +122,7 @@ func TestListPrompts(t *testing.T) {
 			}
 		}
 		if !found {
-			t.Logf("Warning: Expected prompt %s not found in list %v", exp, prompts)
+			t.Errorf("Expected prompt %s not found in list %v", exp, prompts)
 		}
 	}
 }
