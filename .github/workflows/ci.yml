@@ -251,7 +251,7 @@ jobs:
       - name: Setup k3d
         uses: AbsaOSS/k3d-action@v2
         with:
-          cluster-name: "recac-smoke"
+          cluster-name: "recac-smoke-${{ github.run_id }}"
           args: >-
             --agents 1
             --no-lb
@@ -270,7 +270,7 @@ jobs:
 
       - name: Load Image into k3d
         run: |
-          k3d image import recac:smoke -c recac-smoke
+          k3d image import recac:smoke -c recac-smoke-${{ github.run_id }}
 
       - name: Run E2E Test
         env:
