@@ -74,4 +74,18 @@ func TestMockAgent_PrimesScenario(t *testing.T) {
 	if !strings.Contains(resp, "cat << 'EOF' > primes.py") {
 		t.Errorf("Expected fallback to implementation, got: %s", resp)
 	}
+
+	// 4. Test Completion (History detection)
+	// Simulate a prompt that includes the history of the previous action
+	historyPrompt := "## YOUR ROLE - CODING AGENT ... [PRIMES] ... RECENT HISTORY: ... cat << 'EOF' > primes.py ..."
+	resp, err = agent.Send(ctx, historyPrompt)
+	if err != nil {
+		t.Fatalf("Failed to send History prompt: %v", err)
+	}
+	if strings.Contains(resp, "cat << 'EOF' > primes.py") {
+		t.Error("Should NOT repeat implementation script if already in history")
+	}
+	if !strings.Contains(resp, "agent-bridge signal COMPLETED true") {
+		t.Errorf("Expected completion signal, got: %s", resp)
+	}
 }

@@ -39,6 +39,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			return m.generatePrimesPlan(), nil
 		}
 		// 2. Coding Agent (Implementation)
+		// If the history indicates we've already generated the script, signal completion to avoid loops.
+		if strings.Contains(prompt, "cat << 'EOF' > primes.py") {
+			return m.generatePrimesCompletion(), nil
+		}
 		// Default to implementation if role is ambiguous but scenario is clearly primes (legacy behavior support)
 		return m.generatePrimesResponse(), nil
 	}
@@ -84,6 +88,18 @@ git commit --author="Sentinel <sentinel@recac.com>" -m "Add primes script and ou
 git push origin HEAD || echo "Push skipped"
 `
 	return fmt.Sprintf("I will implement the prime number script as requested.\n\n```bash%s```", script)
+}
+
+func (m *MockAgent) generatePrimesCompletion() string {
+	return `The prime number script has been implemented and executed successfully.
+I will now mark the feature as complete and signal the task is finished.
+
+` + "```bash" + `
+agent-bridge feature set req-script-calculates-primes-corre --status done --passes true
+agent-bridge feature set req-output-is-saved-to-primes-json --status done --passes true
+agent-bridge feature set req-contains-exactly-1229-primes --status done --passes true
+agent-bridge signal COMPLETED true
+` + "```"
 }
 
 func (m *MockAgent) generatePrimesPlan() string {
