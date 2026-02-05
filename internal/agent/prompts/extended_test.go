@@ -11,11 +11,7 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	promptName := "test_prompt"
 	overrideContent := "Override Template"
 
-	// 1. Test Embedded/Fallback (simulated by failure of others)
-	// We can't easily add to embed.FS at runtime, but we can test that GetPrompt returns error for non-existent if no override exists.
-	// Or we can rely on existing templates.
-	// Let's rely on existing "planner" template if it exists, or handle error.
-
+	// 1. Test Embedded/Fallback
 	// Check ListPrompts first
 	prompts, err := ListPrompts()
 	if err != nil {
@@ -36,11 +32,8 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	}
 
 	// 2. Test RECAC_PROMPTS_DIR
-	tmpDir, err := os.MkdirTemp("", "recac-prompts-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	// Use t.TempDir for automatic cleanup
+	tmpDir := t.TempDir()
 
 	err = os.WriteFile(filepath.Join(tmpDir, promptName+".md"), []byte(overrideContent), 0644)
 	if err != nil {
@@ -58,34 +51,14 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	}
 
 	// 3. Test Local .recac/prompts
-	// Ensure RECAC_PROMPTS_DIR is unset
+	// Ensure RECAC_PROMPTS_DIR is unset (t.Setenv handles restoration)
 	t.Setenv("RECAC_PROMPTS_DIR", "")
 
-	// Save original CWD
-	origWd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get cwd: %v", err)
-	}
+	// Use t.TempDir and t.Chdir for safe CWD manipulation
+	localTmpDir := t.TempDir()
+	t.Chdir(localTmpDir)
 
-	// Create a new temp dir for local .recac test
-	localTmpDir, err := os.MkdirTemp("", "recac-local-test")
-	if err != nil {
-		t.Fatalf("Failed to create local temp dir: %v", err)
-	}
-	defer os.RemoveAll(localTmpDir)
-
-	// Change CWD to the temp dir
-	if err := os.Chdir(localTmpDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
-	// Restore CWD at the end
-	defer func() {
-		if err := os.Chdir(origWd); err != nil {
-			t.Errorf("Failed to restore cwd: %v", err)
-		}
-	}()
-
-	// Create .recac/prompts in the temp CWD
+	// Create .recac/prompts in the new CWD
 	localRecacDir := filepath.Join(localTmpDir, ".recac", "prompts")
 	if err := os.MkdirAll(localRecacDir, 0755); err != nil {
 		t.Fatalf("Failed to create local .recac dir: %v", err)
