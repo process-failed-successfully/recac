@@ -2,6 +2,8 @@ package agent
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"strings"
 )
 
@@ -105,8 +107,12 @@ agent-bridge signal COMPLETED true
 	// 5. Default Coding Agent (Smoke Test Logic)
 	// If we are in a coding loop (default), generate code and update features.
 
+	// Check environment for injected features to detect smoke test even if prompt is generic
+	injectedFeatures := os.Getenv("RECAC_INJECTED_FEATURES")
+	isPrimesScenario := strings.Contains(injectedFeatures, "[PRIMES]")
+
 	// Specific handling for primes.py (Smoke Test)
-	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "Prime Number Script") || strings.Contains(prompt, "req-implement-primes-py-script") {
+	if isPrimesScenario || strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "Prime Number Script") || strings.Contains(prompt, "req-implement-primes-py-script") {
 		return `I will implement the primes script.
 ` + "```bash" + `
 set -e
@@ -140,6 +146,13 @@ git push
 agent-bridge feature list --json | jq -r '.features[].id' | xargs -I {} agent-bridge feature set {} --status done --passes true
 agent-bridge signal COMPLETED true
 ` + "```", nil
+	}
+
+	// Log unmatched prompt for debugging
+	if len(prompt) > 100 {
+		fmt.Printf("[MockAgent] UNMATCHED PROMPT: %s...\n", prompt[:100])
+	} else {
+		fmt.Printf("[MockAgent] UNMATCHED PROMPT: %s\n", prompt)
 	}
 
 	// Fallback generic approach
