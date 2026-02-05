@@ -4,6 +4,7 @@ import (
 	"context"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestOpenAIClient_Mock(t *testing.T) {
@@ -43,6 +44,9 @@ func TestOpenAIClient_StateTracking(t *testing.T) {
 
 func TestOpenAIClient_NoKey(t *testing.T) {
 	client := NewOpenAIClient("", "gpt-4", "test-project")
+	// Override backoff to zero for testing speed
+	client.BackoffFn = func(i int) time.Duration { return 0 }
+
 	// No mock responder -> sendOnce should fail check
 
 	_, err := client.Send(context.Background(), "hello")
