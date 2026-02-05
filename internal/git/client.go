@@ -304,6 +304,20 @@ func (c *Client) Stash(dir string) error {
 
 // StashPop pops the latest stash.
 func (c *Client) StashPop(dir string) error {
+	// Check if there are any stashes first
+	cmdList := exec.Command("git", "stash", "list")
+	cmdList.Dir = dir
+	var out bytes.Buffer
+	cmdList.Stdout = &out
+	if err := cmdList.Run(); err != nil {
+		return fmt.Errorf("git stash list failed: %w", err)
+	}
+
+	// If no stashes, just return
+	if strings.TrimSpace(out.String()) == "" {
+		return nil
+	}
+
 	cmd := exec.Command("git", "stash", "pop")
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
