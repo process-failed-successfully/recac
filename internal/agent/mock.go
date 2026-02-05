@@ -67,7 +67,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return `
 Here is the implementation for the prime number script.
 
-'''bash
+` + "```bash" + `
 # Create the python script
 cat << 'EOF' > primes.py
 import json
@@ -102,7 +102,7 @@ git push origin HEAD
 # Signal completion
 agent-bridge signal QA_PASSED true
 agent-bridge signal PROJECT_SIGNED_OFF true
-'''
+` + "```" + `
 `, nil
 	}
 
