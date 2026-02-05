@@ -119,7 +119,8 @@ git config --global user.email "agent@recac.io"
 git config --global user.name "RECAC Agent"
 
 # Add and push files
-git add primes.py primes.json
+git add primes.py
+git add -f primes.json # Force add in case of .gitignore
 git commit -m "Add primes.py and primes.json"
 # Explicitly push to the current branch on origin to ensure the remote is updated
 # We strip 'refs/heads/' to get the branch name if needed, or just push HEAD

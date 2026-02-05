@@ -138,7 +138,11 @@ func (s *PrimePythonScenario) Verify(repoPath string, ticketKeys map[string]stri
 				lsCmd := exec.Command("ls", "-R")
 				lsCmd.Dir = repoPath
 				lsOut, _ := lsCmd.CombinedOutput()
-				return fmt.Errorf("failed to run %s: %v\nOutput:\n%s\nFiles in repo:\n%s", scriptPath, err, string(cmdOut), string(lsOut))
+
+			// Read script content for debugging
+			scriptContent, _ := os.ReadFile(filepath.Join(repoPath, scriptPath))
+
+			return fmt.Errorf("failed to run %s: %v\nOutput:\n%s\nFiles in repo:\n%s\nScript Content:\n%s", scriptPath, err, string(cmdOut), string(lsOut), string(scriptContent))
 			}
 		}
 		// After running script, try reading the file it produced
