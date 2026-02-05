@@ -49,6 +49,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Detects the prompt asking for the primes script
 	if strings.Contains(prompt, "primes.py") && !strings.Contains(prompt, "Technical Program Manager") {
 		return "```bash\n" +
+			"git config user.email \"agent@recac.com\"\n" +
+			"git config user.name \"Recac Agent\"\n" +
 			"cat << 'EOF' > primes.py\n" +
 			"import json\n" +
 			"\n" +
