@@ -7,6 +7,9 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	tea "github.com/charmbracelet/bubbletea"
+
+	"recac/internal/ui"
 )
 
 const todoFile = "TODO.md"
@@ -15,6 +18,26 @@ var todoCmd = &cobra.Command{
 	Use:   "todo",
 	Short: "Manage a simple local TODO list in TODO.md",
 	Long:  `A lightweight task manager that stores tasks in a Markdown file (TODO.md) in the current directory.`,
+}
+
+var todoUiCmd = &cobra.Command{
+	Use:   "ui",
+	Short: "Interactive TUI for TODOs",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		// Ensure file exists
+		if err := ensureTodoFile(); err != nil {
+			return err
+		}
+
+		model, err := ui.NewTodoModel(todoFile)
+		if err != nil {
+			return err
+		}
+
+		p := tea.NewProgram(model, tea.WithAltScreen())
+		_, err = p.Run()
+		return err
+	},
 }
 
 var todoAddCmd = &cobra.Command{
@@ -76,6 +99,7 @@ var todoRmCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(todoCmd)
+	todoCmd.AddCommand(todoUiCmd)
 	todoCmd.AddCommand(todoAddCmd)
 	todoCmd.AddCommand(todoListCmd)
 	todoCmd.AddCommand(todoDoneCmd)
