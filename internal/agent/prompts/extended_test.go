@@ -60,24 +60,17 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	// 3. Test Local .recac/prompts
 	t.Setenv("RECAC_PROMPTS_DIR", "")
 
-	// Use a temporary directory as CWD to avoid polluting the source tree
+	// Use a temporary directory and mock getwd to avoid polluting the source tree or changing process CWD
 	tmpCwd := t.TempDir()
-	originalWd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get CWD: %v", err)
+
+	// Mock getwd
+	oldGetwd := getwd
+	defer func() { getwd = oldGetwd }()
+	getwd = func() (string, error) {
+		return tmpCwd, nil
 	}
 
-	// Change CWD and defer restoration
-	if err := os.Chdir(tmpCwd); err != nil {
-		t.Fatalf("Failed to change CWD: %v", err)
-	}
-	defer func() {
-		if err := os.Chdir(originalWd); err != nil {
-			t.Errorf("Failed to restore CWD: %v", err)
-		}
-	}()
-
-	// Create .recac/prompts in the temp CWD
+	// Create .recac/prompts in the temp dir (which is now our "CWD")
 	localRecacDir := filepath.Join(tmpCwd, ".recac", "prompts")
 	if err := os.MkdirAll(localRecacDir, 0755); err != nil {
 		t.Fatalf("Failed to create local .recac dir: %v", err)
