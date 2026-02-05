@@ -10,6 +10,19 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	promptName := "test_prompt"
 	overrideContent := "Override Template"
 
+	// Isolate from environment: Mock getwd and userHomeDir
+	tmpBase := t.TempDir()
+	originalGetwd := getwd
+	originalUserHomeDir := userHomeDir
+
+	getwd = func() (string, error) { return tmpBase, nil }
+	userHomeDir = func() (string, error) { return tmpBase, nil }
+
+	t.Cleanup(func() {
+		getwd = originalGetwd
+		userHomeDir = originalUserHomeDir
+	})
+
 	// 1. Test Embedded/Fallback
 	t.Run("Embedded", func(t *testing.T) {
 		prompts, err := ListPrompts()

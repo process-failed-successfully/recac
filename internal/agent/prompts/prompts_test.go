@@ -8,6 +8,22 @@ import (
 )
 
 func TestGetPrompt(t *testing.T) {
+	// Ensure isolation from environment
+	t.Setenv("RECAC_PROMPTS_DIR", "")
+
+	// Mock getwd and userHomeDir to ensure no local/global overrides are picked up
+	tmpDir := t.TempDir()
+	originalGetwd := getwd
+	originalUserHomeDir := userHomeDir
+
+	getwd = func() (string, error) { return tmpDir, nil }
+	userHomeDir = func() (string, error) { return tmpDir, nil }
+
+	t.Cleanup(func() {
+		getwd = originalGetwd
+		userHomeDir = originalUserHomeDir
+	})
+
 	// Test Planner Prompt
 	vars := map[string]string{
 		"spec": "Test Specification Content",
