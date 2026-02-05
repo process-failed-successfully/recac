@@ -481,8 +481,8 @@ func verifyScenario(scenarioName, repo string, ticketMap map[string]string) erro
 	token := os.Getenv("GITHUB_API_KEY")
 	authRepo := repo
 	if !strings.Contains(repo, "@") {
-		// Insert token into URL
-		authRepo = strings.Replace(repo, "https://", fmt.Sprintf("https://x-access-token:%s@", token), 1)
+		// Insert token into URL (use x-oauth-basic for broad compatibility)
+		authRepo = strings.Replace(repo, "https://", fmt.Sprintf("https://%s:x-oauth-basic@", token), 1)
 	}
 
 	log.Printf("Cloning repo to %s...", tmpDir)
@@ -549,7 +549,7 @@ func prepareRepo(repoURL string, ticketMap map[string]string) error {
 	repoURL = strings.TrimSuffix(repoURL, "/")
 	authRepo := repoURL
 	if token != "" && !strings.Contains(repoURL, "@") {
-		authRepo = strings.Replace(repoURL, "https://", fmt.Sprintf("https://x-access-token:%s@", token), 1)
+		authRepo = strings.Replace(repoURL, "https://", fmt.Sprintf("https://%s:x-oauth-basic@", token), 1)
 	}
 
 	// 1. Get all remote branches using ls-remote (fast, no clone needed)
