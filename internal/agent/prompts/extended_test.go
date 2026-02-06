@@ -12,6 +12,9 @@ func TestGetPrompt_Overrides(t *testing.T) {
 
 	// 1. Test Embedded/Fallback
 	t.Run("Embedded", func(t *testing.T) {
+		// Ensure no env interference
+		t.Setenv("RECAC_PROMPTS_DIR", "")
+
 		prompts, err := ListPrompts()
 		if err != nil {
 			t.Fatalf("ListPrompts failed: %v", err)

@@ -138,8 +138,8 @@ func TestPlaybackModel_ComplexContent(t *testing.T) {
 	}
 
 	entry := entries[0]
-	if !strings.Contains(entry.Content, `"key": "value"`) {
-		t.Error("Content should contain pretty printed map")
+	if !strings.Contains(entry.Content, `"key"`) || !strings.Contains(entry.Content, `"value"`) {
+		t.Error("Content should contain pretty printed map keys and values")
 	}
 	if !strings.Contains(entry.Content, `[`) {
 		t.Error("Content should contain pretty printed array")

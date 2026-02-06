@@ -4,6 +4,7 @@ import (
 	"embed"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -86,7 +87,7 @@ func GetPrompt(name string, vars map[string]string) (string, error) {
 
 	// 4. Fallback to embedded
 	if len(content) == 0 {
-		templatePath := filepath.Join("templates", name+".md")
+		templatePath := path.Join("templates", name+".md")
 		content, err = templateFS.ReadFile(templatePath)
 		if err != nil {
 			return "", fmt.Errorf("failed to read prompt template %s: %w", name, err)
