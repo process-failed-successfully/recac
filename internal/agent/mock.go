@@ -94,10 +94,16 @@ EOF
 	// 2. Developer Role (Implementation)
 	// Detect request to implement the script. The runner usually sends the ticket description.
 	// The prompt will contain the task description "Implement a python script...".
+	// We prioritize the explicit role header if present, allowing us to ignore the "Review"/"QA" exclusion
+	// (which might be triggered by instructions in the prompt template).
+	isCodingAgent := strings.Contains(prompt, "YOUR ROLE - CODING AGENT")
 	if strings.Contains(prompt, "Implement a python script") ||
 		strings.Contains(prompt, "Implement Prime Number Script") ||
-		(strings.Contains(prompt, "PRIMES") && !strings.Contains(prompt, "Review") && !strings.Contains(prompt, "QA")) ||
-		(strings.Contains(prompt, "primes.py") && !strings.Contains(prompt, "Review") && !strings.Contains(prompt, "QA")) {
+		// If explicitly the coding agent, match on PRIMES/primes.py regardless of Review/QA keywords in instructions
+		(isCodingAgent && (strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "primes.py"))) ||
+		// Legacy/Fallback: Only match if NOT Review/QA (to avoid false positives in other roles)
+		(!isCodingAgent && strings.Contains(prompt, "PRIMES") && !strings.Contains(prompt, "Review") && !strings.Contains(prompt, "QA")) ||
+		(!isCodingAgent && strings.Contains(prompt, "primes.py") && !strings.Contains(prompt, "Review") && !strings.Contains(prompt, "QA")) {
 		return `
 I will implement the prime number script as requested.
 
