@@ -25,6 +25,7 @@ import (
 	"github.com/spf13/viper"
 )
 
+// Exported Errors for testing comparison
 var ErrBlocker = errors.New("blocker detected")
 var ErrMaxIterations = errors.New("maximum iterations reached")
 var ErrNoOp = errors.New("circuit breaker: no-op loop")

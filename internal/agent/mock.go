@@ -35,7 +35,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Detect if we are being asked to implement the primes.py script
 	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
 		// Differentiate between TPM (Planning) and Coding Agent (Implementation)
-		if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "tpm_agent") {
+		// We broaden the check because templates might vary slightly or casing might differ.
+		// "Epics" and "User Stories" are very specific to the TPM task in this project.
+		if strings.Contains(prompt, "Technical Program Manager") ||
+			strings.Contains(prompt, "tpm_agent") ||
+			strings.Contains(prompt, "Epics") ||
+			strings.Contains(prompt, "User Stories") {
 			return m.generatePrimesJSONResponse(), nil
 		}
 		return m.generatePrimesResponse(), nil
