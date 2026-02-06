@@ -35,7 +35,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 1. Project Manager - Ticket Generation
 	// Trigger: "ROLE - TECHNICAL PROGRAM MANAGER" or similar, AND "PRIMES"
-	if (strings.Contains(prompt, "ROLE - TECHNICAL PROGRAM MANAGER") || strings.Contains(prompt, "project management")) &&
+	if (strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM") || strings.Contains(prompt, "project management")) &&
 		strings.Contains(prompt, "PRIMES") && strings.Contains(prompt, "JSON") {
 		return `[
   {
