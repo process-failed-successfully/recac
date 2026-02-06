@@ -387,4 +387,23 @@ func TestSetupWorkspace(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "agent/TEST-1", checkedOut)
 	})
+
+	t.Run("Injects Github Token with x-oauth-basic", func(t *testing.T) {
+		os.Setenv("GITHUB_API_KEY", "test-token")
+		defer os.Unsetenv("GITHUB_API_KEY")
+
+		var clonedURL string
+		mockGitClient := &MockGitClient{
+			repoExists: false,
+			cloneFn: func(ctx context.Context, repoURL, directory string) error {
+				clonedURL = repoURL
+				return nil
+			},
+		}
+		_, err := SetupWorkspace(context.Background(), mockGitClient, "https://github.com/example/repo", "/tmp/recac-test", "TEST-1", "", "")
+		assert.NoError(t, err)
+		// Expect the token injected with x-oauth-basic as password (or similar valid auth structure)
+		// Current expected behavior is https://test-token:x-oauth-basic@github.com/example/repo
+		assert.Equal(t, "https://test-token:x-oauth-basic@github.com/example/repo", clonedURL)
+	})
 }
