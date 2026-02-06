@@ -103,10 +103,27 @@ func loadChallenges(path string) ([]GymChallenge, error) {
 	}
 
 	if info.IsDir() {
-		// TODO: Support directory loading
-		return nil, fmt.Errorf("directory loading not implemented yet")
+		var challenges []GymChallenge
+		err := filepath.Walk(path, func(p string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if !info.IsDir() && (strings.HasSuffix(p, ".yaml") || strings.HasSuffix(p, ".yml") || strings.HasSuffix(p, ".json")) {
+				c, err := loadChallengesFile(p)
+				if err != nil {
+					return fmt.Errorf("failed to load %s: %w", p, err)
+				}
+				challenges = append(challenges, c...)
+			}
+			return nil
+		})
+		return challenges, err
 	}
 
+	return loadChallengesFile(path)
+}
+
+func loadChallengesFile(path string) ([]GymChallenge, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -145,10 +162,6 @@ func runGymSession(ctx context.Context, challenge GymChallenge) (*GymResult, err
 	if err != nil {
 		return nil, fmt.Errorf("failed to init docker: %w", err)
 	}
-	// Session uses the interface which doesn't have Close().
-	// For real usage, d is *docker.Client which has Close(), but we cast to interface.
-	// If we want to close, we need to type assert or update interface.
-	// For CLI tool, OS cleanup is fine.
 
 	// 3. Initialize Agent
 	// Read from config or env
@@ -179,9 +192,6 @@ func runGymSession(ctx context.Context, challenge GymChallenge) (*GymResult, err
 
 	// Configure Session
 	sess.MaxIterations = 10 // Limit iterations for gym
-	if challenge.Timeout > 0 {
-		// Enforced via context later
-	}
 	sess.SpecContent = challenge.Description
 
 	// Write Tests to Workspace
@@ -231,12 +241,20 @@ func runGymSession(ctx context.Context, challenge GymChallenge) (*GymResult, err
 	output, err := d.Exec(ctx, sess.GetContainerID(), testCmd)
 	passed := err == nil
 
+	// Calculate Cost
+	var cost float64
+	if sess.StateManager != nil {
+		if state, err := sess.StateManager.Load(); err == nil {
+			cost = agent.CalculateCost(state.Model, state.TokenUsage)
+		}
+	}
+
 	return &GymResult{
 		Challenge: challenge.Name,
 		Passed:    passed,
 		Output:    output,
 		Duration:  time.Since(start),
-		Cost:      0.0, // TODO: Extract from agent state
+		Cost:      cost,
 	}, nil
 }
 
