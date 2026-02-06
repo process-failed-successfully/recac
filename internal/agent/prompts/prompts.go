@@ -14,6 +14,7 @@ var templateFS embed.FS
 
 // mockable getwd
 var getwd = os.Getwd
+var userHomeDir = os.UserHomeDir
 
 // List of available prompt templates
 const (
@@ -73,7 +74,7 @@ func GetPrompt(name string, vars map[string]string) (string, error) {
 
 	// 3. Check Global ~/.recac/prompts
 	if len(content) == 0 {
-		home, err := os.UserHomeDir()
+		home, err := userHomeDir()
 		if err == nil {
 			globalPath := filepath.Join(home, ".recac", "prompts", name+".md")
 			if c, e := os.ReadFile(globalPath); e == nil {
