@@ -38,12 +38,12 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		{
 			name:           "QA Agent",
 			prompt:         "## YOUR ROLE - QA AGENT",
-			expectContains: "QA_PASSED",
+			expectContains: "agent-bridge signal set QA_PASSED true",
 		},
 		{
 			name:           "Project Manager",
 			prompt:         "## ROLE: PROJECT MANAGER",
-			expectContains: "PROJECT_SIGNED_OFF",
+			expectContains: "agent-bridge signal set PROJECT_SIGNED_OFF true",
 		},
 	}
 
