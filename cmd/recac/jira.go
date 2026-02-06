@@ -16,6 +16,7 @@ import (
 
 	"time"
 
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v3"
@@ -643,6 +644,11 @@ func init() {
 	jiraGenerateFromArchCmd.Flags().String("output-json", "", "Output JSON path")
 	viper.BindPFlag("repo_url", jiraGenerateFromArchCmd.Flags().Lookup("repo-url"))
 	jiraCmd.AddCommand(jiraGenerateFromArchCmd)
+
+	jiraCleanupCmd.Flags().String("label", "", "Label to search for")
+	jiraCleanupCmd.MarkFlagRequired("label")
+	jiraCleanupCmd.Flags().Bool("force", false, "Skip confirmation prompt")
+	jiraCmd.AddCommand(jiraCleanupCmd)
 }
 
 // jiraCleanupCmd represents the jira cleanup command
@@ -652,10 +658,7 @@ var jiraCleanupCmd = &cobra.Command{
 	Long:  "Deletes all Jira tickets that match the specified label. Use with caution.",
 	Run: func(cmd *cobra.Command, args []string) {
 		label, _ := cmd.Flags().GetString("label")
-		if label == "" {
-			fmt.Fprintf(os.Stderr, "Error: --label is required\n")
-			exit(1)
-		}
+		force, _ := cmd.Flags().GetBool("force")
 
 		ctx := context.Background()
 		client, err := cmdutils.GetJiraClient(ctx)
@@ -676,7 +679,24 @@ var jiraCleanupCmd = &cobra.Command{
 			return
 		}
 
-		fmt.Printf("Found %d tickets. Deleting...\n", len(issues))
+		fmt.Printf("Found %d tickets.\n", len(issues))
+
+		if !force {
+			confirm := false
+			prompt := &survey.Confirm{
+				Message: fmt.Sprintf("Are you sure you want to delete these %d tickets?", len(issues)),
+			}
+			if err := askOneFunc(prompt, &confirm); err != nil {
+				fmt.Fprintf(os.Stderr, "Error reading input: %v\n", err)
+				exit(1)
+			}
+			if !confirm {
+				fmt.Println("Operation cancelled.")
+				return
+			}
+		}
+
+		fmt.Println("Deleting...")
 		count := 0
 		for _, issue := range issues {
 			key, _ := issue["key"].(string)
