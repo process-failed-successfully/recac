@@ -29,7 +29,7 @@ func TestMockAgent_ManagerHeuristic(t *testing.T) {
 	if strings.Contains(resp, "PROJECT_SIGNED_OFF") {
 		t.Errorf("Expected NO sign-off for pending prompt, got: %s", resp)
 	}
-	if !strings.Contains(resp, "Please complete the pending features") {
+	if !strings.Contains(resp, "Please complete the pending/failed features") {
 		t.Errorf("Expected instruction to complete features, got: %s", resp)
 	}
 
@@ -41,6 +41,19 @@ func TestMockAgent_ManagerHeuristic(t *testing.T) {
 	}
 	if strings.Contains(resp, "PROJECT_SIGNED_OFF") {
 		t.Errorf("Expected NO sign-off for incomplete prompt, got: %s", resp)
+	}
+
+	// Case 4: Failed Features (Smoke Test Scenario) -> No Sign Off
+	promptFailed := "PROJECT MANAGER\nQA Report: 0/2 features passing (0.0%)\nFailed Features:\n- [functional] Must correctly identify prime numbers"
+	resp, err = agent.Send(ctx, promptFailed)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if strings.Contains(resp, "PROJECT_SIGNED_OFF") {
+		t.Errorf("Expected NO sign-off for failed features prompt, got: %s", resp)
+	}
+	if !strings.Contains(resp, "Please complete the pending/failed features") {
+		t.Errorf("Expected instruction to complete failed features, got: %s", resp)
 	}
 }
 
