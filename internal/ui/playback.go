@@ -149,7 +149,7 @@ func (m PlaybackModel) View() string {
 
 func (m PlaybackModel) headerView() string {
 	title := "Entry Details"
-	line := strings.Repeat("─", intMax(0, m.viewport.Width-len(title)))
+	line := strings.Repeat("─", max(0, m.viewport.Width-len(title)))
 	return lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Render(title + line)
 }
 

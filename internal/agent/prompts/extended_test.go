@@ -11,6 +11,25 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	promptName := "test_prompt"
 	overrideContent := "Override Template"
 
+	// Mock getwd to prevent dirty git tree
+	originalGetwd := getwd
+	defer func() { getwd = originalGetwd }()
+
+	// Use a temp dir as the mock CWD
+	mockCwd := t.TempDir()
+	getwd = func() (string, error) {
+		return mockCwd, nil
+	}
+
+	// Mock userHomeDir as well
+	originalHome := userHomeDir
+	defer func() { userHomeDir = originalHome }()
+
+	mockHome := t.TempDir()
+	userHomeDir = func() (string, error) {
+		return mockHome, nil
+	}
+
 	// 1. Test Embedded/Fallback (simulated by failure of others)
 	// We can't easily add to embed.FS at runtime, but we can test that GetPrompt returns error for non-existent if no override exists.
 	// Or we can rely on existing templates.
@@ -36,11 +55,7 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	}
 
 	// 2. Test RECAC_PROMPTS_DIR
-	tmpDir, err := os.MkdirTemp("", "recac-prompts-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	err = os.WriteFile(filepath.Join(tmpDir, promptName+".md"), []byte(overrideContent), 0644)
 	if err != nil {
@@ -60,26 +75,10 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	// 3. Test Local .recac/prompts
 	t.Setenv("RECAC_PROMPTS_DIR", "")
 
-	// Use a temp dir as CWD to avoid polluting source tree
-	tempCwd := t.TempDir()
-	originalCwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current working directory: %v", err)
-	}
-
-	if err := os.Chdir(tempCwd); err != nil {
-		t.Fatalf("Failed to change directory to temp dir: %v", err)
-	}
-	defer func() {
-		if err := os.Chdir(originalCwd); err != nil {
-			t.Errorf("Failed to restore working directory: %v", err)
-		}
-	}()
-
-	localRecacDir := filepath.Join(tempCwd, ".recac", "prompts")
-	if err := os.MkdirAll(localRecacDir, 0755); err != nil {
-		t.Fatalf("Failed to create local recac dir: %v", err)
-	}
+	// Create .recac/prompts in mockCWD
+	localRecacDir := filepath.Join(mockCwd, ".recac", "prompts")
+	os.MkdirAll(localRecacDir, 0755)
+	// No need to cleanup .recac manually as it's in t.TempDir()
 
 	localContent := "Local Override"
 	err = os.WriteFile(filepath.Join(localRecacDir, promptName+".md"), []byte(localContent), 0644)
