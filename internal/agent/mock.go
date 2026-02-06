@@ -63,7 +63,13 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Implementation (Coding Agent)
-	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "calculate primes") || strings.Contains(prompt, "primes.json") {
+	// Check for filenames, task descriptions, OR feature IDs commonly used in this scenario
+	if strings.Contains(prompt, "primes.py") ||
+		strings.Contains(prompt, "calculate primes") ||
+		strings.Contains(prompt, "primes.json") ||
+		strings.Contains(prompt, "req-primes-py-exists") ||
+		strings.Contains(prompt, "req-primes-json-exists") ||
+		strings.Contains(prompt, "req-must-correctly-identify-prime") {
 		return `
 Here is the implementation for the prime number script.
 
@@ -107,6 +113,9 @@ agent-bridge signal PROJECT_SIGNED_OFF true
 	}
 
 	// Return a generic mock response for other cases
+	// Log the unmatched prompt to help debug CI failures where heuristics fail
+	fmt.Printf("DEBUG: MockAgent Prompt: %s\n", prompt)
+
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
