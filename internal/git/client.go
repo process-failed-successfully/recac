@@ -164,10 +164,15 @@ func (c *Client) Commit(dir, message string) error {
 	commitCmd.Dir = dir
 	commitCmd.Stdout = os.Stdout
 	commitCmd.Stderr = os.Stderr
-	// Ensure we don't fail if there's nothing to commit, although usually we want to know.
-	// But for automation, maybe we just ignore error?
-	// Let's return error so we know.
-	return commitCmd.Run()
+
+	// Check for exit code 1 (nothing to commit) and ignore it
+	if err := commitCmd.Run(); err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 // SetRemoteURL updates the remote URL (e.g. to include auth token).

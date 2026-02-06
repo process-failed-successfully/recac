@@ -567,3 +567,22 @@ func TestClient_DiffStaged(t *testing.T) {
 		t.Errorf("Expected diff to contain 'v2', got %s", diff)
 	}
 }
+
+func TestClient_Commit_NoChanges(t *testing.T) {
+	localDir, remoteDir := setupTestRepo(t)
+	defer os.RemoveAll(localDir)
+	defer os.RemoveAll(remoteDir)
+
+	c := NewClient()
+
+	// Initial commit
+	os.WriteFile(filepath.Join(localDir, "test.txt"), []byte("hello"), 0644)
+	if err := c.Commit(localDir, "Initial commit"); err != nil {
+		t.Fatalf("Initial commit failed: %v", err)
+	}
+
+	// Try to commit again with no changes
+	if err := c.Commit(localDir, "Empty commit"); err != nil {
+		t.Errorf("Commit with no changes should not return error, got: %v", err)
+	}
+}
