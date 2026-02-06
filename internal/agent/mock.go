@@ -39,7 +39,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(promptLower, "[primes]") ||
 		(strings.Contains(promptLower, "primes.py") && strings.Contains(promptLower, "calculate")) ||
 		(strings.Contains(promptLower, "primes") && (strings.Contains(promptLower, "calculate") || strings.Contains(promptLower, "json") || strings.Contains(promptLower, "1229"))) ||
-		strings.Contains(promptLower, "req-script-calculates-primes-corre") { // Explicit ID fallback
+		strings.Contains(promptLower, "req-script-calculates-primes-corre") || // Explicit ID fallback
+		(strings.Contains(promptLower, "coding agent") && strings.Contains(promptLower, "prime")) { // Generic coding agent fallback
 		// 1. TPM Agent (Ticket Generation)
 		if strings.Contains(promptLower, "technical program manager") || strings.Contains(promptLower, "tpm") {
 			return m.generatePrimesPlan(), nil
