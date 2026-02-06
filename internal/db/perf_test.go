@@ -70,3 +70,48 @@ func TestQueryHistoryPerformance(t *testing.T) {
 
 	t.Logf("QueryHistory (limit 50) took: %v", duration)
 }
+
+func TestAcquireLockLatency(t *testing.T) {
+	// Setup SQLite
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "lock_perf.db")
+	store, err := NewSQLiteStore(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	projectID := "proj_perf"
+	path := "/critical/resource"
+	agentA := "AgentA"
+	agentB := "AgentB"
+
+	// 1. Agent A acquires lock
+	acquired, err := store.AcquireLock(projectID, path, agentA, time.Second)
+	if err != nil || !acquired {
+		t.Fatalf("Agent A failed to acquire lock: %v", err)
+	}
+
+	// 2. Agent A releases lock after 100ms in a goroutine
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		_ = store.ReleaseLock(projectID, path, agentA)
+	}()
+
+	// 3. Agent B tries to acquire lock immediately
+	start := time.Now()
+	acquired, err = store.AcquireLock(projectID, path, agentB, 2*time.Second)
+	duration := time.Since(start)
+
+	if err != nil || !acquired {
+		t.Fatalf("Agent B failed to acquire lock: %v", err)
+	}
+
+	t.Logf("AcquireLock latency: %v", duration)
+
+	if duration > 300*time.Millisecond {
+		t.Logf("Latency is HIGH (>300ms).")
+	} else {
+		t.Logf("Latency is LOW (<300ms).")
+	}
+}
