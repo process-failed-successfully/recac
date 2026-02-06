@@ -70,7 +70,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(prompt, "CODING AGENT") {
 		// Detect if task is already done to prevent infinite loops
 		if strings.Contains(prompt, "PRIMES") && strings.Contains(prompt, "implemented") {
-			return "```bash\n# Task appears complete\necho 'Task PRIMES is already implemented.'\n```", nil
+			return "```bash\n# Task appears complete, ensure it passes\necho 'Task PRIMES is already implemented.'\nagent-bridge feature set PRIMES --passes true\n```", nil
 		}
 
 		// Detect specific tasks if possible, or return generic success

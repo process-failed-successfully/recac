@@ -120,4 +120,9 @@ func TestMockAgent_Coding_Primes_Completion(t *testing.T) {
 	if !strings.Contains(response, "Task PRIMES is already implemented") {
 		t.Errorf("Response should indicate task completion, got: %s", response)
 	}
+
+	// Should contain command to set passes=true
+	if !strings.Contains(response, "agent-bridge feature set PRIMES --passes true") {
+		t.Errorf("Response should set feature to passes=true, got: %s", response)
+	}
 }
