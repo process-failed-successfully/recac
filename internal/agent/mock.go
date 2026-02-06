@@ -27,6 +27,9 @@ func (m *MockAgent) SetResponse(response string) {
 
 // Send implements the Agent interface
 func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
+	// Debug logging
+	fmt.Printf("DEBUG: MockAgent Prompt: %s\n", truncateString(prompt, 200))
+
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
@@ -63,9 +66,18 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Matches "calculate prime", "calculates prime", "calculates all prime", "[PRIMES]", "primes.py", etc.
 	lowerPrompt := strings.ToLower(prompt)
 	if (strings.Contains(lowerPrompt, "calculate") && strings.Contains(lowerPrompt, "prime")) ||
-	   strings.Contains(prompt, "[PRIMES]") ||
-	   strings.Contains(lowerPrompt, "primes.py") ||
-	   strings.Contains(lowerPrompt, "primes.json") {
+		strings.Contains(prompt, "[PRIMES]") ||
+		strings.Contains(lowerPrompt, "primes.py") ||
+		strings.Contains(lowerPrompt, "primes.json") {
+
+		// Guard: If we already implemented it (in history), signal completion
+		if strings.Contains(prompt, "I will implement the prime number calculation script") {
+			return "I have already implemented the script. Marking as complete.\n\n" +
+				"```bash\n" +
+				"agent-bridge signal COMPLETED true\n" +
+				"```", nil
+		}
+
 		return "I will implement the prime number calculation script.\n\n" +
 			"```bash\n" +
 			"cat <<EOF > primes.py\n" +
@@ -91,12 +103,20 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			"COMPLETED\n", nil
 	}
 
-	// 4. QA Agent
+	// 4. Generic Bootstrap (Coding Agent)
+	// If no other heuristic matched, but we are in the Coding Agent role (identified by the "GET YOUR BEARINGS" step),
+	// run the bootstrap commands. This avoids NO-OP loops when the prompt lacks specific task keywords.
+	if strings.Contains(prompt, "STEP 1: GET YOUR BEARINGS") {
+		return "I will start by orienting myself.\n\n```bash\nls -la\ncat feature_list.json\n```", nil
+	}
+
+	// 5. QA Agent
+	// 5. QA Agent
 	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
 		return "QA_PASSED", nil
 	}
 
-	// 5. Project Manager
+	// 6. Project Manager
 	if strings.Contains(prompt, "PROJECT MANAGER") {
 		return "PROJECT_SIGNED_OFF", nil
 	}
