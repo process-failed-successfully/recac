@@ -35,8 +35,13 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 1. Project Manager - Ticket Generation
 	// Trigger: "ROLE - TECHNICAL PROGRAM MANAGER" or similar, AND "PRIMES"
-	if (strings.Contains(prompt, "ROLE - TECHNICAL PROGRAM MANAGER") || strings.Contains(prompt, "project management")) &&
-		strings.Contains(prompt, "PRIMES") && strings.Contains(prompt, "JSON") {
+	// We check for "Technical Program Manager" or "TPM" to be robust.
+	isTPM := strings.Contains(prompt, "TECHNICAL PROGRAM MANAGER") ||
+		strings.Contains(prompt, "Technical Program Manager") ||
+		strings.Contains(prompt, "project management") ||
+		strings.Contains(prompt, "TPM")
+
+	if isTPM && strings.Contains(prompt, "PRIMES") && strings.Contains(prompt, "JSON") {
 		return `[
   {
     "title": "ID:[PRIMES] Prime Number Script",
@@ -50,7 +55,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 2. Coding Agent - Implementation
 	// Trigger: "ROLE - CODING AGENT" or similar, AND "primes.py"
 	// We also check if we are being asked to implement it, vs just reviewing.
-	if (strings.Contains(prompt, "ROLE - CODING AGENT") || strings.Contains(prompt, "Developer")) &&
+	isDeveloper := strings.Contains(prompt, "CODING AGENT") ||
+		strings.Contains(prompt, "Coding Agent") ||
+		strings.Contains(prompt, "Developer") ||
+		strings.Contains(prompt, "Software Engineer")
+
+	if isDeveloper &&
 		strings.Contains(prompt, "primes.py") &&
 		!strings.Contains(prompt, "Review") {
 
