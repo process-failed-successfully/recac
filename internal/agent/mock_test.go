@@ -101,3 +101,23 @@ func TestMockAgent_Coding_With_History(t *testing.T) {
 		t.Error("Incorrectly matched Initializer agent instead of Coding agent")
 	}
 }
+
+func TestMockAgent_Coding_Primes_Completion(t *testing.T) {
+	agent := NewMockAgent()
+	// Simulate prompt where PRIMES is already implemented
+	prompt := "YOUR ROLE - CODING AGENT. Feature PRIMES is status: implemented. Please review."
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Should NOT contain implementation script
+	if strings.Contains(response, "cat <<EOF > primes.py") {
+		t.Error("Should not re-implement primes.py if already implemented")
+	}
+
+	// Should contain completion message
+	if !strings.Contains(response, "Task PRIMES is already implemented") {
+		t.Errorf("Response should indicate task completion, got: %s", response)
+	}
+}

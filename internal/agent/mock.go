@@ -68,6 +68,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 2. Coding Agent (Primes Python Scenario) - Priority over Initializer to prevent shadowing if prompt contains history
 	if strings.Contains(prompt, "CODING AGENT") {
+		// Detect if task is already done to prevent infinite loops
+		if strings.Contains(prompt, "PRIMES") && strings.Contains(prompt, "implemented") {
+			return "```bash\n# Task appears complete\necho 'Task PRIMES is already implemented.'\n```", nil
+		}
+
 		// Detect specific tasks if possible, or return generic success
 		// The prompt for primes often refers to "Prime Number" or "python script"
 		if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "Prime") || strings.Contains(prompt, "python") {
