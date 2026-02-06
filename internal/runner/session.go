@@ -152,10 +152,16 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 	// Initialize Security Scanner
 	scanner := security.NewRegexScanner()
 
-	// Create agents/logs directory in the current working directory (host)
+	// Create agents/logs directory
 	// This is where Promtail expects to find them based on docker-compose.monitoring.yml
-	cwd, _ := os.Getwd()
-	agentsLogsDir := filepath.Join(cwd, "agents", "logs")
+	var agentsLogsDir string
+	if logsDir := os.Getenv("RECAC_LOGS_DIR"); logsDir != "" {
+		agentsLogsDir = filepath.Join(logsDir, "agents", "logs")
+	} else {
+		cwd, _ := os.Getwd()
+		agentsLogsDir = filepath.Join(cwd, "agents", "logs")
+	}
+
 	if err := os.MkdirAll(agentsLogsDir, 0755); err != nil {
 		fmt.Printf("Warning: Failed to create agents/logs directory: %v\n", err)
 	} else {

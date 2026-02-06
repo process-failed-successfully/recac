@@ -139,7 +139,7 @@ fi
 
 git add primes.py
 git add -f primes.json
-git commit --author="Recac Agent <agent@recac.io>" -m "Add primes script"
+git commit --author="Recac Agent <agent@recac.io>" -m "Add primes script" || echo "No changes to commit"
 git push
 agent-bridge feature list --json | jq -r '.features[].id' | xargs -I {} agent-bridge feature set {} --status done --passes true
 agent-bridge signal COMPLETED true
