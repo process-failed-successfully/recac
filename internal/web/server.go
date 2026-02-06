@@ -49,7 +49,19 @@ func (s *Server) Start() error {
 	// Bind to localhost for security
 	addr := fmt.Sprintf("127.0.0.1:%d", s.port)
 	fmt.Printf("Starting dashboard at http://%s\n", addr)
-	return http.ListenAndServe(addr, mux)
+	return http.ListenAndServe(addr, addSecurityHeaders(mux))
+}
+
+func addSecurityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		// Allow inline scripts/styles because the current index.html uses them.
+		// Allow data: images for mermaid diagrams if needed, and cdn.jsdelivr.net for mermaid library.
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self';")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) handleFeatures(w http.ResponseWriter, r *http.Request) {
