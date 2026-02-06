@@ -280,7 +280,7 @@ func TestRunWorkflow_Normal(t *testing.T) {
 	// Let's set it to 1.
 	NewSessionFunc = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
 		s := runner.NewSession(d, a, workspace, image, project, provider, model, maxAgents)
-		s.MaxIterations = 1
+		s.MaxIterations = 5
 		// We need to ensure RunLoop doesn't block on "NoOp" or "Stalled".
 		// MockAgent returns empty responses usually?
 		// We should configure MockAgent to return "DONE".
