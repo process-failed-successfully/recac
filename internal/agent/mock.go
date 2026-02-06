@@ -33,6 +33,57 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	// Heuristic: Initializer Agent (Feature Generation)
+	// Must come before generic "app_spec.txt" check as this prompt also contains it.
+	if strings.Contains(prompt, "## YOUR ROLE - INITIALIZER AGENT") {
+		return `I will initialize the project with the requested features.
+
+` + "```bash" + `
+cat << 'EOF' | agent-bridge import
+{
+  "project_name": "Primes Calculator",
+  "features": [
+    {
+      "id": "req-script-prints-primes-up-to-100",
+      "category": "functional",
+      "priority": "MVP",
+      "description": "[PRIMES] Script prints primes up to 100",
+      "status": "pending",
+      "steps": [
+        "Run python3 primes.py",
+        "Verify output contains prime numbers up to 100"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": ["primes.py"],
+        "read_only_paths": []
+      }
+    },
+    {
+      "id": "req-script-is-runnable",
+      "category": "functional",
+      "priority": "MVP",
+      "description": "Script is runnable",
+      "status": "pending",
+      "steps": [
+        "Run python3 primes.py",
+        "Verify exit code is 0"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": ["primes.py"],
+        "read_only_paths": []
+      }
+    }
+  ]
+}
+EOF
+` + "```" + `
+`, nil
+	}
+
 	// Heuristic: Detect ticket generation prompt
 	// The prompt often contains "app_spec.txt" or identifies as "Technical Program Manager"
 	if strings.Contains(prompt, "app_spec.txt") || strings.Contains(prompt, "tickets") || strings.Contains(prompt, "Technical Program Manager") {
