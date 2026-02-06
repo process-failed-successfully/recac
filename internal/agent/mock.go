@@ -47,6 +47,45 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 2. Initializer Agent - Sets up the repo
 	if strings.Contains(prompt, "Initializer") || strings.Contains(prompt, "git init") {
+		// Detect Primes scenario
+		if strings.Contains(strings.ToLower(prompt), "prime") {
+			return `
+I will initialize the repository and create the feature list for the prime number script.
+
+` + "```bash" + `
+git init
+git config user.email "you@example.com"
+git config user.name "Your Name"
+
+# Create feature list via agent-bridge import
+cat << 'EOF' | agent-bridge import
+{
+  "project_name": "Prime Number Generator",
+  "features": [
+    {
+      "id": "PRIMES",
+      "category": "functional",
+      "priority": "MVP",
+      "description": "Implement a python script 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'.",
+      "status": "pending",
+      "passes": false,
+      "steps": [
+        "Create primes.py",
+        "Run python3 primes.py",
+        "Verify primes.json exists"
+      ],
+      "dependencies": {
+        "exclusive_write_paths": ["primes.py", "primes.json"],
+        "read_only_paths": []
+      }
+    }
+  ]
+}
+EOF
+` + "```" + `
+`, nil
+		}
+
 		return `
 I will initialize the repository and import the plan.
 
