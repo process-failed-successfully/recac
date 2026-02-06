@@ -75,8 +75,15 @@ func NewPlanCmd() *cobra.Command {
 			jsonContent := utils.CleanJSONBlock(resp)
 
 			var featureList db.FeatureList
+			// Handle case where agent returns just the features array or wrapped object
+			// First try parsing as FeatureList (clean object)
 			if err := json.Unmarshal([]byte(jsonContent), &featureList); err != nil {
-				return fmt.Errorf("failed to parse agent response as JSON: %w\nResponse: %s", err, resp)
+				// If that fails, it might be that the agent just returned the features list
+				// or the structure is nested differently.
+				// However, the prompt asks for the structure matching FeatureList.
+				// The clean function removes code blocks.
+				// Let's log the error more clearly but fail for now as we enforce schema.
+				return fmt.Errorf("failed to parse agent response as JSON: %w\nResponse was:\n%s", err, resp)
 			}
 
 			// Save to File
