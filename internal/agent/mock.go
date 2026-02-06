@@ -59,7 +59,17 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return "```bash\necho '[]' > feature_list.json\n```", nil
 	}
 
-	// 3. Implementation (Primes)
+	// 3. QA Agent
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return "I verify that the implementation is correct.\n\n```bash\nagent-bridge signal set QA_PASSED true\n```\n", nil
+	}
+
+	// 4. Project Manager
+	if strings.Contains(prompt, "PROJECT MANAGER") {
+		return "PROJECT_SIGNED_OFF", nil
+	}
+
+	// 5. Implementation (Primes)
 	// Match against task description, ID, file name, OR generic Coding Agent role (Smoke Test Specific)
 	if strings.Contains(prompt, "calculate primes") ||
 	   strings.Contains(prompt, "[PRIMES]") ||
@@ -101,16 +111,6 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			"```\n" +
 			"\n" +
 			"COMPLETED\n", nil
-	}
-
-	// 4. QA Agent
-	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
-		return "I verify that the implementation is correct.\n\n```bash\nagent-bridge signal set QA_PASSED true\n```\n", nil
-	}
-
-	// 5. Project Manager
-	if strings.Contains(prompt, "PROJECT MANAGER") {
-		return "PROJECT_SIGNED_OFF", nil
 	}
 
 	// Default Echo
