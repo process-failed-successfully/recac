@@ -6,11 +6,46 @@ import (
 	"os"
 	"recac/internal/agent"
 	"recac/internal/git"
+	"recac/internal/github"
 	"recac/internal/jira"
 	"strings"
 
 	"github.com/spf13/viper"
 )
+
+// GetGitHubClient initializes a GitHub client using config or environment variables
+var GetGitHubClient = func(ctx context.Context) (*github.Client, error) {
+	token := viper.GetString("github.token")
+	owner := viper.GetString("github.owner")
+	repo := viper.GetString("github.repo")
+
+	// Fallback to environment variables
+	if token == "" {
+		token = os.Getenv("GITHUB_TOKEN")
+		if token == "" {
+			token = os.Getenv("GITHUB_API_KEY")
+		}
+	}
+	if owner == "" {
+		owner = os.Getenv("GITHUB_OWNER")
+	}
+	if repo == "" {
+		repo = os.Getenv("GITHUB_REPO")
+	}
+
+	// Validate required fields
+	if token == "" {
+		return nil, fmt.Errorf("GITHUB_TOKEN environment variable or github.token config is required")
+	}
+	if owner == "" {
+		return nil, fmt.Errorf("GITHUB_OWNER environment variable or github.owner config is required")
+	}
+	if repo == "" {
+		return nil, fmt.Errorf("GITHUB_REPO environment variable or github.repo config is required")
+	}
+
+	return github.NewClient(token, owner, repo), nil
+}
 
 // GetJiraClient initializes a Jira client using config or environment variables
 var GetJiraClient = func(ctx context.Context) (*jira.Client, error) {

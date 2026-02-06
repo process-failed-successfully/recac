@@ -68,3 +68,10 @@ type IK8sClient interface {
 	ListPods(ctx context.Context, labelSelector string) ([]corev1.Pod, error)
 	DeletePod(ctx context.Context, name string) error
 }
+
+// IIssueTracker defines the interface for issue tracking systems (Jira, GitHub).
+type IIssueTracker interface {
+	CreateTicket(ctx context.Context, projectKey, summary, description, issueType string, labels []string) (string, error)
+	CreateChildTicket(ctx context.Context, projectKey, summary, description, issueType, parentKey string, labels []string) (string, error)
+	AddIssueLink(ctx context.Context, inwardKey, outwardKey, linkType string) error
+}
