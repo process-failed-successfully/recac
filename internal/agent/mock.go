@@ -59,7 +59,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 4. QA Agent
-	if strings.Contains(prompt, "QA Agent") {
+	// STRICTER CHECK: Ensure we are actually assigned the QA role, not just mentioned
+	if strings.Contains(prompt, "You are the QA Agent") || strings.Contains(prompt, "Your role is QA Agent") || strings.Contains(prompt, "ROLE - QA AGENT") {
 		return "## QA Report\n\nAll tests passed.", nil
 	}
 
