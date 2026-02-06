@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"recac/internal/agent"
@@ -117,4 +119,58 @@ func TestRunGymSession(t *testing.T) {
 	assert.NotNil(t, result)
 	assert.True(t, result.Passed)
 	assert.Equal(t, "Test Challenge", result.Challenge)
+}
+
+func TestLoadChallenges_Directory(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a nested directory structure
+	nestedDir := filepath.Join(tmpDir, "nested")
+	if err := os.MkdirAll(nestedDir, 0755); err != nil {
+		t.Fatalf("Failed to create nested dir: %v", err)
+	}
+
+	// Create yaml challenge in root
+	yamlContent := `
+- name: Challenge 1
+  description: Desc 1
+  language: python
+  test_file: test1.py
+  tests: print("1")
+`
+	if err := os.WriteFile(filepath.Join(tmpDir, "c1.yaml"), []byte(yamlContent), 0644); err != nil {
+		t.Fatalf("Failed to write yaml: %v", err)
+	}
+
+	// Create json challenge in nested
+	jsonContent := `[
+  {
+    "name": "Challenge 2",
+    "description": "Desc 2",
+    "language": "python",
+    "test_file": "test2.py",
+    "tests": "print(\"2\")"
+  }
+]`
+	if err := os.WriteFile(filepath.Join(nestedDir, "c2.json"), []byte(jsonContent), 0644); err != nil {
+		t.Fatalf("Failed to write json: %v", err)
+	}
+
+	// Create ignored file
+	if err := os.WriteFile(filepath.Join(tmpDir, "readme.md"), []byte("Ignore me"), 0644); err != nil {
+		t.Fatalf("Failed to write ignored file: %v", err)
+	}
+
+	// Test loadChallenges
+	challenges, err := loadChallenges(tmpDir)
+	assert.NoError(t, err)
+	assert.Len(t, challenges, 2)
+
+	names := make(map[string]bool)
+	for _, c := range challenges {
+		names[c.Name] = true
+	}
+
+	assert.True(t, names["Challenge 1"], "Challenge 1 missing")
+	assert.True(t, names["Challenge 2"], "Challenge 2 missing")
 }
