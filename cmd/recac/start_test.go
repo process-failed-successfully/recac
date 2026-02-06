@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"recac/internal/agent"
+	"recac/internal/docker"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -119,6 +120,13 @@ func TestStartCommand_NormalMode_Restricted(t *testing.T) {
 	}
 	defer func() { agentClientFactory = originalFactory }()
 
+	// Mock docker.NewClient to return error, forcing restricted mode
+	originalDockerFactory := newDockerClientFunc
+	newDockerClientFunc = func(projectName string) (*docker.Client, error) {
+		return nil, fmt.Errorf("mock docker failure")
+	}
+	defer func() { newDockerClientFunc = originalDockerFactory }()
+
 	t.Setenv("HOME", t.TempDir())
 
 	var err error
@@ -132,6 +140,20 @@ func TestStartCommand_NormalMode_Restricted(t *testing.T) {
 		)
 	})
 
-	require.NoError(t, err)
+	// We expect "maximum iterations reached" error because max-iterations=1
+	// and StartSession returns error in that case.
+	// But `executeCommand` returns error.
+	// The original test expected Success because exit(1) was swallowed.
+	// Now we expect an error, specifically "maximum iterations reached" or similar.
+	// Actually, runner returns ErrMaxIterations.
+	// Let's adjust expectation.
+	// Wait, if max-iterations is reached, is it considered an error for the CLI?
+	// CLI usually prints "reached max iterations" and exits 0?
+	// In `start.go`: return runErr.
+	// RunLoop returns error on max iterations.
+	// So CLI returns error.
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "maximum iterations reached")
 	assert.Contains(t, output, "Starting RECAC session")
+	assert.Contains(t, output, "Proceeding in restricted mode")
 }

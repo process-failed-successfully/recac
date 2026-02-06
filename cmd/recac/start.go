@@ -83,21 +83,15 @@ func init() {
 	rootCmd.AddCommand(startCmd)
 }
 
+var (
+	newDockerClientFunc = docker.NewClient
+)
+
 var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start an autonomous coding session",
 	Long:  `Start the agent execution loop to perform coding tasks autonomously.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		// Panic recovery for graceful shutdown
-		defer func() {
-			if r := recover(); r != nil {
-				fmt.Fprintf(os.Stderr, "\n=== CRITICAL ERROR: Session Panic ===\n")
-				fmt.Fprintf(os.Stderr, "Error: %v\n", r)
-				fmt.Fprintf(os.Stderr, "Attempting graceful shutdown...\n")
-				exit(1)
-			}
-		}()
-
+	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 
@@ -190,22 +184,20 @@ var startCmd = &cobra.Command{
 			cfg.ProjectPath = resumePath
 			fmt.Printf("Resuming session '%s' from workspace: %s\n", cfg.SessionName, resumePath)
 			if err := runWorkflow(ctx, cfg); err != nil {
-				fmt.Fprintf(os.Stderr, "Resumed session failed: %v\n", err)
-				exit(1)
+				return fmt.Errorf("resumed session failed: %w", err)
 			}
-			return
+			return nil
 		}
 
 		if repoURL != "" {
 			processDirectTask(ctx, cfg)
-			return
+			return nil
 		}
 
 		if jiraTicketID != "" || jiraLabel != "" {
 			jClient, err := cmdutils.GetJiraClient(ctx)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-				exit(1)
+				return fmt.Errorf("error initializing Jira client: %w", err)
 			}
 
 			// 1.5 Collect Ticket IDs
@@ -217,13 +209,12 @@ var startCmd = &cobra.Command{
 				jql := fmt.Sprintf("labels = \"%s\" AND statusCategory != Done ORDER BY created DESC", jiraLabel)
 				issues, err := jClient.SearchIssues(ctx, jql)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "Error searching Jira tickets: %v\n", err)
-					exit(1)
+					return fmt.Errorf("error searching Jira tickets: %w", err)
 				}
 
 				if len(issues) == 0 {
 					fmt.Printf("No open tickets found with label '%s'. Exiting.\n", jiraLabel)
-					return
+					return nil
 				}
 
 				// Sort issues by dependencies (blockers first)
@@ -273,7 +264,7 @@ var startCmd = &cobra.Command{
 			// If only one ticket, run synchronously
 			if len(ticketIDs) == 1 {
 				processJiraTicket(ctx, ticketIDs[0], jClient, cfg, nil)
-				return
+				return nil
 			}
 
 			// Build Dependency Graphs
@@ -361,7 +352,7 @@ var startCmd = &cobra.Command{
 			}
 
 			wg.Wait()
-			return
+			return nil
 		}
 
 		// Local Path Workflow
@@ -369,19 +360,17 @@ var startCmd = &cobra.Command{
 			p := tea.NewProgram(ui.NewWizardModel())
 			m, err := p.Run()
 			if err != nil {
-				fmt.Printf("Wizard error: %v", err)
-				exit(1)
+				return fmt.Errorf("wizard error: %w", err)
 			}
 
 			wizardModel, ok := m.(ui.WizardModel)
 			if !ok {
-				fmt.Println("Could not retrieve wizard data")
-				exit(1)
+				return fmt.Errorf("could not retrieve wizard data")
 			}
 			cfg.ProjectPath = wizardModel.Path
 			if cfg.ProjectPath == "" {
 				fmt.Println("No project path selected. Exiting.")
-				return
+				return nil
 			}
 
 			if wizardModel.Provider != "" {
@@ -398,9 +387,9 @@ var startCmd = &cobra.Command{
 		}
 
 		if err := runWorkflow(ctx, cfg); err != nil {
-			fmt.Fprintf(os.Stderr, "Session failed: %v\n", err)
-			exit(1)
+			return fmt.Errorf("session failed: %w", err)
 		}
+		return nil
 	},
 }
 
@@ -555,7 +544,7 @@ func processJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.C
 		// Ensure directory exists
 		if err := os.MkdirAll(tempWorkspace, 0755); err != nil {
 			logger.Error("Error creating/verifying workspace path", "path", tempWorkspace, "error", err)
-			exit(1)
+			return
 		}
 		logger.Info("Using provided workspace path", "path", tempWorkspace)
 	} else {
@@ -570,7 +559,7 @@ func processJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.C
 	matches := jira.RepoRegex.FindStringSubmatch(description)
 	if len(matches) <= 1 {
 		logger.Error("Error: No repository URL found in ticket description (Repo: https://...)")
-		exit(1)
+		return
 	}
 
 	repoURL := strings.TrimSuffix(matches[1], ".git")
@@ -578,7 +567,7 @@ func processJiraTicket(ctx context.Context, jiraTicketID string, jClient *jira.C
 
 	if _, err := cmdutils.SetupWorkspace(ctx, git.NewClient(), repoURL, tempWorkspace, jiraTicketID, cfg.JiraEpicKey, timestamp); err != nil {
 		logger.Error("Error: Failed to setup workspace", "error", err)
-		exit(1)
+		return
 	}
 
 	// 5. Create app_spec.txt
@@ -808,7 +797,7 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 
 	var dockerCli *docker.Client
 	var err error
-	dockerCli, err = docker.NewClient(projectName)
+	dockerCli, err = newDockerClientFunc(projectName)
 	if err != nil {
 		fmt.Printf("Warning: Failed to initialize Docker client: %v. Proceeding in restricted mode.\n", err)
 		dockerCli = nil
@@ -821,7 +810,13 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 		return fmt.Errorf("failed to initialize agent: %v", err)
 	}
 
-	session := runner.NewSession(dockerCli, agentClient, projectPath, cfg.Image, projectName, provider, model, cfg.MaxAgents)
+	// Handle Docker interface nil-safety
+	var dockerInt runner.DockerClient
+	if dockerCli != nil {
+		dockerInt = dockerCli
+	}
+
+	session := runner.NewSession(dockerInt, agentClient, projectPath, cfg.Image, projectName, provider, model, cfg.MaxAgents)
 	if cfg.Logger != nil {
 		session.Logger = cfg.Logger
 	}
