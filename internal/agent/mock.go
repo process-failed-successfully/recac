@@ -60,8 +60,8 @@ with open('primes.json', 'w') as f:
 EOF
 
 python3 primes.py
-agent-bridge feature set req-script-prints-primes-up-to-100 passed
-agent-bridge feature set req-script-is-runnable passed
+agent-bridge feature set req-script-prints-primes-up-to-100 --status done --passes true
+agent-bridge feature set req-script-is-runnable --status done --passes true
 ` + "```" + `
 `, nil
 	}
