@@ -437,6 +437,12 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		// Run iteration using determined prompt
 		executionOutput, err := s.RunIteration(ctx, prompt, isManager)
 
+		// Auto-detect completion (if all features pass, mark as COMPLETED)
+		// This ensures we don't loop endlessly if the agent forgets to signal completion
+		if s.checkAutoQA() {
+			s.Logger.Info("project automatically marked as completed (all features passed)")
+		}
+
 		// Check for Agent/API Error (e.g. 413, Network, etc)
 		if err != nil {
 			s.Logger.Error("iteration failed", "error", err)
