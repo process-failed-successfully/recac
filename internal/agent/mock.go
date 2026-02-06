@@ -46,8 +46,17 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 		// Check if we have already implemented the script (git commit reported no changes)
 		// This prevents infinite loops where the agent keeps trying to commit the same code
-		if strings.Contains(prompt, "nothing to commit") {
+		if strings.Contains(prompt, "nothing to commit") ||
+			strings.Contains(prompt, "working tree clean") ||
+			strings.Contains(prompt, "No changes to commit") {
 			return m.generatePrimesCompletionResponse(), nil
+		}
+
+		// Debug: Log that we are generating the implementation script (and why we didn't trigger completion)
+		fmt.Printf("DEBUG: MockAgent generating primes.py implementation. Prompt len: %d\n", len(prompt))
+		if len(prompt) > 200 {
+			// Print end of prompt to see history
+			fmt.Printf("DEBUG: Prompt Tail: %s\n", prompt[len(prompt)-200:])
 		}
 
 		return m.generatePrimesResponse(), nil
@@ -90,7 +99,7 @@ EOF
 
 python3 primes.py
 git add primes.py primes.json
-git commit -m "Implement primes.py"
+git commit -m "Implement primes.py" || echo "No changes to commit"
 git push origin HEAD
 `
 	return fmt.Sprintf("I will implement the primes.py script as requested.\n\n```bash%s```\n", script)

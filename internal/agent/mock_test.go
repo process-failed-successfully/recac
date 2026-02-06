@@ -38,9 +38,8 @@ func TestTruncateString(t *testing.T) {
 func TestMockAgent_PrimesCompletion(t *testing.T) {
 	agent := NewMockAgent()
 
-	// Prompt simulating the runner loop output where "nothing to commit" occurred
-	// It must contain both [PRIMES] (to trigger the scenario) and "nothing to commit" (to trigger the fix)
-	prompt := `
+	// 1. Test "nothing to commit" trigger
+	prompt1 := `
 Tasks:
 [PRIMES] Create Prime Number Script
 
@@ -50,16 +49,28 @@ System: command output
 On branch agent/MFLP-6554
 nothing to commit, working tree clean
 `
-
-	response, err := agent.Send(context.Background(), prompt)
+	response1, err := agent.Send(context.Background(), prompt1)
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
 	}
+	if !strings.Contains(response1, "agent-bridge feature set") {
+		t.Errorf("Prompt1: Expected completion script, got:\n%s", response1)
+	}
 
-	// We expect the agent to detect completion and try to mark the feature as done
-	if strings.Contains(response, "agent-bridge feature set") {
-		// Pass
-	} else {
-		t.Errorf("Expected completion script, got:\n%s", response)
+	// 2. Test "No changes to commit" trigger (our new echo)
+	prompt2 := `
+Tasks:
+[PRIMES] Create Prime Number Script
+
+History:
+System: Command Output:
+No changes to commit
+`
+	response2, err := agent.Send(context.Background(), prompt2)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(response2, "agent-bridge feature set") {
+		t.Errorf("Prompt2: Expected completion script, got:\n%s", response2)
 	}
 }
