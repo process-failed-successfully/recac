@@ -122,10 +122,11 @@ func TestStartCommand_NormalMode_Restricted(t *testing.T) {
 	}
 	defer func() { agentClientFactory = originalFactory }()
 
-	// Override NewSessionFunc to disable sleep
+	// Override NewSessionFunc to disable sleep AND force restricted mode (no docker)
 	originalNewSessionFunc := workflow.NewSessionFunc
 	workflow.NewSessionFunc = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
-		s := runner.NewSession(d, a, workspace, image, project, provider, model, maxAgents)
+		// Pass nil for DockerClient to force restricted mode, avoiding CI docker mount issues
+		s := runner.NewSession(nil, a, workspace, image, project, provider, model, maxAgents)
 		s.SleepFunc = func(time.Duration) {} // No-op sleep
 		return s
 	}
