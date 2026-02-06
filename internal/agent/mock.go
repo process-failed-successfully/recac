@@ -90,7 +90,7 @@ python3 primes.py
 
 # Commit and Push
 git add primes.py primes.json
-git commit -m "Add primes.py implementation" --author="Recac Agent <agent@recac.ai>"
+git commit -m "Add primes.py implementation" --author="Recac Agent <agent@recac.ai>" || echo "No changes to commit"
 git push
 
 # Mark feature as implemented
