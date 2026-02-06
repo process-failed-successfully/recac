@@ -93,7 +93,10 @@ func TestPlaybackModel_Update(t *testing.T) {
 	model, cmd = model.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
 	_ = cmd // ignore cmd
 
-	m := model.(PlaybackModel)
+	m, ok := model.(PlaybackModel)
+	if !ok {
+		t.Fatalf("Model is not PlaybackModel")
+	}
 	if m.width != 100 || m.height != 50 {
 		t.Errorf("Window resize failed: got %dx%d, want 100x50", m.width, m.height)
 	}
@@ -101,7 +104,10 @@ func TestPlaybackModel_Update(t *testing.T) {
 	// Test Enter (View Details)
 	// Select first item
 	model, _ = model.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	m = model.(PlaybackModel)
+	m, ok = model.(PlaybackModel)
+	if !ok {
+		t.Fatalf("Model is not PlaybackModel after Enter")
+	}
 	if !m.viewingDetails {
 		t.Error("Enter should switch to viewing details")
 	}
@@ -111,7 +117,10 @@ func TestPlaybackModel_Update(t *testing.T) {
 
 	// Test Esc (Back to List)
 	model, _ = model.Update(tea.KeyMsg{Type: tea.KeyEsc})
-	m = model.(PlaybackModel)
+	m, ok = model.(PlaybackModel)
+	if !ok {
+		t.Fatalf("Model is not PlaybackModel after Esc")
+	}
 	if m.viewingDetails {
 		t.Error("Esc should switch back to list view")
 	}
