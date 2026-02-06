@@ -85,7 +85,10 @@ agent-bridge signal PROJECT_SIGNED_OFF true
 	// This fixes 'jira generate-from-spec' failing in smoke tests when using mock provider
 	// IMPORTANT: This check must happen BEFORE the generic "primes.py" check below,
 	// because ticket generation prompts might contain "primes.py" in the requirement description.
-	if len(prompt) > 0 && (prompt[0] == '{' || prompt[0] == '[' || containsTicketKeywords(prompt)) {
+	// We explicitly EXCLUDE "ROLE - CODING AGENT" to prevent false positives where the coding prompt
+	// mentions "spec" or "tickets" in the context/history.
+	isCodingAgent := strings.Contains(strings.ToUpper(prompt), "ROLE - CODING AGENT")
+	if !isCodingAgent && len(prompt) > 0 && (prompt[0] == '{' || prompt[0] == '[' || containsTicketKeywords(prompt)) {
 		return `[
   {
     "title": "Mock Epic",

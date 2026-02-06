@@ -102,3 +102,42 @@ Reading feature_list.json to understand tasks...
 		t.Error("Coding Agent prompt incorrectly triggered Initializer response")
 	}
 }
+
+func TestMockAgent_CodingAgentConfusion(t *testing.T) {
+	agent := NewMockAgent()
+	ctx := context.Background()
+
+	// 1. Positive Case: Prompt with "spec" but ROLE - CODING AGENT should NOT trigger JSON tickets
+	prompt := `## YOUR ROLE - CODING AGENT
+
+	Please read the spec in app_spec.txt...`
+
+	resp, err := agent.Send(ctx, prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Should NOT return JSON array (Ticket Generation)
+	if strings.HasPrefix(strings.TrimSpace(resp), "[") {
+		t.Error("Coding Agent prompt incorrectly triggered Ticket Generation JSON response")
+	}
+	// Should return generic response (since no Primes keyword)
+	if !strings.Contains(resp, "Mock agent response") {
+		t.Errorf("Expected generic response, got: %s", resp)
+	}
+
+	// 2. Positive Case: TPM Prompt should still trigger JSON tickets
+	tpmPrompt := `## YOUR ROLE - TECHNICAL PROGRAM MANAGER
+
+	Generate tickets from the spec...`
+
+	resp, err = agent.Send(ctx, tpmPrompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Should return JSON array
+	if !strings.HasPrefix(strings.TrimSpace(resp), "[") {
+		t.Error("TPM prompt failed to trigger Ticket Generation JSON response")
+	}
+}
