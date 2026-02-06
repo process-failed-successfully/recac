@@ -35,7 +35,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic: Detect ticket generation prompt
 	// The prompt often contains "app_spec.txt" or identifies as "Technical Program Manager"
-	if strings.Contains(prompt, "app_spec.txt") || strings.Contains(prompt, "tickets") || strings.Contains(prompt, "Technical Program Manager") {
+	// CRITICAL: Must EXCLUDE "Coding Agent" role to prevent intercepting implementation tasks
+	isCodingAgent := strings.Contains(prompt, "YOUR ROLE - CODING AGENT")
+	if (strings.Contains(prompt, "app_spec.txt") || strings.Contains(prompt, "tickets") || strings.Contains(prompt, "Technical Program Manager")) && !isCodingAgent {
 		return `[
   {
     "title": "ID:[PRIMES] Implement Primes Calculation",
