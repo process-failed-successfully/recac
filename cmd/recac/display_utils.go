@@ -14,7 +14,7 @@ import (
 )
 
 // displayStatus formats and prints the detailed session status.
-func displayStatus(cmd *cobra.Command, session *runner.SessionState, state *agent.State) {
+func displayStatus(cmd *cobra.Command, session *runner.SessionState, state *agent.State, gitDiffStat string) {
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
 
 	// Status Colors
@@ -71,6 +71,12 @@ func displayStatus(cmd *cobra.Command, session *runner.SessionState, state *agen
 		state.TokenUsage.TotalResponseTokens)
 	fmt.Fprintf(wUsage, "Est. Cost:\t%s\n", costStr)
 	wUsage.Flush()
+
+	// --- Git Changes ---
+	if gitDiffStat != "" {
+		fmt.Fprintln(cmd.OutOrStdout(), "\n--- Git Changes ---")
+		cmd.Println(gitDiffStat)
+	}
 
 	// --- Last Agent Activity ---
 	if len(state.History) > 0 {

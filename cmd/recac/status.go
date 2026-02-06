@@ -101,8 +101,15 @@ var statusCmd = &cobra.Command{
 			return fmt.Errorf("could not load agent state for session '%s': %w", sessionName, err)
 		}
 
+		// Get Git Diff Stat
+		diffStat, err := sm.GetSessionGitDiffStat(sessionName)
+		if err != nil {
+			// If git fails (e.g. no git repo), just ignore it for the output
+			diffStat = ""
+		}
+
 		// --- Display Status ---
-		displayStatus(cmd, session, agentState)
+		displayStatus(cmd, session, agentState, diffStat)
 
 		return nil
 	},
