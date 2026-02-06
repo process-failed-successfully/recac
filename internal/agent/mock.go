@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,6 +31,88 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// --- Heuristics for E2E Scenarios (e.g. Smoke Test) ---
+
+	// 1. Initializer Role: Detects "YOUR ROLE - INITIALIZER AGENT" and "Prime"
+	// Returns a feature list via agent-bridge import
+	if strings.Contains(prompt, "YOUR ROLE - INITIALIZER AGENT") &&
+		(strings.Contains(strings.ToLower(prompt), "prime") || strings.Contains(prompt, "[PRIMES]")) {
+		return `Here is the plan for the Prime Number Script:
+
+` + "```bash" + `
+cat << 'EOF' | agent-bridge import
+{
+  "project_name": "Primes Python",
+  "features": [
+    {
+      "id": "req-primes-implementation",
+      "category": "functional",
+      "priority": "MVP",
+      "description": "Script calculates primes correctly and outputs json",
+      "status": "pending",
+      "steps": [
+        "Run python primes.py",
+        "Check primes.json exists",
+        "Verify 1229 primes"
+      ],
+      "dependencies": {
+        "exclusive_write_paths": ["primes.py", "primes.json"],
+        "read_only_paths": []
+      }
+    }
+  ]
+}
+EOF
+` + "```", nil
+	}
+
+	// 2. Coding Agent: Detects "YOUR ROLE - CODING AGENT" and "Prime"
+	// Implements the script and marks the feature as done
+	if strings.Contains(prompt, "YOUR ROLE - CODING AGENT") &&
+		(strings.Contains(strings.ToLower(prompt), "prime") || strings.Contains(prompt, "req-primes-implementation")) {
+		return `I will implement the primes script as requested.
+
+` + "```bash" + `
+cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n < 2: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+primes = [x for x in range(10000) if is_prime(x)]
+
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+# Run it to generate the json
+python3 primes.py
+
+# Commit
+git add -f primes.json primes.py
+git commit -m "Add primes script" || echo "Nothing to commit"
+
+# Mark as done
+agent-bridge feature set --id req-primes-implementation --status done --passes true
+` + "```", nil
+	}
+
+	// 3. Manager/QA Roles: Approve everything
+	if strings.Contains(prompt, "YOUR ROLE - MANAGER AGENT") || strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return `Everything looks good.
+
+` + "```bash" + `
+agent-bridge signal --key PROJECT_SIGNED_OFF --value true
+` + "```", nil
+	}
+
+	// --- Fallback ---
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	// We include a dummy shell command to prevent the "NO-OP LOOP" circuit breaker from tripping in CI.
