@@ -64,10 +64,10 @@ func TestGetPrompt_Overrides(t *testing.T) {
 		userHomeDir = func() (string, error) {
 			return tmpDir, nil
 		}
-		defer func() {
+		t.Cleanup(func() {
 			getwd = originalGetwd
 			userHomeDir = originalUserHomeDir
-		}()
+		})
 
 		// Create .recac/prompts in the temp dir
 		localRecacDir := filepath.Join(tmpDir, ".recac", "prompts")
