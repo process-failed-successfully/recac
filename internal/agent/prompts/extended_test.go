@@ -11,6 +11,9 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	promptName := "test_prompt"
 	overrideContent := "Override Template"
 
+	// Ensure clean environment
+	t.Setenv("RECAC_PROMPTS_DIR", "")
+
 	// 1. Test Embedded/Fallback (simulated by failure of others)
 	// We can't easily add to embed.FS at runtime, but we can test that GetPrompt returns error for non-existent if no override exists.
 	// Or we can rely on existing templates.
