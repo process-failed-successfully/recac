@@ -31,15 +31,98 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// Heuristics for E2E Scenarios
+	// 1. Planner Agent (JSON) Heuristic
+	// The planner prompt always starts with "## ROLE: Lead Software Architect"
+	if strings.Contains(prompt, "ROLE: Lead Software Architect") || strings.Contains(prompt, "Lead Software Architect") {
+		return `{
+  "project_name": "primes_project",
+  "features": [
+    {
+      "id": "PRIMES",
+      "category": "functional",
+      "description": "Script calculates primes correctly",
+      "status": "pending",
+      "steps": [
+        "Create primes.py",
+        "Run script",
+        "Verify primes.json output"
+      ],
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": [],
+        "read_only_paths": []
+      }
+    }
+  ]
+}`, nil
+	}
 
-	// 1. Prime Python Scenario
+	// 2. Initializer Agent Heuristic
+	// The initializer prompt contains "ROLE - INITIALIZER AGENT"
+	if strings.Contains(strings.ToUpper(prompt), "ROLE - INITIALIZER AGENT") {
+		// Return commands to initialize the project DB/Structure
+		return `I will initialize the project.
+
+` + "```bash" + `
+cat <<EOF | agent-bridge import
+{
+  "project_name": "primes_project",
+  "features": [
+    {
+      "id": "PRIMES",
+      "category": "functional",
+      "description": "Script calculates primes correctly",
+      "status": "pending",
+      "steps": [
+        "Create primes.py",
+        "Run script",
+        "Verify primes.json output"
+      ],
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": [],
+        "read_only_paths": []
+      }
+    }
+  ]
+}
+EOF
+` + "```" + `
+`, nil
+	}
+
+	// 3. Technical Program Manager Heuristic
+	// The TPM prompt contains "ROLE: Technical Program Manager"
+	if strings.Contains(prompt, "Technical Program Manager") {
+		return `{
+  "project_status": "on_track",
+  "summary": "Project is proceeding according to plan.",
+  "risk_assessment": "low",
+  "next_steps": ["Continue implementation"]
+}`, nil
+	}
+
+	// 4. Project Manager / QA Heuristic
+	// If the prompt asks for status or QA, and we see "pending", we should probably say "approved" or "continue".
+	if strings.Contains(prompt, "ROLE: Project Manager") || strings.Contains(prompt, "QA") {
+		// If it looks like we are stuck in a loop, give a "DONE" signal
+		if strings.Contains(prompt, "pending") {
+			return `The feature looks complete.
+
+` + "```bash" + `
+agent-bridge feature set PRIMES --status done --passes true
+` + "```" + `
+`, nil
+		}
+	}
+
+	// 5. Coding Agent - Prime Python Scenario
+	// Only trigger this if we are NOT the planner (handled above)
 	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
-		// Check if it's already implemented (to avoid loops)
-		if strings.Contains(prompt, "git status") && strings.Contains(prompt, "primes.json") {
-			// If we see evidence of work done, we might want to say "Task Complete"
-			// But usually the prompt comes from the runner.
-			// Let's just output the solution.
+
+		// Guard: If we've already implemented it, don't loop forever.
+		if strings.Contains(prompt, "primes.json") && strings.Contains(prompt, "implemented") {
+			return "Task PRIMES is already implemented. No further actions needed.", nil
 		}
 
 		return `I will implement the prime number script as requested.
@@ -65,16 +148,20 @@ EOF
 Now I will run the script and commit the results.
 
 ` + "```bash" + `
-python3 primes.py
-git add primes.py primes.json
+python3 primes.py || python primes.py
+git add -f primes.json
+git add primes.py
 git commit -m "Add primes script and output" || echo "No changes to commit"
 ` + "```" + `
 `, nil
 	}
 
-	// 2. Default/Fallback
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
-		m.responsePrefix, len(prompt), truncateString(prompt, 100))
+	// 6. Default/Fallback
+	// Log the prompt prefix to help debug
+	fmt.Printf("DEBUG: MockAgent Prompt: %s\n", truncateString(prompt, 50))
+
+	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response.",
+		m.responsePrefix, len(prompt))
 
 	// Add a safe command to prevent "NO-OP LOOP" errors in some runners
 	response += "\n\n```bash\necho \"Mock Agent Default Response\"\n```"
