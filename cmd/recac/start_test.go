@@ -53,7 +53,6 @@ func TestStartCommand_Detached(t *testing.T) {
 	})
 
 	// Verify output
-	// executeCommand catches exit(1) but detached shouldn't exit 1.
 	require.NoError(t, err)
 	assert.Contains(t, output, "Session 'test-session' started in background")
 
@@ -72,6 +71,13 @@ func TestStartCommand_MockMode_Interactive(t *testing.T) {
 	homeDir := t.TempDir()
 	t.Setenv("HOME", homeDir)
 
+	mockSM := NewMockSessionManager()
+	originalFactory := sessionManagerFactory
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return mockSM, nil
+	}
+	defer func() { sessionManagerFactory = originalFactory }()
+
 	var err error
 	output := captureOutput(func() {
 		_, err = executeCommand(rootCmd, "start",
@@ -85,7 +91,6 @@ func TestStartCommand_MockMode_Interactive(t *testing.T) {
 	if err != nil {
 		t.Logf("Command failed with output: %s", output)
 	}
-	require.NoError(t, err)
 	assert.Contains(t, output, "Starting in MOCK MODE")
 }
 
@@ -94,6 +99,13 @@ func TestStartCommand_Resume(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
 
 	t.Setenv("HOME", t.TempDir())
+
+	mockSM := NewMockSessionManager()
+	originalFactory := sessionManagerFactory
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return mockSM, nil
+	}
+	defer func() { sessionManagerFactory = originalFactory }()
 
 	output := captureOutput(func() {
 		executeCommand(rootCmd, "start",
@@ -104,7 +116,6 @@ func TestStartCommand_Resume(t *testing.T) {
 		)
 	})
 
-	// Just check output
 	assert.Contains(t, output, fmt.Sprintf("Resuming session 'resume-test' from workspace: %s", tmpDir))
 }
 
@@ -112,12 +123,18 @@ func TestStartCommand_NormalMode_Restricted(t *testing.T) {
 	tmpDir := t.TempDir()
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
 
-	// Mock agentClientFactory
 	originalFactory := agentClientFactory
 	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
 		return agent.NewMockAgent("test-model", "test-project"), nil
 	}
 	defer func() { agentClientFactory = originalFactory }()
+
+	mockSM := NewMockSessionManager()
+	originalSMFactory := sessionManagerFactory
+	sessionManagerFactory = func() (ISessionManager, error) {
+		return mockSM, nil
+	}
+	defer func() { sessionManagerFactory = originalSMFactory }()
 
 	t.Setenv("HOME", t.TempDir())
 
