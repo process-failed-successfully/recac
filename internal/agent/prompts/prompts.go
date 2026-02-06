@@ -4,6 +4,7 @@ import (
 	"embed"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -20,6 +21,12 @@ const (
 	QAAgent        = "qa_agent"
 	TPMAgent       = "tpm_agent"
 	ArchitectAgent = "architect_agent"
+)
+
+// Allow mocking for tests
+var (
+	getwd       = os.Getwd
+	userHomeDir = os.UserHomeDir
 )
 
 // ListPrompts returns a list of available embedded prompts.
@@ -58,7 +65,7 @@ func GetPrompt(name string, vars map[string]string) (string, error) {
 
 	// 2. Check Local .recac/prompts
 	if len(content) == 0 {
-		cwd, err := os.Getwd()
+		cwd, err := getwd()
 		if err == nil {
 			localPath := filepath.Join(cwd, ".recac", "prompts", name+".md")
 			if c, e := os.ReadFile(localPath); e == nil {
@@ -69,7 +76,7 @@ func GetPrompt(name string, vars map[string]string) (string, error) {
 
 	// 3. Check Global ~/.recac/prompts
 	if len(content) == 0 {
-		home, err := os.UserHomeDir()
+		home, err := userHomeDir()
 		if err == nil {
 			globalPath := filepath.Join(home, ".recac", "prompts", name+".md")
 			if c, e := os.ReadFile(globalPath); e == nil {
@@ -80,7 +87,8 @@ func GetPrompt(name string, vars map[string]string) (string, error) {
 
 	// 4. Fallback to embedded
 	if len(content) == 0 {
-		templatePath := filepath.Join("templates", name+".md")
+		// Use path.Join for embed.FS as it always uses forward slashes
+		templatePath := path.Join("templates", name+".md")
 		content, err = templateFS.ReadFile(templatePath)
 		if err != nil {
 			return "", fmt.Errorf("failed to read prompt template %s: %w", name, err)
