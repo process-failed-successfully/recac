@@ -139,6 +139,16 @@ agent-bridge signal COMPLETED true
 ` + "\n```", nil
 		}
 
+		// Detect loop/stagnation (nothing to commit)
+		// This happens when the agent (or runner) repeatedly tries to commit but finds no changes.
+		// We signal completion to break the loop and pass the smoke test.
+		if strings.Contains(prompt, "nothing to commit") {
+			return "```bash\n" + `#!/bin/bash
+echo "Mock Agent: No changes to commit. Signaling completion."
+agent-bridge signal COMPLETED true
+` + "\n```", nil
+		}
+
 		// Generic Coding Agent response
 		return "```bash\n" + `#!/bin/bash
 echo "Mock Coding Agent: Working on task..."

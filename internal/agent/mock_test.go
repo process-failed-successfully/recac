@@ -106,6 +106,38 @@ func TestMockAgent_CodingAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_NothingToCommit(t *testing.T) {
+	agent := NewMockAgent()
+	ctx := context.Background()
+
+	// Simulate a prompt that includes "nothing to commit" in the context of the Coding Agent role
+	prompt := `
+## YOUR ROLE - CODING AGENT
+You are the Coding Agent.
+
+Context:
+- User wants to set up the project.
+- Previous command: git commit -m "Initial commit"
+- Output: On branch master
+nothing to commit, working tree clean
+`
+
+	response, err := agent.Send(ctx, prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Verify that the response contains the completion signal
+	if !strings.Contains(response, "agent-bridge signal COMPLETED true") {
+		t.Errorf("Expected completion signal in response, got: %s", response)
+	}
+
+	if !strings.Contains(response, "nothing to commit") {
+		// Just ensuring the log message is there for debugging, optional but good
+		// Actually the log message in the script is "No changes to commit."
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
