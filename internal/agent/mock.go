@@ -48,6 +48,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Developer: Implement primes.py
 	// Detects the prompt asking for the primes script
 	if strings.Contains(prompt, "primes.py") && !strings.Contains(prompt, "Technical Program Manager") {
+		// If primes.json already exists (likely in the file list or git log in the prompt), we are done.
+		if strings.Contains(prompt, "primes.json") {
+			return "```bash\nagent-bridge feature set --status done\n```", nil
+		}
+
 		return "```bash\n" +
 			"git config user.email \"agent@recac.com\"\n" +
 			"git config user.name \"Recac Agent\"\n" +

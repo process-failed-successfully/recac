@@ -59,6 +59,24 @@ func TestMockAgent_E2E_Developer(t *testing.T) {
 	}
 }
 
+func TestMockAgent_E2E_Developer_Done(t *testing.T) {
+	agent := NewMockAgent()
+	// Simulate prompt where files exist (primes.json present in file list)
+	prompt := "Implement the primes.py script.\nFiles:\nprimes.py\nprimes.json"
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "agent-bridge feature set --status done") {
+		t.Errorf("Expected Developer response to signal completion, got: %s", response)
+	}
+	if strings.Contains(response, "def get_primes(n):") {
+		t.Error("Expected Developer response NOT to contain python code when done")
+	}
+}
+
 func TestMockAgent_E2E_QA(t *testing.T) {
 	agent := NewMockAgent()
 	prompt := "You are the QA AGENT."
