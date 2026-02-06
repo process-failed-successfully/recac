@@ -42,21 +42,21 @@ func TestMockAgent_Scenarios(t *testing.T) {
 			wantContains: []string{
 				"```bash",
 				"cat << 'EOF' > primes.py",
-				"agent-bridge feature set req-primes-py-exists passed",
+				"agent-bridge feature set req-primes-py-exists --status done --passes true",
 			},
 		},
 		{
 			name:   "QA Agent",
 			prompt: "You are the QA AGENT",
 			wantContains: []string{
-				"agent-bridge signal QA_PASSED",
+				"agent-bridge signal QA_PASSED true",
 			},
 		},
 		{
 			name:   "Project Manager",
 			prompt: "You are the PROJECT MANAGER. Signal PROJECT_SIGNED_OFF set to true",
 			wantContains: []string{
-				"agent-bridge signal PROJECT_SIGNED_OFF",
+				"echo \"Project Sign Off\"",
 			},
 		},
 		{
