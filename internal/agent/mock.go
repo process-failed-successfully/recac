@@ -104,6 +104,12 @@ python3 primes.py
 # Git operations
 git add primes.py primes.json
 git commit -m "Add primes.py and generated json"
+
+# Configure auth if API key is present (fallback for missing token in agent shell)
+if [ -n "$RECAC_GITHUB_API_KEY" ]; then
+    git config --global url."https://${RECAC_GITHUB_API_KEY}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
+fi
+
 git push origin HEAD
 
 # Signal completion
