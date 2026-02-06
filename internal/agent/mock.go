@@ -43,6 +43,13 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			strings.Contains(prompt, "User Stories") {
 			return m.generatePrimesJSONResponse(), nil
 		}
+
+		// Check if we have already implemented the script (git commit reported no changes)
+		// This prevents infinite loops where the agent keeps trying to commit the same code
+		if strings.Contains(prompt, "nothing to commit") {
+			return m.generatePrimesCompletionResponse(), nil
+		}
+
 		return m.generatePrimesResponse(), nil
 	}
 
@@ -87,6 +94,16 @@ git commit -m "Implement primes.py"
 git push origin HEAD
 `
 	return fmt.Sprintf("I will implement the primes.py script as requested.\n\n```bash%s```\n", script)
+}
+
+func (m *MockAgent) generatePrimesCompletionResponse() string {
+	// We use agent-bridge to explicitly mark the feature as done.
+	// This signals the runner to stop the loop.
+	script := `
+echo "Task completed. Updating status."
+agent-bridge feature set --id "$RECAC_PROJECT_ID" --status done
+`
+	return fmt.Sprintf("It seems the work is already done.\n\n```bash%s```\n", script)
 }
 
 func (m *MockAgent) generatePrimesJSONResponse() string {
