@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"log/slog"
 	"os"
@@ -167,8 +168,11 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 		// Re-initialize telemetry logger with the session log file
 		// Note: We use the global 'verbose' setting
 		// We still init global logger for backward compatibility and simpler calls where session isn't available
-		telemetry.InitLogger(viper.GetBool("verbose"), logFilePath, false)
-		fmt.Printf("Session logs will be written to: %s\n", logFilePath)
+		// FIX: Do not re-init global logger in tests to avoid polluting other tests
+		if flag.Lookup("test.v") == nil {
+			telemetry.InitLogger(viper.GetBool("verbose"), logFilePath, false)
+			fmt.Printf("Session logs will be written to: %s\n", logFilePath)
+		}
 	}
 
 	// Create session logger
