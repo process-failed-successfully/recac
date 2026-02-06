@@ -61,8 +61,8 @@ func TestMockAgent_E2E_Developer(t *testing.T) {
 
 func TestMockAgent_E2E_Developer_Done(t *testing.T) {
 	agent := NewMockAgent()
-	// Simulate prompt where files exist (primes.json present in file list)
-	prompt := "Implement the primes.py script.\nFiles:\nprimes.py\nprimes.json"
+	// Simulate prompt where files exist (primes.json present in file list) or commit message present
+	prompt := "Implement the primes.py script.\nGit Log:\nImplement primes.py and generate primes.json"
 
 	response, err := agent.Send(context.Background(), prompt)
 	if err != nil {
