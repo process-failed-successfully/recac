@@ -134,7 +134,9 @@ git push || echo "Push skipped in mock mode"
 	}
 
 	// 3. QA / Manager Role (Review)
-	if strings.Contains(prompt, "Review") || strings.Contains(prompt, "QA") {
+	// We must ensure we don't match the Coding Agent prompt which contains "QA" and "Review" in the instructions.
+	if (strings.Contains(prompt, "Review") || strings.Contains(prompt, "QA")) &&
+		!strings.Contains(prompt, "YOUR ROLE - CODING AGENT") {
 		return "LGTM. The code implements the requirements correctly. primes.py exists and primes.json contains the expected data.", nil
 	}
 
