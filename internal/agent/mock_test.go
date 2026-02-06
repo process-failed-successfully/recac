@@ -79,6 +79,33 @@ func TestMockAgent_CodingAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Initializer(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Test Generic Initializer
+	prompt := "YOUR ROLE - INITIALIZER AGENT\n\nTask: Setup"
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(response, "init-task") {
+		t.Error("Expected init-task feature ID in generic initializer response")
+	}
+
+	// Test Primes Scenario Initializer
+	promptPrimes := "YOUR ROLE - INITIALIZER AGENT\n\nTask: Setup [PRIMES] project"
+	responsePrimes, err := agent.Send(context.Background(), promptPrimes)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(responsePrimes, "req-primes-py-exists") {
+		t.Error("Expected req-primes-py-exists feature ID in Primes initializer response")
+	}
+	if !strings.Contains(responsePrimes, "[PRIMES]") {
+		t.Error("Expected [PRIMES] in feature description")
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
