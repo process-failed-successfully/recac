@@ -364,7 +364,13 @@ jobs:
                 console.log(`Approval step skipped or failed: ${approveError.message}. Continuing to merge attempt...`);
               }
 
-              // 4. Merge the PR
+              // 4. Check status and Merge the PR
+              if (prDetails.mergeable_state !== 'clean') {
+                console.log(`PR is not in a clean mergeable state (State: ${prDetails.mergeable_state}). Skipping auto-merge.`);
+                console.log("This usually means required status checks are pending, or reviews are missing.");
+                return;
+              }
+
               await github.rest.pulls.merge({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
