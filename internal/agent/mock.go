@@ -31,6 +31,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	// [TPM] Scenario Logic
+	// Detect if we are being prompted as the Technical Program Manager
+	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM") {
+		return m.generateTPMResponse(), nil
+	}
+
 	// [PRIMES] Scenario Logic
 	// Detect if we are being asked to implement the primes.py script
 	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
@@ -54,6 +60,23 @@ func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(
 		onChunk(resp)
 	}
 	return resp, err
+}
+
+func (m *MockAgent) generateTPMResponse() string {
+	jsonPlan := `{
+  "tickets": [
+    {
+      "title": "Implement Primes Script",
+      "description": "Implement a python script that calculates primes",
+      "type": "task",
+      "acceptance_criteria": [
+        "Script runs successfully",
+        "Generates primes.json"
+      ]
+    }
+  ]
+}`
+	return fmt.Sprintf("Here is the ticket plan:\n\n```json\n%s\n```", jsonPlan)
 }
 
 func (m *MockAgent) generatePrimesResponse() string {

@@ -91,9 +91,9 @@ var startCmd = &cobra.Command{
 		// Panic recovery for graceful shutdown
 		defer func() {
 			if r := recover(); r != nil {
-				fmt.Fprintf(os.Stderr, "\n=== CRITICAL ERROR: Session Panic ===\n")
-				fmt.Fprintf(os.Stderr, "Error: %v\n", r)
-				fmt.Fprintf(os.Stderr, "Attempting graceful shutdown...\n")
+				fmt.Fprintf(cmd.ErrOrStderr(), "\n=== CRITICAL ERROR: Session Panic ===\n")
+				fmt.Fprintf(cmd.ErrOrStderr(), "Error: %v\n", r)
+				fmt.Fprintf(cmd.ErrOrStderr(), "Attempting graceful shutdown...\n")
 				exit(1)
 			}
 		}()
@@ -190,7 +190,7 @@ var startCmd = &cobra.Command{
 			cfg.ProjectPath = resumePath
 			fmt.Printf("Resuming session '%s' from workspace: %s\n", cfg.SessionName, resumePath)
 			if err := runWorkflow(ctx, cfg); err != nil {
-				fmt.Fprintf(os.Stderr, "Resumed session failed: %v\n", err)
+				fmt.Fprintf(cmd.ErrOrStderr(), "Resumed session failed: %v\n", err)
 				exit(1)
 			}
 			return
@@ -398,7 +398,7 @@ var startCmd = &cobra.Command{
 		}
 
 		if err := runWorkflow(ctx, cfg); err != nil {
-			fmt.Fprintf(os.Stderr, "Session failed: %v\n", err)
+			fmt.Fprintf(cmd.ErrOrStderr(), "Session failed: %v\n", err)
 			exit(1)
 		}
 	},

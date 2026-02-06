@@ -122,8 +122,9 @@ func TestStartCommand_NormalMode_Restricted(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 
 	var err error
-	output := captureOutput(func() {
-		_, err = executeCommand(rootCmd, "start",
+	var cmdOutput string
+	stdOutput := captureOutput(func() {
+		cmdOutput, err = executeCommand(rootCmd, "start",
 			"--path", tmpDir,
 			"--max-iterations", "1",
 			"--name", "normal-test",
@@ -132,6 +133,11 @@ func TestStartCommand_NormalMode_Restricted(t *testing.T) {
 		)
 	})
 
+	// RunLoop returns ErrMaxIterations when limit is reached
+	// Note: executeCommand captures exit(1) and returns nil error with output
 	require.NoError(t, err)
-	assert.Contains(t, output, "Starting RECAC session")
+	// Output might be in stdout (fmt.Printf) or cmd output (cmd.Print)
+	fullOutput := stdOutput + cmdOutput
+	assert.Contains(t, fullOutput, "Session failed")
+	assert.Contains(t, fullOutput, "Starting RECAC session")
 }
