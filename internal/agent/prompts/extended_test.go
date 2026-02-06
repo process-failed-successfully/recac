@@ -64,6 +64,13 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	}
 	t.Cleanup(func() { getwd = originalGetwd })
 
+	// Mock userHomeDir
+	originalUserHomeDir := userHomeDir
+	userHomeDir = func() (string, error) {
+		return mockCwd, nil
+	}
+	t.Cleanup(func() { userHomeDir = originalUserHomeDir })
+
 	localContent := "Local Override"
 	err = os.WriteFile(filepath.Join(localRecacDir, promptName+".md"), []byte(localContent), 0644)
 	if err != nil {
