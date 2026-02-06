@@ -29,6 +29,31 @@ func TestMockAgent_PrimeHeuristic(t *testing.T) {
 	}
 }
 
+func TestMockAgent_PrimeInitializer_JiraMode(t *testing.T) {
+	agent := NewMockAgent()
+	// Simulate a Jira prompt where the ID is replaced by a Jira key (e.g., MFLP-123)
+	// but the title "Create Prime Number Script" remains.
+	prompt := "You are the Initializer. Please create feature_list.json for [MFLP-123] Create Prime Number Script"
+
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("agent.Send failed: %v", err)
+	}
+
+	expectedStrings := []string{
+		"Mock Initializer: Creating feature list for [PRIMES]",
+		`"id": "PRIMES"`,
+		"primes.py",
+		"agent-bridge import feature_list.json",
+	}
+
+	for _, s := range expectedStrings {
+		if !strings.Contains(resp, s) {
+			t.Errorf("Response missing expected string: %q\nResponse:\n%s", s, resp)
+		}
+	}
+}
+
 func TestMockAgent_PrimeInitializer(t *testing.T) {
 	agent := NewMockAgent()
 	prompt := "You are the Initializer. Please create feature_list.json for ID:[PRIMES] Create Prime Number Script"
