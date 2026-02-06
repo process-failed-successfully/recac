@@ -129,8 +129,8 @@ EOF
 
 python3 primes.py
 
-agent-bridge feature set req-primes-py-exists completed
-agent-bridge feature set req-primes-json-contains-correct-p completed
+agent-bridge feature set req-primes-py-exists --status done --passes true
+agent-bridge feature set req-primes-json-contains-correct-p --status done --passes true
 ` + "```" + `
 `, nil
 	}
