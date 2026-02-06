@@ -60,7 +60,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 3. Implementation (Primes)
-	if strings.Contains(prompt, "calculate primes") || strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
+	// We check for various triggers including the specific feature ID found in logs
+	if strings.Contains(prompt, "calculate primes") ||
+		strings.Contains(prompt, "[PRIMES]") ||
+		strings.Contains(prompt, "primes.py") ||
+		strings.Contains(prompt, "Prime Number Script") ||
+		strings.Contains(prompt, "req-the-script-primes-py-is-implem") {
 		return "I will implement the prime number calculation script.\n\n" +
 			"```bash\n" +
 			"cat <<EOF > primes.py\n" +
@@ -109,8 +114,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Default Echo
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
-		m.responsePrefix, len(prompt), truncateString(prompt, 100))
+	// We include a harmless bash command to prevent "NO-OP LOOP" circuit breaker in Runner
+	safePromptPreview := strings.ReplaceAll(truncateString(prompt, 100), "`", "")
+	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request.\n\nPrompt preview: %s...\n\n```bash\necho \"Mock Agent: Processing request (Fallback)\"\n```",
+		m.responsePrefix, len(prompt), safePromptPreview)
 	return response, nil
 }
 
