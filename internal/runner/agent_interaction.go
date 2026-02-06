@@ -191,47 +191,7 @@ func (s *Session) runQAAgent(ctx context.Context) error {
 	} else {
 		var err error
 		// Resolve Config
-		provider := s.AgentProvider
-		if provider == "" {
-			provider = viper.GetString("agents.qa.provider")
-			if provider == "" {
-				provider = viper.GetString("provider") // Fallback to global setting
-				if provider == "" {
-					provider = "gemini"
-				}
-			}
-		}
-
-		model := s.AgentModel
-		if model == "" {
-			model = viper.GetString("agents.qa.model")
-			if model == "" {
-				model = viper.GetString("model") // Fallback to global setting
-				if model == "" {
-					model = "gemini-1.5-flash-latest" // Ultimate fallback
-				}
-			}
-		}
-		apiKey := viper.GetString("agents.qa.api_key")
-		if apiKey == "" {
-			// Fallback to global API key
-			apiKey = viper.GetString("api_key")
-			if apiKey == "" {
-				// Try provider-specific env vars
-				if provider == "openrouter" {
-					apiKey = os.Getenv("OPENROUTER_API_KEY")
-				} else if provider == "gemini" || provider == "gemini-cli" {
-					apiKey = os.Getenv("GEMINI_API_KEY")
-				} else if provider == "openai" {
-					apiKey = os.Getenv("OPENAI_API_KEY")
-				}
-
-				// Final catch-all if still empty (legacy support)
-				if apiKey == "" {
-					apiKey = os.Getenv("GEMINI_API_KEY")
-				}
-			}
-		}
+		provider, model, apiKey := s.resolveAgentConfig("qa", "gemini", "gemini-1.5-flash-latest")
 
 		s.Logger.Info("initializing QA agent", "provider", provider, "model", model)
 		qaAgent, err = agent.NewAgent(provider, apiKey, model, s.Workspace, s.Project)
@@ -284,6 +244,53 @@ func (s *Session) runQAAgent(ctx context.Context) error {
 	return fmt.Errorf("QA Agent did not signal success (QA_PASSED!=true)")
 }
 
+// resolveAgentConfig determines the provider, model, and API key for a given agent role.
+func (s *Session) resolveAgentConfig(role, defaultProvider, defaultModel string) (string, string, string) {
+	provider := s.AgentProvider
+	if provider == "" {
+		provider = viper.GetString(fmt.Sprintf("agents.%s.provider", role))
+		if provider == "" {
+			provider = viper.GetString("provider") // Fallback to global setting
+			if provider == "" {
+				provider = defaultProvider
+			}
+		}
+	}
+
+	model := s.AgentModel
+	if model == "" {
+		model = viper.GetString(fmt.Sprintf("agents.%s.model", role))
+		if model == "" {
+			model = viper.GetString("model") // Fallback to global setting
+			if model == "" {
+				model = defaultModel
+			}
+		}
+	}
+
+	apiKey := viper.GetString(fmt.Sprintf("agents.%s.api_key", role))
+	if apiKey == "" {
+		// Fallback to global API key
+		apiKey = viper.GetString("api_key")
+		if apiKey == "" {
+			// Try provider-specific env vars
+			if provider == "openrouter" {
+				apiKey = os.Getenv("OPENROUTER_API_KEY")
+			} else if provider == "gemini" || provider == "gemini-cli" {
+				apiKey = os.Getenv("GEMINI_API_KEY")
+			} else if provider == "openai" {
+				apiKey = os.Getenv("OPENAI_API_KEY")
+			}
+
+			// Final catch-all if still empty (legacy support)
+			if apiKey == "" {
+				apiKey = os.Getenv("GEMINI_API_KEY")
+			}
+		}
+	}
+	return provider, model, apiKey
+}
+
 // runManagerAgent runs manager review of the QA report.
 // Returns error if manager rejects, nil if manager approves.
 func (s *Session) runManagerAgent(ctx context.Context) error {
@@ -295,44 +302,7 @@ func (s *Session) runManagerAgent(ctx context.Context) error {
 	} else {
 		var err error
 		// Resolve Config
-		provider := s.AgentProvider
-		if provider == "" {
-			provider = viper.GetString("agents.manager.provider")
-			if provider == "" {
-				provider = viper.GetString("provider") // Fallback to global setting
-				if provider == "" {
-					provider = "gemini-cli"
-				}
-			}
-		}
-		model := s.AgentModel
-		if model == "" {
-			model = viper.GetString("agents.manager.model")
-			if model == "" {
-				model = viper.GetString("model")
-				if model == "" {
-					model = "gemini-1.5-pro-latest"
-				}
-			}
-		}
-		apiKey := viper.GetString("agents.manager.api_key")
-		if apiKey == "" {
-			apiKey = viper.GetString("api_key")
-			if apiKey == "" {
-				// Try provider-specific env vars
-				if provider == "openrouter" {
-					apiKey = os.Getenv("OPENROUTER_API_KEY")
-				} else if provider == "gemini" || provider == "gemini-cli" {
-					apiKey = os.Getenv("GEMINI_API_KEY")
-				} else if provider == "openai" {
-					apiKey = os.Getenv("OPENAI_API_KEY")
-				}
-
-				if apiKey == "" {
-					apiKey = os.Getenv("GEMINI_API_KEY")
-				}
-			}
-		}
+		provider, model, apiKey := s.resolveAgentConfig("manager", "gemini-cli", "gemini-1.5-pro-latest")
 
 		fmt.Printf("Initialising Manager Agent with provider: %s, model: %s\n", provider, model)
 		managerAgent, err = agent.NewAgent(provider, apiKey, model, s.Workspace, s.Project)

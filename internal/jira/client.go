@@ -404,8 +404,14 @@ func (c *Client) SmartTransition(ctx context.Context, ticketID, targetNameOrID s
 	return c.TransitionIssue(ctx, ticketID, foundID)
 }
 
-// GetBlockerKeys returns a list of keys of tickets that block the given ticket and are not "Done".
-func (c *Client) GetBlockerKeys(ticket map[string]interface{}) []string {
+// blockerInfo represents a blocking issue's basic details.
+type blockerInfo struct {
+	Key    string
+	Status string
+}
+
+// findBlockers identifies tickets that block the given ticket and are not "Done".
+func (c *Client) findBlockers(ticket map[string]interface{}) []blockerInfo {
 	fields, ok := ticket["fields"].(map[string]interface{})
 	if !ok {
 		return nil
@@ -416,7 +422,7 @@ func (c *Client) GetBlockerKeys(ticket map[string]interface{}) []string {
 		return nil
 	}
 
-	var blockers []string
+	var blockers []blockerInfo
 	for _, link := range links {
 		linkMap, ok := link.(map[string]interface{})
 		if !ok {
@@ -441,7 +447,7 @@ func (c *Client) GetBlockerKeys(ticket map[string]interface{}) []string {
 						statusName, _ := status["name"].(string)
 						// If status is not "Done" or equivalent, it's a blocker
 						if !isDoneStatus(statusName) {
-							blockers = append(blockers, key)
+							blockers = append(blockers, blockerInfo{Key: key, Status: statusName})
 						}
 					}
 				}
@@ -452,53 +458,24 @@ func (c *Client) GetBlockerKeys(ticket map[string]interface{}) []string {
 	return blockers
 }
 
+// GetBlockerKeys returns a list of keys of tickets that block the given ticket and are not "Done".
+func (c *Client) GetBlockerKeys(ticket map[string]interface{}) []string {
+	blockers := c.findBlockers(ticket)
+	var keys []string
+	for _, b := range blockers {
+		keys = append(keys, b.Key)
+	}
+	return keys
+}
+
 // GetBlockers returns a list of tickets that block the given ticket and are not "Done".
 func (c *Client) GetBlockers(ticket map[string]interface{}) []string {
-	fields, ok := ticket["fields"].(map[string]interface{})
-	if !ok {
-		return nil
+	blockers := c.findBlockers(ticket)
+	var result []string
+	for _, b := range blockers {
+		result = append(result, fmt.Sprintf("%s (%s)", b.Key, b.Status))
 	}
-
-	links, ok := fields["issuelinks"].([]interface{})
-	if !ok {
-		return nil
-	}
-
-	var blockers []string
-	for _, link := range links {
-		linkMap, ok := link.(map[string]interface{})
-		if !ok {
-			continue
-		}
-
-		linkType, ok := linkMap["type"].(map[string]interface{})
-		if !ok {
-			continue
-		}
-
-		// Look for "is blocked by" relationship (inward)
-		// Or any type where name is "Blocks" and inward is "is blocked by"
-		inward, _ := linkType["inward"].(string)
-		if strings.EqualFold(inward, "is blocked by") {
-			inwardIssue, ok := linkMap["inwardIssue"].(map[string]interface{})
-			if ok {
-				key, _ := inwardIssue["key"].(string)
-				fields, _ := inwardIssue["fields"].(map[string]interface{})
-				if fields != nil {
-					status, _ := fields["status"].(map[string]interface{})
-					if status != nil {
-						statusName, _ := status["name"].(string)
-						// If status is not "Done" or equivalent, it's a blocker
-						if !isDoneStatus(statusName) {
-							blockers = append(blockers, fmt.Sprintf("%s (%s)", key, statusName))
-						}
-					}
-				}
-			}
-		}
-	}
-
-	return blockers
+	return result
 }
 
 // AddIssueLink creates a link between two Jira tickets (e.g., "Blocks").

@@ -94,15 +94,8 @@ type JiraClient interface {
 
 // NewSession creates a new worker session
 func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *Session {
-	// Default to "unknown" if project is empty
-	if project == "" {
-		project = "unknown"
-	}
-
-	// Default agent state file path in workspace
-	stateFile := ".agent_state.json"
-	agentStateFile := filepath.Join(workspace, stateFile)
-	stateManager := agent.NewStateManager(agentStateFile)
+	agentStateFile := filepath.Join(workspace, ".agent_state.json")
+	s := initBaseSession(workspace, project, agentStateFile)
 
 	// Initialize DB Store with Retry Logic
 	storeConfig := getDBConfig(workspace)
@@ -127,106 +120,82 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 		os.Exit(1)
 	} else {
 		// Success
-		fmt.Fprintf(os.Stderr, "[Session] DB Store initialized successfully: type=%s, project=%s\n", storeConfig.Type, project)
-		slog.Info("[DB] Store initialized successfully", "type", storeConfig.Type, "project", project)
+		fmt.Fprintf(os.Stderr, "[Session] DB Store initialized successfully: type=%s, project=%s\n", storeConfig.Type, s.Project)
+		slog.Info("[DB] Store initialized successfully", "type", storeConfig.Type, "project", s.Project)
 	}
 
-	logger := initializeLogging(project)
+	s.Docker = d
+	s.Agent = a
+	s.Image = image
+	s.AgentProvider = provider
+	s.AgentModel = model
+	s.DBStore = dbStore
+	s.OwnsDB = true
+	s.MaxAgents = maxAgents
+	s.UseLocalAgent = os.Getenv("KUBERNETES_SERVICE_HOST") != ""
 
-	return &Session{
-		Docker:           d,
-		Agent:            a,
-		Workspace:        workspace,
-		Image:            image,
-		Project:          project,
-		AgentProvider:    provider,
-		AgentModel:       model,
-		SpecFile:         "app_spec.txt",
-		MaxIterations:    20, // Default
-		ManagerFrequency: 5,  // Default
-		AgentStateFile:   agentStateFile,
-		StateManager:     stateManager,
-		DBStore:          dbStore,
-		OwnsDB:           true,
-		Scanner:          security.NewRegexScanner(),
-		MaxAgents:        maxAgents,
-		Notifier:         notify.NewManager(telemetry.LogInfof),
-		UseLocalAgent:    os.Getenv("KUBERNETES_SERVICE_HOST") != "",
-		Logger:           logger,
-		SleepFunc:        time.Sleep,
-	}
+	return s
 }
 
 // NewSessionWithStateFile creates a session with a specific agent state file (for restoring sessions)
 func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, project, agentStateFile, provider, model string, maxAgents int) *Session {
-	if project == "" {
-		project = "unknown"
-	}
-	stateManager := agent.NewStateManager(agentStateFile)
+	s := initBaseSession(workspace, project, agentStateFile)
 
 	storeConfig := getDBConfig(workspace)
 	var dbStore db.Store
-	if s, err := db.NewStore(storeConfig); err != nil {
+	if store, err := db.NewStore(storeConfig); err != nil {
 		fmt.Printf("Warning: Failed to initialize DB store (%s): %v\n", storeConfig.Type, err)
 	} else {
-		dbStore = s
+		dbStore = store
 	}
 
-	logger := initializeLogging(project)
+	s.Docker = d
+	s.Agent = a
+	s.Image = image
+	s.AgentProvider = provider
+	s.AgentModel = model
+	s.DBStore = dbStore
+	s.OwnsDB = true
+	s.MaxAgents = maxAgents
 
-	return &Session{
-		Docker:           d,
-		Agent:            a,
-		Workspace:        workspace,
-		Image:            image,
-		Project:          project,
-		AgentProvider:    provider,
-		AgentModel:       model,
-		SpecFile:         "app_spec.txt",
-		MaxIterations:    20, // Default
-		ManagerFrequency: 5,  // Default
-		AgentStateFile:   agentStateFile,
-		StateManager:     stateManager,
-		DBStore:          dbStore,
-		OwnsDB:           true,
-		Scanner:          security.NewRegexScanner(),
-		MaxAgents:        maxAgents,
-		Notifier:         notify.NewManager(telemetry.LogInfof),
-		Logger:           logger,
-		SleepFunc:        time.Sleep,
-	}
+	return s
 }
 
 // NewSessionWithConfig creates a session with specific provider/model settings.
 // This is used for sub-agents or when overriding global config.
 func NewSessionWithConfig(workspace, project, provider, model string, dbStore db.Store) *Session {
-	// Default to "unknown" if project is empty
+	agentStateFile := filepath.Join(workspace, ".agent_state.json")
+	s := initBaseSession(workspace, project, agentStateFile)
+
+	s.AgentProvider = provider
+	s.AgentModel = model
+	s.DBStore = dbStore
+	s.OwnsDB = false
+
+	return s
+}
+
+// initBaseSession initializes the common fields for a session.
+func initBaseSession(workspace, project, agentStateFile string) *Session {
 	if project == "" {
 		project = "unknown"
 	}
 
-	// Default agent state file path in workspace
-	stateFile := ".agent_state.json"
-	agentStateFile := filepath.Join(workspace, stateFile)
 	stateManager := agent.NewStateManager(agentStateFile)
-
 	logger := initializeLogging(project)
 
 	return &Session{
 		Workspace:        workspace,
 		Project:          project,
-		AgentProvider:    provider,
-		AgentModel:       model,
-		DBStore:          dbStore,
+		AgentStateFile:   agentStateFile,
+		StateManager:     stateManager,
 		SpecFile:         "app_spec.txt",
 		MaxIterations:    20, // Default
 		ManagerFrequency: 5,  // Default
-		AgentStateFile:   agentStateFile,
-		StateManager:     stateManager,
-		OwnsDB:           false, // This session does not own the DB, it's passed in
 		Scanner:          security.NewRegexScanner(),
 		Notifier:         notify.NewManager(telemetry.LogInfof),
 		Logger:           logger,
+		SleepFunc:        time.Sleep,
 	}
 }
 
