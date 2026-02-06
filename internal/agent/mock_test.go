@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestMockAgent(t *testing.T) {
+func TestMockAgent_Default(t *testing.T) {
 	agent := NewMockAgent()
 
 	prompt := "This is a test prompt that is long enough to be truncated"
@@ -22,6 +22,36 @@ func TestMockAgent(t *testing.T) {
 
 	if !strings.Contains(response, "I received your prompt") {
 		t.Errorf("Response missing body, got: %s", response)
+	}
+}
+
+func TestMockAgent_Initializer(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "You are the Technical Program Manager. Break down the requirements."
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(response, "prime-python") {
+		t.Error("Expected JSON with project name")
+	}
+	if !strings.Contains(response, "req-the-makefile-targets-are-implemented") {
+		t.Error("Expected specific feature ID")
+	}
+}
+
+func TestMockAgent_Coding(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "## YOUR ROLE - CODING AGENT\nTask: Implement primes.py"
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(response, "cat << 'EOF' > primes.py") {
+		t.Error("Expected file creation script")
+	}
+	if !strings.Contains(response, "agent-bridge feature set") {
+		t.Error("Expected agent-bridge call")
 	}
 }
 
