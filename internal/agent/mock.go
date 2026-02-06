@@ -34,6 +34,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Smart Mock Logic for Primes Scenario (E2E Test)
 	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "prime-python") || strings.Contains(prompt, "Prime Number Script") {
+		// Distinguish between Planner (JSON) and Coding Agent (Bash)
+		if strings.Contains(prompt, "Lead Software Architect") || strings.Contains(prompt, "feature_list.json") {
+			return m.generatePrimesPlan(), nil
+		}
 		return m.generatePrimesResponse(), nil
 	}
 
@@ -51,6 +55,30 @@ func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(
 		onChunk(resp)
 	}
 	return resp, err
+}
+
+func (m *MockAgent) generatePrimesPlan() string {
+	return `{
+  "project_name": "Prime Number Script",
+  "features": [
+    {
+      "id": "req-must-correctly-identify-prime-",
+      "category": "functional",
+      "description": "Script calculates primes correctly",
+      "status": "pending",
+      "steps": [
+        "Step 1: Create primes.py",
+        "Step 2: Implement sieve or trial division",
+        "Step 3: Run script and verify primes.json output"
+      ],
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": ["primes.py", "primes.json"],
+        "read_only_paths": []
+      }
+    }
+  ]
+}`
 }
 
 func (m *MockAgent) generatePrimesResponse() string {
@@ -78,7 +106,10 @@ EOF
 
 python3 primes.py
 git add -f primes.py primes.json
-git commit -m "Implement primes.py"
+git commit -m "Implement primes.py" || echo "No changes to commit"
+
+# Signal completion
+agent-bridge feature set req-must-correctly-identify-prime- --status done --passes true
 `
 	return fmt.Sprintf("Here is the solution for the Primes task:\n\n```bash\n%s\n```", script)
 }
