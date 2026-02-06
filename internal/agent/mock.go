@@ -108,7 +108,7 @@ agent-bridge feature set req-primes-json-contains-exactly-1 --status "Done" --pa
 	// Add dummy command to prevent NO-OP loop detection if generic
 	if strings.Contains(prompt, "QA AGENT") {
 		// QA Agent expects to run tests
-		response += "\n```bash\necho 'Running QA Checks...'\n```"
+		response += "\n```bash\necho 'Running QA Checks...'\nagent-bridge signal QA_PASSED true\n```"
 	} else {
 		response += "\n```bash\necho 'Mock Agent Processing...'\n```"
 	}
