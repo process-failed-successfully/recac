@@ -23,6 +23,10 @@ func TestMockAgent(t *testing.T) {
 	if !strings.Contains(response, "I received your prompt") {
 		t.Errorf("Response missing body, got: %s", response)
 	}
+
+	if !strings.Contains(response, "echo \"Mock Agent: Processing prompt...\"") {
+		t.Errorf("Response missing dummy command, got: %s", response)
+	}
 }
 
 func TestTruncateString(t *testing.T) {
