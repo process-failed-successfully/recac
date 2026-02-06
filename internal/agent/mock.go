@@ -58,6 +58,14 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic: Check if this is the Initializer agent
 	if strings.Contains(prompt, "Initializer") || strings.Contains(prompt, "feature_list.json") {
+		// Special handling for the Prime Python scenario
+		if strings.Contains(prompt, "[PRIMES]") {
+			return `Mock Initializer: Creating feature list for [PRIMES].
+` + "```bash" + `
+echo '[{"id": "PRIMES", "description": "Create a python script named primes.py that calculates all prime numbers less than 10,000 and outputs them to primes.json.", "status": "todo", "file_paths": []}]' > feature_list.json && agent-bridge import feature_list.json || echo 'Bridge skipped'
+` + "```", nil
+		}
+
 		// Create the file AND import it to DB to satisfy loadFeatures
 		// We must provide a non-empty list so agent-bridge import succeeds
 		return "Mock Initializer: Creating feature list.\n```bash\necho '[{\"id\": \"mock-feature\", \"description\": \"A mock feature for testing\", \"status\": \"todo\", \"file_paths\": []}]' > feature_list.json && agent-bridge import feature_list.json || echo 'Bridge skipped'\n```", nil
