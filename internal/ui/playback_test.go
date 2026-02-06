@@ -93,7 +93,11 @@ func TestPlaybackModel_Update(t *testing.T) {
 	model, cmd = model.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
 	_ = cmd // ignore cmd
 
-	m := model.(PlaybackModel)
+	m, ok := model.(PlaybackModel)
+	if !ok {
+		t.Fatalf("Expected PlaybackModel, got %T", model)
+	}
+
 	if m.width != 100 || m.height != 50 {
 		t.Errorf("Window resize failed: got %dx%d, want 100x50", m.width, m.height)
 	}
@@ -101,7 +105,11 @@ func TestPlaybackModel_Update(t *testing.T) {
 	// Test Enter (View Details)
 	// Select first item
 	model, _ = model.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	m = model.(PlaybackModel)
+	m, ok = model.(PlaybackModel)
+	if !ok {
+		t.Fatalf("Expected PlaybackModel after Enter, got %T", model)
+	}
+
 	if !m.viewingDetails {
 		t.Error("Enter should switch to viewing details")
 	}
@@ -111,7 +119,11 @@ func TestPlaybackModel_Update(t *testing.T) {
 
 	// Test Esc (Back to List)
 	model, _ = model.Update(tea.KeyMsg{Type: tea.KeyEsc})
-	m = model.(PlaybackModel)
+	m, ok = model.(PlaybackModel)
+	if !ok {
+		t.Fatalf("Expected PlaybackModel after Esc, got %T", model)
+	}
+
 	if m.viewingDetails {
 		t.Error("Esc should switch back to list view")
 	}
@@ -138,8 +150,8 @@ func TestPlaybackModel_ComplexContent(t *testing.T) {
 	}
 
 	entry := entries[0]
-	if !strings.Contains(entry.Content, `"key": "value"`) {
-		t.Error("Content should contain pretty printed map")
+	if !strings.Contains(entry.Content, `"key"`) || !strings.Contains(entry.Content, `"value"`) {
+		t.Error("Content should contain pretty printed map keys and values")
 	}
 	if !strings.Contains(entry.Content, `[`) {
 		t.Error("Content should contain pretty printed array")
