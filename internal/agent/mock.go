@@ -69,7 +69,9 @@ agent-bridge feature set req-script-is-runnable passed
 	// Heuristic: Detect ticket generation prompt (TPM)
 	// The prompt often contains "app_spec.txt" or identifies as "Technical Program Manager"
 	// We check this AFTER the coding agent check to avoid false positives from history
-	if strings.Contains(prompt, "app_spec.txt") || strings.Contains(prompt, "tickets") || strings.Contains(prompt, "Technical Program Manager") {
+	// We explicitly exclude "CODING AGENT" to avoid matching the Coding Agent prompt which runs `cat app_spec.txt`
+	if (strings.Contains(prompt, "app_spec.txt") || strings.Contains(prompt, "tickets") || strings.Contains(prompt, "Technical Program Manager")) &&
+		!strings.Contains(prompt, "CODING AGENT") {
 		return `[
   {
     "title": "ID:[PRIMES] Implement Primes Calculation",
