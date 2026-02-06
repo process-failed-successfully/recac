@@ -60,7 +60,7 @@ func (v *Validator) Validate(arch *SystemArchitecture) error {
 			if typeName == "" {
 				return fmt.Errorf("component %s output missing type/event", c.ID)
 			}
-			// Store as ProducerID:Type to allow multiple components to produce same type if needed, 
+			// Store as ProducerID:Type to allow multiple components to produce same type if needed,
 			// but for strict matching we might want to check uniqueness or allow it.
 			// For this validation, let's just track that SOMEONE produces it.
 			// key := fmt.Sprintf("%s:%s", c.ID, typeName)
