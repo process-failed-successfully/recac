@@ -57,6 +57,17 @@ func TestMockAgent_PrimesScenario(t *testing.T) {
 	if !strings.Contains(coderResponse, "git config user.email") {
 		t.Errorf("Coder response should contain bash script with git config, got: %s", coderResponse)
 	}
+
+	// 4. Test Feature ID Detection (Robustness)
+	// This tests that we detect the scenario even if "primes.py" is missing but the ID is present
+	idPrompt := "YOUR ROLE - CODING AGENT. Task ID: req-implement-prime-calculation-lo"
+	idResponse, err := agent.Send(context.Background(), idPrompt)
+	if err != nil {
+		t.Fatalf("Feature ID Send failed: %v", err)
+	}
+	if !strings.Contains(idResponse, "git config user.email") {
+		t.Errorf("Response via ID detection should contain bash script, got: %s", idResponse)
+	}
 }
 
 func TestTruncateString(t *testing.T) {
