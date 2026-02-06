@@ -96,7 +96,12 @@ EOF
 	// 2. Developer Role (Implementation)
 	// Detect request to implement the script. The runner usually sends the ticket description.
 	// The prompt will contain the task description "Implement a python script...".
-	if strings.Contains(prompt, "Implement a python script") || (strings.Contains(prompt, "primes.py") && !strings.Contains(prompt, "Review") && !strings.Contains(prompt, "QA")) {
+	// CRITICAL: If "YOUR ROLE - CODING AGENT" is present, we permit "primes.py" even if "QA"/"Review" are present
+	// (because the Coding Agent template contains those words in its instructions).
+	// If it's NOT the Coding Agent, we enforce the negative lookahead to avoid confusing Implementation with Review.
+	if strings.Contains(prompt, "Implement a python script") ||
+		(strings.Contains(prompt, "primes.py") &&
+			(strings.Contains(prompt, "YOUR ROLE - CODING AGENT") || (!strings.Contains(prompt, "Review") && !strings.Contains(prompt, "QA")))) {
 		return `
 I will implement the prime number script as requested.
 

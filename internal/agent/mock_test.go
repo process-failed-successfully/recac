@@ -95,6 +95,35 @@ COMMUNICATE WITH MANAGER
 	}
 }
 
+func TestMockAgent_CodingAgent_PrimesKeywordOnly(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Construct a prompt that simulates a missing full description but has keywords
+	// Contains "primes.py"
+	// Contains "QA" (from instructions)
+	// Does NOT contain "Implement a python script"
+	// Has "YOUR ROLE - CODING AGENT"
+	prompt := `
+## YOUR ROLE - CODING AGENT
+
+STEP 2: CHOOSE AND IMPLEMENT
+Description: Write code for primes.py to generate primes.json
+
+COMMUNICATE WITH MANAGER
+2. **Quality Assurance**: agent-bridge qa
+`
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Should match Rule 2 (Developer) because of "primes.py" + "CODING AGENT"
+	if !strings.Contains(response, "cat << 'EOF' > primes.py") {
+		t.Errorf("Coding Agent prompt (keyword only) failed to trigger implementation response. Got: %s", response)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
