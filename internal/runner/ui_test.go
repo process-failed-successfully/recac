@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"recac/internal/agent"
+	"recac/internal/db"
 	"recac/internal/notify"
 	"recac/internal/telemetry"
 )
@@ -32,6 +33,14 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	// 5. Initialize Session
 	mockDocker := &MockDockerForExec{}
 	mockAgent := agent.NewMockAgent()
+
+	// Initialize DB Store (Required for Signals)
+	dbPath := filepath.Join(tmpDir, ".recac.db")
+	dbStore, err := db.NewStore(db.StoreConfig{Type: "sqlite", ConnectionString: dbPath})
+	if err != nil {
+		t.Fatalf("Failed to init DB: %v", err)
+	}
+
 	s := &Session{
 		Docker:           mockDocker,
 		Agent:            mockAgent,
@@ -39,8 +48,11 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 		FeatureContent:   features,
 		ManagerFrequency: 5,
 		MaxIterations:    10,
+		SkipQA:           true,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
 		Logger:           telemetry.NewLogger(true, "", false),
+		DBStore:          dbStore,
+		Project:          "ui-test-project",
 	}
 
 	// 6. Capture Stdout? (Hard to do in test without refactor).

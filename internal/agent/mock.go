@@ -63,19 +63,18 @@ func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(
 }
 
 func (m *MockAgent) generateTPMResponse() string {
-	jsonPlan := `{
-  "tickets": [
-    {
-      "title": "Implement Primes Script",
-      "description": "Implement a python script that calculates primes",
-      "type": "task",
-      "acceptance_criteria": [
-        "Script runs successfully",
-        "Generates primes.json"
-      ]
-    }
-  ]
-}`
+	// Must be a list of ticket nodes, not an object with a "tickets" key
+	jsonPlan := `[
+  {
+    "title": "Implement Primes Script",
+    "description": "Implement a python script that calculates primes",
+    "type": "task",
+    "acceptance_criteria": [
+      "Script runs successfully",
+      "Generates primes.json"
+    ]
+  }
+]`
 	return fmt.Sprintf("Here is the ticket plan:\n\n```json\n%s\n```", jsonPlan)
 }
 
