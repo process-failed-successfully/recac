@@ -34,6 +34,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// [PRIMES] Scenario Logic
 	// Detect if we are being asked to implement the primes.py script
 	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
+		// Detect completion loop (nothing left to commit)
+		if strings.Contains(prompt, "nothing to commit") {
+			return m.generatePrimesCompletionResponse(), nil
+		}
+
 		// Differentiate between TPM (Planning) and Coding Agent (Implementation)
 		// We broaden the check because templates might vary slightly or casing might differ.
 		// "Epics" and "User Stories" are very specific to the TPM task in this project.
@@ -66,7 +71,25 @@ func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(
 }
 
 func (m *MockAgent) generatePrimesResponse() string {
+	// We prepend an agent-bridge import to ensure features are loaded in the DB.
+	// This prevents "Feature list not found" errors and ensures state tracking works.
 	script := `
+cat <<EOF | agent-bridge import
+{
+  "project_name": "$RECAC_PROJECT_ID",
+  "features": [
+    {
+      "id": "req-must-correctly-identify-prime-",
+      "category": "core",
+      "priority": 1,
+      "description": "Script calculates primes correctly",
+      "status": "todo",
+      "dependencies": []
+    }
+  ]
+}
+EOF
+
 cat << 'EOF' > primes.py
 import json
 
@@ -83,10 +106,14 @@ EOF
 
 python3 primes.py
 git add primes.py primes.json
-git commit -m "Implement primes.py"
+git commit -m "Implement primes.py" || echo "No changes to commit"
 git push origin HEAD
 `
 	return fmt.Sprintf("I will implement the primes.py script as requested.\n\n```bash%s```\n", script)
+}
+
+func (m *MockAgent) generatePrimesCompletionResponse() string {
+	return "Task appears complete. Marking as done.\n\n```bash\nagent-bridge feature set --status done --passes true\n```\n"
 }
 
 func (m *MockAgent) generatePrimesJSONResponse() string {
