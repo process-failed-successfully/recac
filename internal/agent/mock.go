@@ -76,9 +76,11 @@ EOF
 	// or identifies as "Technical Program Manager".
 	// We check for these strong signals first. Even if the prompt contains "implement" (e.g. in the spec description),
 	// we should prioritize the ticket creation role if the explicit instruction is present.
-	if strings.Contains(prompt, "Create exactly ONE ticket") ||
+	// CRITICAL: We must EXCLUDE the Coding Agent prompt, which also contains "feature_list.json" in its instructions.
+	if (strings.Contains(prompt, "Create exactly ONE ticket") ||
 		strings.Contains(prompt, "feature_list.json") ||
-		strings.Contains(prompt, "Technical Program Manager") {
+		strings.Contains(prompt, "Technical Program Manager")) &&
+		!strings.Contains(prompt, "YOUR ROLE - CODING AGENT") {
 		// Return a JSON list of tickets as expected by the Jira/Spec parser
 		return `
 [
@@ -131,7 +133,8 @@ git push || echo "Push skipped in mock mode"
 	}
 
 	// 3. QA / Manager Role (Review)
-	if strings.Contains(prompt, "Review") || strings.Contains(prompt, "QA") {
+	// CRITICAL: Exclude Coding Agent, which mentions "QA" and "Review" in its instructions/template.
+	if (strings.Contains(prompt, "Review") || strings.Contains(prompt, "QA")) && !strings.Contains(prompt, "YOUR ROLE - CODING AGENT") {
 		return "LGTM. The code implements the requirements correctly. primes.py exists and primes.json contains the expected data.", nil
 	}
 

@@ -52,6 +52,49 @@ func TestMockAgent_Roles(t *testing.T) {
 	}
 }
 
+func TestMockAgent_CodingAgent_Disambiguation(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Construct a prompt that matches the real Coding Agent prompt
+	// It contains "feature_list.json" (triggers Rule 1)
+	// It contains "QA" and "Review" (triggers Rule 3)
+	// It contains "Implement a python script" (triggers Rule 2)
+	// It starts with "## YOUR ROLE - CODING AGENT" (disambiguator)
+	prompt := `
+## YOUR ROLE - CODING AGENT
+
+STEP 1: GET YOUR BEARINGS
+cat feature_list.json | head -50
+
+STEP 2: CHOOSE AND IMPLEMENT
+Description: Implement a python script named 'primes.py' that calculates all prime numbers...
+
+COMMUNICATE WITH MANAGER
+2. **Quality Assurance**: agent-bridge qa
+3. **Manager Review**: agent-bridge manager
+`
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Should match Rule 2 (Developer)
+	if !strings.Contains(response, "cat << 'EOF' > primes.py") {
+		t.Errorf("Coding Agent prompt failed to trigger implementation response. Got: %s", response)
+	}
+
+	// Should NOT match Rule 1 (JSON)
+	if strings.Contains(response, `"type": "Task"`) {
+		t.Error("Coding Agent prompt incorrectly triggered TPM/JSON response")
+	}
+
+	// Should NOT match Rule 3 (LGTM)
+	if strings.Contains(response, "LGTM") {
+		t.Error("Coding Agent prompt incorrectly triggered QA/Review response")
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
