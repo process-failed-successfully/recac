@@ -34,7 +34,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristic for E2E Prime Python Scenario
 	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
 		// Detect Role to decide between Plan (JSON) and Implementation (Bash)
-		if strings.Contains(prompt, "ROLE: Lead Software Architect") || strings.Contains(prompt, "ROLE - PROJECT MANAGER") {
+		if strings.Contains(prompt, "CRITICAL INSTRUCTION FOR TICKET GENERATION") ||
+			strings.Contains(prompt, "ROLE: Lead Software Architect") ||
+			strings.Contains(prompt, "ROLE - PROJECT MANAGER") {
 			return m.generatePrimesPlan(), nil
 		}
 		// Default to implementation if it looks like a task or coding request

@@ -29,7 +29,7 @@ func TestMockAgent_PrimesScenario(t *testing.T) {
 	agent := NewMockAgent()
 
 	// 1. Test Planner/Architect Role
-	plannerPrompt := "ROLE: Lead Software Architect. Please create a plan for primes.py [PRIMES]"
+	plannerPrompt := "ROLE: Lead Software Architect. CRITICAL INSTRUCTION FOR TICKET GENERATION. Please create a plan for primes.py [PRIMES]"
 	planResponse, err := agent.Send(context.Background(), plannerPrompt)
 	if err != nil {
 		t.Fatalf("Planner Send failed: %v", err)
