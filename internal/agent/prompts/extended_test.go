@@ -12,6 +12,9 @@ func TestGetPrompt_Overrides(t *testing.T) {
 
 	// 1. Test Embedded/Fallback
 	t.Run("Embedded", func(t *testing.T) {
+		// Ensure Env is not interfering
+		t.Setenv("RECAC_PROMPTS_DIR", "")
+
 		// Use ListPrompts to find a valid prompt
 		prompts, err := ListPrompts()
 		if err != nil {
@@ -60,7 +63,7 @@ func TestGetPrompt_Overrides(t *testing.T) {
 		getwd = func() (string, error) {
 			return tmpDir, nil
 		}
-		defer func() { getwd = originalGetwd }()
+		t.Cleanup(func() { getwd = originalGetwd })
 
 		// Create .recac/prompts in the temp dir
 		localRecacDir := filepath.Join(tmpDir, ".recac", "prompts")

@@ -8,6 +8,9 @@ import (
 )
 
 func TestGetPrompt(t *testing.T) {
+	// Ensure Env is not interfering
+	t.Setenv("RECAC_PROMPTS_DIR", "")
+
 	// Test Planner Prompt
 	vars := map[string]string{
 		"spec": "Test Specification Content",
