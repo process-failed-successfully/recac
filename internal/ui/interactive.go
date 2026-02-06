@@ -79,7 +79,7 @@ type keyMap struct {
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Enter, k.Slash, k.Bang, k.Quit}
+	return []key.Binding{k.Enter, k.Slash, k.Bang, k.ToggleList, k.Quit}
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
@@ -99,7 +99,7 @@ func (h contextualHelp) ShortHelp() []key.Binding {
 	if h.isMenu {
 		return []key.Binding{h.Up, h.Down, h.Enter, h.Back, h.Quit}
 	}
-	return []key.Binding{h.Enter, h.Slash, h.Bang, h.Quit}
+	return []key.Binding{h.Enter, h.Slash, h.Bang, h.ToggleList, h.Quit}
 }
 
 func (h contextualHelp) FullHelp() [][]key.Binding {
@@ -325,16 +325,7 @@ func NewInteractiveModel(commands []SlashCommand, provider, model string) Intera
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 
 	vp := viewport.New(50, 10)
-	welcomeMsg := strings.Join([]string{
-		interactiveBotStyle.Render("Recac: ") + "Welcome to RECAC! 🎨",
-		"",
-		interactiveStatusMessageStyle.Render("  • Type / for commands (or press Tab)"),
-		interactiveStatusMessageStyle.Render("  • Type ! for shell execution"),
-		interactiveStatusMessageStyle.Render("  • Type anything else to chat"),
-		interactiveStatusMessageStyle.Render("  • Press Ctrl+C to quit"),
-		"",
-	}, "\n")
-	vp.SetContent(welcomeMsg)
+	vp.SetContent(welcomeMessage())
 
 	// Define Agents/Providers
 	availableAgents := []AgentItem{
@@ -432,7 +423,7 @@ func NewInteractiveModel(commands []SlashCommand, provider, model string) Intera
 		agentModels:   agentModels,
 		currentModel:  model,
 		currentAgent:  provider,
-		messages:      []ChatMessage{{Role: RoleSystem, Content: welcomeMsg}},
+		messages:      []ChatMessage{{Role: RoleSystem, Content: welcomeMessage()}},
 		mode:          ModeChat,
 		showList:      false,
 		thinking:      true,
@@ -1078,8 +1069,20 @@ func (m *InteractiveModel) renderAll() string {
 // ClearHistory clears the conversation history.
 func (m *InteractiveModel) ClearHistory() {
 	m.messages = []ChatMessage{}
-	// Re-add welcome or cleared msg
-	m.conversation("Conversation history cleared.", false)
+	// Re-add welcome msg
+	m.conversation(welcomeMessage(), false)
+}
+
+func welcomeMessage() string {
+	return strings.Join([]string{
+		interactiveBotStyle.Render("Recac: ") + "Welcome to RECAC! 🎨",
+		"",
+		interactiveStatusMessageStyle.Render("  • Type / for commands (or press Tab)"),
+		interactiveStatusMessageStyle.Render("  • Type ! for shell execution"),
+		interactiveStatusMessageStyle.Render("  • Type anything else to chat"),
+		interactiveStatusMessageStyle.Render("  • Press Ctrl+C to quit"),
+		"",
+	}, "\n")
 }
 
 func (m InteractiveModel) View() string {

@@ -52,3 +52,23 @@ func TestInteractiveModel_CurrentSelectionIndicator(t *testing.T) {
 		t.Error("UX: Currently selected agent in the list should have a visual indicator")
 	}
 }
+
+func TestInteractiveModel_ClearHistory_RestoresWelcome(t *testing.T) {
+	m := NewInteractiveModel(nil, "gemini", "gemini-2.0-flash-auto")
+
+	// Call ClearHistory
+	m.ClearHistory()
+
+	if len(m.messages) == 0 {
+		t.Fatal("UX: History should not be empty after clear, should show welcome/help")
+	}
+
+	firstMsg := m.messages[0].Content
+	if !strings.Contains(firstMsg, "Welcome to RECAC!") {
+		t.Errorf("UX: Expected welcome message to be restored after clear, got '%s'", firstMsg)
+	}
+
+	if !strings.Contains(firstMsg, "Type / for commands") {
+		t.Error("UX: Expected help instructions to be restored after clear")
+	}
+}
