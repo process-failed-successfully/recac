@@ -140,9 +140,9 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 	}
 
 	if err != nil {
-		// Critical failure - Fail Fast
-		fmt.Fprintf(os.Stderr, "[Session] CRITICAL: Could not connect to database after retries. Exiting.\n")
-		os.Exit(1)
+		// Log warning but continue
+		fmt.Fprintf(os.Stderr, "[Session] Warning: Could not connect to database after retries: %v\n", err)
+		slog.Warn("[DB] Failed to initialize store", "type", dbType, "error", err)
 	} else {
 		// Success
 		fmt.Fprintf(os.Stderr, "[Session] DB Store initialized successfully: type=%s, project=%s\n", dbType, project)
