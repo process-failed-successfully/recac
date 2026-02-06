@@ -33,10 +33,15 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic for E2E Prime Python Scenario
 	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
-		// Detect Role to decide between Plan (JSON) and Implementation (Bash)
-		if strings.Contains(prompt, "CRITICAL INSTRUCTION FOR TICKET GENERATION") ||
-			strings.Contains(prompt, "ROLE: Lead Software Architect") ||
-			strings.Contains(prompt, "ROLE - PROJECT MANAGER") {
+		// 1. Jira Ticket Generation (TPM Agent)
+		if strings.Contains(prompt, "Technical Program Manager") {
+			return m.generatePrimesTickets(), nil
+		}
+
+		// 2. Project Planning (Architect/Planner Agent)
+		if strings.Contains(prompt, "ROLE: Lead Software Architect") ||
+			strings.Contains(prompt, "ROLE - PROJECT MANAGER") ||
+			strings.Contains(prompt, "CRITICAL INSTRUCTION FOR TICKET GENERATION") {
 			return m.generatePrimesPlan(), nil
 		}
 		// Default to implementation if it looks like a task or coding request
@@ -71,6 +76,17 @@ func (m *MockAgent) generatePrimesPlan() string {
 }
 ]
 }`
+}
+
+func (m *MockAgent) generatePrimesTickets() string {
+	return `[
+  {
+    "title": "ID:[PRIMES] Create Prime Number Script",
+    "description": "Implement primes.py to calculate primes < 10000 and save to primes.json.\nRepo: https://github.com/process-failed-successfully/recac-jira-e2e",
+    "type": "Task",
+    "children": []
+  }
+]`
 }
 
 // SendStream implements the Agent interface
