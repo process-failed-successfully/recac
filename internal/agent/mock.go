@@ -94,7 +94,9 @@ git commit -m "Add primes.py implementation" --author="Recac Agent <agent@recac.
 git push
 
 # Mark feature as implemented
-agent-bridge feature set --status "Implemented"
+agent-bridge feature set req-primes-py-exists --status "Done" --passes true
+agent-bridge feature set req-primes-json-exists-and-contain --status "Done" --passes true
+agent-bridge feature set req-primes-json-contains-exactly-1 --status "Done" --passes true
 ` + "```" + `
 `, nil
 	}
