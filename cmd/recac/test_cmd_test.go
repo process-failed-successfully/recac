@@ -54,7 +54,8 @@ func TestRunTest_ExplicitArgs(t *testing.T) {
 	// Assert
 	assert.NoError(t, err)
 	assert.Contains(t, output, "Running tests for 1 packages")
-	assert.Contains(t, output, "ok")
+	// Updated expectation: The test runner outputs emoji-based success message
+	assert.Contains(t, output, "All tests passed")
 }
 
 func TestRunTest_Impacted(t *testing.T) {
