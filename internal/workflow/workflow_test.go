@@ -92,7 +92,7 @@ func TestProcessJiraTicket(t *testing.T) {
 	cfg := SessionConfig{
 		ProjectPath: tmpDir,
 		SessionName: "test-run",
-		Cleanup:     true,
+		Cleanup:     false,
 		IsMock:      true,
 	}
 
