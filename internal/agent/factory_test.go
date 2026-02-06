@@ -68,3 +68,22 @@ func TestNewAgent_OpenRouterModelCorrection(t *testing.T) {
 		}
 	}
 }
+
+func TestNewAgent_Mock(t *testing.T) {
+	agent, err := NewAgent("mock", "", "mock-model", "", "test-project")
+	if err != nil {
+		t.Fatalf("Failed to create mock agent: %v", err)
+	}
+
+	if _, ok := agent.(*MockAgent); !ok {
+		t.Errorf("Expected *MockAgent, got %T", agent)
+	}
+
+	resp, err := agent.Send(nil, "Hello")
+	if err != nil {
+		t.Errorf("MockAgent.Send failed: %v", err)
+	}
+	if resp == "" {
+		t.Error("MockAgent returned empty response")
+	}
+}
