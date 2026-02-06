@@ -68,3 +68,19 @@ func TestMockAgent_QA(t *testing.T) {
 		t.Errorf("Expected QA signal, got: %s", response)
 	}
 }
+
+func TestMockAgent_Coding_Primes_Fallback_Fix(t *testing.T) {
+	agent := NewMockAgent()
+	// Simulate the prompt that caused the failure: contains ticket summary but not explicit file name or ID
+	prompt := "Implement feature: Create Prime Number Script"
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(response, "import json") {
+		t.Errorf("Expected full python implementation (import json), got: %s", response)
+	}
+	if !strings.Contains(response, "primes = []") {
+		t.Errorf("Expected full python implementation (primes = []), got: %s", response)
+	}
+}
