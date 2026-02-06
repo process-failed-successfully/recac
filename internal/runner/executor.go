@@ -314,4 +314,3 @@ func (s *Session) runCleanerAgent(ctx context.Context) error {
 
 	return nil
 }
-
