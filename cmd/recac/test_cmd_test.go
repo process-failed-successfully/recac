@@ -55,7 +55,7 @@ func TestRunTest_ExplicitArgs(t *testing.T) {
 	// Assert
 	assert.NoError(t, err)
 	assert.Contains(t, output, "Running tests for 1 packages")
-	// We expect the command to report success, not necessarily the exact output of go test if it's swallowed/formatted.
+	// The CLI wrapper outputs "All tests passed" on success
 	assert.Contains(t, output, "All tests passed")
 }
 

@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"recac/internal/agent"
 	"recac/internal/cmdutils"
@@ -251,6 +252,7 @@ func TestRunWorkflow_Normal(t *testing.T) {
 	NewSessionFunc = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
 		s := runner.NewSession(d, a, workspace, image, project, provider, model, maxAgents)
 		s.MaxIterations = 1 // Prevent infinite loop
+		s.SleepFunc = func(time.Duration) {} // Mock Sleep to be instant
 		// Use a mock agent that avoids blocks (MockAgent usually returns empty, triggering NoOp)
 		// But we accept that for now as long as it doesn't hang.
 		return s

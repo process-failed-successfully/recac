@@ -98,7 +98,10 @@ EOF
 	// 2. Developer Role (Implementation)
 	// Detect request to implement the script. The runner usually sends the ticket description.
 	// The prompt will contain the task description "Implement a python script...".
-	if strings.Contains(prompt, "Implement a python script") || (strings.Contains(prompt, "primes.py") && !strings.Contains(prompt, "Review") && !strings.Contains(prompt, "QA")) {
+	// Updated heuristic to catch "Create Prime Number Script" from e2e scenario.
+	if strings.Contains(prompt, "Implement a python script") ||
+	   (strings.Contains(prompt, "primes.py") && !strings.Contains(prompt, "Review") && !strings.Contains(prompt, "QA")) ||
+	   strings.Contains(prompt, "Create Prime Number Script") {
 		return `
 I will implement the prime number script as requested.
 
