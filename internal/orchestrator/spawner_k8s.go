@@ -216,6 +216,8 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	cmd := fmt.Sprintf(`
 		if [ -n "$GITHUB_TOKEN" ]; then
 			git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
+		elif [ -n "$RECAC_GITHUB_API_KEY" ]; then
+			git config --global url."https://${RECAC_GITHUB_API_KEY}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
 		fi
 		recac-agent --jira %q --project %q --image %s --path /workspace --detached=false --cleanup=false --allow-dirty --repo-url %q
 	`, item.ID, item.ID, s.Image, item.RepoURL)
