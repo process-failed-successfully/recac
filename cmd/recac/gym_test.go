@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"recac/internal/agent"
@@ -66,6 +68,10 @@ func (m *GymTestMockAgent) SendStream(ctx context.Context, prompt string, onChun
 	return m.response, nil
 }
 
+func (m *GymTestMockAgent) CalculateCost(model string, usage agent.TokenUsage) float64 {
+	return 0.0
+}
+
 func TestRunGymSession(t *testing.T) {
 	// Setup Mocks
 	mockDocker := &GymTestMockDockerClient{
@@ -117,4 +123,73 @@ func TestRunGymSession(t *testing.T) {
 	assert.NotNil(t, result)
 	assert.True(t, result.Passed)
 	assert.Equal(t, "Test Challenge", result.Challenge)
+}
+
+func TestLoadChallengesFile(t *testing.T) {
+	// Create temp dir
+	tmpDir := t.TempDir()
+
+	// Test case 1: List of challenges
+	listContent := `
+- name: Challenge 1
+  description: Desc 1
+- name: Challenge 2
+  description: Desc 2
+`
+	listPath := filepath.Join(tmpDir, "list.yaml")
+	if err := os.WriteFile(listPath, []byte(listContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	challenges, err := loadChallengesFile(listPath)
+	if err != nil {
+		t.Errorf("Failed to load list: %v", err)
+	}
+	if len(challenges) != 2 {
+		t.Errorf("Expected 2 challenges, got %d", len(challenges))
+	}
+
+	// Test case 2: Single challenge
+	singleContent := `
+name: Challenge Single
+description: Desc Single
+`
+	singlePath := filepath.Join(tmpDir, "single.yaml")
+	if err := os.WriteFile(singlePath, []byte(singleContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	challenges, err = loadChallengesFile(singlePath)
+	if err != nil {
+		t.Errorf("Failed to load single: %v", err)
+	}
+	if len(challenges) != 1 {
+		t.Errorf("Expected 1 challenge, got %d", len(challenges))
+	}
+
+	// Test case 3: Directory
+	dirPath := filepath.Join(tmpDir, "challenges_dir")
+	if err := os.Mkdir(dirPath, 0755); err != nil {
+		t.Fatal(err)
+	}
+	// Add files to dir
+	if err := os.WriteFile(filepath.Join(dirPath, "c1.yaml"), []byte(singleContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dirPath, "c2.yaml"), []byte(listContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+	// Add non-yaml file
+	if err := os.WriteFile(filepath.Join(dirPath, "readme.txt"), []byte("ignore me"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	challenges, err = loadChallenges(dirPath)
+	if err != nil {
+		t.Errorf("Failed to load directory: %v", err)
+	}
+	// 1 (single) + 2 (list) = 3
+	if len(challenges) != 3 {
+		t.Errorf("Expected 3 challenges, got %d", len(challenges))
+	}
 }
