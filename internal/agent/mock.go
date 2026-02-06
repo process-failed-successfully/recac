@@ -33,7 +33,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Heuristic for E2E Prime Python Scenario
-	if strings.Contains(prompt, "[PRIMES]") || (strings.Contains(prompt, "primes.py") && strings.Contains(prompt, "calculate")) {
+	// Matches either the explicit tag [PRIMES] or variations of the task description found in feature lists
+	if strings.Contains(prompt, "[PRIMES]") ||
+		(strings.Contains(prompt, "primes.py") && strings.Contains(prompt, "calculate")) ||
+		(strings.Contains(prompt, "primes") && (strings.Contains(prompt, "calculate") || strings.Contains(prompt, "json") || strings.Contains(prompt, "1229"))) {
 		// 1. TPM Agent (Ticket Generation)
 		if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM") {
 			return m.generatePrimesPlan(), nil

@@ -89,3 +89,27 @@ func TestMockAgent_PrimesScenario(t *testing.T) {
 		t.Errorf("Expected completion signal, got: %s", resp)
 	}
 }
+
+func TestMockAgent_PrimesScenario_RealWorld(t *testing.T) {
+	agent := NewMockAgent()
+	ctx := context.Background()
+
+	// These prompts mimic the actual prompts sent by the E2E runner for each feature,
+	// which lack the [PRIMES] tag.
+	prompts := []string{
+		"Feature ID: req-script-calculates-primes-corre\nDescription: Script calculates primes correctly",
+		"Feature ID: req-output-is-saved-to-primes-json\nDescription: Output is saved to primes.json",
+		"Feature ID: req-contains-exactly-1229-primes\nDescription: Contains exactly 1229 primes",
+	}
+
+	for _, p := range prompts {
+		resp, err := agent.Send(ctx, p)
+		if err != nil {
+			t.Fatalf("Failed to send prompt %q: %v", p, err)
+		}
+		// Expect the implementation script
+		if !strings.Contains(resp, "cat << 'EOF' > primes.py") {
+			t.Errorf("Heuristic failed for prompt %q. Got fallback response.", p)
+		}
+	}
+}
