@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"os"
 	"strings"
 )
 
@@ -105,9 +106,13 @@ agent-bridge signal COMPLETED true
 	// 5. Default Coding Agent (Smoke Test Logic)
 	// If we are in a coding loop (default), generate code and update features.
 
+	// Check environment for injected features to detect the Prime scenario reliably
+	envFeatures := os.Getenv("RECAC_INJECTED_FEATURES")
+	isPrimeScenarioEnv := strings.Contains(envFeatures, "PRIMES") || strings.Contains(envFeatures, "Prime Number")
+
 	// Specific handling for primes.py (Smoke Test)
 	// We check for "primes.py" OR "[PRIMES]" OR specific feature IDs injected by the environment
-	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "req-script-exists") || strings.Contains(strings.ToLower(prompt), "prime number") {
+	if isPrimeScenarioEnv || strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "req-script-exists") || strings.Contains(strings.ToLower(prompt), "prime number") {
 		return `I will implement the primes script.
 ` + "```bash" + `
 set -e
@@ -163,4 +168,3 @@ func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(
 	}
 	return resp, err
 }
-
