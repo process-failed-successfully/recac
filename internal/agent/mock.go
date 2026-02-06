@@ -46,7 +46,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Initializer Agent - Sets up the repo
-	if strings.Contains(prompt, "Initializer") || strings.Contains(prompt, "git init") {
+	// Check for "INITIALIZER" (uppercase) as used in prompts/templates/initializer.md
+	if strings.Contains(prompt, "Initializer") || strings.Contains(prompt, "INITIALIZER") || strings.Contains(prompt, "git init") {
 		// Detect Primes scenario
 		if strings.Contains(strings.ToLower(prompt), "prime") {
 			return `

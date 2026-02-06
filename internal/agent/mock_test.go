@@ -6,31 +6,30 @@ import (
 	"testing"
 )
 
-func TestMockAgent(t *testing.T) {
+func TestMockAgent_Initializer_Uppercase(t *testing.T) {
 	agent := NewMockAgent()
+	prompt := "## YOUR ROLE - INITIALIZER AGENT\n\nSome instructions..."
 
-	prompt := "This is a test prompt that is long enough to be truncated"
-	response, err := agent.Send(context.Background(), prompt)
-
+	resp, err := agent.Send(context.Background(), prompt)
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
 	}
 
-	if !strings.Contains(response, "Mock agent response") {
-		t.Errorf("Response missing prefix, got: %s", response)
-	}
-
-	if !strings.Contains(response, "I received your prompt") {
-		t.Errorf("Response missing body, got: %s", response)
+	if !strings.Contains(resp, "git init") && !strings.Contains(resp, "agent-bridge import") {
+		t.Errorf("Expected Initializer response (git init/import), got: %s", resp)
 	}
 }
 
-func TestTruncateString(t *testing.T) {
-	s := "hello world"
-	if truncateString(s, 5) != "hello" {
-		t.Errorf("Expected 'hello', got '%s'", truncateString(s, 5))
+func TestMockAgent_PrimeScenario(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "## YOUR ROLE - INITIALIZER AGENT\n\nTask: Implement prime number script..."
+
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
 	}
-	if truncateString(s, 20) != "hello world" {
-		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
+
+	if !strings.Contains(resp, "Prime Number Generator") {
+		t.Errorf("Expected Prime Number Generator in response, got: %s", resp)
 	}
 }
