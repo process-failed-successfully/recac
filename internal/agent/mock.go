@@ -32,23 +32,56 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// 1. Detect "Technical Program Manager" Role (Planning Phase)
-	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "Application Specification") {
+	// 1. Detect "Technical Program Manager" Role (Jira Ticket Generation)
+	if strings.Contains(prompt, "Technical Program Manager") {
+		return `
+` + "```json" + `
+[
+  {
+    "title": "ID:[PRIMES] Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.\n\nRepo: https://github.com/process-failed-successfully/recac-jira-e2e",
+    "type": "Story",
+    "acceptance_criteria": [
+      "Script calculates primes correctly",
+      "Output file primes.json is created"
+    ],
+    "blocked_by": [],
+    "children": []
+  }
+]
+` + "```" + `
+I have analyzed the requirements and created a plan.
+`, nil
+	}
+
+	// 2. Detect "Lead Software Architect" Role (Feature Planning Phase)
+	if strings.Contains(prompt, "Lead Software Architect") || strings.Contains(prompt, "Application Specification") {
 		return `
 ` + "```json" + `
 {
   "project_name": "recac-scenario",
   "features": [
     {
-      "id": "PRIMES",
-      "type": "Task",
+      "id": "req-implement-primes-py-script",
+      "category": "functional",
       "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.",
-      "dependencies": []
+      "status": "pending",
+      "steps": [
+        "Create primes.py",
+        "Implement prime calculation logic",
+        "Write to primes.json",
+        "Verify output"
+      ],
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": ["primes.py"],
+        "read_only_paths": []
+      }
     }
   ]
 }
 ` + "```" + `
-I have analyzed the requirements and created a plan.
+I have analyzed the requirements and created a feature list.
 `, nil
 	}
 
