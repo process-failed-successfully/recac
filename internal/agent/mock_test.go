@@ -67,6 +67,16 @@ func TestMockAgent_CodingHeuristic(t *testing.T) {
 	if !strings.Contains(resp, "cat <<EOF > primes.py") {
 		t.Errorf("Expected primes script generation, got: %s", resp)
 	}
+
+	// Case 3: Feature ID -> Generate Code
+	promptID := "Implement feature req-must-correctly-identify-prime-"
+	resp, err = agent.Send(ctx, promptID)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(resp, "cat <<EOF > primes.py") {
+		t.Errorf("Expected primes script generation from ID, got: %s", resp)
+	}
 }
 
 func TestMockAgent_TPMHeuristic(t *testing.T) {

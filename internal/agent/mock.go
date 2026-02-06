@@ -117,7 +117,7 @@ echo "Project initialized."
 	// 4. Implementation Phase (primes.py)
 	// Case-insensitive check for robustness
 	promptLower := strings.ToLower(prompt)
-	if strings.Contains(promptLower, "calculate primes") || strings.Contains(prompt, "[PRIMES]") || strings.Contains(promptLower, "prime numbers") {
+	if strings.Contains(promptLower, "calculate primes") || strings.Contains(prompt, "[PRIMES]") || strings.Contains(promptLower, "prime numbers") || strings.Contains(prompt, "req-must-correctly-identify-prime-") {
 		return `
 Sure, I will create a python script to calculate primes.
 
