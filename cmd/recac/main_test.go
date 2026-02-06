@@ -20,11 +20,7 @@ func TestMain_HappyPath(t *testing.T) {
 
 	if os.Getenv("TEST_RUN_MAIN") == "1" {
 		// Mock os.Args
-		// Use --mock to skip strict config validation which might cause exit(1) if env vars are missing
-		os.Args = []string{"recac", "--help", "--mock"}
-		// Ensure viper knows about the mock flag for this process
-		// We can't easily reset viper here because main() calls Execute() which does bindings.
-		// However, TestMain_HappyPath runs in a fresh process, so viper is fresh.
+		os.Args = []string{"recac", "--help"}
 		main()
 		return
 	}
