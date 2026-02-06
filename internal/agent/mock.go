@@ -64,12 +64,15 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 2. Implementation (Coding Agent)
 	// Check for filenames, task descriptions, OR feature IDs commonly used in this scenario
+	// Also check for the generic "Multiple/Not Assigned" case if it occurs in the smoke test,
+	// assuming it's the primes scenario if other indicators are present (like [PRIMES] in history/context).
 	if strings.Contains(prompt, "primes.py") ||
 		strings.Contains(prompt, "calculate primes") ||
 		strings.Contains(prompt, "primes.json") ||
 		strings.Contains(prompt, "req-primes-py-exists") ||
 		strings.Contains(prompt, "req-primes-json-exists") ||
-		strings.Contains(prompt, "req-must-correctly-identify-prime") {
+		strings.Contains(prompt, "req-must-correctly-identify-prime") ||
+        (strings.Contains(prompt, "Multiple/Not Assigned") && strings.Contains(prompt, "CODING AGENT")) {
 		return `
 Here is the implementation for the prime number script.
 
