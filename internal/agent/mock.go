@@ -34,7 +34,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 1. Initializer Agent
 	// Detect "Initializer" role or "git init" intent
-	if strings.Contains(prompt, "Initializer") || strings.Contains(prompt, "INITIALIZER") {
+	// Uses strict header check to avoid false positives
+	if strings.Contains(prompt, "ROLE - INITIALIZER AGENT") {
 		return m.initializerResponse(), nil
 	}
 
@@ -50,16 +51,19 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 3. Coding Agent
 	// Detect "Developer" or "Coding Agent"
-	if strings.Contains(prompt, "Developer") || strings.Contains(prompt, "Coding Agent") {
+	// Uses strict header check to avoid false positives (since Coding Agent prompt mentions QA Agent)
+	if strings.Contains(prompt, "ROLE - CODING AGENT") {
 		lowerPrompt := strings.ToLower(prompt)
 		// Detect "primes" intent
 		if strings.Contains(lowerPrompt, "prime") || strings.Contains(prompt, "[PRIMES]") {
 			return m.primesImplementationResponse(), nil
 		}
+		// Fallback for Coding Agent to prevent fallthrough to QA
+		return m.defaultCodingResponse(), nil
 	}
 
 	// 4. QA Agent
-	if strings.Contains(prompt, "QA Agent") {
+	if strings.Contains(prompt, "ROLE - QA AGENT") {
 		return "## QA Report\n\nAll tests passed.", nil
 	}
 
@@ -148,6 +152,14 @@ func (m *MockAgent) defaultPlanResponse() string {
     "assigned_to": "Developer"
   }
 ]`
+}
+
+func (m *MockAgent) defaultCodingResponse() string {
+	return `I am working on the feature.
+
+` + "```bash" + `
+echo "Mock Agent: Implementing feature..."
+` + "```"
 }
 
 func (m *MockAgent) primesImplementationResponse() string {

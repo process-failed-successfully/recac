@@ -36,7 +36,7 @@ func TestMockAgent_SmartLogic(t *testing.T) {
 	}{
 		{
 			name:   "Initializer",
-			prompt: "Your role is Initializer Agent. Please setup the repo.",
+			prompt: "## YOUR ROLE - INITIALIZER AGENT\n\nPlease setup the repo.",
 			expectContains: []string{
 				"git init",
 				"cat <<EOF | agent-bridge import",
@@ -61,7 +61,7 @@ func TestMockAgent_SmartLogic(t *testing.T) {
 		},
 		{
 			name:   "Developer - Primes",
-			prompt: "You are the Developer. Implement the prime number calculator. [PRIMES]",
+			prompt: "## YOUR ROLE - CODING AGENT\n\nImplement the prime number calculator. [PRIMES]",
 			expectContains: []string{
 				"cat <<EOF > primes.py",
 				"def is_prime(n):",
@@ -70,8 +70,22 @@ func TestMockAgent_SmartLogic(t *testing.T) {
 			},
 		},
 		{
+			name:   "Developer - Default Fallback",
+			prompt: "## YOUR ROLE - CODING AGENT\n\nImplement something unknown.",
+			expectContains: []string{
+				"Mock Agent: Implementing feature...",
+			},
+		},
+		{
+			name:   "Developer - False Positive QA Prevention",
+			prompt: "## YOUR ROLE - CODING AGENT\n\nInstructions: Call `agent-bridge qa` (QA Agent) to verify.",
+			expectContains: []string{
+				"Mock Agent: Implementing feature...", // Should hit default coding response
+			},
+		},
+		{
 			name:   "QA Agent",
-			prompt: "Your role is QA Agent. Verify the changes.",
+			prompt: "## YOUR ROLE - QA AGENT\n\nVerify the changes.",
 			expectContains: []string{
 				"All tests passed",
 			},
