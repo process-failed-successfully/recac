@@ -34,8 +34,21 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	fmt.Printf("DEBUG: MockAgent Prompt: %s\n", truncateString(prompt, 100))
 
-	// 1. TPM Agent / Project Manager (Ticket Generation)
-	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "PROJECT MANAGER") {
+	// 1. Initializer Agent
+	if strings.Contains(prompt, "ROLE - INITIALIZER AGENT") {
+		return fmt.Sprintf(`%s:
+
+I am the Initializer Agent. I am setting up the environment.
+
+`+"```bash"+`
+echo "Initializer Agent Setup Complete"
+`+"```"+`
+`, m.responsePrefix), nil
+	}
+
+	// 2. TPM Agent / Project Manager (Ticket Generation)
+	// Note: We check for "Technical Program Manager" specifically for the planning phase.
+	if strings.Contains(prompt, "Technical Program Manager") {
 		// Return JSON list of tickets
 		// Check for specific scenario [PRIMES]
 		if strings.Contains(prompt, "prime-python") || strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "primes") {
@@ -62,7 +75,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
-	// 2. Architect Agent (Feature List)
+	// 3. Architect Agent (Feature List)
 	if strings.Contains(prompt, "Lead Software Architect") {
 		return `{
   "features": [
@@ -76,13 +89,14 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 }`, nil
 	}
 
-	// 3. Coding Agent (Implementation)
-	// Check for primes task
+	// 4. Coding Agent (Implementation)
+	// Check for primes task specifically
 	if strings.Contains(prompt, "primes.py") {
 		return `Here is the implementation for primes.py:
 
 ` + "```python" + `
 import sys
+import json
 
 def is_prime(n):
     if n <= 1:
@@ -99,11 +113,24 @@ if __name__ == "__main__":
             print(f"{n} is prime: {is_prime(n)}")
         except ValueError:
             print("Invalid input")
+    else:
+        # Generate primes up to 100 for verification
+        primes = [i for i in range(100) if is_prime(i)]
+        with open("primes.json", "w") as f:
+            json.dump({"primes": primes}, f)
+        print("Generated primes.json")
 ` + "```" + `
 `, nil
 	}
 
-	// 4. Default / Fallback
+	// 5. QA Agent / Project Manager (Review/Approval)
+	if strings.Contains(prompt, "ROLE - PROJECT MANAGER") {
+		return `The project looks good.
+
+APPROVED`, nil
+	}
+
+	// 6. Default / Fallback
 	// Log unmatched
 	fmt.Printf("[MockAgent] UNMATCHED PROMPT: %s\n", truncateString(prompt, 50))
 

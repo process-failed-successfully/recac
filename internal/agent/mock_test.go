@@ -25,6 +25,19 @@ func TestMockAgent_Fallback(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Initializer(t *testing.T) {
+	agent := NewMockAgent()
+
+	prompt := "## YOUR ROLE - INITIALIZER AGENT\n\nPlease setup."
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(response, "Initializer Agent Setup Complete") {
+		t.Errorf("Expected Initializer command, got: %s", response)
+	}
+}
+
 func TestMockAgent_TPM(t *testing.T) {
 	agent := NewMockAgent()
 
@@ -72,6 +85,22 @@ func TestMockAgent_Coding(t *testing.T) {
 	}
 	if !strings.Contains(response, "def is_prime(n):") {
 		t.Errorf("Expected python code for primes, got: %s", response)
+	}
+	if !strings.Contains(response, "import json") {
+		t.Errorf("Expected json import for primes verification, got: %s", response)
+	}
+}
+
+func TestMockAgent_Manager(t *testing.T) {
+	agent := NewMockAgent()
+
+	prompt := "## YOUR ROLE - PROJECT MANAGER\n\nPlease approve."
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(response, "APPROVED") {
+		t.Errorf("Expected approval, got: %s", response)
 	}
 }
 
