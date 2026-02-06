@@ -46,14 +46,18 @@ REQUIRED FEATURES:
 CRITICAL INSTRUCTION FOR TICKET GENERATION:
 Create a SINGLE Ticket (Task) for this work. Do not create an Epic or subtasks. The ID [PRIMES] must map to this single Task.
 
-EXECUTION STEPS:
-1. Create 'primes.py' using a bash block.
-2. RUN the script using 'python3 primes.py' to generate 'primes.json'.
-3. Verify 'primes.json' exists.
-4. Git add BOTH files: 'git add primes.py primes.json'.
-5. Git commit.
+RESTRICTIONS:
+- Do NOT create test files (e.g., test_primes.py).
+- Do NOT use pytest or unittest.
+- JUST run the script to verify output.
 
-CRITICAL: Do NOT run 'pytest' or any test framework. Do NOT create test files like 'test_primes.py'. Just run the script and verify 'primes.json' exists.
+EXECUTION STEPS:
+1. Create 'primes.py' (must output to 'primes.json').
+2. RUN the script: 'python3 primes.py'.
+3. VERIFY the output count: python3 -c "import json; print(f'Primes count: {len(json.load(open('primes.json'))['primes'])}')"
+   (Should be 1229)
+4. Add BOTH files to git: 'git add primes.py primes.json'.
+5. Commit: 'git commit -m "Add primes script and output"'
 
 Repo: %s`, repoURL)
 }
@@ -63,23 +67,21 @@ func (s *PrimePythonScenario) Generate(uniqueID string, repoURL string) []Ticket
 		{
 			ID:      "PRIMES",
 			Summary: fmt.Sprintf("[%s] Create Prime Number Script", uniqueID),
-			Desc: fmt.Sprintf(`Create a python script named 'primes.py'. It MUST be python.
-It must calculate all prime numbers less than 10,000 and output to a file named 'primes.json'.
+			Desc: fmt.Sprintf(`Create a python script named 'primes.py' that calculates primes < 10000 and writes them to 'primes.json'.
+
+RESTRICTIONS:
+- Do NOT create unit tests.
+- Do NOT truncate the list.
 
 EXECUTION STEPS (FOLLOW EXACTLY):
-1. Create 'primes.py' using a bash block (cat << 'EOF' > primes.py).
-2. RUN the script: 'python3 primes.py'. This is REQUIRED to generate the output file.
-3. Verify that 'primes.json' has been created.
-4. Add BOTH files to git: 'git add -f primes.py primes.json'.
-5. Commit the changes.
+1. Create 'primes.py' using cat.
+2. RUN 'python3 primes.py' immediately.
+3. VERIFY the result: python3 -c "import json; print(f'Primes count: {len(json.load(open('primes.json'))['primes'])}')"
+   (Must output 1229)
+4. 'git add -f primes.py primes.json'
+5. 'git commit -m "Add primes"'
 
-The JSON format must have a single key 'primes' containing the list of integers.
-Example: %s{"primes": [2, 3, 5, ...]}%s.
-
-IMPORTANT: Ensure the FINAL primes.json committed to the repository contains ALL primes less than 10,000 (Exactly 1229 primes).
-Do not truncate it for testing or reporting - the verification script expects the full list.
-
-CRITICAL: Do NOT run 'pytest' or any test framework. Do NOT create 'test_primes.py'. JUST RUN 'python3 primes.py'.
+Format: %s{"primes": [2, 3, ...]}%s.
 
 Repo: %s`, "`", "`", repoURL),
 			Type: "Task",
