@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,11 +31,93 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
-	// Return a mock response that shows the agent received the prompt
-	// This allows the session to run without requiring real API keys
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
-		m.responsePrefix, len(prompt), truncateString(prompt, 100))
-	return response, nil
+
+	fmt.Printf("DEBUG: MockAgent Prompt: %s\n", truncateString(prompt, 100))
+
+	// 1. TPM Agent / Project Manager (Ticket Generation)
+	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "PROJECT MANAGER") {
+		// Return JSON list of tickets
+		// Check for specific scenario [PRIMES]
+		if strings.Contains(prompt, "prime-python") || strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "primes") {
+			return `[
+  {
+    "id": "TASK-1",
+    "title": "ID:[PRIMES] Implement Primes",
+    "description": "Implement a python script named primes.py to calculate prime numbers.",
+    "type": "task",
+    "status": "todo",
+    "priority": "high"
+  }
+]`, nil
+		}
+		// Default tickets
+		return `[
+  {
+    "id": "TASK-1",
+    "title": "Generic Task",
+    "description": "A generic task for testing.",
+    "type": "task",
+    "status": "todo"
+  }
+]`, nil
+	}
+
+	// 2. Architect Agent (Feature List)
+	if strings.Contains(prompt, "Lead Software Architect") {
+		return `{
+  "features": [
+    {
+      "name": "Core Feature",
+      "description": "The core feature of the application.",
+      "status": "todo",
+      "priority": "high"
+    }
+  ]
+}`, nil
+	}
+
+	// 3. Coding Agent (Implementation)
+	// Check for primes task
+	if strings.Contains(prompt, "primes.py") {
+		return `Here is the implementation for primes.py:
+
+` + "```python" + `
+import sys
+
+def is_prime(n):
+    if n <= 1:
+        return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        try:
+            n = int(sys.argv[1])
+            print(f"{n} is prime: {is_prime(n)}")
+        except ValueError:
+            print("Invalid input")
+` + "```" + `
+`, nil
+	}
+
+	// 4. Default / Fallback
+	// Log unmatched
+	fmt.Printf("[MockAgent] UNMATCHED PROMPT: %s\n", truncateString(prompt, 50))
+
+	// Return a response with a dummy command to prevent NO-OP loops
+	return fmt.Sprintf(`%s:
+
+I received your prompt. Here is a command to verify I am working:
+
+`+"```bash"+`
+echo "Mock Agent Default Response"
+`+"```"+`
+
+Prompt preview: %s...`,
+		m.responsePrefix, truncateString(prompt, 100)), nil
 }
 
 // SendStream implements the Agent interface
