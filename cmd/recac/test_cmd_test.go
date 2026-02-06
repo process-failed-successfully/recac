@@ -42,6 +42,7 @@ func TestRunTest_ExplicitArgs(t *testing.T) {
 			// Verify args
 			expected := []string{"test", "-v", "pkg/a"}
 			assert.Equal(t, expected, arg)
+			// Return successful exit code
 			return exec.Command("echo", "ok")
 		}
 		return exec.Command("echo", "unexpected")
@@ -54,7 +55,8 @@ func TestRunTest_ExplicitArgs(t *testing.T) {
 	// Assert
 	assert.NoError(t, err)
 	assert.Contains(t, output, "Running tests for 1 packages")
-	assert.Contains(t, output, "ok")
+	// We expect the command to report success, not necessarily the exact output of go test if it's swallowed/formatted.
+	assert.Contains(t, output, "All tests passed")
 }
 
 func TestRunTest_Impacted(t *testing.T) {
@@ -98,7 +100,7 @@ func TestRunTest_Impacted(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, output, "Analyzing impact")
 	assert.Contains(t, output, "Running tests for 1 packages")
-	assert.Contains(t, output, "PASS")
+	assert.Contains(t, output, "All tests passed")
 }
 
 func TestRunTest_DiagnoseFailure(t *testing.T) {

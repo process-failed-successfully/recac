@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -35,15 +36,23 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 1. TPM Agent (Jira Ticket Generation)
 	// This agent is used by 'recac jira generate-from-spec' and expects JSON output.
 	if strings.Contains(prompt, "Technical Program Manager") {
-		return `
+		// Extract Repo URL from prompt if available to ensure continuity
+		repoURL := "https://github.com/example/repo"
+		re := regexp.MustCompile(`Repo: (https?://\S+)`)
+		match := re.FindStringSubmatch(prompt)
+		if len(match) > 1 {
+			repoURL = match[1]
+		}
+
+		return fmt.Sprintf(`
 [
   {
     "title": "ID:[PRIMES] Implement Prime Number Script",
-    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'. Repo: https://github.com/example/repo",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'. Repo: %s",
     "type": "Task"
   }
 ]
-`, nil
+`, repoURL), nil
 	}
 
 	// 2. Initializer Agent (Runner Setup)
