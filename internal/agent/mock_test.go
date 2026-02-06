@@ -113,3 +113,24 @@ func TestMockAgent_PrimesScenario_RealWorld(t *testing.T) {
 		}
 	}
 }
+
+func TestMockAgent_PrimesScenario_EnvFallback(t *testing.T) {
+	agent := NewMockAgent()
+	ctx := context.Background()
+
+	// Set Env Var
+	t.Setenv("RECAC_INJECTED_FEATURES", `{"project_name":"ID:[PRIMES] Prime Number Script"}`)
+
+	// Prompt without Primes keywords but with "Coding Agent" role
+	prompt := "## YOUR ROLE - CODING AGENT\n\nYou are continuing work on a long-running autonomous development task."
+
+	resp, err := agent.Send(ctx, prompt)
+	if err != nil {
+		t.Fatalf("Failed to send prompt: %v", err)
+	}
+
+	// Expect the implementation script because Env indicates Primes scenario and Role is Coding Agent
+	if !strings.Contains(resp, "cat << 'EOF' > primes.py") {
+		t.Errorf("Env Fallback heuristic failed. Got: %s", resp)
+	}
+}

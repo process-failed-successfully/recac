@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -34,12 +35,17 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	promptLower := strings.ToLower(prompt)
 
+	// Check environment for Primes scenario context
+	envFeatures := strings.ToLower(os.Getenv("RECAC_INJECTED_FEATURES"))
+	isPrimesEnv := strings.Contains(envFeatures, "[primes]") || strings.Contains(envFeatures, "req-script-calculates-primes-corre")
+
 	// Heuristic for E2E Prime Python Scenario
 	// Matches either the explicit tag [PRIMES] or variations of the task description found in feature lists
 	if strings.Contains(promptLower, "[primes]") ||
 		(strings.Contains(promptLower, "primes.py") && strings.Contains(promptLower, "calculate")) ||
 		(strings.Contains(promptLower, "primes") && (strings.Contains(promptLower, "calculate") || strings.Contains(promptLower, "json") || strings.Contains(promptLower, "1229"))) ||
-		strings.Contains(promptLower, "req-script-calculates-primes-corre") { // Explicit ID fallback
+		strings.Contains(promptLower, "req-script-calculates-primes-corre") || // Explicit ID fallback
+		(strings.Contains(promptLower, "coding agent") && isPrimesEnv) { // Fallback: Role + Env Context
 		// 1. TPM Agent (Ticket Generation)
 		if strings.Contains(promptLower, "technical program manager") || strings.Contains(promptLower, "tpm") {
 			return m.generatePrimesPlan(), nil
