@@ -14,7 +14,7 @@ import (
 )
 
 // displayStatus formats and prints the detailed session status.
-func displayStatus(cmd *cobra.Command, session *runner.SessionState, state *agent.State, gitDiffStat string) {
+func displayStatus(cmd *cobra.Command, session *runner.SessionState, state *agent.State) {
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
 
 	// Status Colors
@@ -71,12 +71,6 @@ func displayStatus(cmd *cobra.Command, session *runner.SessionState, state *agen
 		state.TokenUsage.TotalResponseTokens)
 	fmt.Fprintf(wUsage, "Est. Cost:\t%s\n", costStr)
 	wUsage.Flush()
-
-	// --- Git Changes ---
-	if gitDiffStat != "" {
-		fmt.Fprintln(cmd.OutOrStdout(), "\n--- Git Changes ---")
-		cmd.Println(gitDiffStat)
-	}
 
 	// --- Last Agent Activity ---
 	if len(state.History) > 0 {
@@ -153,21 +147,6 @@ func DisplaySessionDetail(cmd *cobra.Command, session *runner.SessionState, full
 		}
 	}
 
-	// Git Diff Stat
-	sm, err := sessionManagerFactory()
-	if err != nil {
-		fmt.Fprintf(cmd.ErrOrStderr(), "Failed to create session manager to get git diff: %v\n", err)
-	} else {
-		diffStat, err := sm.GetSessionGitDiffStat(session.Name)
-		if err != nil {
-			fmt.Fprintf(cmd.ErrOrStderr(), "\nWarning: Could not generate git diff stat: %v\n", err)
-		} else if diffStat != "" {
-			fmt.Fprintln(w, "\nGit Changes (stat)")
-			fmt.Fprintln(w, "------------------")
-			w.Flush() // Flush before writing raw content
-			cmd.Println(diffStat)
-		}
-	}
 
 	if _, err := os.Stat(session.LogFile); err == nil {
 		logContent, err := os.ReadFile(session.LogFile)

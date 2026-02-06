@@ -63,11 +63,14 @@ var statusCmd = &cobra.Command{
 					return nil, nil, "", err
 				}
 
-				diffStat, err := sm.GetSessionGitDiffStat(name)
-				if err != nil {
-					// If git fails (e.g. no git repo), just ignore it for the dashboard
-					diffStat = ""
-				}
+				diffStat := "" // Disabled for stability
+				/*
+					diffStat, err := sm.GetSessionGitDiffStat(name)
+					if err != nil {
+						// If git fails (e.g. no git repo), just ignore it for the dashboard
+						diffStat = ""
+					}
+				*/
 
 				st, err := loadAgentState(sess.AgentStateFile)
 				// If state file doesn't exist yet, we can return nil state but valid session
@@ -101,15 +104,8 @@ var statusCmd = &cobra.Command{
 			return fmt.Errorf("could not load agent state for session '%s': %w", sessionName, err)
 		}
 
-		// Get Git Diff Stat
-		diffStat, err := sm.GetSessionGitDiffStat(sessionName)
-		if err != nil {
-			// If git fails (e.g. no git repo), just ignore it for the output
-			diffStat = ""
-		}
-
 		// --- Display Status ---
-		displayStatus(cmd, session, agentState, diffStat)
+		displayStatus(cmd, session, agentState)
 
 		return nil
 	},
