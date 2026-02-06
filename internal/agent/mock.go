@@ -103,9 +103,11 @@ EOF
 	// or identifies as "Technical Program Manager".
 	// We check for these strong signals first. Even if the prompt contains "implement" (e.g. in the spec description),
 	// we should prioritize the ticket creation role if the explicit instruction is present.
-	if strings.Contains(prompt, "Create exactly ONE ticket") ||
+	// CRITICAL: We must EXCLUDE the Coding Agent prompt which also mentions 'feature_list.json'.
+	if (strings.Contains(prompt, "Create exactly ONE ticket") ||
 		strings.Contains(prompt, "feature_list.json") ||
-		strings.Contains(prompt, "Technical Program Manager") {
+		strings.Contains(prompt, "Technical Program Manager")) &&
+		!strings.Contains(prompt, "CODING AGENT") {
 		// Return a JSON list of tickets as expected by the Jira/Spec parser
 		return `
 [
