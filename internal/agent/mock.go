@@ -55,6 +55,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Initializer (Feature Import)
+	// We check for "INITIALIZER" to be sure we are in that phase, avoiding false positives with feature descriptions
 	if strings.Contains(prompt, "feature_list.json") && (strings.Contains(prompt, "INITIALIZER") || strings.Contains(prompt, "Initialize")) {
 		return "```bash\necho '[]' > feature_list.json\n```", nil
 	}
@@ -63,9 +64,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Matches "calculate prime", "calculates prime", "calculates all prime", "[PRIMES]", "primes.py", etc.
 	lowerPrompt := strings.ToLower(prompt)
 	if (strings.Contains(lowerPrompt, "calculate") && strings.Contains(lowerPrompt, "prime")) ||
-	   strings.Contains(prompt, "[PRIMES]") ||
-	   strings.Contains(lowerPrompt, "primes.py") ||
-	   strings.Contains(lowerPrompt, "primes.json") {
+		strings.Contains(prompt, "[PRIMES]") ||
+		strings.Contains(lowerPrompt, "primes.py") ||
+		strings.Contains(lowerPrompt, "primes.json") ||
+		(strings.Contains(lowerPrompt, "prime") && strings.Contains(lowerPrompt, "script")) { // Added robust check
 		return "I will implement the prime number calculation script.\n\n" +
 			"```bash\n" +
 			"cat <<EOF > primes.py\n" +
@@ -100,6 +102,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(prompt, "PROJECT MANAGER") {
 		return "PROJECT_SIGNED_OFF", nil
 	}
+
+	// Unmatched Prompt Debugging
+	fmt.Printf("UNMATCHED PROMPT: %s\n", truncateString(prompt, 500))
 
 	// Default Echo
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
