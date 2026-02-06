@@ -107,7 +107,9 @@ agent-bridge signal COMPLETED true
 
 	// Specific handling for primes.py (Smoke Test)
 	// We check for "primes.py" OR "[PRIMES]" OR specific feature IDs injected by the environment
-	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "req-script-exists") {
+	// Also check for descriptions if IDs are not present or formatted differently
+	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") ||
+	   strings.Contains(prompt, "req-script-exists") || strings.Contains(prompt, "Script exists") {
 		return `I will implement the primes script.
 ` + "```bash" + `
 set -e
