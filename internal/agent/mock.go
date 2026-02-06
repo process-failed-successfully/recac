@@ -53,6 +53,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// We use Case-Insensitive check to be robust against prompt variations
 	lowerPrompt := strings.ToLower(prompt)
 	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(lowerPrompt, "primes") || strings.Contains(prompt, "primes.py") {
+		// Return a response with a valid bash block that implements the task
+		// This prevents the "NO-OP LOOP" circuit breaker
 		return `I will implement the primes calculation script as requested.
 
 ` + "```bash" + `
@@ -72,8 +74,9 @@ with open('primes.json', 'w') as f:
 EOF
 
 python3 primes.py
-agent-bridge feature set req-script-prints-primes-up-to-100 passed
-agent-bridge feature set req-script-is-runnable passed
+# Mark features as passed for the bridge
+agent-bridge feature set req-script-prints-primes-up-to-100 --status done --passes true
+agent-bridge feature set req-script-is-runnable --status done --passes true
 ` + "```" + `
 `, nil
 	}
