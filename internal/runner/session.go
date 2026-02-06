@@ -105,6 +105,7 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 	stateManager := agent.NewStateManager(agentStateFile)
 
 	// Initialize DB Store with Retry Logic
+	fmt.Fprintf(os.Stderr, "[Session] Initializing DB Store (Type: %s)...\n", os.Getenv("RECAC_DB_TYPE"))
 	storeConfig := getDBConfig(workspace)
 	var dbStore db.Store
 	var err error
@@ -131,7 +132,9 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 		slog.Info("[DB] Store initialized successfully", "type", storeConfig.Type, "project", project)
 	}
 
+	fmt.Fprintf(os.Stderr, "[Session] Initializing Logging...\n")
 	logger := initializeLogging(project)
+	fmt.Fprintf(os.Stderr, "[Session] Logging Initialized.\n")
 
 	return &Session{
 		Docker:           d,
@@ -233,18 +236,30 @@ func NewSessionWithConfig(workspace, project, provider, model string, dbStore db
 func initializeLogging(project string) *slog.Logger {
 	// Create agents/logs directory in the current working directory (host)
 	// This is where Promtail expects to find them based on docker-compose.monitoring.yml
-	var cwd string
+	var agentsLogsDir string
+	var err error
+
 	// Check for override env var first (for tests)
 	if env := os.Getenv("RECAC_LOGS_DIR"); env != "" {
-		cwd = env
+		agentsLogsDir = filepath.Join(env, "agents", "logs")
 	} else {
-		cwd, _ = os.Getwd()
+		// Try current working directory
+		cwd, _ := os.Getwd()
+		agentsLogsDir = filepath.Join(cwd, "agents", "logs")
 	}
 
-	agentsLogsDir := filepath.Join(cwd, "agents", "logs")
-	if err := os.MkdirAll(agentsLogsDir, 0755); err != nil {
-		fmt.Printf("Warning: Failed to create agents/logs directory: %v\n", err)
-	} else {
+	// Try to create directory
+	if err = os.MkdirAll(agentsLogsDir, 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: Failed to create agents/logs directory at %s: %v. Attempting fallback to TempDir.\n", agentsLogsDir, err)
+		// Fallback to TempDir
+		agentsLogsDir = filepath.Join(os.TempDir(), "recac", "logs")
+		if err = os.MkdirAll(agentsLogsDir, 0755); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: Failed to create fallback logs directory at %s: %v. Logging to file disabled.\n", agentsLogsDir, err)
+			agentsLogsDir = "" // Disable file logging
+		}
+	}
+
+	if agentsLogsDir != "" {
 		// Initialize session log file
 		timestamp := time.Now().Format("20060102-150405")
 		logFileName := fmt.Sprintf("%s_agent_%s_%s.log", project, project, timestamp)
