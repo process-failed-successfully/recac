@@ -310,7 +310,7 @@ func TestSession_LoadFeatures(t *testing.T) {
 	tmpDir := t.TempDir()
 	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 
-	features := session.loadFeatures()
+	features, _ := session.loadFeatures()
 	if features != nil {
 		t.Error("Expected nil features when file missing")
 	}
@@ -320,12 +320,15 @@ func TestSession_LoadFeatures(t *testing.T) {
 	content := `{"project_name": "Test", "features": [{"id":"1", "description":"feat 1", "status":"done"}]}`
 	os.WriteFile(listPath, []byte(content), 0644)
 
-	features = session.loadFeatures()
+	features, projectName := session.loadFeatures()
 	if len(features) != 1 {
 		t.Errorf("Expected 1 feature, got %d", len(features))
 	}
 	if features[0].Description != "feat 1" {
 		t.Errorf("Expected feat 1, got %s", features[0].Description)
+	}
+	if projectName != "Test" {
+		t.Errorf("Expected project name 'Test', got '%s'", projectName)
 	}
 }
 

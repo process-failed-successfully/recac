@@ -33,7 +33,7 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 		}
 
 		// Check for existing features (DB, Injected, or File)
-		features := s.loadFeatures()
+		features, _ := s.loadFeatures()
 		if len(features) > 0 {
 			// Features exist, so we don't need to run Initializer.
 			// s.loadFeatures() automatically syncs to file if found in DB.
@@ -57,7 +57,7 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 		// Cleanup signal
 		s.clearSignal("TRIGGER_MANAGER")
 
-		features := s.loadFeatures()
+		features, _ := s.loadFeatures()
 
 		qaReport := RunQA(features)
 
@@ -109,14 +109,22 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 	}
 
 	vars := map[string]string{
-		"history": historyStr,
+		"history":      historyStr,
+		"project_name": s.Project,
 	}
 
 	// Populate task-specific variables if set
 	// 4. Deterministic Task Assignment (User Request: Remove agent reliance on jq)
 	// Find the first pending feature and assign it explicitly.
 	var assignedFeature *db.Feature
-	features := s.loadFeatures() // Refresh from DB/File
+	features, projectName := s.loadFeatures() // Refresh from DB/File
+
+	// Fallback to Session Project ID if projectName is empty
+	if vars["project_name"] == "" || vars["project_name"] == s.Project {
+		if projectName != "" {
+			vars["project_name"] = projectName
+		}
+	}
 
 	for i := range features {
 		if features[i].Status != "done" && !features[i].Passes {
@@ -126,6 +134,7 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 	}
 
 	if assignedFeature != nil {
+		s.Logger.Info("assigned deterministic task", "task_id", assignedFeature.ID)
 		vars["task_id"] = assignedFeature.ID
 		vars["task_description"] = assignedFeature.Description
 		vars["exclusive_paths"] = strings.Join(assignedFeature.Dependencies.ExclusiveWritePaths, ", ")
@@ -133,6 +142,7 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 
 		// s.SelectedTaskID = assignedFeature.ID // DO NOT SET THIS: It prevents Manager interruptions in subsequent turns.
 	} else {
+		s.Logger.Info("no pending task found for assignment", "features_total", len(features))
 		// All done?
 		vars["task_id"] = "NONE_ALL_COMPLETE"
 		vars["task_description"] = "All features are marked as done/passing. Please run final verification and signal completion."
@@ -140,7 +150,7 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 		vars["read_only_paths"] = "all"
 	}
 	if s.SelectedTaskID != "" {
-		features := s.loadFeatures()
+		features, _ := s.loadFeatures()
 		var target db.Feature
 		for _, f := range features {
 			if f.ID == s.SelectedTaskID {
@@ -341,7 +351,7 @@ func (s *Session) runManagerAgent(ctx context.Context) error {
 		}
 	}
 
-	features := s.loadFeatures()
+	features, _ := s.loadFeatures()
 	qaReport := RunQA(features)
 
 	// Create manager review prompt
