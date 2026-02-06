@@ -29,7 +29,7 @@ func TestMockAgent_Scenarios(t *testing.T) {
 			prompt: "You are the Technical Program Manager... [PRIMES]",
 			wantContains: []string{
 				`"tickets":`,
-				`"id": "TASK-1"`,
+				`"id": "PRIMES"`,
 				`"title": "Create primes.py"`,
 			},
 			wantNotContain: []string{
