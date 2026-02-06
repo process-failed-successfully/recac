@@ -37,8 +37,26 @@ func TestMockAgent_E2E_TPM(t *testing.T) {
 	if !strings.Contains(response, "PRIMES") {
 		t.Errorf("Expected TPM response to contain PRIMES ticket, got: %s", response)
 	}
-	if !strings.Contains(response, "[") || !strings.Contains(response, "{") {
-		t.Errorf("Expected TPM response to be JSON, got: %s", response)
+	if !strings.Contains(response, "agent-bridge import") {
+		t.Errorf("Expected TPM response to contain agent-bridge import, got: %s", response)
+	}
+}
+
+func TestMockAgent_E2E_Initializer(t *testing.T) {
+	agent := NewMockAgent()
+	// Initializer prompt contains spec with 'primes.py', which previously triggered Developer mode
+	prompt := "YOUR ROLE - INITIALIZER AGENT. Spec: Implement primes.py"
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "agent-bridge import") {
+		t.Errorf("Expected Initializer response to contain agent-bridge import, got: %s", response)
+	}
+	if strings.Contains(response, "def get_primes") {
+		t.Errorf("Initializer response should NOT contain implementation code")
 	}
 }
 

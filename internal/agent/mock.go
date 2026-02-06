@@ -32,22 +32,34 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// TPM: Generate Tickets
-	// Detects the prompt asking for ticket creation (usually contains "Technical Program Manager" and "Ticket")
-	if strings.Contains(prompt, "Technical Program Manager") && (strings.Contains(prompt, "Ticket") || strings.Contains(prompt, "tickets")) {
-		return `[
-  {
-    "id": "PRIMES",
-    "title": "ID:[PRIMES] Prime Number Script",
-    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000.",
-    "type": "Task"
-  }
-]`, nil
+	// Initializer / TPM: Generate Tickets
+	// Detects the prompt asking for ticket creation (usually contains "Technical Program Manager" or "INITIALIZER AGENT")
+	if (strings.Contains(prompt, "Technical Program Manager") && (strings.Contains(prompt, "Ticket") || strings.Contains(prompt, "tickets"))) || strings.Contains(prompt, "INITIALIZER AGENT") {
+		// Return the bash command expected by the Initializer prompt to import features
+		return "```bash\n" +
+			"cat << 'EOF' | agent-bridge import\n" +
+			"{\n" +
+			"  \"project_name\": \"Primes Project\",\n" +
+			"  \"features\": [\n" +
+			"    {\n" +
+			"      \"id\": \"PRIMES\",\n" +
+			"      \"title\": \"ID:[PRIMES] Prime Number Script\",\n" +
+			"      \"description\": \"Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000.\",\n" +
+			"      \"type\": \"Task\",\n" +
+			"      \"status\": \"pending\",\n" +
+			"      \"steps\": [\"Verify output exists\", \"Verify json format\"],\n" +
+			"      \"dependencies\": {\"exclusive_write_paths\": [\"primes.py\"]}\n" +
+			"    }\n" +
+			"  ]\n" +
+			"}\n" +
+			"EOF\n" +
+			"```", nil
 	}
 
 	// Developer: Implement primes.py
 	// Detects the prompt asking for the primes script
-	if strings.Contains(prompt, "primes.py") && !strings.Contains(prompt, "Technical Program Manager") {
+	// Must NOT be the Initializer agent (which also sees the spec containing 'primes.py')
+	if strings.Contains(prompt, "primes.py") && !strings.Contains(prompt, "Technical Program Manager") && !strings.Contains(prompt, "INITIALIZER AGENT") {
 		// If the commit message exists in the prompt (git log), we are done.
 		if strings.Contains(prompt, "Implement primes.py and generate primes.json") {
 			return "```bash\nagent-bridge feature set --status done\n```", nil
