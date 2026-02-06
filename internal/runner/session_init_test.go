@@ -21,6 +21,12 @@ type execCall struct {
 }
 
 func TestSession_Start_RunsInitScript(t *testing.T) {
+	// Mock getwd
+	originalGetwd := getwd
+	defer func() { getwd = originalGetwd }()
+	tmpWd := t.TempDir()
+	getwd = func() (string, error) { return tmpWd, nil }
+
 	tmpDir := t.TempDir()
 
 	// 1. Create app_spec.txt (required by Start)
@@ -94,6 +100,12 @@ func TestSession_Start_RunsInitScript(t *testing.T) {
 }
 
 func TestSession_Start_NoInitScript(t *testing.T) {
+	// Mock getwd
+	originalGetwd := getwd
+	defer func() { getwd = originalGetwd }()
+	tmpWd := t.TempDir()
+	getwd = func() (string, error) { return tmpWd, nil }
+
 	tmpDir := t.TempDir()
 	specPath := filepath.Join(tmpDir, "app_spec.txt")
 	os.WriteFile(specPath, []byte("test spec"), 0644)
@@ -124,6 +136,12 @@ func TestSession_Start_NoInitScript(t *testing.T) {
 }
 
 func TestSession_Start_InitScriptFails(t *testing.T) {
+	// Mock getwd
+	originalGetwd := getwd
+	defer func() { getwd = originalGetwd }()
+	tmpWd := t.TempDir()
+	getwd = func() (string, error) { return tmpWd, nil }
+
 	tmpDir := t.TempDir()
 	specPath := filepath.Join(tmpDir, "app_spec.txt")
 	os.WriteFile(specPath, []byte("test spec"), 0644)

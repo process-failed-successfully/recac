@@ -25,6 +25,9 @@ import (
 	"github.com/spf13/viper"
 )
 
+// getwd is a package-level variable to allow mocking in tests
+var getwd = os.Getwd
+
 var ErrBlocker = errors.New("blocker detected")
 var ErrMaxIterations = errors.New("maximum iterations reached")
 var ErrNoOp = errors.New("circuit breaker: no-op loop")
@@ -104,26 +107,9 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 	agentStateFile := filepath.Join(workspace, stateFile)
 	stateManager := agent.NewStateManager(agentStateFile)
 
-	// Initialize DB Store
-	dbType := os.Getenv("RECAC_DB_TYPE")
-	dbURL := os.Getenv("RECAC_DB_URL")
-
-	if dbType == "" {
-		dbType = "sqlite"
-		if dbURL == "" {
-			dbURL = filepath.Join(workspace, ".recac.db")
-		}
-	} else if dbType == "sqlite" && dbURL == "" {
-		dbURL = filepath.Join(workspace, ".recac.db")
-	}
-
 	// Initialize DB Store with Retry Logic
+	storeConfig := getDBConfig(workspace)
 	var dbStore db.Store
-	storeConfig := db.StoreConfig{
-		Type:             dbType,
-		ConnectionString: dbURL,
-	}
-
 	// Retry loop for DB connection (up to 30 seconds)
 	var err error
 	maxRetries := 6
@@ -136,7 +122,7 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 		if err == nil {
 			break
 		}
-		fmt.Fprintf(os.Stderr, "[Session] Failed to initialize DB store (%s): %v\n", dbType, err)
+		fmt.Fprintf(os.Stderr, "[Session] Failed to initialize DB store (%s): %v\n", storeConfig.Type, err)
 	}
 
 	if err != nil {
@@ -145,16 +131,113 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 		os.Exit(1)
 	} else {
 		// Success
-		fmt.Fprintf(os.Stderr, "[Session] DB Store initialized successfully: type=%s, project=%s\n", dbType, project)
-		slog.Info("[DB] Store initialized successfully", "type", dbType, "project", project)
+		fmt.Fprintf(os.Stderr, "[Session] DB Store initialized successfully: type=%s, project=%s\n", storeConfig.Type, project)
+		slog.Info("[DB] Store initialized successfully", "type", storeConfig.Type, "project", project)
 	}
 
-	// Initialize Security Scanner
-	scanner := security.NewRegexScanner()
+	logger := initializeLogging(project)
 
+	return &Session{
+		Docker:           d,
+		Agent:            a,
+		Workspace:        workspace,
+		Image:            image,
+		Project:          project,
+		AgentProvider:    provider,
+		AgentModel:       model,
+		SpecFile:         "app_spec.txt",
+		MaxIterations:    20, // Default
+		ManagerFrequency: 5,  // Default
+		AgentStateFile:   agentStateFile,
+		StateManager:     stateManager,
+		DBStore:          dbStore,
+		OwnsDB:           true,
+		Scanner:          security.NewRegexScanner(),
+		MaxAgents:        maxAgents,
+		Notifier:         notify.NewManager(telemetry.LogInfof),
+		UseLocalAgent:    os.Getenv("KUBERNETES_SERVICE_HOST") != "",
+		Logger:           logger,
+		SleepFunc:        time.Sleep,
+	}
+}
+
+// NewSessionWithStateFile creates a session with a specific agent state file (for restoring sessions)
+func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, project, agentStateFile, provider, model string, maxAgents int) *Session {
+	if project == "" {
+		project = "unknown"
+	}
+	stateManager := agent.NewStateManager(agentStateFile)
+
+	storeConfig := getDBConfig(workspace)
+	var dbStore db.Store
+	if s, err := db.NewStore(storeConfig); err != nil {
+		fmt.Printf("Warning: Failed to initialize DB store (%s): %v\n", storeConfig.Type, err)
+	} else {
+		dbStore = s
+	}
+
+	logger := initializeLogging(project)
+
+	return &Session{
+		Docker:           d,
+		Agent:            a,
+		Workspace:        workspace,
+		Image:            image,
+		Project:          project,
+		AgentProvider:    provider,
+		AgentModel:       model,
+		SpecFile:         "app_spec.txt",
+		MaxIterations:    20, // Default
+		ManagerFrequency: 5,  // Default
+		AgentStateFile:   agentStateFile,
+		StateManager:     stateManager,
+		DBStore:          dbStore,
+		OwnsDB:           true,
+		Scanner:          security.NewRegexScanner(),
+		MaxAgents:        maxAgents,
+		Notifier:         notify.NewManager(telemetry.LogInfof),
+		Logger:           logger,
+		SleepFunc:        time.Sleep,
+	}
+}
+
+// NewSessionWithConfig creates a session with specific provider/model settings.
+// This is used for sub-agents or when overriding global config.
+func NewSessionWithConfig(workspace, project, provider, model string, dbStore db.Store) *Session {
+	// Default to "unknown" if project is empty
+	if project == "" {
+		project = "unknown"
+	}
+
+	// Default agent state file path in workspace
+	stateFile := ".agent_state.json"
+	agentStateFile := filepath.Join(workspace, stateFile)
+	stateManager := agent.NewStateManager(agentStateFile)
+
+	logger := initializeLogging(project)
+
+	return &Session{
+		Workspace:        workspace,
+		Project:          project,
+		AgentProvider:    provider,
+		AgentModel:       model,
+		DBStore:          dbStore,
+		SpecFile:         "app_spec.txt",
+		MaxIterations:    20, // Default
+		ManagerFrequency: 5,  // Default
+		AgentStateFile:   agentStateFile,
+		StateManager:     stateManager,
+		OwnsDB:           false, // This session does not own the DB, it's passed in
+		Scanner:          security.NewRegexScanner(),
+		Notifier:         notify.NewManager(telemetry.LogInfof),
+		Logger:           logger,
+	}
+}
+
+func initializeLogging(project string) *slog.Logger {
 	// Create agents/logs directory in the current working directory (host)
 	// This is where Promtail expects to find them based on docker-compose.monitoring.yml
-	cwd, _ := os.Getwd()
+	cwd, _ := getwd()
 	agentsLogsDir := filepath.Join(cwd, "agents", "logs")
 	if err := os.MkdirAll(agentsLogsDir, 0755); err != nil {
 		fmt.Printf("Warning: Failed to create agents/logs directory: %v\n", err)
@@ -180,39 +263,10 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 	if project != "" {
 		logger = logger.With("project", project)
 	}
-
-	return &Session{
-		Docker:           d,
-		Agent:            a,
-		Workspace:        workspace,
-		Image:            image,
-		Project:          project,
-		AgentProvider:    provider,
-		AgentModel:       model,
-		SpecFile:         "app_spec.txt",
-		MaxIterations:    20, // Default
-		ManagerFrequency: 5,  // Default
-		AgentStateFile:   agentStateFile,
-		StateManager:     stateManager,
-		DBStore:          dbStore,
-		OwnsDB:           true,
-		Scanner:          scanner,
-		MaxAgents:        maxAgents,
-		Notifier:         notify.NewManager(telemetry.LogInfof),
-		UseLocalAgent:    os.Getenv("KUBERNETES_SERVICE_HOST") != "",
-		Logger:           logger,
-		SleepFunc:        time.Sleep,
-	}
+	return logger
 }
 
-// NewSessionWithStateFile creates a session with a specific agent state file (for restoring sessions)
-func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, project, agentStateFile, provider, model string, maxAgents int) *Session {
-	if project == "" {
-		project = "unknown"
-	}
-	stateManager := agent.NewStateManager(agentStateFile)
-
-	// Initialize DB Store
+func getDBConfig(workspace string) db.StoreConfig {
 	dbType := os.Getenv("RECAC_DB_TYPE")
 	dbURL := os.Getenv("RECAC_DB_URL")
 
@@ -225,119 +279,9 @@ func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, pr
 		dbURL = filepath.Join(workspace, ".recac.db")
 	}
 
-	var dbStore db.Store
-	storeConfig := db.StoreConfig{
+	return db.StoreConfig{
 		Type:             dbType,
 		ConnectionString: dbURL,
-	}
-
-	if s, err := db.NewStore(storeConfig); err != nil {
-		fmt.Printf("Warning: Failed to initialize DB store (%s): %v\n", dbType, err)
-	} else {
-		dbStore = s
-	}
-
-	// Initialize Security Scanner
-	scanner := security.NewRegexScanner()
-
-	// Create agents/logs directory in the current working directory (host)
-	// This is where Promtail expects to find them based on docker-compose.monitoring.yml
-	cwd, _ := os.Getwd()
-	agentsLogsDir := filepath.Join(cwd, "agents", "logs")
-	if err := os.MkdirAll(agentsLogsDir, 0755); err != nil {
-		fmt.Printf("Warning: Failed to create agents/logs directory: %v\n", err)
-	} else {
-		// Initialize session log file
-		timestamp := time.Now().Format("20060102-150405")
-		logFileName := fmt.Sprintf("%s_agent_%s_%s.log", project, project, timestamp)
-		logFilePath := filepath.Join(agentsLogsDir, logFileName)
-
-		// Re-initialize telemetry logger with the session log file
-		// Note: We use the global 'verbose' setting (viper)
-		telemetry.InitLogger(viper.GetBool("verbose"), logFilePath, false)
-		fmt.Printf("Session logs will be written to: %s\n", logFilePath)
-	}
-
-	logger := telemetry.NewLogger(viper.GetBool("verbose"), "", false)
-	if project != "" {
-		logger = logger.With("project", project)
-	}
-
-	return &Session{
-		Docker:           d,
-		Agent:            a,
-		Workspace:        workspace,
-		Image:            image,
-		Project:          project,
-		AgentProvider:    provider,
-		AgentModel:       model,
-		SpecFile:         "app_spec.txt",
-		MaxIterations:    20, // Default
-		ManagerFrequency: 5,  // Default
-		AgentStateFile:   agentStateFile,
-		StateManager:     stateManager,
-		DBStore:          dbStore,
-		OwnsDB:           true,
-		Scanner:          scanner,
-		MaxAgents:        maxAgents,
-		Notifier:         notify.NewManager(telemetry.LogInfof),
-		Logger:           logger,
-		SleepFunc:        time.Sleep,
-	}
-}
-
-// NewSessionWithConfig creates a session with specific provider/model settings.
-// This is used for sub-agents or when overriding global config.
-func NewSessionWithConfig(workspace, project, provider, model string, dbStore db.Store) *Session {
-	// Default to "unknown" if project is empty
-	if project == "" {
-		project = "unknown"
-	}
-
-	// Default agent state file path in workspace
-	stateFile := ".agent_state.json"
-	agentStateFile := filepath.Join(workspace, stateFile)
-	stateManager := agent.NewStateManager(agentStateFile)
-
-	// Initialize Security Scanner
-	scanner := security.NewRegexScanner()
-
-	// Create agents/logs directory in the current working directory (host)
-	cwd, _ := os.Getwd()
-	agentsLogsDir := filepath.Join(cwd, "agents", "logs")
-	if err := os.MkdirAll(agentsLogsDir, 0755); err != nil {
-		fmt.Printf("Warning: Failed to create agents/logs directory: %v\n", err)
-	} else {
-		// Initialize session log file
-		timestamp := time.Now().Format("20060102-150405")
-		logFileName := fmt.Sprintf("%s_agent_%s_%s.log", project, project, timestamp)
-		logFilePath := filepath.Join(agentsLogsDir, logFileName)
-
-		// Re-initialize telemetry logger with the session log file
-		telemetry.InitLogger(viper.GetBool("verbose"), logFilePath, false)
-		fmt.Printf("Session logs will be written to: %s\n", logFilePath)
-	}
-
-	logger := telemetry.NewLogger(viper.GetBool("verbose"), "", false)
-	if project != "" {
-		logger = logger.With("project", project)
-	}
-
-	return &Session{
-		Workspace:        workspace,
-		Project:          project,
-		AgentProvider:    provider,
-		AgentModel:       model,
-		DBStore:          dbStore,
-		SpecFile:         "app_spec.txt",
-		MaxIterations:    20, // Default
-		ManagerFrequency: 5,  // Default
-		AgentStateFile:   agentStateFile,
-		StateManager:     stateManager,
-		OwnsDB:           false, // This session does not own the DB, it's passed in
-		Scanner:          scanner,
-		Notifier:         notify.NewManager(telemetry.LogInfof),
-		Logger:           logger,
 	}
 }
 
@@ -903,8 +847,3 @@ func (s *Session) loadFeatures() []db.Feature {
 
 	return nil
 }
-
-
-
-
-

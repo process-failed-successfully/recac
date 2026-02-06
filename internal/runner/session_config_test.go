@@ -8,6 +8,12 @@ import (
 )
 
 func TestNewSessionWithConfig(t *testing.T) {
+	// Mock getwd to return a temp directory to avoid creating agents/logs in source tree
+	originalGetwd := getwd
+	defer func() { getwd = originalGetwd }()
+	tmpDir := t.TempDir()
+	getwd = func() (string, error) { return tmpDir, nil }
+
 	workspace := t.TempDir()
 	project := "test-project"
 	provider := "test-provider"
@@ -38,6 +44,12 @@ func TestNewSessionWithConfig(t *testing.T) {
 }
 
 func TestNewSessionWithConfig_EmptyProject(t *testing.T) {
+	// Mock getwd
+	originalGetwd := getwd
+	defer func() { getwd = originalGetwd }()
+	tmpDir := t.TempDir()
+	getwd = func() (string, error) { return tmpDir, nil }
+
 	workspace := t.TempDir()
 	session := NewSessionWithConfig(workspace, "", "prov", "mod", nil)
 
