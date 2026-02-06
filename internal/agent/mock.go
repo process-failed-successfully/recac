@@ -28,6 +28,7 @@ func (m *MockAgent) SetResponse(response string) {
 // Send implements the Agent interface
 // It returns a mock response that acknowledges the prompt
 func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
+	fmt.Println("DEBUG: MockAgent Prompt:", prompt)
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
@@ -95,7 +96,7 @@ EOF
 	// The prompt will contain the task description "Implement a python script...".
 	if strings.Contains(prompt, "Implement a python script") ||
 		strings.Contains(prompt, "Implement Prime Number Script") ||
-		(strings.Contains(prompt, "[PRIMES]") && !strings.Contains(prompt, "Review") && !strings.Contains(prompt, "QA")) ||
+		(strings.Contains(prompt, "PRIMES") && !strings.Contains(prompt, "Review") && !strings.Contains(prompt, "QA")) ||
 		(strings.Contains(prompt, "primes.py") && !strings.Contains(prompt, "Review") && !strings.Contains(prompt, "QA")) {
 		return `
 I will implement the prime number script as requested.
