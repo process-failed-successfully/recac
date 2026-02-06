@@ -41,6 +41,27 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 I am the Initializer Agent. I am setting up the environment.
 
 `+"```bash"+`
+# Create feature list file to satisfy Runner check
+cat <<EOF > feature_list.json
+{
+  "features": [
+    {
+      "name": "Feature 1",
+      "description": "Mock feature for smoke test",
+      "status": "todo",
+      "priority": "high"
+    }
+  ]
+}
+EOF
+
+# Attempt import if bridge exists (optional)
+if command -v agent-bridge &> /dev/null; then
+  cat feature_list.json | agent-bridge import
+else
+  echo "agent-bridge not found, skipping import"
+fi
+
 echo "Initializer Agent Setup Complete"
 `+"```"+`
 `, m.responsePrefix), nil
