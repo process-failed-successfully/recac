@@ -36,11 +36,7 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	}
 
 	// 2. Test RECAC_PROMPTS_DIR
-	tmpDir, err := os.MkdirTemp("", "recac-prompts-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	err = os.WriteFile(filepath.Join(tmpDir, promptName+".md"), []byte(overrideContent), 0644)
 	if err != nil {
@@ -58,16 +54,6 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	}
 
 	// 3. Test Local .recac/prompts
-	// Unset env via Setenv with empty string? No, Setenv sets it.
-	// t.Setenv restores value after test.
-	// But to test step 3, we need RECAC_PROMPTS_DIR to be NOT set.
-	// Since we set it in step 2, we need to unset it or run step 3 in subtest or separate test.
-	// But wait, t.Setenv scopes to the test/subtest.
-	// So if I used t.Setenv in top level, it applies to subsequent code.
-	// I should run these in subtests or just overwrite it to empty?
-	// GetPrompt checks: if overrideDir := os.Getenv("RECAC_PROMPTS_DIR"); overrideDir != ""
-	// So setting it to empty string disables it.
-
 	t.Setenv("RECAC_PROMPTS_DIR", "")
 
 	// Create temp dir for CWD simulation
@@ -80,7 +66,7 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	// Mock getwd
 	originalGetwd := getwd
 	getwd = func() (string, error) { return tempCwd, nil }
-	defer func() { getwd = originalGetwd }()
+	t.Cleanup(func() { getwd = originalGetwd })
 
 	localContent := "Local Override"
 	err = os.WriteFile(filepath.Join(localRecacDir, promptName+".md"), []byte(localContent), 0644)
@@ -107,7 +93,7 @@ func TestGetPrompt_Overrides(t *testing.T) {
 	// Mock userHomeDir
 	originalUserHomeDir := userHomeDir
 	userHomeDir = func() (string, error) { return tempHome, nil }
-	defer func() { userHomeDir = originalUserHomeDir }()
+	t.Cleanup(func() { userHomeDir = originalUserHomeDir })
 
 	globalContent := "Global Override"
 	// Ensure local override doesn't exist for this test (or use a new name, but let's reuse promptName and remove local)
