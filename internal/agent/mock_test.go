@@ -106,6 +106,19 @@ func TestMockAgent_CodingAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Manager(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "## YOUR ROLE - PROJECT MANAGER\n\nQA Report: ..."
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "agent-bridge signal PROJECT_SIGNED_OFF true") {
+		t.Errorf("Expected manager sign-off signal, got: %s", response)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {

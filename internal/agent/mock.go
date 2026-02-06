@@ -146,6 +146,12 @@ ls -la
 ` + "\n```", nil
 	}
 
+	// Check for Manager Agent (Review) prompt
+	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") {
+		// Just approve everything for mock tests
+		return "```bash\n" + `agent-bridge signal PROJECT_SIGNED_OFF true` + "\n```", nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	// We return a bash script to prevent the "NO-OP LOOP" circuit breaker in tests.
