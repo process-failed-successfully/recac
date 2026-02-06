@@ -486,7 +486,8 @@ func (sm *SessionManager) ListSessions() ([]*SessionState, error) {
 
 		// Update status based on process state
 		// Only update if status is "running" - preserve "stopped" and "error" statuses
-		if session.Status == "running" && !sm.IsProcessRunning(session.PID) {
+		// Skip process check for orchestrated-docker sessions as they are managed externally
+		if session.Status == "running" && session.Type != "orchestrated-docker" && !sm.IsProcessRunning(session.PID) {
 			session.Status = "completed"
 			session.EndTime = time.Now()
 
