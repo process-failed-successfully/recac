@@ -2,11 +2,15 @@ package main
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 
 	"recac/internal/agent"
 	"recac/internal/docker"
+	"recac/internal/notify"
 	"recac/internal/runner"
+	"recac/internal/security"
+	"recac/internal/telemetry"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -93,12 +97,26 @@ func TestRunGymSession(t *testing.T) {
 		return mockAgent, nil
 	}
 
-	// Override NewSession to avoid real Session logic if needed,
-	// but we want to test the flow.
-	// Since we mock Docker and Agent, Session should be mostly side-effect free (DB is local/sqlite).
-	// However, Session does DB init which might fail or be slow.
-	// And it does `os.Mkdir` for logs.
-	// For now, let's try with real Session but mocked components.
+	// Override NewSession to avoid real Session logic which initializes logging (polluting source tree)
+	// and DB (which might be slow/flakey).
+	gymSessionFactory = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
+		return &runner.Session{
+			Docker:           d,
+			Agent:            a,
+			Workspace:        workspace,
+			Image:            image,
+			Project:          project,
+			AgentProvider:    provider,
+			AgentModel:       model,
+			SpecFile:         "app_spec.txt",
+			MaxIterations:    20,
+			ManagerFrequency: 5,
+			StateManager:     agent.NewStateManager(filepath.Join(workspace, ".agent_state.json")),
+			Notifier:         notify.NewManager(func(string, ...interface{}) {}),
+			Scanner:          security.NewRegexScanner(),
+			Logger:           telemetry.NewLogger(true, "", false),
+		}
+	}
 
 	challenge := GymChallenge{
 		Name:        "Test Challenge",
