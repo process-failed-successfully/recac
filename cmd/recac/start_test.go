@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"recac/internal/agent"
 	"testing"
@@ -110,6 +111,13 @@ func TestStartCommand_Resume(t *testing.T) {
 
 func TestStartCommand_NormalMode_Restricted(t *testing.T) {
 	tmpDir := t.TempDir()
+	// Initialize git repo to satisfy "fatal: not a git repository" check
+	cmd := exec.Command("git", "init")
+	cmd.Dir = tmpDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("Failed to init git repo: %v", err)
+	}
+
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
 
 	// Mock agentClientFactory
