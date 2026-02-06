@@ -52,10 +52,9 @@ func TestGetPrompt_Overrides(t *testing.T) {
 
 	// 3. Test Local .recac/prompts
 	t.Run("LocalDirOverride", func(t *testing.T) {
-		// Ensure Env is unset (though t.Setenv in sibling subtests shouldn't leak, we want to be sure regarding parent env)
+		// Ensure Env is unset
 		t.Setenv("RECAC_PROMPTS_DIR", "")
 
-		// Fix: Use t.TempDir to prevent source tree pollution
 		tmpDir := t.TempDir()
 
 		// Create .recac/prompts in the temp dir
@@ -70,9 +69,10 @@ func TestGetPrompt_Overrides(t *testing.T) {
 			t.Fatalf("Failed to write local override: %v", err)
 		}
 
-		// Change working directory to the temp dir to simulate running from project root
-		// t.Chdir cleans up after the test automatically
-		t.Chdir(tmpDir)
+		// Mock getwd
+		originalGetwd := getwd
+		defer func() { getwd = originalGetwd }()
+		getwd = func() (string, error) { return tmpDir, nil }
 
 		content, err := GetPrompt(promptName, nil)
 		if err != nil {
@@ -83,7 +83,42 @@ func TestGetPrompt_Overrides(t *testing.T) {
 		}
 	})
 
-	// 4. Test Variable Injection
+	// 4. Test Global ~/.recac/prompts
+	t.Run("GlobalDirOverride", func(t *testing.T) {
+		t.Setenv("RECAC_PROMPTS_DIR", "")
+		// Ensure local override doesn't interfere (by mocking getwd to somewhere empty)
+		tmpLocalDir := t.TempDir()
+		originalGetwd := getwd
+		defer func() { getwd = originalGetwd }()
+		getwd = func() (string, error) { return tmpLocalDir, nil }
+
+		tmpGlobalDir := t.TempDir()
+		globalRecacDir := filepath.Join(tmpGlobalDir, ".recac", "prompts")
+		if err := os.MkdirAll(globalRecacDir, 0755); err != nil {
+			t.Fatalf("Failed to create global dir: %v", err)
+		}
+
+		globalContent := "Global Override"
+		err := os.WriteFile(filepath.Join(globalRecacDir, promptName+".md"), []byte(globalContent), 0644)
+		if err != nil {
+			t.Fatalf("Failed to write global override: %v", err)
+		}
+
+		// Mock userHomeDir
+		originalUserHomeDir := userHomeDir
+		defer func() { userHomeDir = originalUserHomeDir }()
+		userHomeDir = func() (string, error) { return tmpGlobalDir, nil }
+
+		content, err := GetPrompt(promptName, nil)
+		if err != nil {
+			t.Fatalf("GetPrompt failed with global override: %v", err)
+		}
+		if content != globalContent {
+			t.Errorf("GetPrompt returned %q, want %q", content, globalContent)
+		}
+	})
+
+	// 5. Test Variable Injection
 	t.Run("VariableInjection", func(t *testing.T) {
 		// We can reuse the Env override mechanism for this test
 		tmpDir := t.TempDir()
