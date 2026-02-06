@@ -7,6 +7,29 @@ import (
 )
 
 func TestGetPrompt_Overrides(t *testing.T) {
+	// Ensure hermeticity by unsetting ENV and mocking fs-dependent functions
+	t.Setenv("RECAC_PROMPTS_DIR", "")
+
+	// Mock userHomeDir to prevent global config interference
+	tmpHome := t.TempDir()
+	originalUserHomeDir := userHomeDir
+	userHomeDir = func() (string, error) {
+		return tmpHome, nil
+	}
+	t.Cleanup(func() {
+		userHomeDir = originalUserHomeDir
+	})
+
+	// Mock getwd to prevent local config interference
+	tmpCwd := t.TempDir()
+	originalGetwd := getwd
+	getwd = func() (string, error) {
+		return tmpCwd, nil
+	}
+	t.Cleanup(func() {
+		getwd = originalGetwd
+	})
+
 	promptName := "test_prompt"
 	overrideContent := "Override Template"
 
