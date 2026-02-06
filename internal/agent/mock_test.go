@@ -28,13 +28,14 @@ func TestMockAgent(t *testing.T) {
 func TestMockAgent_SmartPrimes(t *testing.T) {
 	agent := NewMockAgent()
 
-	prompts := []string{
+	// 1. Coding Task Prompt
+	codingPrompts := []string{
 		"Please implement the [PRIMES] task.",
 		"Implement prime-python scenario.",
 		"Create a Prime Number Script",
 	}
 
-	for _, p := range prompts {
+	for _, p := range codingPrompts {
 		resp, err := agent.Send(context.Background(), p)
 		if err != nil {
 			t.Errorf("Send failed for prompt '%s': %v", p, err)
@@ -46,8 +47,30 @@ func TestMockAgent_SmartPrimes(t *testing.T) {
 		if !strings.Contains(resp, "cat << 'EOF' > primes.py") {
 			t.Errorf("Response for '%s' should contain bash heredoc", p)
 		}
-		if !strings.Contains(resp, "git commit") {
-			t.Errorf("Response for '%s' should contain git commit", p)
+	}
+
+	// 2. TPM / Planning Prompt
+	tpmPrompts := []string{
+		"You are the Technical Program Manager. CRITICAL INSTRUCTION FOR TICKET GENERATION: Create exactly ONE ticket.",
+		"Role: Technical Program Manager. ID:[PRIMES]. Generate ticket.",
+	}
+
+	for _, p := range tpmPrompts {
+		resp, err := agent.Send(context.Background(), p)
+		if err != nil {
+			t.Errorf("Send failed for prompt '%s': %v", p, err)
+		}
+
+		// Should return JSON
+		if !strings.Contains(resp, "[") || !strings.Contains(resp, "{") {
+			t.Errorf("Response for '%s' should appear to be JSON array", p)
+		}
+		if !strings.Contains(resp, "\"id\": \"PRIMES\"") {
+			t.Errorf("Response for '%s' should contain PRIMES ID in JSON", p)
+		}
+		// Should NOT return python code
+		if strings.Contains(resp, "import json") {
+			t.Errorf("Response for '%s' should NOT contain python code", p)
 		}
 	}
 }

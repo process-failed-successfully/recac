@@ -32,7 +32,13 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// Smart Mock Logic for Primes Scenario (E2E Test)
+	// 1. Check for TPM / Ticket Generation Role
+	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "CRITICAL INSTRUCTION FOR TICKET GENERATION") {
+		return m.generatePrimesPlan(), nil
+	}
+
+	// 2. Smart Mock Logic for Primes Scenario (Coding Phase)
+	// We check for [PRIMES] but ensure we are NOT in the TPM phase (though step 1 handles it, redundancy is safe)
 	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "prime-python") || strings.Contains(prompt, "Prime Number Script") {
 		return m.generatePrimesResponse(), nil
 	}
@@ -51,6 +57,18 @@ func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(
 		onChunk(resp)
 	}
 	return resp, err
+}
+
+func (m *MockAgent) generatePrimesPlan() string {
+	// Return a JSON list of tickets as expected by the TPM role
+	return `[
+  {
+    "title": "Implement Primes Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to 'primes.json'.",
+    "type": "Task",
+    "id": "PRIMES"
+  }
+]`
 }
 
 func (m *MockAgent) generatePrimesResponse() string {
