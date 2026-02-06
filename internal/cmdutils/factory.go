@@ -89,7 +89,23 @@ var GetAgentClient = func(ctx context.Context, provider, model, projectPath, pro
 		}
 	}
 
-	return agent.NewAgent(provider, apiKey, model, projectPath, projectName)
+	ag, err := agent.NewAgent(provider, apiKey, model, projectPath, projectName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Apply active persona wrapper if not Default
+	pm := agent.NewPersonaManager()
+	activePersona := pm.GetActivePersona()
+	if activePersona.Name != "Default" && activePersona.SystemPrompt != "" {
+		fmt.Printf("🎭 Using Persona: %s\n", activePersona.Name)
+		ag = &agent.PersonaAgentWrapper{
+			Agent:        ag,
+			SystemPrompt: activePersona.SystemPrompt,
+		}
+	}
+
+	return ag, nil
 }
 
 // SetupWorkspace handles cloning, auth fallback, and Epic branching strategy
