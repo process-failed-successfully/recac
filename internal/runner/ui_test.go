@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"recac/internal/agent"
 	"recac/internal/notify"
@@ -40,6 +41,8 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 		ManagerFrequency: 5,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
 		Logger:           telemetry.NewLogger(true, "", false),
+		MaxIterations:    5,
+		SleepFunc:        func(time.Duration) {},
 	}
 
 	// 6. Capture Stdout? (Hard to do in test without refactor).
