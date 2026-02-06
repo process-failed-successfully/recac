@@ -56,24 +56,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
   ]`, nil
 	}
 
-	// Heuristic: Check if this is the Initializer agent
-	if strings.Contains(prompt, "Initializer") || strings.Contains(prompt, "feature_list.json") {
-		// Special handling for the Prime Python scenario
-		// We check for [PRIMES] (Planner mode) or "Prime Number" (Jira mode where ID is replaced)
-		if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "Prime Number") || strings.Contains(prompt, "primes.py") {
-			return `Mock Initializer: Creating feature list for [PRIMES].
-` + "```bash" + `
-echo '[{"id": "PRIMES", "description": "Create a python script named primes.py that calculates all prime numbers less than 10,000 and outputs them to primes.json.", "status": "todo", "file_paths": []}]' > feature_list.json && agent-bridge import feature_list.json || echo 'Bridge skipped'
-` + "```", nil
-		}
-
-		// Create the file AND import it to DB to satisfy loadFeatures
-		// We must provide a non-empty list so agent-bridge import succeeds
-		return "Mock Initializer: Creating feature list.\n```bash\necho '[{\"id\": \"mock-feature\", \"description\": \"A mock feature for testing\", \"status\": \"todo\", \"file_paths\": []}]' > feature_list.json && agent-bridge import feature_list.json || echo 'Bridge skipped'\n```", nil
-	}
-
 	// Heuristic: Check for Prime Number script task (used in smoke tests/CI)
-	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "Prime Number") || strings.Contains(prompt, "[PRIMES]") {
+	// This must come BEFORE the Initializer check because the prompt might contain "feature_list.json"
+	// as context when the agent is in the Coding phase.
+	if (strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "Prime Number") || strings.Contains(prompt, "[PRIMES]")) && !strings.Contains(prompt, "YOUR ROLE - INITIALIZER") {
 		// Return a bash script that implements the prime number calculator
 		// This must satisfy the verification logic in pkg/e2e/scenarios/prime_python.go
 		return `Mock Agent: Implementing prime number script.
@@ -104,8 +90,23 @@ git config user.name "Mock Agent"
 
 # Commit the changes
 git add primes.py primes.json
-git commit -m "Implement prime number calculator"
+git commit -m "Implement prime number calculator" || echo "No changes to commit"
 ` + "```", nil
+	}
+
+	// Heuristic: Check if this is the Initializer agent
+	if strings.Contains(prompt, "Initializer") || strings.Contains(prompt, "feature_list.json") {
+		// Special handling for the Prime Python scenario (Initializer phase)
+		if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "Prime Number") || strings.Contains(prompt, "primes.py") {
+			return `Mock Initializer: Creating feature list for [PRIMES].
+` + "```bash" + `
+echo '[{"id": "PRIMES", "description": "Create a python script named primes.py that calculates all prime numbers less than 10,000 and outputs them to primes.json.", "status": "todo", "file_paths": []}]' > feature_list.json && agent-bridge import feature_list.json || echo 'Bridge skipped'
+` + "```", nil
+		}
+
+		// Create the file AND import it to DB to satisfy loadFeatures
+		// We must provide a non-empty list so agent-bridge import succeeds
+		return "Mock Initializer: Creating feature list.\n```bash\necho '[{\"id\": \"mock-feature\", \"description\": \"A mock feature for testing\", \"status\": \"todo\", \"file_paths\": []}]' > feature_list.json && agent-bridge import feature_list.json || echo 'Bridge skipped'\n```", nil
 	}
 
 	// Return a mock response that shows the agent received the prompt

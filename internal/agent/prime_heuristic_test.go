@@ -33,7 +33,8 @@ func TestMockAgent_PrimeInitializer_JiraMode(t *testing.T) {
 	agent := NewMockAgent()
 	// Simulate a Jira prompt where the ID is replaced by a Jira key (e.g., MFLP-123)
 	// but the title "Create Prime Number Script" remains.
-	prompt := "You are the Initializer. Please create feature_list.json for [MFLP-123] Create Prime Number Script"
+	// We include the canonical Role header to ensure heuristics work correctly.
+	prompt := "## YOUR ROLE - INITIALIZER\nYou are the Initializer. Please create feature_list.json for [MFLP-123] Create Prime Number Script"
 
 	resp, err := agent.Send(context.Background(), prompt)
 	if err != nil {
@@ -56,7 +57,8 @@ func TestMockAgent_PrimeInitializer_JiraMode(t *testing.T) {
 
 func TestMockAgent_PrimeInitializer(t *testing.T) {
 	agent := NewMockAgent()
-	prompt := "You are the Initializer. Please create feature_list.json for ID:[PRIMES] Create Prime Number Script"
+	// Include canonical Role header
+	prompt := "## YOUR ROLE - INITIALIZER\nYou are the Initializer. Please create feature_list.json for ID:[PRIMES] Create Prime Number Script"
 
 	resp, err := agent.Send(context.Background(), prompt)
 	if err != nil {
