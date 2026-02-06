@@ -66,6 +66,17 @@ agent-bridge feature set req-script-is-runnable passed
 `, nil
 	}
 
+	// Heuristic: Detect Manager Review (Project Manager)
+	// Triggers sign-off if prompt asks for Manager Review
+	if strings.Contains(prompt, "PROJECT MANAGER") || strings.Contains(prompt, "Manager Review") {
+		return `I have reviewed the progress. The implemented features look correct and pass the tests.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
+	}
+
 	// Heuristic: Detect ticket generation prompt (TPM)
 	// The prompt often contains "app_spec.txt" or identifies as "Technical Program Manager"
 	// We check this AFTER the coding agent check to avoid false positives from history
