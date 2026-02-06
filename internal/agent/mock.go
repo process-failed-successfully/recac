@@ -51,15 +51,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Check for Initializer Agent prompt
 	if strings.Contains(prompt, "YOUR ROLE - INITIALIZER AGENT") {
-		return "```bash\n" + `#!/bin/bash
-set -x
-git init
-git config user.name "RECAC Agent"
-git config user.email "agent@recac.io"
-
-# Import a dummy feature list to satisfy the runner
-cat << 'EOF' | agent-bridge import
-{
+		// Default Feature List
+		featureListJSON := `{
   "project_name": "Mock Project",
   "features": [
     {
@@ -73,9 +66,38 @@ cat << 'EOF' | agent-bridge import
       "dependencies": {}
     }
   ]
-}
+}`
+
+		// Check for [PRIMES] scenario
+		if strings.Contains(prompt, "[PRIMES]") {
+			featureListJSON = `{
+  "project_name": "Prime Python Project",
+  "features": [
+    {
+      "id": "PRIMES",
+      "category": "functional",
+      "priority": "MVP",
+      "description": "Implement [PRIMES] Prime Number Script",
+      "status": "pending",
+      "steps": ["Create primes.py", "Run calculation", "Verify primes.json"],
+      "passes": false,
+      "dependencies": {}
+    }
+  ]
+}`
+		}
+
+		return fmt.Sprintf("```bash\n"+`#!/bin/bash
+set -x
+git init
+git config user.name "RECAC Agent"
+git config user.email "agent@recac.io"
+
+# Import feature list to satisfy the runner
+cat << 'EOF' | agent-bridge import
+%s
 EOF
-` + "\n```", nil
+`+"\n```", featureListJSON), nil
 	}
 
 	// Check for Coding Agent prompt

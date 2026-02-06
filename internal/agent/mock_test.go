@@ -29,6 +29,33 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Initializer(t *testing.T) {
+	agent := NewMockAgent()
+
+	// 1. Default Initializer
+	promptDefault := "## YOUR ROLE - INITIALIZER AGENT\n\nSpec: ..."
+	resp, err := agent.Send(context.Background(), promptDefault)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(resp, "init-task") {
+		t.Error("Expected default init-task in initializer response")
+	}
+
+	// 2. Primes Scenario
+	promptPrimes := "## YOUR ROLE - INITIALIZER AGENT\n\nSpec: [PRIMES] Prime Number Script"
+	respPrimes, err := agent.Send(context.Background(), promptPrimes)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(respPrimes, "PRIMES") {
+		t.Error("Expected PRIMES feature in initializer response")
+	}
+	if !strings.Contains(respPrimes, "[PRIMES]") {
+		t.Error("Expected [PRIMES] in description")
+	}
+}
+
 func TestMockAgent_TPM(t *testing.T) {
 	agent := NewMockAgent()
 
