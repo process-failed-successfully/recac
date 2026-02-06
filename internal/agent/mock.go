@@ -39,7 +39,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// when the TPM prompt contains the spec (which includes "[PRIMES]" and "primes.py").
 	if (strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py")) &&
 		(strings.Contains(prompt, "Coding Agent") || strings.Contains(prompt, "Developer") || strings.Contains(prompt, "primes.py")) &&
-		!strings.Contains(prompt, "Technical Program Manager") && !strings.Contains(prompt, "app_spec.txt") {
+		!strings.Contains(prompt, "Technical Program Manager") {
 		return `I will implement the primes calculation script as requested.
 
 ` + "```bash" + `

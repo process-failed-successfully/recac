@@ -49,6 +49,35 @@ Please write a python script named primes.py
 	}
 }
 
+func TestMockAgent_CodingAgent_FalsePositive(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Simulating a Coding Agent prompt that includes context about tickets AND the spec
+	// The runner might include "app_spec.txt" in the context
+	prompt := `
+You are the Coding Agent.
+Your task is to implement the feature described in the following tickets:
+[
+  {"title": "ID:[PRIMES] Implement Primes Calculation"}
+]
+Reference: app_spec.txt
+Please write the code for primes.py.
+`
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// We expect the Primes implementation (Bash script), NOT the JSON ticket list
+	if strings.HasPrefix(strings.TrimSpace(resp), "[") {
+		t.Errorf("FAIL: Got JSON response (TPM) instead of Coding Agent response. Response:\n%s", resp)
+	}
+
+	if !strings.Contains(resp, "cat << 'EOF' > primes.py") {
+		t.Errorf("FAIL: Expected bash script generation, got:\n%s", resp)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
