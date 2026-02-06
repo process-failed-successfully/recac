@@ -32,23 +32,30 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	promptLower := strings.ToLower(prompt)
+
 	// Heuristic for E2E Prime Python Scenario
 	// Matches either the explicit tag [PRIMES] or variations of the task description found in feature lists
-	if strings.Contains(prompt, "[PRIMES]") ||
-		(strings.Contains(prompt, "primes.py") && strings.Contains(prompt, "calculate")) ||
-		(strings.Contains(prompt, "primes") && (strings.Contains(prompt, "calculate") || strings.Contains(prompt, "json") || strings.Contains(prompt, "1229"))) {
+	if strings.Contains(promptLower, "[primes]") ||
+		(strings.Contains(promptLower, "primes.py") && strings.Contains(promptLower, "calculate")) ||
+		(strings.Contains(promptLower, "primes") && (strings.Contains(promptLower, "calculate") || strings.Contains(promptLower, "json") || strings.Contains(promptLower, "1229"))) ||
+		strings.Contains(promptLower, "req-script-calculates-primes-corre") { // Explicit ID fallback
 		// 1. TPM Agent (Ticket Generation)
-		if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM") {
+		if strings.Contains(promptLower, "technical program manager") || strings.Contains(promptLower, "tpm") {
 			return m.generatePrimesPlan(), nil
 		}
 		// 2. Coding Agent (Implementation)
 		// If the history indicates we've already generated the script, signal completion to avoid loops.
-		if strings.Contains(prompt, "cat << 'EOF' > primes.py") {
+		// Note: The prompt might use single or double quotes for heredoc, so we match conservatively.
+		if strings.Contains(promptLower, "cat <<") && strings.Contains(promptLower, "primes.py") {
 			return m.generatePrimesCompletion(), nil
 		}
 		// Default to implementation if role is ambiguous but scenario is clearly primes (legacy behavior support)
 		return m.generatePrimesResponse(), nil
 	}
+
+	// Log unmatched prompts to help debugging in CI
+	fmt.Printf("[MockAgent] UNMATCHED PROMPT: %s\n", truncateString(prompt, 200))
 
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
