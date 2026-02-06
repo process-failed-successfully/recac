@@ -49,6 +49,26 @@ func TestMockAgent_TPM(t *testing.T) {
 	}
 }
 
+func TestMockAgent_TPM_Primes(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Prompt for TPM Primes scenario
+	prompt := "You are an expert Technical Program Manager (TPM)... [PRIMES]"
+	response, err := agent.Send(context.Background(), prompt)
+
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Should return JSON with PRIMES ticket
+	if !strings.Contains(response, "\"id\": \"PRIMES\"") {
+		t.Errorf("Expected PRIMES ticket ID for TPM Primes prompt, got: %s", response)
+	}
+	if !strings.Contains(response, "[PRIMES]") {
+		t.Error("Expected [PRIMES] in ticket description")
+	}
+}
+
 func TestMockAgent_CodingAgent(t *testing.T) {
 	agent := NewMockAgent()
 
@@ -65,7 +85,7 @@ func TestMockAgent_CodingAgent(t *testing.T) {
 		t.Error("Expected mock coding agent echo")
 	}
 
-	// Test Primes Scenario
+	// Test Primes Scenario via [PRIMES]
 	promptPrimes := "## YOUR ROLE - CODING AGENT\n\nTask: Implement [PRIMES] feature"
 	responsePrimes, err := agent.Send(context.Background(), promptPrimes)
 	if err != nil {
@@ -74,8 +94,18 @@ func TestMockAgent_CodingAgent(t *testing.T) {
 	if !strings.Contains(responsePrimes, "cat << 'EOF' > primes.py") {
 		t.Error("Expected primes.py creation script")
 	}
-	if !strings.Contains(responsePrimes, "agent-bridge signal COMPLETED true") {
-		t.Error("Expected completion signal")
+	if !strings.Contains(responsePrimes, "range(2, 10000)") {
+		t.Error("Expected range(2, 10000) for E2E compliance")
+	}
+
+	// Test Primes Scenario via Feature ID
+	promptFeatureID := "## YOUR ROLE - CODING AGENT\n\nFeature: req-primes-py-exists"
+	responseFeatureID, err := agent.Send(context.Background(), promptFeatureID)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(responseFeatureID, "cat << 'EOF' > primes.py") {
+		t.Error("Expected primes.py creation script via feature ID")
 	}
 }
 

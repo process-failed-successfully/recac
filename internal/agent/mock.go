@@ -37,7 +37,20 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// We removed the check for "tickets" because the prompt template might use singular "ticket"
 	// or the user might change the phrasing, but the role remains constant.
 	if strings.Contains(prompt, "Technical Program Manager") {
-		// Return a valid JSON list of tickets
+		// Handle Primes scenario for TPM
+		if strings.Contains(prompt, "[PRIMES]") {
+			return `[
+  {
+    "id": "PRIMES",
+    "title": "[PRIMES] Create Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.",
+    "type": "Task",
+    "status": "TODO"
+  }
+]`, nil
+		}
+
+		// Return a valid JSON list of tickets (Default)
 		return `[
   {
     "id": "PROJ-1",
@@ -109,8 +122,9 @@ EOF
 
 	// Check for Coding Agent prompt
 	if strings.Contains(prompt, "## YOUR ROLE - CODING AGENT") {
-		// For the prime-python scenario (detected via [PRIMES] marker)
-		if strings.Contains(prompt, "[PRIMES]") {
+		// For the prime-python scenario
+		// Detect via [PRIMES] marker OR the specific feature ID that the Initializer creates
+		if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "req-primes-py-exists") {
 			return "```bash\n" + `#!/bin/bash
 set -x
 
@@ -119,6 +133,7 @@ git config user.name "RECAC Agent"
 git config user.email "agent@recac.io"
 
 # Create primes.py
+# Note: E2E test requires primes < 10000.
 cat << 'EOF' > primes.py
 import json
 
@@ -130,8 +145,9 @@ def is_prime(n):
             return False
     return True
 
-primes = [x for x in range(2, 21) if is_prime(x)]
-print(f"Primes: {primes}")
+# Calculate primes < 10000 to match E2E verification
+primes = [x for x in range(2, 10000) if is_prime(x)]
+print(f"Calculated {len(primes)} primes")
 
 with open("primes.json", "w") as f:
     json.dump({"primes": primes}, f)
