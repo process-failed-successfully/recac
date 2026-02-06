@@ -2,6 +2,8 @@ package utils
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -40,20 +42,16 @@ func ParseStaleDuration(durationStr string) (time.Duration, error) {
 		return 0, fmt.Errorf("duration string too short")
 	}
 
-	unit := durationStr[len(durationStr)-1]
-	valueStr := durationStr[:len(durationStr)-1]
-	value, err := time.ParseDuration(valueStr + "h") // Default to hours for parsing
-	if err != nil {
-		return 0, fmt.Errorf("invalid duration value: %w", err)
+	// Handle 'd' (days) suffix
+	if strings.HasSuffix(durationStr, "d") {
+		valStr := strings.TrimSuffix(durationStr, "d")
+		val, err := strconv.ParseFloat(valStr, 64)
+		if err != nil {
+			return 0, fmt.Errorf("invalid day value: %w", err)
+		}
+		return time.Duration(val * float64(24*time.Hour)), nil
 	}
 
-	switch unit {
-	case 'd':
-		return value * 24, nil
-	case 'h':
-		return value, nil
-	default:
-		// Fallback to time.ParseDuration for standard units (m, s, etc.)
-		return time.ParseDuration(durationStr)
-	}
+	// Fallback to standard time.ParseDuration
+	return time.ParseDuration(durationStr)
 }
