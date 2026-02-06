@@ -38,7 +38,17 @@ func TestMockAgent_PrimesScenario(t *testing.T) {
 		t.Errorf("Planner response should contain JSON plan, got: %s", planResponse)
 	}
 
-	// 2. Test Coding Agent Role
+	// 2. Test TPM Role
+	tpmPrompt := "You are an expert Technical Program Manager (TPM). [PRIMES]"
+	tpmResponse, err := agent.Send(context.Background(), tpmPrompt)
+	if err != nil {
+		t.Fatalf("TPM Send failed: %v", err)
+	}
+	if !strings.Contains(tpmResponse, `"title": "ID:[PRIMES] Prime Number Script"`) {
+		t.Errorf("TPM response should contain JSON list, got: %s", tpmResponse)
+	}
+
+	// 3. Test Coding Agent Role
 	coderPrompt := "YOUR ROLE - CODING AGENT. Implement feature [PRIMES] for primes.py"
 	coderResponse, err := agent.Send(context.Background(), coderPrompt)
 	if err != nil {

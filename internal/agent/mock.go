@@ -34,11 +34,22 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristic for E2E Prime Python Scenario
 	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
 		// Detect Role to decide between Plan (JSON) and Implementation (Bash)
-		if strings.Contains(prompt, "CRITICAL INSTRUCTION FOR TICKET GENERATION") ||
-			strings.Contains(prompt, "ROLE: Lead Software Architect") ||
-			strings.Contains(prompt, "ROLE - PROJECT MANAGER") {
-			return m.generatePrimesPlan(), nil
+		if strings.Contains(prompt, "ROLE: Lead Software Architect") || strings.Contains(prompt, "ROLE - PROJECT MANAGER") {
+			return m.generatePrimesArchitectPlan(), nil
 		}
+		if strings.Contains(prompt, "Technical Program Manager") {
+			return m.generatePrimesTPMPlan(), nil
+		}
+		// Fallback for generic "Ticket Generation" instructions if role isn't explicit but context implies planning
+		if strings.Contains(prompt, "CRITICAL INSTRUCTION FOR TICKET GENERATION") {
+			// If it matches TPM signature (Epics/Stories), go TPM. Otherwise Architect.
+			// But usually CRITICAL INSTRUCTION is in the spec, which is in all prompts.
+			// So we rely on the specific Role headers above first.
+			// If we are here, it means it has CRITICAL INSTRUCTION but NO specific role header we recognized above.
+			// We'll default to Architect Plan as safe fallback for 'recac implement', unless it looks like TPM.
+			return m.generatePrimesArchitectPlan(), nil
+		}
+
 		// Default to implementation if it looks like a task or coding request
 		return m.generatePrimesResponse(), nil
 	}
@@ -49,7 +60,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	return response, nil
 }
 
-func (m *MockAgent) generatePrimesPlan() string {
+func (m *MockAgent) generatePrimesArchitectPlan() string {
 	return `{
 "project_name": "Prime Number Script",
 "features": [
@@ -71,6 +82,22 @@ func (m *MockAgent) generatePrimesPlan() string {
 }
 ]
 }`
+}
+
+func (m *MockAgent) generatePrimesTPMPlan() string {
+	return `[
+  {
+    "title": "ID:[PRIMES] Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.",
+    "type": "Task",
+    "children": [],
+    "acceptance_criteria": [
+      "Implement prime calculation logic in primes.py",
+      "Output results to primes.json",
+      "Verify that exactly 1229 primes are calculated"
+    ]
+  }
+]`
 }
 
 // SendStream implements the Agent interface
