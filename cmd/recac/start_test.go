@@ -8,7 +8,10 @@ import (
 	"os"
 	"path/filepath"
 	"recac/internal/agent"
+	"recac/internal/runner"
+	"recac/internal/workflow"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -118,6 +121,15 @@ func TestStartCommand_NormalMode_Restricted(t *testing.T) {
 		return agent.NewMockAgent(), nil
 	}
 	defer func() { agentClientFactory = originalFactory }()
+
+	// Override NewSessionFunc to disable sleep
+	originalNewSessionFunc := workflow.NewSessionFunc
+	workflow.NewSessionFunc = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
+		s := runner.NewSession(d, a, workspace, image, project, provider, model, maxAgents)
+		s.SleepFunc = func(time.Duration) {} // No-op sleep
+		return s
+	}
+	defer func() { workflow.NewSessionFunc = originalNewSessionFunc }()
 
 	t.Setenv("HOME", t.TempDir())
 
