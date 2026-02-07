@@ -59,6 +59,19 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.generatePrimesResponse(), nil
 	}
 
+	// Heuristic for Bootstrap (Generic Coding Agent Start)
+	// If the agent asks for bearings but we missed the specific task keywords, run ls/cat to expose context for next turn
+	if strings.Contains(prompt, "STEP 1: GET YOUR BEARINGS") {
+		return `
+I will check the environment and feature list to understand the task.
+
+` + "```bash" + `
+ls -la
+cat feature_list.json 2>/dev/null || echo "No feature_list.json"
+` + "```" + `
+`, nil
+	}
+
 	// Return a generic mock response
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
