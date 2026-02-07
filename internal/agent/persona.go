@@ -75,6 +75,10 @@ func (pm *PersonaManager) LoadPersonas() error {
 		return err
 	}
 
+	if path == "" {
+		return nil // Cannot load custom personas, just use defaults
+	}
+
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return nil // No custom personas file, just use defaults
 	}
@@ -101,6 +105,10 @@ func (pm *PersonaManager) SavePersonas() error {
 	path, err := getPersonasFilePath()
 	if err != nil {
 		return err
+	}
+
+	if path == "" {
+		return errors.New("cannot save personas: home directory not found and RECAC_PERSONAS_FILE not set")
 	}
 
 	// Ensure directory exists
@@ -178,8 +186,8 @@ func getPersonasFilePath() (string, error) {
 	}
 
 	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
+	if err != nil || home == "" {
+		return "", nil
 	}
 	return filepath.Join(home, ".recac", "personas.yaml"), nil
 }

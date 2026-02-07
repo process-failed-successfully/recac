@@ -99,3 +99,32 @@ func TestPersonaManager_OverrideDefault(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, "Overridden Default", p.Name)
 }
+
+func TestPersonaManager_MissingHome(t *testing.T) {
+	// Unset RECAC_PERSONAS_FILE
+	origEnv := os.Getenv("RECAC_PERSONAS_FILE")
+	os.Unsetenv("RECAC_PERSONAS_FILE")
+	defer os.Setenv("RECAC_PERSONAS_FILE", origEnv)
+
+	// Mock missing home by unsetting HOME
+	// Note: os.UserHomeDir behavior depends on OS.
+	// On Linux, it checks $HOME.
+	origHome := os.Getenv("HOME")
+	os.Unsetenv("HOME")
+	defer os.Setenv("HOME", origHome)
+
+	pm := NewPersonaManager()
+
+	// Load should succeed (return nil) but load nothing custom
+	err := pm.LoadPersonas()
+	assert.NoError(t, err)
+
+	// Defaults should still be present
+	_, ok := pm.GetPersona("default")
+	assert.True(t, ok)
+
+	// Save should fail
+	err = pm.SavePersonas()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "home directory not found")
+}
