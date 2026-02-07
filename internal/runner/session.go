@@ -210,7 +210,11 @@ func NewSessionWithConfig(workspace, project, provider, model string, dbStore db
 	agentStateFile := filepath.Join(workspace, stateFile)
 	stateManager := agent.NewStateManager(agentStateFile)
 
-	logger := initializeLogging(project)
+	// Create session logger without file side effects
+	logger := telemetry.NewLogger(viper.GetBool("verbose"), "", false)
+	if project != "" {
+		logger = logger.With("project", project)
+	}
 
 	return &Session{
 		Workspace:        workspace,
