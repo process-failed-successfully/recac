@@ -68,3 +68,18 @@ func TestNewAgent_OpenRouterModelCorrection(t *testing.T) {
 		}
 	}
 }
+
+func TestNewAgent_MockProvider(t *testing.T) {
+	agent, err := NewAgent("mock", "key", "model", ".", "proj")
+	if err != nil {
+		t.Fatalf("Failed to create mock agent: %v", err)
+	}
+	if agent == nil {
+		t.Fatal("NewAgent returned nil for mock provider")
+	}
+
+	_, ok := agent.(*MockAgent)
+	if !ok {
+		t.Error("NewAgent did not return a *MockAgent for mock provider")
+	}
+}

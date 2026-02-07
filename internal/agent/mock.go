@@ -13,7 +13,7 @@ type MockAgent struct {
 }
 
 // NewMockAgent creates a new mock agent
-func NewMockAgent() *MockAgent {
+func NewMockAgent(apiKey, model, project string) *MockAgent {
 	return &MockAgent{
 		responsePrefix: "Mock agent response",
 	}
