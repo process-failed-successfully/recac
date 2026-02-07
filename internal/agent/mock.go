@@ -34,7 +34,21 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristics for E2E Tests
 
-	// 1. Initializer Role - Feature Generation for [PRIMES]
+	// 1. TPM Role - Ticket Generation for [PRIMES] (Used by 'recac jira generate-from-spec')
+	if strings.Contains(prompt, "Technical Program Manager") && strings.Contains(prompt, "[PRIMES]") {
+		return "```json\n" + `
+[
+  {
+    "title": "ID:[PRIMES] Implement Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.",
+    "type": "Task",
+    "children": []
+  }
+]
+` + "```", nil
+	}
+
+	// 2. Initializer Role - Feature Generation for [PRIMES] (Used by 'recac start' session)
 	// Triggered by "INITIALIZER AGENT" or "Initializer Agent" prompt
 	if (strings.Contains(prompt, "INITIALIZER AGENT") || strings.Contains(prompt, "Initializer Agent")) && strings.Contains(prompt, "[PRIMES]") {
 		return `I will generate the feature list for the primes task.
