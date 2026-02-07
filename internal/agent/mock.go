@@ -51,13 +51,36 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
+	// Heuristic: Detect QA Agent Role
+	if strings.Contains(prompt, "QA Agent") || strings.Contains(prompt, "quality checks") {
+		return `QA checks passed.
+
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// Heuristic: Detect Project Manager Role
+	if strings.Contains(prompt, "Project Manager") || strings.Contains(prompt, "Manager agent") {
+		return `Approved.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
+	}
+
 	// Heuristic: Detect Primes Implementation Task
 	// This supports the E2E smoke test scenario
 	// We check the prompt AND the injected features env var (for robustness)
 	injectedFeatures := os.Getenv("RECAC_INJECTED_FEATURES")
 	// Debug logging for troubleshooting CI - use stderr to ensure it appears in logs
 	fmt.Fprintf(os.Stderr, "[DEBUG] MockAgent: injectedFeatures=%q\n", injectedFeatures)
-	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") || strings.Contains(injectedFeatures, "[PRIMES]") {
+
+	// Only trigger implementation if we are NOT in a review/manager role
+	isManager := strings.Contains(prompt, "Manager") || strings.Contains(prompt, "Review")
+	if (strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") || strings.Contains(injectedFeatures, "[PRIMES]")) && !isManager {
 		return `I will implement the primes calculation script as requested.
 
 ` + "```bash" + `

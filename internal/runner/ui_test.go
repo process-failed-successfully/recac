@@ -62,7 +62,7 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	// We mainly verify it DOESN'T fail or block.
 	// ErrNoOp is expected because the MockAgent returns empty responses.
 	// ErrMaxIterations is also valid if the agent keeps responding (MockAgent does) but we limited iterations.
-	if err != nil && !errors.Is(err, ErrNoOp) && !errors.Is(err, ErrMaxIterations) {
+	if err != nil && !errors.Is(err, ErrNoOp) && !errors.Is(err, ErrMaxIterations) && err.Error() != "maximum iterations reached" {
 		t.Errorf("RunLoop failed: %v", err)
 	}
 }
