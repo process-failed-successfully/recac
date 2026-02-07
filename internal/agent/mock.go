@@ -84,7 +84,9 @@ cat <<EOF | agent-bridge import
       "priority": "1",
       "description": "Script calculates primes correctly",
       "status": "todo",
-      "dependencies": []
+      "dependencies": {
+        "depends_on_ids": []
+      }
     }
   ]
 }
