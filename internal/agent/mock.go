@@ -78,7 +78,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return `[
   {
     "id": "feature-1",
-    "name": "Primes Script",
+    "title": "Primes Script",
     "type": "task",
     "status": "todo",
     "description": "Implement primes.py",
