@@ -51,7 +51,7 @@ func TestSession_Guardrail_PrematureSignoff(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "PROJECT_SIGNED_OFF"), []byte("true"), 0644)
 
 	mockDocker := &MockDockerForGuardrail{}
-	mockAgent := agent.NewMockAgent()
+	mockAgent := agent.NewMockAgent("mock-key", "mock-model", "test-project")
 
 	// Init DB
 	dbPath := filepath.Join(tmpDir, "recac.db")

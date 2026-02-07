@@ -370,7 +370,7 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 	if cfg.IsMock {
 		fmt.Printf("[%s] Starting in MOCK MODE\n", cfg.SessionName)
 		dockerCli, _ := docker.NewMockClient()
-		agentClient := agent.NewMockAgent()
+		agentClient := agent.NewMockAgent("mock-key", "mock-model", cfg.SessionName)
 
 		projectPath := cfg.ProjectPath
 		if projectPath == "" {

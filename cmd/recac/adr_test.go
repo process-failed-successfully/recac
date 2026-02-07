@@ -92,7 +92,7 @@ func TestAdrGenerate(t *testing.T) {
 	// Mock Agent
 	origFactory := agentClientFactory
 	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
-		m := agent.NewMockAgent()
+		m := agent.NewMockAgent("mock-key", "mock-model", "test-project")
 		m.SetResponse("## Context\n\nAI generated context.\n\n## Decision\n\nAI decision.\n\n## Consequences\n\nAI consequences.")
 		return m, nil
 	}

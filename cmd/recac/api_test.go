@@ -52,7 +52,7 @@ func main() {
 	origFactory := agentClientFactory
 	defer func() { agentClientFactory = origFactory }()
 
-	mockAgent := agent.NewMockAgent()
+	mockAgent := agent.NewMockAgent("mock-key", "mock-model", "test-project")
 	mockAgent.SetResponse("Mock description")
 
 	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
