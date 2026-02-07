@@ -161,10 +161,6 @@ func TestProcessDirectTask(t *testing.T) {
 	}
 }
 
-func TestRunWorkflow_Detached(t *testing.T) {
-	t.Skip("Skipping detached test due to binary dependency")
-}
-
 func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 	// Mock SetupWorkspace
 	originalSetup := cmdutils.SetupWorkspace
