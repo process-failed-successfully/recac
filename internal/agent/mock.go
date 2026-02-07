@@ -38,20 +38,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(prompt, "Technical Program Manager") && (strings.Contains(prompt, "ticket") || strings.Contains(prompt, "plan")) {
 		return `[
   {
-    "summary": "Implement Core Features",
-    "description": "Implement the core functionality described in the specification.",
+    "summary": "[PRIMES] Create Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.",
     "type": "Task",
     "priority": "High",
     "story_points": 5,
     "features": ["feat-core-1"]
-  },
-  {
-    "summary": "Setup Infrastructure",
-    "description": "Initialize the project infrastructure and CI/CD pipelines.",
-    "type": "Task",
-    "priority": "Medium",
-    "story_points": 3,
-    "features": ["feat-infra-1"]
   }
 ]`, nil
 	}
