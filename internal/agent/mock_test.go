@@ -25,15 +25,15 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
-func TestMockAgent_TPM(t *testing.T) {
+func TestMockAgent_Initializer(t *testing.T) {
 	agent := NewMockAgent()
-	prompt := "You are an expert Technical Program Manager... ID:[PRIMES] ..."
+	prompt := "You are an INITIALIZER AGENT... ID:[PRIMES] ..."
 	response, err := agent.Send(context.Background(), prompt)
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
 	}
-	if !strings.Contains(response, "ID:[PRIMES]") || !strings.Contains(response, "```json") {
-		t.Errorf("TPM heuristic failed, got: %s", response)
+	if !strings.Contains(response, "agent-bridge import") || !strings.Contains(response, "```bash") {
+		t.Errorf("Initializer heuristic failed, got: %s", response)
 	}
 }
 

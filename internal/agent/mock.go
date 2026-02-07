@@ -34,18 +34,40 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristics for E2E Tests
 
-	// 1. TPM Role - Ticket Generation for [PRIMES]
-	if strings.Contains(prompt, "Technical Program Manager") && strings.Contains(prompt, "[PRIMES]") {
-		return "```json\n" + `
-[
-  {
-    "title": "ID:[PRIMES] Implement Prime Number Script",
-    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.",
-    "type": "Task",
-    "children": []
-  }
-]
-` + "```", nil
+	// 1. Initializer Role - Feature Generation for [PRIMES]
+	// Triggered by "INITIALIZER AGENT" or "Initializer Agent" prompt
+	if (strings.Contains(prompt, "INITIALIZER AGENT") || strings.Contains(prompt, "Initializer Agent")) && strings.Contains(prompt, "[PRIMES]") {
+		return `I will generate the feature list for the primes task.
+
+` + "```bash" + `
+cat << 'EOF' | agent-bridge import
+{
+  "project_name": "Primes",
+  "features": [
+    {
+      "id": "PRIMES",
+      "category": "functional",
+      "priority": "MVP",
+      "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.",
+      "status": "pending",
+      "steps": [
+        "Create primes.py",
+        "Run primes.py",
+        "Verify primes.json exists",
+        "Commit changes"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": ["primes.py", "primes.json"],
+        "read_only_paths": []
+      }
+    }
+  ]
+}
+EOF
+` + "```" + `
+`, nil
 	}
 
 	// 2. Coding Agent Role - Implementation for [PRIMES]
