@@ -47,7 +47,7 @@ cat <<EOF > feature_list.json
   "features": [
     {
       "name": "Feature 1",
-      "description": "Mock feature for smoke test",
+      "description": "Mock feature for smoke test: Implement a python script named primes.py",
       "status": "todo",
       "priority": "high"
     }
