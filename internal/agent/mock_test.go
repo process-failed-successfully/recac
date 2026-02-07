@@ -6,31 +6,34 @@ import (
 	"testing"
 )
 
-func TestMockAgent(t *testing.T) {
+func TestMockAgent_Send_TPM(t *testing.T) {
 	agent := NewMockAgent()
+	prompt := "You are an expert Technical Program Manager. Please generate a JSON list of tickets."
 
-	prompt := "This is a test prompt that is long enough to be truncated"
-	response, err := agent.Send(context.Background(), prompt)
-
+	resp, err := agent.Send(context.Background(), prompt)
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
 	}
 
-	if !strings.Contains(response, "Mock agent response") {
-		t.Errorf("Response missing prefix, got: %s", response)
+	if !strings.HasPrefix(strings.TrimSpace(resp), "[") {
+		t.Errorf("Expected JSON array response, got: %s", resp)
 	}
 
-	if !strings.Contains(response, "I received your prompt") {
-		t.Errorf("Response missing body, got: %s", response)
+	if !strings.Contains(resp, "Implement prime number checker") {
+		t.Errorf("Expected prime number checker task, got: %s", resp)
 	}
 }
 
-func TestTruncateString(t *testing.T) {
-	s := "hello world"
-	if truncateString(s, 5) != "hello" {
-		t.Errorf("Expected 'hello', got '%s'", truncateString(s, 5))
+func TestMockAgent_Send_Default(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Hello, who are you?"
+
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
 	}
-	if truncateString(s, 20) != "hello world" {
-		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
+
+	if !strings.Contains(resp, "Mock agent response") {
+		t.Errorf("Expected default mock response, got: %s", resp)
 	}
 }
