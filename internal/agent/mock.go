@@ -64,12 +64,6 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		}
 	}
 
-	// 5. Manager Agent
-	// Detect "Manager" role (often used for final review/sign-off)
-	if strings.Contains(prompt, "Manager") {
-		return m.managerSignOffResponse(), nil
-	}
-
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	// We include a dummy command to prevent the "NO-OP LOOP" circuit breaker from tripping
@@ -184,13 +178,5 @@ python3 primes.py
 git add primes.py primes.json
 git commit -m "Implement primes calculation" --author="Recac Bot <bot@recac.com>"
 agent-bridge feature set PRIMES --status done --passes true
-` + "```"
-}
-
-func (m *MockAgent) managerSignOffResponse() string {
-	return `The project looks good. All requirements are met.
-
-` + "```bash" + `
-agent-bridge signal PROJECT_SIGNED_OFF true
 ` + "```"
 }
