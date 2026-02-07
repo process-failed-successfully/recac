@@ -105,7 +105,10 @@ func initConfig() {
 		exit(1)
 	}
 
-	telemetry.InitLogger(viper.GetBool("verbose"), "", false)
+	// FIX: Do not re-init global logger in tests to avoid polluting other tests
+	if flag.Lookup("test.v") == nil {
+		telemetry.InitLogger(viper.GetBool("verbose"), "", false)
+	}
 
 	// Start Metrics Server, but not in test mode to avoid hanging
 	if flag.Lookup("test.v") == nil {

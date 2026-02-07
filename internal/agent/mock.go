@@ -106,7 +106,13 @@ EOF
 	injectedFeatures := os.Getenv("RECAC_INJECTED_FEATURES")
 	// Debug logging for troubleshooting CI - use stderr to ensure it appears in logs
 	fmt.Fprintf(os.Stderr, "[DEBUG] MockAgent: injectedFeatures=%q\n", injectedFeatures)
-	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") || strings.Contains(injectedFeatures, "[PRIMES]") {
+	fmt.Fprintf(os.Stderr, "[DEBUG] MockAgent: prompt_preview=%q\n", truncateString(prompt, 100))
+
+	// Robust check for Primes scenario
+	if strings.Contains(prompt, "[PRIMES]") ||
+		strings.Contains(prompt, "primes.py") ||
+		strings.Contains(injectedFeatures, "[PRIMES]") ||
+		strings.Contains(injectedFeatures, "req-script-prints-primes") {
 		return `I will implement the primes calculation script as requested.
 
 ` + "```bash" + `
