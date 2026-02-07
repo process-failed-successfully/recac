@@ -87,6 +87,17 @@ agent-bridge signal PROJECT_SIGNED_OFF true
 	// because ticket generation prompts might contain "primes.py" in the requirement description.
 	// We also ensure we are NOT in a Coding Agent role, as those prompts might contain ticket details.
 	if len(prompt) > 0 && (prompt[0] == '{' || prompt[0] == '[' || containsTicketKeywords(prompt)) && !strings.Contains(prompt, "YOUR ROLE - CODING AGENT") {
+		// Special case for Primes Scenario (Smoke Test)
+		if strings.Contains(prompt, "ID:[PRIMES]") {
+			return `[
+  {
+    "title": "ID:[PRIMES] Create primes.py",
+    "description": "Repo: https://github.com/process-failed-successfully/recac-jira-e2e\nImplement primes.py",
+    "type": "Task"
+  }
+]`, nil
+		}
+
 		return `[
   {
     "title": "Mock Epic",
