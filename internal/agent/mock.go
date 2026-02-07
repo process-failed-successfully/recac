@@ -90,11 +90,13 @@ python3 primes.py
 
 # Commit and Push
 git add primes.py primes.json
-git commit -m "Add primes.py implementation" --author="Recac Agent <agent@recac.ai>"
+git commit -m "Add primes.py implementation" --author="Recac Agent <agent@recac.ai>" || echo "No changes to commit"
 git push
 
 # Mark feature as implemented
-agent-bridge feature set --status "Implemented"
+agent-bridge feature set req-primes-py-exists --status "Done" --passes true
+agent-bridge feature set req-primes-json-exists-and-contain --status "Done" --passes true
+agent-bridge feature set req-primes-json-contains-exactly-1 --status "Done" --passes true
 ` + "```" + `
 `, nil
 	}
@@ -106,7 +108,7 @@ agent-bridge feature set --status "Implemented"
 	// Add dummy command to prevent NO-OP loop detection if generic
 	if strings.Contains(prompt, "QA AGENT") {
 		// QA Agent expects to run tests
-		response += "\n```bash\necho 'Running QA Checks...'\n```"
+		response += "\n```bash\necho 'Running QA Checks...'\nagent-bridge signal QA_PASSED true\n```"
 	} else {
 		response += "\n```bash\necho 'Mock Agent Processing...'\n```"
 	}
