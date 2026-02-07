@@ -70,6 +70,13 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		strings.Contains(lowerPrompt, "primes.json") ||
 		(strings.Contains(lowerPrompt, "prime") && strings.Contains(lowerPrompt, "script")) ||
 		strings.Contains(prompt, "YOUR ROLE - CODING AGENT") {
+
+		// LOOP PREVENTION: Check if we have already output the script command.
+		// If the history (prompt) contains the specific command, we assume it's done.
+		if strings.Contains(prompt, "cat <<EOF > primes.py") {
+			return "Script implemented. Ready for next phase.", nil
+		}
+
 		return "I will implement the prime number calculation script.\n\n" +
 			"```bash\n" +
 			"cat <<EOF > primes.py\n" +
