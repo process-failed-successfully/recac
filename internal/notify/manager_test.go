@@ -250,3 +250,27 @@ func TestManager_AddReaction(t *testing.T) {
 	assert.True(t, slackCalled)
 	assert.True(t, discordCalled)
 }
+
+func TestManager_InitDiscord(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(func() { viper.Reset() })
+
+	viper.Set("notifications.discord.enabled", true)
+	t.Setenv("DISCORD_BOT_TOKEN", "dummy_token")
+	t.Setenv("DISCORD_CHANNEL_ID", "dummy_channel")
+
+	m := NewManager(nil)
+	assert.NotNil(t, m.discordNotifier)
+}
+
+func TestManager_InitSlack(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(func() { viper.Reset() })
+
+	viper.Set("notifications.slack.enabled", true)
+	viper.Set("notifications.slack.channel", "#general")
+	t.Setenv("SLACK_BOT_USER_TOKEN", "dummy_slack_token")
+
+	m := NewManager(nil)
+	assert.NotNil(t, m.client)
+}

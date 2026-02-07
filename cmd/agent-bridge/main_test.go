@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"recac/internal/db"
@@ -19,9 +20,6 @@ func TestRun_Blocker(t *testing.T) {
 	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err != nil {
 		t.Fatalf("run failed: %v", err)
 	}
-
-	// Ideally we check DB state, but 'run' just prints to stdout/stderr.
-	// We trust SetSignal is covered by db tests. Here we test the CLI wiring.
 }
 
 func TestRun_QA(t *testing.T) {
@@ -89,8 +87,14 @@ func TestRun_Feature(t *testing.T) {
 	dbPath := filepath.Join(tmpDir, ".recac.db")
 	projectID := "test-project"
 
-	store, _ := db.NewStore(db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}) // Fixed SaveFeatures call
-	store.SaveFeatures(projectID, `{"project_name": "Test", "features": [{"id": "F1", "name": "Feature 1"}]}`)
+	store, err := db.NewStore(db.StoreConfig{Type: "sqlite", ConnectionString: dbPath})
+	if err != nil {
+		t.Fatalf("failed to create store: %v", err)
+	}
+	if err := store.SaveFeatures(projectID, `{"project_name": "Test", "features": [{"id": "F1", "name": "Feature 1"}]}`); err != nil {
+		store.Close()
+		t.Fatalf("failed to save features: %v", err)
+	}
 	store.Close()
 
 	args := []string{"agent-bridge", "feature", "set", "F1", "--status", "done", "--passes", "true"}
@@ -100,13 +104,7 @@ func TestRun_Feature(t *testing.T) {
 }
 
 func TestMainEntry(t *testing.T) {
-	// We can't easily test os.Exit(1) without subprocess,
-	// but we can at least call main() with valid args to get coverage.
-	// We'll use a temp DB and valid args.
 	tmpDir := t.TempDir()
-
-	// Backup and restore os.Args and a way to control dbPath in main if possible?
-	// main() uses hardcoded ".recac.db". Let's temporarily change CWD.
 	oldWd, _ := os.Getwd()
 	os.Chdir(tmpDir)
 	defer os.Chdir(oldWd)
@@ -123,23 +121,126 @@ func TestRun_Invalid(t *testing.T) {
 	dbPath := filepath.Join(tmpDir, ".recac.db")
 	projectID := "test-project"
 
-	// No args
 	if err := run([]string{"agent-bridge"}, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err == nil {
 		t.Error("Expected error for no args")
 	}
 
-	// Unknown command
 	if err := run([]string{"agent-bridge", "unknown"}, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err == nil {
 		t.Error("Expected error for unknown command")
 	}
 
-	// verify missing args
 	if err := run([]string{"agent-bridge", "verify", "F1"}, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err == nil {
 		t.Error("Expected error for verify missing args")
 	}
 
-	// verify missing file
 	if err := run([]string{"agent-bridge", "verify", "F2", "pass"}, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err == nil {
 		t.Error("Expected error for verify missing file")
+	}
+}
+
+func TestRun_FeatureList(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".recac.db")
+	projectID := "test-project"
+
+	store, err := db.NewStore(db.StoreConfig{Type: "sqlite", ConnectionString: dbPath})
+	if err != nil {
+		t.Fatalf("failed to create store: %v", err)
+	}
+	if err := store.SaveFeatures(projectID, `{"project_name": "Test", "features": [{"id": "F1", "name": "Feature 1"}]}`); err != nil {
+		store.Close()
+		t.Fatalf("failed to save features: %v", err)
+	}
+	store.Close()
+
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	args := []string{"agent-bridge", "feature", "list"}
+	err = run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID)
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	if err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	out, _ := io.ReadAll(r)
+	if !strings.Contains(string(out), "Feature 1") {
+		t.Errorf("Expected output to contain 'Feature 1', got: %s", string(out))
+	}
+}
+
+func TestRun_ClearSignal(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".recac.db")
+	// The CLI uses the directory base name as project ID
+	projectID := filepath.Base(tmpDir)
+
+	oldWd, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(oldWd)
+
+	store, err := db.NewStore(db.StoreConfig{Type: "sqlite", ConnectionString: dbPath})
+	if err != nil {
+		t.Fatalf("failed to create store: %v", err)
+	}
+	if err := store.SetSignal(projectID, "TEST_SIGNAL", "value"); err != nil {
+		store.Close()
+		t.Fatalf("failed to set signal: %v", err)
+	}
+	store.Close()
+
+	args := []string{"agent-bridge", "clear-signal", "TEST_SIGNAL"}
+	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	// Verify signal is cleared
+	store, err = db.NewStore(db.StoreConfig{Type: "sqlite", ConnectionString: dbPath})
+	if err != nil {
+		t.Fatalf("failed to reopen store: %v", err)
+	}
+	defer store.Close()
+
+	val, err := store.GetSignal(projectID, "TEST_SIGNAL")
+	// If it was cleared, we expect either error or empty string depending on implementation.
+	// Assuming GetSignal returns error if not found.
+	if err == nil && val != "" {
+		t.Errorf("Expected signal to be cleared, but got: %s", val)
+	}
+}
+
+func TestRun_Import(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".recac.db")
+	projectID := "test-project"
+
+	content := `{"project_name": "Imported", "features": [{"id": "I1", "name": "Imported Feature"}]}`
+	tmpFile := filepath.Join(tmpDir, "features.json")
+	os.WriteFile(tmpFile, []byte(content), 0644)
+
+	oldStdin := os.Stdin
+	defer func() { os.Stdin = oldStdin }()
+
+	f, _ := os.Open(tmpFile)
+	defer f.Close()
+	os.Stdin = f
+
+	args := []string{"agent-bridge", "import"}
+	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	store, err := db.NewStore(db.StoreConfig{Type: "sqlite", ConnectionString: dbPath})
+	if err != nil {
+		t.Fatalf("failed to reopen store: %v", err)
+	}
+	defer store.Close()
+	features, _ := store.GetFeatures(projectID)
+	if !strings.Contains(features, "Imported Feature") {
+		t.Errorf("Expected imported feature in DB")
 	}
 }
