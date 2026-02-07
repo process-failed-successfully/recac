@@ -111,14 +111,56 @@ git commit -m "Implement primes.py"
 `, nil
 	}
 
-	// 3. Fallback / Review
+	// 3. Initializer Agent - Feature List Creation
+	// Trigger: "ROLE - INITIALIZER AGENT" (case-insensitive)
+	if strings.Contains(strings.ToUpper(prompt), "ROLE - INITIALIZER AGENT") {
+		// Return a valid feature list import command
+		return `I will initialize the project with the required features.
+
+` + "```bash" + `
+cat << 'EOF' | agent-bridge import
+{
+  "project_name": "Mock Project",
+  "features": [
+    {
+      "id": "req-initial-setup",
+      "category": "functional",
+      "priority": "MVP",
+      "description": "Initial project setup and feature list creation",
+      "status": "pending",
+      "steps": ["Verify feature_list.json exists"],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": [],
+        "read_only_paths": []
+      }
+    }
+  ]
+}
+EOF
+echo "Feature list initialized."
+` + "```" + `
+`, nil
+	}
+
+	// 4. Fallback / Review
 	if strings.Contains(prompt, "Review") || strings.Contains(prompt, "QA") {
 		return "The implementation looks correct and passes all checks.", nil
 	}
 
 	// Default response
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
-		m.responsePrefix, len(prompt), truncateString(prompt, 100))
+	// We include a harmless command to prevent 'NO-OP LOOP' errors in the runner's circuit breaker
+	response := fmt.Sprintf(`%s:
+
+I received your prompt (%d characters). In mock mode, I would process this request and provide a response.
+
+Prompt preview: %s...
+
+`+"```bash"+`
+echo "Mock Agent Default Response"
+`+"```"+`
+`, m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
 }
 
