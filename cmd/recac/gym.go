@@ -111,7 +111,9 @@ func loadChallenges(path string) ([]GymChallenge, error) {
 			if !info.IsDir() && (strings.HasSuffix(p, ".yaml") || strings.HasSuffix(p, ".yml") || strings.HasSuffix(p, ".json")) {
 				c, err := loadChallengesFile(p)
 				if err != nil {
-					return fmt.Errorf("failed to load %s: %w", p, err)
+					// Don't fail the whole directory if one file fails (e.g. config.yaml or bad syntax)
+					fmt.Fprintf(os.Stderr, "Warning: Failed to load challenges from %s: %v. Skipping.\n", p, err)
+					return nil
 				}
 				challenges = append(challenges, c...)
 			}
@@ -132,16 +134,29 @@ func loadChallengesFile(path string) ([]GymChallenge, error) {
 	var challenges []GymChallenge
 	// Try parsing as list first
 	if err := yaml.Unmarshal(data, &challenges); err == nil {
-		return challenges, nil
+		// Validate: At least one item must be valid (have a name)
+		var valid []GymChallenge
+		for _, c := range challenges {
+			if c.Name != "" {
+				valid = append(valid, c)
+			}
+		}
+		if len(valid) > 0 {
+			return valid, nil
+		}
+		// If we parsed a list but found no valid challenges, it might be an empty list or irrelevant YAML.
+		// Fall through to try single object logic (though usually list unmarshal handles it).
 	}
 
 	// Maybe it's a single object
 	var single GymChallenge
 	if err := yaml.Unmarshal(data, &single); err == nil {
-		return []GymChallenge{single}, nil
+		if single.Name != "" {
+			return []GymChallenge{single}, nil
+		}
 	}
 
-	return nil, fmt.Errorf("failed to parse challenges file")
+	return nil, fmt.Errorf("failed to parse valid challenges (must contain 'name' field)")
 }
 
 func runGymSession(ctx context.Context, challenge GymChallenge) (*GymResult, error) {
