@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -51,8 +52,16 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristic: Detect Primes Implementation Task
 	// This supports the E2E smoke test scenario
 	// We use Case-Insensitive check to be robust against prompt variations
+	// Also check environment variable for injected features to detect intent
 	lowerPrompt := strings.ToLower(prompt)
-	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(lowerPrompt, "primes") || strings.Contains(prompt, "primes.py") {
+	injectedFeatures := os.Getenv("RECAC_INJECTED_FEATURES")
+
+	isPrimesTask := strings.Contains(prompt, "[PRIMES]") ||
+		strings.Contains(lowerPrompt, "primes") ||
+		strings.Contains(prompt, "primes.py") ||
+		(strings.Contains(injectedFeatures, "primes") && strings.Contains(prompt, "Coding Agent"))
+
+	if isPrimesTask {
 		// Return a response with a valid bash block that implements the task
 		// This prevents the "NO-OP LOOP" circuit breaker
 		return `I will implement the primes calculation script as requested.
