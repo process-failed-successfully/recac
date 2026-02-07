@@ -39,6 +39,18 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	envFeatures := strings.ToLower(os.Getenv("RECAC_INJECTED_FEATURES"))
 	isPrimesEnv := strings.Contains(envFeatures, "[primes]") || strings.Contains(envFeatures, "req-script-calculates-primes-corre")
 
+	// 1. QA Agent (Verification)
+	// Matches "QA AGENT" role instruction
+	if strings.Contains(promptLower, "qa agent") {
+		return "I will verify the project.\n\n```bash\n# Simulate running tests\necho \"Running tests...\"\necho \"Tests passed!\"\nagent-bridge signal QA_PASSED true\n```", nil
+	}
+
+	// 2. Project Manager (Approval)
+	// Matches "PROJECT MANAGER" role instruction
+	if strings.Contains(promptLower, "project manager") {
+		return "I approve the project.\n\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
+	}
+
 	// Heuristic for E2E Prime Python Scenario
 	// Matches either the explicit tag [PRIMES] or variations of the task description found in feature lists
 	if strings.Contains(promptLower, "[primes]") ||
@@ -46,11 +58,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		(strings.Contains(promptLower, "primes") && (strings.Contains(promptLower, "calculate") || strings.Contains(promptLower, "json") || strings.Contains(promptLower, "1229"))) ||
 		strings.Contains(promptLower, "req-script-calculates-primes-corre") || // Explicit ID fallback
 		(strings.Contains(promptLower, "coding agent") && isPrimesEnv) { // Fallback: Role + Env Context
-		// 1. TPM Agent (Ticket Generation)
+		// 3. TPM Agent (Ticket Generation)
 		if strings.Contains(promptLower, "technical program manager") || strings.Contains(promptLower, "tpm") {
 			return m.generatePrimesPlan(), nil
 		}
-		// 2. Coding Agent (Implementation)
+		// 4. Coding Agent (Implementation)
 		// If the history indicates we've already generated the script, signal completion to avoid loops.
 		// Note: The prompt might use single or double quotes for heredoc, so we match conservatively.
 		if strings.Contains(promptLower, "cat <<") && strings.Contains(promptLower, "primes.py") {
