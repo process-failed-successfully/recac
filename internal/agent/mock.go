@@ -95,7 +95,31 @@ func generateMockTicketPlan() string {
 }
 
 func generateMockPythonImplementation() string {
-	return "```python\ndef is_prime(n):\n    if n <= 1:\n        return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0:\n            return False\n    return True\n\nprimes = []\nnum = 2\nwhile len(primes) < 10:\n    if is_prime(num):\n        primes.append(num)\n    num += 1\n\nprint(primes)\n```"
+	return `Here is the python script to calculate primes:
+
+` + "```bash" + `
+cat <<EOF > primes.py
+def is_prime(n):
+    if n <= 1:
+        return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+primes = []
+num = 2
+while len(primes) < 10:
+    if is_prime(num):
+        primes.append(num)
+    num += 1
+
+print(primes)
+EOF
+` + "```" + `
+
+I have implemented the script in 'primes.py'.
+`
 }
 
 // SendStream implements the Agent interface
