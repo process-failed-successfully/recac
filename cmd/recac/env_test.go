@@ -101,7 +101,21 @@ func TestEnvGenerate(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
-	// Setup code usually not needed for simple unit tests but good practice to isolate if needed
-	// Here we just run tests
-	os.Exit(m.Run())
+	// Set up temporary logs directory for tests
+	tmpDir, err := os.MkdirTemp("", "recac-logs")
+	if err != nil {
+		panic(err)
+	}
+
+	// Set environment variable
+	os.Setenv("RECAC_LOGS_DIR", tmpDir)
+
+	// Run tests
+	exitVal := m.Run()
+
+	// Cleanup
+	os.RemoveAll(tmpDir)
+	os.Unsetenv("RECAC_LOGS_DIR")
+
+	os.Exit(exitVal)
 }
