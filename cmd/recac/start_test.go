@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"recac/internal/agent"
 	"testing"
@@ -67,10 +68,15 @@ func TestStartCommand_Detached(t *testing.T) {
 
 func TestStartCommand_MockMode_Interactive(t *testing.T) {
 	tmpDir := t.TempDir()
+	// Initialize git repo to prevent "fatal: not a git repository"
+	exec.Command("git", "init", tmpDir).Run()
+
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
 
 	homeDir := t.TempDir()
 	t.Setenv("HOME", homeDir)
+	// Prevent log creation in CWD
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 
 	var err error
 	output := captureOutput(func() {
@@ -91,9 +97,14 @@ func TestStartCommand_MockMode_Interactive(t *testing.T) {
 
 func TestStartCommand_Resume(t *testing.T) {
 	tmpDir := t.TempDir()
+	// Initialize git repo
+	exec.Command("git", "init", tmpDir).Run()
+
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
 
 	t.Setenv("HOME", t.TempDir())
+	// Prevent log creation in CWD
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 
 	output := captureOutput(func() {
 		executeCommand(rootCmd, "start",
@@ -110,6 +121,9 @@ func TestStartCommand_Resume(t *testing.T) {
 
 func TestStartCommand_NormalMode_Restricted(t *testing.T) {
 	tmpDir := t.TempDir()
+	// Initialize git repo
+	exec.Command("git", "init", tmpDir).Run()
+
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
 
 	// Mock agentClientFactory
@@ -120,6 +134,8 @@ func TestStartCommand_NormalMode_Restricted(t *testing.T) {
 	defer func() { agentClientFactory = originalFactory }()
 
 	t.Setenv("HOME", t.TempDir())
+	// Prevent log creation in CWD
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 
 	var err error
 	output := captureOutput(func() {
