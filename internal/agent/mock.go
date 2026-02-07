@@ -144,11 +144,22 @@ echo "Feature list initialized."
 `, nil
 	}
 
-	// 4. Fallback / Review
-	if (strings.Contains(prompt, "Review") || strings.Contains(prompt, "QA")) &&
-		!strings.Contains(prompt, "CODING AGENT") &&
-		!strings.Contains(prompt, "Developer") {
-		return "The implementation looks correct and passes all checks.", nil
+	// 4. Manager / Review Agent
+	// Trigger: "ROLE - PROJECT MANAGER" or similar
+	if strings.Contains(prompt, "PROJECT MANAGER") ||
+		((strings.Contains(prompt, "Review") || strings.Contains(prompt, "QA")) &&
+			!strings.Contains(prompt, "CODING AGENT") &&
+			!strings.Contains(prompt, "Developer")) {
+
+		// If it's a Manager review, and features seem done (implied by getting here in smoke test),
+		// we should signal project completion.
+		return `I have reviewed the project status. All features appear to be implemented and verified.
+
+` + "```bash" + `
+agent-bridge signal set PROJECT_SIGNED_OFF --value true
+echo "Project signed off by Manager."
+` + "```" + `
+`, nil
 	}
 
 	// Default response
