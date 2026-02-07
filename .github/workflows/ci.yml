@@ -251,7 +251,7 @@ jobs:
       - name: Setup k3d
         uses: nolar/setup-k3d-k3s@v1
         with:
-          version: v5.6.0
+          version: v1.29
           k3d-name: "recac-smoke"
           k3d-args: >-
             --agents 1
