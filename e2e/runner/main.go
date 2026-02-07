@@ -353,6 +353,7 @@ func run() error {
 	if err := waitForPod(namespace, fmt.Sprintf("app.kubernetes.io/name=%s", "recac"), 120*time.Second); err != nil {
 		fmt.Println("!!! Orchestrator Pod Failed to Start !!!")
 		printKubeDebugInfo(namespace)
+		printLogs(namespace, fmt.Sprintf("app.kubernetes.io/name=%s", "recac"))
 		return fmt.Errorf("orchestrator pod failed to start: %w", err)
 	}
 
