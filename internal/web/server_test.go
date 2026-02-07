@@ -55,8 +55,8 @@ func TestServer_HandleFeatures(t *testing.T) {
 			expectedBody:   `"id":"2"`,
 		},
 		{
-			name:      "Empty Features (No Fallback)",
-			projectID: "empty",
+			name:        "Empty Features (No Fallback)",
+			projectID:   "empty",
 			featuresMap: map[string]string{
 				// Empty map, so neither project nor default exists
 			},

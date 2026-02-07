@@ -33,41 +33,47 @@ func (m *MockGitClientLog) Diff(directory, startCommit, endCommit string) (strin
 }
 
 // Stubs for interface satisfaction
-func (m *MockGitClientLog) DiffStat(workspace, startCommit, endCommit string) (string, error) { return "", nil }
-func (m *MockGitClientLog) CurrentCommitSHA(workspace string) (string, error) { return "", nil }
+func (m *MockGitClientLog) DiffStat(workspace, startCommit, endCommit string) (string, error) {
+	return "", nil
+}
+func (m *MockGitClientLog) CurrentCommitSHA(workspace string) (string, error)          { return "", nil }
 func (m *MockGitClientLog) Clone(ctx context.Context, repoURL, directory string) error { return nil }
-func (m *MockGitClientLog) Config(directory, key, value string) error { return nil }
-func (m *MockGitClientLog) ConfigGlobal(key, value string) error { return nil }
-func (m *MockGitClientLog) ConfigAddGlobal(key, value string) error { return nil }
-func (m *MockGitClientLog) RemoteBranchExists(directory, remote, branch string) (bool, error) { return false, nil }
-func (m *MockGitClientLog) Fetch(directory, remote, branch string) error { return nil }
-func (m *MockGitClientLog) Checkout(directory, branch string) error { return nil }
-func (m *MockGitClientLog) CheckoutNewBranch(directory, branch string) error { return nil }
-func (m *MockGitClientLog) Push(directory, branch string) error { return nil }
-func (m *MockGitClientLog) Pull(directory, remote, branch string) error { return nil }
-func (m *MockGitClientLog) Stash(directory string) error { return nil }
-func (m *MockGitClientLog) Merge(directory, branchName string) error { return nil }
-func (m *MockGitClientLog) AbortMerge(directory string) error { return nil }
-func (m *MockGitClientLog) Recover(directory string) error { return nil }
-func (m *MockGitClientLog) Clean(directory string) error { return nil }
-func (m *MockGitClientLog) ResetHard(directory, remote, branch string) error { return nil }
-func (m *MockGitClientLog) StashPop(directory string) error { return nil }
+func (m *MockGitClientLog) Config(directory, key, value string) error                  { return nil }
+func (m *MockGitClientLog) ConfigGlobal(key, value string) error                       { return nil }
+func (m *MockGitClientLog) ConfigAddGlobal(key, value string) error                    { return nil }
+func (m *MockGitClientLog) RemoteBranchExists(directory, remote, branch string) (bool, error) {
+	return false, nil
+}
+func (m *MockGitClientLog) Fetch(directory, remote, branch string) error              { return nil }
+func (m *MockGitClientLog) Checkout(directory, branch string) error                   { return nil }
+func (m *MockGitClientLog) CheckoutNewBranch(directory, branch string) error          { return nil }
+func (m *MockGitClientLog) Push(directory, branch string) error                       { return nil }
+func (m *MockGitClientLog) Pull(directory, remote, branch string) error               { return nil }
+func (m *MockGitClientLog) Stash(directory string) error                              { return nil }
+func (m *MockGitClientLog) Merge(directory, branchName string) error                  { return nil }
+func (m *MockGitClientLog) AbortMerge(directory string) error                         { return nil }
+func (m *MockGitClientLog) Recover(directory string) error                            { return nil }
+func (m *MockGitClientLog) Clean(directory string) error                              { return nil }
+func (m *MockGitClientLog) ResetHard(directory, remote, branch string) error          { return nil }
+func (m *MockGitClientLog) StashPop(directory string) error                           { return nil }
 func (m *MockGitClientLog) DeleteRemoteBranch(directory, remote, branch string) error { return nil }
-func (m *MockGitClientLog) CurrentBranch(directory string) (string, error) { return "", nil }
-func (m *MockGitClientLog) Commit(directory, message string) error { return nil }
-func (m *MockGitClientLog) DiffStaged(directory string) (string, error) { return "", nil }
-func (m *MockGitClientLog) SetRemoteURL(directory, name, url string) error { return nil }
-func (m *MockGitClientLog) DeleteLocalBranch(directory, branch string) error { return nil }
-func (m *MockGitClientLog) LocalBranchExists(directory, branch string) (bool, error) { return false, nil }
-func (m *MockGitClientLog) BisectStart(directory, bad, good string) error { return nil }
-func (m *MockGitClientLog) BisectGood(directory, rev string) error { return nil }
-func (m *MockGitClientLog) BisectBad(directory, rev string) error { return nil }
-func (m *MockGitClientLog) BisectReset(directory string) error { return nil }
-func (m *MockGitClientLog) BisectLog(directory string) ([]string, error) { return nil, nil }
-func (m *MockGitClientLog) Tag(directory, version string) error { return nil }
-func (m *MockGitClientLog) DeleteTag(directory, version string) error { return nil }
-func (m *MockGitClientLog) PushTags(directory string) error { return nil }
-func (m *MockGitClientLog) LatestTag(directory string) (string, error) { return "", nil }
+func (m *MockGitClientLog) CurrentBranch(directory string) (string, error)            { return "", nil }
+func (m *MockGitClientLog) Commit(directory, message string) error                    { return nil }
+func (m *MockGitClientLog) DiffStaged(directory string) (string, error)               { return "", nil }
+func (m *MockGitClientLog) SetRemoteURL(directory, name, url string) error            { return nil }
+func (m *MockGitClientLog) DeleteLocalBranch(directory, branch string) error          { return nil }
+func (m *MockGitClientLog) LocalBranchExists(directory, branch string) (bool, error) {
+	return false, nil
+}
+func (m *MockGitClientLog) BisectStart(directory, bad, good string) error        { return nil }
+func (m *MockGitClientLog) BisectGood(directory, rev string) error               { return nil }
+func (m *MockGitClientLog) BisectBad(directory, rev string) error                { return nil }
+func (m *MockGitClientLog) BisectReset(directory string) error                   { return nil }
+func (m *MockGitClientLog) BisectLog(directory string) ([]string, error)         { return nil, nil }
+func (m *MockGitClientLog) Tag(directory, version string) error                  { return nil }
+func (m *MockGitClientLog) DeleteTag(directory, version string) error            { return nil }
+func (m *MockGitClientLog) PushTags(directory string) error                      { return nil }
+func (m *MockGitClientLog) LatestTag(directory string) (string, error)           { return "", nil }
 func (m *MockGitClientLog) Run(directory string, args ...string) (string, error) { return "", nil }
 func (m *MockGitClientLog) CreatePR(directory, title, body, base string) (string, error) {
 	return "", nil
