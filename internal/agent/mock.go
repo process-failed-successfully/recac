@@ -98,7 +98,7 @@ git add -f primes.json primes.py
 git commit -m "Add primes script" || echo "Nothing to commit"
 
 # Mark as done
-agent-bridge feature set --id req-primes-implementation --status done --passes true
+agent-bridge feature set req-primes-implementation --status done --passes true
 ` + "```", nil
 	}
 
