@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"os"
+	"path/filepath"
 	"recac/internal/agent"
 	"strings"
 	"testing"
@@ -14,12 +15,18 @@ func TestHandleChatCommand_Persona(t *testing.T) {
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 
+	pm := agent.NewPersonaManager()
+	// Ensure defaults are loaded (NewPersonaManager does this)
+	p, _ := pm.GetPersona("default")
+
 	session := &ChatSession{
-		CurrentPersona: defaultPersonas["default"],
+		CurrentPersona: p,
 		ContextFiles:   make(map[string]string),
+		PM:             pm,
 	}
 
 	// 1. Switch to existing persona
+	// "security" is a default persona
 	res := handleChatCommand(cmd, session, "/persona security")
 	if !res {
 		t.Error("Expected command to be handled")
@@ -52,9 +59,13 @@ func TestHandleChatCommand_Add(t *testing.T) {
 	cmd.SetOut(&out)
 	cmd.SetErr(&errOut)
 
+	pm := agent.NewPersonaManager()
+	p, _ := pm.GetPersona("default")
+
 	session := &ChatSession{
-		CurrentPersona: defaultPersonas["default"],
+		CurrentPersona: p,
 		ContextFiles:   make(map[string]string),
+		PM:             pm,
 	}
 
 	// Create temp file
@@ -97,6 +108,7 @@ func TestHandleChatCommand_Clear(t *testing.T) {
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 
+	// PM not needed for clear
 	session := &ChatSession{
 		History: "User: Hi\nAgent: Hello\n",
 	}
@@ -108,6 +120,11 @@ func TestHandleChatCommand_Clear(t *testing.T) {
 }
 
 func TestRunChat_Integration(t *testing.T) {
+	// Set RECAC_PERSONAS_FILE to isolate test
+	tmpDir := t.TempDir()
+	personasFile := filepath.Join(tmpDir, "personas.yaml")
+	t.Setenv("RECAC_PERSONAS_FILE", personasFile)
+
 	// Override factory
 	origFactory := agentClientFactory
 	defer func() { agentClientFactory = origFactory }()
