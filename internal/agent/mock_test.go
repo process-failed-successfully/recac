@@ -68,6 +68,17 @@ func TestMockAgent_PrimesScenario(t *testing.T) {
 	if !strings.Contains(idResponse, "git config user.email") {
 		t.Errorf("Response via ID detection should contain bash script, got: %s", idResponse)
 	}
+
+	// 5. Test "Nothing to Commit" Heuristic
+	// This ensures we break the loop when git says nothing changed
+	nothingPrompt := "YOUR ROLE - CODING AGENT. Task ID: [PRIMES]. Output: nothing to commit, working tree clean"
+	nothingResponse, err := agent.Send(context.Background(), nothingPrompt)
+	if err != nil {
+		t.Fatalf("Nothing to Commit Send failed: %v", err)
+	}
+	if !strings.Contains(nothingResponse, "agent-bridge feature set") {
+		t.Errorf("Response for 'nothing to commit' should contain feature set command, got: %s", nothingResponse)
+	}
 }
 
 func TestTruncateString(t *testing.T) {

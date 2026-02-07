@@ -55,13 +55,27 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			return m.generatePrimesArchitectPlan(), nil
 		}
 
+		// Handle "Nothing to Commit" Loop - Detect idempotency and finish task
+		if strings.Contains(prompt, "nothing to commit, working tree clean") {
+			return `
+It seems the work is already committed. I will mark the task as done.
+
+` + "```bash" + `
+agent-bridge feature set req-implement-prime-calculation-lo --status done --passes true
+agent-bridge feature set req-output-results-to-primes-json --status done --passes true
+agent-bridge feature set req-verify-that-exactly-1229-prime --status done --passes true
+` + "```" + `
+`, nil
+		}
+
 		// Default to implementation if it looks like a task or coding request
 		return m.generatePrimesResponse(), nil
 	}
 
 	// Heuristic for Bootstrap (Generic Coding Agent Start)
 	// If the agent asks for bearings but we missed the specific task keywords, run ls/cat to expose context for next turn
-	if strings.Contains(prompt, "STEP 1: GET YOUR BEARINGS") {
+	// Prevent infinite loop by checking if we already ran ls/cat in the history (which would be in the prompt)
+	if strings.Contains(prompt, "STEP 1: GET YOUR BEARINGS") && !strings.Contains(prompt, "cat feature_list.json") {
 		return `
 I will check the environment and feature list to understand the task.
 
