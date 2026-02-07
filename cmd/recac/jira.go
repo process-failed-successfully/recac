@@ -300,6 +300,25 @@ func generateTickets(ctx context.Context, specContent, projectKey, repoURL strin
 	}
 	jsonStr = strings.TrimSpace(jsonStr)
 
+	// Handle Bash wrapping (Mock Agent behavior for Initializer/TPM)
+	if strings.Contains(jsonStr, "agent-bridge import") {
+		// Extract JSON between the import command line and EOF
+		// Look for the start of the JSON block after "agent-bridge import"
+		parts := strings.Split(jsonStr, "agent-bridge import")
+		if len(parts) > 1 {
+			// Taking the part after the command
+			jsonContent := parts[1]
+			// Trim leading newlines/spaces
+			jsonContent = strings.TrimSpace(jsonContent)
+			// Remove trailing EOF if present
+			if idx := strings.LastIndex(jsonContent, "EOF"); idx != -1 {
+				jsonContent = jsonContent[:idx]
+			}
+			// It might still be wrapped in quotes or heredoc markers, but usually it's just raw JSON now
+			jsonStr = strings.TrimSpace(jsonContent)
+		}
+	}
+
 	var tickets []ticketNode
 	if err := json.Unmarshal([]byte(jsonStr), &tickets); err != nil {
 		return nil, fmt.Errorf("failed to parse agent response as JSON: %w\nResponse was:\n%s", err, resp)
