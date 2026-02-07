@@ -101,7 +101,8 @@ EOF
 	// Updated heuristic to catch "Create Prime Number Script" from e2e scenario.
 	if strings.Contains(prompt, "Implement a python script") ||
 	   (strings.Contains(prompt, "primes.py") && !strings.Contains(prompt, "Review") && !strings.Contains(prompt, "QA")) ||
-	   strings.Contains(prompt, "Create Prime Number Script") {
+	   strings.Contains(prompt, "Create Prime Number Script") ||
+	   strings.Contains(prompt, "[PRIMES]") {
 		return `
 I will implement the prime number script as requested.
 
@@ -141,6 +142,9 @@ git push || echo "Push skipped in mock mode"
 	if strings.Contains(prompt, "Review") || strings.Contains(prompt, "QA") {
 		return "LGTM. The code implements the requirements correctly. primes.py exists and primes.json contains the expected data.", nil
 	}
+
+	// DEBUG: Log unmatched prompt to stdout
+	fmt.Printf("DEBUG: MockAgent Prompt: %s\n", truncateString(prompt, 500))
 
 	// Default fallback
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
