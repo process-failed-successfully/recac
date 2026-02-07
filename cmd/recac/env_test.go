@@ -71,7 +71,7 @@ func TestEnvGenerate(t *testing.T) {
 	originalFactory := agentClientFactory
 	defer func() { agentClientFactory = originalFactory }()
 
-	mockAgent := agent.NewMockAgent()
+	mockAgent := agent.NewMockAgent("", "", "")
 	mockAgent.SetResponse("DB_HOST=127.0.0.1\nDB_PASS=INSERT_HERE")
 
 	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {

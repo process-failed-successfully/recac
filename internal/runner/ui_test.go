@@ -31,7 +31,7 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 
 	// 5. Initialize Session
 	mockDocker := &MockDockerForExec{}
-	mockAgent := agent.NewMockAgent()
+	mockAgent := agent.NewMockAgent("", "", "")
 	s := &Session{
 		Docker:           mockDocker,
 		Agent:            mockAgent,

@@ -25,7 +25,7 @@ func TestSession_E2E_DockerFileWrite(t *testing.T) {
 	tmpWorkspace, err := os.MkdirTemp("", "recac-e2e-test")
 
 	// 3. Setup Mock Agent
-	mockAgent := agent.NewMockAgent()
+	mockAgent := agent.NewMockAgent("", "", "")
 	// No need to set response here if we just call ProcessResponse directly,
 	// but let's use RunIteration for a full flow.
 

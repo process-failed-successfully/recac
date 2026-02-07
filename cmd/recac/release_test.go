@@ -24,7 +24,7 @@ func TestReleaseCmd(t *testing.T) {
 	// Override Agent Factory
 	originalAgentFactory := agentClientFactory
 	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
-		mockAgent := agent.NewMockAgent()
+		mockAgent := agent.NewMockAgent("", "", "")
 		// Mock response: Version on first line, Changelog on rest
 		mockAgent.SetResponse("v1.1.0\n## v1.1.0\n- Feat: Cool stuff")
 		return mockAgent, nil
@@ -90,7 +90,7 @@ func TestReleaseCmd(t *testing.T) {
 		}
 
 		agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
-			mockAgent := agent.NewMockAgent()
+			mockAgent := agent.NewMockAgent("", "", "")
 			mockAgent.SetResponse("v0.1.0\n## v0.1.0\n- Initial")
 			return mockAgent, nil
 		}
@@ -121,7 +121,7 @@ func TestReleaseCmd(t *testing.T) {
 
 		// Revert factory to default mock response just in case
 		agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
-			mockAgent := agent.NewMockAgent()
+			mockAgent := agent.NewMockAgent("", "", "")
 			mockAgent.SetResponse("v1.0.1\n## v1.0.1\n- Fix: Bug")
 			return mockAgent, nil
 		}

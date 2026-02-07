@@ -26,7 +26,7 @@ type Session struct {
 	require.NoError(t, err)
 
 	// Mock Agent
-	mockAg := agent.NewMockAgent()
+	mockAg := agent.NewMockAgent("", "", "")
 	mockAg.SetResponse(`
 [
   {
@@ -63,7 +63,7 @@ func TestGlossaryCmd_File(t *testing.T) {
 	outFile := filepath.Join(tmpDir, "glossary.md")
 
 	// Mock Agent
-	mockAg := agent.NewMockAgent()
+	mockAg := agent.NewMockAgent("", "", "")
 	mockAg.SetResponse(`[{"term": "Model", "definition": "A model.", "context": "model.go"}]`)
 
 	// Mock Factory
@@ -89,7 +89,7 @@ func TestGlossaryCmd_NoTerms(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Mock Agent
-	mockAg := agent.NewMockAgent()
+	mockAg := agent.NewMockAgent("", "", "")
 	mockAg.SetResponse(`[]`)
 
 	// Mock Factory

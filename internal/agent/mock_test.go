@@ -7,7 +7,7 @@ import (
 )
 
 func TestMockAgent(t *testing.T) {
-	agent := NewMockAgent()
+	agent := NewMockAgent("", "", "")
 
 	prompt := "This is a test prompt that is long enough to be truncated"
 	response, err := agent.Send(context.Background(), prompt)

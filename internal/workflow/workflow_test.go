@@ -235,7 +235,7 @@ func TestRunWorkflow_Normal(t *testing.T) {
 	originalGetAgentClient := cmdutils.GetAgentClient
 	defer func() { cmdutils.GetAgentClient = originalGetAgentClient }()
 	cmdutils.GetAgentClient = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
-		return agent.NewMockAgent(), nil
+		return agent.NewMockAgent("", "", ""), nil
 	}
 
 	// Mock NewSessionFunc
@@ -287,7 +287,7 @@ func TestRunWorkflow_Normal(t *testing.T) {
 		// But here we construct session.
 
 		// Let's use a mock agent that returns a command to avoid NoOp.
-		mockAg := agent.NewMockAgent()
+		mockAg := agent.NewMockAgent("", "", "")
 		s.Agent = mockAg
 		return s
 	}
