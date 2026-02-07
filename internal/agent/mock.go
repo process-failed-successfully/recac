@@ -131,8 +131,18 @@ python3 primes.py
 
 # Commit the changes
 git add primes.py primes.json
-git commit -m "feat: implement primes.py and generate primes.json"
+git commit -m "feat: implement primes.py and generate primes.json" || echo "No changes to commit"
 git push || echo "Push skipped in mock mode"
+
+# Mark feature as complete (Robust Fallback)
+echo "DEBUG: Marking features as done..."
+agent-bridge feature set PRIMES --status done --passes true || echo "Failed to set PRIMES"
+# Also try the dynamic approach just in case
+FEATURE_ID=$(agent-bridge feature list --json | jq -r '.features[] | select(.status != "done") | .id' | head -n 1)
+if [ -n "$FEATURE_ID" ] && [ "$FEATURE_ID" != "PRIMES" ]; then
+  echo "Marking additional feature $FEATURE_ID as done"
+  agent-bridge feature set "$FEATURE_ID" --status done --passes true
+fi
 ` + "```" + `
 `, nil
 	}

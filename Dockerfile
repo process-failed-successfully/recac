@@ -38,6 +38,7 @@ WORKDIR /app
 # Download Utils
 FROM base AS builder
 ARG CACHE_BYPASS=unknown
+# Force rebuild of layers by changing this comment: 2026-02-07-force-rebuild
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
