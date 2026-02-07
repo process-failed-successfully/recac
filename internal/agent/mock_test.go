@@ -38,6 +38,20 @@ func TestMockAgent_Initializer(t *testing.T) {
 	if !strings.Contains(response, "req-the-makefile-targets-are-implemented") {
 		t.Error("Expected specific feature ID")
 	}
+	// Check for bash block
+	if !strings.Contains(response, "cat << 'EOF' | agent-bridge import") {
+		t.Error("Expected bash block with agent-bridge import")
+	}
+
+	// Test new trigger
+	prompt2 := "## YOUR ROLE - INITIALIZER AGENT"
+	response2, err := agent.Send(context.Background(), prompt2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(response2, "cat << 'EOF' | agent-bridge import") {
+		t.Error("Expected bash block with agent-bridge import for new trigger")
+	}
 }
 
 func TestMockAgent_Coding(t *testing.T) {

@@ -33,8 +33,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic 1: Initializer (TPM)
 	// Triggers when the system asks to break down requirements
-	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "Break down the requirements") {
-		return `{
+	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "Break down the requirements") || strings.Contains(prompt, "INITIALIZER AGENT") {
+		jsonFeatures := `{
   "project_name": "prime-python",
   "features": [
     {
@@ -88,7 +88,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
       "dependencies": {"depends_on_ids": ["req-the-makefile-targets-are-implemented"]}
     }
   ]
-}`, nil
+}`
+		return fmt.Sprintf("```bash\ncat << 'EOF' | agent-bridge import\n%s\nEOF\n```", jsonFeatures), nil
 	}
 
 	// Heuristic 2: Project Manager (Directives)
