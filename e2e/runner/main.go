@@ -157,7 +157,7 @@ func run() error {
 			if err := runCommand("make", "image-prod", fmt.Sprintf("DEPLOY_IMAGE=%s", imageName), fmt.Sprintf("ARGS=--build-arg CACHE_BYPASS=%s", shortHash)); err != nil {
 				return fmt.Errorf("failed to build image: %w", err)
 			}
-			if err := runCommand("docker", "push", imageName); err != nil {
+			if err := runCommandWithRetry("docker", "push", imageName); err != nil {
 				return fmt.Errorf("failed to push image: %w", err)
 			}
 		} else if skipBuild {
@@ -165,7 +165,7 @@ func run() error {
 		} else {
 			// Image exists
 			log.Println("=== Pushing Existing Image (Ensure Registry has it) ===")
-			if err := runCommand("docker", "push", imageName); err != nil {
+			if err := runCommandWithRetry("docker", "push", imageName); err != nil {
 				return fmt.Errorf("failed to push image: %w", err)
 			}
 		}
@@ -495,6 +495,23 @@ func runCommand(name string, args ...string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
+}
+
+func runCommandWithRetry(name string, args ...string) error {
+	var err error
+	maxRetries := 3
+	for i := 0; i < maxRetries; i++ {
+		if i > 0 {
+			time.Sleep(5 * time.Second)
+			log.Printf("Retrying command %s... (%d/%d)", name, i+1, maxRetries)
+		}
+		err = runCommand(name, args...)
+		if err == nil {
+			return nil
+		}
+		log.Printf("Command failed: %v", err)
+	}
+	return err
 }
 
 func waitForPod(ns, labelSelector string, timeout time.Duration) error {
