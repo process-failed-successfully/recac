@@ -73,7 +73,21 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 }`, nil
 	}
 
-	// --- 3. CODING AGENT (Developer) ---
+	// --- 3. TECHNICAL PROGRAM MANAGER (TPM) ---
+	if strings.Contains(upperPrompt, "TECHNICAL PROGRAM MANAGER") || strings.Contains(upperPrompt, "ROLE - TPM") {
+		return `[
+  {
+    "id": "feature-1",
+    "name": "Primes Script",
+    "type": "task",
+    "status": "todo",
+    "description": "Implement primes.py",
+    "dependencies": []
+  }
+]`, nil
+	}
+
+	// --- 4. CODING AGENT (Developer) ---
 	// Heuristic: Check for "CODING AGENT" or keywords related to the primes scenario
 	if strings.Contains(upperPrompt, "CODING AGENT") ||
 	   (strings.Contains(upperPrompt, "PRIMES") && strings.Contains(upperPrompt, "CALCULATE")) ||
