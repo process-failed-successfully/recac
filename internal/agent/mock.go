@@ -86,7 +86,8 @@ EOF
 
 	// Heuristic: Detect ticket generation prompt
 	// The prompt often contains "app_spec.txt" or identifies as "Technical Program Manager"
-	if strings.Contains(prompt, "app_spec.txt") || strings.Contains(prompt, "tickets") || strings.Contains(prompt, "Technical Program Manager") {
+	// We must be strict here to avoid matching "Coding Agent" prompts that mention app_spec.txt
+	if strings.Contains(prompt, "Technical Program Manager") && (strings.Contains(prompt, "tickets") || strings.Contains(prompt, "plan") || strings.Contains(prompt, "Specification") || strings.Contains(prompt, "app_spec.txt")) {
 		return `[
   {
     "title": "ID:[PRIMES] Implement Primes Calculation",

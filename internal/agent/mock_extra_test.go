@@ -8,7 +8,8 @@ import (
 
 func TestMockAgent_Send_TPM(t *testing.T) {
 	agent := NewMockAgent()
-	prompt := "You are an expert Technical Program Manager (TPM) with deep experience..."
+	// Use a prompt that matches the heuristic (Technical Program Manager AND Specification/Plan/Tickets)
+	prompt := "You are an expert Technical Program Manager (TPM) with deep experience... \n### Application Specification:"
 
 	resp, err := agent.Send(context.Background(), prompt)
 	if err != nil {
