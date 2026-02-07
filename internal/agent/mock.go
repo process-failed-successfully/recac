@@ -115,7 +115,8 @@ echo "Initializer Agent Setup Complete"
 	if strings.Contains(prompt, "primes.py") {
 		return `Here is the implementation for primes.py:
 
-` + "```python" + `
+` + "```bash" + `
+cat <<EOF > primes.py
 import sys
 import json
 
@@ -140,6 +141,7 @@ if __name__ == "__main__":
         with open("primes.json", "w") as f:
             json.dump({"primes": primes}, f)
         print("Generated primes.json")
+EOF
 ` + "```" + `
 `, nil
 	}
