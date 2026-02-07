@@ -1,6 +1,7 @@
 package prompts
 
 import (
+	"bytes"
 	"embed"
 	"fmt"
 	"os"
@@ -56,7 +57,7 @@ func GetPrompt(name string, vars map[string]string) (string, error) {
 	// 1. Check override directory (Env)
 	if overrideDir := os.Getenv("RECAC_PROMPTS_DIR"); overrideDir != "" {
 		localPath := filepath.Join(overrideDir, name+".md")
-		if c, e := os.ReadFile(localPath); e == nil {
+		if c, e := os.ReadFile(localPath); e == nil && len(bytes.TrimSpace(c)) > 0 {
 			content = c
 		}
 	}
@@ -66,7 +67,7 @@ func GetPrompt(name string, vars map[string]string) (string, error) {
 		cwd, err := getwd()
 		if err == nil {
 			localPath := filepath.Join(cwd, ".recac", "prompts", name+".md")
-			if c, e := os.ReadFile(localPath); e == nil {
+			if c, e := os.ReadFile(localPath); e == nil && len(bytes.TrimSpace(c)) > 0 {
 				content = c
 			}
 		}
@@ -77,7 +78,7 @@ func GetPrompt(name string, vars map[string]string) (string, error) {
 		home, err := userHomeDir()
 		if err == nil {
 			globalPath := filepath.Join(home, ".recac", "prompts", name+".md")
-			if c, e := os.ReadFile(globalPath); e == nil {
+			if c, e := os.ReadFile(globalPath); e == nil && len(bytes.TrimSpace(c)) > 0 {
 				content = c
 			}
 		}
