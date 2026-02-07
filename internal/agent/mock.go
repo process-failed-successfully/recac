@@ -34,7 +34,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 1. Initializer Agent - Sets up the repo
 	// Check for "INITIALIZER" (uppercase) as used in prompts/templates/initializer.md
 	// MOVED TO TOP to prevent TPM/Generic heuristics from catching "Application Specification" in the prompt
-	if strings.Contains(prompt, "Initializer") || strings.Contains(prompt, "INITIALIZER") || strings.Contains(prompt, "git init") {
+	// CRITICAL: We must be specific to the ROLE header to avoid matching "git init" in the history of other agents.
+	if strings.Contains(prompt, "ROLE - INITIALIZER AGENT") {
 		// Detect Primes scenario
 		if strings.Contains(strings.ToLower(prompt), "prime") {
 			return `

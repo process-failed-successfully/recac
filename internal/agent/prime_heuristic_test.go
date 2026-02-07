@@ -8,7 +8,7 @@ import (
 
 func TestMockAgent_Initializer_Primes(t *testing.T) {
 	agent := NewMockAgent()
-	prompt := "You are the Initializer Agent. Please set up the repo for the prime number script."
+	prompt := "ROLE - INITIALIZER AGENT. Please set up the repo for the prime number script."
 
 	response, err := agent.Send(context.Background(), prompt)
 	if err != nil {
@@ -40,7 +40,7 @@ func TestMockAgent_Initializer_Primes(t *testing.T) {
 
 func TestMockAgent_Initializer_Default(t *testing.T) {
 	agent := NewMockAgent()
-	prompt := "You are the Initializer Agent. Please set up the repo."
+	prompt := "ROLE - INITIALIZER AGENT. Please set up the repo."
 
 	response, err := agent.Send(context.Background(), prompt)
 	if err != nil {

@@ -40,7 +40,7 @@ func TestInvoiceCmd(t *testing.T) {
 
 		ts1 := base.Add(-1 * time.Hour).Format(time.RFC3339) // 11:00 yesterday
 		ts2 := base.Format(time.RFC3339)                     // 12:00 yesterday (same session)
-		ts3 := base.AddDate(0, 0, -2).Format(time.RFC3339) // 3 days ago (definitely new session)
+		ts3 := base.AddDate(0, 0, -7).Format(time.RFC3339)   // 8 days ago (definitely new session)
 
 		return []string{
 			fmt.Sprintf("hash1|Test User|%s|Commit 1", ts1),
