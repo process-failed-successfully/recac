@@ -57,6 +57,17 @@ func TestMockAgent_PrimesScenario(t *testing.T) {
 	if !strings.Contains(coderResponse, "git config user.email") {
 		t.Errorf("Coder response should contain bash script with git config, got: %s", coderResponse)
 	}
+
+	// 4. Test Coding Agent Role with Feature ID (Robustness Check)
+	// This simulates a truncated prompt or one where [PRIMES] is missing but the feature ID is present
+	featurePrompt := "YOUR ROLE - CODING AGENT. Task: req-implement-prime-calculation-lo. Please implement."
+	featureResponse, err := agent.Send(context.Background(), featurePrompt)
+	if err != nil {
+		t.Fatalf("Feature ID Send failed: %v", err)
+	}
+	if !strings.Contains(featureResponse, "git config user.email") {
+		t.Errorf("Feature ID response should contain bash script with git config, got: %s", featureResponse)
+	}
 }
 
 func TestTruncateString(t *testing.T) {

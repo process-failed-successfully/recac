@@ -32,7 +32,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Heuristic for E2E Prime Python Scenario
-	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
+	// We check for specific feature IDs and output files to be robust against prompt truncation or formatting changes
+	if strings.Contains(prompt, "primes.py") ||
+		strings.Contains(prompt, "[PRIMES]") ||
+		strings.Contains(prompt, "req-implement-prime-calculation-lo") ||
+		strings.Contains(prompt, "req-output-results-to-primes-json") ||
+		strings.Contains(prompt, "primes.json") {
 		// Detect Role to decide between Plan (JSON) and Implementation (Bash)
 		if strings.Contains(prompt, "ROLE: Lead Software Architect") || strings.Contains(prompt, "ROLE - PROJECT MANAGER") {
 			return m.generatePrimesArchitectPlan(), nil
