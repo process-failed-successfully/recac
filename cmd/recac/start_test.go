@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"recac/internal/agent"
 	"testing"
@@ -68,6 +69,7 @@ func TestStartCommand_Detached(t *testing.T) {
 func TestStartCommand_MockMode_Interactive(t *testing.T) {
 	tmpDir := t.TempDir()
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
+	exec.Command("git", "init", tmpDir).Run()
 
 	homeDir := t.TempDir()
 	t.Setenv("HOME", homeDir)
@@ -92,6 +94,7 @@ func TestStartCommand_MockMode_Interactive(t *testing.T) {
 func TestStartCommand_Resume(t *testing.T) {
 	tmpDir := t.TempDir()
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
+	exec.Command("git", "init", tmpDir).Run()
 
 	t.Setenv("HOME", t.TempDir())
 
@@ -111,6 +114,7 @@ func TestStartCommand_Resume(t *testing.T) {
 func TestStartCommand_NormalMode_Restricted(t *testing.T) {
 	tmpDir := t.TempDir()
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
+	exec.Command("git", "init", tmpDir).Run()
 
 	// Mock agentClientFactory
 	originalFactory := agentClientFactory

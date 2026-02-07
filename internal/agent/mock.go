@@ -33,6 +33,43 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristics for E2E Smoke Test (Prime Python Scenario)
 
+	// 0. Initializer - Feature List Generation
+	// Trigger: "INITIALIZER" in prompt
+	if strings.Contains(strings.ToUpper(prompt), "INITIALIZER") {
+		// If it's the Primes scenario (detected by keywords or ticket ID)
+		if strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "MFLP-7282") {
+			return `{
+  "project_name": "MFLP-7282",
+  "features": [
+    {
+      "id": "req-the-script-primes-py-is-implem",
+      "description": "The script primes.py is implemented",
+      "status": "todo",
+      "priority": "1"
+    },
+    {
+      "id": "req-the-output-is-written-to-a-fil",
+      "description": "The output is written to a file named primes.json",
+      "status": "todo",
+      "priority": "1"
+    },
+    {
+      "id": "req-the-primes-json-file-contains-",
+      "description": "The primes.json file contains a key 'primes'",
+      "status": "todo",
+      "priority": "1"
+    },
+    {
+      "id": "req-the-list-of-primes-in-primes-j",
+      "description": "The list of primes in primes.json is correct for n=10000",
+      "status": "todo",
+      "priority": "1"
+    }
+  ]
+}`, nil
+		}
+	}
+
 	// 1. Project Manager - Ticket Generation
 	// Trigger: "ROLE - TECHNICAL PROGRAM MANAGER" or similar, AND "PRIMES"
 	// We check for "Technical Program Manager" or "TPM" to be robust.
