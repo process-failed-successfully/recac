@@ -77,12 +77,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(upperPrompt, "TECHNICAL PROGRAM MANAGER") || strings.Contains(upperPrompt, "ROLE - TPM") {
 		return `[
   {
-    "id": "feature-1",
-    "name": "Primes Script",
-    "type": "task",
-    "status": "todo",
+    "title": "ID:[PRIMES] Create Prime Number Script",
+    "type": "Task",
     "description": "Implement primes.py",
-    "dependencies": []
+    "blocked_by": [],
+    "children": []
   }
 ]`, nil
 	}
