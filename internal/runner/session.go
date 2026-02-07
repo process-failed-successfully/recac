@@ -212,7 +212,11 @@ func NewSessionWithConfig(workspace, project, provider, model string, dbStore db
 	agentStateFile := filepath.Join(workspace, stateFile)
 	stateManager := agent.NewStateManager(agentStateFile)
 
-	logger := initializeLogging(project)
+	// Avoid side effects of initializeLogging (creating files, setting global logger)
+	logger := telemetry.NewLogger(viper.GetBool("verbose"), "", false)
+	if project != "" {
+		logger = logger.With("project", project)
+	}
 
 	return &Session{
 		Workspace:        workspace,
