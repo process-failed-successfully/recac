@@ -32,3 +32,23 @@ func TestMain_HappyPath(t *testing.T) {
 		t.Fatalf("process ran with error: %v", err)
 	}
 }
+
+func TestMain(m *testing.M) {
+	// Create a temporary directory for logs
+	tmpDir, err := os.MkdirTemp("", "recac-logs-cmd-test")
+	if err != nil {
+		panic(err)
+	}
+
+	// Set RECAC_LOGS_DIR to the temporary directory
+	os.Setenv("RECAC_LOGS_DIR", tmpDir)
+
+	// Run tests
+	code := m.Run()
+
+	// Cleanup
+	os.RemoveAll(tmpDir)
+	os.Unsetenv("RECAC_LOGS_DIR")
+
+	os.Exit(code)
+}

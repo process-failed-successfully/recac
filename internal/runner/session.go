@@ -152,34 +152,7 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 	// Initialize Security Scanner
 	scanner := security.NewRegexScanner()
 
-	// Create agents/logs directory in the current working directory (host)
-	// This is where Promtail expects to find them based on docker-compose.monitoring.yml
-	cwd, _ := os.Getwd()
-	agentsLogsDir := filepath.Join(cwd, "agents", "logs")
-	if err := os.MkdirAll(agentsLogsDir, 0755); err != nil {
-		fmt.Printf("Warning: Failed to create agents/logs directory: %v\n", err)
-	} else {
-		// Initialize session log file
-		timestamp := time.Now().Format("20060102-150405")
-		logFileName := fmt.Sprintf("%s_agent_%s_%s.log", project, project, timestamp)
-		logFilePath := filepath.Join(agentsLogsDir, logFileName)
-
-		// Re-initialize telemetry logger with the session log file
-		// Note: We use the global 'verbose' setting
-		// We still init global logger for backward compatibility and simpler calls where session isn't available
-		telemetry.InitLogger(viper.GetBool("verbose"), logFilePath, false)
-		fmt.Printf("Session logs will be written to: %s\n", logFilePath)
-	}
-
-	// Create session logger
-	// We want to persist it in the session so it can be customized (e.g. with attributes)
-	// For now, we reuse the configuration logic but ideally we'd pass this logger instance around.
-	// Since we called InitLogger above, slog.Default() is set.
-	// But let's create an explicit one too.
-	logger := telemetry.NewLogger(viper.GetBool("verbose"), "", false)
-	if project != "" {
-		logger = logger.With("project", project)
-	}
+	logger := initializeLogging(project)
 
 	return &Session{
 		Docker:           d,
@@ -240,28 +213,7 @@ func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, pr
 	// Initialize Security Scanner
 	scanner := security.NewRegexScanner()
 
-	// Create agents/logs directory in the current working directory (host)
-	// This is where Promtail expects to find them based on docker-compose.monitoring.yml
-	cwd, _ := os.Getwd()
-	agentsLogsDir := filepath.Join(cwd, "agents", "logs")
-	if err := os.MkdirAll(agentsLogsDir, 0755); err != nil {
-		fmt.Printf("Warning: Failed to create agents/logs directory: %v\n", err)
-	} else {
-		// Initialize session log file
-		timestamp := time.Now().Format("20060102-150405")
-		logFileName := fmt.Sprintf("%s_agent_%s_%s.log", project, project, timestamp)
-		logFilePath := filepath.Join(agentsLogsDir, logFileName)
-
-		// Re-initialize telemetry logger with the session log file
-		// Note: We use the global 'verbose' setting (viper)
-		telemetry.InitLogger(viper.GetBool("verbose"), logFilePath, false)
-		fmt.Printf("Session logs will be written to: %s\n", logFilePath)
-	}
-
-	logger := telemetry.NewLogger(viper.GetBool("verbose"), "", false)
-	if project != "" {
-		logger = logger.With("project", project)
-	}
+	logger := initializeLogging(project)
 
 	return &Session{
 		Docker:           d,
@@ -302,26 +254,7 @@ func NewSessionWithConfig(workspace, project, provider, model string, dbStore db
 	// Initialize Security Scanner
 	scanner := security.NewRegexScanner()
 
-	// Create agents/logs directory in the current working directory (host)
-	cwd, _ := os.Getwd()
-	agentsLogsDir := filepath.Join(cwd, "agents", "logs")
-	if err := os.MkdirAll(agentsLogsDir, 0755); err != nil {
-		fmt.Printf("Warning: Failed to create agents/logs directory: %v\n", err)
-	} else {
-		// Initialize session log file
-		timestamp := time.Now().Format("20060102-150405")
-		logFileName := fmt.Sprintf("%s_agent_%s_%s.log", project, project, timestamp)
-		logFilePath := filepath.Join(agentsLogsDir, logFileName)
-
-		// Re-initialize telemetry logger with the session log file
-		telemetry.InitLogger(viper.GetBool("verbose"), logFilePath, false)
-		fmt.Printf("Session logs will be written to: %s\n", logFilePath)
-	}
-
-	logger := telemetry.NewLogger(viper.GetBool("verbose"), "", false)
-	if project != "" {
-		logger = logger.With("project", project)
-	}
+	logger := initializeLogging(project)
 
 	return &Session{
 		Workspace:        workspace,
@@ -908,3 +841,41 @@ func (s *Session) loadFeatures() []db.Feature {
 
 
 
+
+func initializeLogging(project string) *slog.Logger {
+	// Create agents/logs directory in the current working directory (host)
+	// This is where Promtail expects to find them based on docker-compose.monitoring.yml
+	var agentsLogsDir string
+	if envDir := os.Getenv("RECAC_LOGS_DIR"); envDir != "" {
+		agentsLogsDir = envDir
+	} else {
+		cwd, _ := os.Getwd()
+		agentsLogsDir = filepath.Join(cwd, "agents", "logs")
+	}
+
+	if err := os.MkdirAll(agentsLogsDir, 0755); err != nil {
+		fmt.Printf("Warning: Failed to create agents/logs directory: %v\n", err)
+	} else {
+		// Initialize session log file
+		timestamp := time.Now().Format("20060102-150405")
+		logFileName := fmt.Sprintf("%s_agent_%s_%s.log", project, project, timestamp)
+		logFilePath := filepath.Join(agentsLogsDir, logFileName)
+
+		// Re-initialize telemetry logger with the session log file
+		// Note: We use the global 'verbose' setting
+		// We still init global logger for backward compatibility and simpler calls where session isn't available
+		telemetry.InitLogger(viper.GetBool("verbose"), logFilePath, false)
+		fmt.Printf("Session logs will be written to: %s\n", logFilePath)
+	}
+
+	// Create session logger
+	// We want to persist it in the session so it can be customized (e.g. with attributes)
+	// For now, we reuse the configuration logic but ideally we'd pass this logger instance around.
+	// Since we called InitLogger above, slog.Default() is set.
+	// But let's create an explicit one too.
+	logger := telemetry.NewLogger(viper.GetBool("verbose"), "", false)
+	if project != "" {
+		logger = logger.With("project", project)
+	}
+	return logger
+}
