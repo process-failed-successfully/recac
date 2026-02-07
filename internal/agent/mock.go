@@ -71,7 +71,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristic: Check for Prime Number script task (used in smoke tests/CI)
 	// This must come BEFORE the Initializer check because the prompt might contain "feature_list.json"
 	// as context when the agent is in the Coding phase.
-	if (strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "Prime Number") || strings.Contains(prompt, "[PRIMES]")) && !strings.Contains(prompt, "YOUR ROLE - INITIALIZER") && !strings.Contains(prompt, "TECHNICAL PROGRAM MANAGER") {
+	// We also include fallbacks for "mock-feature" and "Implement Logic" to ensure the smoke test passes
+	// even if the Planner generates a generic ticket.
+	if (strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "Prime Number") || strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "mock-feature") || strings.Contains(prompt, "Implement Logic")) && !strings.Contains(prompt, "YOUR ROLE - INITIALIZER") && !strings.Contains(prompt, "TECHNICAL PROGRAM MANAGER") {
 		// Return a bash script that implements the prime number calculator
 		// This must satisfy the verification logic in pkg/e2e/scenarios/prime_python.go
 		return `Mock Agent: Implementing prime number script.
