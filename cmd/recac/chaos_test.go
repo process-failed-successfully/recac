@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
 

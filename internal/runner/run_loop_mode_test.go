@@ -79,14 +79,14 @@ func TestRunLoop_Mode_Review_Exit(t *testing.T) {
 	}
 
 	s := &Session{
-		Workspace:        tmpDir,
-		Docker:           &MockLoopDocker{},
-		Agent:            mockAgent,
-		DBStore:          store,
-		MaxIterations:    20, // Should ignore this and exit after 1
-		Mode:             "review",
-		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
-		Logger:           telemetry.NewLogger(true, "", false),
+		Workspace:     tmpDir,
+		Docker:        &MockLoopDocker{},
+		Agent:         mockAgent,
+		DBStore:       store,
+		MaxIterations: 20, // Should ignore this and exit after 1
+		Mode:          "review",
+		Notifier:      notify.NewManager(func(string, ...interface{}) {}),
+		Logger:        telemetry.NewLogger(true, "", false),
 	}
 
 	ctx := context.Background()
@@ -140,14 +140,14 @@ func TestRunLoop_Mode_QA_Exit(t *testing.T) {
 	}
 
 	s := &Session{
-		Workspace:        tmpDir,
-		Docker:           mockDocker,
-		QAAgent:          mockQA,
-		DBStore:          store,
-		Mode:             "qa",
-		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
-		Logger:           telemetry.NewLogger(true, "", false),
-		Project:          "unknown",
+		Workspace: tmpDir,
+		Docker:    mockDocker,
+		QAAgent:   mockQA,
+		DBStore:   store,
+		Mode:      "qa",
+		Notifier:  notify.NewManager(func(string, ...interface{}) {}),
+		Logger:    telemetry.NewLogger(true, "", false),
+		Project:   "unknown",
 	}
 
 	ctx := context.Background()

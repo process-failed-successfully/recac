@@ -64,9 +64,9 @@ func TestRunLoop_Stalled_Integrated(t *testing.T) {
 			// Always return same features, 0 passing
 			return `{"features": [{"id": "1", "status": "todo", "passes": false}]}`, nil
 		},
-		SaveFeaturesFunc: func(projectID, features string) error { return nil },
+		SaveFeaturesFunc:    func(projectID, features string) error { return nil },
 		SaveObservationFunc: func(projectID, agentID, content string) error { return nil },
-		GetSignalFunc: func(projectID, key string) (string, error) { return "", nil },
+		GetSignalFunc:       func(projectID, key string) (string, error) { return "", nil },
 	}
 
 	mockDocker := &MockLoopDocker{
@@ -110,12 +110,12 @@ func TestRunLoop_SecurityViolation(t *testing.T) {
 
 	sleepCalled := false
 	s := &Session{
-		Workspace:        tmpDir,
-		Agent:            mockAgent,
-		Scanner:          mockScanner,
-		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
-		Logger:           telemetry.NewLogger(true, "", false),
-		MaxIterations:    1,
+		Workspace:     tmpDir,
+		Agent:         mockAgent,
+		Scanner:       mockScanner,
+		Notifier:      notify.NewManager(func(string, ...interface{}) {}),
+		Logger:        telemetry.NewLogger(true, "", false),
+		MaxIterations: 1,
 		SleepFunc: func(d time.Duration) {
 			sleepCalled = true
 			assert.Equal(t, 5*time.Second, d)
@@ -261,13 +261,13 @@ func TestRunLoop_SkipQA(t *testing.T) {
 	}
 
 	s := &Session{
-		Workspace:        tmpDir,
-		DBStore:          mockDB,
-		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
-		Logger:           telemetry.NewLogger(true, "", false),
-		SkipQA:           true,
-		MaxIterations:    2,
-		SleepFunc:        func(d time.Duration) {},
+		Workspace:     tmpDir,
+		DBStore:       mockDB,
+		Notifier:      notify.NewManager(func(string, ...interface{}) {}),
+		Logger:        telemetry.NewLogger(true, "", false),
+		SkipQA:        true,
+		MaxIterations: 2,
+		SleepFunc:     func(d time.Duration) {},
 	}
 
 	err := s.RunLoop(context.Background())
@@ -284,14 +284,14 @@ func TestRunLoop_ManagerFirst_InitialPrompt(t *testing.T) {
 	mockAgent.On("Send", mock.Anything, mock.Anything).Return("Manager says proceed", nil)
 
 	s := &Session{
-		Workspace:        tmpDir,
-		ManagerAgent:     mockAgent,
-		Agent:            mockAgent, // RunIteration uses this one
-		ManagerFirst:     true,
-		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
-		Logger:           telemetry.NewLogger(true, "", false),
-		MaxIterations:    1,
-		SleepFunc:        func(d time.Duration) {},
+		Workspace:     tmpDir,
+		ManagerAgent:  mockAgent,
+		Agent:         mockAgent, // RunIteration uses this one
+		ManagerFirst:  true,
+		Notifier:      notify.NewManager(func(string, ...interface{}) {}),
+		Logger:        telemetry.NewLogger(true, "", false),
+		MaxIterations: 1,
+		SleepFunc:     func(d time.Duration) {},
 	}
 
 	err := s.RunLoop(context.Background())
