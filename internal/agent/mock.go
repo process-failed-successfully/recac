@@ -32,27 +32,15 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// Heuristic: Detect ticket generation prompt
-	// The prompt often contains "app_spec.txt" or identifies as "Technical Program Manager"
-	if strings.Contains(prompt, "app_spec.txt") || strings.Contains(prompt, "tickets") || strings.Contains(prompt, "Technical Program Manager") {
-		return `[
-  {
-    "title": "ID:[PRIMES] Implement Primes Calculation",
-    "description": "Create a Python script to calculate prime numbers.",
-    "type": "Story",
-    "acceptance_criteria": [
-      "Script prints primes up to 100",
-      "Script is runnable"
-    ]
-  }
-]`, nil
-	}
-
 	// Heuristic: Detect Primes Implementation Task
 	// This supports the E2E smoke test scenario
-	// We use Case-Insensitive check to be robust against prompt variations
+	// We require CODING AGENT context to ensure we are in the implementation phase
+	// We use Case-Insensitive check for "primes" to be robust
 	lowerPrompt := strings.ToLower(prompt)
-	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(lowerPrompt, "primes") || strings.Contains(prompt, "primes.py") {
+	isCodingAgent := strings.Contains(prompt, "CODING AGENT")
+	hasPrimesContext := strings.Contains(prompt, "[PRIMES]") || strings.Contains(lowerPrompt, "primes") || strings.Contains(prompt, "primes.py")
+
+	if isCodingAgent && hasPrimesContext {
 		// Return a response with a valid bash block that implements the task
 		// This prevents the "NO-OP LOOP" circuit breaker
 		return `I will implement the primes calculation script as requested.
@@ -79,6 +67,22 @@ agent-bridge feature set req-script-prints-primes-up-to-100 --status done --pass
 agent-bridge feature set req-script-is-runnable --status done --passes true
 ` + "```" + `
 `, nil
+	}
+
+	// Heuristic: Detect ticket generation prompt
+	// Must be specific to TPM role to avoid false positives with Coding Agent prompts that contain "app_spec.txt"
+	if strings.Contains(prompt, "Technical Program Manager") {
+		return `[
+  {
+    "title": "ID:[PRIMES] Implement Primes Calculation",
+    "description": "Create a Python script to calculate prime numbers.",
+    "type": "Story",
+    "acceptance_criteria": [
+      "Script prints primes up to 100",
+      "Script is runnable"
+    ]
+  }
+]`, nil
 	}
 
 	// Return a mock response that shows the agent received the prompt

@@ -8,7 +8,7 @@ import (
 
 func TestMockAgent_Primes(t *testing.T) {
 	agent := NewMockAgent()
-	prompt := "Please implement [PRIMES] calculation"
+	prompt := "## YOUR ROLE - CODING AGENT\nPlease implement [PRIMES] calculation"
 
 	resp, err := agent.Send(context.Background(), prompt)
 	if err != nil {
