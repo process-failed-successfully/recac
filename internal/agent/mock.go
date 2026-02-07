@@ -114,22 +114,41 @@ agent-bridge signal --key PROJECT_SIGNED_OFF --value true
 	// 4. TPM / Planning Role (Ticket Generation)
 	// This is critical for 'recac jira generate-from-spec'
 	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "Ticket Generation") {
-		// Return a JSON list of tickets
-		// We extract the 'Repo:' URL if possible or just use a placeholder
+		// Detect Primes Scenario (used in smoke test)
+		if strings.Contains(strings.ToLower(prompt), "prime") || strings.Contains(prompt, "[PRIMES]") {
+			return `Here is the ticket plan:
+
+` + "```json" + `
+[
+  {
+    "title": "ID:[PRIMES] Create Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'. The JSON format must have a single key 'primes' containing the list of integers. IMPORTANT: You MUST use a bash block to create the file. Commit 'primes.json' IMMEDIATELY after creating/running the script.",
+    "type": "Task",
+    "children": []
+  }
+]
+` + "```", nil
+		}
+
+		// Default Mock Plan (for other tests)
 		return `Here is the ticket plan:
 
 ` + "```json" + `
-{
-  "features": [
-    {
-      "id": "PRIMES",
-      "name": "Create Prime Number Script",
-      "type": "Task",
-      "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'. The JSON format must have a single key 'primes' containing the list of integers. IMPORTANT: You MUST use a bash block to create the file. Commit 'primes.json' IMMEDIATELY after creating/running the script.",
-      "dependencies": []
-    }
-  ]
-}
+[
+  {
+    "title": "ID:[SYSTEM] Mock System Architecture",
+    "description": "Mock system implementation.",
+    "type": "Epic",
+    "children": [
+      {
+        "title": "ID:[SERVICE] Mock Service",
+        "description": "Mock service description.",
+        "type": "Story",
+        "children": []
+      }
+    ]
+  }
+]
 ` + "```", nil
 	}
 

@@ -59,12 +59,13 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	}
 
 	// 4. TPM Heuristic
-	tpmPrompt := "This prompt is for the Technical Program Manager to generate tickets."
+	tpmPrompt := "This prompt is for the Technical Program Manager to generate tickets for [PRIMES]."
 	resp, err = agent.Send(context.Background(), tpmPrompt)
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
 	}
-	if !strings.Contains(resp, `"features"`) || !strings.Contains(resp, "PRIMES") {
+	// Note: We check for "PRIMES" but not "features" because the format changed to []ticketNode
+	if !strings.Contains(resp, "PRIMES") {
 		t.Errorf("Expected TPM heuristic to trigger, got: %s", resp)
 	}
 	// Check description contains spec requirements

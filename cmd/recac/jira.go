@@ -236,27 +236,6 @@ func runGenerateTicketsCmd(cmd *cobra.Command, args []string) {
 		exit(1)
 	}
 
-	// Configure mock agent if provider is mock
-	if provider == "mock" {
-		if mockAg, ok := ag.(*agent.MockAgent); ok {
-			mockJSON := `[
-  {
-    "title": "ID:[SYSTEM] Mock System Architecture",
-    "description": "Mock system implementation.",
-    "type": "Epic",
-    "children": [
-      {
-        "title": "ID:[SERVICE] Mock Service",
-        "description": "Mock service description.",
-        "type": "Story",
-        "children": []
-      }
-    ]
-  }
-]`
-			mockAg.SetResponse(mockJSON)
-		}
-	}
 
 	// 4. Labels
 	runLabel := fmt.Sprintf("recac-gen-%s", time.Now().Format("20060102-150405"))
