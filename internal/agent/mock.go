@@ -81,7 +81,7 @@ cat <<EOF | agent-bridge import
     {
       "id": "req-must-correctly-identify-prime-",
       "category": "core",
-      "priority": 1,
+      "priority": "1",
       "description": "Script calculates primes correctly",
       "status": "todo",
       "dependencies": []
