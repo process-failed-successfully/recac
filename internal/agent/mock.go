@@ -34,19 +34,17 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// The real agent usually returns a JSON object with features.
 	// For the smoke test, we might not hit this if we skip planning, but if we do:
 	if strings.Contains(prompt, "feature_list.json") || strings.Contains(prompt, "Technical Program Manager") {
+		// Return a list of tickets (array), not a feature object, to match CLI expectations
 		return `
-{
-  "project_name": "primes-project",
-  "features": [
-    {
-      "id": "req-primes-py-exists",
-      "name": "Primes Script",
-      "description": "Create primes.py",
-      "type": "task",
-      "dependencies": []
-    }
-  ]
-}`, nil
+[
+  {
+    "id": "req-primes-py-exists",
+    "name": "Primes Script",
+    "description": "Create primes.py",
+    "type": "task",
+    "dependencies": []
+  }
+]`, nil
 	}
 
 	// 2. Coding Agent (Primes Scenario)
