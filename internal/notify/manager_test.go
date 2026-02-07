@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/slack-go/slack"
+	"github.com/slack-go/slack/socketmode"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 )
@@ -73,6 +75,92 @@ func TestManager_Config(t *testing.T) {
 
 	assert.True(t, m.isProviderEnabled("slack"))
 	assert.False(t, m.isProviderEnabled("discord"))
+}
+
+func TestManager_Init_Slack(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(func() { viper.Reset() })
+	viper.Set("notifications.slack.enabled", true)
+	t.Setenv("SLACK_BOT_USER_TOKEN", "xoxb-token")
+	t.Setenv("SLACK_APP_TOKEN", "xapp-token")
+
+	m := NewManager(nil)
+	assert.NotNil(t, m.client)
+	assert.NotNil(t, m.socketClient)
+}
+
+func TestManager_Init_Discord(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(func() { viper.Reset() })
+	viper.Set("notifications.discord.enabled", true)
+	t.Setenv("DISCORD_BOT_TOKEN", "bot-token")
+	t.Setenv("DISCORD_CHANNEL_ID", "12345")
+
+	m := NewManager(nil)
+	assert.NotNil(t, m.discordNotifier)
+}
+
+func TestManager_Init_Discord_MissingConfig(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(func() { viper.Reset() })
+	viper.Set("notifications.discord.enabled", true)
+	// Missing tokens
+
+	m := NewManager(func(fmt string, args ...interface{}) {})
+	assert.Nil(t, m.discordNotifier)
+}
+
+func TestManager_Start_NilSocket(t *testing.T) {
+	m := &Manager{}
+	// Should not panic
+	m.Start(context.Background())
+}
+
+func TestManager_HandleEvents_NilSocket(t *testing.T) {
+	m := &Manager{}
+	// Should return immediately
+	m.HandleEvents(context.Background())
+}
+
+func TestManager_HandleEvents_ContextCancel(t *testing.T) {
+	// We can't easily mock socketmode.Client, but we can set it.
+	// However, since we can't inject events easily without a real client or deep mocking,
+	// we just test that it respects context cancellation if blocked or starting.
+	// But HandleEvents checks for m.socketClient == nil.
+	// If we set it, it enters loop.
+
+	// Since creating a dummy socketmode.Client is hard (requires slack.Client),
+	// we'll skip the loop test for now as coverage is likely acceptable with nil check.
+	// Or we can try:
+	/*
+	api := slack.New("token")
+	sc := socketmode.New(api)
+	m := &Manager{socketClient: sc}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel immediately
+	m.HandleEvents(ctx)
+	*/
+	// This would verify it exits loop on ctx.Done()
+
+	api := slack.New("token")
+	sc := socketmode.New(api)
+	m := &Manager{socketClient: sc}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	done := make(chan bool)
+	go func() {
+		m.HandleEvents(ctx)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// Success
+	case <-time.After(1 * time.Second):
+		t.Error("HandleEvents did not exit on context cancellation")
+	}
 }
 
 func TestManager_IsEnabled(t *testing.T) {
