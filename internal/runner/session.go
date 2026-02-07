@@ -328,7 +328,7 @@ func initializeLogging(project string) *slog.Logger {
 		// Note: We use the global 'verbose' setting
 		// We still init global logger for backward compatibility and simpler calls where session isn't available
 		telemetry.InitLogger(viper.GetBool("verbose"), logFilePath, false)
-		fmt.Printf("Session logs will be written to: %s\n", logFilePath)
+		fmt.Fprintf(os.Stderr, "Session logs will be written to: %s\n", logFilePath)
 	}
 
 	// Create session logger
