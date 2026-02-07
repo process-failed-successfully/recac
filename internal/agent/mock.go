@@ -40,28 +40,28 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			return m.generatePrimesCompletionResponse(), nil
 		}
 
-		// Differentiate between Planning (Initializer/TPM) and Implementation (Coding Agent)
-		// We use role headers from prompt templates for robustness.
-		isPlanning := strings.Contains(prompt, "ROLE - INITIALIZER AGENT") ||
-			strings.Contains(prompt, "Technical Program Manager") ||
-			strings.Contains(prompt, "tpm_agent")
-
-		// Legacy heuristic fallback if role header is missing
-		if !isPlanning && (strings.Contains(prompt, "Epics") || strings.Contains(prompt, "User Stories")) {
-			isPlanning = true
+		// Initializer (Needs Bash Plan + Init)
+		if strings.Contains(prompt, "ROLE - INITIALIZER AGENT") {
+			return m.generatePrimesInitializerResponse(), nil
 		}
 
-		if isPlanning {
+		// Technical Program Manager (Needs JSON Plan for Jira)
+		if strings.Contains(prompt, "Technical Program Manager") ||
+			strings.Contains(prompt, "tpm_agent") ||
+			strings.Contains(prompt, "Epics") ||
+			strings.Contains(prompt, "User Stories") {
 			return m.generatePrimesJSONResponse(), nil
 		}
+
+		// Default: Coding Agent (Needs Implementation)
 		return m.generatePrimesResponse(), nil
 	}
 
-	// [INITIALIZER] Logic
-	// Detect if we are initializing the repo (Orchestrator might send "Initializing..." or similar,
-	// but usually the agent is started with a goal.
-	// If the prompt mentions "git init" or "setup", we might need a specific response.
-	// For now, let's provide a generic helpful response that tries to prevent "NO-OP LOOP".
+	// [INITIALIZER] Generic Logic (Fallback if [PRIMES] tag is missing but Role is Initializer)
+	if strings.Contains(prompt, "ROLE - INITIALIZER AGENT") {
+		// Just ls -la to show activity if we don't know the scenario
+		return fmt.Sprintf("%s:\n\nI received your prompt. Ready to init.\n\n```bash\nls -la\n```\n", m.responsePrefix), nil
+	}
 
 	return fmt.Sprintf("%s:\n\nI received your prompt (%d characters). I am ready to work.\n\n```bash\nls -la\n```\n",
 		m.responsePrefix, len(prompt)), nil
@@ -76,9 +76,7 @@ func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(
 	return resp, err
 }
 
-func (m *MockAgent) generatePrimesResponse() string {
-	// We prepend an agent-bridge import to ensure features are loaded in the DB.
-	// This prevents "Feature list not found" errors and ensures state tracking works.
+func (m *MockAgent) generatePrimesInitializerResponse() string {
 	script := `
 cat <<EOF | agent-bridge import
 {
@@ -98,6 +96,25 @@ cat <<EOF | agent-bridge import
 }
 EOF
 
+cat << 'EOF' > init.sh
+#!/bin/bash
+echo "Initializing environment..."
+# Install python3 if missing (it's usually there)
+command -v python3 >/dev/null 2>&1 || apt-get update && apt-get install -y python3
+EOF
+chmod +x init.sh
+./init.sh
+
+git init
+git add .
+git commit -m "Initial commit" || echo "Nothing to commit"
+`
+	return fmt.Sprintf("I have analyzed the requirements. Here is the feature list and initialization script.\n\n```bash%s```\n", script)
+}
+
+func (m *MockAgent) generatePrimesResponse() string {
+	// Coding Agent implementation
+	script := `
 cat << 'EOF' > primes.py
 import json
 

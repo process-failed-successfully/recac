@@ -49,12 +49,35 @@ func TestMockAgent_Primes_Initializer(t *testing.T) {
 		t.Fatalf("Send failed: %v", err)
 	}
 
-	// Should return JSON (Planning), NOT Bash (Implementation)
-	if !strings.Contains(response, "```json") {
-		t.Errorf("Expected JSON response for Initializer, got: %s", response)
+	// Should return Bash script with agent-bridge import, NOT Implementation
+	if !strings.Contains(response, "agent-bridge import") {
+		t.Errorf("Expected agent-bridge import in Initializer, got: %s", response)
+	}
+	if !strings.Contains(response, "cat << 'EOF' > init.sh") {
+		t.Errorf("Expected init.sh creation in Initializer, got: %s", response)
 	}
 	if strings.Contains(response, "cat << 'EOF' > primes.py") {
-		t.Errorf("Received implementation script in Initializer phase!")
+		t.Errorf("Received implementation script (primes.py) in Initializer phase!")
+	}
+}
+
+func TestMockAgent_Primes_TPM(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Simulate TPM prompt
+	prompt := `## YOUR ROLE - Technical Program Manager
+[PRIMES]
+Epics
+...`
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Should return JSON
+	if !strings.Contains(response, "```json") {
+		t.Errorf("Expected JSON response for TPM, got: %s", response)
 	}
 }
 
