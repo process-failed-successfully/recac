@@ -42,13 +42,13 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
       "type": "Epic",
       "children": [
         {
-          "title": "Setup Project Structure",
-          "description": "Initialize the project structure.",
+          "title": "Implement Prime Number Script",
+          "description": "Create a python script named primes.py that calculates all prime numbers less than 10,000.",
           "type": "Story"
         },
         {
-          "title": "Implement Logic",
-          "description": "Write the business logic.",
+          "title": "Verify Implementation",
+          "description": "Verify the prime number script works as expected.",
           "type": "Story"
         }
       ]
