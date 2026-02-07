@@ -29,7 +29,7 @@ func RunDeploy(args []string) error {
 		wait       bool
 	)
 	fs.StringVar(&stateFile, "state-file", "e2e_state.json", "Path to state file")
-	fs.StringVar(&deployRepo, "repo", defaultRepo, "Docker repository for deployment")
+	fs.StringVar(&deployRepo, "repo", "localhost:5000/recac-e2e", "Docker repository for deployment")
 	fs.StringVar(&pullPolicy, "pull-policy", "IfNotPresent", "Image pull policy")
 	fs.BoolVar(&skipBuild, "skip-build", false, "Skip docker build")
 	fs.BoolVar(&wait, "wait", true, "Wait for deployment to be ready")
@@ -66,12 +66,7 @@ func RunDeploy(args []string) error {
 	repoPart := imageName[:lastColon]
 	tagPart := imageName[lastColon+1:]
 
-	// Workaround: If pushing to 192.168.0.55 (plex-desktop), pull from localhost:5000
 	pullRepo := repoPart
-	if strings.HasPrefix(repoPart, "192.168.0.55:5000") {
-		pullRepo = strings.Replace(repoPart, "192.168.0.55:5000", "localhost:5000", 1)
-		log.Printf("Detected local registry. Using %s for pull.", pullRepo)
-	}
 
 	helmLargestCmd := []string{
 		"upgrade", "--install", releaseName,

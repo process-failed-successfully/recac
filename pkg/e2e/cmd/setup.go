@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	defaultRepo = "192.168.0.55:5000/recac-e2e"
+	defaultRepo = "localhost:5000/recac-e2e"
 	repoURL     = "https://github.com/process-failed-successfully/recac-jira-e2e"
 )
 

@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	defaultRepo = "192.168.0.55:5000/recac-e2e"
+	defaultRepo = "localhost:5000/recac-e2e"
 	chartPath   = "./deploy/helm/recac"
 	namespace   = "default"
 	releaseName = "recac"
@@ -287,13 +287,7 @@ func run() error {
 		repoPart := imageName[:lastColon]
 		tagPart := imageName[lastColon+1:]
 
-		// Workaround: If pushing to 192.168.0.55 (plex-desktop), pull from localhost:5000
-		// to avoid "http: server gave HTTP response to HTTPS client" errors in K3s.
 		pullRepo := repoPart
-		if strings.HasPrefix(repoPart, "192.168.0.55:5000") {
-			pullRepo = strings.Replace(repoPart, "192.168.0.55:5000", "localhost:5000", 1)
-			log.Printf("Detected local registry. Using %s for pull.", pullRepo)
-		}
 
 		helmLargestCmd := []string{
 			"upgrade", "--install", releaseName, chartPath,
