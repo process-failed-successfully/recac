@@ -40,14 +40,14 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	isPrimesEnv := strings.Contains(envFeatures, "[primes]") || strings.Contains(envFeatures, "req-script-calculates-primes-corre")
 
 	// 1. QA Agent (Verification)
-	// Matches "QA AGENT" role instruction
-	if strings.Contains(promptLower, "qa agent") {
+	// Matches "QA AGENT" role instruction (strict match to avoid false positives in instructions)
+	if strings.Contains(promptLower, "role - qa agent") || strings.Contains(promptLower, "role: qa agent") {
 		return "I will verify the project.\n\n```bash\n# Simulate running tests\necho \"Running tests...\"\necho \"Tests passed!\"\nagent-bridge signal QA_PASSED true\n```", nil
 	}
 
 	// 2. Project Manager (Approval)
 	// Matches "PROJECT MANAGER" role instruction
-	if strings.Contains(promptLower, "project manager") {
+	if strings.Contains(promptLower, "role - project manager") || strings.Contains(promptLower, "role: project manager") {
 		return "I approve the project.\n\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
 	}
 
