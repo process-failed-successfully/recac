@@ -99,9 +99,11 @@ EOF
 	// Detect request to implement the script. The runner usually sends the ticket description.
 	// The prompt will contain the task description "Implement a python script...".
 	// Updated heuristic to catch "Create Prime Number Script" from e2e scenario.
-	if strings.Contains(prompt, "Implement a python script") ||
-	   (strings.Contains(prompt, "primes.py") && !strings.Contains(prompt, "Review") && !strings.Contains(prompt, "QA")) ||
-	   strings.Contains(prompt, "Create Prime Number Script") {
+	// We also verify if "CODING AGENT" is in the prompt, which overrides the "Review" check (as prompts might contain "Review" in instructions).
+	isCodingAgent := strings.Contains(prompt, "YOUR ROLE - CODING AGENT")
+	isPrimesTask := strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "Create Prime Number Script") || strings.Contains(prompt, "Create a python script")
+
+	if isPrimesTask && (isCodingAgent || (!strings.Contains(prompt, "Review") && !strings.Contains(prompt, "QA"))) {
 		return `
 I will implement the prime number script as requested.
 
