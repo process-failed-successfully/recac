@@ -13,8 +13,10 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// This func will be set by the caller in the cmd package
+// Legacy global for backward compatibility if needed, but we prefer passing it.
 var GetSessions func() ([]model.UnifiedSession, error)
+
+type SessionFetcher func() ([]model.UnifiedSession, error)
 
 type psDashboardModel struct {
 	table      table.Model
@@ -25,6 +27,7 @@ type psDashboardModel struct {
 	height     int
 	showCosts  bool
 	sortBy     string
+	fetcher    SessionFetcher
 }
 
 type psTickMsg time.Time
@@ -32,7 +35,7 @@ type psSessionsRefreshedMsg []model.UnifiedSession
 
 var psDashboardTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("62"))
 
-func NewPsDashboardModel(showCosts bool, sortBy string) psDashboardModel {
+func NewPsDashboardModel(fetcher SessionFetcher, showCosts bool, sortBy string) psDashboardModel {
 	columns := []table.Column{
 		{Title: "NAME", Width: 25},
 		{Title: "STATUS", Width: 10},
@@ -69,15 +72,21 @@ func NewPsDashboardModel(showCosts bool, sortBy string) psDashboardModel {
 		Bold(false)
 	t.SetStyles(s)
 
+	f := fetcher
+	if f == nil {
+		f = GetSessions // Fallback to global
+	}
+
 	return psDashboardModel{
 		table:     t,
 		showCosts: showCosts,
 		sortBy:    sortBy,
+		fetcher:   f,
 	}
 }
 
 func (m psDashboardModel) Init() tea.Cmd {
-	return tea.Batch(refreshPsSessionsCmd(), tea.Tick(3*time.Second, func(t time.Time) tea.Msg {
+	return tea.Batch(m.refreshCmd(), tea.Tick(3*time.Second, func(t time.Time) tea.Msg {
 		return psTickMsg(t)
 	}))
 }
@@ -99,7 +108,7 @@ func (m psDashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case psTickMsg:
-		return m, refreshPsSessionsCmd()
+		return m, m.refreshCmd()
 
 	case psSessionsRefreshedMsg:
 		m.sessions = msg
@@ -188,12 +197,12 @@ func (m psDashboardModel) View() string {
 	return s.String()
 }
 
-func refreshPsSessionsCmd() tea.Cmd {
+func (m psDashboardModel) refreshCmd() tea.Cmd {
 	return func() tea.Msg {
-		if GetSessions == nil {
-			return fmt.Errorf("GetSessions function is not set")
+		if m.fetcher == nil {
+			return fmt.Errorf("fetcher function is not set")
 		}
-		sessions, err := GetSessions()
+		sessions, err := m.fetcher()
 		if err != nil {
 			return err
 		}
@@ -201,8 +210,9 @@ func refreshPsSessionsCmd() tea.Cmd {
 	}
 }
 
-var StartPsDashboard = func(showCosts bool, sortBy string) error {
-	p := tea.NewProgram(NewPsDashboardModel(showCosts, sortBy), tea.WithAltScreen())
+// StartPsDashboard now accepts an optional fetcher. If nil, it uses the global GetSessions.
+var StartPsDashboard = func(fetcher SessionFetcher, showCosts bool, sortBy string) error {
+	p := tea.NewProgram(NewPsDashboardModel(fetcher, showCosts, sortBy), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		return err
 	}

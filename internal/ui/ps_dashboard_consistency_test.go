@@ -7,7 +7,7 @@ import (
 )
 
 func TestPsDashboard_Consistency_Columns(t *testing.T) {
-	m := NewPsDashboardModel(false, "time")
+	m := NewPsDashboardModel(nil, false, "time")
 	cols := m.table.Columns()
 
 	hasCPU := false
