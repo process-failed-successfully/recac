@@ -12,16 +12,16 @@ import (
 	"testing"
 )
 
-// GitHubIntegrationAgent implements agent.Agent for testing
-type GitHubIntegrationAgent struct {
+// GHTestAgent implements agent.Agent for testing to avoid name collision
+type GHTestAgent struct {
 	Response string
 }
 
-func (m *GitHubIntegrationAgent) Send(ctx context.Context, prompt string) (string, error) {
+func (m *GHTestAgent) Send(ctx context.Context, prompt string) (string, error) {
 	return m.Response, nil
 }
 
-func (m *GitHubIntegrationAgent) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+func (m *GHTestAgent) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
 	onChunk(m.Response)
 	return m.Response, nil
 }
@@ -63,7 +63,7 @@ func TestGithubGenerateFromSpec(t *testing.T) {
 	defer func() { agentClientFactory = origAgentFactory }()
 
 	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
-		return &GitHubIntegrationAgent{
+		return &GHTestAgent{
 			Response: `[{"title": "Epic", "type": "Epic", "children": [{"title": "Story", "type": "Story"}]}]`,
 		}, nil
 	}
@@ -75,9 +75,7 @@ func TestGithubGenerateFromSpec(t *testing.T) {
 
 	// 5. Run Command
 	cmd := githubGenerateFromSpecCmd
-	// Reset flags manually if needed, but since it's a new execution it should be fine?
-	// Cobra flags are persistent across tests if commands are global variables.
-	// We should probably explicitly set them.
+	// Reset flags manually
 	cmd.Flags().Set("spec", specPath)
 	cmd.Flags().Set("repo-url", "http://github.com/owner/repo")
 
@@ -90,8 +88,5 @@ func TestGithubGenerateFromSpec(t *testing.T) {
 		}
 	}
 
-	// Execute via Run function directly to avoid Cobra parsing args from os.Args?
-	// Or just use RunE if we changed it to RunE. It is Run.
-	// We can call runGithubGenerateFromSpec directly.
 	runGithubGenerateFromSpec(cmd, []string{})
 }
