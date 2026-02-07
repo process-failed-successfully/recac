@@ -105,30 +105,11 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 	stateManager := agent.NewStateManager(agentStateFile)
 
 	// Initialize DB Store with Retry Logic
-	storeConfig := getDBConfig(workspace)
-	var dbStore db.Store
-	var err error
-	maxRetries := 6
-	for i := 0; i < maxRetries; i++ {
-		if i > 0 {
-			fmt.Fprintf(os.Stderr, "[Session] Retrying DB connection (%d/%d)...\n", i+1, maxRetries)
-			time.Sleep(5 * time.Second)
-		}
-		dbStore, err = db.NewStore(storeConfig)
-		if err == nil {
-			break
-		}
-		fmt.Fprintf(os.Stderr, "[Session] Failed to initialize DB store (%s): %v\n", storeConfig.Type, err)
-	}
-
+	dbStore, err := initializeDB(workspace, project)
 	if err != nil {
 		// Critical failure - Fail Fast
 		fmt.Fprintf(os.Stderr, "[Session] CRITICAL: Could not connect to database after retries. Exiting.\n")
 		os.Exit(1)
-	} else {
-		// Success
-		fmt.Fprintf(os.Stderr, "[Session] DB Store initialized successfully: type=%s, project=%s\n", storeConfig.Type, project)
-		slog.Info("[DB] Store initialized successfully", "type", storeConfig.Type, "project", project)
 	}
 
 	// Initialize Security Scanner
@@ -167,13 +148,9 @@ func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, pr
 	}
 	stateManager := agent.NewStateManager(agentStateFile)
 
-	storeConfig := getDBConfig(workspace)
-	var dbStore db.Store
-
-	if s, err := db.NewStore(storeConfig); err != nil {
-		fmt.Printf("Warning: Failed to initialize DB store (%s): %v\n", storeConfig.Type, err)
-	} else {
-		dbStore = s
+	dbStore, err := initializeDB(workspace, project)
+	if err != nil {
+		fmt.Printf("Warning: Failed to initialize DB store: %v\n", err)
 	}
 
 	// Initialize Security Scanner
@@ -293,6 +270,29 @@ func (s *Session) LoadAgentState() error {
 	}
 
 	return nil
+}
+
+func initializeDB(workspace, project string) (db.Store, error) {
+	storeConfig := getDBConfig(workspace)
+	var dbStore db.Store
+	var err error
+	maxRetries := 12 // 60 seconds total timeout (12 * 5s) to allow Postgres to start in CI
+	for i := 0; i < maxRetries; i++ {
+		if i > 0 {
+			fmt.Fprintf(os.Stderr, "[Session] Retrying DB connection (%d/%d)...\n", i+1, maxRetries)
+			time.Sleep(5 * time.Second)
+		}
+		dbStore, err = db.NewStore(storeConfig)
+		if err == nil {
+			fmt.Fprintf(os.Stderr, "[Session] DB Store initialized successfully: type=%s, project=%s\n", storeConfig.Type, project)
+			// Note: slog might use default handler if not yet initialized, but that's acceptable for startup logs.
+			// Ideally we'd init logger first, but logger depends on project name which is available.
+			// But we wanted to keep DB init isolated.
+			return dbStore, nil
+		}
+		fmt.Fprintf(os.Stderr, "[Session] Failed to initialize DB store (%s): %v\n", storeConfig.Type, err)
+	}
+	return nil, err
 }
 
 func initializeLogging(project string) *slog.Logger {
@@ -853,8 +853,3 @@ func (s *Session) loadFeatures() []db.Feature {
 
 	return nil
 }
-
-
-
-
-
