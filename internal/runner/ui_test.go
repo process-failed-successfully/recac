@@ -8,9 +8,27 @@ import (
 	"testing"
 
 	"recac/internal/agent"
+	"recac/internal/db"
 	"recac/internal/notify"
 	"recac/internal/telemetry"
 )
+
+type MockRunLoopAgent struct {
+	Store   db.Store
+	Project string
+}
+
+func (m *MockRunLoopAgent) Send(ctx context.Context, prompt string) (string, error) {
+	if m.Store != nil {
+		m.Store.SetSignal(m.Project, "QA_PASSED", "true")
+		m.Store.SetSignal(m.Project, "PROJECT_SIGNED_OFF", "true")
+	}
+	return "Approved", nil
+}
+
+func (m *MockRunLoopAgent) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+	return m.Send(ctx, prompt)
+}
 
 func TestSession_RunLoop_UIVerification(t *testing.T) {
 	// 1. Create a temp directory
@@ -32,11 +50,24 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	// 5. Initialize Session
 	mockDocker := &MockDockerForExec{}
 	mockAgent := agent.NewMockAgent()
+	mockDB := &FaultToleranceMockDB{
+		Signals: make(map[string]string),
+	}
+	project := "test-project"
+	lifecycleAgent := &MockRunLoopAgent{
+		Store:   mockDB,
+		Project: project,
+	}
+
 	s := &Session{
 		Docker:           mockDocker,
 		Agent:            mockAgent,
+		QAAgent:          lifecycleAgent,
+		ManagerAgent:     lifecycleAgent,
 		Workspace:        tmpDir,
 		FeatureContent:   features,
+		DBStore:          mockDB,
+		Project:          project,
 		ManagerFrequency: 5,
 		MaxIterations:    5, // Increased from 1 to allow completion flow
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
