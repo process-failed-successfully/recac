@@ -51,6 +51,30 @@ func TestMockAgent(t *testing.T) {
 			t.Errorf("Response missing JSON plan, got: %s", response)
 		}
 	})
+
+	t.Run("Coding Agent Primes Response", func(t *testing.T) {
+		// Simulates a prompt from the Coding Agent prompt template which contains "feature_list.json"
+		prompt := `## YOUR ROLE - CODING AGENT
+		...
+		cat feature_list.json | head -50
+		...
+		Task: Create a python script named primes.py`
+
+		response, err := agent.Send(context.Background(), prompt)
+		if err != nil {
+			t.Fatalf("Send failed: %v", err)
+		}
+
+		// Should NOT return the Initializer response (which creates feature_list.json)
+		if strings.Contains(response, "Mock Initializer: Creating feature list") {
+			t.Errorf("Incorrectly triggered Initializer response for Coding Agent prompt")
+		}
+
+		// Should return the Primes implementation
+		if !strings.Contains(response, "Implementing prime number script") {
+			t.Errorf("Failed to trigger Primes implementation response, got: %s", response)
+		}
+	})
 }
 
 func TestTruncateString(t *testing.T) {

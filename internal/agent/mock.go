@@ -57,7 +57,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Heuristic: Check if this is the Initializer agent
-	if strings.Contains(prompt, "Initializer") || strings.Contains(prompt, "feature_list.json") {
+	// Explicitly exclude prompts containing "CODING AGENT" because the coding agent prompt
+	// naturally contains "feature_list.json" in its instructions, which would trigger a false positive.
+	isInitializer := strings.Contains(prompt, "Initializer") || strings.Contains(prompt, "feature_list.json")
+	if isInitializer && !strings.Contains(prompt, "CODING AGENT") {
 		// Special handling for the Prime Python scenario
 		// We check for [PRIMES] (Planner mode) or "Prime Number" (Jira mode where ID is replaced)
 		if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "Prime Number") || strings.Contains(prompt, "primes.py") {
