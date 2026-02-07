@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"recac/internal/agent"
 	"testing"
@@ -40,6 +41,7 @@ func TestStartCommand_Detached(t *testing.T) {
 	defer func() { sessionManagerFactory = originalFactory }()
 
 	tmpDir := t.TempDir()
+	initGitRepo(t, tmpDir)
 
 	// Execute start --detached --name test-session --path tmpDir --mock
 	var err error
@@ -65,8 +67,27 @@ func TestStartCommand_Detached(t *testing.T) {
 	}
 }
 
+func initGitRepo(t *testing.T, dir string) {
+	cmd := exec.Command("git", "init")
+	cmd.Dir = dir
+	require.NoError(t, cmd.Run())
+
+	cmd = exec.Command("git", "config", "user.email", "test@example.com")
+	cmd.Dir = dir
+	require.NoError(t, cmd.Run())
+
+	cmd = exec.Command("git", "config", "user.name", "Test User")
+	cmd.Dir = dir
+	require.NoError(t, cmd.Run())
+
+	cmd = exec.Command("git", "commit", "--allow-empty", "-m", "Initial commit")
+	cmd.Dir = dir
+	require.NoError(t, cmd.Run())
+}
+
 func TestStartCommand_MockMode_Interactive(t *testing.T) {
 	tmpDir := t.TempDir()
+	initGitRepo(t, tmpDir)
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
 
 	homeDir := t.TempDir()
@@ -91,6 +112,7 @@ func TestStartCommand_MockMode_Interactive(t *testing.T) {
 
 func TestStartCommand_Resume(t *testing.T) {
 	tmpDir := t.TempDir()
+	initGitRepo(t, tmpDir)
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
 
 	t.Setenv("HOME", t.TempDir())
@@ -110,6 +132,7 @@ func TestStartCommand_Resume(t *testing.T) {
 
 func TestStartCommand_NormalMode_Restricted(t *testing.T) {
 	tmpDir := t.TempDir()
+	initGitRepo(t, tmpDir)
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
 
 	// Mock agentClientFactory
