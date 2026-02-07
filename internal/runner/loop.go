@@ -422,16 +422,20 @@ func (s *Session) RunLoop(ctx context.Context) error {
 
 		// Multi-Agent Coding Sprint Delegation
 		if role == prompts.CodingAgent && s.MaxAgents > 1 {
-			fmt.Printf("Delegating to Multi-Agent Orchestrator (role: %s, max-agents: %d)\n", role, s.MaxAgents)
-			orchestrator := NewOrchestrator(s.DBStore, s.Docker, s.Workspace, s.Image, s.Agent, s.Project, s.AgentProvider, s.AgentModel, s.MaxAgents, s.GetSlackThreadTS())
-			if err := orchestrator.Run(ctx); err != nil {
-				fmt.Printf("Orchestrator sprint failed: %v\n", err)
+			if s.DBStore == nil {
+				s.Logger.Warn("Cannot start Multi-Agent Orchestrator without DB connection. Falling back to single agent.")
+			} else {
+				fmt.Printf("Delegating to Multi-Agent Orchestrator (role: %s, max-agents: %d)\n", role, s.MaxAgents)
+				orchestrator := NewOrchestrator(s.DBStore, s.Docker, s.Workspace, s.Image, s.Agent, s.Project, s.AgentProvider, s.AgentModel, s.MaxAgents, s.GetSlackThreadTS())
+				if err := orchestrator.Run(ctx); err != nil {
+					fmt.Printf("Orchestrator sprint failed: %v\n", err)
+				}
+				// After orchestrator finishes (barrier), we continue the next iteration in the main loop
+				if s.checkAutoQA() {
+					fmt.Println("Project automatically marked as completed after multi-agent sprint.")
+				}
+				continue
 			}
-			// After orchestrator finishes (barrier), we continue the next iteration in the main loop
-			if s.checkAutoQA() {
-				fmt.Println("Project automatically marked as completed after multi-agent sprint.")
-			}
-			continue
 		}
 
 		// Run iteration using determined prompt
