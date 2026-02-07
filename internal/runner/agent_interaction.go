@@ -8,6 +8,7 @@ import (
 	"recac/internal/agent/prompts"
 	"recac/internal/db"
 	"strings"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -261,6 +262,9 @@ func (s *Session) runQAAgent(ctx context.Context) error {
 	if _, err := s.ProcessResponse(ctx, response); err != nil {
 		s.Logger.Warn("QA agent command execution failed", "error", err)
 	}
+
+	// Wait briefly for DB sync if command executed asynchronously
+	time.Sleep(100 * time.Millisecond)
 
 	// 3. Check DB Signal (Authoritative)
 	// We read the raw signal value. "true" = PASS, "false" (or missing) = FAIL.

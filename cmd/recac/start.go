@@ -27,6 +27,12 @@ import (
 	"github.com/spf13/viper"
 )
 
+// dependency injection for testing
+var (
+	sleepFunc     func(time.Duration) = time.Sleep
+	maxIterations int                 = 0 // 0 means default to config
+)
+
 func init() {
 	startCmd.Flags().String("path", "", "Project path (skips wizard)")
 	startCmd.Flags().Int("max-iterations", 30, "Maximum number of iterations")
@@ -757,6 +763,12 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 		session.AutoMerge = cfg.AutoMerge
 		session.SkipQA = cfg.SkipQA
 		session.ManagerFirst = cfg.ManagerFirst
+
+		// Inject overrides for testing
+		session.SleepFunc = sleepFunc
+		if maxIterations > 0 {
+			session.MaxIterations = maxIterations
+		}
 
 		if cfg.JiraEpicKey != "" {
 			session.BaseBranch = fmt.Sprintf("agent-epic/%s", cfg.JiraEpicKey)
