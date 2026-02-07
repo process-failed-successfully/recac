@@ -98,7 +98,7 @@ func TestA11yCmd_Run(t *testing.T) {
 	originalFactory := agentClientFactory
 	defer func() { agentClientFactory = originalFactory }()
 
-	mockAgent := agent.NewMockAgent()
+	mockAgent := agent.NewMockAgent("mock", "mock-model", "mock-key")
 	mockAgent.SetResponse(`[
 		{"type": "AI Suggestion", "description": "Contrast issue", "line": 1, "severity": "warning"}
 	]`)

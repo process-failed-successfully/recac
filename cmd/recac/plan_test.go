@@ -48,7 +48,7 @@ func TestPlanCmd(t *testing.T) {
     }
   ]
 }` + "\n```"
-	mockAgent := agent.NewMockAgent()
+	mockAgent := agent.NewMockAgent("mock", "mock-model", "mock-key")
 	mockAgent.SetResponse(mockResponse)
 
 	// Override factory
@@ -99,7 +99,7 @@ func TestPlanCmd_MissingSpec(t *testing.T) {
 	os.Chdir(tmpDir)
 
 	// Override factory to avoid actual calls
-	mockAgent := agent.NewMockAgent()
+	mockAgent := agent.NewMockAgent("mock", "mock-model", "mock-key")
 	origFactory := agentClientFactory
 	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
 		return mockAgent, nil
@@ -127,7 +127,7 @@ func TestPlanCmd_InvalidJSON(t *testing.T) {
 	defer os.Chdir(cwd)
 	os.Chdir(tmpDir)
 
-	mockAgent := agent.NewMockAgent()
+	mockAgent := agent.NewMockAgent("mock", "mock-model", "mock-key")
 	mockAgent.SetResponse("This is not JSON")
 
 	origFactory := agentClientFactory
@@ -168,7 +168,7 @@ Here is your plan:
 ` + "```" + `
 Hope this helps!
 `
-	mockAgent := agent.NewMockAgent()
+	mockAgent := agent.NewMockAgent("mock", "mock-model", "mock-key")
 	mockAgent.SetResponse(mockResponse)
 
 	origFactory := agentClientFactory

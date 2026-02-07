@@ -115,7 +115,7 @@ func TestStartCommand_NormalMode_Restricted(t *testing.T) {
 	// Mock agentClientFactory
 	originalFactory := agentClientFactory
 	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
-		return agent.NewMockAgent(), nil
+		return agent.NewMockAgent("mock", "mock-model", "mock-key"), nil
 	}
 	defer func() { agentClientFactory = originalFactory }()
 

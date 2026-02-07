@@ -86,7 +86,7 @@ func TestRunWorkflow_NormalMode_Mocked(t *testing.T) {
 	defer func() { cmdutils.GetAgentClient = originalGetAgentClient }()
 
 	mockDocker, _ := docker.NewMockClient()
-	mockAgent := agent.NewMockAgent()
+	mockAgent := agent.NewMockAgent("mock", "mock-model", "mock-key")
 	mockAgent.SetResponse("exit")
 
 	cmdutils.GetAgentClient = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {

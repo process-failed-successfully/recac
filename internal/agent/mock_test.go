@@ -7,7 +7,7 @@ import (
 )
 
 func TestMockAgent(t *testing.T) {
-	agent := NewMockAgent()
+	agent := NewMockAgent("mock", "mock-model", "mock-key")
 
 	prompt := "This is a test prompt that is long enough to be truncated"
 	response, err := agent.Send(context.Background(), prompt)
@@ -26,7 +26,7 @@ func TestMockAgent(t *testing.T) {
 }
 
 func TestMockAgent_TPM(t *testing.T) {
-	agent := NewMockAgent()
+	agent := NewMockAgent("mock", "mock-model", "mock-key")
 	prompt := "You are an expert Technical Program Manager... ID:[PRIMES] ..."
 	response, err := agent.Send(context.Background(), prompt)
 	if err != nil {
@@ -38,7 +38,7 @@ func TestMockAgent_TPM(t *testing.T) {
 }
 
 func TestMockAgent_Coding(t *testing.T) {
-	agent := NewMockAgent()
+	agent := NewMockAgent("mock", "mock-model", "mock-key")
 	prompt := "You are a software engineer... ID:[PRIMES] ..."
 	response, err := agent.Send(context.Background(), prompt)
 	if err != nil {

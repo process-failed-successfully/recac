@@ -112,7 +112,7 @@ func TestRunChat_Integration(t *testing.T) {
 	origFactory := agentClientFactory
 	defer func() { agentClientFactory = origFactory }()
 
-	mockAgent := agent.NewMockAgent()
+	mockAgent := agent.NewMockAgent("mock", "mock-model", "mock-key")
 	mockAgent.SetResponse("Hello from Mock")
 
 	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
