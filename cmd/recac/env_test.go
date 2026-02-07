@@ -101,6 +101,13 @@ func TestEnvGenerate(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
+	// Setup temporary logs directory for tests
+	tmpLogs, err := os.MkdirTemp("", "recac-logs-*")
+	if err == nil {
+		os.Setenv("RECAC_LOGS_DIR", tmpLogs)
+		defer os.RemoveAll(tmpLogs)
+	}
+
 	// Setup code usually not needed for simple unit tests but good practice to isolate if needed
 	// Here we just run tests
 	os.Exit(m.Run())
