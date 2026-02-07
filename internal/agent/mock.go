@@ -34,61 +34,50 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristic 1: Initializer (TPM)
 	// Triggers when the system asks to break down requirements
 	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "Break down the requirements") {
-		return `{
-  "project_name": "prime-python",
-  "features": [
-    {
-      "id": "req-setup-repo",
-      "category": "core",
-      "priority": "MVP",
-      "description": "Initialize repository with git",
-      "status": "pending",
-      "passes": false,
-      "steps": ["git init"],
-      "dependencies": {}
-    },
-    {
-      "id": "req-implement-primes",
-      "category": "core",
-      "priority": "MVP",
-      "description": "Implement primes.py to calculate prime numbers",
-      "status": "pending",
-      "passes": false,
-      "steps": ["Create primes.py"],
-      "dependencies": {"depends_on_ids": ["req-setup-repo"]}
-    },
-    {
-      "id": "req-implement-tests",
-      "category": "core",
-      "priority": "MVP",
-      "description": "Implement test_primes.py",
-      "status": "pending",
-      "passes": false,
-      "steps": ["Create test_primes.py"],
-      "dependencies": {"depends_on_ids": ["req-implement-primes"]}
-    },
-    {
-      "id": "req-the-makefile-targets-are-implemented",
-      "category": "core",
-      "priority": "MVP",
-      "description": "Create Makefile with run, test, lint, format targets",
-      "status": "pending",
-      "passes": false,
-      "steps": ["Create Makefile"],
-      "dependencies": {"depends_on_ids": ["req-implement-tests"]}
-    },
-    {
-      "id": "req-ci-workflow",
-      "category": "core",
-      "priority": "MVP",
-      "description": "Setup CI workflow",
-      "status": "pending",
-      "passes": false,
-      "steps": ["Create .github/workflows/ci.yml"],
-      "dependencies": {"depends_on_ids": ["req-the-makefile-targets-are-implemented"]}
-    }
-  ]
-}`, nil
+		return `[
+  {
+    "title": "ID:[PRIMES] Prime Number Generator",
+    "description": "Implement a prime number generator in Python. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
+    "type": "Epic",
+    "children": [
+      {
+        "title": "ID:[req-setup-repo] Initialize Repository",
+        "description": "Initialize repository with git. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
+        "type": "Story",
+        "acceptance_criteria": ["Git initialized"],
+        "blocked_by": []
+      },
+      {
+        "title": "ID:[req-implement-primes] Implement Primes",
+        "description": "Implement primes.py to calculate prime numbers. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
+        "type": "Story",
+        "acceptance_criteria": ["primes.py exists", "Calculates primes correctly"],
+        "blocked_by": ["ID:[req-setup-repo] Initialize Repository"]
+      },
+      {
+        "title": "ID:[req-implement-tests] Implement Tests",
+        "description": "Implement test_primes.py. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
+        "type": "Story",
+        "acceptance_criteria": ["test_primes.py exists", "Tests pass"],
+        "blocked_by": ["ID:[req-implement-primes] Implement Primes"]
+      },
+      {
+        "title": "ID:[req-the-makefile-targets-are-implemented] Create Makefile",
+        "description": "Create Makefile with run, test, lint, format targets for primes.py. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
+        "type": "Story",
+        "acceptance_criteria": ["Makefile exists", "make run works", "make test works"],
+        "blocked_by": ["ID:[req-implement-tests] Implement Tests"]
+      },
+      {
+        "title": "ID:[req-ci-workflow] Setup CI",
+        "description": "Setup CI workflow. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
+        "type": "Story",
+        "acceptance_criteria": [".github/workflows/ci.yml exists"],
+        "blocked_by": ["ID:[req-the-makefile-targets-are-implemented] Create Makefile"]
+      }
+    ]
+  }
+]`, nil
 	}
 
 	// Heuristic 2: Project Manager (Directives)
