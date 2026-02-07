@@ -140,6 +140,9 @@ EOF
 
 python3 primes.py
 
+git add -f primes.py primes.json
+git commit -m "Implement primes.py" || echo "No changes to commit"
+
 agent-bridge feature set req-primes-py-exists --status done --passes true
 agent-bridge feature set req-primes-json-contains-correct-p --status done --passes true
 ` + "```" + `
