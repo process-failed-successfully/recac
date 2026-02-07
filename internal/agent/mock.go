@@ -135,6 +135,9 @@ python3 primes.py
 git add primes.py primes.json
 git commit -m "feat: implement primes.py and generate primes.json"
 git push || echo "Push skipped in mock mode"
+
+# Mark feature as done
+agent-bridge feature set PRIMES --status done --passes true
 ` + "```" + `
 `, nil
 	}
