@@ -105,12 +105,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 4. QA Agent
 	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
-		return "I have verified the implementation and tests pass.\n\n```bash\nagent-bridge signal set QA_PASSED true\n```", nil
+		return "I have verified the implementation and tests pass.\n\n```bash\nagent-bridge signal QA_PASSED true\n```", nil
 	}
 
 	// 5. Project Manager
 	if strings.Contains(prompt, "PROJECT MANAGER") {
-		return "I approve the project.\n\n```bash\nagent-bridge signal set PROJECT_SIGNED_OFF true\n```", nil
+		return "I approve the project.\n\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
 	}
 
 	// Default Echo
