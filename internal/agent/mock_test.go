@@ -9,6 +9,7 @@ import (
 func TestMockAgent(t *testing.T) {
 	agent := NewMockAgent()
 
+	// 1. Default Behavior
 	prompt := "This is a test prompt that is long enough to be truncated"
 	response, err := agent.Send(context.Background(), prompt)
 
@@ -16,12 +17,28 @@ func TestMockAgent(t *testing.T) {
 		t.Fatalf("Send failed: %v", err)
 	}
 
-	if !strings.Contains(response, "Mock agent response") {
+	if !strings.Contains(response, "Mock response to") {
 		t.Errorf("Response missing prefix, got: %s", response)
 	}
 
-	if !strings.Contains(response, "I received your prompt") {
-		t.Errorf("Response missing body, got: %s", response)
+	// 2. Primes Heuristic
+	promptPrimes := "Please implement the [PRIMES] feature by creating primes.py"
+	respPrimes, err := agent.Send(context.Background(), promptPrimes)
+	if err != nil {
+		t.Fatalf("Primes prompt failed: %v", err)
+	}
+	if !strings.Contains(respPrimes, "cat << 'EOF' > primes.py") {
+		t.Errorf("Primes response missing bash script: %s", respPrimes)
+	}
+
+	// 3. Initializer Heuristic
+	promptInit := "Please analyze this ticket and provide a plan feature_list.json"
+	respInit, err := agent.Send(context.Background(), promptInit)
+	if err != nil {
+		t.Fatalf("Init prompt failed: %v", err)
+	}
+	if !strings.Contains(respInit, "req-primes-py-exists") {
+		t.Errorf("Init response missing feature ID: %s", respInit)
 	}
 }
 
