@@ -92,7 +92,7 @@ agent-bridge signal PROJECT_SIGNED_OFF true
 		if strings.Contains(prompt, "[PRIMES]") {
 			return `[
   {
-    "title": "[PRIMES] Create Prime Number Script",
+    "title": "ID:[PRIMES] Create Prime Number Script",
     "description": "Repo: https://github.com/process-failed-successfully/recac-jira-e2e\nImplement primes.py",
     "type": "Task"
   }
