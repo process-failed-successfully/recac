@@ -42,23 +42,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			project = "test-project"
 		}
 		// Return a command to import features
-		return fmt.Sprintf(`
-cat <<EOF | agent-bridge import
-{
-  "project_name": "%s",
-  "features": [
-    {
-      "id": "req-implement-prime-calculation-lo",
-      "category": "core",
-      "priority": "high",
-      "description": "Implement a python script that calculates prime numbers up to 10000",
-      "status": "pending",
-      "dependencies": []
-    }
-  ]
-}
-EOF
-`, project), nil
+		return fmt.Sprintf("```bash\ncat <<EOF | agent-bridge import\n{\n  \"project_name\": \"%s\",\n  \"features\": [\n    {\n      \"id\": \"req-implement-prime-calculation-lo\",\n      \"category\": \"core\",\n      \"priority\": \"high\",\n      \"description\": \"Implement a python script that calculates prime numbers up to 10000\",\n      \"status\": \"pending\",\n      \"dependencies\": []\n    }\n  ]\n}\nEOF\n```", project), nil
 	}
 
 	// 2. TPM (Ticket Generation) - Prioritize this if prompt asks for ticket generation or JSON
@@ -82,6 +66,9 @@ EOF
 	// 3. Developer (Prime Python)
 	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "prime numbers") || strings.Contains(prompt, "req-implement-prime-calculation-lo") {
 		return `
+I will implement the prime number calculation script.
+
+` + "```bash" + `
 cat <<EOF > primes.py
 import json
 
@@ -104,16 +91,17 @@ agent-bridge feature set req-implement-prime-calculation-lo --status done || ech
 # Ensure clean exit for smoke tests
 git add primes.py || true
 git commit -m "Implement primes" || echo "No changes to commit"
+` + "```" + `
 `, nil
 	}
 
 	// 4. QA / Review
 	if strings.Contains(prompt, "QA AGENT") {
-		return `agent-bridge signal set QA_PASSED true`, nil
+		return "```bash\nagent-bridge signal set QA_PASSED true\n```", nil
 	}
 
 	if strings.Contains(prompt, "PROJECT MANAGER") && strings.Contains(prompt, "sign off") {
-		return `agent-bridge signal set PROJECT_SIGNED_OFF true`, nil
+		return "```bash\nagent-bridge signal set PROJECT_SIGNED_OFF true\n```", nil
 	}
 
 	// Fallback
