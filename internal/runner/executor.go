@@ -196,6 +196,13 @@ func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, ind
 	}
 
 	if err != nil {
+		// Special Handling for "git commit" with no changes (exit code 1)
+		// git commit returns 1 if there is nothing to commit, but this is often a success in our context (idempotency).
+		if strings.Contains(cmdScript, "git commit") && (strings.Contains(output, "nothing to commit") || strings.Contains(output, "working tree clean")) {
+			s.Logger.Info("ignoring git commit failure (no changes)", "output", output)
+			return fmt.Sprintf("Command Output (Ignored Failure):\n%s\n", output), nil
+		}
+
 		var errMsg string
 		if cmdCtx.Err() == context.DeadlineExceeded {
 			errMsg = fmt.Sprintf("Command timed out after %d seconds.", timeoutSeconds)
