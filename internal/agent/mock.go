@@ -53,8 +53,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Checks for the initializer role header
 	if strings.Contains(prompt, "YOUR ROLE - INITIALIZER AGENT") {
 		// Use RECAC_PROJECT_ID if available for the project name
+		// Use full path to agent-bridge to be safe
 		return "```bash\n#!/bin/bash\n" +
-			"cat <<EOF | agent-bridge import\n" +
+			"cat <<EOF | /usr/local/bin/agent-bridge import\n" +
 			"{\n" +
 			"  \"project_name\": \"${RECAC_PROJECT_ID:-MFLP-7063}\",\n" +
 			"  \"features\": [\n" +
