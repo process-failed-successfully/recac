@@ -302,21 +302,6 @@ func NewSessionWithConfig(workspace, project, provider, model string, dbStore db
 	// Initialize Security Scanner
 	scanner := security.NewRegexScanner()
 
-	// Create agents/logs directory in the current working directory (host)
-	cwd, _ := os.Getwd()
-	agentsLogsDir := filepath.Join(cwd, "agents", "logs")
-	if err := os.MkdirAll(agentsLogsDir, 0755); err != nil {
-		fmt.Printf("Warning: Failed to create agents/logs directory: %v\n", err)
-	} else {
-		// Initialize session log file
-		timestamp := time.Now().Format("20060102-150405")
-		logFileName := fmt.Sprintf("%s_agent_%s_%s.log", project, project, timestamp)
-		logFilePath := filepath.Join(agentsLogsDir, logFileName)
-
-		// Re-initialize telemetry logger with the session log file
-		telemetry.InitLogger(viper.GetBool("verbose"), logFilePath, false)
-		fmt.Printf("Session logs will be written to: %s\n", logFilePath)
-	}
 
 	logger := telemetry.NewLogger(viper.GetBool("verbose"), "", false)
 	if project != "" {
