@@ -62,12 +62,14 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 3. Implementation (Primes)
 	// Matches "calculate prime", "calculates prime", "calculates all prime", "[PRIMES]", "primes.py", etc.
+	// Also explicitly check for the Coding Agent role if it appears, defaulting to the Primes task for smoke tests.
 	lowerPrompt := strings.ToLower(prompt)
 	if (strings.Contains(lowerPrompt, "calculate") && strings.Contains(lowerPrompt, "prime")) ||
 		strings.Contains(prompt, "[PRIMES]") ||
 		strings.Contains(lowerPrompt, "primes.py") ||
 		strings.Contains(lowerPrompt, "primes.json") ||
-		(strings.Contains(lowerPrompt, "prime") && strings.Contains(lowerPrompt, "script")) { // Added robust check
+		(strings.Contains(lowerPrompt, "prime") && strings.Contains(lowerPrompt, "script")) ||
+		strings.Contains(prompt, "YOUR ROLE - CODING AGENT") {
 		return "I will implement the prime number calculation script.\n\n" +
 			"```bash\n" +
 			"cat <<EOF > primes.py\n" +
