@@ -36,6 +36,14 @@ func NewServer(store db.Store, port int, projectID string) *Server {
 
 // Start starts the HTTP server
 func (s *Server) Start() error {
+	// Bind to localhost for security
+	addr := fmt.Sprintf("127.0.0.1:%d", s.port)
+	fmt.Printf("Starting dashboard at http://%s\n", addr)
+	return http.ListenAndServe(addr, addSecurityHeaders(s.Handler()))
+}
+
+// Handler returns the HTTP handler for the server
+func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 
 	// Static files
@@ -46,10 +54,7 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/features", s.handleFeatures)
 	mux.HandleFunc("/api/graph", s.handleGraph)
 
-	// Bind to localhost for security
-	addr := fmt.Sprintf("127.0.0.1:%d", s.port)
-	fmt.Printf("Starting dashboard at http://%s\n", addr)
-	return http.ListenAndServe(addr, mux)
+	return mux
 }
 
 func (s *Server) handleFeatures(w http.ResponseWriter, r *http.Request) {
@@ -174,4 +179,22 @@ func sanitizeMermaidID(id string) string {
 	id = strings.ReplaceAll(id, " ", "_")
 	id = strings.ReplaceAll(id, ".", "_")
 	return id
+}
+
+func addSecurityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Prevent clickjacking
+		w.Header().Set("X-Frame-Options", "DENY")
+		// Prevent MIME type sniffing
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		// XSS protection (legacy)
+		w.Header().Set("X-XSS-Protection", "1; mode=block")
+		// Content Security Policy
+		// We allow 'unsafe-inline' for now because of embedded scripts/styles in index.html
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:;")
+		// Referrer Policy
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+
+		next.ServeHTTP(w, r)
+	})
 }
