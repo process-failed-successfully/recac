@@ -53,29 +53,31 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Checks for the initializer role header
 	if strings.Contains(prompt, "YOUR ROLE - INITIALIZER AGENT") {
 		// Use RECAC_PROJECT_ID if available for the project name
-		return `#!/bin/bash
-cat <<EOF | agent-bridge import
-{
-  "project_name": "${RECAC_PROJECT_ID:-MFLP-7063}",
-  "features": [
-    {
-      "id": "req-primes-py-exists",
-      "category": "core",
-      "priority": "high",
-      "description": "Implement primes.py to calculate primes < 10000 and output to primes.json",
-      "status": "todo",
-      "dependencies": []
-    }
-  ]
-}
-EOF
-`, nil
+		return "```bash\n#!/bin/bash\n" +
+			"cat <<EOF | agent-bridge import\n" +
+			"{\n" +
+			"  \"project_name\": \"${RECAC_PROJECT_ID:-MFLP-7063}\",\n" +
+			"  \"features\": [\n" +
+			"    {\n" +
+			"      \"id\": \"req-primes-py-exists\",\n" +
+			"      \"category\": \"core\",\n" +
+			"      \"priority\": \"high\",\n" +
+			"      \"description\": \"Implement primes.py to calculate primes < 10000 and output to primes.json\",\n" +
+			"      \"status\": \"todo\",\n" +
+			"      \"dependencies\": []\n" +
+			"    }\n" +
+			"  ]\n" +
+			"}\n" +
+			"EOF\n" +
+			"```", nil
 	}
 
 	// 2. Heuristic: Developer - Implementation Phase for [PRIMES]
 	// Checks for ticket ID or specific file requirement
 	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
-		return `#!/bin/bash
+		return `
+` + "```bash" + `
+#!/bin/bash
 cat << 'EOF' > primes.py
 import json
 
@@ -101,6 +103,7 @@ git config --global user.name "Recac Bot"
 # Track and commit files
 git add -f primes.py primes.json
 git diff --quiet --staged || git commit -m "Implement primes.py and generate output"
+` + "```" + `
 `, nil
 	}
 

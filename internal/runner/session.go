@@ -861,8 +861,3 @@ func (s *Session) loadFeatures() []db.Feature {
 
 	return nil
 }
-
-
-
-
-
