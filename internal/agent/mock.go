@@ -55,6 +55,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			return m.generatePrimesArchitectPlan(), nil
 		}
 
+		// Detect loop: If the prompt contains "nothing to commit" or "working tree clean", it means we already implemented it.
+		// We should mark it as done to break the loop.
+		if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
+			return m.generatePrimesCompletion(), nil
+		}
+
 		// Default to implementation if it looks like a task or coding request
 		return m.generatePrimesResponse(), nil
 	}
@@ -145,6 +151,23 @@ python3 primes.py
 git add primes.py primes.json
 git commit -m "Implement primes.py and generate primes.json"
 git push origin HEAD
+` + "```" + `
+`
+}
+
+func (m *MockAgent) generatePrimesCompletion() string {
+	return `
+It seems the implementation is already complete and there are no new changes to commit.
+I will mark the features as done.
+
+` + "```bash" + `
+# Mark features as done
+agent-bridge feature set req-implement-prime-calculation-lo --status done --passes true
+agent-bridge feature set req-output-results-to-primes-json --status done --passes true
+agent-bridge feature set req-verify-that-exactly-1229-prime --status done --passes true
+
+# Signal completion
+agent-bridge signal COMPLETED true
 ` + "```" + `
 `
 }

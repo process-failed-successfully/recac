@@ -68,6 +68,20 @@ func TestMockAgent_PrimesScenario(t *testing.T) {
 	if !strings.Contains(featureResponse, "git config user.email") {
 		t.Errorf("Feature ID response should contain bash script with git config, got: %s", featureResponse)
 	}
+
+	// 5. Test Loop Prevention (Completion Heuristic)
+	// This simulates the prompt receiving "nothing to commit"
+	loopPrompt := "YOUR ROLE - CODING AGENT. [PRIMES] ... nothing to commit, working tree clean"
+	loopResponse, err := agent.Send(context.Background(), loopPrompt)
+	if err != nil {
+		t.Fatalf("Loop Prevention Send failed: %v", err)
+	}
+	if !strings.Contains(loopResponse, "agent-bridge feature set") {
+		t.Errorf("Loop response should contain agent-bridge feature set commands, got: %s", loopResponse)
+	}
+	if !strings.Contains(loopResponse, "agent-bridge signal COMPLETED true") {
+		t.Errorf("Loop response should contain completion signal, got: %s", loopResponse)
+	}
 }
 
 func TestTruncateString(t *testing.T) {
