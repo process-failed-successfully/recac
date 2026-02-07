@@ -29,8 +29,7 @@ func TestMockAgent_Scenarios(t *testing.T) {
 			prompt: "You are the Technical Program Manager... [PRIMES]",
 			wantContains: []string{
 				`"tickets":`,
-				`"id": "PRIMES"`,
-				`"title": "Create primes.py"`,
+				`"title": "ID:[PRIMES] Create primes.py"`,
 			},
 			wantNotContain: []string{
 				"Mock agent response", // Should not be fallback
