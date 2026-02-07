@@ -135,7 +135,7 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 	// Initialize Security Scanner
 	scanner := security.NewRegexScanner()
 
-	logger := initializeLogging(project)
+	logger := initializeLogging(project, true)
 
 	return &Session{
 		Docker:           d,
@@ -180,7 +180,7 @@ func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, pr
 	// Initialize Security Scanner
 	scanner := security.NewRegexScanner()
 
-	logger := initializeLogging(project)
+	logger := initializeLogging(project, true)
 
 	return &Session{
 		Docker:           d,
@@ -221,7 +221,7 @@ func NewSessionWithConfig(workspace, project, provider, model string, dbStore db
 	// Initialize Security Scanner
 	scanner := security.NewRegexScanner()
 
-	logger := initializeLogging(project)
+	logger := initializeLogging(project, false)
 
 	return &Session{
 		Workspace:        workspace,
@@ -241,29 +241,31 @@ func NewSessionWithConfig(workspace, project, provider, model string, dbStore db
 	}
 }
 
-func initializeLogging(project string) *slog.Logger {
+func initializeLogging(project string, persistToFile bool) *slog.Logger {
 	// Check if running in test mode
 	if flag.Lookup("test.v") != nil {
-		return telemetry.NewLogger(viper.GetBool("verbose"), "", false).With("project", project)
+		persistToFile = false
 	}
 
-	// Create agents/logs directory in the current working directory (host)
-	// This is where Promtail expects to find them based on docker-compose.monitoring.yml
-	cwd, _ := os.Getwd()
-	agentsLogsDir := filepath.Join(cwd, "agents", "logs")
-	if err := os.MkdirAll(agentsLogsDir, 0755); err != nil {
-		fmt.Printf("Warning: Failed to create agents/logs directory: %v\n", err)
-	} else {
-		// Initialize session log file
-		timestamp := time.Now().Format("20060102-150405")
-		logFileName := fmt.Sprintf("%s_agent_%s_%s.log", project, project, timestamp)
-		logFilePath := filepath.Join(agentsLogsDir, logFileName)
+	if persistToFile {
+		// Create agents/logs directory in the current working directory (host)
+		// This is where Promtail expects to find them based on docker-compose.monitoring.yml
+		cwd, _ := os.Getwd()
+		agentsLogsDir := filepath.Join(cwd, "agents", "logs")
+		if err := os.MkdirAll(agentsLogsDir, 0755); err != nil {
+			fmt.Printf("Warning: Failed to create agents/logs directory: %v\n", err)
+		} else {
+			// Initialize session log file
+			timestamp := time.Now().Format("20060102-150405")
+			logFileName := fmt.Sprintf("%s_agent_%s_%s.log", project, project, timestamp)
+			logFilePath := filepath.Join(agentsLogsDir, logFileName)
 
-		// Re-initialize telemetry logger with the session log file
-		// Note: We use the global 'verbose' setting
-		// We still init global logger for backward compatibility and simpler calls where session isn't available
-		telemetry.InitLogger(viper.GetBool("verbose"), logFilePath, false)
-		fmt.Printf("Session logs will be written to: %s\n", logFilePath)
+			// Re-initialize telemetry logger with the session log file
+			// Note: We use the global 'verbose' setting
+			// We still init global logger for backward compatibility and simpler calls where session isn't available
+			telemetry.InitLogger(viper.GetBool("verbose"), logFilePath, false)
+			fmt.Printf("Session logs will be written to: %s\n", logFilePath)
+		}
 	}
 
 	// Create session logger
