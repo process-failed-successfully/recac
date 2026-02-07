@@ -149,9 +149,12 @@ def is_prime(n):
         if n % i == 0: return False
     return True
 
-primes = [x for x in range(1, 101) if is_prime(x)]
+# Generate primes less than 10000 (range(2, 10000))
+primes = [x for x in range(2, 10000) if is_prime(x)]
+output = {"primes": primes}
+
 with open("primes.json", "w") as f:
-    json.dump(primes, f)
+    json.dump(output, f)
 print(f"Generated {len(primes)} primes")
 EOF
 
