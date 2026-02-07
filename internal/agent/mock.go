@@ -105,7 +105,7 @@ python3 primes.py
 
 # Git operations
 git add primes.py primes.json
-git commit -m "Add primes.py and generated json"
+git commit -m "Add primes.py and generated json" || echo "No changes to commit"
 git push origin HEAD
 
 # Signal completion
