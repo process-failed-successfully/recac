@@ -145,7 +145,9 @@ echo "Feature list initialized."
 	}
 
 	// 4. Fallback / Review
-	if strings.Contains(prompt, "Review") || strings.Contains(prompt, "QA") {
+	if (strings.Contains(prompt, "Review") || strings.Contains(prompt, "QA")) &&
+		!strings.Contains(prompt, "CODING AGENT") &&
+		!strings.Contains(prompt, "Developer") {
 		return "The implementation looks correct and passes all checks.", nil
 	}
 

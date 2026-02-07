@@ -522,6 +522,11 @@ func (s *Session) Start(ctx context.Context) error {
 		env = append(env, fmt.Sprintf("RECAC_PROJECT_ID=%s", s.Project))
 	}
 
+	// Ensure DB Config is propagated (especially if using default sqlite in workspace)
+	dbConfig := getDBConfig(s.Workspace)
+	env = append(env, fmt.Sprintf("RECAC_DB_TYPE=%s", dbConfig.Type))
+	env = append(env, fmt.Sprintf("RECAC_DB_URL=%s", dbConfig.ConnectionString))
+
 	// Run Container (or Skip if Local/Restricted)
 	if s.UseLocalAgent || s.Docker == nil {
 		if s.Logger != nil {
