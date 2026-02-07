@@ -34,9 +34,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// --- Heuristics for E2E Scenarios (e.g. Smoke Test) ---
 
-	// 1. Initializer Role: Detects "YOUR ROLE - INITIALIZER AGENT" and "Prime"
+	// 1. Initializer Role: Detects "YOUR ROLE - INITIALIZER AGENT" or "Feature list not found"
 	// Returns a feature list via agent-bridge import
-	if strings.Contains(prompt, "YOUR ROLE - INITIALIZER AGENT") &&
+	if (strings.Contains(prompt, "YOUR ROLE - INITIALIZER AGENT") || strings.Contains(prompt, "Feature list not found")) &&
 		(strings.Contains(strings.ToLower(prompt), "prime") || strings.Contains(prompt, "[PRIMES]")) {
 		return `Here is the plan for the Prime Number Script:
 
@@ -69,7 +69,7 @@ EOF
 
 	// 2. Coding Agent: Detects "YOUR ROLE - CODING AGENT" and "Prime"
 	// Implements the script and marks the feature as done
-	if strings.Contains(prompt, "YOUR ROLE - CODING AGENT") &&
+	if (strings.Contains(prompt, "YOUR ROLE - CODING AGENT") || strings.Contains(prompt, "role selected: Agent")) &&
 		(strings.Contains(strings.ToLower(prompt), "prime") || strings.Contains(prompt, "req-primes-implementation")) {
 		return `I will implement the primes script as requested.
 
@@ -108,6 +108,28 @@ agent-bridge feature set --id req-primes-implementation --status done --passes t
 
 ` + "```bash" + `
 agent-bridge signal --key PROJECT_SIGNED_OFF --value true
+` + "```", nil
+	}
+
+	// 4. TPM / Planning Role (Ticket Generation)
+	// This is critical for 'recac jira generate-from-spec'
+	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "Ticket Generation") {
+		// Return a JSON list of tickets
+		// We extract the 'Repo:' URL if possible or just use a placeholder
+		return `Here is the ticket plan:
+
+` + "```json" + `
+{
+  "features": [
+    {
+      "id": "PRIMES",
+      "name": "Create Prime Number Script",
+      "type": "Task",
+      "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'. The JSON format must have a single key 'primes' containing the list of integers. IMPORTANT: You MUST use a bash block to create the file. Commit 'primes.json' IMMEDIATELY after creating/running the script.",
+      "dependencies": []
+    }
+  ]
+}
 ` + "```", nil
 	}
 

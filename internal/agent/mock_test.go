@@ -57,6 +57,20 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	if !strings.Contains(resp, "PROJECT_SIGNED_OFF") {
 		t.Errorf("Expected Manager heuristic to trigger, got: %s", resp)
 	}
+
+	// 4. TPM Heuristic
+	tpmPrompt := "This prompt is for the Technical Program Manager to generate tickets."
+	resp, err = agent.Send(context.Background(), tpmPrompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(resp, `"features"`) || !strings.Contains(resp, "PRIMES") {
+		t.Errorf("Expected TPM heuristic to trigger, got: %s", resp)
+	}
+	// Check description contains spec requirements
+	if !strings.Contains(resp, "10,000") {
+		t.Errorf("Expected TPM heuristic to include spec details (10,000), got: %s", resp)
+	}
 }
 
 func TestTruncateString(t *testing.T) {
