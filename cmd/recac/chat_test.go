@@ -14,12 +14,18 @@ func TestHandleChatCommand_Persona(t *testing.T) {
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 
+	pm := agent.NewPersonaManager()
+	// Ensure defaults are loaded (NewPersonaManager does this)
+	p, _ := pm.GetPersona("default")
+
 	session := &ChatSession{
-		CurrentPersona: defaultPersonas["default"],
+		CurrentPersona: p,
 		ContextFiles:   make(map[string]string),
+		PM:             pm,
 	}
 
 	// 1. Switch to existing persona
+	// "security" is a default persona
 	res := handleChatCommand(cmd, session, "/persona security")
 	if !res {
 		t.Error("Expected command to be handled")
@@ -52,9 +58,13 @@ func TestHandleChatCommand_Add(t *testing.T) {
 	cmd.SetOut(&out)
 	cmd.SetErr(&errOut)
 
+	pm := agent.NewPersonaManager()
+	p, _ := pm.GetPersona("default")
+
 	session := &ChatSession{
-		CurrentPersona: defaultPersonas["default"],
+		CurrentPersona: p,
 		ContextFiles:   make(map[string]string),
+		PM:             pm,
 	}
 
 	// Create temp file
@@ -97,6 +107,7 @@ func TestHandleChatCommand_Clear(t *testing.T) {
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 
+	// PM not needed for clear
 	session := &ChatSession{
 		History: "User: Hi\nAgent: Hello\n",
 	}
@@ -133,6 +144,11 @@ func TestRunChat_Integration(t *testing.T) {
 	in.WriteString("/quit\n")
 
 	// Run
+	// Note: runChat will re-initialize PM and attempt to load from file.
+	// In test, this might fail or warn, but shouldn't crash unless files are messed up.
+	// We should probably mock getPersonasFilePath or ensure it uses temp dir if we care about clean env.
+	// But for this test, default personas are enough.
+
 	err := runChat(cmd, []string{})
 	if err != nil {
 		t.Fatalf("runChat failed: %v", err)
