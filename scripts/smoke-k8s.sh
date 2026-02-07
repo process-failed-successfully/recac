@@ -48,7 +48,10 @@ echo "Deploying RECAC via Helm..."
 helm upgrade --install recac ./deploy/helm/recac \
     --set image.repository="$DEPLOY_REPO" \
     --set image.tag="$DEPLOY_TAG" \
+    --set agentImage.repository="$DEPLOY_REPO" \
+    --set agentImage.tag="$DEPLOY_TAG" \
     --set image.pullPolicy=Always \
+    --set agentImage.pullPolicy=Always \
     --set config.imagePullPolicy=IfNotPresent \
     --set config.poller=jira \
     --set config.jira_label="$JIRA_LABEL" \
