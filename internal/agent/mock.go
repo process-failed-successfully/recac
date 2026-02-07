@@ -49,6 +49,31 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 2. Heuristic: Developer - Implementation Phase for [PRIMES]
 	// Checks for ticket ID or specific file requirement
+	// 4. Heuristic: Initializer - Setup Phase
+	// Checks for the initializer role header
+	if strings.Contains(prompt, "YOUR ROLE - INITIALIZER AGENT") {
+		// Use RECAC_PROJECT_ID if available for the project name
+		return `#!/bin/bash
+cat <<EOF | agent-bridge import
+{
+  "project_name": "${RECAC_PROJECT_ID:-MFLP-7063}",
+  "features": [
+    {
+      "id": "req-primes-py-exists",
+      "category": "core",
+      "priority": "high",
+      "description": "Implement primes.py to calculate primes < 10000 and output to primes.json",
+      "status": "todo",
+      "dependencies": []
+    }
+  ]
+}
+EOF
+`, nil
+	}
+
+	// 2. Heuristic: Developer - Implementation Phase for [PRIMES]
+	// Checks for ticket ID or specific file requirement
 	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
 		return `#!/bin/bash
 cat << 'EOF' > primes.py
