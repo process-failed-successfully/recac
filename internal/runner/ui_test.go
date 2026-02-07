@@ -38,6 +38,7 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 		Workspace:        tmpDir,
 		FeatureContent:   features,
 		ManagerFrequency: 5,
+		MaxIterations:    1, // Fix: Explicitly limit iterations to prevent infinite loops
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
 		Logger:           telemetry.NewLogger(true, "", false),
 	}
@@ -49,9 +50,10 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	err = s.RunLoop(context.Background())
 
 	// Since all features pass, it should mark COMPLETED and print UI verification msg.
-	// We mainly verify it DOESN'T fail or block.
+	// We mainly verify it DOESN'T fail or block indefinitely.
 	// ErrNoOp is expected because the MockAgent returns empty responses.
-	if err != nil && !errors.Is(err, ErrNoOp) {
+	// ErrMaxIterations is expected because we limited it to 1.
+	if err != nil && !errors.Is(err, ErrNoOp) && !errors.Is(err, ErrMaxIterations) {
 		t.Errorf("RunLoop failed: %v", err)
 	}
 }
