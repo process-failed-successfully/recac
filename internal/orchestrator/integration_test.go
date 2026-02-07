@@ -45,7 +45,7 @@ func TestOrchestrator_Integration_FileFlow(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	workFile := filepath.Join(tmpDir, "work.json")
-	
+
 	// Initial state: 2 work items
 	items := []WorkItem{
 		{ID: "TASK-1", Summary: "Summary 1", Description: "Desc 1"},
@@ -231,7 +231,7 @@ func TestOrchestrator_Integration_JiraFlow(t *testing.T) {
 			}
 			if tc.spawnErr {
 				// Should have tried to transition to "Failed"
-				// Note: SmartTransition depends on name matching. 
+				// Note: SmartTransition depends on name matching.
 				// In our mock we have "Failed" (id 99).
 				assert.Contains(t, transitionsCalled[tc.mockIssues[0]["key"].(string)], "99")
 			}

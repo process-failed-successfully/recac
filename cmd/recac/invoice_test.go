@@ -34,9 +34,13 @@ func TestInvoiceCmd(t *testing.T) {
 		// getGitCommits calls client.Log(dir, "--since=30d", "--format=%h|%an|%aI|%s", "--author=Test User")
 
 		now := time.Now()
-		ts1 := now.Add(-2 * time.Hour).Format(time.RFC3339)
-		ts2 := now.Add(-1 * time.Hour).Format(time.RFC3339) // 1 hour later (same session)
-		ts3 := now.Add(-50 * time.Hour).Format(time.RFC3339) // 2 days ago (definitely new session)
+		// Use Yesterday Noon as base to ensure we are far from midnight boundary
+		// and ensure ts1 and ts2 fall on the same day.
+		base := time.Date(now.Year(), now.Month(), now.Day(), 12, 0, 0, 0, now.Location()).AddDate(0, 0, -1)
+
+		ts1 := base.Add(-1 * time.Hour).Format(time.RFC3339) // 11:00 yesterday
+		ts2 := base.Format(time.RFC3339)                     // 12:00 yesterday (same session)
+		ts3 := base.AddDate(0, 0, -2).Format(time.RFC3339) // 3 days ago (definitely new session)
 
 		return []string{
 			fmt.Sprintf("hash1|Test User|%s|Commit 1", ts1),
@@ -74,9 +78,9 @@ func TestInvoiceCmd(t *testing.T) {
 	// Tax = 10% of 400 = 40.00
 	// Total = 440.00
 
-	assert.Contains(t, output, "0.50") // Session 1 Hours
-	assert.Contains(t, output, "1.50") // Session 2 Hours
+	assert.Contains(t, output, "0.50")   // Session 1 Hours
+	assert.Contains(t, output, "1.50")   // Session 2 Hours
 	assert.Contains(t, output, "400.00") // Subtotal
-	assert.Contains(t, output, "40.00") // Tax
+	assert.Contains(t, output, "40.00")  // Tax
 	assert.Contains(t, output, "440.00") // Total
 }

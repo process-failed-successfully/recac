@@ -50,7 +50,7 @@ func RunWait(args []string) error {
 			break
 		}
 	}
-	
+
 	if targetTicketID == "" {
 		return fmt.Errorf("no ticket ID found in map")
 	}
