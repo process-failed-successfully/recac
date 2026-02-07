@@ -227,6 +227,8 @@ jobs:
   # 7. Smoke Test (k3s) - Consolidated from smoke-test.yml
   smoke-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     # Run in parallel with others, but fail fast if early checks fail could be added.
     # For now, running in parallel is fastest.
     steps:
