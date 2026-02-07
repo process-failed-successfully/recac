@@ -99,6 +99,8 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 		project = "unknown"
 	}
 
+	logger := initializeLogging(project)
+
 	// Default agent state file path in workspace
 	stateFile := ".agent_state.json"
 	agentStateFile := filepath.Join(workspace, stateFile)
@@ -131,8 +133,6 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 		slog.Info("[DB] Store initialized successfully", "type", storeConfig.Type, "project", project)
 	}
 
-	logger := initializeLogging(project)
-
 	return &Session{
 		Docker:           d,
 		Agent:            a,
@@ -162,6 +162,9 @@ func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, pr
 	if project == "" {
 		project = "unknown"
 	}
+
+	logger := initializeLogging(project)
+
 	stateManager := agent.NewStateManager(agentStateFile)
 
 	storeConfig := getDBConfig(workspace)
@@ -171,8 +174,6 @@ func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, pr
 	} else {
 		dbStore = s
 	}
-
-	logger := initializeLogging(project)
 
 	return &Session{
 		Docker:           d,

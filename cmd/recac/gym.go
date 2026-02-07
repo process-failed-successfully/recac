@@ -86,6 +86,7 @@ func runGym(cmd *cobra.Command, args []string) error {
 				Challenge: challenge.Name,
 				Passed:    false,
 				Output:    err.Error(),
+				Cost:      0.0,
 			})
 		} else {
 			results = append(results, *res)
