@@ -33,9 +33,6 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Check for TPM/Ticket generation prompt
-	// Note: We check for "Technical Program Manager" which is the role definition.
-	// We removed the check for "tickets" because the prompt template might use singular "ticket"
-	// or the user might change the phrasing, but the role remains constant.
 	if strings.Contains(prompt, "Technical Program Manager") {
 		// Handle Primes scenario for TPM
 		if strings.Contains(prompt, "[PRIMES]") {
@@ -121,6 +118,9 @@ EOF
 	}
 
 	// Check for Coding Agent prompt
+	// Note: We MUST exclude QA agent prompts that might contain "Coding Agent" references in their context/history
+	// but the header check "## YOUR ROLE - CODING AGENT" usually handles this.
+	// However, to be safe, we check for QA Role first or rely on the strict header.
 	if strings.Contains(prompt, "## YOUR ROLE - CODING AGENT") {
 		// For the prime-python scenario
 		// Detect via [PRIMES] marker OR the specific feature ID that the Initializer creates
@@ -166,6 +166,25 @@ agent-bridge signal COMPLETED true
 		return "```bash\n" + `#!/bin/bash
 echo "Mock Coding Agent: Working on task..."
 ls -la
+` + "\n```", nil
+	}
+
+	// Check for QA Agent prompt
+	if strings.Contains(prompt, "## YOUR ROLE - QA AGENT") {
+		return "```bash\n" + `#!/bin/bash
+set -x
+echo "Mock QA Agent: Verifying..."
+# Signal QA success
+agent-bridge signal QA_PASSED true
+` + "\n```", nil
+	}
+
+	// Check for Project Manager prompt (Sign-off)
+	if strings.Contains(prompt, "## YOUR ROLE - PROJECT MANAGER") {
+		return "```bash\n" + `#!/bin/bash
+set -x
+echo "Mock Manager: Signing off..."
+agent-bridge signal PROJECT_SIGNED_OFF true
 ` + "\n```", nil
 	}
 
