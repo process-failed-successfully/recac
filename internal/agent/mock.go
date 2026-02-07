@@ -94,12 +94,25 @@ EOF
 	// 3. Technical Program Manager Heuristic
 	// The TPM prompt contains "ROLE: Technical Program Manager"
 	if strings.Contains(prompt, "Technical Program Manager") {
-		return `{
-  "project_status": "on_track",
-  "summary": "Project is proceeding according to plan.",
-  "risk_assessment": "low",
-  "next_steps": ["Continue implementation"]
-}`, nil
+		return `[
+  {
+    "title": "ID:[PRIMES] Prime Number Generator",
+    "description": "Implement a Python script to generate prime numbers.",
+    "type": "Epic",
+    "children": [
+      {
+        "title": "ID:[REQ-1] Create primes.py",
+        "description": "Create the main script file.",
+        "type": "Story"
+      },
+      {
+        "title": "ID:[REQ-2] Implement logic",
+        "description": "Implement is_prime function.",
+        "type": "Story"
+      }
+    ]
+  }
+]`, nil
 	}
 
 	// 4. Project Manager / QA Heuristic
