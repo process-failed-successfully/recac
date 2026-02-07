@@ -273,7 +273,8 @@ func (s *SQLiteStore) AcquireLock(projectID, path, agentID string, timeout time.
 		}
 
 		// 3. Poll delay
-		time.Sleep(500 * time.Millisecond)
+		// Reduced from 500ms to 50ms to improve responsiveness in contended scenarios
+		time.Sleep(50 * time.Millisecond)
 	}
 }
 
