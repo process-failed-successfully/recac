@@ -133,7 +133,8 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 	}
 
 	// Initialize logging using workspace as base directory
-	logger := initializeLogging(project, workspace)
+	// Note: We pass empty string for baseDir to force using CWD, which is where Promtail expects logs
+	logger := initializeLogging(project, "")
 
 	return &Session{
 		Docker:           d,
@@ -176,7 +177,7 @@ func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, pr
 	}
 
 	// Initialize logging using workspace as base directory
-	logger := initializeLogging(project, workspace)
+	logger := initializeLogging(project, "")
 
 	return &Session{
 		Docker:           d,
@@ -215,7 +216,7 @@ func NewSessionWithConfig(workspace, project, provider, model string, dbStore db
 	stateManager := agent.NewStateManager(agentStateFile)
 
 	// Initialize logging using workspace as base directory
-	logger := initializeLogging(project, workspace)
+	logger := initializeLogging(project, "")
 
 	return &Session{
 		Workspace:        workspace,
@@ -238,10 +239,17 @@ func NewSessionWithConfig(workspace, project, provider, model string, dbStore db
 func initializeLogging(project, baseDir string) *slog.Logger {
 	// Create agents/logs directory in the base directory (workspace or CWD)
 	// This ensures logs are stored where the session is running
-	if baseDir == "" {
-		baseDir, _ = os.Getwd()
+	// We also support RECAC_LOGS_DIR override for testing
+	var agentsLogsDir string
+	if override := os.Getenv("RECAC_LOGS_DIR"); override != "" {
+		agentsLogsDir = override
+	} else {
+		if baseDir == "" {
+			baseDir, _ = os.Getwd()
+		}
+		agentsLogsDir = filepath.Join(baseDir, "agents", "logs")
 	}
-	agentsLogsDir := filepath.Join(baseDir, "agents", "logs")
+
 	if err := os.MkdirAll(agentsLogsDir, 0755); err != nil {
 		fmt.Printf("Warning: Failed to create agents/logs directory: %v\n", err)
 	} else {
