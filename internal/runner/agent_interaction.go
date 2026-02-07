@@ -8,6 +8,7 @@ import (
 	"recac/internal/agent/prompts"
 	"recac/internal/db"
 	"strings"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -265,12 +266,23 @@ func (s *Session) runQAAgent(ctx context.Context) error {
 	// 3. Check DB Signal (Authoritative)
 	// We read the raw signal value. "true" = PASS, "false" (or missing) = FAIL.
 	// Note: checking "false" explicitly allows us to distinguish between "agent said fail" and "agent did nothing".
-	val, err := s.DBStore.GetSignal(s.Project, "QA_PASSED")
-	s.Logger.Info("QA result signal check", "signal", val, "error", err)
+	// Retry loop for signal propagation (DB consistency/race handling)
+	var val string
+	for i := 0; i < 3; i++ {
+		val, err = s.DBStore.GetSignal(s.Project, "QA_PASSED")
+		s.Logger.Info("QA result signal check", "signal", val, "error", err)
 
-	if err == nil && val == "true" {
-		s.Logger.Info("QA passed (signal verified)")
-		return nil
+		if err == nil && val == "true" {
+			s.Logger.Info("QA passed (signal verified)")
+			return nil
+		}
+		if val == "false" {
+			break // Explicit failure, don't retry
+		}
+		// If signal is missing or empty, wait a bit and retry
+		if i < 2 {
+			time.Sleep(1 * time.Second)
+		}
 	}
 
 	if val == "false" {
