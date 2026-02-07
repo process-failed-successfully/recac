@@ -19,6 +19,9 @@ import (
 )
 
 func TestProcessJiraTicket(t *testing.T) {
+	// Prevent log pollution
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
+
 	// Mock RunWorkflow
 	originalRunWorkflow := RunWorkflow
 	defer func() { RunWorkflow = originalRunWorkflow }()
@@ -124,6 +127,9 @@ func TestProcessJiraTicket(t *testing.T) {
 }
 
 func TestProcessDirectTask(t *testing.T) {
+	// Prevent log pollution
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
+
 	// Mock RunWorkflow
 	originalRunWorkflow := RunWorkflow
 	defer func() { RunWorkflow = originalRunWorkflow }()
@@ -166,6 +172,9 @@ func TestRunWorkflow_Detached(t *testing.T) {
 }
 
 func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
+	// Prevent log pollution
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
+
 	// Mock SetupWorkspace
 	originalSetup := cmdutils.SetupWorkspace
 	defer func() { cmdutils.SetupWorkspace = originalSetup }()
@@ -232,6 +241,9 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 }
 
 func TestRunWorkflow_Normal(t *testing.T) {
+	// Prevent log pollution
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
+
 	// Mock cmdutils.GetAgentClient
 	originalGetAgentClient := cmdutils.GetAgentClient
 	defer func() { cmdutils.GetAgentClient = originalGetAgentClient }()
@@ -269,7 +281,7 @@ func TestRunWorkflow_Normal(t *testing.T) {
 	// Since MaxIterations=0, RunLoop should return ErrMaxIterations or nil depending on implementation.
 	// runner/session.go: RunLoop: if s.MaxIterations > 0 && currentIteration >= s.MaxIterations { return ErrMaxIterations }
 	// If MaxIterations=0, it might loop forever or use default?
-	// NewSession sets MaxIterations=20 default.
+	// NewSession defaults to 20.
 	// Our mock sets it to 0.
 	// Let's check RunLoop logic.
 	// It checks `if s.MaxIterations > 0 && currentIteration >= s.MaxIterations`.

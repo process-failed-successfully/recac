@@ -66,8 +66,17 @@ func TestStartCommand_Detached(t *testing.T) {
 }
 
 func TestStartCommand_MockMode_Interactive(t *testing.T) {
+	// Prevent log pollution
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
+
 	tmpDir := t.TempDir()
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
+
+	// Initialize git repo to prevent "fatal: not a git repository"
+	// We need git in path for this to work, or mock it.
+	// Assuming git is available in test env.
+	// But executeCommand runs startSession which calls NewSession -> bootstrapGit.
+	// If Start fails, it returns error.
 
 	homeDir := t.TempDir()
 	t.Setenv("HOME", homeDir)
@@ -90,6 +99,9 @@ func TestStartCommand_MockMode_Interactive(t *testing.T) {
 }
 
 func TestStartCommand_Resume(t *testing.T) {
+	// Prevent log pollution
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
+
 	tmpDir := t.TempDir()
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
 
@@ -109,6 +121,9 @@ func TestStartCommand_Resume(t *testing.T) {
 }
 
 func TestStartCommand_NormalMode_Restricted(t *testing.T) {
+	// Prevent log pollution
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
+
 	tmpDir := t.TempDir()
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
 

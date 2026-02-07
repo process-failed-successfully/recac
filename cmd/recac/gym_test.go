@@ -67,6 +67,9 @@ func (m *GymTestMockAgent) SendStream(ctx context.Context, prompt string, onChun
 }
 
 func TestRunGymSession(t *testing.T) {
+	// Set log dir to temp to avoid pollution
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
+
 	// Setup Mocks
 	mockDocker := &GymTestMockDockerClient{
 		execOutput: "PASSED",
