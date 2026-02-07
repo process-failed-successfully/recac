@@ -175,3 +175,61 @@ func TestWizardModel_HelperText(t *testing.T) {
 		t.Errorf("Expected view to contain 'Press Enter for default', got: %s", view)
 	}
 }
+
+func TestWizardModel_NumericValidation(t *testing.T) {
+	m := NewWizardModel()
+	m.Init()
+	m.step = StepMaxAgents
+	m.textInput.Focus()
+
+	// Simulate typing "abc"
+	input := "abc"
+	for _, r := range input {
+		msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}}
+		updatedModel, _ := m.Update(msg)
+		m = updatedModel.(WizardModel)
+	}
+
+	// Simulate Enter
+	msg := tea.KeyMsg{Type: tea.KeyEnter}
+	updatedModel, _ := m.Update(msg)
+	m = updatedModel.(WizardModel)
+
+	// 1. Should NOT advance to next step
+	if m.step != StepMaxAgents {
+		t.Error("Expected to stay on StepMaxAgents when input is invalid")
+	}
+
+	// 2. Should show error message
+	view := m.View()
+	if !strings.Contains(view, "Please enter a valid number") {
+		t.Errorf("Expected view to show 'Please enter a valid number', got: %s", view)
+	}
+
+	// Test StepTaskMaxIterations validation
+	m.step = StepTaskMaxIterations
+	m.errMsg = "" // clear error
+	m.textInput.Reset()
+	m.textInput.Focus()
+
+	// Simulate typing "xyz"
+	input = "xyz"
+	for _, r := range input {
+		msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}}
+		updatedModel, _ := m.Update(msg)
+		m = updatedModel.(WizardModel)
+	}
+
+	msg = tea.KeyMsg{Type: tea.KeyEnter}
+	updatedModel, _ = m.Update(msg)
+	m = updatedModel.(WizardModel)
+
+	if m.done {
+		t.Error("Expected not to be done when input is invalid")
+	}
+
+	view = m.View()
+	if !strings.Contains(view, "Please enter a valid number") {
+		t.Errorf("Expected view to show 'Please enter a valid number', got: %s", view)
+	}
+}

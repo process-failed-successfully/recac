@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -60,6 +61,7 @@ func NewWizardModel() WizardModel {
 	l.Title = "Select Agent Provider"
 	l.SetShowHelp(false)
 	l.SetHeight(10)
+	l.Styles.Title = titleStyle // Apply consistent title style
 
 	return WizardModel{
 		textInput: ti,
@@ -110,8 +112,11 @@ func (m WizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if val == "" {
 					m.MaxAgents = 1
 				} else {
-					var n int
-					fmt.Sscanf(val, "%d", &n)
+					n, err := strconv.Atoi(val)
+					if err != nil {
+						m.errMsg = "Please enter a valid number"
+						return m, nil
+					}
 					if n < 1 {
 						n = 1
 					}
@@ -127,8 +132,11 @@ func (m WizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if val == "" {
 					m.TaskMaxIterations = 10
 				} else {
-					var n int
-					fmt.Sscanf(val, "%d", &n)
+					n, err := strconv.Atoi(val)
+					if err != nil {
+						m.errMsg = "Please enter a valid number"
+						return m, nil
+					}
 					if n < 1 {
 						n = 1
 					}
@@ -159,38 +167,46 @@ func (m WizardModel) View() string {
 		return fmt.Sprintf("Selected project: %s\nSelected provider: %s\n", m.Path, m.Provider)
 	}
 
+	errMsg := ""
+	if m.errMsg != "" {
+		errMsg = "\n" + lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).Render(m.errMsg)
+	}
+
 	if m.step == StepPath {
 		var b strings.Builder
-		b.WriteString(titleStyle.Render("Project Setup"))
+		b.WriteString(titleStyle.Render("Project Setup (Step 1 of 4)"))
 		b.WriteString("\n\n")
 		b.WriteString("Enter project directory:\n")
 		b.WriteString(m.textInput.View())
-		if m.errMsg != "" {
-			b.WriteString("\n")
-			b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).Render(m.errMsg))
-		}
+		b.WriteString(errMsg)
 		b.WriteString("\n\n(Esc to quit)")
 		return b.String()
 	} else if m.step == StepProvider {
+		// Bubbles List doesn't expose title modification easily in View(), but we set it in NewWizardModel
+		// However, we can wrap it or update title dynamically if needed.
+		// For now, just ensuring consistency.
+		m.list.Title = "Select Agent Provider (Step 2 of 4)"
 		return "\n" + m.list.View()
 	} else if m.step == StepMaxAgents {
 		var b strings.Builder
-		b.WriteString(titleStyle.Render("Agent Configuration"))
+		b.WriteString(titleStyle.Render("Agent Configuration (Step 3 of 4)"))
 		b.WriteString("\n\n")
 		b.WriteString("Enter maximum parallel agents:\n")
 		b.WriteString(m.textInput.View())
 		b.WriteString("\n")
 		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#666666")).Render("(Press Enter for default: 1)"))
+		b.WriteString(errMsg)
 		b.WriteString("\n\n(Esc to quit)")
 		return b.String()
 	} else if m.step == StepTaskMaxIterations {
 		var b strings.Builder
-		b.WriteString(titleStyle.Render("Agent Configuration"))
+		b.WriteString(titleStyle.Render("Agent Configuration (Step 4 of 4)"))
 		b.WriteString("\n\n")
 		b.WriteString("Enter maximum iterations per task:\n")
 		b.WriteString(m.textInput.View())
 		b.WriteString("\n")
 		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#666666")).Render("(Press Enter for default: 10)"))
+		b.WriteString(errMsg)
 		b.WriteString("\n\n(Esc to quit)")
 		return b.String()
 	}
