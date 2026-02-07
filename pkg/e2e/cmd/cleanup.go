@@ -39,11 +39,11 @@ func RunCleanup(args []string) error {
 		return fmt.Errorf("failed cleanup: %w", err)
 	}
 
-	// Helper to also remove the Helm release if we added that to context, 
+	// Helper to also remove the Helm release if we added that to context,
 	// but for now let's stick to Jira cleanup as the primary goal here.
 	// Helm cleanup is often handled by 'helm uninstall' which is easy to run manually,
 	// but we could add it here if we stored release name.
-	
+
 	if e2eCtx.ReleaseName != "" && e2eCtx.Namespace != "" {
 		log.Printf("Uninstalling Helm release: %s", e2eCtx.ReleaseName)
 		if err := runCommand("helm", "uninstall", e2eCtx.ReleaseName, "--namespace", e2eCtx.Namespace); err != nil {

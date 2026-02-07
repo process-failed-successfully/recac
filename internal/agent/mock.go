@@ -61,7 +61,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 3. QA Agent
 	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
-		return "I verify that the implementation is correct.\n\n```bash\nagent-bridge signal set QA_PASSED true\n```\n", nil
+		return "I verify that the implementation is correct.\n\n```bash\nagent-bridge signal QA_PASSED true\n```\n", nil
 	}
 
 	// 4. Project Manager
@@ -72,10 +72,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 5. Implementation (Primes)
 	// Match against task description, ID, file name, OR generic Coding Agent role (Smoke Test Specific)
 	if strings.Contains(prompt, "calculate primes") ||
-	   strings.Contains(prompt, "[PRIMES]") ||
-	   strings.Contains(prompt, "primes.py") ||
-	   strings.Contains(prompt, "req-the-script-primes-py-is-implem") ||
-	   strings.Contains(prompt, "YOUR ROLE - CODING AGENT") {
+		strings.Contains(prompt, "[PRIMES]") ||
+		strings.Contains(prompt, "primes.py") ||
+		strings.Contains(prompt, "req-the-script-primes-py-is-implem") ||
+		strings.Contains(prompt, "YOUR ROLE - CODING AGENT") {
 		return "I will implement the prime number calculation script.\n\n" +
 			"```bash\n" +
 			"cat <<EOF > primes.py\n" +

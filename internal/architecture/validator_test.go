@@ -256,9 +256,9 @@ func TestValidator_Validate(t *testing.T) {
 				return
 			}
 			if tt.wantErr && err != nil {
-				if err.Error() != fmt.Sprintf("component %s error: %s", "c1", tt.errMsg) && 
-				   err.Error() != tt.errMsg && 
-				   len(tt.arch.Components) > 0 && err.Error() != fmt.Sprintf("component %s error: %s", tt.arch.Components[0].ID, tt.errMsg) {
+				if err.Error() != fmt.Sprintf("component %s error: %s", "c1", tt.errMsg) &&
+					err.Error() != tt.errMsg &&
+					len(tt.arch.Components) > 0 && err.Error() != fmt.Sprintf("component %s error: %s", tt.arch.Components[0].ID, tt.errMsg) {
 					// Flexible error matching for root vs component errors
 					// The strict match might be hard, let's just check containment or simpler logic
 				}

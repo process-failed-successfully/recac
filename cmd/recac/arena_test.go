@@ -77,22 +77,22 @@ func TestArenaCmd(t *testing.T) {
 		assert.Contains(t, err.Error(), "requires at least 2 competitors")
 	})
 
-    t.Run("Run Arena With File Context", func(t *testing.T) {
-        tmpDir := t.TempDir()
-        tmpFile := tmpDir + "/context.txt"
-        os.WriteFile(tmpFile, []byte("some context"), 0644)
+	t.Run("Run Arena With File Context", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		tmpFile := tmpDir + "/context.txt"
+		os.WriteFile(tmpFile, []byte("some context"), 0644)
 
-        arenaCompetitors = "openai:gpt-4, gemini:gemini-pro"
-        arenaTask = "Read file"
-        arenaFile = tmpFile
-        arenaJudgeProv = "mock"
-        arenaJudgeModel = "judge"
+		arenaCompetitors = "openai:gpt-4, gemini:gemini-pro"
+		arenaTask = "Read file"
+		arenaFile = tmpFile
+		arenaJudgeProv = "mock"
+		arenaJudgeModel = "judge"
 
-        agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
-             return &MockArenaAgent{Response: "OK"}, nil
-        }
+		agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+			return &MockArenaAgent{Response: "OK"}, nil
+		}
 
-        err := runArena(arenaCmd, []string{})
-        assert.NoError(t, err)
-    })
+		err := runArena(arenaCmd, []string{})
+		assert.NoError(t, err)
+	})
 }
