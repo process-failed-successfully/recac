@@ -3,13 +3,17 @@ package workflow
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"recac/internal/jira"
 	"recac/internal/runner"
+	"recac/internal/telemetry"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -149,4 +153,21 @@ func TestRunWorkflow_PreFlight_Dirty(t *testing.T) {
 	err := RunWorkflow(context.Background(), cfg)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "uncommitted changes detected")
+}
+
+func TestProcessJiraTicket_Errors(t *testing.T) {
+	// Mock Jira Server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	client := jira.NewClient(server.URL, "user", "token")
+	cfg := SessionConfig{
+		Logger: telemetry.NewLogger(true, "", false),
+	}
+
+	err := ProcessJiraTicket(context.Background(), "TICKET-1", client, cfg, nil)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to fetch ticket")
 }
