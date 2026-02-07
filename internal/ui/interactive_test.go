@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"errors"
+	"os"
 	"strings"
 	"testing"
 
@@ -625,5 +626,101 @@ func TestInteractiveModel_Update_ListSelection(t *testing.T) {
 
 	if !executed {
 		t.Error("Expected list selection to execute command")
+	}
+}
+
+func TestInteractiveModel_Streaming(t *testing.T) {
+	m := NewInteractiveModel(nil, "", "")
+
+	// Create channels
+	chunkChan := make(chan string, 10)
+	errChan := make(chan error, 1)
+
+	// 1. Start Stream
+	startMsg := AgentStreamStartMsg{ChunkChan: chunkChan, ErrChan: errChan}
+	updatedM, cmd := m.Update(startMsg)
+	m = updatedM.(InteractiveModel)
+
+	if !m.isStreaming {
+		t.Error("Expected isStreaming to be true")
+	}
+	if len(m.messages) == 0 || m.messages[len(m.messages)-1].Role != RoleBot {
+		t.Error("Expected a new Bot message placeholder")
+	}
+	if cmd == nil {
+		t.Error("Expected command to wait for chunks")
+	}
+
+	// 2. Receive Chunk
+	chunkChan <- "Hello"
+	// Simulate the cmd returning the msg
+	// waitForChunkMsg returns a cmd that reads from channel
+	// We manually construct the Msg that would be returned
+	chunkMsg := AgentChunkMsg{Content: "Hello"}
+
+	updatedM, cmd = m.Update(chunkMsg)
+	m = updatedM.(InteractiveModel)
+
+	if m.currentMsgBuffer != "Hello" {
+		t.Errorf("Expected buffer 'Hello', got '%s'", m.currentMsgBuffer)
+	}
+	lastMsg := m.messages[len(m.messages)-1]
+	if lastMsg.Content != "Hello" {
+		t.Errorf("Expected message content 'Hello', got '%s'", lastMsg.Content)
+	}
+	if cmd == nil {
+		t.Error("Expected command to wait for next chunk")
+	}
+
+	// 3. Receive another Chunk
+	chunkChan <- " World"
+	chunkMsg = AgentChunkMsg{Content: " World"}
+
+	updatedM, cmd = m.Update(chunkMsg)
+	m = updatedM.(InteractiveModel)
+
+	if m.currentMsgBuffer != "Hello World" {
+		t.Errorf("Expected buffer 'Hello World', got '%s'", m.currentMsgBuffer)
+	}
+
+	// 4. Stream End (Close channel)
+	close(chunkChan)
+	// The next waitForChunkMsg will return AgentResponseMsg
+	respMsg := AgentResponseMsg{Content: ""}
+
+	updatedM, cmd = m.Update(respMsg)
+	m = updatedM.(InteractiveModel)
+
+	if m.isStreaming {
+		t.Error("Expected isStreaming to be false")
+	}
+	if m.thinking {
+		t.Error("Expected thinking to be false")
+	}
+}
+
+func TestLoadModelsFromFile_Error(t *testing.T) {
+	// Create invalid JSON file
+	tmpFile, err := os.CreateTemp("", "invalid_models.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	tmpFile.Write([]byte("{ invalid json }"))
+	tmpFile.Close()
+
+	models, err := loadModelsFromFile(tmpFile.Name())
+	if err == nil {
+		t.Error("Expected error for invalid JSON")
+	}
+	if models != nil {
+		t.Error("Expected nil models")
+	}
+
+	// Test file not found
+	models, err = loadModelsFromFile("non_existent_file.json")
+	if err == nil {
+		t.Error("Expected error for non-existent file")
 	}
 }

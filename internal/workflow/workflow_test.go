@@ -3,6 +3,7 @@ package workflow
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -301,4 +302,88 @@ func TestRunWorkflow_Normal(t *testing.T) {
 		// assert.NoError(t, err)
 		// It likely returns an error because of circuit breaker, which counts as covering the code.
 	}
+}
+
+func TestProcessJiraTicket_GetTicketError(t *testing.T) {
+	// Mock Jira Server
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	// Mock Ticket Response - Error
+	mux.HandleFunc("/rest/api/3/issue/TEST-ERROR", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	})
+
+	jClient := jira.NewClient(server.URL, "user", "token")
+	cfg := SessionConfig{
+		IsMock: true,
+	}
+
+	err := ProcessJiraTicket(context.Background(), "TEST-ERROR", jClient, cfg, nil)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to fetch ticket")
+}
+
+func TestProcessJiraTicket_SetupWorkspaceError(t *testing.T) {
+	// Mock SetupWorkspace
+	originalSetup := cmdutils.SetupWorkspace
+	defer func() { cmdutils.SetupWorkspace = originalSetup }()
+
+	cmdutils.SetupWorkspace = func(ctx context.Context, gitClient git.IClient, repoURL, workspace, ticketID, epicKey, timestamp string) (string, error) {
+		return "", errors.New("setup failed")
+	}
+
+	// Mock Jira Server
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	mux.HandleFunc("/rest/api/3/issue/TEST-1", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"key": "TEST-1",
+			"fields": map[string]interface{}{
+				"summary": "Test Ticket",
+				"description": map[string]interface{}{
+					"type": "doc",
+					"content": []interface{}{},
+				},
+				"issuelinks": []interface{}{},
+			},
+		})
+	})
+
+	jClient := jira.NewClient(server.URL, "user", "token")
+	tmpDir, _ := os.MkdirTemp("", "workflow-setup-error")
+	defer os.RemoveAll(tmpDir)
+
+	cfg := SessionConfig{
+		ProjectPath: tmpDir,
+		RepoURL:     "https://github.com/example/repo", // Skip repo parsing
+		IsMock:      true,
+	}
+
+	err := ProcessJiraTicket(context.Background(), "TEST-1", jClient, cfg, nil)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "setup failed")
+}
+
+func TestProcessDirectTask_SetupWorkspaceError(t *testing.T) {
+	// Mock SetupWorkspace
+	originalSetup := cmdutils.SetupWorkspace
+	defer func() { cmdutils.SetupWorkspace = originalSetup }()
+
+	cmdutils.SetupWorkspace = func(ctx context.Context, gitClient git.IClient, repoURL, workspace, ticketID, epicKey, timestamp string) (string, error) {
+		return "", errors.New("setup failed")
+	}
+
+	cfg := SessionConfig{
+		RepoURL: "https://github.com/example/repo",
+		IsMock:  true,
+	}
+
+	err := ProcessDirectTask(context.Background(), cfg)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "setup failed")
 }
