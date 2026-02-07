@@ -41,6 +41,8 @@ func TestStartCommand_Detached(t *testing.T) {
 	defer func() { sessionManagerFactory = originalFactory }()
 
 	tmpDir := t.TempDir()
+	// Initialize git repo to satisfy "fatal: not a git repository" check if it happens
+	exec.Command("git", "init", tmpDir).Run()
 
 	// Execute start --detached --name test-session --path tmpDir --mock
 	var err error

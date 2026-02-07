@@ -37,10 +37,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// We check for "Coding Agent", "Developer", "primes.py", or the specific ID tag.
 	// CRITICAL: We must EXCLUDE "Technical Program Manager" or "Application Specification" to prevent false positives
 	// when the TPM prompt contains the spec (which includes "[PRIMES]" and "primes.py").
-	if (strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py")) &&
-		(strings.Contains(prompt, "Coding Agent") || strings.Contains(prompt, "Developer") || strings.Contains(prompt, "primes.py")) &&
+	// UPDATE: We also check for "recac-agent" context or task context which might be minimal.
+	if (strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "Implement Primes")) &&
 		!strings.Contains(prompt, "Technical Program Manager") &&
-		!strings.Contains(prompt, "Application Specification") {
+		!strings.Contains(prompt, "Ticket Generation") {
 		return `I will implement the primes calculation script as requested.
 
 ` + "```bash" + `

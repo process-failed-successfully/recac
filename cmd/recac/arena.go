@@ -134,6 +134,9 @@ func runArena(cmd *cobra.Command, factory AgentFactory, competitors, task, file,
 			ag, err := factory(ctx, provider, model, cwd, projName)
 			if err != nil {
 				results[index] = ArenaResult{Provider: provider, Model: model, Error: err, Duration: time.Since(start)}
+				outMu.Lock()
+				fmt.Fprintf(cmd.ErrOrStderr(), "❌ %s:%s failed to init: %v\n", provider, model, err)
+				outMu.Unlock()
 				return
 			}
 
