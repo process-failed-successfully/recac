@@ -80,6 +80,33 @@ Task: Write the code.
 	}
 }
 
+func TestMockAgent_PrimesTicketGeneration(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Prompt simulating the PrimePythonScenario AppSpec
+	prompt := `
+### ID:[PRIMES] Prime Number Script
+
+CRITICAL INSTRUCTION FOR TICKET GENERATION:
+Create a SINGLE Ticket (Task) for this work.
+`
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Verify we get the single task with ID PRIMES
+	if !strings.Contains(response, "\"id\": \"PRIMES\"") {
+		t.Errorf("Expected ID: PRIMES in response, got: %s", response)
+	}
+	if !strings.Contains(response, "\"type\": \"Task\"") {
+		t.Errorf("Expected Type: Task in response, got: %s", response)
+	}
+	if strings.Contains(response, "\"type\": \"Epic\"") {
+		t.Errorf("Did not expect Epic in response, got: %s", response)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {

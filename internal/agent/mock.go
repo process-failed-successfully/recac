@@ -87,6 +87,19 @@ agent-bridge signal PROJECT_SIGNED_OFF true
 	// because ticket generation prompts might contain "primes.py" in the requirement description.
 	// We also ensure we are NOT in a Coding Agent role, as those prompts might contain ticket details.
 	if len(prompt) > 0 && (prompt[0] == '{' || prompt[0] == '[' || containsTicketKeywords(prompt)) && !strings.Contains(prompt, "YOUR ROLE - CODING AGENT") {
+		// Specific heuristic for Primes Scenario Ticket Generation
+		// The scenario explicitly requests a single Task with ID [PRIMES]
+		if strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "CRITICAL INSTRUCTION FOR TICKET GENERATION") {
+			return `[
+  {
+    "id": "PRIMES",
+    "title": "Create Prime Number Script",
+    "description": "Implement primes.py to calculate primes under 10000.",
+    "type": "Task"
+  }
+]`, nil
+		}
+
 		return `[
   {
     "title": "Mock Epic",
@@ -144,14 +157,15 @@ agent-bridge feature set req-primes-json-contains-correct-p --status done --pass
 
 func containsTicketKeywords(prompt string) bool {
 	// Simple check for keywords likely present in ticket generation prompts
-	keywords := []string{"ticket", "jira", "spec", "epic", "story", "Technical Program Manager", "application specification"}
+	keywords := []string{"ticket", "jira", "spec", "epic", "story", "technical program manager", "application specification"}
+	lowerPrompt := strings.ToLower(prompt)
 	for _, k := range keywords {
-		if strings.Contains(prompt, k) {
+		if strings.Contains(lowerPrompt, k) {
 			return true
 		}
 	}
 	// Better heuristic: checks if the prompt is asking for a plan
-	return len(prompt) > 0 && (strings.Contains(prompt, "generate ticket plan") || strings.Contains(prompt, "app_spec"))
+	return len(prompt) > 0 && (strings.Contains(lowerPrompt, "generate ticket plan") || strings.Contains(lowerPrompt, "app_spec"))
 }
 
 // SendStream implements the Agent interface
