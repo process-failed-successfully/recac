@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	defaultRepo = "192.168.0.55:5000/recac-e2e"
+	defaultRepo = "ttl.sh/recac-e2e"
 	chartPath   = "./deploy/helm/recac"
 	namespace   = "default"
 	releaseName = "recac"
