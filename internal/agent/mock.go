@@ -98,7 +98,7 @@ EOF
 		return `[
   {
     "title": "ID:[PRIMES] Prime Number Script",
-    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'. Repo: https://github.com/example/repo",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'. Repo: https://github.com/process-failed-successfully/recac",
     "type": "Task",
     "children": []
   }
