@@ -35,17 +35,23 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Detect if we are being asked to implement the primes.py script
 	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
 		// Detect completion loop (nothing left to commit)
-		if strings.Contains(prompt, "nothing to commit") {
+		// We check for "No changes to commit" because our script echoes this when git commit fails due to no changes.
+		if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "No changes to commit") {
 			return m.generatePrimesCompletionResponse(), nil
 		}
 
-		// Differentiate between TPM (Planning) and Coding Agent (Implementation)
-		// We broaden the check because templates might vary slightly or casing might differ.
-		// "Epics" and "User Stories" are very specific to the TPM task in this project.
-		if strings.Contains(prompt, "Technical Program Manager") ||
-			strings.Contains(prompt, "tpm_agent") ||
-			strings.Contains(prompt, "Epics") ||
-			strings.Contains(prompt, "User Stories") {
+		// Differentiate between Planning (Initializer/TPM) and Implementation (Coding Agent)
+		// We use role headers from prompt templates for robustness.
+		isPlanning := strings.Contains(prompt, "ROLE - INITIALIZER AGENT") ||
+			strings.Contains(prompt, "Technical Program Manager") ||
+			strings.Contains(prompt, "tpm_agent")
+
+		// Legacy heuristic fallback if role header is missing
+		if !isPlanning && (strings.Contains(prompt, "Epics") || strings.Contains(prompt, "User Stories")) {
+			isPlanning = true
+		}
+
+		if isPlanning {
 			return m.generatePrimesJSONResponse(), nil
 		}
 		return m.generatePrimesResponse(), nil
