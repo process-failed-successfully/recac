@@ -231,12 +231,21 @@ func NewSessionWithConfig(workspace, project, provider, model string, dbStore db
 }
 
 func initializeLogging(project string) *slog.Logger {
-	// Create agents/logs directory in the current working directory (host)
-	// This is where Promtail expects to find them based on docker-compose.monitoring.yml
-	cwd, _ := os.Getwd()
-	agentsLogsDir := filepath.Join(cwd, "agents", "logs")
+	// Prioritize RECAC_LOGS_DIR from environment
+	agentsLogsDir := os.Getenv("RECAC_LOGS_DIR")
+	if agentsLogsDir == "" {
+		// Fallback: Create agents/logs in the current working directory (host)
+		// This is where Promtail expects to find them based on docker-compose.monitoring.yml
+		cwd, err := os.Getwd()
+		if err != nil {
+			fmt.Printf("Warning: Failed to get current working directory for logs: %v. Logging to file disabled.\n", err)
+			return telemetry.NewLogger(viper.GetBool("verbose"), "", false)
+		}
+		agentsLogsDir = filepath.Join(cwd, "agents", "logs")
+	}
+
 	if err := os.MkdirAll(agentsLogsDir, 0755); err != nil {
-		fmt.Printf("Warning: Failed to create agents/logs directory: %v\n", err)
+		fmt.Printf("Warning: Failed to create agents/logs directory at %s: %v. Logging to file disabled.\n", agentsLogsDir, err)
 	} else {
 		// Initialize session log file
 		timestamp := time.Now().Format("20060102-150405")
