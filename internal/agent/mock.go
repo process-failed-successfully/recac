@@ -47,6 +47,39 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
+	// 1.5. Initializer - Bootstrap Features
+	// Trigger: "Initializer" or "git init", AND "PRIMES"
+	// This handles the "Feature list not found" state in E2E tests.
+	if (strings.Contains(prompt, "Initializer") || strings.Contains(prompt, "git init") || strings.Contains(prompt, "GET YOUR BEARINGS")) &&
+		(strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "primes.py")) {
+
+		// We return a bash script to initialize the project and features
+		return `I will initialize the project and import the feature list.
+
+` + "```bash" + `
+# Initialize git if needed
+if [ ! -d .git ]; then
+  git init
+fi
+
+# Import features to unblock the runner
+cat <<EOF | agent-bridge import
+{
+  "features": [
+    {"id": "req-the-script-primes-py-is-implem", "description": "The script primes.py is implemented", "status": "pending"},
+    {"id": "req-the-output-is-written-to-a-fil", "description": "The output is written to a file", "status": "pending"},
+    {"id": "req-the-primes-json-file-contains-", "description": "The primes.json file contains the correct JSON structure", "status": "pending"},
+    {"id": "req-the-list-of-primes-in-primes-j", "description": "The list of primes in primes.json is correct", "status": "pending"}
+  ]
+}
+EOF
+
+# List files to confirm
+ls -la
+` + "```" + `
+`, nil
+	}
+
 	// 2. Coding Agent - Implementation
 	// Trigger: "ROLE - CODING AGENT" or similar, AND "primes.py"
 	// We also check if we are being asked to implement it, vs just reviewing.

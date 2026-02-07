@@ -32,6 +32,16 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		t.Errorf("Heuristic failed to trigger, got default response")
 	}
 
+	// 1.5 Initializer Agent
+	initializerPrompt := "You are the Initializer Agent... STEP 1: GET YOUR BEARINGS... Task: [PRIMES]"
+	resp, err = agent.Send(ctx, initializerPrompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(resp, "agent-bridge import") {
+		t.Errorf("Expected initializer response with agent-bridge import, got: %s", resp)
+	}
+
 	// 2. Coding Agent
 	codingPrompt := "You are a Developer... Implement primes.py ... output to JSON..."
 	resp, err = agent.Send(ctx, codingPrompt)
