@@ -59,6 +59,9 @@ func NewAgent(provider, apiKey, model, workDir, project string) (Agent, error) {
 		return NewCursorCLIClient(apiKey, model, project), nil
 	case "opencode", "opencode-cli":
 		return NewOpenCodeCLIClient(apiKey, model, workDir, project), nil
+	case "mock":
+		// Mock agent doesn't need API key, but we pass model and project
+		return NewMockAgent(model, project), nil
 	default:
 		return nil, fmt.Errorf("unknown provider: %s", provider)
 	}
