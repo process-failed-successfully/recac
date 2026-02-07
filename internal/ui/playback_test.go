@@ -8,6 +8,14 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+func TestPlaybackModel_Init(t *testing.T) {
+	m := NewPlaybackModel([]LogEntry{})
+	cmd := m.Init()
+	if cmd != nil {
+		t.Error("Init should return nil")
+	}
+}
+
 func TestParseLogLines(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -30,7 +38,7 @@ func TestParseLogLines(t *testing.T) {
 		},
 		{
 			name: "mixed content",
-			input: `{"time":"2023-10-26T10:00:00Z","level":"INFO","msg":"json message"}
+			input: `{"time":"2023-10-26T10:00:00Z","level":"INFO","msg":"test message"}
 plain text message
 {"level":"WARN","msg":"another json"}`,
 			wantCount: 3,
@@ -86,6 +94,12 @@ func TestPlaybackModel_Update(t *testing.T) {
 	}
 	// Initial model is PlaybackModel struct
 	initialModel := NewPlaybackModel(entries)
+
+	// Test Init
+	if initialModel.Init() != nil {
+		t.Error("Init should return nil")
+	}
+
 	var model tea.Model = initialModel
 
 	// Test Resize
@@ -98,8 +112,21 @@ func TestPlaybackModel_Update(t *testing.T) {
 		t.Errorf("Window resize failed: got %dx%d, want 100x50", m.width, m.height)
 	}
 
+	// Test Resize with small height
+	model, _ = model.Update(tea.WindowSizeMsg{Width: 100, Height: 0})
+	m = model.(PlaybackModel)
+	if m.height != 0 {
+		t.Errorf("Window resize failed: got %dx%d, want 100x0", m.width, m.height)
+	}
+
+	// Reset size
+	model, _ = model.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
+
 	// Test Enter (View Details)
-	// Select first item
+	// Select first item via list update simulation (hard to do without simulating KeyDown/Up on list)
+	// Instead, manually set selected index if needed, but list defaults to 0.
+
+	// Send Enter key
 	model, _ = model.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	m = model.(PlaybackModel)
 	if !m.viewingDetails {
@@ -109,7 +136,7 @@ func TestPlaybackModel_Update(t *testing.T) {
 		t.Error("View should contain details content")
 	}
 
-	// Test Esc (Back to List)
+	// Test Esc (Back to List) - while viewing details
 	model, _ = model.Update(tea.KeyMsg{Type: tea.KeyEsc})
 	m = model.(PlaybackModel)
 	if m.viewingDetails {
@@ -119,10 +146,21 @@ func TestPlaybackModel_Update(t *testing.T) {
 		t.Error("View should contain list content")
 	}
 
+	// Test viewing details key handling (other keys)
+	model, _ = model.Update(tea.KeyMsg{Type: tea.KeyEnter}) // enter details again
+	model, _ = model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")}) // scroll down (handled by viewport)
+	m = model.(PlaybackModel)
+	if !m.viewingDetails {
+		t.Error("Should still be viewing details")
+	}
+
+	// Back to list
+	model, _ = model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+
 	// Test Ctrl+C (Quit)
 	_, cmd = model.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
 	if cmd == nil {
-		t.Error("Ctrl+C should return a Quit command")
+		t.Error("Ctrl+C should return a command")
 	}
 }
 
