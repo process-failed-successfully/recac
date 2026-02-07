@@ -177,6 +177,6 @@ EOF
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Implement primes calculation" --author="Recac Bot <bot@recac.com>"
-agent-bridge feature set PRIMES implemented
+agent-bridge feature set PRIMES --status done --passes true
 ` + "```"
 }
