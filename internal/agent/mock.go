@@ -42,7 +42,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			project = "test-project"
 		}
 		// Return a command to import features
-		return fmt.Sprintf("```bash\ncat <<EOF | agent-bridge import\n{\n  \"project_name\": \"%s\",\n  \"features\": [\n    {\n      \"id\": \"req-implement-prime-calculation-lo\",\n      \"category\": \"core\",\n      \"priority\": \"high\",\n      \"description\": \"Implement a python script that calculates prime numbers up to 10000\",\n      \"status\": \"pending\",\n      \"dependencies\": []\n    }\n  ]\n}\nEOF\n```", project), nil
+		return fmt.Sprintf("```bash\ncat <<EOF | agent-bridge import\n{\n  \"project_name\": \"%s\",\n  \"features\": [\n    {\n      \"id\": \"req-implement-prime-calculation-lo\",\n      \"category\": \"core\",\n      \"priority\": \"high\",\n      \"description\": \"Implement a python script that calculates prime numbers up to 10000\",\n      \"status\": \"pending\",\n      \"dependencies\": {\"depends_on_ids\": []}\n    }\n  ]\n}\nEOF\n```", project), nil
 	}
 
 	// 2. TPM (Ticket Generation) - Prioritize this if prompt asks for ticket generation or JSON
