@@ -365,13 +365,31 @@ jobs:
               }
 
               // 4. Merge the PR
-              await github.rest.pulls.merge({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: prNumber,
-                merge_method: 'squash'
-              });
-              console.log(`Successfully merged PR #${prNumber}`);
+              const retries = 5;
+              const retryDelay = 10000; // 10 seconds
+              let merged = false;
+
+              for (let i = 0; i < retries; i++) {
+                try {
+                  await github.rest.pulls.merge({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    pull_number: prNumber,
+                    merge_method: 'squash'
+                  });
+                  console.log(`Successfully merged PR #${prNumber}`);
+                  merged = true;
+                  break;
+                } catch (mergeError) {
+                  console.log(`Merge attempt ${i + 1}/${retries} failed: ${mergeError.message}`);
+                  if (i < retries - 1) {
+                    console.log(`Retrying in ${retryDelay/1000} seconds...`);
+                    await new Promise(resolve => setTimeout(resolve, retryDelay));
+                  } else {
+                    throw mergeError;
+                  }
+                }
+              }
             } catch (error) {
               console.error(`Failed to process PR #${prNumber}:`, error.message);
               core.setFailed(`Auto-merge failed: ${error.message}`);
