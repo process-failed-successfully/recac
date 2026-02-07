@@ -803,6 +803,8 @@ func (s *Session) loadFeatures() []db.Feature {
 					_ = s.DBStore.SaveFeatures(s.Project, string(data))
 				}
 			}
+		} else {
+			s.Logger.Error("failed to unmarshal injected features", "error", err, "content_len", len(envFeaturesJSON))
 		}
 	}
 

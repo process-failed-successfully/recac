@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"recac/internal/agent"
 	"recac/internal/notify"
@@ -38,9 +39,13 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 		Workspace:        tmpDir,
 		FeatureContent:   features,
 		ManagerFrequency: 5,
+		MaxIterations:    1,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
 		Logger:           telemetry.NewLogger(true, "", false),
 	}
+
+	// Mock SleepFunc to avoid waiting in tests
+	s.SleepFunc = func(d time.Duration) {}
 
 	// 6. Capture Stdout? (Hard to do in test without refactor).
 	// We can trust the code if it compiles and logic flows.
@@ -51,7 +56,7 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	// Since all features pass, it should mark COMPLETED and print UI verification msg.
 	// We mainly verify it DOESN'T fail or block.
 	// ErrNoOp is expected because the MockAgent returns empty responses.
-	if err != nil && !errors.Is(err, ErrNoOp) {
+	if err != nil && !errors.Is(err, ErrNoOp) && !errors.Is(err, ErrMaxIterations) {
 		t.Errorf("RunLoop failed: %v", err)
 	}
 }

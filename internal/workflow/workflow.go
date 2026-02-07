@@ -404,6 +404,7 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 			}
 			return err
 		}
+		defer session.Stop(context.Background())
 		return session.RunLoop(ctx)
 	}
 
@@ -499,5 +500,6 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 		}
 		return err
 	}
+	defer session.Stop(context.Background())
 	return session.RunLoop(ctx)
 }
