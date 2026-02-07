@@ -87,6 +87,18 @@ agent-bridge signal PROJECT_SIGNED_OFF true
 	// because ticket generation prompts might contain "primes.py" in the requirement description.
 	// We also ensure we are NOT in a Coding Agent role, as those prompts might contain ticket details.
 	if len(prompt) > 0 && (prompt[0] == '{' || prompt[0] == '[' || containsTicketKeywords(prompt)) && !strings.Contains(prompt, "YOUR ROLE - CODING AGENT") {
+		// SPECIAL CASE: PRIMES Scenario Ticket Generation
+		// The verification script strictly requires a ticket mapping to "[PRIMES]".
+		if strings.Contains(prompt, "[PRIMES]") {
+			return `[
+  {
+    "title": "ID:[PRIMES] Create Prime Number Script",
+    "description": "Repo: https://github.com/process-failed-successfully/recac-jira-e2e\nImplement primes.py",
+    "type": "Task"
+  }
+]`, nil
+		}
+
 		return `[
   {
     "title": "Mock Epic",
@@ -129,8 +141,8 @@ EOF
 
 python3 primes.py
 
-agent-bridge feature set req-primes-py-exists completed
-agent-bridge feature set req-primes-json-contains-correct-p completed
+agent-bridge feature set req-primes-py-exists --status done --passes true
+agent-bridge feature set req-primes-json-contains-correct-p --status done --passes true
 ` + "```" + `
 `, nil
 	}
