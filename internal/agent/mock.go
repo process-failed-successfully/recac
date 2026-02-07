@@ -41,6 +41,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 I am the Initializer Agent. I am setting up the environment.
 
 `+"```bash"+`
+echo '{"projectName":"mock-project","features":[{"name":"Core","description":"Initial feature","status":"todo"}]}' > feature_list.json
 echo "Initializer Agent Setup Complete"
 `+"```"+`
 `, m.responsePrefix), nil
