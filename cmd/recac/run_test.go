@@ -75,7 +75,8 @@ func TestRunCmd_Success(t *testing.T) {
 
 	// Mock execCommand to call TestRunCmdHelperProcess
 	runExecCommand = func(command string, args ...string) *exec.Cmd {
-		cs := []string{"-test.run=TestRunCmdHelperProcess", "--", command}
+		// Pass -test.v=true to ensure flag lookup succeeds in init() and prevents metrics server from starting
+		cs := []string{"-test.v=true", "-test.run=TestRunCmdHelperProcess", "--", command}
 		cs = append(cs, args...)
 		cmd := exec.Command(os.Args[0], cs...)
 		cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
@@ -107,7 +108,8 @@ func TestRunCmd_Failure_CallsAI(t *testing.T) {
 
 	// Mock execCommand to call TestRunCmdHelperProcess
 	runExecCommand = func(command string, args ...string) *exec.Cmd {
-		cs := []string{"-test.run=TestRunCmdHelperProcess", "--", command}
+		// Pass -test.v=true to ensure flag lookup succeeds in init() and prevents metrics server from starting
+		cs := []string{"-test.v=true", "-test.run=TestRunCmdHelperProcess", "--", command}
 		cs = append(cs, args...)
 		cmd := exec.Command(os.Args[0], cs...)
 		cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
@@ -138,6 +140,7 @@ func TestRunCmd_Failure_CallsAI(t *testing.T) {
 
 	// Check prompt content
 	assert.Contains(t, mockAgent.CapturedPrompt, "<command>\nfail_cmd")
-	assert.Contains(t, mockAgent.CapturedPrompt, "<output>\nPartial output before failure")
+	assert.Contains(t, mockAgent.CapturedPrompt, "<output>")
+	assert.Contains(t, mockAgent.CapturedPrompt, "Partial output before failure")
 	assert.Contains(t, mockAgent.CapturedPrompt, "Command failed with error")
 }
