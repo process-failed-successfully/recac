@@ -83,6 +83,18 @@ agent-bridge feature set req-script-is-runnable --status done --passes true
 ]`, nil
 	}
 
+	// Heuristic: Detect QA Agent prompt
+	// The QA Agent is triggered after coding completion. It must signal success to proceed.
+	if strings.Contains(prompt, "QA AGENT") || strings.Contains(prompt, "QA Agent") {
+		return `I have verified the implementation. All checks pass.
+
+` + "```bash" + `
+echo "QA Verification Successful"
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
