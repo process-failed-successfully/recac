@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,7 +31,64 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
-	// Return a mock response that shows the agent received the prompt
+
+	// Heuristic for E2E Tests: [PRIMES] Scenario
+	if strings.Contains(prompt, "[PRIMES]") {
+		// 1. Technical Program Manager (Ticket Generation)
+		// Detects "Technical Program Manager" role or ticket generation instructions
+		if (strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "CRITICAL INSTRUCTION FOR TICKET GENERATION")) &&
+			!strings.Contains(prompt, "YOUR ROLE - CODING AGENT") {
+			return `{
+  "tickets": [
+    {
+      "summary": "[PRIMES] Create Prime Number Script",
+      "description": "Create a python script named 'primes.py'. It MUST be python.\nIt must calculate all prime numbers less than 10,000 and output to a file named 'primes.json'.\nIMPORTANT: You MUST use a bash block to create the file (e.g., cat << 'EOF' > primes.py). Do not output raw python code.\nCommit 'primes.py' and 'primes.json' IMMEDIATELY. Use 'git add -f primes.json' to ensure it is tracked.\nThe JSON format must have a single key 'primes' containing the list of integers.\nExample: ` + "`" + `{\"primes\": [2, 3, 5, ...]}` + "`" + `.\nIMPORTANT: Ensure the FINAL primes.json committed to the repository contains ALL primes less than 10,000 (Exactly 1229 primes).\nDo not truncate it for testing or reporting - the verification script expects the full list.\nKeep the code absolutely minimal. Finish as quickly as possible.",
+      "type": "Task",
+      "id": "PRIMES",
+      "priority": "High"
+    }
+  ]
+}`, nil
+		}
+
+		// 2. Initializer (Feature List Generation)
+		// Detects "Initializer" role or feature list requests
+		if strings.Contains(prompt, "Initialize the project") || strings.Contains(prompt, "feature_list.json") {
+			return `{
+  "project_name": "prime-python",
+  "features": [
+    {
+      "id": "req-primes-py-exists",
+      "description": "Create primes.py script",
+      "priority": "1"
+    }
+  ]
+}`, nil
+		}
+
+		// 3. Coding Agent (Implementation)
+		// Detects "Coding Agent" role
+		if strings.Contains(prompt, "YOUR ROLE - CODING AGENT") || strings.Contains(prompt, "Implement the solution") {
+			return "```bash\n" +
+				"cat << 'EOF' > primes.py\n" +
+				"import json\n\n" +
+				"def is_prime(n):\n" +
+				"    if n < 2: return False\n" +
+				"    for i in range(2, int(n**0.5) + 1):\n" +
+				"        if n % i == 0: return False\n" +
+				"    return True\n\n" +
+				"primes = [i for i in range(10000) if is_prime(i)]\n" +
+				"with open('primes.json', 'w') as f:\n" +
+				"    json.dump({'primes': primes}, f)\n" +
+				"EOF\n\n" +
+				"python3 primes.py\n" +
+				"git add primes.py primes.json\n" +
+				"git commit -m \"Add primes.py and primes.json\"\n" +
+				"```", nil
+		}
+	}
+
+	// Return a generic mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
