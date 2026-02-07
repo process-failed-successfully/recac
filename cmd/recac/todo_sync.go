@@ -28,12 +28,12 @@ func init() {
 type TodoEntry struct {
 	OriginalLine string
 	IsDone       bool
-	IsAuto       bool // True if it has [file:line] metadata
+	IsAuto       bool      // True if it has [file:line] metadata
 	File         string
 	Line         int
 	Keyword      string
-	Content      string // The text content
-	Matched      bool   // Used during reconciliation
+	Content      string    // The text content
+	Matched      bool      // Used during reconciliation
 }
 
 // Regex to parse a line in TODO.md

@@ -35,7 +35,7 @@ func TestInvoiceCmd(t *testing.T) {
 
 		now := time.Now()
 		ts1 := now.Add(-2 * time.Hour).Format(time.RFC3339)
-		ts2 := now.Add(-1 * time.Hour).Format(time.RFC3339)  // 1 hour later (same session)
+		ts2 := now.Add(-1 * time.Hour).Format(time.RFC3339) // 1 hour later (same session)
 		ts3 := now.Add(-25 * time.Hour).Format(time.RFC3339) // Yesterday (new session)
 
 		return []string{
@@ -74,9 +74,9 @@ func TestInvoiceCmd(t *testing.T) {
 	// Tax = 10% of 400 = 40.00
 	// Total = 440.00
 
-	assert.Contains(t, output, "0.50")   // Session 1 Hours
-	assert.Contains(t, output, "1.50")   // Session 2 Hours
+	assert.Contains(t, output, "0.50") // Session 1 Hours
+	assert.Contains(t, output, "1.50") // Session 2 Hours
 	assert.Contains(t, output, "400.00") // Subtotal
-	assert.Contains(t, output, "40.00")  // Tax
+	assert.Contains(t, output, "40.00") // Tax
 	assert.Contains(t, output, "440.00") // Total
 }

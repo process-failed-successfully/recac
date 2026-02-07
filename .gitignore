@@ -101,4 +101,3 @@ test_state.json
 
 # Gemini Extension
 .gemini/*.local.md
-agents/

@@ -11,12 +11,6 @@ import (
 //go:embed templates/*.md
 var templateFS embed.FS
 
-// Allow mocking for tests
-var (
-	getwd       = os.Getwd
-	userHomeDir = os.UserHomeDir
-)
-
 // List of available prompt templates
 const (
 	Planner        = "planner"
@@ -26,7 +20,6 @@ const (
 	QAAgent        = "qa_agent"
 	TPMAgent       = "tpm_agent"
 	ArchitectAgent = "architect_agent"
-	Reviewer       = "reviewer"
 )
 
 // ListPrompts returns a list of available embedded prompts.
@@ -65,7 +58,7 @@ func GetPrompt(name string, vars map[string]string) (string, error) {
 
 	// 2. Check Local .recac/prompts
 	if len(content) == 0 {
-		cwd, err := getwd()
+		cwd, err := os.Getwd()
 		if err == nil {
 			localPath := filepath.Join(cwd, ".recac", "prompts", name+".md")
 			if c, e := os.ReadFile(localPath); e == nil {
@@ -76,7 +69,7 @@ func GetPrompt(name string, vars map[string]string) (string, error) {
 
 	// 3. Check Global ~/.recac/prompts
 	if len(content) == 0 {
-		home, err := userHomeDir()
+		home, err := os.UserHomeDir()
 		if err == nil {
 			globalPath := filepath.Join(home, ".recac", "prompts", name+".md")
 			if c, e := os.ReadFile(globalPath); e == nil {

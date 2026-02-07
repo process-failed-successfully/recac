@@ -46,7 +46,6 @@ func initFlags(cfgFile *string) {
 	pflag.String("provider", "", "Agent provider override")
 	pflag.String("model", "", "Agent model override")
 	pflag.Bool("mock", false, "Mock mode")
-	pflag.String("mode", "auto", "Agent mode: auto, plan, review, qa")
 }
 
 func runApp(ctx context.Context) error {
@@ -75,7 +74,6 @@ func runApp(ctx context.Context) error {
 	viper.BindPFlag("provider", pflag.Lookup("provider"))
 	viper.BindPFlag("model", pflag.Lookup("model"))
 	viper.BindPFlag("mock", pflag.Lookup("mock"))
-	viper.BindPFlag("mode", pflag.Lookup("mode"))
 
 	viper.BindEnv("max_iterations", "RECAC_MAX_ITERATIONS")
 	viper.BindEnv("manager_frequency", "RECAC_MANAGER_FREQUENCY")
@@ -96,10 +94,15 @@ func runApp(ctx context.Context) error {
 		"env_recac_provider", os.Getenv("RECAC_PROVIDER"),
 	)
 
+	isMock := viper.GetBool("mock")
+	if viper.GetString("provider") == "mock" {
+		isMock = true
+	}
+
 	// Construct SessionConfig
 	cfg := workflow.SessionConfig{
 		ProjectPath:       viper.GetString("path"),
-		IsMock:            viper.GetBool("mock"),
+		IsMock:            isMock,
 		MaxIterations:     viper.GetInt("max_iterations"),
 		ManagerFrequency:  viper.GetInt("manager_frequency"),
 		MaxAgents:         viper.GetInt("max_agents"),
@@ -123,7 +126,6 @@ func runApp(ctx context.Context) error {
 		JiraTicketID:      viper.GetString("jira"),
 		Logger:            logger,
 		CommandPrefix:     []string{}, // Agent binary doesn't use subcommands, unless needed.
-		Mode:              viper.GetString("mode"),
 	}
 
 	// Logic

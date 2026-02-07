@@ -14,23 +14,6 @@ import (
 
 // SelectPrompt determines which prompt to send based on current state.
 func (s *Session) SelectPrompt() (string, string, bool, error) {
-	// 0. Explicit Mode Overrides
-	if s.Mode == "plan" {
-		spec, _ := s.ReadSpec()
-		prompt, err := prompts.GetPrompt(prompts.Initializer, map[string]string{
-			"spec": spec,
-		})
-		return prompt, prompts.Initializer, false, err
-	}
-	if s.Mode == "review" {
-		// History is empty initially, or we can load some context if needed.
-		// Reviewer prompt needs {history} variable.
-		prompt, err := prompts.GetPrompt(prompts.Reviewer, map[string]string{
-			"history": "", // No history needed for first pass
-		})
-		return prompt, prompts.Reviewer, false, err
-	}
-
 	// 1. Initializer (Session 1)
 	// 1. Initializer Check (Run if feature_list.json is missing or empty)
 	// Only for main session (not sub-sessions) and not if ManagerFirst is active on iteration 1

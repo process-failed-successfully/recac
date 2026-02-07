@@ -24,9 +24,9 @@ func parseFunc(t *testing.T, code string) (*ast.FuncDecl, *token.FileSet) {
 
 func TestAnalyzeFunction(t *testing.T) {
 	tests := []struct {
-		name string
-		code string
-		want FunctionMetrics
+		name     string
+		code     string
+		want     FunctionMetrics
 	}{
 		{
 			name: "Simple",

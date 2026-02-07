@@ -52,7 +52,6 @@ type SessionConfig struct {
 	Logger            *slog.Logger
 	CommandPrefix     []string // Command arguments to prepend (e.g. "start")
 	SessionManager    ISessionManager
-	Mode              string
 }
 
 // ProcessDirectTask handles a coding session from a direct repository and task description
@@ -472,8 +471,6 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 	session.JiraClient = cfg.JiraClient
 	session.JiraTicketID = cfg.JiraTicketID
 	session.RepoURL = cfg.RepoURL
-
-	session.Mode = cfg.Mode
 
 	if cfg.JiraEpicKey != "" {
 		session.BaseBranch = fmt.Sprintf("agent-epic/%s", cfg.JiraEpicKey)
