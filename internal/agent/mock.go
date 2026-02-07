@@ -150,7 +150,12 @@ fi
 	// 3. QA / Manager Role (Review)
 	// CRITICAL: Exclude Coding Agent, which mentions "QA" and "Review" in its instructions/template.
 	if (strings.Contains(prompt, "Review") || strings.Contains(prompt, "QA")) && !strings.Contains(prompt, "YOUR ROLE - CODING AGENT") {
-		return "LGTM. The code implements the requirements correctly. primes.py exists and primes.json contains the expected data.", nil
+		return `LGTM. The code implements the requirements correctly.
+
+` + "```bash" + `
+agent-bridge signal set QA_PASSED true
+` + "```" + `
+`, nil
 	}
 
 	// Default fallback
