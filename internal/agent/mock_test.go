@@ -66,7 +66,7 @@ func TestMockAgent_SmartLogic(t *testing.T) {
 				"cat <<EOF > primes.py",
 				"def is_prime(n):",
 				"python3 primes.py",
-				"agent-bridge feature set PRIMES implemented",
+				"agent-bridge feature set PRIMES --status done --passes true",
 			},
 		},
 		{
