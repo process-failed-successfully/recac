@@ -60,6 +60,11 @@ func runTest(cmd *cobra.Command, args []string) error {
 func runTestOnce(cmd *cobra.Command, args []string) error {
 	output, err := runTestCore(cmd, args)
 	if err == nil {
+		// Only print explicitly if NOT in watch mode (since watch mode handles its own output loop logic often)
+		// Actually, testWatch check is above. Here we are in runTestOnce.
+		// If we are running once, we should print it.
+		// If called from watch loop, we also want to see it.
+		// Duplicate "✅ All tests passed" is better than missing it.
 		fmt.Fprintln(cmd.OutOrStdout(), "\n✅ All tests passed.")
 		return nil
 	}
