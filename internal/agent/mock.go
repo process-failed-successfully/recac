@@ -91,6 +91,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return "QA_PASSED", nil
 	}
 
+	// 5. QA Agent
+	if strings.Contains(prompt, "QA AGENT") {
+		return "```bash\n# QA Passed\nagent-bridge signal set QA_PASSED true\n```", nil
+	}
+
 	// Default response
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
