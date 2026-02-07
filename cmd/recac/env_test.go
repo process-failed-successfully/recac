@@ -100,8 +100,3 @@ func TestEnvGenerate(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestMain(m *testing.M) {
-	// Setup code usually not needed for simple unit tests but good practice to isolate if needed
-	// Here we just run tests
-	os.Exit(m.Run())
-}

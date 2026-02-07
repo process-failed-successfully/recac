@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"recac/internal/agent"
@@ -117,4 +119,52 @@ func TestRunGymSession(t *testing.T) {
 	assert.NotNil(t, result)
 	assert.True(t, result.Passed)
 	assert.Equal(t, "Test Challenge", result.Challenge)
+}
+
+func TestLoadChallenges_Directory(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a dummy YAML file
+	yamlContent := `
+- name: Challenge 1
+  description: Desc 1
+  language: python
+  tests: print("1")
+  test_file: test1.py
+  timeout: 5
+`
+	err := os.WriteFile(filepath.Join(tmpDir, "c1.yaml"), []byte(yamlContent), 0644)
+	assert.NoError(t, err)
+
+	// Create a dummy JSON file
+	jsonContent := `
+[
+  {
+    "name": "Challenge 2",
+    "description": "Desc 2",
+    "language": "go",
+    "tests": "package main",
+    "test_file": "test2.go",
+    "timeout": 10
+  }
+]
+`
+	err = os.WriteFile(filepath.Join(tmpDir, "c2.json"), []byte(jsonContent), 0644)
+	assert.NoError(t, err)
+
+	// Create a non-challenge file
+	err = os.WriteFile(filepath.Join(tmpDir, "readme.txt"), []byte("Ignore me"), 0644)
+	assert.NoError(t, err)
+
+	// Load
+	challenges, err := loadChallenges(tmpDir)
+	assert.NoError(t, err)
+	assert.Len(t, challenges, 2)
+
+	names := make(map[string]bool)
+	for _, c := range challenges {
+		names[c.Name] = true
+	}
+	assert.True(t, names["Challenge 1"])
+	assert.True(t, names["Challenge 2"])
 }
