@@ -37,8 +37,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// We check for "Coding Agent", "Developer", "primes.py", or the specific ID tag.
 	// CRITICAL: We must EXCLUDE "Technical Program Manager" or "Application Specification" to prevent false positives
 	// when the TPM prompt contains the spec (which includes "[PRIMES]" and "primes.py").
+	// UPDATED: Relaxed constraints slightly to catch prompts that mention [PRIMES] and are NOT explicitly TPM.
+	// The ambiguity check for "Manager" is handled in the Manager block below.
 	if (strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py")) &&
-		(strings.Contains(prompt, "Coding Agent") || strings.Contains(prompt, "Developer") || strings.Contains(prompt, "primes.py")) &&
+		(strings.Contains(prompt, "Coding Agent") || strings.Contains(prompt, "Developer") || strings.Contains(prompt, "CODING AGENT") || strings.Contains(prompt, "primes.py")) &&
 		!strings.Contains(prompt, "Technical Program Manager") &&
 		!strings.Contains(prompt, "Application Specification") {
 		return `I will implement the primes calculation script as requested.
@@ -68,7 +70,12 @@ agent-bridge feature set req-script-is-runnable --status done --passes true
 
 	// Heuristic: Detect Manager Review (Project Manager)
 	// Triggers sign-off if prompt asks for Manager Review
-	if strings.Contains(prompt, "PROJECT MANAGER") || strings.Contains(prompt, "Manager Review") {
+	// CRITICAL FIX: Explicitly exclude prompts that are targeted at "Coding Agent" or "Developer"
+	// to prevent history pollution (e.g. "PROJECT MANAGER" appearing in previous turn) from triggering this.
+	if (strings.Contains(prompt, "PROJECT MANAGER") || strings.Contains(prompt, "Manager Review")) &&
+		!strings.Contains(prompt, "Coding Agent") &&
+		!strings.Contains(prompt, "CODING AGENT") &&
+		!strings.Contains(prompt, "Developer") {
 		return `I have reviewed the progress. The implemented features look correct and pass the tests.
 
 ` + "```bash" + `
