@@ -74,3 +74,30 @@ No changes to commit
 		t.Errorf("Prompt2: Expected completion script, got:\n%s", response2)
 	}
 }
+
+func TestMockAgent_PrimesCompletion_CorrectID(t *testing.T) {
+	agent := NewMockAgent()
+
+	prompt := `
+Tasks:
+[PRIMES] Create Prime Number Script
+
+History:
+System: Command Output:
+nothing to commit, working tree clean
+`
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// It should use the specific feature ID, not the generic project ID env var
+	expectedID := "req-must-correctly-identify-prime-"
+	if !strings.Contains(response, expectedID) {
+		t.Errorf("Expected feature ID '%s' in response, got:\n%s", expectedID, response)
+	}
+
+	if strings.Contains(response, "$RECAC_PROJECT_ID") {
+		t.Errorf("Response should not rely on $RECAC_PROJECT_ID, got:\n%s", response)
+	}
+}

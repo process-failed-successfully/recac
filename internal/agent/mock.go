@@ -156,7 +156,7 @@ func (m *MockAgent) generatePrimesCompletionResponse() string {
 	// This signals the runner to stop the loop.
 	script := `
 echo "Task completed. Updating status."
-agent-bridge feature set --id "$RECAC_PROJECT_ID" --status done
+agent-bridge feature set --id "req-must-correctly-identify-prime-" --status done
 `
 	return fmt.Sprintf("It seems the work is already done.\n\n```bash%s```\n", script)
 }
