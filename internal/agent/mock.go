@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -37,9 +38,22 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Trigger: "INITIALIZER" in prompt
 	if strings.Contains(strings.ToUpper(prompt), "INITIALIZER") {
 		// If it's the Primes scenario (detected by keywords or ticket ID)
-		if strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "MFLP-7282") {
-			return `{
-  "project_name": "MFLP-7282",
+		if strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "MFLP-") {
+			// Extract project ID (MFLP-XXXX)
+			projectID := "MFLP-7282" // Default fallback
+			re := regexp.MustCompile(`MFLP-\d+`)
+			match := re.FindString(prompt)
+			if match != "" {
+				projectID = match
+			}
+
+			// Must return a bash block with agent-bridge import to avoid NO-OP loop
+			return fmt.Sprintf(`I will generate the feature list for %s.
+
+`+"```bash"+`
+cat << 'EOF' | agent-bridge import
+{
+  "project_name": "%s",
   "features": [
     {
       "id": "req-the-script-primes-py-is-implem",
@@ -66,7 +80,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
       "priority": "1"
     }
   ]
-}`, nil
+}
+EOF
+`+"```"+`
+`, projectID, projectID), nil
 		}
 	}
 
