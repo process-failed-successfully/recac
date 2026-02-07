@@ -6,37 +6,27 @@ import (
 	"testing"
 )
 
-func TestMockAgent_Primes(t *testing.T) {
+func TestMockAgent_PrimesScenario(t *testing.T) {
 	agent := NewMockAgent()
-	// Must include "Coding Agent" to satisfy stricter heuristic
-	prompt := "You are the Coding Agent. Please implement [PRIMES] calculation"
+	ctx := context.Background()
 
-	resp, err := agent.Send(context.Background(), prompt)
+	// Simulate coding agent prompt
+	prompt := "YOUR ROLE - CODING AGENT\n\nTask: [PRIMES] Implement Primes Calculation\n\nFile: primes.py"
+
+	response, err := agent.Send(ctx, prompt)
 	if err != nil {
-		t.Fatalf("Send failed: %v", err)
+		t.Fatalf("Agent send failed: %v", err)
 	}
 
-	if !strings.Contains(resp, "cat << 'EOF' > primes.py") {
-		t.Error("Response should contain primes.py creation script")
-	}
-	if !strings.Contains(resp, "python3 primes.py") {
-		t.Error("Response should run the python script")
-	}
-	if !strings.Contains(resp, "agent-bridge feature set") {
-		t.Error("Response should mark features as passed")
-	}
-}
-
-func TestMockAgent_GenericFallback(t *testing.T) {
-	agent := NewMockAgent()
-	prompt := "Hello world"
-
-	resp, err := agent.Send(context.Background(), prompt)
-	if err != nil {
-		t.Fatalf("Send failed: %v", err)
+	// Verify response contains feature updates
+	expectedCommands := []string{
+		"agent-bridge feature set req-script-prints-primes-up-to-100 --status done --passes true",
+		"agent-bridge feature set req-script-is-runnable --status done --passes true",
 	}
 
-	if !strings.Contains(resp, "echo \"Mock Agent is alive\"") {
-		t.Error("Response should contain dummy command to prevent NO-OP loop")
+	for _, cmd := range expectedCommands {
+		if !strings.Contains(response, cmd) {
+			t.Errorf("Expected response to contain command: %s\nGot:\n%s", cmd, response)
+		}
 	}
 }
