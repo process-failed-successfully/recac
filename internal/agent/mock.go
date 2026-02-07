@@ -31,6 +31,15 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	// [INITIALIZER] Role Detection
+	// Check for "ROLE - INITIALIZER AGENT" specifically to generate feature_list.json
+	// This must be checked before [PRIMES] generic logic to prevent the coding script from being returned.
+	if strings.Contains(prompt, "ROLE - INITIALIZER AGENT") {
+		if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
+			return m.generatePrimesFeatureListResponse(), nil
+		}
+	}
+
 	// [PRIMES] Scenario Logic
 	// Detect if we are being asked to implement the primes.py script
 	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
@@ -79,6 +88,43 @@ func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(
 		onChunk(resp)
 	}
 	return resp, err
+}
+
+func (m *MockAgent) generatePrimesFeatureListResponse() string {
+	script := `
+cat << 'EOF' | agent-bridge import
+{
+  "project_name": "Primes Project",
+  "features": [
+    {
+      "id": "req-must-correctly-identify-prime-",
+      "category": "functional",
+      "priority": "MVP",
+      "description": "Script calculates primes correctly and outputs to primes.json",
+      "status": "pending",
+      "steps": [
+        "Step 1: Run python3 primes.py",
+        "Step 2: Check if primes.json exists",
+        "Step 3: Verify content of primes.json"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": ["primes.py", "primes.json"],
+        "read_only_paths": []
+      }
+    }
+  ]
+}
+EOF
+
+# Initialize repo as requested
+git init
+echo "Primes Project" > README.md
+git add README.md
+git commit -m "Initial commit" || echo "No changes to commit"
+`
+	return fmt.Sprintf("I will initialize the project and create the feature list.\n\n```bash%s```\n", script)
 }
 
 func (m *MockAgent) generatePrimesResponse() string {
