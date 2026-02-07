@@ -103,6 +103,11 @@ python3 primes.py
 
 # Git operations
 git add primes.py primes.json
+
+# Configure git identity
+git config user.email "agent@recac.io"
+git config user.name "RECAC Agent"
+
 git commit -m "Add primes.py and generated json"
 
 # Configure auth if API key is present (fallback for missing token in agent shell)
