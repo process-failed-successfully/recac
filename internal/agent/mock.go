@@ -75,7 +75,7 @@ agent-bridge feature set req-script-is-runnable passed
 		return `I have reviewed the progress. The implemented features look correct and pass the tests.
 
 ` + "```bash" + `
-agent-bridge signal PROJECT_SIGNED_OFF true
+agent-bridge signal --privileged PROJECT_SIGNED_OFF true
 ` + "```" + `
 `, nil
 	}
