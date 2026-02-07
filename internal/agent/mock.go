@@ -61,6 +61,18 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return "```bash\ngit init\ngit config user.name \"Recac Agent\"\ngit config user.email \"agent@recac.ai\"\nagent-bridge import\n```", nil
 	}
 
+	// 2.5 Detect QA Agent
+	if strings.Contains(prompt, "QA AGENT") {
+		return `QA verification complete.
+
+` + "```bash" + `
+echo "Running QA Checks..."
+# Signal success
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
 	// 3. Detect Implementation (Coding Agent)
 	// The prompt will contain the ticket title/desc we generated above.
 	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
