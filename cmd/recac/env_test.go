@@ -99,9 +99,3 @@ func TestEnvGenerate(t *testing.T) {
 	err = runEnvGenerate(&cobra.Command{}, []string{})
 	assert.NoError(t, err)
 }
-
-func TestMain(m *testing.M) {
-	// Setup code usually not needed for simple unit tests but good practice to isolate if needed
-	// Here we just run tests
-	os.Exit(m.Run())
-}

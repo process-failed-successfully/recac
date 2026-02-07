@@ -6,7 +6,27 @@ import (
 	"testing"
 )
 
-// TestMain_PanicRecovery tests that the main function recovers from a panic.
+func TestMain(m *testing.M) {
+	// Create a temporary directory for logs to prevent pollution
+	tmpDir, err := os.MkdirTemp("", "recac-logs-cmd-test-")
+	if err != nil {
+		panic(err)
+	}
+
+	// Set the environment variable so initializeLogging uses it
+	os.Setenv("RECAC_LOGS_DIR", tmpDir)
+
+	// Run tests
+	code := m.Run()
+
+	// Cleanup (must be explicit because os.Exit bypasses defers)
+	os.RemoveAll(tmpDir)
+
+	// Exit with the code
+	os.Exit(code)
+}
+
+// TestMain_HappyPath tests that the main function recovers from a panic.
 // It does this by running the test binary as a subprocess with a specific environment variable
 // that triggers a panic (simulated via a test helper if possible, or we just rely on standard main execution not panicking).
 // Since we can't easily inject a panic into `Execute()` without modifying it, we'll verify the happy path
@@ -27,6 +47,10 @@ func TestMain_HappyPath(t *testing.T) {
 
 	cmd := exec.Command(os.Args[0], "-test.run=TestMain_HappyPath")
 	cmd.Env = append(os.Environ(), "TEST_RUN_MAIN=1")
+	// Propagate log dir to subprocess
+	if logDir := os.Getenv("RECAC_LOGS_DIR"); logDir != "" {
+		cmd.Env = append(cmd.Env, "RECAC_LOGS_DIR="+logDir)
+	}
 	err := cmd.Run()
 	if err != nil {
 		t.Fatalf("process ran with error: %v", err)
