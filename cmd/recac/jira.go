@@ -230,10 +230,15 @@ func runGenerateTicketsCmd(cmd *cobra.Command, args []string) {
 		model = viper.GetString("model")
 	}
 
-	ag, err := agentClientFactory(ctx, provider, model, ".", "recac-jira-gen")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: Failed to initialize agent: %v\n", err)
-		exit(1)
+	var ag agent.Agent
+	if provider == "mock" {
+		ag = agent.NewMockAgent()
+	} else {
+		ag, err = agentClientFactory(ctx, provider, model, ".", "recac-jira-gen")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: Failed to initialize agent: %v\n", err)
+			exit(1)
+		}
 	}
 
 	// 4. Labels
