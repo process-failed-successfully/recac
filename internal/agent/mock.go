@@ -39,17 +39,24 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// --- 1. INITIALIZER AGENT ---
 	if strings.Contains(upperPrompt, "ROLE - INITIALIZER AGENT") && !strings.Contains(upperPrompt, "YOUR ROLE - CODING AGENT") {
-		return `{
-"project_name": "primes",
-"features": [
-  {
-    "id": "feature-1",
-    "description": "Script calculates primes correctly",
-    "status": "pending",
-    "steps": ["Run script", "Check output"]
-  }
-]
-}`, nil
+		return `I have analyzed the spec.
+
+` + "```bash" + `
+cat <<EOF > feature_list.json
+{
+  "project_name": "primes",
+  "features": [
+    {
+      "id": "feature-1",
+      "description": "Script calculates primes correctly",
+      "status": "pending",
+      "steps": ["Run script", "Check output"]
+    }
+  ]
+}
+EOF
+` + "```" + `
+`, nil
 	}
 
 	// --- 2. PLANNER (Lead Software Architect) ---
@@ -132,7 +139,12 @@ agent-bridge feature set --id feature-1 --status done --passes true
 `, nil
 	}
 
-	// --- 4. PROJECT MANAGER (Reviewer) ---
+	// --- 5. QA AGENT ---
+	if strings.Contains(upperPrompt, "ROLE - QA AGENT") {
+		return "```bash\nagent-bridge signal QA_PASSED true\n```", nil
+	}
+
+	// --- 6. PROJECT MANAGER (Reviewer) ---
 	if strings.Contains(upperPrompt, "PROJECT MANAGER") {
 		// Always approve in mock mode
 		return "```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil

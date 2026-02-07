@@ -32,7 +32,18 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 
 	// 5. Initialize Session with DB (Required for signals)
 	mockDocker := &MockDockerForExec{}
+
+	// Coding Agent - No-op
 	mockAgent := agent.NewMockAgent()
+	mockAgent.SetResponse("Verification Complete")
+
+	// QA Agent - Passes QA
+	mockQA := agent.NewMockAgent()
+	mockQA.SetResponse("```bash\nagent-bridge signal QA_PASSED true\n```")
+
+	// Manager Agent - Approves
+	mockManager := agent.NewMockAgent()
+	mockManager.SetResponse("```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```")
 
 	storeConfig := db.StoreConfig{
 		Type:             "sqlite",
@@ -47,6 +58,8 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 		Project:          "ui-test",
 		Docker:           mockDocker,
 		Agent:            mockAgent,
+		QAAgent:          mockQA,
+		ManagerAgent:     mockManager,
 		Workspace:        tmpDir,
 		FeatureContent:   features,
 		ManagerFrequency: 5,
