@@ -115,7 +115,7 @@ import sys
 
 def get_primes(n):
     primes = []
-    for num in range(2, n + 1):
+    for num in range(2, n):
         is_prime = True
         for i in range(2, int(num ** 0.5) + 1):
             if num % i == 0:
@@ -126,13 +126,18 @@ def get_primes(n):
     return primes
 
 if __name__ == "__main__":
-    n = 20
-    print(json.dumps(get_primes(n)))
+    n = 10000
+    result = {"primes": get_primes(n)}
+    with open("primes.json", "w") as f:
+        json.dump(result, f)
+    print("Generated primes.json")
 ` + "```" + `
 
 ` + "```bash" + `
+# Run the script to generate the json
+python3 primes.py
 # Force track the file
-git add -f primes.py
+git add -f primes.py primes.json
 # Mark feature as done
 agent-bridge feature set --id feature-1 --status done --passes true
 ` + "```" + `
