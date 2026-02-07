@@ -31,6 +31,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Heuristics for Prime Python Scenario
+	if strings.Contains(prompt, "Technical Program Manager") && (strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py")) {
+		return m.generatePrimesTPMResponse(), nil
+	}
+
 	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
 		return m.generatePrimesScript(), nil
 	}
@@ -79,6 +83,39 @@ git commit -m "Implement primes script" || echo "No changes to commit"
 agent-bridge signal COMPLETED true
 ` + "```" + `
 `
+}
+
+func (m *MockAgent) generatePrimesTPMResponse() string {
+	return "```json\n" + `
+[
+  {
+    "title": "ID:[PRIMES] Implement Prime Number Script",
+    "description": "Develop a Python script to generate prime numbers and save them to a JSON file.\nRepo: https://github.com/process-failed-successfully/recac-jira-e2e",
+    "type": "Epic",
+    "children": [
+      {
+        "title": "Implement Primes Logic",
+        "description": "Write the is_prime function and main logic to generate primes up to 10000.\nRepo: https://github.com/process-failed-successfully/recac-jira-e2e",
+        "type": "Story",
+        "acceptance_criteria": [
+          "is_prime function correctly identifies primes",
+          "Script generates primes up to 10000"
+        ]
+      },
+      {
+        "title": "Save Primes to JSON",
+        "description": "Save the generated primes list to primes.json.\nRepo: https://github.com/process-failed-successfully/recac-jira-e2e",
+        "type": "Story",
+        "acceptance_criteria": [
+          "Output file is valid JSON",
+          "File contains exactly 1229 primes"
+        ],
+        "blocked_by": ["Implement Primes Logic"]
+      }
+    ]
+  }
+]
+` + "\n```"
 }
 
 // SendStream implements the Agent interface
