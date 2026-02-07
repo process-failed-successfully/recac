@@ -33,9 +33,19 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// Heuristic for 'prime-python' scenario
+	// Heuristic for Ticket Planning (Scenario Generation)
+	// The prompt from cmd/recac/jira.go typically contains "spec" and implies generating tickets.
+	// However, we need to distinguish between "Plan tickets for PRIMES" and "Implement PRIMES".
+	// The CLI prompt uses prompts.TPMAgent.
+	if strings.Contains(prompt, "tickets") || strings.Contains(prompt, "Story") || strings.Contains(prompt, "Epic") {
+		if strings.Contains(prompt, "[PRIMES]") {
+			return m.generatePrimesTickets(), nil
+		}
+	}
+
+	// Heuristic for 'prime-python' scenario Implementation (Coding Agent)
 	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
-		return m.generatePrimesResponse(), nil
+		return m.generatePrimesImplementation(), nil
 	}
 
 	// Return a generic mock response
@@ -53,7 +63,7 @@ func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(
 	return resp, err
 }
 
-func (m *MockAgent) generatePrimesResponse() string {
+func (m *MockAgent) generatePrimesImplementation() string {
 	return `I will create the prime number script as requested.
 
 ` + "```bash" + `
@@ -81,6 +91,21 @@ python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes script"
 git push
+` + "```" + `
+`
+}
+
+func (m *MockAgent) generatePrimesTickets() string {
+	return `
+` + "```json" + `
+[
+  {
+    "title": "ID:[PRIMES] Create Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.",
+    "type": "Task",
+    "children": []
+  }
+]
 ` + "```" + `
 `
 }
