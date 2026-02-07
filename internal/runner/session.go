@@ -846,7 +846,11 @@ func (s *Session) loadFeatures() []db.Feature {
 				_ = s.DBStore.SaveFeatures(s.Project, string(data))
 			}
 			return fl.Features
+		} else {
+			s.Logger.Warn("failed to parse feature_list.json", "path", listPath, "error", err)
 		}
+	} else if !os.IsNotExist(err) {
+		s.Logger.Warn("failed to read feature_list.json", "path", listPath, "error", err)
 	}
 
 	return nil

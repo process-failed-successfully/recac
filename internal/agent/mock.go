@@ -36,12 +36,27 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 1. Initializer Agent
 	if strings.Contains(prompt, "ROLE - INITIALIZER AGENT") {
+		// Note: We use strict JSON syntax to avoid parsing errors
 		return fmt.Sprintf(`%s:
 
 I am the Initializer Agent. I am setting up the environment.
 
 `+"```bash"+`
-echo '{"projectName":"mock-project","features":[{"name":"Core","description":"Initial feature","status":"todo"}]}' > feature_list.json
+cat <<EOF > feature_list.json
+{
+  "projectName": "mock-project",
+  "features": [
+    {
+      "id": "1",
+      "name": "Core",
+      "description": "Initial feature",
+      "status": "todo",
+      "priority": "high",
+      "passes": false
+    }
+  ]
+}
+EOF
 echo "Initializer Agent Setup Complete"
 `+"```"+`
 `, m.responsePrefix), nil
