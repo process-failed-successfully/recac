@@ -48,20 +48,20 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.defaultPlanResponse(), nil
 	}
 
-	// 3. Coding Agent
-	// Detect "Developer" or "Coding Agent"
-	if strings.Contains(prompt, "Developer") || strings.Contains(prompt, "Coding Agent") {
+	// 3. QA Agent (Check before Coding Agent to prevent false positives with keywords)
+	// STRICTER CHECK: Ensure we are actually assigned the QA role, not just mentioned
+	if strings.Contains(prompt, "You are the QA Agent") || strings.Contains(prompt, "Your role is QA Agent") || strings.Contains(prompt, "ROLE - QA AGENT") {
+		return "## QA Report\n\nAll tests passed.", nil
+	}
+
+	// 4. Coding Agent
+	// Detect "Developer" or "Coding Agent", or explicit [PRIMES] tag (handles cases where system prompt is missing in mock mode)
+	if strings.Contains(prompt, "Developer") || strings.Contains(prompt, "Coding Agent") || strings.Contains(prompt, "[PRIMES]") {
 		lowerPrompt := strings.ToLower(prompt)
 		// Detect "primes" intent
 		if strings.Contains(lowerPrompt, "prime") || strings.Contains(prompt, "[PRIMES]") {
 			return m.primesImplementationResponse(), nil
 		}
-	}
-
-	// 4. QA Agent
-	// STRICTER CHECK: Ensure we are actually assigned the QA role, not just mentioned
-	if strings.Contains(prompt, "You are the QA Agent") || strings.Contains(prompt, "Your role is QA Agent") || strings.Contains(prompt, "ROLE - QA AGENT") {
-		return "## QA Report\n\nAll tests passed.", nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
