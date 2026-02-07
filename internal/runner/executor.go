@@ -149,7 +149,11 @@ func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, ind
 		}
 		if len(findings) > 0 {
 			s.Logger.Warn("security violation: blocked dangerous command", "script", cmdScript, "findings", findings)
-			return fmt.Sprintf("\n[BLOCKED] Command %d blocked by security scanner: %s\n", index, findings[0].Description), nil
+			var descriptions []string
+			for _, f := range findings {
+				descriptions = append(descriptions, f.Description)
+			}
+			return fmt.Sprintf("\n[BLOCKED] Command %d blocked by security scanner: %s\n", index, strings.Join(descriptions, "; ")), nil
 		}
 	}
 

@@ -3,6 +3,7 @@ package security
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -92,6 +93,11 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 		}
 		_ = i
 	}
+
+	// Sort findings by Type for deterministic output
+	sort.Slice(findings, func(i, j int) bool {
+		return findings[i].Type < findings[j].Type
+	})
 
 	return findings, nil
 }
