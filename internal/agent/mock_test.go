@@ -34,3 +34,19 @@ func TestTruncateString(t *testing.T) {
 		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
 	}
 }
+
+func TestMockAgent_TPM_Heuristic(t *testing.T) {
+	agent := NewMockAgent()
+	// Prompt excerpt from the failed log
+	prompt := "You are an expert Technical Program Manager (TPM) with deep experience in agile software development..."
+
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Expecting valid JSON array
+	if !strings.HasPrefix(strings.TrimSpace(resp), "[") {
+		t.Errorf("Expected JSON array response for TPM prompt, got: %s", resp)
+	}
+}
