@@ -39,17 +39,25 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// --- 1. INITIALIZER AGENT ---
 	if strings.Contains(upperPrompt, "ROLE - INITIALIZER AGENT") && !strings.Contains(upperPrompt, "YOUR ROLE - CODING AGENT") {
-		return `{
-"project_name": "primes",
-"features": [
-  {
-    "id": "feature-1",
-    "description": "Script calculates primes correctly",
-    "status": "pending",
-    "steps": ["Run script", "Check output"]
-  }
-]
-}`, nil
+		return `
+I will set up the project foundation.
+
+` + "```bash" + `
+cat <<EOF > feature_list.json
+{
+  "project_name": "primes",
+  "features": [
+    {
+      "id": "req-implement-prime-calculation-lo",
+      "description": "Script calculates primes correctly",
+      "status": "pending",
+      "steps": ["Run script", "Check output"]
+    }
+  ]
+}
+EOF
+agent-bridge import --file feature_list.json
+` + "```", nil
 	}
 
 	// --- 2. PLANNER (Lead Software Architect) ---
@@ -58,7 +66,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 "project_name": "primes",
 "features": [
   {
-    "id": "feature-1",
+    "id": "req-implement-prime-calculation-lo",
     "category": "functional",
     "description": "Script calculates primes correctly",
     "status": "pending",
@@ -77,7 +85,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(upperPrompt, "TECHNICAL PROGRAM MANAGER") || strings.Contains(upperPrompt, "ROLE - TPM") {
 		return `[
   {
-    "id": "feature-1",
+    "id": "req-implement-prime-calculation-lo",
     "title": "Primes Script",
     "type": "task",
     "status": "todo",
@@ -127,7 +135,7 @@ if __name__ == "__main__":
 # Force track the file
 git add -f primes.py
 # Mark feature as done
-agent-bridge feature set --id feature-1 --status done --passes true
+agent-bridge feature set --id req-implement-prime-calculation-lo --status done --passes true
 ` + "```" + `
 `, nil
 	}
