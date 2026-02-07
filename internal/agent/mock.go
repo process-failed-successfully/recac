@@ -33,7 +33,19 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Heuristic: Check for "TPM" or "Technical Program Manager" role to generate a ticket plan
-	if strings.Contains(prompt, "TPM") || strings.Contains(prompt, "Technical Program Manager") {
+	if strings.Contains(prompt, "TPM") || strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TECHNICAL PROGRAM MANAGER") {
+		// Special handling for the Prime Python scenario in the Planner/TPM phase
+		if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "Prime Number") {
+			return `[
+    {
+      "title": "Create Prime Number Script",
+      "description": "Create a python script named primes.py that calculates all prime numbers less than 10,000 and outputs them to primes.json.",
+      "type": "Task",
+      "children": []
+    }
+  ]`, nil
+		}
+
 		// Return a valid JSON response for ticket generation (Array of tickets)
 		return `[
     {
@@ -59,7 +71,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristic: Check for Prime Number script task (used in smoke tests/CI)
 	// This must come BEFORE the Initializer check because the prompt might contain "feature_list.json"
 	// as context when the agent is in the Coding phase.
-	if (strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "Prime Number") || strings.Contains(prompt, "[PRIMES]")) && !strings.Contains(prompt, "YOUR ROLE - INITIALIZER") {
+	if (strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "Prime Number") || strings.Contains(prompt, "[PRIMES]")) && !strings.Contains(prompt, "YOUR ROLE - INITIALIZER") && !strings.Contains(prompt, "TECHNICAL PROGRAM MANAGER") {
 		// Return a bash script that implements the prime number calculator
 		// This must satisfy the verification logic in pkg/e2e/scenarios/prime_python.go
 		return `Mock Agent: Implementing prime number script.
