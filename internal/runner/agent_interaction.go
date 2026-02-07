@@ -170,10 +170,13 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 			vars["read_only_paths"] = "None"
 		}
 	} else {
-		vars["task_id"] = "Multiple/Not Assigned"
-		vars["task_description"] = "Continue implementing pending features in feature_list.json"
-		vars["exclusive_paths"] = "All available files"
-		vars["read_only_paths"] = "All available files"
+		// Only set default if not already assigned by deterministic logic
+		if _, ok := vars["task_description"]; !ok {
+			vars["task_id"] = "Multiple/Not Assigned"
+			vars["task_description"] = "Continue implementing pending features in feature_list.json"
+			vars["exclusive_paths"] = "All available files"
+			vars["read_only_paths"] = "All available files"
+		}
 	}
 
 	prompt, err := prompts.GetPrompt(prompts.CodingAgent, vars)
