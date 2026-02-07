@@ -114,33 +114,14 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 
 	// Populate task-specific variables if set
 	// 4. Deterministic Task Assignment (User Request: Remove agent reliance on jq)
-	// Find the first pending feature and assign it explicitly.
-	var assignedFeature *db.Feature
+	// Priority 1: Forced Task (SelectedTaskID) - e.g. from CLI or Manager
+	// Priority 2: Auto-Assigned Task (First pending feature)
+	// Priority 3: All Done / Fallback
+
 	features := s.loadFeatures() // Refresh from DB/File
 
-	for i := range features {
-		if features[i].Status != "done" && !features[i].Passes {
-			assignedFeature = &features[i]
-			break
-		}
-	}
-
-	if assignedFeature != nil {
-		vars["task_id"] = assignedFeature.ID
-		vars["task_description"] = assignedFeature.Description
-		vars["exclusive_paths"] = strings.Join(assignedFeature.Dependencies.ExclusiveWritePaths, ", ")
-		vars["read_only_paths"] = strings.Join(assignedFeature.Dependencies.ReadOnlyPaths, ", ")
-
-		// s.SelectedTaskID = assignedFeature.ID // DO NOT SET THIS: It prevents Manager interruptions in subsequent turns.
-	} else {
-		// All done?
-		vars["task_id"] = "NONE_ALL_COMPLETE"
-		vars["task_description"] = "All features are marked as done/passing. Please run final verification and signal completion."
-		vars["exclusive_paths"] = "none"
-		vars["read_only_paths"] = "all"
-	}
 	if s.SelectedTaskID != "" {
-		features := s.loadFeatures()
+		// Priority 1: Forced Task
 		var target db.Feature
 		for _, f := range features {
 			if f.ID == s.SelectedTaskID {
@@ -170,10 +151,28 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 			vars["read_only_paths"] = "None"
 		}
 	} else {
-		vars["task_id"] = "Multiple/Not Assigned"
-		vars["task_description"] = "Continue implementing pending features in feature_list.json"
-		vars["exclusive_paths"] = "All available files"
-		vars["read_only_paths"] = "All available files"
+		// Find the first pending feature and assign it explicitly.
+		var assignedFeature *db.Feature
+		for i := range features {
+			if features[i].Status != "done" && !features[i].Passes {
+				assignedFeature = &features[i]
+				break
+			}
+		}
+
+		if assignedFeature != nil {
+			// Priority 2: Auto-Assigned Task
+			vars["task_id"] = assignedFeature.ID
+			vars["task_description"] = assignedFeature.Description
+			vars["exclusive_paths"] = strings.Join(assignedFeature.Dependencies.ExclusiveWritePaths, ", ")
+			vars["read_only_paths"] = strings.Join(assignedFeature.Dependencies.ReadOnlyPaths, ", ")
+		} else {
+			// Priority 3: All Done / Fallback
+			vars["task_id"] = "NONE_ALL_COMPLETE"
+			vars["task_description"] = "All features are marked as done/passing. Please run final verification and signal completion."
+			vars["exclusive_paths"] = "none"
+			vars["read_only_paths"] = "all"
+		}
 	}
 
 	prompt, err := prompts.GetPrompt(prompts.CodingAgent, vars)
