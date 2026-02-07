@@ -38,7 +38,7 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 		Workspace:        tmpDir,
 		FeatureContent:   features,
 		ManagerFrequency: 5,
-		MaxIterations:    1, // Prevent infinite loop in tests
+		MaxIterations:    5, // Increased from 1 to allow completion flow
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
 		Logger:           telemetry.NewLogger(true, "", false),
 	}

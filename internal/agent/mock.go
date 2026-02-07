@@ -91,8 +91,22 @@ EOF
 `, nil
 	}
 
-	// 3. Technical Program Manager Heuristic
-	// The TPM prompt contains "ROLE: Technical Program Manager"
+	// 3a. Technical Program Manager (Ticket Generation) Heuristic
+	// Used by 'jira generate-from-spec'. Expects array of tickets.
+	// Check for "application specification" or "decompose" in prompt.
+	if strings.Contains(prompt, "Technical Program Manager") && (strings.Contains(prompt, "application specification") || strings.Contains(prompt, "decompose")) {
+		return `[
+  {
+    "title": "ID:[PRIMES] Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'. Repo: https://github.com/example/repo",
+    "type": "Task",
+    "children": []
+  }
+]`, nil
+	}
+
+	// 3b. Technical Program Manager (Status) Heuristic
+	// Fallback for other TPM prompts (status updates).
 	if strings.Contains(prompt, "Technical Program Manager") {
 		return `{
   "project_status": "on_track",
@@ -103,21 +117,25 @@ EOF
 	}
 
 	// 4. Project Manager / QA Heuristic
-	// If the prompt asks for status or QA, and we see "pending", we should probably say "approved" or "continue".
+	// If the prompt asks for status or QA
 	if strings.Contains(prompt, "ROLE: Project Manager") || strings.Contains(prompt, "QA") {
-		// If it looks like we are stuck in a loop, give a "DONE" signal
-		if strings.Contains(prompt, "pending") {
-			return `The feature looks complete.
+		// If prompt contains "failures" or "failed features", tell them to fix it (simulated by saying done for now to break loops if persistent)
+		// Actually, if we are in a test loop, we want to finish.
+
+		// If we see "pending" OR if we see "passes: true" / "done" without explicit failure signal
+		// We should just sign off.
+
+		return `The feature looks complete.
 
 ` + "```bash" + `
 agent-bridge feature set PRIMES --status done --passes true
+agent-bridge signal create PROJECT_SIGNED_OFF
 ` + "```" + `
 `, nil
-		}
 	}
 
 	// 5. Coding Agent - Prime Python Scenario
-	// Only trigger this if we are NOT the planner (handled above)
+	// Only trigger this if we are NOT the planner/TPM (handled above)
 	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
 
 		// Guard: If we've already implemented it, don't loop forever.
