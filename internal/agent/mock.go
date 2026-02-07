@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -156,16 +157,17 @@ APPROVED`, nil
 	fmt.Printf("[MockAgent] UNMATCHED PROMPT: %s\n", truncateString(prompt, 50))
 
 	// Return a response with a dummy command to prevent NO-OP loops
+	// We include a random/unique element to prevent the Runner's Repetition Blocker from truncating the command
 	return fmt.Sprintf(`%s:
 
-I received your prompt. Here is a command to verify I am working:
+I received your prompt (Length: %d). Here is a command to verify I am working:
 
 `+"```bash"+`
-echo "Mock Agent Default Response"
+echo "Mock Agent Default Response (%d)"
 `+"```"+`
 
 Prompt preview: %s...`,
-		m.responsePrefix, truncateString(prompt, 100)), nil
+		m.responsePrefix, len(prompt), time.Now().UnixNano(), truncateString(prompt, 100)), nil
 }
 
 // SendStream implements the Agent interface
