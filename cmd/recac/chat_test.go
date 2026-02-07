@@ -14,9 +14,13 @@ func TestHandleChatCommand_Persona(t *testing.T) {
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 
+	pm := agent.NewPersonaManager()
+	p, _ := pm.GetPersona("default")
+
 	session := &ChatSession{
-		CurrentPersona: defaultPersonas["default"],
+		CurrentPersona: p,
 		ContextFiles:   make(map[string]string),
+		PM:             pm,
 	}
 
 	// 1. Switch to existing persona
@@ -52,9 +56,13 @@ func TestHandleChatCommand_Add(t *testing.T) {
 	cmd.SetOut(&out)
 	cmd.SetErr(&errOut)
 
+	pm := agent.NewPersonaManager()
+	p, _ := pm.GetPersona("default")
+
 	session := &ChatSession{
-		CurrentPersona: defaultPersonas["default"],
+		CurrentPersona: p,
 		ContextFiles:   make(map[string]string),
+		PM:             pm,
 	}
 
 	// Create temp file
@@ -97,6 +105,7 @@ func TestHandleChatCommand_Clear(t *testing.T) {
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 
+	// PM not needed for clear
 	session := &ChatSession{
 		History: "User: Hi\nAgent: Hello\n",
 	}
