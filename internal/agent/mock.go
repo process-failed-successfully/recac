@@ -117,7 +117,7 @@ def is_prime(n):
             return False
     return True
 
-primes = [x for x in range(2, 21) if is_prime(x)]
+primes = [x for x in range(2, 10000) if is_prime(x)]
 print(f"Primes: {primes}")
 
 with open("primes.json", "w") as f:
@@ -126,6 +126,7 @@ EOF
 
 # Run it
 python3 primes.py
+git add -f primes.json
 
 # Signal completion
 agent-bridge feature set primes-script --status done --passes true
