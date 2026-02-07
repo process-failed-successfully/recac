@@ -46,6 +46,7 @@ func (m *MockHelloWorldAgent) SendStream(ctx context.Context, prompt string, onC
 
 // TestEndToEndHelloWorld verifies the complete agent loop: Init -> Read Spec -> Agent Prompt -> Execute -> Verify Output
 func TestEndToEndHelloWorld(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	// Step 1: Setup a 'Hello World' task
 	tmpDir := t.TempDir()
 
@@ -201,6 +202,7 @@ func (f *fakeConn) Close() error { return nil }
 
 // Additional helper to test with actual file system simulation
 func TestEndToEndHelloWorld_WithFileSystem(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	// This test verifies the workflow with a more realistic file system simulation
 	tmpDir := t.TempDir()
 

@@ -117,6 +117,7 @@ func TestOrchestrator_HasFailures(t *testing.T) {
 }
 
 func TestOrchestrator_ExecuteTask(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	// Setup mocks
 	mockDocker := new(MockOrchestratorDocker)
 	mockAgent := new(MockOrchestratorAgent)

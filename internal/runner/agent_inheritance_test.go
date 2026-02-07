@@ -26,6 +26,7 @@ func (m *MockAgentForInheritance) SendStream(ctx context.Context, prompt string,
 }
 
 func TestAgentInheritance(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	// Setup
 	tmpDir := t.TempDir()
 	viper.Reset()
@@ -67,6 +68,7 @@ func TestAgentInheritance(t *testing.T) {
 func TestNewAgent_OpenRouterPrefixInheritance(t *testing.T) {
 	// This tests that if we pass "gemini-pro" to NewSession with "openrouter" provider,
 	// it gets correctly prefixed when sub-agents are created.
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 
 	tmpDir := t.TempDir()
 	provider := "openrouter"

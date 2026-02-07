@@ -89,6 +89,7 @@ func (m *FaultToleranceMockDB) GetActiveLocks(projectID string) ([]db.Lock, erro
 func (m *FaultToleranceMockDB) Cleanup() error                                     { return nil }
 
 func TestOrchestrator_FaultTolerance_HighFailureRate(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	// Setup workspace
 	tmpDir, err := os.MkdirTemp("", "orch_fault_test")
 	if err != nil {

@@ -48,6 +48,7 @@ func (m *MockDBStore) GetActiveLocks(projectID string) ([]db.Lock, error) { retu
 func (m *MockDBStore) Cleanup() error                                     { return nil }
 
 func TestOrchestrator_EnsureGitRepo(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	// Setup temporary workspace
 	tmpDir, err := os.MkdirTemp("", "orchestrator_git_test")
 	require.NoError(t, err)

@@ -35,6 +35,7 @@ func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(
 
 
 func TestSession_ReadSpec(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	tmpDir := t.TempDir()
 	specContent := "Application Specification v1.0"
 	specPath := filepath.Join(tmpDir, "app_spec.txt")
@@ -56,6 +57,7 @@ func TestSession_ReadSpec(t *testing.T) {
 }
 
 func TestSession_ReadSpec_Missing(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	tmpDir := t.TempDir()
 	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 
@@ -66,6 +68,7 @@ func TestSession_ReadSpec_Missing(t *testing.T) {
 }
 
 func TestSession_AgentReadsSpec(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	tmpDir := t.TempDir()
 	specContent := "Application Specification\nThis is a test specification file for verification."
 	specPath := filepath.Join(tmpDir, "app_spec.txt")
@@ -101,6 +104,7 @@ func TestSession_AgentReadsSpec(t *testing.T) {
 }
 
 func TestSession_Start_PassesUser(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	tmpDir := t.TempDir()
 	specPath := filepath.Join(tmpDir, "app_spec.txt")
 	os.WriteFile(specPath, []byte("test"), 0644)
@@ -123,6 +127,7 @@ func TestSession_Start_PassesUser(t *testing.T) {
 }
 
 func TestSession_SelectPrompt(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	tmpDir := t.TempDir()
 	specContent := "Test Spec"
 	specPath := filepath.Join(tmpDir, "app_spec.txt")
@@ -195,6 +200,7 @@ func TestSession_SelectPrompt(t *testing.T) {
 }
 
 func TestSession_AgentStatePersistence(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	tmpDir := t.TempDir()
 	stateFile := filepath.Join(tmpDir, ".agent_state.json")
 
@@ -228,6 +234,7 @@ func TestSession_AgentStatePersistence(t *testing.T) {
 }
 
 func TestSession_Signals(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	tmpDir := t.TempDir()
 	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 
@@ -258,6 +265,7 @@ func TestSession_Signals(t *testing.T) {
 }
 
 func TestSession_Stop(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	mockDocker, _ := docker.NewMockClient()
 	session := NewSession(mockDocker, &MockAgent{}, "/tmp", "alpine", "test-project", "gemini", "gemini-pro", 1)
 
@@ -280,6 +288,7 @@ func TestSession_Stop(t *testing.T) {
 }
 
 func TestSession_RunCleanerAgent(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	tmpDir := t.TempDir()
 	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 
@@ -307,6 +316,7 @@ func TestSession_RunCleanerAgent(t *testing.T) {
 }
 
 func TestSession_LoadFeatures(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	tmpDir := t.TempDir()
 	session := NewSession(nil, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 
@@ -330,6 +340,7 @@ func TestSession_LoadFeatures(t *testing.T) {
 }
 
 func TestSession_RunLoop_SingleIteration(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	tmpDir := t.TempDir()
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
 
@@ -344,6 +355,7 @@ func TestSession_RunLoop_SingleIteration(t *testing.T) {
 }
 
 func TestSession_RunQAAgent(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	tmpDir := t.TempDir()
 	mockAgent := &MockAgentForQA{
 		Response:  "PASS",
@@ -377,6 +389,7 @@ func TestSession_RunQAAgent(t *testing.T) {
 }
 
 func TestSession_RunManagerAgent(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	tmpDir := t.TempDir()
 	mockAgent := &MockAgent{}
 	session := NewSession(nil, mockAgent, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
@@ -416,6 +429,7 @@ func TestMin(t *testing.T) {
 }
 
 func TestSession_Start_MountsBridge(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	tmpDir := t.TempDir()
 	specPath := filepath.Join(tmpDir, "app_spec.txt")
 	os.WriteFile(specPath, []byte("test"), 0644)
@@ -459,6 +473,7 @@ func TestSession_Start_MountsBridge(t *testing.T) {
 	}
 }
 func TestSession_FixPermissions(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	tmpDir := t.TempDir()
 	d, _ := docker.NewMockClient()
 	session := NewSession(d, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
@@ -472,6 +487,7 @@ func TestSession_FixPermissions(t *testing.T) {
 }
 
 func TestSession_EnsureConflictTask(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	tmpDir := t.TempDir()
 
 	// Case 1: Add new conflict task
@@ -586,6 +602,7 @@ func TestSession_PushProgress(t *testing.T) {
 }
 
 func TestSession_ProcessResponse_Commands(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	d := &MockDockerClient{}
 	d.ExecFunc = func(ctx context.Context, containerID string, cmd []string) (string, error) {
 		if strings.Contains(cmd[2], "echo hello") {
@@ -619,6 +636,7 @@ func TestSession_ProcessResponse_Commands(t *testing.T) {
 }
 
 func TestSession_ProcessResponse_Blockers(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	d := &MockDockerClient{}
 	d.ExecFunc = func(ctx context.Context, containerID string, cmd []string) (string, error) {
 		// Simulate finding blocker file
@@ -638,6 +656,7 @@ func TestSession_ProcessResponse_Blockers(t *testing.T) {
 }
 
 func TestSession_BootstrapGit(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	d := &MockDockerClient{}
 	execCalls := 0
 	d.ExecAsUserFunc = func(ctx context.Context, containerID, user string, cmd []string) (string, error) {
@@ -658,6 +677,7 @@ func TestSession_BootstrapGit(t *testing.T) {
 }
 
 func TestSession_EnsureImage(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	d := &MockDockerClient{}
 	pulled := false
 	d.ImageExistsFunc = func(ctx context.Context, image string) (bool, error) {
@@ -680,6 +700,7 @@ func TestSession_EnsureImage(t *testing.T) {
 }
 
 func TestSession_ProcessResponse_JSON(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	d := &MockDockerClient{}
 	session := NewSession(d, &MockAgent{}, "/tmp", "alpine", "test-project", "gemini", "gemini-pro", 1)
 
@@ -697,6 +718,7 @@ func TestSession_ProcessResponse_JSON(t *testing.T) {
 }
 
 func TestSession_RunInitScript(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	tmpDir := t.TempDir()
 	initPath := filepath.Join(tmpDir, "init.sh")
 	os.WriteFile(initPath, []byte("echo init"), 0644)
@@ -731,6 +753,7 @@ func TestSession_RunInitScript(t *testing.T) {
 }
 
 func TestSession_FixPasswdDatabase(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	d := &MockDockerClient{}
 	cmds := []string{}
 	d.ExecAsUserFunc = func(ctx context.Context, containerID, user string, cmd []string) (string, error) {
@@ -757,6 +780,7 @@ func TestSession_FixPasswdDatabase(t *testing.T) {
 }
 
 func TestSession_RunLoop_Stall(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	// Create a session with features
 	tmpDir := t.TempDir()
 	d := &MockDockerClient{}
@@ -795,6 +819,7 @@ func TestSession_RunLoop_Stall(t *testing.T) {
 }
 
 func TestSession_EnsureImage_CustomDockerfile(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	tmpDir := t.TempDir()
 	dockerfile := filepath.Join(tmpDir, "Dockerfile")
 	os.WriteFile(dockerfile, []byte("FROM alpine"), 0644)
@@ -826,6 +851,7 @@ func TestSession_EnsureImage_CustomDockerfile(t *testing.T) {
 }
 
 func TestSession_RunLoop_QAPassed(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	tmpDir := t.TempDir()
 	d := &MockDockerClient{}
 

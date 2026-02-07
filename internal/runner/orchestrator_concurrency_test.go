@@ -10,6 +10,7 @@ import (
 )
 
 func TestOrchestrator_ConcurrencyLimit(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	// Setup
 	mockDB := &MockDBStoreForOrchestrator{
 		Features: `{"features": [

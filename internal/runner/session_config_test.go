@@ -8,6 +8,7 @@ import (
 )
 
 func TestNewSessionWithConfig(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	workspace := t.TempDir()
 	project := "test-project"
 	provider := "test-provider"
@@ -38,6 +39,7 @@ func TestNewSessionWithConfig(t *testing.T) {
 }
 
 func TestNewSessionWithConfig_EmptyProject(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	workspace := t.TempDir()
 	session := NewSessionWithConfig(workspace, "", "prov", "mod", nil)
 

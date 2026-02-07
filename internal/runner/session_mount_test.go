@@ -40,6 +40,7 @@ var _ agent.Agent = (*MockAgentForMount)(nil)
 // mounted into the container and can be accessed via exec commands.
 // This test verifies Feature #12: Docker workspace mounting.
 func TestSession_WorkspaceMounting(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	// Step 1: Create a temporary workspace directory with test files
 	tmpDir := t.TempDir()
 

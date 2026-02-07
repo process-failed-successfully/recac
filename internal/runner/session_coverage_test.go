@@ -57,6 +57,7 @@ func (m *CoverageMockDockerClient) PullImage(ctx context.Context, imageRef strin
 }
 
 func TestSession_ProcessResponse_Timeout_Coverage(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	viper.Set("bash_timeout", 1) // 1 second timeout
 	defer viper.Set("bash_timeout", 600)
 
@@ -92,6 +93,7 @@ func TestSession_ProcessResponse_Timeout_Coverage(t *testing.T) {
 }
 
 func TestSession_ProcessResponse_JSONBlock_Coverage(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	session := NewSession(nil, &MockAgent{}, "/tmp", "alpine", "test-project", "gemini", "gemini-pro", 1)
 
 	response := "```bash\n{\"key\": \"value\"}\n```"
@@ -103,6 +105,7 @@ func TestSession_ProcessResponse_JSONBlock_Coverage(t *testing.T) {
 }
 
 func TestSession_BootstrapGit_Error_Coverage(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	mockDocker := &CoverageMockDockerClient{}
 	mockDocker.ExecAsUserFunc = func(ctx context.Context, containerID, user string, cmd []string) (string, error) {
 		return "", errors.New("exec error")
@@ -118,6 +121,7 @@ func TestSession_BootstrapGit_Error_Coverage(t *testing.T) {
 }
 
 func TestSession_FixPermissions_Error_Coverage(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	mockDocker := &CoverageMockDockerClient{}
 	mockDocker.ExecAsUserFunc = func(ctx context.Context, containerID, user string, cmd []string) (string, error) {
 		return "", errors.New("chown error")

@@ -27,6 +27,7 @@ func (m *MockUnsafeAgent) SendStream(ctx context.Context, prompt string, onChunk
 }
 
 func TestSecurityIntegration_BlocksSecrets(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	// Setup
 	tmpDir := t.TempDir()
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)

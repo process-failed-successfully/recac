@@ -11,6 +11,7 @@ import (
 )
 
 func TestSession_E2E_DockerFileWrite(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	ctx := context.Background()
 	dockerCli, err := docker.NewClient("test-project")
 	if err != nil {

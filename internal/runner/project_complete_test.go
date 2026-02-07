@@ -19,6 +19,7 @@ import (
 // Feature is already defined in planner.go in this package
 
 func TestProjectCompleteFlow(t *testing.T) {
+	t.Setenv("RECAC_LOGS_DIR", t.TempDir())
 	// Setup Temp Workspace
 	workspace, err := os.MkdirTemp("", "recac-test-complete")
 	if err != nil {
