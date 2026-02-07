@@ -33,7 +33,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 1. Initializer / Planner (Often asks for a plan or feature list)
 	// The real agent usually returns a JSON object with features.
 	// For the smoke test, we might not hit this if we skip planning, but if we do:
-	if strings.Contains(prompt, "feature_list.json") || strings.Contains(prompt, "Technical Program Manager") {
+	if strings.Contains(prompt, "feature_list.json") {
 		return `
 {
   "project_name": "primes-project",
@@ -47,6 +47,28 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     }
   ]
 }`, nil
+	}
+
+	// 1.5. Technical Program Manager (TPM) - Ticket Generation
+	// Returns a list of Epics/Stories
+	if strings.Contains(prompt, "Technical Program Manager") {
+		return `
+[
+  {
+    "title": "ID:[PRIMES] Primes Project",
+    "description": "Implement primes project. Repo: https://github.com/example/repo",
+    "type": "Epic",
+    "children": [
+       {
+         "title": "ID:[PRIMES-SCRIPT] Create Primes Script",
+         "description": "Create primes.py. Repo: https://github.com/example/repo",
+         "type": "Story",
+         "acceptance_criteria": ["Script created"],
+         "blocked_by": []
+       }
+    ]
+  }
+]`, nil
 	}
 
 	// 2. Coding Agent (Primes Scenario)

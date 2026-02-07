@@ -40,6 +40,19 @@ func TestMockAgent(t *testing.T) {
 	if !strings.Contains(respInit, "req-primes-py-exists") {
 		t.Errorf("Init response missing feature ID: %s", respInit)
 	}
+
+	// 4. TPM Heuristic
+	promptTPM := "Technical Program Manager: Please generate tickets"
+	respTPM, err := agent.Send(context.Background(), promptTPM)
+	if err != nil {
+		t.Fatalf("TPM prompt failed: %v", err)
+	}
+	if !strings.Contains(respTPM, "ID:[PRIMES]") {
+		t.Errorf("TPM response missing ID: %s", respTPM)
+	}
+	if !strings.Contains(respTPM, "[") || !strings.Contains(respTPM, "]") {
+		t.Errorf("TPM response is not a list: %s", respTPM)
+	}
 }
 
 func TestTruncateString(t *testing.T) {
