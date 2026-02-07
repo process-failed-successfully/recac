@@ -3,6 +3,8 @@ package agent
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -25,13 +27,96 @@ func (m *MockAgent) SetResponse(response string) {
 }
 
 // Send implements the Agent interface
-// It returns a mock response that acknowledges the prompt
+// It returns a mock response that acknowledges the prompt or acts on heuristics for E2E tests
 func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
-	// Return a mock response that shows the agent received the prompt
-	// This allows the session to run without requiring real API keys
+
+	// Heuristics for E2E Scenarios
+
+	// 1. Initializer Agent (DB Import)
+	if strings.Contains(prompt, "INITIALIZER AGENT") || (strings.Contains(prompt, "git init") && strings.Contains(prompt, "agent-bridge import")) {
+		project := os.Getenv("RECAC_PROJECT_ID")
+		if project == "" {
+			project = "test-project"
+		}
+		// Return a command to import features
+		return fmt.Sprintf(`
+cat <<EOF | agent-bridge import
+{
+  "project_name": "%s",
+  "features": [
+    {
+      "id": "req-implement-prime-calculation-lo",
+      "category": "core",
+      "priority": "high",
+      "description": "Implement a python script that calculates prime numbers up to 10000",
+      "status": "pending",
+      "dependencies": []
+    }
+  ]
+}
+EOF
+`, project), nil
+	}
+
+	// 2. TPM (Ticket Generation) - Prioritize this if prompt asks for ticket generation or JSON
+	// Distinguish from Developer tasks
+	if (strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "ticketNode")) && !strings.Contains(prompt, "ROLE - CODING AGENT") {
+		return `
+[
+  {
+    "id": "PRIMES",
+    "title": "Implement Prime Number Calculation",
+    "description": "Create a python script primes.py that calculates primes up to 10000.",
+    "type": "Task",
+    "status": "In Progress",
+    "dependencies": [],
+    "priority": "High"
+  }
+]
+`, nil
+	}
+
+	// 3. Developer (Prime Python)
+	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "prime numbers") || strings.Contains(prompt, "req-implement-prime-calculation-lo") {
+		return `
+cat <<EOF > primes.py
+import json
+
+def is_prime(n):
+    if n <= 1:
+        return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+primes = [i for i in range(10001) if is_prime(i)]
+print(json.dumps({"primes": primes}))
+EOF
+
+# Mark feature as done
+# Use explicit ID from the initializer
+agent-bridge feature set req-implement-prime-calculation-lo --status done || echo "Feature set failed, ignoring"
+
+# Ensure clean exit for smoke tests
+git add primes.py || true
+git commit -m "Implement primes" || echo "No changes to commit"
+`, nil
+	}
+
+	// 4. QA / Review
+	if strings.Contains(prompt, "QA AGENT") {
+		return `agent-bridge signal set QA_PASSED true`, nil
+	}
+
+	if strings.Contains(prompt, "PROJECT MANAGER") && strings.Contains(prompt, "sign off") {
+		return `agent-bridge signal set PROJECT_SIGNED_OFF true`, nil
+	}
+
+	// Fallback
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
