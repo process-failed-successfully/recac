@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"log/slog"
 	"os"
@@ -231,6 +232,11 @@ func NewSessionWithConfig(workspace, project, provider, model string, dbStore db
 }
 
 func initializeLogging(project string) *slog.Logger {
+	// If running under go test, suppress file logging to avoid dirty git tree
+	if flag.Lookup("test.v") != nil {
+		return telemetry.NewLogger(viper.GetBool("verbose"), "", false)
+	}
+
 	// Create agents/logs directory in the current working directory (host)
 	// This is where Promtail expects to find them based on docker-compose.monitoring.yml
 	cwd, _ := os.Getwd()

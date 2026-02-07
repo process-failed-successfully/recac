@@ -40,6 +40,7 @@ func TestParseStaleDuration(t *testing.T) {
 		{"10m", 10 * time.Minute, false},
 		{"10h", 10 * time.Hour, false},
 		{"1d", 24 * time.Hour, false},
+		{"1.5d", 36 * time.Hour, false},
 		{"7d", 7 * 24 * time.Hour, false},
 		{"invalid", 0, true},
 		{"", 0, true},
