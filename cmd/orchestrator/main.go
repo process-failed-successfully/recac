@@ -82,7 +82,7 @@ func main() {
 	viper.BindEnv("orchestrator.github_repo", "RECAC_GITHUB_REPO")
 	viper.BindEnv("orchestrator.github_label", "RECAC_GITHUB_LABEL")
 	viper.BindEnv("orchestrator.mode", "RECAC_ORCHESTRATOR_MODE")
-	viper.BindEnv("orchestrator.image", "RECAC_ORCHESTRATOR_IMAGE")
+	viper.BindEnv("orchestrator.image", "RECAC_AGENT_IMAGE", "RECAC_ORCHESTRATOR_IMAGE")
 	viper.BindEnv("orchestrator.namespace", "RECAC_ORCHESTRATOR_NAMESPACE")
 	viper.BindEnv("orchestrator.interval", "RECAC_ORCHESTRATOR_INTERVAL")
 	viper.BindEnv("orchestrator.image_pull_policy", "RECAC_IMAGE_PULL_POLICY")
