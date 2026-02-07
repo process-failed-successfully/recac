@@ -38,17 +38,16 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// Detects "Technical Program Manager" role or ticket generation instructions
 		if (strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "CRITICAL INSTRUCTION FOR TICKET GENERATION")) &&
 			!strings.Contains(prompt, "YOUR ROLE - CODING AGENT") {
-			return `{
-  "tickets": [
-    {
-      "summary": "[PRIMES] Create Prime Number Script",
-      "description": "Create a python script named 'primes.py'. It MUST be python.\nIt must calculate all prime numbers less than 10,000 and output to a file named 'primes.json'.\nIMPORTANT: You MUST use a bash block to create the file (e.g., cat << 'EOF' > primes.py). Do not output raw python code.\nCommit 'primes.py' and 'primes.json' IMMEDIATELY. Use 'git add -f primes.json' to ensure it is tracked.\nThe JSON format must have a single key 'primes' containing the list of integers.\nExample: ` + "`" + `{\"primes\": [2, 3, 5, ...]}` + "`" + `.\nIMPORTANT: Ensure the FINAL primes.json committed to the repository contains ALL primes less than 10,000 (Exactly 1229 primes).\nDo not truncate it for testing or reporting - the verification script expects the full list.\nKeep the code absolutely minimal. Finish as quickly as possible.",
-      "type": "Task",
-      "id": "PRIMES",
-      "priority": "High"
-    }
-  ]
-}`, nil
+			return `[
+  {
+    "title": "[PRIMES] Create Prime Number Script",
+    "description": "Create a python script named 'primes.py'. It MUST be python.\nIt must calculate all prime numbers less than 10,000 and output to a file named 'primes.json'.\nIMPORTANT: You MUST use a bash block to create the file (e.g., cat << 'EOF' > primes.py). Do not output raw python code.\nCommit 'primes.py' and 'primes.json' IMMEDIATELY. Use 'git add -f primes.json' to ensure it is tracked.\nThe JSON format must have a single key 'primes' containing the list of integers.\nExample: ` + "`" + `{\"primes\": [2, 3, 5, ...]}` + "`" + `.\nIMPORTANT: Ensure the FINAL primes.json committed to the repository contains ALL primes less than 10,000 (Exactly 1229 primes).\nDo not truncate it for testing or reporting - the verification script expects the full list.\nKeep the code absolutely minimal. Finish as quickly as possible.",
+    "type": "Task",
+    "blocked_by": [],
+    "acceptance_criteria": [],
+    "children": []
+  }
+]`, nil
 		}
 
 		// 2. Initializer (Feature List Generation)
