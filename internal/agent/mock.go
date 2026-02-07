@@ -31,22 +31,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// 1. TPM Agent - Generates the plan
-	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "Application Specification") {
-		return `
-[
-  {
-    "id": "PRIMES",
-    "type": "Task",
-    "title": "Implement prime number script",
-    "description": "Implement a python script 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'."
-  }
-]
-`, nil
-	}
-
-	// 2. Initializer Agent - Sets up the repo
+	// 1. Initializer Agent - Sets up the repo
 	// Check for "INITIALIZER" (uppercase) as used in prompts/templates/initializer.md
+	// MOVED TO TOP to prevent TPM/Generic heuristics from catching "Application Specification" in the prompt
 	if strings.Contains(prompt, "Initializer") || strings.Contains(prompt, "INITIALIZER") || strings.Contains(prompt, "git init") {
 		// Detect Primes scenario
 		if strings.Contains(strings.ToLower(prompt), "prime") {
@@ -96,6 +83,21 @@ git config user.email "you@example.com"
 git config user.name "Your Name"
 agent-bridge import --file /app/ticket_plan.json
 ` + "```" + `
+`, nil
+	}
+
+	// 2. TPM Agent - Generates the plan
+	// Removed "Application Specification" check as it is too broad and appears in Initializer prompt
+	if strings.Contains(prompt, "Technical Program Manager") {
+		return `
+[
+  {
+    "id": "PRIMES",
+    "type": "Task",
+    "title": "Implement prime number script",
+    "description": "Implement a python script 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'."
+  }
+]
 `, nil
 	}
 
