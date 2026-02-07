@@ -59,8 +59,20 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return "```bash\necho '[]' > feature_list.json\n```", nil
 	}
 
-	// 3. Implementation (Primes)
+	// 3. QA Agent
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return "```bash\nagent-bridge signal set QA_PASSED true\n```", nil
+	}
+
+	// 4. Project Manager
+	if strings.Contains(prompt, "PROJECT MANAGER") {
+		return "```bash\nagent-bridge signal set PROJECT_SIGNED_OFF true\n```", nil
+	}
+
+	// 5. Implementation (Primes)
 	// We check for various triggers including the specific feature ID found in logs
+	// Note: We deliberately exclude prompts that contain "YOUR ROLE - QA AGENT" or "PROJECT MANAGER"
+	// effectively by placing this check AFTER those specific roles.
 	if strings.Contains(prompt, "calculate primes") ||
 		strings.Contains(prompt, "[PRIMES]") ||
 		strings.Contains(prompt, "primes.py") ||
@@ -101,16 +113,6 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			"```\n" +
 			"\n" +
 			"COMPLETED\n", nil
-	}
-
-	// 4. QA Agent
-	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
-		return "```bash\nagent-bridge signal set QA_PASSED true\n```", nil
-	}
-
-	// 5. Project Manager
-	if strings.Contains(prompt, "PROJECT MANAGER") {
-		return "```bash\nagent-bridge signal set PROJECT_SIGNED_OFF true\n```", nil
 	}
 
 	// Default Echo
