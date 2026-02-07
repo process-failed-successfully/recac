@@ -101,3 +101,31 @@ nothing to commit, working tree clean
 		t.Errorf("Response should not rely on $RECAC_PROJECT_ID, got:\n%s", response)
 	}
 }
+
+func TestMockAgent_QA(t *testing.T) {
+	agent := NewMockAgent()
+
+	prompt := "## YOUR ROLE - QA AGENT\n\nPlease verify the project."
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "agent-bridge signal QA_PASSED true") {
+		t.Errorf("Expected QA_PASSED signal in response, got:\n%s", response)
+	}
+}
+
+func TestMockAgent_Manager(t *testing.T) {
+	agent := NewMockAgent()
+
+	prompt := "## YOUR ROLE - PROJECT MANAGER\n\nPlease review the project."
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "agent-bridge signal PROJECT_SIGNED_OFF true") {
+		t.Errorf("Expected PROJECT_SIGNED_OFF signal in response, got:\n%s", response)
+	}
+}

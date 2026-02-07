@@ -31,6 +31,16 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	// [QA] Role Detection
+	if strings.Contains(prompt, "ROLE - QA AGENT") || strings.Contains(prompt, "verify the project") {
+		return m.generateQAResponse(), nil
+	}
+
+	// [Manager] Role Detection
+	if strings.Contains(prompt, "ROLE - PROJECT MANAGER") {
+		return m.generateManagerResponse(), nil
+	}
+
 	// [INITIALIZER] Role Detection
 	// Check for "ROLE - INITIALIZER AGENT" specifically to generate feature_list.json
 	// This must be checked before [PRIMES] generic logic to prevent the coding script from being returned.
@@ -172,6 +182,24 @@ func (m *MockAgent) generatePrimesJSONResponse() string {
 		"  }\n" +
 		"]\n" +
 		"```\n"
+}
+
+func (m *MockAgent) generateQAResponse() string {
+	script := `
+echo "Running QA tests..."
+# Simulate test run
+echo "PASS"
+agent-bridge signal QA_PASSED true
+`
+	return fmt.Sprintf("I will verify the project.\n\n```bash%s```\n", script)
+}
+
+func (m *MockAgent) generateManagerResponse() string {
+	script := `
+echo "Manager Review: Approved."
+agent-bridge signal PROJECT_SIGNED_OFF true
+`
+	return fmt.Sprintf("I approve the project.\n\n```bash%s```\n", script)
 }
 
 // truncateString truncates a string to a maximum length
