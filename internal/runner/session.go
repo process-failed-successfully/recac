@@ -261,7 +261,7 @@ func initializeLogging(project string) *slog.Logger {
 
 	if agentsLogsDir != "" {
 		// Initialize session log file
-		timestamp := time.Now().Format("20060102-150405")
+		timestamp := time.Now().Format("20060102-150405.000")
 		logFileName := fmt.Sprintf("%s_agent_%s_%s.log", project, project, timestamp)
 		logFilePath := filepath.Join(agentsLogsDir, logFileName)
 
