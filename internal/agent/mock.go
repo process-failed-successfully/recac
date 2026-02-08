@@ -34,22 +34,14 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Technical Program Manager: Generate Tickets
 	// This returns JSON for the CLI to consume
-	// Note: Prompts contain "Technical Program Manager", but can also contain "Application Specification" (which appears in Initializer too).
-	// We distinguish by "Ticket", "tickets", or explicitly "Output purely JSON".
-	if strings.Contains(prompt, "Technical Program Manager") && (strings.Contains(prompt, "Ticket") || strings.Contains(prompt, "tickets") || strings.Contains(prompt, "Output purely JSON")) {
+	if strings.Contains(prompt, "Technical Program Manager") && (strings.Contains(prompt, "Ticket") || strings.Contains(prompt, "tickets")) {
 		return "```json\n" +
 			"[\n" +
 			"  {\n" +
 			"    \"title\": \"ID:[PRIMES] Prime Number Script\",\n" +
 			"    \"description\": \"Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000.\",\n" +
-			"    \"type\": \"Epic\",\n" +
-			"    \"children\": [\n" +
-			"      {\n" +
-			"        \"title\": \"ID:[PRIMES-1] Create Script\",\n" +
-			"        \"description\": \"Create the script and ensure it outputs JSON.\",\n" +
-			"        \"type\": \"Story\"\n" +
-			"      }\n" +
-			"    ]\n" +
+			"    \"type\": \"Task\",\n" +
+			"    \"children\": []\n" +
 			"  }\n" +
 			"]\n" +
 			"```", nil
@@ -57,8 +49,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Initializer: Generate Feature List
 	// This returns a bash command for the Runner to execute
-	// Prioritize exact match for "INITIALIZER AGENT" or "agent-bridge import" hint
-	if strings.Contains(prompt, "INITIALIZER AGENT") || strings.Contains(prompt, "feature_list.json") {
+	if strings.Contains(prompt, "INITIALIZER AGENT") {
 		return "```bash\n" +
 			"cat << 'EOF' | agent-bridge import\n" +
 			"{\n" +
@@ -83,15 +74,20 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Detects the prompt asking for the primes script
 	// Must NOT be the Initializer agent (which also sees the spec containing 'primes.py')
 	if strings.Contains(prompt, "primes.py") && !strings.Contains(prompt, "Technical Program Manager") && !strings.Contains(prompt, "INITIALIZER AGENT") {
+		// LOOP BREAKER: If git reports clean, we are done.
+		if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
+			return "```bash\nagent-bridge feature set PRIMES --status done --passes true\n```", nil
+		}
+
 		// If the commit message exists in the prompt (git log), we are done.
 		if strings.Contains(prompt, "Implement primes.py and generate primes.json") {
-			return "```bash\nagent-bridge feature set --status done\n```", nil
+			return "```bash\nagent-bridge feature set PRIMES --status done --passes true\n```", nil
 		}
 		// Fallback: If primes.json is in the file list (strong signal if runner provides it)
 		// We check for "primes.json" explicitly to avoid false positives from the instructions if possible,
 		// but since the instruction description usually doesn't say "primes.json" (it says 'primes.py'), this is reasonably safe.
 		if strings.Contains(prompt, "primes.json") {
-			return "```bash\nagent-bridge feature set --status done\n```", nil
+			return "```bash\nagent-bridge feature set PRIMES --status done --passes true\n```", nil
 		}
 
 		return "```bash\n" +
