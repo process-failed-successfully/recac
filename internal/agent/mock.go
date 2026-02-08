@@ -64,7 +64,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return `I will generate the feature list for the primes task.
 
 ` + "```bash" + `
-cat << 'EOF' | agent-bridge import
+cat << 'EOF' > feature_list.json
 {
   "project_name": "Primes",
   "features": [
@@ -123,6 +123,34 @@ EOF
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Implement primes.py"
+agent-bridge feature set PRIMES --status done --passes true
+` + "```" + `
+`, nil
+	}
+
+	// 3. Completion Phase (Triggered when all features are done)
+	if strings.Contains(prompt, "All features are marked as done/passing") &&
+		(strings.Contains(prompt, "CODING AGENT") || strings.Contains(prompt, "You are a software engineer")) {
+		return "I will signal completion.\n\n```bash\nagent-bridge signal COMPLETED true\n```\n", nil
+	}
+
+	// 4. QA Agent Role - Verify Implementation
+	if strings.Contains(prompt, "QA AGENT") || strings.Contains(prompt, "Quality Assurance") {
+		return `I will verify the project.
+
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// 5. Manager Agent Role - Final Sign-off
+	// Triggered after QA passes
+	if strings.Contains(prompt, "MANAGER AGENT") || strings.Contains(prompt, "Manager Review") {
+		return `I have reviewed the project and it looks good.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged
 ` + "```" + `
 `, nil
 	}
