@@ -34,12 +34,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic: Detect Primes Implementation Task (Coding Agent)
 	// This supports the E2E smoke test scenario. We prioritize this over TPM if it looks like a coding task.
-	// We check for "Coding Agent", "Developer", "primes.py", or the specific ID tag.
+	// We check for "CODING AGENT", "Developer", "primes.py", or the specific ID tag.
 	// CRITICAL: We must EXCLUDE "Technical Program Manager" to prevent false positives
 	// when the TPM prompt contains the spec (which includes "[PRIMES]" and "primes.py").
 	// We do NOT exclude "Application Specification" because the Coding Agent prompt SHOULD contain the spec.
-	if (strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py")) &&
-		(strings.Contains(prompt, "Coding Agent") || strings.Contains(prompt, "Developer") || strings.Contains(prompt, "primes.py")) &&
+	if (strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "Script prints primes")) &&
+		(strings.Contains(prompt, "CODING AGENT") || strings.Contains(prompt, "Developer") || strings.Contains(prompt, "primes.py")) &&
 		!strings.Contains(prompt, "Technical Program Manager") {
 		return `I will implement the primes calculation script as requested.
 
@@ -60,7 +60,7 @@ with open('primes.json', 'w') as f:
 EOF
 
 python3 primes.py
-agent-bridge feature set req-script-prints-primes-up-to-10000 --status Done --passes true
+agent-bridge feature set req-script-prints-primes-up-to-100 --status Done --passes true
 agent-bridge feature set req-script-is-runnable --status Done --passes true
 ` + "```" + `
 `, nil
@@ -68,9 +68,9 @@ agent-bridge feature set req-script-is-runnable --status Done --passes true
 
 	// Heuristic: Detect Manager Review (Project Manager)
 	// Triggers sign-off if prompt asks for Manager Review
-	// We explicitly exclude "Coding Agent" to prevent false positives when history contains Manager reviews
-	if (strings.Contains(prompt, "PROJECT MANAGER") || strings.Contains(prompt, "Manager Review")) &&
-		!strings.Contains(prompt, "Coding Agent") && !strings.Contains(prompt, "Developer") {
+	// We explicitly exclude "CODING AGENT" to prevent false positives when history contains Manager reviews
+	if (strings.Contains(prompt, "## YOUR ROLE - PROJECT MANAGER")) &&
+		!strings.Contains(prompt, "CODING AGENT") && !strings.Contains(prompt, "Developer") {
 		return `I have reviewed the progress. The implemented features look correct and pass the tests.
 
 ` + "```bash" + `
