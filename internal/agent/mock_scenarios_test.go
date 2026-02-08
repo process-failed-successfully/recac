@@ -37,6 +37,17 @@ func TestMockAgent_Scenarios(t *testing.T) {
 			},
 		},
 		{
+			name:   "TPM Primes Broader Heuristic",
+			prompt: "You are the Technical Program Manager... AppSpec: Prime Number Script",
+			wantContains: []string{
+				`"tickets":`,
+				`"id": "PRIMES"`,
+			},
+			wantNotContain: []string{
+				"Mock agent response",
+			},
+		},
+		{
 			name:   "Developer Primes",
 			prompt: "Task: Create primes.py [PRIMES]",
 			wantContains: []string{

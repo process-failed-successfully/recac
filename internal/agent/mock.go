@@ -102,7 +102,10 @@ EOF
 
 func (m *MockAgent) tpmResponse(prompt string) string {
 	// If it's the specific primes scenario
-	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
+	if strings.Contains(prompt, "[PRIMES]") ||
+		strings.Contains(prompt, "primes.py") ||
+		strings.Contains(prompt, "Prime Number Script") ||
+		strings.Contains(prompt, "primes") {
 		return `{
   "tickets": [
     {
