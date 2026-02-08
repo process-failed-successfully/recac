@@ -174,6 +174,42 @@ agent-bridge feature set req-the-makefile-targets-are-implemented --status done 
 			return fmt.Sprintf("I will implement the requested changes.\n\n```bash\n%s\n```", script), nil
 		}
 
+		// Scenario: CI Workflow
+		if strings.Contains(prompt, "req-ci-workflow") || strings.Contains(prompt, ".github/workflows/ci.yml") {
+			script := `
+mkdir -p .github/workflows
+cat << 'EOF' > .github/workflows/ci.yml
+name: Python application
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.10"
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    - name: Test with unittest
+      run: |
+        python -m unittest discover
+EOF
+
+agent-bridge feature set req-ci-workflow --status done --passes true
+`
+			return fmt.Sprintf("I will setup the CI workflow.\n\n```bash\n%s\n```", script), nil
+		}
+
 		// Fallback command to avoid NO-OP loop
 		return "```bash\necho 'Mock Agent is thinking...'\n```", nil
 	}

@@ -55,6 +55,21 @@ func TestMockAgent_Coding(t *testing.T) {
 	}
 }
 
+func TestMockAgent_CI_Workflow(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "## YOUR ROLE - CODING AGENT\nTask: req-ci-workflow"
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(response, ".github/workflows/ci.yml") {
+		t.Error("Expected CI workflow file creation")
+	}
+	if !strings.Contains(response, "agent-bridge feature set req-ci-workflow") {
+		t.Error("Expected agent-bridge call for req-ci-workflow")
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
