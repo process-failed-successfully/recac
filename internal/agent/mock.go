@@ -47,11 +47,11 @@ cat << 'EOF' | agent-bridge import
       "id": "req-script-prints-primes-up-to-100",
       "category": "functional",
       "priority": "MVP",
-      "description": "[PRIMES] Script prints primes up to 100",
+      "description": "[PRIMES] Script calculates primes up to 10000",
       "status": "pending",
       "steps": [
         "Run python3 primes.py",
-        "Verify output contains prime numbers up to 100"
+        "Verify output contains prime numbers up to 10000"
       ],
       "passes": false,
       "dependencies": {
@@ -94,7 +94,7 @@ EOF
     "description": "Create a Python script to calculate prime numbers.",
     "type": "Story",
     "acceptance_criteria": [
-      "Script prints primes up to 100",
+      "Script prints primes up to 10000",
       "Script is runnable"
     ]
   }
@@ -136,10 +136,10 @@ def is_prime(n):
         if n % i == 0: return False
     return True
 
-primes = [x for x in range(101) if is_prime(x)]
-print(primes)
+primes = [x for x in range(10000) if is_prime(x)]
+print(f"Calculated {len(primes)} primes")
 with open('primes.json', 'w') as f:
-    json.dump(primes, f)
+    json.dump({"primes": primes}, f)
 EOF
 
 python3 primes.py

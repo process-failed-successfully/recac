@@ -26,8 +26,8 @@ func TestPersonaManager_AddRemove(t *testing.T) {
 	pm := NewPersonaManager()
 
 	newP := Persona{
-		Name: "Tester",
-		Description: "A tester",
+		Name:         "Tester",
+		Description:  "A tester",
 		SystemPrompt: "You are a tester.",
 	}
 

@@ -18,6 +18,12 @@ func TestMockAgent_Primes(t *testing.T) {
 	if !strings.Contains(resp, "cat << 'EOF' > primes.py") {
 		t.Error("Response should contain primes.py creation script")
 	}
+	if !strings.Contains(resp, "range(10000)") {
+		t.Error("Response should calculate primes up to 10000")
+	}
+	if !strings.Contains(resp, "json.dump({\"primes\": primes}, f)") {
+		t.Error("Response should output JSON object with 'primes' key")
+	}
 	if !strings.Contains(resp, "python3 primes.py") {
 		t.Error("Response should run the python script")
 	}
