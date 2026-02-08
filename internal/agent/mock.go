@@ -37,8 +37,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		strings.Contains(prompt, "[PRIMES]") ||
 		strings.Contains(prompt, "req-implement-prime-calculation-lo") ||
 		strings.Contains(prompt, "req-output-results-to-primes-json") ||
-		strings.Contains(prompt, "primes.json") {
+		strings.Contains(prompt, "primes.json") ||
+		strings.Contains(prompt, "QA AGENT") {
 		// Detect Role to decide between Plan (JSON) and Implementation (Bash)
+		if strings.Contains(prompt, "QA AGENT") {
+			return m.generateQAResponse(), nil
+		}
 		if strings.Contains(prompt, "ROLE: Lead Software Architect") || strings.Contains(prompt, "ROLE - PROJECT MANAGER") {
 			return m.generatePrimesArchitectPlan(), nil
 		}
@@ -151,6 +155,16 @@ python3 primes.py
 git add primes.py primes.json
 git commit -m "Implement primes.py and generate primes.json"
 git push origin HEAD
+` + "```" + `
+`
+}
+
+func (m *MockAgent) generateQAResponse() string {
+	return `
+I have verified the implementation and it meets the requirements.
+
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
 ` + "```" + `
 `
 }
