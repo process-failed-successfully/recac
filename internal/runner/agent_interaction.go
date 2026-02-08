@@ -264,23 +264,24 @@ func (s *Session) runQAAgent(ctx context.Context) error {
 	}
 
 	// Wait briefly for DB sync if command executed asynchronously
-	time.Sleep(100 * time.Millisecond)
+	// Retry loop to handle DB latency in CI environments
+	var val string
+	for i := 0; i < 20; i++ { // Poll for up to 4 seconds (20 * 200ms)
+		time.Sleep(200 * time.Millisecond)
 
-	// 3. Check DB Signal (Authoritative)
-	// We read the raw signal value. "true" = PASS, "false" (or missing) = FAIL.
-	// Note: checking "false" explicitly allows us to distinguish between "agent said fail" and "agent did nothing".
-	val, err := s.DBStore.GetSignal(s.Project, "QA_PASSED")
-	s.Logger.Info("QA result signal check", "signal", val, "error", err)
+		val, err = s.DBStore.GetSignal(s.Project, "QA_PASSED")
+		if err == nil && val == "true" {
+			s.Logger.Info("QA passed (signal verified)")
+			return nil
+		}
 
-	if err == nil && val == "true" {
-		s.Logger.Info("QA passed (signal verified)")
-		return nil
+		if val == "false" {
+			s.Logger.Error("QA failed (explicit signal)")
+			return fmt.Errorf("QA Agent explicitly signaled failure")
+		}
 	}
 
-	if val == "false" {
-		s.Logger.Error("QA failed (explicit signal)")
-		return fmt.Errorf("QA Agent explicitly signaled failure")
-	}
+	s.Logger.Info("QA result signal check (final)", "signal", val, "error", err)
 
 	// Fallback/Legacy/Missing Signal
 	s.Logger.Error("QA failed (no signal set)",
@@ -370,10 +371,13 @@ func (s *Session) runManagerAgent(ctx context.Context) error {
 		s.Logger.Warn("manager agent command execution failed", "error", err)
 	}
 
-	// Check for PROJECT_SIGNED_OFF signal
-	if s.hasSignal("PROJECT_SIGNED_OFF") {
-		s.Logger.Info("manager approved, project signed off via signal")
-		return nil
+	// Check for PROJECT_SIGNED_OFF signal with retry
+	for i := 0; i < 20; i++ { // Poll for up to 4 seconds
+		if s.hasSignal("PROJECT_SIGNED_OFF") {
+			s.Logger.Info("manager approved, project signed off via signal")
+			return nil
+		}
+		time.Sleep(200 * time.Millisecond)
 	}
 
 	// Fallback to legacy ratio check if no explicit signal was given
