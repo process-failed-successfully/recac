@@ -114,8 +114,7 @@ EOF
 		strings.Contains(prompt, "Software Engineer")
 
 	if isDeveloper &&
-		strings.Contains(prompt, "primes.py") &&
-		!strings.Contains(prompt, "Review") {
+		strings.Contains(prompt, "primes.py") {
 
 		// Check if it's already implemented to avoid infinite loops
 		// If the prompt contains "current state" and "primes.py", we might assume it's done?
