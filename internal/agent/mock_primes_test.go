@@ -9,7 +9,7 @@ import (
 func TestMockAgent_Primes(t *testing.T) {
 	agent := NewMockAgent()
 	// Must include "Coding Agent" to satisfy stricter heuristic
-	prompt := "You are the Coding Agent. Please implement [PRIMES] calculation"
+	prompt := "## YOUR ROLE - CODING AGENT\nPlease implement [PRIMES] calculation"
 
 	resp, err := agent.Send(context.Background(), prompt)
 	if err != nil {
