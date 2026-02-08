@@ -69,11 +69,11 @@ func doSomething(f float64) {
 	checkFinding(t, results, "\"magic_string\"", 2, "STRING")
 	checkFinding(t, results, "3.14", 1, "FLOAT")
 
-	checkMissing(t, results, "100")       // Const
-	checkMissing(t, results, "\"skip_me\"") // Const
+	checkMissing(t, results, "100")          // Const
+	checkMissing(t, results, "\"skip_me\"")  // Const
 	checkMissing(t, results, "\"skip_tag\"") // Tag
-	checkMissing(t, results, "\"fmt\"")     // Import
-	checkMissing(t, results, "0")           // Default ignore
+	checkMissing(t, results, "\"fmt\"")      // Import
+	checkMissing(t, results, "0")            // Default ignore
 }
 
 func checkFinding(t *testing.T, results map[string]MagicFinding, val string, count int, expectedType string) {

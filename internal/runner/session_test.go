@@ -33,7 +33,6 @@ func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(
 	return m.Response, nil
 }
 
-
 func TestSession_ReadSpec(t *testing.T) {
 	tmpDir := t.TempDir()
 	specContent := "Application Specification v1.0"
