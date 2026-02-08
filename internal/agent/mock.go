@@ -40,7 +40,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     {
       "id": "PRIMES",
       "category": "functional",
-      "description": "Script calculates primes correctly",
+      "description": "Implement a python script named 'primes.py' that calculates primes correctly",
       "status": "pending",
       "steps": [
         "Create primes.py",
@@ -71,7 +71,7 @@ cat <<EOF | agent-bridge import
     {
       "id": "PRIMES",
       "category": "functional",
-      "description": "Script calculates primes correctly",
+      "description": "Implement a python script named 'primes.py' that calculates primes correctly",
       "status": "pending",
       "steps": [
         "Create primes.py",
@@ -142,7 +142,8 @@ agent-bridge feature set PRIMES --status done --passes true
 
 	// 5. Coding Agent - Prime Python Scenario
 	// Only trigger this if we are NOT the planner (handled above)
-	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
+	// We check for various forms of the task ID/description to ensure we catch it even if Initializer created it (which might lack "primes.py")
+	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "Task: PRIMES") || strings.Contains(prompt, "Feature ID: PRIMES") {
 
 		// Guard: If we've already implemented it, don't loop forever.
 		if strings.Contains(prompt, "primes.json") && strings.Contains(prompt, "implemented") {
