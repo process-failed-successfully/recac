@@ -39,7 +39,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Project Manager (TPM) - Generate Ticket/Feature List
-	if strings.Contains(prompt, "ROLE - PROJECT MANAGER") {
+	// Check for standard role header OR the specific content from tpm_agent.md template
+	if strings.Contains(prompt, "ROLE - PROJECT MANAGER") || strings.Contains(prompt, "Technical Program Manager") {
 		if strings.Contains(promptLower, "review") || strings.Contains(promptLower, "sign off") {
 			return m.handleProjectManagerReview(prompt)
 		}
@@ -52,7 +53,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 4. QA Agent
-	if strings.Contains(prompt, "ROLE - QA AGENT") || strings.Contains(promptLower, "verify") {
+	// Be stricter about "verify" to avoid false positives with TPM prompts containing "verify"
+	if strings.Contains(prompt, "ROLE - QA AGENT") || (strings.Contains(promptLower, "verify") && strings.Contains(promptLower, "project") && !strings.Contains(prompt, "Technical Program Manager")) {
 		return m.handleQAAgent(prompt)
 	}
 
