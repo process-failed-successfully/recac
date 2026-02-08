@@ -124,6 +124,27 @@ agent-bridge feature set PRIMES --status done --passes true
 		return "I will signal completion.\n\n```bash\nagent-bridge signal COMPLETED true\n```\n", nil
 	}
 
+	// 4. QA Agent Role - Verify Implementation
+	if strings.Contains(prompt, "QA AGENT") || strings.Contains(prompt, "Quality Assurance") {
+		return `I will verify the project.
+
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// 5. Manager Agent Role - Final Sign-off
+	// Triggered after QA passes
+	if strings.Contains(prompt, "MANAGER AGENT") || strings.Contains(prompt, "Manager Review") {
+		return `I have reviewed the project and it looks good.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged
+` + "```" + `
+`, nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",

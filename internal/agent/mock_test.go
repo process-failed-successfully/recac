@@ -76,6 +76,30 @@ func TestMockAgent_Completion(t *testing.T) {
 	}
 }
 
+func TestMockAgent_QA(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "## YOUR ROLE - QA AGENT\n\nYour job is to verify the project."
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(response, "agent-bridge signal QA_PASSED true") {
+		t.Errorf("QA Agent heuristic failed, got: %s", response)
+	}
+}
+
+func TestMockAgent_Manager(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "## YOUR ROLE - MANAGER AGENT\n\nManager Review"
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(response, "agent-bridge signal PROJECT_SIGNED_OFF true --privileged") {
+		t.Errorf("Manager Agent heuristic failed, got: %s", response)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
