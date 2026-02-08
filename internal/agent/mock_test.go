@@ -18,15 +18,29 @@ func TestMockAgent(t *testing.T) {
 	assert.Contains(t, response, "I received your prompt")
 }
 
-func TestMockAgent_Primes(t *testing.T) {
+func TestMockAgent_Primes_TPM(t *testing.T) {
 	agent := NewMockAgent()
-	prompt := "### ID:[PRIMES] Please create a python script primes.py"
+	prompt := "You are a Technical Program Manager. Break down the requirements for ### ID:[PRIMES] Prime Number Script"
+
+	response, err := agent.Send(context.Background(), prompt)
+
+	assert.NoError(t, err)
+	// Must return JSON
+	assert.Contains(t, response, `[`)
+	assert.Contains(t, response, `"title": "ID:[PRIMES] Create primes.py"`)
+	assert.Contains(t, response, `"type": "Task"`)
+	assert.Contains(t, response, `]`)
+}
+
+func TestMockAgent_Primes_Coding(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "You are a Coding Agent. Implement ### ID:[PRIMES] Please create a python script primes.py"
 
 	response, err := agent.Send(context.Background(), prompt)
 
 	assert.NoError(t, err)
 
-	// Check for key components
+	// Check for bash block components
 	assert.Contains(t, response, "cat << 'EOF' > primes.py")
 	assert.Contains(t, response, "def is_prime(n):")
 	assert.Contains(t, response, "python3 primes.py")

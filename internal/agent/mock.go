@@ -32,9 +32,33 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// [PRIMES] Scenario Heuristic
+	// [PRIMES] Scenario Heuristics
+
+	// 1. TPM Role (Ticket Generation)
+	// The `recac jira generate-from-spec` command sends a prompt asking to break down the spec.
+	// We must return valid JSON for the CLI to parse.
+	if (strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM")) && strings.Contains(prompt, "[PRIMES]") {
+		return `[
+  {
+    "title": "ID:[PRIMES] Create primes.py",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to 'primes.json'. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
+    "type": "Task",
+    "acceptance_criteria": [
+      "primes.py exists",
+      "primes.json is generated",
+      "Contains 1229 primes",
+      "Primes are < 10000"
+    ],
+    "children": []
+  }
+]`, nil
+	}
+
+	// 2. Coding Agent Role (Implementation)
+	// The orchestrator loop sends a prompt to implement the ticket.
+	// We must return a conversational response with a bash block.
 	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
-		return m.handlePrimesScenario(prompt), nil
+		return m.handlePrimesCodingScenario(prompt), nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
@@ -44,7 +68,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	return response, nil
 }
 
-func (m *MockAgent) handlePrimesScenario(prompt string) string {
+func (m *MockAgent) handlePrimesCodingScenario(prompt string) string {
 	// If the prompt asks for the primes script, generate it.
 	// We return a response that creates the file using a bash block, runs it, and commits it.
 
