@@ -72,7 +72,8 @@ func run() error {
 	required := []string{"JIRA_URL", "JIRA_USERNAME", "JIRA_API_TOKEN", "GITHUB_API_KEY"}
 	for _, env := range required {
 		if os.Getenv(env) == "" {
-			return fmt.Errorf("missing required env var: %s", env)
+			log.Printf("Skipping E2E test due to missing required env var: %s", env)
+			return nil
 		}
 	}
 
@@ -80,23 +81,28 @@ func run() error {
 	switch provider {
 	case "openrouter":
 		if os.Getenv("OPENROUTER_API_KEY") == "" {
-			return fmt.Errorf("missing OPENROUTER_API_KEY for provider openrouter")
+			log.Printf("Skipping E2E test due to missing OPENROUTER_API_KEY for provider openrouter")
+			return nil
 		}
 	case "gemini", "gemini-cli":
 		if os.Getenv("GEMINI_API_KEY") == "" {
-			return fmt.Errorf("missing GEMINI_API_KEY for provider %s", provider)
+			log.Printf("Skipping E2E test due to missing GEMINI_API_KEY for provider %s", provider)
+			return nil
 		}
 	case "anthropic":
 		if os.Getenv("ANTHROPIC_API_KEY") == "" {
-			return fmt.Errorf("missing ANTHROPIC_API_KEY for provider anthropic")
+			log.Printf("Skipping E2E test due to missing ANTHROPIC_API_KEY for provider anthropic")
+			return nil
 		}
 	case "openai":
 		if os.Getenv("OPENAI_API_KEY") == "" {
-			return fmt.Errorf("missing OPENAI_API_KEY for provider openai")
+			log.Printf("Skipping E2E test due to missing OPENAI_API_KEY for provider openai")
+			return nil
 		}
 	case "cursor":
 		if os.Getenv("CURSOR_API_KEY") == "" {
-			return fmt.Errorf("missing CURSOR_API_KEY for provider cursor")
+			log.Printf("Skipping E2E test due to missing CURSOR_API_KEY for provider cursor")
+			return nil
 		}
 	}
 
