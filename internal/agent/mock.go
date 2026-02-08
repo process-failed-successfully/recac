@@ -51,7 +51,31 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		}
 	}
 
-	// 2. Coding Agent / Developer (Primes)
+	// 2. Technical Program Manager (TPM)
+	// We check this BEFORE the coding agent because the prompt might contain the spec
+	// which includes "[PRIMES]", which triggers the coding agent heuristic.
+	if strings.Contains(strings.ToUpper(prompt), "ROLE - TECHNICAL PROGRAM MANAGER") {
+		// Check if it's the primes scenario specifically for TPM
+		if containsAny(prompt, []string{"[PRIMES]", "Prime Number Script", "Implement Primes"}) {
+			return `[
+  {
+    "title": "ID:[req-primes] Implement Prime Number Script",
+    "description": "Create a python script that calculates primes up to 10000 and writes them to primes.json. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
+    "type": "Story",
+    "acceptance_criteria": [
+      "Script primes.py created",
+      "Script writes output to primes.json",
+      "primes.json contains valid JSON list of primes"
+    ],
+    "children": []
+  }
+]`, nil
+		}
+		// Return empty or valid JSON ticket list to avoid blocking for other scenarios
+		return `[]`, nil
+	}
+
+	// 3. Coding Agent / Developer (Primes)
 	// We check for keywords related to the Primes scenario
 	if containsAny(prompt, []string{"[PRIMES]", "primes.py", "Implement Primes", "Prime Number Script"}) {
 		// Return the implementation
@@ -81,12 +105,6 @@ git commit -m "Add primes script and output"
 agent-bridge feature set --id req-primes --status done
 ` + "```" + `
 `, nil
-	}
-
-	// 3. Technical Program Manager (TPM)
-	if strings.Contains(strings.ToUpper(prompt), "ROLE - TECHNICAL PROGRAM MANAGER") {
-		// Return empty or valid JSON ticket list to avoid blocking
-		return `[]`, nil
 	}
 
 	// Default response
