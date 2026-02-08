@@ -127,17 +127,25 @@ EOF
 	}
 
 	// 4. Project Manager / QA Heuristic
-	// If the prompt asks for status or QA, and we see "pending", we should probably say "approved" or "continue".
-	if strings.Contains(prompt, "ROLE: Project Manager") || strings.Contains(prompt, "QA") {
-		// If it looks like we are stuck in a loop, give a "DONE" signal
-		if strings.Contains(prompt, "pending") {
-			return `The feature looks complete.
+	// If the prompt asks for status or QA, we should probably say "approved" or "continue".
+	if strings.Contains(prompt, "ROLE: Project Manager") || strings.Contains(prompt, "PROJECT MANAGER") || strings.Contains(prompt, "QA") {
+		// If it's the QA Agent, pass the checks
+		if strings.Contains(prompt, "QA") {
+			return `Tests passed.
 
 ` + "```bash" + `
-agent-bridge feature set PRIMES --status done --passes true
+agent-bridge signal QA_PASSED true
 ` + "```" + `
 `, nil
 		}
+
+		// If it's the Project Manager, sign off
+		return `Project looks good.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
 	}
 
 	// 5. Coding Agent - Prime Python Scenario

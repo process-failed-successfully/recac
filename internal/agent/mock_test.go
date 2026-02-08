@@ -59,3 +59,37 @@ Script calculates primes correctly
 		t.Errorf("Expected Coding Agent response, got: %s", response)
 	}
 }
+
+func TestMockAgent_QA_Success(t *testing.T) {
+	agent := NewMockAgent()
+	// Simulate QA prompt without "pending"
+	prompt := `## YOUR ROLE - QA AGENT
+
+Your job is to verify the project.
+`
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "agent-bridge signal QA_PASSED true") {
+		t.Errorf("Expected QA success signal, got: %s", response)
+	}
+}
+
+func TestMockAgent_Manager_Success(t *testing.T) {
+	agent := NewMockAgent()
+	// Simulate Manager prompt without "pending"
+	prompt := `## YOUR ROLE - PROJECT MANAGER
+
+Your job is to Approve.
+`
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "agent-bridge signal PROJECT_SIGNED_OFF true") {
+		t.Errorf("Expected Project Manager sign-off, got: %s", response)
+	}
+}
