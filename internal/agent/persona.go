@@ -72,7 +72,8 @@ func NewPersonaManager() *PersonaManager {
 func (pm *PersonaManager) LoadPersonas() error {
 	path, err := getPersonasFilePath()
 	if err != nil {
-		return err
+		// If we can't determine the path (e.g. no home dir), just use defaults.
+		return nil
 	}
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -81,7 +82,12 @@ func (pm *PersonaManager) LoadPersonas() error {
 
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return fmt.Errorf("failed to read personas file: %w", err)
+		// If user explicitly provided a file via env var, return error.
+		if os.Getenv("RECAC_PERSONAS_FILE") != "" {
+			return fmt.Errorf("failed to read personas file: %w", err)
+		}
+		// Otherwise, suppress error (e.g. permission denied on default file) and use defaults.
+		return nil
 	}
 
 	var customPersonas map[string]Persona

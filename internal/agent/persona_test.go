@@ -99,3 +99,14 @@ func TestPersonaManager_OverrideDefault(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, "Overridden Default", p.Name)
 }
+
+func TestPersonaManager_ExplicitFileError(t *testing.T) {
+	// Point to a directory (ReadFile fails)
+	tmpDir := t.TempDir()
+	os.Setenv("RECAC_PERSONAS_FILE", tmpDir)
+	defer os.Unsetenv("RECAC_PERSONAS_FILE")
+
+	pm := NewPersonaManager()
+	err := pm.LoadPersonas()
+	assert.Error(t, err) // Should error because explicit file
+}
