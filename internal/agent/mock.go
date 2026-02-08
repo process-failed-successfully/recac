@@ -52,8 +52,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// Otherwise fallback to git init.
 		gitSetup := `
 set -e # Fail fast
-# Ensure clean slate
-rm -rf .git
+# Ensure clean slate (delete all files including hidden ones to allow git clone)
+find . -mindepth 1 -delete
 
 if [ -n "$GITHUB_API_KEY" ] && [ -n "` + repoURL + `" ]; then
   # Inject token into URL
