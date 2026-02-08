@@ -54,7 +54,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return `I will generate the feature list for the primes task.
 
 ` + "```bash" + `
-cat << 'EOF' > feature_list.json
+cat << 'EOF' | agent-bridge import
 {
   "project_name": "Primes",
   "features": [
@@ -86,7 +86,8 @@ EOF
 
 	// 2. Coding Agent Role - Implementation for [PRIMES]
 	// Detect via task context or ID
-	if (strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "primes.py")) &&
+	// coding_agent.md prompt includes "Feature ID: {task_id}" and "{task_description}"
+	if (strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "Feature ID: PRIMES") || strings.Contains(prompt, "primes.py")) &&
 	   (strings.Contains(prompt, "You are a software engineer") || strings.Contains(prompt, "CODING AGENT")) {
 		return `I will implement the primes script.
 

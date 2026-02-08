@@ -44,7 +44,8 @@ func TestMockAgent_Initializer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
 	}
-	if !strings.Contains(response, "> feature_list.json") || !strings.Contains(response, "```bash") {
+	// Updated to expect agent-bridge import
+	if !strings.Contains(response, "| agent-bridge import") || !strings.Contains(response, "```bash") {
 		t.Errorf("Initializer heuristic failed, got: %s", response)
 	}
 }
