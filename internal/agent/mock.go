@@ -37,7 +37,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 1. Initializer Agent (Feature List)
 	if strings.Contains(strings.ToUpper(prompt), "ROLE - INITIALIZER AGENT") || strings.Contains(prompt, "feature list") {
 		if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
-			return `{
+			return `Here is the feature list plan.
+
+` + "```bash" + `
+cat <<EOF > feature_list.json
+{
   "features": [
     {
       "id": "req-primes",
@@ -47,7 +51,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
       "dependencies": {"depends_on_ids": []}
     }
   ]
-}`, nil
+}
+EOF
+agent-bridge import < feature_list.json
+` + "```" + `
+`, nil
 		}
 	}
 
