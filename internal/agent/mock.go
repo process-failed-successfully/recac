@@ -67,6 +67,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 ` + "```bash" + `
 cat <<EOF > primes.py
+import json
+
 def is_prime(n):
     if n <= 1:
         return False
@@ -76,9 +78,9 @@ def is_prime(n):
     return True
 
 if __name__ == "__main__":
-    import sys
-    if len(sys.argv) > 1:
-        print(is_prime(int(sys.argv[1])))
+    primes = [n for n in range(10000) if is_prime(n)]
+    with open("primes.json", "w") as f:
+        json.dump({"primes": primes}, f)
 EOF
 
 cat <<EOF > test_primes.py
@@ -95,7 +97,10 @@ if __name__ == '__main__':
     unittest.main()
 EOF
 
-git add primes.py test_primes.py
+# Run script to generate output
+python3 primes.py
+
+git add primes.py test_primes.py primes.json
 git commit -m "Implement primes service"
 git push
 ` + "```" + `

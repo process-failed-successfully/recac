@@ -24,6 +24,8 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	respCode, err := agent.Send(ctx, promptCode)
 	assert.NoError(t, err)
 	assert.Contains(t, respCode, "cat <<EOF > primes.py", "Response should contain bash command to create primes.py")
+	assert.Contains(t, respCode, "python3 primes.py", "Response should contain command to run the script")
+	assert.Contains(t, respCode, "git add primes.py test_primes.py primes.json", "Response should stage generated artifact")
 	assert.Contains(t, respCode, "git commit -m", "Response should contain git commit command")
 	assert.Contains(t, respCode, "I have completed the task", "Response should contain completion signal")
 
