@@ -107,7 +107,23 @@ agent-bridge feature set req-primes-implementation --status done --passes true
 
 	// 5. Initializer Agent
 	if strings.Contains(lowerPrompt, "role - initializer agent") || strings.Contains(lowerPrompt, "role: initializer agent") {
-		return `{"features": []}`, nil
+		return `
+#!/bin/bash
+cat << 'EOF' | agent-bridge import
+{
+   "project_name": "primes",
+   "features": [
+       {
+           "id": "req-primes-implementation",
+           "name": "Implement Primes Script",
+           "description": "Create primes.py and primes.json",
+           "priority": "1",
+           "dependencies": {"depends_on_ids": []}
+       }
+   ]
+}
+EOF
+`, nil
 	}
 
 	// Return a generic mock response if no heuristics matched

@@ -65,3 +65,28 @@ func TestMockAgent_PrimesScenario(t *testing.T) {
 		t.Errorf("Expected title 'Implement Primes Script', got '%s'", tickets[0].Title)
 	}
 }
+
+func TestMockAgent_Initializer(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "ROLE - INITIALIZER AGENT"
+
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Verify it returns a bash script
+	if !strings.Contains(resp, "#!/bin/bash") {
+		t.Error("Expected bash script")
+	}
+
+	// Verify it pipes to agent-bridge import
+	if !strings.Contains(resp, "agent-bridge import") {
+		t.Error("Expected 'agent-bridge import' command")
+	}
+
+	// Verify JSON structure
+	if !strings.Contains(resp, "req-primes-implementation") {
+		t.Error("Expected feature ID 'req-primes-implementation'")
+	}
+}
