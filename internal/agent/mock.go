@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -51,7 +52,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Initializer Agent
-	if strings.Contains(prompt, "Initializer Agent") || strings.Contains(prompt, "Create init.sh") {
+	if strings.Contains(prompt, "YOUR ROLE - INITIALIZER AGENT") {
 		// Extract Project ID if present (e.g. "PROJ-123")
 		// The prompt might contain it in the context.
 		// For now we use a fixed ID for the feature list that matches the coding agent heuristic.
@@ -104,8 +105,16 @@ agent-bridge import feature_list.json
 	}
 
 	// 3. Coding Agent
-	if strings.Contains(prompt, "CODING AGENT") && (strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py")) {
-		return `
+	if strings.Contains(prompt, "YOUR ROLE - CODING AGENT") {
+		// Extract Feature ID
+		re := regexp.MustCompile(`(?m)^\s*-\s*\*\*Feature ID\*\*:\s*([^\s]+)`)
+		matches := re.FindStringSubmatch(prompt)
+		featureID := "req-primes-implementation"
+		if len(matches) > 1 {
+			featureID = strings.TrimSpace(matches[1])
+		}
+
+		return fmt.Sprintf(`
 cat << 'EOF' > primes.py
 import sys
 
@@ -113,7 +122,7 @@ def is_prime(n):
     if n <= 1:
         return False
     for i in range(2, int(n**0.5) + 1):
-        if n % i == 0:
+        if n %% i == 0:
             return False
     return True
 
@@ -161,12 +170,12 @@ EOF
 
 python3 test_primes.py
 
-agent-bridge feature set req-primes-implementation --status done --passes true
-`, nil
+agent-bridge feature set %s --status done --passes true
+`, featureID), nil
 	}
 
 	// 4. QA Agent
-	if strings.Contains(prompt, "QA AGENT") {
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
 		return `
 make test
 agent-bridge signal QA_PASSED true
@@ -174,8 +183,10 @@ agent-bridge signal QA_PASSED true
 	}
 
 	// 5. Manager
-	if strings.Contains(prompt, "Manager Review") || strings.Contains(prompt, "PROJECT MANAGER") {
-		return "LGTM. Proceed.", nil
+	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") {
+		return `
+agent-bridge signal PROJECT_SIGNED_OFF true
+`, nil
 	}
 
 	// Default Response
