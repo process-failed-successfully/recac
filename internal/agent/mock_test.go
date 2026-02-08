@@ -107,6 +107,22 @@ func TestMockAgent_Manager(t *testing.T) {
 	}
 }
 
+func TestMockAgent_QA(t *testing.T) {
+	agent := NewMockAgent()
+
+	prompt := "## YOUR ROLE - QA AGENT\n\nYour job is to verify the project."
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(response, "I have verified the project") {
+		t.Errorf("Expected QA verification message, got: %s", response)
+	}
+	if !strings.Contains(response, "agent-bridge signal QA_PASSED true") {
+		t.Errorf("Expected agent-bridge signal command, got: %s", response)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {

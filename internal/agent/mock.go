@@ -155,6 +155,22 @@ agent-bridge feature set req-primes --status done --passes true
 	}
 
 	// 5. QA Agent / Project Manager (Review/Approval)
+	// Check for QA role specifically first (including variations seen in CI)
+	if strings.Contains(prompt, "QA AGENT") || strings.Contains(prompt, "verify the project") {
+		return `I have verified the project.
+
+` + "```bash" + `
+# Run tests to satisfy verification
+go test ./... || echo "Tests failed but continuing"
+
+# Signal QA success
+agent-bridge signal QA_PASSED true
+` + "```" + `
+
+Verification complete.
+`, nil
+	}
+
 	if strings.Contains(prompt, "ROLE - PROJECT MANAGER") {
 		return `The project looks good.
 
