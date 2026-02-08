@@ -110,7 +110,7 @@ cat << 'EOF' | agent-bridge import
       "id": "req-must-correctly-identify-prime-",
       "category": "functional",
       "priority": "MVP",
-      "description": "Script calculates primes correctly and outputs to primes.json",
+      "description": "Implement primes.py script that calculates primes correctly and outputs to primes.json",
       "status": "pending",
       "steps": [
         "Step 1: Run python3 primes.py",
