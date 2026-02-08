@@ -137,8 +137,8 @@ if __name__ == "__main__":
         except ValueError:
             print("Invalid input")
     else:
-        # Generate primes up to 100 for verification
-        primes = [i for i in range(100) if is_prime(i)]
+        # Generate primes up to 10000 for verification
+        primes = [i for i in range(10000) if is_prime(i)]
         with open("primes.json", "w") as f:
             json.dump({"primes": primes}, f)
         print("Generated primes.json")

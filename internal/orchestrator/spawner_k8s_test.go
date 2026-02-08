@@ -140,7 +140,7 @@ func TestK8sSpawner_Spawn_PropagatesEnvVars(t *testing.T) {
 func TestK8sSpawner_Spawn_Lifecycle(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	
+
 	spawner := &K8sSpawner{
 		Client:        clientset,
 		Namespace:     "test-ns",
@@ -167,11 +167,11 @@ func TestK8sSpawner_Spawn_Lifecycle(t *testing.T) {
 		job, err := clientset.BatchV1().Jobs("test-ns").Get(context.Background(), "recac-agent-task-123", metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.Equal(t, "recac-agent-task-123", job.Name)
-		
+
 		// Verify container image and env
 		container := job.Spec.Template.Spec.Containers[0]
 		assert.Equal(t, "recac-agent:latest", container.Image)
-		
+
 		envMap := make(map[string]string)
 		for _, e := range container.Env {
 			envMap[e.Name] = e.Value
