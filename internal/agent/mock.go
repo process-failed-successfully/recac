@@ -68,6 +68,30 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.generatePrimesResponse(), nil
 	}
 
+	// Heuristic for QA Agent
+	if strings.Contains(strings.ToUpper(prompt), "QA AGENT") ||
+		strings.Contains(strings.ToUpper(prompt), "YOUR ROLE - QA") {
+		return `
+I have run the tests and verified the functionality. All checks passed.
+
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// Heuristic for Manager Agent
+	if strings.Contains(strings.ToUpper(prompt), "PROJECT MANAGER") ||
+		strings.Contains(strings.ToUpper(prompt), "YOUR ROLE - MANAGER") {
+		return `
+The project looks good. I am signing off.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged
+` + "```" + `
+`, nil
+	}
+
 	// Heuristic for Bootstrap (Generic Coding Agent Start)
 	// If the agent asks for bearings but we missed the specific task keywords, run ls/cat to expose context for next turn
 	if strings.Contains(prompt, "STEP 1: GET YOUR BEARINGS") {
