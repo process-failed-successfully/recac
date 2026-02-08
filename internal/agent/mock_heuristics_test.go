@@ -44,8 +44,11 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Send failed: %v", err)
 		}
-		if !strings.Contains(resp, "cat <<EOF > feature_list.json") {
-			t.Errorf("Expected feature_list.json creation, got: %s", resp)
+		if !strings.Contains(resp, "cat <<'EOF' > feature_list.json") {
+			t.Errorf("Expected feature_list.json creation (quoted heredoc), got: %s", resp)
+		}
+		if !strings.Contains(resp, "agent-bridge import feature_list.json") {
+			t.Errorf("Expected agent-bridge import, got: %s", resp)
 		}
 		if !strings.Contains(resp, "req-primes") {
 			t.Errorf("Expected req-primes feature, got: %s", resp)

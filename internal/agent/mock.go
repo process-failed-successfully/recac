@@ -47,7 +47,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     "children": [
       {
         "title": "Implement primes.py",
-        "type": "Story",
+        "type": "Sub-task",
         "description": "Write a python script to calculate primes up to 10000. Repo: <repo_url>",
         "acceptance_criteria": [
           "primes.py exists",
@@ -92,7 +92,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
       "priority": "MVP",
       "description": "Verify output json exists",
       "status": "pending",
-      "steps": ["ls primes.json"],
+      "steps": [\"ls primes.json\"],
       "passes": false,
       "dependencies": {"depends_on_ids": ["req-primes"]}
     },
@@ -102,15 +102,23 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
       "priority": "MVP",
       "description": "Verify correct count",
       "status": "pending",
-      "steps": ["grep 1229 primes.json"],
+      "steps": [\"grep 1229 primes.json\"],
       "passes": false,
       "dependencies": {"depends_on_ids": ["req-primes"]}
     }
   ]
 }`
-		// Note: we wrap it in cat <<EOF to write to file safely.
-		// Using heredoc allows embedded quotes.
-		return fmt.Sprintf("I will initialize the project.\n\n```bash\ncat <<EOF > feature_list.json\n%s\nEOF\n```", featureList), nil
+		// Fix: Use agent-bridge import to register features in DB
+		return fmt.Sprintf(`I will initialize the project.
+
+%[1]sbash
+cat <<'EOF' > feature_list.json
+%[2]s
+EOF
+
+# Import into DB
+agent-bridge import feature_list.json
+%[1]s`, "```", featureList), nil
 	}
 
 	// 4. Coding Agent Heuristic

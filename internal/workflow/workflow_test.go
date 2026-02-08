@@ -213,7 +213,8 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 	cfg := SessionConfig{
 		ProjectPath: tmpDir,
 		RepoURL:     "https://github.com/example/already-provided",
-		IsMock:      true,
+		IsMock:      false,
+		Provider:    "mock",
 		Cleanup:     false,
 	}
 
