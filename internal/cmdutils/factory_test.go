@@ -108,6 +108,14 @@ func (m *MockGitClient) Clone(ctx context.Context, repoURL, directory string) er
 	return nil
 }
 
+func (m *MockGitClient) Init(directory string) error {
+	return nil
+}
+
+func (m *MockGitClient) Add(directory, spec string) error {
+	return nil
+}
+
 func (m *MockGitClient) RepoExists(directory string) bool {
 	return m.repoExists
 }

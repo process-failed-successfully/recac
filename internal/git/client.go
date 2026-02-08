@@ -69,6 +69,27 @@ func (c *Client) Clone(ctx context.Context, url, dest string) error {
 	return c.runWithMasking(cloneCtx, "", "clone", url, dest)
 }
 
+// Init initializes a new git repository in the destination directory.
+func (c *Client) Init(dest string) error {
+	cmd := exec.Command("git", "init")
+	cmd.Dir = dest
+	if err := os.MkdirAll(dest, 0755); err != nil {
+		return err
+	}
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+// Add adds files to the git staging area.
+func (c *Client) Add(dir, spec string) error {
+	cmd := exec.Command("git", "add", spec)
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
 // CheckoutNewBranch creates and switches to a new branch.
 func (c *Client) CheckoutNewBranch(dir, branchName string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)

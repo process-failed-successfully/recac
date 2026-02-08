@@ -202,8 +202,12 @@ func run() error {
 
 	// 3. Prepare Repository
 	log.Println("=== Preparing Repository (Cleaning stale branches) ===")
-	if err := prepareRepo(repoURL, ticketMap); err != nil {
-		log.Printf("Warning: Failed to prepare repository: %v", err)
+	if repoURL != "mock-repo" {
+		if err := prepareRepo(repoURL, ticketMap); err != nil {
+			log.Printf("Warning: Failed to prepare repository: %v", err)
+		}
+	} else {
+		log.Println("Skipping repository preparation for mock-repo.")
 	}
 
 	// 4. Deploy (Helm or Local)

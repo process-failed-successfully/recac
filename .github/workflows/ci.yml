@@ -288,7 +288,7 @@ jobs:
               -scenario prime-python \
               -provider mock \
               -image recac:smoke \
-              -repo-url "https://github.com/process-failed-successfully/recac-jira-e2e" \
+              -repo-url "mock-repo" \
               -pull-policy IfNotPresent \
               -skip-build; then
               echo "Test passed!"

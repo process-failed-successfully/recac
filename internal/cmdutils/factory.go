@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"recac/internal/agent"
 	"recac/internal/git"
 	"recac/internal/jira"
@@ -112,7 +113,22 @@ var SetupWorkspace = func(ctx context.Context, gitClient git.IClient, repoURL, w
 	}
 
 	// 2. Clone Repository (if not already present)
-	if !gitClient.RepoExists(workspace) {
+	// Special Case: "mock-repo" for e2e smoke tests
+	if repoURL == "mock-repo" {
+		if !gitClient.RepoExists(workspace) {
+			fmt.Printf("[%s] Initializing mock repository in %s...\n", ticketID, workspace)
+			if err := gitClient.Init(workspace); err != nil {
+				return repoURL, fmt.Errorf("failed to init mock repository: %w", err)
+			}
+			// Configure user for commit
+			_ = gitClient.Config(workspace, "user.email", "mock@recac.com")
+			_ = gitClient.Config(workspace, "user.name", "Mock Agent")
+			// Initial commit to allow branching
+			_ = os.WriteFile(filepath.Join(workspace, "README.md"), []byte("# Mock Repo"), 0644)
+			_ = gitClient.Add(workspace, "README.md")
+			_ = gitClient.Commit(workspace, "Initial commit")
+		}
+	} else if !gitClient.RepoExists(workspace) {
 		fmt.Printf("[%s] Cloning repository into %s...\n", ticketID, workspace)
 		if err := gitClient.Clone(ctx, authRepoURL, workspace); err != nil {
 			return repoURL, fmt.Errorf("failed to clone repository: %w", err)
