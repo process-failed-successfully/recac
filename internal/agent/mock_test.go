@@ -36,7 +36,7 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	}{
 		{
 			name:   "TPM [PRIMES]",
-			prompt: "## YOUR ROLE - TECHNICAL PROGRAM MANAGER ... [PRIMES] ...",
+			prompt: "You are an expert Technical Program Manager (TPM) with deep experience ... [PRIMES] ...",
 			expectContains: []string{
 				`"id": "req-primes"`,
 				`"title": "Implement Prime Number Function"`,

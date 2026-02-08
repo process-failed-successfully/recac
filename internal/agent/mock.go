@@ -34,12 +34,13 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristics for Smoke Test (prime-python scenario)
 	// 1. TPM Agent: Generates the plan
-	if strings.Contains(prompt, "ROLE - TECHNICAL PROGRAM MANAGER") && strings.Contains(prompt, "[PRIMES]") {
+	// The prompt starts with "You are an expert Technical Program Manager (TPM)..."
+	if (strings.Contains(prompt, "Technical Program Manager (TPM)") || strings.Contains(prompt, "ROLE - TECHNICAL PROGRAM MANAGER")) && strings.Contains(prompt, "[PRIMES]") {
 		return `[
   {
     "id": "req-primes",
     "title": "Implement Prime Number Function",
-    "description": "Create a Python file primes.py that checks if a number is prime.",
+    "description": "Create a Python file primes.py that checks if a number is prime. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
     "status": "todo",
     "type": "task"
   }
