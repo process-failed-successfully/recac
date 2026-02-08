@@ -54,7 +54,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 		// 2. Initializer (Feature List Generation)
 		// Detects "Initializer" role or feature list requests
-		if strings.Contains(prompt, "Initialize the project") || strings.Contains(prompt, "feature_list.json") {
+		if (strings.Contains(prompt, "Initialize the project") || strings.Contains(prompt, "feature_list.json")) &&
+			!strings.Contains(prompt, "YOUR ROLE - CODING AGENT") {
 			return "```bash\n" +
 				"cat <<EOF | agent-bridge import\n" +
 				"{\n" +
