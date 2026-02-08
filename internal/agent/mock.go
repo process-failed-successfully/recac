@@ -97,7 +97,8 @@ echo "Initializer Agent Setup Complete"
 
 	// 4. Coding Agent (Implementation)
 	// Check for primes task specifically
-	if strings.Contains(prompt, "primes.py") {
+	// CRITICAL: Ensure we don't accidentally match the Project Manager or other roles that might mention the file.
+	if strings.Contains(prompt, "primes.py") && !strings.Contains(prompt, "ROLE - PROJECT MANAGER") {
 		return `Here is the implementation for primes.py:
 
 ` + "```bash" + `
