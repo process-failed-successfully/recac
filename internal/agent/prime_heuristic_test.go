@@ -20,10 +20,16 @@ func TestMockAgent_Initializer_Primes(t *testing.T) {
 		t.Errorf("Expected response to mention creating feature list for primes, got: %s", response)
 	}
 
-	// Verify it generates the JSON via cat << 'EOF'
-	expectedCmd := "cat << 'EOF' | agent-bridge import"
+	// Verify it generates the JSON via cat << EOF (variable expansion)
+	expectedCmd := "cat << EOF | agent-bridge import"
 	if !strings.Contains(response, expectedCmd) {
 		t.Errorf("Expected response to contain command %q, got: %s", expectedCmd, response)
+	}
+
+	// Verify dynamic project ID
+	expectedProjectID := `"${RECAC_PROJECT_ID:-Prime Number Generator}"`
+	if !strings.Contains(response, expectedProjectID) {
+		t.Errorf("Expected response to contain dynamic project ID %q, got: %s", expectedProjectID, response)
 	}
 
 	// Verify JSON content

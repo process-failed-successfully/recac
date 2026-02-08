@@ -47,9 +47,10 @@ git config user.email "you@example.com"
 git config user.name "Your Name"
 
 # Create feature list via agent-bridge import
-cat << 'EOF' | agent-bridge import
+# Use cat << EOF (no quotes) to allow variable expansion for RECAC_PROJECT_ID
+cat << EOF | agent-bridge import
 {
-  "project_name": "Prime Number Generator",
+  "project_name": "${RECAC_PROJECT_ID:-Prime Number Generator}",
   "features": [
     {
       "id": "PRIMES",
@@ -87,7 +88,32 @@ agent-bridge import --file /app/ticket_plan.json
 `, nil
 	}
 
-	// 2. TPM Agent - Generates the plan
+	// 2. QA Agent - Verifies the project
+	if strings.Contains(prompt, "ROLE - QA AGENT") {
+		return `
+I will verify the project by running the tests and signaling the result.
+
+` + "```bash" + `
+# Run tests (mock)
+echo "Running tests..."
+# Signal success
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// 3. Project Manager - Signs off
+	if strings.Contains(prompt, "ROLE - PROJECT MANAGER") {
+		return `
+I see that QA passed. I will sign off on the project.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
+	}
+
+	// 4. TPM Agent - Generates the plan
 	// Removed "Application Specification" check as it is too broad and appears in Initializer prompt
 	if strings.Contains(prompt, "Technical Program Manager") {
 		return `
