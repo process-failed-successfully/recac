@@ -136,8 +136,8 @@ func (m *MockAgent) primesPlanResponse() string {
 	return `[
   {
     "id": "PRIMES",
-    "title": "Calculate Primes",
-    "description": "Create a script primes.py that calculates prime numbers up to 100 and saves them to primes.json. [PRIMES]",
+    "title": "ID:[PRIMES] Calculate Primes",
+    "description": "Create a script primes.py that calculates prime numbers up to 10000 and saves them to primes.json. [PRIMES]",
     "type": "Task",
     "status": "Open",
     "assigned_to": "Developer"
@@ -174,11 +174,11 @@ def is_prime(n):
         if n % i == 0: return False
     return True
 
-primes = [x for x in range(1, 101) if is_prime(x)]
+primes = [x for x in range(1, 10000) if is_prime(x)]
 print(primes)
 
 with open('primes.json', 'w') as f:
-    json.dump(primes, f)
+    json.dump({"primes": primes}, f)
 EOF
 
 python3 primes.py

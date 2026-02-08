@@ -49,6 +49,7 @@ func TestMockAgent_SmartLogic(t *testing.T) {
 			prompt: "You are the Technical Program Manager. The task is [PRIMES].",
 			expectContains: []string{
 				`"id": "PRIMES"`,
+				`"title": "ID:[PRIMES] Calculate Primes"`,
 				`"assigned_to": "Developer"`,
 			},
 		},
@@ -65,6 +66,8 @@ func TestMockAgent_SmartLogic(t *testing.T) {
 			expectContains: []string{
 				"cat <<EOF > primes.py",
 				"def is_prime(n):",
+				"range(1, 10000)",
+				`json.dump({"primes": primes}, f)`,
 				"python3 primes.py",
 				"agent-bridge feature set PRIMES --status done --passes true",
 			},
