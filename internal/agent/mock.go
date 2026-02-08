@@ -54,7 +54,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 2. Technical Program Manager (TPM)
 	// We check this BEFORE the coding agent because the prompt might contain the spec
 	// which includes "[PRIMES]", which triggers the coding agent heuristic.
-	if strings.Contains(strings.ToUpper(prompt), "ROLE - TECHNICAL PROGRAM MANAGER") {
+	// The prompt typically starts with "You are an expert Technical Program Manager (TPM)..."
+	if strings.Contains(strings.ToUpper(prompt), "TECHNICAL PROGRAM MANAGER") {
 		// Check if it's the primes scenario specifically for TPM
 		if containsAny(prompt, []string{"[PRIMES]", "Prime Number Script", "Implement Primes"}) {
 			return `[
