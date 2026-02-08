@@ -129,6 +129,7 @@ EOF
 
 ` + "```bash" + `
 agent-bridge feature set PRIMES --status done --passes true
+agent-bridge signal create QA_PASSED true
 agent-bridge signal create PROJECT_SIGNED_OFF
 ` + "```" + `
 `, nil
