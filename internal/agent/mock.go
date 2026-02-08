@@ -107,7 +107,7 @@ func (m *MockAgent) tpmResponse(prompt string) string {
   "tickets": [
     {
       "id": "TASK-1",
-      "title": "Create primes.py",
+      "title": "ID:[PRIMES] Create primes.py",
       "description": "Create a python script that calculates primes and writes them to primes.json. [PRIMES]",
       "type": "task",
       "assigned_to": "coding_agent",
@@ -149,9 +149,9 @@ def is_prime(n):
         if n % i == 0: return False
     return True
 
-primes = [x for x in range(1, 101) if is_prime(x)]
+primes = [x for x in range(2, 10000) if is_prime(x)]
 with open("primes.json", "w") as f:
-    json.dump(primes, f)
+    json.dump({"primes": primes}, f)
 print(f"Generated {len(primes)} primes")
 EOF
 
