@@ -74,6 +74,10 @@ func (pm *PersonaManager) LoadPersonas() error {
 	if err != nil {
 		return err
 	}
+	if path == "" {
+		// No home directory and no env var set, so just use defaults
+		return nil
+	}
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return nil // No custom personas file, just use defaults
@@ -101,6 +105,9 @@ func (pm *PersonaManager) SavePersonas() error {
 	path, err := getPersonasFilePath()
 	if err != nil {
 		return err
+	}
+	if path == "" {
+		return errors.New("cannot save personas: home directory not found and RECAC_PERSONAS_FILE not set")
 	}
 
 	// Ensure directory exists
@@ -179,7 +186,9 @@ func getPersonasFilePath() (string, error) {
 
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", err
+		// If home dir is not found, we can't load/save default location.
+		// Return empty path so caller can decide what to do (e.g. skip load).
+		return "", nil
 	}
 	return filepath.Join(home, ".recac", "personas.yaml"), nil
 }
