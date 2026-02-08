@@ -27,7 +27,16 @@ jobs:
         run: |
           # Hash test.Dockerfile to create a unique tag
           DOCKERFILE_HASH=${{ hashFiles('test.Dockerfile') }}
-          IMAGE_TAG=test-${{ runner.os }}-${DOCKERFILE_HASH}
+
+          # Calculate safe ref name (sanitize and truncate)
+          REF_NAME=${{ github.ref_name }}
+          SAFE_REF=${REF_NAME//\//-}
+          SAFE_REF=${SAFE_REF:0:100} # Truncate to 100 chars to leave room for suffix
+
+          IMAGE_TAG=test-${{ runner.os }}-${SAFE_REF}-${DOCKERFILE_HASH}
+          # Ensure total length < 128
+          IMAGE_TAG=${IMAGE_TAG:0:127}
+
           IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG"
           # Convert to lowercase
           IMAGE=$(echo $IMAGE | tr '[:upper:]' '[:lower:]')

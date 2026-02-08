@@ -183,6 +183,12 @@ type ticketNode struct {
 	Children           []ticketNode `json:"children"`
 }
 
+// Struct to handle "agent-bridge import" format
+type featureImport struct {
+	ProjectName string       `json:"project_name"`
+	Features    []ticketNode `json:"features"`
+}
+
 // jiraGenerateFromSpecCmd represents the jira generate-from-spec command
 var jiraGenerateFromSpecCmd = &cobra.Command{
 	Use:   "generate-from-spec",
@@ -320,8 +326,16 @@ func generateTickets(ctx context.Context, specContent, projectKey, repoURL strin
 	}
 
 	var tickets []ticketNode
+	// Try parsing as []ticketNode
 	if err := json.Unmarshal([]byte(jsonStr), &tickets); err != nil {
-		return nil, fmt.Errorf("failed to parse agent response as JSON: %w\nResponse was:\n%s", err, resp)
+		// Try parsing as featureImport wrapper
+		var wrapped featureImport
+		if err2 := json.Unmarshal([]byte(jsonStr), &wrapped); err2 == nil {
+			// Found wrapped format!
+			tickets = wrapped.Features
+		} else {
+			return nil, fmt.Errorf("failed to parse agent response as JSON (tried list and wrapper): %w\nResponse was:\n%s", err, resp)
+		}
 	}
 
 	return createTicketsFromNodes(ctx, tickets, projectKey, repoURL, allLabels, jiraClient)
