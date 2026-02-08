@@ -79,7 +79,7 @@ func TestMockAgent_LifecycleRoles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("QA Send failed: %v", err)
 	}
-	if !strings.Contains(qaResponse, "agent-bridge signal set QA_PASSED true") {
+	if !strings.Contains(qaResponse, "agent-bridge signal QA_PASSED true") {
 		t.Errorf("QA response should set QA_PASSED signal, got: %s", qaResponse)
 	}
 
@@ -89,7 +89,7 @@ func TestMockAgent_LifecycleRoles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Manager Send failed: %v", err)
 	}
-	if !strings.Contains(mgrResponse, "agent-bridge signal set PROJECT_SIGNED_OFF true") {
+	if !strings.Contains(mgrResponse, "agent-bridge signal PROJECT_SIGNED_OFF true") {
 		t.Errorf("Manager response should set PROJECT_SIGNED_OFF signal, got: %s", mgrResponse)
 	}
 
@@ -99,7 +99,7 @@ func TestMockAgent_LifecycleRoles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Completion Send failed: %v", err)
 	}
-	if !strings.Contains(doneResponse, "agent-bridge signal set COMPLETED true") {
+	if !strings.Contains(doneResponse, "agent-bridge signal COMPLETED true") {
 		t.Errorf("Completion response should set COMPLETED signal, got: %s", doneResponse)
 	}
 }

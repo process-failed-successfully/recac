@@ -78,7 +78,7 @@ cat feature_list.json 2>/dev/null || echo "No feature_list.json"
 I have verified the project. The tests pass and the implementation meets the requirements.
 
 ` + "```bash" + `
-agent-bridge signal set QA_PASSED true
+agent-bridge signal QA_PASSED true
 ` + "```" + `
 `, nil
 	}
@@ -89,7 +89,7 @@ agent-bridge signal set QA_PASSED true
 I have reviewed the work and it looks correct. I approve the changes.
 
 ` + "```bash" + `
-agent-bridge signal set PROJECT_SIGNED_OFF true
+agent-bridge signal PROJECT_SIGNED_OFF true
 ` + "```" + `
 `, nil
 	}
@@ -101,7 +101,7 @@ agent-bridge signal set PROJECT_SIGNED_OFF true
 It seems all tasks are completed. I will signal completion.
 
 ` + "```bash" + `
-agent-bridge signal set COMPLETED true
+agent-bridge signal COMPLETED true
 ` + "```" + `
 `, nil
 	}
