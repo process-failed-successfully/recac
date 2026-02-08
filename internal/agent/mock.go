@@ -52,27 +52,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 		}
 
-		// 2. Initializer (Feature List Generation)
-		// Detects "Initializer" role or feature list requests
-		if strings.Contains(prompt, "Initialize the project") || strings.Contains(prompt, "feature_list.json") {
-			return "```bash\n" +
-				"cat <<EOF | agent-bridge import\n" +
-				"{\n" +
-				"  \"project_name\": \"prime-python\",\n" +
-				"  \"features\": [\n" +
-				"    {\n" +
-				"      \"id\": \"req-primes-py-exists\",\n" +
-				"      \"description\": \"Create primes.py script\",\n" +
-				"      \"priority\": \"1\"\n" +
-				"    }\n" +
-				"  ]\n" +
-				"}\n" +
-				"EOF\n" +
-				"```", nil
-		}
-
-		// 3. Coding Agent (Implementation)
+		// 2. Coding Agent (Implementation) - MOVED UP PRIORITY
 		// Detects "Coding Agent" role
+		// We check this BEFORE Initializer because the coding prompt often contains "feature_list.json" (via cat command)
+		// which triggers the Initializer heuristic if checked first.
 		if strings.Contains(prompt, "YOUR ROLE - CODING AGENT") || strings.Contains(prompt, "Implement the solution") {
 			return "```bash\n" +
 				"cat << 'EOF' > primes.py\n" +
@@ -90,6 +73,25 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 				"git add primes.py primes.json\n" +
 				"git commit -m \"Add primes.py and primes.json\"\n" +
 				"agent-bridge feature set req-primes-py-exists --status done --passes true\n" +
+				"```", nil
+		}
+
+		// 3. Initializer (Feature List Generation)
+		// Detects "Initializer" role or feature list requests
+		if strings.Contains(prompt, "Initialize the project") || strings.Contains(prompt, "feature_list.json") {
+			return "```bash\n" +
+				"cat <<EOF | agent-bridge import\n" +
+				"{\n" +
+				"  \"project_name\": \"prime-python\",\n" +
+				"  \"features\": [\n" +
+				"    {\n" +
+				"      \"id\": \"req-primes-py-exists\",\n" +
+				"      \"description\": \"Create primes.py script\",\n" +
+				"      \"priority\": \"1\"\n" +
+				"    }\n" +
+				"  ]\n" +
+				"}\n" +
+				"EOF\n" +
 				"```", nil
 		}
 	}
