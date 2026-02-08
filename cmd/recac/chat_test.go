@@ -119,6 +119,9 @@ func TestHandleChatCommand_Clear(t *testing.T) {
 }
 
 func TestRunChat_Integration(t *testing.T) {
+	// Ensure isolation from user's personas file
+	t.Setenv("RECAC_PERSONAS_FILE", "/nonexistent/path/personas.yaml")
+
 	// Override factory
 	origFactory := agentClientFactory
 	defer func() { agentClientFactory = origFactory }()
