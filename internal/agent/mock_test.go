@@ -48,3 +48,18 @@ func TestMockAgent_ProjectManager_SignOff(t *testing.T) {
 		t.Errorf("Expected response to contain '%s', got: %s", expected, resp)
 	}
 }
+
+func TestMockAgent_TPM_Primes(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "You are a Technical Program Manager..."
+
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	expected := "ID:[PRIMES]"
+	if !strings.Contains(resp, expected) {
+		t.Errorf("Expected response to contain '%s', got: %s", expected, resp)
+	}
+}
