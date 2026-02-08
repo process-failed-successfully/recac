@@ -168,12 +168,36 @@ fi
 
 # Commit
 git add primes.py primes.json
-git commit -m "Implement primes.py"
+git commit -m "Implement primes.py" || echo "Nothing to commit"
 ` + "```" + `
 `, nil
 	}
 
-	// 3. Fallback / Review
+	// 3. QA Agent
+	if strings.Contains(prompt, "QA AGENT") {
+		return `I will run the tests and verify the project.
+
+` + "```bash" + `
+# Run validation (simulated)
+echo "Running tests..."
+# In mock mode, we assume success if we reached this stage
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// 4. Project Manager
+	if strings.Contains(prompt, "PROJECT MANAGER") {
+		return `I will review the project status.
+
+` + "```bash" + `
+# Approve project
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged
+` + "```" + `
+`, nil
+	}
+
+	// 5. Fallback / Review
 	if strings.Contains(prompt, "Review") || strings.Contains(prompt, "QA") {
 		return "The implementation looks correct and passes all checks.", nil
 	}
