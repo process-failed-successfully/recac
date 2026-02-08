@@ -36,6 +36,16 @@ func (m *MockGitClient) Clone(ctx context.Context, repoURL, directory string) er
 	return args.Error(0)
 }
 
+func (m *MockGitClient) Init(directory string) error {
+	args := m.Called(directory)
+	return args.Error(0)
+}
+
+func (m *MockGitClient) Add(directory, spec string) error {
+	args := m.Called(directory, spec)
+	return args.Error(0)
+}
+
 func (m *MockGitClient) RepoExists(directory string) bool {
 	args := m.Called(directory)
 	return args.Bool(0)

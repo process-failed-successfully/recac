@@ -71,11 +71,11 @@ func (c *Client) Clone(ctx context.Context, url, dest string) error {
 
 // Init initializes a new git repository in the destination directory.
 func (c *Client) Init(dest string) error {
-	cmd := exec.Command("git", "init")
-	cmd.Dir = dest
 	if err := os.MkdirAll(dest, 0755); err != nil {
 		return err
 	}
+	cmd := exec.Command("git", "init")
+	cmd.Dir = dest
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
