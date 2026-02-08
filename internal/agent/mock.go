@@ -38,6 +38,15 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		strings.Contains(prompt, "req-implement-prime-calculation-lo") ||
 		strings.Contains(prompt, "req-output-results-to-primes-json") ||
 		strings.Contains(prompt, "req-verify-that-exactly-1229-prime") {
+
+		// PRIORITIZE IMPLEMENTATION if explicitly asked to code (Coding Agent)
+		// This prevents false positives where the prompt contains planning keywords (like "CRITICAL INSTRUCTION FOR TICKET GENERATION")
+		// inherited from the spec/context, causing the agent to return a Plan instead of Code.
+		if strings.Contains(strings.ToUpper(prompt), "CODING AGENT") ||
+			strings.Contains(strings.ToUpper(prompt), "YOUR ROLE - AGENT") {
+			return m.generatePrimesResponse(), nil
+		}
+
 		// Detect Role to decide between Plan (JSON) and Implementation (Bash)
 		if strings.Contains(prompt, "ROLE: Lead Software Architect") || strings.Contains(prompt, "ROLE - PROJECT MANAGER") {
 			return m.generatePrimesArchitectPlan(), nil
