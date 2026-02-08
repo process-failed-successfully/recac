@@ -145,6 +145,14 @@ jobs:
         run: |
           docker build -t recac-agent:latest -f internal/docker/agent.Dockerfile .
 
+      - name: Build Agent Bridge (Required for Integration Tests)
+        run: |
+          go build -buildvcs=false -o agent-bridge ./cmd/agent-bridge
+          # Ensure it's available in PATH or expected location
+          # Integration tests might expect it in the root or same dir
+          # The logs said: "agent-bridge binary not found at /home/runner/work/recac/recac/agent-bridge"
+          # So building it in root (current dir) is correct.
+
       - name: Test Shard ${{ matrix.shard }}
         run: |
           # Use the script directly
