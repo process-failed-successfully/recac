@@ -35,8 +35,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 1. Project Manager - Ticket Generation
 	// Trigger: "ROLE - TECHNICAL PROGRAM MANAGER" or similar, AND "PRIMES"
-	if (strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM") || strings.Contains(prompt, "project management")) &&
-		strings.Contains(prompt, "PRIMES") && strings.Contains(prompt, "JSON") {
+	upperPrompt := strings.ToUpper(prompt)
+	if (strings.Contains(upperPrompt, "TECHNICAL PROGRAM MANAGER") || strings.Contains(upperPrompt, "TPM") || strings.Contains(upperPrompt, "PROJECT MANAGEMENT")) &&
+		strings.Contains(upperPrompt, "PRIMES") && strings.Contains(upperPrompt, "JSON") {
 		return `[
   {
     "title": "ID:[PRIMES] Prime Number Script",
@@ -49,10 +50,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 2. Coding Agent - Implementation
 	// Trigger: "ROLE - CODING AGENT" or similar, AND "primes.py"
-	// We also check if we are being asked to implement it, vs just reviewing.
+	// We allow "Review" in the prompt because the template includes instructions like "SELF-REVIEW" and "Manager Review".
 	if (strings.Contains(prompt, "ROLE - CODING AGENT") || strings.Contains(prompt, "Developer")) &&
-		strings.Contains(prompt, "primes.py") &&
-		!strings.Contains(prompt, "Review") {
+		strings.Contains(prompt, "primes.py") {
 
 		// Check if it's already implemented to avoid infinite loops
 		// If the prompt contains "current state" and "primes.py", we might assume it's done?
@@ -147,7 +147,6 @@ echo "Feature list initialized."
 	// 4. Manager / Review Agent
 	// Trigger: "ROLE - PROJECT MANAGER" or similar
 	// Case insensitive check for MANAGER or PROJECT MANAGER, while excluding Developer/Coding Agent roles
-	upperPrompt := strings.ToUpper(prompt)
 	if (strings.Contains(upperPrompt, "MANAGER") || strings.Contains(upperPrompt, "PROJECT MANAGER")) &&
 		!strings.Contains(upperPrompt, "CODING AGENT") &&
 		!strings.Contains(upperPrompt, "DEVELOPER") {
