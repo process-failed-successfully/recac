@@ -47,7 +47,7 @@ cat <<EOF > feature_list.json
   "project_name": "primes",
   "features": [
     {
-      "id": "feature-1",
+      "id": "PRIMES",
       "description": "Script calculates primes correctly",
       "status": "pending",
       "steps": ["Run script", "Check output"]
@@ -68,7 +68,7 @@ agent-bridge import < feature_list.json
 "project_name": "primes",
 "features": [
   {
-    "id": "feature-1",
+    "id": "PRIMES",
     "category": "functional",
     "description": "Script calculates primes correctly",
     "status": "pending",
@@ -87,7 +87,7 @@ agent-bridge import < feature_list.json
 	if strings.Contains(upperPrompt, "TECHNICAL PROGRAM MANAGER") || strings.Contains(upperPrompt, "ROLE - TPM") {
 		return `[
   {
-    "id": "feature-1",
+    "id": "PRIMES",
     "title": "Primes Script",
     "type": "task",
     "status": "todo",
@@ -145,7 +145,7 @@ python3 primes.py
 git add -f primes.py primes.json
 
 # Mark feature as done
-agent-bridge feature set feature-1 --status done --passes true
+agent-bridge feature set PRIMES --status done --passes true
 ` + "```" + `
 `, nil
 	}

@@ -46,7 +46,7 @@ func TestMockAgent_Commands(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Coding Agent Send failed: %v", err)
 	}
-	expectedSet := "agent-bridge feature set feature-1 --status done --passes true"
+	expectedSet := "agent-bridge feature set PRIMES --status done --passes true"
 	if !strings.Contains(resp, expectedSet) {
 		t.Errorf("Coding Agent response missing corrected feature set command.\nExpected: %s\nGot: %s", expectedSet, resp)
 	}
