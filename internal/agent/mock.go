@@ -133,10 +133,11 @@ EOF
 
 func (m *MockAgent) primesPlanResponse() string {
 	// Returns the JSON ticket list for the PRIMES scenario
+	// NOTE: Title must contain ID:[PRIMES] for extraction by logic in generateTickets
 	return `[
   {
     "id": "PRIMES",
-    "title": "Calculate Primes",
+    "title": "ID:[PRIMES] Calculate Primes",
     "description": "Create a script primes.py that calculates prime numbers up to 100 and saves them to primes.json. [PRIMES]",
     "type": "Task",
     "status": "Open",
@@ -149,7 +150,7 @@ func (m *MockAgent) defaultPlanResponse() string {
 	return `[
   {
     "id": "TASK-1",
-    "title": "Default Task",
+    "title": "ID:[TASK-1] Default Task",
     "description": "This is a default task from the mock agent.",
     "type": "Task",
     "status": "Open",
