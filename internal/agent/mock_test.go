@@ -54,7 +54,7 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
 	}
-	if !strings.Contains(resp, "PROJECT_SIGNED_OFF") {
+	if !strings.Contains(resp, "Manager Approved") {
 		t.Errorf("Expected Manager heuristic to trigger, got: %s", resp)
 	}
 

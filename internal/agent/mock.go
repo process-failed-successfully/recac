@@ -102,12 +102,22 @@ agent-bridge feature set req-primes-implementation --status done --passes true
 ` + "```", nil
 	}
 
-	// 3. Manager/QA Roles: Approve everything
-	if strings.Contains(prompt, "YOUR ROLE - MANAGER AGENT") || strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
-		return `Everything looks good.
+	// 3. QA Agent: Mark QA as passed
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return `QA checks passed.
 
 ` + "```bash" + `
-agent-bridge signal --key PROJECT_SIGNED_OFF --value true
+agent-bridge signal QA_PASSED true
+` + "```", nil
+	}
+
+	// 4. Manager Agent: Approve
+	if strings.Contains(prompt, "YOUR ROLE - MANAGER AGENT") {
+		return `Approved.
+
+` + "```bash" + `
+# Manager approval is handled by the runner when no blockers are found.
+echo "Manager Approved"
 ` + "```", nil
 	}
 
