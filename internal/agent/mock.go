@@ -52,7 +52,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Heuristic: Detect QA Agent Role
-	if strings.Contains(prompt, "QA Agent") || strings.Contains(prompt, "quality checks") {
+	// Match both title case (heuristic) and UPPER CASE (from prompt template)
+	if strings.Contains(prompt, "QA Agent") || strings.Contains(prompt, "QA AGENT") || strings.Contains(prompt, "quality checks") {
 		return `QA checks passed.
 
 ` + "```bash" + `
@@ -62,7 +63,8 @@ agent-bridge signal QA_PASSED true
 	}
 
 	// Heuristic: Detect Project Manager Role
-	if strings.Contains(prompt, "Project Manager") || strings.Contains(prompt, "Manager agent") {
+	// Match both title case (heuristic) and UPPER CASE (from prompt template)
+	if strings.Contains(prompt, "Project Manager") || strings.Contains(prompt, "PROJECT MANAGER") || strings.Contains(prompt, "Manager agent") {
 		return `Approved.
 
 ` + "```bash" + `
