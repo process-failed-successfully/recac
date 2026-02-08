@@ -133,7 +133,13 @@ git push
 
 	// 5. QA Agent / Project Manager (Review/Approval)
 	if strings.Contains(prompt, "ROLE - PROJECT MANAGER") {
+		// Return specific signals to progress the smoke test state
 		return `The project looks good.
+
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged
+` + "```" + `
 
 APPROVED`, nil
 	}
