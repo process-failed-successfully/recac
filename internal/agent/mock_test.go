@@ -37,8 +37,8 @@ func TestMockAgent_E2E_TPM(t *testing.T) {
 	if !strings.Contains(response, "PRIMES") {
 		t.Errorf("Expected TPM response to contain PRIMES ticket, got: %s", response)
 	}
-	if !strings.Contains(response, "agent-bridge import") {
-		t.Errorf("Expected TPM response to contain agent-bridge import, got: %s", response)
+	if !strings.Contains(response, "Task") {
+		t.Errorf("Expected TPM response to contain Task type, got: %s", response)
 	}
 }
 
@@ -87,11 +87,26 @@ func TestMockAgent_E2E_Developer_Done(t *testing.T) {
 		t.Fatalf("Send failed: %v", err)
 	}
 
-	if !strings.Contains(response, "agent-bridge feature set --status done") {
-		t.Errorf("Expected Developer response to signal completion, got: %s", response)
+	if !strings.Contains(response, "agent-bridge feature set PRIMES --status done --passes true") {
+		t.Errorf("Expected Developer response to signal completion with ID, got: %s", response)
 	}
 	if strings.Contains(response, "def get_primes(n):") {
 		t.Error("Expected Developer response NOT to contain python code when done")
+	}
+}
+
+func TestMockAgent_E2E_Developer_LoopBreaker(t *testing.T) {
+	agent := NewMockAgent()
+	// Simulate prompt where git status says nothing to commit (e.g. repeated loop)
+	prompt := "Implement the primes.py script.\nOutput: nothing to commit, working tree clean"
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "agent-bridge feature set PRIMES --status done --passes true") {
+		t.Errorf("Expected Developer response to use loop breaker signal, got: %s", response)
 	}
 }
 
