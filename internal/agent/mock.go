@@ -50,7 +50,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			// Must return a bash block with agent-bridge import to avoid NO-OP loop
 			return fmt.Sprintf(`I will generate the feature list for %s.
 
-`+"```bash"+`
+`+"```bash\n"+`
 cat << 'EOF' | agent-bridge import
 {
   "project_name": "%s",
@@ -82,8 +82,7 @@ cat << 'EOF' | agent-bridge import
   ]
 }
 EOF
-`+"```"+`
-`, projectID, projectID), nil
+`+"\n```\n", projectID, projectID), nil
 		}
 	}
 
