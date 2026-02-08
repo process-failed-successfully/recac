@@ -6,31 +6,37 @@ import (
 	"testing"
 )
 
-func TestMockAgent(t *testing.T) {
+func TestMockAgent_JSONResponse(t *testing.T) {
 	agent := NewMockAgent()
 
-	prompt := "This is a test prompt that is long enough to be truncated"
-	response, err := agent.Send(context.Background(), prompt)
+	// Test case matching the smoke-test scenario
+	prompt := "You are an expert Technical Program Manager... please create tickets... ID:[PRIMES]... output as JSON"
 
+	resp, err := agent.Send(context.Background(), prompt)
 	if err != nil {
-		t.Fatalf("Send failed: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if !strings.Contains(response, "Mock agent response") {
-		t.Errorf("Response missing prefix, got: %s", response)
+	// Verify it returns valid JSON (starts with [)
+	if !strings.HasPrefix(strings.TrimSpace(resp), "[") {
+		t.Errorf("expected JSON response starting with '[', got: %s", resp)
 	}
 
-	if !strings.Contains(response, "I received your prompt") {
-		t.Errorf("Response missing body, got: %s", response)
+	// Verify content
+	if !strings.Contains(resp, "ID:[PRIMES]") {
+		t.Errorf("expected response to contain ticket ID, got: %s", resp)
 	}
 }
 
-func TestTruncateString(t *testing.T) {
-	s := "hello world"
-	if truncateString(s, 5) != "hello" {
-		t.Errorf("Expected 'hello', got '%s'", truncateString(s, 5))
+func TestMockAgent_DefaultResponse(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Hello world"
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	if truncateString(s, 20) != "hello world" {
-		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
+
+	if !strings.Contains(resp, "Mock agent response") {
+		t.Errorf("expected default mock response, got: %s", resp)
 	}
 }
