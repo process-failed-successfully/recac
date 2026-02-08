@@ -68,14 +68,25 @@ with open('primes.json', 'w') as f:
 	}
 
 	// 5. Initializer / TPM (Feature List)
-	// Triggers on "Technical Program Manager", "Ticket Generation", "feature_list.json" OR "[PRIMES]" (if not coding agent)
-	// Crucially, we must exclude "CODING AGENT" to avoid false positives from the coding agent's context.
-	isInitializer := strings.Contains(prompt, "Technical Program Manager") ||
-		strings.Contains(prompt, "Ticket Generation") ||
-		strings.Contains(prompt, "feature_list.json") ||
-		strings.Contains(prompt, "[PRIMES]")
 
-	if isInitializer && !strings.Contains(prompt, "CODING AGENT") {
+	// A. Ticket Generation (JSON Output) - Used by recac CLI
+	isTicketGen := (strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "Ticket Generation")) && !strings.Contains(prompt, "CODING AGENT")
+	if isTicketGen {
+		// Return pure JSON for the CLI to parse
+		return `[
+  {
+    "id": "PRIMES",
+    "summary": "Create Prime Number Script",
+    "description": "Create a python script named 'primes.py'. It MUST be python. It must calculate all prime numbers less than 10,000 and output to a file named 'primes.json'.",
+    "type": "Task"
+  }
+]`, nil
+	}
+
+	// B. Feature List File Creation (Bash Output) - Used by Coding Agent
+	isInitializer := (strings.Contains(prompt, "feature_list.json") || strings.Contains(prompt, "[PRIMES]")) && !strings.Contains(prompt, "CODING AGENT")
+
+	if isInitializer {
 		jsonContent := `{
   "project_name": "primes-project",
   "features": [
