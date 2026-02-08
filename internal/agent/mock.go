@@ -101,6 +101,16 @@ EOF
 ]`, nil
 	}
 
+	// Heuristic: Project Manager Approval (Smoke Test)
+	if strings.Contains(prompt, "PROJECT MANAGER") && strings.Contains(prompt, "Approve or Reject") {
+		return `I have reviewed the work and it meets the requirements.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged
+` + "```" + `
+`, nil
+	}
+
 	// Heuristic: Detect Primes Implementation Task
 	// This supports the E2E smoke test scenario
 	// We check the prompt AND the injected features env var (for robustness)
