@@ -94,7 +94,7 @@ EOF
 `, nil
 	}
 
-	// 2. Coding Agent Role - Implementation for [PRIMES]
+	// 3. Coding Agent Role - Implementation for [PRIMES]
 	// Detect via task context or ID
 	if (strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "primes.py")) &&
 	   (strings.Contains(prompt, "You are a software engineer") || strings.Contains(prompt, "CODING AGENT")) {
@@ -122,9 +122,28 @@ EOF
 
 python3 primes.py
 git add primes.py primes.json
-git commit -m "Implement primes.py"
+git commit -m "Implement primes.py" || echo "Nothing to commit"
+
+# Mark feature as done and signal completion
+agent-bridge feature set PRIMES --status done --passes true
+agent-bridge signal COMPLETED true
 ` + "```" + `
 `, nil
+	}
+
+	// 4. QA Agent Role
+	if strings.Contains(prompt, "QA AGENT") || strings.Contains(prompt, "Quality Assurance") {
+		return `QA Passed.
+
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// 5. Manager Role
+	if strings.Contains(prompt, "Manager Review") || strings.Contains(prompt, "PROJECT MANAGER") {
+		return `Project looks good. Approved.`, nil
 	}
 
 	// Return a mock response that shows the agent received the prompt

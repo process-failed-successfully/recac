@@ -59,6 +59,36 @@ func TestMockAgent_Coding(t *testing.T) {
 	if !strings.Contains(response, "primes.py") || !strings.Contains(response, "```bash") {
 		t.Errorf("Coding Agent heuristic failed, got: %s", response)
 	}
+	if !strings.Contains(response, "agent-bridge feature set") {
+		t.Errorf("Coding Agent missing feature set command, got: %s", response)
+	}
+	if !strings.Contains(response, "agent-bridge signal COMPLETED true") {
+		t.Errorf("Coding Agent missing completion signal, got: %s", response)
+	}
+}
+
+func TestMockAgent_QA(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "You are a QA AGENT..."
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(response, "agent-bridge signal QA_PASSED true") {
+		t.Errorf("QA Agent heuristic failed, got: %s", response)
+	}
+}
+
+func TestMockAgent_Manager(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "You are a PROJECT MANAGER..."
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(response, "Approved") {
+		t.Errorf("Manager Agent heuristic failed, got: %s", response)
+	}
 }
 
 func TestTruncateString(t *testing.T) {
