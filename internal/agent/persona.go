@@ -79,17 +79,32 @@ func (pm *PersonaManager) LoadPersonas() error {
 		return nil // Cannot load custom personas, just use defaults
 	}
 
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return nil // No custom personas file, just use defaults
+	if _, err := os.Stat(path); err != nil {
+		// If the file does not exist, that's fine.
+		// If it's the default path (no explicit env var), we ignore other errors too (e.g. permission denied).
+		if os.IsNotExist(err) {
+			return nil
+		}
+		if os.Getenv("RECAC_PERSONAS_FILE") == "" {
+			return nil
+		}
+		return fmt.Errorf("failed to check personas file: %w", err)
 	}
 
 	data, err := os.ReadFile(path)
 	if err != nil {
+		// If using default path, ignore read errors
+		if os.Getenv("RECAC_PERSONAS_FILE") == "" {
+			return nil
+		}
 		return fmt.Errorf("failed to read personas file: %w", err)
 	}
 
 	var customPersonas map[string]Persona
 	if err := yaml.Unmarshal(data, &customPersonas); err != nil {
+		// Parsing errors should probably be reported even for default file?
+		// But maybe just warn? For now, let's keep it as error unless we want total silence.
+		// If the file exists but is corrupted, maybe user wants to know.
 		return fmt.Errorf("failed to parse personas file: %w", err)
 	}
 

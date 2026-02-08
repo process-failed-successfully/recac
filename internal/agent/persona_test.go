@@ -128,3 +128,25 @@ func TestPersonaManager_MissingHome(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "home directory not found")
 }
+
+func TestPersonaManager_BadHome(t *testing.T) {
+	// Set HOME to a non-directory file to trigger filesystem errors
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", "/dev/null")
+	defer os.Setenv("HOME", origHome)
+
+	// Ensure env var is unset so we use default path logic
+	origEnv := os.Getenv("RECAC_PERSONAS_FILE")
+	os.Unsetenv("RECAC_PERSONAS_FILE")
+	defer os.Setenv("RECAC_PERSONAS_FILE", origEnv)
+
+	pm := NewPersonaManager()
+
+	// Should fail to stat/read but return nil (graceful fallback)
+	err := pm.LoadPersonas()
+	assert.NoError(t, err)
+
+	// Save should fail because mkdir fails
+	err = pm.SavePersonas()
+	assert.Error(t, err)
+}
