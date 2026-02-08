@@ -119,6 +119,11 @@ func TestHandleChatCommand_Clear(t *testing.T) {
 }
 
 func TestRunChat_Integration(t *testing.T) {
+	// Create temp dir for personas to avoid home directory access
+	tmpDir := t.TempDir()
+	tmpFile := tmpDir + "/personas.yaml"
+	t.Setenv("RECAC_PERSONAS_FILE", tmpFile)
+
 	// Override factory
 	origFactory := agentClientFactory
 	defer func() { agentClientFactory = origFactory }()

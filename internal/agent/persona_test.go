@@ -53,8 +53,7 @@ func TestPersonaManager_SaveLoad(t *testing.T) {
 	// Setup temp file
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "personas.yaml")
-	os.Setenv("RECAC_PERSONAS_FILE", tmpFile)
-	defer os.Unsetenv("RECAC_PERSONAS_FILE")
+	t.Setenv("RECAC_PERSONAS_FILE", tmpFile)
 
 	// 1. Create manager, add persona, save
 	pm1 := NewPersonaManager()
@@ -81,8 +80,7 @@ func TestPersonaManager_SaveLoad(t *testing.T) {
 func TestPersonaManager_OverrideDefault(t *testing.T) {
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "personas.yaml")
-	os.Setenv("RECAC_PERSONAS_FILE", tmpFile)
-	defer os.Unsetenv("RECAC_PERSONAS_FILE")
+	t.Setenv("RECAC_PERSONAS_FILE", tmpFile)
 
 	pm1 := NewPersonaManager()
 	// Override default
