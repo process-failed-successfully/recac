@@ -97,7 +97,7 @@ func runApp(ctx context.Context) error {
 	// Construct SessionConfig
 	cfg := workflow.SessionConfig{
 		ProjectPath:       viper.GetString("path"),
-		IsMock:            viper.GetBool("mock"),
+		IsMock:            viper.GetBool("mock") || viper.GetString("provider") == "mock",
 		MaxIterations:     viper.GetInt("max_iterations"),
 		ManagerFrequency:  viper.GetInt("manager_frequency"),
 		MaxAgents:         viper.GetInt("max_agents"),
