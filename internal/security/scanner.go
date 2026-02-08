@@ -30,10 +30,14 @@ var (
 	reGenericAPIToken = regexp.MustCompile(`(api|access)[_-]?key\s*[:=]\s*['"][a-zA-Z0-9_\-]{20,}['"]`)
 	reSlackToken      = regexp.MustCompile(`xox[baprs]-([0-9a-zA-Z]{10,48})`)
 	reGitHubToken     = regexp.MustCompile(`gh[pousr]_[a-zA-Z0-9]{36,255}`)
-	reDangerousCmd    = regexp.MustCompile(`(?i)\b(rm|cat|cp|mv|chmod|chown)\b.*(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow)`)
+	// Expanded dangerous commands and sensitive files
+	reDangerousCmd    = regexp.MustCompile(`(?i)\b(rm|cat|cp|mv|chmod|chown|grep|sed|awk|more|less|head|tail|nano|vim|vi)\b.*(\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow|/etc/hosts|\.env|\.kube/config|\.docker/config\.json|\.npmrc|\.git-credentials)`)
 	reRootDeletion    = regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+([/~*]+|/)$`)
 	rePipeShell       = regexp.MustCompile(`(?i)(curl|wget)\s+.*?\|\s*(bash|sh|zsh|python|perl|php|ruby)`)
 	reReverseShell    = regexp.MustCompile(`(?i)nc\s+.*?-e\s+.*`)
+	// New patterns
+	reSudo            = regexp.MustCompile(`(?i)\bsudo\b`)
+	reSecretDump      = regexp.MustCompile(`(?im)(^\s*env\s*$|\bprintenv\b)`)
 )
 
 // NewRegexScanner creates a new scanner with default patterns
@@ -49,6 +53,8 @@ func NewRegexScanner() *RegexScanner {
 			"Root Deletion":     reRootDeletion,
 			"Pipe to Shell":     rePipeShell,
 			"Reverse Shell":     reReverseShell,
+			"Sudo Usage":        reSudo,
+			"Secret Dump":       reSecretDump,
 		},
 	}
 }

