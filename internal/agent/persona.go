@@ -72,7 +72,9 @@ func NewPersonaManager() *PersonaManager {
 func (pm *PersonaManager) LoadPersonas() error {
 	path, err := getPersonasFilePath()
 	if err != nil {
-		return err
+		// If we can't determine the path (e.g. no HOME), we just skip loading custom personas.
+		// This is better than failing, especially in CI/Docker environments where HOME might be tricky.
+		return nil
 	}
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
