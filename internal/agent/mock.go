@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -32,6 +33,9 @@ func (m *MockAgent) SetResponse(response string) {
 // Send implements the Agent interface
 // It returns a mock response that acknowledges the prompt
 func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
+	// DEBUG: Print prompt to stderr to debug CI failures where heuristics fail
+	fmt.Fprintf(os.Stderr, "[MockAgent] Received prompt (%d chars): %s\n", len(prompt), truncateString(prompt, 200))
+
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
@@ -58,13 +62,19 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Coding Agent Heuristic (Primes Scenario)
 	// Must calculate primes up to 10,000 to satisfy E2E verification
+	// Also check feature ID specifically
 	if strings.Contains(promptUpper, "CODING AGENT") && (strings.Contains(promptUpper, "PRIMES") || strings.Contains(promptUpper, "REQ-PRIMES-IMPLEMENTATION")) {
 		return "I will implement the primes script.\n```python\ndef primes(n):\n    primes = []\n    for i in range(2, n + 1):\n        is_prime = True\n        for j in range(2, int(i ** 0.5) + 1):\n            if i % j == 0:\n                is_prime = False\n                break\n        if is_prime:\n            primes.append(i)\n    return primes\n\nif __name__ == '__main__':\n    import json\n    print(json.dumps(primes(10000)))\n```", nil
 	}
 
 	// Initializer Agent Heuristic
 	// Must return a valid FeatureList JSON with repository_url matching the E2E test expectation
-	if strings.Contains(promptUpper, "INITIALIZER") || strings.Contains(promptUpper, "GET YOUR BEARINGS") {
+	// Broadened heuristics to catch variations in prompt template
+	if strings.Contains(promptUpper, "INITIALIZER") ||
+	   strings.Contains(promptUpper, "GET YOUR BEARINGS") ||
+	   strings.Contains(promptUpper, "FIRST AGENT") ||
+	   strings.Contains(promptUpper, "CREATE FEATURE_LIST.JSON") ||
+	   strings.Contains(promptUpper, "YOUR ROLE") {
 		return `I will initialize the feature list.
 ` + "```bash" + `
 cat <<EOF > feature_list.json
@@ -100,7 +110,7 @@ agent-bridge import < feature_list.json
 
 	// Project Manager Heuristic
 	if strings.Contains(promptUpper, "PROJECT MANAGER") {
-		return "I approve the project.\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
+		return "I approve the project.\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true --privileged\n```", nil
 	}
 
 	// Default response
