@@ -70,52 +70,79 @@ var personaShowCmd = &cobra.Command{
 }
 
 var personaAddCmd = &cobra.Command{
-	Use:   "add",
+	Use:   "add [id]",
 	Short: "Add a new custom persona",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		var qs = []*survey.Question{
-			{
-				Name: "id",
-				Prompt: &survey.Input{
-					Message: "ID (short, lowercase, no spaces):",
-				},
-				Validate: survey.Required,
-			},
-			{
-				Name: "name",
-				Prompt: &survey.Input{
-					Message: "Display Name:",
-				},
-				Validate: survey.Required,
-			},
-			{
-				Name: "description",
-				Prompt: &survey.Input{
-					Message: "Description:",
-				},
-				Validate: survey.Required,
-			},
-			{
-				Name: "system_prompt",
-				Prompt: &survey.Multiline{
-					Message: "System Prompt:",
-				},
-				Validate: survey.Required,
-			},
+		// Get flags
+		name, _ := cmd.Flags().GetString("name")
+		desc, _ := cmd.Flags().GetString("description")
+		promptStr, _ := cmd.Flags().GetString("prompt")
+		if promptStr == "" {
+			promptStr, _ = cmd.Flags().GetString("system-prompt")
 		}
 
-		answers := struct {
-			ID           string `survey:"id"`
-			Name         string `survey:"name"`
-			Description  string `survey:"description"`
-			SystemPrompt string `survey:"system_prompt"`
-		}{}
-
-		if err := surveyAsk(qs, &answers); err != nil {
-			return err
+		var id string
+		if len(args) > 0 {
+			id = args[0]
 		}
 
-		id := strings.ToLower(strings.TrimSpace(answers.ID))
+		// Determine if we need interactive mode
+		isInteractive := false
+		if id == "" || name == "" || desc == "" || promptStr == "" {
+			isInteractive = true
+		}
+
+		if isInteractive {
+			var qs []*survey.Question
+			if id == "" {
+				qs = append(qs, &survey.Question{
+					Name:     "id",
+					Prompt:   &survey.Input{Message: "ID (short, lowercase, no spaces):"},
+					Validate: survey.Required,
+				})
+			}
+			if name == "" {
+				qs = append(qs, &survey.Question{
+					Name:     "name",
+					Prompt:   &survey.Input{Message: "Display Name:"},
+					Validate: survey.Required,
+				})
+			}
+			if desc == "" {
+				qs = append(qs, &survey.Question{
+					Name:     "description",
+					Prompt:   &survey.Input{Message: "Description:"},
+					Validate: survey.Required,
+				})
+			}
+			if promptStr == "" {
+				qs = append(qs, &survey.Question{
+					Name:     "system_prompt",
+					Prompt:   &survey.Multiline{Message: "System Prompt:"},
+					Validate: survey.Required,
+				})
+			}
+
+			answers := make(map[string]interface{})
+			if err := surveyAsk(qs, &answers); err != nil {
+				return err
+			}
+
+			if v, ok := answers["id"].(string); ok {
+				id = v
+			}
+			if v, ok := answers["name"].(string); ok {
+				name = v
+			}
+			if v, ok := answers["description"].(string); ok {
+				desc = v
+			}
+			if v, ok := answers["system_prompt"].(string); ok {
+				promptStr = v
+			}
+		}
+
+		id = strings.ToLower(strings.TrimSpace(id))
 
 		pm := agent.NewPersonaManager()
 		if err := pm.LoadPersonas(); err != nil {
@@ -123,24 +150,29 @@ var personaAddCmd = &cobra.Command{
 		}
 
 		if _, ok := pm.GetPersona(id); ok {
-			// Ask to overwrite?
-			var overwrite bool
-			prompt := &survey.Confirm{
-				Message: fmt.Sprintf("Persona '%s' already exists. Overwrite?", id),
-			}
-			if err := surveyAskOneFunc(prompt, &overwrite); err != nil {
-				return err
-			}
-			if !overwrite {
-				fmt.Fprintln(cmd.OutOrStdout(), "Aborted.")
-				return nil
+			// If interactive, ask to overwrite.
+			if isInteractive {
+				var overwrite bool
+				prompt := &survey.Confirm{
+					Message: fmt.Sprintf("Persona '%s' already exists. Overwrite?", id),
+				}
+				if err := surveyAskOneFunc(prompt, &overwrite); err != nil {
+					return err
+				}
+				if !overwrite {
+					fmt.Fprintln(cmd.OutOrStdout(), "Aborted.")
+					return nil
+				}
+			} else {
+				// Non-interactive: fail if exists (safety first)
+				return fmt.Errorf("persona '%s' already exists (use interactive mode to overwrite)", id)
 			}
 		}
 
 		pm.AddPersona(id, agent.Persona{
-			Name:         answers.Name,
-			Description:  answers.Description,
-			SystemPrompt: answers.SystemPrompt,
+			Name:         name,
+			Description:  desc,
+			SystemPrompt: promptStr,
 		})
 
 		if err := pm.SavePersonas(); err != nil {
@@ -153,12 +185,28 @@ var personaAddCmd = &cobra.Command{
 }
 
 var personaRemoveCmd = &cobra.Command{
-	Use:   "remove [name]",
+	Use:     "remove [name]",
 	Aliases: []string{"rm", "delete"},
-	Short: "Remove a custom persona",
-	Args:  cobra.ExactArgs(1),
+	Short:   "Remove a custom persona",
+	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		id := args[0]
+		force, _ := cmd.Flags().GetBool("force")
+
+		if !force {
+			var confirm bool
+			prompt := &survey.Confirm{
+				Message: fmt.Sprintf("Are you sure you want to remove persona '%s'?", id),
+			}
+			if err := surveyAskOneFunc(prompt, &confirm); err != nil {
+				return err
+			}
+			if !confirm {
+				fmt.Fprintln(cmd.OutOrStdout(), "Aborted.")
+				return nil
+			}
+		}
+
 		pm := agent.NewPersonaManager()
 		if err := pm.LoadPersonas(); err != nil {
 			return err
@@ -183,4 +231,13 @@ func init() {
 	personaCmd.AddCommand(personaShowCmd)
 	personaCmd.AddCommand(personaAddCmd)
 	personaCmd.AddCommand(personaRemoveCmd)
+
+	// Add flags to add command
+	personaAddCmd.Flags().StringP("name", "n", "", "Display name of the persona")
+	personaAddCmd.Flags().StringP("description", "d", "", "Description of the persona")
+	personaAddCmd.Flags().StringP("prompt", "p", "", "System prompt for the persona")
+	personaAddCmd.Flags().String("system-prompt", "", "Alias for --prompt")
+
+	// Add flags to remove command
+	personaRemoveCmd.Flags().BoolP("force", "f", false, "Force removal without confirmation")
 }
