@@ -130,7 +130,8 @@ EOF
 	// If the prompt asks for status or QA, and we see "pending", we should probably say "approved" or "continue".
 	if strings.Contains(prompt, "ROLE: Project Manager") || strings.Contains(prompt, "QA") {
 		// If it looks like we are stuck in a loop, give a "DONE" signal
-		if strings.Contains(prompt, "pending") {
+		// Also approve if the prompt refers to the specific task/feature even if "pending" is missing.
+		if strings.Contains(prompt, "pending") || strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
 			return `The feature looks complete.
 
 ` + "```bash" + `
@@ -142,7 +143,10 @@ agent-bridge feature set PRIMES --status done --passes true
 
 	// 5. Coding Agent - Prime Python Scenario
 	// Only trigger this if we are NOT the planner (handled above)
-	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
+	// And verify we are NOT the Project Manager or QA (handled above or ignored)
+	if (strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]")) &&
+		!strings.Contains(prompt, "ROLE: Project Manager") &&
+		!strings.Contains(prompt, "QA") {
 
 		// Guard: If we've already implemented it, don't loop forever.
 		if strings.Contains(prompt, "primes.json") && strings.Contains(prompt, "implemented") {
