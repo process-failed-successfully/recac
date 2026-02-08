@@ -39,7 +39,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(prompt, "INITIALIZER AGENT") || (strings.Contains(prompt, "git init") && strings.Contains(prompt, "agent-bridge import")) {
 		project := os.Getenv("RECAC_PROJECT_ID")
 		if project == "" {
-			project = "test-project"
+			project = "mock-project" // Match the default in workflow.go for tests
 		}
 		// Return a command to import features
 		return fmt.Sprintf("```bash\ncat <<EOF | agent-bridge import\n{\n  \"project_name\": \"%s\",\n  \"features\": [\n    {\n      \"id\": \"req-implement-prime-calculation-lo\",\n      \"category\": \"core\",\n      \"priority\": \"high\",\n      \"description\": \"Implement a python script that calculates prime numbers up to 10000\",\n      \"status\": \"pending\",\n      \"dependencies\": {\"depends_on_ids\": []}\n    }\n  ]\n}\nEOF\n```", project), nil
