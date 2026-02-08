@@ -78,7 +78,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 3. Coding Agent / Developer (Primes)
 	// We check for keywords related to the Primes scenario
-	if containsAny(prompt, []string{"[PRIMES]", "primes.py", "Implement Primes", "Prime Number Script"}) {
+	if containsAny(prompt, []string{"[PRIMES]", "primes.py", "Implement Primes", "Prime Number Script", "primes.json", "primes"}) {
 		// Return the implementation
 		return `Here is the python script to calculate primes.
 
