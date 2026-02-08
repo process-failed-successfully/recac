@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"context"
 	"os"
-	"recac/internal/agent"
 	"strings"
 	"testing"
+
+	"recac/internal/agent"
 )
 
 func TestHandleChatCommand_Persona(t *testing.T) {
