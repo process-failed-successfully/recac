@@ -46,6 +46,7 @@ cat <<EOF > feature_list.json
 {
   "features": [
     {
+      "id": "req-primes",
       "name": "Feature 1",
       "description": "Mock feature for smoke test: Implement a python script named primes.py",
       "status": "todo",
@@ -142,6 +143,13 @@ if __name__ == "__main__":
             json.dump({"primes": primes}, f)
         print("Generated primes.json")
 EOF
+
+# Commit changes to satisfy git checks
+git add primes.py
+git commit -m "Add primes.py" || echo "No changes to commit"
+
+# Mark feature as done to prevent infinite loop
+agent-bridge feature set --id req-primes --status done --passes true
 ` + "```" + `
 `, nil
 	}
