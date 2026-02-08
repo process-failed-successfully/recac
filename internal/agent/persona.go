@@ -72,7 +72,8 @@ func NewPersonaManager() *PersonaManager {
 func (pm *PersonaManager) LoadPersonas() error {
 	path, err := getPersonasFilePath()
 	if err != nil {
-		return err
+		// If we can't determine the path (e.g. no home dir), just use defaults.
+		return nil
 	}
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
