@@ -164,7 +164,7 @@ func init() {
 	viper.BindEnv("orchestrator.work_file", "RECAC_WORK_FILE")
 	viper.BindEnv("orchestrator.watch_dir", "RECAC_WATCH_DIR")
 	viper.BindEnv("orchestrator.mode", "RECAC_ORCHESTRATOR_MODE")
-	viper.BindEnv("orchestrator.image", "RECAC_AGENT_IMAGE", "RECAC_ORCHESTRATOR_IMAGE")
+	viper.BindEnv("orchestrator.image", "RECAC_ORCHESTRATOR_IMAGE")
 	viper.BindEnv("orchestrator.namespace", "RECAC_ORCHESTRATOR_NAMESPACE")
 	viper.BindEnv("orchestrator.interval", "RECAC_ORCHESTRATOR_INTERVAL")
 	viper.BindEnv("orchestrator.image_pull_policy", "RECAC_IMAGE_PULL_POLICY")

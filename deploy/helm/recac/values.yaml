@@ -7,11 +7,6 @@ image:
   pullPolicy: Always
   tag: latest
 
-agentImage:
-  repository: ghcr.io/process-failed-successfully/recac-agent
-  pullPolicy: Always
-  tag: latest
-
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
