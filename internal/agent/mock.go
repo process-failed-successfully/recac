@@ -51,10 +51,15 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 3. QA Agent (Check before Coding Agent to prevent false positives with keywords)
 	// STRICTER CHECK: Ensure we are actually assigned the QA role, not just mentioned
 	if strings.Contains(prompt, "You are the QA Agent") || strings.Contains(prompt, "Your role is QA Agent") || strings.Contains(prompt, "ROLE - QA AGENT") {
-		return "## QA Report\n\nAll tests passed.", nil
+		return m.qaAgentResponse(), nil
 	}
 
-	// 4. Coding Agent
+	// 4. Manager Review (Project Manager)
+	if strings.Contains(prompt, "Project Manager") || strings.Contains(prompt, "PROJECT MANAGER") || strings.Contains(prompt, "Manager Review") {
+		return m.managerReviewResponse(), nil
+	}
+
+	// 5. Coding Agent
 	// Detect "Developer" or "Coding Agent", or explicit [PRIMES] tag (handles cases where system prompt is missing in mock mode)
 	if strings.Contains(prompt, "Developer") || strings.Contains(prompt, "Coding Agent") || strings.Contains(prompt, "[PRIMES]") {
 		lowerPrompt := strings.ToLower(prompt)
@@ -107,7 +112,7 @@ cat <<EOF | agent-bridge import
       "id": "PRIMES",
       "category": "Backend",
       "priority": "MVP",
-      "description": "Create a script primes.py that calculates prime numbers up to 100 and saves them to primes.json. [PRIMES]",
+      "description": "Create a script primes.py that calculates prime numbers up to 10000 and saves them to primes.json. [PRIMES]",
       "status": "pending",
       "passes": false,
       "steps": [],
@@ -130,7 +135,7 @@ func (m *MockAgent) primesPlanResponse() string {
   {
     "id": "PRIMES",
     "title": "Calculate Primes",
-    "description": "Create a script primes.py that calculates prime numbers up to 100 and saves them to primes.json. [PRIMES]",
+    "description": "Create a script primes.py that calculates prime numbers up to 10000 and saves them to primes.json. [PRIMES]",
     "type": "Task",
     "status": "Open",
     "assigned_to": "Developer"
@@ -167,7 +172,7 @@ def is_prime(n):
         if n % i == 0: return False
     return True
 
-primes = [x for x in range(1, 101) if is_prime(x)]
+primes = [x for x in range(1, 10001) if is_prime(x)]
 print(primes)
 
 with open('primes.json', 'w') as f:
@@ -178,5 +183,25 @@ python3 primes.py
 git add primes.py primes.json
 git commit -m "Implement primes calculation" --author="Recac Bot <bot@recac.com>"
 agent-bridge feature set PRIMES --status done --passes true
+` + "```"
+}
+
+func (m *MockAgent) qaAgentResponse() string {
+	return `## QA Report
+
+All tests passed. The implementation meets the requirements.
+
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```"
+}
+
+func (m *MockAgent) managerReviewResponse() string {
+	return `## Project Manager Review
+
+The project looks good and QA has passed. I am approving the project.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true
 ` + "```"
 }
