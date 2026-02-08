@@ -87,8 +87,8 @@ func TestMockAgent_E2E_Developer_Done(t *testing.T) {
 		t.Fatalf("Send failed: %v", err)
 	}
 
-	if !strings.Contains(response, "agent-bridge feature set --status done") {
-		t.Errorf("Expected Developer response to signal completion, got: %s", response)
+	if !strings.Contains(response, "agent-bridge feature set PRIMES --status done --passes true") {
+		t.Errorf("Expected Developer response to signal completion with correct args, got: %s", response)
 	}
 	if strings.Contains(response, "def get_primes(n):") {
 		t.Error("Expected Developer response NOT to contain python code when done")
