@@ -10,6 +10,7 @@ import (
 	"recac/internal/notify"
 	"recac/internal/telemetry"
 	"testing"
+	"time"
 )
 
 // MockLoopDocker implements DockerClient interface
@@ -122,6 +123,7 @@ func TestSession_RunLoop_Success(t *testing.T) {
 		ManagerFrequency: 10,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
 		Logger:           telemetry.NewLogger(true, "", false),
+		SleepFunc:        func(d time.Duration) {}, // Mock sleep
 	}
 
 	// Wait, RunLoop will loop until MaxIterations or COMPLETED.
