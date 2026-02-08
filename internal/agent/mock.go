@@ -108,7 +108,7 @@ agent-bridge signal QA_PASSED true
 I see that QA passed. I will sign off on the project.
 
 ` + "```bash" + `
-agent-bridge signal PROJECT_SIGNED_OFF true
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged
 ` + "```" + `
 `, nil
 	}
