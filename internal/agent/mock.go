@@ -93,15 +93,12 @@ python3 primes.py
 if [ -f primes.json ]; then
   echo "Output file created."
   # Mark relevant features as done
-  agent-bridge feature set req-the-script-primes-py-is-implem --status done --passes true
-  agent-bridge feature set req-the-output-is-written-to-a-fil --status done --passes true
+  agent-bridge feature set req-primes --status done --passes true
 fi
 
 # Verify content
 if cat primes.json | grep -q "primes"; then
     echo "JSON content verified."
-    agent-bridge feature set req-the-primes-json-file-contains- --status done --passes true
-    agent-bridge feature set req-the-list-of-primes-in-primes-j --status done --passes true
 fi
 
 # Commit
@@ -115,6 +112,7 @@ git commit -m "Implement primes.py"
 	// Trigger: "ROLE - INITIALIZER AGENT" (case-insensitive)
 	if strings.Contains(strings.ToUpper(prompt), "ROLE - INITIALIZER AGENT") {
 		// Return a valid feature list import command
+		// Updated to include 'req-primes' to match Coding Agent heuristic
 		return `I will initialize the project with the required features.
 
 ` + "```bash" + `
@@ -123,12 +121,12 @@ cat << 'EOF' | agent-bridge import
   "project_name": "Mock Project",
   "features": [
     {
-      "id": "req-initial-setup",
+      "id": "req-primes",
       "category": "functional",
       "priority": "MVP",
-      "description": "Initial project setup and feature list creation",
+      "description": "Implement a python script named 'primes.py' that calculates primes.",
       "status": "pending",
-      "steps": ["Verify feature_list.json exists"],
+      "steps": ["Create primes.py"],
       "passes": false,
       "dependencies": {
         "depends_on_ids": [],
