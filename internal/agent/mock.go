@@ -88,12 +88,21 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic 3: Coding Agent (Implementation)
 	if strings.Contains(prompt, "Role: Agent") || strings.Contains(prompt, "## YOUR ROLE - CODING AGENT") {
-		// Scenario: Primes
-		if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "req-the-makefile-targets-are-implemented") {
+		// Scenario: Primes - Ticket 1: Setup Repo
+		if strings.Contains(prompt, "req-setup-repo") {
 			script := `
-apt-get update
-apt-get install -y make
+echo "Initializing git repository..."
+git init || true
+echo "Git initialized."
 
+agent-bridge feature set req-setup-repo --status done --passes true
+`
+			return fmt.Sprintf("I will initialize the repository.\n\n```bash\n%s\n```", script), nil
+		}
+
+		// Scenario: Primes - Ticket 2: Implement Primes
+		if strings.Contains(prompt, "req-implement-primes") || strings.Contains(prompt, "primes.py") {
+			script := `
 cat << 'EOF' > primes.py
 import sys
 
@@ -116,6 +125,14 @@ if __name__ == "__main__":
         num += 1
 EOF
 
+agent-bridge feature set req-implement-primes --status done --passes true
+`
+			return fmt.Sprintf("I will implement primes.py.\n\n```bash\n%s\n```", script), nil
+		}
+
+		// Scenario: Primes - Ticket 3: Implement Tests
+		if strings.Contains(prompt, "req-implement-tests") {
+			script := `
 cat << 'EOF' > test_primes.py
 import unittest
 from primes import is_prime
@@ -127,9 +144,20 @@ class TestPrimes(unittest.TestCase):
         self.assertFalse(is_prime(4))
         self.assertFalse(is_prime(1))
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
 EOF
+
+agent-bridge feature set req-implement-tests --status done --passes true
+`
+			return fmt.Sprintf("I will implement the tests.\n\n```bash\n%s\n```", script), nil
+		}
+
+		// Scenario: Primes - Ticket 4: Create Makefile
+		if strings.Contains(prompt, "req-the-makefile-targets-are-implemented") {
+			script := `
+apt-get update
+apt-get install -y make
 
 cat << 'EOF' > Makefile
 run:
@@ -160,7 +188,36 @@ make test
 
 agent-bridge feature set req-the-makefile-targets-are-implemented --status done --passes true
 `
-			return fmt.Sprintf("I will implement the requested changes.\n\n```bash\n%s\n```", script), nil
+			return fmt.Sprintf("I will create the Makefile.\n\n```bash\n%s\n```", script), nil
+		}
+
+		// Scenario: Primes - Ticket 5: CI Workflow
+		if strings.Contains(prompt, "req-ci-workflow") {
+			script := `
+mkdir -p .github/workflows
+cat << 'EOF' > .github/workflows/ci.yml
+name: CI
+on: [push]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      - name: Run tests
+        run: python3 test_primes.py
+EOF
+
+agent-bridge feature set req-ci-workflow --status done --passes true
+`
+			return fmt.Sprintf("I will setup the CI workflow.\n\n```bash\n%s\n```", script), nil
 		}
 
 		// Fallback command to avoid NO-OP loop

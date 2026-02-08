@@ -55,6 +55,62 @@ func TestMockAgent_Coding(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Coding_Scenarios(t *testing.T) {
+	tests := []struct {
+		name      string
+		prompt    string
+		expectCmd string
+		expectID  string
+	}{
+		{
+			name:      "Setup Repo",
+			prompt:    "## YOUR ROLE - CODING AGENT\nTask: req-setup-repo",
+			expectCmd: "git init",
+			expectID:  "req-setup-repo",
+		},
+		{
+			name:      "Implement Primes",
+			prompt:    "## YOUR ROLE - CODING AGENT\nTask: req-implement-primes",
+			expectCmd: "cat << 'EOF' > primes.py",
+			expectID:  "req-implement-primes",
+		},
+		{
+			name:      "Implement Tests",
+			prompt:    "## YOUR ROLE - CODING AGENT\nTask: req-implement-tests",
+			expectCmd: "cat << 'EOF' > test_primes.py",
+			expectID:  "req-implement-tests",
+		},
+		{
+			name:      "Makefile",
+			prompt:    "## YOUR ROLE - CODING AGENT\nTask: req-the-makefile-targets-are-implemented",
+			expectCmd: "cat << 'EOF' > Makefile",
+			expectID:  "req-the-makefile-targets-are-implemented",
+		},
+		{
+			name:      "CI Workflow",
+			prompt:    "## YOUR ROLE - CODING AGENT\nTask: req-ci-workflow",
+			expectCmd: "cat << 'EOF' > .github/workflows/ci.yml",
+			expectID:  "req-ci-workflow",
+		},
+	}
+
+	agent := NewMockAgent()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp, err := agent.Send(context.Background(), tt.prompt)
+			if err != nil {
+				t.Fatalf("Send failed: %v", err)
+			}
+			if !strings.Contains(resp, tt.expectCmd) {
+				t.Errorf("Response missing command '%s'", tt.expectCmd)
+			}
+			if !strings.Contains(resp, "agent-bridge feature set "+tt.expectID) {
+				t.Errorf("Response missing feature set for ID '%s'", tt.expectID)
+			}
+		})
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
