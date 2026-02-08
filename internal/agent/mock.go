@@ -51,7 +51,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 3. QA Agent (Check before Coding Agent to prevent false positives with keywords)
 	// STRICTER CHECK: Ensure we are actually assigned the QA role, not just mentioned
 	if strings.Contains(prompt, "You are the QA Agent") || strings.Contains(prompt, "Your role is QA Agent") || strings.Contains(prompt, "ROLE - QA AGENT") {
-		return "## QA Report\n\nAll tests passed.", nil
+		return "## QA Report\n\nAll tests passed.\n\n```bash\nagent-bridge signal QA_PASSED true\n```", nil
 	}
 
 	// 4. Coding Agent
