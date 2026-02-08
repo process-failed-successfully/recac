@@ -72,6 +72,40 @@ cat feature_list.json 2>/dev/null || echo "No feature_list.json"
 `, nil
 	}
 
+	// Heuristic for QA Agent
+	if strings.Contains(prompt, "ROLE - QA AGENT") || strings.Contains(prompt, "ROLE: QA AGENT") {
+		return `
+I have verified the project. The tests pass and the implementation meets the requirements.
+
+` + "```bash" + `
+agent-bridge signal set QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// Heuristic for Manager Agent
+	if strings.Contains(prompt, "ROLE - MANAGER AGENT") || strings.Contains(prompt, "Manager Review") {
+		return `
+I have reviewed the work and it looks correct. I approve the changes.
+
+` + "```bash" + `
+agent-bridge signal set PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
+	}
+
+	// Heuristic for Completion ("All features are marked as done")
+	// Used to prevent No-Op loops when the session is effectively finished but hasn't exited
+	if strings.Contains(prompt, "All features are marked as done") {
+		return `
+It seems all tasks are completed. I will signal completion.
+
+` + "```bash" + `
+agent-bridge signal set COMPLETED true
+` + "```" + `
+`, nil
+	}
+
 	// Return a generic mock response
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
