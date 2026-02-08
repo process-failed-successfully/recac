@@ -46,8 +46,9 @@ func TestMockAgent_Coding_Primes(t *testing.T) {
 
 func TestMockAgent_TPM_Primes(t *testing.T) {
 	agent := NewMockAgent()
-	// Simulate TPM Agent Prompt
-	prompt := "You are an expert Technical Program Manager... decompose it into a series... ### ID:[PRIMES] Prime Number Script"
+	// Simulate TPM Agent Prompt with explicit repo
+	expectedRepo := "https://github.com/test-org/test-repo"
+	prompt := "You are an expert Technical Program Manager... decompose it into a series... ### ID:[PRIMES] Prime Number Script\nRepo: " + expectedRepo
 	response, err := agent.Send(context.Background(), prompt)
 
 	if err != nil {
@@ -62,8 +63,29 @@ func TestMockAgent_TPM_Primes(t *testing.T) {
 		t.Error("Response missing expected JSON title")
 	}
 
+	if !strings.Contains(response, expectedRepo) {
+		t.Errorf("Response missing expected repo URL: %s", expectedRepo)
+	}
+
 	if strings.Contains(response, "cat << 'EOF'") {
 		t.Error("TPM response should NOT contain bash script")
+	}
+}
+
+func TestMockAgent_TPM_Primes_Fallback(t *testing.T) {
+	agent := NewMockAgent()
+	// Simulate TPM Agent Prompt without repo
+	prompt := "You are an expert Technical Program Manager... decompose it into a series... ### ID:[PRIMES] Prime Number Script"
+	response, err := agent.Send(context.Background(), prompt)
+
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Should fallback to default
+	expectedRepo := "https://github.com/process-failed-successfully/recac-jira-e2e"
+	if !strings.Contains(response, expectedRepo) {
+		t.Errorf("Response missing default repo URL: %s", expectedRepo)
 	}
 }
 

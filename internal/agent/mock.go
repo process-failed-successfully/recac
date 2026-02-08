@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -37,16 +38,23 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 1. TPM Agent (Ticket Generation)
 	// Check for keywords specific to the TPM prompt
 	if (strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "Ticket Generation") || strings.Contains(prompt, "decompose it into a series")) && strings.Contains(prompt, "[PRIMES]") {
-		return `
+		// Extract Repo URL from prompt
+		repoURL := "https://github.com/process-failed-successfully/recac-jira-e2e" // Default fallback for CI
+		re := regexp.MustCompile(`Repo:\s*(https?://\S+)`)
+		if matches := re.FindStringSubmatch(prompt); len(matches) > 1 {
+			repoURL = matches[1]
+		}
+
+		return fmt.Sprintf(`
 [
   {
     "title": "ID:[PRIMES] Prime Number Script",
-    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'. Repo: https://github.com/example/repo",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'. Repo: %s",
     "type": "Task",
     "children": []
   }
 ]
-`, nil
+`, repoURL), nil
 	}
 
 	// 2. Coding Agent (Implementation)
