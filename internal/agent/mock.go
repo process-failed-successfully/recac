@@ -33,7 +33,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// Heuristics for Smoke Test Scenarios
+	// Heuristics for Smoke Test Scenarios (MUST be specific to avoid breaking unit tests)
 
 	// 1. TPM Agent (Jira Generation)
 	if strings.Contains(prompt, "Technical Program Manager") && strings.Contains(prompt, "[PRIMES]") {
@@ -52,7 +52,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Initializer Agent
-	if strings.Contains(prompt, "YOUR ROLE - INITIALIZER AGENT") {
+	// Matches specific smoke test context (mentioning 'init.sh' and 'Prime' or the specific repo)
+	// to avoid intercepting generic initializer tests.
+	if strings.Contains(prompt, "YOUR ROLE - INITIALIZER AGENT") && (strings.Contains(prompt, "Prime") || strings.Contains(prompt, "recac-jira-e2e")) {
 		return "```bash\n" + `
 cat << 'EOF' > feature_list.json
 {
@@ -101,13 +103,18 @@ agent-bridge import feature_list.json
 	}
 
 	// 3. Coding Agent
-	if strings.Contains(prompt, "YOUR ROLE - CODING AGENT") {
+	// STRICT CHECK: Must be the Coding Agent role AND match the Primes scenario.
+	if strings.Contains(prompt, "YOUR ROLE - CODING AGENT") && (strings.Contains(prompt, "Prime") || strings.Contains(prompt, "primes.py")) {
 		// Extract Feature ID
 		re := regexp.MustCompile(`(?m)^\s*-\s*\*\*Feature ID\*\*:\s*([^\s]+)`)
 		matches := re.FindStringSubmatch(prompt)
-		featureID := "req-primes-implementation"
+		featureID := "req-primes-implementation" // Default for smoke test
 		if len(matches) > 1 {
-			featureID = strings.TrimSpace(matches[1])
+			extracted := strings.TrimSpace(matches[1])
+			// Fix for extracted "Multiple/Not" or empty IDs
+			if extracted != "" && !strings.Contains(extracted, "Multiple") {
+				featureID = extracted
+			}
 		}
 
 		return fmt.Sprintf("```bash\n"+`
@@ -137,12 +144,7 @@ def main():
     num = 2
     primes = []
     while count < n:
-        if is_prime(num):
-            primes.append(num)
-            count += 1
-        num += 1
-
-    print(f"First {n} primes: {primes}")
+        if is_prime(num):\n            primes.append(num)\n            count += 1\n        num += 1\n        \n    print(f"First {n} primes: {primes}")
 
 if __name__ == "__main__":
     main()
@@ -153,12 +155,7 @@ import unittest
 from primes import is_prime
 
 class TestPrimes(unittest.TestCase):
-    def test_is_prime(self):
-        self.assertTrue(is_prime(2))
-        self.assertTrue(is_prime(3))
-        self.assertTrue(is_prime(5))
-        self.assertFalse(is_prime(4))
-        self.assertFalse(is_prime(1))
+    def test_is_prime(self):\n        self.assertTrue(is_prime(2))\n        self.assertTrue(is_prime(3))\n        self.assertTrue(is_prime(5))\n        self.assertFalse(is_prime(4))\n        self.assertFalse(is_prime(1))
 
 if __name__ == '__main__':
     unittest.main()
@@ -172,10 +169,13 @@ agent-bridge feature set %s --status done --passes true
 
 	// 4. QA Agent
 	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
-		return "```bash\n" + `
+		// Only run real QA commands if it looks like a real project context
+		if strings.Contains(prompt, "Makefile") || strings.Contains(prompt, "make test") || strings.Contains(prompt, "recac-e2e") {
+			return "```bash\n" + `
 make test
 agent-bridge signal QA_PASSED true
 ` + "\n```", nil
+		}
 	}
 
 	// 5. Manager

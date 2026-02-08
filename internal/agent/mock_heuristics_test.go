@@ -21,7 +21,7 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	})
 
 	t.Run("Initializer Agent", func(t *testing.T) {
-		prompt := "YOUR ROLE - INITIALIZER AGENT ... Create init.sh ..."
+		prompt := "YOUR ROLE - INITIALIZER AGENT ... Create init.sh ... recac-jira-e2e ..."
 		resp, err := agent.Send(ctx, prompt)
 		assert.NoError(t, err)
 		assert.Contains(t, resp, "```bash")
@@ -31,8 +31,8 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		assert.Contains(t, resp, "git clone")
 	})
 
-	t.Run("Coding Agent Default", func(t *testing.T) {
-		prompt := "YOUR ROLE - CODING AGENT ... [PRIMES] ..."
+	t.Run("Coding Agent Default (Smoke Test)", func(t *testing.T) {
+		prompt := "YOUR ROLE - CODING AGENT ... [PRIMES] ... primes.py ..."
 		resp, err := agent.Send(ctx, prompt)
 		assert.NoError(t, err)
 		assert.Contains(t, resp, "```bash")
@@ -44,15 +44,24 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	})
 
 	t.Run("Coding Agent Extracted Feature ID", func(t *testing.T) {
-		prompt := "YOUR ROLE - CODING AGENT \n- **Feature ID**: custom-feature-id\n"
+		prompt := "YOUR ROLE - CODING AGENT \n- **Feature ID**: custom-feature-id\n ... primes.py ..."
 		resp, err := agent.Send(ctx, prompt)
 		assert.NoError(t, err)
 		assert.Contains(t, resp, "```bash")
 		assert.Contains(t, resp, "agent-bridge feature set custom-feature-id --status done --passes true")
 	})
 
-	t.Run("QA Agent", func(t *testing.T) {
-		prompt := "YOUR ROLE - QA AGENT ..."
+	t.Run("Coding Agent Fallback on Bad ID", func(t *testing.T) {
+		prompt := "YOUR ROLE - CODING AGENT \n- **Feature ID**: Multiple/Not Assigned\n ... primes.py ..."
+		resp, err := agent.Send(ctx, prompt)
+		assert.NoError(t, err)
+		assert.Contains(t, resp, "```bash")
+		// Should fallback to default req-primes-implementation
+		assert.Contains(t, resp, "agent-bridge feature set req-primes-implementation --status done --passes true")
+	})
+
+	t.Run("QA Agent (Smoke Test)", func(t *testing.T) {
+		prompt := "YOUR ROLE - QA AGENT ... make test ..."
 		resp, err := agent.Send(ctx, prompt)
 		assert.NoError(t, err)
 		assert.Contains(t, resp, "```bash")
@@ -68,10 +77,11 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		assert.Contains(t, resp, "agent-bridge signal PROJECT_SIGNED_OFF true")
 	})
 
-	t.Run("Default", func(t *testing.T) {
-		prompt := "Hello"
+	t.Run("Default (Unit Test safety)", func(t *testing.T) {
+		prompt := "YOUR ROLE - CODING AGENT ... (generic unit test prompt without special keywords)"
 		resp, err := agent.Send(ctx, prompt)
 		assert.NoError(t, err)
-		assert.Contains(t, resp, "Mock agent response")
+		assert.Contains(t, resp, "Mock agent response") // Fallback
+		assert.NotContains(t, resp, "primes.py")
 	})
 }
