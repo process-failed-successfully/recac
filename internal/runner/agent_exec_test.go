@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"recac/internal/db"
 	"recac/internal/notify"
 	"strings"
 	"testing"
@@ -16,6 +17,7 @@ type MockDockerForExec struct {
 	DockerClient
 	ExecutedCmds []string
 	ExecDelay    time.Duration
+	DB           db.Store // Optional DB for side-effects
 }
 
 func (m *MockDockerForExec) Exec(ctx context.Context, id string, cmd []string) (string, error) {
@@ -27,6 +29,31 @@ func (m *MockDockerForExec) Exec(ctx context.Context, id string, cmd []string) (
 		case <-time.After(m.ExecDelay):
 		case <-ctx.Done():
 			return "", ctx.Err()
+		}
+	}
+
+	// Simulate agent-bridge side effects
+	if strings.Contains(fullCmd, "agent-bridge signal") && m.DB != nil {
+		// Parse signal command: agent-bridge signal [set] KEY VALUE
+		parts := strings.Fields(fullCmd)
+		// Usually /bin/bash -c ... agent-bridge signal ...
+		var key, val string
+		for i, p := range parts {
+			if p == "signal" && i+2 < len(parts) {
+				if i+1 < len(parts) && parts[i+1] == "set" && i+3 < len(parts) {
+					key = parts[i+2]
+					val = parts[i+3]
+				} else {
+					key = parts[i+1]
+					val = parts[i+2]
+				}
+				break
+			}
+		}
+		if key != "" {
+			// Assume project is "test-project" or infer from env?
+			// Tests usually use "test-project"
+			m.DB.SetSignal("test-project", key, val)
 		}
 	}
 
