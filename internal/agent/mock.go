@@ -56,7 +56,7 @@ def is_prime(n):
 primes = [x for x in range(10000) if is_prime(x)]
 print(primes)
 with open('primes.json', 'w') as f:
-    json.dump(primes, f)
+    json.dump({"primes": primes}, f)
 EOF
 
 python3 primes.py

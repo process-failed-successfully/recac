@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"os"
+	"path/filepath"
 	"recac/internal/agent"
 	"strings"
 	"testing"
@@ -121,6 +122,8 @@ func TestHandleChatCommand_Clear(t *testing.T) {
 }
 
 func TestRunChat_Integration(t *testing.T) {
+	t.Setenv("RECAC_PERSONAS_FILE", filepath.Join(t.TempDir(), "personas.yaml"))
+
 	// Override factory
 	origFactory := agentClientFactory
 	defer func() { agentClientFactory = origFactory }()
