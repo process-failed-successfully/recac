@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"recac/internal/agent"
@@ -101,7 +102,15 @@ func TestEnvGenerate(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
-	// Setup code usually not needed for simple unit tests but good practice to isolate if needed
-	// Here we just run tests
+	// Setup temporary log directory for tests
+	tmpDir, err := os.MkdirTemp("", "recac-logs-test-*")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create temp log dir: %v\n", err)
+		os.Exit(1)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	os.Setenv("RECAC_LOGS_DIR", tmpDir)
+
 	os.Exit(m.Run())
 }

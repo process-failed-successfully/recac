@@ -233,8 +233,13 @@ func NewSessionWithConfig(workspace, project, provider, model string, dbStore db
 func initializeLogging(project string) *slog.Logger {
 	// Create agents/logs directory in the current working directory (host)
 	// This is where Promtail expects to find them based on docker-compose.monitoring.yml
-	cwd, _ := os.Getwd()
-	agentsLogsDir := filepath.Join(cwd, "agents", "logs")
+	// We prioritize RECAC_LOGS_DIR environment variable if set (e.g. for testing)
+	agentsLogsDir := os.Getenv("RECAC_LOGS_DIR")
+	if agentsLogsDir == "" {
+		cwd, _ := os.Getwd()
+		agentsLogsDir = filepath.Join(cwd, "agents", "logs")
+	}
+
 	if err := os.MkdirAll(agentsLogsDir, 0755); err != nil {
 		fmt.Printf("Warning: Failed to create agents/logs directory: %v\n", err)
 	} else {
