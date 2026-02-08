@@ -56,7 +56,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// Detects "Coding Agent" role
 		// We check this BEFORE Initializer because the coding prompt often contains "feature_list.json" (via cat command)
 		// which triggers the Initializer heuristic if checked first.
-		if strings.Contains(prompt, "YOUR ROLE - CODING AGENT") || strings.Contains(prompt, "Implement the solution") {
+		// Also exclude Project Manager and QA roles to prevent false positives if they mention coding tasks.
+		if (strings.Contains(prompt, "YOUR ROLE - CODING AGENT") || strings.Contains(prompt, "Implement the solution")) &&
+			!strings.Contains(prompt, "ROLE: Project Manager") && !strings.Contains(prompt, "QA") {
 			return "```bash\n" +
 				"cat << 'EOF' > primes.py\n" +
 				"import json\n\n" +
@@ -78,7 +80,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 		// 3. Initializer (Feature List Generation)
 		// Detects "Initializer" role or feature list requests
-		if strings.Contains(prompt, "Initialize the project") || strings.Contains(prompt, "feature_list.json") {
+		// Also exclude Project Manager and QA roles.
+		if (strings.Contains(prompt, "Initialize the project") || strings.Contains(prompt, "feature_list.json")) &&
+			!strings.Contains(prompt, "ROLE: Project Manager") && !strings.Contains(prompt, "QA") {
 			return "```bash\n" +
 				"cat <<EOF | agent-bridge import\n" +
 				"{\n" +
@@ -94,6 +98,30 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 				"EOF\n" +
 				"```", nil
 		}
+	}
+
+	// 4. QA Agent (Verification)
+	// Triggers if prompt identifies as QA Agent
+	if strings.Contains(prompt, "QA AGENT") || strings.Contains(prompt, "verify the project") {
+		return "```bash\n" +
+			"echo \"Running verification...\"\n" +
+			"if [ -f primes.py ] && [ -f primes.json ]; then\n" +
+			"  echo \"Files exist.\"\n" +
+			"else\n" +
+			"  echo \"Files missing.\"\n" +
+			"  exit 1\n" +
+			"fi\n" +
+			"agent-bridge signal QA_PASSED true\n" +
+			"```", nil
+	}
+
+	// 5. Project Manager (Sign-off)
+	// Triggers if prompt identifies as Project Manager
+	if strings.Contains(prompt, "PROJECT MANAGER") || strings.Contains(prompt, "Manager Review") {
+		return "```bash\n" +
+			"echo \"Project approved.\"\n" +
+			"agent-bridge signal PROJECT_SIGNED_OFF true --privileged\n" +
+			"```", nil
 	}
 
 	// Return a generic mock response that shows the agent received the prompt
