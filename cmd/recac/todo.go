@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const todoFile = "TODO.md"
+var todoFile = "TODO.md"
 
 var todoCmd = &cobra.Command{
 	Use:   "todo",

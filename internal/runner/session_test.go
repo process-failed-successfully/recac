@@ -76,6 +76,7 @@ func TestSession_AgentReadsSpec(t *testing.T) {
 
 	mockDocker, _ := docker.NewMockClient()
 	session := NewSession(mockDocker, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
+	defer session.Stop(context.Background())
 
 	spec, err := session.ReadSpec()
 	if err != nil {

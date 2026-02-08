@@ -281,8 +281,15 @@ jobs:
           GITHUB_EMAIL: ${{ secrets.GH_EMAIL }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
-          # Use the Makefile target which is configured for mock execution
-          make ci-simulate
+          # Use go run directly to override image and skip build/cleanup
+          go run e2e/runner/main.go \
+            -scenario prime-python \
+            -provider mock \
+            -model "mock-model" \
+            -image recac:smoke \
+            -pull-policy Never \
+            -skip-build \
+            -skip-cleanup
 
   # 8. Auto-Merge PR (Consolidated from mergy.yml)
   auto-merge:

@@ -3,29 +3,20 @@ package main
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
 
 func TestTodoScanCmd(t *testing.T) {
 	// Setup temporary directory
-	tmpDir, err := os.MkdirTemp("", "recac-todo-scan-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
-	// Save current working directory and restore it after test
-	originalWd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Chdir(originalWd)
-
-	// Change to temp dir
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatal(err)
-	}
+	// Override global todoFile to point to tmpDir/TODO.md
+	// This ensures we don't write to the package's TODO.md or rely on CWD
+	origTodoFile := todoFile
+	todoFile = filepath.Join(tmpDir, "TODO.md")
+	defer func() { todoFile = origTodoFile }()
 
 	// Create some files with TODOs
 	files := map[string]string{
@@ -43,23 +34,23 @@ import os`,
 	}
 
 	for name, content := range files {
-		if err := os.WriteFile(name, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(tmpDir, name), []byte(content), 0644); err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	// Create ignored directories
-	if err := os.Mkdir("node_modules", 0755); err != nil {
+	if err := os.Mkdir(filepath.Join(tmpDir, "node_modules"), 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile("node_modules/ignored.js", []byte("// TODO: This should be ignored"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "node_modules/ignored.js"), []byte("// TODO: This should be ignored"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := os.Mkdir(".hidden", 0755); err != nil {
+	if err := os.Mkdir(filepath.Join(tmpDir, ".hidden"), 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(".hidden/secret.go", []byte("// TODO: Secret todo"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, ".hidden/secret.go"), []byte("// TODO: Secret todo"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -76,7 +67,8 @@ import os`,
 
 	// Run scan
 	t.Run("Scan TODOs", func(t *testing.T) {
-		out, err := execute([]string{"todo", "scan"})
+		// Pass tmpDir as argument to scan
+		out, err := execute([]string{"todo", "scan", tmpDir})
 		if err != nil {
 			t.Fatalf("Failed to scan: %v", err)
 		}
@@ -85,7 +77,7 @@ import os`,
 			t.Errorf("Expected output to mention added tasks, got: %s", out)
 		}
 
-		content, err := os.ReadFile("TODO.md")
+		content, err := os.ReadFile(filepath.Join(tmpDir, "TODO.md"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -116,24 +108,24 @@ import os`,
 
 	// Run scan again (idempotency)
 	t.Run("Scan Idempotency", func(t *testing.T) {
-		out, err := execute([]string{"todo", "scan"})
+		out, err := execute([]string{"todo", "scan", tmpDir})
 		if err != nil {
 			t.Fatalf("Failed to scan: %v", err)
 		}
 
 		if !strings.Contains(out, "No new tasks added") {
-			content, _ := os.ReadFile("TODO.md")
+			content, _ := os.ReadFile(filepath.Join(tmpDir, "TODO.md"))
 			t.Errorf("Expected no new tasks, got: %s. TODO.md content:\n%s", out, string(content))
 		}
 	})
 
 	// Test adding a new file and scanning again
 	t.Run("Scan New File", func(t *testing.T) {
-		if err := os.WriteFile("new.go", []byte("// BUG: fix leak"), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(tmpDir, "new.go"), []byte("// BUG: fix leak"), 0644); err != nil {
 			t.Fatal(err)
 		}
 
-		out, err := execute([]string{"todo", "scan"})
+		out, err := execute([]string{"todo", "scan", tmpDir})
 		if err != nil {
 			t.Fatalf("Failed to scan: %v", err)
 		}
@@ -142,7 +134,7 @@ import os`,
 			t.Errorf("Expected 1 new task, got: %s", out)
 		}
 
-		content, err := os.ReadFile("TODO.md")
+		content, err := os.ReadFile(filepath.Join(tmpDir, "TODO.md"))
 		if err != nil {
 			t.Fatal(err)
 		}
