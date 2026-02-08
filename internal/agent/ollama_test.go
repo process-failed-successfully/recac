@@ -136,6 +136,9 @@ func TestOllamaClient_Send_ErrorHandling(t *testing.T) {
 	defer server.Close()
 
 	client = NewOllamaClient(server.URL, "llama2", "test-project")
+	// Inject fast backoff to avoid slow tests
+	client.BackoffFn = func(i int) time.Duration { return time.Millisecond }
+
 	_, err = client.Send(ctx, "test")
 	if err == nil {
 		t.Error("expected error for HTTP 500, got nil")
@@ -217,6 +220,9 @@ func TestOllamaProvider_Integration(t *testing.T) {
 	if ollamaClient.model != "mistral" {
 		t.Errorf("expected model 'mistral', got %s", ollamaClient.model)
 	}
+
+	// Inject fast backoff to avoid slow tests
+	ollamaClient.BackoffFn = func(i int) time.Duration { return time.Millisecond }
 
 	// Step 3: Run the agent and verify it successfully communicates with the local Ollama instance
 	ctx := context.Background()
