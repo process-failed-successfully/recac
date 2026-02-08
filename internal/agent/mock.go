@@ -110,7 +110,7 @@ func (m *MockAgent) tpmResponse(prompt string) string {
   "tickets": [
     {
       "id": "PRIMES",
-      "title": "Create primes.py",
+      "title": "ID:[PRIMES] Create primes.py",
       "description": "Create a python script that calculates primes and writes them to primes.json. [PRIMES]",
       "type": "task",
       "assigned_to": "coding_agent",
