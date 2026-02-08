@@ -268,7 +268,8 @@ func TestHelperMethods(t *testing.T) {
 	if m.FilterValue() != "M" {
 		t.Error("ModelItem FilterValue fail")
 	}
-	if m.Title() != "M" {
+	// Title now includes indentation for inactive items
+	if !strings.Contains(m.Title(), "M") {
 		t.Error("ModelItem Title fail")
 	}
 	if m.Description() != "D" {
@@ -279,7 +280,8 @@ func TestHelperMethods(t *testing.T) {
 	if a.FilterValue() != "A" {
 		t.Error("AgentItem FilterValue fail")
 	}
-	if a.Title() != "A" {
+	// Title now includes indentation for inactive items
+	if !strings.Contains(a.Title(), "A") {
 		t.Error("AgentItem Title fail")
 	}
 	if a.Description() != "D" {

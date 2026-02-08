@@ -63,6 +63,8 @@ var (
 	statusBadgeStyle = lipgloss.NewStyle().
 				Padding(0, 1).
 				Bold(true)
+
+	activeIndicatorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Bold(true) // Green
 )
 
 // -- Key Bindings --
@@ -169,10 +171,16 @@ type ModelItem struct {
 	Name               string
 	Value              string
 	DescriptionDetails string
+	IsActive           bool
 }
 
 func (i ModelItem) FilterValue() string { return i.Name }
-func (i ModelItem) Title() string       { return i.Name }
+func (i ModelItem) Title() string {
+	if i.IsActive {
+		return activeIndicatorStyle.Render("✓ ") + i.Name
+	}
+	return "  " + i.Name
+}
 func (i ModelItem) Description() string { return i.DescriptionDetails }
 
 // AgentItem implements list.Item for the agent/provider menu
@@ -180,10 +188,16 @@ type AgentItem struct {
 	Name               string
 	Value              string // Provider ID
 	DescriptionDetails string
+	IsActive           bool
 }
 
 func (i AgentItem) FilterValue() string { return i.Name }
-func (i AgentItem) Title() string       { return i.Name }
+func (i AgentItem) Title() string {
+	if i.IsActive {
+		return activeIndicatorStyle.Render("✓ ") + i.Name
+	}
+	return "  " + i.Name
+}
 func (i AgentItem) Description() string { return i.DescriptionDetails }
 
 // SlashCommand legacy wrapper
@@ -983,7 +997,9 @@ func (m *InteractiveModel) setListItemsToModels() {
 	items := make([]list.Item, len(models))
 	for i, mod := range models {
 		if mod.Value == m.currentModel {
-			mod.Name = mod.Name + " (Current)"
+			mod.IsActive = true
+		} else {
+			mod.IsActive = false
 		}
 		items[i] = mod
 	}
@@ -998,7 +1014,9 @@ func (m *InteractiveModel) setListItemsToAgents() {
 	items := make([]list.Item, len(m.agents))
 	for i, ag := range m.agents {
 		if ag.Value == m.currentAgent {
-			ag.Name = ag.Name + " (Current)"
+			ag.IsActive = true
+		} else {
+			ag.IsActive = false
 		}
 		items[i] = ag
 	}

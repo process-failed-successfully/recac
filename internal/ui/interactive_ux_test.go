@@ -19,9 +19,8 @@ func TestInteractiveModel_CurrentSelectionIndicator(t *testing.T) {
 		if mod, ok := item.(ModelItem); ok {
 			if mod.Value == "gemini-2.0-flash-auto" {
 				// Check if the name indicates it's current
-				// We expect something like "Gemini 2.0 Flash (Auto) (Current)" or similar
-				// Or check description
-				if strings.Contains(mod.Title(), "(Current)") || strings.Contains(mod.Description(), "Currently active") {
+				// We expect a checkmark "✓" or similar visual indicator
+				if strings.Contains(mod.Title(), "✓") || strings.Contains(mod.Description(), "Currently active") {
 					foundIndicator = true
 				}
 			}
@@ -41,7 +40,7 @@ func TestInteractiveModel_CurrentSelectionIndicator(t *testing.T) {
 	for _, item := range items {
 		if ag, ok := item.(AgentItem); ok {
 			if ag.Value == "gemini" {
-				if strings.Contains(ag.Title(), "(Current)") || strings.Contains(ag.Description(), "Currently active") {
+				if strings.Contains(ag.Title(), "✓") || strings.Contains(ag.Description(), "Currently active") {
 					foundIndicator = true
 				}
 			}
