@@ -125,6 +125,10 @@ func TestMockAgent_Manager(t *testing.T) {
 		t.Fatalf("Send failed: %v", err)
 	}
 
+	if !strings.Contains(response, "agent-bridge feature set req-must-correctly-identify-prime- --status done --passes true") {
+		t.Errorf("Expected feature set command in response, got:\n%s", response)
+	}
+
 	if !strings.Contains(response, "agent-bridge signal PROJECT_SIGNED_OFF true --privileged") {
 		t.Errorf("Expected PROJECT_SIGNED_OFF signal with --privileged in response, got:\n%s", response)
 	}

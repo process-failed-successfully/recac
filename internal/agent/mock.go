@@ -197,6 +197,8 @@ agent-bridge signal QA_PASSED true
 func (m *MockAgent) generateManagerResponse() string {
 	script := `
 echo "Manager Review: Approved."
+# Ensure feature is marked as passed to prevent premature sign-off detection
+agent-bridge feature set req-must-correctly-identify-prime- --status done --passes true
 agent-bridge signal PROJECT_SIGNED_OFF true --privileged
 `
 	return fmt.Sprintf("I approve the project.\n\n```bash%s```\n", script)
