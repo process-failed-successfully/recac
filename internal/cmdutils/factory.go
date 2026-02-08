@@ -113,6 +113,20 @@ var SetupWorkspace = func(ctx context.Context, gitClient git.IClient, repoURL, w
 
 	// 2. Clone Repository (if not already present)
 	if !gitClient.RepoExists(workspace) {
+		// If directory exists and is not empty (but not a git repo), clean it up
+		if info, err := os.Stat(workspace); err == nil && info.IsDir() {
+			if f, err := os.Open(workspace); err == nil {
+				names, _ := f.Readdirnames(1)
+				f.Close()
+				if len(names) > 0 {
+					fmt.Printf("[%s] Warning: Directory %s exists, is not empty, and is not a git repository. Cleaning up before clone.\n", ticketID, workspace)
+					if err := os.RemoveAll(workspace); err != nil {
+						return repoURL, fmt.Errorf("failed to clean workspace: %w", err)
+					}
+				}
+			}
+		}
+
 		fmt.Printf("[%s] Cloning repository into %s...\n", ticketID, workspace)
 		if err := gitClient.Clone(ctx, authRepoURL, workspace); err != nil {
 			return repoURL, fmt.Errorf("failed to clone repository: %w", err)
