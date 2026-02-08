@@ -95,7 +95,18 @@ echo "Initializer Agent Setup Complete"
 }`, nil
 	}
 
-	// 4. Coding Agent (Implementation)
+	// 4. Loop Breaker (Nothing to commit)
+	if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
+		return `It seems the work is done and committed.
+
+` + "```bash" + `
+agent-bridge signal QA_PASSED true --privileged
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged
+` + "```" + `
+`, nil
+	}
+
+	// 5. Coding Agent (Implementation)
 	// Check for primes task specifically
 	// CRITICAL: Ensure we don't accidentally match the Project Manager or other roles that might mention the file.
 	if strings.Contains(prompt, "primes.py") && !strings.Contains(prompt, "ROLE - PROJECT MANAGER") {
