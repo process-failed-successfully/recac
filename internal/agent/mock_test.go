@@ -9,7 +9,7 @@ import (
 
 func TestMockAgent_TPMHeuristic(t *testing.T) {
 	agent := NewMockAgent()
-	prompt := "You are an expert Technical Program Manager (TPM)... read app_spec.txt... generate tickets..."
+	prompt := "You are an expert Technical Program Manager (TPM)... Application Specification... decompose into Epics..."
 
 	resp, err := agent.Send(context.Background(), prompt)
 	if err != nil {

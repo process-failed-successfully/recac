@@ -35,7 +35,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristics for Specific Roles/Tasks (E2E Support)
 
 	// 1. Technical Program Manager (Ticket Generation)
-	if strings.Contains(prompt, "Technical Program Manager") && (strings.Contains(prompt, "app_spec.txt") || strings.Contains(prompt, "tickets")) {
+	if strings.Contains(prompt, "Technical Program Manager") && (strings.Contains(prompt, "Application Specification") || strings.Contains(prompt, "Epics")) {
 		// Return a valid JSON response for the Prime Number Script scenario (used in smoke tests)
 		return `
 		[
