@@ -71,8 +71,13 @@ var GetAgentClient = func(ctx context.Context, provider, model, projectPath, pro
 	}
 
 	// Final fallback for developers or testing if not ollama
-	if apiKey == "" && provider != "ollama" && provider != "gemini-cli" && provider != "cursor-cli" && provider != "opencode" {
+	if apiKey == "" && provider != "ollama" && provider != "gemini-cli" && provider != "cursor-cli" && provider != "opencode" && provider != "mock" {
 		apiKey = "dummy-key"
+	}
+
+	if provider == "mock" {
+		// Ensure NewMockAgent returns agent.Agent
+		return agent.NewMockAgent(), nil
 	}
 
 	if model == "" {
