@@ -37,8 +37,11 @@ func TestMockAgent_E2E_TPM(t *testing.T) {
 	if !strings.Contains(response, "PRIMES") {
 		t.Errorf("Expected TPM response to contain PRIMES ticket, got: %s", response)
 	}
-	if !strings.Contains(response, "agent-bridge import") {
-		t.Errorf("Expected TPM response to contain agent-bridge import, got: %s", response)
+	if !strings.Contains(response, "\"type\": \"Epic\"") {
+		t.Errorf("Expected TPM response to contain JSON with Epic type, got: %s", response)
+	}
+	if !strings.Contains(response, "\"children\"") {
+		t.Errorf("Expected TPM response to contain children, got: %s", response)
 	}
 }
 
