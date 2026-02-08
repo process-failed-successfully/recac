@@ -33,7 +33,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Loop breaker for E2E tests: If git reports no changes, assume implementation is done.
 	if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
-		return "The implementation appears to be complete and committed. Marking task as done.\n\n```bash\nagent-bridge feature set --id PRIMES --status implemented\nagent-bridge signal set QA_PASSED true\n```", nil
+		return "The implementation appears to be complete and committed. Marking task as done.\n\n```bash\nagent-bridge feature set PRIMES --status implemented\nagent-bridge signal set QA_PASSED true\n```", nil
 	}
 
 	// Heuristic for E2E Prime Python Scenario
