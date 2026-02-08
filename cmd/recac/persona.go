@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"recac/internal/agent"
 	"strings"
 
@@ -177,10 +178,97 @@ var personaRemoveCmd = &cobra.Command{
 	},
 }
 
+var personaExportCmd = &cobra.Command{
+	Use:   "export [name]",
+	Short: "Export personas to YAML",
+	Long:  `Export a specific persona or all custom personas to a YAML file or stdout.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		file, _ := cmd.Flags().GetString("file")
+
+		pm := agent.NewPersonaManager()
+		if err := pm.LoadPersonas(); err != nil {
+			return err
+		}
+
+		// args can be empty (all custom) or contain IDs
+		data, err := pm.Export(args...)
+		if err != nil {
+			return err
+		}
+
+		if file != "" {
+			if err := os.WriteFile(file, data, 0644); err != nil {
+				return fmt.Errorf("failed to write to file: %w", err)
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "✅ Exported to %s\n", file)
+		} else {
+			fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		}
+		return nil
+	},
+}
+
+var personaImportCmd = &cobra.Command{
+	Use:   "import <file>",
+	Short: "Import personas from a YAML file",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		file := args[0]
+		data, err := os.ReadFile(file)
+		if err != nil {
+			return fmt.Errorf("failed to read file: %w", err)
+		}
+
+		pm := agent.NewPersonaManager()
+		if err := pm.LoadPersonas(); err != nil {
+			return err
+		}
+
+		imported, err := pm.Import(data)
+		if err != nil {
+			return err
+		}
+
+		count := 0
+		for id, p := range imported {
+			// Check for conflicts
+			if _, exists := pm.GetPersona(id); exists {
+				var overwrite bool
+				prompt := &survey.Confirm{
+					Message: fmt.Sprintf("Persona '%s' already exists. Overwrite?", id),
+				}
+				if err := surveyAskOneFunc(prompt, &overwrite); err != nil {
+					return err
+				}
+				if !overwrite {
+					fmt.Fprintf(cmd.OutOrStdout(), "Skipped '%s'.\n", id)
+					continue
+				}
+			}
+			pm.AddPersona(id, p)
+			count++
+		}
+
+		if count > 0 {
+			if err := pm.SavePersonas(); err != nil {
+				return fmt.Errorf("failed to save personas: %w", err)
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "✅ Imported %d personas.\n", count)
+		} else {
+			fmt.Fprintln(cmd.OutOrStdout(), "No personas imported.")
+		}
+		return nil
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(personaCmd)
 	personaCmd.AddCommand(personaListCmd)
 	personaCmd.AddCommand(personaShowCmd)
 	personaCmd.AddCommand(personaAddCmd)
 	personaCmd.AddCommand(personaRemoveCmd)
+
+	personaExportCmd.Flags().StringP("file", "f", "", "Output file (default: stdout)")
+	personaCmd.AddCommand(personaExportCmd)
+	personaCmd.AddCommand(personaImportCmd)
 }

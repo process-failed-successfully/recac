@@ -168,6 +168,46 @@ func (pm *PersonaManager) ListSorted() []string {
 	return keys
 }
 
+// Export exports the specified personas (by ID) to YAML.
+// If ids is empty, it exports all custom personas (excluding unmodified defaults).
+func (pm *PersonaManager) Export(ids ...string) ([]byte, error) {
+	toExport := make(map[string]Persona)
+
+	if len(ids) == 0 {
+		// Export all custom personas
+		for k, v := range pm.personas {
+			// specific logic: if it's a built-in one and hasn't changed, don't export it.
+			if def, ok := DefaultPersonas[k]; ok {
+				if def == v {
+					continue
+				}
+			}
+			toExport[k] = v
+		}
+	} else {
+		// Export specific personas
+		for _, id := range ids {
+			if p, ok := pm.personas[id]; ok {
+				toExport[id] = p
+			} else {
+				return nil, fmt.Errorf("persona '%s' not found", id)
+			}
+		}
+	}
+
+	return yaml.Marshal(toExport)
+}
+
+// Import parses YAML data into a map of personas.
+// It does not automatically add them to the manager.
+func (pm *PersonaManager) Import(data []byte) (map[string]Persona, error) {
+	var imported map[string]Persona
+	if err := yaml.Unmarshal(data, &imported); err != nil {
+		return nil, fmt.Errorf("failed to parse personas: %w", err)
+	}
+	return imported, nil
+}
+
 func getPersonasFilePath() (string, error) {
 	// Priority:
 	// 1. $RECAC_PERSONAS_FILE
