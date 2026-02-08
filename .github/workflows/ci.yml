@@ -148,8 +148,9 @@ jobs:
       - name: Build Agent Bridge (Required for Integration Tests)
         run: |
           go build -buildvcs=false -o agent-bridge ./cmd/agent-bridge
-          # Move to /usr/local/bin so it's in PATH for 'agent-bridge import' commands in tests
-          sudo mv agent-bridge /usr/local/bin/
+          # Copy to /usr/local/bin so it's in PATH for 'agent-bridge import' commands
+          # AND keep in root because CheckAgentBridge looks for it there.
+          sudo cp agent-bridge /usr/local/bin/
 
       - name: Test Shard ${{ matrix.shard }}
         run: |

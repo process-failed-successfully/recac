@@ -82,13 +82,13 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(prompt, "primes.py") && !strings.Contains(prompt, "Technical Program Manager") && !strings.Contains(prompt, "INITIALIZER AGENT") {
 		// If the commit message exists in the prompt (git log), we are done.
 		if strings.Contains(prompt, "Implement primes.py and generate primes.json") {
-			return "```bash\nagent-bridge feature set --status done\n```", nil
+			return "```bash\nagent-bridge feature set PRIMES --status done --passes true\nagent-bridge signal COMPLETED true\n```", nil
 		}
 		// Fallback: If primes.json is in the file list (strong signal if runner provides it)
 		// We check for "primes.json" explicitly to avoid false positives from the instructions if possible,
 		// but since the instruction description usually doesn't say "primes.json" (it says 'primes.py'), this is reasonably safe.
 		if strings.Contains(prompt, "primes.json") {
-			return "```bash\nagent-bridge feature set --status done\n```", nil
+			return "```bash\nagent-bridge feature set PRIMES --status done --passes true\nagent-bridge signal COMPLETED true\n```", nil
 		}
 
 		return "```bash\n" +
@@ -117,6 +117,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			"python3 primes.py\n" +
 			"git add primes.py primes.json\n" +
 			"git diff --quiet && git diff --staged --quiet || git commit -m \"Implement primes.py and generate primes.json\" --author=\"Recac Agent <agent@recac.com>\" --no-gpg-sign\n" +
+			"agent-bridge feature set PRIMES --status done --passes true\n" +
+			"agent-bridge signal COMPLETED true\n" +
 			"```", nil
 	}
 
