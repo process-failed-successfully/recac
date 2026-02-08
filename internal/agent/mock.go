@@ -93,7 +93,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 5. QA Agent
 	if strings.Contains(prompt, "QA AGENT") {
-		return "```bash\n# QA Passed\nagent-bridge signal set QA_PASSED true\n```", nil
+		return "```bash\n# QA Passed\nagent-bridge signal QA_PASSED true\n```", nil
 	}
 
 	// Default response
