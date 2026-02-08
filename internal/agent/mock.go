@@ -66,8 +66,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		}
 
 		// 3. Coding Agent (Implementation)
-		// Detects "Coding Agent" role
-		if strings.Contains(prompt, "YOUR ROLE - CODING AGENT") || strings.Contains(prompt, "Implement the solution") {
+		// Detects "Coding Agent" role OR generic task execution prompt
+		if strings.Contains(prompt, "YOUR ROLE - CODING AGENT") ||
+			strings.Contains(prompt, "Implement the solution") ||
+			strings.Contains(prompt, "Multiple/Not Assigned") ||
+			strings.Contains(prompt, "Create Prime Number Script") {
 			return "```bash\n" +
 				"cat << 'EOF' > primes.py\n" +
 				"import json\n\n" +
