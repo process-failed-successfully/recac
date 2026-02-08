@@ -51,7 +51,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 3. QA Agent (Check before Coding Agent to prevent false positives with keywords)
 	// STRICTER CHECK: Ensure we are actually assigned the QA role, not just mentioned
 	if strings.Contains(prompt, "You are the QA Agent") || strings.Contains(prompt, "Your role is QA Agent") || strings.Contains(prompt, "ROLE - QA AGENT") {
-		return "## QA Report\n\nAll tests passed.", nil
+		return m.qaAgentResponse(), nil
 	}
 
 	// 4. Coding Agent
@@ -66,7 +66,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 5. Manager Agent
 	// Detect "Manager" role (often used for final review/sign-off)
-	if strings.Contains(prompt, "Manager") {
+	// STRICTER CHECK: Ensure "Role" context or explicit Project Manager title
+	if strings.Contains(prompt, "ROLE - PROJECT MANAGER") || strings.Contains(prompt, "You are the Project Manager") {
 		return m.managerSignOffResponse(), nil
 	}
 
@@ -187,10 +188,20 @@ agent-bridge feature set PRIMES --status done --passes true
 ` + "```"
 }
 
+func (m *MockAgent) qaAgentResponse() string {
+	return `## QA Report
+
+All tests passed.
+
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```"
+}
+
 func (m *MockAgent) managerSignOffResponse() string {
 	return `The project looks good. All requirements are met.
 
 ` + "```bash" + `
-agent-bridge signal PROJECT_SIGNED_OFF true
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged
 ` + "```"
 }
