@@ -357,8 +357,6 @@ jobs:
               }
 
               // 3. Approve the PR (Required by branch protection)
-              // Note: You cannot approve your own PR. If the token belongs to the PR author, this might fail.
-              // Assuming GITHUB_TOKEN or a bot token is used.
               try {
                 await github.rest.pulls.createReview({
                   owner: context.repo.owner,
@@ -371,7 +369,35 @@ jobs:
                 console.log(`Approval step skipped or failed: ${approveError.message}. Continuing to merge attempt...`);
               }
 
-              // 4. Merge the PR
+              // 4. Poll for Mergeability (Retries: 10 * 3s = 30s)
+              let retries = 10;
+              let isMergeable = false;
+              while (retries > 0) {
+                const { data: currentPr } = await github.rest.pulls.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: prNumber,
+                });
+
+                if (currentPr.mergeable === true) {
+                  isMergeable = true;
+                  break;
+                }
+
+                if (currentPr.mergeable === false) {
+                  throw new Error("PR is marked as NOT mergeable (conflicts or guardrails).");
+                }
+
+                console.log(`PR mergeability is pending (${currentPr.mergeable})... waiting 3s (retries left: ${retries})`);
+                await new Promise(r => setTimeout(r, 3000));
+                retries--;
+              }
+
+              if (!isMergeable) {
+                throw new Error("Timed out waiting for PR mergeability check.");
+              }
+
+              // 5. Merge the PR
               await github.rest.pulls.merge({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
