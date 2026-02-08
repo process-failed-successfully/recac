@@ -82,6 +82,23 @@ EOF
 	// Heuristic 1: Initializer (TPM)
 	// Triggers when the system asks to break down requirements
 	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "Break down the requirements") {
+		// Scenario: Primes (Single Task)
+		// Return a single Task so the original ticket ID is preserved and picked up by the orchestrator.
+		if strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "Prime Number Script") {
+			return `[
+  {
+    "title": "ID:[PRIMES] Prime Number Generator",
+    "description": "Implement a prime number generator in Python. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
+    "type": "Task",
+    "acceptance_criteria": [
+      "primes.py created",
+      "primes.json output correct"
+    ],
+    "children": []
+  }
+]`, nil
+		}
+
 		return `[
   {
     "title": "ID:[PRIMES] Prime Number Generator",
@@ -94,34 +111,6 @@ EOF
         "type": "Story",
         "acceptance_criteria": ["Git initialized"],
         "blocked_by": []
-      },
-      {
-        "title": "ID:[req-implement-primes] Implement Primes",
-        "description": "Implement primes.py to calculate prime numbers. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
-        "type": "Story",
-        "acceptance_criteria": ["primes.py exists", "Calculates primes correctly"],
-        "blocked_by": ["ID:[req-setup-repo] Initialize Repository"]
-      },
-      {
-        "title": "ID:[req-implement-tests] Implement Tests",
-        "description": "Implement test_primes.py. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
-        "type": "Story",
-        "acceptance_criteria": ["test_primes.py exists", "Tests pass"],
-        "blocked_by": ["ID:[req-implement-primes] Implement Primes"]
-      },
-      {
-        "title": "ID:[req-the-makefile-targets-are-implemented] Create Makefile",
-        "description": "Create Makefile with run, test, lint, format targets for primes.py. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
-        "type": "Story",
-        "acceptance_criteria": ["Makefile exists", "make run works", "make test works"],
-        "blocked_by": ["ID:[req-implement-tests] Implement Tests"]
-      },
-      {
-        "title": "ID:[req-ci-workflow] Setup CI",
-        "description": "Setup CI workflow. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
-        "type": "Story",
-        "acceptance_criteria": [".github/workflows/ci.yml exists"],
-        "blocked_by": ["ID:[req-the-makefile-targets-are-implemented] Create Makefile"]
       }
     ]
   }

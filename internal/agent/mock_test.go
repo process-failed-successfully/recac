@@ -27,6 +27,7 @@ func TestMockAgent_Default(t *testing.T) {
 
 func TestMockAgent_TPM(t *testing.T) {
 	agent := NewMockAgent()
+	// Generic TPM prompt without ID
 	prompt := "You are the Technical Program Manager. Break down the requirements."
 	response, err := agent.Send(context.Background(), prompt)
 	if err != nil {
@@ -35,8 +36,9 @@ func TestMockAgent_TPM(t *testing.T) {
 	if !strings.Contains(response, "PRIMES") {
 		t.Error("Expected JSON with project name")
 	}
-	if !strings.Contains(response, "req-the-makefile-targets-are-implemented") {
-		t.Error("Expected specific feature ID")
+	// We removed this specific ID in the refactor, so check for setup-repo instead
+	if !strings.Contains(response, "req-setup-repo") {
+		t.Error("Expected setup-repo feature ID")
 	}
 }
 
@@ -97,6 +99,19 @@ func TestMockAgent_SmokeTestLogic(t *testing.T) {
 	// Check that it writes json
 	if !strings.Contains(resp, "json.dump") {
 		t.Error("Implement Primes should write json output")
+	}
+
+	// 6. TPM Single Task (Smoke Test Fix)
+	resp, _ = agent.Send(ctx, "Technical Program Manager. Break down requirements for ID:[PRIMES]")
+	if !strings.Contains(resp, `"type": "Task"`) {
+		t.Error("TPM should return Task type for PRIMES")
+	}
+	if strings.Contains(resp, `"children": [`) && !strings.Contains(resp, `"children": []`) {
+		// It should have empty children
+		// Just check it doesn't contain req-setup-repo
+		if strings.Contains(resp, "req-setup-repo") {
+			t.Error("TPM Single Task should NOT contain subtasks")
+		}
 	}
 }
 
