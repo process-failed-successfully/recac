@@ -100,36 +100,6 @@ agent-bridge feature set req-setup-repo --status done --passes true
 			return fmt.Sprintf("I will initialize the repository.\n\n```bash\n%s\n```", script), nil
 		}
 
-		// Scenario: Primes - Ticket 2: Implement Primes
-		if strings.Contains(prompt, "req-implement-primes") || strings.Contains(prompt, "primes.py") {
-			script := `
-cat << 'EOF' > primes.py
-import sys
-
-def is_prime(n):
-    if n <= 1:
-        return False
-    for i in range(2, int(n**0.5) + 1):
-        if n % i == 0:
-            return False
-    return True
-
-if __name__ == "__main__":
-    # Print first 10 primes
-    count = 0
-    num = 2
-    while count < 10:
-        if is_prime(num):
-            print(num)
-            count += 1
-        num += 1
-EOF
-
-agent-bridge feature set req-implement-primes --status done --passes true
-`
-			return fmt.Sprintf("I will implement primes.py.\n\n```bash\n%s\n```", script), nil
-		}
-
 		// Scenario: Primes - Ticket 3: Implement Tests
 		if strings.Contains(prompt, "req-implement-tests") {
 			script := `
@@ -218,6 +188,36 @@ EOF
 agent-bridge feature set req-ci-workflow --status done --passes true
 `
 			return fmt.Sprintf("I will setup the CI workflow.\n\n```bash\n%s\n```", script), nil
+		}
+
+		// Scenario: Primes - Ticket 2: Implement Primes (Broad check, must be last)
+		if strings.Contains(prompt, "req-implement-primes") || strings.Contains(prompt, "primes.py") {
+			script := `
+cat << 'EOF' > primes.py
+import sys
+
+def is_prime(n):
+    if n <= 1:
+        return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+if __name__ == "__main__":
+    # Print first 10 primes
+    count = 0
+    num = 2
+    while count < 10:
+        if is_prime(num):
+            print(num)
+            count += 1
+        num += 1
+EOF
+
+agent-bridge feature set req-implement-primes --status done --passes true
+`
+			return fmt.Sprintf("I will implement primes.py.\n\n```bash\n%s\n```", script), nil
 		}
 
 		// Fallback command to avoid NO-OP loop
