@@ -379,6 +379,7 @@ func run() error {
 	if err != nil {
 		printKubeDebugInfo(namespace)
 		printLogs(namespace, fmt.Sprintf("app.kubernetes.io/name=%s", "recac"))
+		printLogs(namespace, "app=recac-agent")
 		return fmt.Errorf("agent job failed to start: %w", err)
 	}
 	log.Printf("Agent job started: %s", jobName)

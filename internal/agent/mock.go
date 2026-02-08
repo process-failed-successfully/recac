@@ -94,6 +94,17 @@ EOF
 	// 3. Technical Program Manager Heuristic
 	// The TPM prompt contains "ROLE: Technical Program Manager"
 	if strings.Contains(prompt, "Technical Program Manager") {
+		// Special handling for PRIMES scenario to ensure single-task execution (matching AppSpec constraints)
+		if strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "Prime Number") {
+			return `[
+  {
+    "title": "ID:[PRIMES] Prime Number Generator",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.",
+    "type": "Task"
+  }
+]`, nil
+		}
+
 		return `[
   {
     "title": "ID:[PRIMES] Prime Number Generator",
