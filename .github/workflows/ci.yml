@@ -148,10 +148,8 @@ jobs:
       - name: Build Agent Bridge (Required for Integration Tests)
         run: |
           go build -buildvcs=false -o agent-bridge ./cmd/agent-bridge
-          # Ensure it's available in PATH or expected location
-          # Integration tests might expect it in the root or same dir
-          # The logs said: "agent-bridge binary not found at /home/runner/work/recac/recac/agent-bridge"
-          # So building it in root (current dir) is correct.
+          # Move to /usr/local/bin so it's in PATH for 'agent-bridge import' commands in tests
+          sudo mv agent-bridge /usr/local/bin/
 
       - name: Test Shard ${{ matrix.shard }}
         run: |
