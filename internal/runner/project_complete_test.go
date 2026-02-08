@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"recac/internal/db"
 	"recac/internal/docker"
@@ -72,6 +73,7 @@ func TestProjectCompleteFlow(t *testing.T) {
 	// Create Session
 	session := NewSession(dockerCli, agentClient, workspace, "ubuntu:latest", "test-project", "gemini", "gemini-pro", 1)
 	session.FeatureContent = featureContent
+	session.SleepFunc = func(d time.Duration) {} // Mock sleep
 
 	// Inject Store and Project into MockAgent
 	agentClient.Store = session.DBStore

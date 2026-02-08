@@ -123,18 +123,26 @@ echo "Project initialized."
 	promptLower := strings.ToLower(prompt)
 	if strings.Contains(promptLower, "calculate primes") || strings.Contains(prompt, "[PRIMES]") || strings.Contains(promptLower, "prime numbers") || strings.Contains(prompt, "req-must-correctly-identify-prime-") {
 		return `
-Sure, I will create a python script to calculate primes.
+Sure, I will create a python script to calculate primes up to 10,000 and save them to primes.json.
 
 ` + "```bash" + `
 cat <<EOF > primes.py
+import json
+
 def is_prime(n):
     if n <= 1: return False
     for i in range(2, int(n**0.5) + 1):
         if n % i == 0: return False
     return True
 
-print([x for x in range(20) if is_prime(x)])
+primes = [x for x in range(10000) if is_prime(x)]
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+print(f"Generated {len(primes)} primes to primes.json")
 EOF
+
+# Run the script to generate the file
+python3 primes.py
 
 # Signal feature completion
 agent-bridge feature set req-must-correctly-identify-prime- --status done --passes true

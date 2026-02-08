@@ -12,6 +12,7 @@ import (
 	"recac/internal/telemetry"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -336,6 +337,7 @@ func TestSession_RunLoop_SingleIteration(t *testing.T) {
 	mockDocker, _ := docker.NewMockClient()
 	session := NewSession(mockDocker, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 	session.MaxIterations = 1
+	session.SleepFunc = func(d time.Duration) {}
 
 	ctx := context.Background()
 	if err := session.RunLoop(ctx); err != nil && err != ErrMaxIterations {
@@ -361,6 +363,8 @@ func TestSession_RunQAAgent(t *testing.T) {
 	listPath := filepath.Join(tmpDir, "feature_list.json")
 	content := `{"project_name": "Test", "features": [{"id":"1", "description":"feat 1", "status":"done"}]}`
 	os.WriteFile(listPath, []byte(content), 0644)
+
+	session.SleepFunc = func(d time.Duration) {}
 
 	if err := session.runQAAgent(context.Background()); err != nil {
 		t.Errorf("Expected QA to pass: %v", err)
@@ -767,6 +771,7 @@ func TestSession_RunLoop_Stall(t *testing.T) {
 	session := NewSession(d, mockAgent, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 	session.MaxIterations = 5
 	session.Project = "test-project"
+	session.SleepFunc = func(d time.Duration) {}
 
 	// Setup features
 	features := []db.Feature{{ID: "1", Status: "todo"}}
@@ -845,6 +850,7 @@ func TestSession_RunLoop_QAPassed(t *testing.T) {
 	session := NewSession(d, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 	session.ManagerAgent = mockManager
 	session.MaxIterations = 2
+	session.SleepFunc = func(d time.Duration) {}
 
 	// Inject QA_PASSED directly into DB since file-based is ignored for privileged signals
 	if session.DBStore != nil {
