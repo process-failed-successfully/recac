@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,11 +31,70 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
-	// Return a mock response that shows the agent received the prompt
-	// This allows the session to run without requiring real API keys
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
-		m.responsePrefix, len(prompt), truncateString(prompt, 100))
-	return response, nil
+
+	// 1. Manager Agent (Sign-off)
+	if strings.Contains(prompt, "Manager") && (strings.Contains(prompt, "review") || strings.Contains(prompt, "sign-off")) {
+		return "I approve the project.\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
+	}
+
+	// 2. QA Agent (Pass)
+	if strings.Contains(prompt, "QA") && (strings.Contains(prompt, "verification") || strings.Contains(prompt, "quality assurance")) {
+		return "QA passed.\n```bash\nagent-bridge signal QA_PASSED true\n```", nil
+	}
+
+	// 3. Coding Agent (Completion)
+	if (strings.Contains(prompt, "CODING AGENT") || strings.Contains(prompt, "software engineer")) && strings.Contains(prompt, "All features are marked as done/passing") {
+		return "All features are done.\n```bash\nagent-bridge signal COMPLETED true\n```", nil
+	}
+
+	// 4. Coding Agent (Implementation - PRIMES)
+	if (strings.Contains(prompt, "CODING AGENT") || strings.Contains(prompt, "software engineer")) && (strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "primes.py")) {
+		script := `import json
+
+primes = []
+for num in range(2, 10000):
+    is_prime = True
+    for i in range(2, int(num ** 0.5) + 1):
+        if num % i == 0:
+            is_prime = False
+            break
+    if is_prime:
+        primes.append(num)
+
+with open('primes.json', 'w') as f:
+    json.dump({'primes': primes}, f)
+`
+		return fmt.Sprintf("I will implement the primes script.\n```bash\ncat << 'EOF' > primes.py\n%s\nEOF\npython3 primes.py\ngit add primes.py primes.json\ngit commit -m \"Add primes script and output\"\nagent-bridge feature set PRIMES --status done --passes true\n```", script), nil
+	}
+
+	// 5. Initializer / TPM (Feature List)
+	// Triggers on "Technical Program Manager", "Ticket Generation", "feature_list.json" OR "[PRIMES]" (if not coding agent)
+	// Crucially, we must exclude "CODING AGENT" to avoid false positives from the coding agent's context.
+	isInitializer := strings.Contains(prompt, "Technical Program Manager") ||
+		strings.Contains(prompt, "Ticket Generation") ||
+		strings.Contains(prompt, "feature_list.json") ||
+		strings.Contains(prompt, "[PRIMES]")
+
+	if isInitializer && !strings.Contains(prompt, "CODING AGENT") {
+		jsonContent := `{
+  "project_name": "primes-project",
+  "features": [
+    {
+      "id": "PRIMES",
+      "description": "Calculate primes < 10000",
+      "dependencies": {
+          "depends_on_ids": []
+      },
+      "status": "todo"
+    }
+  ]
+}`
+		return fmt.Sprintf("I will generate the feature list.\n```bash\ncat <<EOF > feature_list.json\n%s\nEOF\n```", jsonContent), nil
+	}
+
+	// Default echo
+	return fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
+		m.responsePrefix, len(prompt), truncateString(prompt, 100)), nil
 }
 
 // SendStream implements the Agent interface
