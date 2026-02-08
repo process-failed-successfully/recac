@@ -97,13 +97,14 @@ Description: Script calculates primes correctly
 	}
 
 	// Should return Implementation (Bash with primes.py)
-	// Should NOT return ls -la (Generic Fallback)
-	if strings.Contains(response, "ls -la") && !strings.Contains(response, "primes.py") {
-		t.Errorf("Coding Agent fell back to generic 'ls -la' response instead of implementing primes.py!")
-	}
-
 	if !strings.Contains(response, "cat << 'EOF' > primes.py") {
 		t.Errorf("Expected primes.py implementation, got: %s", response)
+	}
+
+	// Should contain feature set command with ID
+	expectedCmd := "agent-bridge feature set req-must-correctly-identify-prime- --status done --passes true"
+	if !strings.Contains(response, expectedCmd) {
+		t.Errorf("Implementation response missing feature set command with ID.\nExpected to contain: %s\nGot:\n%s", expectedCmd, response)
 	}
 }
 
@@ -126,5 +127,11 @@ No changes to commit
 	// Should detect completion
 	if !strings.Contains(response, "Task appears complete") {
 		t.Errorf("Expected completion response, got: %s", response)
+	}
+
+	// Should contain feature set command with ID
+	expectedCmd := "agent-bridge feature set req-must-correctly-identify-prime- --status done --passes true"
+	if !strings.Contains(response, expectedCmd) {
+		t.Errorf("Completion response missing feature set command with ID.\nExpected to contain: %s\nGot:\n%s", expectedCmd, response)
 	}
 }

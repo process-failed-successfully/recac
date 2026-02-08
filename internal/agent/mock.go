@@ -137,12 +137,13 @@ python3 primes.py
 git add primes.py primes.json
 git commit -m "Implement primes.py" || echo "No changes to commit"
 git push origin HEAD
+agent-bridge feature set req-must-correctly-identify-prime- --status done --passes true
 `
 	return fmt.Sprintf("I will implement the primes.py script as requested.\n\n```bash%s```\n", script)
 }
 
 func (m *MockAgent) generatePrimesCompletionResponse() string {
-	return "Task appears complete. Marking as done.\n\n```bash\nagent-bridge feature set --status done --passes true\n```\n"
+	return "Task appears complete. Marking as done.\n\n```bash\nagent-bridge feature set req-must-correctly-identify-prime- --status done --passes true\n```\n"
 }
 
 func (m *MockAgent) generatePrimesJSONResponse() string {
