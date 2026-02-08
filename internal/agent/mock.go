@@ -116,6 +116,22 @@ agent-bridge feature set PRIMES --status done --passes true
 ` + "```", nil
 	}
 
+	// Heuristic: QA Agent
+	if strings.Contains(prompt, "QA AGENT") {
+		return `Mock QA Agent: Verified successfully.
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```", nil
+	}
+
+	// Heuristic: Manager Agent
+	if strings.Contains(prompt, "MANAGER AGENT") || strings.Contains(prompt, "Manager Agent") {
+		return `Mock Manager: Approved.
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```", nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...\n\n```bash\necho 'Mock Agent: Processing request...'\n```",
