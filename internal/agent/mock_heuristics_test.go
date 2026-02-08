@@ -24,6 +24,7 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		prompt := "YOUR ROLE - INITIALIZER AGENT ... Create init.sh ..."
 		resp, err := agent.Send(ctx, prompt)
 		assert.NoError(t, err)
+		assert.Contains(t, resp, "```bash")
 		assert.Contains(t, resp, "feature_list.json")
 		assert.Contains(t, resp, "req-primes-implementation")
 		assert.Contains(t, resp, "agent-bridge import")
@@ -34,6 +35,7 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		prompt := "YOUR ROLE - CODING AGENT ... [PRIMES] ..."
 		resp, err := agent.Send(ctx, prompt)
 		assert.NoError(t, err)
+		assert.Contains(t, resp, "```bash")
 		assert.Contains(t, resp, "primes.py")
 		assert.Contains(t, resp, "def is_prime(n):")
 		assert.Contains(t, resp, "test_primes.py")
@@ -45,6 +47,7 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		prompt := "YOUR ROLE - CODING AGENT \n- **Feature ID**: custom-feature-id\n"
 		resp, err := agent.Send(ctx, prompt)
 		assert.NoError(t, err)
+		assert.Contains(t, resp, "```bash")
 		assert.Contains(t, resp, "agent-bridge feature set custom-feature-id --status done --passes true")
 	})
 
@@ -52,6 +55,7 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		prompt := "YOUR ROLE - QA AGENT ..."
 		resp, err := agent.Send(ctx, prompt)
 		assert.NoError(t, err)
+		assert.Contains(t, resp, "```bash")
 		assert.Contains(t, resp, "make test")
 		assert.Contains(t, resp, "agent-bridge signal QA_PASSED true")
 	})
@@ -60,6 +64,7 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		prompt := "YOUR ROLE - PROJECT MANAGER ..."
 		resp, err := agent.Send(ctx, prompt)
 		assert.NoError(t, err)
+		assert.Contains(t, resp, "```bash")
 		assert.Contains(t, resp, "agent-bridge signal PROJECT_SIGNED_OFF true")
 	})
 

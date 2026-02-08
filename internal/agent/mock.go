@@ -53,11 +53,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 2. Initializer Agent
 	if strings.Contains(prompt, "YOUR ROLE - INITIALIZER AGENT") {
-		// Extract Project ID if present (e.g. "PROJ-123")
-		// The prompt might contain it in the context.
-		// For now we use a fixed ID for the feature list that matches the coding agent heuristic.
-
-		return `
+		return "```bash\n" + `
 cat << 'EOF' > feature_list.json
 {
   "project_name": "recac-e2e",
@@ -101,7 +97,7 @@ test:
 EOF
 
 agent-bridge import feature_list.json
-`, nil
+` + "\n```", nil
 	}
 
 	// 3. Coding Agent
@@ -114,7 +110,7 @@ agent-bridge import feature_list.json
 			featureID = strings.TrimSpace(matches[1])
 		}
 
-		return fmt.Sprintf(`
+		return fmt.Sprintf("```bash\n"+`
 cat << 'EOF' > primes.py
 import sys
 
@@ -171,22 +167,22 @@ EOF
 python3 test_primes.py
 
 agent-bridge feature set %s --status done --passes true
-`, featureID), nil
+`+"\n```", featureID), nil
 	}
 
 	// 4. QA Agent
 	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
-		return `
+		return "```bash\n" + `
 make test
 agent-bridge signal QA_PASSED true
-`, nil
+` + "\n```", nil
 	}
 
 	// 5. Manager
 	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") {
-		return `
+		return "```bash\n" + `
 agent-bridge signal PROJECT_SIGNED_OFF true
-`, nil
+` + "\n```", nil
 	}
 
 	// Default Response
