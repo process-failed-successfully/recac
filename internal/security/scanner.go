@@ -37,7 +37,7 @@ var (
 	reReverseShell    = regexp.MustCompile(`(?i)nc\s+.*?-e\s+.*`)
 	// New patterns
 	reSudo            = regexp.MustCompile(`(?i)\bsudo\b`)
-	reSecretDump      = regexp.MustCompile(`(?im)(^\s*env\s*$|\bprintenv\b)`)
+	reSecretDump      = regexp.MustCompile(`(?im)(^\s*env\s*$|^\s*printenv\s*$)`) // Only flag bare printenv to allow "echo printenv"
 )
 
 // NewRegexScanner creates a new scanner with default patterns

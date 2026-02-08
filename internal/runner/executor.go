@@ -205,6 +205,12 @@ func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, ind
 			errMsg = err.Error()
 		}
 
+		// HACK: Handle "nothing to commit" failure gracefully for autonomous loops
+		if strings.Contains(cmdScript, "git commit") && strings.Contains(output, "nothing to commit") {
+			s.Logger.Info("ignoring git commit 'nothing to commit' failure", "script", cmdScript)
+			return fmt.Sprintf("Command Output (No Changes):\n%s\n", output), nil
+		}
+
 		result := fmt.Sprintf("Command Failed: %s\nError: %s\nOutput:\n%s\n", cmdScript, errMsg, output)
 		s.Logger.Error("command failed", "script", cmdScript, "error", errMsg)
 
