@@ -63,7 +63,7 @@ echo "Initializer Agent Setup Complete"
     "id": "TASK-1",
     "title": "ID:[PRIMES] Implement Primes",
     "description": "Implement a python script named primes.py to calculate prime numbers.",
-    "type": "task",
+    "type": "Task",
     "status": "todo",
     "priority": "high"
   }

@@ -179,7 +179,9 @@ func getPersonasFilePath() (string, error) {
 
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", err
+		// Fallback to relative path if home directory resolution fails
+		// This ensures robustness in restrictive CI environments or containers
+		return ".recac/personas.yaml", nil
 	}
 	return filepath.Join(home, ".recac", "personas.yaml"), nil
 }
