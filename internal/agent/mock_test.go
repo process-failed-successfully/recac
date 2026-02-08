@@ -78,6 +78,22 @@ func TestMockAgent(t *testing.T) {
 			t.Errorf("Failed to trigger Primes implementation response, got: %s", response)
 		}
 	})
+
+	t.Run("Prime Verification Case Sensitivity", func(t *testing.T) {
+		// Simulates a prompt for "Verify Implementation" task which uses lowercase "prime number"
+		prompt := `## YOUR ROLE - CODING AGENT
+		Task: Verify the prime number script works as expected.`
+
+		response, err := agent.Send(context.Background(), prompt)
+		if err != nil {
+			t.Fatalf("Send failed: %v", err)
+		}
+
+		// Should match the Primes heuristic (even with lowercase)
+		if !strings.Contains(response, "Implementing prime number script") {
+			t.Errorf("Failed to match 'prime number' (lowercase) heuristic. Got default response: %s", response)
+		}
+	})
 }
 
 func TestTruncateString(t *testing.T) {

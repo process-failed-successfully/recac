@@ -76,7 +76,9 @@ echo '[{"id": "PRIMES", "description": "Create a python script named primes.py t
 	}
 
 	// Heuristic: Check for Prime Number script task (used in smoke tests/CI)
-	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "Prime Number") || strings.Contains(prompt, "[PRIMES]") {
+	// We check for case-insensitive "prime number" to handle variations like "Verify the prime number script".
+	lowerPrompt := strings.ToLower(prompt)
+	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "Prime Number") || strings.Contains(prompt, "[PRIMES]") || strings.Contains(lowerPrompt, "prime number") {
 		// Return a bash script that implements the prime number calculator
 		// This must satisfy the verification logic in pkg/e2e/scenarios/prime_python.go
 		return `Mock Agent: Implementing prime number script.
