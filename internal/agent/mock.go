@@ -47,9 +47,9 @@ cat <<EOF > feature_list.json
   "projectName": "mock-project",
   "features": [
     {
-      "id": "1",
-      "name": "Core",
-      "description": "Initial feature",
+      "id": "req-primes",
+      "name": "Implement Primes",
+      "description": "Implement a python script named primes.py to calculate prime numbers.",
       "status": "todo",
       "priority": "high",
       "passes": false

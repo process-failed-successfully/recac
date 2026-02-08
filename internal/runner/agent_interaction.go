@@ -48,6 +48,7 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 			prompt, err := prompts.GetPrompt(prompts.Initializer, map[string]string{
 				"spec": spec,
 			})
+			// EXPLICITLY RETURN INITIALIZER ROLE
 			return prompt, prompts.Initializer, false, err
 		}
 	}
