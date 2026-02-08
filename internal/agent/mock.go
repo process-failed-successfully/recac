@@ -133,6 +133,9 @@ python3 primes.py
 git add primes.py primes.json
 git commit -m "feat: implement primes.py and generate primes.json"
 git push || echo "Push skipped in mock mode"
+
+# Update feature status to Done
+agent-bridge feature set PRIMES --status done --passes true
 ` + "```" + `
 `, nil
 	}
@@ -140,7 +143,13 @@ git push || echo "Push skipped in mock mode"
 	// 3. QA / Manager Role (Review)
 	// CRITICAL: Exclude Coding Agent, which mentions "QA" and "Review" in its instructions/template.
 	if (strings.Contains(prompt, "Review") || strings.Contains(prompt, "QA")) && !strings.Contains(prompt, "YOUR ROLE - CODING AGENT") {
-		return "LGTM. The code implements the requirements correctly. primes.py exists and primes.json contains the expected data.", nil
+		return `LGTM. The code implements the requirements correctly. primes.py exists and primes.json contains the expected data.
+
+` + "```bash" + `
+# Signal QA Passed
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
 	}
 
 	// Default fallback
