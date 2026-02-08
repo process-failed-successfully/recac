@@ -81,15 +81,19 @@ def is_prime(n):
     return True
 
 primes = [i for i in range(10001) if is_prime(i)]
-print(json.dumps({"primes": primes}))
+with open("primes.json", "w") as f:
+    json.dump({"primes": primes}, f)
 EOF
+
+# Run the script to generate the file
+python3 primes.py
 
 # Mark feature as done
 # Use explicit ID from the initializer
 agent-bridge feature set req-implement-prime-calculation-lo --status done || echo "Feature set failed, ignoring"
 
 # Ensure clean exit for smoke tests
-git add primes.py || true
+git add primes.py primes.json || true
 git commit -m "Implement primes" || echo "No changes to commit"
 ` + "```" + `
 `, nil
