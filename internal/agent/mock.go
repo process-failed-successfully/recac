@@ -110,6 +110,9 @@ git config user.name "Mock Agent"
 # Commit the changes
 git add primes.py primes.json
 git commit -m "Implement prime number calculator"
+
+# Signal completion
+agent-bridge feature set PRIMES --status done --passes true
 ` + "```", nil
 	}
 
