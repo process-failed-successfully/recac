@@ -55,6 +55,9 @@ cat <<EOF > feature_list.json
   ]
 }
 EOF
+
+# Import the features into the database
+agent-bridge import --file feature_list.json
 ` + "```" + `
 `, nil
 	}
@@ -109,7 +112,9 @@ EOF
 		return `
 I will implement the primes script.
 
-` + "```python:primes.py" + `
+` + "```bash" + `
+# Create the python script
+cat <<EOF > primes.py
 import json
 import sys
 
@@ -131,13 +136,14 @@ if __name__ == "__main__":
     with open("primes.json", "w") as f:
         json.dump(result, f)
     print("Generated primes.json")
-` + "```" + `
+EOF
 
-` + "```bash" + `
 # Run the script to generate the json
 python3 primes.py
+
 # Force track the file
 git add -f primes.py primes.json
+
 # Mark feature as done
 agent-bridge feature set --id feature-1 --status done --passes true
 ` + "```" + `
