@@ -32,7 +32,7 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           command: ["/usr/local/bin/orchestrator"]
-          args: ["run"]
+          args: ["run", "--jira-label", {{ .Values.config.jira_label | quote }}]
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
             - name: RECAC_DB_URL
