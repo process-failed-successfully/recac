@@ -36,13 +36,40 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// MOVED TO TOP to prevent TPM/Generic heuristics from catching "Application Specification" in the prompt
 	// CRITICAL: We must be specific to the ROLE header to avoid matching "git init" in the history of other agents.
 	if strings.Contains(prompt, "ROLE - INITIALIZER AGENT") {
+		// Extract Repo URL if present
+		repoURL := ""
+		lines := strings.Split(prompt, "\n")
+		for _, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "Repo:") {
+				repoURL = strings.TrimSpace(strings.TrimPrefix(trimmed, "Repo:"))
+				break
+			}
+		}
+
+		// Prepare git setup command
+		// If GITHUB_API_KEY is set and we have a repo URL, try to clone.
+		// Otherwise fallback to git init.
+		gitSetup := `
+if [ -n "$GITHUB_API_KEY" ] && [ -n "` + repoURL + `" ]; then
+  # Inject token into URL
+  REPO_URL="` + repoURL + `"
+  # Replace https:// with https://x-access-token:KEY@
+  AUTH_URL="${REPO_URL/https:\/\//https:\/\/x-access-token:${GITHUB_API_KEY}@}"
+  echo "Cloning from ${REPO_URL}..."
+  git clone "$AUTH_URL" .
+else
+  echo "Initializing local repo (no token or url found)..."
+  git init
+fi
+`
+
 		// Detect Primes scenario
 		if strings.Contains(strings.ToLower(prompt), "prime") {
 			return `
 I will initialize the repository and create the feature list for the prime number script.
 
-` + "```bash" + `
-git init
+` + "```bash" + gitSetup + `
 git config user.email "you@example.com"
 git config user.name "Your Name"
 
@@ -78,8 +105,7 @@ EOF
 		return `
 I will initialize the repository and import the plan.
 
-` + "```bash" + `
-git init
+` + "```bash" + gitSetup + `
 git config user.email "you@example.com"
 git config user.name "Your Name"
 agent-bridge import --file /app/ticket_plan.json
@@ -123,11 +149,14 @@ with open('primes.json', 'w') as f:
     json.dump({"primes": primes}, f)
 EOF
 
+# Create a branch for the feature
+git checkout -b agent/PRIMES-mock
+
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json"
-git push
-agent-bridge feature set PRIMES --status implemented
+git push origin agent/PRIMES-mock
+agent-bridge feature set PRIMES --status done --passes true
 ` + "```" + `
 `, nil
 	}
