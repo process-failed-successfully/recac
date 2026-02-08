@@ -149,7 +149,7 @@ git add primes.py
 git commit -m "Add primes.py" || echo "No changes to commit"
 
 # Mark feature as done to prevent infinite loop
-agent-bridge feature set --id req-primes --status done --passes true
+agent-bridge feature set req-primes --status done --passes true
 ` + "```" + `
 `, nil
 	}

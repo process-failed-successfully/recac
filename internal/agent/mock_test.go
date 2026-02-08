@@ -89,7 +89,7 @@ func TestMockAgent_Coding(t *testing.T) {
 	if !strings.Contains(response, "import json") {
 		t.Errorf("Expected json import for primes verification, got: %s", response)
 	}
-	if !strings.Contains(response, "agent-bridge feature set --id req-primes") {
+	if !strings.Contains(response, "agent-bridge feature set req-primes") {
 		t.Errorf("Expected agent-bridge feature update, got: %s", response)
 	}
 }
