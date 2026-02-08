@@ -25,6 +25,12 @@ func TestMockAgent_Primes(t *testing.T) {
 	if !strings.Contains(resp, "agent-bridge feature set") {
 		t.Error("Response should mark features as passed")
 	}
+	if !strings.Contains(resp, "range(10000)") {
+		t.Error("Response should calculate primes up to 10000")
+	}
+	if !strings.Contains(resp, "--status Done --passes true") {
+		t.Error("Response should use correct agent-bridge syntax")
+	}
 }
 
 func TestMockAgent_GenericFallback(t *testing.T) {

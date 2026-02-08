@@ -53,15 +53,15 @@ def is_prime(n):
         if n % i == 0: return False
     return True
 
-primes = [x for x in range(101) if is_prime(x)]
+primes = [x for x in range(10000) if is_prime(x)]
 print(primes)
 with open('primes.json', 'w') as f:
     json.dump(primes, f)
 EOF
 
 python3 primes.py
-agent-bridge feature set req-script-prints-primes-up-to-100 passed
-agent-bridge feature set req-script-is-runnable passed
+agent-bridge feature set req-script-prints-primes-up-to-10000 --status Done --passes true
+agent-bridge feature set req-script-is-runnable --status Done --passes true
 ` + "```" + `
 `, nil
 	}
@@ -91,7 +91,7 @@ agent-bridge signal PROJECT_SIGNED_OFF true
     "description": "Create a Python script to calculate prime numbers.",
     "type": "Story",
     "acceptance_criteria": [
-      "Script prints primes up to 100",
+      "Script prints primes up to 10000",
       "Script is runnable"
     ]
   }
