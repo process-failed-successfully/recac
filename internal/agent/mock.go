@@ -137,8 +137,8 @@ git push
 		return `The project looks good.
 
 ` + "```bash" + `
-agent-bridge signal QA_PASSED true
-agent-bridge signal PROJECT_SIGNED_OFF true --privileged
+agent-bridge signal QA_PASSED true --privileged || true
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged || true
 ` + "```" + `
 
 APPROVED`, nil
