@@ -32,10 +32,30 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// Initializer / TPM: Generate Tickets
-	// Detects the prompt asking for ticket creation (usually contains "Technical Program Manager" or "INITIALIZER AGENT")
-	if (strings.Contains(prompt, "Technical Program Manager") && (strings.Contains(prompt, "Ticket") || strings.Contains(prompt, "tickets"))) || strings.Contains(prompt, "INITIALIZER AGENT") {
-		// Return the bash command expected by the Initializer prompt to import features
+	// Technical Program Manager: Generate Tickets
+	// This returns JSON for the CLI to consume
+	if strings.Contains(prompt, "Technical Program Manager") && (strings.Contains(prompt, "Ticket") || strings.Contains(prompt, "tickets")) {
+		return "```json\n" +
+			"[\n" +
+			"  {\n" +
+			"    \"title\": \"ID:[PRIMES] Prime Number Script\",\n" +
+			"    \"description\": \"Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000.\",\n" +
+			"    \"type\": \"Epic\",\n" +
+			"    \"children\": [\n" +
+			"      {\n" +
+			"        \"title\": \"ID:[PRIMES-1] Create Script\",\n" +
+			"        \"description\": \"Create the script and ensure it outputs JSON.\",\n" +
+			"        \"type\": \"Story\"\n" +
+			"      }\n" +
+			"    ]\n" +
+			"  }\n" +
+			"]\n" +
+			"```", nil
+	}
+
+	// Initializer: Generate Feature List
+	// This returns a bash command for the Runner to execute
+	if strings.Contains(prompt, "INITIALIZER AGENT") {
 		return "```bash\n" +
 			"cat << 'EOF' | agent-bridge import\n" +
 			"{\n" +

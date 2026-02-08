@@ -497,6 +497,11 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 		}
 	}
 
+	// Fallback for safety to prevent infinite loops in tests
+	if session.MaxIterations == 0 {
+		session.MaxIterations = 20
+	}
+
 	if err := session.Start(ctx); err != nil {
 		if ctx.Err() != nil {
 			return nil
