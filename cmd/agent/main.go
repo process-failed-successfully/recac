@@ -152,6 +152,9 @@ func runApp(ctx context.Context) error {
 }
 
 func main() {
+	// Debug print to confirm process start immediately
+	fmt.Println("DEBUG: Agent process started")
+
 	// Recover from any panics in the application
 	defer func() {
 		if r := recover(); r != nil {
