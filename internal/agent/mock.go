@@ -56,7 +56,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 2. Initializer (Feature Import)
 	if strings.Contains(prompt, "feature_list.json") && (strings.Contains(prompt, "INITIALIZER") || strings.Contains(prompt, "Initialize")) {
-		return "```bash\necho '[]' > feature_list.json\n```", nil
+		return "```bash\ncat <<EOF > feature_list.json\n{\n  \"project_name\": \"Prime Calculation\",\n  \"features\": [\n    {\n      \"id\": \"req-primes-implementation\",\n      \"category\": \"functional\",\n      \"priority\": \"MVP\",\n      \"description\": \"Implement a Python script to calculate prime numbers [PRIMES].\",\n      \"status\": \"pending\",\n      \"steps\": [\"Run python3 primes.py\"],\n      \"passes\": false,\n      \"dependencies\": {\"depends_on_ids\": [], \"exclusive_write_paths\": [], \"read_only_paths\": []}\n    }\n  ]\n}\nEOF\n```", nil
 	}
 
 	// 3. QA Agent
@@ -105,11 +105,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			"git commit -m \"Add primes script and results\"\n" +
 			"git push || echo \"Push skipped\"\n" +
 			"\n" +
-			"agent-bridge feature set req-the-script-primes-py-is-implem --status done --passes true\n" +
-			"agent-bridge feature set req-the-results-are-output-to-a-fi --status done --passes true\n" +
-			"agent-bridge feature set req-the-output-file-primes-json-co --status done --passes true\n" +
-			"agent-bridge feature set req-exactly-1229-primes-are-calcul --status done --passes true\n" +
-			"agent-bridge feature set req-the-primes-json-file-is-commit --status done --passes true\n" +
+			"agent-bridge feature set req-primes-implementation --status done --passes true\n" +
 			"```\n" +
 			"\n" +
 			"COMPLETED\n", nil
