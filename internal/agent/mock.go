@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -32,10 +33,19 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	// Debug logging to help identify why heuristics might fail in CI
+	// Truncate if too long to avoid spamming logs excessively
+	debugPrompt := prompt
+	if len(debugPrompt) > 200 {
+		debugPrompt = debugPrompt[:200] + "..."
+	}
+	fmt.Fprintf(os.Stderr, "[MockAgent] Received prompt (%d chars): %s\n", len(prompt), debugPrompt)
+
 	// Heuristics for E2E Tests
 
 	// 1. TPM Role - Ticket Generation for [PRIMES] (Used by 'recac jira generate-from-spec')
-	if strings.Contains(prompt, "Technical Program Manager") && strings.Contains(prompt, "[PRIMES]") {
+	// We check for [PRIMES] OR primes.py to be more robust against prompt variations
+	if strings.Contains(prompt, "Technical Program Manager") && (strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py")) {
 		return "```json\n" + `
 [
   {
@@ -50,7 +60,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 2. Initializer Role - Feature Generation for [PRIMES] (Used by 'recac start' session)
 	// Triggered by "INITIALIZER AGENT" or "Initializer Agent" prompt
-	if (strings.Contains(prompt, "INITIALIZER AGENT") || strings.Contains(prompt, "Initializer Agent")) && strings.Contains(prompt, "[PRIMES]") {
+	if (strings.Contains(prompt, "INITIALIZER AGENT") || strings.Contains(prompt, "Initializer Agent")) && (strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py")) {
 		return `I will generate the feature list for the primes task.
 
 ` + "```bash" + `
