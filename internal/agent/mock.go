@@ -53,16 +53,20 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// 2. Initializer (Feature List Generation)
 		// Detects "Initializer" role or feature list requests
 		if strings.Contains(prompt, "Initialize the project") || strings.Contains(prompt, "feature_list.json") {
-			return `{
-  "project_name": "prime-python",
-  "features": [
-    {
-      "id": "req-primes-py-exists",
-      "description": "Create primes.py script",
-      "priority": "1"
-    }
-  ]
-}`, nil
+			return "```bash\n" +
+				"cat <<EOF | agent-bridge import\n" +
+				"{\n" +
+				"  \"project_name\": \"prime-python\",\n" +
+				"  \"features\": [\n" +
+				"    {\n" +
+				"      \"id\": \"req-primes-py-exists\",\n" +
+				"      \"description\": \"Create primes.py script\",\n" +
+				"      \"priority\": \"1\"\n" +
+				"    }\n" +
+				"  ]\n" +
+				"}\n" +
+				"EOF\n" +
+				"```", nil
 		}
 
 		// 3. Coding Agent (Implementation)
