@@ -19,9 +19,6 @@ func TestRun_Blocker(t *testing.T) {
 	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err != nil {
 		t.Fatalf("run failed: %v", err)
 	}
-
-	// Ideally we check DB state, but 'run' just prints to stdout/stderr.
-	// We trust SetSignal is covered by db tests. Here we test the CLI wiring.
 }
 
 func TestRun_QA(t *testing.T) {
@@ -104,9 +101,15 @@ func TestMainEntry(t *testing.T) {
 	// but we can at least call main() with valid args to get coverage.
 	// We'll use a temp DB and valid args.
 	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".recac.db")
 
-	// Backup and restore os.Args and a way to control dbPath in main if possible?
-	// main() uses hardcoded ".recac.db". Let's temporarily change CWD.
+	// Set Environment Variables for DB
+	os.Setenv("RECAC_DB_TYPE", "sqlite")
+	os.Setenv("RECAC_DB_URL", dbPath)
+	defer os.Unsetenv("RECAC_DB_TYPE")
+	defer os.Unsetenv("RECAC_DB_URL")
+
+	// Change CWD just in case, though env var should override
 	oldWd, _ := os.Getwd()
 	os.Chdir(tmpDir)
 	defer os.Chdir(oldWd)

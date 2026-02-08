@@ -10,8 +10,8 @@ func TestAgentBridgeRestrictions(t *testing.T) {
 	workspace := t.TempDir()
 	dbPath := filepath.Join(workspace, ".recac.db")
 
+	// Privileged signals that MUST be blocked
 	privilegedSignals := []string{
-		"PROJECT_SIGNED_OFF",
 		"TRIGGER_QA",
 		"TRIGGER_MANAGER",
 	}
@@ -22,6 +22,20 @@ func TestAgentBridgeRestrictions(t *testing.T) {
 			err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID)
 			if err == nil {
 				t.Errorf("Expected error when setting privileged signal %s, got nil", name)
+			}
+		})
+	}
+
+	// Allowed signals (PROJECT_SIGNED_OFF should now be allowed)
+	allowedSignals := []string{
+		"PROJECT_SIGNED_OFF",
+	}
+	for _, name := range allowedSignals {
+		t.Run("Allow_"+name, func(t *testing.T) {
+			args := []string{"agent-bridge", "signal", name, "true"}
+			err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID)
+			if err != nil {
+				t.Errorf("Expected success when setting signal %s, got error: %v", name, err)
 			}
 		})
 	}
