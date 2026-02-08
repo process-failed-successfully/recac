@@ -35,6 +35,9 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		if !strings.Contains(resp, "ID:[PRIMES] Implement Prime Number Script") {
 			t.Errorf("Expected TPM JSON plan, got: %s", resp)
 		}
+		if strings.Contains(resp, "\"type\": " + "\"Sub-task\"") {
+			t.Errorf("Expected flat plan (no subtasks), got: %s", resp)
+		}
 	})
 
 	// 3. Initializer Heuristic

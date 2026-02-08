@@ -44,17 +44,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     "title": "ID:[PRIMES] Implement Prime Number Script",
     "type": "Task",
     "description": "Implement primes.py. Repo: <repo_url>",
-    "children": [
-      {
-        "title": "Implement primes.py",
-        "type": "Sub-task",
-        "description": "Write a python script to calculate primes up to 10000. Repo: <repo_url>",
-        "acceptance_criteria": [
-          "primes.py exists",
-          "contains exactly 1229 primes"
-        ]
-      }
-    ]
+    "acceptance_criteria": [
+      "primes.py exists",
+      "contains exactly 1229 primes"
+    ],
+    "children": []
   }
 ]`
 		return fmt.Sprintf("Here is the plan:\n```json\n%s\n```", jsonPlan), nil
