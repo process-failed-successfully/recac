@@ -20,7 +20,7 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		if !strings.Contains(resp, "agent-bridge signal QA_PASSED true") {
 			t.Errorf("Expected QA_PASSED signal, got: %s", resp)
 		}
-		if !strings.Contains(resp, "agent-bridge signal PROJECT_SIGNED_OFF true") {
+		if !strings.Contains(resp, "agent-bridge signal --privileged PROJECT_SIGNED_OFF true") {
 			t.Errorf("Expected PROJECT_SIGNED_OFF signal, got: %s", resp)
 		}
 	})
@@ -47,7 +47,7 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		if !strings.Contains(resp, "cat <<'EOF' > feature_list.json") {
 			t.Errorf("Expected feature_list.json creation (quoted heredoc), got: %s", resp)
 		}
-		if !strings.Contains(resp, "agent-bridge import feature_list.json") {
+		if !strings.Contains(resp, "agent-bridge import < feature_list.json") {
 			t.Errorf("Expected agent-bridge import, got: %s", resp)
 		}
 		if !strings.Contains(resp, "req-primes") {
@@ -58,7 +58,31 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		}
 	})
 
-	// 4. Coding Agent Heuristic
+	// 4. QA Agent Heuristic
+	t.Run("QAAgent", func(t *testing.T) {
+		prompt := "You are the QA AGENT."
+		resp, err := agent.Send(ctx, prompt)
+		if err != nil {
+			t.Fatalf("Send failed: %v", err)
+		}
+		if !strings.Contains(resp, "agent-bridge signal QA_PASSED true") {
+			t.Errorf("Expected QA_PASSED signal, got: %s", resp)
+		}
+	})
+
+	// 5. Manager Heuristic
+	t.Run("Manager", func(t *testing.T) {
+		prompt := "You are the PROJECT MANAGER."
+		resp, err := agent.Send(ctx, prompt)
+		if err != nil {
+			t.Fatalf("Send failed: %v", err)
+		}
+		if !strings.Contains(resp, "agent-bridge signal --privileged PROJECT_SIGNED_OFF true") {
+			t.Errorf("Expected PROJECT_SIGNED_OFF signal, got: %s", resp)
+		}
+	})
+
+	// 6. Coding Agent Heuristic
 	t.Run("CodingAgent", func(t *testing.T) {
 		prompt := "You are the CODING AGENT. Implement req-primes or [PRIMES]."
 		resp, err := agent.Send(ctx, prompt)

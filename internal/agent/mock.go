@@ -33,7 +33,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 1. Loop Breaker Heuristic
 	if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
-		return "Great! Everything looks clean. I will signal success.\n\n```bash\nagent-bridge signal QA_PASSED true\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
+		return "Great! Everything looks clean. I will signal success.\n\n```bash\nagent-bridge signal QA_PASSED true\nagent-bridge signal --privileged PROJECT_SIGNED_OFF true\n```", nil
 	}
 
 	// 2. TPM Heuristic
@@ -117,11 +117,30 @@ cat <<'EOF' > feature_list.json
 EOF
 
 # Import into DB
-agent-bridge import feature_list.json
+agent-bridge import < feature_list.json
 %[1]s`, "```", featureList), nil
 	}
 
-	// 4. Coding Agent Heuristic
+	// 4. QA Agent Heuristic
+	if strings.Contains(prompt, "QA AGENT") && !strings.Contains(prompt, "CODING AGENT") {
+		return fmt.Sprintf(`I will verify the project.
+
+%[1]sbash
+make test || echo "Tests failed (expected in mock)"
+agent-bridge signal QA_PASSED true
+%[1]s`, "```"), nil
+	}
+
+	// 5. Manager Heuristic
+	if strings.Contains(prompt, "PROJECT MANAGER") {
+		return fmt.Sprintf(`I will review the project.
+
+%[1]sbash
+agent-bridge signal --privileged PROJECT_SIGNED_OFF true
+%[1]s`, "```"), nil
+	}
+
+	// 6. Coding Agent Heuristic
 	// If asked to implement the primes feature
 	if strings.Contains(prompt, "CODING AGENT") && (strings.Contains(prompt, "req-primes") || strings.Contains(prompt, "[PRIMES]")) {
 		script := `#!/usr/bin/env python3
@@ -162,7 +181,7 @@ git commit -m "Implement primes.py"
 		return response, nil
 	}
 
-	// 5. Fallback
+	// 7. Fallback
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
