@@ -21,6 +21,21 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		}
 	})
 
+	t.Run("TPM_Primes", func(t *testing.T) {
+		prompt := "YOUR ROLE - TECHNICAL PROGRAM MANAGER. Analyze this spec: [PRIMES]"
+		resp, err := agent.Send(ctx, prompt)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		// Should return JSON list of tickets, not bash script
+		if strings.Contains(resp, "cat << 'EOF'") {
+			t.Errorf("expected JSON tickets, got implementation script: %s", resp)
+		}
+		if !strings.Contains(resp, `"id": "PRIMES"`) {
+			t.Errorf("expected ticket with ID PRIMES, got: %s", resp)
+		}
+	})
+
 	t.Run("Coder_Primes", func(t *testing.T) {
 		prompt := "YOUR ROLE - CODING AGENT. Implement [PRIMES] primes.py"
 		resp, err := agent.Send(ctx, prompt)

@@ -51,7 +51,24 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		}
 	}
 
-	// 2. Coding Agent / Developer (Primes)
+	// 2. Technical Program Manager (TPM) - Check BEFORE Coding Agent
+	if strings.Contains(strings.ToUpper(prompt), "ROLE - TECHNICAL PROGRAM MANAGER") {
+		if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
+			return `[
+  {
+    "id": "PRIMES",
+    "summary": "[PRIMES] Create Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.",
+    "type": "Task",
+    "dependencies": []
+  }
+]`, nil
+		}
+		// Return empty or valid JSON ticket list to avoid blocking generic calls
+		return `[]`, nil
+	}
+
+	// 3. Coding Agent / Developer (Primes)
 	// We check for keywords related to the Primes scenario
 	if containsAny(prompt, []string{"[PRIMES]", "primes.py", "Implement Primes", "Prime Number Script"}) {
 		// Return the implementation
@@ -81,12 +98,6 @@ git commit -m "Add primes script and output"
 agent-bridge feature set --id req-primes --status done
 ` + "```" + `
 `, nil
-	}
-
-	// 3. Technical Program Manager (TPM)
-	if strings.Contains(strings.ToUpper(prompt), "ROLE - TECHNICAL PROGRAM MANAGER") {
-		// Return empty or valid JSON ticket list to avoid blocking
-		return `[]`, nil
 	}
 
 	// Default response
