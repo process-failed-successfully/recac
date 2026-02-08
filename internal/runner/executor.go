@@ -139,6 +139,13 @@ func (s *Session) checkBlockers(ctx context.Context) error {
 
 // executeCommandBlock handles the execution of a single command block.
 func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, index, total int) (string, error) {
+	// Auto-Correction: Fix common AI typos
+	// Fix: "git add." -> "git add ."
+	if strings.Contains(cmdScript, "git add.") {
+		s.Logger.Info("auto-corrected 'git add.' typo", "original", cmdScript)
+		cmdScript = strings.ReplaceAll(cmdScript, "git add.", "git add .")
+	}
+
 	s.Logger.Info("executing command block", "index", index, "total", total, "script", cmdScript)
 
 	// Security Scan
