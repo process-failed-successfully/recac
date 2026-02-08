@@ -173,7 +173,38 @@ git commit -m "Implement primes.py"
 `, nil
 	}
 
-	// 3. Fallback / Review
+	// 2.5 Completion Signal
+	if strings.Contains(prompt, "NONE_ALL_COMPLETE") ||
+		(strings.Contains(prompt, "signal completion") && !strings.Contains(prompt, "QA AGENT")) {
+		return `I will signal completion.
+
+` + "```bash" + `
+agent-bridge signal COMPLETED true
+` + "```" + `
+`, nil
+	}
+
+	// 3. QA Agent
+	if strings.Contains(prompt, "QA AGENT") {
+		return `I have verified the implementation. All tests pass.
+
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// 4. Project Manager - Sign Off
+	if strings.Contains(prompt, "PROJECT MANAGER") && strings.Contains(prompt, "QA Report") {
+		return `The work looks good. I approve.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
+	}
+
+	// 5. Fallback / Review
 	if strings.Contains(prompt, "Review") || strings.Contains(prompt, "QA") {
 		return "The implementation looks correct and passes all checks.", nil
 	}
