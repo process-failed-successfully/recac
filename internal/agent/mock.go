@@ -55,18 +55,23 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Initializer (Feature Import)
+	// We handle [PRIMES] specifically to ensure correct feature list creation
 	if strings.Contains(prompt, "feature_list.json") && (strings.Contains(prompt, "INITIALIZER") || strings.Contains(prompt, "Initialize")) {
-		return "```bash\necho '[]' > feature_list.json\n```", nil
+		if strings.Contains(prompt, "[PRIMES]") {
+			return "```bash\ncat <<'EOF' > feature_list.json\n{\n  \"project_name\": \"primes\",\n  \"features\": [\n    {\n      \"id\": \"req-the-script-primes-py-is-implem\",\n      \"category\": \"functional\",\n      \"priority\": \"MVP\",\n      \"description\": \"The script 'primes.py' is implemented and calculates all prime numbers less than 10,000\",\n      \"status\": \"pending\",\n      \"steps\": [\"Run script\"],\n      \"passes\": false,\n      \"dependencies\": {\n        \"depends_on_ids\": [],\n        \"exclusive_write_paths\": [],\n        \"read_only_paths\": []\n      }\n    },\n    {\n      \"id\": \"req-the-results-are-output-to-a-fi\",\n      \"category\": \"functional\",\n      \"priority\": \"MVP\",\n      \"description\": \"The results are output to a file named 'primes.json' in the correct JSON format\",\n      \"status\": \"pending\",\n      \"steps\": [\"Check file exists\"],\n      \"passes\": false,\n      \"dependencies\": {\n        \"depends_on_ids\": [],\n        \"exclusive_write_paths\": [],\n        \"read_only_paths\": []\n      }\n    },\n    {\n      \"id\": \"req-the-output-file-primes-json-co\",\n      \"category\": \"functional\",\n      \"priority\": \"MVP\",\n      \"description\": \"The output file 'primes.json' contains a 'primes' list\",\n      \"status\": \"pending\",\n      \"steps\": [\"Check JSON content\"],\n      \"passes\": false,\n      \"dependencies\": {\n        \"depends_on_ids\": [],\n        \"exclusive_write_paths\": [],\n        \"read_only_paths\": []\n      }\n    },\n    {\n      \"id\": \"req-exactly-1229-primes-are-calcul\",\n      \"category\": \"functional\",\n      \"priority\": \"MVP\",\n      \"description\": \"Exactly 1229 primes are calculated and included in the 'primes.json' file\",\n      \"status\": \"pending\",\n      \"steps\": [\"Count primes\"],\n      \"passes\": false,\n      \"dependencies\": {\n        \"depends_on_ids\": [],\n        \"exclusive_write_paths\": [],\n        \"read_only_paths\": []\n      }\n    },\n    {\n      \"id\": \"req-the-primes-json-file-is-commit\",\n      \"category\": \"functional\",\n      \"priority\": \"MVP\",\n      \"description\": \"The 'primes.json' file is committed to the repository\",\n      \"status\": \"pending\",\n      \"steps\": [\"Check git log\"],\n      \"passes\": false,\n      \"dependencies\": {\n        \"depends_on_ids\": [],\n        \"exclusive_write_paths\": [],\n        \"read_only_paths\": []\n      }\n    }\n  ]\n}\nEOF\n```", nil
+		}
+		// Generic Initializer fallback (valid JSON structure)
+		return "```bash\necho '{\"project_name\": \"unknown\", \"features\": []}' > feature_list.json\n```", nil
 	}
 
 	// 3. QA Agent
 	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
-		return "```bash\nagent-bridge signal set QA_PASSED true\n```", nil
+		return "```bash\nagent-bridge signal QA_PASSED true\n```", nil
 	}
 
 	// 4. Project Manager
 	if strings.Contains(prompt, "PROJECT MANAGER") {
-		return "```bash\nagent-bridge signal set PROJECT_SIGNED_OFF true\n```", nil
+		return "```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
 	}
 
 	// 5. Implementation (Primes)
