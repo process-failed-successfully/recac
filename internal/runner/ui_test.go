@@ -48,7 +48,9 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	}
 
 	// Ensure config is set for timeout
+	oldTimeout := viper.GetInt("bash_timeout")
 	viper.Set("bash_timeout", 1) // Short timeout for test
+	defer viper.Set("bash_timeout", oldTimeout)
 
 	// 6. Capture Stdout? (Hard to do in test without refactor).
 	// We can trust the code if it compiles and logic flows.
