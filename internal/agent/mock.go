@@ -31,6 +31,54 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	// Heuristic 0: Initializer (Project Setup)
+	// Triggers when the system asks to initialize the project
+	if strings.Contains(prompt, "## YOUR ROLE - INITIALIZER AGENT") {
+		return `
+cat << 'EOF' > init.sh
+#!/bin/bash
+apt-get update
+apt-get install -y python3 make
+EOF
+chmod +x init.sh
+./init.sh
+
+cat << 'EOF' > .gitignore
+__pycache__/
+*.pyc
+.DS_Store
+EOF
+
+git init
+git add .
+git commit -m "Initial commit"
+
+cat << 'EOF' | agent-bridge import
+{
+  "project_name": "Primes",
+  "features": [
+    {
+      "id": "req-primes",
+      "category": "functional",
+      "priority": "MVP",
+      "description": "Implement primes.py",
+      "status": "pending",
+      "steps": [
+        "Run primes.py"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": [],
+        "read_only_paths": []
+      }
+    }
+  ]
+}
+EOF
+`, nil
+	}
+
 	// Heuristic 1: Initializer (TPM)
 	// Triggers when the system asks to break down requirements
 	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "Break down the requirements") {
@@ -88,34 +136,112 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic 3: Coding Agent (Implementation)
 	if strings.Contains(prompt, "Role: Agent") || strings.Contains(prompt, "## YOUR ROLE - CODING AGENT") {
-		// Scenario: Primes
-		if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "req-the-makefile-targets-are-implemented") {
-			script := `
+
+		// Subtask: Setup Repo
+		if strings.Contains(prompt, "req-setup-repo") {
+			return `
+git init
+git add .
+git commit -m "Initialize repo"
+agent-bridge feature set req-setup-repo --status done --passes true
+`, nil
+		}
+
+		// Subtask: CI Workflow
+		if strings.Contains(prompt, "req-ci-workflow") {
+			return `
+mkdir -p .github/workflows
+cat << 'EOF' > .github/workflows/ci.yml
+name: CI
+on: [push]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      - name: Test
+        run: |
+          python -m unittest discover
+EOF
+git add .github
+git commit -m "Add CI workflow"
+agent-bridge feature set req-ci-workflow --status done --passes true
+`, nil
+		}
+
+		// Subtask: Implement Tests
+		if strings.Contains(prompt, "req-implement-tests") {
+			return `
+cat << 'EOF' > test_primes.py
+import unittest
+# Mock import if primes.py doesn't exist yet, but it should
+try:
+    from primes import is_prime
+except ImportError:
+    def is_prime(n): return False
+
+class TestPrimes(unittest.TestCase):
+    def test_primes(self):
+        self.assertTrue(is_prime(2))
+        self.assertTrue(is_prime(7))
+        self.assertFalse(is_prime(4))
+        self.assertFalse(is_prime(1))
+
+if __name__ == '__main__':
+    unittest.main()
+EOF
+git add test_primes.py
+git commit -m "Add tests"
+agent-bridge feature set req-implement-tests --status done --passes true
+`, nil
+		}
+
+		// Scenario: Primes (Main Logic or Subtask)
+		if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "req-the-makefile-targets-are-implemented") || strings.Contains(prompt, "req-implement-primes") || strings.Contains(prompt, "req-primes") {
+
+			// Determine which ID to signal
+			signalID := "req-primes" // Default single task
+			if strings.Contains(prompt, "req-the-makefile-targets-are-implemented") {
+				signalID = "req-the-makefile-targets-are-implemented"
+			} else if strings.Contains(prompt, "req-implement-primes") {
+				signalID = "req-implement-primes"
+			}
+
+			script := fmt.Sprintf(`
 apt-get update
 apt-get install -y make
 
 cat << 'EOF' > primes.py
 import sys
+import json
 
 def is_prime(n):
     if n <= 1:
         return False
     for i in range(2, int(n**0.5) + 1):
-        if n % i == 0:
+        if n %% i == 0:
             return False
     return True
 
 if __name__ == "__main__":
-    # Print first 10 primes
-    count = 0
-    num = 2
-    while count < 10:
+    primes = []
+    for num in range(2, 10000):
         if is_prime(num):
-            print(num)
-            count += 1
-        num += 1
+            primes.append(num)
+
+    with open("primes.json", "w") as f:
+        json.dump({"primes": primes}, f)
 EOF
 
+# Ensure test_primes exists if not created
 cat << 'EOF' > test_primes.py
 import unittest
 from primes import is_prime
@@ -142,7 +268,6 @@ test:
 
 lint:
 	@echo "Running pylint"
-	# Mock pylint
 	echo "pylint passed"
 
 format:
@@ -158,8 +283,12 @@ EOF
 make run
 make test
 
-agent-bridge feature set req-the-makefile-targets-are-implemented --status done --passes true
-`
+# Commit code
+git add primes.py primes.json test_primes.py Makefile
+git commit -m "Implement primes and makefile" || echo "Nothing to commit"
+
+agent-bridge feature set %s --status done --passes true
+`, signalID)
 			return fmt.Sprintf("I will implement the requested changes.\n\n```bash\n%s\n```", script), nil
 		}
 
