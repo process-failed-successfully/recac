@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -131,7 +132,10 @@ func TestInteractiveModel_Update_AgentExecution(t *testing.T) {
 	// Inject Mock Agent
 	mockAgent := new(MockAgent)
 	// Textarea adds a newline when Enter is pressed before we consume the value
-	mockAgent.On("SendStream", mock.Anything, "Hello\n", mock.Anything).Return([]string{"Hi", " there"}, nil)
+	// We use MatchedBy because the prompt now includes the system prompt from the default persona
+	mockAgent.On("SendStream", mock.Anything, mock.MatchedBy(func(p string) bool {
+		return strings.Contains(p, "Hello")
+	}), mock.Anything).Return([]string{"Hi", " there"}, nil)
 
 	// Manually set active agent via AgentReadyMsg
 	updatedM, _ := m.Update(AgentReadyMsg{Agent: mockAgent})
