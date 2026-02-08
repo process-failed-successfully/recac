@@ -23,6 +23,11 @@ type MockDockerUI struct {
 
 func (m *MockDockerUI) Exec(ctx context.Context, id string, cmd []string) (string, error) {
 	fullCmd := strings.Join(cmd, " ")
+	// Simulate "test -f recac_blockers.txt" or "test -f blockers.txt" failure (file not found)
+	// This prevents the runner from detecting a blocker file loop in tests
+	if strings.Contains(fullCmd, "test -f recac_blockers.txt") || strings.Contains(fullCmd, "test -f blockers.txt") {
+		return "", errors.New("exit code 1")
+	}
 	return "Success: " + fullCmd, nil
 }
 

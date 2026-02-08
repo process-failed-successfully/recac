@@ -68,7 +68,7 @@ agent-bridge signal QA_PASSED true
 		return `Approved.
 
 ` + "```bash" + `
-agent-bridge signal PROJECT_SIGNED_OFF true
+agent-bridge signal --privileged PROJECT_SIGNED_OFF true
 ` + "```" + `
 `, nil
 	}
