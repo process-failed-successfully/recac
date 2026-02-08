@@ -377,10 +377,10 @@ func run() error {
 		}
 	}
 
-	expectedJobPrefix := fmt.Sprintf("recac-agent-%s", strings.ToLower(targetTicketID))
-	log.Printf("Looking for job prefix: %s", expectedJobPrefix)
-
-	jobName, err := waitForJob(namespace, expectedJobPrefix, 300*time.Second)
+	// Wait for ANY agent job to spawn, as we prioritize processing actionable items
+	// but the Orchestrator's internal queue might pick them up in a specific order.
+	log.Printf("Looking for any agent job in namespace %s", namespace)
+	jobName, err := waitForJob(namespace, "recac-agent-", 300*time.Second)
 	if err != nil {
 		printKubeDebugInfo(namespace)
 		printLogs(namespace, fmt.Sprintf("app.kubernetes.io/name=%s", "recac"))
