@@ -51,6 +51,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// If GITHUB_API_KEY is set and we have a repo URL, try to clone.
 		// Otherwise fallback to git init.
 		gitSetup := `
+set -e # Fail fast
 # Ensure clean slate
 rm -rf .git
 
@@ -65,6 +66,9 @@ else
   echo "Initializing local repo (no token or url found)..."
   git init
 fi
+
+echo "Current Directory: $(pwd)"
+ls -la
 `
 
 		// Detect Primes scenario
@@ -138,6 +142,15 @@ agent-bridge import --file /app/ticket_plan.json
 I will implement the prime number script as requested.
 
 ` + "```bash" + `
+set -e
+# Ensure git repo exists (fallback recovery)
+if [ ! -d .git ]; then
+  echo "Git repo missing, re-initializing..."
+  git init
+  git config user.email "you@example.com"
+  git config user.name "Your Name"
+fi
+
 cat << 'EOF' > primes.py
 import json
 
@@ -158,7 +171,7 @@ git checkout -B agent/PRIMES-mock
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json"
-git push --force origin agent/PRIMES-mock
+git push --force origin agent/PRIMES-mock || echo "Push failed, continuing local only"
 agent-bridge feature set PRIMES --status done --passes true
 ` + "```" + `
 `, nil
