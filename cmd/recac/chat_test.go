@@ -14,18 +14,26 @@ func TestHandleChatCommand_Persona(t *testing.T) {
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 
+	pm := agent.NewPersonaManager()
+	// Ensure defaults are loaded (NewPersonaManager does this)
+	p, _ := pm.GetPersona("default")
+
 	session := &ChatSession{
-		CurrentPersona: defaultPersonas["default"],
+		CurrentPersona: p,
 		ContextFiles:   make(map[string]string),
+		PM:             pm,
 	}
 
 	// 1. Switch to existing persona
+	// "security" is a default persona
 	res := handleChatCommand(cmd, session, "/persona security")
 	if !res {
 		t.Error("Expected command to be handled")
 	}
-	if session.CurrentPersona.Name != "Security Auditor" {
-		t.Errorf("Expected persona to be Security Auditor, got %s", session.CurrentPersona.Name)
+	// Check name in pm
+	sec, _ := pm.GetPersona("security")
+	if session.CurrentPersona.Name != sec.Name {
+		t.Errorf("Expected persona to be %s, got %s", sec.Name, session.CurrentPersona.Name)
 	}
 	if !strings.Contains(out.String(), "Switched persona to: Security Auditor") {
 		t.Errorf("Output mismatch: %s", out.String())
@@ -37,8 +45,8 @@ func TestHandleChatCommand_Persona(t *testing.T) {
 	if !res {
 		t.Error("Expected command to be handled")
 	}
-	if session.CurrentPersona.Name != "Security Auditor" { // Should stay same
-		t.Errorf("Expected persona to stay Security Auditor, got %s", session.CurrentPersona.Name)
+	if session.CurrentPersona.Name != sec.Name { // Should stay same
+		t.Errorf("Expected persona to stay %s, got %s", sec.Name, session.CurrentPersona.Name)
 	}
 	if !strings.Contains(out.String(), "Unknown persona 'unknown'") {
 		t.Errorf("Output mismatch: %s", out.String())
@@ -52,9 +60,13 @@ func TestHandleChatCommand_Add(t *testing.T) {
 	cmd.SetOut(&out)
 	cmd.SetErr(&errOut)
 
+	pm := agent.NewPersonaManager()
+	p, _ := pm.GetPersona("default")
+
 	session := &ChatSession{
-		CurrentPersona: defaultPersonas["default"],
+		CurrentPersona: p,
 		ContextFiles:   make(map[string]string),
+		PM:             pm,
 	}
 
 	// Create temp file
@@ -97,6 +109,7 @@ func TestHandleChatCommand_Clear(t *testing.T) {
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 
+	// PM not needed for clear
 	session := &ChatSession{
 		History: "User: Hi\nAgent: Hello\n",
 	}
