@@ -54,7 +54,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return `I will generate the feature list for the primes task.
 
 ` + "```bash" + `
-cat << 'EOF' | agent-bridge import
+cat << 'EOF' > feature_list.json
 {
   "project_name": "Primes",
   "features": [
@@ -113,8 +113,15 @@ EOF
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Implement primes.py"
+agent-bridge feature set PRIMES --status done --passes true
 ` + "```" + `
 `, nil
+	}
+
+	// 3. Completion Phase (Triggered when all features are done)
+	if strings.Contains(prompt, "All features are marked as done/passing") &&
+		(strings.Contains(prompt, "CODING AGENT") || strings.Contains(prompt, "You are a software engineer")) {
+		return "I will signal completion.\n\n```bash\nagent-bridge signal COMPLETED true\n```\n", nil
 	}
 
 	// Return a mock response that shows the agent received the prompt

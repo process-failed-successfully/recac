@@ -44,7 +44,7 @@ func TestMockAgent_Initializer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
 	}
-	if !strings.Contains(response, "agent-bridge import") || !strings.Contains(response, "```bash") {
+	if !strings.Contains(response, "> feature_list.json") || !strings.Contains(response, "```bash") {
 		t.Errorf("Initializer heuristic failed, got: %s", response)
 	}
 }
@@ -58,6 +58,21 @@ func TestMockAgent_Coding(t *testing.T) {
 	}
 	if !strings.Contains(response, "primes.py") || !strings.Contains(response, "```bash") {
 		t.Errorf("Coding Agent heuristic failed, got: %s", response)
+	}
+	if !strings.Contains(response, "agent-bridge feature set PRIMES --status done --passes true") {
+		t.Errorf("Coding Agent missing feature set done, got: %s", response)
+	}
+}
+
+func TestMockAgent_Completion(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "You are a software engineer... All features are marked as done/passing. Please run final verification and signal completion."
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(response, "agent-bridge signal COMPLETED true") {
+		t.Errorf("Completion heuristic failed, got: %s", response)
 	}
 }
 
