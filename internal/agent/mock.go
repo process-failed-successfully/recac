@@ -100,7 +100,7 @@ test:
 	python3 test_primes.py
 EOF
 
-agent-bridge import feature_list.json
+agent-bridge import < feature_list.json
 `, nil
 	}
 
