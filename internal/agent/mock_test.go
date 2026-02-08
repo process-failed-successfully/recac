@@ -4,33 +4,32 @@ import (
 	"context"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestMockAgent(t *testing.T) {
+func TestMockAgent_Heuristics(t *testing.T) {
 	agent := NewMockAgent()
+	ctx := context.Background()
 
-	prompt := "This is a test prompt that is long enough to be truncated"
-	response, err := agent.Send(context.Background(), prompt)
+	// 1. Test TPM/Ticket Generation Heuristic
+	promptTPM := "You are an expert Technical Program Manager. Please generate tickets for..."
+	respTPM, err := agent.Send(ctx, promptTPM)
+	assert.NoError(t, err)
+	assert.Contains(t, respTPM, `"title":"ID:[PRIMES] Implement Prime Number Service"`, "Response should contain JSON with specific ticket title")
+	assert.Contains(t, respTPM, `"type":"Task"`, "Response should contain JSON with Task type")
 
-	if err != nil {
-		t.Fatalf("Send failed: %v", err)
-	}
+	// 2. Test Coding Heuristic
+	promptCode := "Please implement a python service to check for prime numbers."
+	respCode, err := agent.Send(ctx, promptCode)
+	assert.NoError(t, err)
+	assert.Contains(t, respCode, "cat <<EOF > primes.py", "Response should contain bash command to create primes.py")
+	assert.Contains(t, respCode, "git commit -m", "Response should contain git commit command")
+	assert.Contains(t, respCode, "I have completed the task", "Response should contain completion signal")
 
-	if !strings.Contains(response, "Mock agent response") {
-		t.Errorf("Response missing prefix, got: %s", response)
-	}
-
-	if !strings.Contains(response, "I received your prompt") {
-		t.Errorf("Response missing body, got: %s", response)
-	}
-}
-
-func TestTruncateString(t *testing.T) {
-	s := "hello world"
-	if truncateString(s, 5) != "hello" {
-		t.Errorf("Expected 'hello', got '%s'", truncateString(s, 5))
-	}
-	if truncateString(s, 20) != "hello world" {
-		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
-	}
+	// 3. Test Default Fallback
+	promptChat := "Hello, how are you?"
+	respChat, err := agent.Send(ctx, promptChat)
+	assert.NoError(t, err)
+	assert.True(t, strings.HasPrefix(respChat, "Mock agent response:"), "Response should be the default mock response")
 }
