@@ -57,7 +57,7 @@ cat <<EOF > feature_list.json
 EOF
 
 # Import the features into the database
-agent-bridge import --file feature_list.json
+agent-bridge import < feature_list.json
 ` + "```" + `
 `, nil
 	}
@@ -145,7 +145,7 @@ python3 primes.py
 git add -f primes.py primes.json
 
 # Mark feature as done
-agent-bridge feature set --id feature-1 --status done --passes true
+agent-bridge feature set feature-1 --status done --passes true
 ` + "```" + `
 `, nil
 	}

@@ -25,6 +25,33 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Commands(t *testing.T) {
+	agent := NewMockAgent()
+	ctx := context.Background()
+
+	// 1. Initializer Command Check
+	initPrompt := "Your Role - Initializer Agent"
+	resp, err := agent.Send(ctx, initPrompt)
+	if err != nil {
+		t.Fatalf("Initializer Send failed: %v", err)
+	}
+	expectedImport := "agent-bridge import < feature_list.json"
+	if !strings.Contains(resp, expectedImport) {
+		t.Errorf("Initializer response missing corrected import command.\nExpected: %s\nGot: %s", expectedImport, resp)
+	}
+
+	// 2. Coding Agent Command Check
+	codingPrompt := "Your Role - Coding Agent\nTask: Primes"
+	resp, err = agent.Send(ctx, codingPrompt)
+	if err != nil {
+		t.Fatalf("Coding Agent Send failed: %v", err)
+	}
+	expectedSet := "agent-bridge feature set feature-1 --status done --passes true"
+	if !strings.Contains(resp, expectedSet) {
+		t.Errorf("Coding Agent response missing corrected feature set command.\nExpected: %s\nGot: %s", expectedSet, resp)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
