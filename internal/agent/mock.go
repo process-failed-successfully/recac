@@ -51,6 +51,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// If GITHUB_API_KEY is set and we have a repo URL, try to clone.
 		// Otherwise fallback to git init.
 		gitSetup := `
+# Ensure clean slate
+rm -rf .git
+
 if [ -n "$GITHUB_API_KEY" ] && [ -n "` + repoURL + `" ]; then
   # Inject token into URL
   REPO_URL="` + repoURL + `"
@@ -149,13 +152,13 @@ with open('primes.json', 'w') as f:
     json.dump({"primes": primes}, f)
 EOF
 
-# Create a branch for the feature
-git checkout -b agent/PRIMES-mock
+# Create or reset a branch for the feature (force if exists)
+git checkout -B agent/PRIMES-mock
 
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json"
-git push origin agent/PRIMES-mock
+git push --force origin agent/PRIMES-mock
 agent-bridge feature set PRIMES --status done --passes true
 ` + "```" + `
 `, nil
