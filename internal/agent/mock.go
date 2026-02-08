@@ -164,7 +164,25 @@ agent-bridge feature set PRIMES --status done --passes true
 `, nil
 	}
 
-	// 4. Default / Fallback
+	// 4. QA Agent - Verifies the project
+	if strings.Contains(prompt, "ROLE - QA AGENT") {
+		return `
+I will verify the project.
+
+` + "```bash" + `
+# In mock mode, we assume success if the file exists
+if [ -f "primes.json" ]; then
+  echo "primes.json found."
+  agent-bridge signal QA_PASSED true
+else
+  echo "primes.json missing!"
+  agent-bridge signal QA_PASSED false
+fi
+` + "```" + `
+`, nil
+	}
+
+	// 5. Default / Fallback
 	// Return a mock response that shows the agent received the prompt
 	fmt.Printf("[MockAgent] Hit Fallback! Prompt length: %d\nFull Prompt:\n%s\n", len(prompt), prompt)
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",

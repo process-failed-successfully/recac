@@ -78,3 +78,17 @@ func TestMockAgent_TPM_Heuristic(t *testing.T) {
 		t.Errorf("Expected Coding Agent implementation response, got: %s", resp3)
 	}
 }
+
+func TestMockAgent_QA_Heuristic(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "## YOUR ROLE - QA AGENT\n\nSome instructions..."
+
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(resp, "agent-bridge signal QA_PASSED") {
+		t.Errorf("Expected QA Agent response with signal command, got: %s", resp)
+	}
+}
