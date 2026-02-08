@@ -52,7 +52,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Technical Program Manager (TPM) - Check BEFORE Coding Agent
-	if strings.Contains(strings.ToUpper(prompt), "ROLE - TECHNICAL PROGRAM MANAGER") {
+	if strings.Contains(strings.ToUpper(prompt), "TECHNICAL PROGRAM MANAGER") {
 		if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
 			return `[
   {

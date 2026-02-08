@@ -22,7 +22,7 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	})
 
 	t.Run("TPM_Primes", func(t *testing.T) {
-		prompt := "YOUR ROLE - TECHNICAL PROGRAM MANAGER. Analyze this spec: [PRIMES]"
+		prompt := "You are an expert Technical Program Manager (TPM). Analyze this spec: [PRIMES]"
 		resp, err := agent.Send(ctx, prompt)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
