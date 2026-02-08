@@ -11,7 +11,24 @@ import (
 	"recac/internal/db"
 	"recac/internal/notify"
 	"recac/internal/telemetry"
+	"strings"
 )
+
+// Define local mock here since ui_test.go is in same package but might not see agent_exec_test.go's mock if not compiled together in some scenarios,
+// or simply reuse it if available. Given previous error "undefined: MockDockerForExec", it seems tests in same package are compiled together but maybe `go test` specific file invocation excludes others.
+// Best practice: define a local mock or run all tests.
+type MockDockerUI struct {
+	DockerClient
+}
+
+func (m *MockDockerUI) Exec(ctx context.Context, id string, cmd []string) (string, error) {
+	fullCmd := strings.Join(cmd, " ")
+	return "Success: " + fullCmd, nil
+}
+
+func (m *MockDockerUI) ExecAsUser(ctx context.Context, id string, user string, cmd []string) (string, error) {
+	return m.Exec(ctx, id, cmd)
+}
 
 func TestSession_RunLoop_UIVerification(t *testing.T) {
 	// 1. Create a temp directory
@@ -38,7 +55,7 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	}
 
 	// 5. Initialize Session
-	mockDocker := &MockDockerForExec{}
+	mockDocker := &MockDockerUI{}
 	mockAgent := agent.NewMockAgent()
 	s := &Session{
 		Docker:           mockDocker,
