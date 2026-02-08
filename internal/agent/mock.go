@@ -197,7 +197,7 @@ agent-bridge signal QA_PASSED true
 func (m *MockAgent) generateManagerResponse() string {
 	script := `
 echo "Manager Review: Approved."
-agent-bridge signal PROJECT_SIGNED_OFF true
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged
 `
 	return fmt.Sprintf("I approve the project.\n\n```bash%s```\n", script)
 }

@@ -125,7 +125,7 @@ func TestMockAgent_Manager(t *testing.T) {
 		t.Fatalf("Send failed: %v", err)
 	}
 
-	if !strings.Contains(response, "agent-bridge signal PROJECT_SIGNED_OFF true") {
-		t.Errorf("Expected PROJECT_SIGNED_OFF signal in response, got:\n%s", response)
+	if !strings.Contains(response, "agent-bridge signal PROJECT_SIGNED_OFF true --privileged") {
+		t.Errorf("Expected PROJECT_SIGNED_OFF signal with --privileged in response, got:\n%s", response)
 	}
 }
