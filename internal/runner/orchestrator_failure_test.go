@@ -2,91 +2,15 @@ package runner
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"recac/internal/agent"
 	"recac/internal/db"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 )
-
-// MockOrchestratorDB is a more complete mock for orchestrator tests
-// FaultToleranceMockDB implements db.Store explicitly
-type FaultToleranceMockDB struct {
-	Signals     map[string]string
-	FeatureList db.FeatureList
-	mu          sync.Mutex
-}
-
-func (m *FaultToleranceMockDB) Close() error                                             { return nil }
-func (m *FaultToleranceMockDB) SaveObservation(projectID, agentID, content string) error { return nil }
-func (m *FaultToleranceMockDB) QueryHistory(projectID string, limit int) ([]db.Observation, error) {
-	return nil, nil
-}
-func (m *FaultToleranceMockDB) DeleteSignal(projectID, key string) error { return nil }
-func (m *FaultToleranceMockDB) SaveFeatures(projectID, features string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	var fl db.FeatureList
-	if err := json.Unmarshal([]byte(features), &fl); err != nil {
-		return err
-	}
-	m.FeatureList = fl
-	return nil
-}
-func (m *FaultToleranceMockDB) ReleaseAllLocks(projectID, agentID string) error { return nil }
-
-func (m *FaultToleranceMockDB) SetSignal(projectID, key, value string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.Signals == nil {
-		m.Signals = make(map[string]string)
-	}
-	m.Signals[key] = value
-	return nil
-}
-
-func (m *FaultToleranceMockDB) GetSignal(projectID, key string) (string, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.Signals == nil {
-		return "", nil
-	}
-	return m.Signals[key], nil
-}
-
-func (m *FaultToleranceMockDB) GetFeatures(projectID string) (string, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	data, err := json.Marshal(m.FeatureList)
-	return string(data), err
-}
-
-func (m *FaultToleranceMockDB) SaveSpec(projectID string, spec string) error { return nil }
-func (m *FaultToleranceMockDB) GetSpec(projectID string) (string, error)     { return "", nil }
-
-func (m *FaultToleranceMockDB) UpdateFeatureStatus(projectID, id string, status string, passes bool) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	for i := range m.FeatureList.Features {
-		if m.FeatureList.Features[i].ID == id {
-			m.FeatureList.Features[i].Status = status
-			m.FeatureList.Features[i].Passes = passes
-			return nil
-		}
-	}
-	return fmt.Errorf("feature not found")
-}
-func (m *FaultToleranceMockDB) AcquireLock(projectID, path, agentID string, timeout time.Duration) (bool, error) {
-	return true, nil
-}
-func (m *FaultToleranceMockDB) ReleaseLock(projectID, path, agentID string) error  { return nil }
-func (m *FaultToleranceMockDB) GetActiveLocks(projectID string) ([]db.Lock, error) { return nil, nil }
-func (m *FaultToleranceMockDB) Cleanup() error                                     { return nil }
 
 func TestOrchestrator_FaultTolerance_HighFailureRate(t *testing.T) {
 	// Setup workspace
@@ -110,10 +34,8 @@ func TestOrchestrator_FaultTolerance_HighFailureRate(t *testing.T) {
 		},
 	}
 
-	mockDB := &FaultToleranceMockDB{
-		FeatureList: fl,
-		Signals:     make(map[string]string),
-	}
+	mockDB := NewFaultToleranceMockDB()
+	mockDB.FeatureList = fl
 
 	// Mock Docker that doesn't really do anything
 	mockDocker := &MockDockerClient{}
