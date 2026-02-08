@@ -40,7 +40,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			return `[
   {
     "id": "PRIMES",
-    "summary": "Implement Primes Script",
+    "title": "Implement Primes Script",
     "description": "Calculate primes < 10000",
     "type": "Task",
     "status": "Todo"
