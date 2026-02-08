@@ -39,31 +39,58 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	promptUpper := strings.ToUpper(prompt)
 
 	// Technical Program Manager Heuristic (JSON Tickets)
+	// Must return a ticket with ID "PRIMES" to align with smoke test job expectations
 	if strings.Contains(promptUpper, "TECHNICAL PROGRAM MANAGER") && (strings.Contains(promptUpper, "TICKET") || strings.Contains(promptUpper, "PLAN")) {
 		return `[
   {
-    "title": "Implement Core Feature",
-    "description": "Implement the core functionality based on the spec.",
-    "type": "Epic"
-  },
-  {
-    "title": "Implement Sub-task 1",
-    "description": "First step of implementation.",
-    "type": "Story",
-    "blocked_by": ["Implement Core Feature"]
+    "title": "Implement Prime Number Script",
+    "description": "Implement a Python script that calculates primes up to 10,000.",
+    "type": "Task",
+    "id": "PRIMES"
   }
 ]`, nil
 	}
 
+	// Loop Breaker / Feature Completion Heuristic
+	if strings.Contains(promptUpper, "NOTHING TO COMMIT") || strings.Contains(promptUpper, "WORKING TREE CLEAN") {
+		return "The feature is complete and verified.\n```bash\nagent-bridge feature set req-primes-implementation --status done --passes true\n```", nil
+	}
+
 	// Coding Agent Heuristic (Primes Scenario)
-	if strings.Contains(promptUpper, "CODING AGENT") && strings.Contains(promptUpper, "PRIMES") {
-		return "I will implement the primes script.\n```python\ndef primes(n):\n    primes = []\n    for i in range(2, n + 1):\n        is_prime = True\n        for j in range(2, int(i ** 0.5) + 1):\n            if i % j == 0:\n                is_prime = False\n                break\n        if is_prime:\n            primes.append(i)\n    return primes\n\nif __name__ == '__main__':\n    import json\n    print(json.dumps(primes(100)))\n```", nil
+	// Must calculate primes up to 10,000 to satisfy E2E verification
+	if strings.Contains(promptUpper, "CODING AGENT") && (strings.Contains(promptUpper, "PRIMES") || strings.Contains(promptUpper, "REQ-PRIMES-IMPLEMENTATION")) {
+		return "I will implement the primes script.\n```python\ndef primes(n):\n    primes = []\n    for i in range(2, n + 1):\n        is_prime = True\n        for j in range(2, int(i ** 0.5) + 1):\n            if i % j == 0:\n                is_prime = False\n                break\n        if is_prime:\n            primes.append(i)\n    return primes\n\nif __name__ == '__main__':\n    import json\n    print(json.dumps(primes(10000)))\n```", nil
 	}
 
 	// Initializer Agent Heuristic
+	// Must return a valid FeatureList JSON with repository_url matching the E2E test expectation
 	if strings.Contains(promptUpper, "INITIALIZER") || strings.Contains(promptUpper, "GET YOUR BEARINGS") {
-		// Return a mock feature list import script
-		return "I will initialize the feature list.\n```bash\nagent-bridge import --file features.json\n```", nil
+		return `I will initialize the feature list.
+` + "```bash" + `
+cat <<EOF > feature_list.json
+{
+  "project_name": "recac-jira-e2e",
+  "repository_url": "https://github.com/process-failed-successfully/recac-jira-e2e",
+  "features": [
+    {
+      "id": "req-primes-implementation",
+      "category": "core",
+      "priority": "MVP",
+      "description": "Implement a Python script to calculate prime numbers.",
+      "status": "todo",
+      "passes": false,
+      "steps": [],
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": [],
+        "read_only_paths": []
+      }
+    }
+  ]
+}
+EOF
+agent-bridge import < feature_list.json
+` + "```", nil
 	}
 
 	// QA Agent Heuristic
