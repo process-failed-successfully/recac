@@ -32,8 +32,8 @@ func TestMockAgent_Initializer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(response, "prime-python") {
-		t.Error("Expected JSON with project name")
+	if !strings.Contains(response, "ID:[PRIMES]") {
+		t.Error("Expected JSON with PRIMES ID")
 	}
 	if !strings.Contains(response, "req-the-makefile-targets-are-implemented") {
 		t.Error("Expected specific feature ID")

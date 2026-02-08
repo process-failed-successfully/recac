@@ -33,62 +33,53 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic 1: Initializer (TPM)
 	// Triggers when the system asks to break down requirements
+	// Returns a JSON array of ticketNode objects as expected by cmd/recac/jira.go
 	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "Break down the requirements") {
-		return `{
-  "project_name": "prime-python",
-  "features": [
-    {
-      "id": "req-setup-repo",
-      "category": "core",
-      "priority": "MVP",
-      "description": "Initialize repository with git",
-      "status": "pending",
-      "passes": false,
-      "steps": ["git init"],
-      "dependencies": {}
-    },
-    {
-      "id": "req-implement-primes",
-      "category": "core",
-      "priority": "MVP",
-      "description": "Implement primes.py to calculate prime numbers",
-      "status": "pending",
-      "passes": false,
-      "steps": ["Create primes.py"],
-      "dependencies": {"depends_on_ids": ["req-setup-repo"]}
-    },
-    {
-      "id": "req-implement-tests",
-      "category": "core",
-      "priority": "MVP",
-      "description": "Implement test_primes.py",
-      "status": "pending",
-      "passes": false,
-      "steps": ["Create test_primes.py"],
-      "dependencies": {"depends_on_ids": ["req-implement-primes"]}
-    },
-    {
-      "id": "req-the-makefile-targets-are-implemented",
-      "category": "core",
-      "priority": "MVP",
-      "description": "Create Makefile with run, test, lint, format targets",
-      "status": "pending",
-      "passes": false,
-      "steps": ["Create Makefile"],
-      "dependencies": {"depends_on_ids": ["req-implement-tests"]}
-    },
-    {
-      "id": "req-ci-workflow",
-      "category": "core",
-      "priority": "MVP",
-      "description": "Setup CI workflow",
-      "status": "pending",
-      "passes": false,
-      "steps": ["Create .github/workflows/ci.yml"],
-      "dependencies": {"depends_on_ids": ["req-the-makefile-targets-are-implemented"]}
-    }
-  ]
-}`, nil
+		return `[
+  {
+    "title": "ID:[SETUP] Project Setup",
+    "description": "Initialize repository and setup CI workflow",
+    "type": "Epic",
+    "children": [
+      {
+        "title": "ID:[req-setup-repo] Initialize Git",
+        "description": "Initialize repository with git",
+        "type": "Task"
+      },
+      {
+        "title": "ID:[req-ci-workflow] Setup CI",
+        "description": "Create .github/workflows/ci.yml",
+        "type": "Task",
+        "blocked_by": ["ID:[req-setup-repo] Initialize Git"]
+      }
+    ]
+  },
+  {
+    "title": "ID:[PRIMES] Primes Implementation",
+    "description": "Core functionality for calculating primes",
+    "type": "Epic",
+    "children": [
+      {
+        "title": "ID:[req-implement-primes] Implement primes.py",
+        "description": "Implement primes.py to calculate prime numbers",
+        "type": "Story",
+        "blocked_by": ["ID:[req-setup-repo] Initialize Git"]
+      },
+      {
+        "title": "ID:[req-implement-tests] Implement Tests",
+        "description": "Implement test_primes.py",
+        "type": "Story",
+        "blocked_by": ["ID:[req-implement-primes] Implement primes.py"]
+      },
+      {
+        "title": "ID:[req-the-makefile-targets-are-implemented] Create Makefile",
+        "description": "Create Makefile with run, test, lint, format targets",
+        "type": "Story",
+        "blocked_by": ["ID:[req-implement-tests] Implement Tests"]
+      }
+    ]
+  }
+]`, nil
 	}
 
 	// Heuristic 2: Project Manager (Directives)
