@@ -50,7 +50,39 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 2. Initializer Heuristic
 	// If the prompt is for Initializer (often contains "Initial Feature List"), imports the features.
 	if strings.Contains(prompt, "INITIALIZER") || (strings.Contains(prompt, "Feature List") && strings.Contains(prompt, "agent-bridge import")) {
-		// Extract JSON list from prompt
+
+		// SCENARIO SPECIFIC: [PRIMES]
+		if strings.Contains(prompt, "[PRIMES]") {
+			return `I will initialize the feature list for the Primes task.
+
+` + "```bash" + `
+cat << 'EOF' > feature_list.json
+{
+  "project_name": "MFLP",
+  "features": [
+    {
+      "id": "req-primes",
+      "category": "functional",
+      "priority": "high",
+      "description": "Create a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.",
+      "status": "pending",
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": [],
+        "read_only_paths": []
+      }
+    }
+  ]
+}
+EOF
+agent-bridge import < feature_list.json
+` + "```" + `
+`, nil
+		}
+
+		// GENERIC: Extract JSON list from prompt (e.g. from example)
+		// Only do this if we didn't match a specific scenario, to avoid picking up templates
 		jsonContent := extractJSON(prompt)
 		if jsonContent != "[]" {
 			return `I will initialize the feature list.
@@ -66,23 +98,23 @@ agent-bridge import < feature_list.json
 	}
 
 	// 3. Coding Agent Heuristic
-	// Detects Coding Agent role and [PRIMES] task
-	if (strings.Contains(prompt, "YOUR ROLE - CODING AGENT") || strings.Contains(prompt, "Role: Coding Agent")) &&
-	   (strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "Prime Number Script")) {
+	// Detects Coding Agent role and [PRIMES] task (or req-primes from DB)
+	if (strings.Contains(prompt, "YOUR ROLE - CODING AGENT") || strings.Contains(prompt, "Role: Coding Agent")) {
 
-		// If git status shows clean, we might be done, but let's just force the implementation for robustness
-		// Loop Breaker: if "nothing to commit" is in the prompt (usually in history), signal done
-		if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
-			return `It seems the work is committed. I will mark the feature as done.
+		if strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "req-primes") || strings.Contains(prompt, "Prime Number Script") {
+
+			// Loop Breaker: if "nothing to commit" is in the prompt (usually in history), signal done
+			if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
+				return `It seems the work is committed. I will mark the feature as done.
 
 ` + "```bash" + `
-agent-bridge feature set PRIMES --status done --passes true
+agent-bridge feature set req-primes --status done --passes true
 ` + "```" + `
 `, nil
-		}
+			}
 
-		// Otherwise, implement the script
-		return `I will implement the prime number script as requested.
+			// Otherwise, implement the script
+			return `I will implement the prime number script as requested.
 
 ` + "```bash" + `
 # Create the python script
@@ -108,9 +140,10 @@ git add primes.py primes.json
 git commit -m "Implement [PRIMES] prime number script"
 
 # Update status
-agent-bridge feature set PRIMES --status done --passes true
+agent-bridge feature set req-primes --status done --passes true
 ` + "```" + `
 `, nil
+		}
 	}
 
 	// 4. Manager / QA Heuristic
