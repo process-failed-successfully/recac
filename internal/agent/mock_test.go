@@ -25,9 +25,10 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
-func TestMockAgent_Primes(t *testing.T) {
+func TestMockAgent_Coding_Primes(t *testing.T) {
 	agent := NewMockAgent()
-	prompt := "### ID:[PRIMES] Prime Number Script"
+	// Simulate Coding Agent Prompt
+	prompt := "## YOUR ROLE - CODING AGENT\n... ### ID:[PRIMES] Prime Number Script"
 	response, err := agent.Send(context.Background(), prompt)
 
 	if err != nil {
@@ -40,6 +41,29 @@ func TestMockAgent_Primes(t *testing.T) {
 
 	if !strings.Contains(response, "agent-bridge feature set PRIMES --status done --passes true") {
 		t.Error("Response missing agent-bridge completion signal")
+	}
+}
+
+func TestMockAgent_TPM_Primes(t *testing.T) {
+	agent := NewMockAgent()
+	// Simulate TPM Agent Prompt
+	prompt := "You are an expert Technical Program Manager... decompose it into a series... ### ID:[PRIMES] Prime Number Script"
+	response, err := agent.Send(context.Background(), prompt)
+
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "[") || !strings.Contains(response, "{") {
+		t.Error("Response does not look like JSON")
+	}
+
+	if !strings.Contains(response, `"title": "ID:[PRIMES] Prime Number Script"`) {
+		t.Error("Response missing expected JSON title")
+	}
+
+	if strings.Contains(response, "cat << 'EOF'") {
+		t.Error("TPM response should NOT contain bash script")
 	}
 }
 

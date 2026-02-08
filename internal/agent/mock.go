@@ -32,8 +32,27 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// [PRIMES] Scenario Logic
-	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
+	// [PRIMES] Scenario Logic - Differentiate by Role
+
+	// 1. TPM Agent (Ticket Generation)
+	// Check for keywords specific to the TPM prompt
+	if (strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "Ticket Generation") || strings.Contains(prompt, "decompose it into a series")) && strings.Contains(prompt, "[PRIMES]") {
+		return `
+[
+  {
+    "title": "ID:[PRIMES] Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'. Repo: https://github.com/example/repo",
+    "type": "Task",
+    "children": []
+  }
+]
+`, nil
+	}
+
+	// 2. Coding Agent (Implementation)
+	// Check for keywords specific to the Coding Agent prompt, or generic [PRIMES] request if not TPM
+	// "CODING AGENT" is in the coding_agent.md template header
+	if (strings.Contains(prompt, "CODING AGENT") || strings.Contains(prompt, "primes.py")) && strings.Contains(prompt, "[PRIMES]") {
 		return `
 I will implement the prime number script as requested.
 
