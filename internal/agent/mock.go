@@ -65,7 +65,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			"      \"priority\": \"high\",\n" +
 			"      \"description\": \"Implement primes.py to calculate primes < 10000 and output to primes.json\",\n" +
 			"      \"status\": \"todo\",\n" +
-			"      \"dependencies\": []\n" +
+			"      \"dependencies\": { \"depends_on_ids\": [] }\n" +
 			"    }\n" +
 			"  ]\n" +
 			"}\n" +
