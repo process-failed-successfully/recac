@@ -361,7 +361,11 @@ func run() error {
 
 	// Determine expected job name from ticket map (assuming single task for now or finding "PRIMES")
 	var targetTicketID string
-	if id, ok := ticketMap["PRIMES"]; ok {
+	// Priority 1: Check for specific implementation task (Story) which the Orchestrator will pick up
+	if id, ok := ticketMap["req-implement-primes"]; ok {
+		targetTicketID = id
+	} else if id, ok := ticketMap["PRIMES"]; ok {
+		// Priority 2: Fallback to PRIMES if exact story not found (though PRIMES is likely an Epic and ignored by default Orchestrator)
 		targetTicketID = id
 	} else {
 		// Fallback: Use the first one
