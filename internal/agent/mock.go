@@ -121,9 +121,10 @@ echo "Manager Approved"
 ` + "```", nil
 	}
 
-	// 4. TPM / Planning Role (Ticket Generation)
+	// 5. TPM / Planning Role (Ticket Generation)
 	// This is critical for 'recac jira generate-from-spec'
-	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "Ticket Generation") {
+	// We check for [PRIMES] explicitly to ensure the smoke test works even if the prompt template varies.
+	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "Ticket Generation") || strings.Contains(prompt, "[PRIMES]") {
 		// Detect Primes Scenario (used in smoke test)
 		if strings.Contains(strings.ToLower(prompt), "prime") || strings.Contains(prompt, "[PRIMES]") {
 			return `Here is the ticket plan:
