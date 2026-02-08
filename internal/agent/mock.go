@@ -36,15 +36,20 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 1. Initializer Agent
 	if strings.Contains(prompt, "ROLE - INITIALIZER AGENT") {
+		jsonContent := `{"projectName":"mock-project","features":[{"name":"Core","description":"Initial feature","status":"todo"}]}`
+		if strings.Contains(prompt, "primes") || strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "prime-python") {
+			jsonContent = `{"projectName":"prime-python","features":[{"name":"Implement Primes","description":"Create a python script named primes.py to calculate prime numbers.","status":"todo","priority":"high"}]}`
+		}
+
 		return fmt.Sprintf(`%s:
 
 I am the Initializer Agent. I am setting up the environment.
 
 `+"```bash"+`
-echo '{"projectName":"mock-project","features":[{"name":"Core","description":"Initial feature","status":"todo"}]}' > feature_list.json
+echo '%s' > feature_list.json
 echo "Initializer Agent Setup Complete"
 `+"```"+`
-`, m.responsePrefix), nil
+`, m.responsePrefix, jsonContent), nil
 	}
 
 	// 2. TPM Agent / Project Manager (Ticket Generation)
