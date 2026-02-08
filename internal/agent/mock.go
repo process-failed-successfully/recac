@@ -82,7 +82,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		strings.Contains(prompt, "[PRIMES]") ||
 		strings.Contains(prompt, "primes.py") ||
 		strings.Contains(prompt, "Prime Number Script") ||
-		strings.Contains(prompt, "req-the-script-primes-py-is-implem") {
+		strings.Contains(prompt, "req-the-script-primes-py-is-implem") ||
+		strings.Contains(prompt, "YOUR ROLE - CODING AGENT") {
 		return "I will implement the prime number calculation script.\n\n" +
 			"```bash\n" +
 			"cat <<EOF > primes.py\n" +
