@@ -81,6 +81,32 @@ Epics
 	}
 }
 
+func TestMockAgent_Primes_CodingAgent_FeatureID(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Simulate Coding Agent prompt (Contains feature ID but NO [PRIMES] tag)
+	prompt := `## YOUR ROLE - CODING AGENT
+...
+Feature ID: req-must-correctly-identify-prime-
+Description: Script calculates primes correctly
+...`
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Should return Implementation (Bash with primes.py)
+	// Should NOT return ls -la (Generic Fallback)
+	if strings.Contains(response, "ls -la") && !strings.Contains(response, "primes.py") {
+		t.Errorf("Coding Agent fell back to generic 'ls -la' response instead of implementing primes.py!")
+	}
+
+	if !strings.Contains(response, "cat << 'EOF' > primes.py") {
+		t.Errorf("Expected primes.py implementation, got: %s", response)
+	}
+}
+
 func TestMockAgent_Primes_Completion(t *testing.T) {
 	agent := NewMockAgent()
 
