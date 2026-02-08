@@ -245,6 +245,9 @@ var ProcessJiraTicket = func(ctx context.Context, jiraTicketID string, jClient *
 	cfg.JiraTicketID = jiraTicketID
 	cfg.RepoURL = repoURL
 
+	// Pass original ticket ID for consistency if needed, but SessionName is primary.
+	// Note: SessionName is used for Docker/K8s job naming.
+
 	// Run Workflow
 	if err := RunWorkflow(ctx, cfg); err != nil {
 		logger.Error("Session failed", "error", err)

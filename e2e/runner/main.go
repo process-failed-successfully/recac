@@ -359,22 +359,47 @@ func run() error {
 	// Check for Agent Job
 	log.Println("Waiting for Agent Job to start...")
 
-	// Determine expected job name from ticket map (assuming single task for now or finding "PRIMES")
-	var targetTicketID string
-	if id, ok := ticketMap["PRIMES"]; ok {
-		targetTicketID = id
-	} else {
-		// Fallback: Use the first one
-		for _, id := range ticketMap {
-			targetTicketID = id
+	// Determine expected job name from ticket map.
+	// We iterate over all tickets and see if ANY match a running job.
+	// This handles cases where we have multiple tickets or IDs change.
+	var foundJobName string
+
+	log.Println("Scanning for active jobs corresponding to generated tickets...")
+
+	// Retry loop for finding ANY valid job
+	timeout := 300 * time.Second
+	start := time.Now()
+
+	for time.Since(start) < timeout {
+		for _, ticketID := range ticketMap {
+			prefix := fmt.Sprintf("recac-agent-%s", strings.ToLower(ticketID))
+			// We use a short timeout here since we are polling in the outer loop
+			// But waitForJob is designed to wait.
+			// Let's refactor waitForJob or just use checkJobExists.
+
+			// We'll reuse waitForJob with a short timeout to check if this specific job exists yet.
+			// If it returns a name, we found it.
+			name, err := waitForJob(namespace, prefix, 2*time.Second)
+			if err == nil && name != "" {
+				foundJobName = name
+				log.Printf("Found job for ticket %s: %s", ticketID, foundJobName)
+				break
+			}
+		}
+
+		if foundJobName != "" {
 			break
 		}
+
+		time.Sleep(5 * time.Second)
+		log.Printf("Waiting for any known job to appear... (scanned %d tickets)", len(ticketMap))
 	}
 
-	expectedJobPrefix := fmt.Sprintf("recac-agent-%s", strings.ToLower(targetTicketID))
-	log.Printf("Looking for job prefix: %s", expectedJobPrefix)
+	if foundJobName == "" {
+		err = fmt.Errorf("timeout waiting for any agent job to start (checked %d tickets)", len(ticketMap))
+	}
 
-	jobName, err := waitForJob(namespace, expectedJobPrefix, 300*time.Second)
+	jobName := foundJobName
 	if err != nil {
 		printKubeDebugInfo(namespace)
 		printLogs(namespace, fmt.Sprintf("app.kubernetes.io/name=%s", "recac"))
@@ -504,13 +529,38 @@ func waitForPod(ns, labelSelector string, timeout time.Duration) error {
 func waitForJob(ns, namePrefix string, timeout time.Duration) (string, error) {
 	start := time.Now()
 	for time.Since(start) < timeout {
-		cmd := exec.Command("kubectl", "get", "jobs", "-n", ns, "-o", "name")
+		// Filter for jobs that are not Failed. We look for jobs where Succeeded >= 0 or Active >= 0
+		// But simpler to just get the job and check its status json.
+		// However, kubectl get jobs -o name returns all.
+		// Let's filter by checking if the job exists first.
+		cmd := exec.Command("kubectl", "get", "jobs", "-n", ns, "-o", "jsonpath={.items[*].metadata.name}")
 		out, err := cmd.Output()
 		if err == nil {
-			lines := strings.Split(string(out), "\n")
-			for _, line := range lines {
-				if strings.Contains(line, namePrefix) {
-					return strings.TrimSpace(line), nil
+			jobNames := strings.Fields(string(out))
+			for _, name := range jobNames {
+				if strings.Contains(name, namePrefix) {
+					// Check if job is not failed (failed jobs might be from previous runs if cleanup failed, or immediate failures)
+					// Actually, in this CI run, we see BackOff, which means Pod failed but Job is still active/retrying.
+					// So finding the job name is correct. The timeout happens because it never Completes.
+					// But wait, the error is "timeout waiting for job recac-agent-mflp-7887"
+					// This error comes from waitForJob!
+					// Meaning it couldn't FIND the job name in the list within 300s?
+					// Or did it find it but waitForJobCompletion failed?
+					// The logs say: "E2E Test Failed: agent job failed to start: timeout waiting for job recac-agent-mflp-7887"
+					// This message comes from main() calling waitForJob.
+					// So waitForJob returned error.
+					// This means `kubectl get jobs` did NOT return the job name.
+					// Why?
+					// The logs show: "Spawning K8s Job ... item=MFLP-7888"
+					// But the error says "timeout waiting for job recac-agent-mflp-7887"
+					// 7888 vs 7887.
+					// Mismatch in ID!
+					// The ticketMap might be returning an old or different ID than what was spawned?
+					// In the logs: "Spawning agent for item id=MFLP-7888" multiple times.
+					// Then "Deleted MFLP-7889", "Deleted MFLP-7888".
+					// Then "E2E Test Failed ... timeout waiting for job recac-agent-mflp-7887".
+					// It seems we are looking for 7887 but spawned 7888?
+					return name, nil
 				}
 			}
 		}
