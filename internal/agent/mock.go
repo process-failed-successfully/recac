@@ -42,7 +42,7 @@ cat <<EOF > feature_list.json
   "features": [
     {
       "id": "req-must-correctly-identify-prime-",
-      "description": "Implement a script to calculate prime numbers",
+      "description": "ID:[PRIMES] Implement a python script named 'primes.py' to calculate prime numbers",
       "status": "todo",
       "passes": false
     }
@@ -67,8 +67,8 @@ EOF
 	}
 
 	// Heuristic: Coding Agent (Prime Script)
-	// Prompt asks to implement 'primes.py' or '[PRIMES]'
-	if strings.Contains(prompt, "Create a python script named 'primes.py'") || strings.Contains(prompt, "[PRIMES]") {
+	// Prompt asks to implement 'primes.py' or '[PRIMES]' or the specific task description
+	if strings.Contains(prompt, "Create a python script named 'primes.py'") || strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "calculate prime numbers") {
 		// Return bash script to create primes.py AND primes.json
 		// We use feature set to mark as done if possible
 		return `I will implement the prime number script.
@@ -107,7 +107,9 @@ agent-bridge signal QA_PASSED true
 	}
 
 	// Heuristic: Manager/PM (Approval)
-	if strings.Contains(prompt, "Project Manager") || strings.Contains(prompt, "sign off") {
+	// Guard: Do not trigger if the prompt looks like it's for a Coding Agent (contains "Implement" or "python" or "script")
+	isCodingPrompt := strings.Contains(prompt, "Implement") || strings.Contains(prompt, "python") || strings.Contains(prompt, "script")
+	if (strings.Contains(prompt, "Project Manager") || strings.Contains(prompt, "sign off")) && !isCodingPrompt {
 		return `Approved.
 ` + "```bash" + `
 agent-bridge signal PROJECT_SIGNED_OFF true --privileged
