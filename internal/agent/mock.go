@@ -34,7 +34,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Technical Program Manager: Generate Tickets
 	// This returns JSON for the CLI to consume
-	if strings.Contains(prompt, "Technical Program Manager") && (strings.Contains(prompt, "Ticket") || strings.Contains(prompt, "tickets")) {
+	// Note: Prompts contain "Technical Program Manager", but can also contain "Application Specification" (which appears in Initializer too).
+	// We distinguish by "Ticket", "tickets", or explicitly "Output purely JSON".
+	if strings.Contains(prompt, "Technical Program Manager") && (strings.Contains(prompt, "Ticket") || strings.Contains(prompt, "tickets") || strings.Contains(prompt, "Output purely JSON")) {
 		return "```json\n" +
 			"[\n" +
 			"  {\n" +
@@ -55,7 +57,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Initializer: Generate Feature List
 	// This returns a bash command for the Runner to execute
-	if strings.Contains(prompt, "INITIALIZER AGENT") {
+	// Prioritize exact match for "INITIALIZER AGENT" or "agent-bridge import" hint
+	if strings.Contains(prompt, "INITIALIZER AGENT") || strings.Contains(prompt, "feature_list.json") {
 		return "```bash\n" +
 			"cat << 'EOF' | agent-bridge import\n" +
 			"{\n" +
