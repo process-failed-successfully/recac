@@ -53,6 +53,21 @@ func TestMockAgent_PrimesScenario(t *testing.T) {
 	}
 }
 
+func TestMockAgent_PrimesScenario_AlreadyDone(t *testing.T) {
+	agent := NewMockAgent()
+	// Simulate prompt with history showing completion
+	prompt := "Task: Create primes.py. History: Feature updated: status=done. nothing to commit."
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "QA_PASSED") {
+		t.Errorf("Expected QA_PASSED signal, got: %s", response)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {

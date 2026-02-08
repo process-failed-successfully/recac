@@ -65,6 +65,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 3. Developer (Prime Python)
 	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "prime numbers") || strings.Contains(prompt, "req-implement-prime-calculation-lo") {
+		// Detect if already done (via history in prompt)
+		if strings.Contains(prompt, "status=done") || strings.Contains(prompt, "nothing to commit") {
+			return "```bash\nagent-bridge signal QA_PASSED true\n```", nil
+		}
+
 		return `
 I will implement the prime number calculation script.
 

@@ -132,6 +132,11 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		// Ensure feature list is synced and mirror is up to date
 		features = s.loadFeatures()
 
+		// Auto-Check: If all features are passing, mark project as completed
+		if s.checkAutoQA() {
+			s.Logger.Info("all features passed, auto-triggered completion signal")
+		}
+
 		// Single-Task Termination: If we are assigned a specific task and it's done, exit.
 		if s.SelectedTaskID != "" {
 			for _, f := range features {
