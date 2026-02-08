@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"syscall"
 
 	"recac/internal/cmdutils"
@@ -151,6 +152,16 @@ func runApp(ctx context.Context) error {
 }
 
 func main() {
+	// Recover from any panics in the application
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Fprintf(os.Stderr, "\n=== CRITICAL ERROR: Agent Panic ===\n")
+			fmt.Fprintf(os.Stderr, "Error: %v\n\n", r)
+			fmt.Fprintf(os.Stderr, "Stack trace:\n%s\n", debug.Stack())
+			os.Exit(1)
+		}
+	}()
+
 	var cfgFile string
 	initFlags(&cfgFile)
 	pflag.Parse()
