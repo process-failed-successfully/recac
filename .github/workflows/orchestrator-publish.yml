@@ -28,6 +28,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Calculate Safe Tag
+        id: safe_tag
+        run: |
+          REF_NAME=${{ github.ref_name }}
+          # Sanitize: replace / with -
+          SAFE_REF=${REF_NAME//\//-}
+          # Truncate to 120 chars to be safe (Docker limit is 128)
+          SAFE_REF=${SAFE_REF:0:120}
+          echo "tag=$SAFE_REF" >> $GITHUB_OUTPUT
+
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -35,7 +45,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
-            type=ref,event=branch
+            type=raw,value=${{ steps.safe_tag.outputs.tag }}
             type=semver,pattern={{version}}
             type=sha
 
