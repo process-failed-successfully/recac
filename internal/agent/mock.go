@@ -48,10 +48,37 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.generatePrimesImplementation(), nil
 	}
 
+	// Heuristic for QA Agent
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return m.generateQAResponse(), nil
+	}
+
+	// Heuristic for Manager Agent
+	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") {
+		return m.generateManagerResponse(), nil
+	}
+
 	// Return a generic mock response
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
+}
+
+func (m *MockAgent) generateQAResponse() string {
+	return `
+` + "```bash" + `
+make test || echo "No tests found"
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`
+}
+
+func (m *MockAgent) generateManagerResponse() string {
+	return `
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```" + `
+`
 }
 
 // SendStream implements the Agent interface
@@ -91,6 +118,7 @@ python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes script"
 git push
+agent-bridge signal COMPLETED true
 ` + "```" + `
 `
 }
