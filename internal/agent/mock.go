@@ -128,8 +128,8 @@ func (m *MockAgent) primesPlanResponse() string {
 	// Returns the JSON ticket list for the PRIMES scenario
 	return `[
   {
-    "id": "PRIMES",
-    "title": "Calculate Primes",
+    "id": "ID:[PRIMES]",
+    "title": "ID:[PRIMES] Calculate Primes",
     "description": "Create a script primes.py that calculates prime numbers up to 100 and saves them to primes.json. [PRIMES]",
     "type": "Task",
     "status": "Open",

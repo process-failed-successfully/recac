@@ -48,7 +48,7 @@ func TestMockAgent_SmartLogic(t *testing.T) {
 			name:   "TPM - Primes",
 			prompt: "You are the Technical Program Manager. The task is [PRIMES].",
 			expectContains: []string{
-				`"id": "PRIMES"`,
+				`"id": "ID:[PRIMES]"`,
 				`"assigned_to": "Developer"`,
 			},
 		},
