@@ -35,8 +35,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic for Ticket Planning (Scenario Generation)
 	// The prompt from cmd/recac/jira.go typically contains "spec" and implies generating tickets.
-	// However, we need to distinguish between "Plan tickets for PRIMES" and "Implement PRIMES".
-	// The CLI prompt uses prompts.TPMAgent.
+	// We need to distinguish between "Plan tickets for PRIMES" and "Implement PRIMES".
 	if strings.Contains(prompt, "tickets") || strings.Contains(prompt, "Story") || strings.Contains(prompt, "Epic") {
 		if strings.Contains(prompt, "[PRIMES]") {
 			return m.generatePrimesTickets(), nil
@@ -44,6 +43,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Heuristic for 'prime-python' scenario Implementation (Coding Agent)
+	// If the prompt asks for implementation or we are in the initializer loop looking for PRIMES
 	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
 		return m.generatePrimesImplementation(), nil
 	}
@@ -67,6 +67,27 @@ func (m *MockAgent) generatePrimesImplementation() string {
 	return `I will create the prime number script as requested.
 
 ` + "```bash" + `
+# 1. Initialize DB with the feature to satisfy the loop
+cat << 'EOF' > features.json
+[
+  {
+    "id": "PRIMES",
+    "category": "Task",
+    "priority": "MVP",
+    "description": "Implement primes.py",
+    "status": "in_progress",
+    "passes": false,
+    "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": [],
+        "read_only_paths": []
+    }
+  }
+]
+EOF
+agent-bridge import --file features.json
+
+# 2. Implement the script
 cat << 'EOF' > primes.py
 import json
 
@@ -87,10 +108,14 @@ with open('primes.json', 'w') as f:
     json.dump({"primes": primes}, f)
 EOF
 
+# 3. Commit and Push
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes script"
 git push
+
+# 4. Mark done to stop the agent loop
+agent-bridge feature set --id PRIMES --status done --passes true
 ` + "```" + `
 `
 }
