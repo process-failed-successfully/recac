@@ -176,7 +176,7 @@ func TestSetupCmd_Skips(t *testing.T) {
 	assert.False(t, viper.GetBool("notifications.slack.enabled"))
 }
 
-func TestSetupCmd_JiraTokenInConfig(t *testing.T) {
+func TestSetupCmd_JiraTokenNotSavedIfDeclined(t *testing.T) {
 	originalAskOne := askOneFunc
 	defer func() { askOneFunc = originalAskOne }()
 
@@ -187,7 +187,7 @@ func TestSetupCmd_JiraTokenInConfig(t *testing.T) {
 		"Enter your Jira URL (e.g., https://your-domain.atlassian.net):": "https://jira.example.com",
 		"Enter your Jira Email/Username:":                                "dev@example.com",
 		"Enter your Jira API Token:":                                     "secret-token",
-		"Do you want to save the Jira Token to a local .env file?":       false, // Save to config instead
+		"Do you want to save the Jira Token to a local .env file?":       false, // Decline env save
 		"Enter the Jira Label for agents to watch:":                      "recac-dev",
 		"Enable Slack notifications?":                                    false,
 		"Run system check (recac doctor) now?":                           false,
@@ -195,8 +195,8 @@ func TestSetupCmd_JiraTokenInConfig(t *testing.T) {
 	askOneFunc = mockAskOne
 
 	viper.Reset()
-	viper.SetConfigFile("test_config_jira_cfg.yaml")
-	defer os.Remove("test_config_jira_cfg.yaml")
+	viper.SetConfigFile("test_config_jira_safe.yaml")
+	defer os.Remove("test_config_jira_safe.yaml")
 
 	cmd := &cobra.Command{Use: "test"}
 	err := runSetup(cmd, []string{})
@@ -205,7 +205,7 @@ func TestSetupCmd_JiraTokenInConfig(t *testing.T) {
 	assert.Equal(t, "https://jira.example.com", viper.GetString("jira.url"))
 	assert.Equal(t, "dev@example.com", viper.GetString("jira.username"))
 	assert.Equal(t, "recac-dev", viper.GetString("orchestrator.jira_label"))
-	assert.Equal(t, "secret-token", viper.GetString("jira.api_token")) // Should be in config
+	assert.Empty(t, viper.GetString("jira.api_token")) // Should NOT be in config
 }
 
 func TestSetupCmd_AppendEnv(t *testing.T) {

@@ -196,11 +196,6 @@ func runSetup(cmd *cobra.Command, args []string) error {
 		viper.Set("jira.url", answers.JiraUrl)
 		viper.Set("jira.username", answers.JiraEmail)
 		viper.Set("orchestrator.jira_label", answers.JiraLabel)
-		// If not saving to env, save to config (unencrypted) if desired?
-		// For simplicity, if not env, we save to config to ensure functionality.
-		if !answers.SaveJiraToEnv && answers.JiraToken != "" {
-			viper.Set("jira.api_token", answers.JiraToken)
-		}
 	}
 
 	if answers.EnableSlack {
