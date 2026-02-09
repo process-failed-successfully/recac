@@ -24,32 +24,32 @@ func TestDoctest(t *testing.T) {
 		checkOut    string
 	}{
 		{
-			name:        "valid-go",
-			content:     "```go\npackage main\nimport \"fmt\"\nfunc main() { fmt.Println(\"Hello\") }\n```",
+			name: "valid-go",
+			content: "```go\npackage main\nimport \"fmt\"\nfunc main() { fmt.Println(\"Hello\") }\n```",
 			shouldError: false,
 			checkOut:    "Checking",
 		},
 		{
-			name:        "invalid-go",
-			content:     "```go\npackage main\nfunc main() { syntax error }\n```",
+			name: "invalid-go",
+			content: "```go\npackage main\nfunc main() { syntax error }\n```",
 			shouldError: true,
 			checkOut:    "Failed",
 		},
 		{
-			name:        "valid-json",
-			content:     "```json\n{\"key\": \"value\"}\n```",
+			name: "valid-json",
+			content: "```json\n{\"key\": \"value\"}\n```",
 			shouldError: false,
 			checkOut:    "Checking",
 		},
 		{
-			name:        "invalid-json",
-			content:     "```json\n{key: value}\n```", // Invalid JSON (no quotes)
+			name: "invalid-json",
+			content: "```json\n{key: value}\n```", // Invalid JSON (no quotes)
 			shouldError: true,
 			checkOut:    "Failed",
 		},
 		{
-			name:        "mixed",
-			content:     "```go\npackage main\nfunc main(){}\n```\n```json\n{broken}\n```",
+			name: "mixed",
+			content: "```go\npackage main\nfunc main(){}\n```\n```json\n{broken}\n```",
 			shouldError: true,
 			checkOut:    "Failed",
 		},

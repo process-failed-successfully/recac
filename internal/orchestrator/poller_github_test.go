@@ -35,8 +35,8 @@ func TestGitHubPoller_Poll(t *testing.T) {
 					"body":   "This is another issue without explicit repo.",
 				},
 				{
-					"number":       3,
-					"title":        "PR",
+					"number": 3,
+					"title":  "PR",
 					"pull_request": map[string]interface{}{},
 				},
 			}

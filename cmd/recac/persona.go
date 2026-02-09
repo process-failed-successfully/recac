@@ -153,10 +153,10 @@ var personaAddCmd = &cobra.Command{
 }
 
 var personaRemoveCmd = &cobra.Command{
-	Use:     "remove [name]",
+	Use:   "remove [name]",
 	Aliases: []string{"rm", "delete"},
-	Short:   "Remove a custom persona",
-	Args:    cobra.ExactArgs(1),
+	Short: "Remove a custom persona",
+	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		id := args[0]
 		pm := agent.NewPersonaManager()

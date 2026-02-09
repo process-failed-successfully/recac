@@ -12,11 +12,11 @@ import (
 )
 
 var (
-	magicPath     string
-	magicMinCount int
-	magicIgnore   string
-	magicJSON     bool
-	magicFail     bool
+	magicPath      string
+	magicMinCount  int
+	magicIgnore    string
+	magicJSON      bool
+	magicFail      bool
 )
 
 var magicCmd = &cobra.Command{

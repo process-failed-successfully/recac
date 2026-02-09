@@ -74,13 +74,13 @@ type Session struct {
 	AutoMerge                 bool   // Automatically merge PRs
 	JiraClient                JiraClient
 	JiraTicketID              string
-	RepoURL                   string              // Repository URL for links
-	SlackThreadTS             string              // Thread Timestamp for Slack conversations
-	SuppressStartNotification bool                // Suppress "Session Started" notification (for sub-tasks)
-	UseLocalAgent             bool                // Execute commands locally (e.g. inside K8s pod) instead of spawning Docker container
-	SpecContent               string              // Explicit specification content (e.g. from Jira)
-	FeatureContent            string              // Explicit feature list JSON content (authoritative)
-	Logger                    *slog.Logger        // Structured logger for this session
+	RepoURL                   string       // Repository URL for links
+	SlackThreadTS             string       // Thread Timestamp for Slack conversations
+	SuppressStartNotification bool         // Suppress "Session Started" notification (for sub-tasks)
+	UseLocalAgent             bool         // Execute commands locally (e.g. inside K8s pod) instead of spawning Docker container
+	SpecContent               string       // Explicit specification content (e.g. from Jira)
+	FeatureContent            string       // Explicit feature list JSON content (authoritative)
+	Logger                    *slog.Logger // Structured logger for this session
 	SleepFunc                 func(time.Duration) // Function for sleeping (mockable)
 
 	mu sync.RWMutex // Protects concurrent access to Iteration, SlackThreadTS, ContainerID
@@ -233,13 +233,8 @@ func NewSessionWithConfig(workspace, project, provider, model string, dbStore db
 func initializeLogging(project string) *slog.Logger {
 	// Create agents/logs directory in the current working directory (host)
 	// This is where Promtail expects to find them based on docker-compose.monitoring.yml
-	// We allow overriding this via env var for tests/CI
-	baseDir := os.Getenv("RECAC_LOGS_DIR")
-	if baseDir == "" {
-		baseDir, _ = os.Getwd()
-	}
-
-	agentsLogsDir := filepath.Join(baseDir, "agents", "logs")
+	cwd, _ := os.Getwd()
+	agentsLogsDir := filepath.Join(cwd, "agents", "logs")
 	if err := os.MkdirAll(agentsLogsDir, 0755); err != nil {
 		fmt.Printf("Warning: Failed to create agents/logs directory: %v\n", err)
 	} else {
@@ -742,6 +737,8 @@ func (s *Session) SetContainerID(id string) {
 	defer s.mu.Unlock()
 	s.ContainerID = id
 }
+
+
 
 func (s *Session) loadFeatures() []db.Feature {
 	// 1. Try to fetch from DB first (Authoritative source)

@@ -50,12 +50,12 @@ func TestRunCleanerAgent_PathTraversal(t *testing.T) {
 	if os.IsNotExist(err) {
 		t.Log("Vulnerability confirmed: target file outside workspace was deleted")
 	} else {
-		t.Log("Target file still exists (Safe?)")
-	}
-	// We expect it to FAIL if the vulnerability exists, for the purpose of demonstrating it.
-	// But since I need to fix it, I'll write the test to FAIL if the file IS deleted.
+        t.Log("Target file still exists (Safe?)")
+    }
+    // We expect it to FAIL if the vulnerability exists, for the purpose of demonstrating it.
+    // But since I need to fix it, I'll write the test to FAIL if the file IS deleted.
 	assert.NoError(t, err, "Target file should still exist")
-	assert.FileExists(t, targetFile, "Target file should not be deleted")
+    assert.FileExists(t, targetFile, "Target file should not be deleted")
 }
 
 func TestRunCleanerAgent_AbsolutePath(t *testing.T) {
@@ -93,5 +93,5 @@ func TestRunCleanerAgent_AbsolutePath(t *testing.T) {
 	if os.IsNotExist(err) {
 		t.Log("Vulnerability confirmed: absolute path target file was deleted")
 	}
-	assert.FileExists(t, targetFile, "Target file should not be deleted")
+    assert.FileExists(t, targetFile, "Target file should not be deleted")
 }

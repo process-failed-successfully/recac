@@ -118,9 +118,6 @@ func TestHandleChatCommand_Clear(t *testing.T) {
 	}
 }
 
-// Mock factory injection for testing
-var origFactory = agentClientFactory
-
 func TestRunChat_Integration(t *testing.T) {
 	// Override factory
 	origFactory := agentClientFactory
@@ -147,7 +144,8 @@ func TestRunChat_Integration(t *testing.T) {
 	in.WriteString("/quit\n")
 
 	// Run
-	if err := runChat(cmd, []string{}); err != nil {
+	err := runChat(cmd, []string{})
+	if err != nil {
 		t.Fatalf("runChat failed: %v", err)
 	}
 
@@ -158,7 +156,6 @@ func TestRunChat_Integration(t *testing.T) {
 	if !strings.Contains(output, "Hello from Mock") {
 		t.Error("Missing agent response")
 	}
-	// "product" is a default persona => Product Manager
 	if !strings.Contains(output, "Switched persona to: Product Manager") {
 		t.Error("Missing persona switch message")
 	}

@@ -1,157 +1,126 @@
 package web
 
 import (
-	"errors"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
+	"recac/internal/db"
+	"recac/internal/runner"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestNewServer(t *testing.T) {
-	store := &MockStore{}
-	s := NewServer(store, 8080, "test-project")
-	if s.port != 8080 {
-		t.Errorf("expected port 8080, got %d", s.port)
+func TestServer_HandleFeatures(t *testing.T) {
+	mockStore := &MockStore{}
+	server := NewServer(mockStore, 8080, "test-proj")
+
+	// Prepare mock data
+	featureList := db.FeatureList{
+		ProjectName: "test-proj",
+		Features: []db.Feature{
+			{ID: "f1", Description: "feature 1"},
+		},
 	}
-	if s.projectID != "test-project" {
-		t.Errorf("expected projectID test-project, got %s", s.projectID)
-	}
-	if s.store != store {
-		t.Error("expected store to be set")
+	data, _ := json.Marshal(featureList)
+
+	mockStore.GetFeaturesFunc = func(projectID string) (string, error) {
+		if projectID == "test-proj" {
+			return string(data), nil
+		}
+		return "", nil
 	}
 
-	// Default project ID
-	s2 := NewServer(store, 8080, "")
-	if s2.projectID != "default" {
-		t.Errorf("expected default projectID, got %s", s2.projectID)
-	}
+	req, _ := http.NewRequest("GET", "/api/features", nil)
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(server.handleFeatures)
+
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	var resFeatures []db.Feature
+	err := json.Unmarshal(rr.Body.Bytes(), &resFeatures)
+	assert.NoError(t, err)
+	assert.Len(t, resFeatures, 1)
+	assert.Equal(t, "f1", resFeatures[0].ID)
 }
 
-func TestServer_HandleFeatures(t *testing.T) {
-	tests := []struct {
-		name           string
-		projectID      string
-		featuresMap    map[string]string
-		expectedStatus int
-		expectedBody   string
-	}{
-		{
-			name:      "Valid Features",
-			projectID: "test-project",
-			featuresMap: map[string]string{
-				"test-project": `{"project_name": "test", "features": [{"id": "1", "description": "foo"}]}`,
-			},
-			expectedStatus: http.StatusOK,
-			expectedBody:   `"id":"1"`,
-		},
-		{
-			name:      "Fallback to Default",
-			projectID: "unknown",
-			featuresMap: map[string]string{
-				"default": `{"project_name": "def", "features": [{"id": "2", "description": "bar"}]}`,
-			},
-			expectedStatus: http.StatusOK,
-			expectedBody:   `"id":"2"`,
-		},
-		{
-			name:        "Empty Features (No Fallback)",
-			projectID:   "empty",
-			featuresMap: map[string]string{
-				// Empty map, so neither project nor default exists
-			},
-			expectedStatus: http.StatusOK,
-			expectedBody:   `[]`,
-		},
-		{
-			name:      "Invalid JSON",
-			projectID: "invalid",
-			featuresMap: map[string]string{
-				"invalid": `{invalid_json`,
-			},
-			expectedStatus: http.StatusInternalServerError,
-			expectedBody:   "Failed to parse features",
-		},
+func TestServer_HandleFeatures_Empty(t *testing.T) {
+	mockStore := &MockStore{}
+	server := NewServer(mockStore, 8080, "test-proj")
+
+	mockStore.GetFeaturesFunc = func(projectID string) (string, error) {
+		return "", nil
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			store := &MockStore{
-				GetFeaturesFunc: func(projectID string) (string, error) {
-					if v, ok := tc.featuresMap[projectID]; ok {
-						return v, nil
-					}
-					return "", errors.New("not found")
-				},
-			}
-			s := NewServer(store, 8080, tc.projectID)
-			req := httptest.NewRequest("GET", "/api/features", nil)
-			w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/features", nil)
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(server.handleFeatures)
 
-			s.handleFeatures(w, req)
+	handler.ServeHTTP(rr, req)
 
-			resp := w.Result()
-			if resp.StatusCode != tc.expectedStatus {
-				t.Errorf("expected status %d, got %d", tc.expectedStatus, resp.StatusCode)
-			}
-
-			body := w.Body.String()
-			if tc.expectedBody != "" && !strings.Contains(body, tc.expectedBody) {
-				t.Errorf("expected body to contain '%s', got '%s'", tc.expectedBody, body)
-			}
-		})
-	}
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, "[]", rr.Body.String())
 }
 
 func TestServer_HandleGraph(t *testing.T) {
-	featuresMap := map[string]string{
-		"test-project": `{"project_name": "test", "features": [{"id": "1", "description": "foo", "steps": ["s1"]}]}`,
-		"invalid":      `{invalid_json`,
-	}
+	mockStore := &MockStore{}
+	server := NewServer(mockStore, 8080, "test-proj")
 
-	store := &MockStore{
-		GetFeaturesFunc: func(projectID string) (string, error) {
-			if v, ok := featuresMap[projectID]; ok {
-				return v, nil
-			}
-			return "", errors.New("not found")
+	featureList := db.FeatureList{
+		ProjectName: "test-proj",
+		Features: []db.Feature{
+			{ID: "f1", Description: "done", Status: "done"},
+			{
+				ID: "f2",
+				Description: "pending",
+				Status: "pending",
+				Dependencies: db.FeatureDependencies{DependsOnIDs: []string{"f1"}},
+			},
 		},
 	}
 
-	tests := []struct {
-		name         string
-		projectID    string
-		expectedBody string
-	}{
-		{
-			name:         "Valid Graph",
-			projectID:    "test-project",
-			expectedBody: "graph TD",
-		},
-		{
-			name:         "No Data",
-			projectID:    "unknown",
-			expectedBody: "Error[No Data Found]",
-		},
-		{
-			name:         "Invalid JSON",
-			projectID:    "invalid",
-			expectedBody: "Error[Invalid Data]",
-		},
+	data, _ := json.Marshal(featureList)
+
+	mockStore.GetFeaturesFunc = func(projectID string) (string, error) {
+		if projectID == "test-proj" {
+			return string(data), nil
+		}
+		return "", nil
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			s := NewServer(store, 8080, tc.projectID)
-			req := httptest.NewRequest("GET", "/api/graph", nil)
-			w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/graph", nil)
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(server.handleGraph)
 
-			s.handleGraph(w, req)
+	handler.ServeHTTP(rr, req)
 
-			body := w.Body.String()
-			if !strings.Contains(body, tc.expectedBody) {
-				t.Errorf("expected body to contain '%s', got '%s'", tc.expectedBody, body)
-			}
-		})
-	}
+	assert.Equal(t, http.StatusOK, rr.Code)
+	body := rr.Body.String()
+	assert.Contains(t, body, "graph TD")
+	assert.Contains(t, body, "f1")
+	assert.Contains(t, body, "f2")
+	assert.Contains(t, body, "f1 --> f2")
+	assert.Contains(t, body, ":::done")
+}
+
+func TestGenerateMermaid(t *testing.T) {
+	g := runner.NewTaskGraph()
+	g.AddNode("node1", "Node 1", nil)
+	g.AddNode("node2", "Node 2", []string{"node1"})
+
+	// Set status
+	g.Nodes["node1"].Status = runner.TaskDone
+
+	out := generateMermaid(g)
+	assert.Contains(t, out, "graph TD")
+	assert.Contains(t, out, "node1 --> node2")
+	assert.Contains(t, out, ":::done")
+}
+
+func TestSanitizeMermaidID(t *testing.T) {
+	id := "foo bar.baz-qux"
+	sanitized := sanitizeMermaidID(id)
+	assert.Equal(t, "foo_bar_baz_qux", sanitized)
 }

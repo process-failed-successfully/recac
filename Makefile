@@ -97,10 +97,11 @@ smoke-k8s: ## Run full E2E smoke test in local Kubernetes (k3d)
 
 ci-simulate: ## Run E2E test exactly like CI (but on local cluster)
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
+	if [ -z "$$OPENROUTER_API_KEY" ]; then echo "Error: OPENROUTER_API_KEY is not set"; exit 1; fi; \
 	go run e2e/runner/main.go \
 		-scenario prime-python \
-		-provider mock \
-		-model "mock-model" \
+		-provider openrouter \
+		-model "meta-llama/llama-3.3-70b-instruct:free" \
 		-pull-policy IfNotPresent \
 		-skip-cleanup
 

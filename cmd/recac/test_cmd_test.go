@@ -98,8 +98,7 @@ func TestRunTest_Impacted(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, output, "Analyzing impact")
 	assert.Contains(t, output, "Running tests for 1 packages")
-	// CLI outputs "All tests passed" (checkmark), not raw "PASS" from go test command (which is captured but maybe transformed/summarized)
-	assert.Contains(t, output, "passed")
+	assert.Contains(t, output, "PASS")
 }
 
 func TestRunTest_DiagnoseFailure(t *testing.T) {

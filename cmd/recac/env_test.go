@@ -52,7 +52,7 @@ func TestEnvSync(t *testing.T) {
 	strContent := string(content)
 
 	assert.Contains(t, strContent, "FOO=val")
-	assert.Contains(t, strContent, "NEW_KEY=")               // Should be empty
+	assert.Contains(t, strContent, "NEW_KEY=") // Should be empty
 	assert.Contains(t, strContent, "PASSWORD=your_password") // Should be sanitized
 }
 

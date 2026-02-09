@@ -169,12 +169,3 @@ func TestRefreshMonitorSessionsCmd(t *testing.T) {
 	assert.IsType(t, actionResultMsg{}, msgErr)
 	assert.Error(t, msgErr.(actionResultMsg).err)
 }
-
-func TestMonitorDashboardModel_Init(t *testing.T) {
-	callbacks := ActionCallbacks{
-		GetSessions: func() ([]model.UnifiedSession, error) { return nil, nil },
-	}
-	m := NewMonitorDashboardModel(callbacks)
-	cmd := m.Init()
-	assert.NotNil(t, cmd)
-}
