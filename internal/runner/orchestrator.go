@@ -49,7 +49,7 @@ func NewOrchestrator(dbStore db.Store, dockerCli DockerClient, workspace, image 
 		AgentProvider:     provider,
 		AgentModel:        model,
 		TaskMaxIterations: 10, // Default
-		TaskMaxRetries:    3,  // Default retries
+		TaskMaxRetries:    5,  // Increased retries for stability
 		TickInterval:      1 * time.Second,
 		ParentThreadTS:    parentThreadTS,
 	}
