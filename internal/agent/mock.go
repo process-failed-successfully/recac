@@ -158,7 +158,7 @@ agent-bridge qa
 
 ` + "```bash" + `
 python3 test_primes.py
-agent-bridge signal QA_PASSED true
+agent-bridge signal QA_PASSED true || true
 ` + "```", nil
 	}
 
@@ -168,7 +168,7 @@ agent-bridge signal QA_PASSED true
 		return `I have reviewed the work and it looks good.
 
 ` + "```bash" + `
-agent-bridge signal PROJECT_SIGNED_OFF true --privileged
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged || true
 ` + "```", nil
 	}
 
