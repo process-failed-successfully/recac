@@ -36,7 +36,7 @@ func TestMockAgent_SmokeTestHeuristics(t *testing.T) {
 	}{
 		{
 			name:   "Initializer",
-			prompt: "Your role is INITIALIZER. Get your bearings.",
+			prompt: "## YOUR ROLE - INITIALIZER AGENT. Get your bearings.",
 			expectedSubstr: []string{
 				"feature_list.json",
 				"repository_url",
@@ -56,7 +56,7 @@ func TestMockAgent_SmokeTestHeuristics(t *testing.T) {
 		},
 		{
 			name:   "Coding Agent - Primes",
-			prompt: "You are the Coding Agent. Implement the Primes script req-primes-implementation.",
+			prompt: "## YOUR ROLE - CODING AGENT. Implement the Primes script req-primes-implementation.",
 			expectedSubstr: []string{
 				"primes(10000)",
 				"def primes(n):",

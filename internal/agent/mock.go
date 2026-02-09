@@ -57,7 +57,42 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	} else if strings.Contains(promptUpper, "NOTHING TO COMMIT") || strings.Contains(promptUpper, "WORKING TREE CLEAN") {
 		// Loop Breaker / Feature Completion Heuristic
 		response = "The feature is complete and verified.\n```bash\nagent-bridge feature set req-primes-implementation --status done --passes true\n```"
-	} else if strings.Contains(promptUpper, "INITIALIZER") ||
+	} else if strings.Contains(promptUpper, "ROLE - CODING AGENT") && (strings.Contains(promptUpper, "PRIMES") || strings.Contains(promptUpper, "REQ-PRIMES-IMPLEMENTATION")) {
+		// Coding Agent Heuristic (Primes Scenario)
+		// Must calculate primes up to 10,000 to satisfy E2E verification
+		// CRITICAL: Must be a BASH block to be executed by the runner!
+		// Priority: Checked BEFORE Initializer to avoid false matches when history contains Initializer prompts.
+		// Stricter check for "ROLE - CODING AGENT" prevents matching "coding agents" in Initializer prompt.
+		response = `I will implement the primes script.
+` + "```bash\n" + `cat <<EOF > primes.py
+def primes(n):
+    primes = []
+    for i in range(2, n + 1):
+        is_prime = True
+        for j in range(2, int(i ** 0.5) + 1):
+            if i % j == 0:
+                is_prime = False
+                break
+        if is_prime:
+            primes.append(i)
+    return primes
+
+if __name__ == '__main__':
+    import json
+    print(json.dumps(primes(10000)))
+EOF
+
+# Execute the script
+python3 primes.py > primes.json
+
+# Commit changes
+git add primes.py primes.json
+git commit -m "Implement primes script" || echo "Nothing to commit"
+
+# Signal completion
+agent-bridge feature set req-primes-implementation --status done --passes true
+` + "\n```"
+	} else if strings.Contains(promptUpper, "ROLE - INITIALIZER") ||
 		strings.Contains(promptUpper, "GET YOUR BEARINGS") ||
 		strings.Contains(promptUpper, "FIRST AGENT") ||
 		strings.Contains(promptUpper, "CREATE FEATURE_LIST.JSON") {
@@ -89,39 +124,6 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 }
 EOF
 agent-bridge import < feature_list.json
-` + "\n```"
-	} else if strings.Contains(promptUpper, "CODING AGENT") && (strings.Contains(promptUpper, "PRIMES") || strings.Contains(promptUpper, "REQ-PRIMES-IMPLEMENTATION")) {
-		// Coding Agent Heuristic (Primes Scenario)
-		// Must calculate primes up to 10,000 to satisfy E2E verification
-		// CRITICAL: Must be a BASH block to be executed by the runner!
-		response = `I will implement the primes script.
-` + "```bash\n" + `cat <<EOF > primes.py
-def primes(n):
-    primes = []
-    for i in range(2, n + 1):
-        is_prime = True
-        for j in range(2, int(i ** 0.5) + 1):
-            if i % j == 0:
-                is_prime = False
-                break
-        if is_prime:
-            primes.append(i)
-    return primes
-
-if __name__ == '__main__':
-    import json
-    print(json.dumps(primes(10000)))
-EOF
-
-# Execute the script
-python3 primes.py > primes.json
-
-# Commit changes
-git add primes.py primes.json
-git commit -m "Implement primes script" || echo "Nothing to commit"
-
-# Signal completion
-agent-bridge feature set req-primes-implementation --status done --passes true
 ` + "\n```"
 	} else if strings.Contains(promptUpper, "QA AGENT") {
 		// QA Agent Heuristic
