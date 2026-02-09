@@ -77,29 +77,33 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 3. Coding Agent (Implementation)
 	// Match on role OR specific feature requirement from the smoke test
 	if strings.Contains(prompt, "CODING AGENT") || strings.Contains(prompt, "req-script-primes-py-exists") || strings.Contains(prompt, "req-primes-py-exists") || strings.Contains(prompt, "req-calculates-primes-correctly") {
-		return `
-		cat <<EOF > primes.py
-		import json
+		// Use Markdown code block for bash to ensure parser detection
+		return `Here is the implementation for primes.py:
 
-		def is_prime(n):
-			if n <= 1:
-				return False
-			for i in range(2, int(n**0.5) + 1):
-				if n % i == 0:
-					return False
-			return True
+` + "```bash" + `
+cat <<EOF > primes.py
+import json
 
-		primes = [n for n in range(10000) if is_prime(n)]
+def is_prime(n):
+	if n <= 1:
+		return False
+	for i in range(2, int(n**0.5) + 1):
+		if n % i == 0:
+			return False
+	return True
 
-		with open('primes.json', 'w') as f:
-			json.dump({"primes": primes}, f)
-		EOF
+primes = [n for n in range(10000) if is_prime(n)]
 
-		python3 primes.py
+with open('primes.json', 'w') as f:
+	json.dump({"primes": primes}, f)
+EOF
 
-		# Signal feature completion
-		agent-bridge feature set req-script-primes-py-exists passed || echo "Feature set failed"
-		`, nil
+python3 primes.py
+
+# Signal feature completion
+agent-bridge feature set req-script-primes-py-exists passed || echo "Feature set failed"
+` + "```" + `
+`, nil
 	}
 
 	// 4. QA Agent (Verification)
