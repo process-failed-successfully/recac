@@ -146,8 +146,18 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Mock expectations
-	mockDocker.On("RunContainer", ctx, "test-image", mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
+	// Verify RunContainer includes git identity and project ID env vars
+	mockDocker.On("RunContainer", ctx, "test-image", mock.AnythingOfType("string"), mock.Anything, mock.MatchedBy(func(env []string) bool {
+		found := 0
+		for _, e := range env {
+			if e == "RECAC_PROJECT_ID=TICKET-1" ||
+				e == "GIT_AUTHOR_NAME=RECAC Agent" ||
+				e == "GIT_AUTHOR_EMAIL=agent@recac.io" {
+				found++
+			}
+		}
+		return found >= 3
+	}), "").Return("container123", nil)
 
 	// Verify SaveSession receives session with repo-url
 	mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
@@ -162,14 +172,14 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 		return hasRepoURL && s.StartCommitSHA == ""
 	})).Return(nil)
 
-	// Verify Exec includes git identity and project ID env vars
+	// Verify Exec command structure
 	mockDocker.On("Exec", mock.Anything, "container123", mock.MatchedBy(func(cmd []string) bool {
 		cmdStr := cmd[2] // /bin/sh -c <cmdStr>
-		// Note: RECAC_PROJECT_ID is now quoted with shellquote, so simple strings might not have quotes
-		// or use single quotes. 'TICKET-1' (no spaces) -> TICKET-1
-		return contains(cmdStr, "export RECAC_PROJECT_ID=TICKET-1") &&
-			contains(cmdStr, "export GIT_AUTHOR_NAME='RECAC Agent'") &&
-			contains(cmdStr, "export GIT_AUTHOR_EMAIL='agent@recac.io'")
+		// Verify agentCmd
+		return contains(cmdStr, "/usr/local/bin/recac-agent") &&
+			contains(cmdStr, "--jira TICKET-1") &&
+			contains(cmdStr, "--image test-image") &&
+			!contains(cmdStr, "export RECAC_PROJECT_ID") // Ensure no export
 	})).Return("output", nil)
 	mockSM.On("LoadSession", "TICKET-1").Return(&runner.SessionState{}, nil)
 
@@ -279,33 +289,42 @@ func TestDockerSpawner_EnvPropagation(t *testing.T) {
 		RepoURL: "https://github.com/example/repo",
 	}
 
-	client.On("RunContainer", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("container-env", nil)
+	// Capture env vars passed to RunContainer
+	capturedEnvChan := make(chan []string, 1)
+	client.On("RunContainer", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		env := args.Get(4).([]string)
+		capturedEnvChan <- env
+	}).Return("container-env", nil)
+
 	sm.On("SaveSession", mock.Anything).Return(nil)
 	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
 
-	// Capture the command passed to Exec
-	capturedCmdChan := make(chan []string, 1)
-	client.On("Exec", mock.Anything, "container-env", mock.Anything).Run(func(args mock.Arguments) {
-		capturedCmd := args.Get(2).([]string)
-		capturedCmdChan <- capturedCmd
-	}).Return("Success", nil)
+	client.On("Exec", mock.Anything, "container-env", mock.Anything).Return("Success", nil)
 
 	err := spawner.Spawn(context.Background(), item)
 	assert.NoError(t, err)
 
-	var capturedCmd []string
+	var capturedEnv []string
 	select {
-	case capturedCmd = <-capturedCmdChan:
+	case capturedEnv = <-capturedEnvChan:
 		// Success
 	case <-time.After(2 * time.Second):
-		t.Fatal("Timed out waiting for Exec call")
+		t.Fatal("Timed out waiting for RunContainer call")
 	}
 
-	cmdStr := capturedCmd[2]
-
 	// Check if environment variables are correctly propagated
-	assert.Contains(t, cmdStr, "export RECAC_MAX_ITERATIONS=50", "Should propagate RECAC_MAX_ITERATIONS from host")
-	assert.Contains(t, cmdStr, "export RECAC_MANAGER_FREQUENCY=10m", "Should propagate RECAC_MANAGER_FREQUENCY from host")
+	foundMaxIter := false
+	foundFreq := false
+	for _, e := range capturedEnv {
+		if e == "RECAC_MAX_ITERATIONS=50" {
+			foundMaxIter = true
+		}
+		if e == "RECAC_MANAGER_FREQUENCY=10m" {
+			foundFreq = true
+		}
+	}
+	assert.True(t, foundMaxIter, "Should propagate RECAC_MAX_ITERATIONS from host")
+	assert.True(t, foundFreq, "Should propagate RECAC_MANAGER_FREQUENCY from host")
 }
 
 func TestDockerSpawner_Cleanup(t *testing.T) {

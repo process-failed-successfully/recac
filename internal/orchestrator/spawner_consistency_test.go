@@ -88,32 +88,47 @@ func TestSpawnerConsistency_EnvPropagation(t *testing.T) {
 		mockGit.On("CurrentCommitSHA", mock.Anything).Return("sha", nil)
 		spawner.GitClient = mockGit
 
+		capturedEnvChan := make(chan []string, 1)
 		// Expectations
-		mockDocker.On("RunContainer", mock.Anything, "img", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("cid", nil)
+		mockDocker.On("RunContainer", mock.Anything, "img", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+			env := args.Get(4).([]string)
+			capturedEnvChan <- env
+		}).Return("cid", nil)
+
 		mockSM.On("SaveSession", mock.Anything).Return(nil)
 		mockSM.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
 
-		capturedCmdChan := make(chan []string, 1)
-		mockDocker.On("Exec", mock.Anything, "cid", mock.Anything).Run(func(args mock.Arguments) {
-			capturedCmd := args.Get(2).([]string)
-			capturedCmdChan <- capturedCmd
-		}).Return("out", nil)
+		mockDocker.On("Exec", mock.Anything, "cid", mock.Anything).Return("out", nil)
 
 		err := spawner.Spawn(ctx, item)
 		assert.NoError(t, err)
 
-		var capturedCmd []string
+		var capturedEnv []string
 		select {
-		case capturedCmd = <-capturedCmdChan:
+		case capturedEnv = <-capturedEnvChan:
 		case <-time.After(1 * time.Second):
-			t.Fatal("Timeout waiting for Exec")
+			t.Fatal("Timeout waiting for RunContainer")
 		}
 
-		cmdStr := capturedCmd[2]
-
 		// Assertions
-		assert.Contains(t, cmdStr, "export RECAC_MAX_ITERATIONS=50", "Docker should propagate RECAC_MAX_ITERATIONS")
-		assert.Contains(t, cmdStr, "export RECAC_MANAGER_FREQUENCY=10m", "Docker should propagate RECAC_MANAGER_FREQUENCY")
-		assert.Contains(t, cmdStr, "export RECAC_TASK_MAX_ITERATIONS=5", "Docker should propagate RECAC_TASK_MAX_ITERATIONS")
+		foundMaxIter := false
+		foundFreq := false
+		foundTaskMax := false
+
+		for _, e := range capturedEnv {
+			if e == "RECAC_MAX_ITERATIONS=50" {
+				foundMaxIter = true
+			}
+			if e == "RECAC_MANAGER_FREQUENCY=10m" {
+				foundFreq = true
+			}
+			if e == "RECAC_TASK_MAX_ITERATIONS=5" {
+				foundTaskMax = true
+			}
+		}
+
+		assert.True(t, foundMaxIter, "Docker should propagate RECAC_MAX_ITERATIONS")
+		assert.True(t, foundFreq, "Docker should propagate RECAC_MANAGER_FREQUENCY")
+		assert.True(t, foundTaskMax, "Docker should propagate RECAC_TASK_MAX_ITERATIONS")
 	})
 }
