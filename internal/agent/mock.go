@@ -55,7 +55,7 @@ agent-bridge import feature_list.json || echo "Import failed"
 		return `[
   {
     "id": "PRIMES",
-    "name": "Create Prime Number Script",
+    "summary": "Create Prime Number Script",
     "description": "Create a python script named 'primes.py' that outputs primes to 'primes.json'.",
     "type": "Task",
     "status": "todo",
