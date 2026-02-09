@@ -38,10 +38,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// Return JSON for tickets
 		// The smoke test expects valid JSON
 		return `[
-  {"title": "ID:[PRIMES] Setup Python Project", "description": "Initialize repository structure"},
-  {"title": "ID:[PRIMES] Implement Prime Function", "description": "Create primes.py with function"},
-  {"title": "ID:[PRIMES] Implement Tests", "description": "Create test_primes.py"},
-  {"title": "ID:[PRIMES] CI Workflow", "description": "Create .github/workflows/ci.yml"}
+  {"title": "ID:[PRIMES] Setup Python Project", "description": "Initialize repository structure", "type": "Task", "acceptance_criteria": ["Repo structure created"]},
+  {"title": "ID:[PRIMES] Implement Prime Function", "description": "Create primes.py with function", "type": "Task", "acceptance_criteria": ["Implement prime number script", "primes.py exists", "contains exactly 1229 primes"]},
+  {"title": "ID:[PRIMES] Implement Tests", "description": "Create test_primes.py", "type": "Task", "acceptance_criteria": ["Tests pass"]},
+  {"title": "ID:[PRIMES] CI Workflow", "description": "Create .github/workflows/ci.yml", "type": "Task", "acceptance_criteria": ["Workflow exists"]}
 ]`, nil
 	}
 
