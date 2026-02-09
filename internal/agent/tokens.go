@@ -55,59 +55,17 @@ func TruncateToTokenLimit(text string, maxTokens int) string {
 	firstNewLine := strings.IndexByte(text, '\n')
 	if firstNewLine == -1 {
 		// Single line: truncate from middle.
-		// Optimization: Avoid allocating []rune(text) which is O(N) memory.
-		// Instead, use range loop (which decodes utf8 runes on the fly) to find cut points.
-
-		// Pass 1: Count total runes and find start byte offset
-		totalRunes := 0
-		startByteOffset := -1
-
-		for i := range text {
-			if totalRunes == maxStartChars {
-				startByteOffset = i
-			}
-			totalRunes++
-		}
-
-		if totalRunes <= maxChars {
+		// We use rune slicing here to ensure we don't split multi-byte characters.
+		runes := []rune(text)
+		if len(runes) <= maxChars {
 			return text
 		}
-
-		// Calculate how many runes to skip from the start for the end portion
-		// We want to keep the last maxEndChars
-		skipRunes := totalRunes - maxEndChars
-		if skipRunes < maxStartChars {
-			skipRunes = maxStartChars
+		startPortion := string(runes[:min(maxStartChars, len(runes))])
+		endPortion := ""
+		if len(runes) > maxStartChars {
+			endStart := max(len(runes)-maxEndChars, maxStartChars)
+			endPortion = string(runes[endStart:])
 		}
-
-		// Pass 2: Find end byte offset
-		// We scan to find the byte offset corresponding to skipRunes
-		endByteOffset := len(text)
-
-		// If startByteOffset was not found in Pass 1 (unlikely if totalRunes > maxChars),
-		// we default to scanning from start.
-
-		currentRune := 0
-		for i := range text {
-			if currentRune == skipRunes {
-				endByteOffset = i
-				break
-			}
-			currentRune++
-		}
-
-		startPortion := ""
-		if startByteOffset != -1 {
-			startPortion = text[:startByteOffset]
-		} else {
-			// Fallback: This case implies maxStartChars > totalRunes, which is handled
-			// by totalRunes <= maxChars check earlier.
-			// But for safety, if we are here, we take the whole text.
-			startPortion = text
-		}
-
-		endPortion := text[endByteOffset:]
-
 		result := startPortion + truncationMarker + endPortion
 		if EstimateTokenCount(result) > maxTokens {
 			return TruncateToTokenLimit(result, maxTokens)
