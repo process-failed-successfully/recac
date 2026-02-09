@@ -57,6 +57,39 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	} else if strings.Contains(promptUpper, "NOTHING TO COMMIT") || strings.Contains(promptUpper, "WORKING TREE CLEAN") {
 		// Loop Breaker / Feature Completion Heuristic
 		response = "The feature is complete and verified.\n```bash\nagent-bridge feature set req-primes-implementation --status done --passes true\n```"
+	} else if strings.Contains(promptUpper, "INITIALIZER") ||
+		strings.Contains(promptUpper, "GET YOUR BEARINGS") ||
+		strings.Contains(promptUpper, "FIRST AGENT") ||
+		strings.Contains(promptUpper, "CREATE FEATURE_LIST.JSON") {
+		// Initializer Agent Heuristic
+		// Must return a valid FeatureList JSON with repository_url matching the E2E test expectation
+		// Broadened heuristics to catch variations in prompt template
+		// Using explicit newlines for bash block robustness
+		response = `I will initialize the feature list.
+` + "```bash\n" + `cat <<EOF > feature_list.json
+{
+  "project_name": "recac-jira-e2e",
+  "repository_url": "https://github.com/process-failed-successfully/recac-jira-e2e",
+  "features": [
+    {
+      "id": "req-primes-implementation",
+      "category": "core",
+      "priority": "MVP",
+      "description": "Implement a Python script to calculate prime numbers.",
+      "status": "todo",
+      "passes": false,
+      "steps": [],
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": [],
+        "read_only_paths": []
+      }
+    }
+  ]
+}
+EOF
+agent-bridge import < feature_list.json
+` + "\n```"
 	} else if strings.Contains(promptUpper, "CODING AGENT") && (strings.Contains(promptUpper, "PRIMES") || strings.Contains(promptUpper, "REQ-PRIMES-IMPLEMENTATION")) {
 		// Coding Agent Heuristic (Primes Scenario)
 		// Must calculate primes up to 10,000 to satisfy E2E verification
@@ -89,40 +122,6 @@ git commit -m "Implement primes script" || echo "Nothing to commit"
 
 # Signal completion
 agent-bridge feature set req-primes-implementation --status done --passes true
-` + "\n```"
-	} else if strings.Contains(promptUpper, "INITIALIZER") ||
-		strings.Contains(promptUpper, "GET YOUR BEARINGS") ||
-		strings.Contains(promptUpper, "FIRST AGENT") ||
-		strings.Contains(promptUpper, "CREATE FEATURE_LIST.JSON") ||
-		strings.Contains(promptUpper, "YOUR ROLE") {
-		// Initializer Agent Heuristic
-		// Must return a valid FeatureList JSON with repository_url matching the E2E test expectation
-		// Broadened heuristics to catch variations in prompt template
-		// Using explicit newlines for bash block robustness
-		response = `I will initialize the feature list.
-` + "```bash\n" + `cat <<EOF > feature_list.json
-{
-  "project_name": "recac-jira-e2e",
-  "repository_url": "https://github.com/process-failed-successfully/recac-jira-e2e",
-  "features": [
-    {
-      "id": "req-primes-implementation",
-      "category": "core",
-      "priority": "MVP",
-      "description": "Implement a Python script to calculate prime numbers.",
-      "status": "todo",
-      "passes": false,
-      "steps": [],
-      "dependencies": {
-        "depends_on_ids": [],
-        "exclusive_write_paths": [],
-        "read_only_paths": []
-      }
-    }
-  ]
-}
-EOF
-agent-bridge import < feature_list.json
 ` + "\n```"
 	} else if strings.Contains(promptUpper, "QA AGENT") {
 		// QA Agent Heuristic
