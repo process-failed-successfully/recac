@@ -22,7 +22,7 @@ Output **EXACTLY ONE** command.
 
 **If APPROVING:**
 ```bash
-agent-bridge signal PROJECT_SIGNED_OFF true
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged
 ```
 
 **If REJECTING:**

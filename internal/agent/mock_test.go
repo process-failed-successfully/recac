@@ -33,3 +33,33 @@ func TestMockAgent_PrimeScenario(t *testing.T) {
 		t.Errorf("Expected Prime Number Generator in response, got: %s", resp)
 	}
 }
+
+func TestMockAgent_ProjectManager_SignOff(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "## YOUR ROLE - PROJECT MANAGER\n\nTask: Review project..."
+
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	expected := "agent-bridge signal PROJECT_SIGNED_OFF true --privileged"
+	if !strings.Contains(resp, expected) {
+		t.Errorf("Expected response to contain '%s', got: %s", expected, resp)
+	}
+}
+
+func TestMockAgent_TPM_Primes(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "You are a Technical Program Manager..."
+
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	expected := "ID:[PRIMES]"
+	if !strings.Contains(resp, expected) {
+		t.Errorf("Expected response to contain '%s', got: %s", expected, resp)
+	}
+}
