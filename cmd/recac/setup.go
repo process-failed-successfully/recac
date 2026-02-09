@@ -263,7 +263,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 		existingEnvStr := string(existingEnv)
 
 		// Helper to check if key exists in .env (handling comments/exports/prefixes)
-		hasKey := func(key string) bool {
+		hasKeyExact := func(key string) bool {
 			lines := strings.Split(existingEnvStr, "\n")
 			for _, line := range lines {
 				trimmed := strings.TrimSpace(line)
@@ -295,7 +295,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 			for _, line := range linesToAppend {
 				parts := strings.SplitN(line, "=", 2)
 				key := parts[0]
-				if !hasKey(key) {
+				if !hasKeyExact(key) {
 					contentToAppend += line + "\n"
 				} else {
 					fmt.Printf("Note: %s already exists in .env, skipping.\n", key)

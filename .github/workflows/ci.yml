@@ -106,6 +106,8 @@ jobs:
       # options: --volume /var/run/docker.sock:/var/run/docker.sock # Lint generally doesn't need docker
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Cache Go Modules
         uses: actions/cache@v4
