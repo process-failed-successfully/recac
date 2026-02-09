@@ -143,3 +143,91 @@ func TestRun_Invalid(t *testing.T) {
 		t.Error("Expected error for verify missing file")
 	}
 }
+
+func TestRun_ClearSignal(t *testing.T) {
+	// Need to be in a directory that will contain .recac.db because clear-signal looks in CWD
+	tmpDir := t.TempDir()
+	oldWd, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(oldWd)
+
+	dbPath := filepath.Join(tmpDir, ".recac.db")
+	projectID := "test-project"
+
+	// Pre-populate signal
+	store, err := db.NewStore(db.StoreConfig{Type: "sqlite", ConnectionString: dbPath})
+	if err != nil {
+		t.Fatalf("Failed to open DB: %v", err)
+	}
+	store.SetSignal(filepath.Base(tmpDir), "MY_KEY", "MY_VALUE") // Use Base(tmpDir) because clear-signal infers project from dir name
+	store.Close()
+
+	args := []string{"agent-bridge", "clear-signal", "MY_KEY"}
+	// config passed to run is ignored for clear-signal as it re-opens DB from CWD
+	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	// Verify signal cleared
+	store, err = db.NewStore(db.StoreConfig{Type: "sqlite", ConnectionString: dbPath})
+	if err != nil {
+		t.Fatalf("Failed to open DB: %v", err)
+	}
+	defer store.Close()
+	val, err := store.GetSignal(filepath.Base(tmpDir), "MY_KEY")
+	if err == nil && val != "" {
+		t.Errorf("Expected signal to be cleared, got %s", val)
+	}
+}
+
+func TestRun_Import(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".recac.db")
+	projectID := "test-project"
+
+	// Mock Stdin
+	input := `{"project_name": "Test", "features": [{"id": "F1", "name": "Feature 1"}]}`
+	r, w, _ := os.Pipe()
+	w.Write([]byte(input))
+	w.Close()
+
+	oldStdin := os.Stdin
+	os.Stdin = r
+	defer func() { os.Stdin = oldStdin }()
+
+	args := []string{"agent-bridge", "import"}
+	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	// Verify import
+	store, err := db.NewStore(db.StoreConfig{Type: "sqlite", ConnectionString: dbPath})
+	if err != nil {
+		t.Fatalf("Failed to open DB: %v", err)
+	}
+	defer store.Close()
+	features, err := store.GetFeatures(projectID)
+	if err != nil {
+		t.Errorf("Failed to get features: %v", err)
+	}
+	if !strings.Contains(features, "Feature 1") {
+		t.Error("Expected features to be imported")
+	}
+}
+
+func TestRun_Signal_Privileged(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".recac.db")
+	projectID := "test-project"
+
+	keys := []string{"PROJECT_SIGNED_OFF", "TRIGGER_QA", "TRIGGER_MANAGER"}
+
+	for _, key := range keys {
+		args := []string{"agent-bridge", "signal", key, "true"}
+		if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err == nil {
+			t.Errorf("Expected error for privileged key %s", key)
+		} else if !strings.Contains(err.Error(), "privileged") {
+			t.Errorf("Expected privileged error message, got: %v", err)
+		}
+	}
+}

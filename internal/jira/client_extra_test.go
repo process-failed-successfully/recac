@@ -275,3 +275,28 @@ func TestGetBlockers(t *testing.T) {
 		})
 	}
 }
+
+func TestCreateChildTicket_Error(t *testing.T) {
+	// 1. Server returns error
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Internal Server Error"))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "user", "token")
+	_, err := client.CreateChildTicket(context.Background(), "PROJ", "Child", "Desc", "Sub-task", "PARENT-1", nil)
+	if err == nil {
+		t.Fatal("Expected error when server returns 500")
+	}
+	if err.Error() == "" {
+		t.Error("Expected error message")
+	}
+
+	// 2. Invalid URL (client error)
+	client2 := NewClient(":", "user", "token") // Invalid URL
+	_, err2 := client2.CreateChildTicket(context.Background(), "PROJ", "Child", "Desc", "Sub-task", "PARENT-1", nil)
+	if err2 == nil {
+		t.Fatal("Expected error when URL is invalid")
+	}
+}

@@ -302,3 +302,49 @@ func TestRunWorkflow_Normal(t *testing.T) {
 		// It likely returns an error because of circuit breaker, which counts as covering the code.
 	}
 }
+
+func TestProcessJiraTicket_Blocked(t *testing.T) {
+	// Mock Jira Server
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	// Mock Ticket Response with Blocker
+	mux.HandleFunc("/rest/api/3/issue/TEST-BLOCKED", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"key": "TEST-BLOCKED",
+			"fields": map[string]interface{}{
+				"summary": "Blocked Ticket",
+				"issuelinks": []interface{}{
+					map[string]interface{}{
+						"type": map[string]interface{}{
+							"inward": "is blocked by",
+						},
+						"inwardIssue": map[string]interface{}{
+							"key": "BLOCKER-1",
+							"fields": map[string]interface{}{
+								"status": map[string]interface{}{
+									"name": "In Progress",
+								},
+							},
+						},
+					},
+				},
+			},
+		})
+	})
+
+	jClient := jira.NewClient(server.URL, "user", "token")
+	cfg := SessionConfig{
+		SessionName: "blocked-run",
+		IsMock:      true,
+	}
+
+	err := ProcessJiraTicket(context.Background(), "TEST-BLOCKED", jClient, cfg, nil)
+
+	// Should return nil (skipped) without error
+	if err != nil {
+		t.Errorf("ProcessJiraTicket failed: %v", err)
+	}
+}
