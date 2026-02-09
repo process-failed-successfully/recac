@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -20,10 +21,28 @@ func Load(cfgFile string) {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
 	} else {
-		// Search config in home directory with name ".recac" (without extension).
-		viper.AddConfigPath(".")
-		viper.SetConfigType("yaml")
-		viper.SetConfigName("config")
+		// Try config.yaml in .
+		configFound := false
+		if _, err := os.Stat("config.yaml"); err == nil {
+			viper.SetConfigFile("config.yaml")
+			configFound = true
+		} else {
+			// Check ~/.recac.yaml
+			if home, err := os.UserHomeDir(); err == nil {
+				homeConfig := filepath.Join(home, ".recac.yaml")
+				if _, err := os.Stat(homeConfig); err == nil {
+					viper.SetConfigFile(homeConfig)
+					configFound = true
+				}
+			}
+		}
+
+		if !configFound {
+			// Fallback to default search behavior (which might find nothing but sets up paths for write?)
+			viper.AddConfigPath(".")
+			viper.SetConfigType("yaml")
+			viper.SetConfigName("config")
+		}
 	}
 
 	viper.SetEnvPrefix("RECAC")
@@ -72,27 +91,22 @@ func Load(cfgFile string) {
 			if _, ok := err.(viper.ConfigFileNotFoundError); ok || true {
 				// check if we already tried to read a specific file
 				if cfgFile == "" {
-					// Write config to current directory
-					viper.SetConfigName("config")
-					viper.SetConfigType("yaml")
-					viper.AddConfigPath(".")
+					// Write config to current directory or home
+					targetFile := "config.yaml"
+					if home, err := os.UserHomeDir(); err == nil {
+						targetFile = filepath.Join(home, ".recac.yaml")
+					}
 
 					// Attempt to write
 					// Note: Existing logic swallowed errors partially or just printed warnings.
 					// We will be slightly safer.
-					if err := viper.SafeWriteConfig(); err != nil {
-						// Ignore if already exists (SafeWriteConfig error)
-						// But if it doesn't exist and failed, we might warn.
-						// Checking existence first is better as per original code
-						if _, err := os.Stat("config.yaml"); os.IsNotExist(err) {
-							if err := viper.WriteConfigAs("config.yaml"); err != nil {
-								fmt.Fprintf(os.Stderr, "Warning: Failed to create default config file: %v\n", err)
-							} else {
-								fmt.Println("Created default configuration file: config.yaml")
-							}
+					if _, err := os.Stat(targetFile); os.IsNotExist(err) {
+						if err := viper.WriteConfigAs(targetFile); err != nil {
+							fmt.Fprintf(os.Stderr, "Warning: Failed to create default config file: %v\n", err)
+						} else {
+							viper.SetConfigFile(targetFile)
+							fmt.Println("Created default configuration file:", targetFile)
 						}
-					} else {
-						fmt.Println("Created default configuration file: config.yaml")
 					}
 				}
 			}
