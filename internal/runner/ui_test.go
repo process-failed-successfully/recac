@@ -56,6 +56,7 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 		Project:          "test-project",
 		AgentProvider:    "mock",
 		AgentModel:       "mock-model",
+		MaxIterations:    20, // Set safety limit
 	}
 
 	// 7. Run Loop

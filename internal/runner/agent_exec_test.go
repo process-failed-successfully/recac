@@ -7,6 +7,7 @@ import (
 	"recac/internal/db"
 	"recac/internal/notify"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,11 +19,14 @@ type MockDockerForExec struct {
 	ExecutedCmds []string
 	ExecDelay    time.Duration
 	DB           db.Store // Optional DB for side-effects
+	mu           sync.Mutex
 }
 
 func (m *MockDockerForExec) Exec(ctx context.Context, id string, cmd []string) (string, error) {
 	fullCmd := strings.Join(cmd, " ")
+	m.mu.Lock()
 	m.ExecutedCmds = append(m.ExecutedCmds, fullCmd)
+	m.mu.Unlock()
 
 	if m.ExecDelay > 0 {
 		select {

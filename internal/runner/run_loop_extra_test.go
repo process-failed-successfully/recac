@@ -236,7 +236,10 @@ func TestRunLoop_QAWorkflow(t *testing.T) {
 	mockDB.GetSignalFunc = func(projectID, key string) (string, error) {
 		if key == "QA_PASSED" {
 			qaCheckCount++
-			if qaCheckCount > 1 { // Return true on second check (verification)
+			// 1. checkAutoQA -> false
+			// 2. RunLoop check -> false (so we run QA Agent)
+			// 3. runQAAgent verification -> true
+			if qaCheckCount > 2 {
 				return "true", nil
 			}
 		}
