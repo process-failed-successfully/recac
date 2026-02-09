@@ -2,10 +2,13 @@ package main
 
 import (
 	"fmt"
+	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -33,7 +36,7 @@ var runDoctorFunc = func(cmd *cobra.Command, args []string) {
 var setupCmd = &cobra.Command{
 	Use:   "setup",
 	Short: "Interactively set up RECAC configuration",
-	Long:  `Runs an interactive wizard to configure RECAC settings, including provider, model, and API keys.`,
+	Long:  `Runs an interactive wizard to configure RECAC settings, including provider, model, API keys, and Jira integration.`,
 	RunE:  runSetup,
 }
 
@@ -46,13 +49,18 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	fmt.Println("-----------------------")
 
 	answers := struct {
-		Provider     string
-		Model        string
-		ApiKey       string
-		SaveToEnv    bool
-		EnableSlack  bool
-		SlackChannel string
-		SlackToken   string
+		Provider      string
+		Model         string
+		ApiKey        string
+		SaveToEnv     bool
+		JiraUrl       string
+		JiraEmail     string
+		JiraToken     string
+		SaveJiraToEnv bool
+		JiraLabel     string
+		EnableSlack   bool
+		SlackChannel  string
+		SlackToken    string
 	}{}
 
 	// 1. Select Provider
@@ -102,7 +110,59 @@ func runSetup(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// 4. Notifications
+	// 4. Jira Configuration
+	err = askOneFunc(&survey.Input{
+		Message: "Enter your Jira URL (e.g., https://your-domain.atlassian.net):",
+	}, &answers.JiraUrl, survey.WithValidator(func(ans interface{}) error {
+		str, ok := ans.(string)
+		if !ok || str == "" {
+			return nil // Optional
+		}
+		u, err := url.ParseRequestURI(str)
+		if err != nil || u.Scheme == "" || u.Host == "" {
+			return fmt.Errorf("invalid URL")
+		}
+		return nil
+	}))
+	if err != nil {
+		return err
+	}
+
+	if answers.JiraUrl != "" {
+		err = askOneFunc(&survey.Input{
+			Message: "Enter your Jira Email/Username:",
+		}, &answers.JiraEmail)
+		if err != nil {
+			return err
+		}
+
+		err = askOneFunc(&survey.Password{
+			Message: "Enter your Jira API Token:",
+		}, &answers.JiraToken)
+		if err != nil {
+			return err
+		}
+
+		if answers.JiraToken != "" {
+			err = askOneFunc(&survey.Confirm{
+				Message: "Do you want to save the Jira Token to a local .env file?",
+				Default: true,
+			}, &answers.SaveJiraToEnv)
+			if err != nil {
+				return err
+			}
+		}
+
+		err = askOneFunc(&survey.Input{
+			Message: "Enter the Jira Label for agents to watch:",
+			Default: "recac-agent",
+		}, &answers.JiraLabel)
+		if err != nil {
+			return err
+		}
+	}
+
+	// 5. Notifications
 	err = askOneFunc(&survey.Confirm{
 		Message: "Enable Slack notifications?",
 		Default: false,
@@ -132,15 +192,33 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	// Update Viper settings
 	viper.Set("provider", answers.Provider)
 	viper.Set("model", answers.Model)
+
+	if answers.JiraUrl != "" {
+		viper.Set("jira.url", answers.JiraUrl)
+		viper.Set("jira.username", answers.JiraEmail)
+		viper.Set("orchestrator.jira_label", answers.JiraLabel)
+		// If not saving to env, save to config (unencrypted) if desired?
+		// For simplicity, if not env, we save to config to ensure functionality.
+		if !answers.SaveJiraToEnv && answers.JiraToken != "" {
+			viper.Set("jira.api_token", answers.JiraToken)
+		}
+	}
+
 	if answers.EnableSlack {
 		viper.Set("notifications.slack.enabled", true)
 		viper.Set("notifications.slack.channel", answers.SlackChannel)
 	}
 
-	// Write to config.yaml
+	// Determine Config File Path
 	configFile := viper.ConfigFileUsed()
 	if configFile == "" {
-		configFile = "config.yaml"
+		home, err := os.UserHomeDir()
+		if err != nil {
+			// Fallback to current directory if home fails
+			configFile = "config.yaml"
+		} else {
+			configFile = filepath.Join(home, ".recac.yaml")
+		}
 	}
 
 	if err := viper.WriteConfigAs(configFile); err != nil {
@@ -150,6 +228,13 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	}
 
 	// Write to .env
+	var linesToAppend []string
+
+	// Helper to append env var
+	appendEnv := func(key, value string) {
+		linesToAppend = append(linesToAppend, fmt.Sprintf("%s=%s", key, value))
+	}
+
 	if answers.SaveToEnv && answers.ApiKey != "" {
 		envKey := ""
 		switch answers.Provider {
@@ -162,45 +247,49 @@ func runSetup(cmd *cobra.Command, args []string) error {
 		default:
 			envKey = fmt.Sprintf("%s_API_KEY", strings.ToUpper(answers.Provider))
 		}
+		appendEnv(envKey, answers.ApiKey)
+	}
 
-		newEnvLine := fmt.Sprintf("%s=%s", envKey, answers.ApiKey)
-		slackEnvLine := ""
-		if answers.EnableSlack && answers.SlackToken != "" {
-			slackEnvLine = fmt.Sprintf("SLACK_BOT_USER_TOKEN=%s", answers.SlackToken)
-		}
+	if answers.SaveJiraToEnv && answers.JiraToken != "" {
+		appendEnv("JIRA_API_TOKEN", answers.JiraToken)
+	}
 
+	if answers.EnableSlack && answers.SlackToken != "" {
+		appendEnv("SLACK_BOT_USER_TOKEN", answers.SlackToken)
+	}
+
+	if len(linesToAppend) > 0 {
 		// Read existing .env to check for duplicates
 		existingEnv, _ := os.ReadFile(".env")
 		existingEnvStr := string(existingEnv)
 
-		var linesToAppend []string
+		// Parse existing env to map for robust checking
+		existingMap, _ := godotenv.Unmarshal(string(existingEnv))
+		// Note: godotenv.Unmarshal ignores errors if file is empty or valid, checking logic handles it.
 
-		if !strings.Contains(existingEnvStr, fmt.Sprintf("%s=", envKey)) {
-			linesToAppend = append(linesToAppend, newEnvLine)
+		f, err := os.OpenFile(".env", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+		if err != nil {
+			fmt.Printf("Error opening .env: %v\n", err)
 		} else {
-			fmt.Printf("Note: %s already exists in .env, skipping.\n", envKey)
-		}
-
-		if slackEnvLine != "" {
-			if !strings.Contains(existingEnvStr, "SLACK_BOT_USER_TOKEN=") {
-				linesToAppend = append(linesToAppend, slackEnvLine)
-			} else {
-				fmt.Println("Note: SLACK_BOT_USER_TOKEN already exists in .env, skipping.")
+			defer f.Close()
+			contentToAppend := ""
+			if len(existingEnv) > 0 && !strings.HasSuffix(existingEnvStr, "\n") {
+				contentToAppend = "\n"
 			}
-		}
 
-		if len(linesToAppend) > 0 {
-			f, err := os.OpenFile(".env", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-			if err != nil {
-				fmt.Printf("Error opening .env: %v\n", err)
-			} else {
-				defer f.Close()
-				contentToAppend := ""
-				if len(existingEnv) > 0 && !strings.HasSuffix(existingEnvStr, "\n") {
-					contentToAppend = "\n"
+			for _, line := range linesToAppend {
+				parts := strings.SplitN(line, "=", 2)
+				key := parts[0]
+
+				// Check if key exists in the map
+				if _, exists := existingMap[key]; !exists {
+					contentToAppend += line + "\n"
+				} else {
+					fmt.Printf("Note: %s already exists in .env, skipping.\n", key)
 				}
-				contentToAppend += strings.Join(linesToAppend, "\n") + "\n"
+			}
 
+			if contentToAppend != "" {
 				if _, err := f.WriteString(contentToAppend); err != nil {
 					fmt.Printf("Error writing to .env: %v\n", err)
 				} else {
