@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -59,15 +60,18 @@ func TestSetupCmd(t *testing.T) {
 	originalAskOne := askOneFunc
 	originalViperConfig := viper.ConfigFileUsed()
 	originalRunDoctor := runDoctorFunc
+	originalEnvFilePath := envFilePath
+
+	// Setup temp env file
+	envFilePath = filepath.Join(t.TempDir(), ".env")
 
 	// Teardown: Restore original values and clean up files
 	defer func() {
 		askOneFunc = originalAskOne
 		viper.SetConfigFile(originalViperConfig)
 		runDoctorFunc = originalRunDoctor
+		envFilePath = originalEnvFilePath
 		os.Remove("test_config.yaml")
-		// We remove .env only if we created it. Since the test creates it, we remove it.
-		// If it existed before, we backed it up.
 	}()
 
 	// Mock Doctor execution
@@ -99,12 +103,6 @@ func TestSetupCmd(t *testing.T) {
 	viper.Reset()
 	viper.SetConfigFile("test_config.yaml")
 
-	// Backup .env if exists
-	if _, err := os.Stat(".env"); err == nil {
-		os.Rename(".env", ".env.bak")
-		defer os.Rename(".env.bak", ".env")
-	}
-
 	// Execute command
 	cmd := &cobra.Command{Use: "test"}
 	err := runSetup(cmd, []string{})
@@ -124,15 +122,12 @@ func TestSetupCmd(t *testing.T) {
 	assert.NoError(t, err, "config file should exist")
 
 	// Verify .env content
-	envContent, err := os.ReadFile(".env")
+	envContent, err := os.ReadFile(envFilePath)
 	assert.NoError(t, err, ".env file should exist")
 	content := string(envContent)
 	assert.Contains(t, content, "OPENAI_API_KEY=sk-test-123")
 	assert.Contains(t, content, "JIRA_API_TOKEN=jira-token-123")
 	assert.Contains(t, content, "SLACK_BOT_USER_TOKEN=xoxb-test")
-
-	// Cleanup .env created by test
-	os.Remove(".env")
 }
 
 func TestSetupCmd_Cancellation(t *testing.T) {
@@ -152,6 +147,10 @@ func TestSetupCmd_Cancellation(t *testing.T) {
 func TestSetupCmd_Skips(t *testing.T) {
 	originalAskOne := askOneFunc
 	defer func() { askOneFunc = originalAskOne }()
+
+	originalEnvFilePath := envFilePath
+	envFilePath = filepath.Join(t.TempDir(), ".env")
+	defer func() { envFilePath = originalEnvFilePath }()
 
 	mockAnswers = map[string]interface{}{
 		"Choose your AI Provider:":                  "openai",
@@ -179,6 +178,10 @@ func TestSetupCmd_Skips(t *testing.T) {
 func TestSetupCmd_JiraTokenInConfig(t *testing.T) {
 	originalAskOne := askOneFunc
 	defer func() { askOneFunc = originalAskOne }()
+
+	originalEnvFilePath := envFilePath
+	envFilePath = filepath.Join(t.TempDir(), ".env")
+	defer func() { envFilePath = originalEnvFilePath }()
 
 	mockAnswers = map[string]interface{}{
 		"Choose your AI Provider:":                  "gemini",
@@ -212,9 +215,12 @@ func TestSetupCmd_AppendEnv(t *testing.T) {
 	originalAskOne := askOneFunc
 	defer func() { askOneFunc = originalAskOne }()
 
+	originalEnvFilePath := envFilePath
+	envFilePath = filepath.Join(t.TempDir(), ".env")
+	defer func() { envFilePath = originalEnvFilePath }()
+
 	// Create existing .env
-	os.WriteFile(".env", []byte("EXISTING_VAR=foo\n"), 0600)
-	defer os.Remove(".env")
+	os.WriteFile(envFilePath, []byte("EXISTING_VAR=foo\n"), 0600)
 
 	mockAnswers = map[string]interface{}{
 		"Choose your AI Provider:":                              "openai",
@@ -235,7 +241,7 @@ func TestSetupCmd_AppendEnv(t *testing.T) {
 	err := runSetup(cmd, []string{})
 	assert.NoError(t, err)
 
-	content, _ := os.ReadFile(".env")
+	content, _ := os.ReadFile(envFilePath)
 	str := string(content)
 	assert.Contains(t, str, "EXISTING_VAR=foo")
 	assert.Contains(t, str, "OPENAI_API_KEY=new-key")
@@ -245,9 +251,12 @@ func TestSetupCmd_Bug_SubstringMatch(t *testing.T) {
 	originalAskOne := askOneFunc
 	defer func() { askOneFunc = originalAskOne }()
 
+	originalEnvFilePath := envFilePath
+	envFilePath = filepath.Join(t.TempDir(), ".env")
+	defer func() { envFilePath = originalEnvFilePath }()
+
 	// Create existing .env with a variable that has the target key as a suffix
-	os.WriteFile(".env", []byte("MY_OPENAI_API_KEY=some-value\n"), 0600)
-	defer os.Remove(".env")
+	os.WriteFile(envFilePath, []byte("MY_OPENAI_API_KEY=some-value\n"), 0600)
 
 	mockAnswers = map[string]interface{}{
 		"Choose your AI Provider:":                              "openai",
@@ -268,7 +277,7 @@ func TestSetupCmd_Bug_SubstringMatch(t *testing.T) {
 	err := runSetup(cmd, []string{})
 	assert.NoError(t, err)
 
-	content, _ := os.ReadFile(".env")
+	content, _ := os.ReadFile(envFilePath)
 	str := string(content)
 
 	// We expect OPENAI_API_KEY to be added because MY_OPENAI_API_KEY is different

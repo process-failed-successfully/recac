@@ -12,26 +12,16 @@ import (
 	"github.com/spf13/viper"
 )
 
-// Wrapper for survey functions to allow mocking in tests
-var (
-	askOneFunc = survey.AskOne
-)
-
-// Wrapper for calling doctor command to allow mocking in tests
 var runDoctorFunc = func(cmd *cobra.Command, args []string) {
-	// Safely execute the doctor command logic
 	if doctorCmd.Run != nil {
 		doctorCmd.Run(cmd, args)
-	} else if doctorCmd.RunE != nil {
-		if err := doctorCmd.RunE(cmd, args); err != nil {
-			fmt.Printf("Error running doctor: %v\n", err)
-		}
-	} else {
-		fmt.Println("Error: doctor command has no Run or RunE defined")
 	}
 }
 
-// setupCmd represents the setup command
+var askOneFunc = func(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {
+	return survey.AskOne(p, response, opts...)
+}
+
 var setupCmd = &cobra.Command{
 	Use:   "setup",
 	Short: "Interactively set up RECAC configuration",
@@ -39,12 +29,14 @@ var setupCmd = &cobra.Command{
 	RunE:  runSetup,
 }
 
+var envFilePath = ".env"
+
 func init() {
 	rootCmd.AddCommand(setupCmd)
 }
 
 func runSetup(cmd *cobra.Command, args []string) error {
-	fmt.Println("Welcome to RECAC Setup!")
+	fmt.Println("Welcome to RECAC Setup Wizard!")
 	fmt.Println("-----------------------")
 
 	answers := struct {
@@ -65,22 +57,19 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	// 1. Select Provider
 	err := askOneFunc(&survey.Select{
 		Message: "Choose your AI Provider:",
-		Options: []string{"gemini", "openai", "anthropic", "openrouter", "ollama"},
-		Default: "gemini",
+		Options: []string{"openai", "anthropic", "gemini", "openrouter", "mock"},
+		Default: "openai",
 	}, &answers.Provider)
 	if err != nil {
 		return err
 	}
 
-	// 2. Select Model (Default changes based on provider)
-	defaultModel := "gemini-1.5-pro"
-	switch answers.Provider {
-	case "openai":
-		defaultModel = "gpt-4-turbo"
-	case "anthropic":
-		defaultModel = "claude-3-opus"
-	case "ollama":
-		defaultModel = "llama3"
+	// 2. Model Configuration
+	defaultModel := "gpt-4o"
+	if answers.Provider == "anthropic" {
+		defaultModel = "claude-3-opus-20240229"
+	} else if answers.Provider == "gemini" {
+		defaultModel = "gemini-pro"
 	}
 
 	err = askOneFunc(&survey.Input{
@@ -92,7 +81,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	}
 
 	// 3. API Key
-	err = askOneFunc(&survey.Password{
+	err = askOneFunc(&survey.Input{
 		Message: "Enter your API Key (leave empty to skip):",
 	}, &answers.ApiKey)
 	if err != nil {
@@ -173,11 +162,12 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	if answers.EnableSlack {
 		err = askOneFunc(&survey.Input{
 			Message: "Slack Channel:",
-			Default: "#general",
+			Default: "#alerts",
 		}, &answers.SlackChannel)
 		if err != nil {
 			return err
 		}
+
 		err = askOneFunc(&survey.Password{
 			Message: "Slack Bot Token:",
 		}, &answers.SlackToken)
@@ -186,7 +176,19 @@ func runSetup(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// --- Saving Configuration ---
+	// 6. Run Doctor Check?
+	var runDoc bool
+	err = askOneFunc(&survey.Confirm{
+		Message: "Run system check (recac doctor) now?",
+		Default: true,
+	}, &runDoc)
+	if err != nil {
+		return err
+	}
+
+	if runDoc {
+		runDoctorFunc(cmd, args)
+	}
 
 	// Update Viper settings
 	viper.Set("provider", answers.Provider)
@@ -221,9 +223,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	}
 
 	if err := viper.WriteConfigAs(configFile); err != nil {
-		fmt.Printf("Warning: Could not write %s: %v\n", configFile, err)
-	} else {
-		fmt.Printf("Configuration saved to %s\n", configFile)
+		return fmt.Errorf("failed to write config: %w", err)
 	}
 
 	// Write to .env
@@ -237,12 +237,12 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	if answers.SaveToEnv && answers.ApiKey != "" {
 		envKey := ""
 		switch answers.Provider {
-		case "gemini":
-			envKey = "GEMINI_API_KEY"
 		case "openai":
 			envKey = "OPENAI_API_KEY"
 		case "anthropic":
 			envKey = "ANTHROPIC_API_KEY"
+		case "gemini":
+			envKey = "GEMINI_API_KEY"
 		default:
 			envKey = fmt.Sprintf("%s_API_KEY", strings.ToUpper(answers.Provider))
 		}
@@ -259,67 +259,41 @@ func runSetup(cmd *cobra.Command, args []string) error {
 
 	if len(linesToAppend) > 0 {
 		// Read existing .env to check for duplicates
-		existingEnv, _ := os.ReadFile(".env")
+		existingEnv, _ := os.ReadFile(envFilePath)
 		existingEnvStr := string(existingEnv)
 
-		f, err := os.OpenFile(".env", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+		f, err := os.OpenFile(envFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 		if err != nil {
-			fmt.Printf("Error opening .env: %v\n", err)
-		} else {
-			defer f.Close()
-			contentToAppend := ""
-			if len(existingEnv) > 0 && !strings.HasSuffix(existingEnvStr, "\n") {
-				contentToAppend = "\n"
-			}
+			return fmt.Errorf("error opening %s: %w", envFilePath, err)
+		}
+		defer f.Close()
 
-			// Parse existing keys
-			existingKeys := make(map[string]bool)
-			for _, line := range strings.Split(existingEnvStr, "\n") {
-				line = strings.TrimSpace(line)
-				if line == "" || strings.HasPrefix(line, "#") {
-					continue
-				}
-				parts := strings.SplitN(line, "=", 2)
-				if len(parts) > 0 {
-					existingKeys[parts[0]] = true
-				}
-			}
+		contentToAppend := ""
+		if len(existingEnv) > 0 && !strings.HasSuffix(existingEnvStr, "\n") {
+			contentToAppend = "\n"
+		}
 
-			for _, line := range linesToAppend {
-				parts := strings.SplitN(line, "=", 2)
-				key := parts[0]
-				if !existingKeys[key] {
-					contentToAppend += line + "\n"
-				} else {
-					fmt.Printf("Note: %s already exists in .env, skipping.\n", key)
-				}
+		for _, line := range linesToAppend {
+			parts := strings.SplitN(line, "=", 2)
+			key := parts[0]
+			// Check if key exists by searching for "\nKEY=" to ensure full match
+			// We prepend "\n" to existingEnvStr so the first line is also checked correctly
+			if !strings.Contains("\n"+existingEnvStr, "\n"+key+"=") {
+				contentToAppend += line + "\n"
+			} else {
+				fmt.Printf("Note: %s already exists in %s, skipping.\n", key, envFilePath)
 			}
+		}
 
-			if contentToAppend != "" {
-				if _, err := f.WriteString(contentToAppend); err != nil {
-					fmt.Printf("Error writing to .env: %v\n", err)
-				} else {
-					fmt.Println("Secrets saved to .env")
-				}
+		if contentToAppend != "" {
+			if _, err := f.WriteString(contentToAppend); err != nil {
+				return fmt.Errorf("error writing to %s: %w", envFilePath, err)
+			} else {
+				fmt.Printf("Secrets saved to %s\n", envFilePath)
 			}
 		}
 	}
 
-	// Run Doctor
-	runDoctor := false
-	err = askOneFunc(&survey.Confirm{
-		Message: "Run system check (recac doctor) now?",
-		Default: true,
-	}, &runDoctor)
-	if err != nil {
-		return err
-	}
-
-	if runDoctor {
-		fmt.Println("\nRunning Doctor...")
-		runDoctorFunc(cmd, args)
-	}
-
-	fmt.Println("\nSetup complete! You are ready to code.")
+	fmt.Printf("Configuration saved to %s\n", configFile)
 	return nil
 }
