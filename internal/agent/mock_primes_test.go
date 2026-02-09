@@ -27,6 +27,21 @@ func TestMockAgent_Primes(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Primes_FeatureID(t *testing.T) {
+	agent := NewMockAgent()
+	// Test with the specific feature ID used in E2E smoke test
+	prompt := "## YOUR ROLE - CODING AGENT\nTask ID: req-script-prints-primes-up-to-100\nDescription: Script prints primes up to 100"
+
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(resp, "cat << 'EOF' > primes.py") {
+		t.Error("Response should contain primes.py creation script")
+	}
+}
+
 func TestMockAgent_GenericFallback(t *testing.T) {
 	agent := NewMockAgent()
 	prompt := "Hello world"

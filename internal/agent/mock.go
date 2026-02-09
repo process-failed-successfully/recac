@@ -36,7 +36,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// This supports the E2E smoke test scenario. We prioritize this over TPM if it looks like a coding task.
 	// We check for "Coding Agent", "Developer", "primes.py", or the specific ID tag.
 	// CRITICAL: We use HasPrefix to ensure we are matching the CURRENT role, avoiding false positives from history.
-	if (strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py")) &&
+	// We also check for the specific feature ID prefix used in the smoke test (req-script-prints-primes).
+	if (strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "req-script-prints-primes")) &&
 		strings.HasPrefix(strings.TrimSpace(prompt), "## YOUR ROLE - CODING AGENT") {
 		return `I will implement the primes calculation script as requested.
 
