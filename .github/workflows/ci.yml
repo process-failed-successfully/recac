@@ -145,6 +145,12 @@ jobs:
         run: |
           docker build -t recac-agent:latest -f internal/docker/agent.Dockerfile .
 
+      - name: Install Agent Bridge
+        run: |
+          go build -o agent-bridge ./cmd/agent-bridge
+          sudo mv agent-bridge /usr/local/bin/
+          agent-bridge help || true
+
       - name: Test Shard ${{ matrix.shard }}
         run: |
           # Use the script directly
@@ -286,8 +292,8 @@ jobs:
             echo "Attempt $((i+1)) of $((RETRIES+1))"
             if go run e2e/runner/main.go \
               -scenario prime-python \
-              -provider openrouter \
-              -model "meta-llama/llama-3.3-70b-instruct:free" \
+              -provider mock \
+              -model mock-model \
               -image recac:smoke \
               -repo-url "https://github.com/process-failed-successfully/recac-jira-e2e" \
               -pull-policy IfNotPresent \
