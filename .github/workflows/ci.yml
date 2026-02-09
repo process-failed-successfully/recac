@@ -145,6 +145,12 @@ jobs:
         run: |
           docker build -t recac-agent:latest -f internal/docker/agent.Dockerfile .
 
+      - name: Install Agent Bridge
+        run: |
+          go build -o agent-bridge ./cmd/agent-bridge
+          sudo mv agent-bridge /usr/local/bin/
+          agent-bridge help || true
+
       - name: Test Shard ${{ matrix.shard }}
         run: |
           # Use the script directly
