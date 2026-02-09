@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/spf13/viper"
@@ -39,5 +40,56 @@ func TestLoad(t *testing.T) {
 
 		Load("")
 		assert.Equal(t, "openai", viper.GetString("provider"))
+	})
+
+	t.Run("Load Local Config", func(t *testing.T) {
+		viper.Reset()
+		// Create local config.yaml
+		os.WriteFile("config.yaml", []byte("provider: local-provider\n"), 0644)
+		defer os.Remove("config.yaml")
+
+		Load("")
+		assert.Equal(t, "local-provider", viper.GetString("provider"))
+		assert.Equal(t, "config.yaml", viper.ConfigFileUsed())
+	})
+
+	t.Run("Load Home Config", func(t *testing.T) {
+		viper.Reset()
+		// Ensure no local config
+		os.Remove("config.yaml")
+
+		// Mock HOME
+		tmpHome := t.TempDir()
+		t.Setenv("HOME", tmpHome)        // Unix
+		t.Setenv("USERPROFILE", tmpHome) // Windows
+
+		// Create ~/.recac.yaml
+		homeConfig := filepath.Join(tmpHome, ".recac.yaml")
+		os.WriteFile(homeConfig, []byte("provider: home-provider\n"), 0644)
+
+		Load("")
+		assert.Equal(t, "home-provider", viper.GetString("provider"))
+		assert.Equal(t, homeConfig, viper.ConfigFileUsed())
+	})
+
+	t.Run("Local Priority Over Home", func(t *testing.T) {
+		viper.Reset()
+
+		// Mock HOME
+		tmpHome := t.TempDir()
+		t.Setenv("HOME", tmpHome)
+		t.Setenv("USERPROFILE", tmpHome)
+
+		// Create ~/.recac.yaml
+		homeConfig := filepath.Join(tmpHome, ".recac.yaml")
+		os.WriteFile(homeConfig, []byte("provider: home-provider\n"), 0644)
+
+		// Create local config.yaml
+		os.WriteFile("config.yaml", []byte("provider: local-provider\n"), 0644)
+		defer os.Remove("config.yaml")
+
+		Load("")
+		assert.Equal(t, "local-provider", viper.GetString("provider"))
+		assert.Equal(t, "config.yaml", viper.ConfigFileUsed())
 	})
 }

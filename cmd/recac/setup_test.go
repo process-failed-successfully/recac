@@ -212,6 +212,12 @@ func TestSetupCmd_AppendEnv(t *testing.T) {
 	originalAskOne := askOneFunc
 	defer func() { askOneFunc = originalAskOne }()
 
+	// Backup .env if exists
+	if _, err := os.Stat(".env"); err == nil {
+		os.Rename(".env", ".env.bak")
+		defer os.Rename(".env.bak", ".env")
+	}
+
 	// Create existing .env
 	os.WriteFile(".env", []byte("EXISTING_VAR=foo\n"), 0600)
 	defer os.Remove(".env")
@@ -244,6 +250,12 @@ func TestSetupCmd_AppendEnv(t *testing.T) {
 func TestSetupCmd_SubstringMatchRegression(t *testing.T) {
 	originalAskOne := askOneFunc
 	defer func() { askOneFunc = originalAskOne }()
+
+	// Backup .env if exists
+	if _, err := os.Stat(".env"); err == nil {
+		os.Rename(".env", ".env.bak")
+		defer os.Rename(".env.bak", ".env")
+	}
 
 	// Create existing .env with a key that is a superset of the one we want to add
 	// e.g. "MY_OPENAI_API_KEY" vs "OPENAI_API_KEY"
@@ -279,6 +291,12 @@ func TestSetupCmd_SubstringMatchRegression(t *testing.T) {
 func TestSetupCmd_MultilineCollision(t *testing.T) {
 	originalAskOne := askOneFunc
 	defer func() { askOneFunc = originalAskOne }()
+
+	// Backup .env if exists
+	if _, err := os.Stat(".env"); err == nil {
+		os.Rename(".env", ".env.bak")
+		defer os.Rename(".env.bak", ".env")
+	}
 
 	// Create existing .env with a multiline value containing the key substring
 	content := `SOME_VAR="multi
