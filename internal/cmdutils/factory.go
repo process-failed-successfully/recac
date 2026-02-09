@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"recac/internal/agent"
 	"recac/internal/git"
 	"recac/internal/jira"
@@ -116,12 +117,14 @@ var SetupWorkspace = func(ctx context.Context, gitClient git.IClient, repoURL, w
 		// If directory exists and is not empty (but not a git repo), clean it up
 		if info, err := os.Stat(workspace); err == nil && info.IsDir() {
 			if f, err := os.Open(workspace); err == nil {
-				names, _ := f.Readdirnames(1)
+				names, _ := f.Readdirnames(-1) // Read all entries
 				f.Close()
 				if len(names) > 0 {
 					fmt.Printf("[%s] Warning: Directory %s exists, is not empty, and is not a git repository. Cleaning up before clone.\n", ticketID, workspace)
-					if err := os.RemoveAll(workspace); err != nil {
-						return repoURL, fmt.Errorf("failed to clean workspace: %w", err)
+					for _, name := range names {
+						if err := os.RemoveAll(filepath.Join(workspace, name)); err != nil {
+							return repoURL, fmt.Errorf("failed to clean workspace item %s: %w", name, err)
+						}
 					}
 				}
 			}
