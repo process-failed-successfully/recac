@@ -95,6 +95,16 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		}
 	}
 
+	// 4. QA Agent
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return "```bash\nagent-bridge signal QA_PASSED true\n```", nil
+	}
+
+	// 5. Project Manager (Reviewer)
+	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") || (strings.Contains(prompt, "Review the project") && strings.Contains(prompt, "Manager")) {
+		return "```bash\nagent-bridge signal PROJECT_SIGNED_OFF true --privileged || true\n```", nil
+	}
+
 	// Return a generic mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
