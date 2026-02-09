@@ -310,3 +310,40 @@ func TestSetupCmd_SubstringCollision(t *testing.T) {
 	// It should contain the new key because OTHER_OPENAI_API_KEY is different from OPENAI_API_KEY
 	assert.Contains(t, str, "OPENAI_API_KEY=new-key")
 }
+
+func TestSetupCmd_MultilineCollision(t *testing.T) {
+	originalAskOne := askOneFunc
+	defer func() { askOneFunc = originalAskOne }()
+
+	// Create existing .env with a multiline value that looks like a key definition
+	content := `SECRET="start
+OPENAI_API_KEY=fake
+end"`
+	os.WriteFile(".env", []byte(content), 0600)
+	defer os.Remove(".env")
+
+	mockAnswers = map[string]interface{}{
+		"Choose your AI Provider:":                              "openai",
+		"Enter the Model name:":                                 "gpt-4",
+		"Enter your API Key (leave empty to skip):":             "real-key",
+		"Do you want to save the API Key to a local .env file?": true,
+		"Enter your Jira URL (e.g., https://your-domain.atlassian.net):": "",
+		"Enable Slack notifications?":          false,
+		"Run system check (recac doctor) now?": false,
+	}
+	askOneFunc = mockAskOne
+
+	viper.Reset()
+	viper.SetConfigFile("test_config_multiline.yaml")
+	defer os.Remove("test_config_multiline.yaml")
+
+	cmd := &cobra.Command{Use: "test"}
+	err := runSetup(cmd, []string{})
+	assert.NoError(t, err)
+
+	newContent, _ := os.ReadFile(".env")
+	str := string(newContent)
+
+	// Should contain the real key because the "fake" one is inside a string value
+	assert.Contains(t, str, "OPENAI_API_KEY=real-key")
+}

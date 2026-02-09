@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -272,22 +273,22 @@ func runSetup(cmd *cobra.Command, args []string) error {
 				contentToAppend = "\n"
 			}
 
-			// Helper to check if key exists in env content
-			keyExists := func(content, key string) bool {
-				lines := strings.Split(content, "\n")
-				for _, l := range lines {
-					trimmed := strings.TrimSpace(l)
-					if strings.HasPrefix(trimmed, key+"=") || strings.HasPrefix(trimmed, "export "+key+"=") {
-						return true
-					}
+			// Parse existing .env to check for duplicates using godotenv
+			existingEnvMap, err := godotenv.Unmarshal(existingEnvStr)
+			if err != nil {
+				// If parsing fails, we proceed with an empty map (which means we might append duplicates, safer than skipping needed keys)
+				// We only log if content is not empty (empty file is fine)
+				if len(existingEnvStr) > 0 {
+					fmt.Printf("Warning: failed to parse existing .env: %v. Proceeding to append keys.\n", err)
 				}
-				return false
+				existingEnvMap = make(map[string]string)
 			}
 
 			for _, line := range linesToAppend {
 				parts := strings.SplitN(line, "=", 2)
 				key := parts[0]
-				if !keyExists(existingEnvStr, key) {
+				// godotenv handles export prefix automatically, so we just check for key existence
+				if _, exists := existingEnvMap[key]; !exists {
 					contentToAppend += line + "\n"
 				} else {
 					fmt.Printf("Note: %s already exists in .env, skipping.\n", key)
