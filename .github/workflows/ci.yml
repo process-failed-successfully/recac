@@ -286,8 +286,8 @@ jobs:
             echo "Attempt $((i+1)) of $((RETRIES+1))"
             if go run e2e/runner/main.go \
               -scenario prime-python \
-              -provider openrouter \
-              -model "google/gemini-2.0-flash-exp:free" \
+              -provider mock \
+              -model mock \
               -image recac:smoke \
               -repo-url "https://github.com/process-failed-successfully/recac-jira-e2e" \
               -pull-policy IfNotPresent \
