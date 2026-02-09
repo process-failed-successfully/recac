@@ -106,11 +106,11 @@ git commit -m "Implement primes" || echo "No changes to commit"
 
 	// 4. QA / Review
 	if strings.Contains(prompt, "QA AGENT") {
-		return "```bash\nagent-bridge signal set QA_PASSED true\n```", nil
+		return "```bash\nagent-bridge signal QA_PASSED true\n```", nil
 	}
 
 	if strings.Contains(prompt, "PROJECT MANAGER") && strings.Contains(prompt, "sign off") {
-		return "```bash\nagent-bridge signal set PROJECT_SIGNED_OFF true\n```", nil
+		return "```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
 	}
 
 	// Fallback
