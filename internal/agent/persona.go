@@ -12,8 +12,8 @@ import (
 
 // Persona defines a role for the AI agent.
 type Persona struct {
-	Name        string `yaml:"name"`
-	Description string `yaml:"description"`
+	Name         string `yaml:"name"`
+	Description  string `yaml:"description"`
 	SystemPrompt string `yaml:"system_prompt"`
 }
 

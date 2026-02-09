@@ -18,11 +18,20 @@ func TestMockAgent_Primes(t *testing.T) {
 	if !strings.Contains(resp, "cat << 'EOF' > primes.py") {
 		t.Error("Response should contain primes.py creation script")
 	}
+	if !strings.Contains(resp, "range(10000)") {
+		t.Error("Response should calculate primes up to 10000")
+	}
+	if !strings.Contains(resp, "json.dump({\"primes\": primes}, f)") {
+		t.Error("Response should output JSON object with 'primes' key")
+	}
 	if !strings.Contains(resp, "python3 primes.py") {
 		t.Error("Response should run the python script")
 	}
 	if !strings.Contains(resp, "agent-bridge feature set") {
 		t.Error("Response should mark features as passed")
+	}
+	if !strings.Contains(resp, "--status done --passes true") {
+		t.Error("Response should use correct flags for feature status update")
 	}
 }
 
