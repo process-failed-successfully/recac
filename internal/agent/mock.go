@@ -30,11 +30,52 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+	// Check for TPM prompt (used in recac jira generate-from-spec)
+	if isTPMPrompt(prompt) {
+		return `[
+  {
+    "title": "ID:[PRIMES] Create primes.py",
+    "description": "Create a python script that calculates primes up to 10000. Repo: https://github.com/example/repo",
+    "type": "Epic",
+    "children": [
+      {
+        "title": "Implement Prime Calculation",
+        "description": "Implement the sieve of Eratosthenes. Repo: https://github.com/example/repo",
+        "type": "Story",
+        "acceptance_criteria": [
+          "Script runs without errors",
+          "Calculates primes correctly"
+        ]
+      }
+    ]
+  }
+]`, nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
+}
+
+func isTPMPrompt(prompt string) bool {
+	// Check for key phrases from tpm_agent.md
+	return (contains(prompt, "Technical Program Manager") || contains(prompt, "TPM")) &&
+		contains(prompt, "decompose it into a series of high-quality")
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && len(s) > 0 && len(substr) > 0 && func() bool {
+		// Basic substring check loop to avoid importing strings if we want to minimize deps
+		// But since we are mocking an AI, let's just use a loop.
+		for i := 0; i <= len(s)-len(substr); i++ {
+			if s[i:i+len(substr)] == substr {
+				return true
+			}
+		}
+		return false
+	}()
 }
 
 // SendStream implements the Agent interface
