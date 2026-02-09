@@ -3,12 +3,10 @@ package agent
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"time"
 )
 
@@ -129,84 +127,4 @@ func (c *GeminiClient) SendStream(ctx context.Context, prompt string, onChunk fu
 		}
 		return resp, err
 	}, onChunk)
-}
-
-// SendImage sends a prompt with an image to Gemini
-func (c *GeminiClient) SendImage(ctx context.Context, prompt string, imagePath string) (string, error) {
-	if c.mockResponder != nil {
-		return c.mockResponder(fmt.Sprintf("%s [IMAGE: %s]", prompt, imagePath))
-	}
-
-	if c.apiKey == "" {
-		return "", fmt.Errorf("API key is required")
-	}
-
-	// Read and encode image
-	imageData, err := os.ReadFile(imagePath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read image file: %w", err)
-	}
-	encodedImage := base64.StdEncoding.EncodeToString(imageData)
-	mimeType := http.DetectContentType(imageData)
-
-	url := fmt.Sprintf("%s/%s:generateContent", c.apiURL, c.model)
-
-	requestBody := map[string]interface{}{
-		"contents": []map[string]interface{}{
-			{
-				"parts": []map[string]interface{}{
-					{"text": prompt},
-					{
-						"inline_data": map[string]interface{}{
-							"mime_type": mimeType,
-							"data":      encodedImage,
-						},
-					},
-				},
-			},
-		},
-	}
-
-	jsonBody, err := json.Marshal(requestBody)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal request: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonBody))
-	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-goog-api-key", c.apiKey)
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("failed to send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(bodyBytes))
-	}
-
-	var response struct {
-		Candidates []struct {
-			Content struct {
-				Parts []struct {
-					Text string `json:"text"`
-				} `json:"parts"`
-			} `json:"content"`
-		} `json:"candidates"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return "", fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	if len(response.Candidates) == 0 || len(response.Candidates[0].Content.Parts) == 0 {
-		return "", fmt.Errorf("no content in response")
-	}
-
-	return response.Candidates[0].Content.Parts[0].Text, nil
 }

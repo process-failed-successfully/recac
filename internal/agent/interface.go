@@ -16,13 +16,6 @@ type Agent interface {
 	SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error)
 }
 
-// VisionAgent is an interface for agents that support image inputs
-type VisionAgent interface {
-	Agent
-	// SendImage sends a prompt with an image to the agent and returns the response
-	SendImage(ctx context.Context, prompt string, imagePath string) (string, error)
-}
-
 // NewAgent is a factory function that returns an Agent based on the provider
 // For Ollama, apiKey is used as baseURL (optional, defaults to http://localhost:11434)
 func NewAgent(provider, apiKey, model, workDir, project string) (Agent, error) {
@@ -66,8 +59,6 @@ func NewAgent(provider, apiKey, model, workDir, project string) (Agent, error) {
 		return NewCursorCLIClient(apiKey, model, project), nil
 	case "opencode", "opencode-cli":
 		return NewOpenCodeCLIClient(apiKey, model, workDir, project), nil
-	case "mock":
-		return NewMockAgent(), nil
 	default:
 		return nil, fmt.Errorf("unknown provider: %s", provider)
 	}
