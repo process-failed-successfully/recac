@@ -88,7 +88,7 @@ agent-bridge import < feature_list.json
 		return `[
   {
     "id": "PRIMES",
-    "title": "Primes Script",
+    "title": "ID:[PRIMES] Primes Script",
     "type": "task",
     "status": "todo",
     "description": "Implement primes.py",
