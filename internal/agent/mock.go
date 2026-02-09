@@ -37,7 +37,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// We check for "Coding Agent", "Developer", "primes.py", or the specific ID tag.
 	// CRITICAL: We use Contains to match the role header. HasPrefix proved brittle in CI due to potential whitespace or artifacts.
 	// This is safe because DBStore history (injected into prompt) does NOT contain system prompts, only observations.
-	if (strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "req-script-prints-primes")) &&
+	if (strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "req-script-prints-primes") || strings.Contains(prompt, "req-script-is-runnable")) &&
 		strings.Contains(prompt, "## YOUR ROLE - CODING AGENT") {
 		return `I will implement the primes calculation script as requested.
 
