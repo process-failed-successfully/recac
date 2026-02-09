@@ -359,24 +359,6 @@ func run() error {
 	// Check for Agent Job
 	log.Println("Waiting for Agent Job to start...")
 
-	// Determine expected job name from ticket map (assuming single task for now or finding "PRIMES")
-	var targetTicketID string
-	// Prioritize actionable tickets because the Orchestrator ignores Epics (like "PRIMES").
-	// req-implement-primes is the core task.
-	if id, ok := ticketMap["req-implement-primes"]; ok {
-		targetTicketID = id
-	} else if id, ok := ticketMap["req-setup-repo"]; ok {
-		targetTicketID = id
-	} else if id, ok := ticketMap["PRIMES"]; ok {
-		targetTicketID = id
-	} else {
-		// Fallback: Use the first one
-		for _, id := range ticketMap {
-			targetTicketID = id
-			break
-		}
-	}
-
 	// Wait for ANY agent job to spawn, as we prioritize processing actionable items
 	// but the Orchestrator's internal queue might pick them up in a specific order.
 	log.Printf("Looking for any agent job in namespace %s", namespace)
