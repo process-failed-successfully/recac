@@ -22,7 +22,7 @@ func init() {
 
 // SandboxDockerClient defines the interface for Docker operations needed by sandbox.
 type SandboxDockerClient interface {
-	RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, ports []string, user string) (string, error)
+	RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, user string) (string, error)
 	ExecInteractive(ctx context.Context, containerID string, cmd []string) error
 	StopContainer(ctx context.Context, containerID string) error
 	RemoveContainer(ctx context.Context, containerID string, force bool) error

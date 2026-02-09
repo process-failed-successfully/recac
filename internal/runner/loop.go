@@ -470,7 +470,14 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		// Push progress to remote periodically (to ensure visibility in Jira/Git)
 		s.pushProgress(ctx)
 
-		s.SleepFunc(1 * time.Second)
+		// Rate Limiting: Default to 1 second, allow override via env var
+		delay := 1 * time.Second
+		if val := os.Getenv("RECAC_AGENT_DELAY"); val != "" {
+			if d, err := time.ParseDuration(val); err == nil {
+				delay = d
+			}
+		}
+		s.SleepFunc(delay)
 	}
 
 	// Save final agent state before exiting
