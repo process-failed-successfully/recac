@@ -124,3 +124,26 @@ func TestSanitizeMermaidID(t *testing.T) {
 	sanitized := sanitizeMermaidID(id)
 	assert.Equal(t, "foo_bar_baz_qux", sanitized)
 }
+
+func TestServer_Handler(t *testing.T) {
+	mockStore := &MockStore{}
+	// Mock returns empty string for unknown project, handled by fallback logic or empty response
+	mockStore.GetFeaturesFunc = func(projectID string) (string, error) {
+		return "", nil
+	}
+
+	server := NewServer(mockStore, 8080, "test-proj")
+	handler := server.Handler()
+
+	// Test /api/features route
+	req, _ := http.NewRequest("GET", "/api/features", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	// Test /api/graph route
+	req, _ = http.NewRequest("GET", "/api/graph", nil)
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+}

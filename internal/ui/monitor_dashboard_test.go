@@ -169,3 +169,22 @@ func TestRefreshMonitorSessionsCmd(t *testing.T) {
 	assert.IsType(t, actionResultMsg{}, msgErr)
 	assert.Error(t, msgErr.(actionResultMsg).err)
 }
+
+func TestMonitorDashboardModel_Init(t *testing.T) {
+	callbacks := ActionCallbacks{}
+	m := NewMonitorDashboardModel(callbacks)
+	cmd := m.Init()
+	assert.NotNil(t, cmd)
+}
+
+func TestMonitorDashboardModel_Update_Resize(t *testing.T) {
+	callbacks := ActionCallbacks{}
+	m := NewMonitorDashboardModel(callbacks)
+
+	msg := tea.WindowSizeMsg{Width: 100, Height: 50}
+	newM, _ := m.Update(msg)
+	finalM := newM.(MonitorDashboardModel)
+
+	assert.Equal(t, 100, finalM.width)
+	assert.Equal(t, 50, finalM.height)
+}

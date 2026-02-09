@@ -286,9 +286,28 @@ func TestHelperMethods(t *testing.T) {
 		t.Error("AgentItem Description fail")
 	}
 
+	p := PersonaItem{Name: "P", Value: "V", DescriptionDetails: "D"}
+	if p.FilterValue() != "P" {
+		t.Error("PersonaItem FilterValue fail")
+	}
+	if p.Title() != "P" {
+		t.Error("PersonaItem Title fail")
+	}
+	if p.Description() != "D" {
+		t.Error("PersonaItem Description fail")
+	}
+
 	k := keys
 	if len(k.FullHelp()) == 0 {
 		t.Error("FullHelp fail")
+	}
+
+	h := contextualHelp{keyMap: keys, isMenu: true}
+	if len(h.ShortHelp()) == 0 {
+		t.Error("contextualHelp ShortHelp fail")
+	}
+	if len(h.FullHelp()) == 0 {
+		t.Error("contextualHelp FullHelp fail")
 	}
 }
 
