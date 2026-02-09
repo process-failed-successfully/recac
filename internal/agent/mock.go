@@ -36,17 +36,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
   {
     "title": "ID:[PRIMES] Create primes.py",
     "description": "Create a python script that calculates primes up to 10000. Repo: https://github.com/example/repo",
-    "type": "Epic",
-    "children": [
-      {
-        "title": "Implement Prime Calculation",
-        "description": "Implement the sieve of Eratosthenes. Repo: https://github.com/example/repo",
-        "type": "Story",
-        "acceptance_criteria": [
-          "Script runs without errors",
-          "Calculates primes correctly"
-        ]
-      }
+    "type": "Task",
+    "acceptance_criteria": [
+        "Script runs without errors",
+        "Calculates primes correctly"
     ]
   }
 ]`, nil
