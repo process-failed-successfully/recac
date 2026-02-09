@@ -181,3 +181,81 @@ func SendStreamOnce(ctx context.Context, cfg HTTPClientConfig, prompt string, on
 
 	return fullResponse.String(), nil
 }
+
+// SendImageOnce performs a single non-streaming request with an image
+func SendImageOnce(ctx context.Context, cfg HTTPClientConfig, prompt string, imageBase64URI string) (string, error) {
+	if cfg.MockResponder != nil {
+		return cfg.MockResponder(prompt)
+	}
+
+	if cfg.APIKey == "" {
+		return "", fmt.Errorf("API key is required")
+	}
+
+	requestBody := map[string]interface{}{
+		"model": cfg.Model,
+		"messages": []map[string]interface{}{
+			{
+				"role": "user",
+				"content": []map[string]interface{}{
+					{
+						"type": "text",
+						"text": prompt,
+					},
+					{
+						"type": "image_url",
+						"image_url": map[string]string{
+							"url": imageBase64URI,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	jsonBody, err := json.Marshal(requestBody)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", cfg.APIURL, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+cfg.APIKey)
+
+	// Add custom headers
+	for k, v := range cfg.Headers {
+		req.Header.Set(k, v)
+	}
+
+	resp, err := cfg.HTTPClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var response struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if len(response.Choices) == 0 {
+		return "", fmt.Errorf("no content in response")
+	}
+
+	return response.Choices[0].Message.Content, nil
+}

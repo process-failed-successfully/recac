@@ -2,7 +2,12 @@ package agent
 
 import (
 	"context"
+	"encoding/base64"
+	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -68,4 +73,35 @@ func (c *OpenAIClient) SendStream(ctx context.Context, prompt string, onChunk fu
 	return c.SendStreamWithRetry(ctx, prompt, func(ctx context.Context, p string, oc func(string)) (string, error) {
 		return SendStreamOnce(ctx, c.getConfig(), p, oc)
 	}, onChunk)
+}
+
+// SendImage sends a prompt along with an image to OpenAI
+func (c *OpenAIClient) SendImage(ctx context.Context, prompt string, imagePath string) (string, error) {
+	// Read image file
+	imageData, err := os.ReadFile(imagePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read image file: %w", err)
+	}
+
+	// Detect MIME type based on extension
+	ext := strings.ToLower(filepath.Ext(imagePath))
+	var mimeType string
+	switch ext {
+	case ".png":
+		mimeType = "image/png"
+	case ".jpg", ".jpeg":
+		mimeType = "image/jpeg"
+	case ".webp":
+		mimeType = "image/webp"
+	case ".gif":
+		mimeType = "image/gif"
+	default:
+		return "", fmt.Errorf("unsupported image format: %s", ext)
+	}
+
+	// Encode to base64
+	base64Image := base64.StdEncoding.EncodeToString(imageData)
+	dataURI := fmt.Sprintf("data:%s;base64,%s", mimeType, base64Image)
+
+	return SendImageOnce(ctx, c.getConfig(), prompt, dataURI)
 }
