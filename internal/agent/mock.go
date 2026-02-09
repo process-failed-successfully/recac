@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,6 +31,135 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// TPM Heuristic: Jira Ticket Generation
+	// Trigger: "Application Specification" (from memory) or context implying ticket creation
+	if strings.Contains(prompt, "Application Specification") || strings.Contains(prompt, "TPM") {
+		// Return JSON for tickets
+		// The smoke test expects valid JSON
+		return `[
+  {"title": "ID:[PRIMES] Setup Python Project", "description": "Initialize repository structure"},
+  {"title": "ID:[PRIMES] Implement Prime Function", "description": "Create primes.py with function"},
+  {"title": "ID:[PRIMES] Implement Tests", "description": "Create test_primes.py"},
+  {"title": "ID:[PRIMES] CI Workflow", "description": "Create .github/workflows/ci.yml"}
+]`, nil
+	}
+
+	// Initializer Heuristic
+	// Trigger: "INITIALIZER AGENT"
+	// Must clone the repo
+	if strings.Contains(prompt, "INITIALIZER AGENT") {
+		return `cat << 'EOF' > feature_list.json
+[
+  {"id": "req-primes-py-exists", "description": "Implement primes.py"},
+  {"id": "req-implement-tests", "description": "Implement tests"},
+  {"id": "req-ci-workflow", "description": "CI Workflow"}
+]
+EOF
+agent-bridge import feature_list.json
+rm -rf .git .gitignore *
+git clone https://github.com/process-failed-successfully/recac-jira-e2e .
+`, nil
+	}
+
+	// Coding Agent Heuristic
+	// Trigger: "CODING AGENT"
+	if strings.Contains(prompt, "CODING AGENT") {
+		// Heuristic to detect primes task
+		if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "req-primes-py-exists") {
+			return `cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    """Checks if a number is a prime number."""
+    if n <= 1:
+        return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+if __name__ == "__main__":
+    primes = [x for x in range(10000) if is_prime(x)]
+    print(json.dumps({"primes": primes}))
+EOF
+git add primes.py
+git commit -m "feat: add primes.py" || true
+agent-bridge feature set req-primes-py-exists completed
+`, nil
+		}
+
+		if strings.Contains(prompt, "test_primes.py") || strings.Contains(prompt, "req-implement-tests") {
+             return `cat << 'EOF' > test_primes.py
+import unittest
+from primes import is_prime
+
+class TestPrimes(unittest.TestCase):
+    def test_prime(self):
+        self.assertTrue(is_prime(7))
+        self.assertFalse(is_prime(4))
+
+if __name__ == '__main__':
+    unittest.main()
+EOF
+git add test_primes.py
+git commit -m "test: add test_primes.py" || true
+agent-bridge feature set req-implement-tests completed
+`, nil
+        }
+
+        if strings.Contains(prompt, "CI Workflow") || strings.Contains(prompt, "req-ci-workflow") {
+            return `mkdir -p .github/workflows
+cat << 'EOF' > .github/workflows/ci.yml
+name: CI
+on: [push]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+    - name: Run tests
+      run: python test_primes.py
+EOF
+git add .github/workflows/ci.yml
+git commit -m "ci: add workflow" || true
+agent-bridge feature set req-ci-workflow completed
+`, nil
+        }
+
+		// Loop breaker: if nothing specific matched or prompt implies review/cleanup
+		// Signal QA Passed if tree is clean (no-op loop breaker)
+		if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
+			return `agent-bridge signal QA_PASSED true
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged
+`, nil
+		}
+
+		// Fallback for coding agent
+		return `echo "Coding agent fallback - no specific task detected"
+agent-bridge feature set req-ci-workflow completed || true
+`, nil
+	}
+
+
+	// QA Agent Heuristic
+	if strings.Contains(prompt, "QA AGENT") {
+		return `agent-bridge signal QA_PASSED true`, nil
+	}
+
+	// Project Manager Heuristic
+	if strings.Contains(prompt, "PROJECT MANAGER") {
+		return `agent-bridge signal PROJECT_SIGNED_OFF true --privileged`, nil
+	}
+
+	// Default fallback (original behavior)
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
