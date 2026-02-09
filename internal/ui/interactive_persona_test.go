@@ -148,27 +148,11 @@ func TestInteractiveModel_Persona_PromptInjection(t *testing.T) {
 	userPrompt := "Explain recursion"
 	cmd := m.generateResponse(userPrompt)
 
-	// Run the command to trigger the goroutine
-	if cmd != nil {
-		cmd()
+	if cmd == nil {
+		t.Fatal("Expected command to be returned")
 	}
 
-	// We need to wait for the goroutine?
-	// The goroutine in generateResponse writes to a channel.
-	// CapturingMockAgent writes immediately.
-	// But m.LastPrompt is set inside the goroutine.
-	// The mock agent is a pointer, so we can check it.
-	// However, there is a race condition if we check immediately.
-	// But since CapturingMockAgent.SendStream is synchronous (calls onChunk immediately),
-	// and generateResponse calls it in a goroutine...
-
-	// Wait, the goroutine runs:
-	// _, err := m.activeAgent.SendStream(...)
-
-	// We need to ensure that runs.
-	// We can't easily wait for it without modifying code or using a channel in the test.
-	// But generateResponse returns a AgentStreamStartMsg containing channels.
-
+	// Run the command once. It returns the message and starts the goroutine.
 	msg := cmd()
 	streamMsg, ok := msg.(AgentStreamStartMsg)
 	if !ok {
