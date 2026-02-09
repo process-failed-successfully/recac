@@ -280,28 +280,48 @@ func generateTickets(ctx context.Context, specContent, projectKey, repoURL strin
 		return nil, fmt.Errorf("agent failed to generate response: %w", err)
 	}
 
-	// Strip markdown code blocks if present
+	// Strip bash wrappers if present (used by MockAgent Initializer heuristic)
 	jsonStr := resp
-	if strings.Contains(jsonStr, "```json") {
-		parts := strings.Split(jsonStr, "```json")
-		if len(parts) > 1 {
-			jsonStr = parts[1]
+	if strings.Contains(jsonStr, "cat <<") {
+		// Try to find the JSON content inside the bash heredoc
+		// Heuristic: look for the first '[' and the last ']'
+		start := strings.Index(jsonStr, "[")
+		end := strings.LastIndex(jsonStr, "]")
+		if start != -1 && end != -1 && end > start {
+			jsonStr = jsonStr[start : end+1]
 		}
-		parts = strings.Split(jsonStr, "```")
-		jsonStr = parts[0]
-	} else if strings.Contains(jsonStr, "```") {
-		// Generic code block
-		parts := strings.Split(jsonStr, "```")
-		if len(parts) > 1 {
-			jsonStr = parts[1]
+	} else {
+		// Strip markdown code blocks if present
+		if strings.Contains(jsonStr, "```json") {
+			parts := strings.Split(jsonStr, "```json")
+			if len(parts) > 1 {
+				jsonStr = parts[1]
+			}
+			parts = strings.Split(jsonStr, "```")
+			jsonStr = parts[0]
+		} else if strings.Contains(jsonStr, "```") {
+			// Generic code block
+			parts := strings.Split(jsonStr, "```")
+			if len(parts) > 1 {
+				jsonStr = parts[1]
+			}
+			parts = strings.Split(jsonStr, "```")
+			jsonStr = parts[0]
 		}
-		parts = strings.Split(jsonStr, "```")
-		jsonStr = parts[0]
 	}
 	jsonStr = strings.TrimSpace(jsonStr)
 
 	var tickets []ticketNode
 	if err := json.Unmarshal([]byte(jsonStr), &tickets); err != nil {
+		// Fallback: If stripping failed, try to extract largest JSON array
+		start := strings.Index(resp, "[")
+		end := strings.LastIndex(resp, "]")
+		if start != -1 && end != -1 && end > start {
+			potentialJSON := resp[start : end+1]
+			if err2 := json.Unmarshal([]byte(potentialJSON), &tickets); err2 == nil {
+				return createTicketsFromNodes(ctx, tickets, projectKey, repoURL, allLabels, jiraClient)
+			}
+		}
 		return nil, fmt.Errorf("failed to parse agent response as JSON: %w\nResponse was:\n%s", err, resp)
 	}
 
