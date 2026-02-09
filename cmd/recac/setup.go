@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -262,11 +263,19 @@ func runSetup(cmd *cobra.Command, args []string) error {
 		existingEnv, _ := os.ReadFile(".env")
 		existingEnvStr := string(existingEnv)
 
+		// Parse existing env to robustly check for keys (handling comments, multiline, etc.)
+		existingMap, _ := godotenv.Unmarshal(existingEnvStr)
+
 		f, err := os.OpenFile(".env", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 		if err != nil {
 			fmt.Printf("Error opening .env: %v\n", err)
 		} else {
-			defer f.Close()
+			defer func() {
+				if err := f.Close(); err != nil {
+					fmt.Printf("Error closing .env: %v\n", err)
+				}
+			}()
+
 			contentToAppend := ""
 			if len(existingEnv) > 0 && !strings.HasSuffix(existingEnvStr, "\n") {
 				contentToAppend = "\n"
@@ -275,7 +284,9 @@ func runSetup(cmd *cobra.Command, args []string) error {
 			for _, line := range linesToAppend {
 				parts := strings.SplitN(line, "=", 2)
 				key := parts[0]
-				if !strings.Contains(existingEnvStr, key+"=") {
+
+				// Check if key exists in the parsed map
+				if _, exists := existingMap[key]; !exists {
 					contentToAppend += line + "\n"
 				} else {
 					fmt.Printf("Note: %s already exists in .env, skipping.\n", key)

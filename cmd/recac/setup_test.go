@@ -240,3 +240,71 @@ func TestSetupCmd_AppendEnv(t *testing.T) {
 	assert.Contains(t, str, "EXISTING_VAR=foo")
 	assert.Contains(t, str, "OPENAI_API_KEY=new-key")
 }
+
+func TestSetupCmd_SubstringMatch(t *testing.T) {
+	originalAskOne := askOneFunc
+	defer func() { askOneFunc = originalAskOne }()
+
+	// Create existing .env with a key that contains the target key as a suffix
+	os.WriteFile(".env", []byte("MY_OPENAI_API_KEY=foo\n"), 0600)
+	defer os.Remove(".env")
+
+	mockAnswers = map[string]interface{}{
+		"Choose your AI Provider:":                              "openai",
+		"Enter the Model name:":                                 "gpt-4",
+		"Enter your API Key (leave empty to skip):":             "new-key",
+		"Do you want to save the API Key to a local .env file?": true,
+		"Enter your Jira URL (e.g., https://your-domain.atlassian.net):": "",
+		"Enable Slack notifications?":          false,
+		"Run system check (recac doctor) now?": false,
+	}
+	askOneFunc = mockAskOne
+
+	viper.Reset()
+	viper.SetConfigFile("test_config_substring.yaml")
+	defer os.Remove("test_config_substring.yaml")
+
+	cmd := &cobra.Command{Use: "test"}
+	err := runSetup(cmd, []string{})
+	assert.NoError(t, err)
+
+	content, _ := os.ReadFile(".env")
+	str := string(content)
+
+	// Expectation: OPENAI_API_KEY should be added because it's distinct from MY_OPENAI_API_KEY
+	assert.Contains(t, str, "OPENAI_API_KEY=new-key", "OPENAI_API_KEY should be added even if MY_OPENAI_API_KEY exists")
+}
+
+func TestSetupCmd_DuplicateEnv(t *testing.T) {
+	originalAskOne := askOneFunc
+	defer func() { askOneFunc = originalAskOne }()
+
+	// Create existing .env with exact match
+	os.WriteFile(".env", []byte("OPENAI_API_KEY=old-key\n"), 0600)
+	defer os.Remove(".env")
+
+	mockAnswers = map[string]interface{}{
+		"Choose your AI Provider:":                              "openai",
+		"Enter the Model name:":                                 "gpt-4",
+		"Enter your API Key (leave empty to skip):":             "new-key",
+		"Do you want to save the API Key to a local .env file?": true,
+		"Enter your Jira URL (e.g., https://your-domain.atlassian.net):": "",
+		"Enable Slack notifications?":          false,
+		"Run system check (recac doctor) now?": false,
+	}
+	askOneFunc = mockAskOne
+
+	viper.Reset()
+	viper.SetConfigFile("test_config_duplicate.yaml")
+	defer os.Remove("test_config_duplicate.yaml")
+
+	cmd := &cobra.Command{Use: "test"}
+	err := runSetup(cmd, []string{})
+	assert.NoError(t, err)
+
+	content, _ := os.ReadFile(".env")
+	str := string(content)
+
+	assert.Contains(t, str, "OPENAI_API_KEY=old-key")
+	assert.NotContains(t, str, "OPENAI_API_KEY=new-key", "Should not append duplicate key")
+}
