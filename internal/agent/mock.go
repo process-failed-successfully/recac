@@ -31,6 +31,23 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	// Heuristic -1: QA Agent
+	if strings.Contains(prompt, "## YOUR ROLE - QA AGENT") {
+		// Return explicit signal for QA pass
+		return `
+# Run validation (mocked)
+echo "Running QA checks..."
+if [ -f "primes.json" ]; then
+    echo "primes.json found."
+else
+    echo "primes.json missing!"
+    exit 1
+fi
+
+agent-bridge signal QA_PASSED true
+`, nil
+	}
+
 	// Heuristic 0: Initializer (Project Setup)
 	// Triggers when the system asks to initialize the project
 	if strings.Contains(prompt, "## YOUR ROLE - INITIALIZER AGENT") {

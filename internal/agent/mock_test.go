@@ -101,6 +101,12 @@ func TestMockAgent_SmokeTestLogic(t *testing.T) {
 		t.Error("Implement Primes should write json output")
 	}
 
+	// 5.5 QA Agent
+	resp, _ = agent.Send(ctx, "## YOUR ROLE - QA AGENT")
+	if !strings.Contains(resp, "agent-bridge signal QA_PASSED true") {
+		t.Error("QA Agent should signal QA_PASSED true")
+	}
+
 	// 6. TPM Single Task (Smoke Test Fix)
 	resp, _ = agent.Send(ctx, "Technical Program Manager. Break down requirements for ID:[PRIMES]")
 	if !strings.Contains(resp, `"type": "Task"`) {
