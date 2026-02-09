@@ -58,49 +58,45 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 2. Initializer Agent (Start Session)
 	if strings.Contains(prompt, "INITIALIZER") || strings.Contains(prompt, "Initializer") {
 		// Return a script to "import" features (simulating feature extraction)
-		return `
-		cat <<EOF > feature_list.json
-		[
-			{
-				"id": "req-primes-py-exists",
-				"description": "The script 'primes.py' is implemented",
-				"status": "pending",
-				"priority": "critical"
-			}
-		]
-		EOF
+		return "```bash\n" + `cat <<EOF > feature_list.json
+[
+	{
+		"id": "req-primes-py-exists",
+		"description": "The script 'primes.py' is implemented",
+		"status": "pending",
+		"priority": "critical"
+	}
+]
+EOF
 
-		agent-bridge import feature_list.json
-		`, nil
+agent-bridge import feature_list.json` + "\n```", nil
 	}
 
 	// 3. Coding Agent (Implementation)
 	if strings.Contains(prompt, "CODING AGENT") || strings.Contains(prompt, "implementation") {
-		return `
-		cat <<EOF > primes.py
-		import json
+		return "```bash\n" + `cat <<EOF > primes.py
+import json
 
-		def is_prime(n):
-			if n <= 1:
-				return False
-			for i in range(2, int(n**0.5) + 1):
-				if n % i == 0:
-					return False
-			return True
+def is_prime(n):
+	if n <= 1:
+		return False
+	for i in range(2, int(n**0.5) + 1):
+		if n % i == 0:
+			return False
+	return True
 
-		primes = [n for n in range(10000) if is_prime(n)]
+primes = [n for n in range(10000) if is_prime(n)]
 
-		with open('primes.json', 'w') as f:
-			json.dump({"primes": primes}, f)
-		EOF
+with open('primes.json', 'w') as f:
+	json.dump({"primes": primes}, f)
+EOF
 
-		python3 primes.py
-		`, nil
+python3 primes.py` + "\n```", nil
 	}
 
 	// 4. QA Agent / Manager (Verification)
 	if strings.Contains(prompt, "QA AGENT") || strings.Contains(prompt, "Project Manager") {
-		return "QA checks passed. agent-bridge signal QA_PASSED true", nil
+		return "QA checks passed.\n```bash\nagent-bridge signal QA_PASSED true\n```", nil
 	}
 
 	// Default Fallback
