@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"os"
 	"recac/internal/telemetry"
 	"strings"
 	"time"
@@ -20,11 +21,23 @@ type BaseClient struct {
 
 // NewBaseClient creates a new BaseClient
 func NewBaseClient(project string, defaultMaxTokens int) BaseClient {
+	// Check for rate limit override (CI/Testing)
+	minDelay := 0 * time.Second
+	if val := os.Getenv("RECAC_AGENT_DELAY"); val != "" {
+		if d, err := time.ParseDuration(val); err == nil {
+			minDelay = d
+		}
+	}
+
 	return BaseClient{
 		Project:          project,
 		DefaultMaxTokens: defaultMaxTokens,
 		BackoffFn: func(retry int) time.Duration {
-			return time.Duration(1<<uint(retry-1)) * time.Second
+			base := time.Duration(1<<uint(retry-1)) * time.Second
+			if base < minDelay {
+				return minDelay
+			}
+			return base
 		},
 	}
 }
