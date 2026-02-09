@@ -67,28 +67,28 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// === Heuristic 2: Initializer Agent ===
 	// Detects Initializer role and creates feature_list.json
 	if strings.Contains(prompt, "ROLE - INITIALIZER AGENT") || strings.Contains(prompt, "CREATE FEATURE_LIST.JSON") {
-		script := `
-cat <<EOF > feature_list.json
-[
-  {
-    "id": "req-implement-prime-number-script",
-    "description": "Implement prime number script",
-    "status": "todo"
-  },
-  {
-    "id": "req-primes-py-exists",
-    "description": "primes.py exists",
-    "status": "todo"
-  },
-  {
-    "id": "req-script-prints-primes",
-    "description": "contains exactly 1229 primes",
-    "status": "todo"
-  }
-]
-EOF
-agent-bridge import < feature_list.json
-`
+		script := "```bash\n" +
+			"cat <<EOF > feature_list.json\n" +
+			"[\n" +
+			"  {\n" +
+			"    \"id\": \"req-implement-prime-number-script\",\n" +
+			"    \"description\": \"Implement prime number script\",\n" +
+			"    \"status\": \"todo\"\n" +
+			"  },\n" +
+			"  {\n" +
+			"    \"id\": \"req-primes-py-exists\",\n" +
+			"    \"description\": \"primes.py exists\",\n" +
+			"    \"status\": \"todo\"\n" +
+			"  },\n" +
+			"  {\n" +
+			"    \"id\": \"req-script-prints-primes\",\n" +
+			"    \"description\": \"contains exactly 1229 primes\",\n" +
+			"    \"status\": \"todo\"\n" +
+			"  }\n" +
+			"]\n" +
+			"EOF\n" +
+			"agent-bridge import < feature_list.json\n" +
+			"```\n"
 		return script, nil
 	}
 
@@ -96,52 +96,52 @@ agent-bridge import < feature_list.json
 	// Detects Coding role and implements the primes.py script
 	// Checks for feature IDs or role header
 	if strings.Contains(prompt, "ROLE - CODING AGENT") ||
-	   strings.Contains(prompt, "req-implement-prime-number-script") ||
-	   strings.Contains(prompt, "req-script-prints-primes") ||
-	   strings.Contains(prompt, "[PRIMES]") {
+		strings.Contains(prompt, "req-implement-prime-number-script") ||
+		strings.Contains(prompt, "req-script-prints-primes") ||
+		strings.Contains(prompt, "[PRIMES]") {
 
-		script := `
-cat <<EOF > primes.py
-def is_prime(n):
-    if n <= 1: return False
-    for i in range(2, int(n**0.5) + 1):
-        if n % i == 0:
-            return False
-    return True
-
-primes = [str(i) for i in range(10000) if is_prime(i)]
-print(", ".join(primes))
-EOF
-
-# Verify output count (just for log)
-python3 primes.py | tr ',' '\n' | wc -l
-
-# Mark features as done
-agent-bridge feature set req-implement-prime-number-script done || echo "Feature not found"
-agent-bridge feature set req-primes-py-exists done || echo "Feature not found"
-agent-bridge feature set req-script-prints-primes done || echo "Feature not found"
-
-# Git commit (with error handling for idempotency)
-git add primes.py
-git commit -m "Implement primes.py" || echo "Nothing to commit"
-`
+		script := "```bash\n" +
+			"cat <<EOF > primes.py\n" +
+			"def is_prime(n):\n" +
+			"    if n <= 1: return False\n" +
+			"    for i in range(2, int(n**0.5) + 1):\n" +
+			"        if n % i == 0:\n" +
+			"            return False\n" +
+			"    return True\n" +
+			"\n" +
+			"primes = [str(i) for i in range(10000) if is_prime(i)]\n" +
+			"print(\", \".join(primes))\n" +
+			"EOF\n" +
+			"\n" +
+			"# Verify output count (just for log)\n" +
+			"python3 primes.py | tr ',' '\\n' | wc -l\n" +
+			"\n" +
+			"# Mark features as done\n" +
+			"agent-bridge feature set req-implement-prime-number-script done || echo \"Feature not found\"\n" +
+			"agent-bridge feature set req-primes-py-exists done || echo \"Feature not found\"\n" +
+			"agent-bridge feature set req-script-prints-primes done || echo \"Feature not found\"\n" +
+			"\n" +
+			"# Git commit (with error handling for idempotency)\n" +
+			"git add primes.py\n" +
+			"git commit -m \"Implement primes.py\" || echo \"Nothing to commit\"\n" +
+			"```\n"
 		return script, nil
 	}
 
 	// === Heuristic 4: QA Agent ===
 	// Detects QA role and verifies the solution
 	if strings.Contains(prompt, "ROLE - QA AGENT") {
-		script := `
-# Run verification
-COUNT=$(python3 primes.py | tr ',' '\n' | wc -l)
-if [ "$COUNT" -eq "1229" ]; then
-    echo "Verification Passed: 1229 primes found"
-    agent-bridge signal --privileged QA_PASSED true
-else
-    echo "Verification Failed: Expected 1229, got $COUNT"
-    exit 1
-fi
-`
+		script := "```bash\n" +
+			"# Run verification\n" +
+			"COUNT=$(python3 primes.py | tr ',' '\\n' | wc -l)\n" +
+			"if [ \"$COUNT\" -eq \"1229\" ]; then\n" +
+			"    echo \"Verification Passed: 1229 primes found\"\n" +
+			"    agent-bridge signal --privileged QA_PASSED true\n" +
+			"else\n" +
+			"    echo \"Verification Failed: Expected 1229, got $COUNT\"\n" +
+			"    exit 1\n" +
+			"fi\n" +
+			"```\n"
 		return script, nil
 	}
 
@@ -149,14 +149,14 @@ fi
 	// Detects Project Manager role and signs off the project
 	if strings.Contains(prompt, "ROLE - PROJECT MANAGER") || strings.Contains(prompt, "Manager Review") {
 		// Ensure strict argument order for signal
-		return "agent-bridge signal --privileged PROJECT_SIGNED_OFF true", nil
+		return "```bash\nagent-bridge signal --privileged PROJECT_SIGNED_OFF true\n```", nil
 	}
 
 	// === Heuristic 6: Loop Breaker / Safety Net ===
 	// Detects if the agent is stuck in a loop (e.g., git commit failed because nothing changed)
 	if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
 		// Force move to next stage or finish
-		return "agent-bridge signal --privileged QA_PASSED true && agent-bridge signal --privileged PROJECT_SIGNED_OFF true", nil
+		return "```bash\nagent-bridge signal --privileged QA_PASSED true && agent-bridge signal --privileged PROJECT_SIGNED_OFF true\n```", nil
 	}
 
 	// Fallback for unknown prompts
