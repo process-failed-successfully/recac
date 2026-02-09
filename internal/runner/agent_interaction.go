@@ -125,21 +125,9 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 		}
 	}
 
-	if assignedFeature != nil {
-		vars["task_id"] = assignedFeature.ID
-		vars["task_description"] = assignedFeature.Description
-		vars["exclusive_paths"] = strings.Join(assignedFeature.Dependencies.ExclusiveWritePaths, ", ")
-		vars["read_only_paths"] = strings.Join(assignedFeature.Dependencies.ReadOnlyPaths, ", ")
-
-		// s.SelectedTaskID = assignedFeature.ID // DO NOT SET THIS: It prevents Manager interruptions in subsequent turns.
-	} else {
-		// All done?
-		vars["task_id"] = "NONE_ALL_COMPLETE"
-		vars["task_description"] = "All features are marked as done/passing. Please run final verification and signal completion."
-		vars["exclusive_paths"] = "none"
-		vars["read_only_paths"] = "all"
-	}
+	// Prioritize Explicit Selection -> Automatic Assignment -> All Done -> Fallback
 	if s.SelectedTaskID != "" {
+		// Priority 1: Explicitly Selected Task
 		features := s.loadFeatures()
 		var target db.Feature
 		for _, f := range features {
@@ -169,11 +157,18 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 			vars["exclusive_paths"] = "None"
 			vars["read_only_paths"] = "None"
 		}
+	} else if assignedFeature != nil {
+		// Priority 2: Automatic Assignment (First Pending Feature)
+		vars["task_id"] = assignedFeature.ID
+		vars["task_description"] = assignedFeature.Description
+		vars["exclusive_paths"] = strings.Join(assignedFeature.Dependencies.ExclusiveWritePaths, ", ")
+		vars["read_only_paths"] = strings.Join(assignedFeature.Dependencies.ReadOnlyPaths, ", ")
 	} else {
-		vars["task_id"] = "Multiple/Not Assigned"
-		vars["task_description"] = "Continue implementing pending features in feature_list.json"
-		vars["exclusive_paths"] = "All available files"
-		vars["read_only_paths"] = "All available files"
+		// Priority 3: All Done or No Features
+		vars["task_id"] = "NONE_ALL_COMPLETE"
+		vars["task_description"] = "All features are marked as done/passing. Please run final verification and signal completion."
+		vars["exclusive_paths"] = "none"
+		vars["read_only_paths"] = "all"
 	}
 
 	prompt, err := prompts.GetPrompt(prompts.CodingAgent, vars)

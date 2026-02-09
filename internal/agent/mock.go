@@ -63,22 +63,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			return m.generatePrimesJSONResponse(), nil
 		}
 
-		// Check if we have already implemented the script (git commit reported no changes)
-		// This prevents infinite loops where the agent keeps trying to commit the same code
-		if strings.Contains(prompt, "nothing to commit") ||
-			strings.Contains(prompt, "working tree clean") ||
-			strings.Contains(prompt, "No changes to commit") {
-			return m.generatePrimesCompletionResponse(), nil
-		}
-
-		// Debug: Log that we are generating the implementation script (and why we didn't trigger completion)
-		fmt.Printf("DEBUG: MockAgent generating primes.py implementation. Prompt len: %d\n", len(prompt))
-		if len(prompt) > 200 {
-			// Print end of prompt to see history
-			fmt.Printf("DEBUG: Prompt Tail: %s\n", prompt[len(prompt)-200:])
-		}
-
-		return m.generatePrimesResponse(), nil
+		// Unified response: Check state and act accordingly
+		// This handles both implementation and completion signaling in a single robust script
+		// effectively preventing "nothing to commit" false positives from stopping implementation.
+		return m.generatePrimesSmartResponse(), nil
 	}
 
 	// [INITIALIZER] Logic
@@ -110,7 +98,7 @@ cat << 'EOF' | agent-bridge import
       "id": "req-must-correctly-identify-prime-",
       "category": "functional",
       "priority": "MVP",
-      "description": "Script calculates primes correctly and outputs to primes.json",
+      "description": "Implement primes.py script that calculates primes correctly and outputs to primes.json",
       "status": "pending",
       "steps": [
         "Step 1: Run python3 primes.py",
@@ -137,8 +125,14 @@ git commit -m "Initial commit" || echo "No changes to commit"
 	return fmt.Sprintf("I will initialize the project and create the feature list.\n\n```bash%s```\n", script)
 }
 
-func (m *MockAgent) generatePrimesResponse() string {
+func (m *MockAgent) generatePrimesSmartResponse() string {
 	script := `
+if [ -f "primes.py" ] && [ -f "primes.json" ]; then
+    echo "Files exist. Checking if task is marked done..."
+    # Mark as done using correct positional argument syntax for ID
+    agent-bridge feature set "req-must-correctly-identify-prime-" --status done --passes true
+else
+    echo "Implementing primes.py..."
 cat << 'EOF' > primes.py
 import json
 
@@ -153,22 +147,13 @@ with open('primes.json', 'w') as f:
     json.dump({'primes': primes}, f)
 EOF
 
-python3 primes.py
-git add primes.py primes.json
-git commit -m "Implement primes.py" || echo "No changes to commit"
-git push origin HEAD
+    python3 primes.py
+    git add primes.py primes.json
+    git commit -m "Implement primes.py" || echo "No changes to commit"
+    git push origin HEAD
+fi
 `
-	return fmt.Sprintf("I will implement the primes.py script as requested.\n\n```bash%s```\n", script)
-}
-
-func (m *MockAgent) generatePrimesCompletionResponse() string {
-	// We use agent-bridge to explicitly mark the feature as done.
-	// This signals the runner to stop the loop.
-	script := `
-echo "Task completed. Updating status."
-agent-bridge feature set --id "req-must-correctly-identify-prime-" --status done
-`
-	return fmt.Sprintf("It seems the work is already done.\n\n```bash%s```\n", script)
+	return fmt.Sprintf("I will check the state and implement primes.py if missing.\n\n```bash%s```\n", script)
 }
 
 func (m *MockAgent) generatePrimesJSONResponse() string {
