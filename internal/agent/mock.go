@@ -135,6 +135,24 @@ agent-bridge import --file /app/ticket_plan.json
 `, nil
 	}
 
+	// 2.2 QA Agent - Verifies the implementation
+	if strings.Contains(prompt, "ROLE - QA AGENT") {
+		return `
+I will verify the project.
+
+` + "```bash" + `
+# Run verification (mock check)
+if [ -f primes.json ]; then
+  echo "QA Passed: primes.json exists"
+  agent-bridge signal QA_PASSED true
+else
+  echo "QA Failed: primes.json missing"
+  agent-bridge signal QA_PASSED false
+fi
+` + "```" + `
+`, nil
+	}
+
 	// 2.5 Project Manager - Approves/Rejects the project
 	// Look for the specific role header used in manager_review.md
 	if strings.Contains(prompt, "ROLE - PROJECT MANAGER") {
