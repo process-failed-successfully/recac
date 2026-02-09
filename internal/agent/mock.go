@@ -35,7 +35,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristic for E2E Tests: [PRIMES] Scenario
 	// We also check for the feature ID `req-primes-py-exists` because the Coding Agent prompt
 	// might not contain the original [PRIMES] tag from the App Spec/Ticket if it uses the feature description.
-	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "req-primes-py-exists") {
+	// We also check for the project name "prime-python" or the explicit "primes.py" file to ensure robustness.
+	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "req-primes-py-exists") ||
+		strings.Contains(prompt, "prime-python") || strings.Contains(prompt, "primes.py") {
 		// 1. Technical Program Manager (Ticket Generation)
 		// Detects "Technical Program Manager" role or ticket generation instructions
 		if (strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "CRITICAL INSTRUCTION FOR TICKET GENERATION")) &&
