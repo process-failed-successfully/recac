@@ -277,3 +277,37 @@ func TestSetupCmd_DuplicateEnv(t *testing.T) {
 	// So it should skip.
 	assert.NotContains(t, str, "OPENAI_API_KEY=new-key")
 }
+
+func TestSetupCmd_SubstringMatchRegression(t *testing.T) {
+	originalAskOne := askOneFunc
+	defer func() { askOneFunc = originalAskOne }()
+
+	// Create .env with a key that contains the target key as a suffix
+	// e.g. MY_GEMINI_API_KEY exists, and we try to add GEMINI_API_KEY.
+	os.WriteFile(".env", []byte("MY_GEMINI_API_KEY=existing\n"), 0600)
+	defer os.Remove(".env")
+
+	mockAnswers = map[string]interface{}{
+		"Choose your AI Provider:":                  "gemini",
+		"Enter the Model name:":                     "gemini-pro",
+		"Enter your API Key (leave empty to skip):": "new-gemini-key",
+		"Do you want to save the API Key to a local .env file?":          true,
+		"Enter your Jira URL (e.g., https://your-domain.atlassian.net):": "",
+		"Enable Slack notifications?":          false,
+		"Run system check (recac doctor) now?": false,
+	}
+	askOneFunc = mockAskOne
+
+	viper.Reset()
+	viper.SetConfigFile("test_config_repro.yaml")
+	defer os.Remove("test_config_repro.yaml")
+
+	cmd := &cobra.Command{Use: "test"}
+	err := runSetup(cmd, []string{})
+	assert.NoError(t, err)
+
+	content, _ := os.ReadFile(".env")
+	str := string(content)
+	assert.Contains(t, str, "MY_GEMINI_API_KEY=existing")
+	assert.Contains(t, str, "GEMINI_API_KEY=new-gemini-key", "Should contain the new key even if a superstring key exists")
+}

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -261,6 +262,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 		// Read existing .env to check for duplicates
 		existingEnv, _ := os.ReadFile(".env")
 		existingEnvStr := string(existingEnv)
+		envMap, _ := godotenv.Unmarshal(existingEnvStr)
 
 		f, err := os.OpenFile(".env", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 		if err != nil {
@@ -275,7 +277,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 			for _, line := range linesToAppend {
 				parts := strings.SplitN(line, "=", 2)
 				key := parts[0]
-				if !strings.Contains(existingEnvStr, key+"=") {
+				if _, exists := envMap[key]; !exists {
 					contentToAppend += line + "\n"
 				} else {
 					fmt.Printf("Note: %s already exists in .env, skipping.\n", key)
