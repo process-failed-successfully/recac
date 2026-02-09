@@ -24,6 +24,7 @@ func TestVisionCmd(t *testing.T) {
 	defer func() { agentClientFactory = origFactory }()
 
 	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+		// Explicitly return *agent.MockAgent which implements VisionAgent
 		return agent.NewMockAgent(), nil
 	}
 
