@@ -3,13 +3,15 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
-// MockAgent is a simple mock agent for testing and mock mode
-// It returns predefined responses without making actual API calls
+// MockAgent is a smart mock agent for testing and mock mode
+// It returns predefined responses based on heuristics to simulate agent behavior
 type MockAgent struct {
 	responsePrefix string
 	forcedResponse string
+	hasCommitted   bool
 }
 
 // NewMockAgent creates a new mock agent
@@ -25,16 +27,73 @@ func (m *MockAgent) SetResponse(response string) {
 }
 
 // Send implements the Agent interface
-// It returns a mock response that acknowledges the prompt
 func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
-	// Return a mock response that shows the agent received the prompt
-	// This allows the session to run without requiring real API keys
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
-		m.responsePrefix, len(prompt), truncateString(prompt, 100))
-	return response, nil
+
+	// Heuristic: Initializer (Import Features)
+	if strings.Contains(prompt, "You are the Initializer") {
+		return `
+cat <<EOF > feature_list.json
+[{"id": "req-primes", "description": "Implement primes.py"}]
+EOF
+agent-bridge import feature_list.json
+`, nil
+	}
+
+	// Heuristic: Technical Program Manager (Generate Tickets)
+	if strings.Contains(prompt, "Technical Program Manager") {
+		return `[{"id": "PRIMES", "key": "PRIMES", "summary": "Implement Primes", "description": "Implement primes.py", "type": "Task"}]`, nil
+	}
+
+	// Heuristic: Project Manager (Sign Off)
+	if strings.Contains(prompt, "PROJECT MANAGER") {
+		return "agent-bridge signal PROJECT_SIGNED_OFF true", nil
+	}
+
+	// Heuristic: Coding Agent (Primes Scenario)
+	if strings.Contains(prompt, "primes") || strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "Prime Number Script") {
+		if !m.hasCommitted {
+			m.hasCommitted = true
+			return `
+cat << 'EOF' > primes.py
+import json
+
+def get_primes(n):
+    primes = []
+    for i in range(2, n):
+        is_prime = True
+        for j in range(2, int(i**0.5) + 1):
+            if i % j == 0:
+                is_prime = False
+                break
+        if is_prime:
+            primes.append(i)
+    return primes
+
+primes = get_primes(10000)
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+python3 primes.py
+git add primes.py primes.json
+git commit -m "Implement primes.py and generate primes.json"
+`, nil
+		}
+		// If already committed, signal success to break loop
+		return "agent-bridge signal QA_PASSED true", nil
+	}
+
+	// Heuristic: QA Agent
+	if strings.Contains(prompt, "QA AGENT") {
+		return "agent-bridge signal QA_PASSED true", nil
+	}
+
+	// Default response
+	return fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
+		m.responsePrefix, len(prompt), truncateString(prompt, 100)), nil
 }
 
 // SendStream implements the Agent interface
