@@ -75,7 +75,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 3. Coding Agent (Implementation)
-	if strings.Contains(prompt, "CODING AGENT") || strings.Contains(prompt, "implementation") {
+	// Match on role OR specific feature requirement from the smoke test
+	if strings.Contains(prompt, "CODING AGENT") || strings.Contains(prompt, "req-script-primes-py-exists") || strings.Contains(prompt, "req-primes-py-exists") {
 		return `
 		cat <<EOF > primes.py
 		import json
@@ -95,6 +96,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		EOF
 
 		python3 primes.py
+
+		# Signal feature completion
+		agent-bridge feature set req-script-primes-py-exists passed || echo "Feature set failed"
 		`, nil
 	}
 
