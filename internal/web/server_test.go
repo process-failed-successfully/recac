@@ -73,9 +73,9 @@ func TestServer_HandleGraph(t *testing.T) {
 		Features: []db.Feature{
 			{ID: "f1", Description: "done", Status: "done"},
 			{
-				ID:           "f2",
-				Description:  "pending",
-				Status:       "pending",
+				ID: "f2",
+				Description: "pending",
+				Status: "pending",
 				Dependencies: db.FeatureDependencies{DependsOnIDs: []string{"f1"}},
 			},
 		},

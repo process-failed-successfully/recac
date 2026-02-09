@@ -98,12 +98,12 @@ func TestClient_DiffStat(t *testing.T) {
 }
 
 func TestClient_Diff(t *testing.T) {
-	localDir, _ := setupTestRepo(t)
+    localDir, _ := setupTestRepo(t)
 	defer os.RemoveAll(localDir)
 
 	c := NewClient()
 
-	// Initial commit
+    // Initial commit
 	os.WriteFile(filepath.Join(localDir, "f1"), []byte("line1\n"), 0644)
 	c.Commit(localDir, "commit 1")
 	sha1, _ := c.CurrentCommitSHA(localDir)
@@ -113,18 +113,18 @@ func TestClient_Diff(t *testing.T) {
 	c.Commit(localDir, "commit 2")
 	sha2, _ := c.CurrentCommitSHA(localDir)
 
-	diff, err := c.Diff(localDir, sha1, sha2)
-	if err != nil {
-		t.Fatalf("Diff failed: %v", err)
-	}
+    diff, err := c.Diff(localDir, sha1, sha2)
+    if err != nil {
+        t.Fatalf("Diff failed: %v", err)
+    }
 
-	if !strings.Contains(diff, "+line2") {
-		t.Errorf("Diff should contain +line2, got: %s", diff)
-	}
+    if !strings.Contains(diff, "+line2") {
+        t.Errorf("Diff should contain +line2, got: %s", diff)
+    }
 
-	// Test Error
-	_, err = c.Diff(localDir, "badsha", "badsha2")
-	if err == nil {
-		t.Error("Diff should fail with bad SHAs")
-	}
+    // Test Error
+    _, err = c.Diff(localDir, "badsha", "badsha2")
+    if err == nil {
+        t.Error("Diff should fail with bad SHAs")
+    }
 }

@@ -229,13 +229,13 @@ func TestPostgresStore_Methods(t *testing.T) {
 		// Need new mock for clean slate
 	})
 
-	t.Run("UpdateFeatureStatus_NotFound", func(t *testing.T) {
+    t.Run("UpdateFeatureStatus_NotFound", func(t *testing.T) {
 		store, mock, teardown := setup(t)
 		defer teardown()
 
 		initialJSON := `{"features":[{"id":"f1","status":"pending","passes":false}]}`
 
-		mock.ExpectBegin()
+        mock.ExpectBegin()
 		mock.ExpectQuery(regexp.QuoteMeta(`SELECT content`)).
 			WithArgs(projectID).
 			WillReturnRows(sqlmock.NewRows([]string{"content"}).AddRow(initialJSON))
@@ -243,7 +243,7 @@ func TestPostgresStore_Methods(t *testing.T) {
 
 		err := store.UpdateFeatureStatus(projectID, "f2", "completed", true)
 		assert.Error(t, err)
-	})
+    })
 
 	t.Run("AcquireLock Success", func(t *testing.T) {
 		store, mock, teardown := setup(t)

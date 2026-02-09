@@ -52,10 +52,10 @@ func TestAdrNew(t *testing.T) {
 	assert.Contains(t, string(content), "# 1. My Decision")
 	assert.Contains(t, string(content), "Proposed") // Default status
 
-	// Create another one
-	runAdrNew(adrNewCmd, []string{"Another", "One"})
-	expectedFile2 := filepath.Join(tempDir, "docs", "adr", "0002-another-one.md")
-	assert.FileExists(t, expectedFile2)
+    // Create another one
+    runAdrNew(adrNewCmd, []string{"Another", "One"})
+    expectedFile2 := filepath.Join(tempDir, "docs", "adr", "0002-another-one.md")
+    assert.FileExists(t, expectedFile2)
 }
 
 func TestAdrList(t *testing.T) {
@@ -68,17 +68,17 @@ func TestAdrList(t *testing.T) {
 	runAdrNew(adrNewCmd, []string{"First"})
 
 	// Capture stdout using bytes.Buffer
-	var buf strings.Builder
-	adrListCmd.SetOut(&buf)
+    var buf strings.Builder
+    adrListCmd.SetOut(&buf)
 
 	err := runAdrList(adrListCmd, []string{})
-	adrListCmd.SetOut(nil) // Reset
+    adrListCmd.SetOut(nil) // Reset
 
 	require.NoError(t, err)
 
-	output := buf.String()
-	assert.Contains(t, output, "0000-use-adrs.md")
-	assert.Contains(t, output, "0001-first.md")
+    output := buf.String()
+    assert.Contains(t, output, "0000-use-adrs.md")
+    assert.Contains(t, output, "0001-first.md")
 }
 
 func TestAdrGenerate(t *testing.T) {
@@ -104,9 +104,9 @@ func TestAdrGenerate(t *testing.T) {
 	w.WriteString("y\n")
 	w.Close()
 
-	oldStdin := os.Stdin
-	os.Stdin = r
-	defer func() { os.Stdin = oldStdin }()
+    oldStdin := os.Stdin
+    os.Stdin = r
+    defer func() { os.Stdin = oldStdin }()
 
 	err := runAdrGenerate(adrGenerateCmd, []string{"Switch", "to", "Postgres"})
 	require.NoError(t, err)
@@ -116,6 +116,6 @@ func TestAdrGenerate(t *testing.T) {
 	expectedFile := filepath.Join(tempDir, "docs", "adr", "0001-switch-to-postgres.md")
 	assert.FileExists(t, expectedFile)
 
-	content, _ := os.ReadFile(expectedFile)
-	assert.Contains(t, string(content), "AI generated context")
+    content, _ := os.ReadFile(expectedFile)
+    assert.Contains(t, string(content), "AI generated context")
 }

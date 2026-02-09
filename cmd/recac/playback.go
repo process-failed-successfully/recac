@@ -13,9 +13,9 @@ import (
 var playbackCmd = &cobra.Command{
 	Use:   "playback [session-name]",
 	Short: "Interactive session log playback",
-	Long: `Replay and analyze session logs interactively using a TUI.
+	Long:  `Replay and analyze session logs interactively using a TUI.
 Allows filtering, searching, and detailed inspection of agent actions and tool outputs.`,
-	Args: cobra.ExactArgs(1),
+	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		sessionName := args[0]
 

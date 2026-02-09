@@ -91,7 +91,7 @@ func TestSQLCommand_Execution(t *testing.T) {
 }
 
 func TestSQLCommand_Output(t *testing.T) {
-	// 1. Setup DB
+    // 1. Setup DB
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "test.db")
 	db, err := sql.Open("sqlite", dbPath)
@@ -100,26 +100,26 @@ func TestSQLCommand_Output(t *testing.T) {
 	require.NoError(t, err)
 	db.Close()
 
-	outPath := filepath.Join(tmpDir, "out.sql")
+    outPath := filepath.Join(tmpDir, "out.sql")
 
 	// 2. Mock Agent
 	mockAgent := &MockSQLAgent{
 		Response: "SELECT * FROM t;",
 	}
 
-	oldFactory := agentClientFactory
+    oldFactory := agentClientFactory
 	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
 		return mockAgent, nil
 	}
 	defer func() { agentClientFactory = oldFactory }()
 
-	// 3. Run
-	output, err := executeCommand(rootCmd, "sql", "q", "--db", dbPath, "--output", outPath)
-	require.NoError(t, err)
+    // 3. Run
+    output, err := executeCommand(rootCmd, "sql", "q", "--db", dbPath, "--output", outPath)
+    require.NoError(t, err)
 
-	assert.Contains(t, output, "SQL saved to")
+    assert.Contains(t, output, "SQL saved to")
 
-	content, err := os.ReadFile(outPath)
-	require.NoError(t, err)
-	assert.Equal(t, "SELECT * FROM t;", string(content))
+    content, err := os.ReadFile(outPath)
+    require.NoError(t, err)
+    assert.Equal(t, "SELECT * FROM t;", string(content))
 }
