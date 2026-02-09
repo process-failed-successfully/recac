@@ -58,7 +58,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic 2: Detect Coding Agent
 	if strings.Contains(prompt, "CODING AGENT") {
-		return `
+		return "Here is the implementation:\n```bash\n" + `
 echo "Mock Coding Agent executing..."
 # Simulate work
 echo "package main" > main.go
@@ -66,26 +66,26 @@ echo "func main() {}" >> main.go
 # Commit changes
 git add .
 git commit -m "feat: implement core logic" || echo "Nothing to commit"
-`, nil
+` + "\n```", nil
 	}
 
 	// Heuristic 3: Detect QA Agent
 	if strings.Contains(prompt, "QA AGENT") {
-		return `
+		return "Running QA:\n```bash\n" + `
 echo "Running QA checks..."
 # Simulate successful QA
 echo "QA Passed"
 agent-bridge signal QA_PASSED true
-`, nil
+` + "\n```", nil
 	}
 
 	// Heuristic 4: Detect Project Manager (Sign-off)
 	if strings.Contains(prompt, "PROJECT MANAGER") {
-		return `
+		return "Signing off:\n```bash\n" + `
 echo "Reviewing project..."
 # Simulate sign-off
 agent-bridge signal PROJECT_SIGNED_OFF true
-`, nil
+` + "\n```", nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
