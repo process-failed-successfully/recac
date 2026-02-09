@@ -6,31 +6,46 @@ import (
 	"testing"
 )
 
-func TestMockAgent(t *testing.T) {
+func TestMockAgent_Fallback(t *testing.T) {
 	agent := NewMockAgent()
 
-	prompt := "This is a test prompt that is long enough to be truncated"
+	prompt := "Random prompt"
 	response, err := agent.Send(context.Background(), prompt)
 
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
 	}
 
-	if !strings.Contains(response, "Mock agent response") {
-		t.Errorf("Response missing prefix, got: %s", response)
-	}
-
-	if !strings.Contains(response, "I received your prompt") {
-		t.Errorf("Response missing body, got: %s", response)
+	expected := "I am a heuristic mock agent"
+	if !strings.Contains(response, expected) {
+		t.Errorf("Expected response to contain '%s', got: %s", expected, response)
 	}
 }
 
-func TestTruncateString(t *testing.T) {
-	s := "hello world"
-	if truncateString(s, 5) != "hello" {
-		t.Errorf("Expected 'hello', got '%s'", truncateString(s, 5))
+func TestMockAgent_TPM(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "ROLE - TECHNICAL PROGRAM MANAGER: Generate tickets"
+
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
 	}
-	if truncateString(s, 20) != "hello world" {
-		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
+
+	if !strings.Contains(resp, "ID:[PRIMES]") {
+		t.Error("Expected TPM response to contain ticket ID")
+	}
+}
+
+func TestMockAgent_Coding(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "ROLE - CODING AGENT: Please implement req-implement-prime-number-script"
+
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(resp, "primes.py") {
+		t.Error("Expected Coding response to contain primes.py creation")
 	}
 }
