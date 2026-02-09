@@ -100,8 +100,8 @@ echo "Initializer Agent Setup Complete"
 		return `It seems the work is done and committed.
 
 ` + "```bash" + `
-agent-bridge signal QA_PASSED true --privileged
-agent-bridge signal PROJECT_SIGNED_OFF true --privileged
+agent-bridge signal --privileged QA_PASSED true
+agent-bridge signal --privileged PROJECT_SIGNED_OFF true
 ` + "```" + `
 `, nil
 	}
