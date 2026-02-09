@@ -30,6 +30,9 @@ func TestMockAgent_Primes(t *testing.T) {
 	if !strings.Contains(resp, "agent-bridge feature set") {
 		t.Error("Response should mark features as passed")
 	}
+	if !strings.Contains(resp, "--status done --passes true") {
+		t.Error("Response should use correct flags for feature status update")
+	}
 }
 
 func TestMockAgent_Primes_EnvInjection(t *testing.T) {
