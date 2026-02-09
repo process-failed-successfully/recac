@@ -217,13 +217,13 @@ func TestSetupCmd_AppendEnv(t *testing.T) {
 	defer os.Remove(".env")
 
 	mockAnswers = map[string]interface{}{
-		"Choose your AI Provider:":                  "openai",
-		"Enter the Model name:":                     "gpt-4",
-		"Enter your API Key (leave empty to skip):": "new-key",
-		"Do you want to save the API Key to a local .env file?":           true,
+		"Choose your AI Provider:":                              "openai",
+		"Enter the Model name:":                                 "gpt-4",
+		"Enter your API Key (leave empty to skip):":             "new-key",
+		"Do you want to save the API Key to a local .env file?": true,
 		"Enter your Jira URL (e.g., https://your-domain.atlassian.net):": "",
-		"Enable Slack notifications?":                                     false,
-		"Run system check (recac doctor) now?":                            false,
+		"Enable Slack notifications?":          false,
+		"Run system check (recac doctor) now?": false,
 	}
 	askOneFunc = mockAskOne
 
@@ -241,18 +241,19 @@ func TestSetupCmd_AppendEnv(t *testing.T) {
 	assert.Contains(t, str, "OPENAI_API_KEY=new-key")
 }
 
-func TestSetupCmd_DuplicateEnv(t *testing.T) {
+func TestSetupCmd_Bug_SubstringMatch(t *testing.T) {
 	originalAskOne := askOneFunc
 	defer func() { askOneFunc = originalAskOne }()
 
-	// Create existing .env with same key
-	os.WriteFile(".env", []byte("OPENAI_API_KEY=old-key\n"), 0600)
+	// Create existing .env with a key that is a superset of the target key
+	// This simulates a scenario where strings.Contains would match, but it shouldn't be considered a duplicate
+	os.WriteFile(".env", []byte("EXPORT_OPENAI_API_KEY=something\n"), 0600)
 	defer os.Remove(".env")
 
 	mockAnswers = map[string]interface{}{
 		"Choose your AI Provider:":                  "openai",
 		"Enter the Model name:":                     "gpt-4",
-		"Enter your API Key (leave empty to skip):": "new-key",
+		"Enter your API Key (leave empty to skip):": "new-correct-key",
 		"Do you want to save the API Key to a local .env file?":           true,
 		"Enter your Jira URL (e.g., https://your-domain.atlassian.net):": "",
 		"Enable Slack notifications?":                                     false,
@@ -261,8 +262,8 @@ func TestSetupCmd_DuplicateEnv(t *testing.T) {
 	askOneFunc = mockAskOne
 
 	viper.Reset()
-	viper.SetConfigFile("test_config_dup.yaml")
-	defer os.Remove("test_config_dup.yaml")
+	viper.SetConfigFile("test_config_bug_regression.yaml")
+	defer os.Remove("test_config_bug_regression.yaml")
 
 	cmd := &cobra.Command{Use: "test"}
 	err := runSetup(cmd, []string{})
@@ -270,6 +271,10 @@ func TestSetupCmd_DuplicateEnv(t *testing.T) {
 
 	content, _ := os.ReadFile(".env")
 	str := string(content)
-	assert.Contains(t, str, "OPENAI_API_KEY=old-key")
-	assert.NotContains(t, str, "OPENAI_API_KEY=new-key")
+
+	// It should preserve the existing key
+	assert.Contains(t, str, "EXPORT_OPENAI_API_KEY=something")
+
+	// It MUST contain the new key because OPENAI_API_KEY is not the same as EXPORT_OPENAI_API_KEY
+	assert.Contains(t, str, "OPENAI_API_KEY=new-correct-key")
 }

@@ -2,9 +2,7 @@ package agent
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -32,34 +30,6 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
-
-	// TPM (Technical Program Manager) - Ticket Generation
-	if strings.Contains(prompt, "Technical Program Manager") {
-		tickets := []map[string]interface{}{
-			{
-				"title":       "Implement Primes",
-				"description": "Create a python script that prints prime numbers up to 100",
-				"type":        "Task",
-			},
-		}
-		data, _ := json.Marshal(tickets)
-		return string(data), nil
-	}
-
-	// Initializer Agent - Feature List
-	if strings.Contains(prompt, "CREATE FEATURE_LIST.JSON") {
-		features := map[string]interface{}{
-			"features": []string{"prime-numbers"},
-		}
-		data, _ := json.Marshal(features)
-		return fmt.Sprintf("```json\n%s\n```", string(data)), nil
-	}
-
-	// Coding Agent - Implementation
-	if strings.Contains(prompt, "prime numbers") || strings.Contains(prompt, "Implement Primes") {
-		return "Here is the python script:\n```python\nprint('2, 3, 5, 7, ...')\n```", nil
-	}
-
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",

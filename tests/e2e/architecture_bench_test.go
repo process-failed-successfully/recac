@@ -13,10 +13,12 @@ import (
 	"testing"
 	"time"
 
+	"recac/internal/agent"
 	"recac/internal/agent/prompts"
 	"recac/internal/architecture"
 	"recac/internal/cmdutils"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
