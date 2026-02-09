@@ -3,7 +3,6 @@ package agent
 import (
 	"context"
 	"fmt"
-	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -31,63 +30,6 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
-
-	// Heuristic 1: Detect TPM Ticket Generation
-	if strings.Contains(prompt, "Technical Program Manager") {
-		return `[
-  {
-    "title": "Setup repository structure",
-    "description": "Initialize the project repository with standard layout (cmd, internal, pkg).",
-    "type": "Task",
-    "acceptance_criteria": [
-      "Repository created",
-      "Standard folders exist"
-    ]
-  },
-  {
-    "title": "Implement core logic",
-    "description": "Develop the main business logic for the application.",
-    "type": "Story",
-    "acceptance_criteria": [
-      "Core functions implemented",
-      "Unit tests passing"
-    ]
-  }
-]`, nil
-	}
-
-	// Heuristic 2: Detect Coding Agent
-	if strings.Contains(prompt, "CODING AGENT") {
-		return `
-echo "Mock Coding Agent executing..."
-# Simulate work
-echo "package main" > main.go
-echo "func main() {}" >> main.go
-# Commit changes
-git add .
-git commit -m "feat: implement core logic" || echo "Nothing to commit"
-`, nil
-	}
-
-	// Heuristic 3: Detect QA Agent
-	if strings.Contains(prompt, "QA AGENT") {
-		return `
-echo "Running QA checks..."
-# Simulate successful QA
-echo "QA Passed"
-agent-bridge signal QA_PASSED true
-`, nil
-	}
-
-	// Heuristic 4: Detect Project Manager (Sign-off)
-	if strings.Contains(prompt, "PROJECT MANAGER") {
-		return `
-echo "Reviewing project..."
-# Simulate sign-off
-agent-bridge signal PROJECT_SIGNED_OFF true
-`, nil
-	}
-
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",

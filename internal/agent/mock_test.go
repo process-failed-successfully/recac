@@ -2,28 +2,35 @@ package agent
 
 import (
 	"context"
-	"encoding/json"
 	"strings"
 	"testing"
 )
 
-func TestMockAgent_TPM_Response(t *testing.T) {
+func TestMockAgent(t *testing.T) {
 	agent := NewMockAgent()
-	prompt := "You are an expert Technical Program Manager (TPM)..."
 
-	resp, err := agent.Send(context.Background(), prompt)
+	prompt := "This is a test prompt that is long enough to be truncated"
+	response, err := agent.Send(context.Background(), prompt)
+
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("Send failed: %v", err)
 	}
 
-	// It should return a valid JSON
-	var result interface{}
-	if err := json.Unmarshal([]byte(resp), &result); err != nil {
-		t.Errorf("expected JSON response, but got: %s", resp)
+	if !strings.Contains(response, "Mock agent response") {
+		t.Errorf("Response missing prefix, got: %s", response)
 	}
 
-	// Verify it contains expected fields (optional but good)
-	if !strings.Contains(resp, `"title"`) {
-		t.Errorf("response should contain ticket fields, got: %s", resp)
+	if !strings.Contains(response, "I received your prompt") {
+		t.Errorf("Response missing body, got: %s", response)
+	}
+}
+
+func TestTruncateString(t *testing.T) {
+	s := "hello world"
+	if truncateString(s, 5) != "hello" {
+		t.Errorf("Expected 'hello', got '%s'", truncateString(s, 5))
+	}
+	if truncateString(s, 20) != "hello world" {
+		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
 	}
 }

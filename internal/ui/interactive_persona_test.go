@@ -6,8 +6,6 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
-
-	"recac/internal/agent"
 )
 
 // CapturingMockAgent for testing prompt injection
@@ -79,14 +77,6 @@ func TestInteractiveModel_Persona_Command(t *testing.T) {
 
 func TestInteractiveModel_Persona_Selection(t *testing.T) {
 	m := NewInteractiveModel(nil, "", "")
-
-	// Inject test persona to ensure independence from defaults
-	m.personaManager.AddPersona("junior", agent.Persona{
-		Name:         "Junior Developer",
-		Description:  "Needs simple explanations",
-		SystemPrompt: "You are a Junior Developer...",
-	})
-
 	m.setMode(ModePersonaSelect)
 
 	// Find "junior" persona index
@@ -123,23 +113,16 @@ func TestInteractiveModel_Persona_PromptInjection(t *testing.T) {
 	mockAgent := &CapturingMockAgent{Response: "OK"}
 	m.activeAgent = mockAgent
 
-	// Inject teacher persona
-	teacherPrompt := "You are an expert Computer Science Teacher..."
-	m.personaManager.AddPersona("teacher", agent.Persona{
-		Name:         "The Teacher",
-		Description:  "Uses Socratic method",
-		SystemPrompt: teacherPrompt,
-	})
-
 	// Set persona to 'teacher' which has a specific system prompt
+	// "You are an expert Computer Science Teacher..."
 	m.currentPersona = "teacher"
 
 	userPrompt := "Explain recursion"
 	cmd := m.generateResponse(userPrompt)
 
 	// Run the command to trigger the goroutine
-	if cmd == nil {
-		t.Fatal("Expected cmd to be non-nil")
+	if cmd != nil {
+		cmd()
 	}
 
 	// We need to wait for the goroutine?
@@ -168,7 +151,7 @@ func TestInteractiveModel_Persona_PromptInjection(t *testing.T) {
 	<-streamMsg.ChunkChan
 
 	// Now LastPrompt should be set
-	if !strings.Contains(mockAgent.LastPrompt, teacherPrompt) {
+	if !strings.Contains(mockAgent.LastPrompt, "You are an expert Computer Science Teacher") {
 		t.Errorf("System prompt injection failed. Prompt was: %s", mockAgent.LastPrompt)
 	}
 
