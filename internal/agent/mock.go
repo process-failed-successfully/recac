@@ -38,9 +38,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// CRITICAL: We must EXCLUDE "Technical Program Manager" to prevent false positives
 	// when the TPM prompt contains the spec (which includes "[PRIMES]" and "primes.py").
 	// We do NOT exclude "Application Specification" because the Coding Agent prompt SHOULD contain the spec.
-	if (strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "Script prints primes")) &&
+	if (strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "Script prints primes") || strings.Contains(prompt, "req-script-prints-primes-up-to-100")) &&
 		(strings.Contains(prompt, "CODING AGENT") || strings.Contains(prompt, "Developer") || strings.Contains(prompt, "primes.py")) &&
 		!strings.Contains(prompt, "Technical Program Manager") {
+
+		// Note: The CI logs indicate that the feature ID is req-script-prints-primes-up-to-100.
+		// We must signal completion for ALL required features to pass the gate.
 		return `I will implement the primes calculation script as requested.
 
 ` + "```bash" + `
