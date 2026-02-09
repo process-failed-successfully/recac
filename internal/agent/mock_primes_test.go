@@ -8,7 +8,7 @@ import (
 
 func TestMockAgent_Primes(t *testing.T) {
 	agent := NewMockAgent()
-	// Must include "CODING AGENT" to satisfy stricter heuristic
+	// Test case 1: Standard CODING AGENT prompt
 	prompt := "## YOUR ROLE - CODING AGENT\nPlease implement [PRIMES] calculation"
 
 	resp, err := agent.Send(context.Background(), prompt)
@@ -30,6 +30,17 @@ func TestMockAgent_Primes(t *testing.T) {
 	}
 	if !strings.Contains(resp, "--status Done --passes true") {
 		t.Error("Response should use correct agent-bridge syntax")
+	}
+
+	// Test case 2: "Agent" role from CI failure scenario
+	// Use the feature ID which is the specific trigger we want to support
+	prompt2 := "## YOUR ROLE - Agent\nTask: Implement req-script-prints-primes-up-to-100"
+	resp2, err2 := agent.Send(context.Background(), prompt2)
+	if err2 != nil {
+		t.Fatalf("Send 2 failed: %v", err2)
+	}
+	if !strings.Contains(resp2, "cat << 'EOF' > primes.py") {
+		t.Error("Response 2 (Agent role) should contain primes.py creation script")
 	}
 }
 
