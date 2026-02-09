@@ -99,3 +99,33 @@ func TestPersonaManager_OverrideDefault(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, "Overridden Default", p.Name)
 }
+
+func TestPersonaManager_Load_NoHome(t *testing.T) {
+	// Temporarily unset HOME and RECAC_PERSONAS_FILE
+	origHome := os.Getenv("HOME")
+	origFile := os.Getenv("RECAC_PERSONAS_FILE")
+
+	os.Unsetenv("HOME")
+	os.Unsetenv("RECAC_PERSONAS_FILE")
+	defer func() {
+		if origHome != "" {
+			os.Setenv("HOME", origHome)
+		}
+		if origFile != "" {
+			os.Setenv("RECAC_PERSONAS_FILE", origFile)
+		}
+	}()
+
+	pm := NewPersonaManager()
+	// Should not error, just fallback to defaults
+	err := pm.LoadPersonas()
+	assert.NoError(t, err)
+
+	// Verify defaults still work
+	_, ok := pm.GetPersona("default")
+	assert.True(t, ok)
+
+	// Save should error because we have nowhere to save
+	err = pm.SavePersonas()
+	assert.Error(t, err)
+}
