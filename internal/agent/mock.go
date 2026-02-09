@@ -32,6 +32,30 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	// 0. TPM Agent Heuristic (Ticket Generation)
+	// Prioritize this to ensure we generate JSON tickets even if the prompt contains scenario keywords like "primes.py"
+	if strings.Contains(prompt, "Technical Program Manager") {
+		return `Here is the ticket decomposition for the requested feature.
+
+` + "```json" + `
+[
+  {
+    "title": "ID:[PRIMES] Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.",
+    "type": "Task",
+    "acceptance_criteria": [
+      "Implement prime calculation logic in primes.py",
+      "Output results to primes.json",
+      "Validate that the output file contains a 'primes' list",
+      "Verify that exactly 1229 primes are calculated",
+      "Commit primes.json to the repository"
+    ],
+    "children": []
+  }
+]
+` + "```", nil
+	}
+
 	// 1. Initializer Heuristic (Project Setup)
 	// If the prompt asks for a feature list, generate one.
 	if strings.Contains(strings.ToLower(prompt), "feature list") && strings.Contains(prompt, "JSON") {

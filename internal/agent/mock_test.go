@@ -16,6 +16,11 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		expectedOutput string // Substring expected
 	}{
 		{
+			name:           "TPM Agent (Prime Python)",
+			prompt:         "You are an expert Technical Program Manager. Please decompose the spec. Spec: [PRIMES] primes.py",
+			expectedOutput: "ID:[PRIMES] Prime Number Script",
+		},
+		{
 			name:           "Prime Python Scenario",
 			prompt:         "Please implement the primes.py script as requested in [PRIMES] ticket.",
 			expectedOutput: "cat << 'EOF' > primes.py",
