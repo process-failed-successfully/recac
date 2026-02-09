@@ -49,7 +49,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Trigger: "INITIALIZER AGENT"
 	// Must clone the repo
 	if strings.Contains(prompt, "INITIALIZER AGENT") {
-		return `cat << 'EOF' > feature_list.json
+		return "```bash\n" + `cat << 'EOF' > feature_list.json
 [
   {"id": "req-primes-py-exists", "description": "Implement primes.py"},
   {"id": "req-implement-tests", "description": "Implement tests"},
@@ -59,7 +59,7 @@ EOF
 agent-bridge import feature_list.json
 rm -rf .git .gitignore *
 git clone https://github.com/process-failed-successfully/recac-jira-e2e .
-`, nil
+` + "\n```", nil
 	}
 
 	// Coding Agent Heuristic
@@ -85,7 +85,7 @@ if __name__ == "__main__":
 EOF
 git add primes.py
 git commit -m "feat: add primes.py" || true
-agent-bridge feature set req-primes-py-exists completed
+agent-bridge feature set req-primes-py-exists completed || echo "Feature req-primes-py-exists not found"
 ` + "\n```", nil
 		}
 
@@ -104,7 +104,7 @@ if __name__ == '__main__':
 EOF
 git add test_primes.py
 git commit -m "test: add test_primes.py" || true
-agent-bridge feature set req-implement-tests completed
+agent-bridge feature set req-implement-tests completed || echo "Feature req-implement-tests not found"
 ` + "\n```", nil
         }
 
@@ -130,7 +130,7 @@ jobs:
 EOF
 git add .github/workflows/ci.yml
 git commit -m "ci: add workflow" || true
-agent-bridge feature set req-ci-workflow completed
+agent-bridge feature set req-ci-workflow completed || echo "Feature req-ci-workflow not found"
 ` + "\n```", nil
         }
 
@@ -151,12 +151,12 @@ agent-bridge feature set req-ci-workflow completed || true
 
 	// QA Agent Heuristic
 	if strings.Contains(prompt, "QA AGENT") {
-		return `agent-bridge signal QA_PASSED true`, nil
+		return "```bash\n" + `agent-bridge signal QA_PASSED true` + "\n```", nil
 	}
 
 	// Project Manager Heuristic
 	if strings.Contains(prompt, "PROJECT MANAGER") {
-		return `agent-bridge signal PROJECT_SIGNED_OFF true --privileged`, nil
+		return "```bash\n" + `agent-bridge signal PROJECT_SIGNED_OFF true --privileged` + "\n```", nil
 	}
 
 	// Default fallback (original behavior)
