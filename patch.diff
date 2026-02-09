@@ -1,0 +1,390 @@
+diff --git a/cmd/recac/setup.go b/cmd/recac/setup.go
+index f70c445..97607bb 100644
+--- a/cmd/recac/setup.go
++++ b/cmd/recac/setup.go
+@@ -2,7 +2,9 @@ package main
+
+ import (
+	"fmt"
++	"net/url"
+	"os"
++	"path/filepath"
+	"strings"
+
+	"github.com/AlecAivazis/survey/v2"
+@@ -33,7 +35,7 @@ var runDoctorFunc = func(cmd *cobra.Command, args []string) {
+ var setupCmd = &cobra.Command{
+	Use:   "setup",
+	Short: "Interactively set up RECAC configuration",
+-	Long:  `Runs an interactive wizard to configure RECAC settings, including provider, model, and API keys.`,
++	Long:  `Runs an interactive wizard to configure RECAC settings, including provider, model, API keys, and Jira integration.`,
+	RunE:  runSetup,
+ }
+
+@@ -46,13 +48,18 @@ func runSetup(cmd *cobra.Command, args []string) error {
+	fmt.Println("-----------------------")
+
+	answers := struct {
+-		Provider     string
+-		Model        string
+-		ApiKey       string
+-		SaveToEnv    bool
+-		EnableSlack  bool
+-		SlackChannel string
+-		SlackToken   string
++		Provider      string
++		Model         string
++		ApiKey        string
++		SaveToEnv     bool
++		JiraUrl       string
++		JiraEmail     string
++		JiraToken     string
++		SaveJiraToEnv bool
++		JiraLabel     string
++		EnableSlack   bool
++		SlackChannel  string
++		SlackToken    string
+	}{}
+
+	// 1. Select Provider
+@@ -102,7 +109,59 @@ func runSetup(cmd *cobra.Command, args []string) error {
+		}
+	}
+
+-	// 4. Notifications
++	// 4. Jira Configuration
++	err = askOneFunc(&survey.Input{
++		Message: "Enter your Jira URL (e.g., https://your-domain.atlassian.net):",
++	}, &answers.JiraUrl, survey.WithValidator(func(ans interface{}) error {
++		str, ok := ans.(string)
++		if !ok || str == "" {
++			return nil // Optional
++		}
++		u, err := url.ParseRequestURI(str)
++		if err != nil || u.Scheme == "" || u.Host == "" {
++			return fmt.Errorf("invalid URL")
++		}
++		return nil
++	}))
++	if err != nil {
++		return err
++	}
++
++	if answers.JiraUrl != "" {
++		err = askOneFunc(&survey.Input{
++			Message: "Enter your Jira Email/Username:",
++		}, &answers.JiraEmail)
++		if err != nil {
++			return err
++		}
++
++		err = askOneFunc(&survey.Password{
++			Message: "Enter your Jira API Token:",
++		}, &answers.JiraToken)
++		if err != nil {
++			return err
++		}
++
++		if answers.JiraToken != "" {
++			err = askOneFunc(&survey.Confirm{
++				Message: "Do you want to save the Jira Token to a local .env file?",
++				Default: true,
++			}, &answers.SaveJiraToEnv)
++			if err != nil {
++				return err
++			}
++		}
++
++		err = askOneFunc(&survey.Input{
++			Message: "Enter the Jira Label for agents to watch:",
++			Default: "recac-agent",
++		}, &answers.JiraLabel)
++		if err != nil {
++			return err
++		}
++	}
++
++	// 5. Notifications
+	err = askOneFunc(&survey.Confirm{
+		Message: "Enable Slack notifications?",
+		Default: false,
+@@ -132,15 +191,33 @@ func runSetup(cmd *cobra.Command, args []string) error {
+	// Update Viper settings
+	viper.Set("provider", answers.Provider)
+	viper.Set("model", answers.Model)
++
++	if answers.JiraUrl != "" {
++		viper.Set("jira.url", answers.JiraUrl)
++		viper.Set("jira.username", answers.JiraEmail)
++		viper.Set("orchestrator.jira_label", answers.JiraLabel)
++		// If not saving to env, save to config (unencrypted) if desired?
++		// For simplicity, if not env, we save to config to ensure functionality.
++		if !answers.SaveJiraToEnv && answers.JiraToken != "" {
++			viper.Set("jira.api_token", answers.JiraToken)
++		}
++	}
++
+	if answers.EnableSlack {
+		viper.Set("notifications.slack.enabled", true)
+		viper.Set("notifications.slack.channel", answers.SlackChannel)
+	}
+
+-	// Write to config.yaml
++	// Determine Config File Path
+	configFile := viper.ConfigFileUsed()
+	if configFile == "" {
+-		configFile = "config.yaml"
++		home, err := os.UserHomeDir()
++		if err != nil {
++			// Fallback to current directory if home fails
++			configFile = "config.yaml"
++		} else {
++			configFile = filepath.Join(home, ".recac.yaml")
++		}
+	}
+
+	if err := viper.WriteConfigAs(configFile); err != nil {
+@@ -150,6 +227,13 @@ func runSetup(cmd *cobra.Command, args []string) error {
+	}
+
+	// Write to .env
++	var linesToAppend []string
++
++	// Helper to append env var
++	appendEnv := func(key, value string) {
++		linesToAppend = append(linesToAppend, fmt.Sprintf("%s=%s", key, value))
++	}
++
+	if answers.SaveToEnv && answers.ApiKey != "" {
+		envKey := ""
+		switch answers.Provider {
+@@ -162,45 +246,43 @@ func runSetup(cmd *cobra.Command, args []string) error {
+		default:
+			envKey = fmt.Sprintf("%s_API_KEY", strings.ToUpper(answers.Provider))
+		}
++		appendEnv(envKey, answers.ApiKey)
++	}
+
+-		newEnvLine := fmt.Sprintf("%s=%s", envKey, answers.ApiKey)
+-		slackEnvLine := ""
+-		if answers.EnableSlack && answers.SlackToken != "" {
+-			slackEnvLine = fmt.Sprintf("SLACK_BOT_USER_TOKEN=%s", answers.SlackToken)
+-		}
++	if answers.SaveJiraToEnv && answers.JiraToken != "" {
++		appendEnv("JIRA_API_TOKEN", answers.JiraToken)
++	}
++
++	if answers.EnableSlack && answers.SlackToken != "" {
++		appendEnv("SLACK_BOT_USER_TOKEN", answers.SlackToken)
++	}
+
++	if len(linesToAppend) > 0 {
+		// Read existing .env to check for duplicates
+		existingEnv, _ := os.ReadFile(".env")
+		existingEnvStr := string(existingEnv)
+
+-		var linesToAppend []string
+-
+-		if !strings.Contains(existingEnvStr, fmt.Sprintf("%s=", envKey)) {
+-			linesToAppend = append(linesToAppend, newEnvLine)
++		f, err := os.OpenFile(".env", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
++		if err != nil {
++			fmt.Printf("Error opening .env: %v\n", err)
+		} else {
+-			fmt.Printf("Note: %s already exists in .env, skipping.\n", envKey)
+-		}
+-
+-		if slackEnvLine != "" {
+-			if !strings.Contains(existingEnvStr, "SLACK_BOT_USER_TOKEN=") {
+-				linesToAppend = append(linesToAppend, slackEnvLine)
+-			} else {
+-				fmt.Println("Note: SLACK_BOT_USER_TOKEN already exists in .env, skipping.")
++			defer f.Close()
++			contentToAppend := ""
++			if len(existingEnv) > 0 && !strings.HasSuffix(existingEnvStr, "\n") {
++				contentToAppend = "\n"
+			}
+-		}
+
+-		if len(linesToAppend) > 0 {
+-			f, err := os.OpenFile(".env", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+-			if err != nil {
+-				fmt.Printf("Error opening .env: %v\n", err)
+-			} else {
+-				defer f.Close()
+-				contentToAppend := ""
+-				if len(existingEnv) > 0 && !strings.HasSuffix(existingEnvStr, "\n") {
+-					contentToAppend = "\n"
++			for _, line := range linesToAppend {
++				parts := strings.SplitN(line, "=", 2)
++				key := parts[0]
++				if !strings.Contains(existingEnvStr, key+"=") {
++					contentToAppend += line + "\n"
++				} else {
++					fmt.Printf("Note: %s already exists in .env, skipping.\n", key)
+				}
+-				contentToAppend += strings.Join(linesToAppend, "\n") + "\n"
++			}
+
++			if contentToAppend != "" {
+				if _, err := f.WriteString(contentToAppend); err != nil {
+					fmt.Printf("Error writing to .env: %v\n", err)
+				} else {
+diff --git a/cmd/recac/setup_test.go b/cmd/recac/setup_test.go
+index 62affdf..13a7588 100644
+--- a/cmd/recac/setup_test.go
++++ b/cmd/recac/setup_test.go
+@@ -81,10 +81,15 @@ func TestSetupCmd(t *testing.T) {
+		"Enter the Model name:":                                 "gpt-4o",
+		"Enter your API Key (leave empty to skip):":             "sk-test-123",
+		"Do you want to save the API Key to a local .env file?": true,
+-		"Enable Slack notifications?":                           true,
+-		"Slack Channel:":                                        "#alerts",
+-		"Slack Bot Token:":                                      "xoxb-test",
+-		"Run system check (recac doctor) now?":                  true, // Changed to true to test doctor execution
++		"Enter your Jira URL (e.g., https://your-domain.atlassian.net):": "https://example.atlassian.net",
++		"Enter your Jira Email/Username:":                                "user@example.com",
++		"Enter your Jira API Token:":                                     "jira-token-123",
++		"Do you want to save the Jira Token to a local .env file?":       true,
++		"Enter the Jira Label for agents to watch:":                      "recac-agent",
++		"Enable Slack notifications?":                                    true,
++		"Slack Channel:":                                                 "#alerts",
++		"Slack Bot Token:":                                               "xoxb-test",
++		"Run system check (recac doctor) now?":                           true,
+	}
+
+	// Mock the AskOne function
+@@ -108,6 +113,9 @@ func TestSetupCmd(t *testing.T) {
+	// Verify Viper settings (which would be written to config.yaml)
+	assert.Equal(t, "openai", viper.GetString("provider"))
+	assert.Equal(t, "gpt-4o", viper.GetString("model"))
++	assert.Equal(t, "https://example.atlassian.net", viper.GetString("jira.url"))
++	assert.Equal(t, "user@example.com", viper.GetString("jira.username"))
++	assert.Equal(t, "recac-agent", viper.GetString("orchestrator.jira_label"))
+	assert.True(t, viper.GetBool("notifications.slack.enabled"))
+	assert.Equal(t, "#alerts", viper.GetString("notifications.slack.channel"))
+
+@@ -120,6 +128,7 @@ func TestSetupCmd(t *testing.T) {
+	assert.NoError(t, err, ".env file should exist")
+	content := string(envContent)
+	assert.Contains(t, content, "OPENAI_API_KEY=sk-test-123")
++	assert.Contains(t, content, "JIRA_API_TOKEN=jira-token-123")
+	assert.Contains(t, content, "SLACK_BOT_USER_TOKEN=xoxb-test")
+
+	// Cleanup .env created by test
+@@ -147,9 +156,10 @@ func TestSetupCmd_Skips(t *testing.T) {
+	mockAnswers = map[string]interface{}{
+		"Choose your AI Provider:":                  "openai",
+		"Enter the Model name:":                     "gpt-3.5",
+-		"Enter your API Key (leave empty to skip):": "",    // skip
+-		"Enable Slack notifications?":               false, // skip
+-		"Run system check (recac doctor) now?":      false, // skip
++		"Enter your API Key (leave empty to skip):": "", // skip
++		"Enter your Jira URL (e.g., https://your-domain.atlassian.net):": "", // skip
++		"Enable Slack notifications?":          false, // skip
++		"Run system check (recac doctor) now?": false, // skip
+	}
+	askOneFunc = mockAskOne
+
+@@ -162,47 +172,48 @@ func TestSetupCmd_Skips(t *testing.T) {
+	assert.NoError(t, err)
+
+	assert.Equal(t, "openai", viper.GetString("provider"))
++	assert.Empty(t, viper.GetString("jira.url"))
+	assert.False(t, viper.GetBool("notifications.slack.enabled"))
+ }
+
+-func TestSetupCmd_AppendEnv(t *testing.T) {
++func TestSetupCmd_JiraTokenInConfig(t *testing.T) {
+	originalAskOne := askOneFunc
+	defer func() { askOneFunc = originalAskOne }()
+
+-	// Create existing .env
+-	os.WriteFile(".env", []byte("EXISTING_VAR=foo\n"), 0600)
+-	defer os.Remove(".env")
+-
+	mockAnswers = map[string]interface{}{
+-		"Choose your AI Provider:":                              "openai",
+-		"Enter the Model name:":                                 "gpt-4",
+-		"Enter your API Key (leave empty to skip):":             "new-key",
+-		"Do you want to save the API Key to a local .env file?": true,
+-		"Enable Slack notifications?":                           false,
+-		"Run system check (recac doctor) now?":                  false,
++		"Choose your AI Provider:":                  "gemini",
++		"Enter the Model name:":                     "gemini-pro",
++		"Enter your API Key (leave empty to skip):": "",
++		"Enter your Jira URL (e.g., https://your-domain.atlassian.net):": "https://jira.example.com",
++		"Enter your Jira Email/Username:":                                "dev@example.com",
++		"Enter your Jira API Token:":                                     "secret-token",
++		"Do you want to save the Jira Token to a local .env file?":       false, // Save to config instead
++		"Enter the Jira Label for agents to watch:":                      "recac-dev",
++		"Enable Slack notifications?":                                    false,
++		"Run system check (recac doctor) now?":                           false,
+	}
+	askOneFunc = mockAskOne
+
+	viper.Reset()
+-	viper.SetConfigFile("test_config_append.yaml")
+-	defer os.Remove("test_config_append.yaml")
++	viper.SetConfigFile("test_config_jira_cfg.yaml")
++	defer os.Remove("test_config_jira_cfg.yaml")
+
+	cmd := &cobra.Command{Use: "test"}
+	err := runSetup(cmd, []string{})
+	assert.NoError(t, err)
+
+-	content, _ := os.ReadFile(".env")
+-	str := string(content)
+-	assert.Contains(t, str, "EXISTING_VAR=foo")
+-	assert.Contains(t, str, "OPENAI_API_KEY=new-key")
++	assert.Equal(t, "https://jira.example.com", viper.GetString("jira.url"))
++	assert.Equal(t, "dev@example.com", viper.GetString("jira.username"))
++	assert.Equal(t, "recac-dev", viper.GetString("orchestrator.jira_label"))
++	assert.Equal(t, "secret-token", viper.GetString("jira.api_token")) // Should be in config
+ }
+
+-func TestSetupCmd_DuplicateEnv(t *testing.T) {
++func TestSetupCmd_AppendEnv(t *testing.T) {
+	originalAskOne := askOneFunc
+	defer func() { askOneFunc = originalAskOne }()
+
+-	// Create existing .env with same key
+-	os.WriteFile(".env", []byte("OPENAI_API_KEY=old-key\n"), 0600)
++	// Create existing .env
++	os.WriteFile(".env", []byte("EXISTING_VAR=foo\n"), 0600)
+	defer os.Remove(".env")
+
+	mockAnswers = map[string]interface{}{
+@@ -210,14 +221,15 @@ func TestSetupCmd_DuplicateEnv(t *testing.T) {
+		"Enter the Model name:":                                 "gpt-4",
+		"Enter your API Key (leave empty to skip):":             "new-key",
+		"Do you want to save the API Key to a local .env file?": true,
+-		"Enable Slack notifications?":                           false,
+-		"Run system check (recac doctor) now?":                  false,
++		"Enter your Jira URL (e.g., https://your-domain.atlassian.net):": "",
++		"Enable Slack notifications?":          false,
++		"Run system check (recac doctor) now?": false,
+	}
+	askOneFunc = mockAskOne
+
+	viper.Reset()
+-	viper.SetConfigFile("test_config_dup.yaml")
+-	defer os.Remove("test_config_dup.yaml")
++	viper.SetConfigFile("test_config_append.yaml")
++	defer os.Remove("test_config_append.yaml")
+
+	cmd := &cobra.Command{Use: "test"}
+	err := runSetup(cmd, []string{})
+@@ -225,10 +237,6 @@ func TestSetupCmd_DuplicateEnv(t *testing.T) {
+
+	content, _ := os.ReadFile(".env")
+	str := string(content)
+-	assert.Contains(t, str, "OPENAI_API_KEY=old-key")
+-	// Should NOT contain new-key appended (unless old-key was prefix of new-key, but here they differ)
+-	// But wait, if it appends "OPENAI_API_KEY=new-key", it will be there.
+-	// Logic: if !strings.Contains(existingEnvStr, "OPENAI_API_KEY=") { append } else { skip }
+-	// So it should skip.
+-	assert.NotContains(t, str, "OPENAI_API_KEY=new-key")
++	assert.Contains(t, str, "EXISTING_VAR=foo")
++	assert.Contains(t, str, "OPENAI_API_KEY=new-key")
+ }
