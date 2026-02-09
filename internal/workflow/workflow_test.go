@@ -166,6 +166,16 @@ func TestRunWorkflow_Detached(t *testing.T) {
 }
 
 func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
+	// Mock cmdutils.GetAgentClient to return a MockAgent, preventing timeouts or real API calls
+	originalGetAgentClient := cmdutils.GetAgentClient
+	defer func() { cmdutils.GetAgentClient = originalGetAgentClient }()
+	cmdutils.GetAgentClient = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+		// Return a mock agent that immediately says "DONE" to avoid infinite loops
+		m := agent.NewMockAgent()
+		m.SetResponse("DONE\n```bash\nagent-bridge signal COMPLETED true\n```")
+		return m, nil
+	}
+
 	// Mock SetupWorkspace
 	originalSetup := cmdutils.SetupWorkspace
 	defer func() { cmdutils.SetupWorkspace = originalSetup }()

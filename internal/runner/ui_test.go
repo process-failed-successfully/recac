@@ -32,6 +32,9 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	// 5. Initialize Session
 	mockDocker := &MockDockerForExec{}
 	mockAgent := agent.NewMockAgent()
+    // Force completion response to prevent infinite loops
+    mockAgent.SetResponse("DONE\n```bash\nagent-bridge signal COMPLETED true\n```")
+
 	s := &Session{
 		Docker:           mockDocker,
 		Agent:            mockAgent,
