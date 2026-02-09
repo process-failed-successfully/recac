@@ -104,7 +104,7 @@ python3 primes.py
 
 # Add to git
 git add primes.py primes.json
-git commit -m "Add primes script and output"
+git commit -m "Add primes script and output" || echo "Nothing to commit"
 agent-bridge feature set --id req-primes --status done
 ` + "```" + `
 `, nil
