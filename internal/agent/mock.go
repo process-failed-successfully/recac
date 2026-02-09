@@ -41,15 +41,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			"[\n" +
 			"  {\n" +
 			"    \"title\": \"ID:[PRIMES] Prime Number Script\",\n" +
-			"    \"description\": \"Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000.\",\n" +
-			"    \"type\": \"Epic\",\n" +
-			"    \"children\": [\n" +
-			"      {\n" +
-			"        \"title\": \"ID:[PRIMES-1] Create Script\",\n" +
-			"        \"description\": \"Create the script and ensure it outputs JSON.\",\n" +
-			"        \"type\": \"Story\"\n" +
-			"      }\n" +
-			"    ]\n" +
+			"    \"description\": \"Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000. Output to primes.json with format {\\\"primes\\\": [...]}.\",\n" +
+			"    \"type\": \"Task\"\n" +
 			"  }\n" +
 			"]\n" +
 			"```", nil
