@@ -35,7 +35,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristics for E2E scenarios
 
 	// 1. Initializer Agent (Feature List)
-	if strings.Contains(strings.ToUpper(prompt), "ROLE - INITIALIZER AGENT") || strings.Contains(prompt, "feature list") {
+	// We check for "CREATE FEATURE_LIST.JSON" instead of just "feature list" to avoid false positives
+	// where "feature list" appears in the context of other agents (e.g. Manager reviewing the list).
+	if strings.Contains(strings.ToUpper(prompt), "ROLE - INITIALIZER AGENT") || strings.Contains(strings.ToUpper(prompt), "CREATE FEATURE_LIST.JSON") {
 		if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
 			return `Here is the feature list plan.
 
