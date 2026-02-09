@@ -43,6 +43,7 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	mockAgent := agent.NewMockAgent()
 	s := &Session{
 		// ID:               "ui-test-session", // ID removed as it's not in Session struct
+		Project:          "unknown", // Explicitly match the project ID used by UIMockDocker
 		Docker:           mockDocker,
 		Agent:            mockAgent,
 		Workspace:        tmpDir,

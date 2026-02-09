@@ -11,7 +11,6 @@ func TestAgentBridgeRestrictions(t *testing.T) {
 	dbPath := filepath.Join(workspace, ".recac.db")
 
 	privilegedSignals := []string{
-		"PROJECT_SIGNED_OFF",
 		"TRIGGER_QA",
 		"TRIGGER_MANAGER",
 	}
@@ -25,6 +24,15 @@ func TestAgentBridgeRestrictions(t *testing.T) {
 			}
 		})
 	}
+
+	// Verify PROJECT_SIGNED_OFF is ALLOWED
+	t.Run("Allow_PROJECT_SIGNED_OFF", func(t *testing.T) {
+		args := []string{"agent-bridge", "signal", "PROJECT_SIGNED_OFF", "true"}
+		err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID)
+		if err != nil {
+			t.Errorf("Expected no error when setting PROJECT_SIGNED_OFF, got %v", err)
+		}
+	})
 
 	t.Run("Verify_Missing_File", func(t *testing.T) {
 		if err := run([]string{"agent-bridge", "verify", "F2", "pass"}, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err == nil {

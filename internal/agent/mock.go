@@ -56,9 +56,13 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// Detects "Coding Agent" role
 		// We check this BEFORE Initializer because the coding prompt often contains "feature_list.json" (via cat command)
 		// which triggers the Initializer heuristic if checked first.
-		// Also exclude Project Manager and QA roles to prevent false positives if they mention coding tasks.
-		if (strings.Contains(prompt, "YOUR ROLE - CODING AGENT") || strings.Contains(prompt, "Implement the solution")) &&
-			!strings.Contains(prompt, "ROLE: Project Manager") && !strings.Contains(prompt, "QA") {
+		// We prioritize "YOUR ROLE - CODING AGENT" as a definitive signal, ignoring exclusions if present.
+		// If "Implement the solution" is the trigger, we still check exclusions to avoid false positives from PM/QA.
+		isCodingAgent := strings.Contains(prompt, "YOUR ROLE - CODING AGENT")
+		isImplInstruction := strings.Contains(prompt, "Implement the solution")
+		isNotPMOrQA := !strings.Contains(prompt, "ROLE: Project Manager") && !strings.Contains(prompt, "QA")
+
+		if isCodingAgent || (isImplInstruction && isNotPMOrQA) {
 			return "```bash\n" +
 				"cat << 'EOF' > primes.py\n" +
 				"import json\n\n" +
@@ -116,8 +120,13 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 5. Project Manager (Sign-off)
-	// Triggers if prompt identifies as Project Manager
-	if strings.Contains(prompt, "PROJECT MANAGER") || strings.Contains(prompt, "Manager Review") {
+	// Triggers if prompt identifies as Project Manager.
+	// We use strict header matching ("ROLE - PROJECT MANAGER") if available,
+	// or "Manager Review" ONLY if "YOUR ROLE - CODING AGENT" is NOT present (to avoid confusing feedback with role).
+	isProjectManager := strings.Contains(prompt, "ROLE - PROJECT MANAGER") ||
+		(strings.Contains(prompt, "Manager Review") && !strings.Contains(prompt, "YOUR ROLE - CODING AGENT"))
+
+	if isProjectManager {
 		return "```bash\n" +
 			"echo \"Project approved.\"\n" +
 			"agent-bridge signal PROJECT_SIGNED_OFF true\n" +
