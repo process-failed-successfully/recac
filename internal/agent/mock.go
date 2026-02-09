@@ -107,7 +107,7 @@ cat << 'EOF' | agent-bridge import
   "project_name": "Primes Project",
   "features": [
     {
-      "id": "req-must-correctly-identify-prime-",
+      "id": "req-primes-py-exists",
       "category": "functional",
       "priority": "MVP",
       "description": "Implement primes.py script that calculates primes correctly and outputs to primes.json",
@@ -166,7 +166,7 @@ func (m *MockAgent) generatePrimesCompletionResponse() string {
 	// This signals the runner to stop the loop.
 	script := `
 echo "Task completed. Updating status."
-agent-bridge feature set --id "req-must-correctly-identify-prime-" --status done
+agent-bridge feature set "req-primes-py-exists" --status done
 `
 	return fmt.Sprintf("It seems the work is already done.\n\n```bash%s```\n", script)
 }

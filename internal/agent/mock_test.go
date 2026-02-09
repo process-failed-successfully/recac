@@ -92,7 +92,7 @@ nothing to commit, working tree clean
 	}
 
 	// It should use the specific feature ID, not the generic project ID env var
-	expectedID := "req-must-correctly-identify-prime-"
+	expectedID := "req-primes-py-exists"
 	if !strings.Contains(response, expectedID) {
 		t.Errorf("Expected feature ID '%s' in response, got:\n%s", expectedID, response)
 	}
