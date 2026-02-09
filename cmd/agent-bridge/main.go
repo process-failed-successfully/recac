@@ -167,11 +167,32 @@ func run(args []string, config db.StoreConfig, projectID string) error {
 		}
 
 	case "signal":
+		// Usage: agent-bridge signal <key> <value> [--privileged]
+		// Or: agent-bridge signal <key> <value>
+		// We need at least key and value (2 args), plus subcommand (1 arg), plus binary (1 arg) = 4 args total min
 		if len(args) < 4 {
-			return fmt.Errorf("usage: agent-bridge signal <key> <value>")
+			return fmt.Errorf("usage: agent-bridge signal <key> <value> [--privileged]")
 		}
-		key := args[2]
-		value := args[3]
+
+		// Basic argument parsing
+		var key, value string
+		privileged := false
+
+		// Filter args[2:] to find flags
+		var posArgs []string
+		for _, arg := range args[2:] {
+			if arg == "--privileged" {
+				privileged = true
+			} else {
+				posArgs = append(posArgs, arg)
+			}
+		}
+
+		if len(posArgs) < 2 {
+			return fmt.Errorf("usage: agent-bridge signal <key> <value> [--privileged]")
+		}
+		key = posArgs[0]
+		value = posArgs[1]
 
 		// PROTECT PRIVILEGED SIGNALS
 		privilegedSignals := map[string]bool{
@@ -179,8 +200,8 @@ func run(args []string, config db.StoreConfig, projectID string) error {
 			"TRIGGER_QA":         true,
 			"TRIGGER_MANAGER":    true,
 		}
-		if privilegedSignals[key] {
-			return fmt.Errorf("signal '%s' is privileged and cannot be set via agent-bridge", key)
+		if privilegedSignals[key] && !privileged {
+			return fmt.Errorf("signal '%s' is privileged and cannot be set via agent-bridge without --privileged flag", key)
 		}
 
 		cmdErr = store.SetSignal(projectID, key, value)
