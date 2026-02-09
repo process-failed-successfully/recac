@@ -38,46 +38,58 @@ func TestMockAgent_Heuristics(t *testing.T) {
 			name:   "TPM [PRIMES]",
 			prompt: "You are an expert Technical Program Manager (TPM) with deep experience ... [PRIMES] ...",
 			expectContains: []string{
+				"```json",
 				`"id": "req-primes"`,
 				`"title": "Implement Prime Number Function"`,
+				"```",
 			},
 		},
 		{
 			name:   "Initializer",
 			prompt: "## YOUR ROLE - INITIALIZER ...",
 			expectContains: []string{
+				"```bash",
 				"cat <<EOF > feature_list.json",
 				"agent-bridge import < feature_list.json",
+				"```",
 			},
 		},
 		{
 			name:   "Coding Agent - req-primes",
 			prompt: "## YOUR ROLE - CODING AGENT ... req-primes ...",
 			expectContains: []string{
+				"```bash",
 				"cat <<EOF > primes.py",
 				"def is_prime(n):",
 				"agent-bridge feature set req-primes --status done",
+				"```",
 			},
 		},
 		{
 			name:   "Coding Agent - Loop Breaker",
 			prompt: "## YOUR ROLE - CODING AGENT ... nothing to commit ...",
 			expectContains: []string{
+				"```bash",
 				"agent-bridge feature set req-primes --status done",
+				"```",
 			},
 		},
 		{
 			name:   "Project Manager",
 			prompt: "## YOUR ROLE - PROJECT MANAGER ...",
 			expectContains: []string{
+				"```bash",
 				"agent-bridge signal --privileged PROJECT_SIGNED_OFF true",
+				"```",
 			},
 		},
 		{
 			name:   "QA",
 			prompt: "## YOUR ROLE - QA ...",
 			expectContains: []string{
+				"```bash",
 				"agent-bridge signal create QA_PASSED true",
+				"```",
 			},
 		},
 	}

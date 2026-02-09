@@ -33,71 +33,41 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Heuristics for Smoke Test (prime-python scenario)
+
 	// 1. TPM Agent: Generates the plan
 	// The prompt starts with "You are an expert Technical Program Manager (TPM)..."
-	if (strings.Contains(prompt, "Technical Program Manager (TPM)") || strings.Contains(prompt, "ROLE - TECHNICAL PROGRAM MANAGER")) && strings.Contains(prompt, "[PRIMES]") {
-		return `[
-  {
-    "id": "req-primes",
-    "title": "Implement Prime Number Function",
-    "description": "Create a Python file primes.py that checks if a number is prime. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
-    "status": "todo",
-    "type": "task"
-  }
-]`, nil
+	// We relax the check to just the role title to be robust.
+	if strings.Contains(prompt, "Technical Program Manager (TPM)") || strings.Contains(prompt, "ROLE - TECHNICAL PROGRAM MANAGER") {
+		// TPM expects JSON. The CLI handles markdown wrapping, so we provide it for consistency.
+		return "```json\n[\n  {\n    \"id\": \"req-primes\",\n    \"title\": \"Implement Prime Number Function\",\n    \"description\": \"Create a Python file primes.py that checks if a number is prime. Repo: https://github.com/process-failed-successfully/recac-jira-e2e\",\n    \"status\": \"todo\",\n    \"type\": \"task\"\n  }\n]\n```", nil
 	}
 
 	// 2. Initializer: Imports the features
 	if strings.Contains(prompt, "ROLE - INITIALIZER") {
-		return `cat <<EOF > feature_list.json
-{
-  "project_name": "primes",
-  "features": [
-    {
-      "id": "req-primes",
-      "description": "Create a Python file primes.py that checks if a number is prime.",
-      "status": "pending",
-      "type": "feature"
-    }
-  ]
-}
-EOF
-agent-bridge import < feature_list.json`, nil
+		return "```bash\ncat <<EOF > feature_list.json\n{\n  \"project_name\": \"primes\",\n  \"features\": [\n    {\n      \"id\": \"req-primes\",\n      \"description\": \"Create a Python file primes.py that checks if a number is prime.\",\n      \"status\": \"pending\",\n      \"type\": \"feature\"\n    }\n  ]\n}\nEOF\nagent-bridge import < feature_list.json\n```", nil
 	}
 
 	// 3. Coding Agent: Implements the code
 	if strings.Contains(prompt, "ROLE - CODING AGENT") {
 		// Detect completion (loop breaker)
 		if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
-			return `agent-bridge feature set req-primes --status done`, nil
+			return "```bash\nagent-bridge feature set req-primes --status done\n```", nil
 		}
 
 		// Detect specific task
 		if strings.Contains(prompt, "req-primes") || strings.Contains(prompt, "primes.py") {
-			return `cat <<EOF > primes.py
-def is_prime(n):
-    if n <= 1:
-        return False
-    for i in range(2, int(n**0.5) + 1):
-        if n % i == 0:
-            return False
-    return True
-EOF
-git add primes.py
-git commit -m "Add primes.py" || true
-git push origin HEAD:refs/heads/feature/req-primes --force
-agent-bridge feature set req-primes --status done`, nil
+			return "```bash\ncat <<EOF > primes.py\ndef is_prime(n):\n    if n <= 1:\n        return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0:\n            return False\n    return True\nEOF\ngit add primes.py\ngit commit -m \"Add primes.py\" || true\ngit push origin HEAD:refs/heads/feature/req-primes --force\nagent-bridge feature set req-primes --status done\n```", nil
 		}
 	}
 
 	// 4. Project Manager: Signs off
 	if strings.Contains(prompt, "ROLE - PROJECT MANAGER") {
-		return `agent-bridge signal --privileged PROJECT_SIGNED_OFF true`, nil
+		return "```bash\nagent-bridge signal --privileged PROJECT_SIGNED_OFF true\n```", nil
 	}
 
 	// 5. QA: Passes
 	if strings.Contains(prompt, "ROLE - QA") {
-		return `agent-bridge signal create QA_PASSED true`, nil
+		return "```bash\nagent-bridge signal create QA_PASSED true\n```", nil
 	}
 
 	// Default Mock Response
