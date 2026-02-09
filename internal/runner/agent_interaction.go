@@ -14,7 +14,6 @@ import (
 
 // SelectPrompt determines which prompt to send based on current state.
 func (s *Session) SelectPrompt() (string, string, bool, error) {
-	// 1. Initializer (Session 1)
 	// 1. Initializer Check (Run if feature_list.json is missing or empty)
 	// Only for main session (not sub-sessions) and not if ManagerFirst is active on iteration 1
 	if s.SelectedTaskID == "" {
@@ -139,8 +138,10 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 		vars["exclusive_paths"] = "none"
 		vars["read_only_paths"] = "all"
 	}
+
+	// Overwrite logic based on explicit assignment or fallback
 	if s.SelectedTaskID != "" {
-		features := s.loadFeatures()
+		// Explicit selection overrides deterministic assignment
 		var target db.Feature
 		for _, f := range features {
 			if f.ID == s.SelectedTaskID {
@@ -169,7 +170,9 @@ func (s *Session) SelectPrompt() (string, string, bool, error) {
 			vars["exclusive_paths"] = "None"
 			vars["read_only_paths"] = "None"
 		}
-	} else {
+	} else if vars["task_id"] == "" {
+		// Only overwrite if NO deterministic task was assigned (and no explicit selection)
+		// This fixes the bug where "Multiple/Not Assigned" would overwrite the valid assignedFeature
 		vars["task_id"] = "Multiple/Not Assigned"
 		vars["task_description"] = "Continue implementing pending features in feature_list.json"
 		vars["exclusive_paths"] = "All available files"
