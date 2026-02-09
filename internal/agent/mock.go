@@ -67,7 +67,23 @@ agent-bridge signal --privileged QA_PASSED true
 ` + "```", nil
 	}
 
-	// 3. Coding Agent Heuristic (Prime Python Scenario)
+	// 3. TPM Agent Heuristic (Ticket Generation)
+	// Detects the planning phase where tickets need to be generated.
+	if (strings.Contains(strings.ToLower(prompt), "create") && strings.Contains(strings.ToLower(prompt), "ticket")) && (strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]")) {
+		return `I have analyzed the request. Here is the plan.
+
+` + "```json" + `
+[
+  {
+    "title": "ID:[PRIMES] Implement Prime Number Script",
+    "description": "Implement a Python script to calculate prime numbers < 10000",
+    "type": "Task"
+  }
+]
+` + "```", nil
+	}
+
+	// 4. Coding Agent Heuristic (Prime Python Scenario)
 	// Detects the specific "primes.py" request from the e2e/scenarios/prime_python.go
 	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
 		// Otherwise, generate the code.
@@ -97,7 +113,7 @@ git commit -m "Implement primes.py and generate primes.json"
 ` + "```", nil
 	}
 
-	// 4. QA Agent Heuristic
+	// 5. QA Agent Heuristic
 	// If asked to test or verify, we just say it passed.
 	if strings.Contains(strings.ToLower(prompt), "run qa") || strings.Contains(strings.ToLower(prompt), "verify") {
 		return `I have verified the implementation. All tests passed.
@@ -107,7 +123,7 @@ agent-bridge signal --privileged QA_PASSED true
 ` + "```", nil
 	}
 
-	// 5. Project Manager / Sign Off
+	// 6. Project Manager / Sign Off
 	if strings.Contains(prompt, "sign off") || strings.Contains(prompt, "Project Signed Off") {
 		return `The project is complete.
 

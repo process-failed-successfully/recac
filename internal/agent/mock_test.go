@@ -16,6 +16,11 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		expectedOutput string // Substring expected
 	}{
 		{
+			name:           "TPM Ticket Generation (Prime Python)",
+			prompt:         "Create a SINGLE Ticket (Task) for this work. [PRIMES] primes.py",
+			expectedOutput: "I have analyzed the request. Here is the plan.",
+		},
+		{
 			name:           "Prime Python Scenario",
 			prompt:         "Please implement the primes.py script as requested in [PRIMES] ticket.",
 			expectedOutput: "cat << 'EOF' > primes.py",
