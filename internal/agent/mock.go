@@ -35,10 +35,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristic: Detect Primes Implementation Task (Coding Agent)
 	// This supports the E2E smoke test scenario. We prioritize this over TPM if it looks like a coding task.
 	// We check for "Coding Agent", "Developer", "primes.py", or the specific ID tag.
-	// CRITICAL: We use HasPrefix to ensure we are matching the CURRENT role, avoiding false positives from history.
-	// We also check for the specific feature ID prefix used in the smoke test (req-script-prints-primes).
+	// CRITICAL: We use Contains to match the role header. HasPrefix proved brittle in CI due to potential whitespace or artifacts.
+	// This is safe because DBStore history (injected into prompt) does NOT contain system prompts, only observations.
 	if (strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "req-script-prints-primes")) &&
-		strings.HasPrefix(strings.TrimSpace(prompt), "## YOUR ROLE - CODING AGENT") {
+		strings.Contains(prompt, "## YOUR ROLE - CODING AGENT") {
 		return `I will implement the primes calculation script as requested.
 
 ` + "```bash" + `
@@ -66,7 +66,7 @@ agent-bridge feature set req-script-is-runnable --status done --passes true
 
 	// Heuristic: Detect Manager Review (Project Manager)
 	// Triggers sign-off if prompt asks for Manager Review
-	if strings.HasPrefix(strings.TrimSpace(prompt), "## YOUR ROLE - PROJECT MANAGER") {
+	if strings.Contains(prompt, "## YOUR ROLE - PROJECT MANAGER") {
 		return `I have reviewed the progress. The implemented features look correct and pass the tests.
 
 ` + "```bash" + `
