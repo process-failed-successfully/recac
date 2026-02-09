@@ -137,6 +137,7 @@ agent-bridge import --file /app/ticket_plan.json
 
 	// 3. Coding Agent - Implements the feature
 	// We detect the [PRIMES] ID or the file request
+	// Prioritize this before generic role checks if specific task ID is present
 	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
 		return `
 I will implement the prime number script as requested.
@@ -177,7 +178,44 @@ agent-bridge feature set PRIMES --status done --passes true
 `, nil
 	}
 
-	// 4. Default / Fallback
+	// 4. QA Agent - Verifies the project
+	// Check for "QA AGENT" role header or "verify the project" instruction
+	if strings.Contains(prompt, "ROLE - QA AGENT") || (strings.Contains(prompt, "verify") && strings.Contains(prompt, "project")) {
+		return `
+I will run the tests and verify the project status.
+
+` + "```bash" + `
+# Run verification (mock test)
+if [ -f primes.json ]; then
+  echo "primes.json exists, verifying content..."
+  # Simple check if file is valid JSON and has content
+  if grep -q "primes" primes.json; then
+    echo "Verification Passed"
+    agent-bridge signal QA_PASSED true
+  else
+    echo "Verification Failed: Invalid content"
+    agent-bridge signal QA_PASSED false
+  fi
+else
+  echo "Verification Failed: primes.json missing"
+  agent-bridge signal QA_PASSED false
+fi
+` + "```" + `
+`, nil
+	}
+
+	// 5. Project Manager - Signs off
+	if strings.Contains(prompt, "ROLE - PROJECT MANAGER") {
+		return `
+Project Approved.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged
+` + "```" + `
+`, nil
+	}
+
+	// 6. Default / Fallback
 	// Return a mock response that shows the agent received the prompt
 	fmt.Printf("[MockAgent] Hit Fallback! Prompt length: %d\nFull Prompt:\n%s\n", len(prompt), prompt)
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
