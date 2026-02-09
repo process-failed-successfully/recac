@@ -59,7 +59,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Heuristic 2: Loop Breaker for Smoke Test (Working Tree Clean)
-	if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
+	// We check lowerPrompt here to be robust against casing
+	lowerPrompt := strings.ToLower(prompt)
+	if strings.Contains(lowerPrompt, "nothing to commit") || strings.Contains(lowerPrompt, "working tree clean") {
 		return `It looks like the code is already implemented and committed. I will mark the QA as passed.
 
 ` + "```bash" + `
@@ -70,7 +72,7 @@ agent-bridge signal --privileged PROJECT_SIGNED_OFF true
 	}
 
 	// Heuristic 3: Coding Phase for Smoke Test (Prime Python)
-	lowerPrompt := strings.ToLower(prompt)
+	// We use the same lowerPrompt variable
 	if (strings.Contains(lowerPrompt, "implement") || strings.Contains(lowerPrompt, "create")) &&
 		(strings.Contains(lowerPrompt, "prime") || strings.Contains(lowerPrompt, "primes")) {
 
@@ -112,7 +114,7 @@ EOF
 python3 primes.py
 
 git add primes.py test_primes.py primes.json
-git commit -m "Implement primes service"
+git commit -m "Implement primes service" || echo "Nothing to commit"
 git push
 ` + "```" + `
 
