@@ -136,9 +136,9 @@ func TestInteractiveModel_Persona_PromptInjection(t *testing.T) {
 	userPrompt := "Explain recursion"
 	cmd := m.generateResponse(userPrompt)
 
-	// Run the command to trigger the goroutine
-	if cmd != nil {
-		cmd()
+	// Run the command to trigger the goroutine and get the start message
+	if cmd == nil {
+		t.Fatal("Expected generateResponse to return a command")
 	}
 
 	msg := cmd()
