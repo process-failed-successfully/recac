@@ -15,6 +15,12 @@ import (
 var runDoctorFunc = func(cmd *cobra.Command, args []string) {
 	if doctorCmd.Run != nil {
 		doctorCmd.Run(cmd, args)
+	} else if doctorCmd.RunE != nil {
+		// RunE returns an error, but here we just ignore it as per original logic?
+		// Or print it?
+		if err := doctorCmd.RunE(cmd, args); err != nil {
+			fmt.Printf("Doctor check failed: %v\n", err)
+		}
 	}
 }
 
@@ -186,10 +192,6 @@ func runSetup(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if runDoc {
-		runDoctorFunc(cmd, args)
-	}
-
 	// Update Viper settings
 	viper.Set("provider", answers.Provider)
 	viper.Set("model", answers.Model)
@@ -295,5 +297,10 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("Configuration saved to %s\n", configFile)
+
+	if runDoc {
+		runDoctorFunc(cmd, args)
+	}
+
 	return nil
 }

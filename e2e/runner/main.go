@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -476,9 +477,14 @@ func verifyScenario(scenarioName, repo string, ticketMap map[string]string) erro
 
 	token := os.Getenv("GITHUB_API_KEY")
 	authRepo := repo
-	if !strings.Contains(repo, "@") {
-		// Insert token into URL
-		authRepo = strings.Replace(repo, "https://", fmt.Sprintf("https://x-access-token:%s@", token), 1)
+	if token != "" && !strings.Contains(repo, "@") {
+		// Use net/url for safe URL construction
+		u, err := url.Parse(repo)
+		if err != nil {
+			return fmt.Errorf("failed to parse repo URL: %w", err)
+		}
+		u.User = url.UserPassword("x-access-token", token)
+		authRepo = u.String()
 	}
 
 	log.Printf("Cloning repo to %s...", tmpDir)
@@ -545,7 +551,13 @@ func prepareRepo(repoURL string, ticketMap map[string]string) error {
 	repoURL = strings.TrimSuffix(repoURL, "/")
 	authRepo := repoURL
 	if token != "" && !strings.Contains(repoURL, "@") {
-		authRepo = strings.Replace(repoURL, "https://", fmt.Sprintf("https://x-access-token:%s@", token), 1)
+		// Use net/url for safe URL construction
+		u, err := url.Parse(repoURL)
+		if err != nil {
+			return fmt.Errorf("failed to parse repo URL: %w", err)
+		}
+		u.User = url.UserPassword("x-access-token", token)
+		authRepo = u.String()
 	}
 
 	// 1. Get all remote branches using ls-remote (fast, no clone needed)
