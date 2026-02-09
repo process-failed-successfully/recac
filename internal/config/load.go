@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -20,7 +21,7 @@ func Load(cfgFile string) {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
 	} else {
-		// Search config in home directory with name ".recac" (without extension).
+		// Search config in current directory with name "config" (without extension).
 		viper.AddConfigPath(".")
 		viper.SetConfigType("yaml")
 		viper.SetConfigName("config")
@@ -62,37 +63,45 @@ func Load(cfgFile string) {
 	viper.SetDefault("notifications.slack.events.on_user_interaction", true)
 	viper.SetDefault("notifications.slack.events.on_project_complete", true)
 
-	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
+	// Attempt to read config
+	err := viper.ReadInConfig()
+
+	// If failed and cfgFile was not specified, try home directory
+	if err != nil && cfgFile == "" {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			home, hErr := os.UserHomeDir()
+			if hErr == nil {
+				homeConfig := filepath.Join(home, ".recac.yaml")
+				viper.SetConfigFile(homeConfig)
+				err = viper.ReadInConfig()
+			}
+		}
+	}
+
+	if err == nil {
 		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
 	} else {
 		// Config file not found; create one with defaults ONLY if not in agent/orchestrator mode
-		// We avoid creating file if we are running in specialized modes often, but adhering to existing logic:
 		if os.Getenv("RECAC_PROVIDER") == "" && os.Getenv("RECAC_AGENT_PROVIDER") == "" && os.Getenv("RECAC_ORCHESTRATOR_MODE") == "" {
-			if _, ok := err.(viper.ConfigFileNotFoundError); ok || true {
-				// check if we already tried to read a specific file
-				if cfgFile == "" {
-					// Write config to current directory
-					viper.SetConfigName("config")
-					viper.SetConfigType("yaml")
-					viper.AddConfigPath(".")
+			// We only create if cfgFile was NOT specified
+			if cfgFile == "" {
+				// Decide where to create default config
+				targetFile := "config.yaml" // Default to current directory if home unavailable
+				home, hErr := os.UserHomeDir()
+				if hErr == nil {
+					targetFile = filepath.Join(home, ".recac.yaml")
+				}
 
-					// Attempt to write
-					// Note: Existing logic swallowed errors partially or just printed warnings.
-					// We will be slightly safer.
-					if err := viper.SafeWriteConfig(); err != nil {
-						// Ignore if already exists (SafeWriteConfig error)
-						// But if it doesn't exist and failed, we might warn.
-						// Checking existence first is better as per original code
-						if _, err := os.Stat("config.yaml"); os.IsNotExist(err) {
-							if err := viper.WriteConfigAs("config.yaml"); err != nil {
-								fmt.Fprintf(os.Stderr, "Warning: Failed to create default config file: %v\n", err)
-							} else {
-								fmt.Println("Created default configuration file: config.yaml")
-							}
-						}
+				// Set config file to target
+				viper.SetConfigFile(targetFile)
+				viper.SetConfigType("yaml") // explicit type
+
+				// Check if file exists (SafeWriteConfig logic)
+				if _, statErr := os.Stat(targetFile); os.IsNotExist(statErr) {
+					if wErr := viper.WriteConfigAs(targetFile); wErr != nil {
+						fmt.Fprintf(os.Stderr, "Warning: Failed to create default config file at %s: %v\n", targetFile, wErr)
 					} else {
-						fmt.Println("Created default configuration file: config.yaml")
+						fmt.Printf("Created default configuration file: %s\n", targetFile)
 					}
 				}
 			}
