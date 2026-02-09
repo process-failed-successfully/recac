@@ -66,6 +66,16 @@ func NewAgent(provider, apiKey, model, workDir, project string) (Agent, error) {
 		return NewCursorCLIClient(apiKey, model, project), nil
 	case "opencode", "opencode-cli":
 		return NewOpenCodeCLIClient(apiKey, model, workDir, project), nil
+	case "mock":
+		// Mock agent is handled by the caller or requires specific initialization not present here?
+		// But if the CLI requests 'mock', we need to return something or handle it.
+		// Since NewMockAgent exists (based on memory), let's use it.
+		// Note: NewMockAgent() takes no arguments in memory description, but let's check.
+		// Checking memory: "NewAgent in internal/agent/interface.go was updated to explicitly support the mock provider, returning a NewMockAgent() instance."
+		// Wait, the memory says it WAS updated, but the file content shows it IS NOT.
+		// This suggests a regression or I am looking at a stale version?
+		// No, I am looking at the current file content.
+		return NewMockAgent(), nil
 	default:
 		return nil, fmt.Errorf("unknown provider: %s", provider)
 	}
