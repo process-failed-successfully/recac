@@ -55,7 +55,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
   },
   {
     "title": "ID:[PRIMES] Add Unit Tests for Primes",
-    "description": "Create ` + "`test_primes.py`" + ` to verify the generator.",
+    "description": "Create ` + "`test_primes.py`" + ` that verifies the generator.",
     "type": "Story",
     "acceptance_criteria": [
       "Tests cover edge cases",
@@ -66,6 +66,110 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
   }
 ]`, nil
 		}
+	}
+
+	// Heuristic 2: Initializer Role
+	// Trigger: "Initialize" or "feature_list.json" import
+	// In the smoke test, the first iteration might be initialization if not using pre-imported features.
+	// But orchestrator often handles import. The log shows features loaded.
+	// If the prompt asks to setup workspace or check files.
+	// Often the prompt contains "Feature Tracking" or "feature_list.json".
+	// But we need to distinguish from Coding Agent which also sees that.
+	// Initializer usually has a specific header if it exists, or it's just the first step.
+	// However, in this E2E, the Orchestrator sets up the workspace.
+	// If the agent needs to import features, it's done via `agent-bridge import`.
+	// For this specific test, we might skip explicit Initializer if not requested.
+
+	// Heuristic 3: Coding Agent (Implementation)
+	// Trigger: "YOUR ROLE - CODING AGENT" and "primes.py" or ticket context
+	if strings.Contains(prompt, "CODING AGENT") {
+		// Task: Implement Prime Number Generator
+		if strings.Contains(prompt, "Implement Prime Number Generator") || strings.Contains(prompt, "primes.py") {
+			return `I will implement the prime number generator.
+
+` + "```bash" + `
+cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n <= 1:
+        return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+primes = [i for i in range(10001) if is_prime(i)]
+print(json.dumps({"primes": primes}))
+EOF
+` + "```" + `
+
+Now I will commit the changes and mark the feature as done.
+
+` + "```bash" + `
+git add primes.py
+git commit -m "Implement primes.py" || echo "Nothing to commit"
+agent-bridge feature set req-primes-py-exists --status done --passes true || true
+agent-bridge feature set req-implement-prime-number-script --status done --passes true || true
+` + "```", nil
+		}
+
+		// Task: Add Unit Tests
+		if strings.Contains(prompt, "Add Unit Tests") || strings.Contains(prompt, "test_primes.py") {
+			return `I will implement the unit tests.
+
+` + "```bash" + `
+cat << 'EOF' > test_primes.py
+import unittest
+import json
+import subprocess
+
+class TestPrimes(unittest.TestCase):
+    def test_output_format(self):
+        result = subprocess.check_output(['python3', 'primes.py'])
+        data = json.loads(result)
+        self.assertIn('primes', data)
+        self.assertIsInstance(data['primes'], list)
+        self.assertIn(2, data['primes'])
+        self.assertIn(3, data['primes'])
+        self.assertIn(5, data['primes'])
+
+if __name__ == '__main__':
+    unittest.main()
+EOF
+` + "```" + `
+
+Now I will run the tests and commit.
+
+` + "```bash" + `
+python3 test_primes.py
+git add test_primes.py
+git commit -m "Add test_primes.py" || echo "Nothing to commit"
+agent-bridge feature set req-implement-tests --status done --passes true || true
+agent-bridge qa
+` + "```", nil
+		}
+	}
+
+	// Heuristic 4: QA Agent
+	// Trigger: "QA AGENT" or "verify"
+	if strings.Contains(prompt, "QA AGENT") {
+		return `I will verify the solution.
+
+` + "```bash" + `
+python3 test_primes.py
+agent-bridge signal QA_PASSED true
+` + "```", nil
+	}
+
+	// Heuristic 5: Manager Review
+	// Trigger: "Project Manager" or "Review" (and not TPM generation)
+	if strings.Contains(prompt, "manager_review") || (strings.Contains(prompt, "Project Manager") && !strings.Contains(prompt, "Technical Program Manager") && strings.Contains(prompt, "Review")) {
+		return `I have reviewed the work and it looks good.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged
+` + "```", nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
