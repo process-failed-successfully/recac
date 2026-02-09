@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"recac/internal/agent"
+	"recac/internal/db"
 	"recac/internal/notify"
 	"recac/internal/telemetry"
 )
@@ -20,6 +21,14 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
+	// Initialize DB
+	dbPath := filepath.Join(tmpDir, ".recac.db")
+	store, err := db.NewSQLiteStore(dbPath)
+	if err != nil {
+		t.Fatalf("Failed to create db store: %v", err)
+	}
+	defer store.Close()
+
 	// 2. Setup: app_spec.txt (required)
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
 
@@ -30,14 +39,17 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "ui_verification.json"), []byte("Verify Button Color"), 0644)
 
 	// 5. Initialize Session
-	mockDocker := &MockDockerForExec{}
+	mockDocker := &UIMockDocker{Store: store} // Use UIMockDocker to persist signals
 	mockAgent := agent.NewMockAgent()
 	s := &Session{
+		// ID:               "ui-test-session", // ID removed as it's not in Session struct
 		Docker:           mockDocker,
 		Agent:            mockAgent,
 		Workspace:        tmpDir,
 		FeatureContent:   features,
 		ManagerFrequency: 5,
+		MaxIterations:    10, // Finite iterations to prevent timeout
+		DBStore:          store,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
 		Logger:           telemetry.NewLogger(true, "", false),
 	}

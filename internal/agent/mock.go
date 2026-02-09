@@ -120,7 +120,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(prompt, "PROJECT MANAGER") || strings.Contains(prompt, "Manager Review") {
 		return "```bash\n" +
 			"echo \"Project approved.\"\n" +
-			"agent-bridge signal PROJECT_SIGNED_OFF true --privileged\n" +
+			"agent-bridge signal PROJECT_SIGNED_OFF true\n" +
 			"```", nil
 	}
 
