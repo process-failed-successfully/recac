@@ -57,7 +57,24 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Coding Agent - Implementation
 	if strings.Contains(prompt, "prime numbers") || strings.Contains(prompt, "Implement Primes") {
-		return "Here is the python script:\n```python\nprint('2, 3, 5, 7, ...')\n```", nil
+		// Return a bash command to create the file, so the agent actually performs an action
+		// and avoids tripping the NO-OP loop circuit breaker.
+		return `I will create the python script.
+
+` + "```bash" + `
+cat <<EOF > primes.py
+def is_prime(n):
+    if n <= 1: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0: return False
+    return True
+
+for i in range(1, 101):
+    if is_prime(i):
+        print(i)
+EOF
+` + "```" + `
+`, nil
 	}
 
 	// Return a mock response that shows the agent received the prompt

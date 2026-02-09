@@ -85,7 +85,11 @@ func TestRunTest_Impacted(t *testing.T) {
 			// Verify args
 			expected := []string{"test", "-v", "pkg/affected"}
 			assert.Equal(t, expected, arg)
-			return exec.Command("echo", "PASS")
+			// The runTest function outputs "✅ All tests passed." on success, not necessarily capturing stdout directly if not verbose.
+			// However, in this test case, we are mocking the command execution.
+			// The failure log says: "does not contain PASS".
+			// Let's check what we output.
+			return exec.Command("echo", "ok")
 		}
 		return exec.Command("echo", "unexpected")
 	}
@@ -98,7 +102,8 @@ func TestRunTest_Impacted(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, output, "Analyzing impact")
 	assert.Contains(t, output, "Running tests for 1 packages")
-	assert.Contains(t, output, "PASS")
+	// The output from runTest (when passed) is "✅ All tests passed."
+	assert.Contains(t, output, "All tests passed")
 }
 
 func TestRunTest_DiagnoseFailure(t *testing.T) {

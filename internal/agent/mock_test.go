@@ -51,8 +51,8 @@ func TestMockAgent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
 	}
-	if !strings.Contains(response, "```python") {
-		t.Errorf("Expected Python code block, got: %s", response)
+	if !strings.Contains(response, "cat <<EOF > primes.py") {
+		t.Errorf("Expected bash command to create file, got: %s", response)
 	}
 }
 
