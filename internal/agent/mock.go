@@ -83,6 +83,22 @@ agent-bridge signal --privileged QA_PASSED true
 ` + "```", nil
 	}
 
+	// 3. TPM Agent Heuristic (Ticket Generation)
+	// Detects the planning phase where tickets need to be generated.
+	if (strings.Contains(strings.ToLower(prompt), "create") && strings.Contains(strings.ToLower(prompt), "ticket")) && (strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]")) {
+		return `I have analyzed the request. Here is the plan.
+
+` + "```json" + `
+[
+  {
+    "title": "ID:[PRIMES] Implement Prime Number Script",
+    "description": "Implement a Python script to calculate prime numbers < 10000",
+    "type": "Task"
+  }
+]
+` + "```", nil
+	}
+
 	// 4. Coding Agent Heuristic (Prime Python Scenario)
 	// Detects the specific "primes.py" request from the e2e/scenarios/prime_python.go
 	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
