@@ -89,6 +89,21 @@ func TestMockAgent_TPM_Primes_Fallback(t *testing.T) {
 	}
 }
 
+func TestMockAgent_QA(t *testing.T) {
+	agent := NewMockAgent()
+	// Simulate QA Agent Prompt
+	prompt := "## YOUR ROLE - QA AGENT\n\nYour job is to verify the project."
+	response, err := agent.Send(context.Background(), prompt)
+
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "agent-bridge signal QA_PASSED true") {
+		t.Error("Response missing QA_PASSED signal")
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {

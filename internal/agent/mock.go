@@ -95,6 +95,28 @@ agent-bridge signal COMPLETED true
 `, nil
 	}
 
+	// 3. QA Agent
+	// Check for "QA AGENT" or "YOUR ROLE - QA AGENT"
+	if strings.Contains(prompt, "QA AGENT") || strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
+		return `
+I will run the tests and verify the project.
+
+` + "```bash" + `
+# Dummy test for mock scenario
+echo "Running tests..."
+# Verify that primes.json exists (basic check for the PRIMES scenario)
+if [ -f primes.json ]; then
+    echo "PASS: primes.json found"
+else
+    echo "WARNING: primes.json not found, but assuming PASS for mock"
+fi
+
+# Signal QA Passed
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
 	// Default Response
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
