@@ -135,6 +135,19 @@ agent-bridge import --file /app/ticket_plan.json
 `, nil
 	}
 
+	// 2.5 Project Manager - Approves/Rejects the project
+	// Look for the specific role header used in manager_review.md
+	if strings.Contains(prompt, "ROLE - PROJECT MANAGER") {
+		// If QA Passed (found in the prompt context usually), we approve.
+		// For the mock, we assume success if the prompt contains "QA Report: 1/1" or similar positive signals,
+		// OR just default to approval for the happy path smoke test.
+		return `
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
+	}
+
 	// 3. Coding Agent - Implements the feature
 	// We detect the [PRIMES] ID or the file request
 	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
