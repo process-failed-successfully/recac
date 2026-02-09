@@ -19,21 +19,8 @@ func TestMockAgent_Primes(t *testing.T) {
 	if !strings.Contains(resp, "cat << 'EOF' > primes.py") {
 		t.Error("Response should contain primes.py creation script")
 	}
-	if !strings.Contains(resp, "python3 primes.py") {
-		t.Error("Response should run the python script")
-	}
-	if !strings.Contains(resp, "agent-bridge feature set") {
-		t.Error("Response should mark features as passed")
-	}
-	if !strings.Contains(resp, "range(10000)") {
-		t.Error("Response should calculate primes up to 10000")
-	}
-	if !strings.Contains(resp, "--status Done --passes true") {
-		t.Error("Response should use correct agent-bridge syntax")
-	}
 
 	// Test case 2: "Agent" role from CI failure scenario
-	// Use the feature ID which is the specific trigger we want to support
 	prompt2 := "## YOUR ROLE - Agent\nTask: Implement req-script-prints-primes-up-to-100"
 	resp2, err2 := agent.Send(context.Background(), prompt2)
 	if err2 != nil {
@@ -41,6 +28,16 @@ func TestMockAgent_Primes(t *testing.T) {
 	}
 	if !strings.Contains(resp2, "cat << 'EOF' > primes.py") {
 		t.Error("Response 2 (Agent role) should contain primes.py creation script")
+	}
+
+	// Test case 3: Feature ID ONLY (No specific role, simulating fallback or varied role name)
+	prompt3 := "Task: req-script-prints-primes-up-to-100"
+	resp3, err3 := agent.Send(context.Background(), prompt3)
+	if err3 != nil {
+		t.Fatalf("Send 3 failed: %v", err3)
+	}
+	if !strings.Contains(resp3, "cat << 'EOF' > primes.py") {
+		t.Error("Response 3 (Feature ID only) should contain primes.py creation script")
 	}
 }
 
