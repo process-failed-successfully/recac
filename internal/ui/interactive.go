@@ -20,6 +20,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/viper"
 
+	"github.com/atotto/clipboard"
+
 	"recac/internal/agent"
 )
 
@@ -287,6 +289,7 @@ func NewInteractiveModel(commands []SlashCommand, provider, model string) Intera
 	hasModelCmd := false
 	hasAgentCmd := false
 	hasPersonaCmd := false
+	hasCopyCmd := false
 	for _, c := range commands {
 		if c.Name == "/model" {
 			hasModelCmd = true
@@ -296,6 +299,9 @@ func NewInteractiveModel(commands []SlashCommand, provider, model string) Intera
 		}
 		if c.Name == "/persona" {
 			hasPersonaCmd = true
+		}
+		if c.Name == "/copy" {
+			hasCopyCmd = true
 		}
 	}
 
@@ -339,6 +345,42 @@ func NewInteractiveModel(commands []SlashCommand, provider, model string) Intera
 		}
 		items = append(items, personaCmd)
 		cmdItems = append(cmdItems, personaCmd)
+	}
+
+	// Add built-in /copy command
+	if !hasCopyCmd {
+		copyCmd := CommandItem{
+			Name: "/copy",
+			Desc: "Copy last response to clipboard",
+			Action: func(m *InteractiveModel, args []string) tea.Cmd {
+				var lastBotMsg string
+				for i := len(m.messages) - 1; i >= 0; i-- {
+					if m.messages[i].Role == RoleBot {
+						lastBotMsg = m.messages[i].Content
+						break
+					}
+				}
+
+				if lastBotMsg == "" {
+					return func() tea.Msg {
+						return StatusMsg("No response to copy.")
+					}
+				}
+
+				err := clipboard.WriteAll(lastBotMsg)
+				if err != nil {
+					return func() tea.Msg {
+						return StatusMsg(fmt.Sprintf("Failed to copy: %v", err))
+					}
+				}
+
+				return func() tea.Msg {
+					return StatusMsg("Last response copied to clipboard!")
+				}
+			},
+		}
+		items = append(items, copyCmd)
+		cmdItems = append(cmdItems, copyCmd)
 	}
 
 	for _, c := range commands {
