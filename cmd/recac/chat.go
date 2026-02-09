@@ -5,51 +5,12 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"recac/internal/agent"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
-
-// Persona defines a role for the AI agent.
-type Persona struct {
-	Name        string
-	Description string
-	SystemPrompt string
-}
-
-var defaultPersonas = map[string]Persona{
-	"default": {
-		Name:        "Default",
-		Description: "A helpful and versatile software engineer assistant.",
-		SystemPrompt: "You are a helpful software engineer assistant. Answer questions concisely and accurately.",
-	},
-	"security": {
-		Name:        "Security Auditor",
-		Description: "Focuses on identifying vulnerabilities and security best practices.",
-		SystemPrompt: "You are a paranoid Security Auditor. You review every piece of code and idea for potential security vulnerabilities (OWASP Top 10, injection, etc.). You are critical and prioritize safety over convenience.",
-	},
-	"product": {
-		Name:        "Product Manager",
-		Description: "Focuses on user value, metrics, and business goals.",
-		SystemPrompt: "You are a pragmatic Product Manager. You care about user value, business metrics, and trade-offs. You ask 'Why are we building this?' and 'How does this help the user?'. Avoid technical jargon where possible.",
-	},
-	"junior": {
-		Name:        "Junior Developer",
-		Description: "Needs simple explanations and mentorship.",
-		SystemPrompt: "You are a Junior Developer who is eager to learn but often confused. You ask for clarification on complex topics and prefer simple, step-by-step explanations. You admit when you don't understand.",
-	},
-	"skeptic": {
-		Name:        "The Skeptic",
-		Description: "Challenges assumptions and looks for edge cases.",
-		SystemPrompt: "You are a Senior Engineer who has seen it all fail. You are skeptical of new libraries, patterns, and 'happy path' thinking. You always ask 'What if this fails?' and 'Have you considered the edge case X?'.",
-	},
-	"teacher": {
-		Name:        "The Teacher",
-		Description: "Uses Socratic method to guide learning.",
-		SystemPrompt: "You are an expert Computer Science Teacher. Instead of giving the answer directly, you often ask guiding questions to help the user derive the answer. You focus on first principles and clean code.",
-	},
-}
 
 var chatPersona string
 
@@ -64,27 +25,37 @@ Type '/help' during the chat for available commands.`,
 
 func init() {
 	rootCmd.AddCommand(chatCmd)
-	chatCmd.Flags().StringVarP(&chatPersona, "persona", "p", "default", "Initial persona (default, security, product, junior, skeptic, teacher)")
+	// We can't easily list dynamic personas in help text here without loading them first.
+	// So we keep the default help text simple.
+	chatCmd.Flags().StringVarP(&chatPersona, "persona", "p", "default", "Initial persona ID")
 }
 
 type ChatSession struct {
 	History        string
-	CurrentPersona Persona
+	CurrentPersona agent.Persona
 	ContextFiles   map[string]string // path -> content
+	PM             *agent.PersonaManager
 }
 
 func runChat(cmd *cobra.Command, args []string) error {
+	// Initialize Persona Manager
+	pm := agent.NewPersonaManager()
+	if err := pm.LoadPersonas(); err != nil {
+		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: Failed to load custom personas: %v\n", err)
+	}
+
 	// Initialize Session
-	p, ok := defaultPersonas[chatPersona]
+	p, ok := pm.GetPersona(chatPersona)
 	if !ok {
 		// Fallback to default if unknown, but warn
 		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: Persona '%s' not found. Using 'default'.\n", chatPersona)
-		p = defaultPersonas["default"]
+		p, _ = pm.GetPersona("default")
 	}
 
 	session := &ChatSession{
 		CurrentPersona: p,
 		ContextFiles:   make(map[string]string),
+		PM:             pm,
 	}
 
 	// Print Welcome
@@ -105,6 +76,7 @@ func runChat(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create agent: %w", err)
 	}
 
+	// Use scanner to read input line by line
 	scanner := bufio.NewScanner(cmd.InOrStdin())
 	for {
 		fmt.Fprint(cmd.OutOrStdout(), "\n> ")
@@ -133,6 +105,7 @@ func runChat(cmd *cobra.Command, args []string) error {
 
 		// Send to Agent
 		fmt.Fprint(cmd.OutOrStdout(), "🤖 ")
+		// Use SendStream if available
 		resp, err := ag.SendStream(ctx, prompt, func(chunk string) {
 			fmt.Fprint(cmd.OutOrStdout(), chunk)
 		})
@@ -182,14 +155,15 @@ func handleChatCommand(cmd *cobra.Command, session *ChatSession, input string) b
 		if len(parts) < 2 {
 			fmt.Fprintln(cmd.OutOrStdout(), "Usage: /persona <name>")
 			fmt.Print("Available personas: ")
-			for k := range defaultPersonas {
+			// Use PM to list
+			for _, k := range session.PM.ListSorted() {
 				fmt.Printf("%s ", k)
 			}
 			fmt.Println()
 			return true
 		}
 		name := parts[1]
-		if p, ok := defaultPersonas[name]; ok {
+		if p, ok := session.PM.GetPersona(name); ok {
 			session.CurrentPersona = p
 			// We might want to clear history or annotate the switch?
 			// Let's annotate history so agent knows the role changed, or just rely on system prompt update in next turn.
