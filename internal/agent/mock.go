@@ -76,7 +76,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 3. Coding Agent (Implementation)
 	// Match on role OR specific feature requirement from the smoke test
-	if strings.Contains(prompt, "CODING AGENT") || strings.Contains(prompt, "req-script-primes-py-exists") || strings.Contains(prompt, "req-primes-py-exists") {
+	if strings.Contains(prompt, "CODING AGENT") || strings.Contains(prompt, "req-script-primes-py-exists") || strings.Contains(prompt, "req-primes-py-exists") || strings.Contains(prompt, "req-calculates-primes-correctly") {
 		return `
 		cat <<EOF > primes.py
 		import json
@@ -102,9 +102,15 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		`, nil
 	}
 
-	// 4. QA Agent / Manager (Verification)
-	if strings.Contains(prompt, "QA AGENT") || strings.Contains(prompt, "Project Manager") {
+	// 4. QA Agent (Verification)
+	if strings.Contains(prompt, "QA AGENT") {
 		return "QA checks passed. agent-bridge signal QA_PASSED true", nil
+	}
+
+	// 5. Project Manager (Review & Signoff)
+	if strings.Contains(prompt, "Project Manager") {
+		// If QA passed (simulated), sign off
+		return "Project looks good. agent-bridge signal PROJECT_SIGNED_OFF true", nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
