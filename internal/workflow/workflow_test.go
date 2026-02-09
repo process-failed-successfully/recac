@@ -173,6 +173,15 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 		return nil
 	}
 
+	// Mock NewSessionFunc as safety net
+	originalNewSessionFunc := NewSessionFunc
+	defer func() { NewSessionFunc = originalNewSessionFunc }()
+	NewSessionFunc = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
+		s := runner.NewSession(d, a, workspace, image, project, provider, model, maxAgents)
+		s.MaxIterations = 0
+		return s
+	}
+
 	// Mock SetupWorkspace
 	originalSetup := cmdutils.SetupWorkspace
 	defer func() { cmdutils.SetupWorkspace = originalSetup }()

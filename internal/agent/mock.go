@@ -39,11 +39,19 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Project Manager (TPM) - Generate Ticket/Feature List
-	// Check for standard role header OR the specific content from tpm_agent.md template
-	if strings.Contains(prompt, "ROLE - PROJECT MANAGER") || strings.Contains(prompt, "Technical Program Manager") {
+	// Explicitly check for "Technical Program Manager" which identifies the Generation prompt
+	// (tpm_agent.md content), preventing "sign off" keyword in that prompt from triggering review.
+	if strings.Contains(prompt, "Technical Program Manager") {
+		return m.handleProjectManager(prompt)
+	}
+
+	// 2b. Project Manager - Review
+	// Check for standard role header AND review keywords
+	if strings.Contains(prompt, "ROLE - PROJECT MANAGER") {
 		if strings.Contains(promptLower, "review") || strings.Contains(promptLower, "sign off") {
 			return m.handleProjectManagerReview(prompt)
 		}
+		// Fallback for other Project Manager prompts
 		return m.handleProjectManager(prompt)
 	}
 
