@@ -33,7 +33,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Heuristic for E2E Tests: [PRIMES] Scenario
-	if strings.Contains(prompt, "[PRIMES]") {
+	// We check for [PRIMES], primes.py, or prime-python to ensure we catch all relevant contexts
+	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "prime-python") {
 		// 1. Technical Program Manager (Ticket Generation)
 		// Detects "Technical Program Manager" role or ticket generation instructions
 		if (strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "CRITICAL INSTRUCTION FOR TICKET GENERATION")) &&
