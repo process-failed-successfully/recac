@@ -84,6 +84,11 @@ func runApp(ctx context.Context) error {
 	viper.BindEnv("provider", "RECAC_PROVIDER", "RECAC_AGENT_PROVIDER")
 	viper.BindEnv("model", "RECAC_MODEL", "RECAC_AGENT_MODEL")
 
+	// Auto-enable mock mode if provider is "mock"
+	if viper.GetString("provider") == "mock" {
+		viper.Set("mock", true)
+	}
+
 	// Init Logger
 	telemetry.InitLogger(viper.GetBool("verbose"), "", false)
 	logger := telemetry.NewLogger(viper.GetBool("verbose"), "", false)
@@ -93,6 +98,7 @@ func runApp(ctx context.Context) error {
 		"provider", viper.GetString("provider"),
 		"model", viper.GetString("model"),
 		"env_recac_provider", os.Getenv("RECAC_PROVIDER"),
+		"mock_mode", viper.GetBool("mock"),
 	)
 
 	// Construct SessionConfig
