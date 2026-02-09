@@ -65,6 +65,11 @@ func (s *Session) findAgentBridgeBinary() (string, error) {
 		return "/usr/local/bin/agent-bridge", nil
 	}
 
+	// 0.5. Try PATH
+	if path, err := exec.LookPath("agent-bridge"); err == nil {
+		return path, nil
+	}
+
 	// 1. Try CWD
 	srcPath, err := filepath.Abs("agent-bridge")
 	if err != nil {
