@@ -258,15 +258,18 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(linesToAppend) > 0 {
-		// Read existing .env to check for duplicates
-		existingEnv, _ := os.ReadFile(".env")
-		existingEnvStr := string(existingEnv)
+		func() {
+			// Read existing .env to check for duplicates
+			existingEnv, _ := os.ReadFile(".env")
+			existingEnvStr := string(existingEnv)
 
-		f, err := os.OpenFile(".env", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-		if err != nil {
-			fmt.Printf("Error opening .env: %v\n", err)
-		} else {
+			f, err := os.OpenFile(".env", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+			if err != nil {
+				fmt.Printf("Error opening .env: %v\n", err)
+				return
+			}
 			defer f.Close()
+
 			contentToAppend := ""
 			if len(existingEnv) > 0 && !strings.HasSuffix(existingEnvStr, "\n") {
 				contentToAppend = "\n"
@@ -289,7 +292,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 					fmt.Println("Secrets saved to .env")
 				}
 			}
-		}
+		}()
 	}
 
 	// Run Doctor

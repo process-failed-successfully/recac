@@ -55,19 +55,21 @@ func mockAskOne(p survey.Prompt, response interface{}, opts ...survey.AskOpt) er
 }
 
 func TestSetupCmd(t *testing.T) {
+	// Use temp dir for isolation
+	tempDir := t.TempDir()
+	t.Chdir(tempDir)
+	t.Setenv("HOME", tempDir)
+
 	// Setup: Backup original values
 	originalAskOne := askOneFunc
 	originalViperConfig := viper.ConfigFileUsed()
 	originalRunDoctor := runDoctorFunc
 
-	// Teardown: Restore original values and clean up files
+	// Teardown: Restore original values
 	defer func() {
 		askOneFunc = originalAskOne
 		viper.SetConfigFile(originalViperConfig)
 		runDoctorFunc = originalRunDoctor
-		os.Remove("test_config.yaml")
-		// We remove .env only if we created it. Since the test creates it, we remove it.
-		// If it existed before, we backed it up.
 	}()
 
 	// Mock Doctor execution
@@ -99,12 +101,6 @@ func TestSetupCmd(t *testing.T) {
 	viper.Reset()
 	viper.SetConfigFile("test_config.yaml")
 
-	// Backup .env if exists
-	if _, err := os.Stat(".env"); err == nil {
-		os.Rename(".env", ".env.bak")
-		defer os.Rename(".env.bak", ".env")
-	}
-
 	// Execute command
 	cmd := &cobra.Command{Use: "test"}
 	err := runSetup(cmd, []string{})
@@ -130,12 +126,13 @@ func TestSetupCmd(t *testing.T) {
 	assert.Contains(t, content, "OPENAI_API_KEY=sk-test-123")
 	assert.Contains(t, content, "JIRA_API_TOKEN=jira-token-123")
 	assert.Contains(t, content, "SLACK_BOT_USER_TOKEN=xoxb-test")
-
-	// Cleanup .env created by test
-	os.Remove(".env")
 }
 
 func TestSetupCmd_Cancellation(t *testing.T) {
+	// No file ops, but isolation is good practice
+	tempDir := t.TempDir()
+	t.Chdir(tempDir)
+
 	originalAskOne := askOneFunc
 	defer func() { askOneFunc = originalAskOne }()
 
@@ -150,6 +147,10 @@ func TestSetupCmd_Cancellation(t *testing.T) {
 }
 
 func TestSetupCmd_Skips(t *testing.T) {
+	tempDir := t.TempDir()
+	t.Chdir(tempDir)
+	t.Setenv("HOME", tempDir)
+
 	originalAskOne := askOneFunc
 	defer func() { askOneFunc = originalAskOne }()
 
@@ -165,7 +166,6 @@ func TestSetupCmd_Skips(t *testing.T) {
 
 	viper.Reset()
 	viper.SetConfigFile("test_config_skips.yaml")
-	defer os.Remove("test_config_skips.yaml")
 
 	cmd := &cobra.Command{Use: "test"}
 	err := runSetup(cmd, []string{})
@@ -177,6 +177,10 @@ func TestSetupCmd_Skips(t *testing.T) {
 }
 
 func TestSetupCmd_JiraTokenInConfig(t *testing.T) {
+	tempDir := t.TempDir()
+	t.Chdir(tempDir)
+	t.Setenv("HOME", tempDir)
+
 	originalAskOne := askOneFunc
 	defer func() { askOneFunc = originalAskOne }()
 
@@ -196,7 +200,6 @@ func TestSetupCmd_JiraTokenInConfig(t *testing.T) {
 
 	viper.Reset()
 	viper.SetConfigFile("test_config_jira_cfg.yaml")
-	defer os.Remove("test_config_jira_cfg.yaml")
 
 	cmd := &cobra.Command{Use: "test"}
 	err := runSetup(cmd, []string{})
@@ -209,12 +212,15 @@ func TestSetupCmd_JiraTokenInConfig(t *testing.T) {
 }
 
 func TestSetupCmd_AppendEnv(t *testing.T) {
+	tempDir := t.TempDir()
+	t.Chdir(tempDir)
+	t.Setenv("HOME", tempDir)
+
 	originalAskOne := askOneFunc
 	defer func() { askOneFunc = originalAskOne }()
 
 	// Create existing .env
 	os.WriteFile(".env", []byte("EXISTING_VAR=foo\n"), 0600)
-	defer os.Remove(".env")
 
 	mockAnswers = map[string]interface{}{
 		"Choose your AI Provider:":                              "openai",
@@ -229,7 +235,6 @@ func TestSetupCmd_AppendEnv(t *testing.T) {
 
 	viper.Reset()
 	viper.SetConfigFile("test_config_append.yaml")
-	defer os.Remove("test_config_append.yaml")
 
 	cmd := &cobra.Command{Use: "test"}
 	err := runSetup(cmd, []string{})
