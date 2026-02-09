@@ -123,7 +123,7 @@ func TestBaseClient_SendWithRetry(t *testing.T) {
 		})
 		assert.Error(t, err)
 		assert.Equal(t, "", resp)
-		assert.Equal(t, 6, calls) // Initial + 5 retries
+		assert.Equal(t, 9, calls) // Initial + 8 retries
 	})
 }
 

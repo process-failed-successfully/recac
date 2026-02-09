@@ -157,7 +157,7 @@ func (c *BaseClient) SendWithRetry(ctx context.Context, prompt string, sendOnce 
 		return "", err
 	}
 
-	maxRetries := 5 // Increased retries for stability (2s, 4s, 8s, 16s, 32s)
+	maxRetries := 8 // Increased retries for stability (up to ~4 mins total backoff)
 	var lastErr error
 
 	for i := 0; i <= maxRetries; i++ {
@@ -199,7 +199,7 @@ func (c *BaseClient) SendStreamWithRetry(ctx context.Context, prompt string, sen
 	}
 
 	var fullResponse strings.Builder
-	maxRetries := 5 // Increased retries for stability
+	maxRetries := 8 // Increased retries for stability
 	var lastErr error
 
 	for i := 0; i <= maxRetries; i++ {
