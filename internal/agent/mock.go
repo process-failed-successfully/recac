@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"regexp"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -32,17 +33,25 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 	// Check for TPM prompt (used in recac jira generate-from-spec)
 	if isTPMPrompt(prompt) {
-		return `[
+		// Attempt to extract Repo URL from the prompt to ensure consistency with the request
+		repoURL := "https://github.com/example/repo"
+		re := regexp.MustCompile(`Repo: (https?://\S+)`)
+		matches := re.FindStringSubmatch(prompt)
+		if len(matches) > 1 {
+			repoURL = matches[1]
+		}
+
+		return fmt.Sprintf(`[
   {
     "title": "ID:[PRIMES] Create primes.py",
-    "description": "Create a python script that calculates primes up to 10000. Repo: https://github.com/example/repo",
+    "description": "Create a python script that calculates primes up to 10000. Repo: %s",
     "type": "Task",
     "acceptance_criteria": [
         "Script runs without errors",
         "Calculates primes correctly"
     ]
   }
-]`, nil
+]`, repoURL), nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
