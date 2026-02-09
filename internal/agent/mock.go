@@ -44,6 +44,25 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return "Project looks good. Approved.\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
 	}
 
+	// --- TPM (Jira Generation) ---
+	if strings.Contains(upperPrompt, "TECHNICAL PROGRAM MANAGER") || strings.Contains(upperPrompt, "TPM") {
+		return `[
+  {
+    "title": "ID:[PROJECT] Project Implementation",
+    "description": "Implementation of the project requirements",
+    "type": "Epic",
+    "children": [
+      {
+        "title": "ID:[TASK-1] Initial Setup",
+        "description": "Setup project structure",
+        "type": "Task",
+        "children": []
+      }
+    ]
+  }
+]`, nil
+	}
+
     // --- INITIALIZER ---
     if strings.Contains(upperPrompt, "INITIALIZER") || strings.Contains(upperPrompt, "GET YOUR BEARINGS") || strings.Contains(upperPrompt, "CREATE FEATURE_LIST.JSON") {
          featureList := `{

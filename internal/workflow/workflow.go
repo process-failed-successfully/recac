@@ -370,7 +370,6 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 	if cfg.IsMock {
 		fmt.Printf("[%s] Starting in MOCK MODE\n", cfg.SessionName)
 		dockerCli, _ := docker.NewMockClient()
-		agentClient := agent.NewMockAgent()
 
 		projectPath := cfg.ProjectPath
 		if projectPath == "" {
@@ -382,6 +381,11 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 			projectName = "mock-project"
 		}
 
+		// Use factory to allow tests to override agent creation
+		agentClient, err := cmdutils.GetAgentClient(ctx, "mock", "mock-model", projectPath, projectName)
+		if err != nil {
+			return fmt.Errorf("failed to initialize mock agent: %v", err)
+		}
 		session := NewSessionFunc(dockerCli, agentClient, projectPath, cfg.Image, projectName, cfg.Provider, cfg.Model, cfg.MaxAgents)
 		if cfg.Logger != nil {
 			session.Logger = cfg.Logger
