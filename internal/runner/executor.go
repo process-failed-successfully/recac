@@ -177,7 +177,9 @@ func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, ind
 		// Execute Locally
 		cmd := exec.CommandContext(cmdCtx, "/bin/bash", "-c", cmdScript)
 		// Propagate Environment + Inject Project ID
-		cmd.Env = append(os.Environ(), fmt.Sprintf("RECAC_PROJECT_ID=%s", s.Project))
+		// FILTERED: Use FilterEnv to remove sensitive keys (e.g. API keys) to prevent leakage
+		safeEnv := FilterEnv(os.Environ())
+		cmd.Env = append(safeEnv, fmt.Sprintf("RECAC_PROJECT_ID=%s", s.Project))
 		// Debug: Log key env vars for troubleshooting
 		s.Logger.Info("[DEBUG] Local exec env vars",
 			"RECAC_PROJECT_ID", s.Project,

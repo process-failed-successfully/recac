@@ -1,0 +1,4 @@
+## 2026-02-09 - [Environment Variable Leakage in Child Processes]
+**Vulnerability:** The Agent process, which holds critical secrets (OPENAI_API_KEY, JIRA_TOKEN), was passing its full environment to child processes executed via `exec.Command` (specifically in `executeCommandBlock` for local execution). This allowed any LLM-generated command (like `env`) to dump secrets to logs or output.
+**Learning:** Default `exec.Command` inherits nothing by default in Go, but we were explicitly doing `cmd.Env = os.Environ()`. In "Runner" architectures where the runner holds secrets but executes untrusted code, explicit environment filtering is mandatory.
+**Prevention:** Use `FilterEnv` helper to strip sensitive keys (API_KEY, TOKEN, SECRET, etc.) from `cmd.Env` before execution. Do not rely on `os.Environ()` inheritance for untrusted subprocesses.

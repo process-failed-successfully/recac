@@ -11,6 +11,52 @@ import (
 	"time"
 )
 
+// FilterEnv filters environment variables to prevent leaking sensitive secrets
+// to child processes executed by the agent.
+// It uses a denylist approach to block known sensitive keys while allowing
+// standard system and tool variables to pass through.
+func FilterEnv(env []string) []string {
+	var safeEnv []string
+	sensitivePatterns := []string{
+		"API_KEY", "TOKEN", "SECRET", "PASSWORD", "CREDENTIAL",
+		"OPENAI_", "ANTHROPIC_", "GEMINI_", "JIRA_", "SLACK_",
+		"AWS_", "GCP_", "AZURE_", "GH_", "GITHUB_", "GITLAB_",
+	}
+
+	for _, e := range env {
+		// Split KEY=VALUE to check KEY only
+		parts := strings.SplitN(e, "=", 2)
+		if len(parts) == 0 {
+			continue
+		}
+		key := strings.ToUpper(parts[0])
+
+		isSensitive := false
+		for _, p := range sensitivePatterns {
+			if strings.Contains(key, p) {
+				isSensitive = true
+				break
+			}
+		}
+
+		// Exception: RECAC_PROJECT_ID is safe and needed for context
+		if key == "RECAC_PROJECT_ID" {
+			isSensitive = false
+		}
+
+		// Exception: GIT_SSH or GIT_ASKPASS might be needed, but if they contain "KEY" or "TOKEN",
+		// they are blocked by the generic check.
+		// Usually GIT_SSH_COMMAND shouldn't contain the key itself, but the command.
+		// However, some people put keys in env vars referenced by commands.
+		// We err on the side of safety.
+
+		if !isSensitive {
+			safeEnv = append(safeEnv, e)
+		}
+	}
+	return safeEnv
+}
+
 // fixPasswdDatabase ensures the host user exists in the container's /etc/passwd.
 // This prevents "you do not exist in the passwd database" errors when using sudo.
 func (s *Session) fixPasswdDatabase(ctx context.Context, containerUser string) {
