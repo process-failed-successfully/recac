@@ -1,5 +1,4 @@
 agent_timeout: 300
-aliases: {}
 allow_dirty: false
 auto_merge: false
 bash_timeout: 600
