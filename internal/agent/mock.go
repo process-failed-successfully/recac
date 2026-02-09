@@ -58,7 +58,18 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		}
 	}
 
-	// Heuristic 2: Coding Phase for Smoke Test (Prime Python)
+	// Heuristic 2: Loop Breaker for Smoke Test (Working Tree Clean)
+	if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
+		return `It looks like the code is already implemented and committed. I will mark the QA as passed.
+
+` + "```bash" + `
+agent-bridge signal --privileged QA_PASSED true
+agent-bridge signal --privileged PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
+	}
+
+	// Heuristic 3: Coding Phase for Smoke Test (Prime Python)
 	lowerPrompt := strings.ToLower(prompt)
 	if (strings.Contains(lowerPrompt, "implement") || strings.Contains(lowerPrompt, "create")) &&
 		(strings.Contains(lowerPrompt, "prime") || strings.Contains(lowerPrompt, "primes")) {
