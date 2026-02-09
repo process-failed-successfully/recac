@@ -50,3 +50,28 @@ func TestOpenAIClient_NoKey(t *testing.T) {
 		t.Error("Expected error for missing API key")
 	}
 }
+
+func TestOpenAIClient_SendImage(t *testing.T) {
+	expectedResponse := "This is a dog"
+	imageData := []byte("fake image data")
+
+	client := NewOpenAIClient("dummy-key", "gpt-4-vision-preview", "test-project").
+		WithMockImageResponder(func(prompt string, img []byte) (string, error) {
+			if prompt != "Describe this" {
+				t.Errorf("Expected prompt 'Describe this', got %q", prompt)
+			}
+			if string(img) != string(imageData) {
+				t.Errorf("Expected image data %q, got %q", imageData, img)
+			}
+			return expectedResponse, nil
+		})
+
+	resp, err := client.SendImage(context.Background(), "Describe this", imageData)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if resp != expectedResponse {
+		t.Errorf("Expected response %q, got %q", expectedResponse, resp)
+	}
+}

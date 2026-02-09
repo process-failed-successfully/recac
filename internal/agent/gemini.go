@@ -3,6 +3,7 @@ package agent
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,7 +19,8 @@ type GeminiClient struct {
 	httpClient *http.Client
 	apiURL     string
 	// mockResponder is used for testing to bypass real API calls
-	mockResponder func(string) (string, error)
+	mockResponder      func(string) (string, error)
+	mockImageResponder func(string, []byte) (string, error)
 }
 
 // NewGeminiClient creates a new Gemini client
@@ -37,6 +39,12 @@ func NewGeminiClient(apiKey, model, project string) *GeminiClient {
 // WithMockResponder sets a mock responder for testing
 func (c *GeminiClient) WithMockResponder(fn func(string) (string, error)) *GeminiClient {
 	c.mockResponder = fn
+	return c
+}
+
+// WithMockImageResponder sets a mock image responder for testing
+func (c *GeminiClient) WithMockImageResponder(fn func(string, []byte) (string, error)) *GeminiClient {
+	c.mockImageResponder = fn
 	return c
 }
 
@@ -127,4 +135,83 @@ func (c *GeminiClient) SendStream(ctx context.Context, prompt string, onChunk fu
 		}
 		return resp, err
 	}, onChunk)
+}
+
+// SendImage sends a prompt with an image to Gemini
+func (c *GeminiClient) SendImage(ctx context.Context, prompt string, image []byte) (string, error) {
+	// Use SendWithRetry logic but adapted for image payload
+	return c.SendWithRetry(ctx, prompt, func(ctx context.Context, p string) (string, error) {
+		if c.mockImageResponder != nil {
+			return c.mockImageResponder(p, image)
+		}
+
+		if c.apiKey == "" {
+			return "", fmt.Errorf("API key is required")
+		}
+
+		url := fmt.Sprintf("%s/%s:generateContent", c.apiURL, c.model)
+
+		// Encode image to base64
+		encodedImage := base64.StdEncoding.EncodeToString(image)
+		mimeType := http.DetectContentType(image)
+
+		requestBody := map[string]interface{}{
+			"contents": []map[string]interface{}{
+				{
+					"parts": []map[string]interface{}{
+						{"text": p},
+						{
+							"inline_data": map[string]interface{}{
+								"mime_type": mimeType,
+								"data":      encodedImage,
+							},
+						},
+					},
+				},
+			},
+		}
+
+		jsonBody, err := json.Marshal(requestBody)
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal request: %w", err)
+		}
+
+		req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonBody))
+		if err != nil {
+			return "", fmt.Errorf("failed to create request: %w", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("x-goog-api-key", c.apiKey)
+
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return "", fmt.Errorf("failed to send request: %w", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			bodyBytes, _ := io.ReadAll(resp.Body)
+			return "", fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(bodyBytes))
+		}
+
+		var response struct {
+			Candidates []struct {
+				Content struct {
+					Parts []struct {
+						Text string `json:"text"`
+					} `json:"parts"`
+				} `json:"content"`
+			} `json:"candidates"`
+		}
+
+		if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+			return "", fmt.Errorf("failed to decode response: %w", err)
+		}
+
+		if len(response.Candidates) == 0 || len(response.Candidates[0].Content.Parts) == 0 {
+			return "", fmt.Errorf("no content in response")
+		}
+
+		return response.Candidates[0].Content.Parts[0].Text, nil
+	})
 }
