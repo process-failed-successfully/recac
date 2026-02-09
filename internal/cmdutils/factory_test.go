@@ -2,6 +2,7 @@ package cmdutils
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"recac/internal/git"
 	"testing"
@@ -386,5 +387,35 @@ func TestSetupWorkspace(t *testing.T) {
 		_, err := SetupWorkspace(context.Background(), mockGitClient, "https://github.com/example/repo", "/tmp/recac-test", "TEST-1", "", "")
 		assert.NoError(t, err)
 		assert.Equal(t, "agent/TEST-1", checkedOut)
+	})
+
+	t.Run("Clean dirty workspace", func(t *testing.T) {
+		// Setup temp workspace
+		workspace := t.TempDir()
+		// Create garbage
+		if err := os.WriteFile(workspace+"/garbage.txt", []byte("trash"), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		cloned := false
+		mockGitClient := &MockGitClient{
+			repoExists: false,
+			cloneFn: func(ctx context.Context, repoURL, directory string) error {
+				cloned = true
+				// Check if directory is empty (garbage gone)
+				entries, err := os.ReadDir(directory)
+				if err != nil {
+					return err
+				}
+				if len(entries) > 0 {
+					return fmt.Errorf("directory not clean")
+				}
+				return nil
+			},
+		}
+
+		_, err := SetupWorkspace(context.Background(), mockGitClient, "https://github.com/example/repo", workspace, "TEST-1", "", "")
+		assert.NoError(t, err)
+		assert.True(t, cloned)
 	})
 }
