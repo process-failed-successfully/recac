@@ -95,6 +95,17 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		if !strings.Contains(resp, "cat <<EOF > primes.py") {
 			t.Errorf("Expected primes.py creation, got: %s", resp)
 		}
+	})
+
+	t.Run("CodingAgent_NormalizedID", func(t *testing.T) {
+		prompt := "You are the CODING AGENT. Task: req-implement-prime-number-script"
+		resp, err := agent.Send(ctx, prompt)
+		if err != nil {
+			t.Fatalf("Send failed: %v", err)
+		}
+		if !strings.Contains(resp, "cat <<EOF > primes.py") {
+			t.Errorf("Expected primes.py creation for normalized ID, got: %s", resp)
+		}
 		if !strings.Contains(resp, "agent-bridge feature set req-implement-prime-number-script --status done || echo") {
 			t.Errorf("Expected feature update command with fallback, got: %s", resp)
 		}

@@ -137,7 +137,7 @@ agent-bridge signal --privileged PROJECT_SIGNED_OFF true
 
 	// 6. Coding Agent Heuristic
 	// If asked to implement the primes feature
-	if strings.Contains(prompt, "CODING AGENT") && (strings.Contains(prompt, "req-primes") || strings.Contains(prompt, "[PRIMES]")) {
+	if strings.Contains(prompt, "CODING AGENT") && (strings.Contains(prompt, "req-implement-prime-number-script") || strings.Contains(prompt, "req-primes") || strings.Contains(prompt, "[PRIMES]")) {
 		script := `#!/usr/bin/env python3
 import json
 
