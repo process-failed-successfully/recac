@@ -67,7 +67,7 @@ git clone https://github.com/process-failed-successfully/recac-jira-e2e .
 	if strings.Contains(prompt, "CODING AGENT") {
 		// Heuristic to detect primes task
 		if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "req-primes-py-exists") {
-			return `cat << 'EOF' > primes.py
+			return "```bash\n" + `cat << 'EOF' > primes.py
 import json
 
 def is_prime(n):
@@ -86,11 +86,11 @@ EOF
 git add primes.py
 git commit -m "feat: add primes.py" || true
 agent-bridge feature set req-primes-py-exists completed
-`, nil
+` + "\n```", nil
 		}
 
 		if strings.Contains(prompt, "test_primes.py") || strings.Contains(prompt, "req-implement-tests") {
-             return `cat << 'EOF' > test_primes.py
+             return "```bash\n" + `cat << 'EOF' > test_primes.py
 import unittest
 from primes import is_prime
 
@@ -105,11 +105,11 @@ EOF
 git add test_primes.py
 git commit -m "test: add test_primes.py" || true
 agent-bridge feature set req-implement-tests completed
-`, nil
+` + "\n```", nil
         }
 
         if strings.Contains(prompt, "CI Workflow") || strings.Contains(prompt, "req-ci-workflow") {
-            return `mkdir -p .github/workflows
+            return "```bash\n" + `mkdir -p .github/workflows
 cat << 'EOF' > .github/workflows/ci.yml
 name: CI
 on: [push]
@@ -131,21 +131,21 @@ EOF
 git add .github/workflows/ci.yml
 git commit -m "ci: add workflow" || true
 agent-bridge feature set req-ci-workflow completed
-`, nil
+` + "\n```", nil
         }
 
 		// Loop breaker: if nothing specific matched or prompt implies review/cleanup
 		// Signal QA Passed if tree is clean (no-op loop breaker)
 		if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
-			return `agent-bridge signal QA_PASSED true
+			return "```bash\n" + `agent-bridge signal QA_PASSED true
 agent-bridge signal PROJECT_SIGNED_OFF true --privileged
-`, nil
+` + "\n```", nil
 		}
 
 		// Fallback for coding agent
-		return `echo "Coding agent fallback - no specific task detected"
+		return "```bash\n" + `echo "Coding agent fallback - no specific task detected"
 agent-bridge feature set req-ci-workflow completed || true
-`, nil
+` + "\n```", nil
 	}
 
 
