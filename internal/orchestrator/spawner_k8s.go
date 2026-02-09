@@ -131,8 +131,8 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 
 	// Inject Standard Env Vars
 	envVars = append(envVars, corev1.EnvVar{Name: "GIT_TERMINAL_PROMPT", Value: "0"})
-	// Set HOME to workspace to ensure a writable home directory is available for tools (like PersonaManager, Viper, etc.)
-	envVars = append(envVars, corev1.EnvVar{Name: "HOME", Value: "/workspace"})
+	// Use GIT_CONFIG_GLOBAL to point git to a writable location without overriding HOME for the entire container
+	envVars = append(envVars, corev1.EnvVar{Name: "GIT_CONFIG_GLOBAL", Value: "/workspace/.gitconfig"})
 
 	// Propagate Secrets and Config from Host Environment (Consistency with DockerSpawner)
 	secrets := []string{

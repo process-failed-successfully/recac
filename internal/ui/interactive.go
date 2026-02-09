@@ -151,7 +151,6 @@ const (
 	ModeShell
 	ModeModelSelect // Model menu
 	ModeAgentSelect // Agent/Provider menu
-	ModePersonaSelect // Persona menu
 )
 
 // CommandItem implements list.Item
@@ -186,17 +185,6 @@ type AgentItem struct {
 func (i AgentItem) FilterValue() string { return i.Name }
 func (i AgentItem) Title() string       { return i.Name }
 func (i AgentItem) Description() string { return i.DescriptionDetails }
-
-// PersonaItem implements list.Item for the persona menu
-type PersonaItem struct {
-	Name               string
-	Value              string // ID
-	DescriptionDetails string
-}
-
-func (i PersonaItem) FilterValue() string { return i.Name }
-func (i PersonaItem) Title() string       { return i.Name }
-func (i PersonaItem) Description() string { return i.DescriptionDetails }
 
 // SlashCommand legacy wrapper
 type SlashCommand struct {
@@ -240,10 +228,6 @@ type InteractiveModel struct {
 	currentModel string      // Selected model ID
 	currentAgent string      // Selected agent/provider
 
-	// Persona Logic
-	personaManager *agent.PersonaManager
-	currentPersona string // ID
-
 	mode          InputMode
 	showList      bool
 	thinking      bool // For spinner
@@ -274,28 +258,18 @@ func NewInteractiveModel(commands []SlashCommand, provider, model string) Intera
 	ta.KeyMap.InsertNewline.SetEnabled(true) // Allow multi-line input
 
 	// Convert SlashCommands to CommandItems
-	// Initialize Persona Manager
-	pm := agent.NewPersonaManager()
-	if err := pm.LoadPersonas(); err != nil {
-		slog.Warn("Failed to load personas", "error", err)
-	}
-
 	// Custom Commands Injection
 	items := make([]list.Item, 0)
 	cmdItems := make([]CommandItem, 0)
 
 	hasModelCmd := false
 	hasAgentCmd := false
-	hasPersonaCmd := false
 	for _, c := range commands {
 		if c.Name == "/model" {
 			hasModelCmd = true
 		}
 		if c.Name == "/agent" {
 			hasAgentCmd = true
-		}
-		if c.Name == "/persona" {
-			hasPersonaCmd = true
 		}
 	}
 
@@ -325,20 +299,6 @@ func NewInteractiveModel(commands []SlashCommand, provider, model string) Intera
 		}
 		items = append(items, agentCmd)
 		cmdItems = append(cmdItems, agentCmd)
-	}
-
-	// Add built-in /persona command
-	if !hasPersonaCmd {
-		personaCmd := CommandItem{
-			Name: "/persona",
-			Desc: "Select active Persona (System Prompt)",
-			Action: func(m *InteractiveModel, args []string) tea.Cmd {
-				m.setMode(ModePersonaSelect)
-				return nil
-			},
-		}
-		items = append(items, personaCmd)
-		cmdItems = append(cmdItems, personaCmd)
 	}
 
 	for _, c := range commands {
@@ -472,8 +432,6 @@ func NewInteractiveModel(commands []SlashCommand, provider, model string) Intera
 		agentModels:   agentModels,
 		currentModel:  model,
 		currentAgent:  provider,
-		personaManager: pm,
-		currentPersona: "default",
 		messages:      []ChatMessage{{Role: RoleSystem, Content: welcomeMsg}},
 		mode:          ModeChat,
 		showList:      false,
@@ -535,7 +493,7 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Mode-based Updates
 	switch m.mode {
-	case ModeModelSelect, ModeAgentSelect, ModePersonaSelect:
+	case ModeModelSelect, ModeAgentSelect:
 		// In menu modes, list handles input
 		m.list.SetHeight(12)
 		m.list.SetShowTitle(true)
@@ -724,7 +682,7 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case key.Matches(msg, m.keys.Back):
-			if m.mode == ModeModelSelect || m.mode == ModeAgentSelect || m.mode == ModePersonaSelect {
+			if m.mode == ModeModelSelect || m.mode == ModeAgentSelect {
 				m.setMode(ModeChat) // Cancel menu
 				return m, nil
 			}
@@ -735,7 +693,7 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case key.Matches(msg, m.keys.ToggleList):
-			if m.mode != ModeModelSelect && m.mode != ModeAgentSelect && m.mode != ModePersonaSelect {
+			if m.mode != ModeModelSelect && m.mode != ModeAgentSelect {
 				m.toggleList()
 				return m, nil
 			}
@@ -774,20 +732,7 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 
-			// 3. Persona Selection Mode
-			if m.mode == ModePersonaSelect {
-				if i := m.list.SelectedItem(); i != nil {
-					persona := i.(PersonaItem)
-					m.currentPersona = persona.Value
-					m.conversation(fmt.Sprintf("Switched Persona to: %s", persona.Name), false)
-
-					m.setMode(ModeChat)
-					return m, nil
-				}
-				return m, nil
-			}
-
-			// 4. PRIORITY: Check Manual Input Match First
+			// 3. PRIORITY: Check Manual Input Match First
 			v := m.textarea.Value()
 			if v != "" && strings.HasPrefix(v, "/") {
 				parts := strings.Fields(v)
@@ -803,11 +748,6 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					if cmdName == "/agent" {
 						m.textarea.Reset()
 						m.setMode(ModeAgentSelect)
-						return m, nil
-					}
-					if cmdName == "/persona" {
-						m.textarea.Reset()
-						m.setMode(ModePersonaSelect)
 						return m, nil
 					}
 
@@ -879,7 +819,7 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// Global List Visibility Logic for Text Input
-		if m.mode != ModeModelSelect && m.mode != ModeAgentSelect && m.mode != ModePersonaSelect {
+		if m.mode != ModeModelSelect && m.mode != ModeAgentSelect {
 			v := m.textarea.Value()
 			if strings.HasPrefix(v, "/") {
 				m.showList = true
@@ -936,15 +876,7 @@ func (m *InteractiveModel) generateResponse(prompt string) tea.Cmd {
 		errCh := make(chan error, 1)
 
 		go func() {
-			// Prepend System Prompt
-			fullPrompt := prompt
-			if p, ok := m.personaManager.GetPersona(m.currentPersona); ok {
-				if p.SystemPrompt != "" {
-					fullPrompt = p.SystemPrompt + "\n\n" + prompt
-				}
-			}
-
-			_, err := m.activeAgent.SendStream(context.Background(), fullPrompt, func(chunk string) {
+			_, err := m.activeAgent.SendStream(context.Background(), prompt, func(chunk string) {
 				chkCh <- chunk
 			})
 			if err != nil {
@@ -1027,12 +959,6 @@ func (m *InteractiveModel) setMode(mode InputMode) {
 		m.textarea.Blur()
 		m.showList = true
 		m.setListItemsToAgents()
-
-	case ModePersonaSelect:
-		m.list.SetShowTitle(true)
-		m.textarea.Blur()
-		m.showList = true
-		m.setListItemsToPersonas()
 	}
 }
 
@@ -1079,27 +1005,6 @@ func (m *InteractiveModel) setListItemsToAgents() {
 	m.list.SetItems(items)
 	m.list.Title = "Select Agent Provider (Enter to confirm, Esc to cancel)"
 	m.list.Styles.Title = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFF")).Background(lipgloss.Color("#04B575")).Padding(0, 1) // Green
-}
-
-func (m *InteractiveModel) setListItemsToPersonas() {
-	ids := m.personaManager.ListSorted()
-	items := make([]list.Item, len(ids))
-
-	for i, id := range ids {
-		p, _ := m.personaManager.GetPersona(id)
-		name := p.Name
-		if id == m.currentPersona {
-			name += " (Current)"
-		}
-		items[i] = PersonaItem{
-			Name:               name,
-			Value:              id,
-			DescriptionDetails: p.Description,
-		}
-	}
-	m.list.SetItems(items)
-	m.list.Title = "Select Persona (System Prompt)"
-	m.list.Styles.Title = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFF")).Background(lipgloss.Color("#F4B400")).Padding(0, 1) // Yellowish
 }
 
 func (m *InteractiveModel) runShellCommand(cmdStr string) tea.Cmd {
@@ -1203,9 +1108,6 @@ func (m InteractiveModel) View() string {
 	case ModeAgentSelect:
 		modeStr = "AGENT"
 		modeColor = lipgloss.Color("#04B575")
-	case ModePersonaSelect:
-		modeStr = "PERSONA"
-		modeColor = lipgloss.Color("#F4B400")
 	default: // Chat
 		modeStr = "CHAT"
 		modeColor = lipgloss.Color("63")
@@ -1226,24 +1128,12 @@ func (m InteractiveModel) View() string {
 		infoValueStyle.Render(m.currentModel),
 	)
 
-	// Fetch current persona name for display
-	pName := m.currentPersona
-	if p, ok := m.personaManager.GetPersona(m.currentPersona); ok {
-		pName = p.Name
-	}
-	personaSection := lipgloss.JoinHorizontal(lipgloss.Center,
-		infoLabelStyle.Render("Persona: "),
-		infoValueStyle.Render(pName),
-	)
-
 	divider := lipgloss.NewStyle().Foreground(lipgloss.Color("238")).SetString(" • ").String()
 
 	infoBarContent := lipgloss.JoinHorizontal(lipgloss.Center,
 		providerSection,
 		divider,
 		modelSection,
-		divider,
-		personaSection,
 		divider,
 		modeBadge,
 	)
@@ -1253,7 +1143,7 @@ func (m InteractiveModel) View() string {
 
 	// Layout Switch: Show List OR Viewport
 	// Explicitly check for menu modes to ensure list is rendered even if showList is somehow desync
-	if m.showList || m.mode == ModeModelSelect || m.mode == ModeAgentSelect || m.mode == ModePersonaSelect {
+	if m.showList || m.mode == ModeModelSelect || m.mode == ModeAgentSelect {
 		// Overlay style: Viewport on top, List at bottom
 		// Calculate split
 		listHeight := 10
@@ -1310,7 +1200,7 @@ func (m InteractiveModel) View() string {
 	views = append(views, promptStyle.Render(m.textarea.View()))
 
 	// Dynamic Help Configuration
-	isMenu := m.mode == ModeModelSelect || m.mode == ModeAgentSelect || m.mode == ModePersonaSelect || m.showList
+	isMenu := m.mode == ModeModelSelect || m.mode == ModeAgentSelect || m.showList
 
 	if isMenu {
 		m.keys.Enter.SetHelp("enter", "select")
