@@ -1,0 +1,1559 @@
+=== RUN   TestSession_E2E_DockerFileWrite
+[Session] DB Store initialized successfully: type=sqlite, project=e2e-test
+2026/02/09 04:49:56 INFO [DB] Store initialized successfully type=sqlite project=e2e-test
+Session logs will be written to: /app/internal/runner/agents/logs/e2e-test_agent_e2e-test_20260209-044956.log
+Initializing session with image: recac-agent:latest
+Warning: Failed to read spec: failed to read spec file and no backups found: open /tmp/recac-e2e-test872137433/app_spec.txt: no such file or directory
+Legacy agent image 'recac-agent:latest' not found. Building from template...
+Warning: Failed to ensure image recac-agent:latest: failed to build legacy agent image: build failed: failed to mount /tmp/containerd-mount199118500: mount source: "overlay", target: "/tmp/containerd-mount199118500", fstype: overlay, flags: 0, data: "workdir=/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/9/work,upperdir=/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/9/fs,lowerdir=/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/5/fs:/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/4/fs:/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/3/fs:/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/2/fs:/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/1/fs,index=off", err: invalid argument. Attempting to proceed anyway...
+Warning: Failed to locate agent-bridge binary: agent-bridge binary not found at /app/agent-bridge. Did you run 'make bridge'?. Agent CLI tools will not work.
+    agent_e2e_docker_test.go:41: Skipping test: Docker image build/run failed (likely environment issue): failed to create container: Error response from daemon: No such image: recac-agent:latest
+--- SKIP: TestSession_E2E_DockerFileWrite (0.38s)
+=== RUN   TestSession_ProcessResponse_Thorough
+{"time":"2026-02-09T04:49:56.975380915Z","level":"INFO","msg":"executing command block","index":1,"total":1,"script":"echo 'hello' > test.txt"}
+{"time":"2026-02-09T04:49:56.975462066Z","level":"INFO","msg":"command output","output":"Success: /bin/bash -c echo 'hello' > test.txt"}
+{"time":"2026-02-09T04:49:56.975480775Z","level":"INFO","msg":"iteration metrics","commands_executed":1,"files_modified_est":1,"output_lines":2,"response_chars":57}
+{"time":"2026-02-09T04:49:56.975492426Z","level":"INFO","msg":"executing command block","index":1,"total":2,"script":"echo 1"}
+{"time":"2026-02-09T04:49:56.975500826Z","level":"INFO","msg":"command output","output":"Success: /bin/bash -c echo 1"}
+{"time":"2026-02-09T04:49:56.975508533Z","level":"INFO","msg":"executing command block","index":2,"total":2,"script":"echo 2"}
+{"time":"2026-02-09T04:49:56.975516452Z","level":"INFO","msg":"command output","output":"Success: /bin/bash -c echo 2"}
+{"time":"2026-02-09T04:49:56.975552936Z","level":"INFO","msg":"iteration metrics","commands_executed":2,"files_modified_est":0,"output_lines":4,"response_chars":59}
+{"time":"2026-02-09T04:49:56.975567302Z","level":"INFO","msg":"executing command block","index":1,"total":1,"script":"apk add curl"}
+{"time":"2026-02-09T04:49:56.975576755Z","level":"INFO","msg":"command output","output":"Success: /bin/bash -c apk add curl"}
+{"time":"2026-02-09T04:49:56.975587288Z","level":"INFO","msg":"iteration metrics","commands_executed":1,"files_modified_est":0,"output_lines":2,"response_chars":53}
+--- PASS: TestSession_ProcessResponse_Thorough (0.00s)
+=== RUN   TestSession_ProcessResponse_Timeout
+{"time":"2026-02-09T04:49:56.975670903Z","level":"INFO","msg":"executing command block","index":1,"total":1,"script":"echo 'slow command'"}
+{"time":"2026-02-09T04:49:57.975956932Z","level":"ERROR","msg":"command failed","script":"echo 'slow command'","error":"Command timed out after 1 seconds."}
+{"time":"2026-02-09T04:50:01.978383033Z","level":"INFO","msg":"iteration metrics","commands_executed":1,"files_modified_est":0,"output_lines":4,"response_chars":46}
+--- PASS: TestSession_ProcessResponse_Timeout (5.00s)
+=== RUN   TestAgentInheritance
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:01.992478625Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045001.log
+--- PASS: TestAgentInheritance (0.02s)
+=== RUN   TestNewAgent_OpenRouterPrefixInheritance
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:02.005569061Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045002.log
+Agent Factory: Corrected OpenRouter model from gemini-pro-latest to google/gemini-pro-latest
+--- PASS: TestNewAgent_OpenRouterPrefixInheritance (0.01s)
+=== RUN   TestSession_CheckAutoQA
+{"time":"2026-02-09T04:50:02.017687796Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+{"time":"2026-02-09T04:50:02.018811418Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+{"time":"2026-02-09T04:50:02.018908349Z","level":"INFO","msg":"loaded features from DB history","count":2}
+{"time":"2026-02-09T04:50:02.018955896Z","level":"INFO","msg":"syncing features from DB to feature_list.json","path":"/tmp/TestSession_CheckAutoQA3086412355/001/feature_list.json"}
+{"time":"2026-02-09T04:50:02.02002525Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+{"time":"2026-02-09T04:50:02.020159272Z","level":"INFO","msg":"loaded features from DB history","count":2}
+{"time":"2026-02-09T04:50:02.021046672Z","level":"INFO","msg":"created signal","signal":"COMPLETED"}
+--- PASS: TestSession_CheckAutoQA (0.02s)
+=== RUN   TestProcessResponse_BlockerFalsePositives
+{"time":"2026-02-09T04:50:02.024313884Z","level":"INFO","msg":"ignoring false positive blocker","file":"recac_blockers.txt","content":"No blockers identified. Initial setup complete."}
+{"time":"2026-02-09T04:50:02.024354461Z","level":"INFO","msg":"iteration metrics","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":13}
+{"time":"2026-02-09T04:50:02.024365818Z","level":"INFO","msg":"ignoring false positive blocker","file":"blockers.txt","content":"None"}
+{"time":"2026-02-09T04:50:02.02437214Z","level":"INFO","msg":"iteration metrics","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":13}
+{"time":"2026-02-09T04:50:02.024380011Z","level":"INFO","msg":"ignoring false positive blocker","file":"recac_blockers.txt","content":"no blockers"}
+{"time":"2026-02-09T04:50:02.024386948Z","level":"INFO","msg":"iteration metrics","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":13}
+{"time":"2026-02-09T04:50:02.024395852Z","level":"INFO","msg":"ignoring false positive blocker","file":"recac_blockers.txt","content":"Initial setup complete"}
+{"time":"2026-02-09T04:50:02.024404192Z","level":"INFO","msg":"iteration metrics","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":13}
+{"time":"2026-02-09T04:50:02.024481275Z","level":"INFO","msg":"ignoring false positive blocker","file":"blockers.txt","content":"# Current Blockers\n\n# None at this time\n# The project is progressing smoothly\n# All required tools are available\n# No technical obstacles"}
+{"time":"2026-02-09T04:50:02.024488605Z","level":"INFO","msg":"iteration metrics","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":13}
+{"time":"2026-02-09T04:50:02.024497879Z","level":"INFO","msg":"ignoring false positive blocker","file":"recac_blockers.txt","content":"UI Verification Required"}
+{"time":"2026-02-09T04:50:02.024504835Z","level":"INFO","msg":"iteration metrics","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":13}
+{"time":"2026-02-09T04:50:02.024514731Z","level":"WARN","msg":"agent reported blocker file","file":"recac_blockers.txt"}
+{"time":"2026-02-09T04:50:02.024522795Z","level":"WARN","msg":"blocker content","content":"I am actually blocked by missing API key"}
+{"time":"2026-02-09T04:50:02.024529238Z","level":"INFO","msg":"session stopping to allow human resolution"}
+{"time":"2026-02-09T04:50:02.024546779Z","level":"WARN","msg":"agent reported blocker file","file":"blockers.txt"}
+{"time":"2026-02-09T04:50:02.024552551Z","level":"WARN","msg":"blocker content","content":"Error: failed to connect to DB"}
+{"time":"2026-02-09T04:50:02.024558326Z","level":"INFO","msg":"session stopping to allow human resolution"}
+--- PASS: TestProcessResponse_BlockerFalsePositives (0.00s)
+=== RUN   TestRunCleanerAgent_PathTraversal
+{"time":"2026-02-09T04:50:02.024773235Z","level":"INFO","msg":"cleaner agent running"}
+{"time":"2026-02-09T04:50:02.024832658Z","level":"WARN","msg":"security violation: attempted path traversal in cleaner agent","attempted_path":"../target_secret.txt","resolved_path":"/tmp/recac-cleaner-test859095428/target_secret.txt"}
+{"time":"2026-02-09T04:50:02.024839118Z","level":"INFO","msg":"cleaner agent complete","removed":0,"errors":1}
+    cleaner_test.go:53: Target file still exists (Safe?)
+--- PASS: TestRunCleanerAgent_PathTraversal (0.00s)
+=== RUN   TestRunCleanerAgent_AbsolutePath
+{"time":"2026-02-09T04:50:02.025223793Z","level":"INFO","msg":"cleaner agent running"}
+{"time":"2026-02-09T04:50:02.025281527Z","level":"WARN","msg":"security violation: attempted path traversal in cleaner agent","attempted_path":"/tmp/recac-cleaner-test-abs922998614/target_secret_abs.txt","resolved_path":"/tmp/recac-cleaner-test-abs922998614/target_secret_abs.txt"}
+{"time":"2026-02-09T04:50:02.025288134Z","level":"INFO","msg":"cleaner agent complete","removed":0,"errors":1}
+--- PASS: TestRunCleanerAgent_AbsolutePath (0.00s)
+=== RUN   TestEndToEndHelloWorld
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:02.036322016Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045002.log
+Initializing session with image: ubuntu:latest
+Loaded spec: 99 bytes
+Warning: Failed to locate agent-bridge binary: agent-bridge binary not found at /app/agent-bridge. Did you run 'make bridge'?. Agent CLI tools will not work.
+Container started successfully. ID: mock-hello-container
+Fixing container passwd database for UID:GID 1001:1001...
+Updated workspace .gitignore with agent patterns.
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent, excludes: /etc/gitignore_global)...
+{"time":"2026-02-09T04:50:02.038334737Z","level":"INFO","msg":"Checking notification for event: on_start"}
+--- PASS: TestEndToEndHelloWorld (0.01s)
+=== RUN   TestEndToEndHelloWorld_WithFileSystem
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:02.049935608Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045002.log
+Initializing session with image: ubuntu:latest
+Loaded spec: 63 bytes
+Warning: Failed to locate agent-bridge binary: agent-bridge binary not found at /app/agent-bridge. Did you run 'make bridge'?. Agent CLI tools will not work.
+Container started successfully. ID: test-container
+Fixing container passwd database for UID:GID 1001:1001...
+Updated workspace .gitignore with agent patterns.
+Bootstrapping git config (email: recac-agent@example.com, name: RECAC Agent, excludes: /etc/gitignore_global)...
+{"time":"2026-02-09T04:50:02.052395911Z","level":"INFO","msg":"Checking notification for event: on_start"}
+--- PASS: TestEndToEndHelloWorld_WithFileSystem (0.01s)
+=== RUN   TestProcessResponse_Security
+{"time":"2026-02-09T04:50:02.053411521Z","level":"INFO","msg":"executing command block","index":1,"total":1,"script":"rm -rf /"}
+{"time":"2026-02-09T04:50:02.053471095Z","level":"WARN","msg":"security violation: blocked dangerous command","script":"rm -rf /","findings":[{"Type":"Root Deletion","Description":"Found potential Root Deletion","Match":"rm -rf /","Line":1}]}
+{"time":"2026-02-09T04:50:02.053624941Z","level":"INFO","msg":"iteration metrics","commands_executed":1,"files_modified_est":0,"output_lines":2,"response_chars":46}
+{"time":"2026-02-09T04:50:02.055416908Z","level":"INFO","msg":"executing command block","index":1,"total":1,"script":"ls -la"}
+{"time":"2026-02-09T04:50:02.055439645Z","level":"INFO","msg":"command output","output":"Success: /bin/bash -c ls -la"}
+{"time":"2026-02-09T04:50:02.055455202Z","level":"INFO","msg":"iteration metrics","commands_executed":1,"files_modified_est":0,"output_lines":2,"response_chars":37}
+--- PASS: TestProcessResponse_Security (0.00s)
+=== RUN   TestGitSafeguard_UntrackFiles
+--- PASS: TestGitSafeguard_UntrackFiles (0.04s)
+=== RUN   TestGitSafeguard_EnsureStateIgnored
+--- PASS: TestGitSafeguard_EnsureStateIgnored (0.01s)
+=== RUN   TestSession_GitIgnoreCreation
+Updated workspace .gitignore with agent patterns.
+Bootstrapping git config (email: test@example.com, name: Test User, excludes: /etc/gitignore_global)...
+--- PASS: TestSession_GitIgnoreCreation (0.00s)
+=== RUN   TestSession_GitIgnoreFunctional
+Updated workspace .gitignore with agent patterns.
+Bootstrapping git config (email: test@example.com, name: Test User, excludes: /etc/gitignore_global)...
+--- PASS: TestSession_GitIgnoreFunctional (0.02s)
+=== RUN   TestSession_Guardrail_PrematureSignoff
+{"time":"2026-02-09T04:50:02.138399862Z","level":"INFO","msg":"entering autonomous run loop"}
+{"time":"2026-02-09T04:50:02.138562793Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+{"time":"2026-02-09T04:50:02.138643936Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:02.138702195Z","level":"INFO","msg":"syncing features from DB to feature_list.json","path":"/tmp/TestSession_Guardrail_PrematureSignoff507143123/001/feature_list.json"}
+{"time":"2026-02-09T04:50:02.138764422Z","level":"INFO","msg":"starting iteration","iteration":1,"task_id":"","agent_provider":"","agent_model":""}
+{"time":"2026-02-09T04:50:02.138793715Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+{"time":"2026-02-09T04:50:02.138851527Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:02.138995474Z","level":"WARN","msg":"ignoring filesystem-based privileged signal (must come from DB)","signal":"PROJECT_SIGNED_OFF"}
+{"time":"2026-02-09T04:50:02.139016567Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+{"time":"2026-02-09T04:50:02.139060052Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:02.139143289Z","level":"WARN","msg":"ignoring filesystem-based privileged signal (must come from DB)","signal":"PROJECT_SIGNED_OFF"}
+{"time":"2026-02-09T04:50:02.139199324Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+{"time":"2026-02-09T04:50:02.139232546Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:02.139326888Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+{"time":"2026-02-09T04:50:02.139383829Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:02.139458996Z","level":"INFO","msg":"agent role selected","role":"Agent"}
+{"time":"2026-02-09T04:50:02.139480052Z","level":"INFO","msg":"sending prompt to agent"}
+{"time":"2026-02-09T04:50:02.139520545Z","level":"INFO","msg":"agent response received","role":"Agent","chars":314}
+{"time":"2026-02-09T04:50:02.140516436Z","level":"DEBUG","msg":"saved observation to DB"}
+{"time":"2026-02-09T04:50:02.14059659Z","level":"INFO","msg":"iteration metrics","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":314}
+{"time":"2026-02-09T04:50:02.140605095Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+{"time":"2026-02-09T04:50:02.140644508Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:03.143370083Z","level":"INFO","msg":"starting iteration","iteration":2,"task_id":"","agent_provider":"","agent_model":""}
+{"time":"2026-02-09T04:50:03.143417683Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+{"time":"2026-02-09T04:50:03.143568342Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:03.143700584Z","level":"WARN","msg":"ignoring filesystem-based privileged signal (must come from DB)","signal":"PROJECT_SIGNED_OFF"}
+{"time":"2026-02-09T04:50:03.143729251Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+{"time":"2026-02-09T04:50:03.143773364Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:03.143813745Z","level":"WARN","msg":"ignoring filesystem-based privileged signal (must come from DB)","signal":"PROJECT_SIGNED_OFF"}
+{"time":"2026-02-09T04:50:03.143901009Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+{"time":"2026-02-09T04:50:03.143955984Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:03.144153676Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+{"time":"2026-02-09T04:50:03.144224084Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:03.144307867Z","level":"INFO","msg":"agent role selected","role":"Agent"}
+{"time":"2026-02-09T04:50:03.144329974Z","level":"INFO","msg":"sending prompt to agent"}
+{"time":"2026-02-09T04:50:03.14436984Z","level":"INFO","msg":"agent response received","role":"Agent","chars":314}
+{"time":"2026-02-09T04:50:03.145757311Z","level":"DEBUG","msg":"saved observation to DB"}
+{"time":"2026-02-09T04:50:03.145858026Z","level":"INFO","msg":"iteration metrics","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":314}
+{"time":"2026-02-09T04:50:03.145866912Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+{"time":"2026-02-09T04:50:03.145925029Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:04.149047831Z","level":"INFO","msg":"reached max iterations","max_iterations":2}
+{"time":"2026-02-09T04:50:04.149246767Z","level":"WARN","msg":"ignoring filesystem-based privileged signal (must come from DB)","signal":"PROJECT_SIGNED_OFF"}
+{"time":"2026-02-09T04:50:04.149292031Z","level":"WARN","msg":"ignoring filesystem-based privileged signal (must come from DB)","signal":"PROJECT_SIGNED_OFF"}
+--- PASS: TestSession_Guardrail_PrematureSignoff (2.02s)
+=== RUN   TestSession_RunLoop_MissingSpec
+{"time":"2026-02-09T04:50:04.149801929Z","level":"INFO","msg":"entering autonomous run loop"}
+--- PASS: TestSession_RunLoop_MissingSpec (0.00s)
+=== RUN   TestSelectPrompt_ManagerFirst
+--- PASS: TestSelectPrompt_ManagerFirst (0.01s)
+=== RUN   TestSelectPrompt_NormalFirst
+{"time":"2026-02-09T04:50:04.174054623Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+Feature list not found (in DB, Content, or File). Running Initializer.
+--- PASS: TestSelectPrompt_NormalFirst (0.01s)
+=== RUN   TestManagerRejection_ClearsSignals
+{"time":"2026-02-09T04:50:04.188562913Z","level":"INFO","msg":"created signal","signal":"QA_PASSED"}
+{"time":"2026-02-09T04:50:04.189479442Z","level":"INFO","msg":"created signal","signal":"COMPLETED"}
+{"time":"2026-02-09T04:50:04.189508223Z","level":"INFO","msg":"manager agent reviewing QA report"}
+{"time":"2026-02-09T04:50:04.189513813Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+{"time":"2026-02-09T04:50:04.189613692Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:04.189678361Z","level":"INFO","msg":"syncing features from DB to feature_list.json","path":"/tmp/TestManagerRejection_ClearsSignals1454639265/001/feature_list.json"}
+{"time":"2026-02-09T04:50:04.189785528Z","level":"INFO","msg":"sending QA report to manager agent"}
+{"time":"2026-02-09T04:50:04.189812184Z","level":"INFO","msg":"manager review response received","chars":14}
+{"time":"2026-02-09T04:50:04.189942833Z","level":"INFO","msg":"iteration metrics","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":14}
+{"time":"2026-02-09T04:50:04.190018876Z","level":"INFO","msg":"manager rejected or pending, project not signed off"}
+--- PASS: TestManagerRejection_ClearsSignals (0.02s)
+=== RUN   TestOrchestrator_ConcurrencyLimit
+Starting Multi-Agent Orchestrator (max-agents: 10)
+Initializing git repository...
+Warning: git commit might have failed (maybe empty?): On branch master
+
+Initial commit
+
+nothing to commit (create/copy files and use "git add" to track)
+
+Starting worker pool with 2 workers
+Worker 1 started
+Worker 0 started
+Worker 1 stopped
+Worker 0 stopped
+Worker pool stopped
+--- PASS: TestOrchestrator_ConcurrencyLimit (0.05s)
+=== RUN   TestOrchestrator_MaxAgents
+--- PASS: TestOrchestrator_MaxAgents (0.00s)
+=== RUN   TestOrchestrator_HasFailures
+--- PASS: TestOrchestrator_HasFailures (0.00s)
+=== RUN   TestOrchestrator_ExecuteTask
+
+>>> [ORCHESTRATOR] Starting Task: task-1
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:04.267658311Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045004.log
+Initializing session with image:
+Loaded spec: 4 bytes
+Warning: Failed to locate agent-bridge binary: agent-bridge binary not found at /app/agent-bridge. Did you run 'make bridge'?. Agent CLI tools will not work.
+Container started successfully. ID: container-id
+Fixing container passwd database for UID:GID 1001:1001...
+Updated workspace .gitignore with agent patterns.
+Bootstrapping git config (email: test@example.com, name: Test User, excludes: /etc/gitignore_global)...
+{"time":"2026-02-09T04:50:04.270813166Z","level":"INFO","msg":"entering autonomous run loop","project":"test-project"}
+{"time":"2026-02-09T04:50:04.270838828Z","level":"INFO","msg":"Checking notification for event: on_start"}
+Warning: Failed to ensure state files are ignored: failed to untrack state files: exit status 128
+{"time":"2026-02-09T04:50:04.274050406Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:04.274145956Z","level":"INFO","msg":"starting iteration","project":"test-project","iteration":1,"task_id":"task-1","agent_provider":"","agent_model":""}
+{"time":"2026-02-09T04:50:04.274170675Z","level":"INFO","msg":"assigned task details","project":"test-project","task_id":"task-1","desc_snippet":""}
+{"time":"2026-02-09T04:50:04.274176073Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:04.274332169Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:04.274483129Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:04.274537639Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:04.274645072Z","level":"INFO","msg":"agent role selected","project":"test-project","role":"Agent"}
+{"time":"2026-02-09T04:50:04.274667136Z","level":"INFO","msg":"sending prompt to agent","project":"test-project"}
+Agent Response:
+{"time":"2026-02-09T04:50:04.274772152Z","level":"INFO","msg":"agent response received","project":"test-project","role":"Agent","chars":10}
+{"time":"2026-02-09T04:50:04.274791606Z","level":"INFO","msg":"security scan passed","project":"test-project"}
+{"time":"2026-02-09T04:50:04.275815412Z","level":"INFO","msg":"iteration metrics","project":"test-project","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":10}
+{"time":"2026-02-09T04:50:04.275850461Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:05.278905158Z","level":"INFO","msg":"reached max iterations","project":"test-project","max_iterations":1}
+Cleaning up container: container-id
+Container cleaned up successfully
+Task task-1 Session Failed: maximum iterations reached
+Warning: Failed to update DB status for failed task task-1: no features found in DB for project test-project
+Stopping container: container-id
+Container stopped successfully
+--- PASS: TestOrchestrator_ExecuteTask (1.04s)
+=== RUN   TestOrchestrator_FaultTolerance_HighFailureRate
+Starting Multi-Agent Orchestrator (max-agents: 3)
+Initializing git repository...
+Created initial git commit.
+Starting worker pool with 3 workers
+Worker 2 started
+Worker 0 started
+Worker 1 started
+
+>>> [ORCHESTRATOR] Starting Task: t3
+
+>>> [ORCHESTRATOR] Starting Task: t1
+
+>>> [ORCHESTRATOR] Starting Task: t2
+[Session] DB Store initialized successfully: type=sqlite, project=proj
+{"time":"2026-02-09T04:50:05.41154448Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"proj"}
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260209-045005.log
+Initializing session with image: img
+Loaded spec: 4 bytes
+Warning: Failed to locate agent-bridge binary: agent-bridge binary not found at /app/agent-bridge. Did you run 'make bridge'?. Agent CLI tools will not work.
+Container started successfully. ID: mock-container-id
+Fixing container passwd database for UID:GID 1001:1001...
+Updated workspace .gitignore with agent patterns.
+Bootstrapping git config (email: test@example.com, name: Test User, excludes: /etc/gitignore_global)...
+{"time":"2026-02-09T04:50:05.412056602Z","level":"INFO","msg":"entering autonomous run loop","project":"proj"}
+{"time":"2026-02-09T04:50:05.412065256Z","level":"INFO","msg":"Checking notification for event: on_start"}
+[Session] DB Store initialized successfully: type=sqlite, project=proj
+{"time":"2026-02-09T04:50:05.413886645Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"proj"}
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260209-045005.log
+Initializing session with image: img
+Loaded spec: 4 bytes
+Warning: Failed to locate agent-bridge binary: agent-bridge binary not found at /app/agent-bridge. Did you run 'make bridge'?. Agent CLI tools will not work.
+Container started successfully. ID: mock-container-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: test@example.com, name: Test User, excludes: /etc/gitignore_global)...
+{"time":"2026-02-09T04:50:05.414254989Z","level":"INFO","msg":"entering autonomous run loop","project":"proj"}
+{"time":"2026-02-09T04:50:05.414263822Z","level":"INFO","msg":"Checking notification for event: on_start"}
+[Session] DB Store initialized successfully: type=sqlite, project=proj
+{"time":"2026-02-09T04:50:05.414669455Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"proj"}
+Session logs will be written to: /app/internal/runner/agents/logs/proj_agent_proj_20260209-045005.log
+{"time":"2026-02-09T04:50:05.415329537Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"proj","project":"proj"}
+{"time":"2026-02-09T04:50:05.41538161Z","level":"INFO","msg":"loaded features from DB history","project":"proj","count":3}
+{"time":"2026-02-09T04:50:05.415411401Z","level":"INFO","msg":"syncing features from DB to feature_list.json","project":"proj","path":"/tmp/orch_fault_test3237459352/feature_list.json"}
+{"time":"2026-02-09T04:50:05.415492532Z","level":"INFO","msg":"starting iteration","project":"proj","iteration":1,"task_id":"t1","agent_provider":"gemini","agent_model":"gemini-pro"}
+{"time":"2026-02-09T04:50:05.415503027Z","level":"INFO","msg":"assigned task details","project":"proj","task_id":"t1","desc_snippet":""}
+{"time":"2026-02-09T04:50:05.415506754Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"proj","project":"proj"}
+{"time":"2026-02-09T04:50:05.415577933Z","level":"INFO","msg":"loaded features from DB history","project":"proj","count":3}
+{"time":"2026-02-09T04:50:05.415625844Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"proj","project":"proj"}
+{"time":"2026-02-09T04:50:05.41565277Z","level":"INFO","msg":"loaded features from DB history","project":"proj","count":3}
+{"time":"2026-02-09T04:50:05.415818944Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"proj","project":"proj"}
+{"time":"2026-02-09T04:50:05.415863283Z","level":"INFO","msg":"loaded features from DB history","project":"proj","count":3}
+{"time":"2026-02-09T04:50:05.415875153Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"proj","project":"proj"}
+{"time":"2026-02-09T04:50:05.415894853Z","level":"INFO","msg":"loaded features from DB history","project":"proj","count":3}
+{"time":"2026-02-09T04:50:05.416670014Z","level":"INFO","msg":"agent role selected","project":"proj","role":"Agent"}
+{"time":"2026-02-09T04:50:05.416714407Z","level":"INFO","msg":"sending prompt to agent","project":"proj"}
+Agent Response:
+{"time":"2026-02-09T04:50:05.416725674Z","level":"ERROR","msg":"agent error, retrying","project":"proj","error":"simulated failure"}
+{"time":"2026-02-09T04:50:05.416830131Z","level":"ERROR","msg":"iteration failed","project":"proj","error":"simulated failure"}
+Initializing session with image: img
+Loaded spec: 4 bytes
+Warning: Failed to locate agent-bridge binary: agent-bridge binary not found at /app/agent-bridge. Did you run 'make bridge'?. Agent CLI tools will not work.
+Container started successfully. ID: mock-container-id
+Fixing container passwd database for UID:GID 1001:1001...
+Bootstrapping git config (email: test@example.com, name: Test User, excludes: /etc/gitignore_global)...
+{"time":"2026-02-09T04:50:05.417142892Z","level":"INFO","msg":"entering autonomous run loop","project":"proj"}
+{"time":"2026-02-09T04:50:05.417151439Z","level":"INFO","msg":"Checking notification for event: on_start"}
+{"time":"2026-02-09T04:50:05.4172192Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"proj","project":"proj"}
+{"time":"2026-02-09T04:50:05.417323359Z","level":"INFO","msg":"loaded features from DB history","project":"proj","count":3}
+{"time":"2026-02-09T04:50:05.41735915Z","level":"INFO","msg":"starting iteration","project":"proj","iteration":1,"task_id":"t3","agent_provider":"gemini","agent_model":"gemini-pro"}
+{"time":"2026-02-09T04:50:05.417365392Z","level":"INFO","msg":"assigned task details","project":"proj","task_id":"t3","desc_snippet":""}
+{"time":"2026-02-09T04:50:05.417369202Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"proj","project":"proj"}
+{"time":"2026-02-09T04:50:05.417396453Z","level":"INFO","msg":"loaded features from DB history","project":"proj","count":3}
+{"time":"2026-02-09T04:50:05.417427159Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"proj","project":"proj"}
+{"time":"2026-02-09T04:50:05.417468537Z","level":"INFO","msg":"loaded features from DB history","project":"proj","count":3}
+{"time":"2026-02-09T04:50:05.4174813Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"proj","project":"proj"}
+{"time":"2026-02-09T04:50:05.41750857Z","level":"INFO","msg":"loaded features from DB history","project":"proj","count":3}
+{"time":"2026-02-09T04:50:05.417531703Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"proj","project":"proj"}
+{"time":"2026-02-09T04:50:05.417556272Z","level":"INFO","msg":"loaded features from DB history","project":"proj","count":3}
+{"time":"2026-02-09T04:50:05.417641196Z","level":"INFO","msg":"agent role selected","project":"proj","role":"Agent"}
+{"time":"2026-02-09T04:50:05.417650569Z","level":"INFO","msg":"sending prompt to agent","project":"proj"}
+Agent Response:
+{"time":"2026-02-09T04:50:05.417672559Z","level":"INFO","msg":"agent response received","project":"proj","role":"Agent","chars":9}
+{"time":"2026-02-09T04:50:05.41769005Z","level":"INFO","msg":"security scan passed","project":"proj"}
+{"time":"2026-02-09T04:50:05.417701838Z","level":"INFO","msg":"iteration metrics","project":"proj","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":9}
+{"time":"2026-02-09T04:50:05.417721191Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"proj","project":"proj"}
+{"time":"2026-02-09T04:50:05.417751569Z","level":"INFO","msg":"loaded features from DB history","project":"proj","count":3}
+{"time":"2026-02-09T04:50:05.419914529Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"proj","project":"proj"}
+{"time":"2026-02-09T04:50:05.419978188Z","level":"INFO","msg":"loaded features from DB history","project":"proj","count":3}
+{"time":"2026-02-09T04:50:05.41999281Z","level":"INFO","msg":"starting iteration","project":"proj","iteration":1,"task_id":"t2","agent_provider":"gemini","agent_model":"gemini-pro"}
+{"time":"2026-02-09T04:50:05.41999779Z","level":"INFO","msg":"assigned task details","project":"proj","task_id":"t2","desc_snippet":""}
+{"time":"2026-02-09T04:50:05.420001446Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"proj","project":"proj"}
+{"time":"2026-02-09T04:50:05.420022216Z","level":"INFO","msg":"loaded features from DB history","project":"proj","count":3}
+{"time":"2026-02-09T04:50:05.420052421Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"proj","project":"proj"}
+{"time":"2026-02-09T04:50:05.420086337Z","level":"INFO","msg":"loaded features from DB history","project":"proj","count":3}
+{"time":"2026-02-09T04:50:05.420111353Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"proj","project":"proj"}
+{"time":"2026-02-09T04:50:05.420139042Z","level":"INFO","msg":"loaded features from DB history","project":"proj","count":3}
+{"time":"2026-02-09T04:50:05.420160924Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"proj","project":"proj"}
+{"time":"2026-02-09T04:50:05.420193977Z","level":"INFO","msg":"loaded features from DB history","project":"proj","count":3}
+{"time":"2026-02-09T04:50:05.420294527Z","level":"INFO","msg":"agent role selected","project":"proj","role":"Agent"}
+{"time":"2026-02-09T04:50:05.420313309Z","level":"INFO","msg":"sending prompt to agent","project":"proj"}
+Agent Response:
+{"time":"2026-02-09T04:50:05.420331262Z","level":"ERROR","msg":"agent error, retrying","project":"proj","error":"simulated failure"}
+{"time":"2026-02-09T04:50:05.420338101Z","level":"ERROR","msg":"iteration failed","project":"proj","error":"simulated failure"}
+{"time":"2026-02-09T04:50:06.428567749Z","level":"INFO","msg":"reached max iterations","project":"proj","max_iterations":1}
+Cleaning up container: mock-container-id
+Container cleaned up successfully
+Task t3 Session Failed: maximum iterations reached
+Stopping container: mock-container-id
+Container stopped successfully
+Worker 1 error: maximum iterations reached
+Worker 1 stopped
+Cleaning up container: mock-container-id
+Container cleaned up successfully
+Task t1 Session Failed: context deadline exceeded
+Stopping container: mock-container-id
+Container stopped successfully
+Worker 2 error: context deadline exceeded
+Worker 2 stopped
+Cleaning up container: mock-container-id
+Container cleaned up successfully
+Task t2 Session Failed: context deadline exceeded
+Stopping container: mock-container-id
+Container stopped successfully
+Worker 0 error: context deadline exceeded
+Worker 0 stopped
+Worker pool stopped
+--- PASS: TestOrchestrator_FaultTolerance_HighFailureRate (5.14s)
+=== RUN   TestOrchestrator_EnsureGitRepo
+Starting Multi-Agent Orchestrator (max-agents: 1)
+Initializing git repository...
+Created initial git commit.
+Starting worker pool with 1 workers
+Worker 0 started
+Worker 0 stopped
+Worker pool stopped
+--- PASS: TestOrchestrator_EnsureGitRepo (0.11s)
+=== RUN   TestGenerateFeatureList
+--- PASS: TestGenerateFeatureList (0.00s)
+=== RUN   TestWorkerPool
+Starting worker pool with 2 workers
+Worker 1 started
+Worker 0 started
+Worker 0 error: simulated error
+Worker 0 stopped
+Worker 1 stopped
+Worker pool stopped
+--- PASS: TestWorkerPool (0.01s)
+=== RUN   TestSession_ProcessResponse_NoCommands
+{"time":"2026-02-09T04:50:10.539258609Z","level":"INFO","msg":"iteration metrics","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":14}
+--- PASS: TestSession_ProcessResponse_NoCommands (0.00s)
+=== RUN   TestSession_ProcessResponse_WithCommands
+{"time":"2026-02-09T04:50:10.550368079Z","level":"INFO","msg":"executing command block","index":1,"total":1,"script":"echo hello"}
+{"time":"2026-02-09T04:50:10.550422284Z","level":"INFO","msg":"command output","output":"Success"}
+{"time":"2026-02-09T04:50:10.550500041Z","level":"INFO","msg":"iteration metrics","commands_executed":1,"files_modified_est":0,"output_lines":2,"response_chars":36}
+--- PASS: TestSession_ProcessResponse_WithCommands (0.01s)
+=== RUN   TestSession_ProcessResponse_Blocker
+
+!!! AGENT BLOCKED: I am stuck !!!
+Waiting for blocker to be resolved...
+--- PASS: TestSession_ProcessResponse_Blocker (0.01s)
+=== RUN   TestProjectCompleteFlow
+Workspace: /tmp/recac-test-complete2929778050
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:10.573807284Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045010.log
+{"time":"2026-02-09T04:50:10.573995192Z","level":"INFO","msg":"entering autonomous run loop","project":"test-project"}
+{"time":"2026-02-09T04:50:10.574003909Z","level":"INFO","msg":"Checking notification for event: on_start"}
+Warning: Failed to ensure state files are ignored: failed to untrack state files: exit status 128
+{"time":"2026-02-09T04:50:10.576996032Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:10.577087783Z","level":"INFO","msg":"loaded features from injected content","project":"test-project"}
+All features passed! Triggering Project Complete flow.
+{"time":"2026-02-09T04:50:10.578765646Z","level":"INFO","msg":"created signal","project":"test-project","signal":"COMPLETED"}
+{"time":"2026-02-09T04:50:10.578797012Z","level":"INFO","msg":"Checking notification for event: on_project_complete"}
+{"time":"2026-02-09T04:50:10.578819052Z","level":"INFO","msg":"starting iteration","project":"test-project","iteration":1,"task_id":"","agent_provider":"gemini","agent_model":"gemini-pro"}
+{"time":"2026-02-09T04:50:10.578825078Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:10.578900015Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":2}
+{"time":"2026-02-09T04:50:10.578964764Z","level":"INFO","msg":"syncing features from DB to feature_list.json","project":"test-project","path":"/tmp/recac-test-complete2929778050/feature_list.json"}
+Project marked as COMPLETED. Running QA agent...
+{"time":"2026-02-09T04:50:10.579204248Z","level":"INFO","msg":"QA agent running quality checks","project":"test-project"}
+{"time":"2026-02-09T04:50:10.579278705Z","level":"INFO","msg":"sending verification instructions to QA agent","project":"test-project"}
+{"time":"2026-02-09T04:50:10.580048374Z","level":"INFO","msg":"QA agent response received","project":"test-project","chars":31}
+{"time":"2026-02-09T04:50:10.580262826Z","level":"INFO","msg":"iteration metrics","project":"test-project","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":31}
+{"time":"2026-02-09T04:50:10.580393904Z","level":"INFO","msg":"QA result signal check","project":"test-project","signal":"true","error":null}
+{"time":"2026-02-09T04:50:10.580469209Z","level":"INFO","msg":"QA passed (signal verified)","project":"test-project"}
+{"time":"2026-02-09T04:50:10.581263217Z","level":"INFO","msg":"created signal","project":"test-project","signal":"QA_PASSED"}
+QA checks passed. Moving to Manager review.
+{"time":"2026-02-09T04:50:10.581291037Z","level":"INFO","msg":"reached max iterations","project":"test-project","max_iterations":1}
+{"time":"2026-02-09T04:50:10.581296549Z","level":"INFO","msg":"entering autonomous run loop","project":"test-project"}
+{"time":"2026-02-09T04:50:10.581302487Z","level":"INFO","msg":"Checking notification for event: on_start"}
+Warning: Failed to ensure state files are ignored: failed to untrack state files: exit status 128
+{"time":"2026-02-09T04:50:10.584113269Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:10.584202098Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":2}
+All features passed! Triggering Project Complete flow.
+{"time":"2026-02-09T04:50:10.585013072Z","level":"INFO","msg":"created signal","project":"test-project","signal":"COMPLETED"}
+{"time":"2026-02-09T04:50:10.5850387Z","level":"INFO","msg":"Checking notification for event: on_project_complete"}
+{"time":"2026-02-09T04:50:10.585059247Z","level":"INFO","msg":"starting iteration","project":"test-project","iteration":3,"task_id":"","agent_provider":"gemini","agent_model":"gemini-pro"}
+{"time":"2026-02-09T04:50:10.585064514Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:10.585136525Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":2}
+QA passed. Running Manager agent for final review...
+{"time":"2026-02-09T04:50:10.585272467Z","level":"INFO","msg":"manager agent reviewing QA report","project":"test-project"}
+{"time":"2026-02-09T04:50:10.585277289Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:10.585356315Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":2}
+{"time":"2026-02-09T04:50:10.585436276Z","level":"INFO","msg":"sending QA report to manager agent","project":"test-project"}
+{"time":"2026-02-09T04:50:10.585456922Z","level":"INFO","msg":"manager review response received","project":"test-project","chars":14}
+{"time":"2026-02-09T04:50:10.585659337Z","level":"INFO","msg":"iteration metrics","project":"test-project","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":14}
+{"time":"2026-02-09T04:50:10.585753514Z","level":"INFO","msg":"manager approved (legacy/fallback), all features passing","project":"test-project"}
+{"time":"2026-02-09T04:50:10.58647271Z","level":"INFO","msg":"created signal","project":"test-project","signal":"PROJECT_SIGNED_OFF"}
+Manager approved. Project signed off.
+{"time":"2026-02-09T04:50:10.586499013Z","level":"INFO","msg":"Checking notification for event: on_success"}
+{"time":"2026-02-09T04:50:10.586515287Z","level":"INFO","msg":"reached max iterations","project":"test-project","max_iterations":3}
+--- PASS: TestProjectCompleteFlow (0.02s)
+=== RUN   TestRunQAAgent_Pass
+{"time":"2026-02-09T04:50:10.596145446Z","level":"INFO","msg":"QA agent running quality checks"}
+{"time":"2026-02-09T04:50:10.596292316Z","level":"INFO","msg":"sending verification instructions to QA agent"}
+{"time":"2026-02-09T04:50:10.597068255Z","level":"INFO","msg":"QA agent response received","chars":31}
+{"time":"2026-02-09T04:50:10.597144109Z","level":"INFO","msg":"iteration metrics","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":31}
+{"time":"2026-02-09T04:50:10.597202193Z","level":"INFO","msg":"QA result signal check","signal":"true","error":null}
+{"time":"2026-02-09T04:50:10.597224149Z","level":"INFO","msg":"QA passed (signal verified)"}
+--- PASS: TestRunQAAgent_Pass (0.01s)
+=== RUN   TestRunQAAgent_Fail
+{"time":"2026-02-09T04:50:10.608484753Z","level":"INFO","msg":"QA agent running quality checks"}
+{"time":"2026-02-09T04:50:10.608602388Z","level":"INFO","msg":"sending verification instructions to QA agent"}
+{"time":"2026-02-09T04:50:10.609432019Z","level":"INFO","msg":"QA agent response received","chars":31}
+{"time":"2026-02-09T04:50:10.609513191Z","level":"INFO","msg":"iteration metrics","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":31}
+{"time":"2026-02-09T04:50:10.609576692Z","level":"INFO","msg":"QA result signal check","signal":"false","error":null}
+{"time":"2026-02-09T04:50:10.609603838Z","level":"ERROR","msg":"QA failed (explicit signal)"}
+--- PASS: TestRunQAAgent_Fail (0.01s)
+=== RUN   TestRunQA_IdentifiesFailures
+--- PASS: TestRunQA_IdentifiesFailures (0.00s)
+=== RUN   TestQAReport_String
+--- PASS: TestQAReport_String (0.00s)
+=== RUN   TestRace_StateManager
+--- PASS: TestRace_StateManager (0.26s)
+=== RUN   TestRace_WorkerPool_Notifier
+Starting worker pool with 4 workers
+Worker 0 started
+Worker 3 started
+Worker 2 started
+Worker 2 stopped
+Worker 0 stopped
+Worker 3 stopped
+Worker 1 started
+Worker 1 stopped
+Worker pool stopped
+--- PASS: TestRace_WorkerPool_Notifier (0.00s)
+=== RUN   TestTruncateRepetitiveResponse
+=== RUN   TestTruncateRepetitiveResponse/No_repetition
+=== RUN   TestTruncateRepetitiveResponse/Single_line_loop
+=== RUN   TestTruncateRepetitiveResponse/Two_line_pattern_loop
+=== RUN   TestTruncateRepetitiveResponse/Legitimate_repetition_(fewer_than_threshold)
+=== RUN   TestTruncateRepetitiveResponse/Empty_lines_loop
+--- PASS: TestTruncateRepetitiveResponse (0.00s)
+    --- PASS: TestTruncateRepetitiveResponse/No_repetition (0.00s)
+    --- PASS: TestTruncateRepetitiveResponse/Single_line_loop (0.00s)
+    --- PASS: TestTruncateRepetitiveResponse/Two_line_pattern_loop (0.00s)
+    --- PASS: TestTruncateRepetitiveResponse/Legitimate_repetition_(fewer_than_threshold) (0.00s)
+    --- PASS: TestTruncateRepetitiveResponse/Empty_lines_loop (0.00s)
+=== RUN   TestRunLoop_NoOp_Integrated
+{"time":"2026-02-09T04:50:10.86970977Z","level":"INFO","msg":"entering autonomous run loop"}
+{"time":"2026-02-09T04:50:10.869750225Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+{"time":"2026-02-09T04:50:10.869802458Z","level":"INFO","msg":"starting iteration","iteration":1,"task_id":"","agent_provider":"","agent_model":""}
+{"time":"2026-02-09T04:50:10.86982383Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+{"time":"2026-02-09T04:50:10.869845162Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+{"time":"2026-02-09T04:50:10.869851781Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+Feature list not found (in DB, Content, or File). Running Initializer.
+{"time":"2026-02-09T04:50:10.869994691Z","level":"INFO","msg":"agent role selected","role":"Agent"}
+{"time":"2026-02-09T04:50:10.870013355Z","level":"INFO","msg":"sending prompt to agent"}
+{"time":"2026-02-09T04:50:10.870072425Z","level":"INFO","msg":"agent response received","role":"Agent","chars":16}
+{"time":"2026-02-09T04:50:10.870094118Z","level":"INFO","msg":"iteration metrics","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":16}
+{"time":"2026-02-09T04:50:10.87010013Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+{"time":"2026-02-09T04:50:10.872781546Z","level":"INFO","msg":"starting iteration","iteration":2,"task_id":"","agent_provider":"","agent_model":""}
+{"time":"2026-02-09T04:50:10.872804729Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+{"time":"2026-02-09T04:50:10.872818221Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+{"time":"2026-02-09T04:50:10.872823972Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+Feature list not found (in DB, Content, or File). Running Initializer.
+{"time":"2026-02-09T04:50:10.872879164Z","level":"INFO","msg":"agent role selected","role":"Agent"}
+{"time":"2026-02-09T04:50:10.872902239Z","level":"INFO","msg":"sending prompt to agent"}
+{"time":"2026-02-09T04:50:10.872943826Z","level":"INFO","msg":"agent response received","role":"Agent","chars":16}
+{"time":"2026-02-09T04:50:10.87296356Z","level":"INFO","msg":"iteration metrics","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":16}
+{"time":"2026-02-09T04:50:10.87296969Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+{"time":"2026-02-09T04:50:10.87531152Z","level":"INFO","msg":"starting iteration","iteration":3,"task_id":"","agent_provider":"","agent_model":""}
+{"time":"2026-02-09T04:50:10.875333295Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+{"time":"2026-02-09T04:50:10.875345807Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+{"time":"2026-02-09T04:50:10.875351414Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+Feature list not found (in DB, Content, or File). Running Initializer.
+{"time":"2026-02-09T04:50:10.87540322Z","level":"INFO","msg":"agent role selected","role":"Agent"}
+{"time":"2026-02-09T04:50:10.875421807Z","level":"INFO","msg":"sending prompt to agent"}
+{"time":"2026-02-09T04:50:10.875460116Z","level":"INFO","msg":"agent response received","role":"Agent","chars":16}
+{"time":"2026-02-09T04:50:10.875479599Z","level":"INFO","msg":"iteration metrics","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":16}
+CIRCUIT BREAKER TRIPPED: NO-OP LOOP (Agent has produced 3 consecutive responses with no commands)
+--- PASS: TestRunLoop_NoOp_Integrated (0.01s)
+=== RUN   TestRunLoop_Stalled_Integrated
+{"time":"2026-02-09T04:50:10.875851503Z","level":"INFO","msg":"entering autonomous run loop"}
+{"time":"2026-02-09T04:50:10.875884044Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:10.8759216Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:10.875961697Z","level":"INFO","msg":"syncing features from DB to feature_list.json","path":"/tmp/TestRunLoop_Stalled_Integrated250766677/001/feature_list.json"}
+{"time":"2026-02-09T04:50:10.876019987Z","level":"INFO","msg":"starting iteration","iteration":2,"task_id":"","agent_provider":"","agent_model":""}
+{"time":"2026-02-09T04:50:10.876039414Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:10.876050639Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:10.8761376Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:10.876165847Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:10.876197568Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:10.876219991Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:10.87623628Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:10.876258006Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:10.876329415Z","level":"INFO","msg":"agent role selected","role":"Agent"}
+{"time":"2026-02-09T04:50:10.876347817Z","level":"INFO","msg":"sending prompt to agent"}
+{"time":"2026-02-09T04:50:10.876390014Z","level":"INFO","msg":"agent response received","role":"Agent","chars":34}
+{"time":"2026-02-09T04:50:10.87646498Z","level":"DEBUG","msg":"saved observation to DB"}
+{"time":"2026-02-09T04:50:10.87647501Z","level":"INFO","msg":"executing command block","index":1,"total":1,"script":"echo 1"}
+{"time":"2026-02-09T04:50:10.876487033Z","level":"INFO","msg":"command output","output":"done"}
+{"time":"2026-02-09T04:50:10.876502369Z","level":"INFO","msg":"iteration metrics","commands_executed":1,"files_modified_est":0,"output_lines":2,"response_chars":34}
+{"time":"2026-02-09T04:50:10.876521461Z","level":"DEBUG","msg":"saved system output to DB"}
+{"time":"2026-02-09T04:50:10.876525694Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:10.876540265Z","level":"INFO","msg":"loaded features from DB history","count":1}
+CIRCUIT BREAKER TRIPPED: STALLED PROGRESS (Stalled for 31 iterations)
+--- PASS: TestRunLoop_Stalled_Integrated (0.00s)
+=== RUN   TestRunLoop_SecurityViolation
+{"time":"2026-02-09T04:50:10.876986678Z","level":"INFO","msg":"entering autonomous run loop"}
+{"time":"2026-02-09T04:50:10.877026358Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+{"time":"2026-02-09T04:50:10.877045239Z","level":"INFO","msg":"starting iteration","iteration":1,"task_id":"","agent_provider":"","agent_model":""}
+{"time":"2026-02-09T04:50:10.877049995Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+{"time":"2026-02-09T04:50:10.877055844Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+{"time":"2026-02-09T04:50:10.877061735Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+Feature list not found (in DB, Content, or File). Running Initializer.
+{"time":"2026-02-09T04:50:10.877137865Z","level":"INFO","msg":"agent role selected","role":"Agent"}
+{"time":"2026-02-09T04:50:10.877156062Z","level":"INFO","msg":"sending prompt to agent"}
+{"time":"2026-02-09T04:50:10.877188656Z","level":"INFO","msg":"agent response received","role":"Agent","chars":8}
+{"time":"2026-02-09T04:50:10.877231647Z","level":"ERROR","msg":"security violation detected"}
+{"time":"2026-02-09T04:50:10.877249665Z","level":"ERROR","msg":"security finding","type":"Secret","desc":"","line":0}
+{"time":"2026-02-09T04:50:10.877257133Z","level":"ERROR","msg":"iteration failed","error":"security violation detected"}
+{"time":"2026-02-09T04:50:10.877266418Z","level":"INFO","msg":"reached max iterations","max_iterations":1}
+--- PASS: TestRunLoop_SecurityViolation (0.00s)
+=== RUN   TestRunManagerAgent_Coverage
+{"time":"2026-02-09T04:50:10.877540318Z","level":"INFO","msg":"manager agent reviewing QA report"}
+{"time":"2026-02-09T04:50:10.877566724Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+{"time":"2026-02-09T04:50:10.877602026Z","level":"INFO","msg":"sending QA report to manager agent"}
+{"time":"2026-02-09T04:50:10.877654875Z","level":"INFO","msg":"manager agent reviewing QA report"}
+{"time":"2026-02-09T04:50:10.877672406Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-proj"}
+{"time":"2026-02-09T04:50:10.877682472Z","level":"INFO","msg":"loaded features from DB history","count":0}
+{"time":"2026-02-09T04:50:10.87770906Z","level":"INFO","msg":"sending QA report to manager agent"}
+{"time":"2026-02-09T04:50:10.877751666Z","level":"INFO","msg":"manager review response received","chars":35}
+{"time":"2026-02-09T04:50:10.877771063Z","level":"INFO","msg":"iteration metrics","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":35}
+{"time":"2026-02-09T04:50:10.87778518Z","level":"INFO","msg":"manager rejected or pending, project not signed off"}
+{"time":"2026-02-09T04:50:10.877863709Z","level":"INFO","msg":"manager agent reviewing QA report"}
+{"time":"2026-02-09T04:50:10.877881059Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-proj"}
+{"time":"2026-02-09T04:50:10.87788923Z","level":"INFO","msg":"loaded features from DB history","count":0}
+{"time":"2026-02-09T04:50:10.87792628Z","level":"INFO","msg":"sending QA report to manager agent"}
+{"time":"2026-02-09T04:50:10.877973661Z","level":"INFO","msg":"manager review response received","chars":12}
+{"time":"2026-02-09T04:50:10.877992775Z","level":"INFO","msg":"iteration metrics","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":12}
+{"time":"2026-02-09T04:50:10.877998852Z","level":"INFO","msg":"manager approved, project signed off via signal"}
+--- PASS: TestRunManagerAgent_Coverage (0.00s)
+=== RUN   TestRunQAAgent_Coverage
+{"time":"2026-02-09T04:50:10.878235943Z","level":"INFO","msg":"QA agent running quality checks"}
+{"time":"2026-02-09T04:50:10.878316945Z","level":"INFO","msg":"sending verification instructions to QA agent"}
+{"time":"2026-02-09T04:50:10.878369716Z","level":"INFO","msg":"QA agent running quality checks"}
+{"time":"2026-02-09T04:50:10.878408418Z","level":"INFO","msg":"sending verification instructions to QA agent"}
+{"time":"2026-02-09T04:50:10.878455041Z","level":"INFO","msg":"QA agent response received","chars":7}
+{"time":"2026-02-09T04:50:10.878474316Z","level":"INFO","msg":"iteration metrics","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":7}
+{"time":"2026-02-09T04:50:10.878480556Z","level":"INFO","msg":"QA result signal check","signal":"false","error":null}
+{"time":"2026-02-09T04:50:10.878486684Z","level":"ERROR","msg":"QA failed (explicit signal)"}
+{"time":"2026-02-09T04:50:10.878499825Z","level":"INFO","msg":"QA agent running quality checks"}
+{"time":"2026-02-09T04:50:10.878535946Z","level":"INFO","msg":"sending verification instructions to QA agent"}
+{"time":"2026-02-09T04:50:10.878580934Z","level":"INFO","msg":"QA agent response received","chars":5}
+{"time":"2026-02-09T04:50:10.878599728Z","level":"INFO","msg":"iteration metrics","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":5}
+{"time":"2026-02-09T04:50:10.878605645Z","level":"INFO","msg":"QA result signal check","signal":"","error":null}
+{"time":"2026-02-09T04:50:10.878611082Z","level":"ERROR","msg":"QA failed (no signal set)","agent_response_snippet":"Done."}
+--- PASS: TestRunQAAgent_Coverage (0.00s)
+=== RUN   TestSession_SetContainerID
+--- PASS: TestSession_SetContainerID (0.00s)
+=== RUN   TestRunLoop_SkipQA
+{"time":"2026-02-09T04:50:10.878969403Z","level":"INFO","msg":"entering autonomous run loop"}
+{"time":"2026-02-09T04:50:10.879000909Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:10.879010752Z","level":"INFO","msg":"loaded features from DB history","count":0}
+{"time":"2026-02-09T04:50:10.879024178Z","level":"INFO","msg":"starting iteration","iteration":1,"task_id":"","agent_provider":"","agent_model":""}
+{"time":"2026-02-09T04:50:10.879041783Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:10.879049042Z","level":"INFO","msg":"loaded features from DB history","count":0}
+SkipQA enabled. Bypassing QA agent and Manager review.
+{"time":"2026-02-09T04:50:10.879088057Z","level":"INFO","msg":"created signal","signal":"PROJECT_SIGNED_OFF"}
+{"time":"2026-02-09T04:50:10.879102881Z","level":"INFO","msg":"starting iteration","iteration":2,"task_id":"","agent_provider":"","agent_model":""}
+{"time":"2026-02-09T04:50:10.879120167Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:10.87912738Z","level":"INFO","msg":"loaded features from DB history","count":0}
+{"time":"2026-02-09T04:50:10.879140493Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:10.879145048Z","level":"INFO","msg":"loaded features from DB history","count":0}
+{"time":"2026-02-09T04:50:10.882093383Z","level":"INFO","msg":"project signed off, running cleaner agent"}
+{"time":"2026-02-09T04:50:10.88211551Z","level":"INFO","msg":"cleaner agent running"}
+{"time":"2026-02-09T04:50:10.882178678Z","level":"INFO","msg":"no temp_files.txt found"}
+{"time":"2026-02-09T04:50:10.882199239Z","level":"INFO","msg":"cleaner agent complete, session finished"}
+--- PASS: TestRunLoop_SkipQA (0.00s)
+=== RUN   TestRunLoop_ManagerFirst_InitialPrompt
+{"time":"2026-02-09T04:50:10.882538739Z","level":"INFO","msg":"entering autonomous run loop"}
+{"time":"2026-02-09T04:50:10.882569877Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+{"time":"2026-02-09T04:50:10.882582849Z","level":"INFO","msg":"starting iteration","iteration":1,"task_id":"","agent_provider":"","agent_model":""}
+{"time":"2026-02-09T04:50:10.882602496Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+{"time":"2026-02-09T04:50:10.882611538Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+{"time":"2026-02-09T04:50:10.882634792Z","level":"INFO","msg":"agent role selected","role":"Manager"}
+{"time":"2026-02-09T04:50:10.882652217Z","level":"INFO","msg":"sending prompt to agent"}
+{"time":"2026-02-09T04:50:10.882684556Z","level":"INFO","msg":"agent response received","role":"Manager","chars":20}
+{"time":"2026-02-09T04:50:10.882703629Z","level":"INFO","msg":"iteration metrics","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":20}
+{"time":"2026-02-09T04:50:10.882708937Z","level":"INFO","msg":"[DEBUG] No DBStore available for feature lookup"}
+{"time":"2026-02-09T04:50:10.885022301Z","level":"INFO","msg":"reached max iterations","max_iterations":1}
+--- PASS: TestRunLoop_ManagerFirst_InitialPrompt (0.00s)
+=== RUN   TestRunLoop_Blocker
+{"time":"2026-02-09T04:50:10.885395405Z","level":"INFO","msg":"entering autonomous run loop"}
+{"time":"2026-02-09T04:50:10.885425882Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:10.885439957Z","level":"INFO","msg":"starting iteration","iteration":1,"task_id":"","agent_provider":"","agent_model":""}
+{"time":"2026-02-09T04:50:10.885444337Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:10.885464576Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:10.88550676Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+Feature list not found (in DB, Content, or File). Running Initializer.
+{"time":"2026-02-09T04:50:10.885571674Z","level":"INFO","msg":"agent role selected","role":"Agent"}
+{"time":"2026-02-09T04:50:10.885589784Z","level":"INFO","msg":"sending prompt to agent"}
+{"time":"2026-02-09T04:50:10.88564559Z","level":"INFO","msg":"agent response received","role":"Agent","chars":19}
+{"time":"2026-02-09T04:50:10.885667943Z","level":"DEBUG","msg":"saved observation to DB"}
+
+!!! AGENT BLOCKED: Blocked by dependency !!!
+Waiting for blocker to be resolved...
+{"time":"2026-02-09T04:50:10.885677922Z","level":"ERROR","msg":"iteration failed","error":"blocker detected"}
+{"time":"2026-02-09T04:50:15.889003201Z","level":"INFO","msg":"starting iteration","iteration":2,"task_id":"","agent_provider":"","agent_model":""}
+{"time":"2026-02-09T04:50:15.889063474Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:15.889124183Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:15.889138178Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+Feature list not found (in DB, Content, or File). Running Initializer.
+{"time":"2026-02-09T04:50:15.88922046Z","level":"INFO","msg":"agent role selected","role":"Agent"}
+{"time":"2026-02-09T04:50:15.889224559Z","level":"INFO","msg":"sending prompt to agent"}
+{"time":"2026-02-09T04:50:15.889294034Z","level":"INFO","msg":"agent response received","role":"Agent","chars":19}
+{"time":"2026-02-09T04:50:15.889324253Z","level":"DEBUG","msg":"saved observation to DB"}
+
+!!! AGENT BLOCKED: Blocked by dependency !!!
+Waiting for blocker to be resolved...
+{"time":"2026-02-09T04:50:15.889335722Z","level":"ERROR","msg":"iteration failed","error":"blocker detected"}
+{"time":"2026-02-09T04:50:20.893560544Z","level":"INFO","msg":"starting iteration","iteration":3,"task_id":"","agent_provider":"","agent_model":""}
+{"time":"2026-02-09T04:50:20.893604511Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:20.893653214Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:20.893705555Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+Feature list not found (in DB, Content, or File). Running Initializer.
+{"time":"2026-02-09T04:50:20.893792564Z","level":"INFO","msg":"agent role selected","role":"Agent"}
+{"time":"2026-02-09T04:50:20.893796598Z","level":"INFO","msg":"sending prompt to agent"}
+{"time":"2026-02-09T04:50:20.893876231Z","level":"INFO","msg":"agent response received","role":"Agent","chars":19}
+{"time":"2026-02-09T04:50:20.893908872Z","level":"DEBUG","msg":"saved observation to DB"}
+
+!!! AGENT BLOCKED: Blocked by dependency !!!
+Waiting for blocker to be resolved...
+{"time":"2026-02-09T04:50:20.893920343Z","level":"ERROR","msg":"iteration failed","error":"blocker detected"}
+{"time":"2026-02-09T04:50:25.894218787Z","level":"INFO","msg":"starting iteration","iteration":4,"task_id":"","agent_provider":"","agent_model":""}
+{"time":"2026-02-09T04:50:25.894262449Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:25.894314975Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:25.894329127Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+Feature list not found (in DB, Content, or File). Running Initializer.
+{"time":"2026-02-09T04:50:25.894417808Z","level":"INFO","msg":"agent role selected","role":"Agent"}
+{"time":"2026-02-09T04:50:25.894422055Z","level":"INFO","msg":"sending prompt to agent"}
+{"time":"2026-02-09T04:50:25.894478639Z","level":"INFO","msg":"agent response received","role":"Agent","chars":19}
+{"time":"2026-02-09T04:50:25.894507809Z","level":"DEBUG","msg":"saved observation to DB"}
+
+!!! AGENT BLOCKED: Blocked by dependency !!!
+Waiting for blocker to be resolved...
+{"time":"2026-02-09T04:50:25.894518586Z","level":"ERROR","msg":"iteration failed","error":"blocker detected"}
+{"time":"2026-02-09T04:50:30.898735473Z","level":"INFO","msg":"starting iteration","iteration":5,"task_id":"","agent_provider":"","agent_model":""}
+{"time":"2026-02-09T04:50:30.898779965Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:30.898830049Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:30.898846098Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+Feature list not found (in DB, Content, or File). Running Initializer.
+{"time":"2026-02-09T04:50:30.898968237Z","level":"INFO","msg":"agent role selected","role":"Agent"}
+{"time":"2026-02-09T04:50:30.898996294Z","level":"INFO","msg":"sending prompt to agent"}
+{"time":"2026-02-09T04:50:30.89905861Z","level":"INFO","msg":"agent response received","role":"Agent","chars":19}
+{"time":"2026-02-09T04:50:30.899071017Z","level":"DEBUG","msg":"saved observation to DB"}
+
+!!! AGENT BLOCKED: Blocked by dependency !!!
+Waiting for blocker to be resolved...
+{"time":"2026-02-09T04:50:30.899080435Z","level":"ERROR","msg":"iteration failed","error":"blocker detected"}
+{"time":"2026-02-09T04:50:35.903285787Z","level":"INFO","msg":"reached max iterations","max_iterations":5}
+--- PASS: TestRunLoop_Blocker (25.02s)
+=== RUN   TestRunLoop_QAWorkflow
+{"time":"2026-02-09T04:50:35.904108371Z","level":"INFO","msg":"entering autonomous run loop"}
+{"time":"2026-02-09T04:50:35.904152074Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:35.904209463Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:35.904251168Z","level":"INFO","msg":"syncing features from DB to feature_list.json","path":"/tmp/TestRunLoop_QAWorkflow4204872624/001/feature_list.json"}
+All features passed! Triggering Project Complete flow.
+{"time":"2026-02-09T04:50:35.904334602Z","level":"INFO","msg":"created signal","signal":"COMPLETED"}
+{"time":"2026-02-09T04:50:35.904346419Z","level":"INFO","msg":"starting iteration","iteration":1,"task_id":"","agent_provider":"","agent_model":""}
+{"time":"2026-02-09T04:50:35.904351248Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:35.904361614Z","level":"INFO","msg":"loaded features from DB history","count":1}
+Project marked as COMPLETED. Running QA agent...
+{"time":"2026-02-09T04:50:35.904395325Z","level":"INFO","msg":"QA agent running quality checks"}
+{"time":"2026-02-09T04:50:35.90451222Z","level":"INFO","msg":"sending verification instructions to QA agent"}
+{"time":"2026-02-09T04:50:35.904582515Z","level":"INFO","msg":"QA agent response received","chars":21}
+{"time":"2026-02-09T04:50:35.904603988Z","level":"INFO","msg":"iteration metrics","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":21}
+{"time":"2026-02-09T04:50:35.904610448Z","level":"INFO","msg":"QA result signal check","signal":"true","error":null}
+{"time":"2026-02-09T04:50:35.904616405Z","level":"INFO","msg":"QA passed (signal verified)"}
+{"time":"2026-02-09T04:50:35.904619766Z","level":"INFO","msg":"created signal","signal":"QA_PASSED"}
+QA checks passed. Moving to Manager review.
+{"time":"2026-02-09T04:50:35.90462507Z","level":"INFO","msg":"starting iteration","iteration":2,"task_id":"","agent_provider":"","agent_model":""}
+{"time":"2026-02-09T04:50:35.904629169Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:35.904641802Z","level":"INFO","msg":"loaded features from DB history","count":1}
+QA passed. Running Manager agent for final review...
+{"time":"2026-02-09T04:50:35.904657529Z","level":"INFO","msg":"manager agent reviewing QA report"}
+{"time":"2026-02-09T04:50:35.904660311Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:35.904666963Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:35.904704039Z","level":"INFO","msg":"sending QA report to manager agent"}
+{"time":"2026-02-09T04:50:35.904737849Z","level":"INFO","msg":"manager review response received","chars":9}
+{"time":"2026-02-09T04:50:35.904742243Z","level":"INFO","msg":"iteration metrics","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":9}
+{"time":"2026-02-09T04:50:35.904749916Z","level":"INFO","msg":"manager approved (legacy/fallback), all features passing"}
+{"time":"2026-02-09T04:50:35.904754193Z","level":"INFO","msg":"created signal","signal":"PROJECT_SIGNED_OFF"}
+Manager approved. Project signed off.
+{"time":"2026-02-09T04:50:35.90476361Z","level":"INFO","msg":"starting iteration","iteration":3,"task_id":"","agent_provider":"","agent_model":""}
+{"time":"2026-02-09T04:50:35.904769636Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:35.904776756Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:35.904784046Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:35.904789783Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:35.907852716Z","level":"INFO","msg":"project signed off, running cleaner agent"}
+{"time":"2026-02-09T04:50:35.907882449Z","level":"INFO","msg":"cleaner agent running"}
+{"time":"2026-02-09T04:50:35.907910065Z","level":"INFO","msg":"no temp_files.txt found"}
+{"time":"2026-02-09T04:50:35.907916656Z","level":"INFO","msg":"cleaner agent complete, session finished"}
+--- PASS: TestRunLoop_QAWorkflow (0.00s)
+=== RUN   TestRunLoop_AutoMerge
+{"time":"2026-02-09T04:50:35.930081148Z","level":"INFO","msg":"entering autonomous run loop"}
+{"time":"2026-02-09T04:50:35.930129956Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-proj"}
+{"time":"2026-02-09T04:50:35.930162246Z","level":"INFO","msg":"loaded features from DB history","count":0}
+{"time":"2026-02-09T04:50:35.930199821Z","level":"INFO","msg":"starting iteration","iteration":1,"task_id":"","agent_provider":"","agent_model":""}
+{"time":"2026-02-09T04:50:35.930226391Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-proj"}
+{"time":"2026-02-09T04:50:35.930234596Z","level":"INFO","msg":"loaded features from DB history","count":0}
+{"time":"2026-02-09T04:50:35.930256161Z","level":"INFO","msg":"checking for upstream changes","branch":"main"}
+{"time":"2026-02-09T04:50:35.930379853Z","level":"INFO","msg":"branch up-to-date with base"}
+{"time":"2026-02-09T04:50:35.930402216Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-proj"}
+{"time":"2026-02-09T04:50:35.93041018Z","level":"INFO","msg":"loaded features from DB history","count":0}
+Auto-Merge enabled. Preparing to merge changes into base branch: main
+Auto-committed work: [feature/foo e7a2741] feat: implemented features for test-proj
+ 1 file changed, 1 insertion(+)
+ create mode 100644 app_spec.txt
+Merging changes into base branch: main
+Successfully auto-merged feature/foo into main and pushed.
+[test-proj] Deleting remote feature branch feature/foo...
+{"time":"2026-02-09T04:50:35.947798145Z","level":"INFO","msg":"project signed off, running cleaner agent"}
+{"time":"2026-02-09T04:50:35.947824727Z","level":"INFO","msg":"cleaner agent running"}
+{"time":"2026-02-09T04:50:35.947851468Z","level":"INFO","msg":"no temp_files.txt found"}
+{"time":"2026-02-09T04:50:35.947858047Z","level":"INFO","msg":"cleaner agent complete, session finished"}
+--- PASS: TestRunLoop_AutoMerge (0.04s)
+=== RUN   TestRunLoop_GitSafeguard_MergeConflict
+{"time":"2026-02-09T04:50:35.949376004Z","level":"INFO","msg":"entering autonomous run loop"}
+{"time":"2026-02-09T04:50:35.949415246Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-proj"}
+{"time":"2026-02-09T04:50:35.949429332Z","level":"INFO","msg":"loaded features from DB history","count":0}
+{"time":"2026-02-09T04:50:35.949444776Z","level":"INFO","msg":"starting iteration","iteration":1,"task_id":"","agent_provider":"","agent_model":""}
+{"time":"2026-02-09T04:50:35.949449058Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-proj"}
+{"time":"2026-02-09T04:50:35.949454407Z","level":"INFO","msg":"loaded features from DB history","count":0}
+{"time":"2026-02-09T04:50:35.949474665Z","level":"INFO","msg":"checking for upstream changes","branch":"main"}
+{"time":"2026-02-09T04:50:35.949572193Z","level":"WARN","msg":"merge failed","attempt":1,"max":3,"error":"conflict"}
+{"time":"2026-02-09T04:50:35.949620038Z","level":"INFO","msg":"attempting git recovery"}
+{"time":"2026-02-09T04:50:37.954052888Z","level":"WARN","msg":"merge failed","attempt":2,"max":3,"error":"conflict"}
+{"time":"2026-02-09T04:50:37.954128822Z","level":"INFO","msg":"attempting git recovery"}
+{"time":"2026-02-09T04:50:39.958589152Z","level":"WARN","msg":"merge failed","attempt":3,"max":3,"error":"conflict"}
+{"time":"2026-02-09T04:50:39.958661779Z","level":"ERROR","msg":"critical merge failure","branch":"main","attempts":3}
+{"time":"2026-02-09T04:50:41.959940584Z","level":"WARN","msg":"merge conflict or persistent git error, revoking sign-off","branch":"main"}
+{"time":"2026-02-09T04:50:41.96002946Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-proj"}
+{"time":"2026-02-09T04:50:41.960079218Z","level":"INFO","msg":"loaded features from DB history","count":0}
+{"time":"2026-02-09T04:50:41.960132749Z","level":"INFO","msg":"reached max iterations","max_iterations":1}
+--- PASS: TestRunLoop_GitSafeguard_MergeConflict (6.01s)
+=== RUN   TestSession_LoadFeatures_Priority
+{"time":"2026-02-09T04:50:41.960731244Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-proj"}
+{"time":"2026-02-09T04:50:41.960772542Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:41.960782328Z","level":"INFO","msg":"loaded injected features from env","count":1}
+{"time":"2026-02-09T04:50:41.96082055Z","level":"INFO","msg":"syncing features from DB to feature_list.json","path":"/tmp/TestSession_LoadFeatures_Priority2860788897/001/feature_list.json"}
+--- PASS: TestSession_LoadFeatures_Priority (0.00s)
+=== RUN   TestRunLoop_SubTask
+{"time":"2026-02-09T04:50:41.961228839Z","level":"INFO","msg":"entering autonomous run loop"}
+{"time":"2026-02-09T04:50:41.961268021Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-proj"}
+{"time":"2026-02-09T04:50:41.961299083Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:41.96132305Z","level":"INFO","msg":"syncing features from DB to feature_list.json","path":"/tmp/TestRunLoop_SubTask1245860867/001/feature_list.json"}
+{"time":"2026-02-09T04:50:41.96137877Z","level":"INFO","msg":"starting iteration","iteration":1,"task_id":"task-1","agent_provider":"","agent_model":""}
+{"time":"2026-02-09T04:50:41.961385221Z","level":"INFO","msg":"assigned task details","task_id":"task-1","desc_snippet":""}
+{"time":"2026-02-09T04:50:41.961388751Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-proj"}
+{"time":"2026-02-09T04:50:41.961397984Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:41.961427413Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-proj"}
+{"time":"2026-02-09T04:50:41.961435172Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:41.961442285Z","level":"INFO","msg":"created signal","signal":"COMPLETED"}
+{"time":"2026-02-09T04:50:41.961446103Z","level":"INFO","msg":"all features passed, auto-triggered completion signal"}
+{"time":"2026-02-09T04:50:41.961453054Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-proj"}
+{"time":"2026-02-09T04:50:41.961459831Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:41.961466402Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-proj"}
+{"time":"2026-02-09T04:50:41.961472448Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:41.96159348Z","level":"INFO","msg":"agent role selected","role":"Agent"}
+{"time":"2026-02-09T04:50:41.961615439Z","level":"INFO","msg":"sending prompt to agent"}
+{"time":"2026-02-09T04:50:41.96166695Z","level":"INFO","msg":"agent response received","role":"Agent","chars":21}
+{"time":"2026-02-09T04:50:41.961692763Z","level":"DEBUG","msg":"saved observation to DB"}
+{"time":"2026-02-09T04:50:41.961699325Z","level":"INFO","msg":"iteration metrics","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":21}
+{"time":"2026-02-09T04:50:41.961704483Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-proj"}
+{"time":"2026-02-09T04:50:41.961714908Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:42.965101309Z","level":"INFO","msg":"starting iteration","iteration":2,"task_id":"task-1","agent_provider":"","agent_model":""}
+{"time":"2026-02-09T04:50:42.965144775Z","level":"INFO","msg":"assigned task details","task_id":"task-1","desc_snippet":""}
+{"time":"2026-02-09T04:50:42.965151676Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-proj"}
+{"time":"2026-02-09T04:50:42.965180246Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:42.965222422Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-proj"}
+{"time":"2026-02-09T04:50:42.965230008Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:42.965237374Z","level":"INFO","msg":"created signal","signal":"COMPLETED"}
+{"time":"2026-02-09T04:50:42.96524083Z","level":"INFO","msg":"all features passed, auto-triggered completion signal"}
+{"time":"2026-02-09T04:50:42.965248182Z","level":"INFO","msg":"task completed","task_id":"task-1"}
+--- PASS: TestRunLoop_SubTask (1.00s)
+=== RUN   TestSession_RunInitScript_Local
+Found init.sh. Executing in container...
+Found init.sh. Launching in background (10m timeout)...
+async init.sh finished successfully.
+--- PASS: TestSession_RunInitScript_Local (0.10s)
+=== RUN   TestSession_RunLoop_Success
+{"time":"2026-02-09T04:50:43.078570662Z","level":"INFO","msg":"entering autonomous run loop"}
+{"time":"2026-02-09T04:50:43.078712186Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:43.078791544Z","level":"INFO","msg":"starting iteration","iteration":1,"task_id":"","agent_provider":"","agent_model":""}
+{"time":"2026-02-09T04:50:43.078814551Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:43.078985701Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:43.079120817Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+Feature list not found (in DB, Content, or File). Running Initializer.
+{"time":"2026-02-09T04:50:43.079293893Z","level":"INFO","msg":"agent role selected","role":"Agent"}
+{"time":"2026-02-09T04:50:43.079316894Z","level":"INFO","msg":"sending prompt to agent"}
+{"time":"2026-02-09T04:50:43.079321982Z","level":"INFO","msg":"agent response received","role":"Agent","chars":43}
+{"time":"2026-02-09T04:50:43.080309953Z","level":"DEBUG","msg":"saved observation to DB"}
+{"time":"2026-02-09T04:50:43.080348599Z","level":"INFO","msg":"executing command block","index":1,"total":1,"script":"echo success"}
+{"time":"2026-02-09T04:50:43.080509549Z","level":"INFO","msg":"iteration metrics","commands_executed":1,"files_modified_est":0,"output_lines":2,"response_chars":43}
+{"time":"2026-02-09T04:50:43.081448389Z","level":"DEBUG","msg":"saved system output to DB"}
+{"time":"2026-02-09T04:50:43.081476853Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:44.084398194Z","level":"INFO","msg":"starting iteration","iteration":2,"task_id":"","agent_provider":"","agent_model":""}
+{"time":"2026-02-09T04:50:44.084504318Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:44.084747321Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:44.084879842Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+Feature list not found (in DB, Content, or File). Running Initializer.
+{"time":"2026-02-09T04:50:44.08505694Z","level":"INFO","msg":"agent role selected","role":"Agent"}
+{"time":"2026-02-09T04:50:44.085086129Z","level":"INFO","msg":"sending prompt to agent"}
+{"time":"2026-02-09T04:50:44.085091094Z","level":"INFO","msg":"agent response received","role":"Agent","chars":10}
+{"time":"2026-02-09T04:50:44.086408647Z","level":"DEBUG","msg":"saved observation to DB"}
+{"time":"2026-02-09T04:50:44.086507383Z","level":"INFO","msg":"iteration metrics","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":10}
+{"time":"2026-02-09T04:50:44.086530855Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:45.089595688Z","level":"INFO","msg":"starting iteration","iteration":3,"task_id":"","agent_provider":"","agent_model":""}
+{"time":"2026-02-09T04:50:45.089641841Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:45.089892483Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:45.090028583Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+Feature list not found (in DB, Content, or File). Running Initializer.
+{"time":"2026-02-09T04:50:45.090206195Z","level":"INFO","msg":"agent role selected","role":"Agent"}
+{"time":"2026-02-09T04:50:45.090268054Z","level":"INFO","msg":"sending prompt to agent"}
+{"time":"2026-02-09T04:50:45.090273311Z","level":"INFO","msg":"agent response received","role":"Agent","chars":0}
+{"time":"2026-02-09T04:50:45.091549747Z","level":"DEBUG","msg":"saved observation to DB"}
+{"time":"2026-02-09T04:50:45.091636882Z","level":"INFO","msg":"iteration metrics","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":0}
+{"time":"2026-02-09T04:50:45.091645525Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:46.094649659Z","level":"INFO","msg":"starting iteration","iteration":4,"task_id":"","agent_provider":"","agent_model":""}
+{"time":"2026-02-09T04:50:46.094694896Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:46.095029222Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+{"time":"2026-02-09T04:50:46.095261981Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":""}
+Feature list not found (in DB, Content, or File). Running Initializer.
+{"time":"2026-02-09T04:50:46.095426402Z","level":"INFO","msg":"agent role selected","role":"Agent"}
+{"time":"2026-02-09T04:50:46.095453444Z","level":"INFO","msg":"sending prompt to agent"}
+{"time":"2026-02-09T04:50:46.095458791Z","level":"INFO","msg":"agent response received","role":"Agent","chars":0}
+{"time":"2026-02-09T04:50:46.096865335Z","level":"DEBUG","msg":"saved observation to DB"}
+{"time":"2026-02-09T04:50:46.096965311Z","level":"INFO","msg":"iteration metrics","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":0}
+CIRCUIT BREAKER TRIPPED: NO-OP LOOP (Agent has produced 3 consecutive responses with no commands)
+--- PASS: TestSession_RunLoop_Success (3.03s)
+=== RUN   TestSession_RunLoop_StalledBreaker
+--- PASS: TestSession_RunLoop_StalledBreaker (0.00s)
+=== RUN   TestSecurityIntegration_BlocksSecrets
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:46.111488817Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045046.log
+{"time":"2026-02-09T04:50:46.111642359Z","level":"INFO","msg":"entering autonomous run loop","project":"test-project"}
+{"time":"2026-02-09T04:50:46.111651098Z","level":"INFO","msg":"Checking notification for event: on_start"}
+Warning: Failed to ensure state files are ignored: failed to untrack state files: exit status 128
+{"time":"2026-02-09T04:50:46.114825237Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:46.114911563Z","level":"INFO","msg":"starting iteration","project":"test-project","iteration":1,"task_id":"","agent_provider":"gemini","agent_model":"gemini-pro"}
+{"time":"2026-02-09T04:50:46.114921257Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:46.1150582Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:46.115254262Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+Feature list not found (in DB, Content, or File). Running Initializer.
+{"time":"2026-02-09T04:50:46.116560114Z","level":"INFO","msg":"agent role selected","project":"test-project","role":"Agent"}
+{"time":"2026-02-09T04:50:46.116588002Z","level":"INFO","msg":"sending prompt to agent","project":"test-project"}
+{"time":"2026-02-09T04:50:46.116593369Z","level":"INFO","msg":"agent response received","project":"test-project","role":"Agent","chars":38}
+{"time":"2026-02-09T04:50:46.116624906Z","level":"ERROR","msg":"security violation detected","project":"test-project"}
+{"time":"2026-02-09T04:50:46.116629299Z","level":"ERROR","msg":"security finding","project":"test-project","type":"AWS Access Key","desc":"Found potential AWS Access Key","line":1}
+{"time":"2026-02-09T04:50:46.116636187Z","level":"ERROR","msg":"iteration failed","project":"test-project","error":"security violation detected"}
+{"time":"2026-02-09T04:50:51.116880807Z","level":"INFO","msg":"reached max iterations","project":"test-project","max_iterations":1}
+    security_integration_test.go:72: DB is empty (Good, secret was blocked)
+--- PASS: TestSecurityIntegration_BlocksSecrets (5.02s)
+=== RUN   TestSession_CheckNoOpBreaker
+--- PASS: TestSession_CheckNoOpBreaker (0.00s)
+=== RUN   TestSession_CheckStalledBreaker
+Warning: Progress stalled for 5 iterations. Summoning Manager.
+Warning: Progress stalled for 15 iterations. Summoning Manager.
+--- PASS: TestSession_CheckStalledBreaker (0.00s)
+=== RUN   TestSession_CheckStalledBreaker_ManagerReset
+--- PASS: TestSession_CheckStalledBreaker_ManagerReset (0.00s)
+=== RUN   TestNewSessionWithConfig
+--- PASS: TestNewSessionWithConfig (0.00s)
+=== RUN   TestNewSessionWithConfig_EmptyProject
+--- PASS: TestNewSessionWithConfig_EmptyProject (0.00s)
+=== RUN   TestSession_ProcessResponse_Timeout_Coverage
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:51.119933416Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045051.log
+{"time":"2026-02-09T04:50:51.120070902Z","level":"INFO","msg":"executing command block","project":"test-project","index":1,"total":1,"script":"sleep 2"}
+{"time":"2026-02-09T04:50:52.120330313Z","level":"ERROR","msg":"command failed","project":"test-project","script":"sleep 2","error":"Command timed out after 1 seconds."}
+{"time":"2026-02-09T04:50:52.12064093Z","level":"INFO","msg":"iteration metrics","project":"test-project","commands_executed":1,"files_modified_est":0,"output_lines":4,"response_chars":19}
+--- PASS: TestSession_ProcessResponse_Timeout_Coverage (1.00s)
+=== RUN   TestSession_ProcessResponse_JSONBlock_Coverage
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:52.12151405Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045052.log
+{"time":"2026-02-09T04:50:52.121767915Z","level":"INFO","msg":"executing command block","project":"test-project","index":1,"total":1,"script":"{\"key\": \"value\"}"}
+{"time":"2026-02-09T04:50:52.121789522Z","level":"WARN","msg":"Skipping execution of likely JSON data block mislabeled as bash","project":"test-project","snippet":"{\"key\": \"value\"}"}
+{"time":"2026-02-09T04:50:52.121867389Z","level":"INFO","msg":"iteration metrics","project":"test-project","commands_executed":1,"files_modified_est":0,"output_lines":2,"response_chars":28}
+--- PASS: TestSession_ProcessResponse_JSONBlock_Coverage (0.00s)
+=== RUN   TestSession_BootstrapGit_Error_Coverage
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:52.122574481Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045052.log
+Warning: Failed to create global gitignore: exec error
+Bootstrapping git config (email: test@example.com, name: Test User, excludes: /etc/gitignore_global)...
+--- PASS: TestSession_BootstrapGit_Error_Coverage (0.00s)
+=== RUN   TestSession_FixPermissions_Error_Coverage
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:52.123425813Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045052.log
+--- PASS: TestSession_FixPermissions_Error_Coverage (0.00s)
+=== RUN   TestSession_Start_RunsInitScript
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:52.135770607Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045052.log
+Initializing session with image: alpine
+Loaded spec: 9 bytes
+Warning: Failed to locate agent-bridge binary: agent-bridge binary not found at /app/agent-bridge. Did you run 'make bridge'?. Agent CLI tools will not work.
+Container started successfully. ID: test-container
+Fixing container passwd database for UID:GID 1001:1001...
+Updated workspace .gitignore with agent patterns.
+Bootstrapping git config (email: test@example.com, name: Test User, excludes: /etc/gitignore_global)...
+Found init.sh. Executing in container...
+Found init.sh. Launching in background (10m timeout)...
+{"time":"2026-02-09T04:50:52.137644503Z","level":"INFO","msg":"Checking notification for event: on_start"}
+async init.sh finished successfully.
+--- PASS: TestSession_Start_RunsInitScript (0.01s)
+=== RUN   TestSession_Start_NoInitScript
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:52.149144892Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045052.log
+Initializing session with image: alpine
+Loaded spec: 9 bytes
+Warning: Failed to locate agent-bridge binary: agent-bridge binary not found at /app/agent-bridge. Did you run 'make bridge'?. Agent CLI tools will not work.
+Container started successfully. ID: mock-container-id
+Fixing container passwd database for UID:GID 1001:1001...
+Updated workspace .gitignore with agent patterns.
+Bootstrapping git config (email: test@example.com, name: Test User, excludes: /etc/gitignore_global)...
+{"time":"2026-02-09T04:50:52.151948467Z","level":"INFO","msg":"Checking notification for event: on_start"}
+--- PASS: TestSession_Start_NoInitScript (0.01s)
+=== RUN   TestSession_Start_InitScriptFails
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:52.161488493Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045052.log
+Initializing session with image: alpine
+Loaded spec: 9 bytes
+Warning: Failed to locate agent-bridge binary: agent-bridge binary not found at /app/agent-bridge. Did you run 'make bridge'?. Agent CLI tools will not work.
+Container started successfully. ID: mock-container-id
+Fixing container passwd database for UID:GID 1001:1001...
+Updated workspace .gitignore with agent patterns.
+Bootstrapping git config (email: test@example.com, name: Test User, excludes: /etc/gitignore_global)...
+Found init.sh. Executing in container...
+Found init.sh. Launching in background (10m timeout)...
+{"time":"2026-02-09T04:50:52.163230498Z","level":"INFO","msg":"Checking notification for event: on_start"}
+Warning: init.sh execution failed: failed to create exec as user root: simulated init.sh failure
+--- PASS: TestSession_Start_InitScriptFails (0.01s)
+=== RUN   TestSessionsDir
+--- PASS: TestSessionsDir (0.00s)
+=== RUN   TestGetSessionLogContent
+=== RUN   TestGetSessionLogContent/Get_all_content
+=== RUN   TestGetSessionLogContent/Get_last_N_lines
+=== RUN   TestGetSessionLogContent/Get_more_lines_than_available
+=== RUN   TestGetSessionLogContent/Session_not_found
+=== RUN   TestGetSessionLogContent/Log_file_not_found
+--- PASS: TestGetSessionLogContent (0.00s)
+    --- PASS: TestGetSessionLogContent/Get_all_content (0.00s)
+    --- PASS: TestGetSessionLogContent/Get_last_N_lines (0.00s)
+    --- PASS: TestGetSessionLogContent/Get_more_lines_than_available (0.00s)
+    --- PASS: TestGetSessionLogContent/Session_not_found (0.00s)
+    --- PASS: TestGetSessionLogContent/Log_file_not_found (0.00s)
+=== RUN   TestStartSession_Errors
+=== RUN   TestStartSession_Errors/Invalid_Name
+=== RUN   TestStartSession_Errors/Executable_Not_Found
+=== RUN   TestStartSession_Errors/Session_Already_Running
+--- PASS: TestStartSession_Errors (0.00s)
+    --- PASS: TestStartSession_Errors/Invalid_Name (0.00s)
+    --- PASS: TestStartSession_Errors/Executable_Not_Found (0.00s)
+    --- PASS: TestStartSession_Errors/Session_Already_Running (0.00s)
+=== RUN   TestPauseResume_Errors
+=== RUN   TestPauseResume_Errors/Pause_Session_Not_Found
+=== RUN   TestPauseResume_Errors/Resume_Session_Not_Found
+=== RUN   TestPauseResume_Errors/Pause_Phantom_Session
+=== RUN   TestPauseResume_Errors/Resume_Phantom_Session
+--- PASS: TestPauseResume_Errors (0.00s)
+    --- PASS: TestPauseResume_Errors/Pause_Session_Not_Found (0.00s)
+    --- PASS: TestPauseResume_Errors/Resume_Session_Not_Found (0.00s)
+    --- PASS: TestPauseResume_Errors/Pause_Phantom_Session (0.00s)
+    --- PASS: TestPauseResume_Errors/Resume_Phantom_Session (0.00s)
+=== RUN   TestSessionManager_Security_PathTraversal
+=== RUN   TestSessionManager_Security_PathTraversal/Parent_Directory
+=== RUN   TestSessionManager_Security_PathTraversal/Root_Directory
+=== RUN   TestSessionManager_Security_PathTraversal/Nested_Directory
+--- PASS: TestSessionManager_Security_PathTraversal (0.00s)
+    --- PASS: TestSessionManager_Security_PathTraversal/Parent_Directory (0.00s)
+    --- PASS: TestSessionManager_Security_PathTraversal/Root_Directory (0.00s)
+    --- PASS: TestSessionManager_Security_PathTraversal/Nested_Directory (0.00s)
+=== RUN   TestSessionManager_Security_LoadSession
+--- PASS: TestSessionManager_Security_LoadSession (0.00s)
+=== RUN   TestSessionManager_Lifecycle
+fatal: not a git repository (or any of the parent directories): .git
+--- PASS: TestSessionManager_Lifecycle (2.13s)
+=== RUN   TestSessionManager_Persistence
+--- PASS: TestSessionManager_Persistence (0.00s)
+=== RUN   TestSessionManager_StopSession_NotRunning
+--- PASS: TestSessionManager_StopSession_NotRunning (0.00s)
+=== RUN   TestSessionManager_GetSessionLogs
+--- PASS: TestSessionManager_GetSessionLogs (0.00s)
+=== RUN   TestSessionManager_RemoveSession
+--- PASS: TestSessionManager_RemoveSession (0.00s)
+=== RUN   TestArchiveAndUnarchiveSession
+=== RUN   TestArchiveAndUnarchiveSession/archives_and_unarchives_a_session_successfully
+=== RUN   TestArchiveAndUnarchiveSession/fails_to_archive_a_running_session
+=== RUN   TestArchiveAndUnarchiveSession/fails_to_unarchive_a_session_when_an_active_one_with_the_same_name_exists
+--- PASS: TestArchiveAndUnarchiveSession (0.00s)
+    --- PASS: TestArchiveAndUnarchiveSession/archives_and_unarchives_a_session_successfully (0.00s)
+    --- PASS: TestArchiveAndUnarchiveSession/fails_to_archive_a_running_session (0.00s)
+    --- PASS: TestArchiveAndUnarchiveSession/fails_to_unarchive_a_session_when_an_active_one_with_the_same_name_exists (0.00s)
+=== RUN   TestListArchivedSessions
+--- PASS: TestListArchivedSessions (0.00s)
+=== RUN   TestRenameSession
+=== RUN   TestRenameSession/renames_a_session_successfully
+=== RUN   TestRenameSession/fails_to_rename_a_running_session
+=== RUN   TestRenameSession/fails_to_rename_to_an_existing_session_name
+=== RUN   TestRenameSession/fails_to_rename_a_non-existent_session
+--- PASS: TestRenameSession (0.00s)
+    --- PASS: TestRenameSession/renames_a_session_successfully (0.00s)
+    --- PASS: TestRenameSession/fails_to_rename_a_running_session (0.00s)
+    --- PASS: TestRenameSession/fails_to_rename_to_an_existing_session_name (0.00s)
+    --- PASS: TestRenameSession/fails_to_rename_a_non-existent_session (0.00s)
+=== RUN   TestGetSessionGitDiffStat
+=== RUN   TestGetSessionGitDiffStat/returns_empty_string_when_SHAs_are_missing
+=== RUN   TestGetSessionGitDiffStat/returns_an_error_when_git_client_fails
+=== RUN   TestGetSessionGitDiffStat/returns_git_diff_stat_successfully
+--- PASS: TestGetSessionGitDiffStat (0.00s)
+    --- PASS: TestGetSessionGitDiffStat/returns_empty_string_when_SHAs_are_missing (0.00s)
+    --- PASS: TestGetSessionGitDiffStat/returns_an_error_when_git_client_fails (0.00s)
+    --- PASS: TestGetSessionGitDiffStat/returns_git_diff_stat_successfully (0.00s)
+=== RUN   TestSessionManager_PauseResume
+fatal: not a git repository (or any of the parent directories): .git
+--- PASS: TestSessionManager_PauseResume (2.01s)
+=== RUN   TestSession_WorkspaceMounting
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:56.322026387Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045056.log
+Initializing session with image: alpine:latest
+Warning: Failed to read spec: failed to read spec file and no backups found: open /tmp/TestSession_WorkspaceMounting582489981/001/app_spec.txt: no such file or directory
+Warning: Failed to locate agent-bridge binary: agent-bridge binary not found at /app/agent-bridge. Did you run 'make bridge'?. Agent CLI tools will not work.
+Container started successfully. ID: test-container-123
+Fixing container passwd database for UID:GID 1001:1001...
+Updated workspace .gitignore with agent patterns.
+Bootstrapping git config (email: test@example.com, name: Test User, excludes: /etc/gitignore_global)...
+{"time":"2026-02-09T04:50:56.323066004Z","level":"INFO","msg":"Checking notification for event: on_start"}
+    session_mount_test.go:205: Successfully verified workspace mounting:
+    session_mount_test.go:206:   Workspace path: /tmp/TestSession_WorkspaceMounting582489981/001
+    session_mount_test.go:207:   Mounted as: /tmp/TestSession_WorkspaceMounting582489981/001:/workspace
+    session_mount_test.go:208:   Container files: [.gitignore .recac.db .recac.db-shm .recac.db-wal file1.txt file2.txt subdir]
+--- PASS: TestSession_WorkspaceMounting (0.01s)
+=== RUN   TestSession_ReadSpec
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:56.334399837Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045056.log
+--- PASS: TestSession_ReadSpec (0.01s)
+=== RUN   TestSession_ReadSpec_Missing
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:56.351629578Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045056.log
+--- PASS: TestSession_ReadSpec_Missing (0.02s)
+=== RUN   TestSession_AgentReadsSpec
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:56.365096182Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045056.log
+Initializing session with image: alpine
+Loaded spec: 77 bytes
+Warning: Failed to locate agent-bridge binary: agent-bridge binary not found at /app/agent-bridge. Did you run 'make bridge'?. Agent CLI tools will not work.
+Container started successfully. ID: mock-container-id
+Fixing container passwd database for UID:GID 1001:1001...
+Updated workspace .gitignore with agent patterns.
+Bootstrapping git config (email: test@example.com, name: Test User, excludes: /etc/gitignore_global)...
+{"time":"2026-02-09T04:50:56.367645486Z","level":"INFO","msg":"Checking notification for event: on_start"}
+--- PASS: TestSession_AgentReadsSpec (0.02s)
+=== RUN   TestSession_Start_PassesUser
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:56.37800367Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045056.log
+Initializing session with image: alpine
+Loaded spec: 4 bytes
+Warning: Failed to locate agent-bridge binary: agent-bridge binary not found at /app/agent-bridge. Did you run 'make bridge'?. Agent CLI tools will not work.
+Container started successfully. ID: test
+Fixing container passwd database for UID:GID 1001:1001...
+Updated workspace .gitignore with agent patterns.
+Bootstrapping git config (email: test@example.com, name: Test User, excludes: /etc/gitignore_global)...
+{"time":"2026-02-09T04:50:56.380329432Z","level":"INFO","msg":"Checking notification for event: on_start"}
+--- PASS: TestSession_Start_PassesUser (0.01s)
+=== RUN   TestSession_SelectPrompt
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:56.390494503Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045056.log
+{"time":"2026-02-09T04:50:56.390590412Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+Feature list not found (in DB, Content, or File). Running Initializer.
+{"time":"2026-02-09T04:50:56.391487417Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:56.391583099Z","level":"INFO","msg":"loaded features from injected content","project":"test-project"}
+{"time":"2026-02-09T04:50:56.39252108Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:56.392591456Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+{"time":"2026-02-09T04:50:56.392637247Z","level":"INFO","msg":"syncing features from DB to feature_list.json","project":"test-project","path":"/tmp/TestSession_SelectPrompt475738532/001/feature_list.json"}
+{"time":"2026-02-09T04:50:56.392750792Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:56.392831994Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+{"time":"2026-02-09T04:50:56.392899908Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:56.392958421Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+{"time":"2026-02-09T04:50:56.393088191Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:56.393150904Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+{"time":"2026-02-09T04:50:56.393340022Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:56.393410188Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+{"time":"2026-02-09T04:50:56.394275935Z","level":"INFO","msg":"created signal","project":"test-project","signal":"TRIGGER_MANAGER"}
+{"time":"2026-02-09T04:50:56.394301511Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:56.394362918Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+{"time":"2026-02-09T04:50:56.39508206Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:56.395156912Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+--- PASS: TestSession_SelectPrompt (0.01s)
+=== RUN   TestSession_AgentStatePersistence
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045056.log
+Warning: Failed to ensure state files are ignored: failed to untrack state files: exit status 128
+--- PASS: TestSession_AgentStatePersistence (0.02s)
+=== RUN   TestSession_Signals
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:56.423308834Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045056.log
+{"time":"2026-02-09T04:50:56.424462017Z","level":"INFO","msg":"created signal","project":"test-project","signal":"TEST_SIGNAL"}
+{"time":"2026-02-09T04:50:56.426498643Z","level":"INFO","msg":"created signal","project":"test-project","signal":"COMPLETED"}
+--- PASS: TestSession_Signals (0.02s)
+=== RUN   TestSession_Stop
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:56.428110556Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045056.log
+Stopping container: test-container
+Container stopped successfully
+--- PASS: TestSession_Stop (0.00s)
+=== RUN   TestSession_RunCleanerAgent
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:56.44023715Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045056.log
+{"time":"2026-02-09T04:50:56.440582215Z","level":"INFO","msg":"cleaner agent running","project":"test-project"}
+{"time":"2026-02-09T04:50:56.440706188Z","level":"INFO","msg":"removed temp file","project":"test-project","file":"to_delete.txt"}
+{"time":"2026-02-09T04:50:56.440729206Z","level":"INFO","msg":"cleaner agent complete","project":"test-project","removed":1,"errors":0}
+--- PASS: TestSession_RunCleanerAgent (0.01s)
+=== RUN   TestSession_LoadFeatures
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:56.453573904Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045056.log
+{"time":"2026-02-09T04:50:56.453645758Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:56.453800326Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:56.453926345Z","level":"INFO","msg":"loaded features from file","project":"test-project","path":"/tmp/TestSession_LoadFeatures2533031672/001/feature_list.json"}
+--- PASS: TestSession_LoadFeatures (0.01s)
+=== RUN   TestSession_RunLoop_SingleIteration
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:56.467819286Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045056.log
+{"time":"2026-02-09T04:50:56.467963663Z","level":"INFO","msg":"entering autonomous run loop","project":"test-project"}
+{"time":"2026-02-09T04:50:56.467972535Z","level":"INFO","msg":"Checking notification for event: on_start"}
+Warning: Failed to ensure state files are ignored: failed to untrack state files: exit status 128
+{"time":"2026-02-09T04:50:56.471041856Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:56.471123073Z","level":"INFO","msg":"starting iteration","project":"test-project","iteration":1,"task_id":"","agent_provider":"gemini","agent_model":"gemini-pro"}
+{"time":"2026-02-09T04:50:56.471130784Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:56.471314837Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:56.471448407Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+Feature list not found (in DB, Content, or File). Running Initializer.
+{"time":"2026-02-09T04:50:56.47264381Z","level":"INFO","msg":"agent role selected","project":"test-project","role":"Agent"}
+{"time":"2026-02-09T04:50:56.47267067Z","level":"INFO","msg":"sending prompt to agent","project":"test-project"}
+{"time":"2026-02-09T04:50:56.472675796Z","level":"INFO","msg":"agent response received","project":"test-project","role":"Agent","chars":0}
+{"time":"2026-02-09T04:50:56.472684967Z","level":"INFO","msg":"security scan passed","project":"test-project"}
+{"time":"2026-02-09T04:50:56.473884536Z","level":"INFO","msg":"iteration metrics","project":"test-project","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":0}
+{"time":"2026-02-09T04:50:56.473915755Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:57.47698162Z","level":"INFO","msg":"reached max iterations","project":"test-project","max_iterations":1}
+--- PASS: TestSession_RunLoop_SingleIteration (1.02s)
+=== RUN   TestSession_RunQAAgent
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:57.48949984Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045057.log
+{"time":"2026-02-09T04:50:57.489767966Z","level":"INFO","msg":"QA agent running quality checks","project":"test-project"}
+{"time":"2026-02-09T04:50:57.489863771Z","level":"INFO","msg":"sending verification instructions to QA agent","project":"test-project"}
+{"time":"2026-02-09T04:50:57.4909796Z","level":"INFO","msg":"QA agent response received","project":"test-project","chars":31}
+{"time":"2026-02-09T04:50:57.491079709Z","level":"INFO","msg":"iteration metrics","project":"test-project","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":31}
+{"time":"2026-02-09T04:50:57.491158448Z","level":"INFO","msg":"QA result signal check","project":"test-project","signal":"true","error":null}
+{"time":"2026-02-09T04:50:57.491168469Z","level":"INFO","msg":"QA passed (signal verified)","project":"test-project"}
+{"time":"2026-02-09T04:50:57.491269709Z","level":"INFO","msg":"QA agent running quality checks","project":"test-project"}
+{"time":"2026-02-09T04:50:57.492510368Z","level":"INFO","msg":"sending verification instructions to QA agent","project":"test-project"}
+{"time":"2026-02-09T04:50:57.493565084Z","level":"INFO","msg":"QA agent response received","project":"test-project","chars":31}
+{"time":"2026-02-09T04:50:57.493638928Z","level":"INFO","msg":"iteration metrics","project":"test-project","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":31}
+{"time":"2026-02-09T04:50:57.493684272Z","level":"INFO","msg":"QA result signal check","project":"test-project","signal":"false","error":null}
+{"time":"2026-02-09T04:50:57.493706873Z","level":"ERROR","msg":"QA failed (explicit signal)","project":"test-project"}
+--- PASS: TestSession_RunQAAgent (0.02s)
+=== RUN   TestSession_RunManagerAgent
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:57.505057549Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045057.log
+{"time":"2026-02-09T04:50:57.506297468Z","level":"INFO","msg":"manager agent reviewing QA report","project":"test-project"}
+{"time":"2026-02-09T04:50:57.506318955Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:57.506394341Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+{"time":"2026-02-09T04:50:57.506452554Z","level":"INFO","msg":"sending QA report to manager agent","project":"test-project"}
+{"time":"2026-02-09T04:50:57.506458014Z","level":"INFO","msg":"manager review response received","project":"test-project","chars":0}
+{"time":"2026-02-09T04:50:57.506505346Z","level":"INFO","msg":"iteration metrics","project":"test-project","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":0}
+{"time":"2026-02-09T04:50:57.506570485Z","level":"INFO","msg":"manager approved (legacy/fallback), all features passing","project":"test-project"}
+{"time":"2026-02-09T04:50:57.507567777Z","level":"INFO","msg":"manager agent reviewing QA report","project":"test-project"}
+{"time":"2026-02-09T04:50:57.507588311Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:57.507653963Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+{"time":"2026-02-09T04:50:57.507701737Z","level":"INFO","msg":"sending QA report to manager agent","project":"test-project"}
+{"time":"2026-02-09T04:50:57.507706899Z","level":"INFO","msg":"manager review response received","project":"test-project","chars":0}
+{"time":"2026-02-09T04:50:57.507745981Z","level":"INFO","msg":"iteration metrics","project":"test-project","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":0}
+{"time":"2026-02-09T04:50:57.507777589Z","level":"INFO","msg":"manager rejected or pending, project not signed off","project":"test-project"}
+--- PASS: TestSession_RunManagerAgent (0.01s)
+=== RUN   TestMin
+--- PASS: TestMin (0.00s)
+=== RUN   TestSession_Start_MountsBridge
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:57.519506475Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045057.log
+Initializing session with image: alpine
+Loaded spec: 4 bytes
+Mounting agent-bridge from /app/internal/runner/agent-bridge to /usr/local/bin/agent-bridge
+Container started successfully. ID: test
+Fixing container passwd database for UID:GID 1001:1001...
+Updated workspace .gitignore with agent patterns.
+Bootstrapping git config (email: test@example.com, name: Test User, excludes: /etc/gitignore_global)...
+{"time":"2026-02-09T04:50:57.521322499Z","level":"INFO","msg":"Checking notification for event: on_start"}
+--- PASS: TestSession_Start_MountsBridge (0.01s)
+=== RUN   TestSession_FixPermissions
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:57.532903943Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045057.log
+--- PASS: TestSession_FixPermissions (0.01s)
+=== RUN   TestSession_EnsureConflictTask
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:57.542338723Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045057.log
+{"time":"2026-02-09T04:50:57.542409126Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:57.542461015Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+{"time":"2026-02-09T04:50:57.542501869Z","level":"INFO","msg":"syncing features from DB to feature_list.json","project":"test-project","path":"/tmp/TestSession_EnsureConflictTask3409154384/001/feature_list.json"}
+{"time":"2026-02-09T04:50:57.542593182Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:57.542629158Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+--- PASS: TestSession_EnsureConflictTask (0.01s)
+=== RUN   TestSession_PushProgress
+{"time":"2026-02-09T04:50:57.585857341Z","level":"INFO","msg":"pushing progress to remote","branch":"agent/test-branch"}
+[agent/test-branch 10c883f] chore: progress update (iteration 1)
+ 2 files changed, 17 insertions(+)
+ create mode 100644 .gitignore
+ create mode 100644 progress.txt
+Already up to date.
+{"time":"2026-02-09T04:50:57.600081633Z","level":"INFO","msg":"merged stranded commits from ref","ref":"refs/heads/master"}
+To /tmp/TestSession_PushProgress1804155345/002
+ * [new branch]      agent/test-branch -> agent/test-branch
+branch 'agent/test-branch' set up to track 'origin/agent/test-branch'.
+--- PASS: TestSession_PushProgress (0.10s)
+=== RUN   TestSession_ProcessResponse_Commands
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:57.639218854Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045057.log
+{"time":"2026-02-09T04:50:57.639324229Z","level":"INFO","msg":"executing command block","project":"test-project","index":1,"total":1,"script":"echo hello"}
+{"time":"2026-02-09T04:50:57.639348601Z","level":"INFO","msg":"command output","project":"test-project","output":"hello\n"}
+{"time":"2026-02-09T04:50:57.63944832Z","level":"INFO","msg":"iteration metrics","project":"test-project","commands_executed":1,"files_modified_est":0,"output_lines":3,"response_chars":22}
+{"time":"2026-02-09T04:50:57.639477858Z","level":"INFO","msg":"executing command block","project":"test-project","index":1,"total":1,"script":"fail"}
+{"time":"2026-02-09T04:50:57.63949202Z","level":"ERROR","msg":"command failed","project":"test-project","script":"fail","error":"Command timed out after 600 seconds."}
+{"time":"2026-02-09T04:50:57.63953892Z","level":"INFO","msg":"iteration metrics","project":"test-project","commands_executed":1,"files_modified_est":0,"output_lines":4,"response_chars":16}
+--- PASS: TestSession_ProcessResponse_Commands (0.00s)
+=== RUN   TestSession_ProcessResponse_Blockers
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:57.640551898Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045057.log
+{"time":"2026-02-09T04:50:57.640751298Z","level":"WARN","msg":"agent reported blocker file","project":"test-project","file":"recac_blockers.txt"}
+{"time":"2026-02-09T04:50:57.640788364Z","level":"WARN","msg":"blocker content","project":"test-project","content":"Critical API Issue"}
+{"time":"2026-02-09T04:50:57.640796226Z","level":"INFO","msg":"session stopping to allow human resolution","project":"test-project"}
+--- PASS: TestSession_ProcessResponse_Blockers (0.00s)
+=== RUN   TestSession_BootstrapGit
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:57.641725531Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045057.log
+Bootstrapping git config (email: test@example.com, name: Test User, excludes: /etc/gitignore_global)...
+--- PASS: TestSession_BootstrapGit (0.00s)
+=== RUN   TestSession_EnsureImage
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:57.642690572Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045057.log
+Default agent image 'ghcr.io/process-failed-successfully/recac-agent:latest' not found locally. Pulling...
+Agent image pulled successfully.
+--- PASS: TestSession_EnsureImage (0.00s)
+=== RUN   TestSession_ProcessResponse_JSON
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:57.643509234Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045057.log
+{"time":"2026-02-09T04:50:57.643583219Z","level":"INFO","msg":"executing command block","project":"test-project","index":1,"total":1,"script":"{\"key\": \"value\"}"}
+{"time":"2026-02-09T04:50:57.643628741Z","level":"WARN","msg":"Skipping execution of likely JSON data block mislabeled as bash","project":"test-project","snippet":"{\"key\": \"value\"}"}
+{"time":"2026-02-09T04:50:57.643768299Z","level":"INFO","msg":"iteration metrics","project":"test-project","commands_executed":1,"files_modified_est":0,"output_lines":2,"response_chars":28}
+--- PASS: TestSession_ProcessResponse_JSON (0.00s)
+=== RUN   TestSession_RunInitScript
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:57.676153221Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045057.log
+Found init.sh. Executing in container...
+Found init.sh. Launching in background (10m timeout)...
+async init.sh finished. Output:
+init done
+--- PASS: TestSession_RunInitScript (0.03s)
+=== RUN   TestSession_FixPasswdDatabase
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:57.677397576Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045057.log
+Fixing container passwd database for UID:GID 1000:1000...
+--- PASS: TestSession_FixPasswdDatabase (0.00s)
+=== RUN   TestSession_RunLoop_Stall
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:57.688286302Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045057.log
+{"time":"2026-02-09T04:50:57.688484273Z","level":"INFO","msg":"entering autonomous run loop","project":"test-project"}
+{"time":"2026-02-09T04:50:57.688511212Z","level":"INFO","msg":"Checking notification for event: on_start"}
+Warning: Failed to ensure state files are ignored: failed to untrack state files: exit status 128
+{"time":"2026-02-09T04:50:57.691769036Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:57.691865218Z","level":"INFO","msg":"loaded features from injected content","project":"test-project"}
+{"time":"2026-02-09T04:50:57.692753694Z","level":"INFO","msg":"starting iteration","project":"test-project","iteration":1,"task_id":"","agent_provider":"gemini","agent_model":"gemini-pro"}
+{"time":"2026-02-09T04:50:57.692778155Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:57.69285147Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+{"time":"2026-02-09T04:50:57.692909688Z","level":"INFO","msg":"syncing features from DB to feature_list.json","project":"test-project","path":"/tmp/TestSession_RunLoop_Stall2620677010/001/feature_list.json"}
+{"time":"2026-02-09T04:50:57.693139713Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:57.693214737Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+{"time":"2026-02-09T04:50:57.693323815Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:57.693363323Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+{"time":"2026-02-09T04:50:57.693481684Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:57.693547963Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+{"time":"2026-02-09T04:50:57.693638111Z","level":"INFO","msg":"agent role selected","project":"test-project","role":"Agent"}
+{"time":"2026-02-09T04:50:57.693657217Z","level":"INFO","msg":"sending prompt to agent","project":"test-project"}
+{"time":"2026-02-09T04:50:57.693677585Z","level":"INFO","msg":"agent response received","project":"test-project","role":"Agent","chars":16}
+{"time":"2026-02-09T04:50:57.693695101Z","level":"INFO","msg":"security scan passed","project":"test-project"}
+{"time":"2026-02-09T04:50:57.694569249Z","level":"INFO","msg":"iteration metrics","project":"test-project","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":16}
+{"time":"2026-02-09T04:50:57.694598241Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:57.694651969Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+{"time":"2026-02-09T04:50:58.697365193Z","level":"INFO","msg":"starting iteration","project":"test-project","iteration":2,"task_id":"","agent_provider":"gemini","agent_model":"gemini-pro"}
+{"time":"2026-02-09T04:50:58.697409553Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:58.6975956Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+{"time":"2026-02-09T04:50:58.697916107Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:58.698581372Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+{"time":"2026-02-09T04:50:58.699182241Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:58.699280856Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+{"time":"2026-02-09T04:50:58.699438968Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:58.69951695Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+{"time":"2026-02-09T04:50:58.69958802Z","level":"INFO","msg":"agent role selected","project":"test-project","role":"Agent"}
+{"time":"2026-02-09T04:50:58.699613267Z","level":"INFO","msg":"sending prompt to agent","project":"test-project"}
+{"time":"2026-02-09T04:50:58.699618985Z","level":"INFO","msg":"agent response received","project":"test-project","role":"Agent","chars":16}
+{"time":"2026-02-09T04:50:58.699639921Z","level":"INFO","msg":"security scan passed","project":"test-project"}
+{"time":"2026-02-09T04:50:58.701043659Z","level":"INFO","msg":"iteration metrics","project":"test-project","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":16}
+{"time":"2026-02-09T04:50:58.701072964Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:58.701130389Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+{"time":"2026-02-09T04:50:59.704299372Z","level":"INFO","msg":"starting iteration","project":"test-project","iteration":3,"task_id":"","agent_provider":"gemini","agent_model":"gemini-pro"}
+{"time":"2026-02-09T04:50:59.704350528Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:59.704666164Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+{"time":"2026-02-09T04:50:59.704974752Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:59.70505023Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+{"time":"2026-02-09T04:50:59.705136983Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:59.705213757Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+{"time":"2026-02-09T04:50:59.705370244Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:59.705439426Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+{"time":"2026-02-09T04:50:59.705518861Z","level":"INFO","msg":"agent role selected","project":"test-project","role":"Agent"}
+{"time":"2026-02-09T04:50:59.70554032Z","level":"INFO","msg":"sending prompt to agent","project":"test-project"}
+{"time":"2026-02-09T04:50:59.705544999Z","level":"INFO","msg":"agent response received","project":"test-project","role":"Agent","chars":16}
+{"time":"2026-02-09T04:50:59.705566497Z","level":"INFO","msg":"security scan passed","project":"test-project"}
+{"time":"2026-02-09T04:50:59.706987979Z","level":"INFO","msg":"iteration metrics","project":"test-project","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":16}
+CIRCUIT BREAKER TRIPPED: NO-OP LOOP (Agent has produced 3 consecutive responses with no commands)
+{"time":"2026-02-09T04:50:59.707033348Z","level":"INFO","msg":"Checking notification for event: on_failure"}
+--- PASS: TestSession_RunLoop_Stall (2.03s)
+=== RUN   TestSession_EnsureImage_CustomDockerfile
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:59.718451906Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045059.log
+Custom Dockerfile found at /tmp/TestSession_EnsureImage_CustomDockerfile3790208471/001/Dockerfile. Building image...
+Custom image built successfully: custom-image-id
+--- PASS: TestSession_EnsureImage_CustomDockerfile (0.01s)
+=== RUN   TestSession_RunLoop_QAPassed
+[Session] DB Store initialized successfully: type=sqlite, project=test-project
+{"time":"2026-02-09T04:50:59.731034731Z","level":"INFO","msg":"[DB] Store initialized successfully","type":"sqlite","project":"test-project"}
+Session logs will be written to: /app/internal/runner/agents/logs/test-project_agent_test-project_20260209-045059.log
+{"time":"2026-02-09T04:50:59.732106088Z","level":"INFO","msg":"entering autonomous run loop","project":"test-project"}
+{"time":"2026-02-09T04:50:59.732140134Z","level":"INFO","msg":"Checking notification for event: on_start"}
+Warning: Failed to ensure state files are ignored: failed to untrack state files: exit status 128
+{"time":"2026-02-09T04:50:59.736179384Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:59.736344711Z","level":"INFO","msg":"loaded features from file","project":"test-project","path":"/tmp/TestSession_RunLoop_QAPassed1382883260/001/feature_list.json"}
+All features passed! Triggering Project Complete flow.
+{"time":"2026-02-09T04:50:59.738169675Z","level":"INFO","msg":"created signal","project":"test-project","signal":"COMPLETED"}
+{"time":"2026-02-09T04:50:59.738202926Z","level":"INFO","msg":"Checking notification for event: on_project_complete"}
+{"time":"2026-02-09T04:50:59.738236437Z","level":"INFO","msg":"starting iteration","project":"test-project","iteration":1,"task_id":"","agent_provider":"gemini","agent_model":"gemini-pro"}
+{"time":"2026-02-09T04:50:59.738265238Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:59.73836901Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+QA passed. Running Manager agent for final review...
+{"time":"2026-02-09T04:50:59.738585071Z","level":"INFO","msg":"manager agent reviewing QA report","project":"test-project"}
+{"time":"2026-02-09T04:50:59.738591769Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:59.738661489Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+{"time":"2026-02-09T04:50:59.738744734Z","level":"INFO","msg":"sending QA report to manager agent","project":"test-project"}
+{"time":"2026-02-09T04:50:59.738777284Z","level":"INFO","msg":"manager review response received","project":"test-project","chars":8}
+{"time":"2026-02-09T04:50:59.738847081Z","level":"INFO","msg":"iteration metrics","project":"test-project","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":8}
+{"time":"2026-02-09T04:50:59.738965787Z","level":"INFO","msg":"manager approved (legacy/fallback), all features passing","project":"test-project"}
+{"time":"2026-02-09T04:50:59.73978029Z","level":"INFO","msg":"created signal","project":"test-project","signal":"PROJECT_SIGNED_OFF"}
+Manager approved. Project signed off.
+{"time":"2026-02-09T04:50:59.739814545Z","level":"INFO","msg":"Checking notification for event: on_success"}
+{"time":"2026-02-09T04:50:59.739835905Z","level":"INFO","msg":"starting iteration","project":"test-project","iteration":2,"task_id":"","agent_provider":"gemini","agent_model":"gemini-pro"}
+{"time":"2026-02-09T04:50:59.739860813Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:59.739985057Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+{"time":"2026-02-09T04:50:59.740116553Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project","project":"test-project"}
+{"time":"2026-02-09T04:50:59.740203211Z","level":"INFO","msg":"loaded features from DB history","project":"test-project","count":1}
+{"time":"2026-02-09T04:50:59.743126969Z","level":"INFO","msg":"project signed off, running cleaner agent","project":"test-project"}
+{"time":"2026-02-09T04:50:59.743153597Z","level":"INFO","msg":"cleaner agent running","project":"test-project"}
+{"time":"2026-02-09T04:50:59.743174232Z","level":"INFO","msg":"no temp_files.txt found","project":"test-project"}
+{"time":"2026-02-09T04:50:59.743181186Z","level":"INFO","msg":"cleaner agent complete, session finished","project":"test-project"}
+--- PASS: TestSession_RunLoop_QAPassed (0.02s)
+=== RUN   TestSignalBypass
+=== RUN   TestSignalBypass/Privileged_PROJECT_SIGNED_OFF
+{"time":"2026-02-09T04:50:59.753832131Z","level":"WARN","msg":"ignoring filesystem-based privileged signal (must come from DB)","signal":"PROJECT_SIGNED_OFF"}
+=== RUN   TestSignalBypass/Privileged_QA_PASSED
+{"time":"2026-02-09T04:50:59.75420051Z","level":"WARN","msg":"ignoring filesystem-based privileged signal (must come from DB)","signal":"QA_PASSED"}
+=== RUN   TestSignalBypass/Privileged_COMPLETED
+{"time":"2026-02-09T04:50:59.754506812Z","level":"WARN","msg":"ignoring filesystem-based privileged signal (must come from DB)","signal":"COMPLETED"}
+=== RUN   TestSignalBypass/Privileged_TRIGGER_QA
+{"time":"2026-02-09T04:50:59.754789271Z","level":"WARN","msg":"ignoring filesystem-based privileged signal (must come from DB)","signal":"TRIGGER_QA"}
+=== RUN   TestSignalBypass/Privileged_TRIGGER_MANAGER
+{"time":"2026-02-09T04:50:59.755298042Z","level":"WARN","msg":"ignoring filesystem-based privileged signal (must come from DB)","signal":"TRIGGER_MANAGER"}
+=== RUN   TestSignalBypass/NonPrivileged_FOO
+{"time":"2026-02-09T04:50:59.755628726Z","level":"INFO","msg":"migrating signal from filesystem to DB","signal":"FOO"}
+--- PASS: TestSignalBypass (0.01s)
+    --- PASS: TestSignalBypass/Privileged_PROJECT_SIGNED_OFF (0.00s)
+    --- PASS: TestSignalBypass/Privileged_QA_PASSED (0.00s)
+    --- PASS: TestSignalBypass/Privileged_COMPLETED (0.00s)
+    --- PASS: TestSignalBypass/Privileged_TRIGGER_QA (0.00s)
+    --- PASS: TestSignalBypass/Privileged_TRIGGER_MANAGER (0.00s)
+    --- PASS: TestSignalBypass/NonPrivileged_FOO (0.00s)
+=== RUN   TestSignalMigration
+{"time":"2026-02-09T04:50:59.767982073Z","level":"INFO","msg":"migrating signal from filesystem to DB","signal":"TEST_SIGNAL"}
+--- PASS: TestSignalMigration (0.01s)
+=== RUN   TestCompleteJiraTicket_AddsCheckmark
+[TEST-123] Finalizing Jira ticket...
+[TEST-123] Jira comment added with Git link.
+[TEST-123] Transitioning ticket to 'Done'...
+[TEST-123] Jira ticket transitioned to Done.
+--- PASS: TestCompleteJiraTicket_AddsCheckmark (0.00s)
+=== RUN   TestTaskGraph_AddNode
+--- PASS: TestTaskGraph_AddNode (0.00s)
+=== RUN   TestTaskGraph_DetectCycles_NoCycle
+--- PASS: TestTaskGraph_DetectCycles_NoCycle (0.00s)
+=== RUN   TestTaskGraph_DetectCycles_WithCycle
+--- PASS: TestTaskGraph_DetectCycles_WithCycle (0.00s)
+=== RUN   TestTaskGraph_TopologicalSort
+--- PASS: TestTaskGraph_TopologicalSort (0.00s)
+=== RUN   TestTaskGraph_TopologicalSort_Disconnected
+--- PASS: TestTaskGraph_TopologicalSort_Disconnected (0.00s)
+=== RUN   TestTaskGraph_GetReadyTasks
+--- PASS: TestTaskGraph_GetReadyTasks (0.00s)
+=== RUN   TestTaskGraph_TaskStatus
+--- PASS: TestTaskGraph_TaskStatus (0.00s)
+=== RUN   TestTaskGraph_AllTasksDone
+--- PASS: TestTaskGraph_AllTasksDone (0.00s)
+=== RUN   TestTaskGraph_GetTaskSummary
+--- PASS: TestTaskGraph_GetTaskSummary (0.00s)
+=== RUN   TestTaskGraph_LoadFromFeatures
+--- PASS: TestTaskGraph_LoadFromFeatures (0.00s)
+=== RUN   TestSession_RunLoop_UIVerification
+{"time":"2026-02-09T04:50:59.783096911Z","level":"INFO","msg":"entering autonomous run loop"}
+{"time":"2026-02-09T04:50:59.783238813Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+{"time":"2026-02-09T04:50:59.783316098Z","level":"INFO","msg":"loaded features from injected content"}
+All features passed! Triggering Project Complete flow.
+{"time":"2026-02-09T04:50:59.785236017Z","level":"INFO","msg":"created signal","signal":"COMPLETED"}
+{"time":"2026-02-09T04:50:59.785269004Z","level":"INFO","msg":"starting iteration","iteration":1,"task_id":"","agent_provider":"mock","agent_model":"mock-model"}
+{"time":"2026-02-09T04:50:59.785276826Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+{"time":"2026-02-09T04:50:59.785346855Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:59.78540762Z","level":"INFO","msg":"syncing features from DB to feature_list.json","path":"/tmp/ui_test3121401476/feature_list.json"}
+Project marked as COMPLETED. Running QA agent...
+{"time":"2026-02-09T04:50:59.785665352Z","level":"INFO","msg":"QA agent running quality checks"}
+{"time":"2026-02-09T04:50:59.785675753Z","level":"INFO","msg":"initializing QA agent","provider":"mock","model":"mock-model"}
+{"time":"2026-02-09T04:50:59.78574522Z","level":"INFO","msg":"sending verification instructions to QA agent"}
+{"time":"2026-02-09T04:50:59.785769068Z","level":"INFO","msg":"QA agent response received","chars":50}
+{"time":"2026-02-09T04:50:59.785797422Z","level":"INFO","msg":"executing command block","index":1,"total":1,"script":"agent-bridge signal set QA_PASSED true"}
+{"time":"2026-02-09T04:50:59.786716823Z","level":"INFO","msg":"command output","output":"Success: /bin/bash -c agent-bridge signal set QA_PASSED true"}
+{"time":"2026-02-09T04:50:59.786796647Z","level":"INFO","msg":"iteration metrics","commands_executed":1,"files_modified_est":0,"output_lines":2,"response_chars":50}
+{"time":"2026-02-09T04:50:59.786852673Z","level":"INFO","msg":"QA result signal check","signal":"true","error":null}
+{"time":"2026-02-09T04:50:59.786874162Z","level":"INFO","msg":"QA passed (signal verified)"}
+{"time":"2026-02-09T04:50:59.787665076Z","level":"INFO","msg":"created signal","signal":"QA_PASSED"}
+QA checks passed. Moving to Manager review.
+{"time":"2026-02-09T04:50:59.787689159Z","level":"INFO","msg":"starting iteration","iteration":2,"task_id":"","agent_provider":"mock","agent_model":"mock-model"}
+{"time":"2026-02-09T04:50:59.787694768Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+{"time":"2026-02-09T04:50:59.787753328Z","level":"INFO","msg":"loaded features from DB history","count":1}
+QA passed. Running Manager agent for final review...
+{"time":"2026-02-09T04:50:59.787878264Z","level":"INFO","msg":"manager agent reviewing QA report"}
+Initialising Manager Agent with provider: mock, model: mock-model
+{"time":"2026-02-09T04:50:59.787889671Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+{"time":"2026-02-09T04:50:59.787965058Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:59.788022126Z","level":"INFO","msg":"sending QA report to manager agent"}
+{"time":"2026-02-09T04:50:59.788050712Z","level":"INFO","msg":"manager review response received","chars":313}
+{"time":"2026-02-09T04:50:59.788094471Z","level":"INFO","msg":"iteration metrics","commands_executed":0,"files_modified_est":0,"output_lines":0,"response_chars":313}
+{"time":"2026-02-09T04:50:59.788147752Z","level":"INFO","msg":"manager approved (legacy/fallback), all features passing"}
+{"time":"2026-02-09T04:50:59.788947748Z","level":"INFO","msg":"created signal","signal":"PROJECT_SIGNED_OFF"}
+Manager approved. Project signed off.
+{"time":"2026-02-09T04:50:59.788978646Z","level":"INFO","msg":"starting iteration","iteration":3,"task_id":"","agent_provider":"mock","agent_model":"mock-model"}
+{"time":"2026-02-09T04:50:59.788984529Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+{"time":"2026-02-09T04:50:59.789041609Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:59.78912629Z","level":"INFO","msg":"[DEBUG] Attempting to load features from DB","project":"test-project"}
+{"time":"2026-02-09T04:50:59.789182324Z","level":"INFO","msg":"loaded features from DB history","count":1}
+{"time":"2026-02-09T04:50:59.793085576Z","level":"INFO","msg":"project signed off, running cleaner agent"}
+{"time":"2026-02-09T04:50:59.79310912Z","level":"INFO","msg":"cleaner agent running"}
+{"time":"2026-02-09T04:50:59.793130203Z","level":"INFO","msg":"no temp_files.txt found"}
+{"time":"2026-02-09T04:50:59.79313709Z","level":"INFO","msg":"cleaner agent complete, session finished"}
+--- PASS: TestSession_RunLoop_UIVerification (0.02s)
+PASS
+ok  	recac/internal/runner	63.225s
