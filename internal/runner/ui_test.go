@@ -17,11 +17,11 @@ import (
 // Define local mock here since ui_test.go is in same package but might not see agent_exec_test.go's mock if not compiled together in some scenarios,
 // or simply reuse it if available. Given previous error "undefined: MockDockerForExec", it seems tests in same package are compiled together but maybe `go test` specific file invocation excludes others.
 // Best practice: define a local mock or run all tests.
-type MockDockerUI struct {
+type MockDockerForUI struct {
 	DockerClient
 }
 
-func (m *MockDockerUI) Exec(ctx context.Context, id string, cmd []string) (string, error) {
+func (m *MockDockerForUI) Exec(ctx context.Context, id string, cmd []string) (string, error) {
 	fullCmd := strings.Join(cmd, " ")
 	// Simulate "test -f recac_blockers.txt" or "test -f blockers.txt" failure (file not found)
 	// This prevents the runner from detecting a blocker file loop in tests
@@ -31,7 +31,7 @@ func (m *MockDockerUI) Exec(ctx context.Context, id string, cmd []string) (strin
 	return "Success: " + fullCmd, nil
 }
 
-func (m *MockDockerUI) ExecAsUser(ctx context.Context, id string, user string, cmd []string) (string, error) {
+func (m *MockDockerForUI) ExecAsUser(ctx context.Context, id string, user string, cmd []string) (string, error) {
 	return m.Exec(ctx, id, cmd)
 }
 
@@ -60,7 +60,7 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	}
 
 	// 5. Initialize Session
-	mockDocker := &MockDockerUI{}
+	mockDocker := &MockDockerForUI{}
 	mockAgent := agent.NewMockAgent()
 	s := &Session{
 		Docker:           mockDocker,
