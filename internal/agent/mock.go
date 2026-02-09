@@ -118,7 +118,8 @@ EOF
 
 	// 4. Project Manager / QA Heuristic
 	// If the prompt asks for status or QA
-	if strings.Contains(prompt, "ROLE: Project Manager") || strings.Contains(prompt, "QA") {
+	// STRICT MATCHING: Must match role headers to avoid falsely triggering on Coding Agent prompts that contain "QA" in instructions.
+	if strings.Contains(prompt, "ROLE - PROJECT MANAGER") || strings.Contains(prompt, "ROLE: Project Manager") || strings.Contains(prompt, "ROLE - QA AGENT") {
 		// If prompt contains "failures" or "failed features", tell them to fix it (simulated by saying done for now to break loops if persistent)
 		// Actually, if we are in a test loop, we want to finish.
 
