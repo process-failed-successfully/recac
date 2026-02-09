@@ -8,6 +8,7 @@ import (
 	"recac/internal/agent/prompts"
 	"recac/internal/db"
 	"strings"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -367,9 +368,14 @@ func (s *Session) runManagerAgent(ctx context.Context) error {
 	}
 
 	// Check for PROJECT_SIGNED_OFF signal
-	if s.hasSignal("PROJECT_SIGNED_OFF") {
-		s.Logger.Info("manager approved, project signed off via signal")
-		return nil
+	// We check multiple times with a small delay to handle potential DB replication/consistency lag
+	// when using agent-bridge in a separate process.
+	for i := 0; i < 3; i++ {
+		if s.hasSignal("PROJECT_SIGNED_OFF") {
+			s.Logger.Info("manager approved, project signed off via signal")
+			return nil
+		}
+		time.Sleep(1 * time.Second)
 	}
 
 	// Fallback to legacy ratio check if no explicit signal was given
