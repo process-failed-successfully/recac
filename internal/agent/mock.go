@@ -83,10 +83,22 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristic 2: Project Manager (Directives)
 	if strings.Contains(prompt, "## YOUR ROLE - PROJECT MANAGER") {
 		// Return completion signal
-		return "```bash\nagent-bridge signal COMPLETED true\n```\nAnalysis: All tasks appear to be on track.", nil
+		return "```bash\nagent-bridge signal COMPLETED true --privileged\n```\nAnalysis: All tasks appear to be on track.", nil
 	}
 
-	// Heuristic 3: Coding Agent (Implementation)
+	// Heuristic 3: QA Agent
+	if strings.Contains(prompt, "QA AGENT") {
+		script := `
+echo "Running QA checks..."
+python3 test_primes.py || true
+echo "QA Checks Passed."
+
+agent-bridge signal QA_PASSED true --privileged
+`
+		return fmt.Sprintf("I will verify the solution.\n\n```bash\n%s\n```", script), nil
+	}
+
+	// Heuristic 4: Coding Agent (Implementation)
 	if strings.Contains(prompt, "Role: Agent") || strings.Contains(prompt, "## YOUR ROLE - CODING AGENT") {
 		// Scenario: Primes - Ticket 1: Setup Repo
 		if strings.Contains(prompt, "req-setup-repo") {

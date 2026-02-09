@@ -66,31 +66,31 @@ func TestMockAgent_Coding_Scenarios(t *testing.T) {
 			name:      "Setup Repo",
 			prompt:    "## YOUR ROLE - CODING AGENT\nTask: req-setup-repo",
 			expectCmd: "git init",
-			expectID:  "req-setup-repo",
+			expectID:  "req-git-initialized",
 		},
 		{
 			name:      "Implement Primes",
 			prompt:    "## YOUR ROLE - CODING AGENT\nTask: req-implement-primes",
 			expectCmd: "cat << 'EOF' > primes.py",
-			expectID:  "req-implement-primes",
+			expectID:  "req-primes-py-exists",
 		},
 		{
 			name:      "Implement Tests",
 			prompt:    "## YOUR ROLE - CODING AGENT\nTask: req-implement-tests",
 			expectCmd: "cat << 'EOF' > test_primes.py",
-			expectID:  "req-implement-tests",
+			expectID:  "req-test-primes-py-exists",
 		},
 		{
 			name:      "Makefile",
 			prompt:    "## YOUR ROLE - CODING AGENT\nTask: req-the-makefile-targets-are-implemented",
 			expectCmd: "cat << 'EOF' > Makefile",
-			expectID:  "req-the-makefile-targets-are-implemented",
+			expectID:  "req-makefile-exists",
 		},
 		{
 			name:      "CI Workflow",
 			prompt:    "## YOUR ROLE - CODING AGENT\nTask: req-ci-workflow",
 			expectCmd: "cat << 'EOF' > .github/workflows/ci.yml",
-			expectID:  "req-ci-workflow",
+			expectID:  "req-github-workflows-ci-yml-exists",
 		},
 	}
 
