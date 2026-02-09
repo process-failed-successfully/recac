@@ -50,6 +50,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// Prepare git setup command
 		// If GITHUB_API_KEY is set and we have a repo URL, try to clone.
 		// Otherwise fallback to git init.
+		// NOTE: We use sed for URL injection because bash parameter expansion ${VAR/../../}
+		// is not fully portable to sh (often used in minimal containers).
 		gitSetup := `
 set -e # Fail fast
 # Ensure clean slate
@@ -59,7 +61,7 @@ if [ -n "$GITHUB_API_KEY" ] && [ -n "` + repoURL + `" ]; then
   # Inject token into URL
   REPO_URL="` + repoURL + `"
   # Replace https:// with https://x-access-token:KEY@
-  AUTH_URL="${REPO_URL/https:\/\//https:\/\/x-access-token:${GITHUB_API_KEY}@}"
+  AUTH_URL=$(echo "$REPO_URL" | sed "s|https://|https://x-access-token:${GITHUB_API_KEY}@|")
   echo "Cloning from ${REPO_URL}..."
   git clone "$AUTH_URL" .
 else
