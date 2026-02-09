@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -20,10 +21,31 @@ func Load(cfgFile string) {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
 	} else {
-		// Search config in home directory with name ".recac" (without extension).
-		viper.AddConfigPath(".")
-		viper.SetConfigType("yaml")
-		viper.SetConfigName("config")
+		// Search priorities:
+		// 1. ./config.yaml (Legacy/Local override)
+		// 2. ~/.recac.yaml (New default)
+
+		found := false
+		if _, err := os.Stat("config.yaml"); err == nil {
+			viper.SetConfigFile("config.yaml")
+			found = true
+		} else {
+			home, err := os.UserHomeDir()
+			if err == nil {
+				homeConfig := filepath.Join(home, ".recac.yaml")
+				if _, err := os.Stat(homeConfig); err == nil {
+					viper.SetConfigFile(homeConfig)
+					found = true
+				}
+			}
+		}
+
+		if !found {
+			// Fallback search config in current directory with name "config"
+			viper.AddConfigPath(".")
+			viper.SetConfigType("yaml")
+			viper.SetConfigName("config")
+		}
 	}
 
 	viper.SetEnvPrefix("RECAC")

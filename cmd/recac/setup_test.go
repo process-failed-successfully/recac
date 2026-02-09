@@ -54,11 +54,34 @@ func mockAskOne(p survey.Prompt, response interface{}, opts ...survey.AskOpt) er
 	return nil
 }
 
+// Helper to backup and restore .env
+func backupEnv(t *testing.T) func() {
+	_, err := os.Stat(".env")
+	if os.IsNotExist(err) {
+		return func() {
+			os.Remove(".env")
+		}
+	}
+	assert.NoError(t, err)
+
+	err = os.Rename(".env", ".env.bak")
+	assert.NoError(t, err)
+
+	return func() {
+		os.Remove(".env") // Clean up any test-generated .env
+		os.Rename(".env.bak", ".env")
+	}
+}
+
 func TestSetupCmd(t *testing.T) {
 	// Setup: Backup original values
 	originalAskOne := askOneFunc
 	originalViperConfig := viper.ConfigFileUsed()
 	originalRunDoctor := runDoctorFunc
+
+	// Backup .env
+	restoreEnv := backupEnv(t)
+	defer restoreEnv()
 
 	// Teardown: Restore original values and clean up files
 	defer func() {
@@ -66,8 +89,6 @@ func TestSetupCmd(t *testing.T) {
 		viper.SetConfigFile(originalViperConfig)
 		runDoctorFunc = originalRunDoctor
 		os.Remove("test_config.yaml")
-		// We remove .env only if we created it. Since the test creates it, we remove it.
-		// If it existed before, we backed it up.
 	}()
 
 	// Mock Doctor execution
@@ -99,12 +120,6 @@ func TestSetupCmd(t *testing.T) {
 	viper.Reset()
 	viper.SetConfigFile("test_config.yaml")
 
-	// Backup .env if exists
-	if _, err := os.Stat(".env"); err == nil {
-		os.Rename(".env", ".env.bak")
-		defer os.Rename(".env.bak", ".env")
-	}
-
 	// Execute command
 	cmd := &cobra.Command{Use: "test"}
 	err := runSetup(cmd, []string{})
@@ -130,14 +145,15 @@ func TestSetupCmd(t *testing.T) {
 	assert.Contains(t, content, "OPENAI_API_KEY=sk-test-123")
 	assert.Contains(t, content, "JIRA_API_TOKEN=jira-token-123")
 	assert.Contains(t, content, "SLACK_BOT_USER_TOKEN=xoxb-test")
-
-	// Cleanup .env created by test
-	os.Remove(".env")
 }
 
 func TestSetupCmd_Cancellation(t *testing.T) {
 	originalAskOne := askOneFunc
 	defer func() { askOneFunc = originalAskOne }()
+
+	// No env backup needed as it doesn't write to env, but safe to add
+	restoreEnv := backupEnv(t)
+	defer restoreEnv()
 
 	askOneFunc = func(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {
 		return errors.New("cancelled")
@@ -152,6 +168,9 @@ func TestSetupCmd_Cancellation(t *testing.T) {
 func TestSetupCmd_Skips(t *testing.T) {
 	originalAskOne := askOneFunc
 	defer func() { askOneFunc = originalAskOne }()
+
+	restoreEnv := backupEnv(t)
+	defer restoreEnv()
 
 	mockAnswers = map[string]interface{}{
 		"Choose your AI Provider:":                  "openai",
@@ -179,6 +198,9 @@ func TestSetupCmd_Skips(t *testing.T) {
 func TestSetupCmd_JiraTokenInConfig(t *testing.T) {
 	originalAskOne := askOneFunc
 	defer func() { askOneFunc = originalAskOne }()
+
+	restoreEnv := backupEnv(t)
+	defer restoreEnv()
 
 	mockAnswers = map[string]interface{}{
 		"Choose your AI Provider:":                  "gemini",
@@ -212,9 +234,12 @@ func TestSetupCmd_AppendEnv(t *testing.T) {
 	originalAskOne := askOneFunc
 	defer func() { askOneFunc = originalAskOne }()
 
+	restoreEnv := backupEnv(t)
+	defer restoreEnv()
+
 	// Create existing .env
 	os.WriteFile(".env", []byte("EXISTING_VAR=foo\n"), 0600)
-	defer os.Remove(".env")
+	// No defer os.Remove(".env") needed, restoreEnv handles it
 
 	mockAnswers = map[string]interface{}{
 		"Choose your AI Provider:":                  "openai",
@@ -245,9 +270,11 @@ func TestSetupCmd_DuplicateEnv(t *testing.T) {
 	originalAskOne := askOneFunc
 	defer func() { askOneFunc = originalAskOne }()
 
+	restoreEnv := backupEnv(t)
+	defer restoreEnv()
+
 	// Create existing .env with same key
 	os.WriteFile(".env", []byte("OPENAI_API_KEY=old-key\n"), 0600)
-	defer os.Remove(".env")
 
 	mockAnswers = map[string]interface{}{
 		"Choose your AI Provider:":                  "openai",
