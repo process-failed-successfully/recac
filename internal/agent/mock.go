@@ -95,7 +95,7 @@ echo "Initializing git repository..."
 git init || true
 echo "Git initialized."
 
-agent-bridge feature set req-setup-repo --status done --passes true
+agent-bridge feature set req-git-initialized --status done --passes true || echo "Feature req-git-initialized not found"
 `
 			return fmt.Sprintf("I will initialize the repository.\n\n```bash\n%s\n```", script), nil
 		}
@@ -118,7 +118,8 @@ if __name__ == "__main__":
     unittest.main()
 EOF
 
-agent-bridge feature set req-implement-tests --status done --passes true
+agent-bridge feature set req-test-primes-py-exists --status done --passes true || echo "Feature req-test-primes-py-exists not found"
+agent-bridge feature set req-tests-pass --status done --passes true || echo "Feature req-tests-pass not found"
 `
 			return fmt.Sprintf("I will implement the tests.\n\n```bash\n%s\n```", script), nil
 		}
@@ -156,7 +157,9 @@ EOF
 make run
 make test
 
-agent-bridge feature set req-the-makefile-targets-are-implemented --status done --passes true
+agent-bridge feature set req-makefile-exists --status done --passes true || echo "Feature req-makefile-exists not found"
+agent-bridge feature set req-make-run-works --status done --passes true || echo "Feature req-make-run-works not found"
+agent-bridge feature set req-make-test-works --status done --passes true || echo "Feature req-make-test-works not found"
 `
 			return fmt.Sprintf("I will create the Makefile.\n\n```bash\n%s\n```", script), nil
 		}
@@ -185,7 +188,7 @@ jobs:
         run: python3 test_primes.py
 EOF
 
-agent-bridge feature set req-ci-workflow --status done --passes true
+agent-bridge feature set req-github-workflows-ci-yml-exists --status done --passes true || echo "Feature req-github-workflows-ci-yml-exists not found"
 `
 			return fmt.Sprintf("I will setup the CI workflow.\n\n```bash\n%s\n```", script), nil
 		}
@@ -215,7 +218,8 @@ if __name__ == "__main__":
         num += 1
 EOF
 
-agent-bridge feature set req-implement-primes --status done --passes true
+agent-bridge feature set req-primes-py-exists --status done --passes true || echo "Feature req-primes-py-exists not found"
+agent-bridge feature set req-calculates-primes-correctly --status done --passes true || echo "Feature req-calculates-primes-correctly not found"
 `
 			return fmt.Sprintf("I will implement primes.py.\n\n```bash\n%s\n```", script), nil
 		}

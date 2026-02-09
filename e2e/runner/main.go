@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -533,7 +534,8 @@ func prepareRepo(repoURL string, ticketMap map[string]string) error {
 	repoURL = strings.TrimSuffix(repoURL, "/")
 	authRepo := repoURL
 	if token != "" && !strings.Contains(repoURL, "@") {
-		authRepo = strings.Replace(repoURL, "https://", fmt.Sprintf("https://x-access-token:%s@", token), 1)
+		encodedToken := url.QueryEscape(token)
+		authRepo = strings.Replace(repoURL, "https://", fmt.Sprintf("https://x-access-token:%s@", encodedToken), 1)
 	}
 
 	// 1. Get all remote branches using ls-remote (fast, no clone needed)
