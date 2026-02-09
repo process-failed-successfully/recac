@@ -253,6 +253,7 @@ jobs:
         with:
           cluster-name: "recac-smoke"
           args: >-
+            --image rancher/k3s:v1.29.0-k3s1
             --agents 1
             --no-lb
             --no-lb
