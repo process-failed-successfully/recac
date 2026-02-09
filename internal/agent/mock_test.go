@@ -45,7 +45,17 @@ func TestMockAgent(t *testing.T) {
 		t.Errorf("Expected Feature list JSON, got: %s", response)
 	}
 
-	// 4. Coding Prompt
+	// 4. Loop Breaker Prompt
+	prompt = "nothing to commit, working tree clean"
+	response, err = agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(response, "agent-bridge signal --privileged QA_PASSED true") {
+		t.Errorf("Expected QA_PASSED signal, got: %s", response)
+	}
+
+	// 5. Coding Prompt
 	prompt = "Implement Primes"
 	response, err = agent.Send(context.Background(), prompt)
 	if err != nil {

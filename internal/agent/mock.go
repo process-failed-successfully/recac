@@ -55,6 +55,13 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return fmt.Sprintf("```json\n%s\n```", string(data)), nil
 	}
 
+	// Loop Breaker / QA Check
+	// If the system says "nothing to commit", it means the previous step (implementation) is done and committed.
+	// We should signal success to move forward.
+	if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
+		return "It looks like the work is done and clean. I will signal completion.\n```bash\nagent-bridge signal --privileged QA_PASSED true\nagent-bridge signal --privileged PROJECT_SIGNED_OFF true\n```", nil
+	}
+
 	// Coding Agent - Implementation
 	if strings.Contains(prompt, "prime numbers") || strings.Contains(prompt, "Implement Primes") {
 		// Return a bash command to create the file, so the agent actually performs an action
