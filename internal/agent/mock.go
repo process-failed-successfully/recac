@@ -156,7 +156,7 @@ echo "Feature list initialized."
 		return `I have reviewed the project status. All features appear to be implemented and verified.
 
 ` + "```bash" + `
-agent-bridge signal set PROJECT_SIGNED_OFF --value true
+agent-bridge signal PROJECT_SIGNED_OFF true
 echo "Project signed off by Manager."
 ` + "```" + `
 `, nil

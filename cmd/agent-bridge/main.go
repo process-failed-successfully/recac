@@ -175,10 +175,11 @@ func run(args []string, config db.StoreConfig, projectID string) error {
 
 		// PROTECT PRIVILEGED SIGNALS
 		privilegedSignals := map[string]bool{
-			"PROJECT_SIGNED_OFF": true,
-			"TRIGGER_QA":         true,
-			"TRIGGER_MANAGER":    true,
+			"TRIGGER_QA":      true,
+			"TRIGGER_MANAGER": true,
 		}
+		// Note: PROJECT_SIGNED_OFF is allowed so Manager Agent can set it.
+		// Premature sign-off is guarded against by the Runner checking feature status.
 		if privilegedSignals[key] {
 			return fmt.Errorf("signal '%s' is privileged and cannot be set via agent-bridge", key)
 		}

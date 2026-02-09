@@ -63,7 +63,7 @@ func TestMockAgent_SmokeTestHeuristics(t *testing.T) {
 		{
 			name: "Manager Review",
 			prompt: "ROLE - PROJECT MANAGER\nReview the work.",
-			expectContains: "PROJECT_SIGNED_OFF",
+			expectContains: "agent-bridge signal PROJECT_SIGNED_OFF true",
 		},
 	}
 
