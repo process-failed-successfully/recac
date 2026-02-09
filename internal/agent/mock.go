@@ -137,8 +137,8 @@ if __name__ == "__main__":
         except ValueError:
             print("Invalid input")
     else:
-        # Generate primes up to 100 for verification
-        primes = [i for i in range(100) if is_prime(i)]
+        # Generate primes up to 10000 for verification
+        primes = [i for i in range(10000) if is_prime(i)]
         with open("primes.json", "w") as f:
             json.dump({"primes": primes}, f)
         print("Generated primes.json")
@@ -155,6 +155,22 @@ agent-bridge feature set req-primes --status done --passes true
 	}
 
 	// 5. QA Agent / Project Manager (Review/Approval)
+	// Check for QA role specifically first (including variations seen in CI)
+	if strings.Contains(prompt, "QA AGENT") || strings.Contains(prompt, "verify the project") {
+		return `I have verified the project.
+
+` + "```bash" + `
+# Run tests to satisfy verification
+go test ./... || echo "Tests failed but continuing"
+
+# Signal QA success
+agent-bridge signal QA_PASSED true
+` + "```" + `
+
+Verification complete.
+`, nil
+	}
+
 	if strings.Contains(prompt, "ROLE - PROJECT MANAGER") {
 		return `The project looks good.
 
