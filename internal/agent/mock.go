@@ -46,6 +46,15 @@ func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(
 	return resp, err
 }
 
+// SendImage implements the VisionAgent interface
+func (m *MockAgent) SendImage(ctx context.Context, prompt string, imagePath string) (string, error) {
+	if m.forcedResponse != "" {
+		return m.forcedResponse, nil
+	}
+	response := fmt.Sprintf("%s (Vision):\n\nI received your prompt (%d chars) and image '%s'. In mock mode, I would analyze the image and text.", m.responsePrefix, len(prompt), imagePath)
+	return response, nil
+}
+
 // truncateString truncates a string to a maximum length
 func truncateString(s string, maxLen int) string {
 	if len(s) <= maxLen {
