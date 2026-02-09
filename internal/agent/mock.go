@@ -182,7 +182,19 @@ fi
 `, nil
 	}
 
-	// 5. Default / Fallback
+	// 5. Project Manager - Approves the project
+	if strings.Contains(prompt, "ROLE - PROJECT MANAGER") {
+		return `
+I will review the project status.
+
+` + "```bash" + `
+# In mock mode, if we reached this stage, we assume success
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged
+` + "```" + `
+`, nil
+	}
+
+	// 6. Default / Fallback
 	// Return a mock response that shows the agent received the prompt
 	fmt.Printf("[MockAgent] Hit Fallback! Prompt length: %d\nFull Prompt:\n%s\n", len(prompt), prompt)
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
