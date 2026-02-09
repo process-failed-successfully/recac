@@ -95,8 +95,9 @@ python3 primes.py` + "\n```", nil
 	}
 
 	// 4. QA Agent / Manager (Verification)
-	if strings.Contains(prompt, "QA AGENT") || strings.Contains(prompt, "Project Manager") {
-		return "QA checks passed.\n```bash\nagent-bridge signal QA_PASSED true\n```", nil
+	// Match uppercase roles from templates (manager_review.md, qa_agent.md)
+	if strings.Contains(prompt, "QA AGENT") || strings.Contains(prompt, "PROJECT MANAGER") {
+		return "QA checks passed.\n```bash\nagent-bridge signal --privileged PROJECT_SIGNED_OFF true\nagent-bridge signal QA_PASSED true\n```", nil
 	}
 
 	// Default Fallback
