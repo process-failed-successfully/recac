@@ -212,6 +212,12 @@ func TestSetupCmd_AppendEnv(t *testing.T) {
 	originalAskOne := askOneFunc
 	defer func() { askOneFunc = originalAskOne }()
 
+	// Backup .env if exists
+	if _, err := os.Stat(".env"); err == nil {
+		os.Rename(".env", ".env.bak")
+		defer os.Rename(".env.bak", ".env")
+	}
+
 	// Create existing .env
 	os.WriteFile(".env", []byte("EXISTING_VAR=foo\n"), 0600)
 	defer os.Remove(".env")
@@ -239,4 +245,44 @@ func TestSetupCmd_AppendEnv(t *testing.T) {
 	str := string(content)
 	assert.Contains(t, str, "EXISTING_VAR=foo")
 	assert.Contains(t, str, "OPENAI_API_KEY=new-key")
+}
+
+func TestSetupCmd_SubstringMatchRegression(t *testing.T) {
+	originalAskOne := askOneFunc
+	defer func() { askOneFunc = originalAskOne }()
+
+	// Backup .env if exists
+	if _, err := os.Stat(".env"); err == nil {
+		os.Rename(".env", ".env.bak")
+		defer os.Rename(".env.bak", ".env")
+	}
+
+	// Create existing .env with a superset key
+	os.WriteFile(".env", []byte("MY_OPENAI_API_KEY=existing\n"), 0600)
+	defer os.Remove(".env")
+
+	mockAnswers = map[string]interface{}{
+		"Choose your AI Provider:":                              "openai",
+		"Enter the Model name:":                                 "gpt-4",
+		"Enter your API Key (leave empty to skip):":             "new-key",
+		"Do you want to save the API Key to a local .env file?": true,
+		"Enter your Jira URL (e.g., https://your-domain.atlassian.net):": "",
+		"Enable Slack notifications?":          false,
+		"Run system check (recac doctor) now?": false,
+	}
+	askOneFunc = mockAskOne
+
+	viper.Reset()
+	viper.SetConfigFile("test_config_repro.yaml")
+	defer os.Remove("test_config_repro.yaml")
+
+	cmd := &cobra.Command{Use: "test"}
+	err := runSetup(cmd, []string{})
+	assert.NoError(t, err)
+
+	content, _ := os.ReadFile(".env")
+	str := string(content)
+
+	// It should contain OPENAI_API_KEY=new-key
+	assert.Contains(t, str, "OPENAI_API_KEY=new-key", "Should have added OPENAI_API_KEY even if MY_OPENAI_API_KEY exists")
 }

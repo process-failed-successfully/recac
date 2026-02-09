@@ -272,10 +272,14 @@ func runSetup(cmd *cobra.Command, args []string) error {
 				contentToAppend = "\n"
 			}
 
+			// Prepend a newline to existing content to make searching easier
+			searchContent := "\n" + existingEnvStr
+
 			for _, line := range linesToAppend {
 				parts := strings.SplitN(line, "=", 2)
 				key := parts[0]
-				if !strings.Contains(existingEnvStr, key+"=") {
+				// Search for "\nKEY=" to ensure we match the exact key at the start of a line
+				if !strings.Contains(searchContent, "\n"+key+"=") {
 					contentToAppend += line + "\n"
 				} else {
 					fmt.Printf("Note: %s already exists in .env, skipping.\n", key)
