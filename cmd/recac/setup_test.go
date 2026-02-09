@@ -241,7 +241,7 @@ func TestSetupCmd_AppendEnv(t *testing.T) {
 	assert.Contains(t, str, "OPENAI_API_KEY=new-key")
 }
 
-func TestSetupCmd_AppendEnv_SupersetKey(t *testing.T) {
+func TestSetupCmd_Bug_SubstringMatch(t *testing.T) {
 	originalAskOne := askOneFunc
 	defer func() { askOneFunc = originalAskOne }()
 
@@ -261,8 +261,8 @@ func TestSetupCmd_AppendEnv_SupersetKey(t *testing.T) {
 	askOneFunc = mockAskOne
 
 	viper.Reset()
-	viper.SetConfigFile("test_config_superset.yaml")
-	defer os.Remove("test_config_superset.yaml")
+	viper.SetConfigFile("test_config_substring_match.yaml")
+	defer os.Remove("test_config_substring_match.yaml")
 
 	cmd := &cobra.Command{Use: "test"}
 	err := runSetup(cmd, []string{})
