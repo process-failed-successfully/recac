@@ -32,12 +32,14 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	upperPrompt := strings.ToUpper(prompt)
+
 	// Heuristics for E2E scenarios
 
 	// 1. Initializer Agent (Feature List)
 	// We check for "CREATE FEATURE_LIST.JSON" instead of just "feature list" to avoid false positives
 	// where "feature list" appears in the context of other agents (e.g. Manager reviewing the list).
-	if strings.Contains(strings.ToUpper(prompt), "ROLE - INITIALIZER AGENT") || strings.Contains(strings.ToUpper(prompt), "CREATE FEATURE_LIST.JSON") {
+	if strings.Contains(upperPrompt, "ROLE - INITIALIZER AGENT") || strings.Contains(upperPrompt, "CREATE FEATURE_LIST.JSON") {
 		if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
 			return `Here is the feature list plan.
 
@@ -61,8 +63,8 @@ agent-bridge import < feature_list.json
 		}
 	}
 
-	// 2. Technical Program Manager (TPM) - Check BEFORE Coding Agent
-	if strings.Contains(strings.ToUpper(prompt), "TECHNICAL PROGRAM MANAGER") {
+	// 2. Technical Program Manager (TPM)
+	if strings.Contains(upperPrompt, "TECHNICAL PROGRAM MANAGER") {
 		if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
 			return `[
   {
@@ -78,9 +80,33 @@ agent-bridge import < feature_list.json
 		return `[]`, nil
 	}
 
-	// 3. Coding Agent / Developer (Primes)
-	// We check for keywords related to the Primes scenario
-	if containsAny(prompt, []string{"[PRIMES]", "primes.py", "Implement Primes", "Prime Number Script"}) {
+	// 3. QA Agent
+	if strings.Contains(upperPrompt, "QA AGENT") {
+		return `QA verification passed.
+
+` + "```bash" + `
+agent-bridge signal --privileged QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// 4. Project Manager
+	if strings.Contains(upperPrompt, "PROJECT MANAGER") {
+		return `Project signed off.
+
+` + "```bash" + `
+agent-bridge signal --privileged PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
+	}
+
+	// 5. Coding Agent / Developer (Primes)
+	// We check for keywords related to the Primes scenario AND role indicators
+	isCodingAgent := strings.Contains(upperPrompt, "CODING AGENT") ||
+		strings.Contains(upperPrompt, "DEVELOPER") ||
+		strings.Contains(upperPrompt, "YOUR ROLE") // "Your role is to implement..."
+
+	if isCodingAgent && containsAny(prompt, []string{"[PRIMES]", "primes.py", "Implement Primes", "Prime Number Script"}) {
 		// Return the implementation
 		return `Here is the python script to calculate primes.
 
