@@ -2,7 +2,7 @@ name: Publish Agent Image
 
 on:
   push:
-    branches: ["*"]
+    branches: ["main", "master"]
     tags: ["v*.*.*"]
   workflow_dispatch:
 
