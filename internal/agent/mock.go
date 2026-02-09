@@ -51,10 +51,10 @@ def is_prime(n):
         if n % i == 0: return False
     return True
 
-primes = [x for x in range(101) if is_prime(x)]
+primes = [x for x in range(10000) if is_prime(x)]
 print(primes)
 with open('primes.json', 'w') as f:
-    json.dump(primes, f)
+    json.dump({"primes": primes}, f)
 EOF
 
 python3 primes.py

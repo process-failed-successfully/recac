@@ -14,8 +14,10 @@ import (
 
 // Mock input sequence for the test
 var mockAnswers map[string]interface{}
-var mockAnswersOrder []string
-var mockAnswerIndex int
+
+// Wrapper for survey functions to allow mocking in tests
+// Note: askOneFunc is defined in setup.go but we override it here.
+// In tests, we need to ensure we restore it.
 
 func mockAskOne(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {
 	// Determine which question is being asked to provide the correct mock answer
@@ -54,21 +56,37 @@ func mockAskOne(p survey.Prompt, response interface{}, opts ...survey.AskOpt) er
 	return nil
 }
 
+// helper to backup and restore .env
+func backupEnv(t *testing.T) func() {
+	if _, err := os.Stat(".env"); err == nil {
+		os.Rename(".env", ".env.bak")
+		return func() {
+			os.Remove(".env")
+			os.Rename(".env.bak", ".env")
+		}
+	}
+	return func() {
+		os.Remove(".env")
+	}
+}
+
 func TestSetupCmd(t *testing.T) {
 	// Setup: Backup original values
 	originalAskOne := askOneFunc
 	originalViperConfig := viper.ConfigFileUsed()
 	originalRunDoctor := runDoctorFunc
 
-	// Teardown: Restore original values and clean up files
+	// Teardown: Restore original values
 	defer func() {
 		askOneFunc = originalAskOne
 		viper.SetConfigFile(originalViperConfig)
 		runDoctorFunc = originalRunDoctor
 		os.Remove("test_config.yaml")
-		// We remove .env only if we created it. Since the test creates it, we remove it.
-		// If it existed before, we backed it up.
 	}()
+
+	// Backup .env
+	restoreEnv := backupEnv(t)
+	defer restoreEnv()
 
 	// Mock Doctor execution
 	runDoctorFunc = func(cmd *cobra.Command, args []string) {
@@ -99,12 +117,6 @@ func TestSetupCmd(t *testing.T) {
 	viper.Reset()
 	viper.SetConfigFile("test_config.yaml")
 
-	// Backup .env if exists
-	if _, err := os.Stat(".env"); err == nil {
-		os.Rename(".env", ".env.bak")
-		defer os.Rename(".env.bak", ".env")
-	}
-
 	// Execute command
 	cmd := &cobra.Command{Use: "test"}
 	err := runSetup(cmd, []string{})
@@ -130,9 +142,6 @@ func TestSetupCmd(t *testing.T) {
 	assert.Contains(t, content, "OPENAI_API_KEY=sk-test-123")
 	assert.Contains(t, content, "JIRA_API_TOKEN=jira-token-123")
 	assert.Contains(t, content, "SLACK_BOT_USER_TOKEN=xoxb-test")
-
-	// Cleanup .env created by test
-	os.Remove(".env")
 }
 
 func TestSetupCmd_Cancellation(t *testing.T) {
@@ -180,6 +189,10 @@ func TestSetupCmd_JiraTokenNotSavedIfDeclined(t *testing.T) {
 	originalAskOne := askOneFunc
 	defer func() { askOneFunc = originalAskOne }()
 
+	// Backup .env just in case
+	restoreEnv := backupEnv(t)
+	defer restoreEnv()
+
 	mockAnswers = map[string]interface{}{
 		"Choose your AI Provider:":                  "gemini",
 		"Enter the Model name:":                     "gemini-pro",
@@ -212,9 +225,11 @@ func TestSetupCmd_AppendEnv(t *testing.T) {
 	originalAskOne := askOneFunc
 	defer func() { askOneFunc = originalAskOne }()
 
+	restoreEnv := backupEnv(t)
+	defer restoreEnv()
+
 	// Create existing .env
 	os.WriteFile(".env", []byte("EXISTING_VAR=foo\n"), 0600)
-	defer os.Remove(".env")
 
 	mockAnswers = map[string]interface{}{
 		"Choose your AI Provider:":                              "openai",
@@ -245,9 +260,11 @@ func TestSetupCmd_DuplicateEnv(t *testing.T) {
 	originalAskOne := askOneFunc
 	defer func() { askOneFunc = originalAskOne }()
 
+	restoreEnv := backupEnv(t)
+	defer restoreEnv()
+
 	// Create existing .env with same key
 	os.WriteFile(".env", []byte("OPENAI_API_KEY=old-key\n"), 0600)
-	defer os.Remove(".env")
 
 	mockAnswers = map[string]interface{}{
 		"Choose your AI Provider:":                              "openai",
@@ -273,4 +290,40 @@ func TestSetupCmd_DuplicateEnv(t *testing.T) {
 	assert.Contains(t, str, "OPENAI_API_KEY=old-key")
 	// Should NOT contain new-key appended because duplicate check should skip it
 	assert.NotContains(t, str, "OPENAI_API_KEY=new-key")
+}
+
+func TestSetupCmd_SubstringMatchRegression(t *testing.T) {
+	originalAskOne := askOneFunc
+	defer func() { askOneFunc = originalAskOne }()
+
+	restoreEnv := backupEnv(t)
+	defer restoreEnv()
+
+	// Create existing .env with a key that is a superset of the key we want to add
+	// e.g. "FAKE_OPENAI_API_KEY" contains "OPENAI_API_KEY"
+	os.WriteFile(".env", []byte("FAKE_OPENAI_API_KEY=foo\n"), 0600)
+
+	mockAnswers = map[string]interface{}{
+		"Choose your AI Provider:":                              "openai",
+		"Enter the Model name:":                                 "gpt-4",
+		"Enter your API Key (leave empty to skip):":             "new-key",
+		"Do you want to save the API Key to a local .env file?": true,
+		"Enter your Jira URL (e.g., https://your-domain.atlassian.net):": "",
+		"Enable Slack notifications?":          false,
+		"Run system check (recac doctor) now?": false,
+	}
+	askOneFunc = mockAskOne
+
+	viper.Reset()
+	viper.SetConfigFile("test_config_bug.yaml")
+	defer os.Remove("test_config_bug.yaml")
+
+	cmd := &cobra.Command{Use: "test"}
+	err := runSetup(cmd, []string{})
+	assert.NoError(t, err)
+
+	content, _ := os.ReadFile(".env")
+	str := string(content)
+	// It should contain OPENAI_API_KEY=new-key, because FAKE_OPENAI_API_KEY is different
+	assert.Contains(t, str, "OPENAI_API_KEY=new-key")
 }
