@@ -95,8 +95,11 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		if !strings.Contains(resp, "cat <<EOF > primes.py") {
 			t.Errorf("Expected primes.py creation, got: %s", resp)
 		}
-		if !strings.Contains(resp, "agent-bridge feature set req-primes --status done") {
-			t.Errorf("Expected feature update command, got: %s", resp)
+		if !strings.Contains(resp, "agent-bridge feature set req-implement-prime-number-script --status done || echo") {
+			t.Errorf("Expected feature update command with fallback, got: %s", resp)
+		}
+		if !strings.Contains(resp, "git commit -m \"Implement primes.py\" || echo") {
+			t.Errorf("Expected git commit with fallback, got: %s", resp)
 		}
 		if !strings.Contains(resp, "range(10000)") {
 			t.Errorf("Expected loop up to 10000, got: %s", resp)

@@ -45,6 +45,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     "type": "Task",
     "description": "Implement primes.py. Repo: <repo_url>",
     "acceptance_criteria": [
+      "Implement prime number script",
       "primes.py exists",
       "contains exactly 1229 primes"
     ],
@@ -163,14 +164,13 @@ EOF
 python3 primes.py
 
 # Mark features as done
-agent-bridge feature set req-primes --status done
-agent-bridge feature set req-primes-py-exists --status done
-agent-bridge feature set req-primes-json-exists-and-contain --status done
-agent-bridge feature set req-primes-json-contains-exactly-1 --status done
+agent-bridge feature set req-implement-prime-number-script --status done || echo "Feature req-implement-prime-number-script not found"
+agent-bridge feature set req-primes-py-exists --status done || echo "Feature req-primes-py-exists not found"
+agent-bridge feature set req-contains-exactly-1229-primes --status done || echo "Feature req-contains-exactly-1229-primes not found"
 
 # Commit
 git add .
-git commit -m "Implement primes.py"
+git commit -m "Implement primes.py" || echo "Nothing to commit"
 %[1]s`, "```", script)
 		return response, nil
 	}
