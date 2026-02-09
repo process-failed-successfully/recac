@@ -135,6 +135,9 @@ jobs:
         shard: ${{ fromJson(needs.setup-matrix.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          filter: blob:none
+          fetch-depth: 1
 
       - name: Set up Go
         uses: actions/setup-go@v5
