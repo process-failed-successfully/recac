@@ -181,5 +181,7 @@ func getPersonasFilePath() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// Sanity check: if HOME is root but not writable or weird, we might want to know?
+	// But standard logic is fine.
 	return filepath.Join(home, ".recac", "personas.yaml"), nil
 }

@@ -409,14 +409,15 @@ func run() error {
 
 	// Wait for Job Completion
 	log.Println("Waiting for Agent Job to complete...")
+	cleanJobName := strings.TrimPrefix(jobName, "job.batch/")
 	if err := waitForJobCompletion(namespace, jobName, 2400*time.Second); err != nil {
 		printKubeDebugInfo(namespace)
-		printLogs(namespace, "app=recac-agent")
+		// Use specific job-name selector to avoid confusion with other pods
+		printLogs(namespace, fmt.Sprintf("job-name=%s", cleanJobName))
 		return fmt.Errorf("agent job failed to complete: %w", err)
 	}
 
 	// Print logs for debugging (especially for git push issues)
-	cleanJobName := strings.TrimPrefix(jobName, "job.batch/")
 	printLogs(namespace, fmt.Sprintf("job-name=%s", cleanJobName))
 
 	// 5. Verify Results
