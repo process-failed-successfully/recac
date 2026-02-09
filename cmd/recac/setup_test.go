@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -59,15 +60,19 @@ func TestSetupCmd(t *testing.T) {
 	originalAskOne := askOneFunc
 	originalViperConfig := viper.ConfigFileUsed()
 	originalRunDoctor := runDoctorFunc
+	originalEnvFile := setupEnvFile
 
-	// Teardown: Restore original values and clean up files
+	// Use temp dir for isolation
+	tempDir := t.TempDir()
+	setupEnvFile = filepath.Join(tempDir, ".env")
+	testConfig := filepath.Join(tempDir, "test_config.yaml")
+
+	// Teardown: Restore original values
 	defer func() {
 		askOneFunc = originalAskOne
 		viper.SetConfigFile(originalViperConfig)
 		runDoctorFunc = originalRunDoctor
-		os.Remove("test_config.yaml")
-		// We remove .env only if we created it. Since the test creates it, we remove it.
-		// If it existed before, we backed it up.
+		setupEnvFile = originalEnvFile
 	}()
 
 	// Mock Doctor execution
@@ -80,16 +85,16 @@ func TestSetupCmd(t *testing.T) {
 		"Choose your AI Provider:":                              "openai",
 		"Enter the Model name:":                                 "gpt-4o",
 		"Enter your API Key (leave empty to skip):":             "sk-test-123",
-		"Do you want to save the API Key to a local .env file?": true,
-		"Enter your Jira URL (e.g., https://your-domain.atlassian.net):": "https://example.atlassian.net",
-		"Enter your Jira Email/Username:":                                "user@example.com",
-		"Enter your Jira API Token:":                                     "jira-token-123",
-		"Do you want to save the Jira Token to a local .env file?":       true,
-		"Enter the Jira Label for agents to watch:":                      "recac-agent",
-		"Enable Slack notifications?":                                    true,
-		"Slack Channel:":                                                 "#alerts",
-		"Slack Bot Token:":                                               "xoxb-test",
-		"Run system check (recac doctor) now?":                           true,
+		fmt.Sprintf("Do you want to save the API Key to a local %s file?", setupEnvFile): true,
+		"Enter your Jira URL (e.g., https://your-domain.atlassian.net):":                 "https://example.atlassian.net",
+		"Enter your Jira Email/Username:":                                                "user@example.com",
+		"Enter your Jira API Token:":                                                     "jira-token-123",
+		fmt.Sprintf("Do you want to save the Jira Token to a local %s file?", setupEnvFile): true,
+		"Enter the Jira Label for agents to watch:":                                         "recac-agent",
+		"Enable Slack notifications?":                                                       true,
+		"Slack Channel:":                                                                    "#alerts",
+		"Slack Bot Token:":                                                                  "xoxb-test",
+		"Run system check (recac doctor) now?":                                              true,
 	}
 
 	// Mock the AskOne function
@@ -97,13 +102,7 @@ func TestSetupCmd(t *testing.T) {
 
 	// Prepare environment
 	viper.Reset()
-	viper.SetConfigFile("test_config.yaml")
-
-	// Backup .env if exists
-	if _, err := os.Stat(".env"); err == nil {
-		os.Rename(".env", ".env.bak")
-		defer os.Rename(".env.bak", ".env")
-	}
+	viper.SetConfigFile(testConfig)
 
 	// Execute command
 	cmd := &cobra.Command{Use: "test"}
@@ -120,19 +119,16 @@ func TestSetupCmd(t *testing.T) {
 	assert.Equal(t, "#alerts", viper.GetString("notifications.slack.channel"))
 
 	// Verify config file creation
-	_, err = os.Stat("test_config.yaml")
+	_, err = os.Stat(testConfig)
 	assert.NoError(t, err, "config file should exist")
 
 	// Verify .env content
-	envContent, err := os.ReadFile(".env")
+	envContent, err := os.ReadFile(setupEnvFile)
 	assert.NoError(t, err, ".env file should exist")
 	content := string(envContent)
 	assert.Contains(t, content, "OPENAI_API_KEY=sk-test-123")
 	assert.Contains(t, content, "JIRA_API_TOKEN=jira-token-123")
 	assert.Contains(t, content, "SLACK_BOT_USER_TOKEN=xoxb-test")
-
-	// Cleanup .env created by test
-	os.Remove(".env")
 }
 
 func TestSetupCmd_Cancellation(t *testing.T) {
@@ -153,6 +149,14 @@ func TestSetupCmd_Skips(t *testing.T) {
 	originalAskOne := askOneFunc
 	defer func() { askOneFunc = originalAskOne }()
 
+	// Even for skips, we should isolate just in case
+	originalEnvFile := setupEnvFile
+	tempDir := t.TempDir()
+	setupEnvFile = filepath.Join(tempDir, ".env")
+	testConfig := filepath.Join(tempDir, "test_config_skips.yaml")
+
+	defer func() { setupEnvFile = originalEnvFile }()
+
 	mockAnswers = map[string]interface{}{
 		"Choose your AI Provider:":                  "openai",
 		"Enter the Model name:":                     "gpt-3.5",
@@ -164,8 +168,7 @@ func TestSetupCmd_Skips(t *testing.T) {
 	askOneFunc = mockAskOne
 
 	viper.Reset()
-	viper.SetConfigFile("test_config_skips.yaml")
-	defer os.Remove("test_config_skips.yaml")
+	viper.SetConfigFile(testConfig)
 
 	cmd := &cobra.Command{Use: "test"}
 	err := runSetup(cmd, []string{})
@@ -180,6 +183,13 @@ func TestSetupCmd_JiraTokenInConfig(t *testing.T) {
 	originalAskOne := askOneFunc
 	defer func() { askOneFunc = originalAskOne }()
 
+	originalEnvFile := setupEnvFile
+	tempDir := t.TempDir()
+	setupEnvFile = filepath.Join(tempDir, ".env")
+	testConfig := filepath.Join(tempDir, "test_config_jira_cfg.yaml")
+
+	defer func() { setupEnvFile = originalEnvFile }()
+
 	mockAnswers = map[string]interface{}{
 		"Choose your AI Provider:":                  "gemini",
 		"Enter the Model name:":                     "gemini-pro",
@@ -187,16 +197,15 @@ func TestSetupCmd_JiraTokenInConfig(t *testing.T) {
 		"Enter your Jira URL (e.g., https://your-domain.atlassian.net):": "https://jira.example.com",
 		"Enter your Jira Email/Username:":                                "dev@example.com",
 		"Enter your Jira API Token:":                                     "secret-token",
-		"Do you want to save the Jira Token to a local .env file?":       false, // Save to config instead
-		"Enter the Jira Label for agents to watch:":                      "recac-dev",
-		"Enable Slack notifications?":                                    false,
-		"Run system check (recac doctor) now?":                           false,
+		fmt.Sprintf("Do you want to save the Jira Token to a local %s file?", setupEnvFile): false, // Save to config instead
+		"Enter the Jira Label for agents to watch:":                                         "recac-dev",
+		"Enable Slack notifications?":                                                       false,
+		"Run system check (recac doctor) now?":                                              false,
 	}
 	askOneFunc = mockAskOne
 
 	viper.Reset()
-	viper.SetConfigFile("test_config_jira_cfg.yaml")
-	defer os.Remove("test_config_jira_cfg.yaml")
+	viper.SetConfigFile(testConfig)
 
 	cmd := &cobra.Command{Use: "test"}
 	err := runSetup(cmd, []string{})
@@ -212,30 +221,35 @@ func TestSetupCmd_AppendEnv(t *testing.T) {
 	originalAskOne := askOneFunc
 	defer func() { askOneFunc = originalAskOne }()
 
+	originalEnvFile := setupEnvFile
+	tempDir := t.TempDir()
+	setupEnvFile = filepath.Join(tempDir, ".env")
+	testConfig := filepath.Join(tempDir, "test_config_append.yaml")
+
+	defer func() { setupEnvFile = originalEnvFile }()
+
 	// Create existing .env
-	os.WriteFile(".env", []byte("EXISTING_VAR=foo\n"), 0600)
-	defer os.Remove(".env")
+	os.WriteFile(setupEnvFile, []byte("EXISTING_VAR=foo\n"), 0600)
 
 	mockAnswers = map[string]interface{}{
-		"Choose your AI Provider:":                  "openai",
-		"Enter the Model name:":                     "gpt-4",
+		"Choose your AI Provider:":                              "openai",
+		"Enter the Model name:":                                 "gpt-4",
 		"Enter your API Key (leave empty to skip):":             "new-key",
-		"Do you want to save the API Key to a local .env file?": true,
-		"Enter your Jira URL (e.g., https://your-domain.atlassian.net):": "",
-		"Enable Slack notifications?":          false,
-		"Run system check (recac doctor) now?": false,
+		fmt.Sprintf("Do you want to save the API Key to a local %s file?", setupEnvFile): true,
+		"Enter your Jira URL (e.g., https://your-domain.atlassian.net):":                 "",
+		"Enable Slack notifications?":                                                    false,
+		"Run system check (recac doctor) now?":                                           false,
 	}
 	askOneFunc = mockAskOne
 
 	viper.Reset()
-	viper.SetConfigFile("test_config_append.yaml")
-	defer os.Remove("test_config_append.yaml")
+	viper.SetConfigFile(testConfig)
 
 	cmd := &cobra.Command{Use: "test"}
 	err := runSetup(cmd, []string{})
 	assert.NoError(t, err)
 
-	content, _ := os.ReadFile(".env")
+	content, _ := os.ReadFile(setupEnvFile)
 	str := string(content)
 	assert.Contains(t, str, "EXISTING_VAR=foo")
 	assert.Contains(t, str, "OPENAI_API_KEY=new-key")
@@ -245,30 +259,35 @@ func TestSetupCmd_PrefixCollision(t *testing.T) {
 	originalAskOne := askOneFunc
 	defer func() { askOneFunc = originalAskOne }()
 
+	originalEnvFile := setupEnvFile
+	tempDir := t.TempDir()
+	setupEnvFile = filepath.Join(tempDir, ".env")
+	testConfig := filepath.Join(tempDir, "test_config_collision.yaml")
+
+	defer func() { setupEnvFile = originalEnvFile }()
+
 	// Create existing .env with a prefix collision
-	os.WriteFile(".env", []byte("MY_OPENAI_API_KEY=foo\n"), 0600)
-	defer os.Remove(".env")
+	os.WriteFile(setupEnvFile, []byte("MY_OPENAI_API_KEY=foo\n"), 0600)
 
 	mockAnswers = map[string]interface{}{
-		"Choose your AI Provider:":                  "openai",
-		"Enter the Model name:":                     "gpt-4",
-		"Enter your API Key (leave empty to skip):": "new-key",
-		"Do you want to save the API Key to a local .env file?": true,
-		"Enter your Jira URL (e.g., https://your-domain.atlassian.net):": "",
-		"Enable Slack notifications?":          false,
-		"Run system check (recac doctor) now?": false,
+		"Choose your AI Provider:":                              "openai",
+		"Enter the Model name:":                                 "gpt-4",
+		"Enter your API Key (leave empty to skip):":             "new-key",
+		fmt.Sprintf("Do you want to save the API Key to a local %s file?", setupEnvFile): true,
+		"Enter your Jira URL (e.g., https://your-domain.atlassian.net):":                 "",
+		"Enable Slack notifications?":                                                    false,
+		"Run system check (recac doctor) now?":                                           false,
 	}
 	askOneFunc = mockAskOne
 
 	viper.Reset()
-	viper.SetConfigFile("test_config_collision.yaml")
-	defer os.Remove("test_config_collision.yaml")
+	viper.SetConfigFile(testConfig)
 
 	cmd := &cobra.Command{Use: "test"}
 	err := runSetup(cmd, []string{})
 	assert.NoError(t, err)
 
-	content, _ := os.ReadFile(".env")
+	content, _ := os.ReadFile(setupEnvFile)
 	str := string(content)
 	// It should contain the new key
 	assert.Contains(t, str, "OPENAI_API_KEY=new-key")

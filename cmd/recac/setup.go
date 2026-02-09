@@ -14,7 +14,8 @@ import (
 
 // Wrapper for survey functions to allow mocking in tests
 var (
-	askOneFunc = survey.AskOne
+	askOneFunc   = survey.AskOne
+	setupEnvFile = ".env"
 )
 
 // Wrapper for calling doctor command to allow mocking in tests
@@ -101,7 +102,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 
 	if answers.ApiKey != "" {
 		err = askOneFunc(&survey.Confirm{
-			Message: "Do you want to save the API Key to a local .env file?",
+			Message: fmt.Sprintf("Do you want to save the API Key to a local %s file?", setupEnvFile),
 			Default: true,
 		}, &answers.SaveToEnv)
 		if err != nil {
@@ -144,7 +145,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 
 		if answers.JiraToken != "" {
 			err = askOneFunc(&survey.Confirm{
-				Message: "Do you want to save the Jira Token to a local .env file?",
+				Message: fmt.Sprintf("Do you want to save the Jira Token to a local %s file?", setupEnvFile),
 				Default: true,
 			}, &answers.SaveJiraToEnv)
 			if err != nil {
@@ -258,13 +259,13 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(linesToAppend) > 0 {
-		// Read existing .env to check for duplicates
-		existingEnv, _ := os.ReadFile(".env")
+		// Read existing env file to check for duplicates
+		existingEnv, _ := os.ReadFile(setupEnvFile)
 		existingEnvStr := string(existingEnv)
 
-		f, err := os.OpenFile(".env", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+		f, err := os.OpenFile(setupEnvFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 		if err != nil {
-			fmt.Printf("Error opening .env: %v\n", err)
+			fmt.Printf("Error opening %s: %v\n", setupEnvFile, err)
 		} else {
 			defer f.Close()
 			contentToAppend := ""
@@ -285,15 +286,15 @@ func runSetup(cmd *cobra.Command, args []string) error {
 				if !exists {
 					contentToAppend += line + "\n"
 				} else {
-					fmt.Printf("Note: %s already exists in .env, skipping.\n", key)
+					fmt.Printf("Note: %s already exists in %s, skipping.\n", key, setupEnvFile)
 				}
 			}
 
 			if contentToAppend != "" {
 				if _, err := f.WriteString(contentToAppend); err != nil {
-					fmt.Printf("Error writing to .env: %v\n", err)
+					fmt.Printf("Error writing to %s: %v\n", setupEnvFile, err)
 				} else {
-					fmt.Println("Secrets saved to .env")
+					fmt.Printf("Secrets saved to %s\n", setupEnvFile)
 				}
 			}
 		}
