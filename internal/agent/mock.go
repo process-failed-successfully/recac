@@ -35,23 +35,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristic: Check for "TPM" or "Technical Program Manager" role to generate a ticket plan
 	if strings.Contains(prompt, "TPM") || strings.Contains(prompt, "Technical Program Manager") {
 		// Return a valid JSON response for ticket generation (Array of tickets)
+		// We use ID:[PRIMES] to ensure the E2E test can map the created ticket back to the scenario.
 		return `[
     {
-      "title": "Implement Core Feature",
-      "description": "Implement the core functionality as requested.",
-      "type": "Epic",
-      "children": [
-        {
-          "title": "Implement Prime Number Script",
-          "description": "Create a python script named primes.py that calculates all prime numbers less than 10,000.",
-          "type": "Story"
-        },
-        {
-          "title": "Verify Implementation",
-          "description": "Verify the prime number script works as expected.",
-          "type": "Story"
-        }
-      ]
+      "title": "ID:[PRIMES] Implement Prime Number Script",
+      "description": "Create a python script named primes.py that calculates all prime numbers less than 10,000.",
+      "type": "Task"
     }
   ]`, nil
 	}
@@ -110,6 +99,25 @@ git config user.name "Mock Agent"
 # Commit the changes
 git add primes.py primes.json
 git commit -m "Implement prime number calculator"
+
+# Signal completion
+agent-bridge feature set PRIMES --status done --passes true
+` + "```", nil
+	}
+
+	// Heuristic: QA Agent
+	if strings.Contains(prompt, "QA AGENT") {
+		return `Mock QA Agent: Verified successfully.
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```", nil
+	}
+
+	// Heuristic: Manager Agent
+	if strings.Contains(prompt, "MANAGER AGENT") || strings.Contains(prompt, "Manager Agent") {
+		return `Mock Manager: Approved.
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true
 ` + "```", nil
 	}
 

@@ -47,11 +47,11 @@ func TestMockAgent(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Send failed: %v", err)
 		}
-		if !strings.Contains(response, "\"type\": \"Epic\"") {
-			t.Errorf("Response missing JSON plan, got: %s", response)
+		if !strings.Contains(response, "\"type\": \"Task\"") {
+			t.Errorf("Response missing JSON plan (Task), got: %s", response)
 		}
-		if !strings.Contains(response, "Implement Prime Number Script") {
-			t.Errorf("Response missing Primes task, got: %s", response)
+		if !strings.Contains(response, "ID:[PRIMES] Implement Prime Number Script") {
+			t.Errorf("Response missing Primes task with ID, got: %s", response)
 		}
 	})
 
