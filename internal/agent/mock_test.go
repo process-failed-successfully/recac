@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -55,6 +56,17 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	}
 	if !strings.Contains(resp, "Implement Primes") {
 		t.Errorf("Expected 'Implement Primes' in TPM response, got: %s", resp)
+	}
+	// Verify strict JSON structure matches CLI expectation
+	var tickets []map[string]interface{}
+	if err := json.Unmarshal([]byte(resp), &tickets); err != nil {
+		t.Fatalf("Failed to unmarshal TPM response: %v", err)
+	}
+	if len(tickets) == 0 {
+		t.Fatalf("Expected at least one ticket")
+	}
+	if _, ok := tickets[0]["title"]; !ok {
+		t.Errorf("Expected 'title' field in ticket JSON, got: %v", tickets[0])
 	}
 
 	// 3. Project Manager
