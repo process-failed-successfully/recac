@@ -81,7 +81,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			"    \"status\": \"todo\"\n" +
 			"  },\n" +
 			"  {\n" +
-			"    \"id\": \"req-script-prints-primes\",\n" +
+			"    \"id\": \"req-contains-exactly-1229-primes\",\n" +
 			"    \"description\": \"contains exactly 1229 primes\",\n" +
 			"    \"status\": \"todo\"\n" +
 			"  }\n" +
@@ -98,6 +98,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(prompt, "ROLE - CODING AGENT") ||
 		strings.Contains(prompt, "req-implement-prime-number-script") ||
 		strings.Contains(prompt, "req-script-prints-primes") ||
+		strings.Contains(prompt, "req-contains-exactly-1229-primes") ||
 		strings.Contains(prompt, "[PRIMES]") {
 
 		script := "```bash\n" +
@@ -119,7 +120,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			"# Mark features as done\n" +
 			"agent-bridge feature set req-implement-prime-number-script done || echo \"Feature not found\"\n" +
 			"agent-bridge feature set req-primes-py-exists done || echo \"Feature not found\"\n" +
-			"agent-bridge feature set req-script-prints-primes done || echo \"Feature not found\"\n" +
+			"agent-bridge feature set req-contains-exactly-1229-primes done || echo \"Feature not found\"\n" +
 			"\n" +
 			"# Git commit (with error handling for idempotency)\n" +
 			"git add primes.py\n" +
