@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -239,4 +240,39 @@ func TestSetupCmd_AppendEnv(t *testing.T) {
 	str := string(content)
 	assert.Contains(t, str, "EXISTING_VAR=foo")
 	assert.Contains(t, str, "OPENAI_API_KEY=new-key")
+}
+
+func TestSetupCmd_SubstringMatchRegression(t *testing.T) {
+	originalAskOne := askOneFunc
+	defer func() { askOneFunc = originalAskOne }()
+
+	// Create existing .env with a key that contains the new key as a suffix
+	os.WriteFile(".env", []byte("MY_OPENAI_API_KEY=old-key\n"), 0600)
+	defer os.Remove(".env")
+
+	mockAnswers = map[string]interface{}{
+		"Choose your AI Provider:":                  "openai",
+		"Enter the Model name:":                     "gpt-4",
+		"Enter your API Key (leave empty to skip):": "new-key",
+		"Do you want to save the API Key to a local .env file?": true,
+		"Enter your Jira URL (e.g., https://your-domain.atlassian.net):": "",
+		"Enable Slack notifications?":          false,
+		"Run system check (recac doctor) now?": false,
+	}
+	askOneFunc = mockAskOne
+
+	viper.Reset()
+	viper.SetConfigFile("test_config_repro.yaml")
+	defer os.Remove("test_config_repro.yaml")
+
+	cmd := &cobra.Command{Use: "test"}
+	err := runSetup(cmd, []string{})
+	assert.NoError(t, err)
+
+	content, _ := os.ReadFile(".env")
+	str := string(content)
+
+	if !strings.Contains(str, "OPENAI_API_KEY=new-key") {
+		t.Errorf("Regression detected! OPENAI_API_KEY was skipped because of substring match in .env content:\n%s", str)
+	}
 }

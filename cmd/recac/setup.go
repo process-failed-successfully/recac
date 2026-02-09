@@ -272,10 +272,23 @@ func runSetup(cmd *cobra.Command, args []string) error {
 				contentToAppend = "\n"
 			}
 
+			// Parse existing keys for exact match check
+			existingKeys := make(map[string]bool)
+			for _, l := range strings.Split(existingEnvStr, "\n") {
+				l = strings.TrimSpace(l)
+				if l == "" || strings.HasPrefix(l, "#") {
+					continue
+				}
+				parts := strings.SplitN(l, "=", 2)
+				if len(parts) > 0 {
+					existingKeys[strings.TrimSpace(parts[0])] = true
+				}
+			}
+
 			for _, line := range linesToAppend {
 				parts := strings.SplitN(line, "=", 2)
 				key := parts[0]
-				if !strings.Contains(existingEnvStr, key+"=") {
+				if !existingKeys[key] {
 					contentToAppend += line + "\n"
 				} else {
 					fmt.Printf("Note: %s already exists in .env, skipping.\n", key)
