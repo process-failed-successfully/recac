@@ -34,7 +34,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	lowerPrompt := strings.ToLower(prompt)
 
 	// 1. Initializer Agent or Feature List Request
-	if strings.Contains(lowerPrompt, "initializer agent") || strings.Contains(lowerPrompt, "feature_list.json") {
+	// Note: We check for "create feature_list.json" or explicit role to avoid false positives
+	// when the prompt merely *contains* the file content context.
+	if strings.Contains(lowerPrompt, "initializer agent") || strings.Contains(lowerPrompt, "create feature_list.json") {
 		return `I will create the feature list.
 
 ` + "```bash" + `
@@ -70,7 +72,7 @@ Files created.
 		if strings.Contains(lowerPrompt, "generate") || strings.Contains(lowerPrompt, "ticket") || strings.Contains(lowerPrompt, "json") {
 			return `[
   {
-    "summary": "ID:[PRIMES] Prime Number Script",
+    "title": "ID:[PRIMES] Prime Number Script",
     "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to 'primes.json'.",
     "type": "Task"
   }
@@ -112,8 +114,26 @@ I have implemented the script, generated the JSON, and committed the changes.
 	}
 
 	// 3. Manager/QA Approval
-	if strings.Contains(lowerPrompt, "manager agent") || strings.Contains(lowerPrompt, "qa agent") {
-		return "APPROVED\n\nThe implementation looks correct and meets all requirements.", nil
+	if strings.Contains(lowerPrompt, "qa agent") {
+		return `I have verified the implementation.
+
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```" + `
+
+All checks passed.
+`, nil
+	}
+
+	if strings.Contains(lowerPrompt, "manager agent") || strings.Contains(lowerPrompt, "review qa report") {
+		return `I approve this project.
+
+` + "```bash" + `
+agent-bridge signal --privileged PROJECT_SIGNED_OFF true
+` + "```" + `
+
+Great work.
+`, nil
 	}
 
 	// Default response
