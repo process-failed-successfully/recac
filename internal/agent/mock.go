@@ -49,7 +49,7 @@ func (m *MockAgent) handleTPMRequest(prompt string) string {
 	return `
 [
   {
-    "summary": "Implement basic feature",
+    "title": "Implement basic feature",
     "description": "As a user, I want a basic feature so that I can do something.",
     "type": "Story",
     "acceptance_criteria": [
@@ -59,7 +59,7 @@ func (m *MockAgent) handleTPMRequest(prompt string) string {
     "story_points": 3
   },
   {
-    "summary": "Setup infrastructure",
+    "title": "Setup infrastructure",
     "description": "Setup necessary infrastructure components.",
     "type": "Task",
     "acceptance_criteria": [

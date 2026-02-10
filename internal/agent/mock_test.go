@@ -21,7 +21,7 @@ func TestMockAgent_Send_TPM(t *testing.T) {
 	err = json.Unmarshal([]byte(resp), &tickets)
 	assert.NoError(t, err, "Response should be valid JSON")
 	assert.NotEmpty(t, tickets)
-	assert.Equal(t, "Implement basic feature", tickets[0]["summary"])
+	assert.Equal(t, "Implement basic feature", tickets[0]["title"])
 }
 
 func TestMockAgent_Send_Generic(t *testing.T) {
