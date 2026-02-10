@@ -16,6 +16,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// gymTestMutex synchronizes tests that mock global gym factories
+var gymTestMutex sync.Mutex
+
 // ThreadSafeBuffer is a goroutine-safe bytes.Buffer
 type ThreadSafeBuffer struct {
 	b bytes.Buffer
