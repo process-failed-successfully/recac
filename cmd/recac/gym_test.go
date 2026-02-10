@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"os"
 	"path/filepath"
-	"log/slog"
 	"recac/internal/agent"
 	"recac/internal/docker"
 	"recac/internal/notify"
@@ -188,8 +188,8 @@ func TestRunGymSession(t *testing.T) {
 	mockDocker.On("RunContainer", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("mock-container-id", nil)
 	mockDocker.On("StopContainer", mock.Anything, "mock-container-id").Return(nil)
 
-    // Agent Expectation (The Fix)
-    mockAgent.On("Send", mock.Anything, mock.Anything).Return("I have completed the task.\nCOMPLETED", nil)
+	// Agent Expectation (The Fix)
+	mockAgent.On("Send", mock.Anything, mock.Anything).Return("I have completed the task.\nCOMPLETED", nil)
 
 	// Setup calls (passwd, git, etc) - allow any Exec/ExecAsUser calls generally
 	// But match specific verification call specifically if needed.
