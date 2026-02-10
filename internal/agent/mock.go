@@ -75,6 +75,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// If git status shows clean working tree, we are done.
 		if strings.Contains(strings.ToLower(prompt), "nothing to commit") || strings.Contains(strings.ToLower(prompt), "working tree clean") {
 			return "```bash\n" +
+				"agent-bridge feature set req-primes-py-exists --status done --passes true\n" +
 				"agent-bridge signal QA_PASSED true --privileged\n" +
 				"agent-bridge signal PROJECT_SIGNED_OFF true --privileged\n" +
 				"```", nil
