@@ -16,6 +16,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// gymTestMutex is a shared mutex to prevent race conditions in tests that modify global factory variables
+// (e.g., TestRunGym, TestRunGymSession, TestOptimizePrompts).
+var gymTestMutex sync.Mutex
+
 // ThreadSafeBuffer is a goroutine-safe bytes.Buffer
 type ThreadSafeBuffer struct {
 	b bytes.Buffer
