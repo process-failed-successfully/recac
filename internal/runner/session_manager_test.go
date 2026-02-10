@@ -716,9 +716,20 @@ func TestRemoveSession_Error(t *testing.T) {
 	sm, cleanup := setupSessionManager(t)
 	defer cleanup()
 
+	// Check if permissions are enforced
+	testFile := filepath.Join(sm.sessionsDir, "permission_check")
+	require.NoError(t, os.WriteFile(testFile, []byte("test"), 0644))
+	require.NoError(t, os.Chmod(sm.sessionsDir, 0500))
+	err := os.Remove(testFile)
+	require.NoError(t, os.Chmod(sm.sessionsDir, 0700)) // Restore for cleanup/continuation
+	if err == nil {
+		t.Skip("Skipping permission test: environment does not enforce directory permissions (e.g. running as root)")
+	}
+	os.Remove(testFile) // Clean up test file
+
 	sessionName := "protected-session"
 	session := &SessionState{Name: sessionName, Status: "completed", LogFile: filepath.Join(sm.sessionsDir, sessionName+".log")}
-	err := sm.SaveSession(session)
+	err = sm.SaveSession(session)
 	require.NoError(t, err)
 
 	// Make directory read-only to prevent deletion of files inside
