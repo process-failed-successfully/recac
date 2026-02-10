@@ -177,7 +177,8 @@ func (s *Session) pushProgress(ctx context.Context) {
 	// We merge master into current branch to capture those commits if they exist
 	if branch != "master" && branch != "main" {
 		// Try explicit refs to avoid ambiguity or missing short names
-		candidates := []string{"refs/heads/master", "refs/heads/main", "master", "main"}
+		// Prioritize main over master to avoid noise/errors on modern repos
+		candidates := []string{"refs/heads/main", "main", "refs/heads/master", "master"}
 		merged := false
 		for _, ref := range candidates {
 			if err := gitClient.Merge(s.Workspace, ref); err == nil {
@@ -192,6 +193,7 @@ func (s *Session) pushProgress(ctx context.Context) {
 	}
 
 	// Push progress
+	s.Logger.Debug("attempting to push progress", "branch", branch)
 	if err := gitClient.Push(s.Workspace, branch); err != nil {
 		s.Logger.Warn("failed to push progress", "error", err)
 	}

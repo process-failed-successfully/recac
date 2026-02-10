@@ -199,11 +199,9 @@ func (c *Client) Pull(dir, remote, branchName string) error {
 
 // Merge merges the specified branch into the current branch.
 func (c *Client) Merge(dir, branchName string) error {
-	cmd := exec.Command("git", "merge", branchName)
-	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	return c.runWithMasking(ctx, dir, "merge", branchName)
 }
 
 // Fetch fetches changes from the remote repository.
