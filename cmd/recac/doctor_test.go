@@ -19,8 +19,15 @@ func TestDoctorCmd(t *testing.T) {
 
 	// Check the output
 	output := out.String()
-	assert.True(t, strings.HasPrefix(output, "RECAC Doctor"), "Output should start with the doctor header")
-	assert.Contains(t, output, "Configuration:", "Output should contain a configuration check")
-	assert.Contains(t, output, "Dependency:", "Output should contain a dependency check")
-	assert.Contains(t, output, "Docker:", "Output should contain a Docker check")
+	// The new output format starts with a newline and an icon
+	assert.Contains(t, output, "RECAC Doctor Report", "Output should contain the doctor header")
+
+	// Check for specific checks based on new format (e.g., "✅ Config", "✅ Docker")
+	assert.Contains(t, output, "Config", "Output should contain a configuration check")
+	assert.Contains(t, output, "Dependency: git", "Output should contain a git dependency check")
+	assert.Contains(t, output, "Dependency: docker", "Output should contain a docker dependency check")
+	assert.Contains(t, output, "Docker", "Output should contain a Docker check")
+
+	// Check for the summary line
+	assert.True(t, strings.Contains(output, "checks failed") || strings.Contains(output, "All systems operational"), "Output should contain a summary")
 }
