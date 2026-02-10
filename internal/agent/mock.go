@@ -64,8 +64,20 @@ Files created.
 `, nil
 	}
 
-	// 2. [PRIMES] Task
+	// 2. [PRIMES] Task Handling
 	if strings.Contains(strings.ToUpper(prompt), "[PRIMES]") {
+		// A. Ticket Generation Request
+		if strings.Contains(lowerPrompt, "generate") || strings.Contains(lowerPrompt, "ticket") || strings.Contains(lowerPrompt, "json") {
+			return `[
+  {
+    "summary": "ID:[PRIMES] Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to 'primes.json'.",
+    "type": "Task"
+  }
+]`, nil
+		}
+
+		// B. Implementation Request (Default for PRIMES)
 		return `I will implement the prime number script.
 
 ` + "```bash" + `

@@ -20,8 +20,8 @@ func TestMockAgent_Send(t *testing.T) {
 		assert.Contains(t, resp, "cat << 'EOF' > feature_list.json")
 	})
 
-	t.Run("Primes Task", func(t *testing.T) {
-		prompt := "Work on task [PRIMES] Prime Number Script"
+	t.Run("Primes Task Implementation", func(t *testing.T) {
+		prompt := "Implement the [PRIMES] Prime Number Script"
 		resp, err := agent.Send(ctx, prompt)
 		require.NoError(t, err)
 		assert.Contains(t, resp, "cat << 'EOF' > primes.py")
@@ -29,8 +29,18 @@ func TestMockAgent_Send(t *testing.T) {
 		assert.Contains(t, resp, "is_prime")
 	})
 
+	t.Run("Primes Task Generation", func(t *testing.T) {
+		prompt := "Generate Jira tickets for [PRIMES] Prime Number Script. Return a JSON list."
+		resp, err := agent.Send(ctx, prompt)
+		require.NoError(t, err)
+		assert.Contains(t, resp, "[")
+		assert.Contains(t, resp, "\"summary\": \"ID:[PRIMES] Prime Number Script\"")
+		assert.Contains(t, resp, "\"type\": \"Task\"")
+		assert.NotContains(t, resp, "cat << 'EOF' > primes.py")
+	})
+
 	t.Run("Primes Task Case Insensitive", func(t *testing.T) {
-		prompt := "Work on task [primes] Prime Number Script"
+		prompt := "implement [primes] Prime Number Script"
 		resp, err := agent.Send(ctx, prompt)
 		require.NoError(t, err)
 		assert.Contains(t, resp, "cat << 'EOF' > primes.py")
