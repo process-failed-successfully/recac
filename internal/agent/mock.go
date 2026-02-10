@@ -38,7 +38,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 0. TPM Agent (Jira Ticket Generation): "Technical Program Manager"
 	// This agent must return JSON.
-	if strings.Contains(upperPrompt, "TECHNICAL PROGRAM MANAGER") || strings.Contains(upperPrompt, "TPM") {
+	if strings.Contains(upperPrompt, "TECHNICAL PROGRAM MANAGER") {
 		return `
 ` + "```json" + `
 [
@@ -60,7 +60,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 1. Initializer: "INITIALIZER AGENT"
 	// This agent must return Bash to create feature_list.json.
-	if strings.Contains(upperPrompt, "INITIALIZER AGENT") {
+	if strings.Contains(upperPrompt, "## YOUR ROLE - INITIALIZER AGENT") {
 		return `I have analyzed the specification. Here is the feature breakdown:
 
 ` + "```bash" + `
@@ -78,7 +78,8 @@ cat << 'EOF' > feature_list.json
         "Create primes.py",
         "Generate primes.json",
         "Verify output"
-      ]
+      ],
+      "dependencies": {}
     }
   ]
 }
@@ -88,8 +89,12 @@ EOF
 	}
 
 	// 2. Coding Agent: Working on PRIMES task
-	// Prompt usually contains "PRIMES" or "primes.py"
-	if strings.Contains(upperPrompt, "PRIMES") || strings.Contains(upperPrompt, "PRIMES.PY") {
+	// Strict check: Must be CODING AGENT or generic prompt context with PRIMES, but NOT QA Agent.
+	// The Coding Agent prompt header is "## YOUR ROLE - CODING AGENT".
+	isCodingAgent := strings.Contains(upperPrompt, "## YOUR ROLE - CODING AGENT")
+	hasPrimesContext := strings.Contains(upperPrompt, "PRIMES") || strings.Contains(upperPrompt, "PRIMES.PY")
+
+	if isCodingAgent && hasPrimesContext {
 		return `I will implement the prime number script.
 
 ` + "```bash" + `
@@ -134,7 +139,8 @@ cat << 'EOF' > feature_list.json
         "Create primes.py",
         "Generate primes.json",
         "Verify output"
-      ]
+      ],
+      "dependencies": {}
     }
   ]
 }
@@ -144,7 +150,8 @@ EOF
 	}
 
 	// 3. QA Agent: Verify or QA
-	if strings.Contains(upperPrompt, "QA") || strings.Contains(upperPrompt, "VERIFY") {
+	// Strict check: Must be QA AGENT.
+	if strings.Contains(upperPrompt, "## YOUR ROLE - QA AGENT") {
 		return `QA_PASSED
 
 The code looks correct and meets the requirements.
@@ -153,11 +160,21 @@ The code looks correct and meets the requirements.
 
 	// 4. Manager: Review or Plan
 	// If the manager asks for status or plan, and we see everything is done (or generic), we can sign off.
-	if strings.Contains(upperPrompt, "MANAGER") || strings.Contains(upperPrompt, "REVIEW") || strings.Contains(upperPrompt, "PLAN") {
+	if strings.Contains(upperPrompt, "PROJECT MANAGER") || strings.Contains(upperPrompt, "REVIEW QA REPORT") {
 		return `The project seems complete.
 
 ` + "```bash" + `
 agent-bridge signal --privileged PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
+	}
+
+	// Fallback for "Coding Agent" if it doesn't match specific tasks (prevent no-op loop)
+	if isCodingAgent {
+		// Just return a comment to avoid NO-OP circuit breaker, or generic success
+		return `I am ready to work. Please provide specific instructions.
+` + "```bash" + `
+echo "Mock agent ready"
 ` + "```" + `
 `, nil
 	}
