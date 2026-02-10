@@ -387,4 +387,24 @@ func TestSetupWorkspace(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "agent/TEST-1", checkedOut)
 	})
+
+	t.Run("Injects GITHUB_API_KEY with x-oauth-basic", func(t *testing.T) {
+		os.Setenv("GITHUB_API_KEY", "ghp_SECRET")
+		defer os.Unsetenv("GITHUB_API_KEY")
+
+		var capturedURL string
+		mockGitClient := &MockGitClient{
+			repoExists: false,
+			cloneFn: func(ctx context.Context, repoURL, directory string) error {
+				capturedURL = repoURL
+				return nil
+			},
+		}
+
+		_, err := SetupWorkspace(context.Background(), mockGitClient, "https://github.com/org/repo.git", "/tmp/ws", "TEST-1", "", "")
+		assert.NoError(t, err)
+
+		// Expected: https://ghp_SECRET:x-oauth-basic@github.com/org/repo.git
+		assert.Equal(t, "https://ghp_SECRET:x-oauth-basic@github.com/org/repo.git", capturedURL)
+	})
 }
