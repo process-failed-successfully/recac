@@ -23,7 +23,7 @@ type MockAgent struct{}
 func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	fmt.Println("    [MockAgent] Received prompt length:", len(prompt))
 	if strings.Contains(prompt, "INITIALIZER") {
-		return "Plan: Create a hello world file.\nCommand: echo 'Hello Real World' > hello.txt", nil
+		return "Plan: Create a hello world file.\n```bash\necho 'Hello Real World' > hello.txt\n```", nil
 	}
 	return "Mock response", nil
 }
