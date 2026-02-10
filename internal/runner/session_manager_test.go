@@ -721,6 +721,10 @@ func TestRemoveSession_Error(t *testing.T) {
 	err := sm.SaveSession(session)
 	require.NoError(t, err)
 
+	// Create a probe file to verify permission enforcement for removal
+	probeFile := filepath.Join(sm.sessionsDir, "probe_removal")
+	require.NoError(t, os.WriteFile(probeFile, []byte("test"), 0644))
+
 	// Make directory read-only to prevent deletion of files inside
 	// Note: Removing a file requires write permission on the PARENT directory.
 	err = os.Chmod(sm.sessionsDir, 0500) // Read-execute only
@@ -728,9 +732,8 @@ func TestRemoveSession_Error(t *testing.T) {
 	defer os.Chmod(sm.sessionsDir, 0700) // Restore for cleanup
 
 	// Verify if permissions are actually enforced (e.g. running as root ignores them)
-	probeFile := filepath.Join(sm.sessionsDir, "probe_permissions")
-	if err := os.WriteFile(probeFile, []byte("test"), 0644); err == nil {
-		t.Skip("Skipping: Filesystem permissions are not enforced (running as root?)")
+	if err := os.Remove(probeFile); err == nil {
+		t.Skip("Skipping: Filesystem permissions for removal are not enforced (running as root?)")
 	}
 
 	err = sm.RemoveSession(sessionName, false)
