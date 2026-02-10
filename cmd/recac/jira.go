@@ -366,7 +366,8 @@ func createTicketsFromNodes(ctx context.Context, tickets []ticketNode, projectKe
 
 	// 4. Map logical IDs back from titles
 	idToKey := make(map[string]string)
-	idRegex := regexp.MustCompile(`(?i)ID:\[?([\w-]+)\]?`) // Match ID:[SQL] or ID:SQL-1
+	// Match ID:[SQL], ID:SQL-1, or [SQL] (relaxed for LLM variability)
+	idRegex := regexp.MustCompile(`(?i)(?:ID: ?\[?|\[)([\w-]+)\]?`)
 
 	for title, key := range titleToKey {
 		matches := idRegex.FindStringSubmatch(title)

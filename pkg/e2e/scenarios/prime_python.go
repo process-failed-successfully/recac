@@ -45,6 +45,8 @@ REQUIRED FEATURES:
 
 CRITICAL INSTRUCTION FOR TICKET GENERATION:
 Create a SINGLE Ticket (Task) for this work. Do not create an Epic or subtasks. The ID [PRIMES] must map to this single Task.
+Ticket Title MUST start with 'ID:[PRIMES]'.
+
 CRITICAL: Do NOT run 'pytest' or any test framework. Do NOT try to create test files. Just run the script and verify 'primes.json' exists.
 
 Repo: %s`, repoURL)
