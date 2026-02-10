@@ -154,13 +154,20 @@ set -e
 if [ ! -d .git ]; then
   echo "Git repo missing, re-initializing..."
   git init
-  git config user.email "you@example.com"
-  git config user.name "Your Name"
 else
   # Ensure we are on a valid branch if possible
   git fetch origin || echo "Fetch failed, ignoring"
 fi
 
+# Configure git identity unconditionally
+git config user.email "agent@recac.com"
+git config user.name "Recac Agent"
+
+# Create or reset a branch for the feature (force if exists)
+# Note: We fetch first, so checking out should track origin if it exists
+git checkout -B agent/PRIMES-mock
+
+# Create files AFTER checkout to ensure they are on the correct branch
 cat << 'EOF' > primes.py
 import json
 
@@ -175,11 +182,9 @@ with open('primes.json', 'w') as f:
     json.dump({"primes": primes}, f)
 EOF
 
-# Create or reset a branch for the feature (force if exists)
-git checkout -B agent/PRIMES-mock
-
 python3 primes.py
-git add primes.py primes.json
+# Use -f to force add if ignored by .gitignore (e.g. *.py)
+git add -f primes.py primes.json
 git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
 git push --force origin agent/PRIMES-mock || echo "Push failed, continuing local only"
 agent-bridge feature set PRIMES --status done --passes true
