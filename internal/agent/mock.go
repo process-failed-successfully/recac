@@ -76,12 +76,21 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 				"```", nil
 		}
 
-		// 4. Coding Agent (Implementation)
+		// 4. Project Manager (Approval)
+		if strings.Contains(prompt, "PROJECT MANAGER") || strings.Contains(prompt, "Review QA Report") {
+			return "```bash\n" +
+				"agent-bridge signal PROJECT_SIGNED_OFF true --privileged\n" +
+				"```", nil
+		}
+
+		// 5. Coding Agent (Implementation)
+		// 5. Coding Agent (Implementation)
 		// Detects "Coding Agent" role OR generic task execution prompt
 		if strings.Contains(prompt, "YOUR ROLE - CODING AGENT") ||
 			strings.Contains(prompt, "Implement the solution") ||
 			strings.Contains(prompt, "Multiple/Not Assigned") ||
-			strings.Contains(prompt, "Create Prime Number Script") {
+			strings.Contains(prompt, "Create Prime Number Script") ||
+			strings.Contains(prompt, "Create primes.py script") {
 			return "```bash\n" +
 				"cat << 'EOF' > primes.py\n" +
 				"import json\n\n" +
