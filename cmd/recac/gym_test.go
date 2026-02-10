@@ -17,7 +17,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"sync"
 )
+
+var gymTestMutex sync.Mutex
 
 // Mock objects
 type GymMockDockerClient struct {
@@ -102,6 +105,9 @@ func TestLoadChallenges(t *testing.T) {
 }
 
 func TestRunGym(t *testing.T) {
+	gymTestMutex.Lock()
+	defer gymTestMutex.Unlock()
+
 	// Mock runGymSessionFunc
 	originalRunGymSessionFunc := runGymSessionFunc
 	defer func() { runGymSessionFunc = originalRunGymSessionFunc }()
@@ -138,6 +144,9 @@ func TestRunGym(t *testing.T) {
 }
 
 func TestRunGymSession(t *testing.T) {
+	gymTestMutex.Lock()
+	defer gymTestMutex.Unlock()
+
 	// Mock factories
 	originalDockerFactory := gymDockerClientFactory
 	originalAgentFactory := gymAgentFactory
@@ -169,6 +178,7 @@ func TestRunGymSession(t *testing.T) {
 			MaxIterations: 1,
 			Notifier:      notify.NewManager(telemetry.LogInfof),
 			Logger:        slog.Default(),
+			SpecFile:      "app_spec.txt", // Needed so RunLoop doesn't fail on "is a directory"
 		}
 	}
 
@@ -182,6 +192,8 @@ func TestRunGymSession(t *testing.T) {
 
 	// Expectations
 	mockDocker.On("CheckDaemon", mock.Anything).Return(nil)
+	// Agent interaction expectation
+	mockAgent.On("Send", mock.Anything, mock.Anything).Return("done", nil)
 	mockDocker.On("ImageExists", mock.Anything, mock.Anything).Return(true, nil)
 	mockDocker.On("RunContainer", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("mock-container-id", nil)
 	mockDocker.On("StopContainer", mock.Anything, "mock-container-id").Return(nil)
