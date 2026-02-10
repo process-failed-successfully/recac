@@ -65,7 +65,11 @@ if [ -n "$GITHUB_API_KEY" ] && [ -n "` + repoURL + `" ]; then
   AUTH_URL="https://x-access-token:${GITHUB_API_KEY}@${CLEAN_URL}"
 
   echo "Cloning from ${REPO_URL}..."
-  git clone "$AUTH_URL" .
+  # Use temp dir workaround to handle non-empty workspace (e.g. app_spec.txt)
+  git clone "$AUTH_URL" temp_clone_dir
+  mv temp_clone_dir/.git .
+  rm -rf temp_clone_dir
+  git reset --hard HEAD
 else
   echo "Initializing local repo (no token or url found)..."
   git init
