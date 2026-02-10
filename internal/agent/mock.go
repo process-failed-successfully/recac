@@ -33,7 +33,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Heuristic: Check for Technical Program Manager prompt (Jira ticket generation)
-	if strings.Contains(prompt, "Technical Program Manager") && strings.Contains(prompt, "ticket plan") {
+	if strings.Contains(prompt, "Technical Program Manager") {
 		return m.generateMockTickets(), nil
 	}
 
