@@ -707,10 +707,32 @@ func TestRenameSession(t *testing.T) {
 	})
 }
 
+// permissionsEnforced checks if the environment enforces read-only permissions on directories.
+// This is used to skip tests that expect permission errors but run as root in CI.
+func permissionsEnforced(t *testing.T) bool {
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.txt")
+	if err := os.WriteFile(testFile, []byte("content"), 0644); err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+
+	if err := os.Chmod(tmpDir, 0500); err != nil {
+		t.Fatalf("failed to chmod temp dir: %v", err)
+	}
+	defer os.Chmod(tmpDir, 0700)
+
+	err := os.Remove(testFile)
+	return err != nil
+}
+
 func TestRemoveSession_Error(t *testing.T) {
 	// Skip on Windows as permission handling is different
 	if os.PathSeparator == '\\' {
 		t.Skip("Skipping permission test on Windows")
+	}
+
+	if !permissionsEnforced(t) {
+		t.Skip("Skipping permission test: environment does not enforce read-only directory permissions (e.g. running as root)")
 	}
 
 	sm, cleanup := setupSessionManager(t)
