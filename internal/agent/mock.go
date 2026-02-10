@@ -104,7 +104,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 				"}\n" +
 				"EOF\n\n" +
 				"python3 primes.py\n" +
-				"git add primes.py primes.json feature_list.json\n" +
+				"git add -f primes.py primes.json feature_list.json\n" +
 				"git commit -m \"Add primes.py and primes.json and mark done\" || echo \"Nothing to commit\"\n" +
 				"```", nil
 		}
