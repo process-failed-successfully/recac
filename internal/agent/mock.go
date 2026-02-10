@@ -37,9 +37,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristics for E2E scenarios
 
 	// 1. Initializer Agent (Feature List)
-	// We check for "CREATE FEATURE_LIST.JSON" instead of just "feature list" to avoid false positives
+	// We check for "## YOUR ROLE - INITIALIZER AGENT" or "CREATE FEATURE_LIST.JSON" to avoid false positives
 	// where "feature list" appears in the context of other agents (e.g. Manager reviewing the list).
-	if strings.Contains(upperPrompt, "ROLE - INITIALIZER AGENT") || strings.Contains(upperPrompt, "CREATE FEATURE_LIST.JSON") {
+	if strings.Contains(upperPrompt, "## YOUR ROLE - INITIALIZER AGENT") || strings.Contains(upperPrompt, "CREATE FEATURE_LIST.JSON") {
 		if strings.Contains(upperPrompt, "PRIMES.PY") || strings.Contains(upperPrompt, "[PRIMES]") {
 			return `Here is the feature list plan.
 
@@ -64,7 +64,7 @@ agent-bridge import < feature_list.json
 	}
 
 	// 2. Technical Program Manager (TPM)
-	if strings.Contains(upperPrompt, "TECHNICAL PROGRAM MANAGER") {
+	if strings.Contains(upperPrompt, "YOU ARE AN EXPERT TECHNICAL PROGRAM MANAGER") {
 		if strings.Contains(upperPrompt, "[PRIMES]") || strings.Contains(upperPrompt, "PRIMES.PY") {
 			return `[
   {
@@ -81,7 +81,7 @@ agent-bridge import < feature_list.json
 	}
 
 	// 3. QA Agent
-	if strings.Contains(upperPrompt, "QA AGENT") {
+	if strings.Contains(upperPrompt, "## YOUR ROLE - QA AGENT") {
 		return `QA verification passed.
 
 ` + "```bash" + `
@@ -91,7 +91,7 @@ agent-bridge signal --privileged QA_PASSED true
 	}
 
 	// 4. Project Manager
-	if strings.Contains(upperPrompt, "PROJECT MANAGER") {
+	if strings.Contains(upperPrompt, "## YOUR ROLE - PROJECT MANAGER") {
 		return `Project signed off.
 
 ` + "```bash" + `
@@ -102,9 +102,8 @@ agent-bridge signal --privileged PROJECT_SIGNED_OFF true
 
 	// 5. Coding Agent / Developer (Primes)
 	// We check for keywords related to the Primes scenario AND role indicators
-	isCodingAgent := strings.Contains(upperPrompt, "CODING AGENT") ||
-		strings.Contains(upperPrompt, "DEVELOPER") ||
-		strings.Contains(upperPrompt, "YOUR ROLE") // "Your role is to implement..."
+	isCodingAgent := strings.Contains(upperPrompt, "## YOUR ROLE - CODING AGENT") ||
+		strings.Contains(upperPrompt, "## YOUR ROLE - DEVELOPER")
 
 	if isCodingAgent && containsAny(upperPrompt, []string{"[PRIMES]", "PRIMES.PY", "IMPLEMENT PRIMES", "PRIME NUMBER SCRIPT"}) {
 		// Return the implementation
