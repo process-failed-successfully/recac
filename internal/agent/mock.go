@@ -38,9 +38,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(promptLower, "you are the initializer") || strings.Contains(promptLower, "initializer agent") {
 		return `
 ` + "```bash" + `
-cat <<EOF > feature_list.json
-[{"id": "req-primes", "description": "Implement primes.py"}]
-EOF
+printf '[{"id": "req-primes", "description": "Implement primes.py"}]' > feature_list.json
 agent-bridge import feature_list.json
 ` + "```" + `
 `, nil
