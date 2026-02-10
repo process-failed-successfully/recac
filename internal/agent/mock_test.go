@@ -9,28 +9,27 @@ import (
 func TestMockAgent(t *testing.T) {
 	agent := NewMockAgent()
 
-	prompt := "This is a test prompt that is long enough to be truncated"
+	// Test Initializer Heuristic
+	prompt := "You are the INITIALIZER AGENT."
 	response, err := agent.Send(context.Background(), prompt)
-
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
 	}
 
-	if !strings.Contains(response, "Mock agent response") {
-		t.Errorf("Response missing prefix, got: %s", response)
+	if !strings.Contains(response, "```bash") {
+		t.Errorf("Expected bash block for Initializer, got: %s", response)
+	}
+	if !strings.Contains(response, "feature_list.json") {
+		t.Errorf("Expected feature_list.json creation, got: %s", response)
 	}
 
-	if !strings.Contains(response, "I received your prompt") {
-		t.Errorf("Response missing body, got: %s", response)
+	// Test Default Fallback
+	prompt = "Hello world"
+	response, err = agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
 	}
-}
-
-func TestTruncateString(t *testing.T) {
-	s := "hello world"
-	if truncateString(s, 5) != "hello" {
-		t.Errorf("Expected 'hello', got '%s'", truncateString(s, 5))
-	}
-	if truncateString(s, 20) != "hello world" {
-		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
+	if !strings.Contains(response, "Mock mode") {
+		t.Errorf("Expected 'Mock mode' in fallback response, got: %s", response)
 	}
 }
