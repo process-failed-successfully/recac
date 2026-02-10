@@ -9,11 +9,11 @@ import (
 
 // WorkItem represents a unit of work to be processed, e.g., a Jira ticket.
 type WorkItem struct {
-	ID          string
-	Summary     string
-	Description string
-	RepoURL     string // Repo to clone
-	EnvVars     map[string]string
+	ID          string            `json:"id"`
+	Summary     string            `json:"summary"`
+	Description string            `json:"description"`
+	RepoURL     string            `json:"repo_url"` // Repo to clone
+	EnvVars     map[string]string `json:"env_vars"`
 }
 
 // Poller defines the interface for polling for work items.
