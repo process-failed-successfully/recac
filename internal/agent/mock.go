@@ -37,21 +37,29 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristic: Initializer (Import Features)
 	if strings.Contains(promptLower, "you are the initializer") || strings.Contains(promptLower, "initializer agent") {
 		return `
+` + "```bash" + `
 cat <<EOF > feature_list.json
 [{"id": "req-primes", "description": "Implement primes.py"}]
 EOF
 agent-bridge import feature_list.json
+` + "```" + `
 `, nil
 	}
 
 	// Heuristic: Technical Program Manager (Generate Tickets)
 	if strings.Contains(promptLower, "technical program manager") {
+		// JSON response usually doesn't need bash block if handled by a specific parser,
+		// but checking usage: 'jira' command parses JSON directly.
 		return `[{"id": "PRIMES", "key": "PRIMES", "title": "Implement Primes", "description": "Implement primes.py", "type": "Task"}]`, nil
 	}
 
 	// Heuristic: Project Manager (Sign Off)
 	if strings.Contains(promptLower, "project manager") {
-		return "agent-bridge signal PROJECT_SIGNED_OFF true", nil
+		return `
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
 	}
 
 	// Heuristic: Coding Agent (Primes Scenario)
@@ -59,6 +67,7 @@ agent-bridge import feature_list.json
 		if !m.hasCommitted {
 			m.hasCommitted = true
 			return `
+` + "```bash" + `
 cat << 'EOF' > primes.py
 import json
 
@@ -82,15 +91,24 @@ EOF
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Implement primes.py and generate primes.json"
+` + "```" + `
 `, nil
 		}
 		// If already committed, signal success to break loop
-		return "agent-bridge signal QA_PASSED true", nil
+		return `
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
 	}
 
 	// Heuristic: QA Agent
 	if strings.Contains(promptLower, "qa agent") {
-		return "agent-bridge signal QA_PASSED true", nil
+		return `
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
 	}
 
 	// Default response
