@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,11 +31,44 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// Heuristic: Check if this is a TPM/Jira request
+	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "Jira") {
+		return m.handleTPMRequest(prompt), nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
+}
+
+func (m *MockAgent) handleTPMRequest(prompt string) string {
+	// Return a valid JSON response for Jira ticket generation
+	return `
+[
+  {
+    "summary": "Implement basic feature",
+    "description": "As a user, I want a basic feature so that I can do something.",
+    "type": "Story",
+    "acceptance_criteria": [
+      "Criteria 1",
+      "Criteria 2"
+    ],
+    "story_points": 3
+  },
+  {
+    "summary": "Setup infrastructure",
+    "description": "Setup necessary infrastructure components.",
+    "type": "Task",
+    "acceptance_criteria": [
+      "Infra ready"
+    ],
+    "story_points": 5
+  }
+]
+`
 }
 
 // SendStream implements the Agent interface

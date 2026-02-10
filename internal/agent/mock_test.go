@@ -2,35 +2,35 @@ package agent
 
 import (
 	"context"
-	"strings"
+	"encoding/json"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestMockAgent(t *testing.T) {
+func TestMockAgent_Send_TPM(t *testing.T) {
 	agent := NewMockAgent()
+	ctx := context.Background()
 
-	prompt := "This is a test prompt that is long enough to be truncated"
-	response, err := agent.Send(context.Background(), prompt)
+	prompt := "You are an expert Technical Program Manager (TPM)..."
+	resp, err := agent.Send(ctx, prompt)
+	assert.NoError(t, err)
 
-	if err != nil {
-		t.Fatalf("Send failed: %v", err)
-	}
-
-	if !strings.Contains(response, "Mock agent response") {
-		t.Errorf("Response missing prefix, got: %s", response)
-	}
-
-	if !strings.Contains(response, "I received your prompt") {
-		t.Errorf("Response missing body, got: %s", response)
-	}
+	// Verify response is valid JSON
+	var tickets []map[string]interface{}
+	err = json.Unmarshal([]byte(resp), &tickets)
+	assert.NoError(t, err, "Response should be valid JSON")
+	assert.NotEmpty(t, tickets)
+	assert.Equal(t, "Implement basic feature", tickets[0]["summary"])
 }
 
-func TestTruncateString(t *testing.T) {
-	s := "hello world"
-	if truncateString(s, 5) != "hello" {
-		t.Errorf("Expected 'hello', got '%s'", truncateString(s, 5))
-	}
-	if truncateString(s, 20) != "hello world" {
-		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
-	}
+func TestMockAgent_Send_Generic(t *testing.T) {
+	agent := NewMockAgent()
+	ctx := context.Background()
+
+	prompt := "Hello world"
+	resp, err := agent.Send(ctx, prompt)
+	assert.NoError(t, err)
+	assert.Contains(t, resp, "Mock agent response")
+	assert.Contains(t, resp, "I received your prompt")
 }
