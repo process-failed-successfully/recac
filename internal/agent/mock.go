@@ -10,6 +10,7 @@ import (
 // It uses heuristics to return appropriate responses (shell commands) based on the prompt role.
 type MockAgent struct {
 	iterationCount int
+	response       string
 }
 
 // NewMockAgent creates a new mock agent
@@ -17,8 +18,18 @@ func NewMockAgent() *MockAgent {
 	return &MockAgent{}
 }
 
+// SetResponse sets a static response for the mock agent.
+// This overrides the heuristic behavior.
+func (m *MockAgent) SetResponse(response string) {
+	m.response = response
+}
+
 // Send implements the Agent interface
 func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
+	if m.response != "" {
+		return m.response, nil
+	}
+
 	m.iterationCount++
 	upperPrompt := strings.ToUpper(prompt)
 
