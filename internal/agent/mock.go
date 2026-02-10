@@ -32,8 +32,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	promptLower := strings.ToLower(prompt)
+
 	// Heuristic: Initializer (Import Features)
-	if strings.Contains(prompt, "You are the Initializer") || strings.Contains(prompt, "INITIALIZER AGENT") {
+	if strings.Contains(promptLower, "you are the initializer") || strings.Contains(promptLower, "initializer agent") {
 		return `
 ` + "```bash" + `
 cat <<EOF > feature_list.json
@@ -49,12 +51,12 @@ agent-bridge import feature_list.json
 	}
 
 	// Heuristic: Technical Program Manager (Generate Tickets)
-	if strings.Contains(prompt, "Technical Program Manager") {
+	if strings.Contains(promptLower, "technical program manager") {
 		return `[{"id": "PRIMES", "key": "PRIMES", "title": "Implement Primes", "description": "Implement primes.py", "type": "Task"}]`, nil
 	}
 
 	// Heuristic: Project Manager (Sign Off)
-	if strings.Contains(prompt, "PROJECT MANAGER") {
+	if strings.Contains(promptLower, "project manager") {
 		return `
 ` + "```bash" + `
 agent-bridge signal PROJECT_SIGNED_OFF true
@@ -63,7 +65,7 @@ agent-bridge signal PROJECT_SIGNED_OFF true
 	}
 
 	// Heuristic: Coding Agent (Primes Scenario)
-	if strings.Contains(prompt, "primes") || strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "Prime Number Script") {
+	if strings.Contains(promptLower, "primes") || strings.Contains(promptLower, "prime number script") {
 		if !m.hasCommitted {
 			m.hasCommitted = true
 			return `
@@ -103,7 +105,7 @@ agent-bridge signal QA_PASSED true
 	}
 
 	// Heuristic: QA Agent
-	if strings.Contains(prompt, "QA AGENT") {
+	if strings.Contains(promptLower, "qa agent") {
 		return `
 ` + "```bash" + `
 agent-bridge signal QA_PASSED true
