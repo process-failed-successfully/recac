@@ -49,7 +49,7 @@ agent-bridge import feature_list.json
 
 	// Heuristic: Project Manager (Sign Off)
 	if strings.Contains(prompt, "PROJECT MANAGER") {
-		return "```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
+		return "```bash\nagent-bridge signal --privileged PROJECT_SIGNED_OFF true\n```", nil
 	}
 
 	// Heuristic: Coding Agent (Primes Scenario)

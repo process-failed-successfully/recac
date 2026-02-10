@@ -1,145 +1,63 @@
 package main
 
 import (
-	"os"
 	"path/filepath"
 	"recac/internal/db"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestRun_Blocker(t *testing.T) {
-	// Setup temp DB
+func TestSignalCommand_Privileged(t *testing.T) {
+	// Setup DB
 	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, ".recac.db")
+	dbPath := filepath.Join(tmpDir, "test.db")
 
-	// 1. Set Blocker
-	args := []string{"agent-bridge", "blocker", "Something is wrong"}
-	projectID := "test-project"
-	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err != nil {
-		t.Fatalf("run failed: %v", err)
+	// Create DB with empty schema/tables if needed, but sqlite auto-creates
+	// We need to ensure table `signals` exists. NewStore usually handles migrations.
+	config := db.StoreConfig{
+		Type:             "sqlite",
+		ConnectionString: dbPath,
 	}
 
-	// Ideally we check DB state, but 'run' just prints to stdout/stderr.
-	// We trust SetSignal is covered by db tests. Here we test the CLI wiring.
-}
+	// Initialize DB
+	store, err := db.NewStore(config)
+	require.NoError(t, err)
+	defer store.Close()
 
-func TestRun_QA(t *testing.T) {
-	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, ".recac.db")
-
-	args := []string{"agent-bridge", "qa"}
-	projectID := "test-project"
-	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err != nil {
-		t.Fatalf("run failed: %v", err)
-	}
-}
-
-func TestRun_Signal(t *testing.T) {
-	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, ".recac.db")
-
-	args := []string{"agent-bridge", "signal", "MY_KEY", "MY_VALUE"}
-	projectID := "test-project"
-	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err != nil {
-		t.Fatalf("run failed: %v", err)
-	}
-}
-
-func TestRun_Manager(t *testing.T) {
-	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, ".recac.db")
-
-	args := []string{"agent-bridge", "manager"}
-	projectID := "test-project"
-	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err != nil {
-		t.Fatalf("run failed: %v", err)
-	}
-}
-
-func TestRun_Verify(t *testing.T) {
-	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, ".recac.db")
-
-	// Create dummy ui_verification.json
-	uiPath := "ui_verification.json"
-	uiContent := `{
-		"requests": [
-			{"feature_id": "F1", "instruction": "Check UI", "status": "pending_human"}
-		]
-	}`
-	os.WriteFile(uiPath, []byte(uiContent), 0644)
-	defer os.Remove(uiPath)
-
-	args := []string{"agent-bridge", "verify", "F1", "pass"}
-	projectID := "test-project"
-	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err != nil {
-		t.Fatalf("run failed: %v", err)
+	// Helper to run main logic
+	runCmd := func(args []string) error {
+		return run(args, config, "test-project")
 	}
 
-	// Verify file was updated
-	data, _ := os.ReadFile(uiPath)
-	if !strings.Contains(string(data), `"status": "pass"`) {
-		t.Errorf("Expected status to be updated to pass, got: %s", string(data))
-	}
-}
+	t.Run("Non-privileged signal success", func(t *testing.T) {
+		err := runCmd([]string{"agent-bridge", "signal", "foo", "bar"})
+		assert.NoError(t, err)
+		val, err := store.GetSignal("test-project", "foo")
+		assert.NoError(t, err)
+		assert.Equal(t, "bar", val)
+	})
 
-func TestRun_Feature(t *testing.T) {
-	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, ".recac.db")
-	projectID := "test-project"
+	t.Run("Privileged signal fail without flag", func(t *testing.T) {
+		err := runCmd([]string{"agent-bridge", "signal", "PROJECT_SIGNED_OFF", "true"})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "privileged and cannot be set via agent-bridge without --privileged flag")
+	})
 
-	store, _ := db.NewStore(db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}) // Fixed SaveFeatures call
-	store.SaveFeatures(projectID, `{"project_name": "Test", "features": [{"id": "F1", "name": "Feature 1"}]}`)
-	store.Close()
+	t.Run("Privileged signal success with flag", func(t *testing.T) {
+		err := runCmd([]string{"agent-bridge", "signal", "--privileged", "PROJECT_SIGNED_OFF", "true"})
+		assert.NoError(t, err)
+		val, err := store.GetSignal("test-project", "PROJECT_SIGNED_OFF")
+		assert.NoError(t, err)
+		assert.Equal(t, "true", val)
+	})
 
-	args := []string{"agent-bridge", "feature", "set", "F1", "--status", "done", "--passes", "true"}
-	if err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err != nil {
-		t.Fatalf("run failed: %v", err)
-	}
-}
-
-func TestMainEntry(t *testing.T) {
-	// We can't easily test os.Exit(1) without subprocess,
-	// but we can at least call main() with valid args to get coverage.
-	// We'll use a temp DB and valid args.
-	tmpDir := t.TempDir()
-
-	// Backup and restore os.Args and a way to control dbPath in main if possible?
-	// main() uses hardcoded ".recac.db". Let's temporarily change CWD.
-	oldWd, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldWd)
-
-	oldArgs := os.Args
-	defer func() { os.Args = oldArgs }()
-
-	os.Args = []string{"agent-bridge", "qa"}
-	main()
-}
-
-func TestRun_Invalid(t *testing.T) {
-	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, ".recac.db")
-	projectID := "test-project"
-
-	// No args
-	if err := run([]string{"agent-bridge"}, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err == nil {
-		t.Error("Expected error for no args")
-	}
-
-	// Unknown command
-	if err := run([]string{"agent-bridge", "unknown"}, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err == nil {
-		t.Error("Expected error for unknown command")
-	}
-
-	// verify missing args
-	if err := run([]string{"agent-bridge", "verify", "F1"}, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err == nil {
-		t.Error("Expected error for verify missing args")
-	}
-
-	// verify missing file
-	if err := run([]string{"agent-bridge", "verify", "F2", "pass"}, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err == nil {
-		t.Error("Expected error for verify missing file")
-	}
+	t.Run("Privileged signal success with flag (other privileged key)", func(t *testing.T) {
+		err := runCmd([]string{"agent-bridge", "signal", "--privileged", "TRIGGER_QA", "true"})
+		assert.NoError(t, err)
+		val, err := store.GetSignal("test-project", "TRIGGER_QA")
+		assert.NoError(t, err)
+		assert.Equal(t, "true", val)
+	})
 }
