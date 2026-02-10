@@ -727,6 +727,15 @@ func TestRemoveSession_Error(t *testing.T) {
 	require.NoError(t, err)
 	defer os.Chmod(sm.sessionsDir, 0700) // Restore for cleanup
 
+	// Verify environment enforces permissions
+	testFile := filepath.Join(sm.sessionsDir, "test_perm_check")
+	// Try to create a file (should fail if read-only)
+	if err := os.WriteFile(testFile, []byte("test"), 0644); err == nil {
+		// Cleanup the test file if it succeeded
+		os.Remove(testFile)
+		t.Skip("Environment does not enforce directory permissions (likely running as root)")
+	}
+
 	err = sm.RemoveSession(sessionName, false)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to remove session state file")

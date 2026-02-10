@@ -167,6 +167,7 @@ func TestRunGymSession(t *testing.T) {
 			Image:         image,
 			Project:       project,
 			MaxIterations: 1,
+			SpecFile:      "app_spec.txt",
 			Notifier:      notify.NewManager(telemetry.LogInfof),
 			Logger:        slog.Default(),
 		}
@@ -181,6 +182,7 @@ func TestRunGymSession(t *testing.T) {
 	}
 
 	// Expectations
+	mockAgent.On("Send", mock.Anything, mock.Anything).Return("COMPLETED", nil)
 	mockDocker.On("CheckDaemon", mock.Anything).Return(nil)
 	mockDocker.On("ImageExists", mock.Anything, mock.Anything).Return(true, nil)
 	mockDocker.On("RunContainer", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("mock-container-id", nil)
