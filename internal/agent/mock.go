@@ -81,7 +81,8 @@ agent-bridge import < feature_list.json
 	}
 
 	// 3. QA Agent
-	if strings.Contains(upperPrompt, "QA AGENT") {
+	// STRICT CHECK: Must include "ROLE -" to avoid matching instructions in Coding Agent prompt
+	if strings.Contains(upperPrompt, "ROLE - QA AGENT") {
 		return `QA verification passed.
 
 ` + "```bash" + `
@@ -91,7 +92,8 @@ agent-bridge signal --privileged QA_PASSED true
 	}
 
 	// 4. Project Manager
-	if strings.Contains(upperPrompt, "PROJECT MANAGER") {
+	// STRICT CHECK: Must include "ROLE -" to avoid matching instructions
+	if strings.Contains(upperPrompt, "ROLE - PROJECT MANAGER") {
 		return `Project signed off.
 
 ` + "```bash" + `

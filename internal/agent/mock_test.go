@@ -47,7 +47,7 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	}{
 		{
 			name:       "Initializer",
-			prompt:     "Your role is INITIALIZER AGENT. Please create FEATURE_LIST.JSON for the project involving [PRIMES].",
+			prompt:     "## YOUR ROLE - INITIALIZER AGENT\nPlease create FEATURE_LIST.JSON for the project involving [PRIMES].",
 			wantInResp: []string{"cat <<EOF > feature_list.json", "agent-bridge import < feature_list.json", "req-primes"},
 		},
 		{
@@ -57,18 +57,24 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		},
 		{
 			name:       "Coding Agent",
-			prompt:     "You are the CODING AGENT. Implement the task for [PRIMES]. Ensure primes.py is created.",
+			prompt:     "## YOUR ROLE - CODING AGENT\nImplement the task for [PRIMES]. Ensure primes.py is created.",
 			wantInResp: []string{"cat << 'EOF' > primes.py", "python3 primes.py", "git add primes.py", "agent-bridge feature set --id req-primes --status done"},
 		},
 		{
+			name:       "Coding Agent (Prompt instructions mention QA)",
+			prompt:     "## YOUR ROLE - CODING AGENT\nInstructions:\n1. Run `agent-bridge qa` (Triggers QA Agent). Implement [PRIMES].",
+			wantInResp: []string{"cat << 'EOF' > primes.py"}, // Should be coding
+			avoidInResp: []string{"QA verification passed"}, // Should NOT be QA
+		},
+		{
 			name:       "QA Agent",
-			prompt:     "You are the QA AGENT. Verify the implementation of [PRIMES].",
+			prompt:     "## YOUR ROLE - QA AGENT\nVerify the implementation of [PRIMES].",
 			wantInResp: []string{"agent-bridge signal --privileged QA_PASSED true"},
 			avoidInResp: []string{"cat << 'EOF' > primes.py"}, // Should NOT re-implement code!
 		},
 		{
 			name:       "Project Manager",
-			prompt:     "You are the PROJECT MANAGER. Review and sign off.",
+			prompt:     "## YOUR ROLE - PROJECT MANAGER\nReview and sign off.",
 			wantInResp: []string{"agent-bridge signal --privileged PROJECT_SIGNED_OFF true"},
 		},
 	}
