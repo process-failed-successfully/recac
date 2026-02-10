@@ -51,10 +51,14 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// If GITHUB_API_KEY is set and we have a repo URL, try to clone.
 		// Otherwise fallback to git init.
 		// NOTE: We use POSIX parameter expansion for broad compatibility (sh/bash/ash).
+		// FIX: Use git init + fetch to avoid "directory not empty" errors from git clone
 		gitSetup := `
 set -e # Fail fast
 # Ensure clean slate
 rm -rf .git
+
+echo "Initializing local repo..."
+git init
 
 if [ -n "$GITHUB_API_KEY" ] && [ -n "` + repoURL + `" ]; then
   # Inject token into URL
@@ -64,11 +68,15 @@ if [ -n "$GITHUB_API_KEY" ] && [ -n "` + repoURL + `" ]; then
   # Construct authenticated URL
   AUTH_URL="https://x-access-token:${GITHUB_API_KEY}@${CLEAN_URL}"
 
-  echo "Cloning from ${REPO_URL}..."
-  git clone "$AUTH_URL" .
+  echo "Configuring remote origin..."
+  git remote add origin "$AUTH_URL"
+  echo "Fetching from remote..."
+  git fetch origin
+  echo "Checking out main/master..."
+  # Try main, fallback to master, fallback to just initializing
+  git checkout -f main || git checkout -f master || echo "No main/master branch found, starting fresh."
 else
-  echo "Initializing local repo (no token or url found)..."
-  git init
+  echo "No remote URL or token found. Starting fresh."
 fi
 
 echo "Current Directory: $(pwd)"
@@ -93,13 +101,11 @@ cat << 'EOF' | agent-bridge import
       "id": "PRIMES",
       "category": "functional",
       "priority": "MVP",
-      "description": "Implement a python script 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'.",
-      "status": "pending",
+      "description": "Implement a python script 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'.",\n      "status": "pending",
       "passes": false,
       "steps": [
         "Create primes.py",
-        "Run python3 primes.py",
-        "Verify primes.json exists"
+        "Run python3 primes.py",\n        "Verify primes.json exists"
       ],
       "dependencies": {
         "exclusive_write_paths": ["primes.py", "primes.json"],
