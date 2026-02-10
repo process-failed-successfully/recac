@@ -53,7 +53,21 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 2. Initializer Agent (Setup)
 	if strings.Contains(prompt, "INITIALIZER AGENT") {
-		return "```bash\necho 'Initializing environment...'\n```", nil
+		return "```bash\necho 'Initializing environment...'\n" +
+			"cat <<EOF > feature_list.json\n" +
+			"{\n" +
+			"  \"project_name\": \"Mock Project\",\n" +
+			"  \"features\": [\n" +
+			"    {\n" +
+			"      \"id\": \"1\",\n" +
+			"      \"category\": \"Core\",\n" +
+			"      \"priority\": \"High\",\n" +
+			"      \"description\": \"Implement Prime Number Script (python)\",\n" +
+			"      \"status\": \"todo\",\n" +
+			"      \"passes\": false\n" +
+			"    }\n" +
+			"  ]\n" +
+			"}\nEOF\n```", nil
 	}
 
 	// 3. Coding Agent (Implementation)
@@ -79,6 +93,20 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			"git add primes.py primes.json\n" +
 			"git commit -m \"Add primes script and output\" || echo \"Nothing to commit\"\n" +
 			"git push\n" +
+			"cat <<EOF > feature_list.json\n" +
+			"{\n" +
+			"  \"project_name\": \"Mock Project\",\n" +
+			"  \"features\": [\n" +
+			"    {\n" +
+			"      \"id\": \"1\",\n" +
+			"      \"category\": \"Core\",\n" +
+			"      \"priority\": \"High\",\n" +
+			"      \"description\": \"Implement Prime Number Script (python)\",\n" +
+			"      \"status\": \"done\",\n" +
+			"      \"passes\": true\n" +
+			"    }\n" +
+			"  ]\n" +
+			"}\nEOF\n" +
 			"```", nil
 	}
 

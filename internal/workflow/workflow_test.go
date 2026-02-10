@@ -90,10 +90,11 @@ func TestProcessJiraTicket(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	cfg := SessionConfig{
-		ProjectPath: tmpDir,
-		SessionName: "test-run",
-		Cleanup:     true,
-		IsMock:      true,
+		ProjectPath:   tmpDir,
+		SessionName:   "test-run",
+		Cleanup:       true,
+		IsMock:        true,
+		MaxIterations: 10,
 	}
 
 	err := ProcessJiraTicket(context.Background(), "TEST-1", jClient, cfg, nil)
@@ -144,10 +145,11 @@ func TestProcessDirectTask(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	cfg := SessionConfig{
-		ProjectPath: tmpDir,
-		RepoURL:     "https://github.com/example/direct",
-		Summary:     "Do something",
-		IsMock:      true,
+		ProjectPath:   tmpDir,
+		RepoURL:       "https://github.com/example/direct",
+		Summary:       "Do something",
+		IsMock:        true,
+		MaxIterations: 10,
 	}
 
 	err := ProcessDirectTask(context.Background(), cfg)
@@ -211,10 +213,11 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	cfg := SessionConfig{
-		ProjectPath: tmpDir,
-		RepoURL:     "https://github.com/example/already-provided",
-		IsMock:      true,
-		Cleanup:     false,
+		ProjectPath:   tmpDir,
+		RepoURL:       "https://github.com/example/already-provided",
+		IsMock:        true,
+		Cleanup:       false,
+		MaxIterations: 10,
 	}
 
 	err := ProcessJiraTicket(context.Background(), "TEST-1", jClient, cfg, nil)
