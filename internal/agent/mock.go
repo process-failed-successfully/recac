@@ -41,7 +41,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristics for CI Smoke Tests
 	// 1. TPM Agent (Jira Ticket Generation)
 	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "generate a JSON list of Jira tickets") {
-		return `[
+		return "```json\n" + `[
   {
     "title": "ID:[PRIMES] Implement Prime Number Script",
     "description": "Create a Python script that calculates prime numbers.",
@@ -54,7 +54,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     "type": "Task",
     "labels": ["recac-agent"]
   }
-]`, nil
+]` + "\n```", nil
 	}
 
 	// 2. Initializer Agent (Setup)
@@ -96,6 +96,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 		// First call: Do the work
 		return "```bash\n" +
+			"# Setup Git\n" +
+			"git fetch origin\n" +
+			"git checkout -B agent/PRIMES-mock || git checkout -b agent/PRIMES-mock\n\n" +
 			"cat <<EOF > primes.py\n" +
 			"import json\n\n" +
 			"def is_prime(n):\n" +
@@ -115,7 +118,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			"git config --global user.name \"Recac Agent\"\n" +
 			"git add primes.py primes.json\n" +
 			"git commit -m \"Add primes script and output\" || echo \"Nothing to commit\"\n" +
-			"git push\n" +
+			"git push -u origin agent/PRIMES-mock\n" +
 			"```", nil
 	}
 
@@ -131,6 +134,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 5. Project Manager
 	if strings.Contains(prompt, "PROJECT MANAGER") || strings.Contains(prompt, "Project Manager") {
+		// Manager selects task if pending
+		if (strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "req-primes")) && strings.Contains(prompt, "pending") {
+			return "```bash\nagent-bridge feature set --id PRIMES --status in_progress\n```", nil
+		}
 		return "APPROVED\nEverything looks good.", nil
 	}
 

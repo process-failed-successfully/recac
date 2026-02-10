@@ -16,8 +16,8 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		{
 			name:           "TPM Agent",
 			prompt:         "You are an expert Technical Program Manager... please generate a JSON list of Jira tickets",
-			expectContains: `"title": "ID:[PRIMES] Implement Prime Number Script"`,
-			expectJSON:     true,
+			expectContains: "```json",
+			expectJSON:     false,
 		},
 		{
 			name:           "Initializer Agent",
@@ -34,7 +34,13 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		{
 			name:           "Coding Agent Git Push",
 			prompt:         "## YOUR ROLE - CODING AGENT [PRIMES]",
-			expectContains: "git push",
+			expectContains: "git push -u origin agent/PRIMES-mock",
+			expectJSON:     false,
+		},
+		{
+			name:           "Manager Select Task",
+			prompt:         "## YOUR ROLE - PROJECT MANAGER. Feature [PRIMES] is pending.",
+			expectContains: "agent-bridge feature set --id PRIMES --status in_progress",
 			expectJSON:     false,
 		},
 		{
