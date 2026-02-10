@@ -165,6 +165,7 @@ func TestRunGymSession(t *testing.T) {
 			Agent:         a,
 			Workspace:     workspace,
 			Image:         image,
+			SpecFile:      "app_spec.txt",
 			Project:       project,
 			MaxIterations: 1,
 			Notifier:      notify.NewManager(telemetry.LogInfof),
@@ -174,10 +175,11 @@ func TestRunGymSession(t *testing.T) {
 
 	// Challenge data
 	challenge := GymChallenge{
-		Name:     "Test",
-		Language: "python",
-		TestFile: "test.py",
-		Tests:    "print('hello')",
+		Name:        "Test",
+		Description: "A simple test challenge",
+		Language:    "python",
+		TestFile:    "test.py",
+		Tests:       "print('hello')",
 	}
 
 	// Expectations
