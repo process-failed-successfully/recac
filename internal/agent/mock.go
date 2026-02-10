@@ -65,7 +65,11 @@ if [ -n "$GITHUB_API_KEY" ] && [ -n "` + repoURL + `" ]; then
   AUTH_URL="https://x-access-token:${GITHUB_API_KEY}@${CLEAN_URL}"
 
   echo "Cloning from ${REPO_URL}..."
-  git clone "$AUTH_URL" .
+  # Use temp dir workaround to handle non-empty workspace (e.g. app_spec.txt)
+  git clone "$AUTH_URL" temp_clone_dir
+  mv temp_clone_dir/.git .
+  rm -rf temp_clone_dir
+  git reset --hard HEAD
 else
   echo "Initializing local repo (no token or url found)..."
   git init
@@ -132,7 +136,7 @@ agent-bridge import --file /app/ticket_plan.json
   {
     "id": "PRIMES",
     "type": "Task",
-    "title": "Implement prime number script",
+    "title": "ID:[PRIMES] Implement prime number script",
     "description": "Implement a python script 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'."
   }
 ]
@@ -171,12 +175,18 @@ with open('primes.json', 'w') as f:
 EOF
 
 # Create or reset a branch for the feature (force if exists)
-git checkout -B agent/PRIMES-mock
+# Use project ID from env if available to match E2E expectations
+BRANCH_NAME="agent/PRIMES-mock"
+if [ -n "$RECAC_PROJECT_ID" ]; then
+  BRANCH_NAME="agent/$RECAC_PROJECT_ID"
+fi
+
+git checkout -B "$BRANCH_NAME"
 
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
-git push --force origin agent/PRIMES-mock || echo "Push failed, continuing local only"
+git push --force origin "$BRANCH_NAME" || echo "Push failed, continuing local only"
 agent-bridge feature set PRIMES --status done --passes true
 ` + "```" + `
 `, nil

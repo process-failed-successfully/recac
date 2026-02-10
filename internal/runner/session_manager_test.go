@@ -639,6 +639,33 @@ func TestRenameSession(t *testing.T) {
 		assert.Equal(t, filepath.Join(sm.sessionsDir, newName+".log"), renamedSession.LogFile)
 	})
 
+	t.Run("rollback when log rename fails", func(t *testing.T) {
+		sm, cleanup := setupSessionManager(t)
+		defer cleanup()
+
+		oldName := "rollback-test"
+		newName := "new-name-fail"
+
+		// Create session but NO log file (or delete it)
+		session := &SessionState{Name: oldName, Status: "completed", LogFile: filepath.Join(sm.sessionsDir, oldName+".log")}
+		err := sm.SaveSession(session)
+		require.NoError(t, err)
+
+		// Ensure log file is missing to trigger error during rename
+		os.Remove(session.LogFile)
+
+		err = sm.RenameSession(oldName, newName)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to rename session log file")
+
+		// Verify rollback: JSON should be at oldName
+		_, err = os.Stat(sm.GetSessionPath(oldName))
+		assert.NoError(t, err, "Session file should be restored")
+
+		_, err = os.Stat(sm.GetSessionPath(newName))
+		assert.True(t, os.IsNotExist(err), "New session file should not exist")
+	})
+
 	t.Run("fails to rename a running session", func(t *testing.T) {
 		sm, cleanup := setupSessionManager(t)
 		defer cleanup()
@@ -678,6 +705,35 @@ func TestRenameSession(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "session 'non-existent' not found")
 	})
+}
+
+func TestRemoveSession_Error(t *testing.T) {
+	// Skip on Windows as permission handling is different
+	if os.PathSeparator == '\\' {
+		t.Skip("Skipping permission test on Windows")
+	}
+	// Skip if running as root
+	if isRoot() {
+		t.Skip("Skipping permission test when running as root")
+	}
+
+	sm, cleanup := setupSessionManager(t)
+	defer cleanup()
+
+	sessionName := "protected-session"
+	session := &SessionState{Name: sessionName, Status: "completed", LogFile: filepath.Join(sm.sessionsDir, sessionName+".log")}
+	err := sm.SaveSession(session)
+	require.NoError(t, err)
+
+	// Make directory read-only to prevent deletion of files inside
+	// Note: Removing a file requires write permission on the PARENT directory.
+	err = os.Chmod(sm.sessionsDir, 0500) // Read-execute only
+	require.NoError(t, err)
+	defer os.Chmod(sm.sessionsDir, 0700) // Restore for cleanup
+
+	err = sm.RemoveSession(sessionName, false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to remove session state file")
 }
 
 func TestGetSessionGitDiffStat(t *testing.T) {
