@@ -16,6 +16,36 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// ThreadSafeBuffer is a bytes.Buffer wrapper that is safe for concurrent use.
+type ThreadSafeBuffer struct {
+	b bytes.Buffer
+	m sync.Mutex
+}
+
+func (b *ThreadSafeBuffer) Read(p []byte) (n int, err error) {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.b.Read(p)
+}
+
+func (b *ThreadSafeBuffer) Write(p []byte) (n int, err error) {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.b.Write(p)
+}
+
+func (b *ThreadSafeBuffer) String() string {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.b.String()
+}
+
+func (b *ThreadSafeBuffer) Reset() {
+	b.m.Lock()
+	defer b.m.Unlock()
+	b.b.Reset()
+}
+
 // gymTestMutex synchronizes tests that modify global gym factory variables.
 var gymTestMutex sync.Mutex
 
@@ -270,7 +300,7 @@ func (m *MockSessionManager) ListArchivedSessions() ([]*runner.SessionState, err
 // executeCommand executes a cobra command and returns its output.
 func executeCommand(root *cobra.Command, args ...string) (output string, err error) {
 	resetFlags(root)
-	b := new(bytes.Buffer)
+	b := new(ThreadSafeBuffer)
 
 	// Mock exit
 	oldExit := exit
