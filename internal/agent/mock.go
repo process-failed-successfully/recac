@@ -96,7 +96,7 @@ agent-bridge signal --privileged PROJECT_SIGNED_OFF true
 	}
 
 	// Coding Agent - Implementation
-	if strings.Contains(upperPrompt, "PRIME NUMBERS") || strings.Contains(upperPrompt, "IMPLEMENT PRIMES") {
+	if strings.Contains(upperPrompt, "PRIME NUMBERS") || strings.Contains(upperPrompt, "IMPLEMENT PRIMES") || strings.Contains(upperPrompt, "PRIME-NUMBERS") || strings.Contains(upperPrompt, "PRINT PRIMES") {
 		// Return a bash command to create the file, so the agent actually performs an action
 		// and avoids tripping the NO-OP loop circuit breaker.
 		return `I will create the python script.

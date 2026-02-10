@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"recac/internal/agent"
@@ -210,11 +211,26 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 	tmpDir, _ := os.MkdirTemp("", "workflow-jira-repo-test")
 	defer os.RemoveAll(tmpDir)
 
+	// Ensure runner and agent-bridge share the same DB
+	dbPath := fmt.Sprintf("%s/.recac.db", tmpDir)
+	t.Setenv("RECAC_DB_URL", dbPath)
+	t.Setenv("RECAC_DB_TYPE", "sqlite")
+
+	// Ensure agent-bridge is in PATH (assuming built in root)
+	cwd, _ := os.Getwd()
+	// Tests run in internal/workflow, so root is ../../
+	// But in CI/go test, we might rely on pre-built binary location.
+	// For local reproduction, we assume binary is in /app (workspace root).
+	// We'll try to find where we are.
+	projectRoot := filepath.Dir(filepath.Dir(cwd)) // Adjust based on package depth
+	t.Setenv("PATH", os.Getenv("PATH")+":"+projectRoot+":"+cwd)
+
 	cfg := SessionConfig{
-		ProjectPath: tmpDir,
-		RepoURL:     "https://github.com/example/already-provided",
-		IsMock:      true,
-		Cleanup:     false,
+		ProjectPath:   tmpDir,
+		RepoURL:       "https://github.com/example/already-provided",
+		IsMock:        true,
+		Cleanup:       false,
+		MaxIterations: 1,
 	}
 
 	err := ProcessJiraTicket(context.Background(), "TEST-1", jClient, cfg, nil)
