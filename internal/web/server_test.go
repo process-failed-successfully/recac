@@ -102,10 +102,9 @@ func TestNewServer(t *testing.T) {
 }
 
 func TestHandleFeatures(t *testing.T) {
-	store := new(TestifyMockStore)
-	server := NewServer(store, 8080, "test-project")
-
 	t.Run("success", func(t *testing.T) {
+		store := new(TestifyMockStore)
+		server := NewServer(store, 8080, "test-project")
 		featureList := db.FeatureList{
 			ProjectName: "test-project",
 			Features: []db.Feature{
@@ -131,6 +130,8 @@ func TestHandleFeatures(t *testing.T) {
 	})
 
 	t.Run("fallback to default", func(t *testing.T) {
+		store := new(TestifyMockStore)
+		server := NewServer(store, 8080, "test-project")
 		store.On("GetFeatures", "test-project").Return("", nil).Once()
 
 		featureList := db.FeatureList{
@@ -158,6 +159,8 @@ func TestHandleFeatures(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		store := new(TestifyMockStore)
+		server := NewServer(store, 8080, "test-project")
 		store.On("GetFeatures", "test-project").Return("", errors.New("not found")).Once()
 		store.On("GetFeatures", "default").Return("", errors.New("not found")).Once()
 
@@ -174,6 +177,8 @@ func TestHandleFeatures(t *testing.T) {
 	})
 
 	t.Run("invalid json", func(t *testing.T) {
+		store := new(TestifyMockStore)
+		server := NewServer(store, 8080, "test-project")
 		store.On("GetFeatures", "test-project").Return("invalid-json", nil).Once()
 
 		req := httptest.NewRequest("GET", "/api/features", nil)
@@ -187,10 +192,9 @@ func TestHandleFeatures(t *testing.T) {
 }
 
 func TestHandleGraph(t *testing.T) {
-	store := new(TestifyMockStore)
-	server := NewServer(store, 8080, "test-project")
-
 	t.Run("success", func(t *testing.T) {
+		store := new(TestifyMockStore)
+		server := NewServer(store, 8080, "test-project")
 		featureList := db.FeatureList{
 			ProjectName: "test-project",
 			Features: []db.Feature{
@@ -220,6 +224,8 @@ func TestHandleGraph(t *testing.T) {
 	})
 
 	t.Run("no data", func(t *testing.T) {
+		store := new(TestifyMockStore)
+		server := NewServer(store, 8080, "test-project")
 		store.On("GetFeatures", "test-project").Return("", nil).Once()
 		store.On("GetFeatures", "default").Return("", nil).Once()
 
@@ -234,6 +240,8 @@ func TestHandleGraph(t *testing.T) {
 	})
 
 	t.Run("invalid data", func(t *testing.T) {
+		store := new(TestifyMockStore)
+		server := NewServer(store, 8080, "test-project")
 		store.On("GetFeatures", "test-project").Return("invalid", nil).Once()
 
 		req := httptest.NewRequest("GET", "/api/graph", nil)
