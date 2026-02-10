@@ -41,7 +41,7 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	ctx := context.Background()
 
 	// 1. Initializer
-	resp, err := agent.Send(ctx, "You are the Initializer")
+	resp, err := agent.Send(ctx, "## YOUR ROLE - INITIALIZER AGENT")
 	if err != nil {
 		t.Fatalf("Initializer failed: %v", err)
 	}
