@@ -167,6 +167,7 @@ func TestRunGymSession(t *testing.T) {
 			Image:         image,
 			Project:       project,
 			MaxIterations: 1,
+			SpecFile:      "app_spec.txt", // Essential for RunLoop
 			Notifier:      notify.NewManager(telemetry.LogInfof),
 			Logger:        slog.Default(),
 		}
@@ -184,7 +185,7 @@ func TestRunGymSession(t *testing.T) {
 	// Expectations
 	mockDocker.On("CheckDaemon", mock.Anything).Return(nil)
 	// Agent expectations: RunLoop will call SelectPrompt -> Send
-	mockAgent.On("Send", mock.Anything, mock.Anything).Return("Completed the task", nil).Maybe()
+	mockAgent.On("Send", mock.Anything, mock.Anything).Return("Completed the task", nil)
 	mockDocker.On("ImageExists", mock.Anything, mock.Anything).Return(true, nil)
 	mockDocker.On("RunContainer", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("mock-container-id", nil)
 	mockDocker.On("StopContainer", mock.Anything, "mock-container-id").Return(nil)
