@@ -54,7 +54,9 @@ func TestRunTest_ExplicitArgs(t *testing.T) {
 	// Assert
 	assert.NoError(t, err)
 	assert.Contains(t, output, "Running tests for 1 packages")
-	assert.Contains(t, output, "ok")
+	if !assert.Contains(t, output, "All tests passed") && !assert.Contains(t, output, "✅") {
+		assert.Contains(t, output, "ok")
+	}
 }
 
 func TestRunTest_Impacted(t *testing.T) {
@@ -98,7 +100,11 @@ func TestRunTest_Impacted(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, output, "Analyzing impact")
 	assert.Contains(t, output, "Running tests for 1 packages")
-	assert.Contains(t, output, "PASS")
+	// The output format was updated to be more user-friendly
+	if !assert.Contains(t, output, "✅ All tests passed") {
+		// Fallback for older output format if still present in some paths
+		assert.Contains(t, output, "PASS")
+	}
 }
 
 func TestRunTest_DiagnoseFailure(t *testing.T) {
