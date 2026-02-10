@@ -25,6 +25,9 @@ func (m *MockAgentForOptimize) SendStream(ctx context.Context, prompt string, on
 }
 
 func TestOptimizePromptsCmd(t *testing.T) {
+	gymTestMutex.Lock()
+	defer gymTestMutex.Unlock()
+
 	// 1. Setup Environment
 	tmpDir := t.TempDir()
 

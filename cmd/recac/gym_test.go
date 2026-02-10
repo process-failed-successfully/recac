@@ -67,6 +67,9 @@ func (m *GymTestMockAgent) SendStream(ctx context.Context, prompt string, onChun
 }
 
 func TestRunGymSession(t *testing.T) {
+	gymTestMutex.Lock()
+	defer gymTestMutex.Unlock()
+
 	// Setup Mocks
 	mockDocker := &GymTestMockDockerClient{
 		execOutput: "PASSED",
