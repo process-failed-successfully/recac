@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -16,35 +15,31 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// runTaskCommand is a helper to run the task command in isolation
+// runTaskCommand executes the task command via the root command to ensure correct routing and flag parsing.
 func runTaskCommand(t *testing.T, args ...string) (string, error) {
 	t.Helper()
 	t.Logf("Running task command with args: %v", args)
 
-	// Create a fresh root command or just use the taskCmd?
-	// taskCmd is a global variable. We need to be careful.
-	// But resetting flags should be enough.
+	// Reset flags on all commands to ensure clean state
+	resetTaskFlags(rootCmd)
 
-	// Reset flags on taskCmd and subcommands
-	resetTaskFlags(taskCmd)
-
-	// Set args
-	taskCmd.SetArgs(args)
+	// Construct full args list: "task" + args
+	fullArgs := append([]string{"task"}, args...)
+	rootCmd.SetArgs(fullArgs)
 
 	// Capture output
 	outBuf := new(bytes.Buffer)
 	errBuf := new(bytes.Buffer)
-	taskCmd.SetOut(outBuf)
-	taskCmd.SetErr(errBuf)
+	rootCmd.SetOut(outBuf)
+	rootCmd.SetErr(errBuf)
 
-	// Context
-	ctx := context.Background()
-	taskCmd.SetContext(ctx)
+	// Execute via root to allow Cobra to route to subcommands (task -> add/list)
+	err := rootCmd.Execute()
 
-	// Execute
-	t.Log("Executing taskCmd...")
-	err := taskCmd.Execute()
-	t.Log("Execution finished")
+	// If there's output on stderr, log it for debugging
+	if errBuf.Len() > 0 {
+		t.Logf("Stderr: %s", errBuf.String())
+	}
 
 	return outBuf.String(), err
 }
