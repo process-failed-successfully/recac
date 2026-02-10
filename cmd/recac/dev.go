@@ -88,11 +88,17 @@ func runDev(cmd *cobra.Command, args []string) error {
 	// Initial run
 	go func() { trigger <- struct{}{} }()
 
+	ctx := cmd.Context()
+	var wg sync.WaitGroup
+
 	// Event Loop
-	done := make(chan bool)
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		for {
 			select {
+			case <-ctx.Done():
+				return
 			case event, ok := <-watcher.Events:
 				if !ok {
 					return
@@ -130,13 +136,21 @@ func runDev(cmd *cobra.Command, args []string) error {
 	}()
 
 	// Execution Loop
+	wg.Add(1)
 	go func() {
-		for range trigger {
-			executeDevCommand(runCommand)
+		defer wg.Done()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-trigger:
+				executeDevCommand(runCommand)
+			}
 		}
 	}()
 
-	<-done
+	<-ctx.Done()
+	wg.Wait()
 	return nil
 }
 
