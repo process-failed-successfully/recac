@@ -68,7 +68,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(prompt, "CODING AGENT") || strings.Contains(prompt, "DEVELOPER") || strings.Contains(prompt, "[PRIMES]") {
 		// Heuristic: If prompt asks for prime numbers (detected via [PRIMES] or feature ID), return Python code.
 		if strings.Contains(prompt, "prime") || strings.Contains(prompt, "python") {
-			return "I will implement the prime number generator.\n\n```bash\n# Configure git\ngit config user.email \"agent@recac.com\"\ngit config user.name \"Recac Agent\"\n```\n\n```python\n# primes.py\nimport json\n\ndef is_prime(n):\n    if n <= 1: return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0: return False\n    return True\n\nprimes = [x for x in range(10000) if is_prime(x)]\nprint(json.dumps({\"primes\": primes}))\n```\n\n```bash\ngit add primes.py\ngit commit -m \"Implement prime number generator\" || echo \"Nothing to commit\"\ngit push\n```\n", nil
+			// Explicitly create the file using echo to ensure it exists for git add, as implicit code block saving might vary in tests
+			// Also mark the feature as done to satisfy guardrails
+			return "I will implement the prime number generator.\n\n```bash\n# Configure git\ngit config user.email \"agent@recac.com\"\ngit config user.name \"Recac Agent\"\n```\n\n```bash\n# Create file\necho 'import json\n\ndef is_prime(n):\n    if n <= 1: return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0: return False\n    return True\n\nprimes = [x for x in range(10000) if is_prime(x)]\nprint(json.dumps({\"primes\": primes}))' > primes.py\n```\n\n```bash\ngit add primes.py\ngit commit -m \"Implement prime number generator\" || echo \"Nothing to commit\"\ngit push\n```\n\n```bash\nagent-bridge feature set 1 --status done --passes true\n```\n", nil
 		}
 	}
 
