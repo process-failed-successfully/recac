@@ -34,6 +34,12 @@ func TestMockAgent_Heuristics(t *testing.T) {
 			expectJSON:     false,
 		},
 		{
+			name:           "Coding Agent Git Push",
+			prompt:         "## YOUR ROLE - CODING AGENT [PRIMES]",
+			expectContains: "git push",
+			expectJSON:     false,
+		},
+		{
 			name:           "QA Agent",
 			prompt:         "## YOUR ROLE - QA AGENT",
 			expectContains: "agent-bridge signal --privileged QA_PASSED true",

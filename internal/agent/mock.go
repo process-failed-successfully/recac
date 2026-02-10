@@ -72,7 +72,13 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			"    json.dump({\"primes\": primes}, f)\n" +
 			"EOF\n\n" +
 			"# Run the script\n" +
-			"python3 primes.py\n" +
+			"python3 primes.py\n\n" +
+			"# Commit results\n" +
+			"git config --global user.email \"agent@recac.ai\"\n" +
+			"git config --global user.name \"Recac Agent\"\n" +
+			"git add primes.py primes.json\n" +
+			"git commit -m \"Add primes script and output\" || echo \"Nothing to commit\"\n" +
+			"git push\n" +
 			"```", nil
 	}
 
