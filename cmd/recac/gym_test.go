@@ -2,83 +2,153 @@ package main
 
 import (
 	"context"
-	"testing"
-
+	"errors"
+	"os"
+	"path/filepath"
+	"log/slog"
 	"recac/internal/agent"
 	"recac/internal/docker"
+	"recac/internal/notify"
 	"recac/internal/runner"
+	"recac/internal/telemetry"
+	"testing"
+	"time"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
-// GymTestMockDockerClient implements runner.DockerClient
-type GymTestMockDockerClient struct {
-	execOutput string
-	execErr    error
+// Mock objects
+type GymMockDockerClient struct {
+	mock.Mock
 }
 
-func (m *GymTestMockDockerClient) CheckDaemon(ctx context.Context) error {
+func (m *GymMockDockerClient) CheckDaemon(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}
+
+func (m *GymMockDockerClient) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, user string) (string, error) {
+	args := m.Called(ctx, imageRef, workspace, extraBinds, env, user)
+	return args.String(0), args.Error(1)
+}
+
+func (m *GymMockDockerClient) StopContainer(ctx context.Context, containerID string) error {
+	args := m.Called(ctx, containerID)
+	return args.Error(0)
+}
+
+func (m *GymMockDockerClient) Exec(ctx context.Context, containerID string, cmd []string) (string, error) {
+	args := m.Called(ctx, containerID, cmd)
+	return args.String(0), args.Error(1)
+}
+
+func (m *GymMockDockerClient) ExecAsUser(ctx context.Context, containerID string, user string, cmd []string) (string, error) {
+	args := m.Called(ctx, containerID, user, cmd)
+	return args.String(0), args.Error(1)
+}
+
+func (m *GymMockDockerClient) ImageExists(ctx context.Context, tag string) (bool, error) {
+	args := m.Called(ctx, tag)
+	return args.Bool(0), args.Error(1)
+}
+
+func (m *GymMockDockerClient) ImageBuild(ctx context.Context, opts docker.ImageBuildOptions) (string, error) {
+	args := m.Called(ctx, opts)
+	return args.String(0), args.Error(1)
+}
+
+func (m *GymMockDockerClient) PullImage(ctx context.Context, imageRef string) error {
+	args := m.Called(ctx, imageRef)
+	return args.Error(0)
+}
+
+func (m *GymMockDockerClient) Close() error {
 	return nil
 }
 
-func (m *GymTestMockDockerClient) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, user string) (string, error) {
-	return "mock-container-id", nil
+type GymMockAgent struct {
+	mock.Mock
 }
 
-func (m *GymTestMockDockerClient) StopContainer(ctx context.Context, containerID string) error {
-	return nil
+func (m *GymMockAgent) Send(ctx context.Context, prompt string) (string, error) {
+	args := m.Called(ctx, prompt)
+	return args.String(0), args.Error(1)
 }
 
-func (m *GymTestMockDockerClient) Exec(ctx context.Context, containerID string, cmd []string) (string, error) {
-	return m.execOutput, m.execErr
+func (m *GymMockAgent) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+	args := m.Called(ctx, prompt, onChunk)
+	return args.String(0), args.Error(1)
 }
 
-func (m *GymTestMockDockerClient) ExecAsUser(ctx context.Context, containerID string, user string, cmd []string) (string, error) {
-	return m.execOutput, m.execErr
+func TestLoadChallenges(t *testing.T) {
+	// Create a temp file
+	tmpDir := t.TempDir()
+	yamlContent := `
+- name: Test Challenge
+  description: Test Description
+  language: python
+  tests: |
+    def test_foo(): assert True
+  test_file: test_foo.py
+  timeout: 10
+`
+	yamlPath := filepath.Join(tmpDir, "challenges.yaml")
+	err := os.WriteFile(yamlPath, []byte(yamlContent), 0644)
+	assert.NoError(t, err)
+
+	challenges, err := loadChallenges(yamlPath)
+	assert.NoError(t, err)
+	assert.Len(t, challenges, 1)
+	assert.Equal(t, "Test Challenge", challenges[0].Name)
+	assert.Equal(t, "Test Description", challenges[0].Description)
 }
 
-func (m *GymTestMockDockerClient) ImageExists(ctx context.Context, tag string) (bool, error) {
-	return true, nil
-}
+func TestRunGym(t *testing.T) {
+	gymTestMutex.Lock()
+	defer gymTestMutex.Unlock()
 
-func (m *GymTestMockDockerClient) ImageBuild(ctx context.Context, opts docker.ImageBuildOptions) (string, error) {
-	return "mock-image-id", nil
-}
+	// Mock runGymSessionFunc
+	originalRunGymSessionFunc := runGymSessionFunc
+	defer func() { runGymSessionFunc = originalRunGymSessionFunc }()
 
-func (m *GymTestMockDockerClient) PullImage(ctx context.Context, imageRef string) error {
-	return nil
-}
+	runGymSessionFunc = func(ctx context.Context, challenge GymChallenge) (*GymResult, error) {
+		if challenge.Name == "Fail Challenge" {
+			return nil, errors.New("simulated error")
+		}
+		return &GymResult{
+			Challenge: challenge.Name,
+			Passed:    true,
+			Output:    "Success",
+			Duration:  time.Second,
+			Cost:      0.01,
+		}, nil
+	}
 
-func (m *GymTestMockDockerClient) Close() error {
-	return nil
-}
+	// Create a temp challenges file
+	tmpDir := t.TempDir()
+	yamlContent := `
+- name: Success Challenge
+  description: desc
+- name: Fail Challenge
+  description: desc
+`
+	yamlPath := filepath.Join(tmpDir, "challenges.yaml")
+	err := os.WriteFile(yamlPath, []byte(yamlContent), 0644)
+	assert.NoError(t, err)
 
-// GymTestMockAgent implements agent.Agent
-type GymTestMockAgent struct {
-	response string
-}
-
-func (m *GymTestMockAgent) Send(ctx context.Context, prompt string) (string, error) {
-	return m.response, nil
-}
-
-func (m *GymTestMockAgent) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
-	return m.response, nil
+	cmd := &cobra.Command{}
+	// We verify output by checking no error return. Reporting logic prints to stdout.
+	err = runGym(cmd, []string{yamlPath})
+	assert.NoError(t, err)
 }
 
 func TestRunGymSession(t *testing.T) {
 	gymTestMutex.Lock()
 	defer gymTestMutex.Unlock()
 
-	// Setup Mocks
-	mockDocker := &GymTestMockDockerClient{
-		execOutput: "PASSED",
-	}
-	mockAgent := &GymTestMockAgent{
-		response: "I have completed the task.\nCOMPLETED",
-	}
-
-	// Override Factories
+	// Mock factories
 	originalDockerFactory := gymDockerClientFactory
 	originalAgentFactory := gymAgentFactory
 	originalSessionFactory := gymSessionFactory
@@ -88,36 +158,61 @@ func TestRunGymSession(t *testing.T) {
 		gymSessionFactory = originalSessionFactory
 	}()
 
+	mockDocker := new(GymMockDockerClient)
 	gymDockerClientFactory = func(project string) (runner.DockerClient, error) {
 		return mockDocker, nil
 	}
 
-	gymAgentFactory = func(provider, apiKey, model, workDir, project string) (agent.Agent, error) {
+	mockAgent := new(GymMockAgent)
+	gymAgentFactory = func(provider, apiKey, model, workspace, projectID string) (agent.Agent, error) {
 		return mockAgent, nil
 	}
 
-	// Override NewSession to avoid real Session logic if needed,
-	// but we want to test the flow.
-	// Since we mock Docker and Agent, Session should be mostly side-effect free (DB is local/sqlite).
-	// However, Session does DB init which might fail or be slow.
-	// And it does `os.Mkdir` for logs.
-	// For now, let's try with real Session but mocked components.
-
-	challenge := GymChallenge{
-		Name:        "Test Challenge",
-		Description: "Do something",
-		Language:    "python",
-		TestFile:    "test.py",
-		Tests:       "print('PASSED')",
-		Timeout:     5,
+	// Mock Session creation to return a safe session without side effects (DB, etc)
+	gymSessionFactory = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
+		return &runner.Session{
+			Docker:        d,
+			Agent:         a,
+			Workspace:     workspace,
+			Image:         image,
+			Project:       project,
+			MaxIterations: 1,
+			Notifier:      notify.NewManager(telemetry.LogInfof),
+			Logger:        slog.Default(),
+		}
 	}
 
-	// Run
-	result, err := runGymSession(context.Background(), challenge)
+	// Challenge data
+	challenge := GymChallenge{
+		Name:     "Test",
+		Language: "python",
+		TestFile: "test.py",
+		Tests:    "print('hello')",
+	}
 
-	// Verify
+	// Expectations
+	mockDocker.On("CheckDaemon", mock.Anything).Return(nil)
+	mockDocker.On("ImageExists", mock.Anything, mock.Anything).Return(true, nil)
+	mockDocker.On("RunContainer", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("mock-container-id", nil)
+	mockDocker.On("StopContainer", mock.Anything, "mock-container-id").Return(nil)
+
+	// Helper to match verification command
+	isVerificationCmd := func(cmd []string) bool {
+		return len(cmd) > 0 && cmd[0] == "python3" && cmd[1] == "test.py"
+	}
+
+	// Verification call
+	mockDocker.On("Exec", mock.Anything, "mock-container-id", mock.MatchedBy(isVerificationCmd)).Return("OK", nil)
+
+	// Other Exec calls (setup)
+	mockDocker.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return("", nil).Maybe()
+	mockDocker.On("ExecAsUser", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil).Maybe()
+
+	// Run
+	ctx := context.Background()
+	res, err := runGymSession(ctx, challenge)
 	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	assert.True(t, result.Passed)
-	assert.Equal(t, "Test Challenge", result.Challenge)
+	assert.NotNil(t, res)
+	assert.True(t, res.Passed)
+	assert.Equal(t, "OK", res.Output)
 }
