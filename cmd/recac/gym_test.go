@@ -167,6 +167,7 @@ func TestRunGymSession(t *testing.T) {
 			Image:         image,
 			Project:       project,
 			MaxIterations: 1,
+			SpecFile:      "app_spec.txt", // Explicitly set spec file to allow ReadSpec to write to it
 			Notifier:      notify.NewManager(telemetry.LogInfof),
 			Logger:        slog.Default(),
 		}
@@ -174,10 +175,11 @@ func TestRunGymSession(t *testing.T) {
 
 	// Challenge data
 	challenge := GymChallenge{
-		Name:     "Test",
-		Language: "python",
-		TestFile: "test.py",
-		Tests:    "print('hello')",
+		Name:        "Test",
+		Description: "Verify printing hello",
+		Language:    "python",
+		TestFile:    "test.py",
+		Tests:       "print('hello')",
 	}
 
 	// Expectations
@@ -196,7 +198,7 @@ func TestRunGymSession(t *testing.T) {
 
 	// Helper to match verification command
 	isVerificationCmd := func(cmd []string) bool {
-		return len(cmd) > 0 && cmd[0] == "python3" && cmd[1] == "test.py"
+		return len(cmd) > 1 && cmd[0] == "python3" && cmd[1] == "test.py"
 	}
 
 	// Verification call
