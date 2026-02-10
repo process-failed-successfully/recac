@@ -61,6 +61,11 @@ func TestMockAgent_Heuristics(t *testing.T) {
 			wantInResp: []string{"cat << 'EOF' > primes.py", "python3 primes.py", "git add primes.py", "agent-bridge feature set --id req-primes --status done"},
 		},
 		{
+			name:       "Coding Agent Mixed Case",
+			prompt:     "You are the CODING AGENT. Implement the task for [primes]. Ensure PRIMES.PY is created.",
+			wantInResp: []string{"cat << 'EOF' > primes.py"}, // Should match [primes] or PRIMES.PY if case insensitive
+		},
+		{
 			name:       "QA Agent",
 			prompt:     "You are the QA AGENT. Verify the implementation of [PRIMES].",
 			wantInResp: []string{"agent-bridge signal --privileged QA_PASSED true"},

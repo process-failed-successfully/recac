@@ -40,7 +40,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// We check for "CREATE FEATURE_LIST.JSON" instead of just "feature list" to avoid false positives
 	// where "feature list" appears in the context of other agents (e.g. Manager reviewing the list).
 	if strings.Contains(upperPrompt, "ROLE - INITIALIZER AGENT") || strings.Contains(upperPrompt, "CREATE FEATURE_LIST.JSON") {
-		if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
+		if strings.Contains(upperPrompt, "PRIMES.PY") || strings.Contains(upperPrompt, "[PRIMES]") {
 			return `Here is the feature list plan.
 
 ` + "```bash" + `
@@ -65,7 +65,7 @@ agent-bridge import < feature_list.json
 
 	// 2. Technical Program Manager (TPM)
 	if strings.Contains(upperPrompt, "TECHNICAL PROGRAM MANAGER") {
-		if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
+		if strings.Contains(upperPrompt, "[PRIMES]") || strings.Contains(upperPrompt, "PRIMES.PY") {
 			return `[
   {
     "id": "PRIMES",
@@ -106,7 +106,7 @@ agent-bridge signal --privileged PROJECT_SIGNED_OFF true
 		strings.Contains(upperPrompt, "DEVELOPER") ||
 		strings.Contains(upperPrompt, "YOUR ROLE") // "Your role is to implement..."
 
-	if isCodingAgent && containsAny(prompt, []string{"[PRIMES]", "primes.py", "Implement Primes", "Prime Number Script"}) {
+	if isCodingAgent && containsAny(upperPrompt, []string{"[PRIMES]", "PRIMES.PY", "IMPLEMENT PRIMES", "PRIME NUMBER SCRIPT"}) {
 		// Return the implementation
 		return `Here is the python script to calculate primes.
 
