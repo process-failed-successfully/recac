@@ -69,7 +69,7 @@ func TestPromptGlobalOverride(t *testing.T) {
 
 	// 1. Setup Fake Home
 	fakeHome := t.TempDir()
-	t.Setenv("HOME", fakeHome)        // For Unix
+	t.Setenv("HOME", fakeHome) // For Unix
 	t.Setenv("USERPROFILE", fakeHome) // For Windows
 
 	// 2. Override "coding_agent" (Global)

@@ -23,12 +23,12 @@ func TestStatusDashboardModel_Update_Refresh(t *testing.T) {
 	// Prepare refresh msg
 	session := &runner.SessionState{Name: "test-session", Status: "running"}
 	state := &agent.State{
-		Model:      "gpt-4",
+		Model: "gpt-4",
 		TokenUsage: agent.TokenUsage{TotalTokens: 100},
 	}
 	msg := statusRefreshedMsg{
-		session:     session,
-		agentState:  state,
+		session: session,
+		agentState: state,
 		gitDiffStat: "mock diff",
 	}
 
@@ -69,13 +69,13 @@ func TestStatusDashboardModel_View(t *testing.T) {
 
 	// Full view
 	m.session = &runner.SessionState{
-		Name:      "test-session",
-		Status:    "running",
+		Name: "test-session",
+		Status: "running",
 		StartTime: time.Now().Add(-time.Minute),
-		Goal:      "test goal",
+		Goal: "test goal",
 	}
 	m.agentState = &agent.State{
-		Model:      "gpt-4",
+		Model: "gpt-4",
 		TokenUsage: agent.TokenUsage{TotalTokens: 100},
 		History: []agent.Message{
 			{Role: "user", Content: "hello", Timestamp: time.Now()},

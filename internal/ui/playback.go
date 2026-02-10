@@ -14,13 +14,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-func intMax(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 // LogEntry represents a structured log line from slog.
 type LogEntry struct {
 	Time    time.Time
@@ -151,7 +144,7 @@ func (m PlaybackModel) View() string {
 
 func (m PlaybackModel) headerView() string {
 	title := "Entry Details"
-	line := strings.Repeat("─", intMax(0, m.viewport.Width-len(title)))
+	line := strings.Repeat("─", max(0, m.viewport.Width-len(title)))
 	return lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Render(title + line)
 }
 

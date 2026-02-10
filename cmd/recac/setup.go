@@ -263,10 +263,6 @@ func runSetup(cmd *cobra.Command, args []string) error {
 		existingEnv, _ := os.ReadFile(".env")
 		existingEnvStr := string(existingEnv)
 
-		// Parse existing env to map for robust checking
-		existingMap, _ := godotenv.Unmarshal(string(existingEnv))
-		// Note: godotenv.Unmarshal ignores errors if file is empty or valid, checking logic handles it.
-
 		f, err := os.OpenFile(".env", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 		if err != nil {
 			fmt.Printf("Error opening .env: %v\n", err)
@@ -277,12 +273,13 @@ func runSetup(cmd *cobra.Command, args []string) error {
 				contentToAppend = "\n"
 			}
 
+			currentEnv, _ := godotenv.Unmarshal(existingEnvStr)
+
 			for _, line := range linesToAppend {
 				parts := strings.SplitN(line, "=", 2)
 				key := parts[0]
 
-				// Check if key exists in the map
-				if _, exists := existingMap[key]; !exists {
+				if _, exists := currentEnv[key]; !exists {
 					contentToAppend += line + "\n"
 				} else {
 					fmt.Printf("Note: %s already exists in .env, skipping.\n", key)

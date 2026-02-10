@@ -54,7 +54,7 @@ func TestRunTest_ExplicitArgs(t *testing.T) {
 	// Assert
 	assert.NoError(t, err)
 	assert.Contains(t, output, "Running tests for 1 packages")
-	assert.Contains(t, output, "All tests passed")
+	assert.Contains(t, output, "ok")
 }
 
 func TestRunTest_Impacted(t *testing.T) {

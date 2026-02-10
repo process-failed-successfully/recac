@@ -6,8 +6,6 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
-
-	"recac/internal/agent"
 )
 
 // CapturingMockAgent for testing prompt injection
@@ -79,13 +77,6 @@ func TestInteractiveModel_Persona_Command(t *testing.T) {
 
 func TestInteractiveModel_Persona_Selection(t *testing.T) {
 	m := NewInteractiveModel(nil, "", "")
-
-	// Explicitly add test persona
-	m.personaManager.AddPersona("junior", agent.Persona{
-		Name:        "Junior Developer",
-		Description: "Needs simple explanations",
-	})
-
 	m.setMode(ModePersonaSelect)
 
 	// Find "junior" persona index
@@ -121,12 +112,6 @@ func TestInteractiveModel_Persona_PromptInjection(t *testing.T) {
 	m := NewInteractiveModel(nil, "", "")
 	mockAgent := &CapturingMockAgent{Response: "OK"}
 	m.activeAgent = mockAgent
-
-	// Explicitly add test persona
-	m.personaManager.AddPersona("teacher", agent.Persona{
-		Name:         "The Teacher",
-		SystemPrompt: "You are an expert Computer Science Teacher.",
-	})
 
 	// Set persona to 'teacher' which has a specific system prompt
 	// "You are an expert Computer Science Teacher..."

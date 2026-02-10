@@ -74,13 +74,13 @@ type Session struct {
 	AutoMerge                 bool   // Automatically merge PRs
 	JiraClient                JiraClient
 	JiraTicketID              string
-	RepoURL                   string              // Repository URL for links
-	SlackThreadTS             string              // Thread Timestamp for Slack conversations
-	SuppressStartNotification bool                // Suppress "Session Started" notification (for sub-tasks)
-	UseLocalAgent             bool                // Execute commands locally (e.g. inside K8s pod) instead of spawning Docker container
-	SpecContent               string              // Explicit specification content (e.g. from Jira)
-	FeatureContent            string              // Explicit feature list JSON content (authoritative)
-	Logger                    *slog.Logger        // Structured logger for this session
+	RepoURL                   string       // Repository URL for links
+	SlackThreadTS             string       // Thread Timestamp for Slack conversations
+	SuppressStartNotification bool         // Suppress "Session Started" notification (for sub-tasks)
+	UseLocalAgent             bool         // Execute commands locally (e.g. inside K8s pod) instead of spawning Docker container
+	SpecContent               string       // Explicit specification content (e.g. from Jira)
+	FeatureContent            string       // Explicit feature list JSON content (authoritative)
+	Logger                    *slog.Logger // Structured logger for this session
 	SleepFunc                 func(time.Duration) // Function for sleeping (mockable)
 
 	mu sync.RWMutex // Protects concurrent access to Iteration, SlackThreadTS, ContainerID
@@ -737,6 +737,8 @@ func (s *Session) SetContainerID(id string) {
 	defer s.mu.Unlock()
 	s.ContainerID = id
 }
+
+
 
 func (s *Session) loadFeatures() []db.Feature {
 	// 1. Try to fetch from DB first (Authoritative source)

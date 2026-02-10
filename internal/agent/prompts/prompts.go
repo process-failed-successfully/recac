@@ -1,21 +1,15 @@
 package prompts
 
 import (
-	"bytes"
 	"embed"
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 )
 
 //go:embed templates/*.md
 var templateFS embed.FS
-
-// mockable getwd
-var getwd = os.Getwd
-var userHomeDir = os.UserHomeDir
 
 // List of available prompt templates
 const (
@@ -57,17 +51,17 @@ func GetPrompt(name string, vars map[string]string) (string, error) {
 	// 1. Check override directory (Env)
 	if overrideDir := os.Getenv("RECAC_PROMPTS_DIR"); overrideDir != "" {
 		localPath := filepath.Join(overrideDir, name+".md")
-		if c, e := os.ReadFile(localPath); e == nil && len(bytes.TrimSpace(c)) > 0 {
+		if c, e := os.ReadFile(localPath); e == nil {
 			content = c
 		}
 	}
 
 	// 2. Check Local .recac/prompts
 	if len(content) == 0 {
-		cwd, err := getwd()
+		cwd, err := os.Getwd()
 		if err == nil {
 			localPath := filepath.Join(cwd, ".recac", "prompts", name+".md")
-			if c, e := os.ReadFile(localPath); e == nil && len(bytes.TrimSpace(c)) > 0 {
+			if c, e := os.ReadFile(localPath); e == nil {
 				content = c
 			}
 		}
@@ -75,10 +69,10 @@ func GetPrompt(name string, vars map[string]string) (string, error) {
 
 	// 3. Check Global ~/.recac/prompts
 	if len(content) == 0 {
-		home, err := userHomeDir()
+		home, err := os.UserHomeDir()
 		if err == nil {
 			globalPath := filepath.Join(home, ".recac", "prompts", name+".md")
-			if c, e := os.ReadFile(globalPath); e == nil && len(bytes.TrimSpace(c)) > 0 {
+			if c, e := os.ReadFile(globalPath); e == nil {
 				content = c
 			}
 		}
@@ -86,7 +80,7 @@ func GetPrompt(name string, vars map[string]string) (string, error) {
 
 	// 4. Fallback to embedded
 	if len(content) == 0 {
-		templatePath := path.Join("templates", name+".md")
+		templatePath := filepath.Join("templates", name+".md")
 		content, err = templateFS.ReadFile(templatePath)
 		if err != nil {
 			return "", fmt.Errorf("failed to read prompt template %s: %w", name, err)

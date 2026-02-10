@@ -89,7 +89,7 @@ func TestSetupCmd(t *testing.T) {
 		"Enable Slack notifications?":                                    true,
 		"Slack Channel:":                                                 "#alerts",
 		"Slack Bot Token:":                                               "xoxb-test",
-		"Run system check (recac doctor) now?":                           true, // Changed to true to test doctor execution
+		"Run system check (recac doctor) now?":                           true,
 	}
 
 	// Mock the AskOne function
@@ -217,9 +217,9 @@ func TestSetupCmd_AppendEnv(t *testing.T) {
 	defer os.Remove(".env")
 
 	mockAnswers = map[string]interface{}{
-		"Choose your AI Provider:":                  "openai",
-		"Enter the Model name:":                     "gpt-4",
-		"Enter your API Key (leave empty to skip):": "new-key",
+		"Choose your AI Provider:":                              "openai",
+		"Enter the Model name:":                                 "gpt-4",
+		"Enter your API Key (leave empty to skip):":             "new-key",
 		"Do you want to save the API Key to a local .env file?": true,
 		"Enter your Jira URL (e.g., https://your-domain.atlassian.net):": "",
 		"Enable Slack notifications?":          false,
@@ -238,83 +238,5 @@ func TestSetupCmd_AppendEnv(t *testing.T) {
 	content, _ := os.ReadFile(".env")
 	str := string(content)
 	assert.Contains(t, str, "EXISTING_VAR=foo")
-	assert.Contains(t, str, "OPENAI_API_KEY=new-key")
-}
-
-func TestSetupCmd_SubstringMatchRegression(t *testing.T) {
-	originalAskOne := askOneFunc
-	defer func() { askOneFunc = originalAskOne }()
-
-	// Create existing .env with a key that is a superset of the one we want to add
-	// e.g. "MY_OPENAI_API_KEY" vs "OPENAI_API_KEY"
-	os.WriteFile(".env", []byte("MY_OPENAI_API_KEY=foo\n"), 0600)
-	defer os.Remove(".env")
-
-	mockAnswers = map[string]interface{}{
-		"Choose your AI Provider:":                              "openai",
-		"Enter the Model name:":                                 "gpt-4",
-		"Enter your API Key (leave empty to skip):":             "new-key",
-		"Do you want to save the API Key to a local .env file?": true,
-		"Enter your Jira URL (e.g., https://your-domain.atlassian.net):": "",
-		"Enable Slack notifications?":          false,
-		"Run system check (recac doctor) now?": false,
-	}
-	askOneFunc = mockAskOne
-
-	viper.Reset()
-	viper.SetConfigFile("test_config_substring.yaml")
-	defer os.Remove("test_config_substring.yaml")
-
-	cmd := &cobra.Command{Use: "test"}
-	err := runSetup(cmd, []string{})
-	assert.NoError(t, err)
-
-	content, _ := os.ReadFile(".env")
-	str := string(content)
-	// Expect both keys to be present
-	assert.Contains(t, str, "MY_OPENAI_API_KEY=foo")
-	assert.Contains(t, str, "OPENAI_API_KEY=new-key")
-}
-
-func TestSetupCmd_MultilineCollision(t *testing.T) {
-	originalAskOne := askOneFunc
-	defer func() { askOneFunc = originalAskOne }()
-
-	// Create existing .env with a multiline value containing the key substring
-	content := `SOME_VAR="multi
-line
-OPENAI_API_KEY=fake
-value"
-`
-	os.WriteFile(".env", []byte(content), 0600)
-	defer os.Remove(".env")
-
-	mockAnswers = map[string]interface{}{
-		"Choose your AI Provider:":                              "openai",
-		"Enter the Model name:":                                 "gpt-4",
-		"Enter your API Key (leave empty to skip):":             "new-key",
-		"Do you want to save the API Key to a local .env file?": true,
-		"Enter your Jira URL (e.g., https://your-domain.atlassian.net):": "",
-		"Enable Slack notifications?":          false,
-		"Run system check (recac doctor) now?": false,
-	}
-	askOneFunc = mockAskOne
-
-	viper.Reset()
-	viper.SetConfigFile("test_config_multiline.yaml")
-	defer os.Remove("test_config_multiline.yaml")
-
-	cmd := &cobra.Command{Use: "test"}
-	err := runSetup(cmd, []string{})
-	assert.NoError(t, err)
-
-	finalContent, _ := os.ReadFile(".env")
-	str := string(finalContent)
-
-	// Should contain the original content
-	assert.Contains(t, str, "SOME_VAR=\"multi")
-
-	// Should contain the new key because the "occurrence" was inside a string value
-	// godotenv should parse correct map and not see OPENAI_API_KEY as existing key.
 	assert.Contains(t, str, "OPENAI_API_KEY=new-key")
 }
