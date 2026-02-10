@@ -191,9 +191,3 @@ func TestExplorerModel_StatusView(t *testing.T) {
 	mEmpty := ExplorerModel{statusMessage: ""}
 	assert.Equal(t, "", mEmpty.statusView())
 }
-
-func TestMax(t *testing.T) {
-	assert.Equal(t, 5, max(3, 5))
-	assert.Equal(t, 5, max(5, 3))
-	assert.Equal(t, 5, max(5, 5))
-}
