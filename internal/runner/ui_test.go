@@ -5,12 +5,34 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"recac/internal/agent"
 	"recac/internal/notify"
 	"recac/internal/telemetry"
 )
+
+type MockDockerWithSideEffects struct {
+	MockDockerForExec
+	Workspace string
+}
+
+func (m *MockDockerWithSideEffects) Exec(ctx context.Context, id string, cmd []string) (string, error) {
+	fullCmd := strings.Join(cmd, " ")
+
+	// Simulate agent-bridge signal
+	if strings.Contains(fullCmd, "agent-bridge signal") {
+		if strings.Contains(fullCmd, "QA_PASSED true") {
+			_ = os.WriteFile(filepath.Join(m.Workspace, ".QA_PASSED"), []byte("true"), 0644)
+		}
+		if strings.Contains(fullCmd, "PROJECT_SIGNED_OFF true") {
+			_ = os.WriteFile(filepath.Join(m.Workspace, ".PROJECT_SIGNED_OFF"), []byte("true"), 0644)
+		}
+	}
+
+	return m.MockDockerForExec.Exec(ctx, id, cmd)
+}
 
 func TestSession_RunLoop_UIVerification(t *testing.T) {
 	// 1. Create a temp directory
@@ -30,11 +52,13 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "ui_verification.json"), []byte("Verify Button Color"), 0644)
 
 	// 5. Initialize Session
-	mockDocker := &MockDockerForExec{}
+	mockDocker := &MockDockerWithSideEffects{Workspace: tmpDir}
 	mockAgent := agent.NewMockAgent()
 	s := &Session{
 		Docker:           mockDocker,
 		Agent:            mockAgent,
+		QAAgent:          mockAgent, // Inject mock for QA
+		ManagerAgent:     mockAgent, // Inject mock for Manager
 		Workspace:        tmpDir,
 		FeatureContent:   features,
 		ManagerFrequency: 5,

@@ -62,7 +62,21 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return "```bash\n" +
 			"echo 'Initializing environment...'\n" +
 			"# Mock Initializer: Create app_spec.txt to bootstrap features if missing\n" +
-			"echo '# App Spec\n- [ ] Implement Prime Number Script ([PRIMES])' > app_spec.txt\n" +
+			"echo '# App Spec\n- [ ] Implement Prime Number Script ([PRIMES])' > app_spec.txt\n\n" +
+			"# Create feature_list.json to satisfy loadFeatures\n" +
+			"cat <<EOF > feature_list.json\n" +
+			"{\n" +
+			"  \"project_name\": \"MOCK_PROJECT\",\n" +
+			"  \"features\": [\n" +
+			"    {\n" +
+			"      \"id\": \"PRIMES\",\n" +
+			"      \"description\": \"Implement Prime Number Script\",\n" +
+			"      \"status\": \"pending\",\n" +
+			"      \"passes\": false\n" +
+			"    }\n" +
+			"  ]\n" +
+			"}\n" +
+			"EOF\n" +
 			"```", nil
 	}
 
