@@ -707,6 +707,48 @@ func TestRenameSession(t *testing.T) {
 	})
 }
 
+// permissionsEnforced checks if the filesystem actually enforces read-only permissions.
+// It returns true if write operations on a read-only directory fail as expected.
+// It returns false if write operations succeed (e.g. running as root).
+func permissionsEnforced(t *testing.T, dir string) bool {
+	t.Helper()
+
+	// Create a temporary directory for the check
+	checkDir := filepath.Join(dir, "perm_check")
+	if err := os.MkdirAll(checkDir, 0755); err != nil {
+		t.Logf("Permission check skipped: failed to create check dir: %v", err)
+		return false
+	}
+	defer os.RemoveAll(checkDir)
+
+	// Create a file inside
+	checkFile := filepath.Join(checkDir, "test")
+	if err := os.WriteFile(checkFile, []byte("content"), 0644); err != nil {
+		t.Logf("Permission check skipped: failed to create check file: %v", err)
+		return false
+	}
+
+	// Make directory read-only
+	// Note: Removing a file requires write permission on the parent directory.
+	if err := os.Chmod(checkDir, 0500); err != nil {
+		t.Logf("Permission check skipped: failed to chmod dir: %v", err)
+		return false
+	}
+	// Attempt to restore permissions at end to allow cleanup
+	defer os.Chmod(checkDir, 0755)
+
+	// Attempt to remove the file
+	err := os.Remove(checkFile)
+
+	// If removal succeeds, permissions are NOT enforced
+	if err == nil {
+		t.Log("Permission check: managed to remove file from read-only directory (permissions not enforced)")
+		return false
+	}
+
+	return true
+}
+
 func TestRemoveSession_Error(t *testing.T) {
 	// Skip on Windows as permission handling is different
 	if os.PathSeparator == '\\' {
@@ -715,6 +757,11 @@ func TestRemoveSession_Error(t *testing.T) {
 
 	sm, cleanup := setupSessionManager(t)
 	defer cleanup()
+
+	// Check if permissions are enforced in this environment
+	if !permissionsEnforced(t, sm.sessionsDir) {
+		t.Skip("Skipping test: filesystem permissions are not enforced (running as root?)")
+	}
 
 	sessionName := "protected-session"
 	session := &SessionState{Name: sessionName, Status: "completed", LogFile: filepath.Join(sm.sessionsDir, sessionName+".log")}
