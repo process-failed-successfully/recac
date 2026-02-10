@@ -118,7 +118,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			"git config --global user.name \"Recac Agent\"\n" +
 			"git add primes.py primes.json\n" +
 			"git commit -m \"Add primes script and output\" || echo \"Nothing to commit\"\n" +
-			"git push -u origin agent/PRIMES-mock\n" +
+			"git push -f -u origin agent/PRIMES-mock\n" +
 			"```", nil
 	}
 

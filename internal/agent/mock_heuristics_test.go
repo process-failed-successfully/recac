@@ -34,7 +34,7 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		{
 			name:           "Coding Agent Git Push",
 			prompt:         "## YOUR ROLE - CODING AGENT [PRIMES]",
-			expectContains: "git push -u origin agent/PRIMES-mock",
+			expectContains: "git push -f -u origin agent/PRIMES-mock",
 			expectJSON:     false,
 		},
 		{
