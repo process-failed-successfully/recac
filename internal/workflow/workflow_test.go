@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"recac/internal/agent"
 	"recac/internal/cmdutils"
@@ -175,6 +176,16 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 		return repoURL, nil
 	}
 
+	// Mock NewSessionFunc to avoid long sleep and infinite loops
+	originalNewSessionFunc := NewSessionFunc
+	defer func() { NewSessionFunc = originalNewSessionFunc }()
+	NewSessionFunc = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
+		s := runner.NewSession(d, a, workspace, image, project, provider, model, maxAgents)
+		s.MaxIterations = 5                    // Enough to verify flow but not hang
+		s.SleepFunc = func(d time.Duration) {} // No sleep
+		return s
+	}
+
 	// Mock Jira Server (minimal)
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
@@ -211,10 +222,11 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	cfg := SessionConfig{
-		ProjectPath: tmpDir,
-		RepoURL:     "https://github.com/example/already-provided",
-		IsMock:      true,
-		Cleanup:     false,
+		ProjectPath:   tmpDir,
+		RepoURL:       "https://github.com/example/already-provided",
+		IsMock:        true,
+		Cleanup:       false,
+		MaxIterations: 5,
 	}
 
 	err := ProcessJiraTicket(context.Background(), "TEST-1", jClient, cfg, nil)
