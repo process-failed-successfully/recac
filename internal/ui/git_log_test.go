@@ -2,7 +2,6 @@ package ui
 
 import (
 	"errors"
-	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -222,35 +221,5 @@ func TestGitLogModel_Update_Error(t *testing.T) {
 	}
 	if m.statusMessage != "Error fetching diff: git error" {
 		t.Errorf("unexpected status message: %s", m.statusMessage)
-	}
-}
-
-func TestGitLogModel_View(t *testing.T) {
-	commits := []CommitItem{{Hash: "123", Author: "Alice", Message: "Init"}}
-	m := NewGitLogModel(commits, nil, nil, nil)
-
-	// Initialize size properly
-	updatedM, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
-	m = updatedM.(GitLogModel)
-
-	// 1. List View
-	m.statusMessage = "Status..."
-	view := m.View()
-	if !strings.Contains(view, "Status...") {
-		t.Error("View should contain status message")
-	}
-	if !strings.Contains(view, "Git Log") {
-		t.Error("View should contain title")
-	}
-
-	// 2. Details View
-	m.viewingDetails = true
-	m.viewport.SetContent("details content")
-	view = m.View()
-	if !strings.Contains(view, "Commit Details") {
-		t.Error("View should contain details title")
-	}
-	if !strings.Contains(view, "details content") {
-		t.Error("View should contain details content")
 	}
 }

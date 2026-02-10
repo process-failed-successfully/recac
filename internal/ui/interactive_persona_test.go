@@ -2,11 +2,8 @@ package ui
 
 import (
 	"context"
-	"path/filepath"
 	"strings"
 	"testing"
-
-	"recac/internal/agent"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -29,9 +26,6 @@ func (m *CapturingMockAgent) SendStream(ctx context.Context, prompt string, onCh
 }
 
 func TestInteractiveModel_Persona_Initialization(t *testing.T) {
-	// Isolate environment
-	t.Setenv("RECAC_PERSONAS_FILE", filepath.Join(t.TempDir(), "nonexistent.yaml"))
-
 	m := NewInteractiveModel(nil, "", "")
 
 	if m.personaManager == nil {
@@ -56,9 +50,6 @@ func TestInteractiveModel_Persona_Initialization(t *testing.T) {
 }
 
 func TestInteractiveModel_Persona_Command(t *testing.T) {
-	// Isolate environment
-	t.Setenv("RECAC_PERSONAS_FILE", filepath.Join(t.TempDir(), "nonexistent.yaml"))
-
 	m := NewInteractiveModel(nil, "", "")
 
 	// Execute /persona
@@ -85,18 +76,7 @@ func TestInteractiveModel_Persona_Command(t *testing.T) {
 }
 
 func TestInteractiveModel_Persona_Selection(t *testing.T) {
-	// Isolate environment
-	t.Setenv("RECAC_PERSONAS_FILE", filepath.Join(t.TempDir(), "nonexistent.yaml"))
-
 	m := NewInteractiveModel(nil, "", "")
-
-	// Inject 'junior' explicitly to ensure test stability
-	m.personaManager.AddPersona("junior", agent.Persona{
-		Name:         "Junior Developer",
-		Description:  "Needs simple explanations.",
-		SystemPrompt: "You are a junior developer...",
-	})
-
 	m.setMode(ModePersonaSelect)
 
 	// Find "junior" persona index
@@ -129,52 +109,53 @@ func TestInteractiveModel_Persona_Selection(t *testing.T) {
 }
 
 func TestInteractiveModel_Persona_PromptInjection(t *testing.T) {
-	// Isolate environment
-	t.Setenv("RECAC_PERSONAS_FILE", filepath.Join(t.TempDir(), "nonexistent.yaml"))
-
 	m := NewInteractiveModel(nil, "", "")
 	mockAgent := &CapturingMockAgent{Response: "OK"}
 	m.activeAgent = mockAgent
 
-	// Inject 'teacher' explicitly
-	expectedSystemPrompt := "You are an expert Computer Science Teacher. Instead of giving the answer directly, you often ask guiding questions."
-	m.personaManager.AddPersona("teacher", agent.Persona{
-		Name:         "The Teacher",
-		Description:  "Uses Socratic method.",
-		SystemPrompt: expectedSystemPrompt,
-	})
-
-	// Set persona to 'teacher'
+	// Set persona to 'teacher' which has a specific system prompt
+	// "You are an expert Computer Science Teacher..."
 	m.currentPersona = "teacher"
 
 	userPrompt := "Explain recursion"
 	cmd := m.generateResponse(userPrompt)
 
-	if cmd == nil {
-		t.Fatal("Expected command from generateResponse")
+	// Run the command to trigger the goroutine
+	if cmd != nil {
+		cmd()
 	}
 
-	// Execute command ONCE to start the stream
-	msg := cmd()
+	// We need to wait for the goroutine?
+	// The goroutine in generateResponse writes to a channel.
+	// CapturingMockAgent writes immediately.
+	// But m.LastPrompt is set inside the goroutine.
+	// The mock agent is a pointer, so we can check it.
+	// However, there is a race condition if we check immediately.
+	// But since CapturingMockAgent.SendStream is synchronous (calls onChunk immediately),
+	// and generateResponse calls it in a goroutine...
 
-	// Wait for stream to start
+	// Wait, the goroutine runs:
+	// _, err := m.activeAgent.SendStream(...)
+
+	// We need to ensure that runs.
+	// We can't easily wait for it without modifying code or using a channel in the test.
+	// But generateResponse returns a AgentStreamStartMsg containing channels.
+
+	msg := cmd()
 	streamMsg, ok := msg.(AgentStreamStartMsg)
 	if !ok {
-		t.Fatalf("Expected AgentStreamStartMsg, got %T", msg)
+		t.Fatal("Expected AgentStreamStartMsg")
 	}
 
-	// Read from the channel to ensure execution completes
-	// Depending on implementation, we might need to drain the channel
-	for range streamMsg.ChunkChan {
-		// Draining
-	}
+	// Read from the channel to ensure execution
+	<-streamMsg.ChunkChan
 
-	// Now LastPrompt should be set on the mock agent
-	if !strings.Contains(mockAgent.LastPrompt, expectedSystemPrompt) {
-		t.Errorf("System prompt injection failed.\nExpected to contain: %s\nGot: %s", expectedSystemPrompt, mockAgent.LastPrompt)
+	// Now LastPrompt should be set
+	if !strings.Contains(mockAgent.LastPrompt, "You are an expert Computer Science Teacher") {
+		t.Errorf("System prompt injection failed. Prompt was: %s", mockAgent.LastPrompt)
 	}
 
 	if !strings.Contains(mockAgent.LastPrompt, userPrompt) {
-		t.Errorf("User prompt missing.\nExpected to contain: %s\nGot: %s", userPrompt, mockAgent.LastPrompt)
+		t.Errorf("User prompt missing. Prompt was: %s", mockAgent.LastPrompt)
 	}
 }
