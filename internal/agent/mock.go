@@ -100,6 +100,13 @@ EOF
 
 python3 primes.py
 
+# Commit and Push
+git config --global user.email "bot@recac.com"
+git config --global user.name "Recac Bot"
+git add primes.py primes.json
+git commit -m "Add primes script" || echo "Nothing to commit"
+git push || echo "Push failed"
+
 # Signal feature completion
 agent-bridge feature set req-script-primes-py-exists passed || echo "Feature set failed"
 ` + "```" + `
