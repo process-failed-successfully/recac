@@ -127,7 +127,8 @@ agent-bridge import --file /app/ticket_plan.json
 
 	// 2. TPM Agent - Generates the plan
 	// Removed "Application Specification" check as it is too broad and appears in Initializer prompt
-	if strings.Contains(prompt, "Technical Program Manager") {
+	// Use case-insensitive check or check for uppercase role to be robust
+	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TECHNICAL PROGRAM MANAGER") {
 		return `
 [
   {
