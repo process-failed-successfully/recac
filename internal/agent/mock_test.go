@@ -116,4 +116,15 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	if !strings.Contains(resp, "QA_PASSED") {
 		t.Errorf("Expected QA_PASSED in QA Agent response, got: %s", resp)
 	}
+
+	// 7. Coding Agent (Case Sensitivity)
+	// We use a fresh agent because the previous interactions set the state to 'committed'
+	agent2 := NewMockAgent()
+	resp, err = agent2.Send(ctx, "Ticket Summary: Implement Primes. Please implement the feature.")
+	if err != nil {
+		t.Fatalf("Coding Agent (case sensitivity) failed: %v", err)
+	}
+	if !strings.Contains(resp, "primes.py") {
+		t.Errorf("Expected primes.py in Coding Agent (case sensitivity) response, got: %s", resp)
+	}
 }

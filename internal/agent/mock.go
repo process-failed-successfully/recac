@@ -63,7 +63,8 @@ agent-bridge signal PROJECT_SIGNED_OFF true
 	}
 
 	// Heuristic: Coding Agent (Primes Scenario)
-	if strings.Contains(prompt, "primes") || strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "Prime Number Script") {
+	// Check case-insensitive "primes" to catch "Primes", "PRIMES", "primes"
+	if strings.Contains(strings.ToLower(prompt), "primes") || strings.Contains(prompt, "Prime Number Script") {
 		if !m.hasCommitted {
 			m.hasCommitted = true
 			return `
