@@ -54,8 +54,13 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// is not fully portable to sh (often used in minimal containers).
 		gitSetup := `
 set -e # Fail fast
-# Ensure clean slate
-rm -rf .git
+
+# Backup app_spec.txt if exists
+if [ -f app_spec.txt ]; then cp app_spec.txt /tmp/app_spec.bak; fi
+
+# Ensure clean slate for git clone (hidden and non-hidden)
+# We safely delete everything in the current directory
+find . -mindepth 1 -maxdepth 1 -exec rm -rf {} +
 
 if [ -n "$GITHUB_API_KEY" ] && [ -n "` + repoURL + `" ]; then
   # Inject token into URL
@@ -68,6 +73,12 @@ else
   echo "Initializing local repo (no token or url found)..."
   git init
 fi
+
+# Restore app_spec.txt if missing (and backup exists)
+if [ ! -f app_spec.txt ] && [ -f /tmp/app_spec.bak ]; then
+  mv /tmp/app_spec.bak app_spec.txt
+fi
+rm -f /tmp/app_spec.bak
 
 echo "Current Directory: $(pwd)"
 ls -la
