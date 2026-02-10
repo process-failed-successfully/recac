@@ -71,8 +71,6 @@ jobs:
             GO_VERSION=${{ steps.go-version.outputs.version }}
           push: true
           tags: ${{ steps.image-tag.outputs.image }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
   # 2. Calculate Shards
   setup-matrix:
@@ -225,8 +223,6 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=prod
-          cache-to: type=gha,mode=max,scope=prod
 
   # 7. Smoke Test (k3s) - Consolidated from smoke-test.yml
   smoke-test:
