@@ -49,7 +49,7 @@ agent-bridge import feature_list.json
 	}
 
 	// Heuristic: Manager (Select Task)
-	if strings.Contains(prompt, "req-primes") && strings.Contains(prompt, "pending") && !strings.Contains(prompt, "primes.py") {
+	if strings.Contains(prompt, "req-primes") && strings.Contains(prompt, "pending") {
 		return `
 ` + "```bash" + `
 agent-bridge task select req-primes
