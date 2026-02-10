@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -144,10 +145,24 @@ agent-bridge import --file /app/ticket_plan.json
 	// We detect the [PRIMES] ID or the file request
 	// Prioritize this before generic role checks if specific task ID is present
 	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
-		return `
+		// Extract Dynamic ID from Prompt to ensure alignment with Jira
+		re := regexp.MustCompile(`Feature ID\*\*: ([\w-]+)`)
+		matches := re.FindStringSubmatch(prompt)
+		ticketID := "PRIMES"
+		branchSuffix := "PRIMES-mock"
+
+		if len(matches) > 1 {
+			ticketID = matches[1]
+			// If it looks like a Jira ID (MFLP-123), use it directly
+			if strings.Contains(ticketID, "-") {
+				branchSuffix = ticketID
+			}
+		}
+
+		return fmt.Sprintf(`
 I will implement the prime number script as requested.
 
-` + "```bash" + `
+`+"```bash"+`
 set -e
 # Ensure git repo exists (fallback recovery)
 if [ ! -d .git ]; then
@@ -163,7 +178,7 @@ import json
 def is_prime(n):
     if n < 2: return False
     for i in range(2, int(n**0.5) + 1):
-        if n % i == 0: return False
+        if n %% i == 0: return False
     return True
 
 primes = [x for x in range(10000) if is_prime(x)]
@@ -172,15 +187,15 @@ with open('primes.json', 'w') as f:
 EOF
 
 # Create or reset a branch for the feature (force if exists)
-git checkout -B agent/PRIMES-mock
+git checkout -B agent/%s
 
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
-git push --force origin agent/PRIMES-mock || echo "Push failed, continuing local only"
-agent-bridge feature set PRIMES --status done --passes true
-` + "```" + `
-`, nil
+git push --force origin agent/%s || echo "Push failed, continuing local only"
+agent-bridge feature set %s --status done --passes true
+`+"```"+`
+`, branchSuffix, branchSuffix, ticketID), nil
 	}
 
 	// 4. QA Agent - Verifies the project
