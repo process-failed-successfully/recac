@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestMockAgent(t *testing.T) {
+func TestMockAgent_Default(t *testing.T) {
 	agent := NewMockAgent()
 
 	prompt := "This is a test prompt that is long enough to be truncated"
@@ -22,6 +22,54 @@ func TestMockAgent(t *testing.T) {
 
 	if !strings.Contains(response, "I received your prompt") {
 		t.Errorf("Response missing body, got: %s", response)
+	}
+}
+
+func TestMockAgent_TPM(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "You are an expert Technical Program Manager (TPM). ... spec: ... prime number script ..."
+
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(resp, "ID:[PRIMES]") {
+		t.Errorf("TPM response missing ID:[PRIMES], got: %s", resp)
+	}
+	if !strings.Contains(resp, "```json") {
+		t.Errorf("TPM response missing JSON block, got: %s", resp)
+	}
+}
+
+func TestMockAgent_Initializer(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "## YOUR ROLE - INITIALIZER AGENT. Initialize the repository."
+
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(resp, "cat << 'EOF' | agent-bridge import") {
+		t.Errorf("Initializer response missing agent-bridge import, got: %s", resp)
+	}
+}
+
+func TestMockAgent_Coding(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "## YOUR ROLE - CODING AGENT. Task: PRIMES."
+
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(resp, "cat << 'EOF' > primes.py") {
+		t.Errorf("Coding response missing primes.py creation, got: %s", resp)
+	}
+	if !strings.Contains(resp, "feature set PRIMES --status done") {
+		t.Errorf("Coding response missing status update, got: %s", resp)
 	}
 }
 
