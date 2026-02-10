@@ -42,6 +42,40 @@ func TestMockAgent_Primes_DefaultPrompt(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Primes_FeatureID(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Prompt simulating prompt with Feature ID but NO primes.py in description
+	prompt := "YOUR ROLE - CODING AGENT ... Feature ID: req-primes-py-exists ... Description: Create script."
+	response, err := agent.Send(context.Background(), prompt)
+
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Should return the bash script because of Feature ID
+	if !strings.Contains(response, "cat << 'EOF' > primes.py") {
+		t.Errorf("Expected primes.py script via Feature ID heuristic, got: %s", response)
+	}
+}
+
+func TestMockAgent_Primes_JiraTicket(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Prompt simulating prompt with Jira Ticket ID but NO primes.py in description
+	prompt := "YOUR ROLE - CODING AGENT ... Feature ID: random-id ... Ticket: MFLP-9899 ... Description: Create script."
+	response, err := agent.Send(context.Background(), prompt)
+
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Should return the bash script because of MFLP- ticket
+	if !strings.Contains(response, "cat << 'EOF' > primes.py") {
+		t.Errorf("Expected primes.py script via MFLP heuristic, got: %s", response)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
