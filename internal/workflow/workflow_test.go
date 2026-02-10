@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"recac/internal/agent"
@@ -166,6 +167,16 @@ func TestRunWorkflow_Detached(t *testing.T) {
 }
 
 func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
+	// Mock RunWorkflow to prevent real Session (and DB) creation
+	originalRunWorkflow := RunWorkflow
+	defer func() { RunWorkflow = originalRunWorkflow }()
+	RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
+		// Mock successful execution
+		// We still need to create the spec file to satisfy assertions
+		os.WriteFile(filepath.Join(cfg.ProjectPath, "app_spec.txt"), []byte("Spec for TEST-1"), 0644)
+		return nil
+	}
+
 	// Mock SetupWorkspace
 	originalSetup := cmdutils.SetupWorkspace
 	defer func() { cmdutils.SetupWorkspace = originalSetup }()

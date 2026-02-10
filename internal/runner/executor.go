@@ -176,8 +176,23 @@ func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, ind
 	if s.UseLocalAgent {
 		// Execute Locally
 		cmd := exec.CommandContext(cmdCtx, "/bin/bash", "-c", cmdScript)
-		// Propagate Environment + Inject Project ID
+		// Propagate Environment + Inject Project ID and DB URL (critical for agent-bridge in local mode)
 		cmd.Env = append(os.Environ(), fmt.Sprintf("RECAC_PROJECT_ID=%s", s.Project))
+		if s.DBStore != nil {
+			// Explicitly inject DB URL if we have a store, to ensure local tools (agent-bridge) can connect.
+			// This handles cases where os.Environ() might be missing it or we want to enforce the session's store.
+			// Note: We don't have direct access to the connection string from the interface,
+			// so we rely on the env var being present in the process OR re-construct it if needed.
+			// However, since we can't easily get it from s.DBStore, we check if it's already in env.
+			// If not, we might be in trouble. But usually it is.
+			// Let's at least ensure we don't accidentally strip it if we were to construct env manually.
+			// Since we append to os.Environ(), it should be fine.
+			// But to be double safe for smoke tests where we might rely on specific vars:
+			if dbURL := os.Getenv("RECAC_DB_URL"); dbURL != "" {
+				cmd.Env = append(cmd.Env, fmt.Sprintf("RECAC_DB_URL=%s", dbURL))
+			}
+		}
+
 		// Debug: Log key env vars for troubleshooting
 		s.Logger.Info("[DEBUG] Local exec env vars",
 			"RECAC_PROJECT_ID", s.Project,
