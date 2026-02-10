@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -39,7 +38,7 @@ func TestPromptTestCmd_DryRun(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Run command
-	buf := new(bytes.Buffer)
+	buf := &ThreadSafeBuffer{}
 	promptTestCmd.SetOut(buf)
 	promptTestCmd.SetErr(buf)
 
@@ -79,7 +78,7 @@ func TestPromptTestCmd_JsonFile(t *testing.T) {
 	os.WriteFile(jsonPath, []byte(`{"name": "JSON", "age": "42"}`), 0644)
 
 	// Run command
-	buf := new(bytes.Buffer)
+	buf := &ThreadSafeBuffer{}
 	promptTestCmd.SetOut(buf)
 	promptTestCmd.SetErr(buf)
 
@@ -125,7 +124,7 @@ func TestPromptTestCmd_LiveAgent(t *testing.T) {
 	defer func() { agentClientFactory = oldFactory }()
 
 	// Run command
-	buf := new(bytes.Buffer)
+	buf := &ThreadSafeBuffer{}
 	promptTestCmd.SetOut(buf)
 	promptTestCmd.SetErr(buf)
 
@@ -178,7 +177,7 @@ func TestPromptTestCmd_SaveFile(t *testing.T) {
 	savePath := filepath.Join(tempDir, "response.txt")
 
 	// Run command
-	buf := new(bytes.Buffer)
+	buf := &ThreadSafeBuffer{}
 	promptTestCmd.SetOut(buf)
 	promptTestCmd.SetErr(buf)
 

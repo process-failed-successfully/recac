@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -87,7 +86,7 @@ func TestDataCmd(t *testing.T) {
 			}
 
 			// Capture output
-			buf := new(bytes.Buffer)
+			buf := &ThreadSafeBuffer{}
 
 			// We can't reuse `dataCmd` easily because of global flags accumulation if not careful.
 			// But `ExecuteC` or `SetArgs` + `Execute` is standard.
@@ -153,7 +152,7 @@ func TestDataCmd_File(t *testing.T) {
 	dataOut = ""
 
 	rootCmd.SetArgs([]string{"data", "--desc", "test", "--out", outFile})
-	rootCmd.SetOut(new(bytes.Buffer))
+	rootCmd.SetOut(&ThreadSafeBuffer{})
 
 	err := rootCmd.Execute()
 	assert.NoError(t, err)

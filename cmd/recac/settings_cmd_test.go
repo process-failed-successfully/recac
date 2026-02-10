@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
@@ -28,8 +27,8 @@ func TestSettingsCmd(t *testing.T) {
 
 	t.Run("get", func(t *testing.T) {
 		t.Run("existing key", func(t *testing.T) {
-			var out bytes.Buffer
-			settingsGetCmd.SetOut(&out)
+			out := &ThreadSafeBuffer{}
+			settingsGetCmd.SetOut(out)
 
 			err := settingsGetCmd.RunE(settingsGetCmd, []string{"key1"})
 			assert.NoError(t, err)
@@ -44,8 +43,8 @@ func TestSettingsCmd(t *testing.T) {
 	})
 
 	t.Run("set", func(t *testing.T) {
-		var out bytes.Buffer
-		settingsSetCmd.SetOut(&out)
+		out := &ThreadSafeBuffer{}
+		settingsSetCmd.SetOut(out)
 
 		err := settingsSetCmd.RunE(settingsSetCmd, []string{"key3", "value3"})
 		assert.NoError(t, err)
@@ -61,8 +60,8 @@ func TestSettingsCmd(t *testing.T) {
 	})
 
 	t.Run("view", func(t *testing.T) {
-		var out bytes.Buffer
-		settingsViewCmd.SetOut(&out)
+		out := &ThreadSafeBuffer{}
+		settingsViewCmd.SetOut(out)
 
 		err := settingsViewCmd.RunE(settingsViewCmd, []string{})
 		assert.NoError(t, err)

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -57,27 +58,20 @@ func TestDevCmd(t *testing.T) {
 	}
 
 	// 3. Configure Command
-	// We need to reset flags because they are package-level globals in dev.go
 	devWatchDir = tempDir
 	devCmdFlag = ""
 	devExtensions = ""
 	devRecursive = false
-	devDebounce = 100 * time.Millisecond // Short debounce for test
+	devDebounce = 100 * time.Millisecond
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	devCmd.SetContext(ctx)
 
 	// 4. Run Dev Loop in Goroutine
-	// We can't easily stop it, so we'll just let it leak or we need to refactor dev.go to be cancellable.
-	// For this test, leaking one goroutine is acceptable, or we can use a context if we modify dev.go.
-	// But let's verify logic first.
-
-	// Note: runDev blocks. We run it in a goroutine.
+	errChan := make(chan error)
 	go func() {
-		// Suppress stdout for clean test output
-		// devCmd.SetOut(io.Discard)
-		// devCmd.SetErr(io.Discard)
-		// Actually runDev uses fmt.Printf / os.Stdout directly in some places (bad practice but common in CLIs)
-		// So we can't easily suppress all output without capturing stdout/stderr of the process,
-		// but since we are in a test binary, we can just let it print.
-		runDev(devCmd, []string{})
+		errChan <- runDev(devCmd, []string{})
 	}()
 
 	// Wait for watcher to start (heuristic)
@@ -92,15 +86,15 @@ func TestDevCmd(t *testing.T) {
 	// Wait for debounce + execution
 	time.Sleep(1000 * time.Millisecond)
 
+	// Stop runDev
+	cancel()
+	err = <-errChan
+	assert.NoError(t, err)
+
 	// 6. Assert
 	mu.Lock()
 	count := len(executedCommands)
 	mu.Unlock()
-
-	// Should be at least 2: 1 for initial run, 1 for file change
-	// In runDev, we have:
-	// go func() { trigger <- struct{}{} }() // Initial run
-	// And then the event trigger.
 
 	assert.GreaterOrEqual(t, count, 2, "Should execute command at least twice (init + change)")
 
@@ -138,8 +132,13 @@ func TestDevCmd_Manual(t *testing.T) {
 	devRecursive = false
 	devDebounce = 100 * time.Millisecond
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	devCmd.SetContext(ctx)
+
+	errChan := make(chan error)
 	go func() {
-		runDev(devCmd, []string{})
+		errChan <- runDev(devCmd, []string{})
 	}()
 
 	time.Sleep(500 * time.Millisecond)
@@ -148,6 +147,10 @@ func TestDevCmd_Manual(t *testing.T) {
 	os.WriteFile(testFile, []byte("hello"), 0644)
 
 	time.Sleep(1000 * time.Millisecond)
+
+	cancel()
+	err = <-errChan
+	assert.NoError(t, err)
 
 	mu.Lock()
 	count := len(executedCommands)

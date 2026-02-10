@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"os"
 	"testing"
 
@@ -21,7 +20,7 @@ func TestAliasCommands(t *testing.T) {
 
 	// Helper to execute command via rootCmd
 	execute := func(args ...string) (string, error) {
-		buf := new(bytes.Buffer)
+		buf := &ThreadSafeBuffer{}
 		rootCmd.SetOut(buf)
 		rootCmd.SetErr(buf)
 		// We use the full command path and force config file
@@ -95,7 +94,7 @@ func TestRegisterAliasCommands(t *testing.T) {
 func TestCannotOverrideBuiltin(t *testing.T) {
 	// Helper to execute command via rootCmd
 	execute := func(args ...string) (string, error) {
-		buf := new(bytes.Buffer)
+		buf := &ThreadSafeBuffer{}
 		rootCmd.SetOut(buf)
 		rootCmd.SetErr(buf)
 		// We don't strictly need the temp config here but good practice

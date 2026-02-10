@@ -102,6 +102,9 @@ func TestLoadChallenges(t *testing.T) {
 }
 
 func TestRunGym(t *testing.T) {
+	gymTestMutex.Lock()
+	defer gymTestMutex.Unlock()
+
 	// Mock runGymSessionFunc
 	originalRunGymSessionFunc := runGymSessionFunc
 	defer func() { runGymSessionFunc = originalRunGymSessionFunc }()
@@ -138,6 +141,9 @@ func TestRunGym(t *testing.T) {
 }
 
 func TestRunGymSession(t *testing.T) {
+	gymTestMutex.Lock()
+	defer gymTestMutex.Unlock()
+
 	// Mock factories
 	originalDockerFactory := gymDockerClientFactory
 	originalAgentFactory := gymAgentFactory
