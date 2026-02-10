@@ -237,6 +237,23 @@ func setupSessionManager(t *testing.T) (*SessionManager, func()) {
 	return sm, cleanup
 }
 
+func permissionsEnforced(t *testing.T) bool {
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test")
+	if err := os.WriteFile(testFile, []byte("test"), 0600); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	if err := os.Chmod(tmpDir, 0500); err != nil {
+		t.Fatalf("Failed to chmod temp dir: %v", err)
+	}
+	defer os.Chmod(tmpDir, 0700) // Ensure cleanup
+
+	// Try to remove
+	err := os.Remove(testFile)
+	return err != nil
+}
+
 func TestSessionManager_Lifecycle(t *testing.T) {
 	// Setup temporary home directory
 	tmpDir, err := os.MkdirTemp("", "recac-test-session")
@@ -510,9 +527,9 @@ func TestRemoveSession_Error(t *testing.T) {
 		t.Skip("Skipping permission test on Windows")
 	}
 
-	// Skip if running as root (CI/Docker) as root can ignore permissions
-	if os.Geteuid() == 0 {
-		t.Skip("Skipping permission test as root")
+	// Skip if environment ignores permissions (e.g. root, CI, Docker capabilities)
+	if !permissionsEnforced(t) {
+		t.Skip("Skipping permission test: permissions not enforced in this environment")
 	}
 
 	sm, cleanup := setupSessionManager(t)
