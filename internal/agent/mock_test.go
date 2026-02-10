@@ -55,6 +55,10 @@ func TestMockAgent(t *testing.T) {
 		t.Errorf("Expected QA_PASSED signal, got: %s", response)
 	}
 
+	// Reset Agent for Coding Prompt to ensure iteration count starts fresh
+	// (Prevents hitting the lowered loop breaker threshold from previous test steps)
+	agent = NewMockAgent()
+
 	// 5. Coding Prompt
 	prompt = "Implement Primes"
 	response, err = agent.Send(context.Background(), prompt)

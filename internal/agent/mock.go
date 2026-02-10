@@ -61,13 +61,14 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Loop Breaker / QA Check
 	// If the system says "nothing to commit", it means the previous step (implementation) is done and committed.
 	// We should signal success to move forward.
-	if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
+	promptLower := strings.ToLower(prompt)
+	if strings.Contains(promptLower, "nothing to commit") || strings.Contains(promptLower, "working tree clean") || strings.Contains(promptLower, "everything up-to-date") {
 		return "It looks like the work is done and clean. I will signal completion.\n```bash\nagent-bridge signal --privileged QA_PASSED true\nagent-bridge signal --privileged PROJECT_SIGNED_OFF true\n```", nil
 	}
 
 	// Iteration-based Loop Breaker (Fallback)
 	// If we've been called many times for the same coding task, assume we are looping and force exit.
-	if m.iterationCount > 10 && (strings.Contains(prompt, "prime numbers") || strings.Contains(prompt, "Implement Primes")) {
+	if m.iterationCount > 3 && (strings.Contains(promptLower, "prime numbers") || strings.Contains(prompt, "Implement Primes")) {
 		return "It seems I am repeating myself. The work must be done. I will signal completion.\n```bash\nagent-bridge signal --privileged QA_PASSED true\nagent-bridge signal --privileged PROJECT_SIGNED_OFF true\n```", nil
 	}
 
