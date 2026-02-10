@@ -136,7 +136,7 @@ agent-bridge import --file /app/ticket_plan.json
   {
     "id": "PRIMES",
     "type": "Task",
-    "title": "Implement prime number script",
+    "title": "ID:[PRIMES] Implement prime number script",
     "description": "Implement a python script 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'."
   }
 ]
