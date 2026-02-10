@@ -40,6 +40,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(upperPrompt, "TECHNICAL PROGRAM MANAGER") {
 		tickets := []map[string]interface{}{
 			{
+				"id":          "PRIMES",
 				"title":       "Implement Primes",
 				"description": "Create a python script that prints prime numbers up to 100",
 				"type":        "Task",

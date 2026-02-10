@@ -31,6 +31,9 @@ func TestMockAgent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
 	}
+	if !strings.Contains(response, "\"id\":\"PRIMES\"") {
+		t.Errorf("Expected ticket ID in response, got: %s", response)
+	}
 	if !strings.Contains(response, "[{\"description\":\"Create a python script") {
 		t.Errorf("Expected JSON ticket response, got: %s", response)
 	}
