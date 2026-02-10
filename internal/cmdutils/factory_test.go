@@ -99,6 +99,7 @@ type MockGitClient struct {
 	cloneFn             func(ctx context.Context, repoURL, directory string) error
 	checkoutFn          func(directory, branch string) error
 	checkoutNewBranchFn func(directory, branch string) error
+	configGlobalFn      func(key, value string) error
 }
 
 func (m *MockGitClient) Clone(ctx context.Context, repoURL, directory string) error {
@@ -117,6 +118,9 @@ func (m *MockGitClient) Config(directory, key, value string) error {
 }
 
 func (m *MockGitClient) ConfigGlobal(key, value string) error {
+	if m.configGlobalFn != nil {
+		return m.configGlobalFn(key, value)
+	}
 	return nil
 }
 
@@ -386,5 +390,26 @@ func TestSetupWorkspace(t *testing.T) {
 		_, err := SetupWorkspace(context.Background(), mockGitClient, "https://github.com/example/repo", "/tmp/recac-test", "TEST-1", "", "")
 		assert.NoError(t, err)
 		assert.Equal(t, "agent/TEST-1", checkedOut)
+	})
+
+	t.Run("Configures GITHUB_TOKEN global auth", func(t *testing.T) {
+		os.Setenv("GITHUB_TOKEN", "test-token")
+		defer os.Unsetenv("GITHUB_TOKEN")
+
+		configuredKey := ""
+		configuredValue := ""
+		mockGitClient := &MockGitClient{
+			repoExists: true, // skip clone
+			configGlobalFn: func(key, value string) error {
+				configuredKey = key
+				configuredValue = value
+				return nil
+			},
+		}
+
+		_, err := SetupWorkspace(context.Background(), mockGitClient, "https://github.com/example/repo", "/tmp/recac-test", "TEST-1", "", "")
+		assert.NoError(t, err)
+		assert.Equal(t, "url.https://test-token:x-oauth-basic@github.com/.insteadOf", configuredKey)
+		assert.Equal(t, "https://github.com/", configuredValue)
 	})
 }

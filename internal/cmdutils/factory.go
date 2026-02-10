@@ -111,6 +111,19 @@ var SetupWorkspace = func(ctx context.Context, gitClient git.IClient, repoURL, w
 		authRepoURL = strings.Replace(repoURL, "https://github.com/", fmt.Sprintf("https://%s@github.com/", githubKey), 1)
 	}
 
+	// Also handle standard GITHUB_TOKEN (e.g. from GitHub Actions or K8s secrets)
+	// This ensures consistency with K8sSpawner which sets this globally via shell script.
+	// We do it here so it works for Docker-based agents too.
+	githubToken := os.Getenv("GITHUB_TOKEN")
+	if githubToken != "" {
+		// Use x-oauth-basic auth strategy for GitHub
+		// git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
+		key := fmt.Sprintf("url.https://%s:x-oauth-basic@github.com/.insteadOf", githubToken)
+		if err := gitClient.ConfigGlobal(key, "https://github.com/"); err != nil {
+			fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to configure global git auth for GITHUB_TOKEN: %v\n", ticketID, err)
+		}
+	}
+
 	// 2. Clone Repository (if not already present)
 	if !gitClient.RepoExists(workspace) {
 		fmt.Printf("[%s] Cloning repository into %s...\n", ticketID, workspace)
