@@ -37,7 +37,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 1. Initializer Agent
 	if strings.Contains(prompt, "INITIALIZER AGENT") {
-		return "```bash\n# Initializer Agent Setup\necho \"Setting up environment...\"\n```", nil
+		return "```bash\n# Initializer Agent Setup\necho \"Setting up environment...\"\n# Create feature list to proceed\necho '{\"project_name\":\"test\",\"features\":[{\"id\":\"1\",\"description\":\"Implement features\",\"status\":\"pending\"}]}' > feature_list.json\n```", nil
 	}
 
 	// 2. Technical Program Manager (TPM) - Generates Jira Tickets (JSON)

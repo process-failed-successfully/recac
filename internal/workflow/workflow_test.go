@@ -166,6 +166,13 @@ func TestRunWorkflow_Detached(t *testing.T) {
 }
 
 func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
+	// Override RunWorkflow to avoid real session execution (and real DB connection)
+	originalRunWorkflow := RunWorkflow
+	defer func() { RunWorkflow = originalRunWorkflow }()
+	RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
+		return nil // Successfully skipped execution
+	}
+
 	// Mock SetupWorkspace
 	originalSetup := cmdutils.SetupWorkspace
 	defer func() { cmdutils.SetupWorkspace = originalSetup }()
@@ -173,6 +180,13 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 	cmdutils.SetupWorkspace = func(ctx context.Context, gitClient git.IClient, repoURL, workspace, ticketID, epicKey, timestamp string) (string, error) {
 		os.MkdirAll(workspace, 0755)
 		return repoURL, nil
+	}
+
+	// Mock RunWorkflow to skip execution (and thus DB access)
+	originalRunWorkflow = RunWorkflow
+	defer func() { RunWorkflow = originalRunWorkflow }()
+	RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
+		return nil
 	}
 
 	// Mock Jira Server (minimal)
