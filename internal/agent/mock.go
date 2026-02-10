@@ -32,8 +32,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	promptLower := strings.ToLower(prompt)
+
 	// Heuristic: Initializer (Import Features)
-	if strings.Contains(prompt, "You are the Initializer") || strings.Contains(prompt, "INITIALIZER AGENT") {
+	if strings.Contains(promptLower, "you are the initializer") || strings.Contains(promptLower, "initializer agent") {
 		return `
 cat <<EOF > feature_list.json
 [{"id": "req-primes", "description": "Implement primes.py"}]
@@ -43,18 +45,16 @@ agent-bridge import feature_list.json
 	}
 
 	// Heuristic: Technical Program Manager (Generate Tickets)
-	if strings.Contains(prompt, "Technical Program Manager") {
+	if strings.Contains(promptLower, "technical program manager") {
 		return `[{"id": "PRIMES", "key": "PRIMES", "title": "Implement Primes", "description": "Implement primes.py", "type": "Task"}]`, nil
 	}
 
 	// Heuristic: Project Manager (Sign Off)
-	if strings.Contains(prompt, "PROJECT MANAGER") {
+	if strings.Contains(promptLower, "project manager") {
 		return "agent-bridge signal PROJECT_SIGNED_OFF true", nil
 	}
 
 	// Heuristic: Coding Agent (Primes Scenario)
-	// Check case-insensitive to ensure robustness (e.g. "Implement Primes")
-	promptLower := strings.ToLower(prompt)
 	if strings.Contains(promptLower, "primes") || strings.Contains(promptLower, "prime number script") {
 		if !m.hasCommitted {
 			m.hasCommitted = true
@@ -89,7 +89,7 @@ git commit -m "Implement primes.py and generate primes.json"
 	}
 
 	// Heuristic: QA Agent
-	if strings.Contains(prompt, "QA AGENT") {
+	if strings.Contains(promptLower, "qa agent") {
 		return "agent-bridge signal QA_PASSED true", nil
 	}
 
