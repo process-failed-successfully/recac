@@ -265,17 +265,21 @@ func (s *Session) runQAAgent(ctx context.Context) error {
 	// 3. Check DB Signal (Authoritative)
 	// We read the raw signal value. "true" = PASS, "false" (or missing) = FAIL.
 	// Note: checking "false" explicitly allows us to distinguish between "agent said fail" and "agent did nothing".
-	val, err := s.DBStore.GetSignal(s.Project, "QA_PASSED")
-	s.Logger.Info("QA result signal check", "signal", val, "error", err)
 
-	if err == nil && val == "true" {
+	// Safe check using hasSignal which handles DBStore nil (via my fix)
+	if s.hasSignal("QA_PASSED") {
 		s.Logger.Info("QA passed (signal verified)")
 		return nil
 	}
 
-	if val == "false" {
-		s.Logger.Error("QA failed (explicit signal)")
-		return fmt.Errorf("QA Agent explicitly signaled failure")
+	// Only try to read explicit failure if DBStore is present
+	if s.DBStore != nil {
+		val, err := s.DBStore.GetSignal(s.Project, "QA_PASSED")
+		s.Logger.Info("QA result signal check", "signal", val, "error", err)
+		if val == "false" {
+			s.Logger.Error("QA failed (explicit signal)")
+			return fmt.Errorf("QA Agent explicitly signaled failure")
+		}
 	}
 
 	// Fallback/Legacy/Missing Signal
