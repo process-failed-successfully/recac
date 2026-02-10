@@ -64,6 +64,9 @@ func TestMockAgent(t *testing.T) {
 	if !strings.Contains(response, "cat <<EOF > primes.py") {
 		t.Errorf("Expected bash command to create file, got: %s", response)
 	}
+	if !strings.Contains(response, "git commit -m \"Implement primes\"") {
+		t.Errorf("Expected git commit command, got: %s", response)
+	}
 }
 
 func TestTruncateString(t *testing.T) {

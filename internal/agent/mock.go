@@ -80,6 +80,13 @@ for i in range(1, 101):
     if is_prime(i):
         print(i)
 EOF
+
+# Ensure we commit the changes so the loop breaker can detect "nothing to commit" on subsequent runs
+git config user.email "agent@recac.com"
+git config user.name "Recac Agent"
+git add primes.py
+git commit -m "Implement primes" || echo "nothing to commit"
+git push || echo "push failed"
 ` + "```" + `
 `, nil
 	}
