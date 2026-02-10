@@ -40,7 +40,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		strings.Contains(prompt, "feature_list.json") {
 		return "```bash\n" + `
 cat <<EOF > feature_list.json
-[{"id": "req-primes", "description": "Implement primes.py"}]
+{
+  "project_name": "mock-project",
+  "features": [{"id": "req-primes", "description": "Implement primes.py"}]
+}
 EOF
 agent-bridge import feature_list.json
 ` + "\n```", nil

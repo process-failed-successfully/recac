@@ -228,6 +228,9 @@ func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, ind
 			telemetry.TrackBuildResult(s.Project, false)
 		}
 
+		// Log full output for debugging
+		s.Logger.Error("command execution failed detail", "output", output)
+
 		return result, fmt.Errorf("command execution failed: %w", err)
 	}
 
