@@ -77,7 +77,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return fmt.Sprintf(`[
   {
     "title": "ID:[PRIMES] Implement Prime Number Generator",
-    "description": "Implement a Python script to generate prime numbers.\n\nRepository: %s\n\nAcceptance Criteria:\n- req-script-prints-primes-up-to-100: Script prints primes up to 100",
+    "description": "Implement a Python script to generate prime numbers.\n\nRepository: %s\n\nAcceptance Criteria:\n- script-prints-primes: Script prints primes up to 100",
     "type": "Task",
     "status": "To Do",
     "priority": "High",
@@ -86,7 +86,14 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, repoUrl), nil
 	}
 
-	// 4. Coding Agent - Primes Scenario
+	// 4. Project Manager Review (Moved up to prevent Coding Agent from stealing the prompt)
+	if strings.Contains(prompt, "PROJECT MANAGER") {
+		return "```bash\n" +
+			"agent-bridge signal --privileged PROJECT_SIGNED_OFF true\n" +
+			"```", nil
+	}
+
+	// 5. Coding Agent - Primes Scenario
 	promptUpper := strings.ToUpper(prompt)
 	if (strings.Contains(promptUpper, "CODING AGENT") || strings.Contains(promptUpper, "YOUR ROLE") || strings.Contains(promptUpper, "DEVELOPER")) &&
 	   (strings.Contains(promptUpper, "PRIME") || strings.Contains(prompt, "req-script-prints-primes")) {
@@ -113,18 +120,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			"```", nil
 	}
 
-	// 5. QA Agent
+	// 6. QA Agent
 	if strings.Contains(prompt, "QA AGENT") {
 		return "```bash\n" +
 			"python3 primes.py\n" +
 			"agent-bridge signal --privileged QA_PASSED true\n" +
-			"```", nil
-	}
-
-	// 6. Project Manager Review
-	if strings.Contains(prompt, "PROJECT MANAGER") {
-		return "```bash\n" +
-			"agent-bridge signal --privileged PROJECT_SIGNED_OFF true\n" +
 			"```", nil
 	}
 
