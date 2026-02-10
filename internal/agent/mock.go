@@ -53,7 +53,9 @@ agent-bridge import feature_list.json
 	}
 
 	// Heuristic: Coding Agent (Primes Scenario)
-	if strings.Contains(prompt, "primes") || strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "Prime Number Script") {
+	// Check case-insensitive to ensure robustness (e.g. "Implement Primes")
+	promptLower := strings.ToLower(prompt)
+	if strings.Contains(promptLower, "primes") || strings.Contains(promptLower, "prime number script") {
 		if !m.hasCommitted {
 			m.hasCommitted = true
 			return `
