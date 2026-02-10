@@ -63,7 +63,10 @@ if [ -n "$GITHUB_API_KEY" ] && [ -n "` + repoURL + `" ]; then
   # Replace https:// with https://x-access-token:KEY@
   AUTH_URL=$(echo "$REPO_URL" | sed "s|https://|https://x-access-token:${GITHUB_API_KEY}@|")
   echo "Cloning from ${REPO_URL}..."
-  git clone "$AUTH_URL" .
+  git init
+  git remote add origin "$AUTH_URL"
+  git fetch origin
+  git checkout -f master || git checkout -f main || echo "Failed to checkout default branch"
 else
   echo "Initializing local repo (no token or url found)..."
   git init

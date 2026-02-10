@@ -25,6 +25,21 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Initializer(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "ROLE - INITIALIZER AGENT\nRepo: https://github.com/test/repo"
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(response, "git init") {
+		t.Error("Expected 'git init' in response")
+	}
+	if !strings.Contains(response, "git remote add origin") {
+		t.Error("Expected 'git remote add origin' in response")
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
