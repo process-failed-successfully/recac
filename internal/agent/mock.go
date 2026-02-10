@@ -48,6 +48,15 @@ agent-bridge import feature_list.json
 `, nil
 	}
 
+	// Heuristic: Manager (Select Task)
+	if strings.Contains(prompt, "req-primes") && strings.Contains(prompt, "pending") && !strings.Contains(prompt, "primes.py") {
+		return `
+` + "```bash" + `
+agent-bridge task select req-primes
+` + "```" + `
+`, nil
+	}
+
 	// Heuristic: Technical Program Manager (Generate Tickets)
 	if strings.Contains(prompt, "Technical Program Manager") {
 		return `[{"id": "PRIMES", "key": "PRIMES", "title": "Implement Primes", "description": "Implement primes.py", "type": "Task"}]`, nil
