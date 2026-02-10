@@ -26,6 +26,17 @@ func TestProcessJiraTicket(t *testing.T) {
 		return nil // Prevent running the full session
 	}
 
+	// Mock NewSessionFunc (Safety Net)
+	originalNewSessionFunc := NewSessionFunc
+	defer func() { NewSessionFunc = originalNewSessionFunc }()
+	NewSessionFunc = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
+		return &runner.Session{
+			Workspace:     workspace,
+			Project:       project,
+			MaxIterations: 0, // Exit immediately
+		}
+	}
+
 	// Mock SetupWorkspace
 	originalSetup := cmdutils.SetupWorkspace
 	defer func() { cmdutils.SetupWorkspace = originalSetup }()

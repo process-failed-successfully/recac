@@ -89,7 +89,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			// Second call: Signal completion to break the loop
 			return "Task completed. I have implemented the prime number script and verified the output.\n" +
 				"```bash\n" +
-				"agent-bridge feature set \"PRIMES\" --status done\n" +
+				"agent-bridge feature set \"PRIMES\" --status done --passes true\n" +
 				"agent-bridge signal --privileged QA_PASSED true\n" +
 				"```", nil
 		}
