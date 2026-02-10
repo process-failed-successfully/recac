@@ -81,7 +81,7 @@ agent-bridge import < feature_list.json
 	}
 
 	// 3. QA Agent
-	if strings.Contains(upperPrompt, "QA AGENT") {
+	if strings.Contains(upperPrompt, "ROLE - QA AGENT") {
 		return `QA verification passed.
 
 ` + "```bash" + `
@@ -91,7 +91,7 @@ agent-bridge signal --privileged QA_PASSED true
 	}
 
 	// 4. Project Manager
-	if strings.Contains(upperPrompt, "PROJECT MANAGER") {
+	if strings.Contains(upperPrompt, "ROLE - PROJECT MANAGER") {
 		return `Project signed off.
 
 ` + "```bash" + `
@@ -102,7 +102,7 @@ agent-bridge signal --privileged PROJECT_SIGNED_OFF true
 
 	// 5. Coding Agent / Developer (Primes)
 	// We check for keywords related to the Primes scenario AND role indicators
-	isCodingAgent := strings.Contains(upperPrompt, "CODING AGENT") ||
+	isCodingAgent := strings.Contains(upperPrompt, "ROLE - CODING AGENT") ||
 		strings.Contains(upperPrompt, "DEVELOPER") ||
 		strings.Contains(upperPrompt, "YOUR ROLE") // "Your role is to implement..."
 
