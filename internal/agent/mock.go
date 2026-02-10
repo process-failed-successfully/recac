@@ -56,12 +56,19 @@ set -e # Fail fast
 rm -rf .git
 
 if [ -n "$GITHUB_API_KEY" ] && [ -n "` + repoURL + `" ]; then
-  # Inject token into URL
+  # Use git config for auth to handle special characters safely
+  # We use a trap to clean up the config exit
+  git config --global url."https://${GITHUB_API_KEY}@github.com/".insteadOf "https://github.com/"
+  trap 'git config --global --unset url."https://${GITHUB_API_KEY}@github.com/".insteadOf' EXIT
+
   REPO_URL="` + repoURL + `"
-  # Replace https:// with https://x-access-token:KEY@
-  AUTH_URL="${REPO_URL/https:\/\//https:\/\/x-access-token:${GITHUB_API_KEY}@}"
   echo "Cloning from ${REPO_URL}..."
-  git clone "$AUTH_URL" .
+  if git clone "$REPO_URL" .; then
+      echo "Clone successful"
+  else
+      echo "Clone failed"
+      exit 1
+  fi
 else
   echo "Initializing local repo (no token or url found)..."
   git init
