@@ -3,6 +3,7 @@ package scenarios
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -108,7 +109,7 @@ func TestGenericScenario_RunStep_FileExists(t *testing.T) {
 }
 
 func TestGenericScenario_RunStep_RunCommand(t *testing.T) {
-	if os.Getenv("GOOS") == "windows" {
+	if runtime.GOOS == "windows" {
 		t.Skip("Skipping on Windows due to echo/command differences")
 	}
 	s := NewGenericScenario(GenericScenarioConfig{})

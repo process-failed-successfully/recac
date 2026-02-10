@@ -197,7 +197,7 @@ func TestRunGymSession(t *testing.T) {
 
 	// Helper to match verification command
 	isVerificationCmd := func(cmd []string) bool {
-		return len(cmd) > 0 && cmd[0] == "python3" && cmd[1] == "test.py"
+		return len(cmd) > 1 && cmd[0] == "python3" && cmd[1] == "test.py"
 	}
 
 	// Verification call
