@@ -71,15 +71,15 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// If git status shows clean working tree, we are done.
 		if strings.Contains(strings.ToLower(prompt), "nothing to commit") || strings.Contains(strings.ToLower(prompt), "working tree clean") {
 			return "```bash\n" +
-				"agent-bridge signal QA_PASSED true --privileged\n" +
-				"agent-bridge signal PROJECT_SIGNED_OFF true --privileged\n" +
+				"agent-bridge signal --privileged QA_PASSED true\n" +
+				"agent-bridge signal --privileged PROJECT_SIGNED_OFF true\n" +
 				"```", nil
 		}
 
 		// 4. Project Manager (Approval)
 		if strings.Contains(prompt, "PROJECT MANAGER") || strings.Contains(prompt, "Review QA Report") {
 			return "```bash\n" +
-				"agent-bridge signal PROJECT_SIGNED_OFF true --privileged\n" +
+				"agent-bridge signal --privileged PROJECT_SIGNED_OFF true\n" +
 				"```", nil
 		}
 
