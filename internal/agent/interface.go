@@ -24,6 +24,8 @@ func NewAgent(provider, apiKey, model, workDir, project string) (Agent, error) {
 		project = "unknown"
 	}
 
+	provider = strings.TrimSpace(provider)
+
 	// Correct model name for OpenRouter if needed
 	if provider == "openrouter" && !strings.Contains(model, "/") {
 		originalModel := model

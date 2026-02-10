@@ -36,3 +36,4 @@ RUN curl -fsS https://cursor.com/install | bash
 ENV PATH="${HOME}/.local/bin:${PATH}"
 
 # No default command - source is mounted at runtime
+# Bust cache
