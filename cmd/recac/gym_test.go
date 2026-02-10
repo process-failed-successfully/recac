@@ -166,6 +166,7 @@ func TestRunGymSession(t *testing.T) {
 			Workspace:     workspace,
 			Image:         image,
 			Project:       project,
+			SpecFile:      "app_spec.txt",
 			MaxIterations: 1,
 			Notifier:      notify.NewManager(telemetry.LogInfof),
 			Logger:        slog.Default(),
@@ -174,13 +175,15 @@ func TestRunGymSession(t *testing.T) {
 
 	// Challenge data
 	challenge := GymChallenge{
-		Name:     "Test",
-		Language: "python",
-		TestFile: "test.py",
-		Tests:    "print('hello')",
+		Name:        "Test",
+		Description: "A test challenge.",
+		Language:    "python",
+		TestFile:    "test.py",
+		Tests:       "print('hello')",
 	}
 
 	// Expectations
+	mockAgent.On("Send", mock.Anything, mock.Anything).Return("Completed", nil)
 	mockDocker.On("CheckDaemon", mock.Anything).Return(nil)
 	mockDocker.On("ImageExists", mock.Anything, mock.Anything).Return(true, nil)
 	mockDocker.On("RunContainer", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("mock-container-id", nil)
