@@ -56,12 +56,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return "```json\n" + `[
   {
     "title": "Epic: Primes Implementation",
-    "description": "Implement prime number generator. Repo: https://github.com/example/repo",
+    "description": "Implement prime number generator.",
     "type": "Epic",
     "children": [
       {
         "title": "Story: Implement primes.py",
-        "description": "Create a python script to generate primes. Repo: https://github.com/example/repo",
+        "description": "Create a python script to generate primes.",
         "type": "Story",
         "acceptance_criteria": ["Script runs", "Output is valid JSON"],
         "blocked_by": []
