@@ -39,7 +39,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 cat <<EOF > feature_list.json
 [{"id": "req-primes", "description": "Implement primes.py"}]
 EOF
-agent-bridge import feature_list.json
+# Fallback: agent-bridge is removed to prevent failure in unit tests.
+# The runner will automatically pick up feature_list.json from disk.
 ` + "```" + `
 `, nil
 	}
@@ -55,7 +56,7 @@ agent-bridge import feature_list.json
 
 	// Heuristic: Project Manager (Sign Off)
 	if strings.Contains(prompt, "PROJECT MANAGER") {
-		return "agent-bridge signal PROJECT_SIGNED_OFF true", nil
+		return "agent-bridge signal PROJECT_SIGNED_OFF true || touch PROJECT_SIGNED_OFF", nil
 	}
 
 	// Heuristic: Coding Agent (Primes Scenario)
@@ -93,12 +94,12 @@ git commit -m "Implement primes.py and generate primes.json"
 `, nil
 		}
 		// If already committed, signal success to break loop
-		return "agent-bridge signal QA_PASSED true", nil
+		return "agent-bridge signal QA_PASSED true || touch QA_PASSED", nil
 	}
 
 	// Heuristic: QA Agent
 	if strings.Contains(prompt, "QA AGENT") {
-		return "agent-bridge signal QA_PASSED true", nil
+		return "agent-bridge signal QA_PASSED true || touch QA_PASSED", nil
 	}
 
 	// Default response

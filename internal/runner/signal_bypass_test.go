@@ -43,7 +43,7 @@ func TestSignalBypass(t *testing.T) {
 			}
 			defer os.Remove(path)
 
-			// 2. Check hasSignal - Should be FALSE for privileged signals
+			// 2. Check hasSignal - Should be FALSE for privileged signals (default provider)
 			if session.hasSignal(name) {
 				t.Errorf("hasSignal(%s) returned true for filesystem-based signal, expected false", name)
 			}
@@ -55,6 +55,29 @@ func TestSignalBypass(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("Privileged_MockMode", func(t *testing.T) {
+		mockSession := &Session{
+			Workspace:     workspace,
+			Project:       "mock-project",
+			DBStore:       store,
+			Notifier:      notify.NewManager(func(string, ...interface{}) {}),
+			Logger:        telemetry.NewLogger(true, "", false),
+			AgentProvider: "mock",
+		}
+
+		name := "QA_PASSED"
+		path := filepath.Join(workspace, name)
+		if err := os.WriteFile(path, []byte("true"), 0644); err != nil {
+			t.Fatalf("Failed to create signal file: %v", err)
+		}
+		defer os.Remove(path)
+
+		// Check hasSignal - Should be TRUE because AgentProvider is mock
+		if !mockSession.hasSignal(name) {
+			t.Error("hasSignal(QA_PASSED) returned false in mock mode, expected true")
+		}
+	})
 
 	t.Run("NonPrivileged_FOO", func(t *testing.T) {
 		name := "FOO"
