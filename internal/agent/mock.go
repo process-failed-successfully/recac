@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,6 +31,29 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// Heuristic to detect if JSON is expected (specifically for Planner/Jira generator)
+	// The planner prompt usually asks for a JSON list of features
+	if strings.Contains(prompt, "TPM") || strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "feature list") {
+		return `{
+  "project_name": "Mock Project",
+  "features": [
+    {
+      "name": "Feature 1",
+      "description": "A mock feature for testing",
+      "priority": "High",
+      "dependencies": []
+    },
+    {
+      "name": "Feature 2",
+      "description": "Another mock feature",
+      "priority": "Medium",
+      "dependencies": ["Feature 1"]
+    }
+  ]
+}`, nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
