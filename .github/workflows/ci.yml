@@ -254,7 +254,7 @@ jobs:
           cluster-name: "recac-smoke"
           args: >-
             --agents 1
-            --no-lb
+            --image rancher/k3s:v1.28.2-k3s1
             --no-lb
             --k3s-arg "--disable=traefik@server:*"
             --k3s-arg "--disable=metrics-server@server:*"
