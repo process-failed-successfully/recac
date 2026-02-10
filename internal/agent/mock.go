@@ -33,8 +33,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Heuristic for Ticket Generation (TPM Agent)
-	// If the prompt asks for a ticket plan (TPM role), return a valid JSON structure
-	// to prevent parsing errors in tools expecting JSON output (e.g., recac jira generate-from-spec).
+	// If the prompt asks for a ticket plan (TPM role), return a valid JSON structure.
 	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "ticket plan") {
 		return `[
   {
@@ -54,6 +53,59 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     ]
   }
 ]`, nil
+	}
+
+	// Heuristic for Initializer Agent
+	// If the prompt is for the Initializer (asks for feature_list.json), return a bash block to create it.
+	if strings.Contains(prompt, "INITIALIZER AGENT") || strings.Contains(prompt, "Create feature_list.json") {
+		return `I will set up the project foundation.
+
+` + "```bash" + `
+cat << 'EOF' | agent-bridge import
+{
+  "project_name": "Mock Project",
+  "features": [
+    {
+      "id": "init-setup",
+      "category": "core",
+      "priority": "MVP",
+      "description": "Initial Setup",
+      "status": "pending",
+      "steps": ["Step 1: Check init"],
+      "passes": false
+    }
+  ]
+}
+EOF
+
+cat > init.sh << 'EOF'
+#!/bin/bash
+echo "Project Initialized"
+EOF
+chmod +x init.sh
+` + "```" + `
+
+And the initial commit:
+
+` + "```bash" + `
+git init
+git config user.email "agent@recac.ai"
+git config user.name "Recac Agent"
+git add .
+git commit -m "Initial commit"
+` + "```", nil
+	}
+
+	// Heuristic for Coding Agent / Generic
+	// If it's a generic prompt asking for code or tasks, return a simple bash command to prevent No-Op loop.
+	// We check for typical prompt markers.
+	if strings.Contains(prompt, "Coding Agent") || strings.Contains(prompt, "## YOUR ROLE") {
+		return `I am working on the task.
+
+` + "```bash" + `
+echo "Executing mock agent task..."
+ls -la
+` + "```", nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
