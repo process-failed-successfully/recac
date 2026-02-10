@@ -36,8 +36,31 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// --- Heuristics for E2E Smoke Test (prime-python) ---
 
-	// 1. Initializer: "Analyze the following application specification" or similar
-	if strings.Contains(upperPrompt, "ANALYZE") && strings.Contains(upperPrompt, "SPECIFICATION") {
+	// 0. TPM Agent (Jira Ticket Generation): "Technical Program Manager"
+	// This agent must return JSON.
+	if strings.Contains(upperPrompt, "TECHNICAL PROGRAM MANAGER") || strings.Contains(upperPrompt, "TPM") {
+		return `
+` + "```json" + `
+[
+  {
+    "title": "ID:[PRIMES] Create Prime Number Script",
+    "description": "Create a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.\n\nRepo: https://github.com/process-failed-successfully/recac-jira-e2e",
+    "type": "Task",
+    "acceptance_criteria": [
+      "primes.py exists",
+      "primes.json exists",
+      "1229 primes found"
+    ],
+    "children": []
+  }
+]
+` + "```" + `
+`, nil
+	}
+
+	// 1. Initializer: "INITIALIZER AGENT"
+	// This agent must return Bash to create feature_list.json.
+	if strings.Contains(upperPrompt, "INITIALIZER AGENT") {
 		return `I have analyzed the specification. Here is the feature breakdown:
 
 ` + "```bash" + `
