@@ -33,8 +33,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	// Normalize prompt for case-insensitive matching
+	upperPrompt := strings.ToUpper(prompt)
+
 	// TPM (Technical Program Manager) - Ticket Generation
-	if strings.Contains(prompt, "Technical Program Manager") {
+	if strings.Contains(upperPrompt, "TECHNICAL PROGRAM MANAGER") {
 		tickets := []map[string]interface{}{
 			{
 				"title":       "Implement Primes",
@@ -47,23 +50,53 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Initializer Agent - Feature List
-	if strings.Contains(prompt, "CREATE FEATURE_LIST.JSON") {
-		features := map[string]interface{}{
-			"features": []string{"prime-numbers"},
-		}
-		data, _ := json.Marshal(features)
-		return fmt.Sprintf("```json\n%s\n```", string(data)), nil
+	if strings.Contains(upperPrompt, "INITIALIZER AGENT") {
+		// Return valid bash block calling agent-bridge import
+		// We use a bash block because Initializer is instructed to use agent-bridge import
+		return `I will initialize the feature list.
+
+` + "```bash" + `
+cat <<EOF | agent-bridge import
+{
+  "project_name": "MFLP-9907",
+  "features": [
+    {
+      "id": "prime-numbers",
+      "description": "Print primes to 100",
+      "status": "todo",
+      "passes": false,
+      "priority": "MVP",
+      "category": "functional",
+      "steps": ["Run python script", "Check output"],
+      "dependencies": {
+          "exclusive_write_paths": ["primes.py"],
+          "read_only_paths": []
+      }
+    }
+  ]
+}
+EOF
+` + "```" + `
+`, nil
 	}
 
 	// Loop Breaker / QA Check
 	// If the system says "nothing to commit", it means the previous step (implementation) is done and committed.
 	// We should signal success to move forward.
-	if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
-		return "It looks like the work is done and clean. I will signal completion.\n```bash\nagent-bridge signal --privileged QA_PASSED true\nagent-bridge signal --privileged PROJECT_SIGNED_OFF true\n```", nil
+	if strings.Contains(upperPrompt, "NOTHING TO COMMIT") || strings.Contains(upperPrompt, "WORKING TREE CLEAN") {
+		// We MUST also mark the feature as done, otherwise premature sign-off guardrail will reject it.
+		return `It looks like the work is done and clean. I will mark the feature as done and signal completion.
+
+` + "```bash" + `
+agent-bridge feature set prime-numbers --status done --passes true
+agent-bridge signal --privileged QA_PASSED true
+agent-bridge signal --privileged PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
 	}
 
 	// Coding Agent - Implementation
-	if strings.Contains(prompt, "prime numbers") || strings.Contains(prompt, "Implement Primes") {
+	if strings.Contains(upperPrompt, "PRIME NUMBERS") || strings.Contains(upperPrompt, "IMPLEMENT PRIMES") {
 		// Return a bash command to create the file, so the agent actually performs an action
 		// and avoids tripping the NO-OP loop circuit breaker.
 		return `I will create the python script.

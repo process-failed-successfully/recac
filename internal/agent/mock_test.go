@@ -36,13 +36,16 @@ func TestMockAgent(t *testing.T) {
 	}
 
 	// 3. Initializer Prompt
-	prompt = "Please CREATE FEATURE_LIST.JSON"
+	prompt = "You are the INITIALIZER AGENT"
 	response, err = agent.Send(context.Background(), prompt)
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
 	}
+	if !strings.Contains(response, "agent-bridge import") {
+		t.Errorf("Expected agent-bridge import command, got: %s", response)
+	}
 	if !strings.Contains(response, "prime-numbers") {
-		t.Errorf("Expected Feature list JSON, got: %s", response)
+		t.Errorf("Expected prime-numbers in content, got: %s", response)
 	}
 
 	// 4. Loop Breaker Prompt
@@ -50,6 +53,9 @@ func TestMockAgent(t *testing.T) {
 	response, err = agent.Send(context.Background(), prompt)
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(response, "agent-bridge feature set prime-numbers") {
+		t.Errorf("Expected feature update signal, got: %s", response)
 	}
 	if !strings.Contains(response, "agent-bridge signal --privileged QA_PASSED true") {
 		t.Errorf("Expected QA_PASSED signal, got: %s", response)
