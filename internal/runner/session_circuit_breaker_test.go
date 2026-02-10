@@ -1,9 +1,9 @@
 package runner
 
 import (
+	"errors"
 	"recac/internal/notify"
 	"recac/internal/telemetry"
-	"strings"
 	"testing"
 )
 
@@ -46,6 +46,9 @@ func TestSession_CheckNoOpBreaker(t *testing.T) {
 	err = s.checkNoOpBreaker("")
 	if err == nil {
 		t.Error("Expected error for 3rd consecutive no-op")
+	}
+	if !errors.Is(err, ErrNoOp) {
+		t.Errorf("Expected ErrNoOp, got %v", err)
 	}
 	if s.NoOpCount != 3 {
 		t.Errorf("Expected NoOpCount 3, got %d", s.NoOpCount)
@@ -96,8 +99,8 @@ func TestSession_CheckStalledBreaker(t *testing.T) {
 
 	// 4. Trip at 16 (since 16 >= 3 * 5)
 	err = s.checkStalledBreaker("Agent", 5)
-	if err == nil || !strings.Contains(err.Error(), "CIRCUIT BREAKER TRIPPED") {
-		t.Errorf("Expected circuit breaker trip at 16, got %v", err)
+	if err == nil || !errors.Is(err, ErrStalled) {
+		t.Errorf("Expected ErrStalled at 16, got %v", err)
 	}
 }
 
