@@ -176,8 +176,34 @@ func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, ind
 	if s.UseLocalAgent {
 		// Execute Locally
 		cmd := exec.CommandContext(cmdCtx, "/bin/bash", "-c", cmdScript)
-		// Propagate Environment + Inject Project ID
-		cmd.Env = append(os.Environ(), fmt.Sprintf("RECAC_PROJECT_ID=%s", s.Project))
+
+		// Filter Environment to prevent leaking host secrets
+		var env []string
+		// Allowlist of prefixes and exact keys
+		allowedPrefixes := []string{"GIT_", "JIRA_", "RECAC_", "OPENROUTER_", "OPENAI_", "ANTHROPIC_", "GEMINI_"}
+		allowedKeys := map[string]bool{
+			"PATH": true, "HOME": true, "LANG": true, "TERM": true, "USER": true, "SHELL": true, "TMPDIR": true,
+			"http_proxy": true, "https_proxy": true, "no_proxy": true,
+			"HTTP_PROXY": true, "HTTPS_PROXY": true, "NO_PROXY": true,
+		}
+
+		for _, e := range os.Environ() {
+			key, _, _ := strings.Cut(e, "=")
+			if allowedKeys[key] {
+				env = append(env, e)
+				continue
+			}
+			for _, p := range allowedPrefixes {
+				if strings.HasPrefix(e, p) {
+					env = append(env, e)
+					break
+				}
+			}
+		}
+
+		// Inject Project ID
+		cmd.Env = append(env, fmt.Sprintf("RECAC_PROJECT_ID=%s", s.Project))
+
 		// Debug: Log key env vars for troubleshooting
 		s.Logger.Info("[DEBUG] Local exec env vars",
 			"RECAC_PROJECT_ID", s.Project,
