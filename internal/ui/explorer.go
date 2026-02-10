@@ -46,6 +46,7 @@ type ExplorerModel struct {
 	viewport       viewport.Model
 	currentPath    string
 	viewingFile    bool   // If true, showing viewport
+	viewingFileName string // Title of the file being viewed
 	statusMessage  string // For temporary status like "Analyzing..."
 
 	explainFunc    AnalysisFunc
@@ -161,6 +162,7 @@ func formatSize(size int64) string {
 type analysisMsg struct {
 	result string
 	err    error
+	title  string
 }
 
 func (m ExplorerModel) Init() tea.Cmd {
@@ -177,7 +179,7 @@ func (m ExplorerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.list.SetSize(msg.Width, msg.Height)
 		m.viewport.Width = msg.Width
-		m.viewport.Height = msg.Height
+		m.viewport.Height = msg.Height - 2 // Header + Footer
 		return m, nil
 
 	case tea.KeyMsg:
@@ -217,6 +219,7 @@ func (m ExplorerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.statusMessage = fmt.Sprintf("Error reading file: %v", err)
 				} else {
 					m.viewingFile = true
+					m.viewingFileName = f.Name
 					m.viewport.SetContent(string(content))
 					m.viewport.GotoTop()
 					m.statusMessage = "Viewing: " + f.Name
@@ -237,7 +240,7 @@ func (m ExplorerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if item != nil && !item.(FileItem).IsDir && m.explainFunc != nil {
 				path := item.(FileItem).Path
 				m.statusMessage = "🤖 Asking AI to explain..."
-				return m, m.runAnalysis(m.explainFunc, path)
+				return m, m.runAnalysis(m.explainFunc, path, "Explanation: "+item.(FileItem).Name)
 			}
 
 		case "c": // Complexity
@@ -245,7 +248,7 @@ func (m ExplorerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if item != nil && !item.(FileItem).IsDir && m.complexityFunc != nil {
 				path := item.(FileItem).Path
 				m.statusMessage = "Calculating complexity..."
-				return m, m.runAnalysis(m.complexityFunc, path)
+				return m, m.runAnalysis(m.complexityFunc, path, "Complexity: "+item.(FileItem).Name)
 			}
 
 		case "s": // Security
@@ -253,7 +256,7 @@ func (m ExplorerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if item != nil && !item.(FileItem).IsDir && m.securityFunc != nil {
 				path := item.(FileItem).Path
 				m.statusMessage = "Scanning for security issues..."
-				return m, m.runAnalysis(m.securityFunc, path)
+				return m, m.runAnalysis(m.securityFunc, path, "Security: "+item.(FileItem).Name)
 			}
 		}
 
@@ -263,6 +266,7 @@ func (m ExplorerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.statusMessage = fmt.Sprintf("Error: %v", msg.err)
 		} else {
 			m.viewingFile = true
+			m.viewingFileName = msg.title
 			m.viewport.SetContent(msg.result)
 			m.viewport.GotoTop()
 		}
@@ -276,24 +280,31 @@ func (m ExplorerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m ExplorerModel) runAnalysis(fn AnalysisFunc, path string) tea.Cmd {
+func (m ExplorerModel) runAnalysis(fn AnalysisFunc, path string, title string) tea.Cmd {
 	return func() tea.Msg {
 		res, err := fn(path)
-		return analysisMsg{result: res, err: err}
+		return analysisMsg{result: res, err: err, title: title}
 	}
 }
 
 func (m ExplorerModel) View() string {
 	if m.viewingFile {
-		return fmt.Sprintf("%s\n%s", m.headerView(), m.viewport.View())
+		return fmt.Sprintf("%s\n%s\n%s", m.headerView(), m.viewport.View(), m.footerView())
 	}
 	return fmt.Sprintf("%s\n%s", m.statusView(), m.list.View())
 }
 
 func (m ExplorerModel) headerView() string {
 	title := "File View"
+	if m.viewingFileName != "" {
+		title = m.viewingFileName
+	}
 	line := strings.Repeat("─", max(0, m.viewport.Width-len(title)))
 	return lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Render(title + line)
+}
+
+func (m ExplorerModel) footerView() string {
+	return lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("Press Esc or q to close")
 }
 
 func (m ExplorerModel) statusView() string {

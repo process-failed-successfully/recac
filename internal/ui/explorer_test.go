@@ -85,8 +85,9 @@ func TestExplorerModel_Update_EnterFile(t *testing.T) {
 
 	// Call View to cover headerView
 	view := finalM.View()
-	assert.Contains(t, view, "File View")
+	assert.Contains(t, view, "test.txt")
 	assert.Contains(t, view, "file content")
+	assert.Contains(t, view, "Press Esc or q to close")
 }
 
 func TestExplorerModel_Update_Analysis(t *testing.T) {
