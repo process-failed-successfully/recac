@@ -11,12 +11,14 @@ import (
 type MockAgent struct {
 	responsePrefix string
 	forcedResponse string
+	callCounts     map[string]int
 }
 
 // NewMockAgent creates a new mock agent
 func NewMockAgent() *MockAgent {
 	return &MockAgent{
 		responsePrefix: "Mock agent response",
+		callCounts:     make(map[string]int),
 	}
 }
 
@@ -28,6 +30,10 @@ func (m *MockAgent) SetResponse(response string) {
 // Send implements the Agent interface
 // It returns a mock response that acknowledges the prompt
 func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
+	if m.callCounts == nil {
+		m.callCounts = make(map[string]int)
+	}
+
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
@@ -53,11 +59,28 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 2. Initializer Agent (Setup)
 	if strings.Contains(prompt, "INITIALIZER AGENT") {
-		return "```bash\necho 'Initializing environment...'\n```", nil
+		return "```bash\n" +
+			"echo 'Initializing environment...'\n" +
+			"# Mock Initializer: Create app_spec.txt to bootstrap features if missing\n" +
+			"echo '# App Spec\n- [ ] Implement Prime Number Script ([PRIMES])' > app_spec.txt\n" +
+			"```", nil
 	}
 
 	// 3. Coding Agent (Implementation)
 	if strings.Contains(prompt, "CODING AGENT") || (strings.Contains(prompt, "prime") && strings.Contains(prompt, "python")) {
+		count := m.callCounts["coding_primes"]
+		m.callCounts["coding_primes"]++
+
+		if count > 0 {
+			// Second call: Signal completion to break the loop
+			return "Task completed. I have implemented the prime number script and verified the output.\n" +
+				"```bash\n" +
+				"agent-bridge feature set --id \"PRIMES\" --status done\n" +
+				"agent-bridge signal --privileged QA_PASSED true\n" +
+				"```", nil
+		}
+
+		// First call: Do the work
 		return "```bash\n" +
 			"cat <<EOF > primes.py\n" +
 			"import json\n\n" +
@@ -90,6 +113,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			"agent-bridge signal --privileged QA_PASSED true\n" +
 			"agent-bridge signal --privileged PROJECT_SIGNED_OFF true\n" +
 			"```", nil
+	}
+
+	// 5. Project Manager
+	if strings.Contains(prompt, "PROJECT MANAGER") || strings.Contains(prompt, "Project Manager") {
+		return "APPROVED\nEverything looks good.", nil
 	}
 
 	// Default response

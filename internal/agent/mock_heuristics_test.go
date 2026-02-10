@@ -7,8 +7,6 @@ import (
 )
 
 func TestMockAgent_Heuristics(t *testing.T) {
-	agent := NewMockAgent()
-
 	tests := []struct {
 		name           string
 		prompt         string
@@ -24,7 +22,7 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		{
 			name:           "Initializer Agent",
 			prompt:         "## YOUR ROLE - INITIALIZER AGENT",
-			expectContains: "echo 'Initializing environment...'",
+			expectContains: "app_spec.txt",
 			expectJSON:     false,
 		},
 		{
@@ -46,6 +44,12 @@ func TestMockAgent_Heuristics(t *testing.T) {
 			expectJSON:     false,
 		},
 		{
+			name:           "Project Manager",
+			prompt:         "## YOUR ROLE - PROJECT MANAGER",
+			expectContains: "APPROVED",
+			expectJSON:     false,
+		},
+		{
 			name:           "Default Fallback",
 			prompt:         "Hello there",
 			expectContains: "I received your prompt",
@@ -55,6 +59,7 @@ func TestMockAgent_Heuristics(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			agent := NewMockAgent()
 			resp, err := agent.Send(context.Background(), tt.prompt)
 			if err != nil {
 				t.Fatalf("Send failed: %v", err)
@@ -70,5 +75,31 @@ func TestMockAgent_Heuristics(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestMockAgent_Stateful(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "## YOUR ROLE - CODING AGENT [PRIMES]"
+
+	// 1st Call: Script
+	resp1, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("First call failed: %v", err)
+	}
+	if !strings.Contains(resp1, "def is_prime(n):") {
+		t.Errorf("First response expected script, got: %s", resp1)
+	}
+
+	// 2nd Call: Done
+	resp2, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Second call failed: %v", err)
+	}
+	if !strings.Contains(resp2, "Task completed") {
+		t.Errorf("Second response expected 'Task completed', got: %s", resp2)
+	}
+	if !strings.Contains(resp2, "QA_PASSED") {
+		t.Errorf("Second response expected 'QA_PASSED', got: %s", resp2)
 	}
 }
