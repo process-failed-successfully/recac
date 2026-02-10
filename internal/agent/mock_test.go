@@ -2,35 +2,52 @@ package agent
 
 import (
 	"context"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestMockAgent(t *testing.T) {
+func TestMockAgent_Send(t *testing.T) {
 	agent := NewMockAgent()
+	ctx := context.Background()
 
-	prompt := "This is a test prompt that is long enough to be truncated"
-	response, err := agent.Send(context.Background(), prompt)
+	t.Run("Initializer Agent", func(t *testing.T) {
+		prompt := "You are the INITIALIZER AGENT. Please create feature_list.json."
+		resp, err := agent.Send(ctx, prompt)
+		require.NoError(t, err)
+		assert.Contains(t, resp, "I will create the feature list")
+		assert.Contains(t, resp, "cat << 'EOF' > feature_list.json")
+	})
 
-	if err != nil {
-		t.Fatalf("Send failed: %v", err)
-	}
+	t.Run("Primes Task", func(t *testing.T) {
+		prompt := "Work on task [PRIMES] Prime Number Script"
+		resp, err := agent.Send(ctx, prompt)
+		require.NoError(t, err)
+		assert.Contains(t, resp, "cat << 'EOF' > primes.py")
+		assert.Contains(t, resp, "git add primes.py primes.json")
+		assert.Contains(t, resp, "is_prime")
+	})
 
-	if !strings.Contains(response, "Mock agent response") {
-		t.Errorf("Response missing prefix, got: %s", response)
-	}
+	t.Run("Primes Task Case Insensitive", func(t *testing.T) {
+		prompt := "Work on task [primes] Prime Number Script"
+		resp, err := agent.Send(ctx, prompt)
+		require.NoError(t, err)
+		assert.Contains(t, resp, "cat << 'EOF' > primes.py")
+	})
 
-	if !strings.Contains(response, "I received your prompt") {
-		t.Errorf("Response missing body, got: %s", response)
-	}
-}
+	t.Run("Manager Approval", func(t *testing.T) {
+		prompt := "You are the MANAGER AGENT. Review the code."
+		resp, err := agent.Send(ctx, prompt)
+		require.NoError(t, err)
+		assert.Contains(t, resp, "APPROVED")
+	})
 
-func TestTruncateString(t *testing.T) {
-	s := "hello world"
-	if truncateString(s, 5) != "hello" {
-		t.Errorf("Expected 'hello', got '%s'", truncateString(s, 5))
-	}
-	if truncateString(s, 20) != "hello world" {
-		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
-	}
+	t.Run("Default Response", func(t *testing.T) {
+		prompt := "Hello world"
+		resp, err := agent.Send(ctx, prompt)
+		require.NoError(t, err)
+		assert.Contains(t, resp, "I received your prompt")
+		assert.NotContains(t, resp, "cat << 'EOF'")
+	})
 }

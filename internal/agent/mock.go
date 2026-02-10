@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -25,13 +26,85 @@ func (m *MockAgent) SetResponse(response string) {
 }
 
 // Send implements the Agent interface
-// It returns a mock response that acknowledges the prompt
 func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
-	// Return a mock response that shows the agent received the prompt
-	// This allows the session to run without requiring real API keys
+
+	lowerPrompt := strings.ToLower(prompt)
+
+	// 1. Initializer Agent or Feature List Request
+	if strings.Contains(lowerPrompt, "initializer agent") || strings.Contains(lowerPrompt, "feature_list.json") {
+		return `I will create the feature list.
+
+` + "```bash" + `
+cat << 'EOF' > feature_list.json
+{
+  "project_name": "ID:[PRIMES] Prime Number Script",
+  "features": [
+    {
+      "id": "req-primes",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Implement primes.py to calculate primes < 10000",
+      "status": "pending",
+      "passes": false,
+      "steps": [
+        "Create primes.py",
+        "Run primes.py to generate primes.json",
+        "Verify output"
+      ]
+    }
+  ]
+}
+EOF
+` + "```" + `
+
+Files created.
+`, nil
+	}
+
+	// 2. [PRIMES] Task
+	if strings.Contains(strings.ToUpper(prompt), "[PRIMES]") {
+		return `I will implement the prime number script.
+
+` + "```bash" + `
+cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n <= 1: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+primes = [p for p in range(10000) if is_prime(p)]
+output = {"primes": primes}
+
+with open("primes.json", "w") as f:
+    json.dump(output, f)
+EOF
+
+# Run the script to generate the output
+python3 primes.py
+
+# Commit the files
+git add primes.py primes.json
+git commit -m "Implement primes.py and generate primes.json"
+git push
+` + "```" + `
+
+I have implemented the script, generated the JSON, and committed the changes.
+`, nil
+	}
+
+	// 3. Manager/QA Approval
+	if strings.Contains(lowerPrompt, "manager agent") || strings.Contains(lowerPrompt, "qa agent") {
+		return "APPROVED\n\nThe implementation looks correct and meets all requirements.", nil
+	}
+
+	// Default response
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
