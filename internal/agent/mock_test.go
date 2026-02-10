@@ -73,6 +73,23 @@ func TestMockAgent_Coding(t *testing.T) {
 	}
 }
 
+func TestMockAgent_QA(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "## YOUR ROLE - QA AGENT. Verify PRIMES."
+
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(resp, "grep -q \"primes\" primes.json") {
+		t.Errorf("QA response missing grep check, got: %s", resp)
+	}
+	if !strings.Contains(resp, "agent-bridge signal --privileged QA_PASSED true") {
+		t.Errorf("QA response missing success signal, got: %s", resp)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {

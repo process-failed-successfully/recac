@@ -156,6 +156,9 @@ fi
 
 # Basic content check
 grep -q "primes" primes.json && echo "JSON key found"
+
+# Signal success
+agent-bridge signal --privileged QA_PASSED true
 ` + "```" + `
 
 QA Status: PASSED
