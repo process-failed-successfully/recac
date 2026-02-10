@@ -166,6 +166,17 @@ func TestRunWorkflow_Detached(t *testing.T) {
 }
 
 func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
+	// Mock RunWorkflow to prevent infinite loops and DB dependency
+	originalRunWorkflow := RunWorkflow
+	defer func() { RunWorkflow = originalRunWorkflow }()
+	RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
+		// Verify that RepoURL is correctly passed from the config
+		if cfg.RepoURL != "https://github.com/example/already-provided" {
+			return fmt.Errorf("expected RepoURL 'https://github.com/example/already-provided', got '%s'", cfg.RepoURL)
+		}
+		return nil
+	}
+
 	// Mock SetupWorkspace
 	originalSetup := cmdutils.SetupWorkspace
 	defer func() { cmdutils.SetupWorkspace = originalSetup }()

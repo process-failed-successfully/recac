@@ -31,27 +31,24 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	promptLower := strings.ToLower(prompt)
+
 	// 1. Initializer Agent - Sets up the repo
-	// Check for "INITIALIZER" (uppercase) as used in prompts/templates/initializer.md
+	// Check for "initializer agent"
 	// MOVED TO TOP to prevent TPM/Generic heuristics from catching "Application Specification" in the prompt
-	// CRITICAL: We must be specific to the ROLE header to avoid matching "git init" in the history of other agents.
-	if strings.Contains(prompt, "ROLE - INITIALIZER AGENT") {
-		// Extract Repo URL if present
+	if strings.Contains(promptLower, "role - initializer agent") || strings.Contains(promptLower, "role: initializer agent") {
+		// Extract Repo URL if present (case insensitive)
 		repoURL := ""
 		lines := strings.Split(prompt, "\n")
 		for _, line := range lines {
 			trimmed := strings.TrimSpace(line)
-			if strings.HasPrefix(trimmed, "Repo:") {
-				repoURL = strings.TrimSpace(strings.TrimPrefix(trimmed, "Repo:"))
+			if strings.HasPrefix(strings.ToLower(trimmed), "repo:") {
+				repoURL = strings.TrimSpace(trimmed[5:]) // Skip "Repo:" or "repo:"
 				break
 			}
 		}
 
 		// Prepare git setup command
-		// If GITHUB_API_KEY is set and we have a repo URL, try to clone.
-		// Otherwise fallback to git init.
-		// NOTE: We use sed for URL injection because bash parameter expansion ${VAR/../../}
-		// is not fully portable to sh (often used in minimal containers).
 		gitSetup := `
 set -e # Fail fast
 # Ensure clean slate
@@ -74,17 +71,16 @@ fi
 
 echo "Current Directory: $(pwd)"
 ls -la
+git config user.email "you@example.com"
+git config user.name "Your Name"
 `
 
 		// Detect Primes scenario
-		if strings.Contains(strings.ToLower(prompt), "prime") {
+		if strings.Contains(promptLower, "prime") {
 			return `
 I will initialize the repository and create the feature list for the prime number script.
 
 ` + "```bash" + gitSetup + `
-git config user.email "you@example.com"
-git config user.name "Your Name"
-
 # Create feature list via agent-bridge import
 cat << 'EOF' | agent-bridge import
 {
@@ -114,20 +110,22 @@ EOF
 `, nil
 		}
 
+		// Generic fallback
 		return `
 I will initialize the repository and import the plan.
 
 ` + "```bash" + gitSetup + `
-git config user.email "you@example.com"
-git config user.name "Your Name"
+# Create a default plan if none exists to prevent agent-bridge import failure
+if [ ! -f /app/ticket_plan.json ]; then
+  echo '{"project_name": "Default Project", "features": [{"id": "TASK-1", "description": "Default task", "status": "pending"}]}' > /app/ticket_plan.json
+fi
 agent-bridge import --file /app/ticket_plan.json
 ` + "```" + `
 `, nil
 	}
 
 	// 2. TPM Agent - Generates the plan
-	// Removed "Application Specification" check as it is too broad and appears in Initializer prompt
-	if strings.Contains(prompt, "Technical Program Manager") {
+	if strings.Contains(promptLower, "technical program manager") {
 		return `
 [
   {
@@ -143,7 +141,7 @@ agent-bridge import --file /app/ticket_plan.json
 	// 3. Coding Agent - Implements the feature
 	// We detect the [PRIMES] ID or the file request
 	// Prioritize this before generic role checks if specific task ID is present
-	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
+	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(promptLower, "primes.py") {
 		return `
 I will implement the prime number script as requested.
 
@@ -188,7 +186,7 @@ agent-bridge feature set PRIMES --status done --passes true
 
 	// 4. QA Agent - Verifies the project
 	// Check for "QA AGENT" role header or "verify the project" instruction
-	if strings.Contains(prompt, "ROLE - QA AGENT") || (strings.Contains(prompt, "verify") && strings.Contains(prompt, "project")) {
+	if strings.Contains(promptLower, "role - qa agent") || (strings.Contains(promptLower, "verify") && strings.Contains(promptLower, "project")) {
 		return `
 I will run the tests and verify the project status.
 
@@ -213,7 +211,7 @@ fi
 	}
 
 	// 5. Project Manager - Signs off
-	if strings.Contains(prompt, "ROLE - PROJECT MANAGER") {
+	if strings.Contains(promptLower, "role - project manager") {
 		return `
 Project Approved.
 
