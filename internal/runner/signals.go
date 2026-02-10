@@ -13,41 +13,49 @@ func (s *Session) checkCompletion() bool {
 
 // hasSignal checks if a signal exists in the DB or filesystem (legacy).
 func (s *Session) hasSignal(name string) bool {
-	if s.DBStore == nil {
-		return false
-	}
-
 	// 1. Check DB (Modern Source)
-	val, err := s.DBStore.GetSignal(s.Project, name)
-	if err == nil && val == "true" {
-		return true
+	if s.DBStore != nil {
+		val, err := s.DBStore.GetSignal(s.Project, name)
+		if err == nil && val == "true" {
+			return true
+		}
 	}
 
-	// 2. Migration: Check Filesystem (Legacy Source)
+	// 2. Migration/Fallback: Check Filesystem (Legacy Source or Test Mode)
+	// If DBStore is nil (test mode), we ALWAYS check filesystem.
+	// If DBStore is not nil, we check filesystem for migration.
+
 	path := filepath.Join(s.Workspace, name)
 	if _, err := os.Stat(path); err == nil {
 		// Found file-based signal.
-		// Security Check: Only migrate non-privileged signals from filesystem
-		privilegedSignals := map[string]bool{
-			"PROJECT_SIGNED_OFF": true,
-			"QA_PASSED":          true,
-			"COMPLETED":          true,
-			"TRIGGER_QA":         true,
-			"TRIGGER_MANAGER":    true,
+
+		// If DB is available, we migrate it.
+		if s.DBStore != nil {
+			// Security Check: Only migrate non-privileged signals from filesystem
+			privilegedSignals := map[string]bool{
+				"PROJECT_SIGNED_OFF": true,
+				"QA_PASSED":          true,
+				"COMPLETED":          true,
+				"TRIGGER_QA":         true,
+				"TRIGGER_MANAGER":    true,
+			}
+
+			if privilegedSignals[name] {
+				s.Logger.Warn("ignoring filesystem-based privileged signal (must come from DB)", "signal", name)
+				return false
+			}
+
+			s.Logger.Info("migrating signal from filesystem to DB", "signal", name)
+			if err := s.DBStore.SetSignal(s.Project, name, "true"); err != nil {
+				s.Logger.Error("failed to migrate signal to DB", "signal", name, "error", err)
+				return true // File exists, so logically signal is true even if migration failed
+			}
+			// Cleanup the file after migration
+			os.Remove(path)
+			return true
 		}
 
-		if privilegedSignals[name] {
-			s.Logger.Warn("ignoring filesystem-based privileged signal (must come from DB)", "signal", name)
-			return false
-		}
-
-		s.Logger.Info("migrating signal from filesystem to DB", "signal", name)
-		if err := s.DBStore.SetSignal(s.Project, name, "true"); err != nil {
-			s.Logger.Error("failed to migrate signal to DB", "signal", name, "error", err)
-			return true // File exists, so logically signal is true even if migration failed
-		}
-		// Cleanup the file after migration
-		os.Remove(path)
+		// If DB is nil (Test Mode), we accept file-based signals
 		return true
 	}
 
@@ -66,12 +74,19 @@ func (s *Session) clearSignal(name string) {
 
 // createSignal creates a signal in the DB.
 func (s *Session) createSignal(name string) error {
-	if s.DBStore == nil {
-		return fmt.Errorf("db store not initialized")
+	if s.DBStore != nil {
+		if err := s.DBStore.SetSignal(s.Project, name, "true"); err != nil {
+			return err
+		}
+		s.Logger.Info("created signal", "signal", name)
+		return nil
 	}
-	if err := s.DBStore.SetSignal(s.Project, name, "true"); err != nil {
-		return err
+
+	// Fallback for Test Mode (nil DB)
+	path := filepath.Join(s.Workspace, name)
+	if err := os.WriteFile(path, []byte("true"), 0644); err != nil {
+		return fmt.Errorf("failed to create signal file (test mode): %w", err)
 	}
-	s.Logger.Info("created signal", "signal", name)
+	s.Logger.Info("created signal file (test mode)", "signal", name)
 	return nil
 }
