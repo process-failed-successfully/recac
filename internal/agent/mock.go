@@ -34,9 +34,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// === Heuristics for Smoke Tests ===
+	// Make everything case-insensitive
+	lowerPrompt := strings.ToLower(prompt)
 
 	// 1. Initializer / Feature List Generation
-	if strings.Contains(prompt, "CREATE FEATURE_LIST.JSON") {
+	if strings.Contains(lowerPrompt, "create feature_list.json") {
 		return "```bash\n" +
 			"cat <<EOF > feature_list.json\n" +
 			"[\n" +
@@ -54,8 +56,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Loop Breaker (Clean State)
-	if strings.Contains(strings.ToLower(prompt), "nothing to commit") ||
-	   strings.Contains(strings.ToLower(prompt), "working tree clean") {
+	if strings.Contains(lowerPrompt, "nothing to commit") ||
+		strings.Contains(lowerPrompt, "working tree clean") {
 		return "```bash\n" +
 			"agent-bridge signal --privileged QA_PASSED true\n" +
 			"agent-bridge signal --privileged PROJECT_SIGNED_OFF true\n" +
@@ -64,10 +66,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 3. Technical Program Manager (TPM) - Jira Ticket Generation
 	// Must return valid JSON list of tickets
-	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM") {
+	if strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "tpm") {
 		// Extract Repo URL if available to make it realistic
 		repoRegex := regexp.MustCompile(`Repo: (https?://\S+)`)
-		match := repoRegex.FindStringSubmatch(prompt)
+		match := repoRegex.FindStringSubmatch(prompt) // Original prompt for regex
 		repoUrl := "https://example.com/repo"
 		if len(match) > 1 {
 			repoUrl = match[1]
@@ -87,8 +89,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 4. Coding Agent - Primes Scenario
-	if (strings.Contains(prompt, "CODING AGENT") || strings.Contains(prompt, "YOUR ROLE")) &&
-	   (strings.Contains(prompt, "prime") || strings.Contains(prompt, "req-script-prints-primes")) {
+	if (strings.Contains(lowerPrompt, "coding agent") || strings.Contains(lowerPrompt, "your role")) &&
+		(strings.Contains(lowerPrompt, "prime") || strings.Contains(lowerPrompt, "req-script-prints-primes")) {
 		return "```bash\n" +
 			"cat <<EOF > primes.py\n" +
 			"import json\n" +
@@ -113,7 +115,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 5. QA Agent
-	if strings.Contains(prompt, "QA AGENT") {
+	if strings.Contains(lowerPrompt, "qa agent") {
 		return "```bash\n" +
 			"python3 primes.py\n" +
 			"agent-bridge signal --privileged QA_PASSED true\n" +
@@ -121,7 +123,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 6. Project Manager Review
-	if strings.Contains(prompt, "PROJECT MANAGER") {
+	if strings.Contains(lowerPrompt, "project manager") {
 		return "```bash\n" +
 			"agent-bridge signal --privileged PROJECT_SIGNED_OFF true\n" +
 			"```", nil
