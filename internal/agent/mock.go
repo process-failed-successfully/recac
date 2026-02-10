@@ -179,7 +179,7 @@ EOF
 git checkout -B agent/PRIMES-mock
 
 python3 primes.py
-git add primes.py primes.json
+git add -f primes.py primes.json
 git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
 git push --force origin agent/PRIMES-mock || echo "Push failed, continuing local only"
 agent-bridge feature set PRIMES --status done --passes true
