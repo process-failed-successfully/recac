@@ -169,15 +169,17 @@ func TestRunGymSession(t *testing.T) {
 			MaxIterations: 1,
 			Notifier:      notify.NewManager(telemetry.LogInfof),
 			Logger:        slog.Default(),
+			SpecFile:      "app_spec.txt", // Explicitly set spec file
 		}
 	}
 
 	// Challenge data
 	challenge := GymChallenge{
-		Name:     "Test",
-		Language: "python",
-		TestFile: "test.py",
-		Tests:    "print('hello')",
+		Name:        "Test",
+		Description: "A sample challenge for testing", // Added description to ensure SpecContent is populated
+		Language:    "python",
+		TestFile:    "test.py",
+		Tests:       "print('hello')",
 	}
 
 	// Expectations
@@ -202,6 +204,9 @@ func TestRunGymSession(t *testing.T) {
 	// Other Exec calls (setup)
 	mockDocker.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return("", nil).Maybe()
 	mockDocker.On("ExecAsUser", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil).Maybe()
+
+	// Mock Agent Response
+	mockAgent.On("Send", mock.Anything, mock.Anything).Return("Agent Response", nil)
 
 	// Run
 	ctx := context.Background()
