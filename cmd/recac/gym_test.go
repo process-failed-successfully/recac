@@ -163,12 +163,15 @@ func TestRunGymSession(t *testing.T) {
 		return &runner.Session{
 			Docker:        d,
 			Agent:         a,
+			QAAgent:       a, // Prevent network calls if triggered
+			ManagerAgent:  a, // Prevent network calls if triggered
 			Workspace:     workspace,
 			Image:         image,
 			Project:       project,
 			MaxIterations: 1,
 			Notifier:      notify.NewManager(telemetry.LogInfof),
 			Logger:        slog.Default(),
+			SleepFunc:     func(time.Duration) {}, // No-op sleep
 		}
 	}
 
