@@ -504,6 +504,29 @@ func TestSessionManager_RemoveSession(t *testing.T) {
 	}
 }
 
+func permissionsEnforced(t *testing.T, dir string) bool {
+	// Create a subdir for the test
+	subDir := filepath.Join(dir, "perm_check")
+	if err := os.Mkdir(subDir, 0700); err != nil {
+		t.Fatalf("Failed to create permission check dir: %v", err)
+	}
+	defer os.RemoveAll(subDir)
+
+	// Make it read-only
+	if err := os.Chmod(subDir, 0500); err != nil {
+		t.Fatalf("Failed to chmod: %v", err)
+	}
+	// Restore perms for cleanup
+	defer os.Chmod(subDir, 0700)
+
+	// Try to create a file (should fail if permissions are enforced)
+	testFile := filepath.Join(subDir, "test.txt")
+	err := os.WriteFile(testFile, []byte("test"), 0644)
+
+	// If err is nil, write succeeded -> permissions NOT enforced
+	return err != nil
+}
+
 func TestRemoveSession_Error(t *testing.T) {
 	// Skip on Windows as permission handling is different
 	if os.PathSeparator == '\\' {
@@ -512,6 +535,10 @@ func TestRemoveSession_Error(t *testing.T) {
 
 	sm, cleanup := setupSessionManager(t)
 	defer cleanup()
+
+	if !permissionsEnforced(t, sm.sessionsDir) {
+		t.Skip("Skipping permission test: permissions not enforced (running as root?)")
+	}
 
 	sessionName := "protected-session"
 	session := &SessionState{Name: sessionName, Status: "completed", LogFile: filepath.Join(sm.sessionsDir, sessionName+".log")}
