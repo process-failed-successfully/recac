@@ -225,11 +225,31 @@ func run(args []string, config db.StoreConfig, projectID string) error {
 
 		if subCmd == "set" {
 			if len(args) < 5 {
-				return fmt.Errorf("usage: agent-bridge feature set <id> --status <status> --passes <true/false>")
+				return fmt.Errorf("usage: agent-bridge feature set <id> [--status <status> --passes <true/false>] OR [passed|failed|done]")
 			}
 			id := args[3]
 			var status string
 			var passes bool
+
+			// Check for shorthand (positional argument 4)
+			if !strings.HasPrefix(args[4], "--") {
+				val := strings.ToLower(args[4])
+				switch val {
+				case "passed":
+					status = "done"
+					passes = true
+				case "failed":
+					status = "failed"
+					passes = false
+				case "done":
+					status = "done"
+					// passes defaults to false unless set
+				default:
+					status = val
+				}
+			}
+
+			// Parse flags (overrides shorthand if both present, though unusual)
 			for i := 4; i < len(args); i++ {
 				if args[i] == "--status" && i+1 < len(args) {
 					status = args[i+1]

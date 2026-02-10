@@ -114,7 +114,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			"EOF\n" +
 			"\n" +
 			"python3 primes.py\n" +
-			"agent-bridge feature set req-script-prints-primes passed || true\n" +
+			"agent-bridge feature set req-script-prints-primes --status done --passes true || true\n" +
 			"git add primes.py\n" +
 			"git commit -m \"Implement primes.py\" || echo \"Nothing to commit\"\n" +
 			"```", nil
