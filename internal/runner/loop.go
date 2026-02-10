@@ -454,6 +454,12 @@ func (s *Session) RunLoop(ctx context.Context) error {
 
 		// Circuit Breaker: Stalled Progress Check
 		passingCount := s.checkFeatures()
+
+		// Bypass stall check if we have success signals pending (e.g. from MockAgent loop breaker)
+		if s.hasSignal("PROJECT_SIGNED_OFF") || s.hasSignal("QA_PASSED") {
+			s.StalledCount = 0
+		}
+
 		if err := s.checkStalledBreaker(role, passingCount); err != nil {
 			telemetry.TrackAgentStall(s.Project)
 			fmt.Println(err)
