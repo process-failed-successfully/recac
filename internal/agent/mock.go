@@ -50,12 +50,38 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Initializer Agent - Feature List
+	// MUST be before loop breakers to ensure features are created even if prompts contain trigger words
 	if strings.Contains(prompt, "CREATE FEATURE_LIST.JSON") {
+		// Return valid JSON structure for agent-bridge import
+		// We use a bash block because the system ignores raw JSON blocks
 		features := map[string]interface{}{
-			"features": []string{"prime-numbers"},
+			"project_name": "Primes",
+			"features": []map[string]interface{}{
+				{
+					"id":          "prime-numbers",
+					"category":    "functional",
+					"priority":    "MVP",
+					"description": "Implement Primes",
+					"status":      "pending",
+					"steps":       []string{"Verify prime calculation"},
+					"passes":      false,
+					"dependencies": map[string]interface{}{
+						"depends_on_ids":        []string{},
+						"exclusive_write_paths": []string{"primes.py"},
+						"read_only_paths":       []string{},
+					},
+				},
+			},
 		}
 		data, _ := json.Marshal(features)
-		return fmt.Sprintf("```json\n%s\n```", string(data)), nil
+		return fmt.Sprintf(`I will create the feature list.
+
+`+"```bash"+`
+cat << 'EOF' | agent-bridge import
+%s
+EOF
+`+"```"+`
+`, string(data)), nil
 	}
 
 	// Loop Breaker / QA Check
