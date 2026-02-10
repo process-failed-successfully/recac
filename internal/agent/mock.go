@@ -67,30 +67,17 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 }` + "\nEOF\n```", nil
 		}
 
-		// 3. Loop Breaker (QA/Completion)
-		// If git status shows clean working tree, we are done.
-		if strings.Contains(strings.ToLower(prompt), "nothing to commit") || strings.Contains(strings.ToLower(prompt), "working tree clean") {
-			return "```bash\n" +
-				"agent-bridge signal --privileged QA_PASSED true\n" +
-				"agent-bridge signal --privileged PROJECT_SIGNED_OFF true\n" +
-				"```", nil
-		}
-
-		// 4. Project Manager (Approval)
-		if strings.Contains(prompt, "PROJECT MANAGER") || strings.Contains(prompt, "Review QA Report") {
-			return "```bash\n" +
-				"agent-bridge signal --privileged PROJECT_SIGNED_OFF true\n" +
-				"```", nil
-		}
-
-		// 5. Coding Agent (Implementation)
-		// 5. Coding Agent (Implementation)
+		// 3. Coding Agent (Implementation)
 		// Detects "Coding Agent" role OR generic task execution prompt
-		if strings.Contains(prompt, "YOUR ROLE - CODING AGENT") ||
+		// MUST BE CHECKED BEFORE Loop Breaker to ensure work is done even if repo is clean initially.
+		if (strings.Contains(prompt, "YOUR ROLE - CODING AGENT") ||
 			strings.Contains(prompt, "Implement the solution") ||
 			strings.Contains(prompt, "Multiple/Not Assigned") ||
 			strings.Contains(prompt, "Create Prime Number Script") ||
-			strings.Contains(prompt, "Create primes.py script") {
+			strings.Contains(prompt, "Create primes.py script")) &&
+			!strings.Contains(prompt, "QA AGENT") &&
+			!strings.Contains(prompt, "PROJECT MANAGER") &&
+			!strings.Contains(prompt, "Review QA Report") {
 			return "```bash\n" +
 				"cat << 'EOF' > primes.py\n" +
 				"import json\n\n" +
@@ -103,9 +90,38 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 				"with open('primes.json', 'w') as f:\n" +
 				"    json.dump({'primes': primes}, f)\n" +
 				"EOF\n\n" +
+				"cat << 'EOF' > feature_list.json\n" +
+				"{\n" +
+				"  \"project_name\": \"prime-python\",\n" +
+				"  \"features\": [\n" +
+				"    {\n" +
+				"      \"id\": \"req-primes-py-exists\",\n" +
+				"      \"description\": \"Create primes.py script\",\n" +
+				"      \"priority\": \"1\",\n" +
+				"      \"status\": \"done\"\n" +
+				"    }\n" +
+				"  ]\n" +
+				"}\n" +
+				"EOF\n\n" +
 				"python3 primes.py\n" +
-				"git add primes.py primes.json\n" +
-				"git commit -m \"Add primes.py and primes.json\" || echo \"Nothing to commit\"\n" +
+				"git add primes.py primes.json feature_list.json\n" +
+				"git commit -m \"Add primes.py and primes.json and mark done\" || echo \"Nothing to commit\"\n" +
+				"```", nil
+		}
+
+		// 4. Loop Breaker (QA/Completion)
+		// If git status shows clean working tree, we are done.
+		if strings.Contains(strings.ToLower(prompt), "nothing to commit") || strings.Contains(strings.ToLower(prompt), "working tree clean") {
+			return "```bash\n" +
+				"agent-bridge signal --privileged QA_PASSED true\n" +
+				"agent-bridge signal --privileged PROJECT_SIGNED_OFF true\n" +
+				"```", nil
+		}
+
+		// 5. Project Manager (Approval)
+		if strings.Contains(prompt, "PROJECT MANAGER") || strings.Contains(prompt, "Review QA Report") {
+			return "```bash\n" +
+				"agent-bridge signal --privileged PROJECT_SIGNED_OFF true\n" +
 				"```", nil
 		}
 	}
