@@ -287,8 +287,14 @@ func runSetup(cmd *cobra.Command, args []string) error {
 			for _, line := range linesToAppend {
 				parts := strings.SplitN(line, "=", 2)
 				key := parts[0]
+				val := parts[1]
+
 				// godotenv handles export prefix automatically, so we just check for key existence
-				if _, exists := existingEnvMap[key]; !exists {
+				if existingVal, exists := existingEnvMap[key]; !exists {
+					contentToAppend += line + "\n"
+				} else if existingVal != val {
+					// Key exists but value is different. Update (append).
+					fmt.Printf("Updating %s in .env\n", key)
 					contentToAppend += line + "\n"
 				} else {
 					fmt.Printf("Note: %s already exists in .env, skipping.\n", key)

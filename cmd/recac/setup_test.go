@@ -245,8 +245,8 @@ func TestSetupCmd_DuplicateEnv(t *testing.T) {
 	originalAskOne := askOneFunc
 	defer func() { askOneFunc = originalAskOne }()
 
-	// Create existing .env with same key
-	os.WriteFile(".env", []byte("OPENAI_API_KEY=old-key\n"), 0600)
+	// Create existing .env with same key AND SAME VALUE (to test skipping)
+	os.WriteFile(".env", []byte("OPENAI_API_KEY=new-key\n"), 0600)
 	defer os.Remove(".env")
 
 	mockAnswers = map[string]interface{}{
@@ -270,12 +270,10 @@ func TestSetupCmd_DuplicateEnv(t *testing.T) {
 
 	content, _ := os.ReadFile(".env")
 	str := string(content)
-	assert.Contains(t, str, "OPENAI_API_KEY=old-key")
-	// Should NOT contain new-key appended (unless old-key was prefix of new-key, but here they differ)
-	// But wait, if it appends "OPENAI_API_KEY=new-key", it will be there.
-	// Logic: if !strings.Contains(existingEnvStr, "OPENAI_API_KEY=") { append } else { skip }
-	// So it should skip.
-	assert.NotContains(t, str, "OPENAI_API_KEY=new-key")
+	assert.Contains(t, str, "OPENAI_API_KEY=new-key")
+	// Should NOT contain duplicate entry (it should skip because value is same)
+	// We can check by counting occurrences or just ensuring file length/content matches expected
+	assert.Equal(t, "OPENAI_API_KEY=new-key\n", str)
 }
 
 func TestSetupCmd_SubstringCollision(t *testing.T) {
@@ -346,4 +344,37 @@ end"`
 
 	// Should contain the real key because the "fake" one is inside a string value
 	assert.Contains(t, str, "OPENAI_API_KEY=real-key")
+}
+
+func TestSetupCmd_UpdateEnv(t *testing.T) {
+	originalAskOne := askOneFunc
+	defer func() { askOneFunc = originalAskOne }()
+
+	// Create existing .env with DIFFERENT value
+	os.WriteFile(".env", []byte("OPENAI_API_KEY=old-val\n"), 0600)
+	defer os.Remove(".env")
+
+	mockAnswers = map[string]interface{}{
+		"Choose your AI Provider:":                  "openai",
+		"Enter the Model name:":                     "gpt-4",
+		"Enter your API Key (leave empty to skip):": "new-val",
+		"Do you want to save the API Key to a local .env file?": true,
+		"Enter your Jira URL (e.g., https://your-domain.atlassian.net):": "",
+		"Enable Slack notifications?":          false,
+		"Run system check (recac doctor) now?": false,
+	}
+	askOneFunc = mockAskOne
+
+	viper.Reset()
+	viper.SetConfigFile("test_config_update.yaml")
+	defer os.Remove("test_config_update.yaml")
+
+	cmd := &cobra.Command{Use: "test"}
+	err := runSetup(cmd, []string{})
+	assert.NoError(t, err)
+
+	content, _ := os.ReadFile(".env")
+	str := string(content)
+	assert.Contains(t, str, "OPENAI_API_KEY=old-val")
+	assert.Contains(t, str, "OPENAI_API_KEY=new-val", "Should contain new value appended")
 }
