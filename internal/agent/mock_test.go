@@ -67,6 +67,21 @@ func TestMockAgent(t *testing.T) {
 	if !strings.Contains(response, "git commit -m \"Implement primes\"") {
 		t.Errorf("Expected git commit command, got: %s", response)
 	}
+
+	// 6. Iteration Loop Breaker
+	// Call Send enough times to trigger the loop breaker (iterationCount > 10)
+	// Previous calls: 5. Need > 10.
+	for i := 0; i < 7; i++ {
+		prompt = "Implement Primes Again"
+		response, err = agent.Send(context.Background(), prompt)
+		if err != nil {
+			t.Fatalf("Send failed: %v", err)
+		}
+	}
+	// Last response should be the signal
+	if !strings.Contains(response, "agent-bridge signal --privileged QA_PASSED true") {
+		t.Errorf("Expected QA_PASSED signal from loop breaker, got: %s", response)
+	}
 }
 
 func TestTruncateString(t *testing.T) {

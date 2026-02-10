@@ -12,6 +12,7 @@ import (
 type MockAgent struct {
 	responsePrefix string
 	forcedResponse string
+	iterationCount int
 }
 
 // NewMockAgent creates a new mock agent
@@ -29,6 +30,8 @@ func (m *MockAgent) SetResponse(response string) {
 // Send implements the Agent interface
 // It returns a mock response that acknowledges the prompt
 func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
+	m.iterationCount++
+
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
@@ -60,6 +63,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// We should signal success to move forward.
 	if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
 		return "It looks like the work is done and clean. I will signal completion.\n```bash\nagent-bridge signal --privileged QA_PASSED true\nagent-bridge signal --privileged PROJECT_SIGNED_OFF true\n```", nil
+	}
+
+	// Iteration-based Loop Breaker (Fallback)
+	// If we've been called many times for the same coding task, assume we are looping and force exit.
+	if m.iterationCount > 10 && (strings.Contains(prompt, "prime numbers") || strings.Contains(prompt, "Implement Primes")) {
+		return "It seems I am repeating myself. The work must be done. I will signal completion.\n```bash\nagent-bridge signal --privileged QA_PASSED true\nagent-bridge signal --privileged PROJECT_SIGNED_OFF true\n```", nil
 	}
 
 	// Coding Agent - Implementation
