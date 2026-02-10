@@ -67,7 +67,16 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 }` + "\nEOF\n```", nil
 		}
 
-		// 3. Coding Agent (Implementation)
+		// 3. Loop Breaker (QA/Completion)
+		// If git status shows clean working tree, we are done.
+		if strings.Contains(strings.ToLower(prompt), "nothing to commit") || strings.Contains(strings.ToLower(prompt), "working tree clean") {
+			return "```bash\n" +
+				"agent-bridge signal QA_PASSED true --privileged\n" +
+				"agent-bridge signal PROJECT_SIGNED_OFF true --privileged\n" +
+				"```", nil
+		}
+
+		// 4. Coding Agent (Implementation)
 		// Detects "Coding Agent" role OR generic task execution prompt
 		if strings.Contains(prompt, "YOUR ROLE - CODING AGENT") ||
 			strings.Contains(prompt, "Implement the solution") ||
