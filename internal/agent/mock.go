@@ -149,12 +149,15 @@ I will implement the prime number script as requested.
 
 ` + "```bash" + `
 set -e
-# Ensure git repo exists (fallback recovery)
+# Ensure git repo exists and is synced (fallback recovery)
 if [ ! -d .git ]; then
   echo "Git repo missing, re-initializing..."
   git init
   git config user.email "you@example.com"
   git config user.name "Your Name"
+else
+  # Ensure we are on a valid branch if possible
+  git fetch origin || echo "Fetch failed, ignoring"
 fi
 
 cat << 'EOF' > primes.py
