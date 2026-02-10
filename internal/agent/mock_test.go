@@ -67,8 +67,12 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		t.Errorf("Expected 'Implement Primes' in TPM response, got: %s", resp)
 	}
 	// Verify strict JSON structure matches CLI expectation
+	// Strip markdown blocks if present
+	cleanResp := strings.TrimPrefix(resp, "```json\n")
+	cleanResp = strings.TrimSuffix(cleanResp, "\n```")
+
 	var tickets []map[string]interface{}
-	if err := json.Unmarshal([]byte(resp), &tickets); err != nil {
+	if err := json.Unmarshal([]byte(cleanResp), &tickets); err != nil {
 		t.Fatalf("Failed to unmarshal TPM response: %v", err)
 	}
 	if len(tickets) == 0 {

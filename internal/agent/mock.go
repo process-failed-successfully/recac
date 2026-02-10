@@ -38,29 +38,29 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		strings.Contains(prompt, "INITIALIZER AGENT") ||
 		strings.Contains(prompt, "FIRST agent") ||
 		strings.Contains(prompt, "feature_list.json") {
-		return `
+		return "```bash\n" + `
 cat <<EOF > feature_list.json
 [{"id": "req-primes", "description": "Implement primes.py"}]
 EOF
 agent-bridge import feature_list.json
-`, nil
+` + "\n```", nil
 	}
 
 	// Heuristic: Technical Program Manager (Generate Tickets)
 	if strings.Contains(prompt, "Technical Program Manager") {
-		return `[{"id": "PRIMES", "key": "PRIMES", "title": "Implement Primes", "description": "Implement primes.py", "type": "Task"}]`, nil
+		return "```json\n" + `[{"id": "PRIMES", "key": "PRIMES", "title": "Implement Primes", "description": "Implement primes.py", "type": "Task"}]` + "\n```", nil
 	}
 
 	// Heuristic: Project Manager (Sign Off)
 	if strings.Contains(prompt, "PROJECT MANAGER") {
-		return "agent-bridge signal PROJECT_SIGNED_OFF true", nil
+		return "```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
 	}
 
 	// Heuristic: Coding Agent (Primes Scenario)
 	if strings.Contains(prompt, "primes") || strings.Contains(prompt, "PRIMES") || strings.Contains(prompt, "Prime Number Script") {
 		if !m.hasCommitted {
 			m.hasCommitted = true
-			return `
+			return "```bash\n" + `
 cat << 'EOF' > primes.py
 import json
 
@@ -84,15 +84,15 @@ EOF
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Implement primes.py and generate primes.json"
-`, nil
+` + "\n```", nil
 		}
 		// If already committed, signal success to break loop
-		return "agent-bridge signal QA_PASSED true", nil
+		return "```bash\nagent-bridge signal QA_PASSED true\n```", nil
 	}
 
 	// Heuristic: QA Agent
 	if strings.Contains(prompt, "QA AGENT") {
-		return "agent-bridge signal QA_PASSED true", nil
+		return "```bash\nagent-bridge signal QA_PASSED true\n```", nil
 	}
 
 	// Default response
