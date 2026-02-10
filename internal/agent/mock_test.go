@@ -66,10 +66,26 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	if !strings.Contains(resp, "Implement Primes") {
 		t.Errorf("Expected 'Implement Primes' in TPM response, got: %s", resp)
 	}
+
+	// Helper to strip markdown
+	stripMarkdown := func(s string) string {
+		s = strings.TrimSpace(s)
+		if strings.HasPrefix(s, "```json") {
+			s = strings.TrimPrefix(s, "```json")
+			s = strings.TrimSuffix(s, "```")
+		} else if strings.HasPrefix(s, "```") {
+			s = strings.TrimPrefix(s, "```")
+			s = strings.TrimSuffix(s, "```")
+		}
+		return strings.TrimSpace(s)
+	}
+
+	jsonStr := stripMarkdown(resp)
+
 	// Verify strict JSON structure matches CLI expectation
 	var tickets []map[string]interface{}
-	if err := json.Unmarshal([]byte(resp), &tickets); err != nil {
-		t.Fatalf("Failed to unmarshal TPM response: %v", err)
+	if err := json.Unmarshal([]byte(jsonStr), &tickets); err != nil {
+		t.Fatalf("Failed to unmarshal TPM response: %v. Raw response: %s", err, resp)
 	}
 	if len(tickets) == 0 {
 		t.Fatalf("Expected at least one ticket")

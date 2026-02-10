@@ -35,16 +35,22 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristic: Initializer (Import Features)
 	if strings.Contains(prompt, "You are the Initializer") || strings.Contains(prompt, "INITIALIZER AGENT") {
 		return `
+` + "```bash" + `
 cat <<EOF > feature_list.json
 [{"id": "req-primes", "description": "Implement primes.py"}]
 EOF
 agent-bridge import feature_list.json
+` + "```" + `
 `, nil
 	}
 
 	// Heuristic: Technical Program Manager (Generate Tickets)
 	if strings.Contains(prompt, "Technical Program Manager") {
-		return `[{"id": "PRIMES", "key": "PRIMES", "title": "Implement Primes", "description": "Implement primes.py", "type": "Task"}]`, nil
+		return `
+` + "```json" + `
+[{"id": "PRIMES", "key": "PRIMES", "title": "Implement Primes", "description": "Implement primes.py", "type": "Task"}]
+` + "```" + `
+`, nil
 	}
 
 	// Heuristic: Project Manager (Sign Off)
@@ -59,6 +65,7 @@ agent-bridge import feature_list.json
 		if !m.hasCommitted {
 			m.hasCommitted = true
 			return `
+` + "```bash" + `
 cat << 'EOF' > primes.py
 import json
 
@@ -82,6 +89,7 @@ EOF
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Implement primes.py and generate primes.json"
+` + "```" + `
 `, nil
 		}
 		// If already committed, signal success to break loop
