@@ -152,6 +152,26 @@ agent-bridge import --file /app/ticket_plan.json
 	// We detect the [PRIMES] ID or the file request
 	// Prioritize this before generic role checks if specific task ID is present
 	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
+		// Extract Feature ID for dynamic branch naming
+		featureID := "PRIMES"
+		branchName := "agent/PRIMES-mock"
+
+		lines := strings.Split(prompt, "\n")
+		for _, line := range lines {
+			if strings.Contains(line, "**Feature ID**:") {
+				parts := strings.Split(line, ":")
+				if len(parts) >= 2 {
+					id := strings.TrimSpace(parts[1])
+					// Sanitize ID (remove Markdown formatting like backticks or bold)
+					id = strings.Trim(id, "`'\"*")
+					if id != "" && id != "Multiple/Not Assigned" {
+						featureID = id
+						branchName = "agent/" + id
+					}
+				}
+			}
+		}
+
 		return `
 I will implement the prime number script as requested.
 
@@ -180,13 +200,13 @@ with open('primes.json', 'w') as f:
 EOF
 
 # Create or reset a branch for the feature (force if exists)
-git checkout -B agent/PRIMES-mock
+git checkout -B ` + branchName + `
 
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
-git push --force origin agent/PRIMES-mock || echo "Push failed, continuing local only"
-agent-bridge feature set PRIMES --status done --passes true
+git push --force origin ` + branchName + ` || echo "Push failed, continuing local only"
+agent-bridge feature set ` + featureID + ` --status done --passes true
 ` + "```" + `
 `, nil
 	}
