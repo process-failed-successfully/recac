@@ -101,11 +101,13 @@ cat << 'EOF' | agent-bridge import
       "id": "PRIMES",
       "category": "functional",
       "priority": "MVP",
-      "description": "Implement a python script 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'.",\n      "status": "pending",
+      "description": "Implement a python script 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'.",
+      "status": "pending",
       "passes": false,
       "steps": [
         "Create primes.py",
-        "Run python3 primes.py",\n        "Verify primes.json exists"
+        "Run python3 primes.py",
+        "Verify primes.json exists"
       ],
       "dependencies": {
         "exclusive_write_paths": ["primes.py", "primes.json"],
