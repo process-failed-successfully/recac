@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -23,6 +24,13 @@ func NewMockAgent() *MockAgent {
 // SetResponse forces a specific response from the agent
 func (m *MockAgent) SetResponse(response string) {
 	m.forcedResponse = response
+}
+
+// extractTicketID attempts to find a Jira ticket ID (e.g. MFLP-12345) in the prompt
+func extractTicketID(prompt string) string {
+	// Look for MFLP- followed by digits
+	re := regexp.MustCompile(`MFLP-\d+`)
+	return re.FindString(prompt)
 }
 
 // Send implements the Agent interface
@@ -86,6 +94,12 @@ ls -la
 
 		// Detect Primes scenario
 		if strings.Contains(strings.ToLower(prompt), "prime") {
+			// Extract ID or default
+			featureID := extractTicketID(prompt)
+			if featureID == "" {
+				featureID = "PRIMES"
+			}
+
 			return `
 I will initialize the repository and create the feature list for the prime number script.
 
@@ -99,7 +113,7 @@ cat << 'EOF' | agent-bridge import
   "project_name": "Prime Number Generator",
   "features": [
     {
-      "id": "PRIMES",
+      "id": "` + featureID + `",
       "category": "functional",
       "priority": "MVP",
       "description": "Implement a python script 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'.",
@@ -136,12 +150,18 @@ agent-bridge import --file /app/ticket_plan.json
 	// 2. TPM Agent - Generates the plan
 	// Removed "Application Specification" check as it is too broad and appears in Initializer prompt
 	if strings.Contains(prompt, "Technical Program Manager") {
+		// Extract ID or default
+		featureID := extractTicketID(prompt)
+		if featureID == "" {
+			featureID = "PRIMES"
+		}
+
 		return `
 [
   {
-    "id": "PRIMES",
+    "id": "` + featureID + `",
     "type": "Task",
-    "title": "ID:[PRIMES] Implement prime number script",
+    "title": "ID:[` + featureID + `] Implement prime number script",
     "description": "Implement a python script 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'."
   }
 ]
@@ -156,6 +176,8 @@ agent-bridge import --file /app/ticket_plan.json
 		featureID := "PRIMES"
 		branchName := "agent/PRIMES-mock"
 
+		// Try extracting from header first (most reliable if present)
+		foundHeader := false
 		lines := strings.Split(prompt, "\n")
 		for _, line := range lines {
 			if strings.Contains(line, "**Feature ID**:") {
@@ -167,8 +189,17 @@ agent-bridge import --file /app/ticket_plan.json
 					if id != "" && id != "Multiple/Not Assigned" {
 						featureID = id
 						branchName = "agent/" + id
+						foundHeader = true
 					}
 				}
+			}
+		}
+
+		// Fallback: extract from text if header failed or wasn't found
+		if !foundHeader {
+			if id := extractTicketID(prompt); id != "" {
+				featureID = id
+				branchName = "agent/" + id
 			}
 		}
 
