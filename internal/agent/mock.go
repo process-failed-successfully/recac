@@ -33,7 +33,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Heuristic: Initializer (Import Features)
-	if strings.Contains(prompt, "You are the Initializer") || strings.Contains(prompt, "INITIALIZER AGENT") {
+	// We check for various markers to be robust against template changes
+	if strings.Contains(prompt, "You are the Initializer") ||
+		strings.Contains(prompt, "INITIALIZER AGENT") ||
+		strings.Contains(prompt, "FIRST agent") ||
+		strings.Contains(prompt, "feature_list.json") {
 		return `
 cat <<EOF > feature_list.json
 [{"id": "req-primes", "description": "Implement primes.py"}]
