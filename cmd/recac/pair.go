@@ -124,6 +124,8 @@ func runPair(cmd *cobra.Command, args []string) error {
 
 	// Map to track pending updates per file
 	var mu sync.Mutex
+	var outMu sync.Mutex
+	var wg sync.WaitGroup
 	timers := make(map[string]*time.Timer)
 
 	// Use command context for cancellation
@@ -142,7 +144,9 @@ func runPair(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to initialize agent: %w", err)
 	}
 
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		for {
 			select {
 			case event, ok := <-watcher.Events():
@@ -179,8 +183,15 @@ func runPair(cmd *cobra.Command, args []string) error {
 					t.Stop()
 				}
 				var t *time.Timer
+				wg.Add(1)
 				t = time.AfterFunc(pairDebounce, func() {
-					analyzeFile(cmd, ag, filename)
+					defer wg.Done()
+					select {
+					case <-ctx.Done():
+						return
+					default:
+					}
+					analyzeFile(ctx, cmd, ag, filename, &outMu)
 					mu.Lock()
 					// Only delete if it's still the same timer
 					if timers[filename] == t {
@@ -195,7 +206,9 @@ func runPair(cmd *cobra.Command, args []string) error {
 				if !ok {
 					return
 				}
+				outMu.Lock()
 				fmt.Fprintf(cmd.ErrOrStderr(), "Watcher error: %v\n", err)
+				outMu.Unlock()
 			case <-ctx.Done():
 				return
 			}
@@ -203,10 +216,11 @@ func runPair(cmd *cobra.Command, args []string) error {
 	}()
 
 	<-ctx.Done()
+	wg.Wait()
 	return nil
 }
 
-func analyzeFile(cmd *cobra.Command, ag agent.Agent, path string) {
+func analyzeFile(ctx context.Context, cmd *cobra.Command, ag agent.Agent, path string, outMu *sync.Mutex) {
 	// Re-check file existence
 	info, err := os.Stat(path)
 	if err != nil {
@@ -224,14 +238,18 @@ func analyzeFile(cmd *cobra.Command, ag agent.Agent, path string) {
 
 	content, err := os.ReadFile(path)
 	if err != nil {
+		outMu.Lock()
 		fmt.Fprintf(cmd.ErrOrStderr(), "Failed to read %s: %v\n", path, err)
+		outMu.Unlock()
 		return
 	}
 	if isBinaryContent(content) {
 		return
 	}
 
+	outMu.Lock()
 	fmt.Fprintf(cmd.OutOrStdout(), "\n📝 Detected change in %s. Analyzing...\n", filepath.Base(path))
+	outMu.Unlock()
 
 	prompt := fmt.Sprintf(`Review the following code file: %s
 Identify potential bugs, logic errors, security vulnerabilities, and major style issues.
@@ -242,12 +260,16 @@ Code:
 %s
 '''`, filepath.Base(path), strings.TrimPrefix(ext, "."), string(content))
 
-	resp, err := ag.Send(context.Background(), prompt)
+	resp, err := ag.Send(ctx, prompt)
 	if err != nil {
+		outMu.Lock()
 		fmt.Fprintf(cmd.ErrOrStderr(), "Agent failed: %v\n", err)
+		outMu.Unlock()
 		return
 	}
 
+	outMu.Lock()
+	defer outMu.Unlock()
 	if strings.Contains(strings.ToUpper(resp), "LGTM") && len(resp) < 20 {
 		fmt.Fprintf(cmd.OutOrStdout(), "✅ %s: LGTM\n", filepath.Base(path))
 	} else {
