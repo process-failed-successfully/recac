@@ -174,14 +174,17 @@ func TestRunGymSession(t *testing.T) {
 
 	// Challenge data
 	challenge := GymChallenge{
-		Name:     "Test",
-		Language: "python",
-		TestFile: "test.py",
-		Tests:    "print('hello')",
+		Name:        "Test",
+		Description: "A simple python task",
+		Language:    "python",
+		TestFile:    "test.py",
+		Tests:       "print('hello')",
 	}
 
 	// Expectations
 	mockDocker.On("CheckDaemon", mock.Anything).Return(nil)
+	// Agent expectations: RunLoop will call SelectPrompt -> Send
+	mockAgent.On("Send", mock.Anything, mock.Anything).Return("Completed the task", nil).Maybe()
 	mockDocker.On("ImageExists", mock.Anything, mock.Anything).Return(true, nil)
 	mockDocker.On("RunContainer", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("mock-container-id", nil)
 	mockDocker.On("StopContainer", mock.Anything, "mock-container-id").Return(nil)

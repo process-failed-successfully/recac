@@ -713,6 +713,10 @@ func TestRemoveSession_Error(t *testing.T) {
 		t.Skip("Skipping permission test on Windows")
 	}
 
+	if isRoot() {
+		t.Skip("Skipping permission test when running as root")
+	}
+
 	sm, cleanup := setupSessionManager(t)
 	defer cleanup()
 

@@ -14,7 +14,10 @@ func (s *Session) checkCompletion() bool {
 // hasSignal checks if a signal exists in the DB or filesystem (legacy).
 func (s *Session) hasSignal(name string) bool {
 	if s.DBStore == nil {
-		return false
+		// Fallback to filesystem in test mode (DBStore is nil)
+		path := filepath.Join(s.Workspace, name)
+		_, err := os.Stat(path)
+		return err == nil
 	}
 
 	// 1. Check DB (Modern Source)
