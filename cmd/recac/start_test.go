@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"recac/internal/agent"
+	"recac/internal/runner"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -93,6 +94,13 @@ func TestStartCommand_Resume(t *testing.T) {
 	tmpDir := t.TempDir()
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
 
+	// Mock sessionDockerClientFactory to simulate restricted environment
+	originalDockerFactory := sessionDockerClientFactory
+	sessionDockerClientFactory = func(project string) (runner.DockerClient, error) {
+		return nil, fmt.Errorf("mock docker failure")
+	}
+	defer func() { sessionDockerClientFactory = originalDockerFactory }()
+
 	t.Setenv("HOME", t.TempDir())
 
 	output := captureOutput(func() {
@@ -118,6 +126,13 @@ func TestStartCommand_NormalMode_Restricted(t *testing.T) {
 		return agent.NewMockAgent(), nil
 	}
 	defer func() { agentClientFactory = originalFactory }()
+
+	// Mock sessionDockerClientFactory to simulate restricted environment
+	originalDockerFactory := sessionDockerClientFactory
+	sessionDockerClientFactory = func(project string) (runner.DockerClient, error) {
+		return nil, fmt.Errorf("mock docker failure")
+	}
+	defer func() { sessionDockerClientFactory = originalDockerFactory }()
 
 	t.Setenv("HOME", t.TempDir())
 

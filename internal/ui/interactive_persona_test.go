@@ -135,11 +135,6 @@ func TestInteractiveModel_Persona_PromptInjection(t *testing.T) {
 	userPrompt := "Explain recursion"
 	cmd := m.generateResponse(userPrompt)
 
-	// Run the command to trigger the goroutine
-	if cmd != nil {
-		cmd()
-	}
-
 	// We need to wait for the goroutine?
 	// The goroutine in generateResponse writes to a channel.
 	// CapturingMockAgent writes immediately.

@@ -83,6 +83,12 @@ func init() {
 	rootCmd.AddCommand(startCmd)
 }
 
+// sessionDockerClientFactory creates a Docker client for the session.
+// It can be overridden in tests to mock Docker interactions.
+var sessionDockerClientFactory = func(project string) (runner.DockerClient, error) {
+	return docker.NewClient(project)
+}
+
 var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start an autonomous coding session",
@@ -806,9 +812,9 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 		cfg.SessionName = projectName
 	}
 
-	var dockerCli *docker.Client
+	var dockerCli runner.DockerClient
 	var err error
-	dockerCli, err = docker.NewClient(projectName)
+	dockerCli, err = sessionDockerClientFactory(projectName)
 	if err != nil {
 		fmt.Printf("Warning: Failed to initialize Docker client: %v. Proceeding in restricted mode.\n", err)
 		dockerCli = nil

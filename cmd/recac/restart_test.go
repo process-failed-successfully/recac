@@ -9,6 +9,9 @@ import (
 )
 
 func TestRestartCmd(t *testing.T) {
+	originalFactory := sessionManagerFactory
+	defer func() { sessionManagerFactory = originalFactory }()
+
 	// successful restart
 	t.Run("success", func(t *testing.T) {
 		mockSM := NewMockSessionManager()
