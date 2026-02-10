@@ -40,13 +40,22 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	agent := NewMockAgent()
 	ctx := context.Background()
 
-	// 1. Initializer
+	// 1. Initializer (Legacy Prompt)
 	resp, err := agent.Send(ctx, "You are the Initializer")
 	if err != nil {
-		t.Fatalf("Initializer failed: %v", err)
+		t.Fatalf("Initializer (legacy) failed: %v", err)
 	}
 	if !strings.Contains(resp, "feature_list.json") {
-		t.Errorf("Expected feature_list.json in Initializer response, got: %s", resp)
+		t.Errorf("Expected feature_list.json in Initializer (legacy) response, got: %s", resp)
+	}
+
+	// 1b. Initializer (New Prompt)
+	resp, err = agent.Send(ctx, "## YOUR ROLE - INITIALIZER AGENT")
+	if err != nil {
+		t.Fatalf("Initializer (new) failed: %v", err)
+	}
+	if !strings.Contains(resp, "feature_list.json") {
+		t.Errorf("Expected feature_list.json in Initializer (new) response, got: %s", resp)
 	}
 
 	// 2. TPM
