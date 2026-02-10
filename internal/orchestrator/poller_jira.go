@@ -173,18 +173,42 @@ func extractRequiredFeatures(text string) []db.Feature {
 
 			if strings.HasPrefix(line, "- ") || strings.HasPrefix(line, "* ") {
 				// Extract feature description
-				desc := strings.TrimSpace(line[2:])
-				// Create a simplified Feature
-				slug := strings.ToLower(desc)
+				fullText := strings.TrimSpace(line[2:])
+				var idBase, desc string
+
+				// Check for ID: Description format
+				if idx := strings.Index(fullText, ":"); idx > 0 {
+					idBase = strings.TrimSpace(fullText[:idx])
+					desc = strings.TrimSpace(fullText[idx+1:])
+				} else {
+					// Fallback: use description as ID source
+					desc = fullText
+					idBase = desc
+				}
+
+				// Create a simplified ID slug
+				slug := strings.ToLower(idBase)
 				reg, _ := regexp.Compile("[^a-z0-9]+")
 				slug = reg.ReplaceAllString(slug, "-")
 				slug = strings.Trim(slug, "-")
-				if len(slug) > 30 {
+
+				// Truncate only if it was derived from a long description (fallback case)
+				// If it came from an explicit ID (colon case), trust it more but still be reasonable
+				if idx := strings.Index(fullText, ":"); idx == -1 && len(slug) > 30 {
 					slug = slug[:30]
+				} else if len(slug) > 50 {
+					// Hard limit for explicit IDs too
+					slug = slug[:50]
+				}
+
+				// Ensure 'req-' prefix consistency
+				finalID := slug
+				if !strings.HasPrefix(slug, "req-") {
+					finalID = fmt.Sprintf("req-%s", slug)
 				}
 
 				f := db.Feature{
-					ID:          fmt.Sprintf("req-%s", slug),
+					ID:          finalID,
 					Description: desc,
 					Category:    "functional",
 					Priority:    "critical",
