@@ -263,6 +263,19 @@ func runSetup(cmd *cobra.Command, args []string) error {
 			existingEnv, _ := os.ReadFile(".env")
 			existingEnvStr := string(existingEnv)
 
+			// Parse existing keys
+			existingKeys := make(map[string]bool)
+			for _, line := range strings.Split(existingEnvStr, "\n") {
+				line = strings.TrimSpace(line)
+				if line == "" || strings.HasPrefix(line, "#") {
+					continue
+				}
+				parts := strings.SplitN(line, "=", 2)
+				if len(parts) > 0 {
+					existingKeys[strings.TrimSpace(parts[0])] = true
+				}
+			}
+
 			f, err := os.OpenFile(".env", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 			if err != nil {
 				fmt.Printf("Error opening .env: %v\n", err)
@@ -278,7 +291,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 			for _, line := range linesToAppend {
 				parts := strings.SplitN(line, "=", 2)
 				key := parts[0]
-				if !strings.Contains(existingEnvStr, key+"=") {
+				if !existingKeys[key] {
 					contentToAppend += line + "\n"
 				} else {
 					fmt.Printf("Note: %s already exists in .env, skipping.\n", key)
