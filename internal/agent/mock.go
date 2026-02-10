@@ -50,7 +50,28 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return "APPROVED", nil
 	}
 
-	// 3. Coding Agent (Prime Python Scenario)
+	// 3. Technical Program Manager (Ticket Generation)
+	// Must be checked BEFORE Coding Agent because the spec (containing 'primes.py') is included in the prompt
+	if strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "tpm") {
+		return "```json\n" + `[
+  {
+    "title": "Epic: Primes Implementation",
+    "description": "Implement prime number generator. Repo: https://github.com/example/repo",
+    "type": "Epic",
+    "children": [
+      {
+        "title": "Story: Implement primes.py",
+        "description": "Create a python script to generate primes. Repo: https://github.com/example/repo",
+        "type": "Story",
+        "acceptance_criteria": ["Script runs", "Output is valid JSON"],
+        "blocked_by": []
+      }
+    ]
+  }
+]` + "\n```", nil
+	}
+
+	// 4. Coding Agent (Prime Python Scenario)
 	if strings.Contains(lowerPrompt, "primes.py") || strings.Contains(lowerPrompt, "prime number script") {
 		// Return the python script implementation
 		return `Here is the implementation for primes.py:

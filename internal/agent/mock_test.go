@@ -42,4 +42,18 @@ func TestMockAgent_Send_Primes(t *testing.T) {
 	if !strings.Contains(resp, "APPROVED") {
 		t.Errorf("Expected Project Manager approval, got: %s", resp)
 	}
+
+	// 4. TPM Agent (Ticket Generation)
+	// Must return JSON even if 'primes.py' is in the text
+	tpmPrompt := "You are an expert Technical Program Manager (TPM)...\nSpec:\n- Implement primes.py"
+	resp, err = agent.Send(ctx, tpmPrompt)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(resp, "```json") {
+		t.Errorf("Expected JSON response for TPM, got: %s", resp)
+	}
+	if !strings.Contains(resp, "Epic: Primes Implementation") {
+		t.Errorf("Expected Epic title in TPM response, got: %s", resp)
+	}
 }
