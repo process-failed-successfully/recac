@@ -166,6 +166,7 @@ func TestRunGymSession(t *testing.T) {
 			Workspace:     workspace,
 			Image:         image,
 			Project:       project,
+			SpecFile:      "app_spec.txt", // Explicitly set SpecFile to avoid directory read errors
 			MaxIterations: 1,
 			Notifier:      notify.NewManager(telemetry.LogInfof),
 			Logger:        slog.Default(),

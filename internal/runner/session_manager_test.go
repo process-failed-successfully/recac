@@ -723,9 +723,17 @@ func TestRemoveSession_Error(t *testing.T) {
 
 	// Make directory read-only to prevent deletion of files inside
 	// Note: Removing a file requires write permission on the PARENT directory.
+	probeFile := filepath.Join(sm.sessionsDir, "probe_delete_me")
+	_ = os.WriteFile(probeFile, []byte("probe"), 0644)
+
 	err = os.Chmod(sm.sessionsDir, 0500) // Read-execute only
 	require.NoError(t, err)
 	defer os.Chmod(sm.sessionsDir, 0700) // Restore for cleanup
+
+	// Try to remove probe file. If it succeeds, we are privileged (e.g. root in CI) and should skip.
+	if err := os.Remove(probeFile); err == nil {
+		t.Skip("Skipping test: running as root/privileged user (can delete files in read-only dir)")
+	}
 
 	err = sm.RemoveSession(sessionName, false)
 	assert.Error(t, err)
