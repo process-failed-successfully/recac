@@ -146,6 +146,34 @@ func TestExplorerModel_Update_AnalysisError(t *testing.T) {
 	assert.False(t, finalM.viewingFile)
 }
 
+func TestExplorerModel_DirectoryTitle(t *testing.T) {
+	item := FileItem{Name: "dir", IsDir: true}
+	assert.Contains(t, item.Title(), "📁")
+	assert.Contains(t, item.Title(), "dir")
+
+	fileItem := FileItem{Name: "file", IsDir: false}
+	assert.Contains(t, fileItem.Title(), "📄")
+	assert.Contains(t, fileItem.Title(), "file")
+
+	// Test FilterValue
+	assert.Equal(t, "file", fileItem.FilterValue())
+}
+
+func TestExplorerModel_StatusView(t *testing.T) {
+	m := ExplorerModel{statusMessage: "Status Update"}
+	view := m.statusView()
+	assert.Contains(t, view, "Status Update")
+
+	mEmpty := ExplorerModel{statusMessage: ""}
+	assert.Equal(t, "", mEmpty.statusView())
+}
+
+func TestMax(t *testing.T) {
+	assert.Equal(t, 5, max(3, 5))
+	assert.Equal(t, 5, max(5, 3))
+	assert.Equal(t, 5, max(5, 5))
+}
+
 func TestExplorerModel_Update_ExitView(t *testing.T) {
 	tempDir := t.TempDir()
 	err := os.WriteFile(filepath.Join(tempDir, "test.txt"), []byte("content"), 0644)

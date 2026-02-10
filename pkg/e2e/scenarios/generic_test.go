@@ -80,3 +80,91 @@ func TestGenericScenario_RunStep_FileContent(t *testing.T) {
 		t.Error("Expected error for forbidden content, got nil")
 	}
 }
+
+func TestGenericScenario_RunStep_FileExists(t *testing.T) {
+	s := NewGenericScenario(GenericScenarioConfig{})
+	tmpDir := t.TempDir()
+
+	// Create file
+	os.WriteFile(filepath.Join(tmpDir, "exists.txt"), nil, 0644)
+
+	// Success
+	step := ValidationStep{
+		Type: ValidateFileExists,
+		Path: "exists.txt",
+	}
+	if err := s.runStep(tmpDir, step); err != nil {
+		t.Errorf("Expected file to exist: %v", err)
+	}
+
+	// Fail
+	stepFail := ValidationStep{
+		Type: ValidateFileExists,
+		Path: "missing.txt",
+	}
+	if err := s.runStep(tmpDir, stepFail); err == nil {
+		t.Error("Expected error for missing file")
+	}
+}
+
+func TestGenericScenario_RunStep_RunCommand(t *testing.T) {
+	if os.Getenv("GOOS") == "windows" {
+		t.Skip("Skipping on Windows due to echo/command differences")
+	}
+	s := NewGenericScenario(GenericScenarioConfig{})
+	tmpDir := t.TempDir()
+
+	// Success match
+	step := ValidationStep{
+		Type:             ValidateRunCommand,
+		Path:             "echo",
+		Args:             []string{"hello"},
+		ContentMustMatch: "hello",
+	}
+	if err := s.runStep(tmpDir, step); err != nil {
+		t.Errorf("Command failed: %v", err)
+	}
+
+	// Success forbidden match (should pass if not present)
+	step2 := ValidationStep{
+		Type:                ValidateRunCommand,
+		Path:                "echo",
+		Args:                []string{"hello"},
+		ContentMustNotMatch: "world",
+	}
+	if err := s.runStep(tmpDir, step2); err != nil {
+		t.Errorf("Command failed: %v", err)
+	}
+
+	// Fail match
+	stepFail := ValidationStep{
+		Type:             ValidateRunCommand,
+		Path:             "echo",
+		Args:             []string{"hello"},
+		ContentMustMatch: "world",
+	}
+	if err := s.runStep(tmpDir, stepFail); err == nil {
+		t.Error("Expected error for mismatched output")
+	}
+
+	// Fail command execution
+	stepError := ValidationStep{
+		Type: ValidateRunCommand,
+		Path: "non_existent_command_12345",
+	}
+	if err := s.runStep(tmpDir, stepError); err == nil {
+		t.Error("Expected error for invalid command")
+	}
+}
+
+func TestGenericScenario_AppSpec(t *testing.T) {
+	config := GenericScenarioConfig{
+		AppSpec: "Spec for repo {{.RepoURL}}",
+	}
+	s := NewGenericScenario(config)
+
+	spec := s.AppSpec("http://repo.com")
+	if spec != "Spec for repo http://repo.com" {
+		t.Errorf("Unexpected spec content: %s", spec)
+	}
+}
