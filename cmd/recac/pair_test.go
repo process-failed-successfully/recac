@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -88,7 +87,7 @@ func TestPairCmd(t *testing.T) {
 
 	// Create command
 	cmd := &cobra.Command{Use: "pair", RunE: runPair}
-	var outBuf, errBuf bytes.Buffer
+	var outBuf, errBuf ThreadSafeBuffer
 	cmd.SetOut(&outBuf)
 	cmd.SetErr(&errBuf)
 

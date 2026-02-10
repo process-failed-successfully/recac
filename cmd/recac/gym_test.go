@@ -170,6 +170,7 @@ func TestRunGymSession(t *testing.T) {
 			Workspace:     workspace,
 			Image:         image,
 			Project:       project,
+			SpecFile:      "app_spec.txt",
 			MaxIterations: 1,
 			Notifier:      notify.NewManager(telemetry.LogInfof),
 			Logger:        slog.Default(),
@@ -178,10 +179,11 @@ func TestRunGymSession(t *testing.T) {
 
 	// Challenge data
 	challenge := GymChallenge{
-		Name:     "Test",
-		Language: "python",
-		TestFile: "test.py",
-		Tests:    "print('hello')",
+		Name:        "Test",
+		Description: "Test Description",
+		Language:    "python",
+		TestFile:    "test.py",
+		Tests:       "print('hello')",
 	}
 
 	// Expectations
@@ -189,6 +191,9 @@ func TestRunGymSession(t *testing.T) {
 	mockDocker.On("ImageExists", mock.Anything, mock.Anything).Return(true, nil)
 	mockDocker.On("RunContainer", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("mock-container-id", nil)
 	mockDocker.On("StopContainer", mock.Anything, "mock-container-id").Return(nil)
+
+	// Mock Agent calls
+	mockAgent.On("Send", mock.Anything, mock.Anything).Return("MOCK AGENT RESPONSE", nil)
 
 	// Setup calls (passwd, git, etc) - allow any Exec/ExecAsUser calls generally
 	// But match specific verification call specifically if needed.

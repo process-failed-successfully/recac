@@ -243,10 +243,11 @@ func runChaosStress(cmd *cobra.Command, args []string) error {
 
 	// Memory stress
 	if chaosMemory > 0 {
+		memLimit := int(chaosMemory)
 		go func() {
 			blockSize := 1024 * 1024 // 1MB
 			blocks := make([][]byte, 0)
-			for i := 0; i < int(chaosMemory); i++ {
+			for i := 0; i < memLimit; i++ {
 				select {
 				case <-done:
 					return

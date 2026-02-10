@@ -91,8 +91,12 @@ func runDev(cmd *cobra.Command, args []string) error {
 	// Event Loop
 	done := make(chan bool)
 	go func() {
+		defer close(done)
+		defer close(trigger)
 		for {
 			select {
+			case <-cmd.Context().Done():
+				return
 			case event, ok := <-watcher.Events:
 				if !ok {
 					return
