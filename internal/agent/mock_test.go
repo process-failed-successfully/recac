@@ -35,3 +35,20 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	assert.Contains(t, resp, "QA_PASSED true", "Must signal QA passed")
 	assert.Contains(t, resp, "PROJECT_SIGNED_OFF true", "Must signal project signed off")
 }
+
+func TestMockAgent_CodingAgent_CaseInsensitive(t *testing.T) {
+	a := agent.NewMockAgent()
+	ctx := context.Background()
+
+	// Test Mixed Case "Coding Agent"
+	mixedCasePrompt := "Your Role: Coding Agent. Please implement the prime number script."
+	resp, err := a.Send(ctx, mixedCasePrompt)
+	assert.NoError(t, err)
+	assert.Contains(t, resp, "cat <<EOF > primes.py", "Mixed case prompt must trigger Coding Agent")
+
+	// Test "Developer" role
+	developerPrompt := "You are a Developer working on the primes task."
+	resp, err = a.Send(ctx, developerPrompt)
+	assert.NoError(t, err)
+	assert.Contains(t, resp, "cat <<EOF > primes.py", "Developer prompt must trigger Coding Agent")
+}

@@ -87,8 +87,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 4. Coding Agent - Primes Scenario
-	if (strings.Contains(prompt, "CODING AGENT") || strings.Contains(prompt, "YOUR ROLE")) &&
-	   (strings.Contains(prompt, "prime") || strings.Contains(prompt, "req-script-prints-primes")) {
+	promptUpper := strings.ToUpper(prompt)
+	if (strings.Contains(promptUpper, "CODING AGENT") || strings.Contains(promptUpper, "YOUR ROLE") || strings.Contains(promptUpper, "DEVELOPER")) &&
+	   (strings.Contains(promptUpper, "PRIME") || strings.Contains(prompt, "req-script-prints-primes")) {
 		return "```bash\n" +
 			"cat <<EOF > primes.py\n" +
 			"import json\n" +
