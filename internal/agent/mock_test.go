@@ -58,7 +58,7 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		{
 			name:       "Coding Agent",
 			prompt:     "You are the CODING AGENT. Implement the task for [PRIMES]. Ensure primes.py is created.",
-			wantInResp: []string{"cat << 'EOF' > primes.py", "python3 primes.py", "git add primes.py", "agent-bridge feature set --id req-primes --status done"},
+			wantInResp: []string{"cat << 'EOF' > primes.py", "python3 primes.py", "git add primes.py", "agent-bridge feature set req-primes --status done"},
 		},
 		{
 			name:       "QA Agent",
