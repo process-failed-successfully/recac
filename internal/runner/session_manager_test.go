@@ -758,7 +758,9 @@ func TestRemoveSession_Error(t *testing.T) {
 	sm, cleanup := setupSessionManager(t)
 	defer cleanup()
 
-	// Check if permissions are enforced in this environment
+	// Check if permissions are enforced in this environment.
+	// CI environments running as root (e.g. GitHub Actions container) often bypass
+	// standard file permissions, so we must verify this before asserting failure.
 	if !permissionsEnforced(t, sm.sessionsDir) {
 		t.Skip("Skipping test: filesystem permissions are not enforced (running as root?)")
 	}
