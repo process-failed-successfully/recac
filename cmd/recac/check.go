@@ -1,12 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"os"
-	"os/exec"
+	"recac/internal/doctor"
+	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var fixFlag bool
@@ -14,89 +14,37 @@ var fixFlag bool
 // checkCmd represents the check command
 var checkCmd = &cobra.Command{
 	Use:   "check",
-	Short: "Check dependencies and environment",
-	Long: `Perform pre-flight checks on the environment and dependencies.
-Use --fix to automatically attempt repairs for minor issues.`,
+	Short: "(Deprecated) Check dependencies and environment",
+	Long: `(Deprecated) Perform pre-flight checks on the environment.
+This command is deprecated in favor of 'recac doctor'.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Running pre-flight checks...")
-		allPassed := true
+		fmt.Println("⚠️  'check' is deprecated. Please use 'recac doctor' instead.")
+		fmt.Println("Running doctor checks...")
 
-		// 1. Check Config
-		if err := checkConfig(); err != nil {
-			allPassed = false
-			fmt.Printf("❌ Config: %v\n", err)
-			if fixFlag {
-				if err := fixConfig(); err != nil {
-					fmt.Printf("  Failed to fix config: %v\n", err)
-				} else {
-					fmt.Printf("  ✅ Config fixed (created default)\n")
-					allPassed = true // reset? strictly speaking no, but for flow
-				}
-			}
-		} else {
-			fmt.Println("✅ Config found")
-		}
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
 
-		// 2. Check Go
-		if err := checkGo(); err != nil {
-			allPassed = false
-			fmt.Printf("❌ Go: %v\n", err)
-		} else {
-			fmt.Println("✅ Go installed")
-		}
+		d := doctor.NewDoctor()
+		d.AddCheck(doctor.NewSystemCheck())
+		d.AddCheck(doctor.NewConfigCheck())
+		d.AddCheck(doctor.NewDependencyCheck("git"))
+		d.AddCheck(doctor.NewDependencyCheck("docker"))
+		d.AddCheck(doctor.NewDockerCheck())
+		d.AddCheck(doctor.NewNetworkCheck("https://www.google.com"))
+		d.AddCheck(doctor.NewAuthCheck())
 
-		// 3. Check Docker
-		if err := checkDocker(); err != nil {
-			allPassed = false
-			fmt.Printf("❌ Docker: %v\n", err)
-		} else {
-			fmt.Println("✅ Docker running")
-		}
+		results := d.RunChecks(ctx)
+		fmt.Fprint(cmd.OutOrStdout(), doctor.FormatReport(results))
 
-		if allPassed {
-			fmt.Println("\nAll checks passed! 🚀")
-		} else {
-			fmt.Println("\nSome checks failed.")
-			if !fixFlag {
-				fmt.Println("Run with --fix to attempt automatic repairs.")
-			}
-			exit(1)
+		// If fixFlag is set, we could try to implement fixes, but since we are deprecating,
+		// we just warn that auto-fix is moved or removed.
+		if fixFlag {
+			fmt.Println("\n⚠️  --fix is no longer supported in 'check'. Please fix issues manually based on the report.")
 		}
 	},
 }
 
 func init() {
-	checkCmd.Flags().BoolVar(&fixFlag, "fix", false, "Attempt to fix issues automatically")
+	checkCmd.Flags().BoolVar(&fixFlag, "fix", false, "Attempt to fix issues automatically (deprecated)")
 	rootCmd.AddCommand(checkCmd)
-}
-
-func checkConfig() error {
-	configFile := viper.ConfigFileUsed()
-	if configFile == "" {
-		return fmt.Errorf("config file not found")
-	}
-	if _, err := os.Stat(configFile); os.IsNotExist(err) {
-		return fmt.Errorf("config file %s does not exist", configFile)
-	}
-	return nil
-}
-
-func fixConfig() error {
-	// Simple fix: create default config if missing
-	viper.SetDefault("provider", "gemini")
-	viper.SetDefault("model", "gemini-pro")
-	return viper.SafeWriteConfig()
-}
-
-func checkGo() error {
-	_, err := exec.LookPath("go")
-	if err != nil {
-		return fmt.Errorf("go binary not found in PATH")
-	}
-	return nil
-}
-
-func checkDocker() error {
-	cmd := exec.Command("docker", "info")
-	return cmd.Run()
 }

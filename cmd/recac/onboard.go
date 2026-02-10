@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
-	"recac/internal/ui"
+	"recac/internal/doctor"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/spf13/cobra"
@@ -42,8 +44,21 @@ Let's get you set up and ready to code.
 	// 2. Doctor Check
 	fmt.Fprintln(cmd.OutOrStdout(), "\n🏥 Checking Environment (Doctor)...")
 	fmt.Fprintln(cmd.OutOrStdout(), "-----------------------------------")
-	// Doctor output is printed directly
-	fmt.Fprintln(cmd.OutOrStdout(), ui.GetDoctor())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	d := doctor.NewDoctor()
+	d.AddCheck(doctor.NewSystemCheck())
+	d.AddCheck(doctor.NewConfigCheck())
+	d.AddCheck(doctor.NewDependencyCheck("git"))
+	d.AddCheck(doctor.NewDependencyCheck("docker"))
+	d.AddCheck(doctor.NewDockerCheck())
+	d.AddCheck(doctor.NewNetworkCheck("https://www.google.com"))
+	d.AddCheck(doctor.NewAuthCheck())
+
+	results := d.RunChecks(ctx)
+	fmt.Fprint(cmd.OutOrStdout(), doctor.FormatReport(results))
 
 	// 3. Project Info
 	fmt.Fprintln(cmd.OutOrStdout(), "\n📂 Project Overview")
@@ -121,7 +136,7 @@ Let's get you set up and ready to code.
 	fmt.Fprintln(cmd.OutOrStdout(), "\n🚀 Next Steps")
 	fmt.Fprintln(cmd.OutOrStdout(), "-------------")
 	fmt.Fprintln(cmd.OutOrStdout(), "1. Run 'recac quiz' to learn about the codebase.")
-	fmt.Fprintln(cmd.OutOrStdout(), "2. Run 'recac health' to see the project status.")
+	fmt.Fprintln(cmd.OutOrStdout(), "2. Run 'recac doctor' to ensure the environment stays healthy.")
 	fmt.Fprintln(cmd.OutOrStdout(), "3. Pick a task and start coding!")
 
 	return nil
