@@ -12,7 +12,6 @@ import (
 )
 
 func TestRemoveSession_Error(t *testing.T) {
-	// Skip if running as root (ignores permissions)
 	if os.Geteuid() == 0 {
 		t.Skip("Skipping permission test as root")
 	}

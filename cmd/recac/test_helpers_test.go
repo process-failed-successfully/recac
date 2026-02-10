@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -14,6 +15,8 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/require"
 )
+
+var gymTestMutex sync.Mutex
 
 // setupTestSessionManager creates a real SessionManager in a temporary directory for integration tests.
 func setupTestSessionManager(t *testing.T) (*runner.SessionManager, func()) {

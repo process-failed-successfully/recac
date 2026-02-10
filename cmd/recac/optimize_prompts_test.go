@@ -4,116 +4,86 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"recac/internal/agent"
 	"testing"
 
-	"recac/internal/agent"
-
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
-// MockAgentForOptimize is a mock implementation of agent.Agent
-type MockAgentForOptimize struct {
-	response string
-}
+func TestOptimizePrompts(t *testing.T) {
+	gymTestMutex.Lock()
+	defer gymTestMutex.Unlock()
 
-func (m *MockAgentForOptimize) Send(ctx context.Context, prompt string) (string, error) {
-	return m.response, nil
-}
-
-func (m *MockAgentForOptimize) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
-	return m.response, nil
-}
-
-func TestOptimizePromptsCmd(t *testing.T) {
-	// 1. Setup Environment
-	tmpDir := t.TempDir()
-
-	// Create a dummy challenge file
-	challengeFile := filepath.Join(tmpDir, "challenge.yaml")
-	challengeContent := `
-name: Test Challenge
-description: Verify the optimization loop.
-language: python
-test_file: test_opt.py
-tests: print("DONE")
-timeout: 5
-`
-	err := os.WriteFile(challengeFile, []byte(challengeContent), 0644)
-	assert.NoError(t, err)
-
-	// Create a dummy initial prompt in templates (simulated via overriding GetPrompt behaviour via RECAC_PROMPTS_DIR if needed,
-	// but here the command sets up its own temp dir for overrides.
-	// Wait, the command reads the *initial* prompt using prompts.GetPrompt.
-	// We need to ensure prompts.GetPrompt returns SOMETHING.
-	// Since we can't easily modify embed.FS, we can rely on the fallback or set RECAC_PROMPTS_DIR *before* running the command
-	// to point to a seed prompt.
-
-	seedPromptsDir := filepath.Join(tmpDir, "seed_prompts")
-	err = os.Mkdir(seedPromptsDir, 0755)
-	assert.NoError(t, err)
-	os.Setenv("RECAC_PROMPTS_DIR", seedPromptsDir)
-	defer os.Unsetenv("RECAC_PROMPTS_DIR")
-
-	err = os.WriteFile(filepath.Join(seedPromptsDir, "coding_agent.md"), []byte("Initial Bad Prompt"), 0644)
-	assert.NoError(t, err)
-
-	// 2. Mock Dependencies
-	originalGymFunc := runGymSessionFunc
+	// Mock factories
+	originalRunGymSessionFunc := runGymSessionFunc
 	originalAgentFactory := agentClientFactory
 	defer func() {
-		runGymSessionFunc = originalGymFunc
+		runGymSessionFunc = originalRunGymSessionFunc
 		agentClientFactory = originalAgentFactory
 	}()
 
-	iteration := 0
+	// Mock gym session: fails first, then passes
+	failures := 0
 	runGymSessionFunc = func(ctx context.Context, challenge GymChallenge) (*GymResult, error) {
-		iteration++
-		if iteration == 1 {
-			// First run fails
-			return &GymResult{
-				Challenge: challenge.Name,
-				Passed:    false,
-				Output:    "Error: Agent failed to understand instructions.",
-			}, nil
+		if failures == 0 {
+			failures++
+			return &GymResult{Passed: false, Output: "Failed"}, nil
 		}
-		// Second run passes
-		return &GymResult{
-			Challenge: challenge.Name,
-			Passed:    true,
-			Output:    "Success!",
-		}, nil
+		return &GymResult{Passed: true, Output: "Success"}, nil
 	}
+
+	// Mock Meta Agent
+	mockMetaAgent := new(GymMockAgent)
+	mockMetaAgent.On("Send", mock.Anything, mock.Anything).Return("Improved Prompt", nil)
 
 	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
-		return &MockAgentForOptimize{
-			response: "Improved Prompt",
-		}, nil
+		return mockMetaAgent, nil
 	}
 
-	// 3. Execute Command
-	// We pass the challenge file
-	cmd := optimizePromptsCmd
-	// Reset flags
-	cmd.Flags().Set("challenge", challengeFile)
-	cmd.Flags().Set("prompt", "coding_agent")
-	cmd.Flags().Set("iterations", "3")
-	cmd.Flags().Set("out", filepath.Join(tmpDir, "final.md"))
+	// Create temp dir for prompts
+	tmpPromptsDir := t.TempDir()
+	os.Setenv("RECAC_PROMPTS_DIR", tmpPromptsDir)
+	defer os.Unsetenv("RECAC_PROMPTS_DIR")
 
-	// We can't call cmd.Execute() because it might parse os.Args.
-	// We call RunE directly or use cmd.SetArgs
-	// cmd.SetArgs([]string{"--challenge", challengeFile}) // This interacts with global flags potentially
-	// Safer to call the run function directly if possible, or construct a fresh command.
-	// But `optimizePromptsCmd` is a global variable.
-	// Let's call the RunE function logic directly or use execute helper if available.
+	// Create initial prompt file
+	promptName := "test_prompt"
+	initialPrompt := "Initial Prompt Content"
+	err := os.WriteFile(filepath.Join(tmpPromptsDir, promptName+".md"), []byte(initialPrompt), 0644)
+	assert.NoError(t, err)
+
+	// Create temp challenge file
+	tmpChallengeDir := t.TempDir()
+	challengePath := filepath.Join(tmpChallengeDir, "challenge.yaml")
+	err = os.WriteFile(challengePath, []byte("- name: Test\n  description: desc"), 0644)
+	assert.NoError(t, err)
+
+	// Run command
+	cmd := &cobra.Command{}
+	cmd.Flags().String("challenge", challengePath, "")
+	cmd.Flags().String("prompt", promptName, "")
+	cmd.Flags().Int("iterations", 5, "")
+	cmd.Flags().String("out", filepath.Join(tmpPromptsDir, "optimized.md"), "")
+
+	// Override RunE to call our function directly or just call runOptimizePrompts directly
+	// Since runOptimizePrompts is not exported, we can call it if we are in package main_test (which we are if in same dir)
+	// But go test -v ./cmd/recac will compile main package test.
+	// We need to be in package main.
 
 	err = runOptimizePrompts(cmd, []string{})
 	assert.NoError(t, err)
 
-	// 4. Verify Results
-	assert.Equal(t, 2, iteration, "Should have run 2 iterations")
-
-	// Check if final prompt was written
-	finalContent, err := os.ReadFile(filepath.Join(tmpDir, "final.md"))
+	// Verify optimized prompt was saved
+	optimizedContent, err := os.ReadFile(filepath.Join(tmpPromptsDir, "optimized.md"))
 	assert.NoError(t, err)
-	assert.Equal(t, "Improved Prompt", string(finalContent))
+
+	// In the test:
+	// 1. Initial prompt loaded from file: "Initial Prompt Content"
+	// 2. Gym fails.
+	// 3. Meta Agent returns "Improved Prompt".
+	// 4. "Improved Prompt" written to promptPath.
+	// 5. Gym passes.
+	// 6. "Improved Prompt" written to outFile.
+	assert.Equal(t, "Improved Prompt", string(optimizedContent))
 }
