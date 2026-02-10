@@ -127,4 +127,14 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	if !strings.Contains(resp, "primes.py") {
 		t.Errorf("Expected primes.py in Coding Agent (case sensitivity) response, got: %s", resp)
 	}
+
+	// 8. Coding Agent (Fallback via CODING AGENT header)
+	agent3 := NewMockAgent()
+	resp, err = agent3.Send(ctx, "## YOUR ROLE - CODING AGENT\n\nSome unknown task.")
+	if err != nil {
+		t.Fatalf("Coding Agent (fallback) failed: %v", err)
+	}
+	if !strings.Contains(resp, "primes.py") {
+		t.Errorf("Expected primes.py in Coding Agent (fallback) response, got: %s", resp)
+	}
 }
