@@ -886,3 +886,12 @@ func TestSessionManager_PauseResume(t *testing.T) {
 	err = sm.StopSession(sessionName)
 	require.NoError(t, err, "Failed to stop the session for cleanup")
 }
+
+func TestIsProcessRunning_PID0(t *testing.T) {
+	sm, cleanup := setupSessionManager(t)
+	defer cleanup()
+
+	// PID 0 should never be considered running in our context
+	isRunning := sm.IsProcessRunning(0)
+	assert.False(t, isRunning, "IsProcessRunning(0) should return false")
+}
