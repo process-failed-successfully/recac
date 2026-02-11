@@ -94,7 +94,7 @@ git commit -m "Implement primes.py and generate primes.json"
 `, nil
 		}
 		// If already committed, signal success to break loop
-		return "agent-bridge signal QA_PASSED true || touch QA_PASSED", nil
+		return "agent-bridge feature set req-primes passed && agent-bridge signal QA_PASSED true || touch QA_PASSED", nil
 	}
 
 	// Heuristic: QA Agent
