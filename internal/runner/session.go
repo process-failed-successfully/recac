@@ -474,6 +474,7 @@ func (s *Session) Start(ctx context.Context) error {
 		// Note: Docker binds require the host path to exist, or it might auto-create as dir (depends on docker version/config).
 		// Best practice is to check existence to avoid creating empty dirs if they don't exist on host.
 		// SECURITY: We mount these as Read-Only (:ro) to prevent the agent from modifying or deleting sensitive files on the host.
+		// Use StatFunc for existence checks to allow mocking in tests.
 
 		sensitiveMounts := []struct {
 			hostPath      string
