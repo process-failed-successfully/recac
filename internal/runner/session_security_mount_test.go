@@ -31,22 +31,32 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 		return "test-id", nil
 	}
 
+	mock.ImageExistsFunc = func(ctx context.Context, image string) (bool, error) {
+		return true, nil
+	}
+
+	mock.CheckDaemonFunc = func(ctx context.Context) error {
+		return nil
+	}
+
+	// Create a temporary home directory
+	mockHome := t.TempDir()
+
 	// Use NewSessionWithConfig to avoid DB initialization issues
 	session := NewSessionWithConfig("/tmp/workspace", "test-project", "mock", "mock-model", nil)
 	session.Docker = mock
 	session.Agent = &MockAgentForSecurity{}
 	session.Image = "alpine:latest"
-
-	// Mock environment
-	session.UseLocalAgent = false // Force Docker usage to ensure binds are processed
-	mockHome := "/mock/home/user"
 	session.HomeDir = mockHome
-	session.StatFunc = func(path string) (os.FileInfo, error) {
-		// Mock file existence for sensitive paths inside mock home
-		if strings.HasPrefix(path, mockHome) {
-			return nil, nil // Return nil error (file exists)
+	session.UseLocalAgent = false // Force Docker usage to ensure binds are processed
+
+	// Create dummy sensitive directories to ensure os.Stat checks pass
+	sensitivePaths := []string{".ssh", ".config", ".gemini", ".cursor"}
+	for _, p := range sensitivePaths {
+		path := filepath.Join(mockHome, p)
+		if err := os.MkdirAll(path, 0755); err != nil {
+			t.Fatalf("Failed to create dummy dir %s: %v", path, err)
 		}
-		return nil, os.ErrNotExist
 	}
 
 	// Start session
@@ -55,8 +65,6 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	}
 
 	// Verify sensitive mounts
-	sensitivePaths := []string{".ssh", ".config", ".gemini", ".cursor"}
-
 	foundAny := false
 	for _, path := range sensitivePaths {
 		found := false
@@ -80,6 +88,6 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	}
 
 	if !foundAny {
-		t.Error("No sensitive paths were found in binds. StatFunc mock might be failing or Docker was disabled.")
+		t.Error("No sensitive paths were found in binds. Stat check might have failed or Docker was disabled.")
 	}
 }

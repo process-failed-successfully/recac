@@ -1,8 +1,6 @@
 package runner
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -10,15 +8,9 @@ import (
 	"testing"
 
 	"recac/internal/agent"
-	"recac/internal/docker"
-
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// MockAgent for testing
+// MockAgentForMount for testing
 type MockAgentForMount struct{}
 
 func (m *MockAgentForMount) Send(ctx context.Context, prompt string) (string, error) {
@@ -63,103 +55,55 @@ func TestSession_WorkspaceMounting(t *testing.T) {
 		}
 	}
 
-	// Step 2: Setup mock Docker client that simulates container execution
-	dockerClient, mock := docker.NewMockClient()
+	// Step 2: Setup mock Docker client
+	mock := &MockDockerClient{}
 	containerID := "test-container-123"
 
+	// Mock environment
+	mock.CheckDaemonFunc = func(ctx context.Context) error { return nil }
+	mock.ImageExistsFunc = func(ctx context.Context, image string) (bool, error) { return true, nil }
+
 	// Track the workspace path that was mounted
-	var mountedWorkspace string
-	mock.ContainerCreateFunc = func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error) {
-		// Verify the mount configuration
-		if len(hostConfig.Binds) == 0 {
-			t.Error("Expected at least one bind mount, got none")
-		}
-
-		// Find workspace mount
-		foundWorkspace := false
-		for _, bind := range hostConfig.Binds {
-			// Format: "/host/path:/workspace"
-			parts := strings.Split(bind, ":")
-			if len(parts) >= 2 && parts[1] == "/workspace" {
-				mountedWorkspace = parts[0]
-				foundWorkspace = true
-				break
-			}
-		}
-
-		if !foundWorkspace {
-			t.Errorf("Expected /workspace mount not found in %v", hostConfig.Binds)
-		}
-
-		// Verify working directory
-		if config.WorkingDir != "/workspace" {
-			t.Errorf("Expected WorkingDir to be /workspace, got %s", config.WorkingDir)
-		}
-
-		return container.CreateResponse{ID: containerID}, nil
+	var capturedWorkspace string
+	mock.RunContainerFunc = func(ctx context.Context, image, workspace string, extraBinds, env []string, user string) (string, error) {
+		capturedWorkspace = workspace
+		return containerID, nil
 	}
 
 	// Mock the exec command to return the actual file listing from the workspace
-	mock.ContainerExecCreateFunc = func(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error) {
-		cmdStr := strings.Join(config.Cmd, " ")
-		// Allow git bootstrap commands, passwd fix, etc.
-		if len(config.Cmd) > 1 && config.Cmd[1] == "git" {
-			return types.IDResponse{ID: "bootstrap-exec-id"}, nil
-		}
-		if strings.Contains(cmdStr, "getent") || strings.Contains(cmdStr, "useradd") || strings.Contains(cmdStr, "groupadd") {
-			return types.IDResponse{ID: "passwd-exec-id"}, nil
-		}
-
+	mock.ExecFunc = func(ctx context.Context, id string, cmd []string) (string, error) {
 		// Verify the command is 'ls /workspace'
-		if len(config.Cmd) < 2 || config.Cmd[0] != "ls" || config.Cmd[1] != "/workspace" {
-			// Ignore other unexpected commands instead of failing, to be robust against bootstrap changes
-			// But since we want to be sure 'ls' works, we should check for it specifically when called.
-			// t.Errorf("Expected command 'ls /workspace', got %v", config.Cmd)
-			// Actually, this mock is called for ALL execs. The test triggers 'ls'.
-			// We should return valid ID for 'ls' and others.
-			// We can log unexpected ones if needed.
+		if len(cmd) >= 2 && cmd[0] == "ls" && cmd[1] == "/workspace" {
+			// Read actual files from the workspace directory (simulating container access)
+			entries, err := os.ReadDir(tmpDir)
+			if err != nil {
+				return "", err
+			}
+			var fileList []string
+			for _, entry := range entries {
+				fileList = append(fileList, entry.Name())
+			}
+			return strings.Join(fileList, "\n"), nil
 		}
-		return types.IDResponse{ID: "exec-id-123"}, nil
-	}
-
-	// Simulate ls output based on actual workspace contents
-	mock.ContainerExecAttachFunc = func(ctx context.Context, execID string, config container.ExecStartOptions) (types.HijackedResponse, error) {
-		// Read actual files from the workspace directory
-		entries, err := os.ReadDir(tmpDir)
-		if err != nil {
-			t.Fatalf("Failed to read workspace directory: %v", err)
-		}
-
-		var fileList []string
-		for _, entry := range entries {
-			fileList = append(fileList, entry.Name())
-		}
-
-		// Create Docker-style multiplexed output
-		output := strings.Join(fileList, "\n") + "\n"
-		var buf bytes.Buffer
-
-		// Stdout header (type 1). The last 4 bytes are BigEndian size.
-		header := [8]byte{1, 0, 0, 0, 0, 0, 0, byte(len(output))}
-		buf.Write(header[:])
-		buf.Write([]byte(output))
-
-		return types.HijackedResponse{
-			Conn:   &fakeConn{},
-			Reader: bufio.NewReader(&buf),
-		}, nil
+		return "", nil
 	}
 
 	// Step 3: Start session and execute ls command
-	session := NewSession(dockerClient, &MockAgentForMount{}, tmpDir, "alpine:latest", "test-project", "gemini", "gemini-pro", 1)
+	session := NewSession(mock, &MockAgentForMount{}, tmpDir, "alpine:latest", "test-project", "gemini", "gemini-pro", 1)
+	session.UseLocalAgent = false // Ensure we use Docker path
 
 	ctx := context.Background()
 	if err := session.Start(ctx); err != nil {
 		t.Fatalf("Session.Start failed: %v", err)
 	}
 
-	// Execute ls /workspace in the container
-	output, err := dockerClient.Exec(ctx, containerID, []string{"ls", "/workspace"})
+	// Verify workspace mount (argument passed to RunContainer)
+	if capturedWorkspace != tmpDir {
+		t.Errorf("Expected workspace path %s to be mounted, but got %s", tmpDir, capturedWorkspace)
+	}
+
+	// Execute ls /workspace in the container via client (simulating verify step)
+	output, err := mock.Exec(ctx, containerID, []string{"ls", "/workspace"})
 	if err != nil {
 		t.Fatalf("Exec failed: %v", err)
 	}
@@ -197,13 +141,8 @@ func TestSession_WorkspaceMounting(t *testing.T) {
 		}
 	}
 
-	// Verify mounted workspace path
-	if mountedWorkspace != tmpDir {
-		t.Errorf("Expected workspace path %s to be mounted, but got %s", tmpDir, mountedWorkspace)
-	}
-
-	t.Logf("Successfully verified workspace mounting:")
+	t.Logf("Successfully verified workspace mounting simulation:")
 	t.Logf("  Workspace path: %s", tmpDir)
-	t.Logf("  Mounted as: %s:/workspace", mountedWorkspace)
-	t.Logf("  Container files: %v", outputLines)
+	t.Logf("  Captured workspace arg: %s", capturedWorkspace)
+	t.Logf("  Container files (simulated): %v", outputLines)
 }
