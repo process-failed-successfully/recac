@@ -56,4 +56,15 @@ func TestMockAgent_Send_Primes(t *testing.T) {
 	if !strings.Contains(resp, "Epic: Primes Implementation") {
 		t.Errorf("Expected Epic title in TPM response, got: %s", resp)
 	}
+
+	// 5. Injected Features (E2E Scenario)
+	// The prompt only contains the ID "req-script-runs", not "primes.py"
+	injectedPrompt := "Feature ID: req-script-runs\nDescription: Script runs"
+	resp, err = agent.Send(ctx, injectedPrompt)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(resp, "cat << 'EOF' > primes.py") {
+		t.Errorf("Expected bash block for req-script-runs, got: %s", resp)
+	}
 }
