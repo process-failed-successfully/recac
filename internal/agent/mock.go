@@ -38,7 +38,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(promptLower, "you are the initializer") || strings.Contains(promptLower, "initializer agent") {
 		return `
 ` + "```bash" + `
-printf '[{"id": "req-primes", "description": "Implement primes.py"}]' > feature_list.json
+echo '[{"id": "req-primes", "description": "Implement primes.py"}]' > feature_list.json
+ls -la feature_list.json
+cat feature_list.json
 # Note: agent-bridge import is skipped here to avoid binary dependency in CI.
 # The session runner will automatically load feature_list.json from disk on the next iteration.
 ` + "```" + `
