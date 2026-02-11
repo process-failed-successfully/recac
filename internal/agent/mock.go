@@ -51,7 +51,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Initializer Agent - Feature List
 	// MUST be before loop breakers to ensure features are created even if prompts contain trigger words
-	if strings.Contains(prompt, "CREATE FEATURE_LIST.JSON") {
+	// Use case-insensitive check for reliability
+	if strings.Contains(strings.ToUpper(prompt), "CREATE FEATURE_LIST.JSON") {
 		// Return valid JSON structure for agent-bridge import
 		// We use a bash block because the system ignores raw JSON blocks
 		features := map[string]interface{}{
