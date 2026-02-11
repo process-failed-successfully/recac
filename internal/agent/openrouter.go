@@ -44,12 +44,13 @@ func (c *OpenRouterClient) WithStateManager(sm *StateManager) *OpenRouterClient 
 
 func (c *OpenRouterClient) getConfig() HTTPClientConfig {
 	return HTTPClientConfig{
-		BaseClient:    &c.BaseClient,
-		APIKey:        c.apiKey,
-		Model:         c.model,
-		APIURL:        c.apiURL,
-		HTTPClient:    c.httpClient,
-		MockResponder: c.mockResponder,
+		BaseClient:      &c.BaseClient,
+		APIKey:          c.apiKey,
+		Model:           c.model,
+		APIURL:          c.apiURL,
+		HTTPClient:      c.httpClient,
+		MockResponder:   c.mockResponder,
+		MaxOutputTokens: 1024, // Limit output tokens to prevent 402 errors on free tier
 		Headers: map[string]string{
 			"HTTP-Referer": "https://github.com/process-failed-successfully/recac",
 			"X-Title":      "Process Failed Successfully",
