@@ -275,7 +275,11 @@ func runSetup(cmd *cobra.Command, args []string) error {
 			for _, line := range linesToAppend {
 				parts := strings.SplitN(line, "=", 2)
 				key := parts[0]
-				if !strings.Contains(existingEnvStr, key+"=") {
+				search := key + "="
+				// Check if key exists at start of file or after a newline
+				exists := strings.HasPrefix(existingEnvStr, search) || strings.Contains(existingEnvStr, "\n"+search)
+
+				if !exists {
 					contentToAppend += line + "\n"
 				} else {
 					fmt.Printf("Note: %s already exists in .env, skipping.\n", key)

@@ -52,10 +52,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// Write feature_list.json to disk
 		// We skip 'agent-bridge import' to avoid binary dependency issues in some CI envs,
 		// relying on runner.Session fallback to read the file.
-		return `
+		return "```bash\n" + `
 echo '{"project_name": "PRIMES", "features": [{"description": "Implement Primes Script", "status": "pending"}]}' > feature_list.json
 echo "Initialized feature_list.json"
-`, nil
+` + "\n```", nil
 	}
 
 	// 3. Coding Agent (Primes Implementation)
@@ -63,7 +63,7 @@ echo "Initialized feature_list.json"
 	if strings.Contains(prompt, "CODING AGENT") || strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "Prime Number Script") {
 		// Return bash script to implement primes.py, commit, push, and signal completion
 		// We use RECAC_PROJECT_ID for branch name to ensure consistency with E2E verification
-		script := `
+		script := "```bash\n" + `
 # Create the script
 cat << 'EOF' > primes.py
 def is_prime(n):
@@ -97,24 +97,24 @@ git push origin "$BRANCH_NAME" || echo "Push failed (expected in local mock)"
 # Update status and signal
 agent-bridge feature update "Implement Primes Script" --status completed || true
 agent-bridge signal QA_PASSED true || touch QA_PASSED
-`
+` + "\n```"
 		return script, nil
 	}
 
 	// 4. QA Agent
 	if strings.Contains(prompt, "QA AGENT") {
-		return `
+		return "```bash\n" + `
 echo "QA Passed"
 agent-bridge signal QA_PASSED true || touch QA_PASSED
-`, nil
+` + "\n```", nil
 	}
 
 	// 5. Project Manager
 	if strings.Contains(prompt, "PROJECT MANAGER") {
-		return `
+		return "```bash\n" + `
 echo "Project Signed Off"
 agent-bridge signal PROJECT_SIGNED_OFF true || touch PROJECT_SIGNED_OFF
-`, nil
+` + "\n```", nil
 	}
 
 	// Default fallback for generic prompts
