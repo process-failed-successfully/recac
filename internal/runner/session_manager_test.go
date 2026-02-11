@@ -713,6 +713,11 @@ func TestRenameSession(t *testing.T) {
 func permissionsEnforced(t *testing.T, dir string) bool {
 	t.Helper()
 
+	if os.Geteuid() == 0 {
+		t.Log("Skipping permission check: running as root")
+		return false
+	}
+
 	// Create a temporary directory for the check
 	checkDir := filepath.Join(dir, "perm_check")
 	if err := os.MkdirAll(checkDir, 0755); err != nil {
