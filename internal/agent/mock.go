@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 )
 
@@ -30,6 +31,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// Log the prompt for debugging CI failures
+	log.Printf("[MockAgent] Received Prompt (len=%d): %s...", len(prompt), truncateString(prompt, 200))
 
 	// 1. TPM Role (Planning)
 	if strings.Contains(prompt, "You are an expert Technical Program Manager (TPM)") || strings.Contains(prompt, "## YOUR ROLE - PROJECT MANAGER") {
@@ -64,8 +68,10 @@ EOF
 	}
 
 	// 3. Coding Agent (Implementation)
-	// Detects the specific task via [PRIMES] tag or keywords
-	if strings.Contains(prompt, "## YOUR ROLE - CODING AGENT") || strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
+	// Detects the specific task via [PRIMES] tag or keywords.
+	// Relaxed matching: check for "primes.py" or "Prime" case-insensitive to be robust against prompt formatting changes.
+	upperPrompt := strings.ToUpper(prompt)
+	if strings.Contains(prompt, "## YOUR ROLE - CODING AGENT") || strings.Contains(upperPrompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") || strings.Contains(upperPrompt, "PRIME") {
 		// Python script to calculate primes < 10000
 		// Note: We use %% for modulo to escape it in potential Sprintf usage, though here it's a raw string return.
 		// However, to be safe and clear, we just return the string directly.
@@ -112,7 +118,8 @@ agent-bridge signal PROJECT_SIGNED_OFF true --privileged
 	}
 
 	// 4. QA / Manager / Reviewer
-	if strings.Contains(prompt, "## YOUR ROLE - QA AGENT") || strings.Contains(prompt, "## YOUR ROLE - PROJECT MANAGER") {
+	// Relaxed matching: Check for "QA" or "Review" case-insensitive.
+	if strings.Contains(prompt, "## YOUR ROLE - QA AGENT") || strings.Contains(prompt, "## YOUR ROLE - PROJECT MANAGER") || strings.Contains(upperPrompt, "QA") || strings.Contains(upperPrompt, "REVIEW") {
 		return `
 Looking good! The implementation meets the requirements.
 
