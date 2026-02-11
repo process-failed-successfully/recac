@@ -37,8 +37,13 @@ func (s *Session) hasSignal(name string) bool {
 		}
 
 		if privilegedSignals[name] {
-			s.Logger.Warn("ignoring filesystem-based privileged signal (must come from DB)", "signal", name)
-			return false
+			// Allow mock provider to use filesystem signals for testing/E2E
+			if s.AgentProvider == "mock" {
+				s.Logger.Info("allowing filesystem-based privileged signal for mock provider", "signal", name)
+			} else {
+				s.Logger.Warn("ignoring filesystem-based privileged signal (must come from DB)", "signal", name)
+				return false
+			}
 		}
 
 		s.Logger.Info("migrating signal from filesystem to DB", "signal", name)

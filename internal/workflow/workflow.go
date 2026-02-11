@@ -368,6 +368,13 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 
 	// Mock mode
 	if cfg.IsMock {
+		if cfg.Provider == "" {
+			cfg.Provider = "mock"
+		}
+		if cfg.Model == "" {
+			cfg.Model = "mock"
+		}
+
 		fmt.Printf("[%s] Starting in MOCK MODE\n", cfg.SessionName)
 		dockerCli, _ := docker.NewMockClient()
 		agentClient := agent.NewMockAgent()
