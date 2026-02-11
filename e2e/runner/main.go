@@ -317,7 +317,8 @@ func run() error {
 			"--set", fmt.Sprintf("config.jiraUrl=%s", os.Getenv("JIRA_URL")),
 			"--set", fmt.Sprintf("config.jiraUsername=%s", os.Getenv("JIRA_USERNAME")),
 			"--set", fmt.Sprintf("secrets.openrouterApiKey=%s", os.Getenv("OPENROUTER_API_KEY")),
-			"--set", fmt.Sprintf("secrets.geminiApiKey=%s", os.Getenv("GEMINI_API_KEY")),
+			"--set", fmt.Sprintf("secrets.apiKey=%s", os.Getenv("GEMINI_API_KEY")), // For Gemini provider which maps to apiKey
+			"--set", fmt.Sprintf("secrets.geminiApiKey=%s", os.Getenv("GEMINI_API_KEY")), // Redundant but harmless if chart expects it
 			"--set", fmt.Sprintf("secrets.anthropicApiKey=%s", os.Getenv("ANTHROPIC_API_KEY")),
 			"--set", fmt.Sprintf("secrets.openaiApiKey=%s", os.Getenv("OPENAI_API_KEY")),
 			"--set", fmt.Sprintf("secrets.cursorApiKey=%s", os.Getenv("CURSOR_API_KEY")),
