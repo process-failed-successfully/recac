@@ -88,9 +88,13 @@ func runDev(cmd *cobra.Command, args []string) error {
 	// Initial run
 	go func() { trigger <- struct{}{} }()
 
+	ctx := cmd.Context()
+	var wg sync.WaitGroup
+
 	// Event Loop
-	done := make(chan bool)
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		for {
 			select {
 			case event, ok := <-watcher.Events:
@@ -106,7 +110,10 @@ func runDev(cmd *cobra.Command, args []string) error {
 							timer.Stop()
 						}
 						timer = time.AfterFunc(devDebounce, func() {
-							trigger <- struct{}{}
+							select {
+							case trigger <- struct{}{}:
+							case <-ctx.Done():
+							}
 						})
 						mu.Unlock()
 					}
@@ -125,18 +132,28 @@ func runDev(cmd *cobra.Command, args []string) error {
 					return
 				}
 				fmt.Printf("Watcher error: %v\n", err)
+			case <-ctx.Done():
+				return
 			}
 		}
 	}()
 
 	// Execution Loop
+	wg.Add(1)
 	go func() {
-		for range trigger {
-			executeDevCommand(runCommand)
+		defer wg.Done()
+		for {
+			select {
+			case <-trigger:
+				executeDevCommand(runCommand)
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
 
-	<-done
+	<-ctx.Done()
+	wg.Wait()
 	return nil
 }
 
