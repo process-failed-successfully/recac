@@ -15,26 +15,20 @@ func TestMockAgent_Initializer_Primes(t *testing.T) {
 		t.Fatalf("Send failed: %v", err)
 	}
 
-	// Verify it detected the scenario
-	if !strings.Contains(response, "create the feature list for the prime number script") {
-		t.Errorf("Expected response to mention creating feature list for primes, got: %s", response)
+	// Verify it detected the scenario and mentions TPM handling tickets
+	expectedMsg := "The TPM will handle ticket creation"
+	if !strings.Contains(response, expectedMsg) {
+		t.Errorf("Expected response to mention %q, got: %s", expectedMsg, response)
 	}
 
-	// Verify it generates the JSON via cat << 'EOF'
-	expectedCmd := "cat << 'EOF' | agent-bridge import"
-	if !strings.Contains(response, expectedCmd) {
-		t.Errorf("Expected response to contain command %q, got: %s", expectedCmd, response)
+	// Verify it DOES NOT import the plan
+	if strings.Contains(response, "agent-bridge import") {
+		t.Errorf("Expected response NOT to contain agent-bridge import, got: %s", response)
 	}
 
-	// Verify JSON content
-	expectedJSONSnippet := `"id": "PRIMES"`
-	if !strings.Contains(response, expectedJSONSnippet) {
-		t.Errorf("Expected response to contain JSON snippet %q, got: %s", expectedJSONSnippet, response)
-	}
-
-	expectedDesc := `"description": "Implement a python script 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'."`
-	if !strings.Contains(response, expectedDesc) {
-		t.Errorf("Expected response to contain description %q, got: %s", expectedDesc, response)
+	// Verify it runs git init
+	if !strings.Contains(response, "git init") {
+		t.Errorf("Expected response to contain git init, got: %s", response)
 	}
 }
 
@@ -54,5 +48,26 @@ func TestMockAgent_Initializer_Default(t *testing.T) {
 
 	if !strings.Contains(response, "agent-bridge import --file /app/ticket_plan.json") {
 		t.Errorf("Expected default response to import from file, got: %s", response)
+	}
+}
+
+func TestMockAgent_TPM_Primes(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "ROLE - Technical Program Manager. Please create the plan."
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Verify JSON content
+	expectedJSONSnippet := `"id": "PRIMES"`
+	if !strings.Contains(response, expectedJSONSnippet) {
+		t.Errorf("Expected response to contain JSON snippet %q, got: %s", expectedJSONSnippet, response)
+	}
+
+	expectedDesc := `"description": "Implement a python script 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'."`
+	if !strings.Contains(response, expectedDesc) {
+		t.Errorf("Expected response to contain description %q, got: %s", expectedDesc, response)
 	}
 }

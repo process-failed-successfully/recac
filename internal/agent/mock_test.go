@@ -29,7 +29,9 @@ func TestMockAgent_PrimeScenario(t *testing.T) {
 		t.Fatalf("Send failed: %v", err)
 	}
 
-	if !strings.Contains(resp, "Prime Number Generator") {
-		t.Errorf("Expected Prime Number Generator in response, got: %s", resp)
+	// Updated expectation: Initializer mentions TPM will handle tickets
+	expectedMsg := "The TPM will handle ticket creation"
+	if !strings.Contains(resp, expectedMsg) {
+		t.Errorf("Expected response to contain %q, got: %s", expectedMsg, resp)
 	}
 }
