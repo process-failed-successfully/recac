@@ -61,10 +61,15 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	session.Docker = client
 	session.Agent = &MockAgentForSecurity{}
 	session.Image = "alpine:latest"
+	session.UseLocalAgent = false // Explicitly disable local agent to ensure container creation logic runs
 
 	// Start session
 	if err := session.Start(context.Background()); err != nil {
 		t.Fatalf("Session.Start failed: %v", err)
+	}
+
+	if capturedBinds == nil {
+		t.Fatal("FATAL: Container was not created (capturedBinds is nil). This likely means UseLocalAgent was true or Docker check failed.")
 	}
 
 	foundAny := false
