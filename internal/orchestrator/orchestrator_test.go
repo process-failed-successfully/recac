@@ -230,8 +230,14 @@ func TestOrchestrator_DryRun(t *testing.T) {
 
 	// Verify items returned
 	assert.Len(t, items, 2)
-	assert.Equal(t, "DRY-1", items[0].ID)
-	assert.Equal(t, "DRY-2", items[1].ID)
+
+	// Verify IDs exist (order is not guaranteed due to map iteration in mockPoller)
+	found := make(map[string]bool)
+	for _, item := range items {
+		found[item.ID] = true
+	}
+	assert.True(t, found["DRY-1"], "Expected DRY-1 to be present")
+	assert.True(t, found["DRY-2"], "Expected DRY-2 to be present")
 
 	// Verify NO items were spawned
 	spawner.mu.Lock()
