@@ -73,11 +73,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 4. Coding Agent (Prime Python Scenario)
-	// Check for primes keywords OR the ticket ID itself
+	// Check for primes keywords OR the generic Role header found in CI logs
 	if strings.Contains(lowerPrompt, "primes.py") ||
 	   strings.Contains(lowerPrompt, "prime number script") ||
 	   strings.Contains(lowerPrompt, "generate primes") ||
-	   strings.Contains(lowerPrompt, "mflp-11017") { // Ticket ID from CI logs
+	   strings.Contains(lowerPrompt, "role - coding agent") { // Standard prompt header for Coding Agent
 		// Return the python script implementation
 		return `Here is the implementation for primes.py:
 

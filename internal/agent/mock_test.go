@@ -10,8 +10,8 @@ func TestMockAgent_Send_Primes(t *testing.T) {
 	agent := NewMockAgent()
 	ctx := context.Background()
 
-	// Test case: Prompt with ticket ID
-	prompt1 := "Context: You are a coding agent working on ticket MFLP-11017: Implement primes.py."
+	// Test case: Prompt with Coding Agent Role Header (E2E Scenario)
+	prompt1 := "## YOUR ROLE - CODING AGENT\n\nYou are continuing work on a long-running autonomous development task."
 	resp1, err := agent.Send(ctx, prompt1)
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
@@ -41,8 +41,7 @@ func TestMockAgent_Send_TPM_Strict(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
 	}
-	// Should NOT match TPM role (which returns JSON), should match Fallback or Coding Agent if "code" triggers it (but "code" doesn't).
-	// It should definitely NOT contain the TPM JSON structure.
+	// Should NOT match TPM role (which returns JSON), should match Fallback or Coding Agent if keywords match.
 	if strings.Contains(resp1, "\"type\": \"Epic\"") {
 		t.Errorf("Prompt '%s' incorrectly triggered TPM role response.", prompt1)
 	}
