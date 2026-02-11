@@ -80,8 +80,10 @@ type Session struct {
 	UseLocalAgent             bool         // Execute commands locally (e.g. inside K8s pod) instead of spawning Docker container
 	SpecContent               string       // Explicit specification content (e.g. from Jira)
 	FeatureContent            string       // Explicit feature list JSON content (authoritative)
-	Logger                    *slog.Logger // Structured logger for this session
+	Logger                    *slog.Logger        // Structured logger for this session
 	SleepFunc                 func(time.Duration) // Function for sleeping (mockable)
+	StatFunc                  func(string) (os.FileInfo, error)
+	HomeDir                   string
 
 	mu sync.RWMutex // Protects concurrent access to Iteration, SlackThreadTS, ContainerID
 }
@@ -162,6 +164,7 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 		UseLocalAgent:    os.Getenv("KUBERNETES_SERVICE_HOST") != "",
 		Logger:           logger,
 		SleepFunc:        time.Sleep,
+		StatFunc:         os.Stat,
 	}
 }
 
@@ -202,6 +205,7 @@ func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, pr
 		Notifier:         notify.NewManager(telemetry.LogInfof),
 		Logger:           logger,
 		SleepFunc:        time.Sleep,
+		StatFunc:         os.Stat,
 	}
 }
 
@@ -235,6 +239,7 @@ func NewSessionWithConfig(workspace, project, provider, model string, dbStore db
 		Scanner:          security.NewRegexScanner(),
 		Notifier:         notify.NewManager(telemetry.LogInfof),
 		Logger:           logger,
+		StatFunc:         os.Stat,
 	}
 }
 
@@ -462,24 +467,44 @@ func (s *Session) Start(ctx context.Context) error {
 	}
 
 	// Determine users home directory for config mounting
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		fmt.Printf("Warning: Failed to determine user home dir: %v. Configs will not be mounted.\n", err)
+	homeDir := s.HomeDir
+	if homeDir == "" {
+		var err error
+		homeDir, err = os.UserHomeDir()
+		if err != nil {
+			fmt.Printf("Warning: Failed to determine user home dir: %v. Configs will not be mounted.\n", err)
+		}
 	}
 
 	var extraBinds []string
 	if homeDir != "" {
 		// Mount configurations if they exist
 		// Note: Docker binds require the host path to exist, or it might auto-create as dir (depends on docker version/config).
-		// Best practice is to check existence, but for now we follow the Python approach which seemingly just mounts them.
-		// However, to avoid creating empty dirs if they don't exist on host, we can check.
-		// For now, we'll blindly mount as per requirement to emulate python script behavior effectively.
-		extraBinds = append(extraBinds,
-			fmt.Sprintf("%s/.gemini:/home/appuser/.gemini", homeDir),
-			fmt.Sprintf("%s/.config:/home/appuser/.config", homeDir),
-			fmt.Sprintf("%s/.cursor:/home/appuser/.cursor", homeDir),
-			fmt.Sprintf("%s/.ssh:/home/appuser/.ssh", homeDir),
-		)
+		// Best practice is to check existence to avoid creating empty dirs if they don't exist on host.
+		// SECURITY: We mount these as Read-Only (:ro) to prevent the agent from modifying or deleting sensitive files on the host.
+
+		sensitiveMounts := []struct {
+			hostPath      string
+			containerPath string
+		}{
+			{".gemini", "/home/appuser/.gemini"},
+			{".config", "/home/appuser/.config"},
+			{".cursor", "/home/appuser/.cursor"},
+			{".ssh", "/home/appuser/.ssh"},
+		}
+
+		// Use injected StatFunc if available
+		stat := s.StatFunc
+		if stat == nil {
+			stat = os.Stat
+		}
+
+		for _, m := range sensitiveMounts {
+			hostPath := filepath.Join(homeDir, m.hostPath)
+			if _, err := stat(hostPath); err == nil {
+				extraBinds = append(extraBinds, fmt.Sprintf("%s:%s:ro", hostPath, m.containerPath))
+			}
+		}
 	}
 
 	// Determine host user for mapping
