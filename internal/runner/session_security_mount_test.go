@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 	"recac/internal/docker"
 
 	"github.com/docker/docker/api/types"
@@ -21,18 +22,37 @@ func (m *MockAgentForSecurity) Send(ctx context.Context, prompt string) (string,
 func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) { return "", nil }
 
 
-func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
-	// Create temporary home directory for testing to avoid dependency on host environment
-	tempHome := t.TempDir()
+// mockFileInfo implements os.FileInfo
+type mockFileInfo struct {
+	name  string
+	isDir bool
+}
+func (m *mockFileInfo) Name() string       { return m.name }
+func (m *mockFileInfo) Size() int64        { return 0 }
+func (m *mockFileInfo) Mode() os.FileMode  {
+    if m.isDir { return os.ModeDir | 0755 }
+    return 0644
+}
+func (m *mockFileInfo) ModTime() time.Time { return time.Now() }
+func (m *mockFileInfo) IsDir() bool        { return m.isDir }
+func (m *mockFileInfo) Sys() any           { return nil }
 
-	// Create dummy sensitive directories/files
-	sensitiveDirs := []string{".gemini", ".config", ".cursor", ".ssh"}
-	for _, dir := range sensitiveDirs {
-		path := filepath.Join(tempHome, dir)
-		if err := os.Mkdir(path, 0700); err != nil {
-			t.Fatalf("Failed to create dummy dir %s: %v", path, err)
-		}
-	}
+
+func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
+	// Setup mock StatFunc instead of real FS
+    mockHome := "/home/mockuser"
+
+    mockStat := func(path string) (os.FileInfo, error) {
+        // Allow sensitive paths
+        sensitiveDirs := []string{".gemini", ".config", ".cursor", ".ssh"}
+        for _, dir := range sensitiveDirs {
+            target := filepath.Join(mockHome, dir)
+            if path == target {
+                return &mockFileInfo{name: dir, isDir: true}, nil
+            }
+        }
+        return nil, os.ErrNotExist
+    }
 
 	// Setup mock Docker client
 	client, mock := docker.NewMockClient()
@@ -60,7 +80,9 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	session.Docker = client
 	session.Agent = &MockAgentForSecurity{}
 	session.Image = "alpine:latest"
-	session.HomeDir = tempHome // Use our temp home dir
+	session.HomeDir = mockHome
+    session.StatFunc = mockStat
+    session.UseLocalAgent = false // Explicitly ensure Docker usage
 
 	// Start session
 	if err := session.Start(context.Background()); err != nil {
@@ -75,7 +97,10 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 		found := false
 		for _, bind := range capturedBinds {
 			// Check if bind contains the sensitive path
-			if strings.Contains(bind, path) {
+			// Note: bind format is /host/path:/container/path:ro
+            // We check if it matches the expected bind string structure for robustness
+            expectedBindPrefix := filepath.Join(mockHome, path)
+			if strings.HasPrefix(bind, expectedBindPrefix) {
 				found = true
 				foundAny = true
 				// Check if it is Read-Only
@@ -85,11 +110,11 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 			}
 		}
 		if !found {
-			t.Logf("Note: Sensitive path '%s' not found in binds (might be missing in env)", path)
+			t.Errorf("Error: Sensitive path '%s' not found in binds", path)
 		}
 	}
 
 	if !foundAny {
-		t.Log("WARNING: No sensitive paths were found in binds. Test might be ineffective if environment lacks home dir configs.")
+		t.Error("No sensitive paths were found in binds.")
 	}
 }
