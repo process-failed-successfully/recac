@@ -36,33 +36,60 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// === Heuristic Detection for Roles ===
-	// The prompt usually contains "## YOUR ROLE - <ROLE NAME>"
 
 	// 1. Technical Program Manager (TPM) - Planning Phase
+	// The TPM prompt does NOT start with ## YOUR ROLE, but "You are an expert Technical Program Manager..."
 	if strings.Contains(prompt, "## YOUR ROLE - TECHNICAL PROGRAM MANAGER") ||
+	   strings.Contains(prompt, "You are an expert Technical Program Manager (TPM)") ||
 	   strings.Contains(prompt, "Analyze the user's request and create a detailed plan") {
 
-		// If prompt asks for JSON plan, return valid JSON feature list
-		if strings.Contains(prompt, "JSON") {
-			// Extract project ID if possible, default to "PRIMES" for smoke test
-			projectID := os.Getenv("RECAC_PROJECT_ID")
-			if projectID == "" {
-				// Try to find ID in prompt
-				re := regexp.MustCompile(`ID:\[(.*?)\]`)
-				matches := re.FindStringSubmatch(prompt)
-				if len(matches) > 1 {
-					projectID = matches[1]
-				} else {
-					projectID = "PRIMES"
-				}
+		// Determine Project ID
+		projectID := os.Getenv("RECAC_PROJECT_ID")
+		if projectID == "" {
+			// Try to find ID in prompt
+			re := regexp.MustCompile(`ID:\[(.*?)\]`)
+			matches := re.FindStringSubmatch(prompt)
+			if len(matches) > 1 {
+				projectID = matches[1]
+			} else {
+				projectID = "PRIMES"
 			}
-
-			// Return a mock feature list for the Prime Number Script scenario
-			return fmt.Sprintf("```json\n{\n  \"project_name\": \"%s\",\n  \"features\": [\n    {\n      \"id\": \"1\",\n      \"description\": \"Implement a Python script (primes.py) that calculates the first n prime numbers.\",\n      \"priority\": \"high\",\n      \"status\": \"todo\"\n    },\n    {\n      \"id\": \"2\",\n      \"description\": \"Add unit tests for the prime calculation logic.\",\n      \"priority\": \"medium\",\n      \"status\": \"todo\"\n    }\n  ]\n}\n```", projectID), nil
 		}
+
+		// Return a mock feature list for the Prime Number Script scenario
+		return fmt.Sprintf("```json\n{\n  \"project_name\": \"%s\",\n  \"features\": [\n    {\n      \"id\": \"1\",\n      \"description\": \"Implement a Python script (primes.py) that calculates the first n prime numbers.\",\n      \"priority\": \"high\",\n      \"status\": \"todo\"\n    },\n    {\n      \"id\": \"2\",\n      \"description\": \"Add unit tests for the prime calculation logic.\",\n      \"priority\": \"medium\",\n      \"status\": \"todo\"\n    }\n  ]\n}\n```", projectID), nil
 	}
 
-	// 2. Coding Agent (Developer) - Implementation Phase
+	// 2. Initializer Agent
+	if strings.Contains(prompt, "## YOUR ROLE - INITIALIZER AGENT") {
+		// Initializer must import features via agent-bridge
+		return `I will initialize the project.
+
+` + "```bash" + `
+cat << 'EOF' | agent-bridge import
+{
+  "project_name": "Prime Number Script",
+  "features": [
+    {
+      "id": "req-script-runs",
+      "description": "Implement primes.py",
+      "status": "pending",
+      "priority": "MVP"
+    }
+  ]
+}
+EOF
+
+cat << 'EOF' > init.sh
+#!/bin/bash
+echo "Initializing..."
+EOF
+chmod +x init.sh
+` + "```" + `
+`, nil
+	}
+
+	// 3. Coding Agent (Developer) - Implementation Phase
 	if strings.Contains(prompt, "## YOUR ROLE - CODING AGENT") ||
 	   strings.Contains(prompt, "You are an expert software engineer") {
 
@@ -96,16 +123,16 @@ if __name__ == "__main__":
 		}
 	}
 
-	// 3. QA Agent - Verification Phase
+	// 4. QA Agent - Verification Phase
 	if strings.Contains(prompt, "## YOUR ROLE - QA AGENT") {
 		// Always pass for smoke tests
-		return "Based on my analysis, the code implements the requirements correctly.\n\nQA Status: PASS\n\nExisting Issues: None", nil
+		return "Based on my analysis, the code implements the requirements correctly.\n\nQA Status: PASS\n\nExisting Issues: None\n\n```bash\nagent-bridge signal QA_PASSED true\n```", nil
 	}
 
-	// 4. Project Manager - Review Phase
+	// 5. Project Manager - Review Phase
 	if strings.Contains(prompt, "## YOUR ROLE - PROJECT MANAGER") {
 		// Approve and sign off
-		return "The project looks good. All features are implemented and QA passed.\n\nDecision: APPROVED\n\nNext Steps: Release", nil
+		return "The project looks good. All features are implemented and QA passed.\n\nDecision: APPROVED\n\nNext Steps: Release\n\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
 	}
 
 	// Default Fallback
