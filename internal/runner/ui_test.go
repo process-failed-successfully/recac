@@ -40,6 +40,7 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 		ManagerFrequency: 5,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
 		Logger:           telemetry.NewLogger(true, "", false),
+		MaxIterations:    10, // Prevent infinite loops
 	}
 
 	// 6. Capture Stdout? (Hard to do in test without refactor).
