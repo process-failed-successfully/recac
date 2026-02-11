@@ -28,6 +28,9 @@ func (m *MockAgent) SetResponse(response string) {
 // Send implements the Agent interface
 // It returns a mock response that acknowledges the prompt
 func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
+	// DEBUG: Print prompt to stdout to help debug CI failures where heuristics don't match
+	fmt.Printf("[MOCK AGENT] Received prompt (%d chars): %s\n", len(prompt), truncateString(prompt, 200))
+
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
@@ -74,7 +77,12 @@ EOF`, nil
 	// 3. Coding Agent (Primes Task)
 	// Detects the specific task or "Coding Agent" role.
 	// The smoke test scenario is likely "prime-python".
-	if strings.Contains(strings.ToUpper(prompt), "PRIME") || strings.Contains(prompt, "Coding Agent") {
+	// We check for "PRIME" (case-insensitive), "Coding Agent", or "Python" script requests.
+	upperPrompt := strings.ToUpper(prompt)
+	if strings.Contains(upperPrompt, "PRIME") ||
+	   strings.Contains(prompt, "Coding Agent") ||
+	   strings.Contains(upperPrompt, "PYTHON") ||
+	   strings.Contains(upperPrompt, "SCRIPT") {
 		// Return a bash script to implement the prime checker
 		return `cat << 'EOF' > primes.py
 import sys
@@ -109,7 +117,11 @@ agent-bridge signal PROJECT_SIGNED_OFF true --privileged || true
 
 	// 4. QA/Manager Role
 	// Detects "QA" or "Manager" to approve work.
-	if strings.Contains(prompt, "QA") || strings.Contains(prompt, "Manager") || strings.Contains(prompt, "Review") {
+	// Also checks for "Review" or "Verify" which are common in QA prompts.
+	if strings.Contains(prompt, "QA") ||
+	   strings.Contains(prompt, "Manager") ||
+	   strings.Contains(prompt, "Review") ||
+	   strings.Contains(strings.ToUpper(prompt), "VERIFY") {
 		// Return a signal to approve
 		return `QA_PASSED`, nil
 	}

@@ -37,7 +37,7 @@ func TestMockAgent_TPM(t *testing.T) {
 	}
 }
 
-func TestMockAgent_Coding(t *testing.T) {
+func TestMockAgent_Coding_Prime(t *testing.T) {
 	agent := NewMockAgent()
 	prompt := "Implement a function to check if a number is PRIME"
 	response, err := agent.Send(context.Background(), prompt)
@@ -47,7 +47,21 @@ func TestMockAgent_Coding(t *testing.T) {
 	}
 
 	if !strings.Contains(response, "def is_prime(n):") {
-		t.Errorf("Expected Python code for Coding role, got: %s", response)
+		t.Errorf("Expected Python code for Coding role (PRIME), got: %s", response)
+	}
+}
+
+func TestMockAgent_Coding_Python(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Write a python script to calculate numbers"
+	response, err := agent.Send(context.Background(), prompt)
+
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "def is_prime(n):") {
+		t.Errorf("Expected Python code for Coding role (PYTHON), got: %s", response)
 	}
 }
 
@@ -62,5 +76,19 @@ func TestMockAgent_QA(t *testing.T) {
 
 	if strings.TrimSpace(response) != "QA_PASSED" {
 		t.Errorf("Expected QA_PASSED signal, got: %s", response)
+	}
+}
+
+func TestMockAgent_Verify(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Please verify the implementation."
+	response, err := agent.Send(context.Background(), prompt)
+
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if strings.TrimSpace(response) != "QA_PASSED" {
+		t.Errorf("Expected QA_PASSED signal for verify, got: %s", response)
 	}
 }
