@@ -280,6 +280,7 @@ jobs:
           GITHUB_API_KEY: ${{ secrets.GH_API_KEY }}
           GITHUB_EMAIL: ${{ secrets.GH_EMAIL }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           RETRIES=3
           for i in $(seq 0 $RETRIES); do
@@ -287,8 +288,8 @@ jobs:
             # Explicitly set model to avoid deprecated models
             if go run e2e/runner/main.go \
               -scenario prime-python \
-              -provider openrouter \
-              -model "meta-llama/llama-3.3-70b-instruct:free" \
+              -provider gemini \
+              -model "gemini-2.0-flash" \
               -image recac:smoke \
               -repo-url "https://github.com/process-failed-successfully/recac-jira-e2e" \
               -pull-policy IfNotPresent \

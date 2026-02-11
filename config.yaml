@@ -21,7 +21,7 @@ max_parallel_tickets: 1
 metrics_port: 2112
 mock: false
 mock-agent: false
-model: meta-llama/llama-3.3-70b-instruct:free
+model: gemini-2.0-flash
 name: ""
 notifications:
     discord:
@@ -36,8 +36,8 @@ notifications:
             on_success: true
             on_user_interaction: true
 orchestrator:
-    agent_model: meta-llama/llama-3.3-70b-instruct:free
-    agent_provider: openrouter
+    agent_model: gemini-2.0-flash
+    agent_provider: gemini
     image: ghcr.io/process-failed-successfully/recac-agent:latest
     image_pull_policy: Always
     interval: 1m0s
