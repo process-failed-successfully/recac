@@ -24,6 +24,14 @@ func TestAgentBridgeRestrictions(t *testing.T) {
 				t.Errorf("Expected error when setting privileged signal %s, got nil", name)
 			}
 		})
+
+		t.Run("Allow_"+name+"_WithFlag", func(t *testing.T) {
+			args := []string{"agent-bridge", "signal", name, "true", "--privileged"}
+			err := run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID)
+			if err != nil {
+				t.Errorf("Expected success when setting privileged signal %s with flag, got error: %v", name, err)
+			}
+		})
 	}
 
 	t.Run("Verify_Missing_File", func(t *testing.T) {
