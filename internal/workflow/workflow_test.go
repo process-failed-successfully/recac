@@ -168,7 +168,9 @@ func TestRunWorkflow_Detached(t *testing.T) {
 func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 	// Mock RunWorkflow
 	originalRunWorkflow := RunWorkflow
+	// Explicitly restore at end of test to ensure no leakage
 	defer func() { RunWorkflow = originalRunWorkflow }()
+
 	RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 		return nil // Prevent running the full session
 	}

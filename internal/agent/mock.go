@@ -98,7 +98,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return "```bash\n" +
 			"# Setup Git\n" +
 			"git fetch origin\n" +
-			"git checkout -B agent/PRIMES-mock || git checkout -b agent/PRIMES-mock\n\n" +
+			"BRANCH_NAME=\"agent/PRIMES-mock-$(date +%s)\"\n" +
+			"git checkout -b $BRANCH_NAME\n\n" +
 			"cat <<EOF > primes.py\n" +
 			"import json\n\n" +
 			"def is_prime(n):\n" +
@@ -118,7 +119,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			"git config --global user.name \"Recac Agent\"\n" +
 			"git add primes.py primes.json\n" +
 			"git commit -m \"Add primes script and output\" || echo \"Nothing to commit\"\n" +
-			"git push -f -u origin agent/PRIMES-mock\n" +
+			"git push -u origin $BRANCH_NAME\n" +
 			"```", nil
 	}
 
