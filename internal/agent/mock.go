@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -143,22 +144,32 @@ agent-bridge import --file /app/ticket_plan.json
 	// Prioritize this before generic role checks if specific task ID is present
 	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
 		// Extract Ticket ID for branch naming (e.g. [MFLP-123])
+		// Priority: Jira-style ID (e.g. MFLP-123) > Fallback to generic valid ID > Default
 		ticketID := "PRIMES-mock"
-		if start := strings.Index(prompt, "["); start != -1 {
-			if end := strings.Index(prompt[start:], "]"); end != -1 {
-				candidate := prompt[start+1 : start+end]
-				// Basic validation to avoid grabbing "PRIMES" if we want "MFLP-..."
-				if strings.Contains(candidate, "-") {
-					// SANITIZATION: Only allow alphanumeric and hyphens to prevent command injection
-					valid := true
-					for _, r := range candidate {
-						if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-') {
-							valid = false
-							break
+
+		// 1. Try to find Jira-style ID first (most specific)
+		jiraRegex := regexp.MustCompile(`\[([A-Z]+-\d+)\]`)
+		matches := jiraRegex.FindStringSubmatch(prompt)
+		if len(matches) > 1 {
+			ticketID = matches[1]
+		} else {
+			// 2. Fallback: Try generic extraction if Jira ID not found
+			if start := strings.Index(prompt, "["); start != -1 {
+				if end := strings.Index(prompt[start:], "]"); end != -1 {
+					candidate := prompt[start+1 : start+end]
+					// Basic validation to avoid grabbing random bracketed text
+					if len(candidate) > 0 {
+						// SANITIZATION: Only allow alphanumeric and hyphens to prevent command injection
+						valid := true
+						for _, r := range candidate {
+							if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-') {
+								valid = false
+								break
+							}
 						}
-					}
-					if valid {
-						ticketID = candidate
+						if valid {
+							ticketID = candidate
+						}
 					}
 				}
 			}
