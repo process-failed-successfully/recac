@@ -144,23 +144,46 @@ agent-bridge import --file /app/ticket_plan.json
 	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
 		// Extract Ticket ID for branch naming (e.g. [MFLP-123])
 		ticketID := "PRIMES-mock"
-		if start := strings.Index(prompt, "["); start != -1 {
-			if end := strings.Index(prompt[start:], "]"); end != -1 {
-				candidate := prompt[start+1 : start+end]
-				// Basic validation to avoid grabbing "PRIMES" if we want "MFLP-..."
-				if strings.Contains(candidate, "-") {
-					// SANITIZATION: Only allow alphanumeric and hyphens to prevent command injection
-					valid := true
-					for _, r := range candidate {
-						if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-') {
-							valid = false
-							break
-						}
-					}
-					if valid {
+		// Robust extraction: Look for "ID:[KEY]" or "[KEY]" pattern
+		// We prioritize "MFLP-" or "PROJ-" prefix if found
+		lines := strings.Split(prompt, "\n")
+		for _, line := range lines {
+			// Check for ID:[KEY] format often used in prompts
+			if strings.Contains(line, "ID:[") {
+				start := strings.Index(line, "ID:[") + 4
+				end := strings.Index(line[start:], "]")
+				if end != -1 {
+					candidate := line[start : start+end]
+					if isValidTicketID(candidate) {
 						ticketID = candidate
+						break
 					}
 				}
+			}
+			// Check for standard [KEY] format
+			// Iterate through all [...] blocks in the line
+			cursor := 0
+			for {
+				startRel := strings.Index(line[cursor:], "[")
+				if startRel == -1 {
+					break
+				}
+				start := cursor + startRel + 1
+				endRel := strings.Index(line[start:], "]")
+				if endRel == -1 {
+					break
+				}
+				end := start + endRel
+
+				candidate := line[start : end]
+				if isValidTicketID(candidate) {
+					ticketID = candidate
+					break
+				}
+				cursor = end + 1
+			}
+			if ticketID != "PRIMES-mock" {
+				break
 			}
 		}
 
@@ -264,4 +287,18 @@ func truncateString(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen]
+}
+
+func isValidTicketID(s string) bool {
+	// Must contain hyphen (e.g. MFLP-123)
+	if !strings.Contains(s, "-") {
+		return false
+	}
+	// Sanitize: Alphanumeric + hyphen only
+	for _, r := range s {
+		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-') {
+			return false
+		}
+	}
+	return true
 }
