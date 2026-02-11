@@ -35,6 +35,7 @@ type Session struct {
 	Agent            agent.Agent
 	Workspace        string
 	Image            string
+	HomeDir          string              // Override for Home directory (for testing)
 	SpecFile         string
 	Iteration        int
 	MaxIterations    int
@@ -454,9 +455,15 @@ func (s *Session) Start(ctx context.Context) error {
 	}
 
 	// Determine users home directory for config mounting
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		fmt.Printf("Warning: Failed to determine user home dir: %v. Configs will not be mounted.\n", err)
+	var homeDir string
+	if s.HomeDir != "" {
+		homeDir = s.HomeDir
+	} else {
+		var err error
+		homeDir, err = os.UserHomeDir()
+		if err != nil {
+			fmt.Printf("Warning: Failed to determine user home dir: %v. Configs will not be mounted.\n", err)
+		}
 	}
 
 	var extraBinds []string
