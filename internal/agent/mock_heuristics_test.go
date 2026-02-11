@@ -38,6 +38,12 @@ func TestMockAgent_Heuristics(t *testing.T) {
 			expectJSON:     false,
 		},
 		{
+			name:           "Coding Agent Branch Name",
+			prompt:         "## YOUR ROLE - CODING AGENT [PRIMES]",
+			expectContains: "BRANCH_NAME=\"agent/PRIMES-mock-$(date +%s)-$RANDOM\"",
+			expectJSON:     false,
+		},
+		{
 			name:           "Manager Select Task",
 			prompt:         "## YOUR ROLE - PROJECT MANAGER. Feature [PRIMES] is pending.",
 			expectContains: "agent-bridge feature set --id PRIMES --status in_progress",

@@ -89,7 +89,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			// Second call: Signal completion to break the loop
 			return "Task completed. I have implemented the prime number script and verified the output.\n" +
 				"```bash\n" +
-				"agent-bridge feature set --id \"PRIMES\" --status done\n" +
+				"agent-bridge feature set PRIMES --status done\n" +
 				"agent-bridge signal --privileged QA_PASSED true\n" +
 				"```", nil
 		}
@@ -98,7 +98,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return "```bash\n" +
 			"# Setup Git\n" +
 			"git fetch origin\n" +
-			"BRANCH_NAME=\"agent/PRIMES-mock-$(date +%s)\"\n" +
+			"BRANCH_NAME=\"agent/PRIMES-mock-$(date +%s)-$RANDOM\"\n" +
 			"git checkout -b $BRANCH_NAME\n\n" +
 			"cat <<EOF > primes.py\n" +
 			"import json\n\n" +
