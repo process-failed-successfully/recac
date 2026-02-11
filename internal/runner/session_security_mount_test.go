@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"recac/internal/docker"
@@ -21,10 +22,17 @@ func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, on
 
 
 func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
-	// Skip if no home dir
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		t.Skip("Skipping test because UserHomeDir is unavailable")
+	// Create a temporary directory to act as HOME
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// Create sensitive directories
+	sensitivePaths := []string{".ssh", ".config", ".gemini", ".cursor"}
+	for _, path := range sensitivePaths {
+		err := os.MkdirAll(filepath.Join(home, path), 0755)
+		if err != nil {
+			t.Fatalf("Failed to create dummy sensitive directory %s: %v", path, err)
+		}
 	}
 
 	// Setup mock Docker client
@@ -59,15 +67,15 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 		t.Fatalf("Session.Start failed: %v", err)
 	}
 
-	// Verify sensitive mounts
-	sensitivePaths := []string{".ssh", ".config", ".gemini", ".cursor"}
-
 	foundAny := false
 	for _, path := range sensitivePaths {
 		found := false
 		for _, bind := range capturedBinds {
 			// Check if bind contains the sensitive path
-			if strings.Contains(bind, path) {
+			// Note: bind format is /host/path:/container/path:ro
+			// Since we use a temp dir, the host path will start with the temp dir path
+			expectedHostPath := filepath.Join(home, path)
+			if strings.HasPrefix(bind, expectedHostPath) {
 				found = true
 				foundAny = true
 				// Check if it is Read-Only
@@ -77,11 +85,11 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 			}
 		}
 		if !found {
-			t.Logf("Note: Sensitive path '%s' not found in binds (might be missing in env)", path)
+			t.Errorf("Error: Sensitive path '%s' not found in binds (it should be mounted)", path)
 		}
 	}
 
 	if !foundAny {
-		t.Log("WARNING: No sensitive paths were found in binds. Test might be ineffective if environment lacks home dir configs.")
+		t.Fatal("FATAL: No sensitive paths were found in binds even though they exist in HOME.")
 	}
 }
