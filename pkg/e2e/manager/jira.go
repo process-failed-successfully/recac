@@ -195,10 +195,11 @@ func runWithRetry(cmd *exec.Cmd) error {
 			return nil
 		}
 
-		// Check if error is due to Rate Limit (429)
+		// Check if error is due to Rate Limit (429) or Payment Required (402)
+		// 402 can happen with OpenRouter free models when spend limit is hit, but sometimes transiently
 		errContent := errBuf.String()
-		if strings.Contains(errContent, "429") || strings.Contains(errContent, "Rate limit exceeded") || strings.Contains(errContent, "rate-limited") {
-			fmt.Printf("Rate limit detected (429). Waiting %v before retry...\n", backoff)
+		if strings.Contains(errContent, "429") || strings.Contains(errContent, "Rate limit exceeded") || strings.Contains(errContent, "rate-limited") || strings.Contains(errContent, "402") {
+			fmt.Printf("Rate limit or transient payment error detected (429/402). Waiting %v before retry...\n", backoff)
 			time.Sleep(backoff)
 			backoff *= 2 // Exponential backoff
 			continue
