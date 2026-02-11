@@ -126,6 +126,7 @@ func (m *JiraManager) GenerateScenario(ctx context.Context, scenarioName, repoUR
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 
+		fmt.Printf("Running command: %v\n", cmd.Args)
 		if err := cmd.Run(); err != nil {
 			return "", nil, fmt.Errorf("recac cli failed: %w", err)
 		}

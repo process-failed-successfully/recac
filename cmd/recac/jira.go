@@ -633,6 +633,8 @@ func init() {
 	jiraGenerateFromSpecCmd.Flags().StringSliceP("label", "l", []string{}, "Custom labels to add to generated tickets")
 	jiraGenerateFromSpecCmd.Flags().String("output-json", "", "Path to write the created ticket mapping (Title -> Key) in JSON format")
 	jiraGenerateFromSpecCmd.Flags().String("repo-url", "", "Repository URL to include in ticket descriptions")
+	jiraGenerateFromSpecCmd.Flags().String("provider", "", "AI Provider (e.g. openai, openrouter)")
+	jiraGenerateFromSpecCmd.Flags().String("model", "", "AI Model (e.g. gpt-4)")
 	jiraCmd.AddCommand(jiraGenerateFromSpecCmd)
 
 	jiraGenerateFromArchCmd.Flags().String("arch", ".recac/architecture/architecture.yaml", "Path to architecture.yaml")
@@ -641,6 +643,8 @@ func init() {
 	jiraGenerateFromArchCmd.Flags().String("repo-url", "", "Repository URL to include in descriptions")
 	jiraGenerateFromArchCmd.Flags().StringSliceP("label", "l", []string{}, "Labels")
 	jiraGenerateFromArchCmd.Flags().String("output-json", "", "Output JSON path")
+	jiraGenerateFromArchCmd.Flags().String("provider", "", "AI Provider (e.g. openai, openrouter)")
+	jiraGenerateFromArchCmd.Flags().String("model", "", "AI Model (e.g. gpt-4)")
 	viper.BindPFlag("repo_url", jiraGenerateFromArchCmd.Flags().Lookup("repo-url"))
 	jiraCmd.AddCommand(jiraGenerateFromArchCmd)
 }
