@@ -54,6 +54,17 @@ func TestMockAgent_PrimesScenario(t *testing.T) {
 		t.Errorf("Expected Feature ID MFLP-123 in Initializer response, got:\n%s", resp1)
 	}
 
+	// 1b. Initializer with conflicting IDs (Spec vs Ticket)
+	// Should prioritize MFLP-123 over PRIMES
+	promptConflicting := "ROLE - INITIALIZER AGENT\nSpec:\nID: [PRIMES]\nDescription: Implement primes.\nTicket: [MFLP-123] Title"
+	respConflicting, err := agent.Send(context.Background(), promptConflicting)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(respConflicting, `"id": "MFLP-123"`) {
+		t.Errorf("Expected Feature ID MFLP-123 in conflicting response (should prioritize Jira ID), got:\n%s", respConflicting)
+	}
+
 	// 2. Coding Agent with ID (Must include "primes.py" to trigger block)
 	// Test various formats
 	prompts := []string{

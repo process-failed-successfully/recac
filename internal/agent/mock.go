@@ -82,10 +82,20 @@ ls -la
 			// Extract ID from prompt if available (e.g., "[MFLP-123]") to align with Jira/Project ID
 			// Default to PRIMES if not found
 			featureID := "PRIMES"
-			re := regexp.MustCompile(`(?i)(?:ID:\[?|\[)([A-Z0-9_-]+)\]?`)
-			matches := re.FindStringSubmatch(prompt)
-			if len(matches) > 1 {
-				featureID = matches[1]
+
+			// Strategy 1: Look for a Jira-like ID specifically (PROJECT-123)
+			// This takes precedence over generic tags like [PRIMES] which might also be in the spec.
+			reJira := regexp.MustCompile(`([A-Z]+-\d+)`)
+			matchesJira := reJira.FindStringSubmatch(prompt)
+			if len(matchesJira) > 1 {
+				featureID = matchesJira[1]
+			} else {
+				// Strategy 2: Fallback to generic ID tag extraction
+				re := regexp.MustCompile(`(?i)(?:ID:\[?|\[)([A-Z0-9_-]+)\]?`)
+				matches := re.FindStringSubmatch(prompt)
+				if len(matches) > 1 {
+					featureID = matches[1]
+				}
 			}
 
 			return fmt.Sprintf(`
