@@ -39,8 +39,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return `
 ` + "```bash" + `
 printf '[{"id": "req-primes", "description": "Implement primes.py"}]' > feature_list.json
-# Fallback to true if agent-bridge is missing (e.g. in unit tests or simple smoke tests)
-agent-bridge import feature_list.json || true
+# Note: agent-bridge import is skipped here to avoid binary dependency in CI.
+# The session runner will automatically load feature_list.json from disk on the next iteration.
 ` + "```" + `
 `, nil
 	}
