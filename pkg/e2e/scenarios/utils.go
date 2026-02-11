@@ -58,6 +58,22 @@ func listRemoteAgentBranches(repoPath string) ([]string, error) {
 	return branches, nil
 }
 
+func getLatestAgentBranch(repoPath string) (string, error) {
+	// Sort refs by committer date descending and take the top one
+	cmd := exec.Command("git", "for-each-ref", "--sort=-committerdate", "--format=%(refname:short)", "refs/remotes/origin/agent/")
+	cmd.Dir = repoPath
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to list agent branches: %w", err)
+	}
+
+	lines := strings.Split(string(out), "\n")
+	if len(lines) > 0 && lines[0] != "" {
+		return strings.TrimPrefix(strings.TrimSpace(lines[0]), "origin/"), nil
+	}
+	return "", fmt.Errorf("no agent branches found")
+}
+
 func getSpecificAgentBranch(repoPath, ticketKey string) (string, error) {
 	cmd := exec.Command("git", "branch", "-r")
 	cmd.Dir = repoPath

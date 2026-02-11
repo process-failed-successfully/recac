@@ -377,6 +377,16 @@ func createTicketsFromNodes(ctx context.Context, tickets []ticketNode, projectKe
 		}
 	}
 
+	// Fallback: If we missed "PRIMES" but have a single top-level ticket, map it.
+	// This covers cases where LLM ignores the Title instruction but creates the ticket.
+	if _, ok := idToKey["PRIMES"]; !ok && len(tickets) == 1 {
+		rootKey := titleToKey[tickets[0].Title]
+		if rootKey != "" {
+			fmt.Printf("Fallback: Mapping root ticket %s to PRIMES\n", rootKey)
+			idToKey["PRIMES"] = rootKey
+		}
+	}
+
 	fmt.Println("Done.")
 	return idToKey, nil
 }

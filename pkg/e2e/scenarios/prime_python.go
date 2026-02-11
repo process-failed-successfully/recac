@@ -98,6 +98,13 @@ func (s *PrimePythonScenario) Verify(repoPath string, ticketKeys map[string]stri
 			return fmt.Errorf("PRIMES ticket key not found and no agent branches found in repo")
 		}
 
+		// If multiple branches, try to pick the latest one (most recently committed)
+		latest, err := getLatestAgentBranch(repoPath)
+		if err == nil && latest != "" {
+			fmt.Printf("Multiple branches found. Inferring latest: %s\n", latest)
+			return s.verifyBranch(repoPath, latest)
+		}
+
 		return fmt.Errorf("PRIMES ticket key not found and multiple agent branches found %v - cannot infer target", branches)
 	}
 
