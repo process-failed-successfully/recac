@@ -163,9 +163,13 @@ fi
 git config user.email "agent@recac.com"
 git config user.name "Recac Agent"
 
+# Determine branch name dynamically (default to PRIMES-mock if not set)
+BRANCH_NAME="agent/${RECAC_PROJECT_ID:-PRIMES-mock}"
+echo "Using branch: $BRANCH_NAME"
+
 # Create or reset a branch for the feature (force if exists)
 # Note: We fetch first, so checking out should track origin if it exists
-git checkout -B agent/PRIMES-mock
+git checkout -B $BRANCH_NAME
 
 # Create files AFTER checkout to ensure they are on the correct branch
 cat << 'EOF' > primes.py
@@ -186,7 +190,7 @@ python3 primes.py
 # Use -f to force add if ignored by .gitignore (e.g. *.py)
 git add -f primes.py primes.json
 git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
-git push --force origin agent/PRIMES-mock || echo "Push failed, continuing local only"
+git push --force origin $BRANCH_NAME || echo "Push failed, continuing local only"
 agent-bridge feature set PRIMES --status done --passes true
 ` + "```" + `
 `, nil
