@@ -34,6 +34,16 @@ func TestMockAgent_Send_Primes(t *testing.T) {
 		t.Errorf("Expected command to run primes.py, got: %s", resp)
 	}
 
+	// 2b. Coding Agent (Generic Feature Description)
+	// This simulates the condition where features are injected without the full spec context
+	resp, err = agent.Send(ctx, "Task: Script runs\nImplement this feature.")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(resp, "cat << 'EOF' > primes.py") {
+		t.Errorf("Expected bash block for 'Script runs' prompt, got: %s", resp)
+	}
+
 	// 3. Project Manager
 	resp, err = agent.Send(ctx, "## YOUR ROLE - PROJECT MANAGER\nPlease review the code...")
 	if err != nil {
