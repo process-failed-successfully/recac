@@ -61,7 +61,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     "children": [
       {
         "title": "Story: Implement primes.py",
-        "description": "Create a python script to generate primes.",
+        "description": "Create a python script (primes.py) to generate primes.",
         "type": "Story",
         "acceptance_criteria": ["Script runs", "Output is valid JSON"],
         "blocked_by": []
@@ -72,7 +72,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 4. Coding Agent (Prime Python Scenario)
-	if strings.Contains(lowerPrompt, "primes.py") || strings.Contains(lowerPrompt, "prime number script") {
+	if strings.Contains(lowerPrompt, "primes.py") || strings.Contains(lowerPrompt, "prime number script") || strings.Contains(lowerPrompt, "generate primes") {
 		// Return the python script implementation
 		return `Here is the implementation for primes.py:
 
