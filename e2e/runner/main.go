@@ -98,6 +98,9 @@ func run() error {
 		if os.Getenv("CURSOR_API_KEY") == "" {
 			return fmt.Errorf("missing CURSOR_API_KEY for provider cursor")
 		}
+	// mock provider doesn't require keys
+	case "mock":
+		log.Println("Using Mock Provider - No API Keys required.")
 	}
 
 	// Fallback/Default for API key if token not set
@@ -361,14 +364,35 @@ func run() error {
 
 	// Determine expected job name from ticket map (assuming single task for now or finding "PRIMES")
 	var targetTicketID string
+	// Check specifically for "PRIMES" tag first (Mock/Scenario default)
+	// But E2E scenarios generate random IDs like "PROJ-123".
+	// The map keys are logical IDs ("PRIMES"), values are Jira Keys ("MFLP-49").
 	if id, ok := ticketMap["PRIMES"]; ok {
 		targetTicketID = id
+	} else if id, ok := ticketMap["ID:[PRIMES]"]; ok { // Handle case where key includes prefix
+		targetTicketID = id
 	} else {
-		// Fallback: Use the first one
+		// Fallback: Use the first one found in map
 		for _, id := range ticketMap {
 			targetTicketID = id
 			break
 		}
+	}
+
+	// If we still don't have a target ID (empty map?), we can't wait for a specific job.
+	// But waitForJob uses a prefix search.
+	// E2E smoke test usually creates one task.
+
+	// If provider is mock, we need to ensure the mock agent returns the correct ID format
+	// that matches what we expect here.
+
+	// For "prime-python" scenario, the ticket created has "Implement Prime Number Script" summary.
+	// The mock agent needs to pick this up.
+
+	// Ensure we handle the case where targetTicketID might be empty if map is empty
+	// (though GenerateScenario should fail if no tickets created).
+	if targetTicketID == "" {
+		log.Println("Warning: No ticket ID found in map. Job wait might fail or wait for wrong job.")
 	}
 
 	expectedJobPrefix := fmt.Sprintf("recac-agent-%s", strings.ToLower(targetTicketID))
