@@ -40,6 +40,28 @@ func TestMockAgent_Initializer(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Coding(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Please implement primes.py"
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	expectedStrings := []string{
+		"BRANCH_NAME=\"agent/${RECAC_PROJECT_ID:-PRIMES-mock}\"",
+		"git checkout -B \"$BRANCH_NAME\"",
+		"git push --force origin \"$BRANCH_NAME\"",
+		"primes.py",
+	}
+
+	for _, exp := range expectedStrings {
+		if !strings.Contains(response, exp) {
+			t.Errorf("Expected response to contain %q, but it didn't", exp)
+		}
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
