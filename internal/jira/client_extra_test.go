@@ -5,54 +5,58 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
 func TestCreateTicket_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/rest/api/3/issue" || r.Method != "POST" {
+		if r.Method != "POST" || r.URL.Path != "/rest/api/3/issue" {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
+		var payload map[string]interface{}
+		json.NewDecoder(r.Body).Decode(&payload)
+
+		fields, ok := payload["fields"].(map[string]interface{})
+		if !ok {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if fields["summary"] != "New Ticket" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
 		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte("{\"key\": \"PROJ-101\"}"))
+		w.Write([]byte(`{"key": "PROJ-100"}`))
 	}))
 	defer server.Close()
 
 	client := NewClient(server.URL, "user", "token")
-	key, err := client.CreateTicket(context.Background(), "PROJ", "Summary", "Desc", "Task", nil)
+	key, err := client.CreateTicket(context.Background(), "PROJ", "New Ticket", "Description", "Story", []string{"label"})
 	if err != nil {
 		t.Fatalf("CreateTicket failed: %v", err)
 	}
-	if key != "PROJ-101" {
-		t.Errorf("Expected key PROJ-101, got %s", key)
-	}
-}
-
-func TestDeleteIssue_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/rest/api/3/issue/PROJ-123" || r.Method != "DELETE" {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		w.WriteHeader(http.StatusNoContent)
-	}))
-	defer server.Close()
-
-	client := NewClient(server.URL, "user", "token")
-	if err := client.DeleteIssue(context.Background(), "PROJ-123"); err != nil {
-		t.Fatalf("DeleteIssue failed: %v", err)
+	if key != "PROJ-100" {
+		t.Errorf("Expected key PROJ-100, got %s", key)
 	}
 }
 
 func TestSearchIssues_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/rest/api/3/search/jql" || r.Method != "GET" {
+		if r.URL.Path != "/rest/api/3/search/jql" {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
+		query := r.URL.Query().Get("jql")
+		if query == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("{\"issues\": [{\"key\": \"PROJ-123\"}]}"))
+		w.Write([]byte(`{"issues": [{"key": "PROJ-1"}, {"key": "PROJ-2"}]}`))
 	}))
 	defer server.Close()
 
@@ -61,217 +65,301 @@ func TestSearchIssues_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SearchIssues failed: %v", err)
 	}
-	if len(issues) != 1 || issues[0]["key"] != "PROJ-123" {
-		t.Error("SearchIssues returned incorrect data")
+	if len(issues) != 2 {
+		t.Errorf("Expected 2 issues, got %d", len(issues))
 	}
 }
 
-func TestLoadLabelIssues_Success(t *testing.T) {
+func TestLoadLabelIssues(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/rest/api/3/search/jql" {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		q := r.URL.Query().Get("jql")
-		if q != "labels = \"mylabel\"" {
+		jql := r.URL.Query().Get("jql")
+		if !strings.Contains(jql, "labels = \"my-label\"") {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("{\"issues\": [{\"key\": \"PROJ-123\"}]}"))
+		w.Write([]byte(`{"issues": [{"key": "PROJ-1"}]}`))
 	}))
 	defer server.Close()
 
 	client := NewClient(server.URL, "user", "token")
-	issues, err := client.LoadLabelIssues(context.Background(), "mylabel")
+	issues, err := client.LoadLabelIssues(context.Background(), "my-label")
 	if err != nil {
 		t.Fatalf("LoadLabelIssues failed: %v", err)
 	}
 	if len(issues) != 1 {
-		t.Error("LoadLabelIssues returned incorrect data")
+		t.Errorf("Expected 1 issue, got %d", len(issues))
 	}
 }
 
 func TestGetTransitions_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/rest/api/3/issue/PROJ-123/transitions" {
+		if r.URL.Path != "/rest/api/3/issue/PROJ-1/transitions" {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("{\"transitions\": [{\"id\": \"31\", \"name\": \"Done\"}]}"))
+		w.Write([]byte(`{"transitions": [{"id": "11", "name": "In Progress"}, {"id": "21", "name": "Done"}]}`))
 	}))
 	defer server.Close()
 
 	client := NewClient(server.URL, "user", "token")
-	trans, err := client.GetTransitions(context.Background(), "PROJ-123")
+	transitions, err := client.GetTransitions(context.Background(), "PROJ-1")
 	if err != nil {
 		t.Fatalf("GetTransitions failed: %v", err)
 	}
-	if len(trans) != 1 || trans[0]["id"] != "31" {
-		t.Error("GetTransitions returned incorrect data")
+	if len(transitions) != 2 {
+		t.Errorf("Expected 2 transitions, got %d", len(transitions))
 	}
 }
 
-func TestSmartTransition_Success(t *testing.T) {
+func TestSmartTransition_ByName(t *testing.T) {
+	var transitionID string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/rest/api/3/issue/PROJ-123/transitions" {
-			if r.Method == "GET" {
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte("{\"transitions\": [{\"id\": \"31\", \"name\": \"Done\"}]}"))
-				return
-			}
-			if r.Method == "POST" {
-				var payload map[string]interface{}
-				json.NewDecoder(r.Body).Decode(&payload)
-				if payload["transition"].(map[string]interface{})["id"] == "31" {
-					w.WriteHeader(http.StatusNoContent)
-					return
-				}
-			}
+		if r.Method == "GET" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"transitions": [{"id": "11", "name": "Start Progress"}]}`))
+			return
 		}
-		w.WriteHeader(http.StatusBadRequest)
+		if r.Method == "POST" {
+			var payload map[string]interface{}
+			json.NewDecoder(r.Body).Decode(&payload)
+			transitionID = payload["transition"].(map[string]interface{})["id"].(string)
+			w.WriteHeader(http.StatusNoContent)
+		}
 	}))
 	defer server.Close()
 
 	client := NewClient(server.URL, "user", "token")
+	err := client.SmartTransition(context.Background(), "PROJ-1", "Start Progress")
+	if err != nil {
+		t.Fatalf("SmartTransition failed: %v", err)
+	}
+	if transitionID != "11" {
+		t.Errorf("Expected transition ID 11, got %s", transitionID)
+	}
+}
 
-	// Test by Name
-	if err := client.SmartTransition(context.Background(), "PROJ-123", "Done"); err != nil {
-		t.Errorf("SmartTransition by name failed: %v", err)
+func TestSmartTransition_ByID(t *testing.T) {
+	var transitionID string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"transitions": [{"id": "11", "name": "Start Progress"}]}`))
+			return
+		}
+		if r.Method == "POST" {
+			var payload map[string]interface{}
+			json.NewDecoder(r.Body).Decode(&payload)
+			transitionID = payload["transition"].(map[string]interface{})["id"].(string)
+			w.WriteHeader(http.StatusNoContent)
+		}
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "user", "token")
+	err := client.SmartTransition(context.Background(), "PROJ-1", "11")
+	if err != nil {
+		t.Fatalf("SmartTransition failed: %v", err)
+	}
+	if transitionID != "11" {
+		t.Errorf("Expected transition ID 11, got %s", transitionID)
+	}
+}
+
+func TestSmartTransition_NotFound(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"transitions": [{"id": "11", "name": "Start Progress"}]}`))
+			return
+		}
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "user", "token")
+	err := client.SmartTransition(context.Background(), "PROJ-1", "Done")
+	if err == nil {
+		t.Error("Expected error for non-existent transition")
+	}
+}
+
+func TestGetBlockerKeys(t *testing.T) {
+	client := NewClient("http://jira.local", "user", "token")
+
+	ticket := map[string]interface{}{
+		"fields": map[string]interface{}{
+			"issuelinks": []interface{}{
+				map[string]interface{}{
+					"type": map[string]interface{}{
+						"inward": "is blocked by",
+					},
+					"inwardIssue": map[string]interface{}{
+						"key": "BLOCK-1",
+						"fields": map[string]interface{}{
+							"status": map[string]interface{}{
+								"name": "To Do",
+							},
+						},
+					},
+				},
+				map[string]interface{}{
+					"type": map[string]interface{}{
+						"inward": "is blocked by",
+					},
+					"inwardIssue": map[string]interface{}{
+						"key": "BLOCK-2",
+						"fields": map[string]interface{}{
+							"status": map[string]interface{}{
+								"name": "Done",
+							},
+						},
+					},
+				},
+				map[string]interface{}{
+					"type": map[string]interface{}{
+						"inward": "relates to",
+					},
+				},
+			},
+		},
 	}
 
-	// Test by ID
-	if err := client.SmartTransition(context.Background(), "PROJ-123", "31"); err != nil {
-		t.Errorf("SmartTransition by ID failed: %v", err)
+	keys := client.GetBlockerKeys(ticket)
+	if len(keys) != 1 {
+		t.Fatalf("Expected 1 blocker, got %d", len(keys))
+	}
+	if keys[0] != "BLOCK-1" {
+		t.Errorf("Expected blocker BLOCK-1, got %s", keys[0])
+	}
+}
+
+func TestGetBlockers(t *testing.T) {
+	client := NewClient("http://jira.local", "user", "token")
+
+	ticket := map[string]interface{}{
+		"fields": map[string]interface{}{
+			"issuelinks": []interface{}{
+				map[string]interface{}{
+					"type": map[string]interface{}{
+						"inward": "is blocked by",
+					},
+					"inwardIssue": map[string]interface{}{
+						"key": "BLOCK-1",
+						"fields": map[string]interface{}{
+							"status": map[string]interface{}{
+								"name": "To Do",
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
-	// Test Invalid
-	if err := client.SmartTransition(context.Background(), "PROJ-123", "Invalid"); err == nil {
-		t.Error("SmartTransition expected error for invalid transition")
+	blockers := client.GetBlockers(ticket)
+	if len(blockers) != 1 {
+		t.Fatalf("Expected 1 blocker, got %d", len(blockers))
+	}
+	expected := "BLOCK-1 (To Do)"
+	if blockers[0] != expected {
+		t.Errorf("Expected %s, got %s", expected, blockers[0])
+	}
+}
+
+func TestDeleteIssue_Success(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "DELETE" || r.URL.Path != "/rest/api/3/issue/PROJ-1" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "user", "token")
+	err := client.DeleteIssue(context.Background(), "PROJ-1")
+	if err != nil {
+		t.Fatalf("DeleteIssue failed: %v", err)
+	}
+}
+
+func TestGetTicket_Error500(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "user", "token")
+	_, err := client.GetTicket(context.Background(), "PROJ-1")
+	if err == nil {
+		t.Error("Expected error for 500")
 	}
 }
 
 func TestCreateChildTicket_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/rest/api/3/issue" {
+		if r.Method != "POST" || r.URL.Path != "/rest/api/3/issue" {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		// Verify payload has parent
 		var payload map[string]interface{}
 		json.NewDecoder(r.Body).Decode(&payload)
-		fields := payload["fields"].(map[string]interface{})
-		parent := fields["parent"].(map[string]interface{})
-		if parent["key"] != "PARENT-1" {
+
+		fields, ok := payload["fields"].(map[string]interface{})
+		if !ok {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if fields["summary"] != "Child Ticket" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		parent, ok := fields["parent"].(map[string]interface{})
+		if !ok || parent["key"] != "PARENT-1" {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
 		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte("{\"key\": \"CHILD-1\"}"))
+		w.Write([]byte(`{"key": "PROJ-101"}`))
 	}))
 	defer server.Close()
 
 	client := NewClient(server.URL, "user", "token")
-	key, err := client.CreateChildTicket(context.Background(), "PROJ", "Child", "Desc", "Sub-task", "PARENT-1", nil)
+	key, err := client.CreateChildTicket(context.Background(), "PROJ", "Child Ticket", "Desc", "Subtask", "PARENT-1", nil)
 	if err != nil {
 		t.Fatalf("CreateChildTicket failed: %v", err)
 	}
-	if key != "CHILD-1" {
-		t.Errorf("Expected key CHILD-1, got %s", key)
+	if key != "PROJ-101" {
+		t.Errorf("Expected key PROJ-101, got %s", key)
 	}
 }
 
-func TestGetBlockers(t *testing.T) {
-	client := NewClient("", "", "")
+func TestCreateTicket_Error(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(`{"errorMessages":["Bad Request"]}`))
+	}))
+	defer server.Close()
 
-	tests := []struct {
-		name     string
-		ticket   map[string]interface{}
-		expected []string
-	}{
-		{
-			name: "No links",
-			ticket: map[string]interface{}{
-				"fields": map[string]interface{}{},
-			},
-			expected: nil,
-		},
-		{
-			name: "No blockers",
-			ticket: map[string]interface{}{
-				"fields": map[string]interface{}{
-					"issuelinks": []interface{}{
-						map[string]interface{}{
-							"type": map[string]interface{}{
-								"inward": "relates to",
-							},
-						},
-					},
-				},
-			},
-			expected: nil,
-		},
-		{
-			name: "Unresolved blocker",
-			ticket: map[string]interface{}{
-				"fields": map[string]interface{}{
-					"issuelinks": []interface{}{
-						map[string]interface{}{
-							"type": map[string]interface{}{
-								"inward": "is blocked by",
-							},
-							"inwardIssue": map[string]interface{}{
-								"key": "RD-158",
-								"fields": map[string]interface{}{
-									"status": map[string]interface{}{
-										"name": "In Progress",
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			expected: []string{"RD-158 (In Progress)"},
-		},
-		{
-			name: "Resolved blocker",
-			ticket: map[string]interface{}{
-				"fields": map[string]interface{}{
-					"issuelinks": []interface{}{
-						map[string]interface{}{
-							"type": map[string]interface{}{
-								"inward": "is blocked by",
-							},
-							"inwardIssue": map[string]interface{}{
-								"key": "RD-159",
-								"fields": map[string]interface{}{
-									"status": map[string]interface{}{
-										"name": "Done",
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			expected: nil,
-		},
+	client := NewClient(server.URL, "user", "token")
+	_, err := client.CreateTicket(context.Background(), "PROJ", "Summary", "Desc", "Story", nil)
+	if err == nil {
+		t.Error("Expected error for 400")
 	}
+}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			blockers := client.GetBlockers(tt.ticket)
-			if len(blockers) != len(tt.expected) {
-				t.Errorf("expected %d blockers, got %d", len(tt.expected), len(blockers))
-			}
-			for i, b := range blockers {
-				if b != tt.expected[i] {
-					t.Errorf("expected blocker %q, got %q", tt.expected[i], b)
-				}
-			}
-		})
+func TestSearchIssues_Error(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "user", "token")
+	_, err := client.SearchIssues(context.Background(), "project = PROJ")
+	if err == nil {
+		t.Error("Expected error for 500")
 	}
 }

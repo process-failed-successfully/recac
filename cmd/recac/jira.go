@@ -643,6 +643,10 @@ func init() {
 	jiraGenerateFromArchCmd.Flags().String("output-json", "", "Output JSON path")
 	viper.BindPFlag("repo_url", jiraGenerateFromArchCmd.Flags().Lookup("repo-url"))
 	jiraCmd.AddCommand(jiraGenerateFromArchCmd)
+
+	jiraCleanupCmd.Flags().String("label", "", "Label to search for and delete")
+	jiraCleanupCmd.MarkFlagRequired("label")
+	jiraCmd.AddCommand(jiraCleanupCmd)
 }
 
 // jiraCleanupCmd represents the jira cleanup command
