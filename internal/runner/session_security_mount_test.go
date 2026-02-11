@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"recac/internal/docker"
@@ -21,10 +22,20 @@ func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, on
 
 
 func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
-	// Skip if no home dir
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		t.Skip("Skipping test because UserHomeDir is unavailable")
+	// Create a temporary directory to act as HOME
+	tempHome := t.TempDir()
+
+	// Set HOME environment variable to the temporary directory
+	t.Setenv("HOME", tempHome)
+
+	// Create dummy sensitive directories
+	// We intentionally create only some of them to verify conditional logic
+	sensitiveDirs := []string{".ssh", ".config", ".gemini"}
+	for _, dir := range sensitiveDirs {
+		path := filepath.Join(tempHome, dir)
+		if err := os.MkdirAll(path, 0700); err != nil {
+			t.Fatalf("Failed to create dummy directory %s: %v", path, err)
+		}
 	}
 
 	// Setup mock Docker client
@@ -59,29 +70,31 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 		t.Fatalf("Session.Start failed: %v", err)
 	}
 
-	// Verify sensitive mounts
-	sensitivePaths := []string{".ssh", ".config", ".gemini", ".cursor"}
-
-	foundAny := false
-	for _, path := range sensitivePaths {
+	// Verify sensitive mounts are present and read-only
+	for _, dir := range sensitiveDirs {
 		found := false
+		expectedPath := filepath.Join(tempHome, dir)
 		for _, bind := range capturedBinds {
-			// Check if bind contains the sensitive path
-			if strings.Contains(bind, path) {
+			if strings.Contains(bind, expectedPath) {
 				found = true
-				foundAny = true
-				// Check if it is Read-Only
 				if !strings.HasSuffix(bind, ":ro") {
-					t.Errorf("Security Vulnerability: Sensitive path '%s' is mounted Read-Write! Bind: %s", path, bind)
+					t.Errorf("Security Vulnerability: Sensitive path '%s' is mounted Read-Write! Bind: %s", dir, bind)
 				}
+				break
 			}
 		}
 		if !found {
-			t.Logf("Note: Sensitive path '%s' not found in binds (might be missing in env)", path)
+			t.Errorf("Expected sensitive path '%s' to be mounted, but it was not found in binds: %v", dir, capturedBinds)
 		}
 	}
 
-	if !foundAny {
-		t.Log("WARNING: No sensitive paths were found in binds. Test might be ineffective if environment lacks home dir configs.")
+	// Verify that non-existent directories are NOT mounted
+	// We didn't create .cursor, so it should not be mounted
+	notCreated := ".cursor"
+	unexpectedPath := filepath.Join(tempHome, notCreated)
+	for _, bind := range capturedBinds {
+		if strings.Contains(bind, unexpectedPath) {
+			t.Errorf("Unexpected mount found for non-existent directory '%s': %s", notCreated, bind)
+		}
 	}
 }
