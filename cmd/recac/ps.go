@@ -83,6 +83,23 @@ var psCmd = &cobra.Command{
 				// We pass the *current* command instance to getUnifiedSessions
 				return getUnifiedSessions(cmd, filters)
 			}
+
+			// Dependency injection: Provide the UI with a function to get session logs
+			ui.GetSessionLogs = func(name string) (string, error) {
+				sm, err := sessionManagerFactory()
+				if err != nil {
+					return "", fmt.Errorf("failed to create session manager: %w", err)
+				}
+				// Attempt to get local logs first
+				logs, err := sm.GetSessionLogContent(name, 1000)
+				if err == nil {
+					return logs, nil
+				}
+				// If error (e.g. not found), check if it's a k8s pod (if remote is enabled)
+				// For now, just return the error if local fetch fails as we don't have k8s log fetching implemented yet.
+				return "", err
+			}
+
 			return ui.StartPsDashboard(showCosts, sortBy)
 		}
 

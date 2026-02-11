@@ -211,3 +211,103 @@ func TestPsDashboardModel_SortingAndCosts(t *testing.T) {
 	// Verify cost value in last column
 	assert.Contains(t, rows[0][10], "1.000000") // $1.0 for session A
 }
+
+func TestPsDashboardModel_Update_Logs(t *testing.T) {
+	// Setup
+	m := NewPsDashboardModel(false, "time")
+	// Initialize size first so viewport works
+	m, _ = func() (psDashboardModel, tea.Cmd) {
+		updatedM, cmd := m.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
+		return updatedM.(psDashboardModel), cmd
+	}()
+
+	m.sessions = []model.UnifiedSession{
+		{Name: "test-session", Status: "Running"},
+	}
+	m.updateTableRows()
+	// Set cursor to the first row
+	m.table.SetCursor(0)
+
+	// Verify table state
+	assert.NotEmpty(t, m.table.Rows())
+	assert.Equal(t, "test-session", m.table.SelectedRow()[0])
+
+	// Mock GetSessionLogs
+	mockLogs := "line1\nline2"
+	GetSessionLogs = func(name string) (string, error) {
+		if name == "test-session" {
+			return mockLogs, nil
+		}
+		return "", errors.New("session not found")
+	}
+	defer func() { GetSessionLogs = nil }()
+
+	// 1. Test Enter Key -> Triggers Fetch
+	// Simulate Enter key
+	updatedM, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	model := updatedM.(psDashboardModel)
+
+	// Check that it set current session
+	assert.Equal(t, "test-session", model.currentSession)
+	assert.NotNil(t, cmd)
+
+	// 2. Test sessionLogsMsg -> Updates Viewport and showLogs
+	updatedM, _ = model.Update(sessionLogsMsg{Content: mockLogs, Error: nil})
+	model = updatedM.(psDashboardModel)
+
+	assert.True(t, model.showLogs)
+	// Viewport needs to process the content. View() returns the rendered string.
+	// Since we set width/height, it should render.
+	assert.Contains(t, model.viewport.View(), "line1")
+	assert.Contains(t, model.viewport.View(), "line2")
+
+	// 3. Test View when showing logs
+	view := model.View()
+	assert.Contains(t, view, "Logs: test-session")
+	assert.Contains(t, view, "line1")
+
+	// 4. Test Esc Key -> Closes Logs
+	updatedM, _ = model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	model = updatedM.(psDashboardModel)
+
+	assert.False(t, model.showLogs)
+	assert.Empty(t, model.currentSession)
+}
+
+func TestFetchSessionLogsCmd(t *testing.T) {
+	defer func() { GetSessionLogs = nil }()
+
+	t.Run("success", func(t *testing.T) {
+		GetSessionLogs = func(name string) (string, error) {
+			return "logs", nil
+		}
+		cmd := fetchSessionLogsCmd("test")
+		msg := cmd()
+		logMsg, ok := msg.(sessionLogsMsg)
+		assert.True(t, ok)
+		assert.Equal(t, "logs", logMsg.Content)
+		assert.Nil(t, logMsg.Error)
+	})
+
+	t.Run("error", func(t *testing.T) {
+		GetSessionLogs = func(name string) (string, error) {
+			return "", errors.New("fail")
+		}
+		cmd := fetchSessionLogsCmd("test")
+		msg := cmd()
+		logMsg, ok := msg.(sessionLogsMsg)
+		assert.True(t, ok)
+		assert.Error(t, logMsg.Error)
+		assert.Equal(t, "fail", logMsg.Error.Error())
+	})
+
+	t.Run("nil function", func(t *testing.T) {
+		GetSessionLogs = nil
+		cmd := fetchSessionLogsCmd("test")
+		msg := cmd()
+		logMsg, ok := msg.(sessionLogsMsg)
+		assert.True(t, ok)
+		assert.Error(t, logMsg.Error)
+		assert.Contains(t, logMsg.Error.Error(), "not set")
+	})
+}
