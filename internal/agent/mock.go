@@ -58,7 +58,7 @@ EOF
 	if strings.Contains(prompt, "PROJECT MANAGER") {
 		return `
 ` + "```bash" + `
-agent-bridge signal PROJECT_SIGNED_OFF true || touch PROJECT_SIGNED_OFF
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged || touch PROJECT_SIGNED_OFF
 ` + "```" + `
 `, nil
 	}
