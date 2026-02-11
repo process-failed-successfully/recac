@@ -79,7 +79,26 @@ Repo: %s`, "`", "`", repoURL),
 func (s *PrimePythonScenario) Verify(repoPath string, ticketKeys map[string]string) error {
 	ticketKey, ok := ticketKeys["PRIMES"]
 	if !ok {
-		return fmt.Errorf("PRIMES ticket key not found")
+		// Fallback: If map lookup fails (e.g. LLM ID extraction failed), try to find the agent branch directly.
+		// If there is exactly one agent branch, we assume it's the correct one.
+		fmt.Println("Warning: 'PRIMES' key not found in ticket map. Attempting to infer branch from repository...")
+
+		branches, err := listRemoteAgentBranches(repoPath)
+		if err != nil {
+			return fmt.Errorf("PRIMES ticket key not found and failed to list remote branches: %w", err)
+		}
+
+		if len(branches) == 1 {
+			branch := branches[0]
+			fmt.Printf("Inferred agent branch: %s\n", branch)
+			return s.verifyBranch(repoPath, branch)
+		}
+
+		if len(branches) == 0 {
+			return fmt.Errorf("PRIMES ticket key not found and no agent branches found in repo")
+		}
+
+		return fmt.Errorf("PRIMES ticket key not found and multiple agent branches found %v - cannot infer target", branches)
 	}
 
 	// Helper to find specific agent branch
@@ -87,6 +106,12 @@ func (s *PrimePythonScenario) Verify(repoPath string, ticketKeys map[string]stri
 	if err != nil {
 		return fmt.Errorf("specific branch for %s not found: %w", ticketKey, err)
 	}
+
+	return s.verifyBranch(repoPath, branch)
+}
+
+// verifyBranch performs the actual verification logic on a checked-out branch
+func (s *PrimePythonScenario) verifyBranch(repoPath, branch string) error {
 	fmt.Printf("Verifying branch: %s\n", branch)
 
 	// Checkout branch

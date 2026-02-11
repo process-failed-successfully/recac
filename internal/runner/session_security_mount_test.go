@@ -22,20 +22,17 @@ func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, on
 
 
 func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
-	// Skip if no home dir
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		t.Skip("Skipping test because UserHomeDir is unavailable")
-	}
+	// Create a temporary home directory to avoid race conditions with other tests
+	// and ensure a clean environment.
+	home := t.TempDir()
+	t.Setenv("HOME", home)
 
-	// Create dummy sensitive directories in home dir if they don't exist
+	// Create dummy sensitive directories in temp home dir
 	dirs := []string{".gemini", ".config", ".cursor", ".ssh"}
 	for _, d := range dirs {
 		path := filepath.Join(home, d)
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			if err := os.Mkdir(path, 0700); err == nil {
-				defer os.Remove(path)
-			}
+		if err := os.Mkdir(path, 0700); err != nil {
+			t.Fatalf("Failed to create dummy dir %s: %v", path, err)
 		}
 	}
 

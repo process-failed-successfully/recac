@@ -459,6 +459,11 @@ func (s *Session) Start(ctx context.Context) error {
 		fmt.Printf("Warning: Failed to determine user home dir: %v. Configs will not be mounted.\n", err)
 	}
 
+	// Ensure homeDir is set correctly from env (fixes tests using t.Setenv)
+	if h, err := os.UserHomeDir(); err == nil && h != "" {
+		homeDir = h
+	}
+
 	var extraBinds []string
 	if homeDir != "" {
 		// Mount configurations if they exist

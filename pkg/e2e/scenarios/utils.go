@@ -38,6 +38,26 @@ func getAgentBranch(repoPath string) (string, error) {
 	return "", fmt.Errorf("no agent branch found")
 }
 
+func listRemoteAgentBranches(repoPath string) ([]string, error) {
+	cmd := exec.Command("git", "branch", "-r")
+	cmd.Dir = repoPath
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list branches: %w", err)
+	}
+
+	var branches []string
+	lines := strings.Split(string(out), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.Contains(line, "origin/agent/") {
+			branch := strings.TrimPrefix(line, "origin/")
+			branches = append(branches, branch)
+		}
+	}
+	return branches, nil
+}
+
 func getSpecificAgentBranch(repoPath, ticketKey string) (string, error) {
 	cmd := exec.Command("git", "branch", "-r")
 	cmd.Dir = repoPath
