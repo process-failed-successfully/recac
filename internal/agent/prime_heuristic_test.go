@@ -71,6 +71,12 @@ func TestMockAgent_TPM_Primes(t *testing.T) {
 		t.Errorf("Expected response to contain JSON snippet %q, got: %s", expectedJSONSnippet, response)
 	}
 
+	// Verify Title format (Must contain ID:[PRIMES] for CLI mapping)
+	expectedTitle := `"title": "ID:[PRIMES] Implement prime number script"`
+	if !strings.Contains(response, expectedTitle) {
+		t.Errorf("Expected response to contain title %q, got: %s", expectedTitle, response)
+	}
+
 	expectedDesc := `"description": "Implement a python script 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'."`
 	if !strings.Contains(response, expectedDesc) {
 		t.Errorf("Expected response to contain description %q, got: %s", expectedDesc, response)
