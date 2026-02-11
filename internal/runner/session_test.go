@@ -560,7 +560,7 @@ func TestSession_PushProgress(t *testing.T) {
 	exec.Command("git", "init", "--bare", remoteDir).Run()
 	exec.Command("git", "-C", tmpDir, "remote", "add", "origin", remoteDir).Run()
 
-	session := &Session{
+	session := &Session{StatFunc: os.Stat,
 		Workspace: tmpDir,
 		Logger:    telemetry.NewLogger(true, "", false),
 		Iteration: 1,

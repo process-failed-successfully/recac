@@ -19,7 +19,7 @@ func TestSession_RunLoop_MissingSpec(t *testing.T) {
 
 	// 2. Initialize Session
 	mockDocker := &MockDockerForExec{} // Re-using the mock from agent_exec_test.go
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Docker:    mockDocker,
 		Workspace: tmpDir,
 		Notifier:  notify.NewManager(func(string, ...interface{}) {}),

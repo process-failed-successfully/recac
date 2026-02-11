@@ -1,5 +1,6 @@
 package runner // MockAgentForManager simulates the agent interaction for Manager
 import (
+	"os"
 	"context"
 	"path/filepath"
 	"recac/internal/db"
@@ -54,7 +55,7 @@ func TestManagerRejection_ClearsSignals(t *testing.T) {
 		t.Fatalf("Failed to save features: %v", err)
 	}
 
-	session := &Session{
+	session := &Session{StatFunc: os.Stat,
 		Workspace:    workspace,
 		Project:      projectID,
 		DBStore:      store,

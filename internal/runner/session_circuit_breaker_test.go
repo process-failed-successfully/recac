@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"os"
 	"recac/internal/notify"
 	"recac/internal/telemetry"
 	"strings"
@@ -8,7 +9,7 @@ import (
 )
 
 func TestSession_CheckNoOpBreaker(t *testing.T) {
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Notifier: notify.NewManager(func(string, ...interface{}) {}),
 		Logger:   telemetry.NewLogger(true, "", false),
 	}
@@ -59,7 +60,7 @@ func TestSession_CheckStalledBreaker(t *testing.T) {
 	// Since we don't want to spin up SQLite for a unit test unless needed,
 	// checking `createSignal` might require a mock DB.
 	// However, `checkStalledBreaker` calls `s.createSignal`.
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Workspace:        workspace,
 		ManagerFrequency: 5,
 		LastFeatureCount: 0,
@@ -102,7 +103,7 @@ func TestSession_CheckStalledBreaker(t *testing.T) {
 }
 
 func TestSession_CheckStalledBreaker_ManagerReset(t *testing.T) {
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		ManagerFrequency: 5,
 		LastFeatureCount: 0,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),

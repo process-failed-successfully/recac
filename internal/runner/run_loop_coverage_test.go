@@ -34,7 +34,7 @@ func TestRunLoop_NoOp_Integrated(t *testing.T) {
 	// Agent returns text but NO bash blocks -> NoOp
 	mockAgent.On("Send", mock.Anything, mock.Anything).Return("I am thinking...", nil)
 
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Workspace:        tmpDir,
 		Agent:            mockAgent,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
@@ -79,7 +79,7 @@ func TestRunLoop_Stalled_Integrated(t *testing.T) {
 		},
 	}
 
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Workspace:        tmpDir,
 		Agent:            mockAgent,
 		Docker:           mockDocker,
@@ -109,7 +109,7 @@ func TestRunLoop_SecurityViolation(t *testing.T) {
 	mockScanner.On("Scan", "bad code").Return([]security.Finding{{Type: "Secret"}}, nil)
 
 	sleepCalled := false
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Workspace:        tmpDir,
 		Agent:            mockAgent,
 		Scanner:          mockScanner,
@@ -135,7 +135,7 @@ func TestRunManagerAgent_Coverage(t *testing.T) {
 	// 1. Manager returns error
 	mockAgent.On("Send", mock.Anything, mock.Anything).Return("", errors.New("API error")).Once()
 
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Workspace:    tmpDir,
 		ManagerAgent: mockAgent,
 		Logger:       telemetry.NewLogger(true, "", false),
@@ -186,7 +186,7 @@ func TestRunQAAgent_Coverage(t *testing.T) {
 	// 1. QA Agent returns error
 	mockAgent.On("Send", mock.Anything, mock.Anything).Return("", errors.New("API error")).Once()
 
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Workspace: tmpDir,
 		QAAgent:   mockAgent,
 		Logger:    telemetry.NewLogger(true, "", false),
@@ -227,7 +227,7 @@ func TestRunQAAgent_Coverage(t *testing.T) {
 }
 
 func TestSession_SetContainerID(t *testing.T) {
-	s := &Session{}
+	s := &Session{StatFunc: os.Stat,}
 	s.SetContainerID("123")
 	assert.Equal(t, "123", s.GetContainerID())
 }
@@ -260,7 +260,7 @@ func TestRunLoop_SkipQA(t *testing.T) {
 		},
 	}
 
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Workspace:        tmpDir,
 		DBStore:          mockDB,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
@@ -283,7 +283,7 @@ func TestRunLoop_ManagerFirst_InitialPrompt(t *testing.T) {
 	mockAgent := new(MockTestifyAgent)
 	mockAgent.On("Send", mock.Anything, mock.Anything).Return("Manager says proceed", nil)
 
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Workspace:        tmpDir,
 		ManagerAgent:     mockAgent,
 		Agent:            mockAgent, // RunIteration uses this one

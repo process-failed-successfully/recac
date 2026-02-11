@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"os"
 	"context"
 	"recac/internal/telemetry"
 	"testing"
@@ -52,7 +53,7 @@ func (m *MockJiraClient) SmartTransition(ctx context.Context, ticketID, target s
 func TestCompleteJiraTicket_AddsCheckmark(t *testing.T) {
 	spy := &SpyNotifier{}
 
-	session := &Session{
+	session := &Session{StatFunc: os.Stat,
 		Project:       "TEST-PROJ",
 		Notifier:      spy,
 		JiraClient:    &MockJiraClient{},

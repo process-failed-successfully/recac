@@ -81,8 +81,9 @@ type Session struct {
 	SpecContent               string       // Explicit specification content (e.g. from Jira)
 	FeatureContent            string       // Explicit feature list JSON content (authoritative)
 	Logger                    *slog.Logger // Structured logger for this session
-	SleepFunc                 func(time.Duration) // Function for sleeping (mockable)
-	HomeDir          string              // Host home directory for dependency injection (testing)
+	SleepFunc                 func(time.Duration)               // Function for sleeping (mockable)
+	StatFunc                  func(string) (os.FileInfo, error) // Function for file stats (mockable)
+	HomeDir                   string                            // Host home directory for dependency injection (testing)
 
 	mu sync.RWMutex // Protects concurrent access to Iteration, SlackThreadTS, ContainerID
 }
@@ -155,6 +156,7 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 		UseLocalAgent:    os.Getenv("KUBERNETES_SERVICE_HOST") != "",
 		Logger:           logger,
 		SleepFunc:        time.Sleep,
+		StatFunc:         os.Stat,
 	}
 }
 
@@ -195,6 +197,7 @@ func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, pr
 		Notifier:         notify.NewManager(telemetry.LogInfof),
 		Logger:           logger,
 		SleepFunc:        time.Sleep,
+		StatFunc:         os.Stat,
 	}
 }
 
@@ -228,6 +231,7 @@ func NewSessionWithConfig(workspace, project, provider, model string, dbStore db
 		Scanner:          security.NewRegexScanner(),
 		Notifier:         notify.NewManager(telemetry.LogInfof),
 		Logger:           logger,
+		StatFunc:         os.Stat,
 	}
 }
 
@@ -482,7 +486,7 @@ func (s *Session) Start(ctx context.Context) error {
 
 		for _, m := range sensitiveMounts {
 			hostPath := filepath.Join(homeDir, m.hostPath)
-			if _, err := os.Stat(hostPath); err == nil {
+			if _, err := s.StatFunc(hostPath); err == nil {
 				extraBinds = append(extraBinds, fmt.Sprintf("%s:%s:ro", hostPath, m.containerPath))
 			}
 		}
@@ -604,7 +608,7 @@ func (s *Session) ensureImage(ctx context.Context) error {
 	// 1. Check for custom Dockerfile in workspace
 	// 1. Check if workspace has a Dockerfile. If so, building is mandatory to allow customization.
 	workspaceDockerfile := filepath.Join(s.Workspace, "Dockerfile")
-	if _, err := os.Stat(workspaceDockerfile); err == nil {
+	if _, err := s.StatFunc(workspaceDockerfile); err == nil {
 		fmt.Printf("Custom Dockerfile found at %s. Building image...\n", workspaceDockerfile)
 		data, err := os.ReadFile(workspaceDockerfile)
 		if err != nil {
@@ -815,7 +819,7 @@ func (s *Session) loadFeatures() []db.Feature {
 	if len(fromDB) > 0 {
 		// Sync DB -> Filesystem (Ensure agents see what's in DB, e.g. Injected Features)
 		listPath := filepath.Join(s.Workspace, "feature_list.json")
-		if _, err := os.Stat(listPath); os.IsNotExist(err) {
+		if _, err := s.StatFunc(listPath); os.IsNotExist(err) {
 			finalList := db.FeatureList{
 				ProjectName: s.Project,
 				Features:    fromDB,

@@ -147,7 +147,7 @@ func TestRunLoop_Blocker(t *testing.T) {
 	mockAgent := new(MockTestifyAgent)
 	mockAgent.On("Send", mock.Anything, mock.Anything).Return("I will do something", nil)
 
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Workspace:     tmpDir,
 		DBStore:       mockDB,
 		Agent:         mockAgent,
@@ -202,7 +202,7 @@ func TestRunLoop_QAWorkflow(t *testing.T) {
 	mockManager := new(MockTestifyAgent)
 	mockManager.On("Send", mock.Anything, mock.Anything).Return("Approved.", nil)
 
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Workspace:        tmpDir,
 		DBStore:          mockDB,
 		QAAgent:          mockQA,
@@ -316,7 +316,7 @@ func TestRunLoop_AutoMerge(t *testing.T) {
 	}
 	defer func() { git.NewClient = originalNewClient }()
 
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Workspace:     tmpDir,
 		DBStore:       mockDB,
 		Notifier:      notify.NewManager(func(string, ...interface{}) {}),
@@ -389,7 +389,7 @@ func TestRunLoop_GitSafeguard_MergeConflict(t *testing.T) {
 	}
 	defer func() { git.NewClient = originalNewClient }()
 
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Workspace:     tmpDir,
 		DBStore:       mockDB,
 		Notifier:      notify.NewManager(func(string, ...interface{}) {}),
@@ -435,7 +435,7 @@ func TestSession_LoadFeatures_Priority(t *testing.T) {
 		},
 	}
 
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Workspace: tmpDir,
 		DBStore:   mockDB,
 		Project:   "test-proj",
@@ -497,7 +497,7 @@ func TestRunLoop_SubTask(t *testing.T) {
 	mockAgent := new(MockTestifyAgent)
 	mockAgent.On("Send", mock.Anything, mock.Anything).Return("Working on subtask...", nil)
 
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Workspace:      tmpDir,
 		DBStore:        mockDB,
 		Agent:          mockAgent,
@@ -528,7 +528,7 @@ func TestSession_RunInitScript_Local(t *testing.T) {
 	scriptContent := "#!/bin/sh\ntouch " + markerFile
 	os.WriteFile(initScript, []byte(scriptContent), 0755)
 
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Workspace:     tmpDir,
 		UseLocalAgent: true,
 		Logger:        telemetry.NewLogger(true, "", false),

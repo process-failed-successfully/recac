@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"os"
 	"context"
 	"log/slog"
 	"path/filepath"
@@ -12,7 +13,7 @@ import (
 
 
 func TestSession_ProcessResponse_NoCommands(t *testing.T) {
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Docker:   &MockDockerClient{},
 		Logger:   slog.Default(),
 		Notifier: notify.NewManager(func(string, ...interface{}) {}),
@@ -47,7 +48,7 @@ func TestSession_ProcessResponse_WithCommands(t *testing.T) {
 	store, _ := db.NewSQLiteStore(dbPath)
 	defer store.Close()
 
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Docker:    mockDocker,
 		Workspace: workspace,
 		DBStore:   store,
@@ -84,7 +85,7 @@ func TestSession_ProcessResponse_Blocker(t *testing.T) {
 	store, _ := db.NewSQLiteStore(dbPath)
 	defer store.Close()
 
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Docker:    mockDocker,
 		Workspace: workspace,
 		DBStore:   store,

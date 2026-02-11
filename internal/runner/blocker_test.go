@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"os"
 	"context"
 	"log/slog"
 	"recac/internal/notify"
@@ -42,7 +43,7 @@ func TestProcessResponse_BlockerFalsePositives(t *testing.T) {
 		Files: make(map[string]string),
 	}
 
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Docker:      mockDocker,
 		ContainerID: "test-container",
 		Notifier:    notify.NewManager(func(string, ...interface{}) {}),

@@ -35,7 +35,7 @@ func TestRunCleanerAgent_PathTraversal(t *testing.T) {
 
 	// Setup Session
 	logger := telemetry.NewLogger(true, "", false)
-	session := &Session{
+	session := &Session{StatFunc: os.Stat,
 		Workspace: workspace,
 		Logger:    logger,
 	}
@@ -79,7 +79,7 @@ func TestRunCleanerAgent_AbsolutePath(t *testing.T) {
 
 	// Setup Session
 	logger := telemetry.NewLogger(true, "", false)
-	session := &Session{
+	session := &Session{StatFunc: os.Stat,
 		Workspace: workspace,
 		Logger:    logger,
 	}

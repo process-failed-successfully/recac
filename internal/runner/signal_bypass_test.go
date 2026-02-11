@@ -18,7 +18,7 @@ func TestSignalBypass(t *testing.T) {
 	}
 	defer store.Close()
 
-	session := &Session{
+	session := &Session{StatFunc: os.Stat,
 		Workspace: workspace,
 		Project:   "test-project",
 		DBStore:   store,

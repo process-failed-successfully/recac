@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"os"
 	"context"
 	"fmt"
 	"log/slog"
@@ -47,7 +48,7 @@ func (m *MockDockerForExec) ExecAsUser(ctx context.Context, id string, user stri
 
 func TestSession_ProcessResponse_Thorough(t *testing.T) {
 	mockDocker := &MockDockerForExec{}
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Docker:      mockDocker,
 		ContainerID: "test-container",
 		Notifier:    notify.NewManager(func(string, ...interface{}) {}),
@@ -115,7 +116,7 @@ func TestSession_ProcessResponse_Timeout(t *testing.T) {
 	mockDocker := &MockDockerForExec{
 		ExecDelay: 2 * time.Second, // Delay longer than timeout
 	}
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Docker:      mockDocker,
 		ContainerID: "test-container",
 		Notifier:    notify.NewManager(func(string, ...interface{}) {}),

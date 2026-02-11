@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"os"
 	"context"
 	"log/slog"
 	"path/filepath"
@@ -63,7 +64,7 @@ func TestRunQAAgent_Pass(t *testing.T) {
 	}
 
 	// 4. Create Session
-	session := &Session{
+	session := &Session{StatFunc: os.Stat,
 		Agent:     mockAgent,
 		QAAgent:   mockAgent,
 		Workspace: workspace,
@@ -112,7 +113,7 @@ func TestRunQAAgent_Fail(t *testing.T) {
 
 	// 4. Create Session
 	projectName := "test-project"
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Workspace: workspace,
 		Project:   projectName,
 		DBStore:   store,

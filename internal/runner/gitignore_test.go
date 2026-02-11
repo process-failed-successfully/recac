@@ -20,7 +20,7 @@ func TestSession_GitIgnoreCreation(t *testing.T) {
 	// Mock Docker client that does nothing for Exec
 	mockDocker := &mockDockerClient{}
 
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Workspace:   workspace,
 		Docker:      mockDocker,
 		ContainerID: "test-container",
@@ -60,7 +60,7 @@ func TestSession_GitIgnoreFunctional(t *testing.T) {
 	exec.Command("git", "-C", workspace, "config", "user.name", "Test User").Run()
 
 	mockDocker := &mockDockerClient{}
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Workspace:   workspace,
 		Docker:      mockDocker,
 		ContainerID: "test-container",

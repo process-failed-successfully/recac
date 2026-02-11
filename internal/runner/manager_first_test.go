@@ -16,7 +16,7 @@ func TestSelectPrompt_ManagerFirst(t *testing.T) {
 	store, _ := db.NewSQLiteStore(dbPath)
 	defer store.Close()
 
-	session := &Session{
+	session := &Session{StatFunc: os.Stat,
 		Workspace:        workspace,
 		DBStore:          store,
 		ManagerFirst:     true,
@@ -52,7 +52,7 @@ func TestSelectPrompt_NormalFirst(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	session := &Session{
+	session := &Session{StatFunc: os.Stat,
 		Workspace:        workspace,
 		DBStore:          store,
 		ManagerFirst:     false,

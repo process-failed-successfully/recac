@@ -23,7 +23,7 @@ func TestSignalMigration(t *testing.T) {
 
 	// 3. Create Session
 	// Note: Agent and Docker are nil as we only test hasSignal logic
-	session := &Session{
+	session := &Session{StatFunc: os.Stat,
 		Workspace: workspace,
 		Project:   "test-project",
 		DBStore:   store,

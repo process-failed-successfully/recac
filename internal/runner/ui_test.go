@@ -32,7 +32,7 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	// 5. Initialize Session
 	mockDocker := &MockDockerForExec{}
 	mockAgent := agent.NewMockAgent()
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Docker:           mockDocker,
 		Agent:            mockAgent,
 		Workspace:        tmpDir,

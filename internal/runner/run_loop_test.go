@@ -110,7 +110,7 @@ func TestSession_RunLoop_Success(t *testing.T) {
 	mockCleaner := &MockLoopAgent{Response: "Cleaned."}
 	mockQA := &MockLoopAgent{Response: "PASS"}
 
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Workspace:        tmpDir,
 		Docker:           mockDocker,
 		ManagerAgent:     mockManager,

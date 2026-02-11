@@ -65,7 +65,7 @@ func TestSession_Guardrail_PrematureSignoff(t *testing.T) {
 		t.Fatalf("Failed to seed features: %v", err)
 	}
 
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Docker:           mockDocker,
 		Agent:            mockAgent,
 		Workspace:        tmpDir,

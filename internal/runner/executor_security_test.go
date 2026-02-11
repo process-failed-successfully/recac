@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"os"
 	"context"
 	"log/slog"
 	"recac/internal/notify"
@@ -11,7 +12,7 @@ import (
 
 func TestProcessResponse_Security(t *testing.T) {
 	mockDocker := &MockDockerForExec{}
-	s := &Session{
+	s := &Session{StatFunc: os.Stat,
 		Docker:      mockDocker,
 		ContainerID: "test-container",
 		Notifier:    notify.NewManager(func(string, ...interface{}) {}),
