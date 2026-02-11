@@ -4,33 +4,38 @@ import (
 	"context"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestMockAgent(t *testing.T) {
+func TestMockAgent_Send(t *testing.T) {
 	agent := NewMockAgent()
+	ctx := context.Background()
 
-	prompt := "This is a test prompt that is long enough to be truncated"
-	response, err := agent.Send(context.Background(), prompt)
+	t.Run("Default Response", func(t *testing.T) {
+		resp, err := agent.Send(ctx, "Hello")
+		assert.NoError(t, err)
+		assert.Contains(t, resp, "I received your prompt")
+	})
 
-	if err != nil {
-		t.Fatalf("Send failed: %v", err)
-	}
+	t.Run("TPM Response", func(t *testing.T) {
+		resp, err := agent.Send(ctx, "You are an expert Technical Program Manager")
+		assert.NoError(t, err)
+		assert.Contains(t, resp, "ID:[PRIMES]")
+		assert.Contains(t, resp, "title")
+		assert.True(t, strings.HasPrefix(strings.TrimSpace(resp), "["), "Response should start with JSON array")
+	})
 
-	if !strings.Contains(response, "Mock agent response") {
-		t.Errorf("Response missing prefix, got: %s", response)
-	}
+	t.Run("Coding Response", func(t *testing.T) {
+		resp, err := agent.Send(ctx, "Please Implement Primes")
+		assert.NoError(t, err)
+		assert.Contains(t, resp, "cat << 'EOF' > primes.py")
+		assert.Contains(t, resp, "```bash")
+	})
 
-	if !strings.Contains(response, "I received your prompt") {
-		t.Errorf("Response missing body, got: %s", response)
-	}
-}
-
-func TestTruncateString(t *testing.T) {
-	s := "hello world"
-	if truncateString(s, 5) != "hello" {
-		t.Errorf("Expected 'hello', got '%s'", truncateString(s, 5))
-	}
-	if truncateString(s, 20) != "hello world" {
-		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
-	}
+	t.Run("QA Response", func(t *testing.T) {
+		resp, err := agent.Send(ctx, "Please QA this code")
+		assert.NoError(t, err)
+		assert.Contains(t, resp, "LGTM")
+	})
 }
