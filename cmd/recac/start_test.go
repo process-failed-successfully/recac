@@ -3,11 +3,13 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"recac/internal/agent"
+	"recac/internal/runner"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -119,6 +121,13 @@ func TestStartCommand_NormalMode_Restricted(t *testing.T) {
 	}
 	defer func() { agentClientFactory = originalFactory }()
 
+	// Mock sessionDockerClientFactory to simulate restricted mode
+	originalDockerFactory := sessionDockerClientFactory
+	sessionDockerClientFactory = func(project string) (runner.DockerClient, error) {
+		return nil, errors.New("simulated restricted mode")
+	}
+	defer func() { sessionDockerClientFactory = originalDockerFactory }()
+
 	t.Setenv("HOME", t.TempDir())
 
 	var err error
@@ -134,4 +143,5 @@ func TestStartCommand_NormalMode_Restricted(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Contains(t, output, "Starting RECAC session")
+	assert.Contains(t, output, "Proceeding in restricted mode")
 }

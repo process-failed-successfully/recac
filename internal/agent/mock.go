@@ -44,7 +44,7 @@ agent-bridge import feature_list.json
 
 	// Heuristic: Technical Program Manager (Generate Tickets)
 	if strings.Contains(prompt, "Technical Program Manager") {
-		return "```json\n" + `[{"id": "PRIMES", "key": "PRIMES", "title": "Implement Primes", "description": "Implement primes.py", "type": "Task"}]` + "\n```", nil
+		return "```json\n" + `[{"id": "PRIMES", "key": "PRIMES", "title": "ID:[PRIMES] Implement Primes", "description": "Implement primes.py", "type": "Task"}]` + "\n```", nil
 	}
 
 	// Heuristic: Project Manager (Sign Off)
