@@ -109,6 +109,7 @@ func (m WizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				val := m.textInput.Value()
 				if val == "" {
 					m.MaxAgents = 1
+					m.errMsg = ""
 					m.step = StepTaskMaxIterations
 					m.textInput.Reset()
 					m.textInput.Placeholder = "10"
@@ -122,6 +123,7 @@ func (m WizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						return m, nil
 					}
 					m.MaxAgents = n
+					m.errMsg = ""
 					m.step = StepTaskMaxIterations
 					m.textInput.Reset()
 					m.textInput.Placeholder = "10"
@@ -132,6 +134,7 @@ func (m WizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				val := m.textInput.Value()
 				if val == "" {
 					m.TaskMaxIterations = 10
+					m.errMsg = ""
 					m.done = true
 					return m, tea.Quit
 				} else {
@@ -142,6 +145,7 @@ func (m WizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						return m, nil
 					}
 					m.TaskMaxIterations = n
+					m.errMsg = ""
 					m.done = true
 					return m, tea.Quit
 				}
