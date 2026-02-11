@@ -13,17 +13,9 @@ import (
 )
 
 func TestOptimizePrompts(t *testing.T) {
-	// Mock factories
-	originalRunGymSessionFunc := runGymSessionFunc
-	originalAgentFactory := agentClientFactory
-	defer func() {
-		runGymSessionFunc = originalRunGymSessionFunc
-		agentClientFactory = originalAgentFactory
-	}()
-
 	// Mock gym session: fails first, then passes
 	failures := 0
-	runGymSessionFunc = func(ctx context.Context, challenge GymChallenge) (*GymResult, error) {
+	mockGymRunner := func(ctx context.Context, challenge GymChallenge, deps GymDependencies) (*GymResult, error) {
 		if failures == 0 {
 			failures++
 			return &GymResult{Passed: false, Output: "Failed"}, nil
@@ -35,8 +27,14 @@ func TestOptimizePrompts(t *testing.T) {
 	mockMetaAgent := new(GymMockAgent)
 	mockMetaAgent.On("Send", mock.Anything, mock.Anything).Return("Improved Prompt", nil)
 
-	agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+	mockAgentFactory := func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
 		return mockMetaAgent, nil
+	}
+
+	deps := OptimizeDependencies{
+		AgentFactory: mockAgentFactory,
+		GymRunner:    mockGymRunner,
+		GymDeps:      defaultGymDeps,
 	}
 
 	// Create temp dir for prompts
@@ -63,24 +61,12 @@ func TestOptimizePrompts(t *testing.T) {
 	cmd.Flags().Int("iterations", 5, "")
 	cmd.Flags().String("out", filepath.Join(tmpPromptsDir, "optimized.md"), "")
 
-	// Override RunE to call our function directly or just call runOptimizePrompts directly
-	// Since runOptimizePrompts is not exported, we can call it if we are in package main_test (which we are if in same dir)
-	// But go test -v ./cmd/recac will compile main package test.
-	// We need to be in package main.
-
-	err = runOptimizePrompts(cmd, []string{})
+	err = runOptimizePromptsWithDeps(cmd, []string{}, deps)
 	assert.NoError(t, err)
 
 	// Verify optimized prompt was saved
 	optimizedContent, err := os.ReadFile(filepath.Join(tmpPromptsDir, "optimized.md"))
 	assert.NoError(t, err)
 
-	// In the test:
-	// 1. Initial prompt loaded from file: "Initial Prompt Content"
-	// 2. Gym fails.
-	// 3. Meta Agent returns "Improved Prompt".
-	// 4. "Improved Prompt" written to promptPath.
-	// 5. Gym passes.
-	// 6. "Improved Prompt" written to outFile.
 	assert.Equal(t, "Improved Prompt", string(optimizedContent))
 }
