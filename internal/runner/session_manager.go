@@ -540,6 +540,9 @@ func (sm *SessionManager) ListArchivedSessions() ([]*SessionState, error) {
 
 // IsProcessRunning checks if a process is still running
 func (sm *SessionManager) IsProcessRunning(pid int) bool {
+	if pid <= 0 {
+		return false
+	}
 	process, err := os.FindProcess(pid)
 	if err != nil {
 		return false

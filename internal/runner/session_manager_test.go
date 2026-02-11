@@ -717,7 +717,8 @@ func TestRemoveSession_Error(t *testing.T) {
 	defer cleanup()
 
 	sessionName := "protected-session"
-	session := &SessionState{Name: sessionName, Status: "completed", LogFile: filepath.Join(sm.sessionsDir, sessionName+".log")}
+	// Set PID to -1 to ensure IsProcessRunning returns false, preventing "session is running" error
+	session := &SessionState{Name: sessionName, Status: "completed", LogFile: filepath.Join(sm.sessionsDir, sessionName+".log"), PID: -1}
 	err := sm.SaveSession(session)
 	require.NoError(t, err)
 
