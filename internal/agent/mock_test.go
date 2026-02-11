@@ -26,7 +26,11 @@ func TestMockAgent(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 	if !strings.Contains(resp, "```json") {
-		t.Errorf("Expected JSON response for TPM prompt, got: %s", resp)
+		t.Errorf("Expected JSON block for TPM prompt, got: %s", resp)
+	}
+	// Check for Array format
+	if !strings.Contains(resp, "[\n  {\n    \"title\"") {
+		t.Errorf("Expected JSON array for TPM prompt, got: %s", resp)
 	}
 
 	// Test Initializer response logic

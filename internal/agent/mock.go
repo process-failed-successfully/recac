@@ -56,8 +56,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			}
 		}
 
-		// Return a mock feature list for the Prime Number Script scenario
-		return fmt.Sprintf("```json\n{\n  \"project_name\": \"%s\",\n  \"features\": [\n    {\n      \"id\": \"1\",\n      \"description\": \"Implement a Python script (primes.py) that calculates the first n prime numbers.\",\n      \"priority\": \"high\",\n      \"status\": \"todo\"\n    },\n    {\n      \"id\": \"2\",\n      \"description\": \"Add unit tests for the prime calculation logic.\",\n      \"priority\": \"medium\",\n      \"status\": \"todo\"\n    }\n  ]\n}\n```", projectID), nil
+		// Return a mock ticket list (Array of ticketNode) for the Prime Number Script scenario
+		// This matches []ticketNode expected by recac jira generate-from-spec
+		return fmt.Sprintf("```json\n[\n  {\n    \"title\": \"ID:[%s] Prime Number Project\",\n    \"description\": \"Implement a Python script to calculate prime numbers. Repo: https://github.com/example/repo\",\n    \"type\": \"Epic\",\n    \"children\": [\n      {\n        \"title\": \"ID:[req-script-runs] Implement primes.py\",\n        \"description\": \"Create the main script. Repo: https://github.com/example/repo\",\n        \"type\": \"Story\",\n        \"acceptance_criteria\": [\n          \"Script runs without errors\",\n          \"Calculates first n primes correctly\"\n        ]\n      }\n    ]\n  }\n]\n```", projectID), nil
 	}
 
 	// 2. Initializer Agent
@@ -143,7 +144,7 @@ if __name__ == "__main__":
 // SendStream implements the Agent interface
 func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
 	// Simulate processing delay for realism
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond) // Reduced from 100ms to 10ms to speed up tests
 
 	resp, err := m.Send(ctx, prompt)
 	if err == nil && onChunk != nil {
