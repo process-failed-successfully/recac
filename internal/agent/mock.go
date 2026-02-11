@@ -59,7 +59,7 @@ agent-bridge import feature_list.json
 	if strings.Contains(promptLower, "project manager") {
 		return `
 ` + "```bash" + `
-agent-bridge signal PROJECT_SIGNED_OFF true
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged
 ` + "```" + `
 `, nil
 	}
@@ -99,7 +99,7 @@ git commit -m "Implement primes.py and generate primes.json"
 		// If already committed, signal success to break loop
 		return `
 ` + "```bash" + `
-agent-bridge signal QA_PASSED true
+agent-bridge signal QA_PASSED true --privileged
 ` + "```" + `
 `, nil
 	}
@@ -108,7 +108,7 @@ agent-bridge signal QA_PASSED true
 	if strings.Contains(promptLower, "qa agent") {
 		return `
 ` + "```bash" + `
-agent-bridge signal QA_PASSED true
+agent-bridge signal QA_PASSED true --privileged
 ` + "```" + `
 `, nil
 	}

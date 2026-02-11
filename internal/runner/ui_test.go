@@ -5,12 +5,47 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"recac/internal/agent"
 	"recac/internal/notify"
 	"recac/internal/telemetry"
 )
+
+type MockDockerWithSideEffects struct {
+	MockDockerForExec
+	Workspace string
+}
+
+func (m *MockDockerWithSideEffects) Exec(ctx context.Context, id string, cmd []string) (string, error) {
+	fullCmd := ""
+	for _, c := range cmd {
+		fullCmd += c + " "
+	}
+
+	// Handle Signal Creation Side Effect
+	if (strings.Contains(fullCmd, "agent-bridge signal") || strings.Contains(fullCmd, "agent-bridge feature set")) && strings.Contains(fullCmd, "true") {
+		// Parse signal name
+		// format: agent-bridge signal <NAME> true
+		parts := strings.Fields(fullCmd)
+		for i, p := range parts {
+			if p == "signal" && i+1 < len(parts) {
+				signalName := parts[i+1]
+				// Create file in workspace
+				if m.Workspace != "" {
+					_ = os.WriteFile(filepath.Join(m.Workspace, signalName), []byte("true"), 0644)
+				}
+			}
+		}
+	}
+
+	return m.MockDockerForExec.Exec(ctx, id, cmd)
+}
+
+func (m *MockDockerWithSideEffects) ExecAsUser(ctx context.Context, id string, user string, cmd []string) (string, error) {
+	return m.Exec(ctx, id, cmd)
+}
 
 func TestSession_RunLoop_UIVerification(t *testing.T) {
 	// 1. Create a temp directory
@@ -30,7 +65,7 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "ui_verification.json"), []byte("Verify Button Color"), 0644)
 
 	// 5. Initialize Session
-	mockDocker := &MockDockerForExec{}
+	mockDocker := &MockDockerWithSideEffects{Workspace: tmpDir}
 	mockAgent := agent.NewMockAgent()
 	s := &Session{
 		Docker:           mockDocker,
