@@ -6,13 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"recac/internal/docker"
-
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/network"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // MockAgentForSecurity implements agent.Agent
@@ -34,31 +27,27 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 		}
 	}
 
-	// Setup mock Docker client
-	client, mock := docker.NewMockClient()
-
-	// We want to capture the binds
+	// Capture binds
 	var capturedBinds []string
 
-	mock.ContainerCreateFunc = func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error) {
-		capturedBinds = hostConfig.Binds
-		return container.CreateResponse{ID: "test-id"}, nil
-	}
-
-	// Mock ImageList to return our image so ImageExists returns true
-	mock.ImageListFunc = func(ctx context.Context, options image.ListOptions) ([]image.Summary, error) {
-		return []image.Summary{{RepoTags: []string{"alpine:latest"}}}, nil
-	}
-
-	mock.ContainerStartFunc = func(ctx context.Context, containerID string, options container.StartOptions) error { return nil }
-	mock.ContainerExecCreateFunc = func(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error) {
-		return types.IDResponse{ID: "exec-id"}, nil
+	// Setup mock Docker client using existing MockDockerClient
+	mock := &MockDockerClient{
+		RunContainerFunc: func(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, user string) (string, error) {
+			capturedBinds = extraBinds
+			return "test-id", nil
+		},
+		CheckDaemonFunc: func(ctx context.Context) error {
+			return nil
+		},
+		ImageExistsFunc: func(ctx context.Context, tag string) (bool, error) {
+			return true, nil
+		},
 	}
 
 	// Use NewSessionWithConfig to avoid DB initialization issues
 	session := NewSessionWithConfig("/tmp/workspace", "test-project", "mock", "mock-model", nil)
 	session.HomeDir = home
-	session.Docker = client
+	session.Docker = mock
 	session.Agent = &MockAgentForSecurity{}
 	session.Image = "alpine:latest"
 	session.UseLocalAgent = false // Explicitly disable local agent to ensure container creation logic runs
