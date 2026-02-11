@@ -6,6 +6,11 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"recac/internal/docker"
+
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // MockAgentForSecurity implements agent.Agent
@@ -15,23 +20,23 @@ func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, on
 
 func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	// Setup mock Docker client using the package-level MockDockerClient
-	mockDocker := &MockDockerClient{}
+	client, mock := docker.NewMockClient()
+
 	var capturedBinds []string
 
-	// Note: Function signature must match MockDockerClient.RunContainerFunc in mock_docker_test.go
-	mockDocker.RunContainerFunc = func(ctx context.Context, image, workspace string, extraBinds, env []string, user string) (string, error) {
-		capturedBinds = extraBinds
-		return "test-id", nil
+	mock.ContainerCreateFunc = func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error) {
+		capturedBinds = hostConfig.Binds
+		return container.CreateResponse{ID: "test-id"}, nil
 	}
 
 	// Use NewSessionWithConfig to avoid DB initialization issues
 	session := NewSessionWithConfig("/tmp/workspace", "test-project", "mock", "mock-model", nil)
-	session.Docker = mockDocker
+	session.Docker = client
 	session.Agent = &MockAgentForSecurity{}
 	session.Image = "alpine:latest"
 
 	// Mock environment
-	session.UseLocalAgent = false // Force Docker usage
+	session.UseLocalAgent = false // Force Docker usage to ensure binds are processed
 	mockHome := "/mock/home/user"
 	session.HomeDir = mockHome
 	session.StatFunc = func(path string) (os.FileInfo, error) {
