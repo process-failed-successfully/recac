@@ -6,61 +6,58 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"recac/internal/docker"
-
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/network"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // MockAgentForSecurity implements agent.Agent
 type MockAgentForSecurity struct{}
-func (m *MockAgentForSecurity) Send(ctx context.Context, prompt string) (string, error) { return "", nil }
-func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) { return "", nil }
 
+func (m *MockAgentForSecurity) Send(ctx context.Context, prompt string) (string, error) { return "", nil }
+func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+	return "", nil
+}
 
 func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
-	// Create temporary home directory for testing to avoid dependency on host environment
-	tempHome := t.TempDir()
+	// Create fake home dir for deterministic testing
+	home := t.TempDir()
 
-	// Create dummy sensitive directories/files
-	sensitiveDirs := []string{".gemini", ".config", ".cursor", ".ssh"}
-	for _, dir := range sensitiveDirs {
-		path := filepath.Join(tempHome, dir)
-		if err := os.Mkdir(path, 0700); err != nil {
+	// Create dummy sensitive directories
+	sensitivePaths := []string{".ssh", ".config", ".gemini", ".cursor"}
+	for _, p := range sensitivePaths {
+		path := filepath.Join(home, p)
+		if err := os.MkdirAll(path, 0755); err != nil {
 			t.Fatalf("Failed to create dummy dir %s: %v", path, err)
 		}
 	}
 
 	// Setup mock Docker client
-	client, mock := docker.NewMockClient()
+	mock := &MockDockerClient{}
 
-	// We want to capture the binds
+	// We want to capture the binds passed to RunContainer
 	var capturedBinds []string
 
-	mock.ContainerCreateFunc = func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error) {
-		capturedBinds = hostConfig.Binds
-		return container.CreateResponse{ID: "test-id"}, nil
+	mock.RunContainerFunc = func(ctx context.Context, image, workspace string, extraBinds, env []string, user string) (string, error) {
+		capturedBinds = extraBinds
+		return "test-id", nil
 	}
 
-	// Mock ImageList to return our image so ImageExists returns true
-	mock.ImageListFunc = func(ctx context.Context, options image.ListOptions) ([]image.Summary, error) {
-		return []image.Summary{{RepoTags: []string{"alpine:latest"}}}, nil
+	mock.ImageExistsFunc = func(ctx context.Context, image string) (bool, error) {
+		return true, nil
 	}
 
-	mock.ContainerStartFunc = func(ctx context.Context, containerID string, options container.StartOptions) error { return nil }
-	mock.ContainerExecCreateFunc = func(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error) {
-		return types.IDResponse{ID: "exec-id"}, nil
+	mock.CheckDaemonFunc = func(ctx context.Context) error {
+		return nil
+	}
+
+	mock.ExecAsUserFunc = func(ctx context.Context, containerID, user string, cmd []string) (string, error) {
+		return "", nil
 	}
 
 	// Use NewSessionWithConfig to avoid DB initialization issues
 	session := NewSessionWithConfig("/tmp/workspace", "test-project", "mock", "mock-model", nil)
-	session.Docker = client
+	session.Docker = mock
 	session.Agent = &MockAgentForSecurity{}
 	session.Image = "alpine:latest"
-	session.HomeDir = tempHome // Use our temp home dir
+	session.HomeDir = home // Set HomeDir explicitly
 
 	// Start session
 	if err := session.Start(context.Background()); err != nil {
@@ -68,14 +65,17 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	}
 
 	// Verify sensitive mounts
-	sensitivePaths := []string{".ssh", ".config", ".gemini", ".cursor"}
-
 	foundAny := false
 	for _, path := range sensitivePaths {
 		found := false
 		for _, bind := range capturedBinds {
 			// Check if bind contains the sensitive path
-			if strings.Contains(bind, path) {
+			// Note: binds format is "hostPath:containerPath:ro"
+			// hostPath is constructed using filepath.Join(home, path)
+			expectedHostPath := filepath.Join(home, path)
+
+			// We check if bind starts with expectedHostPath
+			if strings.HasPrefix(bind, expectedHostPath) {
 				found = true
 				foundAny = true
 				// Check if it is Read-Only
@@ -85,11 +85,11 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 			}
 		}
 		if !found {
-			t.Logf("Note: Sensitive path '%s' not found in binds (might be missing in env)", path)
+			t.Errorf("FAIL: Sensitive path '%s' not found in binds despite existing in home dir", path)
 		}
 	}
 
 	if !foundAny {
-		t.Log("WARNING: No sensitive paths were found in binds. Test might be ineffective if environment lacks home dir configs.")
+		t.Error("FAIL: No sensitive paths were found in binds. Test setup failed.")
 	}
 }
