@@ -39,7 +39,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return `
 ` + "```bash" + `
 printf '[{"id": "req-primes", "description": "Implement primes.py"}]' > feature_list.json
-agent-bridge import feature_list.json
+# Fallback to true if agent-bridge is missing (e.g. in unit tests or simple smoke tests)
+agent-bridge import feature_list.json || true
 ` + "```" + `
 `, nil
 	}
@@ -55,7 +56,7 @@ agent-bridge import feature_list.json
 	if strings.Contains(promptLower, "project manager") {
 		return `
 ` + "```bash" + `
-agent-bridge signal PROJECT_SIGNED_OFF true
+agent-bridge signal PROJECT_SIGNED_OFF true || touch PROJECT_SIGNED_OFF
 ` + "```" + `
 `, nil
 	}
@@ -95,7 +96,7 @@ git commit -m "Implement primes.py and generate primes.json"
 		// If already committed, signal success to break loop
 		return `
 ` + "```bash" + `
-agent-bridge signal QA_PASSED true
+agent-bridge signal QA_PASSED true || touch QA_PASSED
 ` + "```" + `
 `, nil
 	}
@@ -104,7 +105,7 @@ agent-bridge signal QA_PASSED true
 	if strings.Contains(promptLower, "qa agent") {
 		return `
 ` + "```bash" + `
-agent-bridge signal QA_PASSED true
+agent-bridge signal QA_PASSED true || touch QA_PASSED
 ` + "```" + `
 `, nil
 	}
