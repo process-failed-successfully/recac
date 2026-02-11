@@ -56,7 +56,8 @@ agent-bridge import feature_list.json
 	}
 
 	// Heuristic: Project Manager (Sign Off)
-	if strings.Contains(promptLower, "project manager") {
+	// Must explicitly be the role to avoid false positives in prompt descriptions
+	if strings.Contains(promptLower, "role - project manager") || (strings.Contains(promptLower, "project manager") && !strings.Contains(promptLower, "coding agent")) {
 		return `
 ` + "```bash" + `
 agent-bridge signal PROJECT_SIGNED_OFF true --privileged || touch PROJECT_SIGNED_OFF
@@ -93,6 +94,7 @@ EOF
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Implement primes.py and generate primes.json"
+agent-bridge feature set req-primes --status done --passes true
 ` + "```" + `
 `, nil
 		}
