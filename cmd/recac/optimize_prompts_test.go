@@ -44,8 +44,7 @@ func TestOptimizePrompts(t *testing.T) {
 
 	// Create temp dir for prompts
 	tmpPromptsDir := t.TempDir()
-	os.Setenv("RECAC_PROMPTS_DIR", tmpPromptsDir)
-	defer os.Unsetenv("RECAC_PROMPTS_DIR")
+	t.Setenv("RECAC_PROMPTS_DIR", tmpPromptsDir)
 
 	// Create initial prompt file
 	promptName := "test_prompt"
