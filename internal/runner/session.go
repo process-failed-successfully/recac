@@ -110,11 +110,14 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 	var dbStore db.Store
 	var err error
 
-	// Skip DB init if using MockAgent (heuristic)
-	// This prevents tests from hanging on DB connection
+	// Skip DB init if using MockAgent (heuristic), UNLESS we have an explicit DB URL.
+	// This prevents unit tests from hanging on DB connection while allowing E2E smoke tests
+	// (which use MockAgent + Postgres) to function correctly.
 	_, isMockAgent := a.(*agent.MockAgent)
-	if isMockAgent {
-		slog.Info("[Session] Mock Agent detected, skipping DB initialization")
+	shouldInitDB := !isMockAgent || os.Getenv("RECAC_DB_URL") != ""
+
+	if !shouldInitDB {
+		slog.Info("[Session] Mock Agent detected and no DB URL, skipping DB initialization")
 	} else {
 		storeConfig := getDBConfig(workspace)
 		maxRetries := 6
