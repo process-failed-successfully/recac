@@ -529,6 +529,16 @@ func TestRemoveSession_Error(t *testing.T) {
 	require.NoError(t, err)
 	defer os.Chmod(sm.sessionsDir, 0700) // Restore for cleanup
 
+	// Functional Probe: Try to create a file in the directory.
+	// If this succeeds, the environment allows writes despite 0500 permissions (e.g., root, or special FS).
+	// In that case, we must skip the test as we cannot simulate permission failure.
+	probeFile := filepath.Join(sm.sessionsDir, "probe_test_permissions")
+	if f, err := os.Create(probeFile); err == nil {
+		f.Close()
+		os.Remove(probeFile)
+		t.Skip("Skipping permission test: Environment allows writing to 0500 directory")
+	}
+
 	err = sm.RemoveSession(sessionName, false)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to remove session state file")
