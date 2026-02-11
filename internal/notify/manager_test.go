@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/slack-go/slack"
+	"github.com/slack-go/slack/socketmode"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 )
@@ -130,17 +132,26 @@ func TestManager_Notify_Disabled(t *testing.T) {
 }
 
 func TestManager_GetStyle(t *testing.T) {
-	title, color := getStyle(EventStart)
-	assert.NotEmpty(t, title)
-	assert.Equal(t, "#3498db", color)
+	tests := []struct {
+		event    string
+		expected string
+		color    string
+	}{
+		{EventStart, "🚀 Project Started", "#3498db"},
+		{EventSuccess, "✅ Success", "#2eb886"},
+		{EventFailure, "❌ Failure", "#a30200"},
+		{EventUserInteraction, "💬 Input Needed", "#f1c40f"},
+		{EventProjectComplete, "🏁 Project Complete", "#2eb886"},
+		{"unknown_event", "📢 Notification", "#808080"},
+	}
 
-	title, color = getStyle(EventFailure)
-	assert.NotEmpty(t, title)
-	assert.Equal(t, "#a30200", color)
-
-	title, color = getStyle("unknown_event")
-	assert.Equal(t, "📢 Notification", title)
-	assert.Equal(t, "#808080", color)
+	for _, tt := range tests {
+		t.Run(tt.event, func(t *testing.T) {
+			title, color := getStyle(tt.event)
+			assert.Equal(t, tt.expected, title)
+			assert.Equal(t, tt.color, color)
+		})
+	}
 }
 
 func TestManager_Notify_Success(t *testing.T) {
@@ -249,4 +260,75 @@ func TestManager_AddReaction(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, slackCalled)
 	assert.True(t, discordCalled)
+}
+
+func TestManager_Init_WithEnv(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(func() { viper.Reset() })
+
+	t.Setenv("SLACK_BOT_USER_TOKEN", "xoxb-test")
+	t.Setenv("SLACK_APP_TOKEN", "xapp-test")
+	t.Setenv("DISCORD_BOT_TOKEN", "discord-test")
+	t.Setenv("DISCORD_CHANNEL_ID", "123456")
+
+	viper.Set("notifications.slack.enabled", true)
+	viper.Set("notifications.discord.enabled", true)
+	viper.Set("notifications.slack.channel", "#test")
+
+	m := NewManager(nil)
+	assert.NotNil(t, m)
+	assert.NotNil(t, m.client)
+	assert.NotNil(t, m.socketClient) // xapp- prefix triggers socket client
+	assert.NotNil(t, m.discordNotifier)
+}
+
+func TestManager_Init_DiscordMissingConfig(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(func() { viper.Reset() })
+
+	viper.Set("notifications.discord.enabled", true)
+	t.Setenv("DISCORD_BOT_TOKEN", "") // Missing token
+
+	logCh := make(chan string, 1)
+	logger := func(fmtStr string, args ...interface{}) {
+		logCh <- fmtStr
+	}
+
+	NewManager(logger)
+
+	select {
+	case msg := <-logCh:
+		assert.Contains(t, msg, "discord notifications disabled")
+	case <-time.After(1 * time.Second):
+		t.Error("Timed out waiting for warning log")
+	}
+}
+
+func TestManager_Start(t *testing.T) {
+	logCh := make(chan string, 1)
+	logger := func(fmtStr string, args ...interface{}) {
+		logCh <- fmtStr // simplified for test
+	}
+
+	m := &Manager{
+		logger: logger,
+	}
+
+	// Create a real socketmode client structure
+	api := slack.New("xoxb-test", slack.OptionAppLevelToken("xapp-test"))
+	m.socketClient = socketmode.New(api)
+
+	// Context that is already done to ensure RunContext returns immediately
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	m.Start(ctx)
+
+	// Wait for log
+	select {
+	case msg := <-logCh:
+		assert.Contains(t, msg, "Starting Slack Socket Mode")
+	case <-time.After(1 * time.Second):
+		t.Error("Timed out waiting for start log")
+	}
 }
