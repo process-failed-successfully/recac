@@ -79,7 +79,16 @@ ls -la
 
 		// Detect Primes scenario
 		if strings.Contains(strings.ToLower(prompt), "prime") {
-			return `
+			// Extract ID from prompt if available (e.g., "[MFLP-123]") to align with Jira/Project ID
+			// Default to PRIMES if not found
+			featureID := "PRIMES"
+			re := regexp.MustCompile(`(?i)(?:ID:\[?|\[)([A-Z0-9_-]+)\]?`)
+			matches := re.FindStringSubmatch(prompt)
+			if len(matches) > 1 {
+				featureID = matches[1]
+			}
+
+			return fmt.Sprintf(`
 I will initialize the repository and create the feature list for the prime number script.
 
 ` + "```bash" + gitSetup + `
@@ -92,7 +101,7 @@ cat << 'EOF' | agent-bridge import
   "project_name": "Prime Number Generator",
   "features": [
     {
-      "id": "PRIMES",
+      "id": "%s",
       "category": "functional",
       "priority": "MVP",
       "description": "Implement a python script 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'.",
@@ -112,7 +121,7 @@ cat << 'EOF' | agent-bridge import
 }
 EOF
 ` + "```" + `
-`, nil
+`, featureID), nil
 		}
 
 		return `
@@ -146,16 +155,25 @@ agent-bridge import --file /app/ticket_plan.json
 	// Prioritize this before generic role checks if specific task ID is present
 	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
 		// Extract Dynamic ID from Prompt to ensure alignment with Jira
-		re := regexp.MustCompile(`Feature ID\*\*: ([\w-]+)`)
-		matches := re.FindStringSubmatch(prompt)
+		// Regex handles:
+		// - Feature ID: MFLP-123
+		// - **Feature ID**: MFLP-123
+		// - Feature ID: [MFLP-123]
+		// - Your assigned task is **MFLP-123**
+		reID := regexp.MustCompile(`(?i)(?:Feature ID(?:\*\*|):?\s*|assigned task is \**)(?:\[?)([\w-]+)(?:\]?)`)
+		matches := reID.FindStringSubmatch(prompt)
+
 		ticketID := "PRIMES"
 		branchSuffix := "PRIMES-mock"
 
 		if len(matches) > 1 {
-			ticketID = matches[1]
-			// If it looks like a Jira ID (MFLP-123), use it directly
-			if strings.Contains(ticketID, "-") {
-				branchSuffix = ticketID
+			extractedID := matches[1]
+			if extractedID != "" {
+				ticketID = extractedID
+				// If it looks like a Jira ID (MFLP-123), use it directly
+				if strings.Contains(ticketID, "-") {
+					branchSuffix = ticketID
+				}
 			}
 		}
 
@@ -230,7 +248,7 @@ fi
 Project Approved.
 
 ` + "```bash" + `
-agent-bridge signal PROJECT_SIGNED_OFF true --privileged
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged || true
 ` + "```" + `
 `, nil
 	}
