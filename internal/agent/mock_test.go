@@ -15,8 +15,8 @@ func TestMockAgent_HeuristicResponses(t *testing.T) {
 	if err != nil {
 		t.Fatalf("TPM Send failed: %v", err)
 	}
-	if !strings.Contains(resp, "[") || !strings.Contains(resp, "ID:[PRIMES]") {
-		t.Errorf("TPM response invalid. Expected JSON array with ID. Got:\n%s", resp)
+	if !strings.Contains(resp, "```json") || !strings.Contains(resp, "ID:[PRIMES]") {
+		t.Errorf("TPM response invalid. Expected JSON markdown block. Got:\n%s", resp)
 	}
 
 	// 2. Initializer
@@ -24,8 +24,8 @@ func TestMockAgent_HeuristicResponses(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Initializer Send failed: %v", err)
 	}
-	if !strings.Contains(resp, "agent-bridge import") {
-		t.Errorf("Initializer response invalid. Expected bash script with import. Got:\n%s", resp)
+	if !strings.Contains(resp, "```bash") || !strings.Contains(resp, "agent-bridge import") {
+		t.Errorf("Initializer response invalid. Expected bash markdown block. Got:\n%s", resp)
 	}
 
 	// 3. Coding Agent
@@ -33,8 +33,8 @@ func TestMockAgent_HeuristicResponses(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Coding Agent Send failed: %v", err)
 	}
-	if !strings.Contains(resp, "cat << 'EOF' > primes.py") || !strings.Contains(resp, "PROJECT_SIGNED_OFF") {
-		t.Errorf("Coding Agent response invalid. Expected bash script creating primes.py. Got:\n%s", resp)
+	if !strings.Contains(resp, "```bash") || !strings.Contains(resp, "cat << 'EOF' > primes.py") {
+		t.Errorf("Coding Agent response invalid. Expected bash markdown block. Got:\n%s", resp)
 	}
 
 	// 4. Default

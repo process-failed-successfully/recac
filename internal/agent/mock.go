@@ -39,7 +39,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "generate a list of features") {
 		// Return a valid JSON list of tickets as expected by the Jira generator
 		// The format must match what `recac jira generate-from-spec` expects
-		return `[
+		return `Here is the plan:
+` + "```json" + `
+[
   {
     "title": "ID:[PRIMES] Implement Primes",
     "description": "Implement a Python script that calculates prime numbers up to a given limit.",
@@ -51,13 +53,17 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
       "The script should print the prime numbers to stdout."
     ]
   }
-]`, nil
+]
+` + "```", nil
 	}
 
 	// 2. Initializer Agent - Bootstrap Phase
 	// Expectation: Return a bash script to import features into the system
 	if strings.Contains(prompt, "INITIALIZER AGENT") {
-		return `#!/bin/bash
+		return `I will initialize the system with the feature list.
+
+` + "```bash" + `
+#!/bin/bash
 # Import the feature list into the agent bridge
 cat << 'EOF' | agent-bridge import
 {
@@ -70,13 +76,16 @@ cat << 'EOF' | agent-bridge import
   ]
 }
 EOF
-`, nil
+` + "```", nil
 	}
 
 	// 3. Coding Agent - Implementation Phase
 	// Expectation: Return the implementation file (primes.py) and mark task as done
 	if strings.Contains(prompt, "CODING AGENT") || strings.Contains(prompt, "Prime Number Script") || strings.Contains(prompt, "primes.py") {
-		return `#!/bin/bash
+		return `I will create the primes script and mark the task as complete.
+
+` + "```bash" + `
+#!/bin/bash
 # Create the primes.py script
 cat << 'EOF' > primes.py
 import sys
@@ -110,13 +119,16 @@ agent-bridge feature update PRIMES --status completed
 
 # Signal completion
 agent-bridge signal PROJECT_SIGNED_OFF true --privileged || touch PROJECT_SIGNED_OFF
-`, nil
+` + "```", nil
 	}
 
 	// 4. QA Agent - Verification Phase
 	// Expectation: Verify and Sign-off
 	if strings.Contains(prompt, "QA AGENT") {
-		return `true`, nil
+		return `The implementation looks correct.
+` + "```json" + `
+true
+` + "```", nil
 	}
 
 	// Default Fallback
