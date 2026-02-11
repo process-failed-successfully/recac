@@ -142,10 +142,32 @@ agent-bridge import --file /app/ticket_plan.json
 	// We detect the [PRIMES] ID or the file request
 	// Prioritize this before generic role checks if specific task ID is present
 	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
-		return `
+		// Extract Ticket ID for branch naming (e.g. [MFLP-123])
+		ticketID := "PRIMES-mock"
+		if start := strings.Index(prompt, "["); start != -1 {
+			if end := strings.Index(prompt[start:], "]"); end != -1 {
+				candidate := prompt[start+1 : start+end]
+				// Basic validation to avoid grabbing "PRIMES" if we want "MFLP-..."
+				if strings.Contains(candidate, "-") {
+					// SANITIZATION: Only allow alphanumeric and hyphens to prevent command injection
+					valid := true
+					for _, r := range candidate {
+						if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-') {
+							valid = false
+							break
+						}
+					}
+					if valid {
+						ticketID = candidate
+					}
+				}
+			}
+		}
+
+		return fmt.Sprintf(`
 I will implement the prime number script as requested.
 
-` + "```bash" + `
+`+"```bash"+`
 set -e
 # Ensure git repo exists (fallback recovery)
 if [ ! -d .git ]; then
@@ -161,7 +183,7 @@ import json
 def is_prime(n):
     if n < 2: return False
     for i in range(2, int(n**0.5) + 1):
-        if n % i == 0: return False
+        if n %% i == 0: return False
     return True
 
 primes = [x for x in range(10000) if is_prime(x)]
@@ -170,15 +192,15 @@ with open('primes.json', 'w') as f:
 EOF
 
 # Create or reset a branch for the feature (force if exists)
-git checkout -B agent/PRIMES-mock
+git checkout -B agent/%[1]s
 
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
-git push --force origin agent/PRIMES-mock || echo "Push failed, continuing local only"
+git push --force origin agent/%[1]s || echo "Push failed, continuing local only"
 agent-bridge feature set PRIMES --status done --passes true
-` + "```" + `
-`, nil
+`+"```"+`
+`, ticketID), nil
 	}
 
 	// 4. QA Agent - Verifies the project
@@ -213,7 +235,7 @@ fi
 Project Approved.
 
 ` + "```bash" + `
-agent-bridge signal PROJECT_SIGNED_OFF true --privileged
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged || touch PROJECT_SIGNED_OFF
 ` + "```" + `
 `, nil
 	}
