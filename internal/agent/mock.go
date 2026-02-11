@@ -34,7 +34,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic: Detect TPM Prompt (used in recac jira generate-from-spec)
 	// The prompt typically starts with "You are an expert Technical Program Manager (TPM)..."
-	if strings.Contains(prompt, "Technical Program Manager") && strings.Contains(prompt, "Jira tickets") {
+	// We make this check more robust by checking for key phrases.
+	if (strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM")) &&
+		(strings.Contains(prompt, "Jira tickets") || strings.Contains(prompt, "ticket plan")) {
 		// Return a valid JSON response for ticket generation
 		return `[
   {
