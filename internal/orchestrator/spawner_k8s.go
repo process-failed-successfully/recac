@@ -215,6 +215,14 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	// Command:
 	cmd := fmt.Sprintf(`
 		set -x
+		# Trap errors to keep container alive for debugging
+		trap 'echo "ERROR: Command failed with status $?"; sleep 120' EXIT
+
+		echo "=== DEBUG INFO ==="
+		ls -la /usr/local/bin/recac-agent || echo "recac-agent binary not found"
+		env | grep RECAC || echo "No RECAC env vars"
+		echo "=================="
+
 		if [ -n "$GITHUB_TOKEN" ]; then
 			git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
 		fi
