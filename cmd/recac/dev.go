@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -88,11 +89,24 @@ func runDev(cmd *cobra.Command, args []string) error {
 	// Initial run
 	go func() { trigger <- struct{}{} }()
 
+	// Use context for cancellation
+	ctx := cmd.Context()
+	if ctx == nil {
+		// Fallback for non-context aware execution, though cobra usually provides one
+		ctx = context.Background()
+	}
+
 	// Event Loop
-	done := make(chan bool)
+	// We use a WaitGroup to ensure we wait for goroutines if needed,
+	// but runDev blocks until done, so just returning is enough if we close things properly.
+	done := make(chan struct{})
+
 	go func() {
+		defer close(done)
 		for {
 			select {
+			case <-ctx.Done():
+				return
 			case event, ok := <-watcher.Events:
 				if !ok {
 					return
@@ -106,7 +120,10 @@ func runDev(cmd *cobra.Command, args []string) error {
 							timer.Stop()
 						}
 						timer = time.AfterFunc(devDebounce, func() {
-							trigger <- struct{}{}
+							select {
+							case trigger <- struct{}{}:
+							default:
+							}
 						})
 						mu.Unlock()
 					}
@@ -131,12 +148,21 @@ func runDev(cmd *cobra.Command, args []string) error {
 
 	// Execution Loop
 	go func() {
-		for range trigger {
-			executeDevCommand(runCommand)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-trigger:
+				executeDevCommand(runCommand)
+			}
 		}
 	}()
 
+	// Wait for context cancellation
+	<-ctx.Done()
+	// Wait for event loop to exit (optional but good for cleanup)
 	<-done
+
 	return nil
 }
 

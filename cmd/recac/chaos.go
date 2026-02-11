@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"recac/internal/docker"
@@ -110,25 +111,6 @@ func runChaosDocker(cmd *cobra.Command, args []string) error {
 	if err := killRandomContainers(ctx, cmd, cli); err != nil {
 		fmt.Fprintf(cmd.ErrOrStderr(), "Error: %v\n", err)
 	}
-
-	// Loop until interrupted (ctrl-c handled by caller usually, but here we run once? No, chaos usually runs for a bit.
-	// But CLI commands typically block. Let's make it run forever until interrupt or maybe add a duration flag?
-	// For simplicity, let's run ONCE if interval is 0, or loop.
-	// Actually, let's respect the ticker. But user needs to stop it.
-	// Since we don't have a duration flag for docker command, let's just loop forever.
-	// But wait, testing this loop is hard.
-	// Let's check context cancellation.
-
-	// For now, let's just run it loop until context is done (which Cobra doesn't set by default on ctrl-c unless configured).
-	// But standard CLI behavior for `watch`-like commands is to block.
-	// However, to make it testable and usable, maybe just run ONCE by default unless --watch or similar?
-	// The prompt said "Interval between kills", implying a loop.
-
-	// Let's add a timeout/duration flag or just loop.
-	// To keep it simple and testable, I'll loop but check for context cancellation.
-	// I'll also add a limit to iterations for testing? No.
-
-	// I'll make it loop. Users use Ctrl-C.
 
 	for {
 		select {
@@ -234,19 +216,32 @@ func runChaosFile(cmd *cobra.Command, args []string) error {
 }
 
 func runChaosStress(cmd *cobra.Command, args []string) error {
-	fmt.Fprintf(cmd.OutOrStdout(), "Starting Chaos Stress (CPU: %d, Mem: %dMB, Duration: %s)\n", chaosCPU, chaosMemory, chaosDuration)
+	// Capture globals to local variables to avoid race conditions with tests modifying globals
+	// while goroutines are still running (even though we wait for them, good practice)
+	cpuWorkers := chaosCPU
+	memLimit := chaosMemory
+	duration := chaosDuration
+
+	fmt.Fprintf(cmd.OutOrStdout(), "Starting Chaos Stress (CPU: %d, Mem: %dMB, Duration: %s)\n", cpuWorkers, memLimit, duration)
 
 	done := make(chan struct{})
-	time.AfterFunc(chaosDuration, func() {
+
+	// WaitGroup for workers
+	var wg sync.WaitGroup
+
+	// Timer
+	time.AfterFunc(duration, func() {
 		close(done)
 	})
 
 	// Memory stress
-	if chaosMemory > 0 {
+	if memLimit > 0 {
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			blockSize := 1024 * 1024 // 1MB
 			blocks := make([][]byte, 0)
-			for i := 0; i < int(chaosMemory); i++ {
+			for i := 0; i < int(memLimit); i++ {
 				select {
 				case <-done:
 					return
@@ -259,12 +254,16 @@ func runChaosStress(cmd *cobra.Command, args []string) error {
 					time.Sleep(10 * time.Millisecond)
 				}
 			}
+			// Hold memory until done
+			<-done
 		}()
 	}
 
 	// CPU stress
-	for i := 0; i < chaosCPU; i++ {
+	for i := 0; i < cpuWorkers; i++ {
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			for {
 				select {
 				case <-done:
@@ -281,6 +280,9 @@ func runChaosStress(cmd *cobra.Command, args []string) error {
 	}
 
 	<-done
+	// Wait for all workers to finish to prevent goroutine leaks and data races
+	wg.Wait()
+
 	fmt.Fprintln(cmd.OutOrStdout(), "Chaos Stress Finished.")
 	return nil
 }

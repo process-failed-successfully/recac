@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -65,18 +66,21 @@ func TestDevCmd(t *testing.T) {
 	devDebounce = 100 * time.Millisecond // Short debounce for test
 
 	// 4. Run Dev Loop in Goroutine
-	// We can't easily stop it, so we'll just let it leak or we need to refactor dev.go to be cancellable.
-	// For this test, leaking one goroutine is acceptable, or we can use a context if we modify dev.go.
-	// But let's verify logic first.
+	// Use context for cancellation
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel() // ensure cancel if test fails early
 
-	// Note: runDev blocks. We run it in a goroutine.
+	devCmd.SetContext(ctx)
+
+	// WaitGroup to wait for runDev to finish
+	var wg sync.WaitGroup
+	wg.Add(1)
+
 	go func() {
+		defer wg.Done()
 		// Suppress stdout for clean test output
 		// devCmd.SetOut(io.Discard)
 		// devCmd.SetErr(io.Discard)
-		// Actually runDev uses fmt.Printf / os.Stdout directly in some places (bad practice but common in CLIs)
-		// So we can't easily suppress all output without capturing stdout/stderr of the process,
-		// but since we are in a test binary, we can just let it print.
 		runDev(devCmd, []string{})
 	}()
 
@@ -98,10 +102,6 @@ func TestDevCmd(t *testing.T) {
 	mu.Unlock()
 
 	// Should be at least 2: 1 for initial run, 1 for file change
-	// In runDev, we have:
-	// go func() { trigger <- struct{}{} }() // Initial run
-	// And then the event trigger.
-
 	assert.GreaterOrEqual(t, count, 2, "Should execute command at least twice (init + change)")
 
 	mu.Lock()
@@ -109,6 +109,10 @@ func TestDevCmd(t *testing.T) {
 		assert.Contains(t, executedCommands[0], "go test ./...", "Should execute auto-detected command")
 	}
 	mu.Unlock()
+
+	// Stop runDev
+	cancel()
+	wg.Wait()
 }
 
 func TestDevCmd_Manual(t *testing.T) {
@@ -138,7 +142,15 @@ func TestDevCmd_Manual(t *testing.T) {
 	devRecursive = false
 	devDebounce = 100 * time.Millisecond
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	devCmd.SetContext(ctx)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
 	go func() {
+		defer wg.Done()
 		runDev(devCmd, []string{})
 	}()
 
@@ -159,4 +171,7 @@ func TestDevCmd_Manual(t *testing.T) {
 
 	assert.GreaterOrEqual(t, count, 2)
 	assert.Contains(t, lastCmd, "echo manual")
+
+	cancel()
+	wg.Wait()
 }
