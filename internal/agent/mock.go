@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,8 +31,39 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
-	// Return a mock response that shows the agent received the prompt
-	// This allows the session to run without requiring real API keys
+
+	// Heuristics for E2E Tests
+	lowerPrompt := strings.ToLower(prompt)
+
+	// 1. TPM Agent (Ticket Generation)
+	if strings.Contains(lowerPrompt, "expert technical program manager") || (strings.Contains(lowerPrompt, "generate") && (strings.Contains(lowerPrompt, "ticket") || strings.Contains(lowerPrompt, "jira"))) {
+		// Return JSON plan for Primes
+		return `[
+  {
+    "title": "ID:[PRIMES] Implement Primes",
+    "description": "Implement a Python script to calculate prime numbers up to n.",
+    "type": "Story",
+    "children": []
+  }
+]`, nil
+	}
+
+	// 2. Initializer Agent (Feature Import)
+	if strings.Contains(lowerPrompt, "feature list") || strings.Contains(lowerPrompt, "initializer") {
+		return "```bash\ncat << 'EOF' | agent-bridge import\n{\"features\": [{\"id\": \"PRIMES\", \"name\": \"Implement Primes\", \"status\": \"todo\"}]}\nEOF\n```", nil
+	}
+
+	// 3. Coding Agent (Implementation)
+	if strings.Contains(lowerPrompt, "prime") || strings.Contains(lowerPrompt, "coding agent") {
+		return "```bash\n# Create primes.py\ncat << 'EOF' > primes.py\ndef primes(n):\n    primes = []\n    for i in range(2, n + 1):\n        is_prime = True\n        for j in range(2, int(i ** 0.5) + 1):\n            if i % j == 0:\n                is_prime = False\n                break\n        if is_prime:\n            primes.append(i)\n    return primes\n\nif __name__ == \"__main__\":\n    print(primes(20))\nEOF\n\n# Run it\npython3 primes.py\n```", nil
+	}
+
+	// 4. QA / Manager (Approval)
+	if strings.Contains(lowerPrompt, "qa") || strings.Contains(lowerPrompt, "review") {
+		return "LGTM. Approved.", nil
+	}
+
+	// Default Response
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
