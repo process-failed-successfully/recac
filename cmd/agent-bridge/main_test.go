@@ -6,6 +6,7 @@ import (
 	"recac/internal/db"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestRun_Blocker(t *testing.T) {
@@ -141,5 +142,68 @@ func TestRun_Invalid(t *testing.T) {
 	// verify missing file
 	if err := run([]string{"agent-bridge", "verify", "F2", "pass"}, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID); err == nil {
 		t.Error("Expected error for verify missing file")
+	}
+}
+
+func TestRun_Ask(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, ".recac.db")
+	projectID := "test-project"
+
+	store, _ := db.NewStore(db.StoreConfig{Type: "sqlite", ConnectionString: dbPath})
+	defer store.Close()
+
+	// Run ask in background
+	errCh := make(chan error)
+	go func() {
+		args := []string{"agent-bridge", "ask", "What is the answer?"}
+		errCh <- run(args, db.StoreConfig{Type: "sqlite", ConnectionString: dbPath}, projectID)
+	}()
+
+	// Wait a bit for question to be posted
+	// Ideally poll DB, but simple sleep works for test
+	// We poll DB for QUESTION
+	for i := 0; i < 20; i++ {
+		q, _ := store.GetSignal(projectID, "QUESTION")
+		if q == "What is the answer?" {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	// Verify question exists
+	q, err := store.GetSignal(projectID, "QUESTION")
+	if err != nil {
+		t.Fatalf("Failed to get question: %v", err)
+	}
+	if q != "What is the answer?" {
+		t.Fatalf("Expected 'What is the answer?', got '%s'", q)
+	}
+
+	// Send Answer
+	if err := store.SetSignal(projectID, "ANSWER", "42"); err != nil {
+		t.Fatalf("Failed to set answer: %v", err)
+	}
+
+	// Wait for ask to complete
+	// Since loop ticker is 2s, it might take up to 2s.
+	// We wait up to 5s.
+	// But in test environment, time might move differently? No, real time.
+	// We can't easily mock time here without refactoring main.go to accept a ticker.
+	// But 2s is acceptable for integration test.
+
+	err = <-errCh
+	if err != nil {
+		t.Errorf("ask failed: %v", err)
+	}
+
+	// Verify signals cleaned up
+	q, _ = store.GetSignal(projectID, "QUESTION")
+	if q != "" {
+		t.Errorf("Question signal not cleaned up")
+	}
+	a, _ := store.GetSignal(projectID, "ANSWER")
+	if a != "" {
+		t.Errorf("Answer signal not cleaned up")
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"recac/internal/db"
 	"strings"
+	"time"
 )
 
 func main() {
@@ -279,6 +280,42 @@ func run(args []string, config db.StoreConfig, projectID string) error {
 		}
 		fmt.Printf("Successfully imported %d features.\n", len(fl.Features))
 
+	case "ask":
+		if len(args) < 3 {
+			return fmt.Errorf("usage: agent-bridge ask <question>")
+		}
+		question := strings.Join(args[2:], " ")
+
+		// 1. Post Question
+		if err := store.SetSignal(projectID, "QUESTION", question); err != nil {
+			return fmt.Errorf("failed to post question: %w", err)
+		}
+		fmt.Printf("Asked: %s\nWaiting for answer (Ctrl+C to cancel)...\n", question)
+
+		// 2. Poll for Answer
+		ticker := time.NewTicker(2 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			<-ticker.C
+			answer, err := store.GetSignal(projectID, "ANSWER")
+			if err != nil {
+				// Log error but continue polling?
+				// fmt.Fprintf(os.Stderr, "Error polling answer: %v\n", err)
+				continue
+			}
+
+			if answer != "" {
+				// Found answer!
+				fmt.Println(answer)
+
+				// Cleanup
+				_ = store.DeleteSignal(projectID, "QUESTION")
+				_ = store.DeleteSignal(projectID, "ANSWER")
+				return nil
+			}
+		}
+
 	default:
 		printUsage()
 		return fmt.Errorf("unknown command: %s", command)
@@ -300,4 +337,5 @@ func printUsage() {
 	fmt.Println("  signal <key> <value>   Set a generic signal")
 	fmt.Println("  feature set <id> --status <status> --passes <true/false> Update feature status")
 	fmt.Println("  feature list           List features (JSON)")
+	fmt.Println("  ask <question>         Ask a question and wait for a human answer")
 }
