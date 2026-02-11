@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -17,20 +18,23 @@ import (
 var GetSessions func() ([]model.UnifiedSession, error)
 
 type psDashboardModel struct {
-	table      table.Model
-	sessions   []model.UnifiedSession
-	lastUpdate time.Time
-	err        error
-	width      int
-	height     int
-	showCosts  bool
-	sortBy     string
+	table       table.Model
+	viewport    viewport.Model
+	sessions    []model.UnifiedSession
+	lastUpdate  time.Time
+	err         error
+	width       int
+	height      int
+	showCosts   bool
+	sortBy      string
+	viewingLogs bool
 }
 
 type psTickMsg time.Time
 type psSessionsRefreshedMsg []model.UnifiedSession
 
 var psDashboardTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("62"))
+var psLogTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("205"))
 
 func NewPsDashboardModel(showCosts bool, sortBy string) psDashboardModel {
 	columns := []table.Column{
@@ -69,8 +73,15 @@ func NewPsDashboardModel(showCosts bool, sortBy string) psDashboardModel {
 		Bold(false)
 	t.SetStyles(s)
 
+	vp := viewport.New(0, 0)
+	vp.Style = lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("62")).
+		PaddingRight(2)
+
 	return psDashboardModel{
 		table:     t,
+		viewport:  vp,
 		showCosts: showCosts,
 		sortBy:    sortBy,
 	}
@@ -90,16 +101,59 @@ func (m psDashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.table.SetWidth(m.width)
 		m.table.SetHeight(m.height - 8) // Adjust for header/footer
+
+		m.viewport.Width = m.width
+		m.viewport.Height = m.height - 8 // Adjust for header/footer
 		return m, nil
 
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
+		case "enter":
+			if !m.viewingLogs {
+				// Enter logs view
+				selectedRow := m.table.SelectedRow()
+				if selectedRow != nil && len(selectedRow) > 0 {
+					sessionName := selectedRow[0]
+					var selectedSession *model.UnifiedSession
+					for i := range m.sessions {
+						if m.sessions[i].Name == sessionName {
+							selectedSession = &m.sessions[i]
+							break
+						}
+					}
+					if selectedSession != nil {
+						logs := selectedSession.Logs
+						if logs == "" {
+							logs = "No logs available. Run with --logs flag to capture logs."
+						}
+						m.viewport.SetContent(logs)
+						m.viewingLogs = true
+						return m, nil
+					}
+				}
+			} else {
+				// Exit logs view
+				m.viewingLogs = false
+				return m, nil
+			}
+		case "esc":
+			if m.viewingLogs {
+				m.viewingLogs = false
+				return m, nil
+			}
 		}
 
 	case psTickMsg:
-		return m, refreshPsSessionsCmd()
+		if !m.viewingLogs {
+			return m, refreshPsSessionsCmd()
+		}
+		// Continue ticking even if viewing logs, but don't refresh yet to avoid content jump
+		// Or maybe we should refresh logs? For now, keep static while viewing.
+		return m, tea.Tick(3*time.Second, func(t time.Time) tea.Msg {
+			return psTickMsg(t)
+		})
 
 	case psSessionsRefreshedMsg:
 		m.sessions = msg
@@ -113,7 +167,11 @@ func (m psDashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	m.table, cmd = m.table.Update(msg)
+	if m.viewingLogs {
+		m.viewport, cmd = m.viewport.Update(msg)
+	} else {
+		m.table, cmd = m.table.Update(msg)
+	}
 	return m, cmd
 }
 
@@ -180,9 +238,16 @@ func (m psDashboardModel) View() string {
 		return fmt.Sprintf("Error: %v", m.err)
 	}
 
+	if m.viewingLogs {
+		var s strings.Builder
+		s.WriteString(psLogTitleStyle.Render(" LOGS VIEW (Press Esc or Enter to return)") + "\n")
+		s.WriteString(m.viewport.View())
+		return s.String()
+	}
+
 	var s strings.Builder
 	s.WriteString(psDashboardTitleStyle.Render(" RECAC PS Dashboard") + "\n")
-	s.WriteString(fmt.Sprintf("Last updated: %s (press 'q' to quit)\n\n", m.lastUpdate.Format(time.RFC1123)))
+	s.WriteString(fmt.Sprintf("Last updated: %s (press 'q' to quit, 'enter' to view logs)\n\n", m.lastUpdate.Format(time.RFC1123)))
 
 	s.WriteString(m.table.View())
 	return s.String()

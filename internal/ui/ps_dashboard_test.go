@@ -211,3 +211,54 @@ func TestPsDashboardModel_SortingAndCosts(t *testing.T) {
 	// Verify cost value in last column
 	assert.Contains(t, rows[0][10], "1.000000") // $1.0 for session A
 }
+
+func TestPsDashboardModel_LogsView(t *testing.T) {
+	now := time.Now()
+	m := NewPsDashboardModel(false, "time")
+	m.sessions = []model.UnifiedSession{
+		{Name: "test-session", Status: "Running", Logs: "Log line 1\nLog line 2", LastActivity: now},
+	}
+	m.updateTableRows()
+
+	// Send WindowSizeMsg to initialize viewport dimensions
+	updatedM, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 20})
+	m = updatedM.(psDashboardModel)
+
+	// Initially not viewing logs
+	assert.False(t, m.viewingLogs)
+	view := m.View()
+	assert.Contains(t, view, "RECAC PS Dashboard")
+	assert.NotContains(t, view, "Log line 1")
+
+	// Select first row (default) and press Enter
+	m.table.SetCursor(0)
+	updatedM, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	model := updatedM.(psDashboardModel)
+
+	// Should be viewing logs
+	assert.True(t, model.viewingLogs)
+	// Viewport view includes borders and padding, so we check for content presence
+	assert.Contains(t, model.viewport.View(), "Log line 1")
+	assert.Contains(t, model.viewport.View(), "Log line 2")
+
+	view = model.View()
+	assert.Contains(t, view, "LOGS VIEW")
+	assert.Contains(t, view, "Log line 1")
+
+	// Press Esc to exit logs view
+	updatedM, _ = model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	model = updatedM.(psDashboardModel)
+	assert.False(t, model.viewingLogs)
+	view = model.View()
+	assert.Contains(t, view, "RECAC PS Dashboard")
+
+	// Press Enter again to toggle back to logs
+	updatedM, _ = model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	model = updatedM.(psDashboardModel)
+	assert.True(t, model.viewingLogs)
+
+	// Press Enter again to toggle back to dashboard
+	updatedM, _ = model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	model = updatedM.(psDashboardModel)
+	assert.False(t, model.viewingLogs)
+}
