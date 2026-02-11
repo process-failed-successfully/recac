@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"os"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -142,23 +143,29 @@ agent-bridge import --file /app/ticket_plan.json
 	// We detect the [PRIMES] ID or the file request
 	// Prioritize this before generic role checks if specific task ID is present
 	if strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
-		// Extract Ticket ID for branch naming (e.g. [MFLP-123])
-		ticketID := "PRIMES-mock"
-		if start := strings.Index(prompt, "["); start != -1 {
-			if end := strings.Index(prompt[start:], "]"); end != -1 {
-				candidate := prompt[start+1 : start+end]
-				// Basic validation to avoid grabbing "PRIMES" if we want "MFLP-..."
-				if strings.Contains(candidate, "-") {
-					// SANITIZATION: Only allow alphanumeric and hyphens to prevent command injection
-					valid := true
-					for _, r := range candidate {
-						if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-') {
-							valid = false
-							break
+		// Determine Ticket ID for branch naming (e.g. MFLP-123)
+		// 1. Try to get explicit project ID from environment (Authoritative)
+		ticketID := os.Getenv("RECAC_PROJECT_ID")
+
+		// 2. Fallback: Extract from prompt if env var is missing or generic default
+		if ticketID == "" || ticketID == "feature-name" {
+			ticketID = "PRIMES-mock"
+			if start := strings.Index(prompt, "["); start != -1 {
+				if end := strings.Index(prompt[start:], "]"); end != -1 {
+					candidate := prompt[start+1 : start+end]
+					// Basic validation to avoid grabbing "PRIMES" if we want "MFLP-..."
+					if strings.Contains(candidate, "-") {
+						// SANITIZATION: Only allow alphanumeric and hyphens to prevent command injection
+						valid := true
+						for _, r := range candidate {
+							if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-') {
+								valid = false
+								break
+							}
 						}
-					}
-					if valid {
-						ticketID = candidate
+						if valid {
+							ticketID = candidate
+						}
 					}
 				}
 			}
