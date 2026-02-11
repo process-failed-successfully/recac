@@ -34,9 +34,21 @@ func TestInvoiceCmd(t *testing.T) {
 		// getGitCommits calls client.Log(dir, "--since=30d", "--format=%h|%an|%aI|%s", "--author=Test User")
 
 		now := time.Now()
-		ts1 := now.Add(-2 * time.Hour).Format(time.RFC3339)
-		ts2 := now.Add(-1 * time.Hour).Format(time.RFC3339) // 1 hour later (same session)
-		ts3 := now.Add(-25 * time.Hour).Format(time.RFC3339) // Yesterday (new session)
+		// Use fixed times around noon to avoid date boundary issues when running tests near midnight
+		todayNoon := time.Date(now.Year(), now.Month(), now.Day(), 12, 0, 0, 0, now.Location())
+
+		// If test runs before noon, todayNoon is in the future. This is fine for git log parsing as long as it's consistent.
+		// To be safe and closer to reality (past commits), let's use Yesterday Noon as base if we want.
+		// But the test expects "Today" and "Yesterday".
+		// Let's stick to "Today Noon" and "Yesterday Noon" relative to current execution date.
+
+		ts1Time := todayNoon
+		ts2Time := todayNoon.Add(1 * time.Hour)
+		ts3Time := todayNoon.Add(-24 * time.Hour)
+
+		ts1 := ts1Time.Format(time.RFC3339)
+		ts2 := ts2Time.Format(time.RFC3339)
+		ts3 := ts3Time.Format(time.RFC3339)
 
 		return []string{
 			fmt.Sprintf("hash1|Test User|%s|Commit 1", ts1),
