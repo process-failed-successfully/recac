@@ -82,6 +82,7 @@ type Session struct {
 	FeatureContent            string       // Explicit feature list JSON content (authoritative)
 	Logger                    *slog.Logger // Structured logger for this session
 	SleepFunc                 func(time.Duration) // Function for sleeping (mockable)
+	HomeDir                   string              // Override for user home directory (for testing)
 
 	mu sync.RWMutex // Protects concurrent access to Iteration, SlackThreadTS, ContainerID
 }
@@ -454,9 +455,14 @@ func (s *Session) Start(ctx context.Context) error {
 	}
 
 	// Determine users home directory for config mounting
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		fmt.Printf("Warning: Failed to determine user home dir: %v. Configs will not be mounted.\n", err)
+	var homeDir string
+	if s.HomeDir != "" {
+		homeDir = s.HomeDir
+	} else {
+		homeDir, err = os.UserHomeDir()
+		if err != nil {
+			fmt.Printf("Warning: Failed to determine user home dir: %v. Configs will not be mounted.\n", err)
+		}
 	}
 
 	var extraBinds []string

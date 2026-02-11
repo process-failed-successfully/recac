@@ -17,10 +17,20 @@ func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, on
 }
 
 func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
-	// Skip if no home dir
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		t.Skip("Skipping test because UserHomeDir is unavailable")
+	// Create temporary home directory
+	tempHome := t.TempDir()
+
+	// Create dummy sensitive files
+	// We deliberately create .ssh, .config, .gemini.
+	// We deliberately DO NOT create .cursor to verify it is NOT mounted.
+	sensitivePathsToCreate := []string{".ssh", ".config", ".gemini"}
+
+	for _, path := range sensitivePathsToCreate {
+		fullPath := filepath.Join(tempHome, path)
+		// Create as directory
+		if err := os.MkdirAll(fullPath, 0755); err != nil {
+			t.Fatalf("Failed to create dummy dir %s: %v", fullPath, err)
+		}
 	}
 
 	// Setup mock Docker client using package-level mock to avoid circular dependency
@@ -49,7 +59,8 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	session.Docker = client
 	session.Agent = &MockAgentForSecurity{}
 	session.Image = "alpine:latest"
-	session.UseLocalAgent = false // Ensure we run container path (although default is false for NewSessionWithConfig)
+	session.UseLocalAgent = false // Ensure we run container path
+	session.HomeDir = tempHome    // Inject temp home
 
 	// Start session
 	if err := session.Start(context.Background()); err != nil {
@@ -57,36 +68,31 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	}
 
 	// Verify sensitive mounts
-	sensitivePaths := []string{".ssh", ".config", ".gemini", ".cursor"}
-
-	foundAny := false
-	for _, path := range sensitivePaths {
-		fullPath := filepath.Join(home, path)
-		_, statErr := os.Stat(fullPath)
-		existsOnHost := statErr == nil
-
+	// We expect .ssh, .config, .gemini to be mounted
+	for _, path := range sensitivePathsToCreate {
 		found := false
 		for _, bind := range capturedBinds {
-			// Check if bind contains the sensitive path
 			if strings.Contains(bind, path) {
 				found = true
-				foundAny = true
-				// Check if it is Read-Only
 				if !strings.HasSuffix(bind, ":ro") {
 					t.Errorf("Security Vulnerability: Sensitive path '%s' is mounted Read-Write! Bind: %s", path, bind)
 				}
+                // Verify it points to our temp home
+                if !strings.Contains(bind, tempHome) {
+                    t.Errorf("Mount path mismatch: expected to contain %s, got %s", tempHome, bind)
+                }
 				break
 			}
 		}
-
-		if existsOnHost && !found {
-			t.Errorf("Security Vulnerability: Sensitive path '%s' exists on host but was NOT mounted!", path)
-		} else if !found {
-			t.Logf("Note: Sensitive path '%s' not found in binds (missing in env)", path)
+		if !found {
+			t.Errorf("Expected path '%s' to be mounted, but it was not found in binds", path)
 		}
 	}
 
-	if !foundAny {
-		t.Log("WARNING: No sensitive paths were found in binds. Test might be ineffective if environment lacks home dir configs.")
+	// Verify .cursor is NOT mounted
+	for _, bind := range capturedBinds {
+		if strings.Contains(bind, ".cursor") {
+			t.Errorf("Unexpected mount: .cursor should not be mounted as it does not exist in temp home")
+		}
 	}
 }
