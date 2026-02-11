@@ -44,6 +44,7 @@ func main() {
 	pflag.String("github-owner", "", "GitHub Repository Owner (for 'github' poller)")
 	pflag.String("github-repo", "", "GitHub Repository Name (for 'github' poller)")
 	pflag.String("github-label", "", "GitHub Label to poll for (defaults to jira-label if not set)")
+	pflag.Bool("dry-run", false, "Perform a dry run to see what work items would be picked up")
 
 	pflag.Parse()
 
@@ -202,6 +203,23 @@ func main() {
 
 	// 3. Orchestrator
 	orch := orchestrator.New(poller, spawner, interval)
+
+	dryRun, _ := pflag.CommandLine.GetBool("dry-run")
+	if dryRun {
+		items, err := orch.DryRun(ctx, logger)
+		if err != nil {
+			logger.Error("Dry run failed", "error", err)
+			os.Exit(1)
+		}
+
+		fmt.Printf("\n--- Dry Run Result ---\n")
+		fmt.Printf("Found %d items:\n", len(items))
+		for _, item := range items {
+			fmt.Printf("- [%s] %s\n", item.ID, item.Summary)
+		}
+		return
+	}
+
 	if err := orch.Run(ctx, logger); err != nil {
 		if ctx.Err() != nil {
 			// Graceful shutdown

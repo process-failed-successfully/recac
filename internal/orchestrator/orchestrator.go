@@ -73,3 +73,17 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 		}
 	}
 }
+
+// DryRun performs a single poll operation and returns the found items without spawning agents.
+func (o *Orchestrator) DryRun(ctx context.Context, logger *slog.Logger) ([]WorkItem, error) {
+	logger.Info("Starting Orchestrator Dry Run")
+
+	// Poll for work
+	items, err := o.Poller.Poll(ctx, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to poll for work: %w", err)
+	}
+
+	logger.Info("Dry Run complete", "found_items", len(items))
+	return items, nil
+}
