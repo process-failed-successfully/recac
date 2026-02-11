@@ -25,9 +25,6 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	// Create a temporary directory to act as HOME
 	tempHome := t.TempDir()
 
-	// Set HOME environment variable to the temporary directory
-	t.Setenv("HOME", tempHome)
-
 	// Create dummy sensitive directories
 	// We intentionally create only some of them to verify conditional logic
 	sensitiveDirs := []string{".ssh", ".config", ".gemini"}
@@ -64,6 +61,8 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	session.Docker = client
 	session.Agent = &MockAgentForSecurity{}
 	session.Image = "alpine:latest"
+	session.HomeDir = tempHome // Explicitly set HomeDir for determinism
+	session.StatFunc = os.Stat // Explicitly set StatFunc for determinism
 
 	// Start session
 	if err := session.Start(context.Background()); err != nil {

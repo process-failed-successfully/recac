@@ -83,6 +83,10 @@ type Session struct {
 	Logger                    *slog.Logger // Structured logger for this session
 	SleepFunc                 func(time.Duration) // Function for sleeping (mockable)
 
+	// Dependency Injection for File Operations (for testing)
+	HomeDir  string                            // Override user home directory
+	StatFunc func(string) (os.FileInfo, error) // Override os.Stat
+
 	mu sync.RWMutex // Protects concurrent access to Iteration, SlackThreadTS, ContainerID
 }
 
@@ -154,6 +158,7 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 		UseLocalAgent:    os.Getenv("KUBERNETES_SERVICE_HOST") != "",
 		Logger:           logger,
 		SleepFunc:        time.Sleep,
+		StatFunc:         os.Stat,
 	}
 }
 
@@ -194,6 +199,7 @@ func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, pr
 		Notifier:         notify.NewManager(telemetry.LogInfof),
 		Logger:           logger,
 		SleepFunc:        time.Sleep,
+		StatFunc:         os.Stat,
 	}
 }
 
@@ -227,6 +233,7 @@ func NewSessionWithConfig(workspace, project, provider, model string, dbStore db
 		Scanner:          security.NewRegexScanner(),
 		Notifier:         notify.NewManager(telemetry.LogInfof),
 		Logger:           logger,
+		StatFunc:         os.Stat,
 	}
 }
 
@@ -454,9 +461,21 @@ func (s *Session) Start(ctx context.Context) error {
 	}
 
 	// Determine users home directory for config mounting
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		fmt.Printf("Warning: Failed to determine user home dir: %v. Configs will not be mounted.\n", err)
+	var homeDir string
+	if s.HomeDir != "" {
+		homeDir = s.HomeDir
+	} else {
+		var hErr error
+		homeDir, hErr = os.UserHomeDir()
+		if hErr != nil {
+			fmt.Printf("Warning: Failed to determine user home dir: %v. Configs will not be mounted.\n", hErr)
+		}
+	}
+
+	// Use injected StatFunc if available, otherwise default to os.Stat
+	statFunc := s.StatFunc
+	if statFunc == nil {
+		statFunc = os.Stat
 	}
 
 	var extraBinds []string
@@ -478,7 +497,7 @@ func (s *Session) Start(ctx context.Context) error {
 
 		for _, m := range sensitiveMounts {
 			hostPath := filepath.Join(homeDir, m.hostPath)
-			if _, err := os.Stat(hostPath); err == nil {
+			if _, err := statFunc(hostPath); err == nil {
 				extraBinds = append(extraBinds, fmt.Sprintf("%s:%s:ro", hostPath, m.containerPath))
 			}
 		}
