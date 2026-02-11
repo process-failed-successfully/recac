@@ -6,10 +6,9 @@ import (
 	"testing"
 )
 
-func TestMockAgent(t *testing.T) {
+func TestMockAgent_Default(t *testing.T) {
 	agent := NewMockAgent()
-
-	prompt := "This is a test prompt that is long enough to be truncated"
+	prompt := "This is a generic prompt that doesn't trigger any role"
 	response, err := agent.Send(context.Background(), prompt)
 
 	if err != nil {
@@ -17,20 +16,51 @@ func TestMockAgent(t *testing.T) {
 	}
 
 	if !strings.Contains(response, "Mock agent response") {
-		t.Errorf("Response missing prefix, got: %s", response)
-	}
-
-	if !strings.Contains(response, "I received your prompt") {
-		t.Errorf("Response missing body, got: %s", response)
+		t.Errorf("Expected generic mock response, got: %s", response)
 	}
 }
 
-func TestTruncateString(t *testing.T) {
-	s := "hello world"
-	if truncateString(s, 5) != "hello" {
-		t.Errorf("Expected 'hello', got '%s'", truncateString(s, 5))
+func TestMockAgent_TPM(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "You are an expert Technical Program Manager (TPM)"
+	response, err := agent.Send(context.Background(), prompt)
+
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
 	}
-	if truncateString(s, 20) != "hello world" {
-		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
+
+	if !strings.HasPrefix(strings.TrimSpace(response), "[") || !strings.HasSuffix(strings.TrimSpace(response), "]") {
+		t.Errorf("Expected JSON array for TPM role, got: %s", response)
+	}
+	if !strings.Contains(response, "\"title\": \"ID:[PRIMES]") {
+		t.Errorf("Expected prime implementation task in TPM response, got: %s", response)
+	}
+}
+
+func TestMockAgent_Coding(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Implement a function to check if a number is PRIME"
+	response, err := agent.Send(context.Background(), prompt)
+
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "def is_prime(n):") {
+		t.Errorf("Expected Python code for Coding role, got: %s", response)
+	}
+}
+
+func TestMockAgent_QA(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "You are a QA agent. Review the code."
+	response, err := agent.Send(context.Background(), prompt)
+
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if strings.TrimSpace(response) != "QA_PASSED" {
+		t.Errorf("Expected QA_PASSED signal, got: %s", response)
 	}
 }
