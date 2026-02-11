@@ -170,12 +170,13 @@ with open('primes.json', 'w') as f:
 EOF
 
 # Create or reset a branch for the feature (force if exists)
-git checkout -B agent/PRIMES-mock
+BRANCH_NAME="agent/${RECAC_PROJECT_ID:-PRIMES-mock}"
+git checkout -B "$BRANCH_NAME"
 
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
-git push --force origin agent/PRIMES-mock || echo "Push failed, continuing local only"
+git push --force origin "$BRANCH_NAME" || echo "Push failed, continuing local only"
 agent-bridge feature set PRIMES --status done --passes true
 ` + "```" + `
 `, nil

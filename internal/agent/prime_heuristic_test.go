@@ -82,3 +82,27 @@ func TestMockAgent_TPM_Primes(t *testing.T) {
 		t.Errorf("Expected response to contain description %q, got: %s", expectedDesc, response)
 	}
 }
+
+func TestMockAgent_Coding_Primes(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "ROLE - CODING AGENT. Task: [PRIMES] Implement primes.py"
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Verify dynamic branch usage
+	expectedBranch := `BRANCH_NAME="agent/${RECAC_PROJECT_ID:-PRIMES-mock}"`
+	if !strings.Contains(response, expectedBranch) {
+		t.Errorf("Expected response to define BRANCH_NAME dynamically, got: %s", response)
+	}
+
+	// Verify usage of BRANCH_NAME
+	if !strings.Contains(response, `git checkout -B "$BRANCH_NAME"`) {
+		t.Errorf("Expected response to checkout $BRANCH_NAME, got: %s", response)
+	}
+	if !strings.Contains(response, `git push --force origin "$BRANCH_NAME"`) {
+		t.Errorf("Expected response to push $BRANCH_NAME, got: %s", response)
+	}
+}
