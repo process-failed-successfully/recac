@@ -471,15 +471,25 @@ func (s *Session) Start(ctx context.Context) error {
 	if homeDir != "" {
 		// Mount configurations if they exist
 		// Note: Docker binds require the host path to exist, or it might auto-create as dir (depends on docker version/config).
-		// Best practice is to check existence, but for now we follow the Python approach which seemingly just mounts them.
-		// However, to avoid creating empty dirs if they don't exist on host, we can check.
-		// For now, we'll blindly mount as per requirement to emulate python script behavior effectively.
-		extraBinds = append(extraBinds,
-			fmt.Sprintf("%s/.gemini:/home/appuser/.gemini", homeDir),
-			fmt.Sprintf("%s/.config:/home/appuser/.config", homeDir),
-			fmt.Sprintf("%s/.cursor:/home/appuser/.cursor", homeDir),
-			fmt.Sprintf("%s/.ssh:/home/appuser/.ssh", homeDir),
-		)
+		// Best practice is to check existence to avoid creating empty dirs if they don't exist on host.
+		// SECURITY: We mount these as Read-Only (:ro) to prevent the agent from modifying or deleting sensitive files on the host.
+
+		sensitiveMounts := []struct {
+			hostPath      string
+			containerPath string
+		}{
+			{".gemini", "/home/appuser/.gemini"},
+			{".config", "/home/appuser/.config"},
+			{".cursor", "/home/appuser/.cursor"},
+			{".ssh", "/home/appuser/.ssh"},
+		}
+
+		for _, m := range sensitiveMounts {
+			hostPath := filepath.Join(homeDir, m.hostPath)
+			if _, err := os.Stat(hostPath); err == nil {
+				extraBinds = append(extraBinds, fmt.Sprintf("%s:%s:ro", hostPath, m.containerPath))
+			}
+		}
 	}
 
 	// Determine host user for mapping
