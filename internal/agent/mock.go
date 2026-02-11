@@ -40,9 +40,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 1. Technical Program Manager (TPM) - Planning Phase
 	if strings.Contains(prompt, "## YOUR ROLE - TECHNICAL PROGRAM MANAGER") ||
-	   strings.Contains(prompt, "Analyze the user's request and create a detailed plan") {
+		strings.Contains(prompt, "Analyze the user's request and create a detailed plan") {
 
-		// If prompt asks for JSON plan, return valid JSON feature list
+		// If prompt asks for JSON plan
 		if strings.Contains(prompt, "JSON") {
 			// Extract project ID if possible, default to "PRIMES" for smoke test
 			projectID := os.Getenv("RECAC_PROJECT_ID")
@@ -57,9 +57,45 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 				}
 			}
 
-			// Return a mock feature list for the Prime Number Script scenario
+			// Check if we need a Ticket Plan (for Jira generation) or a Feature List (for Internal DB)
+			if strings.Contains(strings.ToLower(prompt), "ticket") || strings.Contains(strings.ToLower(prompt), "jira") {
+				// Return Ticket Plan (Array of ticket nodes)
+				return fmt.Sprintf("```json\n[\n  {\n    \"title\": \"ID:[%s] Prime Number Script\",\n    \"description\": \"Implement a Python script that calculates prime numbers.\",\n    \"type\": \"Epic\",\n    \"children\": [\n      {\n        \"title\": \"ID:[%s-1] Implementation\",\n        \"description\": \"Implement primes.py\",\n        \"type\": \"Story\",\n        \"children\": []\n      },\n      {\n        \"title\": \"ID:[%s-2] Testing\",\n        \"description\": \"Add unit tests\",\n        \"type\": \"Story\",\n        \"children\": []\n      }\n    ]\n  }\n]\n```", projectID, projectID, projectID), nil
+			}
+
+			// Return a mock feature list for the Prime Number Script scenario (Internal DB)
 			return fmt.Sprintf("```json\n{\n  \"project_name\": \"%s\",\n  \"features\": [\n    {\n      \"id\": \"1\",\n      \"description\": \"Implement a Python script (primes.py) that calculates the first n prime numbers.\",\n      \"priority\": \"high\",\n      \"status\": \"todo\"\n    },\n    {\n      \"id\": \"2\",\n      \"description\": \"Add unit tests for the prime calculation logic.\",\n      \"priority\": \"medium\",\n      \"status\": \"todo\"\n    }\n  ]\n}\n```", projectID), nil
 		}
+	}
+
+	// 1.5 Initializer Agent - Bootstrap Phase
+	if strings.Contains(prompt, "## YOUR ROLE - INITIALIZER AGENT") {
+		// Return the bootstrap script that the workflow expects
+		// This uses agent-bridge to populate the feature list
+		projectID := os.Getenv("RECAC_PROJECT_ID")
+		if projectID == "" {
+			projectID = "PRIMES"
+		}
+		return fmt.Sprintf(`cat << 'EOF' | agent-bridge import
+{
+  "project_name": "%s",
+  "features": [
+    {
+      "id": "req-script-runs",
+      "description": "Implement primes.py",
+      "status": "pending",
+      "priority": "MVP"
+    }
+  ]
+}
+EOF
+
+cat << 'EOF' > init.sh
+#!/bin/bash
+echo "Initializing..."
+EOF
+chmod +x init.sh
+`, projectID), nil
 	}
 
 	// 2. Coding Agent (Developer) - Implementation Phase
