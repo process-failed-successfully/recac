@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"recac/internal/docker"
@@ -21,12 +22,6 @@ func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, on
 
 
 func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
-	// Skip if no home dir
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		t.Skip("Skipping test because UserHomeDir is unavailable")
-	}
-
 	// Setup mock Docker client
 	client, mock := docker.NewMockClient()
 
@@ -54,6 +49,18 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	session.Agent = &MockAgentForSecurity{}
 	session.Image = "alpine:latest"
 
+	// Mock environment
+	session.UseLocalAgent = false // Force Docker usage
+	mockHome := "/mock/home/user"
+	session.HomeDir = mockHome
+	session.StatFunc = func(path string) (os.FileInfo, error) {
+		// Mock file existence for sensitive paths inside mock home
+		if strings.HasPrefix(path, mockHome) {
+			return nil, nil // Return nil error (file exists)
+		}
+		return nil, os.ErrNotExist
+	}
+
 	// Start session
 	if err := session.Start(context.Background()); err != nil {
 		t.Fatalf("Session.Start failed: %v", err)
@@ -65,9 +72,11 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	foundAny := false
 	for _, path := range sensitivePaths {
 		found := false
+		expectedHostPath := filepath.Join(mockHome, path)
+
 		for _, bind := range capturedBinds {
 			// Check if bind contains the sensitive path
-			if strings.Contains(bind, path) {
+			if strings.Contains(bind, expectedHostPath) {
 				found = true
 				foundAny = true
 				// Check if it is Read-Only
@@ -77,11 +86,11 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 			}
 		}
 		if !found {
-			t.Logf("Note: Sensitive path '%s' not found in binds (might be missing in env)", path)
+			t.Errorf("Sensitive path '%s' was NOT mounted but should have been. Expected bind for: %s", path, expectedHostPath)
 		}
 	}
 
 	if !foundAny {
-		t.Log("WARNING: No sensitive paths were found in binds. Test might be ineffective if environment lacks home dir configs.")
+		t.Error("No sensitive paths were found in binds. StatFunc mock might be failing.")
 	}
 }
