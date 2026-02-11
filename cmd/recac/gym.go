@@ -35,24 +35,15 @@ type GymResult struct {
 	Cost      float64
 }
 
-type SessionRunner func(ctx context.Context, challenge GymChallenge, deps GymDependencies) (*GymResult, error)
-
-// GymDependencies holds the factory functions for gym command
-type GymDependencies struct {
-	DockerFactory  func(project string) (runner.DockerClient, error)
-	AgentFactory   func(provider, apiKey, model, workspace, projectID string) (agent.Agent, error)
-	SessionFactory func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session
-	SessionRunner  SessionRunner
-}
-
-var defaultGymDeps = GymDependencies{
-	DockerFactory: func(project string) (runner.DockerClient, error) {
+// Factory variables for testing
+var (
+	gymDockerClientFactory = func(project string) (runner.DockerClient, error) {
 		return docker.NewClient(project)
-	},
-	AgentFactory:   agent.NewAgent,
-	SessionFactory: runner.NewSession,
-	SessionRunner:  runGymSessionWithDeps,
-}
+	}
+	gymAgentFactory   = agent.NewAgent
+	gymSessionFactory = runner.NewSession
+	runGymSessionFunc = runGymSession
+)
 
 var gymCmd = &cobra.Command{
 	Use:   "gym [path]",
@@ -72,10 +63,6 @@ func init() {
 }
 
 func runGym(cmd *cobra.Command, args []string) error {
-	return runGymWithDeps(cmd, args, defaultGymDeps)
-}
-
-func runGymWithDeps(cmd *cobra.Command, args []string, deps GymDependencies) error {
 	path := "./gym/challenges.yaml"
 	if len(args) > 0 {
 		path = args[0]
@@ -92,7 +79,7 @@ func runGymWithDeps(cmd *cobra.Command, args []string, deps GymDependencies) err
 
 	for _, challenge := range challenges {
 		fmt.Printf("\nRunning challenge: %s\n", challenge.Name)
-		res, err := deps.SessionRunner(cmd.Context(), challenge, deps)
+		res, err := runGymSessionFunc(cmd.Context(), challenge)
 		if err != nil {
 			fmt.Printf("Error running challenge %s: %v\n", challenge.Name, err)
 			results = append(results, GymResult{
@@ -157,7 +144,7 @@ func loadChallengesFile(path string) ([]GymChallenge, error) {
 	return nil, fmt.Errorf("failed to parse challenges file")
 }
 
-func runGymSessionWithDeps(ctx context.Context, challenge GymChallenge, deps GymDependencies) (*GymResult, error) {
+func runGymSession(ctx context.Context, challenge GymChallenge) (*GymResult, error) {
 	start := time.Now()
 
 	// 1. Create Temp Workspace
@@ -171,7 +158,7 @@ func runGymSessionWithDeps(ctx context.Context, challenge GymChallenge, deps Gym
 	// We use a unique project ID for isolation
 	projectID := fmt.Sprintf("gym-%s-%d", strings.ReplaceAll(challenge.Name, " ", "-"), time.Now().Unix())
 
-	d, err := deps.DockerFactory(projectID)
+	d, err := gymDockerClientFactory(projectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init docker: %w", err)
 	}
@@ -193,7 +180,7 @@ func runGymSessionWithDeps(ctx context.Context, challenge GymChallenge, deps Gym
 	apiKey := os.Getenv("RECAC_GYM_API_KEY") // Optional override
 
 	// Use factory
-	a, err := deps.AgentFactory(provider, apiKey, model, workspace, projectID)
+	a, err := gymAgentFactory(provider, apiKey, model, workspace, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init agent: %w", err)
 	}
@@ -205,7 +192,7 @@ func runGymSessionWithDeps(ctx context.Context, challenge GymChallenge, deps Gym
 		image = "recac-agent:latest" // Use local default
 	}
 
-	sess := deps.SessionFactory(d, a, workspace, image, projectID, provider, model, 1)
+	sess := gymSessionFactory(d, a, workspace, image, projectID, provider, model, 1)
 
 	// Configure Session
 	sess.MaxIterations = 10 // Limit iterations for gym

@@ -4,20 +4,20 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 )
 
-// MockAgent is a smart mock agent for testing and mock mode
-// It returns predefined responses based on heuristics to simulate agent behavior
+// MockAgent is a smart mock agent for testing and E2E scenarios
+// It implements heuristics to simulate different agent roles without using an LLM.
 type MockAgent struct {
 	responsePrefix string
 	forcedResponse string
-	hasCommitted   bool
 }
 
 // NewMockAgent creates a new mock agent
 func NewMockAgent() *MockAgent {
 	return &MockAgent{
-		responsePrefix: "Mock agent response",
+		responsePrefix: "Mock Agent",
 	}
 }
 
@@ -32,101 +32,106 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	promptLower := strings.ToLower(prompt)
+	// 1. TPM Role (Planning)
+	// Heuristic: "Technical Program Manager" in prompt
+	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM") {
+		// Return JSON plan (Array of tickets)
+		return `[
+  {
+    "title": "Implement Primes Script",
+    "description": "Create a python script that calculates prime numbers.",
+    "type": "task",
+    "status": "todo"
+  }
+]`, nil
+	}
 
-	// Heuristic: Initializer (Import Features)
-	if strings.Contains(promptLower, "you are the initializer") || strings.Contains(promptLower, "initializer agent") {
+	// 2. Initializer Agent
+	// Heuristic: "INITIALIZER AGENT" header
+	if strings.Contains(prompt, "INITIALIZER AGENT") {
+		// Write feature_list.json to disk
+		// We skip 'agent-bridge import' to avoid binary dependency issues in some CI envs,
+		// relying on runner.Session fallback to read the file.
 		return `
-` + "```bash" + `
-echo '[{"id": "req-primes", "description": "Implement primes.py"}]' > feature_list.json
-ls -la feature_list.json
-cat feature_list.json
-# Note: agent-bridge import is skipped here to avoid binary dependency in CI.
-# The session runner will automatically load feature_list.json from disk on the next iteration.
-` + "```" + `
+echo '{"project_name": "PRIMES", "features": [{"description": "Implement Primes Script", "status": "pending"}]}' > feature_list.json
+echo "Initialized feature_list.json"
 `, nil
 	}
 
-	// Heuristic: Technical Program Manager (Generate Tickets)
-	if strings.Contains(promptLower, "technical program manager") {
-		// JSON response usually doesn't need bash block if handled by a specific parser,
-		// but checking usage: 'jira' command parses JSON directly.
-		return `[{"id": "PRIMES", "key": "PRIMES", "title": "Implement Primes", "description": "Implement primes.py", "type": "Task"}]`, nil
-	}
-
-	// Heuristic: Project Manager (Sign Off)
-	if strings.Contains(promptLower, "project manager") {
-		return `
-` + "```bash" + `
-agent-bridge signal PROJECT_SIGNED_OFF true || touch PROJECT_SIGNED_OFF
-` + "```" + `
-`, nil
-	}
-
-	// Heuristic: Coding Agent (Primes Scenario)
-	if strings.Contains(promptLower, "primes") || strings.Contains(promptLower, "prime number script") {
-		if !m.hasCommitted {
-			m.hasCommitted = true
-			return `
-` + "```bash" + `
+	// 3. Coding Agent (Primes Implementation)
+	// Heuristic: "CODING AGENT" or task specific keywords
+	if strings.Contains(prompt, "CODING AGENT") || strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "Prime Number Script") {
+		// Return bash script to implement primes.py, commit, push, and signal completion
+		// We use RECAC_PROJECT_ID for branch name to ensure consistency with E2E verification
+		script := `
+# Create the script
 cat << 'EOF' > primes.py
-import json
+def is_prime(n):
+    if n <= 1: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0: return False
+    return True
 
-def get_primes(n):
-    primes = []
-    for i in range(2, n):
-        is_prime = True
-        for j in range(2, int(i**0.5) + 1):
-            if i % j == 0:
-                is_prime = False
-                break
-        if is_prime:
-            primes.append(i)
-    return primes
-
-primes = get_primes(10000)
-with open('primes.json', 'w') as f:
-    json.dump({"primes": primes}, f)
+import sys
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        n = int(sys.argv[1])
+        print(f"{n} is prime: {is_prime(n)}")
+    else:
+        print("Primes check passed")
 EOF
 
+# Verify it works
 python3 primes.py
-git add primes.py primes.json
-git commit -m "Implement primes.py and generate primes.json"
-` + "```" + `
-`, nil
-		}
-		// If already committed, signal success to break loop
-		return `
-` + "```bash" + `
+
+# Git operations
+git config --global user.email "mock@example.com"
+git config --global user.name "Mock Agent"
+BRANCH_NAME="agent/${RECAC_PROJECT_ID:-PRIMES-mock}"
+git checkout -b "$BRANCH_NAME" || git checkout "$BRANCH_NAME"
+git add primes.py
+git commit -m "Implement primes.py" || true
+# We use a token if available, or assume SSH/auth is set up
+git push origin "$BRANCH_NAME" || echo "Push failed (expected in local mock)"
+
+# Update status and signal
+agent-bridge feature update "Implement Primes Script" --status completed || true
 agent-bridge signal QA_PASSED true || touch QA_PASSED
-` + "```" + `
+`
+		return script, nil
+	}
+
+	// 4. QA Agent
+	if strings.Contains(prompt, "QA AGENT") {
+		return `
+echo "QA Passed"
+agent-bridge signal QA_PASSED true || touch QA_PASSED
 `, nil
 	}
 
-	// Heuristic: QA Agent
-	if strings.Contains(promptLower, "qa agent") {
+	// 5. Project Manager
+	if strings.Contains(prompt, "PROJECT MANAGER") {
 		return `
-` + "```bash" + `
-agent-bridge signal QA_PASSED true || touch QA_PASSED
-` + "```" + `
+echo "Project Signed Off"
+agent-bridge signal PROJECT_SIGNED_OFF true || touch PROJECT_SIGNED_OFF
 `, nil
 	}
 
-	// Default response
-	return fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
-		m.responsePrefix, len(prompt), truncateString(prompt, 100)), nil
+	// Default fallback for generic prompts
+	return fmt.Sprintf("%s received: %s...", m.responsePrefix, truncateString(prompt, 50)), nil
 }
 
 // SendStream implements the Agent interface
 func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
 	resp, err := m.Send(ctx, prompt)
 	if err == nil && onChunk != nil {
+		// Minimal delay to prevent timeouts in tests while simulating async
+		time.Sleep(10 * time.Millisecond)
 		onChunk(resp)
 	}
 	return resp, err
 }
 
-// truncateString truncates a string to a maximum length
 func truncateString(s string, maxLen int) string {
 	if len(s) <= maxLen {
 		return s

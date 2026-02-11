@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"os"
 	"path/filepath"
+	"log/slog"
 	"recac/internal/agent"
 	"recac/internal/docker"
 	"recac/internal/notify"
@@ -102,8 +102,11 @@ func TestLoadChallenges(t *testing.T) {
 }
 
 func TestRunGym(t *testing.T) {
-	deps := defaultGymDeps
-	deps.SessionRunner = func(ctx context.Context, challenge GymChallenge, deps GymDependencies) (*GymResult, error) {
+	// Mock runGymSessionFunc
+	originalRunGymSessionFunc := runGymSessionFunc
+	defer func() { runGymSessionFunc = originalRunGymSessionFunc }()
+
+	runGymSessionFunc = func(ctx context.Context, challenge GymChallenge) (*GymResult, error) {
 		if challenge.Name == "Fail Challenge" {
 			return nil, errors.New("simulated error")
 		}
@@ -129,35 +132,44 @@ func TestRunGym(t *testing.T) {
 	assert.NoError(t, err)
 
 	cmd := &cobra.Command{}
-	err = runGymWithDeps(cmd, []string{yamlPath}, deps)
+	err = runGym(cmd, []string{yamlPath})
 	assert.NoError(t, err)
 	// We verify output by checking no error return. Reporting logic prints to stdout.
 }
 
 func TestRunGymSession(t *testing.T) {
-	mockDocker := new(GymMockDockerClient)
-	mockAgent := new(GymMockAgent)
+	// Mock factories
+	originalDockerFactory := gymDockerClientFactory
+	originalAgentFactory := gymAgentFactory
+	originalSessionFactory := gymSessionFactory
+	defer func() {
+		gymDockerClientFactory = originalDockerFactory
+		gymAgentFactory = originalAgentFactory
+		gymSessionFactory = originalSessionFactory
+	}()
 
-	deps := GymDependencies{
-		DockerFactory: func(project string) (runner.DockerClient, error) {
-			return mockDocker, nil
-		},
-		AgentFactory: func(provider, apiKey, model, workspace, projectID string) (agent.Agent, error) {
-			return mockAgent, nil
-		},
-		SessionFactory: func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
-			return &runner.Session{
-				Docker:        d,
-				Agent:         a,
-				Workspace:     workspace,
-				Image:         image,
-				Project:       project,
-				MaxIterations: 1,
-				Notifier:      notify.NewManager(telemetry.LogInfof),
-				Logger:        slog.Default(),
-			}
-		},
-		SessionRunner: runGymSessionWithDeps,
+	mockDocker := new(GymMockDockerClient)
+	gymDockerClientFactory = func(project string) (runner.DockerClient, error) {
+		return mockDocker, nil
+	}
+
+	mockAgent := new(GymMockAgent)
+	gymAgentFactory = func(provider, apiKey, model, workspace, projectID string) (agent.Agent, error) {
+		return mockAgent, nil
+	}
+
+	// Mock Session creation to return a safe session without side effects (DB, etc)
+	gymSessionFactory = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
+		return &runner.Session{
+			Docker:        d,
+			Agent:         a,
+			Workspace:     workspace,
+			Image:         image,
+			Project:       project,
+			MaxIterations: 1,
+			Notifier:      notify.NewManager(telemetry.LogInfof),
+			Logger:        slog.Default(),
+		}
 	}
 
 	// Challenge data
@@ -174,6 +186,11 @@ func TestRunGymSession(t *testing.T) {
 	mockDocker.On("RunContainer", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("mock-container-id", nil)
 	mockDocker.On("StopContainer", mock.Anything, "mock-container-id").Return(nil)
 
+	// Setup calls (passwd, git, etc) - allow any Exec/ExecAsUser calls generally
+	// But match specific verification call specifically if needed.
+	// Since verification is the last step, we can return "OK" for the python test, and "" for others.
+	// However, testify mock matches in order or specific args.
+
 	// Helper to match verification command
 	isVerificationCmd := func(cmd []string) bool {
 		return len(cmd) > 0 && cmd[0] == "python3" && cmd[1] == "test.py"
@@ -188,7 +205,7 @@ func TestRunGymSession(t *testing.T) {
 
 	// Run
 	ctx := context.Background()
-	res, err := deps.SessionRunner(ctx, challenge, deps)
+	res, err := runGymSession(ctx, challenge)
 	assert.NoError(t, err)
 	assert.NotNil(t, res)
 	assert.True(t, res.Passed)

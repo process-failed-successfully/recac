@@ -1,29 +1,15 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
-	"recac/internal/agent"
 	"recac/internal/agent/prompts"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
-
-type OptimizeDependencies struct {
-	AgentFactory func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error)
-	GymRunner    func(ctx context.Context, challenge GymChallenge, deps GymDependencies) (*GymResult, error)
-	GymDeps      GymDependencies
-}
-
-var defaultOptimizeDeps = OptimizeDependencies{
-	AgentFactory: agentClientFactory,
-	GymRunner:    runGymSessionWithDeps,
-	GymDeps:      defaultGymDeps,
-}
 
 var optimizePromptsCmd = &cobra.Command{
 	Use:   "optimize-prompts",
@@ -44,10 +30,6 @@ func init() {
 }
 
 func runOptimizePrompts(cmd *cobra.Command, args []string) error {
-	return runOptimizePromptsWithDeps(cmd, args, defaultOptimizeDeps)
-}
-
-func runOptimizePromptsWithDeps(cmd *cobra.Command, args []string, deps OptimizeDependencies) error {
 	challengePath, _ := cmd.Flags().GetString("challenge")
 	promptName, _ := cmd.Flags().GetString("prompt")
 	maxIterations, _ := cmd.Flags().GetInt("iterations")
@@ -98,7 +80,7 @@ func runOptimizePromptsWithDeps(cmd *cobra.Command, args []string, deps Optimize
 	// 4. Initialize Meta-Agent
 	ctx := cmd.Context()
 	cwd, _ := os.Getwd()
-	metaAgent, err := deps.AgentFactory(ctx, viper.GetString("provider"), viper.GetString("model"), cwd, "recac-meta-optimizer")
+	metaAgent, err := agentClientFactory(ctx, viper.GetString("provider"), viper.GetString("model"), cwd, "recac-meta-optimizer")
 	if err != nil {
 		return fmt.Errorf("failed to create meta-agent: %w", err)
 	}
@@ -110,7 +92,7 @@ func runOptimizePromptsWithDeps(cmd *cobra.Command, args []string, deps Optimize
 		// Run Gym
 		// Note: The session created inside runGymSessionFunc calls GetPrompt,
 		// which checks RECAC_PROMPTS_DIR, so it picks up our modified file.
-		result, err := deps.GymRunner(ctx, targetChallenge, deps.GymDeps)
+		result, err := runGymSessionFunc(ctx, targetChallenge)
 		if err != nil {
 			// System error (docker fail, etc)
 			return fmt.Errorf("gym execution failed: %w", err)
