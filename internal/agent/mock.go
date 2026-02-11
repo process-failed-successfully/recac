@@ -100,6 +100,7 @@ git commit -m "Implement primes.py and generate primes.json"
 		// If already committed, signal success to break loop
 		return `
 ` + "```bash" + `
+agent-bridge feature update req-primes --status implemented
 agent-bridge signal QA_PASSED true || touch QA_PASSED
 ` + "```" + `
 `, nil
