@@ -51,7 +51,8 @@ agent-bridge import feature_list.json
 	}
 
 	// Heuristic: Technical Program Manager (Generate Tickets)
-	if strings.Contains(promptLower, "technical program manager") {
+	// Relaxed heuristic to match roles like "Project Manager" or "Architect" if they are asked to generate tickets
+	if strings.Contains(promptLower, "technical program manager") || strings.Contains(promptLower, "generate tickets") || strings.Contains(promptLower, "break down the spec") {
 		return `[{"id": "PRIMES", "key": "PRIMES", "title": "Implement Primes", "description": "Implement primes.py", "type": "Task"}]`, nil
 	}
 
