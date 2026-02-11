@@ -21,7 +21,7 @@ max_parallel_tickets: 1
 metrics_port: 2112
 mock: false
 mock-agent: false
-model: nex-agi/deepseek-v3.1-nex-n1:free
+model: nvidia/nemotron-3-nano-30b-a3b:free
 name: ""
 notifications:
     discord:
@@ -36,7 +36,7 @@ notifications:
             on_success: true
             on_user_interaction: true
 orchestrator:
-    agent_model: nex-agi/deepseek-v3.1-nex-n1:free
+    agent_model: nvidia/nemotron-3-nano-30b-a3b:free
     agent_provider: openrouter
     image: ghcr.io/process-failed-successfully/recac-agent:latest
     image_pull_policy: Always
