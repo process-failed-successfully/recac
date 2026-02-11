@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"recac/internal/docker"
@@ -21,12 +22,6 @@ func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, on
 
 
 func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
-	// Skip if no home dir
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		t.Skip("Skipping test because UserHomeDir is unavailable")
-	}
-
 	// Setup mock Docker client
 	client, mock := docker.NewMockClient()
 
@@ -54,52 +49,48 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	session.Agent = &MockAgentForSecurity{}
 	session.Image = "alpine:latest"
 
-	// Explicitly force container creation logic even in CI (where KUBERNETES_SERVICE_HOST might be set)
-	session.UseLocalAgent = false
+	// Configure mock filesystem environment to ensure deterministic test behavior
+	mockHome := "/mock/home"
+	session.HomeDir = mockHome
+	session.StatFunc = func(path string) (os.FileInfo, error) {
+		// Mock existence for our sensitive paths
+		// Paths will be like /mock/home/.ssh
+		if strings.HasPrefix(path, mockHome) {
+			return nil, nil // Return nil info and nil error (success)
+		}
+		return nil, os.ErrNotExist
+	}
 
 	// Start session
 	if err := session.Start(context.Background()); err != nil {
 		t.Fatalf("Session.Start failed: %v", err)
 	}
 
-	// Verify sensitive mounts with strict checking
-	sensitivePaths := map[string]string{
-		".ssh":    "/home/appuser/.ssh",
-		".config": "/home/appuser/.config",
-		".gemini": "/home/appuser/.gemini",
-		".cursor": "/home/appuser/.cursor",
-	}
+	// Verify sensitive mounts
+	sensitivePaths := []string{".ssh", ".config", ".gemini", ".cursor"}
 
 	foundAny := false
-	for name, containerPath := range sensitivePaths {
+	for _, path := range sensitivePaths {
+		expectedPath := filepath.Join(mockHome, path)
 		found := false
 		for _, bind := range capturedBinds {
-			// Strict check: Must target the correct container path AND be Read-Only
-			// Format: /host/path:/container/path:ro
-			// We check suffix because host path is variable
-			expectedSuffix := ":" + containerPath + ":ro"
-			if strings.HasSuffix(bind, expectedSuffix) {
+			// Bind format: /host/path:/container/path:ro
+			// Check if bind starts with the expected host path
+			if strings.HasPrefix(bind, expectedPath) {
 				found = true
 				foundAny = true
-				break
-			}
-
-			// Fallback check to catch missing :ro flag but correct path
-			// This helps debug if the path is mounted but not RO
-			pathSuffix := ":" + containerPath
-			if strings.HasSuffix(bind, pathSuffix) {
-				t.Errorf("Security Vulnerability: Sensitive path '%s' is mounted Read-Write! Bind: %s", name, bind)
-				found = true // Mark as found to avoid "not found" log, error is already reported
-				foundAny = true
-				break
+				// Check if it is Read-Only
+				if !strings.HasSuffix(bind, ":ro") {
+					t.Errorf("Security Vulnerability: Sensitive path '%s' is mounted Read-Write! Bind: %s", path, bind)
+				}
 			}
 		}
 		if !found {
-			t.Logf("Note: Sensitive path '%s' not found in binds (might be missing in env)", name)
+			t.Errorf("Expected sensitive path '%s' (host: %s) to be mounted, but it was not found in binds: %v", path, expectedPath, capturedBinds)
 		}
 	}
 
 	if !foundAny {
-		t.Log("WARNING: No sensitive paths were found in binds. Test might be ineffective if environment lacks home dir configs.")
+		t.Errorf("No sensitive paths were found in binds. Test failed to simulate sensitive files.")
 	}
 }
