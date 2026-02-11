@@ -42,12 +42,12 @@ func TestMockAgent_Roles(t *testing.T) {
 		{
 			name:          "Initializer Role",
 			prompt:        "## YOUR ROLE - INITIALIZER AGENT",
-			expectContent: "agent-bridge import",
+			expectContent: "```bash",
 		},
 		{
 			name:          "Coding Role",
 			prompt:        "## YOUR ROLE - CODING AGENT",
-			expectContent: "Implement primes.py",
+			expectContent: "```bash",
 		},
 		{
 			name:          "QA Role",

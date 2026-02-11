@@ -81,8 +81,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 2. Initializer Agent
 	if strings.Contains(prompt, "## YOUR ROLE - INITIALIZER AGENT") {
 		fmt.Println("[MockAgent] Detected Initializer Role")
-		// Return a bash script that imports features
-		return `#!/bin/bash
+		// Return a bash script that imports features, wrapped in code block
+		return "```bash\n" + `#!/bin/bash
 cat << 'EOF' | agent-bridge import
 {
   "features": [
@@ -95,7 +95,7 @@ cat << 'EOF' | agent-bridge import
   ]
 }
 EOF
-`, nil
+` + "```", nil
 	}
 
 	// 3. QA Agent
@@ -120,8 +120,8 @@ EOF
 
 		fmt.Println("[MockAgent] Detected Coding Role")
 
-		// Basic Python implementation
-		return `#!/bin/bash
+		// Basic Python implementation wrapped in code block
+		return "```bash\n" + `#!/bin/bash
 # Implement primes.py
 cat << 'EOF' > primes.py
 def is_prime(n):
@@ -139,7 +139,7 @@ EOF
 # Signal completion via agent-bridge (simulated if not available)
 agent-bridge feature update PRIMES-1 --status completed || true
 echo "Implementation complete."
-`, nil
+` + "```", nil
 	}
 
 	// Default / Fallback Response
