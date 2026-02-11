@@ -125,6 +125,7 @@ func runPair(cmd *cobra.Command, args []string) error {
 	// Map to track pending updates per file
 	var mu sync.Mutex
 	timers := make(map[string]*time.Timer)
+	var wg sync.WaitGroup
 
 	// Use command context for cancellation
 	ctx := cmd.Context()
@@ -142,7 +143,9 @@ func runPair(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to initialize agent: %w", err)
 	}
 
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		for {
 			select {
 			case event, ok := <-watcher.Events():
@@ -197,12 +200,18 @@ func runPair(cmd *cobra.Command, args []string) error {
 				}
 				fmt.Fprintf(cmd.ErrOrStderr(), "Watcher error: %v\n", err)
 			case <-ctx.Done():
+				mu.Lock()
+				for _, t := range timers {
+					t.Stop()
+				}
+				mu.Unlock()
 				return
 			}
 		}
 	}()
 
 	<-ctx.Done()
+	wg.Wait()
 	return nil
 }
 

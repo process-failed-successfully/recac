@@ -60,12 +60,20 @@ func TestArenaCmd(t *testing.T) {
 		arenaJudgeProv = "mock"
 		arenaJudgeModel = "judge"
 
+		// Ensure thread-safe output
+		outBuf := &ThreadSafeBuffer{}
+		errBuf := &ThreadSafeBuffer{}
+		arenaCmd.SetOut(outBuf)
+		arenaCmd.SetErr(errBuf)
+
 		err := runArena(arenaCmd, []string{})
 		assert.NoError(t, err)
 	})
 
 	t.Run("Run Arena Validation Error", func(t *testing.T) {
 		arenaCompetitors = "openai:gpt-4" // Only one
+		arenaCmd.SetOut(&ThreadSafeBuffer{})
+		arenaCmd.SetErr(&ThreadSafeBuffer{})
 		err := runArena(arenaCmd, []string{})
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "requires at least 2 competitors")
@@ -85,6 +93,12 @@ func TestArenaCmd(t *testing.T) {
 		agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
 			return &MockArenaAgent{Response: "OK"}, nil
 		}
+
+		// Ensure thread-safe output
+		outBuf := &ThreadSafeBuffer{}
+		errBuf := &ThreadSafeBuffer{}
+		arenaCmd.SetOut(outBuf)
+		arenaCmd.SetErr(errBuf)
 
 		err := runArena(arenaCmd, []string{})
 		assert.NoError(t, err)
