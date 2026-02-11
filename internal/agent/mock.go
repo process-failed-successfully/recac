@@ -35,9 +35,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 1. TPM Role (Planning)
 	// The TPM prompt usually starts with specific role definition
 	if strings.Contains(prompt, "You are an expert Technical Program Manager (TPM)") {
-		// Return a JSON plan for the 'Primes' scenario
-		// The format must be a JSON array of ticketNode objects
-		return `[
+		// Return a JSON plan for the 'Primes' scenario wrapped in a bash script
+		// This ensures the circuit breaker doesn't trip on "no-op" (empty execution output)
+		return `#!/bin/bash
+cat << 'EOF'
+[
   {
     "title": "ID:[PRIMES] Implement Primes",
     "description": "Implement a Python script to calculate prime numbers.",
@@ -48,7 +50,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     ],
     "dependencies": []
   }
-]`, nil
+]
+EOF
+`, nil
 	}
 
 	// 2. Initializer Agent
