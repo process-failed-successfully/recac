@@ -93,6 +93,7 @@ EOF
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Implement primes.py and generate primes.json"
+agent-bridge feature update req-primes --status completed
 ` + "```" + `
 `, nil
 		}
