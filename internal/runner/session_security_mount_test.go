@@ -3,49 +3,55 @@ package runner
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"recac/internal/agent"
 )
 
-// MockAgentForSecurity implements agent.Agent
-type MockAgentForSecurity struct{}
-func (m *MockAgentForSecurity) Send(ctx context.Context, prompt string) (string, error) { return "", nil }
-func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) { return "", nil }
-
-
 func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
-	// Skip if no home dir
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		t.Skip("Skipping test because UserHomeDir is unavailable")
+	// Create a temporary directory for home
+	tempHome, err := os.MkdirTemp("", "recac-test-home")
+	if err != nil {
+		t.Fatalf("Failed to create temp home: %v", err)
+	}
+	defer os.RemoveAll(tempHome)
+
+	// Create dummy sensitive files/directories
+	sensitivePaths := []string{".gemini", ".config", ".cursor", ".ssh"}
+	for _, p := range sensitivePaths {
+		path := filepath.Join(tempHome, p)
+		if err := os.MkdirAll(path, 0755); err != nil {
+			t.Fatalf("Failed to create sensitive path %s: %v", path, err)
+		}
 	}
 
-	// Setup mock Docker client using the package-level MockDockerClient
-	mock := &MockDockerClient{}
-
-	// We want to capture the binds
+	// Capture binds
 	var capturedBinds []string
 
-	mock.RunContainerFunc = func(ctx context.Context, image, workspace string, extraBinds, env []string, user string) (string, error) {
-		capturedBinds = extraBinds
-		return "test-id", nil
+	// Setup mock Docker client using the package-level struct
+	mockDocker := &MockDockerClient{
+		RunContainerFunc: func(ctx context.Context, image, workspace string, extraBinds, env []string, user string) (string, error) {
+			capturedBinds = extraBinds
+			return "test-container-id", nil
+		},
+		ImageExistsFunc: func(ctx context.Context, image string) (bool, error) {
+			return true, nil
+		},
+		ExecAsUserFunc: func(ctx context.Context, containerID, user string, cmd []string) (string, error) {
+			return "", nil // Success
+		},
 	}
 
-	// Mock ImageExists to return true
-	mock.ImageExistsFunc = func(ctx context.Context, image string) (bool, error) {
-		return true, nil
-	}
-
-	// Mock ExecAsUser to prevent git bootstrap failure
-	mock.ExecAsUserFunc = func(ctx context.Context, containerID, user string, cmd []string) (string, error) {
-		return "", nil
-	}
-
-	// Use NewSessionWithConfig to avoid DB initialization issues
+	// Use NewSessionWithConfig to initialize basic session
 	session := NewSessionWithConfig("/tmp/workspace", "test-project", "mock", "mock-model", nil)
-	session.Docker = mock
-	session.Agent = &MockAgentForSecurity{}
+
+	// Inject dependencies
+	session.Docker = mockDocker
+	session.Agent = agent.NewMockAgent()
 	session.Image = "alpine:latest"
+	session.HomeDir = tempHome
+	session.UseLocalAgent = false // Ensure we test Docker path
 
 	// Start session
 	if err := session.Start(context.Background()); err != nil {
@@ -53,28 +59,34 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	}
 
 	// Verify sensitive mounts
-	sensitivePaths := []string{".ssh", ".config", ".gemini", ".cursor"}
-
-	foundAny := false
 	for _, path := range sensitivePaths {
 		found := false
+
+		// Expected bind format: /path/to/home/.ssh:/home/appuser/.ssh:ro
+		// We need to check if the host path matches our tempHome joined with the sensitive path
+		expectedHostPath := filepath.Join(tempHome, path)
+
 		for _, bind := range capturedBinds {
-			// Check if bind contains the sensitive path
-			if strings.Contains(bind, path) {
-				found = true
-				foundAny = true
-				// Check if it is Read-Only
-				if !strings.HasSuffix(bind, ":ro") {
-					t.Errorf("Security Vulnerability: Sensitive path '%s' is mounted Read-Write! Bind: %s", path, bind)
+			parts := strings.Split(bind, ":")
+			if len(parts) >= 2 {
+				if parts[0] == expectedHostPath {
+					found = true
+
+					// Check for Read-Only flag
+					isRO := false
+					if len(parts) >= 3 && parts[2] == "ro" {
+						isRO = true
+					}
+
+					if !isRO {
+						t.Errorf("Security Vulnerability: Sensitive path '%s' is mounted Read-Write! Bind: %s", path, bind)
+					}
 				}
 			}
 		}
-		if !found {
-			t.Logf("Note: Sensitive path '%s' not found in binds (might be missing in env)", path)
-		}
-	}
 
-	if !foundAny {
-		t.Log("WARNING: No sensitive paths were found in binds. Test might be ineffective if environment lacks home dir configs.")
+		if !found {
+			t.Errorf("Sensitive path '%s' not found in binds. Captured binds: %v", path, capturedBinds)
+		}
 	}
 }
