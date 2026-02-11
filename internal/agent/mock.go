@@ -34,6 +34,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	// Debug logging for CI failures
+	fmt.Printf("DEBUG MOCK AGENT PROMPT: %s\n", prompt)
+
 	lowerPrompt := strings.ToLower(prompt)
 
 	// --- Heuristics ---
@@ -72,7 +75,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 4. Coding Agent (Prime Python Scenario)
-	if strings.Contains(lowerPrompt, "primes.py") || strings.Contains(lowerPrompt, "prime number script") || strings.Contains(lowerPrompt, "generate primes") || strings.Contains(lowerPrompt, "req-script-runs") || strings.Contains(lowerPrompt, "req-output-is-valid-json") {
+	if strings.Contains(lowerPrompt, "primes.py") || strings.Contains(lowerPrompt, "prime number script") || strings.Contains(lowerPrompt, "generate primes") || strings.Contains(lowerPrompt, "req-script-runs") || strings.Contains(lowerPrompt, "req-output-is-valid-json") || strings.Contains(lowerPrompt, "implement primes.py") {
 		// Return the python script implementation
 		return `Here is the implementation for primes.py:
 
