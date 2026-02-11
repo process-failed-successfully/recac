@@ -83,6 +83,21 @@ func (c *GeminiClient) sendOnce(ctx context.Context, prompt string) (string, err
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	// The key is passed via URL query param 'key' for v1beta endpoints usually,
+	// but can also be passed via header x-goog-api-key.
+	// However, some client libraries or proxies might strip custom headers.
+	// Let's try adding it to the query param as well for robustness if header fails?
+	// Actually, for Google AI Studio (generativelanguage.googleapis.com), the docs primarily suggest query param 'key'.
+	// But let's check if the header is sufficient.
+	// The error 400 "API key not valid" suggests the key was received but rejected OR malformed OR not received.
+	// If not received, it usually says "API key not found".
+	// "API key not valid" usually means it's wrong.
+	// BUT, if we are passing it in header, maybe the endpoint expects it in query param?
+	// Let's force it into the query param as per standard Google API practices.
+	q := req.URL.Query()
+	q.Add("key", c.apiKey)
+	req.URL.RawQuery = q.Encode()
+
 	req.Header.Set("x-goog-api-key", c.apiKey)
 
 	resp, err := c.httpClient.Do(req)
