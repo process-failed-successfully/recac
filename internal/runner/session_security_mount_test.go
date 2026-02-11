@@ -62,6 +62,21 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	session.Image = "alpine:latest"
 	session.HomeDir = tempHome
 
+	// Mock StatFunc to ensure sensitive paths are "found" regardless of CI environment permissions/quirks.
+	// This makes the test deterministic: it verifies that IF the files exist (according to StatFunc),
+	// THEN they are mounted Read-Only.
+	session.StatFunc = func(name string) (os.FileInfo, error) {
+		// Check if the path corresponds to one of our sensitive directories
+		dirs := []string{".gemini", ".config", ".cursor", ".ssh"}
+		for _, d := range dirs {
+			if filepath.Base(name) == d {
+				return nil, nil // Simulate existence (success)
+			}
+		}
+		// Fallback to real os.Stat for other things
+		return os.Stat(name)
+	}
+
 	// Start session
 	if err := session.Start(context.Background()); err != nil {
 		t.Fatalf("Session.Start failed: %v", err)
