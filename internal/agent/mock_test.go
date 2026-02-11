@@ -34,7 +34,7 @@ func TestMockAgent_Send(t *testing.T) {
 		resp, err := agent.Send(ctx, prompt)
 		require.NoError(t, err)
 		assert.Contains(t, resp, "[")
-		assert.Contains(t, resp, "\"summary\": \"ID:[PRIMES] Prime Number Script\"")
+		assert.Contains(t, resp, "\"title\": \"ID:[PRIMES] Prime Number Script\"")
 		assert.Contains(t, resp, "\"type\": \"Task\"")
 		assert.NotContains(t, resp, "cat << 'EOF' > primes.py")
 	})

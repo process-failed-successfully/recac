@@ -66,7 +66,30 @@ Files created.
 `, nil
 	}
 
-	// 2. [PRIMES] Task Handling
+	// 2. Manager/QA Approval
+	if strings.Contains(lowerPrompt, "qa agent") {
+		return `I have verified the implementation.
+
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```" + `
+
+All checks passed.
+`, nil
+	}
+
+	if strings.Contains(lowerPrompt, "manager agent") || strings.Contains(lowerPrompt, "review qa report") {
+		return `APPROVED. I approve this project.
+
+` + "```bash" + `
+agent-bridge signal --privileged PROJECT_SIGNED_OFF true
+` + "```" + `
+
+Great work.
+`, nil
+	}
+
+	// 3. [PRIMES] Task Handling
 	if strings.Contains(strings.ToUpper(prompt), "[PRIMES]") {
 		// A. Ticket Generation Request
 		if strings.Contains(lowerPrompt, "generate") || strings.Contains(lowerPrompt, "ticket") || strings.Contains(lowerPrompt, "json") {
@@ -103,6 +126,9 @@ EOF
 # Run the script to generate the output
 python3 primes.py
 
+# Mark feature as done
+agent-bridge feature set req-primes --status done --passes true
+
 # Commit the files
 git add primes.py primes.json
 git commit -m "Implement primes.py and generate primes.json"
@@ -110,29 +136,6 @@ git push
 ` + "```" + `
 
 I have implemented the script, generated the JSON, and committed the changes.
-`, nil
-	}
-
-	// 3. Manager/QA Approval
-	if strings.Contains(lowerPrompt, "qa agent") {
-		return `I have verified the implementation.
-
-` + "```bash" + `
-agent-bridge signal QA_PASSED true
-` + "```" + `
-
-All checks passed.
-`, nil
-	}
-
-	if strings.Contains(lowerPrompt, "manager agent") || strings.Contains(lowerPrompt, "review qa report") {
-		return `I approve this project.
-
-` + "```bash" + `
-agent-bridge signal --privileged PROJECT_SIGNED_OFF true
-` + "```" + `
-
-Great work.
 `, nil
 	}
 
