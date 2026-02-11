@@ -96,7 +96,9 @@ Great work.
 	// which is safe for the smoke test as there is only one implementation task.
 	if strings.Contains(strings.ToUpper(prompt), "[PRIMES]") || strings.Contains(lowerPrompt, "prime number script") || strings.Contains(lowerPrompt, "primes.py") || strings.Contains(lowerPrompt, "your role - coding agent") {
 		// A. Ticket Generation Request
-		if strings.Contains(lowerPrompt, "generate") || strings.Contains(lowerPrompt, "ticket") || strings.Contains(lowerPrompt, "json") {
+		// We avoid matching just "json" or "ticket" as they appear in file contexts and ticket IDs.
+		// We require "generate" AND ("ticket" OR "jira"), OR the explicit TPM persona.
+		if strings.Contains(lowerPrompt, "expert technical program manager") || (strings.Contains(lowerPrompt, "generate") && (strings.Contains(lowerPrompt, "ticket") || strings.Contains(lowerPrompt, "jira"))) {
 			// Note: We MUST return "title" key to match the ticketNode struct expected by the parser.
 			return `[
   {
