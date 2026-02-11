@@ -74,18 +74,6 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		}
 
 		// Note: Returns title (not summary) as per memory requirements for internal/jira/client.go mapping
-		// Updated ID to match what the system seems to expect/generate, or update acceptance criteria to be simpler.
-		// The system normalizes "script-prints-primes" to include "script-pr" or similar?
-		// Logs showed "req-script-prints-primes-script-pr". This usually comes from normalizing "script-prints-primes".
-		// Let's use "script-prints-primes" in the acceptance criteria ID. The system likely prefixes 'req-' and suffixes based on text?
-		// Actually, let's keep it simple and just match what the Coding Agent will look for.
-		// If I change the acceptance criteria ID here to just "script-prints-primes", the system ID might be "req-script-prints-primes".
-		// But let's look at the Coding Agent response below. It uses "req-script-prints-primes".
-		// The logs said the system was looking for "req-script-prints-primes-script-pr".
-		// This implies the ID generated from "script-prints-primes: Script prints primes..." became that.
-		// Let's force the ID in the TPM response to align with Coding Agent's expectation if possible,
-		// OR update Coding Agent to use the ID the system generates.
-		// Updating Coding Agent is safer as we saw what the system expects.
 		return fmt.Sprintf(`[
   {
     "title": "ID:[PRIMES] Implement Prime Number Generator",
@@ -126,8 +114,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			"EOF\n" +
 			"\n" +
 			"python3 primes.py\n" +
-			// Update feature ID to match what the system expects from the TPM ticket
-			"agent-bridge feature set req-script-prints-primes-script-pr passed || agent-bridge feature set req-script-prints-primes passed || true\n" +
+			// Corrected syntax: agent-bridge feature set <ID> --status done --passes true
+			"agent-bridge feature set req-script-prints-primes-script-pr --status done --passes true || agent-bridge feature set req-script-prints-primes --status done --passes true || true\n" +
 			"git add primes.py\n" +
 			"git commit -m \"Implement primes.py\" || echo \"Nothing to commit\"\n" +
 			"```", nil
