@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"recac/internal/docker"
@@ -21,10 +22,17 @@ func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, on
 
 
 func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
-	// Skip if no home dir
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		t.Skip("Skipping test because UserHomeDir is unavailable")
+	// Create a temporary home directory
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+
+	// Create dummy sensitive directories to ensure they are picked up by Start()
+	sensitivePaths := []string{".ssh", ".config", ".gemini", ".cursor"}
+	for _, p := range sensitivePaths {
+		path := filepath.Join(tmpHome, p)
+		if err := os.MkdirAll(path, 0755); err != nil {
+			t.Fatalf("Failed to create dummy dir %s: %v", path, err)
+		}
 	}
 
 	// Setup mock Docker client
@@ -59,9 +67,6 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 		t.Fatalf("Session.Start failed: %v", err)
 	}
 
-	// Verify sensitive mounts
-	sensitivePaths := []string{".ssh", ".config", ".gemini", ".cursor"}
-
 	foundAny := false
 	for _, path := range sensitivePaths {
 		found := false
@@ -77,11 +82,11 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 			}
 		}
 		if !found {
-			t.Logf("Note: Sensitive path '%s' not found in binds (might be missing in env)", path)
+			t.Errorf("Expected sensitive path '%s' to be mounted, but it was not found in binds: %v", path, capturedBinds)
 		}
 	}
 
 	if !foundAny {
-		t.Log("WARNING: No sensitive paths were found in binds. Test might be ineffective if environment lacks home dir configs.")
+		t.Error("FAILED: No sensitive paths were found in binds, but they exist in the mock environment. Logic failure in Session.Start?")
 	}
 }
