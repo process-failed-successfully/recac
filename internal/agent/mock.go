@@ -11,6 +11,7 @@ import (
 type MockAgent struct {
 	responsePrefix string
 	forcedResponse string
+	iterationCount int
 }
 
 // NewMockAgent creates a new mock agent
@@ -28,6 +29,8 @@ func (m *MockAgent) SetResponse(response string) {
 // Send implements the Agent interface
 // It returns a mock response that acknowledges the prompt
 func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
+	m.iterationCount++
+
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
@@ -35,6 +38,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristic: Check if this is a TPM/Jira request
 	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "Jira") {
 		return m.handleTPMRequest(prompt), nil
+	}
+
+	// Heuristic: Coding Agent / Implementation tasks
+	// Checks for common task keywords or role definitions
+	if strings.Contains(prompt, "Implement") || strings.Contains(prompt, "Setup") || strings.Contains(prompt, "Coding Agent") {
+		return m.handleCodingRequest(prompt), nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
@@ -69,6 +78,26 @@ func (m *MockAgent) handleTPMRequest(prompt string) string {
   }
 ]
 `
+}
+
+func (m *MockAgent) handleCodingRequest(prompt string) string {
+	// Simulate a working coding agent
+	// Return executable commands to prevent "NO-OP LOOP" circuit breaker
+
+	if m.iterationCount > 5 {
+		// Signal completion
+		return `I have completed the task.
+QA_PASSED
+`
+	}
+
+	return fmt.Sprintf(`I am working on the task (iteration %d).
+I will verify the environment and implement the changes.
+
+`+"```bash\n"+`echo "Mock Agent: performing work iteration %d"
+# Simulate creating a file
+echo "work done" >> mock_work.txt
+`+"```\n", m.iterationCount, m.iterationCount)
 }
 
 // SendStream implements the Agent interface

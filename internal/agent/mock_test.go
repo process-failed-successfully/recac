@@ -24,6 +24,29 @@ func TestMockAgent_Send_TPM(t *testing.T) {
 	assert.Equal(t, "Implement basic feature", tickets[0]["title"])
 }
 
+func TestMockAgent_Send_Coding(t *testing.T) {
+	agent := NewMockAgent()
+	ctx := context.Background()
+
+	prompt := "Implement the requested feature"
+
+	// Iteration 1
+	resp1, err := agent.Send(ctx, prompt)
+	assert.NoError(t, err)
+	assert.Contains(t, resp1, "mock_work.txt")
+	assert.Contains(t, resp1, "bash")
+
+	// Iteration 2-5 (work)
+	for i := 0; i < 4; i++ {
+		_, _ = agent.Send(ctx, prompt)
+	}
+
+	// Iteration 6 (completion)
+	respFinal, err := agent.Send(ctx, prompt)
+	assert.NoError(t, err)
+	assert.Contains(t, respFinal, "QA_PASSED")
+}
+
 func TestMockAgent_Send_Generic(t *testing.T) {
 	agent := NewMockAgent()
 	ctx := context.Background()
