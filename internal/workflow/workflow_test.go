@@ -166,6 +166,13 @@ func TestRunWorkflow_Detached(t *testing.T) {
 }
 
 func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
+	// Mock RunWorkflow
+	originalRunWorkflow := RunWorkflow
+	defer func() { RunWorkflow = originalRunWorkflow }()
+	RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
+		return nil // Prevent running the full session
+	}
+
 	// Mock SetupWorkspace
 	originalSetup := cmdutils.SetupWorkspace
 	defer func() { cmdutils.SetupWorkspace = originalSetup }()
@@ -243,7 +250,7 @@ func TestRunWorkflow_Normal(t *testing.T) {
 	defer func() { NewSessionFunc = originalNewSessionFunc }()
 	NewSessionFunc = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
 		s := runner.NewSession(d, a, workspace, image, project, provider, model, maxAgents)
-		s.MaxIterations = 0 // Should exit immediately
+		s.MaxIterations = 1 // Should exit after one iteration
 		return s
 	}
 
