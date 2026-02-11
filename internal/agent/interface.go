@@ -47,6 +47,8 @@ func NewAgent(provider, apiKey, model, workDir, project string) (Agent, error) {
 	switch provider {
 	case "gemini":
 		return NewGeminiClient(apiKey, model, project), nil
+	case "mock":
+		return NewMockAgent(), nil
 	case "gemini-cli":
 		return NewGeminiCLIClient(apiKey, model, workDir, project), nil
 	case "openai":
