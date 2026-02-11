@@ -21,7 +21,7 @@ func TestMockAgent_Initializer_Primes(t *testing.T) {
 		t.Errorf("Expected response to mention %q, got: %s", expectedMsg, response)
 	}
 
-	// Verify it DOES NOT import the plan
+	// Verify it DOES NOT import the plan using agent-bridge
 	if strings.Contains(response, "agent-bridge import") {
 		t.Errorf("Expected response NOT to contain agent-bridge import, got: %s", response)
 	}
@@ -29,6 +29,11 @@ func TestMockAgent_Initializer_Primes(t *testing.T) {
 	// Verify it runs git init
 	if !strings.Contains(response, "git init") {
 		t.Errorf("Expected response to contain git init, got: %s", response)
+	}
+
+	// Verify it creates feature_list.json manually (NEW REQUIREMENT)
+	if !strings.Contains(response, "cat <<EOF > feature_list.json") {
+		t.Errorf("Expected response to create feature_list.json, got: %s", response)
 	}
 }
 
