@@ -22,23 +22,17 @@ func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, on
 
 
 func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
-	// Skip if no home dir
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		t.Skip("Skipping test because UserHomeDir is unavailable")
-	}
-
-    // Ensure at least one sensitive directory exists for the test to be meaningful
-    // We use a temporary directory as HOME to avoid touching the real host filesystem
-    // and to ensure deterministic test results regardless of the environment.
-
-    // Setup a fake home directory
+    // Setup a fake home directory using t.TempDir()
+    // This is robust and doesn't depend on os.UserHomeDir() or HOME env var behavior in CI
     fakeHome := t.TempDir()
-    t.Setenv("HOME", fakeHome)
 
-    // Create dummy sensitive dirs
-    os.Mkdir(filepath.Join(fakeHome, ".ssh"), 0700)
-    os.Mkdir(filepath.Join(fakeHome, ".config"), 0700)
+    // Create dummy sensitive dirs in the fake home
+    if err := os.Mkdir(filepath.Join(fakeHome, ".ssh"), 0700); err != nil {
+		t.Fatalf("Failed to create .ssh dir: %v", err)
+	}
+    if err := os.Mkdir(filepath.Join(fakeHome, ".config"), 0700); err != nil {
+		t.Fatalf("Failed to create .config dir: %v", err)
+	}
 
 	// Setup mock Docker client
 	client, mock := docker.NewMockClient()
@@ -66,6 +60,7 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	session.Docker = client
 	session.Agent = &MockAgentForSecurity{}
 	session.Image = "alpine:latest"
+	session.HomeDir = fakeHome // Explicitly set HomeDir to our fake home
 
 	// Start session
 	if err := session.Start(context.Background()); err != nil {
