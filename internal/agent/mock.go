@@ -38,21 +38,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// --- Heuristics ---
 
-	// 1. Initializer / Architect
-	// If asked for a plan or features
-	if strings.Contains(lowerPrompt, "role - initializer") || strings.Contains(lowerPrompt, "create a plan") {
-		return "```json\n{\"features\": [{\"name\": \"Calculate Primes\", \"description\": \"Implement primes.py\"}]}\n```", nil
-	}
-
-	// 2. Project Manager
-	// If asked to review or sign off
-	if strings.Contains(lowerPrompt, "role - project manager") || strings.Contains(lowerPrompt, "review the code") {
-		return "APPROVED", nil
-	}
-
-	// 3. Technical Program Manager (Ticket Generation)
-	// Must be checked BEFORE Coding Agent because the spec (containing 'primes.py') is included in the prompt
-	if strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "tpm") {
+	// 1. Technical Program Manager (Ticket Generation)
+	// Moved to top because it is specific ("expert technical program manager") and avoids false matches with "create a plan"
+	if strings.Contains(lowerPrompt, "you are an expert technical program manager") || strings.Contains(lowerPrompt, "role - tpm") {
 		return "```json\n" + `[
   {
     "title": "Epic: Primes Implementation",
@@ -71,8 +59,25 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]` + "\n```", nil
 	}
 
+	// 2. Initializer / Architect
+	// If asked for a plan or features
+	// Note: "create a plan" is generic, so we rely on TPM being checked first.
+	if strings.Contains(lowerPrompt, "role - initializer") || strings.Contains(lowerPrompt, "create a plan") {
+		return "```json\n{\"features\": [{\"name\": \"Calculate Primes\", \"description\": \"Implement primes.py\"}]}\n```", nil
+	}
+
+	// 3. Project Manager
+	// If asked to review or sign off
+	if strings.Contains(lowerPrompt, "role - project manager") || strings.Contains(lowerPrompt, "review the code") {
+		return "APPROVED", nil
+	}
+
 	// 4. Coding Agent (Prime Python Scenario)
-	if strings.Contains(lowerPrompt, "primes.py") || strings.Contains(lowerPrompt, "prime number script") || strings.Contains(lowerPrompt, "generate primes") {
+	// Check for primes keywords OR the ticket ID itself
+	if strings.Contains(lowerPrompt, "primes.py") ||
+	   strings.Contains(lowerPrompt, "prime number script") ||
+	   strings.Contains(lowerPrompt, "generate primes") ||
+	   strings.Contains(lowerPrompt, "mflp-11017") { // Ticket ID from CI logs
 		// Return the python script implementation
 		return `Here is the implementation for primes.py:
 
@@ -98,12 +103,13 @@ python3 primes.py
 `, nil
 	}
 
-	// 4. QA Agent
+	// 5. QA Agent
 	if strings.Contains(lowerPrompt, "role - qa") {
 		return "QA_PASSED", nil
 	}
 
 	// Default fallback
+	fmt.Printf("[MockAgent] Fallback triggered. Prompt length: %d\nFull Prompt Snippet:\n%s\n", len(prompt), truncateString(prompt, 500))
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil

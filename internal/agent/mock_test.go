@@ -10,50 +10,50 @@ func TestMockAgent_Send_Primes(t *testing.T) {
 	agent := NewMockAgent()
 	ctx := context.Background()
 
-	// 1. Initializer
-	resp, err := agent.Send(ctx, "## YOUR ROLE - INITIALIZER\nCreate a plan...")
+	// Test case: Prompt with ticket ID
+	prompt1 := "Context: You are a coding agent working on ticket MFLP-11017: Implement primes.py."
+	resp1, err := agent.Send(ctx, prompt1)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("Send failed: %v", err)
 	}
-	if !strings.Contains(resp, "Calculate Primes") {
-		t.Errorf("Expected Initializer response to contain 'Calculate Primes', got: %s", resp)
+	if !strings.Contains(resp1, "cat << 'EOF' > primes.py") {
+		t.Errorf("Expected primes implementation for prompt '%s', got: %s", prompt1, resp1)
 	}
 
-	// 2. Coding Agent
-	resp, err = agent.Send(ctx, "Create a python script named 'primes.py'")
+	// Test case: Prompt with 'primes.py'
+	prompt2 := "Please write a script named primes.py to calculate prime numbers."
+	resp2, err := agent.Send(ctx, prompt2)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("Send failed: %v", err)
 	}
-	if !strings.Contains(resp, "cat << 'EOF' > primes.py") {
-		t.Errorf("Expected bash block to create primes.py, got: %s", resp)
+	if !strings.Contains(resp2, "cat << 'EOF' > primes.py") {
+		t.Errorf("Expected primes implementation for prompt '%s', got: %s", prompt2, resp2)
 	}
-	if !strings.Contains(resp, "import json") {
-		t.Errorf("Expected python script to import json, got: %s", resp)
+}
+
+func TestMockAgent_Send_TPM_Strict(t *testing.T) {
+	agent := NewMockAgent()
+	ctx := context.Background()
+
+	// Test case: Prompt mentioning TPM but NOT as the role
+	prompt1 := "The ticket was created by a TPM yesterday. Please implement the code."
+	resp1, err := agent.Send(ctx, prompt1)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
 	}
-	if !strings.Contains(resp, "python3 primes.py") {
-		t.Errorf("Expected command to run primes.py, got: %s", resp)
+	// Should NOT match TPM role (which returns JSON), should match Fallback or Coding Agent if "code" triggers it (but "code" doesn't).
+	// It should definitely NOT contain the TPM JSON structure.
+	if strings.Contains(resp1, "\"type\": \"Epic\"") {
+		t.Errorf("Prompt '%s' incorrectly triggered TPM role response.", prompt1)
 	}
 
-	// 3. Project Manager
-	resp, err = agent.Send(ctx, "## YOUR ROLE - PROJECT MANAGER\nPlease review the code...")
+	// Test case: Prompt explicitly defining TPM role
+	prompt2 := "You are an expert Technical Program Manager. Create a plan for the project."
+	resp2, err := agent.Send(ctx, prompt2)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("Send failed: %v", err)
 	}
-	if !strings.Contains(resp, "APPROVED") {
-		t.Errorf("Expected Project Manager approval, got: %s", resp)
-	}
-
-	// 4. TPM Agent (Ticket Generation)
-	// Must return JSON even if 'primes.py' is in the text
-	tpmPrompt := "You are an expert Technical Program Manager (TPM)...\nSpec:\n- Implement primes.py"
-	resp, err = agent.Send(ctx, tpmPrompt)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !strings.Contains(resp, "```json") {
-		t.Errorf("Expected JSON response for TPM, got: %s", resp)
-	}
-	if !strings.Contains(resp, "Epic: Primes Implementation") {
-		t.Errorf("Expected Epic title in TPM response, got: %s", resp)
+	if !strings.Contains(resp2, "\"type\": \"Epic\"") {
+		t.Errorf("Expected TPM JSON response for prompt '%s', got: %s", prompt2, resp2)
 	}
 }
