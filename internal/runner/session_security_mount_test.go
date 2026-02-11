@@ -5,13 +5,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"recac/internal/docker"
-
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/network"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // MockAgentForSecurity implements agent.Agent
@@ -27,30 +20,30 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 		t.Skip("Skipping test because UserHomeDir is unavailable")
 	}
 
-	// Setup mock Docker client
-	client, mock := docker.NewMockClient()
+	// Setup mock Docker client using the package-level MockDockerClient
+	mock := &MockDockerClient{}
 
 	// We want to capture the binds
 	var capturedBinds []string
 
-	mock.ContainerCreateFunc = func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error) {
-		capturedBinds = hostConfig.Binds
-		return container.CreateResponse{ID: "test-id"}, nil
+	mock.RunContainerFunc = func(ctx context.Context, image, workspace string, extraBinds, env []string, user string) (string, error) {
+		capturedBinds = extraBinds
+		return "test-id", nil
 	}
 
-	// Mock ImageList to return our image so ImageExists returns true
-	mock.ImageListFunc = func(ctx context.Context, options image.ListOptions) ([]image.Summary, error) {
-		return []image.Summary{{RepoTags: []string{"alpine:latest"}}}, nil
+	// Mock ImageExists to return true
+	mock.ImageExistsFunc = func(ctx context.Context, image string) (bool, error) {
+		return true, nil
 	}
 
-	mock.ContainerStartFunc = func(ctx context.Context, containerID string, options container.StartOptions) error { return nil }
-	mock.ContainerExecCreateFunc = func(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error) {
-		return types.IDResponse{ID: "exec-id"}, nil
+	// Mock ExecAsUser to prevent git bootstrap failure
+	mock.ExecAsUserFunc = func(ctx context.Context, containerID, user string, cmd []string) (string, error) {
+		return "", nil
 	}
 
 	// Use NewSessionWithConfig to avoid DB initialization issues
 	session := NewSessionWithConfig("/tmp/workspace", "test-project", "mock", "mock-model", nil)
-	session.Docker = client
+	session.Docker = mock
 	session.Agent = &MockAgentForSecurity{}
 	session.Image = "alpine:latest"
 
