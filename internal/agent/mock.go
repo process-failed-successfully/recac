@@ -91,10 +91,13 @@ Great work.
 	}
 
 	// 3. [PRIMES] Task Handling
-	// Robust check: Matches [PRIMES] tag OR "Prime Number Script" OR "primes.py"
-	if strings.Contains(strings.ToUpper(prompt), "[PRIMES]") || strings.Contains(lowerPrompt, "prime number script") || strings.Contains(lowerPrompt, "primes.py") {
+	// Robust check: Matches [PRIMES] tag OR "Prime Number Script" OR "primes.py" OR "YOUR ROLE - CODING AGENT"
+	// This ensures that if the agent role is explicitly Coding Agent (and not QA/Manager), we default to the implementation logic
+	// which is safe for the smoke test as there is only one implementation task.
+	if strings.Contains(strings.ToUpper(prompt), "[PRIMES]") || strings.Contains(lowerPrompt, "prime number script") || strings.Contains(lowerPrompt, "primes.py") || strings.Contains(lowerPrompt, "your role - coding agent") {
 		// A. Ticket Generation Request
 		if strings.Contains(lowerPrompt, "generate") || strings.Contains(lowerPrompt, "ticket") || strings.Contains(lowerPrompt, "json") {
+			// Note: We MUST return "title" key to match the ticketNode struct expected by the parser.
 			return `[
   {
     "title": "ID:[PRIMES] Prime Number Script",
@@ -104,7 +107,7 @@ Great work.
 ]`, nil
 		}
 
-		// B. Implementation Request (Default for PRIMES)
+		// B. Implementation Request (Default for PRIMES/Coding Agent)
 		return `I will implement the prime number script.
 
 ` + "```bash" + `

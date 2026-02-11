@@ -53,6 +53,13 @@ func TestMockAgent_Send(t *testing.T) {
 		assert.Contains(t, resp, "cat << 'EOF' > primes.py", "Should detect task by description")
 	})
 
+	t.Run("Coding Agent Role Generic", func(t *testing.T) {
+		prompt := "## YOUR ROLE - CODING AGENT\n\nUnknown task."
+		resp, err := agent.Send(ctx, prompt)
+		require.NoError(t, err)
+		assert.Contains(t, resp, "cat << 'EOF' > primes.py", "Should default to implementation logic for Coding Agent")
+	})
+
 	t.Run("Manager Approval", func(t *testing.T) {
 		prompt := "## YOUR ROLE - PROJECT MANAGER\n\nReview the code."
 		resp, err := agent.Send(ctx, prompt)
