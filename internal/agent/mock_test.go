@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"testing"
+	"strings"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -59,6 +60,21 @@ func TestMockAgent_Send(t *testing.T) {
 		require.NoError(t, err)
 		assert.Contains(t, resp, "cat << 'EOF' > primes.py", "Should default to implementation logic for Coding Agent")
 	})
+
+    // Reproduction of CI Failure
+    t.Run("Coding Agent with JSON Context", func(t *testing.T) {
+        // This prompt mimics the CI environment where feature_list.json is in context
+        // and triggers the "Ticket Generation" logic because of the word "json"
+        prompt := "## YOUR ROLE - CODING AGENT\n\nImplement the features from feature_list.json. Ticket ID: [PRIMES]"
+        resp, err := agent.Send(ctx, prompt)
+        require.NoError(t, err)
+
+        // Should be Implementation (Bash), NOT Ticket Generation (JSON)
+        if strings.Contains(resp, "\"title\": \"ID:[PRIMES]") {
+            t.Fatalf("Regression: Agent returned Ticket Generation JSON instead of Implementation Script! Response: %s", resp)
+        }
+        assert.Contains(t, resp, "cat << 'EOF' > primes.py")
+    })
 
 	t.Run("Manager Approval", func(t *testing.T) {
 		prompt := "## YOUR ROLE - PROJECT MANAGER\n\nReview the code."
