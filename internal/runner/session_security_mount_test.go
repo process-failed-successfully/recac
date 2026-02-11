@@ -54,30 +54,48 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	session.Agent = &MockAgentForSecurity{}
 	session.Image = "alpine:latest"
 
+	// Explicitly force container creation logic even in CI (where KUBERNETES_SERVICE_HOST might be set)
+	session.UseLocalAgent = false
+
 	// Start session
 	if err := session.Start(context.Background()); err != nil {
 		t.Fatalf("Session.Start failed: %v", err)
 	}
 
-	// Verify sensitive mounts
-	sensitivePaths := []string{".ssh", ".config", ".gemini", ".cursor"}
+	// Verify sensitive mounts with strict checking
+	sensitivePaths := map[string]string{
+		".ssh":    "/home/appuser/.ssh",
+		".config": "/home/appuser/.config",
+		".gemini": "/home/appuser/.gemini",
+		".cursor": "/home/appuser/.cursor",
+	}
 
 	foundAny := false
-	for _, path := range sensitivePaths {
+	for name, containerPath := range sensitivePaths {
 		found := false
 		for _, bind := range capturedBinds {
-			// Check if bind contains the sensitive path
-			if strings.Contains(bind, path) {
+			// Strict check: Must target the correct container path AND be Read-Only
+			// Format: /host/path:/container/path:ro
+			// We check suffix because host path is variable
+			expectedSuffix := ":" + containerPath + ":ro"
+			if strings.HasSuffix(bind, expectedSuffix) {
 				found = true
 				foundAny = true
-				// Check if it is Read-Only
-				if !strings.HasSuffix(bind, ":ro") {
-					t.Errorf("Security Vulnerability: Sensitive path '%s' is mounted Read-Write! Bind: %s", path, bind)
-				}
+				break
+			}
+
+			// Fallback check to catch missing :ro flag but correct path
+			// This helps debug if the path is mounted but not RO
+			pathSuffix := ":" + containerPath
+			if strings.HasSuffix(bind, pathSuffix) {
+				t.Errorf("Security Vulnerability: Sensitive path '%s' is mounted Read-Write! Bind: %s", name, bind)
+				found = true // Mark as found to avoid "not found" log, error is already reported
+				foundAny = true
+				break
 			}
 		}
 		if !found {
-			t.Logf("Note: Sensitive path '%s' not found in binds (might be missing in env)", path)
+			t.Logf("Note: Sensitive path '%s' not found in binds (might be missing in env)", name)
 		}
 	}
 
