@@ -24,13 +24,6 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	// Create a temporary directory to act as HOME
 	mockHome := t.TempDir()
 
-	// Set HOME environment variable to mockHome for this test
-	originalHome := os.Getenv("HOME")
-	defer os.Setenv("HOME", originalHome)
-	if err := os.Setenv("HOME", mockHome); err != nil {
-		t.Fatalf("Failed to set HOME env var: %v", err)
-	}
-
 	// Create sensitive directories/files in mockHome
 	sensitivePaths := []string{".ssh", ".config", ".gemini", ".cursor"}
 	for _, path := range sensitivePaths {
@@ -74,6 +67,7 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	session.Docker = client
 	session.Agent = &MockAgentForSecurity{}
 	session.Image = "alpine:latest"
+	session.HomeDir = mockHome // Explicitly inject mock home directory
 
 	// Start session
 	if err := session.Start(context.Background()); err != nil {
