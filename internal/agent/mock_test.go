@@ -6,31 +6,43 @@ import (
 	"testing"
 )
 
-func TestMockAgent(t *testing.T) {
+func TestMockAgent_HeuristicResponses(t *testing.T) {
 	agent := NewMockAgent()
+	ctx := context.Background()
 
-	prompt := "This is a test prompt that is long enough to be truncated"
-	response, err := agent.Send(context.Background(), prompt)
-
+	// 1. TPM (Planning)
+	resp, err := agent.Send(ctx, "You are an expert Technical Program Manager (TPM)...")
 	if err != nil {
-		t.Fatalf("Send failed: %v", err)
+		t.Fatalf("TPM Send failed: %v", err)
+	}
+	if !strings.Contains(resp, "[") || !strings.Contains(resp, "ID:[PRIMES]") {
+		t.Errorf("TPM response invalid. Expected JSON array with ID. Got:\n%s", resp)
 	}
 
-	if !strings.Contains(response, "Mock agent response") {
-		t.Errorf("Response missing prefix, got: %s", response)
+	// 2. Initializer
+	resp, err = agent.Send(ctx, "## YOUR ROLE - INITIALIZER AGENT")
+	if err != nil {
+		t.Fatalf("Initializer Send failed: %v", err)
+	}
+	if !strings.Contains(resp, "agent-bridge import") {
+		t.Errorf("Initializer response invalid. Expected bash script with import. Got:\n%s", resp)
 	}
 
-	if !strings.Contains(response, "I received your prompt") {
-		t.Errorf("Response missing body, got: %s", response)
+	// 3. Coding Agent
+	resp, err = agent.Send(ctx, "## YOUR ROLE - CODING AGENT\nImplement the Prime Number Script")
+	if err != nil {
+		t.Fatalf("Coding Agent Send failed: %v", err)
 	}
-}
+	if !strings.Contains(resp, "cat << 'EOF' > primes.py") || !strings.Contains(resp, "PROJECT_SIGNED_OFF") {
+		t.Errorf("Coding Agent response invalid. Expected bash script creating primes.py. Got:\n%s", resp)
+	}
 
-func TestTruncateString(t *testing.T) {
-	s := "hello world"
-	if truncateString(s, 5) != "hello" {
-		t.Errorf("Expected 'hello', got '%s'", truncateString(s, 5))
+	// 4. Default
+	resp, err = agent.Send(ctx, "Tell me a joke")
+	if err != nil {
+		t.Fatalf("Default Send failed: %v", err)
 	}
-	if truncateString(s, 20) != "hello world" {
-		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
+	if !strings.Contains(resp, "Mock agent response") {
+		t.Errorf("Default response invalid. Expected generic mock message. Got:\n%s", resp)
 	}
 }
