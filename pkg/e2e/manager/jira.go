@@ -195,8 +195,16 @@ func runWithRetry(cmd *exec.Cmd) error {
 			return nil
 		}
 
-		// Check if error is due to Rate Limit (429)
+		// Parse error content
 		errContent := errBuf.String()
+
+		// Fail fast on 402 (Payment Required / Spend Limit)
+		if strings.Contains(errContent, "402") || strings.Contains(errContent, "spend limit exceeded") {
+			fmt.Println("Critical Error: API Spend Limit Exceeded (402). Stopping retries.")
+			return fmt.Errorf("api spend limit exceeded (402): %w", err)
+		}
+
+		// Retry on 429 (Rate Limit)
 		if strings.Contains(errContent, "429") || strings.Contains(errContent, "Rate limit exceeded") || strings.Contains(errContent, "rate-limited") {
 			fmt.Printf("Rate limit detected (429). Waiting %v before retry...\n", backoff)
 			time.Sleep(backoff)
