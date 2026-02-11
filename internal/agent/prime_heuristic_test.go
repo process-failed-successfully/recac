@@ -75,4 +75,9 @@ func TestMockAgent_TPM_Primes(t *testing.T) {
 	if !strings.Contains(response, expectedDesc) {
 		t.Errorf("Expected response to contain description %q, got: %s", expectedDesc, response)
 	}
+
+	expectedTitle := `"title": "ID:[PRIMES] Implement prime number script"`
+	if !strings.Contains(response, expectedTitle) {
+		t.Errorf("Expected response to contain title %q, got: %s", expectedTitle, response)
+	}
 }
