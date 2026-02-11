@@ -204,6 +204,10 @@ func TestRunGymSession(t *testing.T) {
 	mockDocker.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return("", nil).Maybe()
 	mockDocker.On("ExecAsUser", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil).Maybe()
 
+	// Mock Agent Response (since RunLoop will now proceed)
+	// Return a completion signal so RunLoop exits gracefully
+	mockAgent.On("Send", mock.Anything, mock.Anything).Return("I have completed the task.\nCOMPLETED", nil).Maybe()
+
 	// Run
 	ctx := context.Background()
 	res, err := runGymSession(ctx, challenge)

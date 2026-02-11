@@ -206,6 +206,12 @@ func runGymSession(ctx context.Context, challenge GymChallenge) (*GymResult, err
 		}
 	}
 
+	// Write Spec to Workspace (Mandatory for RunLoop)
+	specPath := filepath.Join(workspace, "app_spec.txt")
+	if err := os.WriteFile(specPath, []byte(challenge.Description), 0644); err != nil {
+		return nil, fmt.Errorf("failed to write spec file: %w", err)
+	}
+
 	// 5. Run Session
 	// Use timeout context
 	timeout := 5 * time.Minute
