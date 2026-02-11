@@ -67,7 +67,29 @@ EOF
 `, nil
 	}
 
-	// 2. Coding Agent: Implement primes.py
+	// 2. TPM/Planner Role: Jira Plan (MUST be before Coding Agent heuristic)
+	// The TPM prompt asks for JSON output and identifies itself as Technical Program Manager.
+	if strings.Contains(lowerPrompt, "technical program manager") && strings.Contains(lowerPrompt, "json") {
+		return `
+` + "```json" + `
+[
+  {
+    "title": "ID:[PRIMES] Prime Number Script",
+    "description": "Implement primes.py to calculate primes < 10000 and output to primes.json.\nRepo: https://github.com/process-failed-successfully/recac-jira-e2e",
+    "type": "Task",
+    "acceptance_criteria": [
+      "primes.py created",
+      "primes.json generated with correct primes"
+    ],
+    "blocked_by": [],
+    "children": []
+  }
+]
+` + "```" + `
+`, nil
+	}
+
+	// 3. Coding Agent: Implement primes.py
 	if strings.Contains(lowerPrompt, "primes.py") || strings.Contains(lowerPrompt, "prime number script") {
 		return `I will implement the prime number script.
 
@@ -98,7 +120,7 @@ agent-bridge signal QA_PASSED true || touch QA_PASSED
 `, nil
 	}
 
-	// 3. Manager Agent: Approve
+	// 4. Manager Agent: Approve
 	if strings.Contains(lowerPrompt, "manager agent") || strings.Contains(lowerPrompt, "review") {
 		return `APPROVED
 ` + "```bash" + `
