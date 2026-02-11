@@ -56,7 +56,11 @@ EOF
 
 	// Heuristic: Project Manager (Sign Off)
 	if strings.Contains(prompt, "PROJECT MANAGER") {
-		return "agent-bridge signal PROJECT_SIGNED_OFF true || touch PROJECT_SIGNED_OFF", nil
+		return `
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true || touch PROJECT_SIGNED_OFF
+` + "```" + `
+`, nil
 	}
 
 	// Heuristic: Coding Agent (Primes Scenario)
@@ -94,17 +98,29 @@ git commit -m "Implement primes.py and generate primes.json"
 `, nil
 		}
 		// If already committed, signal success to break loop
-		return "agent-bridge signal QA_PASSED true || touch QA_PASSED", nil
+		return `
+` + "```bash" + `
+agent-bridge signal QA_PASSED true || touch QA_PASSED
+` + "```" + `
+`, nil
 	}
 
-	// Heuristic: QA Agent
-	if strings.Contains(prompt, "QA AGENT") {
-		return "agent-bridge signal QA_PASSED true || touch QA_PASSED", nil
+	// Heuristic: QA Agent or Generic Ticket (Fallback for unit tests)
+	// Triggered by "QA AGENT" or general "Ticket" references if no specific heuristic matched
+	if strings.Contains(prompt, "QA AGENT") || strings.Contains(prompt, "Ticket") {
+		return `
+` + "```bash" + `
+agent-bridge signal QA_PASSED true || touch QA_PASSED
+` + "```" + `
+`, nil
 	}
 
-	// Default response
-	return fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
-		m.responsePrefix, len(prompt), truncateString(prompt, 100)), nil
+	// Default response - Must include a no-op command to prevent "No-Op Loop" errors in strict mode
+	return fmt.Sprintf(`%s: I received your prompt (%d chars).
+`+"```bash"+`
+echo "Mock Agent processing prompt..."
+`+"```"+`
+`, m.responsePrefix, len(prompt)), nil
 }
 
 // SendStream implements the Agent interface

@@ -120,8 +120,8 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Coding Agent (2nd call) failed: %v", err)
 	}
-	if !strings.Contains(resp, "QA_PASSED") {
-		t.Errorf("Expected QA_PASSED in 2nd Coding Agent response, got: %s", resp)
+	if !strings.Contains(resp, "QA_PASSED") || !strings.Contains(resp, "```bash") {
+		t.Errorf("Expected QA_PASSED command in markdown in 2nd Coding Agent response, got: %s", resp)
 	}
 
 	// 6. QA Agent
@@ -129,7 +129,7 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	if err != nil {
 		t.Fatalf("QA Agent failed: %v", err)
 	}
-	if !strings.Contains(resp, "QA_PASSED") {
-		t.Errorf("Expected QA_PASSED in QA Agent response, got: %s", resp)
+	if !strings.Contains(resp, "QA_PASSED") || !strings.Contains(resp, "```bash") {
+		t.Errorf("Expected QA_PASSED command in markdown in QA Agent response, got: %s", resp)
 	}
 }
