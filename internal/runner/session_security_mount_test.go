@@ -6,32 +6,34 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"recac/internal/docker"
-
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // MockAgentForSecurity implements agent.Agent
 type MockAgentForSecurity struct{}
-func (m *MockAgentForSecurity) Send(ctx context.Context, prompt string) (string, error) { return "", nil }
-func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) { return "", nil }
+
+func (m *MockAgentForSecurity) Send(ctx context.Context, prompt string) (string, error) {
+	return "", nil
+}
+func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+	return "", nil
+}
 
 func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	// Setup mock Docker client using the package-level MockDockerClient
-	client, mock := docker.NewMockClient()
+	// This avoids importing recac/internal/docker and potential circular dependencies.
+	mock := &MockDockerClient{}
 
 	var capturedBinds []string
 
-	mock.ContainerCreateFunc = func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error) {
-		capturedBinds = hostConfig.Binds
-		return container.CreateResponse{ID: "test-id"}, nil
+	// We capture extraBinds directly passed to RunContainer
+	mock.RunContainerFunc = func(ctx context.Context, image, workspace string, extraBinds, env []string, user string) (string, error) {
+		capturedBinds = extraBinds
+		return "test-id", nil
 	}
 
 	// Use NewSessionWithConfig to avoid DB initialization issues
 	session := NewSessionWithConfig("/tmp/workspace", "test-project", "mock", "mock-model", nil)
-	session.Docker = client
+	session.Docker = mock
 	session.Agent = &MockAgentForSecurity{}
 	session.Image = "alpine:latest"
 
@@ -62,6 +64,7 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 
 		for _, bind := range capturedBinds {
 			// Check if bind contains the sensitive path
+			// Format is usually hostPath:containerPath:ro
 			if strings.Contains(bind, expectedHostPath) {
 				found = true
 				foundAny = true
@@ -77,6 +80,6 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	}
 
 	if !foundAny {
-		t.Error("No sensitive paths were found in binds. StatFunc mock might be failing.")
+		t.Error("No sensitive paths were found in binds. StatFunc mock might be failing or Docker was disabled.")
 	}
 }
