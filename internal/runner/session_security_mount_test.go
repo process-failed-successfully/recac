@@ -3,15 +3,9 @@ package runner
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
-	"recac/internal/docker"
-
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/network"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // MockAgentForSecurity implements agent.Agent
@@ -27,30 +21,29 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 		t.Skip("Skipping test because UserHomeDir is unavailable")
 	}
 
-	// Setup mock Docker client
-	client, mock := docker.NewMockClient()
-
 	// We want to capture the binds
 	var capturedBinds []string
 
-	mock.ContainerCreateFunc = func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error) {
-		capturedBinds = hostConfig.Binds
-		return container.CreateResponse{ID: "test-id"}, nil
-	}
-
-	// Mock ImageList to return our image so ImageExists returns true
-	mock.ImageListFunc = func(ctx context.Context, options image.ListOptions) ([]image.Summary, error) {
-		return []image.Summary{{RepoTags: []string{"alpine:latest"}}}, nil
-	}
-
-	mock.ContainerStartFunc = func(ctx context.Context, containerID string, options container.StartOptions) error { return nil }
-	mock.ContainerExecCreateFunc = func(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error) {
-		return types.IDResponse{ID: "exec-id"}, nil
+	// Setup mock Docker client using the package-level MockDockerClient
+	mock := &MockDockerClient{
+		CheckDaemonFunc: func(ctx context.Context) error {
+			return nil
+		},
+		ImageExistsFunc: func(ctx context.Context, image string) (bool, error) {
+			return true, nil
+		},
+		RunContainerFunc: func(ctx context.Context, image, workspace string, extraBinds, env []string, user string) (string, error) {
+			capturedBinds = extraBinds
+			return "test-id", nil
+		},
+		ExecAsUserFunc: func(ctx context.Context, containerID, user string, cmd []string) (string, error) {
+			return "", nil
+		},
 	}
 
 	// Use NewSessionWithConfig to avoid DB initialization issues
 	session := NewSessionWithConfig("/tmp/workspace", "test-project", "mock", "mock-model", nil)
-	session.Docker = client
+	session.Docker = mock
 	session.Agent = &MockAgentForSecurity{}
 	session.Image = "alpine:latest"
 
@@ -64,6 +57,13 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 
 	foundAny := false
 	for _, path := range sensitivePaths {
+		// Check if path exists on host first
+		hostPath := filepath.Join(home, path)
+		if _, err := os.Stat(hostPath); err != nil {
+			t.Logf("Skipping check for '%s' as it does not exist on host", path)
+			continue
+		}
+
 		found := false
 		for _, bind := range capturedBinds {
 			// Check if bind contains the sensitive path
@@ -77,7 +77,8 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 			}
 		}
 		if !found {
-			t.Logf("Note: Sensitive path '%s' not found in binds (might be missing in env)", path)
+			// If it exists on host, it MUST be mounted (according to Session logic).
+			t.Errorf("Expected sensitive path '%s' to be mounted, but it wasn't found in binds.", path)
 		}
 	}
 
