@@ -38,7 +38,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 1. TPM Role (Project Planning)
 	// The CLI/Orchestrator expects a JSON array of tickets.
 	// We detect this by checking for the TPM role description.
-	if strings.Contains(prompt, "You are an expert Technical Program Manager (TPM)") {
+	// Also check for the standard header format.
+	if strings.Contains(prompt, "You are an expert Technical Program Manager (TPM)") ||
+	   strings.Contains(prompt, "## YOUR ROLE - PROJECT MANAGER") {
 		// Return a mock JSON array of tickets
 		// This simulates a breakdown of tasks
 		return `[
@@ -60,9 +62,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 2. Initializer Role (Feature Extraction)
 	// The CLI might also use an "Initializer" agent to extract features first.
 	// If the prompt asks for features extraction or similar (usually has JSON format instructions).
-	// However, the smoke test seems to jump straight to TPM or Coding.
-	// Let's add a basic check for "Initializer" just in case.
-	if strings.Contains(prompt, "You are an Initializer Agent") {
+	// We detect the specific header used in the prompt template.
+	if strings.Contains(prompt, "You are an Initializer Agent") ||
+	   strings.Contains(prompt, "## YOUR ROLE - INITIALIZER AGENT") {
 		// Return a bash script that imports features into the DB using agent-bridge
 		return `cat << 'EOF' | agent-bridge import
 {
@@ -121,7 +123,8 @@ agent-bridge signal PROJECT_SIGNED_OFF true --privileged || true
 	if strings.Contains(prompt, "QA") ||
 	   strings.Contains(prompt, "Manager") ||
 	   strings.Contains(prompt, "Review") ||
-	   strings.Contains(strings.ToUpper(prompt), "VERIFY") {
+	   strings.Contains(strings.ToUpper(prompt), "VERIFY") ||
+	   strings.Contains(prompt, "## YOUR ROLE - QA AGENT") {
 		// Return a signal to approve
 		return `QA_PASSED`, nil
 	}
