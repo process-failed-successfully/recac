@@ -92,6 +92,22 @@ I will initialize the repository. The TPM will handle ticket creation.
 ` + "```bash" + gitSetup + `
 git config user.email "you@example.com"
 git config user.name "Your Name"
+
+# Create feature_list.json manually to satisfy runner
+cat <<EOF > feature_list.json
+{
+  "project_name": "$RECAC_PROJECT_ID",
+  "features": [
+    {
+      "id": "PRIMES",
+      "type": "Task",
+      "title": "Implement prime number script",
+      "description": "Implement a python script 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'.",
+      "status": "pending"
+    }
+  ]
+}
+EOF
 ` + "```" + `
 `, nil
 		}
@@ -115,7 +131,7 @@ agent-bridge import --file /app/ticket_plan.json
   {
     "id": "PRIMES",
     "type": "Task",
-    "title": "Implement prime number script",
+    "title": "ID:[PRIMES] Implement prime number script",
     "description": "Implement a python script 'primes.py' that calculates primes < 10000 and outputs to 'primes.json'."
   }
 ]
@@ -154,12 +170,13 @@ with open('primes.json', 'w') as f:
 EOF
 
 # Create or reset a branch for the feature (force if exists)
-git checkout -B agent/PRIMES-mock
+BRANCH_NAME="agent/${RECAC_PROJECT_ID:-PRIMES-mock}"
+git checkout -B "$BRANCH_NAME"
 
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
-git push --force origin agent/PRIMES-mock || echo "Push failed, continuing local only"
+git push --force origin "$BRANCH_NAME" || echo "Push failed, continuing local only"
 agent-bridge feature set PRIMES --status done --passes true
 ` + "```" + `
 `, nil
