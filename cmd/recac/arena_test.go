@@ -33,6 +33,12 @@ func TestArenaCmd(t *testing.T) {
 		agentClientFactory = originalFactory
 	}()
 
+	// Use ThreadSafeBuffer to avoid race conditions with global arenaCmd
+	outBuf := new(ThreadSafeBuffer)
+	errBuf := new(ThreadSafeBuffer)
+	arenaCmd.SetOut(outBuf)
+	arenaCmd.SetErr(errBuf)
+
 	t.Run("Run Arena Success", func(t *testing.T) {
 		// Setup mock factory
 		agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
