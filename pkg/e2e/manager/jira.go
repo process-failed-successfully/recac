@@ -1,9 +1,11 @@
 package manager
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -63,10 +65,7 @@ func (m *JiraManager) GenerateScenario(ctx context.Context, scenarioName, repoUR
 	if architectMode {
 		fmt.Println("=== RUNNING IN ARCHITECT MODE ===")
 		archDir := filepath.Join(os.TempDir(), fmt.Sprintf("arch_%s", uniqueID))
-		archCmd := fmt.Sprintf("%s architect --spec %s --out %s", recacCmd, specFile, archDir)
-		fmt.Printf("Running: %s\n", archCmd)
 
-		// Execute Architect
 		var cmd *exec.Cmd
 		if strings.HasPrefix(recacCmd, "go run") {
 			args := append(strings.Split(recacCmd, " ")[1:], "architect", "--spec", specFile, "--out", archDir, "--provider", provider, "--model", model)
@@ -74,10 +73,9 @@ func (m *JiraManager) GenerateScenario(ctx context.Context, scenarioName, repoUR
 		} else {
 			cmd = exec.Command(recacCmd, "architect", "--spec", specFile, "--out", archDir, "--provider", provider, "--model", model)
 		}
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
-			return "", nil, fmt.Errorf("architect failed: %w", err)
+
+		if err := runWithRetry(cmd); err != nil {
+			return "", nil, fmt.Errorf("architect failed after retries: %w", err)
 		}
 
 		// Now Generate from Arch
@@ -98,10 +96,9 @@ func (m *JiraManager) GenerateScenario(ctx context.Context, scenarioName, repoUR
 		} else {
 			genCmd = exec.Command(recacCmd, genCmdArgs...)
 		}
-		genCmd.Stdout = os.Stdout
-		genCmd.Stderr = os.Stderr
-		if err := genCmd.Run(); err != nil {
-			return "", nil, fmt.Errorf("generate-from-arch failed: %w", err)
+
+		if err := runWithRetry(genCmd); err != nil {
+			return "", nil, fmt.Errorf("generate-from-arch failed after retries: %w", err)
 		}
 	} else {
 		// Legacy Flow
@@ -123,11 +120,8 @@ func (m *JiraManager) GenerateScenario(ctx context.Context, scenarioName, repoUR
 			cmd = exec.Command(recacCmd, cmdArgs...)
 		}
 
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-
-		if err := cmd.Run(); err != nil {
-			return "", nil, fmt.Errorf("recac cli failed: %w", err)
+		if err := runWithRetry(cmd); err != nil {
+			return "", nil, fmt.Errorf("recac cli failed after retries: %w", err)
 		}
 	}
 
@@ -150,7 +144,6 @@ func (m *JiraManager) GenerateScenario(ctx context.Context, scenarioName, repoUR
 	return label, ticketMap, nil
 }
 
-
 // Cleanup removes all tickets with the given label.
 func (m *JiraManager) Cleanup(ctx context.Context, label string) error {
 	issues, err := m.Client.LoadLabelIssues(ctx, label)
@@ -168,4 +161,52 @@ func (m *JiraManager) Cleanup(ctx context.Context, label string) error {
 		}
 	}
 	return nil
+}
+
+// runWithRetry executes the command and retries on 429 Rate Limit errors.
+func runWithRetry(cmd *exec.Cmd) error {
+	maxRetries := 5
+	backoff := 30 * time.Second
+
+	for i := 0; i <= maxRetries; i++ {
+		// Clone command for retry (exec.Cmd cannot be reused)
+		currentCmd := exec.Command(cmd.Path, cmd.Args[1:]...)
+		currentCmd.Env = cmd.Env
+		if currentCmd.Env == nil {
+			currentCmd.Env = os.Environ()
+		}
+		currentCmd.Dir = cmd.Dir
+
+		// Capture stderr for 429 detection while streaming to stdout
+		var errBuf bytes.Buffer
+		currentCmd.Stdout = os.Stdout
+		currentCmd.Stderr = io.MultiWriter(os.Stderr, &errBuf)
+
+		if i > 0 {
+			fmt.Printf("Executing command (retry %d/%d): %v\n", i, maxRetries, currentCmd.Args)
+		} else {
+			fmt.Printf("Executing command: %v\n", currentCmd.Args)
+		}
+
+		err := currentCmd.Run()
+
+		// Success?
+		if err == nil {
+			return nil
+		}
+
+		// Check if error is due to Rate Limit (429)
+		errContent := errBuf.String()
+		if strings.Contains(errContent, "429") || strings.Contains(errContent, "Rate limit exceeded") || strings.Contains(errContent, "rate-limited") {
+			fmt.Printf("Rate limit detected (429). Waiting %v before retry...\n", backoff)
+			time.Sleep(backoff)
+			backoff *= 2 // Exponential backoff
+			continue
+		}
+
+		// Other error - fail fast
+		return err
+	}
+
+	return fmt.Errorf("command failed after %d retries", maxRetries)
 }
