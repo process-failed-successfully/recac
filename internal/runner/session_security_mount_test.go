@@ -21,12 +21,6 @@ func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, on
 
 
 func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
-	// Skip if no home dir
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		t.Skip("Skipping test because UserHomeDir is unavailable")
-	}
-
 	// Setup mock Docker client
 	client, mock := docker.NewMockClient()
 
@@ -53,6 +47,21 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	session.Docker = client
 	session.Agent = &MockAgentForSecurity{}
 	session.Image = "alpine:latest"
+	session.UseLocalAgent = false // Explicitly disable Local Agent to test Docker logic
+
+	// Inject Dependencies
+	mockHome := "/mock/home/appuser"
+	session.HomeDir = mockHome
+	session.StatFunc = func(path string) (os.FileInfo, error) {
+		// Mock existence of sensitive files
+		if strings.HasPrefix(path, mockHome) {
+			// Let's pretend .ssh and .config exist, but .gemini and .cursor do not
+			if strings.HasSuffix(path, ".ssh") || strings.HasSuffix(path, ".config") {
+				return nil, nil // Success (exists)
+			}
+		}
+		return nil, os.ErrNotExist
+	}
 
 	// Start session
 	if err := session.Start(context.Background()); err != nil {
@@ -60,28 +69,29 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	}
 
 	// Verify sensitive mounts
-	sensitivePaths := []string{".ssh", ".config", ".gemini", ".cursor"}
+	// Expect: .ssh and .config
+	expected := map[string]bool{
+		".ssh":    true,
+		".config": true,
+		".gemini": false,
+		".cursor": false,
+	}
 
-	foundAny := false
-	for _, path := range sensitivePaths {
+	for path, shouldExist := range expected {
 		found := false
 		for _, bind := range capturedBinds {
-			// Check if bind contains the sensitive path
 			if strings.Contains(bind, path) {
 				found = true
-				foundAny = true
-				// Check if it is Read-Only
 				if !strings.HasSuffix(bind, ":ro") {
 					t.Errorf("Security Vulnerability: Sensitive path '%s' is mounted Read-Write! Bind: %s", path, bind)
 				}
 			}
 		}
-		if !found {
-			t.Logf("Note: Sensitive path '%s' not found in binds (might be missing in env)", path)
+		if shouldExist && !found {
+			t.Errorf("Expected sensitive path '%s' to be mounted, but it was not.", path)
 		}
-	}
-
-	if !foundAny {
-		t.Log("WARNING: No sensitive paths were found in binds. Test might be ineffective if environment lacks home dir configs.")
+		if !shouldExist && found {
+			t.Errorf("Expected sensitive path '%s' NOT to be mounted (mocked as missing), but it was.", path)
+		}
 	}
 }
