@@ -13,7 +13,7 @@ func TestMockAgent_Send(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("Initializer Agent", func(t *testing.T) {
-		prompt := "You are the INITIALIZER AGENT. Please create feature_list.json."
+		prompt := "## YOUR ROLE - INITIALIZER AGENT\n\nPlease create feature_list.json."
 		resp, err := agent.Send(ctx, prompt)
 		require.NoError(t, err)
 		assert.Contains(t, resp, "I will create the feature list")
@@ -21,7 +21,7 @@ func TestMockAgent_Send(t *testing.T) {
 	})
 
 	t.Run("Primes Task Implementation", func(t *testing.T) {
-		prompt := "Implement the [PRIMES] Prime Number Script"
+		prompt := "## YOUR ROLE - CODING AGENT\n\nImplement the [PRIMES] Prime Number Script"
 		resp, err := agent.Send(ctx, prompt)
 		require.NoError(t, err)
 		assert.Contains(t, resp, "cat << 'EOF' > primes.py")
@@ -47,7 +47,7 @@ func TestMockAgent_Send(t *testing.T) {
 	})
 
 	t.Run("Manager Approval", func(t *testing.T) {
-		prompt := "You are the MANAGER AGENT. Review the code."
+		prompt := "## YOUR ROLE - PROJECT MANAGER\n\nReview the code."
 		resp, err := agent.Send(ctx, prompt)
 		require.NoError(t, err)
 		assert.Contains(t, resp, "APPROVED")

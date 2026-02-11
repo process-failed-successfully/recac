@@ -67,7 +67,8 @@ Files created.
 	}
 
 	// 2. Manager/QA Approval
-	if strings.Contains(lowerPrompt, "qa agent") {
+	// Check for explicit role headers to avoid false positives in prompts containing role descriptions
+	if strings.Contains(lowerPrompt, "your role - qa agent") {
 		return `I have verified the implementation.
 
 ` + "```bash" + `
@@ -78,7 +79,7 @@ All checks passed.
 `, nil
 	}
 
-	if strings.Contains(lowerPrompt, "manager agent") || strings.Contains(lowerPrompt, "review qa report") {
+	if strings.Contains(lowerPrompt, "your role - project manager") || strings.Contains(lowerPrompt, "review qa report") {
 		return `APPROVED. I approve this project.
 
 ` + "```bash" + `
