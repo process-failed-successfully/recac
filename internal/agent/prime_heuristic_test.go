@@ -52,7 +52,7 @@ func TestMockAgent_Initializer_Default(t *testing.T) {
 		t.Errorf("Expected default response, got prime response: %s", response)
 	}
 
-	if !strings.Contains(response, "agent-bridge import --file /app/ticket_plan.json") {
-		t.Errorf("Expected default response to import from file, got: %s", response)
+	if !strings.Contains(response, "cat << 'EOF' | agent-bridge import") {
+		t.Errorf("Expected default response to pipe import, got: %s", response)
 	}
 }

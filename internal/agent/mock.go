@@ -127,7 +127,25 @@ I will initialize the repository and import the plan.
 ` + "```bash" + gitSetup + `
 git config user.email "you@example.com"
 git config user.name "Your Name"
-agent-bridge import --file /app/ticket_plan.json
+
+# Create feature list via agent-bridge import
+cat << 'EOF' | agent-bridge import
+{
+  "project_name": "Generic Project",
+  "features": [
+    {
+      "id": "TASK-1",
+      "category": "functional",
+      "priority": "P0",
+      "description": "Initial task from Jira",
+      "status": "pending",
+      "passes": false,
+      "steps": [],
+      "dependencies": {}
+    }
+  ]
+}
+EOF
 ` + "```" + `
 `, nil
 	}
