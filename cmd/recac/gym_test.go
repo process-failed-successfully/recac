@@ -192,6 +192,9 @@ func TestRunGymSession(t *testing.T) {
 	mockDocker.On("RunContainer", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("mock-container-id", nil)
 	mockDocker.On("StopContainer", mock.Anything, "mock-container-id").Return(nil)
 
+	// Mock Agent (Send) - Expect generic calls
+	mockAgent.On("Send", mock.Anything, mock.Anything).Return("Agent Response", nil)
+
 	// Setup calls (passwd, git, etc) - allow any Exec/ExecAsUser calls generally
 	// But match specific verification call specifically if needed.
 	// Since verification is the last step, we can return "OK" for the python test, and "" for others.

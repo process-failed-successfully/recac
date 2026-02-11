@@ -198,6 +198,12 @@ func runGymSession(ctx context.Context, challenge GymChallenge) (*GymResult, err
 	sess.MaxIterations = 10 // Limit iterations for gym
 	sess.SpecContent = challenge.Description
 
+	// Write App Spec to Workspace (Required by RunLoop)
+	specPath := filepath.Join(workspace, "app_spec.txt")
+	if err := os.WriteFile(specPath, []byte(challenge.Description), 0644); err != nil {
+		return nil, fmt.Errorf("failed to write app_spec.txt: %w", err)
+	}
+
 	// Write Tests to Workspace
 	if challenge.Tests != "" && challenge.TestFile != "" {
 		testPath := filepath.Join(workspace, challenge.TestFile)
