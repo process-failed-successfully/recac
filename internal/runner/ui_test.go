@@ -75,6 +75,7 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 		ManagerFrequency: 5,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
 		Logger:           telemetry.NewLogger(true, "", false),
+		AgentProvider:    "mock", // Explicitly set mock provider to allow privileged signals in tests
 	}
 
 	// 6. Capture Stdout? (Hard to do in test without refactor).
