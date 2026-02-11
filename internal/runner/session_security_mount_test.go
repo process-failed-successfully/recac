@@ -17,9 +17,11 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	// Setup mock Docker client using the package-level MockDockerClient
 	mockDocker := &MockDockerClient{}
 	var capturedBinds []string
+	var runContainerCalled bool
 
 	// Note: Function signature must match MockDockerClient.RunContainerFunc in mock_docker_test.go
 	mockDocker.RunContainerFunc = func(ctx context.Context, image, workspace string, extraBinds, env []string, user string) (string, error) {
+		runContainerCalled = true
 		capturedBinds = extraBinds
 		return "test-id", nil
 	}
@@ -73,5 +75,9 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 
 	if !foundAny {
 		t.Error("No sensitive paths were found in binds. StatFunc mock might be failing.")
+	}
+
+	if !runContainerCalled {
+		t.Fatal("RunContainer was not called! Session might have failed early or skipped Docker execution.")
 	}
 }
