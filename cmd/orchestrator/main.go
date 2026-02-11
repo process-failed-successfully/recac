@@ -45,6 +45,8 @@ func main() {
 	pflag.String("github-repo", "", "GitHub Repository Name (for 'github' poller)")
 	pflag.String("github-label", "", "GitHub Label to poll for (defaults to jira-label if not set)")
 
+	pflag.String("webhook-addr", "", "Address to listen for webhooks (e.g. :8080). If empty, webhook listener is disabled.")
+
 	pflag.Parse()
 
 	// Config
@@ -71,6 +73,8 @@ func main() {
 	viper.BindPFlag("orchestrator.agent_model", pflag.Lookup("agent-model"))
 	viper.BindPFlag("orchestrator.image_pull_policy", pflag.Lookup("image-pull-policy"))
 
+	viper.BindPFlag("orchestrator.webhook_addr", pflag.Lookup("webhook-addr"))
+
 	// Explicitly bind cleaner env vars
 	viper.BindEnv("orchestrator.agent_provider", "RECAC_AGENT_PROVIDER")
 	viper.BindEnv("orchestrator.agent_model", "RECAC_AGENT_MODEL")
@@ -89,6 +93,8 @@ func main() {
 	viper.BindEnv("orchestrator.max_iterations", "RECAC_MAX_ITERATIONS")
 	viper.BindEnv("orchestrator.manager_frequency", "RECAC_MANAGER_FREQUENCY")
 	viper.BindEnv("orchestrator.task_max_iterations", "RECAC_TASK_MAX_ITERATIONS")
+
+	viper.BindEnv("orchestrator.webhook_addr", "RECAC_WEBHOOK_ADDR")
 
 	// Logger
 	logger := telemetry.NewLogger(viper.GetBool("verbose"), "orchestrator", false)
@@ -202,6 +208,19 @@ func main() {
 
 	// 3. Orchestrator
 	orch := orchestrator.New(poller, spawner, interval)
+
+	// 4. Webhook Listener (Optional)
+	webhookAddr := viper.GetString("orchestrator.webhook_addr")
+	if webhookAddr != "" {
+		wl := orchestrator.NewWebhookListener(orch, webhookAddr, logger)
+		go func() {
+			if err := wl.Start(ctx); err != nil {
+				// wl.Start returns nil on graceful shutdown, but if it fails early we log
+				logger.Error("Webhook listener stopped", "error", err)
+			}
+		}()
+	}
+
 	if err := orch.Run(ctx, logger); err != nil {
 		if ctx.Err() != nil {
 			// Graceful shutdown
