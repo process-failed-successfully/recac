@@ -21,12 +21,6 @@ func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, on
 
 
 func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
-	// Skip if no home dir
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		t.Skip("Skipping test because UserHomeDir is unavailable")
-	}
-
 	// Setup mock Docker client
 	client, mock := docker.NewMockClient()
 
@@ -54,6 +48,17 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	session.Agent = &MockAgentForSecurity{}
 	session.Image = "alpine:latest"
 
+	// Mock Home Directory and StatFunc for deterministic testing
+	mockHome := "/mock/home/user"
+	session.HomeDir = mockHome
+	session.StatFunc = func(path string) (os.FileInfo, error) {
+		// Simulate existence of sensitive paths
+		if strings.HasPrefix(path, mockHome) {
+			return nil, nil // Return nil error implies file exists
+		}
+		return nil, os.ErrNotExist
+	}
+
 	// Start session
 	if err := session.Start(context.Background()); err != nil {
 		t.Fatalf("Session.Start failed: %v", err)
@@ -77,11 +82,11 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 			}
 		}
 		if !found {
-			t.Logf("Note: Sensitive path '%s' not found in binds (might be missing in env)", path)
+			t.Errorf("Expected sensitive path '%s' to be mounted, but it was not found in binds: %v", path, capturedBinds)
 		}
 	}
 
 	if !foundAny {
-		t.Log("WARNING: No sensitive paths were found in binds. Test might be ineffective if environment lacks home dir configs.")
+		t.Error("No sensitive paths were found in binds, but mock StatFunc guaranteed their existence.")
 	}
 }
