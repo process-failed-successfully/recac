@@ -24,7 +24,6 @@ func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, on
 func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	// Create a temporary directory to act as HOME
 	tempHome := t.TempDir()
-	t.Setenv("HOME", tempHome)
 
 	// Create sensitive directories in the temporary home
 	dirs := []string{".gemini", ".config", ".cursor", ".ssh"}
@@ -61,6 +60,7 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	session.Docker = client
 	session.Agent = &MockAgentForSecurity{}
 	session.Image = "alpine:latest"
+	session.HomeDir = tempHome
 
 	// Start session
 	if err := session.Start(context.Background()); err != nil {
