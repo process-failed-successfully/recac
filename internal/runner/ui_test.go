@@ -5,9 +5,11 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"recac/internal/agent"
+	"recac/internal/db"
 	"recac/internal/notify"
 	"recac/internal/telemetry"
 )
@@ -30,7 +32,18 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "ui_verification.json"), []byte("Verify Button Color"), 0644)
 
 	// 5. Initialize Session
-	mockDocker := &MockDockerForExec{}
+	// Initialize DB Store to prevent infinite loop on signal checking
+	dbPath := filepath.Join(tmpDir, "test.db")
+	store, err := db.NewSQLiteStore(dbPath)
+	if err != nil {
+		t.Fatalf("Failed to create store: %v", err)
+	}
+	defer store.Close()
+
+	mockDocker := &MockDockerWithSideEffects{
+		Store:   store,
+		Project: "test-project",
+	}
 	mockAgent := agent.NewMockAgent()
 	s := &Session{
 		Docker:           mockDocker,
@@ -40,6 +53,9 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 		ManagerFrequency: 5,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
 		Logger:           telemetry.NewLogger(true, "", false),
+		DBStore:          store,
+		Project:          "test-project",
+		MaxIterations:    20,
 	}
 
 	// 6. Capture Stdout? (Hard to do in test without refactor).
@@ -54,4 +70,31 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	if err != nil && !errors.Is(err, ErrNoOp) {
 		t.Errorf("RunLoop failed: %v", err)
 	}
+}
+
+// MockDockerWithSideEffects intercepts agent-bridge commands to update the DB state
+type MockDockerWithSideEffects struct {
+	MockDockerForExec
+	Store   db.Store
+	Project string
+}
+
+func (m *MockDockerWithSideEffects) Exec(ctx context.Context, id string, cmd []string) (string, error) {
+	// Reconstruct the command string to check for signals
+	// Note: cmd is usually ["/bin/bash", "-c", "script..."]
+	fullCmd := ""
+	if len(cmd) > 2 {
+		fullCmd = cmd[2]
+	}
+
+	// Intercept signal commands and apply them to the DB
+	if strings.Contains(fullCmd, "agent-bridge signal") {
+		// Parse key/value roughly
+		if strings.Contains(fullCmd, "PROJECT_SIGNED_OFF true") {
+			m.Store.SetSignal(m.Project, "PROJECT_SIGNED_OFF", "true")
+		}
+		// Add other signals if needed
+	}
+
+	return m.MockDockerForExec.Exec(ctx, id, cmd)
 }

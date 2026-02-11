@@ -256,6 +256,25 @@ func run(args []string, config db.StoreConfig, projectID string) error {
 			return fmt.Errorf("unknown feature subcommand: %s", subCmd)
 		}
 
+	case "task":
+		// Usage: agent-bridge task select <id>
+		// We can support this by setting a signal or just ignoring it if it's legacy.
+		// If the agent expects it to work, we should probably support "select".
+		if len(args) < 3 {
+			return fmt.Errorf("usage: agent-bridge task <subcommand>")
+		}
+		if args[2] == "select" {
+			if len(args) < 4 {
+				return fmt.Errorf("usage: agent-bridge task select <id>")
+			}
+			taskID := args[3]
+			// We log the selection to stdout so the orchestrator (ProcessResponse) can parse it if needed.
+			// Currently, just returning success prevents "exit status 1" errors.
+			fmt.Printf("Task selected: %s\n", taskID)
+			return nil
+		}
+		return fmt.Errorf("unknown task subcommand: %s", args[2])
+
 	case "import":
 		// Usage: cat features.json | agent-bridge import
 		// Reads JSON from Stdin and saves to DB
