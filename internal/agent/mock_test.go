@@ -40,6 +40,30 @@ func TestMockAgent_Initializer(t *testing.T) {
 	}
 }
 
+func TestMockAgent_CodingAgent_BranchOverride(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Set env var to override branch name
+	projectID := "MFLP-TEST-123"
+	t.Setenv("RECAC_PROJECT_ID", projectID)
+
+	prompt := "ROLE - CODING AGENT\n[PRIMES] Implement primes.py"
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	expectedBranchCmd := "git checkout -B agent/" + projectID
+	if !strings.Contains(response, expectedBranchCmd) {
+		t.Errorf("Expected branch command '%s' in response, got response containing:\n%s", expectedBranchCmd, response)
+	}
+
+	expectedPushCmd := "git push --force origin agent/" + projectID
+	if !strings.Contains(response, expectedPushCmd) {
+		t.Errorf("Expected push command '%s' in response, got response containing:\n%s", expectedPushCmd, response)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {

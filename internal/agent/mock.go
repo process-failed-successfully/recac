@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 )
@@ -157,6 +158,11 @@ agent-bridge import --file /app/ticket_plan.json
 			if strings.Contains(ticketID, "-") {
 				branchSuffix = ticketID
 			}
+		}
+
+		// Allow overriding branch name via environment variable (e.g. for E2E tests using Jira ID)
+		if envProjectID := os.Getenv("RECAC_PROJECT_ID"); envProjectID != "" {
+			branchSuffix = envProjectID
 		}
 
 		return fmt.Sprintf(`
