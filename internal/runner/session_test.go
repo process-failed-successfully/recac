@@ -112,6 +112,8 @@ func TestSession_Start_PassesUser(t *testing.T) {
 	}
 
 	session := NewSession(d, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
+	session.UseLocalAgent = false // Force Docker
+
 	if err := session.Start(context.Background()); err != nil {
 		t.Fatalf("Start failed: %v", err)
 	}
@@ -334,6 +336,7 @@ func TestSession_RunLoop_SingleIteration(t *testing.T) {
 
 	mockDocker, _ := docker.NewMockClient()
 	session := NewSession(mockDocker, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
+	session.UseLocalAgent = false // Force Docker
 	session.MaxIterations = 1
 
 	ctx := context.Background()
@@ -435,6 +438,8 @@ func TestSession_Start_MountsBridge(t *testing.T) {
 	}
 
 	session := NewSession(d, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
+	session.UseLocalAgent = false // Force Docker
+
 	if err := session.Start(context.Background()); err != nil {
 		t.Fatalf("Start failed: %v", err)
 	}
@@ -645,6 +650,7 @@ func TestSession_BootstrapGit(t *testing.T) {
 	}
 
 	session := NewSession(d, &MockAgent{}, "/tmp", "alpine", "test-project", "gemini", "gemini-pro", 1)
+	session.UseLocalAgent = false // Force Docker
 	session.ContainerID = "test-container"
 
 	if err := session.bootstrapGit(context.Background()); err != nil {

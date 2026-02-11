@@ -230,6 +230,7 @@ func NewSessionWithConfig(workspace, project, provider, model string, dbStore db
 		OwnsDB:           false, // This session does not own the DB, it's passed in
 		Scanner:          security.NewRegexScanner(),
 		Notifier:         notify.NewManager(telemetry.LogInfof),
+		UseLocalAgent:    os.Getenv("KUBERNETES_SERVICE_HOST") != "",
 		Logger:           logger,
 		StatFunc:         os.Stat,
 	}

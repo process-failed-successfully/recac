@@ -117,6 +117,9 @@ func TestOrchestrator_HasFailures(t *testing.T) {
 }
 
 func TestOrchestrator_ExecuteTask(t *testing.T) {
+	// Ensure we don't run in local agent mode
+	t.Setenv("KUBERNETES_SERVICE_HOST", "")
+
 	// Setup mocks
 	mockDocker := new(MockOrchestratorDocker)
 	mockAgent := new(MockOrchestratorAgent)

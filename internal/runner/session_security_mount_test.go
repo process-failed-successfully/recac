@@ -61,6 +61,7 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	session.Agent = &MockAgentForSecurity{}
 	session.Image = "alpine:latest"
 	session.HomeDir = tempHome
+	session.UseLocalAgent = false // Ensure we use Docker even in CI
 
 	// Mock StatFunc to ensure sensitive paths are "found" regardless of CI environment permissions/quirks.
 	// This makes the test deterministic: it verifies that IF the files exist (according to StatFunc),

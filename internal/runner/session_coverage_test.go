@@ -125,6 +125,7 @@ func TestSession_BootstrapGit_Error_Coverage(t *testing.T) {
 	}
 
 	session := NewSession(mockDocker, &MockAgent{}, "/tmp", "alpine", "test-project", "gemini", "gemini-pro", 1)
+	session.UseLocalAgent = false // Force Docker
 	session.ContainerID = "test-container"
 
 	err := session.bootstrapGit(context.Background())
