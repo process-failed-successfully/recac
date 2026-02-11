@@ -3,10 +3,11 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
-// MockAgent is a simple mock agent for testing and mock mode
-// It returns predefined responses without making actual API calls
+// MockAgent is a smart mock agent for testing
+// It returns context-aware responses based on the prompt content
 type MockAgent struct {
 	responsePrefix string
 	forcedResponse string
@@ -25,16 +26,105 @@ func (m *MockAgent) SetResponse(response string) {
 }
 
 // Send implements the Agent interface
-// It returns a mock response that acknowledges the prompt
 func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
-	// Return a mock response that shows the agent received the prompt
-	// This allows the session to run without requiring real API keys
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
-		m.responsePrefix, len(prompt), truncateString(prompt, 100))
-	return response, nil
+
+	// 1. TPM Role (Planning)
+	if strings.Contains(prompt, "You are an expert Technical Program Manager (TPM)") || strings.Contains(prompt, "## YOUR ROLE - PROJECT MANAGER") {
+		// Return a JSON plan for the PRIMES task
+		return `[
+  {
+    "id": "PRIMES",
+    "title": "ID:[PRIMES] Implement Primes",
+    "description": "Implement prime number calculation script",
+    "type": "Task",
+    "status": "todo",
+    "dependencies": []
+  }
+]`, nil
+	}
+
+	// 2. Initializer Agent
+	if strings.Contains(prompt, "## YOUR ROLE - INITIALIZER AGENT") {
+		return `#!/bin/bash
+cat << 'EOF' | agent-bridge import
+[
+  {
+    "id": "PRIMES",
+    "title": "ID:[PRIMES] Implement Primes",
+    "description": "Implement prime number calculation script",
+    "type": "Task",
+    "status": "todo"
+  }
+]
+EOF
+`, nil
+	}
+
+	// 3. Coding Agent (Implementation)
+	// Detects the specific task via [PRIMES] tag or keywords
+	if strings.Contains(prompt, "## YOUR ROLE - CODING AGENT") || strings.Contains(prompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") {
+		// Python script to calculate primes < 10000
+		// Note: We use %% for modulo to escape it in potential Sprintf usage, though here it's a raw string return.
+		// However, to be safe and clear, we just return the string directly.
+		pythonScript := `
+import json
+
+def is_prime(n):
+    if n < 2: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0: return False
+    return True
+
+primes = [x for x in range(10000) if is_prime(x)]
+with open("primes.json", "w") as f:
+    json.dump({"primes": primes}, f)
+print(f"Generated {len(primes)} primes")
+`
+		// Escape single quotes for bash heredoc
+		pythonScript = strings.ReplaceAll(pythonScript, "'", "'\\''")
+
+		return fmt.Sprintf(`I will implement the prime number script as requested.
+
+`+"```bash"+`
+# Create the python script
+cat << 'EOF' > primes.py
+%s
+EOF
+
+# Run the script to generate the JSON
+python3 primes.py
+
+# Verify output exists
+ls -l primes.json
+
+# Commit the files
+git add primes.py primes.json
+git commit -m "Implement primes.py and generate primes.json"
+
+# Signal completion
+agent-bridge feature update PRIMES --status completed
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged
+`+"```"+`
+`, pythonScript), nil
+	}
+
+	// 4. QA / Manager / Reviewer
+	if strings.Contains(prompt, "## YOUR ROLE - QA AGENT") || strings.Contains(prompt, "## YOUR ROLE - PROJECT MANAGER") {
+		return `
+Looking good! The implementation meets the requirements.
+
+`+"```bash"+`
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged
+`+"```"+`
+`, nil
+	}
+
+	// Default echo response for unknown prompts
+	return fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response.\n\nPrompt preview: %s...",
+		m.responsePrefix, len(prompt), truncateString(prompt, 100)), nil
 }
 
 // SendStream implements the Agent interface
