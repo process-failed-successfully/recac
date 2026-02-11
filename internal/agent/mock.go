@@ -32,12 +32,20 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// Log the prompt for debugging CI failures
-	log.Printf("[MockAgent] Received Prompt (len=%d): %s...", len(prompt), truncateString(prompt, 200))
+	upperPrompt := strings.ToUpper(prompt)
+	// Log prompt analysis for debugging
+	log.Printf("[MockAgent] Prompt Analysis (len=%d):", len(prompt))
+	log.Printf("  - Contains 'TPM': %v", strings.Contains(prompt, "Technical Program Manager"))
+	log.Printf("  - Contains 'INITIALIZER': %v", strings.Contains(prompt, "INITIALIZER AGENT"))
+	log.Printf("  - Contains 'CODING': %v", strings.Contains(prompt, "CODING AGENT"))
+	log.Printf("  - Contains 'PROJECT MANAGER': %v", strings.Contains(prompt, "PROJECT MANAGER"))
+	log.Printf("  - Contains 'QA': %v", strings.Contains(upperPrompt, "QA"))
+	log.Printf("  - Contains 'REVIEW': %v", strings.Contains(upperPrompt, "REVIEW"))
+	log.Printf("  - Contains 'PRIME': %v", strings.Contains(upperPrompt, "PRIME"))
 
-	// 1. TPM Role (Planning)
-	if strings.Contains(prompt, "You are an expert Technical Program Manager (TPM)") || strings.Contains(prompt, "## YOUR ROLE - PROJECT MANAGER") {
-		// Return a JSON plan for the PRIMES task
+	// 1. TPM Role (Planning) - Header check
+	if strings.Contains(prompt, "You are an expert Technical Program Manager (TPM)") {
+		log.Println("[MockAgent] Matched Role: TPM")
 		return `[
   {
     "id": "PRIMES",
@@ -50,8 +58,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
-	// 2. Initializer Agent
+	// 2. Initializer Agent - Header check
 	if strings.Contains(prompt, "## YOUR ROLE - INITIALIZER AGENT") {
+		log.Println("[MockAgent] Matched Role: Initializer")
 		return `#!/bin/bash
 cat << 'EOF' | agent-bridge import
 [
@@ -67,14 +76,23 @@ EOF
 `, nil
 	}
 
-	// 3. Coding Agent (Implementation)
-	// Detects the specific task via [PRIMES] tag or keywords.
-	// Relaxed matching: check for "primes.py" or "Prime" case-insensitive to be robust against prompt formatting changes.
-	upperPrompt := strings.ToUpper(prompt)
+	// 3. QA / Manager / Reviewer - Check BEFORE Coding Agent to prevent false positives
+	// The prompt might contain "Prime" in the context/report, so we must check for Manager role explicitly first.
+	if strings.Contains(prompt, "## YOUR ROLE - QA AGENT") || strings.Contains(prompt, "## YOUR ROLE - PROJECT MANAGER") || strings.Contains(upperPrompt, "QA REPORT") {
+		log.Println("[MockAgent] Matched Role: QA/Manager")
+		return `
+Looking good! The implementation meets the requirements.
+
+`+"```bash"+`
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged
+`+"```"+`
+`, nil
+	}
+
+	// 4. Coding Agent (Implementation)
 	if strings.Contains(prompt, "## YOUR ROLE - CODING AGENT") || strings.Contains(upperPrompt, "[PRIMES]") || strings.Contains(prompt, "primes.py") || strings.Contains(upperPrompt, "PRIME") {
+		log.Println("[MockAgent] Matched Role: Coding Agent")
 		// Python script to calculate primes < 10000
-		// Note: We use %% for modulo to escape it in potential Sprintf usage, though here it's a raw string return.
-		// However, to be safe and clear, we just return the string directly.
 		pythonScript := `
 import json
 
@@ -117,19 +135,8 @@ agent-bridge signal PROJECT_SIGNED_OFF true --privileged
 `, pythonScript), nil
 	}
 
-	// 4. QA / Manager / Reviewer
-	// Relaxed matching: Check for "QA" or "Review" case-insensitive.
-	if strings.Contains(prompt, "## YOUR ROLE - QA AGENT") || strings.Contains(prompt, "## YOUR ROLE - PROJECT MANAGER") || strings.Contains(upperPrompt, "QA") || strings.Contains(upperPrompt, "REVIEW") {
-		return `
-Looking good! The implementation meets the requirements.
-
-`+"```bash"+`
-agent-bridge signal PROJECT_SIGNED_OFF true --privileged
-`+"```"+`
-`, nil
-	}
-
 	// Default echo response for unknown prompts
+	log.Println("[MockAgent] Fallback to default response")
 	return fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100)), nil
 }
