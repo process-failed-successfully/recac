@@ -21,7 +21,7 @@ max_parallel_tickets: 1
 metrics_port: 2112
 mock: false
 mock-agent: false
-model: nvidia/nemotron-3-nano-30b-a3b:free
+model: meta-llama/llama-3.3-70b-instruct:free
 name: ""
 notifications:
     discord:
@@ -36,7 +36,7 @@ notifications:
             on_success: true
             on_user_interaction: true
 orchestrator:
-    agent_model: nvidia/nemotron-3-nano-30b-a3b:free
+    agent_model: meta-llama/llama-3.3-70b-instruct:free
     agent_provider: openrouter
     image: ghcr.io/process-failed-successfully/recac-agent:latest
     image_pull_policy: Always

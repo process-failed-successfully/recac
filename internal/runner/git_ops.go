@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/user"
 	"path/filepath"
 	"recac/internal/db"
@@ -108,7 +109,21 @@ yarn-error.log*
 			}
 		}
 	} else {
-		fmt.Println("Skipping system-level git bootstrap in local mode (relying on env vars).")
+		// Local mode: Set environment variables for git identity
+		// This ensures git commands work without modifying global user config on developer machines
+		fmt.Printf("Setting git environment variables for local execution (email: %s, name: %s)...\n", email, name)
+		os.Setenv("GIT_AUTHOR_NAME", name)
+		os.Setenv("GIT_AUTHOR_EMAIL", email)
+		os.Setenv("GIT_COMMITTER_NAME", name)
+		os.Setenv("GIT_COMMITTER_EMAIL", email)
+
+		// Only configure global git if we are explicitly in CI/K8s to avoid messing up dev machines
+		if os.Getenv("CI") == "true" || os.Getenv("KUBERNETES_SERVICE_HOST") != "" {
+			fmt.Println("CI/K8s detected: Configuring global git settings...")
+			_ = exec.Command("git", "config", "--global", "user.email", email).Run()
+			_ = exec.Command("git", "config", "--global", "user.name", name).Run()
+			_ = exec.Command("git", "config", "--global", "safe.directory", "*").Run()
+		}
 	}
 
 	return nil
