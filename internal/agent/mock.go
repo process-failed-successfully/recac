@@ -32,6 +32,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	lowerPrompt := strings.ToLower(prompt)
+	upperPrompt := strings.ToUpper(prompt)
 
 	// 1. Initializer Agent or Feature List Request
 	// Note: We check for "create feature_list.json" or explicit role to avoid false positives
@@ -90,8 +91,13 @@ Great work.
 `, nil
 	}
 
-	// 3. [PRIMES] Task Handling
-	if strings.Contains(strings.ToUpper(prompt), "[PRIMES]") {
+	// 3. [PRIMES] Task Handling (Coding Agent)
+	// We check for [PRIMES] (Project Tag) OR keywords in the task description like "primes.py" or "prime number"
+	// This ensures robustness even if the project tag is missing from the specific prompt.
+	if strings.Contains(upperPrompt, "[PRIMES]") ||
+	   strings.Contains(upperPrompt, "PRIMES.PY") ||
+	   strings.Contains(upperPrompt, "PRIME NUMBER") {
+
 		// A. Ticket Generation Request
 		if strings.Contains(lowerPrompt, "generate") || strings.Contains(lowerPrompt, "ticket") || strings.Contains(lowerPrompt, "json") {
 			return `[

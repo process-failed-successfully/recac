@@ -46,6 +46,14 @@ func TestMockAgent_Send(t *testing.T) {
 		assert.Contains(t, resp, "cat << 'EOF' > primes.py")
 	})
 
+	t.Run("Primes Task Keyword Matching (No Tag)", func(t *testing.T) {
+		// This tests the fix where [PRIMES] tag is missing but description keywords are present
+		prompt := "Task Description: Implement primes.py to calculate primes"
+		resp, err := agent.Send(ctx, prompt)
+		require.NoError(t, err)
+		assert.Contains(t, resp, "cat << 'EOF' > primes.py", "Should trigger implementation based on 'primes.py' keyword")
+	})
+
 	t.Run("Manager Approval", func(t *testing.T) {
 		prompt := "## YOUR ROLE - PROJECT MANAGER\n\nReview the code."
 		resp, err := agent.Send(ctx, prompt)
