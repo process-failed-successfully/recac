@@ -72,7 +72,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 4. Coding Agent (Prime Python Scenario)
-	if strings.Contains(lowerPrompt, "primes.py") || strings.Contains(lowerPrompt, "prime number script") || strings.Contains(lowerPrompt, "generate primes") {
+	// Check for explicit file request OR specific feature IDs injected by the environment
+	if strings.Contains(lowerPrompt, "primes.py") ||
+	   strings.Contains(lowerPrompt, "prime number script") ||
+	   strings.Contains(lowerPrompt, "generate primes") ||
+	   strings.Contains(lowerPrompt, "req-script-runs") ||
+	   strings.Contains(lowerPrompt, "[primes]") {
 		// Return the python script implementation
 		return `Here is the implementation for primes.py:
 

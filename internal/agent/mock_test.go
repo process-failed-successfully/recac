@@ -56,4 +56,15 @@ func TestMockAgent_Send_Primes(t *testing.T) {
 	if !strings.Contains(resp, "Epic: Primes Implementation") {
 		t.Errorf("Expected Epic title in TPM response, got: %s", resp)
 	}
+
+	// 5. Feature ID Trigger (Regression for CI failure)
+	// The prompt might only contain the feature ID and description, without explicit filename request
+	featurePrompt := `{"features": [{"id": "req-script-runs", "description": "Script runs"}]}`
+	resp, err = agent.Send(ctx, featurePrompt)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(resp, "cat << 'EOF' > primes.py") {
+		t.Errorf("Expected bash block for feature ID prompt (req-script-runs), got: %s", resp)
+	}
 }
