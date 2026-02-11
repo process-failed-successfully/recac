@@ -713,29 +713,28 @@ func TestRenameSession(t *testing.T) {
 func permissionsEnforced(t *testing.T, dir string) bool {
 	t.Helper()
 
-	// Create a temporary directory for the check
-	checkDir := filepath.Join(dir, "perm_check")
-	if err := os.MkdirAll(checkDir, 0755); err != nil {
-		t.Logf("Permission check skipped: failed to create check dir: %v", err)
+	// Check for root user (UID 0) explicitly on Unix systems
+	if os.Geteuid() == 0 {
+		t.Log("Permission check skipped: running as root (UID 0)")
 		return false
 	}
-	defer os.RemoveAll(checkDir)
 
-	// Create a file inside
-	checkFile := filepath.Join(checkDir, "test")
+	// Create a file inside the directory directly
+	checkFile := filepath.Join(dir, "perm_check_file")
 	if err := os.WriteFile(checkFile, []byte("content"), 0644); err != nil {
 		t.Logf("Permission check skipped: failed to create check file: %v", err)
 		return false
 	}
+	defer os.Remove(checkFile)
 
 	// Make directory read-only
 	// Note: Removing a file requires write permission on the parent directory.
-	if err := os.Chmod(checkDir, 0500); err != nil {
+	if err := os.Chmod(dir, 0500); err != nil {
 		t.Logf("Permission check skipped: failed to chmod dir: %v", err)
 		return false
 	}
-	// Attempt to restore permissions at end to allow cleanup
-	defer os.Chmod(checkDir, 0755)
+	// Restore permissions immediately after check to avoid affecting subsequent operations
+	defer os.Chmod(dir, 0700)
 
 	// Attempt to remove the file
 	err := os.Remove(checkFile)
