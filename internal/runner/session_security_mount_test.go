@@ -25,15 +25,6 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	// Create a temporary directory to act as HOME
 	home := t.TempDir()
 
-	// Create sensitive directories
-	sensitivePaths := []string{".ssh", ".config", ".gemini", ".cursor"}
-	for _, path := range sensitivePaths {
-		err := os.MkdirAll(filepath.Join(home, path), 0755)
-		if err != nil {
-			t.Fatalf("Failed to create dummy sensitive directory %s: %v", path, err)
-		}
-	}
-
 	// Setup mock Docker client
 	client, mock := docker.NewMockClient()
 
@@ -62,10 +53,27 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	session.Agent = &MockAgentForSecurity{}
 	session.Image = "alpine:latest"
 
+	// Mock StatFunc to simulate existence of sensitive files
+	// We want to verify that .ssh, .config, .gemini, .cursor are detected
+	session.StatFunc = func(path string) (os.FileInfo, error) {
+		// Just check if the path ends with one of our sensitive directories
+		base := filepath.Base(path)
+		sensitive := map[string]bool{
+			".ssh": true, ".config": true, ".gemini": true, ".cursor": true,
+		}
+		if sensitive[base] {
+			return nil, nil // Simulate exists
+		}
+		return nil, os.ErrNotExist
+	}
+
 	// Start session
 	if err := session.Start(context.Background()); err != nil {
 		t.Fatalf("Session.Start failed: %v", err)
 	}
+
+	// Verify sensitive mounts
+	sensitivePaths := []string{".ssh", ".config", ".gemini", ".cursor"}
 
 	foundAny := false
 	for _, path := range sensitivePaths {
@@ -90,6 +98,6 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	}
 
 	if !foundAny {
-		t.Fatal("FATAL: No sensitive paths were found in binds even though they exist in HOME.")
+		t.Fatal("FATAL: No sensitive paths were found in binds even though they exist (mocked).")
 	}
 }
