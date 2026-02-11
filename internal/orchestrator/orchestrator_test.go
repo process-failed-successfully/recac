@@ -230,8 +230,14 @@ func TestOrchestrator_DryRun(t *testing.T) {
 
 	// Verify items returned
 	assert.Len(t, items, 2)
-	assert.Equal(t, "DRY-1", items[0].ID)
-	assert.Equal(t, "DRY-2", items[1].ID)
+
+	// mockPoller iterates over a map, so order is non-deterministic
+	// Use ElementsMatch or equivalent logic to verify contents
+	var ids []string
+	for _, item := range items {
+		ids = append(ids, item.ID)
+	}
+	assert.ElementsMatch(t, []string{"DRY-1", "DRY-2"}, ids)
 
 	// Verify NO items were spawned
 	spawner.mu.Lock()
