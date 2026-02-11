@@ -169,6 +169,7 @@ func TestRunGymSession(t *testing.T) {
 			MaxIterations: 1,
 			Notifier:      notify.NewManager(telemetry.LogInfof),
 			Logger:        slog.Default(),
+			StatFunc:      os.Stat, // Initialize StatFunc to prevent nil pointer dereference
 		}
 	}
 
