@@ -83,6 +83,7 @@ type Session struct {
 	Logger                    *slog.Logger        // Structured logger for this session
 	SleepFunc                 func(time.Duration) // Function for sleeping (mockable)
 	HomeDir                   string              // Home directory override (for testing)
+	StatFunc                  func(string) (os.FileInfo, error) // Overridable os.Stat (for testing)
 
 	mu sync.RWMutex // Protects concurrent access to Iteration, SlackThreadTS, ContainerID
 }
@@ -155,6 +156,7 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 		UseLocalAgent:    os.Getenv("KUBERNETES_SERVICE_HOST") != "",
 		Logger:           logger,
 		SleepFunc:        time.Sleep,
+		StatFunc:         os.Stat,
 	}
 }
 
@@ -195,6 +197,7 @@ func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, pr
 		Notifier:         notify.NewManager(telemetry.LogInfof),
 		Logger:           logger,
 		SleepFunc:        time.Sleep,
+		StatFunc:         os.Stat,
 	}
 }
 
@@ -228,6 +231,7 @@ func NewSessionWithConfig(workspace, project, provider, model string, dbStore db
 		Scanner:          security.NewRegexScanner(),
 		Notifier:         notify.NewManager(telemetry.LogInfof),
 		Logger:           logger,
+		StatFunc:         os.Stat,
 	}
 }
 
@@ -483,7 +487,8 @@ func (s *Session) Start(ctx context.Context) error {
 
 		for _, m := range sensitiveMounts {
 			hostPath := filepath.Join(homeDir, m.hostPath)
-			if _, err := os.Stat(hostPath); err == nil {
+			// Use StatFunc for testability
+			if _, err := s.StatFunc(hostPath); err == nil {
 				extraBinds = append(extraBinds, fmt.Sprintf("%s:%s:ro", hostPath, m.containerPath))
 			}
 		}
