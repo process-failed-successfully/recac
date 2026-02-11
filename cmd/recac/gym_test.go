@@ -203,6 +203,10 @@ func TestRunGymSession(t *testing.T) {
 	mockDocker.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return("", nil).Maybe()
 	mockDocker.On("ExecAsUser", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil).Maybe()
 
+	// Agent expectations
+	// The session loop will trigger at least one prompt (Initializer) because feature_list.json is missing
+	mockAgent.On("Send", mock.Anything, mock.Anything).Return("Mock response", nil)
+
 	// Run
 	ctx := context.Background()
 	res, err := runGymSession(ctx, challenge)
