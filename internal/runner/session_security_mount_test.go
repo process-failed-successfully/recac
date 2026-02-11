@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"recac/internal/docker"
@@ -19,8 +20,13 @@ type MockAgentForSecurity struct{}
 func (m *MockAgentForSecurity) Send(ctx context.Context, prompt string) (string, error) { return "", nil }
 func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) { return "", nil }
 
-
 func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
+	// Skip if no home dir (sanity check, though t.TempDir should work)
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		t.Skip("Skipping test because UserHomeDir is unavailable")
+	}
+
 	// Setup mock Docker client
 	client, mock := docker.NewMockClient()
 
@@ -42,21 +48,30 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 		return types.IDResponse{ID: "exec-id"}, nil
 	}
 
+	// Mock Ping for CheckDaemon
+	mock.PingFunc = func(ctx context.Context) (types.Ping, error) {
+		return types.Ping{}, nil
+	}
+
 	// Use NewSessionWithConfig to avoid DB initialization issues
 	session := NewSessionWithConfig("/tmp/workspace", "test-project", "mock", "mock-model", nil)
 	session.Docker = client
 	session.Agent = &MockAgentForSecurity{}
 	session.Image = "alpine:latest"
+	session.UseLocalAgent = false // Ensure we use Docker path
 
-	// Inject Fake Home Dir and StatFunc
-	fakeHome := "/home/fakeuser"
+	// Inject Fake Home Dir using t.TempDir for cross-platform validity
+	fakeHome := t.TempDir()
 	session.HomeDir = fakeHome
-	session.StatFunc = func(path string) (os.FileInfo, error) {
-		// Mock existence for sensitive paths
-		if strings.HasPrefix(path, fakeHome) {
-			return nil, nil // Exists
+
+	// Create sensitive directories so os.Stat finds them
+	// This tests the real filesystem integration logic without mocking StatFunc
+	sensitivePaths := []string{".ssh", ".config", ".gemini", ".cursor"}
+	for _, dir := range sensitivePaths {
+		path := filepath.Join(fakeHome, dir)
+		if err := os.MkdirAll(path, 0755); err != nil {
+			t.Fatalf("Failed to create temp sensitive dir %s: %v", path, err)
 		}
-		return nil, os.ErrNotExist
 	}
 
 	// Start session
@@ -65,24 +80,40 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	}
 
 	// Verify sensitive mounts
-	sensitivePaths := []string{".ssh", ".config", ".gemini", ".cursor"}
-
 	foundAny := false
-	for _, path := range sensitivePaths {
+	for _, name := range sensitivePaths {
 		found := false
+		expectedHostPath := filepath.Join(fakeHome, name)
+
 		for _, bind := range capturedBinds {
-			// Check if bind contains the sensitive path
-			if strings.Contains(bind, path) {
+			// Expected format: HOST_PATH:CONTAINER_PATH:ro
+			// Check for :ro suffix
+			if !strings.HasSuffix(bind, ":ro") {
+				continue
+			}
+
+			// Remove suffix
+			bindWithoutRO := strings.TrimSuffix(bind, ":ro")
+
+			// Split by last colon to separate host and container path
+			// This handles Windows drive letters (e.g. C:\Users\...) correctly as long as container path has no colons
+			lastColon := strings.LastIndex(bindWithoutRO, ":")
+			if lastColon == -1 {
+				continue
+			}
+
+			hostPart := bindWithoutRO[:lastColon]
+			// containerPart := bindWithoutRO[lastColon+1:]
+
+			// Compare normalized paths
+			if filepath.Clean(hostPart) == filepath.Clean(expectedHostPath) {
 				found = true
 				foundAny = true
-				// Check if it is Read-Only
-				if !strings.HasSuffix(bind, ":ro") {
-					t.Errorf("Security Vulnerability: Sensitive path '%s' is mounted Read-Write! Bind: %s", path, bind)
-				}
 			}
 		}
+
 		if !found {
-			t.Errorf("Expected sensitive path '%s' to be mounted, but it was not found in binds: %v", path, capturedBinds)
+			t.Errorf("Expected sensitive path '%s' to be mounted Read-Only, but it was not found correctly in binds. Expected host path: %s. Binds: %v", name, expectedHostPath, capturedBinds)
 		}
 	}
 
