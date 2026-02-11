@@ -22,17 +22,8 @@ func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, on
 
 
 func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
-    // Setup a fake home directory using t.TempDir()
-    // This is robust and doesn't depend on os.UserHomeDir() or HOME env var behavior in CI
-    fakeHome := t.TempDir()
-
-    // Create dummy sensitive dirs in the fake home
-    if err := os.Mkdir(filepath.Join(fakeHome, ".ssh"), 0700); err != nil {
-		t.Fatalf("Failed to create .ssh dir: %v", err)
-	}
-    if err := os.Mkdir(filepath.Join(fakeHome, ".config"), 0700); err != nil {
-		t.Fatalf("Failed to create .config dir: %v", err)
-	}
+    // Setup a fake home directory
+    fakeHome := "/home/testuser" // Logical path, doesn't need to exist on disk
 
 	// Setup mock Docker client
 	client, mock := docker.NewMockClient()
@@ -62,13 +53,23 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	session.Image = "alpine:latest"
 	session.HomeDir = fakeHome // Explicitly set HomeDir to our fake home
 
+    // Mock StatFunc to simulate existence of sensitive directories
+    session.StatFunc = func(path string) (os.FileInfo, error) {
+        base := filepath.Base(path)
+        // Simulate only specific directories existing
+        if base == ".ssh" || base == ".config" {
+            return nil, nil // Exists (error is nil)
+        }
+        return nil, os.ErrNotExist
+    }
+
 	// Start session
 	if err := session.Start(context.Background()); err != nil {
 		t.Fatalf("Session.Start failed: %v", err)
 	}
 
 	// Verify sensitive mounts
-	sensitivePaths := []string{".ssh", ".config"} // Only check the ones we created
+	sensitivePaths := []string{".ssh", ".config"} // Only check the ones we simulated existence for
 
 	foundAny := false
 	for _, path := range sensitivePaths {
@@ -88,6 +89,16 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 			t.Errorf("Expected sensitive path '%s' to be mounted, but it was not found in binds", path)
 		}
 	}
+
+    // Ensure that paths we said "do not exist" (.gemini, .cursor) are NOT mounted
+    unexpectedPaths := []string{".gemini", ".cursor"}
+    for _, path := range unexpectedPaths {
+        for _, bind := range capturedBinds {
+            if strings.Contains(bind, path) {
+                t.Errorf("Unexpected path '%s' was mounted even though StatFunc said it doesn't exist", path)
+            }
+        }
+    }
 
 	if !foundAny {
 		t.Error("WARNING: No sensitive paths were found in binds.")
