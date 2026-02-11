@@ -6,13 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"recac/internal/docker"
-
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/network"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // MockAgentForSecurity implements agent.Agent
@@ -20,32 +13,20 @@ type MockAgentForSecurity struct{}
 func (m *MockAgentForSecurity) Send(ctx context.Context, prompt string) (string, error) { return "", nil }
 func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) { return "", nil }
 
-
 func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
-	// Setup mock Docker client
-	client, mock := docker.NewMockClient()
-
-	// We want to capture the binds
+	// Setup mock Docker client using the package-level MockDockerClient
+	mockDocker := &MockDockerClient{}
 	var capturedBinds []string
 
-	mock.ContainerCreateFunc = func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error) {
-		capturedBinds = hostConfig.Binds
-		return container.CreateResponse{ID: "test-id"}, nil
-	}
-
-	// Mock ImageList to return our image so ImageExists returns true
-	mock.ImageListFunc = func(ctx context.Context, options image.ListOptions) ([]image.Summary, error) {
-		return []image.Summary{{RepoTags: []string{"alpine:latest"}}}, nil
-	}
-
-	mock.ContainerStartFunc = func(ctx context.Context, containerID string, options container.StartOptions) error { return nil }
-	mock.ContainerExecCreateFunc = func(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error) {
-		return types.IDResponse{ID: "exec-id"}, nil
+	// Note: Function signature must match MockDockerClient.RunContainerFunc in mock_docker_test.go
+	mockDocker.RunContainerFunc = func(ctx context.Context, image, workspace string, extraBinds, env []string, user string) (string, error) {
+		capturedBinds = extraBinds
+		return "test-id", nil
 	}
 
 	// Use NewSessionWithConfig to avoid DB initialization issues
 	session := NewSessionWithConfig("/tmp/workspace", "test-project", "mock", "mock-model", nil)
-	session.Docker = client
+	session.Docker = mockDocker
 	session.Agent = &MockAgentForSecurity{}
 	session.Image = "alpine:latest"
 
