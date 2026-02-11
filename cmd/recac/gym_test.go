@@ -102,9 +102,6 @@ func TestLoadChallenges(t *testing.T) {
 }
 
 func TestRunGym(t *testing.T) {
-	gymTestMutex.Lock()
-	defer gymTestMutex.Unlock()
-
 	// Mock runGymSessionFunc
 	originalRunGymSessionFunc := runGymSessionFunc
 	defer func() { runGymSessionFunc = originalRunGymSessionFunc }()
@@ -141,9 +138,6 @@ func TestRunGym(t *testing.T) {
 }
 
 func TestRunGymSession(t *testing.T) {
-	gymTestMutex.Lock()
-	defer gymTestMutex.Unlock()
-
 	// Mock factories
 	originalDockerFactory := gymDockerClientFactory
 	originalAgentFactory := gymAgentFactory
@@ -192,9 +186,6 @@ func TestRunGymSession(t *testing.T) {
 	mockDocker.On("RunContainer", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("mock-container-id", nil)
 	mockDocker.On("StopContainer", mock.Anything, "mock-container-id").Return(nil)
 
-	// Mock Agent (Send) - Expect generic calls
-	mockAgent.On("Send", mock.Anything, mock.Anything).Return("Agent Response", nil)
-
 	// Setup calls (passwd, git, etc) - allow any Exec/ExecAsUser calls generally
 	// But match specific verification call specifically if needed.
 	// Since verification is the last step, we can return "OK" for the python test, and "" for others.
@@ -202,7 +193,7 @@ func TestRunGymSession(t *testing.T) {
 
 	// Helper to match verification command
 	isVerificationCmd := func(cmd []string) bool {
-		return len(cmd) > 1 && cmd[0] == "python3" && cmd[1] == "test.py"
+		return len(cmd) > 0 && cmd[0] == "python3" && cmd[1] == "test.py"
 	}
 
 	// Verification call

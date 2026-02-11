@@ -13,9 +13,6 @@ import (
 )
 
 func TestOptimizePrompts(t *testing.T) {
-	gymTestMutex.Lock()
-	defer gymTestMutex.Unlock()
-
 	// Mock factories
 	originalRunGymSessionFunc := runGymSessionFunc
 	originalAgentFactory := agentClientFactory

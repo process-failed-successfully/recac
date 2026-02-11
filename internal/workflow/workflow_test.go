@@ -166,13 +166,6 @@ func TestRunWorkflow_Detached(t *testing.T) {
 }
 
 func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
-	// Mock RunWorkflow
-	originalRunWorkflow := RunWorkflow
-	defer func() { RunWorkflow = originalRunWorkflow }()
-	RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
-		return nil // Prevent running the full session
-	}
-
 	// Mock SetupWorkspace
 	originalSetup := cmdutils.SetupWorkspace
 	defer func() { cmdutils.SetupWorkspace = originalSetup }()
