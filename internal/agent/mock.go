@@ -37,7 +37,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return `
 ` + "```bash" + `
 cat <<EOF > feature_list.json
-[{"id": "req-primes", "description": "Implement primes.py"}]
+{
+    "project_name": "${RECAC_PROJECT_ID:-PRIMES}",
+    "features": [
+        {"id": "req-primes", "description": "Implement primes.py"}
+    ]
+}
 EOF
 # Fallback: agent-bridge is removed to prevent failure in unit tests.
 # The runner will automatically pick up feature_list.json from disk.
