@@ -91,7 +91,8 @@ Great work.
 	}
 
 	// 3. [PRIMES] Task Handling
-	if strings.Contains(strings.ToUpper(prompt), "[PRIMES]") {
+	// Robust check: Matches [PRIMES] tag OR "Prime Number Script" OR "primes.py"
+	if strings.Contains(strings.ToUpper(prompt), "[PRIMES]") || strings.Contains(lowerPrompt, "prime number script") || strings.Contains(lowerPrompt, "primes.py") {
 		// A. Ticket Generation Request
 		if strings.Contains(lowerPrompt, "generate") || strings.Contains(lowerPrompt, "ticket") || strings.Contains(lowerPrompt, "json") {
 			return `[

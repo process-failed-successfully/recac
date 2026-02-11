@@ -46,6 +46,13 @@ func TestMockAgent_Send(t *testing.T) {
 		assert.Contains(t, resp, "cat << 'EOF' > primes.py")
 	})
 
+	t.Run("Primes Task Without Tag", func(t *testing.T) {
+		prompt := "Implement the Prime Number Script"
+		resp, err := agent.Send(ctx, prompt)
+		require.NoError(t, err)
+		assert.Contains(t, resp, "cat << 'EOF' > primes.py", "Should detect task by description")
+	})
+
 	t.Run("Manager Approval", func(t *testing.T) {
 		prompt := "## YOUR ROLE - PROJECT MANAGER\n\nReview the code."
 		resp, err := agent.Send(ctx, prompt)
