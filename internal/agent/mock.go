@@ -51,21 +51,36 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Initializer Agent
-	if strings.Contains(prompt, "You are an Initializer Agent") {
-		// Just return a success message or simple bash
+	if strings.Contains(prompt, "INITIALIZER AGENT") || strings.Contains(prompt, "You are an Initializer Agent") {
+		// Just return a success message or simple bash that creates feature list and imports it
+		// Crucial: The prompt expects 'agent-bridge import' for features.
 		return `
 I will initialize the repository.
 
 ` + "```bash" + `
 echo "Initializing repository..."
-# Create an empty primes.py to start (optional)
-touch primes.py
+cat << 'EOF' | agent-bridge import --project "$RECAC_PROJECT_ID"
+{
+  "project_name": "Prime Script",
+  "features": [
+    {
+      "id": "primes-script",
+      "category": "functional",
+      "priority": "MVP",
+      "description": "Implement primes.py script",
+      "status": "pending",
+      "steps": ["Run python script", "Check output"],
+      "passes": false
+    }
+  ]
+}
+EOF
 ` + "```" + `
 `, nil
 	}
 
 	// 3. Coding Agent
-	if strings.Contains(prompt, "## YOUR ROLE - CODING AGENT") {
+	if strings.Contains(prompt, "CODING AGENT") || strings.Contains(prompt, "Coding Agent") {
 		// Check for specific task context
 		if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "prime") || strings.Contains(prompt, "PRIMES") {
 			return `
@@ -90,6 +105,9 @@ print(f"Generated {len(primes)} primes.")
 EOF
 
 python3 primes.py
+
+# IMPORTANT: Mark feature as complete so we don't loop forever
+agent-bridge feature set primes-script --status completed --passes true
 ` + "```" + `
 `, nil
 		}

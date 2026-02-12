@@ -21,7 +21,8 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	}
 
 	// 2. Test Initializer
-	initPrompt := "You are an Initializer Agent ..."
+	// Using header format seen in prompt template
+	initPrompt := "## YOUR ROLE - INITIALIZER AGENT\n..."
 	resp, err = agent.Send(ctx, initPrompt)
 	if err != nil {
 		t.Fatalf("Initializer Send failed: %v", err)
@@ -29,9 +30,12 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	if !strings.Contains(resp, "Initializing repository") {
 		t.Errorf("Initializer response invalid: %s", resp)
 	}
+	if !strings.Contains(resp, "agent-bridge import") {
+		t.Errorf("Initializer response missing import: %s", resp)
+	}
 
 	// 3. Test Coding Agent
-	codingPrompt := "## YOUR ROLE - CODING AGENT ... Implement primes.py"
+	codingPrompt := "## YOUR ROLE - CODING AGENT\n... Implement primes.py"
 	resp, err = agent.Send(ctx, codingPrompt)
 	if err != nil {
 		t.Fatalf("Coding Send failed: %v", err)
@@ -39,8 +43,8 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	if !strings.Contains(resp, "cat << 'EOF' > primes.py") {
 		t.Errorf("Coding response invalid: %s", resp)
 	}
-	if !strings.Contains(resp, "with open('primes.json', 'w')") {
-		t.Errorf("Coding response missing file write logic: %s", resp)
+	if !strings.Contains(resp, "agent-bridge feature set") {
+		t.Errorf("Coding response missing completion signal: %s", resp)
 	}
 
 	// 4. Test QA/Manager
