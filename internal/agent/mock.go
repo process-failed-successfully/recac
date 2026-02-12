@@ -67,7 +67,8 @@ with open('primes.json', 'w') as f:
     json.dump({"primes": primes}, f)
 `
 		// Use heredoc for file creation, then run script, add files, and commit
-		cmd := fmt.Sprintf("cat << 'EOF' > primes.py\n%sEOF\n\npython3 primes.py\ngit add -f primes.py primes.json\ngit commit -m \"Add primes script\"", script)
+		// Also mark feature as completed to trigger auto-completion
+		cmd := fmt.Sprintf("cat << 'EOF' > primes.py\n%sEOF\n\npython3 primes.py\ngit add -f primes.py primes.json\ngit commit -m \"Add primes script\"\nagent-bridge feature set 1 --status done --passes true", script)
 		return fmt.Sprintf("Here is the script.\n```bash\n%s\n```\nTask Completed.", cmd), nil
 	}
 
