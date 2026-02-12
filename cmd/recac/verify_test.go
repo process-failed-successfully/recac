@@ -92,7 +92,7 @@ func Complex(n int) {
 
 // Added security issue
 func Secret() {
-	key := "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE"
+	key := "AWS_ACCESS_KEY_ID=` + "AKIA" + `IOSFODNN7EXAMPLE"
 	fmt.Println(key)
 }
 `

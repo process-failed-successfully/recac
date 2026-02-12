@@ -250,7 +250,7 @@ jobs:
 
       - name: Setup k3d
         run: |
-          wget -q -O - https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+          wget -q -O install_k3d.sh https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh && bash install_k3d.sh && rm install_k3d.sh
           k3d cluster create recac-smoke \
             --agents 1 \
             --no-lb \

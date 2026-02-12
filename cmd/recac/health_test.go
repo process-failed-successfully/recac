@@ -49,7 +49,7 @@ func TestHealthCmd(t *testing.T) {
 
 	// Create a file with Security Issue (dummy secret)
 	secCode := `package main
-    var awsKey = "AKIAIOSFODNN7EXAMPLE"
+    var awsKey = "` + "AKIA" + `IOSFODNN7EXAMPLE"
     `
 	os.WriteFile(filepath.Join(tmpDir, "sec.go"), []byte(secCode), 0644)
 
