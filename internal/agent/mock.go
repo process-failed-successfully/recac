@@ -42,7 +42,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 [
   {
     "title": "ID:[PRIMES] Create Prime Number Script",
-    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'. Repo: https://github.com/example/repo",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.",
     "type": "Task",
     "children": []
   }
