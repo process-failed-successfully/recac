@@ -520,7 +520,27 @@ func waitForJob(ns, namePrefix string, timeout time.Duration) (string, error) {
 }
 
 func waitForJobCompletion(ns, jobName string, timeout time.Duration) error {
-	return runCommand("kubectl", "wait", "--for=condition=complete", jobName, "-n", ns, "--timeout", fmt.Sprintf("%.0fs", timeout.Seconds()))
+	// Poll for job completion or failure
+	start := time.Now()
+	for time.Since(start) < timeout {
+		// Check for Succeeded (Complete)
+		// Note: No single quotes around jsonpath argument when using exec.Command
+		cmd := exec.Command("kubectl", "get", jobName, "-n", ns, "-o", "jsonpath={.status.conditions[?(@.type==\"Complete\")].status}")
+		out, _ := cmd.CombinedOutput()
+		if strings.TrimSpace(string(out)) == "True" {
+			return nil
+		}
+
+		// Check for Failed
+		cmd = exec.Command("kubectl", "get", jobName, "-n", ns, "-o", "jsonpath={.status.conditions[?(@.type==\"Failed\")].status}")
+		out, _ = cmd.CombinedOutput()
+		if strings.TrimSpace(string(out)) == "True" {
+			return fmt.Errorf("job %s failed", jobName)
+		}
+
+		time.Sleep(5 * time.Second)
+	}
+	return fmt.Errorf("timeout waiting for job %s to complete", jobName)
 }
 
 func printLogs(ns, selector string) {
