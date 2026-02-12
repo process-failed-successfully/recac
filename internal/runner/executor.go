@@ -13,11 +13,22 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/spf13/viper"
 )
 
 var bashBlockRegex = regexp.MustCompile("(?s)```bash\\s*(.*?)\\s*```")
+
+var falsePositivePhrases = []string{
+	"no blockers",
+	"no technical obstacles",
+	"progressing smoothly",
+	"initial setup complete",
+	"all requirements met",
+	"ready for next feature",
+	"ui verification required",
+}
 
 // ProcessResponse parses the agent response for commands, executes them, and handles blockers.
 func (s *Session) ProcessResponse(ctx context.Context, response string) (string, error) {
@@ -104,20 +115,26 @@ func (s *Session) checkBlockers(ctx context.Context) error {
 			if err == nil && len(trimmed) > 0 {
 				// Check for false positives (status messages instead of blockers)
 				// 1. Normalize: lowercase and remove common comment/bullet chars (#, *, -, whitespace)
-				cleanStr := strings.ToLower(trimmed)
-				cleanStr = strings.ReplaceAll(cleanStr, "#", "")
-				cleanStr = strings.ReplaceAll(cleanStr, "*", "")
-				cleanStr = strings.ReplaceAll(cleanStr, "-", "")
+				// Optimization: Single pass for filtering and lowercasing
+				cleanStr := strings.Map(func(r rune) rune {
+					if r == '#' || r == '*' || r == '-' {
+						return -1
+					}
+					return unicode.ToLower(r)
+				}, trimmed)
 				cleanStr = strings.Join(strings.Fields(cleanStr), " ") // Normalize internal whitespace
 
-				isFalsePositive := strings.Contains(cleanStr, "no blockers") ||
-					strings.HasPrefix(cleanStr, "none") ||
-					strings.Contains(cleanStr, "no technical obstacles") ||
-					strings.Contains(cleanStr, "progressing smoothly") ||
-					strings.Contains(cleanStr, "initial setup complete") ||
-					strings.Contains(cleanStr, "all requirements met") ||
-					strings.Contains(cleanStr, "ready for next feature") ||
-					strings.Contains(cleanStr, "ui verification required")
+				isFalsePositive := false
+				if strings.HasPrefix(cleanStr, "none") {
+					isFalsePositive = true
+				} else {
+					for _, phrase := range falsePositivePhrases {
+						if strings.Contains(cleanStr, phrase) {
+							isFalsePositive = true
+							break
+						}
+					}
+				}
 
 				if isFalsePositive {
 					s.Logger.Info("ignoring false positive blocker", "file", bf, "content", trimmed)
