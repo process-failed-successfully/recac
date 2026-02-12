@@ -50,7 +50,7 @@ cat << 'EOF' | agent-bridge import
       "priority": "MVP",
       "description": "Calculate primes less than 10000",
       "status": "pending",
-      "steps": [\"Run primes.py\", \"Check primes.json\"],
+      "steps": ["Run primes.py", "Check primes.json"],
       "passes": false,
       "dependencies": {
         "depends_on_ids": [],
