@@ -92,7 +92,8 @@ git checkout -b "$BRANCH_NAME" || git checkout "$BRANCH_NAME"
 git add primes.py
 git commit -m "Implement primes.py" || true
 # We use a token if available, or assume SSH/auth is set up
-git push origin "$BRANCH_NAME" || echo "Push failed (expected in local mock)"
+# Use --force to avoid non-fast-forward errors in CI loops
+git push --force origin "$BRANCH_NAME" || echo "Push failed (expected in local mock)"
 
 # Update status and signal
 agent-bridge feature update "Implement Primes Script" --status completed || true
@@ -114,6 +115,7 @@ agent-bridge signal QA_PASSED true || touch QA_PASSED
 		return "```bash\n" + `
 echo "Project Signed Off"
 agent-bridge signal PROJECT_SIGNED_OFF true || touch PROJECT_SIGNED_OFF
+agent-bridge signal COMPLETED true || touch COMPLETED
 ` + "\n```", nil
 	}
 
