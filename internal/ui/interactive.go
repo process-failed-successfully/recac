@@ -264,7 +264,7 @@ type InteractiveModel struct {
 
 func NewInteractiveModel(commands []SlashCommand, provider, model string) InteractiveModel {
 	ta := textarea.New()
-	ta.Placeholder = "Type a message..."
+	ta.Placeholder = "Ask me to code, refactor, or explain..."
 	ta.Focus()
 	ta.Prompt = " ❯ "
 	ta.CharLimit = 0 // No limit
@@ -368,10 +368,11 @@ func NewInteractiveModel(commands []SlashCommand, provider, model string) Intera
 	welcomeMsg := strings.Join([]string{
 		interactiveBotStyle.Render("Recac: ") + "Welcome to RECAC! 🎨",
 		"",
-		interactiveStatusMessageStyle.Render("  • Type / for commands (or press Tab)"),
-		interactiveStatusMessageStyle.Render("  • Type ! for shell execution"),
-		interactiveStatusMessageStyle.Render("  • Type anything else to chat"),
-		interactiveStatusMessageStyle.Render("  • Press Ctrl+C to quit"),
+		interactiveStatusMessageStyle.Render("  ⚡ Type / for commands (Tab to autocomplete)"),
+		interactiveStatusMessageStyle.Render("  🐚 Type ! for shell execution"),
+		interactiveStatusMessageStyle.Render("  💬 Type anything else to chat"),
+		"",
+		lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("  💡 Tip: Use /model to switch AI models on the fly."),
 		"",
 	}, "\n")
 	vp.SetContent(welcomeMsg)
@@ -998,21 +999,21 @@ func (m *InteractiveModel) setMode(mode InputMode) {
 		m.textarea.Focus() // Ensure focus returns to chat input
 		m.textarea.Focus() // Ensure focus returns to chat input
 		m.textarea.Prompt = " ❯ "
-		m.textarea.Placeholder = "Ask anything..."
+		m.textarea.Placeholder = "Ask me to code, refactor, or explain..."
 		m.textarea.FocusedStyle.Prompt = lipgloss.NewStyle().Foreground(lipgloss.Color("205")) // Pink
 		m.showList = false
 		m.setListItemsToCommands() // Reset to full command list for next time
 
 	case ModeCmd:
 		m.textarea.Prompt = "/ "
-		m.textarea.Placeholder = "Type to filter commands..."
+		m.textarea.Placeholder = "Search commands..."
 		m.textarea.FocusedStyle.Prompt = lipgloss.NewStyle().Foreground(lipgloss.Color("240")) // Grey
 		m.showList = true
 		m.setListItemsToCommands()
 
 	case ModeShell:
 		m.textarea.Prompt = "! "
-		m.textarea.Placeholder = "Shell command..."
+		m.textarea.Placeholder = "Enter shell command..."
 		m.textarea.FocusedStyle.Prompt = lipgloss.NewStyle().Foreground(lipgloss.Color("#F4B400")) // Yellow
 		m.showList = false
 
