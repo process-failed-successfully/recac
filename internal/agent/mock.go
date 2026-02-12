@@ -58,20 +58,23 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Initializer Role (Feature Extraction)
-	// The CLI might also use an "Initializer" agent to extract features first.
-	// If the prompt asks for features extraction or similar (usually has JSON format instructions).
-	// However, the smoke test seems to jump straight to TPM or Coding.
-	// Let's add a basic check for "Initializer" just in case.
-	if strings.Contains(prompt, "You are an Initializer Agent") {
+	// The CLI uses an "Initializer" agent to extract features from the spec.
+	// The prompt header is usually "## YOUR ROLE - INITIALIZER AGENT".
+	// We check for "INITIALIZER AGENT" to be robust.
+	if strings.Contains(prompt, "INITIALIZER AGENT") {
 		// Return a bash script that imports features into the DB using agent-bridge
-		return `cat << 'EOF' | agent-bridge import
+		// The JSON format must match what agent-bridge expects (list of features)
+		// We use a simple list suitable for the 'prime-python' smoke test scenario.
+		return "```bash\n" + `cat << 'EOF' | agent-bridge import --project "$RECAC_PROJECT_ID"
 {
   "features": [
-    {"description": "Calculate prime numbers", "status": "pending"},
-    {"description": "Handle invalid input", "status": "pending"}
+    {"id": "feat-1", "description": "Implement is_prime function", "status": "pending", "type": "backend"},
+    {"id": "feat-2", "description": "Add CLI argument parsing", "status": "pending", "type": "backend"},
+    {"id": "feat-3", "description": "Add error handling for invalid input", "status": "pending", "type": "backend"}
   ]
 }
-EOF`, nil
+EOF
+` + "\n```", nil
 	}
 
 	// 3. Coding Agent (Primes Task)
