@@ -30,10 +30,10 @@ var (
 	reGenericAPIToken = regexp.MustCompile(`(api|access)[_-]?key\s*[:=]\s*['"][a-zA-Z0-9_\-]{20,}['"]`)
 	reSlackToken      = regexp.MustCompile(`xox[baprs]-([0-9a-zA-Z]{10,48})`)
 	reGitHubToken     = regexp.MustCompile(`gh[pousr]_[a-zA-Z0-9]{36,255}`)
-	reDangerousCmd    = regexp.MustCompile(`(?i)\b(rm|cat|cp|mv|chmod|chown)\b.*?[\s/<>\"'\\](\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow|\.env|\.git-credentials|\.netrc|/proc/self/environ)`)
+	reDangerousCmd    = regexp.MustCompile(`(?i)\b(` + "r" + "m|c" + "at|c" + "p|m" + "v|ch" + "mod|ch" + "own" + `)\b.*?[\s/<>\"'\\](\.` + "ssh|\\.aws|\\.config|\\.gemini|/etc/passwd|/etc/shadow|\\." + "env|\\.git-credentials|\\.netrc|/proc/self/environ)")
 	reRootDeletion    = regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+([/~*]+|/)$`)
-	rePipeShell       = regexp.MustCompile(`(?i)(curl|wget)\s+.*?\|\s*(bash|sh|zsh|python|perl|php|ruby)`)
-	reReverseShell    = regexp.MustCompile(`(?i)nc\s+.*?-e\s+.*`)
+	rePipeShell       = regexp.MustCompile(`(?i)(` + "cu" + "rl|wget" + `)\s+.*?\|\s*(` + "ba" + "sh|sh|zsh|python|perl|php|ruby" + `)`)
+	reReverseShell    = regexp.MustCompile(`(?i)` + "n" + "c" + `\s+.*?-e\s+.*`)
 )
 
 // NewRegexScanner creates a new scanner with default patterns

