@@ -65,9 +65,13 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	foundAny := false
 	for _, path := range sensitivePaths {
 		found := false
+		// Construct the expected container target path (e.g., ":/home/appuser/.ssh")
+		// This ensures we match the specific bind and not just a substring in the host path
+		targetSuffix := ":/home/appuser/" + path
+
 		for _, bind := range capturedBinds {
-			// Check if bind contains the sensitive path
-			if strings.Contains(bind, path) {
+			// Check if bind targets the sensitive path
+			if strings.Contains(bind, targetSuffix) {
 				found = true
 				foundAny = true
 				// Check if it is Read-Only
