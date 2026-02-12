@@ -64,7 +64,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// We use a dummy ID that matches the TPM ticket generation logic if possible,
 		// but for the smoke test "prime-python", we just need valid JSON.
 		return "```bash\n" +
-			`echo '[{"id": "primes-script", "name": "Implement Primes Script", "type": "Story", "status": "todo", "project": "PRIMES"}]' | agent-bridge import --project "$RECAC_PROJECT_ID"` +
+			`echo '{"features": [{"id": "primes-script", "name": "Implement Primes Script", "type": "Story", "status": "todo", "project": "PRIMES"}]}' | agent-bridge import --project "$RECAC_PROJECT_ID"` +
 			"\n```", nil
 	}
 
@@ -75,7 +75,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			// Work is done. Signal completion via agent-bridge.
 			// Ensure the feature exists first by importing it (idempotent for this mock flow)
 			return "```bash\n" +
-				`echo '[{"id": "primes-script", "name": "Implement Primes Script", "type": "Story", "status": "todo", "project": "PRIMES"}]' | agent-bridge import` + "\n" +
+				`echo '{"features": [{"id": "primes-script", "name": "Implement Primes Script", "type": "Story", "status": "todo", "project": "PRIMES"}]}' | agent-bridge import` + "\n" +
 				`agent-bridge feature set primes-script --status completed --passes true --project "$RECAC_PROJECT_ID"` +
 				"\n```\nTask Completed.", nil
 		}
