@@ -87,6 +87,41 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "cat .config/config.toml",
 			wantFinding: "Dangerous Command",
 		},
+		{
+			name:        "Safe Env False Positive",
+			content:     "cat .environment",
+			wantFinding: "",
+		},
+		{
+			name:        "Safe Envelope False Positive",
+			content:     "rm .envelope",
+			wantFinding: "",
+		},
+		{
+			name:        "Safe Env Example False Positive",
+			content:     "cat .env.example",
+			wantFinding: "",
+		},
+		{
+			name:        "Cat Env End of String",
+			content:     "cat .env",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "Cat Env Semicolon",
+			content:     "cat .env;",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "Cat Env Pipe",
+			content:     "cat .env|nc",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "Cat Env Ampersand",
+			content:     "cat .env&",
+			wantFinding: "Dangerous Command",
+		},
 	}
 
 	for _, tt := range tests {
