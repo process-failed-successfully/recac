@@ -64,14 +64,14 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Let's add a basic check for "Initializer" just in case.
 	if strings.Contains(prompt, "You are an Initializer Agent") || strings.Contains(prompt, "INITIALIZER AGENT") {
 		// Return a bash script that imports features into the DB using agent-bridge
-		return `cat << 'EOF' | agent-bridge import
+		return "```bash\n" + `cat << 'EOF' | agent-bridge import
 {
   "features": [
     {"description": "Calculate prime numbers", "status": "pending"},
     {"description": "Handle invalid input", "status": "pending"}
   ]
 }
-EOF`, nil
+EOF` + "\n```", nil
 	}
 
 	// 3. Coding Agent (Primes Task)
@@ -84,7 +84,7 @@ EOF`, nil
 	   strings.Contains(upperPrompt, "PYTHON") ||
 	   strings.Contains(upperPrompt, "SCRIPT") {
 		// Return a bash script to implement the prime checker
-		return `cat << 'EOF' > primes.py
+		return "```bash\n" + `cat << 'EOF' > primes.py
 import sys
 
 def is_prime(n):
@@ -111,8 +111,7 @@ python3 primes.py 7
 python3 primes.py 10
 
 # Signal completion
-agent-bridge signal PROJECT_SIGNED_OFF true --privileged || true
-`, nil
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged || true` + "\n```", nil
 	}
 
 	// 4. QA/Manager Role
@@ -123,7 +122,7 @@ agent-bridge signal PROJECT_SIGNED_OFF true --privileged || true
 	   strings.Contains(prompt, "Review") ||
 	   strings.Contains(strings.ToUpper(prompt), "VERIFY") {
 		// Return a signal to approve
-		return `QA_PASSED`, nil
+		return "```bash\n" + `agent-bridge signal QA_PASSED true --privileged` + "\n```", nil
 	}
 
 	// Default fallback

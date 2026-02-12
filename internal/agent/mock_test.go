@@ -74,8 +74,11 @@ func TestMockAgent_QA(t *testing.T) {
 		t.Fatalf("Send failed: %v", err)
 	}
 
-	if strings.TrimSpace(response) != "QA_PASSED" {
-		t.Errorf("Expected QA_PASSED signal, got: %s", response)
+	if !strings.Contains(response, "agent-bridge signal QA_PASSED true") {
+		t.Errorf("Expected QA_PASSED signal in bash script, got: %s", response)
+	}
+	if !strings.Contains(response, "```bash") {
+		t.Errorf("Expected markdown code block, got: %s", response)
 	}
 }
 
@@ -88,7 +91,10 @@ func TestMockAgent_Verify(t *testing.T) {
 		t.Fatalf("Send failed: %v", err)
 	}
 
-	if strings.TrimSpace(response) != "QA_PASSED" {
-		t.Errorf("Expected QA_PASSED signal for verify, got: %s", response)
+	if !strings.Contains(response, "agent-bridge signal QA_PASSED true") {
+		t.Errorf("Expected QA_PASSED signal in bash script for verify, got: %s", response)
+	}
+	if !strings.Contains(response, "```bash") {
+		t.Errorf("Expected markdown code block, got: %s", response)
 	}
 }
