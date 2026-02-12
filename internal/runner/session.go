@@ -406,6 +406,10 @@ func (s *Session) ReadSpec() (string, error) {
 
 // Start initializes the session environment (Docker container).
 func (s *Session) Start(ctx context.Context) error {
+	if s.StatFunc == nil {
+		s.StatFunc = os.Stat
+	}
+
 	// If a specific task is selected, use a task-specific state file to avoid clobbering
 	if s.SelectedTaskID != "" {
 		s.AgentStateFile = filepath.Join(s.Workspace, fmt.Sprintf(".agent_state_%s.json", s.SelectedTaskID))
