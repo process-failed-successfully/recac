@@ -90,6 +90,10 @@ print(f"Generated {len(primes)} primes.")
 EOF
 
 python3 primes.py
+
+# Commit the files
+git add primes.py primes.json
+git commit -m "Add primes script"
 ` + "```" + `
 `, nil
 		}
