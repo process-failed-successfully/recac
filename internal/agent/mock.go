@@ -90,7 +90,7 @@ echo "Import finished with code $?"
 	   strings.Contains(upperPrompt, "PYTHON") ||
 	   strings.Contains(upperPrompt, "SCRIPT") {
 		// Return a bash script to implement the prime checker
-		return `cat << 'EOF' > primes.py
+		return "```bash\n" + `cat << 'EOF' > primes.py
 import sys
 
 def is_prime(n):
@@ -118,7 +118,7 @@ python3 primes.py 10
 
 # Signal completion
 agent-bridge signal PROJECT_SIGNED_OFF true --privileged || true
-`, nil
+` + "\n```", nil
 	}
 
 	// 4. QA/Manager Role
