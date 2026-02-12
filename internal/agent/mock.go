@@ -36,18 +36,34 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 1. TPM Role (Ticket Generation)
 	if strings.Contains(prompt, "You are an expert Technical Program Manager (TPM)") || strings.Contains(prompt, "ID:[PRIMES]") {
+		// Try to extract Repo URL from the prompt
+		repo := "https://github.com/example/repo"
+		// Simple extraction logic: Look for "Repo: <url>" or just use a known one if passed
+		// In E2E tests, the repo URL is often passed in the prompt context
+		if strings.Contains(prompt, "Repo: ") {
+			// Extract URL after "Repo: "
+			parts := strings.Split(prompt, "Repo: ")
+			if len(parts) > 1 {
+				// Take the first word after "Repo: "
+				urlParts := strings.Fields(parts[1])
+				if len(urlParts) > 0 {
+					repo = urlParts[0]
+				}
+			}
+		}
+
 		// Return JSON ticket plan for Prime Python Scenario
 		// The prompt contains "ID:[PRIMES]"
-		return `
+		return fmt.Sprintf(`
 [
   {
     "title": "ID:[PRIMES] Create Prime Number Script",
-    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'. Repo: https://github.com/example/repo",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'. Repo: %s",
     "type": "Task",
     "children": []
   }
 ]
-`, nil
+`, repo), nil
 	}
 
 	// 2. Initializer Agent
