@@ -361,7 +361,10 @@ func run() error {
 
 	// Determine expected job name from ticket map (assuming single task for now or finding "PRIMES")
 	var targetTicketID string
-	if id, ok := ticketMap["PRIMES"]; ok {
+	// Prioritize PRIMES-1 (Story) over PRIMES (Epic) because Orchestrator usually ignores Epics
+	if id, ok := ticketMap["PRIMES-1"]; ok {
+		targetTicketID = id
+	} else if id, ok := ticketMap["PRIMES"]; ok {
 		targetTicketID = id
 	} else {
 		// Fallback: Use the first one
