@@ -67,15 +67,35 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Initializer Agent
-	if strings.Contains(prompt, "You are an Initializer Agent") {
+	if strings.Contains(strings.ToLower(prompt), "initializer agent") {
 		// Just return a success message or simple bash
+		// Note: The Initializer Agent is expected to import features into the DB
+		// via agent-bridge import. The smoke test might fail if features aren't present.
+		// We return a script that simulates importing a basic feature.
 		return `
-I will initialize the repository.
+I will initialize the repository and register the features.
 
 ` + "```bash" + `
 echo "Initializing repository..."
 # Create an empty primes.py to start (optional)
 touch primes.py
+
+# Simulate feature import for smoke test
+cat << 'EOF' | agent-bridge import
+{
+  "features": [
+    {
+      "id": "prime-script",
+      "category": "functional",
+      "priority": "MVP",
+      "description": "Calculate primes",
+      "status": "pending",
+      "steps": ["Run primes.py"],
+      "passes": false
+    }
+  ]
+}
+EOF
 ` + "```" + `
 `, nil
 	}
