@@ -56,7 +56,27 @@ agent-bridge import --file feature_list.json --project "$RECAC_PROJECT_ID"
 ` + "```", nil
 	}
 
-	// TPM / Manager
+	// TPM (Technical Program Manager - Ticket Generation)
+	if strings.Contains(prompt, "Technical Program Manager") {
+		// Return JSON array of tickets as expected by generateTickets
+		return `
+[
+  {
+    "title": "ID:[PRIMES] Implement Primes Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000.",
+    "type": "Task",
+    "children": [],
+    "acceptance_criteria": [
+      "Script is named primes.py",
+      "Output file is named primes.json",
+      "Output contains correct primes"
+    ]
+  }
+]
+`, nil
+	}
+
+	// Project Manager (Review/Signoff)
 	if strings.Contains(prompt, "Project Manager") || strings.Contains(prompt, "create JIRA tickets") {
 		return `
 I will create the tickets.
