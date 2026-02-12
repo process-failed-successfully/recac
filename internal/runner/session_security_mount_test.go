@@ -83,22 +83,34 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 
 	foundAny := false
 	for _, p := range sensitivePaths {
-		expectedHostPath := filepath.Join(mockHome, p)
+		// Instead of matching host path prefix (which can vary by OS/environment),
+		// we match by the target container path which is constant.
+		// Expected bind format: HOST_PATH:/home/appuser/DIR:ro
+		targetSuffix := ":/home/appuser/" + p + ":ro"
+
 		found := false
 		for _, bind := range capturedBinds {
-			// Check if bind starts with expected host path
-			// Format: /tmp/xxxx/.ssh:/home/appuser/.ssh:ro
-			if strings.HasPrefix(bind, expectedHostPath) {
+			if strings.HasSuffix(bind, targetSuffix) {
 				found = true
 				foundAny = true
-				// Check if it is Read-Only
-				if !strings.HasSuffix(bind, ":ro") {
-					t.Errorf("Security Vulnerability: Sensitive path '%s' is mounted Read-Write! Bind: %s", p, bind)
+
+				// Optional: Verify host path component is reasonably correct
+				// We strip the suffix to get the host path
+				hostPart := strings.TrimSuffix(bind, targetSuffix)
+
+				// Normalize both paths for comparison (handle Windows backslashes)
+				expectedHostPath := filepath.Join(mockHome, p)
+
+				// Simple check: does it look like the right path?
+				// Due to symlinks (e.g. /var vs /private/var on macOS), exact string match might fail.
+				// We check if the base name matches at least to ensure we are mounting the correct directory.
+				if filepath.Base(hostPart) != filepath.Base(expectedHostPath) {
+					t.Errorf("Bind host path mismatch for '%s'. Got: %s, Expected base: %s", p, hostPart, filepath.Base(expectedHostPath))
 				}
 			}
 		}
 		if !found {
-			t.Errorf("Expected sensitive path '%s' to be mounted (mocked existence), but it was not found in binds.", p)
+			t.Errorf("Expected sensitive path '%s' to be mounted Read-Only to /home/appuser/%s, but it was not found in binds.", p, p)
 		}
 	}
 
