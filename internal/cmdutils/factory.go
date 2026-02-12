@@ -115,7 +115,23 @@ var SetupWorkspace = func(ctx context.Context, gitClient git.IClient, repoURL, w
 	if !gitClient.RepoExists(workspace) {
 		fmt.Printf("[%s] Cloning repository into %s...\n", ticketID, workspace)
 		if err := gitClient.Clone(ctx, authRepoURL, workspace); err != nil {
-			return repoURL, fmt.Errorf("failed to clone repository: %w", err)
+			// If mock provider is active, we can fallback to initializing a local repo
+			// This prevents CI failures when the remote repo is missing or private
+			if viper.GetString("provider") == "mock" || os.Getenv("RECAC_PROVIDER") == "mock" {
+				fmt.Printf("[%s] Clone failed in mock mode. Initializing local git repo instead.\n", ticketID)
+				// Create dir
+				if err := os.MkdirAll(workspace, 0755); err != nil {
+					return repoURL, fmt.Errorf("failed to create workspace: %w", err)
+				}
+				// git init
+				if _, err := gitClient.Run(workspace, "init"); err != nil {
+					return repoURL, fmt.Errorf("failed to init local repo: %w", err)
+				}
+				// Initial commit to allow branching
+				_, _ = gitClient.Run(workspace, "commit", "--allow-empty", "-m", "Initial commit")
+			} else {
+				return repoURL, fmt.Errorf("failed to clone repository: %w", err)
+			}
 		}
 	} else {
 		fmt.Printf("[%s] Repository already exists in %s, skipping clone.\n", ticketID, workspace)
