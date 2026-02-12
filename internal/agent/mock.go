@@ -81,11 +81,12 @@ fi
 	if strings.Contains(lowerPrompt, "create exactly one ticket") {
 		// Return pure JSON as expected by recac jira parser
 		// Note: The parser is strict about JSON, so we output ONLY JSON
+		// IMPORTANT: Title must contain ID:[PRIMES] for the runner to map it back!
 		return `[
   {
     "id": "PRIMES",
-    "title": "Create Prime Number Script",
-    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.",
+    "title": "ID:[PRIMES] Create Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.\n\nRepo: https://github.com/example/repo",
     "type": "Task",
     "status": "Open",
     "priority": "High"
