@@ -62,7 +62,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// If the prompt asks for features extraction or similar (usually has JSON format instructions).
 	// However, the smoke test seems to jump straight to TPM or Coding.
 	// Let's add a basic check for "Initializer" just in case.
-	if strings.Contains(prompt, "You are an Initializer Agent") {
+	if strings.Contains(prompt, "You are an Initializer Agent") || strings.Contains(prompt, "INITIALIZER AGENT") {
 		// Return a bash script that imports features into the DB using agent-bridge
 		return `cat << 'EOF' | agent-bridge import
 {

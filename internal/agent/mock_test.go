@@ -20,6 +20,26 @@ func TestMockAgent_Default(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Initializer(t *testing.T) {
+	agent := NewMockAgent()
+	// Test both legacy and new prompt formats
+	prompts := []string{
+		"You are an Initializer Agent",
+		"## YOUR ROLE - INITIALIZER AGENT",
+	}
+
+	for _, prompt := range prompts {
+		response, err := agent.Send(context.Background(), prompt)
+		if err != nil {
+			t.Fatalf("Send failed: %v", err)
+		}
+
+		if !strings.Contains(response, "agent-bridge import") {
+			t.Errorf("Expected agent-bridge import command for Initializer role (prompt: %s), got: %s", prompt, response)
+		}
+	}
+}
+
 func TestMockAgent_TPM(t *testing.T) {
 	agent := NewMockAgent()
 	prompt := "You are an expert Technical Program Manager (TPM)"
