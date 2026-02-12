@@ -2,17 +2,11 @@ package security
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 )
 
 func TestRegexScanner_Scan(t *testing.T) {
 	scanner := NewRegexScanner()
-
-	// Helper to construct sensitive strings safely
-	join := func(parts ...string) string {
-		return strings.Join(parts, "")
-	}
 
 	tests := []struct {
 		name        string
@@ -26,22 +20,22 @@ func TestRegexScanner_Scan(t *testing.T) {
 		},
 		{
 			name:        "AWS Key",
-			content:     fmt.Sprintf("var key = \"%s\"", join("AKIA", "IOSFODNN7EXAMPLE")),
+			content:     fmt.Sprintf("var key = \"%s\"", "AKIA"+"IOSFODNN7EXAMPLE"),
 			wantFinding: "AWS Access Key",
 		},
 		{
 			name:        "GitHub Token",
-			content:     fmt.Sprintf("token = \"%s\"", join("ghp_", "123456789012345678901234567890123456")),
+			content:     fmt.Sprintf("token = \"%s\"", "ghp_"+"123456789012345678901234567890123456"),
 			wantFinding: "GitHub Token",
 		},
 		{
 			name:        "Private Key",
-			content:     fmt.Sprintf("-----BEGIN RSA %s KEY-----\nMIIEpQIBAAKCAQEA...", join("PRIVATE", "")),
+			content:     fmt.Sprintf("-----BEGIN RSA %s KEY-----\nMIIEpQIBAAKCAQEA...", "PRIVATE"),
 			wantFinding: "Private Key",
 		},
 		{
 			name:        "Generic API Key",
-			content:     fmt.Sprintf("api_key = \"%s\"", join("abc1234567890abc1234567890", "")),
+			content:     fmt.Sprintf("api_key = \"%s\"", "abc1234567890abc1234567890"),
 			wantFinding: "Generic API Token",
 		},
 		{
@@ -61,22 +55,22 @@ func TestRegexScanner_Scan(t *testing.T) {
 		},
 		{
 			name:        "Cat Env File",
-			content:     fmt.Sprintf("cat %s", join(".", "e", "nv")),
+			content:     fmt.Sprintf("cat %s", "."+"e"+"nv"),
 			wantFinding: "Dangerous Command",
 		},
 		{
 			name:        "Cat Redirection Env",
-			content:     fmt.Sprintf("cat<%s", join(".", "e", "nv")),
+			content:     fmt.Sprintf("cat<%s", "."+"e"+"nv"),
 			wantFinding: "Dangerous Command",
 		},
 		{
 			name:        "Cat Git Credentials",
-			content:     fmt.Sprintf("cat %s", join(".", "git-credentia", "ls")),
+			content:     fmt.Sprintf("cat %s", "."+"git-credentia"+"ls"),
 			wantFinding: "Dangerous Command",
 		},
 		{
 			name:        "Cat Proc Environ",
-			content:     fmt.Sprintf("cat %s", join("/proc/self/", "enviro", "n")),
+			content:     fmt.Sprintf("cat %s", "/proc/self/"+"enviro"+"n"),
 			wantFinding: "Dangerous Command",
 		},
 		{
@@ -91,7 +85,7 @@ func TestRegexScanner_Scan(t *testing.T) {
 		},
 		{
 			name:        "Cat Dot Config",
-			content:     fmt.Sprintf("cat %s/config.toml", join(".", "config")),
+			content:     fmt.Sprintf("cat %s/config.toml", "."+"config"),
 			wantFinding: "Dangerous Command",
 		},
 	}
