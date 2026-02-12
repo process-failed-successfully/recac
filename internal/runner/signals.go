@@ -13,14 +13,21 @@ func (s *Session) checkCompletion() bool {
 
 // hasSignal checks if a signal exists in the DB or filesystem (legacy).
 func (s *Session) hasSignal(name string) bool {
+	// 0. Check In-Memory Store (Fallback for Mock/Tests)
 	if s.DBStore == nil {
-		return false
+		if s.MemSignals != nil && s.MemSignals[name] == "true" {
+			return true
+		}
+		// If explicit "mock" provider, we might also allow filesystem signals for convenience?
+		// But MemSignals is cleaner.
 	}
 
-	// 1. Check DB (Modern Source)
-	val, err := s.DBStore.GetSignal(s.Project, name)
-	if err == nil && val == "true" {
-		return true
+	if s.DBStore != nil {
+		// 1. Check DB (Modern Source)
+		val, err := s.DBStore.GetSignal(s.Project, name)
+		if err == nil && val == "true" {
+			return true
+		}
 	}
 
 	// 2. Migration: Check Filesystem (Legacy Source)
@@ -58,6 +65,8 @@ func (s *Session) hasSignal(name string) bool {
 func (s *Session) clearSignal(name string) {
 	if s.DBStore != nil {
 		s.DBStore.DeleteSignal(s.Project, name)
+	} else if s.MemSignals != nil {
+		delete(s.MemSignals, name)
 	}
 	// Also ensure file is removed (redundancy)
 	path := filepath.Join(s.Workspace, name)
@@ -67,11 +76,31 @@ func (s *Session) clearSignal(name string) {
 // createSignal creates a signal in the DB.
 func (s *Session) createSignal(name string) error {
 	if s.DBStore == nil {
-		return fmt.Errorf("db store not initialized")
+		if s.MemSignals != nil {
+			s.MemSignals[name] = "true"
+			s.Logger.Info("created in-memory signal", "signal", name)
+			return nil
+		}
+		return fmt.Errorf("db store not initialized and no in-memory store available")
 	}
 	if err := s.DBStore.SetSignal(s.Project, name, "true"); err != nil {
 		return err
 	}
 	s.Logger.Info("created signal", "signal", name)
 	return nil
+}
+
+// getSignal retrieves a signal value from the DB or in-memory store.
+// Returns value, or empty string if not found.
+func (s *Session) getSignal(name string) (string, error) {
+	if s.DBStore == nil {
+		if s.MemSignals != nil {
+			if val, ok := s.MemSignals[name]; ok {
+				return val, nil
+			}
+			return "", nil // Not found
+		}
+		return "", nil // No store
+	}
+	return s.DBStore.GetSignal(s.Project, name)
 }

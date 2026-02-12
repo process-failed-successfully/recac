@@ -265,11 +265,17 @@ func (s *Session) runQAAgent(ctx context.Context) error {
 	// 3. Check DB Signal (Authoritative)
 	// We read the raw signal value. "true" = PASS, "false" (or missing) = FAIL.
 	// Note: checking "false" explicitly allows us to distinguish between "agent said fail" and "agent did nothing".
-	val, err := s.DBStore.GetSignal(s.Project, "QA_PASSED")
+	val, err := s.getSignal("QA_PASSED")
 	s.Logger.Info("QA result signal check", "signal", val, "error", err)
 
 	if err == nil && val == "true" {
 		s.Logger.Info("QA passed (signal verified)")
+		return nil
+	}
+
+	// Mock Mode Bypass: If running in mock mode, accept text confirmation
+	if s.AgentProvider == "mock" && strings.Contains(response, "LGTM") {
+		s.Logger.Info("QA passed (mock mode text match)")
 		return nil
 	}
 

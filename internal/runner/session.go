@@ -82,6 +82,7 @@ type Session struct {
 	FeatureContent            string       // Explicit feature list JSON content (authoritative)
 	Logger                    *slog.Logger // Structured logger for this session
 	SleepFunc                 func(time.Duration) // Function for sleeping (mockable)
+	MemSignals                map[string]string   // In-memory signal store for DB-less sessions (e.g. tests)
 
 	mu sync.RWMutex // Protects concurrent access to Iteration, SlackThreadTS, ContainerID
 }
@@ -154,6 +155,7 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 		UseLocalAgent:    os.Getenv("KUBERNETES_SERVICE_HOST") != "",
 		Logger:           logger,
 		SleepFunc:        time.Sleep,
+		MemSignals:       make(map[string]string),
 	}
 }
 
@@ -194,6 +196,7 @@ func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, pr
 		Notifier:         notify.NewManager(telemetry.LogInfof),
 		Logger:           logger,
 		SleepFunc:        time.Sleep,
+		MemSignals:       make(map[string]string),
 	}
 }
 
@@ -227,6 +230,7 @@ func NewSessionWithConfig(workspace, project, provider, model string, dbStore db
 		Scanner:          security.NewRegexScanner(),
 		Notifier:         notify.NewManager(telemetry.LogInfof),
 		Logger:           logger,
+		MemSignals:       make(map[string]string),
 	}
 }
 

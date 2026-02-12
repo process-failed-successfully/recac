@@ -26,6 +26,11 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		s.SleepFunc = time.Sleep
 	}
 
+	// Guard: Ensure MemSignals is initialized (for tests/mocks)
+	if s.MemSignals == nil {
+		s.MemSignals = make(map[string]string)
+	}
+
 	s.Logger.Info("entering autonomous run loop")
 	// Note: We use the stored SlackThreadTS if available (from startup), otherwise we start a new thread here if needed?
 	// But Start() is called before RunLoop(), so s.SlackThreadTS should be set if notifications are enabled.
@@ -442,6 +447,14 @@ func (s *Session) RunLoop(ctx context.Context) error {
 			s.Logger.Error("iteration failed", "error", err)
 			s.SleepFunc(5 * time.Second) // Backoff
 			continue                     // Retry loop without tripping no-op breaker
+		}
+
+		// Check for Completion (Auto-QA trigger)
+		// If all features pass after this iteration, mark COMPLETED so next loop runs QA
+		if s.checkAutoQA() {
+			fmt.Println("All features passed. Project marked as COMPLETED.")
+			// Continue to next iteration immediately to pick up the signal
+			continue
 		}
 
 		// Circuit Breaker: No-Op Check

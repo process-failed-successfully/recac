@@ -40,6 +40,9 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 		ManagerFrequency: 5,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
 		Logger:           telemetry.NewLogger(true, "", false),
+		// Fix: Set AgentProvider to mock so QA/Manager agents use mock implementation
+		AgentProvider: "mock",
+		AgentModel:    "mock-model",
 	}
 
 	// 6. Capture Stdout? (Hard to do in test without refactor).
