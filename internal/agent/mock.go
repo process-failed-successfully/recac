@@ -79,39 +79,52 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Initializer Agent - Bootstraps the workspace
+	// Uses explicit file writing to ensure state persistence even if agent-bridge fails or DB is mocked differently
 	if strings.Contains(prompt, "Initializer Agent") || strings.Contains(prompt, "## YOUR ROLE - INITIALIZER AGENT") {
-		return "```bash\ncat << 'EOF' | agent-bridge import\n" + `[
-  {
-    "id": "req-primes-script",
-    "category": "functional",
-    "priority": "critical",
-    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000"
-  },
-  {
-    "id": "req-primes-output",
-    "category": "functional",
-    "priority": "critical",
-    "description": "Output results to primes.json"
-  },
-  {
-    "id": "req-validate-output",
-    "category": "functional",
-    "priority": "critical",
-    "description": "Validate that the output file contains a 'primes' list"
-  },
-  {
-    "id": "req-verify-count",
-    "category": "functional",
-    "priority": "critical",
-    "description": "Verify that exactly 1229 primes are calculated"
-  },
-  {
-    "id": "req-commit-file",
-    "category": "functional",
-    "priority": "critical",
-    "description": "Commit primes.json to the repository"
-  }
-]` + "\nEOF\n```", nil
+		return "```bash\n" + `
+# Write features directly to file for robustness
+cat << 'EOF' > feature_list.json
+{
+  "features": [
+    {
+      "id": "req-primes-script",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000"
+    },
+    {
+      "id": "req-primes-output",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Output results to primes.json"
+    },
+    {
+      "id": "req-validate-output",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Validate that the output file contains a 'primes' list"
+    },
+    {
+      "id": "req-verify-count",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Verify that exactly 1229 primes are calculated"
+    },
+    {
+      "id": "req-commit-file",
+      "category": "functional",
+      "priority": "critical",
+      "description": "Commit primes.json to the repository"
+    }
+  ]
+}
+EOF
+
+# Also try to import via bridge if available, but ignore errors
+if command -v agent-bridge > /dev/null; then
+  cat feature_list.json | agent-bridge import || true
+fi
+` + "\n```", nil
 	}
 
 	// 3. Coding Agent (Primes Scenario) - Implements the solution
@@ -158,15 +171,17 @@ fi
 git add primes.py primes.json
 git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
 
-# Update features
-agent-bridge feature set req-primes-script --status done --passes true
-agent-bridge feature set req-primes-output --status done --passes true
-agent-bridge feature set req-validate-output --status done --passes true
-agent-bridge feature set req-verify-count --status done --passes true
-agent-bridge feature set req-commit-file --status done --passes true
+# Update features via bridge if available
+if command -v agent-bridge > /dev/null; then
+    agent-bridge feature set req-primes-script --status done --passes true
+    agent-bridge feature set req-primes-output --status done --passes true
+    agent-bridge feature set req-validate-output --status done --passes true
+    agent-bridge feature set req-verify-count --status done --passes true
+    agent-bridge feature set req-commit-file --status done --passes true
 
-# Signal completion
-agent-bridge signal COMPLETED true
+    # Signal completion
+    agent-bridge signal COMPLETED true
+fi
 ` + "```", nil
 	}
 
@@ -174,7 +189,9 @@ agent-bridge signal COMPLETED true
 	if strings.Contains(strings.ToUpper(prompt), "QA") || strings.Contains(strings.ToUpper(prompt), "REVIEW") || strings.Contains(strings.ToUpper(prompt), "VERIFY") {
 		return `The implementation looks correct.
 ` + "```bash" + `
-agent-bridge signal PROJECT_SIGNED_OFF true
+if command -v agent-bridge > /dev/null; then
+    agent-bridge signal PROJECT_SIGNED_OFF true
+fi
 ` + "```", nil
 	}
 
