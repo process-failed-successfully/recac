@@ -2,6 +2,8 @@ agent_timeout: 300
 allow_dirty: false
 auto_merge: false
 bash_timeout: 120
+budget:
+    limit: 100
 cleanup: true
 description: ""
 detached: false
@@ -46,6 +48,7 @@ orchestrator:
     mode: local
     namespace: default
     poller: jira
+    watch_dir: ""
     work_file: work_items.json
 path: ""
 project: ""
