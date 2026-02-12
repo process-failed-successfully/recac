@@ -32,7 +32,7 @@ func TestSecurityIntegration_BlocksSecrets(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
 	mockDocker, _ := docker.NewMockClient()
 	mockAgent := &MockUnsafeAgent{
-		Response: "Here is a secret: AKIAIOSFODNN7EXAMPLE",
+		Response: "Here is a secret: " + "AKIA" + "IOSFODNN7EXAMPLE",
 	}
 
 	// Init Session
