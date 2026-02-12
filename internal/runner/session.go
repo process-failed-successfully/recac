@@ -322,6 +322,14 @@ func (s *Session) LoadAgentState() error {
 		fmt.Printf("Loaded agent state: %d memory items, %d history messages\n", len(loadedState.Memory), len(loadedState.History))
 	}
 
+	// Restore iteration count
+	if loadedState.Iteration > 0 {
+		s.mu.Lock()
+		s.Iteration = loadedState.Iteration
+		s.mu.Unlock()
+		fmt.Printf("Restored session iteration: %d\n", s.Iteration)
+	}
+
 	// Log token usage if available
 	if loadedState.TokenUsage.TotalTokens > 0 {
 		fmt.Printf("Token usage: total=%d (prompt=%d, response=%d), current=%d/%d, truncations=%d\n",
@@ -357,6 +365,9 @@ func (s *Session) SaveAgentState() error {
 	if err != nil {
 		return fmt.Errorf("failed to load state for saving: %w", err)
 	}
+
+	// Update iteration count
+	state.Iteration = s.GetIteration()
 
 	// Save state (StateManager will update UpdatedAt timestamp)
 	return s.StateManager.Save(state)

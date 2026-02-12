@@ -108,7 +108,8 @@ func initConfig() {
 	telemetry.InitLogger(viper.GetBool("verbose"), "", false)
 
 	// Start Metrics Server, but not in test mode to avoid hanging
-	if flag.Lookup("test.v") == nil {
+	// We also check GO_TEST env var because flag.Lookup might be unreliable if flags are parsed differently
+	if flag.Lookup("test.v") == nil && os.Getenv("GO_TEST") == "" {
 		go func() {
 			port := viper.GetInt("metrics_port")
 			if err := telemetry.StartMetricsServer(port); err != nil {

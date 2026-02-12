@@ -127,6 +127,13 @@ func (s *PostgresStore) SaveObservation(projectID, agentID, content string) erro
 	return err
 }
 
+// DeleteObservationsAfter deletes observations created after a timestamp
+func (s *PostgresStore) DeleteObservationsAfter(projectID string, timestamp time.Time) error {
+	query := `DELETE FROM observations WHERE project_id = $1 AND created_at > $2`
+	_, err := s.db.Exec(query, projectID, timestamp)
+	return err
+}
+
 // QueryHistory retrieves the most recent observations for a specific project
 func (s *PostgresStore) QueryHistory(projectID string, limit int) ([]Observation, error) {
 	query := `SELECT id, agent_id, content, created_at FROM observations WHERE project_id = $1 ORDER BY created_at DESC LIMIT $2`

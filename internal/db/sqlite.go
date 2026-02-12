@@ -105,6 +105,13 @@ func (s *SQLiteStore) SaveObservation(projectID, agentID, content string) error 
 	return err
 }
 
+// DeleteObservationsAfter deletes observations created after a timestamp
+func (s *SQLiteStore) DeleteObservationsAfter(projectID string, timestamp time.Time) error {
+	query := `DELETE FROM observations WHERE project_id = ? AND created_at > ?`
+	_, err := s.db.Exec(query, projectID, timestamp)
+	return err
+}
+
 // QueryHistory retrieves the most recent observations for a specific project
 func (s *SQLiteStore) QueryHistory(projectID string, limit int) ([]Observation, error) {
 	query := `SELECT id, agent_id, content, created_at FROM observations WHERE project_id = ? ORDER BY created_at DESC LIMIT ?`

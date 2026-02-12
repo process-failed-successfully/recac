@@ -42,6 +42,7 @@ type Observation struct {
 type Store interface {
 	Close() error
 	SaveObservation(projectID, agentID, content string) error
+	DeleteObservationsAfter(projectID string, timestamp time.Time) error
 	QueryHistory(projectID string, limit int) ([]Observation, error)
 	SetSignal(projectID, key, value string) error
 	GetSignal(projectID, key string) (string, error)

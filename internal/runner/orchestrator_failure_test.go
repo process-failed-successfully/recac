@@ -24,6 +24,9 @@ type FaultToleranceMockDB struct {
 
 func (m *FaultToleranceMockDB) Close() error                                             { return nil }
 func (m *FaultToleranceMockDB) SaveObservation(projectID, agentID, content string) error { return nil }
+func (m *FaultToleranceMockDB) DeleteObservationsAfter(projectID string, timestamp time.Time) error {
+	return nil
+}
 func (m *FaultToleranceMockDB) QueryHistory(projectID string, limit int) ([]db.Observation, error) {
 	return nil, nil
 }

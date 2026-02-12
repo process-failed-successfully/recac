@@ -20,6 +20,7 @@ type State struct {
 	MaxTokens     int                    `json:"max_tokens,omitempty"`     // Maximum token limit for context window
 	CurrentTokens int                    `json:"current_tokens,omitempty"` // Current token count in context
 	TokenUsage    TokenUsage             `json:"token_usage,omitempty"`    // Token usage statistics
+	Iteration     int                    `json:"iteration,omitempty"`      // Current iteration of the session
 }
 
 // TokenUsage tracks token consumption statistics
