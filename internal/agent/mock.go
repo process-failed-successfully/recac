@@ -51,6 +51,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 2. Coding Agent (Implementation)
 	// Match "Prime" or "prime" and "Implementation" or "Implement"
 	lowerPrompt := strings.ToLower(prompt)
+
+	// Check for completion first (prevents infinite loops in smoke tests)
+	if strings.Contains(prompt, "Generated") && strings.Contains(prompt, "primes") {
+		return "PROJECT_SIGNED_OFF", nil
+	}
+
 	if strings.Contains(lowerPrompt, "prime") || strings.Contains(lowerPrompt, "implement") {
 		return `Here is the implementation:
 
