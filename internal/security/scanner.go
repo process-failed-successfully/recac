@@ -25,16 +25,29 @@ type RegexScanner struct {
 }
 
 var (
-	reAWSAccessKey        = regexp.MustCompile(`AKIA[0-9A-Z]{16}`)
-	rePrivateKey          = regexp.MustCompile(`-----BEGIN [A-Z]+ PRIVATE KEY-----`)
-	reGenericAPIToken     = regexp.MustCompile(`(api|access)[_-]?key\s*[:=]\s*['"][a-zA-Z0-9_\-]{20,}['"]`)
-	reSlackToken          = regexp.MustCompile(`xox[baprs]-([0-9a-zA-Z]{10,48})`)
-	reGitHubToken         = regexp.MustCompile(`gh[pousr]_[a-zA-Z0-9]{36,255}`)
-	sensitiveFilesPattern = `(\.[s]sh|\.[a]ws|\.[c]onfig|\.[g]emini|/etc/pass[w]d|/etc/shado[w]|\.[e]nv|\.[g]it-credentials|\.[n]etrc|/proc/self/e[n]viron)`
-	reDangerousCmd        = regexp.MustCompile(`(?i)\b(rm|cat|cp|mv|chmod|chown)\b.*?[\s/<>\"'\\]` + sensitiveFilesPattern)
-	reRootDeletion        = regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+([/~*]+|/)$`)
-	rePipeShell           = regexp.MustCompile(`(?i)(curl|wget)\s+.*?\|\s*(bash|sh|zsh|python|perl|php|ruby)`)
-	reReverseShell        = regexp.MustCompile(`(?i)nc\s+.*?-e\s+.*`)
+	reAWSAccessKey    = regexp.MustCompile(`AKIA[0-9A-Z]{16}`)
+	rePrivateKey      = regexp.MustCompile(`-----BEGIN [A-Z]+ PRIVATE KEY-----`)
+	reGenericAPIToken = regexp.MustCompile(`(api|access)[_-]?key\s*[:=]\s*['"][a-zA-Z0-9_\-]{20,}['"]`)
+	reSlackToken      = regexp.MustCompile(`xox[baprs]-([0-9a-zA-Z]{10,48})`)
+	reGitHubToken     = regexp.MustCompile(`gh[pousr]_[a-zA-Z0-9]{36,255}`)
+
+	// Use concatenation to avoid self-detection by the scanner
+	sensitiveFilesPattern = "(" +
+		`\.ssh` + "|" +
+		`\.aws` + "|" +
+		`\.config` + "|" +
+		`\.gemini` + "|" +
+		`/etc/passwd` + "|" +
+		`/etc/shadow` + "|" +
+		`\.env` + "|" +
+		`\.git-credentials` + "|" +
+		`\.netrc` + "|" +
+		`/proc/self/environ` +
+		")"
+	reDangerousCmd = regexp.MustCompile(`(?i)\b(rm|cat|cp|mv|chmod|chown)\b.*?[\s/<>\"'\\]` + sensitiveFilesPattern)
+	reRootDeletion = regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+([/~*]+|/)$`)
+	rePipeShell    = regexp.MustCompile(`(?i)(curl|wget)\s+.*?\|\s*(bash|sh|zsh|python|perl|php|ruby)`)
+	reReverseShell = regexp.MustCompile(`(?i)nc\s+.*?-e\s+.*`)
 )
 
 // NewRegexScanner creates a new scanner with default patterns
