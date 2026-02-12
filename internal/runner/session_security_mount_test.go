@@ -4,9 +4,9 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"recac/internal/docker"
 	"strings"
 	"testing"
-	"recac/internal/docker"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -17,11 +17,16 @@ import (
 
 // MockAgentForSecurity implements agent.Agent
 type MockAgentForSecurity struct{}
-func (m *MockAgentForSecurity) Send(ctx context.Context, prompt string) (string, error) { return "", nil }
-func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) { return "", nil }
 
+func (m *MockAgentForSecurity) Send(ctx context.Context, prompt string) (string, error) { return "", nil }
+func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
+	return "", nil
+}
 
 func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
+	// Mock home directory
+	mockHome := filepath.Join("/mock", "home")
+
 	// Setup mock Docker client
 	client, mock := docker.NewMockClient()
 
@@ -38,6 +43,10 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 		return []image.Summary{{RepoTags: []string{"alpine:latest"}}}, nil
 	}
 
+	mock.PingFunc = func(ctx context.Context) (types.Ping, error) {
+		return types.Ping{}, nil
+	}
+
 	mock.ContainerStartFunc = func(ctx context.Context, containerID string, options container.StartOptions) error { return nil }
 	mock.ContainerExecCreateFunc = func(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error) {
 		return types.IDResponse{ID: "exec-id"}, nil
@@ -48,17 +57,12 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	session.Docker = client
 	session.Agent = &MockAgentForSecurity{}
 	session.Image = "alpine:latest"
-
-	// Mock Home Directory and StatFunc for deterministic testing
-	// Use filepath.ToSlash to normalize paths for Windows compatibility
-	mockHome := "/mock/home/user"
 	session.HomeDir = mockHome
 	session.StatFunc = func(path string) (os.FileInfo, error) {
-		// Normalize path to forward slashes for consistent comparison
-		normalizedPath := filepath.ToSlash(path)
-		// Simulate existence of sensitive paths
-		if strings.HasPrefix(normalizedPath, mockHome) {
-			return nil, nil // Return nil error implies file exists
+		// Mock that all sensitive paths exist
+		// Check if the path is inside the mock home
+		if strings.HasPrefix(path, mockHome) {
+			return nil, nil // Return nil error (success) means file exists
 		}
 		return nil, os.ErrNotExist
 	}
@@ -71,30 +75,28 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	// Verify sensitive mounts
 	sensitivePaths := []string{".ssh", ".config", ".gemini", ".cursor"}
 
-	if len(capturedBinds) == 0 {
-		t.Fatal("RunContainer was not called (no binds captured)")
-	}
-
 	foundAny := false
-	for _, path := range sensitivePaths {
+	for _, p := range sensitivePaths {
+		expectedHostPath := filepath.Join(mockHome, p)
 		found := false
 		for _, bind := range capturedBinds {
-			// Check if bind contains the sensitive path
-			if strings.Contains(bind, path) {
+			// Check if bind starts with expected host path
+			// Format: /mock/home/.ssh:/home/appuser/.ssh:ro
+			if strings.HasPrefix(bind, expectedHostPath) {
 				found = true
 				foundAny = true
 				// Check if it is Read-Only
 				if !strings.HasSuffix(bind, ":ro") {
-					t.Errorf("Security Vulnerability: Sensitive path '%s' is mounted Read-Write! Bind: %s", path, bind)
+					t.Errorf("Security Vulnerability: Sensitive path '%s' is mounted Read-Write! Bind: %s", p, bind)
 				}
 			}
 		}
 		if !found {
-			t.Errorf("Expected sensitive path '%s' to be mounted, but it was not found in binds: %v", path, capturedBinds)
+			t.Errorf("Expected sensitive path '%s' to be mounted (mocked existence), but it was not found in binds.", p)
 		}
 	}
 
 	if !foundAny {
-		t.Error("No sensitive paths were found in binds, but mock StatFunc guaranteed their existence.")
+		t.Error("No sensitive paths were found in binds.")
 	}
 }
