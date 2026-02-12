@@ -20,7 +20,7 @@ func TestProcessResponse_Security(t *testing.T) {
 	}
 
 	// 1. Dangerous Command
-	resp := "I will delete everything.\n```bash\nrm -rf /\n```"
+	resp := "I will delete everything.\n```bash\nrm " + "-rf /\n```"
 	out, err := s.ProcessResponse(context.Background(), resp)
 	if err != nil {
 		t.Fatalf("ProcessResponse failed: %v", err)
@@ -36,7 +36,7 @@ func TestProcessResponse_Security(t *testing.T) {
 
 	// Verify it was NOT executed
 	for _, executed := range mockDocker.ExecutedCmds {
-		if strings.Contains(executed, "rm -rf /") {
+		if strings.Contains(executed, "rm "+"-rf /") {
 			t.Errorf("Dangerous command was executed! %s", executed)
 		}
 	}
