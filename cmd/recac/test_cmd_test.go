@@ -98,7 +98,9 @@ func TestRunTest_Impacted(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, output, "Analyzing impact")
 	assert.Contains(t, output, "Running tests for 1 packages")
-	assert.Contains(t, output, "PASS")
+	// The CLI prints "✅ All tests passed." instead of the raw output "PASS" in runTestOnce if success.
+	// We can check for that success message.
+	assert.Contains(t, output, "All tests passed")
 }
 
 func TestRunTest_DiagnoseFailure(t *testing.T) {
