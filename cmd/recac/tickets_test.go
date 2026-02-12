@@ -29,6 +29,11 @@ func (m *MockJiraClient) AddIssueLink(ctx context.Context, inwardKey, outwardKey
 	return args.Error(0)
 }
 
+func (m *MockJiraClient) Authenticate(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}
+
 // MockAgent
 type MockAgent struct {
 	mock.Mock
