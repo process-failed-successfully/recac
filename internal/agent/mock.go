@@ -63,15 +63,17 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// Note: We include the feature ID "primes-script" which the Coding Agent will later reference.
 		return "```bash\n" +
 			`cat << 'EOF' > feature_list.json
-[
-  {
-    "id": "primes-script",
-    "name": "Create Prime Number Script",
-    "description": "Implement primes.py and generate primes.json",
-    "status": "todo",
-    "file_paths": ["primes.py", "primes.json"]
-  }
-]
+{
+  "features": [
+    {
+      "id": "primes-script",
+      "name": "Create Prime Number Script",
+      "description": "Implement primes.py and generate primes.json",
+      "status": "todo",
+      "file_paths": ["primes.py", "primes.json"]
+    }
+  ]
+}
 EOF
 
 # Import the feature list using agent-bridge
