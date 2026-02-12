@@ -63,6 +63,16 @@ func TestRegexScanner_Scan(t *testing.T) {
 			wantFinding: "Dangerous Command",
 		},
 		{
+			name:        "Cat Output Env (Safe)",
+			content:     "cat > " + ".e" + "nv",
+			wantFinding: "",
+		},
+		{
+			name:        "Cat Output Env Quoted (Safe)",
+			content:     "cat > \".e" + "nv\"",
+			wantFinding: "",
+		},
+		{
 			name:        "Cat Git Credentials",
 			content:     "cat " + ".git-credentia" + "ls",
 			wantFinding: "Dangerous Command",

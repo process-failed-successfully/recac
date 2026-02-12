@@ -72,6 +72,13 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 
 			matchedText := content[match[0]:match[1]]
 
+			// Check for safe usage (e.g. cat > .env is writing, not reading)
+			if name == "Dangerous Command" {
+				if strings.HasPrefix(strings.ToLower(matchedText), "cat") && strings.Contains(matchedText, ">") {
+					continue
+				}
+			}
+
 			findings = append(findings, Finding{
 				Type:        name,
 				Description: fmt.Sprintf("Found potential %s", name),

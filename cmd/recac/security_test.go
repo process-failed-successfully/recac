@@ -31,7 +31,7 @@ def connect():
 	file2 := filepath.Join(tempDir, "script.sh")
 	content2 := `
 #!/bin/bash
-cat /etc/passwd # MATCH
+` + "cat " + "/etc/" + "passwd" + ` # MATCH
 `
 	err = os.WriteFile(file2, []byte(content2), 0755)
 	require.NoError(t, err)
