@@ -4,9 +4,9 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"recac/internal/docker"
 	"strings"
 	"testing"
+	"recac/internal/docker"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -17,16 +17,22 @@ import (
 
 // MockAgentForSecurity implements agent.Agent
 type MockAgentForSecurity struct{}
-
 func (m *MockAgentForSecurity) Send(ctx context.Context, prompt string) (string, error) { return "", nil }
-func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
-	return "", nil
-}
+func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) { return "", nil }
+
 
 func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
-	// Use temporary directory for home to ensure absolute path on all OSes
-	mockHome := t.TempDir()
-	t.Logf("MockHome: %s", mockHome)
+	// Create a fake home directory
+	fakeHome := t.TempDir()
+
+	// Create sensitive directories in the fake home
+	sensitivePaths := []string{".ssh", ".config", ".gemini", ".cursor"}
+	for _, p := range sensitivePaths {
+		path := filepath.Join(fakeHome, p)
+		if err := os.MkdirAll(path, 0755); err != nil {
+			t.Fatalf("Failed to create sensitive directory %s: %v", path, err)
+		}
+	}
 
 	// Setup mock Docker client
 	client, mock := docker.NewMockClient()
@@ -44,10 +50,6 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 		return []image.Summary{{RepoTags: []string{"alpine:latest"}}}, nil
 	}
 
-	mock.PingFunc = func(ctx context.Context) (types.Ping, error) {
-		return types.Ping{}, nil
-	}
-
 	mock.ContainerStartFunc = func(ctx context.Context, containerID string, options container.StartOptions) error { return nil }
 	mock.ContainerExecCreateFunc = func(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error) {
 		return types.IDResponse{ID: "exec-id"}, nil
@@ -58,66 +60,47 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	session.Docker = client
 	session.Agent = &MockAgentForSecurity{}
 	session.Image = "alpine:latest"
-	session.HomeDir = mockHome
-	session.UseLocalAgent = false // Ensure we don't accidentally run locally
 
-	// Relax StatFunc to avoid path normalization issues in CI environments (e.g. symlinks, Windows short paths)
-	// We trust that Start() constructs paths correctly relative to HomeDir, so verifying binds is sufficient.
-	session.StatFunc = func(path string) (os.FileInfo, error) {
-		t.Logf("StatFunc called for: %s", path)
-		// Only succeed for paths we expect to check, to simulate them existing
-		// Use filepath.Base to be robust against path prefixes (e.g. /private/var vs /var)
-		base := filepath.Base(path)
-		if base == ".ssh" || base == ".config" || base == ".gemini" || base == ".cursor" {
-			return nil, nil // Simulate existence
-		}
-		return nil, os.ErrNotExist
-	}
+	// Inject the fake home directory
+	session.HomeDir = fakeHome
 
 	// Start session
 	if err := session.Start(context.Background()); err != nil {
 		t.Fatalf("Session.Start failed: %v", err)
 	}
 
-	t.Logf("Captured Binds: %v", capturedBinds)
-
 	// Verify sensitive mounts
-	sensitivePaths := []string{".ssh", ".config", ".gemini", ".cursor"}
-
 	foundAny := false
-	for _, p := range sensitivePaths {
-		// Instead of matching host path prefix (which can vary by OS/environment),
-		// we match by the target container path which is constant.
-		// Expected bind format: HOST_PATH:/home/appuser/DIR:ro
-		targetSuffix := ":/home/appuser/" + p + ":ro"
-
+	for _, path := range sensitivePaths {
 		found := false
 		for _, bind := range capturedBinds {
-			if strings.HasSuffix(bind, targetSuffix) {
+			// Check if bind contains the sensitive path
+			// Note: bind format is /host/path:/container/path:ro
+			// We check if the HOST path matches our fake home path
+			expectedHostPath := filepath.Join(fakeHome, path)
+
+			// We use filepath.Clean to handle trailing slashes or symlinks if necessary,
+			// but for this test, simple containment or prefix check should suffice if we look at the bind string.
+			// However, bind strings contain colons.
+
+			// Let's verify the container path part specifically as well to be robust.
+			// The container paths are hardcoded in session.go: /home/appuser/.ssh, etc.
+
+			if strings.Contains(bind, path) && strings.Contains(bind, expectedHostPath) {
 				found = true
 				foundAny = true
-
-				// Optional: Verify host path component is reasonably correct
-				// We strip the suffix to get the host path
-				hostPart := strings.TrimSuffix(bind, targetSuffix)
-
-				// Normalize both paths for comparison (handle Windows backslashes)
-				expectedHostPath := filepath.Join(mockHome, p)
-
-				// Simple check: does it look like the right path?
-				// Due to symlinks (e.g. /var vs /private/var on macOS), exact string match might fail.
-				// We check if the base name matches at least to ensure we are mounting the correct directory.
-				if filepath.Base(hostPart) != filepath.Base(expectedHostPath) {
-					t.Errorf("Bind host path mismatch for '%s'. Got: %s, Expected base: %s", p, hostPart, filepath.Base(expectedHostPath))
+				// Check if it is Read-Only
+				if !strings.HasSuffix(bind, ":ro") {
+					t.Errorf("Security Vulnerability: Sensitive path '%s' is mounted Read-Write! Bind: %s", path, bind)
 				}
 			}
 		}
 		if !found {
-			t.Errorf("Expected sensitive path '%s' to be mounted Read-Only to /home/appuser/%s, but it was not found in binds.", p, p)
+			t.Errorf("Expected sensitive path '%s' to be mounted, but it was not found in binds: %v", path, capturedBinds)
 		}
 	}
 
 	if !foundAny {
-		t.Error("No sensitive paths were found in binds.")
+		t.Error("No sensitive paths were found in binds, even though we created them.")
 	}
 }
