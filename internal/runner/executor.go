@@ -222,6 +222,12 @@ func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, ind
 			errMsg = err.Error()
 		}
 
+		// Handle git "nothing to commit" error gracefully
+		if (strings.Contains(output, "nothing to commit") || strings.Contains(output, "working tree clean")) && strings.Contains(cmdScript, "git commit") {
+			s.Logger.Info("ignoring git empty commit error", "output", output)
+			return fmt.Sprintf("Command Output:\n%s\n[Recac] Ignored 'nothing to commit' error.\n", output), nil
+		}
+
 		result := fmt.Sprintf("Command Failed: %s\nError: %s\nOutput:\n%s\n", cmdScript, errMsg, output)
 		s.Logger.Error("command failed", "script", cmdScript, "error", errMsg)
 
