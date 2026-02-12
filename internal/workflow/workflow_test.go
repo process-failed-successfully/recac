@@ -176,6 +176,8 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 	}
 
 	// Mock NewSessionFunc to prevent infinite loops (MaxIterations)
+	// Even though RunWorkflow might override this with cfg.MaxIterations,
+	// setting it here is safe.
 	originalNewSessionFunc := NewSessionFunc
 	defer func() { NewSessionFunc = originalNewSessionFunc }()
 	NewSessionFunc = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
@@ -220,10 +222,11 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	cfg := SessionConfig{
-		ProjectPath: tmpDir,
-		RepoURL:     "https://github.com/example/already-provided",
-		IsMock:      true,
-		Cleanup:     false,
+		ProjectPath:   tmpDir,
+		RepoURL:       "https://github.com/example/already-provided",
+		IsMock:        true,
+		Cleanup:       false,
+		MaxIterations: 5, // CRITICAL FIX: Explicitly set MaxIterations to avoid 0 (default/infinite loop)
 	}
 
 	err := ProcessJiraTicket(context.Background(), "TEST-1", jClient, cfg, nil)
@@ -252,44 +255,7 @@ func TestRunWorkflow_Normal(t *testing.T) {
 	defer func() { NewSessionFunc = originalNewSessionFunc }()
 	NewSessionFunc = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
 		s := runner.NewSession(d, a, workspace, image, project, provider, model, maxAgents)
-		s.MaxIterations = 0 // Should exit immediately
-		return s
-	}
-
-	tmpDir, _ := os.MkdirTemp("", "workflow-normal-test")
-	defer os.RemoveAll(tmpDir)
-
-	// Create app_spec.txt required by RunLoop
-	os.WriteFile(fmt.Sprintf("%s/app_spec.txt", tmpDir), []byte("test spec"), 0644)
-
-	cfg := SessionConfig{
-		ProjectPath: tmpDir,
-		SessionName: "normal-test",
-		IsMock:      false,
-		ProjectName: "test-project",
-		Debug:       true,
-		AllowDirty:  true, // Avoid git checks
-	}
-
-	// This should run normal flow but fail Docker init (gracefully) and run 0 iterations
-	err := RunWorkflow(context.Background(), cfg)
-
-	// Since MaxIterations=0, RunLoop should return ErrMaxIterations or nil depending on implementation.
-	// runner/session.go: RunLoop: if s.MaxIterations > 0 && currentIteration >= s.MaxIterations { return ErrMaxIterations }
-	// If MaxIterations=0, it might loop forever or use default?
-	// NewSession sets MaxIterations=20 default.
-	// Our mock sets it to 0.
-	// Let's check RunLoop logic.
-	// It checks `if s.MaxIterations > 0 && currentIteration >= s.MaxIterations`.
-	// If 0, it might mean infinite?
-	// Actually NewSession defaults to 20.
-	// If we set to 1, it runs 1 iteration.
-	// If we set to 0, and checks are `> 0`, it loops.
-
-	// Let's set it to 1.
-	NewSessionFunc = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
-		s := runner.NewSession(d, a, workspace, image, project, provider, model, maxAgents)
-		s.MaxIterations = 1
+		s.MaxIterations = 1 // Set to 1 iteration for safety
 		// We need to ensure RunLoop doesn't block on "NoOp" or "Stalled".
 		// MockAgent returns empty responses usually?
 		// We should configure MockAgent to return "DONE".
@@ -301,7 +267,24 @@ func TestRunWorkflow_Normal(t *testing.T) {
 		return s
 	}
 
-	err = RunWorkflow(context.Background(), cfg)
+	tmpDir, _ := os.MkdirTemp("", "workflow-normal-test")
+	defer os.RemoveAll(tmpDir)
+
+	// Create app_spec.txt required by RunLoop
+	os.WriteFile(fmt.Sprintf("%s/app_spec.txt", tmpDir), []byte("test spec"), 0644)
+
+	cfg := SessionConfig{
+		ProjectPath:   tmpDir,
+		SessionName:   "normal-test",
+		IsMock:        false,
+		ProjectName:   "test-project",
+		Debug:         true,
+		AllowDirty:    true, // Avoid git checks
+		MaxIterations: 1,    // CRITICAL FIX: Ensure RunLoop respects this limit
+	}
+
+	// This should run normal flow but fail Docker init (gracefully) and run 0 iterations
+	err := RunWorkflow(context.Background(), cfg)
 
 	// Start() might fail if restricted mode handling isn't perfect or if it tries to do something.
 	// RunLoop might fail with NoOp if mock agent returns nothing.
