@@ -8,6 +8,7 @@ type IClient interface {
 	CurrentCommitSHA(workspace string) (string, error)
 	Clone(ctx context.Context, repoURL, directory string) error
 	RepoExists(directory string) bool
+	RefExists(directory, ref string) bool
 	Config(directory, key, value string) error
 	ConfigGlobal(key, value string) error
 	ConfigAddGlobal(key, value string) error

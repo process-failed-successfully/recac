@@ -249,6 +249,13 @@ func (c *Client) RepoExists(dir string) bool {
 	return cmd.Run() == nil
 }
 
+// RefExists checks if a reference exists in the repository.
+func (c *Client) RefExists(dir, ref string) bool {
+	cmd := exec.Command("git", "show-ref", "--verify", "--quiet", ref)
+	cmd.Dir = dir
+	return cmd.Run() == nil
+}
+
 // CurrentBranch returns the name of the current branch.
 func (c *Client) CurrentBranch(dir string) (string, error) {
 	cmd := exec.Command("git", "branch", "--show-current")

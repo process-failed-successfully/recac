@@ -177,13 +177,17 @@ func (s *Session) pushProgress(ctx context.Context) {
 	// We merge master into current branch to capture those commits if they exist
 	if branch != "master" && branch != "main" {
 		// Try explicit refs to avoid ambiguity or missing short names
-		candidates := []string{"refs/heads/master", "refs/heads/main", "master", "main"}
+		// Prioritize main as it's the modern default
+		candidates := []string{"refs/heads/main", "refs/heads/master", "main", "master"}
 		merged := false
 		for _, ref := range candidates {
-			if err := gitClient.Merge(s.Workspace, ref); err == nil {
-				s.Logger.Info("merged stranded commits from ref", "ref", ref)
-				merged = true
-				break
+			// Check if ref exists before merging to avoid noisy errors
+			if gitClient.RefExists(s.Workspace, ref) {
+				if err := gitClient.Merge(s.Workspace, ref); err == nil {
+					s.Logger.Info("merged stranded commits from ref", "ref", ref)
+					merged = true
+					break
+				}
 			}
 		}
 		if !merged {
