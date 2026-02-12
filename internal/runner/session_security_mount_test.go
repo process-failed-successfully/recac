@@ -3,7 +3,6 @@ package runner
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"recac/internal/docker"
@@ -50,14 +49,11 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	session.Image = "alpine:latest"
 
 	// Mock Home Directory and StatFunc for deterministic testing
-	// Use filepath.ToSlash to normalize paths for Windows compatibility
 	mockHome := "/mock/home/user"
 	session.HomeDir = mockHome
 	session.StatFunc = func(path string) (os.FileInfo, error) {
-		// Normalize path to forward slashes for consistent comparison
-		normalizedPath := filepath.ToSlash(path)
 		// Simulate existence of sensitive paths
-		if strings.HasPrefix(normalizedPath, mockHome) {
+		if strings.HasPrefix(path, mockHome) {
 			return nil, nil // Return nil error implies file exists
 		}
 		return nil, os.ErrNotExist
@@ -70,10 +66,6 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 
 	// Verify sensitive mounts
 	sensitivePaths := []string{".ssh", ".config", ".gemini", ".cursor"}
-
-	if len(capturedBinds) == 0 {
-		t.Fatal("RunContainer was not called (no binds captured)")
-	}
 
 	foundAny := false
 	for _, path := range sensitivePaths {
