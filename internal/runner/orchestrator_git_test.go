@@ -20,6 +20,9 @@ type MockDBStore struct {
 }
 
 func (m *MockDBStore) Close() error                                             { return nil }
+func (m *MockDBStore) DeleteObservationsAfter(projectID string, timestamp time.Time) error {
+	return nil
+}
 func (m *MockDBStore) SaveObservation(projectID, agentID, content string) error { return nil }
 func (m *MockDBStore) QueryHistory(projectID string, limit int) ([]db.Observation, error) {
 	return nil, nil

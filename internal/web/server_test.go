@@ -22,6 +22,10 @@ func (m *TestifyMockStore) Close() error {
 	return m.Called().Error(0)
 }
 
+func (m *TestifyMockStore) DeleteObservationsAfter(projectID string, timestamp time.Time) error {
+	return m.Called(projectID, timestamp).Error(0)
+}
+
 func (m *TestifyMockStore) SaveObservation(projectID, agentID, content string) error {
 	return m.Called(projectID, agentID, content).Error(0)
 }

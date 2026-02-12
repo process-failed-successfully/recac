@@ -38,6 +38,9 @@ type MockRunLoopDBStore struct {
 }
 
 func (m *MockRunLoopDBStore) Close() error { return nil }
+func (m *MockRunLoopDBStore) DeleteObservationsAfter(projectID string, timestamp time.Time) error {
+	return nil
+}
 func (m *MockRunLoopDBStore) SaveObservation(projectID, agentID, content string) error {
 	if m.SaveObservationFunc != nil {
 		return m.SaveObservationFunc(projectID, agentID, content)

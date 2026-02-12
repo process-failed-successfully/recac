@@ -18,6 +18,7 @@ func (m *MockStore) GetFeatures(projectID string) (string, error) {
 
 // Implement other methods to satisfy db.Store interface
 func (m *MockStore) Close() error { return nil }
+func (m *MockStore) DeleteObservationsAfter(projectID string, timestamp time.Time) error { return nil }
 func (m *MockStore) SaveObservation(projectID, agentID, content string) error { return nil }
 func (m *MockStore) QueryHistory(projectID string, limit int) ([]db.Observation, error) { return nil, nil }
 func (m *MockStore) SetSignal(projectID, key, value string) error { return nil }
