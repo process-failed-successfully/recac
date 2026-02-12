@@ -122,9 +122,15 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 	}
 
 	if err != nil {
-		// Critical failure - Fail Fast
-		fmt.Fprintf(os.Stderr, "[Session] CRITICAL: Could not connect to database after retries. Exiting.\n")
-		os.Exit(1)
+		if provider == "mock" {
+			// In mock mode (e.g. smoke tests), we can proceed without DB if it fails
+			fmt.Fprintf(os.Stderr, "[Session] Warning: Could not connect to database in mock mode. Proceeding without DB.\n")
+			dbStore = nil
+		} else {
+			// Critical failure - Fail Fast
+			fmt.Fprintf(os.Stderr, "[Session] CRITICAL: Could not connect to database after retries. Exiting.\n")
+			os.Exit(1)
+		}
 	} else {
 		// Success
 		fmt.Fprintf(os.Stderr, "[Session] DB Store initialized successfully: type=%s, project=%s\n", storeConfig.Type, project)
@@ -629,7 +635,7 @@ func (s *Session) ensureImage(ctx context.Context) error {
 		return nil
 	}
 
-	// 2. If using default GHCR image, ensure it is pulled if missing
+	// 2. If using default GHCR image, ensure it's pulled if missing
 	if strings.HasPrefix(s.Image, "ghcr.io/process-failed-successfully/recac-agent") {
 		exists, err := s.Docker.ImageExists(ctx, s.Image)
 		if err != nil {
@@ -853,8 +859,3 @@ func (s *Session) loadFeatures() []db.Feature {
 
 	return nil
 }
-
-
-
-
-
