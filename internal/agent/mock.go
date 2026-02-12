@@ -71,8 +71,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// Return a script that pipes JSON to agent-bridge import
 		// We use a dummy ID that matches the TPM ticket generation logic if possible,
 		// but for the smoke test "prime-python", we just need valid JSON.
+		// Note: agent-bridge import expects {"features": [...]}
 		return "```bash\n" +
-			`echo '[{"id": "primes-script", "name": "Implement Primes Script", "type": "Story", "status": "todo", "project": "PRIMES"}]' | agent-bridge import --project "$RECAC_PROJECT_ID"` +
+			`echo '{"features": [{"id": "primes-script", "name": "Implement Primes Script", "type": "Story", "status": "todo", "project": "PRIMES"}]}' | agent-bridge import --project "$RECAC_PROJECT_ID"` +
 			"\n```", nil
 	}
 
@@ -81,7 +82,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// Check if we already committed (to avoid infinite loop)
 		if strings.Contains(prompt, "Add primes script") && strings.Contains(prompt, "Success") {
 			// Work is done. Signal completion via agent-bridge.
+			// Ensure the feature exists before setting status (idempotent import)
 			return "```bash\n" +
+				`echo '{"features": [{"id": "primes-script", "name": "Implement Primes Script", "type": "Story", "status": "in_progress", "project": "PRIMES"}]}' | agent-bridge import --project "$RECAC_PROJECT_ID" && ` +
 				`agent-bridge feature set primes-script --status completed --passes true --project "$RECAC_PROJECT_ID"` +
 				"\n```\nTask Completed.", nil
 		}
