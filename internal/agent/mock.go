@@ -78,7 +78,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	   strings.Contains(lowerPrompt, "prime number script") ||
 	   strings.Contains(lowerPrompt, "generate primes") ||
 	   strings.Contains(lowerPrompt, "role - coding agent") { // Standard prompt header for Coding Agent
-		// Return the python script implementation
+		// Return the python script implementation AND explicitly mark features as completed
+		// to allow the runner to progress.
 		return `Here is the implementation for primes.py:
 
 ` + "```bash" + `
@@ -99,6 +100,11 @@ EOF
 
 # Run it to generate the json
 python3 primes.py
+
+# Mark features as completed (for E2E smoke tests)
+# Note: In restricted/mock mode, this might print errors if binary is missing, but that is fine.
+agent-bridge feature update req-script-runs --status completed || true
+agent-bridge feature update req-output-is-valid-json --status completed || true
 ` + "```" + `
 `, nil
 	}
