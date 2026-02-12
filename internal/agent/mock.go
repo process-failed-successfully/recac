@@ -35,11 +35,23 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// 1. TPM Role (Project Planning)
+	// 1. QA/Manager Role (Sign-off)
+	// Detects "QA" or "Manager" to approve work.
+	// PRIORITIZE SIGN-OFF: Check for "Approve or Reject" explicitly to catch Manager sign-off prompts
+	// which might also contain "PROJECT MANAGER" (which would trigger TPM role below otherwise).
+	if strings.Contains(prompt, "Approve or Reject") ||
+		strings.Contains(prompt, "QA Report") ||
+		strings.Contains(prompt, "Review") ||
+		strings.Contains(strings.ToUpper(prompt), "VERIFY") {
+		// Return a signal to approve
+		return `QA_PASSED`, nil
+	}
+
+	// 2. TPM Role (Project Planning)
 	// The CLI/Orchestrator expects a JSON array of tickets.
 	// We detect this by checking for the TPM role description.
 	if strings.Contains(prompt, "You are an expert Technical Program Manager (TPM)") ||
-	   strings.Contains(prompt, "## YOUR ROLE - PROJECT MANAGER") {
+		strings.Contains(prompt, "## YOUR ROLE - PROJECT MANAGER") {
 		// Return a mock JSON array of tickets
 		// This simulates a breakdown of tasks
 		return `[
@@ -58,34 +70,31 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
-	// 2. Initializer Role (Feature Extraction)
+	// 3. Initializer Role (Feature Extraction)
 	// The CLI might also use an "Initializer" agent to extract features first.
-	// If the prompt asks for features extraction or similar (usually has JSON format instructions).
-	// However, the smoke test seems to jump straight to TPM or Coding.
-	// Let's add a basic check for "Initializer" just in case.
 	if strings.Contains(prompt, "You are an Initializer Agent") ||
-	   strings.Contains(prompt, "## YOUR ROLE - INITIALIZER AGENT") {
+		strings.Contains(prompt, "## YOUR ROLE - INITIALIZER AGENT") {
 		// Return a bash script that imports features into the DB using agent-bridge
+		// Added explicit IDs (feat-1, feat-2) to ensure database tracking works correctly
 		return `cat << 'EOF' | agent-bridge import
 {
   "features": [
-    {"description": "Calculate prime numbers", "status": "pending"},
-    {"description": "Handle invalid input", "status": "pending"}
+    {"id": "feat-1", "description": "Calculate prime numbers", "status": "pending"},
+    {"id": "feat-2", "description": "Handle invalid input", "status": "pending"}
   ]
 }
 EOF`, nil
 	}
 
-	// 3. Coding Agent (Primes Task)
+	// 4. Coding Agent (Primes Task)
 	// Detects the specific task or "Coding Agent" role.
-	// The smoke test scenario is likely "prime-python".
-	// We check for "PRIME" (case-insensitive), "Coding Agent", or "Python" script requests.
 	upperPrompt := strings.ToUpper(prompt)
 	if strings.Contains(upperPrompt, "PRIME") ||
-	   strings.Contains(prompt, "Coding Agent") ||
-	   strings.Contains(upperPrompt, "PYTHON") ||
-	   strings.Contains(upperPrompt, "SCRIPT") {
+		strings.Contains(prompt, "Coding Agent") ||
+		strings.Contains(upperPrompt, "PYTHON") ||
+		strings.Contains(upperPrompt, "SCRIPT") {
 		// Return a bash script to implement the prime checker
+		// Updated to explicitly mark features as completed to trigger auto-completion
 		return `cat << 'EOF' > primes.py
 import sys
 
@@ -112,20 +121,13 @@ EOF
 python3 primes.py 7
 python3 primes.py 10
 
-# Signal completion
+# Mark features as completed (triggers auto-completion)
+agent-bridge feature set feat-1 --status completed --passes true
+agent-bridge feature set feat-2 --status completed --passes true
+
+# Signal completion (Legacy/Redundant but kept for compatibility)
 agent-bridge signal PROJECT_SIGNED_OFF true --privileged || true
 `, nil
-	}
-
-	// 4. QA/Manager Role
-	// Detects "QA" or "Manager" to approve work.
-	// Also checks for "Review" or "Verify" which are common in QA prompts.
-	if strings.Contains(prompt, "QA") ||
-	   strings.Contains(prompt, "Manager") ||
-	   strings.Contains(prompt, "Review") ||
-	   strings.Contains(strings.ToUpper(prompt), "VERIFY") {
-		// Return a signal to approve
-		return `QA_PASSED`, nil
 	}
 
 	// Default fallback
