@@ -26,6 +26,7 @@ func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, on
 func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	// Use temporary directory for home to ensure absolute path on all OSes
 	mockHome := t.TempDir()
+	t.Logf("MockHome: %s", mockHome)
 
 	// Setup mock Docker client
 	client, mock := docker.NewMockClient()
@@ -63,11 +64,11 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	// Relax StatFunc to avoid path normalization issues in CI environments (e.g. symlinks, Windows short paths)
 	// We trust that Start() constructs paths correctly relative to HomeDir, so verifying binds is sufficient.
 	session.StatFunc = func(path string) (os.FileInfo, error) {
+		t.Logf("StatFunc called for: %s", path)
 		// Only succeed for paths we expect to check, to simulate them existing
-		if strings.Contains(path, ".ssh") ||
-		   strings.Contains(path, ".config") ||
-		   strings.Contains(path, ".gemini") ||
-		   strings.Contains(path, ".cursor") {
+		// Use filepath.Base to be robust against path prefixes (e.g. /private/var vs /var)
+		base := filepath.Base(path)
+		if base == ".ssh" || base == ".config" || base == ".gemini" || base == ".cursor" {
 			return nil, nil // Simulate existence
 		}
 		return nil, os.ErrNotExist
@@ -77,6 +78,8 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	if err := session.Start(context.Background()); err != nil {
 		t.Fatalf("Session.Start failed: %v", err)
 	}
+
+	t.Logf("Captured Binds: %v", capturedBinds)
 
 	// Verify sensitive mounts
 	sensitivePaths := []string{".ssh", ".config", ".gemini", ".cursor"}
@@ -115,8 +118,6 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	}
 
 	if !foundAny {
-		t.Logf("MockHome: %s", mockHome)
-		t.Logf("Captured Binds: %v", capturedBinds)
 		t.Error("No sensitive paths were found in binds.")
 	}
 }
