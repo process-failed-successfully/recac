@@ -115,8 +115,10 @@ git commit -m "Add primes script"
 	}
 
 	// 4. QA Agent / Manager Review
-	if strings.Contains(prompt, "QA") || strings.Contains(prompt, "REVIEW") || strings.Contains(prompt, "VERIFY") {
-		return "LGTM. The code looks correct and meets the requirements.", nil
+	if strings.Contains(prompt, "QA") || strings.Contains(prompt, "REVIEW") || strings.Contains(prompt, "VERIFY") || strings.Contains(prompt, "Approve or Reject") {
+		return "```bash\n" +
+			`agent-bridge signal QA_PASSED true --privileged` +
+			"\n```\nLGTM. The code looks correct and meets the requirements.", nil
 	}
 
 	// Default fallback
