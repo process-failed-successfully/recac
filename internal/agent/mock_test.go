@@ -61,3 +61,28 @@ func TestMockAgent_Primes(t *testing.T) {
 		t.Errorf("Impl response missing completion signal, got: %s", implResponse)
 	}
 }
+
+func TestMockAgent_Primes_Parsing(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "create exactly ONE ticket for PRIMES"
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Mimic parser logic
+	jsonStr := resp
+	if strings.Contains(jsonStr, "```json") {
+		parts := strings.Split(jsonStr, "```json")
+		if len(parts) > 1 {
+			jsonStr = parts[1]
+		}
+		parts = strings.Split(jsonStr, "```")
+		jsonStr = parts[0]
+	}
+	jsonStr = strings.TrimSpace(jsonStr)
+
+	if !strings.Contains(jsonStr, "\"title\": \"[PRIMES]") {
+		t.Errorf("JSON response should contain 'title' key, got: %s", jsonStr)
+	}
+}

@@ -37,7 +37,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return "```json\n" + `[
   {
     "id": "PRIMES",
-    "summary": "[PRIMES] Create Prime Number Script",
+    "title": "[PRIMES] Create Prime Number Script",
     "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.\n\nREQUIRED FEATURES:\n- Implement prime calculation logic in primes.py\n- Output results to primes.json\n- Validate that the output file contains a 'primes' list\n- Verify that exactly 1229 primes are calculated\n- Commit primes.json to the repository\n",
     "type": "Task"
   }
