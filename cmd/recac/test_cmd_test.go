@@ -54,7 +54,9 @@ func TestRunTest_ExplicitArgs(t *testing.T) {
 	// Assert
 	assert.NoError(t, err)
 	assert.Contains(t, output, "Running tests for 1 packages")
-	assert.Contains(t, output, "ok")
+	// "ok" might not be captured depending on how runTest handles subprocess output,
+	// but "All tests passed" is printed by the command itself on success.
+	assert.Contains(t, output, "All tests passed")
 }
 
 func TestRunTest_Impacted(t *testing.T) {
