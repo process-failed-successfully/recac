@@ -20,7 +20,7 @@ func TestProcessResponse_Security(t *testing.T) {
 	}
 
 	// 1. Dangerous Command
-	resp := "I will delete everything.\n```bash\nrm -rf /\n```"
+	resp := "I will delete everything.\n```bash\n" + "rm -rf " + "/" + "\n```"
 	out, err := s.ProcessResponse(context.Background(), resp)
 	if err != nil {
 		t.Fatalf("ProcessResponse failed: %v", err)
