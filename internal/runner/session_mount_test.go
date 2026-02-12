@@ -79,9 +79,9 @@ func TestSession_WorkspaceMounting(t *testing.T) {
 		foundWorkspace := false
 		for _, bind := range hostConfig.Binds {
 			// Format: "/host/path:/workspace"
-			parts := strings.Split(bind, ":")
-			if len(parts) >= 2 && parts[1] == "/workspace" {
-				mountedWorkspace = parts[0]
+			// Robust check for Windows paths (e.g., C:\...)
+			if strings.HasSuffix(bind, ":/workspace") {
+				mountedWorkspace = strings.TrimSuffix(bind, ":/workspace")
 				foundWorkspace = true
 				break
 			}
