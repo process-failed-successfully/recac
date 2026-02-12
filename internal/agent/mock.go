@@ -36,9 +36,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristic: "Technical Program Manager" in prompt
 	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM") {
 		// Return JSON plan (Array of tickets)
+		// CRITICAL: Title must include [PRIMES] so the E2E manager can map the created ticket back to the scenario key.
 		return `[
   {
-    "title": "Implement Primes Script",
+    "title": "[PRIMES] Implement Primes Script",
     "description": "Create a python script that calculates prime numbers.",
     "type": "task",
     "status": "todo"
