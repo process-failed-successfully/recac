@@ -2,8 +2,8 @@ package runner
 
 import (
 	"context"
+	"fmt"
 	"os"
-	"path/filepath"
 	"recac/internal/docker"
 	"strings"
 	"testing"
@@ -79,26 +79,29 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	}
 
 	// Verify sensitive mounts
-	sensitivePaths := []string{".ssh", ".config", ".gemini", ".cursor"}
+	sensitiveMounts := []struct {
+		hostSuffix    string
+		containerPath string
+	}{
+		{".gemini", "/home/appuser/.gemini"},
+		{".config", "/home/appuser/.config"},
+		{".cursor", "/home/appuser/.cursor"},
+		{".ssh", "/home/appuser/.ssh"},
+	}
 
 	foundAny := false
-	for _, p := range sensitivePaths {
-		expectedHostPath := filepath.Join(mockHome, p)
+	for _, m := range sensitiveMounts {
+		// We check for the container path suffix and :ro flag to be robust against host path variations (e.g. symlinks, Windows)
+		expectedSuffix := fmt.Sprintf(":%s:ro", m.containerPath)
 		found := false
 		for _, bind := range capturedBinds {
-			// Check if bind starts with expected host path
-			// Format: /tmp/xxxx/.ssh:/home/appuser/.ssh:ro
-			if strings.HasPrefix(bind, expectedHostPath) {
+			if strings.HasSuffix(bind, expectedSuffix) {
 				found = true
 				foundAny = true
-				// Check if it is Read-Only
-				if !strings.HasSuffix(bind, ":ro") {
-					t.Errorf("Security Vulnerability: Sensitive path '%s' is mounted Read-Write! Bind: %s", p, bind)
-				}
 			}
 		}
 		if !found {
-			t.Errorf("Expected sensitive path '%s' to be mounted (mocked existence), but it was not found in binds.", p)
+			t.Errorf("Expected sensitive path '%s' to be mounted as '%s', but it was not found in binds.", m.hostSuffix, expectedSuffix)
 		}
 	}
 
