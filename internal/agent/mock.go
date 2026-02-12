@@ -54,37 +54,16 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
-	// --- 2. Initializer Agent Logic ---
-	// The `recac-agent` (Initializer role) runs first to bootstrap the project.
-	// It expects to output a bash script that pipes a JSON feature list to `agent-bridge import`.
-	// The prompt usually contains "You are an Initializer Agent" or similar.
-	if strings.Contains(lowerPrompt, "initializer agent") || strings.Contains(lowerPrompt, "feature_list.json") {
-		// Return a bash script that creates the feature list and imports it.
-		// Note: We include the feature ID "primes-script" which the Coding Agent will later reference.
-		return "```bash\n" +
-			`cat << 'EOF' > feature_list.json
-{
-  "features": [
-    {
-      "id": "primes-script",
-      "name": "Create Prime Number Script",
-      "description": "Implement primes.py and generate primes.json",
-      "status": "todo",
-      "file_paths": ["primes.py", "primes.json"]
-    }
-  ]
-}
-EOF
-
-# Import the feature list using agent-bridge
-cat feature_list.json | agent-bridge import
-` + "\n```", nil
-	}
-
-	// --- 3. Coding Agent Logic ---
+	// --- 2. Coding Agent Logic ---
 	// The `recac-agent` (Coding role) implements the feature.
 	// The prompt will contain the feature description or "primes".
-	if strings.Contains(lowerPrompt, "primes") || strings.Contains(lowerPrompt, "python") {
+	// Prioritized over Initializer Logic to avoid infinite loops if history contains "feature_list.json"
+	// BUT, we must ensure we don't trigger this in Turn 1 (where "primes" is in the task description but features aren't initialized yet).
+	// We do this by requiring "feature_list.json" to be present in the history (which means Initializer ran).
+	isCodingTrigger := strings.Contains(lowerPrompt, "primes") || strings.Contains(lowerPrompt, "python")
+	hasInitializationHistory := strings.Contains(lowerPrompt, "feature_list.json")
+
+	if isCodingTrigger && hasInitializationHistory {
 		// Return a python script wrapped in bash to write it to a file, run it, and git commit it.
 		// We also mark the feature as completed in the database.
 		return "```bash\n" +
@@ -121,6 +100,34 @@ agent-bridge feature set primes-script --status completed --passes true
 
 # Signal project completion (optional but helpful for single-agent flows)
 # agent-bridge signal set --key PROJECT_SIGNED_OFF --value "true" --privileged
+` + "\n```", nil
+	}
+
+	// --- 3. Initializer Agent Logic ---
+	// The `recac-agent` (Initializer role) runs first to bootstrap the project.
+	// It expects to output a bash script that pipes a JSON feature list to `agent-bridge import`.
+	// The prompt usually contains "You are an Initializer Agent" or similar.
+	// Moved below Coding Agent check (with history dependency) to handle Turn 1 correctly.
+	if strings.Contains(lowerPrompt, "initializer agent") || strings.Contains(lowerPrompt, "feature_list.json") {
+		// Return a bash script that creates the feature list and imports it.
+		// Note: We include the feature ID "primes-script" which the Coding Agent will later reference.
+		return "```bash\n" +
+			`cat << 'EOF' > feature_list.json
+{
+  "features": [
+    {
+      "id": "primes-script",
+      "name": "Create Prime Number Script",
+      "description": "Implement primes.py and generate primes.json",
+      "status": "todo",
+      "file_paths": ["primes.py", "primes.json"]
+    }
+  ]
+}
+EOF
+
+# Import the feature list using agent-bridge
+cat feature_list.json | agent-bridge import
 ` + "\n```", nil
 	}
 
