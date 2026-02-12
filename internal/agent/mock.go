@@ -2,7 +2,10 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"regexp"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,6 +33,73 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// Heuristic 1: TPM / Ticket Generation
+	// Check if prompt asks for ticket generation (TPM persona)
+	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "generate ticket") {
+		// Extract Repo URL if present
+		repoURL := "https://github.com/example/repo"
+		re := regexp.MustCompile(`Repo: (https?://[^\s]+)`)
+		if matches := re.FindStringSubmatch(prompt); len(matches) > 1 {
+			repoURL = matches[1]
+		}
+
+		// Return JSON ticket plan
+		type ticketNode struct {
+			Title              string       `json:"title"`
+			Description        string       `json:"description"`
+			Type               string       `json:"type"`
+			BlockedBy          []string     `json:"blocked_by"`
+			AcceptanceCriteria []string     `json:"acceptance_criteria"`
+			Children           []ticketNode `json:"children"`
+		}
+
+		tickets := []ticketNode{
+			{
+				Title:       "ID:[PRIMES] Implement Prime Number Script",
+				Description: fmt.Sprintf("Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.\n\nRepo: %s", repoURL),
+				Type:        "Task",
+				AcceptanceCriteria: []string{
+					"Script calculates 1229 primes",
+					"Output format is correct",
+				},
+				Children: []ticketNode{},
+			},
+		}
+
+		jsonBytes, _ := json.Marshal(tickets)
+		return string(jsonBytes), nil
+	}
+
+	// Heuristic 2: Coding / Primes
+	// Check if prompt asks for prime number implementation (Coding Agent)
+	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "PRIMES") {
+		return `I will implement the prime number script.
+
+` + "```bash" + `
+cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n < 2: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0: return False
+    return True
+
+primes = [i for i in range(10000) if is_prime(i)]
+
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+python3 primes.py
+git add primes.py primes.json
+git commit -m "Add primes script"
+` + "```" + `
+`, nil
+	}
+
+	// Default Response
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
