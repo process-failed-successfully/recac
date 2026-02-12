@@ -68,9 +68,15 @@ python3 primes.py
 `, nil
 	}
 
-	// 3. QA/Review Agent
-	if strings.Contains(strings.ToUpper(prompt), "QA") || strings.Contains(strings.ToUpper(prompt), "REVIEW") {
-		return "LGTM. The code looks correct and meets the requirements.", nil
+	// 3. QA/Review Agent (and Manager)
+	if strings.Contains(strings.ToUpper(prompt), "QA") || strings.Contains(strings.ToUpper(prompt), "REVIEW") || strings.Contains(strings.ToUpper(prompt), "MANAGER") {
+		// Manager/QA needs to approve.
+		// For Manager, we explicitly return the signal command to be robust, though the runner also accepts ratio checks.
+		return `LGTM. The code looks correct and meets the requirements.
+` + "```bash" + `
+agent-bridge set-signal PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
 	}
 
 	// Default response
