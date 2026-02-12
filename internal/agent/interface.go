@@ -59,6 +59,12 @@ func NewAgent(provider, apiKey, model, workDir, project string) (Agent, error) {
 		return NewCursorCLIClient(apiKey, model, project), nil
 	case "opencode", "opencode-cli":
 		return NewOpenCodeCLIClient(apiKey, model, workDir, project), nil
+	case "mock":
+		// Only available if compiled with support, but we can't easily check build tags here dynamically.
+		// However, we can just return the MockAgent.
+		// If MockAgent is in another package to avoid circular deps or keep clean, we might need a factory registration.
+		// BUT, MockAgent IS in this package (mock.go).
+		return NewMockAgent(), nil
 	default:
 		return nil, fmt.Errorf("unknown provider: %s", provider)
 	}
