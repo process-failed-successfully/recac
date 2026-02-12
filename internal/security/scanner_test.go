@@ -87,6 +87,26 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "cat " + ".con" + "fig/config.toml",
 			wantFinding: "Dangerous Command",
 		},
+		{
+			name:        "Safe Cat Suffix",
+			content:     "cat.ssh",
+			wantFinding: "",
+		},
+		{
+			name:        "Safe Echo Env",
+			content:     "echo .env",
+			wantFinding: "",
+		},
+		{
+			name:        "Dangerous Cat Path Quoted",
+			content:     "cat '/path/to/" + ".e" + "nv'",
+			wantFinding: "Dangerous Command",
+		},
+		{
+			name:        "Dangerous Cat Tab",
+			content:     "cat\t" + ".e" + "nv",
+			wantFinding: "Dangerous Command",
+		},
 	}
 
 	for _, tt := range tests {
