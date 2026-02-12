@@ -45,6 +45,8 @@ func main() {
 	pflag.String("github-repo", "", "GitHub Repository Name (for 'github' poller)")
 	pflag.String("github-label", "", "GitHub Label to poll for (defaults to jira-label if not set)")
 
+	pflag.String("webhook-addr", ":8080", "Webhook listening address (for 'webhook' poller)")
+
 	pflag.Parse()
 
 	// Config
@@ -61,6 +63,8 @@ func main() {
 	viper.BindPFlag("orchestrator.github_owner", pflag.Lookup("github-owner"))
 	viper.BindPFlag("orchestrator.github_repo", pflag.Lookup("github-repo"))
 	viper.BindPFlag("orchestrator.github_label", pflag.Lookup("github-label"))
+
+	viper.BindPFlag("orchestrator.webhook_addr", pflag.Lookup("webhook-addr"))
 
 	viper.BindPFlag("orchestrator.mode", pflag.Lookup("mode"))
 	viper.BindPFlag("orchestrator.jira_label", pflag.Lookup("jira-label"))
@@ -81,6 +85,7 @@ func main() {
 	viper.BindEnv("orchestrator.github_owner", "RECAC_GITHUB_OWNER")
 	viper.BindEnv("orchestrator.github_repo", "RECAC_GITHUB_REPO")
 	viper.BindEnv("orchestrator.github_label", "RECAC_GITHUB_LABEL")
+	viper.BindEnv("orchestrator.webhook_addr", "RECAC_WEBHOOK_ADDR")
 	viper.BindEnv("orchestrator.mode", "RECAC_ORCHESTRATOR_MODE")
 	viper.BindEnv("orchestrator.image", "RECAC_ORCHESTRATOR_IMAGE")
 	viper.BindEnv("orchestrator.namespace", "RECAC_ORCHESTRATOR_NAMESPACE")
@@ -149,6 +154,10 @@ func main() {
 		}
 		poller = orchestrator.NewGitHubPoller(token, owner, repo, ghLabel)
 		logger.Info("Using GitHub poller", "owner", owner, "repo", repo, "label", ghLabel)
+	case "webhook":
+		addr := viper.GetString("orchestrator.webhook_addr")
+		poller = orchestrator.NewWebhookPoller(addr, logger)
+		logger.Info("Using Webhook poller", "addr", addr)
 	default:
 		// Default to Jira
 		jClient, err := cmdutils.GetJiraClient(ctx) // Use shared cmdutils
