@@ -15,8 +15,10 @@ func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, on
 
 
 func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
-	// Setup a fake home directory
-	fakeHome := "/home/testuser" // Logical path, doesn't need to exist on disk
+	// Setup a fake home directory using filepath.Join for OS-agnostic separators
+	// On Windows, this will be "home\testuser". On Linux, "home/testuser".
+	// We prefix with separator to make it "absolute-like" (though purely logical).
+	fakeHome := string(os.PathSeparator) + filepath.Join("home", "testuser")
 
 	// Setup mock Docker client
 	// Use package-level MockDockerClient to avoid CheckDaemon issues in CI
@@ -50,6 +52,7 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	session.StatFunc = func(path string) (os.FileInfo, error) {
 		base := filepath.Base(path)
 		// Simulate only specific directories existing
+		// We use base name check which is generally robust across OSes for simple filenames
 		if base == ".ssh" || base == ".config" {
 			return nil, nil // Exists (error is nil)
 		}
@@ -60,6 +63,12 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	if err := session.Start(context.Background()); err != nil {
 		t.Fatalf("Session.Start failed: %v", err)
 	}
+
+	if len(capturedBinds) == 0 {
+		t.Fatal("Start succeeded but capturedBinds is empty. RunContainer was likely not called or no binds were added.")
+	}
+
+	t.Logf("Captured binds: %v", capturedBinds)
 
 	// Verify sensitive mounts
 	sensitivePaths := []string{".ssh", ".config"} // Only check the ones we simulated existence for
@@ -79,7 +88,7 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 			}
 		}
 		if !found {
-			t.Errorf("Expected sensitive path '%s' to be mounted, but it was not found in binds", path)
+			t.Errorf("Expected sensitive path '%s' to be mounted, but it was not found in binds. Binds: %v", path, capturedBinds)
 		}
 	}
 
@@ -88,7 +97,7 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	for _, path := range unexpectedPaths {
 		for _, bind := range capturedBinds {
 			if strings.Contains(bind, path) {
-				t.Errorf("Unexpected path '%s' was mounted even though StatFunc said it doesn't exist", path)
+				t.Errorf("Unexpected path '%s' was mounted even though StatFunc said it doesn't exist. Bind: %s", path, bind)
 			}
 		}
 	}
