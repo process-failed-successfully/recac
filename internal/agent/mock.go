@@ -89,7 +89,7 @@ def is_prime(n):
         if n % i == 0: return False
     return True
 
-primes = [i for i in range(100) if is_prime(i)]
+primes = [i for i in range(10000) if is_prime(i)]
 with open('primes.json', 'w') as f:
     json.dump(primes, f)
 EOF
