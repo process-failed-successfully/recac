@@ -66,14 +66,14 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(prompt, "You are an Initializer Agent") ||
 	   strings.Contains(prompt, "## YOUR ROLE - INITIALIZER AGENT") {
 		// Return a bash script that imports features into the DB using agent-bridge
-		return `cat << 'EOF' | agent-bridge import
+		return "Here is the feature extraction script:\n```bash\n" + `cat << 'EOF' | agent-bridge import
 {
   "features": [
     {"description": "Calculate prime numbers", "status": "pending"},
     {"description": "Handle invalid input", "status": "pending"}
   ]
 }
-EOF`, nil
+EOF` + "\n```", nil
 	}
 
 	// 3. Coding Agent (Primes Task)
@@ -86,7 +86,7 @@ EOF`, nil
 	   strings.Contains(upperPrompt, "PYTHON") ||
 	   strings.Contains(upperPrompt, "SCRIPT") {
 		// Return a bash script to implement the prime checker
-		return `cat << 'EOF' > primes.py
+		return "I will implement the prime checker:\n```bash\n" + `cat << 'EOF' > primes.py
 import sys
 
 def is_prime(n):
@@ -113,8 +113,7 @@ python3 primes.py 7
 python3 primes.py 10
 
 # Signal completion
-agent-bridge signal PROJECT_SIGNED_OFF true --privileged || true
-`, nil
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged || true` + "\n```", nil
 	}
 
 	// 4. QA/Manager Role
