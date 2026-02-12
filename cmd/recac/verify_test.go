@@ -92,8 +92,7 @@ func Complex(n int) {
 
 // Added security issue
 func Secret() {
-	key := "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE"
-	fmt.Println(key)
+` + "	key := \"AWS_ACCESS_KEY_ID=" + "AKIA" + "IOSFODNN7EXAMPLE\"\n" + `	fmt.Println(key)
 }
 `
 	if err := os.WriteFile(filePath, []byte(dirtyCode), 0644); err != nil {
