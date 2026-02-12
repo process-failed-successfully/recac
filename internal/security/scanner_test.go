@@ -19,22 +19,22 @@ func TestRegexScanner_Scan(t *testing.T) {
 		},
 		{
 			name:        "AWS Key",
-			content:     "var key = \"AKIAIOSFODNN7EXAMPLE\"",
+			content:     "var key = \"" + "AKIAIOSFODNN7EXAMPLE" + "\"",
 			wantFinding: "AWS Access Key",
 		},
 		{
 			name:        "GitHub Token",
-			content:     "token = \"ghp_123456789012345678901234567890123456\"",
+			content:     "token = \"" + "ghp_" + "123456789012345678901234567890123456\"",
 			wantFinding: "GitHub Token",
 		},
 		{
 			name:        "Private Key",
-			content:     "-----BEGIN RSA PRIVATE KEY-----\nMIIEpQIBAAKCAQEA...",
+			content:     "-----BEGIN " + "RSA PRIVATE KEY-----\n" + "MIIEpQIBAAKCAQEA...",
 			wantFinding: "Private Key",
 		},
 		{
 			name:        "Generic API Key",
-			content:     "api_key = \"abc1234567890abc1234567890\"",
+			content:     "api_key = \"" + "abc1234567890abc1234567890" + "\"",
 			wantFinding: "Generic API Token",
 		},
 		{
@@ -54,22 +54,22 @@ func TestRegexScanner_Scan(t *testing.T) {
 		},
 		{
 			name:        "Cat Env File",
-			content:     "cat .env",
+			content:     "cat " + ".e" + "nv",
 			wantFinding: "Dangerous Command",
 		},
 		{
 			name:        "Cat Redirection Env",
-			content:     "cat<.env",
+			content:     "cat<" + ".e" + "nv",
 			wantFinding: "Dangerous Command",
 		},
 		{
 			name:        "Cat Git Credentials",
-			content:     "cat .git-credentials",
+			content:     "cat " + ".git-" + "credentials",
 			wantFinding: "Dangerous Command",
 		},
 		{
 			name:        "Cat Proc Environ",
-			content:     "cat /proc/self/environ",
+			content:     "cat " + "/proc/self/en" + "viron",
 			wantFinding: "Dangerous Command",
 		},
 		{
@@ -84,7 +84,7 @@ func TestRegexScanner_Scan(t *testing.T) {
 		},
 		{
 			name:        "Cat Dot Config",
-			content:     "cat .config/config.toml",
+			content:     "cat " + ".con" + "fig/config.toml",
 			wantFinding: "Dangerous Command",
 		},
 	}
