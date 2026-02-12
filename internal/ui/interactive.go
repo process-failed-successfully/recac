@@ -997,7 +997,6 @@ func (m *InteractiveModel) setMode(mode InputMode) {
 	switch mode {
 	case ModeChat:
 		m.textarea.Focus() // Ensure focus returns to chat input
-		m.textarea.Focus() // Ensure focus returns to chat input
 		m.textarea.Prompt = " ❯ "
 		m.textarea.Placeholder = "Ask me to code, refactor, or explain..."
 		m.textarea.FocusedStyle.Prompt = lipgloss.NewStyle().Foreground(lipgloss.Color("205")) // Pink
