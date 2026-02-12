@@ -98,6 +98,18 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "cat " + ".con" + "fig/config.toml",
 			wantFinding: "Dangerous Command",
 		},
+		{
+			name:        "Comment Containing Env",
+			// Should NOT match
+			content:     "cat some_file # Check .env later",
+			wantFinding: "",
+		},
+		{
+			name:        "Cat Redirect Env",
+			// Should NOT match (whitelisted)
+			content:     "cat > .env",
+			wantFinding: "",
+		},
 	}
 
 	for _, tt := range tests {
