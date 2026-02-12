@@ -65,14 +65,18 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(prompt, "You are an Initializer Agent") {
 		// Return a bash script that imports features into the DB using agent-bridge
 		// Must be wrapped in markdown for the runner to detect it
-		return "```bash\n" + `cat << 'EOF' | agent-bridge import
+		// We explicitly pass the project ID to ensure correct DB association
+		return "```bash\n" + `echo "Importing features for project: $RECAC_PROJECT_ID"
+cat << 'EOF' | agent-bridge import --project "$RECAC_PROJECT_ID"
 {
   "features": [
     {"description": "Calculate prime numbers", "status": "pending"},
     {"description": "Handle invalid input", "status": "pending"}
   ]
 }
-EOF` + "\n```", nil
+EOF
+echo "Import finished with code $?"
+` + "\n```", nil
 	}
 
 	// 3. Coding Agent (Primes Task)
