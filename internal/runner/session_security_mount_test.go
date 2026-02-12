@@ -24,8 +24,8 @@ func (m *MockAgentForSecurity) SendStream(ctx context.Context, prompt string, on
 }
 
 func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
-	// Mock home directory
-	mockHome := filepath.Join("/mock", "home")
+	// Use temporary directory for home to ensure absolute path on all OSes
+	mockHome := t.TempDir()
 
 	// Setup mock Docker client
 	client, mock := docker.NewMockClient()
@@ -81,7 +81,7 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 		found := false
 		for _, bind := range capturedBinds {
 			// Check if bind starts with expected host path
-			// Format: /mock/home/.ssh:/home/appuser/.ssh:ro
+			// Format: /tmp/xxxx/.ssh:/home/appuser/.ssh:ro
 			if strings.HasPrefix(bind, expectedHostPath) {
 				found = true
 				foundAny = true
