@@ -64,14 +64,15 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Let's add a basic check for "Initializer" just in case.
 	if strings.Contains(prompt, "You are an Initializer Agent") {
 		// Return a bash script that imports features into the DB using agent-bridge
-		return `cat << 'EOF' | agent-bridge import
+		// Must be wrapped in markdown for the runner to detect it
+		return "```bash\n" + `cat << 'EOF' | agent-bridge import
 {
   "features": [
     {"description": "Calculate prime numbers", "status": "pending"},
     {"description": "Handle invalid input", "status": "pending"}
   ]
 }
-EOF`, nil
+EOF` + "\n```", nil
 	}
 
 	// 3. Coding Agent (Primes Task)
