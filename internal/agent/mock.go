@@ -73,7 +73,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// Check if we already committed (to avoid infinite loop)
 		if strings.Contains(prompt, "Add primes script") && strings.Contains(prompt, "Success") {
 			// Work is done. Signal completion via agent-bridge.
+			// Ensure the feature exists first by importing it (idempotent for this mock flow)
 			return "```bash\n" +
+				`echo '[{"id": "primes-script", "name": "Implement Primes Script", "type": "Story", "status": "todo", "project": "PRIMES"}]' | agent-bridge import` + "\n" +
 				`agent-bridge feature set primes-script --status completed --passes true --project "$RECAC_PROJECT_ID"` +
 				"\n```\nTask Completed.", nil
 		}
