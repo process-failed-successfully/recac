@@ -45,7 +45,8 @@ type Session struct {
 	AgentStateFile   string              // Path to agent state file (.agent_state.json)
 	StateManager     *agent.StateManager // State manager for agent state persistence
 	DBStore          db.Store            // Persistent database store
-	Scanner          security.Scanner    // Security scanner
+	Scanner          security.Scanner    // Security scanner (secrets only)
+	CmdScanner       security.Scanner    // Command scanner (execution safety)
 	ContainerID      string              // Container ID for cleanup
 
 	// Dependency Injection for Testing (optional)
@@ -148,7 +149,8 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 		StateManager:     stateManager,
 		DBStore:          dbStore,
 		OwnsDB:           true,
-		Scanner:          security.NewRegexScanner(),
+		Scanner:          security.NewSecretScanner(),
+		CmdScanner:       security.NewCommandScanner(),
 		MaxAgents:        maxAgents,
 		Notifier:         notify.NewManager(telemetry.LogInfof),
 		UseLocalAgent:    os.Getenv("KUBERNETES_SERVICE_HOST") != "",
@@ -189,7 +191,8 @@ func NewSessionWithStateFile(d DockerClient, a agent.Agent, workspace, image, pr
 		StateManager:     stateManager,
 		DBStore:          dbStore,
 		OwnsDB:           true,
-		Scanner:          security.NewRegexScanner(),
+		Scanner:          security.NewSecretScanner(),
+		CmdScanner:       security.NewCommandScanner(),
 		MaxAgents:        maxAgents,
 		Notifier:         notify.NewManager(telemetry.LogInfof),
 		Logger:           logger,
@@ -224,7 +227,8 @@ func NewSessionWithConfig(workspace, project, provider, model string, dbStore db
 		AgentStateFile:   agentStateFile,
 		StateManager:     stateManager,
 		OwnsDB:           false, // This session does not own the DB, it's passed in
-		Scanner:          security.NewRegexScanner(),
+		Scanner:          security.NewSecretScanner(),
+		CmdScanner:       security.NewCommandScanner(),
 		Notifier:         notify.NewManager(telemetry.LogInfof),
 		Logger:           logger,
 	}
@@ -853,8 +857,3 @@ func (s *Session) loadFeatures() []db.Feature {
 
 	return nil
 }
-
-
-
-
-

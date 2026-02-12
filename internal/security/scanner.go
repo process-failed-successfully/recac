@@ -36,8 +36,14 @@ var (
 	reReverseShell    = regexp.MustCompile(`(?i)nc\s+.*?-e\s+.*`)
 )
 
-// NewRegexScanner creates a new scanner with default patterns
+// NewRegexScanner creates a new scanner with default patterns (Secrets + Commands)
+// DEPRECATED: Use NewCommandScanner() instead for clarity.
 func NewRegexScanner() *RegexScanner {
+	return NewCommandScanner()
+}
+
+// NewSecretScanner creates a scanner that only checks for secrets/tokens (safe for natural language)
+func NewSecretScanner() *RegexScanner {
 	return &RegexScanner{
 		patterns: map[string]*regexp.Regexp{
 			"AWS Access Key":    reAWSAccessKey,
@@ -45,11 +51,27 @@ func NewRegexScanner() *RegexScanner {
 			"Generic API Token": reGenericAPIToken,
 			"Slack Token":       reSlackToken,
 			"GitHub Token":      reGitHubToken,
-			"Dangerous Command": reDangerousCmd,
-			"Root Deletion":     reRootDeletion,
-			"Pipe to Shell":     rePipeShell,
-			"Reverse Shell":     reReverseShell,
 		},
+	}
+}
+
+// NewCommandScanner creates a scanner that checks for both secrets AND dangerous commands (for code execution)
+func NewCommandScanner() *RegexScanner {
+	// Start with secrets
+	patterns := map[string]*regexp.Regexp{
+		"AWS Access Key":    reAWSAccessKey,
+		"Private Key":       rePrivateKey,
+		"Generic API Token": reGenericAPIToken,
+		"Slack Token":       reSlackToken,
+		"GitHub Token":      reGitHubToken,
+		// Add command patterns
+		"Dangerous Command": reDangerousCmd,
+		"Root Deletion":     reRootDeletion,
+		"Pipe to Shell":     rePipeShell,
+		"Reverse Shell":     reReverseShell,
+	}
+	return &RegexScanner{
+		patterns: patterns,
 	}
 }
 

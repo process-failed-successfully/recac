@@ -16,7 +16,7 @@ func TestProcessResponse_Security(t *testing.T) {
 		ContainerID: "test-container",
 		Notifier:    notify.NewManager(func(string, ...interface{}) {}),
 		Logger:      slog.Default(),
-		Scanner:     security.NewRegexScanner(), // Use real scanner
+		CmdScanner:  security.NewCommandScanner(), // Use real scanner for commands
 	}
 
 	// 1. Dangerous Command

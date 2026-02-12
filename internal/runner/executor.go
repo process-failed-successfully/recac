@@ -141,9 +141,9 @@ func (s *Session) checkBlockers(ctx context.Context) error {
 func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, index, total int) (string, error) {
 	s.Logger.Info("executing command block", "index", index, "total", total, "script", cmdScript)
 
-	// Security Scan
-	if s.Scanner != nil {
-		findings, err := s.Scanner.Scan(cmdScript)
+	// Security Scan (Code Execution)
+	if s.CmdScanner != nil {
+		findings, err := s.CmdScanner.Scan(cmdScript)
 		if err != nil {
 			s.Logger.Warn("security scanner error", "error", err, "script", cmdScript)
 		}
