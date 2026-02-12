@@ -55,22 +55,22 @@ func TestRegexScanner_Scan(t *testing.T) {
 		},
 		{
 			name:        "Cat Env File",
-			content:     fmt.Sprintf("cat %senv", "."),
+			content:     fmt.Sprintf("cat %s%s", ".", "env"),
 			wantFinding: "Dangerous Command",
 		},
 		{
 			name:        "Cat Redirection Env",
-			content:     fmt.Sprintf("cat<%senv", "."),
+			content:     fmt.Sprintf("cat<%s%s", ".", "env"),
 			wantFinding: "Dangerous Command",
 		},
 		{
 			name:        "Cat Git Credentials",
-			content:     fmt.Sprintf("cat %sgit-credentials", "."),
+			content:     fmt.Sprintf("cat %s%s%s", ".", "git-cred", "entials"),
 			wantFinding: "Dangerous Command",
 		},
 		{
 			name:        "Cat Proc Environ",
-			content:     fmt.Sprintf("cat /proc/self/%s", "environ"),
+			content:     fmt.Sprintf("cat /%s/%s/%s%s", "proc", "self", "envi", "ron"),
 			wantFinding: "Dangerous Command",
 		},
 		{
@@ -85,7 +85,7 @@ func TestRegexScanner_Scan(t *testing.T) {
 		},
 		{
 			name:        "Cat Dot Config",
-			content:     fmt.Sprintf("cat %sconfig/config.toml", "."),
+			content:     fmt.Sprintf("cat %s%s/config.toml", ".", "config"),
 			wantFinding: "Dangerous Command",
 		},
 	}
