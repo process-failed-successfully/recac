@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -109,16 +110,44 @@ This is a destructive action for any changes made after the selected checkpoint.
 			cmd.Println("Workspace reset to checkpoint (Detached HEAD)")
 		}
 
-		// 8. Delete Agent State
-		cmd.Println("Clearing agent state...")
-		stateFiles := []string{".agent_state.json", ".recac.db"} // Maybe db too?
+		// 8. Restore Agent State (Time Travel)
+		stateSrc := filepath.Join(workspace, ".recac", "state", "agent_state.json")
+		stateDst := filepath.Join(workspace, ".agent_state.json")
+		stateRestored := false
 
-		for _, f := range stateFiles {
-			path := filepath.Join(workspace, f)
-			if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-				cmd.Printf("Warning: Failed to delete %s: %v\n", f, err)
-			} else if err == nil {
-				cmd.Printf("Deleted %s\n", f)
+		if _, err := os.Stat(stateSrc); err == nil {
+			srcFile, err := os.Open(stateSrc)
+			if err == nil {
+				dstFile, err := os.Create(stateDst)
+				if err == nil {
+					if _, err := io.Copy(dstFile, srcFile); err == nil {
+						cmd.Println("🧠 Agent state restored from time capsule!")
+						stateRestored = true
+					}
+					dstFile.Close()
+				}
+				srcFile.Close()
+			}
+		}
+
+		if !stateRestored {
+			cmd.Println("Clearing agent state (no history found)...")
+			stateFiles := []string{".agent_state.json", ".recac.db"} // Maybe db too?
+
+			for _, f := range stateFiles {
+				path := filepath.Join(workspace, f)
+				if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+					cmd.Printf("Warning: Failed to delete %s: %v\n", f, err)
+				} else if err == nil {
+					cmd.Printf("Deleted %s\n", f)
+				}
+			}
+		} else {
+			// If we restored state, we might still want to clear DB or sync it?
+			// Let's delete DB to force a refresh from source/Jira, but keep the brain.
+			dbPath := filepath.Join(workspace, ".recac.db")
+			if err := os.Remove(dbPath); err == nil {
+				cmd.Println("Reset feature database (will be rebuilt from specs).")
 			}
 		}
 

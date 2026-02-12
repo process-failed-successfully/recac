@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -168,6 +169,32 @@ func (s *Session) pushProgress(ctx context.Context) {
 	}
 
 	s.Logger.Info("pushing progress to remote", "branch", branch)
+
+	// STATE PRESERVATION: Save agent state to a hidden tracked file
+	stateSrc := filepath.Join(s.Workspace, ".agent_state.json")
+	stateDstDir := filepath.Join(s.Workspace, ".recac", "state")
+	stateDst := filepath.Join(stateDstDir, "agent_state.json")
+
+	if _, err := os.Stat(stateSrc); err == nil {
+		if err := os.MkdirAll(stateDstDir, 0755); err == nil {
+			srcFile, err := os.Open(stateSrc)
+			if err == nil {
+				dstFile, err := os.Create(stateDst)
+				if err == nil {
+					if _, err := io.Copy(dstFile, srcFile); err == nil {
+						dstFile.Close()
+						// Force add the state file (overriding .gitignore)
+						if _, err := gitClient.Run(s.Workspace, "add", "-f", filepath.Join(".recac", "state", "agent_state.json")); err != nil {
+							s.Logger.Warn("failed to force add agent state to git", "error", err)
+						}
+					} else {
+						dstFile.Close()
+					}
+				}
+				srcFile.Close()
+			}
+		}
+	}
 
 	// Commit any changes (ignore error if nothing to commit)
 	msg := fmt.Sprintf("chore: progress update (iteration %d)", s.GetIteration())
