@@ -211,3 +211,30 @@ func TestOrchestrator_Run_GracefulShutdown(t *testing.T) {
 	cancel()
 	wg.Wait()
 }
+
+func TestOrchestrator_RunOnce(t *testing.T) {
+	poller := newMockPoller([]WorkItem{{ID: "TEST-ONCE"}})
+	spawner := &mockSpawner{}
+	orch := New(poller, spawner, 1*time.Hour) // Long interval to ensure we don't tick accidentally
+	orch.RunOnce = true
+
+	// Use a context with a timeout, but Run should return BEFORE the timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	start := time.Now()
+	err := orch.Run(ctx, silentLogger)
+	duration := time.Since(start)
+
+	// Should not be a timeout error
+	assert.NoError(t, err)
+
+	// Should be fast
+	assert.Less(t, duration, 1*time.Second)
+
+	// Should have spawned the item
+	spawner.mu.Lock()
+	assert.Len(t, spawner.spawned, 1)
+	assert.Equal(t, "TEST-ONCE", spawner.spawned[0].ID)
+	spawner.mu.Unlock()
+}

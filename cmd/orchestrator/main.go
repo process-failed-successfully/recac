@@ -45,6 +45,9 @@ func main() {
 	pflag.String("github-repo", "", "GitHub Repository Name (for 'github' poller)")
 	pflag.String("github-label", "", "GitHub Label to poll for (defaults to jira-label if not set)")
 
+	pflag.Bool("dry-run", false, "Enable dry-run mode (log actions only, no changes)")
+	pflag.Bool("once", false, "Run the polling loop once and exit")
+
 	pflag.Parse()
 
 	// Config
@@ -52,6 +55,8 @@ func main() {
 
 	// Bind Flags
 	viper.BindPFlag("verbose", pflag.Lookup("verbose"))
+	viper.BindPFlag("orchestrator.dry_run", pflag.Lookup("dry-run"))
+	viper.BindPFlag("orchestrator.once", pflag.Lookup("once"))
 	viper.BindPFlag("orchestrator.jira_query", pflag.Lookup("jira-query"))
 	viper.BindPFlag("orchestrator.poller", pflag.Lookup("poller"))
 	viper.BindPFlag("orchestrator.work_file", pflag.Lookup("work-file"))
@@ -200,8 +205,20 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 3. Orchestrator
+	// 3. Dry Run Handling
+	if viper.GetBool("orchestrator.dry_run") {
+		logger.Info("Dry-run mode enabled: Wrapping poller and spawner")
+		poller = orchestrator.NewDryRunPoller(poller, logger)
+		// For spawner, we just replace it entirely since we don't need the underlying spawner logic in dry-run
+		spawner = orchestrator.NewDryRunSpawner(logger)
+	}
+
+	// 4. Orchestrator
 	orch := orchestrator.New(poller, spawner, interval)
+	if viper.GetBool("orchestrator.once") {
+		orch.RunOnce = true
+	}
+
 	if err := orch.Run(ctx, logger); err != nil {
 		if ctx.Err() != nil {
 			// Graceful shutdown
