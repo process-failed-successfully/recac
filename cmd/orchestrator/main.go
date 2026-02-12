@@ -110,58 +110,160 @@ func main() {
 
 	// 1. Poller
 	var poller orchestrator.Poller
-	pollerType := viper.GetString("orchestrator.poller")
+	var pollersConfig []map[string]interface{}
+	viper.UnmarshalKey("orchestrator.pollers", &pollersConfig)
 
-	switch pollerType {
-	case "file-dir":
-		watchDir := viper.GetString("orchestrator.watch_dir")
-		if watchDir == "" {
-			logger.Error("Watch directory must be specified in file-dir poller mode")
-			os.Exit(1)
-		}
-		var err error
-		poller, err = orchestrator.NewFileDirPoller(watchDir)
-		if err != nil {
-			logger.Error("Failed to initialize file directory poller", "error", err)
-			os.Exit(1)
-		}
-		logger.Info("Using file directory poller", "directory", watchDir)
-	case "file", "filesystem":
-		workFile := viper.GetString("orchestrator.work_file")
-		if workFile == "" {
-			logger.Error("Work file must be specified in file poller mode")
-			os.Exit(1)
-		}
-		poller = orchestrator.NewFilePoller(workFile)
-		logger.Info("Using filesystem poller", "file", workFile)
-	case "github":
-		token := viper.GetString("orchestrator.github_token")
-		owner := viper.GetString("orchestrator.github_owner")
-		repo := viper.GetString("orchestrator.github_repo")
-		ghLabel := viper.GetString("orchestrator.github_label")
-		if ghLabel == "" {
-			ghLabel = label // Fallback to jira-label
-		}
+	if len(pollersConfig) > 0 {
+		mp := orchestrator.NewMultiPoller()
+		logger.Info("Initializing MultiPoller", "count", len(pollersConfig))
 
-		if token == "" || owner == "" || repo == "" {
-			logger.Error("GitHub token, owner, and repo must be specified in github poller mode")
-			os.Exit(1)
+		for i, cfg := range pollersConfig {
+			pType, _ := cfg["type"].(string)
+			name, _ := cfg["name"].(string)
+			if name == "" {
+				name = fmt.Sprintf("%s-%d", pType, i)
+			}
+
+			var p orchestrator.Poller
+			var err error
+
+			switch pType {
+			case "file-dir":
+				watchDir, _ := cfg["watch_dir"].(string)
+				// Fallback to global if not in item config
+				if watchDir == "" {
+					watchDir = viper.GetString("orchestrator.watch_dir")
+				}
+				if watchDir == "" {
+					logger.Error("Watch directory missing in poller config", "name", name)
+					continue
+				}
+				p, err = orchestrator.NewFileDirPoller(watchDir)
+				if err != nil {
+					logger.Error("Failed to init file-dir poller", "name", name, "error", err)
+					continue
+				}
+			case "file", "filesystem":
+				workFile, _ := cfg["work_file"].(string)
+				if workFile == "" {
+					workFile = viper.GetString("orchestrator.work_file")
+				}
+				if workFile == "" {
+					logger.Error("Work file missing in poller config", "name", name)
+					continue
+				}
+				p = orchestrator.NewFilePoller(workFile)
+			case "github":
+				token, _ := cfg["token"].(string)
+				if token == "" {
+					token = viper.GetString("orchestrator.github_token")
+				}
+				owner, _ := cfg["owner"].(string)
+				if owner == "" {
+					owner = viper.GetString("orchestrator.github_owner")
+				}
+				repo, _ := cfg["repo"].(string)
+				if repo == "" {
+					repo = viper.GetString("orchestrator.github_repo")
+				}
+				ghLabel, _ := cfg["label"].(string)
+				if ghLabel == "" {
+					ghLabel = viper.GetString("orchestrator.github_label")
+				}
+				if ghLabel == "" {
+					ghLabel = label
+				}
+
+				if token == "" || owner == "" || repo == "" {
+					logger.Error("GitHub config missing (token/owner/repo)", "name", name)
+					continue
+				}
+				p = orchestrator.NewGitHubPoller(token, owner, repo, ghLabel)
+			case "jira":
+				jql, _ := cfg["query"].(string)
+				if jql == "" {
+					l, _ := cfg["label"].(string)
+					if l == "" {
+						l = label
+					}
+					if l != "" {
+						jql = fmt.Sprintf("labels = \"%s\" AND statusCategory != Done ORDER BY created ASC", l)
+					}
+				}
+				// Assume shared Jira client for now, or could load per-poller creds if needed.
+				// For simplicity, reuse global Jira client.
+				jClient, err := cmdutils.GetJiraClient(ctx)
+				if err != nil {
+					logger.Error("Failed to get Jira client", "error", err)
+					continue
+				}
+				p = orchestrator.NewJiraPoller(jClient, jql)
+			default:
+				logger.Error("Unknown poller type", "type", pType, "name", name)
+				continue
+			}
+
+			if p != nil {
+				mp.AddPoller(name, p)
+				logger.Info("Added poller", "name", name, "type", pType)
+			}
 		}
-		poller = orchestrator.NewGitHubPoller(token, owner, repo, ghLabel)
-		logger.Info("Using GitHub poller", "owner", owner, "repo", repo, "label", ghLabel)
-	default:
-		// Default to Jira
-		jClient, err := cmdutils.GetJiraClient(ctx) // Use shared cmdutils
-		if err != nil {
-			logger.Error("Failed to initialize Jira client", "error", err)
-			os.Exit(1)
+		poller = mp
+	} else {
+		// Legacy single poller initialization
+		pollerType := viper.GetString("orchestrator.poller")
+
+		switch pollerType {
+		case "file-dir":
+			watchDir := viper.GetString("orchestrator.watch_dir")
+			if watchDir == "" {
+				logger.Error("Watch directory must be specified in file-dir poller mode")
+				os.Exit(1)
+			}
+			var err error
+			poller, err = orchestrator.NewFileDirPoller(watchDir)
+			if err != nil {
+				logger.Error("Failed to initialize file directory poller", "error", err)
+				os.Exit(1)
+			}
+			logger.Info("Using file directory poller", "directory", watchDir)
+		case "file", "filesystem":
+			workFile := viper.GetString("orchestrator.work_file")
+			if workFile == "" {
+				logger.Error("Work file must be specified in file poller mode")
+				os.Exit(1)
+			}
+			poller = orchestrator.NewFilePoller(workFile)
+			logger.Info("Using filesystem poller", "file", workFile)
+		case "github":
+			token := viper.GetString("orchestrator.github_token")
+			owner := viper.GetString("orchestrator.github_owner")
+			repo := viper.GetString("orchestrator.github_repo")
+			ghLabel := viper.GetString("orchestrator.github_label")
+			if ghLabel == "" {
+				ghLabel = label // Fallback to jira-label
+			}
+
+			if token == "" || owner == "" || repo == "" {
+				logger.Error("GitHub token, owner, and repo must be specified in github poller mode")
+				os.Exit(1)
+			}
+			poller = orchestrator.NewGitHubPoller(token, owner, repo, ghLabel)
+			logger.Info("Using GitHub poller", "owner", owner, "repo", repo, "label", ghLabel)
+		default:
+			// Default to Jira
+			jClient, err := cmdutils.GetJiraClient(ctx) // Use shared cmdutils
+			if err != nil {
+				logger.Error("Failed to initialize Jira client", "error", err)
+				os.Exit(1)
+			}
+			jql := viper.GetString("orchestrator.jira_query")
+			if jql == "" && label != "" {
+				jql = fmt.Sprintf("labels = \"%s\" AND statusCategory != Done ORDER BY created ASC", label)
+			}
+			poller = orchestrator.NewJiraPoller(jClient, jql)
+			logger.Info("Using Jira poller", "label", label, "query", jql)
 		}
-		jql := viper.GetString("orchestrator.jira_query")
-		if jql == "" && label != "" {
-			jql = fmt.Sprintf("labels = \"%s\" AND statusCategory != Done ORDER BY created ASC", label)
-		}
-		poller = orchestrator.NewJiraPoller(jClient, jql)
-		logger.Info("Using Jira poller", "label", label, "query", jql)
 	}
 
 	// 2. Spawner

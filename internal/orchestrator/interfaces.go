@@ -10,6 +10,7 @@ import (
 // WorkItem represents a unit of work to be processed, e.g., a Jira ticket.
 type WorkItem struct {
 	ID          string
+	Source      string // Poller source name
 	Summary     string
 	Description string
 	RepoURL     string // Repo to clone

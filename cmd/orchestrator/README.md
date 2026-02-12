@@ -4,7 +4,7 @@ The Orchestrator is the management layer of the RECAC system. Its primary respon
 
 ## Key Features
 
-- **Multi-Source Polling**: Supports Jira and local filesystem.
+- **Multi-Source Polling**: Supports Jira, GitHub, and local filesystem (simultaneously).
 - **Hybrid Spawning**: Can run agents locally via Docker or in Kubernetes via Jobs.
 - **Auto-Retry**: Automatically cleans up and retries failed jobs.
 - **Configurable**: Fully controllable via CLI flags and environment variables.
@@ -20,7 +20,7 @@ The Orchestrator is the management layer of the RECAC system. Its primary respon
 | Flag               | Env Var                       | Default      | Description                            |
 | ------------------ | ----------------------------- | ------------ | -------------------------------------- |
 | `--mode`           | `RECAC_ORCHESTRATOR_MODE`     | `local`      | `local` (Docker) or `k8s` (Kubernetes) |
-| `--poller`         | `RECAC_POLLER`                | `jira`       | `jira` or `file`                       |
+| `--poller`         | `RECAC_POLLER`                | `jira`       | `jira`, `github`, or `file`            |
 | `--interval`       | `RECAC_ORCHESTRATOR_INTERVAL` | `1m`         | Polling interval (e.g., `30s`, `5m`)   |
 | `--agent-provider` | `RECAC_AGENT_PROVIDER`        | `openrouter` | AI provider for spawned agents         |
 | `--agent-model`    | `RECAC_AGENT_MODEL`           | `...`        | AI model for spawned agents            |
@@ -45,6 +45,26 @@ The Orchestrator is the management layer of the RECAC system. Its primary respon
 | Flag          | Env Var           | Default           | Description                      |
 | ------------- | ----------------- | ----------------- | -------------------------------- |
 | `--work-file` | `RECAC_WORK_FILE` | `work_items.json` | Path to the JSON work items file |
+
+## Multi-Source Polling (Advanced)
+
+To poll from multiple sources (e.g., Jira AND GitHub, or multiple GitHub repos), use the `orchestrator.pollers` configuration in your `.recac.yaml`. This overrides the single `--poller` flag.
+
+```yaml
+orchestrator:
+  pollers:
+    - type: jira
+      name: "main-jira"
+      label: "recac-agent"
+    - type: github
+      name: "repo-a"
+      owner: "myorg"
+      repo: "repo-a"
+      token: "..." # Or via env var RECAC_GITHUB_TOKEN
+    - type: file-dir
+      name: "local-overrides"
+      watch_dir: "./hotfixes"
+```
 
 ## Operational Modes
 
