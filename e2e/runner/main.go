@@ -361,7 +361,9 @@ func run() error {
 
 	// Determine expected job name from ticket map (assuming single task for now or finding "PRIMES")
 	var targetTicketID string
-	if id, ok := ticketMap["PRIMES"]; ok {
+	if id, ok := ticketMap["Implement Primes Script"]; ok {
+		targetTicketID = id
+	} else if id, ok := ticketMap["PRIMES"]; ok {
 		targetTicketID = id
 	} else {
 		// Fallback: Use the first one
