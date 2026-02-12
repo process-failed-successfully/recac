@@ -50,7 +50,7 @@ cat << 'EOF' | agent-bridge import
       "priority": "MVP",
       "description": "Calculate primes less than 10000",
       "status": "pending",
-      "steps": ["Run primes.py", "Check primes.json"],
+      "steps": [\"Run primes.py\", \"Check primes.json\"],
       "passes": false,
       "dependencies": {
         "depends_on_ids": [],
@@ -76,7 +76,24 @@ fi
 `, nil
 	}
 
-	// 2. Coding Agent (Primes Scenario)
+	// 2. Ticket Generation (Planning Phase)
+	// Must come BEFORE coding phase because both prompts mention "primes.py"
+	if strings.Contains(lowerPrompt, "create exactly one ticket") {
+		// Return pure JSON as expected by recac jira parser
+		// Note: The parser is strict about JSON, so we output ONLY JSON
+		return `[
+  {
+    "id": "PRIMES",
+    "title": "Create Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.",
+    "type": "Task",
+    "status": "Open",
+    "priority": "High"
+  }
+]`, nil
+	}
+
+	// 3. Coding Agent (Primes Scenario Implementation)
 	if strings.Contains(lowerPrompt, "primes.py") || strings.Contains(prompt, "[PRIMES]") {
 		return `I will implement the primes.py script as requested.
 
@@ -106,7 +123,7 @@ agent-bridge feature set PRIMES --status completed --passes true
 `, nil
 	}
 
-	// 3. QA Agent / Manager
+	// 4. QA Agent / Manager
 	if strings.Contains(lowerPrompt, "qa agent") || strings.Contains(lowerPrompt, "approve or reject") {
 		return `I have reviewed the changes and they look correct.
 
