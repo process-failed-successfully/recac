@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -36,18 +37,26 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 1. TPM Role (Ticket Generation)
 	if strings.Contains(prompt, "You are an expert Technical Program Manager (TPM)") || strings.Contains(prompt, "ID:[PRIMES]") {
+		// Extract Repo URL from prompt if available
+		repoURL := "https://github.com/example/repo"
+		reRepo := regexp.MustCompile(`Repo: (https?://[^\s]+)`)
+		matches := reRepo.FindStringSubmatch(prompt)
+		if len(matches) > 1 {
+			repoURL = matches[1]
+		}
+
 		// Return JSON ticket plan for Prime Python Scenario
 		// The prompt contains "ID:[PRIMES]"
-		return `
+		return fmt.Sprintf(`
 [
   {
     "title": "ID:[PRIMES] Create Prime Number Script",
-    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'. Repo: https://github.com/example/repo",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'. Repo: %s",
     "type": "Task",
     "children": []
   }
 ]
-`, nil
+`, repoURL), nil
 	}
 
 	// 2. Initializer Agent
@@ -90,6 +99,8 @@ print(f"Generated {len(primes)} primes.")
 EOF
 
 python3 primes.py
+git add primes.py primes.json
+git commit -m "Add primes script"
 ` + "```" + `
 `, nil
 		}
