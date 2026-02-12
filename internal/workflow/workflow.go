@@ -461,7 +461,9 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 	if cfg.Logger != nil {
 		session.Logger = cfg.Logger
 	}
-	session.MaxIterations = cfg.MaxIterations
+	if cfg.MaxIterations > 0 {
+		session.MaxIterations = cfg.MaxIterations
+	}
 	session.TaskMaxIterations = cfg.TaskMaxIterations
 	session.ManagerFrequency = cfg.ManagerFrequency
 	session.ManagerFirst = cfg.ManagerFirst

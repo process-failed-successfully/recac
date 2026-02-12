@@ -34,6 +34,30 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	lowerPrompt := strings.ToLower(prompt)
 
+	// Heuristic: TPM (Ticket Generation)
+	// Must come before Coding Agent because the spec might contain "python"
+	if strings.Contains(lowerPrompt, "technical program manager") || (strings.Contains(lowerPrompt, "epics") && strings.Contains(lowerPrompt, "stories")) {
+		return `[
+  {
+    "title": "ID:[PRIMES] Prime Number Script",
+    "description": "Implement a script to calculate primes. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
+    "type": "Epic",
+    "children": [
+      {
+        "title": "Implement Primes Python Script",
+        "description": "Create a python script that calculates primes. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
+        "type": "Story",
+        "acceptance_criteria": [
+          "Script is named primes.py",
+          "Output is named primes.json",
+          "Calculates primes < 10000"
+        ]
+      }
+    ]
+  }
+]`, nil
+	}
+
 	// Heuristic: Initializer Agent (Feature Extraction)
 	if strings.Contains(lowerPrompt, "initializer agent") || strings.Contains(lowerPrompt, "feature extraction") {
 		return `I have analyzed the requirements. Here are the features:
