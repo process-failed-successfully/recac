@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -36,15 +37,22 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 1. TPM Agent (Ticket Generation)
 	if strings.Contains(prompt, "Technical Program Manager (TPM)") {
-		return `[
+		// Extract Repo URL from prompt to ensure consistency
+		repoURL := "https://github.com/example/repo"
+		reRepo := regexp.MustCompile(`Repo: (https?://[^\s]+)`)
+		if matches := reRepo.FindStringSubmatch(prompt); len(matches) > 1 {
+			repoURL = matches[1]
+		}
+
+		return fmt.Sprintf(`[
   {
     "title": "ID:[PRIMES] Implement Prime Number Generator",
-    "description": "Implement a Python script to generate prime numbers up to 100. The script should be efficient and well-documented. Repo: https://github.com/example/repo",
+    "description": "Implement a Python script to generate prime numbers up to 100. The script should be efficient and well-documented. Repo: %s",
     "type": "Epic",
     "children": [
       {
-        "title": "Implement Primes Script",
-        "description": "Write a Python script named primes.py that calculates primes and outputs them to primes.json. Repo: https://github.com/example/repo",
+        "title": "ID:[PRIMES-SCRIPT] Implement Primes Script",
+        "description": "Write a Python script named primes.py that calculates primes and outputs them to primes.json. Repo: %s",
         "type": "Story",
         "acceptance_criteria": [
           "Script runs without errors",
@@ -55,7 +63,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
       }
     ]
   }
-]`, nil
+]`, repoURL, repoURL), nil
 	}
 
 	// 2. Initializer Agent (Feature Import)
