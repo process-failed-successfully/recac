@@ -29,8 +29,9 @@ func TestMockAgent_TPM(t *testing.T) {
 		t.Fatalf("Send failed: %v", err)
 	}
 
-	if !strings.HasPrefix(strings.TrimSpace(response), "[") || !strings.HasSuffix(strings.TrimSpace(response), "]") {
-		t.Errorf("Expected JSON array for TPM role, got: %s", response)
+	// Check for JSON block
+	if !strings.Contains(response, "```json") || !strings.Contains(response, "```") {
+		t.Errorf("Expected JSON code block for TPM role, got: %s", response)
 	}
 	if !strings.Contains(response, "\"title\": \"ID:[PRIMES]") {
 		t.Errorf("Expected prime implementation task in TPM response, got: %s", response)
@@ -74,8 +75,8 @@ func TestMockAgent_QA(t *testing.T) {
 		t.Fatalf("Send failed: %v", err)
 	}
 
-	if strings.TrimSpace(response) != "QA_PASSED" {
-		t.Errorf("Expected QA_PASSED signal, got: %s", response)
+	if !strings.Contains(response, "agent-bridge signal QA_PASSED true") {
+		t.Errorf("Expected QA_PASSED signal command in QA role, got: %s", response)
 	}
 }
 
@@ -88,7 +89,7 @@ func TestMockAgent_Verify(t *testing.T) {
 		t.Fatalf("Send failed: %v", err)
 	}
 
-	if strings.TrimSpace(response) != "QA_PASSED" {
-		t.Errorf("Expected QA_PASSED signal for verify, got: %s", response)
+	if !strings.Contains(response, "agent-bridge signal QA_PASSED true") {
+		t.Errorf("Expected QA_PASSED signal command for verify, got: %s", response)
 	}
 }
