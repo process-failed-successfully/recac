@@ -115,10 +115,14 @@ agent-bridge feature set primes-script --status completed --passes true
 
 	// 4. QA Agent / Manager
 	// The QA agent prompt header is likely ## YOUR ROLE - QA AGENT or similar
-	if strings.Contains(prompt, "QA") || strings.Contains(prompt, "Manager") || strings.Contains(prompt, "Review") {
+	if strings.Contains(prompt, "QA") || strings.Contains(prompt, "Manager") || strings.Contains(prompt, "Approve or Reject") {
 		// Return approval
 		return `
 LGTM. The code looks correct and meets the requirements.
+
+` + "```bash" + `
+agent-bridge signal QA_PASSED true --privileged
+` + "```" + `
 `, nil
 	}
 
