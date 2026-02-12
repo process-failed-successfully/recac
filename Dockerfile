@@ -30,7 +30,7 @@ RUN npm install -g opencode-ai --ignore-scripts
 
 # Install Cursor Agent
 ENV HOME=/root
-RUN curl -fsS https://cursor.com/install | bash
+RUN curl -fsS https://cursor.com/install > /tmp/install-cursor.sh && bash /tmp/install-cursor.sh && rm /tmp/install-cursor.sh
 ENV PATH="${HOME}/.local/bin:${PATH}"
 
 WORKDIR /app

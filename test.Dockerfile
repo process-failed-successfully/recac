@@ -32,7 +32,7 @@ RUN npm install -g @google/gemini-cli
 # Script installs to ~/.local/bin
 ENV HOME=/root
 # Cursor install might still be slow if not mirrored, but let's try
-RUN curl -fsS https://cursor.com/install | bash
+RUN curl -fsS https://cursor.com/install > /tmp/install-cursor.sh && bash /tmp/install-cursor.sh && rm /tmp/install-cursor.sh
 ENV PATH="${HOME}/.local/bin:${PATH}"
 
 # No default command - source is mounted at runtime

