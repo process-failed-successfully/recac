@@ -49,18 +49,25 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Coding Agent (Implementation)
-	if strings.Contains(prompt, "Prime") || strings.Contains(prompt, "Implementation") {
+	// Match "Prime" or "prime" and "Implementation" or "Implement"
+	lowerPrompt := strings.ToLower(prompt)
+	if strings.Contains(lowerPrompt, "prime") || strings.Contains(lowerPrompt, "implement") {
 		return `Here is the implementation:
 
 ` + "```bash" + `
 cat << 'EOF' > primes.py
+import json
+
 def is_prime(n):
     if n <= 1: return False
     for i in range(2, int(n**0.5) + 1):
         if n % i == 0: return False
     return True
 
-print([x for x in range(20) if is_prime(x)])
+primes = [x for x in range(10000) if is_prime(x)]
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+print(f"Generated {len(primes)} primes to primes.json")
 EOF
 
 python3 primes.py
