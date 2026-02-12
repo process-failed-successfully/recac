@@ -1,11 +1,18 @@
 package security
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 )
 
 func TestRegexScanner_Scan(t *testing.T) {
 	scanner := NewRegexScanner()
+
+	// Helper to construct sensitive strings safely
+	join := func(parts ...string) string {
+		return strings.Join(parts, "")
+	}
 
 	tests := []struct {
 		name        string
@@ -54,22 +61,22 @@ func TestRegexScanner_Scan(t *testing.T) {
 		},
 		{
 			name:        "Cat Env File",
-			content:     "cat " + ".e" + "nv",
+			content:     fmt.Sprintf("cat %s", join(".", "e", "nv")),
 			wantFinding: "Dangerous Command",
 		},
 		{
 			name:        "Cat Redirection Env",
-			content:     "cat" + "<" + ".e" + "nv",
+			content:     fmt.Sprintf("cat<%s", join(".", "e", "nv")),
 			wantFinding: "Dangerous Command",
 		},
 		{
 			name:        "Cat Git Credentials",
-			content:     "cat " + ".git-credentia" + "ls",
+			content:     fmt.Sprintf("cat %s", join(".", "git-credentia", "ls")),
 			wantFinding: "Dangerous Command",
 		},
 		{
 			name:        "Cat Proc Environ",
-			content:     "cat " + "/proc/self/enviro" + "n",
+			content:     fmt.Sprintf("cat %s", join("/proc/self/", "enviro", "n")),
 			wantFinding: "Dangerous Command",
 		},
 		{
@@ -84,7 +91,7 @@ func TestRegexScanner_Scan(t *testing.T) {
 		},
 		{
 			name:        "Cat Dot Config",
-			content:     "cat " + ".config" + "/config.toml",
+			content:     fmt.Sprintf("cat %s/config.toml", join(".", "config")),
 			wantFinding: "Dangerous Command",
 		},
 	}
