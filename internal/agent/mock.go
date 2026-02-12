@@ -75,7 +75,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 EOF
 
 # Import the feature list using agent-bridge
-agent-bridge import --file feature_list.json --project "$RECAC_PROJECT_ID"
+cat feature_list.json | agent-bridge import
 ` + "\n```", nil
 	}
 
