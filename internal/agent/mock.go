@@ -81,6 +81,7 @@ EOF`, nil
 	upperPrompt := strings.ToUpper(prompt)
 	if strings.Contains(upperPrompt, "PRIME") ||
 	   strings.Contains(prompt, "Coding Agent") ||
+	   strings.Contains(upperPrompt, "CODING AGENT") ||
 	   strings.Contains(upperPrompt, "PYTHON") ||
 	   strings.Contains(upperPrompt, "SCRIPT") {
 		// Return a bash script to implement the prime checker

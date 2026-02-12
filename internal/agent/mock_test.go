@@ -57,6 +57,20 @@ func TestMockAgent_TPM(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Coding_Role(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "## YOUR ROLE - CODING AGENT"
+	response, err := agent.Send(context.Background(), prompt)
+
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "def is_prime(n):") {
+		t.Errorf("Expected Python code for Coding role (CODING AGENT), got: %s", response)
+	}
+}
+
 func TestMockAgent_Coding_Prime(t *testing.T) {
 	agent := NewMockAgent()
 	prompt := "Implement a function to check if a number is PRIME"
