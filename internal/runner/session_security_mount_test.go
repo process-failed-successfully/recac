@@ -65,31 +65,40 @@ func TestSession_SensitiveMounts_ReadOnly(t *testing.T) {
 	}
 
 	// Verify sensitive mounts
-	foundAny := false
-	for _, path := range sensitivePaths {
+	// We check for the container path because host paths might be symlinked or formatted differently in CI (e.g. t.TempDir())
+	expectedMounts := []struct {
+		desc          string
+		containerPath string
+	}{
+		{".gemini", "/home/appuser/.gemini"},
+		{".config", "/home/appuser/.config"},
+		{".cursor", "/home/appuser/.cursor"},
+		{".ssh", "/home/appuser/.ssh"},
+	}
+
+	foundCount := 0
+	for _, expected := range expectedMounts {
 		found := false
 		for _, bind := range capturedBinds {
-			// Check if bind contains the sensitive path
-			// Note: binds format is "hostPath:containerPath:ro"
-			// hostPath is constructed using filepath.Join(home, path)
-			expectedHostPath := filepath.Join(home, path)
-
-			// We check if bind starts with expectedHostPath
-			if strings.HasPrefix(bind, expectedHostPath) {
+			// Check if bind maps to the expected container path
+			// Bind format: hostPath:containerPath:ro
+			targetSuffix := ":" + expected.containerPath + ":ro"
+			if strings.Contains(bind, targetSuffix) || (strings.Contains(bind, ":"+expected.containerPath) && strings.HasSuffix(bind, ":ro")) {
 				found = true
-				foundAny = true
-				// Check if it is Read-Only
+				foundCount++
+				// Double check Read-Only just to be safe (suffix check covers it, but explicit check is good)
 				if !strings.HasSuffix(bind, ":ro") {
-					t.Errorf("Security Vulnerability: Sensitive path '%s' is mounted Read-Write! Bind: %s", path, bind)
+					t.Errorf("Security Vulnerability: Sensitive path '%s' is mounted Read-Write! Bind: %s", expected.desc, bind)
 				}
+				break
 			}
 		}
 		if !found {
-			t.Errorf("FAIL: Sensitive path '%s' not found in binds despite existing in home dir", path)
+			t.Errorf("FAIL: Sensitive path '%s' (target: %s) not found in binds despite existing in home dir", expected.desc, expected.containerPath)
 		}
 	}
 
-	if !foundAny {
+	if foundCount == 0 {
 		t.Error("FAIL: No sensitive paths were found in binds. Test setup failed.")
 	}
 }

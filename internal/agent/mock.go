@@ -36,9 +36,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristic: "Technical Program Manager" in prompt
 	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM") {
 		// Return JSON plan (Array of tickets)
+		// CRITICAL: Title must include [PRIMES] so the E2E manager can map the created ticket back to the scenario key.
 		return `[
   {
-    "title": "Implement Primes Script",
+    "title": "ID:[PRIMES] Implement Primes Script",
     "description": "Create a python script that calculates prime numbers.",
     "type": "task",
     "status": "todo"
@@ -53,7 +54,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// We skip 'agent-bridge import' to avoid binary dependency issues in some CI envs,
 		// relying on runner.Session fallback to read the file.
 		return "```bash\n" + `
-echo '{"project_name": "PRIMES", "features": [{"description": "Implement Primes Script", "status": "pending"}]}' > feature_list.json
+echo '{"project_name": "PRIMES", "features": [{"id": "primes-script", "description": "Implement Primes Script", "status": "pending"}]}' > feature_list.json
 echo "Initialized feature_list.json"
 ` + "\n```", nil
 	}
@@ -66,19 +67,25 @@ echo "Initialized feature_list.json"
 		script := "```bash\n" + `
 # Create the script
 cat << 'EOF' > primes.py
-def is_prime(n):
-    if n <= 1: return False
-    for i in range(2, int(n**0.5) + 1):
-        if n % i == 0: return False
-    return True
+import json
 
-import sys
+def get_primes(n):
+    primes = []
+    for i in range(2, n):
+        is_prime = True
+        for j in range(2, int(i**0.5) + 1):
+            if i % j == 0:
+                is_prime = False
+                break
+        if is_prime:
+            primes.append(i)
+    return primes
+
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        n = int(sys.argv[1])
-        print(f"{n} is prime: {is_prime(n)}")
-    else:
-        print("Primes check passed")
+    primes = get_primes(10000)
+    with open("primes.json", "w") as f:
+        json.dump({"primes": primes}, f)
+    print(f"Generated primes.json with {len(primes)} primes")
 EOF
 
 # Verify it works
@@ -89,14 +96,14 @@ git config --global user.email "mock@example.com"
 git config --global user.name "Mock Agent"
 BRANCH_NAME="agent/${RECAC_PROJECT_ID:-PRIMES-mock}"
 git checkout -b "$BRANCH_NAME" || git checkout "$BRANCH_NAME"
-git add primes.py
+git add primes.py primes.json
 git commit -m "Implement primes.py" || true
 # We use a token if available, or assume SSH/auth is set up
 # Use --force to avoid non-fast-forward errors in CI loops
 git push --force origin "$BRANCH_NAME" || echo "Push failed (expected in local mock)"
 
 # Update status and signal
-agent-bridge feature update "Implement Primes Script" --status completed || true
+agent-bridge feature set primes-script --status done --passes true || true
 agent-bridge signal QA_PASSED true || touch QA_PASSED
 ` + "\n```"
 		return script, nil
