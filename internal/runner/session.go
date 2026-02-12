@@ -468,6 +468,11 @@ func (s *Session) Start(ctx context.Context) error {
 		}
 	}
 
+	// Safety Check: Ensure StatFunc is initialized (defensive programming for tests/manual init)
+	if s.StatFunc == nil {
+		s.StatFunc = os.Stat
+	}
+
 	var extraBinds []string
 	if homeDir != "" {
 		// Mount configurations if they exist
