@@ -68,7 +68,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 	if len(features) > 0 {
 		allPassed := true
 		for _, f := range features {
-			if !(f.Passes || f.Status == "done" || f.Status == "implemented") {
+			if !(f.Passes || f.Status == "done" || f.Status == "implemented" || f.Status == "completed") {
 				allPassed = false
 				break
 			}
@@ -247,7 +247,7 @@ func (s *Session) RunLoop(ctx context.Context) error {
 			features := s.loadFeatures()
 			incompleteFeatures := []string{}
 			for _, f := range features {
-				if !(f.Passes || f.Status == "done" || f.Status == "implemented") {
+				if !(f.Passes || f.Status == "done" || f.Status == "implemented" || f.Status == "completed") {
 					incompleteFeatures = append(incompleteFeatures, f.ID)
 				}
 			}
@@ -576,7 +576,7 @@ func (s *Session) checkAutoQA() bool {
 
 	allPass := true
 	for _, f := range features {
-		if !(f.Passes || f.Status == "done" || f.Status == "implemented") {
+		if !(f.Passes || f.Status == "done" || f.Status == "implemented" || f.Status == "completed") {
 			allPass = false
 			break
 		}
