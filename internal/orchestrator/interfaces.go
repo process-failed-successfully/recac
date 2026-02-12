@@ -13,6 +13,7 @@ type WorkItem struct {
 	Summary     string
 	Description string
 	RepoURL     string // Repo to clone
+	Source      string // Origin of the item (e.g., "jira", "github", "webhook")
 	EnvVars     map[string]string
 }
 

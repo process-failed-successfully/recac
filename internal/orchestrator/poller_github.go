@@ -93,6 +93,7 @@ func (p *GitHubPoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkIte
 			Summary:     title,
 			Description: body,
 			RepoURL:     repoURL,
+			Source:      "github",
 			EnvVars: map[string]string{
 				"GITHUB_ISSUE": strconv.Itoa(number),
 			},

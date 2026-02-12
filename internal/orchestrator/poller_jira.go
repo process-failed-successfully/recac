@@ -96,6 +96,7 @@ func (p *JiraPoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkItem,
 			Summary:     summary,
 			Description: description,
 			RepoURL:     repoURL,
+			Source:      "jira",
 			EnvVars: map[string]string{
 				"JIRA_TICKET": key,
 			},

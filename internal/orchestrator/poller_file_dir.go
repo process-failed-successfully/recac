@@ -54,6 +54,8 @@ func (p *FileDirPoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkIt
 			continue
 		}
 
+		item.Source = "file-dir"
+
 		items = append(items, item)
 
 		// Move the file to the processed directory to prevent re-reading

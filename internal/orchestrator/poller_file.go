@@ -45,6 +45,7 @@ func (p *FilePoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkItem,
 	// Filter out already claimed items
 	var newItems []WorkItem
 	for _, item := range items {
+		item.Source = "file"
 		if !p.processed[item.ID] {
 			newItems = append(newItems, item)
 			p.processed[item.ID] = true

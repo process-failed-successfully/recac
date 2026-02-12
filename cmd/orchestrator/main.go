@@ -44,6 +44,7 @@ func main() {
 	pflag.String("github-owner", "", "GitHub Repository Owner (for 'github' poller)")
 	pflag.String("github-repo", "", "GitHub Repository Name (for 'github' poller)")
 	pflag.String("github-label", "", "GitHub Label to poll for (defaults to jira-label if not set)")
+	pflag.Int("webhook-port", 0, "Port to listen for webhooks (0 = disabled)")
 
 	pflag.Parse()
 
@@ -52,6 +53,7 @@ func main() {
 
 	// Bind Flags
 	viper.BindPFlag("verbose", pflag.Lookup("verbose"))
+	viper.BindPFlag("orchestrator.webhook_port", pflag.Lookup("webhook-port"))
 	viper.BindPFlag("orchestrator.jira_query", pflag.Lookup("jira-query"))
 	viper.BindPFlag("orchestrator.poller", pflag.Lookup("poller"))
 	viper.BindPFlag("orchestrator.work_file", pflag.Lookup("work-file"))
@@ -81,6 +83,7 @@ func main() {
 	viper.BindEnv("orchestrator.github_owner", "RECAC_GITHUB_OWNER")
 	viper.BindEnv("orchestrator.github_repo", "RECAC_GITHUB_REPO")
 	viper.BindEnv("orchestrator.github_label", "RECAC_GITHUB_LABEL")
+	viper.BindEnv("orchestrator.webhook_port", "RECAC_WEBHOOK_PORT")
 	viper.BindEnv("orchestrator.mode", "RECAC_ORCHESTRATOR_MODE")
 	viper.BindEnv("orchestrator.image", "RECAC_ORCHESTRATOR_IMAGE")
 	viper.BindEnv("orchestrator.namespace", "RECAC_ORCHESTRATOR_NAMESPACE")
@@ -109,8 +112,10 @@ func main() {
 	logger.Info("Starting Orchestrator", "mode", mode, "label", label, "query", query, "interval", interval, "agent_provider", agentProvider)
 
 	// 1. Poller
-	var poller orchestrator.Poller
+	pollers := make(map[string]orchestrator.Poller)
 	pollerType := viper.GetString("orchestrator.poller")
+	var primaryPoller orchestrator.Poller
+	var primarySource string
 
 	switch pollerType {
 	case "file-dir":
@@ -120,11 +125,12 @@ func main() {
 			os.Exit(1)
 		}
 		var err error
-		poller, err = orchestrator.NewFileDirPoller(watchDir)
+		primaryPoller, err = orchestrator.NewFileDirPoller(watchDir)
 		if err != nil {
 			logger.Error("Failed to initialize file directory poller", "error", err)
 			os.Exit(1)
 		}
+		primarySource = "file-dir"
 		logger.Info("Using file directory poller", "directory", watchDir)
 	case "file", "filesystem":
 		workFile := viper.GetString("orchestrator.work_file")
@@ -132,7 +138,8 @@ func main() {
 			logger.Error("Work file must be specified in file poller mode")
 			os.Exit(1)
 		}
-		poller = orchestrator.NewFilePoller(workFile)
+		primaryPoller = orchestrator.NewFilePoller(workFile)
+		primarySource = "file"
 		logger.Info("Using filesystem poller", "file", workFile)
 	case "github":
 		token := viper.GetString("orchestrator.github_token")
@@ -147,7 +154,8 @@ func main() {
 			logger.Error("GitHub token, owner, and repo must be specified in github poller mode")
 			os.Exit(1)
 		}
-		poller = orchestrator.NewGitHubPoller(token, owner, repo, ghLabel)
+		primaryPoller = orchestrator.NewGitHubPoller(token, owner, repo, ghLabel)
+		primarySource = "github"
 		logger.Info("Using GitHub poller", "owner", owner, "repo", repo, "label", ghLabel)
 	default:
 		// Default to Jira
@@ -160,9 +168,29 @@ func main() {
 		if jql == "" && label != "" {
 			jql = fmt.Sprintf("labels = \"%s\" AND statusCategory != Done ORDER BY created ASC", label)
 		}
-		poller = orchestrator.NewJiraPoller(jClient, jql)
+		primaryPoller = orchestrator.NewJiraPoller(jClient, jql)
+		primarySource = "jira"
 		logger.Info("Using Jira poller", "label", label, "query", jql)
 	}
+
+	if primaryPoller != nil {
+		pollers[primarySource] = primaryPoller
+	}
+
+	// Webhook Poller
+	webhookPort := viper.GetInt("orchestrator.webhook_port")
+	if webhookPort > 0 {
+		wp, err := orchestrator.NewWebhookPoller(webhookPort, logger)
+		if err != nil {
+			logger.Error("Failed to initialize Webhook poller", "error", err)
+			os.Exit(1)
+		}
+		pollers["webhook"] = wp
+		logger.Info("Enabled Webhook poller", "port", wp.Port)
+	}
+
+	var poller orchestrator.Poller
+	poller = orchestrator.NewMultiPoller(pollers)
 
 	// 2. Spawner
 	var spawner orchestrator.Spawner

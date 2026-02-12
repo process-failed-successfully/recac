@@ -52,7 +52,10 @@ func TestOrchestrator_FileDirPoller_Integration(t *testing.T) {
 
 	// Mocks
 	workItem := orchestrator.WorkItem{ID: "test-task", Summary: "Test Task"}
-	spawner.On("Spawn", mock.Anything, workItem).Return(nil)
+	expectedItem := workItem
+	expectedItem.Source = "file-dir"
+
+	spawner.On("Spawn", mock.Anything, expectedItem).Return(nil)
 
 	// Create a work file
 	taskData, err := json.Marshal(workItem)
@@ -74,7 +77,7 @@ func TestOrchestrator_FileDirPoller_Integration(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 
 	// Assertions
-	spawner.AssertCalled(t, "Spawn", mock.Anything, workItem)
+	spawner.AssertCalled(t, "Spawn", mock.Anything, expectedItem)
 
 	// Verify the file was moved
 	_, err = os.Stat(taskPath)
