@@ -84,6 +84,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			// Work is done. Signal completion via agent-bridge.
 			// Ensure the feature exists before setting status (idempotent import)
 			return "```bash\n" +
+				`echo '{"features": [{"id": "primes-script", "name": "Implement Primes Script", "type": "Story", "status": "completed", "project": "PRIMES"}]}' | agent-bridge import --project "$RECAC_PROJECT_ID" && ` +
 				`agent-bridge feature set primes-script --status completed --passes true --project "$RECAC_PROJECT_ID" && ` +
 				`agent-bridge signal PROJECT_SIGNED_OFF true --privileged` +
 				"\n```\nTask Completed.", nil
