@@ -46,7 +46,7 @@ func TestMockAgent_Coding_Prime(t *testing.T) {
 		t.Fatalf("Send failed: %v", err)
 	}
 
-	if !strings.Contains(response, "def is_prime(n):") {
+	if !strings.Contains(response, "def get_primes(n):") {
 		t.Errorf("Expected Python code for Coding role (PRIME), got: %s", response)
 	}
 }
@@ -60,7 +60,7 @@ func TestMockAgent_Coding_Python(t *testing.T) {
 		t.Fatalf("Send failed: %v", err)
 	}
 
-	if !strings.Contains(response, "def is_prime(n):") {
+	if !strings.Contains(response, "def get_primes(n):") {
 		t.Errorf("Expected Python code for Coding role (PYTHON), got: %s", response)
 	}
 }

@@ -85,30 +85,29 @@ EOF` + "\n```", nil
 	   strings.Contains(upperPrompt, "SCRIPT") {
 		// Return a bash script to implement the prime checker
 		return "```bash\n" + `cat << 'EOF' > primes.py
-import sys
+import json
 
-def is_prime(n):
-    if n <= 1:
-        return False
-    for i in range(2, int(n**0.5) + 1):
-        if n % i == 0:
-            return False
-    return True
+def get_primes(n):
+    primes = []
+    for num in range(2, n):
+        is_prime = True
+        for i in range(2, int(num**0.5) + 1):
+            if num % i == 0:
+                is_prime = False
+                break
+        if is_prime:
+            primes.append(num)
+    return primes
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        try:
-            num = int(sys.argv[1])
-            print(f"{num} is prime: {is_prime(num)}")
-        except ValueError:
-            print("Invalid input")
-    else:
-        print("Usage: python3 primes.py <number>")
+    primes = get_primes(10000)
+    with open("primes.json", "w") as f:
+        json.dump({"primes": primes}, f)
+    print(f"Generated {len(primes)} primes to primes.json")
 EOF
 
-# Verify it works
-python3 primes.py 7
-python3 primes.py 10
+# Run it to generate the file
+python3 primes.py
 
 # Mark features as done to prevent premature sign-off detection
 python3 -c '
