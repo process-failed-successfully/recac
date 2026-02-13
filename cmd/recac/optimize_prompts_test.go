@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"recac/internal/agent"
@@ -11,6 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
+
+// GymMockAgent is already defined in gym_test.go
 
 func TestOptimizePrompts(t *testing.T) {
 	// Mock factories
@@ -63,24 +66,97 @@ func TestOptimizePrompts(t *testing.T) {
 	cmd.Flags().Int("iterations", 5, "")
 	cmd.Flags().String("out", filepath.Join(tmpPromptsDir, "optimized.md"), "")
 
-	// Override RunE to call our function directly or just call runOptimizePrompts directly
-	// Since runOptimizePrompts is not exported, we can call it if we are in package main_test (which we are if in same dir)
-	// But go test -v ./cmd/recac will compile main package test.
-	// We need to be in package main.
-
 	err = runOptimizePrompts(cmd, []string{})
 	assert.NoError(t, err)
 
 	// Verify optimized prompt was saved
 	optimizedContent, err := os.ReadFile(filepath.Join(tmpPromptsDir, "optimized.md"))
 	assert.NoError(t, err)
-
-	// In the test:
-	// 1. Initial prompt loaded from file: "Initial Prompt Content"
-	// 2. Gym fails.
-	// 3. Meta Agent returns "Improved Prompt".
-	// 4. "Improved Prompt" written to promptPath.
-	// 5. Gym passes.
-	// 6. "Improved Prompt" written to outFile.
 	assert.Equal(t, "Improved Prompt", string(optimizedContent))
+}
+
+func TestOptimizePrompts_Failures(t *testing.T) {
+	originalRunGymSessionFunc := runGymSessionFunc
+	originalAgentFactory := agentClientFactory
+	defer func() {
+		runGymSessionFunc = originalRunGymSessionFunc
+		agentClientFactory = originalAgentFactory
+	}()
+
+	tmpPromptsDir := t.TempDir()
+	os.Setenv("RECAC_PROMPTS_DIR", tmpPromptsDir)
+	defer os.Unsetenv("RECAC_PROMPTS_DIR")
+
+	promptName := "test_prompt_fail"
+	err := os.WriteFile(filepath.Join(tmpPromptsDir, promptName+".md"), []byte("prompt"), 0644)
+	assert.NoError(t, err)
+
+	tmpChallengeDir := t.TempDir()
+	challengePath := filepath.Join(tmpChallengeDir, "challenge.yaml")
+	err = os.WriteFile(challengePath, []byte("- name: Test\n  description: desc"), 0644)
+	assert.NoError(t, err)
+
+	t.Run("Loop Exhaustion", func(t *testing.T) {
+		runGymSessionFunc = func(ctx context.Context, challenge GymChallenge) (*GymResult, error) {
+			return &GymResult{Passed: false, Output: "Failed"}, nil
+		}
+
+		mockMetaAgent := new(GymMockAgent)
+		mockMetaAgent.On("Send", mock.Anything, mock.Anything).Return("Improved Prompt", nil)
+
+		agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+			return mockMetaAgent, nil
+		}
+
+		cmd := &cobra.Command{}
+		cmd.Flags().String("challenge", challengePath, "")
+		cmd.Flags().String("prompt", promptName, "")
+		cmd.Flags().Int("iterations", 2, "")
+
+		err := runOptimizePrompts(cmd, []string{})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "optimization failed after 2 iterations")
+	})
+
+	t.Run("Meta Agent Failure", func(t *testing.T) {
+		runGymSessionFunc = func(ctx context.Context, challenge GymChallenge) (*GymResult, error) {
+			return &GymResult{Passed: false, Output: "Failed"}, nil
+		}
+
+		mockMetaAgent := new(GymMockAgent)
+		mockMetaAgent.On("Send", mock.Anything, mock.Anything).Return("", fmt.Errorf("agent error"))
+
+		agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+			return mockMetaAgent, nil
+		}
+
+		cmd := &cobra.Command{}
+		cmd.Flags().String("challenge", challengePath, "")
+		cmd.Flags().String("prompt", promptName, "")
+		cmd.Flags().Int("iterations", 2, "")
+
+		err := runOptimizePrompts(cmd, []string{})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "meta-agent failed")
+	})
+
+	t.Run("Gym Execution Failure", func(t *testing.T) {
+		runGymSessionFunc = func(ctx context.Context, challenge GymChallenge) (*GymResult, error) {
+			return nil, fmt.Errorf("system error")
+		}
+
+		mockMetaAgent := new(GymMockAgent)
+		agentClientFactory = func(ctx context.Context, provider, model, projectPath, projectName string) (agent.Agent, error) {
+			return mockMetaAgent, nil
+		}
+
+		cmd := &cobra.Command{}
+		cmd.Flags().String("challenge", challengePath, "")
+		cmd.Flags().String("prompt", promptName, "")
+		cmd.Flags().Int("iterations", 2, "")
+
+		err := runOptimizePrompts(cmd, []string{})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "gym execution failed")
+	})
 }

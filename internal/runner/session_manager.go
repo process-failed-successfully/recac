@@ -2,6 +2,7 @@ package runner
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -320,7 +321,7 @@ func (sm *SessionManager) ResumeSession(name string) error {
 func (sm *SessionManager) ArchiveSession(name string) error {
 	session, err := sm.LoadSession(name)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("session '%s' not found", name)
 		}
 		return fmt.Errorf("could not load session '%s': %w", name, err)
@@ -647,8 +648,8 @@ var ErrSessionRunning = fmt.Errorf("session is running")
 func (sm *SessionManager) RemoveSession(name string, force bool) error {
 	session, err := sm.LoadSession(name)
 	if err != nil {
-		// Use os.IsNotExist to provide a cleaner "not found" message.
-		if os.IsNotExist(err) {
+		// Use errors.Is to provide a cleaner "not found" message.
+		if errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("session '%s' not found", name)
 		}
 		return fmt.Errorf("could not load session '%s': %w", name, err)
