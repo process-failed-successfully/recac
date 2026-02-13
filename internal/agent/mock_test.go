@@ -48,8 +48,8 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	if strings.Contains(loopResp, "def is_prime(n):") {
 		t.Errorf("Agent should NOT return code again if work is already committed. Got code block: %s", loopResp)
 	}
-	if !strings.Contains(strings.ToLower(loopResp), "complete") && !strings.Contains(strings.ToLower(loopResp), "done") {
-		t.Errorf("Agent should indicate completion. Got: %s", loopResp)
+	if !strings.Contains(loopResp, "agent-bridge feature set") {
+		t.Errorf("Agent should return command to mark feature as done. Got: %s", loopResp)
 	}
 }
 
