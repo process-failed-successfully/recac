@@ -47,7 +47,7 @@ func Simple() {
 	// 2. Modify the file: Add Complexity and Security Issue on NEW lines
 	// We keep Simple() intact (line 3-5).
 	// We add complex function at the end.
-	dirtyCode := `package main
+	dirtyCode := fmt.Sprintf(`package main
 
 import "fmt"
 
@@ -92,10 +92,10 @@ func Complex(n int) {
 
 // Added security issue
 func Secret() {
-	key := "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE"
+	key := "AWS_ACCESS_KEY_ID=%s%s"
 	fmt.Println(key)
 }
-`
+`, "AKIA", "IOSFODNN7EXAMPLE")
 	if err := os.WriteFile(filePath, []byte(dirtyCode), 0644); err != nil {
 		t.Fatal(err)
 	}
