@@ -308,18 +308,25 @@ func extractTextFromADF(node map[string]interface{}) string {
 func (c *Client) SearchIssues(ctx context.Context, jql string) ([]map[string]interface{}, error) {
 	url := fmt.Sprintf("%s/rest/api/3/search", c.BaseURL)
 
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	// Use POST instead of GET to handle long JQL and avoid 410/414 errors
+	payload := map[string]interface{}{
+		"jql":    jql,
+		"fields": []string{"summary", "description", "status", "labels", "issuelinks", "parent"},
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal search payload: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	q := req.URL.Query()
-	q.Add("jql", jql)
-	q.Add("fields", "summary,description,status,labels,issuelinks,parent")
-	req.URL.RawQuery = q.Encode()
-
 	req.SetBasicAuth(c.Username, c.APIToken)
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {

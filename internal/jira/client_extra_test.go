@@ -47,7 +47,7 @@ func TestDeleteIssue_Success(t *testing.T) {
 
 func TestSearchIssues_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/rest/api/3/search" || r.Method != "GET" {
+		if r.URL.Path != "/rest/api/3/search" || r.Method != "POST" {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
@@ -68,12 +68,14 @@ func TestSearchIssues_Success(t *testing.T) {
 
 func TestLoadLabelIssues_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/rest/api/3/search" {
+		if r.URL.Path != "/rest/api/3/search" || r.Method != "POST" {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		q := r.URL.Query().Get("jql")
-		if q != "labels = \"mylabel\"" {
+		// Verify body contains JQL
+		var payload map[string]interface{}
+		json.NewDecoder(r.Body).Decode(&payload)
+		if payload["jql"] != "labels = \"mylabel\"" {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
