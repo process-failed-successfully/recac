@@ -34,10 +34,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristics for E2E scenarios
 
-	// 1. Prime-Python Planning Phase (Ticket Generation)
-	// Check if prompt is asking to generate tickets for [PRIMES] spec
+	// 1. Planning Phase (Ticket Generation via CLI)
 	if strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "Ticket") {
-		// Extract repo URL if present
 		repo := "https://github.com/process-failed-successfully/recac-jira-e2e"
 		if strings.Contains(prompt, "Repo: ") {
 			parts := strings.Split(prompt, "Repo: ")
@@ -45,7 +43,6 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 				repo = strings.TrimSpace(strings.Split(parts[1], "\n")[0])
 			}
 		}
-
 		return fmt.Sprintf(`[
   {
     "title": "ID:[PRIMES] Create Prime Number Script",
@@ -56,10 +53,25 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, repo), nil
 	}
 
-	// 2. Prime-Python Execution Phase
-	// Check if prompt is asking to implement primes.py
+	// 2. Initializer Phase (Agent Startup)
+	// The agent receives a prompt asking it to initialize and import features.
+	if strings.Contains(strings.ToLower(prompt), "feature list") || strings.Contains(prompt, "agent-bridge import") || strings.Contains(strings.ToLower(prompt), "technical program manager") {
+		// Output command to import the feature
+		return `I will initialize the project features.
+
+` + "```bash" + `
+echo '{"features": [{"id": "PRIMES", "description": "Implement primes.py to calculate primes < 10000", "status": "todo"}]}' | agent-bridge import
+` + "```" + `
+`, nil
+	}
+
+	// 3. Execution Phase (Coding Agent)
+	// Check if prompt is asking to implement primes.py or if features are loaded
+	// Note: We need to ensure we don't loop if the feature is already done.
+	// But the MockAgent doesn't know feature status.
+	// However, if the feature is done, the NEXT prompt will be for QA or Manager.
 	if (strings.Contains(strings.ToLower(prompt), "primes.py") || strings.Contains(strings.ToLower(prompt), "prime number")) &&
-	   (strings.Contains(prompt, "write") || strings.Contains(prompt, "create") || strings.Contains(prompt, "implement")) {
+	   (strings.Contains(prompt, "write") || strings.Contains(prompt, "create") || strings.Contains(prompt, "implement") || strings.Contains(prompt, "PRIMES")) {
 
 		return `I will create the 'primes.py' script as requested and commit it.
 
@@ -84,14 +96,21 @@ EOF
 
 python3 primes.py
 git add primes.py primes.json
-git commit -m "Generate primes"
+git commit -m "Generate primes" || true
+# Mark feature as done
+agent-bridge signal COMPLETED true --privileged
 ` + "```" + `
 `, nil
 	}
 
-	// Return a mock response that shows the agent received the prompt
-	// This allows the session to run without requiring real API keys
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
+	// 4. Manager/QA Phase
+	// If asked to review or verify
+	if strings.Contains(strings.ToLower(prompt), "review") || strings.Contains(strings.ToLower(prompt), "verify") || strings.Contains(strings.ToLower(prompt), "manager") {
+		return "The implementation looks correct. I approve. PROJECT_SIGNED_OFF", nil
+	}
+
+	// Default Fallback
+	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
 }
