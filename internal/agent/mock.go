@@ -34,7 +34,31 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	lowerPrompt := strings.ToLower(prompt)
 
-	// Heuristic for 'prime-python' scenario
+	// Heuristic for 'prime-python' Planning Phase (TPM Agent)
+	// Check for "Technical Program Manager" or "generate ticket" which indicates the planning step.
+	if strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "generate ticket") {
+		return `[
+  {
+    "title": "ID:[PRIMES] Prime Number Calculation Script",
+    "description": "Implement a script to calculate prime numbers. Repo: https://github.com/example/repo",
+    "type": "Epic",
+    "children": [
+      {
+        "title": "Implement primes.py",
+        "description": "Create a python script that calculates primes < 10,000. Repo: https://github.com/example/repo",
+        "type": "Story",
+        "acceptance_criteria": [
+          "Script creates primes.json",
+          "Contains correct prime numbers"
+        ],
+        "blocked_by": []
+      }
+    ]
+  }
+]`, nil
+	}
+
+	// Heuristic for 'prime-python' Execution Phase
 	if strings.Contains(lowerPrompt, "prime numbers") || strings.Contains(lowerPrompt, "primes.py") {
 		return `I will create a Python script to calculate prime numbers.
 
