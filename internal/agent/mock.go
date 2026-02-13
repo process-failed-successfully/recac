@@ -62,7 +62,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(lowerPrompt, "prime numbers") || strings.Contains(lowerPrompt, "primes.py") {
 		return `I will create a Python script to calculate prime numbers.
 
-` + "```python" + `
+` + "```bash" + `
+cat <<EOF > primes.py
 import json
 
 def is_prime(n):
@@ -79,6 +80,9 @@ with open('primes.json', 'w') as f:
     json.dump({"primes": primes}, f)
 
 print(f"Calculated {len(primes)} prime numbers.")
+EOF
+
+python3 primes.py
 ` + "```" + `
 
 This script calculates primes up to 10,000 and saves them to primes.json.
