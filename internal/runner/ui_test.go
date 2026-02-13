@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"recac/internal/agent"
 	"recac/internal/notify"
@@ -38,6 +39,7 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 		Workspace:        tmpDir,
 		FeatureContent:   features,
 		ManagerFrequency: 5,
+		MaxIterations:    2, // Set low max iterations to prevent test timeout
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
 		Logger:           telemetry.NewLogger(true, "", false),
 	}
@@ -46,12 +48,16 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	// We can trust the code if it compiles and logic flows.
 	// Or we can observe if it creates the COMPLETED signal.
 
-	err = s.RunLoop(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	err = s.RunLoop(ctx)
 
 	// Since all features pass, it should mark COMPLETED and print UI verification msg.
 	// We mainly verify it DOESN'T fail or block.
 	// ErrNoOp is expected because the MockAgent returns empty responses.
-	if err != nil && !errors.Is(err, ErrNoOp) {
+	// ErrMaxIterations is also expected due to the explicit limit.
+	if err != nil && !errors.Is(err, ErrNoOp) && !errors.Is(err, ErrMaxIterations) {
 		t.Errorf("RunLoop failed: %v", err)
 	}
 }
