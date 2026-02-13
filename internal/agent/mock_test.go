@@ -25,6 +25,24 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Heuristics(t *testing.T) {
+	agent := NewMockAgent()
+
+	// 1. Test Ticket Planning
+	planPrompt := "You are a Technical Program Manager. Please generate ticket..."
+	planResp, _ := agent.Send(context.Background(), planPrompt)
+	if !strings.Contains(planResp, "\"id\": \"[PRIMES]\"") {
+		t.Errorf("Expected JSON ticket list for planning prompt, got: %s", planResp)
+	}
+
+	// 2. Test Execution (Prime Python)
+	execPrompt := "Write a python script to calculate prime numbers."
+	execResp, _ := agent.Send(context.Background(), execPrompt)
+	if !strings.Contains(execResp, "def is_prime(n):") {
+		t.Errorf("Expected python code for execution prompt, got: %s", execResp)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {

@@ -34,7 +34,28 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristics for E2E scenarios
 	lowerPrompt := strings.ToLower(prompt)
 
-	// Prime Python Scenario
+	// 1. Ticket Planning Phase (TPM Role)
+	// Trigger on "technical program manager" or "generate ticket"
+	if strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "generate ticket") {
+		// Extract repo URL from prompt if possible, or use a placeholder
+		repoURL := "https://github.com/example/repo"
+		if parts := strings.Split(prompt, "Repo: "); len(parts) > 1 {
+			repoURL = strings.Split(parts[1], "\n")[0]
+		}
+
+		return fmt.Sprintf(`[
+  {
+    "summary": "Implement Prime Number Python Script",
+    "description": "Create a python script named primes.py that calculates primes up to 10000. \n\nRepo: %s\n\nAppSpec:\nruntime: python\n...",
+    "type": "Task",
+    "id": "[PRIMES]"
+  }
+]`, repoURL), nil
+	}
+
+	// 2. Execution Phase (Coding Agent)
+	// Prime Python Scenario - triggers when asked to write code
+	// We check for "prime" and "python" BUT NOT "generate ticket" to avoid conflict with planning
 	if strings.Contains(lowerPrompt, "prime") && strings.Contains(lowerPrompt, "python") {
 		return `I will create a python script to calculate primes.
 
