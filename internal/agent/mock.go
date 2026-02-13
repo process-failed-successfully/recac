@@ -37,10 +37,33 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	isPlanning := strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "generate ticket")
 
+	// Heuristic for Planning Phase (Ticket Generation)
+	// Check this BEFORE Execution Phase heuristics to prevent false positives when AppSpecs contain target filenames/keywords.
+	if isPlanning {
+		// Extract repo URL if possible to make tickets look realistic
+		repo := "https://github.com/org/repo"
+		re := regexp.MustCompile(`Repo: (https?://[^\s]+)`)
+		if matches := re.FindStringSubmatch(prompt); len(matches) > 1 {
+			repo = matches[1]
+		}
+
+		return fmt.Sprintf(`[
+  {
+    "title": "ID:[PRIMES] Implement prime number generator",
+    "description": "Create a Python script that generates prime numbers up to 10,000.\n\nRepo: %s",
+    "type": "Story",
+    "acceptance_criteria": [
+      "Script name: primes.py",
+      "Output file: primes.json"
+    ]
+  }
+]`, repo), nil
+	}
+
 	// Heuristic for 'prime-python' scenario (Execution Phase)
-	// Check this FIRST because it's specific to the active ticket.
 	// We check for specific ID (strong signal), OR file/keyword IF it's not a planning request (weak signal).
-	if strings.Contains(prompt, "ID:[PRIMES]") || ((strings.Contains(lowerPrompt, "primes.py") || strings.Contains(lowerPrompt, "prime")) && !isPlanning) {
+	// Note: The `!isPlanning` check is redundant now because we handle planning above, but kept for clarity/safety.
+	if strings.Contains(prompt, "ID:[PRIMES]") || (strings.Contains(lowerPrompt, "primes.py") || strings.Contains(lowerPrompt, "prime")) {
 		return `
 Sure, here is a Python script that calculates prime numbers up to 10,000 and writes them to a file named 'primes.json'.
 
@@ -61,28 +84,6 @@ with open("primes.json", "w") as f:
 print(f"Found {len(primes)} prime numbers.")
 ` + "```" + `
 `, nil
-	}
-
-	// Heuristic for Planning Phase (Ticket Generation)
-	if isPlanning {
-		// Extract repo URL if possible to make tickets look realistic
-		repo := "https://github.com/org/repo"
-		re := regexp.MustCompile(`Repo: (https?://[^\s]+)`)
-		if matches := re.FindStringSubmatch(prompt); len(matches) > 1 {
-			repo = matches[1]
-		}
-
-		return fmt.Sprintf(`[
-  {
-    "title": "ID:[PRIMES] Implement prime number generator",
-    "description": "Create a Python script that generates prime numbers up to 10,000.\n\nRepo: %s",
-    "type": "Story",
-    "acceptance_criteria": [
-      "Script name: primes.py",
-      "Output file: primes.json"
-    ]
-  }
-]`, repo), nil
 	}
 
 	// Heuristic for Project Manager / QA Sign-off
