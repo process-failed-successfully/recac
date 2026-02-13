@@ -67,8 +67,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return "```bash\n" + `cat << 'EOF' | agent-bridge import
 {
   "features": [
-    {"description": "Calculate prime numbers", "status": "pending"},
-    {"description": "Handle invalid input", "status": "pending"}
+    {"id": "F1", "description": "Calculate prime numbers", "status": "pending"},
+    {"id": "F2", "description": "Handle invalid input", "status": "pending"}
   ]
 }
 EOF` + "\n```", nil
