@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"sync"
 	"testing"
 	"time"
 
@@ -17,6 +18,10 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	mockGit := new(MockGitClient)
 	mockPoller := new(MockPoller)
 
+	// Ensure all expectations are met (specifically that Exec is called)
+	defer mockDocker.AssertExpectations(t)
+	defer mockSM.AssertExpectations(t)
+
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	imageName := "custom-image:v1.2.3"
 	spawner := NewDockerSpawner(logger, mockDocker, imageName, "test-proj", mockPoller, "provider", "model", mockSM)
@@ -29,29 +34,42 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 
 	ctx := context.Background()
 
+	// Synchronization
+	done := make(chan struct{})
+	var once sync.Once
+
 	// Mock expectations
 	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
-	mockSM.On("LoadSession", "TICKET-1").Return(nil, assert.AnError)
 
-	execCalled := make(chan string, 1)
+	// Close done channel when LoadSession is called.
+	// Note: In DockerSpawner.Spawn, LoadSession is called inside the goroutine *after* Exec completes (or fails).
+	// Synchronizing on LoadSession ensures that the goroutine has progressed past the Exec call, allowing
+	// the Exec mock expectation (MatchedBy) to be validated fully before the test exits.
+	// Since we mock LoadSession to return an error, the goroutine exits early here, making it the final call.
+	mockSM.On("LoadSession", "TICKET-1").Run(func(args mock.Arguments) {
+		once.Do(func() {
+			close(done)
+		})
+	}).Return(nil, assert.AnError)
 
-	// We match "Anything" for arguments so we catch the call, then inspect it in Run
-	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Run(func(args mock.Arguments) {
-		cmd := args.Get(2).([]string)
+	// Validate Exec arguments using MatchedBy
+	mockDocker.On("Exec", mock.Anything, "container123", mock.MatchedBy(func(cmd []string) bool {
 		// cmd is ["/bin/sh", "-c", "actual command"]
-		execCalled <- cmd[2]
-	}).Return("output", nil)
+		if len(cmd) < 3 {
+			return false
+		}
+		cmdStr := cmd[2]
+		return assert.Contains(t, cmdStr, "--image") && assert.Contains(t, cmdStr, imageName)
+	})).Return("output", nil)
 
 	err := spawner.Spawn(ctx, item)
 	assert.NoError(t, err)
 
 	select {
-	case cmdStr := <-execCalled:
-		t.Logf("Captured Command: %s", cmdStr)
-		assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
-		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
+	case <-done:
+		// Success
 	case <-time.After(30 * time.Second):
-		t.Fatal("Timeout waiting for Exec call")
+		t.Fatal("Timeout waiting for LoadSession call (and consequently Exec call)")
 	}
 }
