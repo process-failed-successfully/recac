@@ -58,8 +58,20 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// We check for "prime" and "python" BUT NOT "generate ticket" to avoid conflict with planning
 	if strings.Contains(lowerPrompt, "prime") && strings.Contains(lowerPrompt, "python") {
 		// Check if work is already done (Loop Prevention)
-		if strings.Contains(lowerPrompt, "nothing to commit, working tree clean") {
-			return "The task is complete. The primes.py script has been created and committed.", nil
+		// We check for "nothing to commit" OR "working tree clean" OR "everything up-to-date"
+		// to robustly detect if the previous command (git push/commit) was successful and idempotent.
+		if strings.Contains(lowerPrompt, "nothing to commit") ||
+			strings.Contains(lowerPrompt, "working tree clean") ||
+			strings.Contains(lowerPrompt, "everything up-to-date") {
+
+			// Signal completion explicitly.
+			// Using agent-bridge signal if possible, or just a text response that implies no-op.
+			// Ideally, we should update the feature status.
+			// Since we don't always have the ID handy (unless we parse it), we use a generic signal or just text.
+			// The session circuit breaker (NoOpCount) will eventually catch "text only" responses if we don't emit a command.
+			// But to be cleaner, we can emit a done signal if we know the ID.
+			// The planning phase used ID "[PRIMES]".
+			return "The task is complete. The primes.py script has been created and committed.\n\n```bash\nagent-bridge feature set [PRIMES] --status done\n```", nil
 		}
 
 		return `I will create a python script to calculate primes.
