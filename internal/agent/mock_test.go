@@ -34,3 +34,19 @@ func TestTruncateString(t *testing.T) {
 		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
 	}
 }
+
+func TestMockAgent_Heuristics_Planning(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "As a Technical Program Manager, generate tickets for the prime number spec."
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(resp, "\"title\":") {
+		t.Errorf("Response missing 'title' key, got: %s", resp)
+	}
+	if !strings.Contains(resp, "ID:[PRIMES]") {
+		t.Errorf("Response missing 'ID:[PRIMES]' tag, got: %s", resp)
+	}
+}
