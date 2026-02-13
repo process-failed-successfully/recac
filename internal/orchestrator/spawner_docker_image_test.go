@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
@@ -35,8 +36,10 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	// Mock expectations
 	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
 
-	// First SaveSession call (initial)
-	mockSM.On("SaveSession", mock.Anything).Return(nil).Once()
+	// First SaveSession call (initial) - use specific matcher to differentiate
+	mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return s.Status == "running"
+	})).Return(nil).Once()
 
 	execCalled := make(chan string, 1)
 
@@ -55,12 +58,15 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	mockGit.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("", assert.AnError)
 
 	// Final SaveSession call - signals completion
-	mockSM.On("SaveSession", mock.Anything).Run(func(args mock.Arguments) {
+	// Use specific matcher to ensure we catch the correct call
+	mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return s.Status == "completed" || s.Status == "error"
+	})).Run(func(args mock.Arguments) {
 		close(done)
 	}).Return(nil).Once()
 
 	err := spawner.Spawn(ctx, item)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Verify Exec call
 	select {
@@ -79,4 +85,8 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	case <-time.After(30 * time.Second):
 		t.Fatal("Timeout waiting for final SaveSession (goroutine completion)")
 	}
+
+	mockDocker.AssertExpectations(t)
+	mockSM.AssertExpectations(t)
+	mockGit.AssertExpectations(t)
 }
