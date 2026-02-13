@@ -86,6 +86,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			return "```bash\n" +
 				`echo '{"features": [{"id": "primes-script", "name": "Implement Primes Script", "type": "Story", "status": "completed", "project": "PRIMES"}]}' | agent-bridge import --project "$RECAC_PROJECT_ID" && ` +
 				`agent-bridge feature set primes-script --status completed --passes true --project "$RECAC_PROJECT_ID" && ` +
+				`agent-bridge feature set req-script-runs-without-errors --status completed --passes true --project "$RECAC_PROJECT_ID" || true && ` +
+				`agent-bridge feature set req-primes-json-is-created --status completed --passes true --project "$RECAC_PROJECT_ID" || true && ` +
+				`agent-bridge feature set req-primes-json-contains-valid-prime-numbers --status completed --passes true --project "$RECAC_PROJECT_ID" || true && ` +
+				`agent-bridge feature set req-primes-json-contains-valid-pri --status completed --passes true --project "$RECAC_PROJECT_ID" || true && ` +
 				`agent-bridge signal PROJECT_SIGNED_OFF true --privileged` +
 				"\n```\nTask Completed.", nil
 		}
