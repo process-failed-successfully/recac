@@ -101,6 +101,63 @@ func TestNewServer(t *testing.T) {
 	assert.Equal(t, "default", serverDefault.projectID)
 }
 
+func TestServer_Handler(t *testing.T) {
+	store := new(TestifyMockStore)
+	server := NewServer(store, 8080, "test-project")
+	handler := server.Handler()
+
+	// Test /api/features route
+	t.Run("API Features Route", func(t *testing.T) {
+		featureList := db.FeatureList{
+			ProjectName: "test-project",
+			Features: []db.Feature{
+				{ID: "F1", Description: "Feature 1"},
+			},
+		}
+		jsonBytes, _ := json.Marshal(featureList)
+		store.On("GetFeatures", "test-project").Return(string(jsonBytes), nil).Once()
+
+		req := httptest.NewRequest("GET", "/api/features", nil)
+		w := httptest.NewRecorder()
+
+		handler.ServeHTTP(w, req)
+		resp := w.Result()
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+	})
+
+	// Test /api/graph route
+	t.Run("API Graph Route", func(t *testing.T) {
+		featureList := db.FeatureList{
+			ProjectName: "test-project",
+			Features: []db.Feature{
+				{ID: "F1", Description: "Feature 1"},
+			},
+		}
+		jsonBytes, _ := json.Marshal(featureList)
+		store.On("GetFeatures", "test-project").Return(string(jsonBytes), nil).Once()
+
+		req := httptest.NewRequest("GET", "/api/graph", nil)
+		w := httptest.NewRecorder()
+
+		handler.ServeHTTP(w, req)
+		resp := w.Result()
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Contains(t, w.Body.String(), "graph TD")
+	})
+
+	// Test static file route (assuming index.html or something similar might be served, or just checking 404 for unknown)
+	t.Run("Static Route", func(t *testing.T) {
+		// Since we use embedded FS, testing exact content depends on what's embedded.
+		// But we can check that it doesn't panic.
+		req := httptest.NewRequest("GET", "/index.html", nil)
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
+		// It might be 404 if not found in embedded, but 200 if found.
+		// Just ensure it handled the request.
+		assert.NotNil(t, w.Result())
+	})
+}
+
 func TestHandleFeatures(t *testing.T) {
 	store := new(TestifyMockStore)
 	server := NewServer(store, 8080, "test-project")

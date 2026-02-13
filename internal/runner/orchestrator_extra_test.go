@@ -8,6 +8,7 @@ import (
 	"recac/internal/docker"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -116,7 +117,7 @@ func TestOrchestrator_HasFailures(t *testing.T) {
 	assert.True(t, o.hasFailures())
 }
 
-func TestOrchestrator_ExecuteTask(t *testing.T) {
+func TestOrchestrator_ExecuteTask_MaxIterations(t *testing.T) {
 	// Setup mocks
 	mockDocker := new(MockOrchestratorDocker)
 	mockAgent := new(MockOrchestratorAgent)
@@ -127,18 +128,9 @@ func TestOrchestrator_ExecuteTask(t *testing.T) {
 	mockDocker.On("RunContainer", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("container-id", nil)
 	mockDocker.On("StopContainer", mock.Anything, "container-id").Return(nil)
 
-	// Mock Agent interaction for the task
-	// The session will ask the agent. We return a response that finishes the task.
-	// For example, "COMPLETED" or just no commands + QA pass logic.
-	// To keep it simple, we make the agent say "I am done." and ensure the session finishes.
-	// Session loop finishes when:
-	// 1. MaxIterations reached
-	// 2. COMPLETED signal
-	// 3. QA Agent approves
-
-	// We'll set MaxIterations to 1 so it runs once and stops.
-	mockAgent.On("Send", mock.Anything, mock.Anything).Return("I am done.", nil)
-	mockAgent.On("SendStream", mock.Anything, mock.Anything, mock.Anything).Return("I am done.", nil)
+	// Mock Agent interaction: simple response, no completion
+	mockAgent.On("Send", mock.Anything, mock.Anything).Return("I am working...", nil)
+	mockAgent.On("SendStream", mock.Anything, mock.Anything, mock.Anything).Return("I am working...", nil)
 
 	// We also need a mock DB store
 	tmpDir := t.TempDir()
@@ -172,20 +164,134 @@ func TestOrchestrator_ExecuteTask(t *testing.T) {
 	ctx := context.Background()
 	err = o.ExecuteTask(ctx, taskID, node)
 
-	// Since we mocked minimal agent interaction and set MaxIterations=1,
-	// The session run loop should finish.
-	// Whether it marks task as Done or Failed depends on the session outcome.
-	// If session returns nil error (max iterations reached w/o critical error), ExecuteTask marks it Done.
-	// Wait, if MaxIterations reached, RunLoop returns nil?
-	// Session.RunLoop returns nil if it completes cleanly.
-	// If it hits max iterations without completion signal, it returns ErrMaxIterations.
-	// Since our mock agent just says "I am done" without setting COMPLETED signal,
-	// RunLoop will eventually fail with max iterations.
-
-	// We expect an error here because we didn't force a success signal
+	// Expect failure due to max iterations
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "maximum iterations reached")
 
 	status, _ := o.Graph.GetTaskStatus(taskID)
 	assert.Equal(t, TaskFailed, status)
+}
+
+func TestOrchestrator_ExecuteTask_StatusChanged(t *testing.T) {
+	o := &Orchestrator{
+		Graph: NewTaskGraph(),
+		// Minimal deps
+		Project: "test",
+	}
+
+	// Add task
+	taskID := "task-status-change"
+	o.Graph.AddNode(taskID, "feature", nil)
+	// Status is NOT TaskInProgress (e.g. TaskPending or TaskDone)
+	o.Graph.MarkTaskStatus(taskID, TaskPending, nil)
+
+	node, _ := o.Graph.GetTask(taskID)
+
+	// ExecuteTask should check status and abort
+	err := o.ExecuteTask(context.Background(), taskID, node)
+	assert.NoError(t, err)
+	// Task status should remain unchanged
+	status, _ := o.Graph.GetTaskStatus(taskID)
+	assert.Equal(t, TaskPending, status)
+}
+
+// MockLockStore wraps Store to mock lock operations specifically
+type MockLockStore struct {
+	db.Store
+	FailLock bool
+}
+
+func (m *MockLockStore) AcquireLock(projectID, path, agentID string, timeout time.Duration) (bool, error) {
+	if m.FailLock {
+		return false, fmt.Errorf("mock lock failure")
+	}
+	return m.Store.AcquireLock(projectID, path, agentID, timeout)
+}
+
+func (m *MockLockStore) ReleaseLock(projectID, path, agentID string) error {
+	return m.Store.ReleaseLock(projectID, path, agentID)
+}
+
+func TestOrchestrator_ExecuteTask_LockFailed(t *testing.T) {
+	tmpDir := t.TempDir()
+	store, _ := db.NewSQLiteStore(fmt.Sprintf("%s/recac.db", tmpDir))
+	mockStore := &MockLockStore{Store: store, FailLock: true}
+	defer store.Close()
+
+	o := &Orchestrator{
+		Graph:   NewTaskGraph(),
+		DB:      mockStore,
+		Project: "test-lock",
+	}
+
+	taskID := "task-lock"
+	// Task with exclusive path
+	o.Graph.Nodes[taskID] = &TaskNode{
+		ID:                  taskID,
+		Status:              TaskInProgress,
+		ExclusiveWritePaths: []string{"locked-file.go"},
+	}
+
+	node, _ := o.Graph.GetTask(taskID)
+
+	err := o.ExecuteTask(context.Background(), taskID, node)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "lock acquisition failed")
+
+	status, _ := o.Graph.GetTaskStatus(taskID)
+	assert.Equal(t, TaskPending, status) // Should revert to pending
+}
+
+func TestOrchestrator_ExecuteTask_Success(t *testing.T) {
+	// Setup mocks
+	mockDocker := new(MockOrchestratorDocker)
+	mockAgent := new(MockOrchestratorAgent)
+
+	// Mock basic interactions for Session start
+	mockDocker.On("CheckDaemon", mock.Anything).Return(nil)
+	mockDocker.On("ImageExists", mock.Anything, mock.Anything).Return(true, nil)
+	mockDocker.On("RunContainer", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("container-id", nil)
+	mockDocker.On("StopContainer", mock.Anything, "container-id").Return(nil)
+
+	// Mock Agent interaction
+	mockAgent.On("Send", mock.Anything, mock.Anything).Return("I am done.", nil)
+	mockAgent.On("SendStream", mock.Anything, mock.Anything, mock.Anything).Return("I am done.", nil)
+
+	// DB
+	tmpDir := t.TempDir()
+	dbPath := fmt.Sprintf("%s/recac.db", tmpDir)
+	store, err := db.NewSQLiteStore(dbPath)
+	require.NoError(t, err)
+	defer store.Close()
+
+	// Pre-set COMPLETED signal so RunLoop finishes immediately after first iteration
+	err = store.SetSignal("test-project", "COMPLETED", "true")
+	require.NoError(t, err)
+
+	// Create app_spec.txt
+	err = os.WriteFile(fmt.Sprintf("%s/app_spec.txt", tmpDir), []byte("Spec"), 0644)
+	require.NoError(t, err)
+
+	o := &Orchestrator{
+		Graph:             NewTaskGraph(),
+		DB:                store,
+		Docker:            mockDocker,
+		Agent:             mockAgent,
+		Project:           "test-project",
+		Workspace:         tmpDir,
+		TaskMaxIterations: 10,
+		TaskMaxRetries:    0,
+	}
+
+	taskID := "task-success"
+	o.Graph.AddNode(taskID, "feature", nil)
+	o.Graph.MarkTaskStatus(taskID, TaskInProgress, nil)
+
+	node, _ := o.Graph.GetTask(taskID)
+
+	err = o.ExecuteTask(context.Background(), taskID, node)
+	assert.NoError(t, err)
+
+	status, _ := o.Graph.GetTaskStatus(taskID)
+	assert.Equal(t, TaskDone, status)
 }
