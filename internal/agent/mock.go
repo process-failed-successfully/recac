@@ -34,8 +34,37 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristics for E2E scenarios
 	lowerPrompt := strings.ToLower(prompt)
 
-	// Prime Python Scenario
+	// QA Agent Scenario
+	if strings.Contains(lowerPrompt, "your role - qa agent") {
+		return `I will verify the project.
+
+` + "```bash" + `
+echo "Running tests..."
+echo "PASS"
+agent-bridge signal QA_PASSED true
+` + "```", nil
+	}
+
+	// Manager Agent Scenario
+	if strings.Contains(lowerPrompt, "your role - project manager") {
+		return `I approve the project.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```", nil
+	}
+
+	// Prime Python Scenario (Coding Agent)
 	if strings.Contains(lowerPrompt, "prime") && strings.Contains(lowerPrompt, "python") {
+		// Detect if we've already tried to commit and it was empty (meaning the file exists and is committed)
+		if strings.Contains(lowerPrompt, "nothing to commit") || strings.Contains(lowerPrompt, "everything up-to-date") {
+			return `The primes script is implemented and committed.
+
+` + "```bash" + `
+agent-bridge signal COMPLETED true
+` + "```", nil
+		}
+
 		return `I will create a python script to calculate primes.
 
 ` + "```bash" + `
