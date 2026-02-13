@@ -523,18 +523,51 @@ func waitForJobCompletion(ns, jobName string, timeout time.Duration) error {
 	// Poll for job completion or failure
 	start := time.Now()
 	for time.Since(start) < timeout {
-		// Check for Succeeded (Complete)
-		// Note: No single quotes around jsonpath argument when using exec.Command
-		cmd := exec.Command("kubectl", "get", jobName, "-n", ns, "-o", "jsonpath={.status.conditions[?(@.type==\"Complete\")].status}")
-		out, _ := cmd.CombinedOutput()
-		if strings.TrimSpace(string(out)) == "True" {
-			return nil
+		// Get job status in JSON
+		cmd := exec.Command("kubectl", "get", jobName, "-n", ns, "-o", "json")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			// Job might not exist yet or temporary error
+			time.Sleep(5 * time.Second)
+			continue
 		}
 
-		// Check for Failed
-		cmd = exec.Command("kubectl", "get", jobName, "-n", ns, "-o", "jsonpath={.status.conditions[?(@.type==\"Failed\")].status}")
+		// Check output for conditions string match (simple robust check)
+		// We avoid complex JSON parsing for now to keep it simple, but checking the full JSON structure would be better.
+		// However, given the context, a string check on the JSON output for the specific condition block is reliable enough if unique.
+		// "type": "Complete", "status": "True"
+		// "type": "Failed", "status": "True"
+
+		// Parsing JSON is safer.
+		// Let's do a quick hack using grep-like logic or just proper struct if imported.
+		// Since we don't want to import k8s client libraries here to keep it lightweight, we'll use a simple generic unmarshal.
+
+		// Wait, we can just use jsonpath but iterate over conditions?
+		// Or simplified jsonpath.
+		// The previous issue was likely quoting or output format.
+		// Let's try the safest: read JSON and check.
+
+		// Minimal parsing logic
+		jsonStr := string(out)
+		if strings.Contains(jsonStr, `"type": "Complete"`) && strings.Contains(jsonStr, `"status": "True"`) {
+			// Verify they are in the same object block?
+			// K8s JSON output is formatted.
+			// Let's use grep for robustness if we can't parse.
+			// But we are in Go.
+
+			// Let's use a simpler jsonpath that lists ALL conditions
+			// kubectl get job <name> -o jsonpath='{range .status.conditions[*]}{.type}={.status},{end}'
+			// Output: Complete=True,Failed=False,
+		}
+
+		cmd = exec.Command("kubectl", "get", jobName, "-n", ns, "-o", "jsonpath={range .status.conditions[*]}{.type}={.status},{end}")
 		out, _ = cmd.CombinedOutput()
-		if strings.TrimSpace(string(out)) == "True" {
+		statusStr := string(out)
+
+		if strings.Contains(statusStr, "Complete=True") {
+			return nil
+		}
+		if strings.Contains(statusStr, "Failed=True") {
 			return fmt.Errorf("job %s failed", jobName)
 		}
 
