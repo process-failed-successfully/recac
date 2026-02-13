@@ -227,6 +227,11 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 	sm := new(MockSessionManager)
 	spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", sm)
 
+	// Mock GitClient
+	mockGit := new(MockGitClient)
+	spawner.GitClient = mockGit
+	mockGit.On("CurrentCommitSHA", mock.Anything).Return("", errors.New("no git")).Maybe()
+
 	injectionItem := WorkItem{
 		ID:      "TASK-1\"; echo \"injected",
 		RepoURL: "https://github.com/example/repo",
@@ -235,8 +240,13 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 	client.On("RunContainer", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("container-123", nil)
 
 	// Mock SessionManager
-	sm.On("SaveSession", mock.Anything).Return(nil)
+	sm.On("SaveSession", mock.Anything).Return(nil).Once() // Initial save
 	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
+
+	done := make(chan struct{})
+	sm.On("SaveSession", mock.Anything).Run(func(args mock.Arguments) {
+		close(done)
+	}).Return(nil).Once() // Final save
 
 	// Capture the command passed to Exec using a channel for synchronization
 	capturedCmdChan := make(chan []string, 1)
@@ -248,25 +258,27 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 	err := spawner.Spawn(context.Background(), injectionItem)
 	assert.NoError(t, err)
 
-	// Wait for the background goroutine to call Exec
-	var capturedCmd []string
 	select {
-	case capturedCmd = <-capturedCmdChan:
+	case <-done:
 		// Success
 	case <-time.After(30 * time.Second):
-		t.Fatal("Timed out waiting for Exec call")
+		t.Fatal("Timed out waiting for final SaveSession")
 	}
 
-	// The command should be stringified and passed to sh -c.
-	// We want to ensure the ID is quoted.
-	assert.Len(t, capturedCmd, 3)
-	assert.Equal(t, "/bin/sh", capturedCmd[0])
-	assert.Equal(t, "-c", capturedCmd[1])
+	// Verify captured command
+	select {
+	case capturedCmd := <-capturedCmdChan:
+		// The command should be stringified and passed to sh -c.
+		// We want to ensure the ID is quoted.
+		assert.Len(t, capturedCmd, 3)
+		assert.Equal(t, "/bin/sh", capturedCmd[0])
+		assert.Equal(t, "-c", capturedCmd[1])
 
-	// Check if the ID is quoted in the command string
-	// Depending on implementation, checking for quoted ID:
-	// New implementation uses shellquote, so it should use single quotes for complex strings
-	assert.Contains(t, capturedCmd[2], "--jira 'TASK-1\"; echo \"injected'")
+		// Check if the ID is quoted in the command string
+		assert.Contains(t, capturedCmd[2], "--jira 'TASK-1\"; echo \"injected'")
+	default:
+		t.Fatal("Exec hook was not triggered")
+	}
 }
 
 func TestDockerSpawner_EnvPropagation(t *testing.T) {
@@ -282,14 +294,24 @@ func TestDockerSpawner_EnvPropagation(t *testing.T) {
 	sm := new(MockSessionManager)
 	spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", sm)
 
+	// Mock GitClient
+	mockGit := new(MockGitClient)
+	spawner.GitClient = mockGit
+	mockGit.On("CurrentCommitSHA", mock.Anything).Return("", errors.New("no git")).Maybe()
+
 	item := WorkItem{
 		ID:      "TASK-ENV-TEST",
 		RepoURL: "https://github.com/example/repo",
 	}
 
 	client.On("RunContainer", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("container-env", nil)
-	sm.On("SaveSession", mock.Anything).Return(nil)
+	sm.On("SaveSession", mock.Anything).Return(nil).Once() // Initial save
 	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
+
+	done := make(chan struct{})
+	sm.On("SaveSession", mock.Anything).Run(func(args mock.Arguments) {
+		close(done)
+	}).Return(nil).Once() // Final save
 
 	// Capture the command passed to Exec
 	capturedCmdChan := make(chan []string, 1)
@@ -301,19 +323,22 @@ func TestDockerSpawner_EnvPropagation(t *testing.T) {
 	err := spawner.Spawn(context.Background(), item)
 	assert.NoError(t, err)
 
-	var capturedCmd []string
 	select {
-	case capturedCmd = <-capturedCmdChan:
+	case <-done:
 		// Success
 	case <-time.After(30 * time.Second):
-		t.Fatal("Timed out waiting for Exec call")
+		t.Fatal("Timed out waiting for final SaveSession")
 	}
 
-	cmdStr := capturedCmd[2]
-
-	// Check if environment variables are correctly propagated
-	assert.Contains(t, cmdStr, "export RECAC_MAX_ITERATIONS=50", "Should propagate RECAC_MAX_ITERATIONS from host")
-	assert.Contains(t, cmdStr, "export RECAC_MANAGER_FREQUENCY=10m", "Should propagate RECAC_MANAGER_FREQUENCY from host")
+	select {
+	case capturedCmd := <-capturedCmdChan:
+		cmdStr := capturedCmd[2]
+		// Check if environment variables are correctly propagated
+		assert.Contains(t, cmdStr, "export RECAC_MAX_ITERATIONS=50", "Should propagate RECAC_MAX_ITERATIONS from host")
+		assert.Contains(t, cmdStr, "export RECAC_MANAGER_FREQUENCY=10m", "Should propagate RECAC_MANAGER_FREQUENCY from host")
+	default:
+		t.Fatal("Exec hook was not triggered")
+	}
 }
 
 func TestDockerSpawner_Cleanup(t *testing.T) {
