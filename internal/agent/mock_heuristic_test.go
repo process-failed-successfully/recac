@@ -35,8 +35,8 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		},
 		{
 			name:   "Coding Agent - Primes",
-			// Updated to include feature_list.json in history to satisfy the new dependency check
-			prompt: "History: Agent: cat << 'EOF' > feature_list.json ... \nUser: Implement the [PRIMES] feature using python.",
+			// Updated to include "agent-bridge import" in history to satisfy the new dependency check
+			prompt: "History: # Import the feature list\ncat feature_list.json | agent-bridge import ... \nUser: Implement the [PRIMES] feature using python.",
 			expectContent: []string{
 				"```bash",
 				"cat << 'EOF' > primes.py",

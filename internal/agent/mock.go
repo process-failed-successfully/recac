@@ -57,11 +57,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// --- 2. Coding Agent Logic ---
 	// The `recac-agent` (Coding role) implements the feature.
 	// The prompt will contain the feature description or "primes".
-	// Prioritized over Initializer Logic to avoid infinite loops if history contains "feature_list.json"
+	// Prioritized over Initializer Logic to avoid infinite loops if history contains output of initializer.
 	// BUT, we must ensure we don't trigger this in Turn 1 (where "primes" is in the task description but features aren't initialized yet).
-	// We do this by requiring "feature_list.json" to be present in the history (which means Initializer ran).
+	// We do this by requiring "agent-bridge import" to be present in the history (which is the output of the Initializer).
+	// We check for "agent-bridge import" because "feature_list.json" might appear in the instructions of Turn 1.
 	isCodingTrigger := strings.Contains(lowerPrompt, "primes") || strings.Contains(lowerPrompt, "python")
-	hasInitializationHistory := strings.Contains(lowerPrompt, "feature_list.json")
+	hasInitializationHistory := strings.Contains(lowerPrompt, "agent-bridge import")
 
 	if isCodingTrigger && hasInitializationHistory {
 		// Return a python script wrapped in bash to write it to a file, run it, and git commit it.

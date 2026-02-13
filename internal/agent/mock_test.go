@@ -39,9 +39,10 @@ func TestMockAgent(t *testing.T) {
 	})
 
 	t.Run("Initializer Trigger (Turn 1)", func(t *testing.T) {
-		// Turn 1: Prompt contains "primes" (the task) but NO history ("feature_list.json").
+		// Turn 1: Prompt contains "primes" (the task) and "feature_list.json" (instructions)
+		// but NO output history ("agent-bridge import").
 		// Should trigger Initializer Logic, NOT Coding Logic.
-		prompt := "You are an Initializer Agent. Task: Implement primes.py."
+		prompt := "You are an Initializer Agent. Task: Implement primes.py. Output: feature_list.json."
 		response, err := agent.Send(context.Background(), prompt)
 		if err != nil {
 			t.Fatalf("Send failed: %v", err)
@@ -59,11 +60,13 @@ func TestMockAgent(t *testing.T) {
 	})
 
 	t.Run("Coding Agent Trigger with History (Turn 2+)", func(t *testing.T) {
-		// Turn 2: Prompt contains "primes" (task) AND history ("feature_list.json").
+		// Turn 2: Prompt contains "primes" (task) AND output history ("agent-bridge import").
 		// Should trigger Coding Logic.
 		prompt := `
 User: You are an Initializer Agent.
 Agent: cat << 'EOF' > feature_list.json ...
+# Import the feature list using agent-bridge
+cat feature_list.json | agent-bridge import
 User: Great. Now act as a Coding Agent. Please implement the prime number script (primes.py).
 `
 		response, err := agent.Send(context.Background(), prompt)
