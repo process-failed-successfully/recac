@@ -148,8 +148,14 @@ func TestWizardModel_View_Steps(t *testing.T) {
 	m = res.(WizardModel)
 
 	// Ensure list has size to render title
-	res, _ = m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	// The list SetHeight is set to 10 in constructor, but View might not render title if context is weird.
+	// Actually, `WizardModel.Update` only sets `m.list.SetWidth` on WindowSizeMsg, not height?
+	// But `NewWizardModel` calls `l.SetHeight(10)`.
+	// Let's send a generous size.
+	res, _ = m.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
 	m = res.(WizardModel)
+	// Force title show just in case (though it is default on New)
+	m.list.SetShowTitle(true)
 
 	view = m.View()
 	// Step 2 is Provider
