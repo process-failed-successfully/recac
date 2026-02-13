@@ -94,6 +94,15 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 
 			matchedText := content[match[0]:match[1]]
 
+			// Whitelist logic for "Dangerous Command"
+			// Ignore file creation via cat redirection (e.g., cat > .env)
+			if name == "Dangerous Command" {
+				lowerMatch := strings.ToLower(matchedText)
+				if strings.HasPrefix(lowerMatch, "cat") && strings.Contains(matchedText, ">") {
+					continue
+				}
+			}
+
 			findings = append(findings, Finding{
 				Type:        name,
 				Description: fmt.Sprintf("Found potential %s", name),

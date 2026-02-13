@@ -63,6 +63,11 @@ func TestRegexScanner_Scan(t *testing.T) {
 			wantFinding: "Dangerous Command",
 		},
 		{
+			name:        "Cat Write Env (Allowed)",
+			content:     "cat" + " > " + ".e" + "nv",
+			wantFinding: "",
+		},
+		{
 			name:        "Cat Git Credentials",
 			content:     "cat " + ".g" + "it-credentials",
 			wantFinding: "Dangerous Command",
