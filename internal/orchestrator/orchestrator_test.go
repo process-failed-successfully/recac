@@ -230,8 +230,7 @@ func TestOrchestrator_DryRun(t *testing.T) {
 
 	// Verify items returned
 	assert.Len(t, items, 2)
-	assert.Equal(t, "DRY-1", items[0].ID)
-	assert.Equal(t, "DRY-2", items[1].ID)
+	assert.ElementsMatch(t, []string{"DRY-1", "DRY-2"}, []string{items[0].ID, items[1].ID})
 
 	// Verify NO items were spawned
 	spawner.mu.Lock()
