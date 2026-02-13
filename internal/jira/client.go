@@ -306,7 +306,7 @@ func extractTextFromADF(node map[string]interface{}) string {
 
 // SearchIssues searches for Jira tickets using JQL.
 func (c *Client) SearchIssues(ctx context.Context, jql string) ([]map[string]interface{}, error) {
-	url := fmt.Sprintf("%s/rest/api/3/search", c.BaseURL)
+	url := fmt.Sprintf("%s/rest/api/3/search/jql", c.BaseURL)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
