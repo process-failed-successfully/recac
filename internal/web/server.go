@@ -34,8 +34,8 @@ func NewServer(store db.Store, port int, projectID string) *Server {
 	}
 }
 
-// Start starts the HTTP server
-func (s *Server) Start() error {
+// Handler returns the HTTP handler for the server
+func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 
 	// Static files
@@ -45,6 +45,13 @@ func (s *Server) Start() error {
 	// API endpoints
 	mux.HandleFunc("/api/features", s.handleFeatures)
 	mux.HandleFunc("/api/graph", s.handleGraph)
+
+	return mux
+}
+
+// Start starts the HTTP server
+func (s *Server) Start() error {
+	mux := s.Handler()
 
 	// Bind to localhost for security
 	addr := fmt.Sprintf("127.0.0.1:%d", s.port)

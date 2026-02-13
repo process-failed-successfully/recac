@@ -181,6 +181,14 @@ func TestManager_Notify_Success(t *testing.T) {
 	assert.True(t, discordCalled)
 }
 
+func TestManager_Start(t *testing.T) {
+	// Test safe with nil bot
+	m := &Manager{}
+	assert.NotPanics(t, func() {
+		m.Start(context.Background())
+	})
+}
+
 func TestManager_Notify_Failure(t *testing.T) {
 	viper.Reset()
 	t.Cleanup(func() { viper.Reset() })

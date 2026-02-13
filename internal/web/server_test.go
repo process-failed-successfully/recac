@@ -252,3 +252,36 @@ func TestSanitizeMermaidID(t *testing.T) {
 	assert.Equal(t, "foo_bar", sanitizeMermaidID("foo-bar"))
 	assert.Equal(t, "foo_bar", sanitizeMermaidID("foo.bar"))
 }
+
+func TestHandler(t *testing.T) {
+	store := new(TestifyMockStore)
+	server := NewServer(store, 8080, "test-project")
+	handler := server.Handler()
+
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+
+	t.Run("static content", func(t *testing.T) {
+		resp, err := http.Get(ts.URL + "/")
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+	})
+
+	t.Run("api features", func(t *testing.T) {
+		fl := db.FeatureList{ProjectName: "test-project", Features: []db.Feature{}}
+		b, _ := json.Marshal(fl)
+		store.On("GetFeatures", "test-project").Return(string(b), nil).Once()
+		resp, err := http.Get(ts.URL + "/api/features")
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+	})
+
+	t.Run("api graph", func(t *testing.T) {
+		fl := db.FeatureList{ProjectName: "test-project", Features: []db.Feature{}}
+		b, _ := json.Marshal(fl)
+		store.On("GetFeatures", "test-project").Return(string(b), nil).Once()
+		resp, err := http.Get(ts.URL + "/api/graph")
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+	})
+}
