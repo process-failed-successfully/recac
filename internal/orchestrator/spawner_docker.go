@@ -75,6 +75,7 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		"/usr/local/bin/recac-agent",
 		"--jira", item.ID,
 		"--project", item.ID,
+		"--image", s.Image,
 		"--detached=false",
 		"--cleanup=false",
 		"--path", "/workspace",
