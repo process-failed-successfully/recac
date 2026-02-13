@@ -768,6 +768,7 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 			}
 			return err
 		}
+		defer session.Stop(ctx) // Ensure cleanup
 		return session.RunLoop(ctx)
 	}
 
@@ -872,6 +873,7 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 		}
 		return err
 	}
+	defer session.Stop(ctx) // Ensure cleanup
 
 	// Create a session state for the interactive session to track commit SHAs
 	sm, err := sessionManagerFactory()
