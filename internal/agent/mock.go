@@ -78,10 +78,14 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 I will initialize the repository and register the features.
 
 ` + "```bash" + `
+set -e
+set -o pipefail
+
 echo "Initializing repository..."
 # Create an empty primes.py to start (optional)
 touch primes.py
 
+echo "Starting feature import..."
 # Simulate feature import for smoke test
 cat << 'EOF' | agent-bridge import
 {
@@ -98,6 +102,7 @@ cat << 'EOF' | agent-bridge import
   ]
 }
 EOF
+echo "Feature import completed."
 ` + "```" + `
 `, nil
 	}
