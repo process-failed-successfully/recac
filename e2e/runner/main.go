@@ -310,10 +310,9 @@ func run() error {
 			"--set", fmt.Sprintf("config.maxIterations=%s", getEnvOrDefault("MAX_ITERATIONS", "20")),
 			"--set", fmt.Sprintf("config.provider=%s", provider),
 			"--set", fmt.Sprintf("config.model=%s", model),
-			"--set", "config.dbType=postgres",
-			"--set", "postgresql.enabled=true",
-			"--set", "postgresql.image.repository=bitnami/postgresql",
-			"--set", "postgresql.image.tag=latest",
+			// Use SQLite for mock provider to avoid Postgres complexity in CI
+			"--set", "config.dbType=sqlite",
+			"--set", "postgresql.enabled=false",
 			"--set", fmt.Sprintf("config.jiraUrl=%s", os.Getenv("JIRA_URL")),
 			"--set", fmt.Sprintf("config.jiraUsername=%s", os.Getenv("JIRA_USERNAME")),
 			"--set", fmt.Sprintf("secrets.openrouterApiKey=%s", os.Getenv("OPENROUTER_API_KEY")),

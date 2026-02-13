@@ -289,6 +289,7 @@ jobs:
               -provider mock \
               -model "mock" \
               -image recac:smoke \
+              -db-type sqlite \
               -repo-url "https://github.com/process-failed-successfully/recac-jira-e2e" \
               -pull-policy IfNotPresent \
               -skip-build; then

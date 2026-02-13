@@ -50,10 +50,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			repoURL = strings.TrimSpace(line)
 		}
 
+		// Note: Title MUST contain ID:[PRIMES] for the parser to map it back to the spec.
 		return fmt.Sprintf(`[
   {
-    "id": "PRIMES",
-    "title": "Implement Prime Number Generator",
+    "title": "ID:[PRIMES] Implement Prime Number Generator",
     "description": "Create a python script primes.py that prints primes up to 100.",
     "type": "Task",
     "status": "Todo",
@@ -69,10 +69,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 4. Coding Agent (Primes Scenario)
-	// Triggers on coding keywords. We must ensure we don't trigger this during TPM phase.
-	// The TPM prompt usually asks to "generate tickets", whereas the coding prompt asks to "implement".
-	// We'll check for "primes.py" or "PRIMES" + absence of "Technical Program Manager" context if possible.
-	// Ideally, the system prompt for coding agent identifies it as "You are a software engineer".
+	// Triggers on coding keywords.
 	isCoding := strings.Contains(lowerPrompt, "software engineer") || strings.Contains(lowerPrompt, "developer") || !strings.Contains(lowerPrompt, "program manager")
 
 	if (strings.Contains(lowerPrompt, "primes") || strings.Contains(lowerPrompt, "prime number")) && isCoding {
@@ -80,6 +77,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 ` + "```python" + `
 # primes.py
+import json
+
 def is_prime(n):
     if n <= 1:
         return False
@@ -89,14 +88,21 @@ def is_prime(n):
     return True
 
 if __name__ == "__main__":
-    for i in range(100):
+    primes = []
+    for i in range(10000):
         if is_prime(i):
-            print(i)
+            primes.append(i)
+
+    with open("primes.json", "w") as f:
+        json.dump({"primes": primes}, f)
+    print(f"Generated {len(primes)} primes.")
 ` + "```" + `
 
 ` + "```bash" + `
 # Write the file
 cat <<EOF > primes.py
+import json
+
 def is_prime(n):
     if n <= 1:
         return False
@@ -106,13 +112,21 @@ def is_prime(n):
     return True
 
 if __name__ == "__main__":
-    for i in range(100):
+    primes = []
+    for i in range(10000):
         if is_prime(i):
-            print(i)
+            primes.append(i)
+
+    with open("primes.json", "w") as f:
+        json.dump({"primes": primes}, f)
+    print(f"Generated {len(primes)} primes.")
 EOF
 
+# Run it to generate output
+python3 primes.py
+
 # Commit
-git add primes.py
+git add primes.py primes.json
 git commit -m "feat: implement prime number generator"
 
 # Update feature status
