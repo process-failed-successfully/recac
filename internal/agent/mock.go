@@ -81,8 +81,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(prompt, "YOUR ROLE - CODING AGENT") || strings.Contains(prompt, "prime") || strings.Contains(prompt, "python") {
 		// Check if we already committed (to avoid infinite loop)
 		// We look for indications that the work is already done in the prompt history or git status
-		if strings.Contains(prompt, "nothing to commit, working tree clean") ||
-			strings.Contains(prompt, "Add primes script") && (strings.Contains(prompt, "git commit") || strings.Contains(prompt, "Success")) {
+		if strings.Contains(prompt, "nothing to commit") ||
+			(strings.Contains(prompt, "Add primes script") && (strings.Contains(prompt, "git commit") || strings.Contains(prompt, "Success") || strings.Contains(prompt, "exit status 1"))) {
 			// Work is done. Signal completion via agent-bridge.
 			// Ensure the feature exists before setting status (idempotent import)
 			return "```bash\n" +
