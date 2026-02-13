@@ -81,7 +81,7 @@ echo '{"features": [{"id": "feat-1", "description": "Calculate primes", "status"
 
 	// Heuristic 3: QA Agent / Manager Review
 	// This must take precedence over the coding heuristic to prevent re-implementation during review
-	if strings.Contains(lowerPrompt, "qa agent") || strings.Contains(lowerPrompt, "manager review") {
+	if strings.Contains(lowerPrompt, "qa agent") || strings.Contains(lowerPrompt, "manager review") || strings.Contains(lowerPrompt, "manager agent") {
 		return `
 The code looks good and meets the requirements.
 
