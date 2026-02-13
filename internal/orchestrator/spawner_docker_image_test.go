@@ -30,40 +30,47 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 
 	ctx := context.Background()
 
+	// Channels for synchronization
+	execCalled := make(chan string, 1)
 	done := make(chan struct{})
 
 	// Mock expectations
 	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
 
-	// We use Run to signal that the background goroutine has reached this point.
-	// Since we return an error here, the goroutine will exit after this call,
-	// making it the final synchronization point for this test.
+	// Mock Exec: capture the command and return success
+	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Run(func(args mock.Arguments) {
+		cmd := args.Get(2).([]string)
+		if len(cmd) >= 3 {
+			execCalled <- cmd[2]
+		} else {
+			execCalled <- ""
+		}
+	}).Return("output", nil)
+
+	// Mock LoadSession: signal completion of the goroutine
+	// This happens after Exec.
 	mockSM.On("LoadSession", "TICKET-1").Run(func(args mock.Arguments) {
 		close(done)
-	}).Return(nil, assert.AnError)
-
-	// Use MatchedBy to verify the command arguments in-place
-	mockDocker.On("Exec", mock.Anything, "container123", mock.MatchedBy(func(cmd []string) bool {
-		if len(cmd) < 3 {
-			return false
-		}
-		cmdStr := cmd[2] // /bin/sh -c <cmdStr>
-		// Log for debugging if test fails
-		t.Logf("Captured Command: %s", cmdStr)
-
-		containsImageFlag := assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
-		containsImageName := assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
-
-		return containsImageFlag && containsImageName
-	})).Return("output", nil)
+	}).Return(nil, assert.AnError) // Return error to stop further processing in the goroutine
 
 	err := spawner.Spawn(ctx, item)
 	require.NoError(t, err)
 
+	// Verify Exec was called with correct arguments
+	select {
+	case cmdStr := <-execCalled:
+		t.Logf("Captured Command: %s", cmdStr)
+		assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
+		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
+	case <-time.After(30 * time.Second):
+		t.Fatal("Timeout waiting for Exec call")
+	}
+
+	// Verify the goroutine completed (reached LoadSession)
 	select {
 	case <-done:
-		// Success: Goroutine reached LoadSession and will exit shortly.
+		// Success
 	case <-time.After(30 * time.Second):
 		t.Fatal("Timeout waiting for LoadSession call (goroutine completion)")
 	}
