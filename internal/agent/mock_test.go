@@ -63,6 +63,12 @@ func TestMockAgent_Coding_Prime(t *testing.T) {
 	if !strings.Contains(response, "def is_prime(n):") {
 		t.Errorf("Expected Python code for Coding role (PRIME), got: %s", response)
 	}
+	if !strings.Contains(response, "import json") {
+		t.Errorf("Expected json import in Python code, got: %s", response)
+	}
+	if !strings.Contains(response, "json.dump") {
+		t.Errorf("Expected json.dump in Python code, got: %s", response)
+	}
 }
 
 func TestMockAgent_Coding_Python(t *testing.T) {

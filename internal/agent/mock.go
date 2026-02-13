@@ -86,6 +86,7 @@ EOF` + "\n```", nil
 		// Return a bash script to implement the prime checker
 		return "```bash\n" + `cat << 'EOF' > primes.py
 import sys
+import json
 
 def is_prime(n):
     if n <= 1:
@@ -103,12 +104,16 @@ if __name__ == "__main__":
         except ValueError:
             print("Invalid input")
     else:
-        print("Usage: python3 primes.py <number>")
+        primes = [x for x in range(10000) if is_prime(x)]
+        with open("primes.json", "w") as f:
+            json.dump({"primes": primes}, f)
+        print(f"Generated primes.json with {len(primes)} primes")
 EOF
 
 # Verify it works
 python3 primes.py 7
 python3 primes.py 10
+python3 primes.py # Generate the JSON file
 
 # Mark features as done to prevent premature sign-off detection
 python3 -c '
