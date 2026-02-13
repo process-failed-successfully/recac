@@ -15,6 +15,9 @@ var (
 		Bold(true).
 		Foreground(lipgloss.Color("#7D56F4")).
 		MarginBottom(1)
+	stepStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#A0A0A0")).
+		MarginLeft(1)
 )
 
 const (
@@ -91,6 +94,7 @@ func (m WizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.Path = m.textInput.Value()
 				if m.Path != "" {
 					m.step = StepProvider
+					m.list.Title = "Select Agent Provider (Step 2/4)"
 					// Resize list if needed, or just transition
 					return m, nil
 				} else {
@@ -162,8 +166,9 @@ func (m WizardModel) View() string {
 	if m.step == StepPath {
 		var b strings.Builder
 		b.WriteString(titleStyle.Render("Project Setup"))
+		b.WriteString(stepStyle.Render("(Step 1/4)"))
 		b.WriteString("\n\n")
-		b.WriteString("Enter project directory:\n")
+		b.WriteString("Enter project directory (Git repository):\n")
 		b.WriteString(m.textInput.View())
 		if m.errMsg != "" {
 			b.WriteString("\n")
@@ -176,6 +181,7 @@ func (m WizardModel) View() string {
 	} else if m.step == StepMaxAgents {
 		var b strings.Builder
 		b.WriteString(titleStyle.Render("Agent Configuration"))
+		b.WriteString(stepStyle.Render("(Step 3/4)"))
 		b.WriteString("\n\n")
 		b.WriteString("Enter maximum parallel agents:\n")
 		b.WriteString(m.textInput.View())
@@ -186,6 +192,7 @@ func (m WizardModel) View() string {
 	} else if m.step == StepTaskMaxIterations {
 		var b strings.Builder
 		b.WriteString(titleStyle.Render("Agent Configuration"))
+		b.WriteString(stepStyle.Render("(Step 4/4)"))
 		b.WriteString("\n\n")
 		b.WriteString("Enter maximum iterations per task:\n")
 		b.WriteString(m.textInput.View())

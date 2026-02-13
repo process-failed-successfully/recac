@@ -14,7 +14,7 @@ func TestWizardModel_InitialView(t *testing.T) {
 	if !strings.Contains(view, "Project Setup") {
 		t.Errorf("Expected view to contain 'Project Setup', got: %s", view)
 	}
-	if !strings.Contains(view, "Enter project directory") {
+	if !strings.Contains(view, "Enter project directory (Git repository)") {
 		t.Errorf("Expected view to ask for directory, got: %s", view)
 	}
 }
