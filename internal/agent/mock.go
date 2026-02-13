@@ -57,6 +57,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Prime Python Scenario - triggers when asked to write code
 	// We check for "prime" and "python" BUT NOT "generate ticket" to avoid conflict with planning
 	if strings.Contains(lowerPrompt, "prime") && strings.Contains(lowerPrompt, "python") {
+		// Check if work is already done (Loop Prevention)
+		if strings.Contains(lowerPrompt, "nothing to commit, working tree clean") {
+			return "The task is complete. The primes.py script has been created and committed.", nil
+		}
+
 		return `I will create a python script to calculate primes.
 
 ` + "```bash" + `

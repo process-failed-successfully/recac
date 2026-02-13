@@ -41,6 +41,16 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	if !strings.Contains(execResp, "def is_prime(n):") {
 		t.Errorf("Expected python code for execution prompt, got: %s", execResp)
 	}
+
+	// 3. Test Loop Prevention (Already Committed)
+	loopPrompt := "Write a python script to calculate prime numbers.\n\nCommand Output:\nOn branch agent/MFLP-12048\nnothing to commit, working tree clean\nEverything up-to-date"
+	loopResp, _ := agent.Send(context.Background(), loopPrompt)
+	if strings.Contains(loopResp, "def is_prime(n):") {
+		t.Errorf("Agent should NOT return code again if work is already committed. Got code block: %s", loopResp)
+	}
+	if !strings.Contains(strings.ToLower(loopResp), "complete") && !strings.Contains(strings.ToLower(loopResp), "done") {
+		t.Errorf("Agent should indicate completion. Got: %s", loopResp)
+	}
 }
 
 func TestTruncateString(t *testing.T) {
