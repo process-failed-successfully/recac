@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"recac/internal/runner"
 	"testing"
 	"time"
 
@@ -33,18 +34,16 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	done := make(chan struct{})
 
 	// Mock expectations
+	// 1. Start container
 	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
-	mockSM.On("SaveSession", mock.Anything).Return(nil)
 
-	// We use Run to signal that the background goroutine has reached this point.
-	// Since we return an error here, the goroutine will exit after this call,
-	// making it the final synchronization point for this test.
-	mockSM.On("LoadSession", "TICKET-1").Run(func(args mock.Arguments) {
-		close(done)
-	}).Return(nil, assert.AnError)
+	// 2. Initial SaveSession (start)
+	mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return s.Status == "running" && s.ContainerID == "container123"
+	})).Return(nil)
 
+	// 3. Exec call
 	execCalled := make(chan string, 1)
-
 	// We match "Anything" for arguments so we catch the call, then inspect it in Run
 	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Run(func(args mock.Arguments) {
 		cmd := args.Get(2).([]string)
@@ -52,9 +51,28 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		execCalled <- cmd[2]
 	}).Return("output", nil)
 
+	// 4. LoadSession for update
+	mockSM.On("LoadSession", "TICKET-1").Return(&runner.SessionState{
+		Name:      "TICKET-1",
+		Status:    "running",
+		Workspace: "/tmp/mock-workspace",
+	}, nil)
+
+	// 5. Get End SHA (called if LoadSession succeeds)
+	mockGit.On("CurrentCommitSHA", mock.Anything).Return("mock-sha", nil)
+
+	// 6. Final SaveSession (completion)
+	// We use Run to signal that the background goroutine has reached this point.
+	mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return s.Status == "completed" && s.EndCommitSHA == "mock-sha"
+	})).Run(func(args mock.Arguments) {
+		close(done)
+	}).Return(nil)
+
 	err := spawner.Spawn(ctx, item)
 	require.NoError(t, err)
 
+	// Verify Exec command
 	select {
 	case cmdStr := <-execCalled:
 		t.Logf("Captured Command: %s", cmdStr)
@@ -64,10 +82,11 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		t.Fatal("Timeout waiting for Exec call")
 	}
 
+	// Verify full completion
 	select {
 	case <-done:
-		// Success: Goroutine reached LoadSession and will exit shortly.
+		// Success: Goroutine reached final SaveSession.
 	case <-time.After(30 * time.Second):
-		t.Fatal("Timeout waiting for LoadSession call (goroutine completion)")
+		t.Fatal("Timeout waiting for final SaveSession call (goroutine completion)")
 	}
 }
