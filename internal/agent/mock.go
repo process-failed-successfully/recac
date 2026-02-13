@@ -67,7 +67,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Initializer Agent
-	if strings.Contains(strings.ToLower(prompt), "initializer agent") {
+	// Check for role name OR generic initialization prompt (common when features are missing)
+	if strings.Contains(strings.ToLower(prompt), "initializer agent") ||
+		(strings.Contains(strings.ToLower(prompt), "initialize") && strings.Contains(strings.ToLower(prompt), "feature")) {
 		// Just return a success message or simple bash
 		// Note: The Initializer Agent is expected to import features into the DB
 		// via agent-bridge import. The smoke test might fail if features aren't present.
