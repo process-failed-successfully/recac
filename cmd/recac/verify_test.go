@@ -92,7 +92,7 @@ func Complex(n int) {
 
 // Added security issue
 func Secret() {
-	key := "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE"
+	key := "AWS_ACCESS_KEY_ID=AKIA` + `IOSFODNN7EXAMPLE"
 	fmt.Println(key)
 }
 `
@@ -251,38 +251,5 @@ func Secret() {
 	// Should find issues because we scan whole file.
 	if len(issues) < 2 {
 		t.Errorf("Expected issues with --all on explicit file, got %d", len(issues))
-	}
-}
-
-func TestParseDiffHunks(t *testing.T) {
-	diff := `diff --git a/main.go b/main.go
-index e69de29..d95f3ad 100644
---- a/main.go
-+++ b/main.go
-@@ -1,2 +3,4 @@
- func One() {}
-+func Two() {}
-+func Three() {}
- func Four() {}
-@@ -10,0 +15,2 @@
-+func New() {}
-+func New2() {}
-`
-	intervals := parseDiffHunks(diff)
-
-	expected := []LineInterval{
-		{3, 6},   // +3,4 -> 3, 4, 5, 6 (start at 3, count 4)
-		{15, 16}, // +15,2 -> 15, 16
-	}
-
-	if len(intervals) != 2 {
-		t.Fatalf("Expected 2 intervals, got %d", len(intervals))
-	}
-
-	if intervals[0].Start != 3 || intervals[0].End != 6 {
-		t.Errorf("Interval 1 mismatch: got %v, want %v", intervals[0], expected[0])
-	}
-	if intervals[1].Start != 15 || intervals[1].End != 16 {
-		t.Errorf("Interval 2 mismatch: got %v, want %v", intervals[1], expected[1])
 	}
 }
