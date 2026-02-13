@@ -8,47 +8,73 @@ import (
 
 func TestMockAgent(t *testing.T) {
 	agent := NewMockAgent()
+	agent.SetResponse("custom response")
 
-	prompt := "This is a test prompt that is long enough to be truncated"
-	response, err := agent.Send(context.Background(), prompt)
-
+	ctx := context.Background()
+	resp, err := agent.Send(ctx, "test prompt")
 	if err != nil {
-		t.Fatalf("Send failed: %v", err)
+		t.Errorf("Send failed: %v", err)
 	}
-
-	if !strings.Contains(response, "Mock agent response") {
-		t.Errorf("Response missing prefix, got: %s", response)
-	}
-
-	if !strings.Contains(response, "I received your prompt") {
-		t.Errorf("Response missing body, got: %s", response)
+	if resp != "custom response" {
+		t.Errorf("expected 'custom response', got '%s'", resp)
 	}
 }
 
 func TestMockAgent_Heuristics(t *testing.T) {
 	agent := NewMockAgent()
+	ctx := context.Background()
 
-	// 1. Test Ticket Planning
-	planPrompt := "You are a Technical Program Manager. Please generate ticket..."
-	planResp, _ := agent.Send(context.Background(), planPrompt)
-	if !strings.Contains(planResp, "\"id\": \"[PRIMES]\"") {
-		t.Errorf("Expected JSON ticket list for planning prompt, got: %s", planResp)
+	tests := []struct {
+		name     string
+		prompt   string
+		expected string
+	}{
+		{
+			name:     "Planning",
+			prompt:   "I am a Technical Program Manager. Repo: https://github.com/test/repo",
+			expected: "[PRIMES]",
+		},
+		{
+			name:     "Execution",
+			prompt:   "Please write a prime number python script.",
+			expected: "cat << 'EOF' > primes.py",
+		},
+		{
+			name:     "Completion_NothingToCommit",
+			prompt:   "nothing to commit, working tree clean",
+			expected: "Task completed",
+		},
+		{
+			name:     "Completion_UpToDate",
+			prompt:   "everything up-to-date",
+			expected: "Task completed",
+		},
+		{
+			name:     "Default",
+			prompt:   "Just a regular prompt",
+			expected: "Mock agent response",
+		},
 	}
 
-	// 2. Test Execution (Prime Python)
-	execPrompt := "Write a python script to calculate prime numbers."
-	execResp, _ := agent.Send(context.Background(), execPrompt)
-	if !strings.Contains(execResp, "def is_prime(n):") {
-		t.Errorf("Expected python code for execution prompt, got: %s", execResp)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp, err := agent.Send(ctx, tt.prompt)
+			if err != nil {
+				t.Fatalf("Send failed: %v", err)
+			}
+			if !strings.Contains(resp, tt.expected) {
+				t.Errorf("expected response to contain '%s', got '%s'", tt.expected, resp)
+			}
+		})
 	}
 }
 
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
-		t.Errorf("Expected 'hello', got '%s'", truncateString(s, 5))
+		t.Errorf("expected 'hello', got '%s'", truncateString(s, 5))
 	}
 	if truncateString(s, 20) != "hello world" {
-		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
+		t.Errorf("expected 'hello world', got '%s'", truncateString(s, 20))
 	}
 }

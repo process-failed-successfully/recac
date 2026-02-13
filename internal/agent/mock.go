@@ -34,6 +34,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristics for E2E scenarios
 	lowerPrompt := strings.ToLower(prompt)
 
+	// Check for completion signals in prompt (idempotency check)
+	if strings.Contains(lowerPrompt, "nothing to commit, working tree clean") || strings.Contains(lowerPrompt, "everything up-to-date") {
+		return "Task completed. No further changes needed.", nil
+	}
+
 	// 1. Ticket Planning Phase (TPM Role)
 	// Trigger on "technical program manager" or "generate ticket"
 	if strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "generate ticket") {
