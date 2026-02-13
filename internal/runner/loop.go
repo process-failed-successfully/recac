@@ -278,10 +278,24 @@ func (s *Session) RunLoop(ctx context.Context) error {
 
 				// 0. COMMIT WORK: Ensure any pending changes are committed before merging
 				// We use a more careful commit strategy to avoid re-adding ignored files
-				commitCmd := exec.Command("sh", "-c", "git add . && git commit -m 'feat: implemented features for "+s.Project+"' || echo 'Nothing to commit'")
+
+				// Safe: execute git add directly
+				addCmd := exec.Command("git", "add", ".")
+				addCmd.Dir = s.Workspace
+				if out, err := addCmd.CombinedOutput(); err != nil {
+					fmt.Printf("Warning: Failed to add files: %v\nOutput: %s\n", err, out)
+				}
+
+				// Safe: execute git commit directly with arguments
+				commitCmd := exec.Command("git", "commit", "-m", "feat: implemented features for "+s.Project)
 				commitCmd.Dir = s.Workspace
 				if out, err := commitCmd.CombinedOutput(); err != nil {
-					fmt.Printf("Warning: Failed to auto-commit work: %v\nOutput: %s\n", err, out)
+					// Ignore "nothing to commit" errors
+					if !strings.Contains(string(out), "nothing to commit") && !strings.Contains(string(out), "clean") {
+						fmt.Printf("Warning: Failed to auto-commit work: %v\nOutput: %s\n", err, out)
+					} else {
+						fmt.Println("Nothing to commit")
+					}
 				} else {
 					fmt.Printf("Auto-committed work: %s\n", strings.TrimSpace(string(out)))
 				}

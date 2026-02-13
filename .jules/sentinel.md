@@ -1,0 +1,4 @@
+## 2025-05-15 - [CRITICAL] Command Injection in Git Commit Logic
+**Vulnerability:** A command injection vulnerability was found in `internal/runner/loop.go` where the project ID (`s.Project`) was concatenated into a shell command string (`sh -c "git commit -m ..."`). This allowed an attacker controlling the project ID (e.g., via CLI or Jira) to execute arbitrary commands.
+**Learning:** Using `sh -c` with string concatenation for dynamic values is extremely dangerous, even for seemingly harmless operations like git commits. The shell interprets special characters in the injected string.
+**Prevention:** Always use `exec.Command(cmd, args...)` which passes arguments directly to the process without invoking a shell, ensuring that inputs are treated as data, not code. If shell features (like `||` or `&&`) are needed, implement the logic in Go instead of relying on shell operators.
