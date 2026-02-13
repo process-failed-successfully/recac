@@ -80,7 +80,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 3. Coding Agent (Implementation)
 	if strings.Contains(prompt, "YOUR ROLE - CODING AGENT") || strings.Contains(prompt, "prime") || strings.Contains(prompt, "python") {
 		// Check if we already committed (to avoid infinite loop)
-		if strings.Contains(prompt, "Add primes script") && (strings.Contains(prompt, "git commit") || strings.Contains(prompt, "Success")) {
+		// We check for "git commit" (success output) or "nothing to commit" (idempotent no-op)
+		if strings.Contains(prompt, "Add primes script") && (strings.Contains(prompt, "git commit") || strings.Contains(prompt, "Success") || strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean")) {
 			// Work is done. Signal completion via agent-bridge.
 			// Ensure the feature exists before setting status (idempotent import)
 			return "```bash\n" +
