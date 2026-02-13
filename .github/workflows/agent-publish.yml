@@ -28,6 +28,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Check Branch Length
+        id: check_branch_length
+        run: |
+          REF_NAME="${{ github.ref_name }}"
+          if [ ${#REF_NAME} -gt 64 ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "Branch name too long, skipping branch tag."
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -35,7 +46,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
-            type=ref,event=branch
+            type=ref,event=branch,enable=${{ steps.check_branch_length.outputs.skip == 'false' }}
             type=semver,pattern={{version}}
             type=sha
 
