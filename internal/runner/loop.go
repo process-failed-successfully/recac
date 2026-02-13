@@ -248,13 +248,23 @@ func (s *Session) RunLoop(ctx context.Context) error {
 			incompleteFeatures := []string{}
 			for _, f := range features {
 				if !(f.Passes || f.Status == "done" || f.Status == "implemented") {
-					incompleteFeatures = append(incompleteFeatures, f.ID)
+					// Fallback if ID empty for display
+					id := f.ID
+					if id == "" {
+						id = fmt.Sprintf("no-id-%s", f.Description)
+					}
+					incompleteFeatures = append(incompleteFeatures, id)
 				}
 			}
 
 			if len(incompleteFeatures) > 0 {
 
 				s.Logger.Warn("premature project sign-off detected", "incomplete_features", incompleteFeatures)
+
+				// DEBUG: Print full features
+				for i, f := range features {
+					s.Logger.Info("[DEBUG] Loop Feature Check", "idx", i, "id", f.ID, "desc", f.Description, "status", f.Status)
+				}
 
 				// Revoke signal
 				s.clearSignal("PROJECT_SIGNED_OFF")

@@ -782,18 +782,32 @@ func (s *Session) loadFeatures() []db.Feature {
 	// Helper to merge features (DB wins on conflict, but we add new ones)
 	mergeFeatures := func(existing []db.Feature, newFeatures []db.Feature) []db.Feature {
 		existMap := make(map[string]bool)
+		var merged []db.Feature
+
+		// Sanitize and keep existing features
 		for _, f := range existing {
-			existMap[f.Description] = true // Using description as unique key for now as ID might be random
-		}
-		merged := existing
-		for _, f := range newFeatures {
-			// Self-healing: Ensure ID is not empty
+			// Self-healing for existing features in DB
 			if f.ID == "" {
-				s.Logger.Warn("feature has empty ID, generating fallback", "desc", f.Description)
+				s.Logger.Warn("existing feature has empty ID, generating fallback", "desc", f.Description)
+				hash := sha256.Sum256([]byte(f.Description))
+				f.ID = fmt.Sprintf("req-%x", hash[:8])
+			}
+			existMap[f.Description] = true
+			merged = append(merged, f)
+		}
+
+		// Merge new features
+		for _, f := range newFeatures {
+			// Self-healing for new features
+			if f.ID == "" {
+				s.Logger.Warn("new feature has empty ID, generating fallback", "desc", f.Description)
 				// Generate a deterministic ID from description
 				hash := sha256.Sum256([]byte(f.Description))
 				f.ID = fmt.Sprintf("req-%x", hash[:8])
 			}
+
+			// LOGGING FOR DEBUGGING
+			s.Logger.Info("[DEBUG] mergeFeatures check", "id", f.ID, "desc", f.Description)
 
 			if !existMap[f.Description] {
 				merged = append(merged, f)
@@ -805,6 +819,7 @@ func (s *Session) loadFeatures() []db.Feature {
 	// 2. Load Injected Features from Env (Priority Injection)
 	envFeaturesJSON := os.Getenv("RECAC_INJECTED_FEATURES")
 	if envFeaturesJSON != "" {
+		s.Logger.Info("[DEBUG] RECAC_INJECTED_FEATURES found in env")
 		var fl db.FeatureList
 		if err := json.Unmarshal([]byte(envFeaturesJSON), &fl); err == nil {
 			s.Logger.Info("loaded injected features from env", "count", len(fl.Features))
@@ -822,7 +837,11 @@ func (s *Session) loadFeatures() []db.Feature {
 					_ = s.DBStore.SaveFeatures(s.Project, string(data))
 				}
 			}
+		} else {
+			s.Logger.Error("[DEBUG] failed to unmarshal RECAC_INJECTED_FEATURES", "error", err)
 		}
+	} else {
+		s.Logger.Info("[DEBUG] RECAC_INJECTED_FEATURES NOT found in env")
 	}
 
 	if len(fromDB) > 0 {
@@ -870,8 +889,3 @@ func (s *Session) loadFeatures() []db.Feature {
 
 	return nil
 }
-
-
-
-
-

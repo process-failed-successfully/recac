@@ -103,6 +103,12 @@ func (p *JiraPoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkItem,
 
 		// Inject Required Features if present
 		if features := extractRequiredFeatures(description); len(features) > 0 {
+			// LOGGING FOR DEBUGGING
+			if logger != nil {
+				for i, f := range features {
+					logger.Info("[DEBUG] Extracted Feature", "idx", i, "id", f.ID, "desc", f.Description)
+				}
+			}
 			fl := db.FeatureList{
 				ProjectName: summary,
 				Features:    features,
