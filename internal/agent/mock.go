@@ -79,7 +79,19 @@ echo '{"features": [{"id": "feat-1", "description": "Calculate primes", "status"
 ]`, repo), nil
 	}
 
-	// Heuristic 3: Coding Agent (Primes)
+	// Heuristic 3: QA Agent / Manager Review
+	// This must take precedence over the coding heuristic to prevent re-implementation during review
+	if strings.Contains(lowerPrompt, "qa agent") || strings.Contains(lowerPrompt, "manager review") {
+		return `
+The code looks good and meets the requirements.
+
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// Heuristic 4: Coding Agent (Primes)
 	if strings.Contains(lowerPrompt, "primes") || strings.Contains(lowerPrompt, "prime numbers") {
 		return `
 I will create a python script to generate prime numbers.
@@ -105,17 +117,6 @@ EOF
 
 git add primes.py
 git commit -m "feat: add prime number generator"
-` + "```" + `
-`, nil
-	}
-
-	// Heuristic 4: QA Agent
-	if strings.Contains(lowerPrompt, "qa agent") || strings.Contains(lowerPrompt, "manager review") {
-		return `
-The code looks good and meets the requirements.
-
-` + "```bash" + `
-agent-bridge signal QA_PASSED true
 ` + "```" + `
 `, nil
 	}
