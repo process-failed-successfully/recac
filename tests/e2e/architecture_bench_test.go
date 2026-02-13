@@ -65,7 +65,13 @@ Features:
 
 			start := time.Now()
 			resp, err := ag.Send(ctx, prompt)
-			require.NoError(t, err)
+			if err != nil {
+				if strings.Contains(err.Error(), "API returned status 502") {
+					t.Skip("Skipping transient 502 Bad Gateway error")
+					return
+				}
+				require.NoError(t, err)
+			}
 			duration := time.Since(start)
 
 			t.Logf("Generation took %v", duration)
