@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,6 +31,46 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	promptLower := strings.ToLower(prompt)
+
+	// Heuristic for Initializer Agent
+	if strings.Contains(promptLower, "initializer agent") {
+		return `
+I will initialize the project features.
+
+` + "```bash" + `
+echo '{"features": ["prime-python"]}' | agent-bridge import
+` + "```", nil
+	}
+
+	// Heuristic for Prime Python Scenario
+	if strings.Contains(promptLower, "primes.py") || strings.Contains(promptLower, "prime numbers") {
+		return `
+I'll create the primes.py script for you.
+
+` + "```bash" + `
+cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n <= 1: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0: return False
+    return True
+
+primes = [n for n in range(10000) if is_prime(n)]
+
+with open('primes.json', 'w') as f:
+    json.dump(primes, f)
+EOF
+
+python3 primes.py
+git add primes.py primes.json
+git commit -m "Add primes.py and primes.json"
+` + "```", nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
