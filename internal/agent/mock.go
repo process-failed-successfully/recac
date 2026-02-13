@@ -49,12 +49,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     "children": [
       {
         "title": "ID:[PRIMES-1] Create primes.py",
-        "description": "Repo: https://github.com/example/repo\nImplement the basic prime checking logic.",
+        "description": "Repo: https://github.com/process-failed-successfully/recac-jira-e2e\nImplement the basic prime checking logic.",
         "type": "Subtask"
       },
       {
         "title": "ID:[PRIMES-2] Add CLI interface",
-        "description": "Repo: https://github.com/example/repo\nAdd argparse to handle user input.",
+        "description": "Repo: https://github.com/process-failed-successfully/recac-jira-e2e\nAdd argparse to handle user input.",
         "type": "Subtask"
       }
     ]
