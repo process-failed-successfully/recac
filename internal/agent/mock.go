@@ -34,39 +34,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic Role Detection
 
-	// 1. TPM Role (Ticket Generation)
-	if strings.Contains(prompt, "You are an expert Technical Program Manager (TPM)") || strings.Contains(prompt, "ID:[PRIMES]") {
-		// Try to extract Repo URL from the prompt
-		repo := "https://github.com/example/repo"
-		// Simple extraction logic: Look for "Repo: <url>" or just use a known one if passed
-		// In E2E tests, the repo URL is often passed in the prompt context
-		if strings.Contains(prompt, "Repo: ") {
-			// Extract URL after "Repo: "
-			parts := strings.Split(prompt, "Repo: ")
-			if len(parts) > 1 {
-				// Take the first word after "Repo: "
-				urlParts := strings.Fields(parts[1])
-				if len(urlParts) > 0 {
-					repo = urlParts[0]
-				}
-			}
-		}
-
-		// Return JSON ticket plan for Prime Python Scenario
-		// The prompt contains "ID:[PRIMES]"
-		return fmt.Sprintf(`
-[
-  {
-    "title": "ID:[PRIMES] Create Prime Number Script",
-    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'. Repo: %s",
-    "type": "Task",
-    "children": []
-  }
-]
-`, repo), nil
-	}
-
-	// 2. Initializer Agent
+	// 1. Initializer Agent (Check FIRST to avoid ID:[PRIMES] overlap with TPM)
 	if strings.Contains(strings.ToLower(prompt), "initializer agent") {
 		// Just return a success message or simple bash
 		// Note: The Initializer Agent is expected to import features into the DB
@@ -98,6 +66,38 @@ cat << 'EOF' | agent-bridge import
 EOF
 ` + "```" + `
 `, nil
+	}
+
+	// 2. TPM Role (Ticket Generation)
+	if strings.Contains(prompt, "You are an expert Technical Program Manager (TPM)") || strings.Contains(prompt, "ID:[PRIMES]") {
+		// Try to extract Repo URL from the prompt
+		repo := "https://github.com/example/repo"
+		// Simple extraction logic: Look for "Repo: <url>" or just use a known one if passed
+		// In E2E tests, the repo URL is often passed in the prompt context
+		if strings.Contains(prompt, "Repo: ") {
+			// Extract URL after "Repo: "
+			parts := strings.Split(prompt, "Repo: ")
+			if len(parts) > 1 {
+				// Take the first word after "Repo: "
+				urlParts := strings.Fields(parts[1])
+				if len(urlParts) > 0 {
+					repo = urlParts[0]
+				}
+			}
+		}
+
+		// Return JSON ticket plan for Prime Python Scenario
+		// The prompt contains "ID:[PRIMES]"
+		return fmt.Sprintf(`
+[
+  {
+    "title": "ID:[PRIMES] Create Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'. Repo: %s",
+    "type": "Task",
+    "children": []
+  }
+]
+`, repo), nil
 	}
 
 	// 3. Coding Agent
