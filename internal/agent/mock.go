@@ -76,7 +76,7 @@ git push origin HEAD
 
 	// 3. Project Manager
 	if strings.Contains(lowerPrompt, "project manager") {
-		return "```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
+		return "```bash\nagent-bridge signal PROJECT_SIGNED_OFF true --privileged\n```", nil
 	}
 
 	// 4. Ticket Planning Phase (TPM Role)
