@@ -45,10 +45,13 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 		return fmt.Sprintf(`[
   {
-    "summary": "Implement Prime Number Python Script",
+    "title": "ID:[PRIMES] Implement Prime Number Python Script",
     "description": "Create a python script named primes.py that calculates primes up to 10000. \n\nRepo: %s\n\nAppSpec:\nruntime: python\n...",
     "type": "Task",
-    "id": "[PRIMES]"
+    "acceptance_criteria": [
+      "Script calculates primes up to 10000 correctly",
+      "Result is printed to stdout"
+    ]
   }
 ]`, repoURL), nil
 	}

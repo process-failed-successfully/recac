@@ -31,8 +31,15 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	// 1. Test Ticket Planning
 	planPrompt := "You are a Technical Program Manager. Please generate ticket..."
 	planResp, _ := agent.Send(context.Background(), planPrompt)
-	if !strings.Contains(planResp, "\"id\": \"[PRIMES]\"") {
-		t.Errorf("Expected JSON ticket list for planning prompt, got: %s", planResp)
+
+	// Check for title and ID inside title
+	if !strings.Contains(planResp, "\"title\": \"ID:[PRIMES] Implement Prime Number Python Script\"") {
+		t.Errorf("Expected JSON ticket list with correct title for planning prompt, got: %s", planResp)
+	}
+
+	// Ensure 'summary' field is NOT present (deprecated/incorrect for this struct)
+	if strings.Contains(planResp, "\"summary\":") {
+		t.Errorf("Response should not contain 'summary' field, got: %s", planResp)
 	}
 
 	// 2. Test Execution (Prime Python)
