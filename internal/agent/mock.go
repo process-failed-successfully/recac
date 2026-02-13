@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"regexp"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -34,7 +35,53 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	lowerPrompt := strings.ToLower(prompt)
 
-	// Heuristic for 'prime-python' scenario
+	// Heuristic for Initializer (checks for explicit initialization keywords)
+	if (strings.Contains(lowerPrompt, "initializer agent") || strings.Contains(lowerPrompt, "initialize")) && strings.Contains(lowerPrompt, "feature") {
+		return `I will initialize the project features.
+
+'''bash
+echo '{"features":[{"id":"feat-1","category":"core","description":"Implement primes.py","status":"pending","steps":["Create primes.py"],"dependencies":{"depends_on_ids":[],"exclusive_write_paths":[],"read_only_paths":[]}}]}' | agent-bridge import
+'''
+`, nil
+	}
+
+	// Heuristic for 'TPM' (Technical Program Manager) / Ticket Generation
+	// This prompt usually contains "Technical Program Manager" or asks for JSON output of Epics/Stories.
+	if strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "generate jira tickets") {
+
+		// Extract Repo URL if present in prompt (usually "Repo: <url>" in description part of spec)
+		repoURL := "https://github.com/example/repo" // Default
+		// Simple regex to find a URL in the prompt to mimic real agent picking it up from context
+		re := regexp.MustCompile(`(?i)(?:repo|repository):\s*(https?://\S+)`)
+		match := re.FindStringSubmatch(prompt)
+		if len(match) > 1 {
+			repoURL = match[1]
+		}
+
+		return fmt.Sprintf(`[
+  {
+    "title": "ID:[PRIMES] Prime Number Script",
+    "description": "Implement a Python script that calculates prime numbers. Repo: %s",
+    "type": "Epic",
+    "children": [
+      {
+        "title": "Implement Primes Script",
+        "description": "Create a python script that prints the first 10000 prime numbers. Repo: %s",
+        "type": "Story",
+        "acceptance_criteria": [
+          "Script runs without errors",
+          "Output matches expected primes"
+        ],
+        "blocked_by": []
+      }
+    ]
+  }
+]`, repoURL, repoURL), nil
+	}
+
+	// Heuristic for 'prime-python' coding scenario (Execution Phase)
+	// Only trigger if it looks like a coding task and NOT a planning task.
+	// The prompt often contains "primes.py" or "prime numbers" AND instructions like "implement" or "write code".
 	if strings.Contains(lowerPrompt, "primes.py") || strings.Contains(lowerPrompt, "prime numbers") {
 		return `Here is a Python script to print the first 10000 prime numbers.
 
@@ -61,17 +108,6 @@ And here are the commands to commit it:
 '''bash
 git add primes.py
 git commit -m "Add primes.py"
-'''
-`, nil
-	}
-
-	// Heuristic for Initializer (if needed by workflow)
-	// The memory mentioned: "The `MockAgent` heuristic for the 'Initializer Agent' returns a Bash script piping a JSON object to `agent-bridge import`"
-	if strings.Contains(lowerPrompt, "initializer") || strings.Contains(lowerPrompt, "setup project") {
-		return `I will initialize the project features.
-
-'''bash
-echo '{"features":[{"id":"feat-1","category":"core","description":"Implement primes.py","status":"pending","steps":["Create primes.py"],"dependencies":{"depends_on_ids":[],"exclusive_write_paths":[],"read_only_paths":[]}}]}' | agent-bridge import
 '''
 `, nil
 	}

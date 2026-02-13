@@ -2,35 +2,46 @@ package agent
 
 import (
 	"context"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestMockAgent(t *testing.T) {
+func TestMockAgent_Heuristics(t *testing.T) {
 	agent := NewMockAgent()
+	ctx := context.Background()
 
-	prompt := "This is a test prompt that is long enough to be truncated"
-	response, err := agent.Send(context.Background(), prompt)
+	t.Run("TPM Planning", func(t *testing.T) {
+		prompt := `You are an expert Technical Program Manager...
+Application Specification:
+### ID:[PRIMES] Prime Number Script
+Repo: https://github.com/test/repo
+`
+		resp, err := agent.Send(ctx, prompt)
+		assert.NoError(t, err)
+		assert.Contains(t, resp, "ID:[PRIMES]")
+		assert.Contains(t, resp, `"type": "Epic"`)
+		assert.Contains(t, resp, "https://github.com/test/repo")
+		// Should NOT contain python code
+		assert.NotContains(t, resp, "def is_prime")
+	})
 
-	if err != nil {
-		t.Fatalf("Send failed: %v", err)
-	}
+	t.Run("Coding Execution", func(t *testing.T) {
+		prompt := `You are a Coding Agent...
+Task: Implement primes.py to print prime numbers.
+`
+		resp, err := agent.Send(ctx, prompt)
+		assert.NoError(t, err)
+		assert.Contains(t, resp, "def is_prime")
+		assert.Contains(t, resp, "git commit")
+		// Should NOT contain JSON ticket structure
+		assert.NotContains(t, resp, `"type": "Epic"`)
+	})
 
-	if !strings.Contains(response, "Mock agent response") {
-		t.Errorf("Response missing prefix, got: %s", response)
-	}
-
-	if !strings.Contains(response, "I received your prompt") {
-		t.Errorf("Response missing body, got: %s", response)
-	}
-}
-
-func TestTruncateString(t *testing.T) {
-	s := "hello world"
-	if truncateString(s, 5) != "hello" {
-		t.Errorf("Expected 'hello', got '%s'", truncateString(s, 5))
-	}
-	if truncateString(s, 20) != "hello world" {
-		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
-	}
+	t.Run("Initializer", func(t *testing.T) {
+		prompt := `You are the Initializer Agent... initialize the project features.`
+		resp, err := agent.Send(ctx, prompt)
+		assert.NoError(t, err)
+		assert.Contains(t, resp, "agent-bridge import")
+	})
 }
