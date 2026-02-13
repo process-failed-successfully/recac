@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"recac/internal/runner"
+	"sync"
 	"testing"
 	"time"
 
@@ -31,6 +32,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 
 	ctx := context.Background()
 
+	var doneOnce sync.Once
 	done := make(chan struct{})
 
 	// 1. Mock RunContainer
@@ -46,11 +48,12 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Run(func(args mock.Arguments) {
 		cmd := args.Get(2).([]string)
 		// cmd is ["/bin/sh", "-c", "actual command"]
-		execCalled <- cmd[2]
+		if len(cmd) > 2 {
+			execCalled <- cmd[2]
+		}
 	}).Return("output", nil)
 
 	// 4. Mock LoadSession (Return success, Status=running)
-	// This session state is used as the base for the final update.
 	mockSM.On("LoadSession", "TICKET-1").Return(&runner.SessionState{
 		Status: "running",
 	}, nil)
@@ -62,7 +65,9 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
 		return s.Status == "completed"
 	})).Run(func(args mock.Arguments) {
-		close(done)
+		doneOnce.Do(func() {
+			close(done)
+		})
 	}).Return(nil)
 
 	// Run Spawn
@@ -72,6 +77,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	// Verify Exec called with correct flags
 	select {
 	case cmdStr := <-execCalled:
+		t.Logf("Captured Command: %s", cmdStr)
 		assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
 		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
 	case <-time.After(30 * time.Second):
