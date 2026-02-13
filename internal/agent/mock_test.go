@@ -28,14 +28,21 @@ func TestMockAgent(t *testing.T) {
 func TestMockAgent_Heuristics(t *testing.T) {
 	agent := NewMockAgent()
 
-	// 1. Test Ticket Planning
+	// 1. Test Completion Signal (Highest Priority)
+	completionPrompt := "On branch agent/123\nYour branch is up to date.\nnothing to commit, working tree clean\nEverything up-to-date\n"
+	compResp, _ := agent.Send(context.Background(), completionPrompt)
+	if !strings.Contains(compResp, "agent-bridge signal PROJECT_SIGNED_OFF true") {
+		t.Errorf("Expected completion signal for 'nothing to commit', got: %s", compResp)
+	}
+
+	// 2. Test Ticket Planning
 	planPrompt := "You are a Technical Program Manager. Please generate ticket..."
 	planResp, _ := agent.Send(context.Background(), planPrompt)
 	if !strings.Contains(planResp, "\"id\": \"[PRIMES]\"") {
 		t.Errorf("Expected JSON ticket list for planning prompt, got: %s", planResp)
 	}
 
-	// 2. Test Execution (Prime Python)
+	// 3. Test Execution (Prime Python)
 	execPrompt := "Write a python script to calculate prime numbers."
 	execResp, _ := agent.Send(context.Background(), execPrompt)
 	if !strings.Contains(execResp, "def is_prime(n):") {

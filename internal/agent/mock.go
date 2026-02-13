@@ -34,7 +34,15 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristics for E2E scenarios
 	lowerPrompt := strings.ToLower(prompt)
 
-	// 1. Ticket Planning Phase (TPM Role)
+	// 1. Completion Check (Success Signals from git/output)
+	// If the previous command output (included in prompt) indicates success or no changes, we signal completion.
+	// This prevents infinite loops in E2E tests where the mock agent blindly repeats instructions.
+	if strings.Contains(lowerPrompt, "nothing to commit, working tree clean") ||
+		strings.Contains(lowerPrompt, "everything up-to-date") {
+		return "Task completed. Signaling success.\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
+	}
+
+	// 2. Ticket Planning Phase (TPM Role)
 	// Trigger on "technical program manager" or "generate ticket"
 	if strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "generate ticket") {
 		// Extract repo URL from prompt if possible, or use a placeholder
@@ -53,7 +61,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, repoURL), nil
 	}
 
-	// 2. Execution Phase (Coding Agent)
+	// 3. Execution Phase (Coding Agent)
 	// Prime Python Scenario - triggers when asked to write code
 	// We check for "prime" and "python" BUT NOT "generate ticket" to avoid conflict with planning
 	if strings.Contains(lowerPrompt, "prime") && strings.Contains(lowerPrompt, "python") {
