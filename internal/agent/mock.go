@@ -34,7 +34,52 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristics for E2E scenarios
 	lowerPrompt := strings.ToLower(prompt)
 
-	// 1. Ticket Planning Phase (TPM Role)
+	// 1. Execution Phase (Coding Agent)
+	// We prioritize the explicit role "coding agent" to prevent false positives from history
+	if strings.Contains(lowerPrompt, "coding agent") {
+		// Prime Python Scenario
+		if strings.Contains(lowerPrompt, "prime") {
+			return `I will create a python script to calculate primes.
+
+` + "```bash" + `
+cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n <= 1: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0: return False
+    return True
+
+primes = []
+for i in range(10000):
+    if is_prime(i):
+        primes.append(i)
+
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+
+print(f"Found {len(primes)} primes")
+EOF
+
+git add primes.py primes.json
+git commit -m "Add primes script"
+git push origin HEAD
+` + "```", nil
+		}
+	}
+
+	// 2. QA Agent
+	if strings.Contains(lowerPrompt, "qa agent") {
+		return "```bash\nagent-bridge signal QA_PASSED true\n```", nil
+	}
+
+	// 3. Project Manager
+	if strings.Contains(lowerPrompt, "project manager") {
+		return "```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
+	}
+
+	// 4. Ticket Planning Phase (TPM Role)
 	// Trigger on "technical program manager" or "generate ticket"
 	if strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "generate ticket") {
 		// Extract repo URL from prompt if possible, or use a placeholder
@@ -53,9 +98,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, repoURL), nil
 	}
 
-	// 2. Execution Phase (Coding Agent)
-	// Prime Python Scenario - triggers when asked to write code
-	// We check for "prime" to avoid conflict with planning (feature description might lack "python")
+	// 5. Fallback Execution (Legacy/Unit Tests without Role Header)
+	// We check for "prime" (and optionally "python" though we relaxed it) to support unit tests
 	if strings.Contains(lowerPrompt, "prime") {
 		return `I will create a python script to calculate primes.
 
