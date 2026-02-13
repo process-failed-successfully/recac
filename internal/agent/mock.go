@@ -48,9 +48,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Heuristic: Task Execution for Prime Python Scenario
-	// We look for the task description in the prompt
-	if strings.Contains(prompt, "Implement a python script named 'primes.py'") {
-		// Return bash script to do the work
+	// We look for the task description in the prompt. We use a more relaxed match to handle variations.
+	if strings.Contains(prompt, "primes.py") && (strings.Contains(prompt, "python") || strings.Contains(prompt, "ID:[PRIMES]")) {
+		// Return bash script to do the work and SIGNAL COMPLETION
 		return `I will create the python script to calculate primes.
 
 ` + "```bash" + `
@@ -75,12 +75,13 @@ with open('primes.json', 'w') as f:
 EOF
 ` + "```" + `
 
-Now I will run the script and commit the results.
+Now I will run the script, commit the results, and signal completion.
 
 ` + "```bash" + `
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes script and output" --allow-empty
+agent-bridge signal PROJECT_SIGNED_OFF true
 ` + "```" + `
 `, nil
 	}

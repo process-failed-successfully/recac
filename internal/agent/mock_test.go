@@ -47,6 +47,9 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	if !strings.Contains(execResp, "cat << 'EOF' > primes.py") {
 		t.Errorf("Expected bash script execution, got: %s", execResp)
 	}
+	if !strings.Contains(execResp, "agent-bridge signal PROJECT_SIGNED_OFF true") {
+		t.Errorf("Expected completion signal in response, got: %s", execResp)
+	}
 }
 
 func TestTruncateString(t *testing.T) {
