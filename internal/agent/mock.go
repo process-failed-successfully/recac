@@ -53,7 +53,15 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, repoURL), nil
 	}
 
-	// 2. Execution Phase (Coding Agent)
+	// 2. Completion Check
+	// If the previous command resulted in "nothing to commit" or "working tree clean",
+	// it means the task is already done. We should signal completion.
+	// We check for "prime" to ensure we are in the context of the prime task.
+	if strings.Contains(lowerPrompt, "prime") && (strings.Contains(lowerPrompt, "nothing to commit") || strings.Contains(lowerPrompt, "working tree clean")) {
+		return "Great! The work is done. Marking feature as complete.\n\n```bash\nagent-bridge feature set \"[PRIMES]\" --status done --passes true\n```", nil
+	}
+
+	// 3. Execution Phase (Coding Agent)
 	// Prime Python Scenario - triggers when asked to write code
 	// We check for "prime" and "python" BUT NOT "generate ticket" to avoid conflict with planning
 	if strings.Contains(lowerPrompt, "prime") && strings.Contains(lowerPrompt, "python") {

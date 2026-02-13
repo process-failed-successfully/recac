@@ -41,6 +41,13 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	if !strings.Contains(execResp, "def is_prime(n):") {
 		t.Errorf("Expected python code for execution prompt, got: %s", execResp)
 	}
+
+	// 3. Test Completion (Prime + Nothing to commit)
+	completionPrompt := "I ran the python script to calculate prime numbers. Result: nothing to commit, working tree clean"
+	compResp, _ := agent.Send(context.Background(), completionPrompt)
+	if !strings.Contains(compResp, "agent-bridge feature set \"[PRIMES]\" --status done") {
+		t.Errorf("Expected completion command for 'nothing to commit', got: %s", compResp)
+	}
 }
 
 func TestTruncateString(t *testing.T) {
