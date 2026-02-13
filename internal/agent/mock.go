@@ -76,9 +76,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	isCoding := strings.Contains(lowerPrompt, "software engineer") || strings.Contains(lowerPrompt, "developer") || !strings.Contains(lowerPrompt, "program manager")
 
 	if (strings.Contains(lowerPrompt, "primes") || strings.Contains(lowerPrompt, "prime number")) && isCoding {
-		return `I will implement the prime number generator.
+		codeBlock := "```"
+		return fmt.Sprintf(`I will implement the prime number generator.
 
-```python
+%spython
 # primes.py
 def is_prime(n):
     if n <= 1:
@@ -92,9 +93,9 @@ if __name__ == "__main__":
     for i in range(100):
         if is_prime(i):
             print(i)
-```
+%s
 
-```bash
+%sbash
 # Write the file
 cat <<EOF > primes.py
 def is_prime(n):
@@ -117,7 +118,7 @@ git commit -m "feat: implement prime number generator"
 
 # Update feature status
 agent-bridge feature set PRIMES --status Done --passes true
-````, nil
+%s`, codeBlock, codeBlock, codeBlock, codeBlock), nil
 	}
 
 	// Default fallback
