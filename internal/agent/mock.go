@@ -44,7 +44,31 @@ echo '{"features": ["prime-python"]}' | agent-bridge import
 ` + "```", nil
 	}
 
-	// Heuristic for Prime Python Scenario
+	// Heuristic for TPM Agent (Planning)
+	if strings.Contains(promptLower, "technical program manager") || strings.Contains(promptLower, "generate ticket") {
+		repoURL := "https://github.com/example/repo"
+		// Try to extract repo url from prompt if possible, otherwise use default
+		if parts := strings.Split(prompt, "Repo: "); len(parts) > 1 {
+			repoURL = strings.TrimSpace(parts[1])
+		}
+
+		return fmt.Sprintf(`[
+  {
+    "title": "ID:[PRIMES] Implement Prime Number Script",
+    "description": "Create a python script that calculates prime numbers. Repo: %s",
+    "type": "Story",
+    "acceptance_criteria": [
+      "Script named primes.py created",
+      "Calculates primes under 10000",
+      "Outputs to primes.json"
+    ],
+    "children": []
+  }
+]`, repoURL), nil
+	}
+
+	// Heuristic for Prime Python Scenario (Execution)
+	// We check for "primes.py" but ONLY if it's NOT the planning phase
 	if strings.Contains(promptLower, "primes.py") || strings.Contains(promptLower, "prime numbers") {
 		return `
 I'll create the primes.py script for you.
