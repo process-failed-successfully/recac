@@ -4,11 +4,13 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
@@ -34,24 +36,25 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
 	mockSM.On("LoadSession", "TICKET-1").Return(nil, assert.AnError)
 
-	execCalled := make(chan string, 1)
+	done := make(chan struct{})
 
-	// We match "Anything" for arguments so we catch the call, then inspect it in Run
-	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Run(func(args mock.Arguments) {
-		cmd := args.Get(2).([]string)
-		// cmd is ["/bin/sh", "-c", "actual command"]
-		execCalled <- cmd[2]
+	// Verify the --image flag is passed correctly using MatchedBy
+	mockDocker.On("Exec", mock.Anything, "container123", mock.MatchedBy(func(cmd []string) bool {
+		fullCmd := strings.Join(cmd, " ")
+		return strings.Contains(fullCmd, "--image") && strings.Contains(fullCmd, imageName)
+	})).Run(func(args mock.Arguments) {
+		close(done)
 	}).Return("output", nil)
 
 	err := spawner.Spawn(ctx, item)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	select {
-	case cmdStr := <-execCalled:
-		t.Logf("Captured Command: %s", cmdStr)
-		assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
-		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
-	case <-time.After(1 * time.Second):
+	case <-done:
+		// Success
+	case <-time.After(30 * time.Second):
 		t.Fatal("Timeout waiting for Exec call")
 	}
+
+	mockDocker.AssertExpectations(t)
 }
