@@ -520,7 +520,32 @@ func waitForJob(ns, namePrefix string, timeout time.Duration) (string, error) {
 }
 
 func waitForJobCompletion(ns, jobName string, timeout time.Duration) error {
-	return runCommand("kubectl", "wait", "--for=condition=complete", jobName, "-n", ns, "--timeout", fmt.Sprintf("%.0fs", timeout.Seconds()))
+	// Wait for either Complete or Failed condition
+	// We run two wait commands in parallel or sequentially. Since 'wait' blocks, we can try waiting for completion,
+	// but if it fails, we should check if it failed.
+	// Actually, kubectl wait doesn't support OR logic directly in one command for conditions (it waits for ALL if multiple).
+	// So we'll use a polling loop with `kubectl get job` to check status.
+
+	start := time.Now()
+	for time.Since(start) < timeout {
+		cmd := exec.Command("kubectl", "get", jobName, "-n", ns, "-o", "jsonpath={.status.conditions[?(@.type=='Complete')].status},{.status.conditions[?(@.type=='Failed')].status}")
+		out, err := cmd.Output()
+		if err == nil {
+			status := string(out)
+			if strings.Contains(status, "True") {
+				// Check which one
+				if strings.HasPrefix(status, "True") {
+					return nil // Complete
+				}
+				// If the second part is True (Failed)
+				if strings.Contains(status, ",True") {
+					return fmt.Errorf("job failed")
+				}
+			}
+		}
+		time.Sleep(5 * time.Second)
+	}
+	return fmt.Errorf("timeout waiting for job %s to complete", jobName)
 }
 
 func printLogs(ns, selector string) {
