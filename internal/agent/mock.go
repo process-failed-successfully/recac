@@ -34,6 +34,17 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	lowerPrompt := strings.ToLower(prompt)
 
+	// Idempotency check: If git commit says "nothing to commit", we are done with this step
+	if strings.Contains(lowerPrompt, "nothing to commit") {
+		return `
+It seems the code is already up to date. I will signal completion.
+
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
 	// Heuristic 1: Initializer Agent
 	if strings.Contains(lowerPrompt, "initializer agent") {
 		return `

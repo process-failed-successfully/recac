@@ -12,15 +12,6 @@ import (
 	"recac/internal/telemetry"
 )
 
-// MockDockerForExec mocks DockerClient for testing execution logic
-type MockDockerForExec struct {
-	MockDockerClient
-}
-
-func (m *MockDockerForExec) Exec(ctx context.Context, containerID string, cmd []string) (string, int, error) {
-	return "mock output", 0, nil
-}
-
 func TestSession_RunLoop_UIVerification(t *testing.T) {
 	// 1. Create a temp directory
 	tmpDir, err := os.MkdirTemp("", "ui_test")
