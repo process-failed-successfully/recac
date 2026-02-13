@@ -34,7 +34,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic 1: Initializer Agent (Feature Import)
 	if strings.Contains(strings.ToLower(prompt), "initializer agent") {
-		return "```bash\necho '{\"features\": [\"prime-script\"]}' | agent-bridge import\n```", nil
+		return "```bash\necho '{\"features\": [{\"id\": \"prime-script\", \"description\": \"Implement prime script\", \"status\": \"pending\"}]}' | agent-bridge import\n```", nil
 	}
 
 	// Heuristic 2: TPM Agent (Ticket Generation)
