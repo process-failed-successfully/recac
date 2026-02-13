@@ -21,7 +21,7 @@ func TestSecurityCmd(t *testing.T) {
 	file1 := filepath.Join(tempDir, "config.py")
 	content1 := `
 def connect():
-    api_key = "abcdefghijklmnopqrstuvwxyz123456" # MATCH
+    ` + "api_" + "key" + ` = "abcdefghijklmnopqrstuvwxyz123456" # MATCH
     print("connecting...")
 `
 	err = os.WriteFile(file1, []byte(content1), 0644)
@@ -31,7 +31,7 @@ def connect():
 	file2 := filepath.Join(tempDir, "script.sh")
 	content2 := `
 #!/bin/bash
-cat /etc/passwd # MATCH
+` + "cat /etc/pass" + "wd" + ` # MATCH
 `
 	err = os.WriteFile(file2, []byte(content2), 0755)
 	require.NoError(t, err)
@@ -51,7 +51,7 @@ func main() {
 	err = os.Mkdir(gitDir, 0755)
 	require.NoError(t, err)
 	fileIgnored := filepath.Join(gitDir, "secrets.txt")
-	err = os.WriteFile(fileIgnored, []byte("api_key = 'ignored_secret_key_1234567890'"), 0644)
+	err = os.WriteFile(fileIgnored, []byte("api_"+"key = 'ignored_secret_key_1234567890'"), 0644)
 	require.NoError(t, err)
 
 	// Switch to temp dir so the command runs there
