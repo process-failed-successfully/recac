@@ -55,26 +55,32 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 2. Execution Phase (Coding Agent)
 	// Prime Python Scenario - triggers when asked to write code
-	// We check for "prime" and "python" BUT NOT "generate ticket" to avoid conflict with planning
-	if strings.Contains(lowerPrompt, "prime") && strings.Contains(lowerPrompt, "python") {
+	// We check for "prime" to avoid conflict with planning (feature description might lack "python")
+	if strings.Contains(lowerPrompt, "prime") {
 		return `I will create a python script to calculate primes.
 
 ` + "```bash" + `
 cat << 'EOF' > primes.py
+import json
+
 def is_prime(n):
     if n <= 1: return False
     for i in range(2, int(n**0.5) + 1):
         if n % i == 0: return False
     return True
 
-count = 0
+primes = []
 for i in range(10000):
     if is_prime(i):
-        count += 1
-print(f"Found {count} primes")
+        primes.append(i)
+
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+
+print(f"Found {len(primes)} primes")
 EOF
 
-git add primes.py
+git add primes.py primes.json
 git commit -m "Add primes script"
 git push origin HEAD
 ` + "```", nil
