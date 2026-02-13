@@ -80,12 +80,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 3. Coding Agent (Implementation)
 	if strings.Contains(prompt, "YOUR ROLE - CODING AGENT") || strings.Contains(prompt, "prime") || strings.Contains(prompt, "python") {
 		// Check if we already committed (to avoid infinite loop)
-		if strings.Contains(prompt, "Add primes script") && strings.Contains(prompt, "Success") {
+		if strings.Contains(prompt, "Add primes script") && (strings.Contains(prompt, "git commit") || strings.Contains(prompt, "Success")) {
 			// Work is done. Signal completion via agent-bridge.
 			// Ensure the feature exists before setting status (idempotent import)
 			return "```bash\n" +
-				`echo '{"features": [{"id": "primes-script", "name": "Implement Primes Script", "type": "Story", "status": "in_progress", "project": "PRIMES"}]}' | agent-bridge import --project "$RECAC_PROJECT_ID" && ` +
-				`agent-bridge feature set primes-script --status completed --passes true --project "$RECAC_PROJECT_ID"` +
+				`agent-bridge feature set primes-script --status completed --passes true --project "$RECAC_PROJECT_ID" && ` +
+				`agent-bridge signal PROJECT_SIGNED_OFF true --privileged` +
 				"\n```\nTask Completed.", nil
 		}
 
