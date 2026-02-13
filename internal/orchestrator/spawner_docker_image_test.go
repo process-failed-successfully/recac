@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"recac/internal/runner"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -28,11 +30,13 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	}
 
 	ctx := context.Background()
+	done := make(chan struct{})
 
 	// Mock expectations
 	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
-	mockSM.On("SaveSession", mock.Anything).Return(nil)
-	mockSM.On("LoadSession", "TICKET-1").Return(nil, assert.AnError)
+
+	// First SaveSession call (initial)
+	mockSM.On("SaveSession", mock.Anything).Return(nil).Once()
 
 	execCalled := make(chan string, 1)
 
@@ -43,9 +47,22 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		execCalled <- cmd[2]
 	}).Return("output", nil)
 
+	// LoadSession called after Exec
+	mockSM.On("LoadSession", "TICKET-1").Return(&runner.SessionState{}, nil)
+
+	// CurrentCommitSHA called after LoadSession
+	// Return error so we don't need to mock actual git output or check subsequent steps dependent on success
+	mockGit.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("", assert.AnError)
+
+	// Final SaveSession call - signals completion
+	mockSM.On("SaveSession", mock.Anything).Run(func(args mock.Arguments) {
+		close(done)
+	}).Return(nil).Once()
+
 	err := spawner.Spawn(ctx, item)
 	assert.NoError(t, err)
 
+	// Verify Exec call
 	select {
 	case cmdStr := <-execCalled:
 		t.Logf("Captured Command: %s", cmdStr)
@@ -53,5 +70,13 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
 	case <-time.After(30 * time.Second):
 		t.Fatal("Timeout waiting for Exec call")
+	}
+
+	// Verify completion
+	select {
+	case <-done:
+		// Success
+	case <-time.After(30 * time.Second):
+		t.Fatal("Timeout waiting for final SaveSession (goroutine completion)")
 	}
 }
