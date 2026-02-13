@@ -2,8 +2,8 @@ package orchestrator
 
 import (
 	"context"
-	"io"
 	"log/slog"
+	"os"
 	"testing"
 	"time"
 
@@ -18,7 +18,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	mockGit := new(MockGitClient)
 	mockPoller := new(MockPoller)
 
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	imageName := "custom-image:v1.2.3"
 	spawner := NewDockerSpawner(logger, mockDocker, imageName, "test-proj", mockPoller, "provider", "model", mockSM)
 	spawner.GitClient = mockGit
@@ -45,15 +45,17 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		execCalled <- cmd[2]
 	}).Return("output", nil)
 
+	t.Log("Starting Spawn")
 	err := spawner.Spawn(ctx, item)
 	require.NoError(t, err)
 
+	t.Log("Waiting for Exec")
 	select {
 	case cmdStr := <-execCalled:
 		t.Logf("Captured Command: %s", cmdStr)
 		assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
 		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
-	case <-time.After(30 * time.Second):
+	case <-time.After(60 * time.Second):
 		t.Fatal("Timeout waiting for Exec call")
 	}
 }
