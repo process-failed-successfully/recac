@@ -52,6 +52,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic 3: Coding Agent (Primes Implementation)
 	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "PRIMES") {
+		// Check if we are in the "completion" check phase (feature status update)
+		if strings.Contains(prompt, "status") || strings.Contains(prompt, "update feature") {
+			return "```bash\nagent-bridge feature set prime-script --status done --passes true\n```", nil
+		}
+
 		return `Here is the python script to calculate primes:
 
 ` + "```python" + `
@@ -75,7 +80,18 @@ And the command to run and commit:
 python3 primes.py
 git add -f primes.py primes.json
 git commit -m "feat: add primes script"
+agent-bridge feature set prime-script --status done --passes true
 ` + "```", nil
+	}
+
+	// Heuristic 4: QA Agent
+	if strings.Contains(prompt, "QA Agent") || strings.Contains(prompt, "Quality Assurance") {
+		return "```bash\nagent-bridge signal QA_PASSED true --privileged\n```\nQA checks passed.", nil
+	}
+
+	// Heuristic 5: Manager
+	if strings.Contains(prompt, "Manager") || strings.Contains(prompt, "Project Manager") {
+		return "```bash\nagent-bridge signal PROJECT_SIGNED_OFF true --privileged\n```\nProject approved.", nil
 	}
 
 	// Default Response
