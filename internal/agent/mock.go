@@ -34,7 +34,36 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristics for E2E scenarios
 	lowerPrompt := strings.ToLower(prompt)
 
-	// Prime Python Scenario
+	// TPM / Planning Phase (Generate Tickets)
+	// The prompt will contain "Technical Program Manager" or similar context
+	if strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "generate ticket") {
+		// Extract Repo URL if possible to make the ticket description valid
+		repoURL := "https://github.com/example/repo"
+		if idx := strings.LastIndex(prompt, "Repo: "); idx != -1 {
+			start := idx + 6
+			if start < len(prompt) {
+				remaining := prompt[start:]
+				if end := strings.IndexAny(remaining, "\n\r"); end != -1 {
+					repoURL = strings.TrimSpace(remaining[:end])
+				} else {
+					repoURL = strings.TrimSpace(remaining)
+				}
+				// Clean any Markdown formatting artifacts
+				repoURL = strings.TrimRight(repoURL, "`")
+			}
+		}
+
+		// Return JSON for [PRIMES] task
+		return fmt.Sprintf(`[
+  {
+    "title": "ID:[PRIMES] Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'. Repo: %s",
+    "type": "Task"
+  }
+]`, repoURL), nil
+	}
+
+	// Prime Python Scenario (Execution Phase)
 	if strings.Contains(lowerPrompt, "prime") && strings.Contains(lowerPrompt, "python") {
 		return `I will create a python script to calculate primes.
 
