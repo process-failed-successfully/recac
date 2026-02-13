@@ -54,6 +54,15 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Execution Phase (Coding Agent)
+	// Detect completion (Idempotency check)
+	if strings.Contains(lowerPrompt, "nothing to commit, working tree clean") {
+		return `It seems the work is already done and committed. I will signal completion.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged
+` + "```", nil
+	}
+
 	// Prime Python Scenario - triggers when asked to write code
 	// We check for "prime" and "python" BUT NOT "generate ticket" to avoid conflict with planning
 	if strings.Contains(lowerPrompt, "prime") && strings.Contains(lowerPrompt, "python") {
