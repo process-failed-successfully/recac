@@ -34,27 +34,38 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	// Mock expectations
 	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
-	mockSM.On("LoadSession", "TICKET-1").Return(nil, assert.AnError)
 
 	done := make(chan struct{})
 
-	// Verify the --image flag is passed correctly using MatchedBy
-	mockDocker.On("Exec", mock.Anything, "container123", mock.MatchedBy(func(cmd []string) bool {
-		fullCmd := strings.Join(cmd, " ")
-		return strings.Contains(fullCmd, "--image") && strings.Contains(fullCmd, imageName)
-	})).Run(func(args mock.Arguments) {
-		close(done)
+	// Capture the command passed to Exec. We use mock.Anything for arguments to avoid strict matching
+	// inside the goroutine, which can cause timeouts if the match fails silently (Run hook not called).
+	var capturedCmd []string
+	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Run(func(args mock.Arguments) {
+		capturedCmd = args.Get(2).([]string)
 	}).Return("output", nil)
+
+	// Synchronize on LoadSession, which is the final expected call in the goroutine when Exec succeeds (but LoadSession fails).
+	// This ensures that Exec has completed before we assert on capturedCmd.
+	mockSM.On("LoadSession", "TICKET-1").Run(func(args mock.Arguments) {
+		close(done)
+	}).Return(nil, assert.AnError)
 
 	err := spawner.Spawn(ctx, item)
 	require.NoError(t, err)
 
 	select {
 	case <-done:
-		// Success
-	case <-time.After(30 * time.Second):
-		t.Fatal("Timeout waiting for Exec call")
+		// Success: goroutine completed up to LoadSession
+	case <-time.After(5 * time.Second):
+		t.Fatal("Timeout waiting for LoadSession call")
 	}
 
+	// Verify captured arguments in the main thread
+	require.NotEmpty(t, capturedCmd, "Exec should have been called")
+	fullCmd := strings.Join(capturedCmd, " ")
+	assert.Contains(t, fullCmd, "--image", "Command should contain --image flag")
+	assert.Contains(t, fullCmd, imageName, "Command should contain the correct image name")
+
 	mockDocker.AssertExpectations(t)
+	mockSM.AssertExpectations(t)
 }
