@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"sync"
 	"testing"
 	"time"
 
@@ -29,10 +30,20 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 
 	ctx := context.Background()
 
+	// Synchronization channel to ensure goroutine completes
+	done := make(chan struct{})
+	var once sync.Once
+
 	// Mock expectations
 	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
-	mockSM.On("LoadSession", "TICKET-1").Return(nil, assert.AnError)
+
+	// Use .Run() to signal completion of the background goroutine
+	mockSM.On("LoadSession", "TICKET-1").Run(func(_ mock.Arguments) {
+		once.Do(func() {
+			close(done)
+		})
+	}).Return(nil, assert.AnError)
 
 	execCalled := make(chan string, 1)
 
@@ -47,11 +58,17 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	assert.NoError(t, err)
 
 	select {
-	case cmdStr := <-execCalled:
-		t.Logf("Captured Command: %s", cmdStr)
-		assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
-		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
+	case <-done:
+		// Ensure Exec was called before LoadSession
+		select {
+		case cmdStr := <-execCalled:
+			t.Logf("Captured Command: %s", cmdStr)
+			assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
+			assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
+		default:
+			t.Fatal("Exec was not called before LoadSession")
+		}
 	case <-time.After(30 * time.Second):
-		t.Fatal("Timeout waiting for Exec call")
+		t.Fatal("Timeout waiting for LoadSession call")
 	}
 }
