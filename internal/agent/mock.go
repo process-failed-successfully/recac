@@ -67,8 +67,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return "```bash\n" + `cat << 'EOF' | agent-bridge import
 {
   "features": [
-    {"description": "Calculate prime numbers", "status": "pending"},
-    {"description": "Handle invalid input", "status": "pending"}
+    {"id": "feat-1", "description": "Calculate prime numbers", "status": "pending"},
+    {"id": "feat-2", "description": "Handle invalid input", "status": "pending"}
   ]
 }
 EOF` + "\n```", nil
@@ -117,9 +117,12 @@ try:
     out = subprocess.check_output(["agent-bridge", "feature", "list"])
     data = json.loads(out)
     for f in data.get("features", []):
-        subprocess.call(["agent-bridge", "feature", "set", f["id"], "--status", "done", "--passes", "true"])
+        try:
+            subprocess.call(["agent-bridge", "feature", "set", f["id"], "--status", "done", "--passes", "true"])
+        except Exception as inner:
+            print(f"Error updating feature {f}: {inner}")
 except Exception as e:
-    print(f"Error updating features: {e}")
+    print(f"Error listing features: {e}")
 '
 
 # Signal completion
