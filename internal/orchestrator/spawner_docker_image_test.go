@@ -36,6 +36,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 
 	// Synchronization
 	done := make(chan struct{})
+	execChan := make(chan []string, 1) // Buffered channel to prevent blocking
 	var once sync.Once
 
 	// Mock expectations
@@ -45,7 +46,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	// Close done channel when LoadSession is called.
 	// Note: In DockerSpawner.Spawn, LoadSession is called inside the goroutine *after* Exec completes (or fails).
 	// Synchronizing on LoadSession ensures that the goroutine has progressed past the Exec call, allowing
-	// the Exec mock expectation (MatchedBy) to be validated fully before the test exits.
+	// the Exec mock expectation to be validated fully before the test exits.
 	// Since we mock LoadSession to return an error, the goroutine exits early here, making it the final call.
 	mockSM.On("LoadSession", "TICKET-1").Run(func(args mock.Arguments) {
 		once.Do(func() {
@@ -53,22 +54,29 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		})
 	}).Return(nil, assert.AnError)
 
-	// Validate Exec arguments using MatchedBy
-	mockDocker.On("Exec", mock.Anything, "container123", mock.MatchedBy(func(cmd []string) bool {
-		// cmd is ["/bin/sh", "-c", "actual command"]
-		if len(cmd) < 3 {
-			return false
-		}
-		cmdStr := cmd[2]
-		return assert.Contains(t, cmdStr, "--image") && assert.Contains(t, cmdStr, imageName)
-	})).Return("output", nil)
+	// Capture Exec arguments using Run hook instead of MatchedBy to avoid race conditions
+	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Run(func(args mock.Arguments) {
+		cmd := args.Get(2).([]string)
+		execChan <- cmd
+	}).Return("output", nil)
 
 	err := spawner.Spawn(ctx, item)
 	assert.NoError(t, err)
 
 	select {
 	case <-done:
-		// Success
+		// Success - Check if Exec captured arguments
+		select {
+		case cmd := <-execChan:
+			// cmd is ["/bin/sh", "-c", "actual command"]
+			if assert.Len(t, cmd, 3, "Exec command should have 3 parts") {
+				cmdStr := cmd[2]
+				assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
+				assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
+			}
+		default:
+			t.Fatal("Exec was expected to be called but no arguments were captured")
+		}
 	case <-time.After(30 * time.Second):
 		t.Fatal("Timeout waiting for LoadSession call (and consequently Exec call)")
 	}
