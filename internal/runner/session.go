@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -786,6 +787,14 @@ func (s *Session) loadFeatures() []db.Feature {
 		}
 		merged := existing
 		for _, f := range newFeatures {
+			// Self-healing: Ensure ID is not empty
+			if f.ID == "" {
+				s.Logger.Warn("feature has empty ID, generating fallback", "desc", f.Description)
+				// Generate a deterministic ID from description
+				hash := sha256.Sum256([]byte(f.Description))
+				f.ID = fmt.Sprintf("req-%x", hash[:8])
+			}
+
 			if !existMap[f.Description] {
 				merged = append(merged, f)
 			}

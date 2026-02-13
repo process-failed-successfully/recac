@@ -183,6 +183,13 @@ func extractRequiredFeatures(text string) []db.Feature {
 					slug = slug[:30]
 				}
 
+				// Ensure slug is not empty to prevent empty ID
+				if slug == "" {
+					// Fallback to random ID or hash if slug generation fails
+					// We use simple counter or timestamp for now, or just "req-unknown"
+					slug = "unknown"
+				}
+
 				f := db.Feature{
 					ID:          fmt.Sprintf("req-%s", slug),
 					Description: desc,
