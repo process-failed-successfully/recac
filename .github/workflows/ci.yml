@@ -375,5 +375,11 @@ jobs:
               console.log(`Successfully merged PR #${prNumber}`);
             } catch (error) {
               console.error(`Failed to process PR #${prNumber}:`, error.message);
+              // Don't fail the workflow if merge is blocked (e.g. by branch protection/permissions)
+              // This allows the CI to pass even if the bot cannot self-merge.
+              if (error.message.includes("not mergeable") || error.message.includes("not permitted")) {
+                console.warn(`Auto-merge skipped: ${error.message}`);
+                return; // Exit successfully
+              }
               core.setFailed(`Auto-merge failed: ${error.message}`);
             }
