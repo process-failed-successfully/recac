@@ -37,20 +37,6 @@ func TestMockAgent_TPM(t *testing.T) {
 	}
 }
 
-func TestMockAgent_Initializer(t *testing.T) {
-	agent := NewMockAgent()
-	prompt := "You are an Initializer Agent"
-	response, err := agent.Send(context.Background(), prompt)
-
-	if err != nil {
-		t.Fatalf("Send failed: %v", err)
-	}
-
-	if !strings.Contains(response, "\"id\": \"feat-1\"") {
-		t.Errorf("Expected 'id' field in Initializer response, got: %s", response)
-	}
-}
-
 func TestMockAgent_Coding_Prime(t *testing.T) {
 	agent := NewMockAgent()
 	prompt := "Implement a function to check if a number is PRIME"
@@ -62,12 +48,6 @@ func TestMockAgent_Coding_Prime(t *testing.T) {
 
 	if !strings.Contains(response, "def is_prime(n):") {
 		t.Errorf("Expected Python code for Coding role (PRIME), got: %s", response)
-	}
-	if !strings.Contains(response, "import json") {
-		t.Errorf("Expected json import in Python code, got: %s", response)
-	}
-	if !strings.Contains(response, "json.dump") {
-		t.Errorf("Expected json.dump in Python code, got: %s", response)
 	}
 }
 

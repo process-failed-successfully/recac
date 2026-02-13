@@ -779,6 +779,15 @@ func (s *Session) loadFeatures() []db.Feature {
 		s.Logger.Info("[DEBUG] No DBStore available for feature lookup")
 	}
 
+	// Ensure all features from DB have IDs (Self-healing for legacy/corrupt data)
+	for i := range fromDB {
+		if fromDB[i].ID == "" {
+			s.Logger.Warn("existing DB feature has empty ID, generating fallback", "desc", fromDB[i].Description)
+			hash := sha256.Sum256([]byte(fromDB[i].Description))
+			fromDB[i].ID = fmt.Sprintf("req-%x", hash[:8])
+		}
+	}
+
 	// Helper to merge features (DB wins on conflict, but we add new ones)
 	mergeFeatures := func(existing []db.Feature, newFeatures []db.Feature) []db.Feature {
 		existMap := make(map[string]bool)
