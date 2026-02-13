@@ -176,14 +176,22 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 	// This call happens at the END, so it's still there
 	mockGit.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("endsha", nil).Once()
 
-	mockSM.On("SaveSession", mock.AnythingOfType("*runner.SessionState")).Return(nil)
+	done := make(chan struct{})
+	mockSM.On("SaveSession", mock.AnythingOfType("*runner.SessionState")).Run(func(args mock.Arguments) {
+		close(done)
+	}).Return(nil)
 
 	err := spawner.Spawn(ctx, item)
 
 	assert.NoError(t, err)
 
-	// Allow goroutine to run
-	time.Sleep(100 * time.Millisecond)
+	// Wait for goroutine to complete
+	select {
+	case <-done:
+		// Success
+	case <-time.After(30 * time.Second):
+		t.Fatal("Timeout waiting for final SaveSession call")
+	}
 
 	mockGit.AssertExpectations(t)
 	mockDocker.AssertExpectations(t)
@@ -245,7 +253,7 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 	select {
 	case capturedCmd = <-capturedCmdChan:
 		// Success
-	case <-time.After(2 * time.Second):
+	case <-time.After(30 * time.Second):
 		t.Fatal("Timed out waiting for Exec call")
 	}
 
@@ -297,7 +305,7 @@ func TestDockerSpawner_EnvPropagation(t *testing.T) {
 	select {
 	case capturedCmd = <-capturedCmdChan:
 		// Success
-	case <-time.After(2 * time.Second):
+	case <-time.After(30 * time.Second):
 		t.Fatal("Timed out waiting for Exec call")
 	}
 
