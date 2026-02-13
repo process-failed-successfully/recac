@@ -55,6 +55,8 @@ func NewAgent(provider, apiKey, model, workDir, project string) (Agent, error) {
 		return NewOllamaClient(apiKey, model, project), nil
 	case "openrouter":
 		return NewOpenRouterClient(apiKey, model, project), nil
+	case "mock":
+		return NewMockAgent(), nil
 	case "cursor-cli":
 		return NewCursorCLIClient(apiKey, model, project), nil
 	case "opencode", "opencode-cli":
