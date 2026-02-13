@@ -4,6 +4,8 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"recac/internal/runner"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -30,45 +32,60 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Synchronization channel to ensure goroutine completes
+	// Synchronization: we wait for the FINAL SaveSession call
 	done := make(chan struct{})
 	var once sync.Once
 
-	// Mock expectations
+	// 1. RunContainer
 	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
-	mockSM.On("SaveSession", mock.Anything).Return(nil)
 
-	// Use .Run() to signal completion of the background goroutine
-	mockSM.On("LoadSession", "TICKET-1").Run(func(_ mock.Arguments) {
+	// 2. Initial SaveSession
+	// Matches any session state, returns nil
+	mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return s.Status == "running"
+	})).Return(nil)
+
+	// 3. Exec
+	// Verify --image flag here using MatchedBy
+	mockDocker.On("Exec", mock.Anything, "container123", mock.MatchedBy(func(cmd []string) bool {
+		if len(cmd) < 3 {
+			return false
+		}
+		cmdStr := cmd[2] // /bin/sh -c <cmdStr>
+		return strings.Contains(cmdStr, "--image") && strings.Contains(cmdStr, imageName)
+	})).Return("output", nil)
+
+	// 4. LoadSession
+	// Return a valid session to allow flow to continue
+	mockSM.On("LoadSession", "TICKET-1").Return(&runner.SessionState{
+		Name:   "TICKET-1",
+		Status: "running",
+	}, nil)
+
+	// 5. CurrentCommitSHA (called because flow continues)
+	mockGit.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("sha123", nil)
+
+	// 6. Final SaveSession
+	// This signals completion
+	mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return s.Status == "completed" && s.EndCommitSHA == "sha123"
+	})).Run(func(_ mock.Arguments) {
 		once.Do(func() {
 			close(done)
 		})
-	}).Return(nil, assert.AnError)
-
-	execCalled := make(chan string, 1)
-
-	// We match "Anything" for arguments so we catch the call, then inspect it in Run
-	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Run(func(args mock.Arguments) {
-		cmd := args.Get(2).([]string)
-		// cmd is ["/bin/sh", "-c", "actual command"]
-		execCalled <- cmd[2]
-	}).Return("output", nil)
+	}).Return(nil)
 
 	err := spawner.Spawn(ctx, item)
 	assert.NoError(t, err)
 
 	select {
 	case <-done:
-		// Ensure Exec was called before LoadSession
-		select {
-		case cmdStr := <-execCalled:
-			t.Logf("Captured Command: %s", cmdStr)
-			assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
-			assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
-		default:
-			t.Fatal("Exec was not called before LoadSession")
-		}
+		// Success
 	case <-time.After(30 * time.Second):
-		t.Fatal("Timeout waiting for LoadSession call")
+		t.Fatal("Timeout waiting for final SaveSession call")
 	}
+
+	mockDocker.AssertExpectations(t)
+	mockSM.AssertExpectations(t)
+	mockGit.AssertExpectations(t)
 }
