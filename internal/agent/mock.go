@@ -46,7 +46,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic 3: QA Agent
 	if strings.Contains(lowerPrompt, "qa agent") || strings.Contains(lowerPrompt, "approve or reject") {
-		return "QA_PASSED", nil
+		return "```bash\nagent-bridge signal QA_PASSED true\n```", nil
 	}
 
 	// Heuristic 4: Coding Agent (Primes Scenario)
