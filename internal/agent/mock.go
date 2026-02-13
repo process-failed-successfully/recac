@@ -35,30 +35,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	lowerPrompt := strings.ToLower(prompt)
 
-	// Heuristic for Planning Phase (Ticket Generation)
-	if strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "generate ticket") {
-		// Extract repo URL if possible to make tickets look realistic
-		repo := "https://github.com/org/repo"
-		re := regexp.MustCompile(`Repo: (https?://[^\s]+)`)
-		if matches := re.FindStringSubmatch(prompt); len(matches) > 1 {
-			repo = matches[1]
-		}
-
-		return fmt.Sprintf(`[
-  {
-    "title": "ID:[PRIMES] Implement prime number generator",
-    "description": "Create a Python script that generates prime numbers up to 10,000.\n\nRepo: %s",
-    "type": "Story",
-    "acceptance_criteria": [
-      "Script name: primes.py",
-      "Output file: primes.json"
-    ]
-  }
-]`, repo), nil
-	}
+	isPlanning := strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "generate ticket")
 
 	// Heuristic for 'prime-python' scenario (Execution Phase)
-	if strings.Contains(lowerPrompt, "prime") || strings.Contains(lowerPrompt, "primes.py") {
+	// Check this FIRST because it's specific to the active ticket.
+	// We check for specific ID or file, OR generic "prime" IF it's not a planning request.
+	if strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(lowerPrompt, "primes.py") || (strings.Contains(lowerPrompt, "prime") && !isPlanning) {
 		return `
 Sure, here is a Python script that calculates prime numbers up to 10,000 and writes them to a file named 'primes.json'.
 
@@ -79,6 +61,28 @@ with open("primes.json", "w") as f:
 print(f"Found {len(primes)} prime numbers.")
 ` + "```" + `
 `, nil
+	}
+
+	// Heuristic for Planning Phase (Ticket Generation)
+	if isPlanning {
+		// Extract repo URL if possible to make tickets look realistic
+		repo := "https://github.com/org/repo"
+		re := regexp.MustCompile(`Repo: (https?://[^\s]+)`)
+		if matches := re.FindStringSubmatch(prompt); len(matches) > 1 {
+			repo = matches[1]
+		}
+
+		return fmt.Sprintf(`[
+  {
+    "title": "ID:[PRIMES] Implement prime number generator",
+    "description": "Create a Python script that generates prime numbers up to 10,000.\n\nRepo: %s",
+    "type": "Story",
+    "acceptance_criteria": [
+      "Script name: primes.py",
+      "Output file: primes.json"
+    ]
+  }
+]`, repo), nil
 	}
 
 	// Heuristic for Project Manager / QA Sign-off
