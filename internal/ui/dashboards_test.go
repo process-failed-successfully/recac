@@ -147,6 +147,10 @@ func TestWizardModel_View_Steps(t *testing.T) {
 	res, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	m = res.(WizardModel)
 
+	// Ensure list has size to render title
+	res, _ = m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m = res.(WizardModel)
+
 	view = m.View()
 	// Step 2 is Provider
 	assert.Contains(t, view, "Select Agent Provider")
