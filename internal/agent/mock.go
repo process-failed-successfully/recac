@@ -73,7 +73,8 @@ echo '{"features": [{"id": "feat-1", "description": "Calculate primes", "status"
 		return `
 I will create a python script to generate prime numbers.
 
-` + "```python:primes.py" + `
+` + "```bash" + `
+cat <<EOF > primes.py
 def is_prime(n):
     if n <= 1:
         return False
@@ -89,9 +90,8 @@ while count < 100:
         print(num)
         count += 1
     num += 1
-` + "```" + `
+EOF
 
-` + "```bash" + `
 git add primes.py
 git commit -m "feat: add prime number generator"
 ` + "```" + `
