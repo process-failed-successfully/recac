@@ -252,6 +252,7 @@ jobs:
         uses: AbsaOSS/k3d-action@v2
         with:
           cluster-name: "recac-smoke"
+          k3d-version: "v5.7.4"
           args: >-
             --agents 1
             --no-lb
