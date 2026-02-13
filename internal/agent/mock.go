@@ -39,8 +39,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic for 'prime-python' scenario (Execution Phase)
 	// Check this FIRST because it's specific to the active ticket.
-	// We check for specific ID or file, OR generic "prime" IF it's not a planning request.
-	if strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(lowerPrompt, "primes.py") || (strings.Contains(lowerPrompt, "prime") && !isPlanning) {
+	// We check for specific ID (strong signal), OR file/keyword IF it's not a planning request (weak signal).
+	if strings.Contains(prompt, "ID:[PRIMES]") || ((strings.Contains(lowerPrompt, "primes.py") || strings.Contains(lowerPrompt, "prime")) && !isPlanning) {
 		return `
 Sure, here is a Python script that calculates prime numbers up to 10,000 and writes them to a file named 'primes.json'.
 
