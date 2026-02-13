@@ -60,12 +60,12 @@ echo '{"features":[{"id":"feat-1","category":"core","description":"Implement pri
 
 		return fmt.Sprintf(`[
   {
-    "title": "ID:[PRIMES] Prime Number Script",
+    "title": "Prime Number Project",
     "description": "Implement a Python script that calculates prime numbers. Repo: %s",
     "type": "Epic",
     "children": [
       {
-        "title": "Implement Primes Script",
+        "title": "ID:[PRIMES] Implement Primes Script",
         "description": "Create a python script that prints the first 10000 prime numbers. Repo: %s",
         "type": "Story",
         "acceptance_criteria": [
