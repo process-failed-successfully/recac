@@ -67,8 +67,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return "```bash\n" + `cat << 'EOF' | agent-bridge import
 {
   "features": [
-    {"description": "Calculate prime numbers", "status": "pending"},
-    {"description": "Handle invalid input", "status": "pending"}
+    {"id": "F1", "description": "Calculate prime numbers", "status": "pending"},
+    {"id": "F2", "description": "Handle invalid input", "status": "pending"}
   ]
 }
 EOF` + "\n```", nil
@@ -86,6 +86,7 @@ EOF` + "\n```", nil
 		// Return a bash script to implement the prime checker
 		return "```bash\n" + `cat << 'EOF' > primes.py
 import sys
+import json
 
 def is_prime(n):
     if n <= 1:
@@ -95,7 +96,11 @@ def is_prime(n):
             return False
     return True
 
+def get_primes(limit):
+    return [x for x in range(2, limit) if is_prime(x)]
+
 if __name__ == "__main__":
+    # If args provided, behave as checker (for backward compat or manual check)
     if len(sys.argv) > 1:
         try:
             num = int(sys.argv[1])
@@ -103,12 +108,16 @@ if __name__ == "__main__":
         except ValueError:
             print("Invalid input")
     else:
-        print("Usage: python3 primes.py <number>")
+        # Default behavior: Generate primes.json as requested by E2E spec
+        primes = get_primes(10000)
+        with open("primes.json", "w") as f:
+            json.dump({"primes": primes}, f)
+        print(f"Generated primes.json with {len(primes)} primes.")
 EOF
 
-# Verify it works
+# Verify it works (both modes)
 python3 primes.py 7
-python3 primes.py 10
+python3 primes.py
 
 # Mark features as done to prevent premature sign-off detection
 python3 -c '
