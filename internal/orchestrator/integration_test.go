@@ -161,7 +161,7 @@ func TestOrchestrator_Integration_JiraFlow(t *testing.T) {
 				mu.Lock()
 				defer mu.Unlock()
 
-				if r.URL.Path == "/rest/api/3/search/jql" {
+				if r.URL.Path == "/rest/api/3/search" {
 					var availableIssues []map[string]interface{}
 					for _, issue := range tc.mockIssues {
 						key := issue["key"].(string)

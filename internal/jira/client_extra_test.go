@@ -47,7 +47,7 @@ func TestDeleteIssue_Success(t *testing.T) {
 
 func TestSearchIssues_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/rest/api/3/search/jql" || r.Method != "GET" {
+		if r.URL.Path != "/rest/api/3/search" || r.Method != "GET" {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
@@ -68,7 +68,7 @@ func TestSearchIssues_Success(t *testing.T) {
 
 func TestLoadLabelIssues_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/rest/api/3/search/jql" {
+		if r.URL.Path != "/rest/api/3/search" {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}

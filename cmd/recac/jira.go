@@ -17,6 +17,8 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"text/tabwriter"
+
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v3"
 )
@@ -123,6 +125,73 @@ Or configure in config.yaml:
 			fmt.Println("Description: (empty)")
 		}
 	},
+}
+
+// jiraListCmd represents the jira list command
+var jiraListCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List Jira tickets",
+	Long:  "List Jira tickets matching a JQL query.",
+	RunE:  runJiraListCmd,
+}
+
+func runJiraListCmd(cmd *cobra.Command, args []string) error {
+	jql, _ := cmd.Flags().GetString("jql")
+	outputJSON, _ := cmd.Flags().GetBool("json")
+
+	ctx := context.Background()
+	client, err := cmdutils.GetJiraClient(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to create Jira client: %w", err)
+	}
+
+	issues, err := client.SearchIssues(ctx, jql)
+	if err != nil {
+		return fmt.Errorf("failed to search issues: %w", err)
+	}
+
+	if outputJSON {
+		data, err := json.MarshalIndent(issues, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal issues: %w", err)
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		return nil
+	}
+
+	if len(issues) == 0 {
+		fmt.Fprintln(cmd.OutOrStdout(), "No tickets found.")
+		return nil
+	}
+
+	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 3, ' ', 0)
+	fmt.Fprintln(w, "KEY\tSUMMARY\tSTATUS\tASSIGNEE\tUPDATED")
+
+	for _, issue := range issues {
+		key, _ := issue["key"].(string)
+		fields, _ := issue["fields"].(map[string]interface{})
+		summary, _ := fields["summary"].(string)
+
+		statusMap, _ := fields["status"].(map[string]interface{})
+		status, _ := statusMap["name"].(string)
+
+		assigneeMap, _ := fields["assignee"].(map[string]interface{})
+		assignee, _ := assigneeMap["displayName"].(string)
+		if assignee == "" {
+			assignee = "Unassigned"
+		}
+
+		updated, _ := fields["updated"].(string)
+		// Try to parse time to make it nicer?
+		if t, err := time.Parse("2006-01-02T15:04:05.000-0700", updated); err == nil {
+			updated = t.Format("2006-01-02 15:04")
+		}
+
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", key, truncateString(summary, 50), status, assignee, updated)
+	}
+	w.Flush()
+
+	return nil
 }
 
 // jiraTransitionCmd represents the jira transition command
@@ -627,6 +696,10 @@ func init() {
 	jiraTransitionCmd.Flags().String("transition", "", "Transition Name or ID (defaults to 'In Progress')")
 	jiraTransitionCmd.MarkFlagRequired("id")
 	jiraCmd.AddCommand(jiraTransitionCmd)
+
+	jiraListCmd.Flags().String("jql", "assignee = currentUser() ORDER BY updated DESC", "JQL query to filter tickets")
+	jiraListCmd.Flags().Bool("json", false, "Output in JSON format")
+	jiraCmd.AddCommand(jiraListCmd)
 
 	jiraGenerateFromSpecCmd.Flags().String("spec", "app_spec.txt", "Path to application specification file")
 	jiraGenerateFromSpecCmd.Flags().String("project", "", "Jira project key (overrides JIRA_PROJECT_KEY env var and config)")

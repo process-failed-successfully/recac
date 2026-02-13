@@ -17,7 +17,7 @@ import (
 func TestBoardCmd(t *testing.T) {
 	// 1. Mock Jira Server
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/rest/api/3/search/jql" {
+		if r.URL.Path == "/rest/api/3/search" {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			// Return mock issues
