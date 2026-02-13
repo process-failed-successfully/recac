@@ -225,7 +225,9 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 	client := new(MockDockerClient)
 	poller := new(MockPoller)
 	sm := new(MockSessionManager)
+	mockGit := new(MockGitClient)
 	spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", sm)
+	spawner.GitClient = mockGit
 
 	injectionItem := WorkItem{
 		ID:      "TASK-1\"; echo \"injected",
@@ -235,8 +237,23 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 	client.On("RunContainer", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("container-123", nil)
 
 	// Mock SessionManager
-	sm.On("SaveSession", mock.Anything).Return(nil)
+	// First save (initial)
+	sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return len(s.Command) > 0 // Initial session has command
+	})).Return(nil)
+
 	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
+
+	// Mock GitClient
+	mockGit.On("CurrentCommitSHA", mock.Anything).Return("sha", nil)
+
+	done := make(chan struct{})
+	// Final save (loaded from empty session)
+	sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return len(s.Command) == 0 // Loaded session has empty command
+	})).Run(func(args mock.Arguments) {
+		close(done)
+	}).Return(nil)
 
 	// Capture the command passed to Exec using a channel for synchronization
 	capturedCmdChan := make(chan []string, 1)
@@ -267,6 +284,14 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 	// Depending on implementation, checking for quoted ID:
 	// New implementation uses shellquote, so it should use single quotes for complex strings
 	assert.Contains(t, capturedCmd[2], "--jira 'TASK-1\"; echo \"injected'")
+
+	// Wait for final completion
+	select {
+	case <-done:
+		// Success
+	case <-time.After(30 * time.Second):
+		t.Fatal("Timeout waiting for final SaveSession")
+	}
 }
 
 func TestDockerSpawner_EnvPropagation(t *testing.T) {
