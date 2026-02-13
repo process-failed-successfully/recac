@@ -123,7 +123,7 @@ except Exception as e:
 '
 
 # Signal completion
-agent-bridge signal PROJECT_SIGNED_OFF true --privileged || true` + "\n```", nil
+# agent-bridge signal PROJECT_SIGNED_OFF true --privileged || true` + "\n```", nil
 	}
 
 	// 4. QA/Manager Role
