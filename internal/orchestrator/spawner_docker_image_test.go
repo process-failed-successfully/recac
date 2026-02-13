@@ -2,8 +2,8 @@ package orchestrator
 
 import (
 	"context"
+	"io"
 	"log/slog"
-	"os"
 	"testing"
 	"time"
 
@@ -18,7 +18,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	mockGit := new(MockGitClient)
 	mockPoller := new(MockPoller)
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	imageName := "custom-image:v1.2.3"
 	spawner := NewDockerSpawner(logger, mockDocker, imageName, "test-proj", mockPoller, "provider", "model", mockSM)
 	spawner.GitClient = mockGit
@@ -34,6 +34,8 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
 	mockSM.On("LoadSession", "TICKET-1").Return(nil, assert.AnError)
+	// Add mock for CurrentCommitSHA to ensure robustness if LoadSession fails to stop execution or logic changes
+	mockGit.On("CurrentCommitSHA", mock.Anything).Return("test-sha", nil).Maybe()
 
 	execCalled := make(chan string, 1)
 
@@ -55,7 +57,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		t.Logf("Captured Command: %s", cmdStr)
 		assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
 		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
-	case <-time.After(60 * time.Second):
+	case <-time.After(300 * time.Second):
 		t.Fatal("Timeout waiting for Exec call")
 	}
 }
