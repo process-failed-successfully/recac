@@ -53,7 +53,51 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, repoURL), nil
 	}
 
-	// 2. Execution Phase (Coding Agent)
+	// 2. Initializer Agent
+	// Trigger on "initializer agent" or "initialize" + "feature"
+	// This MUST be prioritized over "Prime Python" because the Initializer prompt contains the spec (which contains "prime python")
+	if strings.Contains(lowerPrompt, "initializer agent") || (strings.Contains(lowerPrompt, "initialize") && strings.Contains(lowerPrompt, "feature")) {
+		return `I will initialize the project with the feature list.
+
+` + "```bash" + `
+cat << 'EOF' | agent-bridge import
+{
+  "project_name": "Prime Calculator",
+  "features": [
+    {
+      "id": "[PRIMES]",
+      "category": "functional",
+      "priority": "MVP",
+      "description": "Create a python script named primes.py that calculates primes up to 10000.",
+      "status": "pending",
+      "steps": [
+        "Step 1: Run python3 primes.py",
+        "Step 2: Verify output contains 'Found 1229 primes'"
+      ],
+      "passes": false,
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": ["primes.py"],
+        "read_only_paths": []
+      }
+    }
+  ]
+}
+EOF
+
+cat << 'EOF' > init.sh
+#!/bin/bash
+echo "Initializing environment..."
+# Check for python3
+if ! command -v python3 &> /dev/null; then
+    apt-get update && apt-get install -y python3
+fi
+EOF
+chmod +x init.sh
+` + "```", nil
+	}
+
+	// 3. Execution Phase (Coding Agent)
 	// Prime Python Scenario - triggers when asked to write code
 	// We check for "prime" and "python" BUT NOT "generate ticket" to avoid conflict with planning
 	if strings.Contains(lowerPrompt, "prime") && strings.Contains(lowerPrompt, "python") {

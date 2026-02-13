@@ -53,6 +53,24 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Heuristics_Priority(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Prompt contains BOTH "Initializer Agent" and "prime python"
+	// It should trigger Initializer logic, NOT Prime logic
+	mixedPrompt := "You are the Initializer Agent. Please read the spec: Create a python script named primes.py..."
+
+	resp, _ := agent.Send(context.Background(), mixedPrompt)
+
+	if strings.Contains(resp, "def is_prime(n):") {
+		t.Errorf("Heuristic Priority Failed: Got python code instead of Initializer JSON. Response: %s", resp)
+	}
+
+	if !strings.Contains(resp, "agent-bridge import") {
+		t.Errorf("Expected Initializer JSON response, got: %s", resp)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
