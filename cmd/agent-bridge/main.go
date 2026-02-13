@@ -161,6 +161,8 @@ func run(args []string, config db.StoreConfig, projectID string) error {
 				} else {
 					return fmt.Errorf("feature ID %s not found in %s", id, uiPath)
 				}
+			} else {
+				return fmt.Errorf("invalid json in %s: %w", uiPath, err)
 			}
 		} else {
 			return fmt.Errorf("could not read %s", uiPath)
