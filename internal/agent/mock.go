@@ -49,7 +49,15 @@ echo '{"features": ["prime-python"]}' | agent-bridge import
 		repoURL := "https://github.com/example/repo"
 		// Try to extract repo url from prompt if possible, otherwise use default
 		if parts := strings.Split(prompt, "Repo: "); len(parts) > 1 {
-			repoURL = strings.TrimSpace(parts[1])
+			// Take everything after "Repo: "
+			afterRepo := parts[1]
+			// Split by whitespace or newline to get just the URL
+			urlParts := strings.Fields(afterRepo)
+			if len(urlParts) > 0 {
+				repoURL = urlParts[0]
+			}
+			// Clean up any trailing punctuation if present (e.g. ` or .)
+			repoURL = strings.TrimRight(repoURL, "`.,")
 		}
 
 		return fmt.Sprintf(`[
