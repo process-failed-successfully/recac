@@ -56,20 +56,21 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 2. Initializer Phase (Agent Startup)
 	// The agent receives a prompt asking it to initialize and import features.
 	if strings.Contains(strings.ToLower(prompt), "feature list") || strings.Contains(prompt, "agent-bridge import") || strings.Contains(strings.ToLower(prompt), "technical program manager") {
-		// Output command to import the feature
+		// Output command to import the feature, with explicit feedback output to avoid No-Op detection
+		// Also cat the file to ensure content is visible
 		return `I will initialize the project features.
 
 ` + "```bash" + `
-echo '{"features": [{"id": "PRIMES", "description": "Implement primes.py to calculate primes < 10000", "status": "todo"}]}' | agent-bridge import
+echo 'Importing features...'
+echo '{"features": [{"id": "PRIMES", "description": "Implement primes.py to calculate primes < 10000", "status": "todo"}]}' > features.json
+cat features.json | agent-bridge import
+echo 'Features imported successfully.'
 ` + "```" + `
 `, nil
 	}
 
 	// 3. Execution Phase (Coding Agent)
 	// Check if prompt is asking to implement primes.py or if features are loaded
-	// Note: We need to ensure we don't loop if the feature is already done.
-	// But the MockAgent doesn't know feature status.
-	// However, if the feature is done, the NEXT prompt will be for QA or Manager.
 	if (strings.Contains(strings.ToLower(prompt), "primes.py") || strings.Contains(strings.ToLower(prompt), "prime number")) &&
 	   (strings.Contains(prompt, "write") || strings.Contains(prompt, "create") || strings.Contains(prompt, "implement") || strings.Contains(prompt, "PRIMES")) {
 
@@ -96,9 +97,13 @@ EOF
 
 python3 primes.py
 git add primes.py primes.json
-git commit -m "Generate primes" || true
+git commit -m "Generate primes" || echo "Nothing to commit"
+echo "Work committed."
+
 # Mark feature as done
+echo "Signaling completion..."
 agent-bridge signal COMPLETED true --privileged
+echo "Signal sent."
 ` + "```" + `
 `, nil
 	}

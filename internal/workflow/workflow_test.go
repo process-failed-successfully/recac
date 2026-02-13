@@ -175,6 +175,19 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 		return repoURL, nil
 	}
 
+	// Mock NewSessionFunc to ensure MaxIterations is set and avoid infinite loop
+	originalNewSessionFunc := NewSessionFunc
+	defer func() { NewSessionFunc = originalNewSessionFunc }()
+	NewSessionFunc = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
+		s := runner.NewSession(d, a, workspace, image, project, provider, model, maxAgents)
+		s.MaxIterations = 1 // Prevent infinite loop
+		// Ensure DB doesn't hang by providing nil if needed, but NewSession initializes it.
+		// If real NewSession is called, it might try to connect.
+		// We can mock the DBStore too if we want complete isolation, but setting MaxIterations=1
+		// handles the loop issue which is the main cause of timeout.
+		return s
+	}
+
 	// Mock Jira Server (minimal)
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
@@ -215,6 +228,7 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 		RepoURL:     "https://github.com/example/already-provided",
 		IsMock:      true,
 		Cleanup:     false,
+		MaxIterations: 1, // Explicitly set to avoid infinite loop
 	}
 
 	err := ProcessJiraTicket(context.Background(), "TEST-1", jClient, cfg, nil)
@@ -243,7 +257,15 @@ func TestRunWorkflow_Normal(t *testing.T) {
 	defer func() { NewSessionFunc = originalNewSessionFunc }()
 	NewSessionFunc = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
 		s := runner.NewSession(d, a, workspace, image, project, provider, model, maxAgents)
-		s.MaxIterations = 0 // Should exit immediately
+		s.MaxIterations = 1
+		// We need to ensure RunLoop doesn't block on "NoOp" or "Stalled".
+		// MockAgent returns empty responses usually?
+		// We should configure MockAgent to return "DONE".
+		// But here we construct session.
+
+		// Let's use a mock agent that returns a command to avoid NoOp.
+		mockAg := agent.NewMockAgent()
+		s.Agent = mockAg
 		return s
 	}
 
@@ -260,39 +282,11 @@ func TestRunWorkflow_Normal(t *testing.T) {
 		ProjectName: "test-project",
 		Debug:       true,
 		AllowDirty:  true, // Avoid git checks
+		MaxIterations: 1,
 	}
 
 	// This should run normal flow but fail Docker init (gracefully) and run 0 iterations
 	err := RunWorkflow(context.Background(), cfg)
-
-	// Since MaxIterations=0, RunLoop should return ErrMaxIterations or nil depending on implementation.
-	// runner/session.go: RunLoop: if s.MaxIterations > 0 && currentIteration >= s.MaxIterations { return ErrMaxIterations }
-	// If MaxIterations=0, it might loop forever or use default?
-	// NewSession sets MaxIterations=20 default.
-	// Our mock sets it to 0.
-	// Let's check RunLoop logic.
-	// It checks `if s.MaxIterations > 0 && currentIteration >= s.MaxIterations`.
-	// If 0, it might mean infinite?
-	// Actually NewSession defaults to 20.
-	// If we set to 1, it runs 1 iteration.
-	// If we set to 0, and checks are `> 0`, it loops.
-
-	// Let's set it to 1.
-	NewSessionFunc = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
-		s := runner.NewSession(d, a, workspace, image, project, provider, model, maxAgents)
-		s.MaxIterations = 1
-		// We need to ensure RunLoop doesn't block on "NoOp" or "Stalled".
-		// MockAgent returns empty responses usually?
-		// We should configure MockAgent to return "DONE".
-		// But here we construct session.
-
-		// Let's use a mock agent that returns a command to avoid NoOp.
-		mockAg := agent.NewMockAgent()
-		s.Agent = mockAg
-		return s
-	}
-
-	err = RunWorkflow(context.Background(), cfg)
 
 	// Start() might fail if restricted mode handling isn't perfect or if it tries to do something.
 	// RunLoop might fail with NoOp if mock agent returns nothing.
