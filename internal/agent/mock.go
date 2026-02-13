@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"regexp"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -34,7 +35,30 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	lowerPrompt := strings.ToLower(prompt)
 
-	// Heuristic for 'prime-python' scenario
+	// Heuristic for Planning Phase (Ticket Generation)
+	if strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "generate ticket") {
+		// Extract repo URL if possible to make tickets look realistic
+		repo := "https://github.com/org/repo"
+		re := regexp.MustCompile(`Repo: (https?://[^\s]+)`)
+		if matches := re.FindStringSubmatch(prompt); len(matches) > 1 {
+			repo = matches[1]
+		}
+
+		return fmt.Sprintf(`[
+  {
+    "summary": "Implement prime number generator",
+    "description": "Create a Python script that generates prime numbers up to 10,000.\n\nRepo: %s",
+    "type": "Story",
+    "acceptance_criteria": [
+      "Script name: primes.py",
+      "Output file: primes.json"
+    ],
+    "id": "ID:[PRIMES]"
+  }
+]`, repo), nil
+	}
+
+	// Heuristic for 'prime-python' scenario (Execution Phase)
 	if strings.Contains(lowerPrompt, "prime") || strings.Contains(lowerPrompt, "primes.py") {
 		return `
 Sure, here is a Python script that calculates prime numbers up to 10,000 and writes them to a file named 'primes.json'.
