@@ -150,6 +150,8 @@ func TestInteractiveModel_Update_Extended(t *testing.T) {
 	assert.False(t, m.showList)
 
 	// 4. Test Bang to enter Shell mode
+	// Clear previous input first (Esc switched mode but kept content)
+	m.textarea.Reset()
 	res, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'!'}})
 	m = res.(InteractiveModel)
 	assert.Equal(t, ModeShell, m.mode)

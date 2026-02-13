@@ -137,16 +137,17 @@ func TestWizardModel_View_Steps(t *testing.T) {
 	m := NewWizardModel()
 	// Default step 0
 	view := m.View()
-	assert.Contains(t, view, "Step 1/5")
-	assert.Contains(t, view, "Welcome")
+	assert.Contains(t, view, "Project Setup")
+	assert.Contains(t, view, "Enter project directory")
 
 	// Advance step
-	m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	// Wait, Update returns new model.
+	// Step 1: Enter path. Path cannot be empty.
+	m.textInput.SetValue("/tmp/test")
 	res, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	m = res.(WizardModel)
 
 	view = m.View()
 	// Step 2 is Provider
-	assert.Contains(t, view, "Step 2/5")
+	assert.Contains(t, view, "Select Agent Provider")
 }
