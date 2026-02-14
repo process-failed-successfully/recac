@@ -53,7 +53,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Coding Agent (Prime Python Scenario) - PRIORITIZED
 	// We check for this *before* QA/Manager to ensure that if the prompt contains task details
 	// (which might include "QA" in the description), we still act as the coder.
-	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "1229") {
+	// Expanded triggers to include 'primes.json' as that appears in acceptance criteria.
+	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "primes.json") || strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "1229") {
 		return `
 cat <<EOF > primes.py
 import json
@@ -85,7 +86,9 @@ agent-bridge signal PROJECT_SIGNED_OFF true --privileged
 
 	// QA Agent
 	// Make heuristic stricter to avoid false positives from prompt history
-	if strings.Contains(strings.ToLower(prompt), "your role - qa agent") || (strings.Contains(prompt, "QA Agent") && !strings.Contains(prompt, "primes.py")) {
+	// Ensure we don't trigger if coding keywords are present (redundant due to order, but safe)
+	isCoding := strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "primes.json") || strings.Contains(prompt, "ID:[PRIMES]")
+	if !isCoding && (strings.Contains(strings.ToLower(prompt), "your role - qa agent") || strings.Contains(prompt, "QA Agent")) {
 		return "All tests passed", nil
 	}
 

@@ -45,9 +45,10 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		contains string
 	}{
 		{"TPM", "You are an expert Technical Program Manager (TPM)", "ID:[PRIMES]"},
-		{"Coding", "ID:[PRIMES] Please implement primes.py", "python3 primes.py"},
+		{"Coding_Py", "ID:[PRIMES] Please implement primes.py", "python3 primes.py"},
+		{"Coding_Json", "ID:[PRIMES] writes to primes.json", "python3 primes.py"},
 		// Test conflict case: Prompt mentions QA but is for Coding
-		{"Coding_With_QA_Context", "ID:[PRIMES] Please implement primes.py. History: QA Agent said failed.", "python3 primes.py"},
+		{"Coding_With_QA_Context", "ID:[PRIMES] primes.json required. History: QA Agent said failed.", "python3 primes.py"},
 		{"QA", "Your Role - QA Agent. Please verify.", "All tests passed"},
 		{"Manager", "Your Role - Project Manager Review", "Approve"},
 	}
