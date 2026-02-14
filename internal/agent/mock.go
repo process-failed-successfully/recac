@@ -54,11 +54,20 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic 2: Coding Agent (Primes Implementation)
 	// Triggers if prompt asks to implement 'primes.py' or contains "ID:[PRIMES]" in a coding context.
-	if strings.Contains(prompt, "primes.py") || (strings.Contains(prompt, "ID:[PRIMES]") && !strings.Contains(prompt, "Ticket")) {
+	// We also check for "primes.json" or "prime" to catch variations where feature description only mentions requirements.
+	// We specifically look for "CODING AGENT" role header to avoid misfiring on other agents.
+	isCodingAgent := strings.Contains(prompt, "YOUR ROLE - CODING AGENT")
+	hasPrimesContext := strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "primes.json") || strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(strings.ToLower(prompt), "prime number")
+
+	if isCodingAgent && hasPrimesContext {
 		// Return bash script to create the files
 		// We pre-calculate primes to ensure correctness without running python in the mock response generator.
-		// Actually, we can just write a python script that does it, as the agent runner will execute it.
-		return `I will implement the prime number script.
+		// We also explicitly signal completion via agent-bridge feature set.
+
+		// Note: The prompt might be for a specific feature (e.g. "Output file primes.json exists").
+		// We should just do the whole task in one go if possible, or at least ensure the files exist.
+
+		return `I will implement the prime number script features.
 
 ` + "```bash" + `
 cat << 'EOF' > primes.py
@@ -84,9 +93,18 @@ EOF
 # Run the script to generate the json
 python3 primes.py
 
+# Verify output
+ls -l primes.json
+
 # Commit the files
 git add primes.py primes.json
-git commit -m "Add primes.py and primes.json"
+git commit -m "Add primes.py and primes.json" || echo "Nothing to commit"
+
+# Mark features as done (Blindly mark all related features)
+# We guess the IDs might be related to requirements
+agent-bridge feature set req-output-file-primes-json-exists --status done --passes true || true
+agent-bridge feature set req-contains-correct-primes --status done --passes true || true
+
 ` + "```" + `
 `, nil
 	}
