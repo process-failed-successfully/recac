@@ -158,8 +158,8 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 				break
 			}
 		}
-		// Also verify StartCommitSHA is empty
-		return hasRepoURL && s.StartCommitSHA == ""
+		// Also verify StartCommitSHA is empty and Status is running
+		return hasRepoURL && s.StartCommitSHA == "" && s.Status == "running"
 	})).Return(nil)
 
 	// Verify Exec includes git identity and project ID env vars
@@ -176,14 +176,23 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 	// This call happens at the END, so it's still there
 	mockGit.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("endsha", nil).Once()
 
-	mockSM.On("SaveSession", mock.AnythingOfType("*runner.SessionState")).Return(nil)
+	done := make(chan struct{})
+	mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return s.Status == "completed" || s.Status == "error"
+	})).Run(func(args mock.Arguments) {
+		close(done)
+	}).Return(nil).Once()
 
 	err := spawner.Spawn(ctx, item)
 
 	assert.NoError(t, err)
 
-	// Allow goroutine to run
-	time.Sleep(100 * time.Millisecond)
+	select {
+	case <-done:
+		// Success
+	case <-time.After(5 * time.Second):
+		t.Fatal("Timeout waiting for final SaveSession")
+	}
 
 	mockGit.AssertExpectations(t)
 	mockDocker.AssertExpectations(t)
@@ -217,18 +226,34 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 	client := new(MockDockerClient)
 	poller := new(MockPoller)
 	sm := new(MockSessionManager)
+	mockGit := new(MockGitClient)
 	spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", sm)
+	spawner.GitClient = mockGit
 
 	injectionItem := WorkItem{
 		ID:      "TASK-1\"; echo \"injected",
 		RepoURL: "https://github.com/example/repo",
 	}
 
+	ctx := context.Background()
+	done := make(chan struct{})
+
 	client.On("RunContainer", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("container-123", nil)
 
-	// Mock SessionManager
-	sm.On("SaveSession", mock.Anything).Return(nil)
+	// Mock SessionManager - Initial SaveSession
+	sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return s.Status == "running"
+	})).Return(nil)
+
+	// Mock SessionManager - Final SaveSession
+	sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return s.Status == "completed" || s.Status == "error"
+	})).Run(func(args mock.Arguments) {
+		close(done)
+	}).Return(nil)
+
 	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
+	mockGit.On("CurrentCommitSHA", mock.Anything).Return("sha", nil)
 
 	// Capture the command passed to Exec using a channel for synchronization
 	capturedCmdChan := make(chan []string, 1)
@@ -237,7 +262,7 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 		capturedCmdChan <- capturedCmd
 	}).Return("Success", nil)
 
-	err := spawner.Spawn(context.Background(), injectionItem)
+	err := spawner.Spawn(ctx, injectionItem)
 	assert.NoError(t, err)
 
 	// Wait for the background goroutine to call Exec
@@ -245,8 +270,16 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 	select {
 	case capturedCmd = <-capturedCmdChan:
 		// Success
-	case <-time.After(30 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("Timed out waiting for Exec call")
+	}
+
+	// Wait for completion
+	select {
+	case <-done:
+		// Success
+	case <-time.After(5 * time.Second):
+		t.Fatal("Timed out waiting for final SaveSession")
 	}
 
 	// The command should be stringified and passed to sh -c.
@@ -272,16 +305,34 @@ func TestDockerSpawner_EnvPropagation(t *testing.T) {
 	client := new(MockDockerClient)
 	poller := new(MockPoller)
 	sm := new(MockSessionManager)
+	mockGit := new(MockGitClient)
 	spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", sm)
+	spawner.GitClient = mockGit
 
 	item := WorkItem{
 		ID:      "TASK-ENV-TEST",
 		RepoURL: "https://github.com/example/repo",
 	}
 
+	ctx := context.Background()
+	done := make(chan struct{})
+
 	client.On("RunContainer", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("container-env", nil)
-	sm.On("SaveSession", mock.Anything).Return(nil)
+
+	// Mock SessionManager - Initial SaveSession
+	sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return s.Status == "running"
+	})).Return(nil)
+
+	// Mock SessionManager - Final SaveSession
+	sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return s.Status == "completed" || s.Status == "error"
+	})).Run(func(args mock.Arguments) {
+		close(done)
+	}).Return(nil)
+
 	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
+	mockGit.On("CurrentCommitSHA", mock.Anything).Return("sha", nil)
 
 	// Capture the command passed to Exec
 	capturedCmdChan := make(chan []string, 1)
@@ -290,15 +341,23 @@ func TestDockerSpawner_EnvPropagation(t *testing.T) {
 		capturedCmdChan <- capturedCmd
 	}).Return("Success", nil)
 
-	err := spawner.Spawn(context.Background(), item)
+	err := spawner.Spawn(ctx, item)
 	assert.NoError(t, err)
 
 	var capturedCmd []string
 	select {
 	case capturedCmd = <-capturedCmdChan:
 		// Success
-	case <-time.After(30 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("Timed out waiting for Exec call")
+	}
+
+	// Wait for completion
+	select {
+	case <-done:
+		// Success
+	case <-time.After(5 * time.Second):
+		t.Fatal("Timed out waiting for final SaveSession")
 	}
 
 	cmdStr := capturedCmd[2]
