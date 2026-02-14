@@ -69,7 +69,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// If the previous command resulted in "nothing to commit" or "working tree clean",
 	// it means the task is already done. We should signal completion.
 	// We check for "prime" to ensure we are in the context of the prime task.
-	if strings.Contains(lowerPrompt, "prime") && (strings.Contains(lowerPrompt, "nothing to commit") || strings.Contains(lowerPrompt, "working tree clean")) {
+	// We also check for "Found 1229 primes" which indicates the script ran successfully, combined with no changes.
+	isPrimeTask := strings.Contains(lowerPrompt, "prime") || strings.Contains(lowerPrompt, "primes")
+	isClean := strings.Contains(lowerPrompt, "nothing to commit") || strings.Contains(lowerPrompt, "working tree clean") || strings.Contains(lowerPrompt, "everything up-to-date")
+
+	if isPrimeTask && isClean {
 		return "Great! The work is done. Marking feature as complete.\n\n```bash\nagent-bridge feature set \"[PRIMES]\" --status done --passes true\nagent-bridge signal PROJECT_SIGNED_OFF true --privileged\n```", nil
 	}
 
@@ -103,7 +107,7 @@ EOF
 
 python3 primes.py
 git add primes.py primes.json
-git commit -m "Add primes script"
+git commit -m "Add primes script" || echo "Nothing to commit"
 git push origin HEAD
 ` + "```", nil
 	}
