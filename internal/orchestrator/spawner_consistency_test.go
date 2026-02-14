@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"recac/internal/runner"
+	"sync"
 	"testing"
 	"time"
 
@@ -88,10 +89,25 @@ func TestSpawnerConsistency_EnvPropagation(t *testing.T) {
 		mockGit.On("CurrentCommitSHA", mock.Anything).Return("sha", nil)
 		spawner.GitClient = mockGit
 
+		done := make(chan struct{})
+		var once sync.Once
+
 		// Expectations
 		mockDocker.On("RunContainer", mock.Anything, "img", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("cid", nil)
-		mockSM.On("SaveSession", mock.Anything).Return(nil)
+
+		// Initial SaveSession (Status: running)
+		mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+			return s.Status == "running"
+		})).Return(nil)
+
 		mockSM.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
+
+		// Final SaveSession (Status: completed/error)
+		mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+			return s.Status != "running"
+		})).Run(func(args mock.Arguments) {
+			once.Do(func() { close(done) })
+		}).Return(nil)
 
 		capturedCmdChan := make(chan []string, 1)
 		mockDocker.On("Exec", mock.Anything, "cid", mock.Anything).Run(func(args mock.Arguments) {
@@ -115,5 +131,12 @@ func TestSpawnerConsistency_EnvPropagation(t *testing.T) {
 		assert.Contains(t, cmdStr, "export RECAC_MAX_ITERATIONS=50", "Docker should propagate RECAC_MAX_ITERATIONS")
 		assert.Contains(t, cmdStr, "export RECAC_MANAGER_FREQUENCY=10m", "Docker should propagate RECAC_MANAGER_FREQUENCY")
 		assert.Contains(t, cmdStr, "export RECAC_TASK_MAX_ITERATIONS=5", "Docker should propagate RECAC_TASK_MAX_ITERATIONS")
+
+		// Wait for goroutine
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			t.Fatal("Timeout waiting for goroutine completion")
+		}
 	})
 }
