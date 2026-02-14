@@ -49,13 +49,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic: Task Execution for Prime Python Scenario
 	// We look for the task description in the prompt. We use a more relaxed match to handle variations.
-	if strings.Contains(prompt, "primes.py") && (strings.Contains(prompt, "python") || strings.Contains(prompt, "ID:[PRIMES]")) {
+	// Relaxed matching: primes.py OR ID:[PRIMES] OR 1229
+	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "1229") {
 		// Return bash script to do the work and SIGNAL COMPLETION
-		return `I will create the python script to calculate primes.
-
-` + "```bash" + `
-cat << 'EOF' > primes.py
-import json
+		// We use a Python script to generate the primes
+		script := `import json
 
 def get_primes(n):
     primes = []
@@ -71,19 +69,21 @@ def get_primes(n):
 
 primes = get_primes(10000)
 with open('primes.json', 'w') as f:
-    json.dump({"primes": primes}, f)
+    json.dump({"primes": primes}, f)`
+
+		return fmt.Sprintf(`I will create the python script to calculate primes.
+
+`+"```bash"+`
+cat << 'EOF' > primes.py
+%s
 EOF
-` + "```" + `
 
-Now I will run the script, commit the results, and signal completion.
-
-` + "```bash" + `
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes script and output" --allow-empty
 agent-bridge signal PROJECT_SIGNED_OFF true
-` + "```" + `
-`, nil
+`+"```"+`
+`, script), nil
 	}
 
 	// Return a mock response that shows the agent received the prompt

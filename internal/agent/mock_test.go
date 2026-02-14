@@ -38,7 +38,7 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		t.Errorf("Expected ticket generation JSON, got: %s", genResp)
 	}
 
-	// Test Execution Heuristic
+	// Test Execution Heuristic (Standard)
 	execPrompt := "Implement a python script named 'primes.py'"
 	execResp, err := agent.Send(context.Background(), execPrompt)
 	if err != nil {
@@ -49,6 +49,17 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	}
 	if !strings.Contains(execResp, "agent-bridge signal PROJECT_SIGNED_OFF true") {
 		t.Errorf("Expected completion signal in response, got: %s", execResp)
+	}
+
+	// Test Execution Heuristic (Relaxed - ID Only or Feature Description)
+	// This matches what we see in CI logs where "python" might not be prominent or prompt parsing varies
+	relaxedPrompt := "ID:[PRIMES] Prime Number Script with 1229 primes"
+	relaxedResp, err := agent.Send(context.Background(), relaxedPrompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(relaxedResp, "cat << 'EOF' > primes.py") {
+		t.Errorf("Expected bash script execution for relaxed prompt, got: %s", relaxedResp)
 	}
 }
 
