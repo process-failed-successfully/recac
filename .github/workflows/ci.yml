@@ -70,7 +70,7 @@ jobs:
           push: true
           tags: ${{ steps.image-tag.outputs.image }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # cache-to: type=gha,mode=max # Disabled to prevent 502 errors during export
 
   # 2. Calculate Shards
   setup-matrix:
@@ -222,7 +222,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=prod
-          cache-to: type=gha,mode=max,scope=prod
+          # cache-to: type=gha,mode=max,scope=prod # Disabled to prevent 502 errors during export
 
   # 7. Smoke Test (k3s) - Consolidated from smoke-test.yml
   smoke-test:
