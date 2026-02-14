@@ -35,6 +35,7 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	mockAgent.SetResponse("No op")
 
 	s := &Session{
+		MaxIterations:    5, // Ensure loop terminates
 		Docker:           mockDocker,
 		Agent:            mockAgent,
 		Workspace:        tmpDir,

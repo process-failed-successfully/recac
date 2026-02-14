@@ -109,6 +109,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 	if strings.Contains(lowerPrompt, "manager") || strings.Contains(lowerPrompt, "project manager") {
 		return "```bash\n" +
+			"# Ensure features are marked completed before signing off\n" +
+			"agent-bridge feature set req-the-script-primes-py-is-implem --status done --passes true || true\n" +
+			"agent-bridge feature set req-the-output-is-written-to-a-fil --status done --passes true || true\n" +
+			"agent-bridge feature set req-the-primes-json-file-contains- --status done --passes true || true\n" +
+			"agent-bridge feature set req-the-list-of-primes-in-primes-j --status done --passes true || true\n" +
 			"agent-bridge signal PROJECT_SIGNED_OFF true --privileged\n" +
 			"```", nil
 	}
