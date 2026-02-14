@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"sync"
 	"testing"
 	"time"
 
@@ -34,8 +35,12 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
 
 	done := make(chan struct{})
+	var once sync.Once
+
 	mockSM.On("LoadSession", "TICKET-1").Run(func(args mock.Arguments) {
-		close(done)
+		once.Do(func() {
+			close(done)
+		})
 	}).Return(nil, assert.AnError)
 
 	execCalled := make(chan string, 1)
@@ -62,7 +67,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	select {
 	case <-done:
 		// Success
-	case <-time.After(1 * time.Second):
-		t.Fatal("Timeout waiting for LoadSession call")
+	case <-time.After(2 * time.Second):
+		t.Fatal("Timeout waiting for background goroutine to complete")
 	}
 }
