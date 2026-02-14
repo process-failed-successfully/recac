@@ -79,15 +79,20 @@ func setupWorkdiffTest(t *testing.T) (sm *runner.SessionManager, sessionName, re
 
 func TestWorkdiffCmd(t *testing.T) {
 	sm, sessionName, repoDir := setupWorkdiffTest(t)
-	defer os.RemoveAll(repoDir)
+	t.Cleanup(func() { os.RemoveAll(repoDir) })
 
 	// Run the workdiff command
 	rootCmd, _, _ := newRootCmd()
+	t.Cleanup(func() {
+		rootCmd.SetOut(os.Stdout)
+		rootCmd.SetErr(os.Stderr)
+	})
+
 	originalFactory := sessionManagerFactory
 	sessionManagerFactory = func() (ISessionManager, error) {
 		return sm, nil
 	}
-	defer func() { sessionManagerFactory = originalFactory }()
+	t.Cleanup(func() { sessionManagerFactory = originalFactory })
 
 	output, err := executeCommand(rootCmd, "workdiff", sessionName)
 	require.NoError(t, err)
@@ -100,14 +105,19 @@ func TestWorkdiffCmd(t *testing.T) {
 
 func TestShowAliasCmd(t *testing.T) {
 	sm, sessionName, repoDir := setupWorkdiffTest(t)
-	defer os.RemoveAll(repoDir)
+	t.Cleanup(func() { os.RemoveAll(repoDir) })
 
 	rootCmd, _, _ := newRootCmd()
+	t.Cleanup(func() {
+		rootCmd.SetOut(os.Stdout)
+		rootCmd.SetErr(os.Stderr)
+	})
+
 	originalFactory := sessionManagerFactory
 	sessionManagerFactory = func() (ISessionManager, error) {
 		return sm, nil
 	}
-	defer func() { sessionManagerFactory = originalFactory }()
+	t.Cleanup(func() { sessionManagerFactory = originalFactory })
 
 	t.Run("show with one argument should succeed", func(t *testing.T) {
 		output, err := executeCommand(rootCmd, "show", sessionName)
