@@ -35,7 +35,7 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		t.Errorf("Primes heuristic failed. Expected git commit, got:\n%s", resp)
 	}
 
-	// 3. Test Completion Heuristic
+	// 3. Test Completion Heuristic (With ID)
 	completionPrompt := "ID:[PRIMES]. git status: nothing to commit, working tree clean"
 	resp, err = agent.Send(ctx, completionPrompt)
 	if err != nil {
@@ -43,6 +43,16 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	}
 	if !strings.Contains(resp, "Task completed") {
 		t.Errorf("Completion heuristic failed. Expected 'Task completed', got:\n%s", resp)
+	}
+
+	// 4. Test Completion Heuristic (Without ID - Bare Git Status)
+	bareCompletionPrompt := "On branch main\nnothing to commit, working tree clean"
+	resp, err = agent.Send(ctx, bareCompletionPrompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(resp, "Task completed") {
+		t.Errorf("Bare completion heuristic failed. Expected 'Task completed', got:\n%s", resp)
 	}
 
 	// 4. Test Default

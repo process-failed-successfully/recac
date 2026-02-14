@@ -46,14 +46,14 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
-	// 2. Coding Task (Primes) -> Python Code + Git
-	if strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "primes.py") {
-		// If we already see 'nothing to commit', assume done?
-		// But usually prompt contains git status.
-		if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
-			return "Task completed.", nil
-		}
+	// 2. Completion Check (Global)
+	// If git status indicates cleanliness, we assume the previous action succeeded and we are done.
+	if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
+		return "Task completed.", nil
+	}
 
+	// 3. Coding Task (Primes) -> Python Code + Git
+	if strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "primes.py") {
 		return `
 Here is the python script for prime numbers.
 
