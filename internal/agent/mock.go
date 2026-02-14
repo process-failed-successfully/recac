@@ -80,8 +80,19 @@ echo '{"features": [{"id": "feat-1", "description": "Calculate primes", "status"
 	}
 
 	// Heuristic 3: QA Agent / Manager Review
-	// This must take precedence over the coding heuristic to prevent re-implementation during review
-	if strings.Contains(lowerPrompt, "qa agent") || strings.Contains(lowerPrompt, "manager review") {
+	// We use the prompt header to distinguish roles safely.
+	// 1. Explicit Headers (Strongest Signal)
+	if strings.Contains(lowerPrompt, "your role - project manager") {
+		return `
+The project looks great and meets all requirements.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged
+` + "```" + `
+`, nil
+	}
+
+	if strings.Contains(lowerPrompt, "your role - qa agent") {
 		return `
 The code looks good and meets the requirements.
 
@@ -89,6 +100,30 @@ The code looks good and meets the requirements.
 agent-bridge signal QA_PASSED true
 ` + "```" + `
 `, nil
+	}
+
+	// 2. Legacy/Lax Heuristics (Only if NOT explicitly Coding Agent)
+	// Prevents "Project Manager" mentions in Coding Agent prompt from triggering this.
+	if !strings.Contains(lowerPrompt, "your role - coding agent") {
+		if strings.Contains(lowerPrompt, "manager review") || strings.Contains(lowerPrompt, "project manager") {
+			return `
+The project looks great and meets all requirements.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged
+` + "```" + `
+`, nil
+		}
+
+		if strings.Contains(lowerPrompt, "qa agent") || strings.Contains(lowerPrompt, "qa report") {
+			return `
+The code looks good and meets the requirements.
+
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+		}
 	}
 
 	// Heuristic 4: Coding Agent (Primes)
