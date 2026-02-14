@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -11,6 +12,28 @@ import (
 type MockAgent struct {
 	responsePrefix string
 	forcedResponse string
+}
+
+// Helper structs for JSON response
+type MockTask struct {
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Type        string `json:"type"`
+}
+
+type MockFeature struct {
+	ID           string                 `json:"id"`
+	Title        string                 `json:"title"`
+	Description  string                 `json:"description"`
+	Priority     string                 `json:"priority"`
+	Status       string                 `json:"status"`
+	Steps        []string               `json:"steps"`
+	Dependencies map[string]interface{} `json:"dependencies"`
+}
+
+type MockFeatureList struct {
+	ProjectName string        `json:"project_name"`
+	Features    []MockFeature `json:"features"`
 }
 
 // NewMockAgent creates a new mock agent
@@ -45,14 +68,20 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		if parts := strings.Split(prompt, "Repo: "); len(parts) > 1 {
 			repoURL = strings.Split(parts[1], "\n")[0]
 		}
+		repoURL = strings.TrimSpace(repoURL)
 
-		return fmt.Sprintf(`[
-  {
-    "title": "ID:[PRIMES] Implement Prime Number Python Script",
-    "description": "Create a python script named primes.py that calculates primes up to 10000. \n\nRepo: %s\n\nAppSpec:\nruntime: python\n...",
-    "type": "Task"
-  }
-]`, repoURL), nil
+		task := MockTask{
+			Title:       "ID:[PRIMES] Implement Prime Number Python Script",
+			Description: fmt.Sprintf("Create a python script named primes.py that calculates primes up to 10000. \n\nRepo: %s\n\nAppSpec:\nruntime: python\n...", repoURL),
+			Type:        "Task",
+		}
+
+		jsonData, err := json.MarshalIndent([]MockTask{task}, "", "  ")
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal mock task: %w", err)
+		}
+
+		return string(jsonData), nil
 	}
 
 	// 1.5 Initializer Agent (RunLoop Phase)
@@ -64,6 +93,34 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		if parts := strings.Split(prompt, "Repo: "); len(parts) > 1 {
 			repoURL = strings.Split(parts[1], "\n")[0]
 		}
+		repoURL = strings.TrimSpace(repoURL)
+
+		featureList := MockFeatureList{
+			ProjectName: "Prime Calculator",
+			Features: []MockFeature{
+				{
+					ID:          "[PRIMES]",
+					Title:       "Implement Prime Number Python Script",
+					Description: fmt.Sprintf("Create a python script named primes.py that calculates primes up to 10000. \n\nRepo: %s", repoURL),
+					Priority:    "MVP",
+					Status:      "pending",
+					Steps: []string{
+						"Create primes.py",
+						"Run python3 primes.py",
+						"Verify primes.json is created",
+					},
+					Dependencies: map[string]interface{}{
+						"exclusive_write_paths": []string{"primes.py"},
+						"read_only_paths":       []string{},
+					},
+				},
+			},
+		}
+
+		jsonData, err := json.MarshalIndent(featureList, "", "  ")
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal mock feature list: %w", err)
+		}
 
 		// Initializer response must use 'agent-bridge import' as per new prompt instructions
 		// We return a bash block that writes to file AND pipes to import for robustness.
@@ -71,32 +128,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 `+"```bash"+`
 cat << 'EOF' > feature_list.json
-{
-  "project_name": "Prime Calculator",
-  "features": [
-    {
-      "id": "[PRIMES]",
-      "title": "Implement Prime Number Python Script",
-      "description": "Create a python script named primes.py that calculates primes up to 10000. \n\nRepo: %s",
-      "priority": "MVP",
-      "status": "pending",
-      "steps": [
-        "Create primes.py",
-        "Run python3 primes.py",
-        "Verify primes.json is created"
-      ],
-      "dependencies": {
-        "exclusive_write_paths": ["primes.py"],
-        "read_only_paths": []
-      }
-    }
-  ]
-}
+%s
 EOF
 
 # Import to DB (Primary)
 cat feature_list.json | agent-bridge import || echo "Import failed, relying on file fallback"
-`+"```", repoURL), nil
+`+"```", string(jsonData)), nil
 	}
 
 	// 2. QA Phase

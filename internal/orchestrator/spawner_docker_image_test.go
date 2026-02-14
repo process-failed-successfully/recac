@@ -45,6 +45,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 
 	// We match "Anything" for arguments so we catch the call, then inspect it in Run
 	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Run(func(args mock.Arguments) {
+		t.Log("Exec called in mock")
 		cmd := args.Get(2).([]string)
 		// cmd is ["/bin/sh", "-c", "actual command"]
 		execCalled <- cmd[2]
@@ -63,6 +64,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
 		return s.Status == "completed" || s.Status == "error"
 	})).Run(func(args mock.Arguments) {
+		t.Log("SaveSession (final) called in mock")
 		close(done)
 	}).Return(nil).Once()
 
