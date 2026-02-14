@@ -56,7 +56,13 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 3. Coding Agent Phase (Primes Scenario)
 	// Detects if we are working on the primes task
-	if strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "1229") {
+	// Expanded heuristics to catch various prompt formats including Jira summary and ticket ID
+	if strings.Contains(prompt, "ID:[PRIMES]") ||
+		strings.Contains(prompt, "primes.py") ||
+		strings.Contains(prompt, "1229") ||
+		strings.Contains(prompt, "Prime Number Script") ||
+		strings.Contains(prompt, "req-script-runs-without-errors") {
+
 		return `I will implement the prime number script as requested.
 
 ` + "```bash" + `
@@ -85,8 +91,8 @@ git commit -m "Add primes script implementation" || echo "nothing to commit"
 
 # Mark requirement as done (to prevent premature sign-off revocation)
 # We assume the requirement ID is req-script-runs-without-errors based on the planning phase
-agent-bridge import --id req-script-runs-without-errors --description "Script runs without errors" --status completed
-agent-bridge feature set req-script-runs-without-errors status completed
+# Note: We rely on the feature already being injected or existing.
+agent-bridge feature set req-script-runs-without-errors --status completed --passes true
 
 # Signal completion
 # Note: We signal project sign-off here to ensure the smoke test completes even if QA step is skipped or merged
