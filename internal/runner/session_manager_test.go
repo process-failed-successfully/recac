@@ -833,7 +833,7 @@ func TestSessionManager_PauseResume(t *testing.T) {
 	// 7. Try to resume it again (should fail)
 	err = sm.ResumeSession(sessionName)
 	assert.Error(t, err, "Should not be able to resume a running session")
-	assert.Contains(t, err.Error(), "is not paused")
+	assert.Contains(t, err.Error(), "is already running")
 
 	// 8. Clean up by stopping the session
 	err = sm.StopSession(sessionName)

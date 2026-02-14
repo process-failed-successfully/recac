@@ -157,10 +157,11 @@ func TestPauseResume_Errors(t *testing.T) {
 
 		err := sm.ResumeSession(name)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "process not found")
+		// With robust resumption, it tries to revive but fails due to missing command
+		assert.Contains(t, err.Error(), "no command stored")
 
-		// Verify status changed to stopped
+		// Status remains paused because revive failed early
 		updated, _ := sm.LoadSession(name)
-		assert.Equal(t, "stopped", updated.Status)
+		assert.Equal(t, "paused", updated.Status)
 	})
 }

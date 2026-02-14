@@ -284,36 +284,90 @@ func (sm *SessionManager) PauseSession(name string) error {
 	return sm.SaveSession(session)
 }
 
-// ResumeSession sends a SIGCONT signal to resume a paused session.
+// ResumeSession resumes a session.
+// If the session is paused, it sends SIGCONT.
+// If the session is stopped, completed, or crashed, it restarts the process (revive).
 func (sm *SessionManager) ResumeSession(name string) error {
 	session, err := sm.LoadSession(name)
 	if err != nil {
 		return fmt.Errorf("session not found: %w", err)
 	}
 
-	if session.Status != "paused" {
-		return fmt.Errorf("session '%s' is not paused (status: %s)", name, session.Status)
+	// Case 1: Session is Paused -> Resume with SIGCONT
+	if session.Status == "paused" {
+		// Check if process is still alive
+		if !sm.IsProcessRunning(session.PID) {
+			// Process is gone, fall through to revive logic
+			// We update status to 'stopped' locally so the revive logic picks it up or we just continue
+		} else {
+			process, err := os.FindProcess(session.PID)
+			if err != nil {
+				return fmt.Errorf("failed to find process %d: %w", session.PID, err)
+			}
+
+			if err := process.Signal(syscall.SIGCONT); err != nil {
+				return fmt.Errorf("failed to send SIGCONT signal to process %d: %w", session.PID, err)
+			}
+
+			session.Status = "running"
+			return sm.SaveSession(session)
+		}
 	}
 
-	// A paused process is still "running" from the OS's perspective.
-	if !sm.IsProcessRunning(session.PID) {
-		session.Status = "stopped" // If it's not running anymore while paused, it's effectively stopped/crashed.
-		sm.SaveSession(session)
-		return fmt.Errorf("session '%s' is no longer running (process not found)", name)
+	// Case 2: Session is Running -> Check if actually running
+	if session.Status == "running" {
+		if sm.IsProcessRunning(session.PID) {
+			return fmt.Errorf("session '%s' is already running (PID: %d)", name, session.PID)
+		}
+		// Not actually running -> Fall through to revive logic
 	}
 
-	process, err := os.FindProcess(session.PID)
+	// Case 3: Revive (Restart) the session
+	// This covers: stopped, completed, error, crashed (running but dead), and dead paused sessions.
+
+	if len(session.Command) == 0 {
+		return fmt.Errorf("cannot resume session '%s': no command stored", name)
+	}
+
+	// Re-open log file in APPEND mode
+	// We assume SessionState.LogFile is correct.
+	logFile := session.LogFile
+	if logFile == "" {
+		logFile = filepath.Join(sm.sessionsDir, name+".log")
+	}
+
+	logFd, err := os.OpenFile(logFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
-		return fmt.Errorf("failed to find process %d: %w", session.PID, err)
+		return fmt.Errorf("failed to open log file for appending: %w", err)
+	}
+	defer logFd.Close()
+
+	// Separate log entry for restart
+	fmt.Fprintf(logFd, "\n--- Session Resumed/Revived at %s ---\n", time.Now().Format(time.RFC3339))
+
+	// Prepare command
+	cmd := exec.Command(session.Command[0], session.Command[1:]...)
+	cmd.Stdout = logFd
+	cmd.Stderr = logFd
+	cmd.Dir = session.Workspace
+	cmd.Env = os.Environ() // Inherit env
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to restart session process: %w", err)
 	}
 
-	// Send SIGCONT to resume the process.
-	if err := process.Signal(syscall.SIGCONT); err != nil {
-		return fmt.Errorf("failed to send SIGCONT signal to process %d: %w", session.PID, err)
-	}
-
+	// Update Session State
+	session.PID = cmd.Process.Pid
 	session.Status = "running"
-	return sm.SaveSession(session)
+	session.LogFile = logFile // Ensure log file is set
+	session.EndTime = time.Time{} // Clear end time
+
+	if err := sm.SaveSession(session); err != nil {
+		cmd.Process.Kill()
+		return fmt.Errorf("failed to save resumed session state: %w", err)
+	}
+
+	return nil
 }
 
 // ArchiveSession moves a session's state and log files to the archived directory.
