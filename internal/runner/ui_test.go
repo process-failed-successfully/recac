@@ -32,6 +32,10 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	// 5. Initialize Session
 	mockDocker := &MockDockerForExec{}
 	mockAgent := agent.NewMockAgent()
+	// Force a no-op response to prevent infinite loops due to heuristics returning commands
+	// that the MockDocker doesn't actually execute (db updates), causing the loop to think
+	// progress is being made but the state never changing.
+	mockAgent.SetResponse("No op")
 	s := &Session{
 		Docker:           mockDocker,
 		Agent:            mockAgent,

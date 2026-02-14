@@ -101,6 +101,7 @@ with open('primes.json', 'w') as f:
     json.dump({"primes": primes}, f)
 EOF
 
+python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes script"
 git push origin HEAD
