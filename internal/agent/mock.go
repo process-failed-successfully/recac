@@ -43,14 +43,31 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			repoURL = strings.Split(parts[1], "\n")[0]
 		}
 
-		return fmt.Sprintf(`[
+		jsonContent := fmt.Sprintf(`[
   {
     "title": "Implement Prime Number Python Script",
     "description": "Create a python script named primes.py that calculates primes up to 10000. \n\nRepo: %s\n\nAppSpec:\nruntime: python\n...",
     "type": "Task",
     "id": "[PRIMES]"
   }
-]`, repoURL), nil
+]`, repoURL)
+
+		return `I have analyzed the requirements. Here is the ticket plan:
+
+` + "```json\n" + jsonContent + "\n```" + `
+
+And here is the command to persist this plan to the database:
+
+` + "```bash\n" + `
+cat << 'EOF' > feature_list.json
+{
+  "project_name": "recac-e2e",
+  "features":
+` + jsonContent + `
+}
+EOF
+agent-bridge import < feature_list.json
+` + "```", nil
 	}
 
 	// 2. QA Phase
