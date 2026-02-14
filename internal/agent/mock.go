@@ -37,15 +37,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM") {
 		return `[
   {
-    "summary": "Implement Core Features",
+    "title": "ID:[PRIMES] Implement Prime Number Script",
     "description": "Implement the core functionality based on the specification.",
-    "issuetype": "Task",
-    "priority": "High"
-  },
-  {
-    "summary": "Setup Infrastructure",
-    "description": "Initialize the project structure and CI/CD pipelines.",
-    "issuetype": "Task",
+    "type": "Task",
     "priority": "High"
   }
 ]`, nil
