@@ -37,20 +37,21 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	lowerPrompt := strings.ToLower(prompt)
 
 	// 1. Ticket Planning Phase (TPM Role)
-	// Trigger on "technical program manager" or "generate ticket"
-	if strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "generate ticket") {
+	// Trigger on "technical program manager" or "generate ticket" or "create ticket"
+	if strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "generate ticket") || strings.Contains(lowerPrompt, "create ticket") {
 		// Extract repo URL from prompt if possible, or use a placeholder
 		repoURL := "https://github.com/example/repo"
 		if parts := strings.Split(prompt, "Repo: "); len(parts) > 1 {
 			repoURL = strings.Split(parts[1], "\n")[0]
 		}
 
+		// Return PRIMES without brackets to match E2E expectations
 		return fmt.Sprintf(`[
   {
     "title": "Implement Prime Number Python Script",
     "description": "Create a python script named primes.py that calculates primes up to 10000. \n\nRepo: %s\n\nAppSpec:\nruntime: python\n...",
     "type": "Task",
-    "id": "[PRIMES]"
+    "id": "PRIMES"
   }
 ]`, repoURL), nil
 	}
@@ -73,7 +74,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// We relax the check for "prime" to ensure we catch this state even if the context is truncated,
 	// preventing infinite loops in smoke tests.
 	if strings.Contains(lowerPrompt, "nothing to commit") || strings.Contains(lowerPrompt, "working tree clean") {
-		return "Great! The work is done. Marking feature as complete.\n\n```bash\nagent-bridge feature set \"[PRIMES]\" --status done --passes true\nagent-bridge signal PROJECT_SIGNED_OFF true --privileged\n```", nil
+		return "Great! The work is done. Marking feature as complete.\n\n```bash\necho '[{\"id\": \"PRIMES\", \"type\": \"Task\", \"description\": \"Calculate primes\", \"status\": \"doing\"}]' | agent-bridge import\nagent-bridge feature set \"PRIMES\" --status done --passes true\nagent-bridge signal PROJECT_SIGNED_OFF true --privileged\n```", nil
 	}
 
 	// 5. Execution Phase (Coding Agent)
@@ -83,7 +84,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if (strings.Contains(lowerPrompt, "prime") && strings.Contains(lowerPrompt, "python")) || strings.Contains(lowerPrompt, "primes.py") {
 		// State check: If we've already generated the code, assume we are in a verification loop and finish.
 		if m.primeCalls > 0 {
-			return "Great! The work is done. Marking feature as complete.\n\n```bash\nagent-bridge feature set \"[PRIMES]\" --status done --passes true\nagent-bridge signal PROJECT_SIGNED_OFF true --privileged\n```", nil
+			return "Great! The work is done. Marking feature as complete.\n\n```bash\necho '[{\"id\": \"PRIMES\", \"type\": \"Task\", \"description\": \"Calculate primes\", \"status\": \"doing\"}]' | agent-bridge import\nagent-bridge feature set \"PRIMES\" --status done --passes true\nagent-bridge signal PROJECT_SIGNED_OFF true --privileged\n```", nil
 		}
 
 		m.primeCalls++

@@ -31,7 +31,8 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	// 1. Test Ticket Planning
 	planPrompt := "You are a Technical Program Manager. Please generate ticket..."
 	planResp, _ := agent.Send(context.Background(), planPrompt)
-	if !strings.Contains(planResp, "\"id\": \"[PRIMES]\"") {
+	// Expect "id": "PRIMES" (no brackets)
+	if !strings.Contains(planResp, "\"id\": \"PRIMES\"") {
 		t.Errorf("Expected JSON ticket list for planning prompt, got: %s", planResp)
 	}
 
@@ -48,8 +49,12 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	// 3. Test Completion (Prime + Nothing to commit)
 	completionPrompt := "I ran the python script to calculate prime numbers. Result: nothing to commit, working tree clean"
 	compResp, _ := agent.Send(context.Background(), completionPrompt)
-	if !strings.Contains(compResp, "agent-bridge feature set \"[PRIMES]\" --status done") {
+	if !strings.Contains(compResp, "agent-bridge feature set \"PRIMES\" --status done") {
 		t.Errorf("Expected completion command for 'nothing to commit', got: %s", compResp)
+	}
+	// Check for robust import
+	if !strings.Contains(compResp, "agent-bridge import") {
+		t.Errorf("Expected agent-bridge import command for robustness, got: %s", compResp)
 	}
 	if !strings.Contains(compResp, "agent-bridge signal PROJECT_SIGNED_OFF true --privileged") {
 		t.Errorf("Expected PROJECT_SIGNED_OFF signal for completion, got: %s", compResp)
