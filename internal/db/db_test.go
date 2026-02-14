@@ -279,6 +279,55 @@ func runStoreTests(t *testing.T, dbType string) {
 		}
 	})
 
+	// Test ListSignals
+	t.Run("TestListSignals", func(t *testing.T) {
+		// 1. Initially empty
+		signals, err := store.ListSignals(projectID)
+		if err != nil {
+			t.Fatalf("ListSignals failed on empty: %v", err)
+		}
+		if len(signals) != 0 {
+			t.Fatalf("Expected 0 signals, got %d", len(signals))
+		}
+
+		// 2. Add some signals
+		signalsMap := map[string]string{
+			"key1": "value1",
+			"key2": "value2",
+			"key3": "value3",
+		}
+		for k, v := range signalsMap {
+			if err := store.SetSignal(projectID, k, v); err != nil {
+				t.Fatalf("SetSignal failed for %s: %v", k, err)
+			}
+		}
+
+		// 3. List and verify
+		signals, err = store.ListSignals(projectID)
+		if err != nil {
+			t.Fatalf("ListSignals failed: %v", err)
+		}
+		if len(signals) != len(signalsMap) {
+			t.Fatalf("Expected %d signals, got %d", len(signalsMap), len(signals))
+		}
+		for k, v := range signalsMap {
+			if signals[k] != v {
+				t.Errorf("Expected signal %s to be %s, got %s", k, v, signals[k])
+			}
+		}
+
+		// 4. Verify isolation (different project)
+		otherProject := "other-project"
+		store.SetSignal(otherProject, "key1", "other-value")
+		signals, _ = store.ListSignals(projectID)
+		if len(signals) != 3 {
+			t.Errorf("ListSignals should be isolated by project ID")
+		}
+		if signals["key1"] != "value1" {
+			t.Errorf("ListSignals returned wrong value for key1")
+		}
+	})
+
 	// Test Features and Spec methods
 	t.Run("TestFeaturesAndSpec", func(t *testing.T) {
 		// 1. Features

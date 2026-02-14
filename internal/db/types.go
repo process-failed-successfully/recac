@@ -45,6 +45,7 @@ type Store interface {
 	QueryHistory(projectID string, limit int) ([]Observation, error)
 	SetSignal(projectID, key, value string) error
 	GetSignal(projectID, key string) (string, error)
+	ListSignals(projectID string) (map[string]string, error)
 	DeleteSignal(projectID, key string) error
 	SaveFeatures(projectID string, features string) error // JSON blob for flexibility
 	GetFeatures(projectID string) (string, error)

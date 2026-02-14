@@ -70,6 +70,15 @@ func TestSQLiteStore_Errors(t *testing.T) {
 		assert.Error(t, err)
 	})
 
+	t.Run("ListSignals Query Error", func(t *testing.T) {
+		mock.ExpectQuery("SELECT key, value FROM signals").
+			WithArgs(projectID).
+			WillReturnError(errors.New("query error"))
+
+		_, err := store.ListSignals(projectID)
+		assert.Error(t, err)
+	})
+
 	t.Run("DeleteSignal Error", func(t *testing.T) {
 		mock.ExpectExec("DELETE FROM signals").
 			WithArgs(projectID, "key").

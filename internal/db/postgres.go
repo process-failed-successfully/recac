@@ -167,6 +167,26 @@ func (s *PostgresStore) GetSignal(projectID, key string) (string, error) {
 	return value, err
 }
 
+// ListSignals retrieves all signals for a project
+func (s *PostgresStore) ListSignals(projectID string) (map[string]string, error) {
+	query := `SELECT key, value FROM signals WHERE project_id = $1`
+	rows, err := s.db.Query(query, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	signals := make(map[string]string)
+	for rows.Next() {
+		var key, value string
+		if err := rows.Scan(&key, &value); err != nil {
+			return nil, err
+		}
+		signals[key] = value
+	}
+	return signals, nil
+}
+
 // DeleteSignal deletes a signal by key
 func (s *PostgresStore) DeleteSignal(projectID, key string) error {
 	query := `DELETE FROM signals WHERE project_id = $1 AND key = $2`
