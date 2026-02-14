@@ -11,10 +11,13 @@ import (
 	"recac/internal/cmdutils"
 	"recac/internal/config"
 	"recac/internal/docker"
+	"recac/internal/model"
 	"recac/internal/orchestrator"
 	"recac/internal/runner"
 	"recac/internal/telemetry"
+	"recac/internal/ui"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	corev1 "k8s.io/api/core/v1"
@@ -25,6 +28,7 @@ func main() {
 	var cfgFile string
 	pflag.StringVar(&cfgFile, "config", "", "config file (default is $HOME/.recac.yaml)")
 	pflag.BoolP("verbose", "v", false, "Enable verbose/debug logging")
+	pflag.Bool("tui", false, "Enable TUI Dashboard (Monitoring)")
 
 	pflag.String("mode", "local", "Orchestrator mode: 'local' (Docker) or 'k8s' (Kubernetes Job)")
 	pflag.String("jira-label", "recac-agent", "Jira label to poll for")
@@ -52,6 +56,7 @@ func main() {
 
 	// Bind Flags
 	viper.BindPFlag("verbose", pflag.Lookup("verbose"))
+	viper.BindPFlag("tui", pflag.Lookup("tui"))
 	viper.BindPFlag("orchestrator.jira_query", pflag.Lookup("jira-query"))
 	viper.BindPFlag("orchestrator.poller", pflag.Lookup("poller"))
 	viper.BindPFlag("orchestrator.work_file", pflag.Lookup("work-file"))
@@ -167,6 +172,8 @@ func main() {
 	// 2. Spawner
 	var spawner orchestrator.Spawner
 	var err error
+	var sm runner.ISessionManager // Only available in local mode
+
 	agentModel := viper.GetString("orchestrator.agent_model")
 
 	switch mode {
@@ -188,7 +195,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		sm, err := runner.NewSessionManager()
+		sm, err = runner.NewSessionManager()
 		if err != nil {
 			logger.Error("Failed to initialize Session Manager", "error", err)
 			os.Exit(1)
@@ -202,12 +209,68 @@ func main() {
 
 	// 3. Orchestrator
 	orch := orchestrator.New(poller, spawner, interval)
-	if err := orch.Run(ctx, logger); err != nil {
-		if ctx.Err() != nil {
-			// Graceful shutdown
-			return
+
+	if viper.GetBool("tui") {
+		// TUI Mode
+		observer := ui.NewOrchestratorObserver()
+		orch.SetObserver(observer)
+
+		// Setup Monitor Callbacks
+		callbacks := ui.ActionCallbacks{}
+		if sm != nil {
+			callbacks.GetSessions = func() ([]model.UnifiedSession, error) {
+				states, err := sm.ListSessions()
+				if err != nil {
+					return nil, err
+				}
+				var unified []model.UnifiedSession
+				for _, s := range states {
+					unified = append(unified, model.UnifiedSession{
+						Name:      s.Name,
+						Status:    s.Status,
+						StartTime: s.StartTime,
+						EndTime:   s.EndTime,
+						Goal:      s.Goal,
+						Location:  "Local",
+					})
+				}
+				return unified, nil
+			}
+			callbacks.Stop = sm.StopSession
+			callbacks.Pause = sm.PauseSession
+			callbacks.Resume = sm.ResumeSession
+			callbacks.GetLogs = func(name string) (string, error) {
+				return sm.GetSessionLogContent(name, 1000)
+			}
 		}
-		logger.Error("Orchestrator failure", "error", err)
-		os.Exit(1)
+
+		monitor := ui.NewMonitorDashboardModel(callbacks)
+		dashboard := ui.NewOrchestratorDashboardModel(observer, monitor)
+
+		// Run Orchestrator in background
+		go func() {
+			if err := orch.Run(ctx, logger); err != nil {
+				if ctx.Err() == nil {
+					logger.Error("Orchestrator failure", "error", err)
+				}
+			}
+		}()
+
+		// Run TUI
+		p := tea.NewProgram(dashboard, tea.WithAltScreen())
+		if _, err := p.Run(); err != nil {
+			fmt.Printf("Error running TUI: %v\n", err)
+			os.Exit(1)
+		}
+	} else {
+		// Normal Mode
+		if err := orch.Run(ctx, logger); err != nil {
+			if ctx.Err() != nil {
+				// Graceful shutdown
+				return
+			}
+			logger.Error("Orchestrator failure", "error", err)
+			os.Exit(1)
+		}
 	}
 }

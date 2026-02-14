@@ -8,10 +8,19 @@ import (
 	"time"
 )
 
+// Observer allows monitoring of orchestrator events
+type Observer interface {
+	OnPollStart()
+	OnPollEnd(count int, err error)
+	OnSpawnStart(item WorkItem)
+	OnSpawnEnd(item WorkItem, err error)
+}
+
 type Orchestrator struct {
 	Poller       Poller
 	Spawner      Spawner
 	PollInterval time.Duration
+	observer     Observer
 }
 
 func New(poller Poller, spawner Spawner, pollInterval time.Duration) *Orchestrator {
@@ -20,6 +29,11 @@ func New(poller Poller, spawner Spawner, pollInterval time.Duration) *Orchestrat
 		Spawner:      spawner,
 		PollInterval: pollInterval,
 	}
+}
+
+// SetObserver sets the observer for monitoring events
+func (o *Orchestrator) SetObserver(obs Observer) {
+	o.observer = obs
 }
 
 // Run starts the orchestration loop
@@ -39,8 +53,19 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 			return ctx.Err()
 		case <-ticker.C:
 			// Poll for work
+			if o.observer != nil {
+				o.observer.OnPollStart()
+			}
 			logger.Debug("Polling for work...")
 			items, err := o.Poller.Poll(ctx, logger)
+			if o.observer != nil {
+				count := 0
+				if items != nil {
+					count = len(items)
+				}
+				o.observer.OnPollEnd(count, err)
+			}
+
 			if err != nil {
 				logger.Error("Failed to poll for work", "error", err)
 				continue
@@ -56,17 +81,26 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 				wg.Add(1)
 				go func(item WorkItem) {
 					defer wg.Done()
+					if o.observer != nil {
+						o.observer.OnSpawnStart(item)
+					}
 					logger.Info("Spawning agent for item", "id", item.ID)
 
 					if err := o.Spawner.Spawn(ctx, item); err != nil {
 						logger.Error("Failed to spawn agent", "id", item.ID, "error", err)
 						// Update status to Failed
 						_ = o.Poller.UpdateStatus(ctx, item, "Failed", fmt.Sprintf("Failed to spawn agent: %v", err))
+						if o.observer != nil {
+							o.observer.OnSpawnEnd(item, err)
+						}
 					} else {
 						// Success? K8s Jobs are fire-and-forget from Spawner perspective usually,
 						// but status updates might happen asynchronously.
 						// For now, Spawn() implies "Started".
 						logger.Info("Agent spawned successfully", "id", item.ID)
+						if o.observer != nil {
+							o.observer.OnSpawnEnd(item, nil)
+						}
 					}
 				}(item)
 			}
