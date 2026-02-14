@@ -53,15 +53,27 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, repoURL), nil
 	}
 
-	// 2. Completion Check
+	// 2. QA Phase
+	// Triggers on "QA report" or similar
+	if strings.Contains(lowerPrompt, "qa report") {
+		return "QA passed.\n\n```bash\nagent-bridge signal QA_PASSED true\n```", nil
+	}
+
+	// 3. Manager Review Phase
+	// Triggers on "manager agent" or "review"
+	if strings.Contains(lowerPrompt, "manager agent") || strings.Contains(lowerPrompt, "review") {
+		return "Project signed off.\n\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true --privileged\n```", nil
+	}
+
+	// 4. Completion Check
 	// If the previous command resulted in "nothing to commit" or "working tree clean",
 	// it means the task is already done. We should signal completion.
 	// We check for "prime" to ensure we are in the context of the prime task.
 	if strings.Contains(lowerPrompt, "prime") && (strings.Contains(lowerPrompt, "nothing to commit") || strings.Contains(lowerPrompt, "working tree clean")) {
-		return "Great! The work is done. Marking feature as complete.\n\n```bash\nagent-bridge feature set \"[PRIMES]\" --status done --passes true\n```", nil
+		return "Great! The work is done. Marking feature as complete.\n\n```bash\nagent-bridge feature set \"[PRIMES]\" --status done --passes true\nagent-bridge signal PROJECT_SIGNED_OFF true --privileged\n```", nil
 	}
 
-	// 3. Execution Phase (Coding Agent)
+	// 5. Execution Phase (Coding Agent)
 	// Prime Python Scenario - triggers when asked to write code
 	// We check for "prime" and "python" BUT NOT "generate ticket" to avoid conflict with planning
 	if strings.Contains(lowerPrompt, "prime") && strings.Contains(lowerPrompt, "python") {
@@ -69,20 +81,27 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 ` + "```bash" + `
 cat << 'EOF' > primes.py
+import json
+
 def is_prime(n):
     if n <= 1: return False
     for i in range(2, int(n**0.5) + 1):
         if n % i == 0: return False
     return True
 
+primes = []
 count = 0
 for i in range(10000):
     if is_prime(i):
+        primes.append(i)
         count += 1
 print(f"Found {count} primes")
+
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
 EOF
 
-git add primes.py
+git add primes.py primes.json
 git commit -m "Add primes script"
 git push origin HEAD
 ` + "```", nil

@@ -41,12 +41,32 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	if !strings.Contains(execResp, "def is_prime(n):") {
 		t.Errorf("Expected python code for execution prompt, got: %s", execResp)
 	}
+	if !strings.Contains(execResp, "primes.json") {
+		t.Errorf("Expected primes.json generation in execution prompt, got: %s", execResp)
+	}
 
 	// 3. Test Completion (Prime + Nothing to commit)
 	completionPrompt := "I ran the python script to calculate prime numbers. Result: nothing to commit, working tree clean"
 	compResp, _ := agent.Send(context.Background(), completionPrompt)
 	if !strings.Contains(compResp, "agent-bridge feature set \"[PRIMES]\" --status done") {
 		t.Errorf("Expected completion command for 'nothing to commit', got: %s", compResp)
+	}
+	if !strings.Contains(compResp, "agent-bridge signal PROJECT_SIGNED_OFF true --privileged") {
+		t.Errorf("Expected PROJECT_SIGNED_OFF signal for completion, got: %s", compResp)
+	}
+
+	// 4. Test QA Phase
+	qaPrompt := "Here is the QA report for the feature."
+	qaResp, _ := agent.Send(context.Background(), qaPrompt)
+	if !strings.Contains(qaResp, "agent-bridge signal QA_PASSED true") {
+		t.Errorf("Expected QA_PASSED signal for QA prompt, got: %s", qaResp)
+	}
+
+	// 5. Test Manager Review
+	managerPrompt := "I am the Manager Agent. Reviewing the project."
+	managerResp, _ := agent.Send(context.Background(), managerPrompt)
+	if !strings.Contains(managerResp, "agent-bridge signal PROJECT_SIGNED_OFF true --privileged") {
+		t.Errorf("Expected PROJECT_SIGNED_OFF signal for manager prompt, got: %s", managerResp)
 	}
 }
 
