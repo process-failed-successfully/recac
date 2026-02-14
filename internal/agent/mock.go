@@ -32,14 +32,15 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	// Check for 'Planning' (TPM) scenario trigger
+	// Must come BEFORE Primes check because the planning prompt contains the spec with "ID:[PRIMES]"
+	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM") {
+		return m.handlePlanningScenario(), nil
+	}
+
 	// Check for 'Primes' E2E scenario trigger
 	if strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "primes.py") {
 		return m.handlePrimesScenario(), nil
-	}
-
-	// Check for 'Planning' (TPM) scenario trigger
-	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM") {
-		return m.handlePlanningScenario(), nil
 	}
 
 	// Return a mock response that shows the agent received the prompt

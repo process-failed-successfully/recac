@@ -84,3 +84,23 @@ func TestMockAgent_PlanningScenario(t *testing.T) {
 		t.Errorf("Response should contain ticket ID PRIMES")
 	}
 }
+
+func TestMockAgent_Precedence(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Prompt containing BOTH TPM and ID:[PRIMES]
+	// This simulates the planning phase where the App Spec (with ID) is included in the prompt
+	prompt := "You are a Technical Program Manager (TPM). Here is the spec: ID:[PRIMES] Create Prime Number Script"
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Should match Planning Scenario (JSON), NOT Primes Scenario (Bash)
+	if !strings.HasPrefix(response, "[") {
+		t.Errorf("Expected JSON array for planning prompt, got bash/text starting with: %s", response[:20])
+	}
+	if strings.Contains(response, "cat << 'EOF' > primes.py") {
+		t.Errorf("Response incorrectly contains bash script logic, indicating wrong precedence")
+	}
+}
