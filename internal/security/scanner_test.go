@@ -87,6 +87,51 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "cat .config/config.toml",
 			wantFinding: "Dangerous Command",
 		},
+		{
+			name:        "Root Deletion (Simple)",
+			content:     "rm -rf /",
+			wantFinding: "Root Deletion",
+		},
+		{
+			name:        "Root Deletion (With Newline)",
+			content:     "rm -rf /\necho 'Done'",
+			wantFinding: "Root Deletion",
+		},
+		{
+			name:        "Root Deletion (With Trailing Space)",
+			content:     "rm -rf / ",
+			wantFinding: "Root Deletion",
+		},
+		{
+			name:        "Root Deletion (With Semicolon)",
+			content:     "rm -rf /; echo 'Bye'",
+			wantFinding: "Root Deletion",
+		},
+		{
+			name:        "Root Deletion (Glob)",
+			content:     "rm -rf *",
+			wantFinding: "Root Deletion",
+		},
+		{
+			name:        "Root Deletion (Glob with Space)",
+			content:     "rm -rf * ",
+			wantFinding: "Root Deletion",
+		},
+		{
+			name:        "Safe Deletion (Subdir)",
+			content:     "rm -rf /foo",
+			wantFinding: "",
+		},
+		{
+			name:        "Safe Deletion (Subdir with wildcard)",
+			content:     "rm -rf /foo/*",
+			wantFinding: "",
+		},
+		{
+			name:        "Safe Deletion (Relative)",
+			content:     "rm -rf foo",
+			wantFinding: "",
+		},
 	}
 
 	for _, tt := range tests {

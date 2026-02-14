@@ -31,7 +31,8 @@ var (
 	reSlackToken      = regexp.MustCompile(`xox[baprs]-([0-9a-zA-Z]{10,48})`)
 	reGitHubToken     = regexp.MustCompile(`gh[pousr]_[a-zA-Z0-9]{36,255}`)
 	reDangerousCmd    = regexp.MustCompile(`(?i)\b(rm|cat|cp|mv|chmod|chown)\b.*?[\s/<>\"'\\](\.ssh|\.aws|\.config|\.gemini|/etc/passwd|/etc/shadow|\.env|\.git-credentials|\.netrc|/proc/self/environ)`)
-	reRootDeletion    = regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+([/~*]+|/)$`)
+	// Fix: Allow whitespace, newlines, or command separators after the path to prevent bypasses
+	reRootDeletion    = regexp.MustCompile(`(?i)\brm\s+-[rRf]+\s+([/~*]+)([\s|&;()<>]|$)`)
 	rePipeShell       = regexp.MustCompile(`(?i)(curl|wget)\s+.*?\|\s*(bash|sh|zsh|python|perl|php|ruby)`)
 	reReverseShell    = regexp.MustCompile(`(?i)nc\s+.*?-e\s+.*`)
 )
