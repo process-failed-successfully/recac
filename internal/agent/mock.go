@@ -102,12 +102,13 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 3. QA Agent / Manager / Cleaner
-	if strings.Contains(lowerPrompt, "qa agent") || strings.Contains(lowerPrompt, "role - qa agent") {
+	// We check for specific headers to avoid matching instructions in other prompts
+	if strings.Contains(lowerPrompt, "your role - qa agent") {
 		return "```bash\n" +
 			"agent-bridge signal QA_PASSED true\n" +
 			"```", nil
 	}
-	if strings.Contains(lowerPrompt, "manager") || strings.Contains(lowerPrompt, "project manager") {
+	if strings.Contains(lowerPrompt, "your role - project manager") {
 		return "```bash\n" +
 			"# Ensure features are marked as done before signing off (safety net)\n" +
 			"agent-bridge feature set req-the-script-primes-py-is-implem --status done --passes true || true\n" +

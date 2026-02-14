@@ -47,11 +47,16 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	}
 
 	// 6. Initialize Session
-	mockDocker := &MockDockerForExec{}
+	mockDocker := &MockDockerForExec{
+		DBStore: dbStore,
+	}
 	mockAgent := agent.NewMockAgent()
 	s := &Session{
 		Docker:           mockDocker,
 		Agent:            mockAgent,
+		QAAgent:          mockAgent, // Inject mock to avoid API key checks
+		ManagerAgent:     mockAgent, // Inject mock to avoid API key checks
+		CleanerAgent:     mockAgent, // Inject mock to avoid API key checks
 		Workspace:        tmpDir,
 		// FeatureContent:   features, // We use file instead
 		ManagerFrequency: 5,
@@ -60,7 +65,7 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 		Project:          "test-project",
 		DBStore:          dbStore,
 		SleepFunc:        func(d time.Duration) {}, // Mock sleep to run immediately
-		MaxIterations:    10,                       // Prevent infinite loop in test
+		MaxIterations:    20,                       // Prevent infinite loop in test
 	}
 
 	// 6. Capture Stdout? (Hard to do in test without refactor).
