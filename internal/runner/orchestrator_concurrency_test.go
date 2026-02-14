@@ -87,6 +87,9 @@ func (m *MockDBStoreForOrchestrator) GetFeatures(projectID string) (string, erro
 func (m *MockDBStoreForOrchestrator) GetSignal(projectID, name string) (string, error) {
 	return "", nil
 }
+func (m *MockDBStoreForOrchestrator) ListSignals(projectID string) (map[string]string, error) {
+	return nil, nil
+}
 func (m *MockDBStoreForOrchestrator) SetSignal(projectID, name, value string) error { return nil }
 func (m *MockDBStoreForOrchestrator) GetActiveLocks(projectID string) ([]db.Lock, error) {
 	return nil, nil

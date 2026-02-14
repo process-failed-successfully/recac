@@ -59,6 +59,19 @@ func (m *FaultToleranceMockDB) GetSignal(projectID, key string) (string, error) 
 	return m.Signals[key], nil
 }
 
+func (m *FaultToleranceMockDB) ListSignals(projectID string) (map[string]string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.Signals == nil {
+		return nil, nil
+	}
+	copyMap := make(map[string]string)
+	for k, v := range m.Signals {
+		copyMap[k] = v
+	}
+	return copyMap, nil
+}
+
 func (m *FaultToleranceMockDB) GetFeatures(projectID string) (string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

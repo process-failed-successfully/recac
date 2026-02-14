@@ -22,6 +22,7 @@ func (m *MockStore) SaveObservation(projectID, agentID, content string) error { 
 func (m *MockStore) QueryHistory(projectID string, limit int) ([]db.Observation, error) { return nil, nil }
 func (m *MockStore) SetSignal(projectID, key, value string) error { return nil }
 func (m *MockStore) GetSignal(projectID, key string) (string, error) { return "", nil }
+func (m *MockStore) ListSignals(projectID string) (map[string]string, error) { return nil, nil }
 func (m *MockStore) DeleteSignal(projectID, key string) error { return nil }
 func (m *MockStore) SaveFeatures(projectID string, features string) error { return nil }
 func (m *MockStore) SaveSpec(projectID string, spec string) error { return nil }

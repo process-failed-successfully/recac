@@ -40,6 +40,14 @@ func (m *TestifyMockStore) GetSignal(projectID, key string) (string, error) {
 	return args.String(0), args.Error(1)
 }
 
+func (m *TestifyMockStore) ListSignals(projectID string) (map[string]string, error) {
+	args := m.Called(projectID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(map[string]string), args.Error(1)
+}
+
 func (m *TestifyMockStore) DeleteSignal(projectID, key string) error {
 	return m.Called(projectID, key).Error(0)
 }
