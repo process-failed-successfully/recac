@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"recac/internal/runner"
+	"sync"
 	"testing"
 	"time"
 
@@ -34,6 +35,8 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	// Channels for capturing data from background goroutine
 	execCmdChan := make(chan []string, 1)
 	finalSessionChan := make(chan *runner.SessionState, 1)
+	loadSessionDone := make(chan struct{})
+	var loadSessionOnce sync.Once
 
 	// 1. RunContainer
 	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
@@ -50,8 +53,12 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	}).Return("output", nil)
 
 	// 4. LoadSession
-	// Return a valid session to allow flow to continue
-	mockSM.On("LoadSession", "TICKET-1").Return(&runner.SessionState{
+	// Return a valid session to allow flow to continue. Signal completion via done channel.
+	mockSM.On("LoadSession", "TICKET-1").Run(func(args mock.Arguments) {
+		loadSessionOnce.Do(func() {
+			close(loadSessionDone)
+		})
+	}).Return(&runner.SessionState{
 		Name:   "TICKET-1",
 		Status: "running",
 	}, nil)
@@ -71,15 +78,10 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	err := spawner.Spawn(ctx, item)
 	require.NoError(t, err)
 
+	// Wait for LoadSession to confirm Exec has finished
 	select {
-	case finalSession := <-finalSessionChan:
-		// Verify final session state
-		assert.Equal(t, "completed", finalSession.Status)
-		assert.Equal(t, "sha123", finalSession.EndCommitSHA)
-
-		// Verify Exec arguments
-		// Since finalSessionChan received, Exec must have completed.
-		// execCmdChan is buffered so it should have the data.
+	case <-loadSessionDone:
+		// Verify Exec arguments immediately
 		select {
 		case cmd := <-execCmdChan:
 			if len(cmd) >= 3 {
@@ -92,7 +94,16 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		case <-time.After(1 * time.Second):
 			t.Fatal("Timeout waiting for Exec command data (unexpected)")
 		}
+	case <-time.After(30 * time.Second):
+		t.Fatal("Timeout waiting for LoadSession call")
+	}
 
+	// Wait for final SaveSession to ensure clean shutdown
+	select {
+	case finalSession := <-finalSessionChan:
+		// Verify final session state
+		assert.Equal(t, "completed", finalSession.Status)
+		assert.Equal(t, "sha123", finalSession.EndCommitSHA)
 	case <-time.After(30 * time.Second):
 		t.Fatal("Timeout waiting for final SaveSession call")
 	}
