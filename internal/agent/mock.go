@@ -37,7 +37,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM") {
 		tickets := []map[string]interface{}{
 			{
-				"summary":     "Implement prime number generator",
+				"title":       "Implement prime number generator",
 				"description": "Create a python script that prints the first n prime numbers.",
 				"type":        "Task",
 				"priority":    "High",

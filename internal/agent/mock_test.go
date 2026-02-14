@@ -34,6 +34,9 @@ func TestMockAgent(t *testing.T) {
 	if !strings.Contains(tpmResponse, "Implement prime number generator") {
 		t.Errorf("TPM Response missing expected content, got: %s", tpmResponse)
 	}
+	if !strings.Contains(tpmResponse, "\"title\":") {
+		t.Errorf("TPM Response missing 'title' key, got: %s", tpmResponse)
+	}
 
 	// 3. Primes Heuristic
 	primesPrompt := "ID:[PRIMES]"
