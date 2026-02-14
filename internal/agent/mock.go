@@ -35,6 +35,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 1. Project Manager / Planning Phase
 	if strings.Contains(prompt, "role - Project Manager") || strings.Contains(prompt, "Technical Program Manager") {
 		// Return JSON plan for the 'generate-from-spec' command
+		// Note: The struct expects fields: title, description, type, blocked_by, acceptance_criteria
 		return `{
   "tickets": [
     {
@@ -42,7 +43,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
       "description": "Create a python script 'primes.py' that calculates primes up to 100 and saves them to 'primes.json'.",
       "type": "Task",
       "id": "PRIMES-1",
-      "requirements": ["req-script-runs-without-errors"]
+      "acceptance_criteria": ["req-script-runs-without-errors"]
     }
   ]
 }`, nil

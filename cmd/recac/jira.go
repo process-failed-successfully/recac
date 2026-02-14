@@ -300,6 +300,15 @@ func generateTickets(ctx context.Context, specContent, projectKey, repoURL strin
 	}
 	jsonStr = strings.TrimSpace(jsonStr)
 
+	// Try parsing as object wrapper first { "tickets": [...] }
+	var wrapper struct {
+		Tickets []ticketNode `json:"tickets"`
+	}
+	if err := json.Unmarshal([]byte(jsonStr), &wrapper); err == nil && len(wrapper.Tickets) > 0 {
+		return createTicketsFromNodes(ctx, wrapper.Tickets, projectKey, repoURL, allLabels, jiraClient)
+	}
+
+	// Fallback: Try parsing as array directly [...]
 	var tickets []ticketNode
 	if err := json.Unmarshal([]byte(jsonStr), &tickets); err != nil {
 		return nil, fmt.Errorf("failed to parse agent response as JSON: %w\nResponse was:\n%s", err, resp)
