@@ -47,7 +47,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Coding Task (Primes) -> Python Code + Git
-	if strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "primes.py") {
+	if strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "primes.py") || strings.Contains(strings.ToLower(prompt), "primes") {
 		// If we already see 'nothing to commit', assume done?
 		// But usually prompt contains git status.
 		if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
@@ -76,6 +76,7 @@ git commit -m "Add primes.py implementation"
 	}
 
 	// Default Mock Response
+	fmt.Printf("[MockAgent] Default heuristic triggered. Prompt preview: %s\n", truncateString(prompt, 200))
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
