@@ -176,14 +176,30 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 	// This call happens at the END, so it's still there
 	mockGit.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("endsha", nil).Once()
 
-	mockSM.On("SaveSession", mock.AnythingOfType("*runner.SessionState")).Return(nil)
+	// Use channel to synchronize with background goroutine
+	done := make(chan struct{}, 1)
+	mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		// Ensure this is the final session update (status completed or error)
+		// The initial save has status "running" (default in some cases, but here explicitly checked in the first expectation)
+		// But here we can just rely on the fact that the first expectation handles the initial call.
+		// However, to be safe and clearer, we can check status or lack of command args if we want.
+		// For now, let's trust the existing flow but add the hook.
+		return true
+	})).Run(func(args mock.Arguments) {
+		close(done)
+	}).Return(nil)
 
 	err := spawner.Spawn(ctx, item)
 
 	assert.NoError(t, err)
 
-	// Allow goroutine to run
-	time.Sleep(100 * time.Millisecond)
+	// Wait for background goroutine to complete
+	select {
+	case <-done:
+		// Success
+	case <-time.After(5 * time.Second):
+		t.Fatal("Timeout waiting for background goroutine to complete")
+	}
 
 	mockGit.AssertExpectations(t)
 	mockDocker.AssertExpectations(t)
