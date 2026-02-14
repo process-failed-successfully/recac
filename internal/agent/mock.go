@@ -45,9 +45,71 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
+	// Heuristic: If the prompt is for the Initializer Agent, return a feature plan.
+	if strings.Contains(strings.ToLower(prompt), "initializer agent") {
+		return `I will generate the feature list.
+
+` + "```bash" + `
+cat << 'EOF' | agent-bridge import
+{
+  "project_name": "Prime Generator",
+  "features": [
+    {
+      "id": "req-script-runs-without-errors",
+      "category": "functional",
+      "priority": "MVP",
+      "description": "Script runs without errors",
+      "status": "pending",
+      "passes": false,
+      "steps": ["Run python script"],
+      "dependencies": {
+        "exclusive_write_paths": ["primes.py"],
+        "read_only_paths": []
+      }
+    }
+  ]
+}
+EOF
+
+cat << 'EOF' > init.sh
+#!/bin/bash
+echo "Initializing..."
+EOF
+chmod +x init.sh
+./init.sh
+git init
+git add .
+git commit -m "Initial commit" || echo "Nothing to commit"
+` + "```" + `
+`, nil
+	}
+
+	// Heuristic: QA Agent - Always pass
+	if strings.Contains(prompt, "QA AGENT") {
+		return `I have run the tests and they passed.
+
+` + "```bash" + `
+echo "Running tests..."
+# Simulate successful test run
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// Heuristic: Manager - Always approve if QA passed (assumed)
+	if strings.Contains(prompt, "PROJECT MANAGER") {
+		return `QA has passed and features are complete. I approve.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
+	}
+
 	// Heuristic: If the prompt looks like a coding task (Agent persona), return a script that "does work"
 	// to avoid "No-Op" circuit breaker failures in E2E tests.
-	if strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "primes.py") {
+	// EXCLUSION: Do not trigger if this is the Initializer Agent (handled above).
+	if (strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "primes.py")) && !strings.Contains(strings.ToLower(prompt), "initializer agent") {
 		return `I will implement the prime number generator.
 
 ` + "```bash" + `
@@ -62,9 +124,9 @@ def is_prime(n):
         if n % i == 0: return False
     return True
 
-primes = [i for i in range(1, 101) if is_prime(i)]
+primes = [i for i in range(1, 10000) if is_prime(i)]
 with open('primes.json', 'w') as f:
-    json.dump(primes, f)
+    json.dump({"primes": primes}, f)
 print(f"Generated {len(primes)} primes")
 EOF
 
