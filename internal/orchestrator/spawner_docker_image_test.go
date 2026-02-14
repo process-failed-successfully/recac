@@ -34,6 +34,8 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
 
+	// Use a channel to signal when LoadSession is called, which happens in the background goroutine.
+	// This prevents the test from finishing before the goroutine completes, avoiding race conditions.
 	done := make(chan struct{})
 	var once sync.Once
 
