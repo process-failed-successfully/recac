@@ -70,6 +70,37 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	}
 }
 
+func TestMockAgent_SmokeTest_Reproduction(t *testing.T) {
+	agent := NewMockAgent()
+
+	// This prompt simulates what we see in the logs
+	// It contains "prime" (in "primes"), "python" (likely in history part of prompt), and "nothing to commit"
+	prompt := `
+You are the Coding Agent.
+Task: Implement Prime Number Python Script.
+History:
+User: Write a python script to calculate prime numbers.
+Agent: ...
+User: Output:
+Found 1229 primes
+On branch agent/MFLP-12586
+Your branch is up to date with 'origin/agent/MFLP-12586'.
+
+nothing to commit, working tree clean
+Everything up-to-date
+`
+	resp, _ := agent.Send(context.Background(), prompt)
+
+	// We EXPECT the completion response (Heuristic 4)
+	if strings.Contains(resp, "cat << 'EOF' > primes.py") {
+		t.Errorf("FAILURE: Agent triggered Execution Phase (looping) instead of Completion Phase")
+	}
+
+	if !strings.Contains(resp, "agent-bridge feature set") {
+		t.Errorf("Expected completion command, got: %s", resp)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
