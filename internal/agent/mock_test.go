@@ -56,6 +56,12 @@ func TestMockAgent_Send(t *testing.T) {
 			expectedOutput: "agent-bridge signal QA_PASSED true",
 			excludedOutput: "cat <<EOF > primes.py",
 		},
+		{
+			name:           "Project Manager Prompt",
+			prompt:         "## YOUR ROLE - PROJECT MANAGER\nReview the primes implementation.",
+			expectedOutput: "agent-bridge signal QA_PASSED true",
+			excludedOutput: "cat <<EOF > primes.py",
+		},
 	}
 
 	for _, tt := range tests {
