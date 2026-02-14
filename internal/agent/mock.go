@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,6 +31,83 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// Heuristics for Mock Mode (CI Smoke Tests)
+
+	// 1. TPM Agent (generate-from-spec)
+	// This prompt asks to decompose the spec into tickets. We return a fixed plan for the 'prime-python' scenario.
+	if strings.Contains(prompt, "TPM Agent") || strings.Contains(prompt, "Decompose the spec") || strings.Contains(prompt, "generate-from-spec") {
+		return `[
+  {
+    "title": "ID:[PRIMES] Create Prime Number Script",
+    "description": "Create a python script named 'primes.py' that calculates primes < 10000.",
+    "type": "Task",
+    "children": []
+  }
+]`, nil
+	}
+
+	// 2. Initializer Agent (RunLoop)
+	// This prompt asks to identify features. We return a bash script to import the feature.
+	if strings.Contains(prompt, "Initializer Agent") || strings.Contains(prompt, "Identify all features") {
+		return `#!/bin/bash
+cat << 'EOF' > feature_list.json
+{
+    "features": [
+        {
+            "id": "PRIMES",
+            "name": "Create Prime Number Script",
+            "type": "Task",
+            "status": "todo",
+            "dependencies": []
+        }
+    ]
+}
+EOF
+agent-bridge import feature_list.json
+echo "Features imported."
+`, nil
+	}
+
+	// 3. Coding Agent (RunLoop)
+	// This prompt asks to implement the feature. We return the implementation for primes.py.
+	if strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "primes.py") {
+		return `#!/bin/bash
+cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n <= 1:
+        return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+primes = [x for x in range(10000) if is_prime(x)]
+print(f"Found {len(primes)} primes")
+
+with open('primes.json', 'w') as f:
+    json.dump({'primes': primes}, f)
+EOF
+
+python3 primes.py
+git add primes.py primes.json
+git commit -m "Add primes script"
+echo "Task completed."
+`, nil
+	}
+
+	// 4. Manager Review
+	if strings.Contains(prompt, "Manager Review") || strings.Contains(prompt, "Review the code") {
+		return "LGTM", nil
+	}
+
+	// 5. Nothing to commit / Cleanup
+	if strings.Contains(prompt, "nothing to commit") {
+		return "Task completed.", nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
