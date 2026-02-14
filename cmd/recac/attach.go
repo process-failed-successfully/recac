@@ -1,10 +1,10 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"recac/internal/runner"
+	"recac/internal/ui"
 
 	"github.com/spf13/cobra"
 )
@@ -33,38 +33,25 @@ var attachCmd = &cobra.Command{
 			exit(1)
 		}
 
+		// We allow attaching to completed/stopped sessions to view logs
 		if session.Status != "running" {
-			fmt.Fprintf(os.Stderr, "Error: session '%s' is not running (status: %s)\n", sessionName, session.Status)
-			exit(1)
+			fmt.Printf("Note: Session '%s' is %s (not running). Showing logs only.\n", sessionName, session.Status)
 		}
 
-		fmt.Printf("Attaching to session '%s' (PID: %d)\n", sessionName, session.PID)
-		fmt.Println("Press Ctrl+C to detach")
-		fmt.Println("===========================================")
-
-		// Stream logs
 		logFile, err := sm.GetSessionLogs(sessionName)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error getting logs: %v\n", err)
 			exit(1)
 		}
 
-		file, err := os.Open(logFile)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: failed to open log file: %v\n", err)
+		// Start TUI Dashboard
+		fetchSession := func() (*runner.SessionState, error) {
+			return sm.LoadSession(sessionName)
+		}
+
+		if err := ui.StartAttachDashboard(sessionName, logFile, fetchSession); err != nil {
+			fmt.Fprintf(os.Stderr, "Error running dashboard: %v\n", err)
 			exit(1)
 		}
-		defer file.Close()
-
-		// Read and display existing logs
-		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
-			fmt.Println(scanner.Text())
-		}
-
-		// Note: Real-time following would require file watching
-		// For now, we just show the current logs
-		fmt.Println("\n(Real-time following not yet implemented - showing current logs)")
-		fmt.Println("Use 'recac-app logs --follow' for continuous updates")
 	},
 }
