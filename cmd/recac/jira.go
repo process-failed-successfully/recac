@@ -300,6 +300,11 @@ func generateTickets(ctx context.Context, specContent, projectKey, repoURL strin
 	}
 	jsonStr = strings.TrimSpace(jsonStr)
 
+	// Additional cleaning: finding the start of JSON array
+	if idx := strings.Index(jsonStr, "["); idx != -1 {
+		jsonStr = jsonStr[idx:]
+	}
+
 	var tickets []ticketNode
 	if err := json.Unmarshal([]byte(jsonStr), &tickets); err != nil {
 		return nil, fmt.Errorf("failed to parse agent response as JSON: %w\nResponse was:\n%s", err, resp)
