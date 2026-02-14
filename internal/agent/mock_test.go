@@ -47,7 +47,7 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		assert.Equal(t, "Task", ticket["type"], "Type should be Task")
 	})
 
-	t.Run("Coding Prompt returns correct script", func(t *testing.T) {
+	t.Run("Coding Prompt returns correct script (by ID)", func(t *testing.T) {
 		prompt := "Implement ID:[PRIMES]. Generate primes.py."
 		response, err := agent.Send(ctx, prompt)
 		assert.NoError(t, err)
@@ -66,6 +66,16 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		assert.Contains(t, response, "git add primes.py primes.json", "Should add both files")
 		assert.Contains(t, response, "git commit", "Should commit")
 		assert.Contains(t, response, "git push", "Should push")
+	})
+
+	t.Run("Coding Prompt returns correct script (by text content)", func(t *testing.T) {
+		prompt := "Please write a script to generate Prime Numbers and output them."
+		response, err := agent.Send(ctx, prompt)
+		assert.NoError(t, err)
+
+		assert.Contains(t, response, "#!/bin/bash", "Should be a bash script")
+		assert.Contains(t, response, "cat <<EOF > primes.py", "Should create primes.py")
+		assert.Contains(t, response, "json.dump({\"primes\": primes}, f)", "Should dump correct JSON structure")
 	})
 }
 

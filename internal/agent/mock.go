@@ -54,8 +54,14 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 2. Coding / Script Generation (PRIMES)
 	// This heuristic triggers when the agent picks up the ticket created above.
-	// It must generate a bash script that creates primes.py AND primes.json correctly.
-	if strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "primes.py") {
+	// We broaden the check to catch "Prime Number" or "primes.json" in the prompt text
+	// as "ID:[PRIMES]" might not always be present or fully formed in the agent prompt.
+	isCodingPrompt := strings.Contains(prompt, "ID:[PRIMES]") ||
+		strings.Contains(prompt, "primes.py") ||
+		strings.Contains(prompt, "Prime Number") ||
+		strings.Contains(prompt, "primes.json")
+
+	if isCodingPrompt {
 		return `#!/bin/bash
 # Implement primes.py
 cat <<EOF > primes.py
