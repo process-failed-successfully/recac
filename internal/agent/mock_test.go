@@ -66,3 +66,25 @@ func TestMockAgent_Send_Default(t *testing.T) {
 		t.Errorf("Expected default mock response, got: %s", resp)
 	}
 }
+
+func TestMockAgent_Send_Coding(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Please implement the task: ID:[PRIMES] Implement Prime Number Generator"
+
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(resp, "cat <<EOF > primes.py") {
+		t.Errorf("Expected response to contain primes.py creation command, got: %s", resp)
+	}
+
+	if !strings.Contains(resp, "python3 primes.py") {
+		t.Errorf("Expected response to contain execution command, got: %s", resp)
+	}
+
+	if !strings.Contains(resp, "agent-bridge signal PROJECT_SIGNED_OFF") {
+		t.Errorf("Expected response to contain completion signal, got: %s", resp)
+	}
+}
