@@ -50,17 +50,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
-	// QA Agent
-	if strings.Contains(prompt, "QA Agent") {
-		return "All tests passed", nil
-	}
-
-	// Manager Review
-	if strings.Contains(prompt, "Manager Review") {
-		return "Approve", nil
-	}
-
-	// Coding Agent (Prime Python Scenario)
+	// Coding Agent (Prime Python Scenario) - PRIORITIZED
+	// We check for this *before* QA/Manager to ensure that if the prompt contains task details
+	// (which might include "QA" in the description), we still act as the coder.
 	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "1229") {
 		return `
 cat <<EOF > primes.py
@@ -89,6 +81,17 @@ agent-bridge import --id "ID:[PRIMES]" --requirement "Writes prime numbers to pr
 agent-bridge feature set --id "ID:[PRIMES]" --status completed
 agent-bridge signal PROJECT_SIGNED_OFF true --privileged
 `, nil
+	}
+
+	// QA Agent
+	// Make heuristic stricter to avoid false positives from prompt history
+	if strings.Contains(strings.ToLower(prompt), "your role - qa agent") || (strings.Contains(prompt, "QA Agent") && !strings.Contains(prompt, "primes.py")) {
+		return "All tests passed", nil
+	}
+
+	// Manager Review
+	if strings.Contains(strings.ToLower(prompt), "your role - project manager") || strings.Contains(prompt, "Manager Review") {
+		return "Approve", nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
