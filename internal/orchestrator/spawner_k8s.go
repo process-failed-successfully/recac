@@ -148,6 +148,22 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		}
 	}
 
+	// Fallback: If GITHUB_API_KEY is missing but GITHUB_TOKEN exists, inject GITHUB_API_KEY
+	// This ensures cmdutils.SetupWorkspace can handle auth via URL rewriting.
+	hasAPIKey := false
+	for _, env := range envVars {
+		if env.Name == "GITHUB_API_KEY" {
+			hasAPIKey = true
+			break
+		}
+	}
+	if !hasAPIKey {
+		if token := os.Getenv("GITHUB_TOKEN"); token != "" {
+			envVars = append(envVars, corev1.EnvVar{Name: "GITHUB_API_KEY", Value: token})
+			envVars = append(envVars, corev1.EnvVar{Name: "RECAC_GITHUB_API_KEY", Value: token})
+		}
+	}
+
 	// Propagate Notifications Config
 	if val := os.Getenv("RECAC_NOTIFICATIONS_DISCORD_ENABLED"); val != "" {
 		envVars = append(envVars, corev1.EnvVar{Name: "RECAC_NOTIFICATIONS_DISCORD_ENABLED", Value: val})
@@ -217,7 +233,7 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		if [ -n "$GITHUB_TOKEN" ]; then
 			git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
 		fi
-		/usr/local/bin/recac-agent --jira %q --project %q --image %s --path /workspace --detached=false --cleanup=false --allow-dirty --repo-url %q
+		/usr/local/bin/recac-agent --jira %q --project %q --image %s --path /workspace --detached=false --cleanup=false --allow-dirty --repo-url %q --verbose
 	`, item.ID, item.ID, s.Image, item.RepoURL)
 
 	job := &batchv1.Job{
