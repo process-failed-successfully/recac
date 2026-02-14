@@ -70,7 +70,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// it means the task is already done. We should signal completion.
 	// We relax the check for "prime" to ensure we catch this state even if the context is truncated,
 	// preventing infinite loops in smoke tests.
-	if strings.Contains(lowerPrompt, "nothing to commit") || strings.Contains(lowerPrompt, "working tree clean") {
+	// We also check for "everything up-to-date" which typically follows "nothing to commit" in git output.
+	if strings.Contains(lowerPrompt, "nothing to commit") || strings.Contains(lowerPrompt, "working tree clean") || strings.Contains(lowerPrompt, "everything up-to-date") {
 		return "Great! The work is done. Marking feature as complete.\n\n```bash\nagent-bridge feature set \"[PRIMES]\" --status done --passes true\nagent-bridge signal PROJECT_SIGNED_OFF true --privileged\n```", nil
 	}
 
@@ -78,6 +79,16 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Prime Python Scenario - triggers when asked to write code
 	// We check for "prime" and "python" BUT NOT "generate ticket" to avoid conflict with planning
 	if strings.Contains(lowerPrompt, "prime") && strings.Contains(lowerPrompt, "python") {
+		// Safety Valve: If we somehow missed the completion check above but see indications of completion,
+		// trigger completion now to prevent infinite loops.
+		if strings.Contains(lowerPrompt, "nothing to commit") || strings.Contains(lowerPrompt, "working tree clean") {
+			fmt.Println("DEBUG: MockAgent Safety Valve Triggered (Loop Prevention)")
+			return "Great! The work is done. Marking feature as complete.\n\n```bash\nagent-bridge feature set \"[PRIMES]\" --status done --passes true\nagent-bridge signal PROJECT_SIGNED_OFF true --privileged\n```", nil
+		}
+
+		// Debug log to help diagnose loop issues in CI
+		fmt.Printf("DEBUG: MockAgent Triggering Prime Python Script Generation. Prompt len: %d\n", len(prompt))
+
 		return `I will create a python script to calculate primes.
 
 ` + "```bash" + `
