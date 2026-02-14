@@ -76,7 +76,8 @@ git add primes.py primes.json
 git commit -m "feat: implement prime generator" || echo "Nothing to commit"
 
 # Signal completion
-agent-bridge feature set --id "req-script-runs-without-errors" --status "done"
+echo '{"features": [{"id": "req-script-runs-without-errors", "type": "requirement", "description": "Script runs without errors", "status": "pending", "passes": false}]}' | agent-bridge import
+agent-bridge feature set --id "req-script-runs-without-errors" --status "done" --passes true
 agent-bridge signal --privileged PROJECT_SIGNED_OFF
 ` + "```" + `
 `, nil
