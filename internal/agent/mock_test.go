@@ -25,6 +25,23 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_TPMHeuristic(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "You are an expert Technical Program Manager (TPM)... Repo: http://example.com/repo"
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "ID:[PRIMES] Prime Number Script") {
+		t.Errorf("Response should contain TPM ticket JSON, got: %s", response)
+	}
+	if !strings.Contains(response, "http://example.com/repo") {
+		t.Errorf("Response should contain extracted repo URL, got: %s", response)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
