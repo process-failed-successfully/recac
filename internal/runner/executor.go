@@ -205,6 +205,16 @@ func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, ind
 			errMsg = err.Error()
 		}
 
+		// Check for benign git commit failures (idempotency)
+		// If git commit fails because there are no changes, we should treat it as a success to avoid breaking the workflow loop.
+		if (strings.Contains(cmdScript, "git commit") || strings.Contains(cmdScript, "git -c")) &&
+			(strings.Contains(output, "nothing to commit") ||
+				strings.Contains(output, "working tree clean") ||
+				strings.Contains(output, "no changes added to commit")) {
+			s.Logger.Info("ignoring git commit failure (idempotent)", "output", output)
+			return fmt.Sprintf("Command Output (Ignored Failure):\n%s\n", output), nil
+		}
+
 		result := fmt.Sprintf("Command Failed: %s\nError: %s\nOutput:\n%s\n", cmdScript, errMsg, output)
 		s.Logger.Error("command failed", "script", cmdScript, "error", errMsg)
 

@@ -107,6 +107,9 @@ func (m AttachDashboardModel) View() string {
 	if !m.ready {
 		return "\n  Initializing..."
 	}
+	if m.err != nil {
+		return fmt.Sprintf("\n  Error: %v\n\n  Press q to quit.", m.err)
+	}
 	return fmt.Sprintf("%s\n%s\n%s", m.headerView(), m.viewport.View(), m.footerView())
 }
 
