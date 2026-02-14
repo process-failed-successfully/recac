@@ -45,16 +45,16 @@ func TestMockAgent_Send(t *testing.T) {
 			expectedOutput: "agent-bridge signal QA_PASSED true",
 		},
 		{
-			name:           "Manager Review Conflict",
+			name:           "Manager Review",
 			prompt:         "You are the Manager Review agent. Review the primes implementation.",
-			expectedOutput: "agent-bridge signal QA_PASSED true",
-			excludedOutput: "cat <<EOF > primes.py",
+			expectedOutput: "agent-bridge signal PROJECT_SIGNED_OFF true --privileged",
+			excludedOutput: "agent-bridge signal QA_PASSED true",
 		},
 		{
-			name:           "Manager Agent Only Conflict",
+			name:           "Manager Agent",
 			prompt:         "You are the Manager Agent. Review the primes implementation.",
-			expectedOutput: "agent-bridge signal QA_PASSED true",
-			excludedOutput: "cat <<EOF > primes.py",
+			expectedOutput: "agent-bridge signal PROJECT_SIGNED_OFF true --privileged",
+			excludedOutput: "agent-bridge signal QA_PASSED true",
 		},
 	}
 
@@ -86,6 +86,6 @@ func TestMockAgent_Heuristics_Priority(t *testing.T) {
 		t.Log("FAIL: Agent triggered coding heuristic instead of manager review")
 	}
 
-	assert.Contains(t, resp, "agent-bridge signal QA_PASSED true", "Should trigger QA/Manager heuristic")
+	assert.Contains(t, resp, "agent-bridge signal PROJECT_SIGNED_OFF true --privileged", "Should trigger Manager Sign-off")
 	assert.NotContains(t, resp, "cat <<EOF > primes.py", "Should NOT trigger coding heuristic")
 }

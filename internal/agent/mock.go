@@ -79,9 +79,21 @@ echo '{"features": [{"id": "feat-1", "description": "Calculate primes", "status"
 ]`, repo), nil
 	}
 
-	// Heuristic 3: QA Agent / Manager Review
-	// This must take precedence over the coding heuristic to prevent re-implementation during review
-	if strings.Contains(lowerPrompt, "qa agent") || strings.Contains(lowerPrompt, "manager review") || strings.Contains(lowerPrompt, "manager agent") {
+	// Heuristic 3a: Manager Review / Project Manager
+	// This signals project completion (sign-off)
+	if strings.Contains(lowerPrompt, "manager review") || strings.Contains(lowerPrompt, "manager agent") || strings.Contains(lowerPrompt, "project manager") {
+		return `
+The project meets all requirements and is ready for sign-off.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged
+` + "```" + `
+`, nil
+	}
+
+	// Heuristic 3b: QA Agent
+	// This signals QA completion
+	if strings.Contains(lowerPrompt, "qa agent") {
 		return `
 The code looks good and meets the requirements.
 
