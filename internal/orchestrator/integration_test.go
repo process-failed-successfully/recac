@@ -206,9 +206,7 @@ func TestOrchestrator_Integration_JiraFlow(t *testing.T) {
 						status = "Failed"
 					}
 					// Fire update in background as spawner does
-					go func() {
-						_ = poller.UpdateStatus(context.Background(), item, status, "")
-					}()
+					_ = poller.UpdateStatus(context.Background(), item, status, "")
 				},
 			}
 			if tc.spawnErr {
