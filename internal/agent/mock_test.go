@@ -50,6 +50,9 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	if !strings.Contains(resp, "cat <<EOF > primes.py") {
 		t.Errorf("Coding heuristic failed, expected primes.py script, got: %s", resp)
 	}
+	if !strings.Contains(resp, `json.dump({"primes": primes}, f)`) {
+		t.Errorf("Coding heuristic failed: script must output wrapped JSON object, got: %s", resp)
+	}
 
 	// 3. Initializer Agent with ID:[PRIMES] (Should NOT return python script)
 	// This reproduces the bug where Coding heuristic hijacked Initializer

@@ -126,7 +126,7 @@ def is_prime(n):
 
 primes = [i for i in range(1, 101) if is_prime(i)]
 with open('primes.json', 'w') as f:
-    json.dump(primes, f)
+    json.dump({"primes": primes}, f)
 print(f"Generated {len(primes)} primes")
 EOF
 
