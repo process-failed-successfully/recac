@@ -55,6 +55,11 @@ func TestMockAgent_Heuristics(t *testing.T) {
 			prompt:   "recac generate-from-spec",
 			contains: []string{"ID:[PRIMES]", "Implement Primes"},
 		},
+		{
+			name:     "TPM Conflict",
+			prompt:   "Here is the spec for the prime number script: Create a python script that calculates primes",
+			contains: []string{"ID:[PRIMES]"},
+		},
 	}
 
 	for _, tc := range tests {
