@@ -26,6 +26,7 @@ func (m *MockDBStore) QueryHistory(projectID string, limit int) ([]db.Observatio
 }
 func (m *MockDBStore) SetSignal(projectID, key, value string) error    { return nil }
 func (m *MockDBStore) GetSignal(projectID, key string) (string, error) { return "", nil }
+func (m *MockDBStore) ListSignals(projectID string) (map[string]string, error) { return nil, nil }
 func (m *MockDBStore) DeleteSignal(projectID, key string) error        { return nil }
 func (m *MockDBStore) SaveFeatures(projectID, features string) error   { return nil }
 func (m *MockDBStore) GetFeatures(projectID string) (string, error) {

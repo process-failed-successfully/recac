@@ -24,6 +24,7 @@ import (
 // MockRunLoopDBStore implements db.Store with injection support
 type MockRunLoopDBStore struct {
 	GetSignalFunc       func(projectID, key string) (string, error)
+	ListSignalsFunc     func(projectID string) (map[string]string, error)
 	SetSignalFunc       func(projectID, key, value string) error
 	DeleteSignalFunc    func(projectID, key string) error
 	GetFeaturesFunc     func(projectID string) (string, error)
@@ -61,6 +62,12 @@ func (m *MockRunLoopDBStore) GetSignal(projectID, key string) (string, error) {
 		return m.GetSignalFunc(projectID, key)
 	}
 	return "", nil
+}
+func (m *MockRunLoopDBStore) ListSignals(projectID string) (map[string]string, error) {
+	if m.ListSignalsFunc != nil {
+		return m.ListSignalsFunc(projectID)
+	}
+	return nil, nil
 }
 func (m *MockRunLoopDBStore) DeleteSignal(projectID, key string) error {
 	if m.DeleteSignalFunc != nil {
