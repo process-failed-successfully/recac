@@ -108,6 +108,13 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 
 	// 5. Execute Work in Background
 	go func() {
+		defer func() {
+			// 8. Clean up workspace
+			if err := os.RemoveAll(tempDir); err != nil {
+				s.Logger.Warn("failed to clean up workspace", "path", tempDir, "error", err)
+			}
+		}()
+
 		// Construct Command
 		var envExports []string
 		if s.AgentProvider != "" {
@@ -207,11 +214,6 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 
 		if err := s.SessionManager.SaveSession(finalSession); err != nil {
 			s.Logger.Error("failed to save final session state", "session", item.ID, "error", err)
-		}
-
-		// 8. Clean up workspace
-		if err := os.RemoveAll(tempDir); err != nil {
-			s.Logger.Warn("failed to clean up workspace", "path", tempDir, "error", err)
 		}
 	}()
 
