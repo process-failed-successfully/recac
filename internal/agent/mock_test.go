@@ -6,31 +6,53 @@ import (
 	"testing"
 )
 
-func TestMockAgent(t *testing.T) {
+func TestMockAgent_PrimesHeuristic(t *testing.T) {
 	agent := NewMockAgent()
+	ctx := context.Background()
+	prompt := "Please ID:[PRIMES] Implement Prime Number Generator"
 
-	prompt := "This is a test prompt that is long enough to be truncated"
-	response, err := agent.Send(context.Background(), prompt)
-
+	response, err := agent.Send(ctx, prompt)
 	if err != nil {
-		t.Fatalf("Send failed: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if !strings.Contains(response, "Mock agent response") {
-		t.Errorf("Response missing prefix, got: %s", response)
+	if !strings.Contains(response, "python3 primes.py") {
+		t.Errorf("response missing python execution command")
 	}
-
-	if !strings.Contains(response, "I received your prompt") {
-		t.Errorf("Response missing body, got: %s", response)
+	if !strings.Contains(response, "git commit") {
+		t.Errorf("response missing git commit command")
+	}
+	if !strings.Contains(response, "agent-bridge signal PROJECT_SIGNED_OFF true --privileged") {
+		t.Errorf("response missing completion signal")
 	}
 }
 
-func TestTruncateString(t *testing.T) {
-	s := "hello world"
-	if truncateString(s, 5) != "hello" {
-		t.Errorf("Expected 'hello', got '%s'", truncateString(s, 5))
+func TestMockAgent_PlanningHeuristic(t *testing.T) {
+	agent := NewMockAgent()
+	ctx := context.Background()
+	prompt := "You are a Technical Program Manager (TPM)"
+
+	response, err := agent.Send(ctx, prompt)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	if truncateString(s, 20) != "hello world" {
-		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
+
+	if !strings.Contains(response, "PRIMES-1") {
+		t.Errorf("response missing mock ticket ID")
+	}
+}
+
+func TestMockAgent_DefaultResponse(t *testing.T) {
+	agent := NewMockAgent()
+	ctx := context.Background()
+	prompt := "Hello world"
+
+	response, err := agent.Send(ctx, prompt)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !strings.Contains(response, "Mock agent response") {
+		t.Errorf("unexpected default response: %s", response)
 	}
 }

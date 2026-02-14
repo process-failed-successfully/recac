@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,6 +31,17 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// Heuristic for the "Prime Number Generator" E2E Scenario
+	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "1229") {
+		return m.handlePrimesScenario(), nil
+	}
+
+	// Heuristic for Project Manager / TPM Planning Phase
+	if strings.Contains(prompt, "Technical Program Manager (TPM)") || strings.Contains(prompt, "agile software development") {
+		return m.handlePlanningScenario(), nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
@@ -44,6 +56,52 @@ func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(
 		onChunk(resp)
 	}
 	return resp, err
+}
+
+func (m *MockAgent) handlePrimesScenario() string {
+	script := `
+echo "Generating primes.py..."
+cat <<EOF > primes.py
+import json
+
+def is_prime(n):
+    if n <= 1: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0: return False
+    return True
+
+primes = [x for x in range(2, 100) if is_prime(x)]
+with open("primes.json", "w") as f:
+    json.dump(primes, f)
+print(f"Generated {len(primes)} primes")
+EOF
+
+python3 primes.py
+git add primes.json primes.py
+git commit -m "Add primes generator and output" || echo "nothing to commit"
+
+# Signal completion to agent-bridge
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged
+`
+	return fmt.Sprintf("Here is the script to generate primes:\n```bash\n%s\n```", script)
+}
+
+func (m *MockAgent) handlePlanningScenario() string {
+	// Simple mock response for planning phase to avoid empty responses
+	// Returns a basic JSON structure for tickets
+	jsonResponse := `
+[
+  {
+    "id": "PRIMES-1",
+    "title": "Implement Prime Number Generator",
+    "description": "Create a python script that generates prime numbers.",
+    "type": "Task",
+    "status": "Open",
+    "priority": "High"
+  }
+]
+`
+	return fmt.Sprintf("I have analyzed the requirements. Here is the project plan:\n```json\n%s\n```", jsonResponse)
 }
 
 // truncateString truncates a string to a maximum length
