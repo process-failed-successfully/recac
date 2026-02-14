@@ -77,7 +77,7 @@ git commit -m "feat: implement prime generator" || echo "Nothing to commit"
 
 # Signal completion
 echo '{"features": [{"id": "req-script-runs-without-errors", "type": "requirement", "description": "Script runs without errors", "status": "pending", "passes": false}]}' | agent-bridge import
-agent-bridge feature set --id "req-script-runs-without-errors" --status "done" --passes true
+agent-bridge feature set "req-script-runs-without-errors" --status "done" --passes true
 agent-bridge signal --privileged PROJECT_SIGNED_OFF
 ` + "```" + `
 `, nil
