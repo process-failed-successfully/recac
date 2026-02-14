@@ -84,11 +84,20 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		if strings.Contains(prompt, "Add primes script") && (strings.Contains(prompt, "git commit") || strings.Contains(prompt, "Success") || strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean")) {
 			// Work is done. Signal completion via agent-bridge.
 			// Ensure the feature exists before setting status (idempotent import)
+			// We must import the requirement features as well to ensure they exist in the DB,
+			// otherwise the 'feature set' command will fail and the 'premature sign-off' guardrail will trip.
+			jsonPayload := `'{"features": [
+				{"id": "primes-script", "name": "Implement Primes Script", "type": "Story", "status": "completed", "project": "PRIMES"},
+				{"id": "req-script-runs-without-errors", "name": "Script runs without errors", "type": "Requirement", "status": "completed", "project": "PRIMES"},
+				{"id": "req-primes-json-is-created", "name": "primes.json is created", "type": "Requirement", "status": "completed", "project": "PRIMES"},
+				{"id": "req-primes-json-contains-valid-prime-numbers", "name": "primes.json contains valid prime numbers", "type": "Requirement", "status": "completed", "project": "PRIMES"},
+				{"id": "req-primes-json-contains-valid-pri", "name": "primes.json contains valid pri (truncated)", "type": "Requirement", "status": "completed", "project": "PRIMES"}
+			]}'`
 			return "```bash\n" +
-				`echo '{"features": [{"id": "primes-script", "name": "Implement Primes Script", "type": "Story", "status": "completed", "project": "PRIMES"}]}' | agent-bridge import --project "$RECAC_PROJECT_ID" && ` +
+				`echo ` + jsonPayload + ` | agent-bridge import --project "$RECAC_PROJECT_ID" && ` +
 				`agent-bridge feature set primes-script --status completed --passes true --project "$RECAC_PROJECT_ID" && ` +
-				`agent-bridge feature set req-script-runs-without-errors --status completed --passes true --project "$RECAC_PROJECT_ID" || true && ` +
-				`agent-bridge feature set req-primes-json-is-created --status completed --passes true --project "$RECAC_PROJECT_ID" || true && ` +
+				`agent-bridge feature set req-script-runs-without-errors --status completed --passes true --project "$RECAC_PROJECT_ID" && ` +
+				`agent-bridge feature set req-primes-json-is-created --status completed --passes true --project "$RECAC_PROJECT_ID" && ` +
 				`agent-bridge feature set req-primes-json-contains-valid-prime-numbers --status completed --passes true --project "$RECAC_PROJECT_ID" || true && ` +
 				`agent-bridge feature set req-primes-json-contains-valid-pri --status completed --passes true --project "$RECAC_PROJECT_ID" || true && ` +
 				`agent-bridge signal PROJECT_SIGNED_OFF true --privileged` +
