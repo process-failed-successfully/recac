@@ -183,6 +183,10 @@ type ticketNode struct {
 	Children           []ticketNode `json:"children"`
 }
 
+type ticketResponse struct {
+	Tickets []ticketNode `json:"tickets"`
+}
+
 // jiraGenerateFromSpecCmd represents the jira generate-from-spec command
 var jiraGenerateFromSpecCmd = &cobra.Command{
 	Use:   "generate-from-spec",
@@ -301,8 +305,15 @@ func generateTickets(ctx context.Context, specContent, projectKey, repoURL strin
 	jsonStr = strings.TrimSpace(jsonStr)
 
 	var tickets []ticketNode
+	// Try parsing as array
 	if err := json.Unmarshal([]byte(jsonStr), &tickets); err != nil {
-		return nil, fmt.Errorf("failed to parse agent response as JSON: %w\nResponse was:\n%s", err, resp)
+		// Try parsing as object with "tickets" key
+		var wrapped ticketResponse
+		if err2 := json.Unmarshal([]byte(jsonStr), &wrapped); err2 == nil && len(wrapped.Tickets) > 0 {
+			tickets = wrapped.Tickets
+		} else {
+			return nil, fmt.Errorf("failed to parse agent response as JSON (tried array and object wrapper): %w\nResponse was:\n%s", err, resp)
+		}
 	}
 
 	return createTicketsFromNodes(ctx, tickets, projectKey, repoURL, allLabels, jiraClient)
