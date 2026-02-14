@@ -202,10 +202,19 @@ func runGenerateTicketsCmd(cmd *cobra.Command, args []string) {
 
 	// 2. Setup Jira Client
 	ctx := context.Background()
-	jiraClient, err := cmdutils.GetJiraClient(ctx)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		exit(1)
+	var jiraClient jira.ClientInterface
+	dryRun, _ := cmd.Flags().GetBool("dry-run")
+
+	if dryRun {
+		fmt.Println("Running in DRY-RUN mode. No tickets will be created in Jira.")
+		jiraClient = jira.NewDryRunClient()
+	} else {
+		var err error
+		jiraClient, err = cmdutils.GetJiraClient(ctx)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			exit(1)
+		}
 	}
 
 	projectKey, _ := cmd.Flags().GetString("project")
@@ -579,10 +588,18 @@ func runGenerateFromArchCmd(cmd *cobra.Command, args []string) {
 	tickets := []ticketNode{rootEpic}
 
 	// 3. Setup Jira Client
-	jiraClient, err := cmdutils.GetJiraClient(ctx)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		exit(1)
+	var jiraClient jira.ClientInterface
+	dryRun, _ := cmd.Flags().GetBool("dry-run")
+	if dryRun {
+		fmt.Println("Running in DRY-RUN mode. No tickets will be created in Jira.")
+		jiraClient = jira.NewDryRunClient()
+	} else {
+		var err error
+		jiraClient, err = cmdutils.GetJiraClient(ctx)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			exit(1)
+		}
 	}
 
 	projectKey, _ := cmd.Flags().GetString("project")
@@ -633,6 +650,7 @@ func init() {
 	jiraGenerateFromSpecCmd.Flags().StringSliceP("label", "l", []string{}, "Custom labels to add to generated tickets")
 	jiraGenerateFromSpecCmd.Flags().String("output-json", "", "Path to write the created ticket mapping (Title -> Key) in JSON format")
 	jiraGenerateFromSpecCmd.Flags().String("repo-url", "", "Repository URL to include in ticket descriptions")
+	jiraGenerateFromSpecCmd.Flags().Bool("dry-run", false, "Preview ticket creation without sending to Jira")
 	jiraCmd.AddCommand(jiraGenerateFromSpecCmd)
 
 	jiraGenerateFromArchCmd.Flags().String("arch", ".recac/architecture/architecture.yaml", "Path to architecture.yaml")
@@ -641,6 +659,7 @@ func init() {
 	jiraGenerateFromArchCmd.Flags().String("repo-url", "", "Repository URL to include in descriptions")
 	jiraGenerateFromArchCmd.Flags().StringSliceP("label", "l", []string{}, "Labels")
 	jiraGenerateFromArchCmd.Flags().String("output-json", "", "Output JSON path")
+	jiraGenerateFromArchCmd.Flags().Bool("dry-run", false, "Preview ticket creation without sending to Jira")
 	viper.BindPFlag("repo_url", jiraGenerateFromArchCmd.Flags().Lookup("repo-url"))
 	jiraCmd.AddCommand(jiraGenerateFromArchCmd)
 }
