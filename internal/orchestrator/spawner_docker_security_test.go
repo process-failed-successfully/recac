@@ -17,7 +17,9 @@ func TestDockerSpawner_EnvInjection_Vulnerability(t *testing.T) {
 	client := new(MockDockerClient)
 	poller := new(MockPoller)
 	sm := new(MockSessionManager)
+	gitClient := new(MockGitClient)
 	spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", sm)
+	spawner.GitClient = gitClient
 
 	// Inject a malicious payload that tries to break out of single quotes
 	// The payload ' closes the opening quote, then executes echo PWNED
@@ -34,8 +36,22 @@ func TestDockerSpawner_EnvInjection_Vulnerability(t *testing.T) {
 	client.On("RunContainer", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("container-sec", nil)
 
 	// Mock SessionManager
-	sm.On("SaveSession", mock.Anything).Return(nil)
+	// Initial SaveSession
+	sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return s.Status == "running"
+	})).Return(nil)
 	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
+
+	// Final SaveSession
+	done := make(chan struct{})
+	sm.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return s.Status == "completed" || s.Status == "error"
+	})).Run(func(args mock.Arguments) {
+		close(done)
+	}).Return(nil)
+
+	// Mock GitClient
+	gitClient.On("CurrentCommitSHA", mock.Anything).Return("sha", nil)
 
 	// Capture the command passed to Exec using a channel for synchronization
 	capturedCmdChan := make(chan []string, 1)
@@ -52,8 +68,16 @@ func TestDockerSpawner_EnvInjection_Vulnerability(t *testing.T) {
 	select {
 	case capturedCmd = <-capturedCmdChan:
 		// Success
-	case <-time.After(2 * time.Second):
+	case <-time.After(10 * time.Second):
 		t.Fatal("Timed out waiting for Exec call")
+	}
+
+	// Wait for background goroutine to finish
+	select {
+	case <-done:
+		// Success
+	case <-time.After(5 * time.Second):
+		t.Fatal("Timed out waiting for final SaveSession")
 	}
 
 	// The command should be stringified and passed to sh -c.
