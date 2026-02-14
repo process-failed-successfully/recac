@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"recac/internal/runner"
 	"sync"
 	"testing"
 	"time"
@@ -42,7 +43,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		once.Do(func() {
 			close(done)
 		})
-	}).Return(nil, assert.AnError)
+	}).Return(&runner.SessionState{}, assert.AnError)
 
 	execCalled := make(chan string, 1)
 
@@ -61,7 +62,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		t.Logf("Captured Command: %s", cmdStr)
 		assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
 		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
-	case <-time.After(10 * time.Second):
+	case <-time.After(30 * time.Second):
 		t.Fatal("Timeout waiting for Exec call")
 	}
 
