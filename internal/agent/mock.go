@@ -38,6 +38,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Checks for "initializer agent" in prompt (case-insensitive)
 	if strings.Contains(strings.ToLower(prompt), "initializer agent") {
 		// Return a bash script that imports features
+		// We use ${RECAC_PROJECT_ID} to ensure features are attached to the current session's project.
+		// Note: We must use unquoted EOF for heredoc variable expansion.
 		return `
 Here is the initialization script:
 
@@ -45,10 +47,12 @@ Here is the initialization script:
 #!/bin/bash
 # Mock Initializer Script
 
+PROJECT=${RECAC_PROJECT_ID:-recac-e2e}
+
 # Import features into the DB using agent-bridge
-cat << 'EOF' | agent-bridge import
+cat << EOF | agent-bridge import
 {
-  "project_name": "recac-e2e",
+  "project_name": "$PROJECT",
   "features": [
     {
       "id": "PRIMES",
