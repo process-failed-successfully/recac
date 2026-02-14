@@ -70,34 +70,30 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	}
 }
 
-func TestMockAgent_SmokeTest_Reproduction(t *testing.T) {
+func TestMockAgent_Stateful_PrimeScenario(t *testing.T) {
 	agent := NewMockAgent()
 
-	// This prompt simulates what we see in the logs
-	// It contains "prime" (in "primes"), "python" (likely in history part of prompt), and "nothing to commit"
-	prompt := `
-You are the Coding Agent.
-Task: Implement Prime Number Python Script.
-History:
-User: Write a python script to calculate prime numbers.
-Agent: ...
-User: Output:
-Found 1229 primes
-On branch agent/MFLP-12586
-Your branch is up to date with 'origin/agent/MFLP-12586'.
+	// 1. First call: Should generate code
+	prompt1 := "Write a python script to calculate prime numbers."
+	resp1, _ := agent.Send(context.Background(), prompt1)
 
-nothing to commit, working tree clean
-Everything up-to-date
-`
-	resp, _ := agent.Send(context.Background(), prompt)
-
-	// We EXPECT the completion response (Heuristic 4)
-	if strings.Contains(resp, "cat << 'EOF' > primes.py") {
-		t.Errorf("FAILURE: Agent triggered Execution Phase (looping) instead of Completion Phase")
+	if !strings.Contains(resp1, "cat << 'EOF' > primes.py") {
+		t.Errorf("First call expected python code generation, got: %s", resp1)
+	}
+	if agent.primeCalls != 1 {
+		t.Errorf("Expected primeCalls to be 1, got %d", agent.primeCalls)
 	}
 
-	if !strings.Contains(resp, "agent-bridge feature set") {
-		t.Errorf("Expected completion command, got: %s", resp)
+	// 2. Second call: Should complete (even without 'nothing to commit' explicit context if truncated,
+	// because we rely on state)
+	prompt2 := "Write a python script to calculate prime numbers. (Iteration 2)"
+	resp2, _ := agent.Send(context.Background(), prompt2)
+
+	if strings.Contains(resp2, "cat << 'EOF' > primes.py") {
+		t.Errorf("Second call failure: Agent looped execution phase instead of completion")
+	}
+	if !strings.Contains(resp2, "agent-bridge feature set") {
+		t.Errorf("Second call expected completion command, got: %s", resp2)
 	}
 }
 

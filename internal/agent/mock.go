@@ -11,12 +11,14 @@ import (
 type MockAgent struct {
 	responsePrefix string
 	forcedResponse string
+	primeCalls     int
 }
 
 // NewMockAgent creates a new mock agent
 func NewMockAgent() *MockAgent {
 	return &MockAgent{
 		responsePrefix: "Mock agent response",
+		primeCalls:     0,
 	}
 }
 
@@ -78,6 +80,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Prime Python Scenario - triggers when asked to write code
 	// We check for "prime" and "python" BUT NOT "generate ticket" to avoid conflict with planning
 	if strings.Contains(lowerPrompt, "prime") && strings.Contains(lowerPrompt, "python") {
+		// State check: If we've already generated the code, assume we are in a verification loop and finish.
+		if m.primeCalls > 0 {
+			return "Great! The work is done. Marking feature as complete.\n\n```bash\nagent-bridge feature set \"[PRIMES]\" --status done --passes true\nagent-bridge signal PROJECT_SIGNED_OFF true --privileged\n```", nil
+		}
+
+		m.primeCalls++
 		return `I will create a python script to calculate primes.
 
 ` + "```bash" + `
