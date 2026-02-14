@@ -4,11 +4,13 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
@@ -32,7 +34,15 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	// Mock expectations
 	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
-	mockSM.On("LoadSession", "TICKET-1").Return(nil, assert.AnError)
+
+	// Synchronize on LoadSession to ensure background goroutine completes
+	loadSessionCalled := make(chan struct{})
+	var loadSessionOnce sync.Once
+	mockSM.On("LoadSession", "TICKET-1").Run(func(args mock.Arguments) {
+		loadSessionOnce.Do(func() {
+			close(loadSessionCalled)
+		})
+	}).Return(nil, assert.AnError)
 
 	execCalled := make(chan string, 1)
 
@@ -44,14 +54,22 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	}).Return("output", nil)
 
 	err := spawner.Spawn(ctx, item)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	select {
 	case cmdStr := <-execCalled:
 		t.Logf("Captured Command: %s", cmdStr)
 		assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
 		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
-	case <-time.After(1 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("Timeout waiting for Exec call")
+	}
+
+	// Wait for background goroutine to complete (signaled by LoadSession call)
+	select {
+	case <-loadSessionCalled:
+		// Success
+	case <-time.After(5 * time.Second):
+		t.Fatal("Timeout waiting for LoadSession call (background goroutine completion)")
 	}
 }
