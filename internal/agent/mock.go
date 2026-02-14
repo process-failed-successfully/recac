@@ -125,6 +125,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		}
 
 		return "```bash\n" +
+			"set -ex\n" +
 			"# Create the python script\n" +
 			"cat << 'EOF' > primes.py\n" +
 			"import json\n\n" +
@@ -155,12 +156,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			"  ]\n" +
 			"}\n" +
 			"EOF\n" +
-			"agent-bridge import feature_list.json || true\n\n" +
+			"agent-bridge import feature_list.json\n\n" +
 			"# Mark features as done\n" +
-			"agent-bridge feature set req-the-script-primes-py-is-implem --status done --passes true || true\n" +
-			"agent-bridge feature set req-the-output-is-written-to-a-fil --status done --passes true || true\n" +
-			"agent-bridge feature set req-the-primes-json-file-contains- --status done --passes true || true\n" +
-			"agent-bridge feature set req-the-list-of-primes-in-primes-j --status done --passes true || true\n\n" +
+			"agent-bridge feature set req-the-script-primes-py-is-implem --status done --passes true\n" +
+			"agent-bridge feature set req-the-output-is-written-to-a-fil --status done --passes true\n" +
+			"agent-bridge feature set req-the-primes-json-file-contains- --status done --passes true\n" +
+			"agent-bridge feature set req-the-list-of-primes-in-primes-j --status done --passes true\n\n" +
 			"# Commit changes\n" +
 			"git add primes.py primes.json\n" +
 			"git commit -m \"Implement primes calculation\" || echo \"nothing to commit\"\n\n" +

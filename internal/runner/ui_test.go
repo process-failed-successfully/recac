@@ -8,9 +8,32 @@ import (
 	"testing"
 
 	"recac/internal/agent"
+	"recac/internal/db"
 	"recac/internal/notify"
 	"recac/internal/telemetry"
+	"strings"
 )
+
+type MockDockerWithSignals struct {
+	*MockDockerForExec
+	DB      db.Store
+	Project string
+}
+
+func (m *MockDockerWithSignals) Exec(ctx context.Context, id string, cmd []string) (string, error) {
+	fullCmd := strings.Join(cmd, " ")
+	if strings.Contains(fullCmd, "agent-bridge signal") {
+		parts := strings.Fields(fullCmd)
+		for i, part := range parts {
+			if part == "signal" && i+2 < len(parts) {
+				key := parts[i+1]
+				value := parts[i+2]
+				m.DB.SetSignal(m.Project, key, value)
+			}
+		}
+	}
+	return m.MockDockerForExec.Exec(ctx, id, cmd)
+}
 
 func TestSession_RunLoop_UIVerification(t *testing.T) {
 	// 1. Create a temp directory
@@ -30,16 +53,31 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "ui_verification.json"), []byte("Verify Button Color"), 0644)
 
 	// 5. Initialize Session
-	mockDocker := &MockDockerForExec{}
+	store, err := db.NewSQLiteStore(":memory:")
+	if err != nil {
+		t.Fatalf("failed to create db: %v", err)
+	}
+	defer store.Close()
+
+	mockDocker := &MockDockerWithSignals{
+		MockDockerForExec: &MockDockerForExec{},
+		DB:                store,
+		Project:           "test-project", // Default project name in NewSession if not provided?
+	}
 	mockAgent := agent.NewMockAgent()
+
 	s := &Session{
 		Docker:           mockDocker,
+		Project:          "test-project",
 		Agent:            mockAgent,
 		Workspace:        tmpDir,
 		FeatureContent:   features,
 		ManagerFrequency: 5,
 		Notifier:         notify.NewManager(func(string, ...interface{}) {}),
 		Logger:           telemetry.NewLogger(true, "", false),
+		DBStore:          store,
+		AgentProvider:    "mock",
+		AgentModel:       "mock",
 	}
 
 	// 6. Capture Stdout? (Hard to do in test without refactor).
