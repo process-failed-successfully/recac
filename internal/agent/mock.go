@@ -59,7 +59,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	isCodingAgent := strings.Contains(prompt, "YOUR ROLE - CODING AGENT")
 	hasPrimesContext := strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "primes.json") || strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(strings.ToLower(prompt), "prime number")
 
-	if isCodingAgent && hasPrimesContext {
+	// Fallback for generic "Continue implementing" prompt when no specific task is selected yet
+	isGenericTask := strings.Contains(prompt, "Continue implementing pending features")
+
+	if isCodingAgent && (hasPrimesContext || isGenericTask) {
 		// Return bash script to create the files
 		// We pre-calculate primes to ensure correctness without running python in the mock response generator.
 		// We also explicitly signal completion via agent-bridge feature set.
