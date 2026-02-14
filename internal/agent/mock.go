@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,12 +31,58 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// Check for 'Primes' E2E scenario trigger
+	if strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "primes.py") {
+		return m.handlePrimesScenario(), nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
 }
+
+func (m *MockAgent) handlePrimesScenario() string {
+	// The Python script to generate primes
+	scriptContent := `
+import json
+
+def is_prime(n):
+    if n <= 1: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0: return False
+    return True
+
+primes = [x for x in range(10000) if is_prime(x)]
+
+with open("primes.json", "w") as f:
+    json.dump({"primes": primes}, f)
+`
+	// Return a bash block that creates the file, runs it, commits, and signals completion
+	return fmt.Sprintf(`I will implement the prime number script as requested.
+
+` + "```bash" + `
+# Create the python script
+cat << 'EOF' > primes.py
+%s
+EOF
+
+# Run the script to generate primes.json
+python3 primes.py
+
+# Commit the results (force add just in case)
+git add -f primes.py primes.json
+git commit -m "Add primes script and output" || echo "Nothing to commit"
+
+# Signal completion to stop the agent loop
+# The agent-bridge CLI is used to communicate with the orchestrator
+agent-bridge signal --privileged PROJECT_SIGNED_OFF
+` + "```" + `
+`, scriptContent)
+}
+
 
 // SendStream implements the Agent interface
 func (m *MockAgent) SendStream(ctx context.Context, prompt string, onChunk func(string)) (string, error) {
