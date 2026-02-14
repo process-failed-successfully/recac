@@ -8,6 +8,7 @@ import (
 	"os"
 	"recac/internal/runner"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -176,14 +177,26 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 	// This call happens at the END, so it's still there
 	mockGit.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("endsha", nil).Once()
 
-	mockSM.On("SaveSession", mock.AnythingOfType("*runner.SessionState")).Return(nil)
+	done := make(chan struct{})
+	var once sync.Once
+
+	mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return s.Status == "completed"
+	})).Run(func(args mock.Arguments) {
+		once.Do(func() { close(done) })
+	}).Return(nil)
 
 	err := spawner.Spawn(ctx, item)
 
 	assert.NoError(t, err)
 
 	// Allow goroutine to run
-	time.Sleep(100 * time.Millisecond)
+	select {
+	case <-done:
+		// Success
+	case <-time.After(10 * time.Second):
+		t.Fatal("Timeout waiting for SaveSession(completed)")
+	}
 
 	mockGit.AssertExpectations(t)
 	mockDocker.AssertExpectations(t)

@@ -17,7 +17,12 @@ func TestDockerSpawner_EnvInjection_Vulnerability(t *testing.T) {
 	client := new(MockDockerClient)
 	poller := new(MockPoller)
 	sm := new(MockSessionManager)
+	mockGit := new(MockGitClient)
 	spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", sm)
+	spawner.GitClient = mockGit
+
+	// Expect CurrentCommitSHA call (happens at end of Spawn goroutine)
+	mockGit.On("CurrentCommitSHA", mock.Anything).Return("sha", nil)
 
 	// Inject a malicious payload that tries to break out of single quotes
 	// The payload ' closes the opening quote, then executes echo PWNED
