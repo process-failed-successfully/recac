@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -26,12 +27,71 @@ func (m *MockAgent) SetResponse(response string) {
 
 // Send implements the Agent interface
 // It returns a mock response that acknowledges the prompt
+// It implements heuristics to support E2E smoke tests.
 func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
-	// Return a mock response that shows the agent received the prompt
-	// This allows the session to run without requiring real API keys
+
+	// Heuristic 1: Jira Ticket Generation (TPM Agent)
+	// Triggers if prompt contains "ID:[PRIMES]" (from spec) or "Ticket" creation instructions.
+	// The prompt typically contains "ID:[PRIMES]" when used in prime-python scenario.
+	if strings.Contains(prompt, "ID:[PRIMES]") && (strings.Contains(prompt, "ticket") || strings.Contains(prompt, "Task")) {
+		// Return JSON ticket list for prime-python scenario
+		// Note: We omit "Repo:" from description so the CLI can inject the correct E2E repo URL.
+		return `[
+  {
+    "title": "ID:[PRIMES] Create Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.",
+    "type": "Task",
+    "acceptance_criteria": [
+      "Output file primes.json exists",
+      "Contains correct primes"
+    ]
+  }
+]`, nil
+	}
+
+	// Heuristic 2: Coding Agent (Primes Implementation)
+	// Triggers if prompt asks to implement 'primes.py' or contains "ID:[PRIMES]" in a coding context.
+	if strings.Contains(prompt, "primes.py") || (strings.Contains(prompt, "ID:[PRIMES]") && !strings.Contains(prompt, "Ticket")) {
+		// Return bash script to create the files
+		// We pre-calculate primes to ensure correctness without running python in the mock response generator.
+		// Actually, we can just write a python script that does it, as the agent runner will execute it.
+		return `I will implement the prime number script.
+
+` + "```bash" + `
+cat << 'EOF' > primes.py
+import json
+
+def get_primes(n):
+    primes = []
+    for num in range(2, n):
+        is_prime = True
+        for i in range(2, int(num ** 0.5) + 1):
+            if num % i == 0:
+                is_prime = False
+                break
+        if is_prime:
+            primes.append(num)
+    return primes
+
+primes = get_primes(10000)
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+# Run the script to generate the json
+python3 primes.py
+
+# Commit the files
+git add primes.py primes.json
+git commit -m "Add primes.py and primes.json"
+` + "```" + `
+`, nil
+	}
+
+	// Default Mock Response
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
