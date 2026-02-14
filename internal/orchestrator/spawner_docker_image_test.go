@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
@@ -68,7 +69,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	}).Return(nil)
 
 	err := spawner.Spawn(ctx, item)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	select {
 	case finalSession := <-finalSessionChan:
@@ -77,6 +78,8 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		assert.Equal(t, "sha123", finalSession.EndCommitSHA)
 
 		// Verify Exec arguments
+		// Since finalSessionChan received, Exec must have completed.
+		// execCmdChan is buffered so it should have the data.
 		select {
 		case cmd := <-execCmdChan:
 			if len(cmd) >= 3 {
@@ -86,8 +89,8 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 			} else {
 				t.Errorf("Exec command too short: %v", cmd)
 			}
-		default:
-			t.Error("Exec was not called but SaveSession was?")
+		case <-time.After(1 * time.Second):
+			t.Fatal("Timeout waiting for Exec command data (unexpected)")
 		}
 
 	case <-time.After(30 * time.Second):
