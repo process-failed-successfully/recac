@@ -25,6 +25,52 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Heuristics(t *testing.T) {
+	agent := NewMockAgent()
+	ctx := context.Background()
+
+	tests := []struct {
+		name     string
+		prompt   string
+		contains []string
+	}{
+		{
+			name:     "TPM Role",
+			prompt:   "You are a Technical Program Manager",
+			contains: []string{`[{"title":`, "Primes", `"type": "Task"}`},
+		},
+		{
+			name:     "Coding Task",
+			prompt:   "Create a python script primes.py",
+			contains: []string{"```bash", "echo", "primes.py", "git add", "git commit"},
+		},
+		{
+			name:     "Completion",
+			prompt:   "nothing to commit, working tree clean",
+			contains: []string{"Task completed."},
+		},
+		{
+			name:     "Fallback",
+			prompt:   "Just a random chat",
+			contains: []string{"I received your prompt", "Mock agent response"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp, err := agent.Send(ctx, tt.prompt)
+			if err != nil {
+				t.Fatalf("Send failed: %v", err)
+			}
+			for _, s := range tt.contains {
+				if !strings.Contains(resp, s) {
+					t.Errorf("Response for %q missing %q. Got:\n%s", tt.prompt, s, resp)
+				}
+			}
+		})
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
