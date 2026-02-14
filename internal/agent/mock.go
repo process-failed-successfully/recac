@@ -51,12 +51,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// QA Agent
-	if strings.Contains(prompt, "QA Agent") {
+	if strings.Contains(prompt, "YOUR ROLE - QA AGENT") {
 		return "All tests passed", nil
 	}
 
 	// Manager Review
-	if strings.Contains(prompt, "Manager Review") {
+	if strings.Contains(prompt, "YOUR ROLE - PROJECT MANAGER") {
 		return "Approve", nil
 	}
 

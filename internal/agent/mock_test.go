@@ -46,8 +46,9 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	}{
 		{"TPM", "You are an expert Technical Program Manager (TPM)", "ID:[PRIMES]"},
 		{"Coding", "ID:[PRIMES] Please implement primes.py", "python3 primes.py"},
-		{"QA", "You are a QA Agent", "All tests passed"},
-		{"Manager", "Manager Review", "Approve"},
+		{"QA", "## YOUR ROLE - QA AGENT\n\nInstructions...", "All tests passed"},
+		{"Manager", "## YOUR ROLE - PROJECT MANAGER\n\nInstructions...", "Approve"},
+		{"Coding-With-Mentions", "## YOUR ROLE - CODING AGENT\n\n3. **Manager Review**: agent-bridge manager (Triggers Manager Review).\n2. **Quality Assurance**: agent-bridge qa (Triggers QA Agent).\n\nTask: ID:[PRIMES]", "python3 primes.py"},
 	}
 
 	for _, tt := range tests {
