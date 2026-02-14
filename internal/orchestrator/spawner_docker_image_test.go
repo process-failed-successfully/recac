@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"sync"
 	"testing"
 	"time"
 
@@ -32,7 +33,13 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	// Mock expectations
 	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
-	mockSM.On("LoadSession", "TICKET-1").Return(nil, assert.AnError)
+
+	done := make(chan struct{})
+	var once sync.Once
+
+	mockSM.On("LoadSession", "TICKET-1").Run(func(args mock.Arguments) {
+		once.Do(func() { close(done) })
+	}).Return(nil, assert.AnError)
 
 	execCalled := make(chan string, 1)
 
@@ -46,12 +53,21 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	err := spawner.Spawn(ctx, item)
 	assert.NoError(t, err)
 
+	// Wait for LoadSession call (end of flow)
+	select {
+	case <-done:
+		// Success
+	case <-time.After(5 * time.Second):
+		t.Fatal("Timeout waiting for LoadSession call")
+	}
+
+	// Verify command string
 	select {
 	case cmdStr := <-execCalled:
 		t.Logf("Captured Command: %s", cmdStr)
 		assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
 		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
-	case <-time.After(1 * time.Second):
-		t.Fatal("Timeout waiting for Exec call")
+	default:
+		t.Fatal("Exec was not called before LoadSession")
 	}
 }
