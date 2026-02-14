@@ -196,6 +196,20 @@ func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, ind
 	}
 
 	if err != nil {
+		// Special handling for git commit "nothing to commit"
+		// Git commit returns 1 if there is nothing to commit (and no --allow-empty).
+		// We want to treat this as success so the agent can proceed (e.g. to sign off).
+		if strings.Contains(cmdScript, "git commit") && (strings.Contains(output, "nothing to commit") || strings.Contains(output, "working tree clean")) {
+			s.Logger.Info("ignoring git commit failure (nothing to commit)", "script", cmdScript)
+			// Truncate output if needed (reusing logic below)
+			const MaxOutputChars = 20000
+			truncatedOutput := output
+			if len(output) > MaxOutputChars {
+				truncatedOutput = output[:MaxOutputChars] + fmt.Sprintf("\n... [Output Truncated. Total length: %d chars] ...", len(output))
+			}
+			return fmt.Sprintf("Command Output (Ignored Failure):\n%s\n", truncatedOutput), nil
+		}
+
 		var errMsg string
 		if cmdCtx.Err() == context.DeadlineExceeded {
 			errMsg = fmt.Sprintf("Command timed out after %d seconds.", timeoutSeconds)
