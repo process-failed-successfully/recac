@@ -35,7 +35,11 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 
 	// Expectations for background goroutine cleanup (due to forced Exec error)
 	mockSM.On("LoadSession", "TICKET-1").Return(nil, assert.AnError)
-	mockPoller.On("UpdateStatus", mock.Anything, item, "Failed", mock.Anything).Return(nil)
+
+	done := make(chan struct{})
+	mockPoller.On("UpdateStatus", mock.Anything, item, "Failed", mock.Anything).Run(func(args mock.Arguments) {
+		close(done)
+	}).Return(nil)
 
 	execCalled := make(chan string, 1)
 
@@ -56,5 +60,13 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
 	case <-time.After(5 * time.Second):
 		t.Fatal("Timeout waiting for Exec call")
+	}
+
+	// Wait for cleanup to complete
+	select {
+	case <-done:
+		// Success
+	case <-time.After(5 * time.Second):
+		t.Fatal("Timeout waiting for cleanup (UpdateStatus)")
 	}
 }
