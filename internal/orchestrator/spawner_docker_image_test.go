@@ -32,7 +32,10 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	// Mock expectations
 	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
+
+	// Expectations for background goroutine cleanup (due to forced Exec error)
 	mockSM.On("LoadSession", "TICKET-1").Return(nil, assert.AnError)
+	mockPoller.On("UpdateStatus", mock.Anything, item, "Failed", mock.Anything).Return(nil)
 
 	execCalled := make(chan string, 1)
 
@@ -41,7 +44,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		cmd := args.Get(2).([]string)
 		// cmd is ["/bin/sh", "-c", "actual command"]
 		execCalled <- cmd[2]
-	}).Return("output", nil)
+	}).Return("output", assert.AnError) // Return error to stop the loop
 
 	err := spawner.Spawn(ctx, item)
 	assert.NoError(t, err)
@@ -51,7 +54,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		t.Logf("Captured Command: %s", cmdStr)
 		assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
 		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
-	case <-time.After(30 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("Timeout waiting for Exec call")
 	}
 }
