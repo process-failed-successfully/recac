@@ -83,10 +83,14 @@ func (m attachDashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case attachTickMsg:
+		// Only scroll to bottom if we are already there
+		atBottom := m.viewport.AtBottom()
 		updated := m.readLogUpdates()
 		if updated {
 			m.viewport.SetContent(m.content)
-			m.viewport.GotoBottom()
+			if atBottom {
+				m.viewport.GotoBottom()
+			}
 		}
 		cmds = append(cmds, tea.Tick(500*time.Millisecond, func(t time.Time) tea.Msg {
 			return attachTickMsg(t)
@@ -111,6 +115,11 @@ func (m *attachDashboardModel) readLogUpdates() bool {
 	if err != nil {
 		m.err = err
 		return false
+	}
+
+	if stat.Size() < m.fileOffset {
+		// File truncated (log rotation), reset offset
+		m.fileOffset = 0
 	}
 
 	if stat.Size() <= m.fileOffset {
