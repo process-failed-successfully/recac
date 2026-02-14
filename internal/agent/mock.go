@@ -68,8 +68,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 4. Completion Check
 	// If the previous command resulted in "nothing to commit" or "working tree clean",
 	// it means the task is already done. We should signal completion.
-	// We check for "prime" to ensure we are in the context of the prime task.
-	if strings.Contains(lowerPrompt, "prime") && (strings.Contains(lowerPrompt, "nothing to commit") || strings.Contains(lowerPrompt, "working tree clean")) {
+	// We check for "prime" OR context clues to ensure we are in the context of the task.
+	// UPDATE: Removing "prime" check to ensure this catches generic idempotency failures where the task keyword might be diluted.
+	if strings.Contains(lowerPrompt, "nothing to commit") || strings.Contains(lowerPrompt, "working tree clean") {
 		return "Great! The work is done. Marking feature as complete.\n\n```bash\nagent-bridge feature set \"[PRIMES]\" --status done --passes true\nagent-bridge signal PROJECT_SIGNED_OFF true --privileged\n```", nil
 	}
 
