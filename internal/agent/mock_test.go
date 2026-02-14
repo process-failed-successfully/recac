@@ -6,22 +6,59 @@ import (
 	"testing"
 )
 
-func TestMockAgent(t *testing.T) {
+func TestMockAgent_Send(t *testing.T) {
 	agent := NewMockAgent()
+	ctx := context.Background()
 
-	prompt := "This is a test prompt that is long enough to be truncated"
-	response, err := agent.Send(context.Background(), prompt)
-
-	if err != nil {
-		t.Fatalf("Send failed: %v", err)
+	tests := []struct {
+		name           string
+		prompt         string
+		expectContains []string
+	}{
+		{
+			name:           "Default Response",
+			prompt:         "Hello world",
+			expectContains: []string{"I received your prompt"},
+		},
+		{
+			name:           "TPM Role",
+			prompt:         "You are the Technical Program Manager. Generate tickets.",
+			expectContains: []string{"ID:[PRIMES]", "Task", "primes.py"},
+		},
+		{
+			name:           "Coding Agent",
+			prompt:         "Implement the prime number script in python. ID:[PRIMES]",
+			expectContains: []string{"cat << 'EOF' > primes.py", "python3 primes.py", "git commit", "PROJECT_SIGNED_OFF"},
+		},
+		{
+			name:           "QA Agent",
+			prompt:         "Your role - QA Agent. Verify functionality.",
+			expectContains: []string{"agent-bridge signal QA_PASSED true"},
+		},
+		{
+			name:           "Manager",
+			prompt:         "Your role - Project Manager. Review the work.",
+			expectContains: []string{"agent-bridge signal PROJECT_SIGNED_OFF true"},
+		},
+		{
+			name:           "Initializer",
+			prompt:         "You are the Initializer Agent. Initialize features.",
+			expectContains: []string{"agent-bridge import feature_list.json"},
+		},
 	}
 
-	if !strings.Contains(response, "Mock agent response") {
-		t.Errorf("Response missing prefix, got: %s", response)
-	}
-
-	if !strings.Contains(response, "I received your prompt") {
-		t.Errorf("Response missing body, got: %s", response)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp, err := agent.Send(ctx, tt.prompt)
+			if err != nil {
+				t.Fatalf("Send() error = %v", err)
+			}
+			for _, exp := range tt.expectContains {
+				if !strings.Contains(resp, exp) {
+					t.Errorf("Send() response missing expected string: %s. Got: %s", exp, resp)
+				}
+			}
+		})
 	}
 }
 
