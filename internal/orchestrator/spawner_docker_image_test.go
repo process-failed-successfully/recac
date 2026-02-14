@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"sync"
 	"testing"
 	"time"
 
@@ -32,6 +33,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 
 	ctx := context.Background()
 	done := make(chan struct{})
+	var once sync.Once
 
 	// Mock expectations
 	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
@@ -62,7 +64,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
 		return s.Status == "completed" || s.Status == "error"
 	})).Run(func(args mock.Arguments) {
-		close(done)
+		once.Do(func() { close(done) })
 	}).Return(nil).Once()
 
 	err := spawner.Spawn(ctx, item)
