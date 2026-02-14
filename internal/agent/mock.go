@@ -34,11 +34,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristics for E2E scenarios
 	lowerPrompt := strings.ToLower(prompt)
 
-	// 1. Ticket Planning Phase (Initializer/TPM Role)
-	// Trigger on "technical program manager", "generate ticket", or "initializer agent"
+	// 1. CLI Ticket Planning Phase (TPM Role)
+	// Trigger on "technical program manager" or "generate ticket"
+	// This is used by `recac generate-from-spec` which EXPECTS PURE JSON.
 	if strings.Contains(lowerPrompt, "technical program manager") ||
-		strings.Contains(lowerPrompt, "generate ticket") ||
-		strings.Contains(lowerPrompt, "initializer agent") {
+		strings.Contains(lowerPrompt, "generate ticket") {
 
 		// Extract repo URL from prompt if possible, or use a placeholder
 		repoURL := "https://github.com/example/repo"
@@ -46,12 +46,31 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			repoURL = strings.Split(parts[1], "\n")[0]
 		}
 
+		return fmt.Sprintf(`[
+  {
+    "title": "ID:[PRIMES] Implement Prime Number Python Script",
+    "description": "Create a python script named primes.py that calculates primes up to 10000. \n\nRepo: %s\n\nAppSpec:\nruntime: python\n...",
+    "type": "Task"
+  }
+]`, repoURL), nil
+	}
+
+	// 1.5 Initializer Agent (RunLoop Phase)
+	// Trigger on "initializer agent"
+	// This runs inside the agent loop and MUST return a bash script to create features.
+	if strings.Contains(lowerPrompt, "initializer agent") {
+		// Extract repo URL from prompt if possible, or use a placeholder
+		repoURL := "https://github.com/example/repo"
+		if parts := strings.Split(prompt, "Repo: "); len(parts) > 1 {
+			repoURL = strings.Split(parts[1], "\n")[0]
+		}
+
 		// Initializer response must use 'agent-bridge import' as per new prompt instructions
-		// We return a bash block that pipes the JSON to the import command
+		// We return a bash block that writes to file AND pipes to import for robustness.
 		return fmt.Sprintf(`Creating feature list.
 
 `+"```bash"+`
-cat << 'EOF' | agent-bridge import
+cat << 'EOF' > feature_list.json
 {
   "project_name": "Prime Calculator",
   "features": [
@@ -74,6 +93,9 @@ cat << 'EOF' | agent-bridge import
   ]
 }
 EOF
+
+# Import to DB (Primary)
+cat feature_list.json | agent-bridge import || echo "Import failed, relying on file fallback"
 `+"```", repoURL), nil
 	}
 
@@ -101,6 +123,9 @@ EOF
 	// 5. Execution Phase (Coding Agent)
 	// Prime Python Scenario - triggers when asked to write code
 	// We check for "prime" and "python" BUT NOT if we are in the Initializer phase (which also has these words)
+	// Note: Initializer prompt now triggers Block 1.5 because of "initializer agent" check order if placed before?
+	// Actually, "initializer agent" is checked in Block 1.5.
+	// So we keep the exclusion here just in case Block 1.5 conditions are missed but these match.
 	if strings.Contains(lowerPrompt, "prime") && strings.Contains(lowerPrompt, "python") &&
 		!strings.Contains(lowerPrompt, "initializer agent") {
 

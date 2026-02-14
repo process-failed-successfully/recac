@@ -28,11 +28,22 @@ func TestMockAgent(t *testing.T) {
 func TestMockAgent_Heuristics(t *testing.T) {
 	agent := NewMockAgent()
 
-	// 1. Test Ticket Planning
+	// 1. Test Ticket Planning (CLI Phase)
 	planPrompt := "You are a Technical Program Manager. Please generate ticket..."
 	planResp, _ := agent.Send(context.Background(), planPrompt)
-	if !strings.Contains(planResp, "\"id\": \"[PRIMES]\"") {
-		t.Errorf("Expected JSON ticket list for planning prompt, got: %s", planResp)
+	// Expect ID in title now
+	if !strings.Contains(planResp, "ID:[PRIMES]") {
+		t.Errorf("Expected ID:[PRIMES] in title for planning prompt, got: %s", planResp)
+	}
+
+	// 1.5 Test Initializer (RunLoop Phase)
+	initPrompt := "Your role - Initializer Agent. Read spec..."
+	initResp, _ := agent.Send(context.Background(), initPrompt)
+	if !strings.Contains(initResp, "cat << 'EOF' > feature_list.json") {
+		t.Errorf("Expected feature_list.json creation for Initializer prompt, got: %s", initResp)
+	}
+	if !strings.Contains(initResp, "agent-bridge import") {
+		t.Errorf("Expected agent-bridge import for Initializer prompt, got: %s", initResp)
 	}
 
 	// 2. Test Execution (Prime Python)
@@ -56,7 +67,7 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	}
 
 	// 4. Test QA Phase
-	qaPrompt := "Here is the QA report for the feature."
+	qaPrompt := "Here is the QA report for the feature. role - qa agent"
 	qaResp, _ := agent.Send(context.Background(), qaPrompt)
 	if !strings.Contains(qaResp, "agent-bridge signal QA_PASSED true") {
 		t.Errorf("Expected QA_PASSED signal for QA prompt, got: %s", qaResp)
