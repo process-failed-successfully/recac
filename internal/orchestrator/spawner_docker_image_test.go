@@ -51,11 +51,12 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	}).Return("output", nil)
 
 	// LoadSession called after Exec
-	mockSM.On("LoadSession", "TICKET-1").Return(&runner.SessionState{}, nil)
+	// Return a session with Name populated to avoid validation issues if mock was strict
+	mockSM.On("LoadSession", "TICKET-1").Return(&runner.SessionState{Name: "TICKET-1", Status: "running"}, nil)
 
 	// CurrentCommitSHA called after LoadSession
-	// Return error so we don't need to mock actual git output or check subsequent steps dependent on success
-	mockGit.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("", assert.AnError)
+	// Return success to test happy path
+	mockGit.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("sha123", nil)
 
 	// Final SaveSession call - signals completion
 	// Use specific matcher to ensure we catch the correct call

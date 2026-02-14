@@ -171,7 +171,8 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 			contains(cmdStr, "export GIT_AUTHOR_NAME='RECAC Agent'") &&
 			contains(cmdStr, "export GIT_AUTHOR_EMAIL='agent@recac.io'")
 	})).Return("output", nil)
-	mockSM.On("LoadSession", "TICKET-1").Return(&runner.SessionState{}, nil)
+	// Return a valid session with Name populated
+	mockSM.On("LoadSession", "TICKET-1").Return(&runner.SessionState{Name: "TICKET-1", Status: "running"}, nil)
 
 	// This call happens at the END, so it's still there
 	mockGit.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("endsha", nil).Once()
@@ -252,7 +253,8 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 		close(done)
 	}).Return(nil)
 
-	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
+	// Return a valid session with Name populated
+	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{Name: "TASK-1\"; echo \"injected", Status: "running"}, nil)
 	mockGit.On("CurrentCommitSHA", mock.Anything).Return("sha", nil)
 
 	// Capture the command passed to Exec using a channel for synchronization
@@ -331,7 +333,8 @@ func TestDockerSpawner_EnvPropagation(t *testing.T) {
 		close(done)
 	}).Return(nil)
 
-	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
+	// Return a valid session with Name populated
+	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{Name: "TASK-ENV-TEST", Status: "running"}, nil)
 	mockGit.On("CurrentCommitSHA", mock.Anything).Return("sha", nil)
 
 	// Capture the command passed to Exec
