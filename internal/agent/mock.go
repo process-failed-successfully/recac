@@ -49,7 +49,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic: Task Execution for Prime Python Scenario
 	// We look for the task description in the prompt. We use a more relaxed match to handle variations.
-	if strings.Contains(prompt, "primes.py") && (strings.Contains(prompt, "python") || strings.Contains(prompt, "ID:[PRIMES]")) {
+	// The prompt might come from a feature description like "primes.py calculates 1229 primes", so we check for that too.
+	if strings.Contains(prompt, "primes.py") && (strings.Contains(prompt, "python") || strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "1229")) {
 		// Return bash script to do the work and SIGNAL COMPLETION
 		return `I will create the python script to calculate primes.
 
