@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"sync"
 	"testing"
 	"time"
 
@@ -11,13 +12,55 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+type SyncHandler struct {
+	slog.Handler
+	logged chan struct{}
+	once   *sync.Once
+}
+
+func (h *SyncHandler) Handle(ctx context.Context, r slog.Record) error {
+	if r.Message == "failed to load session for final update" {
+		h.once.Do(func() {
+			close(h.logged)
+		})
+	}
+	return h.Handler.Handle(ctx, r)
+}
+
+func (h *SyncHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &SyncHandler{
+		Handler: h.Handler.WithAttrs(attrs),
+		logged:  h.logged,
+		once:    h.once,
+	}
+}
+
+func (h *SyncHandler) WithGroup(name string) slog.Handler {
+	return &SyncHandler{
+		Handler: h.Handler.WithGroup(name),
+		logged:  h.logged,
+		once:    h.once,
+	}
+}
+
+func (h *SyncHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	return h.Handler.Enabled(ctx, level)
+}
+
 func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	mockDocker := new(MockDockerClient)
 	mockSM := new(MockSessionManager)
 	mockGit := new(MockGitClient)
 	mockPoller := new(MockPoller)
 
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	logged := make(chan struct{})
+	handler := &SyncHandler{
+		Handler: slog.NewTextHandler(io.Discard, nil),
+		logged:  logged,
+		once:    &sync.Once{},
+	}
+	logger := slog.New(handler)
+
 	imageName := "custom-image:v1.2.3"
 	spawner := NewDockerSpawner(logger, mockDocker, imageName, "test-proj", mockPoller, "provider", "model", mockSM)
 	spawner.GitClient = mockGit
@@ -61,8 +104,15 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 
 	select {
 	case <-done:
-		// Success
+		// Success (LoadSession called)
 	case <-time.After(5 * time.Second):
 		t.Fatal("Timeout waiting for LoadSession call")
+	}
+
+	select {
+	case <-logged:
+		// Success (LoadSession returned and error logged)
+	case <-time.After(5 * time.Second):
+		t.Fatal("Timeout waiting for error log")
 	}
 }
