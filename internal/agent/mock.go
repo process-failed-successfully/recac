@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,7 +31,64 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
-	// Return a mock response that shows the agent received the prompt
+
+	// Heuristic: If the prompt asks for a Jira ticket plan (TPM persona), return a JSON list of tickets.
+	// This fixes CI failures where 'recac jira generate-from-spec' expects strictly valid JSON.
+	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM") {
+		return `[
+  {
+    "summary": "Implement Core Features",
+    "description": "Implement the core functionality based on the specification.",
+    "issuetype": "Task",
+    "priority": "High"
+  },
+  {
+    "summary": "Setup Infrastructure",
+    "description": "Initialize the project structure and CI/CD pipelines.",
+    "issuetype": "Task",
+    "priority": "High"
+  }
+]`, nil
+	}
+
+	// Heuristic: If the prompt looks like a coding task (Agent persona), return a script that "does work"
+	// to avoid "No-Op" circuit breaker failures in E2E tests.
+	if strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "primes.py") {
+		return `I will implement the prime number generator.
+
+` + "```bash" + `
+# Create the python script
+cat <<EOF > primes.py
+import sys
+import json
+
+def is_prime(n):
+    if n <= 1: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0: return False
+    return True
+
+primes = [i for i in range(1, 101) if is_prime(i)]
+with open('primes.json', 'w') as f:
+    json.dump(primes, f)
+print(f"Generated {len(primes)} primes")
+EOF
+
+# Run the script
+python3 primes.py
+
+# Commit results
+git add primes.py primes.json
+git commit -m "feat: implement prime generator" || echo "Nothing to commit"
+
+# Signal completion
+agent-bridge feature set --id "req-script-runs-without-errors" --status "done"
+agent-bridge signal --privileged PROJECT_SIGNED_OFF
+` + "```" + `
+`, nil
+	}
+
+	// Default: Return a mock text response
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
