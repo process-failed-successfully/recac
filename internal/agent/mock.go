@@ -101,9 +101,14 @@ I have analyzed the requirements and created a plan.
 ` + "```", nil
 	}
 
+	// Important: Check for role-specific prompts BEFORE general project keywords
+	// to prevent 'Coding Agent' heuristic from capturing QA or Manager prompts that
+	// contain project details in context.
+
 	// --- 5. Coding Agent (Prime Python Scenario) ---
-	// Triggers when the prompt mentions primes.py or the project ID
-	if strings.Contains(promptLower, "primes.py") || strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "1229") {
+	// Triggers when the prompt mentions primes.py or the project ID, BUT only if it's NOT a review task
+	isReview := strings.Contains(promptLower, "qa agent") || strings.Contains(promptLower, "project manager") || strings.Contains(promptLower, "manager review")
+	if !isReview && (strings.Contains(promptLower, "primes.py") || strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "1229")) {
 
 		// If git status shows clean, we are done
 		if strings.Contains(promptLower, "nothing to commit") || strings.Contains(promptLower, "working tree clean") {
