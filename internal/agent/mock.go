@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,6 +31,48 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// 1. Technical Program Manager (TPM) Heuristic -> Return JSON Ticket List
+	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM") {
+		return `[
+  {
+    "title": "Implement Primes Algorithm",
+    "type": "Task"
+  },
+  {
+    "title": "Add Unit Tests",
+    "type": "Task"
+  }
+]`, nil
+	}
+
+	// 2. Coding Heuristic (primes.py) -> Return Bash Script
+	if strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "ID:[PRIMES]") {
+		return `#!/bin/bash
+cat <<EOF > primes.py
+def is_prime(n):
+    if n <= 1: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0: return False
+    return True
+
+import sys
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        n = int(sys.argv[1])
+        print(is_prime(n))
+EOF
+git add primes.py
+git commit -m "Add primes.py"
+echo "Done"
+`, nil
+	}
+
+	// 3. Clean Git Status Heuristic -> Task Completed
+	if strings.Contains(prompt, "nothing to commit") || strings.Contains(prompt, "working tree clean") {
+		return "Task completed.", nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
