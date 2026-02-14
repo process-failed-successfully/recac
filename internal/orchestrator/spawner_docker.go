@@ -183,6 +183,8 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 			if execErr != nil {
 				_ = s.Poller.UpdateStatus(context.Background(), item, "Failed", fmt.Sprintf("Agent failed:\n%s\nOutput:\n%s", execErr, output))
 			}
+			// Clean up workspace
+			os.RemoveAll(tempDir)
 			return
 		}
 

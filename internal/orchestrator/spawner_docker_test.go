@@ -217,7 +217,10 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 	client := new(MockDockerClient)
 	poller := new(MockPoller)
 	sm := new(MockSessionManager)
+	mockGit := new(MockGitClient)
 	spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", sm)
+	spawner.GitClient = mockGit
+	mockGit.On("CurrentCommitSHA", mock.Anything).Return("", nil).Maybe()
 
 	injectionItem := WorkItem{
 		ID:      "TASK-1\"; echo \"injected",
@@ -272,7 +275,10 @@ func TestDockerSpawner_EnvPropagation(t *testing.T) {
 	client := new(MockDockerClient)
 	poller := new(MockPoller)
 	sm := new(MockSessionManager)
+	mockGit := new(MockGitClient)
 	spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", sm)
+	spawner.GitClient = mockGit
+	mockGit.On("CurrentCommitSHA", mock.Anything).Return("", nil).Maybe()
 
 	item := WorkItem{
 		ID:      "TASK-ENV-TEST",
