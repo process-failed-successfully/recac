@@ -84,6 +84,28 @@ git commit -m "Initial commit" || echo "Nothing to commit"
 `, nil
 	}
 
+	// Heuristic: QA Agent - Always pass
+	if strings.Contains(prompt, "QA AGENT") {
+		return `I have run the tests and they passed.
+
+` + "```bash" + `
+echo "Running tests..."
+# Simulate successful test run
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// Heuristic: Manager - Always approve if QA passed (assumed)
+	if strings.Contains(prompt, "PROJECT MANAGER") {
+		return `QA has passed and features are complete. I approve.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true
+` + "```" + `
+`, nil
+	}
+
 	// Heuristic: If the prompt looks like a coding task (Agent persona), return a script that "does work"
 	// to avoid "No-Op" circuit breaker failures in E2E tests.
 	// EXCLUSION: Do not trigger if this is the Initializer Agent (handled above).

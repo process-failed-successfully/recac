@@ -67,6 +67,28 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	if !strings.Contains(resp, "agent-bridge import") {
 		t.Errorf("Initializer heuristic failed: expected agent-bridge import script, got: %s", resp)
 	}
+
+	// 5. QA Agent
+	// Expects signal QA_PASSED
+	prompt = "You are the QA AGENT. Verify..."
+	resp, err = agent.Send(ctx, prompt)
+	if err != nil {
+		t.Fatalf("QA Send failed: %v", err)
+	}
+	if !strings.Contains(resp, "agent-bridge signal QA_PASSED true") {
+		t.Errorf("QA heuristic failed: expected QA_PASSED signal, got: %s", resp)
+	}
+
+	// 6. Project Manager
+	// Expects signal PROJECT_SIGNED_OFF
+	prompt = "You are the PROJECT MANAGER. Review..."
+	resp, err = agent.Send(ctx, prompt)
+	if err != nil {
+		t.Fatalf("Manager Send failed: %v", err)
+	}
+	if !strings.Contains(resp, "agent-bridge signal PROJECT_SIGNED_OFF true") {
+		t.Errorf("Manager heuristic failed: expected PROJECT_SIGNED_OFF signal, got: %s", resp)
+	}
 }
 
 func TestTruncateString(t *testing.T) {
