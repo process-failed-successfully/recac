@@ -91,6 +91,7 @@ func (m WizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.Path = m.textInput.Value()
 				if m.Path != "" {
 					m.step = StepProvider
+					m.errMsg = ""
 					// Resize list if needed, or just transition
 					return m, nil
 				} else {
@@ -109,33 +110,44 @@ func (m WizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				val := m.textInput.Value()
 				if val == "" {
 					m.MaxAgents = 1
+					m.step = StepTaskMaxIterations
+					m.errMsg = ""
+					m.textInput.Reset()
+					m.textInput.Placeholder = "10"
+					m.textInput.Focus()
+					return m, nil
 				} else {
 					var n int
-					fmt.Sscanf(val, "%d", &n)
-					if n < 1 {
-						n = 1
+					_, err := fmt.Sscanf(val, "%d", &n)
+					if err != nil || n < 1 {
+						m.errMsg = "Please enter a valid number (>= 1)"
+						return m, nil
 					}
 					m.MaxAgents = n
+					m.step = StepTaskMaxIterations
+					m.errMsg = ""
+					m.textInput.Reset()
+					m.textInput.Placeholder = "10"
+					m.textInput.Focus()
+					return m, nil
 				}
-				m.step = StepTaskMaxIterations
-				m.textInput.Reset()
-				m.textInput.Placeholder = "10"
-				m.textInput.Focus()
-				return m, nil
 			} else if m.step == StepTaskMaxIterations {
 				val := m.textInput.Value()
 				if val == "" {
 					m.TaskMaxIterations = 10
+					m.done = true
+					return m, tea.Quit
 				} else {
 					var n int
-					fmt.Sscanf(val, "%d", &n)
-					if n < 1 {
-						n = 1
+					_, err := fmt.Sscanf(val, "%d", &n)
+					if err != nil || n < 1 {
+						m.errMsg = "Please enter a valid number (>= 1)"
+						return m, nil
 					}
 					m.TaskMaxIterations = n
+					m.done = true
+					return m, tea.Quit
 				}
-				m.done = true
-				return m, tea.Quit
 			}
 		}
 	case tea.WindowSizeMsg:
@@ -181,6 +193,10 @@ func (m WizardModel) View() string {
 		b.WriteString(m.textInput.View())
 		b.WriteString("\n")
 		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#666666")).Render("(Press Enter for default: 1)"))
+		if m.errMsg != "" {
+			b.WriteString("\n")
+			b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).Render(m.errMsg))
+		}
 		b.WriteString("\n\n(Esc to quit)")
 		return b.String()
 	} else if m.step == StepTaskMaxIterations {
@@ -191,6 +207,10 @@ func (m WizardModel) View() string {
 		b.WriteString(m.textInput.View())
 		b.WriteString("\n")
 		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#666666")).Render("(Press Enter for default: 10)"))
+		if m.errMsg != "" {
+			b.WriteString("\n")
+			b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).Render(m.errMsg))
+		}
 		b.WriteString("\n\n(Esc to quit)")
 		return b.String()
 	}

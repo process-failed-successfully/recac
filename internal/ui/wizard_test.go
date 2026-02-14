@@ -175,3 +175,61 @@ func TestWizardModel_HelperText(t *testing.T) {
 		t.Errorf("Expected view to contain 'Press Enter for default', got: %s", view)
 	}
 }
+
+func TestWizardModel_NumericValidation(t *testing.T) {
+	m := NewWizardModel()
+	m.Init()
+
+	// Skip to StepMaxAgents
+	m.step = StepMaxAgents
+	m.textInput.Focus()
+
+	// 1. Simulate invalid input "abc"
+	input := "abc"
+	for _, r := range input {
+		msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}}
+		updatedModel, _ := m.Update(msg)
+		m = updatedModel.(WizardModel)
+	}
+
+	msg := tea.KeyMsg{Type: tea.KeyEnter}
+	updatedModel, _ := m.Update(msg)
+	m = updatedModel.(WizardModel)
+
+	// Should still be on StepMaxAgents
+	if m.step != StepMaxAgents {
+		t.Error("Expected to stay on StepMaxAgents when input is invalid")
+	}
+	if !strings.Contains(m.errMsg, "Please enter a valid number") {
+		t.Errorf("Expected error message about valid number, got: %s", m.errMsg)
+	}
+
+	// 2. Simulate valid input "5"
+	// Clear error by simulating a key press
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{' '}})
+	m.textInput.SetValue("5")
+
+	msg = tea.KeyMsg{Type: tea.KeyEnter}
+	updatedModel, _ = m.Update(msg)
+	m = updatedModel.(WizardModel)
+
+	if m.step != StepTaskMaxIterations {
+		t.Error("Expected to transition to StepTaskMaxIterations with valid input")
+	}
+	if m.MaxAgents != 5 {
+		t.Errorf("Expected MaxAgents to be 5, got %d", m.MaxAgents)
+	}
+
+	// 3. Test negative number on StepTaskMaxIterations
+	m.textInput.SetValue("-1")
+	msg = tea.KeyMsg{Type: tea.KeyEnter}
+	updatedModel, _ = m.Update(msg)
+	m = updatedModel.(WizardModel)
+
+	if m.done {
+		t.Error("Expected not to be done with negative input")
+	}
+	if !strings.Contains(m.errMsg, "valid number") {
+		t.Errorf("Expected error message about valid number, got: %s", m.errMsg)
+	}
+}
