@@ -53,7 +53,11 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	}).Return("output", nil)
 
 	// LoadSession called after Exec
-	mockSM.On("LoadSession", "TICKET-1").Return(&runner.SessionState{}, nil)
+	// Use mock.Anything for ID argument to prevent potential mismatch, verify in Run hook
+	mockSM.On("LoadSession", mock.Anything).Run(func(args mock.Arguments) {
+		id := args.Get(0).(string)
+		assert.Equal(t, "TICKET-1", id, "LoadSession called with wrong ID")
+	}).Return(&runner.SessionState{}, nil)
 
 	// CurrentCommitSHA called after LoadSession
 	// Return error so we don't need to mock actual git output or check subsequent steps dependent on success
