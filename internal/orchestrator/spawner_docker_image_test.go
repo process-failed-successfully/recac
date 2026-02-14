@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"sync"
 	"testing"
 	"time"
 
@@ -30,12 +31,17 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	ctx := context.Background()
 
 	// Mock expectations
+	// Verify RunContainer receives correct image name
 	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
 
 	done := make(chan struct{})
+	var once sync.Once
+
 	mockSM.On("LoadSession", "TICKET-1").Run(func(args mock.Arguments) {
-		close(done)
+		once.Do(func() {
+			close(done)
+		})
 	}).Return(nil, assert.AnError)
 
 	execCalled := make(chan string, 1)
@@ -66,4 +72,9 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("Timeout waiting for LoadSession call")
 	}
+
+	mockDocker.AssertExpectations(t)
+	mockSM.AssertExpectations(t)
+	mockGit.AssertExpectations(t)
+	mockPoller.AssertExpectations(t)
 }
