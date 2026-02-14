@@ -46,6 +46,7 @@ func initFlags(cfgFile *string) {
 	pflag.String("provider", "", "Agent provider override")
 	pflag.String("model", "", "Agent model override")
 	pflag.Bool("mock", false, "Mock mode")
+	pflag.Float64("max-cost", 0, "Maximum budget in USD for the session")
 }
 
 func runApp(ctx context.Context) error {
@@ -74,6 +75,7 @@ func runApp(ctx context.Context) error {
 	viper.BindPFlag("provider", pflag.Lookup("provider"))
 	viper.BindPFlag("model", pflag.Lookup("model"))
 	viper.BindPFlag("mock", pflag.Lookup("mock"))
+	viper.BindPFlag("max_cost", pflag.Lookup("max-cost"))
 
 	viper.BindEnv("max_iterations", "RECAC_MAX_ITERATIONS")
 	viper.BindEnv("manager_frequency", "RECAC_MANAGER_FREQUENCY")
@@ -121,6 +123,7 @@ func runApp(ctx context.Context) error {
 		JiraTicketID:      viper.GetString("jira"),
 		Logger:            logger,
 		CommandPrefix:     []string{}, // Agent binary doesn't use subcommands, unless needed.
+		MaxCost:           viper.GetFloat64("max_cost"),
 	}
 
 	// Logic

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"recac/internal/agent"
 	"recac/internal/agent/prompts"
 	"recac/internal/git"
 	"recac/internal/notify"
@@ -114,6 +115,25 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		if s.MaxIterations > 0 && currentIteration >= s.MaxIterations {
 			s.Logger.Info("reached max iterations", "max_iterations", s.MaxIterations)
 			return ErrMaxIterations
+		}
+
+		// Check Max Cost (Budget)
+		if s.MaxCost > 0 && s.StateManager != nil {
+			state, err := s.StateManager.Load()
+			if err == nil {
+				// Use the stored model in state if available, otherwise session model
+				model := state.Model
+				if model == "" {
+					model = s.AgentModel
+				}
+				cost := agent.CalculateCost(model, state.TokenUsage)
+				if cost >= s.MaxCost {
+					s.Logger.Error("max cost limit reached", "cost", cost, "limit", s.MaxCost)
+					s.Notifier.Notify(ctx, notify.EventFailure, fmt.Sprintf("Project %s Failed: Max Cost Limit Reached ($%.2f >= $%.2f)", s.Project, cost, s.MaxCost), s.GetSlackThreadTS())
+					s.Notifier.AddReaction(ctx, s.GetSlackThreadTS(), "money_with_wings")
+					return ErrMaxCost
+				}
+			}
 		}
 
 		newIteration := s.IncrementIteration()

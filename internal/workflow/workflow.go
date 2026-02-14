@@ -52,6 +52,7 @@ type SessionConfig struct {
 	Logger            *slog.Logger
 	CommandPrefix     []string // Command arguments to prepend (e.g. "start")
 	SessionManager    ISessionManager
+	MaxCost           float64 // Maximum budget in USD
 }
 
 // ProcessDirectTask handles a coding session from a direct repository and task description
@@ -397,6 +398,7 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 		if cfg.JiraEpicKey != "" {
 			session.BaseBranch = fmt.Sprintf("agent-epic/%s", cfg.JiraEpicKey)
 		}
+		session.MaxCost = cfg.MaxCost
 
 		if err := session.Start(ctx); err != nil {
 			if ctx.Err() != nil {
@@ -475,6 +477,7 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 	if cfg.JiraEpicKey != "" {
 		session.BaseBranch = fmt.Sprintf("agent-epic/%s", cfg.JiraEpicKey)
 	}
+	session.MaxCost = cfg.MaxCost
 
 	// State Management
 	if session.StateManager != nil {

@@ -27,6 +27,7 @@ import (
 
 var ErrBlocker = errors.New("blocker detected")
 var ErrMaxIterations = errors.New("maximum iterations reached")
+var ErrMaxCost = errors.New("maximum cost limit reached")
 var ErrNoOp = errors.New("circuit breaker: no-op loop")
 var ErrStalled = errors.New("circuit breaker: stalled progress")
 
@@ -82,6 +83,7 @@ type Session struct {
 	FeatureContent            string       // Explicit feature list JSON content (authoritative)
 	Logger                    *slog.Logger // Structured logger for this session
 	SleepFunc                 func(time.Duration) // Function for sleeping (mockable)
+	MaxCost                   float64             // Maximum budget in USD
 
 	mu sync.RWMutex // Protects concurrent access to Iteration, SlackThreadTS, ContainerID
 }

@@ -76,6 +76,9 @@ func init() {
 	viper.BindPFlag("summary", startCmd.Flags().Lookup("summary"))
 	viper.BindPFlag("description", startCmd.Flags().Lookup("description"))
 
+	startCmd.Flags().Float64("max-cost", 0, "Maximum budget in USD for the session")
+	viper.BindPFlag("max_cost", startCmd.Flags().Lookup("max-cost"))
+
 	viper.BindEnv("max_iterations", "RECAC_MAX_ITERATIONS")
 	viper.BindEnv("manager_frequency", "RECAC_MANAGER_FREQUENCY")
 	viper.BindEnv("task_max_iterations", "RECAC_TASK_MAX_ITERATIONS")
@@ -183,6 +186,7 @@ var startCmd = &cobra.Command{
 			RepoURL:           repoURL,
 			Summary:           summary,
 			Description:       description,
+			MaxCost:           viper.GetFloat64("max_cost"),
 		}
 
 		// Handle session resumption
@@ -433,6 +437,7 @@ type SessionConfig struct {
 	Summary           string
 	Description       string
 	Logger            *slog.Logger
+	MaxCost           float64 // Maximum budget in USD
 }
 
 // processDirectTask handles a coding session from a direct repository and task description
@@ -761,6 +766,7 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 		if cfg.JiraEpicKey != "" {
 			session.BaseBranch = fmt.Sprintf("agent-epic/%s", cfg.JiraEpicKey)
 		}
+		session.MaxCost = cfg.MaxCost
 
 		if err := session.Start(ctx); err != nil {
 			if ctx.Err() != nil {
@@ -839,6 +845,7 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 	if cfg.JiraEpicKey != "" {
 		session.BaseBranch = fmt.Sprintf("agent-epic/%s", cfg.JiraEpicKey)
 	}
+	session.MaxCost = cfg.MaxCost
 
 	// State Management
 	if session.StateManager != nil {
