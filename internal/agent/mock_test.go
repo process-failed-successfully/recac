@@ -25,6 +25,30 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Heuristics(t *testing.T) {
+	agent := NewMockAgent()
+
+	// TPM Scenario
+	tpmPrompt := "You are an expert Technical Program Manager (TPM)..."
+	tpmResponse, err := agent.Send(context.Background(), tpmPrompt)
+	if err != nil {
+		t.Fatalf("TPM Send failed: %v", err)
+	}
+	if !strings.Contains(tpmResponse, `"title": "ID:[PRIMES]`) {
+		t.Errorf("TPM response missing JSON tickets, got: %s", tpmResponse)
+	}
+
+	// Primes Scenario
+	primesPrompt := "Please implement the task ID:[PRIMES]... primes.py"
+	primesResponse, err := agent.Send(context.Background(), primesPrompt)
+	if err != nil {
+		t.Fatalf("Primes Send failed: %v", err)
+	}
+	if !strings.Contains(primesResponse, "python3 primes.py") {
+		t.Errorf("Primes response missing python execution, got: %s", primesResponse)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
