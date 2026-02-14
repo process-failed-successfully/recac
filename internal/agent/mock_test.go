@@ -31,8 +31,10 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	// 1. Test Ticket Planning
 	planPrompt := "You are a Technical Program Manager. Please generate ticket..."
 	planResp, _ := agent.Send(context.Background(), planPrompt)
-	if !strings.Contains(planResp, "\"id\": \"[PRIMES]\"") {
-		t.Errorf("Expected JSON ticket list for planning prompt, got: %s", planResp)
+
+	// Expect ID:[PRIMES] in the Title
+	if !strings.Contains(planResp, "\"title\": \"ID:[PRIMES]") {
+		t.Errorf("Expected ID:[PRIMES] in ticket title for mapping, got: %s", planResp)
 	}
 
 	// 2. Test Execution (Prime Python)
@@ -48,8 +50,12 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	// 3. Test Completion (Prime + Nothing to commit)
 	completionPrompt := "I ran the python script to calculate prime numbers. Result: nothing to commit, working tree clean"
 	compResp, _ := agent.Send(context.Background(), completionPrompt)
-	if !strings.Contains(compResp, "agent-bridge feature set \"[PRIMES]\" --status done") {
+	if !strings.Contains(compResp, "agent-bridge feature set \"PRIMES\" --status done") {
 		t.Errorf("Expected completion command for 'nothing to commit', got: %s", compResp)
+	}
+	// Check for robust import
+	if !strings.Contains(compResp, "agent-bridge import") {
+		t.Errorf("Expected agent-bridge import command for robustness, got: %s", compResp)
 	}
 	if !strings.Contains(compResp, "agent-bridge signal PROJECT_SIGNED_OFF true --privileged") {
 		t.Errorf("Expected PROJECT_SIGNED_OFF signal for completion, got: %s", compResp)
@@ -94,6 +100,22 @@ func TestMockAgent_Stateful_PrimeScenario(t *testing.T) {
 	}
 	if !strings.Contains(resp2, "agent-bridge feature set") {
 		t.Errorf("Second call expected completion command, got: %s", resp2)
+	}
+}
+
+func TestMockAgent_Stateful_PrimeScenario_Loop(t *testing.T) {
+	agent := NewMockAgent()
+	agent.primeCalls = 1 // Set state to indicate code already generated
+
+	// Scenario: Git output contains filename but not 'python' keyword
+	// Example: "create mode 100644 primes.py"
+	prompt := "Command Output:\n[master 1234567] Add primes script\n 1 file changed, 10 insertions(+)\n create mode 100644 primes.py"
+
+	resp, _ := agent.Send(context.Background(), prompt)
+
+	// Should trigger completion because we are in state 1 and context relates to primes.py
+	if !strings.Contains(resp, "agent-bridge feature set") {
+		t.Errorf("Expected completion command for 'primes.py' context, got default response: %s", resp)
 	}
 }
 
