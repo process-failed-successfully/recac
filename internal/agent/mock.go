@@ -34,42 +34,65 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristics for E2E scenarios
 	lowerPrompt := strings.ToLower(prompt)
 
-	// 1. Ticket Planning Phase (TPM Role)
-	// Trigger on "technical program manager" or "generate ticket"
-	if strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "generate ticket") {
+	// 1. Ticket Planning Phase (Initializer/TPM Role)
+	// Trigger on "technical program manager", "generate ticket", or "initializer agent"
+	if strings.Contains(lowerPrompt, "technical program manager") ||
+		strings.Contains(lowerPrompt, "generate ticket") ||
+		strings.Contains(lowerPrompt, "initializer agent") {
+
 		// Extract repo URL from prompt if possible, or use a placeholder
 		repoURL := "https://github.com/example/repo"
 		if parts := strings.Split(prompt, "Repo: "); len(parts) > 1 {
 			repoURL = strings.Split(parts[1], "\n")[0]
 		}
 
-		return fmt.Sprintf(`[
-  {
-    "title": "Implement Prime Number Python Script",
-    "description": "Create a python script named primes.py that calculates primes up to 10000. \n\nRepo: %s\n\nAppSpec:\nruntime: python\n...",
-    "type": "Task",
-    "id": "[PRIMES]"
-  }
-]`, repoURL), nil
+		// Initializer response must use 'agent-bridge import' as per new prompt instructions
+		// We return a bash block that pipes the JSON to the import command
+		return fmt.Sprintf(`Creating feature list.
+
+`+"```bash"+`
+cat << 'EOF' | agent-bridge import
+{
+  "project_name": "Prime Calculator",
+  "features": [
+    {
+      "id": "[PRIMES]",
+      "title": "Implement Prime Number Python Script",
+      "description": "Create a python script named primes.py that calculates primes up to 10000. \n\nRepo: %s",
+      "priority": "MVP",
+      "status": "pending",
+      "steps": [
+        "Create primes.py",
+        "Run python3 primes.py",
+        "Verify primes.json is created"
+      ],
+      "dependencies": {
+        "exclusive_write_paths": ["primes.py"],
+        "read_only_paths": []
+      }
+    }
+  ]
+}
+EOF
+`+"```", repoURL), nil
 	}
 
 	// 2. QA Phase
 	// Triggers on "QA report" or similar
-	if strings.Contains(lowerPrompt, "qa report") {
+	// We check for "role - qa agent" specifically to avoid false positives if a coding prompt mentions QA
+	if strings.Contains(lowerPrompt, "role - qa agent") || strings.Contains(lowerPrompt, "qa report") {
 		return "QA passed.\n\n```bash\nagent-bridge signal QA_PASSED true\n```", nil
 	}
 
 	// 3. Manager Review Phase
 	// Triggers on "manager agent" or "review"
-	if strings.Contains(lowerPrompt, "manager agent") || strings.Contains(lowerPrompt, "review") {
+	if strings.Contains(lowerPrompt, "manager agent") || strings.Contains(lowerPrompt, "role - manager") {
 		return "Project signed off.\n\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true --privileged\n```", nil
 	}
 
 	// 4. Completion Check
 	// If the previous command resulted in "nothing to commit" or "working tree clean",
 	// it means the task is already done. We should signal completion.
-	// We relax the check for "prime" to ensure we catch this state even if the context is truncated,
-	// preventing infinite loops in smoke tests.
 	// We also check for "everything up-to-date" which typically follows "nothing to commit" in git output.
 	if strings.Contains(lowerPrompt, "nothing to commit") || strings.Contains(lowerPrompt, "working tree clean") || strings.Contains(lowerPrompt, "everything up-to-date") {
 		return "Great! The work is done. Marking feature as complete.\n\n```bash\nagent-bridge feature set \"[PRIMES]\" --status done --passes true\nagent-bridge signal PROJECT_SIGNED_OFF true --privileged\n```", nil
@@ -77,8 +100,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 5. Execution Phase (Coding Agent)
 	// Prime Python Scenario - triggers when asked to write code
-	// We check for "prime" and "python" BUT NOT "generate ticket" to avoid conflict with planning
-	if strings.Contains(lowerPrompt, "prime") && strings.Contains(lowerPrompt, "python") {
+	// We check for "prime" and "python" BUT NOT if we are in the Initializer phase (which also has these words)
+	if strings.Contains(lowerPrompt, "prime") && strings.Contains(lowerPrompt, "python") &&
+		!strings.Contains(lowerPrompt, "initializer agent") {
+
 		// Safety Valve: If we somehow missed the completion check above but see indications of completion,
 		// trigger completion now to prevent infinite loops.
 		if strings.Contains(lowerPrompt, "nothing to commit") || strings.Contains(lowerPrompt, "working tree clean") {
