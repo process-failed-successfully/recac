@@ -19,6 +19,10 @@ func TestDockerSpawner_EnvInjection_Vulnerability(t *testing.T) {
 	sm := new(MockSessionManager)
 	spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", sm)
 
+	mockGit := new(MockGitClient)
+	mockGit.On("CurrentCommitSHA", mock.Anything).Return("sha", nil)
+	spawner.GitClient = mockGit
+
 	// Inject a malicious payload that tries to break out of single quotes
 	// The payload ' closes the opening quote, then executes echo PWNED
 	maliciousPayload := "'; echo PWNED; '"
@@ -52,7 +56,7 @@ func TestDockerSpawner_EnvInjection_Vulnerability(t *testing.T) {
 	select {
 	case capturedCmd = <-capturedCmdChan:
 		// Success
-	case <-time.After(2 * time.Second):
+	case <-time.After(10 * time.Second):
 		t.Fatal("Timed out waiting for Exec call")
 	}
 

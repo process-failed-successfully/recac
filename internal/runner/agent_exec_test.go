@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"recac/internal/db"
 	"recac/internal/notify"
 	"strings"
 	"testing"
@@ -16,6 +17,7 @@ type MockDockerForExec struct {
 	DockerClient
 	ExecutedCmds []string
 	ExecDelay    time.Duration
+	DBStore      db.Store // Optional DB Store to update signals
 }
 
 func (m *MockDockerForExec) Exec(ctx context.Context, id string, cmd []string) (string, error) {
@@ -27,6 +29,24 @@ func (m *MockDockerForExec) Exec(ctx context.Context, id string, cmd []string) (
 		case <-time.After(m.ExecDelay):
 		case <-ctx.Done():
 			return "", ctx.Err()
+		}
+	}
+
+	// Intercept signal commands and update DB
+	if m.DBStore != nil {
+		if strings.Contains(fullCmd, "agent-bridge signal") {
+			parts := strings.Fields(fullCmd)
+			// expected format: ... agent-bridge signal <KEY> <VALUE> ...
+			for i, p := range parts {
+				if p == "signal" && i+2 < len(parts) {
+					key := parts[i+1]
+					val := parts[i+2]
+					// Project ID might be hard to guess, assume we use a default or injected one.
+					// But we don't know the project ID here easily unless we parse env or it's fixed.
+					// For ui_test.go, project is "test-project".
+					m.DBStore.SetSignal("test-project", key, val)
+				}
+			}
 		}
 	}
 

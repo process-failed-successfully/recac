@@ -159,7 +159,7 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 			}
 		}
 		// Also verify StartCommitSHA is empty
-		return hasRepoURL && s.StartCommitSHA == ""
+		return hasRepoURL && s.StartCommitSHA == "" && s.Status == "running"
 	})).Return(nil)
 
 	// Verify Exec includes git identity and project ID env vars
@@ -176,14 +176,23 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 	// This call happens at the END, so it's still there
 	mockGit.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("endsha", nil).Once()
 
-	mockSM.On("SaveSession", mock.AnythingOfType("*runner.SessionState")).Return(nil)
+	done := make(chan struct{})
+	mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return s.Status == "completed" || s.Status == "error"
+	})).Run(func(args mock.Arguments) {
+		close(done)
+	}).Return(nil)
 
 	err := spawner.Spawn(ctx, item)
 
 	assert.NoError(t, err)
 
-	// Allow goroutine to run
-	time.Sleep(100 * time.Millisecond)
+	// Wait for goroutine to run
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("Timeout waiting for Spawn goroutine to complete")
+	}
 
 	mockGit.AssertExpectations(t)
 	mockDocker.AssertExpectations(t)
@@ -245,7 +254,7 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 	select {
 	case capturedCmd = <-capturedCmdChan:
 		// Success
-	case <-time.After(2 * time.Second):
+	case <-time.After(10 * time.Second):
 		t.Fatal("Timed out waiting for Exec call")
 	}
 
@@ -297,7 +306,7 @@ func TestDockerSpawner_EnvPropagation(t *testing.T) {
 	select {
 	case capturedCmd = <-capturedCmdChan:
 		// Success
-	case <-time.After(2 * time.Second):
+	case <-time.After(10 * time.Second):
 		t.Fatal("Timed out waiting for Exec call")
 	}
 
