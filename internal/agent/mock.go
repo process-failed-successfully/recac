@@ -36,7 +36,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 1. Completion Heuristic (Prevent No-Op Loop)
 	// Checks for git status indicating nothing to commit
-	if strings.Contains(promptLower, "nothing to commit") || strings.Contains(promptLower, "clean") {
+	// IMPORTANT: Do NOT trigger this during Initializer or TPM phases, only for Coding/Manager
+	if (strings.Contains(promptLower, "nothing to commit") || strings.Contains(promptLower, "clean")) &&
+		!strings.Contains(promptLower, "initializer") &&
+		!strings.Contains(promptLower, "generate-from-spec") {
 		return "It seems there are no changes to commit. I will mark the task as complete.\nPROJECT_SIGNED_OFF", nil
 	}
 
@@ -58,7 +61,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 3. Initializer Agent (Feature Import)
-	if strings.Contains(promptLower, "initializer agent") {
+	// Match "initializer agent" or generic init requests
+	if strings.Contains(promptLower, "initializer agent") ||
+		(strings.Contains(promptLower, "initialize") && strings.Contains(promptLower, "project")) {
 		// Return a bash script to import features
 		features := db.FeatureList{
 			ProjectName: "recac-e2e",
@@ -77,6 +82,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 		return fmt.Sprintf(`
 #!/bin/bash
+echo "Importing features..."
 cat << 'EOF' | agent-bridge import
 %s
 EOF
@@ -101,10 +107,12 @@ PROJECT_SIGNED_OFF
 	// Trigger on "primes" etc. but handled LAST to avoid catching spec/TPM prompts.
 	if strings.Contains(promptLower, "primes") || strings.Contains(promptLower, "prime number script") || strings.Contains(promptLower, "req-script-runs-without-errors") {
 		// Return a Python script that writes primes.json
+		// Explicitly create the file to ensure git picks it up
 		return `
 Here is the python script to calculate primes:
 
-` + "```python" + `
+` + "```bash" + `
+cat << 'EOF' > primes.py
 import json
 
 def is_prime(n):
@@ -118,6 +126,9 @@ def is_prime(n):
 primes = [x for x in range(2, 100) if is_prime(x)]
 with open("primes.json", "w") as f:
     json.dump({"primes": primes}, f)
+EOF
+
+python3 primes.py
 ` + "```" + `
 `, nil
 	}
