@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -31,20 +32,25 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 
 	ctx := context.Background()
 
+	done := make(chan struct{})
+	var once sync.Once
+
 	// Mock expectations
 	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
-	mockSM.On("LoadSession", "TICKET-1").Return(nil, assert.AnError)
 
-	done := make(chan struct{})
+	// Synchronize on LoadSession - this ensures the goroutine has completed the critical section (Exec)
+	mockSM.On("LoadSession", "TICKET-1").Run(func(args mock.Arguments) {
+		once.Do(func() {
+			close(done)
+		})
+	}).Return(nil, assert.AnError)
 
 	// Verify the --image flag is passed correctly using MatchedBy
 	mockDocker.On("Exec", mock.Anything, "container123", mock.MatchedBy(func(cmd []string) bool {
 		fullCmd := strings.Join(cmd, " ")
 		return strings.Contains(fullCmd, "--image") && strings.Contains(fullCmd, imageName)
-	})).Run(func(args mock.Arguments) {
-		close(done)
-	}).Return("output", nil)
+	})).Return("output", nil)
 
 	err := spawner.Spawn(ctx, item)
 	require.NoError(t, err)
@@ -53,8 +59,9 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	case <-done:
 		// Success
 	case <-time.After(30 * time.Second):
-		t.Fatal("Timeout waiting for Exec call")
+		t.Fatal("Timeout waiting for LoadSession call")
 	}
 
 	mockDocker.AssertExpectations(t)
+	mockSM.AssertExpectations(t)
 }
