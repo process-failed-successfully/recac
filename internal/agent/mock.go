@@ -45,10 +45,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			repoURL = strings.Split(parts[1], "\n")[0]
 		}
 
-		// Return PRIMES without brackets to match E2E expectations
+		// Return ID:[PRIMES] in the Title to ensure the CLI can extract and map the ID correctly.
+		// The 'id' field in JSON is actually ignored by the CLI's ticketNode struct, but we keep it for clarity.
 		return fmt.Sprintf(`[
   {
-    "title": "Implement Prime Number Python Script",
+    "title": "ID:[PRIMES] Implement Prime Number Python Script",
     "description": "Create a python script named primes.py that calculates primes up to 10000. \n\nRepo: %s\n\nAppSpec:\nruntime: python\n...",
     "type": "Task",
     "id": "PRIMES"

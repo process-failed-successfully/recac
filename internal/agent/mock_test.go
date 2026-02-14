@@ -31,9 +31,10 @@ func TestMockAgent_Heuristics(t *testing.T) {
 	// 1. Test Ticket Planning
 	planPrompt := "You are a Technical Program Manager. Please generate ticket..."
 	planResp, _ := agent.Send(context.Background(), planPrompt)
-	// Expect "id": "PRIMES" (no brackets)
-	if !strings.Contains(planResp, "\"id\": \"PRIMES\"") {
-		t.Errorf("Expected JSON ticket list for planning prompt, got: %s", planResp)
+
+	// Expect ID:[PRIMES] in the Title
+	if !strings.Contains(planResp, "\"title\": \"ID:[PRIMES]") {
+		t.Errorf("Expected ID:[PRIMES] in ticket title for mapping, got: %s", planResp)
 	}
 
 	// 2. Test Execution (Prime Python)
