@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"sync"
 	"testing"
 	"time"
 
@@ -29,10 +30,18 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 
 	ctx := context.Background()
 
+	// Synchronization for background goroutine
+	done := make(chan struct{})
+	var once sync.Once
+
 	// Mock expectations
 	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
-	mockSM.On("LoadSession", "TICKET-1").Return(nil, assert.AnError)
+
+	// Update LoadSession mock to signal completion
+	mockSM.On("LoadSession", "TICKET-1").Run(func(args mock.Arguments) {
+		once.Do(func() { close(done) })
+	}).Return(nil, assert.AnError)
 
 	execCalled := make(chan string, 1)
 
@@ -53,5 +62,13 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
 	case <-time.After(1 * time.Second):
 		t.Fatal("Timeout waiting for Exec call")
+	}
+
+	// Ensure background goroutine finishes
+	select {
+	case <-done:
+		// Success
+	case <-time.After(1 * time.Second):
+		t.Fatal("Timeout waiting for background goroutine to finish")
 	}
 }
