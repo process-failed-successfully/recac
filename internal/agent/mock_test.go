@@ -97,6 +97,22 @@ func TestMockAgent_Stateful_PrimeScenario(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Stateful_PrimeScenario_Loop(t *testing.T) {
+	agent := NewMockAgent()
+	agent.primeCalls = 1 // Set state to indicate code already generated
+
+	// Scenario: Git output contains filename but not 'python' keyword
+	// Example: "create mode 100644 primes.py"
+	prompt := "Command Output:\n[master 1234567] Add primes script\n 1 file changed, 10 insertions(+)\n create mode 100644 primes.py"
+
+	resp, _ := agent.Send(context.Background(), prompt)
+
+	// Should trigger completion because we are in state 1 and context relates to primes.py
+	if !strings.Contains(resp, "agent-bridge feature set") {
+		t.Errorf("Expected completion command for 'primes.py' context, got default response: %s", resp)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {

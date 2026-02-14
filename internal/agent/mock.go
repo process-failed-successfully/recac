@@ -79,7 +79,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 5. Execution Phase (Coding Agent)
 	// Prime Python Scenario - triggers when asked to write code
 	// We check for "prime" and "python" BUT NOT "generate ticket" to avoid conflict with planning
-	if strings.Contains(lowerPrompt, "prime") && strings.Contains(lowerPrompt, "python") {
+	// We also trigger on "primes.py" (e.g. from git output) to handle verification loops where 'python' keyword might be missing.
+	if (strings.Contains(lowerPrompt, "prime") && strings.Contains(lowerPrompt, "python")) || strings.Contains(lowerPrompt, "primes.py") {
 		// State check: If we've already generated the code, assume we are in a verification loop and finish.
 		if m.primeCalls > 0 {
 			return "Great! The work is done. Marking feature as complete.\n\n```bash\nagent-bridge feature set \"[PRIMES]\" --status done --passes true\nagent-bridge signal PROJECT_SIGNED_OFF true --privileged\n```", nil
