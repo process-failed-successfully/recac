@@ -167,10 +167,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			"agent-bridge feature set req-the-primes-json-file-contains- --status done --passes true || true\n" +
 			"agent-bridge feature set req-the-list-of-primes-in-primes-j --status done --passes true || true\n\n" +
 			"# Commit changes\n" +
-			"git add primes.py primes.json\n" +
-			"git commit -m \"Implement primes calculation\" || echo \"nothing to commit\"\n\n" +
-			"# Signal completion\n" +
-			"agent-bridge signal PROJECT_SIGNED_OFF true --privileged\n" +
+			"python3 primes.py || echo \"PYTHON EXECUTION FAILED\"\n" +
+			"ls -la\n" +
+			"git status\n" +
+			"git add .\n" +
+			"git commit -m \"Implement primes calculation\" || echo \"nothing to commit\"\n" +
+			"git push origin HEAD || echo \"push failed\"\n" +
 			"```", nil
 	}
 
