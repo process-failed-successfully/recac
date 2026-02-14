@@ -37,6 +37,10 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 		Nodes: make(map[string]*CallGraphNode),
 	}
 
+	// Optimization indexes
+	methodIndex := make(map[string][]*CallGraphNode)
+	funcIndex := make(map[string][]*CallGraphNode)
+
 	// 1. First Pass: Index all functions and methods
 	// We also need to track imports per file to resolve calls later.
 	// Map: FilePath -> ImportMap (Alias -> PkgPath)
@@ -117,6 +121,12 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 				}
 
 				cg.Nodes[node.ID] = node
+
+				if node.Receiver != "" {
+					methodIndex[node.Name] = append(methodIndex[node.Name], node)
+				} else {
+					funcIndex[node.Name] = append(funcIndex[node.Name], node)
+				}
 			}
 		}
 		return nil
@@ -191,7 +201,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 								// This is tricky because "importPath" is like "github.com/foo/bar"
 								// But our keys are "internal/bar.Func".
 								// We will try to match suffix.
-								calleeID = resolveExternalCall(cg, importPath, sel)
+								calleeID = resolveExternalCall(funcIndex, importPath, sel)
 								if calleeID == "" {
 									// Treat as external node
 									calleeID = fmt.Sprintf("%s.%s", importPath, sel)
@@ -200,7 +210,7 @@ func GenerateCallGraph(root string) (*CallGraph, error) {
 								// Variable.Method()
 								// We don't know the type of Variable.
 								// Heuristic: Find ANY method named 'Sel' in our codebase.
-								candidates := findMethodsByName(cg, sel)
+								candidates := findMethodsByName(methodIndex, sel)
 								if len(candidates) == 1 {
 									calleeID = candidates[0].ID
 								} else if len(candidates) > 1 {
@@ -256,7 +266,7 @@ func getReceiverTypeName(recv *ast.FieldList) string {
 	return "Unknown"
 }
 
-func resolveExternalCall(cg *CallGraph, importPath string, funcName string) string {
+func resolveExternalCall(funcIndex map[string][]*CallGraphNode, importPath string, funcName string) string {
 	// Our nodes are keyed by "relDir/pkg.Func".
 	// Import path is "recac/internal/foo".
 	// If we are running on "recac" repo, "internal/foo" matches.
@@ -266,25 +276,18 @@ func resolveExternalCall(cg *CallGraph, importPath string, funcName string) stri
 	// This is hard without knowing module name.
 	// But we can scan all nodes and check if Node.Package matches the end of ImportPath?
 
-	for id, node := range cg.Nodes {
-		if node.Name == funcName && node.Receiver == "" {
-			// Check if importPath ends with node.Package
-			// node.Package might be "internal/utils"
-			// importPath might be "recac/internal/utils"
-			if strings.HasSuffix(importPath, node.Package) {
-				return id
-			}
+	candidates := funcIndex[funcName]
+	for _, node := range candidates {
+		// Check if importPath ends with node.Package
+		// node.Package might be "internal/utils"
+		// importPath might be "recac/internal/utils"
+		if strings.HasSuffix(importPath, node.Package) {
+			return node.ID
 		}
 	}
 	return ""
 }
 
-func findMethodsByName(cg *CallGraph, methodName string) []*CallGraphNode {
-	var results []*CallGraphNode
-	for _, node := range cg.Nodes {
-		if node.Name == methodName && node.Receiver != "" {
-			results = append(results, node)
-		}
-	}
-	return results
+func findMethodsByName(methodIndex map[string][]*CallGraphNode, methodName string) []*CallGraphNode {
+	return methodIndex[methodName]
 }
