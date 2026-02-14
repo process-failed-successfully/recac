@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -263,8 +264,18 @@ func (m *MockSessionManager) ListArchivedSessions() ([]*runner.SessionState, err
 	return archived, nil
 }
 
+var executeCommandLock sync.Mutex
+
 // executeCommand executes a cobra command and returns its output.
 func executeCommand(root *cobra.Command, args ...string) (output string, err error) {
+	executeCommandLock.Lock()
+	defer executeCommandLock.Unlock()
+	return executeCommandInternal(root, args...)
+}
+
+// executeCommandInternal executes the command without locking.
+// Caller must hold executeCommandLock if checking for races.
+func executeCommandInternal(root *cobra.Command, args ...string) (output string, err error) {
 	resetFlags(root)
 	b := new(bytes.Buffer)
 

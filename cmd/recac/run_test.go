@@ -70,8 +70,13 @@ func TestRunCmdHelperProcess(t *testing.T) {
 }
 
 func TestRunCmd_Success(t *testing.T) {
+	// Prevent parallel execution race on runExecCommand
+	executeCommandLock.Lock()
+	defer executeCommandLock.Unlock()
+
 	// Restore original execCommand after test
-	defer func() { runExecCommand = exec.Command }()
+	originalExecCommand := runExecCommand
+	defer func() { runExecCommand = originalExecCommand }()
 
 	// Mock execCommand to call TestRunCmdHelperProcess
 	runExecCommand = func(command string, args ...string) *exec.Cmd {
@@ -92,7 +97,7 @@ func TestRunCmd_Success(t *testing.T) {
 	defer func() { agentClientFactory = origFactory }()
 
 	// Execute
-	output, err := executeCommand(rootCmd, "run", "success_cmd")
+	output, err := executeCommandInternal(rootCmd, "run", "success_cmd")
 
 	// Assertions
 	require.NoError(t, err)
@@ -102,8 +107,13 @@ func TestRunCmd_Success(t *testing.T) {
 }
 
 func TestRunCmd_Failure_CallsAI(t *testing.T) {
+	// Prevent parallel execution race on runExecCommand
+	executeCommandLock.Lock()
+	defer executeCommandLock.Unlock()
+
 	// Restore original execCommand after test
-	defer func() { runExecCommand = exec.Command }()
+	originalExecCommand := runExecCommand
+	defer func() { runExecCommand = originalExecCommand }()
 
 	// Mock execCommand to call TestRunCmdHelperProcess
 	runExecCommand = func(command string, args ...string) *exec.Cmd {
@@ -127,7 +137,7 @@ func TestRunCmd_Failure_CallsAI(t *testing.T) {
 
 	// Execute
 	// We expect an error because the command fails
-	output, err := executeCommand(rootCmd, "run", "fail_cmd")
+	output, err := executeCommandInternal(rootCmd, "run", "fail_cmd")
 
 	// Assertions
 	require.Error(t, err) // It should return an error
