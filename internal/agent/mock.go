@@ -37,6 +37,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.handlePrimesScenario(), nil
 	}
 
+	// Check for 'Planning' (TPM) scenario trigger
+	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM") {
+		return m.handlePlanningScenario(), nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
@@ -81,6 +86,19 @@ git commit -m "Add primes script and output" || echo "Nothing to commit"
 agent-bridge signal --privileged PROJECT_SIGNED_OFF
 ` + "```" + `
 `, scriptContent)
+}
+
+func (m *MockAgent) handlePlanningScenario() string {
+	// Return a JSON array of tickets for the Planning Agent
+	// The recac generate-from-spec command expects strict JSON
+	return `[
+  {
+    "id": "PRIMES",
+    "summary": "Create Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.",
+    "type": "Task"
+  }
+]`
 }
 
 

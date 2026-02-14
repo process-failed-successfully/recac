@@ -65,3 +65,22 @@ func TestMockAgent_PrimesScenario(t *testing.T) {
 		t.Errorf("Response should not contain primes scenario logic for regular prompt")
 	}
 }
+
+func TestMockAgent_PlanningScenario(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Test with trigger
+	prompt := "You are a Technical Program Manager (TPM)."
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Verify JSON structure
+	if !strings.HasPrefix(response, "[") || !strings.HasSuffix(response, "]") {
+		t.Errorf("Response should be a JSON array, got: %s", response)
+	}
+	if !strings.Contains(response, "\"id\": \"PRIMES\"") {
+		t.Errorf("Response should contain ticket ID PRIMES")
+	}
+}
