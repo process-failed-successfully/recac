@@ -164,7 +164,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			"# Commit changes\n" +
 			"git add primes.py primes.json\n" +
 			"git commit -m \"Implement primes calculation\" || echo \"nothing to commit\"\n\n" +
-			"# Signal completion\n" +
+			"# Signal completion (Force Rebuild - Jules)\n" +
 			"agent-bridge signal PROJECT_SIGNED_OFF true --privileged\n" +
 			"```", nil
 	}
