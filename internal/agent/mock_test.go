@@ -76,6 +76,13 @@ func TestMockAgent(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Contains(t, resp, "def is_prime(n):")
 	})
+
+	t.Run("Coding Heuristic - Relaxed Fallback", func(t *testing.T) {
+		prompt := "Just do the task related to primes please."
+		resp, err := agent.Send(ctx, prompt)
+		assert.NoError(t, err)
+		assert.Contains(t, resp, "def is_prime(n):")
+	})
 }
 
 func TestTruncateString(t *testing.T) {
