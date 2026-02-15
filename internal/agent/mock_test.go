@@ -59,6 +59,18 @@ func TestMockAgent_Heuristics(t *testing.T) {
 			notExpected:    "def is_prime(n):", // Should NOT be code
 		},
 		{
+			name:           "Architect Agent - Lowercase Prompt",
+			prompt:         "you are the architect. please plan the solution for prime number generator.",
+			expectedOutput: `["PRIMES-1"]`,
+			notExpected:    "def is_prime(n):", // Should NOT be code
+		},
+		{
+			name:           "TPM Agent - Lowercase Prompt",
+			prompt:         "you are a technical program manager. please create tickets for prime number generator.",
+			expectedOutput: "ID:[PRIMES]",
+			notExpected:    "def is_prime(n):", // Should NOT be code
+		},
+		{
 			name:           "Coding Agent - Primes",
 			prompt:         "Please implement the prime number generator in python. Output to primes.json.",
 			expectedOutput: "def is_prime(n):",

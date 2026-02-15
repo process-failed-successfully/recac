@@ -42,7 +42,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// TPM Agent Heuristic (Jira Ticket Generation)
 	// We check for "Technical Program Manager" which is in tpm_agent.md template.
-	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM") {
+	if strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "tpm") {
 		// Note: The structure must match ticketNode in recac/jira.go
 		tickets := []map[string]interface{}{
 			{
@@ -65,7 +65,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Initializer Agent (Feature extraction)
 	// Prioritize this over coding to avoid coding script being returned for initializer
-	if strings.Contains(prompt, "Initializer Agent") || strings.Contains(prompt, "Architect") || strings.Contains(prompt, "extract features") {
+	if strings.Contains(lowerPrompt, "initializer agent") || strings.Contains(lowerPrompt, "architect") || strings.Contains(lowerPrompt, "extract features") {
 		return `["PRIMES-1"]`, nil
 	}
 
