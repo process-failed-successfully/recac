@@ -2,35 +2,46 @@ package agent
 
 import (
 	"context"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestMockAgent(t *testing.T) {
+func TestMockAgent_Send_Tickets(t *testing.T) {
 	agent := NewMockAgent()
 
-	prompt := "This is a test prompt that is long enough to be truncated"
-	response, err := agent.Send(context.Background(), prompt)
+	// Test TPM Prompt
+	prompt := "You are an expert Technical Program Manager. Please generate a list of tickets in JSON format."
+	resp, err := agent.Send(context.Background(), prompt)
+	assert.NoError(t, err)
+	assert.Contains(t, resp, "PRIMES")
+	assert.Contains(t, resp, "\"type\": \"Task\"")
 
-	if err != nil {
-		t.Fatalf("Send failed: %v", err)
-	}
-
-	if !strings.Contains(response, "Mock agent response") {
-		t.Errorf("Response missing prefix, got: %s", response)
-	}
-
-	if !strings.Contains(response, "I received your prompt") {
-		t.Errorf("Response missing body, got: %s", response)
-	}
+	// Test Architect Prompt
+	promptArch := "You are a Lead Software Architect. Output the plan as JSON."
+	respArch, err := agent.Send(context.Background(), promptArch)
+	assert.NoError(t, err)
+	assert.Contains(t, respArch, "PRIMES")
 }
 
-func TestTruncateString(t *testing.T) {
-	s := "hello world"
-	if truncateString(s, 5) != "hello" {
-		t.Errorf("Expected 'hello', got '%s'", truncateString(s, 5))
-	}
-	if truncateString(s, 20) != "hello world" {
-		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
-	}
+func TestMockAgent_Send_Coding(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Test Coding Prompt
+	prompt := "Write a python script to calculate primes."
+	resp, err := agent.Send(context.Background(), prompt)
+	assert.NoError(t, err)
+	assert.Contains(t, resp, "cat << 'EOF' > primes.py")
+	assert.Contains(t, resp, "python3 primes.py")
+}
+
+func TestMockAgent_Send_Default(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Test Generic Prompt
+	prompt := "Hello there."
+	resp, err := agent.Send(context.Background(), prompt)
+	assert.NoError(t, err)
+	assert.Contains(t, resp, "Mock agent response")
+	assert.Contains(t, resp, "Hello there")
 }
