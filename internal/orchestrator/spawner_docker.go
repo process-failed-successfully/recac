@@ -75,12 +75,15 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		"/usr/local/bin/recac-agent",
 		"--jira", item.ID,
 		"--project", item.ID,
-		"--image", s.Image,
 		"--detached=false",
 		"--cleanup=false",
 		"--path", "/workspace",
 		"--verbose",
 		"--repo-url", item.RepoURL, // Delegate cloning
+	}
+
+	if s.Image != "" {
+		agentCmd = append(agentCmd, "--image", s.Image)
 	}
 
 	session := &runner.SessionState{
