@@ -34,3 +34,18 @@ func TestTruncateString(t *testing.T) {
 		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
 	}
 }
+
+func TestMockAgent_Primes(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Please generate primes.py or id:[primes]"
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(response, "cat <<EOF > primes.py") {
+		t.Errorf("Expected primes.py script, got: %s", response)
+	}
+	if !strings.Contains(response, "is_prime") {
+		t.Errorf("Expected is_prime function logic, got: %s", response)
+	}
+}
