@@ -34,11 +34,14 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
 
 	// Channel to signal completion of the background goroutine
-	done := make(chan struct{})
+	done := make(chan struct{}, 1)
 
 	// Ensure LoadSession is called and signals completion
 	mockSM.On("LoadSession", "TICKET-1").Run(func(args mock.Arguments) {
-		close(done)
+		select {
+		case done <- struct{}{}:
+		default:
+		}
 	}).Return(nil, assert.AnError)
 
 	execCalled := make(chan string, 1)
