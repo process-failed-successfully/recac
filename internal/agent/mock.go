@@ -2,7 +2,9 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,11 +32,48 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// Heuristics to return valid JSON for specific roles/prompts
+	// This is crucial for E2E tests where the CLI expects JSON output
+	lowerPrompt := strings.ToLower(prompt)
+
+	// 1. Technical Program Manager / Planner (JSON expected)
+	if (strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "planner")) && strings.Contains(lowerPrompt, "json") {
+		return m.generateMockTicketPlan(), nil
+	}
+
+	// 2. Architect (JSON expected)
+	if (strings.Contains(lowerPrompt, "feature list") || strings.Contains(lowerPrompt, "break down") || strings.Contains(lowerPrompt, "decompose") || strings.Contains(lowerPrompt, "application specification")) && strings.Contains(lowerPrompt, "json") {
+		return m.generateMockTicketPlan(), nil
+	}
+
+	// 3. Coding (Primes scenario)
+	if strings.Contains(lowerPrompt, "prime number") || strings.Contains(lowerPrompt, "primes.json") || strings.Contains(lowerPrompt, "id:[primes]") || strings.Contains(lowerPrompt, "generate primes") {
+		// Return a python script block
+		return "```python\nimport json\n\ndef is_prime(n):\n    if n <= 1: return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0: return False\n    return True\n\nprimes = [x for x in range(1, 101) if is_prime(x)]\nwith open('primes.json', 'w') as f:\n    json.dump({'primes': primes}, f)\n```", nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
+}
+
+func (m *MockAgent) generateMockTicketPlan() string {
+	// Structure typically expected by recac generate-from-spec
+	// It expects a list of tickets or a tree
+	// Let's provide a simple flat list for the primes scenario
+	tickets := []map[string]interface{}{
+		{
+			"title":       "ID:[PRIMES] Implement Python Script",
+			"description": "Create a python script that generates prime numbers up to 100 and saves them to primes.json",
+			"type":        "Task",
+			"children":    []interface{}{},
+		},
+	}
+	bytes, _ := json.Marshal(tickets)
+	return string(bytes)
 }
 
 // SendStream implements the Agent interface
