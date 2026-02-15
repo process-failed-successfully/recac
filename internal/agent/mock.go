@@ -34,17 +34,30 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	lowerPrompt := strings.ToLower(prompt)
 
-	// Heuristic for Architect/TPM JSON requests
+	// Explicit override for "PRIMES" scenario ticket generation
+	// This ensures we get exactly ONE Task ticket, which matches the E2E expectation.
+	if strings.Contains(lowerPrompt, "id:[primes]") && (strings.Contains(lowerPrompt, "json") || strings.Contains(lowerPrompt, "technical program manager")) {
+		return `[
+  {
+    "title": "[PRIMES] Prime Number Script",
+    "description": "Implement a Python script to check for prime numbers.\n\nRepo: https://github.com/process-failed-successfully/recac-jira-e2e",
+    "type": "Task",
+    "children": []
+  }
+]`, nil
+	}
+
+	// Heuristic for Architect/TPM JSON requests (Generic)
 	// The TPM prompt asks for "Output purely JSON" and mentions "Technical Program Manager"
 	// The Architect prompt also asks for JSON schemas.
 	if (strings.Contains(lowerPrompt, "json") || strings.Contains(lowerPrompt, "schema")) &&
 		(strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "architect") || strings.Contains(lowerPrompt, "output purely json")) {
 
-		// Return a valid JSON structure for tickets
+		// Return a generic valid JSON structure for tickets if no specific scenario matches
 		return `[
   {
-    "title": "ID:[PRIMES] Prime Number Script",
-    "description": "Implement a Python script to check for prime numbers.\n\nRepo: https://github.com/process-failed-successfully/recac-jira-e2e",
+    "title": "Generic Feature Request",
+    "description": "A generic feature request for testing.",
     "type": "Task",
     "children": []
   }
