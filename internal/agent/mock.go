@@ -52,9 +52,37 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic: Check if the prompt is for the Coding Agent (Implement Code)
 	// The prompt typically asks to "implement the following task" or similar
+	// We need to return a bash block that writes the file and runs it,
+	// because the executor looks for ```bash blocks to execute.
 	if strings.Contains(prompt, "Implement a Python script") || strings.Contains(strings.ToLower(prompt), "primes") {
-		// Return a valid Python script for the 'prime-python' scenario
-		return "```python\nimport json\n\ndef generate_primes(n):\n    primes = []\n    for num in range(2, n + 1):\n        is_prime = True\n        for i in range(2, int(num ** 0.5) + 1):\n            if num % i == 0:\n                is_prime = False\n                break\n        if is_prime:\n            primes.append(num)\n    return primes\n\nif __name__ == '__main__':\n    primes = generate_primes(100)\n    with open('primes.json', 'w') as f:\n        json.dump({'primes': primes}, f)\n    print(f'Generated {len(primes)} primes.')\n```", nil
+		return `I will create the python script to generate prime numbers.
+
+` + "```bash" + `
+cat <<EOF > primes.py
+import json
+
+def generate_primes(n):
+    primes = []
+    for num in range(2, n + 1):
+        is_prime = True
+        for i in range(2, int(num ** 0.5) + 1):
+            if num % i == 0:
+                is_prime = False
+                break
+        if is_prime:
+            primes.append(num)
+    return primes
+
+if __name__ == '__main__':
+    primes = generate_primes(100)
+    with open('primes.json', 'w') as f:
+        json.dump({'primes': primes}, f)
+    print(f'Generated {len(primes)} primes.')
+EOF
+
+python3 primes.py
+` + "```" + `
+`, nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
