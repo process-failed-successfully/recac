@@ -25,6 +25,50 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Heuristics(t *testing.T) {
+	agent := NewMockAgent()
+	ctx := context.Background()
+
+	tests := []struct {
+		name     string
+		prompt   string
+		expected string
+	}{
+		{
+			name:     "TPM Phase",
+			prompt:   "You are a Technical Program Manager. Respond with JSON format.",
+			expected: "[",
+		},
+		{
+			name:     "Commit Message Phase",
+			prompt:   "Write a commit message for these changes.",
+			expected: "feat: Implement primes.py",
+		},
+		{
+			name:     "Coding Phase - Generate",
+			prompt:   "Create a script to generate prime numbers.",
+			expected: "```python",
+		},
+		{
+			name:     "Coding Phase - Already Generated",
+			prompt:   "Create primes.py. Context: def generate_primes(n): ...",
+			expected: "Task completed",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			resp, err := agent.Send(ctx, tc.prompt)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+			if !strings.Contains(resp, tc.expected) {
+				t.Errorf("Expected response to contain '%s', got: %s", tc.expected, resp)
+			}
+		})
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {

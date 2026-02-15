@@ -60,6 +60,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Triggers on "primes" or "generate primes"
 	// Ensure we don't trigger this if it's the TPM phase (though TPM check is above)
 	if strings.Contains(lowerPrompt, "prime") || strings.Contains(lowerPrompt, "primes") || strings.Contains(lowerPrompt, "id:[primes]") {
+		// Prevent infinite loop: if the code is already in the prompt (history), assume completion.
+		if strings.Contains(lowerPrompt, "def generate_primes") {
+			return "Task completed. The `primes.py` script has been created.", nil
+		}
 		return "```python\ndef generate_primes(n):\n    primes = []\n    for i in range(2, n + 1):\n        is_prime = True\n        for j in range(2, int(i ** 0.5) + 1):\n            if i % j == 0:\n                is_prime = False\n                break\n        if is_prime:\n            primes.append(i)\n    return primes\n\nif __name__ == '__main__':\n    import sys\n    limit = int(sys.argv[1]) if len(sys.argv) > 1 else 100\n    print(generate_primes(limit))\n```", nil
 	}
 
