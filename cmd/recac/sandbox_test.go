@@ -14,7 +14,15 @@ type mockSandboxClient struct {
 	execInteractiveFunc func(ctx context.Context, containerID string, cmd []string) error
 	stopContainerFunc   func(ctx context.Context, containerID string) error
 	removeContainerFunc func(ctx context.Context, containerID string, force bool) error
+	pullImageFunc       func(ctx context.Context, imageRef string) error
 	closeFunc           func() error
+}
+
+func (m *mockSandboxClient) PullImage(ctx context.Context, imageRef string) error {
+	if m.pullImageFunc != nil {
+		return m.pullImageFunc(ctx, imageRef)
+	}
+	return nil
 }
 
 func (m *mockSandboxClient) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, ports []string, user string) (string, error) {
@@ -63,6 +71,13 @@ func TestSandboxCmd(t *testing.T) {
 		execCalled := false
 		stopCalled := false
 		removeCalled := false
+		pullCalled := false
+
+		mockClient.pullImageFunc = func(ctx context.Context, imageRef string) error {
+			pullCalled = true
+			assert.Equal(t, "ghcr.io/process-failed-successfully/recac-agent:latest", imageRef, "Should pull correct image")
+			return nil
+		}
 
 		mockClient.runContainerFunc = func(ctx context.Context, imageRef string, workspace string, extraBinds []string, ports []string, user string) (string, error) {
 			runCalled = true
@@ -97,6 +112,7 @@ func TestSandboxCmd(t *testing.T) {
 		err := sandboxCmd.RunE(sandboxCmd, []string{})
 		assert.NoError(t, err)
 
+		assert.True(t, pullCalled, "PullImage should be called")
 		assert.True(t, runCalled, "RunContainer should be called")
 		assert.True(t, execCalled, "ExecInteractive should be called")
 		assert.True(t, stopCalled, "StopContainer should be called")
@@ -106,6 +122,13 @@ func TestSandboxCmd(t *testing.T) {
 	t.Run("Custom Image and User", func(t *testing.T) {
 		mockClient := &mockSandboxClient{}
 		runCalled := false
+		pullCalled := false
+
+		mockClient.pullImageFunc = func(ctx context.Context, imageRef string) error {
+			pullCalled = true
+			assert.Equal(t, "custom-image", imageRef)
+			return nil
+		}
 
 		mockClient.runContainerFunc = func(ctx context.Context, imageRef string, workspace string, extraBinds []string, ports []string, user string) (string, error) {
 			runCalled = true
@@ -128,6 +151,7 @@ func TestSandboxCmd(t *testing.T) {
 
 		err := sandboxCmd.RunE(sandboxCmd, []string{})
 		assert.NoError(t, err)
+		assert.True(t, pullCalled)
 		assert.True(t, runCalled)
 	})
 

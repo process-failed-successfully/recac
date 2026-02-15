@@ -26,6 +26,7 @@ type SandboxDockerClient interface {
 	ExecInteractive(ctx context.Context, containerID string, cmd []string) error
 	StopContainer(ctx context.Context, containerID string) error
 	RemoveContainer(ctx context.Context, containerID string, force bool) error
+	PullImage(ctx context.Context, imageRef string) error
 	Close() error
 }
 
@@ -80,6 +81,12 @@ This allows you to edit code locally and run it in the container, but be careful
 		fmt.Fprintf(cmd.OutOrStdout(), "   Image: %s\n", imageRef)
 		fmt.Fprintf(cmd.OutOrStdout(), "   Mount: %s -> /workspace (RW)\n", cwd)
 		fmt.Fprintf(cmd.OutOrStdout(), "   ⚠️  Changes to files in /workspace will persist on host!\n")
+
+		// Best effort pull (mimicking previous behavior)
+		fmt.Fprintf(cmd.OutOrStdout(), "   Pulling image (if needed)...\n")
+		if err := cli.PullImage(ctx, imageRef); err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "   Warning: Failed to pull image: %v. Using local if available.\n", err)
+		}
 
 		// Start Container
 		containerID, err := cli.RunContainer(ctx, imageRef, cwd, nil, nil, user)

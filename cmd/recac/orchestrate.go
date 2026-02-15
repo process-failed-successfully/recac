@@ -109,7 +109,8 @@ var orchestrateCmd = &cobra.Command{
 				logger.Error("Failed to initialize Session Manager", "error", err)
 				os.Exit(1)
 			}
-			spawner = orchestrator.NewDockerSpawner(logger, dockerCli, image, projectName, poller, agentProvider, agentModel, sm)
+			pullPolicy := viper.GetString("orchestrator.image_pull_policy")
+			spawner = orchestrator.NewDockerSpawner(logger, dockerCli, image, projectName, poller, agentProvider, agentModel, sm, pullPolicy)
 		default:
 			logger.Error("Invalid mode. Use 'local' or 'k8s'", "mode", mode)
 			os.Exit(1)

@@ -81,7 +81,7 @@ func TestSpawnerConsistency_EnvPropagation(t *testing.T) {
 	t.Run("DockerSpawner propagates all config vars", func(t *testing.T) {
 		mockDocker := new(MockDockerClient)
 		mockSM := new(MockSessionManager)
-		spawner := NewDockerSpawner(logger, mockDocker, "img", "proj", nil, "prov", "mod", mockSM)
+		spawner := NewDockerSpawner(logger, mockDocker, "img", "proj", nil, "prov", "mod", mockSM, "Never")
 
 		// Use a mock GitClient that does nothing
 		mockGit := new(MockGitClient)

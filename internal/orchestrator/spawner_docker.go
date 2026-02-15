@@ -25,9 +25,13 @@ type DockerSpawner struct {
 	Logger         *slog.Logger
 	SessionManager ISessionManager
 	GitClient      IGitClient
+	PullPolicy     string
 }
 
-func NewDockerSpawner(logger *slog.Logger, client DockerClient, image string, projectName string, poller Poller, provider, model string, sm ISessionManager) *DockerSpawner {
+func NewDockerSpawner(logger *slog.Logger, client DockerClient, image string, projectName string, poller Poller, provider, model string, sm ISessionManager, pullPolicy string) *DockerSpawner {
+	if pullPolicy == "" {
+		pullPolicy = "IfNotPresent"
+	}
 	return &DockerSpawner{
 		Client:         client,
 		Image:          image,
@@ -38,6 +42,7 @@ func NewDockerSpawner(logger *slog.Logger, client DockerClient, image string, pr
 		Logger:         logger,
 		SessionManager: sm,
 		GitClient:      git.NewClient(),
+		PullPolicy:     pullPolicy,
 	}
 }
 
@@ -51,6 +56,42 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	// 2. Prepare workspace mounts
 	// We no longer clone here (Host). We delegate cloning to the Agent (Container).
 	// This ensures consistency with K8s and reduces host dependency.
+
+	// Handle Image Pull Policy
+	switch s.PullPolicy {
+	case "Always":
+		if err := s.Client.PullImage(ctx, s.Image); err != nil {
+			os.RemoveAll(tempDir)
+			return fmt.Errorf("failed to pull image (Always): %w", err)
+		}
+	case "Never":
+		// Do nothing, assume it exists
+	case "IfNotPresent":
+		exists, err := s.Client.ImageExists(ctx, s.Image)
+		if err != nil {
+			os.RemoveAll(tempDir)
+			return fmt.Errorf("failed to check image existence: %w", err)
+		}
+		if !exists {
+			if err := s.Client.PullImage(ctx, s.Image); err != nil {
+				os.RemoveAll(tempDir)
+				return fmt.Errorf("failed to pull image (IfNotPresent): %w", err)
+			}
+		}
+	default:
+		// Default to IfNotPresent behavior if unknown
+		exists, err := s.Client.ImageExists(ctx, s.Image)
+		if err != nil {
+			os.RemoveAll(tempDir)
+			return fmt.Errorf("failed to check image existence: %w", err)
+		}
+		if !exists {
+			if err := s.Client.PullImage(ctx, s.Image); err != nil {
+				os.RemoveAll(tempDir)
+				return fmt.Errorf("failed to pull image (IfNotPresent): %w", err)
+			}
+		}
+	}
 
 	// Mounts
 	binds := []string{
