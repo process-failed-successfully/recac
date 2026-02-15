@@ -63,6 +63,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// NOTE: ID:[PRIMES] is placed on the Story, not the Epic.
 		// The Orchestrator ignores Epics, so we want the Runner to track the Story job.
 		// By putting the ID on the Story, ticketMap["PRIMES"] will map to the Story Key.
+		// NOTE: Uses valid E2E repo URL to avoid git clone failures.
 		response := []map[string]interface{}{
 			{
 				"title":       "Generate Primes Epic",
@@ -71,7 +72,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 				"children": []map[string]interface{}{
 					{
 						"title":       "ID:[PRIMES] Implement Python Script",
-						"description": "Create a python script that writes primes to primes.json. Repo: https://github.com/example/repo",
+						"description": "Create a python script that writes primes to primes.json. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
 						"type":        "Story",
 						"acceptance_criteria": []string{
 							"Script runs without error",

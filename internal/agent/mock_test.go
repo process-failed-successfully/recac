@@ -25,7 +25,14 @@ func TestMockAgent_Heuristics(t *testing.T) {
 			prompt:   "You are a TPM. Provide feature breakdown.",
 			// Expecting JSON array of tickets now (compact JSON)
 			// ID:[PRIMES] is on the Story now
-			contains: []string{`"title":"Generate Primes Epic"`, `"type":"Epic"`, `"title":"ID:[PRIMES] Implement Python Script"`, `"type":"Story"`},
+			// Uses valid Repo URL
+			contains: []string{
+				`"title":"Generate Primes Epic"`,
+				`"type":"Epic"`,
+				`"title":"ID:[PRIMES] Implement Python Script"`,
+				`"type":"Story"`,
+				`Repo: https://github.com/process-failed-successfully/recac-jira-e2e`,
+			},
 		},
 		{
 			name:     "QA",
