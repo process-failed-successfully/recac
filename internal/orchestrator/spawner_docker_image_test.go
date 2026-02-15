@@ -37,7 +37,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	execCalled := make(chan string, 1)
 
 	// We match "Anything" for arguments so we catch the call, then inspect it in Run
-	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Run(func(args mock.Arguments) {
+	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		cmd := args.Get(2).([]string)
 		// cmd is ["/bin/sh", "-c", "actual command"]
 		execCalled <- cmd[2]

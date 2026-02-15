@@ -235,11 +235,12 @@ func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace st
 }
 
 // Exec executes a command in a running container and returns the output (stdout + stderr).
-func (c *Client) Exec(ctx context.Context, containerID string, cmd []string) (string, error) {
+func (c *Client) Exec(ctx context.Context, containerID string, cmd []string, env []string) (string, error) {
 	telemetry.TrackDockerOp(c.project)
 	execConfig := container.ExecOptions{
 		WorkingDir:   "/workspace",
 		Cmd:          cmd,
+		Env:          env,
 		AttachStdout: true,
 		AttachStderr: true,
 	}

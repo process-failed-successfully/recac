@@ -46,7 +46,7 @@ var _ JiraClient = (*jira.Client)(nil)
 type DockerClient interface {
 	RunContainer(ctx context.Context, image string, workspace string, binds []string, env []string, user string) (string, error)
 	StopContainer(ctx context.Context, containerID string) error
-	Exec(ctx context.Context, containerID string, cmd []string) (string, error)
+	Exec(ctx context.Context, containerID string, cmd []string, env []string) (string, error)
 }
 
 // ISessionManager defines the interface for session management, created for mocking.

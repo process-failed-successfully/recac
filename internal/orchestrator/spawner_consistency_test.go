@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"recac/internal/runner"
+	"strings"
 	"testing"
 	"time"
 
@@ -93,27 +94,34 @@ func TestSpawnerConsistency_EnvPropagation(t *testing.T) {
 		mockSM.On("SaveSession", mock.Anything).Return(nil)
 		mockSM.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
 
-		capturedCmdChan := make(chan []string, 1)
-		mockDocker.On("Exec", mock.Anything, "cid", mock.Anything).Run(func(args mock.Arguments) {
-			capturedCmd := args.Get(2).([]string)
-			capturedCmdChan <- capturedCmd
+		capturedEnvChan := make(chan []string, 1)
+		mockDocker.On("Exec", mock.Anything, "cid", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+			capturedEnv := args.Get(3).([]string)
+			capturedEnvChan <- capturedEnv
 		}).Return("out", nil)
 
 		err := spawner.Spawn(ctx, item)
 		assert.NoError(t, err)
 
-		var capturedCmd []string
+		var capturedEnv []string
 		select {
-		case capturedCmd = <-capturedCmdChan:
+		case capturedEnv = <-capturedEnvChan:
 		case <-time.After(1 * time.Second):
 			t.Fatal("Timeout waiting for Exec")
 		}
 
-		cmdStr := capturedCmd[2]
+		// Check for env vars in the env slice
+		envMap := make(map[string]string)
+		for _, e := range capturedEnv {
+			parts := strings.SplitN(e, "=", 2)
+			if len(parts) == 2 {
+				envMap[parts[0]] = parts[1]
+			}
+		}
 
 		// Assertions
-		assert.Contains(t, cmdStr, "export RECAC_MAX_ITERATIONS=50", "Docker should propagate RECAC_MAX_ITERATIONS")
-		assert.Contains(t, cmdStr, "export RECAC_MANAGER_FREQUENCY=10m", "Docker should propagate RECAC_MANAGER_FREQUENCY")
-		assert.Contains(t, cmdStr, "export RECAC_TASK_MAX_ITERATIONS=5", "Docker should propagate RECAC_TASK_MAX_ITERATIONS")
+		assert.Equal(t, "50", envMap["RECAC_MAX_ITERATIONS"], "Docker should propagate RECAC_MAX_ITERATIONS")
+		assert.Equal(t, "10m", envMap["RECAC_MANAGER_FREQUENCY"], "Docker should propagate RECAC_MANAGER_FREQUENCY")
+		assert.Equal(t, "5", envMap["RECAC_TASK_MAX_ITERATIONS"], "Docker should propagate RECAC_TASK_MAX_ITERATIONS")
 	})
 }

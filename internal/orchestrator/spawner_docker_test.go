@@ -35,8 +35,8 @@ func (m *MockDockerClient) StopContainer(ctx context.Context, containerID string
 	return args.Error(0)
 }
 
-func (m *MockDockerClient) Exec(ctx context.Context, containerID string, cmd []string) (string, error) {
-	args := m.Called(ctx, containerID, cmd)
+func (m *MockDockerClient) Exec(ctx context.Context, containerID string, cmd []string, env []string) (string, error) {
+	args := m.Called(ctx, containerID, cmd, env)
 	return args.String(0), args.Error(1)
 }
 
@@ -164,12 +164,20 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 
 	// Verify Exec includes git identity and project ID env vars
 	mockDocker.On("Exec", mock.Anything, "container123", mock.MatchedBy(func(cmd []string) bool {
-		cmdStr := cmd[2] // /bin/sh -c <cmdStr>
-		// Note: RECAC_PROJECT_ID is now quoted with shellquote, so simple strings might not have quotes
-		// or use single quotes. 'TICKET-1' (no spaces) -> TICKET-1
-		return contains(cmdStr, "export RECAC_PROJECT_ID=TICKET-1") &&
-			contains(cmdStr, "export GIT_AUTHOR_NAME='RECAC Agent'") &&
-			contains(cmdStr, "export GIT_AUTHOR_EMAIL='agent@recac.io'")
+		// Just check command structure
+		return cmd[0] == "/bin/sh" && cmd[1] == "-c"
+	}), mock.MatchedBy(func(env []string) bool {
+		// Check for env vars in the env slice
+		envMap := make(map[string]string)
+		for _, e := range env {
+			parts := strings.SplitN(e, "=", 2)
+			if len(parts) == 2 {
+				envMap[parts[0]] = parts[1]
+			}
+		}
+		return envMap["RECAC_PROJECT_ID"] == "TICKET-1" &&
+			envMap["GIT_AUTHOR_NAME"] == "RECAC Agent" &&
+			envMap["GIT_AUTHOR_EMAIL"] == "agent@recac.io"
 	})).Return("output", nil)
 	mockSM.On("LoadSession", "TICKET-1").Return(&runner.SessionState{}, nil)
 
@@ -232,7 +240,7 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 
 	// Capture the command passed to Exec using a channel for synchronization
 	capturedCmdChan := make(chan []string, 1)
-	client.On("Exec", mock.Anything, "container-123", mock.Anything).Run(func(args mock.Arguments) {
+	client.On("Exec", mock.Anything, "container-123", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		capturedCmd := args.Get(2).([]string)
 		capturedCmdChan <- capturedCmd
 	}).Return("Success", nil)
@@ -250,14 +258,15 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 	}
 
 	// The command should be stringified and passed to sh -c.
-	// We want to ensure the ID is quoted.
+	// We want to ensure the ID is quoted in the shell command args
 	assert.Len(t, capturedCmd, 3)
 	assert.Equal(t, "/bin/sh", capturedCmd[0])
 	assert.Equal(t, "-c", capturedCmd[1])
 
-	// Check if the ID is quoted in the command string
-	// Depending on implementation, checking for quoted ID:
-	// New implementation uses shellquote, so it should use single quotes for complex strings
+	// The ID is passed as --jira '...'
+	// The implementation quotes it.
+	// Note: Item ID "TASK-1"; echo "injected" -> shellquote -> 'TASK-1"; echo "injected'
+	// So cmd string should contain: --jira 'TASK-1"; echo "injected'
 	assert.Contains(t, capturedCmd[2], "--jira 'TASK-1\"; echo \"injected'")
 }
 
@@ -283,29 +292,38 @@ func TestDockerSpawner_EnvPropagation(t *testing.T) {
 	sm.On("SaveSession", mock.Anything).Return(nil)
 	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
 
-	// Capture the command passed to Exec
+	// Capture the command and env passed to Exec
 	capturedCmdChan := make(chan []string, 1)
-	client.On("Exec", mock.Anything, "container-env", mock.Anything).Run(func(args mock.Arguments) {
+	capturedEnvChan := make(chan []string, 1)
+	client.On("Exec", mock.Anything, "container-env", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		capturedCmd := args.Get(2).([]string)
+		capturedEnv := args.Get(3).([]string)
 		capturedCmdChan <- capturedCmd
+		capturedEnvChan <- capturedEnv
 	}).Return("Success", nil)
 
 	err := spawner.Spawn(context.Background(), item)
 	assert.NoError(t, err)
 
-	var capturedCmd []string
+	var capturedEnv []string
 	select {
-	case capturedCmd = <-capturedCmdChan:
+	case capturedEnv = <-capturedEnvChan:
 		// Success
 	case <-time.After(2 * time.Second):
 		t.Fatal("Timed out waiting for Exec call")
 	}
 
-	cmdStr := capturedCmd[2]
+	// Check if environment variables are correctly propagated in Env slice
+	envMap := make(map[string]string)
+	for _, e := range capturedEnv {
+		parts := strings.SplitN(e, "=", 2)
+		if len(parts) == 2 {
+			envMap[parts[0]] = parts[1]
+		}
+	}
 
-	// Check if environment variables are correctly propagated
-	assert.Contains(t, cmdStr, "export RECAC_MAX_ITERATIONS=50", "Should propagate RECAC_MAX_ITERATIONS from host")
-	assert.Contains(t, cmdStr, "export RECAC_MANAGER_FREQUENCY=10m", "Should propagate RECAC_MANAGER_FREQUENCY from host")
+	assert.Equal(t, "50", envMap["RECAC_MAX_ITERATIONS"], "Should propagate RECAC_MAX_ITERATIONS from host")
+	assert.Equal(t, "10m", envMap["RECAC_MANAGER_FREQUENCY"], "Should propagate RECAC_MANAGER_FREQUENCY from host")
 }
 
 func TestDockerSpawner_Cleanup(t *testing.T) {
