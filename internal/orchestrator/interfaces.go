@@ -60,3 +60,11 @@ type IGitClient interface {
 	Clone(ctx context.Context, repoURL, destPath string) error
 	CurrentCommitSHA(repoPath string) (string, error)
 }
+
+// Observer defines the interface for monitoring orchestrator events.
+type Observer interface {
+	OnPollStart()
+	OnPollEnd(count int, err error)
+	OnSpawnStart(item WorkItem)
+	OnSpawnEnd(item WorkItem, err error)
+}

@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"log/slog"
 	"syscall"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"recac/internal/cmdutils"
 	"recac/internal/config"
 	"recac/internal/docker"
@@ -34,6 +36,7 @@ func main() {
 	pflag.String("agent-provider", "openrouter", "Provider for spawned agents")
 	pflag.String("agent-model", "meta-llama/llama-3.3-70b-instruct:free", "Model for spawned agents")
 	pflag.String("image-pull-policy", "Always", "Image pull policy for agents (Always, IfNotPresent, Never)")
+	pflag.Bool("tui", false, "Enable TUI dashboard")
 
 	pflag.String("jira-query", "", "Custom JQL query (overrides label)")
 	pflag.String("poller", "jira", "Poller type: 'jira', 'github', 'file', or 'file-dir'")
@@ -70,8 +73,10 @@ func main() {
 	viper.BindPFlag("orchestrator.agent_provider", pflag.Lookup("agent-provider"))
 	viper.BindPFlag("orchestrator.agent_model", pflag.Lookup("agent-model"))
 	viper.BindPFlag("orchestrator.image_pull_policy", pflag.Lookup("image-pull-policy"))
+	viper.BindPFlag("orchestrator.tui", pflag.Lookup("tui"))
 
 	// Explicitly bind cleaner env vars
+	viper.BindEnv("orchestrator.tui", "RECAC_ORCHESTRATOR_TUI")
 	viper.BindEnv("orchestrator.agent_provider", "RECAC_AGENT_PROVIDER")
 	viper.BindEnv("orchestrator.agent_model", "RECAC_AGENT_MODEL")
 	viper.BindEnv("orchestrator.poller", "RECAC_POLLER")
@@ -202,6 +207,48 @@ func main() {
 
 	// 3. Orchestrator
 	orch := orchestrator.New(poller, spawner, interval)
+
+	useTUI := viper.GetBool("orchestrator.tui")
+	if useTUI {
+		p := tea.NewProgram(orchestrator.InitialModel())
+
+		// Setup Observer
+		obs := orchestrator.NewTUIObserver(p)
+		orch.SetObserver(obs)
+
+		// Setup Log Handler to pipe logs to TUI
+		tuiHandler := orchestrator.NewTUILogHandler(p, logger.Handler())
+		tuiLogger := slog.New(tuiHandler)
+
+		// Run Orchestrator in background
+		orchDone := make(chan struct{})
+		go func() {
+			defer close(orchDone)
+			if err := orch.Run(ctx, tuiLogger); err != nil {
+				if ctx.Err() != nil {
+					return
+				}
+				tuiLogger.Error("Orchestrator failure", "error", err)
+			}
+		}()
+
+		// Run TUI (blocking)
+		if _, err := p.Run(); err != nil {
+			fmt.Printf("Alas, there's been an error: %v", err)
+			os.Exit(1)
+		}
+
+		// Graceful shutdown
+		stop() // Cancel context to stop Orchestrator loop
+		select {
+		case <-orchDone:
+			// Orchestrator stopped gracefully
+		case <-time.After(5 * time.Second):
+			fmt.Println("Timed out waiting for orchestrator to shutdown")
+		}
+		return
+	}
+
 	if err := orch.Run(ctx, logger); err != nil {
 		if ctx.Err() != nil {
 			// Graceful shutdown
