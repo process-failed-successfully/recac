@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"recac/internal/runner"
+	"strings"
 	"testing"
 	"time"
 
@@ -37,29 +38,35 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 
 	// Use a channel to signal when LoadSession is called
 	loadSessionCalled := make(chan struct{})
-	// Return a valid empty session instead of nil, even on error, to avoid potential panics
+
+	// We expect LoadSession to be called once by the background goroutine.
+	// We return an error to stop the goroutine from proceeding further (e.g. to SaveSession again).
 	mockSM.On("LoadSession", "TICKET-1").Run(func(args mock.Arguments) {
 		close(loadSessionCalled)
 	}).Return(&runner.SessionState{}, assert.AnError)
 
-	execCalled := make(chan string, 1)
+	execCalled := make(chan struct{})
 
-	// We match "Anything" for arguments so we catch the call, then inspect it in Run
-	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-		cmd := args.Get(2).([]string)
-		// cmd is ["/bin/sh", "-c", "actual command"]
-		execCalled <- cmd[2]
+	// Verify Exec is called with the image flag
+	mockDocker.On("Exec", mock.Anything, "container123", mock.MatchedBy(func(cmd []string) bool {
+		if len(cmd) < 3 {
+			return false
+		}
+		cmdStr := cmd[2]
+		// Check for --image flag and value
+		return strings.Contains(cmdStr, "--image") && strings.Contains(cmdStr, imageName)
+	}), mock.Anything).Run(func(args mock.Arguments) {
+		close(execCalled)
 	}).Return("output", nil)
 
 	err := spawner.Spawn(ctx, item)
 	require.NoError(t, err)
 
+	// Wait for Exec call
 	select {
-	case cmdStr := <-execCalled:
-		t.Logf("Captured Command: %s", cmdStr)
-		assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
-		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
-	case <-time.After(30 * time.Second):
+	case <-execCalled:
+		// Success
+	case <-time.After(5 * time.Second):
 		t.Fatal("Timeout waiting for Exec call")
 	}
 
@@ -72,7 +79,5 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	}
 
 	// Give the background goroutine time to complete (cleanup, final save, etc.)
-	// This prevents race conditions where the test finishes before the goroutine
-	// calls LoadSession/SaveSession, potentially causing "Log in goroutine after test completion" errors
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 }
