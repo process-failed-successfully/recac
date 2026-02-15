@@ -41,6 +41,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return "Approved.\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
 	}
 
+	// Heuristic: Technical Program Manager (Ticket Generation)
+	// Must check this BEFORE code generation heuristics because the spec prompt contains 'primes' too.
+	if strings.Contains(lowerPrompt, "technical program manager") {
+		return `[{"id":"PRIMES", "summary":"Create Prime Number Script", "description":"Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000.", "type":"Task"}]`, nil
+	}
+
 	// Heuristic: Prime Number Script (for prime-python scenario)
 	if (strings.Contains(lowerPrompt, "primes") || strings.Contains(lowerPrompt, "generate primes")) && !strings.Contains(lowerPrompt, "def generate_primes") {
 		return `I will implement the primes script.
@@ -72,11 +78,6 @@ git add primes.py primes.json
 git commit -m "feat: Implement primes.py"
 ` + "```" + `
 `, nil
-	}
-
-	// Heuristic: Technical Program Manager (Ticket Generation)
-	if strings.Contains(lowerPrompt, "technical program manager") {
-		return `[{"id":"TASK-1", "summary":"Implement primes", "description":"Implement a python script to generate prime numbers.", "type":"Task"}]`, nil
 	}
 
 	// Heuristic: Commit Message (Fallback if requested separately)
