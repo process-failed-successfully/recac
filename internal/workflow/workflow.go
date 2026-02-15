@@ -448,6 +448,11 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 	if err != nil {
 		fmt.Printf("Warning: Failed to initialize Docker client: %v. Proceeding in restricted mode.\n", err)
 		dockerCli = nil
+	} else if err := dockerCli.CheckDaemon(ctx); err != nil {
+		// In K8s environments (like smoke-test), the socket might be missing.
+		// Explicitly check connectivity to fallback gracefully.
+		fmt.Printf("Warning: Docker daemon not reachable: %v. Proceeding in restricted mode.\n", err)
+		dockerCli = nil
 	}
 
 	provider := cfg.Provider
