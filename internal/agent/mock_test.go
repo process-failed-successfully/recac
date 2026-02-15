@@ -38,9 +38,25 @@ func TestTruncateString(t *testing.T) {
 func TestMockAgent_Heuristics(t *testing.T) {
 	agent := NewMockAgent()
 
-	// Test PRIMES heuristic
-	prompt := "Please implement the task ID:[PRIMES] Create Prime Number Script"
+	// Test Initializer heuristic
+	prompt := "Please break down the requirements and create a feature list"
 	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if !strings.Contains(resp, "```bash") {
+		t.Errorf("Expected bash block in response, got: %s", resp)
+	}
+	if !strings.Contains(resp, "agent-bridge import") {
+		t.Errorf("Expected agent-bridge import command, got: %s", resp)
+	}
+	if !strings.Contains(resp, "\"id\": \"PRIMES\"") {
+		t.Errorf("Expected PRIMES feature ID, got: %s", resp)
+	}
+
+	// Test PRIMES heuristic
+	prompt = "Please implement the task ID:[PRIMES] Create Prime Number Script"
+	resp, err = agent.Send(context.Background(), prompt)
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
 	}

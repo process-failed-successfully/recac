@@ -39,17 +39,48 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// The prompt usually asks to break down requirements or list features.
 	lowerPrompt := strings.ToLower(prompt)
 	if strings.Contains(lowerPrompt, "feature list") || strings.Contains(lowerPrompt, "break down") {
-		// Return a list of tickets including PRIMES
-		tickets := []map[string]string{
-			{
-				"id":          "PRIMES",
-				"type":        "Task",
-				"title":       "Create Prime Number Script",
-				"description": "Calculate primes up to 10000",
+		// Return a bash script to create the feature list using agent-bridge import
+		// We use map[string]interface{} to construct the JSON structure required by FeatureList
+		feature := map[string]interface{}{
+			"id":          "PRIMES",
+			"category":    "functional",
+			"priority":    "MVP",
+			"description": "Calculate primes up to 10000",
+			"status":      "pending",
+			"steps":       []string{"Create primes.py", "Run primes.py", "Verify primes.json"},
+			"passes":      false,
+			"dependencies": map[string]interface{}{
+				"depends_on_ids":        []string{},
+				"exclusive_write_paths": []string{"primes.py", "primes.json"},
+				"read_only_paths":       []string{},
 			},
 		}
-		bytes, _ := json.Marshal(tickets)
-		return string(bytes), nil
+
+		featureList := map[string]interface{}{
+			"project_name": "Primes Project",
+			"features":     []interface{}{feature},
+		}
+
+		bytes, _ := json.MarshalIndent(featureList, "", "  ")
+		jsonStr := string(bytes)
+
+		// Construct bash block using cat << 'EOF' | agent-bridge import
+		// We use a single bash block for all initialization commands
+		return fmt.Sprintf(`I will create the feature list and init script.
+
+`+"```bash"+`
+cat << 'EOF' | agent-bridge import
+%s
+EOF
+
+cat << 'EOF' > init.sh
+#!/bin/bash
+echo "Initializing..."
+EOF
+chmod +x init.sh
+./init.sh
+`+"```"+`
+`, jsonStr), nil
 	}
 
 	// 2. Coding Phase (PRIMES)
