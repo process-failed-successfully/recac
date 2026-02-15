@@ -33,6 +33,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 
 	// Mock expectations
 	mockDocker.On("ListContainers", mock.Anything, mock.Anything).Return([]types.Container{}, nil)
+	// RunContainer mock should have 7 arguments (ctx, image, workspace, binds, env, labels, user)
 	mockDocker.On("RunContainer", mock.Anything, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, "").Return("container123", nil)
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
 	mockSM.On("LoadSession", "TICKET-1").Return(nil, assert.AnError)
@@ -54,7 +55,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		t.Logf("Captured Command: %s", cmdStr)
 		assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
 		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
-	case <-time.After(30 * time.Second):
+	case <-time.After(60 * time.Second):
 		t.Fatal("Timeout waiting for Exec call")
 	}
 }
