@@ -301,8 +301,15 @@ func generateTickets(ctx context.Context, specContent, projectKey, repoURL strin
 	jsonStr = strings.TrimSpace(jsonStr)
 
 	var tickets []ticketNode
+	// Try parsing as array first
 	if err := json.Unmarshal([]byte(jsonStr), &tickets); err != nil {
-		return nil, fmt.Errorf("failed to parse agent response as JSON: %w\nResponse was:\n%s", err, resp)
+		// Try parsing as single object
+		var singleTicket ticketNode
+		if err2 := json.Unmarshal([]byte(jsonStr), &singleTicket); err2 == nil {
+			tickets = []ticketNode{singleTicket}
+		} else {
+			return nil, fmt.Errorf("failed to parse agent response as JSON: %w\nResponse was:\n%s", err, resp)
+		}
 	}
 
 	return createTicketsFromNodes(ctx, tickets, projectKey, repoURL, allLabels, jiraClient)
