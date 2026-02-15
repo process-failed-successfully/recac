@@ -85,7 +85,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// QA Agent
-	if strings.Contains(prompt, "QA Agent") || strings.Contains(lowerPrompt, "qa_passed") {
+	if strings.Contains(prompt, "You are the QA Agent") || strings.Contains(lowerPrompt, "qa_passed") {
 		return "QA_PASSED", nil
 	}
 
