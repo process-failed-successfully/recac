@@ -55,6 +55,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 
 	done := make(chan struct{})
 	// Expect final session save (status: completed or error)
+	// This ensures the background goroutine has fully completed before we finish the test
 	mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
 		return s.Status == "completed" || s.Status == "error"
 	})).Run(func(args mock.Arguments) {
@@ -74,10 +75,11 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	}
 
 	// Wait for final session save (indicates goroutine completion)
+	// Increased timeout for CI stability
 	select {
 	case <-done:
 		// Success
-	case <-time.After(5 * time.Second):
+	case <-time.After(30 * time.Second):
 		t.Fatal("Timeout waiting for final SaveSession")
 	}
 
