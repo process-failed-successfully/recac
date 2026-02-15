@@ -587,7 +587,7 @@ func TestSession_PushProgress(t *testing.T) {
 
 func TestSession_ProcessResponse_Commands(t *testing.T) {
 	d := &MockDockerClient{}
-	d.ExecFunc = func(ctx context.Context, containerID string, cmd []string) (string, error) {
+	d.ExecFunc = func(ctx context.Context, containerID string, cmd []string, env []string) (string, error) {
 		if strings.Contains(cmd[2], "echo hello") {
 			return "hello\n", nil
 		}
@@ -620,7 +620,7 @@ func TestSession_ProcessResponse_Commands(t *testing.T) {
 
 func TestSession_ProcessResponse_Blockers(t *testing.T) {
 	d := &MockDockerClient{}
-	d.ExecFunc = func(ctx context.Context, containerID string, cmd []string) (string, error) {
+	d.ExecFunc = func(ctx context.Context, containerID string, cmd []string, env []string) (string, error) {
 		// Simulate finding blocker file
 		if strings.Contains(cmd[2], "cat recac_blockers.txt") {
 			return "Critical API Issue", nil

@@ -34,7 +34,7 @@ func (m *MockOrchestratorDocker) StopContainer(ctx context.Context, containerID 
 	return args.Error(0)
 }
 
-func (m *MockOrchestratorDocker) Exec(ctx context.Context, containerID string, cmd []string) (string, error) {
+func (m *MockOrchestratorDocker) Exec(ctx context.Context, containerID string, cmd []string, env []string) (string, error) {
 	// Bypass expectation matching
 	return "", nil
 }

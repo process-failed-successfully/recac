@@ -99,7 +99,7 @@ func (s *Session) checkBlockers(ctx context.Context) error {
 		blockerFiles := []string{"recac_blockers.txt", "blockers.txt"}
 		for _, bf := range blockerFiles {
 			checkCmd := []string{"/bin/sh", "-c", fmt.Sprintf("test -f %s && cat %s", bf, bf)}
-			blockerContent, err := s.Docker.Exec(ctx, s.GetContainerID(), checkCmd)
+			blockerContent, err := s.Docker.Exec(ctx, s.GetContainerID(), checkCmd, nil)
 			trimmed := strings.TrimSpace(blockerContent)
 			if err == nil && len(trimmed) > 0 {
 				// Check for false positives (status messages instead of blockers)
@@ -122,7 +122,7 @@ func (s *Session) checkBlockers(ctx context.Context) error {
 				if isFalsePositive {
 					s.Logger.Info("ignoring false positive blocker", "file", bf, "content", trimmed)
 					// Cleanup the file so it doesn't re-trigger
-					s.Docker.Exec(ctx, s.GetContainerID(), []string{"rm", bf})
+					s.Docker.Exec(ctx, s.GetContainerID(), []string{"rm", bf}, nil)
 					continue
 				}
 
@@ -192,7 +192,7 @@ func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, ind
 		output = outBuf.String()
 	} else {
 		// Execute via Docker
-		output, err = s.Docker.Exec(cmdCtx, s.GetContainerID(), []string{"/bin/bash", "-c", cmdScript})
+		output, err = s.Docker.Exec(cmdCtx, s.GetContainerID(), []string{"/bin/bash", "-c", cmdScript}, nil)
 	}
 
 	if err != nil {

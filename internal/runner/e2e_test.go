@@ -141,7 +141,7 @@ Please provide the command to execute this task.`
 	// The command should be: echo "Hello World" > /workspace/hello.txt
 	// Parse agent response into command array
 	cmd := []string{"/bin/sh", "-c", agentResponse}
-	output, err := dockerClient.Exec(ctx, containerID, cmd)
+	output, err := dockerClient.Exec(ctx, containerID, cmd, nil)
 	if err != nil {
 		t.Fatalf("Docker exec failed: %v", err)
 	}
@@ -274,7 +274,7 @@ Create hello.txt with "Hello World" content.`
 
 	// Execute: Run command
 	cmd := []string{"/bin/sh", "-c", command}
-	output, err := dockerClient.Exec(ctx, containerID, cmd)
+	output, err := dockerClient.Exec(ctx, containerID, cmd, nil)
 	if err != nil {
 		t.Fatalf("Exec failed: %v", err)
 	}

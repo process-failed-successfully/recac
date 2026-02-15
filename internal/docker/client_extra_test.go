@@ -37,7 +37,7 @@ func TestExec_CreateError(t *testing.T) {
 		return types.IDResponse{}, errors.New("create failed")
 	}
 
-	_, err := client.Exec(context.Background(), "container-id", []string{"ls"})
+	_, err := client.Exec(context.Background(), "container-id", []string{"ls"}, nil)
 	if err == nil {
 		t.Fatal("Exec expected error, got nil")
 	}
@@ -50,7 +50,7 @@ func TestExec_AttachError(t *testing.T) {
 		return types.HijackedResponse{}, errors.New("attach failed")
 	}
 
-	_, err := client.Exec(context.Background(), "container-id", []string{"ls"})
+	_, err := client.Exec(context.Background(), "container-id", []string{"ls"}, nil)
 	if err == nil {
 		t.Fatal("Exec expected error, got nil")
 	}

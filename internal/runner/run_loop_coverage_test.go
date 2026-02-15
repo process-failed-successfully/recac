@@ -70,7 +70,7 @@ func TestRunLoop_Stalled_Integrated(t *testing.T) {
 	}
 
 	mockDocker := &MockLoopDocker{
-		ExecFunc: func(ctx context.Context, containerID string, cmd []string) (string, error) {
+		ExecFunc: func(ctx context.Context, containerID string, cmd []string, env []string) (string, error) {
 			// If checking for blockers, return empty (no file)
 			if len(cmd) > 0 && strings.Contains(cmd[len(cmd)-1], "blockers.txt") {
 				return "", errors.New("file not found")

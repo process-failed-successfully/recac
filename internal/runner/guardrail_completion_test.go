@@ -19,7 +19,7 @@ type MockDockerForGuardrail struct {
 	DockerClient
 }
 
-func (m *MockDockerForGuardrail) Exec(ctx context.Context, id string, cmd []string) (string, error) {
+func (m *MockDockerForGuardrail) Exec(ctx context.Context, id string, cmd []string, env []string) (string, error) {
 	// Simulate "test -f ..." failing so we don't trip legacy blocker checks
 	for _, c := range cmd {
 		if (len(c) > 0 && c[0] == 't' && c[1] == 'e' && c[2] == 's' && c[3] == 't') ||

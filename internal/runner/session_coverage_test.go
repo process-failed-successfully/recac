@@ -16,7 +16,7 @@ type CoverageMockDockerClient struct {
 	CheckDaemonFunc   func(ctx context.Context) error
 	RunContainerFunc  func(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, user string) (string, error)
 	StopContainerFunc func(ctx context.Context, containerID string) error
-	ExecFunc          func(ctx context.Context, containerID string, cmd []string) (string, error)
+	ExecFunc          func(ctx context.Context, containerID string, cmd []string, env []string) (string, error)
 	ExecAsUserFunc    func(ctx context.Context, containerID string, user string, cmd []string) (string, error)
 	ImageExistsFunc   func(ctx context.Context, tag string) (bool, error)
 	ImageBuildFunc    func(ctx context.Context, opts docker.ImageBuildOptions) (string, error)
@@ -35,8 +35,8 @@ func (m *CoverageMockDockerClient) StopContainer(ctx context.Context, containerI
 	if m.StopContainerFunc != nil { return m.StopContainerFunc(ctx, containerID) }
 	return nil
 }
-func (m *CoverageMockDockerClient) Exec(ctx context.Context, containerID string, cmd []string) (string, error) {
-	if m.ExecFunc != nil { return m.ExecFunc(ctx, containerID, cmd) }
+func (m *CoverageMockDockerClient) Exec(ctx context.Context, containerID string, cmd []string, env []string) (string, error) {
+	if m.ExecFunc != nil { return m.ExecFunc(ctx, containerID, cmd, env) }
 	return "", nil
 }
 func (m *CoverageMockDockerClient) ExecAsUser(ctx context.Context, containerID string, user string, cmd []string) (string, error) {
@@ -61,7 +61,7 @@ func TestSession_ProcessResponse_Timeout_Coverage(t *testing.T) {
 	defer viper.Set("bash_timeout", 600)
 
 	mockDocker := &CoverageMockDockerClient{}
-	mockDocker.ExecFunc = func(ctx context.Context, containerID string, cmd []string) (string, error) {
+	mockDocker.ExecFunc = func(ctx context.Context, containerID string, cmd []string, env []string) (string, error) {
 		// Identify the sleep command
 		if len(cmd) > 2 && strings.Contains(cmd[2], "sleep 2") {
 			select {

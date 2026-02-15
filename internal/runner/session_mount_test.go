@@ -159,7 +159,7 @@ func TestSession_WorkspaceMounting(t *testing.T) {
 	}
 
 	// Execute ls /workspace in the container
-	output, err := dockerClient.Exec(ctx, containerID, []string{"ls", "/workspace"})
+	output, err := dockerClient.Exec(ctx, containerID, []string{"ls", "/workspace"}, nil)
 	if err != nil {
 		t.Fatalf("Exec failed: %v", err)
 	}

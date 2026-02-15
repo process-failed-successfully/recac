@@ -38,7 +38,7 @@ func TestClient_Exec(t *testing.T) {
 		}, nil
 	}
 
-	output, err := client.Exec(context.Background(), "container-id", []string{"echo", "hello"})
+	output, err := client.Exec(context.Background(), "container-id", []string{"echo", "hello"}, nil)
 	if err != nil {
 		t.Fatalf("Exec failed: %v", err)
 	}
