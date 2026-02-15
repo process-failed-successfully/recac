@@ -211,3 +211,28 @@ func TestOrchestrator_Run_GracefulShutdown(t *testing.T) {
 	cancel()
 	wg.Wait()
 }
+
+func TestOrchestrator_Run_DryRun(t *testing.T) {
+	poller := newMockPoller([]WorkItem{
+		{ID: "TEST-1", Summary: "Task 1", RepoURL: "https://github.com/org/repo"},
+		{ID: "TEST-2", Summary: "Task 2", RepoURL: "https://github.com/org/repo"},
+	})
+	spawner := &mockSpawner{}
+	orch := New(poller, spawner, 10*time.Millisecond)
+	orch.SetDryRun(true)
+
+	ctx := context.Background() // No timeout needed as DryRun returns immediately
+
+	err := orch.Run(ctx, silentLogger)
+	require.NoError(t, err)
+
+	spawner.mu.Lock()
+	defer spawner.mu.Unlock()
+
+	// Assert that NO items were spawned
+	assert.Empty(t, spawner.spawned, "Dry run should not spawn any agents")
+
+	// Assert that Poller WAS called (items are cleared in mockPoller.Poll)
+	polledItems, _ := poller.Poll(context.Background(), silentLogger)
+	assert.Empty(t, polledItems, "Items should have been consumed (polled) during dry run")
+}

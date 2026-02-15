@@ -34,6 +34,7 @@ func main() {
 	pflag.String("agent-provider", "openrouter", "Provider for spawned agents")
 	pflag.String("agent-model", "meta-llama/llama-3.3-70b-instruct:free", "Model for spawned agents")
 	pflag.String("image-pull-policy", "Always", "Image pull policy for agents (Always, IfNotPresent, Never)")
+	pflag.Bool("dry-run", false, "Enable dry-run mode (poll and list work items without spawning)")
 
 	pflag.String("jira-query", "", "Custom JQL query (overrides label)")
 	pflag.String("poller", "jira", "Poller type: 'jira', 'github', 'file', or 'file-dir'")
@@ -202,6 +203,9 @@ func main() {
 
 	// 3. Orchestrator
 	orch := orchestrator.New(poller, spawner, interval)
+	dryRun, _ := pflag.GetBool("dry-run")
+	orch.SetDryRun(dryRun)
+
 	if err := orch.Run(ctx, logger); err != nil {
 		if ctx.Err() != nil {
 			// Graceful shutdown

@@ -12,6 +12,7 @@ type Orchestrator struct {
 	Poller       Poller
 	Spawner      Spawner
 	PollInterval time.Duration
+	DryRun       bool
 }
 
 func New(poller Poller, spawner Spawner, pollInterval time.Duration) *Orchestrator {
@@ -22,8 +23,40 @@ func New(poller Poller, spawner Spawner, pollInterval time.Duration) *Orchestrat
 	}
 }
 
+// SetDryRun enables or disables dry-run mode
+func (o *Orchestrator) SetDryRun(dryRun bool) {
+	o.DryRun = dryRun
+}
+
 // Run starts the orchestration loop
 func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
+	// Dry Run Mode
+	if o.DryRun {
+		logger.Info("Running in DRY-RUN mode")
+		fmt.Println("--- DRY RUN: Polling for work items ---")
+
+		items, err := o.Poller.Poll(ctx, logger)
+		if err != nil {
+			logger.Error("Failed to poll for work", "error", err)
+			return err
+		}
+
+		if len(items) == 0 {
+			logger.Info("No work items found")
+			fmt.Println("No work items found.")
+			return nil
+		}
+
+		logger.Info("Found work items", "count", len(items))
+		fmt.Printf("Found %d work items:\n", len(items))
+
+		for _, item := range items {
+			fmt.Printf("- [%s] %s\n  Repo: %s\n", item.ID, item.Summary, item.RepoURL)
+		}
+		fmt.Println("--- End of Dry Run ---")
+		return nil
+	}
+
 	logger.Info("Starting Orchestrator", "interval", o.PollInterval)
 	ticker := time.NewTicker(o.PollInterval)
 	defer ticker.Stop()
