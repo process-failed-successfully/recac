@@ -18,7 +18,7 @@ type MockDockerForExec struct {
 	ExecDelay    time.Duration
 }
 
-func (m *MockDockerForExec) Exec(ctx context.Context, id string, cmd []string) (string, error) {
+func (m *MockDockerForExec) Exec(ctx context.Context, id string, cmd []string, env []string) (string, error) {
 	fullCmd := strings.Join(cmd, " ")
 	m.ExecutedCmds = append(m.ExecutedCmds, fullCmd)
 
@@ -42,7 +42,7 @@ func (m *MockDockerForExec) Exec(ctx context.Context, id string, cmd []string) (
 }
 
 func (m *MockDockerForExec) ExecAsUser(ctx context.Context, id string, user string, cmd []string) (string, error) {
-	return m.Exec(ctx, id, cmd)
+	return m.Exec(ctx, id, cmd, nil)
 }
 
 func TestSession_ProcessResponse_Thorough(t *testing.T) {

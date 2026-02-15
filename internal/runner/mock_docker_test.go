@@ -9,7 +9,7 @@ type MockDockerClient struct {
 	CheckDaemonFunc   func(ctx context.Context) error
 	RunContainerFunc  func(ctx context.Context, image, workspace string, extraBinds, env []string, user string) (string, error)
 	StopContainerFunc func(ctx context.Context, containerID string) error
-	ExecFunc          func(ctx context.Context, containerID string, cmd []string) (string, error)
+	ExecFunc          func(ctx context.Context, containerID string, cmd []string, env []string) (string, error)
 	ExecAsUserFunc    func(ctx context.Context, containerID, user string, cmd []string) (string, error)
 	PullImageFunc     func(ctx context.Context, image string) error
 	ImageExistsFunc   func(ctx context.Context, image string) (bool, error)
@@ -37,9 +37,9 @@ func (m *MockDockerClient) StopContainer(ctx context.Context, containerID string
 	return nil
 }
 
-func (m *MockDockerClient) Exec(ctx context.Context, containerID string, cmd []string) (string, error) {
+func (m *MockDockerClient) Exec(ctx context.Context, containerID string, cmd []string, env []string) (string, error) {
 	if m.ExecFunc != nil {
-		return m.ExecFunc(ctx, containerID, cmd)
+		return m.ExecFunc(ctx, containerID, cmd, env)
 	}
 	return "", nil
 }
