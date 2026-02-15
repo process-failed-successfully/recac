@@ -24,7 +24,8 @@ func TestMockAgent_Heuristics(t *testing.T) {
 			name:     "TPM",
 			prompt:   "You are a TPM. Provide feature breakdown.",
 			// Expecting JSON array of tickets now (compact JSON)
-			contains: []string{`"title":"ID:[PRIMES] Generate Primes"`, `"type":"Epic"`, `"children":[`},
+			// ID:[PRIMES] is on the Story now
+			contains: []string{`"title":"Generate Primes Epic"`, `"type":"Epic"`, `"title":"ID:[PRIMES] Implement Python Script"`, `"type":"Story"`},
 		},
 		{
 			name:     "QA",
