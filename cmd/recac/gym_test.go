@@ -29,8 +29,8 @@ func (m *GymMockDockerClient) CheckDaemon(ctx context.Context) error {
 	return args.Error(0)
 }
 
-func (m *GymMockDockerClient) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, user string) (string, error) {
-	args := m.Called(ctx, imageRef, workspace, extraBinds, env, user)
+func (m *GymMockDockerClient) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, labels map[string]string, user string) (string, error) {
+	args := m.Called(ctx, imageRef, workspace, extraBinds, env, labels, user)
 	return args.String(0), args.Error(1)
 }
 
@@ -183,7 +183,7 @@ func TestRunGymSession(t *testing.T) {
 	// Expectations
 	mockDocker.On("CheckDaemon", mock.Anything).Return(nil)
 	mockDocker.On("ImageExists", mock.Anything, mock.Anything).Return(true, nil)
-	mockDocker.On("RunContainer", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("mock-container-id", nil)
+	mockDocker.On("RunContainer", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("mock-container-id", nil)
 	mockDocker.On("StopContainer", mock.Anything, "mock-container-id").Return(nil)
 
 	// Setup calls (passwd, git, etc) - allow any Exec/ExecAsUser calls generally

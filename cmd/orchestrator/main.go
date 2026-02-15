@@ -15,80 +15,60 @@ import (
 	"recac/internal/runner"
 	"recac/internal/telemetry"
 
-	"github.com/spf13/pflag"
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	corev1 "k8s.io/api/core/v1"
 )
 
+var (
+	cfgFile string
+)
+
 func main() {
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+var rootCmd = &cobra.Command{
+	Use:   "orchestrator",
+	Short: "RECAC Orchestrator polling and spawning agents",
+	Run:   runOrchestrator,
+}
+
+func init() {
 	// Flags
-	var cfgFile string
-	pflag.StringVar(&cfgFile, "config", "", "config file (default is $HOME/.recac.yaml)")
-	pflag.BoolP("verbose", "v", false, "Enable verbose/debug logging")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.recac.yaml)")
+	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose/debug logging")
 
-	pflag.String("mode", "local", "Orchestrator mode: 'local' (Docker) or 'k8s' (Kubernetes Job)")
-	pflag.String("jira-label", "recac-agent", "Jira label to poll for")
-	pflag.String("image", "ghcr.io/process-failed-successfully/recac-agent:latest", "Agent image to spawn")
-	pflag.String("namespace", "default", "Kubernetes namespace (for k8s mode)")
-	pflag.Duration("interval", 1*time.Minute, "Polling interval")
-	pflag.String("agent-provider", "openrouter", "Provider for spawned agents")
-	pflag.String("agent-model", "meta-llama/llama-3.3-70b-instruct:free", "Model for spawned agents")
-	pflag.String("image-pull-policy", "Always", "Image pull policy for agents (Always, IfNotPresent, Never)")
+	rootCmd.Flags().String("mode", "local", "Orchestrator mode: 'local' (Docker) or 'k8s' (Kubernetes Job)")
+	rootCmd.Flags().String("jira-label", "recac-agent", "Jira label to poll for")
+	rootCmd.Flags().String("image", "ghcr.io/process-failed-successfully/recac-agent:latest", "Agent image to spawn")
+	rootCmd.Flags().String("namespace", "default", "Kubernetes namespace (for k8s mode)")
+	rootCmd.Flags().Duration("interval", 1*time.Minute, "Polling interval")
+	rootCmd.Flags().String("agent-provider", "openrouter", "Provider for spawned agents")
+	rootCmd.Flags().String("agent-model", "meta-llama/llama-3.3-70b-instruct:free", "Model for spawned agents")
+	rootCmd.Flags().String("image-pull-policy", "Always", "Image pull policy for agents (Always, IfNotPresent, Never)")
 
-	pflag.String("jira-query", "", "Custom JQL query (overrides label)")
-	pflag.String("poller", "jira", "Poller type: 'jira', 'github', 'file', or 'file-dir'")
-	pflag.String("work-file", "work_items.json", "Work items file (for 'file' poller)")
-	pflag.String("watch-dir", "", "Directory to watch for work item files (for 'file-dir' poller)")
+	rootCmd.Flags().String("jira-query", "", "Custom JQL query (overrides label)")
+	rootCmd.Flags().String("poller", "jira", "Poller type: 'jira', 'github', 'file', or 'file-dir'")
+	rootCmd.Flags().String("work-file", "work_items.json", "Work items file (for 'file' poller)")
+	rootCmd.Flags().String("watch-dir", "", "Directory to watch for work item files (for 'file-dir' poller)")
 
-	pflag.String("github-token", "", "GitHub API Token (for 'github' poller)")
-	pflag.String("github-owner", "", "GitHub Repository Owner (for 'github' poller)")
-	pflag.String("github-repo", "", "GitHub Repository Name (for 'github' poller)")
-	pflag.String("github-label", "", "GitHub Label to poll for (defaults to jira-label if not set)")
+	rootCmd.Flags().String("github-token", "", "GitHub API Token (for 'github' poller)")
+	rootCmd.Flags().String("github-owner", "", "GitHub Repository Owner (for 'github' poller)")
+	rootCmd.Flags().String("github-repo", "", "GitHub Repository Name (for 'github' poller)")
+	rootCmd.Flags().String("github-label", "", "GitHub Label to poll for (defaults to jira-label if not set)")
+}
 
-	pflag.Parse()
-
+func runOrchestrator(cmd *cobra.Command, args []string) {
 	// Config
 	config.Load(cfgFile)
 
 	// Bind Flags
-	viper.BindPFlag("verbose", pflag.Lookup("verbose"))
-	viper.BindPFlag("orchestrator.jira_query", pflag.Lookup("jira-query"))
-	viper.BindPFlag("orchestrator.poller", pflag.Lookup("poller"))
-	viper.BindPFlag("orchestrator.work_file", pflag.Lookup("work-file"))
-	viper.BindPFlag("orchestrator.watch_dir", pflag.Lookup("watch-dir"))
-
-	viper.BindPFlag("orchestrator.github_token", pflag.Lookup("github-token"))
-	viper.BindPFlag("orchestrator.github_owner", pflag.Lookup("github-owner"))
-	viper.BindPFlag("orchestrator.github_repo", pflag.Lookup("github-repo"))
-	viper.BindPFlag("orchestrator.github_label", pflag.Lookup("github-label"))
-
-	viper.BindPFlag("orchestrator.mode", pflag.Lookup("mode"))
-	viper.BindPFlag("orchestrator.jira_label", pflag.Lookup("jira-label"))
-	viper.BindPFlag("orchestrator.image", pflag.Lookup("image"))
-	viper.BindPFlag("orchestrator.namespace", pflag.Lookup("namespace"))
-	viper.BindPFlag("orchestrator.interval", pflag.Lookup("interval"))
-	viper.BindPFlag("orchestrator.agent_provider", pflag.Lookup("agent-provider"))
-	viper.BindPFlag("orchestrator.agent_model", pflag.Lookup("agent-model"))
-	viper.BindPFlag("orchestrator.image_pull_policy", pflag.Lookup("image-pull-policy"))
-
-	// Explicitly bind cleaner env vars
-	viper.BindEnv("orchestrator.agent_provider", "RECAC_AGENT_PROVIDER")
-	viper.BindEnv("orchestrator.agent_model", "RECAC_AGENT_MODEL")
-	viper.BindEnv("orchestrator.poller", "RECAC_POLLER")
-	viper.BindEnv("orchestrator.work_file", "RECAC_WORK_FILE")
-	viper.BindEnv("orchestrator.watch_dir", "RECAC_WATCH_DIR")
-	viper.BindEnv("orchestrator.github_token", "RECAC_GITHUB_TOKEN", "GITHUB_TOKEN")
-	viper.BindEnv("orchestrator.github_owner", "RECAC_GITHUB_OWNER")
-	viper.BindEnv("orchestrator.github_repo", "RECAC_GITHUB_REPO")
-	viper.BindEnv("orchestrator.github_label", "RECAC_GITHUB_LABEL")
-	viper.BindEnv("orchestrator.mode", "RECAC_ORCHESTRATOR_MODE")
-	viper.BindEnv("orchestrator.image", "RECAC_ORCHESTRATOR_IMAGE")
-	viper.BindEnv("orchestrator.namespace", "RECAC_ORCHESTRATOR_NAMESPACE")
-	viper.BindEnv("orchestrator.interval", "RECAC_ORCHESTRATOR_INTERVAL")
-	viper.BindEnv("orchestrator.image_pull_policy", "RECAC_IMAGE_PULL_POLICY")
-	viper.BindEnv("orchestrator.max_iterations", "RECAC_MAX_ITERATIONS")
-	viper.BindEnv("orchestrator.manager_frequency", "RECAC_MANAGER_FREQUENCY")
-	viper.BindEnv("orchestrator.task_max_iterations", "RECAC_TASK_MAX_ITERATIONS")
+	bindFlags(cmd)
+	bindEnv()
 
 	// Logger
 	logger := telemetry.NewLogger(viper.GetBool("verbose"), "orchestrator", false)
@@ -210,4 +190,47 @@ func main() {
 		logger.Error("Orchestrator failure", "error", err)
 		os.Exit(1)
 	}
+}
+
+func bindFlags(cmd *cobra.Command) {
+	viper.BindPFlag("verbose", cmd.Flags().Lookup("verbose"))
+	viper.BindPFlag("orchestrator.jira_query", cmd.Flags().Lookup("jira-query"))
+	viper.BindPFlag("orchestrator.poller", cmd.Flags().Lookup("poller"))
+	viper.BindPFlag("orchestrator.work_file", cmd.Flags().Lookup("work-file"))
+	viper.BindPFlag("orchestrator.watch_dir", cmd.Flags().Lookup("watch-dir"))
+
+	viper.BindPFlag("orchestrator.github_token", cmd.Flags().Lookup("github-token"))
+	viper.BindPFlag("orchestrator.github_owner", cmd.Flags().Lookup("github-owner"))
+	viper.BindPFlag("orchestrator.github_repo", cmd.Flags().Lookup("github-repo"))
+	viper.BindPFlag("orchestrator.github_label", cmd.Flags().Lookup("github-label"))
+
+	viper.BindPFlag("orchestrator.mode", cmd.Flags().Lookup("mode"))
+	viper.BindPFlag("orchestrator.jira_label", cmd.Flags().Lookup("jira-label"))
+	viper.BindPFlag("orchestrator.image", cmd.Flags().Lookup("image"))
+	viper.BindPFlag("orchestrator.namespace", cmd.Flags().Lookup("namespace"))
+	viper.BindPFlag("orchestrator.interval", cmd.Flags().Lookup("interval"))
+	viper.BindPFlag("orchestrator.agent_provider", cmd.Flags().Lookup("agent-provider"))
+	viper.BindPFlag("orchestrator.agent_model", cmd.Flags().Lookup("agent-model"))
+	viper.BindPFlag("orchestrator.image_pull_policy", cmd.Flags().Lookup("image-pull-policy"))
+}
+
+func bindEnv() {
+	// Explicitly bind cleaner env vars
+	viper.BindEnv("orchestrator.agent_provider", "RECAC_AGENT_PROVIDER")
+	viper.BindEnv("orchestrator.agent_model", "RECAC_AGENT_MODEL")
+	viper.BindEnv("orchestrator.poller", "RECAC_POLLER")
+	viper.BindEnv("orchestrator.work_file", "RECAC_WORK_FILE")
+	viper.BindEnv("orchestrator.watch_dir", "RECAC_WATCH_DIR")
+	viper.BindEnv("orchestrator.github_token", "RECAC_GITHUB_TOKEN", "GITHUB_TOKEN")
+	viper.BindEnv("orchestrator.github_owner", "RECAC_GITHUB_OWNER")
+	viper.BindEnv("orchestrator.github_repo", "RECAC_GITHUB_REPO")
+	viper.BindEnv("orchestrator.github_label", "RECAC_GITHUB_LABEL")
+	viper.BindEnv("orchestrator.mode", "RECAC_ORCHESTRATOR_MODE")
+	viper.BindEnv("orchestrator.image", "RECAC_ORCHESTRATOR_IMAGE")
+	viper.BindEnv("orchestrator.namespace", "RECAC_ORCHESTRATOR_NAMESPACE")
+	viper.BindEnv("orchestrator.interval", "RECAC_ORCHESTRATOR_INTERVAL")
+	viper.BindEnv("orchestrator.image_pull_policy", "RECAC_IMAGE_PULL_POLICY")
+	viper.BindEnv("orchestrator.max_iterations", "RECAC_MAX_ITERATIONS")
+	viper.BindEnv("orchestrator.manager_frequency", "RECAC_MANAGER_FREQUENCY")
+	viper.BindEnv("orchestrator.task_max_iterations", "RECAC_TASK_MAX_ITERATIONS")
 }
