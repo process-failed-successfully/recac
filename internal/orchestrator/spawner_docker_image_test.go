@@ -4,11 +4,13 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"recac/internal/runner"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
@@ -32,7 +34,8 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	// Mock expectations
 	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
-	mockSM.On("LoadSession", "TICKET-1").Return(nil, assert.AnError)
+	// Return a valid empty session instead of nil, even on error, to avoid potential panics
+	mockSM.On("LoadSession", "TICKET-1").Return(&runner.SessionState{}, assert.AnError)
 
 	execCalled := make(chan string, 1)
 
@@ -44,7 +47,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	}).Return("output", nil)
 
 	err := spawner.Spawn(ctx, item)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	select {
 	case cmdStr := <-execCalled:
