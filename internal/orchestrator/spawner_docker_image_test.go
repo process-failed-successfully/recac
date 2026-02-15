@@ -55,3 +55,47 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		t.Fatal("Timeout waiting for Exec call")
 	}
 }
+
+func TestDockerSpawner_Spawn_EmptyImage(t *testing.T) {
+	mockDocker := new(MockDockerClient)
+	mockSM := new(MockSessionManager)
+	mockGit := new(MockGitClient)
+	mockPoller := new(MockPoller)
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	imageName := "" // EMPTY IMAGE
+	spawner := NewDockerSpawner(logger, mockDocker, imageName, "test-proj", mockPoller, "provider", "model", mockSM)
+	spawner.GitClient = mockGit
+
+	item := WorkItem{
+		ID:      "TICKET-1",
+		RepoURL: "https://github.com/test/repo",
+	}
+
+	ctx := context.Background()
+
+	// Mock expectations - RunContainer will be called with empty string as image
+	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
+	mockSM.On("SaveSession", mock.Anything).Return(nil)
+	mockSM.On("LoadSession", "TICKET-1").Return(nil, assert.AnError)
+
+	execCalled := make(chan string, 1)
+
+	// We match "Anything" for arguments so we catch the call, then inspect it in Run
+	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Run(func(args mock.Arguments) {
+		cmd := args.Get(2).([]string)
+		// cmd is ["/bin/sh", "-c", "actual command"]
+		execCalled <- cmd[2]
+	}).Return("output", nil)
+
+	err := spawner.Spawn(ctx, item)
+	assert.NoError(t, err)
+
+	select {
+	case cmdStr := <-execCalled:
+		t.Logf("Captured Command: %s", cmdStr)
+		assert.NotContains(t, cmdStr, "--image", "Command should NOT contain --image flag when image is empty")
+	case <-time.After(30 * time.Second):
+		t.Fatal("Timeout waiting for Exec call")
+	}
+}
