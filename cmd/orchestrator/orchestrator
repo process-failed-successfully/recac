@@ -1,0 +1,2 @@
+{"time":"2026-02-15T20:40:01.475675248Z","level":"INFO","msg":"Starting Orchestrator","mode":"local","label":"recac-agent","query":"","interval":60000000000,"agent_provider":"openrouter"}
+{"time":"2026-02-15T20:40:01.476030532Z","level":"ERROR","msg":"Failed to initialize Jira client","error":"JIRA_URL environment variable or jira.url config is required"}

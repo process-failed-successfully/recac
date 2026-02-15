@@ -5,6 +5,9 @@ import (
 	"log/slog"
 	"recac/internal/jira"
 	"recac/internal/runner"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 )
 
 // WorkItem represents a unit of work to be processed, e.g., a Jira ticket.
@@ -44,8 +47,10 @@ var _ JiraClient = (*jira.Client)(nil)
 
 // DockerClient defines the interface for Docker operations, created for mocking.
 type DockerClient interface {
-	RunContainer(ctx context.Context, image string, workspace string, binds []string, env []string, user string) (string, error)
+	RunContainer(ctx context.Context, image string, workspace string, binds []string, env []string, labels map[string]string, user string) (string, error)
 	StopContainer(ctx context.Context, containerID string) error
+	RemoveContainer(ctx context.Context, containerID string, force bool) error
+	ListContainers(ctx context.Context, options container.ListOptions) ([]types.Container, error)
 	Exec(ctx context.Context, containerID string, cmd []string) (string, error)
 }
 

@@ -1,0 +1,39 @@
+agent_timeout: 300
+bash_timeout: 600
+docker_timeout: 600
+git_user_email: recac-agent@example.com
+git_user_name: RECAC Agent
+manager_frequency: 5
+max_iterations: 20
+metrics_port: 2112
+model: gemini-pro
+notifications:
+    slack:
+        channel: '#general'
+        enabled: false
+        events:
+            on_failure: true
+            on_project_complete: true
+            on_start: true
+            on_success: true
+            on_user_interaction: true
+orchestrator:
+    agent_model: meta-llama/llama-3.3-70b-instruct:free
+    agent_provider: openrouter
+    github_label: ""
+    github_owner: ""
+    github_repo: ""
+    github_token: ""
+    image: ghcr.io/process-failed-successfully/recac-agent:latest
+    image_pull_policy: Always
+    interval: 1m0s
+    jira_label: recac-agent
+    jira_query: ""
+    mode: local
+    namespace: default
+    poller: jira
+    watch_dir: ""
+    work_file: work_items.json
+provider: gemini
+timeout: 300
+verbose: false
