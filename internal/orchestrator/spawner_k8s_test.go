@@ -171,7 +171,12 @@ func TestK8sSpawner_Spawn_Lifecycle(t *testing.T) {
 		// Verify container image and env
 		container := job.Spec.Template.Spec.Containers[0]
 		assert.Equal(t, "recac-agent:latest", container.Image)
-		
+
+		// Verify command
+		assert.Contains(t, container.Args[0], "/usr/local/bin/recac-agent")
+		assert.Contains(t, container.Args[0], "--verbose")
+		assert.Contains(t, container.Args[0], "--image \"recac-agent:latest\"")
+
 		envMap := make(map[string]string)
 		for _, e := range container.Env {
 			envMap[e.Name] = e.Value
