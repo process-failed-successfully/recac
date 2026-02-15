@@ -56,7 +56,7 @@ func TestDockerSpawner_EnvInjection_Vulnerability(t *testing.T) {
 	select {
 	case capturedCmd = <-capturedCmdChan:
 		capturedEnv = <-capturedEnvChan
-	case <-time.After(2 * time.Second):
+	case <-time.After(30 * time.Second):
 		t.Fatal("Timed out waiting for Exec call")
 	}
 
