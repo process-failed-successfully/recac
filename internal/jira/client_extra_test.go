@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -29,6 +30,23 @@ func TestCreateTicket_Success(t *testing.T) {
 	}
 }
 
+func TestCreateTicket_Failure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("Bad Request"))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "user", "token")
+	_, err := client.CreateTicket(context.Background(), "PROJ", "Summary", "Desc", "Task", nil)
+	if err == nil {
+		t.Fatal("Expected error for bad request")
+	}
+	if !strings.Contains(err.Error(), "failed to create ticket with status: 400") {
+		t.Errorf("Expected status 400 error, got %v", err)
+	}
+}
+
 func TestDeleteIssue_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/rest/api/3/issue/PROJ-123" || r.Method != "DELETE" {
@@ -42,6 +60,21 @@ func TestDeleteIssue_Success(t *testing.T) {
 	client := NewClient(server.URL, "user", "token")
 	if err := client.DeleteIssue(context.Background(), "PROJ-123"); err != nil {
 		t.Fatalf("DeleteIssue failed: %v", err)
+	}
+}
+
+func TestDeleteIssue_Failure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		w.Write([]byte("Forbidden"))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "user", "token")
+	if err := client.DeleteIssue(context.Background(), "PROJ-123"); err == nil {
+		t.Fatal("Expected error for forbidden request")
+	} else if !strings.Contains(err.Error(), "failed to delete issue with status: 403") {
+		t.Errorf("Expected status 403 error, got %v", err)
 	}
 }
 
@@ -63,6 +96,19 @@ func TestSearchIssues_Success(t *testing.T) {
 	}
 	if len(issues) != 1 || issues[0]["key"] != "PROJ-123" {
 		t.Error("SearchIssues returned incorrect data")
+	}
+}
+
+func TestSearchIssues_Failure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "user", "token")
+	_, err := client.SearchIssues(context.Background(), "project = PROJ")
+	if err == nil {
+		t.Fatal("Expected error for internal server error")
 	}
 }
 
@@ -113,6 +159,19 @@ func TestGetTransitions_Success(t *testing.T) {
 	}
 }
 
+func TestGetTransitions_Failure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "user", "token")
+	_, err := client.GetTransitions(context.Background(), "PROJ-123")
+	if err == nil {
+		t.Fatal("Expected error for not found")
+	}
+}
+
 func TestSmartTransition_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/rest/api/3/issue/PROJ-123/transitions" {
@@ -152,6 +211,18 @@ func TestSmartTransition_Success(t *testing.T) {
 	}
 }
 
+func TestSmartTransition_Failure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "user", "token")
+	if err := client.SmartTransition(context.Background(), "PROJ-123", "Done"); err == nil {
+		t.Fatal("Expected error for internal server error")
+	}
+}
+
 func TestCreateChildTicket_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/rest/api/3/issue" {
@@ -180,6 +251,23 @@ func TestCreateChildTicket_Success(t *testing.T) {
 	}
 	if key != "CHILD-1" {
 		t.Errorf("Expected key CHILD-1, got %s", key)
+	}
+}
+
+func TestCreateChildTicket_Failure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("Bad Request"))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "user", "token")
+	_, err := client.CreateChildTicket(context.Background(), "PROJ", "Child", "Desc", "Sub-task", "PARENT-1", nil)
+	if err == nil {
+		t.Fatal("Expected error for bad request")
+	}
+	if !strings.Contains(err.Error(), "failed to create child ticket with status: 400") {
+		t.Errorf("Expected status 400 error, got %v", err)
 	}
 }
 
@@ -273,5 +361,192 @@ func TestGetBlockers(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestGetBlockerKeys(t *testing.T) {
+	client := NewClient("", "", "")
+
+	tests := []struct {
+		name     string
+		ticket   map[string]interface{}
+		expected []string
+	}{
+		{
+			name: "Unresolved blocker",
+			ticket: map[string]interface{}{
+				"fields": map[string]interface{}{
+					"issuelinks": []interface{}{
+						map[string]interface{}{
+							"type": map[string]interface{}{
+								"inward": "is blocked by",
+							},
+							"inwardIssue": map[string]interface{}{
+								"key": "RD-158",
+								"fields": map[string]interface{}{
+									"status": map[string]interface{}{
+										"name": "In Progress",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: []string{"RD-158"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			blockers := client.GetBlockerKeys(tt.ticket)
+			if len(blockers) != len(tt.expected) {
+				t.Errorf("expected %d blockers, got %d", len(tt.expected), len(blockers))
+			}
+			for i, b := range blockers {
+				if b != tt.expected[i] {
+					t.Errorf("expected blocker key %q, got %q", tt.expected[i], b)
+				}
+			}
+		})
+	}
+}
+
+func TestAddIssueLink_Success(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/rest/api/3/issueLink" || r.Method != "POST" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "user", "token")
+	if err := client.AddIssueLink(context.Background(), "IN-1", "OUT-1", "Blocks"); err != nil {
+		t.Fatalf("AddIssueLink failed: %v", err)
+	}
+}
+
+func TestAddIssueLink_Failure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("Bad Request"))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "user", "token")
+	if err := client.AddIssueLink(context.Background(), "IN-1", "OUT-1", "Blocks"); err == nil {
+		t.Fatal("Expected error for bad request")
+	}
+}
+
+func TestSetParent_Success(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/rest/api/3/issue/CHILD-1" || r.Method != "PUT" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		var payload map[string]interface{}
+		json.NewDecoder(r.Body).Decode(&payload)
+		fields := payload["fields"].(map[string]interface{})
+		parent := fields["parent"].(map[string]interface{})
+		if parent["key"] != "PARENT-1" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "user", "token")
+	if err := client.SetParent(context.Background(), "CHILD-1", "PARENT-1"); err != nil {
+		t.Fatalf("SetParent failed: %v", err)
+	}
+}
+
+func TestSetParent_Failure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("Bad Request"))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "user", "token")
+	if err := client.SetParent(context.Background(), "CHILD-1", "PARENT-1"); err == nil {
+		t.Fatal("Expected error for bad request")
+	}
+}
+
+func TestAddLabel_Success(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/rest/api/3/issue/PROJ-1" || r.Method != "PUT" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		var payload map[string]interface{}
+		json.NewDecoder(r.Body).Decode(&payload)
+		update := payload["update"].(map[string]interface{})
+		labels := update["labels"].([]interface{})
+		add := labels[0].(map[string]interface{})["add"]
+		if add != "new-label" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "user", "token")
+	if err := client.AddLabel(context.Background(), "PROJ-1", "new-label"); err != nil {
+		t.Fatalf("AddLabel failed: %v", err)
+	}
+}
+
+func TestAddLabel_Failure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("Bad Request"))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "user", "token")
+	if err := client.AddLabel(context.Background(), "PROJ-1", "new-label"); err == nil {
+		t.Fatal("Expected error for bad request")
+	}
+}
+
+func TestGetFirstProjectKey_Success(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/rest/api/3/project" || r.Method != "GET" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("[{\"key\": \"PROJ\"}]"))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "user", "token")
+	key, err := client.GetFirstProjectKey(context.Background())
+	if err != nil {
+		t.Fatalf("GetFirstProjectKey failed: %v", err)
+	}
+	if key != "PROJ" {
+		t.Errorf("Expected key PROJ, got %s", key)
+	}
+}
+
+func TestGetFirstProjectKey_Failure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("[]")) // No projects
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "user", "token")
+	_, err := client.GetFirstProjectKey(context.Background())
+	if err == nil {
+		t.Fatal("Expected error for no projects")
 	}
 }
