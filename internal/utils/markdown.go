@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"regexp"
 	"strings"
 )
 
@@ -33,11 +32,6 @@ func CleanCodeBlock(content string) string {
 	return content
 }
 
-var (
-	reJSONBlock = regexp.MustCompile("(?s)```json(.*?)```")
-	reBlock     = regexp.MustCompile("(?s)```(.*?)```")
-)
-
 // CleanJSONBlock attempts to extract a JSON object or array from a string.
 // It handles markdown code blocks (```json ... ```) and raw JSON wrapped in text.
 func CleanJSONBlock(input string) string {
@@ -46,30 +40,40 @@ func CleanJSONBlock(input string) string {
 		return ""
 	}
 
-	// 1. Try regex for ```json ... ``` (Most explicit)
-	match := reJSONBlock.FindStringSubmatch(input)
-	if len(match) > 1 {
-		return strings.TrimSpace(match[1])
+	// 1. Try to find ```json ... ``` (Most explicit)
+	// We check this first to prioritize explicitly marked JSON blocks, even if they appear later.
+	startJSON := strings.Index(input, "```json")
+	if startJSON != -1 {
+		contentStart := startJSON + 7 // len("```json")
+		endJSON := strings.Index(input[contentStart:], "```")
+		if endJSON != -1 {
+			return strings.TrimSpace(input[contentStart : contentStart+endJSON])
+		}
 	}
 
-	// 2. Try regex for ``` ... ``` (Any block)
-	match2 := reBlock.FindStringSubmatch(input)
-	if len(match2) > 1 {
-		content := strings.TrimSpace(match2[1])
-		// Remove language tag if present in the captured content
-		if idx := strings.Index(content, "\n"); idx != -1 {
-			firstLine := strings.TrimSpace(content[:idx])
-			// If first line is short and looks like a tag, skip it
-			if len(firstLine) < 10 && !strings.Contains(firstLine, " ") && !strings.Contains(firstLine, "{") && !strings.Contains(firstLine, "[") {
-				return strings.TrimSpace(content[idx+1:])
-			}
-		}
-		// If it starts with "json" and then immediate brace?
-		if strings.HasPrefix(content, "json") {
-			return strings.TrimSpace(strings.TrimPrefix(content, "json"))
-		}
+	// 2. Try generic block ``` ... ```
+	startBlock := strings.Index(input, "```")
+	if startBlock != -1 {
+		contentStart := startBlock + 3
+		endBlock := strings.Index(input[contentStart:], "```")
+		if endBlock != -1 {
+			content := strings.TrimSpace(input[contentStart : contentStart+endBlock])
 
-		return content
+			// Remove language tag if present in the captured content
+			if idx := strings.Index(content, "\n"); idx != -1 {
+				firstLine := strings.TrimSpace(content[:idx])
+				// If first line is short and looks like a tag, skip it
+				if len(firstLine) < 10 && !strings.Contains(firstLine, " ") && !strings.Contains(firstLine, "{") && !strings.Contains(firstLine, "[") {
+					return strings.TrimSpace(content[idx+1:])
+				}
+			}
+			// If it starts with "json" and then immediate brace? (e.g. ```json{...}``` where "json" is part of content)
+			if strings.HasPrefix(content, "json") {
+				return strings.TrimSpace(strings.TrimPrefix(content, "json"))
+			}
+
+			return content
+		}
 	}
 
 	// 3. Fallback: If it looks like a JSON object/array but has text around it
