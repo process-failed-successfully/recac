@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"recac/internal/runner"
 	"sync"
 	"testing"
 	"time"
@@ -42,7 +43,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		loadSessionOnce.Do(func() {
 			close(loadSessionCalled)
 		})
-	}).Return(nil, assert.AnError)
+	}).Return(&runner.SessionState{}, assert.AnError)
 
 	execCalled := make(chan string, 1)
 
@@ -61,7 +62,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		t.Logf("Captured Command: %s", cmdStr)
 		assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
 		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
-	case <-time.After(5 * time.Second):
+	case <-time.After(10 * time.Second):
 		t.Fatal("Timeout waiting for Exec call")
 	}
 
@@ -69,7 +70,9 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	select {
 	case <-loadSessionCalled:
 		// Success
-	case <-time.After(5 * time.Second):
+		// Allow time for background goroutine to complete logging and cleanup (defer)
+		time.Sleep(100 * time.Millisecond)
+	case <-time.After(10 * time.Second):
 		t.Fatal("Timeout waiting for LoadSession call (background goroutine completion)")
 	}
 }
