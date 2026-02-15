@@ -17,7 +17,7 @@ type MockLoopDocker struct {
 	CheckDaemonFunc   func(ctx context.Context) error
 	RunContainerFunc  func(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, user string) (string, error)
 	StopContainerFunc func(ctx context.Context, containerID string) error
-	ExecFunc          func(ctx context.Context, containerID string, cmd []string) (string, error)
+	ExecFunc          func(ctx context.Context, containerID string, cmd []string, env []string) (string, error)
 }
 
 func (m *MockLoopDocker) CheckDaemon(ctx context.Context) error {
@@ -41,16 +41,16 @@ func (m *MockLoopDocker) StopContainer(ctx context.Context, containerID string) 
 	return nil
 }
 
-func (m *MockLoopDocker) Exec(ctx context.Context, containerID string, cmd []string) (string, error) {
+func (m *MockLoopDocker) Exec(ctx context.Context, containerID string, cmd []string, env []string) (string, error) {
 	if m.ExecFunc != nil {
-		return m.ExecFunc(ctx, containerID, cmd)
+		return m.ExecFunc(ctx, containerID, cmd, env)
 	}
 	return "", nil
 }
 
 func (m *MockLoopDocker) ExecAsUser(ctx context.Context, containerID string, user string, cmd []string) (string, error) {
 	if m.ExecFunc != nil {
-		return m.ExecFunc(ctx, containerID, cmd)
+		return m.ExecFunc(ctx, containerID, cmd, nil)
 	}
 	return "", nil
 }

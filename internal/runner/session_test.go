@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -110,6 +111,10 @@ func TestSession_Start_PassesUser(t *testing.T) {
 	mock.ContainerCreateFunc = func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error) {
 		passedUser = config.User
 		return container.CreateResponse{ID: "test"}, nil
+	}
+
+	mock.ContainerExecCreateFunc = func(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error) {
+		return types.IDResponse{ID: "exec-id"}, nil
 	}
 
 	session := NewSession(d, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
@@ -587,7 +592,7 @@ func TestSession_PushProgress(t *testing.T) {
 
 func TestSession_ProcessResponse_Commands(t *testing.T) {
 	d := &MockDockerClient{}
-	d.ExecFunc = func(ctx context.Context, containerID string, cmd []string) (string, error) {
+	d.ExecFunc = func(ctx context.Context, containerID string, cmd []string, env []string) (string, error) {
 		if strings.Contains(cmd[2], "echo hello") {
 			return "hello\n", nil
 		}
@@ -620,7 +625,7 @@ func TestSession_ProcessResponse_Commands(t *testing.T) {
 
 func TestSession_ProcessResponse_Blockers(t *testing.T) {
 	d := &MockDockerClient{}
-	d.ExecFunc = func(ctx context.Context, containerID string, cmd []string) (string, error) {
+	d.ExecFunc = func(ctx context.Context, containerID string, cmd []string, env []string) (string, error) {
 		// Simulate finding blocker file
 		if strings.Contains(cmd[2], "cat recac_blockers.txt") {
 			return "Critical API Issue", nil

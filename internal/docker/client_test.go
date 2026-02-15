@@ -404,7 +404,7 @@ func TestDockerInDocker_Support(t *testing.T) {
 	}()
 
 	// Step 4: Verify the nested container started correctly
-	output, err := client.Exec(ctx, containerID, []string{"echo", "hello from nested container"})
+	output, err := client.Exec(ctx, containerID, []string{"echo", "hello from nested container"}, nil)
 	if err != nil {
 		t.Fatalf("Failed to execute command in nested container: %v", err)
 	}
@@ -427,7 +427,7 @@ func TestExec_WorkingDir(t *testing.T) {
 	}
 	client := &Client{api: mock}
 
-	_, _ = client.Exec(context.Background(), "container-id", []string{"ls"})
+	_, _ = client.Exec(context.Background(), "container-id", []string{"ls"}, nil)
 
 	if capturedConfig.WorkingDir != "/workspace" {
 		t.Errorf("expected WorkingDir /workspace, got %s", capturedConfig.WorkingDir)
