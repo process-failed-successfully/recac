@@ -2,35 +2,40 @@ package agent
 
 import (
 	"context"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestMockAgent(t *testing.T) {
+func TestMockAgent_Send_TPM(t *testing.T) {
 	agent := NewMockAgent()
-
-	prompt := "This is a test prompt that is long enough to be truncated"
-	response, err := agent.Send(context.Background(), prompt)
-
-	if err != nil {
-		t.Fatalf("Send failed: %v", err)
-	}
-
-	if !strings.Contains(response, "Mock agent response") {
-		t.Errorf("Response missing prefix, got: %s", response)
-	}
-
-	if !strings.Contains(response, "I received your prompt") {
-		t.Errorf("Response missing body, got: %s", response)
-	}
+	prompt := "You are an expert Technical Program Manager (TPM)..."
+	resp, err := agent.Send(context.Background(), prompt)
+	assert.NoError(t, err)
+	assert.Contains(t, resp, "\"title\": \"ID:[PRIMES] Implement Prime Number Generator\"", "Should return JSON ticket list")
+	assert.NotContains(t, resp, "Mock agent response:", "Should not return default text")
 }
 
-func TestTruncateString(t *testing.T) {
-	s := "hello world"
-	if truncateString(s, 5) != "hello" {
-		t.Errorf("Expected 'hello', got '%s'", truncateString(s, 5))
-	}
-	if truncateString(s, 20) != "hello world" {
-		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
-	}
+func TestMockAgent_Send_Dev(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Create a python script named 'primes.py'. It MUST be python."
+
+	// First call
+	resp1, err := agent.Send(context.Background(), prompt)
+	assert.NoError(t, err)
+	assert.Contains(t, resp1, "cat << 'EOF' > primes.py", "Should return bash script")
+	assert.Contains(t, resp1, "git commit -m", "Should include git commit")
+
+	// Second call
+	resp2, err := agent.Send(context.Background(), prompt)
+	assert.NoError(t, err)
+	assert.Contains(t, resp2, "Task Completed", "Should return completion message on second call")
+}
+
+func TestMockAgent_Send_Default(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Test authentication"
+	resp, err := agent.Send(context.Background(), prompt)
+	assert.NoError(t, err)
+	assert.Contains(t, resp, "Mock agent response:", "Should return default text for unknown prompt")
 }
