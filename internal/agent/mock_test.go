@@ -77,6 +77,16 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		assert.Contains(t, response, "cat <<EOF > primes.py", "Should create primes.py")
 		assert.Contains(t, response, "json.dump({\"primes\": primes}, f)", "Should dump correct JSON structure")
 	})
+
+	t.Run("Coding Prompt with lowercase keywords (smoke test)", func(t *testing.T) {
+		prompt := "Description: Must generate primes up to 10000"
+		response, err := agent.Send(ctx, prompt)
+		assert.NoError(t, err)
+
+		// This should trigger the coding heuristic
+		assert.Contains(t, response, "#!/bin/bash", "Should be a bash script")
+		assert.Contains(t, response, "cat <<EOF > primes.py", "Should create primes.py")
+	})
 }
 
 func TestTruncateString(t *testing.T) {

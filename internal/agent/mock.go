@@ -56,10 +56,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// This heuristic triggers when the agent picks up the ticket created above.
 	// We broaden the check to catch "Prime Number" or "primes.json" in the prompt text
 	// as "ID:[PRIMES]" might not always be present or fully formed in the agent prompt.
-	isCodingPrompt := strings.Contains(prompt, "ID:[PRIMES]") ||
-		strings.Contains(prompt, "primes.py") ||
-		strings.Contains(prompt, "Prime Number") ||
-		strings.Contains(prompt, "primes.json")
+	lowerPrompt := strings.ToLower(prompt)
+	isCodingPrompt := strings.Contains(lowerPrompt, "id:[primes]") ||
+		strings.Contains(lowerPrompt, "primes.py") ||
+		strings.Contains(lowerPrompt, "prime number") ||
+		strings.Contains(lowerPrompt, "primes.json") ||
+		strings.Contains(lowerPrompt, "generate primes")
 
 	if isCodingPrompt {
 		return `#!/bin/bash
