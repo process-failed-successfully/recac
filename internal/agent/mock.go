@@ -87,12 +87,12 @@ git commit -m "Add primes script implementation" || echo "nothing to commit"
 
 # Mark requirement as done (to prevent premature sign-off revocation)
 # We assume the requirement ID is req-script-runs-without-errors based on the planning phase
-agent-bridge import --id req-script-runs-without-errors --description "Script runs without errors" --status completed
-agent-bridge feature set req-script-runs-without-errors status completed
+agent-bridge import --id req-script-runs-without-errors --description "Script runs without errors" --status completed || true
+agent-bridge feature set req-script-runs-without-errors status completed || true
 
 # Signal completion
 # Note: We signal project sign-off here to ensure the smoke test completes even if QA step is skipped or merged
-agent-bridge signal PROJECT_SIGNED_OFF true --privileged
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged || true
 ` + "```", nil
 	}
 
