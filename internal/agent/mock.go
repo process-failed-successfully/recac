@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,6 +31,36 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	lowerPrompt := strings.ToLower(prompt)
+
+	// Heuristic: TPM/Architect Phase
+	// Check for "json" AND ("technical program manager" OR "architect")
+	// The prompt usually asks the TPM to create tickets in JSON format.
+	if strings.Contains(lowerPrompt, "json") && (strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "architect")) {
+		// Return a JSON list of tickets suitable for the "prime-python" scenario.
+		// We include the repo URL as per requirements to avoid git errors.
+		return `[
+  {
+    "id": "PRIMES",
+    "title": "ID:[PRIMES] Generate Primes",
+    "description": "Generate prime numbers using Python. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
+    "type": "Story",
+    "status": "Todo",
+    "story_points": 3,
+    "dependencies": [],
+    "children": []
+  }
+]`, nil
+	}
+
+	// Heuristic: Coding Phase (Primes)
+	// Check for "prime" AND "python"
+	// The prompt usually asks to implement the task.
+	if strings.Contains(lowerPrompt, "prime") && strings.Contains(lowerPrompt, "python") {
+		return "```python\nimport json\n\ndef is_prime(n):\n    if n <= 1: return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0: return False\n    return True\n\nprimes = [x for x in range(1, 101) if is_prime(x)]\nwith open('primes.json', 'w') as f:\n    json.dump({\"primes\": primes}, f)\nprint(\"Generated primes.json\")\n```", nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
