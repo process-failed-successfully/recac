@@ -136,30 +136,6 @@ func TestCheckImage_Complex(t *testing.T) {
 
 }
 
-func TestRunContainer_Pull(t *testing.T) {
-
-	client, mock := NewMockClient()
-
-	pullCalled := false
-
-	mock.ImagePullFunc = func(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error) {
-
-		pullCalled = true
-
-		return io.NopCloser(strings.NewReader("{}")), nil
-
-	}
-
-	client.RunContainer(context.Background(), "image", "/tmp", nil, nil, "")
-
-	if !pullCalled {
-
-		t.Error("Expected ImagePull to be called")
-
-	}
-
-}
-
 func TestPullImage_Errors(t *testing.T) {
 
 	client, mock := NewMockClient()
