@@ -2,7 +2,9 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,6 +32,67 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// Heuristics for E2E Tests
+
+	// 1. Initializer / Architect Phase (Feature List)
+	// The prompt usually asks to break down requirements or list features.
+	lowerPrompt := strings.ToLower(prompt)
+	if strings.Contains(lowerPrompt, "feature list") || strings.Contains(lowerPrompt, "break down") {
+		// Return a list of tickets including PRIMES
+		tickets := []map[string]string{
+			{
+				"id":          "PRIMES",
+				"type":        "Task",
+				"title":       "Create Prime Number Script",
+				"description": "Calculate primes up to 10000",
+			},
+		}
+		bytes, _ := json.Marshal(tickets)
+		return string(bytes), nil
+	}
+
+	// 2. Coding Phase (PRIMES)
+	if strings.Contains(prompt, "PRIMES") || strings.Contains(lowerPrompt, "prime number script") {
+		// Return the bash script to create the python file and run it
+		// The python script generates primes.json
+		return `I will implement the prime number script.
+
+` + "```bash" + `
+cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n <= 1: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0: return False
+    return True
+
+primes = [x for x in range(1, 10000) if is_prime(x)]
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+# Run the script to generate the json
+python3 primes.py
+
+# Commit the results
+git add primes.py primes.json
+git commit -m "Implement prime number script"
+` + "```" + `
+`, nil
+	}
+
+	// 3. QA Phase
+	if strings.Contains(lowerPrompt, "qa") || strings.Contains(lowerPrompt, "quality assurance") {
+		return "QA Passed.\n`agent-bridge signal --id QA_PASSED`", nil
+	}
+
+	// 4. Manager Phase
+	if strings.Contains(lowerPrompt, "manager") || strings.Contains(lowerPrompt, "sign off") {
+		return "Project Signed Off.\n`agent-bridge signal --id PROJECT_SIGNED_OFF`", nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
