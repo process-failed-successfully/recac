@@ -90,6 +90,37 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 }`, nil
 	}
 
+	// Heuristic for PRIMES/Python E2E scenario
+	if strings.Contains(lowerPrompt, "id:[primes]") || strings.Contains(lowerPrompt, "is_prime") || strings.Contains(lowerPrompt, "primes.json") {
+		return `Here is the implementation of the is_prime function.
+
+` + "```bash" + `
+cat <<EOF > primes.py
+def is_prime(n):
+    if n <= 1:
+        return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+if __name__ == "__main__":
+    import sys
+    # Simple test
+    if len(sys.argv) > 1:
+        try:
+            n = int(sys.argv[1])
+            if is_prime(n):
+                print(f"{n} is prime")
+            else:
+                print(f"{n} is not prime")
+        except ValueError:
+            pass
+EOF
+` + "```" + `
+`, nil
+	}
+
 	// Default plain text response
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
