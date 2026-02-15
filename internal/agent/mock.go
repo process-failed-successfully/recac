@@ -74,7 +74,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Heuristic for Initializer/Planner JSON requests
-	if strings.Contains(lowerPrompt, "planner") || strings.Contains(lowerPrompt, "feature_list.json") {
+	if strings.Contains(lowerPrompt, "create exactly one ticket") || (strings.Contains(lowerPrompt, "feature_list.json") && strings.Contains(lowerPrompt, "create a complete and detailed list")) {
 		return `{
   "project_name": "Mock Project",
   "features": [
@@ -88,6 +88,37 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     }
   ]
 }`, nil
+	}
+
+	// Heuristic for Coding Tasks (e.g. PRIMES)
+	// Return a bash command to create a file and commit it, ensuring progress.
+	if strings.Contains(lowerPrompt, "primes") || strings.Contains(lowerPrompt, "python script") {
+		return `I will implement the prime number script.
+
+` + "```bash" + `
+cat << 'EOF' > primes.py
+def is_prime(n):
+    if n <= 1: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0: return False
+    return True
+
+if __name__ == "__main__":
+    for i in range(100):
+        if is_prime(i):
+            print(i)
+EOF
+
+# Verify it works
+python3 primes.py
+
+# Commit
+git add primes.py
+git config user.email "agent@recac.io"
+git config user.name "Recac Agent"
+git commit -m "Implement primes.py"
+` + "```" + `
+`, nil
 	}
 
 	// Default plain text response
