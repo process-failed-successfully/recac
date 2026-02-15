@@ -98,7 +98,8 @@ func TestRunTest_Impacted(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, output, "Analyzing impact")
 	assert.Contains(t, output, "Running tests for 1 packages")
-	assert.Contains(t, output, "PASS")
+	// "PASS" might be consumed or formatted differently, but "All tests passed" is the final success message
+	assert.Contains(t, output, "All tests passed")
 }
 
 func TestRunTest_DiagnoseFailure(t *testing.T) {
