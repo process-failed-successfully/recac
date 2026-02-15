@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,8 +31,30 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
-	// Return a mock response that shows the agent received the prompt
-	// This allows the session to run without requiring real API keys
+
+	promptLower := strings.ToLower(prompt)
+
+	// Heuristic: If looking for "technical program manager" and expecting JSON (TPM phase)
+	if strings.Contains(promptLower, "technical program manager") && strings.Contains(promptLower, "json") {
+		return `[
+  {
+    "id": "PRIMES",
+    "type": "Story",
+    "title": "Implement Python Script",
+    "description": "Create a Python script to generate primes.",
+    "dependencies": [],
+    "priority": "High",
+    "file_paths": ["primes.py"]
+  }
+]`, nil
+	}
+
+	// Heuristic: If coding phase (e.g. primes)
+	if strings.Contains(promptLower, "prime number") || strings.Contains(promptLower, "primes.json") {
+		return "```python\nimport json\n\nprimes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29]\nwith open('primes.json', 'w') as f:\n    json.dump({\"primes\": primes}, f)\n```", nil
+	}
+
+	// Default generic response
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
