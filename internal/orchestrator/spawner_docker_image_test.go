@@ -34,8 +34,13 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	// Mock expectations
 	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
+
+	// Use a channel to signal when LoadSession is called
+	loadSessionCalled := make(chan struct{})
 	// Return a valid empty session instead of nil, even on error, to avoid potential panics
-	mockSM.On("LoadSession", "TICKET-1").Return(&runner.SessionState{}, assert.AnError)
+	mockSM.On("LoadSession", "TICKET-1").Run(func(args mock.Arguments) {
+		close(loadSessionCalled)
+	}).Return(&runner.SessionState{}, assert.AnError)
 
 	execCalled := make(chan string, 1)
 
@@ -58,8 +63,16 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		t.Fatal("Timeout waiting for Exec call")
 	}
 
+	// Wait for the background goroutine to call LoadSession
+	select {
+	case <-loadSessionCalled:
+		// Success
+	case <-time.After(5 * time.Second):
+		t.Fatal("Timeout waiting for LoadSession call")
+	}
+
 	// Give the background goroutine time to complete (cleanup, final save, etc.)
 	// This prevents race conditions where the test finishes before the goroutine
 	// calls LoadSession/SaveSession, potentially causing "Log in goroutine after test completion" errors
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 }
