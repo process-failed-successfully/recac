@@ -131,6 +131,7 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 
 	// Inject Standard Env Vars
 	envVars = append(envVars, corev1.EnvVar{Name: "GIT_TERMINAL_PROMPT", Value: "0"})
+	envVars = append(envVars, corev1.EnvVar{Name: "HOME", Value: "/workspace"})
 
 	// Propagate Secrets and Config from Host Environment (Consistency with DockerSpawner)
 	secrets := []string{
