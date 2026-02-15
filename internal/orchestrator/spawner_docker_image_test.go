@@ -57,4 +57,9 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	case <-time.After(30 * time.Second):
 		t.Fatal("Timeout waiting for Exec call")
 	}
+
+	// Give the background goroutine time to complete (cleanup, final save, etc.)
+	// This prevents race conditions where the test finishes before the goroutine
+	// calls LoadSession/SaveSession, potentially causing "Log in goroutine after test completion" errors
+	time.Sleep(100 * time.Millisecond)
 }

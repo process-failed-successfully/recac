@@ -25,3 +25,8 @@ RUN apk add --no-cache \
 RUN echo "ALL ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
 WORKDIR /workspace
+
+# Copy source code and build binaries
+COPY . .
+RUN go build -o /usr/local/bin/recac-agent ./cmd/agent
+RUN go build -o /usr/local/bin/agent-bridge ./cmd/agent-bridge
