@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
+func TestDockerSpawner_Spawn_WithImage(t *testing.T) {
 	mockDocker := new(MockDockerClient)
 	mockSM := new(MockSessionManager)
 	mockGit := new(MockGitClient)
@@ -51,6 +51,53 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		t.Logf("Captured Command: %s", cmdStr)
 		assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
 		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
+	case <-time.After(30 * time.Second):
+		t.Fatal("Timeout waiting for Exec call")
+	}
+}
+
+func TestDockerSpawner_Spawn_WithoutImage(t *testing.T) {
+	mockDocker := new(MockDockerClient)
+	mockSM := new(MockSessionManager)
+	mockGit := new(MockGitClient)
+	mockPoller := new(MockPoller)
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	// Empty image name
+	imageName := ""
+	spawner := NewDockerSpawner(logger, mockDocker, imageName, "test-proj", mockPoller, "provider", "model", mockSM)
+	spawner.GitClient = mockGit
+
+	item := WorkItem{
+		ID:      "TICKET-2",
+		RepoURL: "https://github.com/test/repo",
+	}
+
+	ctx := context.Background()
+
+	// Mock expectations
+	// Note: In reality, Docker would fail with empty image, but we are testing that IF it proceeds (or if logic changes),
+	// the flag is not added. We mock success here to reach the Exec call.
+	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container456", nil)
+	mockSM.On("SaveSession", mock.Anything).Return(nil)
+	mockSM.On("LoadSession", "TICKET-2").Return(nil, assert.AnError)
+
+	execCalled := make(chan string, 1)
+
+	// We match "Anything" for arguments so we catch the call, then inspect it in Run
+	mockDocker.On("Exec", mock.Anything, "container456", mock.Anything).Run(func(args mock.Arguments) {
+		cmd := args.Get(2).([]string)
+		// cmd is ["/bin/sh", "-c", "actual command"]
+		execCalled <- cmd[2]
+	}).Return("output", nil)
+
+	err := spawner.Spawn(ctx, item)
+	assert.NoError(t, err)
+
+	select {
+	case cmdStr := <-execCalled:
+		t.Logf("Captured Command: %s", cmdStr)
+		assert.NotContains(t, cmdStr, "--image", "Command should NOT contain --image flag when image is empty")
 	case <-time.After(30 * time.Second):
 		t.Fatal("Timeout waiting for Exec call")
 	}
