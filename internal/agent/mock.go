@@ -36,13 +36,41 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// --- Heuristics ---
 
-	// 1. Initializer Agent
-	if strings.Contains(lowerPrompt, "initializer agent") || strings.Contains(lowerPrompt, "plan") {
-		return "```json\n{\"plan\": [\"Implement prime number generator\", \"Write tests\", \"Verify output\"]}\n```\nHere is the plan to implement the requested feature.", nil
+	// 1. TPM Agent (Initializer/Planner)
+	// Matches "tpm" (Technical Program Manager) or "initializer agent"
+	if strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "tpm") || strings.Contains(lowerPrompt, "initializer agent") {
+		// Return a JSON list of tickets as expected by the TPM agent
+		// We explicitly include the "PRIMES" task if the prompt mentions "prime" to satisfy the E2E scenario
+		if strings.Contains(lowerPrompt, "prime") {
+			return `[
+  {
+    "title": "ID:[PRIMES] Create Prime Number Script",
+    "description": "Create a python script named 'primes.py'. It must calculate all prime numbers less than 10,000 and output to a file named 'primes.json'.\nRepo: https://github.com/example/repo",
+    "type": "Task",
+    "children": [],
+    "acceptance_criteria": [
+      "Script primes.py exists",
+      "Output primes.json contains correct primes"
+    ]
+  }
+]`, nil
+		}
+
+		// Generic plan for other scenarios
+		return `[
+  {
+    "title": "ID:[GENERIC] Generic Task",
+    "description": "A generic task for testing.\nRepo: https://github.com/example/repo",
+    "type": "Task",
+    "children": [],
+    "acceptance_criteria": ["Task completed"]
+  }
+]`, nil
 	}
 
 	// 2. Coding Agent (Primes Scenario)
-	// We check for "prime" to catch the specific scenario requirement
+	// We check for "prime" to catch the specific scenario requirement.
+	// IMPORTANT: This must come AFTER the TPM check because the TPM prompt also contains "prime".
 	if strings.Contains(lowerPrompt, "coding agent") || strings.Contains(lowerPrompt, "write code") || strings.Contains(lowerPrompt, "prime") {
 		return `I will create the primes.py script and run it to generate primes.json.
 
