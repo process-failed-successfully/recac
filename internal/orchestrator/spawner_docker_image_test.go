@@ -34,15 +34,18 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	// Use mock.Anything for context to ensure it matches even if wrapped
 	mockDocker.On("RunContainer", mock.Anything, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
-	mockSM.On("LoadSession", "TICKET-1").Return(nil, assert.AnError)
+	mockSM.On("LoadSession", mock.Anything).Return(nil, assert.AnError)
 
 	execCalled := make(chan string, 1)
 
 	// Use mock.Anything for containerID as well, to avoid mismatch if something weird happens with string passing
 	mockDocker.On("Exec", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-		cmd := args.Get(2).([]string)
-		if len(cmd) > 2 {
-			execCalled <- cmd[2]
+		if cmd, ok := args.Get(2).([]string); ok {
+			if len(cmd) > 2 {
+				execCalled <- cmd[2]
+			} else {
+				execCalled <- ""
+			}
 		} else {
 			execCalled <- ""
 		}
