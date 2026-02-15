@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -79,7 +80,13 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// We check for keywords related to the prime number task.
 	// IMPORTANT: Ensure this doesn't conflict with TPM prompt which also mentions "prime".
 	// The TPM check above should catch it first if "Technical Program Manager" is present.
-	if strings.Contains(lowerPrompt, "prime") || strings.Contains(lowerPrompt, "primes.json") || strings.Contains(lowerPrompt, "id:[primes]") {
+	features := strings.ToLower(os.Getenv("RECAC_INJECTED_FEATURES"))
+	if strings.Contains(lowerPrompt, "prime") ||
+		strings.Contains(lowerPrompt, "primes.json") ||
+		strings.Contains(lowerPrompt, "id:[primes]") ||
+		strings.Contains(features, "primes") ||
+		strings.Contains(features, "id:[primes-1]") {
+
 		script := "```python\nimport json\n\ndef is_prime(n):\n    if n < 2:\n        return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0:\n            return False\n    return True\n\nprimes = [x for x in range(2, 100) if is_prime(x)]\n\nwith open('primes.json', 'w') as f:\n    json.dump({'primes': primes}, f)\nprint('Done')\n```"
 		return script, nil
 	}
