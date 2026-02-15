@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
@@ -36,15 +37,15 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 
 	execCalled := make(chan string, 1)
 
-	// We match "Anything" for arguments so we catch the call, then inspect it in Run
-	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+	// We match explicitly to ensure arguments are correct
+	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything, mock.MatchedBy(func(env []string) bool { return true })).Run(func(args mock.Arguments) {
 		cmd := args.Get(2).([]string)
 		// cmd is ["/bin/sh", "-c", "actual command"]
 		execCalled <- cmd[2]
 	}).Return("output", nil)
 
 	err := spawner.Spawn(ctx, item)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	select {
 	case cmdStr := <-execCalled:
