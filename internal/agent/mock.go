@@ -47,12 +47,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		tickets := []map[string]interface{}{
 			{
 				"title":       "ID:[PRIMES] Implement Prime Number Generator",
-				"description": "Implement a python script to generate prime numbers.\nRepo: https://github.com/example/repo",
+				"description": "Implement a python script to generate prime numbers.\nRepo: https://github.com/process-failed-successfully/recac-jira-e2e",
 				"type":        "Epic",
 				"children": []map[string]interface{}{
 					{
 						"title":               "ID:[PRIMES-1] Create primes.py",
-						"description":         "Create a script that writes primes to primes.json\nRepo: https://github.com/example/repo",
+						"description":         "Create a script that writes primes to primes.json\nRepo: https://github.com/process-failed-successfully/recac-jira-e2e",
 						"type":                "Story",
 						"acceptance_criteria": []string{"primes.json is created"},
 					},
@@ -65,7 +65,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Initializer Agent (Feature extraction)
 	// Prioritize this over coding to avoid coding script being returned for initializer
-	if strings.Contains(prompt, "Initializer Agent") || strings.Contains(prompt, "extract features") {
+	if strings.Contains(prompt, "Initializer Agent") || strings.Contains(prompt, "Architect") || strings.Contains(prompt, "extract features") {
 		return `["PRIMES-1"]`, nil
 	}
 
