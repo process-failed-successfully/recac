@@ -49,3 +49,22 @@ func TestMockAgent_Primes(t *testing.T) {
 		t.Errorf("Expected is_prime function logic, got: %s", response)
 	}
 }
+
+// Reproduction for Smoke Test Failure
+// The ticket summary is "[PRIMES] Prime Number Script" and the prompt likely contains this.
+// The heuristic "id:[primes]" requires "id:" which might be missing.
+func TestMockAgent_Primes_SmokeTestRepro(t *testing.T) {
+	agent := NewMockAgent()
+	// Simulate prompt containing just the ticket summary
+	prompt := "Task: [PRIMES] Prime Number Script\nDescription: Implement a Python script to check for prime numbers."
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// This should fail with the current heuristic if it strictly requires "id:[primes]"
+	if !strings.Contains(response, "cat <<EOF > primes.py") {
+		t.Logf("Response received: %s", response)
+		t.Errorf("Expected primes.py script for '[PRIMES]' prompt, but got generic response")
+	}
+}

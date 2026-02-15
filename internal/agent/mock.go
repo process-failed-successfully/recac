@@ -91,7 +91,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Heuristic for Coding/Implementing "primes.py"
-	if (strings.Contains(lowerPrompt, "id:[primes]") || strings.Contains(lowerPrompt, "generate primes") ||
+	if (strings.Contains(lowerPrompt, "id:[primes]") || strings.Contains(lowerPrompt, "[primes]") || strings.Contains(lowerPrompt, "generate primes") ||
 		strings.Contains(lowerPrompt, "primes.json") || (strings.Contains(lowerPrompt, "prime") && strings.Contains(lowerPrompt, "python"))) &&
 		!strings.Contains(lowerPrompt, "technical program manager") {
 
