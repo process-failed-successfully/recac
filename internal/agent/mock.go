@@ -38,14 +38,15 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 1. Initializer / Architect Phase (Feature List)
 	// The prompt usually asks to break down requirements or list features.
 	lowerPrompt := strings.ToLower(prompt)
-	if strings.Contains(lowerPrompt, "feature list") || strings.Contains(lowerPrompt, "break down") {
+	if strings.Contains(lowerPrompt, "feature list") || strings.Contains(lowerPrompt, "break down") || strings.Contains(lowerPrompt, "decompose") || strings.Contains(lowerPrompt, "application specification") {
 		// Return a list of tickets including PRIMES
-		tickets := []map[string]string{
+		// Structure matches ticketNode: Title, Description, Type, Children, etc.
+		tickets := []map[string]interface{}{
 			{
-				"id":          "PRIMES",
-				"type":        "Task",
-				"title":       "Create Prime Number Script",
+				"title":       "ID:[PRIMES] Create Prime Number Script",
 				"description": "Calculate primes up to 10000",
+				"type":        "Task",
+				"children":    []map[string]interface{}{},
 			},
 		}
 		bytes, _ := json.Marshal(tickets)
