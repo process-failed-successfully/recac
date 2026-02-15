@@ -64,6 +64,12 @@ func TestMockAgent_Heuristics(t *testing.T) {
 			expectedOutput: "def is_prime(n):",
 			notExpected:    "Mock agent response",
 		},
+		{
+			name:           "Commit Agent - Message",
+			prompt:         "Please generate a commit message for the changes.",
+			expectedOutput: "feat: Implement primes.py",
+			notExpected:    "Mock agent response",
+		},
 	}
 
 	for _, tt := range tests {

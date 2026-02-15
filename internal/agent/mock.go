@@ -40,6 +40,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return "NO_OP", nil
 	}
 
+	// Git Commit Agent Heuristic
+	// When asking for a commit message, return a valid message
+	if strings.Contains(lowerPrompt, "commit message") {
+		return "feat: Implement primes.py", nil
+	}
+
 	// TPM Agent Heuristic (Jira Ticket Generation)
 	// We check for "Technical Program Manager" which is in tpm_agent.md template.
 	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM") {
