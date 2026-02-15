@@ -31,20 +31,27 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Mock expectations
+	// 1. Initial Spawn expectations
 	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
-	mockSM.On("SaveSession", mock.Anything).Return(nil)
-	// Return a valid empty session instead of nil, even on error, to avoid potential panics
-	mockSM.On("LoadSession", "TICKET-1").Return(&runner.SessionState{}, assert.AnError)
+	mockSM.On("SaveSession", mock.Anything).Return(nil).Once()
 
 	execCalled := make(chan string, 1)
 
-	// We match "Anything" for arguments so we catch the call, then inspect it in Run
+	// 2. Exec expectation - this triggers the test verification
 	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		cmd := args.Get(2).([]string)
 		// cmd is ["/bin/sh", "-c", "actual command"]
 		execCalled <- cmd[2]
 	}).Return("output", nil)
+
+	// 3. Post-Exec lifecycle expectations (Mock full success flow)
+	mockSM.On("LoadSession", "TICKET-1").Return(&runner.SessionState{}, nil)
+	mockGit.On("CurrentCommitSHA", mock.Anything).Return("sha", nil)
+
+	done := make(chan struct{})
+	mockSM.On("SaveSession", mock.Anything).Run(func(args mock.Arguments) {
+		close(done)
+	}).Return(nil).Once() // Final update
 
 	err := spawner.Spawn(ctx, item)
 	require.NoError(t, err)
@@ -57,4 +64,16 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	case <-time.After(30 * time.Second):
 		t.Fatal("Timeout waiting for Exec call")
 	}
+
+	// Wait for final session save (indicates goroutine completion)
+	select {
+	case <-done:
+		// Success
+	case <-time.After(5 * time.Second):
+		t.Fatal("Timeout waiting for final SaveSession")
+	}
+
+	mockDocker.AssertExpectations(t)
+	mockSM.AssertExpectations(t)
+	mockGit.AssertExpectations(t)
 }
