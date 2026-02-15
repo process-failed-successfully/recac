@@ -14,7 +14,9 @@ import (
 	"recac/internal/orchestrator"
 	"recac/internal/runner"
 	"recac/internal/telemetry"
+	"recac/internal/ui"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	corev1 "k8s.io/api/core/v1"
@@ -25,6 +27,7 @@ func main() {
 	var cfgFile string
 	pflag.StringVar(&cfgFile, "config", "", "config file (default is $HOME/.recac.yaml)")
 	pflag.BoolP("verbose", "v", false, "Enable verbose/debug logging")
+	pflag.Bool("tui", false, "Enable TUI dashboard")
 
 	pflag.String("mode", "local", "Orchestrator mode: 'local' (Docker) or 'k8s' (Kubernetes Job)")
 	pflag.String("jira-label", "recac-agent", "Jira label to poll for")
@@ -52,6 +55,7 @@ func main() {
 
 	// Bind Flags
 	viper.BindPFlag("verbose", pflag.Lookup("verbose"))
+	viper.BindPFlag("orchestrator.tui", pflag.Lookup("tui"))
 	viper.BindPFlag("orchestrator.jira_query", pflag.Lookup("jira-query"))
 	viper.BindPFlag("orchestrator.poller", pflag.Lookup("poller"))
 	viper.BindPFlag("orchestrator.work_file", pflag.Lookup("work-file"))
@@ -91,8 +95,10 @@ func main() {
 	viper.BindEnv("orchestrator.task_max_iterations", "RECAC_TASK_MAX_ITERATIONS")
 
 	// Logger
-	logger := telemetry.NewLogger(viper.GetBool("verbose"), "orchestrator", false)
-	telemetry.InitLogger(viper.GetBool("verbose"), "orchestrator", false) // Ensure global logger is set
+	tuiEnabled := viper.GetBool("orchestrator.tui")
+	logFile := "orchestrator.log" // Default log file
+	logger := telemetry.NewLogger(viper.GetBool("verbose"), logFile, tuiEnabled)
+	telemetry.InitLogger(viper.GetBool("verbose"), logFile, tuiEnabled) // Ensure global logger is set
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -202,12 +208,38 @@ func main() {
 
 	// 3. Orchestrator
 	orch := orchestrator.New(poller, spawner, interval)
-	if err := orch.Run(ctx, logger); err != nil {
-		if ctx.Err() != nil {
-			// Graceful shutdown
-			return
+
+	if tuiEnabled {
+		// Initialize TUI
+		model := ui.NewOrchestratorDashboard()
+		orch.SetObserver(model)
+		p := tea.NewProgram(model)
+
+		// Run Orchestrator in background
+		go func() {
+			if err := orch.Run(ctx, logger); err != nil {
+				if ctx.Err() == nil {
+					logger.Error("Orchestrator failure", "error", err)
+				}
+			}
+			// If orchestrator exits, quit the program
+			p.Quit()
+		}()
+
+		// Run TUI (blocking)
+		if _, err := p.Run(); err != nil {
+			fmt.Printf("Error running TUI: %v\n", err)
+			os.Exit(1)
 		}
-		logger.Error("Orchestrator failure", "error", err)
-		os.Exit(1)
+	} else {
+		// Run Orchestrator (blocking)
+		if err := orch.Run(ctx, logger); err != nil {
+			if ctx.Err() != nil {
+				// Graceful shutdown
+				return
+			}
+			logger.Error("Orchestrator failure", "error", err)
+			os.Exit(1)
+		}
 	}
 }

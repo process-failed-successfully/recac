@@ -28,6 +28,14 @@ type Spawner interface {
 	Cleanup(ctx context.Context, item WorkItem) error
 }
 
+// Observer defines the interface for monitoring orchestrator events.
+type Observer interface {
+	OnPollStart()
+	OnPollEnd(itemCount int, err error)
+	OnSpawnStart(item WorkItem)
+	OnSpawnEnd(item WorkItem, err error)
+}
+
 // JiraClient defines the interface for a Jira client, created for mocking purposes.
 // It mirrors the methods of jira.Client used by JiraPoller.
 type JiraClient interface {

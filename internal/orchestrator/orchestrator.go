@@ -12,6 +12,7 @@ type Orchestrator struct {
 	Poller       Poller
 	Spawner      Spawner
 	PollInterval time.Duration
+	observer     Observer
 }
 
 func New(poller Poller, spawner Spawner, pollInterval time.Duration) *Orchestrator {
@@ -20,6 +21,10 @@ func New(poller Poller, spawner Spawner, pollInterval time.Duration) *Orchestrat
 		Spawner:      spawner,
 		PollInterval: pollInterval,
 	}
+}
+
+func (o *Orchestrator) SetObserver(obs Observer) {
+	o.observer = obs
 }
 
 // Run starts the orchestration loop
@@ -40,7 +45,13 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 		case <-ticker.C:
 			// Poll for work
 			logger.Debug("Polling for work...")
+			if o.observer != nil {
+				o.observer.OnPollStart()
+			}
 			items, err := o.Poller.Poll(ctx, logger)
+			if o.observer != nil {
+				o.observer.OnPollEnd(len(items), err)
+			}
 			if err != nil {
 				logger.Error("Failed to poll for work", "error", err)
 				continue
@@ -57,11 +68,19 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 				go func(item WorkItem) {
 					defer wg.Done()
 					logger.Info("Spawning agent for item", "id", item.ID)
+					if o.observer != nil {
+						o.observer.OnSpawnStart(item)
+					}
 
-					if err := o.Spawner.Spawn(ctx, item); err != nil {
-						logger.Error("Failed to spawn agent", "id", item.ID, "error", err)
+					spawnErr := o.Spawner.Spawn(ctx, item)
+					if o.observer != nil {
+						o.observer.OnSpawnEnd(item, spawnErr)
+					}
+
+					if spawnErr != nil {
+						logger.Error("Failed to spawn agent", "id", item.ID, "error", spawnErr)
 						// Update status to Failed
-						_ = o.Poller.UpdateStatus(ctx, item, "Failed", fmt.Sprintf("Failed to spawn agent: %v", err))
+						_ = o.Poller.UpdateStatus(ctx, item, "Failed", fmt.Sprintf("Failed to spawn agent: %v", spawnErr))
 					} else {
 						// Success? K8s Jobs are fire-and-forget from Spawner perspective usually,
 						// but status updates might happen asynchronously.
