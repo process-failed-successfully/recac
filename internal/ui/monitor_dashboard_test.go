@@ -169,3 +169,39 @@ func TestRefreshMonitorSessionsCmd(t *testing.T) {
 	assert.IsType(t, actionResultMsg{}, msgErr)
 	assert.Error(t, msgErr.(actionResultMsg).err)
 }
+
+func TestMonitorDashboardModel_Visuals(t *testing.T) {
+	// Setup
+	callbacks := ActionCallbacks{}
+	m := NewMonitorDashboardModel(callbacks)
+
+	sessions := []model.UnifiedSession{
+		{Name: "sess1", Status: "running", Location: "k8s", Goal: "test"},
+		{Name: "sess2", Status: "paused", Location: "docker", Goal: "test"},
+		{Name: "sess3", Status: "error", Location: "local", Goal: "test"},
+	}
+
+	// Update model
+	m.sessions = sessions
+	m.updateTableRows()
+
+	// Check rows
+	rows := m.table.Rows()
+	assert.Len(t, rows, 3)
+
+	// We expect icons in the status and location columns (index 1 and 2)
+	// Note: We can't easily check for exact ANSI codes without being fragile,
+	// but we can check for the presence of the emoji characters.
+
+	// Row 1: Running, K8s
+	assert.Contains(t, rows[0][1], "🟢") // Running
+	assert.Contains(t, rows[0][2], "☸️")  // K8s
+
+	// Row 2: Paused, Docker
+	assert.Contains(t, rows[1][1], "⏸️") // Paused
+	assert.Contains(t, rows[1][2], "🐳") // Docker
+
+	// Row 3: Error, Local
+	assert.Contains(t, rows[2][1], "❌") // Error
+	assert.Contains(t, rows[2][2], "💻") // Local
+}

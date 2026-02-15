@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"recac/internal/model"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/table"
@@ -53,8 +54,8 @@ var (
 func NewMonitorDashboardModel(callbacks ActionCallbacks) MonitorDashboardModel {
 	columns := []table.Column{
 		{Title: "NAME", Width: 20},
-		{Title: "STATUS", Width: 10},
-		{Title: "LOCATION", Width: 8},
+		{Title: "STATUS", Width: 12},
+		{Title: "LOCATION", Width: 10},
 		{Title: "COST", Width: 10},
 		{Title: "GOAL", Width: 50},
 	}
@@ -154,14 +155,14 @@ func (m MonitorDashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "p":
 			if selected := m.table.SelectedRow(); selected != nil {
 				name := selected[0]
-				status := selected[1]
+				status := strings.ToLower(selected[1])
 				return m, func() tea.Msg {
 					var err error
 					action := ""
-					if status == "paused" {
+					if strings.Contains(status, "paused") {
 						err = m.callbacks.Resume(name)
 						action = "Resumed"
-					} else if status == "running" {
+					} else if strings.Contains(status, "running") {
 						err = m.callbacks.Pause(name)
 						action = "Paused"
 					} else {
@@ -235,14 +236,53 @@ func (m *MonitorDashboardModel) updateTableRows() {
 
 		rows = append(rows, table.Row{
 			s.Name,
-			s.Status,
-			s.Location,
+			formatStatus(s.Status),
+			formatLocation(s.Location),
 			cost,
 			goal,
 		})
 	}
 	m.table.SetRows(rows)
 	// Restore cursor if possible (basic implementation resets or keeps index if valid)
+}
+
+func formatStatus(status string) string {
+	s := strings.ToLower(status)
+	switch s {
+	case "running":
+		return "🟢 Running"
+	case "paused":
+		return "⏸️ Paused"
+	case "completed":
+		return "✅ Completed"
+	case "error", "failed":
+		return "❌ Failed"
+	case "killed":
+		return "💀 Killed"
+	default:
+		// Try to capitalize first letter for unknown status
+		if len(s) > 0 {
+			return fmt.Sprintf("⚪ %s%s", strings.ToUpper(s[:1]), s[1:])
+		}
+		return "⚪ Unknown"
+	}
+}
+
+func formatLocation(loc string) string {
+	l := strings.ToLower(loc)
+	switch l {
+	case "k8s", "kubernetes":
+		return "☸️ K8s"
+	case "docker":
+		return "🐳 Docker"
+	case "local":
+		return "💻 Local"
+	default:
+		if len(l) > 0 {
+			return fmt.Sprintf("❓ %s", l)
+		}
+		return "❓ N/A"
+	}
 }
 
 func (m MonitorDashboardModel) View() string {
