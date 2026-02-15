@@ -135,8 +135,10 @@ func (m *OrchestratorDashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q", "ctrl+c":
 			return m, tea.Quit
 		}
-		m.table, cmd = m.table.Update(msg)
-		return m, cmd
+		var tableCmd, vpCmd tea.Cmd
+		m.table, tableCmd = m.table.Update(msg)
+		m.viewport, vpCmd = m.viewport.Update(msg)
+		return m, tea.Batch(tableCmd, vpCmd)
 
 	case tea.WindowSizeMsg:
 		m.width = msg.Width

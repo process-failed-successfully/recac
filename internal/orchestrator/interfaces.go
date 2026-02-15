@@ -53,6 +53,7 @@ type DockerClient interface {
 type ISessionManager interface {
 	SaveSession(session *runner.SessionState) error
 	LoadSession(name string) (*runner.SessionState, error)
+	ListSessions() ([]*runner.SessionState, error)
 }
 
 // IGitClient defines the interface for Git operations, created for mocking.

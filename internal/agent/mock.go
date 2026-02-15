@@ -37,8 +37,12 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 1. Initializer / Architect Phase (Feature List)
 	// The prompt usually asks to break down requirements or list features.
+	// CRITICAL: Check this BEFORE the Coding Phase, as the Initializer prompt also contains "PRIMES" (the ID).
 	lowerPrompt := strings.ToLower(prompt)
-	if strings.Contains(lowerPrompt, "feature list") || strings.Contains(lowerPrompt, "break down") {
+	if strings.Contains(lowerPrompt, "feature list") ||
+		strings.Contains(lowerPrompt, "break down") ||
+		strings.Contains(lowerPrompt, "create exactly one ticket") ||
+		strings.Contains(lowerPrompt, "create a single ticket") {
 		// Return a list of tickets including PRIMES
 		tickets := []map[string]string{
 			{
@@ -53,6 +57,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Coding Phase (PRIMES)
+	// Only trigger if it's NOT an initializer prompt (which we handled above)
 	if strings.Contains(prompt, "PRIMES") || strings.Contains(lowerPrompt, "prime number script") {
 		// Return the bash script to create the python file and run it
 		// The python script generates primes.json

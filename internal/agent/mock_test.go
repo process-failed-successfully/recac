@@ -58,3 +58,24 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		t.Errorf("Expected QA_PASSED signal, got: %s", resp)
 	}
 }
+
+func TestMockAgent_Heuristics_Initializer_Priority(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Simulating the exact prompt structure that caused the failure
+	// It contains "ID:[PRIMES]" but also "Create a SINGLE Ticket"
+	prompt := "### ID:[PRIMES] Prime Number Script\n\nCRITICAL INSTRUCTION: You MUST create exactly ONE ticket."
+
+	resp, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	// Should return JSON list of tickets, NOT the bash script
+	if !strings.HasPrefix(strings.TrimSpace(resp), "[") {
+		t.Errorf("Expected JSON response for Initializer prompt, got: %s", resp)
+	}
+	if strings.Contains(resp, "cat << 'EOF' > primes.py") {
+		t.Errorf("Incorrectly returned coding script for Initializer prompt")
+	}
+}

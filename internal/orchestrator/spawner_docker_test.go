@@ -58,6 +58,11 @@ func (m *MockSessionManager) LoadSession(name string) (*runner.SessionState, err
 	return args.Get(0).(*runner.SessionState), args.Error(1)
 }
 
+func (m *MockSessionManager) ListSessions() ([]*runner.SessionState, error) {
+	args := m.Called()
+	return args.Get(0).([]*runner.SessionState), args.Error(1)
+}
+
 // Mock Git Client
 type MockGitClient struct {
 	mock.Mock
