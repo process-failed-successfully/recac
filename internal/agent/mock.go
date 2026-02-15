@@ -40,6 +40,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return "NO_OP", nil
 	}
 
+	// Git Lead Agent Heuristic (Branch creation)
+	if strings.Contains(prompt, "Git Lead") {
+		return "git checkout -b agent/MFLP-13174", nil
+	}
+
 	// Git Commit Agent Heuristic
 	// When asking for a commit message, return a valid message
 	if strings.Contains(lowerPrompt, "commit message") {

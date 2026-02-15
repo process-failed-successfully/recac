@@ -59,6 +59,12 @@ func TestMockAgent_Heuristics(t *testing.T) {
 			notExpected:    "def is_prime(n):", // Should NOT be code
 		},
 		{
+			name:           "Git Lead Agent - Branch Creation",
+			prompt:         "You are the Git Lead. Please create a feature branch for ticket MFLP-13174.",
+			expectedOutput: "git checkout -b agent/MFLP-13174",
+			notExpected:    "Mock agent response",
+		},
+		{
 			name:           "Coding Agent - Primes",
 			prompt:         "Please implement the prime number generator in python. Output to primes.json.",
 			expectedOutput: "def is_prime(n):",
