@@ -35,7 +35,15 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	mockDocker.On("ListContainers", mock.Anything, mock.Anything).Return([]types.Container{}, nil)
 	mockDocker.On("RunContainer", mock.Anything, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, "").Return("container123", nil)
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
-	mockSM.On("LoadSession", "TICKET-1").Return(nil, assert.AnError)
+
+	// Use a buffered channel to prevent blocking/panic on multiple calls
+	loadSessionCalled := make(chan struct{}, 1)
+	mockSM.On("LoadSession", "TICKET-1").Run(func(args mock.Arguments) {
+		select {
+		case loadSessionCalled <- struct{}{}:
+		default:
+		}
+	}).Return(nil, assert.AnError)
 
 	execCalled := make(chan string, 1)
 
@@ -49,6 +57,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	err := spawner.Spawn(ctx, item)
 	require.NoError(t, err)
 
+	// Verify Exec call
 	select {
 	case cmdStr := <-execCalled:
 		t.Logf("Captured Command: %s", cmdStr)
@@ -56,5 +65,13 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
 	case <-time.After(30 * time.Second):
 		t.Fatal("Timeout waiting for Exec call")
+	}
+
+	// Verify LoadSession call to ensure goroutine completes
+	select {
+	case <-loadSessionCalled:
+		// Success
+	case <-time.After(30 * time.Second):
+		t.Fatal("Timeout waiting for LoadSession call")
 	}
 }
