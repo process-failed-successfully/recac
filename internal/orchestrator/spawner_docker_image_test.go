@@ -32,8 +32,13 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	ctx := context.Background()
 
 	// 1. Initial Spawn expectations
-	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
-	mockSM.On("SaveSession", mock.Anything).Return(nil).Once()
+	// Use mock.Anything for context to avoid potential mismatches
+	mockDocker.On("RunContainer", mock.Anything, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
+
+	// Expect initial session save (status: running)
+	mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return s.Status == "running"
+	})).Return(nil).Once()
 
 	execCalled := make(chan string, 1)
 
@@ -49,7 +54,10 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	mockGit.On("CurrentCommitSHA", mock.Anything).Return("sha", nil)
 
 	done := make(chan struct{})
-	mockSM.On("SaveSession", mock.Anything).Run(func(args mock.Arguments) {
+	// Expect final session save (status: completed or error)
+	mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return s.Status == "completed" || s.Status == "error"
+	})).Run(func(args mock.Arguments) {
 		close(done)
 	}).Return(nil).Once() // Final update
 
