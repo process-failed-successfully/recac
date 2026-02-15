@@ -32,8 +32,16 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// 1. Project Manager / Planning Phase
-	if strings.Contains(prompt, "role - Project Manager") || strings.Contains(prompt, "Technical Program Manager") {
+	promptLower := strings.ToLower(prompt)
+
+	// 1. Manager Review (Sign-off Phase)
+	// We check for "qa report" or "project manager" in the context of a review request
+	if strings.Contains(promptLower, "qa report") || strings.Contains(promptLower, "## your role - project manager") {
+		return "Based on the QA Report, I approve the project.\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true --privileged\n```", nil
+	}
+
+	// 2. Project Manager / Planning Phase (Ticket Generation)
+	if strings.Contains(promptLower, "role - project manager") || strings.Contains(promptLower, "technical program manager") {
 		// Return JSON plan for the 'generate-from-spec' command
 		// Note: The struct expects fields: title, description, type, blocked_by, acceptance_criteria
 		return `{
@@ -49,16 +57,16 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 }`, nil
 	}
 
-	// 2. QA Agent Phase
-	if strings.Contains(prompt, "role - QA Agent") {
+	// 3. QA Agent Phase
+	if strings.Contains(promptLower, "role - qa agent") {
 		return "QA Approved.\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true --privileged\n```", nil
 	}
 
-	// 3. Coding Agent Phase (Primes Scenario)
+	// 4. Coding Agent Phase (Primes Scenario)
 	// Detects if we are working on the primes task
 	// Note: We also match "Prime Number Script" to cover scenarios where the ticket summary is used
 	// We also check for "Prime", "Implement", "script", or the requirement ID to be robust against formatting or truncation
-	if strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "1229") || strings.Contains(prompt, "Prime") || strings.Contains(prompt, "Implement") || strings.Contains(prompt, "script") || strings.Contains(prompt, "req-script-runs-without-errors") {
+	if strings.Contains(promptLower, "id:[primes]") || strings.Contains(promptLower, "primes.py") || strings.Contains(promptLower, "1229") || strings.Contains(promptLower, "prime") || strings.Contains(promptLower, "implement") || strings.Contains(promptLower, "script") || strings.Contains(promptLower, "req-script-runs-without-errors") {
 		return `I will implement the prime number script as requested.
 
 ` + "```bash" + `
