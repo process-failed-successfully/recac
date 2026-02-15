@@ -60,7 +60,36 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Triggers on "primes" or "generate primes"
 	// Ensure we don't trigger this if it's the TPM phase (though TPM check is above)
 	if strings.Contains(lowerPrompt, "prime") || strings.Contains(lowerPrompt, "primes") || strings.Contains(lowerPrompt, "id:[primes]") {
-		return "```bash\ncat <<EOF > primes.py\ndef generate_primes(n):\n    primes = []\n    for i in range(2, n + 1):\n        is_prime = True\n        for j in range(2, int(i ** 0.5) + 1):\n            if i % j == 0:\n                is_prime = False\n                break\n        if is_prime:\n            primes.append(i)\n    return primes\n\nif __name__ == '__main__':\n    import sys\n    limit = int(sys.argv[1]) if len(sys.argv) > 1 else 100\n    print(generate_primes(limit))\nEOF\n```\n\nI have created the `primes.py` file.", nil
+		return "```bash\n" +
+			"cat <<EOF > primes.py\n" +
+			"import json\n" +
+			"import sys\n" +
+			"\n" +
+			"def generate_primes(n):\n" +
+			"    primes = []\n" +
+			"    for i in range(2, n + 1):\n" +
+			"        is_prime = True\n" +
+			"        for j in range(2, int(i ** 0.5) + 1):\n" +
+			"            if i % j == 0:\n" +
+			"                is_prime = False\n" +
+			"                break\n" +
+			"        if is_prime:\n" +
+			"            primes.append(i)\n" +
+			"    return primes\n" +
+			"\n" +
+			"if __name__ == '__main__':\n" +
+			"    limit = int(sys.argv[1]) if len(sys.argv) > 1 else 10000\n" +
+			"    with open('primes.json', 'w') as f:\n" +
+			"        json.dump({\"primes\": generate_primes(limit)}, f)\n" +
+			"EOF\n" +
+			"\n" +
+			"python3 primes.py\n" +
+			"\n" +
+			"cat <<EOF > feature_list.json\n" +
+			"{\"project_name\": \"PRIMES\", \"features\": [{\"id\": \"PRIMES\", \"description\": \"Implement Prime Number Generator\", \"status\": \"done\", \"passes\": true}]}\n" +
+			"EOF\n" +
+			"```\n\n" +
+			"I have created and executed the primes.py file, and marked the task as done.", nil
 	}
 
 	// Default fallback
