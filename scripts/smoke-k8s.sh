@@ -50,6 +50,7 @@ helm upgrade --install recac ./deploy/helm/recac \
     --set image.tag="$DEPLOY_TAG" \
     --set image.pullPolicy=Always \
     --set config.imagePullPolicy=IfNotPresent \
+    --set config.image="$IMAGE_NAME" \
     --set config.poller=jira \
     --set config.jira_label="$JIRA_LABEL" \
     --set config.verbose=true \
