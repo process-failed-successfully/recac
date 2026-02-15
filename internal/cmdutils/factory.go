@@ -107,6 +107,10 @@ var SetupWorkspace = func(ctx context.Context, gitClient git.IClient, repoURL, w
 
 	// Handle GitHub Auth if token provided
 	githubKey := os.Getenv("GITHUB_API_KEY")
+	if githubKey == "" {
+		githubKey = os.Getenv("GITHUB_TOKEN")
+	}
+
 	if githubKey != "" && strings.Contains(repoURL, "github.com") && !strings.Contains(repoURL, "@") {
 		authRepoURL = strings.Replace(repoURL, "https://github.com/", fmt.Sprintf("https://%s@github.com/", githubKey), 1)
 	}
