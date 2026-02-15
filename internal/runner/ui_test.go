@@ -31,7 +31,10 @@ func (m *MockDockerForUI) Exec(ctx context.Context, id string, cmd []string) (st
 		if strings.Contains(fullCmd, "PROJECT_SIGNED_OFF") {
 			// Write to DB directly as it's a privileged signal
 			if m.DBStore != nil {
-				_ = m.DBStore.SetSignal(m.Project, "PROJECT_SIGNED_OFF", "true")
+				if err := m.DBStore.SetSignal(m.Project, "PROJECT_SIGNED_OFF", "true"); err != nil {
+					// Log error if possible or panic in test
+					panic(err)
+				}
 			}
 		}
 	}

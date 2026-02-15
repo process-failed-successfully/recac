@@ -44,7 +44,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristic: Technical Program Manager (Ticket Generation)
 	// Must check this BEFORE code generation heuristics because the spec prompt contains 'primes' too.
 	if strings.Contains(lowerPrompt, "technical program manager") {
-		return `[{"id":"PRIMES", "summary":"Create Prime Number Script", "description":"Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000.", "type":"Task"}]`, nil
+		// Use 'title' instead of 'summary' to match ticketNode struct in cmd/recac/jira.go
+		return `[{"title":"ID:[PRIMES] Create Prime Number Script", "description":"Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000.", "type":"Task"}]`, nil
 	}
 
 	// Heuristic: Prime Number Script (for prime-python scenario)
