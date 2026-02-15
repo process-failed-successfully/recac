@@ -48,12 +48,33 @@ func TestMockAgent(t *testing.T) {
 		assert.Contains(t, resp, "PRIMES")
 	})
 
-	t.Run("Coding Heuristic", func(t *testing.T) {
+	t.Run("Coding Heuristic - Classic", func(t *testing.T) {
 		prompt := "Please write a Python script to generate prime numbers."
 		resp, err := agent.Send(ctx, prompt)
 		assert.NoError(t, err)
 		assert.Contains(t, resp, "def is_prime(n):")
 		assert.Contains(t, resp, "primes.json")
+	})
+
+	t.Run("Coding Heuristic - ID Match", func(t *testing.T) {
+		prompt := "Task ID:[PRIMES] Generate Primes. Implement this."
+		resp, err := agent.Send(ctx, prompt)
+		assert.NoError(t, err)
+		assert.Contains(t, resp, "def is_prime(n):")
+	})
+
+	t.Run("Coding Heuristic - Description Match", func(t *testing.T) {
+		prompt := "Your task is to generate primes and save to file."
+		resp, err := agent.Send(ctx, prompt)
+		assert.NoError(t, err)
+		assert.Contains(t, resp, "def is_prime(n):")
+	})
+
+	t.Run("Coding Heuristic - Filename Match", func(t *testing.T) {
+		prompt := "Please create primes.json with the output."
+		resp, err := agent.Send(ctx, prompt)
+		assert.NoError(t, err)
+		assert.Contains(t, resp, "def is_prime(n):")
 	})
 }
 

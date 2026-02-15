@@ -55,9 +55,17 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Heuristic: Coding Phase (Primes)
-	// Check for "prime" AND "python"
-	// The prompt usually asks to implement the task.
-	if strings.Contains(lowerPrompt, "prime") && strings.Contains(lowerPrompt, "python") {
+	// Triggers on:
+	// 1. "id:[primes]" (from ticket summary)
+	// 2. "generate primes" (from description)
+	// 3. "primes.json" (from task requirements)
+	// 4. "prime" AND "python" (fallback)
+	// AND NOT "technical program manager" (to avoid TPM phase overlap)
+	if (strings.Contains(lowerPrompt, "id:[primes]") ||
+		strings.Contains(lowerPrompt, "generate primes") ||
+		strings.Contains(lowerPrompt, "primes.json") ||
+		(strings.Contains(lowerPrompt, "prime") && strings.Contains(lowerPrompt, "python"))) &&
+		!strings.Contains(lowerPrompt, "technical program manager") {
 		return "```python\nimport json\n\ndef is_prime(n):\n    if n <= 1: return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0: return False\n    return True\n\nprimes = [x for x in range(1, 101) if is_prime(x)]\nwith open('primes.json', 'w') as f:\n    json.dump({\"primes\": primes}, f)\nprint(\"Generated primes.json\")\n```", nil
 	}
 
