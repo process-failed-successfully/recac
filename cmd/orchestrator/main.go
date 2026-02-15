@@ -14,7 +14,9 @@ import (
 	"recac/internal/orchestrator"
 	"recac/internal/runner"
 	"recac/internal/telemetry"
+	"recac/internal/ui"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	corev1 "k8s.io/api/core/v1"
@@ -25,6 +27,7 @@ func main() {
 	var cfgFile string
 	pflag.StringVar(&cfgFile, "config", "", "config file (default is $HOME/.recac.yaml)")
 	pflag.BoolP("verbose", "v", false, "Enable verbose/debug logging")
+	pflag.Bool("tui", false, "Enable TUI dashboard")
 
 	pflag.String("mode", "local", "Orchestrator mode: 'local' (Docker) or 'k8s' (Kubernetes Job)")
 	pflag.String("jira-label", "recac-agent", "Jira label to poll for")
@@ -62,6 +65,8 @@ func main() {
 	viper.BindPFlag("orchestrator.github_repo", pflag.Lookup("github-repo"))
 	viper.BindPFlag("orchestrator.github_label", pflag.Lookup("github-label"))
 
+	viper.BindPFlag("tui", pflag.Lookup("tui"))
+
 	viper.BindPFlag("orchestrator.mode", pflag.Lookup("mode"))
 	viper.BindPFlag("orchestrator.jira_label", pflag.Lookup("jira-label"))
 	viper.BindPFlag("orchestrator.image", pflag.Lookup("image"))
@@ -91,8 +96,14 @@ func main() {
 	viper.BindEnv("orchestrator.task_max_iterations", "RECAC_TASK_MAX_ITERATIONS")
 
 	// Logger
-	logger := telemetry.NewLogger(viper.GetBool("verbose"), "orchestrator", false)
-	telemetry.InitLogger(viper.GetBool("verbose"), "orchestrator", false) // Ensure global logger is set
+	silenceStdout := viper.GetBool("tui")
+	logFile := "orchestrator"
+	if silenceStdout {
+		logFile = "orchestrator.log"
+	}
+
+	logger := telemetry.NewLogger(viper.GetBool("verbose"), logFile, silenceStdout)
+	telemetry.InitLogger(viper.GetBool("verbose"), logFile, silenceStdout) // Ensure global logger is set
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -167,6 +178,7 @@ func main() {
 	// 2. Spawner
 	var spawner orchestrator.Spawner
 	var err error
+	var sm orchestrator.ISessionManager // Keep reference for TUI if available
 	agentModel := viper.GetString("orchestrator.agent_model")
 
 	switch mode {
@@ -188,7 +200,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		sm, err := runner.NewSessionManager()
+		sm, err = runner.NewSessionManager()
 		if err != nil {
 			logger.Error("Failed to initialize Session Manager", "error", err)
 			os.Exit(1)
@@ -202,12 +214,38 @@ func main() {
 
 	// 3. Orchestrator
 	orch := orchestrator.New(poller, spawner, interval)
-	if err := orch.Run(ctx, logger); err != nil {
-		if ctx.Err() != nil {
-			// Graceful shutdown
-			return
+
+	// Run with TUI or standard logging
+	if viper.GetBool("tui") {
+		// TUI Mode
+		dashboard := ui.NewOrchestratorDashboardModel(sm)
+		program := tea.NewProgram(dashboard, tea.WithAltScreen())
+		dashboard.SetProgram(program)
+		orch.SetObserver(dashboard)
+
+		// Run Orchestrator in background
+		go func() {
+			if err := orch.Run(ctx, logger); err != nil {
+				if ctx.Err() == nil {
+					logger.Error("Orchestrator failure", "error", err)
+					program.Quit()
+				}
+			}
+		}()
+
+		if _, err := program.Run(); err != nil {
+			logger.Error("TUI failure", "error", err)
+			os.Exit(1)
 		}
-		logger.Error("Orchestrator failure", "error", err)
-		os.Exit(1)
+	} else {
+		// Headless Mode
+		if err := orch.Run(ctx, logger); err != nil {
+			if ctx.Err() != nil {
+				// Graceful shutdown
+				return
+			}
+			logger.Error("Orchestrator failure", "error", err)
+			os.Exit(1)
+		}
 	}
 }
