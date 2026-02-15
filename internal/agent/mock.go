@@ -56,14 +56,36 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return string(bytes), nil
 	}
 
-	// 3. TPM Agent Heuristic
+	// 3. TPM Agent Heuristic (For recac jira generate-from-spec)
+	// Must return a JSON array of ticketNode objects
 	if strings.Contains(lowerPrompt, "tpm") || strings.Contains(lowerPrompt, "feature breakdown") {
-		response := map[string]interface{}{
-			"features": []map[string]string{
-				{
-					"id":          "feat-1",
-					"description": "Core functionality",
-					"status":      "pending",
+		// Mimic ticketNode structure:
+		/*
+		type ticketNode struct {
+			Title              string       `json:"title"`
+			Description        string       `json:"description"`
+			Type               string       `json:"type"`
+			BlockedBy          []string     `json:"blocked_by"`
+			AcceptanceCriteria []string     `json:"acceptance_criteria"`
+			Children           []ticketNode `json:"children"`
+		}
+		*/
+		response := []map[string]interface{}{
+			{
+				"title":       "ID:[PRIMES] Generate Primes",
+				"description": "Implement a python script to generate primes.",
+				"type":        "Epic",
+				"children": []map[string]interface{}{
+					{
+						"title":       "Implement Python Script",
+						"description": "Create a python script that writes primes to primes.json. Repo: https://github.com/example/repo",
+						"type":        "Story",
+						"acceptance_criteria": []string{
+							"Script runs without error",
+							"Output file primes.json is created",
+						},
+						"blocked_by": []string{},
+					},
 				},
 			},
 		}
