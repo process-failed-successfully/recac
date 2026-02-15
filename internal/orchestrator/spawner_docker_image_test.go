@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
@@ -30,7 +31,8 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	ctx := context.Background()
 
 	// Mock expectations
-	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
+	// Use mock.Anything for context to avoid strict equality issues
+	mockDocker.On("RunContainer", mock.Anything, imageName, mock.Anything, mock.Anything, mock.Anything, "").Return("container123", nil)
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
 	mockSM.On("LoadSession", "TICKET-1").Return(nil, assert.AnError)
 
@@ -44,7 +46,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	}).Return("output", nil)
 
 	err := spawner.Spawn(ctx, item)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	select {
 	case cmdStr := <-execCalled:
