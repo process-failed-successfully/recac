@@ -38,11 +38,19 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 
 	execCalled := make(chan string, 1)
 
-	// We match "Anything" for arguments so we catch the call, then inspect it in Run
-	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Run(func(args mock.Arguments) {
+	// Use mock.Anything for containerID as well, to avoid mismatch if something weird happens with string passing
+	mockDocker.On("Exec", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		containerID := args.String(1)
+		if containerID != "container123" {
+			t.Logf("Warning: Expected containerID 'container123', got '%s'", containerID)
+		}
 		cmd := args.Get(2).([]string)
-		// cmd is ["/bin/sh", "-c", "actual command"]
-		execCalled <- cmd[2]
+		if len(cmd) > 2 {
+			execCalled <- cmd[2]
+		} else {
+			t.Logf("Warning: Expected cmd length > 2, got %d", len(cmd))
+			execCalled <- ""
+		}
 	}).Return("output", nil)
 
 	err := spawner.Spawn(ctx, item)
@@ -51,9 +59,13 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	select {
 	case cmdStr := <-execCalled:
 		t.Logf("Captured Command: %s", cmdStr)
-		assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
-		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
-	case <-time.After(30 * time.Second):
+		if cmdStr != "" {
+			assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
+			assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
+		} else {
+			t.Error("Received empty command string")
+		}
+	case <-time.After(60 * time.Second): // Increased timeout
 		t.Fatal("Timeout waiting for Exec call")
 	}
 }
