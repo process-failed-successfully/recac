@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"recac/internal/runner"
 	"testing"
 	"time"
 
@@ -31,10 +32,17 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 
 	// Mock expectations
 	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
-	mockSM.On("SaveSession", mock.Anything).Return(nil)
-	mockSM.On("LoadSession", "TICKET-1").Return(nil, assert.AnError)
+
+	// Initial SaveSession (Status: running)
+	mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return s.Status == "running"
+	})).Return(nil)
+
+	// Mock LoadSession to return success so the goroutine continues
+	mockSM.On("LoadSession", "TICKET-1").Return(&runner.SessionState{Name: "TICKET-1"}, nil)
 
 	execCalled := make(chan string, 1)
+	done := make(chan bool, 1)
 
 	// We match "Anything" for arguments so we catch the call, then inspect it in Run
 	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Run(func(args mock.Arguments) {
@@ -42,6 +50,16 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		// cmd is ["/bin/sh", "-c", "actual command"]
 		execCalled <- cmd[2]
 	}).Return("output", nil)
+
+	// Mock CurrentCommitSHA as it is called before final SaveSession
+	mockGit.On("CurrentCommitSHA", mock.Anything).Return("sha", nil).Maybe()
+
+	// Final SaveSession (Status: completed or error)
+	mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		return s.Status == "completed" || s.Status == "error" || s.Status == "Failed"
+	})).Run(func(args mock.Arguments) {
+		done <- true
+	}).Return(nil)
 
 	err := spawner.Spawn(ctx, item)
 	assert.NoError(t, err)
@@ -53,5 +71,13 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
 	case <-time.After(30 * time.Second):
 		t.Fatal("Timeout waiting for Exec call")
+	}
+
+	// Wait for goroutine to finish
+	select {
+	case <-done:
+		// Success
+	case <-time.After(30 * time.Second):
+		t.Fatal("Timeout waiting for final SaveSession")
 	}
 }
