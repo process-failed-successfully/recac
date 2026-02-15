@@ -242,7 +242,7 @@ func runGymSession(ctx context.Context, challenge GymChallenge) (*GymResult, err
 		testCmd = []string{"./" + challenge.TestFile}
 	}
 
-	output, err := d.Exec(ctx, sess.GetContainerID(), testCmd)
+	output, err := d.Exec(ctx, sess.GetContainerID(), testCmd, nil)
 	passed := err == nil
 
 	// Calculate Cost
