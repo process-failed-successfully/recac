@@ -14,7 +14,7 @@ type MockDockerForBlocker struct {
 	Files map[string]string
 }
 
-func (m *MockDockerForBlocker) Exec(ctx context.Context, id string, cmd []string) (string, error) {
+func (m *MockDockerForBlocker) Exec(ctx context.Context, id string, cmd []string, env []string) (string, error) {
 	// Simple mock for: test -f bf && cat bf
 	if len(cmd) > 2 && strings.Contains(cmd[2], "cat") {
 		// Extract filename
@@ -33,7 +33,7 @@ func (m *MockDockerForBlocker) Exec(ctx context.Context, id string, cmd []string
 }
 
 func (m *MockDockerForBlocker) ExecAsUser(ctx context.Context, id string, user string, cmd []string) (string, error) {
-	return m.Exec(ctx, id, cmd)
+	return m.Exec(ctx, id, cmd, nil)
 }
 
 func TestProcessResponse_BlockerFalsePositives(t *testing.T) {

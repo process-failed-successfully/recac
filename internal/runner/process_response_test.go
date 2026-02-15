@@ -30,7 +30,7 @@ func TestSession_ProcessResponse_NoCommands(t *testing.T) {
 
 func TestSession_ProcessResponse_WithCommands(t *testing.T) {
 	mockDocker := &MockDockerClient{
-		ExecFunc: func(ctx context.Context, containerID string, cmd []string) (string, error) {
+		ExecFunc: func(ctx context.Context, containerID string, cmd []string, env []string) (string, error) {
 			// Check if this is the legacy blocker check
 			if len(cmd) > 2 && (strings.Contains(cmd[2], "cat recac_blockers.txt") || strings.Contains(cmd[2], "cat blockers.txt")) {
 				return "", nil // No legacy blocker found
@@ -71,7 +71,7 @@ func TestSession_ProcessResponse_WithCommands(t *testing.T) {
 
 func TestSession_ProcessResponse_Blocker(t *testing.T) {
 	mockDocker := &MockDockerClient{
-		ExecFunc: func(ctx context.Context, containerID string, cmd []string) (string, error) {
+		ExecFunc: func(ctx context.Context, containerID string, cmd []string, env []string) (string, error) {
 			if len(cmd) > 2 && strings.Contains(cmd[2], "cat recac_blockers.txt") {
 				return "", nil
 			}

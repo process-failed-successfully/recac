@@ -78,7 +78,7 @@ func TestExec_InspectError(t *testing.T) {
 		return container.ExecInspect{}, errors.New("inspect failed")
 	}
 
-	_, err := client.Exec(context.Background(), "container", []string{"ls"})
+	_, err := client.Exec(context.Background(), "container", []string{"ls"}, nil)
 	if err == nil {
 		t.Error("Expected error from Exec when inspect fails")
 	}
@@ -91,7 +91,7 @@ func TestExec_ExitCodeError(t *testing.T) {
 		return container.ExecInspect{ExitCode: 1}, nil
 	}
 
-	_, err := client.Exec(context.Background(), "container", []string{"ls"})
+	_, err := client.Exec(context.Background(), "container", []string{"ls"}, nil)
 	if err == nil {
 		t.Error("Expected error from Exec when exit code is 1")
 	}
