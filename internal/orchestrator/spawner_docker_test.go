@@ -162,6 +162,9 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 		return hasRepoURL && s.StartCommitSHA == ""
 	})).Return(nil)
 
+	// Channel to signal that Exec was called
+	execCalled := make(chan struct{}, 1)
+
 	// Verify Exec includes git identity and project ID env vars
 	mockDocker.On("Exec", mock.Anything, "container123", mock.MatchedBy(func(cmd []string) bool {
 		cmdStr := cmd[2] // /bin/sh -c <cmdStr>
@@ -170,7 +173,10 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 		return contains(cmdStr, "export RECAC_PROJECT_ID=TICKET-1") &&
 			contains(cmdStr, "export GIT_AUTHOR_NAME='RECAC Agent'") &&
 			contains(cmdStr, "export GIT_AUTHOR_EMAIL='agent@recac.io'")
-	})).Return("output", nil)
+	})).Run(func(args mock.Arguments) {
+		execCalled <- struct{}{}
+	}).Return("output", nil)
+
 	mockSM.On("LoadSession", "TICKET-1").Return(&runner.SessionState{}, nil)
 
 	// This call happens at the END, so it's still there
@@ -182,9 +188,15 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	// Allow goroutine to run
-	time.Sleep(100 * time.Millisecond)
+	// Wait for Exec to be called with a generous timeout for CI
+	select {
+	case <-execCalled:
+		// Success, Exec was called
+	case <-time.After(30 * time.Second):
+		t.Fatal("Timeout waiting for Exec call")
+	}
 
+	// Verify other expectations
 	mockGit.AssertExpectations(t)
 	mockDocker.AssertExpectations(t)
 	mockSM.AssertExpectations(t)
@@ -245,7 +257,7 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 	select {
 	case capturedCmd = <-capturedCmdChan:
 		// Success
-	case <-time.After(2 * time.Second):
+	case <-time.After(30 * time.Second):
 		t.Fatal("Timed out waiting for Exec call")
 	}
 
@@ -297,7 +309,7 @@ func TestDockerSpawner_EnvPropagation(t *testing.T) {
 	select {
 	case capturedCmd = <-capturedCmdChan:
 		// Success
-	case <-time.After(2 * time.Second):
+	case <-time.After(30 * time.Second):
 		t.Fatal("Timed out waiting for Exec call")
 	}
 

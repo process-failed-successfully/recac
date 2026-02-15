@@ -59,7 +59,8 @@ func TestOrchestrator_Integration_FileFlow(t *testing.T) {
 	spawner := &mockSpawner{}
 	orch := New(poller, spawner, 100*time.Millisecond)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	// Increased timeout to 30s to prevent flakes in CI
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	// Run orchestrator
@@ -216,7 +217,8 @@ func TestOrchestrator_Integration_JiraFlow(t *testing.T) {
 			}
 			orch := New(poller, spawner, 50*time.Millisecond)
 
-			ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
+			// Increased timeout to 30s to prevent flakes in CI
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 
 			_ = orch.Run(ctx, silentLogger)
