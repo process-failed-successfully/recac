@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,6 +31,43 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	lowerPrompt := strings.ToLower(prompt)
+
+	// Heuristic for completion (checking for output of previous commands)
+	if strings.Contains(lowerPrompt, "nothing to commit") || strings.Contains(lowerPrompt, "add primes script") {
+		return "I have completed the task. The primes.py script is created and executed, and the results are committed.", nil
+	}
+
+	// Heuristic for prime-python scenario
+	if strings.Contains(lowerPrompt, "primes.py") || strings.Contains(lowerPrompt, "prime number") || strings.Contains(lowerPrompt, "id:[primes]") {
+		return `Here is the python script to calculate primes:
+
+` + "```bash" + `
+cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n < 2: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0: return False
+    return True
+
+primes = [x for x in range(10000) if is_prime(x)]
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+python3 primes.py
+# Set git identity if not set (for CI environment)
+git config user.email "agent@recac.io" || true
+git config user.name "RECAC Agent" || true
+git add primes.py primes.json
+git commit -m "Add primes script and output"
+` + "```" + `
+`, nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
