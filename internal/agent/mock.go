@@ -61,29 +61,53 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(prompt, "PRIMES") || strings.Contains(lowerPrompt, "prime number script") {
 		// Return the bash script to create the python file and run it
 		// The python script generates primes.json
+		// We add robustness: set -e, git config, and verbose logging
+		// Force cache invalidation: v2
 		return `I will implement the prime number script.
 
 ` + "```bash" + `
+set -e # Fail immediately if any command fails
+
+echo "Configuring git..."
+git config --global user.email "agent@recac.io" || git config user.email "agent@recac.io"
+git config --global user.name "RECAC Agent" || git config user.name "RECAC Agent"
+
+echo "Checking environment..."
+which python3
+python3 --version
+ls -la
+
+echo "Creating python script..."
 cat << 'EOF' > primes.py
 import json
+import sys
 
+print("Python script starting...")
 def is_prime(n):
     if n <= 1: return False
     for i in range(2, int(n**0.5) + 1):
         if n % i == 0: return False
     return True
 
-primes = [x for x in range(1, 10000) if is_prime(x)]
-with open('primes.json', 'w') as f:
-    json.dump({"primes": primes}, f)
+try:
+    primes = [x for x in range(1, 10000) if is_prime(x)]
+    with open('primes.json', 'w') as f:
+        json.dump({"primes": primes}, f)
+    print("primes.json created successfully")
+except Exception as e:
+    print(f"Error: {e}", file=sys.stderr)
+    sys.exit(1)
 EOF
 
-# Run the script to generate the json
+echo "Running python script..."
+python3 --version
 python3 primes.py
 
-# Commit the results
-git add primes.py primes.json
+echo "Committing results..."
+git add .
+git status
 git commit -m "Implement prime number script"
+echo "Done."
 ` + "```" + `
 `, nil
 	}
