@@ -32,10 +32,19 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	promptLower := strings.ToLower(prompt)
+
 	// Heuristics for Smoke Test Compliance
+
+	// 0. Handle "nothing to commit" / Completion
+	// If the agent sees this, it likely tried to commit but nothing changed.
+	// We should signal completion to break loops.
+	if strings.Contains(promptLower, "nothing to commit") {
+		return "Task completed.", nil
+	}
+
 	// 1. TPM / Jira Ticket Generation
 	// The smoke test expects a single Task for ID:[PRIMES].
-	// Returning multiple tickets or an Epic causes issues with the test runner and orchestrator filtering.
 	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM") {
 		return `[
   {
@@ -53,13 +62,13 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Coding / Script Generation (PRIMES)
-	// This heuristic triggers when the agent picks up the ticket created above.
-	// We broaden the check to catch "Prime Number" or "primes.json" in the prompt text
-	// as "ID:[PRIMES]" might not always be present or fully formed in the agent prompt.
+	// Broadened heuristics with case-insensitive matching to ensure we catch the task.
+	// We match "prime" which covers "Prime", "primes.json", "generate-primes", etc.
+	// We also strictly match "ID:[PRIMES]" just in case.
 	isCodingPrompt := strings.Contains(prompt, "ID:[PRIMES]") ||
 		strings.Contains(prompt, "primes.py") ||
-		strings.Contains(prompt, "Prime Number") ||
-		strings.Contains(prompt, "primes.json")
+		strings.Contains(promptLower, "prime") ||
+		strings.Contains(promptLower, "primes.json")
 
 	if isCodingPrompt {
 		return `#!/bin/bash
