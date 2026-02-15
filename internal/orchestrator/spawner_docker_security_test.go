@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -31,6 +32,7 @@ func TestDockerSpawner_EnvInjection_Vulnerability(t *testing.T) {
 		},
 	}
 
+	client.On("ListContainers", mock.Anything, mock.Anything).Return([]types.Container{}, nil)
 	client.On("RunContainer", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("container-sec", nil)
 
 	// Mock SessionManager

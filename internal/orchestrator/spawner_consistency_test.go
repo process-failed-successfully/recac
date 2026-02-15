@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
@@ -89,6 +90,7 @@ func TestSpawnerConsistency_EnvPropagation(t *testing.T) {
 		spawner.GitClient = mockGit
 
 		// Expectations
+		mockDocker.On("ListContainers", mock.Anything, mock.Anything).Return([]types.Container{}, nil)
 		mockDocker.On("RunContainer", mock.Anything, "img", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("cid", nil)
 		mockSM.On("SaveSession", mock.Anything).Return(nil)
 		mockSM.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)

@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/kballard/go-shellquote"
 )
 
@@ -42,6 +44,24 @@ func NewDockerSpawner(logger *slog.Logger, client DockerClient, image string, pr
 }
 
 func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
+	// Check for existing container to prevent duplicate spawns
+	listOpts := container.ListOptions{
+		All: true,
+		Filters: filters.NewArgs(
+			filters.Arg("label", fmt.Sprintf("work-item=%s", item.ID)),
+			filters.Arg("status", "running"),
+			filters.Arg("status", "created"),
+		),
+	}
+	existing, err := s.Client.ListContainers(ctx, listOpts)
+	if err != nil {
+		return fmt.Errorf("failed to list containers: %w", err)
+	}
+	if len(existing) > 0 {
+		s.Logger.Info("Agent container already exists for item", "id", item.ID, "container", existing[0].ID)
+		return nil
+	}
+
 	// 1. Create temporary workspace on host
 	tempDir, err := os.MkdirTemp("", fmt.Sprintf("recac-agent-%s-*", item.ID))
 	if err != nil {
