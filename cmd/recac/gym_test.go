@@ -39,8 +39,8 @@ func (m *GymMockDockerClient) StopContainer(ctx context.Context, containerID str
 	return args.Error(0)
 }
 
-func (m *GymMockDockerClient) Exec(ctx context.Context, containerID string, cmd []string) (string, error) {
-	args := m.Called(ctx, containerID, cmd)
+func (m *GymMockDockerClient) Exec(ctx context.Context, containerID string, cmd []string, env []string) (string, error) {
+	args := m.Called(ctx, containerID, cmd, env)
 	return args.String(0), args.Error(1)
 }
 
@@ -197,10 +197,10 @@ func TestRunGymSession(t *testing.T) {
 	}
 
 	// Verification call
-	mockDocker.On("Exec", mock.Anything, "mock-container-id", mock.MatchedBy(isVerificationCmd)).Return("OK", nil)
+	mockDocker.On("Exec", mock.Anything, "mock-container-id", mock.MatchedBy(isVerificationCmd), mock.Anything).Return("OK", nil)
 
 	// Other Exec calls (setup)
-	mockDocker.On("Exec", mock.Anything, mock.Anything, mock.Anything).Return("", nil).Maybe()
+	mockDocker.On("Exec", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil).Maybe()
 	mockDocker.On("ExecAsUser", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil).Maybe()
 
 	// Run
