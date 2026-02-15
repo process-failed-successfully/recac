@@ -4,7 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
-	"sync"
+	"os"
 	"testing"
 	"time"
 
@@ -31,18 +31,17 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 
 	ctx := context.Background()
 
+	// Capture tempDir
+	var capturedTempDir string
+
 	// Mock expectations
-	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
+	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Run(func(args mock.Arguments) {
+		capturedTempDir = args.Get(2).(string)
+	}).Return("container123", nil)
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
 
-	// Synchronize on LoadSession to ensure background goroutine completes
-	loadSessionCalled := make(chan struct{})
-	var loadSessionOnce sync.Once
-	mockSM.On("LoadSession", "TICKET-1").Run(func(args mock.Arguments) {
-		loadSessionOnce.Do(func() {
-			close(loadSessionCalled)
-		})
-	}).Return(nil, assert.AnError)
+	// LoadSession returns error to trigger cleanup path early
+	mockSM.On("LoadSession", "TICKET-1").Return(nil, assert.AnError)
 
 	execCalled := make(chan string, 1)
 
@@ -65,11 +64,11 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		t.Fatal("Timeout waiting for Exec call")
 	}
 
-	// Wait for background goroutine to complete (signaled by LoadSession call)
-	select {
-	case <-loadSessionCalled:
-		// Success
-	case <-time.After(5 * time.Second):
-		t.Fatal("Timeout waiting for LoadSession call (background goroutine completion)")
-	}
+	// Wait for background goroutine to complete cleanup (signaled by directory removal)
+	// This implicitly verifies that the goroutine completed and cleanup worked.
+	require.NotEmpty(t, capturedTempDir, "TempDir should have been captured")
+	assert.Eventually(t, func() bool {
+		_, err := os.Stat(capturedTempDir)
+		return os.IsNotExist(err)
+	}, 5*time.Second, 100*time.Millisecond, "Workspace directory should be cleaned up")
 }
