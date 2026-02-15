@@ -45,30 +45,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
   {
     "title": "ID:[PRIMES] Prime Number Script",
     "description": "Implement a Python script to check for prime numbers.\n\nRepo: https://github.com/process-failed-successfully/recac-jira-e2e",
-    "type": "Epic",
-    "children": [
-      {
-        "title": "Implement is_prime function",
-        "description": "Create a function that returns true if a number is prime.\n\nRepo: https://github.com/process-failed-successfully/recac-jira-e2e",
-        "type": "Story",
-        "acceptance_criteria": [
-          "Function returns true for 2, 3, 5, 7",
-          "Function returns false for 4, 6, 8, 9",
-          "Function handles edge cases like 0 and 1"
-        ],
-        "blocked_by": []
-      },
-      {
-        "title": "Create main execution script",
-        "description": "Create a script that uses the function to print primes.\n\nRepo: https://github.com/process-failed-successfully/recac-jira-e2e",
-        "type": "Story",
-        "acceptance_criteria": [
-          "Script runs without errors",
-          "Script prints primes up to 100"
-        ],
-        "blocked_by": ["Implement is_prime function"]
-      }
-    ]
+    "type": "Task",
+    "children": []
   }
 ]`, nil
 	}
