@@ -276,3 +276,25 @@ func TestNewValidator(t *testing.T) {
 		t.Error("NewValidator(nil) did not default to RealFileSystem")
 	}
 }
+
+func TestRealFileSystem_Stat(t *testing.T) {
+	fs := RealFileSystem{}
+
+	// Test with existing file (this test file itself)
+	info, err := fs.Stat("validator_test.go")
+	if err != nil {
+		t.Fatalf("Stat(validator_test.go) failed: %v", err)
+	}
+	if info.IsDir() {
+		t.Error("validator_test.go should not be a directory")
+	}
+
+	// Test with non-existent file
+	_, err = fs.Stat("non_existent_file_12345.xyz")
+	if err == nil {
+		t.Error("Stat(non_existent_file_12345.xyz) should fail")
+	}
+	if !os.IsNotExist(err) {
+		t.Errorf("Expected IsNotExist error, got %v", err)
+	}
+}

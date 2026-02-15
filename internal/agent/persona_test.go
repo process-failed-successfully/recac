@@ -99,3 +99,27 @@ func TestPersonaManager_OverrideDefault(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, "Overridden Default", p.Name)
 }
+
+func TestPersonaManager_List(t *testing.T) {
+	pm := NewPersonaManager()
+
+	// ListPersonas
+	personas := pm.ListPersonas()
+	assert.NotEmpty(t, personas)
+	assert.Contains(t, personas, "default")
+	assert.Contains(t, personas, "security")
+
+	// ListSorted
+	sortedKeys := pm.ListSorted()
+	assert.Equal(t, len(personas), len(sortedKeys))
+
+	// Verify sorting
+	for i := 0; i < len(sortedKeys)-1; i++ {
+		assert.Less(t, sortedKeys[i], sortedKeys[i+1], "keys should be sorted")
+	}
+
+	// Verify all keys are present
+	for _, k := range sortedKeys {
+		assert.Contains(t, personas, k)
+	}
+}
