@@ -29,8 +29,8 @@ service:
 
 # Non-sensitive configuration
 config:
-  provider: openrouter
-  model: meta-llama/llama-3.3-70b-instruct:free
+  provider: mock
+  model: mock
   ollamaBaseUrl: ""
   verbose: true
   metricsPort: 9090
