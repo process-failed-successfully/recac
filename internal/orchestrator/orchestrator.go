@@ -9,9 +9,11 @@ import (
 )
 
 type Orchestrator struct {
-	Poller       Poller
-	Spawner      Spawner
-	PollInterval time.Duration
+	Poller        Poller
+	Spawner       Spawner
+	PollInterval  time.Duration
+	activeItems   map[string]struct{}
+	activeItemsMu sync.Mutex
 }
 
 func New(poller Poller, spawner Spawner, pollInterval time.Duration) *Orchestrator {
@@ -19,6 +21,7 @@ func New(poller Poller, spawner Spawner, pollInterval time.Duration) *Orchestrat
 		Poller:       poller,
 		Spawner:      spawner,
 		PollInterval: pollInterval,
+		activeItems:  make(map[string]struct{}),
 	}
 }
 
@@ -53,9 +56,23 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 			logger.Info("Found work items", "count", len(items))
 
 			for _, item := range items {
+				o.activeItemsMu.Lock()
+				if _, ok := o.activeItems[item.ID]; ok {
+					o.activeItemsMu.Unlock()
+					continue
+				}
+				o.activeItems[item.ID] = struct{}{}
+				o.activeItemsMu.Unlock()
+
 				wg.Add(1)
 				go func(item WorkItem) {
 					defer wg.Done()
+					defer func() {
+						o.activeItemsMu.Lock()
+						delete(o.activeItems, item.ID)
+						o.activeItemsMu.Unlock()
+					}()
+
 					logger.Info("Spawning agent for item", "id", item.ID)
 
 					if err := o.Spawner.Spawn(ctx, item); err != nil {

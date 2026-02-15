@@ -160,7 +160,7 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 	ctx := context.Background()
 
 	// Mock expectations
-	mockDocker.On("RunContainer", ctx, "test-image", mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, "").Return("container123", nil)
+	mockDocker.On("RunContainer", mock.Anything, "test-image", mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, "").Return("container123", nil)
 
 	// Verify SaveSession receives session with repo-url
 	mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
@@ -189,14 +189,20 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 	// This call happens at the END, so it's still there
 	mockGit.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("endsha", nil).Once()
 
-	mockSM.On("SaveSession", mock.AnythingOfType("*runner.SessionState")).Return(nil)
+	done := make(chan struct{})
+	mockSM.On("SaveSession", mock.AnythingOfType("*runner.SessionState")).Run(func(args mock.Arguments) {
+		close(done)
+	}).Return(nil)
 
 	err := spawner.Spawn(ctx, item)
-
 	assert.NoError(t, err)
 
-	// Allow goroutine to run
-	time.Sleep(100 * time.Millisecond)
+	select {
+	case <-done:
+		// Success
+	case <-time.After(30 * time.Second):
+		t.Fatal("Timeout waiting for final SaveSession call")
+	}
 
 	mockGit.AssertExpectations(t)
 	mockDocker.AssertExpectations(t)
