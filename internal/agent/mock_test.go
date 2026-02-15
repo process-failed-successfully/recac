@@ -48,6 +48,9 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		if !strings.Contains(resp, "ID:[PRIMES]") {
 			t.Errorf("Expected response to contain 'ID:[PRIMES]', got: %s", resp)
 		}
+		if !strings.Contains(resp, "\"title\":") {
+			t.Errorf("Expected response to contain 'title' key, got: %s", resp)
+		}
 		if !strings.Contains(resp, "```json") {
 			t.Errorf("Expected JSON code block, got: %s", resp)
 		}

@@ -41,9 +41,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if (strings.Contains(lowerPrompt, "json") && (strings.Contains(lowerPrompt, "architect") || strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "create exactly one ticket"))) {
 		tickets := []map[string]interface{}{
 			{
-				"summary": "ID:[PRIMES] Implement Python Script",
+				"title":       "ID:[PRIMES] Implement Python Script",
 				"description": "Write a Python script that calculates prime numbers up to 100 and writes them to a file named 'primes.json'. ensure correct json format.",
-				"type": "Story",
+				"type":        "Story",
 				"children": []map[string]interface{}{},
 			},
 		}
