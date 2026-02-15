@@ -181,6 +181,29 @@ func TestManager_Notify_Success(t *testing.T) {
 	assert.True(t, discordCalled)
 }
 
+func TestManager_InitDiscord(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(func() { viper.Reset() })
+	t.Setenv("DISCORD_BOT_TOKEN", "test-token")
+	t.Setenv("DISCORD_CHANNEL_ID", "12345")
+	viper.Set("notifications.discord.enabled", true)
+
+	m := NewManager(func(string, ...interface{}) {})
+	assert.NotNil(t, m.discordNotifier)
+}
+
+func TestManager_Start(t *testing.T) {
+	// We can't fully test Start because it calls socketClient.RunContext which blocks and connects to Slack.
+	// But we can test that it doesn't panic if socketClient is nil.
+	m := &Manager{}
+	ctx := context.Background()
+	m.Start(ctx)
+
+	// If socketClient is set, it spawns a goroutine.
+	// We can't mock socketClient easily to verify RunContext is called without real connection attempt.
+	// So we leave it at that.
+}
+
 func TestManager_Notify_Failure(t *testing.T) {
 	viper.Reset()
 	t.Cleanup(func() { viper.Reset() })

@@ -837,7 +837,7 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			// 5. Input Submission
 			v = m.textarea.Value()
-			if v == "" {
+			if strings.TrimSpace(v) == "" {
 				return m, nil
 			}
 
@@ -851,6 +851,8 @@ func (m InteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			// Chat Message
+			m.conversation(v, true) // User Message
+
 			params := fmt.Sprintf("Processing with %s (Model: %s)...", m.currentAgent, m.currentModel)
 			if m.activeAgent == nil {
 				params += " (Agent logic initializing...)"
