@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,6 +31,44 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	promptLower := strings.ToLower(prompt)
+
+	// Heuristic for E2E tests: prime number task
+	if (strings.Contains(promptLower, "prime") || strings.Contains(promptLower, "primes")) &&
+		(strings.Contains(promptLower, "python") || strings.Contains(promptLower, "script")) {
+		return `I will create a Python script to calculate prime numbers.
+
+<file path="primes.py">
+def is_prime(n):
+    if n <= 1:
+        return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+if __name__ == "__main__":
+    primes = [i for i in range(100) if is_prime(i)]
+    print(primes)
+</file>
+`, nil
+	}
+
+	// Heuristic for Ticket Generation (TPM/Planner)
+	if strings.Contains(promptLower, "technical program manager") || strings.Contains(promptLower, "planner") {
+		// Return a valid JSON list of tickets
+		return `[
+  {
+    "id": "PRIMES",
+    "type": "Task",
+    "title": "Implement Python Script",
+    "description": "Create a python script to generate prime numbers.",
+    "dependencies": []
+  }
+]`, nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
