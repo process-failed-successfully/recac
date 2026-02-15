@@ -6,31 +6,35 @@ import (
 	"testing"
 )
 
-func TestMockAgent(t *testing.T) {
+func TestMockAgent_Heuristics(t *testing.T) {
 	agent := NewMockAgent()
+	ctx := context.Background()
 
-	prompt := "This is a test prompt that is long enough to be truncated"
-	response, err := agent.Send(context.Background(), prompt)
-
-	if err != nil {
-		t.Fatalf("Send failed: %v", err)
+	// 1. TPM (JSON)
+	promptTPM := "You are a Technical Program Manager. Please generate a JSON list of tickets."
+	resp, _ := agent.Send(ctx, promptTPM)
+	if !strings.Contains(resp, "[") || !strings.Contains(resp, "summary") {
+		t.Errorf("Expected JSON response for TPM prompt, got: %s", resp)
 	}
 
-	if !strings.Contains(response, "Mock agent response") {
-		t.Errorf("Response missing prefix, got: %s", response)
+	// 2. Git Lead
+	promptGit := "I am the Git Lead. Please start the task."
+	resp, _ = agent.Send(ctx, promptGit)
+	if !strings.Contains(resp, "git checkout -b") {
+		t.Errorf("Expected git command for Git Lead prompt, got: %s", resp)
 	}
 
-	if !strings.Contains(response, "I received your prompt") {
-		t.Errorf("Response missing body, got: %s", response)
+	// 3. Coding (Primes)
+	promptCode := "Task ID:[PRIMES]. Please generate primes.py in python."
+	resp, _ = agent.Send(ctx, promptCode)
+	if !strings.Contains(resp, "cat <<EOF > primes.py") {
+		t.Errorf("Expected bash script to create primes.py, got: %s", resp)
 	}
-}
 
-func TestTruncateString(t *testing.T) {
-	s := "hello world"
-	if truncateString(s, 5) != "hello" {
-		t.Errorf("Expected 'hello', got '%s'", truncateString(s, 5))
-	}
-	if truncateString(s, 20) != "hello world" {
-		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
+	// 4. Default
+	promptDefault := "Hello"
+	resp, _ = agent.Send(ctx, promptDefault)
+	if !strings.Contains(resp, "Mock agent response") {
+		t.Errorf("Expected default response, got: %s", resp)
 	}
 }
