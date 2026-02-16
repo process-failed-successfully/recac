@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -33,6 +35,19 @@ func (m *MockDockerClient) RunContainer(ctx context.Context, image, workspace st
 func (m *MockDockerClient) StopContainer(ctx context.Context, containerID string) error {
 	args := m.Called(ctx, containerID)
 	return args.Error(0)
+}
+
+func (m *MockDockerClient) RemoveContainer(ctx context.Context, containerID string, force bool) error {
+	args := m.Called(ctx, containerID, force)
+	return args.Error(0)
+}
+
+func (m *MockDockerClient) ListContainers(ctx context.Context, options container.ListOptions) ([]types.Container, error) {
+	args := m.Called(ctx, options)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]types.Container), args.Error(1)
 }
 
 func (m *MockDockerClient) Exec(ctx context.Context, containerID string, cmd []string) (string, error) {
