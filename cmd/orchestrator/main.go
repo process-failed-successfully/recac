@@ -35,6 +35,9 @@ func main() {
 	pflag.String("agent-model", "meta-llama/llama-3.3-70b-instruct:free", "Model for spawned agents")
 	pflag.String("image-pull-policy", "Always", "Image pull policy for agents (Always, IfNotPresent, Never)")
 
+	pflag.Bool("cleanup", true, "Enable automatic container cleanup")
+	pflag.Duration("cleanup-age", 2*time.Hour, "Max age of containers to keep")
+
 	pflag.String("jira-query", "", "Custom JQL query (overrides label)")
 	pflag.String("poller", "jira", "Poller type: 'jira', 'github', 'file', or 'file-dir'")
 	pflag.String("work-file", "work_items.json", "Work items file (for 'file' poller)")
@@ -71,6 +74,9 @@ func main() {
 	viper.BindPFlag("orchestrator.agent_model", pflag.Lookup("agent-model"))
 	viper.BindPFlag("orchestrator.image_pull_policy", pflag.Lookup("image-pull-policy"))
 
+	viper.BindPFlag("orchestrator.cleanup", pflag.Lookup("cleanup"))
+	viper.BindPFlag("orchestrator.cleanup_age", pflag.Lookup("cleanup-age"))
+
 	// Explicitly bind cleaner env vars
 	viper.BindEnv("orchestrator.agent_provider", "RECAC_AGENT_PROVIDER")
 	viper.BindEnv("orchestrator.agent_model", "RECAC_AGENT_MODEL")
@@ -86,6 +92,8 @@ func main() {
 	viper.BindEnv("orchestrator.namespace", "RECAC_ORCHESTRATOR_NAMESPACE")
 	viper.BindEnv("orchestrator.interval", "RECAC_ORCHESTRATOR_INTERVAL")
 	viper.BindEnv("orchestrator.image_pull_policy", "RECAC_IMAGE_PULL_POLICY")
+	viper.BindEnv("orchestrator.cleanup", "RECAC_ORCHESTRATOR_CLEANUP")
+	viper.BindEnv("orchestrator.cleanup_age", "RECAC_ORCHESTRATOR_CLEANUP_AGE")
 	viper.BindEnv("orchestrator.max_iterations", "RECAC_MAX_ITERATIONS")
 	viper.BindEnv("orchestrator.manager_frequency", "RECAC_MANAGER_FREQUENCY")
 	viper.BindEnv("orchestrator.task_max_iterations", "RECAC_TASK_MAX_ITERATIONS")
@@ -186,6 +194,15 @@ func main() {
 		if err != nil {
 			logger.Error("Failed to initialize Docker client", "error", err)
 			os.Exit(1)
+		}
+
+		// Initialize Janitor
+		if viper.GetBool("orchestrator.cleanup") {
+			cleanupAge := viper.GetDuration("orchestrator.cleanup_age")
+			// Run janitor every 5 minutes or so, or derived from interval
+			janitorInterval := 5 * time.Minute
+			janitor := orchestrator.NewJanitor(dockerCli, logger, janitorInterval, cleanupAge)
+			go janitor.Run(ctx)
 		}
 
 		sm, err := runner.NewSessionManager()

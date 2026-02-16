@@ -52,7 +52,7 @@ func TestRunContainer_CreateError(t *testing.T) {
 		return container.CreateResponse{}, errors.New("create failed")
 	}
 
-	_, err := client.RunContainer(context.Background(), "image", "/tmp", nil, nil, "")
+	_, err := client.RunContainer(context.Background(), "image", "/tmp", nil, nil, nil, "")
 	if err == nil {
 		t.Error("Expected error from RunContainer when create fails")
 	}
@@ -65,7 +65,7 @@ func TestRunContainer_StartError(t *testing.T) {
 		return errors.New("start failed")
 	}
 
-	_, err := client.RunContainer(context.Background(), "image", "/tmp", nil, nil, "")
+	_, err := client.RunContainer(context.Background(), "image", "/tmp", nil, nil, nil, "")
 	if err == nil {
 		t.Error("Expected error from RunContainer when start fails")
 	}

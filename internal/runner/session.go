@@ -535,7 +535,7 @@ func (s *Session) Start(ctx context.Context) error {
 		s.ContainerID = "local"
 		s.UseLocalAgent = true
 	} else {
-		id, err := s.Docker.RunContainer(ctx, s.Image, s.Workspace, extraBinds, env, containerUser)
+		id, err := s.Docker.RunContainer(ctx, s.Image, s.Workspace, extraBinds, env, nil, containerUser)
 		if err != nil {
 			return err
 		}
