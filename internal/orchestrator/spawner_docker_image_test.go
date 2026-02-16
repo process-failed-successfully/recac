@@ -38,14 +38,18 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 			}
 		}
 		return false
-	}), mock.Anything, "").Return("container123", nil)
-	mockSM.On("SaveSession", mock.Anything).Return(nil)
+	}), mock.Anything, "").Return("container123", nil).Once()
+	mockSM.On("SaveSession", mock.Anything).Return(nil).Once()
 
 	// Use a channel to ensure the goroutine calls LoadSession before we exit
-	loadSessionCalled := make(chan struct{})
+	loadSessionCalled := make(chan struct{}, 1)
 	mockSM.On("LoadSession", "TICKET-1").Run(func(args mock.Arguments) {
-		close(loadSessionCalled)
-	}).Return(nil, assert.AnError)
+		select {
+		case loadSessionCalled <- struct{}{}:
+		default:
+			// Prevent blocking if called multiple times (though Once() should prevent that)
+		}
+	}).Return(nil, assert.AnError).Once()
 
 	execCalled := make(chan string, 1)
 
@@ -53,8 +57,13 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Run(func(args mock.Arguments) {
 		cmd := args.Get(2).([]string)
 		// cmd is ["/bin/sh", "-c", "actual command"]
-		execCalled <- cmd[2]
-	}).Return("output", nil)
+		if len(cmd) > 2 {
+			select {
+			case execCalled <- cmd[2]:
+			default:
+			}
+		}
+	}).Return("output", nil).Once()
 
 	err := spawner.Spawn(ctx, item)
 	assert.NoError(t, err)
