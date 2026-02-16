@@ -48,10 +48,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
   "tickets": [
     {
       "title": "Implement Prime Number Script",
-      "description": "Create a python script 'primes.py' that calculates primes up to 100 and saves them to 'primes.json'.",
+      "description": "Create a python script 'primes.py' that calculates primes up to 10000 and saves them to 'primes.json'.",
       "type": "Task",
       "id": "PRIMES-1",
-      "acceptance_criteria": ["req-script-runs-without-errors"]
+      "acceptance_criteria": ["script-runs-without-errors"]
     }
   ]
 }`, nil
@@ -65,8 +65,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 4. Coding Agent Phase (Primes Scenario)
 	// Detects if we are working on the primes task
 	// Note: We also match "Prime Number Script" to cover scenarios where the ticket summary is used
-	// We also check for "Prime", "Implement", "script", or the requirement ID to be robust against formatting or truncation
-	if strings.Contains(promptLower, "id:[primes]") || strings.Contains(promptLower, "primes.py") || strings.Contains(promptLower, "1229") || strings.Contains(promptLower, "prime") || strings.Contains(promptLower, "implement") || strings.Contains(promptLower, "script") || strings.Contains(promptLower, "req-script-runs-without-errors") {
+	// We use specific keywords to avoid false positives with other scenarios
+	if strings.Contains(promptLower, "id:[primes]") || strings.Contains(promptLower, "primes.py") || strings.Contains(promptLower, "1229") {
 		return `I will implement the prime number script as requested.
 
 ` + "```bash" + `
@@ -80,7 +80,7 @@ def is_prime(n):
         if n % i == 0: return False
     return True
 
-primes = [x for x in range(100) if is_prime(x)]
+primes = [x for x in range(10000) if is_prime(x)]
 with open("primes.json", "w") as f:
     json.dump(primes, f)
 print(f"Generated {len(primes)} primes")
