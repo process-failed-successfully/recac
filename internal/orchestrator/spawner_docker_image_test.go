@@ -44,9 +44,10 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	}).Return(nil, assert.AnError)
 
 	execCalled := make(chan string, 1)
+	failure := make(chan string, 1)
 
-	// Use mock.Anything for containerID as well, to avoid mismatch if something weird happens with string passing
-	mockDocker.On("Exec", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+	// Expect the specific container ID "container123" returned by RunContainer
+	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Run(func(args mock.Arguments) {
 		cmd := args.Get(2).([]string)
 		if len(cmd) > 2 {
 			execCalled <- cmd[2]
@@ -54,6 +55,12 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 			execCalled <- ""
 		}
 	}).Return("output", nil)
+
+	// If a panic occurs, UpdateStatus will be called with "Failed"
+	mockPoller.On("UpdateStatus", mock.Anything, mock.Anything, "Failed", mock.Anything).Run(func(args mock.Arguments) {
+		comment := args.String(3)
+		failure <- comment
+	}).Return(nil).Maybe()
 
 	err := spawner.Spawn(ctx, item)
 	require.NoError(t, err)
@@ -67,6 +74,8 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		} else {
 			t.Error("Received empty command string (cmd length <= 2)")
 		}
+	case failMsg := <-failure:
+		t.Fatalf("Spawn failed with error: %s", failMsg)
 	case <-time.After(30 * time.Second): // Generous timeout for CI
 		t.Fatal("Timeout waiting for Exec call")
 	}
