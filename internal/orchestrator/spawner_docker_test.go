@@ -8,6 +8,7 @@ import (
 	"os"
 	"recac/internal/runner"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -185,10 +186,12 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 	mockGit.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("endsha", nil).Once()
 
 	done := make(chan struct{})
-	mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
-		return s.Status == "completed" || s.Status == "error"
-	})).Run(func(args mock.Arguments) {
-		close(done)
+	var once sync.Once
+	mockSM.On("SaveSession", mock.AnythingOfType("*runner.SessionState")).Run(func(args mock.Arguments) {
+		s := args.Get(0).(*runner.SessionState)
+		if s.Status == "completed" || s.Status == "error" {
+			once.Do(func() { close(done) })
+		}
 	}).Return(nil)
 
 	err := spawner.Spawn(ctx, item)
