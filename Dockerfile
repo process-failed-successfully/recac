@@ -14,7 +14,10 @@ RUN apt-get update && apt-get install -y \
     unzip \
     docker.io \
     make \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && git config --global user.email "agent@recac.com" \
+    && git config --global user.name "Recac Agent" \
+    && git config --global safe.directory "*"
 
 # Allow pip to install global packages (Debian 12 PEP 668)
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
