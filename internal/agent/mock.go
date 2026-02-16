@@ -65,8 +65,27 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			// Execution Phase: Return Bash script
 			if strings.Contains(lowerPrompt, "test") {
 				// Unit Tests
+				// IMPORTANT: We include the implementation file creation here as well to ensure
+				// the test has its dependencies, as the execution environment might be clean.
 				return `Here are the unit tests for the prime number generator.
 ` + "```bash" + `
+cat << 'EOF' > primes.py
+def generate_primes(n):
+    primes = []
+    for num in range(2, n + 1):
+        is_prime = True
+        for i in range(2, int(num ** 0.5) + 1):
+            if num % i == 0:
+                is_prime = False
+                break
+        if is_prime:
+            primes.append(num)
+    return primes
+
+if __name__ == "__main__":
+    print(generate_primes(50))
+EOF
+
 cat << 'EOF' > test_primes.py
 import unittest
 from primes import generate_primes
