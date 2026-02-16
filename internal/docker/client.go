@@ -394,24 +394,6 @@ func (c *Client) StopContainer(ctx context.Context, containerID string) error {
 	return nil
 }
 
-// RemoveContainer removes a container.
-func (c *Client) RemoveContainer(ctx context.Context, containerID string, force bool) error {
-	telemetry.TrackDockerOp(c.project)
-	return c.api.ContainerRemove(ctx, containerID, container.RemoveOptions{Force: force})
-}
-
-// ListContainers lists containers.
-func (c *Client) ListContainers(ctx context.Context, options container.ListOptions) ([]types.Container, error) {
-	telemetry.TrackDockerOp(c.project)
-	return c.api.ContainerList(ctx, options)
-}
-
-// KillContainer kills a container.
-func (c *Client) KillContainer(ctx context.Context, containerID, signal string) error {
-	telemetry.TrackDockerOp(c.project)
-	return c.api.ContainerKill(ctx, containerID, signal)
-}
-
 // ImageBuildOptions configures how an image is built.
 type ImageBuildOptions struct {
 	// BuildContext is the tar stream containing the build context.
@@ -502,4 +484,16 @@ func (c *Client) ImageBuild(ctx context.Context, opts ImageBuildOptions) (string
 	}
 
 	return imageID, nil
+}
+
+// RemoveContainer removes a container.
+func (c *Client) RemoveContainer(ctx context.Context, containerID string, force bool) error {
+	telemetry.TrackDockerOp(c.project)
+	return c.api.ContainerRemove(ctx, containerID, container.RemoveOptions{Force: force})
+}
+
+// ListContainers lists containers.
+func (c *Client) ListContainers(ctx context.Context, options container.ListOptions) ([]types.Container, error) {
+	telemetry.TrackDockerOp(c.project)
+	return c.api.ContainerList(ctx, options)
 }
