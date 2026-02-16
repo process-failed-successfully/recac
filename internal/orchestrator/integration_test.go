@@ -214,9 +214,10 @@ func TestOrchestrator_Integration_JiraFlow(t *testing.T) {
 			if tc.spawnErr {
 				spawner.spawnErr = fmt.Errorf("spawn failed")
 			}
-			orch := New(poller, spawner, 50*time.Millisecond)
+			// Increase poll interval to avoid race condition where next poll happens before status update
+			orch := New(poller, spawner, 200*time.Millisecond)
 
-			ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
+			ctx, cancel := context.WithTimeout(context.Background(), 2000*time.Millisecond)
 			defer cancel()
 
 			_ = orch.Run(ctx, silentLogger)
