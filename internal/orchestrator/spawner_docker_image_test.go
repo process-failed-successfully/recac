@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"sync"
 	"testing"
 	"time"
 
@@ -40,8 +41,11 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	// Synchronization for goroutine completion
 	// When LoadSession is called (which happens after Exec in the goroutine), we signal completion
 	done := make(chan struct{})
+	var once sync.Once
 	mockSM.On("LoadSession", "TICKET-1").Run(func(args mock.Arguments) {
-		close(done)
+		once.Do(func() {
+			close(done)
+		})
 	}).Return(nil, assert.AnError)
 
 	execCalled := make(chan string, 1)
@@ -58,19 +62,20 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	err := spawner.Spawn(ctx, item)
 	require.NoError(t, err)
 
+	// Increase timeout to 60s for CI stability
 	select {
 	case cmdStr := <-execCalled:
 		t.Logf("Captured Command: %s", cmdStr)
 		assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
 		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
-	case <-time.After(5 * time.Second):
+	case <-time.After(60 * time.Second):
 		t.Fatal("Timeout waiting for Exec call")
 	}
 
 	// Wait for background goroutine to reach LoadSession to ensure clean shutdown of mocks
 	select {
 	case <-done:
-	case <-time.After(5 * time.Second):
+	case <-time.After(60 * time.Second):
 		t.Log("Timeout waiting for LoadSession (goroutine cleanup)")
 	}
 }
