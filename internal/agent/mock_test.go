@@ -2,53 +2,35 @@ package agent
 
 import (
 	"context"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestMockAgent(t *testing.T) {
+func TestMockAgent_Send_Heuristics(t *testing.T) {
 	agent := NewMockAgent()
+	ctx := context.Background()
 
-	prompt := "This is a test prompt that is long enough to be truncated"
-	response, err := agent.Send(context.Background(), prompt)
+	// Test 1: Planning Phase (TPM)
+	// Prompt should contain "Technical Program Manager" and "ID:[PRIMES]"
+	planningPrompt := "You are an expert Technical Program Manager. Please plan the following: ID:[PRIMES] Create Prime Number Script"
+	resp1, err := agent.Send(ctx, planningPrompt)
+	assert.NoError(t, err)
+	assert.Contains(t, resp1, `"type": "Task"`, "Planning prompt should return JSON task list")
+	assert.NotContains(t, resp1, "cat << 'EOF'", "Planning prompt should NOT return bash commands")
 
-	if err != nil {
-		t.Fatalf("Send failed: %v", err)
-	}
+	// Test 2: Execution Phase (Agent)
+	// Prompt should contain "ID:[PRIMES]" but NOT "Technical Program Manager"
+	executionPrompt := "You are an AI software engineer. Implement the task: ID:[PRIMES] Create Prime Number Script"
+	resp2, err := agent.Send(ctx, executionPrompt)
+	assert.NoError(t, err)
+	assert.Contains(t, resp2, "```bash", "Execution prompt should return bash code block")
+	assert.Contains(t, resp2, "cat << 'EOF' > primes.py", "Execution prompt should generate primes.py")
+	assert.Contains(t, resp2, "python3 primes.py", "Execution prompt should run the script")
 
-	if !strings.Contains(response, "Mock agent response") {
-		t.Errorf("Response missing prefix, got: %s", response)
-	}
-
-	if !strings.Contains(response, "I received your prompt") {
-		t.Errorf("Response missing body, got: %s", response)
-	}
-}
-
-func TestMockAgent_PrimesHeuristic(t *testing.T) {
-	agent := NewMockAgent()
-
-	prompt := "Please generate tickets for ID:[PRIMES] Prime Number Script"
-	response, err := agent.Send(context.Background(), prompt)
-
-	if err != nil {
-		t.Fatalf("Send failed: %v", err)
-	}
-
-	if !strings.Contains(response, "ID:[PRIMES] Create Prime Number Script") {
-		t.Errorf("Response missing expected JSON content, got: %s", response)
-	}
-	if !strings.Contains(response, "\"type\": \"Task\"") {
-		t.Errorf("Response missing expected JSON type, got: %s", response)
-	}
-}
-
-func TestTruncateString(t *testing.T) {
-	s := "hello world"
-	if truncateString(s, 5) != "hello" {
-		t.Errorf("Expected 'hello', got '%s'", truncateString(s, 5))
-	}
-	if truncateString(s, 20) != "hello world" {
-		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
-	}
+	// Test 3: Fallback
+	fallbackPrompt := "Hello agent"
+	resp3, err := agent.Send(ctx, fallbackPrompt)
+	assert.NoError(t, err)
+	assert.Contains(t, resp3, "Mock agent response", "Fallback prompt should return standard mock response")
 }

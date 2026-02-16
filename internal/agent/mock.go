@@ -35,9 +35,14 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristics for E2E scenarios
 	lowerPrompt := strings.ToLower(prompt)
 
-	// Prime Python Scenario (Ticket Generation)
+	// Prime Python Scenario
 	if strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(lowerPrompt, "prime number script") {
-		return `[
+		// Heuristic: Check if we are in the Planning Phase (TPM) or Execution Phase (Agent)
+		// The TPM prompt usually contains "Technical Program Manager" or "role - project manager"
+		isPlanning := strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "tpm")
+
+		if isPlanning {
+			return `[
   {
     "title": "ID:[PRIMES] Create Prime Number Script",
     "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
@@ -45,6 +50,33 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     "children": []
   }
 ]`, nil
+		}
+
+		// Execution Phase: Return Bash commands to implement the script
+		return `
+` + "```bash" + `
+cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n <= 1:
+        return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+primes = [n for n in range(10000) if is_prime(n)]
+
+with open('primes.json', 'w') as f:
+    json.dump(primes, f)
+
+print(f"Generated {len(primes)} primes.")
+EOF
+
+python3 primes.py
+` + "```" + `
+`, nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
