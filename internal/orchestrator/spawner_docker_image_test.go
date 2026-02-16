@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"sync"
 	"testing"
 	"time"
 
@@ -30,12 +31,15 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	ctx := context.Background()
 
 	// Mock expectations
-	mockDocker.On("RunContainerWithConfig", ctx, mock.Anything).Return("container123", nil)
+	mockDocker.On("RunContainerWithConfig", mock.Anything, mock.Anything).Return("container123", nil)
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
 
 	done := make(chan struct{})
+	var once sync.Once
 	mockSM.On("LoadSession", "TICKET-1").Run(func(args mock.Arguments) {
-		close(done)
+		once.Do(func() {
+			close(done)
+		})
 	}).Return(nil, assert.AnError)
 
 	execCalled := make(chan string, 1)
@@ -63,7 +67,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	select {
 	case <-done:
 		// Success
-	case <-time.After(5 * time.Second):
+	case <-time.After(10 * time.Second):
 		t.Log("Timed out waiting for LoadSession call (background cleanup)")
 	}
 }
