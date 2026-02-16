@@ -53,6 +53,16 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		}
 
 		// Execution Phase: Return Bash commands to implement the script
+		// Check if we already ran the script successfully
+		if strings.Contains(prompt, "Generated 1229 primes") {
+			return `
+` + "```bash" + `
+# Mark the task as done to complete the session
+agent-bridge feature set $RECAC_PROJECT_ID done
+` + "```" + `
+`, nil
+		}
+
 		return `
 ` + "```bash" + `
 cat << 'EOF' > primes.py

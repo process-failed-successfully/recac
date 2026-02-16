@@ -28,9 +28,17 @@ func TestMockAgent_Send_Heuristics(t *testing.T) {
 	assert.Contains(t, resp2, "cat << 'EOF' > primes.py", "Execution prompt should generate primes.py")
 	assert.Contains(t, resp2, "python3 primes.py", "Execution prompt should run the script")
 
-	// Test 3: Fallback
-	fallbackPrompt := "Hello agent"
-	resp3, err := agent.Send(ctx, fallbackPrompt)
+	// Test 3: Execution Phase (Completion)
+	// Prompt should contain success message
+	completionPrompt := "You are an AI software engineer. Output: Generated 1229 primes. Task: ID:[PRIMES] Create Prime Number Script"
+	resp3, err := agent.Send(ctx, completionPrompt)
 	assert.NoError(t, err)
-	assert.Contains(t, resp3, "Mock agent response", "Fallback prompt should return standard mock response")
+	assert.Contains(t, resp3, "agent-bridge feature set", "Completion prompt should return agent-bridge command")
+	assert.Contains(t, resp3, "done", "Completion prompt should mark feature as done")
+
+	// Test 4: Fallback
+	fallbackPrompt := "Hello agent"
+	resp4, err := agent.Send(ctx, fallbackPrompt)
+	assert.NoError(t, err)
+	assert.Contains(t, resp4, "Mock agent response", "Fallback prompt should return standard mock response")
 }
