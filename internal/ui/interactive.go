@@ -71,6 +71,7 @@ type keyMap struct {
 	Up         key.Binding
 	Down       key.Binding
 	Enter      key.Binding
+	NewLine    key.Binding // Alt+Enter for new line
 	Slash      key.Binding
 	Bang       key.Binding // '!' for shell
 	Quit       key.Binding
@@ -79,12 +80,12 @@ type keyMap struct {
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Enter, k.Slash, k.Bang, k.Quit}
+	return []key.Binding{k.Enter, k.NewLine, k.Slash, k.Bang, k.Quit}
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Up, k.Down, k.Enter},
+		{k.Up, k.Down, k.Enter, k.NewLine},
 		{k.Slash, k.Bang, k.ToggleList, k.Quit},
 	}
 }
@@ -99,7 +100,7 @@ func (h contextualHelp) ShortHelp() []key.Binding {
 	if h.isMenu {
 		return []key.Binding{h.Up, h.Down, h.Enter, h.Back, h.Quit}
 	}
-	return []key.Binding{h.Enter, h.Slash, h.Bang, h.Quit}
+	return []key.Binding{h.Enter, h.NewLine, h.Slash, h.Bang, h.Quit}
 }
 
 func (h contextualHelp) FullHelp() [][]key.Binding {
@@ -118,6 +119,10 @@ var keys = keyMap{
 	Enter: key.NewBinding(
 		key.WithKeys("enter"),
 		key.WithHelp("enter", "send"),
+	),
+	NewLine: key.NewBinding(
+		key.WithKeys("alt+enter", "ctrl+j"),
+		key.WithHelp("alt+enter", "new line"),
 	),
 	Slash: key.NewBinding(
 		key.WithKeys("/"),
@@ -149,8 +154,8 @@ const (
 	ModeChat InputMode = iota
 	ModeCmd
 	ModeShell
-	ModeModelSelect // Model menu
-	ModeAgentSelect // Agent/Provider menu
+	ModeModelSelect   // Model menu
+	ModeAgentSelect   // Agent/Provider menu
 	ModePersonaSelect // Persona menu
 )
 
@@ -271,7 +276,10 @@ func NewInteractiveModel(commands []SlashCommand, provider, model string) Intera
 	ta.SetWidth(50)
 	ta.SetHeight(3)
 	ta.ShowLineNumbers = false
-	ta.KeyMap.InsertNewline.SetEnabled(true) // Allow multi-line input
+	// Configure newline behavior: Enter sends, Alt+Enter inserts newline
+	ta.KeyMap.InsertNewline.SetEnabled(true)
+	ta.KeyMap.InsertNewline.SetKeys("alt+enter", "ctrl+j")
+	ta.KeyMap.InsertNewline.SetHelp("alt+enter", "new line")
 
 	// Convert SlashCommands to CommandItems
 	// Initialize Persona Manager
@@ -461,24 +469,24 @@ func NewInteractiveModel(commands []SlashCommand, provider, model string) Intera
 	}
 
 	return InteractiveModel{
-		textarea:      ta,
-		viewport:      vp,
-		list:          l,
-		help:          help.New(),
-		spinner:       s,
-		keys:          keys,
-		commands:      cmdItems,
-		agents:        availableAgents,
-		agentModels:   agentModels,
-		currentModel:  model,
-		currentAgent:  provider,
+		textarea:       ta,
+		viewport:       vp,
+		list:           l,
+		help:           help.New(),
+		spinner:        s,
+		keys:           keys,
+		commands:       cmdItems,
+		agents:         availableAgents,
+		agentModels:    agentModels,
+		currentModel:   model,
+		currentAgent:   provider,
 		personaManager: pm,
 		currentPersona: "default",
-		messages:      []ChatMessage{{Role: RoleSystem, Content: welcomeMsg}},
-		mode:          ModeChat,
-		showList:      false,
-		thinking:      true,
-		statusMessage: "Initializing Agent...",
+		messages:       []ChatMessage{{Role: RoleSystem, Content: welcomeMsg}},
+		mode:           ModeChat,
+		showList:       false,
+		thinking:       true,
+		statusMessage:  "Initializing Agent...",
 	}
 }
 

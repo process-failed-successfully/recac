@@ -42,11 +42,11 @@ func (i FileItem) FilterValue() string { return i.Name }
 
 // ExplorerModel is the main Bubble Tea model for the explorer.
 type ExplorerModel struct {
-	list           list.Model
-	viewport       viewport.Model
-	currentPath    string
-	viewingFile    bool   // If true, showing viewport
-	statusMessage  string // For temporary status like "Analyzing..."
+	list          list.Model
+	viewport      viewport.Model
+	currentPath   string
+	viewingFile   bool   // If true, showing viewport
+	statusMessage string // For temporary status like "Analyzing..."
 
 	explainFunc    AnalysisFunc
 	complexityFunc AnalysisFunc
