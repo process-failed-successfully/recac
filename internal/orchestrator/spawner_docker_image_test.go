@@ -29,13 +29,17 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	}
 
 	ctx := context.Background()
+	containerID := "container123"
 
 	// Mock expectations
-	// Use mock.Anything for context to ensure it matches even if wrapped
-	mockDocker.On("RunContainer", mock.Anything, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
-	mockSM.On("SaveSession", mock.Anything).Return(nil)
+	// Use strict matching for containerID in RunContainer return
+	mockDocker.On("RunContainer", mock.Anything, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return(containerID, nil)
+
+	// SaveSession is called initially
+	mockSM.On("SaveSession", mock.Anything).Return(nil).Once()
 
 	done := make(chan struct{}, 1)
+	// Mock LoadSession called after Exec
 	mockSM.On("LoadSession", "TICKET-1").Run(func(args mock.Arguments) {
 		select {
 		case done <- struct{}{}:
@@ -46,14 +50,9 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	execCalled := make(chan string, 1)
 	failure := make(chan string, 1)
 
-	// Expect the specific container ID "container123" returned by RunContainer
-	// We use mock.Anything for containerID and verify it inside the Run hook to prevent "Unexpected call" panics
-	// which can lead to test timeouts if the panic recovery path fails.
-	mockDocker.On("Exec", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-		containerID := args.String(1)
-		if containerID != "container123" {
-			t.Errorf("Expected containerID 'container123', got '%s'", containerID)
-		}
+	// Expect Exec to be called with correct container ID and capture the command string
+	// Using mock.MatchedBy ensures we only match calls for our specific container
+	mockDocker.On("Exec", mock.Anything, containerID, mock.Anything).Run(func(args mock.Arguments) {
 		cmd := args.Get(2).([]string)
 		if len(cmd) > 2 {
 			execCalled <- cmd[2]
@@ -93,4 +92,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Log("Timeout waiting for LoadSession (background goroutine cleanup)")
 	}
+
+	mockDocker.AssertExpectations(t)
+	mockSM.AssertExpectations(t)
 }
