@@ -110,6 +110,12 @@ func TestTruncateToTokenLimit(t *testing.T) {
 			maxTokens:     100, // Large enough
 			wantTruncated: false,
 		},
+		{
+			name:          "huge lines dropped",
+			text:          strings.Repeat("a", 100) + "\n" + strings.Repeat("b", 100),
+			maxTokens:     10, // ~40 chars, so neither line fits
+			wantTruncated: true,
+		},
 	}
 
 	for _, tt := range tests {

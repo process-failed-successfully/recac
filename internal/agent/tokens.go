@@ -80,27 +80,20 @@ func TruncateToTokenLimit(text string, maxTokens int) string {
 	if maxStartChars >= n {
 		startCut = n
 	} else {
-		// Scan forward finding newlines until we exceed maxStartChars.
-		scanPos := 0
-		for {
-			nextNL := strings.IndexByte(text[scanPos:], '\n')
-			if nextNL == -1 {
-				// No more newlines. Check if the rest fits
-				if len(text) <= maxStartChars {
-					startCut = len(text)
-				}
-				break
-			}
-			absoluteNL := scanPos + nextNL
+		// Optimization: Instead of iterating line by line, find the last newline within the limit.
+		// This is O(1) relative to line count (O(maxStartChars) scan, but optimized assembly).
 
-			// Length if we include this line (up to and including newline)
-			if absoluteNL+1 > maxStartChars {
-				break
-			}
-
-			// This line fits.
-			startCut = absoluteNL + 1 // Include the newline
-			scanPos = absoluteNL + 1
+		// We look for the last newline in the first maxStartChars bytes.
+		// The character at maxStartChars-1 is the last one we can potentially include as a newline.
+		// So we search in text[:maxStartChars].
+		lastNL := strings.LastIndexByte(text[:maxStartChars], '\n')
+		if lastNL != -1 {
+			startCut = lastNL + 1
+		} else {
+			// No newline found in the allowed prefix.
+			// This means the first line is longer than maxStartChars.
+			// We can't include any full lines.
+			startCut = 0
 		}
 	}
 
@@ -109,37 +102,32 @@ func TruncateToTokenLimit(text string, maxTokens int) string {
 	if maxEndChars >= n {
 		endCut = 0
 	} else {
-		// Loop backwards finding lines that fit in maxEndChars
-		currLen := 0
-		currentEndCut := n
+		// Optimization: Find the first newline that allows the suffix to fit.
+		// We want len(text[endCut:]) <= maxEndChars.
+		// So endCut >= n - maxEndChars.
+		// Also text[endCut-1] == '\n' (start of a line).
 
-		cursor := n
-		for {
-			p := -1
-			if cursor > 0 {
-				p = strings.LastIndexByte(text[:cursor], '\n')
-			}
+		// We search for the first newline at or after index (n - maxEndChars - 1).
+		// If we find one at `idx`, then `endCut` can be `idx + 1`.
+		// This ensures `endCut > n - maxEndChars - 1` => `endCut >= n - maxEndChars`.
 
-			// Line is from p+1 to cursor.
-
-			realLen := cursor - (p + 1)
-
-			// If we keep this line, we keep content + newline.
-			// Logic matches `lineChars + 1`.
-
-			if currLen+realLen+1 > maxEndChars {
-				break
-			}
-
-			currLen += realLen + 1
-			currentEndCut = p + 1
-
-			if p == -1 {
-				break // Reached start of string
-			}
-			cursor = p // Move cursor to the newline we just found
+		searchStart := n - maxEndChars - 1
+		if searchStart < 0 {
+			searchStart = 0
 		}
-		endCut = currentEndCut
+
+		// Search in suffix starting at searchStart
+		idx := strings.IndexByte(text[searchStart:], '\n')
+		if idx != -1 {
+			// Found a newline. The absolute index is searchStart + idx.
+			// The line starts after this newline.
+			endCut = searchStart + idx + 1
+		} else {
+			// No newline found in the suffix region.
+			// This means we can't find a clean line break that fits the constraint.
+			// We default to dropping everything (empty suffix).
+			endCut = n
+		}
 	}
 
 	// Check overlap
@@ -150,10 +138,12 @@ func TruncateToTokenLimit(text string, maxTokens int) string {
 	// Omitted lines count
 	omittedCount := 0
 	dropped := text[startCut:endCut]
-	if strings.HasSuffix(dropped, "\n") {
-		omittedCount = strings.Count(dropped, "\n")
-	} else {
-		omittedCount = strings.Count(dropped, "\n") + 1
+	if dropped != "" {
+		if strings.HasSuffix(dropped, "\n") {
+			omittedCount = strings.Count(dropped, "\n")
+		} else {
+			omittedCount = strings.Count(dropped, "\n") + 1
+		}
 	}
 
 	// Construct result.
