@@ -54,9 +54,29 @@ func TestMockAgent_PrimesHeuristic(t *testing.T) {
 		t.Errorf("Response missing bash block marker for tests prompt, got: %s", response)
 	}
 
-	// We expect the same generic response for now
-	if !strings.Contains(response, "cat <<EOF > primes.py") {
-		t.Errorf("Response missing primes.py implementation for tests prompt, got: %s", response)
+	if !strings.Contains(response, "cat <<EOF > test_primes.py") {
+		t.Errorf("Response missing test_primes.py implementation for tests prompt, got: %s", response)
+	}
+
+	// Test 3: Success
+	prompt = "OK\nRan 2 tests in 0.000s"
+	// Ensure context contains "prime" for the heuristic to trigger (simulating conversation history or prompt injection)
+	// The heuristic in mock.go checks prompt for "prime".
+	// In real agent loop, prompt includes previous messages.
+	// For this unit test, we just append "prime" to the prompt to trigger the heuristic.
+	prompt = "Primes test output:\n" + prompt
+
+	response, err = agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "agent-bridge feature set") {
+		t.Errorf("Response missing agent-bridge command for success prompt, got: %s", response)
+	}
+
+	if !strings.Contains(response, "|| true") {
+		t.Errorf("Response missing || true suffix for robustness, got: %s", response)
 	}
 }
 

@@ -60,7 +60,50 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic for Primes coding task (Agent execution)
 	if strings.Contains(lowerPrompt, "prime") || strings.Contains(lowerPrompt, "primes.json") || strings.Contains(os.Getenv("RECAC_INJECTED_FEATURES"), "prime") {
-		// If it looks like a coding task request, return a shell command to implement the file
+
+		// 1. Detect Successful Execution (Prompt contains output like JSON list or "OK")
+		// This indicates the task is done, so we mark the feature as complete.
+		// We append "|| true" to prevent failure if the feature doesn't exist in the DB (common in smoke tests).
+		if strings.Contains(lowerPrompt, "[2, 3, 5") || strings.Contains(lowerPrompt, "ok") || strings.Contains(lowerPrompt, "ran 2 tests") {
+			return `I see the tests passed or the output is correct. I will mark the task as complete.
+
+` + "```bash" + `
+agent-bridge feature set $RECAC_PROJECT_ID --status done --passes true || true
+` + "```" + `
+`, nil
+		}
+
+		// 2. Detect "Write Unit Tests" Request
+		if strings.Contains(lowerPrompt, "test") {
+			return `I will write the unit tests for the prime number generator.
+
+` + "```bash" + `
+cat <<EOF > test_primes.py
+import unittest
+import json
+from primes import is_prime, generate_primes
+
+class TestPrimes(unittest.TestCase):
+    def test_is_prime(self):
+        self.assertFalse(is_prime(1))
+        self.assertTrue(is_prime(2))
+        self.assertTrue(is_prime(3))
+        self.assertFalse(is_prime(4))
+        self.assertTrue(is_prime(5))
+
+    def test_generate_primes(self):
+        self.assertEqual(generate_primes(5), [2, 3, 5, 7, 11])
+
+if __name__ == '__main__':
+    unittest.main()
+EOF
+
+python3 test_primes.py
+` + "```" + `
+`, nil
+		}
+
+		// 3. Detect "Implement/Create" Request (Implementation)
 		if strings.Contains(lowerPrompt, "implement") || strings.Contains(lowerPrompt, "create") || strings.Contains(lowerPrompt, "write") {
 			return `I will create the prime number generator script.
 
@@ -87,6 +130,8 @@ if __name__ == "__main__":
     import json
     print(json.dumps(generate_primes(10)))
 EOF
+
+python3 primes.py
 ` + "```" + `
 `, nil
 		}
