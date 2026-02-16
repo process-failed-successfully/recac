@@ -93,7 +93,8 @@ git add primes.py primes.json
 git commit -m "Implement primes script"
 
 # Signal completion
-agent-bridge feature set %s --status done --passes true
+# We skip setting feature status because the ID might be unknown or not in DB yet
+# agent-bridge feature set %s --status done --passes true
 agent-bridge signal COMPLETED true
 `+"```"+`
 `, taskID), nil
