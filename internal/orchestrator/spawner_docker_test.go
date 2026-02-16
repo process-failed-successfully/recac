@@ -224,7 +224,7 @@ func TestDockerSpawner_Spawn_RunContainerFails(t *testing.T) {
 }
 
 func TestDockerSpawner_ShellInjection(t *testing.T) {
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	client := new(MockDockerClient)
 	poller := new(MockPoller)
 	sm := new(MockSessionManager)

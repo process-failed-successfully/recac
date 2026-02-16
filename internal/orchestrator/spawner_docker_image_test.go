@@ -3,8 +3,8 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
-	"os"
 	"testing"
 	"time"
 
@@ -19,7 +19,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	mockGit := new(MockGitClient)
 	mockPoller := new(MockPoller)
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	imageName := "custom-image:v1.2.3"
 	spawner := NewDockerSpawner(logger, mockDocker, imageName, "test-proj", mockPoller, "provider", "model", mockSM)
 	spawner.GitClient = mockGit
