@@ -91,7 +91,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		strings.Contains(features, "primes") ||
 		strings.Contains(features, "id:[primes-1]") {
 
-		script := "```python\nimport json\n\ndef is_prime(n):\n    if n < 2:\n        return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0:\n            return False\n    return True\n\nprimes = [x for x in range(2, 100) if is_prime(x)]\n\nwith open('primes.json', 'w') as f:\n    json.dump({'primes': primes}, f)\nprint('Done')\n```"
+		// The Runner strictly expects ```bash blocks to execute commands.
+		// We must write the python file using a bash heredoc.
+		script := "```bash\ncat << 'EOF' > primes.py\nimport json\n\ndef is_prime(n):\n    if n < 2:\n        return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0:\n            return False\n    return True\n\nprimes = [x for x in range(2, 100) if is_prime(x)]\n\nwith open('primes.json', 'w') as f:\n    json.dump({'primes': primes}, f)\nprint('Done')\nEOF\n\npython3 primes.py\n```"
 		return script, nil
 	}
 
