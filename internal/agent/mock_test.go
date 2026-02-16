@@ -26,10 +26,9 @@ func TestMockAgent(t *testing.T) {
 }
 
 func TestMockAgent_Heuristics(t *testing.T) {
-	agent := NewMockAgent()
-
 	// Test Planning Phase Heuristic
 	t.Run("Planning Phase", func(t *testing.T) {
+		agent := NewMockAgent()
 		prompt := "You are an expert Technical Program Manager (TPM). Please decompose..."
 		resp, err := agent.Send(context.Background(), prompt)
 		if err != nil {
@@ -42,16 +41,31 @@ func TestMockAgent_Heuristics(t *testing.T) {
 
 	// Test Execution Phase Heuristic
 	t.Run("Execution Phase", func(t *testing.T) {
+		agent := NewMockAgent()
 		prompt := "Please write a script to calculate prime numbers and output to primes.json"
+
+		// First call: Should return the script
 		resp, err := agent.Send(context.Background(), prompt)
 		if err != nil {
 			t.Fatalf("Send failed: %v", err)
 		}
 		if !strings.Contains(resp, "def is_prime(n):") {
-			t.Errorf("Expected python code in response, got: %s", resp)
+			t.Errorf("Expected python code in response 1, got: %s", resp)
 		}
 		if !strings.Contains(resp, "cat << 'EOF' > primes.py") {
-			t.Errorf("Expected bash file creation block, got: %s", resp)
+			t.Errorf("Expected bash file creation block in response 1, got: %s", resp)
+		}
+
+		// Second call: Should return completion message
+		resp2, err := agent.Send(context.Background(), prompt)
+		if err != nil {
+			t.Fatalf("Send failed: %v", err)
+		}
+		if strings.Contains(resp2, "cat << 'EOF' > primes.py") {
+			t.Errorf("Expected completion message in response 2, got script again: %s", resp2)
+		}
+		if !strings.Contains(resp2, "Task is complete") && !strings.Contains(resp2, "task is complete") {
+			t.Errorf("Expected completion message in response 2, got: %s", resp2)
 		}
 	})
 }
