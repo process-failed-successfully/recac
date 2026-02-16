@@ -36,8 +36,9 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		expectMissing  []string
 	}{
 		{
-			name:           "Project Manager - Ticket Generation",
-			prompt:         "Your role - project manager\nPlease generate tickets",
+			name:           "Planning Phase - Ticket Generation",
+			// Updated to reflect actual prompt template (Technical Program Manager)
+			prompt:         "You are an expert Technical Program Manager (TPM)\nPlease generate tickets",
 			expectContains: []string{`"tickets": [`, "Implement Prime Number Script"},
 			expectMissing:  []string{"PROJECT_SIGNED_OFF"},
 		},
@@ -49,7 +50,7 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		},
 		{
 			name:           "Coding Phase - Precedence over Manager",
-			// This simulates the failure case: prompt contains "project manager" but also "primes"
+			// This prompt simulates a mixed signal but lacks "QA Report", so it falls through to Coding
 			prompt:         "## your role - project manager\n\nImplement Prime Number Script",
 			expectContains: []string{"cat <<EOF > primes.py", "python3 primes.py"},
 			// Should NOT be the simple sign-off message
@@ -57,14 +58,16 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		},
 		{
 			name:           "Manager Review - Sign Off",
+			// Must include "QA Report" to trigger Manager Review now
 			prompt:         "## your role - project manager\nReview the QA report.",
 			expectContains: []string{"Based on the QA Report, I approve the project", "PROJECT_SIGNED_OFF"},
 			expectMissing:  []string{"cat <<EOF > primes.py"},
 		},
 		{
 			name:           "Planning Phase - Primes Spec",
-			// This prompt contains "Implement Prime" (Coding heuristic) AND "generate tickets" (Planning heuristic)
-			prompt:         "Technical Program Manager\nImplement Prime Number Script\nPlease generate tickets",
+			// This prompt contains "Implement Prime" (Coding heuristic) AND "TPM" (Planning heuristic)
+			// It does NOT contain "generate tickets", ensuring that TPM role takes precedence even without that keyword
+			prompt:         "Technical Program Manager\nImplement Prime Number Script",
 			expectContains: []string{`"tickets": [`, "Implement Prime Number Script"},
 			expectMissing:  []string{"cat <<EOF > primes.py"},
 		},
