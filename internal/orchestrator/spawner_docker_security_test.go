@@ -31,7 +31,7 @@ func TestDockerSpawner_EnvInjection_Vulnerability(t *testing.T) {
 		},
 	}
 
-	client.On("RunContainer", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("container-sec", nil)
+	client.On("RunContainerWithConfig", mock.Anything, mock.Anything).Return("container-sec", nil)
 
 	// Mock SessionManager
 	sm.On("SaveSession", mock.Anything).Return(nil)

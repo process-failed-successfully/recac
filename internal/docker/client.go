@@ -184,6 +184,68 @@ func (c *Client) PullImage(ctx context.Context, imageRef string) error {
 	return nil
 }
 
+// RunConfig defines configuration for running a container.
+type RunConfig struct {
+	Image     string
+	Workspace string
+	Binds     []string
+	Env       []string
+	User      string
+	Labels    map[string]string
+	Name      string
+}
+
+// RunContainerWithConfig starts a container with the specified configuration.
+func (c *Client) RunContainerWithConfig(ctx context.Context, config RunConfig) (string, error) {
+	telemetry.TrackDockerOp(c.project)
+	// 1. Pull Image (Best effort)
+	reader, err := c.api.ImagePull(ctx, config.Image, image.PullOptions{})
+	if err == nil {
+		defer reader.Close()
+		io.Copy(io.Discard, reader) // Drain output
+	}
+
+	// Prepare binds
+	sourcePath := config.Workspace
+	if c.HostWorkspacePath != "" && config.Workspace == "/workspace" {
+		sourcePath = c.HostWorkspacePath
+	}
+	binds := []string{
+		fmt.Sprintf("%s:/workspace", sourcePath),
+	}
+	if len(config.Binds) > 0 {
+		binds = append(binds, config.Binds...)
+	}
+
+	// 2. Create Container
+	resp, err := c.api.ContainerCreate(ctx,
+		&container.Config{
+			Image:      config.Image,
+			User:       config.User,
+			Tty:        true, // Keep it running
+			OpenStdin:  true, // Keep stdin open
+			WorkingDir: "/workspace",
+			Cmd:        []string{"/bin/sh"}, // Default command to keep it alive
+			Env:        config.Env,
+			Labels:     config.Labels,
+		},
+		&container.HostConfig{
+			Binds: binds,
+		}, nil, nil, config.Name)
+	if err != nil {
+		telemetry.TrackDockerError(c.project)
+		return "", fmt.Errorf("failed to create container: %w", err)
+	}
+
+	// 3. Start Container
+	if err := c.api.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
+		telemetry.TrackDockerError(c.project)
+		return "", fmt.Errorf("failed to start container: %w", err)
+	}
+
+	return resp.ID, nil
+}
+
 // RunContainer starts a container with the specified image and mounts the workspace.
 // It returns the container ID or an error.
 func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, ports []string, user string) (string, error) {

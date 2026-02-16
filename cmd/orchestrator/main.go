@@ -45,6 +45,10 @@ func main() {
 	pflag.String("github-repo", "", "GitHub Repository Name (for 'github' poller)")
 	pflag.String("github-label", "", "GitHub Label to poll for (defaults to jira-label if not set)")
 
+	// Cleanup flags
+	pflag.Bool("cleanup", false, "Enable automatic container cleanup")
+	pflag.Duration("cleanup-age", 24*time.Hour, "Max age for containers before cleanup")
+
 	pflag.Parse()
 
 	// Config
@@ -71,6 +75,9 @@ func main() {
 	viper.BindPFlag("orchestrator.agent_model", pflag.Lookup("agent-model"))
 	viper.BindPFlag("orchestrator.image_pull_policy", pflag.Lookup("image-pull-policy"))
 
+	viper.BindPFlag("orchestrator.cleanup", pflag.Lookup("cleanup"))
+	viper.BindPFlag("orchestrator.cleanup_age", pflag.Lookup("cleanup-age"))
+
 	// Explicitly bind cleaner env vars
 	viper.BindEnv("orchestrator.agent_provider", "RECAC_AGENT_PROVIDER")
 	viper.BindEnv("orchestrator.agent_model", "RECAC_AGENT_MODEL")
@@ -89,6 +96,8 @@ func main() {
 	viper.BindEnv("orchestrator.max_iterations", "RECAC_MAX_ITERATIONS")
 	viper.BindEnv("orchestrator.manager_frequency", "RECAC_MANAGER_FREQUENCY")
 	viper.BindEnv("orchestrator.task_max_iterations", "RECAC_TASK_MAX_ITERATIONS")
+	viper.BindEnv("orchestrator.cleanup", "RECAC_CLEANUP")
+	viper.BindEnv("orchestrator.cleanup_age", "RECAC_CLEANUP_AGE")
 
 	// Logger
 	logger := telemetry.NewLogger(viper.GetBool("verbose"), "orchestrator", false)
@@ -186,6 +195,13 @@ func main() {
 		if err != nil {
 			logger.Error("Failed to initialize Docker client", "error", err)
 			os.Exit(1)
+		}
+
+		// Start Janitor if enabled
+		if viper.GetBool("orchestrator.cleanup") {
+			cleanupAge := viper.GetDuration("orchestrator.cleanup_age")
+			janitor := orchestrator.NewJanitor(logger, dockerCli, projectName, 10*time.Minute, cleanupAge)
+			go janitor.Start(ctx)
 		}
 
 		sm, err := runner.NewSessionManager()

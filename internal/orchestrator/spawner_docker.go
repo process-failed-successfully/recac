@@ -6,11 +6,14 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"recac/internal/docker"
 	"recac/internal/git"
 	"recac/internal/runner"
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/kballard/go-shellquote"
 )
 
@@ -63,7 +66,21 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	user := ""
 	extraBinds := binds[1:] // only docker sock
 
-	containerID, err := s.Client.RunContainer(ctx, s.Image, tempDir, extraBinds, nil, user)
+	// Construct Config with Labels
+	labels := map[string]string{
+		"created-by": s.projectName,
+		"ticket":     item.ID,
+	}
+
+	config := docker.RunConfig{
+		Image:     s.Image,
+		Workspace: tempDir,
+		Binds:     extraBinds,
+		User:      user,
+		Labels:    labels,
+	}
+
+	containerID, err := s.Client.RunContainerWithConfig(ctx, config)
 	if err != nil {
 		os.RemoveAll(tempDir)
 		return fmt.Errorf("failed to start container: %w", err)
@@ -219,7 +236,27 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 }
 
 func (s *DockerSpawner) Cleanup(ctx context.Context, item WorkItem) error {
-	// For now, we rely on the agent's own cleanup and don't manage the container lifecycle here.
-	// Future implementation could stop/remove the container.
+	s.Logger.Info("Cleaning up resources for item", "item", item.ID)
+
+	// List containers matching the ticket label
+	filtersArgs := filters.NewArgs()
+	filtersArgs.Add("label", fmt.Sprintf("ticket=%s", item.ID))
+
+	containers, err := s.Client.ListContainers(ctx, container.ListOptions{
+		Filters: filtersArgs,
+		All:     true, // Clean up exited ones too
+	})
+	if err != nil {
+		return fmt.Errorf("failed to list containers for cleanup: %w", err)
+	}
+
+	for _, c := range containers {
+		s.Logger.Info("Removing container", "id", c.ID, "item", item.ID)
+		if err := s.Client.RemoveContainer(ctx, c.ID, true); err != nil {
+			s.Logger.Warn("failed to remove container", "id", c.ID, "error", err)
+			// Continue cleaning up others
+		}
+	}
+
 	return nil
 }

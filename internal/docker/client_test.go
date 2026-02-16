@@ -450,3 +450,38 @@ func TestExecAsUser_WorkingDir(t *testing.T) {
 		t.Errorf("expected WorkingDir /workspace, got %s", capturedConfig.WorkingDir)
 	}
 }
+
+func TestRunContainerWithConfig_Labels(t *testing.T) {
+	var capturedConfig *container.Config
+	mock := &mockAPIClient{
+		containerCreateFunc: func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error) {
+			capturedConfig = config
+			return container.CreateResponse{ID: "mock-id"}, nil
+		},
+	}
+	client := &Client{api: mock}
+
+	labels := map[string]string{"foo": "bar"}
+	config := RunConfig{
+		Image:     "alpine:latest",
+		Workspace: "/tmp",
+		Labels:    labels,
+		Env:       []string{"VAR=val"},
+	}
+
+	_, err := client.RunContainerWithConfig(context.Background(), config)
+	if err != nil {
+		t.Fatalf("RunContainerWithConfig failed: %v", err)
+	}
+
+	if capturedConfig == nil {
+		t.Fatal("ContainerCreate not called")
+	}
+
+	if capturedConfig.Labels["foo"] != "bar" {
+		t.Errorf("Expected label foo=bar, got %v", capturedConfig.Labels)
+	}
+	if len(capturedConfig.Env) != 1 || capturedConfig.Env[0] != "VAR=val" {
+		t.Errorf("Expected Env [VAR=val], got %v", capturedConfig.Env)
+	}
+}
