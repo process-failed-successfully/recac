@@ -13,6 +13,10 @@ import (
 )
 
 func TestSession_RunLoop_UIVerification(t *testing.T) {
+	// 0. Isolate environment to prevent DB connection attempts
+	os.Unsetenv("RECAC_DB_TYPE")
+	os.Unsetenv("RECAC_DB_URL")
+
 	// 1. Create a temp directory
 	tmpDir, err := os.MkdirTemp("", "ui_test")
 	if err != nil {
