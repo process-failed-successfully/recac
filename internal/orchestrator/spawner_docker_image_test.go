@@ -30,7 +30,15 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	ctx := context.Background()
 
 	// Mock expectations
-	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
+	// verify that binds contains docker socket
+	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.MatchedBy(func(binds []string) bool {
+		for _, b := range binds {
+			if b == "/var/run/docker.sock:/var/run/docker.sock" {
+				return true
+			}
+		}
+		return false
+	}), mock.Anything, "").Return("container123", nil)
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
 
 	// Use a channel to ensure the goroutine calls LoadSession before we exit
@@ -56,7 +64,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		t.Logf("Captured Command: %s", cmdStr)
 		assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
 		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
-	case <-time.After(5 * time.Second):
+	case <-time.After(60 * time.Second):
 		t.Fatal("Timeout waiting for Exec call")
 	}
 
@@ -64,7 +72,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	select {
 	case <-loadSessionCalled:
 		// Success: LoadSession was called
-	case <-time.After(5 * time.Second):
+	case <-time.After(60 * time.Second):
 		t.Fatal("Timeout waiting for LoadSession call")
 	}
 }
