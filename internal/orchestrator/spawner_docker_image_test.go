@@ -28,13 +28,13 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	done := make(chan struct{})
 
 	// Mock expectations
 	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
 
-	// Ensure background goroutine finishes by signaling done when LoadSession is called
+	// We signal completion when LoadSession is called (which happens in the background goroutine)
+	done := make(chan struct{})
 	mockSM.On("LoadSession", "TICKET-1").Run(func(args mock.Arguments) {
 		close(done)
 	}).Return(nil, assert.AnError)
@@ -51,6 +51,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	err := spawner.Spawn(ctx, item)
 	assert.NoError(t, err)
 
+	// Wait for the Exec call with a generous timeout for CI
 	select {
 	case cmdStr := <-execCalled:
 		t.Logf("Captured Command: %s", cmdStr)
@@ -60,12 +61,12 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		t.Fatal("Timeout waiting for Exec call")
 	}
 
-	// Wait for background routine to finish to avoid race conditions
+	// Wait for the background goroutine to complete via LoadSession call
+	// This ensures we don't return from the test before the background work is done, preventing race conditions
 	select {
 	case <-done:
+		// Background goroutine reached LoadSession, test can safely finish
 	case <-time.After(5 * time.Second):
-		// It's okay if it times out here as the main assertion passed, but better to wait
-		// to avoid race detection errors.
-		t.Log("Timeout waiting for LoadSession (background cleanup)")
+		t.Log("Warning: Timeout waiting for LoadSession call (background goroutine cleanup)")
 	}
 }
