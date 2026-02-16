@@ -131,17 +131,6 @@ func (p *JiraPoller) UpdateStatus(ctx context.Context, item WorkItem, status str
 	return nil
 }
 
-func extractRepoURL(text string, repoRegex *regexp.Regexp) string {
-	if repoRegex == nil {
-		return ""
-	}
-	matches := repoRegex.FindStringSubmatch(text)
-	if len(matches) > 1 {
-		return strings.TrimSuffix(matches[1], ".git")
-	}
-	return ""
-}
-
 func extractRequiredFeatures(text string) []db.Feature {
 	// Look for REQUIRED FEATURES: or ACCEPTANCE CRITERIA: block
 	// Regex matches headers case-insensitively
