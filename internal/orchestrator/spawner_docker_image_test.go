@@ -12,14 +12,42 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestDockerClient wraps MockDockerClient to intercept Exec calls safely
+type TestDockerClient struct {
+	*MockDockerClient
+	execCalled chan string
+}
+
+func (m *TestDockerClient) Exec(ctx context.Context, containerID string, cmd []string) (string, error) {
+	if len(cmd) > 2 {
+		select {
+		case m.execCalled <- cmd[2]:
+		default:
+		}
+	} else {
+		select {
+		case m.execCalled <- "":
+		default:
+		}
+	}
+	return m.MockDockerClient.Exec(ctx, containerID, cmd)
+}
+
 func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
-	mockDocker := new(MockDockerClient)
+	mockDockerBase := new(MockDockerClient)
+	execCalled := make(chan string, 1)
+	mockDocker := &TestDockerClient{
+		MockDockerClient: mockDockerBase,
+		execCalled:       execCalled,
+	}
+
 	mockSM := new(MockSessionManager)
 	mockGit := new(MockGitClient)
 	mockPoller := new(MockPoller)
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	imageName := "custom-image:v1.2.3"
+	// Use the wrapped client
 	spawner := NewDockerSpawner(logger, mockDocker, imageName, "test-proj", mockPoller, "provider", "model", mockSM)
 	spawner.GitClient = mockGit
 
@@ -32,7 +60,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 
 	// Mock expectations
 	// Use mock.Anything for context to ensure it matches even if wrapped
-	mockDocker.On("RunContainer", mock.Anything, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
+	mockDockerBase.On("RunContainer", mock.Anything, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
 
 	done := make(chan struct{}, 1)
@@ -43,18 +71,11 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		}
 	}).Return(nil, assert.AnError)
 
-	execCalled := make(chan string, 1)
 	failure := make(chan string, 1)
 
 	// Expect the specific container ID "container123" returned by RunContainer
-	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Run(func(args mock.Arguments) {
-		cmd := args.Get(2).([]string)
-		if len(cmd) > 2 {
-			execCalled <- cmd[2]
-		} else {
-			execCalled <- ""
-		}
-	}).Return("output", nil)
+	// No Run hook needed here as TestDockerClient intercepts it
+	mockDockerBase.On("Exec", mock.Anything, "container123", mock.Anything).Return("output", nil)
 
 	// If a panic occurs, UpdateStatus will be called with "Failed"
 	mockPoller.On("UpdateStatus", mock.Anything, mock.Anything, "Failed", mock.Anything).Run(func(args mock.Arguments) {
