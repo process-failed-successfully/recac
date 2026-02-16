@@ -108,6 +108,13 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 
 	// 5. Execute Work in Background
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				s.Logger.Error("Panic in DockerSpawner background goroutine", "panic", r)
+				_ = s.Poller.UpdateStatus(context.Background(), item, "Failed", fmt.Sprintf("Agent panic: %v", r))
+			}
+		}()
+
 		// Construct Command
 		var envExports []string
 		if s.AgentProvider != "" {
