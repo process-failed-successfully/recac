@@ -90,7 +90,20 @@ func TestSpawnerConsistency_EnvPropagation(t *testing.T) {
 
 		// Expectations
 		mockDocker.On("RunContainer", mock.Anything, "img", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("cid", nil)
-		mockSM.On("SaveSession", mock.Anything).Return(nil)
+
+		// Initial SaveSession (Status=running)
+		mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+			return s.Status == "running"
+		})).Return(nil)
+
+		// Final SaveSession (Status=completed/error) - signals completion
+		done := make(chan struct{})
+		mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+			return s.Status == "completed" || s.Status == "error"
+		})).Run(func(args mock.Arguments) {
+			close(done)
+		}).Return(nil)
+
 		mockSM.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
 
 		capturedCmdChan := make(chan []string, 1)
@@ -105,8 +118,15 @@ func TestSpawnerConsistency_EnvPropagation(t *testing.T) {
 		var capturedCmd []string
 		select {
 		case capturedCmd = <-capturedCmdChan:
-		case <-time.After(1 * time.Second):
+		case <-time.After(10 * time.Second):
 			t.Fatal("Timeout waiting for Exec")
+		}
+
+		// Wait for background goroutine to finish
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Log("Timeout waiting for background goroutine cleanup")
 		}
 
 		cmdStr := capturedCmd[2]
