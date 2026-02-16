@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,6 +31,52 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// Heuristic 1: Coding Task (Primes)
+	// If the prompt mentions implementing a prime generator, return a bash script
+	if strings.Contains(strings.ToLower(prompt), "implement") && strings.Contains(strings.ToLower(prompt), "prime") && !strings.Contains(strings.ToLower(prompt), "technical program manager") {
+		return `Here is a bash script to implement the prime number generator:
+
+` + "```bash" + `
+cat <<EOF > primes.py
+import json
+
+def is_prime(n):
+    if n <= 1:
+        return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+primes = [x for x in range(10000) if is_prime(x)]
+print(f"Generated {len(primes)} primes")
+
+with open("primes.json", "w") as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+python3 primes.py
+` + "```", nil
+	}
+
+	// Heuristic 2: Planning Task (TPM)
+	// If the prompt mentions TPM role or planning, return a JSON plan
+	if strings.Contains(strings.ToLower(prompt), "technical program manager") || strings.Contains(strings.ToLower(prompt), "plan") {
+		return `[
+  {
+    "id": "1",
+    "title": "ID:[PRIMES] Implement prime number generator",
+    "description": "Create a Python script that generates prime numbers up to 10,000 and saves them to primes.json",
+    "status": "todo",
+    "type": "task",
+    "priority": "high",
+    "assignee": "agent"
+  }
+]`, nil
+	}
+
+	// Default Mock Response
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
