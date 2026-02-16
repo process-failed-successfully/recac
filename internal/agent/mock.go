@@ -39,7 +39,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Note: We also match "Prime Number Script" to cover scenarios where the ticket summary is used
 	// We also check for "Prime", "Implement", "script", or the requirement ID to be robust against formatting or truncation
 	// CRITICAL: We explicitly exclude "technical program manager" to avoid preempting the Planning Phase which also mentions "Prime".
-	isCodingPrompt := strings.Contains(promptLower, "id:[primes]") || strings.Contains(promptLower, "primes.py") || strings.Contains(promptLower, "1229") || strings.Contains(promptLower, "prime") || strings.Contains(promptLower, "implement") || strings.Contains(promptLower, "script") || strings.Contains(promptLower, "req-script-runs-without-errors")
+	isCodingPrompt := strings.Contains(promptLower, "id:[primes]") || strings.Contains(promptLower, "primes.py") || strings.Contains(promptLower, "1229") || strings.Contains(promptLower, "prime") || strings.Contains(promptLower, "implement") || strings.Contains(promptLower, "script") || strings.Contains(promptLower, "script-runs-without-errors")
 	if isCodingPrompt && !strings.Contains(promptLower, "technical program manager") {
 		return `I will implement the prime number script as requested.
 
@@ -68,9 +68,9 @@ git add primes.py primes.json
 git commit -m "Add primes script implementation" || echo "nothing to commit"
 
 # Mark requirement as done (to prevent premature sign-off revocation)
-# We assume the requirement ID is req-script-runs-without-errors based on the planning phase
-agent-bridge import --id req-script-runs-without-errors --description "Script runs without errors" --status completed || echo "Ignored agent-bridge import failure"
-agent-bridge feature set req-script-runs-without-errors status completed || echo "Ignored agent-bridge feature set failure"
+# We assume the requirement ID is script-runs-without-errors based on the planning phase
+agent-bridge import --id script-runs-without-errors --description "Script runs without errors" --status completed || echo "Ignored agent-bridge import failure"
+agent-bridge feature set script-runs-without-errors status completed || echo "Ignored agent-bridge feature set failure"
 
 # Signal completion
 # Note: We signal project sign-off here to ensure the smoke test completes even if QA step is skipped or merged
