@@ -101,6 +101,26 @@ agent-bridge signal COMPLETED true
 		}
 	}
 
+	// Phase 3: QA Agent (Quality Assurance)
+	if strings.Contains(lowerPrompt, "qa agent") {
+		return `QA checks passed.
+
+` + "```bash" + `
+agent-bridge signal QA_PASSED true
+` + "```" + `
+`, nil
+	}
+
+	// Phase 4: Manager Agent (Review)
+	if strings.Contains(lowerPrompt, "manager agent") || strings.Contains(lowerPrompt, "product manager") {
+		return `Project approved.
+
+` + "```bash" + `
+agent-bridge signal PROJECT_SIGNED_OFF true --privileged
+` + "```" + `
+`, nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
