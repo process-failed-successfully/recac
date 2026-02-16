@@ -4,7 +4,7 @@ replicaCount: 1
 
 image:
   repository: ghcr.io/process-failed-successfully/recac
-  pullPolicy: Always
+  pullPolicy: IfNotPresent
   tag: latest
 
 imagePullSecrets: []
@@ -39,7 +39,7 @@ config:
   maxTokens: 32000
   jiraUrl: ""
   jiraUsername: ""
-  imagePullPolicy: Always
+  imagePullPolicy: IfNotPresent
   poller: "jira"
   work_file: "work_items.json"
   interval: "1m"
