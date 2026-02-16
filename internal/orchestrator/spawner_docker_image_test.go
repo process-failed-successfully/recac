@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -48,27 +49,31 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		})
 	}).Return(nil, assert.AnError)
 
-	execCalled := make(chan string, 1)
+	execDone := make(chan struct{})
+	var execOnce sync.Once
 
-	// We match "Anything" for arguments so we catch the call, then inspect it in Run
-	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Run(func(args mock.Arguments) {
-		cmdArg := args.Get(2)
-		if cmdSlice, ok := cmdArg.([]string); ok && len(cmdSlice) > 2 {
-			// cmd is ["/bin/sh", "-c", "actual command"]
-			execCalled <- cmdSlice[2]
+	// We match arguments using MatchedBy
+	mockDocker.On("Exec", mock.Anything, "container123", mock.MatchedBy(func(cmd []string) bool {
+		if len(cmd) < 3 {
+			return false
 		}
+		cmdStr := cmd[2]
+		// Check for image flag
+		return strings.Contains(cmdStr, "--image") && strings.Contains(cmdStr, imageName)
+	})).Run(func(args mock.Arguments) {
+		execOnce.Do(func() {
+			close(execDone)
+		})
 	}).Return("output", nil)
 
 	err := spawner.Spawn(ctx, item)
 	require.NoError(t, err)
 
 	select {
-	case cmdStr := <-execCalled:
-		t.Logf("Captured Command: %s", cmdStr)
-		assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
-		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
+	case <-execDone:
+		// Success
 	case <-time.After(60 * time.Second):
-		t.Fatal("Timeout waiting for Exec call")
+		t.Fatal("Timeout waiting for Exec call or command verification failed")
 	}
 
 	// Wait for background goroutine to reach LoadSession to ensure clean shutdown of mocks
