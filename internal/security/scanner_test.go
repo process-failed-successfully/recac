@@ -87,6 +87,11 @@ func TestRegexScanner_Scan(t *testing.T) {
 			content:     "cat .config/config.toml",
 			wantFinding: "Dangerous Command",
 		},
+		{
+			name:        "Multiline Root Deletion",
+			content:     "rm -rf /\nls -la",
+			wantFinding: "Root Deletion",
+		},
 	}
 
 	for _, tt := range tests {
