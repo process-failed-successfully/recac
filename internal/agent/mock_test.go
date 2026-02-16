@@ -65,6 +65,16 @@ func TestMockAgent_Heuristics(t *testing.T) {
 			notExpected:    "Mock agent response",
 		},
 		{
+			name:           "QA Agent - Signal",
+			prompt:         "## YOUR ROLE - QA AGENT\n\nPlease verify the project.",
+			expectedOutput: "agent-bridge signal QA_PASSED true",
+		},
+		{
+			name:           "Manager Agent - Signal",
+			prompt:         "## YOUR ROLE - PROJECT MANAGER\n\nPlease approve or reject.",
+			expectedOutput: "agent-bridge signal PROJECT_SIGNED_OFF true",
+		},
+		{
 			name:           "Commit Agent - Message",
 			prompt:         "Please generate a commit message for the changes.",
 			expectedOutput: "feat: Implement primes.py",
