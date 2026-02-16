@@ -34,20 +34,28 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 1. TPM Phase: JSON Response
 	if strings.Contains(strings.ToLower(prompt), "technical program manager") || strings.Contains(prompt, "ID:[PRIMES]") {
-		return `{
-  "summary": "Implement prime number generator",
-  "features": [
-    {
-      "id": "req-primes",
-      "description": "Implement a Python script that generates prime numbers up to 10000",
-      "dependencies": []
-    }
-  ],
-  "risks": []
-}`, nil
+		// Return a JSON array of tickets as expected by the CLI
+		return `[
+  {
+    "summary": "Implement prime number generator",
+    "description": "Implement a Python script that generates prime numbers up to 10000. The script should be named primes.py and output the primes in JSON format.",
+    "type": "Task",
+    "children": []
+  }
+]`, nil
 	}
 
-	// 2. Coding Phase: Bash Script Response
+	// 2. Testing/Verify Phase: "Task Completed" (Priority over Implementation)
+	// If the prompt contains the success output of the prime script creation, we assume it's done.
+	if strings.Contains(prompt, "Success: /bin/bash -c cat <<EOF > primes.py") {
+		return "Task completed. The prime number generator has been implemented and verified.", nil
+	}
+
+	if strings.Contains(strings.ToLower(prompt), "ran 2 tests") && strings.Contains(strings.ToLower(prompt), "ok") {
+		return "Task completed. The tests passed successfully.", nil
+	}
+
+	// 3. Coding Phase: Bash Script Response
 	if strings.Contains(strings.ToLower(prompt), "implement") || strings.Contains(strings.ToLower(prompt), "write") || strings.Contains(strings.ToLower(prompt), "create") {
 		return `
 Here is the implementation for the prime number generator.
@@ -74,11 +82,6 @@ EOF
 python3 primes.py > primes.json
 ` + "```" + `
 `, nil
-	}
-
-	// 3. Testing/Verify Phase: "Task Completed"
-	if strings.Contains(strings.ToLower(prompt), "ran 2 tests") && strings.Contains(strings.ToLower(prompt), "ok") {
-		return "Task completed. The tests passed successfully.", nil
 	}
 
 	// Default Response

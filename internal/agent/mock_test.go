@@ -35,8 +35,12 @@ func TestMockAgent_Phases(t *testing.T) {
 	if err != nil {
 		t.Fatalf("TPM Send failed: %v", err)
 	}
+	// Check for JSON array format
+	if !strings.HasPrefix(strings.TrimSpace(resp), "[") || !strings.HasSuffix(strings.TrimSpace(resp), "]") {
+		t.Errorf("TPM response should be a JSON array: %s", resp)
+	}
 	if !strings.Contains(resp, `"summary": "Implement prime number generator"`) {
-		t.Errorf("TPM response invalid: %s", resp)
+		t.Errorf("TPM response invalid content: %s", resp)
 	}
 
 	// 2. Coding Phase
@@ -49,14 +53,24 @@ func TestMockAgent_Phases(t *testing.T) {
 		t.Errorf("Coding response invalid: %s", resp)
 	}
 
-	// 3. Testing Phase
+	// 3. Testing Phase (Success Detection)
+	prompt = "Success: /bin/bash -c cat <<EOF > primes.py"
+	resp, err = agent.Send(ctx, prompt)
+	if err != nil {
+		t.Fatalf("Testing Send failed: %v", err)
+	}
+	if !strings.Contains(resp, "Task completed") {
+		t.Errorf("Testing response invalid (should detect success): %s", resp)
+	}
+
+	// 4. Testing Phase (Explicit Tests)
 	prompt = "ran 2 tests... ok"
 	resp, err = agent.Send(ctx, prompt)
 	if err != nil {
 		t.Fatalf("Testing Send failed: %v", err)
 	}
 	if !strings.Contains(resp, "Task completed") {
-		t.Errorf("Testing response invalid: %s", resp)
+		t.Errorf("Testing response invalid (should detect tests passed): %s", resp)
 	}
 }
 
