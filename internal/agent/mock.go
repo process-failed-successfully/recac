@@ -95,7 +95,7 @@ agent-bridge signal PROJECT_SIGNED_OFF true --privileged || echo "Ignored agent-
       "description": "Create a python script 'primes.py' that calculates primes up to 100 and saves them to 'primes.json'.",
       "type": "Task",
       "id": "PRIMES-1",
-      "acceptance_criteria": ["req-script-runs-without-errors"]
+      "acceptance_criteria": ["script-runs-without-errors"]
     }
   ]
 }`, nil

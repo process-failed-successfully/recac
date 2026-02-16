@@ -38,8 +38,8 @@ func TestMockAgent_Heuristics(t *testing.T) {
 		{
 			name:           "Project Manager - Ticket Generation",
 			prompt:         "Your role - project manager\nPlease generate tickets",
-			expectContains: []string{`"tickets": [`, "Implement Prime Number Script"},
-			expectMissing:  []string{"PROJECT_SIGNED_OFF"},
+			expectContains: []string{`"tickets": [`, "Implement Prime Number Script", `"acceptance_criteria": ["script-runs-without-errors"]`},
+			expectMissing:  []string{"PROJECT_SIGNED_OFF", "req-script-runs-without-errors"},
 		},
 		{
 			name:           "Coding Phase - Primes",
