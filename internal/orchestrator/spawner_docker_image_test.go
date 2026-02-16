@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -44,21 +45,25 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		})
 	}).Return(nil, assert.AnError)
 
-	execCalled := make(chan string, 1)
 	failure := make(chan string, 1)
+	success := make(chan struct{})
 
-	// Expect the specific container ID "container123" returned by RunContainer
-	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Run(func(args mock.Arguments) {
-		cmd := args.Get(2).([]string)
-		if len(cmd) > 2 {
-			execCalled <- cmd[2]
-		} else {
-			execCalled <- ""
+	// Expect Exec with correct arguments using MatchedBy
+	// If arguments mismatch, testify panics -> caught by recover -> UpdateStatus called -> failure channel
+	mockDocker.On("Exec", mock.Anything, "container123", mock.MatchedBy(func(cmd []string) bool {
+		if len(cmd) < 3 {
+			return false
 		}
+		cmdStr := cmd[2]
+		// Check for --image flag and correct image name
+		return strings.Contains(cmdStr, "--image") && strings.Contains(cmdStr, imageName)
+	})).Run(func(args mock.Arguments) {
+		close(success)
 	}).Return("output", nil)
 
-	// If a panic occurs, UpdateStatus will be called with "Failed"
-	mockPoller.On("UpdateStatus", mock.Anything, mock.Anything, "Failed", mock.Anything).Run(func(args mock.Arguments) {
+	// If a panic occurs (e.g. Exec mismatch), UpdateStatus will be called
+	// We relax the expectation to catch ANY update status call to ensure we capture the panic
+	mockPoller.On("UpdateStatus", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		comment := args.String(3)
 		failure <- comment
 	}).Return(nil).Maybe()
@@ -67,21 +72,15 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	require.NoError(t, err)
 
 	select {
-	case cmdStr := <-execCalled:
-		t.Logf("Captured Command: %s", cmdStr)
-		if cmdStr != "" {
-			assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
-			assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
-		} else {
-			t.Error("Received empty command string (cmd length <= 2)")
-		}
+	case <-success:
+		// Success: Exec was called with correct arguments
 	case failMsg := <-failure:
-		t.Fatalf("Spawn failed with error: %s", failMsg)
-	case <-time.After(60 * time.Second): // Generous timeout for CI
+		t.Fatalf("Spawn failed with error (or panic caught): %s", failMsg)
+	case <-time.After(30 * time.Second): // Should be fast
 		t.Fatal("Timeout waiting for Exec call")
 	}
 
-	// Wait for background goroutine to finish (LoadSession)
+	// Wait for background goroutine to finish (LoadSession cleanup)
 	select {
 	case <-done:
 		// Success
