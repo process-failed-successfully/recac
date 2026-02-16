@@ -34,7 +34,14 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	// Use mock.Anything for context to ensure it matches even if wrapped
 	mockDocker.On("RunContainer", mock.Anything, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
-	mockSM.On("LoadSession", "TICKET-1").Return(nil, assert.AnError)
+
+	done := make(chan struct{}, 1)
+	mockSM.On("LoadSession", "TICKET-1").Run(func(args mock.Arguments) {
+		select {
+		case done <- struct{}{}:
+		default:
+		}
+	}).Return(nil, assert.AnError)
 
 	execCalled := make(chan string, 1)
 
@@ -60,7 +67,15 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		} else {
 			t.Error("Received empty command string (cmd length <= 2)")
 		}
-	case <-time.After(60 * time.Second): // Increased timeout
+	case <-time.After(30 * time.Second): // Generous timeout for CI
 		t.Fatal("Timeout waiting for Exec call")
+	}
+
+	// Wait for background goroutine to finish (LoadSession)
+	select {
+	case <-done:
+		// Success
+	case <-time.After(5 * time.Second):
+		t.Log("Timeout waiting for LoadSession (background goroutine cleanup)")
 	}
 }
