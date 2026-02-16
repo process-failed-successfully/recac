@@ -37,7 +37,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// Return a JSON array of tickets as expected by the CLI
 		return `[
   {
-    "summary": "Implement prime number generator",
+    "title": "Implement prime number generator",
     "description": "Implement a Python script that generates prime numbers up to 10000. The script should be named primes.py and output the primes in JSON format.",
     "type": "Task",
     "children": []
@@ -47,7 +47,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 2. Testing/Verify Phase: "Task Completed" (Priority over Implementation)
 	// If the prompt contains the success output of the prime script creation, we assume it's done.
-	if strings.Contains(prompt, "Success: /bin/bash -c cat <<EOF > primes.py") {
+	// We check for "Success:" and the filename to be robust against formatting changes.
+	if strings.Contains(prompt, "Success:") && strings.Contains(prompt, "primes.py") {
 		return "Task completed. The prime number generator has been implemented and verified.", nil
 	}
 

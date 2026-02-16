@@ -39,8 +39,8 @@ func TestMockAgent_Phases(t *testing.T) {
 	if !strings.HasPrefix(strings.TrimSpace(resp), "[") || !strings.HasSuffix(strings.TrimSpace(resp), "]") {
 		t.Errorf("TPM response should be a JSON array: %s", resp)
 	}
-	if !strings.Contains(resp, `"summary": "Implement prime number generator"`) {
-		t.Errorf("TPM response invalid content: %s", resp)
+	if !strings.Contains(resp, `"title": "Implement prime number generator"`) {
+		t.Errorf("TPM response invalid content (missing title): %s", resp)
 	}
 
 	// 2. Coding Phase
