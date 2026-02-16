@@ -51,15 +51,22 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		}
 	}).Return(nil, assert.AnError).Once()
 
-	execCalled := make(chan string, 1)
+	type execCall struct {
+		containerID string
+		cmd         []string
+	}
+	execCalled := make(chan execCall, 1)
 
 	// We match "Anything" for arguments so we catch the call, then inspect it in Run
-	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Run(func(args mock.Arguments) {
+	// This prevents the mock from panicking in the background goroutine if arguments mismatch,
+	// which would cause the test to timeout waiting for the signal.
+	mockDocker.On("Exec", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		cid := args.String(1)
 		cmd := args.Get(2).([]string)
 		// cmd is ["/bin/sh", "-c", "actual command"]
 		if len(cmd) > 2 {
 			select {
-			case execCalled <- cmd[2]:
+			case execCalled <- execCall{containerID: cid, cmd: cmd}:
 			default:
 			}
 		}
@@ -69,7 +76,9 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	assert.NoError(t, err)
 
 	select {
-	case cmdStr := <-execCalled:
+	case call := <-execCalled:
+		assert.Equal(t, "container123", call.containerID, "Exec called with wrong container ID")
+		cmdStr := call.cmd[2]
 		t.Logf("Captured Command: %s", cmdStr)
 		assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
 		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
