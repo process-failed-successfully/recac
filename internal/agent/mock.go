@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,6 +31,44 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// Heuristic: Check if this is a TPM (Planning) prompt
+	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM") {
+		// Return a JSON ticket plan
+		// We explicitly include ID:[PRIMES] if the prompt mentions it or just as a default for E2E
+		title := "Implement Prime Number Script"
+		if strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "prime") {
+			title = "ID:[PRIMES] Implement Prime Number Script"
+		}
+
+		return fmt.Sprintf(`[
+  {
+    "title": "%s",
+    "description": "Create a python script to calculate primes. Repo: https://github.com/example/repo",
+    "type": "Story",
+    "children": []
+  }
+]`, title), nil
+	}
+
+	// Heuristic: Check if this is a Coding Agent prompt
+	if strings.Contains(prompt, "CODING AGENT") {
+		// Return a bash script to implement the prime number logic
+		// This script matches what the E2E test expects (calculates primes up to 100)
+		return "```bash\n" +
+			"cat << 'EOF' > primes.py\n" +
+			"def is_prime(n):\n" +
+			"    if n <= 1: return False\n" +
+			"    for i in range(2, int(n**0.5) + 1):\n" +
+			"        if n % i == 0: return False\n" +
+			"    return True\n\n" +
+			"primes = [i for i in range(100) if is_prime(i)]\n" +
+			"print(primes)\n" +
+			"EOF\n" +
+			"python3 primes.py\n" +
+			"```", nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
