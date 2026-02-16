@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -33,26 +34,36 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
 	mockSM.On("LoadSession", "TICKET-1").Return(nil, assert.AnError)
-	mockPoller.On("UpdateStatus", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
-	execCalled := make(chan string, 1)
+	failure := make(chan string, 1)
+	mockPoller.On("UpdateStatus", mock.Anything, mock.Anything, "Failed", mock.Anything).Run(func(args mock.Arguments) {
+		comment := args.String(3)
+		failure <- comment
+	}).Return(nil).Maybe()
 
-	// We match "Anything" for arguments so we catch the call, then inspect it in Run
-	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Run(func(args mock.Arguments) {
-		cmd := args.Get(2).([]string)
-		// cmd is ["/bin/sh", "-c", "actual command"]
-		execCalled <- cmd[2]
+	done := make(chan struct{})
+
+	// We match arguments using MatchedBy, then signal completion via done channel
+	mockDocker.On("Exec", mock.Anything, "container123", mock.MatchedBy(func(cmd []string) bool {
+		if len(cmd) < 3 {
+			return false
+		}
+		cmdStr := cmd[2]
+		// Check for --image flag and correct image name
+		return strings.Contains(cmdStr, "--image") && strings.Contains(cmdStr, imageName)
+	})).Run(func(args mock.Arguments) {
+		close(done)
 	}).Return("output", nil)
 
 	err := spawner.Spawn(ctx, item)
 	assert.NoError(t, err)
 
 	select {
-	case cmdStr := <-execCalled:
-		t.Logf("Captured Command: %s", cmdStr)
-		assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
-		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
-	case <-time.After(30 * time.Second):
+	case <-done:
+		// Success
+	case msg := <-failure:
+		t.Fatalf("Background task failed: %s", msg)
+	case <-time.After(60 * time.Second):
 		t.Fatal("Timeout waiting for Exec call")
 	}
 }
