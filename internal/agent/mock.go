@@ -62,7 +62,14 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
   }
 ]`, nil
 		} else {
-			// Execution Phase: Return Bash script
+			// Execution Phase: Return Bash script or Completion Message
+
+			// Check for completion first
+			// If the prompt contains the success output from the test script, we are done.
+			if strings.Contains(lowerPrompt, "ran 2 tests") && strings.Contains(lowerPrompt, "ok") {
+				return "Great, the tests passed. Task completed.", nil
+			}
+
 			if strings.Contains(lowerPrompt, "test") {
 				// Unit Tests
 				// IMPORTANT: We include the implementation file creation here as well to ensure
