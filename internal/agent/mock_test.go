@@ -51,6 +51,26 @@ func TestMockAgent_Send_Heuristics(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Send_Heuristics_Ambiguous(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Ambiguous prompt: Contains "CODING AGENT" (execution role) AND "TPM" (planning keyword) AND "prime" (task keyword)
+	promptAmbiguous := "## YOUR ROLE - CODING AGENT\n\nContext: previous output from TPM mentioned tickets.\nTask: Implement prime number generator."
+
+	response, err := agent.Send(context.Background(), promptAmbiguous)
+	if err != nil {
+		t.Fatalf("Ambiguous Send failed: %v", err)
+	}
+
+	// It should return the Python code (execution), NOT the JSON tickets (planning)
+	if !strings.Contains(response, "def is_prime(n):") {
+		t.Errorf("Expected Python code for ambiguous prompt, but likely got JSON. Response: %s", response)
+	}
+	if strings.Contains(response, "\"summary\": \"Implement prime number generator\"") {
+		t.Errorf("Got JSON ticket list instead of code execution response")
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {

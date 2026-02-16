@@ -32,29 +32,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// Heuristics for smoke tests
-	// 1. Ticket Generation (Planning Phase)
-	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM") || strings.Contains(prompt, "ticket generation") {
-		return `[
-  {
-    "summary": "Implement prime number generator",
-    "description": "Create a Python script that generates prime numbers up to a specified limit. The script should be efficient and well-documented.",
-    "type": "Task",
-    "priority": "High",
-    "labels": ["backend", "python"],
-    "acceptance_criteria": [
-      "Script accepts a limit as a command-line argument",
-      "Outputs prime numbers to stdout",
-      "Includes unit tests"
-    ]
-  }
-]`, nil
-	}
-
-	// 2. Coding Task (Execution Phase)
-	if strings.Contains(prompt, "prime") || strings.Contains(prompt, "primes.json") {
-		// Return a response that "implements" the task by creating the file
-		return `I will implement the prime number generator in Python.
+	primeCodeResponse := `I will implement the prime number generator in Python.
 
 ` + "```bash" + `
 cat << 'EOF' > primes.py
@@ -92,7 +70,35 @@ And I'll run it to verify:
 
 ` + "```bash" + `
 python3 primes.py 50
-` + "```", nil
+` + "```"
+
+	// Heuristics for smoke tests
+	isPlanning := strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM") || strings.Contains(prompt, "ticket generation")
+	isPrimeTask := strings.Contains(prompt, "prime") || strings.Contains(prompt, "primes.json")
+	isCodingAgent := strings.Contains(prompt, "CODING AGENT")
+
+	// 1. Coding Task (Execution Phase)
+	// Prioritize Coding Agent execution to avoid false positives from history context containing TPM keywords
+	if (isCodingAgent && isPrimeTask) || (!isPlanning && isPrimeTask) {
+		return primeCodeResponse, nil
+	}
+
+	// 2. Ticket Generation (Planning Phase)
+	if isPlanning {
+		return `[
+  {
+    "summary": "Implement prime number generator",
+    "description": "Create a Python script that generates prime numbers up to a specified limit. The script should be efficient and well-documented.",
+    "type": "Task",
+    "priority": "High",
+    "labels": ["backend", "python"],
+    "acceptance_criteria": [
+      "Script accepts a limit as a command-line argument",
+      "Outputs prime numbers to stdout",
+      "Includes unit tests"
+    ]
+  }
+]`, nil
 	}
 
 	// Default Mock Response
