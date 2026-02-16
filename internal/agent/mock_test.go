@@ -35,7 +35,7 @@ func TestMockAgent_Send_Heuristics(t *testing.T) {
 		t.Fatalf("Plan Send failed: %v", err)
 	}
 	// Verify it returns JSON (basic check)
-	if !strings.Contains(responsePlan, "[") || !strings.Contains(responsePlan, "summary") {
+	if !strings.Contains(responsePlan, "[") || !strings.Contains(responsePlan, "title") {
 		t.Errorf("Expected JSON ticket list, got: %s", responsePlan)
 	}
 

@@ -37,8 +37,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM") || strings.Contains(prompt, "ticket generation") {
 		return `[
   {
-    "summary": "Implement prime number generator",
-    "description": "Create a Python script that generates prime numbers up to a specified limit. The script should be efficient and well-documented.",
+    "title": "ID:[PRIMES] Implement prime number generator",
+    "description": "Create a Python script that generates prime numbers up to a specified limit. The script should be efficient and well-documented.\n\nRepo: https://github.com/process-failed-successfully/recac-jira-e2e",
     "type": "Task",
     "priority": "High",
     "labels": ["backend", "python"],
