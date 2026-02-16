@@ -28,7 +28,7 @@ func TestMockAgent(t *testing.T) {
 func TestMockAgent_Send_Heuristics(t *testing.T) {
 	agent := NewMockAgent()
 
-	// 1. Test Ticket Generation
+	// 1. Test Ticket Generation (Pure Planning)
 	promptPlan := "You are an expert Technical Program Manager (TPM). Generate tickets for a project."
 	responsePlan, err := agent.Send(context.Background(), promptPlan)
 	if err != nil {
@@ -39,7 +39,7 @@ func TestMockAgent_Send_Heuristics(t *testing.T) {
 		t.Errorf("Expected JSON ticket list, got: %s", responsePlan)
 	}
 
-	// 2. Test Coding Task
+	// 2. Test Coding Task (Pure Coding)
 	promptCode := "Please implement a prime number generator in Python."
 	responseCode, err := agent.Send(context.Background(), promptCode)
 	if err != nil {
@@ -48,6 +48,29 @@ func TestMockAgent_Send_Heuristics(t *testing.T) {
 	// Verify it returns code block
 	if !strings.Contains(responseCode, "def is_prime(n):") {
 		t.Errorf("Expected Python code for primes, got: %s", responseCode)
+	}
+
+	// 3. Test Coding Task (Mixed Phase / Collision)
+	// This simulates the E2E prompt where history contains TPM content
+	promptCollision := `## YOUR ROLE - CODING AGENT
+
+	### RECENT HISTORY
+	User: You are an expert Technical Program Manager. Create tickets.
+	Agent: [{"title": "ID:[PRIMES] Implement prime number generator"}]
+
+	### YOUR ASSIGNED TASK
+	ID:[PRIMES] Implement prime number generator
+	`
+	responseCollision, err := agent.Send(context.Background(), promptCollision)
+	if err != nil {
+		t.Fatalf("Collision Send failed: %v", err)
+	}
+	// Verify it returns CODE, not JSON
+	if strings.Contains(responseCollision, "[") && strings.Contains(responseCollision, "title") && !strings.Contains(responseCollision, "def is_prime(n):") {
+		t.Errorf("Collision Test Failed: Returned JSON instead of Code. Response: %s", responseCollision)
+	}
+	if !strings.Contains(responseCollision, "def is_prime(n):") {
+		t.Errorf("Collision Test Failed: Did not return Python code. Response: %s", responseCollision)
 	}
 }
 

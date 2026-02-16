@@ -34,7 +34,22 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristics for smoke tests
 
-	// 1. Ticket Generation (Planning Phase)
+	// 1. Coding Task (Execution Phase) - Check FIRST to avoid false positives from history
+	// Trigger: "YOUR ROLE - CODING AGENT" (high confidence) OR "prime"/"primes.json"/"ID:[PRIMES]"
+	// The TPM prompt might also contain "prime", so we prioritize the role check.
+	isCodingPhase := strings.Contains(prompt, "YOUR ROLE - CODING AGENT")
+	isPrimesTask := strings.Contains(prompt, "prime") || strings.Contains(prompt, "primes.json") || strings.Contains(prompt, "ID:[PRIMES]")
+
+	if isCodingPhase && isPrimesTask {
+		return m.primesImplementation(), nil
+	}
+
+	// Fallback for simple tests without the full prompt template
+	if !strings.Contains(prompt, "Technical Program Manager") && isPrimesTask {
+		return m.primesImplementation(), nil
+	}
+
+	// 2. Ticket Generation (Planning Phase)
 	// Trigger: "Technical Program Manager" or "TPM" or "ticket generation"
 	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM") || strings.Contains(prompt, "ticket generation") {
 		return `[
@@ -53,11 +68,14 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
-	// 2. Coding Task (Execution Phase)
-	// Trigger: "prime", "primes.json", or "ID:[PRIMES]"
-	if strings.Contains(prompt, "prime") || strings.Contains(prompt, "primes.json") || strings.Contains(prompt, "ID:[PRIMES]") {
-		// Return a response that "implements" the task by creating the file
-		return `I will implement the prime number generator in Python.
+	// Default Mock Response
+	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
+		m.responsePrefix, len(prompt), truncateString(prompt, 100))
+	return response, nil
+}
+
+func (m *MockAgent) primesImplementation() string {
+	return `I will implement the prime number generator in Python.
 
 ` + "```bash" + `
 cat << 'EOF' > primes.py
@@ -95,13 +113,7 @@ And I'll run it to verify:
 
 ` + "```bash" + `
 python3 primes.py 50
-` + "```", nil
-	}
-
-	// Default Mock Response
-	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
-		m.responsePrefix, len(prompt), truncateString(prompt, 100))
-	return response, nil
+` + "```"
 }
 
 // SendStream implements the Agent interface
