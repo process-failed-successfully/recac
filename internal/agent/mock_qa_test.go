@@ -25,7 +25,7 @@ func TestMockAgent_QA_Heuristic(t *testing.T) {
 			name:        "QA Agent - False Positive in System Prompt",
 			prompt:      "You are the Coding Agent. The QA Agent will review your work later.",
 			expected:    "Mock agent response", // Should NOT be QA_PASSED
-			notExpected: "QA_PASSED",
+			notExpected: "agent-bridge signal QA_PASSED true",
 		},
 		{
 			name:     "QA Agent - Explicit Check via qa_passed",
