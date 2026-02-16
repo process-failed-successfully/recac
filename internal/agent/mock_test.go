@@ -27,10 +27,11 @@ func TestMockAgent(t *testing.T) {
 
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
-	if truncateString(s, 5) != "hello" {
-		t.Errorf("Expected 'hello', got '%s'", truncateString(s, 5))
+	// truncateString now appends "..." when string is longer than maxLen
+	if got := truncateString(s, 5); got != "hello..." {
+		t.Errorf("Expected 'hello...', got '%s'", got)
 	}
-	if truncateString(s, 20) != "hello world" {
-		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
+	if got := truncateString(s, 20); got != "hello world" {
+		t.Errorf("Expected 'hello world', got '%s'", got)
 	}
 }

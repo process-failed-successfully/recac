@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,8 +31,52 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
-	// Return a mock response that shows the agent received the prompt
-	// This allows the session to run without requiring real API keys
+
+	// Heuristics for E2E Tests
+	lowerPrompt := strings.ToLower(prompt)
+
+	// 1. TPM Scenario (Generating Tickets)
+	if strings.Contains(lowerPrompt, "technical program manager") {
+		// Return valid JSON for the E2E runner to parse
+		return `[
+  {
+    "summary": "ID:[PRIMES] Prime Number Script",
+    "type": "Epic",
+    "description": "Implement a Python script to calculate prime numbers.",
+    "children": [
+      {
+        "summary": "Implement primes.py",
+        "type": "Story",
+        "description": "Create the main script logic."
+      }
+    ]
+  }
+]`, nil
+	}
+
+	// 2. Primes Coding Task (Agent Execution)
+	if strings.Contains(lowerPrompt, "prime") || strings.Contains(lowerPrompt, "primes.json") {
+		return `I will implement the prime number script.
+
+'''bash
+echo "def is_prime(n):
+    if n <= 1: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0: return False
+    return True
+
+primes = [x for x in range(10000) if is_prime(x)]
+import json
+with open('primes.json', 'w') as f:
+    json.dump({'primes': primes}, f)" > primes.py
+python3 primes.py
+'''
+
+I have created the script and generated the output.
+`, nil
+	}
+
+	// Default Mock Response
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
@@ -51,5 +96,5 @@ func truncateString(s string, maxLen int) string {
 	if len(s) <= maxLen {
 		return s
 	}
-	return s[:maxLen]
+	return s[:maxLen] + "..."
 }
