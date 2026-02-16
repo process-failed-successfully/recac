@@ -1,0 +1,5 @@
+{"time":"2026-02-16T17:47:38.642244649Z","level":"DEBUG","msg":"Janitor running cleanup..."}
+{"time":"2026-02-16T17:47:38.642391031Z","level":"INFO","msg":"Janitor removing container","id":"container123","reason":"state is exited"}
+{"time":"2026-02-16T17:47:38.642621728Z","level":"DEBUG","msg":"Janitor running cleanup..."}
+{"time":"2026-02-16T17:47:38.642659077Z","level":"INFO","msg":"Janitor removing container","id":"container123","reason":"running longer than 1h0m0s"}
+{"time":"2026-02-16T17:47:38.642754097Z","level":"DEBUG","msg":"Janitor running cleanup..."}
