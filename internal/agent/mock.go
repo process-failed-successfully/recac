@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,11 +31,30 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// Heuristics for E2E tests
+	// Return valid JSON for TPM role to prevent "invalid character 'M'" errors
+	if contains(prompt, "Technical Program Manager") || contains(prompt, "TPM") {
+		return `[
+			{
+				"id": "TASK-1",
+				"summary": "Implement prime number generator",
+				"description": "Create a Python script that generates prime numbers.",
+				"type": "Task",
+				"status": "To Do"
+			}
+		]`, nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
+}
+
+func contains(s, substr string) bool {
+	return strings.Contains(s, substr)
 }
 
 // SendStream implements the Agent interface
