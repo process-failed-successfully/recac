@@ -78,6 +78,8 @@ func run() error {
 
 	// Provider specific validation
 	switch provider {
+	case "mock":
+		// No API key required
 	case "openrouter":
 		if os.Getenv("OPENROUTER_API_KEY") == "" {
 			return fmt.Errorf("missing OPENROUTER_API_KEY for provider openrouter")
