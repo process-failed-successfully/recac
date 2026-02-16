@@ -59,6 +59,12 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		}
 	}).Return("output", nil)
 
+	// Add robust failure detection via UpdateStatus
+	failure := make(chan string, 1)
+	mockPoller.On("UpdateStatus", mock.Anything, mock.Anything, "Failed", mock.Anything).Run(func(args mock.Arguments) {
+		failure <- args.String(3)
+	}).Return(nil).Maybe()
+
 	err := spawner.Spawn(ctx, item)
 	require.NoError(t, err)
 
@@ -67,6 +73,8 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		t.Logf("Captured Command: %s", cmdStr)
 		assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
 		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
+	case msg := <-failure:
+		t.Fatalf("Background task failed: %s", msg)
 	case <-time.After(60 * time.Second):
 		t.Fatal("Timeout waiting for Exec call")
 	}
