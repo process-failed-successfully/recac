@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,6 +31,40 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	promptLower := strings.ToLower(prompt)
+
+	// Heuristic 1: Technical Program Manager (TPM) - Ticket Generation
+	if strings.Contains(promptLower, "technical program manager") || strings.Contains(promptLower, "tpm") {
+		return `[
+  {
+    "title": "ID:[PRIMES] Prime Number Script",
+    "description": "Implement a Python script to calculate prime numbers. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
+    "type": "Story",
+    "acceptance_criteria": [
+      "Script calculates primes correctly",
+      "Unit tests are included"
+    ],
+    "children": []
+  }
+]`, nil
+	}
+
+	// Heuristic 2: Coding Agent
+	if strings.Contains(promptLower, "coding agent") || strings.Contains(promptLower, "you are an expert software engineer") {
+		return "Here is the implementation for the prime number script:\n\n```python\ndef is_prime(n):\n    if n <= 1:\n        return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0:\n            return False\n    return True\n\nif __name__ == '__main__':\n    import sys\n    print(is_prime(int(sys.argv[1])))\n```", nil
+	}
+
+	// Heuristic 3: QA Agent
+	if strings.Contains(promptLower, "qa agent") || strings.Contains(promptLower, "quality assurance") {
+		return "QA_PASSED", nil
+	}
+
+	// Heuristic 4: Manager Review
+	if strings.Contains(promptLower, "manager review") || strings.Contains(promptLower, "project manager") {
+		return "LGTM", nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
