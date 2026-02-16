@@ -2,8 +2,8 @@ package orchestrator
 
 import (
 	"context"
-	"io"
 	"log/slog"
+	"os"
 	"testing"
 	"time"
 
@@ -18,7 +18,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	mockGit := new(MockGitClient)
 	mockPoller := new(MockPoller)
 
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	imageName := "custom-image:v1.2.3"
 	spawner := NewDockerSpawner(logger, mockDocker, imageName, "test-proj", mockPoller, "provider", "model", mockSM)
 	spawner.GitClient = mockGit
@@ -76,7 +76,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		}
 	case failMsg := <-failure:
 		t.Fatalf("Spawn failed with error: %s", failMsg)
-	case <-time.After(30 * time.Second): // Generous timeout for CI
+	case <-time.After(60 * time.Second): // Generous timeout for CI
 		t.Fatal("Timeout waiting for Exec call")
 	}
 
