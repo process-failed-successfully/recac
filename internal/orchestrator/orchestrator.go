@@ -12,19 +12,26 @@ type Orchestrator struct {
 	Poller       Poller
 	Spawner      Spawner
 	PollInterval time.Duration
+	Janitor      *Janitor
 }
 
-func New(poller Poller, spawner Spawner, pollInterval time.Duration) *Orchestrator {
+func New(poller Poller, spawner Spawner, pollInterval time.Duration, janitor *Janitor) *Orchestrator {
 	return &Orchestrator{
 		Poller:       poller,
 		Spawner:      spawner,
 		PollInterval: pollInterval,
+		Janitor:      janitor,
 	}
 }
 
 // Run starts the orchestration loop
 func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 	logger.Info("Starting Orchestrator", "interval", o.PollInterval)
+
+	if o.Janitor != nil {
+		go o.Janitor.Run(ctx)
+	}
+
 	ticker := time.NewTicker(o.PollInterval)
 	defer ticker.Stop()
 

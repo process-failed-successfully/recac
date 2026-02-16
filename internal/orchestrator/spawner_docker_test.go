@@ -13,6 +13,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 )
 
 // Helper function
@@ -38,6 +41,19 @@ func (m *MockDockerClient) StopContainer(ctx context.Context, containerID string
 func (m *MockDockerClient) Exec(ctx context.Context, containerID string, cmd []string) (string, error) {
 	args := m.Called(ctx, containerID, cmd)
 	return args.String(0), args.Error(1)
+}
+
+func (m *MockDockerClient) ListContainers(ctx context.Context, options container.ListOptions) ([]types.Container, error) {
+	args := m.Called(ctx, options)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]types.Container), args.Error(1)
+}
+
+func (m *MockDockerClient) RemoveContainer(ctx context.Context, containerID string, force bool) error {
+	args := m.Called(ctx, containerID, force)
+	return args.Error(0)
 }
 
 // Mock Session Manager

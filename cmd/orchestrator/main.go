@@ -35,6 +35,10 @@ func main() {
 	pflag.String("agent-model", "meta-llama/llama-3.3-70b-instruct:free", "Model for spawned agents")
 	pflag.String("image-pull-policy", "Always", "Image pull policy for agents (Always, IfNotPresent, Never)")
 
+	pflag.Bool("cleanup", false, "Enable janitor to clean up old containers")
+	pflag.Duration("cleanup-age", 24*time.Hour, "Max age for containers before cleanup")
+	pflag.Duration("cleanup-interval", 1*time.Hour, "Interval for janitor checks")
+
 	pflag.String("jira-query", "", "Custom JQL query (overrides label)")
 	pflag.String("poller", "jira", "Poller type: 'jira', 'github', 'file', or 'file-dir'")
 	pflag.String("work-file", "work_items.json", "Work items file (for 'file' poller)")
@@ -70,6 +74,9 @@ func main() {
 	viper.BindPFlag("orchestrator.agent_provider", pflag.Lookup("agent-provider"))
 	viper.BindPFlag("orchestrator.agent_model", pflag.Lookup("agent-model"))
 	viper.BindPFlag("orchestrator.image_pull_policy", pflag.Lookup("image-pull-policy"))
+	viper.BindPFlag("orchestrator.cleanup", pflag.Lookup("cleanup"))
+	viper.BindPFlag("orchestrator.cleanup_age", pflag.Lookup("cleanup-age"))
+	viper.BindPFlag("orchestrator.cleanup_interval", pflag.Lookup("cleanup-interval"))
 
 	// Explicitly bind cleaner env vars
 	viper.BindEnv("orchestrator.agent_provider", "RECAC_AGENT_PROVIDER")
@@ -86,6 +93,9 @@ func main() {
 	viper.BindEnv("orchestrator.namespace", "RECAC_ORCHESTRATOR_NAMESPACE")
 	viper.BindEnv("orchestrator.interval", "RECAC_ORCHESTRATOR_INTERVAL")
 	viper.BindEnv("orchestrator.image_pull_policy", "RECAC_IMAGE_PULL_POLICY")
+	viper.BindEnv("orchestrator.cleanup", "RECAC_CLEANUP")
+	viper.BindEnv("orchestrator.cleanup_age", "RECAC_CLEANUP_AGE")
+	viper.BindEnv("orchestrator.cleanup_interval", "RECAC_CLEANUP_INTERVAL")
 	viper.BindEnv("orchestrator.max_iterations", "RECAC_MAX_ITERATIONS")
 	viper.BindEnv("orchestrator.manager_frequency", "RECAC_MANAGER_FREQUENCY")
 	viper.BindEnv("orchestrator.task_max_iterations", "RECAC_TASK_MAX_ITERATIONS")
@@ -166,6 +176,7 @@ func main() {
 
 	// 2. Spawner
 	var spawner orchestrator.Spawner
+	var janitor *orchestrator.Janitor
 	var err error
 	agentModel := viper.GetString("orchestrator.agent_model")
 
@@ -180,6 +191,10 @@ func main() {
 			logger.Error("Failed to initialize K8s spawner", "error", err)
 			os.Exit(1)
 		}
+		if viper.GetBool("orchestrator.cleanup") {
+			logger.Warn("Cleanup/Janitor is not supported in Kubernetes mode (handled by K8s TTL)")
+		}
+
 	case "local", "docker":
 		projectName := "recac-orchestrator" // Or similar
 		dockerCli, err := docker.NewClient(projectName)
@@ -195,13 +210,21 @@ func main() {
 		}
 
 		spawner = orchestrator.NewDockerSpawner(logger, dockerCli, image, projectName, poller, agentProvider, agentModel, sm)
+
+		if viper.GetBool("orchestrator.cleanup") {
+			age := viper.GetDuration("orchestrator.cleanup_age")
+			inv := viper.GetDuration("orchestrator.cleanup_interval")
+			janitor = orchestrator.NewJanitor(logger, dockerCli, projectName, age, inv)
+			logger.Info("Janitor enabled", "age", age, "interval", inv)
+		}
+
 	default:
 		logger.Error("Invalid mode. Use 'local' or 'k8s'", "mode", mode)
 		os.Exit(1)
 	}
 
 	// 3. Orchestrator
-	orch := orchestrator.New(poller, spawner, interval)
+	orch := orchestrator.New(poller, spawner, interval, janitor)
 	if err := orch.Run(ctx, logger); err != nil {
 		if ctx.Err() != nil {
 			// Graceful shutdown

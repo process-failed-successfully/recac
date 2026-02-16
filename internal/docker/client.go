@@ -216,6 +216,7 @@ func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace st
 			OpenStdin:  true, // Keep stdin open
 			WorkingDir: "/workspace",
 			Cmd:        []string{"/bin/sh"}, // Default command to keep it alive
+			Labels:     map[string]string{"created-by": c.project},
 		},
 		&container.HostConfig{
 			Binds: binds,

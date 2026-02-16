@@ -81,7 +81,7 @@ func TestOrchestrator_Run_Success(t *testing.T) {
 		{ID: "TEST-2", Summary: "Task 2"},
 	})
 	spawner := &mockSpawner{}
-	orch := New(poller, spawner, 10*time.Millisecond)
+	orch := New(poller, spawner, 10*time.Millisecond, nil)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
@@ -111,7 +111,7 @@ func TestOrchestrator_Run_PollError(t *testing.T) {
 	poller := newMockPoller(nil)
 	poller.pollErr = errors.New("poll failed")
 	spawner := &mockSpawner{}
-	orch := New(poller, spawner, 10*time.Millisecond)
+	orch := New(poller, spawner, 10*time.Millisecond, nil)
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 
@@ -161,7 +161,7 @@ func TestOrchestrator_Run_Scenarios(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			poller := tc.setupPoller()
 			spawner := tc.setupSpawner()
-			orch := New(poller, spawner, 10*time.Millisecond)
+			orch := New(poller, spawner, 10*time.Millisecond, nil)
 			ctx, cancel := context.WithTimeout(context.Background(), tc.timeout)
 			defer cancel()
 
@@ -187,7 +187,7 @@ func TestOrchestrator_Run_Scenarios(t *testing.T) {
 func TestOrchestrator_Run_GracefulShutdown(t *testing.T) {
 	poller := newMockPoller([]WorkItem{{ID: "TEST-1"}})
 	spawner := &mockSpawner{}
-	orch := New(poller, spawner, 50*time.Millisecond)
+	orch := New(poller, spawner, 50*time.Millisecond, nil)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	var wg sync.WaitGroup
