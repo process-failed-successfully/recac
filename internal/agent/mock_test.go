@@ -27,8 +27,8 @@ func TestMockAgent(t *testing.T) {
 
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
-	if truncateString(s, 5) != "hello" {
-		t.Errorf("Expected 'hello', got '%s'", truncateString(s, 5))
+	if truncateString(s, 5) != "hello..." {
+		t.Errorf("Expected 'hello...', got '%s'", truncateString(s, 5))
 	}
 	if truncateString(s, 20) != "hello world" {
 		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
