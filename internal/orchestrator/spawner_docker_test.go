@@ -8,6 +8,7 @@ import (
 	"os"
 	"recac/internal/runner"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -176,14 +177,25 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 	// This call happens at the END, so it's still there
 	mockGit.On("CurrentCommitSHA", mock.AnythingOfType("string")).Return("endsha", nil).Once()
 
-	mockSM.On("SaveSession", mock.AnythingOfType("*runner.SessionState")).Return(nil)
+	done := make(chan struct{})
+	var once sync.Once
+	mockSM.On("SaveSession", mock.AnythingOfType("*runner.SessionState")).Run(func(args mock.Arguments) {
+		once.Do(func() {
+			close(done)
+		})
+	}).Return(nil)
 
 	err := spawner.Spawn(ctx, item)
 
 	assert.NoError(t, err)
 
-	// Allow goroutine to run
-	time.Sleep(100 * time.Millisecond)
+	// Wait for goroutine to finish
+	select {
+	case <-done:
+		// Success
+	case <-time.After(5 * time.Second):
+		t.Fatal("Timed out waiting for final SaveSession")
+	}
 
 	mockGit.AssertExpectations(t)
 	mockDocker.AssertExpectations(t)
@@ -228,7 +240,15 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 
 	// Mock SessionManager
 	sm.On("SaveSession", mock.Anything).Return(nil)
-	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
+
+	done := make(chan struct{})
+	var once sync.Once
+	// Configure LoadSession to return error to stop goroutine early
+	sm.On("LoadSession", mock.Anything).Return(nil, assert.AnError).Run(func(args mock.Arguments) {
+		once.Do(func() {
+			close(done)
+		})
+	})
 
 	// Capture the command passed to Exec using a channel for synchronization
 	capturedCmdChan := make(chan []string, 1)
@@ -245,8 +265,16 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 	select {
 	case capturedCmd = <-capturedCmdChan:
 		// Success
-	case <-time.After(2 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("Timed out waiting for Exec call")
+	}
+
+	// Wait for background goroutine to finish (via LoadSession)
+	select {
+	case <-done:
+		// Success
+	case <-time.After(5 * time.Second):
+		t.Fatal("Timed out waiting for LoadSession call")
 	}
 
 	// The command should be stringified and passed to sh -c.
@@ -281,7 +309,15 @@ func TestDockerSpawner_EnvPropagation(t *testing.T) {
 
 	client.On("RunContainer", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("container-env", nil)
 	sm.On("SaveSession", mock.Anything).Return(nil)
-	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
+
+	done := make(chan struct{})
+	var once sync.Once
+	// Configure LoadSession to return error to stop goroutine early
+	sm.On("LoadSession", mock.Anything).Return(nil, assert.AnError).Run(func(args mock.Arguments) {
+		once.Do(func() {
+			close(done)
+		})
+	})
 
 	// Capture the command passed to Exec
 	capturedCmdChan := make(chan []string, 1)
@@ -297,8 +333,16 @@ func TestDockerSpawner_EnvPropagation(t *testing.T) {
 	select {
 	case capturedCmd = <-capturedCmdChan:
 		// Success
-	case <-time.After(2 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("Timed out waiting for Exec call")
+	}
+
+	// Wait for background goroutine to finish (via LoadSession)
+	select {
+	case <-done:
+		// Success
+	case <-time.After(5 * time.Second):
+		t.Fatal("Timed out waiting for LoadSession call")
 	}
 
 	cmdStr := capturedCmd[2]
