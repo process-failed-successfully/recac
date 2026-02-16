@@ -70,7 +70,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	select {
 	case <-done:
 		// Background goroutine reached LoadSession, test can safely finish
-	case <-time.After(5 * time.Second):
-		t.Log("Warning: Timeout waiting for LoadSession call (background goroutine cleanup)")
+	case <-time.After(60 * time.Second):
+		t.Fatal("Timeout waiting for LoadSession call (background goroutine cleanup)")
 	}
 }
