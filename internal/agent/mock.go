@@ -41,7 +41,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Project Manager / Planning Phase (Ticket Generation)
-	if strings.Contains(promptLower, "role - project manager") || strings.Contains(promptLower, "technical program manager") {
+	// We check for role prompts OR explicit "ticket generation" instruction which appears in AppSpec
+	if strings.Contains(promptLower, "role - project manager") ||
+		strings.Contains(promptLower, "technical program manager") ||
+		strings.Contains(promptLower, "ticket generation") {
 		// Return JSON plan for the 'generate-from-spec' command
 		// Note: The struct expects fields: title, description, type, blocked_by, acceptance_criteria
 		return `{
@@ -80,7 +83,7 @@ def is_prime(n):
         if n % i == 0: return False
     return True
 
-primes = [x for x in range(100) if is_prime(x)]
+primes = [x for x in range(10000) if is_prime(x)]
 with open("primes.json", "w") as f:
     json.dump(primes, f)
 print(f"Generated {len(primes)} primes")
