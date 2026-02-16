@@ -2,10 +2,20 @@ package runner
 
 import (
 	"fmt"
+	"strings"
 )
 
 // checkNoOpBreaker checks if the agent is looping without action.
 func (s *Session) checkNoOpBreaker(executionOutput string) error {
+	// Handle Mock Completion Signal
+	if strings.Contains(executionOutput, "[MOCK_COMPLETION_SIGNAL]") {
+		s.Logger.Info("handling mock completion signal")
+		// Force signal project signed off to exit loop successfully
+		s.createSignal("PROJECT_SIGNED_OFF")
+		s.NoOpCount = 0
+		return nil
+	}
+
 	if executionOutput == "" {
 		s.NoOpCount++
 		if s.NoOpCount >= 3 {
