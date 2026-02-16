@@ -4,11 +4,14 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"recac/internal/runner"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
@@ -30,28 +33,50 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	ctx := context.Background()
 
 	// Mock expectations
+	// Using mock.Anything for most args as we are testing Image flag propagation primarily
 	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
-	mockSM.On("LoadSession", "TICKET-1").Return(nil, assert.AnError)
 
-	execCalled := make(chan string, 1)
+	// Use a done channel to signal completion of the background goroutine
+	done := make(chan struct{})
 
-	// We match "Anything" for arguments so we catch the call, then inspect it in Run
-	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Run(func(args mock.Arguments) {
-		cmd := args.Get(2).([]string)
+	// LoadSession is called AFTER Exec, so it's a good place to signal completion
+	mockSM.On("LoadSession", "TICKET-1").Run(func(args mock.Arguments) {
+		close(done)
+	}).Return((*runner.SessionState)(nil), assert.AnError)
+
+	// Verify Exec call directly with MatchedBy
+	mockDocker.On("Exec", mock.Anything, "container123", mock.MatchedBy(func(cmd []string) bool {
+		if len(cmd) < 3 {
+			return false
+		}
 		// cmd is ["/bin/sh", "-c", "actual command"]
-		execCalled <- cmd[2]
-	}).Return("output", nil)
+		cmdStr := cmd[2]
+
+		containsImage := strings.Contains(cmdStr, "--image")
+		containsImageName := strings.Contains(cmdStr, imageName)
+
+		if !containsImage {
+			t.Logf("Command missing --image flag: %s", cmdStr)
+		}
+		if !containsImageName {
+			t.Logf("Command missing image name: %s", cmdStr)
+		}
+
+		return containsImage && containsImageName
+	})).Return("output", nil)
 
 	err := spawner.Spawn(ctx, item)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	select {
-	case cmdStr := <-execCalled:
-		t.Logf("Captured Command: %s", cmdStr)
-		assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
-		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
-	case <-time.After(60 * time.Second):
-		t.Fatal("Timeout waiting for Exec call")
+	case <-done:
+		// Success
+	case <-time.After(10 * time.Second):
+		t.Fatal("Timeout waiting for background goroutine completion (Exec -> LoadSession)")
 	}
+
+	// Ensure expectations were met
+	mockDocker.AssertExpectations(t)
+	mockSM.AssertExpectations(t)
 }
