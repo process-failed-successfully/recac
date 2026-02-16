@@ -25,6 +25,24 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_PrimesHeuristic(t *testing.T) {
+	agent := NewMockAgent()
+
+	prompt := "Please generate tickets for ID:[PRIMES] Prime Number Script"
+	response, err := agent.Send(context.Background(), prompt)
+
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "ID:[PRIMES] Create Prime Number Script") {
+		t.Errorf("Response missing expected JSON content, got: %s", response)
+	}
+	if !strings.Contains(response, "\"type\": \"Task\"") {
+		t.Errorf("Response missing expected JSON type, got: %s", response)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
