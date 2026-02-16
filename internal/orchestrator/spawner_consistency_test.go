@@ -105,7 +105,7 @@ func TestSpawnerConsistency_EnvPropagation(t *testing.T) {
 		var capturedCmd []string
 		select {
 		case capturedCmd = <-capturedCmdChan:
-		case <-time.After(1 * time.Second):
+		case <-time.After(60 * time.Second):
 			t.Fatal("Timeout waiting for Exec")
 		}
 

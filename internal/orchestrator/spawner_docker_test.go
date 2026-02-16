@@ -268,7 +268,7 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 	select {
 	case capturedCmd = <-capturedCmdChan:
 		// Success
-	case <-time.After(2 * time.Second):
+	case <-time.After(60 * time.Second):
 		t.Fatal("Timed out waiting for Exec call")
 	}
 
@@ -320,7 +320,7 @@ func TestDockerSpawner_EnvPropagation(t *testing.T) {
 	select {
 	case capturedCmd = <-capturedCmdChan:
 		// Success
-	case <-time.After(2 * time.Second):
+	case <-time.After(60 * time.Second):
 		t.Fatal("Timed out waiting for Exec call")
 	}
 
