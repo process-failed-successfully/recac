@@ -44,12 +44,31 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		}
 	}).Return(nil, assert.AnError)
 
-	execCalled := make(chan string, 1)
-	failure := make(chan string, 1)
+	execCalled := make(chan string, 10) // Buffer size > 1 just in case
+	failure := make(chan string, 10)
 
-	// Expect the specific container ID "container123" returned by RunContainer
-	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Run(func(args mock.Arguments) {
-		cmd := args.Get(2).([]string)
+	// Expect Exec call. Match ANY arguments to avoid panic on mismatch, verify inside Run.
+	// Arguments: ctx, containerID, cmd
+	mockDocker.On("Exec", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		defer func() {
+			if r := recover(); r != nil {
+				failure <- fmt.Sprintf("Panic in Exec mock: %v", r)
+			}
+		}()
+
+		containerID := args.Get(1)
+		if containerID != "container123" {
+			failure <- fmt.Sprintf("Exec called with wrong container ID: %v", containerID)
+			return
+		}
+
+		cmdRaw := args.Get(2)
+		cmd, ok := cmdRaw.([]string)
+		if !ok {
+			failure <- fmt.Sprintf("Exec called with non-[]string command: %T", cmdRaw)
+			return
+		}
+
 		if len(cmd) > 2 {
 			execCalled <- cmd[2]
 		} else {
@@ -57,11 +76,29 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		}
 	}).Return("output", nil)
 
-	// If a panic occurs, UpdateStatus will be called.
-	// We relax the status match to ensure we catch any call, preventing double panics in test runner.
+	// UpdateStatus mock to catch failures. Match ANY arguments.
+	// Arguments: ctx, item, status, comment
 	mockPoller.On("UpdateStatus", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-		status := args.String(2)
-		comment := args.String(3)
+		defer func() {
+			if r := recover(); r != nil {
+				failure <- fmt.Sprintf("Panic in UpdateStatus mock: %v", r)
+			}
+		}()
+
+		statusRaw := args.Get(2)
+		status, ok := statusRaw.(string)
+		if !ok {
+			failure <- fmt.Sprintf("UpdateStatus called with non-string status: %T", statusRaw)
+			return
+		}
+
+		commentRaw := args.Get(3)
+		comment, ok := commentRaw.(string)
+		if !ok {
+			failure <- fmt.Sprintf("UpdateStatus called with non-string comment: %T", commentRaw)
+			return
+		}
+
 		failure <- fmt.Sprintf("Status: %s, Comment: %s", status, comment)
 	}).Return(nil).Maybe()
 
@@ -78,8 +115,8 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 			t.Error("Received empty command string (cmd length <= 2)")
 		}
 	case failMsg := <-failure:
-		t.Fatalf("Spawn failed with error: %s", failMsg)
-	case <-time.After(60 * time.Second): // Very generous timeout for slow CI runners
+		t.Fatalf("Spawn failed or panicked: %s", failMsg)
+	case <-time.After(60 * time.Second):
 		t.Fatal("Timeout waiting for Exec call (possible goroutine hang or panic)")
 	}
 
