@@ -50,6 +50,16 @@ func TestMockAgent_Send_Heuristics(t *testing.T) {
 			wantInResp: "range(10000)",
 		},
 		{
+			name:      "Coding Phase - Primes Summary",
+			prompt:    "Task: Implement Prime Number Script",
+			wantInResp: "range(10000)",
+		},
+		{
+			name:      "Planning Phase - Primes Spec (Real)",
+			prompt:    "You are an expert Technical Program Manager. ... Task: Implement Prime Number Script",
+			wantInResp: "PRIMES-1",
+		},
+		{
 			name:      "QA Phase",
 			prompt:    "Your role - QA Agent. Please review.",
 			wantInResp: "agent-bridge signal PROJECT_SIGNED_OFF true",

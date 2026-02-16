@@ -66,7 +66,14 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Detects if we are working on the primes task
 	// Note: We also match "Prime Number Script" to cover scenarios where the ticket summary is used
 	// We use specific keywords to avoid false positives with other scenarios
-	if strings.Contains(promptLower, "id:[primes]") || strings.Contains(promptLower, "primes.py") || strings.Contains(promptLower, "1229") {
+	// We also strictly exclude TPM keywords to prevent incorrect phase matching
+	if (strings.Contains(promptLower, "id:[primes]") ||
+		strings.Contains(promptLower, "primes.py") ||
+		strings.Contains(promptLower, "1229") ||
+		strings.Contains(promptLower, "create prime number script") ||
+		strings.Contains(promptLower, "implement prime number script") ||
+		strings.Contains(promptLower, "write") && strings.Contains(promptLower, "prime")) &&
+		!strings.Contains(promptLower, "technical program manager") {
 		return `I will implement the prime number script as requested.
 
 ` + "```bash" + `
