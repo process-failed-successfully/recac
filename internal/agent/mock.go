@@ -61,10 +61,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristic for Primes coding task (Agent execution)
 	if strings.Contains(lowerPrompt, "prime") || strings.Contains(lowerPrompt, "primes.json") || strings.Contains(os.Getenv("RECAC_INJECTED_FEATURES"), "prime") {
 		// If it looks like a coding task request, return a shell command to implement the file
-		if strings.Contains(lowerPrompt, "implement") || strings.Contains(lowerPrompt, "create") {
+		if strings.Contains(lowerPrompt, "implement") || strings.Contains(lowerPrompt, "create") || strings.Contains(lowerPrompt, "write") {
 			return `I will create the prime number generator script.
 
-<command>
+` + "```bash" + `
 cat <<EOF > primes.py
 def is_prime(n):
     if n <= 1:
@@ -87,7 +87,7 @@ if __name__ == "__main__":
     import json
     print(json.dumps(generate_primes(10)))
 EOF
-</command>
+` + "```" + `
 `, nil
 		}
 	}

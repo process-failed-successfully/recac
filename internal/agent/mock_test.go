@@ -25,6 +25,41 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_PrimesHeuristic(t *testing.T) {
+	agent := NewMockAgent()
+
+	// Test 1: Implementation
+	prompt := "Implement Prime Number Generator"
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "```bash") {
+		t.Errorf("Response missing bash block marker, got: %s", response)
+	}
+
+	if !strings.Contains(response, "cat <<EOF > primes.py") {
+		t.Errorf("Response missing primes.py implementation, got: %s", response)
+	}
+
+	// Test 2: Tests
+	prompt = "Write Unit Tests for Primes"
+	response, err = agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "```bash") {
+		t.Errorf("Response missing bash block marker for tests prompt, got: %s", response)
+	}
+
+	// We expect the same generic response for now
+	if !strings.Contains(response, "cat <<EOF > primes.py") {
+		t.Errorf("Response missing primes.py implementation for tests prompt, got: %s", response)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
