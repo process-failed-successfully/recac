@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/kballard/go-shellquote"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -199,26 +200,30 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		},
 	}
 
-	// Command:
-	// git clone <URL> . && recac start --jira <ID>
-	// We need to inject GitHub Token into URL if using https
-	// BUT, we can't easily modify the URL inside the container without the secret available.
-	// We can use a script wrapper.
-	// `recac start` handles workspace setup?
-	// No, spec says: "Initialization (The 'Clone' Step): ... initContainer or first step ... performs git clone".
-	// Let's use an InitContainer for cloning?
-	// Or just one script.
-	// "git clone https://$GITHUB_TOKEN@github.com/... ."
+	// Construct agent command arguments safely
+	agentArgs := []string{
+		"recac-agent",
+		"--jira", item.ID,
+		"--project", item.ID,
+		"--image", s.Image,
+		"--path", "/workspace",
+		"--detached=false",
+		"--cleanup=false",
+		"--allow-dirty",
+		"--verbose", // Added for parity with Docker
+		"--repo-url", item.RepoURL,
+	}
 
-	// We'll trust the Orchestrator passed a clone-able URL or we use env var injection in the shell command.
-	// item.RepoURL is plain.
+	agentCmd := shellquote.Join(agentArgs...)
+
 	// Command:
+	// Use git config if needed, then run the safely constructed agent command
 	cmd := fmt.Sprintf(`
 		if [ -n "$GITHUB_TOKEN" ]; then
 			git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
 		fi
-		recac-agent --jira %q --project %q --image %s --path /workspace --detached=false --cleanup=false --allow-dirty --repo-url %q
-	`, item.ID, item.ID, s.Image, item.RepoURL)
+		%s
+	`, agentCmd)
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{

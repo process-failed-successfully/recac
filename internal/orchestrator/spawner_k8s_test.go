@@ -181,6 +181,44 @@ func TestK8sSpawner_Spawn_Lifecycle(t *testing.T) {
 		assert.Equal(t, "gemini-pro", envMap["RECAC_MODEL"])
 	})
 
+	t.Run("Command Structure Verification", func(t *testing.T) {
+		// Use a fresh item/job for this test to ensure clean state
+		verifyItem := WorkItem{
+			ID:      "TASK-CMD",
+			RepoURL: "https://github.com/example/repo",
+			EnvVars: map[string]string{},
+		}
+		err := spawner.Spawn(context.Background(), verifyItem)
+		assert.NoError(t, err)
+
+		job, err := clientset.BatchV1().Jobs("test-ns").Get(context.Background(), "recac-agent-task-cmd", metav1.GetOptions{})
+		assert.NoError(t, err)
+
+		container := job.Spec.Template.Spec.Containers[0]
+		cmdArg := container.Args[0]
+
+		// Check for presence of key flags
+		assert.Contains(t, cmdArg, "--verbose", "Command should contain --verbose flag")
+		assert.Contains(t, cmdArg, "--allow-dirty", "Command should contain --allow-dirty flag")
+		assert.Contains(t, cmdArg, "recac-agent", "Command should contain recac-agent binary")
+
+		// Check for safe quoting (e.g. repo URL should be quoted if it contains spaces)
+		specialItem := WorkItem{
+			ID:      "TASK-SPECIAL",
+			RepoURL: "https://github.com/repo with spaces",
+			EnvVars: map[string]string{},
+		}
+
+		err = spawner.Spawn(context.Background(), specialItem)
+		assert.NoError(t, err)
+
+		jobSpecial, err := clientset.BatchV1().Jobs("test-ns").Get(context.Background(), "recac-agent-task-special", metav1.GetOptions{})
+		assert.NoError(t, err)
+
+		cmdArgSpecial := jobSpecial.Spec.Template.Spec.Containers[0].Args[0]
+		assert.Contains(t, cmdArgSpecial, "'https://github.com/repo with spaces'", "Repo URL with spaces should be quoted")
+	})
+
 	t.Run("Retry Existing Failed Job", func(t *testing.T) {
 		// Set existing job to failed
 		job, _ := clientset.BatchV1().Jobs("test-ns").Get(context.Background(), "recac-agent-task-123", metav1.GetOptions{})
