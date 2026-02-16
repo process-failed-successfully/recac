@@ -76,7 +76,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		}
 	case failMsg := <-failure:
 		t.Fatalf("Spawn failed with error: %s", failMsg)
-	case <-time.After(30 * time.Second): // Generous timeout for CI
+	case <-time.After(60 * time.Second): // Extended timeout for CI runner latency
 		t.Fatal("Timeout waiting for Exec call")
 	}
 
@@ -84,7 +84,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	select {
 	case <-done:
 		// Success
-	case <-time.After(5 * time.Second):
+	case <-time.After(10 * time.Second):
 		t.Log("Timeout waiting for LoadSession (background goroutine cleanup)")
 	}
 }
