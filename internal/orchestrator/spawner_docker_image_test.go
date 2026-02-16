@@ -12,14 +12,41 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestDockerClient wraps MockDockerClient to intercept Exec calls
+// and signal the test even if the mock expectation fails (panics).
+type TestDockerClient struct {
+	*MockDockerClient
+	execChan chan string
+}
+
+func (m *TestDockerClient) Exec(ctx context.Context, containerID string, cmd []string) (string, error) {
+	if len(cmd) > 2 {
+		m.execChan <- cmd[2]
+	} else {
+		m.execChan <- ""
+	}
+	// Call the original mock to record the call and check expectations
+	return m.MockDockerClient.Exec(ctx, containerID, cmd)
+}
+
 func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
-	mockDocker := new(MockDockerClient)
+	mockDockerBase := new(MockDockerClient)
+	execCalled := make(chan string, 1)
+
+	// Use the wrapper
+	mockDocker := &TestDockerClient{
+		MockDockerClient: mockDockerBase,
+		execChan:         execCalled,
+	}
+
 	mockSM := new(MockSessionManager)
 	mockGit := new(MockGitClient)
 	mockPoller := new(MockPoller)
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	imageName := "custom-image:v1.2.3"
+
+	// Pass the wrapper (mockDocker) as the client
 	spawner := NewDockerSpawner(logger, mockDocker, imageName, "test-proj", mockPoller, "provider", "model", mockSM)
 	spawner.GitClient = mockGit
 
@@ -32,7 +59,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 
 	// Mock expectations
 	// Use mock.Anything for context to ensure it matches even if wrapped
-	mockDocker.On("RunContainer", mock.Anything, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
+	mockDockerBase.On("RunContainer", mock.Anything, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
 
 	done := make(chan struct{}, 1)
@@ -43,18 +70,11 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		}
 	}).Return(nil, assert.AnError)
 
-	execCalled := make(chan string, 1)
 	failure := make(chan string, 1)
 
 	// Expect the specific container ID "container123" returned by RunContainer
-	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Run(func(args mock.Arguments) {
-		cmd := args.Get(2).([]string)
-		if len(cmd) > 2 {
-			execCalled <- cmd[2]
-		} else {
-			execCalled <- ""
-		}
-	}).Return("output", nil)
+	// We verify arguments but rely on the wrapper for signaling.
+	mockDockerBase.On("Exec", mock.Anything, "container123", mock.Anything).Return("output", nil)
 
 	// If a panic occurs, UpdateStatus will be called with "Failed"
 	mockPoller.On("UpdateStatus", mock.Anything, mock.Anything, "Failed", mock.Anything).Run(func(args mock.Arguments) {
@@ -81,9 +101,12 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	}
 
 	// Wait for background goroutine to finish (LoadSession)
+	// We also listen for failure here, in case Exec panicked after signaling but before LoadSession.
 	select {
 	case <-done:
 		// Success
+	case failMsg := <-failure:
+		t.Fatalf("Spawn failed (during LoadSession wait) with error: %s", failMsg)
 	case <-time.After(10 * time.Second):
 		t.Log("Timeout waiting for LoadSession (background goroutine cleanup)")
 	}
