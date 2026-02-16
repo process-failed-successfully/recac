@@ -50,6 +50,17 @@ func TestSession_CheckNoOpBreaker(t *testing.T) {
 	if s.NoOpCount != 3 {
 		t.Errorf("Expected NoOpCount 3, got %d", s.NoOpCount)
 	}
+
+	// 5. Mock Completion Signal
+	err = s.checkNoOpBreaker("some output [MOCK_COMPLETION_SIGNAL] more output")
+	if err != nil {
+		t.Errorf("Expected nil error for mock completion signal, got %v", err)
+	}
+	if s.NoOpCount != 0 {
+		t.Errorf("Expected NoOpCount reset to 0 after mock signal, got %d", s.NoOpCount)
+	}
+	// Note: We cannot verify createSignal("PROJECT_SIGNED_OFF") easily here without mocking DBStore,
+	// but detecting nil error and reset is sufficient for this unit test scope.
 }
 
 func TestSession_CheckStalledBreaker(t *testing.T) {

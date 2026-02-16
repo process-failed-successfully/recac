@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -10,6 +11,7 @@ import (
 type MockAgent struct {
 	responsePrefix string
 	forcedResponse string
+	callCount      int
 }
 
 // NewMockAgent creates a new mock agent
@@ -27,9 +29,33 @@ func (m *MockAgent) SetResponse(response string) {
 // Send implements the Agent interface
 // It returns a mock response that acknowledges the prompt
 func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
+	m.callCount++
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// Heuristics for E2E Tests
+	if strings.Contains(prompt, "Technical Program Manager") {
+		// Planning Phase: Jira Ticket Generation
+		return `[
+  {
+    "title": "ID:[PRIMES] Prime Number Generator",
+    "description": "Implement a Python script to calculate prime numbers up to 10,000. Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
+    "type": "Story",
+    "children": []
+  }
+]`, nil
+	}
+
+	if strings.Contains(strings.ToLower(prompt), "prime") || strings.Contains(prompt, "primes.json") {
+		// Execution Phase: Python Prime Calculation
+		if m.callCount == 1 {
+			return "Here is the python script to calculate primes:\n\n```bash\ncat << 'EOF' > primes.py\nimport json\n\ndef is_prime(n):\n    if n <= 1:\n        return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0:\n            return False\n    return True\n\nprimes = [x for x in range(10000) if is_prime(x)]\nwith open('primes.json', 'w') as f:\n    json.dump({'primes': primes}, f)\nEOF\n\npython3 primes.py\n```", nil
+		}
+		// Subsequent calls: Assume task is done
+		return "The primes.json file has been generated and the script executed. The task is complete.", nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
