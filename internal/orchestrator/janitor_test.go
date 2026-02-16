@@ -44,7 +44,8 @@ func TestJanitor_Cleanup(t *testing.T) {
 
 	// Expectations for removal
 	client.On("RemoveContainer", ctx, "c1", true).Return(nil)
-	client.On("RemoveContainer", ctx, "c3", true).Return(nil)
+	// c3 is young and exited -> DO NOT remove (grace period)
+	// client.On("RemoveContainer", ctx, "c3", true).Return(nil)
 	client.On("RemoveContainer", ctx, "c4", true).Return(nil)
 
 	// c2 should NOT be removed
@@ -56,4 +57,5 @@ func TestJanitor_Cleanup(t *testing.T) {
 
 	client.AssertExpectations(t)
 	client.AssertNotCalled(t, "RemoveContainer", ctx, "c2", mock.Anything)
+	client.AssertNotCalled(t, "RemoveContainer", ctx, "c3", mock.Anything)
 }

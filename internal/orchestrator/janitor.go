@@ -77,19 +77,18 @@ func (j *Janitor) Cleanup(ctx context.Context) error {
 		shouldRemove := false
 		reason := ""
 
-		// Check State
-		if c.State == "exited" || c.State == "dead" {
+		// Check Age for ALL containers to prevent race conditions with recently finished jobs
+		// c.Created is unix timestamp
+		created := time.Unix(c.Created, 0)
+		age := now.Sub(created)
+
+		if age > j.MaxAge {
 			shouldRemove = true
-			reason = fmt.Sprintf("state is %s", c.State)
-		} else {
-			// Check Age
-			// c.Created is unix timestamp
-			created := time.Unix(c.Created, 0)
-			age := now.Sub(created)
-			if age > j.MaxAge {
-				shouldRemove = true
-				reason = fmt.Sprintf("age %s > max %s", age, j.MaxAge)
-			}
+			reason = fmt.Sprintf("age %s > max %s", age, j.MaxAge)
+		} else if c.State == "dead" {
+			// Always remove dead containers (infrastructure error)
+			shouldRemove = true
+			reason = "state is dead"
 		}
 
 		if shouldRemove {
