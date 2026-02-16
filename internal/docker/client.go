@@ -497,3 +497,9 @@ func (c *Client) ListContainers(ctx context.Context, options container.ListOptio
 	telemetry.TrackDockerOp(c.project)
 	return c.api.ContainerList(ctx, options)
 }
+
+// KillContainer kills a container.
+func (c *Client) KillContainer(ctx context.Context, containerID, signal string) error {
+	telemetry.TrackDockerOp(c.project)
+	return c.api.ContainerKill(ctx, containerID, signal)
+}
