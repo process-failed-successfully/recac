@@ -33,9 +33,10 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
 
-	done := make(chan struct{})
+	// Use buffered channel to avoid blocking/panic
+	done := make(chan struct{}, 1)
 	mockSM.On("LoadSession", "TICKET-1").Run(func(args mock.Arguments) {
-		close(done)
+		done <- struct{}{}
 	}).Return(nil, assert.AnError)
 
 	execCalled := make(chan string, 1)
