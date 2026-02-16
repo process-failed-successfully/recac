@@ -117,3 +117,75 @@ func TestSpawnerConsistency_EnvPropagation(t *testing.T) {
 		assert.Contains(t, cmdStr, "export RECAC_TASK_MAX_ITERATIONS=5", "Docker should propagate RECAC_TASK_MAX_ITERATIONS")
 	})
 }
+
+// TestSpawnerConsistency_CommandArgs checks that both K8s and Docker spawners construct the command
+// with the same critical flags (e.g., --verbose).
+func TestSpawnerConsistency_CommandArgs(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	ctx := context.Background()
+	item := WorkItem{
+		ID:      "TASK-CONSISTENCY-CMD",
+		RepoURL: "https://github.com/example/repo",
+	}
+
+	t.Run("K8sSpawner includes --verbose and --allow-dirty", func(t *testing.T) {
+		k8sClient := fake.NewSimpleClientset()
+		spawner := &K8sSpawner{
+			Client:        k8sClient,
+			Namespace:     "ns",
+			Image:         "img",
+			AgentProvider: "prov",
+			AgentModel:    "mod",
+			PullPolicy:    corev1.PullAlways,
+			Logger:        logger,
+		}
+
+		err := spawner.Spawn(ctx, item)
+		assert.NoError(t, err)
+
+		job, err := k8sClient.BatchV1().Jobs("ns").Get(ctx, "recac-agent-task-consistency-cmd", metav1.GetOptions{})
+		assert.NoError(t, err)
+
+		cmdArgs := job.Spec.Template.Spec.Containers[0].Args
+		assert.NotEmpty(t, cmdArgs)
+		fullCmd := cmdArgs[0]
+
+		assert.Contains(t, fullCmd, "--verbose", "K8s command should include --verbose")
+		assert.Contains(t, fullCmd, "--allow-dirty", "K8s command should include --allow-dirty")
+	})
+
+	t.Run("DockerSpawner includes --verbose and --allow-dirty", func(t *testing.T) {
+		mockDocker := new(MockDockerClient)
+		mockSM := new(MockSessionManager)
+		spawner := NewDockerSpawner(logger, mockDocker, "img", "proj", nil, "prov", "mod", mockSM)
+
+		mockGit := new(MockGitClient)
+		mockGit.On("CurrentCommitSHA", mock.Anything).Return("sha", nil)
+		spawner.GitClient = mockGit
+
+		mockDocker.On("RunContainer", mock.Anything, "img", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("cid", nil)
+		mockSM.On("SaveSession", mock.Anything).Return(nil)
+		mockSM.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
+
+		capturedCmdChan := make(chan []string, 1)
+		mockDocker.On("Exec", mock.Anything, "cid", mock.Anything).Run(func(args mock.Arguments) {
+			capturedCmd := args.Get(2).([]string)
+			capturedCmdChan <- capturedCmd
+		}).Return("out", nil)
+
+		err := spawner.Spawn(ctx, item)
+		assert.NoError(t, err)
+
+		var capturedCmd []string
+		select {
+		case capturedCmd = <-capturedCmdChan:
+		case <-time.After(1 * time.Second):
+			t.Fatal("Timeout waiting for Exec")
+		}
+
+		cmdStr := capturedCmd[2]
+
+		assert.Contains(t, cmdStr, "--verbose", "Docker command should include --verbose")
+		assert.Contains(t, cmdStr, "--allow-dirty", "Docker command should include --allow-dirty")
+	})
+}
