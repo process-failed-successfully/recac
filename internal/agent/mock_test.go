@@ -74,6 +74,13 @@ func TestMockAgent_Heuristics(t *testing.T) {
 			expectContains: []string{`"tickets": [`, "Implement Prime Number Script"},
 			expectMissing:  []string{"cat <<EOF > primes.py"},
 		},
+		{
+			name:           "Planning Phase - Primes Spec (Real)",
+			// The actual TPM prompt does not contain "generate tickets", but starts with "You are an expert Technical Program Manager"
+			prompt:         "You are an expert Technical Program Manager (TPM)\n...\nImplement Prime Number Script",
+			expectContains: []string{`"tickets": [`, "Implement Prime Number Script"},
+			expectMissing:  []string{"cat <<EOF > primes.py"},
+		},
 	}
 
 	for _, tt := range tests {

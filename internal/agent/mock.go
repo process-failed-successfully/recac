@@ -40,7 +40,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// We also check for "Prime", "Implement", "script", or the requirement ID to be robust against formatting or truncation
 	// CRITICAL: We explicitly exclude "generate tickets" to avoid preempting the Planning Phase which also mentions "Prime".
 	isCodingPrompt := strings.Contains(promptLower, "id:[primes]") || strings.Contains(promptLower, "primes.py") || strings.Contains(promptLower, "1229") || strings.Contains(promptLower, "prime") || strings.Contains(promptLower, "implement") || strings.Contains(promptLower, "script") || strings.Contains(promptLower, "req-script-runs-without-errors")
-	if isCodingPrompt && !strings.Contains(promptLower, "generate tickets") {
+	if isCodingPrompt && !strings.Contains(promptLower, "generate tickets") && !strings.Contains(promptLower, "technical program manager") {
 		return `I will implement the prime number script as requested.
 
 ` + "```bash" + `
