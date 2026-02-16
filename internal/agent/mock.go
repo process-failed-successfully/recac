@@ -36,11 +36,16 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	lowerPrompt := strings.ToLower(prompt)
 	injectedFeatures := strings.ToLower(os.Getenv("RECAC_INJECTED_FEATURES"))
 
+	// Heuristic 0: Planning Phase Detection (must come first)
+	isPlanning := strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "tpm")
+
 	// Heuristic 1: Primes Task (Smoke Test)
 	// Triggers if prompt or env var mentions "prime" or specific ID
 	if strings.Contains(lowerPrompt, "prime") || strings.Contains(lowerPrompt, "primes.json") ||
 		strings.Contains(lowerPrompt, "id:[primes]") || strings.Contains(injectedFeatures, "prime") {
-		return `[
+
+		if isPlanning {
+			return `[
   {
     "id": "PRIMES-1",
     "title": "Implement Prime Number Generator",
@@ -56,11 +61,56 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     "dependencies": ["PRIMES-1"]
   }
 ]`, nil
+		} else {
+			// Execution Phase: Return Bash script
+			if strings.Contains(lowerPrompt, "test") {
+				// Unit Tests
+				return `Here are the unit tests for the prime number generator.
+` + "```bash" + `
+cat << 'EOF' > test_primes.py
+import unittest
+from primes import generate_primes
+
+class TestPrimes(unittest.TestCase):
+    def test_primes_up_to_10(self):
+        self.assertEqual(generate_primes(10), [2, 3, 5, 7])
+
+    def test_primes_up_to_20(self):
+        self.assertEqual(generate_primes(20), [2, 3, 5, 7, 11, 13, 17, 19])
+
+if __name__ == '__main__':
+    unittest.main()
+EOF
+python3 test_primes.py
+` + "```", nil
+			} else {
+				// Implementation
+				return `Here is the implementation of the prime number generator.
+` + "```bash" + `
+cat << 'EOF' > primes.py
+def generate_primes(n):
+    primes = []
+    for num in range(2, n + 1):
+        is_prime = True
+        for i in range(2, int(num ** 0.5) + 1):
+            if num % i == 0:
+                is_prime = False
+                break
+        if is_prime:
+            primes.append(num)
+    return primes
+
+if __name__ == "__main__":
+    print(generate_primes(50))
+EOF
+` + "```", nil
+			}
+		}
 	}
 
 	// Heuristic 2: Technical Program Manager (TPM) - General
 	// Returns a valid JSON list of tickets to satisfy recac CLI
-	if strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "tpm") {
+	if isPlanning {
 		return `[
   {
     "id": "TASK-1",
