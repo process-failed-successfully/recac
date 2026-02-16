@@ -38,7 +38,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return `[
   {
     "title": "ID:[PRIMES] Prime Number Generator",
-    "description": "Implement a Python script to generate prime numbers.\nRepo: https://github.com/example/repo",
+    "description": "Implement a Python script to generate prime numbers.",
     "type": "Task",
     "children": []
   }

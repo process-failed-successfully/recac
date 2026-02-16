@@ -1,0 +1,12 @@
+WARNING: The 'recac' binary is deprecated and will be removed in a future release.
+Please use 'orchestrator' or 'recac-agent' (agent) binaries instead.
+Using config file: /app/config.yaml
+Using config file: /app/config.yaml
+Using labels for all tickets: [recac-gen-20260216-214451]
+Analyzing spec and generating ticket plan...
+Found 1 top-level items. Creating tickets...
+Creating Task: ID:[PRIMES] Prime Number Generator
+Starting metrics server on :2112
+Error: Failed to create Task 'ID:[PRIMES] Prime Number Generator': failed to create ticket with status: 401, body: {"errorMessages":["You do not have permission to create issues in this project."],"errors":{}}. Trying 'Task'...
+Error: failed to create ticket 'ID:[PRIMES] Prime Number Generator': failed to create ticket with status: 401, body: {"errorMessages":["You do not have permission to create issues in this project."],"errors":{}}
+exit status 1
