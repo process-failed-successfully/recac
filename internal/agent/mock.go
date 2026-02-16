@@ -39,6 +39,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristic 0: Planning Phase Detection (must come first)
 	isPlanning := strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "tpm")
 
+	// Heuristic 0b: Check for successful test execution (Must be before Primes task to override it)
+	if strings.Contains(lowerPrompt, "ran 2 tests") && strings.Contains(lowerPrompt, "ok") {
+		return "Task completed. Tests passed.", nil
+	}
+
 	// Heuristic 1: Primes Task (Smoke Test)
 	// Triggers if prompt or env var mentions "prime" or specific ID
 	if strings.Contains(lowerPrompt, "prime") || strings.Contains(lowerPrompt, "primes.json") ||
