@@ -34,7 +34,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristics for smoke tests
 	// 1. Ticket Generation (Planning Phase)
-	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM") || strings.Contains(prompt, "ticket generation") {
+	// We make this check very strict to avoid false positives during execution phase (e.g. if prompt history contains these words)
+	if strings.Contains(prompt, "You are an expert Technical Program Manager") {
 		return `[
   {
     "title": "ID:[PRIMES] Implement prime number generator",
@@ -52,7 +53,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Coding Task (Execution Phase)
-	if strings.Contains(prompt, "prime") || strings.Contains(prompt, "primes.json") {
+	promptLower := strings.ToLower(prompt)
+	if strings.Contains(promptLower, "prime") || strings.Contains(promptLower, "primes.json") {
 		// Return a response that "implements" the task by creating the file
 		return `I will implement the prime number generator in Python.
 
@@ -92,6 +94,17 @@ And I'll run it to verify:
 
 ` + "```bash" + `
 python3 primes.py 50
+` + "```", nil
+	}
+
+	// 3. Generic Coding Task (Fallback)
+	// If it looks like a coding task but we don't recognize the specific feature, return a generic no-op command
+	// to satisfy the runner (preventing "No-Op Loop" circuit breaker).
+	if strings.Contains(prompt, "YOUR ROLE - CODING AGENT") {
+		return `I am a mock agent. I will perform a generic action.
+
+` + "```bash" + `
+echo "Mock Agent is running..."
 ` + "```", nil
 	}
 
