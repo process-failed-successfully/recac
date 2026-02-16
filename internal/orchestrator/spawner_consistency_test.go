@@ -89,7 +89,7 @@ func TestSpawnerConsistency_EnvPropagation(t *testing.T) {
 		spawner.GitClient = mockGit
 
 		// Expectations
-		mockDocker.On("RunContainer", mock.Anything, "img", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("cid", nil)
+		mockDocker.On("RunContainerWithConfig", mock.Anything, "img", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("cid", nil)
 		mockSM.On("SaveSession", mock.Anything).Return(nil)
 		mockSM.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
 

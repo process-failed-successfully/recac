@@ -45,6 +45,9 @@ func main() {
 	pflag.String("github-repo", "", "GitHub Repository Name (for 'github' poller)")
 	pflag.String("github-label", "", "GitHub Label to poll for (defaults to jira-label if not set)")
 
+	pflag.Bool("cleanup", false, "Cleanup orphaned Docker containers and exit")
+	pflag.Duration("cleanup-age", 0, "Minimum age for cleanup (e.g. 1h). Default 0 (all)")
+
 	pflag.Parse()
 
 	// Config
@@ -61,6 +64,9 @@ func main() {
 	viper.BindPFlag("orchestrator.github_owner", pflag.Lookup("github-owner"))
 	viper.BindPFlag("orchestrator.github_repo", pflag.Lookup("github-repo"))
 	viper.BindPFlag("orchestrator.github_label", pflag.Lookup("github-label"))
+
+	viper.BindPFlag("orchestrator.cleanup", pflag.Lookup("cleanup"))
+	viper.BindPFlag("orchestrator.cleanup_age", pflag.Lookup("cleanup-age"))
 
 	viper.BindPFlag("orchestrator.mode", pflag.Lookup("mode"))
 	viper.BindPFlag("orchestrator.jira_label", pflag.Lookup("jira-label"))
@@ -106,6 +112,29 @@ func main() {
 	agentProvider := viper.GetString("orchestrator.agent_provider")
 
 	query := viper.GetString("orchestrator.jira_query")
+
+	// Check Cleanup
+	if viper.GetBool("orchestrator.cleanup") {
+		logger.Info("Running cleanup mode")
+
+		// Initialize Docker Client (force cleanup requires docker access)
+		// We use "recac-orchestrator" project name as per spawner
+		dockerCli, err := docker.NewClient("recac-orchestrator")
+		if err != nil {
+			logger.Error("Failed to initialize Docker client for cleanup", "error", err)
+			os.Exit(1)
+		}
+		defer dockerCli.Close()
+
+		age := viper.GetDuration("orchestrator.cleanup_age")
+		if err := orchestrator.CleanupOrphanedContainers(ctx, dockerCli, logger, age); err != nil {
+			logger.Error("Cleanup failed", "error", err)
+			os.Exit(1)
+		}
+		logger.Info("Cleanup finished successfully")
+		os.Exit(0)
+	}
+
 	logger.Info("Starting Orchestrator", "mode", mode, "label", label, "query", query, "interval", interval, "agent_provider", agentProvider)
 
 	// 1. Poller
