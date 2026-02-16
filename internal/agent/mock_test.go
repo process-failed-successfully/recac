@@ -61,6 +61,13 @@ func TestMockAgent_Heuristics(t *testing.T) {
 			expectContains: []string{"Based on the QA Report, I approve the project", "PROJECT_SIGNED_OFF"},
 			expectMissing:  []string{"cat <<EOF > primes.py"},
 		},
+		{
+			name:           "Planning Phase - Primes Spec",
+			// This prompt contains "Implement Prime" (Coding heuristic) AND "generate tickets" (Planning heuristic)
+			prompt:         "Technical Program Manager\nImplement Prime Number Script\nPlease generate tickets",
+			expectContains: []string{`"tickets": [`, "Implement Prime Number Script"},
+			expectMissing:  []string{"cat <<EOF > primes.py"},
+		},
 	}
 
 	for _, tt := range tests {
