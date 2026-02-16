@@ -48,6 +48,12 @@ func TestMockAgent_Heuristics(t *testing.T) {
 			expectMissing:  []string{"Based on the QA Report"},
 		},
 		{
+			name:           "Coding Phase - Primes Content",
+			prompt:         "Implement the prime number script",
+			expectContains: []string{"range(10000)", `json.dump({"primes": primes}, f)`},
+			expectMissing:  []string{"range(100) "}, // Ensure it's not the old one
+		},
+		{
 			name:           "Coding Phase - Precedence over Manager",
 			// This simulates the failure case: prompt contains "project manager" but also "primes"
 			prompt:         "## your role - project manager\n\nImplement Prime Number Script",
