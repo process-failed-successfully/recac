@@ -31,3 +31,4 @@ data:
   RECAC_DB_TYPE: {{ .Values.config.dbType | quote }}
   RECAC_NOTIFICATIONS_DISCORD_ENABLED: {{ .Values.config.notifications.discord.enabled | default true | quote }}
   RECAC_NOTIFICATIONS_SLACK_ENABLED: {{ .Values.config.notifications.slack.enabled | default true | quote }}
+  RECAC_NO_DOCKER: {{ .Values.config.noDocker | default false | quote }}

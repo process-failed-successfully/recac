@@ -46,6 +46,7 @@ func initFlags(cfgFile *string) {
 	pflag.String("provider", "", "Agent provider override")
 	pflag.String("model", "", "Agent model override")
 	pflag.Bool("mock", false, "Mock mode")
+	pflag.Bool("no-docker", false, "Disable Docker usage (force local execution)")
 }
 
 func runApp(ctx context.Context) error {
@@ -74,6 +75,7 @@ func runApp(ctx context.Context) error {
 	viper.BindPFlag("provider", pflag.Lookup("provider"))
 	viper.BindPFlag("model", pflag.Lookup("model"))
 	viper.BindPFlag("mock", pflag.Lookup("mock"))
+	viper.BindPFlag("no_docker", pflag.Lookup("no-docker"))
 
 	viper.BindEnv("max_iterations", "RECAC_MAX_ITERATIONS")
 	viper.BindEnv("manager_frequency", "RECAC_MANAGER_FREQUENCY")
@@ -82,6 +84,7 @@ func runApp(ctx context.Context) error {
 	// Explicitly bind Provider/Model to ensure Env vars take precedence over config file
 	viper.BindEnv("provider", "RECAC_PROVIDER", "RECAC_AGENT_PROVIDER")
 	viper.BindEnv("model", "RECAC_MODEL", "RECAC_AGENT_MODEL")
+	viper.BindEnv("no_docker", "RECAC_NO_DOCKER")
 
 	// Init Logger
 	telemetry.InitLogger(viper.GetBool("verbose"), "", false)
@@ -113,6 +116,7 @@ func runApp(ctx context.Context) error {
 		Debug:             viper.GetBool("verbose"),
 		Provider:          viper.GetString("provider"),
 		Model:             viper.GetString("model"),
+		NoDocker:          viper.GetBool("no_docker"),
 		Cleanup:           viper.GetBool("cleanup"),
 		ProjectName:       viper.GetString("project"),
 		RepoURL:           viper.GetString("repo_url"),

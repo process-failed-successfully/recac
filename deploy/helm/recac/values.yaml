@@ -45,6 +45,7 @@ config:
   interval: "1m"
   jira_label: "recac-agent"
   jira_query: ""
+  noDocker: false
 
   # Database Configuration
   dbType: "sqlite" # or "postgres"

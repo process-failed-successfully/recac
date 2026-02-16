@@ -46,6 +46,7 @@ type SessionConfig struct {
 	Image             string
 	Provider          string
 	Model             string
+	NoDocker          bool
 	Cleanup           bool
 	Summary           string
 	Description       string
@@ -444,10 +445,16 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 
 	var dockerCli *docker.Client
 	var err error
-	dockerCli, err = docker.NewClient(projectName)
-	if err != nil {
-		fmt.Printf("Warning: Failed to initialize Docker client: %v. Proceeding in restricted mode.\n", err)
+
+	if cfg.NoDocker {
+		fmt.Println("Skipping Docker initialization (NoDocker=true). Using local execution.")
 		dockerCli = nil
+	} else {
+		dockerCli, err = docker.NewClient(projectName)
+		if err != nil {
+			fmt.Printf("Warning: Failed to initialize Docker client: %v. Proceeding in restricted mode.\n", err)
+			dockerCli = nil
+		}
 	}
 
 	provider := cfg.Provider

@@ -328,6 +328,7 @@ func run() error {
 			"--set", fmt.Sprintf("secrets.slackAppToken=%s", os.Getenv("SLACK_APP_TOKEN")),
 			"--set", fmt.Sprintf("secrets.discordBotToken=%s", os.Getenv("DISCORD_BOT_TOKEN")),
 			"--set", fmt.Sprintf("secrets.discordChannelId=%s", os.Getenv("DISCORD_CHANNEL_ID")),
+			"--set", "config.noDocker=true",
 		}
 
 		// Conditionally set postgres registry if we are assuming a local mirroring setup
