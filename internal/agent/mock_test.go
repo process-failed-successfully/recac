@@ -25,6 +25,31 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Heuristics(t *testing.T) {
+	agent := NewMockAgent()
+	ctx := context.Background()
+
+	// 1. Planning Heuristic
+	planPrompt := "You are an expert Technical Program Manager (TPM)"
+	planResp, err := agent.Send(ctx, planPrompt)
+	if err != nil {
+		t.Fatalf("Plan Send failed: %v", err)
+	}
+	if !strings.Contains(planResp, "ID:[PRIMES]") {
+		t.Errorf("Expected plan response to contain ID:[PRIMES], got: %s", planResp)
+	}
+
+	// 2. Execution Heuristic
+	execPrompt := "Please implement the prime number generator"
+	execResp, err := agent.Send(ctx, execPrompt)
+	if err != nil {
+		t.Fatalf("Exec Send failed: %v", err)
+	}
+	if !strings.Contains(execResp, "def is_prime(n):") {
+		t.Errorf("Expected exec response to contain python code, got: %s", execResp)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {

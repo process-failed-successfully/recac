@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,6 +31,81 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// 1. Planning Phase Heuristic
+	// If the prompt mentions being a TPM or Manager, return a JSON plan.
+	// This supports the E2E "jira generate-from-spec" step.
+	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM") || strings.Contains(prompt, "ticket generation") {
+		return `
+Here is the decomposition of the tasks:
+
+` + "```json" + `
+[
+  {
+    "title": "ID:[PRIMES] Implement Prime Number Generator",
+    "description": "Create a Python script that calculates prime numbers up to a specified limit. The script should be robust and efficient.",
+    "type": "Story",
+    "acceptance_criteria": [
+      "Script calculates primes correctly",
+      "Script handles invalid input gracefully",
+      "Script outputs results to stdout or a file"
+    ],
+    "children": []
+  }
+]
+` + "```" + `
+`, nil
+	}
+
+	// 2. Execution Phase Heuristic (Primes)
+	// If the prompt mentions primes or the specific ticket ID, return the Python code.
+	// This supports the E2E "prime-python" scenario execution step.
+	if strings.Contains(strings.ToLower(prompt), "prime") || strings.Contains(prompt, "primes.json") || strings.Contains(prompt, "ID:[PRIMES]") {
+		return `
+I will implement the prime number generator in Python.
+
+` + "```bash" + `
+cat << 'EOF' > primes.py
+import sys
+
+def is_prime(n):
+    if n <= 1:
+        return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+def main():
+    limit = 10000
+    if len(sys.argv) > 1:
+        try:
+            limit = int(sys.argv[1])
+        except ValueError:
+            pass
+
+    primes = []
+    for num in range(2, limit + 1):
+        if is_prime(num):
+            primes.append(num)
+
+    print(f"Found {len(primes)} prime numbers up to {limit}")
+    print(primes[:10], "...")
+
+if __name__ == "__main__":
+    main()
+EOF
+` + "```" + `
+
+Now I will run it to verify.
+
+` + "```bash" + `
+python3 primes.py
+` + "```" + `
+`, nil
+	}
+
+	// Default fallback
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
