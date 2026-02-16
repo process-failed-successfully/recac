@@ -34,35 +34,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	promptLower := strings.ToLower(prompt)
 
-	// 1. Manager Review (Sign-off Phase)
-	// We check for "qa report" or "project manager" in the context of a review request
-	if strings.Contains(promptLower, "qa report") || strings.Contains(promptLower, "## your role - project manager") {
-		return "Based on the QA Report, I approve the project.\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true --privileged\n```", nil
-	}
-
-	// 2. Project Manager / Planning Phase (Ticket Generation)
-	if strings.Contains(promptLower, "role - project manager") || strings.Contains(promptLower, "technical program manager") {
-		// Return JSON plan for the 'generate-from-spec' command
-		// Note: The struct expects fields: title, description, type, blocked_by, acceptance_criteria
-		return `{
-  "tickets": [
-    {
-      "title": "Implement Prime Number Script",
-      "description": "Create a python script 'primes.py' that calculates primes up to 100 and saves them to 'primes.json'.",
-      "type": "Task",
-      "id": "PRIMES-1",
-      "acceptance_criteria": ["req-script-runs-without-errors"]
-    }
-  ]
-}`, nil
-	}
-
-	// 3. QA Agent Phase
-	if strings.Contains(promptLower, "role - qa agent") {
-		return "QA Approved.\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true --privileged\n```", nil
-	}
-
-	// 4. Coding Agent Phase (Primes Scenario)
+	// 1. Coding Agent Phase (Primes Scenario)
 	// Detects if we are working on the primes task
 	// Note: We also match "Prime Number Script" to cover scenarios where the ticket summary is used
 	// We also check for "Prime", "Implement", "script", or the requirement ID to be robust against formatting or truncation
@@ -102,6 +74,34 @@ agent-bridge feature set req-script-runs-without-errors status completed || echo
 # Note: We signal project sign-off here to ensure the smoke test completes even if QA step is skipped or merged
 agent-bridge signal PROJECT_SIGNED_OFF true --privileged || echo "Ignored agent-bridge signal failure"
 ` + "```", nil
+	}
+
+	// 2. Manager Review (Sign-off Phase)
+	// We check for "qa report" or "project manager" in the context of a review request
+	if strings.Contains(promptLower, "qa report") || strings.Contains(promptLower, "## your role - project manager") {
+		return "Based on the QA Report, I approve the project.\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true --privileged\n```", nil
+	}
+
+	// 3. Project Manager / Planning Phase (Ticket Generation)
+	if strings.Contains(promptLower, "role - project manager") || strings.Contains(promptLower, "technical program manager") {
+		// Return JSON plan for the 'generate-from-spec' command
+		// Note: The struct expects fields: title, description, type, blocked_by, acceptance_criteria
+		return `{
+  "tickets": [
+    {
+      "title": "Implement Prime Number Script",
+      "description": "Create a python script 'primes.py' that calculates primes up to 100 and saves them to 'primes.json'.",
+      "type": "Task",
+      "id": "PRIMES-1",
+      "acceptance_criteria": ["req-script-runs-without-errors"]
+    }
+  ]
+}`, nil
+	}
+
+	// 4. QA Agent Phase
+	if strings.Contains(promptLower, "role - qa agent") {
+		return "QA Approved.\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true --privileged\n```", nil
 	}
 
 	// Default Mock Response
