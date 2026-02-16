@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"recac/internal/runner"
 	"testing"
 	"time"
 
@@ -34,7 +35,19 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	// Mock expectations
 	// Use mock.Anything for context to ensure it matches even if wrapped
 	mockDocker.On("RunContainer", mock.Anything, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
-	mockSM.On("SaveSession", mock.Anything).Return(nil)
+
+	// Verify initial SaveSession captures correct command in SessionState
+	mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		// Check if command contains --image
+		found := false
+		for i, arg := range s.Command {
+			if arg == "--image" && i+1 < len(s.Command) && s.Command[i+1] == imageName {
+				found = true
+				break
+			}
+		}
+		return found
+	})).Return(nil)
 
 	done := make(chan struct{}, 1)
 	mockSM.On("LoadSession", "TICKET-1").Run(func(args mock.Arguments) {
@@ -47,20 +60,14 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	execCalled := make(chan string, 10) // Buffer size > 1 just in case
 	failure := make(chan string, 10)
 
-	// Expect Exec call. Match ANY arguments to avoid panic on mismatch, verify inside Run.
+	// Expect Exec call. Match containerID strictly.
 	// Arguments: ctx, containerID, cmd
-	mockDocker.On("Exec", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Run(func(args mock.Arguments) {
 		defer func() {
 			if r := recover(); r != nil {
 				failure <- fmt.Sprintf("Panic in Exec mock: %v", r)
 			}
 		}()
-
-		containerID := args.Get(1)
-		if containerID != "container123" {
-			failure <- fmt.Sprintf("Exec called with wrong container ID: %v", containerID)
-			return
-		}
 
 		cmdRaw := args.Get(2)
 		cmd, ok := cmdRaw.([]string)
@@ -127,4 +134,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Log("Timeout waiting for LoadSession (background goroutine cleanup)")
 	}
+
+	mockDocker.AssertExpectations(t)
+	mockSM.AssertExpectations(t)
 }
