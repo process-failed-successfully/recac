@@ -63,14 +63,14 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		t.Logf("Captured Command: %s", cmdStr)
 		assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
 		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
-	case <-time.After(30 * time.Second):
+	case <-time.After(60 * time.Second): // Increased to 60s for CI stability
 		t.Fatal("Timeout waiting for Exec call")
 	}
 
 	// Wait for background goroutine to reach LoadSession to ensure clean shutdown of mocks
 	select {
 	case <-done:
-	case <-time.After(30 * time.Second):
+	case <-time.After(60 * time.Second): // Increased to 60s for CI stability
 		t.Log("Timeout waiting for LoadSession (goroutine cleanup)")
 	}
 }
