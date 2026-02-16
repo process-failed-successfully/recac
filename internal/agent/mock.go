@@ -30,6 +30,10 @@ func (m *MockAgent) SetResponse(response string) {
 // Send implements the Agent interface
 // It returns a mock response that acknowledges the prompt
 func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
+	// Debug logging to help diagnose CI failures
+	fmt.Printf("DEBUG: MockAgent Prompt: %s\n", prompt)
+	fmt.Printf("DEBUG: MockAgent Features: %s\n", os.Getenv("RECAC_INJECTED_FEATURES"))
+
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
