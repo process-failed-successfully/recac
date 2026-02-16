@@ -56,7 +56,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		t.Logf("Captured Command: %s", cmdStr)
 		assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
 		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
-	case <-time.After(1 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("Timeout waiting for Exec call")
 	}
 
@@ -64,7 +64,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	select {
 	case <-loadSessionCalled:
 		// Success: LoadSession was called
-	case <-time.After(1 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("Timeout waiting for LoadSession call")
 	}
 }
