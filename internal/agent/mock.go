@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
+	"sync"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -12,12 +14,16 @@ import (
 type MockAgent struct {
 	responsePrefix string
 	forcedResponse string
+	// Internal state to track generated files
+	generatedFiles map[string]bool
+	mu             sync.Mutex
 }
 
 // NewMockAgent creates a new mock agent
 func NewMockAgent() *MockAgent {
 	return &MockAgent{
 		responsePrefix: "Mock agent response",
+		generatedFiles: make(map[string]bool),
 	}
 }
 
@@ -29,6 +35,9 @@ func (m *MockAgent) SetResponse(response string) {
 // Send implements the Agent interface
 // It returns a mock response that acknowledges the prompt
 func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
@@ -60,12 +69,73 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic for Primes coding task (Agent execution)
 	if strings.Contains(lowerPrompt, "prime") || strings.Contains(lowerPrompt, "primes.json") || strings.Contains(os.Getenv("RECAC_INJECTED_FEATURES"), "prime") {
-		// If it looks like a coding task request, return a shell command to implement the file
-		if strings.Contains(lowerPrompt, "implement") || strings.Contains(lowerPrompt, "create") || strings.Contains(lowerPrompt, "write") {
-			return `I will create the prime number generator script.
 
-` + "```bash" + `
-cat <<EOF > primes.py
+		// Extract Ticket ID (MFLP-123 or TASK-1)
+		re := regexp.MustCompile(`(MFLP|TASK)-\d+`)
+		matches := re.FindStringSubmatch(prompt)
+		ticketID := ""
+		if len(matches) > 0 {
+			ticketID = matches[0]
+		}
+
+		// Helper to construct response
+		makeResponse := func(content string) string {
+			return fmt.Sprintf("I will proceed with the task.\n\n```bash\n%s\n```\n", content)
+		}
+
+		// 1. Check for "Test" task (Write Unit Tests)
+		if strings.Contains(lowerPrompt, "test") && (strings.Contains(lowerPrompt, "write") || strings.Contains(lowerPrompt, "create")) {
+			// Check if tests already exist
+			if m.generatedFiles["test_primes.py"] {
+				// Already exists, mark as done
+				if ticketID != "" {
+					return makeResponse(fmt.Sprintf("agent-bridge feature set %s --status done --passes true", ticketID)), nil
+				}
+				return makeResponse("echo 'Tests already exist.'"), nil
+			}
+
+			// Mark as generated
+			m.generatedFiles["test_primes.py"] = true
+
+			// Create tests
+			return makeResponse(`cat <<EOF > test_primes.py
+import unittest
+import json
+from primes import is_prime, generate_primes
+
+class TestPrimes(unittest.TestCase):
+    def test_is_prime(self):
+        self.assertFalse(is_prime(1))
+        self.assertTrue(is_prime(2))
+        self.assertTrue(is_prime(3))
+        self.assertFalse(is_prime(4))
+        self.assertTrue(is_prime(5))
+
+    def test_generate_primes(self):
+        self.assertEqual(generate_primes(5), [2, 3, 5, 7, 11])
+
+if __name__ == '__main__':
+    unittest.main()
+EOF`), nil
+		}
+
+		// 2. Check for "Implementation" task (Implement Prime Generator)
+		// Default case if "implement" or "create" is present
+		if strings.Contains(lowerPrompt, "implement") || strings.Contains(lowerPrompt, "create") || strings.Contains(lowerPrompt, "write") {
+			// Check if implementation already exists
+			if m.generatedFiles["primes.py"] {
+				// Already exists, mark as done
+				if ticketID != "" {
+					return makeResponse(fmt.Sprintf("agent-bridge feature set %s --status done --passes true", ticketID)), nil
+				}
+				return makeResponse("echo 'Implementation already exists.'"), nil
+			}
+
+			// Mark as generated
+			m.generatedFiles["primes.py"] = true
+
+			// Create implementation
+			return makeResponse(`cat <<EOF > primes.py
 def is_prime(n):
     if n <= 1:
         return False
@@ -86,9 +156,7 @@ def generate_primes(n):
 if __name__ == "__main__":
     import json
     print(json.dumps(generate_primes(10)))
-EOF
-` + "```" + `
-`, nil
+EOF`), nil
 		}
 	}
 

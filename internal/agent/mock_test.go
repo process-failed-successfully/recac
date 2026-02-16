@@ -25,38 +25,49 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
-func TestMockAgent_PrimesHeuristic(t *testing.T) {
+func TestMockAgent_PrimesHeuristic_Stateful(t *testing.T) {
 	agent := NewMockAgent()
 
-	// Test 1: Implementation
-	prompt := "Implement Prime Number Generator"
+	// 1. First call: Implement
+	prompt := "Implement Prime Number Generator (Task: TASK-1)"
 	response, err := agent.Send(context.Background(), prompt)
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
 	}
 
-	if !strings.Contains(response, "```bash") {
-		t.Errorf("Response missing bash block marker, got: %s", response)
-	}
-
 	if !strings.Contains(response, "cat <<EOF > primes.py") {
-		t.Errorf("Response missing primes.py implementation, got: %s", response)
+		t.Errorf("Expected primes.py creation on first call, got: %s", response)
 	}
 
-	// Test 2: Tests
-	prompt = "Write Unit Tests for Primes"
+	// 2. Second call: Implement (Should mark done)
 	response, err = agent.Send(context.Background(), prompt)
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
 	}
 
-	if !strings.Contains(response, "```bash") {
-		t.Errorf("Response missing bash block marker for tests prompt, got: %s", response)
+	if !strings.Contains(response, "agent-bridge feature set TASK-1 --status done") {
+		t.Errorf("Expected completion signal on second call, got: %s", response)
 	}
 
-	// We expect the same generic response for now
-	if !strings.Contains(response, "cat <<EOF > primes.py") {
-		t.Errorf("Response missing primes.py implementation for tests prompt, got: %s", response)
+	// 3. First call: Tests
+	prompt = "Write Unit Tests for Primes (Task: TASK-2)"
+	response, err = agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "cat <<EOF > test_primes.py") {
+		t.Errorf("Expected test_primes.py creation on first call, got: %s", response)
+	}
+
+	// 4. Second call: Tests (Should mark done)
+	response, err = agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "agent-bridge feature set TASK-2 --status done") {
+		t.Errorf("Expected completion signal on second call, got: %s", response)
 	}
 }
 
