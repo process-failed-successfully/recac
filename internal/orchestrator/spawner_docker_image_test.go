@@ -47,7 +47,13 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	failure := make(chan string, 1)
 
 	// Expect the specific container ID "container123" returned by RunContainer
-	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Run(func(args mock.Arguments) {
+	// We use mock.Anything for containerID and verify it inside the Run hook to prevent "Unexpected call" panics
+	// which can lead to test timeouts if the panic recovery path fails.
+	mockDocker.On("Exec", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		containerID := args.String(1)
+		if containerID != "container123" {
+			t.Errorf("Expected containerID 'container123', got '%s'", containerID)
+		}
 		cmd := args.Get(2).([]string)
 		if len(cmd) > 2 {
 			execCalled <- cmd[2]
