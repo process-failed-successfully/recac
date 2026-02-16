@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,8 +31,52 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
-	// Return a mock response that shows the agent received the prompt
-	// This allows the session to run without requiring real API keys
+
+	// TPM Agent: Ticket Generation
+	// Checks for key phrases from tpm_agent.md prompt
+	if strings.Contains(prompt, "Technical Program Manager") && (strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "Prime Number Script")) {
+		return `[
+  {
+    "title": "ID:[PRIMES] Prime Number Generator",
+    "description": "Implement a Python script to generate prime numbers.\nRepo: https://github.com/example/repo",
+    "type": "Task",
+    "children": []
+  }
+]`, nil
+	}
+
+	// Coding Agent: Implementation
+	// Checks for key phrases from coding_agent.md prompt
+	if (strings.Contains(prompt, "CODING AGENT") || strings.Contains(prompt, "coding_agent")) &&
+	   (strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "prime") || strings.Contains(prompt, "Prime")) {
+		return `
+cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n < 2: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0: return False
+    return True
+
+primes = [n for n in range(10000) if is_prime(n)]
+
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+python3 primes.py
+
+git add primes.py primes.json
+git commit -m "Implement primes"
+git push origin HEAD
+
+agent-bridge feature set $RECAC_PROJECT_ID --status done --passes true
+agent-bridge signal COMPLETED true
+`, nil
+	}
+
+	// Default fallback
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
