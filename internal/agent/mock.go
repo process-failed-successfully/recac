@@ -44,39 +44,56 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	lowerPrompt := strings.ToLower(prompt)
 
+	// Helper to extract Ticket ID
+	extractTicketID := func(p string) string {
+		re := regexp.MustCompile(`(MFLP|TASK)-\d+`)
+		matches := re.FindStringSubmatch(p)
+		if len(matches) > 0 {
+			return matches[0]
+		}
+		return "TASK-1" // Default fallback
+	}
+
 	// Heuristic for TPM / Ticket Generation
 	// If the prompt asks for a ticket plan or identifies as a TPM, return a valid JSON list of tickets
 	if strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "generate a ticket plan") {
-		return `[
-  {
-    "id": "TASK-1",
-    "title": "Implement Prime Number Generator",
-    "description": "Create a Python script that generates prime numbers.",
-    "type": "Task",
-    "status": "Open",
-    "dependencies": []
-  },
-  {
-    "id": "TASK-2",
-    "title": "Write Unit Tests for Primes",
-    "description": "Write unit tests to verify the prime number generator.",
-    "type": "Task",
-    "status": "Open",
-    "dependencies": ["TASK-1"]
-  }
-]`, nil
+		ticketID := extractTicketID(prompt)
+
+		// Return a bash command to save features.json and import it
+		// This ensures that the feature exists in the DB for the Runner to update later
+		return fmt.Sprintf(`I have generated the plan.
+
+` + "```bash" + `
+cat <<EOF > features.json
+{
+  "project_name": "%s",
+  "features": [
+    {
+      "id": "%s",
+      "category": "Core",
+      "priority": "MVP",
+      "title": "Task %s",
+      "description": "Implement the requirements for %s",
+      "type": "Task",
+      "status": "Open",
+      "dependencies": {
+        "depends_on_ids": [],
+        "exclusive_write_paths": [],
+        "read_only_paths": []
+      }
+    }
+  ]
+}
+EOF
+cat features.json | agent-bridge import
+` + "```" + `
+`, ticketID, ticketID, ticketID, ticketID), nil
 	}
 
 	// Heuristic for Primes coding task (Agent execution)
 	if strings.Contains(lowerPrompt, "prime") || strings.Contains(lowerPrompt, "primes.json") || strings.Contains(os.Getenv("RECAC_INJECTED_FEATURES"), "prime") {
 
-		// Extract Ticket ID (MFLP-123 or TASK-1)
-		re := regexp.MustCompile(`(MFLP|TASK)-\d+`)
-		matches := re.FindStringSubmatch(prompt)
-		ticketID := ""
-		if len(matches) > 0 {
-			ticketID = matches[0]
-		}
+		ticketID := extractTicketID(prompt)
 
 		// Helper to construct response
 		makeResponse := func(content string) string {

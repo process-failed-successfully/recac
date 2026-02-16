@@ -25,6 +25,29 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_TPM_Heuristic(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "You are a Technical Program Manager. Generate a ticket plan for MFLP-123."
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "```bash") {
+		t.Errorf("Response missing bash block, got: %s", response)
+	}
+	if !strings.Contains(response, "cat <<EOF > features.json") {
+		t.Errorf("Response missing features.json creation, got: %s", response)
+	}
+	if !strings.Contains(response, "\"id\": \"MFLP-123\"") {
+		t.Errorf("Response missing correct Ticket ID MFLP-123, got: %s", response)
+	}
+	if !strings.Contains(response, "agent-bridge import") {
+		t.Errorf("Response missing import command, got: %s", response)
+	}
+}
+
 func TestMockAgent_PrimesHeuristic_Stateful(t *testing.T) {
 	agent := NewMockAgent()
 
