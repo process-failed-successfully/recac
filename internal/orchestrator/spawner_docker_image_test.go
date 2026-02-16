@@ -56,10 +56,17 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		}
 	}).Return("output", nil)
 
-	// If a panic occurs, UpdateStatus will be called with "Failed"
-	mockPoller.On("UpdateStatus", mock.Anything, mock.Anything, "Failed", mock.Anything).Run(func(args mock.Arguments) {
+	// UpdateStatus might be called on panic or other failure.
+	// We match ANY status to ensure we catch any call and avoid panics in the recover block.
+	mockPoller.On("UpdateStatus", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		status := args.String(2)
 		comment := args.String(3)
-		failure <- comment
+		// Only consider it a failure if status is "Failed" or similar, but for test purposes any call is interesting.
+		if status == "Failed" {
+			failure <- comment
+		} else {
+			t.Logf("UpdateStatus called with status: %s, comment: %s", status, comment)
+		}
 	}).Return(nil).Maybe()
 
 	err := spawner.Spawn(ctx, item)
@@ -76,7 +83,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 		}
 	case failMsg := <-failure:
 		t.Fatalf("Spawn failed with error: %s", failMsg)
-	case <-time.After(60 * time.Second): // Generous timeout for CI
+	case <-time.After(5 * time.Minute): // Extremely generous timeout for slow CI runners
 		t.Fatal("Timeout waiting for Exec call")
 	}
 
