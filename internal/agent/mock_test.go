@@ -25,10 +25,10 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
-func TestMockAgent_PrimesHeuristic(t *testing.T) {
+func TestMockAgent_PrimesHeuristic_TPM(t *testing.T) {
 	agent := NewMockAgent()
 
-	prompt := "Please generate tickets for ID:[PRIMES] Prime Number Script"
+	prompt := "## YOUR ROLE - TECHNICAL PROGRAM MANAGER\nID:[PRIMES] Prime Number Script"
 	response, err := agent.Send(context.Background(), prompt)
 
 	if err != nil {
@@ -40,6 +40,27 @@ func TestMockAgent_PrimesHeuristic(t *testing.T) {
 	}
 	if !strings.Contains(response, "\"type\": \"Task\"") {
 		t.Errorf("Response missing expected JSON type, got: %s", response)
+	}
+}
+
+func TestMockAgent_PrimesHeuristic_Coding(t *testing.T) {
+	agent := NewMockAgent()
+
+	prompt := "## YOUR ROLE - CODING AGENT\nFeature ID: PROJ-123\nID:[PRIMES] Prime Number Script"
+	response, err := agent.Send(context.Background(), prompt)
+
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "cat << 'EOF' > primes.py") {
+		t.Errorf("Response missing bash block for file creation, got: %s", response)
+	}
+	if !strings.Contains(response, "agent-bridge feature set PROJ-123") {
+		t.Errorf("Response missing feature set command with correct ID, got: %s", response)
+	}
+	if !strings.Contains(response, "agent-bridge signal COMPLETED true") {
+		t.Errorf("Response missing completion signal, got: %s", response)
 	}
 }
 

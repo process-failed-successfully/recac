@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -35,9 +36,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristics for E2E scenarios
 	lowerPrompt := strings.ToLower(prompt)
 
-	// Prime Python Scenario (Ticket Generation)
-	if strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(lowerPrompt, "prime number script") {
-		return `[
+	// Phase 1: TPM Agent (Ticket Generation)
+	// Matches prompts containing "technical program manager" and the specific scenario markers
+	if strings.Contains(lowerPrompt, "technical program manager") {
+		if strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(lowerPrompt, "prime number script") {
+			return `[
   {
     "title": "ID:[PRIMES] Create Prime Number Script",
     "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.Repo: https://github.com/process-failed-successfully/recac-jira-e2e",
@@ -45,6 +48,56 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     "children": []
   }
 ]`, nil
+		}
+	}
+
+	// Phase 2: Coding Agent (Task Execution)
+	// Matches prompts containing "coding agent" and the specific scenario markers
+	if strings.Contains(lowerPrompt, "coding agent") {
+		if strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(lowerPrompt, "prime number script") || strings.Contains(lowerPrompt, "primes.py") {
+			// Extract Task ID to update status
+			taskID := "UNKNOWN"
+			re := regexp.MustCompile(`Feature ID: ([A-Za-z0-9-]+)`)
+			matches := re.FindStringSubmatch(prompt)
+			if len(matches) > 1 {
+				taskID = matches[1]
+			}
+
+			// Return bash commands to implement the solution and signal completion
+			return fmt.Sprintf(`I will implement the prime number script as requested.
+
+`+"```bash"+`
+# Create the python script
+cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n < 2:
+        return False
+    for i in range(2, int(n**0.5) + 1):
+        if n %% i == 0:
+            return False
+    return True
+
+primes = [x for x in range(10000) if is_prime(x)]
+
+with open('primes.json', 'w') as f:
+    json.dump({'primes': primes}, f)
+EOF
+
+# Run the script to generate output
+python3 primes.py
+
+# Commit changes
+git add primes.py primes.json
+git commit -m "Implement primes script"
+
+# Signal completion
+agent-bridge feature set %s --status done --passes true
+agent-bridge signal COMPLETED true
+`+"```"+`
+`, taskID), nil
+		}
 	}
 
 	// Return a mock response that shows the agent received the prompt
