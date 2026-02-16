@@ -33,8 +33,16 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Heuristics for smoke tests
+
 	// 1. Ticket Generation (Planning Phase)
-	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "TPM") || strings.Contains(prompt, "ticket generation") {
+	// Must be checked BEFORE the coding task heuristic because the prompt might contain "prime"
+	// in the context of "create a ticket for prime number generator".
+	isPlanning := strings.Contains(prompt, "Technical Program Manager") ||
+		strings.Contains(prompt, "TPM") ||
+		strings.Contains(prompt, "ticket generation") ||
+		strings.Contains(prompt, "role - project manager")
+
+	if isPlanning {
 		return `[
   {
     "summary": "Implement prime number generator",
@@ -52,7 +60,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// 2. Coding Task (Execution Phase)
-	if strings.Contains(prompt, "prime") || strings.Contains(prompt, "primes.json") {
+	if strings.Contains(prompt, "prime") || strings.Contains(prompt, "primes.json") || strings.Contains(prompt, "id:[primes]") {
 		// Return a response that "implements" the task by creating the file
 		return `I will implement the prime number generator in Python.
 

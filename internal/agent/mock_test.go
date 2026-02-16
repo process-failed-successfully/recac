@@ -49,6 +49,17 @@ func TestMockAgent_Send_Heuristics(t *testing.T) {
 	if !strings.Contains(responseCode, "def is_prime(n):") {
 		t.Errorf("Expected Python code for primes, got: %s", responseCode)
 	}
+
+	// 3. Test Mixed Prompt (Planning should take precedence)
+	// This simulates the failure where "prime" keyword caused it to return code instead of JSON tickets
+	promptMixed := "You are a TPM. Create a ticket for the prime number generator task."
+	responseMixed, err := agent.Send(context.Background(), promptMixed)
+	if err != nil {
+		t.Fatalf("Mixed Send failed: %v", err)
+	}
+	if !strings.Contains(responseMixed, "[") || !strings.Contains(responseMixed, "summary") {
+		t.Errorf("Expected JSON ticket list for mixed prompt, got: %s", responseMixed)
+	}
 }
 
 func TestTruncateString(t *testing.T) {
