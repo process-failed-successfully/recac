@@ -144,7 +144,7 @@ func TestRunContainer_PullFailureIgnored(t *testing.T) {
 		return container.CreateResponse{ID: "new-id"}, nil
 	}
 
-	id, err := client.RunContainer(context.Background(), "img", "/ws", nil, nil, "")
+	id, err := client.RunContainer(context.Background(), "img", "/ws", nil, nil, nil, "")
 	if err != nil {
 		t.Fatalf("RunContainer failed despite pull failure: %v", err)
 	}

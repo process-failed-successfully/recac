@@ -14,7 +14,7 @@ import (
 // CoverageMockDockerClient implements DockerClient interface for testing
 type CoverageMockDockerClient struct {
 	CheckDaemonFunc   func(ctx context.Context) error
-	RunContainerFunc  func(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, user string) (string, error)
+	RunContainerFunc  func(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, labels map[string]string, user string) (string, error)
 	StopContainerFunc func(ctx context.Context, containerID string) error
 	ExecFunc          func(ctx context.Context, containerID string, cmd []string) (string, error)
 	ExecAsUserFunc    func(ctx context.Context, containerID string, user string, cmd []string) (string, error)
@@ -27,8 +27,8 @@ func (m *CoverageMockDockerClient) CheckDaemon(ctx context.Context) error {
 	if m.CheckDaemonFunc != nil { return m.CheckDaemonFunc(ctx) }
 	return nil
 }
-func (m *CoverageMockDockerClient) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, user string) (string, error) {
-	if m.RunContainerFunc != nil { return m.RunContainerFunc(ctx, imageRef, workspace, extraBinds, env, user) }
+func (m *CoverageMockDockerClient) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, labels map[string]string, user string) (string, error) {
+	if m.RunContainerFunc != nil { return m.RunContainerFunc(ctx, imageRef, workspace, extraBinds, env, labels, user) }
 	return "mock-container-id", nil
 }
 func (m *CoverageMockDockerClient) StopContainer(ctx context.Context, containerID string) error {

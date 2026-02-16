@@ -57,7 +57,7 @@ func TestOrchestrator_Integration_FileFlow(t *testing.T) {
 
 	poller := NewFilePoller(workFile)
 	spawner := &mockSpawner{}
-	orch := New(poller, spawner, 100*time.Millisecond)
+	orch := New(poller, spawner, nil, 100*time.Millisecond)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
@@ -214,7 +214,7 @@ func TestOrchestrator_Integration_JiraFlow(t *testing.T) {
 			if tc.spawnErr {
 				spawner.spawnErr = fmt.Errorf("spawn failed")
 			}
-			orch := New(poller, spawner, 50*time.Millisecond)
+			orch := New(poller, spawner, nil, 50*time.Millisecond)
 
 			ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
 			defer cancel()
