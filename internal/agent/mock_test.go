@@ -64,6 +64,36 @@ func TestMockAgent_PrimesHeuristic_Coding(t *testing.T) {
 	}
 }
 
+func TestMockAgent_Heuristics_QA(t *testing.T) {
+	agent := NewMockAgent()
+
+	prompt := "## YOUR ROLE - QA AGENT\nVerify the project."
+	response, err := agent.Send(context.Background(), prompt)
+
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "agent-bridge signal QA_PASSED true") {
+		t.Errorf("Response missing QA signal, got: %s", response)
+	}
+}
+
+func TestMockAgent_Heuristics_Manager(t *testing.T) {
+	agent := NewMockAgent()
+
+	prompt := "## YOUR ROLE - PROJECT MANAGER\nApprove or Reject."
+	response, err := agent.Send(context.Background(), prompt)
+
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "agent-bridge signal PROJECT_SIGNED_OFF true") {
+		t.Errorf("Response missing sign-off signal, got: %s", response)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
