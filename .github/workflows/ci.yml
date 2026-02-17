@@ -279,15 +279,17 @@ jobs:
           JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
           GITHUB_API_KEY: ${{ secrets.GH_API_KEY }}
           GITHUB_EMAIL: ${{ secrets.GH_EMAIL }}
+          # Mock does not use API keys, but we keep env for compatibility/completeness
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
-          RETRIES=3
+          # Use mock provider to ensure deterministic execution and avoid flaky external APIs (like OpenInference/ngrok)
+          RETRIES=1
           for i in $(seq 0 $RETRIES); do
             echo "Attempt $((i+1)) of $((RETRIES+1))"
             if go run e2e/runner/main.go \
               -scenario prime-python \
-              -provider openrouter \
-              -model "meta-llama/llama-3.3-70b-instruct:free" \
+              -provider mock \
+              -model mock \
               -image recac:smoke \
               -repo-url "https://github.com/process-failed-successfully/recac-jira-e2e" \
               -pull-policy IfNotPresent \
@@ -297,8 +299,8 @@ jobs:
             fi
             echo "Attempt $((i+1)) failed."
             if [ $i -lt $RETRIES ]; then
-              echo "Retrying in 10 seconds..."
-              sleep 10
+              echo "Retrying in 5 seconds..."
+              sleep 5
             fi
           done
           echo "All attempts failed."
