@@ -34,12 +34,28 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristics for E2E Tests
 
-	// 1. Prime Number Scenario
+	// 1. Prime Number Scenario - Planning Phase (Ticket Generation)
+	if strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "ticket") {
+		// Verify this is NOT the execution phase
+		// The prompt for planning typically includes "Output purely JSON" or similar
+		// The prompt for execution typically includes "Implement a python script" BUT the planning prompt ALSO contains the spec which contains that text.
+		// We need a strong signal for Planning.
+		// The scenarios code uses "generate-from-spec" which usually includes "Output purely JSON" in the system prompt or user prompt instructions.
+		// Let's check for "Output purely JSON" which is strong signal for planning/structured output.
+		// OR check if it DOES NOT contain "primes.py" as a request to create it (but the spec mentions it).
+
+		// Let's assume if it contains "CRITICAL INSTRUCTION: You MUST create exactly ONE ticket" it is planning.
+		if strings.Contains(prompt, "CRITICAL INSTRUCTION: You MUST create exactly ONE ticket") {
+			return m.getPrimePythonPlanningResponse(), nil
+		}
+	}
+
+	// 2. Prime Number Scenario - Execution Phase
 	if strings.Contains(prompt, "primes.py") && strings.Contains(prompt, "10,000") {
 		return m.getPrimePythonResponse(), nil
 	}
 
-	// 2. Feature List Generation (if applicable)
+	// 3. Feature List Generation (if applicable)
 	if strings.Contains(prompt, "Technical Program Manager") && strings.Contains(prompt, "feature_list.json") {
 		return m.getFeatureListResponse(), nil
 	}
@@ -66,6 +82,22 @@ func truncateString(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen]
+}
+
+// getPrimePythonPlanningResponse returns a JSON ticket plan
+func (m *MockAgent) getPrimePythonPlanningResponse() string {
+	return `
+` + "```json" + `
+[
+  {
+    "summary": "Create Prime Number Script",
+    "description": "Implement primes.py to calculate primes < 10000 and output to primes.json",
+    "type": "Task",
+    "id": "PRIMES"
+  }
+]
+` + "```" + `
+`
 }
 
 // getPrimePythonResponse returns a valid python script for the primes scenario
