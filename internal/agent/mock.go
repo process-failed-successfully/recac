@@ -37,7 +37,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// If features are pending, we update them. If done, we signal completion.
 	if strings.Contains(prompt, `"status": "pending"`) {
 		// Special handling for PRIMES task
-		if contains(prompt, "ID:[PRIMES]") || contains(prompt, "primes") {
+		// Case-insensitive check to be robust against prompt variations
+		promptLower := strings.ToLower(prompt)
+		if strings.Contains(promptLower, "primes") || strings.Contains(prompt, "ID:[PRIMES]") {
 			return `Here is a plan to implement the primes service.
 
 ` + "```bash" + `
