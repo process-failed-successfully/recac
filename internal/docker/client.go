@@ -186,7 +186,7 @@ func (c *Client) PullImage(ctx context.Context, imageRef string) error {
 
 // RunContainer starts a container with the specified image and mounts the workspace.
 // It returns the container ID or an error.
-func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, ports []string, user string) (string, error) {
+func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, user string) (string, error) {
 	telemetry.TrackDockerOp(c.project)
 	// 1. Pull Image (Best effort)
 	reader, err := c.api.ImagePull(ctx, imageRef, image.PullOptions{})
@@ -212,8 +212,61 @@ func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace st
 		&container.Config{
 			Image:      imageRef,
 			User:       user,
-			Tty:        true, // Keep it running
-			OpenStdin:  true, // Keep stdin open
+			Env:        env,                 // Apply env vars
+			Tty:        true,                // Keep it running
+			OpenStdin:  true,                // Keep stdin open
+			WorkingDir: "/workspace",
+			Cmd:        []string{"/bin/sh"}, // Default command to keep it alive
+		},
+		&container.HostConfig{
+			Binds: binds,
+		}, nil, nil, "")
+	if err != nil {
+		telemetry.TrackDockerError(c.project)
+		return "", fmt.Errorf("failed to create container: %w", err)
+	}
+
+	// 3. Start Container
+	if err := c.api.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
+		telemetry.TrackDockerError(c.project)
+		return "", fmt.Errorf("failed to start container: %w", err)
+	}
+
+	return resp.ID, nil
+}
+
+// RunContainerWithLabels starts a container with the specified image, mounts the workspace, and applies labels.
+// It returns the container ID or an error.
+func (c *Client) RunContainerWithLabels(ctx context.Context, imageRef string, workspace string, extraBinds []string, labels map[string]string, env []string, user string) (string, error) {
+	telemetry.TrackDockerOp(c.project)
+	// 1. Pull Image (Best effort)
+	reader, err := c.api.ImagePull(ctx, imageRef, image.PullOptions{})
+	if err == nil {
+		defer reader.Close()
+		io.Copy(io.Discard, reader) // Drain output
+	}
+
+	// Prepare binds
+	sourcePath := workspace
+	if c.HostWorkspacePath != "" && workspace == "/workspace" {
+		sourcePath = c.HostWorkspacePath
+	}
+	binds := []string{
+		fmt.Sprintf("%s:/workspace", sourcePath),
+	}
+	if len(extraBinds) > 0 {
+		binds = append(binds, extraBinds...)
+	}
+
+	// 2. Create Container
+	resp, err := c.api.ContainerCreate(ctx,
+		&container.Config{
+			Image:      imageRef,
+			User:       user,
+			Labels:     labels, // Apply labels here
+			Env:        env,    // Apply env vars
+			Tty:        true,   // Keep it running
+			OpenStdin:  true,   // Keep stdin open
 			WorkingDir: "/workspace",
 			Cmd:        []string{"/bin/sh"}, // Default command to keep it alive
 		},
