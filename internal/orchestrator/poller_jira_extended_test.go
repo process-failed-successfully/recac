@@ -6,14 +6,10 @@ import (
 	"testing"
 )
 
-// TestExtractRequiredFeatures_Concurrency tests the thread-safe lazy initialization
-// of regexes in extractRequiredFeatures.
+// TestExtractRequiredFeatures_Concurrency tests the thread-safety of
+// regex usage in extractRequiredFeatures.
 func TestExtractRequiredFeatures_Concurrency(t *testing.T) {
-	// If initialization is not thread-safe (e.g. race condition on assignment),
-	// this test run with -race should detect it, or it might panic.
-
-	// Reset the Once (not possible via public API, so we assume fresh state or rely on idempotency)
-	// Actually, we can't reset sync.Once. But we can ensure that calling it concurrently doesn't crash.
+	// If regex usage is not thread-safe, this test run with -race should detect it, or it might panic.
 
 	var wg sync.WaitGroup
 	numRoutines := 100
