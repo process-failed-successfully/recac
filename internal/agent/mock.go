@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -25,13 +26,52 @@ func (m *MockAgent) SetResponse(response string) {
 }
 
 // Send implements the Agent interface
-// It returns a mock response that acknowledges the prompt
+// It returns a mock response that acknowledges the prompt or follows heuristics
 func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
-	// Return a mock response that shows the agent received the prompt
-	// This allows the session to run without requiring real API keys
+
+	// Heuristic 1: Prime Number Scenario
+	if strings.Contains(prompt, "ID:[PRIMES]") {
+		return `Here is the solution for the Prime Number Task.
+
+` + "```bash" + `
+# Create the python script
+cat << 'EOF' > primes.py
+import json
+
+def get_primes(n):
+    primes = []
+    for num in range(2, n):
+        is_prime = True
+        for i in range(2, int(num ** 0.5) + 1):
+            if num % i == 0:
+                is_prime = False
+                break
+        if is_prime:
+            primes.append(num)
+    return primes
+
+primes = get_primes(10000)
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+# Run the script to generate the json
+python3 primes.py
+
+# Add files to git
+git add -f primes.json primes.py
+` + "```", nil
+	}
+
+	// Heuristic 2: JSON Output (Technical Program Manager)
+	if strings.Contains(prompt, "Output purely JSON") || strings.Contains(prompt, "Technical Program Manager") {
+		return "{}", nil
+	}
+
+	// Default response
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
