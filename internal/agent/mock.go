@@ -54,15 +54,17 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// vs the Agent Runner (asking for feature_list.json creation via bash)
 		if strings.Contains(lowerPrompt, "output purely json") {
 			// Jira Generator Mode: Return []ticketNode JSON
-			// We construct a simple Epic + Story structure for the primes task.
+			// We assign ID:[PRIMES] to the Story, not the Epic, because the Orchestrator
+			// only picks up Stories (non-Epics), and the E2E Runner watches for the job
+			// associated with the "PRIMES" ID.
 			jsonContent := fmt.Sprintf(`[
   {
-    "title": "ID:[PRIMES] Prime Number Script",
+    "title": "ID:[PRIMES-EPIC] Prime Number Script",
     "description": "Implement a Python script to calculate prime numbers.\nRepo: %s",
     "type": "Epic",
     "children": [
       {
-        "title": "Implement primes.py",
+        "title": "ID:[PRIMES] Implement primes.py",
         "description": "Write the script to calculate primes under 10000.\nRepo: %s",
         "type": "Story",
         "acceptance_criteria": [
