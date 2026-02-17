@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	defaultRepo = "192.168.0.55:5000/recac-e2e"
+	defaultRepo = "recac:smoke"
 	chartPath   = "./deploy/helm/recac"
 	namespace   = "default"
 	releaseName = "recac"
@@ -152,23 +152,31 @@ func run() error {
 		}
 
 		if !skipBuild && !imageExists {
-			log.Println("=== Building and Pushing Image ===")
-			// Use hash as cache bypass to ensure we build for this version, but can cache intermediate layers
-			// Actually, if we want Docker cache to work, we shouldn't bypass unless necessary.
-			// But sticking to the previous pattern of passing ARGS is fine, just use the hash.
-			if err := runCommand("make", "image-prod", fmt.Sprintf("DEPLOY_IMAGE=%s", imageName), fmt.Sprintf("ARGS=--build-arg CACHE_BYPASS=%s", shortHash)); err != nil {
-				return fmt.Errorf("failed to build image: %w", err)
-			}
-			if err := runCommand("docker", "push", imageName); err != nil {
-				return fmt.Errorf("failed to push image: %w", err)
+			if strings.Contains(imageName, "recac:smoke") {
+				log.Println("Skipping build/push for local smoke test image")
+			} else {
+				log.Println("=== Building and Pushing Image ===")
+				// Use hash as cache bypass to ensure we build for this version, but can cache intermediate layers
+				// Actually, if we want Docker cache to work, we shouldn't bypass unless necessary.
+				// But sticking to the previous pattern of passing ARGS is fine, just use the hash.
+				if err := runCommand("make", "image-prod", fmt.Sprintf("DEPLOY_IMAGE=%s", imageName), fmt.Sprintf("ARGS=--build-arg CACHE_BYPASS=%s", shortHash)); err != nil {
+					return fmt.Errorf("failed to build image: %w", err)
+				}
+				if err := runCommand("docker", "push", imageName); err != nil {
+					return fmt.Errorf("failed to push image: %w", err)
+				}
 			}
 		} else if skipBuild {
 			log.Println("=== Skipping Build (Explicit Flag) ===")
 		} else {
 			// Image exists
-			log.Println("=== Pushing Existing Image (Ensure Registry has it) ===")
-			if err := runCommand("docker", "push", imageName); err != nil {
-				return fmt.Errorf("failed to push image: %w", err)
+			if strings.Contains(imageName, "recac:smoke") {
+				log.Println("Skipping push for local smoke test image")
+			} else {
+				log.Println("=== Pushing Existing Image (Ensure Registry has it) ===")
+				if err := runCommand("docker", "push", imageName); err != nil {
+					return fmt.Errorf("failed to push image: %w", err)
+				}
 			}
 		}
 	}
