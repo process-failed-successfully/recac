@@ -39,6 +39,7 @@ type APIClient interface {
 	ContainerExecCreate(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error)
 	ContainerExecAttach(ctx context.Context, execID string, config container.ExecStartOptions) (types.HijackedResponse, error)
 	ContainerExecInspect(ctx context.Context, execID string) (container.ExecInspect, error)
+	ContainerInspect(ctx context.Context, containerID string) (types.ContainerJSON, error)
 	ContainerStop(ctx context.Context, containerID string, options container.StopOptions) error
 	ContainerRemove(ctx context.Context, containerID string, options container.RemoveOptions) error
 	ContainerList(ctx context.Context, options container.ListOptions) ([]types.Container, error)
@@ -294,10 +295,20 @@ func (c *Client) Exec(ctx context.Context, containerID string, cmd []string) (st
 // ExecWithEnv executes a command in a running container with environment variables.
 func (c *Client) ExecWithEnv(ctx context.Context, containerID string, cmd []string, env []string) (string, error) {
 	telemetry.TrackDockerOp(c.project)
+
+	// Inspect container to get default environment (PATH, etc.)
+	info, err := c.api.ContainerInspect(ctx, containerID)
+	if err != nil {
+		return "", fmt.Errorf("failed to inspect container for env: %w", err)
+	}
+
+	// Merge envs (append provided to default so they override)
+	mergedEnv := append(info.Config.Env, env...)
+
 	execConfig := container.ExecOptions{
 		WorkingDir:   "/workspace",
 		Cmd:          cmd,
-		Env:          env,
+		Env:          mergedEnv,
 		AttachStdout: true,
 		AttachStderr: true,
 	}

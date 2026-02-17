@@ -27,6 +27,7 @@ type MockAPI struct {
 	ContainerExecCreateFunc  func(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error)
 	ContainerExecAttachFunc  func(ctx context.Context, execID string, config container.ExecStartOptions) (types.HijackedResponse, error)
 	ContainerExecInspectFunc func(ctx context.Context, execID string) (container.ExecInspect, error)
+	ContainerInspectFunc     func(ctx context.Context, containerID string) (types.ContainerJSON, error)
 	ContainerStopFunc        func(ctx context.Context, containerID string, options container.StopOptions) error
 	ContainerRemoveFunc      func(ctx context.Context, containerID string, options container.RemoveOptions) error
 	ContainerListFunc        func(ctx context.Context, options container.ListOptions) ([]types.Container, error)
@@ -129,6 +130,17 @@ func (m *MockAPI) ContainerExecInspect(ctx context.Context, execID string) (cont
 		return m.ContainerExecInspectFunc(ctx, execID)
 	}
 	return container.ExecInspect{ExitCode: 0}, nil
+}
+
+func (m *MockAPI) ContainerInspect(ctx context.Context, containerID string) (types.ContainerJSON, error) {
+	if m.ContainerInspectFunc != nil {
+		return m.ContainerInspectFunc(ctx, containerID)
+	}
+	return types.ContainerJSON{
+		Config: &container.Config{
+			Env: []string{"PATH=/usr/local/bin:/usr/bin:/bin"},
+		},
+	}, nil
 }
 
 func (m *MockAPI) ContainerStop(ctx context.Context, containerID string, options container.StopOptions) error {

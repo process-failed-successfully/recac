@@ -28,6 +28,7 @@ type mockAPIClient struct {
 	containerCreateFunc     func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error)
 	containerExecCreateFunc func(ctx context.Context, container string, config container.ExecOptions) (types.IDResponse, error)
 	containerExecAttachFunc func(ctx context.Context, execID string, config container.ExecStartOptions) (types.HijackedResponse, error)
+	containerInspectFunc    func(ctx context.Context, containerID string) (types.ContainerJSON, error)
 	containerListFunc       func(ctx context.Context, options container.ListOptions) ([]types.Container, error)
 	containerKillFunc       func(ctx context.Context, containerID, signal string) error
 }
@@ -95,6 +96,17 @@ func (m *mockAPIClient) ContainerExecAttach(ctx context.Context, execID string, 
 
 func (m *mockAPIClient) ContainerExecInspect(ctx context.Context, execID string) (container.ExecInspect, error) {
 	return container.ExecInspect{ExitCode: 0}, nil
+}
+
+func (m *mockAPIClient) ContainerInspect(ctx context.Context, containerID string) (types.ContainerJSON, error) {
+	if m.containerInspectFunc != nil {
+		return m.containerInspectFunc(ctx, containerID)
+	}
+	return types.ContainerJSON{
+		Config: &container.Config{
+			Env: []string{"PATH=/usr/local/bin:/usr/bin:/bin"},
+		},
+	}, nil
 }
 
 func (m *mockAPIClient) ContainerStop(ctx context.Context, containerID string, options container.StopOptions) error {
@@ -431,6 +443,56 @@ func TestExec_WorkingDir(t *testing.T) {
 
 	if capturedConfig.WorkingDir != "/workspace" {
 		t.Errorf("expected WorkingDir /workspace, got %s", capturedConfig.WorkingDir)
+	}
+}
+
+func TestExecWithEnv_MergesEnv(t *testing.T) {
+	var capturedConfig container.ExecOptions
+	mock := &mockAPIClient{
+		containerInspectFunc: func(ctx context.Context, containerID string) (types.ContainerJSON, error) {
+			return types.ContainerJSON{
+				Config: &container.Config{
+					Env: []string{"PATH=/bin", "DEFAULT=true"},
+				},
+			}, nil
+		},
+		containerExecCreateFunc: func(ctx context.Context, containerID string, config container.ExecOptions) (types.IDResponse, error) {
+			capturedConfig = config
+			return types.IDResponse{ID: "exec-id"}, nil
+		},
+	}
+	client := &Client{api: mock}
+
+	// We provide an override for DEFAULT and a new variable NEW
+	_, _ = client.ExecWithEnv(context.Background(), "container-id", []string{"ls"}, []string{"DEFAULT=overridden", "NEW=true"})
+
+	// Check if merged correctly (appended)
+	// Expected: PATH=/bin, DEFAULT=true, DEFAULT=overridden, NEW=true
+	// Docker uses the last value for a key.
+	foundDefault := false
+	foundNew := false
+	foundPath := false
+
+	for _, e := range capturedConfig.Env {
+		if e == "PATH=/bin" {
+			foundPath = true
+		}
+		if e == "DEFAULT=overridden" {
+			foundDefault = true
+		}
+		if e == "NEW=true" {
+			foundNew = true
+		}
+	}
+
+	if !foundPath {
+		t.Error("Expected PATH to be preserved from container config")
+	}
+	if !foundDefault {
+		t.Error("Expected DEFAULT to be overridden (appended)")
+	}
+	if !foundNew {
+		t.Error("Expected NEW to be added")
 	}
 }
 
