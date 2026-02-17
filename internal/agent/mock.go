@@ -48,6 +48,33 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			repoSuffix = fmt.Sprintf("\\nRepo: %s", matches[1])
 		}
 
+		// Check if pure JSON is requested (e.g. for generate-from-spec)
+		if strings.Contains(lowerPrompt, "output purely json") {
+			// Extract Repo URL for JSON string (needs escaped newline)
+			repoStrEscaped := ""
+			if len(matches) > 1 {
+				repoStrEscaped = fmt.Sprintf("\\nRepo: %s", matches[1])
+			}
+
+			// Return []ticketNode JSON
+			return fmt.Sprintf(`[
+  {
+    "title": "ID:[PRIMES] Prime Number Script",
+    "description": "Implement a Python script to calculate primes.%s",
+    "type": "Epic",
+    "children": [
+      {
+        "title": "ID:[PRIMES-1] Implement Sieve",
+        "description": "Implement the Sieve of Eratosthenes.%s",
+        "type": "Story",
+        "acceptance_criteria": ["Script runs", "Calculates primes correctly"],
+        "blocked_by": []
+      }
+    ]
+  }
+]`, repoStrEscaped, repoStrEscaped), nil
+		}
+
 		// Return a JSON plan.
 		// For prime-python, we essentially just want to say "do the task".
 		// But if we are already in the task, maybe we don't need to break it down.
