@@ -265,6 +265,20 @@ func run(args []string, config db.StoreConfig, projectID string) error {
 			// This ensures robustness in mock/local environments
 			localUpdated := false
 			localPath := "feature_list.json"
+
+			// Bootstrap local file from environment if missing
+			if _, err := os.Stat(localPath); os.IsNotExist(err) {
+				if injected := os.Getenv("RECAC_INJECTED_FEATURES"); injected != "" {
+					// Validate JSON
+					var fl db.FeatureList
+					if err := json.Unmarshal([]byte(injected), &fl); err == nil {
+						if err := os.WriteFile(localPath, []byte(injected), 0644); err == nil {
+							fmt.Println("Bootstrapped local feature_list.json from RECAC_INJECTED_FEATURES")
+						}
+					}
+				}
+			}
+
 			if _, err := os.Stat(localPath); err == nil {
 				data, err := os.ReadFile(localPath)
 				if err == nil {
