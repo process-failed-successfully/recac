@@ -2,7 +2,9 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"recac/internal/db"
 	"regexp"
 	"strings"
 )
@@ -49,24 +51,26 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		}
 
 		// Return a JSON plan.
-		// For prime-python, we essentially just want to say "do the task".
-		// But if we are already in the task, maybe we don't need to break it down.
-		// However, providing a single step is safe.
-		// We return a bash script to create feature_list.json so the Runner picks it up.
-		jsonContent := fmt.Sprintf(`{
-  "project_name": "mock-project",
-  "features": [
-    {
-      "id": "req-primes",
-      "description": "Write a python script to calculate primes under 10000.%s",
-      "status": "pending",
-      "priority": "critical",
-      "category": "functional"
-    }
-  ]
-}`, strings.ReplaceAll(repoSuffix, "\n", "\\n"))
+		// Use json.Marshal to ensure validity and proper escaping
+		featureList := db.FeatureList{
+			ProjectName: "mock-project",
+			Features: []db.Feature{
+				{
+					ID:          "req-primes",
+					Description: fmt.Sprintf("Write a python script to calculate primes under 10000.%s", repoSuffix),
+					Status:      "pending",
+					Priority:    "critical",
+					Category:    "functional",
+				},
+			},
+		}
 
-		return fmt.Sprintf("I will initialize the project plan.\n\n```bash\ncat << 'EOF' > feature_list.json\n%s\nEOF\n```", jsonContent), nil
+		jsonData, err := json.MarshalIndent(featureList, "", "  ")
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal mock plan: %w", err)
+		}
+
+		return fmt.Sprintf("I will initialize the project plan.\n\n```bash\ncat << 'EOF' > feature_list.json\n%s\nEOF\n```", string(jsonData)), nil
 	}
 
 	// 1.5. All Done / No Task
