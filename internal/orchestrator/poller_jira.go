@@ -18,6 +18,8 @@ var (
 	regexOnce           sync.Once
 )
 
+// initRegex lazily initializes the regexes using sync.Once to prevent
+// initialization-time failures in CI environments (e.g. slow regex compilation).
 func initRegex() {
 	regexOnce.Do(func() {
 		featuresHeaderRegex = regexp.MustCompile(`(?i)^(REQUIRED FEATURES|ACCEPTANCE CRITERIA):?\s*$`)
@@ -157,7 +159,9 @@ func extractRepoURL(text string, repoRegex *regexp.Regexp) string {
 }
 
 func extractRequiredFeatures(text string) []db.Feature {
+	// Initialize regexes lazily
 	initRegex()
+
 	// Look for REQUIRED FEATURES: or ACCEPTANCE CRITERIA: block
 	// Regex matches headers case-insensitively
 	// Then captures lines starting with "- " or "* " until a blank line or new section
