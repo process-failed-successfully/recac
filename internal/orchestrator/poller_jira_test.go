@@ -207,7 +207,8 @@ func TestJiraPoller_Poll(t *testing.T) {
 
 		_, err := poller.Poll(ctx, nil)
 		assert.NoError(t, err)
-		assert.Equal(t, "statusCategory != Done ORDER BY created ASC", poller.JQL)
+		// JQL should remain empty in the struct to be thread-safe
+		assert.Equal(t, "", poller.JQL)
 		mockClient.AssertExpectations(t)
 	})
 
