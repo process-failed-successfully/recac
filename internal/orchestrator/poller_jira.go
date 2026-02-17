@@ -9,30 +9,12 @@ import (
 	"recac/internal/jira"
 	"regexp"
 	"strings"
-	"sync"
 )
 
 var (
-	featuresHeaderRegex     *regexp.Regexp
-	featuresHeaderRegexOnce sync.Once
-
-	featureSlugRegex     *regexp.Regexp
-	featureSlugRegexOnce sync.Once
+	featuresHeaderRegex = regexp.MustCompile(`(?i)^(REQUIRED FEATURES|ACCEPTANCE CRITERIA):?\s*$`)
+	featureSlugRegex    = regexp.MustCompile("[^a-z0-9]+")
 )
-
-func getFeaturesHeaderRegex() *regexp.Regexp {
-	featuresHeaderRegexOnce.Do(func() {
-		featuresHeaderRegex = regexp.MustCompile(`(?i)^(REQUIRED FEATURES|ACCEPTANCE CRITERIA):?\s*$`)
-	})
-	return featuresHeaderRegex
-}
-
-func getFeatureSlugRegex() *regexp.Regexp {
-	featureSlugRegexOnce.Do(func() {
-		featureSlugRegex = regexp.MustCompile("[^a-z0-9]+")
-	})
-	return featureSlugRegex
-}
 
 type JiraPoller struct {
 	Client  JiraClient
@@ -179,7 +161,7 @@ func extractRequiredFeatures(text string) []db.Feature {
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 
-		if getFeaturesHeaderRegex().MatchString(line) {
+		if featuresHeaderRegex.MatchString(line) {
 			inSection = true
 			continue
 		}
@@ -201,7 +183,7 @@ func extractRequiredFeatures(text string) []db.Feature {
 				slug := strings.ToLower(desc)
 
 				// Optimized: uses package-level regex
-				slug = getFeatureSlugRegex().ReplaceAllString(slug, "-")
+				slug = featureSlugRegex.ReplaceAllString(slug, "-")
 				slug = strings.Trim(slug, "-")
 				if len(slug) > 30 {
 					slug = slug[:30]
