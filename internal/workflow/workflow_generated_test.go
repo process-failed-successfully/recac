@@ -160,6 +160,13 @@ func (m *MockSessionManager) StartSession(name, goal string, command []string, c
 func TestRunWorkflow_Detached_Error(t *testing.T) {
 	mockSM := new(MockSessionManager)
 
+	t.Run("Missing SessionName", func(t *testing.T) {
+		cfg := SessionConfig{Detached: true, SessionName: ""}
+		err := RunWorkflow(context.Background(), cfg)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "--name is required")
+	})
+
 	t.Run("StartSession fails", func(t *testing.T) {
 		mockSM.On("StartSession", "test", "", mock.Anything, mock.Anything).Return(nil, errors.New("failed to start")).Once()
 		cfg := SessionConfig{Detached: true, SessionName: "test", SessionManager: mockSM}

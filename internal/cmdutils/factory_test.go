@@ -387,4 +387,22 @@ func TestSetupWorkspace(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "agent/TEST-1", checkedOut)
 	})
+
+	t.Run("Injects GitHub API Key", func(t *testing.T) {
+		os.Setenv("GITHUB_API_KEY", "gh_token")
+		defer os.Unsetenv("GITHUB_API_KEY")
+
+		var clonedURL string
+		mockGitClient := &MockGitClient{
+			repoExists: false,
+			cloneFn: func(ctx context.Context, repoURL, directory string) error {
+				clonedURL = repoURL
+				return nil
+			},
+		}
+
+		_, err := SetupWorkspace(context.Background(), mockGitClient, "https://github.com/example/repo", "/tmp/recac-test", "TEST-1", "", "")
+		assert.NoError(t, err)
+		assert.Equal(t, "https://gh_token@github.com/example/repo", clonedURL)
+	})
 }

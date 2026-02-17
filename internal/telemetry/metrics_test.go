@@ -2,6 +2,9 @@ package telemetry
 
 import (
 	"testing"
+	"time"
+	"net"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMetricsHelpers(t *testing.T) {
@@ -30,12 +33,24 @@ func TestMetricsHelpers(t *testing.T) {
 }
 
 func TestStartMetricsServer(t *testing.T) {
+	// Find a free port to ensure we can start
+	l, err := net.Listen("tcp", ":0")
+	if err != nil {
+		t.Skip("No ports available")
+	}
+	port := l.Addr().(*net.TCPAddr).Port
+	l.Close()
+
 	// Start in background
 	go func() {
-		// Use high port to avoid conflict
-		_ = StartMetricsServer(9990)
+		_ = StartMetricsServer(port)
 	}()
-	// Allow it to start
-	// We can't easily verify success without http client or checking logs/port
-	// But this covers the code path.
+
+	// Give it a moment to start and set the flag
+	time.Sleep(200 * time.Millisecond)
+
+	// Test "Already Running" path
+	// This call should return nil immediately because metricsRunning is true
+	err = StartMetricsServer(port)
+	assert.NoError(t, err)
 }

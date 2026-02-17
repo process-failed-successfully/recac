@@ -268,3 +268,12 @@ func TestInitLogger_SetsDefault(t *testing.T) {
 		t.Error("Default logger not set correctly by InitLogger")
 	}
 }
+
+func TestNewLogger_DirectoryAsFile(t *testing.T) {
+	// Passing a directory path as logFile should trigger an error in os.OpenFile
+	dir := os.TempDir()
+	logger := NewLogger(false, dir, false)
+	if logger == nil {
+		t.Error("NewLogger returned nil on file error")
+	}
+}
