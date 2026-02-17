@@ -3,6 +3,7 @@ package docker
 import (
 	"bufio"
 	"context"
+	"encoding/binary"
 	"io"
 	"net"
 	"strings"
@@ -117,7 +118,19 @@ func (m *MockAPI) ContainerExecAttach(ctx context.Context, execID string, config
 	}
 	// Return valid empty response to avoid panic
 	server, client := net.Pipe()
-	go server.Close() // Close immediately to simulate empty stream
+	go func() {
+		// Write a default success message in Docker multiplexed format (stdcopy compatible)
+		// Header: [STREAM_TYPE, 0, 0, 0, SIZE1, SIZE2, SIZE3, SIZE4]
+		// STREAM_TYPE: 1 = stdout
+		msg := []byte("Success: Mock command executed\n")
+		header := make([]byte, 8)
+		header[0] = 1 // stdout
+		binary.BigEndian.PutUint32(header[4:], uint32(len(msg)))
+
+		server.Write(header)
+		server.Write(msg)
+		server.Close()
+	}()
 	return types.HijackedResponse{
 		Conn:   client,
 		Reader: bufio.NewReader(client),

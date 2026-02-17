@@ -52,18 +52,41 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// For prime-python, we essentially just want to say "do the task".
 		// But if we are already in the task, maybe we don't need to break it down.
 		// However, providing a single step is safe.
-		return fmt.Sprintf(`[
-  {
-    "title": "Implement Prime Number Script",
-    "description": "Write a python script to calculate primes under 10000.%s",
-    "type": "Task"
-  }
-]`, repoSuffix), nil
+		// We return a bash script to create feature_list.json so the Runner picks it up.
+		jsonContent := fmt.Sprintf(`{
+  "project_name": "mock-project",
+  "features": [
+    {
+      "id": "req-primes",
+      "description": "Write a python script to calculate primes under 10000.%s",
+      "status": "pending",
+      "priority": "critical",
+      "category": "functional"
+    }
+  ]
+}`, repoSuffix)
+
+		return fmt.Sprintf("I will initialize the project plan.\n\n```bash\ncat << 'EOF' > feature_list.json\n%s\nEOF\n```", jsonContent), nil
+	}
+
+	// 1.5. All Done / No Task
+	if strings.Contains(lowerPrompt, "all features are marked as done") {
+		return "Task completed. Standing by.", nil
 	}
 
 	// 2. Coding Phase / Implementation
 	// If the prompt asks to "implement" or mentions the specific file requirements.
 	if strings.Contains(lowerPrompt, "primes.py") || strings.Contains(lowerPrompt, "implement") {
+		// Check for successful execution
+		// The runner saves output with role "System", containing "Success: Mock command executed"
+		if strings.Contains(lowerPrompt, "success: mock command executed") {
+			// Update feature_list.json to mark task as done to progress workflow
+			return `Task completed. Marking feature as done.
+` + "```bash" + `
+sed -i 's/"status": "pending"/"status": "done"/' feature_list.json
+` + "```", nil
+		}
+
 		return `I will create the python script to calculate prime numbers.
 
 ` + "```bash" + `

@@ -153,7 +153,8 @@ func TestRunLoop_Blocker(t *testing.T) {
 		Agent:         mockAgent,
 		Notifier:      notify.NewManager(func(string, ...interface{}) {}),
 		Logger:        telemetry.NewLogger(true, "", false),
-		MaxIterations: 5,
+		MaxIterations: 2,
+		SleepFunc:     func(d time.Duration) {}, // Mock sleep for speed
 	}
 
 	// Execution

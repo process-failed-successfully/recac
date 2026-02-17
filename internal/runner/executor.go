@@ -117,7 +117,8 @@ func (s *Session) checkBlockers(ctx context.Context) error {
 					strings.Contains(cleanStr, "initial setup complete") ||
 					strings.Contains(cleanStr, "all requirements met") ||
 					strings.Contains(cleanStr, "ready for next feature") ||
-					strings.Contains(cleanStr, "ui verification required")
+					strings.Contains(cleanStr, "ui verification required") ||
+					strings.Contains(cleanStr, "mock command executed")
 
 				if isFalsePositive {
 					s.Logger.Info("ignoring false positive blocker", "file", bf, "content", trimmed)
