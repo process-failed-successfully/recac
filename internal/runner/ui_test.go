@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"recac/internal/db"
 	"recac/internal/notify"
 	"recac/internal/telemetry"
 )
@@ -29,13 +30,23 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 	// 4. Setup: ui_verification.json (Should be detected)
 	os.WriteFile(filepath.Join(tmpDir, "ui_verification.json"), []byte("Verify Button Color"), 0644)
 
-	// 5. Initialize Session
+	// 5. Setup: DBStore (memory)
+	store, err := db.NewSQLiteStore(":memory:")
+	if err != nil {
+		t.Fatalf("Failed to create db store: %v", err)
+	}
+	defer store.Close()
+
+	// 6. Initialize Session
 	mockDocker := &MockDockerForExec{}
 	// Use a simple mock agent that returns empty response to trigger NoOp
 	mockAgent := &SimpleMockAgent{}
 	s := &Session{
 		Docker:           mockDocker,
 		Agent:            mockAgent,
+		QAAgent:          mockAgent,
+		ManagerAgent:     mockAgent,
+		CleanerAgent:     mockAgent,
 		Workspace:        tmpDir,
 		FeatureContent:   features,
 		ManagerFrequency: 5,
@@ -43,6 +54,7 @@ func TestSession_RunLoop_UIVerification(t *testing.T) {
 		Logger:           telemetry.NewLogger(true, "", false),
 		SleepFunc:        func(d time.Duration) {}, // Mock sleep for speed
 		MaxIterations:    2,
+		DBStore:          store,
 	}
 
 	// 6. Capture Stdout? (Hard to do in test without refactor).

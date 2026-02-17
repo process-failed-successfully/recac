@@ -64,4 +64,18 @@ func TestMockAgent_E2E_Heuristics(t *testing.T) {
 			t.Errorf("Expected 'PROJECT_SIGNED_OFF', got: %s", resp)
 		}
 	})
+
+	t.Run("Jira Gen Phase", func(t *testing.T) {
+		prompt := "You are a Technical Program Manager. Output purely JSON."
+		resp, err := agent.Send(ctx, prompt)
+		if err != nil {
+			t.Fatalf("Send failed: %v", err)
+		}
+		if !strings.Contains(resp, `"type": "Epic"`) {
+			t.Errorf("Expected JSON ticket list, got: %s", resp)
+		}
+		if strings.Contains(resp, "```bash") {
+			t.Errorf("Should not contain bash script for JSON prompt, got: %s", resp)
+		}
+	})
 }

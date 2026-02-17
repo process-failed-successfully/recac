@@ -44,15 +44,36 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		repoRegex := regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
 		matches := repoRegex.FindStringSubmatch(prompt)
 		repoSuffix := ""
+		repoUrl := "https://github.com/example/repo"
 		if len(matches) > 1 {
-			repoSuffix = fmt.Sprintf("\\nRepo: %s", matches[1])
+			repoUrl = matches[1]
+			repoSuffix = fmt.Sprintf("\\nRepo: %s", repoUrl)
 		}
 
-		// Return a JSON plan.
-		// For prime-python, we essentially just want to say "do the task".
-		// But if we are already in the task, maybe we don't need to break it down.
-		// However, providing a single step is safe.
-		// We return a bash script to create feature_list.json so the Runner picks it up.
+		// If the prompt explicitly asks for "Output purely JSON", return the raw JSON for Jira generation.
+		if strings.Contains(lowerPrompt, "output purely json") {
+			return fmt.Sprintf(`[
+  {
+    "title": "ID:[PRIMES] Prime Number Calculation",
+    "description": "Implement a script to calculate prime numbers up to 10000.\nRepo: %s",
+    "type": "Epic",
+    "children": [
+      {
+        "title": "ID:[req-primes] Write Python Script",
+        "description": "Write a python script to calculate primes under 10000.\nRepo: %s",
+        "type": "Story",
+        "acceptance_criteria": [
+          "Script runs without errors",
+          "Calculates primes correctly"
+        ],
+        "blocked_by": []
+      }
+    ]
+  }
+]`, repoUrl, repoUrl), nil
+		}
+
+		// Otherwise, for the Agent Loop, return a bash script to create feature_list.json.
 		jsonContent := fmt.Sprintf(`{
   "project_name": "mock-project",
   "features": [
