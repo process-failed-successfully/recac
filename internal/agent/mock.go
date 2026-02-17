@@ -50,6 +50,26 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		}
 	}
 
+	// Detect "INITIALIZER AGENT" request
+	// This agent must generate feature_list.json to allow the session to proceed.
+	if strings.Contains(prompt, "INITIALIZER AGENT") {
+		// Create a feature list that matches the prime task
+		return "```bash\n" +
+			"cat <<EOF > feature_list.json\n" +
+			"{\n" +
+			"  \"features\": [\n" +
+			"    {\n" +
+			"      \"id\": \"req-1\",\n" +
+			"      \"description\": \"Implement Prime Number Generator\",\n" +
+			"      \"status\": \"todo\",\n" +
+			"      \"passes\": false\n" +
+			"    }\n" +
+			"  ]\n" +
+			"}\n" +
+			"EOF\n" +
+			"```", nil
+	}
+
 	// Detect "QA Agent" request
 	if strings.Contains(prompt, "QA Agent") {
 		return "```bash\necho 'QA_PASSED'\n```", nil
