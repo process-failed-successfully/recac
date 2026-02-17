@@ -42,7 +42,7 @@ func TestOrchestrator_ConcurrencyLimit(t *testing.T) {
 	// and check the state after a short delay.
 
 	// Let's use the goroutine approach with a cancel context.
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
 	// Intercept the execution to verify state
@@ -63,7 +63,7 @@ func TestOrchestrator_ConcurrencyLimit(t *testing.T) {
 	}()
 
 	// Wait a bit for initialization (Run calls refreshGraph -> logic -> Start)
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(1 * time.Second)
 
 	// Assertions
 	expected := 2

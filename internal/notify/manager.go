@@ -134,6 +134,9 @@ func (m *Manager) Start(ctx context.Context) {
 				}
 			}
 		}()
+
+		// Start event handler
+		go m.HandleEvents(ctx, m.socketClient.Events, m.socketClient)
 	}
 }
 

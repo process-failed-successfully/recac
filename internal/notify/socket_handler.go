@@ -9,18 +9,19 @@ import (
 	"github.com/slack-go/slack/socketmode"
 )
 
+// SocketClient defines the interface for socket interactions (Ack).
+type SocketClient interface {
+	Ack(req socketmode.Request, payload ...interface{})
+}
+
 // HandleEvents listens for incoming Socket Mode events.
 // This is a simplified handler to prove the connection works.
-func (m *Manager) HandleEvents(ctx context.Context) {
-	if m.socketClient == nil {
-		return
-	}
-
+func (m *Manager) HandleEvents(ctx context.Context, events <-chan socketmode.Event, client SocketClient) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case evt := <-m.socketClient.Events:
+		case evt := <-events:
 			switch evt.Type {
 			case socketmode.EventTypeConnecting:
 				if m.logger != nil {
@@ -39,7 +40,10 @@ func (m *Manager) HandleEvents(ctx context.Context) {
 				if !ok {
 					continue
 				}
-				m.socketClient.Ack(*evt.Request)
+
+				if client != nil && evt.Request != nil {
+					client.Ack(*evt.Request)
+				}
 
 				switch eventsAPIEvent.Type {
 				case slackevents.CallbackEvent:
