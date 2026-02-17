@@ -2,35 +2,33 @@ package agent
 
 import (
 	"context"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestMockAgent(t *testing.T) {
+func TestMockAgent_Send_TPM(t *testing.T) {
 	agent := NewMockAgent()
-
-	prompt := "This is a test prompt that is long enough to be truncated"
-	response, err := agent.Send(context.Background(), prompt)
-
-	if err != nil {
-		t.Fatalf("Send failed: %v", err)
-	}
-
-	if !strings.Contains(response, "Mock agent response") {
-		t.Errorf("Response missing prefix, got: %s", response)
-	}
-
-	if !strings.Contains(response, "I received your prompt") {
-		t.Errorf("Response missing body, got: %s", response)
-	}
+	prompt := "You are an expert Technical Program Manager (TPM)... Repo: https://github.com/test/repo"
+	resp, err := agent.Send(context.Background(), prompt)
+	assert.NoError(t, err)
+	assert.Contains(t, resp, "\"title\": \"Implement Prime Number Generator\"")
+	assert.Contains(t, resp, "Repo: https://github.com/test/repo")
 }
 
-func TestTruncateString(t *testing.T) {
-	s := "hello world"
-	if truncateString(s, 5) != "hello" {
-		t.Errorf("Expected 'hello', got '%s'", truncateString(s, 5))
-	}
-	if truncateString(s, 20) != "hello world" {
-		t.Errorf("Expected 'hello world', got '%s'", truncateString(s, 20))
-	}
+func TestMockAgent_Send_Coding(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Write a Python script that..."
+	resp, err := agent.Send(context.Background(), prompt)
+	assert.NoError(t, err)
+	assert.Contains(t, resp, "$$$")
+	assert.Contains(t, resp, "Task completed. Tests passed.")
+}
+
+func TestMockAgent_Send_Default(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Hello"
+	resp, err := agent.Send(context.Background(), prompt)
+	assert.NoError(t, err)
+	assert.Contains(t, resp, "I received your prompt")
 }
