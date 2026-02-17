@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -98,4 +99,23 @@ REQUIRED FEATURES
         assert.Equal(t, "My Feature!", features[0].Description)
         assert.Equal(t, "req-my-feature", features[0].ID)
     })
+}
+
+func TestExtractRequiredFeatures_Concurrency(t *testing.T) {
+	// This test ensures that the lazy initialization of regexes using sync.Once is thread-safe.
+	var wg sync.WaitGroup
+	concurrency := 100
+
+	input := "REQUIRED FEATURES:\n- Feature A"
+
+	wg.Add(concurrency)
+	for i := 0; i < concurrency; i++ {
+		go func() {
+			defer wg.Done()
+			features := extractRequiredFeatures(input)
+			assert.Len(t, features, 1)
+			assert.Equal(t, "Feature A", features[0].Description)
+		}()
+	}
+	wg.Wait()
 }
