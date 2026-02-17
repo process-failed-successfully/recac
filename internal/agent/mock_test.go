@@ -25,6 +25,20 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_PlanningPhase(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "I am a Technical Program Manager. Please break down this task.\nRepo: https://github.com/example/repo"
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	if !strings.Contains(response, "Repo: https://github.com/example/repo") {
+		t.Errorf("Response missing extracted Repo URL, got: %s", response)
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {

@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -39,17 +40,25 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// The agent usually asks for a plan first.
 	// If the prompt mentions "Technical Program Manager" or asks to "break down" the task.
 	if strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "break down") {
+		// Extract Repo URL if present
+		repoRegex := regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
+		matches := repoRegex.FindStringSubmatch(prompt)
+		repoSuffix := ""
+		if len(matches) > 1 {
+			repoSuffix = fmt.Sprintf("\\nRepo: %s", matches[1])
+		}
+
 		// Return a JSON plan.
 		// For prime-python, we essentially just want to say "do the task".
 		// But if we are already in the task, maybe we don't need to break it down.
 		// However, providing a single step is safe.
-		return `[
+		return fmt.Sprintf(`[
   {
     "title": "Implement Prime Number Script",
-    "description": "Write a python script to calculate primes under 10000.",
+    "description": "Write a python script to calculate primes under 10000.%s",
     "type": "Task"
   }
-]`, nil
+]`, repoSuffix), nil
 	}
 
 	// 2. Coding Phase / Implementation
