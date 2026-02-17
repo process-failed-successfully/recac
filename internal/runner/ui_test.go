@@ -43,6 +43,37 @@ func (m *MockDockerWithDB) Exec(ctx context.Context, id string, cmd []string) (s
 		return "Success: " + fullCmd, nil
 	}
 
+	// Intercept agent-bridge feature set commands
+	// e.g. agent-bridge feature set req-1 --status done
+	if strings.Contains(fullCmd, "agent-bridge feature set") {
+		parts := strings.Fields(fullCmd)
+		// Minimal parsing logic for mock
+		var featureID string
+		var status string
+		var passes bool
+
+		for i, part := range parts {
+			if part == "set" && i+1 < len(parts) {
+				featureID = parts[i+1]
+			}
+			if part == "--status" && i+1 < len(parts) {
+				status = parts[i+1]
+			}
+			if part == "--passes" && i+1 < len(parts) {
+				if parts[i+1] == "true" {
+					passes = true
+				}
+			}
+		}
+
+		if featureID != "" && m.DB != nil {
+			if err := m.DB.UpdateFeatureStatus(m.Project, featureID, status, passes); err != nil {
+				return "", err
+			}
+		}
+		return "Success: " + fullCmd, nil
+	}
+
 	return m.MockDockerForExec.Exec(ctx, id, cmd)
 }
 

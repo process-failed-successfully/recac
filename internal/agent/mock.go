@@ -98,6 +98,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		!strings.Contains(strings.ToLower(prompt), "technical program manager") {
 		// Return a bash script to implement the prime generator
 		// We use a simple script that passes the verification
+		// CRITICAL: We MUST update the feature status to 'done' so the system knows we finished.
 		return "```bash\n" +
 			"cat <<EOF > primes.py\n" +
 			"import json\n" +
@@ -114,6 +115,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			"print(json.dumps({\"primes\": primes}))\n" +
 			"EOF\n" +
 			"python3 primes.py\n" +
+			"agent-bridge feature set req-1 --status done\n" +
 			"```", nil
 	}
 
