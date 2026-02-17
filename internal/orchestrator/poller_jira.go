@@ -19,6 +19,9 @@ var (
 )
 
 func initRegex() {
+	// Use sync.Once to ensure regex compilation happens only once and is thread-safe.
+	// This prevents potential race conditions or initialization order issues in CI environments,
+	// while avoiding the overhead of compiling regexes on every function call.
 	regexOnce.Do(func() {
 		featuresHeaderRegex = regexp.MustCompile(`(?i)^(REQUIRED FEATURES|ACCEPTANCE CRITERIA):?\s*$`)
 		featureSlugRegex = regexp.MustCompile("[^a-z0-9]+")
