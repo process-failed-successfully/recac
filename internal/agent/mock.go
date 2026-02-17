@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,6 +31,57 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// Heuristic: Check for Technical Program Manager (Planning Phase)
+	if strings.Contains(prompt, "Technical Program Manager") {
+		// Return a JSON list of tickets
+		return `[{"title": "Implement Prime Number Generator", "description": "Create a python script primes.py that accepts N as argument and prints the first N primes.", "status": "todo", "type": "task"}]`, nil
+	}
+
+	// Heuristic: Check for [PRIMES] (Coding Phase for Smoke Test)
+	if strings.Contains(prompt, "[PRIMES]") {
+		// If we've already run the script, we are done
+		if strings.Contains(prompt, "python3 primes.py") {
+			return "Task completed. Tests passed.", nil
+		}
+
+		return `
+Here is the implementation of the prime number generator.
+
+` + "```bash" + `
+cat << 'EOF' > primes.py
+import sys
+
+def is_prime(n):
+    if n <= 1: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0: return False
+    return True
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python primes.py <N>")
+        sys.exit(1)
+
+    try:
+        n = int(sys.argv[1])
+    except ValueError:
+        print("Invalid number")
+        sys.exit(1)
+
+    count = 0
+    num = 2
+    while count < n:
+        if is_prime(num):
+            print(num)
+            count += 1
+        num += 1
+EOF
+python3 primes.py 5
+` + "```" + `
+`, nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
