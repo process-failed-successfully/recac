@@ -43,12 +43,41 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		// Extract Repo URL if present
 		repoRegex := regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
 		matches := repoRegex.FindStringSubmatch(prompt)
+		repoURL := "https://github.com/process-failed-successfully/recac-jira-e2e" // Default
 		repoSuffix := ""
 		if len(matches) > 1 {
+			repoURL = matches[1]
 			repoSuffix = fmt.Sprintf("\\nRepo: %s", matches[1])
 		}
 
-		// Return a JSON plan.
+		// Check if this is the Jira Generator (asking for pure JSON ticket structure)
+		// vs the Agent Runner (asking for feature_list.json creation via bash)
+		if strings.Contains(lowerPrompt, "output purely json") {
+			// Jira Generator Mode: Return []ticketNode JSON
+			// We construct a simple Epic + Story structure for the primes task.
+			jsonContent := fmt.Sprintf(`[
+  {
+    "title": "ID:[PRIMES] Prime Number Script",
+    "description": "Implement a Python script to calculate prime numbers.\nRepo: %s",
+    "type": "Epic",
+    "children": [
+      {
+        "title": "Implement primes.py",
+        "description": "Write the script to calculate primes under 10000.\nRepo: %s",
+        "type": "Story",
+        "acceptance_criteria": [
+          "Calculates primes correctly",
+          "Outputs to primes.json"
+        ],
+        "blocked_by": []
+      }
+    ]
+  }
+]`, repoURL, repoURL)
+			return jsonContent, nil
+		}
+
+		// Agent Runner Mode: Return bash script to create feature_list.json
 		// For prime-python, we essentially just want to say "do the task".
 		// But if we are already in the task, maybe we don't need to break it down.
 		// However, providing a single step is safe.
