@@ -60,8 +60,14 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristic: If prompt looks like a coding task (but not the TPM prompt), return a coding response
 	// We want to avoid matching the TPM prompt which also contains "Python" etc.
 	// We also explicitly check for the "primes.py" execution prompt
-	isCoding := strings.Contains(prompt, "Python") || strings.Contains(prompt, "Go") || strings.Contains(prompt, "code")
-	isPrimesExecution := strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "Implement a python script named 'primes.py'")
+	lowerPrompt := strings.ToLower(prompt)
+	isCoding := strings.Contains(lowerPrompt, "python") || strings.Contains(lowerPrompt, "go") || strings.Contains(lowerPrompt, "code") || strings.Contains(lowerPrompt, "script")
+	isPrimesExecution := strings.Contains(lowerPrompt, "primes.py") && !isPlanning
+
+	// Log the prompt for debugging CI failures
+	if !isPlanning && !isCoding && !isPrimesExecution && !strings.Contains(prompt, "QA Agent") && !strings.Contains(prompt, "Manager Agent") {
+		fmt.Printf("[MockAgent] Unmatched prompt: %s\n", truncateString(prompt, 200))
+	}
 
 	if (isCoding && !isPlanning) || isPrimesExecution {
 		if isPrimesExecution {
