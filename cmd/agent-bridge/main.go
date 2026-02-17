@@ -7,8 +7,21 @@ import (
 	"os"
 	"path/filepath"
 	"recac/internal/db"
+	"reflect"
 	"strings"
 )
+
+// IsNil checks if an interface value is nil
+func IsNil(i interface{}) bool {
+	if i == nil {
+		return true
+	}
+	switch reflect.TypeOf(i).Kind() {
+	case reflect.Ptr, reflect.Map, reflect.Array, reflect.Chan, reflect.Slice:
+		return reflect.ValueOf(i).IsNil()
+	}
+	return false
+}
 
 func main() {
 	// Check env vars for overrides
@@ -47,11 +60,21 @@ func run(args []string, config db.StoreConfig, projectID string) error {
 	command := args[1]
 
 	// Initialize DB connection
+	// For "feature set" in mock/test environments, we might proceed even if DB fails,
+	// provided we can update the local file.
 	store, err := db.NewStore(config)
+	var dbErr error
 	if err != nil {
-		return fmt.Errorf("failed to connect to database: %w", err)
+		// Log the error but continue if command is "feature"
+		// We'll handle critical failures later
+		dbErr = fmt.Errorf("failed to connect to database: %w", err)
+		if command != "feature" {
+			return dbErr
+		}
+	} else {
+		defer store.Close()
 	}
-	defer store.Close()
+
 	var cmdErr error
 
 	switch command {
@@ -195,6 +218,9 @@ func run(args []string, config db.StoreConfig, projectID string) error {
 		subCmd := args[2]
 
 		if subCmd == "list" {
+			if store == nil || IsNil(store) {
+				return dbErr
+			}
 			// Usage: agent-bridge feature list [--json]
 			// We always return JSON for now as it's the efficient format
 			content, err := store.GetFeatures(projectID)
@@ -225,38 +251,59 @@ func run(args []string, config db.StoreConfig, projectID string) error {
 					i++
 				}
 			}
-			cmdErr = store.UpdateFeatureStatus(projectID, id, status, passes)
 
-			if cmdErr == nil {
-				// Also update local file if present to ensure consistency
-				// This is required for local execution context where DB might be remote/mocked but file is used
-				localPath := "feature_list.json"
-				if _, err := os.Stat(localPath); err == nil {
-					data, err := os.ReadFile(localPath)
-					if err == nil {
-						var fl db.FeatureList
-						if err := json.Unmarshal(data, &fl); err == nil {
-							found := false
-							for i := range fl.Features {
-								if fl.Features[i].ID == id {
-									fl.Features[i].Status = status
-									fl.Features[i].Passes = passes
-									found = true
-									break
-								}
+			// Try DB update if store is available
+			if store != nil && !IsNil(store) {
+				cmdErr = store.UpdateFeatureStatus(projectID, id, status, passes)
+			} else {
+				// If DB failed, we still want to try local file, so we mark cmdErr as nil initially
+				// but log the warning
+				fmt.Fprintf(os.Stderr, "Warning: DB update skipped: %v\n", dbErr)
+			}
+
+			// Try local file update independently of DB success/failure
+			// This ensures robustness in mock/local environments
+			localUpdated := false
+			localPath := "feature_list.json"
+			if _, err := os.Stat(localPath); err == nil {
+				data, err := os.ReadFile(localPath)
+				if err == nil {
+					var fl db.FeatureList
+					if err := json.Unmarshal(data, &fl); err == nil {
+						found := false
+						for i := range fl.Features {
+							if fl.Features[i].ID == id {
+								fl.Features[i].Status = status
+								fl.Features[i].Passes = passes
+								found = true
+								break
 							}
-							if found {
-								updated, _ := json.MarshalIndent(fl, "", "  ")
-								os.WriteFile(localPath, updated, 0644)
+						}
+						if found {
+							updated, _ := json.MarshalIndent(fl, "", "  ")
+							if err := os.WriteFile(localPath, updated, 0644); err == nil {
 								fmt.Printf("Local feature_list.json updated for feature %s\n", id)
+								localUpdated = true
 							}
 						}
 					}
 				}
+			}
 
+			// If both failed, then we report error.
+			// If DB failed but local succeeded, we consider it a success (exit 0) but maybe warn.
+			if cmdErr != nil && !localUpdated {
+				return cmdErr
+			} else if cmdErr != nil && localUpdated {
+				// Suppress DB error if local update succeeded, effectively treating DB as optional in this fallback case
+				fmt.Printf("Feature %s updated locally (DB update failed: %v)\n", id, cmdErr)
+				cmdErr = nil
+			} else {
 				fmt.Printf("Feature %s updated: status=%s, passes=%v\n", id, status, passes)
+			}
 
-				// Auto-Completion Check
+			// Auto-Completion Check (Only if DB is available)
+			if store != nil && !IsNil(store) && cmdErr == nil {
 				// If all features are done/passed, signal completion automatically.
 				content, err := store.GetFeatures(projectID)
 				if err == nil && content != "" {
