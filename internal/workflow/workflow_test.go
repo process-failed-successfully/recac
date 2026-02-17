@@ -175,6 +175,15 @@ func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
 		return repoURL, nil
 	}
 
+	// Mock NewSessionFunc to limit iterations and prevent infinite loops in mock mode
+	originalNewSessionFunc := NewSessionFunc
+	defer func() { NewSessionFunc = originalNewSessionFunc }()
+	NewSessionFunc = func(d runner.DockerClient, a agent.Agent, workspace, image, project, provider, model string, maxAgents int) *runner.Session {
+		s := runner.NewSession(d, a, workspace, image, project, provider, model, maxAgents)
+		s.MaxIterations = 5 // Limit to prevent timeout
+		return s
+	}
+
 	// Mock Jira Server (minimal)
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)

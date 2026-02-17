@@ -78,6 +78,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 if [ -f feature_list.json ]; then
   sed -i 's/"status": "pending"/"status": "done"/g' feature_list.json
   echo "Success: Mock command executed"
+  # Also signal completion to DB to ensure the loop exits
+  agent-bridge signal COMPLETED true || echo "agent-bridge failed, continuing"
 else
   echo "Error: feature_list.json not found"
 fi
