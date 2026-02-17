@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -34,6 +35,25 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Mock Logic for Prime Number Task (E2E Test)
 	if strings.Contains(prompt, "ID:[PRIMES]") {
+		// Planning Phase (TPM Agent)
+		if strings.Contains(prompt, "Technical Program Manager") {
+			// Extract Repo URL if present, otherwise default
+			repo := "https://github.com/process-failed-successfully/recac-jira-e2e"
+			if matches := regexp.MustCompile(`(?i)Repo: (https?://\S+)`).FindStringSubmatch(prompt); len(matches) > 1 {
+				repo = matches[1]
+			}
+
+			return fmt.Sprintf(`[
+  {
+    "title": "ID:[PRIMES] Create Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates primes < 10000. Repo: %s",
+    "type": "Task",
+    "children": []
+  }
+]`, repo), nil
+		}
+
+		// Coding Phase (Software Engineer Agent)
 		// Return a response that satisfies the 'prime-python' scenario
 		response := `Sure! Here is the python script to calculate primes:
 
