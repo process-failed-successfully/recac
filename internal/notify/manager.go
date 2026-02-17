@@ -39,6 +39,9 @@ type Manager struct {
 	// Slack
 	client       SlackPoster
 	socketClient *socketmode.Client
+	// socketEvents and socketAck are wrappers to allow mocking in tests
+	socketEvents <-chan socketmode.Event
+	socketAck    func(req socketmode.Request, payload ...interface{})
 	channelID    string
 
 	// Discord
@@ -94,6 +97,8 @@ func (m *Manager) initSlack() {
 
 	if appToken != "" && strings.HasPrefix(appToken, "xapp-") {
 		m.socketClient = socketmode.New(api)
+		m.socketEvents = m.socketClient.Events
+		m.socketAck = m.socketClient.Ack
 	}
 }
 
