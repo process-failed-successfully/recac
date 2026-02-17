@@ -186,12 +186,12 @@ func (c *Client) PullImage(ctx context.Context, imageRef string) error {
 
 // RunContainer starts a container with the specified image and mounts the workspace.
 // It returns the container ID or an error.
-func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, ports []string, user string) (string, error) {
-	return c.RunContainerWithLabels(ctx, imageRef, workspace, extraBinds, ports, user, nil)
+func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, user string) (string, error) {
+	return c.RunContainerWithLabels(ctx, imageRef, workspace, extraBinds, env, user, nil)
 }
 
 // RunContainerWithLabels starts a container with the specified image, mounts the workspace, and applies labels.
-func (c *Client) RunContainerWithLabels(ctx context.Context, imageRef string, workspace string, extraBinds []string, ports []string, user string, labels map[string]string) (string, error) {
+func (c *Client) RunContainerWithLabels(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, user string, labels map[string]string) (string, error) {
 	telemetry.TrackDockerOp(c.project)
 	// 1. Pull Image (Best effort)
 	reader, err := c.api.ImagePull(ctx, imageRef, image.PullOptions{})
