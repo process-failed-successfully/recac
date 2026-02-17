@@ -37,10 +37,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if strings.Contains(prompt, "Output purely JSON") || strings.Contains(prompt, "Technical Program Manager") {
 		// If it's the primes scenario, return a valid ticket structure
 		if strings.Contains(prompt, "ID:[PRIMES]") {
+			// Note: We omit "Repo: ..." here so that the recac CLI can inject the correct repo URL from its flags.
 			return `[
   {
     "title": "ID:[PRIMES] Prime Number Script",
-    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'. Repo: https://github.com/example/repo",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.",
     "type": "Task",
     "children": []
   }
