@@ -2,7 +2,8 @@ package orchestrator
 
 import (
 	"context"
-	"recac/internal/telemetry"
+	"io"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -28,7 +29,7 @@ func (m *MockJanitorDockerClient) RemoveContainer(ctx context.Context, container
 
 func TestJanitor_Cleanup_Exited(t *testing.T) {
 	mockClient := new(MockJanitorDockerClient)
-	logger := telemetry.NewLogger(true, "test", true)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	janitor := NewJanitor(mockClient, "test-project", 1*time.Hour, true)
 
 	// Setup mock to return an exited container
@@ -47,7 +48,7 @@ func TestJanitor_Cleanup_Exited(t *testing.T) {
 
 func TestJanitor_Cleanup_OldRunning(t *testing.T) {
 	mockClient := new(MockJanitorDockerClient)
-	logger := telemetry.NewLogger(true, "test", true)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	janitor := NewJanitor(mockClient, "test-project", 1*time.Hour, true)
 
 	// Setup mock to return an old running container
@@ -65,7 +66,7 @@ func TestJanitor_Cleanup_OldRunning(t *testing.T) {
 
 func TestJanitor_NoCleanup_YoungRunning(t *testing.T) {
 	mockClient := new(MockJanitorDockerClient)
-	logger := telemetry.NewLogger(true, "test", true)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	janitor := NewJanitor(mockClient, "test-project", 1*time.Hour, true)
 
 	// Setup mock to return a young running container
