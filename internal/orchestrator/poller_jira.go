@@ -9,11 +9,16 @@ import (
 	"recac/internal/jira"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 var (
-	featuresHeaderRegex = regexp.MustCompile(`(?i)^(REQUIRED FEATURES|ACCEPTANCE CRITERIA):?\s*$`)
-	featureSlugRegex    = regexp.MustCompile("[^a-z0-9]+")
+	featuresHeaderRegex = sync.OnceValue(func() *regexp.Regexp {
+		return regexp.MustCompile(`(?i)^(REQUIRED FEATURES|ACCEPTANCE CRITERIA):?\s*$`)
+	})
+	featureSlugRegex = sync.OnceValue(func() *regexp.Regexp {
+		return regexp.MustCompile("[^a-z0-9]+")
+	})
 )
 
 type JiraPoller struct {
@@ -32,11 +37,12 @@ func NewJiraPoller(client JiraClient, jql string) *JiraPoller {
 
 func (p *JiraPoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkItem, error) {
 	// Default JQL if empty
-	if p.JQL == "" {
-		p.JQL = "statusCategory != Done ORDER BY created ASC"
+	jql := p.JQL
+	if jql == "" {
+		jql = "statusCategory != Done ORDER BY created ASC"
 	}
 
-	issues, err := p.Client.SearchIssues(ctx, p.JQL)
+	issues, err := p.Client.SearchIssues(ctx, jql)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search issues: %w", err)
 	}
@@ -160,7 +166,7 @@ func extractRequiredFeatures(text string) []db.Feature {
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 
-		if featuresHeaderRegex.MatchString(line) {
+		if featuresHeaderRegex().MatchString(line) {
 			inSection = true
 			continue
 		}
@@ -182,7 +188,7 @@ func extractRequiredFeatures(text string) []db.Feature {
 				slug := strings.ToLower(desc)
 
 				// Optimized: uses package-level regex
-				slug = featureSlugRegex.ReplaceAllString(slug, "-")
+				slug = featureSlugRegex().ReplaceAllString(slug, "-")
 				slug = strings.Trim(slug, "-")
 				if len(slug) > 30 {
 					slug = slug[:30]
