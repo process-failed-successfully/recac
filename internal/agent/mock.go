@@ -142,8 +142,13 @@ with open('primes.json', 'w') as f:
 EOF
 
 python3 primes.py
+# Configure git if not already configured (safe fallback)
+git config user.email "agent@recac.io" || true
+git config user.name "RECAC Agent" || true
+
 git add primes.py primes.json
-git commit -m "Add primes script"
+# Allow commit to fail if there's nothing to commit (idempotency), but fail if add failed
+git commit -m "Add primes script" || echo "Commit failed or nothing to commit"
 ` + "```", nil
 	}
 
