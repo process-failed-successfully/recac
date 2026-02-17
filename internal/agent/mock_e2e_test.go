@@ -13,14 +13,14 @@ func TestMockAgent_E2E_Heuristics(t *testing.T) {
 	t.Run("Planning Phase", func(t *testing.T) {
 		prompts := []string{
 			"You are a Technical Program Manager",
-			"Please break down this task",
+			"You are a Technical Program Manager. Please break down this task",
 		}
 		for _, p := range prompts {
 			resp, err := agent.Send(ctx, p)
 			if err != nil {
 				t.Fatalf("Send failed: %v", err)
 			}
-			if !strings.Contains(resp, `"title": "Implement Prime Number Script"`) {
+			if !strings.Contains(resp, `"title": "Implement Primes Script"`) {
 				t.Errorf("Expected planning JSON for prompt '%s', got: %s", p, resp)
 			}
 		}
