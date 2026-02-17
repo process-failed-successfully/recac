@@ -26,7 +26,7 @@ jobs:
         id: image-tag
         run: |
           # Hash test.Dockerfile to create a unique tag
-          DOCKERFILE_HASH=${{ hashFiles('test.Dockerfile') }}
+          DOCKERFILE_HASH=${{ hashFiles('tests/test.Dockerfile') }}
           IMAGE_TAG=test-${{ runner.os }}-${DOCKERFILE_HASH}
           IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG"
           # Convert to lowercase
@@ -64,7 +64,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: test.Dockerfile
+          file: tests/test.Dockerfile
           build-args: |
             GO_VERSION=${{ steps.go-version.outputs.version }}
           push: true
