@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -38,15 +39,19 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Trigger: "YOUR ROLE - CODING AGENT" (high confidence) OR "prime"/"primes.json"/"ID:[PRIMES]"
 	// The TPM prompt might also contain "prime", so we prioritize the role check.
 	isCodingPhase := strings.Contains(prompt, "YOUR ROLE - CODING AGENT")
-	isPrimesTask := strings.Contains(prompt, "prime") || strings.Contains(prompt, "primes.json") || strings.Contains(prompt, "ID:[PRIMES]")
+	isPrimesTask := strings.Contains(prompt, "prime") ||
+		strings.Contains(prompt, "primes.json") ||
+		strings.Contains(prompt, "ID:[PRIMES]") ||
+		strings.Contains(prompt, "Script accepts a limit") ||
+		strings.Contains(prompt, "unit tests")
 
 	if isCodingPhase && isPrimesTask {
-		return m.primesImplementation(), nil
+		return m.primesImplementation(prompt), nil
 	}
 
 	// Fallback for simple tests without the full prompt template
 	if !strings.Contains(prompt, "Technical Program Manager") && isPrimesTask {
-		return m.primesImplementation(), nil
+		return m.primesImplementation(prompt), nil
 	}
 
 	// 2. Ticket Generation (Planning Phase)
@@ -74,8 +79,17 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	return response, nil
 }
 
-func (m *MockAgent) primesImplementation() string {
-	return `I will implement the prime number generator in Python.
+func (m *MockAgent) primesImplementation(prompt string) string {
+	// Try to extract the Feature ID to mark it as done
+	// Pattern matches "**Feature ID**: {id}"
+	re := regexp.MustCompile(`\*\*Feature ID\*\*: ([\w-]+)`)
+	matches := re.FindStringSubmatch(prompt)
+	featureID := ""
+	if len(matches) > 1 {
+		featureID = matches[1]
+	}
+
+	script := `I will implement the prime number generator in Python.
 
 ` + "```bash" + `
 cat << 'EOF' > primes.py
@@ -114,6 +128,13 @@ And I'll run it to verify:
 ` + "```bash" + `
 python3 primes.py 50
 ` + "```"
+
+	// If we found a feature ID, mark it as done
+	if featureID != "" {
+		script += fmt.Sprintf("\n\nAnd mark the feature as complete:\n\n```bash\nagent-bridge feature set %s --status done --passes true\n```", featureID)
+	}
+
+	return script
 }
 
 // SendStream implements the Agent interface

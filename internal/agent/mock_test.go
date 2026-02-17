@@ -59,7 +59,8 @@ func TestMockAgent_Send_Heuristics(t *testing.T) {
 	Agent: [{"title": "ID:[PRIMES] Implement prime number generator"}]
 
 	### YOUR ASSIGNED TASK
-	ID:[PRIMES] Implement prime number generator
+	- **Feature ID**: req-script-123
+	- **Description**: ID:[PRIMES] Implement prime number generator
 	`
 	responseCollision, err := agent.Send(context.Background(), promptCollision)
 	if err != nil {
@@ -71,6 +72,28 @@ func TestMockAgent_Send_Heuristics(t *testing.T) {
 	}
 	if !strings.Contains(responseCollision, "def is_prime(n):") {
 		t.Errorf("Collision Test Failed: Did not return Python code. Response: %s", responseCollision)
+	}
+	// Verify ID extraction
+	if !strings.Contains(responseCollision, "agent-bridge feature set req-script-123 --status done --passes true") {
+		t.Errorf("Collision Test Failed: Did not emit feature completion command. Response: %s", responseCollision)
+	}
+
+	// 4. Test Sub-Feature Keyword Detection
+	promptSubFeature := `## YOUR ROLE - CODING AGENT
+
+	### YOUR ASSIGNED TASK
+	- **Feature ID**: req-test-456
+	- **Description**: Includes unit tests
+	`
+	responseSub, err := agent.Send(context.Background(), promptSubFeature)
+	if err != nil {
+		t.Fatalf("Sub-feature Send failed: %v", err)
+	}
+	if !strings.Contains(responseSub, "def is_prime(n):") {
+		t.Errorf("Sub-feature Test Failed: Did not return Python code for 'unit tests'. Response: %s", responseSub)
+	}
+	if !strings.Contains(responseSub, "agent-bridge feature set req-test-456 --status done --passes true") {
+		t.Errorf("Sub-feature Test Failed: Did not emit feature completion command. Response: %s", responseSub)
 	}
 }
 
