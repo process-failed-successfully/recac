@@ -9,11 +9,13 @@ import (
 	"recac/internal/jira"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 var (
-	featuresHeaderRegex = regexp.MustCompile(`(?i)^(REQUIRED FEATURES|ACCEPTANCE CRITERIA):?\s*$`)
-	featureSlugRegex    = regexp.MustCompile("[^a-z0-9]+")
+	featuresHeaderRegex *regexp.Regexp
+	featureSlugRegex    *regexp.Regexp
+	regexOnce           sync.Once
 )
 
 type JiraPoller struct {
@@ -147,20 +149,40 @@ func extractRepoURL(text string, repoRegex *regexp.Regexp) string {
 	return ""
 }
 
+func getRegex() (*regexp.Regexp, *regexp.Regexp) {
+	regexOnce.Do(func() {
+		var err error
+		featuresHeaderRegex, err = regexp.Compile(`(?i)^(REQUIRED FEATURES|ACCEPTANCE CRITERIA):?\s*$`)
+		if err != nil {
+			slog.Error("Failed to compile featuresHeaderRegex", "error", err)
+		}
+		featureSlugRegex, err = regexp.Compile("[^a-z0-9]+")
+		if err != nil {
+			slog.Error("Failed to compile featureSlugRegex", "error", err)
+		}
+	})
+	return featuresHeaderRegex, featureSlugRegex
+}
+
 func extractRequiredFeatures(text string) []db.Feature {
 	// Look for REQUIRED FEATURES: or ACCEPTANCE CRITERIA: block
 	// Regex matches headers case-insensitively
 	// Then captures lines starting with "- " or "* " until a blank line or new section
+	headerRe, slugRe := getRegex()
+	if headerRe == nil || slugRe == nil {
+		// If regex compilation failed, return empty list to avoid panic
+		return nil
+	}
+
 	var features []db.Feature
 
 	lines := strings.Split(text, "\n")
 	inSection := false
 
-	// Optimized: uses package-level regex
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 
-		if featuresHeaderRegex.MatchString(line) {
+		if headerRe.MatchString(line) {
 			inSection = true
 			continue
 		}
@@ -181,8 +203,7 @@ func extractRequiredFeatures(text string) []db.Feature {
 				// Create a simplified Feature
 				slug := strings.ToLower(desc)
 
-				// Optimized: uses package-level regex
-				slug = featureSlugRegex.ReplaceAllString(slug, "-")
+				slug = slugRe.ReplaceAllString(slug, "-")
 				slug = strings.Trim(slug, "-")
 				if len(slug) > 30 {
 					slug = slug[:30]
