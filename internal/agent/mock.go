@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -32,8 +33,40 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// Mock Logic for Prime Number Task (E2E Test)
-	if strings.Contains(prompt, "ID:[PRIMES]") {
+	// 1. Planning Phase Detection
+	// The Orchestrator sends a prompt with "Technical Program Manager" or similar when asking for a plan.
+	// We need to return a JSON array of tickets.
+	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "Create a plan") {
+		if strings.Contains(prompt, "ID:[PRIMES]") {
+			// Return a single ticket for the Prime Number Task
+			// Note: We include the Repo URL from the prompt if possible, or a placeholder.
+			// The JiraPoller might need it.
+
+			// Extract Repo URL from prompt if present to be helpful
+			repoURL := "https://github.com/example/repo"
+			re := regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
+			matches := re.FindStringSubmatch(prompt)
+			if len(matches) > 1 {
+				repoURL = matches[1]
+			}
+
+			return fmt.Sprintf(`[
+  {
+    "title": "Implement Prime Number Script",
+    "description": "Implement primes.py to calculate primes < 10000. Output to primes.json. Repo: %s",
+    "type": "Task",
+    "id": "PRIMES"
+  }
+]`, repoURL), nil
+		}
+
+		// Default Plan
+		return `[{"title": "Mock Task", "description": "A mock task description", "type": "Task"}]`, nil
+	}
+
+	// 2. Coding Phase Detection
+	// If the prompt contains the specific task ID, we return the implementation.
+	if strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "Implement Prime Number Script") {
 		// Return a response that satisfies the 'prime-python' scenario
 		response := `Sure! Here is the python script to calculate primes:
 
