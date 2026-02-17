@@ -90,10 +90,9 @@ func (m *MockAgent) getPrimePythonPlanningResponse() string {
 ` + "```json" + `
 [
   {
-    "summary": "Create Prime Number Script",
+    "title": "ID:[PRIMES] Create Prime Number Script",
     "description": "Implement primes.py to calculate primes < 10000 and output to primes.json",
-    "type": "Task",
-    "id": "PRIMES"
+    "type": "Task"
   }
 ]
 ` + "```" + `

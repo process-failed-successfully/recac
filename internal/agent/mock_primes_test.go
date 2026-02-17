@@ -30,6 +30,9 @@ Implement a python script named 'primes.py' that calculates all prime numbers le
 	if !strings.Contains(resp, `"type": "Task"`) {
 		t.Errorf("Response should contain Task type")
 	}
+	if !strings.Contains(resp, `"title":`) {
+		t.Errorf("Response should contain title field")
+	}
 }
 
 func TestMockAgent_PrimesExecutionHeuristic(t *testing.T) {
