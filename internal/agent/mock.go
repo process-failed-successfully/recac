@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,8 +31,63 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
-	// Return a mock response that shows the agent received the prompt
-	// This allows the session to run without requiring real API keys
+
+	// Heuristics for E2E Tests
+
+	// 1. Planning Phase (Technical Program Manager)
+	if strings.Contains(prompt, "Technical Program Manager") {
+		return `[
+	{
+		"id": "PRIMES",
+		"type": "Task",
+		"summary": "Implement Primes Script",
+		"description": "Calculate primes < 10000",
+		"dependencies": [],
+		"status": "TODO"
+	}
+]`, nil
+	}
+
+	// 2. Implementation Phase (Agent working on PRIMES)
+	if strings.Contains(prompt, "ID:[PRIMES]") {
+		// Detect if we haven't done the work yet.
+		// If the prompt contains "Task completed" or similar from history, we might want to stop.
+		// But usually the loop continues until we mark it done.
+
+		// Return a bash script to implement the solution and mark as done
+		return `
+cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n <= 1: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0: return False
+    return True
+
+primes = [i for i in range(10000) if is_prime(i)]
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+python3 primes.py
+git add -f primes.py primes.json
+git commit -m "Add primes script"
+agent-bridge feature set PRIMES --status done
+`, nil
+	}
+
+	// 3. QA Phase
+	if strings.Contains(prompt, "QA AGENT") {
+		return "QA_PASSED", nil
+	}
+
+	// 4. Manager Sign-off
+	if strings.Contains(prompt, "Manager Agent") {
+		return "PROJECT_SIGNED_OFF", nil
+	}
+
+	// Default response
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
 	return response, nil
