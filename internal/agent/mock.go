@@ -67,6 +67,27 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, repoURL, repoURL), nil
 	}
 
+	// Heuristic: Check if this is an Execution Phase prompt (Agent Role)
+	// If features are pending, we update them. If done, we signal completion.
+	if strings.Contains(prompt, `"status": "pending"`) {
+		return `Here is a plan to implement the pending features.
+
+` + "```bash" + `
+#!/bin/bash
+if [ -f feature_list.json ]; then
+  sed -i 's/"status": "pending"/"status": "done"/g' feature_list.json
+  echo "Success: Mock command executed"
+else
+  echo "Error: feature_list.json not found"
+fi
+` + "```" + `
+`, nil
+	}
+
+	if strings.Contains(prompt, `"status": "done"`) || strings.Contains(prompt, "All features") {
+		return "Task completed. All features implemented.", nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
