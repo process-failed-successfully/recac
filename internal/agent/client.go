@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"recac/internal/telemetry"
-	"strings"
 	"time"
 )
 
@@ -29,6 +28,35 @@ func NewBaseClient(project string, defaultMaxTokens int) BaseClient {
 	}
 }
 
+// resolveMaxTokens determines the effective max tokens.
+func (c *BaseClient) resolveMaxTokens(stateMaxTokens int) int {
+	maxTokens := stateMaxTokens
+	if maxTokens == 0 {
+		maxTokens = c.DefaultMaxTokens
+		// If still 0, default to a safe value (32k) to avoid division by zero
+		if maxTokens == 0 {
+			maxTokens = 32000
+		}
+	}
+	return maxTokens
+}
+
+// processTokenLimits checks and truncates the prompt if it exceeds limits.
+func (c *BaseClient) processTokenLimits(prompt string, state *State, maxTokens int) (string, int) {
+	promptTokens := EstimateTokenCount(prompt)
+	// Reserve some tokens for response (estimate 50% for response)
+	availableTokens := maxTokens * 50 / 100
+
+	if promptTokens > availableTokens {
+		// Truncate the prompt for the API call (but the history keeps the full or reasonably trimmed version)
+		telemetry.LogInfo("Prompt exceeds token limit, truncating...", "project", c.Project, "actual", promptTokens, "available", availableTokens)
+		prompt = TruncateToTokenLimit(prompt, availableTokens)
+		promptTokens = EstimateTokenCount(prompt)
+		state.TokenUsage.TruncationCount++
+	}
+	return prompt, promptTokens
+}
+
 // PreparePrompt checks token limits and truncates if necessary.
 // Returns the (possibly truncated) prompt, the state, and a boolean indicating if state should be updated.
 func (c *BaseClient) PreparePrompt(prompt string) (string, State, bool, error) {
@@ -41,16 +69,7 @@ func (c *BaseClient) PreparePrompt(prompt string) (string, State, bool, error) {
 		return "", State{}, false, fmt.Errorf("failed to load state: %w", err)
 	}
 
-	// Check if prompt exceeds token limit
-	promptTokens := EstimateTokenCount(prompt)
-	maxTokens := state.MaxTokens
-	if maxTokens == 0 {
-		maxTokens = c.DefaultMaxTokens
-		// If still 0, default to a safe value (32k) to avoid division by zero
-		if maxTokens == 0 {
-			maxTokens = 32000
-		}
-	}
+	maxTokens := c.resolveMaxTokens(state.MaxTokens)
 
 	// Add message to history
 	state.History = append(state.History, Message{
@@ -59,15 +78,7 @@ func (c *BaseClient) PreparePrompt(prompt string) (string, State, bool, error) {
 		Timestamp: time.Now(),
 	})
 
-	// Reserve some tokens for response (estimate 50% for response)
-	availableTokens := maxTokens * 50 / 100
-	if promptTokens > availableTokens {
-		// Truncate the prompt for the API call (but the history keeps the full or reasonably trimmed version)
-		telemetry.LogInfo("Prompt exceeds token limit, truncating...", "project", c.Project, "actual", promptTokens, "available", availableTokens)
-		prompt = TruncateToTokenLimit(prompt, availableTokens)
-		promptTokens = EstimateTokenCount(prompt)
-		state.TokenUsage.TruncationCount++
-	}
+	prompt, promptTokens := c.processTokenLimits(prompt, &state, maxTokens)
 
 	// Update current token count
 	state.CurrentTokens = promptTokens
@@ -142,8 +153,8 @@ func (c *BaseClient) UpdateStateWithResponse(state State, response string) {
 	}
 }
 
-// SendWithRetry handles the common retry loop and telemetry for Send.
-func (c *BaseClient) SendWithRetry(ctx context.Context, prompt string, sendOnce func(context.Context, string) (string, error)) (string, error) {
+// sendWithRetryInternal centralizes the retry logic, telemetry, and state management.
+func (c *BaseClient) sendWithRetryInternal(ctx context.Context, prompt string, execute func(string) (string, error)) (string, error) {
 	telemetry.TrackAgentIteration(c.Project)
 	start := time.Now()
 	defer func() {
@@ -169,48 +180,29 @@ func (c *BaseClient) SendWithRetry(ctx context.Context, prompt string, sendOnce 
 			}
 		}
 
-		result, err := sendOnce(ctx, prompt)
+		result, err := execute(prompt)
 		if err == nil {
 			if shouldUpdateState {
 				c.UpdateStateWithResponse(state, result)
 			}
 			return result, nil
 		}
-
 		lastErr = err
 	}
 
 	return "", fmt.Errorf("failed after %d retries: %w", maxRetries, lastErr)
 }
 
+// SendWithRetry handles the common retry loop and telemetry for Send.
+func (c *BaseClient) SendWithRetry(ctx context.Context, prompt string, sendOnce func(context.Context, string) (string, error)) (string, error) {
+	return c.sendWithRetryInternal(ctx, prompt, func(p string) (string, error) {
+		return sendOnce(ctx, p)
+	})
+}
+
 // SendStreamWithRetry handles the common retry loop and telemetry for SendStream.
 func (c *BaseClient) SendStreamWithRetry(ctx context.Context, prompt string, sendStreamOnce func(context.Context, string, func(string)) (string, error), onChunk func(string)) (string, error) {
-	telemetry.TrackAgentIteration(c.Project)
-	start := time.Now()
-	defer func() {
-		telemetry.ObserveAgentLatency(c.Project, time.Since(start).Seconds())
-	}()
-
-	prompt, state, shouldUpdateState, err := c.PreparePrompt(prompt)
-	if err != nil {
-		return "", err
-	}
-
-	var fullResponse strings.Builder
-	maxRetries := 3
-	var lastErr error
-
-	for i := 0; i <= maxRetries; i++ {
-		if i > 0 {
-			waitTime := c.BackoffFn(i)
-			telemetry.LogInfo("Retrying agent call", "project", c.Project, "retry", i, "wait", waitTime, "error", lastErr)
-			select {
-			case <-time.After(waitTime):
-			case <-ctx.Done():
-				return "", ctx.Err()
-			}
-		}
-
+	return c.sendWithRetryInternal(ctx, prompt, func(p string) (string, error) {
 		// When retrying stream, we need to handle onChunk carefully.
 		// Usually we restart the stream.
 		// Note: if sendStreamOnce partially writes to onChunk before failing,
@@ -218,25 +210,6 @@ func (c *BaseClient) SendStreamWithRetry(ctx context.Context, prompt string, sen
 		// However, in this implementation, we assume that if it fails, we restart from scratch.
 		// The onChunk callback in the caller is responsible for handling partial updates if needed,
 		// but typically for a TUI, rewriting is fine.
-
-		result, err := sendStreamOnce(ctx, prompt, onChunk)
-		if err == nil {
-			fullResponse.WriteString(result)
-			lastErr = nil // Clear error on success
-			break
-		}
-		lastErr = err
-	}
-
-	if lastErr != nil {
-		return "", fmt.Errorf("failed after %d retries: %w", maxRetries, lastErr)
-	}
-
-	result := fullResponse.String()
-
-	if shouldUpdateState {
-		c.UpdateStateWithResponse(state, result)
-	}
-
-	return result, nil
+		return sendStreamOnce(ctx, p, onChunk)
+	})
 }

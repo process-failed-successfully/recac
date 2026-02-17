@@ -17,10 +17,8 @@ var (
 )
 
 type JiraPoller struct {
-	Client  JiraClient
-	JQL     string
-	Label   string // Helper to construct JQL if JQL not provided
-	Project string // Helper to construct JQL
+	Client JiraClient
+	JQL    string
 }
 
 func NewJiraPoller(client JiraClient, jql string) *JiraPoller {
@@ -45,44 +43,19 @@ func (p *JiraPoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkItem,
 		return nil, nil // No work
 	}
 
-	// Build Dependency Graph to find actionable items
-	graph := jira.BuildGraphFromIssues(issues, func(issue map[string]interface{}) []string {
-		return p.Client.GetBlockerKeys(issue)
-	})
-
-	// We only want items that are READY (no local blockers and no external blockers).
-	// GetReadyTickets(nil) returns items with no internal dependencies in the current set.
+	// We only want items that are READY (no blockers).
 	var curatedItems []WorkItem
 
-	readyKeys := graph.GetReadyTickets(nil) // Empty completed set
+	for _, issue := range issues {
+		key, _ := issue["key"].(string)
 
-	// Filter readyKeys for external blockers too (safe guard)
-	finalKeys := make([]string, 0, len(readyKeys))
-	seenKeys := make(map[string]bool)
-	issueMap := make(map[string]map[string]interface{})
-	for _, i := range issues {
-		k, _ := i["key"].(string)
-		issueMap[k] = i
-	}
-
-	for _, key := range readyKeys {
-		if seenKeys[key] {
-			continue
-		}
-		issue := issueMap[key]
+		// Check for blockers (internal or external).
+		// GetBlockerKeys returns keys of issues that block this one and are NOT in a Done state.
 		blockers := p.Client.GetBlockerKeys(issue)
-		// If blockers exist (internal or external), skip.
-		// GetReadyTickets ensures no internal blockers, but GetBlockerKeys checks JQL-independent status.
 		if len(blockers) > 0 {
 			continue
 		}
-		finalKeys = append(finalKeys, key)
-		seenKeys[key] = true
-	}
 
-	// Construct WorkItems
-	for _, key := range finalKeys {
-		issue := issueMap[key]
 		fields, _ := issue["fields"].(map[string]interface{})
 		summary, _ := fields["summary"].(string)
 		description := p.Client.ParseDescription(issue)
