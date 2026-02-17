@@ -49,9 +49,17 @@ func run(args []string, config db.StoreConfig, projectID string) error {
 	// Initialize DB connection
 	store, err := db.NewStore(config)
 	if err != nil {
-		return fmt.Errorf("failed to connect to database: %w", err)
+		// Only fail if not running 'feature set/list' which can work with local files
+		isFeatureCmd := command == "feature" && len(args) > 2 && (args[2] == "set" || args[2] == "list")
+		if !isFeatureCmd {
+			return fmt.Errorf("failed to connect to database: %w", err)
+		}
+		// Log warning but continue
+		fmt.Fprintf(os.Stderr, "Warning: Failed to connect to database (%v). Proceeding with local file updates only.\n", err)
+		store = nil
+	} else {
+		defer store.Close()
 	}
-	defer store.Close()
 	var cmdErr error
 
 	switch command {
@@ -197,10 +205,27 @@ func run(args []string, config db.StoreConfig, projectID string) error {
 		if subCmd == "list" {
 			// Usage: agent-bridge feature list [--json]
 			// We always return JSON for now as it's the efficient format
-			content, err := store.GetFeatures(projectID)
-			if err != nil {
-				return fmt.Errorf("failed to get features: %w", err)
+			var content string
+			var err error
+
+			if store != nil {
+				content, err = store.GetFeatures(projectID)
+				if err != nil {
+					return fmt.Errorf("failed to get features from DB: %w", err)
+				}
 			}
+
+			// Fallback to local file if DB empty or failed (or store is nil)
+			if content == "" {
+				localPath := "feature_list.json"
+				if _, err := os.Stat(localPath); err == nil {
+					data, err := os.ReadFile(localPath)
+					if err == nil {
+						content = string(data)
+					}
+				}
+			}
+
 			if content == "" {
 				// Return empty feature list structure
 				content = `{"features":[]}`
@@ -225,38 +250,68 @@ func run(args []string, config db.StoreConfig, projectID string) error {
 					i++
 				}
 			}
-			cmdErr = store.UpdateFeatureStatus(projectID, id, status, passes)
 
-			if cmdErr == nil {
-				// Also update local file if present to ensure consistency
-				// This is required for local execution context where DB might be remote/mocked but file is used
-				localPath := "feature_list.json"
-				if _, err := os.Stat(localPath); err == nil {
-					data, err := os.ReadFile(localPath)
-					if err == nil {
-						var fl db.FeatureList
-						if err := json.Unmarshal(data, &fl); err == nil {
-							found := false
-							for i := range fl.Features {
-								if fl.Features[i].ID == id {
-									fl.Features[i].Status = status
-									fl.Features[i].Passes = passes
-									found = true
-									break
-								}
+			// Attempt DB update
+			var dbUpdateSuccess bool
+			if store != nil {
+				cmdErr = store.UpdateFeatureStatus(projectID, id, status, passes)
+				if cmdErr == nil {
+					dbUpdateSuccess = true
+					fmt.Printf("Feature %s updated in DB: status=%s, passes=%v\n", id, status, passes)
+				} else {
+					fmt.Fprintf(os.Stderr, "Warning: Failed to update feature in DB: %v\n", cmdErr)
+					// We don't fail immediately, try local update
+					cmdErr = nil // Clear error to allow local update to proceed as success
+				}
+			} else {
+				fmt.Println("Skipping DB update (no connection).")
+			}
+
+			// Attempt Local Update regardless of DB result
+			// This is required for local execution context where DB might be remote/mocked but file is used
+			localUpdateSuccess := false
+			localPath := "feature_list.json"
+			if _, err := os.Stat(localPath); err == nil {
+				data, err := os.ReadFile(localPath)
+				if err == nil {
+					var fl db.FeatureList
+					if err := json.Unmarshal(data, &fl); err == nil {
+						found := false
+						for i := range fl.Features {
+							if fl.Features[i].ID == id {
+								fl.Features[i].Status = status
+								fl.Features[i].Passes = passes
+								found = true
+								break
 							}
-							if found {
-								updated, _ := json.MarshalIndent(fl, "", "  ")
-								os.WriteFile(localPath, updated, 0644)
+						}
+						if found {
+							updated, _ := json.MarshalIndent(fl, "", "  ")
+							if err := os.WriteFile(localPath, updated, 0644); err == nil {
 								fmt.Printf("Local feature_list.json updated for feature %s\n", id)
+								localUpdateSuccess = true
+							} else {
+								fmt.Fprintf(os.Stderr, "Warning: Failed to write local feature_list.json: %v\n", err)
 							}
 						}
 					}
 				}
+			}
 
-				fmt.Printf("Feature %s updated: status=%s, passes=%v\n", id, status, passes)
+			if !dbUpdateSuccess && !localUpdateSuccess {
+				// If both failed (or DB skipped and local failed/missing), then we have a problem.
+				if store == nil {
+					return fmt.Errorf("failed to update feature: no DB connection and local file update failed/skipped")
+				}
+				// If DB failed, we already logged warning.
+				// But we should probably return error if BOTH fail to ensure CI knows something went wrong.
+				// However, if local file was missing, localUpdateSuccess is false, which is expected.
+				// So if DB failed and local skipped, that's an error.
+				return fmt.Errorf("failed to update feature status in DB (and local file not updated)")
+			}
 
-				// Auto-Completion Check
+			// Auto-Completion Check (Only if DB update succeeded)
+			if dbUpdateSuccess && store != nil {
 				// If all features are done/passed, signal completion automatically.
 				content, err := store.GetFeatures(projectID)
 				if err == nil && content != "" {
