@@ -175,7 +175,7 @@ func TestOrchestrator_FullFlow_E2E(t *testing.T) {
 	model := "meta-llama/llama-3.3-70b-instruct:free"
 	spawner := orchestrator.NewDockerSpawner(logger, dClient, "recac-agent:e2e", poller, provider, model)
 
-	orch := orchestrator.New(poller, spawner, 5*time.Second)
+	orch := orchestrator.New(poller, spawner, 5*time.Second, nil)
 
 	// 5. Run Orchestrator (Async)
 	t.Log("Starting Orchestrator...")

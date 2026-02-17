@@ -45,7 +45,7 @@ func TestOrchestrator_FileDirPoller_Integration(t *testing.T) {
 	spawner := new(MockSpawner)
 
 	// Orchestrator with a short interval for testing
-	orch := orchestrator.New(poller, spawner, 100*time.Millisecond)
+	orch := orchestrator.New(poller, spawner, 100*time.Millisecond, nil)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()

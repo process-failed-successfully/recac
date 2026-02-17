@@ -116,7 +116,7 @@ var orchestrateCmd = &cobra.Command{
 		}
 
 		// 4. Orchestrator
-		orch := orchestrator.New(poller, spawner, interval)
+		orch := orchestrator.New(poller, spawner, interval, nil)
 		if err := orch.Run(ctx, logger); err != nil {
 			if ctx.Err() != nil {
 				// Graceful shutdown

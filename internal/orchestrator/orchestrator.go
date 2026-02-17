@@ -12,13 +12,15 @@ type Orchestrator struct {
 	Poller       Poller
 	Spawner      Spawner
 	PollInterval time.Duration
+	Janitor      *Janitor
 }
 
-func New(poller Poller, spawner Spawner, pollInterval time.Duration) *Orchestrator {
+func New(poller Poller, spawner Spawner, pollInterval time.Duration, janitor *Janitor) *Orchestrator {
 	return &Orchestrator{
 		Poller:       poller,
 		Spawner:      spawner,
 		PollInterval: pollInterval,
+		Janitor:      janitor,
 	}
 }
 
@@ -27,6 +29,10 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 	logger.Info("Starting Orchestrator", "interval", o.PollInterval)
 	ticker := time.NewTicker(o.PollInterval)
 	defer ticker.Stop()
+
+	// Run cleanup periodically (e.g., every 10 minutes)
+	cleanupTicker := time.NewTicker(10 * time.Minute)
+	defer cleanupTicker.Stop()
 
 	// Use a WaitGroup to track running spawns/jobs if we want graceful shutdown
 	var wg sync.WaitGroup
@@ -37,6 +43,12 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 			logger.Info("Orchestrator shutting down...")
 			wg.Wait()
 			return ctx.Err()
+		case <-cleanupTicker.C:
+			if o.Janitor != nil {
+				if err := o.Janitor.Cleanup(ctx); err != nil {
+					logger.Error("Janitor cleanup failed", "error", err)
+				}
+			}
 		case <-ticker.C:
 			// Poll for work
 			logger.Debug("Polling for work...")
