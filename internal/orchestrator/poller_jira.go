@@ -9,21 +9,12 @@ import (
 	"recac/internal/jira"
 	"regexp"
 	"strings"
-	"sync"
 )
 
 var (
-	featuresHeaderRegex *regexp.Regexp
-	featureSlugRegex    *regexp.Regexp
-	regexOnce           sync.Once
+	featuresHeaderRegex = regexp.MustCompile(`(?i)^(REQUIRED FEATURES|ACCEPTANCE CRITERIA):?\s*$`)
+	featureSlugRegex    = regexp.MustCompile("[^a-z0-9]+")
 )
-
-func initRegex() {
-	regexOnce.Do(func() {
-		featuresHeaderRegex = regexp.MustCompile(`(?i)^(REQUIRED FEATURES|ACCEPTANCE CRITERIA):?\s*$`)
-		featureSlugRegex = regexp.MustCompile("[^a-z0-9]+")
-	})
-}
 
 type JiraPoller struct {
 	Client  JiraClient
@@ -164,8 +155,6 @@ func extractRequiredFeatures(text string) []db.Feature {
 
 	lines := strings.Split(text, "\n")
 	inSection := false
-
-	initRegex()
 
 	// Optimized: uses package-level regex
 	for _, line := range lines {
