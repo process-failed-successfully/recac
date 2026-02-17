@@ -112,7 +112,8 @@ EOF
 
 python3 primes.py
 git add primes.py primes.json
-git commit -m "Add primes script"
+# Allow empty commits or commits with no changes to prevent script failure
+git commit -m "Add primes script" || echo "Nothing to commit"
 ` + "```", nil
 	}
 
