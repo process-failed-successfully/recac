@@ -1,8 +1,11 @@
 package runner
 
 import (
+	"bufio"
 	"context"
+	"encoding/binary"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"recac/internal/docker"
@@ -60,6 +63,34 @@ func TestSession_Start_RunsInitScript(t *testing.T) {
 		return container.ExecInspect{ExitCode: exitCode}, nil
 	}
 
+	// Mock Attach to return empty output for getent (to trigger user creation logic)
+	// and default output for others
+	mock.ContainerExecAttachFunc = func(ctx context.Context, execID string, config container.ExecStartOptions) (types.HijackedResponse, error) {
+		server, client := net.Pipe()
+		cmd, _ := execCmds[execID]
+
+		output := "Success: Mock command executed\n"
+		if strings.Contains(cmd, "getent") {
+			output = "" // Empty output for getent implies missing user/group
+		}
+
+		go func() {
+			if output != "" {
+				msg := []byte(output)
+				header := make([]byte, 8)
+				header[0] = 1 // stdout
+				binary.BigEndian.PutUint32(header[4:], uint32(len(msg)))
+				server.Write(header)
+				server.Write(msg)
+			}
+			server.Close()
+		}()
+		return types.HijackedResponse{
+			Conn:   client,
+			Reader: bufio.NewReader(client),
+		}, nil
+	}
+
 	// Mock ContainerCreate to return a valid ID
 	mock.ContainerCreateFunc = func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error) {
 		return container.CreateResponse{ID: "test-container"}, nil
@@ -74,9 +105,9 @@ func TestSession_Start_RunsInitScript(t *testing.T) {
 
 	// 5. Verify Exec Calls
 	// Expected calls:
-	// - fixPasswdDatabase: getent group 1001 (returns 1)
+	// - fixPasswdDatabase: getent group 1001 (returns 1, empty output)
 	// - fixPasswdDatabase: groupadd (triggered by failure)
-	// - fixPasswdDatabase: getent passwd 1001 (returns 1)
+	// - fixPasswdDatabase: getent passwd 1001 (returns 1, empty output)
 	// - fixPasswdDatabase: useradd (triggered by failure)
 	// - bootstrapGit: git config ... (3 calls, as root)
 	// - runInitScript: chmod +x init.sh (as default user)
@@ -154,18 +185,10 @@ func TestSession_Start_InitScriptFails(t *testing.T) {
 
 	mock.ContainerExecCreateFunc = func(ctx context.Context, containerID string, config container.ExecOptions) (types.IDResponse, error) {
 		if strings.Contains(strings.Join(config.Cmd, " "), "./init.sh") {
-			// We can't simulate failure here because Create returns ID.
-			// Inspect returns exit code.
-			// But for async execution, error handling is tricky.
-			// The original test probably expected Create/Start to fail?
-			// Or maybe Inspect?
-			// Let's assume this test expects success (Start doesn't block on init.sh).
+			// Expected to be called
 		}
 		return types.IDResponse{ID: "mock-exec-id"}, nil
 	}
-
-	// Mock Inspect to return failure for init.sh?
-	// But init.sh runs in background.
 
 	session := NewSession(d, &MockAgent{}, tmpDir, "alpine", "test-project", "gemini", "gemini-pro", 1)
 

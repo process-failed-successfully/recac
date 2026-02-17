@@ -45,7 +45,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		matches := repoRegex.FindStringSubmatch(prompt)
 		repoSuffix := ""
 		if len(matches) > 1 {
-			repoSuffix = fmt.Sprintf("\nRepo: %s", matches[1])
+			// Ensure newline is escaped for JSON (\n)
+			repoSuffix = fmt.Sprintf("\\nRepo: %s", matches[1])
 		}
 
 		// Return purely JSON as expected by recac CLI
@@ -78,6 +79,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		matches := repoRegex.FindStringSubmatch(prompt)
 		repoSuffix := ""
 		if len(matches) > 1 {
+			// Ensure newline is escaped for JSON (\n)
 			repoSuffix = fmt.Sprintf("\\nRepo: %s", matches[1])
 		}
 
@@ -94,11 +96,6 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
   ]
 }`, repoSuffix)
 
-		// The Initializer prompt specifically asks to use `cat << 'EOF' | agent-bridge import`
-		// But basic file write is safer for mock mode simple tests.
-		// However, the prompt says "YOU MUST use ... agent-bridge import".
-		// Let's stick to writing the file directly for robustness in tests unless agent-bridge is required.
-		// Tests usually check for file existence.
 		return fmt.Sprintf("I will initialize the project.\n\n```bash\ncat << 'EOF' > feature_list.json\n%s\nEOF\n```", jsonContent), nil
 	}
 
