@@ -10,19 +10,27 @@ func TestMockAgent_E2E_Heuristics(t *testing.T) {
 	agent := NewMockAgent()
 	ctx := context.Background()
 
-	t.Run("Planning Phase", func(t *testing.T) {
-		prompts := []string{
-			"You are a Technical Program Manager",
-			"Please break down this task",
+	t.Run("Planning Phase (TPM)", func(t *testing.T) {
+		prompt := "You are a Technical Program Manager"
+		resp, err := agent.Send(ctx, prompt)
+		if err != nil {
+			t.Fatalf("Send failed: %v", err)
 		}
-		for _, p := range prompts {
-			resp, err := agent.Send(ctx, p)
-			if err != nil {
-				t.Fatalf("Send failed: %v", err)
-			}
-			if !strings.Contains(resp, `"id": "req-primes"`) {
-				t.Errorf("Expected planning JSON for prompt '%s', got: %s", p, resp)
-			}
+		// TPM returns []ticketNode JSON for recac CLI
+		if !strings.Contains(resp, `ID:[PRIMES]`) {
+			t.Errorf("Expected ticketNode JSON with ID:[PRIMES] for prompt '%s', got: %s", prompt, resp)
+		}
+	})
+
+	t.Run("Planning Phase (Planner)", func(t *testing.T) {
+		prompt := "Please break down this task"
+		resp, err := agent.Send(ctx, prompt)
+		if err != nil {
+			t.Fatalf("Send failed: %v", err)
+		}
+		// Planner returns feature_list.json bash script
+		if !strings.Contains(resp, `"id": "req-primes"`) {
+			t.Errorf("Expected planning JSON for prompt '%s', got: %s", prompt, resp)
 		}
 	})
 

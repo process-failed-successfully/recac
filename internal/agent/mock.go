@@ -36,10 +36,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristics for E2E tests (specifically prime-python scenario)
 	lowerPrompt := strings.ToLower(prompt)
 
-	// 1. Planning Phase / TPM
-	// The agent usually asks for a plan first.
-	// If the prompt mentions "Technical Program Manager" or asks to "break down" the task.
-	if strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "break down") {
+	// 1. Planning Phase / TPM (recac CLI generate-from-spec)
+	// If the prompt mentions "Technical Program Manager", it's likely the recac CLI asking for a ticket plan.
+	// It expects a JSON list of ticketNodes, not a bash script.
+	if strings.Contains(lowerPrompt, "technical program manager") {
 		// Extract Repo URL if present
 		repoRegex := regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
 		matches := repoRegex.FindStringSubmatch(prompt)
@@ -48,11 +48,41 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			repoSuffix = fmt.Sprintf("\\nRepo: %s", matches[1])
 		}
 
-		// Return a JSON plan.
-		// For prime-python, we essentially just want to say "do the task".
-		// But if we are already in the task, maybe we don't need to break it down.
-		// However, providing a single step is safe.
-		// We return a bash script to create feature_list.json so the Runner picks it up.
+		// Return a JSON plan matching ticketNode structure (recac CLI)
+		// We include ID:[PRIMES] to ensure ticket mapping works.
+		jsonContent := fmt.Sprintf(`[
+  {
+    "title": "ID:[PRIMES] Prime Number Script",
+    "description": "Write a python script to calculate primes under 10000.%s",
+    "type": "Epic",
+    "children": [
+      {
+        "title": "Implement Prime Script",
+        "description": "Implement the script.%s",
+        "type": "Story",
+        "acceptance_criteria": ["Script calculates primes correctly"],
+        "blocked_by": []
+      }
+    ]
+  }
+]`, strings.ReplaceAll(repoSuffix, "\n", "\\n"), strings.ReplaceAll(repoSuffix, "\n", "\\n"))
+
+		return fmt.Sprintf("Here is the plan:\n\n```json\n%s\n```", jsonContent), nil
+	}
+
+	// 1.5. Planner / Architect (recac-agent execution loop)
+	// If the prompt asks to "break down" (Lead Software Architect), it's likely the agent loop.
+	// It expects a bash script to create feature_list.json.
+	if strings.Contains(lowerPrompt, "break down") || strings.Contains(lowerPrompt, "lead software architect") {
+		// Extract Repo URL if present
+		repoRegex := regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
+		matches := repoRegex.FindStringSubmatch(prompt)
+		repoSuffix := ""
+		if len(matches) > 1 {
+			repoSuffix = fmt.Sprintf("\\nRepo: %s", matches[1])
+		}
+
+		// Return a planner JSON (feature_list.json structure) wrapped in bash
 		jsonContent := fmt.Sprintf(`{
   "project_name": "mock-project",
   "features": [
