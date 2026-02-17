@@ -93,27 +93,41 @@ func TestSpawnerConsistency_EnvPropagation(t *testing.T) {
 		mockSM.On("SaveSession", mock.Anything).Return(nil)
 		mockSM.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
 
-		capturedCmdChan := make(chan []string, 1)
-		mockDocker.On("Exec", mock.Anything, "cid", mock.Anything).Run(func(args mock.Arguments) {
-			capturedCmd := args.Get(2).([]string)
-			capturedCmdChan <- capturedCmd
+		capturedEnvChan := make(chan []string, 1)
+		mockDocker.On("ExecWithEnv", mock.Anything, "cid", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+			capturedEnv := args.Get(3).([]string)
+			capturedEnvChan <- capturedEnv
 		}).Return("out", nil)
 
 		err := spawner.Spawn(ctx, item)
 		assert.NoError(t, err)
 
-		var capturedCmd []string
+		var capturedEnv []string
 		select {
-		case capturedCmd = <-capturedCmdChan:
+		case capturedEnv = <-capturedEnvChan:
 		case <-time.After(1 * time.Second):
 			t.Fatal("Timeout waiting for Exec")
 		}
 
-		cmdStr := capturedCmd[2]
+		// Check if environment variables are correctly propagated in Env slice
+		foundMaxIter := false
+		foundManagerFreq := false
+		foundTaskMaxIter := false
+		for _, e := range capturedEnv {
+			if e == "RECAC_MAX_ITERATIONS=50" {
+				foundMaxIter = true
+			}
+			if e == "RECAC_MANAGER_FREQUENCY=10m" {
+				foundManagerFreq = true
+			}
+			if e == "RECAC_TASK_MAX_ITERATIONS=5" {
+				foundTaskMaxIter = true
+			}
+		}
 
 		// Assertions
-		assert.Contains(t, cmdStr, "export RECAC_MAX_ITERATIONS=50", "Docker should propagate RECAC_MAX_ITERATIONS")
-		assert.Contains(t, cmdStr, "export RECAC_MANAGER_FREQUENCY=10m", "Docker should propagate RECAC_MANAGER_FREQUENCY")
-		assert.Contains(t, cmdStr, "export RECAC_TASK_MAX_ITERATIONS=5", "Docker should propagate RECAC_TASK_MAX_ITERATIONS")
+		assert.True(t, foundMaxIter, "Docker should propagate RECAC_MAX_ITERATIONS")
+		assert.True(t, foundManagerFreq, "Docker should propagate RECAC_MANAGER_FREQUENCY")
+		assert.True(t, foundTaskMaxIter, "Docker should propagate RECAC_TASK_MAX_ITERATIONS")
 	})
 }

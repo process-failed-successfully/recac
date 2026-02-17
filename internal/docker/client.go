@@ -291,6 +291,59 @@ func (c *Client) Exec(ctx context.Context, containerID string, cmd []string) (st
 	return output, nil
 }
 
+// ExecWithEnv executes a command in a running container with environment variables.
+func (c *Client) ExecWithEnv(ctx context.Context, containerID string, cmd []string, env []string) (string, error) {
+	telemetry.TrackDockerOp(c.project)
+	execConfig := container.ExecOptions{
+		WorkingDir:   "/workspace",
+		Cmd:          cmd,
+		Env:          env,
+		AttachStdout: true,
+		AttachStderr: true,
+	}
+
+	respID, err := c.api.ContainerExecCreate(ctx, containerID, execConfig)
+	if err != nil {
+		return "", fmt.Errorf("failed to create exec: %w", err)
+	}
+
+	resp, err := c.api.ContainerExecAttach(ctx, respID.ID, container.ExecStartOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to attach exec: %w", err)
+	}
+	defer resp.Close()
+
+	var outBuf, errBuf bytes.Buffer
+	done := make(chan error, 1)
+
+	go func() {
+		_, err := stdcopy.StdCopy(&outBuf, &errBuf, resp.Reader)
+		done <- err
+	}()
+
+	select {
+	case <-ctx.Done():
+		resp.Close()
+		return "", ctx.Err()
+	case err := <-done:
+		if err != nil && err != io.EOF {
+			return "", fmt.Errorf("failed to copy exec output: %w", err)
+		}
+	}
+
+	inspect, err := c.api.ContainerExecInspect(ctx, respID.ID)
+	if err != nil {
+		return outBuf.String() + errBuf.String(), fmt.Errorf("failed to inspect exec: %w", err)
+	}
+
+	output := outBuf.String() + errBuf.String()
+	if inspect.ExitCode != 0 {
+		return output, fmt.Errorf("command exited with code %d", inspect.ExitCode)
+	}
+
+	return output, nil
+}
+
 // ExecAsUser executes a command as a specific user in a running container.
 func (c *Client) ExecAsUser(ctx context.Context, containerID string, user string, cmd []string) (string, error) {
 	telemetry.TrackDockerOp(c.project)
