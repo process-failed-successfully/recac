@@ -91,11 +91,36 @@ REQUIRED FEATURES
 		})
 	}
 
-    t.Run("Slug Generation", func(t *testing.T) {
-        input := "REQUIRED FEATURES:\n- My Feature!"
-        features := extractRequiredFeatures(input)
-        assert.Len(t, features, 1)
-        assert.Equal(t, "My Feature!", features[0].Description)
-        assert.Equal(t, "req-my-feature", features[0].ID)
-    })
+	t.Run("Slug Generation", func(t *testing.T) {
+		input := "REQUIRED FEATURES:\n- My Feature!"
+		features := extractRequiredFeatures(input)
+		assert.Len(t, features, 1)
+		assert.Equal(t, "My Feature!", features[0].Description)
+		assert.Equal(t, "req-my-feature", features[0].ID)
+	})
+}
+
+func TestExtractRequiredFeatures_Concurrency(t *testing.T) {
+	input := `
+REQUIRED FEATURES:
+- Feature A
+- Feature B
+`
+	// Run parallel goroutines to trigger race conditions if any
+	const numGoroutines = 100
+	done := make(chan bool)
+
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			features := extractRequiredFeatures(input)
+			if len(features) != 2 {
+				t.Errorf("expected 2 features, got %d", len(features))
+			}
+			done <- true
+		}()
+	}
+
+	for i := 0; i < numGoroutines; i++ {
+		<-done
+	}
 }
