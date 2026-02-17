@@ -28,17 +28,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Calculate safe branch name
-        id: branch
-        if: github.event_name != 'tag'
-        run: |
-          # Use github.ref_name which is the branch name on push
-          # Lowercase (docker tags must be lowercase)
-          # Replace invalid characters with - (allow only alphanumeric, dot, underscore, dash)
-          # Truncate to 60 chars
-          SAFE_NAME=$(echo "${{ github.ref_name }}" | tr '[:upper:]' '[:lower:]' | sed 's|[^a-z0-9._-]|-|g' | cut -c 1-60)
-          echo "safe_name=$SAFE_NAME" >> $GITHUB_OUTPUT
-
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -46,7 +35,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value=${{ steps.branch.outputs.safe_name }},enable=${{ github.event_name != 'tag' }}
+            type=ref,event=branch
             type=semver,pattern={{version}}
             type=sha
 
