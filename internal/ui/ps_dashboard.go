@@ -25,6 +25,10 @@ type psDashboardModel struct {
 	height     int
 	showCosts  bool
 	sortBy     string
+
+	// Detail view state
+	selectedSession model.UnifiedSession
+	showDetails     bool
 }
 
 type psTickMsg time.Time
@@ -96,6 +100,19 @@ func (m psDashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
+		case "enter":
+			if !m.showDetails {
+				idx := m.table.Cursor()
+				if idx >= 0 && idx < len(m.sessions) {
+					m.selectedSession = m.sessions[idx]
+					m.showDetails = true
+				}
+			}
+		case "esc":
+			if m.showDetails {
+				m.showDetails = false
+				return m, nil
+			}
 		}
 
 	case psTickMsg:
@@ -180,11 +197,70 @@ func (m psDashboardModel) View() string {
 		return fmt.Sprintf("Error: %v", m.err)
 	}
 
+	if m.showDetails {
+		return m.viewDetails()
+	}
+
 	var s strings.Builder
 	s.WriteString(psDashboardTitleStyle.Render(" RECAC PS Dashboard") + "\n")
-	s.WriteString(fmt.Sprintf("Last updated: %s (press 'q' to quit)\n\n", m.lastUpdate.Format(time.RFC1123)))
+	s.WriteString(fmt.Sprintf("Last updated: %s (press 'q' to quit, 'enter' for details)\n\n", m.lastUpdate.Format(time.RFC1123)))
 
 	s.WriteString(m.table.View())
+	return s.String()
+}
+
+func (m psDashboardModel) viewDetails() string {
+	s := strings.Builder{}
+	session := m.selectedSession
+
+	// Styles
+	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Bold(true)
+	valueStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
+	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("62")).MarginBottom(1)
+
+	s.WriteString(titleStyle.Render(fmt.Sprintf("Session Details: %s", session.Name)) + "\n")
+
+	fields := []struct {
+		Label string
+		Value string
+	}{
+		{"Status", session.Status},
+		{"Location", session.Location},
+		{"Start Time", session.StartTime.Format(time.RFC1123)},
+		{"Last Activity", session.LastActivity.Format(time.RFC1123)},
+		{"CPU", session.CPU},
+		{"Memory", session.Memory},
+	}
+
+	if session.HasCost {
+		fields = append(fields, struct{ Label, Value string }{"Cost", fmt.Sprintf("$%.6f", session.Cost)})
+		fields = append(fields, struct{ Label, Value string }{"Total Tokens", fmt.Sprintf("%d", session.Tokens.TotalTokens)})
+	}
+
+	for _, f := range fields {
+		s.WriteString(fmt.Sprintf("%s %s\n", labelStyle.Render(f.Label+":"), valueStyle.Render(f.Value)))
+	}
+
+	s.WriteString(fmt.Sprintf("\n%s\n%s\n", labelStyle.Render("Goal:"), valueStyle.Render(session.Goal)))
+
+	if session.Logs != "" {
+		s.WriteString(fmt.Sprintf("\n%s\n", labelStyle.Render("Logs (Preview):")))
+		lines := strings.Split(session.Logs, "\n")
+		limit := 10
+		if len(lines) > limit {
+			lines = lines[:limit]
+		}
+		for _, line := range lines {
+			if line != "" {
+				s.WriteString(fmt.Sprintf("  %s\n", line))
+			}
+		}
+		if len(strings.Split(session.Logs, "\n")) > limit {
+			s.WriteString("  ...\n")
+		}
+	}
+
+	s.WriteString("\n" + lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("(press 'esc' to back)"))
 	return s.String()
 }
 
