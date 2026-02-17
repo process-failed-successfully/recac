@@ -1,8 +1,11 @@
 package runner
 
 import (
+	"bufio"
 	"context"
+	"encoding/binary"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"recac/internal/docker"
@@ -35,12 +38,50 @@ func TestSession_Start_RunsInitScript(t *testing.T) {
 	d, mock := docker.NewMockClient()
 
 	execCalls := []execCall{}
+	execMap := make(map[string]string)
 	mock.ContainerExecCreateFunc = func(ctx context.Context, containerID string, config container.ExecOptions) (types.IDResponse, error) {
+		cmdStr := strings.Join(config.Cmd, " ")
 		execCalls = append(execCalls, execCall{
 			User: config.User,
-			Cmd:  strings.Join(config.Cmd, " "),
+			Cmd:  cmdStr,
 		})
-		return types.IDResponse{ID: "mock-exec-id"}, nil
+		id := fmt.Sprintf("exec-%d", len(execCalls))
+		execMap[id] = cmdStr
+		return types.IDResponse{ID: id}, nil
+	}
+
+	mock.ContainerExecInspectFunc = func(ctx context.Context, execID string) (container.ExecInspect, error) {
+		cmdStr, ok := execMap[execID]
+		exitCode := 0
+		if ok && (strings.Contains(cmdStr, "getent group") || strings.Contains(cmdStr, "getent passwd")) {
+			exitCode = 2 // Key not found
+		}
+		return container.ExecInspect{ExitCode: exitCode}, nil
+	}
+
+	mock.ContainerExecAttachFunc = func(ctx context.Context, execID string, config container.ExecStartOptions) (types.HijackedResponse, error) {
+		cmdStr, ok := execMap[execID]
+		output := "Success: Mock command executed\n"
+		if ok && (strings.Contains(cmdStr, "getent group") || strings.Contains(cmdStr, "getent passwd")) {
+			output = ""
+		}
+
+		server, client := net.Pipe()
+		go func() {
+			msg := []byte(output)
+			if len(output) > 0 {
+				header := make([]byte, 8)
+				header[0] = 1 // stdout
+				binary.BigEndian.PutUint32(header[4:], uint32(len(msg)))
+				server.Write(header)
+				server.Write(msg)
+			}
+			server.Close()
+		}()
+		return types.HijackedResponse{
+			Conn:   client,
+			Reader: bufio.NewReader(client),
+		}, nil
 	}
 
 	// Mock ContainerCreate to return a valid ID
