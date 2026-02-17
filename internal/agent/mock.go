@@ -69,7 +69,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic: Check if this is an Execution Phase prompt (Agent Role)
 	// If features are pending, we update them. If done, we signal completion.
-	if strings.Contains(prompt, `"status": "pending"`) {
+	// Use regex for flexible whitespace matching on json status
+	if strings.Contains(prompt, `"status": "pending"`) || regexp.MustCompile(`"status":\s*"pending"`).MatchString(prompt) {
 		return `Here is a plan to implement the pending features.
 
 ` + "```bash" + `
@@ -84,8 +85,16 @@ fi
 `, nil
 	}
 
-	if strings.Contains(prompt, `"status": "done"`) || strings.Contains(prompt, "All features") {
+	// Check for done status with flexible whitespace or explicit "All features" signal
+	if strings.Contains(prompt, "All features") || regexp.MustCompile(`"status":\s*"done"`).MatchString(prompt) {
 		return "Task completed. All features implemented.", nil
+	}
+
+	// Fallback for Agent Execution loop to prevent infinite no-op loops in tests:
+	// If the prompt looks like it contains a feature list (has "project_name" or "features") but didn't match above,
+	// assume it's an ambiguous state or "done" state that wasn't caught. Return "Task completed" to exit safely.
+	if strings.Contains(prompt, "project_name") && strings.Contains(prompt, "features") {
+		return "Task completed. No pending features detected.", nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
