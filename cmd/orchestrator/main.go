@@ -45,6 +45,12 @@ func main() {
 	pflag.String("github-repo", "", "GitHub Repository Name (for 'github' poller)")
 	pflag.String("github-label", "", "GitHub Label to poll for (defaults to jira-label if not set)")
 
+	// Janitor Flags
+	pflag.Bool("cleanup", false, "Enable Janitor service to cleanup old containers")
+	pflag.Duration("cleanup-age", 24*time.Hour, "Max age for containers before cleanup")
+	pflag.Duration("cleanup-interval", 1*time.Hour, "Janitor cleanup interval")
+	pflag.Bool("cleanup-dry-run", false, "Janitor dry run mode")
+
 	pflag.Parse()
 
 	// Config
@@ -61,6 +67,11 @@ func main() {
 	viper.BindPFlag("orchestrator.github_owner", pflag.Lookup("github-owner"))
 	viper.BindPFlag("orchestrator.github_repo", pflag.Lookup("github-repo"))
 	viper.BindPFlag("orchestrator.github_label", pflag.Lookup("github-label"))
+
+	viper.BindPFlag("orchestrator.cleanup", pflag.Lookup("cleanup"))
+	viper.BindPFlag("orchestrator.cleanup_age", pflag.Lookup("cleanup-age"))
+	viper.BindPFlag("orchestrator.cleanup_interval", pflag.Lookup("cleanup-interval"))
+	viper.BindPFlag("orchestrator.cleanup_dry_run", pflag.Lookup("cleanup-dry-run"))
 
 	viper.BindPFlag("orchestrator.mode", pflag.Lookup("mode"))
 	viper.BindPFlag("orchestrator.jira_label", pflag.Lookup("jira-label"))
@@ -81,6 +92,10 @@ func main() {
 	viper.BindEnv("orchestrator.github_owner", "RECAC_GITHUB_OWNER")
 	viper.BindEnv("orchestrator.github_repo", "RECAC_GITHUB_REPO")
 	viper.BindEnv("orchestrator.github_label", "RECAC_GITHUB_LABEL")
+	viper.BindEnv("orchestrator.cleanup", "RECAC_CLEANUP_ENABLED")
+	viper.BindEnv("orchestrator.cleanup_age", "RECAC_CLEANUP_AGE")
+	viper.BindEnv("orchestrator.cleanup_interval", "RECAC_CLEANUP_INTERVAL")
+	viper.BindEnv("orchestrator.cleanup_dry_run", "RECAC_CLEANUP_DRY_RUN")
 	viper.BindEnv("orchestrator.mode", "RECAC_ORCHESTRATOR_MODE")
 	viper.BindEnv("orchestrator.image", "RECAC_ORCHESTRATOR_IMAGE")
 	viper.BindEnv("orchestrator.namespace", "RECAC_ORCHESTRATOR_NAMESPACE")
@@ -195,6 +210,18 @@ func main() {
 		}
 
 		spawner = orchestrator.NewDockerSpawner(logger, dockerCli, image, projectName, poller, agentProvider, agentModel, sm)
+
+		// Start Janitor if enabled
+		if viper.GetBool("orchestrator.cleanup") {
+			janitor := orchestrator.NewJanitor(
+				dockerCli,
+				logger.With("component", "janitor"),
+				viper.GetDuration("orchestrator.cleanup_interval"),
+				viper.GetDuration("orchestrator.cleanup_age"),
+				viper.GetBool("orchestrator.cleanup_dry_run"),
+			)
+			go janitor.Run(ctx)
+		}
 	default:
 		logger.Error("Invalid mode. Use 'local' or 'k8s'", "mode", mode)
 		os.Exit(1)
