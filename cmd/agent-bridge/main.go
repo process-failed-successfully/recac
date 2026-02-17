@@ -228,6 +228,32 @@ func run(args []string, config db.StoreConfig, projectID string) error {
 			cmdErr = store.UpdateFeatureStatus(projectID, id, status, passes)
 
 			if cmdErr == nil {
+				// Also update local file if present to ensure consistency
+				// This is required for local execution context where DB might be remote/mocked but file is used
+				localPath := "feature_list.json"
+				if _, err := os.Stat(localPath); err == nil {
+					data, err := os.ReadFile(localPath)
+					if err == nil {
+						var fl db.FeatureList
+						if err := json.Unmarshal(data, &fl); err == nil {
+							found := false
+							for i := range fl.Features {
+								if fl.Features[i].ID == id {
+									fl.Features[i].Status = status
+									fl.Features[i].Passes = passes
+									found = true
+									break
+								}
+							}
+							if found {
+								updated, _ := json.MarshalIndent(fl, "", "  ")
+								os.WriteFile(localPath, updated, 0644)
+								fmt.Printf("Local feature_list.json updated for feature %s\n", id)
+							}
+						}
+					}
+				}
+
 				fmt.Printf("Feature %s updated: status=%s, passes=%v\n", id, status, passes)
 
 				// Auto-Completion Check

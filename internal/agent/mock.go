@@ -73,6 +73,16 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 	}
 
+	// 3. QA Agent
+	if strings.Contains(prompt, "QA AGENT") || strings.Contains(prompt, "QA Agent") {
+		return "QA Checks Passed.\n\n```bash\nagent-bridge signal QA_PASSED true\n```", nil
+	}
+
+	// 4. Manager Agent
+	if strings.Contains(prompt, "Manager Agent") || strings.Contains(prompt, "MANAGER AGENT") {
+		return "Project Approved.\n\n```bash\nagent-bridge signal PROJECT_SIGNED_OFF true\n```", nil
+	}
+
 	// Default Mock Response
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
 		m.responsePrefix, len(prompt), truncateString(prompt, 100))
