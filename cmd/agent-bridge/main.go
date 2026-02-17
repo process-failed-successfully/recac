@@ -230,6 +230,48 @@ func run(args []string, config db.StoreConfig, projectID string) error {
 			if cmdErr == nil {
 				fmt.Printf("Feature %s updated: status=%s, passes=%v\n", id, status, passes)
 
+				// Also update local feature_list.json if it exists
+				// This ensures that local scripts relying on this file see the latest state
+				localFeatureFile := "feature_list.json"
+				if _, err := os.Stat(localFeatureFile); err == nil {
+					data, err := os.ReadFile(localFeatureFile)
+					if err == nil {
+						var localFL struct {
+							ProjectName string `json:"project_name"`
+							Features    []struct {
+								ID           string      `json:"id"`
+								Category     string      `json:"category"`
+								Priority     string      `json:"priority"`
+								Description  string      `json:"description"`
+								Status       string      `json:"status"`
+								Passes       bool        `json:"passes"`
+								Steps        []string    `json:"steps"`
+								Dependencies interface{} `json:"dependencies"` // Use interface{} to be flexible
+							} `json:"features"`
+						}
+
+						if err := json.Unmarshal(data, &localFL); err == nil {
+							updated := false
+							for i, f := range localFL.Features {
+								if f.ID == id {
+									localFL.Features[i].Status = status
+									localFL.Features[i].Passes = passes
+									updated = true
+									break
+								}
+							}
+							if updated {
+								newData, _ := json.MarshalIndent(localFL, "", "  ")
+								if err := os.WriteFile(localFeatureFile, newData, 0644); err != nil {
+									fmt.Fprintf(os.Stderr, "Warning: Failed to update local %s: %v\n", localFeatureFile, err)
+								} else {
+									fmt.Printf("Updated local %s\n", localFeatureFile)
+								}
+							}
+						}
+					}
+				}
+
 				// Auto-Completion Check
 				// If all features are done/passed, signal completion automatically.
 				content, err := store.GetFeatures(projectID)
