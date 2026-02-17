@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/spf13/viper"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -140,7 +141,14 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		"RECAC_DB_TYPE", "RECAC_DB_URL",
 	}
 	for _, secret := range secrets {
-		if val := os.Getenv(secret); val != "" {
+		val := os.Getenv(secret)
+		if val == "" {
+			// Fallback to Viper (e.g. JIRA_URL -> jira.url)
+			viperKey := strings.ToLower(strings.ReplaceAll(secret, "_", "."))
+			val = viper.GetString(viperKey)
+		}
+
+		if val != "" {
 			envVars = append(envVars, corev1.EnvVar{Name: secret, Value: val})
 			if secret == "GITHUB_API_KEY" {
 				envVars = append(envVars, corev1.EnvVar{Name: "RECAC_GITHUB_API_KEY", Value: val})
