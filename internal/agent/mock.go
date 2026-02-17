@@ -80,7 +80,22 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			featureID = matches[1]
 		}
 
+		if featureID == "NONE_ALL_COMPLETE" {
+			// All features complete, signal completion
+			return "```bash\nagent-bridge signal COMPLETED true\necho \"Signal COMPLETED set\"\n```", nil
+		}
+
 		return fmt.Sprintf("```bash\n#!/bin/bash\n# Mock implementation for %s\necho \"Implementing feature %s...\"\nagent-bridge feature set %s --status done --passes true || echo \"Failed to set status for %s\"\necho \"Success: Mock command executed\"\n```", featureID, featureID, featureID, featureID), nil
+	}
+
+	// Heuristic: Check if this is a QA Agent prompt
+	if contains(prompt, "YOUR ROLE - QA AGENT") {
+		return "```bash\n#!/bin/bash\necho \"Running QA checks...\"\nagent-bridge signal QA_PASSED true\necho \"QA Passed\"\n```", nil
+	}
+
+	// Heuristic: Check if this is a Project Manager prompt
+	if contains(prompt, "YOUR ROLE - PROJECT MANAGER") {
+		return "```bash\n#!/bin/bash\necho \"Manager Review...\"\nagent-bridge signal PROJECT_SIGNED_OFF true\necho \"Project Signed Off\"\n```", nil
 	}
 
 	// Return a mock response that shows the agent received the prompt

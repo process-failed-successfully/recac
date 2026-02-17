@@ -50,6 +50,28 @@ func TestMockAgent(t *testing.T) {
 			t.Errorf("Expected bash code block, got: %s", response)
 		}
 	})
+
+	t.Run("QA Agent Response", func(t *testing.T) {
+		prompt := "## YOUR ROLE - QA AGENT\nVerify checks"
+		response, err := agent.Send(context.Background(), prompt)
+		if err != nil {
+			t.Fatalf("Send failed: %v", err)
+		}
+		if !strings.Contains(response, "agent-bridge signal QA_PASSED true") {
+			t.Errorf("Expected bash script to set QA_PASSED, got: %s", response)
+		}
+	})
+
+	t.Run("Manager Agent Response", func(t *testing.T) {
+		prompt := "## YOUR ROLE - PROJECT MANAGER\nReview report"
+		response, err := agent.Send(context.Background(), prompt)
+		if err != nil {
+			t.Fatalf("Send failed: %v", err)
+		}
+		if !strings.Contains(response, "agent-bridge signal PROJECT_SIGNED_OFF true") {
+			t.Errorf("Expected bash script to set PROJECT_SIGNED_OFF, got: %s", response)
+		}
+	})
 }
 
 func TestTruncateString(t *testing.T) {
