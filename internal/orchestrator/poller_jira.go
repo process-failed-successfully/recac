@@ -13,6 +13,7 @@ import (
 )
 
 var (
+	// Lazy initialization of regexes using sync.OnceValue to avoid eager compilation panics
 	featuresHeaderRegex = sync.OnceValue(func() *regexp.Regexp {
 		return regexp.MustCompile(`(?i)^(REQUIRED FEATURES|ACCEPTANCE CRITERIA):?\s*$`)
 	})
