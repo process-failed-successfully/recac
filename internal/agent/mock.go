@@ -36,18 +36,16 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 1. Planning Phase (Technical Program Manager)
 	if strings.Contains(prompt, "Technical Program Manager") {
-		return `{
-	"tickets": [
-		{
-			"id": "PRIMES",
-			"type": "Task",
-			"summary": "Implement Primes Script",
-			"description": "Calculate primes < 10000",
-			"dependencies": [],
-			"status": "TODO"
-		}
-	]
-}`, nil
+		// Return array directly as expected by cmd/recac/jira.go
+		return `[
+	{
+		"title": "ID:[PRIMES] Implement Primes Script",
+		"type": "Task",
+		"description": "Calculate primes < 10000",
+		"acceptance_criteria": [],
+		"blocked_by": []
+	}
+]`, nil
 	}
 
 	// 2. Implementation Phase (Agent working on PRIMES)
