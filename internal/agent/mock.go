@@ -54,7 +54,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// The prompt asks to implement the ticket ID:[PRIMES]
 	if strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "prime number generator") {
 		// Return a Bash script that implements the solution and tests
-		return `
+		return `Here is the implementation:
+
+` + "```bash" + `
 cat <<EOF > primes.py
 import json
 
@@ -86,6 +88,7 @@ python3 test_primes.py
 
 # Run main script to satisfy verification
 python3 primes.py
+` + "```" + `
 `, nil
 	}
 
