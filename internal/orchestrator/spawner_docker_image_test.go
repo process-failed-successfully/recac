@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -31,6 +32,10 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 
 	ctx := context.Background()
 
+	// Ensure mocks are called as expected
+	defer mockDocker.AssertExpectations(t)
+	defer mockSM.AssertExpectations(t)
+
 	// Mock expectations
 	// Initial container run
 	mockDocker.On("RunContainer", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
@@ -53,9 +58,7 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	// We use mock.Anything and capture the argument to avoid opaque timeouts
 	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Run(func(args mock.Arguments) {
 		cmd := args.Get(2).([]string)
-		if len(cmd) > 2 {
-			execArgs <- cmd[2]
-		}
+		execArgs <- strings.Join(cmd, " ")
 	}).Return("output", nil)
 
 	err := spawner.Spawn(ctx, item)
