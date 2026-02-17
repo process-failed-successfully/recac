@@ -146,13 +146,32 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 			// Fallback to Viper (e.g. JIRA_URL -> jira.url)
 			viperKey := strings.ToLower(strings.ReplaceAll(secret, "_", "."))
 			val = viper.GetString(viperKey)
+
+			// Try alternate Viper keys
+			if val == "" {
+				switch secret {
+				case "GITHUB_TOKEN":
+					val = viper.GetString("orchestrator.github_token")
+				case "GITHUB_API_KEY":
+					val = viper.GetString("orchestrator.github_token")
+				case "JIRA_URL":
+					val = viper.GetString("jira.url")
+				case "JIRA_USERNAME":
+					val = viper.GetString("jira.username")
+				case "JIRA_API_TOKEN":
+					val = viper.GetString("jira.api_token")
+				}
+			}
 		}
 
 		if val != "" {
+			s.Logger.Info("Injecting secret into agent", "key", secret, "length", len(val))
 			envVars = append(envVars, corev1.EnvVar{Name: secret, Value: val})
 			if secret == "GITHUB_API_KEY" {
 				envVars = append(envVars, corev1.EnvVar{Name: "RECAC_GITHUB_API_KEY", Value: val})
 			}
+		} else {
+			s.Logger.Warn("Secret missing from environment and config", "key", secret)
 		}
 	}
 
