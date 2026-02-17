@@ -310,6 +310,7 @@ func run() error {
 			"--set", fmt.Sprintf("config.maxIterations=%s", getEnvOrDefault("MAX_ITERATIONS", "20")),
 			"--set", fmt.Sprintf("config.provider=%s", provider),
 			"--set", fmt.Sprintf("config.model=%s", model),
+			"--set", fmt.Sprintf("config.image=%s:%s", pullRepo, tagPart),
 			"--set", "config.dbType=postgres",
 			"--set", "postgresql.enabled=true",
 			"--set", "postgresql.image.repository=bitnami/postgresql",
