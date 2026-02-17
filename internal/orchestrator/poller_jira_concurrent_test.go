@@ -1,11 +1,34 @@
 package orchestrator
 
 import (
+	"context"
 	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
+
+func TestJiraPoller_Poll_Concurrent(t *testing.T) {
+	mockClient := new(MockJiraClient)
+	// Expect multiple concurrent calls. testify/mock is thread-safe.
+	mockClient.On("SearchIssues", mock.Anything, DefaultJQL).Return([]map[string]interface{}{}, nil)
+
+	poller := NewJiraPoller(mockClient, "") // Empty JQL triggers default logic
+
+	var wg sync.WaitGroup
+	count := 100
+	wg.Add(count)
+
+	for i := 0; i < count; i++ {
+		go func() {
+			defer wg.Done()
+			_, err := poller.Poll(context.Background(), nil)
+			assert.NoError(t, err)
+		}()
+	}
+	wg.Wait()
+}
 
 func TestExtractRequiredFeatures_Concurrent(t *testing.T) {
 	text := `

@@ -203,11 +203,12 @@ func TestJiraPoller_Poll(t *testing.T) {
 		mockClient := new(MockJiraClient)
 		poller := NewJiraPoller(mockClient, "") // Empty JQL
 
-		mockClient.On("SearchIssues", ctx, "statusCategory != Done ORDER BY created ASC").Return([]map[string]interface{}{}, nil)
+		mockClient.On("SearchIssues", ctx, DefaultJQL).Return([]map[string]interface{}{}, nil)
 
 		_, err := poller.Poll(ctx, nil)
 		assert.NoError(t, err)
-		assert.Equal(t, "statusCategory != Done ORDER BY created ASC", poller.JQL)
+		// JQL should NOT be mutated on the struct
+		assert.Equal(t, "", poller.JQL)
 		mockClient.AssertExpectations(t)
 	})
 

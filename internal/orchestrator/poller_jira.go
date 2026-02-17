@@ -16,6 +16,8 @@ var (
 	featureSlugRegex    = regexp.MustCompile("[^a-z0-9]+")
 )
 
+const DefaultJQL = "statusCategory != Done ORDER BY created ASC"
+
 type JiraPoller struct {
 	Client  JiraClient
 	JQL     string
@@ -32,11 +34,12 @@ func NewJiraPoller(client JiraClient, jql string) *JiraPoller {
 
 func (p *JiraPoller) Poll(ctx context.Context, logger *slog.Logger) ([]WorkItem, error) {
 	// Default JQL if empty
-	if p.JQL == "" {
-		p.JQL = "statusCategory != Done ORDER BY created ASC"
+	jql := p.JQL
+	if jql == "" {
+		jql = DefaultJQL
 	}
 
-	issues, err := p.Client.SearchIssues(ctx, p.JQL)
+	issues, err := p.Client.SearchIssues(ctx, jql)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search issues: %w", err)
 	}
