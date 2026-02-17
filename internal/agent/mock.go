@@ -14,6 +14,7 @@ var (
 	qaRegex              = regexp.MustCompile(`(?i)QA AGENT`)
 	managerRegex         = regexp.MustCompile(`(?i)Manager Agent`)
 	pendingStatusRegex   = regexp.MustCompile(`"status":\s*"pending"`)
+	featureIDRegex       = regexp.MustCompile(`"id":\s*"(req-[^"]+)"`)
 )
 
 // MockAgent is a smarter mock agent for E2E testing
@@ -40,7 +41,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 1. Check for Execution Phase (Task Completion)
 	// Must check this before planning roles to avoid misinterpretation
 	if pendingStatusRegex.MatchString(prompt) {
-		return m.generateTaskCompletionScript(), nil
+		return m.generateTaskCompletionScript(prompt), nil
 	}
 
 	// 2. Check for Technical Program Manager (Planning Phase)
@@ -161,14 +162,23 @@ echo "Project Signed Off"
 `
 }
 
-func (m *MockAgent) generateTaskCompletionScript() string {
-	return `#!/bin/bash
-# Update feature list status to done
-if [ -f feature_list.json ]; then
-    sed -i 's/"status": "pending"/"status": "done"/g' feature_list.json
-fi
+func (m *MockAgent) generateTaskCompletionScript(prompt string) string {
+	// Try to find the feature ID in the prompt
+	matches := featureIDRegex.FindStringSubmatch(prompt)
+	updateCmd := ""
+	if len(matches) > 1 {
+		featureID := matches[1]
+		updateCmd = fmt.Sprintf("agent-bridge feature set %s status done", featureID)
+	} else {
+		// Fallback to sed if we can't find ID, hoping it's in feature_list.json
+		updateCmd = `if [ -f feature_list.json ]; then sed -i 's/"status": "pending"/"status": "done"/g' feature_list.json; fi`
+	}
+
+	return fmt.Sprintf(`#!/bin/bash
+# Update feature status to done
+%s
 echo "Task completed"
-`
+`, updateCmd)
 }
 
 // truncateString truncates a string to a maximum length
