@@ -20,7 +20,7 @@ func TestMockAgent_E2E_Heuristics(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Send failed: %v", err)
 			}
-			if !strings.Contains(resp, `"title": "Implement Prime Number Script"`) {
+			if !strings.Contains(resp, `"id": "req-primes"`) {
 				t.Errorf("Expected planning JSON for prompt '%s', got: %s", p, resp)
 			}
 		}

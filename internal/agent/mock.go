@@ -64,7 +64,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
       "category": "functional"
     }
   ]
-}`, repoSuffix)
+}`, strings.ReplaceAll(repoSuffix, "\n", "\\n"))
 
 		return fmt.Sprintf("I will initialize the project plan.\n\n```bash\ncat << 'EOF' > feature_list.json\n%s\nEOF\n```", jsonContent), nil
 	}
