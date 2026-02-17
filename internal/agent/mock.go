@@ -33,6 +33,70 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
+	// Heuristic: Check if this is an Execution Phase prompt (Agent Role)
+	// If features are pending, we update them. If done, we signal completion.
+	if strings.Contains(prompt, `"status": "pending"`) {
+		// Special handling for PRIMES task
+		if contains(prompt, "ID:[PRIMES]") || contains(prompt, "primes") {
+			return `Here is a plan to implement the primes service.
+
+` + "```bash" + `
+#!/bin/bash
+# Configure git for mock environment
+git config --global user.email "mock@agent.com"
+git config --global user.name "Mock Agent"
+
+# Implement primes.py
+cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n <= 1: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0: return False
+    return True
+
+primes = [p for p in range(2, 10000) if is_prime(p)]
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+# Generate the output file
+python3 primes.py
+
+# Mark features as done
+if [ -f feature_list.json ]; then
+  sed -i 's/"status": "pending"/"status": "done"/g' feature_list.json
+fi
+
+# Commit changes
+git add primes.py primes.json feature_list.json
+git commit -m "Implement primes logic" || echo "Nothing to commit"
+echo "Success: Mock command executed"
+` + "```" + `
+`, nil
+		}
+
+		return `Here is a plan to implement the pending features.
+
+` + "```bash" + `
+#!/bin/bash
+# Configure git for mock environment
+git config --global user.email "mock@agent.com"
+git config --global user.name "Mock Agent"
+
+if [ -f feature_list.json ]; then
+  sed -i 's/"status": "pending"/"status": "done"/g' feature_list.json
+  git add feature_list.json
+  git commit -m "Update feature status" || echo "Nothing to commit"
+  echo "Success: Mock command executed"
+else
+  echo "Error: feature_list.json not found"
+fi
+` + "```" + `
+`, nil
+	}
+
 	// Heuristic: Check if this is a Planning Phase prompt (TPM Agent)
 	// We check for keywords that appear in the TPM prompt or the expected output format.
 	if contains(prompt, "Technical Program Manager") || contains(prompt, "ID:[PRIMES]") {
@@ -65,23 +129,6 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     ]
   }
 ]`, repoURL, repoURL), nil
-	}
-
-	// Heuristic: Check if this is an Execution Phase prompt (Agent Role)
-	// If features are pending, we update them. If done, we signal completion.
-	if strings.Contains(prompt, `"status": "pending"`) {
-		return `Here is a plan to implement the pending features.
-
-` + "```bash" + `
-#!/bin/bash
-if [ -f feature_list.json ]; then
-  sed -i 's/"status": "pending"/"status": "done"/g' feature_list.json
-  echo "Success: Mock command executed"
-else
-  echo "Error: feature_list.json not found"
-fi
-` + "```" + `
-`, nil
 	}
 
 	if strings.Contains(prompt, `"status": "done"`) || strings.Contains(prompt, "All features") {
