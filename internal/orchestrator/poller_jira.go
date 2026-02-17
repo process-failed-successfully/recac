@@ -9,12 +9,21 @@ import (
 	"recac/internal/jira"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 var (
-	featuresHeaderRegex = regexp.MustCompile(`(?i)^(REQUIRED FEATURES|ACCEPTANCE CRITERIA):?\s*$`)
-	featureSlugRegex    = regexp.MustCompile("[^a-z0-9]+")
+	featuresHeaderRegex *regexp.Regexp
+	featureSlugRegex    *regexp.Regexp
+	regexOnce           sync.Once
 )
+
+func initRegex() {
+	regexOnce.Do(func() {
+		featuresHeaderRegex = regexp.MustCompile(`(?i)^(REQUIRED FEATURES|ACCEPTANCE CRITERIA):?\s*$`)
+		featureSlugRegex = regexp.MustCompile("[^a-z0-9]+")
+	})
+}
 
 type JiraPoller struct {
 	Client  JiraClient
@@ -148,6 +157,9 @@ func extractRepoURL(text string, repoRegex *regexp.Regexp) string {
 }
 
 func extractRequiredFeatures(text string) []db.Feature {
+	// Ensure regexes are initialized
+	initRegex()
+
 	// Look for REQUIRED FEATURES: or ACCEPTANCE CRITERIA: block
 	// Regex matches headers case-insensitively
 	// Then captures lines starting with "- " or "* " until a blank line or new section
@@ -157,7 +169,7 @@ func extractRequiredFeatures(text string) []db.Feature {
 	lines := strings.Split(text, "\n")
 	inSection := false
 
-	// Optimized: uses package-level regex
+	// Optimized: uses package-level regex (lazily initialized)
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 
@@ -182,7 +194,7 @@ func extractRequiredFeatures(text string) []db.Feature {
 				// Create a simplified Feature
 				slug := strings.ToLower(desc)
 
-				// Optimized: uses package-level regex
+				// Optimized: uses package-level regex (lazily initialized)
 				slug = featureSlugRegex.ReplaceAllString(slug, "-")
 				slug = strings.Trim(slug, "-")
 				if len(slug) > 30 {
