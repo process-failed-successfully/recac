@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -26,13 +28,30 @@ type MockDockerClient struct {
 }
 
 func (m *MockDockerClient) RunContainer(ctx context.Context, image, workspace string, binds, env []string, user string) (string, error) {
-	args := m.Called(ctx, image, workspace, binds, env, user)
+	return m.RunContainerWithLabels(ctx, image, workspace, binds, env, user, nil)
+}
+
+func (m *MockDockerClient) RunContainerWithLabels(ctx context.Context, image, workspace string, binds, env []string, user string, labels map[string]string) (string, error) {
+	args := m.Called(ctx, image, workspace, binds, env, user, labels)
 	return args.String(0), args.Error(1)
 }
 
 func (m *MockDockerClient) StopContainer(ctx context.Context, containerID string) error {
 	args := m.Called(ctx, containerID)
 	return args.Error(0)
+}
+
+func (m *MockDockerClient) RemoveContainer(ctx context.Context, containerID string, force bool) error {
+	args := m.Called(ctx, containerID, force)
+	return args.Error(0)
+}
+
+func (m *MockDockerClient) ListContainers(ctx context.Context, options container.ListOptions) ([]types.Container, error) {
+	args := m.Called(ctx, options)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]types.Container), args.Error(1)
 }
 
 func (m *MockDockerClient) Exec(ctx context.Context, containerID string, cmd []string) (string, error) {
@@ -147,7 +166,7 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 	ctx := context.Background()
 
 	// Mock expectations
-	mockDocker.On("RunContainer", ctx, "test-image", mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("container123", nil)
+	mockDocker.On("RunContainerWithLabels", ctx, "test-image", mock.AnythingOfType("string"), mock.Anything, mock.Anything, "", mock.Anything).Return("container123", nil)
 
 	// Verify SaveSession receives session with repo-url
 	mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
@@ -203,7 +222,7 @@ func TestDockerSpawner_Spawn_RunContainerFails(t *testing.T) {
 	expectedErr := errors.New("run failed")
 
 	// No Clone or StartSHA calls expected
-	mockDocker.On("RunContainer", ctx, "test-image", mock.AnythingOfType("string"), mock.Anything, mock.Anything, "").Return("", expectedErr)
+	mockDocker.On("RunContainerWithLabels", ctx, "test-image", mock.AnythingOfType("string"), mock.Anything, mock.Anything, "", mock.Anything).Return("", expectedErr)
 
 	err := spawner.Spawn(ctx, item)
 
@@ -224,7 +243,7 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 		RepoURL: "https://github.com/example/repo",
 	}
 
-	client.On("RunContainer", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("container-123", nil)
+	client.On("RunContainerWithLabels", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("container-123", nil)
 
 	// Mock SessionManager
 	sm.On("SaveSession", mock.Anything).Return(nil)
@@ -279,7 +298,7 @@ func TestDockerSpawner_EnvPropagation(t *testing.T) {
 		RepoURL: "https://github.com/example/repo",
 	}
 
-	client.On("RunContainer", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("container-env", nil)
+	client.On("RunContainerWithLabels", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("container-env", nil)
 	sm.On("SaveSession", mock.Anything).Return(nil)
 	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
 

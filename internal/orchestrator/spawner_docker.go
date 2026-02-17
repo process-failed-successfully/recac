@@ -63,7 +63,13 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	user := ""
 	extraBinds := binds[1:] // only docker sock
 
-	containerID, err := s.Client.RunContainer(ctx, s.Image, tempDir, extraBinds, nil, user)
+	labels := map[string]string{
+		"created-by": "recac-orchestrator",
+		"work-item":  item.ID,
+		"created-at": time.Now().Format(time.RFC3339),
+	}
+
+	containerID, err := s.Client.RunContainerWithLabels(ctx, s.Image, tempDir, extraBinds, nil, user, labels)
 	if err != nil {
 		os.RemoveAll(tempDir)
 		return fmt.Errorf("failed to start container: %w", err)
