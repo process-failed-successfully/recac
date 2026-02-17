@@ -28,13 +28,17 @@ func (m *MockAgent) SetResponse(response string) {
 // Send implements the Agent interface
 // It returns a mock response that acknowledges the prompt
 func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
+	// Debug logging
+	fmt.Printf("[MockAgent] Received Prompt (len=%d): %s\n", len(prompt), truncateString(prompt, 200))
+
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
 
 	// Detect "TPM" / Ticket Generation request
-	if strings.Contains(prompt, "Technical Program Manager") && (strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "prime")) {
-		return `[
+	if strings.Contains(prompt, "Technical Program Manager") {
+		if strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "prime") {
+			return `[
   {
     "id": "ID:[PRIMES]",
     "title": "ID:[PRIMES] Implement Prime Number Generator",
@@ -43,10 +47,35 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     "dependencies": []
   }
 ]`, nil
+		}
+	}
+
+	// Detect "QA Agent" request
+	if strings.Contains(prompt, "QA Agent") {
+		return "```bash\necho 'QA_PASSED'\n```", nil
+	}
+
+	// Detect "Manager Agent" request
+	// This must be checked BEFORE the generic "Success" check, because the Manager prompt might contain "Success"
+	// or "passed" from the QA report/history, but we want the Manager action (Sign Off).
+	if strings.Contains(prompt, "Manager Agent") || strings.Contains(prompt, "PROJECT MANAGER") {
+		return "```bash\nagent-bridge signal --privileged PROJECT_SIGNED_OFF\n```", nil
+	}
+
+	// Detect successful execution or test completion to stop the loop
+	// We check for "Success:" combined with the file we expect, or standard test output
+	// This is primarily for the Coding Agent to recognize it's done.
+	if (strings.Contains(prompt, "Success:") && (strings.Contains(prompt, "primes.py") || strings.Contains(prompt, "test"))) ||
+		strings.Contains(prompt, "ran 2 tests") ||
+		strings.Contains(prompt, "ok") {
+		fmt.Println("[MockAgent] Detected completion signal. Returning 'Task completed'.")
+		return "Task completed. The implementation and verification are successful.", nil
 	}
 
 	// Detect "CODING AGENT" request
-	if strings.Contains(prompt, "CODING AGENT") || strings.Contains(prompt, "Implement") {
+	// We explicitly exclude "Technical Program Manager" to avoid misfiring on the planning prompt if it contains "Implement"
+	if (strings.Contains(prompt, "CODING AGENT") || strings.Contains(prompt, "Implement") || strings.Contains(prompt, "write")) &&
+		!strings.Contains(strings.ToLower(prompt), "technical program manager") {
 		// Return a bash script to implement the prime generator
 		// We use a simple script that passes the verification
 		return "```bash\n" +
@@ -64,6 +93,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			"primes = [i for i in range(10000) if is_prime(i)]\n" +
 			"print(json.dumps({\"primes\": primes}))\n" +
 			"EOF\n" +
+			"python3 primes.py\n" +
 			"```", nil
 	}
 
