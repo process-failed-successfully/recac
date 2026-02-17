@@ -79,7 +79,7 @@ echo "Task completed"
 	}
 
 	// 3. Architect/Coding Phase (Lead Software Architect or Primes Task)
-	if strings.Contains(prompt, "Lead Software Architect") || strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "Implement prime calculation logic") {
+	if strings.Contains(prompt, "Lead Software Architect") || strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "Implement prime calculation logic") || strings.Contains(prompt, "Implement Prime Generator") {
 		return `
 #!/bin/bash
 # Create the python file
