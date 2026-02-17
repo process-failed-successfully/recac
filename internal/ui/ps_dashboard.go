@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -18,12 +19,14 @@ var GetSessions func() ([]model.UnifiedSession, error)
 
 type psDashboardModel struct {
 	table      table.Model
+	viewport   viewport.Model
 	sessions   []model.UnifiedSession
 	lastUpdate time.Time
 	err        error
 	width      int
 	height     int
 	showCosts  bool
+	showLogs   bool
 	sortBy     string
 }
 
@@ -69,8 +72,15 @@ func NewPsDashboardModel(showCosts bool, sortBy string) psDashboardModel {
 		Bold(false)
 	t.SetStyles(s)
 
+	vp := viewport.New(0, 0)
+	vp.Style = lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("62")).
+		PaddingRight(2)
+
 	return psDashboardModel{
 		table:     t,
+		viewport:  vp,
 		showCosts: showCosts,
 		sortBy:    sortBy,
 	}
@@ -90,12 +100,40 @@ func (m psDashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.table.SetWidth(m.width)
 		m.table.SetHeight(m.height - 8) // Adjust for header/footer
+
+		m.viewport.Width = m.width
+		m.viewport.Height = m.height - 8
 		return m, nil
 
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
+		case "esc":
+			if m.showLogs {
+				m.showLogs = false
+				return m, nil
+			}
+		case "enter":
+			if !m.showLogs {
+				selectedRow := m.table.SelectedRow()
+				if selectedRow != nil {
+					sessionName := selectedRow[0]
+					for _, s := range m.sessions {
+						if s.Name == sessionName {
+							logs := s.Logs
+							if logs == "" {
+								logs = "(No logs available)"
+							}
+							m.viewport.SetContent(logs)
+							m.showLogs = true
+							// Reset viewport scroll to top
+							m.viewport.GotoTop()
+							return m, nil
+						}
+					}
+				}
+			}
 		}
 
 	case psTickMsg:
@@ -111,6 +149,11 @@ func (m psDashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case error:
 		m.err = msg
 		return m, nil
+	}
+
+	if m.showLogs {
+		m.viewport, cmd = m.viewport.Update(msg)
+		return m, cmd
 	}
 
 	m.table, cmd = m.table.Update(msg)
@@ -182,9 +225,19 @@ func (m psDashboardModel) View() string {
 
 	var s strings.Builder
 	s.WriteString(psDashboardTitleStyle.Render(" RECAC PS Dashboard") + "\n")
-	s.WriteString(fmt.Sprintf("Last updated: %s (press 'q' to quit)\n\n", m.lastUpdate.Format(time.RFC1123)))
 
-	s.WriteString(m.table.View())
+	if m.showLogs {
+		selectedRow := m.table.SelectedRow()
+		sessionName := "Unknown"
+		if len(selectedRow) > 0 {
+			sessionName = selectedRow[0]
+		}
+		s.WriteString(fmt.Sprintf("Logs for session: %s (press 'esc' to back, 'q' to quit)\n\n", sessionName))
+		s.WriteString(m.viewport.View())
+	} else {
+		s.WriteString(fmt.Sprintf("Last updated: %s (press 'q' to quit, 'enter' to view logs)\n\n", m.lastUpdate.Format(time.RFC1123)))
+		s.WriteString(m.table.View())
+	}
 	return s.String()
 }
 

@@ -211,3 +211,65 @@ func TestPsDashboardModel_SortingAndCosts(t *testing.T) {
 	// Verify cost value in last column
 	assert.Contains(t, rows[0][10], "1.000000") // $1.0 for session A
 }
+
+func TestPsDashboardModel_LogsView(t *testing.T) {
+	// Setup
+	now := time.Now()
+	sessions := []model.UnifiedSession{
+		{
+			Name:         "log-session",
+			Status:       "Running",
+			Goal:         "Test logs",
+			LastActivity: now,
+			Location:     "local",
+			Logs:         "Line 1\nLine 2\nLine 3",
+		},
+	}
+
+	// Mock GetSessions
+	oldGetSessions := GetSessions
+	defer func() { GetSessions = oldGetSessions }()
+	GetSessions = func() ([]model.UnifiedSession, error) {
+		return sessions, nil
+	}
+
+	// Initialize model
+	m := NewPsDashboardModel(false, "time")
+
+	// Set width/height so viewport can be initialized properly
+	tm, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
+	m = tm.(psDashboardModel)
+
+	// Simulate session refresh to populate the table
+	tm, _ = m.Update(psSessionsRefreshedMsg(sessions))
+	m = tm.(psDashboardModel)
+
+	// Verify initial state (table view)
+	assert.False(t, m.showLogs, "showLogs should be false initially")
+	view := m.View()
+	assert.Contains(t, view, "log-session", "View should show session name in table")
+	assert.NotContains(t, view, "Line 1", "View should not show logs initially")
+
+	// Press 'enter' to view logs
+	tm, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = tm.(psDashboardModel)
+
+	// Verify log view state
+	assert.True(t, m.showLogs, "showLogs should be true after pressing enter")
+	view = m.View()
+
+	assert.Contains(t, view, "Line 1", "View should show log content")
+	assert.Contains(t, view, "Line 2")
+	assert.Contains(t, view, "Line 3")
+	assert.Contains(t, view, "Logs for session: log-session", "View should show header")
+
+	// Press 'esc' to exit logs
+	tm, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	m = tm.(psDashboardModel)
+
+	// Verify back to table view
+	assert.False(t, m.showLogs, "showLogs should be false after pressing esc")
+	view = m.View()
+	assert.Contains(t, view, "log-session", "View should show session name again")
+	assert.NotContains(t, view, "Line 1", "View should not show logs anymore")
+}
