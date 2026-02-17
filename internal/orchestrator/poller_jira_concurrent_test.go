@@ -6,8 +6,7 @@ import (
 )
 
 func TestExtractRequiredFeatures_Concurrent(t *testing.T) {
-	// This test ensures that the lazy initialization of regexes using sync.OnceValue
-	// works correctly under concurrent access.
+	// This test ensures that the package-level regexes work correctly under concurrent access.
 
 	const numGoroutines = 100
 	var wg sync.WaitGroup
