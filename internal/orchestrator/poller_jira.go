@@ -9,11 +9,13 @@ import (
 	"recac/internal/jira"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 var (
-	featuresHeaderRegex = regexp.MustCompile(`(?i)^(REQUIRED FEATURES|ACCEPTANCE CRITERIA):?\s*$`)
-	featureSlugRegex    = regexp.MustCompile("[^a-z0-9]+")
+	featuresHeaderRegex *regexp.Regexp
+	featureSlugRegex    *regexp.Regexp
+	regexOnce           sync.Once
 )
 
 type JiraPoller struct {
@@ -148,6 +150,11 @@ func extractRepoURL(text string, repoRegex *regexp.Regexp) string {
 }
 
 func extractRequiredFeatures(text string) []db.Feature {
+	regexOnce.Do(func() {
+		featuresHeaderRegex = regexp.MustCompile(`(?i)^(REQUIRED FEATURES|ACCEPTANCE CRITERIA):?\s*$`)
+		featureSlugRegex = regexp.MustCompile("[^a-z0-9]+")
+	})
+
 	// Look for REQUIRED FEATURES: or ACCEPTANCE CRITERIA: block
 	// Regex matches headers case-insensitively
 	// Then captures lines starting with "- " or "* " until a blank line or new section
