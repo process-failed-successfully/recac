@@ -112,7 +112,7 @@ EOF
 
 python3 primes.py
 git add primes.py primes.json
-git commit -m "Add primes script"
+git commit -m "Add primes script" || echo "No changes to commit"
 ` + "```", nil
 	}
 
