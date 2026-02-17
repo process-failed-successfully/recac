@@ -89,6 +89,14 @@ func (m *MockAgent) primesImplementation(prompt string) string {
 		featureID = matches[1]
 	}
 
+	if featureID == "NONE_ALL_COMPLETE" {
+		return `All features are complete. I will signal completion.
+
+` + "```bash" + `
+agent-bridge signal COMPLETED true
+` + "```"
+	}
+
 	script := `I will implement the prime number generator in Python.
 
 ` + "```bash" + `
