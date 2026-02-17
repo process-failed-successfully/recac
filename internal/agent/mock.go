@@ -59,11 +59,10 @@ echo "Updated feature_list.json status to done"
 	if strings.Contains(prompt, "Technical Program Manager") {
 		json := `[
   {
-    "id": "primes",
+    "title": "ID:[PRIMES] Prime Number Generator",
     "description": "Implement prime calculation logic in primes.py",
-    "status": "pending",
-    "category": "core",
-    "priority": "high"
+    "type": "Epic",
+    "children": []
   }
 ]`
 		return fmt.Sprintf("Here is the plan:\n```json\n%s\n```", json), nil
