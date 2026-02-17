@@ -18,6 +18,7 @@ var (
 	regexOnce           sync.Once
 )
 
+// initRegex lazily initializes regexes to prevent CI initialization failures
 func initRegex() {
 	regexOnce.Do(func() {
 		featuresHeaderRegex = regexp.MustCompile(`(?i)^(REQUIRED FEATURES|ACCEPTANCE CRITERIA):?\s*$`)
