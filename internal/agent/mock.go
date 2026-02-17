@@ -137,9 +137,14 @@ with open('primes.json', 'w') as f:
     json.dump({"primes": primes}, f)
 EOF
 
+# Ensure git config is set (robustness for CI/K8s)
+git config user.email "agent@recac.io"
+git config user.name "RECAC Agent"
+
 python3 primes.py
 git add primes.py primes.json
 git commit -m "Add primes script"
+echo "Success: Mock command executed"
 ` + "```", nil
 	}
 
