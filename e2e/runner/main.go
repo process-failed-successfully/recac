@@ -359,9 +359,13 @@ func run() error {
 	// Check for Agent Job
 	log.Println("Waiting for Agent Job to start...")
 
-	// Determine expected job name from ticket map (assuming single task for now or finding "PRIMES")
+	// Determine expected job name from ticket map
+	// The Orchestrator ignores Epics, so we must prioritize the Story/Task (PRIMES-API) over the Epic (PRIMES).
 	var targetTicketID string
-	if id, ok := ticketMap["PRIMES"]; ok {
+	if id, ok := ticketMap["PRIMES-API"]; ok {
+		targetTicketID = id
+	} else if id, ok := ticketMap["PRIMES"]; ok {
+		// Fallback to PRIMES if PRIMES-API isn't there, though Orchestrator might skip it if it's an Epic.
 		targetTicketID = id
 	} else {
 		// Fallback: Use the first one
