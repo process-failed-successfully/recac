@@ -6,8 +6,8 @@ type PricePerMillionTokens struct {
 	Completion float64
 }
 
-// PricingTable maps model names to their respective pricing information.
-var PricingTable = map[string]PricePerMillionTokens{
+// pricingTable maps model names to their respective pricing information.
+var pricingTable = map[string]PricePerMillionTokens{
 	// Google Gemini
 	"gemini-1.5-pro-latest":   {Prompt: 7.00, Completion: 21.00},
 	"gemini-1.5-flash-latest": {Prompt: 0.70, Completion: 2.10},
@@ -24,9 +24,15 @@ var PricingTable = map[string]PricePerMillionTokens{
 	"claude-3-haiku-20240307":  {Prompt: 0.25, Completion: 1.25},
 }
 
+// GetPrice returns the pricing information for a given model.
+func GetPrice(model string) (PricePerMillionTokens, bool) {
+	price, ok := pricingTable[model]
+	return price, ok
+}
+
 // CalculateCost calculates the estimated cost based on token usage and model pricing.
 func CalculateCost(model string, usage TokenUsage) float64 {
-	price, ok := PricingTable[model]
+	price, ok := pricingTable[model]
 	if !ok {
 		// Fallback for unknown models
 		return float64(usage.TotalTokens) / 1_000_000.0

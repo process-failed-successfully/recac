@@ -1,8 +1,10 @@
 package agent
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 // EstimateTokenCount estimates the number of tokens in a text string.
@@ -31,168 +33,80 @@ func TruncateToTokenLimit(text string, maxTokens int) string {
 		return text
 	}
 
-	// Reserve tokens for truncation marker (approximately 5 tokens)
 	truncationMarker := "\n[... truncated ...]\n"
 	markerTokens := EstimateTokenCount(truncationMarker)
+
+	// Use a shorter marker if we are very constrained
+	// If marker takes more than 1/3 of available space, switch to shorter marker
+	useShortMarker := false
+	if markerTokens > maxTokens/3 {
+		truncationMarker = "..."
+		markerTokens = EstimateTokenCount(truncationMarker)
+		useShortMarker = true
+	}
+
 	availableTokens := maxTokens - markerTokens
 	if availableTokens <= 0 {
-		// If marker itself exceeds limit, return empty
 		return ""
 	}
 
-	// Calculate max characters we can keep (reserve 50% for start, 50% for end)
-	maxChars := availableTokens * 4 // 4 chars per token
-	maxStartChars := maxChars / 2
-	maxEndChars := maxChars / 2
+	maxChars := availableTokens * 4
+	halfChars := maxChars / 2
 
-	// Optimization: Avoid strings.Split(text, "\n") which allocates O(L) memory where L is lines.
-	// Instead, scan the string to find cut points.
-
-	n := len(text)
-
-	// Single line check or no newlines
-	// Find first newline
-	firstNewLine := strings.IndexByte(text, '\n')
-	if firstNewLine == -1 {
-		// Single line: truncate from middle.
-		// We use rune slicing here to ensure we don't split multi-byte characters.
-		runes := []rune(text)
-		if len(runes) <= maxChars {
-			return text
-		}
-		startPortion := string(runes[:min(maxStartChars, len(runes))])
-		endPortion := ""
-		if len(runes) > maxStartChars {
-			endStart := max(len(runes)-maxEndChars, maxStartChars)
-			endPortion = string(runes[endStart:])
-		}
-		result := startPortion + truncationMarker + endPortion
-		if EstimateTokenCount(result) > maxTokens {
-			return TruncateToTokenLimit(result, maxTokens)
-		}
-		return result
-	}
-
-	// Multi-line logic:
-
-	// 1. Find start cut point
-	startCut := 0
-	if maxStartChars >= n {
-		startCut = n
+	// Start portion
+	startCut := halfChars
+	if startCut > len(text) {
+		startCut = len(text)
 	} else {
-		// Scan forward finding newlines until we exceed maxStartChars.
-		scanPos := 0
-		for {
-			nextNL := strings.IndexByte(text[scanPos:], '\n')
-			if nextNL == -1 {
-				// No more newlines. Check if the rest fits
-				if len(text) <= maxStartChars {
-					startCut = len(text)
-				}
-				break
-			}
-			absoluteNL := scanPos + nextNL
-
-			// Length if we include this line (up to and including newline)
-			if absoluteNL+1 > maxStartChars {
-				break
-			}
-
-			// This line fits.
-			startCut = absoluteNL + 1 // Include the newline
-			scanPos = absoluteNL + 1
+		// Ensure we don't split a rune
+		for startCut > 0 && !utf8.RuneStart(text[startCut]) {
+			startCut--
 		}
 	}
 
-	// 2. Find end cut point
-	endCut := n
-	if maxEndChars >= n {
-		endCut = 0
+	// Try to cut at newline if close (within 100 chars)
+	if idx := strings.LastIndexByte(text[:startCut], '\n'); idx != -1 && startCut-idx < 100 {
+		startCut = idx + 1 // Include newline
+	}
+
+	// End portion
+	endCut := len(text) - halfChars
+	if endCut < startCut {
+		endCut = startCut
 	} else {
-		// Loop backwards finding lines that fit in maxEndChars
-		currLen := 0
-		currentEndCut := n
-
-		cursor := n
-		for {
-			p := -1
-			if cursor > 0 {
-				p = strings.LastIndexByte(text[:cursor], '\n')
-			}
-
-			// Line is from p+1 to cursor.
-
-			realLen := cursor - (p + 1)
-
-			// If we keep this line, we keep content + newline.
-			// Logic matches `lineChars + 1`.
-
-			if currLen+realLen+1 > maxEndChars {
-				break
-			}
-
-			currLen += realLen + 1
-			currentEndCut = p + 1
-
-			if p == -1 {
-				break // Reached start of string
-			}
-			cursor = p // Move cursor to the newline we just found
+		// Ensure we don't split a rune
+		for endCut < len(text) && !utf8.RuneStart(text[endCut]) {
+			endCut++
 		}
-		endCut = currentEndCut
 	}
 
-	// Check overlap
+	// Try to cut at newline if close
+	if idx := strings.IndexByte(text[endCut:], '\n'); idx != -1 && idx < 100 {
+		endCut += idx + 1 // Start after newline
+	}
+
 	if startCut >= endCut {
 		return text
 	}
 
-	// Omitted lines count
-	omittedCount := 0
-	dropped := text[startCut:endCut]
-	if strings.HasSuffix(dropped, "\n") {
-		omittedCount = strings.Count(dropped, "\n")
+	omittedCount := strings.Count(text[startCut:endCut], "\n")
+	var marker string
+	if useShortMarker {
+		marker = truncationMarker
 	} else {
-		omittedCount = strings.Count(dropped, "\n") + 1
+		marker = fmt.Sprintf("\n[... truncated %d lines ...]\n", omittedCount)
+		if omittedCount == 0 {
+			marker = truncationMarker
+		}
 	}
 
-	// Construct result.
-	// startCut includes the trailing newline of the last start line.
-	// truncationMarker starts with "\n".
-	// This creates double newline "\n\n[... truncated ...]".
-	// Original logic `strings.Join` didn't add trailing newline to start block.
-	// So we should strip the last newline from start portion if we use the same marker.
+	result := text[:startCut] + marker + text[endCut:]
 
-	startPortion := text[:startCut]
-	if startCut > 0 && startPortion[startCut-1] == '\n' {
-		startPortion = startPortion[:startCut-1]
-	}
-
-	result := startPortion + "\n[... truncated " + strconv.Itoa(omittedCount) + " lines ...]\n" + text[endCut:]
-
-	// Verify we're under the limit (recursive safety)
+	// Verification and recursion
 	if EstimateTokenCount(result) > maxTokens {
-		// If still too large, be more aggressive
 		return TruncateToTokenLimit(result, maxTokens*90/100)
 	}
-
 	return result
-}
-
-// min returns the minimum of two integers
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-// max returns the maximum of two integers
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 // SummarizeForTokenLimit creates a summary when text exceeds the token limit significantly.
