@@ -35,7 +35,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic: Check if this is a Planning Phase prompt (TPM Agent)
 	// We check for keywords that appear in the TPM prompt or the expected output format.
-	if contains(prompt, "Technical Program Manager") || contains(prompt, "ID:[PRIMES]") {
+	if contains(prompt, "Technical Program Manager") || contains(prompt, "Output purely JSON") {
 		// Return a predefined JSON response compatible with the CLI's expectations
 		// Extract repo URL from prompt if possible to make it more realistic
 		repoURL := "https://github.com/example/repo"
@@ -43,7 +43,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			repoURL = matches[1]
 		}
 
-		return fmt.Sprintf(`[
+		if contains(prompt, "ID:[PRIMES]") {
+			return fmt.Sprintf(`[
   {
     "title": "ID:[PRIMES] Implement Primes Service",
     "description": "Implement a service that calculates prime numbers. Repo: %s",
@@ -65,6 +66,21 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     ]
   }
 ]`, repoURL, repoURL), nil
+		}
+		// Default JSON for other TPM prompts
+		return `[]`, nil
+	}
+
+	// Heuristic: Check if this is a Coding Agent prompt
+	if contains(prompt, "YOUR ROLE - CODING AGENT") || contains(prompt, "Coding Agent") {
+		// Extract Feature ID to mark as done
+		// Prompt format: "**Feature ID**: {task_id}"
+		featureID := "unknown"
+		if matches := regexp.MustCompile(`\*\*Feature ID\*\*: ([\w-]+)`).FindStringSubmatch(prompt); len(matches) > 1 {
+			featureID = matches[1]
+		}
+
+		return fmt.Sprintf("```bash\n#!/bin/bash\n# Mock implementation for %s\necho \"Implementing feature %s...\"\nagent-bridge feature set %s --status done --passes true || echo \"Failed to set status for %s\"\necho \"Success: Mock command executed\"\n```", featureID, featureID, featureID, featureID), nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
