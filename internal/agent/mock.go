@@ -34,7 +34,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Heuristic: If prompt asks for JSON tickets (TPM or ID:[PRIMES]), return JSON
-	if strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "ID:[PRIMES]") {
+	// Check "ID:[PRIMES]" but ensure it's NOT the execution prompt (which asks to create a script)
+	isPlanning := strings.Contains(prompt, "Technical Program Manager")
+	isPrimesPlanning := strings.Contains(prompt, "ID:[PRIMES]") && !strings.Contains(prompt, "Implement a python script named 'primes.py'")
+
+	if isPlanning || isPrimesPlanning {
 		// Extract repo URL if present to make ticket valid for JiraPoller
 		repoURL := "https://github.com/example/repo"
 		re := regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
@@ -55,7 +59,41 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Heuristic: If prompt looks like a coding task (but not the TPM prompt), return a coding response
 	// We want to avoid matching the TPM prompt which also contains "Python" etc.
-	if (strings.Contains(prompt, "Python") || strings.Contains(prompt, "Go") || strings.Contains(prompt, "code")) && !strings.Contains(prompt, "Technical Program Manager") {
+	// We also explicitly check for the "primes.py" execution prompt
+	isCoding := strings.Contains(prompt, "Python") || strings.Contains(prompt, "Go") || strings.Contains(prompt, "code")
+	isPrimesExecution := strings.Contains(prompt, "ID:[PRIMES]") && strings.Contains(prompt, "Implement a python script named 'primes.py'")
+
+	if (isCoding && !isPlanning) || isPrimesExecution {
+		if isPrimesExecution {
+			return `I will implement the prime number script as requested.
+
+$$$
+#!/bin/bash
+cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n <= 1:
+        return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+primes = [n for n in range(10000) if is_prime(n)]
+
+with open("primes.json", "w") as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+python3 primes.py
+git add -f primes.json primes.py
+$$$
+
+Task completed. Primes generated.
+`, nil
+		}
+
 		return `I will implement the requested changes.
 
 $$$
