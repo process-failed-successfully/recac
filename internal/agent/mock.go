@@ -36,11 +36,44 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Heuristics for E2E tests (specifically prime-python scenario)
 	lowerPrompt := strings.ToLower(prompt)
 
-	// 1. Planning Phase / TPM
-	// The agent usually asks for a plan first.
-	// If the prompt mentions "Technical Program Manager" or asks to "break down" the task.
-	if strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "break down") {
+	// 1. Planning Phase (Orchestrator / TPM)
+	// Expects JSON output for Jira ticket creation.
+	// Detected by "Technical Program Manager" (from tpm_agent.md) or "Lead Software Architect" (planner.md)
+	if strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "lead software architect") {
 		// Extract Repo URL if present
+		repoRegex := regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
+		matches := repoRegex.FindStringSubmatch(prompt)
+		repoSuffix := ""
+		if len(matches) > 1 {
+			repoSuffix = fmt.Sprintf("\nRepo: %s", matches[1])
+		}
+
+		// Return purely JSON as expected by recac CLI
+		return fmt.Sprintf(`[
+  {
+    "title": "ID:[PRIMES] Prime Number Calculator",
+    "description": "Implement a script to calculate prime numbers.%s",
+    "type": "Epic",
+    "children": [
+      {
+        "title": "Implement Primes Script",
+        "description": "Write a python script to calculate primes under 10000.%s",
+        "type": "Story",
+        "acceptance_criteria": [
+          "Script runs successfully",
+          "Output is correct"
+        ]
+      }
+    ]
+  }
+]`, repoSuffix, repoSuffix), nil
+	}
+
+	// 2. Initializer Phase (Runner)
+	// Expects Bash script to create feature_list.json.
+	// Detected by "initializer agent" (from initializer.md)
+	if strings.Contains(lowerPrompt, "initializer agent") {
+		// Extract Repo URL if present (to include in feature description)
 		repoRegex := regexp.MustCompile(`(?i)Repo: (https?://\S+)`)
 		matches := repoRegex.FindStringSubmatch(prompt)
 		repoSuffix := ""
@@ -48,11 +81,6 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 			repoSuffix = fmt.Sprintf("\\nRepo: %s", matches[1])
 		}
 
-		// Return a JSON plan.
-		// For prime-python, we essentially just want to say "do the task".
-		// But if we are already in the task, maybe we don't need to break it down.
-		// However, providing a single step is safe.
-		// We return a bash script to create feature_list.json so the Runner picks it up.
 		jsonContent := fmt.Sprintf(`{
   "project_name": "mock-project",
   "features": [
@@ -66,15 +94,20 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
   ]
 }`, repoSuffix)
 
-		return fmt.Sprintf("I will initialize the project plan.\n\n```bash\ncat << 'EOF' > feature_list.json\n%s\nEOF\n```", jsonContent), nil
+		// The Initializer prompt specifically asks to use `cat << 'EOF' | agent-bridge import`
+		// But basic file write is safer for mock mode simple tests.
+		// However, the prompt says "YOU MUST use ... agent-bridge import".
+		// Let's stick to writing the file directly for robustness in tests unless agent-bridge is required.
+		// Tests usually check for file existence.
+		return fmt.Sprintf("I will initialize the project.\n\n```bash\ncat << 'EOF' > feature_list.json\n%s\nEOF\n```", jsonContent), nil
 	}
 
-	// 1.5. All Done / No Task
+	// 3. All Done / No Task
 	if strings.Contains(lowerPrompt, "all features are marked as done") {
 		return "Task completed. Standing by.", nil
 	}
 
-	// 2. Coding Phase / Implementation
+	// 4. Coding Phase / Implementation
 	// If the prompt asks to "implement" or mentions the specific file requirements.
 	if strings.Contains(lowerPrompt, "primes.py") || strings.Contains(lowerPrompt, "implement") {
 		// Check for successful execution
@@ -116,7 +149,7 @@ git commit -m "Add primes script"
 ` + "```", nil
 	}
 
-	// 3. QA / Manager Sign-off
+	// 5. QA / Manager Sign-off
 	if strings.Contains(lowerPrompt, "qa agent") {
 		return "QA_PASSED", nil
 	}
