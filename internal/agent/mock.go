@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // MockAgent is a simple mock agent for testing and mock mode
@@ -30,6 +31,68 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	if m.forcedResponse != "" {
 		return m.forcedResponse, nil
 	}
+
+	// Heuristics for E2E tests (specifically prime-python scenario)
+	lowerPrompt := strings.ToLower(prompt)
+
+	// 1. Planning Phase / TPM
+	// The agent usually asks for a plan first.
+	// If the prompt mentions "Technical Program Manager" or asks to "break down" the task.
+	if strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "break down") {
+		// Return a JSON plan.
+		// For prime-python, we essentially just want to say "do the task".
+		// But if we are already in the task, maybe we don't need to break it down.
+		// However, providing a single step is safe.
+		return `[
+  {
+    "title": "Implement Prime Number Script",
+    "description": "Write a python script to calculate primes under 10000.",
+    "type": "Task"
+  }
+]`, nil
+	}
+
+	// 2. Coding Phase / Implementation
+	// If the prompt asks to "implement" or mentions the specific file requirements.
+	if strings.Contains(lowerPrompt, "primes.py") || strings.Contains(lowerPrompt, "implement") {
+		return `I will create the python script to calculate prime numbers.
+
+` + "```bash" + `
+cat << 'EOF' > primes.py
+import json
+
+def get_primes(n):
+    primes = []
+    for num in range(2, n):
+        is_prime = True
+        for i in range(2, int(num ** 0.5) + 1):
+            if num % i == 0:
+                is_prime = False
+                break
+        if is_prime:
+            primes.append(num)
+    return primes
+
+primes = get_primes(10000)
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+python3 primes.py
+git add primes.py primes.json
+git commit -m "Add primes script"
+` + "```", nil
+	}
+
+	// 3. QA / Manager Sign-off
+	if strings.Contains(lowerPrompt, "qa agent") {
+		return "QA_PASSED", nil
+	}
+	if strings.Contains(lowerPrompt, "manager agent") {
+		return "PROJECT_SIGNED_OFF", nil
+	}
+
+	// Default response
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
