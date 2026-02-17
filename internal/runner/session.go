@@ -122,9 +122,25 @@ func NewSession(d DockerClient, a agent.Agent, workspace, image, project, provid
 	}
 
 	if err != nil {
-		// Critical failure - Fail Fast
-		fmt.Fprintf(os.Stderr, "[Session] CRITICAL: Could not connect to database after retries. Exiting.\n")
-		os.Exit(1)
+		// Critical failure handling
+		fmt.Fprintf(os.Stderr, "[Session] CRITICAL: Could not connect to database (%s) after retries: %v\n", storeConfig.Type, err)
+
+		// Attempt fallback to SQLite if configured type wasn't already SQLite
+		if storeConfig.Type != "sqlite" {
+			fmt.Fprintf(os.Stderr, "[Session] Attempting fallback to local SQLite (ephemeral)...\n")
+			// Force SQLite config
+			storeConfig.Type = "sqlite"
+			storeConfig.ConnectionString = filepath.Join(workspace, ".recac_fallback.db")
+
+			dbStore, err = db.NewStore(storeConfig)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "[Session] Fallback to SQLite failed: %v. Exiting.\n", err)
+				os.Exit(1)
+			}
+			fmt.Fprintf(os.Stderr, "[Session] Fallback to SQLite successful.\n")
+		} else {
+			os.Exit(1)
+		}
 	} else {
 		// Success
 		fmt.Fprintf(os.Stderr, "[Session] DB Store initialized successfully: type=%s, project=%s\n", storeConfig.Type, project)
