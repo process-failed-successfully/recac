@@ -91,8 +91,11 @@ agent-bridge signal PROJECT_SIGNED_OFF true || echo "Signal sent"
 	}
 
 	// 5. Execution Phase: Specific Task (Primes)
-	// Check for ID:[PRIMES] or explicit instruction
-	if strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "Implement prime calculation logic in primes.py") || strings.Contains(prompt, "primes.py") {
+	// Check for ID:[PRIMES] or explicit instruction.
+	// IMPORTANT: Ensure we are NOT in the planning phase (Technical Program Manager) or other roles
+	// which might mention "primes.py" in the context but expect JSON.
+	isPlanning := strings.Contains(prompt, "Technical Program Manager") || strings.Contains(prompt, "Lead Software Architect")
+	if !isPlanning && (strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "Implement prime calculation logic in primes.py") || strings.Contains(prompt, "primes.py")) {
 		return `#!/bin/bash
 # Create primes.py
 cat <<EOF > primes.py
