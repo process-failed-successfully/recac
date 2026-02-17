@@ -359,22 +359,15 @@ func run() error {
 	// Check for Agent Job
 	log.Println("Waiting for Agent Job to start...")
 
-	// Determine expected job name from ticket map (assuming single task for now or finding "PRIMES")
-	var targetTicketID string
-	if id, ok := ticketMap["PRIMES"]; ok {
-		targetTicketID = id
-	} else {
-		// Fallback: Use the first one
-		for _, id := range ticketMap {
-			targetTicketID = id
-			break
-		}
+	// Collect valid job prefixes from ticket map
+	var validJobPrefixes []string
+	for _, id := range ticketMap {
+		prefix := fmt.Sprintf("recac-agent-%s", strings.ToLower(id))
+		validJobPrefixes = append(validJobPrefixes, prefix)
 	}
+	log.Printf("Looking for any job with prefixes: %v", validJobPrefixes)
 
-	expectedJobPrefix := fmt.Sprintf("recac-agent-%s", strings.ToLower(targetTicketID))
-	log.Printf("Looking for job prefix: %s", expectedJobPrefix)
-
-	jobName, err := waitForJob(namespace, expectedJobPrefix, 300*time.Second)
+	jobName, err := waitForAnyJob(namespace, validJobPrefixes, 300*time.Second)
 	if err != nil {
 		printKubeDebugInfo(namespace)
 		printLogs(namespace, fmt.Sprintf("app.kubernetes.io/name=%s", "recac"))
@@ -501,7 +494,7 @@ func waitForPod(ns, labelSelector string, timeout time.Duration) error {
 	return runCommand("kubectl", "rollout", "status", "deployment/recac", "-n", ns, "--timeout", fmt.Sprintf("%.0fs", timeout.Seconds()))
 }
 
-func waitForJob(ns, namePrefix string, timeout time.Duration) (string, error) {
+func waitForAnyJob(ns string, namePrefixes []string, timeout time.Duration) (string, error) {
 	start := time.Now()
 	for time.Since(start) < timeout {
 		cmd := exec.Command("kubectl", "get", "jobs", "-n", ns, "-o", "name")
@@ -509,14 +502,17 @@ func waitForJob(ns, namePrefix string, timeout time.Duration) (string, error) {
 		if err == nil {
 			lines := strings.Split(string(out), "\n")
 			for _, line := range lines {
-				if strings.Contains(line, namePrefix) {
-					return strings.TrimSpace(line), nil
+				line = strings.TrimSpace(line)
+				for _, prefix := range namePrefixes {
+					if strings.Contains(line, prefix) {
+						return line, nil
+					}
 				}
 			}
 		}
 		time.Sleep(5 * time.Second)
 	}
-	return "", fmt.Errorf("timeout waiting for job %s", namePrefix)
+	return "", fmt.Errorf("timeout waiting for any job matching prefixes: %v", namePrefixes)
 }
 
 func waitForJobCompletion(ns, jobName string, timeout time.Duration) error {
