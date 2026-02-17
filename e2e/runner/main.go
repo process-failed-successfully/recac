@@ -462,6 +462,11 @@ func computeSourceHash() (string, error) {
 }
 
 func verifyScenario(scenarioName, repo string, ticketMap map[string]string) error {
+	if repo == "skip" || repo == "none" {
+		log.Println("Skipping verification as requested by repo-url=skip")
+		return nil
+	}
+
 	scenario, ok := scenarios.Registry[scenarioName]
 	if !ok {
 		return fmt.Errorf("unknown scenario: %s", scenarioName)
@@ -541,6 +546,10 @@ func printKubeDebugInfo(ns string) {
 }
 
 func prepareRepo(repoURL string, ticketMap map[string]string) error {
+	if repoURL == "skip" || repoURL == "none" {
+		return nil
+	}
+
 	token := os.Getenv("GITHUB_API_KEY")
 	repoURL = strings.TrimSuffix(repoURL, "/")
 	authRepo := repoURL

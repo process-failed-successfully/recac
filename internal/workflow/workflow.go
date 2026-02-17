@@ -184,7 +184,10 @@ var ProcessJiraTicket = func(ctx context.Context, jiraTicketID string, jClient *
 	}
 
 	repoURL := cfg.RepoURL
-	if repoURL == "" {
+	if repoURL == "skip" || repoURL == "none" {
+		logger.Info("Skipping repository setup as requested", "original_url", repoURL)
+		repoURL = ""
+	} else if repoURL == "" {
 		matches := jira.RepoRegex.FindStringSubmatch(description)
 		if len(matches) <= 1 {
 			logger.Error("Error: No repository URL found in ticket description (Repo: https://...)")
