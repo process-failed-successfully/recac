@@ -32,7 +32,24 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.forcedResponse, nil
 	}
 
-	// Heuristic 1: Prime Number Scenario
+	// Heuristic 1: JSON Output (Technical Program Manager) - CHECK THIS FIRST
+	// This prevents the "Prime Number Scenario" heuristic from triggering on the planning prompt which contains the ID but expects JSON
+	if strings.Contains(prompt, "Output purely JSON") || strings.Contains(prompt, "Technical Program Manager") {
+		// If it's the primes scenario, return a valid ticket structure
+		if strings.Contains(prompt, "ID:[PRIMES]") {
+			return `[
+  {
+    "title": "ID:[PRIMES] Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'. Repo: https://github.com/example/repo",
+    "type": "Task",
+    "children": []
+  }
+]`, nil
+		}
+		return "{}", nil
+	}
+
+	// Heuristic 2: Prime Number Scenario Execution
 	if strings.Contains(prompt, "ID:[PRIMES]") {
 		return `Here is the solution for the Prime Number Task.
 
@@ -64,11 +81,6 @@ python3 primes.py
 # Add files to git
 git add -f primes.json primes.py
 ` + "```", nil
-	}
-
-	// Heuristic 2: JSON Output (Technical Program Manager)
-	if strings.Contains(prompt, "Output purely JSON") || strings.Contains(prompt, "Technical Program Manager") {
-		return "{}", nil
 	}
 
 	// Default response
