@@ -60,6 +60,15 @@ func (o *Orchestrator) GetActiveJobs() []JobInfo {
 	return jobs
 }
 
+// CancelJob cancels a running job.
+func (o *Orchestrator) CancelJob(ctx context.Context, jobID string) error {
+	// Attempt to cancel via Spawner.
+	// We don't need to manually remove from activeJobs map because the Spawner.Spawn()
+	// call in Run()'s goroutine will return an error (or finish) upon cancellation,
+	// triggering the deferred cleanup.
+	return o.Spawner.Cancel(ctx, jobID)
+}
+
 // GetLogs returns the logs for a specific job ID.
 func (o *Orchestrator) GetLogs(ctx context.Context, jobID string) (io.ReadCloser, error) {
 	return o.Spawner.GetLogs(ctx, jobID)

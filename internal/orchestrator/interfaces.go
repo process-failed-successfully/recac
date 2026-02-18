@@ -31,6 +31,7 @@ type Poller interface {
 type Spawner interface {
 	Spawn(ctx context.Context, item WorkItem) error
 	Cleanup(ctx context.Context, item WorkItem) error
+	Cancel(ctx context.Context, jobID string) error
 	GetLogs(ctx context.Context, jobID string) (io.ReadCloser, error)
 	Ping(ctx context.Context) error
 }

@@ -281,6 +281,23 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	return nil
 }
 
+func (s *K8sSpawner) Cancel(ctx context.Context, jobID string) error {
+	s.Logger.Info("Canceling K8s Job", "job", jobID)
+	safeID := sanitizeK8sName(jobID)
+	jobName := fmt.Sprintf("recac-agent-%s", safeID)
+
+	// Delete background to cleanup pods
+	delPolicy := metav1.DeletePropagationBackground
+	if err := s.Client.BatchV1().Jobs(s.Namespace).Delete(ctx, jobName, metav1.DeleteOptions{PropagationPolicy: &delPolicy}); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return fmt.Errorf("job %s not found", jobName)
+		}
+		return fmt.Errorf("failed to delete job %s: %w", jobName, err)
+	}
+
+	return nil
+}
+
 func (s *K8sSpawner) GetLogs(ctx context.Context, jobID string) (io.ReadCloser, error) {
 	// Find Pods by label
 	// The label is "work-item=<jobID>" on the PodTemplate
