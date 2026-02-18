@@ -223,6 +223,10 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: jobName,
+			Labels: map[string]string{
+				"created-by": "recac-orchestrator",
+				"work-item":  item.ID,
+			},
 		},
 		Spec: batchv1.JobSpec{
 			TTLSecondsAfterFinished: &ttl,
@@ -230,8 +234,10 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"app":    "recac-agent",
-						"ticket": item.ID,
+						"app":        "recac-agent",
+						"ticket":     item.ID,
+						"created-by": "recac-orchestrator",
+						"work-item":  item.ID,
 					},
 				},
 				Spec: corev1.PodSpec{

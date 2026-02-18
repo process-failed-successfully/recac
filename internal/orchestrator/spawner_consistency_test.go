@@ -117,3 +117,92 @@ func TestSpawnerConsistency_EnvPropagation(t *testing.T) {
 		assert.Contains(t, cmdStr, "export RECAC_TASK_MAX_ITERATIONS=5", "Docker should propagate RECAC_TASK_MAX_ITERATIONS")
 	})
 }
+
+func TestSpawnerConsistency_LabelsAndGitConfig(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	ctx := context.Background()
+	item := WorkItem{
+		ID:      "TASK-CONSISTENCY",
+		RepoURL: "https://github.com/example/repo",
+	}
+
+	// 1. Check K8s Spawner Labels
+	t.Run("K8sSpawner sets correct labels", func(t *testing.T) {
+		k8sClient := fake.NewSimpleClientset()
+		spawner := &K8sSpawner{
+			Client:        k8sClient,
+			Namespace:     "ns",
+			Image:         "img",
+			AgentProvider: "prov",
+			AgentModel:    "mod",
+			PullPolicy:    corev1.PullAlways,
+			Logger:        logger,
+		}
+
+		err := spawner.Spawn(ctx, item)
+		assert.NoError(t, err)
+
+		// Get the created job
+		job, err := k8sClient.BatchV1().Jobs("ns").Get(ctx, "recac-agent-task-consistency", metav1.GetOptions{})
+		assert.NoError(t, err)
+
+		// Check Job Labels
+		assert.Equal(t, "recac-orchestrator", job.Labels["created-by"], "K8s Job should have created-by label")
+		assert.Equal(t, "TASK-CONSISTENCY", job.Labels["work-item"], "K8s Job should have work-item label")
+
+		// Check Pod Template Labels
+		podLabels := job.Spec.Template.ObjectMeta.Labels
+		assert.Equal(t, "recac-orchestrator", podLabels["created-by"], "K8s Pod should have created-by label")
+		assert.Equal(t, "TASK-CONSISTENCY", podLabels["work-item"], "K8s Pod should have work-item label")
+	})
+
+	// 2. Check Docker Spawner Git Config Injection
+	t.Run("DockerSpawner injects git config command", func(t *testing.T) {
+		mockDocker := new(MockDockerClient)
+		mockSM := new(MockSessionManager)
+		spawner := NewDockerSpawner(logger, mockDocker, "img", "proj", nil, "prov", "mod", mockSM)
+
+		// Use a MockGitClient
+		mockGit := new(MockGitClient)
+		mockGit.On("CurrentCommitSHA", mock.Anything).Return("sha", nil)
+		spawner.GitClient = mockGit
+
+		// Expectations
+		mockDocker.On("RunContainerWithLabels",
+			mock.Anything,
+			"img",
+			mock.Anything,
+			mock.Anything,
+			mock.Anything,
+			mock.Anything,
+			mock.MatchedBy(func(labels map[string]string) bool {
+				return labels["created-by"] == "recac-orchestrator" && labels["work-item"] == "TASK-CONSISTENCY"
+			}),
+		).Return("cid", nil)
+
+		mockSM.On("SaveSession", mock.Anything).Return(nil)
+		mockSM.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
+
+		capturedCmdChan := make(chan []string, 1)
+		mockDocker.On("Exec", mock.Anything, "cid", mock.Anything).Run(func(args mock.Arguments) {
+			capturedCmd := args.Get(2).([]string)
+			capturedCmdChan <- capturedCmd
+		}).Return("out", nil)
+
+		err := spawner.Spawn(ctx, item)
+		assert.NoError(t, err)
+
+		var capturedCmd []string
+		select {
+		case capturedCmd = <-capturedCmdChan:
+		case <-time.After(1 * time.Second):
+			t.Fatal("Timeout waiting for Exec")
+		}
+
+		cmdStr := capturedCmd[2]
+
+		// Assertions
+		assert.Contains(t, cmdStr, "git config --global url", "Docker command should contain git config injection")
+		assert.Contains(t, cmdStr, "x-oauth-basic@github.com", "Docker command should configure x-oauth-basic")
+	})
+}
