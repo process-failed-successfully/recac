@@ -184,9 +184,8 @@ func (c *Client) PullImage(ctx context.Context, imageRef string) error {
 	return nil
 }
 
-// RunContainer starts a container with the specified image and mounts the workspace.
-// It returns the container ID or an error.
-func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, ports []string, user string) (string, error) {
+// RunContainerWithLabels starts a container with the specified image, mounts the workspace, and applies labels.
+func (c *Client) RunContainerWithLabels(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, labels map[string]string, user string) (string, error) {
 	telemetry.TrackDockerOp(c.project)
 	// 1. Pull Image (Best effort)
 	reader, err := c.api.ImagePull(ctx, imageRef, image.PullOptions{})
@@ -212,6 +211,8 @@ func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace st
 		&container.Config{
 			Image:      imageRef,
 			User:       user,
+			Env:        env,
+			Labels:     labels,
 			Tty:        true, // Keep it running
 			OpenStdin:  true, // Keep stdin open
 			WorkingDir: "/workspace",
@@ -232,6 +233,13 @@ func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace st
 	}
 
 	return resp.ID, nil
+}
+
+// RunContainer starts a container with the specified image and mounts the workspace.
+// It returns the container ID or an error.
+func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, user string) (string, error) {
+	// Delegate to RunContainerWithLabels.
+	return c.RunContainerWithLabels(ctx, imageRef, workspace, extraBinds, env, nil, user)
 }
 
 // Exec executes a command in a running container and returns the output (stdout + stderr).

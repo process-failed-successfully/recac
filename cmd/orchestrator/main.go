@@ -35,6 +35,12 @@ func main() {
 	pflag.String("agent-model", "meta-llama/llama-3.3-70b-instruct:free", "Model for spawned agents")
 	pflag.String("image-pull-policy", "Always", "Image pull policy for agents (Always, IfNotPresent, Never)")
 
+	// Janitor Flags
+	pflag.Bool("cleanup", false, "Enable janitor to clean up old containers")
+	pflag.Duration("cleanup-age", 24*time.Hour, "Max age for containers before cleanup")
+	pflag.Duration("cleanup-interval", 1*time.Hour, "Interval for janitor checks")
+	pflag.Bool("cleanup-dry-run", false, "Run janitor in dry-run mode (log only)")
+
 	pflag.String("jira-query", "", "Custom JQL query (overrides label)")
 	pflag.String("poller", "jira", "Poller type: 'jira', 'github', 'file', or 'file-dir'")
 	pflag.String("work-file", "work_items.json", "Work items file (for 'file' poller)")
@@ -71,6 +77,11 @@ func main() {
 	viper.BindPFlag("orchestrator.agent_model", pflag.Lookup("agent-model"))
 	viper.BindPFlag("orchestrator.image_pull_policy", pflag.Lookup("image-pull-policy"))
 
+	viper.BindPFlag("orchestrator.cleanup", pflag.Lookup("cleanup"))
+	viper.BindPFlag("orchestrator.cleanup_age", pflag.Lookup("cleanup-age"))
+	viper.BindPFlag("orchestrator.cleanup_interval", pflag.Lookup("cleanup-interval"))
+	viper.BindPFlag("orchestrator.cleanup_dry_run", pflag.Lookup("cleanup-dry-run"))
+
 	// Explicitly bind cleaner env vars
 	viper.BindEnv("orchestrator.agent_provider", "RECAC_AGENT_PROVIDER")
 	viper.BindEnv("orchestrator.agent_model", "RECAC_AGENT_MODEL")
@@ -89,6 +100,11 @@ func main() {
 	viper.BindEnv("orchestrator.max_iterations", "RECAC_MAX_ITERATIONS")
 	viper.BindEnv("orchestrator.manager_frequency", "RECAC_MANAGER_FREQUENCY")
 	viper.BindEnv("orchestrator.task_max_iterations", "RECAC_TASK_MAX_ITERATIONS")
+
+	viper.BindEnv("orchestrator.cleanup", "RECAC_CLEANUP_ENABLED")
+	viper.BindEnv("orchestrator.cleanup_age", "RECAC_CLEANUP_AGE")
+	viper.BindEnv("orchestrator.cleanup_interval", "RECAC_CLEANUP_INTERVAL")
+	viper.BindEnv("orchestrator.cleanup_dry_run", "RECAC_CLEANUP_DRY_RUN")
 
 	// Logger
 	logger := telemetry.NewLogger(viper.GetBool("verbose"), "orchestrator", false)
@@ -167,6 +183,8 @@ func main() {
 	// 2. Spawner
 	var spawner orchestrator.Spawner
 	var err error
+	var dockerCli *docker.Client
+
 	agentModel := viper.GetString("orchestrator.agent_model")
 
 	switch mode {
@@ -182,7 +200,7 @@ func main() {
 		}
 	case "local", "docker":
 		projectName := "recac-orchestrator" // Or similar
-		dockerCli, err := docker.NewClient(projectName)
+		dockerCli, err = docker.NewClient(projectName)
 		if err != nil {
 			logger.Error("Failed to initialize Docker client", "error", err)
 			os.Exit(1)
@@ -200,7 +218,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 3. Orchestrator
+	// 3. Janitor
+	if viper.GetBool("orchestrator.cleanup") {
+		if dockerCli != nil {
+			jConfig := orchestrator.JanitorConfig{
+				MaxAge:   viper.GetDuration("orchestrator.cleanup_age"),
+				Interval: viper.GetDuration("orchestrator.cleanup_interval"),
+				DryRun:   viper.GetBool("orchestrator.cleanup_dry_run"),
+			}
+			janitor := orchestrator.NewJanitor(dockerCli, jConfig, logger)
+			janitor.Start(ctx)
+		} else {
+			logger.Warn("Cleanup enabled but not in Docker mode (or client failed), skipping Janitor")
+		}
+	}
+
+	// 4. Orchestrator
 	orch := orchestrator.New(poller, spawner, interval)
 	if err := orch.Run(ctx, logger); err != nil {
 		if ctx.Err() != nil {
