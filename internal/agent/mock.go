@@ -42,6 +42,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		if len(matches) > 1 {
 			repoURL = matches[1]
 		}
+		// If prompt contains "Repo: skip", ensure we use "skip"
+		if strings.Contains(prompt, "Repo: skip") {
+			repoURL = "skip"
+		}
 
 		return fmt.Sprintf(`[
   {
