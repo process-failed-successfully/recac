@@ -32,6 +32,11 @@ func (m *MockSpawner) Cleanup(ctx context.Context, item orchestrator.WorkItem) e
 	return args.Error(0)
 }
 
+func (m *MockSpawner) Cancel(ctx context.Context, jobID string) error {
+	args := m.Called(ctx, jobID)
+	return args.Error(0)
+}
+
 func (m *MockSpawner) Ping(ctx context.Context) error {
 	args := m.Called(ctx)
 	return args.Error(0)

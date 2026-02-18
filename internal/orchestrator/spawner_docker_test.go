@@ -368,3 +368,33 @@ func TestDockerSpawner_GetLogs(t *testing.T) {
 		assert.Nil(t, logs)
 	})
 }
+
+func TestDockerSpawner_Cancel(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	mockDocker := new(MockDockerClient)
+	spawner := NewDockerSpawner(logger, mockDocker, "img", "proj", nil, "", "", nil)
+
+	ctx := context.Background()
+	jobID := "TEST-CANCEL"
+
+	// Success scenario
+	t.Run("Success", func(t *testing.T) {
+		mockDocker.On("ListContainers", ctx, mock.MatchedBy(func(opts container.ListOptions) bool {
+			// Could verify filter if needed
+			return true
+		})).Return([]types.Container{{ID: "c1"}}, nil).Once()
+		mockDocker.On("StopContainer", ctx, "c1").Return(nil).Once()
+
+		err := spawner.Cancel(ctx, jobID)
+		assert.NoError(t, err)
+	})
+
+	// No container found
+	t.Run("NoContainer", func(t *testing.T) {
+		mockDocker.On("ListContainers", ctx, mock.Anything).Return([]types.Container{}, nil).Once()
+
+		err := spawner.Cancel(ctx, jobID)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "no active container")
+	})
+}

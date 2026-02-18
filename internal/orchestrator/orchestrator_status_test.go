@@ -66,6 +66,7 @@ func (b *blockingSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	return nil
 }
 func (b *blockingSpawner) Cleanup(ctx context.Context, item WorkItem) error { return nil }
+func (b *blockingSpawner) Cancel(ctx context.Context, jobID string) error { return nil }
 func (b *blockingSpawner) Ping(ctx context.Context) error { return nil }
 func (b *blockingSpawner) GetLogs(ctx context.Context, jobID string) (io.ReadCloser, error) { return nil, nil }
 

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -213,4 +214,38 @@ func TestSanitizeK8sName(t *testing.T) {
 	for _, tc := range tests {
 		assert.Equal(t, tc.expected, sanitizeK8sName(tc.input))
 	}
+}
+
+func TestK8sSpawner_Cancel(t *testing.T) {
+	clientset := fake.NewSimpleClientset()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	spawner := &K8sSpawner{
+		Client:    clientset,
+		Namespace: "test-ns",
+		Logger:    logger,
+	}
+
+	ctx := context.Background()
+	jobID := "JOB-1"
+	jobName := "recac-agent-job-1"
+
+	// Create a job first
+	_, err := clientset.BatchV1().Jobs("test-ns").Create(ctx, &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   jobName,
+			Labels: map[string]string{"work-item": jobID},
+		},
+	}, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	// Test Cancel
+	err = spawner.Cancel(ctx, jobID)
+	assert.NoError(t, err)
+
+	// Verify it's gone
+	// Note: fake clientset deletes immediately
+	_, err = clientset.BatchV1().Jobs("test-ns").Get(ctx, jobName, metav1.GetOptions{})
+	assert.Error(t, err)
+	// Usually returns "jobs.batch "recac-agent-job-1" not found"
+	// But let's just check it's an error.
 }

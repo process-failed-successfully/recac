@@ -229,6 +229,30 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	return nil
 }
 
+func (s *DockerSpawner) Cancel(ctx context.Context, jobID string) error {
+	s.Logger.Info("Canceling job", "job", jobID)
+	args := filters.NewArgs()
+	args.Add("label", fmt.Sprintf("work-item=%s", jobID))
+	// List only running containers
+	containers, err := s.Client.ListContainers(ctx, container.ListOptions{Filters: args})
+	if err != nil {
+		return fmt.Errorf("failed to list containers: %w", err)
+	}
+
+	if len(containers) == 0 {
+		return fmt.Errorf("no active container found for job %s", jobID)
+	}
+
+	for _, c := range containers {
+		s.Logger.Info("Stopping container", "container", c.ID, "job", jobID)
+		if err := s.Client.StopContainer(ctx, c.ID); err != nil {
+			s.Logger.Warn("failed to stop container", "container", c.ID, "error", err)
+			// Continue trying to stop others if any
+		}
+	}
+	return nil
+}
+
 func (s *DockerSpawner) GetLogs(ctx context.Context, jobID string) (io.ReadCloser, error) {
 	// Find container by label
 	args := filters.NewArgs()

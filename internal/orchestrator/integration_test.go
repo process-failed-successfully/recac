@@ -41,6 +41,10 @@ func (m *callbackMockSpawner) Cleanup(ctx context.Context, item WorkItem) error 
 	return nil
 }
 
+func (m *callbackMockSpawner) Cancel(ctx context.Context, jobID string) error {
+	return nil
+}
+
 func (m *callbackMockSpawner) Ping(ctx context.Context) error {
 	return nil
 }

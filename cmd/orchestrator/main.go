@@ -36,7 +36,8 @@ func main() {
 	pflag.Bool("list-jobs", false, "List active jobs from a running orchestrator instance")
 	pflag.Bool("monitor", false, "Launch the TUI dashboard to monitor the orchestrator")
 	pflag.String("logs", "", "Get logs for a specific job ID from a running orchestrator instance")
-	pflag.String("host", "http://localhost:2112", "Orchestrator host URL (for list-jobs and logs)")
+	pflag.String("cancel-job", "", "Cancel a running job by ID")
+	pflag.String("host", "http://localhost:2112", "Orchestrator host URL (for list-jobs, logs, and cancel-job)")
 
 	pflag.String("mode", "local", "Orchestrator mode: 'local' (Docker) or 'k8s' (Kubernetes Job)")
 	pflag.String("jira-label", "recac-agent", "Jira label to poll for")
@@ -88,6 +89,7 @@ func main() {
 	viper.BindPFlag("orchestrator.list_jobs", pflag.Lookup("list-jobs"))
 	viper.BindPFlag("orchestrator.monitor", pflag.Lookup("monitor"))
 	viper.BindPFlag("orchestrator.logs", pflag.Lookup("logs"))
+	viper.BindPFlag("orchestrator.cancel_job", pflag.Lookup("cancel-job"))
 	viper.BindPFlag("orchestrator.host", pflag.Lookup("host"))
 
 	viper.BindPFlag("orchestrator.mode", pflag.Lookup("mode"))
@@ -141,6 +143,12 @@ func main() {
 	if logID := viper.GetString("orchestrator.logs"); logID != "" {
 		host := viper.GetString("orchestrator.host")
 		getLogs(host, logID)
+		return
+	}
+
+	if jobID := viper.GetString("orchestrator.cancel_job"); jobID != "" {
+		host := viper.GetString("orchestrator.host")
+		cancelJob(host, jobID)
 		return
 	}
 
@@ -303,6 +311,19 @@ func main() {
 			}
 			defer logStream.Close()
 			io.Copy(w, logStream)
+		})
+
+		mux.HandleFunc("DELETE /jobs/{id}", func(w http.ResponseWriter, r *http.Request) {
+			id := r.PathValue("id")
+			if err := orch.CancelJob(r.Context(), id); err != nil {
+				// We don't know if it's 404 or 500, but let's assume if it returns error, it failed.
+				// For K8s "not found" it returns error too (in my impl).
+				// Maybe parse error? Simplified for now.
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintf(w, "Job %s cancellation requested", id)
 		})
 	}
 
@@ -470,4 +491,27 @@ func limitString(s string, max int) string {
 		return s[:max] + "..."
 	}
 	return s
+}
+
+func cancelJob(host, jobID string) {
+	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/jobs/%s", host, jobID), nil)
+	if err != nil {
+		fmt.Printf("Failed to create request: %v\n", err)
+		os.Exit(1)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Printf("Failed to connect to orchestrator at %s: %v\n", host, err)
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Printf("Failed to cancel job: %s\n", strings.TrimSpace(string(body)))
+		os.Exit(1)
+	}
+
+	fmt.Printf("Job %s cancelled successfully.\n", jobID)
 }
