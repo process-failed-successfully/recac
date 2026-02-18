@@ -98,6 +98,13 @@ EOF
 
 python3 primes.py
 git add -f primes.json primes.py
+
+# Mark features as done to prevent infinite loops
+if command -v agent-bridge &> /dev/null; then
+    for feature in $(agent-bridge feature list --pending --json | jq -r '.[].id'); do
+        agent-bridge feature set "$feature" --status done
+    done
+fi
 ` + "```" + `
 
 Task completed. Primes generated.
@@ -112,6 +119,13 @@ Task completed. Primes generated.
 echo "Implementing feature..."
 # Create a dummy file to satisfy verification
 echo "def is_prime(n): return n > 1" > primes.py
+
+# Mark features as done to prevent infinite loops
+if command -v agent-bridge &> /dev/null; then
+    for feature in $(agent-bridge feature list --pending --json | jq -r '.[].id'); do
+        agent-bridge feature set "$feature" --status done
+    done
+fi
 ` + "```" + `
 
 Task completed. Tests passed.
