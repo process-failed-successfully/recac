@@ -280,3 +280,37 @@ func TestOrchestrator_SubmitJob(t *testing.T) {
 	assert.Len(t, spawner.spawned, 2)
 	spawner.mu.Unlock()
 }
+
+func TestOrchestrator_GetJob(t *testing.T) {
+	poller := newMockPoller(nil)
+	blockCh := make(chan struct{})
+	spawner := &mockSpawner{blockCh: blockCh}
+	orch := New(poller, spawner, 50*time.Millisecond)
+
+	ctx := context.Background()
+
+	// Submit a job
+	item := WorkItem{
+		ID:          "INSPECT-1",
+		Summary:     "Job to Inspect",
+		Description: "Detailed description",
+		RepoURL:     "https://github.com/example/repo",
+	}
+	err := orch.SubmitJob(ctx, item, silentLogger)
+	require.NoError(t, err)
+
+	// Verify GetJob
+	job, exists := orch.GetJob("INSPECT-1")
+	assert.True(t, exists)
+	assert.Equal(t, item.ID, job.ID)
+	assert.Equal(t, item.Summary, job.Summary)
+	assert.Equal(t, item.Description, job.WorkItem.Description)
+	assert.Equal(t, item.RepoURL, job.WorkItem.RepoURL)
+
+	// Verify non-existent job
+	_, exists = orch.GetJob("NON-EXISTENT")
+	assert.False(t, exists)
+
+	// Clean up
+	close(blockCh)
+}
