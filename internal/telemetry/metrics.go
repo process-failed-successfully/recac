@@ -113,7 +113,7 @@ var (
 // It attempts to bind to the given port. If the port is in use, it will
 // try the next 10 ports before giving up.
 // It returns the started http.Server, the bound port, and any error.
-func StartMetricsServer(basePort int) (*http.Server, int, error) {
+func StartMetricsServer(basePort int, opts ...func(*http.ServeMux)) (*http.Server, int, error) {
 	metricsMu.Lock()
 	if metricsRunning {
 		metricsMu.Unlock()
@@ -128,6 +128,10 @@ func StartMetricsServer(basePort int) (*http.Server, int, error) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	})
+
+	for _, opt := range opts {
+		opt(mux)
+	}
 
 	var listener net.Listener
 	var err error
