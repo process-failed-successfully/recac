@@ -36,7 +36,15 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	lowerPrompt := strings.ToLower(prompt)
 
 	// 1. Prime Number Script Scenario
-	if strings.Contains(lowerPrompt, "primes.py") || strings.Contains(lowerPrompt, "prime number script") {
+	isPrimesScenario := strings.Contains(lowerPrompt, "primes.py") || strings.Contains(lowerPrompt, "prime number script")
+
+	// TPM Role (Ticket Generation)
+	if isPrimesScenario && (strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "tpm")) {
+		return m.generatePrimesTPMResponse(), nil
+	}
+
+	// Coding Agent Role (Implementation)
+	if isPrimesScenario {
 		return m.generatePrimesScriptResponse(), nil
 	}
 
@@ -62,6 +70,23 @@ func truncateString(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen]
+}
+
+func (m *MockAgent) generatePrimesTPMResponse() string {
+	return `[
+  {
+    "title": "ID:[PRIMES] Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.",
+    "type": "Task",
+    "acceptance_criteria": [
+      "Script is named primes.py",
+      "Output file is named primes.json",
+      "Output contains exactly 1229 primes",
+      "primes.json is committed to the repository"
+    ],
+    "children": []
+  }
+]`
 }
 
 func (m *MockAgent) generatePrimesScriptResponse() string {
