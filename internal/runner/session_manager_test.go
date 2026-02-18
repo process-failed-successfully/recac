@@ -31,6 +31,11 @@ func (m *MockGitClient) CurrentCommitSHA(workspace string) (string, error) {
 	return args.String(0), args.Error(1)
 }
 
+func (m *MockGitClient) Init(directory string) error {
+	args := m.Called(directory)
+	return args.Error(0)
+}
+
 func (m *MockGitClient) Clone(ctx context.Context, repoURL, directory string) error {
 	args := m.Called(ctx, repoURL, directory)
 	return args.Error(0)
