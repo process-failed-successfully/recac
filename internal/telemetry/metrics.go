@@ -105,45 +105,68 @@ var (
 )
 
 var (
-	metricsOnce    sync.Once
 	metricsMu      sync.Mutex
 	metricsRunning bool
 )
 
-// StartMetricsServer starts a HTTP server exposing Prometheus metrics.
+// StartMetricsServer starts a HTTP server exposing Prometheus metrics and a health check.
 // It attempts to bind to the given port. If the port is in use, it will
 // try the next 10 ports before giving up.
-func StartMetricsServer(basePort int) error {
+// It returns the started http.Server, the bound port, and any error.
+func StartMetricsServer(basePort int) (*http.Server, int, error) {
 	metricsMu.Lock()
 	if metricsRunning {
 		metricsMu.Unlock()
-		return nil // Already running
+		return nil, 0, fmt.Errorf("metrics server already running")
 	}
 	metricsRunning = true
 	metricsMu.Unlock()
 
-	metricsOnce.Do(func() {
-		http.Handle("/metrics", promhttp.Handler())
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
 	})
 
 	var listener net.Listener
 	var err error
+	var port int
 
 	// Try up to 10 ports
 	for i := 0; i < 10; i++ {
-		port := basePort + i
+		port = basePort + i
 		addr := ":" + strconv.Itoa(port)
 		listener, err = net.Listen("tcp", addr)
 		if err == nil {
-			fmt.Printf("Starting metrics server on %s\n", addr)
-			return http.Serve(listener, nil)
+			// If we bound to port 0, find out which port was chosen
+			if port == 0 {
+				if addr, ok := listener.Addr().(*net.TCPAddr); ok {
+					port = addr.Port
+				}
+			}
+
+			server := &http.Server{
+				Handler: mux,
+			}
+
+			go func() {
+				if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
+					fmt.Printf("Metrics server error: %v\n", err)
+				}
+				metricsMu.Lock()
+				metricsRunning = false
+				metricsMu.Unlock()
+			}()
+
+			return server, port, nil
 		}
 	}
 
 	metricsMu.Lock()
 	metricsRunning = false
 	metricsMu.Unlock()
-	return fmt.Errorf("failed to find available port starting from %d: %w", basePort, err)
+	return nil, 0, fmt.Errorf("failed to find available port starting from %d: %w", basePort, err)
 }
 
 // API Helper Functions
