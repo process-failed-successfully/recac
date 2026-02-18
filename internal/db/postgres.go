@@ -268,7 +268,7 @@ func (s *PostgresStore) UpdateFeatureStatus(projectID string, id string, status 
 
 // AcquireLock attempts to acquire a lock on a path. It polls until timeout.
 func (s *PostgresStore) AcquireLock(projectID, path, agentID string, timeout time.Duration) (bool, error) {
-	start := time.Now()
+	start := time.Now().UTC()
 	for {
 		// 1. Check if lock exists and is valid
 		var currentAgent string
@@ -278,24 +278,24 @@ func (s *PostgresStore) AcquireLock(projectID, path, agentID string, timeout tim
 		if err == sql.ErrNoRows {
 			// No lock, try to acquire
 			_, err = s.db.Exec(`INSERT INTO file_locks (project_id, path, agent_id, expires_at) VALUES ($1, $2, $3, $4)`,
-				projectID, path, agentID, time.Now().Add(10*time.Minute))
+				projectID, path, agentID, time.Now().UTC().Add(10*time.Minute))
 			if err == nil {
 				return true, nil
 			}
 			// If insertion failed, someone might have just taken it, retry
 		} else if err == nil {
 			// Lock exists
-			if time.Now().After(expiresAt) {
+			if time.Now().UTC().After(expiresAt) {
 				// Lock expired, "highjack" it
 				_, err = s.db.Exec(`UPDATE file_locks SET agent_id = $1, expires_at = $2, created_at = NOW() WHERE project_id = $3 AND path = $4`,
-					agentID, time.Now().Add(10*time.Minute), projectID, path)
+					agentID, time.Now().UTC().Add(10*time.Minute), projectID, path)
 				if err == nil {
 					return true, nil
 				}
 			} else if currentAgent == agentID {
 				// Already held by us, renew
 				_, err = s.db.Exec(`UPDATE file_locks SET expires_at = $1 WHERE project_id = $2 AND path = $3`,
-					time.Now().Add(10*time.Minute), projectID, path)
+					time.Now().UTC().Add(10*time.Minute), projectID, path)
 				return err == nil, err
 			}
 		} else {
@@ -330,7 +330,7 @@ func (s *PostgresStore) ReleaseAllLocks(projectID, agentID string) error {
 
 // GetActiveLocks returns all current (not expired) locks.
 func (s *PostgresStore) GetActiveLocks(projectID string) ([]Lock, error) {
-	rows, err := s.db.Query("SELECT path, agent_id, expires_at FROM file_locks WHERE expires_at > $1 AND project_id = $2", time.Now(), projectID)
+	rows, err := s.db.Query("SELECT path, agent_id, expires_at FROM file_locks WHERE expires_at > $1 AND project_id = $2", time.Now().UTC(), projectID)
 	if err != nil {
 		return nil, err
 	}

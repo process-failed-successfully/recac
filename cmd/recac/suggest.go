@@ -9,23 +9,22 @@ import (
 
 	"recac/internal/utils"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 var (
-	suggestType   string
-	suggestLimit  int
-	suggestIgnore []string
-	suggestFocus  string
+	suggestType    string
+	suggestLimit   int
+	suggestIgnore  []string
+	suggestFocus   string
+	suggestAutoAdd bool
 )
 
 var suggestCmd = &cobra.Command{
 	Use:   "suggest",
 	Short: "Proactively suggest improvements using AI",
-	Long: `Analyzes the codebase and suggests actionable improvements, bugs to fix, or refactoring opportunities.
-Found suggestions can be interactively added to your TODO list.`,
+	Long: `Analyzes the codebase and suggests actionable improvements, bugs to fix, or refactoring opportunities.`,
 	RunE: runSuggest,
 }
 
@@ -35,6 +34,7 @@ func init() {
 	suggestCmd.Flags().IntVarP(&suggestLimit, "limit", "l", 5, "Maximum number of suggestions to generate")
 	suggestCmd.Flags().StringSliceVarP(&suggestIgnore, "ignore", "i", nil, "Files or directories to ignore")
 	suggestCmd.Flags().StringVarP(&suggestFocus, "focus", "f", ".", "Focus analysis on a specific path")
+	suggestCmd.Flags().BoolVar(&suggestAutoAdd, "auto-add", false, "Automatically add all suggestions to TODO list")
 }
 
 type Suggestion struct {
@@ -133,7 +133,7 @@ CODEBASE CONTEXT:
 
 	fmt.Fprintf(cmd.OutOrStdout(), "\nFound %d suggestions:\n\n", len(suggestions))
 
-	// 6. Interactive Review
+	// 6. Review
 	for i, s := range suggestions {
 		fmt.Fprintf(cmd.OutOrStdout(), "[%d/%d] %s (%s)\n", i+1, len(suggestions), s.Title, strings.ToUpper(s.Type))
 		if s.File != "" {
@@ -141,22 +141,7 @@ CODEBASE CONTEXT:
 		}
 		fmt.Fprintf(cmd.OutOrStdout(), "      %s\n\n", s.Description)
 
-		action := ""
-		prompt := &survey.Select{
-			Message: "What would you like to do?",
-			Options: []string{"Add to TODO", "Skip", "Quit"},
-			Default: "Add to TODO",
-		}
-
-		if err := askOneFunc(prompt, &action); err != nil {
-			return err // Handle ctrl-c etc
-		}
-
-		if action == "Quit" {
-			break
-		}
-
-		if action == "Add to TODO" {
+		if suggestAutoAdd {
 			taskText := fmt.Sprintf("%s (%s)", s.Title, s.Type)
 			if s.File != "" {
 				// Rel path if possible
@@ -166,11 +151,11 @@ CODEBASE CONTEXT:
 					taskText += fmt.Sprintf(" - %s", s.File)
 				}
 			}
-			// Add description as a note? markdown doesn't support multiline list items easily in simple format.
-			// Let's just stick to the title + context.
 
 			if err := appendTask(taskText); err != nil {
 				fmt.Fprintf(cmd.ErrOrStderr(), "Failed to add task: %v\n", err)
+			} else {
+				fmt.Fprintln(cmd.OutOrStdout(), "      ✅ Added to TODO")
 			}
 		}
 		fmt.Fprintln(cmd.OutOrStdout(), "---------------------------------------------------")

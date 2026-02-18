@@ -9,21 +9,25 @@ import (
 
 	"recac/internal/utils"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
+var (
+	upgradeAll bool
+)
+
 var upgradeCmd = &cobra.Command{
 	Use:   "upgrade",
-	Short: "Interactive dependency upgrade assistant",
+	Short: "Dependency upgrade assistant",
 	Long: `Detects outdated dependencies (Go modules or NPM packages),
-allows you to select which ones to upgrade, and then attempts to fix any resulting build or test failures using AI.`,
+and attempts to fix any resulting build or test failures using AI.`,
 	RunE: runUpgrade,
 }
 
 func init() {
 	rootCmd.AddCommand(upgradeCmd)
+	upgradeCmd.Flags().BoolVar(&upgradeAll, "all", false, "Upgrade all outdated dependencies")
 }
 
 type UpgradeCandidate struct {
@@ -44,9 +48,16 @@ func runUpgrade(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	selected, err := selectUpdates(candidates)
-	if err != nil {
-		return err // User cancelled or error
+	var selected []UpgradeCandidate
+	if upgradeAll {
+		selected = candidates
+	} else {
+		fmt.Fprintln(cmd.OutOrStdout(), "Outdated dependencies found:")
+		for _, c := range candidates {
+			fmt.Fprintf(cmd.OutOrStdout(), "  [%s] %s (%s -> %s)\n", strings.ToUpper(c.Type), c.Name, c.Current, c.Latest)
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), "\nRun with --all to upgrade all of them.")
+		return nil
 	}
 
 	if len(selected) == 0 {
@@ -181,33 +192,6 @@ func checkUpdatesNpm() ([]UpgradeCandidate, error) {
 		})
 	}
 	return candidates, nil
-}
-
-func selectUpdates(candidates []UpgradeCandidate) ([]UpgradeCandidate, error) {
-	var options []string
-	candidateMap := make(map[string]UpgradeCandidate)
-
-	for _, c := range candidates {
-		label := fmt.Sprintf("[%s] %s (%s -> %s)", strings.ToUpper(c.Type), c.Name, c.Current, c.Latest)
-		options = append(options, label)
-		candidateMap[label] = c
-	}
-
-	var selectedLabels []string
-	prompt := &survey.MultiSelect{
-		Message: "Select dependencies to upgrade:",
-		Options: options,
-	}
-
-	if err := askOneFunc(prompt, &selectedLabels); err != nil {
-		return nil, err
-	}
-
-	var selected []UpgradeCandidate
-	for _, label := range selectedLabels {
-		selected = append(selected, candidateMap[label])
-	}
-	return selected, nil
 }
 
 func applyUpdate(c UpgradeCandidate) error {

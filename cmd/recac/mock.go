@@ -12,7 +12,6 @@ import (
 
 	"recac/internal/utils"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -36,10 +35,10 @@ It supports generating standard struct mocks or 'testify/mock' compatible mocks.
 
 func init() {
 	rootCmd.AddCommand(mockCmd)
-	mockCmd.Flags().StringVarP(&mockInterface, "interface", "i", "", "Name of the interface to mock")
-	mockCmd.Flags().StringVarP(&mockOutput, "output", "o", "", "Output file path")
+	mockCmd.Flags().StringVar(&mockInterface, "interface", "", "Name of the interface to mock")
+	mockCmd.Flags().StringVar(&mockOutput, "output", "", "Output file path")
 	mockCmd.Flags().BoolVar(&mockTestify, "testify", false, "Use testify/mock (deprecated, use --framework)")
-	mockCmd.Flags().StringVarP(&mockFramework, "framework", "f", "auto", "Mocking framework (auto, std, testify)")
+	mockCmd.Flags().StringVar(&mockFramework, "framework", "auto", "Mocking framework (auto, std, testify)")
 }
 
 func runMock(cmd *cobra.Command, args []string) error {
@@ -82,13 +81,7 @@ func runMock(cmd *cobra.Command, args []string) error {
 		if len(interfaceNames) == 1 {
 			targetInterface = interfaceNames[0]
 		} else {
-			err := askOneFunc(&survey.Select{
-				Message: "Select interface to mock:",
-				Options: interfaceNames,
-			}, &targetInterface)
-			if err != nil {
-				return err // User cancelled
-			}
+			return fmt.Errorf("multiple interfaces found (%s). Use --interface to specify one", strings.Join(interfaceNames, ", "))
 		}
 	} else {
 		if _, exists := interfaces[targetInterface]; !exists {

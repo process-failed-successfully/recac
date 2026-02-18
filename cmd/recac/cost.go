@@ -7,7 +7,6 @@ import (
 
 	"recac/internal/agent"
 	"recac/internal/runner"
-	"recac/internal/ui"
 
 	"github.com/spf13/cobra"
 )
@@ -15,28 +14,16 @@ import (
 func init() {
 	rootCmd.AddCommand(costCmd)
 	costCmd.Flags().Int("limit", 10, "Limit the number of sessions displayed in the 'Top Sessions by Cost' list")
-	costCmd.Flags().Bool("watch", false, "Launch a real-time TUI to monitor session costs")
 }
 
 var costCmd = &cobra.Command{
 	Use:   "cost",
 	Short: "Analyze and display session costs",
-	Long:  `Provides a detailed breakdown of costs associated with all sessions. Use the --watch flag for a live, real-time monitoring TUI.`,
+	Long:  `Provides a detailed breakdown of costs associated with all sessions.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		sm, err := sessionManagerFactory()
 		if err != nil {
 			return fmt.Errorf("could not create session manager: %w", err)
-		}
-
-		watch, _ := cmd.Flags().GetBool("watch")
-		if watch {
-			// Inject the agent state loader from this package into the ui package
-			ui.LoadAgentState = loadAgentState
-			// Start the TUI
-			if err := ui.StartCostTUI(sm); err != nil {
-				return fmt.Errorf("could not start cost TUI: %w", err)
-			}
-			return nil
 		}
 
 		sessions, err := sm.ListSessions()

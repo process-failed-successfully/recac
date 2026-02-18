@@ -3,16 +3,11 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"recac/internal/runner"
-	"recac/internal/ui"
 	"strings"
 	"testing"
 
-	"github.com/AlecAivazis/survey/v2"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/spf13/cobra"
 )
 
 // TestHelperProcess isn't a real test. It's a helper process that's executed
@@ -269,48 +264,7 @@ func TestCommands(t *testing.T) {
 
 	})
 
-	t.Run("Interactive Slash Command", func(t *testing.T) {
-		cmdName := "version"
-		var targetCmd *cobra.Command
-		for _, c := range rootCmd.Commands() {
-			if c.Name() == cmdName {
-				targetCmd = c
-				break
-			}
-		}
-		if targetCmd == nil {
-			t.Fatalf("Could not find command '%s'", cmdName)
-		}
-
-		action := func(args []string) tea.Cmd {
-			return func() tea.Msg {
-				cs := []string{"-test.run=TestHelperProcess", "--", cmdName}
-				cs = append(cs, args...)
-				cmd := exec.Command(os.Args[0], cs...)
-				cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
-				output, err := cmd.CombinedOutput()
-				if err != nil {
-					return ui.StatusMsg(fmt.Sprintf("Error executing command '%s': %v\n%s", cmdName, err, string(output)))
-				}
-				return ui.StatusMsg(string(output))
-			}
-		}
-
-		cmdFunc := action([]string{})
-		msg := cmdFunc()
-
-		statusMsg, ok := msg.(ui.StatusMsg)
-		if !ok {
-			t.Fatalf("Expected msg to be of type ui.StatusMsg, but got %T", msg)
-		}
-
-		expectedOutput := "recac version v0.2.0"
-		if !strings.Contains(string(statusMsg), expectedOutput) {
-			t.Errorf("Expected output to contain '%s', but got '%s'", expectedOutput, string(statusMsg))
-		}
-	})
-
-	t.Run("Stop Command Interactive", func(t *testing.T) {
+	t.Run("Stop Command", func(t *testing.T) {
 		// 1. Setup
 		// Use the real factory to get a session manager
 		sm, err := runner.NewSessionManager()
@@ -320,26 +274,15 @@ func TestCommands(t *testing.T) {
 
 		// Start a dummy session
 		sessionName := "test-session-to-stop"
-		// Using os.Executable() and a fake command to ensure we have a valid executable
-		// The actual command won't be run, but StartSession checks for it.
+		// Using os.Args[0] and a fake command to ensure we have a valid executable
 		cmdToRun := []string{os.Args[0], "-test.run=^$", "--"}
 		_, err = sm.StartSession(sessionName, "test goal", cmdToRun, t.TempDir())
 		if err != nil {
 			t.Fatalf("Failed to start dummy session: %v", err)
 		}
 
-		// 2. Mock the interactive prompt
-		originalSurveyAskOne := surveyAskOne
-		surveyAskOne = func(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {
-			// Simulate the user selecting the first (and only) option
-			val := response.(*string)
-			*val = sessionName
-			return nil
-		}
-		defer func() { surveyAskOne = originalSurveyAskOne }()
-
 		// 3. Execute the command
-		output, err := executeCommand(rootCmd, "stop")
+		output, err := executeCommand(rootCmd, "stop", sessionName)
 		if err != nil {
 			t.Fatalf("Stop command failed: %v, output: %s", err, output)
 		}

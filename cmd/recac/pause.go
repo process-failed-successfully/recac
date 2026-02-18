@@ -25,13 +25,9 @@ var pauseCmd = &cobra.Command{
 		}
 
 		if len(args) == 0 {
-			sessionName, err = interactiveSessionSelect(sm, "running", "Choose a session to pause:")
-			if err != nil {
-				return err
-			}
-		} else {
-			sessionName = args[0]
+			return fmt.Errorf("session name is required")
 		}
+		sessionName = args[0]
 
 		if err := sm.PauseSession(sessionName); err != nil {
 			return err

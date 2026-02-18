@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"recac/internal/agent"
 	"recac/internal/model"
-	"recac/internal/ui"
 	"recac/internal/utils"
 	"sort"
 	"strings"
@@ -45,9 +44,6 @@ func init() {
 	if psCmd.Flags().Lookup("stale") == nil {
 		psCmd.Flags().String("stale", "", "Filter sessions that have been inactive for a given duration (e.g., '7d', '24h')")
 	}
-	if psCmd.Flags().Lookup("watch") == nil {
-		psCmd.Flags().BoolP("watch", "w", false, "Enter watch mode with real-time updates")
-	}
 	if psCmd.Flags().Lookup("logs") == nil {
 		psCmd.Flags().Int("logs", 0, "Show the last N lines of logs for each session")
 	}
@@ -65,7 +61,6 @@ var psCmd = &cobra.Command{
 		sortBy, _ := cmd.Flags().GetString("sort")
 		showDiff, _ := cmd.Flags().GetBool("show-diff")
 		sessionName, _ := cmd.Flags().GetString("session")
-		watch, _ := cmd.Flags().GetBool("watch")
 		logLines, _ := cmd.Flags().GetInt("logs")
 
 		filters := model.PsFilters{
@@ -74,16 +69,6 @@ var psCmd = &cobra.Command{
 			Stale:    cmd.Flag("stale").Value.String(),
 			Remote:   cmd.Flag("remote").Value.String() == "true",
 			LogLines: logLines,
-		}
-
-		// --- Handle Watch Mode ---
-		if watch {
-			// Dependency injection: Provide the UI with a function to get sessions
-			ui.GetSessions = func() ([]model.UnifiedSession, error) {
-				// We pass the *current* command instance to getUnifiedSessions
-				return getUnifiedSessions(cmd, filters)
-			}
-			return ui.StartPsDashboard(showCosts, sortBy)
 		}
 
 		// --- Get Sessions ---
