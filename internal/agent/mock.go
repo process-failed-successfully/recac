@@ -41,7 +41,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Heuristic: Check if this is a Coding prompt for the Prime Number scenario
-	if strings.Contains(lowerPrompt, "primes.py") || strings.Contains(lowerPrompt, "prime number") {
+	// Match "prime" to catch "primes", "prime number", "primes.py", "generate primes", etc.
+	if strings.Contains(lowerPrompt, "prime") {
 		return m.generatePrimeScript(), nil
 	}
 
