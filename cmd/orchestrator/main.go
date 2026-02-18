@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -31,7 +33,8 @@ func main() {
 	pflag.Bool("dry-run", false, "Poll for work items without spawning agents")
 	pflag.Bool("verify", false, "Verify configuration and connectivity without running the loop")
 	pflag.Bool("list-jobs", false, "List active jobs from a running orchestrator instance")
-	pflag.String("host", "http://localhost:2112", "Orchestrator host URL (for list-jobs)")
+	pflag.String("logs", "", "Get logs for a specific job ID from a running orchestrator instance")
+	pflag.String("host", "http://localhost:2112", "Orchestrator host URL (for list-jobs and logs)")
 
 	pflag.String("mode", "local", "Orchestrator mode: 'local' (Docker) or 'k8s' (Kubernetes Job)")
 	pflag.String("jira-label", "recac-agent", "Jira label to poll for")
@@ -81,6 +84,7 @@ func main() {
 
 	viper.BindPFlag("orchestrator.verify", pflag.Lookup("verify"))
 	viper.BindPFlag("orchestrator.list_jobs", pflag.Lookup("list-jobs"))
+	viper.BindPFlag("orchestrator.logs", pflag.Lookup("logs"))
 	viper.BindPFlag("orchestrator.host", pflag.Lookup("host"))
 
 	viper.BindPFlag("orchestrator.mode", pflag.Lookup("mode"))
@@ -128,6 +132,12 @@ func main() {
 	if viper.GetBool("orchestrator.list_jobs") {
 		host := viper.GetString("orchestrator.host")
 		listJobs(host)
+		return
+	}
+
+	if logID := viper.GetString("orchestrator.logs"); logID != "" {
+		host := viper.GetString("orchestrator.host")
+		getLogs(host, logID)
 		return
 	}
 
@@ -271,6 +281,16 @@ func main() {
 				logger.Error("Failed to encode jobs", "error", err)
 			}
 		})
+
+		mux.HandleFunc("GET /jobs/{id}/logs", func(w http.ResponseWriter, r *http.Request) {
+			id := r.PathValue("id")
+			logs, err := orch.GetLogs(r.Context(), id)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusNotFound)
+				return
+			}
+			w.Write([]byte(logs))
+		})
 	}
 
 	metricsServer, actualPort, err := telemetry.StartMetricsServer(metricsPort, statusHandler)
@@ -408,6 +428,27 @@ func listJobs(host string) {
 			rowStyle.Render(job.Status),
 			rowStyle.Render(duration),
 		)
+	}
+}
+
+func getLogs(host, jobID string) {
+	resp, err := http.Get(fmt.Sprintf("%s/jobs/%s/logs", host, jobID))
+	if err != nil {
+		fmt.Printf("Failed to connect to orchestrator at %s: %v\n", host, err)
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Printf("Failed to fetch logs: %s\n", strings.TrimSpace(string(body)))
+		os.Exit(1)
+	}
+
+	// Stream logs to stdout
+	if _, err := io.Copy(os.Stdout, resp.Body); err != nil {
+		fmt.Printf("Failed to read logs: %v\n", err)
+		os.Exit(1)
 	}
 }
 

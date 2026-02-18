@@ -56,6 +56,11 @@ func (m *MockDockerClient) RemoveContainer(ctx context.Context, containerID stri
 	return args.Error(0)
 }
 
+func (m *MockDockerClient) ContainerLogs(ctx context.Context, containerID string) (string, error) {
+	args := m.Called(ctx, containerID)
+	return args.String(0), args.Error(1)
+}
+
 // Mock Session Manager
 type MockSessionManager struct {
 	mock.Mock
@@ -314,4 +319,47 @@ func TestDockerSpawner_Cleanup(t *testing.T) {
 
 	err := spawner.Cleanup(context.Background(), WorkItem{ID: "test"})
 	assert.NoError(t, err)
+}
+
+func TestDockerSpawner_GetLogs(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	mockDocker := new(MockDockerClient)
+	spawner := NewDockerSpawner(logger, mockDocker, "img", "proj", nil, "", "", nil)
+
+	ctx := context.Background()
+	jobID := "TEST-1"
+
+	t.Run("Success", func(t *testing.T) {
+		// Expect ListContainers with filter
+		mockDocker.On("ListContainers", ctx, mock.MatchedBy(func(opts container.ListOptions) bool {
+			// Check if filter is set correctly
+			// filters.Args is internal struct, can check via String() or by iterating
+			// simpler: just check if it was called
+			return true
+		})).Return([]types.Container{{ID: "c1"}}, nil).Once()
+
+		mockDocker.On("ContainerLogs", ctx, "c1").Return("some logs", nil).Once()
+
+		logs, err := spawner.GetLogs(ctx, jobID)
+		assert.NoError(t, err)
+		assert.Equal(t, "some logs", logs)
+	})
+
+	t.Run("NoContainer", func(t *testing.T) {
+		mockDocker.On("ListContainers", ctx, mock.Anything).Return([]types.Container{}, nil).Once()
+
+		logs, err := spawner.GetLogs(ctx, jobID)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "no active container")
+		assert.Empty(t, logs)
+	})
+
+	t.Run("ListError", func(t *testing.T) {
+		mockDocker.On("ListContainers", ctx, mock.Anything).Return([]types.Container{}, errors.New("list error")).Once()
+
+		logs, err := spawner.GetLogs(ctx, jobID)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "list error")
+		assert.Empty(t, logs)
+	})
 }

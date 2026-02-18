@@ -82,6 +82,10 @@ func (m *mockSpawner) Ping(ctx context.Context) error {
 	return m.pingErr
 }
 
+func (m *mockSpawner) GetLogs(ctx context.Context, jobID string) (string, error) {
+	return "mock logs", nil
+}
+
 // A silent logger for cleaner test output
 var silentLogger = slog.New(slog.NewTextHandler(io.Discard, nil))
 

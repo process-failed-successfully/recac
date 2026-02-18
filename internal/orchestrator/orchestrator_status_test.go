@@ -66,6 +66,7 @@ func (b *blockingSpawner) Spawn(ctx context.Context, item WorkItem) error {
 }
 func (b *blockingSpawner) Cleanup(ctx context.Context, item WorkItem) error { return nil }
 func (b *blockingSpawner) Ping(ctx context.Context) error { return nil }
+func (b *blockingSpawner) GetLogs(ctx context.Context, jobID string) (string, error) { return "", nil }
 
 func TestOrchestrator_GetStatus_BlockingSpawn(t *testing.T) {
 	poller := newMockPoller([]WorkItem{{ID: "TEST-1"}})

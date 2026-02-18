@@ -30,6 +30,7 @@ type Poller interface {
 type Spawner interface {
 	Spawn(ctx context.Context, item WorkItem) error
 	Cleanup(ctx context.Context, item WorkItem) error
+	GetLogs(ctx context.Context, jobID string) (string, error)
 	Ping(ctx context.Context) error
 }
 
@@ -55,6 +56,7 @@ type DockerClient interface {
 	Exec(ctx context.Context, containerID string, cmd []string) (string, error)
 	ListContainers(ctx context.Context, options container.ListOptions) ([]types.Container, error)
 	RemoveContainer(ctx context.Context, containerID string, force bool) error
+	ContainerLogs(ctx context.Context, containerID string) (string, error)
 }
 
 // ISessionManager defines the interface for session management, created for mocking.

@@ -36,6 +36,11 @@ func (m *MockSpawner) Ping(ctx context.Context) error {
 	return args.Error(0)
 }
 
+func (m *MockSpawner) GetLogs(ctx context.Context, jobID string) (string, error) {
+	args := m.Called(ctx, jobID)
+	return args.String(0), args.Error(1)
+}
+
 func TestOrchestrator_FileDirPoller_Integration(t *testing.T) {
 	// Setup
 	tmpDir, err := os.MkdirTemp("", "orchestrator-integration-test")

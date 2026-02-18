@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/kballard/go-shellquote"
 )
 
@@ -225,6 +226,25 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	}
 
 	return nil
+}
+
+func (s *DockerSpawner) GetLogs(ctx context.Context, jobID string) (string, error) {
+	// Find container by label
+	args := filters.NewArgs()
+	args.Add("label", fmt.Sprintf("work-item=%s", jobID))
+	containers, err := s.Client.ListContainers(ctx, container.ListOptions{Filters: args, All: true})
+	if err != nil {
+		return "", fmt.Errorf("failed to list containers: %w", err)
+	}
+
+	if len(containers) == 0 {
+		return "", fmt.Errorf("no active container found for job %s", jobID)
+	}
+
+	// Should be only one, but take the first one (most recent usually if multiple due to retries?)
+	// ListContainers returns most recent first by default if not specified otherwise.
+	containerID := containers[0].ID
+	return s.Client.ContainerLogs(ctx, containerID)
 }
 
 func (s *DockerSpawner) Cleanup(ctx context.Context, item WorkItem) error {

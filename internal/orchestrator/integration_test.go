@@ -43,6 +43,10 @@ func (m *callbackMockSpawner) Ping(ctx context.Context) error {
 	return nil
 }
 
+func (m *callbackMockSpawner) GetLogs(ctx context.Context, jobID string) (string, error) {
+	return "mock logs", nil
+}
+
 func TestOrchestrator_Integration_FileFlow(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "orch_integration_file")
 	require.NoError(t, err)
