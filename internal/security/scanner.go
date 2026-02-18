@@ -55,10 +55,29 @@ func NewRegexScanner() *RegexScanner {
 
 // Scan checks the content for security patterns
 func (s *RegexScanner) Scan(content string) ([]Finding, error) {
-	var findings []Finding
+	// 1. Find all matches first to avoid O(N) scan for newlines if not needed
+	type patternMatch struct {
+		name    string
+		matches [][]int
+	}
+	var allMatches []patternMatch
+	totalMatches := 0
 
-	// Pre-calculate newline indices for O(log L) line number lookup
+	for name, pattern := range s.patterns {
+		matches := pattern.FindAllStringIndex(content, -1)
+		if len(matches) > 0 {
+			allMatches = append(allMatches, patternMatch{name: name, matches: matches})
+			totalMatches += len(matches)
+		}
+	}
+
+	if totalMatches == 0 {
+		return nil, nil
+	}
+
+	// 2. Pre-calculate newline indices for O(log L) line number lookup
 	// This avoids rescanning the string for every match which was O(N*M)
+	// Only done if matches are found.
 	var newlines []int
 	for i := 0; i < len(content); i++ {
 		if content[i] == '\n' {
@@ -66,9 +85,9 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 		}
 	}
 
-	for name, pattern := range s.patterns {
-		matches := pattern.FindAllStringIndex(content, -1)
-		for _, match := range matches {
+	var findings []Finding
+	for _, pm := range allMatches {
+		for _, match := range pm.matches {
 			start := match[0]
 			// Binary search to find how many newlines are before the start index
 			// sort.SearchInts returns the smallest index i such that newlines[i] >= start
@@ -80,8 +99,8 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 			matchedText := content[match[0]:match[1]]
 
 			findings = append(findings, Finding{
-				Type:        name,
-				Description: fmt.Sprintf("Found potential %s", name),
+				Type:        pm.name,
+				Description: fmt.Sprintf("Found potential %s", pm.name),
 				Match:       matchedText,
 				Line:        lineNumber,
 			})
