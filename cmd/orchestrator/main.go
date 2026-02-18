@@ -36,6 +36,7 @@ func main() {
 	pflag.String("agent-provider", "openrouter", "Provider for spawned agents")
 	pflag.String("agent-model", "openrouter/aurora-alpha", "Model for spawned agents")
 	pflag.String("image-pull-policy", "Always", "Image pull policy for agents (Always, IfNotPresent, Never)")
+	pflag.Int("metrics-port", 2112, "Port to expose Prometheus metrics")
 
 	pflag.String("jira-query", "", "Custom JQL query (overrides label)")
 	pflag.String("poller", "jira", "Poller type: 'jira', 'github', 'file', or 'file-dir'")
@@ -75,6 +76,7 @@ func main() {
 	viper.BindPFlag("orchestrator.agent_provider", pflag.Lookup("agent-provider"))
 	viper.BindPFlag("orchestrator.agent_model", pflag.Lookup("agent-model"))
 	viper.BindPFlag("orchestrator.image_pull_policy", pflag.Lookup("image-pull-policy"))
+	viper.BindPFlag("orchestrator.metrics_port", pflag.Lookup("metrics-port"))
 
 	// Explicitly bind cleaner env vars
 	viper.BindEnv("orchestrator.agent_provider", "RECAC_AGENT_PROVIDER")
@@ -91,6 +93,7 @@ func main() {
 	viper.BindEnv("orchestrator.namespace", "RECAC_ORCHESTRATOR_NAMESPACE")
 	viper.BindEnv("orchestrator.interval", "RECAC_ORCHESTRATOR_INTERVAL")
 	viper.BindEnv("orchestrator.image_pull_policy", "RECAC_IMAGE_PULL_POLICY")
+	viper.BindEnv("orchestrator.metrics_port", "RECAC_METRICS_PORT")
 	viper.BindEnv("orchestrator.max_iterations", "RECAC_MAX_ITERATIONS")
 	viper.BindEnv("orchestrator.manager_frequency", "RECAC_MANAGER_FREQUENCY")
 	viper.BindEnv("orchestrator.task_max_iterations", "RECAC_TASK_MAX_ITERATIONS")
@@ -112,6 +115,23 @@ func main() {
 
 	query := viper.GetString("orchestrator.jira_query")
 	logger.Info("Starting Orchestrator", "mode", mode, "label", label, "query", query, "interval", interval, "agent_provider", agentProvider)
+
+	// Start Metrics Server
+	metricsPort := viper.GetInt("orchestrator.metrics_port")
+	metricsServer, actualPort, err := telemetry.StartMetricsServer(metricsPort)
+	if err != nil {
+		logger.Error("Failed to start metrics server", "error", err)
+	} else {
+		logger.Info("Metrics server started", "port", actualPort)
+		go func() {
+			<-ctx.Done()
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := metricsServer.Shutdown(shutdownCtx); err != nil {
+				logger.Error("Metrics server shutdown error", "error", err)
+			}
+		}()
+	}
 
 	// 1. Poller
 	var poller orchestrator.Poller
@@ -171,7 +191,7 @@ func main() {
 
 	// 2. Spawner
 	var spawner orchestrator.Spawner
-	var err error
+	// err is already declared
 	agentModel := viper.GetString("orchestrator.agent_model")
 
 	switch mode {

@@ -108,7 +108,7 @@ func initConfig() {
 	if flag.Lookup("test.v") == nil {
 		go func() {
 			port := viper.GetInt("metrics_port")
-			if err := telemetry.StartMetricsServer(port); err != nil {
+			if _, _, err := telemetry.StartMetricsServer(port); err != nil {
 				fmt.Fprintf(os.Stderr, "Warning: Failed to start metrics server: %v\n", err)
 			}
 		}()

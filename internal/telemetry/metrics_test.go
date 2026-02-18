@@ -1,7 +1,11 @@
 package telemetry
 
 import (
+	"context"
+	"fmt"
+	"net/http"
 	"testing"
+	"time"
 )
 
 func TestMetricsHelpers(t *testing.T) {
@@ -30,12 +34,41 @@ func TestMetricsHelpers(t *testing.T) {
 }
 
 func TestStartMetricsServer(t *testing.T) {
-	// Start in background
-	go func() {
-		// Use high port to avoid conflict
-		_ = StartMetricsServer(9990)
-	}()
-	// Allow it to start
-	// We can't easily verify success without http client or checking logs/port
-	// But this covers the code path.
+	// Use port 0 to let the OS choose a free port
+	srv, port, err := StartMetricsServer(0)
+	if err != nil {
+		t.Fatalf("Failed to start metrics server: %v", err)
+	}
+	defer srv.Shutdown(context.Background())
+
+	if port <= 0 {
+		t.Errorf("Expected positive port, got %d", port)
+	}
+
+	// Wait for server to start
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify health check
+	healthURL := fmt.Sprintf("http://localhost:%d/healthz", port)
+	resp, err := http.Get(healthURL)
+	if err != nil {
+		t.Fatalf("Failed to request health check: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Health check returned status %d, expected 200", resp.StatusCode)
+	}
+
+	// Verify metrics endpoint
+	metricsURL := fmt.Sprintf("http://localhost:%d/metrics", port)
+	respMetrics, err := http.Get(metricsURL)
+	if err != nil {
+		t.Fatalf("Failed to request metrics: %v", err)
+	}
+	defer respMetrics.Body.Close()
+
+	if respMetrics.StatusCode != http.StatusOK {
+		t.Errorf("Metrics endpoint returned status %d, expected 200", respMetrics.StatusCode)
+	}
 }
