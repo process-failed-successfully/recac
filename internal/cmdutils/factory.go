@@ -94,7 +94,7 @@ var GetAgentClient = func(ctx context.Context, provider, model, projectPath, pro
 
 // SetupWorkspace handles cloning, auth fallback, and Epic branching strategy
 var SetupWorkspace = func(ctx context.Context, gitClient git.IClient, repoURL, workspace, ticketID, epicKey, timestamp string) (string, error) {
-	if repoURL == "" {
+	if repoURL == "" || repoURL == "skip" || repoURL == "none" {
 		return "", nil // Nothing to clone
 	}
 
