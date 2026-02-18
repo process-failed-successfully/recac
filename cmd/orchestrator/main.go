@@ -30,6 +30,8 @@ func main() {
 	pflag.BoolP("verbose", "v", false, "Enable verbose/debug logging")
 	pflag.Bool("dry-run", false, "Poll for work items without spawning agents")
 	pflag.Bool("verify", false, "Verify configuration and connectivity without running the loop")
+	pflag.Bool("list-jobs", false, "List active jobs from a running orchestrator instance")
+	pflag.String("host", "http://localhost:2112", "Orchestrator host URL (for list-jobs)")
 
 	pflag.String("mode", "local", "Orchestrator mode: 'local' (Docker) or 'k8s' (Kubernetes Job)")
 	pflag.String("jira-label", "recac-agent", "Jira label to poll for")
@@ -78,6 +80,8 @@ func main() {
 	viper.BindEnv("orchestrator.dry_run", "RECAC_ORCHESTRATOR_DRY_RUN")
 
 	viper.BindPFlag("orchestrator.verify", pflag.Lookup("verify"))
+	viper.BindPFlag("orchestrator.list_jobs", pflag.Lookup("list-jobs"))
+	viper.BindPFlag("orchestrator.host", pflag.Lookup("host"))
 
 	viper.BindPFlag("orchestrator.mode", pflag.Lookup("mode"))
 	viper.BindPFlag("orchestrator.jira_label", pflag.Lookup("jira-label"))
@@ -120,6 +124,12 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	if viper.GetBool("orchestrator.list_jobs") {
+		host := viper.GetString("orchestrator.host")
+		listJobs(host)
+		return
+	}
 
 	// Setup Logic
 	mode := viper.GetString("orchestrator.mode")
@@ -253,6 +263,14 @@ func main() {
 				logger.Error("Failed to encode status", "error", err)
 			}
 		})
+
+		mux.HandleFunc("/jobs", func(w http.ResponseWriter, r *http.Request) {
+			jobs := orch.GetActiveJobs()
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(jobs); err != nil {
+				logger.Error("Failed to encode jobs", "error", err)
+			}
+		})
 	}
 
 	metricsServer, actualPort, err := telemetry.StartMetricsServer(metricsPort, statusHandler)
@@ -329,6 +347,67 @@ func main() {
 		}
 		logger.Error("Orchestrator failure", "error", err)
 		os.Exit(1)
+	}
+}
+
+func listJobs(host string) {
+	resp, err := http.Get(fmt.Sprintf("%s/jobs", host))
+	if err != nil {
+		fmt.Printf("Failed to connect to orchestrator at %s: %v\n", host, err)
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		fmt.Printf("Failed to fetch jobs: status %s\n", resp.Status)
+		os.Exit(1)
+	}
+
+	var jobs []orchestrator.JobInfo
+	if err := json.NewDecoder(resp.Body).Decode(&jobs); err != nil {
+		fmt.Printf("Failed to decode response: %v\n", err)
+		os.Exit(1)
+	}
+
+	if len(jobs) == 0 {
+		fmt.Println("No active jobs.")
+		return
+	}
+
+	// Styles
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#FAFAFA")).
+		Background(lipgloss.Color("#7D56F4")).
+		Padding(0, 1)
+
+	headerStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("252")).
+		Padding(0, 1)
+
+	rowStyle := lipgloss.NewStyle().
+		Padding(0, 1)
+
+	fmt.Println(titleStyle.Render(fmt.Sprintf("Active Jobs (%d)", len(jobs))))
+	fmt.Println("")
+
+	// Table Header
+	fmt.Printf("%-15s %-40s %-15s %-20s\n",
+		headerStyle.Render("ID"),
+		headerStyle.Render("Summary"),
+		headerStyle.Render("Status"),
+		headerStyle.Render("Duration"),
+	)
+
+	for _, job := range jobs {
+		duration := time.Since(job.StartTime).Round(time.Second).String()
+		fmt.Printf("%-15s %-40s %-15s %-20s\n",
+			rowStyle.Render(job.ID),
+			rowStyle.Render(limitString(job.Summary, 38)),
+			rowStyle.Render(job.Status),
+			rowStyle.Render(duration),
+		)
 	}
 }
 

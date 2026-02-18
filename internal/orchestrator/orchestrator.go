@@ -19,6 +19,14 @@ type Orchestrator struct {
 	lastPollItems int
 	activeSpawns  int
 	totalSpawns   int
+	activeJobs    map[string]JobInfo
+}
+
+type JobInfo struct {
+	ID        string    `json:"id"`
+	Summary   string    `json:"summary"`
+	StartTime time.Time `json:"start_time"`
+	Status    string    `json:"status"`
 }
 
 type Status struct {
@@ -35,7 +43,20 @@ func New(poller Poller, spawner Spawner, pollInterval time.Duration) *Orchestrat
 		Poller:       poller,
 		Spawner:      spawner,
 		PollInterval: pollInterval,
+		activeJobs:   make(map[string]JobInfo),
 	}
+}
+
+// GetActiveJobs returns the list of currently running jobs.
+func (o *Orchestrator) GetActiveJobs() []JobInfo {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+
+	jobs := make([]JobInfo, 0, len(o.activeJobs))
+	for _, job := range o.activeJobs {
+		jobs = append(jobs, job)
+	}
+	return jobs
 }
 
 // GetStatus returns the current status of the orchestrator.
@@ -134,6 +155,13 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 			o.mu.Lock()
 			o.activeSpawns++
 			o.totalSpawns++
+			job := JobInfo{
+				ID:        item.ID,
+				Summary:   item.Summary,
+				StartTime: time.Now(),
+				Status:    "Spawning",
+			}
+			o.activeJobs[item.ID] = job
 			o.mu.Unlock()
 
 			go func(item WorkItem) {
@@ -141,6 +169,7 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 				defer func() {
 					o.mu.Lock()
 					o.activeSpawns--
+					delete(o.activeJobs, item.ID)
 					o.mu.Unlock()
 				}()
 
