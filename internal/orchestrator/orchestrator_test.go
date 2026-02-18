@@ -66,9 +66,13 @@ type mockSpawner struct {
 	spawnErr error
 	pingErr  error
 	mu       sync.Mutex
+	blockCh  chan struct{}
 }
 
 func (m *mockSpawner) Spawn(ctx context.Context, item WorkItem) error {
+	if m.blockCh != nil {
+		<-m.blockCh
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.spawned = append(m.spawned, item)
@@ -229,4 +233,50 @@ func TestOrchestrator_Run_GracefulShutdown(t *testing.T) {
 	// Now cancel and wait for shutdown
 	cancel()
 	wg.Wait()
+}
+
+func TestOrchestrator_SubmitJob(t *testing.T) {
+	poller := newMockPoller(nil)
+	blockCh := make(chan struct{})
+	spawner := &mockSpawner{blockCh: blockCh}
+	orch := New(poller, spawner, 50*time.Millisecond)
+
+	ctx := context.Background()
+
+	// 1. Submit a valid job
+	item := WorkItem{ID: "MANUAL-1", Summary: "Manual Job"}
+	err := orch.SubmitJob(ctx, item, silentLogger)
+	require.NoError(t, err)
+
+	// Check that it's in active jobs
+	orch.mu.Lock()
+	_, exists := orch.activeJobs["MANUAL-1"]
+	orch.mu.Unlock()
+	assert.True(t, exists, "Job should be in activeJobs")
+
+	// 2. Submit duplicate job immediately (it should be active because spawn is blocked)
+	err = orch.SubmitJob(ctx, item, silentLogger)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "already active")
+
+	// Unblock spawner
+	close(blockCh)
+
+	// Wait for spawner goroutine to finish
+	time.Sleep(50 * time.Millisecond)
+
+	spawner.mu.Lock()
+	assert.Len(t, spawner.spawned, 1)
+	assert.Equal(t, "MANUAL-1", spawner.spawned[0].ID)
+	spawner.mu.Unlock()
+
+	// 3. Submit another job (should work now that we unblocked, though blockCh is closed so it won't block)
+	item2 := WorkItem{ID: "MANUAL-2", Summary: "Manual Job 2"}
+	err = orch.SubmitJob(ctx, item2, silentLogger)
+	require.NoError(t, err)
+
+	time.Sleep(10 * time.Millisecond)
+	spawner.mu.Lock()
+	assert.Len(t, spawner.spawned, 2)
+	spawner.mu.Unlock()
 }

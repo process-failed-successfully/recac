@@ -37,7 +37,8 @@ func main() {
 	pflag.Bool("monitor", false, "Launch the TUI dashboard to monitor the orchestrator")
 	pflag.String("logs", "", "Get logs for a specific job ID from a running orchestrator instance")
 	pflag.String("cancel-job", "", "Cancel a running job by ID")
-	pflag.String("host", "http://localhost:2112", "Orchestrator host URL (for list-jobs, logs, and cancel-job)")
+	pflag.String("submit", "", "Submit a job from a JSON file path")
+	pflag.String("host", "http://localhost:2112", "Orchestrator host URL (for list-jobs, logs, cancel-job, and submit)")
 
 	pflag.String("mode", "local", "Orchestrator mode: 'local' (Docker) or 'k8s' (Kubernetes Job)")
 	pflag.String("jira-label", "recac-agent", "Jira label to poll for")
@@ -90,6 +91,7 @@ func main() {
 	viper.BindPFlag("orchestrator.monitor", pflag.Lookup("monitor"))
 	viper.BindPFlag("orchestrator.logs", pflag.Lookup("logs"))
 	viper.BindPFlag("orchestrator.cancel_job", pflag.Lookup("cancel-job"))
+	viper.BindPFlag("orchestrator.submit", pflag.Lookup("submit"))
 	viper.BindPFlag("orchestrator.host", pflag.Lookup("host"))
 
 	viper.BindPFlag("orchestrator.mode", pflag.Lookup("mode"))
@@ -149,6 +151,12 @@ func main() {
 	if jobID := viper.GetString("orchestrator.cancel_job"); jobID != "" {
 		host := viper.GetString("orchestrator.host")
 		cancelJob(host, jobID)
+		return
+	}
+
+	if submitFile := viper.GetString("orchestrator.submit"); submitFile != "" {
+		host := viper.GetString("orchestrator.host")
+		submitJob(host, submitFile)
 		return
 	}
 
@@ -324,6 +332,34 @@ func main() {
 			}
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprintf(w, "Job %s cancellation requested", id)
+		})
+
+		mux.HandleFunc("POST /jobs", func(w http.ResponseWriter, r *http.Request) {
+			var item orchestrator.WorkItem
+			if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
+				http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+				return
+			}
+
+			if item.ID == "" {
+				http.Error(w, "Job ID is required", http.StatusBadRequest)
+				return
+			}
+
+			// Use the context from main (captured via closure) to ensure job runs independently of the request context
+			// but respects orchestrator shutdown.
+			// Note: We are using the 'ctx' variable which is defined in main() and available here.
+			if err := orch.SubmitJob(ctx, item, logger); err != nil {
+				if strings.Contains(err.Error(), "already active") {
+					http.Error(w, err.Error(), http.StatusConflict)
+				} else {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+				}
+				return
+			}
+
+			w.WriteHeader(http.StatusAccepted)
+			fmt.Fprintf(w, "Job %s submitted successfully", item.ID)
 		})
 	}
 
@@ -514,4 +550,37 @@ func cancelJob(host, jobID string) {
 	}
 
 	fmt.Printf("Job %s cancelled successfully.\n", jobID)
+}
+
+func submitJob(host, filePath string) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		fmt.Printf("Failed to open file %s: %v\n", filePath, err)
+		os.Exit(1)
+	}
+	defer file.Close()
+
+	// Verify JSON validity before sending (optional but good UX)
+	var item map[string]interface{}
+	if err := json.NewDecoder(file).Decode(&item); err != nil {
+		fmt.Printf("Invalid JSON in file %s: %v\n", filePath, err)
+		os.Exit(1)
+	}
+	// Reset file pointer
+	file.Seek(0, 0)
+
+	resp, err := http.Post(fmt.Sprintf("%s/jobs", host), "application/json", file)
+	if err != nil {
+		fmt.Printf("Failed to connect to orchestrator at %s: %v\n", host, err)
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusAccepted {
+		fmt.Printf("Failed to submit job: %s\n", strings.TrimSpace(string(body)))
+		os.Exit(1)
+	}
+
+	fmt.Printf("%s\n", strings.TrimSpace(string(body)))
 }
