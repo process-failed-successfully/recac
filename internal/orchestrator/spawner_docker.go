@@ -8,11 +8,14 @@ import (
 	"path/filepath"
 	"recac/internal/git"
 	"recac/internal/runner"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/kballard/go-shellquote"
 )
+
+var envKeyRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 
 type DockerSpawner struct {
 	Client         DockerClient
@@ -134,6 +137,10 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		}
 
 		for k, v := range item.EnvVars {
+			if !envKeyRegex.MatchString(k) {
+				s.Logger.Warn("Skipping invalid environment variable key", "key", k, "item", item.ID)
+				continue
+			}
 			envExports = append(envExports, fmt.Sprintf("export %s=%s", k, shellquote.Join(v)))
 		}
 
