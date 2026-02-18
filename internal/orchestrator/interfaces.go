@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"recac/internal/jira"
 	"recac/internal/runner"
@@ -30,6 +31,7 @@ type Poller interface {
 type Spawner interface {
 	Spawn(ctx context.Context, item WorkItem) error
 	Cleanup(ctx context.Context, item WorkItem) error
+	GetLogs(ctx context.Context, jobID string) (io.ReadCloser, error)
 	Ping(ctx context.Context) error
 }
 
@@ -55,6 +57,7 @@ type DockerClient interface {
 	Exec(ctx context.Context, containerID string, cmd []string) (string, error)
 	ListContainers(ctx context.Context, options container.ListOptions) ([]types.Container, error)
 	RemoveContainer(ctx context.Context, containerID string, force bool) error
+	ContainerLogs(ctx context.Context, containerID string) (io.ReadCloser, error)
 }
 
 // ISessionManager defines the interface for session management, created for mocking.

@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -41,6 +43,10 @@ func (m *callbackMockSpawner) Cleanup(ctx context.Context, item WorkItem) error 
 
 func (m *callbackMockSpawner) Ping(ctx context.Context) error {
 	return nil
+}
+
+func (m *callbackMockSpawner) GetLogs(ctx context.Context, jobID string) (io.ReadCloser, error) {
+	return io.NopCloser(strings.NewReader("mock logs")), nil
 }
 
 func TestOrchestrator_Integration_FileFlow(t *testing.T) {

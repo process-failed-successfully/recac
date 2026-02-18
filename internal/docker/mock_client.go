@@ -31,6 +31,7 @@ type MockAPI struct {
 	ContainerRemoveFunc      func(ctx context.Context, containerID string, options container.RemoveOptions) error
 	ContainerListFunc        func(ctx context.Context, options container.ListOptions) ([]types.Container, error)
 	ContainerKillFunc        func(ctx context.Context, containerID, signal string) error
+	ContainerLogsFunc        func(ctx context.Context, container string, options container.LogsOptions) (io.ReadCloser, error)
 	CloseFunc                func() error
 }
 
@@ -157,6 +158,13 @@ func (m *MockAPI) ContainerKill(ctx context.Context, containerID, signal string)
 		return m.ContainerKillFunc(ctx, containerID, signal)
 	}
 	return nil
+}
+
+func (m *MockAPI) ContainerLogs(ctx context.Context, container string, options container.LogsOptions) (io.ReadCloser, error) {
+	if m.ContainerLogsFunc != nil {
+		return m.ContainerLogsFunc(ctx, container, options)
+	}
+	return io.NopCloser(strings.NewReader("mock logs")), nil
 }
 
 func (m *MockAPI) Close() error {

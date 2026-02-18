@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"sync"
 	"time"
@@ -57,6 +58,11 @@ func (o *Orchestrator) GetActiveJobs() []JobInfo {
 		jobs = append(jobs, job)
 	}
 	return jobs
+}
+
+// GetLogs returns the logs for a specific job ID.
+func (o *Orchestrator) GetLogs(ctx context.Context, jobID string) (io.ReadCloser, error) {
+	return o.Spawner.GetLogs(ctx, jobID)
 }
 
 // GetStatus returns the current status of the orchestrator.
