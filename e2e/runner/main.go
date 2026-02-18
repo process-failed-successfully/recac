@@ -201,9 +201,13 @@ func run() error {
 	}()
 
 	// 3. Prepare Repository
-	log.Println("=== Preparing Repository (Cleaning stale branches) ===")
-	if err := prepareRepo(repoURL, ticketMap); err != nil {
-		log.Printf("Warning: Failed to prepare repository: %v", err)
+	if repoURL != "skip" && repoURL != "none" {
+		log.Println("=== Preparing Repository (Cleaning stale branches) ===")
+		if err := prepareRepo(repoURL, ticketMap); err != nil {
+			log.Printf("Warning: Failed to prepare repository: %v", err)
+		}
+	} else {
+		log.Println("Skipping repository preparation (repo-url=skip)")
 	}
 
 	// 4. Deploy (Helm or Local)
@@ -395,10 +399,14 @@ func run() error {
 	printLogs(namespace, fmt.Sprintf("job-name=%s", cleanJobName))
 
 	// 5. Verify Results
-	log.Println("=== Verifying Results ===")
-	if err := verifyScenario(scenarioName, repoURL, ticketMap); err != nil {
-		printKubeDebugInfo(namespace)
-		return fmt.Errorf("verification failed: %w", err)
+	if repoURL != "skip" && repoURL != "none" {
+		log.Println("=== Verifying Results ===")
+		if err := verifyScenario(scenarioName, repoURL, ticketMap); err != nil {
+			printKubeDebugInfo(namespace)
+			return fmt.Errorf("verification failed: %w", err)
+		}
+	} else {
+		log.Println("Skipping verification (repo-url=skip)")
 	}
 
 	log.Println("=== E2E Test PASSED ===")
