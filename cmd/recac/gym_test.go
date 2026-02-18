@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -32,6 +34,21 @@ func (m *GymMockDockerClient) CheckDaemon(ctx context.Context) error {
 func (m *GymMockDockerClient) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, user string) (string, error) {
 	args := m.Called(ctx, imageRef, workspace, extraBinds, env, user)
 	return args.String(0), args.Error(1)
+}
+
+func (m *GymMockDockerClient) RunContainerWithLabels(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, user string, labels map[string]string) (string, error) {
+	args := m.Called(ctx, imageRef, workspace, extraBinds, env, user, labels)
+	return args.String(0), args.Error(1)
+}
+
+func (m *GymMockDockerClient) ListContainers(ctx context.Context, options container.ListOptions) ([]types.Container, error) {
+	args := m.Called(ctx, options)
+	return args.Get(0).([]types.Container), args.Error(1)
+}
+
+func (m *GymMockDockerClient) RemoveContainer(ctx context.Context, containerID string, force bool) error {
+	args := m.Called(ctx, containerID, force)
+	return args.Error(0)
 }
 
 func (m *GymMockDockerClient) StopContainer(ctx context.Context, containerID string) error {
