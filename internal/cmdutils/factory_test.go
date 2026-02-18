@@ -99,6 +99,14 @@ type MockGitClient struct {
 	cloneFn             func(ctx context.Context, repoURL, directory string) error
 	checkoutFn          func(directory, branch string) error
 	checkoutNewBranchFn func(directory, branch string) error
+	initFn              func(directory string) error
+}
+
+func (m *MockGitClient) Init(directory string) error {
+	if m.initFn != nil {
+		return m.initFn(directory)
+	}
+	return nil
 }
 
 func (m *MockGitClient) Clone(ctx context.Context, repoURL, directory string) error {
@@ -277,6 +285,21 @@ func TestSetupWorkspace(t *testing.T) {
 		url, err := SetupWorkspace(context.Background(), mockGitClient, "", "/tmp/recac-test", "TEST-1", "", "")
 		assert.NoError(t, err)
 		assert.Equal(t, "", url)
+	})
+
+	t.Run("Skip Repo URL", func(t *testing.T) {
+		initCalled := false
+		mockGitClient := &MockGitClient{
+			repoExists: false,
+			initFn: func(directory string) error {
+				initCalled = true
+				return nil
+			},
+		}
+		url, err := SetupWorkspace(context.Background(), mockGitClient, "skip", "/tmp/recac-test-skip", "TEST-1", "", "")
+		assert.NoError(t, err)
+		assert.Equal(t, "skip", url)
+		assert.True(t, initCalled, "Expect git init to be called for skip repo")
 	})
 
 	t.Run("Clones when workspace does not exist", func(t *testing.T) {
