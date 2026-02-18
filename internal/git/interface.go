@@ -4,6 +4,7 @@ import "context"
 
 // GitClient is an interface for interacting with Git.
 type IClient interface {
+	Init(directory string) error
 	DiffStat(workspace, startCommit, endCommit string) (string, error)
 	CurrentCommitSHA(workspace string) (string, error)
 	Clone(ctx context.Context, repoURL, directory string) error

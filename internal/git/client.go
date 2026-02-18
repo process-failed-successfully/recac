@@ -61,6 +61,13 @@ func (c *Client) runWithMasking(ctx context.Context, dir string, args ...string)
 	return nil
 }
 
+// Init initializes a new git repository in the destination directory.
+func (c *Client) Init(dest string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	return c.runWithMasking(ctx, dest, "init")
+}
+
 // Clone clones a repository into a destination directory.
 func (c *Client) Clone(ctx context.Context, url, dest string) error {
 	// Clone can take a while

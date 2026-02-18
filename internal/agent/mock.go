@@ -35,6 +35,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Smart Mock Logic for E2E Tests
 	lowerPrompt := strings.ToLower(prompt)
 
+	// Debug logging for troubleshooting
+	fmt.Printf("[MockAgent] Received prompt (len=%d): %s\n", len(prompt), truncateString(prompt, 200))
+
 	// 1. Ticket Generation (Planning Phase)
 	// Check for keywords indicating ticket creation request
 	if (strings.Contains(lowerPrompt, "create a single ticket") || strings.Contains(lowerPrompt, "json format")) &&
@@ -44,7 +47,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 2. Implementation Phase (Coding)
 	// Check for implementation request
-	if strings.Contains(lowerPrompt, "primes.py") || strings.Contains(lowerPrompt, "prime number script") {
+	// Also check for "repo: skip" combined with "prime" as a robust fallback for smoke tests
+	if strings.Contains(lowerPrompt, "primes.py") ||
+	   strings.Contains(lowerPrompt, "prime number script") ||
+	   (strings.Contains(lowerPrompt, "prime") && strings.Contains(lowerPrompt, "skip")) {
 		return m.generatePrimesScriptResponse(), nil
 	}
 

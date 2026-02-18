@@ -98,6 +98,13 @@ var SetupWorkspace = func(ctx context.Context, gitClient git.IClient, repoURL, w
 		return "", nil // Nothing to clone
 	}
 
+	// Check for skip mode
+	skipGit := false
+	if strings.ToLower(repoURL) == "skip" || strings.ToLower(repoURL) == "none" {
+		skipGit = true
+		fmt.Printf("[%s] Repo URL is 'skip'. Initializing local git repo instead of cloning.\n", ticketID)
+	}
+
 	authRepoURL := repoURL
 
 	// Handle Git Ownership (Dubious ownership fix for Docker volumes)
@@ -105,20 +112,36 @@ var SetupWorkspace = func(ctx context.Context, gitClient git.IClient, repoURL, w
 		_ = gitClient.ConfigAddGlobal("safe.directory", workspace)
 	}
 
-	// Handle GitHub Auth if token provided
-	githubKey := os.Getenv("GITHUB_API_KEY")
-	if githubKey != "" && strings.Contains(repoURL, "github.com") && !strings.Contains(repoURL, "@") {
-		authRepoURL = strings.Replace(repoURL, "https://github.com/", fmt.Sprintf("https://%s@github.com/", githubKey), 1)
-	}
+	if skipGit {
+		// Initialize local repo if not exists
+		if _, err := os.Stat(workspace); os.IsNotExist(err) {
+			if err := os.MkdirAll(workspace, 0755); err != nil {
+				return "", fmt.Errorf("failed to create workspace dir: %w", err)
+			}
+		}
 
-	// 2. Clone Repository (if not already present)
-	if !gitClient.RepoExists(workspace) {
-		fmt.Printf("[%s] Cloning repository into %s...\n", ticketID, workspace)
-		if err := gitClient.Clone(ctx, authRepoURL, workspace); err != nil {
-			return repoURL, fmt.Errorf("failed to clone repository: %w", err)
+		if !gitClient.RepoExists(workspace) {
+			if err := gitClient.Init(workspace); err != nil {
+				return "", fmt.Errorf("failed to git init: %w", err)
+			}
+			fmt.Printf("[%s] Initialized empty git repo in %s\n", ticketID, workspace)
 		}
 	} else {
-		fmt.Printf("[%s] Repository already exists in %s, skipping clone.\n", ticketID, workspace)
+		// Handle GitHub Auth if token provided
+		githubKey := os.Getenv("GITHUB_API_KEY")
+		if githubKey != "" && strings.Contains(repoURL, "github.com") && !strings.Contains(repoURL, "@") {
+			authRepoURL = strings.Replace(repoURL, "https://github.com/", fmt.Sprintf("https://%s@github.com/", githubKey), 1)
+		}
+
+		// 2. Clone Repository (if not already present)
+		if !gitClient.RepoExists(workspace) {
+			fmt.Printf("[%s] Cloning repository into %s...\n", ticketID, workspace)
+			if err := gitClient.Clone(ctx, authRepoURL, workspace); err != nil {
+				return repoURL, fmt.Errorf("failed to clone repository: %w", err)
+			}
+		} else {
+			fmt.Printf("[%s] Repository already exists in %s, skipping clone.\n", ticketID, workspace)
+		}
 	}
 
 	// Configure Git Identity for Agent
@@ -127,6 +150,16 @@ var SetupWorkspace = func(ctx context.Context, gitClient git.IClient, repoURL, w
 	}
 	if err := gitClient.Config(workspace, "user.name", "Recac Agent"); err != nil {
 		fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to set git name: %v\n", ticketID, err)
+	}
+
+	// If skipping git remote ops, return early after basic setup
+	if skipGit {
+		// Commit an initial file so the repo is valid for further ops?
+		// Usually MockAgent needs a valid HEAD to do things.
+		// Let's create an empty commit if no commits exist.
+		// Check by trying to get log? Or simply try commit.
+		// For now, let's assume agent will handle its own commits.
+		return "skip", nil
 	}
 
 	// Handle Epic Branching Strategy

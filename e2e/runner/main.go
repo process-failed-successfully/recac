@@ -467,6 +467,23 @@ func verifyScenario(scenarioName, repo string, ticketMap map[string]string) erro
 		return fmt.Errorf("unknown scenario: %s", scenarioName)
 	}
 
+	// If repo is "skip", we can't verify content by cloning.
+	if strings.ToLower(repo) == "skip" || strings.ToLower(repo) == "none" {
+		log.Println("Skipping repository verification (Repo: skip)")
+		// We might still want to run some verification if the scenario supports verifying without a repo
+		// For now, assume success for repo-based checks, but maybe check Jira status?
+		// The scenarios interface assumes a directory path.
+		// If the scenario requires file checks, we can't do it.
+		// If it just checks Jira, we could.
+		// For simplicity, we'll create an empty temp dir and let the scenario fail if it needs files.
+		tmpDir, err := os.MkdirTemp("", "e2e-check-skip")
+		if err != nil {
+			return err
+		}
+		defer os.RemoveAll(tmpDir)
+		return scenario.Verify(tmpDir, ticketMap)
+	}
+
 	// Clone to temp dir
 	tmpDir, err := os.MkdirTemp("", "e2e-check")
 	if err != nil {
@@ -541,6 +558,11 @@ func printKubeDebugInfo(ns string) {
 }
 
 func prepareRepo(repoURL string, ticketMap map[string]string) error {
+	if strings.ToLower(repoURL) == "skip" || strings.ToLower(repoURL) == "none" {
+		log.Println("Skipping repo preparation (Repo: skip)")
+		return nil
+	}
+
 	token := os.Getenv("GITHUB_API_KEY")
 	repoURL = strings.TrimSuffix(repoURL, "/")
 	authRepo := repoURL
