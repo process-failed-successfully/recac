@@ -35,7 +35,15 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// Smart Mock Logic for E2E Tests
 	lowerPrompt := strings.ToLower(prompt)
 
-	// 1. Prime Number Script Scenario
+	// 1. Ticket Generation (Planning Phase)
+	// Check for keywords indicating ticket creation request
+	if (strings.Contains(lowerPrompt, "create a single ticket") || strings.Contains(lowerPrompt, "json format")) &&
+		(strings.Contains(lowerPrompt, "primes.py") || strings.Contains(lowerPrompt, "prime number script")) {
+		return m.generateTicketPlanResponse(), nil
+	}
+
+	// 2. Implementation Phase (Coding)
+	// Check for implementation request
 	if strings.Contains(lowerPrompt, "primes.py") || strings.Contains(lowerPrompt, "prime number script") {
 		return m.generatePrimesScriptResponse(), nil
 	}
@@ -62,6 +70,17 @@ func truncateString(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen]
+}
+
+func (m *MockAgent) generateTicketPlanResponse() string {
+	return `[
+  {
+    "title": "Implement Prime Number Script",
+    "description": "Create a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to 'primes.json'.\n\nFeatures:\n- Calculate primes < 10,000\n- Output to primes.json in JSON format {\"primes\": [...]}\n- Commit both files",
+    "type": "Task",
+    "id": "PRIMES"
+  }
+]`
 }
 
 func (m *MockAgent) generatePrimesScriptResponse() string {
