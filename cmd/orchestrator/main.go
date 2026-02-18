@@ -36,9 +36,10 @@ func main() {
 	pflag.Bool("list-jobs", false, "List active jobs from a running orchestrator instance")
 	pflag.Bool("monitor", false, "Launch the TUI dashboard to monitor the orchestrator")
 	pflag.String("logs", "", "Get logs for a specific job ID from a running orchestrator instance")
+	pflag.String("inspect-job", "", "Inspect details of a specific job by ID")
 	pflag.String("cancel-job", "", "Cancel a running job by ID")
 	pflag.String("submit", "", "Submit a job from a JSON file path")
-	pflag.String("host", "http://localhost:2112", "Orchestrator host URL (for list-jobs, logs, cancel-job, and submit)")
+	pflag.String("host", "http://localhost:2112", "Orchestrator host URL (for list-jobs, logs, inspect-job, cancel-job, and submit)")
 
 	pflag.String("mode", "local", "Orchestrator mode: 'local' (Docker) or 'k8s' (Kubernetes Job)")
 	pflag.String("jira-label", "recac-agent", "Jira label to poll for")
@@ -46,7 +47,7 @@ func main() {
 	pflag.String("namespace", "default", "Kubernetes namespace (for k8s mode)")
 	pflag.Duration("interval", 1*time.Minute, "Polling interval")
 	pflag.String("agent-provider", "openrouter", "Provider for spawned agents")
-	pflag.String("agent-model", "openrouter/aurora-alpha", "Model for spawned agents")
+	pflag.String("agent-model", "google/gemini-2.0-flash-exp:free", "Model for spawned agents")
 	pflag.String("image-pull-policy", "Always", "Image pull policy for agents (Always, IfNotPresent, Never)")
 	pflag.Int("metrics-port", 2112, "Port to expose Prometheus metrics")
 
@@ -90,6 +91,7 @@ func main() {
 	viper.BindPFlag("orchestrator.list_jobs", pflag.Lookup("list-jobs"))
 	viper.BindPFlag("orchestrator.monitor", pflag.Lookup("monitor"))
 	viper.BindPFlag("orchestrator.logs", pflag.Lookup("logs"))
+	viper.BindPFlag("orchestrator.inspect_job", pflag.Lookup("inspect-job"))
 	viper.BindPFlag("orchestrator.cancel_job", pflag.Lookup("cancel-job"))
 	viper.BindPFlag("orchestrator.submit", pflag.Lookup("submit"))
 	viper.BindPFlag("orchestrator.host", pflag.Lookup("host"))
@@ -145,6 +147,12 @@ func main() {
 	if logID := viper.GetString("orchestrator.logs"); logID != "" {
 		host := viper.GetString("orchestrator.host")
 		getLogs(host, logID)
+		return
+	}
+
+	if inspectID := viper.GetString("orchestrator.inspect_job"); inspectID != "" {
+		host := viper.GetString("orchestrator.host")
+		inspectJob(host, inspectID)
 		return
 	}
 
@@ -319,6 +327,19 @@ func main() {
 			}
 			defer logStream.Close()
 			io.Copy(w, logStream)
+		})
+
+		mux.HandleFunc("GET /jobs/{id}", func(w http.ResponseWriter, r *http.Request) {
+			id := r.PathValue("id")
+			job, exists := orch.GetJob(id)
+			if !exists {
+				http.Error(w, "Job not found", http.StatusNotFound)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(job); err != nil {
+				logger.Error("Failed to encode job", "error", err)
+			}
 		})
 
 		mux.HandleFunc("DELETE /jobs/{id}", func(w http.ResponseWriter, r *http.Request) {
@@ -583,4 +604,69 @@ func submitJob(host, filePath string) {
 	}
 
 	fmt.Printf("%s\n", strings.TrimSpace(string(body)))
+}
+
+func inspectJob(host, jobID string) {
+	resp, err := http.Get(fmt.Sprintf("%s/jobs/%s", host, jobID))
+	if err != nil {
+		fmt.Printf("Failed to connect to orchestrator at %s: %v\n", host, err)
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Printf("Failed to fetch job details: %s\n", strings.TrimSpace(string(body)))
+		os.Exit(1)
+	}
+
+	var job orchestrator.JobInfo
+	if err := json.NewDecoder(resp.Body).Decode(&job); err != nil {
+		fmt.Printf("Failed to decode response: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Pretty print using lipgloss
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#FAFAFA")).
+		Background(lipgloss.Color("#7D56F4")).
+		Padding(0, 1).
+		MarginBottom(1)
+
+	labelStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("252")).
+		Bold(true).
+		Width(15)
+
+	valueStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("255"))
+
+	fmt.Println(titleStyle.Render(fmt.Sprintf("Job Inspection: %s", job.ID)))
+
+	printField := func(label, value string) {
+		fmt.Printf("%s %s\n", labelStyle.Render(label), valueStyle.Render(value))
+	}
+
+	printField("Status", job.Status)
+	printField("Summary", job.Summary)
+	printField("Start Time", job.StartTime.Format(time.RFC1123))
+	printField("Duration", time.Since(job.StartTime).Round(time.Second).String())
+
+	fmt.Println("")
+	fmt.Println(lipgloss.NewStyle().Foreground(lipgloss.Color("86")).Bold(true).Render("Work Item Details"))
+
+	printField("Repo URL", job.WorkItem.RepoURL)
+	if len(job.WorkItem.Description) > 0 {
+		fmt.Println(labelStyle.Render("Description"))
+		fmt.Println(job.WorkItem.Description)
+	}
+
+	if len(job.WorkItem.EnvVars) > 0 {
+		fmt.Println("")
+		fmt.Println(lipgloss.NewStyle().Foreground(lipgloss.Color("86")).Bold(true).Render("Environment Variables"))
+		for k, v := range job.WorkItem.EnvVars {
+			fmt.Printf("  %s=%s\n", k, v)
+		}
+	}
 }

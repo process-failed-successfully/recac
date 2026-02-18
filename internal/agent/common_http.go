@@ -78,12 +78,17 @@ func SendOnce(ctx context.Context, cfg HTTPClientConfig, prompt string) (string,
 		} `json:"choices"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return "", fmt.Errorf("failed to decode response: %w", err)
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if err := json.Unmarshal(bodyBytes, &response); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w (body: %s)", err, string(bodyBytes))
 	}
 
 	if len(response.Choices) == 0 {
-		return "", fmt.Errorf("no content in response")
+		return "", fmt.Errorf("no content in response (body: %s)", string(bodyBytes))
 	}
 
 	return response.Choices[0].Message.Content, nil

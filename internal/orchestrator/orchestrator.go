@@ -29,6 +29,7 @@ type JobInfo struct {
 	Summary   string    `json:"summary"`
 	StartTime time.Time `json:"start_time"`
 	Status    string    `json:"status"`
+	WorkItem  WorkItem  `json:"work_item,omitempty"`
 }
 
 type Status struct {
@@ -59,6 +60,15 @@ func (o *Orchestrator) GetActiveJobs() []JobInfo {
 		jobs = append(jobs, job)
 	}
 	return jobs
+}
+
+// GetJob returns a specific job by ID.
+func (o *Orchestrator) GetJob(id string) (JobInfo, bool) {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+
+	job, exists := o.activeJobs[id]
+	return job, exists
 }
 
 // CancelJob cancels a running job.
@@ -144,6 +154,7 @@ func (o *Orchestrator) SubmitJob(ctx context.Context, item WorkItem, logger *slo
 		Summary:   item.Summary,
 		StartTime: time.Now(),
 		Status:    "Spawning",
+		WorkItem:  item,
 	}
 	o.activeJobs[item.ID] = job
 	o.mu.Unlock()
@@ -226,6 +237,7 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 				Summary:   item.Summary,
 				StartTime: time.Now(),
 				Status:    "Spawning",
+				WorkItem:  item,
 			}
 			o.activeJobs[item.ID] = job
 			o.mu.Unlock()
