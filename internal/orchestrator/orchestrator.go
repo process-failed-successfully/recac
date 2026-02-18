@@ -32,6 +32,30 @@ func (o *Orchestrator) DryRun(ctx context.Context, logger *slog.Logger) ([]WorkI
 	return items, nil
 }
 
+// Verify checks the connectivity of the Poller and Spawner.
+func (o *Orchestrator) Verify(ctx context.Context, logger *slog.Logger) error {
+	logger.Info("Starting Verification Check")
+
+	// Check Poller
+	logger.Info("Checking Poller connectivity...")
+	if err := o.Poller.Ping(ctx); err != nil {
+		logger.Error("Poller check failed", "error", err)
+		return fmt.Errorf("poller check failed: %w", err)
+	}
+	logger.Info("Poller check passed")
+
+	// Check Spawner
+	logger.Info("Checking Spawner connectivity...")
+	if err := o.Spawner.Ping(ctx); err != nil {
+		logger.Error("Spawner check failed", "error", err)
+		return fmt.Errorf("spawner check failed: %w", err)
+	}
+	logger.Info("Spawner check passed")
+
+	logger.Info("Verification Successful: All systems go!")
+	return nil
+}
+
 // Run starts the orchestration loop
 func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 	logger.Info("Starting Orchestrator", "interval", o.PollInterval)

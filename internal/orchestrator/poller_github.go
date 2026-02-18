@@ -146,6 +146,27 @@ func (p *GitHubPoller) postComment(ctx context.Context, issueNum, body string) e
 	return nil
 }
 
+func (p *GitHubPoller) Ping(ctx context.Context) error {
+	// Verify repo existence and token validity
+	url := fmt.Sprintf("%s/repos/%s/%s", p.BaseURL, p.Owner, p.Repo)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return err
+	}
+	p.setHeaders(req)
+
+	resp, err := p.Client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to reach github: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("github ping failed: %d", resp.StatusCode)
+	}
+	return nil
+}
+
 func (p *GitHubPoller) closeIssue(ctx context.Context, issueNum string) error {
 	url := fmt.Sprintf("%s/repos/%s/%s/issues/%s", p.BaseURL, p.Owner, p.Repo, issueNum)
 

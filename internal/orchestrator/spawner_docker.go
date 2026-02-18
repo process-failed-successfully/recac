@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/kballard/go-shellquote"
 )
 
@@ -228,5 +229,15 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 func (s *DockerSpawner) Cleanup(ctx context.Context, item WorkItem) error {
 	// For now, we rely on the agent's own cleanup and don't manage the container lifecycle here.
 	// Future implementation could stop/remove the container.
+	return nil
+}
+
+func (s *DockerSpawner) Ping(ctx context.Context) error {
+	// Check Docker daemon connectivity
+	// We use ListContainers with Limit 1 as a lightweight ping
+	_, err := s.Client.ListContainers(ctx, container.ListOptions{Limit: 1})
+	if err != nil {
+		return fmt.Errorf("docker daemon unreachable: %w", err)
+	}
 	return nil
 }

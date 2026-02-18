@@ -23,12 +23,14 @@ type WorkItem struct {
 type Poller interface {
 	Poll(ctx context.Context, logger *slog.Logger) ([]WorkItem, error)
 	UpdateStatus(ctx context.Context, item WorkItem, status string, comment string) error
+	Ping(ctx context.Context) error
 }
 
 // Spawner defines the interface for spawning an agent to handle a work item.
 type Spawner interface {
 	Spawn(ctx context.Context, item WorkItem) error
 	Cleanup(ctx context.Context, item WorkItem) error
+	Ping(ctx context.Context) error
 }
 
 // JiraClient defines the interface for a Jira client, created for mocking purposes.

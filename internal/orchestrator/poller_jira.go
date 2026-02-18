@@ -136,6 +136,20 @@ func (p *JiraPoller) UpdateStatus(ctx context.Context, item WorkItem, status str
 	return nil
 }
 
+func (p *JiraPoller) Ping(ctx context.Context) error {
+	// Simple query to verify connectivity
+	jql := "created is not empty"
+	if p.JQL != "" {
+		jql = p.JQL
+	}
+	// We don't care about the results, just that the query succeeds
+	_, err := p.Client.SearchIssues(ctx, jql)
+	if err != nil {
+		return fmt.Errorf("jira connectivity check failed: %w", err)
+	}
+	return nil
+}
+
 func extractRepoURL(text string, repoRegex *regexp.Regexp) string {
 	if repoRegex == nil {
 		return ""

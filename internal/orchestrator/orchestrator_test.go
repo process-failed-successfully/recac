@@ -18,6 +18,7 @@ type mockPoller struct {
 	items          map[string]WorkItem
 	itemsMu        sync.Mutex
 	pollErr        error
+	pingErr        error
 	updateStatus   map[string]string
 	updateStatusMu sync.Mutex
 }
@@ -55,9 +56,14 @@ func (m *mockPoller) UpdateStatus(ctx context.Context, item WorkItem, status str
 	return nil
 }
 
+func (m *mockPoller) Ping(ctx context.Context) error {
+	return m.pingErr
+}
+
 type mockSpawner struct {
 	spawned  []WorkItem
 	spawnErr error
+	pingErr  error
 	mu       sync.Mutex
 }
 
@@ -70,6 +76,10 @@ func (m *mockSpawner) Spawn(ctx context.Context, item WorkItem) error {
 
 func (m *mockSpawner) Cleanup(ctx context.Context, item WorkItem) error {
 	return nil
+}
+
+func (m *mockSpawner) Ping(ctx context.Context) error {
+	return m.pingErr
 }
 
 // A silent logger for cleaner test output
