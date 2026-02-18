@@ -175,6 +175,8 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 
 		cmdStr := "cd /workspace"
 		cmdStr += " && " + strings.Join(envExports, " && ")
+		// Inject Git Config for GITHUB_TOKEN if present
+		cmdStr += " && if [ -n \"$GITHUB_TOKEN\" ]; then git config --global url.\"https://${GITHUB_TOKEN}:x-oauth-basic@github.com/\".insteadOf \"https://github.com/\"; fi"
 		cmdStr += " && " + shellquote.Join(agentCmd...) + " --allow-dirty"
 		cmdStr += " && echo 'Recac Finished'"
 
