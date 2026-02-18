@@ -365,14 +365,52 @@ jobs:
               }
 
               // 4. Merge the PR
-              await github.rest.pulls.merge({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: prNumber,
-                merge_method: 'squash'
-              });
-              console.log(`Successfully merged PR #${prNumber}`);
+              const MAX_RETRIES = 12; // 2 minutes (10s * 12)
+              const RETRY_DELAY = 10000; // 10 seconds
+
+              for (let i = 0; i < MAX_RETRIES; i++) {
+                try {
+                  await github.rest.pulls.merge({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    pull_number: prNumber,
+                    merge_method: 'squash'
+                  });
+                  console.log(`Successfully merged PR #${prNumber}`);
+                  return; // Success
+                } catch (mergeError) {
+                  // Only retry on specific errors related to status checks or mergeability
+                  const msg = mergeError.message.toLowerCase();
+                  if (msg.includes("required status check") || msg.includes("base branch was modified") || msg.includes("mergeable")) {
+                    console.log(`Attempt ${i + 1} to merge failed: ${mergeError.message}. Retrying in ${RETRY_DELAY/1000}s...`);
+
+                    if (i < MAX_RETRIES - 1) {
+                      await new Promise(r => setTimeout(r, RETRY_DELAY));
+                      continue;
+                    }
+                  }
+
+                  // For other errors or last attempt, throw
+                  throw mergeError;
+                }
+              }
             } catch (error) {
               console.error(`Failed to process PR #${prNumber}:`, error.message);
+
+              // List Checks for Debugging
+              try {
+                const { data: checks } = await github.rest.checks.listForRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: context.payload.pull_request.head.sha,
+                });
+                console.log("Current Checks Status:");
+                checks.check_runs.forEach(check => {
+                  console.log(`- ${check.name}: ${check.status} (${check.conclusion})`);
+                });
+              } catch (listError) {
+                console.log("Failed to list checks:", listError.message);
+              }
+
               core.setFailed(`Auto-merge failed: ${error.message}`);
             }
