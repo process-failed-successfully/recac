@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -130,23 +132,6 @@ func main() {
 	query := viper.GetString("orchestrator.jira_query")
 	logger.Info("Starting Orchestrator", "mode", mode, "label", label, "query", query, "interval", interval, "agent_provider", agentProvider)
 
-	// Start Metrics Server
-	metricsPort := viper.GetInt("orchestrator.metrics_port")
-	metricsServer, actualPort, err := telemetry.StartMetricsServer(metricsPort)
-	if err != nil {
-		logger.Error("Failed to start metrics server", "error", err)
-	} else {
-		logger.Info("Metrics server started", "port", actualPort)
-		go func() {
-			<-ctx.Done()
-			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			if err := metricsServer.Shutdown(shutdownCtx); err != nil {
-				logger.Error("Metrics server shutdown error", "error", err)
-			}
-		}()
-	}
-
 	// 1. Poller
 	var poller orchestrator.Poller
 	pollerType := viper.GetString("orchestrator.poller")
@@ -205,7 +190,7 @@ func main() {
 
 	// 2. Spawner
 	var spawner orchestrator.Spawner
-	// err is already declared
+	var err error
 	agentModel := viper.GetString("orchestrator.agent_model")
 	var janitorClient orchestrator.DockerClient
 
@@ -257,6 +242,33 @@ func main() {
 
 	// 4. Orchestrator
 	orch := orchestrator.New(poller, spawner, interval)
+
+	// Start Metrics Server
+	metricsPort := viper.GetInt("orchestrator.metrics_port")
+	statusHandler := func(mux *http.ServeMux) {
+		mux.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
+			status := orch.GetStatus()
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(status); err != nil {
+				logger.Error("Failed to encode status", "error", err)
+			}
+		})
+	}
+
+	metricsServer, actualPort, err := telemetry.StartMetricsServer(metricsPort, statusHandler)
+	if err != nil {
+		logger.Error("Failed to start metrics server", "error", err)
+	} else {
+		logger.Info("Metrics server started", "port", actualPort)
+		go func() {
+			<-ctx.Done()
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := metricsServer.Shutdown(shutdownCtx); err != nil {
+				logger.Error("Metrics server shutdown error", "error", err)
+			}
+		}()
+	}
 
 	if viper.GetBool("orchestrator.verify") {
 		if err := orch.Verify(ctx, logger); err != nil {
