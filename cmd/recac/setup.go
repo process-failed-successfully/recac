@@ -2,210 +2,58 @@ package main
 
 import (
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-// Wrapper for survey functions to allow mocking in tests
 var (
-	askOneFunc = survey.AskOne
+	setupProvider string
+	setupModel    string
+	setupAPIKey   string
+	setupJiraURL  string
+	setupJiraUser string
+	setupJiraToken string
+	setupJiraLabel string
 )
-
-// Wrapper for calling doctor command to allow mocking in tests
-var runDoctorFunc = func(cmd *cobra.Command, args []string) {
-	// Safely execute the doctor command logic
-	if doctorCmd.Run != nil {
-		doctorCmd.Run(cmd, args)
-	} else if doctorCmd.RunE != nil {
-		if err := doctorCmd.RunE(cmd, args); err != nil {
-			fmt.Printf("Error running doctor: %v\n", err)
-		}
-	} else {
-		fmt.Println("Error: doctor command has no Run or RunE defined")
-	}
-}
 
 // setupCmd represents the setup command
 var setupCmd = &cobra.Command{
 	Use:   "setup",
-	Short: "Interactively set up RECAC configuration",
-	Long:  `Runs an interactive wizard to configure RECAC settings, including provider, model, API keys, and Jira integration.`,
+	Short: "Set up RECAC configuration",
+	Long:  `Configure RECAC settings, including provider, model, API keys, and Jira integration.`,
 	RunE:  runSetup,
 }
 
 func init() {
 	rootCmd.AddCommand(setupCmd)
+	setupCmd.Flags().StringVar(&setupProvider, "provider", "", "AI Provider (gemini, openai, etc.)")
+	setupCmd.Flags().StringVar(&setupModel, "model", "", "Model name")
+	setupCmd.Flags().StringVar(&setupAPIKey, "api-key", "", "API Key for the provider")
+	setupCmd.Flags().StringVar(&setupJiraURL, "jira-url", "", "Jira URL")
+	setupCmd.Flags().StringVar(&setupJiraUser, "jira-user", "", "Jira Email/Username")
+	setupCmd.Flags().StringVar(&setupJiraToken, "jira-token", "", "Jira API Token")
+	setupCmd.Flags().StringVar(&setupJiraLabel, "jira-label", "recac-agent", "Jira Label for agents to watch")
 }
 
 func runSetup(cmd *cobra.Command, args []string) error {
-	fmt.Println("Welcome to RECAC Setup!")
-	fmt.Println("-----------------------")
-
-	answers := struct {
-		Provider      string
-		Model         string
-		ApiKey        string
-		SaveToEnv     bool
-		JiraUrl       string
-		JiraEmail     string
-		JiraToken     string
-		SaveJiraToEnv bool
-		JiraLabel     string
-		EnableSlack   bool
-		SlackChannel  string
-		SlackToken    string
-	}{}
-
-	// 1. Select Provider
-	err := askOneFunc(&survey.Select{
-		Message: "Choose your AI Provider:",
-		Options: []string{"gemini", "openai", "anthropic", "openrouter", "ollama"},
-		Default: "gemini",
-	}, &answers.Provider)
-	if err != nil {
-		return err
+	if setupProvider == "" {
+		return fmt.Errorf("--provider is required")
 	}
-
-	// 2. Select Model (Default changes based on provider)
-	defaultModel := "gemini-1.5-pro"
-	switch answers.Provider {
-	case "openai":
-		defaultModel = "gpt-4-turbo"
-	case "anthropic":
-		defaultModel = "claude-3-opus"
-	case "ollama":
-		defaultModel = "llama3"
-	}
-
-	err = askOneFunc(&survey.Input{
-		Message: "Enter the Model name:",
-		Default: defaultModel,
-	}, &answers.Model)
-	if err != nil {
-		return err
-	}
-
-	// 3. API Key
-	err = askOneFunc(&survey.Password{
-		Message: "Enter your API Key (leave empty to skip):",
-	}, &answers.ApiKey)
-	if err != nil {
-		return err
-	}
-
-	if answers.ApiKey != "" {
-		err = askOneFunc(&survey.Confirm{
-			Message: "Do you want to save the API Key to a local .env file?",
-			Default: true,
-		}, &answers.SaveToEnv)
-		if err != nil {
-			return err
-		}
-	}
-
-	// 4. Jira Configuration
-	err = askOneFunc(&survey.Input{
-		Message: "Enter your Jira URL (e.g., https://your-domain.atlassian.net):",
-	}, &answers.JiraUrl, survey.WithValidator(func(ans interface{}) error {
-		str, ok := ans.(string)
-		if !ok || str == "" {
-			return nil // Optional
-		}
-		u, err := url.ParseRequestURI(str)
-		if err != nil || u.Scheme == "" || u.Host == "" {
-			return fmt.Errorf("invalid URL")
-		}
-		return nil
-	}))
-	if err != nil {
-		return err
-	}
-
-	if answers.JiraUrl != "" {
-		err = askOneFunc(&survey.Input{
-			Message: "Enter your Jira Email/Username:",
-		}, &answers.JiraEmail)
-		if err != nil {
-			return err
-		}
-
-		err = askOneFunc(&survey.Password{
-			Message: "Enter your Jira API Token:",
-		}, &answers.JiraToken)
-		if err != nil {
-			return err
-		}
-
-		if answers.JiraToken != "" {
-			err = askOneFunc(&survey.Confirm{
-				Message: "Do you want to save the Jira Token to a local .env file?",
-				Default: true,
-			}, &answers.SaveJiraToEnv)
-			if err != nil {
-				return err
-			}
-		}
-
-		err = askOneFunc(&survey.Input{
-			Message: "Enter the Jira Label for agents to watch:",
-			Default: "recac-agent",
-		}, &answers.JiraLabel)
-		if err != nil {
-			return err
-		}
-	}
-
-	// 5. Notifications
-	err = askOneFunc(&survey.Confirm{
-		Message: "Enable Slack notifications?",
-		Default: false,
-	}, &answers.EnableSlack)
-	if err != nil {
-		return err
-	}
-
-	if answers.EnableSlack {
-		err = askOneFunc(&survey.Input{
-			Message: "Slack Channel:",
-			Default: "#general",
-		}, &answers.SlackChannel)
-		if err != nil {
-			return err
-		}
-		err = askOneFunc(&survey.Password{
-			Message: "Slack Bot Token:",
-		}, &answers.SlackToken)
-		if err != nil {
-			return err
-		}
-	}
-
-	// --- Saving Configuration ---
 
 	// Update Viper settings
-	viper.Set("provider", answers.Provider)
-	viper.Set("model", answers.Model)
-
-	if answers.JiraUrl != "" {
-		viper.Set("jira.url", answers.JiraUrl)
-		viper.Set("jira.username", answers.JiraEmail)
-		viper.Set("orchestrator.jira_label", answers.JiraLabel)
-		// If not saving to env, save to config (unencrypted) if desired?
-		// For simplicity, if not env, we save to config to ensure functionality.
-		if !answers.SaveJiraToEnv && answers.JiraToken != "" {
-			viper.Set("jira.api_token", answers.JiraToken)
-		}
+	viper.Set("provider", setupProvider)
+	if setupModel != "" {
+		viper.Set("model", setupModel)
 	}
 
-	if answers.EnableSlack {
-		viper.Set("notifications.slack.enabled", true)
-		viper.Set("notifications.slack.channel", answers.SlackChannel)
+	if setupJiraURL != "" {
+		viper.Set("jira.url", setupJiraURL)
+		viper.Set("jira.username", setupJiraUser)
+		viper.Set("orchestrator.jira_label", setupJiraLabel)
 	}
 
 	// Determine Config File Path
@@ -213,7 +61,6 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	if configFile == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			// Fallback to current directory if home fails
 			configFile = "config.yaml"
 		} else {
 			configFile = filepath.Join(home, ".recac.yaml")
@@ -221,22 +68,24 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	}
 
 	if err := viper.WriteConfigAs(configFile); err != nil {
-		fmt.Printf("Warning: Could not write %s: %v\n", configFile, err)
-	} else {
-		fmt.Printf("Configuration saved to %s\n", configFile)
+		// If file doesn't exist, WriteConfigAs fails. Try SafeWriteConfigAs?
+		// Actually WriteConfigAs might fail if dir doesn't exist.
+		os.MkdirAll(filepath.Dir(configFile), 0755)
+		if err := viper.WriteConfigAs(configFile); err != nil {
+			// Try creating the file first if it doesn't exist
+			if err := viper.SafeWriteConfigAs(configFile); err != nil {
+				fmt.Printf("Warning: Could not write %s: %v\n", configFile, err)
+			}
+		}
 	}
+	fmt.Printf("Configuration saved to %s\n", configFile)
 
 	// Write to .env
 	var linesToAppend []string
 
-	// Helper to append env var
-	appendEnv := func(key, value string) {
-		linesToAppend = append(linesToAppend, fmt.Sprintf("%s=%s", key, value))
-	}
-
-	if answers.SaveToEnv && answers.ApiKey != "" {
+	if setupAPIKey != "" {
 		envKey := ""
-		switch answers.Provider {
+		switch setupProvider {
 		case "gemini":
 			envKey = "GEMINI_API_KEY"
 		case "openai":
@@ -244,69 +93,28 @@ func runSetup(cmd *cobra.Command, args []string) error {
 		case "anthropic":
 			envKey = "ANTHROPIC_API_KEY"
 		default:
-			envKey = fmt.Sprintf("%s_API_KEY", strings.ToUpper(answers.Provider))
+			envKey = fmt.Sprintf("%s_API_KEY", strings.ToUpper(setupProvider))
 		}
-		appendEnv(envKey, answers.ApiKey)
+		linesToAppend = append(linesToAppend, fmt.Sprintf("%s=%s", envKey, setupAPIKey))
 	}
 
-	if answers.SaveJiraToEnv && answers.JiraToken != "" {
-		appendEnv("JIRA_API_TOKEN", answers.JiraToken)
-	}
-
-	if answers.EnableSlack && answers.SlackToken != "" {
-		appendEnv("SLACK_BOT_USER_TOKEN", answers.SlackToken)
+	if setupJiraToken != "" {
+		linesToAppend = append(linesToAppend, fmt.Sprintf("JIRA_API_TOKEN=%s", setupJiraToken))
 	}
 
 	if len(linesToAppend) > 0 {
-		// Read existing .env to check for duplicates
-		existingEnv, _ := os.ReadFile(".env")
-		existingEnvStr := string(existingEnv)
-
 		f, err := os.OpenFile(".env", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 		if err != nil {
 			fmt.Printf("Error opening .env: %v\n", err)
 		} else {
 			defer f.Close()
-			contentToAppend := ""
-			if len(existingEnv) > 0 && !strings.HasSuffix(existingEnvStr, "\n") {
-				contentToAppend = "\n"
-			}
-
 			for _, line := range linesToAppend {
-				parts := strings.SplitN(line, "=", 2)
-				key := parts[0]
-				if !strings.Contains(existingEnvStr, key+"=") {
-					contentToAppend += line + "\n"
-				} else {
-					fmt.Printf("Note: %s already exists in .env, skipping.\n", key)
-				}
+				f.WriteString(line + "\n")
 			}
-
-			if contentToAppend != "" {
-				if _, err := f.WriteString(contentToAppend); err != nil {
-					fmt.Printf("Error writing to .env: %v\n", err)
-				} else {
-					fmt.Println("Secrets saved to .env")
-				}
-			}
+			fmt.Println("Secrets saved to .env")
 		}
 	}
 
-	// Run Doctor
-	runDoctor := false
-	err = askOneFunc(&survey.Confirm{
-		Message: "Run system check (recac doctor) now?",
-		Default: true,
-	}, &runDoctor)
-	if err != nil {
-		return err
-	}
-
-	if runDoctor {
-		fmt.Println("\nRunning Doctor...")
-		runDoctorFunc(cmd, args)
-	}
-
-	fmt.Println("\nSetup complete! You are ready to code.")
+	fmt.Println("Setup complete!")
 	return nil
 }

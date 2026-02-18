@@ -11,7 +11,6 @@ import (
 
 	"recac/internal/utils"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -36,7 +35,7 @@ func init() {
 	rootCmd.AddCommand(i18nCmd)
 	i18nCmd.Flags().StringVarP(&i18nSource, "source", "s", "", "Source language file (e.g. en.json)")
 	i18nCmd.Flags().BoolVar(&i18nVerify, "verify", false, "Only verify missing keys, do not translate (exit code 1 if missing)")
-	i18nCmd.Flags().BoolVarP(&i18nAuto, "yes", "y", false, "Automatically accept translations without prompt")
+	i18nCmd.Flags().BoolVarP(&i18nAuto, "yes", "y", true, "Automatically accept translations (now default)")
 }
 
 func runI18n(cmd *cobra.Command, args []string) error {
@@ -51,8 +50,7 @@ func runI18n(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to scan directory: %w", err)
 	}
 
-	// Filter out non-translation files (heuristic?)
-	// For now, assume user points to a clean locales dir, or we filter by simple name structure.
+	// Filter out non-translation files
 	var locFiles []string
 	for _, f := range files {
 		base := filepath.Base(f)
@@ -82,7 +80,7 @@ func runI18n(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("source file %s not found in scanned files", i18nSource)
 		}
 	} else {
-		// Default to en.json or ask
+		// Default to en.json
 		for _, f := range locFiles {
 			if filepath.Base(f) == "en.json" {
 				sourceFile = f
@@ -90,20 +88,7 @@ func runI18n(cmd *cobra.Command, args []string) error {
 			}
 		}
 		if sourceFile == "" {
-			// Ask user
-			options := make([]string, len(locFiles))
-			for i, f := range locFiles {
-				options[i] = filepath.Base(f)
-			}
-			var selection string
-			err := askOneFunc(&survey.Select{
-				Message: "Select source language file:",
-				Options: options,
-			}, &selection)
-			if err != nil {
-				return err
-			}
-			sourceFile = filepath.Join(dir, selection)
+			return fmt.Errorf("could not determine source file (en.json not found). Use --source to specify one")
 		}
 	}
 
@@ -173,22 +158,6 @@ func runI18n(cmd *cobra.Command, args []string) error {
 		// We unflatten the new keys into a map, then deep merge.
 		newlyTranslatedMap := unflattenJSONMap(translated)
 		finalMap := deepMerge(targetMap, newlyTranslatedMap)
-
-		// Write
-		if !i18nAuto {
-			var confirm bool
-			err := askOneFunc(&survey.Confirm{
-				Message: fmt.Sprintf("Write %d new translations to %s?", len(translated), filepath.Base(targetFile)),
-				Default: true,
-			}, &confirm)
-			if err != nil {
-				return err
-			}
-			if !confirm {
-				fmt.Fprintln(cmd.OutOrStdout(), "  Skipped.")
-				continue
-			}
-		}
 
 		if err := writeJSON(targetFile, finalMap); err != nil {
 			return fmt.Errorf("failed to write %s: %w", targetFile, err)

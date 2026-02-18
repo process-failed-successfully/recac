@@ -20,9 +20,7 @@ import (
 	"recac/internal/jira"
 	"recac/internal/runner"
 	"recac/internal/telemetry"
-	"recac/internal/ui"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -366,33 +364,8 @@ var startCmd = &cobra.Command{
 
 		// Local Path Workflow
 		if cfg.ProjectPath == "" {
-			p := tea.NewProgram(ui.NewWizardModel())
-			m, err := p.Run()
-			if err != nil {
-				fmt.Printf("Wizard error: %v", err)
-				exit(1)
-			}
-
-			wizardModel, ok := m.(ui.WizardModel)
-			if !ok {
-				fmt.Println("Could not retrieve wizard data")
-				exit(1)
-			}
-			cfg.ProjectPath = wizardModel.Path
-			if cfg.ProjectPath == "" {
-				fmt.Println("No project path selected. Exiting.")
-				return
-			}
-
-			if wizardModel.Provider != "" {
-				viper.Set("provider", wizardModel.Provider)
-			}
-			if wizardModel.MaxAgents > 0 {
-				cfg.MaxAgents = wizardModel.MaxAgents
-			}
-			if wizardModel.TaskMaxIterations > 0 {
-				cfg.TaskMaxIterations = wizardModel.TaskMaxIterations
-			}
+			fmt.Fprintln(os.Stderr, "Error: Project path (--path) is required for local sessions.")
+			exit(1)
 		} else {
 			fmt.Printf("Using project path: %s\n", cfg.ProjectPath)
 		}

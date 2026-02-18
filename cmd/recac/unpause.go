@@ -25,13 +25,9 @@ var unpauseCmd = &cobra.Command{
 		}
 
 		if len(args) == 0 {
-			sessionName, err = interactiveSessionSelect(sm, "paused", "Choose a session to unpause:")
-			if err != nil {
-				return err
-			}
-		} else {
-			sessionName = args[0]
+			return fmt.Errorf("session name is required")
 		}
+		sessionName = args[0]
 
 		if err := sm.ResumeSession(sessionName); err != nil {
 			return err

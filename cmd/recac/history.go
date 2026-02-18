@@ -2,91 +2,31 @@ package main
 
 import (
 	"fmt"
-	"recac/internal/runner"
-	"sort"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/spf13/cobra"
 )
-
-var askOne = survey.AskOne
 
 // initHistoryCmd initializes the history command and adds it to the root command.
 func initHistoryCmd(rootCmd *cobra.Command) {
 	var fullLogs bool
 	historyCmd := &cobra.Command{
 		Use:   "history [session-name]",
-		Short: "Show history of a specific session or a list of all sessions",
-		Long: `Displays detailed history for a specific RECAC session.
-If no session name is provided, it lists all sessions and prompts for a selection.`,
+		Short: "Show history of a specific session",
+		Long:  `Displays detailed history for a specific RECAC session.`,
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			sm, err := sessionManagerFactory()
 			if err != nil {
 				return fmt.Errorf("failed to initialize session manager: %w", err)
 			}
-			if len(args) > 0 {
-				sessionName := args[0]
-				session, err := sm.LoadSession(sessionName)
-				if err != nil {
-					return fmt.Errorf("failed to load session '%s': %w", sessionName, err)
-				}
-				return DisplaySessionDetail(cmd, session, fullLogs)
+			sessionName := args[0]
+			session, err := sm.LoadSession(sessionName)
+			if err != nil {
+				return fmt.Errorf("failed to load session '%s': %w", sessionName, err)
 			}
-			return runInteractiveHistory(cmd, sm, fullLogs)
+			return DisplaySessionDetail(cmd, session, fullLogs)
 		},
 	}
 	historyCmd.Flags().BoolVar(&fullLogs, "full-logs", false, "Display full log file content")
 	rootCmd.AddCommand(historyCmd)
-}
-
-// runInteractiveHistory handles the interactive session selection.
-func runInteractiveHistory(cmd *cobra.Command, sm ISessionManager, fullLogs bool) error {
-	sessions, err := sm.ListSessions()
-	if err != nil {
-		return fmt.Errorf("failed to list sessions: %w", err)
-	}
-	if len(sessions) == 0 {
-		cmd.Println("No sessions found.")
-		return nil
-	}
-	sort.Slice(sessions, func(i, j int) bool {
-		return sessions[i].StartTime.After(sessions[j].StartTime)
-	})
-	var displaySessions []string
-	sessionMap := make(map[string]*runner.SessionState)
-	for _, s := range sessions {
-		status := s.Status
-		if s.Status == "running" && !sm.IsProcessRunning(s.PID) {
-			status = "completed"
-		}
-		display := fmt.Sprintf("%-30s (%-10s | %s)", s.Name, status, s.StartTime.Format("2006-01-02 15:04"))
-		displaySessions = append(displaySessions, display)
-		sessionMap[display] = s
-	}
-	var selectedDisplays []string
-	prompt := &survey.MultiSelect{
-		Message:  "Select one session to view details, or two to compare:",
-		Options:  displaySessions,
-		PageSize: 15,
-	}
-	if err := askOne(prompt, &selectedDisplays); err != nil {
-		if err.Error() == "interrupt" {
-			return nil // User cancelled
-		}
-		return fmt.Errorf("failed to select session(s): %w", err)
-	}
-	switch len(selectedDisplays) {
-	case 0:
-		cmd.Println("No sessions selected.")
-		return nil
-	case 1:
-		selectedSession := sessionMap[selectedDisplays[0]]
-		return DisplaySessionDetail(cmd, selectedSession, fullLogs)
-	case 2:
-		sessionA := sessionMap[selectedDisplays[0]]
-		sessionB := sessionMap[selectedDisplays[1]]
-		return DisplaySessionDiff(cmd, sessionA, sessionB)
-	default:
-		return fmt.Errorf("please select either one session to view or two sessions to compare")
-	}
 }

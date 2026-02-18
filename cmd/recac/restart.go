@@ -23,13 +23,9 @@ var restartCmd = &cobra.Command{
 
 		var sessionName string
 		if len(args) == 0 {
-			sessionName, err = interactiveSelectRestartableSession(sm, "Choose a session to restart:")
-			if err != nil {
-				return err
-			}
-		} else {
-			sessionName = args[0]
+			return fmt.Errorf("session name is required")
 		}
+		sessionName = args[0]
 
 		// Load the session to get its details
 		session, err := sm.LoadSession(sessionName)

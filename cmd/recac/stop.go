@@ -27,13 +27,9 @@ var stopCmd = &cobra.Command{
 		}
 
 		if len(args) == 0 {
-			sessionName, err = interactiveSessionSelect(sm, "running", "Choose a session to stop:")
-			if err != nil {
-				return err
-			}
-		} else {
-			sessionName = args[0]
+			return fmt.Errorf("session name is required")
 		}
+		sessionName = args[0]
 
 		if err := sm.StopSession(sessionName); err != nil {
 			// If session not found locally, try K8s

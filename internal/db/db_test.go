@@ -454,9 +454,9 @@ func runStoreTests(t *testing.T, dbType string) {
 		// and an old observation to test the cleanup logic.
 		switch s := store.(type) {
 		case *SQLiteStore:
-			s.db.Exec(`INSERT INTO file_locks (project_id, path, agent_id, expires_at) VALUES (?, ?, ?, ?)`, projectID, "/expired", agentID, time.Now().Add(-2*time.Minute))
-			s.db.Exec(`INSERT INTO signals (project_id, key, value, created_at) VALUES (?, ?, ?, ?)`, projectID, "COMPLETED", "true", time.Now().Add(-25*time.Hour))
-			s.db.Exec(`INSERT INTO signals (project_id, key, value, created_at) VALUES (?, ?, ?, ?)`, projectID, "old-signal", "value", time.Now().Add(-25*time.Hour))
+			s.db.Exec(`INSERT INTO file_locks (project_id, path, agent_id, expires_at) VALUES (?, ?, ?, ?)`, projectID, "/expired", agentID, time.Now().UTC().Add(-2*time.Minute))
+			s.db.Exec(`INSERT INTO signals (project_id, key, value, created_at) VALUES (?, ?, ?, ?)`, projectID, "COMPLETED", "true", time.Now().UTC().Add(-25*time.Hour))
+			s.db.Exec(`INSERT INTO signals (project_id, key, value, created_at) VALUES (?, ?, ?, ?)`, projectID, "old-signal", "value", time.Now().UTC().Add(-25*time.Hour))
 			// For observations, we can't easily fake the timestamp, but we can trust the query logic.
 		case *PostgresStore:
 			s.db.Exec(`INSERT INTO file_locks (project_id, path, agent_id, expires_at) VALUES ($1, $2, $3, NOW() - INTERVAL '2 minute')`, projectID, "/expired", agentID)

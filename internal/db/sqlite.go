@@ -101,7 +101,7 @@ func (s *SQLiteStore) Close() error {
 // SaveObservation saves a new observation
 func (s *SQLiteStore) SaveObservation(projectID, agentID, content string) error {
 	query := `INSERT INTO observations (project_id, agent_id, content, created_at) VALUES (?, ?, ?, ?)`
-	_, err := s.db.Exec(query, projectID, agentID, content, time.Now())
+	_, err := s.db.Exec(query, projectID, agentID, content, time.Now().UTC())
 	return err
 }
 
@@ -128,7 +128,7 @@ func (s *SQLiteStore) QueryHistory(projectID string, limit int) ([]Observation, 
 // SetSignal sets a signal key-value pair
 func (s *SQLiteStore) SetSignal(projectID, key, value string) error {
 	query := `INSERT OR REPLACE INTO signals (project_id, key, value, created_at) VALUES (?, ?, ?, ?)`
-	_, err := s.db.Exec(query, projectID, key, value, time.Now())
+	_, err := s.db.Exec(query, projectID, key, value, time.Now().UTC())
 	return err
 }
 
@@ -154,7 +154,7 @@ func (s *SQLiteStore) DeleteSignal(projectID, key string) error {
 // SaveFeatures saves the feature list JSON blob
 func (s *SQLiteStore) SaveFeatures(projectID string, features string) error {
 	query := `INSERT OR REPLACE INTO project_features (project_id, content, updated_at) VALUES (?, ?, ?)`
-	_, err := s.db.Exec(query, projectID, features, time.Now())
+	_, err := s.db.Exec(query, projectID, features, time.Now().UTC())
 	return err
 }
 
@@ -174,7 +174,7 @@ func (s *SQLiteStore) GetFeatures(projectID string) (string, error) {
 // SaveSpec saves the application specification content
 func (s *SQLiteStore) SaveSpec(projectID string, spec string) error {
 	query := `INSERT OR REPLACE INTO project_specs (project_id, content, updated_at) VALUES (?, ?, ?)`
-	_, err := s.db.Exec(query, projectID, spec, time.Now())
+	_, err := s.db.Exec(query, projectID, spec, time.Now().UTC())
 	return err
 }
 
@@ -233,7 +233,7 @@ func (s *SQLiteStore) UpdateFeatureStatus(projectID string, id string, status st
 
 // AcquireLock attempts to acquire a lock on a path. It polls until timeout.
 func (s *SQLiteStore) AcquireLock(projectID, path, agentID string, timeout time.Duration) (bool, error) {
-	start := time.Now()
+	start := time.Now().UTC()
 	for {
 		// 1. Check if lock exists and is valid
 		var currentAgent string
@@ -243,24 +243,24 @@ func (s *SQLiteStore) AcquireLock(projectID, path, agentID string, timeout time.
 		if err == sql.ErrNoRows {
 			// No lock, try to acquire
 			_, err = s.db.Exec(`INSERT INTO file_locks (project_id, path, agent_id, expires_at) VALUES (?, ?, ?, ?)`,
-				projectID, path, agentID, time.Now().Add(10*time.Minute))
+				projectID, path, agentID, time.Now().UTC().Add(10*time.Minute))
 			if err == nil {
 				return true, nil
 			}
 			// If insertion failed, someone might have just taken it, retry
 		} else if err == nil {
 			// Lock exists
-			if time.Now().After(expiresAt) {
+			if time.Now().UTC().After(expiresAt) {
 				// Lock expired, "highjack" it
 				_, err = s.db.Exec(`UPDATE file_locks SET agent_id = ?, expires_at = ?, created_at = CURRENT_TIMESTAMP WHERE project_id = ? AND path = ?`,
-					agentID, time.Now().Add(10*time.Minute), projectID, path)
+					agentID, time.Now().UTC().Add(10*time.Minute), projectID, path)
 				if err == nil {
 					return true, nil
 				}
 			} else if currentAgent == agentID {
 				// Already held by us, renew
 				_, err = s.db.Exec(`UPDATE file_locks SET expires_at = ? WHERE project_id = ? AND path = ?`,
-					time.Now().Add(10*time.Minute), projectID, path)
+					time.Now().UTC().Add(10*time.Minute), projectID, path)
 				return err == nil, err
 			}
 		} else {
@@ -321,7 +321,7 @@ func (s *SQLiteStore) Cleanup() error {
 
 // GetActiveLocks returns all current (not expired) locks.
 func (s *SQLiteStore) GetActiveLocks(projectID string) ([]Lock, error) {
-	rows, err := s.db.Query(`SELECT path, agent_id, expires_at FROM file_locks WHERE expires_at > ? AND project_id = ?`, time.Now(), projectID)
+	rows, err := s.db.Query(`SELECT path, agent_id, expires_at FROM file_locks WHERE expires_at > ? AND project_id = ?`, time.Now().UTC(), projectID)
 	if err != nil {
 		return nil, err
 	}

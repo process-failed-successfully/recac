@@ -5,13 +5,15 @@ import (
 	"recac/internal/agent"
 	"strings"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/spf13/cobra"
 )
 
-// Wrapper for survey.Ask to allow mocking if needed
-var surveyAsk = survey.Ask
-var surveyAskOneFunc = survey.AskOne
+var (
+	personaID           string
+	personaName         string
+	personaDesc         string
+	personaSystemPrompt string
+)
 
 var personaCmd = &cobra.Command{
 	Use:   "persona",
@@ -73,74 +75,21 @@ var personaAddCmd = &cobra.Command{
 	Use:   "add",
 	Short: "Add a new custom persona",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		var qs = []*survey.Question{
-			{
-				Name: "id",
-				Prompt: &survey.Input{
-					Message: "ID (short, lowercase, no spaces):",
-				},
-				Validate: survey.Required,
-			},
-			{
-				Name: "name",
-				Prompt: &survey.Input{
-					Message: "Display Name:",
-				},
-				Validate: survey.Required,
-			},
-			{
-				Name: "description",
-				Prompt: &survey.Input{
-					Message: "Description:",
-				},
-				Validate: survey.Required,
-			},
-			{
-				Name: "system_prompt",
-				Prompt: &survey.Multiline{
-					Message: "System Prompt:",
-				},
-				Validate: survey.Required,
-			},
+		if personaID == "" || personaName == "" || personaSystemPrompt == "" {
+			return fmt.Errorf("id, name, and system-prompt are required")
 		}
 
-		answers := struct {
-			ID           string `survey:"id"`
-			Name         string `survey:"name"`
-			Description  string `survey:"description"`
-			SystemPrompt string `survey:"system_prompt"`
-		}{}
-
-		if err := surveyAsk(qs, &answers); err != nil {
-			return err
-		}
-
-		id := strings.ToLower(strings.TrimSpace(answers.ID))
+		id := strings.ToLower(strings.TrimSpace(personaID))
 
 		pm := agent.NewPersonaManager()
 		if err := pm.LoadPersonas(); err != nil {
 			return err
 		}
 
-		if _, ok := pm.GetPersona(id); ok {
-			// Ask to overwrite?
-			var overwrite bool
-			prompt := &survey.Confirm{
-				Message: fmt.Sprintf("Persona '%s' already exists. Overwrite?", id),
-			}
-			if err := surveyAskOneFunc(prompt, &overwrite); err != nil {
-				return err
-			}
-			if !overwrite {
-				fmt.Fprintln(cmd.OutOrStdout(), "Aborted.")
-				return nil
-			}
-		}
-
 		pm.AddPersona(id, agent.Persona{
-			Name:         answers.Name,
-			Description:  answers.Description,
-			SystemPrompt: answers.SystemPrompt,
+			Name:         personaName,
+			Description:  personaDesc,
+			SystemPrompt: personaSystemPrompt,
 		})
 
 		if err := pm.SavePersonas(); err != nil {
@@ -183,4 +132,9 @@ func init() {
 	personaCmd.AddCommand(personaShowCmd)
 	personaCmd.AddCommand(personaAddCmd)
 	personaCmd.AddCommand(personaRemoveCmd)
+
+	personaAddCmd.Flags().StringVar(&personaID, "id", "", "Short ID for the persona")
+	personaAddCmd.Flags().StringVar(&personaName, "name", "", "Display name for the persona")
+	personaAddCmd.Flags().StringVar(&personaDesc, "desc", "", "Description for the persona")
+	personaAddCmd.Flags().StringVar(&personaSystemPrompt, "system-prompt", "", "System prompt for the persona")
 }

@@ -11,29 +11,27 @@ import (
 
 	"recac/internal/utils"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 var (
-	typoFix   bool
-	typoLimit int
+	typoAutoFix bool
+	typoLimit   int
 )
 
 var typoCmd = &cobra.Command{
 	Use:   "typo [path]",
 	Short: "Check for typos in comments and strings using AI",
 	Long: `Scans the codebase for potential typos in comments and string literals.
-Uses the configured AI agent to verify typos and suggest corrections.
-Can interactively fix them.`,
+Uses the configured AI agent to verify typos and suggest corrections.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runTypo,
 }
 
 func init() {
 	rootCmd.AddCommand(typoCmd)
-	typoCmd.Flags().BoolVarP(&typoFix, "fix", "f", false, "Interactively fix typos")
+	typoCmd.Flags().BoolVarP(&typoAutoFix, "auto-fix", "f", false, "Automatically fix typos without confirmation")
 	typoCmd.Flags().IntVarP(&typoLimit, "limit", "l", 50, "Maximum number of files to scan")
 }
 
@@ -84,30 +82,19 @@ func runTypo(cmd *cobra.Command, args []string) error {
 		filesWithTypo := findFilesWithWord(fileMap, word)
 		fmt.Fprintf(cmd.OutOrStdout(), "  • '%s' -> '%s' (found in %d files)\n", word, suggestion, len(filesWithTypo))
 
-		if typoFix {
+		if typoAutoFix {
 			for _, file := range filesWithTypo {
-				msg := fmt.Sprintf("Fix in %s?", file)
-				var confirm bool
-				prompt := &survey.Confirm{
-					Message: msg,
-					Default: true,
-				}
-				if err := askOneFunc(prompt, &confirm); err != nil {
-					return err
-				}
-				if confirm {
-					if err := replaceInFile(file, word, suggestion); err != nil {
-						fmt.Fprintf(cmd.ErrOrStderr(), "    Failed to fix %s: %v\n", file, err)
-					} else {
-						fmt.Fprintf(cmd.OutOrStdout(), "    ✅ Fixed in %s\n", file)
-					}
+				if err := replaceInFile(file, word, suggestion); err != nil {
+					fmt.Fprintf(cmd.ErrOrStderr(), "    Failed to fix %s: %v\n", file, err)
+				} else {
+					fmt.Fprintf(cmd.OutOrStdout(), "    ✅ Fixed in %s\n", file)
 				}
 			}
 		}
 	}
 
-	if !typoFix {
-		fmt.Fprintln(cmd.OutOrStdout(), "\nRun with --fix to interactively correct them.")
+	if !typoAutoFix {
+		fmt.Fprintln(cmd.OutOrStdout(), "\nRun with --auto-fix to automatically correct them.")
 	}
 
 	return nil
