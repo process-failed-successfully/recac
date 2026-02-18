@@ -21,7 +21,7 @@ func TestMockAgent_Send_Coding(t *testing.T) {
 	prompt := "Write a Python script that..."
 	resp, err := agent.Send(context.Background(), prompt)
 	assert.NoError(t, err)
-	assert.Contains(t, resp, "$$$")
+	assert.Contains(t, resp, "```bash")
 	assert.Contains(t, resp, "Task completed. Tests passed.")
 }
 

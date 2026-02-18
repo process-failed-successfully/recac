@@ -61,7 +61,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// We want to avoid matching the TPM prompt which also contains "Python" etc.
 	// We also explicitly check for the "primes.py" execution prompt
 	lowerPrompt := strings.ToLower(prompt)
-	isCoding := strings.Contains(lowerPrompt, "python") || strings.Contains(lowerPrompt, "go") || strings.Contains(lowerPrompt, "code") || strings.Contains(lowerPrompt, "script")
+
+	// Improved heuristic: Check for specific keywords and avoid partial matches (e.g. "go" in "good")
+	isGolang := strings.Contains(lowerPrompt, "golang") || strings.Contains(lowerPrompt, " go ") || strings.HasPrefix(lowerPrompt, "go ") || strings.HasSuffix(lowerPrompt, " go")
+	isCoding := strings.Contains(lowerPrompt, "python") || isGolang || strings.Contains(lowerPrompt, "code") || strings.Contains(lowerPrompt, "script")
+
 	isPrimesExecution := strings.Contains(lowerPrompt, "primes.py") && !isPlanning
 
 	// Log the prompt for debugging CI failures
@@ -73,7 +77,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		if isPrimesExecution {
 			return `I will implement the prime number script as requested.
 
-$$$
+` + "```bash" + `
 #!/bin/bash
 cat << 'EOF' > primes.py
 import json
@@ -94,7 +98,7 @@ EOF
 
 python3 primes.py
 git add -f primes.json primes.py
-$$$
+` + "```" + `
 
 Task completed. Primes generated.
 `, nil
@@ -102,13 +106,13 @@ Task completed. Primes generated.
 
 		return `I will implement the requested changes.
 
-$$$
+` + "```bash" + `
 #!/bin/bash
 # Implementation
 echo "Implementing feature..."
 # Create a dummy file to satisfy verification
 echo "def is_prime(n): return n > 1" > primes.py
-$$$
+` + "```" + `
 
 Task completed. Tests passed.
 `, nil
