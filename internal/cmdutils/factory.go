@@ -94,7 +94,22 @@ var GetAgentClient = func(ctx context.Context, provider, model, projectPath, pro
 
 // SetupWorkspace handles cloning, auth fallback, and Epic branching strategy
 var SetupWorkspace = func(ctx context.Context, gitClient git.IClient, repoURL, workspace, ticketID, epicKey, timestamp string) (string, error) {
-	if repoURL == "" || repoURL == "skip" || repoURL == "none" {
+	lowerRepoURL := strings.ToLower(repoURL)
+	if lowerRepoURL == "" || lowerRepoURL == "skip" || lowerRepoURL == "none" {
+		// Even if skipping clone, ensure we have a valid git repo for agent operations
+		if !gitClient.RepoExists(workspace) {
+			// Initialize empty repo
+			if _, err := gitClient.Run(workspace, "init"); err != nil {
+				return "", fmt.Errorf("failed to init git repo: %w", err)
+			}
+			// Set identity to allow commits
+			if err := gitClient.Config(workspace, "user.email", "agent@recac.com"); err != nil {
+				fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to set git email: %v\n", ticketID, err)
+			}
+			if err := gitClient.Config(workspace, "user.name", "Recac Agent"); err != nil {
+				fmt.Fprintf(os.Stderr, "[%s] Warning: Failed to set git name: %v\n", ticketID, err)
+			}
+		}
 		return "", nil // Nothing to clone
 	}
 
