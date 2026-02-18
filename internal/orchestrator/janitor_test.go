@@ -8,54 +8,67 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
+type MockJanitorClient struct {
+	mock.Mock
+}
+
+func (m *MockJanitorClient) ListCandidates(ctx context.Context) ([]Candidate, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]Candidate), args.Error(1)
+}
+
+func (m *MockJanitorClient) Remove(ctx context.Context, id string) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
 func TestJanitor_Cleanup(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	client := new(MockDockerClient)
+	client := new(MockJanitorClient)
 	ctx := context.Background()
 
-	// Setup containers
+	// Setup candidates
 	now := time.Now()
 	oldTime := now.Add(-48 * time.Hour)
 	newTime := now.Add(-1 * time.Hour)
 
-	containers := []types.Container{
+	candidates := []Candidate{
 		{
-			ID:      "old-container",
-			Created: oldTime.Unix(),
+			ID:        "old-container",
+			CreatedAt: oldTime,
 			Labels: map[string]string{
 				"created-by": "recac-orchestrator",
 				"work-item":  "TASK-1",
 			},
 		},
 		{
-			ID:      "new-container",
-			Created: newTime.Unix(),
+			ID:        "new-container",
+			CreatedAt: newTime,
 			Labels: map[string]string{
 				"created-by": "recac-orchestrator",
 				"work-item":  "TASK-2",
 			},
 		},
 		{
-			ID:      "manual-container",
-			Created: oldTime.Unix(),
+			ID:        "manual-container",
+			CreatedAt: oldTime,
 			Labels: map[string]string{
 				"created-by": "manual",
 			},
 		},
 	}
 
-	client.On("ListContainers", ctx, mock.MatchedBy(func(opts container.ListOptions) bool {
-		return opts.All == true
-	})).Return(containers, nil)
+	client.On("ListCandidates", ctx).Return(candidates, nil)
 
 	// Expect removal of old-container
-	client.On("RemoveContainer", ctx, "old-container", true).Return(nil)
+	client.On("Remove", ctx, "old-container").Return(nil)
 
 	// Janitor setup
 	janitor := NewJanitor(logger, client, 1*time.Minute, 24*time.Hour, false)
@@ -65,29 +78,29 @@ func TestJanitor_Cleanup(t *testing.T) {
 
 	client.AssertExpectations(t)
 	// Ensure new-container and manual-container were NOT removed
-	client.AssertNotCalled(t, "RemoveContainer", ctx, "new-container", mock.Anything)
-	client.AssertNotCalled(t, "RemoveContainer", ctx, "manual-container", mock.Anything)
+	client.AssertNotCalled(t, "Remove", ctx, "new-container")
+	client.AssertNotCalled(t, "Remove", ctx, "manual-container")
 }
 
 func TestJanitor_Cleanup_DryRun(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	client := new(MockDockerClient)
+	client := new(MockJanitorClient)
 	ctx := context.Background()
 
 	now := time.Now()
 	oldTime := now.Add(-48 * time.Hour)
 
-	containers := []types.Container{
+	candidates := []Candidate{
 		{
-			ID:      "old-container",
-			Created: oldTime.Unix(),
+			ID:        "old-container",
+			CreatedAt: oldTime,
 			Labels: map[string]string{
 				"created-by": "recac-orchestrator",
 			},
 		},
 	}
 
-	client.On("ListContainers", ctx, mock.Anything).Return(containers, nil)
+	client.On("ListCandidates", ctx).Return(candidates, nil)
 
 	// Janitor setup with dryRun=true
 	janitor := NewJanitor(logger, client, 1*time.Minute, 24*time.Hour, true)
@@ -96,15 +109,15 @@ func TestJanitor_Cleanup_DryRun(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Expect NO removal calls
-	client.AssertNotCalled(t, "RemoveContainer")
+	client.AssertNotCalled(t, "Remove")
 }
 
 func TestJanitor_Cleanup_ListError(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	client := new(MockDockerClient)
+	client := new(MockJanitorClient)
 	ctx := context.Background()
 
-	client.On("ListContainers", ctx, mock.Anything).Return([]types.Container{}, errors.New("list failed"))
+	client.On("ListCandidates", ctx).Return(nil, errors.New("list failed"))
 
 	janitor := NewJanitor(logger, client, 1*time.Minute, 24*time.Hour, false)
 
