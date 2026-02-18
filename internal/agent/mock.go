@@ -41,7 +41,7 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	// 1. Execution Phase (Check status pending)
 	// We check this first to prevent "Technical Program Manager" role assumption in execution loop
 	if pendingStatusRegex.MatchString(prompt) {
-		return `
+		return "```bash\n" + `
 #!/bin/bash
 # Complete the task
 echo "Completing task..."
@@ -59,12 +59,18 @@ cat > feature_list.json <<EOF
 }
 EOF
 echo "Task completed"
-`, nil
+` + "\n```", nil
 	}
 
 	// 2. Planning Phase (Technical Program Manager)
 	// Return a JSON list of tickets
 	if strings.Contains(prompt, "Technical Program Manager") {
+		// Planner usually expects just the JSON or JSON in markdown.
+		// Safe to wrap in markdown json block or just return raw if the parser handles it.
+		// Given the failure in Agent role, let's keep this raw for now unless we see Planner failures.
+		// Actually, standardizing on markdown is safer if we rely on ExtractCodeBlocks.
+		// But Planner output is parsed by 'recac' CLI which might expect pure JSON.
+		// Let's leave this as is for now, as the failure was in "Agent" role.
 		return `
 [
   {
@@ -80,7 +86,7 @@ echo "Task completed"
 
 	// 3. Architect/Coding Phase (Lead Software Architect or Primes Task)
 	if strings.Contains(prompt, "Lead Software Architect") || strings.Contains(prompt, "ID:[PRIMES]") || strings.Contains(prompt, "Implement prime calculation logic") || strings.Contains(prompt, "Implement Prime Generator") {
-		return `
+		return "```bash\n" + `
 #!/bin/bash
 # Create the python file
 echo "Creating primes.py..."
@@ -123,27 +129,27 @@ git add primes.py feature_list.json || true
 git commit -m "Implement prime generator" || echo "Nothing to commit"
 
 echo "Success: Mock command executed"
-`, nil
+` + "\n```", nil
 	}
 
 	// 4. QA Agent
 	if strings.Contains(prompt, "QA AGENT") {
-		return `
+		return "```bash\n" + `
 #!/bin/bash
 echo "Running QA..."
 python3 primes.py
 # Signal success
 agent-bridge signal QA_PASSED true
-`, nil
+` + "\n```", nil
 	}
 
 	// 5. Manager Agent
 	if strings.Contains(prompt, "Manager Agent") {
-		return `
+		return "```bash\n" + `
 #!/bin/bash
 echo "Signing off..."
 agent-bridge signal PROJECT_SIGNED_OFF true
-`, nil
+` + "\n```", nil
 	}
 
 	// Default response
