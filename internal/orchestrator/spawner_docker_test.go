@@ -9,7 +9,6 @@ import (
 	"recac/internal/runner"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -204,9 +203,6 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	// Allow goroutine to run
-	time.Sleep(100 * time.Millisecond)
-
 	mockGit.AssertExpectations(t)
 	mockDocker.AssertExpectations(t)
 	mockSM.AssertExpectations(t)
@@ -252,24 +248,14 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 	sm.On("SaveSession", mock.Anything).Return(nil)
 	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
 
-	// Capture the command passed to Exec using a channel for synchronization
-	capturedCmdChan := make(chan []string, 1)
+	// Capture the command passed to Exec
+	var capturedCmd []string
 	client.On("Exec", mock.Anything, "container-123", mock.Anything).Run(func(args mock.Arguments) {
-		capturedCmd := args.Get(2).([]string)
-		capturedCmdChan <- capturedCmd
+		capturedCmd = args.Get(2).([]string)
 	}).Return("Success", nil)
 
 	err := spawner.Spawn(context.Background(), injectionItem)
 	assert.NoError(t, err)
-
-	// Wait for the background goroutine to call Exec
-	var capturedCmd []string
-	select {
-	case capturedCmd = <-capturedCmdChan:
-		// Success
-	case <-time.After(2 * time.Second):
-		t.Fatal("Timed out waiting for Exec call")
-	}
 
 	// The command should be stringified and passed to sh -c.
 	// We want to ensure the ID is quoted.
@@ -306,22 +292,13 @@ func TestDockerSpawner_EnvPropagation(t *testing.T) {
 	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
 
 	// Capture the command passed to Exec
-	capturedCmdChan := make(chan []string, 1)
+	var capturedCmd []string
 	client.On("Exec", mock.Anything, "container-env", mock.Anything).Run(func(args mock.Arguments) {
-		capturedCmd := args.Get(2).([]string)
-		capturedCmdChan <- capturedCmd
+		capturedCmd = args.Get(2).([]string)
 	}).Return("Success", nil)
 
 	err := spawner.Spawn(context.Background(), item)
 	assert.NoError(t, err)
-
-	var capturedCmd []string
-	select {
-	case capturedCmd = <-capturedCmdChan:
-		// Success
-	case <-time.After(2 * time.Second):
-		t.Fatal("Timed out waiting for Exec call")
-	}
 
 	cmdStr := capturedCmd[2]
 

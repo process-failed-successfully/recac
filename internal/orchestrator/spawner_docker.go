@@ -114,116 +114,115 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 
 	s.Logger.Info("Container started", "id", containerID, "work_item", item.ID)
 
-	// 5. Execute Work in Background
-	go func() {
-		// Construct Command
-		var envExports []string
-		if s.AgentProvider != "" {
-			envExports = append(envExports, fmt.Sprintf("export RECAC_PROVIDER=%s", shellquote.Join(s.AgentProvider)))
-		}
-		if s.AgentModel != "" {
-			envExports = append(envExports, fmt.Sprintf("export RECAC_MODEL=%s", shellquote.Join(s.AgentModel)))
-		}
-		envExports = append(envExports, "export GIT_TERMINAL_PROMPT=0")
-		envExports = append(envExports, fmt.Sprintf("export RECAC_PROJECT_ID=%s", shellquote.Join(item.ID)))
+	// 5. Execute Work Synchronously
+	// Construct Command
+	var envExports []string
+	if s.AgentProvider != "" {
+		envExports = append(envExports, fmt.Sprintf("export RECAC_PROVIDER=%s", shellquote.Join(s.AgentProvider)))
+	}
+	if s.AgentModel != "" {
+		envExports = append(envExports, fmt.Sprintf("export RECAC_MODEL=%s", shellquote.Join(s.AgentModel)))
+	}
+	envExports = append(envExports, "export GIT_TERMINAL_PROMPT=0")
+	envExports = append(envExports, fmt.Sprintf("export RECAC_PROJECT_ID=%s", shellquote.Join(item.ID)))
 
-		// Inject Git Identity to prevent "Author identity unknown" errors
-		envExports = append(envExports, "export GIT_AUTHOR_NAME='RECAC Agent'")
-		envExports = append(envExports, "export GIT_AUTHOR_EMAIL='agent@recac.io'")
-		envExports = append(envExports, "export GIT_COMMITTER_NAME='RECAC Agent'")
-		envExports = append(envExports, "export GIT_COMMITTER_EMAIL='agent@recac.io'")
+	// Inject Git Identity to prevent "Author identity unknown" errors
+	envExports = append(envExports, "export GIT_AUTHOR_NAME='RECAC Agent'")
+	envExports = append(envExports, "export GIT_AUTHOR_EMAIL='agent@recac.io'")
+	envExports = append(envExports, "export GIT_COMMITTER_NAME='RECAC Agent'")
+	envExports = append(envExports, "export GIT_COMMITTER_EMAIL='agent@recac.io'")
 
-		// Propagate Notifications Config
-		if val := os.Getenv("RECAC_NOTIFICATIONS_DISCORD_ENABLED"); val != "" {
-			envExports = append(envExports, fmt.Sprintf("export RECAC_NOTIFICATIONS_DISCORD_ENABLED=%s", shellquote.Join(val)))
-		}
-		if val := os.Getenv("RECAC_NOTIFICATIONS_SLACK_ENABLED"); val != "" {
-			envExports = append(envExports, fmt.Sprintf("export RECAC_NOTIFICATIONS_SLACK_ENABLED=%s", shellquote.Join(val)))
-		}
+	// Propagate Notifications Config
+	if val := os.Getenv("RECAC_NOTIFICATIONS_DISCORD_ENABLED"); val != "" {
+		envExports = append(envExports, fmt.Sprintf("export RECAC_NOTIFICATIONS_DISCORD_ENABLED=%s", shellquote.Join(val)))
+	}
+	if val := os.Getenv("RECAC_NOTIFICATIONS_SLACK_ENABLED"); val != "" {
+		envExports = append(envExports, fmt.Sprintf("export RECAC_NOTIFICATIONS_SLACK_ENABLED=%s", shellquote.Join(val)))
+	}
 
-		for k, v := range item.EnvVars {
-			envExports = append(envExports, fmt.Sprintf("export %s=%s", k, shellquote.Join(v)))
-		}
+	for k, v := range item.EnvVars {
+		envExports = append(envExports, fmt.Sprintf("export %s=%s", k, shellquote.Join(v)))
+	}
 
-		secrets := []string{"JIRA_API_TOKEN", "JIRA_USERNAME", "JIRA_URL", "GITHUB_TOKEN", "GITHUB_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY", "RECAC_DB_TYPE", "RECAC_DB_URL"}
-		for _, secret := range secrets {
-			if val := os.Getenv(secret); val != "" {
-				quotedVal := shellquote.Join(val)
-				envExports = append(envExports, fmt.Sprintf("export %s=%s", secret, quotedVal))
-				if secret == "GITHUB_API_KEY" {
-					envExports = append(envExports, fmt.Sprintf("export RECAC_GITHUB_API_KEY=%s", quotedVal))
-				}
+	secrets := []string{"JIRA_API_TOKEN", "JIRA_USERNAME", "JIRA_URL", "GITHUB_TOKEN", "GITHUB_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY", "RECAC_DB_TYPE", "RECAC_DB_URL"}
+	for _, secret := range secrets {
+		if val := os.Getenv(secret); val != "" {
+			quotedVal := shellquote.Join(val)
+			envExports = append(envExports, fmt.Sprintf("export %s=%s", secret, quotedVal))
+			if secret == "GITHUB_API_KEY" {
+				envExports = append(envExports, fmt.Sprintf("export RECAC_GITHUB_API_KEY=%s", quotedVal))
 			}
 		}
+	}
 
-		envExports = append(envExports, fmt.Sprintf("export RECAC_HOST_WORKSPACE_PATH=%s", shellquote.Join(tempDir)))
+	envExports = append(envExports, fmt.Sprintf("export RECAC_HOST_WORKSPACE_PATH=%s", shellquote.Join(tempDir)))
 
-		// Propagate Agent Limits from Host (Default to 20 if unset)
-		maxIterations := "20"
-		if val := os.Getenv("RECAC_MAX_ITERATIONS"); val != "" {
-			maxIterations = val
-		}
-		envExports = append(envExports, fmt.Sprintf("export RECAC_MAX_ITERATIONS=%s", shellquote.Join(maxIterations)))
+	// Propagate Agent Limits from Host (Default to 20 if unset)
+	maxIterations := "20"
+	if val := os.Getenv("RECAC_MAX_ITERATIONS"); val != "" {
+		maxIterations = val
+	}
+	envExports = append(envExports, fmt.Sprintf("export RECAC_MAX_ITERATIONS=%s", shellquote.Join(maxIterations)))
 
-		if val := os.Getenv("RECAC_MANAGER_FREQUENCY"); val != "" {
-			envExports = append(envExports, fmt.Sprintf("export RECAC_MANAGER_FREQUENCY=%s", shellquote.Join(val)))
-		}
+	if val := os.Getenv("RECAC_MANAGER_FREQUENCY"); val != "" {
+		envExports = append(envExports, fmt.Sprintf("export RECAC_MANAGER_FREQUENCY=%s", shellquote.Join(val)))
+	}
 
-		if val := os.Getenv("RECAC_TASK_MAX_ITERATIONS"); val != "" {
-			envExports = append(envExports, fmt.Sprintf("export RECAC_TASK_MAX_ITERATIONS=%s", shellquote.Join(val)))
-		}
+	if val := os.Getenv("RECAC_TASK_MAX_ITERATIONS"); val != "" {
+		envExports = append(envExports, fmt.Sprintf("export RECAC_TASK_MAX_ITERATIONS=%s", shellquote.Join(val)))
+	}
 
-		cmdStr := "cd /workspace"
-		cmdStr += " && " + strings.Join(envExports, " && ")
-		// Inject Git Config for GITHUB_TOKEN if present
-		cmdStr += " && if [ -n \"$GITHUB_TOKEN\" ]; then git config --global url.\"https://${GITHUB_TOKEN}:x-oauth-basic@github.com/\".insteadOf \"https://github.com/\"; fi"
-		cmdStr += " && " + shellquote.Join(agentCmd...) + " --allow-dirty"
-		cmdStr += " && echo 'Recac Finished'"
+	cmdStr := "cd /workspace"
+	cmdStr += " && " + strings.Join(envExports, " && ")
+	// Inject Git Config for GITHUB_TOKEN if present
+	cmdStr += " && if [ -n \"$GITHUB_TOKEN\" ]; then git config --global url.\"https://${GITHUB_TOKEN}:x-oauth-basic@github.com/\".insteadOf \"https://github.com/\"; fi"
+	cmdStr += " && " + shellquote.Join(agentCmd...) + " --allow-dirty"
+	cmdStr += " && echo 'Recac Finished'"
 
-		cmd := []string{"/bin/sh", "-c", cmdStr}
+	cmd := []string{"/bin/sh", "-c", cmdStr}
 
-		s.Logger.Info("Executing agent command", "item", item.ID)
-		output, execErr := s.Client.Exec(context.Background(), containerID, cmd)
+	s.Logger.Info("Executing agent command", "item", item.ID)
+	// Use ctx instead of context.Background()
+	output, execErr := s.Client.Exec(ctx, containerID, cmd)
 
-		// 6. Update session state
-		finalSession, loadErr := s.SessionManager.LoadSession(item.ID)
-		if loadErr != nil {
-			s.Logger.Error("failed to load session for final update", "session", item.ID, "error", loadErr)
-			// Still update poller status
-			if execErr != nil {
-				_ = s.Poller.UpdateStatus(context.Background(), item, "Failed", fmt.Sprintf("Agent failed:\n%s\nOutput:\n%s", execErr, output))
-			}
-			return
-		}
-
-		finalSession.EndTime = time.Now()
+	// 6. Update session state
+	finalSession, loadErr := s.SessionManager.LoadSession(item.ID)
+	if loadErr != nil {
+		s.Logger.Error("failed to load session for final update", "session", item.ID, "error", loadErr)
+		// Still update poller status
 		if execErr != nil {
-			finalSession.Status = "error"
-			finalSession.Error = execErr.Error()
-			s.Logger.Error("Agent execution failed", "item", item.ID, "error", execErr, "output", output)
-			_ = s.Poller.UpdateStatus(context.Background(), item, "Failed", fmt.Sprintf("Agent failed:\n%s\nOutput:\n%s", execErr, output))
-		} else {
-			finalSession.Status = "completed"
-			s.Logger.Info("Agent execution completed", "item", item.ID, "output", string(output))
+			_ = s.Poller.UpdateStatus(ctx, item, "Failed", fmt.Sprintf("Agent failed:\n%s\nOutput:\n%s", execErr, output))
 		}
+		return nil
+	}
 
-		// 7. Get end commit SHA
-		endSHA, shaErr := s.GitClient.CurrentCommitSHA(tempDir)
-		if shaErr != nil {
-			s.Logger.Warn("could not get end commit SHA", "workspace", tempDir, "error", shaErr)
-		} else {
-			finalSession.EndCommitSHA = endSHA
-		}
+	finalSession.EndTime = time.Now()
+	if execErr != nil {
+		finalSession.Status = "error"
+		finalSession.Error = execErr.Error()
+		s.Logger.Error("Agent execution failed", "item", item.ID, "error", execErr, "output", output)
+		_ = s.Poller.UpdateStatus(ctx, item, "Failed", fmt.Sprintf("Agent failed:\n%s\nOutput:\n%s", execErr, output))
+	} else {
+		finalSession.Status = "completed"
+		s.Logger.Info("Agent execution completed", "item", item.ID, "output", string(output))
+	}
 
-		if err := s.SessionManager.SaveSession(finalSession); err != nil {
-			s.Logger.Error("failed to save final session state", "session", item.ID, "error", err)
-		}
+	// 7. Get end commit SHA
+	endSHA, shaErr := s.GitClient.CurrentCommitSHA(tempDir)
+	if shaErr != nil {
+		s.Logger.Warn("could not get end commit SHA", "workspace", tempDir, "error", shaErr)
+	} else {
+		finalSession.EndCommitSHA = endSHA
+	}
 
-		// 8. Clean up workspace
-		if err := os.RemoveAll(tempDir); err != nil {
-			s.Logger.Warn("failed to clean up workspace", "path", tempDir, "error", err)
-		}
-	}()
+	if err := s.SessionManager.SaveSession(finalSession); err != nil {
+		s.Logger.Error("failed to save final session state", "session", item.ID, "error", err)
+	}
+
+	// 8. Clean up workspace
+	if err := os.RemoveAll(tempDir); err != nil {
+		s.Logger.Warn("failed to clean up workspace", "path", tempDir, "error", err)
+	}
 
 	return nil
 }
