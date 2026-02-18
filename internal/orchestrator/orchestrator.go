@@ -13,6 +13,7 @@ type Orchestrator struct {
 	Poller       Poller
 	Spawner      Spawner
 	PollInterval time.Duration
+	wg           sync.WaitGroup
 
 	mu            sync.RWMutex
 	startTime     time.Time
@@ -128,6 +129,54 @@ func (o *Orchestrator) Verify(ctx context.Context, logger *slog.Logger) error {
 	return nil
 }
 
+// SubmitJob manually submits a work item to the orchestrator.
+func (o *Orchestrator) SubmitJob(ctx context.Context, item WorkItem, logger *slog.Logger) error {
+	o.mu.Lock()
+	if _, exists := o.activeJobs[item.ID]; exists {
+		o.mu.Unlock()
+		return fmt.Errorf("job %s is already active", item.ID)
+	}
+
+	o.activeSpawns++
+	o.totalSpawns++
+	job := JobInfo{
+		ID:        item.ID,
+		Summary:   item.Summary,
+		StartTime: time.Now(),
+		Status:    "Spawning",
+	}
+	o.activeJobs[item.ID] = job
+	o.mu.Unlock()
+
+	o.wg.Add(1)
+	go o.spawnWorker(ctx, item, logger)
+
+	return nil
+}
+
+func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *slog.Logger) {
+	defer o.wg.Done()
+	defer func() {
+		o.mu.Lock()
+		o.activeSpawns--
+		delete(o.activeJobs, item.ID)
+		o.mu.Unlock()
+	}()
+
+	logger.Info("Spawning agent for item", "id", item.ID)
+
+	if err := o.Spawner.Spawn(ctx, item); err != nil {
+		logger.Error("Failed to spawn agent", "id", item.ID, "error", err)
+		// Update status to Failed
+		_ = o.Poller.UpdateStatus(ctx, item, "Failed", fmt.Sprintf("Failed to spawn agent: %v", err))
+	} else {
+		// Success? K8s Jobs are fire-and-forget from Spawner perspective usually,
+		// but status updates might happen asynchronously.
+		// For now, Spawn() implies "Started".
+		logger.Info("Agent spawned successfully", "id", item.ID)
+	}
+}
+
 // Run starts the orchestration loop
 func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 	o.mu.Lock()
@@ -137,9 +186,6 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 	logger.Info("Starting Orchestrator", "interval", o.PollInterval)
 	ticker := time.NewTicker(o.PollInterval)
 	defer ticker.Stop()
-
-	// Use a WaitGroup to track running spawns/jobs if we want graceful shutdown
-	var wg sync.WaitGroup
 
 	poll := func() {
 		// Poll for work
@@ -165,9 +211,14 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 		logger.Info("Found work items", "count", len(items))
 
 		for _, item := range items {
-			wg.Add(1)
-
+			// Check if already active to avoid duplicates
 			o.mu.Lock()
+			if _, exists := o.activeJobs[item.ID]; exists {
+				o.mu.Unlock()
+				logger.Info("Job already active, skipping", "id", item.ID)
+				continue
+			}
+
 			o.activeSpawns++
 			o.totalSpawns++
 			job := JobInfo{
@@ -179,28 +230,8 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 			o.activeJobs[item.ID] = job
 			o.mu.Unlock()
 
-			go func(item WorkItem) {
-				defer wg.Done()
-				defer func() {
-					o.mu.Lock()
-					o.activeSpawns--
-					delete(o.activeJobs, item.ID)
-					o.mu.Unlock()
-				}()
-
-				logger.Info("Spawning agent for item", "id", item.ID)
-
-				if err := o.Spawner.Spawn(ctx, item); err != nil {
-					logger.Error("Failed to spawn agent", "id", item.ID, "error", err)
-					// Update status to Failed
-					_ = o.Poller.UpdateStatus(ctx, item, "Failed", fmt.Sprintf("Failed to spawn agent: %v", err))
-				} else {
-					// Success? K8s Jobs are fire-and-forget from Spawner perspective usually,
-					// but status updates might happen asynchronously.
-					// For now, Spawn() implies "Started".
-					logger.Info("Agent spawned successfully", "id", item.ID)
-				}
-			}(item)
+			o.wg.Add(1)
+			go o.spawnWorker(ctx, item, logger)
 		}
 	}
 
@@ -211,7 +242,7 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 		select {
 		case <-ctx.Done():
 			logger.Info("Orchestrator shutting down...")
-			wg.Wait()
+			o.wg.Wait()
 			return ctx.Err()
 		case <-ticker.C:
 			poll()
