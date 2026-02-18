@@ -40,6 +40,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return m.generateMockPlan(), nil
 	}
 
+	// Heuristic: Check if this is a Coding prompt for the Prime Number scenario
+	if strings.Contains(lowerPrompt, "primes.py") || strings.Contains(lowerPrompt, "prime number") {
+		return m.generatePrimeScript(), nil
+	}
+
 	// Return a mock response that shows the agent received the prompt
 	// This allows the session to run without requiring real API keys
 	response := fmt.Sprintf("%s:\n\nI received your prompt (%d characters). In mock mode, I would process this request and provide a response. The actual implementation would call the AI provider API here.\n\nPrompt preview: %s...",
@@ -70,6 +75,36 @@ func (m *MockAgent) generateMockPlan() string {
 	}
 	data, _ := json.MarshalIndent(tickets, "", "  ")
 	return fmt.Sprintf("Here is the plan:\n```json\n%s\n```", string(data))
+}
+
+func (m *MockAgent) generatePrimeScript() string {
+	script := `#!/bin/bash
+cat << 'EOF' > primes.py
+import json
+
+def is_prime(n):
+    if n <= 1: return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0: return False
+    return True
+
+primes = [p for p in range(10000) if is_prime(p)]
+with open('primes.json', 'w') as f:
+    json.dump({'primes': primes}, f)
+EOF
+
+python3 primes.py || echo "Python script failed"
+git add primes.py primes.json
+git commit -m "Implement prime number generator" || echo "Nothing to commit"
+
+# Mark features as done
+if command -v agent-bridge &> /dev/null; then
+    for feature in $(agent-bridge feature list | jq -r '.features[] | select(.status == "pending") | .id'); do
+        agent-bridge feature set "$feature" --status done --passes true
+    done
+fi
+`
+	return fmt.Sprintf("Here is the implementation script:\n```bash\n%s\n```", script)
 }
 
 // SendStream implements the Agent interface

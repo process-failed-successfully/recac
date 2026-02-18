@@ -25,6 +25,28 @@ func TestMockAgent(t *testing.T) {
 	}
 }
 
+func TestMockAgent_PrimePython(t *testing.T) {
+	agent := NewMockAgent()
+	prompt := "Implement a script named primes.py"
+
+	response, err := agent.Send(context.Background(), prompt)
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+
+	expectedParts := []string{
+		"primes.py",
+		"def is_prime(n):",
+		"agent-bridge feature set",
+	}
+
+	for _, part := range expectedParts {
+		if !strings.Contains(response, part) {
+			t.Errorf("Response missing expected part '%s'. Got:\n%s", part, response)
+		}
+	}
+}
+
 func TestTruncateString(t *testing.T) {
 	s := "hello world"
 	if truncateString(s, 5) != "hello" {
