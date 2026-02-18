@@ -122,8 +122,8 @@ jobs:
           go mod download
           go vet ./...
 
-  # 4. Test (Sharded - Runs on VM for Docker Support)
-  test:
+  # 4. Test Shards (Sharded - Runs on VM for Docker Support)
+  test-shards:
     needs: [setup-matrix]
     runs-on: ubuntu-latest
     # Note: We do NOT use 'container:' here because E2E tests utilize Docker volume mounts.
@@ -150,6 +150,17 @@ jobs:
           # Use the script directly
           chmod +x scripts/test_sharded.sh
           ./scripts/test_sharded.sh ${{ matrix.shard }} ${{ needs.setup-matrix.outputs.total_shards }}
+
+  # 4b. Test Summary (Fan-in)
+  # This job aggregates the results of the matrix tests and reports a single success/failure.
+  # This is crucial for GitHub Branch Protection rules that expect a single "Test" status check.
+  test:
+    needs: [test-shards]
+    runs-on: ubuntu-latest
+    if: success() # Only run if all shards passed
+    steps:
+      - name: All Tests Passed
+        run: echo "All test shards completed successfully."
 
   # 5. Build Binary Verification (Containerized)
   build:
