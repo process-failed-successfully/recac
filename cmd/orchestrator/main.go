@@ -36,6 +36,7 @@ func main() {
 	pflag.Bool("list-jobs", false, "List active jobs from a running orchestrator instance")
 	pflag.Bool("monitor", false, "Launch the TUI dashboard to monitor the orchestrator")
 	pflag.String("logs", "", "Get logs for a specific job ID from a running orchestrator instance")
+	pflag.String("inspect-job", "", "Inspect a specific job by ID")
 	pflag.String("cancel-job", "", "Cancel a running job by ID")
 	pflag.String("submit", "", "Submit a job from a JSON file path")
 	pflag.String("host", "http://localhost:2112", "Orchestrator host URL (for list-jobs, logs, cancel-job, and submit)")
@@ -90,6 +91,7 @@ func main() {
 	viper.BindPFlag("orchestrator.list_jobs", pflag.Lookup("list-jobs"))
 	viper.BindPFlag("orchestrator.monitor", pflag.Lookup("monitor"))
 	viper.BindPFlag("orchestrator.logs", pflag.Lookup("logs"))
+	viper.BindPFlag("orchestrator.inspect_job", pflag.Lookup("inspect-job"))
 	viper.BindPFlag("orchestrator.cancel_job", pflag.Lookup("cancel-job"))
 	viper.BindPFlag("orchestrator.submit", pflag.Lookup("submit"))
 	viper.BindPFlag("orchestrator.host", pflag.Lookup("host"))
@@ -145,6 +147,12 @@ func main() {
 	if logID := viper.GetString("orchestrator.logs"); logID != "" {
 		host := viper.GetString("orchestrator.host")
 		getLogs(host, logID)
+		return
+	}
+
+	if jobID := viper.GetString("orchestrator.inspect_job"); jobID != "" {
+		host := viper.GetString("orchestrator.host")
+		inspectJob(host, jobID)
 		return
 	}
 
@@ -307,6 +315,20 @@ func main() {
 			w.Header().Set("Content-Type", "application/json")
 			if err := json.NewEncoder(w).Encode(jobs); err != nil {
 				logger.Error("Failed to encode jobs", "error", err)
+			}
+		})
+
+		mux.HandleFunc("GET /jobs/{id}", func(w http.ResponseWriter, r *http.Request) {
+			id := r.PathValue("id")
+			job, err := orch.GetJob(id)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusNotFound)
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(job); err != nil {
+				logger.Error("Failed to encode job", "error", err)
 			}
 		})
 
@@ -527,6 +549,73 @@ func limitString(s string, max int) string {
 		return s[:max] + "..."
 	}
 	return s
+}
+
+func inspectJob(host, jobID string) {
+	resp, err := http.Get(fmt.Sprintf("%s/jobs/%s", host, jobID))
+	if err != nil {
+		fmt.Printf("Failed to connect to orchestrator at %s: %v\n", host, err)
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Printf("Failed to fetch job details: %s\n", strings.TrimSpace(string(body)))
+		os.Exit(1)
+	}
+
+	var job orchestrator.JobInfo
+	if err := json.NewDecoder(resp.Body).Decode(&job); err != nil {
+		fmt.Printf("Failed to decode response: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Pretty print
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#FAFAFA")).
+		Background(lipgloss.Color("#7D56F4")).
+		Padding(0, 1)
+
+	labelStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("86")).
+		Width(15)
+
+	valueStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("252"))
+
+	fmt.Println(titleStyle.Render(fmt.Sprintf("Job Details: %s", job.ID)))
+	fmt.Println("")
+
+	printField := func(label, value string) {
+		fmt.Printf("%s %s\n", labelStyle.Render(label+":"), valueStyle.Render(value))
+	}
+
+	printField("Summary", job.Summary)
+	printField("Status", job.Status)
+	printField("Start Time", job.StartTime.Format(time.RFC3339))
+	printField("Duration", time.Since(job.StartTime).Round(time.Second).String())
+	fmt.Println("")
+	printField("Repo URL", job.WorkItem.RepoURL)
+
+	// Description
+	fmt.Println(labelStyle.Render("Description:"))
+	fmt.Println(lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(job.WorkItem.Description))
+	fmt.Println("")
+
+	// Env Vars
+	if len(job.WorkItem.EnvVars) > 0 {
+		fmt.Println(labelStyle.Render("Env Vars:"))
+		for k, v := range job.WorkItem.EnvVars {
+			// Mask likely secrets
+			if strings.Contains(strings.ToLower(k), "token") || strings.Contains(strings.ToLower(k), "key") || strings.Contains(strings.ToLower(k), "secret") {
+				v = "***"
+			}
+			fmt.Printf("  %s=%s\n", k, v)
+		}
+	}
 }
 
 func cancelJob(host, jobID string) {
