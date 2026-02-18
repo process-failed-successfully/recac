@@ -22,31 +22,38 @@ type Orchestrator struct {
 	activeSpawns  int
 	totalSpawns   int
 	activeJobs    map[string]JobInfo
+	completedJobs []JobInfo
+	maxHistory    int
 }
 
 type JobInfo struct {
 	ID        string    `json:"id"`
 	Summary   string    `json:"summary"`
 	StartTime time.Time `json:"start_time"`
+	EndTime   time.Time `json:"end_time,omitempty"`
 	Status    string    `json:"status"`
+	Error     string    `json:"error,omitempty"`
 	WorkItem  WorkItem  `json:"work_item"`
 }
 
 type Status struct {
-	PollInterval  string    `json:"poll_interval"`
-	Uptime        string    `json:"uptime"`
-	LastPoll      time.Time `json:"last_poll"`
-	LastPollItems int       `json:"last_poll_items"`
-	ActiveSpawns  int       `json:"active_spawns"`
-	TotalSpawns   int       `json:"total_spawns"`
+	PollInterval       string    `json:"poll_interval"`
+	Uptime             string    `json:"uptime"`
+	LastPoll           time.Time `json:"last_poll"`
+	LastPollItems      int       `json:"last_poll_items"`
+	ActiveSpawns       int       `json:"active_spawns"`
+	TotalSpawns        int       `json:"total_spawns"`
+	CompletedJobsCount int       `json:"completed_jobs_count"`
 }
 
 func New(poller Poller, spawner Spawner, pollInterval time.Duration) *Orchestrator {
 	return &Orchestrator{
-		Poller:       poller,
-		Spawner:      spawner,
-		PollInterval: pollInterval,
-		activeJobs:   make(map[string]JobInfo),
+		Poller:        poller,
+		Spawner:       spawner,
+		PollInterval:  pollInterval,
+		activeJobs:    make(map[string]JobInfo),
+		completedJobs: make([]JobInfo, 0),
+		maxHistory:    50,
 	}
 }
 
@@ -67,11 +74,30 @@ func (o *Orchestrator) GetJob(id string) (JobInfo, error) {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
 
+	// Check active jobs
 	job, exists := o.activeJobs[id]
-	if !exists {
-		return JobInfo{}, fmt.Errorf("job %s not found", id)
+	if exists {
+		return job, nil
 	}
-	return job, nil
+
+	// Check completed jobs
+	for _, job := range o.completedJobs {
+		if job.ID == id {
+			return job, nil
+		}
+	}
+
+	return JobInfo{}, fmt.Errorf("job %s not found", id)
+}
+
+// GetCompletedJobs returns the list of completed jobs.
+func (o *Orchestrator) GetCompletedJobs() []JobInfo {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+
+	jobs := make([]JobInfo, len(o.completedJobs))
+	copy(jobs, o.completedJobs)
+	return jobs
 }
 
 // CancelJob cancels a running job.
@@ -99,12 +125,13 @@ func (o *Orchestrator) GetStatus() Status {
 	}
 
 	return Status{
-		PollInterval:  o.PollInterval.String(),
-		Uptime:        uptime,
-		LastPoll:      o.lastPoll,
-		LastPollItems: o.lastPollItems,
-		ActiveSpawns:  o.activeSpawns,
-		TotalSpawns:   o.totalSpawns,
+		PollInterval:       o.PollInterval.String(),
+		Uptime:             uptime,
+		LastPoll:           o.lastPoll,
+		LastPollItems:      o.lastPollItems,
+		ActiveSpawns:       o.activeSpawns,
+		TotalSpawns:        o.totalSpawns,
+		CompletedJobsCount: len(o.completedJobs),
 	}
 }
 
@@ -173,19 +200,42 @@ func (o *Orchestrator) processWorkItem(ctx context.Context, item WorkItem, logge
 
 func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *slog.Logger) {
 	defer o.wg.Done()
+
+	var spawnErr error
+
 	defer func() {
 		o.mu.Lock()
 		o.activeSpawns--
-		delete(o.activeJobs, item.ID)
+
+		// Move from active to completed
+		if job, exists := o.activeJobs[item.ID]; exists {
+			job.EndTime = time.Now()
+			if spawnErr != nil {
+				job.Status = "Failed"
+				job.Error = spawnErr.Error()
+			} else {
+				job.Status = "Completed"
+			}
+
+			// Add to history
+			o.completedJobs = append(o.completedJobs, job)
+			// Limit history size (FIFO)
+			if len(o.completedJobs) > o.maxHistory {
+				o.completedJobs = o.completedJobs[1:]
+			}
+
+			delete(o.activeJobs, item.ID)
+		}
 		o.mu.Unlock()
 	}()
 
 	logger.Info("Spawning agent for item", "id", item.ID)
 
-	if err := o.Spawner.Spawn(ctx, item); err != nil {
-		logger.Error("Failed to spawn agent", "id", item.ID, "error", err)
+	spawnErr = o.Spawner.Spawn(ctx, item)
+	if spawnErr != nil {
+		logger.Error("Failed to spawn agent", "id", item.ID, "error", spawnErr)
 		// Update status to Failed
-		_ = o.Poller.UpdateStatus(ctx, item, "Failed", fmt.Sprintf("Failed to spawn agent: %v", err))
+		_ = o.Poller.UpdateStatus(ctx, item, "Failed", fmt.Sprintf("Failed to spawn agent: %v", spawnErr))
 	} else {
 		// Success? K8s Jobs are fire-and-forget from Spawner perspective usually,
 		// but status updates might happen asynchronously.

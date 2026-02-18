@@ -280,3 +280,80 @@ func TestOrchestrator_SubmitJob(t *testing.T) {
 	assert.Len(t, spawner.spawned, 2)
 	spawner.mu.Unlock()
 }
+
+func TestOrchestrator_JobHistory(t *testing.T) {
+	poller := newMockPoller(nil)
+	blockCh := make(chan struct{})
+	spawner := &mockSpawner{blockCh: blockCh}
+	// Limit history to 2 for testing
+	orch := New(poller, spawner, 50*time.Millisecond)
+	orch.maxHistory = 2
+
+	ctx := context.Background()
+
+	// 1. Submit Job 1
+	item1 := WorkItem{ID: "JOB-1", Summary: "Job 1"}
+	err := orch.SubmitJob(ctx, item1, silentLogger)
+	require.NoError(t, err)
+
+	// Unblock spawner
+	blockCh <- struct{}{}
+
+	// Wait for completion (give it a bit of time for goroutine to finish)
+	// Use Eventually to avoid flakes
+	require.Eventually(t, func() bool {
+		return len(orch.GetCompletedJobs()) == 1
+	}, 100*time.Millisecond, 10*time.Millisecond)
+
+	// Check History
+	completed := orch.GetCompletedJobs()
+	assert.Equal(t, "JOB-1", completed[0].ID)
+	assert.Equal(t, "Completed", completed[0].Status)
+	assert.False(t, completed[0].EndTime.IsZero())
+
+	// Check GetJob finds it
+	job, err := orch.GetJob("JOB-1")
+	assert.NoError(t, err)
+	assert.Equal(t, "JOB-1", job.ID)
+
+	// 2. Submit Job 2 (Failed)
+	item2 := WorkItem{ID: "JOB-2", Summary: "Job 2"}
+	spawner.spawnErr = errors.New("spawn failed")
+	err = orch.SubmitJob(ctx, item2, silentLogger)
+	require.NoError(t, err)
+
+	blockCh <- struct{}{}
+
+	require.Eventually(t, func() bool {
+		return len(orch.GetCompletedJobs()) == 2
+	}, 100*time.Millisecond, 10*time.Millisecond)
+
+	completed = orch.GetCompletedJobs()
+	assert.Len(t, completed, 2)
+	assert.Equal(t, "JOB-1", completed[0].ID)
+	assert.Equal(t, "JOB-2", completed[1].ID)
+	assert.Equal(t, "Failed", completed[1].Status)
+	assert.Equal(t, "spawn failed", completed[1].Error)
+
+	// 3. Submit Job 3 (Should displace Job 1)
+	item3 := WorkItem{ID: "JOB-3", Summary: "Job 3"}
+	spawner.spawnErr = nil
+	err = orch.SubmitJob(ctx, item3, silentLogger)
+	require.NoError(t, err)
+
+	blockCh <- struct{}{}
+
+	require.Eventually(t, func() bool {
+		completed = orch.GetCompletedJobs()
+		return len(completed) == 2 && completed[1].ID == "JOB-3"
+	}, 100*time.Millisecond, 10*time.Millisecond)
+
+	completed = orch.GetCompletedJobs()
+	assert.Len(t, completed, 2) // Max history is 2
+	assert.Equal(t, "JOB-2", completed[0].ID)
+	assert.Equal(t, "JOB-3", completed[1].ID)
+
+	// Job 1 should be gone from GetJob
+	_, err = orch.GetJob("JOB-1")
+	assert.Error(t, err)
+}
