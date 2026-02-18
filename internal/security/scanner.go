@@ -59,7 +59,12 @@ func (s *RegexScanner) Scan(content string) ([]Finding, error) {
 
 	// Pre-calculate newline indices for O(log L) line number lookup
 	// This avoids rescanning the string for every match which was O(N*M)
-	var newlines []int
+	if len(content) == 0 {
+		return nil, nil
+	}
+
+	// Estimate 40 chars per line to reduce reallocations
+	newlines := make([]int, 0, len(content)/40)
 	for i := 0; i < len(content); i++ {
 		if content[i] == '\n' {
 			newlines = append(newlines, i)
