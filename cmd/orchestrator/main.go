@@ -15,6 +15,7 @@ import (
 	"recac/internal/runner"
 	"recac/internal/telemetry"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	corev1 "k8s.io/api/core/v1"
@@ -25,6 +26,7 @@ func main() {
 	var cfgFile string
 	pflag.StringVar(&cfgFile, "config", "", "config file (default is $HOME/.recac.yaml)")
 	pflag.BoolP("verbose", "v", false, "Enable verbose/debug logging")
+	pflag.Bool("dry-run", false, "Poll for work items without spawning agents")
 
 	pflag.String("mode", "local", "Orchestrator mode: 'local' (Docker) or 'k8s' (Kubernetes Job)")
 	pflag.String("jira-label", "recac-agent", "Jira label to poll for")
@@ -61,6 +63,9 @@ func main() {
 	viper.BindPFlag("orchestrator.github_owner", pflag.Lookup("github-owner"))
 	viper.BindPFlag("orchestrator.github_repo", pflag.Lookup("github-repo"))
 	viper.BindPFlag("orchestrator.github_label", pflag.Lookup("github-label"))
+
+	viper.BindPFlag("orchestrator.dry_run", pflag.Lookup("dry-run"))
+	viper.BindEnv("orchestrator.dry_run", "RECAC_ORCHESTRATOR_DRY_RUN")
 
 	viper.BindPFlag("orchestrator.mode", pflag.Lookup("mode"))
 	viper.BindPFlag("orchestrator.jira_label", pflag.Lookup("jira-label"))
@@ -202,6 +207,50 @@ func main() {
 
 	// 3. Orchestrator
 	orch := orchestrator.New(poller, spawner, interval)
+
+	if viper.GetBool("orchestrator.dry_run") {
+		items, err := orch.DryRun(ctx, logger)
+		if err != nil {
+			logger.Error("Dry run failed", "error", err)
+			os.Exit(1)
+		}
+
+		if len(items) == 0 {
+			fmt.Println("No work items found.")
+			return
+		}
+
+		var style = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("#FAFAFA")).
+			Background(lipgloss.Color("#7D56F4")).
+			PaddingTop(0).
+			PaddingBottom(0).
+			PaddingLeft(1).
+			PaddingRight(1)
+
+		fmt.Println(style.Render(fmt.Sprintf("Found %d work items:", len(items))))
+		fmt.Println("")
+
+		itemStyle := lipgloss.NewStyle().
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderForeground(lipgloss.Color("63")).
+			Padding(0, 1)
+
+		titleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("86")).Bold(true)
+		descStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+
+		for _, item := range items {
+			content := fmt.Sprintf("%s %s\n%s\nRepo: %s",
+				titleStyle.Render(item.ID),
+				item.Summary,
+				descStyle.Render(limitString(item.Description, 100)),
+				item.RepoURL)
+			fmt.Println(itemStyle.Render(content))
+		}
+		return
+	}
+
 	if err := orch.Run(ctx, logger); err != nil {
 		if ctx.Err() != nil {
 			// Graceful shutdown
@@ -210,4 +259,11 @@ func main() {
 		logger.Error("Orchestrator failure", "error", err)
 		os.Exit(1)
 	}
+}
+
+func limitString(s string, max int) string {
+	if len(s) > max {
+		return s[:max] + "..."
+	}
+	return s
 }

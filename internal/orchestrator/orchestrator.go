@@ -22,6 +22,16 @@ func New(poller Poller, spawner Spawner, pollInterval time.Duration) *Orchestrat
 	}
 }
 
+// DryRun polls for work once and returns the items without spawning.
+func (o *Orchestrator) DryRun(ctx context.Context, logger *slog.Logger) ([]WorkItem, error) {
+	logger.Info("Starting Dry Run (one-off poll)")
+	items, err := o.Poller.Poll(ctx, logger)
+	if err != nil {
+		return nil, fmt.Errorf("dry run poll failed: %w", err)
+	}
+	return items, nil
+}
+
 // Run starts the orchestration loop
 func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 	logger.Info("Starting Orchestrator", "interval", o.PollInterval)
