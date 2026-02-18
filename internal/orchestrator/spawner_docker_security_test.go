@@ -116,3 +116,49 @@ func TestDockerSpawner_EnvInjection_Vulnerability(t *testing.T) {
 	// Also can assert that it IS escaped properly (once fixed)
 	// assert.Contains(t, cmdStr, "'\\''")
 }
+
+func TestDockerSpawner_EnvKeyInjection_Vulnerability(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	client := new(MockDockerClient)
+	poller := new(MockPoller)
+	sm := new(MockSessionManager)
+	spawner := NewDockerSpawner(logger, client, "recac-agent:latest", "test-project", poller, "gemini", "gemini-pro", sm)
+
+	// Inject a malicious KEY that tries to break out of the export statement
+	maliciousKey := "MY_VAR=x; echo PWNED; #"
+
+	injectionItem := WorkItem{
+		ID:      "TASK-SEC-KEY-1",
+		RepoURL: "https://github.com/example/repo",
+		EnvVars: map[string]string{
+			maliciousKey: "some value",
+		},
+	}
+
+	client.On("RunContainer", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("container-sec-key", nil)
+
+	sm.On("SaveSession", mock.Anything).Return(nil)
+	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
+
+	capturedCmdChan := make(chan []string, 1)
+	client.On("Exec", mock.Anything, "container-sec-key", mock.Anything).Run(func(args mock.Arguments) {
+		capturedCmd := args.Get(2).([]string)
+		capturedCmdChan <- capturedCmd
+	}).Return("Success", nil)
+
+	err := spawner.Spawn(context.Background(), injectionItem)
+	assert.NoError(t, err)
+
+	var capturedCmd []string
+	select {
+	case capturedCmd = <-capturedCmdChan:
+		// Success
+	case <-time.After(2 * time.Second):
+		t.Fatal("Timed out waiting for Exec call")
+	}
+
+	cmdStr := capturedCmd[2]
+	vulnerableSubstring := "export MY_VAR=x; echo PWNED; #"
+
+	assert.NotContains(t, cmdStr, vulnerableSubstring, "Command string should NOT contain the injected key")
+}

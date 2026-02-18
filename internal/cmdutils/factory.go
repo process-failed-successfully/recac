@@ -71,8 +71,12 @@ var GetAgentClient = func(ctx context.Context, provider, model, projectPath, pro
 	}
 
 	// Final fallback for developers or testing if not ollama
-	if apiKey == "" && provider != "ollama" && provider != "gemini-cli" && provider != "cursor-cli" && provider != "opencode" {
+	if apiKey == "" && provider != "ollama" && provider != "gemini-cli" && provider != "cursor-cli" && provider != "opencode" && provider != "mock" {
 		apiKey = "dummy-key"
+	}
+
+	if provider == "mock" {
+		return agent.NewMockAgent(), nil
 	}
 
 	if model == "" {
@@ -94,7 +98,7 @@ var GetAgentClient = func(ctx context.Context, provider, model, projectPath, pro
 
 // SetupWorkspace handles cloning, auth fallback, and Epic branching strategy
 var SetupWorkspace = func(ctx context.Context, gitClient git.IClient, repoURL, workspace, ticketID, epicKey, timestamp string) (string, error) {
-	if repoURL == "" {
+	if repoURL == "" || repoURL == "skip" || repoURL == "none" {
 		return "", nil // Nothing to clone
 	}
 

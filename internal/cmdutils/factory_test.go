@@ -279,6 +279,18 @@ func TestSetupWorkspace(t *testing.T) {
 		assert.Equal(t, "", url)
 	})
 
+	t.Run("Skip Repo URL", func(t *testing.T) {
+		mockGitClient := &MockGitClient{
+			cloneFn: func(ctx context.Context, repoURL, directory string) error {
+				t.Fatal("Should not clone")
+				return nil
+			},
+		}
+		url, err := SetupWorkspace(context.Background(), mockGitClient, "skip", "/tmp/recac-test", "TEST-1", "", "")
+		assert.NoError(t, err)
+		assert.Equal(t, "", url)
+	})
+
 	t.Run("Clones when workspace does not exist", func(t *testing.T) {
 		cloned := false
 		mockGitClient := &MockGitClient{
