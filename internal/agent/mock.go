@@ -57,14 +57,14 @@ func (m *MockAgent) generateMockPlan() string {
 	tickets := []map[string]interface{}{
 		{
 			"title":              "PRIMES",
-			"description":        "Implement a Prime Number Generator in Python. Repo: https://github.com/example/repo",
+			"description":        "Implement a Prime Number Generator in Python. Repo: skip",
 			"type":               "Epic",
 			"blocked_by":         []string{},
 			"acceptance_criteria": []string{"Must run correctly"},
 			"children": []map[string]interface{}{
 				{
 					"title":              "Implement generator function",
-					"description":        "Write a function to generate primes. Repo: https://github.com/example/repo",
+					"description":        "Write a function to generate primes. Repo: skip",
 					"type":               "Story",
 					"blocked_by":         []string{},
 					"acceptance_criteria": []string{"Function exists"},
