@@ -22,6 +22,7 @@ type Orchestrator struct {
 	activeSpawns  int
 	totalSpawns   int
 	activeJobs    map[string]JobInfo
+	paused        bool
 }
 
 type JobInfo struct {
@@ -39,6 +40,7 @@ type Status struct {
 	LastPollItems int       `json:"last_poll_items"`
 	ActiveSpawns  int       `json:"active_spawns"`
 	TotalSpawns   int       `json:"total_spawns"`
+	Paused        bool      `json:"paused"`
 }
 
 func New(poller Poller, spawner Spawner, pollInterval time.Duration) *Orchestrator {
@@ -105,7 +107,22 @@ func (o *Orchestrator) GetStatus() Status {
 		LastPollItems: o.lastPollItems,
 		ActiveSpawns:  o.activeSpawns,
 		TotalSpawns:   o.totalSpawns,
+		Paused:        o.paused,
 	}
+}
+
+// Pause pauses the orchestrator's polling loop.
+func (o *Orchestrator) Pause() {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	o.paused = true
+}
+
+// Resume resumes the orchestrator's polling loop.
+func (o *Orchestrator) Resume() {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	o.paused = false
 }
 
 // DryRun polls for work once and returns the items without spawning.
@@ -249,7 +266,15 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 			o.wg.Wait()
 			return ctx.Err()
 		case <-ticker.C:
-			poll()
+			o.mu.RLock()
+			paused := o.paused
+			o.mu.RUnlock()
+
+			if !paused {
+				poll()
+			} else {
+				logger.Debug("Orchestrator is paused, skipping poll")
+			}
 		}
 	}
 }
