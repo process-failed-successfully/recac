@@ -74,3 +74,15 @@ func (p *FileDirPoller) UpdateStatus(ctx context.Context, item WorkItem, status 
 	fmt.Printf("[FileDirPoller] Item %s status updated to %s: %s\n", item.ID, status, comment)
 	return nil
 }
+
+func (p *FileDirPoller) Ping(ctx context.Context) error {
+	// Check if directory exists and is readable
+	info, err := os.Stat(p.watchDir)
+	if err != nil {
+		return fmt.Errorf("watch directory access failed: %w", err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("watch path is not a directory: %s", p.watchDir)
+	}
+	return nil
+}

@@ -279,6 +279,15 @@ func (s *K8sSpawner) Cleanup(ctx context.Context, item WorkItem) error {
 	return nil
 }
 
+func (s *K8sSpawner) Ping(ctx context.Context) error {
+	// Check K8s API connectivity
+	_, err := s.Client.Discovery().ServerVersion()
+	if err != nil {
+		return fmt.Errorf("kubernetes cluster unreachable: %w", err)
+	}
+	return nil
+}
+
 func boolPtr(b bool) *bool {
 	return &b
 }

@@ -31,6 +31,11 @@ func (m *MockSpawner) Cleanup(ctx context.Context, item orchestrator.WorkItem) e
 	return args.Error(0)
 }
 
+func (m *MockSpawner) Ping(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}
+
 func TestOrchestrator_FileDirPoller_Integration(t *testing.T) {
 	// Setup
 	tmpDir, err := os.MkdirTemp("", "orchestrator-integration-test")

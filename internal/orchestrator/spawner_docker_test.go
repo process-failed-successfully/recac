@@ -145,6 +145,11 @@ func (m *MockPoller) UpdateStatus(ctx context.Context, item WorkItem, status str
 	return args.Error(0)
 }
 
+func (m *MockPoller) Ping(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}
+
 func TestDockerSpawner_Spawn_Success(t *testing.T) {
 	mockDocker := new(MockDockerClient)
 	mockSM := new(MockSessionManager)

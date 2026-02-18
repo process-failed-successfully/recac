@@ -27,6 +27,7 @@ func main() {
 	pflag.StringVar(&cfgFile, "config", "", "config file (default is $HOME/.recac.yaml)")
 	pflag.BoolP("verbose", "v", false, "Enable verbose/debug logging")
 	pflag.Bool("dry-run", false, "Poll for work items without spawning agents")
+	pflag.Bool("verify", false, "Verify configuration and connectivity without running the loop")
 
 	pflag.String("mode", "local", "Orchestrator mode: 'local' (Docker) or 'k8s' (Kubernetes Job)")
 	pflag.String("jira-label", "recac-agent", "Jira label to poll for")
@@ -73,6 +74,8 @@ func main() {
 
 	viper.BindPFlag("orchestrator.dry_run", pflag.Lookup("dry-run"))
 	viper.BindEnv("orchestrator.dry_run", "RECAC_ORCHESTRATOR_DRY_RUN")
+
+	viper.BindPFlag("orchestrator.verify", pflag.Lookup("verify"))
 
 	viper.BindPFlag("orchestrator.mode", pflag.Lookup("mode"))
 	viper.BindPFlag("orchestrator.jira_label", pflag.Lookup("jira-label"))
@@ -254,6 +257,15 @@ func main() {
 
 	// 4. Orchestrator
 	orch := orchestrator.New(poller, spawner, interval)
+
+	if viper.GetBool("orchestrator.verify") {
+		if err := orch.Verify(ctx, logger); err != nil {
+			logger.Error("Verification failed", "error", err)
+			os.Exit(1)
+		}
+		logger.Info("Verification passed successfully")
+		return
+	}
 
 	if viper.GetBool("orchestrator.dry_run") {
 		items, err := orch.DryRun(ctx, logger)
