@@ -38,6 +38,12 @@ func main() {
 	pflag.String("image-pull-policy", "Always", "Image pull policy for agents (Always, IfNotPresent, Never)")
 	pflag.Int("metrics-port", 2112, "Port to expose Prometheus metrics")
 
+	// Janitor Flags
+	pflag.Bool("cleanup", false, "Enable janitor to clean up old containers")
+	pflag.Duration("cleanup-interval", 5*time.Minute, "Janitor check interval")
+	pflag.Duration("cleanup-age", 24*time.Hour, "Age of containers to clean up")
+	pflag.Bool("cleanup-dry-run", false, "Janitor dry run (log only)")
+
 	pflag.String("jira-query", "", "Custom JQL query (overrides label)")
 	pflag.String("poller", "jira", "Poller type: 'jira', 'github', 'file', or 'file-dir'")
 	pflag.String("work-file", "work_items.json", "Work items file (for 'file' poller)")
@@ -77,6 +83,11 @@ func main() {
 	viper.BindPFlag("orchestrator.agent_model", pflag.Lookup("agent-model"))
 	viper.BindPFlag("orchestrator.image_pull_policy", pflag.Lookup("image-pull-policy"))
 	viper.BindPFlag("orchestrator.metrics_port", pflag.Lookup("metrics-port"))
+
+	viper.BindPFlag("orchestrator.cleanup", pflag.Lookup("cleanup"))
+	viper.BindPFlag("orchestrator.cleanup_interval", pflag.Lookup("cleanup-interval"))
+	viper.BindPFlag("orchestrator.cleanup_age", pflag.Lookup("cleanup-age"))
+	viper.BindPFlag("orchestrator.cleanup_dry_run", pflag.Lookup("cleanup-dry-run"))
 
 	// Explicitly bind cleaner env vars
 	viper.BindEnv("orchestrator.agent_provider", "RECAC_AGENT_PROVIDER")
@@ -193,6 +204,7 @@ func main() {
 	var spawner orchestrator.Spawner
 	// err is already declared
 	agentModel := viper.GetString("orchestrator.agent_model")
+	var janitorClient orchestrator.DockerClient
 
 	switch mode {
 	case "k8s", "kubernetes":
@@ -220,12 +232,27 @@ func main() {
 		}
 
 		spawner = orchestrator.NewDockerSpawner(logger, dockerCli, image, projectName, poller, agentProvider, agentModel, sm)
+		janitorClient = dockerCli
 	default:
 		logger.Error("Invalid mode. Use 'local' or 'k8s'", "mode", mode)
 		os.Exit(1)
 	}
 
-	// 3. Orchestrator
+	// 3. Janitor
+	if viper.GetBool("orchestrator.cleanup") && janitorClient != nil {
+		janitor := orchestrator.NewJanitor(
+			logger,
+			janitorClient,
+			viper.GetDuration("orchestrator.cleanup_interval"),
+			viper.GetDuration("orchestrator.cleanup_age"),
+			viper.GetBool("orchestrator.cleanup_dry_run"),
+		)
+		go janitor.Start(ctx)
+	} else if viper.GetBool("orchestrator.cleanup") {
+		logger.Warn("Cleanup enabled but not available in this mode (only local/docker)")
+	}
+
+	// 4. Orchestrator
 	orch := orchestrator.New(poller, spawner, interval)
 
 	if viper.GetBool("orchestrator.dry_run") {

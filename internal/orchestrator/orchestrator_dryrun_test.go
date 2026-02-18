@@ -24,8 +24,7 @@ func TestOrchestrator_DryRun_Success(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Len(t, items, 2)
-	assert.Equal(t, expectedItems[0].ID, items[0].ID)
-	assert.Equal(t, expectedItems[1].ID, items[1].ID)
+	assert.ElementsMatch(t, expectedItems, items)
 
 	// Verify nothing was spawned
 	spawner.mu.Lock()
