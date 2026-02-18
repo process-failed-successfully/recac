@@ -2,6 +2,7 @@ package security
 
 import (
 	"regexp"
+	"sort"
 	"testing"
 )
 
@@ -79,6 +80,50 @@ func TestScanner_LineNumbers(t *testing.T) {
 			for i, finding := range findings {
 				if i < len(tt.expected) && finding.Line != tt.expected[i] {
 					t.Errorf("Finding %d: expected line %d, got %d", i, tt.expected[i], finding.Line)
+				}
+			}
+		})
+	}
+}
+
+func TestScanner_EdgeCases(t *testing.T) {
+	scanner := &RegexScanner{
+		patterns: map[string]*regexp.Regexp{
+			"ANY": regexp.MustCompile(`.`),
+		},
+	}
+
+	tests := []struct {
+		name     string
+		content  string
+		expected []int
+	}{
+		{"Start of file", "A", []int{1}},
+		{"After newline", "\nA", []int{2}},
+		{"Between newlines", "\nA\n", []int{2}},
+		{"Multiple newlines", "\n\n\nA", []int{4}},
+		{"No newlines", "ABC", []int{1, 1, 1}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			findings, err := scanner.Scan(tt.content)
+			if err != nil {
+				t.Fatalf("Scan failed: %v", err)
+			}
+			var lines []int
+			// sort findings by line (since map iteration is random)
+			for _, f := range findings {
+				lines = append(lines, f.Line)
+			}
+			sort.Ints(lines)
+
+			if len(lines) != len(tt.expected) {
+				t.Errorf("Expected %d matches, got %d", len(tt.expected), len(lines))
+			}
+			for i := range lines {
+				if lines[i] != tt.expected[i] {
+					t.Errorf("Match %d: expected line %d, got %d", i, tt.expected[i], lines[i])
 				}
 			}
 		})
