@@ -5,13 +5,28 @@ import (
 	"fmt"
 	"log/slog"
 	"time"
-
-	"github.com/docker/docker/api/types/container"
 )
 
-// Janitor cleans up old containers created by the orchestrator.
+// JanitorClient defines the interface for cleaning up resources.
+type JanitorClient interface {
+	// ListCandidates returns resources managed by the orchestrator (e.g. filtered by label).
+	ListCandidates(ctx context.Context) ([]Candidate, error)
+	// Remove deletes the resource.
+	Remove(ctx context.Context, id string) error
+}
+
+// Candidate represents a resource that might be cleaned up.
+type Candidate struct {
+	ID        string
+	Name      string
+	WorkItem  string
+	CreatedAt time.Time
+	Labels    map[string]string
+}
+
+// Janitor cleans up old resources created by the orchestrator.
 type Janitor struct {
-	client     DockerClient
+	client     JanitorClient
 	interval   time.Duration
 	cleanupAge time.Duration
 	dryRun     bool
@@ -19,7 +34,7 @@ type Janitor struct {
 }
 
 // NewJanitor creates a new Janitor.
-func NewJanitor(logger *slog.Logger, client DockerClient, interval time.Duration, cleanupAge time.Duration, dryRun bool) *Janitor {
+func NewJanitor(logger *slog.Logger, client JanitorClient, interval time.Duration, cleanupAge time.Duration, dryRun bool) *Janitor {
 	return &Janitor{
 		client:     client,
 		interval:   interval,
@@ -50,26 +65,22 @@ func (j *Janitor) Start(ctx context.Context) {
 
 // Cleanup performs a single cleanup run.
 func (j *Janitor) Cleanup(ctx context.Context) error {
-	containers, err := j.client.ListContainers(ctx, container.ListOptions{
-		All: true, // We want stopped containers too
-	})
+	candidates, err := j.client.ListCandidates(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to list containers: %w", err)
+		return fmt.Errorf("failed to list candidates: %w", err)
 	}
 
 	cutoff := time.Now().Add(-j.cleanupAge)
 	count := 0
 
-	for _, c := range containers {
-		// Filter by label
+	for _, c := range candidates {
+		// Filter by label (redundant check if client filters, but safe)
 		if val, ok := c.Labels["created-by"]; !ok || val != "recac-orchestrator" {
 			continue
 		}
 
 		// Check age
-		// Created is int64 timestamp (unix seconds)
-		createdAt := time.Unix(c.Created, 0)
-		if createdAt.After(cutoff) {
+		if c.CreatedAt.After(cutoff) {
 			continue
 		}
 
@@ -81,13 +92,13 @@ func (j *Janitor) Cleanup(ctx context.Context) error {
 
 		workItem := c.Labels["work-item"]
 
-		j.logger.Info("Janitor found reclaimable container", "id", id, "work_item", workItem, "created_at", createdAt)
+		j.logger.Info("Janitor found reclaimable resource", "id", id, "work_item", workItem, "created_at", c.CreatedAt)
 
 		if !j.dryRun {
-			if err := j.client.RemoveContainer(ctx, c.ID, true); err != nil {
-				j.logger.Error("Failed to remove container", "id", id, "error", err)
+			if err := j.client.Remove(ctx, c.ID); err != nil {
+				j.logger.Error("Failed to remove resource", "id", id, "error", err)
 			} else {
-				j.logger.Info("Removed container", "id", id)
+				j.logger.Info("Removed resource", "id", id)
 				count++
 			}
 		} else {

@@ -207,7 +207,7 @@ func main() {
 	var spawner orchestrator.Spawner
 	// err is already declared
 	agentModel := viper.GetString("orchestrator.agent_model")
-	var janitorClient orchestrator.DockerClient
+	var janitorClient orchestrator.JanitorClient
 
 	switch mode {
 	case "k8s", "kubernetes":
@@ -215,11 +215,13 @@ func main() {
 		if pullPolicy == "" {
 			pullPolicy = corev1.PullAlways
 		}
-		spawner, err = orchestrator.NewK8sSpawner(logger, image, namespace, agentProvider, agentModel, pullPolicy)
+		k8sSpawner, err := orchestrator.NewK8sSpawner(logger, image, namespace, agentProvider, agentModel, pullPolicy)
 		if err != nil {
 			logger.Error("Failed to initialize K8s spawner", "error", err)
 			os.Exit(1)
 		}
+		spawner = k8sSpawner
+		janitorClient = orchestrator.NewK8sJanitorClient(k8sSpawner.Client, namespace)
 	case "local", "docker":
 		projectName := "recac-orchestrator" // Or similar
 		dockerCli, err := docker.NewClient(projectName)
@@ -235,7 +237,7 @@ func main() {
 		}
 
 		spawner = orchestrator.NewDockerSpawner(logger, dockerCli, image, projectName, poller, agentProvider, agentModel, sm)
-		janitorClient = dockerCli
+		janitorClient = orchestrator.NewDockerJanitorClient(dockerCli)
 	default:
 		logger.Error("Invalid mode. Use 'local' or 'k8s'", "mode", mode)
 		os.Exit(1)
@@ -251,8 +253,6 @@ func main() {
 			viper.GetBool("orchestrator.cleanup_dry_run"),
 		)
 		go janitor.Start(ctx)
-	} else if viper.GetBool("orchestrator.cleanup") {
-		logger.Warn("Cleanup enabled but not available in this mode (only local/docker)")
 	}
 
 	// 4. Orchestrator
