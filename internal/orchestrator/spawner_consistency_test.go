@@ -117,3 +117,80 @@ func TestSpawnerConsistency_EnvPropagation(t *testing.T) {
 		assert.Contains(t, cmdStr, "export RECAC_TASK_MAX_ITERATIONS=5", "Docker should propagate RECAC_TASK_MAX_ITERATIONS")
 	})
 }
+
+// TestSpawnerConsistency_GitConfig checks that both K8s and Docker spawners inject git configuration
+// logic for using GITHUB_TOKEN as an OAuth token for cloning private repositories.
+func TestSpawnerConsistency_GitConfig(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	ctx := context.Background()
+	item := WorkItem{
+		ID:      "TASK-GIT-CONFIG",
+		RepoURL: "https://github.com/example/private-repo",
+	}
+
+	// 1. Check K8s Spawner
+	t.Run("K8sSpawner injects git config for GITHUB_TOKEN", func(t *testing.T) {
+		k8sClient := fake.NewSimpleClientset()
+		spawner := &K8sSpawner{
+			Client:        k8sClient,
+			Namespace:     "ns",
+			Image:         "img",
+			AgentProvider: "prov",
+			AgentModel:    "mod",
+			PullPolicy:    corev1.PullAlways,
+			Logger:        logger,
+		}
+
+		err := spawner.Spawn(ctx, item)
+		assert.NoError(t, err)
+
+		// Get the created job
+		job, err := k8sClient.BatchV1().Jobs("ns").Get(ctx, "recac-agent-task-git-config", metav1.GetOptions{})
+		assert.NoError(t, err)
+
+		// Check the command script
+		cmdArgs := job.Spec.Template.Spec.Containers[0].Args
+		assert.NotEmpty(t, cmdArgs)
+		cmdScript := cmdArgs[0]
+
+		assert.Contains(t, cmdScript, "git config --global url.\"https://${GITHUB_TOKEN}:x-oauth-basic@github.com/\".insteadOf \"https://github.com/\"", "K8s should inject git config logic")
+	})
+
+	// 2. Check Docker Spawner
+	t.Run("DockerSpawner injects git config for GITHUB_TOKEN", func(t *testing.T) {
+		mockDocker := new(MockDockerClient)
+		mockSM := new(MockSessionManager)
+		spawner := NewDockerSpawner(logger, mockDocker, "img", "proj", nil, "prov", "mod", mockSM)
+
+		// Use a mock GitClient that does nothing
+		mockGit := new(MockGitClient)
+		mockGit.On("CurrentCommitSHA", mock.Anything).Return("sha", nil)
+		spawner.GitClient = mockGit
+
+		// Expectations
+		mockDocker.On("RunContainer", mock.Anything, "img", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("cid", nil)
+		mockSM.On("SaveSession", mock.Anything).Return(nil)
+		mockSM.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
+
+		capturedCmdChan := make(chan []string, 1)
+		mockDocker.On("Exec", mock.Anything, "cid", mock.Anything).Run(func(args mock.Arguments) {
+			capturedCmd := args.Get(2).([]string)
+			capturedCmdChan <- capturedCmd
+		}).Return("out", nil)
+
+		err := spawner.Spawn(ctx, item)
+		assert.NoError(t, err)
+
+		var capturedCmd []string
+		select {
+		case capturedCmd = <-capturedCmdChan:
+		case <-time.After(1 * time.Second):
+			t.Fatal("Timeout waiting for Exec")
+		}
+
+		cmdStr := capturedCmd[2]
+
+		// Assertions
+		assert.Contains(t, cmdStr, "git config --global url.\"https://${GITHUB_TOKEN}:x-oauth-basic@github.com/\".insteadOf \"https://github.com/\"", "Docker should inject git config logic")
+	})
+}
