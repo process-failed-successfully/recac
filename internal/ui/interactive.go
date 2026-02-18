@@ -36,6 +36,10 @@ var (
 	interactiveStatusMessageStyle = lipgloss.NewStyle().
 					Foreground(lipgloss.AdaptiveColor{Light: "#04B575", Dark: "#04B575"})
 
+	statusTextStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("241")).
+			Italic(true)
+
 	interactiveSenderStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("39"))      // Blue for User
 	interactiveBotStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))     // Pink for Recac
 	interactiveShellStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("#F4B400")) // Yellow for Shell
@@ -1294,8 +1298,10 @@ func (m InteractiveModel) View() string {
 			text = m.statusMessage
 		} else if m.mode == ModeShell {
 			text = "Executing..."
+		} else if m.isStreaming {
+			text = "Generating..."
 		}
-		status = fmt.Sprintf(" %s %s", m.spinner.View(), text)
+		status = fmt.Sprintf(" %s %s", m.spinner.View(), statusTextStyle.Render(text))
 	}
 
 	// Status Line Construction
