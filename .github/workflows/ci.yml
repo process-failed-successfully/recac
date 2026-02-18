@@ -122,17 +122,10 @@ jobs:
           go mod download
           go vet ./...
 
-  # 4. Test (Sharded - Runs on VM for Docker Support)
+  # 4. Test (Single Job)
   test:
     needs: [setup-matrix]
     runs-on: ubuntu-latest
-    # Note: We do NOT use 'container:' here because E2E tests utilize Docker volume mounts.
-    # Mounting volumes from a containerized runner to a sibling container is problematic
-    # (path mismatch between host and container). Running on the VM solves this.
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: ${{ fromJson(needs.setup-matrix.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -145,11 +138,11 @@ jobs:
         run: |
           docker build -t recac-agent:latest -f internal/docker/agent.Dockerfile .
 
-      - name: Test Shard ${{ matrix.shard }}
+      - name: Run Tests
         run: |
-          # Use the script directly
+          # Run all tests in one shard
           chmod +x scripts/test_sharded.sh
-          ./scripts/test_sharded.sh ${{ matrix.shard }} ${{ needs.setup-matrix.outputs.total_shards }}
+          ./scripts/test_sharded.sh 1 1
 
   # 5. Build Binary Verification (Containerized)
   build:
