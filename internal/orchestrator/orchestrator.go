@@ -144,6 +144,10 @@ func (o *Orchestrator) Verify(ctx context.Context, logger *slog.Logger) error {
 
 // SubmitJob manually submits a work item to the orchestrator.
 func (o *Orchestrator) SubmitJob(ctx context.Context, item WorkItem, logger *slog.Logger) error {
+	return o.processWorkItem(ctx, item, logger)
+}
+
+func (o *Orchestrator) processWorkItem(ctx context.Context, item WorkItem, logger *slog.Logger) error {
 	o.mu.Lock()
 	if _, exists := o.activeJobs[item.ID]; exists {
 		o.mu.Unlock()
@@ -164,7 +168,6 @@ func (o *Orchestrator) SubmitJob(ctx context.Context, item WorkItem, logger *slo
 
 	o.wg.Add(1)
 	go o.spawnWorker(ctx, item, logger)
-
 	return nil
 }
 
@@ -225,28 +228,14 @@ func (o *Orchestrator) Run(ctx context.Context, logger *slog.Logger) error {
 		logger.Info("Found work items", "count", len(items))
 
 		for _, item := range items {
-			// Check if already active to avoid duplicates
-			o.mu.Lock()
-			if _, exists := o.activeJobs[item.ID]; exists {
-				o.mu.Unlock()
-				logger.Info("Job already active, skipping", "id", item.ID)
-				continue
+			if err := o.processWorkItem(ctx, item, logger); err != nil {
+				// Log duplication as info, but real errors as errors
+				if err.Error() == fmt.Sprintf("job %s is already active", item.ID) {
+					logger.Info("Job already active, skipping", "id", item.ID)
+				} else {
+					logger.Error("Failed to process work item", "id", item.ID, "error", err)
+				}
 			}
-
-			o.activeSpawns++
-			o.totalSpawns++
-			job := JobInfo{
-				ID:        item.ID,
-				Summary:   item.Summary,
-				StartTime: time.Now(),
-				Status:    "Spawning",
-				WorkItem:  item,
-			}
-			o.activeJobs[item.ID] = job
-			o.mu.Unlock()
-
-			o.wg.Add(1)
-			go o.spawnWorker(ctx, item, logger)
 		}
 	}
 

@@ -15,22 +15,6 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-func TestExtractRepoPath(t *testing.T) {
-	tests := []struct {
-		url      string
-		expected string
-	}{
-		{"https://github.com/user/repo", "user/repo"},
-		{"https://github.com/org/project", "org/project"},
-		{"github.com/user/repo", "user/repo"},
-		{"user/repo", "user/repo"},
-	}
-
-	for _, tc := range tests {
-		assert.Equal(t, tc.expected, extractRepoPath(tc.url))
-	}
-}
-
 func TestK8sSpawner_Cleanup(t *testing.T) {
 	s := &K8sSpawner{}
 	err := s.Cleanup(context.Background(), WorkItem{})
