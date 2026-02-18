@@ -18,6 +18,7 @@ import (
 	"recac/internal/orchestrator"
 	"recac/internal/runner"
 	"recac/internal/telemetry"
+	"recac/internal/tui"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/pflag"
@@ -33,6 +34,7 @@ func main() {
 	pflag.Bool("dry-run", false, "Poll for work items without spawning agents")
 	pflag.Bool("verify", false, "Verify configuration and connectivity without running the loop")
 	pflag.Bool("list-jobs", false, "List active jobs from a running orchestrator instance")
+	pflag.Bool("monitor", false, "Launch the TUI dashboard to monitor the orchestrator")
 	pflag.String("logs", "", "Get logs for a specific job ID from a running orchestrator instance")
 	pflag.String("host", "http://localhost:2112", "Orchestrator host URL (for list-jobs and logs)")
 
@@ -84,6 +86,7 @@ func main() {
 
 	viper.BindPFlag("orchestrator.verify", pflag.Lookup("verify"))
 	viper.BindPFlag("orchestrator.list_jobs", pflag.Lookup("list-jobs"))
+	viper.BindPFlag("orchestrator.monitor", pflag.Lookup("monitor"))
 	viper.BindPFlag("orchestrator.logs", pflag.Lookup("logs"))
 	viper.BindPFlag("orchestrator.host", pflag.Lookup("host"))
 
@@ -138,6 +141,15 @@ func main() {
 	if logID := viper.GetString("orchestrator.logs"); logID != "" {
 		host := viper.GetString("orchestrator.host")
 		getLogs(host, logID)
+		return
+	}
+
+	if viper.GetBool("orchestrator.monitor") {
+		host := viper.GetString("orchestrator.host")
+		if err := tui.StartDashboard(host); err != nil {
+			logger.Error("Dashboard failed", "error", err)
+			os.Exit(1)
+		}
 		return
 	}
 
