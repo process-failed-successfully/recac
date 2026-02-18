@@ -37,6 +37,10 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// 1. Prime Number Script Scenario
 	if strings.Contains(lowerPrompt, "primes.py") || strings.Contains(lowerPrompt, "prime number script") {
+		// Differentiate between TPM (Planning) and Coding phases
+		if strings.Contains(lowerPrompt, "technical program manager") || strings.Contains(lowerPrompt, "output purely json") {
+			return m.generatePrimesJSONResponse(), nil
+		}
 		return m.generatePrimesScriptResponse(), nil
 	}
 
@@ -62,6 +66,17 @@ func truncateString(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen]
+}
+
+func (m *MockAgent) generatePrimesJSONResponse() string {
+	return `[
+  {
+    "title": "ID:[PRIMES] Prime Number Script",
+    "description": "Implement a python script named 'primes.py' that calculates all prime numbers less than 10,000 and outputs them to a file named 'primes.json'.",
+    "type": "Task",
+    "children": []
+  }
+]`
 }
 
 func (m *MockAgent) generatePrimesScriptResponse() string {
