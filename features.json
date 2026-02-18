@@ -1,0 +1,11 @@
+{
+  "project_name": "default",
+  "features": [
+    {
+      "id": "test-feature",
+      "description": "A test feature",
+      "status": "pending",
+      "passes": false
+    }
+  ]
+}

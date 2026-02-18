@@ -124,7 +124,7 @@ git commit -m "Implement primes.py and add output" || echo "Nothing to commit"
 git push || echo "Push failed (might be local mode)"
 
 # Mark all pending features as done
-agent-bridge feature list --status pending --format json | jq -r '.[].id' | xargs -I {} agent-bridge feature set {} --status done
+agent-bridge feature list --status pending --format json | jq -r '.features[].id' | xargs -I {} agent-bridge feature set {} --status done
 %s
 `, "```bash", script, "```")
 }
