@@ -30,7 +30,7 @@ service:
 # Non-sensitive configuration
 config:
   provider: openrouter
-  model: meta-llama/llama-3.3-70b-instruct:free
+  model: openrouter/aurora-alpha
   ollamaBaseUrl: ""
   verbose: true
   metricsPort: 9090

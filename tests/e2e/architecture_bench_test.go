@@ -34,7 +34,7 @@ func TestArchitectureGenerationBenchmark(t *testing.T) {
 	}
 	model := os.Getenv("RECAC_MODEL")
 	if model == "" {
-		model = "meta-llama/llama-3.3-70b-instruct:free" // Default
+		model = "openrouter/aurora-alpha" // Default
 	}
 	runs := 5 // Number of iterations
 
