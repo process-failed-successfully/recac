@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -31,7 +32,8 @@ func main() {
 	pflag.Bool("dry-run", false, "Poll for work items without spawning agents")
 	pflag.Bool("verify", false, "Verify configuration and connectivity without running the loop")
 	pflag.Bool("list-jobs", false, "List active jobs from a running orchestrator instance")
-	pflag.String("host", "http://localhost:2112", "Orchestrator host URL (for list-jobs)")
+	pflag.String("logs", "", "Get logs for a specific job ID")
+	pflag.String("host", "http://localhost:2112", "Orchestrator host URL (for list-jobs and logs)")
 
 	pflag.String("mode", "local", "Orchestrator mode: 'local' (Docker) or 'k8s' (Kubernetes Job)")
 	pflag.String("jira-label", "recac-agent", "Jira label to poll for")
@@ -81,6 +83,7 @@ func main() {
 
 	viper.BindPFlag("orchestrator.verify", pflag.Lookup("verify"))
 	viper.BindPFlag("orchestrator.list_jobs", pflag.Lookup("list-jobs"))
+	viper.BindPFlag("orchestrator.logs", pflag.Lookup("logs"))
 	viper.BindPFlag("orchestrator.host", pflag.Lookup("host"))
 
 	viper.BindPFlag("orchestrator.mode", pflag.Lookup("mode"))
@@ -128,6 +131,12 @@ func main() {
 	if viper.GetBool("orchestrator.list_jobs") {
 		host := viper.GetString("orchestrator.host")
 		listJobs(host)
+		return
+	}
+
+	if jobID := viper.GetString("orchestrator.logs"); jobID != "" {
+		host := viper.GetString("orchestrator.host")
+		fetchLogs(host, jobID)
 		return
 	}
 
@@ -269,6 +278,28 @@ func main() {
 			w.Header().Set("Content-Type", "application/json")
 			if err := json.NewEncoder(w).Encode(jobs); err != nil {
 				logger.Error("Failed to encode jobs", "error", err)
+			}
+		})
+
+		mux.HandleFunc("GET /jobs/{id}/logs", func(w http.ResponseWriter, r *http.Request) {
+			jobID := r.PathValue("id")
+			if jobID == "" {
+				http.Error(w, "Missing job ID", http.StatusBadRequest)
+				return
+			}
+
+			logs, err := orch.GetLogs(r.Context(), jobID)
+			if err != nil {
+				logger.Error("Failed to get logs", "job", jobID, "error", err)
+				http.Error(w, fmt.Sprintf("Failed to get logs: %v", err), http.StatusNotFound)
+				return
+			}
+			defer logs.Close()
+
+			w.Header().Set("Content-Type", "text/plain")
+			// Copy logs to response
+			if _, err := io.Copy(w, logs); err != nil {
+				logger.Error("Failed to stream logs", "job", jobID, "error", err)
 			}
 		})
 	}
@@ -416,4 +447,24 @@ func limitString(s string, max int) string {
 		return s[:max] + "..."
 	}
 	return s
+}
+
+func fetchLogs(host, jobID string) {
+	resp, err := http.Get(fmt.Sprintf("%s/jobs/%s/logs", host, jobID))
+	if err != nil {
+		fmt.Printf("Failed to connect to orchestrator at %s: %v\n", host, err)
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Printf("Failed to fetch logs: %s\n%s\n", resp.Status, string(body))
+		os.Exit(1)
+	}
+
+	if _, err := io.Copy(os.Stdout, resp.Body); err != nil {
+		fmt.Printf("Error streaming logs: %v\n", err)
+		os.Exit(1)
+	}
 }

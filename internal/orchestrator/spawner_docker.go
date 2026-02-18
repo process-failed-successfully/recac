@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/kballard/go-shellquote"
 )
 
@@ -241,4 +243,32 @@ func (s *DockerSpawner) Ping(ctx context.Context) error {
 		return fmt.Errorf("docker daemon unreachable: %w", err)
 	}
 	return nil
+}
+
+// GetLogs retrieves the logs for a specific job (container).
+func (s *DockerSpawner) GetLogs(ctx context.Context, jobID string) (io.ReadCloser, error) {
+	// Filter by label work-item=<jobID>
+	filtersArgs := filters.NewArgs()
+	filtersArgs.Add("label", fmt.Sprintf("work-item=%s", jobID))
+
+	containers, err := s.Client.ListContainers(ctx, container.ListOptions{
+		All:     true, // Include stopped containers
+		Filters: filtersArgs,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list containers: %w", err)
+	}
+
+	if len(containers) == 0 {
+		return nil, fmt.Errorf("no container found for job %s", jobID)
+	}
+
+	// Use the first match
+	containerID := containers[0].ID
+
+	return s.Client.ContainerLogs(ctx, containerID, container.LogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Follow:     true, // Stream logs
+	})
 }

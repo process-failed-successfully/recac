@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"sync"
 	"time"
@@ -77,6 +78,11 @@ func (o *Orchestrator) GetStatus() Status {
 		ActiveSpawns:  o.activeSpawns,
 		TotalSpawns:   o.totalSpawns,
 	}
+}
+
+// GetLogs returns the logs for a specific job.
+func (o *Orchestrator) GetLogs(ctx context.Context, jobID string) (io.ReadCloser, error) {
+	return o.Spawner.GetLogs(ctx, jobID)
 }
 
 // DryRun polls for work once and returns the items without spawning.

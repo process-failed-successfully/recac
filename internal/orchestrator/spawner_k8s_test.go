@@ -214,3 +214,36 @@ func TestSanitizeK8sName(t *testing.T) {
 		assert.Equal(t, tc.expected, sanitizeK8sName(tc.input))
 	}
 }
+
+func TestK8sSpawner_GetLogs(t *testing.T) {
+	clientset := fake.NewSimpleClientset()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	spawner := &K8sSpawner{
+		Client:    clientset,
+		Namespace: "default",
+		Logger:    logger,
+	}
+
+	jobID := "TEST-JOB"
+
+	// Create a Pod with the label
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-pod",
+			Namespace: "default",
+			Labels: map[string]string{
+				"work-item": jobID,
+			},
+		},
+	}
+	_, err := clientset.CoreV1().Pods("default").Create(context.Background(), pod, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	// We expect Stream() to fail because there is no server, but List should succeed.
+	_, err = spawner.GetLogs(context.Background(), jobID)
+
+	// Error is expected because FakeClient doesn't support streaming logs
+	// But getting past the "not found" error confirms logic
+	assert.Error(t, err)
+	assert.NotContains(t, err.Error(), "no pod found")
+}

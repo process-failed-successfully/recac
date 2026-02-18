@@ -43,6 +43,7 @@ type APIClient interface {
 	ContainerRemove(ctx context.Context, containerID string, options container.RemoveOptions) error
 	ContainerList(ctx context.Context, options container.ListOptions) ([]types.Container, error)
 	ContainerKill(ctx context.Context, containerID, signal string) error
+	ContainerLogs(ctx context.Context, container string, options container.LogsOptions) (io.ReadCloser, error)
 	Close() error
 }
 
@@ -416,6 +417,12 @@ func (c *Client) ListContainers(ctx context.Context, options container.ListOptio
 func (c *Client) KillContainer(ctx context.Context, containerID, signal string) error {
 	telemetry.TrackDockerOp(c.project)
 	return c.api.ContainerKill(ctx, containerID, signal)
+}
+
+// ContainerLogs returns the logs of a container.
+func (c *Client) ContainerLogs(ctx context.Context, containerID string, options container.LogsOptions) (io.ReadCloser, error) {
+	telemetry.TrackDockerOp(c.project)
+	return c.api.ContainerLogs(ctx, containerID, options)
 }
 
 // ImageBuildOptions configures how an image is built.

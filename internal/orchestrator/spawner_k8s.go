@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -292,6 +293,30 @@ func (s *K8sSpawner) Ping(ctx context.Context) error {
 		return fmt.Errorf("kubernetes cluster unreachable: %w", err)
 	}
 	return nil
+}
+
+// GetLogs retrieves the logs for a specific job (pod).
+func (s *K8sSpawner) GetLogs(ctx context.Context, jobID string) (io.ReadCloser, error) {
+	// Find Pod by label work-item=<jobID>
+	pods, err := s.Client.CoreV1().Pods(s.Namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("work-item=%s", jobID),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list pods: %w", err)
+	}
+
+	if len(pods.Items) == 0 {
+		return nil, fmt.Errorf("no pod found for job %s", jobID)
+	}
+
+	// Get logs from the first pod
+	podName := pods.Items[0].Name
+
+	req := s.Client.CoreV1().Pods(s.Namespace).GetLogs(podName, &corev1.PodLogOptions{
+		Follow: true,
+	})
+
+	return req.Stream(ctx)
 }
 
 func boolPtr(b bool) *bool {

@@ -56,6 +56,14 @@ func (m *MockDockerClient) RemoveContainer(ctx context.Context, containerID stri
 	return args.Error(0)
 }
 
+func (m *MockDockerClient) ContainerLogs(ctx context.Context, containerID string, options container.LogsOptions) (io.ReadCloser, error) {
+	args := m.Called(ctx, containerID, options)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(io.ReadCloser), args.Error(1)
+}
+
 // Mock Session Manager
 type MockSessionManager struct {
 	mock.Mock
@@ -314,4 +322,30 @@ func TestDockerSpawner_Cleanup(t *testing.T) {
 
 	err := spawner.Cleanup(context.Background(), WorkItem{ID: "test"})
 	assert.NoError(t, err)
+}
+
+func TestDockerSpawner_GetLogs(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	client := new(MockDockerClient)
+	spawner := NewDockerSpawner(logger, client, "img", "proj", nil, "", "", nil)
+	ctx := context.Background()
+	jobID := "TEST-JOB"
+
+	// Mock ListContainers
+	client.On("ListContainers", ctx, mock.MatchedBy(func(opts container.ListOptions) bool {
+		return opts.All == true && opts.Filters.ExactMatch("label", "work-item="+jobID)
+	})).Return([]types.Container{{ID: "c1"}}, nil)
+
+	// Mock ContainerLogs
+	expectedLogs := io.NopCloser(strings.NewReader("log output"))
+	client.On("ContainerLogs", ctx, "c1", mock.MatchedBy(func(opts container.LogsOptions) bool {
+		return opts.Follow && opts.ShowStdout && opts.ShowStderr
+	})).Return(expectedLogs, nil)
+
+	logs, err := spawner.GetLogs(ctx, jobID)
+	assert.NoError(t, err)
+	assert.NotNil(t, logs)
+
+	content, _ := io.ReadAll(logs)
+	assert.Equal(t, "log output", string(content))
 }
