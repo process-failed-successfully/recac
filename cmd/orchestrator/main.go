@@ -284,12 +284,13 @@ func main() {
 
 		mux.HandleFunc("GET /jobs/{id}/logs", func(w http.ResponseWriter, r *http.Request) {
 			id := r.PathValue("id")
-			logs, err := orch.GetLogs(r.Context(), id)
+			logStream, err := orch.GetLogs(r.Context(), id)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusNotFound)
 				return
 			}
-			w.Write([]byte(logs))
+			defer logStream.Close()
+			io.Copy(w, logStream)
 		})
 	}
 

@@ -3,6 +3,7 @@ package orchestrator_test
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -36,9 +37,12 @@ func (m *MockSpawner) Ping(ctx context.Context) error {
 	return args.Error(0)
 }
 
-func (m *MockSpawner) GetLogs(ctx context.Context, jobID string) (string, error) {
+func (m *MockSpawner) GetLogs(ctx context.Context, jobID string) (io.ReadCloser, error) {
 	args := m.Called(ctx, jobID)
-	return args.String(0), args.Error(1)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(io.ReadCloser), args.Error(1)
 }
 
 func TestOrchestrator_FileDirPoller_Integration(t *testing.T) {

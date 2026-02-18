@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -228,17 +229,17 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	return nil
 }
 
-func (s *DockerSpawner) GetLogs(ctx context.Context, jobID string) (string, error) {
+func (s *DockerSpawner) GetLogs(ctx context.Context, jobID string) (io.ReadCloser, error) {
 	// Find container by label
 	args := filters.NewArgs()
 	args.Add("label", fmt.Sprintf("work-item=%s", jobID))
 	containers, err := s.Client.ListContainers(ctx, container.ListOptions{Filters: args, All: true})
 	if err != nil {
-		return "", fmt.Errorf("failed to list containers: %w", err)
+		return nil, fmt.Errorf("failed to list containers: %w", err)
 	}
 
 	if len(containers) == 0 {
-		return "", fmt.Errorf("no active container found for job %s", jobID)
+		return nil, fmt.Errorf("no active container found for job %s", jobID)
 	}
 
 	// Should be only one, but take the first one (most recent usually if multiple due to retries?)

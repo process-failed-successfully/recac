@@ -30,6 +30,7 @@ type mockAPIClient struct {
 	containerExecAttachFunc func(ctx context.Context, execID string, config container.ExecStartOptions) (types.HijackedResponse, error)
 	containerListFunc       func(ctx context.Context, options container.ListOptions) ([]types.Container, error)
 	containerKillFunc       func(ctx context.Context, containerID, signal string) error
+	containerLogsFunc       func(ctx context.Context, container string, options container.LogsOptions) (io.ReadCloser, error)
 }
 
 func (m *mockAPIClient) Ping(ctx context.Context) (types.Ping, error) {
@@ -123,6 +124,13 @@ func (m *mockAPIClient) ContainerKill(ctx context.Context, containerID, signal s
 		return m.containerKillFunc(ctx, containerID, signal)
 	}
 	return nil
+}
+
+func (m *mockAPIClient) ContainerLogs(ctx context.Context, container string, options container.LogsOptions) (io.ReadCloser, error) {
+	if m.containerLogsFunc != nil {
+		return m.containerLogsFunc(ctx, container, options)
+	}
+	return io.NopCloser(strings.NewReader("")), nil
 }
 
 func (m *mockAPIClient) Close() error {

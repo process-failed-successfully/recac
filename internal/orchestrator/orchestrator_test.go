@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -82,8 +83,8 @@ func (m *mockSpawner) Ping(ctx context.Context) error {
 	return m.pingErr
 }
 
-func (m *mockSpawner) GetLogs(ctx context.Context, jobID string) (string, error) {
-	return "mock logs", nil
+func (m *mockSpawner) GetLogs(ctx context.Context, jobID string) (io.ReadCloser, error) {
+	return io.NopCloser(strings.NewReader("mock logs")), nil
 }
 
 // A silent logger for cleaner test output

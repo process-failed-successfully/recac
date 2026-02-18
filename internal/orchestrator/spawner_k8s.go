@@ -281,17 +281,17 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	return nil
 }
 
-func (s *K8sSpawner) GetLogs(ctx context.Context, jobID string) (string, error) {
+func (s *K8sSpawner) GetLogs(ctx context.Context, jobID string) (io.ReadCloser, error) {
 	// Find Pods by label
 	// The label is "work-item=<jobID>" on the PodTemplate
 	selector := fmt.Sprintf("work-item=%s", jobID)
 	pods, err := s.Client.CoreV1().Pods(s.Namespace).List(ctx, metav1.ListOptions{LabelSelector: selector})
 	if err != nil {
-		return "", fmt.Errorf("failed to list pods: %w", err)
+		return nil, fmt.Errorf("failed to list pods: %w", err)
 	}
 
 	if len(pods.Items) == 0 {
-		return "", fmt.Errorf("no active pods found for job %s", jobID)
+		return nil, fmt.Errorf("no active pods found for job %s", jobID)
 	}
 
 	// Get logs from the first pod
@@ -301,17 +301,11 @@ func (s *K8sSpawner) GetLogs(ctx context.Context, jobID string) (string, error) 
 	req := s.Client.CoreV1().Pods(s.Namespace).GetLogs(podName, &corev1.PodLogOptions{})
 	podLogs, err := req.Stream(ctx)
 	if err != nil {
-		return "", fmt.Errorf("failed to open log stream: %w", err)
-	}
-	defer podLogs.Close()
-
-	buf := new(strings.Builder)
-	_, err = io.Copy(buf, podLogs)
-	if err != nil {
-		return "", fmt.Errorf("failed to read logs: %w", err)
+		return nil, fmt.Errorf("failed to open log stream: %w", err)
 	}
 
-	return buf.String(), nil
+	// Return the stream directly
+	return podLogs, nil
 }
 
 func (s *K8sSpawner) Cleanup(ctx context.Context, item WorkItem) error {

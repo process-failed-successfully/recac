@@ -419,24 +419,13 @@ func (c *Client) KillContainer(ctx context.Context, containerID, signal string) 
 	return c.api.ContainerKill(ctx, containerID, signal)
 }
 
-// ContainerLogs returns the logs of a container as a string.
-func (c *Client) ContainerLogs(ctx context.Context, containerID string) (string, error) {
+// ContainerLogs returns the logs of a container stream.
+func (c *Client) ContainerLogs(ctx context.Context, containerID string) (io.ReadCloser, error) {
 	telemetry.TrackDockerOp(c.project)
-	reader, err := c.api.ContainerLogs(ctx, containerID, container.LogsOptions{
+	return c.api.ContainerLogs(ctx, containerID, container.LogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
 	})
-	if err != nil {
-		return "", fmt.Errorf("failed to get container logs: %w", err)
-	}
-	defer reader.Close()
-
-	content, err := io.ReadAll(reader)
-	if err != nil {
-		return "", fmt.Errorf("failed to read logs: %w", err)
-	}
-
-	return string(content), nil
 }
 
 // ImageBuildOptions configures how an image is built.

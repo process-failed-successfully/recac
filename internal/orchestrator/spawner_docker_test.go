@@ -56,9 +56,12 @@ func (m *MockDockerClient) RemoveContainer(ctx context.Context, containerID stri
 	return args.Error(0)
 }
 
-func (m *MockDockerClient) ContainerLogs(ctx context.Context, containerID string) (string, error) {
+func (m *MockDockerClient) ContainerLogs(ctx context.Context, containerID string) (io.ReadCloser, error) {
 	args := m.Called(ctx, containerID)
-	return args.String(0), args.Error(1)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(io.ReadCloser), args.Error(1)
 }
 
 // Mock Session Manager
@@ -338,11 +341,13 @@ func TestDockerSpawner_GetLogs(t *testing.T) {
 			return true
 		})).Return([]types.Container{{ID: "c1"}}, nil).Once()
 
-		mockDocker.On("ContainerLogs", ctx, "c1").Return("some logs", nil).Once()
+		mockDocker.On("ContainerLogs", ctx, "c1").Return(io.NopCloser(strings.NewReader("some logs")), nil).Once()
 
 		logs, err := spawner.GetLogs(ctx, jobID)
 		assert.NoError(t, err)
-		assert.Equal(t, "some logs", logs)
+
+		content, _ := io.ReadAll(logs)
+		assert.Equal(t, "some logs", string(content))
 	})
 
 	t.Run("NoContainer", func(t *testing.T) {
@@ -351,7 +356,7 @@ func TestDockerSpawner_GetLogs(t *testing.T) {
 		logs, err := spawner.GetLogs(ctx, jobID)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "no active container")
-		assert.Empty(t, logs)
+		assert.Nil(t, logs)
 	})
 
 	t.Run("ListError", func(t *testing.T) {
@@ -360,6 +365,6 @@ func TestDockerSpawner_GetLogs(t *testing.T) {
 		logs, err := spawner.GetLogs(ctx, jobID)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "list error")
-		assert.Empty(t, logs)
+		assert.Nil(t, logs)
 	})
 }
