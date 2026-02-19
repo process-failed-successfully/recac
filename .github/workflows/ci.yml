@@ -364,28 +364,45 @@ jobs:
                 console.log(`Approval step skipped or failed: ${approveError.message}. Continuing to merge attempt...`);
               }
 
-              // 4. Merge the PR
-              const retries = 5;
-              const delay = 10000; // 10 seconds
-              let merged = false;
-              for (let i = 0; i < retries; i++) {
-                try {
-                  await github.rest.pulls.merge({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    pull_number: prNumber,
-                    merge_method: 'squash'
-                  });
-                  console.log(`Successfully merged PR #${prNumber}`);
-                  merged = true;
-                  break;
-                } catch (mergeError) {
-                  console.log(`Merge attempt ${i + 1} failed: ${mergeError.message}`);
-                  if (i < retries - 1) {
-                    console.log(`Retrying in ${delay / 1000} seconds...`);
-                    await new Promise(r => setTimeout(r, delay));
-                  } else {
-                    throw mergeError;
+              // 4. Enable Auto-Merge (Delegate to GitHub)
+              // This avoids the race condition of immediate merge checks failing.
+              try {
+                const mutation = `
+                  mutation($pullRequestId: ID!) {
+                    enablePullRequestAutoMerge(input: {
+                      pullRequestId: $pullRequestId,
+                      mergeMethod: SQUASH
+                    }) {
+                      pullRequest { autoMergeRequest { enabledAt } }
+                    }
+                  }
+                `;
+                await github.graphql(mutation, { pullRequestId: prDetails.node_id });
+                console.log(`Successfully enabled auto-merge for PR #${prNumber}`);
+              } catch (autoMergeError) {
+                console.log(`Failed to enable auto-merge: ${autoMergeError.message}. Attempting direct merge as fallback...`);
+
+                // Fallback to direct merge with retries if auto-merge fails (e.g. not allowed in repo settings)
+                const retries = 5;
+                const delay = 10000; // 10 seconds
+                for (let i = 0; i < retries; i++) {
+                  try {
+                    await github.rest.pulls.merge({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      pull_number: prNumber,
+                      merge_method: 'squash'
+                    });
+                    console.log(`Successfully merged PR #${prNumber}`);
+                    break;
+                  } catch (mergeError) {
+                    console.log(`Merge attempt ${i + 1} failed: ${mergeError.message}`);
+                    if (i < retries - 1) {
+                      console.log(`Retrying in ${delay / 1000} seconds...`);
+                      await new Promise(r => setTimeout(r, delay));
+                    } else {
+                      throw mergeError;
+                    }
                   }
                 }
               }
