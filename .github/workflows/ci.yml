@@ -374,5 +374,6 @@ jobs:
               console.log(`Successfully merged PR #${prNumber}`);
             } catch (error) {
               console.error(`Failed to process PR #${prNumber}:`, error.message);
-              core.setFailed(`Auto-merge failed: ${error.message}`);
+              // Do not fail the CI run if merge fails. This could happen if other checks are still running.
+              // core.setFailed(`Auto-merge failed: ${error.message}`);
             }
