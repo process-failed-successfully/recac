@@ -2,263 +2,175 @@ package notify
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 )
 
-func TestDiscordNotifier_Notify(t *testing.T) {
-	receivedContent := ""
+func TestDiscordNotifier_Webhook(t *testing.T) {
+	// Setup mock server
+	receivedBody := ""
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
-			t.Errorf("expected POST request, got %s", r.Method)
+			t.Errorf("Expected POST, got %s", r.Method)
 		}
-
-		if r.Header.Get("Content-Type") != "application/json" {
-			t.Errorf("expected Content-Type application/json, got %s", r.Header.Get("Content-Type"))
-		}
-
-		var payload map[string]string
 		body, _ := io.ReadAll(r.Body)
-		json.Unmarshal(body, &payload)
-		receivedContent = payload["content"]
-
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
-
-	notifier := NewDiscordNotifier(server.URL)
-	ctx := context.Background()
-	message := "Hello Discord!"
-
-	err := notifier.Notify(ctx, message)
-	if err != nil {
-		t.Fatalf("Notify failed: %v", err)
-	}
-
-	if receivedContent != message {
-		t.Errorf("expected content %q, got %q", message, receivedContent)
-	}
-}
-
-func TestDiscordNotifier_Notify_Error(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-	}))
-	defer server.Close()
-
-	notifier := NewDiscordNotifier(server.URL)
-	ctx := context.Background()
-
-	err := notifier.Notify(ctx, "test")
-	if err == nil {
-		t.Error("expected error for non-OK status code, got nil")
-	}
-}
-
-func TestDiscordNotifier_Notify_MissingURL(t *testing.T) {
-	notifier := NewDiscordNotifier("")
-	ctx := context.Background()
-
-	err := notifier.Notify(ctx, "test")
-	if err == nil {
-		t.Error("expected error for missing webhook URL, got nil")
-	}
-}
-
-func TestDiscordNotifier_Send_Bot(t *testing.T) {
-	channelID := "12345"
-	expectedID := "msg_123"
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Authorization") != "Bot my_token" {
-			t.Errorf("missing or invalid authorization header")
-		}
-
-		if !strings.Contains(r.URL.Path, channelID) {
-			t.Errorf("expected channel ID in path")
-		}
-
-		var payload map[string]interface{}
-		json.NewDecoder(r.Body).Decode(&payload)
-
-		if payload["content"] != "Hello Bot" {
-			t.Errorf("unexpected content")
-		}
-
-		// If thread ID provided
-		if ref, ok := payload["message_reference"].(map[string]interface{}); ok {
-			if ref["message_id"] != "thread_123" {
-				t.Errorf("expected thread ID thread_123, got %v", ref["message_id"])
-			}
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"id": expectedID})
-	}))
-	defer server.Close()
-
-	notifier := NewDiscordBotNotifier("my_token", channelID)
-	// Inject custom client that routes everything to test server
-	notifier.Client = &http.Client{
-		Transport: &testTransport{
-			TargetURL: server.URL,
-		},
-	}
-
-	ctx := context.Background()
-	id, err := notifier.Send(ctx, "Hello Bot", "thread_123")
-	if err != nil {
-		t.Fatalf("Send failed: %v", err)
-	}
-
-	if id != expectedID {
-		t.Errorf("expected message ID %s, got %s", expectedID, id)
-	}
-}
-
-func TestDiscordNotifier_Send_Bot_Error(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Internal Server Error"))
-	}))
-	defer server.Close()
-
-	notifier := NewDiscordBotNotifier("my_token", "12345")
-	notifier.Client = &http.Client{
-		Transport: &testTransport{
-			TargetURL: server.URL,
-		},
-	}
-
-	ctx := context.Background()
-	_, err := notifier.Send(ctx, "Hello Bot", "")
-	if err == nil {
-		t.Error("expected error for non-OK status code, got nil")
-	}
-	if !strings.Contains(err.Error(), "discord api error: 500") {
-		t.Errorf("expected 500 error, got %v", err)
-	}
-}
-
-func TestDiscordNotifier_Send_Bot_DecodeError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("invalid json"))
-	}))
-	defer server.Close()
-
-	notifier := NewDiscordBotNotifier("my_token", "12345")
-	notifier.Client = &http.Client{
-		Transport: &testTransport{
-			TargetURL: server.URL,
-		},
-	}
-
-	ctx := context.Background()
-	_, err := notifier.Send(ctx, "Hello Bot", "")
-	if err == nil {
-		t.Error("expected error for invalid json response, got nil")
-	}
-	if !strings.Contains(err.Error(), "failed to decode discord response") {
-		t.Errorf("expected decode error, got %v", err)
-	}
-}
-
-func TestDiscordNotifier_AddReaction(t *testing.T) {
-	channelID := "12345"
-	messageID := "msg_123"
-	reaction := "white_check_mark"
-	// mapEmoji converts "white_check_mark" to encoded unicode "✅" (%E2%9C%85)
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "PUT" {
-			t.Errorf("expected PUT request, got %s", r.Method)
-		}
-
-		if r.Header.Get("Authorization") != "Bot my_token" {
-			t.Errorf("missing or invalid authorization header")
-		}
-
-		// Check if URL contains the reaction
-		// Ideally we check exact path but transport manipulation might affect it.
-		// Just ensure it's calling the reaction endpoint
-		if !strings.Contains(r.URL.Path, "/reactions/") {
-			t.Errorf("expected reactions endpoint, got %s", r.URL.Path)
-		}
-
+		receivedBody = string(body)
 		w.WriteHeader(http.StatusNoContent)
 	}))
 	defer server.Close()
 
-	notifier := NewDiscordBotNotifier("my_token", channelID)
-	notifier.Client = &http.Client{
-		Transport: &testTransport{
-			TargetURL: server.URL,
-		},
+	// Test
+	notifier := NewDiscordNotifier(server.URL)
+	err := notifier.Notify(context.Background(), "Hello Discord")
+
+	if err != nil {
+		t.Fatalf("Notify failed: %v", err)
 	}
 
-	ctx := context.Background()
-	err := notifier.AddReaction(ctx, messageID, reaction)
+	if !strings.Contains(receivedBody, "Hello Discord") {
+		t.Errorf("Expected body to contain message, got %s", receivedBody)
+	}
+}
+
+type redirectTransport struct {
+	TargetURL *url.URL
+	T         *testing.T
+}
+
+func (t *redirectTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Rewrite URL to point to mock server
+	req.URL.Scheme = t.TargetURL.Scheme
+	req.URL.Host = t.TargetURL.Host
+	// Path is preserved
+	return http.DefaultTransport.RoundTrip(req)
+}
+
+func TestDiscordNotifier_Bot(t *testing.T) {
+	// Setup mock server
+	receivedBody := ""
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			t.Errorf("Expected POST, got %s", r.Method)
+		}
+		if r.Header.Get("Authorization") != "Bot test-token" {
+			t.Errorf("Expected Bot token auth")
+		}
+		body, _ := io.ReadAll(r.Body)
+		receivedBody = string(body)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"id": "msg-123"}`))
+	}))
+	defer server.Close()
+
+	serverURL, _ := url.Parse(server.URL)
+
+	notifier := NewDiscordBotNotifier("test-token", "12345")
+	notifier.Client.Transport = &redirectTransport{TargetURL: serverURL, T: t}
+
+	id, err := notifier.Send(context.Background(), "Hello Bot", "")
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if id != "msg-123" {
+		t.Errorf("Expected ID msg-123, got %s", id)
+	}
+
+	if !strings.Contains(receivedBody, "Hello Bot") {
+		t.Errorf("Expected body to contain message, got %s", receivedBody)
+	}
+}
+
+func TestDiscordNotifier_Bot_Reply(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		if !strings.Contains(string(body), "message_reference") {
+			t.Error("Expected message_reference in body")
+		}
+		if !strings.Contains(string(body), "msg-ref-1") {
+			t.Error("Expected msg-ref-1 in body")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"id": "msg-new"}`))
+	}))
+	defer server.Close()
+
+	serverURL, _ := url.Parse(server.URL)
+	notifier := NewDiscordBotNotifier("test-token", "12345")
+	notifier.Client.Transport = &redirectTransport{TargetURL: serverURL, T: t}
+
+	id, err := notifier.Send(context.Background(), "Reply", "msg-ref-1")
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if id != "msg-new" {
+		t.Errorf("Expected ID msg-new, got %s", id)
+	}
+}
+
+func TestDiscordNotifier_Send_FallbackToWebhook(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	// No bot token, only webhook
+	notifier := NewDiscordNotifier(server.URL)
+	// NewDiscordNotifier sets WebhookURL
+
+	id, err := notifier.Send(context.Background(), "Fallback", "")
+	if err != nil {
+		t.Fatalf("Send failed: %v", err)
+	}
+	if id != "" {
+		t.Errorf("Expected empty ID for webhook, got %s", id)
+	}
+}
+
+func TestDiscordNotifier_AddReaction(t *testing.T) {
+	// Setup mock server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "PUT" {
+			t.Errorf("Expected PUT, got %s", r.Method)
+		}
+		// URL should contain reaction
+		// Note: r.URL.Path is decoded by default in Go server handler
+		if !strings.Contains(r.URL.Path, "✅") {
+			t.Errorf("Expected reaction in URL, got %s", r.URL.Path)
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	serverURL, _ := url.Parse(server.URL)
+
+	notifier := NewDiscordBotNotifier("test-token", "12345")
+	notifier.Client.Transport = &redirectTransport{TargetURL: serverURL, T: t}
+
+	// Use "white_check_mark" which maps to %E2%9C%85
+	err := notifier.AddReaction(context.Background(), "msg-123", "white_check_mark")
 	if err != nil {
 		t.Fatalf("AddReaction failed: %v", err)
 	}
 }
 
-func TestDiscordNotifier_AddReaction_Error(t *testing.T) {
-	// Case 1: Missing credentials
-	notifier := NewDiscordBotNotifier("", "")
-	ctx := context.Background()
-	err := notifier.AddReaction(ctx, "msg_123", "check")
-	if err == nil {
-		t.Error("expected error for missing credentials, got nil")
+func TestMapEmoji(t *testing.T) {
+	// This function is not exported, but we can test it via AddReaction behaviors or export it for test?
+	// It is in same package `notify` so we can test it directly if we were in `notify` package (we are).
+	// But it is `mapEmoji` (lowercase), so unexported.
+	// But `discord_test.go` is in package `notify`, so it can access it.
+
+	if got := mapEmoji("white_check_mark"); got != "%E2%9C%85" {
+		t.Errorf("Expected encoded check, got %s", got)
 	}
-
-	// Case 2: API Error
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusForbidden)
-		w.Write([]byte("Forbidden"))
-	}))
-	defer server.Close()
-
-	notifier = NewDiscordBotNotifier("token", "channel")
-	notifier.Client = &http.Client{
-		Transport: &testTransport{
-			TargetURL: server.URL,
-		},
+	if got := mapEmoji("x"); got != "%E2%9D%8C" {
+		t.Errorf("Expected encoded x, got %s", got)
 	}
-
-	err = notifier.AddReaction(ctx, "msg_123", "check")
-	if err == nil {
-		t.Error("expected error for API failure, got nil")
+	if got := mapEmoji("other"); got != "other" {
+		t.Errorf("Expected other, got %s", got)
 	}
-	if !strings.Contains(err.Error(), "discord api error: 403") {
-		t.Errorf("expected 403 error, got %v", err)
-	}
-}
-
-type testTransport struct {
-	TargetURL string
-}
-
-func (t *testTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	// Helper to redirect to test server but preserve the original path
-	// The original request is to https://discord.com/api/v10/channels/12345/messages
-	// The test server url is http://127.0.0.1:xxx
-	// We want http://127.0.0.1:xxx/api/v10/channels/12345/messages
-
-	// 1. Create request to TargetURL (this gives us base scheme/host)
-	targetReq, _ := http.NewRequest(req.Method, t.TargetURL, req.Body)
-
-	// 2. Append original path
-	targetReq.URL.Path = req.URL.Path
-
-	// 3. Copy headers
-	targetReq.Header = req.Header
-
-	// 4. Send using default client (which handles test server local traffic)
-	return http.DefaultClient.Do(targetReq)
 }

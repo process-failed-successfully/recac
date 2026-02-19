@@ -50,7 +50,7 @@ type statusMsg struct {
 func (m DashboardModel) Init() tea.Cmd {
 	return tea.Batch(
 		tick(),
-		fetchStatus(m.host),
+		fetchStatusCmd(m.host),
 	)
 }
 
@@ -66,7 +66,7 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tickMsg:
 		return m, tea.Batch(
 			tick(),
-			fetchStatus(m.host),
+			fetchStatusCmd(m.host),
 		)
 
 	case statusMsg:
@@ -136,6 +136,9 @@ func tick() tea.Cmd {
 		return tickMsg(t)
 	})
 }
+
+// Allow mocking for tests
+var fetchStatusCmd = fetchStatus
 
 func fetchStatus(host string) tea.Cmd {
 	return func() tea.Msg {

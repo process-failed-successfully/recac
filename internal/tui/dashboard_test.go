@@ -1,7 +1,10 @@
 package tui
 
 import (
+	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"recac/internal/orchestrator"
 	"testing"
 	"time"
@@ -104,4 +107,49 @@ func TestDashboardModel_Quit(t *testing.T) {
 
 	assert.True(t, m.quitting)
 	assert.NotNil(t, cmd) // Should return tea.Quit
+}
+
+func TestFetchStatus(t *testing.T) {
+	// Mock Server
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	// Mock /status
+	mux.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(orchestrator.Status{Uptime: "1h"})
+	})
+
+	// Mock /jobs
+	mux.HandleFunc("/jobs", func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode([]orchestrator.JobInfo{{ID: "JOB-1"}})
+	})
+
+	// Run fetchStatus (it returns a tea.Cmd which is a function)
+	cmd := fetchStatus(server.URL)
+	msg := cmd()
+
+	// Assert
+	sMsg, ok := msg.(statusMsg)
+	assert.True(t, ok)
+	assert.NoError(t, sMsg.Err)
+	assert.Equal(t, "1h", sMsg.Status.Uptime)
+	assert.Len(t, sMsg.Jobs, 1)
+	assert.Equal(t, "JOB-1", sMsg.Jobs[0].ID)
+}
+
+func TestFetchStatus_Error(t *testing.T) {
+	// Invalid URL
+	cmd := fetchStatus("http://invalid-url")
+	msg := cmd()
+
+	sMsg, ok := msg.(statusMsg)
+	assert.True(t, ok)
+	assert.Error(t, sMsg.Err)
+}
+
+func TestLimitString(t *testing.T) {
+	assert.Equal(t, "abc", limitString("abc", 5))
+	assert.Equal(t, "ab...", limitString("abcd", 2))
+	assert.Equal(t, "...", limitString("abcd", 0))
 }
