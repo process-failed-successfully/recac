@@ -40,7 +40,7 @@ func TestFetchStatus_Success(t *testing.T) {
 	defer server.Close()
 
 	// Execute Cmd
-	cmd := fetchStatus(server.URL)
+	cmd := fetchStatus(server.URL, false)
 	msg := cmd()
 
 	// Verify
@@ -57,7 +57,7 @@ func TestFetchStatus_Error(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(nil))
 	server.Close()
 
-	cmd := fetchStatus(server.URL)
+	cmd := fetchStatus(server.URL, false)
 	msg := cmd()
 
 	statusMsg, ok := msg.(statusMsg)
@@ -77,7 +77,7 @@ func TestFetchStatus_JobsError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	cmd := fetchStatus(server.URL)
+	cmd := fetchStatus(server.URL, false)
 	msg := cmd()
 
 	statusMsg, ok := msg.(statusMsg)
@@ -100,7 +100,7 @@ func TestFetchStatus_JobsJSONError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	cmd := fetchStatus(server.URL)
+	cmd := fetchStatus(server.URL, false)
 	msg := cmd()
 
 	statusMsg, ok := msg.(statusMsg)
@@ -114,7 +114,7 @@ func TestFetchStatus_JSONError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	cmd := fetchStatus(server.URL)
+	cmd := fetchStatus(server.URL, false)
 	msg := cmd()
 
 	statusMsg, ok := msg.(statusMsg)

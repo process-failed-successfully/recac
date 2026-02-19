@@ -3,14 +3,17 @@ package tui
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"sort"
+	"strings"
 	"time"
 
 	"recac/internal/orchestrator"
 
 	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -28,15 +31,31 @@ var (
 	statusStyle = lipgloss.NewStyle().
 		Foreground(lipgloss.Color("241")).
 		Margin(1, 0)
+
+	detailsStyle = lipgloss.NewStyle().
+		Padding(1, 2)
+)
+
+type viewState int
+
+const (
+	viewMain viewState = iota
+	viewDetails
+	viewLogs
 )
 
 type DashboardModel struct {
-	host     string
-	table    table.Model
-	status   orchestrator.Status
-	jobs     []orchestrator.JobInfo
-	err      error
-	quitting bool
+	host        string
+	table       table.Model
+	viewport    viewport.Model
+	status      orchestrator.Status
+	jobs        []orchestrator.JobInfo
+	details     orchestrator.JobInfo
+	logs        string
+	err         error
+	quitting    bool
+	viewState   viewState
+	showHistory bool
 }
 
 type tickMsg time.Time
@@ -47,68 +66,187 @@ type statusMsg struct {
 	Err    error
 }
 
+type detailsMsg struct {
+	Job orchestrator.JobInfo
+	Err error
+}
+
+type logsMsg struct {
+	Logs string
+	Err  error
+}
+
+type actionMsg struct {
+	Message string
+	Err     error
+}
+
 func (m DashboardModel) Init() tea.Cmd {
 	return tea.Batch(
 		tick(),
-		fetchStatus(m.host),
+		fetchStatus(m.host, m.showHistory),
 	)
 }
 
 func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "q", "ctrl+c", "esc":
+		if msg.String() == "ctrl+c" {
 			m.quitting = true
 			return m, tea.Quit
 		}
 
+	case tea.WindowSizeMsg:
+		m.table.SetWidth(msg.Width)
+		m.table.SetHeight(msg.Height - 5) // Subtract header/footer
+		m.viewport.Width = msg.Width
+		m.viewport.Height = msg.Height - 5
+
 	case tickMsg:
-		return m, tea.Batch(
-			tick(),
-			fetchStatus(m.host),
-		)
+		cmds = append(cmds, tick())
+		cmds = append(cmds, fetchStatus(m.host, m.showHistory))
+		return m, tea.Batch(cmds...)
 
 	case statusMsg:
 		if msg.Err != nil {
 			m.err = msg.Err
-			return m, nil
+		} else {
+			m.status = msg.Status
+			m.jobs = msg.Jobs
+			m.err = nil
+			m.updateTableContent()
 		}
-		m.status = msg.Status
-		m.jobs = msg.Jobs
-		m.err = nil
+		// Continue to update view specific models if needed, but table update is handled via m.updateTableContent
+		return m, nil
 
-		// Update table
-		rows := []table.Row{}
-		// Sort jobs by start time (newest first)
-		sort.Slice(m.jobs, func(i, j int) bool {
-			return m.jobs[i].StartTime.After(m.jobs[j].StartTime)
-		})
-
-		for _, job := range m.jobs {
-			duration := time.Since(job.StartTime).Round(time.Second).String()
-			rows = append(rows, table.Row{
-				job.ID,
-				limitString(job.Summary, 40),
-				job.Status,
-				duration,
-			})
+	case detailsMsg:
+		if msg.Err != nil {
+			m.err = msg.Err
+		} else {
+			m.details = msg.Job
+			m.viewState = viewDetails
+			m.viewport.SetContent(renderDetails(m.details))
+			m.viewport.GotoTop()
 		}
-		m.table.SetRows(rows)
+		return m, nil
+
+	case logsMsg:
+		if msg.Err != nil {
+			m.err = msg.Err
+		} else {
+			m.logs = msg.Logs
+			m.viewState = viewLogs
+			m.viewport.SetContent(m.logs)
+			m.viewport.GotoBottom()
+		}
+		return m, nil
+
+	case actionMsg:
+		if msg.Err != nil {
+			m.err = msg.Err
+		} else {
+			// Maybe show a status message? For now just refresh
+			cmds = append(cmds, fetchStatus(m.host, m.showHistory))
+		}
+		return m, tea.Batch(cmds...)
 	}
 
+	// View-specific logic
 	var cmd tea.Cmd
+	switch m.viewState {
+	case viewMain:
+		m, cmd = m.updateMain(msg)
+		cmds = append(cmds, cmd)
+	case viewDetails, viewLogs:
+		m, cmd = m.updateViewport(msg)
+		cmds = append(cmds, cmd)
+	}
+
+	return m, tea.Batch(cmds...)
+}
+
+func (m *DashboardModel) updateTableContent() {
+	rows := []table.Row{}
+	// Sort jobs by start time (newest first)
+	sort.Slice(m.jobs, func(i, j int) bool {
+		return m.jobs[i].StartTime.After(m.jobs[j].StartTime)
+	})
+
+	for _, job := range m.jobs {
+		duration := time.Since(job.StartTime).Round(time.Second).String()
+		if !job.EndTime.IsZero() {
+			duration = job.EndTime.Sub(job.StartTime).Round(time.Second).String()
+		}
+		rows = append(rows, table.Row{
+			job.ID,
+			limitString(job.Summary, 40),
+			job.Status,
+			duration,
+		})
+	}
+	m.table.SetRows(rows)
+}
+
+func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
+	var cmd tea.Cmd
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "q":
+			m.quitting = true
+			return m, tea.Quit
+		case "enter":
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				id := selected[0]
+				return m, fetchJobDetails(m.host, id)
+			}
+		case "l":
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				id := selected[0]
+				return m, fetchJobLogs(m.host, id)
+			}
+		case "h":
+			m.showHistory = !m.showHistory
+			return m, fetchStatus(m.host, m.showHistory)
+		case "c":
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				id := selected[0]
+				return m, cancelJob(m.host, id)
+			}
+		case "r":
+			selected := m.table.SelectedRow()
+			if len(selected) > 0 {
+				id := selected[0]
+				return m, retryJob(m.host, id)
+			}
+		}
+	}
 	m.table, cmd = m.table.Update(msg)
+	return m, cmd
+}
+
+func (m DashboardModel) updateViewport(msg tea.Msg) (DashboardModel, tea.Cmd) {
+	var cmd tea.Cmd
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "q", "esc":
+			m.viewState = viewMain
+			return m, nil
+		}
+	}
+	m.viewport, cmd = m.viewport.Update(msg)
 	return m, cmd
 }
 
 func (m DashboardModel) View() string {
 	if m.quitting {
 		return "Exiting dashboard...\n"
-	}
-
-	if m.err != nil {
-		return fmt.Sprintf("Error polling orchestrator: %v\n\nPress q to quit.", m.err)
 	}
 
 	header := fmt.Sprintf(
@@ -122,12 +260,29 @@ func (m DashboardModel) View() string {
 		m.status.LastPollItems,
 	)
 
-	return baseStyle.Render(
-		lipgloss.JoinVertical(lipgloss.Left,
-			titleStyle.Render(header),
-			m.table.View(),
-			statusStyle.Render("Press q to quit."),
-		),
+	var contentView string
+	var helpView string
+
+	switch m.viewState {
+	case viewMain:
+		contentView = baseStyle.Render(m.table.View())
+		helpView = statusStyle.Render("h: history | enter: details | l: logs | c: cancel | r: retry | q: quit")
+	case viewDetails:
+		contentView = baseStyle.Render(m.viewport.View())
+		helpView = statusStyle.Render("esc/q: back")
+	case viewLogs:
+		contentView = baseStyle.Render(m.viewport.View())
+		helpView = statusStyle.Render("esc/q: back")
+	}
+
+	if m.err != nil {
+		helpView = statusStyle.Foreground(lipgloss.Color("196")).Render(fmt.Sprintf("Error: %v", m.err))
+	}
+
+	return lipgloss.JoinVertical(lipgloss.Left,
+		titleStyle.Render(header),
+		contentView,
+		helpView,
 	) + "\n"
 }
 
@@ -137,9 +292,8 @@ func tick() tea.Cmd {
 	})
 }
 
-func fetchStatus(host string) tea.Cmd {
+func fetchStatus(host string, history bool) tea.Cmd {
 	return func() tea.Msg {
-		// Fetch Status
 		sResp, err := http.Get(fmt.Sprintf("%s/status", host))
 		if err != nil {
 			return statusMsg{Err: err}
@@ -151,8 +305,11 @@ func fetchStatus(host string) tea.Cmd {
 			return statusMsg{Err: err}
 		}
 
-		// Fetch Jobs
-		jResp, err := http.Get(fmt.Sprintf("%s/jobs", host))
+		url := fmt.Sprintf("%s/jobs", host)
+		if history {
+			url += "?state=all"
+		}
+		jResp, err := http.Get(url)
 		if err != nil {
 			return statusMsg{Err: err}
 		}
@@ -164,6 +321,85 @@ func fetchStatus(host string) tea.Cmd {
 		}
 
 		return statusMsg{Status: status, Jobs: jobs}
+	}
+}
+
+func fetchJobDetails(host, id string) tea.Cmd {
+	return func() tea.Msg {
+		resp, err := http.Get(fmt.Sprintf("%s/jobs/%s", host, id))
+		if err != nil {
+			return detailsMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return detailsMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
+		}
+
+		var job orchestrator.JobInfo
+		if err := json.NewDecoder(resp.Body).Decode(&job); err != nil {
+			return detailsMsg{Err: err}
+		}
+		return detailsMsg{Job: job}
+	}
+}
+
+func fetchJobLogs(host, id string) tea.Cmd {
+	return func() tea.Msg {
+		resp, err := http.Get(fmt.Sprintf("%s/jobs/%s/logs", host, id))
+		if err != nil {
+			return logsMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return logsMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+		}
+
+		logs, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return logsMsg{Err: err}
+		}
+		return logsMsg{Logs: string(logs)}
+	}
+}
+
+func cancelJob(host, id string) tea.Cmd {
+	return func() tea.Msg {
+		req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/jobs/%s", host, id), nil)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
+		}
+		return actionMsg{Message: "Cancelled"}
+	}
+}
+
+func retryJob(host, id string) tea.Cmd {
+	return func() tea.Msg {
+		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs/%s/retry", host, id), nil)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return actionMsg{Err: err}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusAccepted {
+			return actionMsg{Err: fmt.Errorf("status %d", resp.StatusCode)}
+		}
+		return actionMsg{Message: "Retried"}
 	}
 }
 
@@ -194,15 +430,22 @@ func NewDashboardModel(host string) DashboardModel {
 		Bold(false)
 	t.SetStyles(s)
 
+	vp := viewport.New(100, 20)
+	vp.Style = lipgloss.NewStyle().
+		Padding(1, 2)
+
 	return DashboardModel{
-		host:  host,
-		table: t,
+		host:      host,
+		table:     t,
+		viewport:  vp,
+		viewState: viewMain,
 	}
 }
 
 func StartDashboard(host string) error {
 	m := NewDashboardModel(host)
-	p := tea.NewProgram(m)
+	// Enable alt screen for full screen view
+	p := tea.NewProgram(m, tea.WithAltScreen())
 
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Alas, there's been an error: %v", err)
@@ -216,4 +459,41 @@ func limitString(s string, max int) string {
 		return s[:max] + "..."
 	}
 	return s
+}
+
+func renderDetails(job orchestrator.JobInfo) string {
+	s := strings.Builder{}
+
+	h1 := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86")).Render
+	kv := func(k, v string) string {
+		return fmt.Sprintf("%s: %s\n", h1(k), v)
+	}
+
+	s.WriteString(kv("ID", job.ID))
+	s.WriteString(kv("Summary", job.Summary))
+	s.WriteString(kv("Status", job.Status))
+	s.WriteString(kv("Start Time", job.StartTime.Format(time.RFC3339)))
+	if !job.EndTime.IsZero() {
+		s.WriteString(kv("End Time", job.EndTime.Format(time.RFC3339)))
+		s.WriteString(kv("Duration", job.EndTime.Sub(job.StartTime).String()))
+	} else {
+		s.WriteString(kv("Duration", time.Since(job.StartTime).String()))
+	}
+	if job.Error != "" {
+		s.WriteString(kv("Error", job.Error))
+	}
+	s.WriteString("\n")
+
+	s.WriteString(h1("Work Item Details") + "\n")
+	s.WriteString(kv("Repo URL", job.WorkItem.RepoURL))
+	s.WriteString(kv("Description", job.WorkItem.Description))
+
+	if len(job.WorkItem.EnvVars) > 0 {
+		s.WriteString("\n" + h1("Environment Variables") + "\n")
+		for k, v := range job.WorkItem.EnvVars {
+			s.WriteString(fmt.Sprintf("  %s=%s\n", k, v))
+		}
+	}
+
+	return s.String()
 }
