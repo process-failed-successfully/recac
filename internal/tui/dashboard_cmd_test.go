@@ -2,6 +2,7 @@ package tui
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -103,13 +104,17 @@ func TestCmd_FetchJobLogs(t *testing.T) {
 	}))
 	defer server.Close()
 
-	cmd := fetchJobLogs(server.URL, "JOB-1")
+	cmd := streamJobLogs(server.URL, "JOB-1")
 	msg := cmd()
 
-	lMsg, ok := msg.(logsMsg)
+	lMsg, ok := msg.(logStreamMsg)
 	assert.True(t, ok)
 	assert.Nil(t, lMsg.Err)
-	assert.Equal(t, "some logs", lMsg.Logs)
+
+	defer lMsg.Stream.Close()
+	content, err := io.ReadAll(lMsg.Stream)
+	assert.NoError(t, err)
+	assert.Equal(t, "some logs", string(content))
 }
 
 func TestCmd_FetchJobLogs_Error(t *testing.T) {
@@ -118,10 +123,10 @@ func TestCmd_FetchJobLogs_Error(t *testing.T) {
 	}))
 	defer server.Close()
 
-	cmd := fetchJobLogs(server.URL, "JOB-1")
+	cmd := streamJobLogs(server.URL, "JOB-1")
 	msg := cmd()
 
-	lMsg, ok := msg.(logsMsg)
+	lMsg, ok := msg.(logStreamMsg)
 	assert.True(t, ok)
 	assert.NotNil(t, lMsg.Err)
 	assert.Contains(t, lMsg.Err.Error(), "status 500")
