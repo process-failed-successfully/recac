@@ -43,6 +43,9 @@ func main() {
 	pflag.Bool("pause", false, "Pause the orchestrator polling loop")
 	pflag.Bool("resume", false, "Resume the orchestrator polling loop")
 	pflag.String("submit", "", "Submit a job from a JSON file path")
+	pflag.String("submit-url", "", "Repo URL for ad-hoc job submission")
+	pflag.String("submit-task", "", "Task description for ad-hoc job submission")
+	pflag.String("submit-id", "", "Optional ID for ad-hoc job submission")
 	pflag.String("host", "http://localhost:2112", "Orchestrator host URL (for list-jobs, logs, cancel-job, and submit)")
 
 	pflag.String("mode", "local", "Orchestrator mode: 'local' (Docker) or 'k8s' (Kubernetes Job)")
@@ -102,6 +105,9 @@ func main() {
 	viper.BindPFlag("orchestrator.pause", pflag.Lookup("pause"))
 	viper.BindPFlag("orchestrator.resume", pflag.Lookup("resume"))
 	viper.BindPFlag("orchestrator.submit", pflag.Lookup("submit"))
+	viper.BindPFlag("orchestrator.submit_url", pflag.Lookup("submit-url"))
+	viper.BindPFlag("orchestrator.submit_task", pflag.Lookup("submit-task"))
+	viper.BindPFlag("orchestrator.submit_id", pflag.Lookup("submit-id"))
 	viper.BindPFlag("orchestrator.host", pflag.Lookup("host"))
 
 	viper.BindPFlag("orchestrator.mode", pflag.Lookup("mode"))
@@ -192,6 +198,18 @@ func main() {
 	if submitFile := viper.GetString("orchestrator.submit"); submitFile != "" {
 		host := viper.GetString("orchestrator.host")
 		submitJob(host, submitFile)
+		return
+	}
+
+	if submitURL := viper.GetString("orchestrator.submit_url"); submitURL != "" {
+		host := viper.GetString("orchestrator.host")
+		task := viper.GetString("orchestrator.submit_task")
+		if task == "" {
+			fmt.Println("Error: --submit-task is required when using --submit-url")
+			os.Exit(1)
+		}
+		id := viper.GetString("orchestrator.submit_id")
+		submitAdHocJob(host, submitURL, task, id)
 		return
 	}
 
@@ -761,39 +779,6 @@ func resumeOrchestrator(host string) {
 	}
 
 	fmt.Println("Orchestrator resumed.")
-}
-
-func submitJob(host, filePath string) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		fmt.Printf("Failed to open file %s: %v\n", filePath, err)
-		os.Exit(1)
-	}
-	defer file.Close()
-
-	// Verify JSON validity before sending (optional but good UX)
-	var item map[string]interface{}
-	if err := json.NewDecoder(file).Decode(&item); err != nil {
-		fmt.Printf("Invalid JSON in file %s: %v\n", filePath, err)
-		os.Exit(1)
-	}
-	// Reset file pointer
-	file.Seek(0, 0)
-
-	resp, err := http.Post(fmt.Sprintf("%s/jobs", host), "application/json", file)
-	if err != nil {
-		fmt.Printf("Failed to connect to orchestrator at %s: %v\n", host, err)
-		os.Exit(1)
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusAccepted {
-		fmt.Printf("Failed to submit job: %s\n", strings.TrimSpace(string(body)))
-		os.Exit(1)
-	}
-
-	fmt.Printf("%s\n", strings.TrimSpace(string(body)))
 }
 
 func retryJob(host, jobID string) {
