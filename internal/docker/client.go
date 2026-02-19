@@ -425,6 +425,7 @@ func (c *Client) ContainerLogs(ctx context.Context, containerID string) (io.Read
 	return c.api.ContainerLogs(ctx, containerID, container.LogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
+		Follow:     true,
 	})
 }
 

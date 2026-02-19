@@ -8,13 +8,14 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"recac/internal/orchestrator"
 
 	"github.com/google/uuid"
 )
 
-func submitJob(host, filePath string) {
+func submitJob(host, filePath string, wait bool) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		fmt.Printf("Failed to open file %s: %v\n", filePath, err)
@@ -28,6 +29,9 @@ func submitJob(host, filePath string) {
 		fmt.Printf("Invalid JSON in file %s: %v\n", filePath, err)
 		os.Exit(1)
 	}
+	// Extract ID for waiting
+	id, _ := item["id"].(string)
+
 	// Reset file pointer
 	file.Seek(0, 0)
 
@@ -45,9 +49,16 @@ func submitJob(host, filePath string) {
 	}
 
 	fmt.Printf("%s\n", strings.TrimSpace(string(body)))
+
+	if wait && id != "" {
+		if err := waitForJob(host, id, os.Stdout); err != nil {
+			fmt.Printf("Job failed: %v\n", err)
+			os.Exit(1)
+		}
+	}
 }
 
-func submitAdHocJob(host, repo, task, id string) {
+func submitAdHocJob(host, repo, task, id string, wait bool) {
 	if id == "" {
 		id = uuid.New().String()
 	}
@@ -80,4 +91,87 @@ func submitAdHocJob(host, repo, task, id string) {
 	}
 
 	fmt.Printf("%s\n", strings.TrimSpace(string(body)))
+
+	if wait {
+		if err := waitForJob(host, id, os.Stdout); err != nil {
+			fmt.Printf("Job failed: %v\n", err)
+			os.Exit(1)
+		}
+	}
+}
+
+func waitForJob(host, jobID string, out io.Writer) error {
+	fmt.Fprintf(out, "Waiting for job %s to start...\n", jobID)
+
+	// Poll until active or completed
+	for {
+		resp, err := http.Get(fmt.Sprintf("%s/jobs/%s", host, jobID))
+		if err != nil {
+			// Retry on network error
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		var job orchestrator.JobInfo
+		if err := json.NewDecoder(resp.Body).Decode(&job); err != nil {
+			resp.Body.Close()
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		resp.Body.Close()
+
+		if job.Status == "Completed" {
+			fmt.Fprintln(out, "Job already completed.")
+			return nil
+		}
+		if job.Status == "Failed" {
+			return fmt.Errorf("job failed with error: %s", job.Error)
+		}
+
+		// If job is in a state where it might have logs (Running, Spawning which often implies running in Docker)
+		// We try to stream logs.
+		// Note: "Spawning" is the status during execution in DockerSpawner.
+		if job.Status == "Spawning" || job.Status == "Running" || job.Status == "Active" {
+			// Try to stream logs
+			logsResp, err := http.Get(fmt.Sprintf("%s/jobs/%s/logs", host, jobID))
+			if err == nil && logsResp.StatusCode == http.StatusOK {
+				fmt.Fprintln(out, "--- Log Stream Start ---")
+				io.Copy(out, logsResp.Body)
+				logsResp.Body.Close()
+				fmt.Fprintln(out, "\n--- Log Stream End ---")
+
+				// Logs finished, check final status
+				finalResp, err := http.Get(fmt.Sprintf("%s/jobs/%s", host, jobID))
+				if err == nil {
+					var finalJob orchestrator.JobInfo
+					if err := json.NewDecoder(finalResp.Body).Decode(&finalJob); err == nil {
+						if finalJob.Status == "Failed" {
+							return fmt.Errorf("job failed with error: %s", finalJob.Error)
+						}
+						// If logs finished, assume success unless failed?
+						// But if status is still Spawning, it might be weird.
+						// However, if streaming ends, container stopped.
+						// Orchestrator moves to Completed/Failed AFTER container stops.
+						// So there might be a tiny race where status is still Spawning.
+						// We should probably loop again if status is still Spawning?
+						if finalJob.Status == "Completed" {
+							return nil
+						}
+					}
+					finalResp.Body.Close()
+				}
+				// Continue loop to check status again
+				continue
+			} else {
+				if logsResp != nil {
+					logsResp.Body.Close()
+				}
+				// Maybe container not ready yet
+				time.Sleep(1 * time.Second)
+				continue
+			}
+		}
+
+		time.Sleep(1 * time.Second)
+	}
 }

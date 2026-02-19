@@ -31,7 +31,7 @@ func TestSubmitAdHocJob(t *testing.T) {
 	defer server.Close()
 
 	// 2. Call function
-	submitAdHocJob(server.URL, "http://repo.com", "My Task", "MY-ID")
+	submitAdHocJob(server.URL, "http://repo.com", "My Task", "MY-ID", false)
 
 	// 3. Verify payload
 	var item orchestrator.WorkItem
@@ -54,7 +54,7 @@ func TestSubmitAdHocJob_AutoID(t *testing.T) {
 	}))
 	defer server.Close()
 
-	submitAdHocJob(server.URL, "http://repo.com", "My Task", "")
+	submitAdHocJob(server.URL, "http://repo.com", "My Task", "", false)
 
 	var item orchestrator.WorkItem
 	err := json.Unmarshal(receivedBody, &item)
