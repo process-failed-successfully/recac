@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"recac/internal/utils"
+
 	"github.com/spf13/cobra"
 )
 
@@ -208,7 +210,7 @@ func formatMeta(m *FileMeta, isDir bool) string {
 	}
 
 	// Time relative
-	parts = append(parts, formatRelativeTime(m.ModTime))
+	parts = append(parts, utils.FormatSince(m.ModTime))
 
 	if m.Complexity > 0 {
 		parts = append(parts, fmt.Sprintf("C:%d", m.Complexity))
@@ -234,25 +236,4 @@ func formatSize(bytes int64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f%c", float64(bytes)/float64(div), "KMGTPE"[exp])
-}
-
-func formatRelativeTime(t time.Time) string {
-	d := time.Since(t)
-	if d < time.Minute {
-		return "now"
-	}
-	if d < time.Hour {
-		return fmt.Sprintf("%dm ago", int(d.Minutes()))
-	}
-	if d < 24*time.Hour {
-		return fmt.Sprintf("%dh ago", int(d.Hours()))
-	}
-	days := int(d.Hours() / 24)
-	if days < 30 {
-		return fmt.Sprintf("%dd ago", days)
-	}
-	if days < 365 {
-		return fmt.Sprintf("%dmo ago", days/30)
-	}
-	return fmt.Sprintf("%dy ago", days/365)
 }

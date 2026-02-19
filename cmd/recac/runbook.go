@@ -2,12 +2,13 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"recac/internal/utils"
 
 	"github.com/charmbracelet/glamour"
 	"github.com/spf13/cobra"
@@ -28,12 +29,6 @@ Preserves environment variables between blocks, allowing for stateful workflows.
 func init() {
 	rootCmd.AddCommand(runbookCmd)
 	// We could add flags like --auto-approve or --dry-run later
-}
-
-type Block struct {
-	Type    string // "text" or "code"
-	Content string
-	Lang    string // "bash", "sh", etc.
 }
 
 func runRunbook(cmd *cobra.Command, args []string) error {
@@ -136,62 +131,13 @@ func runRunbook(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func parseRunbook(path string) ([]Block, error) {
-	lines, err := readLines(path)
+func parseRunbook(path string) ([]utils.MarkdownBlock, error) {
+	lines, err := utils.ReadLines(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
 
-	var blocks []Block
-
-	var currentBuffer bytes.Buffer
-	inCodeBlock := false
-	codeLang := ""
-
-	flushBuffer := func(t, l string) {
-		if currentBuffer.Len() > 0 {
-			blocks = append(blocks, Block{
-				Type:    t,
-				Content: currentBuffer.String(),
-				Lang:    l,
-			})
-			currentBuffer.Reset()
-		}
-	}
-
-	for _, line := range lines {
-		if strings.HasPrefix(strings.TrimSpace(line), "```") {
-			if inCodeBlock {
-				// End of code block
-				// Do not include the closing fence in the content
-				flushBuffer("code", codeLang)
-				inCodeBlock = false
-				codeLang = ""
-			} else {
-				// Start of code block
-				// Flush previous text
-				flushBuffer("text", "")
-				inCodeBlock = true
-				codeLang = strings.TrimPrefix(strings.TrimSpace(line), "```")
-			}
-		} else {
-			currentBuffer.WriteString(line)
-			currentBuffer.WriteString("\n")
-		}
-	}
-
-	// Flush remaining
-	if currentBuffer.Len() > 0 {
-		if inCodeBlock {
-			// Unclosed code block, treat as code I guess? Or error?
-			// Let's treat as code to be robust
-			flushBuffer("code", codeLang)
-		} else {
-			flushBuffer("text", "")
-		}
-	}
-
-	return blocks, nil
+	return utils.ParseMarkdownBlocks(lines), nil
 }
 
 func promptUser(cmd *cobra.Command, reader *bufio.Reader) (string, error) {
@@ -260,7 +206,7 @@ func executeBlock(code string, env map[string]string, tmpDir string, cmd *cobra.
 	}
 
 	// 2. Read new env
-	lines, err := readLines(outFile)
+	lines, err := utils.ReadLines(outFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read output env: %w", err)
 	}
