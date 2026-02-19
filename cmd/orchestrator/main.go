@@ -40,6 +40,7 @@ func main() {
 	pflag.String("inspect-job", "", "Inspect a specific job by ID")
 	pflag.String("cancel-job", "", "Cancel a running job by ID")
 	pflag.String("retry-job", "", "Retry a completed job by ID")
+	pflag.Bool("retry-failed", false, "Retry all failed jobs from history")
 	pflag.Bool("pause", false, "Pause the orchestrator polling loop")
 	pflag.Bool("resume", false, "Resume the orchestrator polling loop")
 	pflag.String("submit", "", "Submit a job from a JSON file path")
@@ -104,6 +105,7 @@ func main() {
 	viper.BindPFlag("orchestrator.inspect_job", pflag.Lookup("inspect-job"))
 	viper.BindPFlag("orchestrator.cancel_job", pflag.Lookup("cancel-job"))
 	viper.BindPFlag("orchestrator.retry_job", pflag.Lookup("retry-job"))
+	viper.BindPFlag("orchestrator.retry_failed", pflag.Lookup("retry-failed"))
 	viper.BindPFlag("orchestrator.pause", pflag.Lookup("pause"))
 	viper.BindPFlag("orchestrator.resume", pflag.Lookup("resume"))
 	viper.BindPFlag("orchestrator.submit", pflag.Lookup("submit"))
@@ -185,6 +187,12 @@ func main() {
 	if jobID := viper.GetString("orchestrator.retry_job"); jobID != "" {
 		host := viper.GetString("orchestrator.host")
 		retryJob(host, jobID)
+		return
+	}
+
+	if viper.GetBool("orchestrator.retry_failed") {
+		host := viper.GetString("orchestrator.host")
+		retryFailedJobs(host)
 		return
 	}
 
@@ -437,6 +445,17 @@ func main() {
 			}
 			w.WriteHeader(http.StatusAccepted)
 			fmt.Fprintf(w, "Job %s retry submitted", id)
+		})
+
+		mux.HandleFunc("POST /jobs/retry-failed", func(w http.ResponseWriter, r *http.Request) {
+			count, err := orch.RetryFailedJobs(r.Context(), logger)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintf(w, `{"retried": %d}`, count)
 		})
 
 		mux.HandleFunc("DELETE /jobs/{id}", func(w http.ResponseWriter, r *http.Request) {
@@ -825,4 +844,35 @@ func retryJob(host, jobID string) {
 	}
 
 	fmt.Printf("Job %s retry submitted successfully.\n", jobID)
+}
+
+func retryFailedJobs(host string) {
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs/retry-failed", host), nil)
+	if err != nil {
+		fmt.Printf("Failed to create request: %v\n", err)
+		os.Exit(1)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Printf("Failed to connect to orchestrator at %s: %v\n", host, err)
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Printf("Failed to retry failed jobs: %s\n", strings.TrimSpace(string(body)))
+		os.Exit(1)
+	}
+
+	var result struct {
+		Retried int `json:"retried"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		fmt.Printf("Failed to decode response: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Successfully retried %d failed jobs.\n", result.Retried)
 }
