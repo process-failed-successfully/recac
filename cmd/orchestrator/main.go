@@ -38,6 +38,7 @@ func main() {
 	pflag.Bool("monitor", false, "Launch the TUI dashboard to monitor the orchestrator")
 	pflag.String("logs", "", "Get logs for a specific job ID from a running orchestrator instance")
 	pflag.String("inspect-job", "", "Inspect a specific job by ID")
+	pflag.String("retry-job", "", "Retry a completed or failed job by ID")
 	pflag.String("cancel-job", "", "Cancel a running job by ID")
 	pflag.Bool("pause", false, "Pause the orchestrator polling loop")
 	pflag.Bool("resume", false, "Resume the orchestrator polling loop")
@@ -96,6 +97,7 @@ func main() {
 	viper.BindPFlag("orchestrator.monitor", pflag.Lookup("monitor"))
 	viper.BindPFlag("orchestrator.logs", pflag.Lookup("logs"))
 	viper.BindPFlag("orchestrator.inspect_job", pflag.Lookup("inspect-job"))
+	viper.BindPFlag("orchestrator.retry_job", pflag.Lookup("retry-job"))
 	viper.BindPFlag("orchestrator.cancel_job", pflag.Lookup("cancel-job"))
 	viper.BindPFlag("orchestrator.pause", pflag.Lookup("pause"))
 	viper.BindPFlag("orchestrator.resume", pflag.Lookup("resume"))
@@ -160,6 +162,12 @@ func main() {
 	if jobID := viper.GetString("orchestrator.inspect_job"); jobID != "" {
 		host := viper.GetString("orchestrator.host")
 		inspectJob(host, jobID)
+		return
+	}
+
+	if jobID := viper.GetString("orchestrator.retry_job"); jobID != "" {
+		host := viper.GetString("orchestrator.host")
+		retryJob(host, jobID)
 		return
 	}
 
@@ -384,6 +392,22 @@ func main() {
 			}
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprintf(w, "Job %s cancellation requested", id)
+		})
+
+		mux.HandleFunc("POST /jobs/{id}/retry", func(w http.ResponseWriter, r *http.Request) {
+			id := r.PathValue("id")
+			if err := orch.RetryJob(r.Context(), id, logger); err != nil {
+				if strings.Contains(err.Error(), "currently active") {
+					http.Error(w, err.Error(), http.StatusConflict)
+				} else if strings.Contains(err.Error(), "not found") {
+					http.Error(w, err.Error(), http.StatusNotFound)
+				} else {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+				}
+				return
+			}
+			w.WriteHeader(http.StatusAccepted)
+			fmt.Fprintf(w, "Job %s retry initiated", id)
 		})
 
 		mux.HandleFunc("POST /jobs", func(w http.ResponseWriter, r *http.Request) {
@@ -667,6 +691,29 @@ func inspectJob(host, jobID string) {
 			fmt.Printf("  %s=%s\n", k, v)
 		}
 	}
+}
+
+func retryJob(host, jobID string) {
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs/%s/retry", host, jobID), nil)
+	if err != nil {
+		fmt.Printf("Failed to create request: %v\n", err)
+		os.Exit(1)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Printf("Failed to connect to orchestrator at %s: %v\n", host, err)
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusAccepted {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Printf("Failed to retry job: %s\n", strings.TrimSpace(string(body)))
+		os.Exit(1)
+	}
+
+	fmt.Printf("Job %s retry successfully initiated.\n", jobID)
 }
 
 func cancelJob(host, jobID string) {

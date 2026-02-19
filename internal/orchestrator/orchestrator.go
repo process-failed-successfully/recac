@@ -183,6 +183,33 @@ func (o *Orchestrator) Verify(ctx context.Context, logger *slog.Logger) error {
 	return nil
 }
 
+// RetryJob retries a completed or failed job.
+func (o *Orchestrator) RetryJob(ctx context.Context, jobID string, logger *slog.Logger) error {
+	o.mu.RLock()
+	if _, exists := o.activeJobs[jobID]; exists {
+		o.mu.RUnlock()
+		return fmt.Errorf("job %s is currently active", jobID)
+	}
+
+	// Find in history
+	var workItem *WorkItem
+	for i := len(o.completedJobs) - 1; i >= 0; i-- {
+		if o.completedJobs[i].ID == jobID {
+			item := o.completedJobs[i].WorkItem
+			workItem = &item
+			break
+		}
+	}
+	o.mu.RUnlock()
+
+	if workItem == nil {
+		return fmt.Errorf("job %s not found in history", jobID)
+	}
+
+	logger.Info("Retrying job", "id", jobID)
+	return o.SubmitJob(ctx, *workItem, logger)
+}
+
 // SubmitJob manually submits a work item to the orchestrator.
 func (o *Orchestrator) SubmitJob(ctx context.Context, item WorkItem, logger *slog.Logger) error {
 	return o.processWorkItem(ctx, item, logger)
