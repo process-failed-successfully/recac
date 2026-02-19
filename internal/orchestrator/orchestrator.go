@@ -22,6 +22,8 @@ type Orchestrator struct {
 	activeSpawns  int
 	totalSpawns   int
 	activeJobs    map[string]JobInfo
+	completedJobs []JobInfo
+	maxHistory    int
 	paused        bool
 }
 
@@ -29,7 +31,9 @@ type JobInfo struct {
 	ID        string    `json:"id"`
 	Summary   string    `json:"summary"`
 	StartTime time.Time `json:"start_time"`
+	EndTime   time.Time `json:"end_time,omitempty"`
 	Status    string    `json:"status"`
+	Error     string    `json:"error,omitempty"`
 	WorkItem  WorkItem  `json:"work_item"`
 }
 
@@ -49,6 +53,7 @@ func New(poller Poller, spawner Spawner, pollInterval time.Duration) *Orchestrat
 		Spawner:      spawner,
 		PollInterval: pollInterval,
 		activeJobs:   make(map[string]JobInfo),
+		maxHistory:   50, // Default history size
 	}
 }
 
@@ -70,10 +75,29 @@ func (o *Orchestrator) GetJob(id string) (JobInfo, error) {
 	defer o.mu.RUnlock()
 
 	job, exists := o.activeJobs[id]
-	if !exists {
-		return JobInfo{}, fmt.Errorf("job %s not found", id)
+	if exists {
+		return job, nil
 	}
-	return job, nil
+
+	// Check completed jobs (reverse order for most recent)
+	for i := len(o.completedJobs) - 1; i >= 0; i-- {
+		if o.completedJobs[i].ID == id {
+			return o.completedJobs[i], nil
+		}
+	}
+
+	return JobInfo{}, fmt.Errorf("job %s not found", id)
+}
+
+// GetCompletedJobs returns the list of completed jobs.
+func (o *Orchestrator) GetCompletedJobs() []JobInfo {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+
+	// Return a copy to avoid race conditions
+	jobs := make([]JobInfo, len(o.completedJobs))
+	copy(jobs, o.completedJobs)
+	return jobs
 }
 
 // CancelJob cancels a running job.
@@ -190,8 +214,22 @@ func (o *Orchestrator) processWorkItem(ctx context.Context, item WorkItem, logge
 
 func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *slog.Logger) {
 	defer o.wg.Done()
+
+	var spawnErr error
 	defer func() {
 		o.mu.Lock()
+		// Move to history
+		if job, ok := o.activeJobs[item.ID]; ok {
+			job.EndTime = time.Now()
+			if spawnErr != nil {
+				job.Status = "Failed"
+				job.Error = spawnErr.Error()
+			} else {
+				job.Status = "Completed"
+			}
+			o.addToHistory(job)
+		}
+
 		o.activeSpawns--
 		delete(o.activeJobs, item.ID)
 		o.mu.Unlock()
@@ -200,6 +238,7 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 	logger.Info("Spawning agent for item", "id", item.ID)
 
 	if err := o.Spawner.Spawn(ctx, item); err != nil {
+		spawnErr = err
 		logger.Error("Failed to spawn agent", "id", item.ID, "error", err)
 		// Update status to Failed
 		_ = o.Poller.UpdateStatus(ctx, item, "Failed", fmt.Sprintf("Failed to spawn agent: %v", err))
@@ -208,6 +247,14 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 		// but status updates might happen asynchronously.
 		// For now, Spawn() implies "Started".
 		logger.Info("Agent spawned successfully", "id", item.ID)
+	}
+}
+
+func (o *Orchestrator) addToHistory(job JobInfo) {
+	o.completedJobs = append(o.completedJobs, job)
+	if len(o.completedJobs) > o.maxHistory {
+		// Remove oldest
+		o.completedJobs = o.completedJobs[1:]
 	}
 }
 
