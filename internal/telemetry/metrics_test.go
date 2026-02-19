@@ -72,3 +72,17 @@ func TestStartMetricsServer(t *testing.T) {
 		t.Errorf("Metrics endpoint returned status %d, expected 200", respMetrics.StatusCode)
 	}
 }
+
+func TestStartMetricsServer_AlreadyRunning(t *testing.T) {
+	srv, _, err := StartMetricsServer(0)
+	if err != nil {
+		t.Fatalf("First start failed: %v", err)
+	}
+	defer srv.Shutdown(context.Background())
+
+	// Try starting again
+	_, _, err = StartMetricsServer(0)
+	if err == nil {
+		t.Error("Expected error when starting already running server")
+	}
+}

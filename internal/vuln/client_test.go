@@ -75,6 +75,21 @@ func TestOSVClient_Scan(t *testing.T) {
 	}
 }
 
+func TestOSVClient_Scan_Error(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}))
+	defer ts.Close()
+
+	client := NewOSVClient()
+	client.APIURL = ts.URL
+
+	_, err := client.Scan([]Package{{Name: "pkg"}})
+	if err == nil {
+		t.Error("Expected error, got nil")
+	}
+}
+
 func TestParsers(t *testing.T) {
 	// Test GoModParser
 	goModContent := `

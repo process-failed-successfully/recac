@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
 	"fmt"
@@ -8,8 +9,8 @@ import (
 	"net/http"
 	"recac/internal/db"
 	"recac/internal/runner"
-	"strings"
 	"sort"
+	"strings"
 )
 
 //go:embed static/*
@@ -20,6 +21,7 @@ type Server struct {
 	store     db.Store
 	port      int
 	projectID string
+	srv       *http.Server
 }
 
 // NewServer creates a new web server
@@ -55,8 +57,18 @@ func (s *Server) Start() error {
 
 	// Bind to localhost for security
 	addr := fmt.Sprintf("127.0.0.1:%d", s.port)
+	s.srv = &http.Server{Addr: addr, Handler: mux}
+
 	fmt.Printf("Starting dashboard at http://%s\n", addr)
-	return http.ListenAndServe(addr, mux)
+	return s.srv.ListenAndServe()
+}
+
+// Stop stops the HTTP server
+func (s *Server) Stop(ctx context.Context) error {
+	if s.srv != nil {
+		return s.srv.Shutdown(ctx)
+	}
+	return nil
 }
 
 func (s *Server) handleFeatures(w http.ResponseWriter, r *http.Request) {
