@@ -274,10 +274,15 @@ func TestCommands(t *testing.T) {
 
 		// Start a dummy session
 		sessionName := "test-session-to-stop"
-		// Using os.Args[0] and a fake command to ensure we have a valid executable
-		cmdToRun := []string{os.Args[0], "-test.run=^$", "--"}
+		// Using "sleep 5" to ensure the process stays running long enough for stop to work
+		cmdToRun := []string{"sleep", "5"}
 		_, err = sm.StartSession(sessionName, "test goal", cmdToRun, t.TempDir())
 		if err != nil {
+			// Fallback if sleep is not available (e.g. Windows without sleep), though CI uses Linux.
+			// But for safety, try "ping" or just rely on previous behavior if sleep fails?
+			// Actually, StartSession returns error if exec fails.
+			// If sleep is missing, we might fail here.
+			// Let's assume standard environment.
 			t.Fatalf("Failed to start dummy session: %v", err)
 		}
 

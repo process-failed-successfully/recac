@@ -4,10 +4,15 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestDoctorCmd(t *testing.T) {
+	// Ensure clean state
+	viper.Reset()
+	defer viper.Reset()
+
 	// Create a new root command and capture its output
 	cmd, out, _ := newRootCmd()
 	cmd.SetOut(out)

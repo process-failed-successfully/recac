@@ -16,6 +16,7 @@ import (
 	"recac/internal/runner"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestProcessJiraTicket(t *testing.T) {
@@ -162,7 +163,37 @@ func TestProcessDirectTask(t *testing.T) {
 }
 
 func TestRunWorkflow_Detached(t *testing.T) {
-	t.Skip("Skipping detached test due to binary dependency")
+	// Mock NewSessionManagerFunc to return our mock
+	originalNewSessionManagerFunc := NewSessionManagerFunc
+	defer func() { NewSessionManagerFunc = originalNewSessionManagerFunc }()
+
+	mockSM := new(MockSessionManager)
+	mockSM.On("StartSession", "test-session", "", mock.MatchedBy(func(cmd []string) bool {
+		// Check for presence of flags, order might vary or position might vary
+		foundMock := false
+		foundDirty := false
+		for _, arg := range cmd {
+			if arg == "--mock" { foundMock = true }
+			if arg == "--allow-dirty" { foundDirty = true }
+		}
+		return foundMock && foundDirty
+	}), mock.Anything).Return(&runner.SessionState{PID: 12345, LogFile: "/tmp/mock.log"}, nil)
+
+	NewSessionManagerFunc = func() (ISessionManager, error) {
+		return mockSM, nil
+	}
+
+	cfg := SessionConfig{
+		Detached:    true,
+		SessionName: "test-session",
+		IsMock:      true,
+		AllowDirty:  true,
+		SessionManager: mockSM, // Pass explicitly or let it create
+	}
+
+	err := RunWorkflow(context.Background(), cfg)
+	assert.NoError(t, err)
+	mockSM.AssertExpectations(t)
 }
 
 func TestProcessJiraTicket_WithRepoURL(t *testing.T) {
