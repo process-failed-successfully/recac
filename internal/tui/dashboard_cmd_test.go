@@ -103,13 +103,16 @@ func TestCmd_FetchJobLogs(t *testing.T) {
 	}))
 	defer server.Close()
 
-	cmd := fetchJobLogs(server.URL, "JOB-1")
+	cmd := streamJobLogs(server.URL, "JOB-1")
 	msg := cmd()
 
-	lMsg, ok := msg.(logsMsg)
+	lMsg, ok := msg.(logStreamMsg)
 	assert.True(t, ok)
 	assert.Nil(t, lMsg.Err)
-	assert.Equal(t, "some logs", lMsg.Logs)
+	// Check stream content
+	buf := make([]byte, 1024)
+	n, _ := lMsg.Stream.Read(buf)
+	assert.Equal(t, "some logs", string(buf[:n]))
 }
 
 func TestCmd_FetchJobLogs_Error(t *testing.T) {
@@ -118,10 +121,10 @@ func TestCmd_FetchJobLogs_Error(t *testing.T) {
 	}))
 	defer server.Close()
 
-	cmd := fetchJobLogs(server.URL, "JOB-1")
+	cmd := streamJobLogs(server.URL, "JOB-1")
 	msg := cmd()
 
-	lMsg, ok := msg.(logsMsg)
+	lMsg, ok := msg.(logStreamMsg)
 	assert.True(t, ok)
 	assert.NotNil(t, lMsg.Err)
 	assert.Contains(t, lMsg.Err.Error(), "status 500")

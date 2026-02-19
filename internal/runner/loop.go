@@ -420,6 +420,13 @@ func (s *Session) RunLoop(ctx context.Context) error {
 			break
 		}
 
+		if s.PlanOnly {
+			if role != prompts.Initializer {
+				s.printPlan()
+				return nil
+			}
+		}
+
 		// Multi-Agent Coding Sprint Delegation
 		if role == prompts.CodingAgent && s.MaxAgents > 1 {
 			fmt.Printf("Delegating to Multi-Agent Orchestrator (role: %s, max-agents: %d)\n", role, s.MaxAgents)
@@ -436,6 +443,11 @@ func (s *Session) RunLoop(ctx context.Context) error {
 
 		// Run iteration using determined prompt
 		executionOutput, err := s.RunIteration(ctx, prompt, isManager)
+
+		if s.PlanOnly && role == prompts.Initializer && err == nil {
+			s.printPlan()
+			return nil
+		}
 
 		// Check for Agent/API Error (e.g. 413, Network, etc)
 		if err != nil {
@@ -590,4 +602,25 @@ func (s *Session) checkAutoQA() bool {
 	}
 
 	return false
+}
+
+func (s *Session) printPlan() {
+	features := s.loadFeatures()
+	if len(features) == 0 {
+		fmt.Println("No features found in plan.")
+		return
+	}
+
+	fmt.Println("\n--- Project Plan (Features) ---")
+	for _, f := range features {
+		status := "[ ]"
+		if f.Status == "done" || f.Passes {
+			status = "[x]"
+		}
+		fmt.Printf("%s %s: %s\n", status, f.ID, f.Description)
+		for _, step := range f.Steps {
+			fmt.Printf("  - %s\n", step)
+		}
+		fmt.Println()
+	}
 }
