@@ -7,13 +7,14 @@ import (
 
 type MockDockerClient struct {
 	CheckDaemonFunc   func(ctx context.Context) error
-	RunContainerFunc  func(ctx context.Context, image, workspace string, extraBinds, env []string, user string) (string, error)
+	RunContainerFunc  func(ctx context.Context, image, workspace string, extraBinds, env, cmd []string, user string) (string, error)
 	StopContainerFunc func(ctx context.Context, containerID string) error
 	ExecFunc          func(ctx context.Context, containerID string, cmd []string) (string, error)
 	ExecAsUserFunc    func(ctx context.Context, containerID, user string, cmd []string) (string, error)
 	PullImageFunc     func(ctx context.Context, image string) error
 	ImageExistsFunc   func(ctx context.Context, image string) (bool, error)
 	ImageBuildFunc    func(ctx context.Context, options docker.ImageBuildOptions) (string, error)
+	WaitContainerFunc func(ctx context.Context, containerID string) (int64, error)
 }
 
 func (m *MockDockerClient) CheckDaemon(ctx context.Context) error {
@@ -23,9 +24,9 @@ func (m *MockDockerClient) CheckDaemon(ctx context.Context) error {
 	return nil
 }
 
-func (m *MockDockerClient) RunContainer(ctx context.Context, image, workspace string, extraBinds, env []string, user string) (string, error) {
+func (m *MockDockerClient) RunContainer(ctx context.Context, image, workspace string, extraBinds, env, cmd []string, user string) (string, error) {
 	if m.RunContainerFunc != nil {
-		return m.RunContainerFunc(ctx, image, workspace, extraBinds, env, user)
+		return m.RunContainerFunc(ctx, image, workspace, extraBinds, env, cmd, user)
 	}
 	return "mock-container-id", nil
 }
@@ -70,4 +71,11 @@ func (m *MockDockerClient) ImageBuild(ctx context.Context, options docker.ImageB
 		return m.ImageBuildFunc(ctx, options)
 	}
 	return "mock-image-id", nil
+}
+
+func (m *MockDockerClient) WaitContainer(ctx context.Context, containerID string) (int64, error) {
+	if m.WaitContainerFunc != nil {
+		return m.WaitContainerFunc(ctx, containerID)
+	}
+	return 0, nil
 }
