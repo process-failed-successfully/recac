@@ -312,7 +312,7 @@ func TestDockerSpawner_EnvPropagation(t *testing.T) {
 
 	// Capture env from RunContainerWithLabels
 	var capturedEnv []string
-	client.On("RunContainerWithLabels", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+	client.On("RunContainerWithLabels", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		capturedEnv = args.Get(4).([]string) // env=4
 	}).Return("container-env", nil)
 
