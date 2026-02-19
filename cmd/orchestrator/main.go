@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -159,82 +160,87 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	if err := run(ctx, logger); err != nil {
+		logger.Error("Application error", "error", err)
+		exitFunc(1)
+	}
+}
+
+func run(ctx context.Context, logger *slog.Logger) error {
 	if viper.GetBool("orchestrator.list_jobs") {
 		host := viper.GetString("orchestrator.host")
 		history := viper.GetBool("orchestrator.history")
 		listJobs(host, history)
-		return
+		return nil
 	}
 
 	if logID := viper.GetString("orchestrator.logs"); logID != "" {
 		host := viper.GetString("orchestrator.host")
 		getLogs(host, logID)
-		return
+		return nil
 	}
 
 	if jobID := viper.GetString("orchestrator.inspect_job"); jobID != "" {
 		host := viper.GetString("orchestrator.host")
 		inspectJob(host, jobID)
-		return
+		return nil
 	}
 
 	if jobID := viper.GetString("orchestrator.cancel_job"); jobID != "" {
 		host := viper.GetString("orchestrator.host")
 		cancelJob(host, jobID)
-		return
+		return nil
 	}
 
 	if jobID := viper.GetString("orchestrator.retry_job"); jobID != "" {
 		host := viper.GetString("orchestrator.host")
 		retryJob(host, jobID)
-		return
+		return nil
 	}
 
 	if viper.GetBool("orchestrator.retry_failed") {
 		host := viper.GetString("orchestrator.host")
 		retryFailedJobs(host)
-		return
+		return nil
 	}
 
 	if viper.GetBool("orchestrator.pause") {
 		host := viper.GetString("orchestrator.host")
 		pauseOrchestrator(host)
-		return
+		return nil
 	}
 
 	if viper.GetBool("orchestrator.resume") {
 		host := viper.GetString("orchestrator.host")
 		resumeOrchestrator(host)
-		return
+		return nil
 	}
 
 	if submitFile := viper.GetString("orchestrator.submit"); submitFile != "" {
 		host := viper.GetString("orchestrator.host")
 		wait := viper.GetBool("orchestrator.wait")
 		submitJob(host, submitFile, wait)
-		return
+		return nil
 	}
 
 	if submitURL := viper.GetString("orchestrator.submit_url"); submitURL != "" {
 		host := viper.GetString("orchestrator.host")
 		task := viper.GetString("orchestrator.submit_task")
 		if task == "" {
-			fmt.Println("Error: --submit-task is required when using --submit-url")
-			os.Exit(1)
+			return fmt.Errorf("Error: --submit-task is required when using --submit-url")
 		}
 		id := viper.GetString("orchestrator.submit_id")
 		wait := viper.GetBool("orchestrator.wait")
 		submitAdHocJob(host, submitURL, task, id, wait)
-		return
+		return nil
 	}
 
 	if viper.GetBool("orchestrator.monitor") {
 		host := viper.GetString("orchestrator.host")
 		if err := tui.StartDashboard(host); err != nil {
-			logger.Error("Dashboard failed", "error", err)
-			os.Exit(1)
+			return fmt.Errorf("Dashboard failed: %w", err)
 		}
-		return
+		return nil
 	}
 
 	// Setup Logic
@@ -256,21 +262,18 @@ func main() {
 	case "file-dir":
 		watchDir := viper.GetString("orchestrator.watch_dir")
 		if watchDir == "" {
-			logger.Error("Watch directory must be specified in file-dir poller mode")
-			os.Exit(1)
+			return fmt.Errorf("Watch directory must be specified in file-dir poller mode")
 		}
 		var err error
 		poller, err = orchestrator.NewFileDirPoller(watchDir)
 		if err != nil {
-			logger.Error("Failed to initialize file directory poller", "error", err)
-			os.Exit(1)
+			return fmt.Errorf("Failed to initialize file directory poller: %w", err)
 		}
 		logger.Info("Using file directory poller", "directory", watchDir)
 	case "file", "filesystem":
 		workFile := viper.GetString("orchestrator.work_file")
 		if workFile == "" {
-			logger.Error("Work file must be specified in file poller mode")
-			os.Exit(1)
+			return fmt.Errorf("Work file must be specified in file poller mode")
 		}
 		poller = orchestrator.NewFilePoller(workFile)
 		logger.Info("Using filesystem poller", "file", workFile)
@@ -284,8 +287,7 @@ func main() {
 		}
 
 		if token == "" || owner == "" || repo == "" {
-			logger.Error("GitHub token, owner, and repo must be specified in github poller mode")
-			os.Exit(1)
+			return fmt.Errorf("GitHub token, owner, and repo must be specified in github poller mode")
 		}
 		poller = orchestrator.NewGitHubPoller(token, owner, repo, ghLabel)
 		logger.Info("Using GitHub poller", "owner", owner, "repo", repo, "label", ghLabel)
@@ -293,8 +295,7 @@ func main() {
 		// Default to Jira
 		jClient, err := cmdutils.GetJiraClient(ctx) // Use shared cmdutils
 		if err != nil {
-			logger.Error("Failed to initialize Jira client", "error", err)
-			os.Exit(1)
+			return fmt.Errorf("Failed to initialize Jira client: %w", err)
 		}
 		jql := viper.GetString("orchestrator.jira_query")
 		if jql == "" && label != "" {
@@ -318,28 +319,24 @@ func main() {
 		}
 		spawner, err = orchestrator.NewK8sSpawner(logger, image, namespace, agentProvider, agentModel, pullPolicy)
 		if err != nil {
-			logger.Error("Failed to initialize K8s spawner", "error", err)
-			os.Exit(1)
+			return fmt.Errorf("Failed to initialize K8s spawner: %w", err)
 		}
 	case "local", "docker":
 		projectName := "recac-orchestrator" // Or similar
 		dockerCli, err := docker.NewClient(projectName)
 		if err != nil {
-			logger.Error("Failed to initialize Docker client", "error", err)
-			os.Exit(1)
+			return fmt.Errorf("Failed to initialize Docker client: %w", err)
 		}
 
 		sm, err := runner.NewSessionManager()
 		if err != nil {
-			logger.Error("Failed to initialize Session Manager", "error", err)
-			os.Exit(1)
+			return fmt.Errorf("Failed to initialize Session Manager: %w", err)
 		}
 
 		spawner = orchestrator.NewDockerSpawner(logger, dockerCli, image, projectName, poller, agentProvider, agentModel, sm)
 		janitorClient = dockerCli
 	default:
-		logger.Error("Invalid mode. Use 'local' or 'k8s'", "mode", mode)
-		os.Exit(1)
+		return fmt.Errorf("Invalid mode. Use 'local' or 'k8s': %s", mode)
 	}
 
 	// 3. Janitor
@@ -363,8 +360,7 @@ func main() {
 	if dbPath := viper.GetString("orchestrator.db_file"); dbPath != "" {
 		p := orchestrator.NewSQLitePersistence(dbPath)
 		if err := p.Init(); err != nil {
-			logger.Error("Failed to initialize persistence", "error", err)
-			os.Exit(1)
+			return fmt.Errorf("Failed to initialize persistence: %w", err)
 		}
 		defer p.Close()
 		orch.SetPersistence(p)
@@ -517,8 +513,7 @@ func main() {
 		logger.Error("Failed to start metrics server", "error", err)
 	} else {
 		logger.Info("Metrics server started", "port", actualPort)
-		go func() {
-			<-ctx.Done()
+		defer func() {
 			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			if err := metricsServer.Shutdown(shutdownCtx); err != nil {
@@ -530,22 +525,22 @@ func main() {
 	if viper.GetBool("orchestrator.verify") {
 		if err := orch.Verify(ctx, logger); err != nil {
 			logger.Error("Verification failed", "error", err)
-			os.Exit(1)
+			return fmt.Errorf("Verification failed: %w", err)
 		}
 		logger.Info("Verification passed successfully")
-		return
+		return nil
 	}
 
 	if viper.GetBool("orchestrator.dry_run") {
 		items, err := orch.DryRun(ctx, logger)
 		if err != nil {
 			logger.Error("Dry run failed", "error", err)
-			os.Exit(1)
+			return fmt.Errorf("Dry run failed: %w", err)
 		}
 
 		if len(items) == 0 {
 			fmt.Println("No work items found.")
-			return
+			return nil
 		}
 
 		var style = lipgloss.NewStyle().
@@ -576,17 +571,18 @@ func main() {
 				item.RepoURL)
 			fmt.Println(itemStyle.Render(content))
 		}
-		return
+		return nil
 	}
 
 	if err := orch.Run(ctx, logger); err != nil {
 		if ctx.Err() != nil {
 			// Graceful shutdown
-			return
+			return nil
 		}
 		logger.Error("Orchestrator failure", "error", err)
-		os.Exit(1)
+		return err
 	}
+	return nil
 }
 
 func listJobs(host string, history bool) {
