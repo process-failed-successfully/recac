@@ -52,6 +52,7 @@ type DashboardModel struct {
 	jobs        []orchestrator.JobInfo
 	details     orchestrator.JobInfo
 	logs        string
+	logStream   io.ReadCloser
 	err         error
 	quitting    bool
 	viewState   viewState
@@ -71,9 +72,18 @@ type detailsMsg struct {
 	Err error
 }
 
-type logsMsg struct {
-	Logs string
-	Err  error
+type logStreamMsg struct {
+	Stream io.ReadCloser
+	Err    error
+}
+
+type logChunkMsg struct {
+	Chunk string
+	Err   error
+}
+
+type logFinishedMsg struct {
+	Err error
 }
 
 type actionMsg struct {
@@ -95,6 +105,9 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		if msg.String() == "ctrl+c" {
 			m.quitting = true
+			if m.logStream != nil {
+				m.logStream.Close()
+			}
 			return m, tea.Quit
 		}
 
@@ -132,14 +145,53 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case logsMsg:
+	case logStreamMsg:
 		if msg.Err != nil {
 			m.err = msg.Err
 		} else {
-			m.logs = msg.Logs
+			if m.logStream != nil {
+				m.logStream.Close()
+			}
+			m.logStream = msg.Stream
+			m.logs = "" // Clear previous logs
+			m.viewport.SetContent("")
 			m.viewState = viewLogs
+			// Start reading chunks
+			cmds = append(cmds, waitForLogChunk(m.logStream))
+		}
+		return m, tea.Batch(cmds...)
+
+	case logChunkMsg:
+		if msg.Chunk != "" {
+			m.logs += msg.Chunk
 			m.viewport.SetContent(m.logs)
 			m.viewport.GotoBottom()
+		}
+
+		if msg.Err != nil {
+			// If stream ended or error occurred during read
+			if msg.Err != io.EOF {
+				m.err = msg.Err
+			}
+			if m.logStream != nil {
+				m.logStream.Close()
+				m.logStream = nil
+			}
+		} else {
+			// Continue reading
+			if m.logStream != nil {
+				cmds = append(cmds, waitForLogChunk(m.logStream))
+			}
+		}
+		return m, tea.Batch(cmds...)
+
+	case logFinishedMsg:
+		if m.logStream != nil {
+			m.logStream.Close()
+			m.logStream = nil
+		}
+		if msg.Err != nil && msg.Err != io.EOF {
+			m.err = msg.Err
 		}
 		return m, nil
 
@@ -196,6 +248,9 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 		switch msg.String() {
 		case "q":
 			m.quitting = true
+			if m.logStream != nil {
+				m.logStream.Close()
+			}
 			return m, tea.Quit
 		case "enter":
 			selected := m.table.SelectedRow()
@@ -207,7 +262,7 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 			selected := m.table.SelectedRow()
 			if len(selected) > 0 {
 				id := selected[0]
-				return m, fetchJobLogs(m.host, id)
+				return m, streamJobLogs(m.host, id)
 			}
 		case "h":
 			m.showHistory = !m.showHistory
@@ -236,6 +291,10 @@ func (m DashboardModel) updateViewport(msg tea.Msg) (DashboardModel, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "esc":
+			if m.logStream != nil {
+				m.logStream.Close()
+				m.logStream = nil
+			}
 			m.viewState = viewMain
 			return m, nil
 		}
@@ -272,7 +331,7 @@ func (m DashboardModel) View() string {
 		helpView = statusStyle.Render("esc/q: back")
 	case viewLogs:
 		contentView = baseStyle.Render(m.viewport.View())
-		helpView = statusStyle.Render("esc/q: back")
+		helpView = statusStyle.Render("esc/q: back | streaming logs...")
 	}
 
 	if m.err != nil {
@@ -344,24 +403,28 @@ func fetchJobDetails(host, id string) tea.Cmd {
 	}
 }
 
-func fetchJobLogs(host, id string) tea.Cmd {
+func streamJobLogs(host, id string) tea.Cmd {
 	return func() tea.Msg {
 		resp, err := http.Get(fmt.Sprintf("%s/jobs/%s/logs", host, id))
 		if err != nil {
-			return logsMsg{Err: err}
+			return logStreamMsg{Err: err}
 		}
-		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
 			body, _ := io.ReadAll(resp.Body)
-			return logsMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
+			return logStreamMsg{Err: fmt.Errorf("status %d: %s", resp.StatusCode, string(body))}
 		}
 
-		logs, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return logsMsg{Err: err}
-		}
-		return logsMsg{Logs: string(logs)}
+		return logStreamMsg{Stream: resp.Body}
+	}
+}
+
+func waitForLogChunk(r io.Reader) tea.Cmd {
+	return func() tea.Msg {
+		buf := make([]byte, 4096) // 4KB chunks
+		n, err := r.Read(buf)
+		return logChunkMsg{Chunk: string(buf[:n]), Err: err}
 	}
 }
 
