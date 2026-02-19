@@ -14,40 +14,53 @@ import (
 	"github.com/google/uuid"
 )
 
-func submitJob(host, filePath string) {
+// HTTPClient interface for mocking
+type HTTPClient interface {
+	Post(url, contentType string, body io.Reader) (*http.Response, error)
+}
+
+func submitJob(host, filePath string, client HTTPClient, w io.Writer, exit func(int)) {
 	file, err := os.Open(filePath)
 	if err != nil {
-		fmt.Printf("Failed to open file %s: %v\n", filePath, err)
-		os.Exit(1)
+		fmt.Fprintf(w, "Failed to open file %s: %v\n", filePath, err)
+		exit(1)
+		return
 	}
 	defer file.Close()
 
 	// Verify JSON validity before sending (optional but good UX)
 	var item map[string]interface{}
 	if err := json.NewDecoder(file).Decode(&item); err != nil {
-		fmt.Printf("Invalid JSON in file %s: %v\n", filePath, err)
-		os.Exit(1)
+		fmt.Fprintf(w, "Invalid JSON in file %s: %v\n", filePath, err)
+		exit(1)
+		return
 	}
 	// Reset file pointer
-	file.Seek(0, 0)
+	if _, err := file.Seek(0, 0); err != nil {
+		fmt.Fprintf(w, "Failed to seek file %s: %v\n", filePath, err)
+		exit(1)
+		return
+	}
 
-	resp, err := http.Post(fmt.Sprintf("%s/jobs", host), "application/json", file)
+	resp, err := client.Post(fmt.Sprintf("%s/jobs", host), "application/json", file)
 	if err != nil {
-		fmt.Printf("Failed to connect to orchestrator at %s: %v\n", host, err)
-		os.Exit(1)
+		fmt.Fprintf(w, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exit(1)
+		return
 	}
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusAccepted {
-		fmt.Printf("Failed to submit job: %s\n", strings.TrimSpace(string(body)))
-		os.Exit(1)
+		fmt.Fprintf(w, "Failed to submit job: %s\n", strings.TrimSpace(string(body)))
+		exit(1)
+		return
 	}
 
-	fmt.Printf("%s\n", strings.TrimSpace(string(body)))
+	fmt.Fprintf(w, "%s\n", strings.TrimSpace(string(body)))
 }
 
-func submitAdHocJob(host, repo, task, id string) {
+func submitAdHocJob(host, repo, task, id string, client HTTPClient, w io.Writer, exit func(int)) {
 	if id == "" {
 		id = uuid.New().String()
 	}
@@ -62,22 +75,25 @@ func submitAdHocJob(host, repo, task, id string) {
 
 	payload, err := json.Marshal(item)
 	if err != nil {
-		fmt.Printf("Failed to marshal work item: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(w, "Failed to marshal work item: %v\n", err)
+		exit(1)
+		return
 	}
 
-	resp, err := http.Post(fmt.Sprintf("%s/jobs", host), "application/json", bytes.NewBuffer(payload))
+	resp, err := client.Post(fmt.Sprintf("%s/jobs", host), "application/json", bytes.NewBuffer(payload))
 	if err != nil {
-		fmt.Printf("Failed to connect to orchestrator at %s: %v\n", host, err)
-		os.Exit(1)
+		fmt.Fprintf(w, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exit(1)
+		return
 	}
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusAccepted {
-		fmt.Printf("Failed to submit job: %s\n", strings.TrimSpace(string(body)))
-		os.Exit(1)
+		fmt.Fprintf(w, "Failed to submit job: %s\n", strings.TrimSpace(string(body)))
+		exit(1)
+		return
 	}
 
-	fmt.Printf("%s\n", strings.TrimSpace(string(body)))
+	fmt.Fprintf(w, "%s\n", strings.TrimSpace(string(body)))
 }

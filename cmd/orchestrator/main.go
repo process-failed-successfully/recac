@@ -197,7 +197,7 @@ func main() {
 
 	if submitFile := viper.GetString("orchestrator.submit"); submitFile != "" {
 		host := viper.GetString("orchestrator.host")
-		submitJob(host, submitFile)
+		submitJob(host, submitFile, http.DefaultClient, os.Stdout, os.Exit)
 		return
 	}
 
@@ -209,7 +209,7 @@ func main() {
 			os.Exit(1)
 		}
 		id := viper.GetString("orchestrator.submit_id")
-		submitAdHocJob(host, submitURL, task, id)
+		submitAdHocJob(host, submitURL, task, id, http.DefaultClient, os.Stdout, os.Exit)
 		return
 	}
 

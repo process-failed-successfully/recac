@@ -28,6 +28,16 @@ var (
 	statusStyle = lipgloss.NewStyle().
 		Foreground(lipgloss.Color("241")).
 		Margin(1, 0)
+
+	// Allow mocking http.Get
+	statusFetcher = func(url string) (*http.Response, error) {
+		return http.Get(url)
+	}
+
+	// Allow mocking bubbletea run
+	programRunner = func(p *tea.Program) (tea.Model, error) {
+		return p.Run()
+	}
 )
 
 type DashboardModel struct {
@@ -140,7 +150,7 @@ func tick() tea.Cmd {
 func fetchStatus(host string) tea.Cmd {
 	return func() tea.Msg {
 		// Fetch Status
-		sResp, err := http.Get(fmt.Sprintf("%s/status", host))
+		sResp, err := statusFetcher(fmt.Sprintf("%s/status", host))
 		if err != nil {
 			return statusMsg{Err: err}
 		}
@@ -152,7 +162,7 @@ func fetchStatus(host string) tea.Cmd {
 		}
 
 		// Fetch Jobs
-		jResp, err := http.Get(fmt.Sprintf("%s/jobs", host))
+		jResp, err := statusFetcher(fmt.Sprintf("%s/jobs", host))
 		if err != nil {
 			return statusMsg{Err: err}
 		}
@@ -198,7 +208,7 @@ func StartDashboard(host string) error {
 		table: t,
 	})
 
-	if _, err := p.Run(); err != nil {
+	if _, err := programRunner(p); err != nil {
 		fmt.Printf("Alas, there's been an error: %v", err)
 		os.Exit(1)
 	}
