@@ -390,9 +390,10 @@ jobs:
               }
 
               if (!merged) {
-                throw new Error("Failed to merge PR after retries.");
+                console.warn("Failed to merge PR after retries. Continuing as best-effort.");
               }
             } catch (error) {
               console.error(`Failed to process PR #${prNumber}:`, error.message);
-              core.setFailed(`Auto-merge failed: ${error.message}`);
+              // Do not fail the job if auto-merge fails due to permissions or checks race conditions
+              core.warning(`Auto-merge failed: ${error.message}`);
             }
