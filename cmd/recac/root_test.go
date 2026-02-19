@@ -128,3 +128,38 @@ func TestExecute_PanicRecovery(t *testing.T) {
 
 	assert.Equal(t, 1, exitCode, "Execute should exit(1) on panic")
 }
+
+func TestInitConfig_Error(t *testing.T) {
+	// Setup temp config file with invalid values
+	f, err := os.CreateTemp("", "config_invalid_*.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(f.Name())
+
+	// Write invalid config (negative timeout)
+	f.WriteString("timeout: -1s\n")
+	f.Close()
+
+	// Capture original state
+	oldCfgFile := cfgFile
+	oldExit := exit
+	defer func() {
+		cfgFile = oldCfgFile
+		exit = oldExit
+		viper.Reset()
+	}()
+
+	// Mock exit
+	exitCode := -1
+	exit = func(code int) {
+		exitCode = code
+	}
+
+	cfgFile = f.Name()
+	viper.Reset()
+
+	initConfig()
+
+	assert.Equal(t, 1, exitCode, "initConfig should exit(1) on invalid config")
+}

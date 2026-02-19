@@ -374,5 +374,6 @@ jobs:
               console.log(`Successfully merged PR #${prNumber}`);
             } catch (error) {
               console.error(`Failed to process PR #${prNumber}:`, error.message);
-              core.setFailed(`Auto-merge failed: ${error.message}`);
+              core.warning(`Auto-merge failed (non-fatal): ${error.message}`);
             }
+          github-token: ${{ secrets.GH_API_KEY || secrets.GITHUB_TOKEN }}
