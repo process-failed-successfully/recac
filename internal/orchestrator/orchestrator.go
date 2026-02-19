@@ -25,6 +25,7 @@ type Orchestrator struct {
 	completedJobs []JobInfo
 	maxHistory    int
 	paused        bool
+	Persistence   Persistence
 }
 
 type JobInfo struct {
@@ -57,6 +58,39 @@ func New(poller Poller, spawner Spawner, pollInterval time.Duration) *Orchestrat
 	}
 }
 
+// SetPersistence sets the persistence layer for the orchestrator.
+func (o *Orchestrator) SetPersistence(p Persistence) {
+	o.Persistence = p
+}
+
+// LoadHistory loads the job history from the persistence layer.
+func (o *Orchestrator) LoadHistory(logger *slog.Logger) error {
+	if o.Persistence == nil {
+		return nil
+	}
+
+	jobs, err := o.Persistence.GetJobs(o.maxHistory)
+	if err != nil {
+		return fmt.Errorf("failed to load history: %w", err)
+	}
+
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	// jobs are returned DESC (newest first).
+	// completedJobs stores oldest first (append to end).
+	// So we need to reverse the list to restore the correct order in memory.
+	o.completedJobs = make([]JobInfo, 0, len(jobs))
+	for i := len(jobs) - 1; i >= 0; i-- {
+		o.completedJobs = append(o.completedJobs, jobs[i])
+	}
+
+	if logger != nil {
+		logger.Info("Loaded job history", "count", len(o.completedJobs))
+	}
+	return nil
+}
+
 // GetActiveJobs returns the list of currently running jobs.
 func (o *Orchestrator) GetActiveJobs() []JobInfo {
 	o.mu.RLock()
@@ -83,6 +117,14 @@ func (o *Orchestrator) GetJob(id string) (JobInfo, error) {
 	for i := len(o.completedJobs) - 1; i >= 0; i-- {
 		if o.completedJobs[i].ID == id {
 			return o.completedJobs[i], nil
+		}
+	}
+
+	// Check persistence if available
+	if o.Persistence != nil {
+		job, err := o.Persistence.GetJob(id)
+		if err == nil {
+			return *job, nil
 		}
 	}
 
@@ -257,7 +299,7 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 			} else {
 				job.Status = "Completed"
 			}
-			o.addToHistory(job)
+			o.addToHistory(job, logger)
 		}
 
 		o.activeSpawns--
@@ -280,11 +322,19 @@ func (o *Orchestrator) spawnWorker(ctx context.Context, item WorkItem, logger *s
 	}
 }
 
-func (o *Orchestrator) addToHistory(job JobInfo) {
+func (o *Orchestrator) addToHistory(job JobInfo, logger *slog.Logger) {
 	o.completedJobs = append(o.completedJobs, job)
 	if len(o.completedJobs) > o.maxHistory {
 		// Remove oldest
 		o.completedJobs = o.completedJobs[1:]
+	}
+
+	if o.Persistence != nil {
+		if err := o.Persistence.SaveJob(job); err != nil {
+			if logger != nil {
+				logger.Error("Failed to persist job history", "job", job.ID, "error", err)
+			}
+		}
 	}
 }
 
