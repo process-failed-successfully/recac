@@ -3,6 +3,7 @@ package notify
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/slack-go/slack"
@@ -249,4 +250,55 @@ func TestManager_AddReaction(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, slackCalled)
 	assert.True(t, discordCalled)
+}
+
+func TestManager_Init_Slack_And_Discord(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(func() { viper.Reset() })
+
+	viper.Set("notifications.slack.enabled", true)
+	viper.Set("notifications.discord.enabled", true)
+	viper.Set("notifications.slack.channel", "#test")
+	viper.Set("notifications.discord.channel", "12345")
+
+	t.Setenv("SLACK_BOT_USER_TOKEN", "xoxb-token")
+	t.Setenv("SLACK_APP_TOKEN", "xapp-token")
+	t.Setenv("DISCORD_BOT_TOKEN", "discord-token")
+
+	m := NewManager(nil)
+
+	assert.NotNil(t, m.client, "Slack client should be initialized")
+	assert.NotNil(t, m.socketClient, "Slack socket client should be initialized")
+	assert.NotNil(t, m.discordNotifier, "Discord notifier should be initialized")
+}
+
+func TestManager_Notify_Logging(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(func() { viper.Reset() })
+
+	viper.Set("notifications.slack.enabled", true)
+	viper.Set("notifications.slack.events.on_start", true)
+
+	var logs []string
+	logger := func(msg string, args ...interface{}) {
+		logs = append(logs, fmt.Sprintf(msg, args...))
+	}
+
+	m := NewManager(logger)
+
+	// Mock Slack
+	mockSlack := &mockSlackPoster{
+		postMessageContextFunc: func(ctx context.Context, channelID string, options ...slack.MsgOption) (string, string, error) {
+			return "channel", "ts", nil
+		},
+	}
+	m.client = mockSlack
+
+	m.Notify(context.Background(), EventStart, "test", "")
+
+	assert.NotEmpty(t, logs)
+	// Just check contents generally as order/format might slightly vary
+	logStr := fmt.Sprintf("%v", logs)
+	assert.Contains(t, logStr, "Checking notification for event: on_start")
+	assert.Contains(t, logStr, "Sending notification for event: on_start")
 }

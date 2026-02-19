@@ -3,6 +3,7 @@ package notify
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -261,4 +262,49 @@ func (t *testTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	// 4. Send using default client (which handles test server local traffic)
 	return http.DefaultClient.Do(targetReq)
+}
+
+type discordErrorTransport struct {
+	err error
+}
+
+func (t *discordErrorTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return nil, t.err
+}
+
+func TestDiscordNotifier_Send_NotConfigured(t *testing.T) {
+	n := &DiscordNotifier{}
+	_, err := n.Send(context.Background(), "msg", "")
+	if err == nil {
+		t.Error("expected error for not configured notifier, got nil")
+	} else if !strings.Contains(err.Error(), "discord not configured") {
+		t.Errorf("expected 'discord not configured' error, got %v", err)
+	}
+}
+
+func TestDiscordNotifier_Send_Webhook_ClientError(t *testing.T) {
+	// Mock client to return error
+	n := NewDiscordNotifier("http://example.com")
+	n.Client = &http.Client{
+		Transport: &discordErrorTransport{err: errors.New("network error")},
+	}
+	_, err := n.Send(context.Background(), "msg", "")
+	if err == nil {
+		t.Error("expected error for client failure, got nil")
+	} else if !strings.Contains(err.Error(), "failed to send discord notification") {
+		t.Errorf("expected 'failed to send discord notification' error, got %v", err)
+	}
+}
+
+func TestDiscordNotifier_Send_Bot_ClientError(t *testing.T) {
+	n := NewDiscordBotNotifier("token", "channel")
+	n.Client = &http.Client{
+		Transport: &discordErrorTransport{err: errors.New("network error")},
+	}
+	_, err := n.Send(context.Background(), "msg", "")
+	if err == nil {
+		t.Error("expected error for client failure, got nil")
+	} else if !strings.Contains(err.Error(), "failed to send discord message") {
+		t.Errorf("expected 'failed to send discord message' error, got %v", err)
+	}
 }

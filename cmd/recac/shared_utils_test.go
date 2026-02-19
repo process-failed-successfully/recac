@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -146,4 +147,29 @@ func TestExtractFileContexts(t *testing.T) {
 			tt.check(t, s, err)
 		})
 	}
+}
+
+func TestExtractFileContexts_ReadError(t *testing.T) {
+	// Setup mock
+	originalReadFileFunc := readFileFunc
+	defer func() { readFileFunc = originalReadFileFunc }()
+
+	tmpDir := t.TempDir()
+	fileName := "readable.go"
+	filePath := filepath.Join(tmpDir, fileName)
+	// Create file so os.Stat passes
+	os.WriteFile(filePath, []byte("content"), 0644)
+
+	// Change to temp dir so relative paths work
+	t.Chdir(tmpDir)
+
+	readFileFunc = func(name string) ([]byte, error) {
+		return nil, os.ErrPermission
+	}
+
+	output := fmt.Sprintf("Error in %s:1", fileName)
+	result, err := extractFileContexts(output)
+
+	assert.NoError(t, err)
+	assert.Contains(t, result, fmt.Sprintf("Could not read file %s", fileName))
 }

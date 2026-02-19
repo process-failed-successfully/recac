@@ -18,6 +18,9 @@ var writeFileFunc = os.WriteFile
 // mkdirAllFunc is a package-level variable to allow mocking in tests.
 var mkdirAllFunc = os.MkdirAll
 
+// readFileFunc is a package-level variable to allow mocking in tests.
+var readFileFunc = os.ReadFile
+
 // DefaultIgnoreMap returns a map of common directories and files to ignore during scans.
 func DefaultIgnoreMap() map[string]bool {
 	return map[string]bool{
@@ -121,7 +124,7 @@ func extractFileContexts(output string) (string, error) {
 		}
 
 		// Read file content
-		content, err := os.ReadFile(path)
+		content, err := readFileFunc(path)
 		if err != nil {
 			sb.WriteString(fmt.Sprintf("Could not read file %s: %v\n", path, err))
 			continue
