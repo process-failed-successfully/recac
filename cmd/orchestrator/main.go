@@ -597,24 +597,27 @@ func listJobs(host string, history bool) {
 
 	resp, err := http.Get(url)
 	if err != nil {
-		fmt.Printf("Failed to connect to orchestrator at %s: %v\n", host, err)
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("Failed to fetch jobs: status %s\n", resp.Status)
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to fetch jobs: status %s\n", resp.Status)
+		exitFunc(1)
+		return
 	}
 
 	var jobs []orchestrator.JobInfo
 	if err := json.NewDecoder(resp.Body).Decode(&jobs); err != nil {
-		fmt.Printf("Failed to decode response: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
+		exitFunc(1)
+		return
 	}
 
 	if len(jobs) == 0 {
-		fmt.Println("No active jobs.")
+		fmt.Fprintln(stdout, "No active jobs.")
 		return
 	}
 
@@ -637,11 +640,11 @@ func listJobs(host string, history bool) {
 	if history {
 		title = "All Jobs (Active & History)"
 	}
-	fmt.Println(titleStyle.Render(fmt.Sprintf("%s (%d)", title, len(jobs))))
-	fmt.Println("")
+	fmt.Fprintln(stdout, titleStyle.Render(fmt.Sprintf("%s (%d)", title, len(jobs))))
+	fmt.Fprintln(stdout, "")
 
 	// Table Header
-	fmt.Printf("%-15s %-40s %-15s %-20s\n",
+	fmt.Fprintf(stdout, "%-15s %-40s %-15s %-20s\n",
 		headerStyle.Render("ID"),
 		headerStyle.Render("Summary"),
 		headerStyle.Render("Status"),
@@ -650,7 +653,7 @@ func listJobs(host string, history bool) {
 
 	for _, job := range jobs {
 		duration := time.Since(job.StartTime).Round(time.Second).String()
-		fmt.Printf("%-15s %-40s %-15s %-20s\n",
+		fmt.Fprintf(stdout, "%-15s %-40s %-15s %-20s\n",
 			rowStyle.Render(job.ID),
 			rowStyle.Render(limitString(job.Summary, 38)),
 			rowStyle.Render(job.Status),
@@ -662,21 +665,24 @@ func listJobs(host string, history bool) {
 func getLogs(host, jobID string) {
 	resp, err := http.Get(fmt.Sprintf("%s/jobs/%s/logs", host, jobID))
 	if err != nil {
-		fmt.Printf("Failed to connect to orchestrator at %s: %v\n", host, err)
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		fmt.Printf("Failed to fetch logs: %s\n", strings.TrimSpace(string(body)))
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to fetch logs: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
 	}
 
 	// Stream logs to stdout
-	if _, err := io.Copy(os.Stdout, resp.Body); err != nil {
-		fmt.Printf("Failed to read logs: %v\n", err)
-		os.Exit(1)
+	if _, err := io.Copy(stdout, resp.Body); err != nil {
+		fmt.Fprintf(stdout, "Failed to read logs: %v\n", err)
+		exitFunc(1)
+		return
 	}
 }
 
@@ -690,21 +696,24 @@ func limitString(s string, max int) string {
 func inspectJob(host, jobID string) {
 	resp, err := http.Get(fmt.Sprintf("%s/jobs/%s", host, jobID))
 	if err != nil {
-		fmt.Printf("Failed to connect to orchestrator at %s: %v\n", host, err)
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		fmt.Printf("Failed to fetch job details: %s\n", strings.TrimSpace(string(body)))
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to fetch job details: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
 	}
 
 	var job orchestrator.JobInfo
 	if err := json.NewDecoder(resp.Body).Decode(&job); err != nil {
-		fmt.Printf("Failed to decode response: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
+		exitFunc(1)
+		return
 	}
 
 	// Pretty print
@@ -722,34 +731,34 @@ func inspectJob(host, jobID string) {
 	valueStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("252"))
 
-	fmt.Println(titleStyle.Render(fmt.Sprintf("Job Details: %s", job.ID)))
-	fmt.Println("")
+	fmt.Fprintln(stdout, titleStyle.Render(fmt.Sprintf("Job Details: %s", job.ID)))
+	fmt.Fprintln(stdout, "")
 
 	printField := func(label, value string) {
-		fmt.Printf("%s %s\n", labelStyle.Render(label+":"), valueStyle.Render(value))
+		fmt.Fprintf(stdout, "%s %s\n", labelStyle.Render(label+":"), valueStyle.Render(value))
 	}
 
 	printField("Summary", job.Summary)
 	printField("Status", job.Status)
 	printField("Start Time", job.StartTime.Format(time.RFC3339))
 	printField("Duration", time.Since(job.StartTime).Round(time.Second).String())
-	fmt.Println("")
+	fmt.Fprintln(stdout, "")
 	printField("Repo URL", job.WorkItem.RepoURL)
 
 	// Description
-	fmt.Println(labelStyle.Render("Description:"))
-	fmt.Println(lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(job.WorkItem.Description))
-	fmt.Println("")
+	fmt.Fprintln(stdout, labelStyle.Render("Description:"))
+	fmt.Fprintln(stdout, lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(job.WorkItem.Description))
+	fmt.Fprintln(stdout, "")
 
 	// Env Vars
 	if len(job.WorkItem.EnvVars) > 0 {
-		fmt.Println(labelStyle.Render("Env Vars:"))
+		fmt.Fprintln(stdout, labelStyle.Render("Env Vars:"))
 		for k, v := range job.WorkItem.EnvVars {
 			// Mask likely secrets
 			if strings.Contains(strings.ToLower(k), "token") || strings.Contains(strings.ToLower(k), "key") || strings.Contains(strings.ToLower(k), "secret") {
 				v = "***"
 			}
-			fmt.Printf("  %s=%s\n", k, v)
+			fmt.Fprintf(stdout, "  %s=%s\n", k, v)
 		}
 	}
 }
@@ -757,122 +766,138 @@ func inspectJob(host, jobID string) {
 func cancelJob(host, jobID string) {
 	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/jobs/%s", host, jobID), nil)
 	if err != nil {
-		fmt.Printf("Failed to create request: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
 	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		fmt.Printf("Failed to connect to orchestrator at %s: %v\n", host, err)
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		fmt.Printf("Failed to cancel job: %s\n", strings.TrimSpace(string(body)))
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to cancel job: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
 	}
 
-	fmt.Printf("Job %s cancelled successfully.\n", jobID)
+	fmt.Fprintf(stdout, "Job %s cancelled successfully.\n", jobID)
 }
 
 func pauseOrchestrator(host string) {
 	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/pause", host), nil)
 	if err != nil {
-		fmt.Printf("Failed to create request: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
 	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		fmt.Printf("Failed to connect to orchestrator at %s: %v\n", host, err)
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		fmt.Printf("Failed to pause orchestrator: %s\n", strings.TrimSpace(string(body)))
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to pause orchestrator: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
 	}
 
-	fmt.Println("Orchestrator paused.")
+	fmt.Fprintln(stdout, "Orchestrator paused.")
 }
 
 func resumeOrchestrator(host string) {
 	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/resume", host), nil)
 	if err != nil {
-		fmt.Printf("Failed to create request: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
 	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		fmt.Printf("Failed to connect to orchestrator at %s: %v\n", host, err)
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		fmt.Printf("Failed to resume orchestrator: %s\n", strings.TrimSpace(string(body)))
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to resume orchestrator: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
 	}
 
-	fmt.Println("Orchestrator resumed.")
+	fmt.Fprintln(stdout, "Orchestrator resumed.")
 }
 
 func retryJob(host, jobID string) {
 	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs/%s/retry", host, jobID), nil)
 	if err != nil {
-		fmt.Printf("Failed to create request: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
 	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		fmt.Printf("Failed to connect to orchestrator at %s: %v\n", host, err)
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusAccepted {
 		body, _ := io.ReadAll(resp.Body)
-		fmt.Printf("Failed to retry job: %s\n", strings.TrimSpace(string(body)))
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to retry job: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
 	}
 
-	fmt.Printf("Job %s retry submitted successfully.\n", jobID)
+	fmt.Fprintf(stdout, "Job %s retry submitted successfully.\n", jobID)
 }
 
 func retryFailedJobs(host string) {
 	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs/retry-failed", host), nil)
 	if err != nil {
-		fmt.Printf("Failed to create request: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
+		exitFunc(1)
+		return
 	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		fmt.Printf("Failed to connect to orchestrator at %s: %v\n", host, err)
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		fmt.Printf("Failed to retry failed jobs: %s\n", strings.TrimSpace(string(body)))
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to retry failed jobs: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
 	}
 
 	var result struct {
 		Retried int `json:"retried"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		fmt.Printf("Failed to decode response: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to decode response: %v\n", err)
+		exitFunc(1)
+		return
 	}
 
-	fmt.Printf("Successfully retried %d failed jobs.\n", result.Retried)
+	fmt.Fprintf(stdout, "Successfully retried %d failed jobs.\n", result.Retried)
 }
