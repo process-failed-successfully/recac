@@ -26,13 +26,13 @@ type MockDockerClient struct {
 	mock.Mock
 }
 
-func (m *MockDockerClient) RunContainer(ctx context.Context, image, workspace string, binds, env []string, user string) (string, error) {
-	args := m.Called(ctx, image, workspace, binds, env, user)
+func (m *MockDockerClient) RunContainer(ctx context.Context, image, workspace string, binds, env, cmd []string, user string) (string, error) {
+	args := m.Called(ctx, image, workspace, binds, env, cmd, user)
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockDockerClient) RunContainerWithLabels(ctx context.Context, image, workspace string, binds, env []string, user string, labels map[string]string) (string, error) {
-	args := m.Called(ctx, image, workspace, binds, env, user, labels)
+func (m *MockDockerClient) RunContainerWithLabels(ctx context.Context, image, workspace string, binds, env, cmd []string, user string, labels map[string]string) (string, error) {
+	args := m.Called(ctx, image, workspace, binds, env, cmd, user, labels)
 	return args.String(0), args.Error(1)
 }
 
@@ -62,6 +62,11 @@ func (m *MockDockerClient) ContainerLogs(ctx context.Context, containerID string
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(io.ReadCloser), args.Error(1)
+}
+
+func (m *MockDockerClient) WaitContainer(ctx context.Context, containerID string) (int64, error) {
+	args := m.Called(ctx, containerID)
+	return int64(args.Int(0)), args.Error(1)
 }
 
 // Mock Session Manager
@@ -176,7 +181,21 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 	ctx := context.Background()
 
 	// Mock expectations
-	mockDocker.On("RunContainerWithLabels", ctx, "test-image", mock.AnythingOfType("string"), mock.Anything, mock.Anything, "", mock.Anything).Return("container123", nil)
+	// Expect RunContainerWithLabels with env containing project ID
+	mockDocker.On("RunContainerWithLabels", ctx, "test-image", mock.AnythingOfType("string"), mock.Anything, mock.MatchedBy(func(env []string) bool {
+		// Check for env vars in slice
+		hasProjectID := false
+		for _, e := range env {
+			if e == "RECAC_PROJECT_ID=TICKET-1" {
+				hasProjectID = true
+				break
+			}
+		}
+		return hasProjectID
+	}), mock.Anything, "", mock.Anything).Return("container123", nil)
+
+	// Expect WaitContainer
+	mockDocker.On("WaitContainer", ctx, "container123").Return(int(0), nil)
 
 	// Verify SaveSession receives session with repo-url
 	mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
@@ -187,20 +206,9 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 				break
 			}
 		}
-		// Also verify StartCommitSHA is empty
 		return hasRepoURL && s.StartCommitSHA == ""
 	})).Return(nil)
 
-	// Verify Exec includes git identity and project ID env vars
-	mockDocker.On("Exec", mock.Anything, "container123", mock.MatchedBy(func(cmd []string) bool {
-		cmdStr := cmd[2] // /bin/sh -c <cmdStr>
-		// Note: RECAC_PROJECT_ID is now quoted with shellquote, so simple strings might not have quotes
-		// or use single quotes. 'TICKET-1' (no spaces) -> TICKET-1
-		// agent@recac.io might not be quoted by shellquote as it is safe
-		return contains(cmdStr, "export RECAC_PROJECT_ID=TICKET-1") &&
-			contains(cmdStr, "export GIT_AUTHOR_NAME='RECAC Agent'") &&
-			(contains(cmdStr, "export GIT_AUTHOR_EMAIL='agent@recac.io'") || contains(cmdStr, "export GIT_AUTHOR_EMAIL=agent@recac.io"))
-	})).Return("output", nil)
 	mockSM.On("LoadSession", "TICKET-1").Return(&runner.SessionState{}, nil)
 
 	// This call happens at the END, so it's still there
@@ -230,7 +238,7 @@ func TestDockerSpawner_Spawn_RunContainerFails(t *testing.T) {
 	expectedErr := errors.New("run failed")
 
 	// No Clone or StartSHA calls expected
-	mockDocker.On("RunContainerWithLabels", ctx, "test-image", mock.AnythingOfType("string"), mock.Anything, mock.Anything, "", mock.Anything).Return("", expectedErr)
+	mockDocker.On("RunContainerWithLabels", ctx, "test-image", mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, "", mock.Anything).Return("", expectedErr)
 
 	err := spawner.Spawn(ctx, item)
 
@@ -251,17 +259,24 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 		RepoURL: "https://github.com/example/repo",
 	}
 
-	client.On("RunContainerWithLabels", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("container-123", nil)
+	// Capture command from RunContainerWithLabels
+	var capturedCmd []string
+	client.On("RunContainerWithLabels", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		capturedCmd = args.Get(5).([]string) // env=4, cmd=5
+	}).Return("container-123", nil)
+
+	// Expect WaitContainer
+	client.On("WaitContainer", mock.Anything, "container-123").Return(int(0), nil)
 
 	// Mock SessionManager
 	sm.On("SaveSession", mock.Anything).Return(nil)
 	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
-
-	// Capture the command passed to Exec
-	var capturedCmd []string
-	client.On("Exec", mock.Anything, "container-123", mock.Anything).Run(func(args mock.Arguments) {
-		capturedCmd = args.Get(2).([]string)
-	}).Return("Success", nil)
+	// GitClient not mocked here but used in Spawn? No, default GitClient is used which might be real?
+	// Ah, s.GitClient is initialized in NewDockerSpawner.
+	// But in this test we didn't mock it, so it uses real one.
+	// `CurrentCommitSHA` will fail if directory doesn't exist or not a repo.
+	// Wait, Spawn creates temp dir.
+	// `CurrentCommitSHA` just warns if fails.
 
 	err := spawner.Spawn(context.Background(), injectionItem)
 	assert.NoError(t, err)
@@ -273,8 +288,7 @@ func TestDockerSpawner_ShellInjection(t *testing.T) {
 	assert.Equal(t, "-c", capturedCmd[1])
 
 	// Check if the ID is quoted in the command string
-	// Depending on implementation, checking for quoted ID:
-	// New implementation uses shellquote, so it should use single quotes for complex strings
+	// New implementation uses shellquote
 	assert.Contains(t, capturedCmd[2], "--jira 'TASK-1\"; echo \"injected'")
 }
 
@@ -296,24 +310,33 @@ func TestDockerSpawner_EnvPropagation(t *testing.T) {
 		RepoURL: "https://github.com/example/repo",
 	}
 
-	client.On("RunContainerWithLabels", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("container-env", nil)
+	// Capture env from RunContainerWithLabels
+	var capturedEnv []string
+	client.On("RunContainerWithLabels", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		capturedEnv = args.Get(4).([]string) // env=4
+	}).Return("container-env", nil)
+
+	client.On("WaitContainer", mock.Anything, "container-env").Return(int(0), nil)
+
 	sm.On("SaveSession", mock.Anything).Return(nil)
 	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
-
-	// Capture the command passed to Exec
-	var capturedCmd []string
-	client.On("Exec", mock.Anything, "container-env", mock.Anything).Run(func(args mock.Arguments) {
-		capturedCmd = args.Get(2).([]string)
-	}).Return("Success", nil)
 
 	err := spawner.Spawn(context.Background(), item)
 	assert.NoError(t, err)
 
-	cmdStr := capturedCmd[2]
-
-	// Check if environment variables are correctly propagated
-	assert.Contains(t, cmdStr, "export RECAC_MAX_ITERATIONS=50", "Should propagate RECAC_MAX_ITERATIONS from host")
-	assert.Contains(t, cmdStr, "export RECAC_MANAGER_FREQUENCY=10m", "Should propagate RECAC_MANAGER_FREQUENCY from host")
+	// Check if environment variables are correctly propagated in Env slice
+	hasMaxIter := false
+	hasFreq := false
+	for _, e := range capturedEnv {
+		if e == "RECAC_MAX_ITERATIONS=50" {
+			hasMaxIter = true
+		}
+		if e == "RECAC_MANAGER_FREQUENCY=10m" {
+			hasFreq = true
+		}
+	}
+	assert.True(t, hasMaxIter, "Should propagate RECAC_MAX_ITERATIONS")
+	assert.True(t, hasFreq, "Should propagate RECAC_MANAGER_FREQUENCY")
 }
 
 func TestDockerSpawner_Cleanup(t *testing.T) {

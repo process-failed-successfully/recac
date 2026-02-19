@@ -192,11 +192,11 @@ type mockDockerClient struct {
 	mu           sync.Mutex
 }
 
-func (m *mockDockerClient) RunContainer(ctx context.Context, image string, workspace string, binds []string, env []string, user string) (string, error) {
+func (m *mockDockerClient) RunContainer(ctx context.Context, image string, workspace string, binds, env, cmd []string, user string) (string, error) {
 	return "", nil
 }
 
-func (m *mockDockerClient) RunContainerWithLabels(ctx context.Context, image string, workspace string, binds []string, env []string, user string, labels map[string]string) (string, error) {
+func (m *mockDockerClient) RunContainerWithLabels(ctx context.Context, image string, workspace string, binds, env, cmd []string, user string, labels map[string]string) (string, error) {
 	return "", nil
 }
 
@@ -221,6 +221,10 @@ func (m *mockDockerClient) RemoveContainer(ctx context.Context, containerID stri
 
 func (m *mockDockerClient) ContainerLogs(ctx context.Context, containerID string) (io.ReadCloser, error) {
 	return nil, nil
+}
+
+func (m *mockDockerClient) WaitContainer(ctx context.Context, containerID string) (int64, error) {
+	return 0, nil
 }
 
 func TestJanitor_Start(t *testing.T) {

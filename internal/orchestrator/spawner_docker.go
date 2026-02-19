@@ -10,7 +10,6 @@ import (
 	"recac/internal/git"
 	"recac/internal/runner"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
@@ -74,14 +73,15 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		"created-at": time.Now().Format(time.RFC3339),
 	}
 
-	containerID, err := s.Client.RunContainerWithLabels(ctx, s.Image, tempDir, extraBinds, nil, user, labels)
-	if err != nil {
-		os.RemoveAll(tempDir)
-		return fmt.Errorf("failed to start container: %w", err)
+	// 4. Prepare Environment and Command
+	envMap := collectAgentEnvVars(item, s.AgentProvider, s.AgentModel)
+	envMap["RECAC_HOST_WORKSPACE_PATH"] = tempDir
+	var env []string
+	for k, v := range envMap {
+		env = append(env, fmt.Sprintf("%s=%s", k, v))
 	}
+	sort.Strings(env)
 
-	// 4. Create and save the initial session state
-	// Note: We don't quote here yet, we'll use shellquote.Join later to ensure safety
 	agentCmd := []string{
 		"/usr/local/bin/recac-agent",
 		"--jira", item.ID,
@@ -92,6 +92,15 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		"--path", "/workspace",
 		"--verbose",
 		"--repo-url", item.RepoURL, // Delegate cloning
+	}
+
+	cmd := s.constructShellCommand(agentCmd)
+
+	// 5. Create and Start Container
+	containerID, err := s.Client.RunContainerWithLabels(ctx, s.Image, tempDir, extraBinds, env, cmd, user, labels)
+	if err != nil {
+		os.RemoveAll(tempDir)
+		return fmt.Errorf("failed to start container: %w", err)
 	}
 
 	session := &runner.SessionState{
@@ -117,17 +126,31 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 
 	s.Logger.Info("Container started", "id", containerID, "work_item", item.ID)
 
-	// 5. Execute Work Synchronously
-	envMap := collectAgentEnvVars(item, s.AgentProvider, s.AgentModel)
-	envMap["RECAC_HOST_WORKSPACE_PATH"] = tempDir
+	// 6. Wait for Completion
+	s.Logger.Info("Waiting for agent completion", "item", item.ID)
+	exitCode, waitErr := s.Client.WaitContainer(ctx, containerID)
 
-	cmd := s.constructShellCommand(envMap, agentCmd)
+	var output string
+	var execErr error
+	if waitErr != nil {
+		execErr = waitErr
+	} else if exitCode != 0 {
+		execErr = fmt.Errorf("agent exited with code %d", exitCode)
+	}
 
-	s.Logger.Info("Executing agent command", "item", item.ID)
-	// Use ctx instead of context.Background()
-	output, execErr := s.Client.Exec(ctx, containerID, cmd)
+	// If failed, try to get some logs
+	if execErr != nil {
+		logs, err := s.Client.ContainerLogs(ctx, containerID)
+		if err == nil {
+			// Read up to 4KB of logs for context
+			buf := make([]byte, 4096)
+			n, _ := logs.Read(buf)
+			output = string(buf[:n])
+			logs.Close()
+		}
+	}
 
-	// 6. Update session state
+	// 7. Update session state
 	finalSession, loadErr := s.SessionManager.LoadSession(item.ID)
 	if loadErr != nil {
 		s.Logger.Error("failed to load session for final update", "session", item.ID, "error", loadErr)
@@ -212,25 +235,9 @@ func (s *DockerSpawner) GetLogs(ctx context.Context, jobID string) (io.ReadClose
 	return s.Client.ContainerLogs(ctx, containerID)
 }
 
-func (s *DockerSpawner) constructShellCommand(envMap map[string]string, agentCmd []string) []string {
-	// Sort keys for deterministic output
-	keys := make([]string, 0, len(envMap))
-	for k := range envMap {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	var envExports []string
-	for _, k := range keys {
-		envExports = append(envExports, fmt.Sprintf("export %s=%s", k, shellquote.Join(envMap[k])))
-	}
-
-	cmdStr := "cd /workspace"
-	if len(envExports) > 0 {
-		cmdStr += " && " + strings.Join(envExports, " && ")
-	}
+func (s *DockerSpawner) constructShellCommand(agentCmd []string) []string {
 	// Inject Git Config for GITHUB_TOKEN if present
-	cmdStr += " && if [ -n \"$GITHUB_TOKEN\" ]; then git config --global url.\"https://${GITHUB_TOKEN}:x-oauth-basic@github.com/\".insteadOf \"https://github.com/\"; fi"
+	cmdStr := "if [ -n \"$GITHUB_TOKEN\" ]; then git config --global url.\"https://${GITHUB_TOKEN}:x-oauth-basic@github.com/\".insteadOf \"https://github.com/\"; fi"
 	cmdStr += " && " + shellquote.Join(agentCmd...) + " --allow-dirty"
 	cmdStr += " && echo 'Recac Finished'"
 

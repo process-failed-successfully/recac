@@ -44,6 +44,7 @@ type APIClient interface {
 	ContainerList(ctx context.Context, options container.ListOptions) ([]types.Container, error)
 	ContainerKill(ctx context.Context, containerID, signal string) error
 	ContainerLogs(ctx context.Context, container string, options container.LogsOptions) (io.ReadCloser, error)
+	ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.WaitResponse, <-chan error)
 	Close() error
 }
 
@@ -187,13 +188,13 @@ func (c *Client) PullImage(ctx context.Context, imageRef string) error {
 
 // RunContainer starts a container with the specified image and mounts the workspace.
 // It returns the container ID or an error.
-func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, ports []string, user string) (string, error) {
-	return c.RunContainerWithLabels(ctx, imageRef, workspace, extraBinds, ports, user, nil)
+func (c *Client) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, cmd []string, user string) (string, error) {
+	return c.RunContainerWithLabels(ctx, imageRef, workspace, extraBinds, env, cmd, user, nil)
 }
 
 // RunContainerWithLabels starts a container with the specified image, mounts the workspace, and applies labels.
 // It returns the container ID or an error.
-func (c *Client) RunContainerWithLabels(ctx context.Context, imageRef string, workspace string, extraBinds []string, ports []string, user string, labels map[string]string) (string, error) {
+func (c *Client) RunContainerWithLabels(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, cmd []string, user string, labels map[string]string) (string, error) {
 	telemetry.TrackDockerOp(c.project)
 	// 1. Pull Image (Best effort)
 	reader, err := c.api.ImagePull(ctx, imageRef, image.PullOptions{})
@@ -214,17 +215,24 @@ func (c *Client) RunContainerWithLabels(ctx context.Context, imageRef string, wo
 		binds = append(binds, extraBinds...)
 	}
 
+	config := &container.Config{
+		Image:      imageRef,
+		User:       user,
+		Tty:        true, // Keep it running
+		OpenStdin:  true, // Keep stdin open
+		WorkingDir: "/workspace",
+		Cmd:        []string{"/bin/sh"}, // Default command to keep it alive
+		Env:        env,
+		Labels:     labels,
+	}
+
+	if len(cmd) > 0 {
+		config.Cmd = cmd
+	}
+
 	// 2. Create Container
 	resp, err := c.api.ContainerCreate(ctx,
-		&container.Config{
-			Image:      imageRef,
-			User:       user,
-			Tty:        true, // Keep it running
-			OpenStdin:  true, // Keep stdin open
-			WorkingDir: "/workspace",
-			Cmd:        []string{"/bin/sh"}, // Default command to keep it alive
-			Labels:     labels,
-		},
+		config,
 		&container.HostConfig{
 			Binds: binds,
 		}, nil, nil, "")
@@ -427,6 +435,20 @@ func (c *Client) ContainerLogs(ctx context.Context, containerID string) (io.Read
 		ShowStderr: true,
 		Follow:     true,
 	})
+}
+
+// WaitContainer waits for the container to stop and returns the exit code.
+func (c *Client) WaitContainer(ctx context.Context, containerID string) (int64, error) {
+	telemetry.TrackDockerOp(c.project)
+	statusCh, errCh := c.api.ContainerWait(ctx, containerID, container.WaitConditionNotRunning)
+	select {
+	case err := <-errCh:
+		return 0, err
+	case status := <-statusCh:
+		return status.StatusCode, nil
+	case <-ctx.Done():
+		return 0, ctx.Err()
+	}
 }
 
 // ImageBuildOptions configures how an image is built.

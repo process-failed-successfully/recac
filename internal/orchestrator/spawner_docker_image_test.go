@@ -30,28 +30,28 @@ func TestDockerSpawner_Spawn_ImageFlag(t *testing.T) {
 	ctx := context.Background()
 
 	// Mock expectations
-	mockDocker.On("RunContainerWithLabels", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, "", mock.Anything).Return("container123", nil)
+	// We match "Anything" for arguments so we catch the call, then inspect it in Run
+	runCalled := make(chan string, 1)
+	mockDocker.On("RunContainerWithLabels", ctx, imageName, mock.AnythingOfType("string"), mock.Anything, mock.Anything, mock.Anything, "", mock.Anything).Run(func(args mock.Arguments) {
+		cmd := args.Get(5).([]string) // env=4, cmd=5
+		// cmd is ["/bin/sh", "-c", "actual command"]
+		runCalled <- cmd[2]
+	}).Return("container123", nil)
+
+	mockDocker.On("WaitContainer", ctx, "container123").Return(int(0), nil)
+
 	mockSM.On("SaveSession", mock.Anything).Return(nil)
 	mockSM.On("LoadSession", "TICKET-1").Return(nil, assert.AnError)
-
-	execCalled := make(chan string, 1)
-
-	// We match "Anything" for arguments so we catch the call, then inspect it in Run
-	mockDocker.On("Exec", mock.Anything, "container123", mock.Anything).Run(func(args mock.Arguments) {
-		cmd := args.Get(2).([]string)
-		// cmd is ["/bin/sh", "-c", "actual command"]
-		execCalled <- cmd[2]
-	}).Return("output", nil)
 
 	err := spawner.Spawn(ctx, item)
 	assert.NoError(t, err)
 
 	select {
-	case cmdStr := <-execCalled:
+	case cmdStr := <-runCalled:
 		t.Logf("Captured Command: %s", cmdStr)
 		assert.Contains(t, cmdStr, "--image", "Command should contain --image flag")
 		assert.Contains(t, cmdStr, imageName, "Command should contain the correct image name")
 	case <-time.After(1 * time.Second):
-		t.Fatal("Timeout waiting for Exec call")
+		t.Fatal("Timeout waiting for RunContainerWithLabels call")
 	}
 }

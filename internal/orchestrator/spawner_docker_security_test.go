@@ -31,29 +31,30 @@ func TestDockerSpawner_EnvInjection_Vulnerability(t *testing.T) {
 		},
 	}
 
-	client.On("RunContainerWithLabels", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("container-sec", nil)
+	// Capture the command passed to RunContainerWithLabels
+	capturedCmdChan := make(chan []string, 1)
+	client.On("RunContainerWithLabels", mock.Anything, "recac-agent:latest", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		capturedCmd := args.Get(5).([]string)
+		capturedCmdChan <- capturedCmd
+	}).Return("container-sec", nil)
+
+	// Expect WaitContainer
+	client.On("WaitContainer", mock.Anything, "container-sec").Return(int(0), nil)
 
 	// Mock SessionManager
 	sm.On("SaveSession", mock.Anything).Return(nil)
 	sm.On("LoadSession", mock.Anything).Return(&runner.SessionState{}, nil)
 
-	// Capture the command passed to Exec using a channel for synchronization
-	capturedCmdChan := make(chan []string, 1)
-	client.On("Exec", mock.Anything, "container-sec", mock.Anything).Run(func(args mock.Arguments) {
-		capturedCmd := args.Get(2).([]string)
-		capturedCmdChan <- capturedCmd
-	}).Return("Success", nil)
-
 	err := spawner.Spawn(context.Background(), injectionItem)
 	assert.NoError(t, err)
 
-	// Wait for the background goroutine to call Exec
+	// Wait for the background goroutine to call RunContainerWithLabels
 	var capturedCmd []string
 	select {
 	case capturedCmd = <-capturedCmdChan:
 		// Success
 	case <-time.After(2 * time.Second):
-		t.Fatal("Timed out waiting for Exec call")
+		t.Fatal("Timed out waiting for RunContainerWithLabels call")
 	}
 
 	// The command should be stringified and passed to sh -c.
