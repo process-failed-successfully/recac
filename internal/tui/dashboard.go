@@ -167,7 +167,8 @@ func fetchStatus(host string) tea.Cmd {
 	}
 }
 
-func StartDashboard(host string) error {
+// NewDashboardModel initializes a new DashboardModel with default styles
+func NewDashboardModel(host string) DashboardModel {
 	columns := []table.Column{
 		{Title: "ID", Width: 15},
 		{Title: "Summary", Width: 40},
@@ -193,10 +194,15 @@ func StartDashboard(host string) error {
 		Bold(false)
 	t.SetStyles(s)
 
-	p := tea.NewProgram(DashboardModel{
+	return DashboardModel{
 		host:  host,
 		table: t,
-	})
+	}
+}
+
+func StartDashboard(host string) error {
+	m := NewDashboardModel(host)
+	p := tea.NewProgram(m)
 
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Alas, there's been an error: %v", err)
