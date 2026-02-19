@@ -189,3 +189,33 @@ func TestRenderDetails(t *testing.T) {
 	assert.Contains(t, output, "Running")
 	assert.Contains(t, output, "KEY=VAL")
 }
+
+func TestCmd_CancelJob_Error(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Failed", http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	cmd := cancelJob(server.URL, "JOB-1")
+	msg := cmd()
+
+	aMsg, ok := msg.(actionMsg)
+	assert.True(t, ok)
+	assert.NotNil(t, aMsg.Err)
+	assert.Contains(t, aMsg.Err.Error(), "status 500")
+}
+
+func TestCmd_RetryJob_Error(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Failed", http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	cmd := retryJob(server.URL, "JOB-1")
+	msg := cmd()
+
+	aMsg, ok := msg.(actionMsg)
+	assert.True(t, ok)
+	assert.NotNil(t, aMsg.Err)
+	assert.Contains(t, aMsg.Err.Error(), "status 500")
+}
