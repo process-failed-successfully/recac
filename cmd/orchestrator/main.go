@@ -38,6 +38,8 @@ func main() {
 	pflag.String("logs", "", "Get logs for a specific job ID from a running orchestrator instance")
 	pflag.String("inspect-job", "", "Inspect a specific job by ID")
 	pflag.String("cancel-job", "", "Cancel a running job by ID")
+	pflag.Bool("pause", false, "Pause the orchestrator polling loop")
+	pflag.Bool("resume", false, "Resume the orchestrator polling loop")
 	pflag.String("submit", "", "Submit a job from a JSON file path")
 	pflag.String("host", "http://localhost:2112", "Orchestrator host URL (for list-jobs, logs, cancel-job, and submit)")
 
@@ -93,6 +95,8 @@ func main() {
 	viper.BindPFlag("orchestrator.logs", pflag.Lookup("logs"))
 	viper.BindPFlag("orchestrator.inspect_job", pflag.Lookup("inspect-job"))
 	viper.BindPFlag("orchestrator.cancel_job", pflag.Lookup("cancel-job"))
+	viper.BindPFlag("orchestrator.pause", pflag.Lookup("pause"))
+	viper.BindPFlag("orchestrator.resume", pflag.Lookup("resume"))
 	viper.BindPFlag("orchestrator.submit", pflag.Lookup("submit"))
 	viper.BindPFlag("orchestrator.host", pflag.Lookup("host"))
 
@@ -159,6 +163,18 @@ func main() {
 	if jobID := viper.GetString("orchestrator.cancel_job"); jobID != "" {
 		host := viper.GetString("orchestrator.host")
 		cancelJob(host, jobID)
+		return
+	}
+
+	if viper.GetBool("orchestrator.pause") {
+		host := viper.GetString("orchestrator.host")
+		pauseOrchestrator(host)
+		return
+	}
+
+	if viper.GetBool("orchestrator.resume") {
+		host := viper.GetString("orchestrator.host")
+		resumeOrchestrator(host)
 		return
 	}
 
@@ -382,6 +398,18 @@ func main() {
 
 			w.WriteHeader(http.StatusAccepted)
 			fmt.Fprintf(w, "Job %s submitted successfully", item.ID)
+		})
+
+		mux.HandleFunc("POST /pause", func(w http.ResponseWriter, r *http.Request) {
+			orch.Pause()
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintln(w, "Orchestrator paused")
+		})
+
+		mux.HandleFunc("POST /resume", func(w http.ResponseWriter, r *http.Request) {
+			orch.Resume()
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintln(w, "Orchestrator resumed")
 		})
 	}
 
@@ -639,6 +667,52 @@ func cancelJob(host, jobID string) {
 	}
 
 	fmt.Printf("Job %s cancelled successfully.\n", jobID)
+}
+
+func pauseOrchestrator(host string) {
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/pause", host), nil)
+	if err != nil {
+		fmt.Printf("Failed to create request: %v\n", err)
+		os.Exit(1)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Printf("Failed to connect to orchestrator at %s: %v\n", host, err)
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Printf("Failed to pause orchestrator: %s\n", strings.TrimSpace(string(body)))
+		os.Exit(1)
+	}
+
+	fmt.Println("Orchestrator paused.")
+}
+
+func resumeOrchestrator(host string) {
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/resume", host), nil)
+	if err != nil {
+		fmt.Printf("Failed to create request: %v\n", err)
+		os.Exit(1)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Printf("Failed to connect to orchestrator at %s: %v\n", host, err)
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Printf("Failed to resume orchestrator: %s\n", strings.TrimSpace(string(body)))
+		os.Exit(1)
+	}
+
+	fmt.Println("Orchestrator resumed.")
 }
 
 func submitJob(host, filePath string) {

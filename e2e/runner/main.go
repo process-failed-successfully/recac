@@ -184,7 +184,14 @@ func run() error {
 		return fmt.Errorf("unknown scenario: %s", scenarioName)
 	}
 
-	label, ticketMap, err := mgr.GenerateScenario(ctx, scenarioName, repoURL, provider, model)
+	// Use mock provider for generation step in prime-python to ensure stability
+	genProvider := provider
+	if scenarioName == "prime-python" {
+		log.Println("Using 'mock' provider for ticket generation step to avoid rate limits.")
+		genProvider = "mock"
+	}
+
+	label, ticketMap, err := mgr.GenerateScenario(ctx, scenarioName, repoURL, genProvider, model)
 	if err != nil {
 		return fmt.Errorf("failed to generate scenario: %w", err)
 	}
