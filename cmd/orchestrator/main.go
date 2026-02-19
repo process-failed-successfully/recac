@@ -58,6 +58,7 @@ func main() {
 	pflag.String("agent-model", "openrouter/aurora-alpha", "Model for spawned agents")
 	pflag.String("image-pull-policy", "Always", "Image pull policy for agents (Always, IfNotPresent, Never)")
 	pflag.Int("metrics-port", 2112, "Port to expose Prometheus metrics")
+	pflag.String("db-file", "", "Path to SQLite database for job history persistence")
 
 	// Janitor Flags
 	pflag.Bool("cleanup", false, "Enable janitor to clean up old containers")
@@ -143,6 +144,8 @@ func main() {
 	viper.BindEnv("orchestrator.interval", "RECAC_ORCHESTRATOR_INTERVAL")
 	viper.BindEnv("orchestrator.image_pull_policy", "RECAC_IMAGE_PULL_POLICY")
 	viper.BindEnv("orchestrator.metrics_port", "RECAC_METRICS_PORT")
+	viper.BindPFlag("orchestrator.db_file", pflag.Lookup("db-file"))
+	viper.BindEnv("orchestrator.db_file", "RECAC_DB_FILE")
 	viper.BindEnv("orchestrator.max_iterations", "RECAC_MAX_ITERATIONS")
 	viper.BindEnv("orchestrator.manager_frequency", "RECAC_MANAGER_FREQUENCY")
 	viper.BindEnv("orchestrator.task_max_iterations", "RECAC_TASK_MAX_ITERATIONS")
@@ -347,6 +350,22 @@ func main() {
 
 	// 4. Orchestrator
 	orch := orchestrator.New(poller, spawner, interval)
+
+	// Persistence
+	if dbPath := viper.GetString("orchestrator.db_file"); dbPath != "" {
+		p := orchestrator.NewSQLitePersistence(dbPath)
+		if err := p.Init(); err != nil {
+			logger.Error("Failed to initialize persistence", "error", err)
+			os.Exit(1)
+		}
+		defer p.Close()
+		orch.SetPersistence(p)
+		if err := orch.LoadHistory(logger); err != nil {
+			logger.Error("Failed to load history", "error", err)
+		} else {
+			logger.Info("Persistence enabled", "db", dbPath)
+		}
+	}
 
 	// Start Metrics Server
 	metricsPort := viper.GetInt("orchestrator.metrics_port")

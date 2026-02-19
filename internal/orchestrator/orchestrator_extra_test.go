@@ -96,9 +96,9 @@ func TestOrchestrator_JobHistoryLimit(t *testing.T) {
 	orch.maxHistory = 2 // Set small limit
 
 	// Add 3 jobs
-	orch.addToHistory(JobInfo{ID: "JOB-1"})
-	orch.addToHistory(JobInfo{ID: "JOB-2"})
-	orch.addToHistory(JobInfo{ID: "JOB-3"})
+	orch.addToHistory(JobInfo{ID: "JOB-1"}, nil)
+	orch.addToHistory(JobInfo{ID: "JOB-2"}, nil)
+	orch.addToHistory(JobInfo{ID: "JOB-3"}, nil)
 
 	completed := orch.GetCompletedJobs()
 	assert.Len(t, completed, 2)

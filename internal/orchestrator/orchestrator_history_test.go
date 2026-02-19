@@ -44,7 +44,7 @@ func TestOrchestrator_History_Limit(t *testing.T) {
 	for i := 0; i < 7; i++ {
 		id := string(rune('A' + i)) // A, B, C...
 		job := JobInfo{ID: id, EndTime: time.Now(), Status: "Completed"}
-		orch.addToHistory(job)
+		orch.addToHistory(job, nil)
 	}
 
 	orch.mu.RLock()
