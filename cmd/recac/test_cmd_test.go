@@ -42,7 +42,7 @@ func TestRunTest_ExplicitArgs(t *testing.T) {
 			// Verify args
 			expected := []string{"test", "-v", "pkg/a"}
 			assert.Equal(t, expected, arg)
-			return exec.Command("echo", "ok")
+			return exec.Command("echo", "PASS")
 		}
 		return exec.Command("echo", "unexpected")
 	}
@@ -54,7 +54,7 @@ func TestRunTest_ExplicitArgs(t *testing.T) {
 	// Assert
 	assert.NoError(t, err)
 	assert.Contains(t, output, "Running tests for 1 packages")
-	assert.Contains(t, output, "ok")
+	assert.Contains(t, output, "PASS")
 }
 
 func TestRunTest_Impacted(t *testing.T) {
