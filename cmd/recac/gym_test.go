@@ -31,13 +31,13 @@ func (m *GymMockDockerClient) CheckDaemon(ctx context.Context) error {
 	return args.Error(0)
 }
 
-func (m *GymMockDockerClient) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, user string) (string, error) {
-	args := m.Called(ctx, imageRef, workspace, extraBinds, env, user)
+func (m *GymMockDockerClient) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, env, cmd []string, user string) (string, error) {
+	args := m.Called(ctx, imageRef, workspace, extraBinds, env, cmd, user)
 	return args.String(0), args.Error(1)
 }
 
-func (m *GymMockDockerClient) RunContainerWithLabels(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, user string, labels map[string]string) (string, error) {
-	args := m.Called(ctx, imageRef, workspace, extraBinds, env, user, labels)
+func (m *GymMockDockerClient) RunContainerWithLabels(ctx context.Context, imageRef string, workspace string, extraBinds []string, env, cmd []string, user string, labels map[string]string) (string, error) {
+	args := m.Called(ctx, imageRef, workspace, extraBinds, env, cmd, user, labels)
 	return args.String(0), args.Error(1)
 }
 
@@ -79,6 +79,11 @@ func (m *GymMockDockerClient) ImageBuild(ctx context.Context, opts docker.ImageB
 func (m *GymMockDockerClient) PullImage(ctx context.Context, imageRef string) error {
 	args := m.Called(ctx, imageRef)
 	return args.Error(0)
+}
+
+func (m *GymMockDockerClient) WaitContainer(ctx context.Context, containerID string) (int64, error) {
+	args := m.Called(ctx, containerID)
+	return int64(args.Int(0)), args.Error(1)
 }
 
 type GymMockAgent struct {
@@ -200,7 +205,7 @@ func TestRunGymSession(t *testing.T) {
 	// Expectations
 	mockDocker.On("CheckDaemon", mock.Anything).Return(nil)
 	mockDocker.On("ImageExists", mock.Anything, mock.Anything).Return(true, nil)
-	mockDocker.On("RunContainer", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("mock-container-id", nil)
+	mockDocker.On("RunContainer", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("mock-container-id", nil)
 	mockDocker.On("StopContainer", mock.Anything, "mock-container-id").Return(nil)
 
 	// Setup calls (passwd, git, etc) - allow any Exec/ExecAsUser calls generally
