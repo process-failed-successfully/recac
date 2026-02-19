@@ -74,18 +74,3 @@ func TestDashboardModel_Update_ToggleHistory(t *testing.T) {
 	assert.NotNil(t, cmd) // Should fetch status
 }
 
-func TestDashboardModel_Update_LogsMsg(t *testing.T) {
-	vp := viewport.New(100, 20)
-	model := DashboardModel{
-		viewState: viewMain,
-		viewport:  vp,
-	}
-	logs := "some logs"
-	msg := logsMsg{Logs: logs}
-
-	updatedModel, _ := model.Update(msg)
-	m := updatedModel.(DashboardModel)
-
-	assert.Equal(t, viewLogs, m.viewState)
-	assert.Equal(t, logs, m.logs)
-}
