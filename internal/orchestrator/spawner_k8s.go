@@ -8,7 +8,9 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
+	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -87,21 +89,35 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	existingJob, err := s.Client.BatchV1().Jobs(s.Namespace).Get(ctx, jobName, metav1.GetOptions{})
 	if err == nil {
 		// Job exists
-		if existingJob.Status.Failed > 0 {
-			s.Logger.Info("Found failed job, deleting to retry", "name", jobName)
+		if existingJob.Status.Failed > 0 || existingJob.Status.Succeeded > 0 {
+			s.Logger.Info("Found finished job, deleting to retry", "name", jobName, "status", existingJob.Status)
 			// Delete background
 			delPolicy := metav1.DeletePropagationBackground
 			if err := s.Client.BatchV1().Jobs(s.Namespace).Delete(ctx, jobName, metav1.DeleteOptions{PropagationPolicy: &delPolicy}); err != nil {
-				return fmt.Errorf("failed to delete failed job: %w", err)
+				return fmt.Errorf("failed to delete finished job: %w", err)
 			}
-			// We can return here and let the next poll cycle create it, OR try to create immediate.
-			// K8s deletion is async, so usually better to return and wait.
-			// BUT, to be "atomic" we might want to wait?
-			// Let's return and log, next tick will create it.
-			return fmt.Errorf("cleaning up failed job %s, will retry next cycle", jobName)
-		} else if existingJob.Status.Succeeded > 0 {
-			s.Logger.Info("Job already succeeded", "name", jobName)
-			return nil
+
+			// Wait for deletion
+			s.Logger.Info("Waiting for job deletion...", "name", jobName)
+			timeout := time.After(10 * time.Second)
+			ticker := time.NewTicker(100 * time.Millisecond)
+			defer ticker.Stop()
+
+		DeletionLoop:
+			for {
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-timeout:
+					return fmt.Errorf("timeout waiting for job %s deletion", jobName)
+				case <-ticker.C:
+					_, err := s.Client.BatchV1().Jobs(s.Namespace).Get(ctx, jobName, metav1.GetOptions{})
+					if err != nil && strings.Contains(err.Error(), "not found") {
+						break DeletionLoop
+					}
+				}
+			}
+			s.Logger.Info("Job deleted, proceeding to spawn", "name", jobName)
 		} else {
 			// Active or undefined state
 			s.Logger.Info("Job already exists and is active", "name", jobName)
@@ -253,8 +269,12 @@ func (s *K8sSpawner) GetLogs(ctx context.Context, jobID string) (io.ReadCloser, 
 		return nil, fmt.Errorf("no active pods found for job %s", jobID)
 	}
 
-	// Get logs from the first pod
-	// Usually there is only one pod per job unless retrying
+	// Sort pods by creation timestamp (newest first)
+	sort.Slice(pods.Items, func(i, j int) bool {
+		return pods.Items[i].CreationTimestamp.Time.After(pods.Items[j].CreationTimestamp.Time)
+	})
+
+	// Get logs from the first pod (newest)
 	podName := pods.Items[0].Name
 
 	req := s.Client.CoreV1().Pods(s.Namespace).GetLogs(podName, &corev1.PodLogOptions{})

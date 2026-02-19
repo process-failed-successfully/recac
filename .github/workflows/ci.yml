@@ -364,15 +364,36 @@ jobs:
                 console.log(`Approval step skipped or failed: ${approveError.message}. Continuing to merge attempt...`);
               }
 
-              // 4. Merge the PR
-              await github.rest.pulls.merge({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: prNumber,
-                merge_method: 'squash'
-              });
-              console.log(`Successfully merged PR #${prNumber}`);
+              // 4. Merge the PR with retry logic
+              let merged = false;
+              for (let i = 0; i < 5; i++) {
+                try {
+                  await github.rest.pulls.merge({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    pull_number: prNumber,
+                    merge_method: 'squash'
+                  });
+                  console.log(`Successfully merged PR #${prNumber}`);
+                  merged = true;
+                  break;
+                } catch (mergeError) {
+                  console.log(`Merge attempt ${i+1} failed: ${mergeError.message}`);
+                  // If it's the "status checks" error or "Base branch was modified", wait and retry
+                  if (mergeError.message.includes('required status checks are expected') || mergeError.message.includes('Base branch was modified')) {
+                    console.log('Waiting 5s for checks/state to settle...');
+                    await new Promise(resolve => setTimeout(resolve, 5000));
+                  } else {
+                    throw mergeError;
+                  }
+                }
+              }
+
+              if (!merged) {
+                console.warn("Failed to merge PR after retries. Continuing as best-effort.");
+              }
             } catch (error) {
               console.error(`Failed to process PR #${prNumber}:`, error.message);
-              core.setFailed(`Auto-merge failed: ${error.message}`);
+              // Do not fail the job if auto-merge fails due to permissions or checks race conditions
+              core.warning(`Auto-merge failed: ${error.message}`);
             }

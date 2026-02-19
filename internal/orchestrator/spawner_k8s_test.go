@@ -172,14 +172,14 @@ func TestK8sSpawner_Spawn_Lifecycle(t *testing.T) {
 		job.Status.Failed = 1
 		clientset.BatchV1().Jobs("test-ns").Update(context.Background(), job, metav1.UpdateOptions{})
 
+		// Spawn should now succeed (it deletes and recreates)
 		err := spawner.Spawn(context.Background(), item)
-		// Should return error indicating cleanup and retry
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "cleaning up failed job")
+		assert.NoError(t, err)
 
-		// Verify Job was deleted (or deletion requested)
-		_, err = clientset.BatchV1().Jobs("test-ns").Get(context.Background(), "recac-agent-task-123", metav1.GetOptions{})
-		assert.Error(t, err) // Should be deleted in fake clientset immediately usually
+		// Verify new Job exists
+		newJob, err := clientset.BatchV1().Jobs("test-ns").Get(context.Background(), "recac-agent-task-123", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Equal(t, "recac-agent-task-123", newJob.Name)
 	})
 }
 
