@@ -33,6 +33,13 @@ type mockAPIClient struct {
 	containerLogsFunc       func(ctx context.Context, container string, options container.LogsOptions) (io.ReadCloser, error)
 }
 
+func (m *mockAPIClient) ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.WaitResponse, <-chan error) {
+	statusCh := make(chan container.WaitResponse, 1)
+	errCh := make(chan error, 1)
+	statusCh <- container.WaitResponse{StatusCode: 0}
+	return statusCh, errCh
+}
+
 func (m *mockAPIClient) Ping(ctx context.Context) (types.Ping, error) {
 	if m.pingFunc != nil {
 		return m.pingFunc(ctx)
@@ -397,7 +404,7 @@ func TestDockerInDocker_Support(t *testing.T) {
 	defer os.RemoveAll(testWorkspace)
 
 	// Create nested container
-	containerID, err := client.RunContainer(ctx, testImage, testWorkspace, nil, nil, "")
+	containerID, err := client.RunContainer(ctx, testImage, testWorkspace, nil, nil, nil, "")
 	if err != nil {
 		t.Fatalf("Failed to create nested container: %v", err)
 	}

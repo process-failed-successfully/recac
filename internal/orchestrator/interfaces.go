@@ -52,13 +52,14 @@ var _ JiraClient = (*jira.Client)(nil)
 
 // DockerClient defines the interface for Docker operations, created for mocking.
 type DockerClient interface {
-	RunContainer(ctx context.Context, image string, workspace string, binds []string, env []string, user string) (string, error)
-	RunContainerWithLabels(ctx context.Context, image string, workspace string, binds []string, env []string, user string, labels map[string]string) (string, error)
+	RunContainer(ctx context.Context, image string, workspace string, binds []string, env []string, cmd []string, user string) (string, error)
+	RunContainerWithLabels(ctx context.Context, image string, workspace string, binds []string, env []string, cmd []string, user string, labels map[string]string) (string, error)
 	StopContainer(ctx context.Context, containerID string) error
 	Exec(ctx context.Context, containerID string, cmd []string) (string, error)
 	ListContainers(ctx context.Context, options container.ListOptions) ([]types.Container, error)
 	RemoveContainer(ctx context.Context, containerID string, force bool) error
 	ContainerLogs(ctx context.Context, containerID string) (io.ReadCloser, error)
+	WaitContainer(ctx context.Context, containerID string) (int64, error)
 }
 
 // ISessionManager defines the interface for session management, created for mocking.

@@ -32,7 +32,18 @@ type MockAPI struct {
 	ContainerListFunc        func(ctx context.Context, options container.ListOptions) ([]types.Container, error)
 	ContainerKillFunc        func(ctx context.Context, containerID, signal string) error
 	ContainerLogsFunc        func(ctx context.Context, container string, options container.LogsOptions) (io.ReadCloser, error)
+	ContainerWaitFunc        func(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.WaitResponse, <-chan error)
 	CloseFunc                func() error
+}
+
+func (m *MockAPI) ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.WaitResponse, <-chan error) {
+	if m.ContainerWaitFunc != nil {
+		return m.ContainerWaitFunc(ctx, containerID, condition)
+	}
+	statusCh := make(chan container.WaitResponse, 1)
+	errCh := make(chan error, 1)
+	statusCh <- container.WaitResponse{StatusCode: 0}
+	return statusCh, errCh
 }
 
 func (m *MockAPI) Ping(ctx context.Context) (types.Ping, error) {

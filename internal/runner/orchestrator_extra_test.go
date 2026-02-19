@@ -24,9 +24,14 @@ func (m *MockOrchestratorDocker) CheckDaemon(ctx context.Context) error {
 	return args.Error(0)
 }
 
-func (m *MockOrchestratorDocker) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, user string) (string, error) {
-	args := m.Called(ctx, imageRef, workspace, extraBinds, env, user)
+func (m *MockOrchestratorDocker) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, env, cmd []string, user string) (string, error) {
+	args := m.Called(ctx, imageRef, workspace, extraBinds, env, cmd, user)
 	return args.String(0), args.Error(1)
+}
+
+func (m *MockOrchestratorDocker) WaitContainer(ctx context.Context, containerID string) (int64, error) {
+	args := m.Called(ctx, containerID)
+	return int64(args.Int(0)), args.Error(1)
 }
 
 func (m *MockOrchestratorDocker) StopContainer(ctx context.Context, containerID string) error {
@@ -124,7 +129,7 @@ func TestOrchestrator_ExecuteTask(t *testing.T) {
 	// Mock basic interactions for Session start
 	mockDocker.On("CheckDaemon", mock.Anything).Return(nil)
 	mockDocker.On("ImageExists", mock.Anything, mock.Anything).Return(true, nil)
-	mockDocker.On("RunContainer", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("container-id", nil)
+	mockDocker.On("RunContainer", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("container-id", nil)
 	mockDocker.On("StopContainer", mock.Anything, "container-id").Return(nil)
 
 	// Mock Agent interaction for the task

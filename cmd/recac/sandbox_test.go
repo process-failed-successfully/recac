@@ -10,16 +10,16 @@ import (
 
 // Mock implementation of SandboxDockerClient
 type mockSandboxClient struct {
-	runContainerFunc    func(ctx context.Context, imageRef string, workspace string, extraBinds []string, ports []string, user string) (string, error)
+	runContainerFunc    func(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, cmd []string, user string) (string, error)
 	execInteractiveFunc func(ctx context.Context, containerID string, cmd []string) error
 	stopContainerFunc   func(ctx context.Context, containerID string) error
 	removeContainerFunc func(ctx context.Context, containerID string, force bool) error
 	closeFunc           func() error
 }
 
-func (m *mockSandboxClient) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, ports []string, user string) (string, error) {
+func (m *mockSandboxClient) RunContainer(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, cmd []string, user string) (string, error) {
 	if m.runContainerFunc != nil {
-		return m.runContainerFunc(ctx, imageRef, workspace, extraBinds, ports, user)
+		return m.runContainerFunc(ctx, imageRef, workspace, extraBinds, env, cmd, user)
 	}
 	return "mock-container-id", nil
 }
@@ -64,7 +64,7 @@ func TestSandboxCmd(t *testing.T) {
 		stopCalled := false
 		removeCalled := false
 
-		mockClient.runContainerFunc = func(ctx context.Context, imageRef string, workspace string, extraBinds []string, ports []string, user string) (string, error) {
+		mockClient.runContainerFunc = func(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, cmd []string, user string) (string, error) {
 			runCalled = true
 			assert.Equal(t, "ghcr.io/process-failed-successfully/recac-agent:latest", imageRef, "Should use default image")
 			assert.NotEmpty(t, workspace, "Workspace should not be empty")
@@ -107,7 +107,7 @@ func TestSandboxCmd(t *testing.T) {
 		mockClient := &mockSandboxClient{}
 		runCalled := false
 
-		mockClient.runContainerFunc = func(ctx context.Context, imageRef string, workspace string, extraBinds []string, ports []string, user string) (string, error) {
+		mockClient.runContainerFunc = func(ctx context.Context, imageRef string, workspace string, extraBinds []string, env []string, cmd []string, user string) (string, error) {
 			runCalled = true
 			assert.Equal(t, "custom-image", imageRef)
 			assert.Equal(t, "custom-user", user)
