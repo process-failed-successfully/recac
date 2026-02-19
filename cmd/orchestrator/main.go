@@ -46,6 +46,7 @@ func main() {
 	pflag.String("submit-url", "", "Repo URL for ad-hoc job submission")
 	pflag.String("submit-task", "", "Task description for ad-hoc job submission")
 	pflag.String("submit-id", "", "Optional ID for ad-hoc job submission")
+	pflag.Bool("wait", false, "Wait for job completion and stream logs (for submit/submit-url)")
 	pflag.String("host", "http://localhost:2112", "Orchestrator host URL (for list-jobs, logs, cancel-job, and submit)")
 
 	pflag.String("mode", "local", "Orchestrator mode: 'local' (Docker) or 'k8s' (Kubernetes Job)")
@@ -108,6 +109,7 @@ func main() {
 	viper.BindPFlag("orchestrator.submit_url", pflag.Lookup("submit-url"))
 	viper.BindPFlag("orchestrator.submit_task", pflag.Lookup("submit-task"))
 	viper.BindPFlag("orchestrator.submit_id", pflag.Lookup("submit-id"))
+	viper.BindPFlag("orchestrator.wait", pflag.Lookup("wait"))
 	viper.BindPFlag("orchestrator.host", pflag.Lookup("host"))
 
 	viper.BindPFlag("orchestrator.mode", pflag.Lookup("mode"))
@@ -197,7 +199,8 @@ func main() {
 
 	if submitFile := viper.GetString("orchestrator.submit"); submitFile != "" {
 		host := viper.GetString("orchestrator.host")
-		submitJob(host, submitFile)
+		wait := viper.GetBool("orchestrator.wait")
+		submitJob(host, submitFile, wait)
 		return
 	}
 
@@ -209,7 +212,8 @@ func main() {
 			os.Exit(1)
 		}
 		id := viper.GetString("orchestrator.submit_id")
-		submitAdHocJob(host, submitURL, task, id)
+		wait := viper.GetBool("orchestrator.wait")
+		submitAdHocJob(host, submitURL, task, id, wait)
 		return
 	}
 
