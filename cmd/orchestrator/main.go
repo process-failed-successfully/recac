@@ -316,7 +316,7 @@ func main() {
 		if pullPolicy == "" {
 			pullPolicy = corev1.PullAlways
 		}
-		spawner, err = orchestrator.NewK8sSpawner(logger, image, namespace, agentProvider, agentModel, pullPolicy)
+		spawner, err = orchestrator.NewK8sSpawner(logger, image, namespace, agentProvider, agentModel, pullPolicy, poller)
 		if err != nil {
 			logger.Error("Failed to initialize K8s spawner", "error", err)
 			os.Exit(1)
