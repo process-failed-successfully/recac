@@ -34,6 +34,7 @@ func main() {
 	pflag.Bool("dry-run", false, "Poll for work items without spawning agents")
 	pflag.Bool("verify", false, "Verify configuration and connectivity without running the loop")
 	pflag.Bool("list-jobs", false, "List active jobs from a running orchestrator instance")
+	pflag.Bool("history", false, "Include completed jobs in list-jobs")
 	pflag.Bool("monitor", false, "Launch the TUI dashboard to monitor the orchestrator")
 	pflag.String("logs", "", "Get logs for a specific job ID from a running orchestrator instance")
 	pflag.String("inspect-job", "", "Inspect a specific job by ID")
@@ -91,6 +92,7 @@ func main() {
 
 	viper.BindPFlag("orchestrator.verify", pflag.Lookup("verify"))
 	viper.BindPFlag("orchestrator.list_jobs", pflag.Lookup("list-jobs"))
+	viper.BindPFlag("orchestrator.history", pflag.Lookup("history"))
 	viper.BindPFlag("orchestrator.monitor", pflag.Lookup("monitor"))
 	viper.BindPFlag("orchestrator.logs", pflag.Lookup("logs"))
 	viper.BindPFlag("orchestrator.inspect_job", pflag.Lookup("inspect-job"))
@@ -144,7 +146,8 @@ func main() {
 
 	if viper.GetBool("orchestrator.list_jobs") {
 		host := viper.GetString("orchestrator.host")
-		listJobs(host)
+		history := viper.GetBool("orchestrator.history")
+		listJobs(host, history)
 		return
 	}
 
@@ -327,7 +330,18 @@ func main() {
 		})
 
 		mux.HandleFunc("/jobs", func(w http.ResponseWriter, r *http.Request) {
-			jobs := orch.GetActiveJobs()
+			state := r.URL.Query().Get("state")
+			var jobs []orchestrator.JobInfo
+
+			switch state {
+			case "completed":
+				jobs = orch.GetCompletedJobs()
+			case "all":
+				jobs = append(orch.GetActiveJobs(), orch.GetCompletedJobs()...)
+			default:
+				jobs = orch.GetActiveJobs()
+			}
+
 			w.Header().Set("Content-Type", "application/json")
 			if err := json.NewEncoder(w).Encode(jobs); err != nil {
 				logger.Error("Failed to encode jobs", "error", err)
@@ -490,8 +504,13 @@ func main() {
 	}
 }
 
-func listJobs(host string) {
-	resp, err := http.Get(fmt.Sprintf("%s/jobs", host))
+func listJobs(host string, history bool) {
+	url := fmt.Sprintf("%s/jobs", host)
+	if history {
+		url += "?state=all"
+	}
+
+	resp, err := http.Get(url)
 	if err != nil {
 		fmt.Printf("Failed to connect to orchestrator at %s: %v\n", host, err)
 		os.Exit(1)
@@ -529,7 +548,11 @@ func listJobs(host string) {
 	rowStyle := lipgloss.NewStyle().
 		Padding(0, 1)
 
-	fmt.Println(titleStyle.Render(fmt.Sprintf("Active Jobs (%d)", len(jobs))))
+	title := "Active Jobs"
+	if history {
+		title = "All Jobs (Active & History)"
+	}
+	fmt.Println(titleStyle.Render(fmt.Sprintf("%s (%d)", title, len(jobs))))
 	fmt.Println("")
 
 	// Table Header
