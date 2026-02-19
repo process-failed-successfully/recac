@@ -1,6 +1,7 @@
 package main
 
 import (
+	"recac/internal/utils"
 	"context"
 	"fmt"
 	"io/fs"
@@ -218,7 +219,7 @@ func analyzeFile(cmd *cobra.Command, ag agent.Agent, path string) {
 
 	// Check binary
 	ext := strings.ToLower(filepath.Ext(path))
-	if isBinaryExt(ext) {
+	if utils.IsBinaryExt(ext) {
 		return
 	}
 
@@ -227,7 +228,7 @@ func analyzeFile(cmd *cobra.Command, ag agent.Agent, path string) {
 		fmt.Fprintf(cmd.ErrOrStderr(), "Failed to read %s: %v\n", path, err)
 		return
 	}
-	if isBinaryContent(content) {
+	if utils.IsBinaryContent(content) {
 		return
 	}
 

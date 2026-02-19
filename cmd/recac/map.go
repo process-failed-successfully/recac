@@ -1,6 +1,7 @@
 package main
 
 import (
+	"recac/internal/utils"
 	"context"
 	"fmt"
 	"go/parser"
@@ -116,7 +117,7 @@ func runMap(cmd *cobra.Command, args []string) error {
 
 func getModuleName(root string) (string, error) {
 	goModPath := filepath.Join(root, "go.mod")
-	lines, err := readLines(goModPath)
+	lines, err := utils.ReadLines(goModPath)
 	if err != nil {
 		return "", err
 	}

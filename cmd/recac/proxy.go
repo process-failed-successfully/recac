@@ -174,7 +174,7 @@ func saveInteractionJSONL(i Interaction, file string) {
 
 // runProxyGeneration generates tests from the recording file
 func runProxyGeneration(cmd *cobra.Command) error {
-	lines, err := readLines(proxyRecordFile)
+	lines, err := utils.ReadLines(proxyRecordFile)
 	if err != nil {
 		return fmt.Errorf("failed to read recording file %s: %w", proxyRecordFile, err)
 	}

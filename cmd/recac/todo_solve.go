@@ -37,7 +37,7 @@ func runTodoSolve(cmd *cobra.Command, index int) error {
 	if err := ensureTodoFile(); err != nil {
 		return err
 	}
-	lines, err := readLines(todoFile)
+	lines, err := utils.ReadLines(todoFile)
 	if err != nil {
 		return err
 	}

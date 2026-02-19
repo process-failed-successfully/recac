@@ -1,6 +1,7 @@
 package main
 
 import (
+	"recac/internal/utils"
 	"bufio"
 	"bytes"
 	"encoding/json"
@@ -228,7 +229,7 @@ func countLOC(root string) (int, error) {
 			return nil
 		}
 		// Count lines
-		lines, err := readLines(path)
+		lines, err := utils.ReadLines(path)
 		if err != nil {
 			return nil
 		}

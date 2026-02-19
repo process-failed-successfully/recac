@@ -127,3 +127,60 @@ func TestCleanJSONBlock(t *testing.T) {
 		})
 	}
 }
+
+func TestParseMarkdownBlocks(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []string
+		expected []MarkdownBlock
+	}{
+		{
+			name:     "Empty",
+			input:    []string{},
+			expected: nil,
+		},
+		{
+			name:     "Text Only",
+			input:    []string{"Hello", "World"},
+			expected: []MarkdownBlock{{Type: "text", Content: "Hello\nWorld\n"}},
+		},
+		{
+			name:     "Code Only",
+			input:    []string{"```go", "package main", "```"},
+			expected: []MarkdownBlock{{Type: "code", Content: "package main\n", Lang: "go"}},
+		},
+		{
+			name:     "Mixed",
+			input:    []string{"Intro", "```bash", "echo hi", "```", "Outro"},
+			expected: []MarkdownBlock{
+				{Type: "text", Content: "Intro\n"},
+				{Type: "code", Content: "echo hi\n", Lang: "bash"},
+				{Type: "text", Content: "Outro\n"},
+			},
+		},
+		{
+			name:     "Unclosed Code",
+			input:    []string{"Intro", "```python", "print('hi')"},
+			expected: []MarkdownBlock{
+				{Type: "text", Content: "Intro\n"},
+				{Type: "code", Content: "print('hi')\n", Lang: "python"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ParseMarkdownBlocks(tt.input)
+			// DeepEqual or manual check? Go slice comparison requires cmp or manual
+			if len(got) != len(tt.expected) {
+				t.Errorf("len(got) = %d, want %d", len(got), len(tt.expected))
+				return
+			}
+			for i := range got {
+				if got[i] != tt.expected[i] {
+					t.Errorf("got[%d] = %+v, want %+v", i, got[i], tt.expected[i])
+				}
+			}
+		})
+	}
+}

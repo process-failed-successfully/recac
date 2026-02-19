@@ -1,6 +1,7 @@
 package main
 
 import (
+	"recac/internal/utils"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -19,7 +20,7 @@ var cleanCmd = &cobra.Command{
 		fmt.Println("Cleaning up temporary files...")
 
 		tempFilesPath := "temp_files.txt"
-		lines, err := readLines(tempFilesPath)
+		lines, err := utils.ReadLines(tempFilesPath)
 		if err != nil {
 			if os.IsNotExist(err) {
 				fmt.Println("No temporary files to clean.")

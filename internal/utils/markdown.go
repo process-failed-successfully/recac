@@ -114,3 +114,62 @@ func CleanJSONBlock(input string) string {
 
 	return input
 }
+
+// MarkdownBlock represents a parsed block of content from a markdown file.
+type MarkdownBlock struct {
+	Type    string // "text" or "code"
+	Content string
+	Lang    string // Language for code blocks, empty for text
+}
+
+// ParseMarkdownBlocks parses lines of markdown and separates them into text and code blocks.
+func ParseMarkdownBlocks(lines []string) []MarkdownBlock {
+	var blocks []MarkdownBlock
+	var currentBuilder strings.Builder
+	inCodeBlock := false
+	codeLang := ""
+
+	flushBuffer := func(t, l string) {
+		if currentBuilder.Len() > 0 {
+			blocks = append(blocks, MarkdownBlock{
+				Type:    t,
+				Content: currentBuilder.String(),
+				Lang:    l,
+			})
+			currentBuilder.Reset()
+		}
+	}
+
+	for _, line := range lines {
+		if strings.HasPrefix(strings.TrimSpace(line), "```") {
+			if inCodeBlock {
+				// End of code block
+				// Do not include the closing fence in the content
+				flushBuffer("code", codeLang)
+				inCodeBlock = false
+				codeLang = ""
+			} else {
+				// Start of code block
+				// Flush previous text
+				flushBuffer("text", "")
+				inCodeBlock = true
+				codeLang = strings.TrimPrefix(strings.TrimSpace(line), "```")
+			}
+		} else {
+			currentBuilder.WriteString(line)
+			currentBuilder.WriteString("\n")
+		}
+	}
+
+	// Flush remaining
+	if currentBuilder.Len() > 0 {
+		if inCodeBlock {
+			// Unclosed code block, treat as code
+			flushBuffer("code", codeLang)
+		} else {
+			flushBuffer("text", "")
+		}
+	}
+
+	return blocks
+}
