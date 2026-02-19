@@ -94,6 +94,10 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		"--repo-url", item.RepoURL, // Delegate cloning
 	}
 
+	if item.DryRun {
+		agentCmd = append(agentCmd, "--dry-run")
+	}
+
 	session := &runner.SessionState{
 		Name:           item.ID,
 		StartTime:      time.Now(),

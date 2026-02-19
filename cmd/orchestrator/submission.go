@@ -20,7 +20,7 @@ var (
 	stdout   io.Writer = os.Stdout
 )
 
-func submitJob(host, filePath string, wait bool) {
+func submitJob(host, filePath string, wait, plan bool) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to open file %s: %v\n", filePath, err)
@@ -30,19 +30,29 @@ func submitJob(host, filePath string, wait bool) {
 	defer file.Close()
 
 	// Verify JSON validity before sending (optional but good UX)
-	var item map[string]interface{}
+	var item orchestrator.WorkItem
 	if err := json.NewDecoder(file).Decode(&item); err != nil {
 		fmt.Fprintf(stdout, "Invalid JSON in file %s: %v\n", filePath, err)
 		exitFunc(1)
 		return
 	}
-	// Extract ID for waiting
-	id, _ := item["id"].(string)
 
-	// Reset file pointer
-	file.Seek(0, 0)
+	id := item.ID
 
-	resp, err := http.Post(fmt.Sprintf("%s/jobs", host), "application/json", file)
+	// Override plan mode if specified via CLI
+	if plan {
+		item.DryRun = true
+	}
+
+	// Re-marshal to send
+	payload, err := json.Marshal(item)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to marshal work item: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.Post(fmt.Sprintf("%s/jobs", host), "application/json", bytes.NewBuffer(payload))
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
 		exitFunc(1)
@@ -68,7 +78,7 @@ func submitJob(host, filePath string, wait bool) {
 	}
 }
 
-func submitAdHocJob(host, repo, task, id string, wait bool) {
+func submitAdHocJob(host, repo, task, id string, wait, plan bool) {
 	if id == "" {
 		id = uuid.New().String()
 	}
@@ -78,6 +88,7 @@ func submitAdHocJob(host, repo, task, id string, wait bool) {
 		Summary:     task, // Using task description as summary for ad-hoc
 		Description: task,
 		RepoURL:     repo,
+		DryRun:      plan,
 		// No EnvVars for now, could add if needed
 	}
 

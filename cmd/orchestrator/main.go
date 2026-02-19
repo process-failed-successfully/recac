@@ -32,6 +32,7 @@ func main() {
 	pflag.StringVar(&cfgFile, "config", "", "config file (default is $HOME/.recac.yaml)")
 	pflag.BoolP("verbose", "v", false, "Enable verbose/debug logging")
 	pflag.Bool("dry-run", false, "Poll for work items without spawning agents")
+	pflag.Bool("plan", false, "Run job in plan-only mode (agent dry run)")
 	pflag.Bool("verify", false, "Verify configuration and connectivity without running the loop")
 	pflag.Bool("list-jobs", false, "List active jobs from a running orchestrator instance")
 	pflag.Bool("history", false, "Include completed jobs in list-jobs")
@@ -96,6 +97,8 @@ func main() {
 
 	viper.BindPFlag("orchestrator.dry_run", pflag.Lookup("dry-run"))
 	viper.BindEnv("orchestrator.dry_run", "RECAC_ORCHESTRATOR_DRY_RUN")
+
+	viper.BindPFlag("orchestrator.plan", pflag.Lookup("plan"))
 
 	viper.BindPFlag("orchestrator.verify", pflag.Lookup("verify"))
 	viper.BindPFlag("orchestrator.list_jobs", pflag.Lookup("list-jobs"))
@@ -211,7 +214,8 @@ func main() {
 	if submitFile := viper.GetString("orchestrator.submit"); submitFile != "" {
 		host := viper.GetString("orchestrator.host")
 		wait := viper.GetBool("orchestrator.wait")
-		submitJob(host, submitFile, wait)
+		plan := viper.GetBool("orchestrator.plan")
+		submitJob(host, submitFile, wait, plan)
 		return
 	}
 
@@ -224,7 +228,8 @@ func main() {
 		}
 		id := viper.GetString("orchestrator.submit_id")
 		wait := viper.GetBool("orchestrator.wait")
-		submitAdHocJob(host, submitURL, task, id, wait)
+		plan := viper.GetBool("orchestrator.plan")
+		submitAdHocJob(host, submitURL, task, id, wait, plan)
 		return
 	}
 

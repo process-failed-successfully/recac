@@ -49,6 +49,7 @@ type SessionConfig struct {
 	Cleanup           bool
 	Summary           string
 	Description       string
+	DryRun            bool
 	Logger            *slog.Logger
 	CommandPrefix     []string // Command arguments to prepend (e.g. "start")
 	SessionManager    ISessionManager
@@ -471,6 +472,7 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 	session.JiraClient = cfg.JiraClient
 	session.JiraTicketID = cfg.JiraTicketID
 	session.RepoURL = cfg.RepoURL
+	session.DryRun = cfg.DryRun
 
 	if cfg.JiraEpicKey != "" {
 		session.BaseBranch = fmt.Sprintf("agent-epic/%s", cfg.JiraEpicKey)

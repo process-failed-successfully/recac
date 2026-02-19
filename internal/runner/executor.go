@@ -141,6 +141,14 @@ func (s *Session) checkBlockers(ctx context.Context) error {
 func (s *Session) executeCommandBlock(ctx context.Context, cmdScript string, index, total int) (string, error) {
 	s.Logger.Info("executing command block", "index", index, "total", total, "script", cmdScript)
 
+	// Dry Run Check
+	if s.DryRun {
+		msg := fmt.Sprintf("\n[DRY RUN] Would execute command block %d/%d:\n%s\n", index, total, cmdScript)
+		fmt.Print(msg)
+		s.Logger.Info("dry run command skipped", "script", cmdScript)
+		return msg, nil
+	}
+
 	// Security Scan
 	if s.Scanner != nil {
 		findings, err := s.Scanner.Scan(cmdScript)

@@ -437,6 +437,11 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		// Run iteration using determined prompt
 		executionOutput, err := s.RunIteration(ctx, prompt, isManager)
 
+		if s.DryRun {
+			fmt.Println("Dry Run Complete. Exiting.")
+			return nil
+		}
+
 		// Check for Agent/API Error (e.g. 413, Network, etc)
 		if err != nil {
 			s.Logger.Error("iteration failed", "error", err)
