@@ -237,3 +237,43 @@ func TestTaskGraph_LoadFromFeatures(t *testing.T) {
 		t.Errorf("Expected dependency on feat-1, got %v", taskB.Dependencies)
 	}
 }
+
+func TestTaskGraph_LoadFromFeatures_StatusUpdate(t *testing.T) {
+	tg := NewTaskGraph()
+
+	// Initial features
+	f1 := db.Feature{ID: "F1", Status: "pending"}
+	tg.LoadFromFeatures([]db.Feature{f1})
+
+	// Mark as InProgress manually
+	tg.MarkTaskStatus("F1", TaskInProgress, nil)
+
+	// Update with pending status from DB (should be ignored)
+	f1.Status = "pending"
+	tg.LoadFromFeatures([]db.Feature{f1})
+
+	task, _ := tg.GetTask("F1")
+	if task.Status != TaskInProgress {
+		t.Errorf("Expected status InProgress to persist, got %s", task.Status)
+	}
+
+	// Update with failed status (should update)
+	f1.Status = "failed"
+	tg.LoadFromFeatures([]db.Feature{f1})
+
+	task, _ = tg.GetTask("F1")
+	if task.Status != TaskFailed {
+		t.Errorf("Expected status Failed, got %s", task.Status)
+	}
+
+	// Update from Failed to Pending (should update, as failure might be retried?)
+	// Code says:
+	// if (existing.Status == TaskInProgress || existing.Status == TaskDone) && (newStatus == TaskPending || newStatus == TaskReady) { ... }
+	// Failed is not InProgress or Done. So it should update.
+	f1.Status = "pending"
+	tg.LoadFromFeatures([]db.Feature{f1})
+	task, _ = tg.GetTask("F1")
+	if task.Status != TaskPending {
+		t.Errorf("Expected status Pending, got %s", task.Status)
+	}
+}
