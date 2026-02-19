@@ -154,3 +154,91 @@ func TestWaitForJob_Completed(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, out.String(), "Job already completed")
 }
+
+func TestSubmitJob_WithWait(t *testing.T) {
+	// Mock Exit and Stdout
+	var exitCode int
+	originalExit := exitFunc
+	exitFunc = func(code int) {
+		exitCode = code
+	}
+	defer func() { exitFunc = originalExit }()
+
+	var out bytes.Buffer
+	originalStdout := stdout
+	stdout = &out
+	defer func() { stdout = originalStdout }()
+
+	// Mock Server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/jobs" && r.Method == http.MethodPost {
+			w.WriteHeader(http.StatusAccepted)
+			w.Write([]byte("Job submitted"))
+			return
+		}
+		if r.URL.Path == "/jobs/JOB-WAIT" {
+			// Return completed immediately for simplicity
+			json.NewEncoder(w).Encode(orchestrator.JobInfo{Status: "Completed"})
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	// Create temp file
+	tmpDir, err := os.MkdirTemp("", "submit-test-wait")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	filePath := filepath.Join(tmpDir, "job.json")
+	// Use manual JSON to ensure lowercase "id" key as expected by submitJob
+	data := []byte(`{"id": "JOB-WAIT", "summary": "Test Job"}`)
+	os.WriteFile(filePath, data, 0644)
+
+	// Execute
+	submitJob(server.URL, filePath, true)
+
+	// Verify
+	assert.Equal(t, 0, exitCode)
+	assert.Contains(t, out.String(), "Job submitted")
+	assert.Contains(t, out.String(), "Job already completed")
+}
+
+func TestSubmitAdHocJob_WithWait(t *testing.T) {
+	// Mock Exit and Stdout
+	var exitCode int
+	originalExit := exitFunc
+	exitFunc = func(code int) {
+		exitCode = code
+	}
+	defer func() { exitFunc = originalExit }()
+
+	var out bytes.Buffer
+	originalStdout := stdout
+	stdout = &out
+	defer func() { stdout = originalStdout }()
+
+	// Mock Server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/jobs" && r.Method == http.MethodPost {
+			w.WriteHeader(http.StatusAccepted)
+			w.Write([]byte("Job submitted"))
+			return
+		}
+		if r.URL.Path == "/jobs/JOB-ADHOC-WAIT" {
+			// Return completed immediately for simplicity
+			json.NewEncoder(w).Encode(orchestrator.JobInfo{Status: "Completed"})
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	// Execute
+	submitAdHocJob(server.URL, "http://repo.com", "Task", "JOB-ADHOC-WAIT", true)
+
+	// Verify
+	assert.Equal(t, 0, exitCode)
+	assert.Contains(t, out.String(), "Job submitted")
+	assert.Contains(t, out.String(), "Job already completed")
+}
