@@ -101,3 +101,5 @@ test_state.json
 
 # Gemini Extension
 .gemini/*.local.md
+.recac.db-shm
+.recac.db-wal
