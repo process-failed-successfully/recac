@@ -220,9 +220,9 @@ func TestOrchestrator_Integration_JiraFlow(t *testing.T) {
 						status = "Failed"
 					}
 					// Fire update in background as spawner does
-					go func() {
-						_ = poller.UpdateStatus(context.Background(), item, status, "")
-					}()
+					// In test, we do it synchronously to prevent race where job finishes in Orchestrator
+					// before transition is recorded in mock Jira, causing double-spawn.
+					_ = poller.UpdateStatus(context.Background(), item, status, "")
 				},
 			}
 			if tc.spawnErr {
