@@ -188,6 +188,36 @@ func (o *Orchestrator) SubmitJob(ctx context.Context, item WorkItem, logger *slo
 	return o.processWorkItem(ctx, item, logger)
 }
 
+// RetryJob resubmits a completed job from history.
+func (o *Orchestrator) RetryJob(ctx context.Context, jobID string, logger *slog.Logger) error {
+	o.mu.RLock()
+	// 1. Check if active
+	if _, exists := o.activeJobs[jobID]; exists {
+		o.mu.RUnlock()
+		return fmt.Errorf("job %s is already active", jobID)
+	}
+
+	// 2. Check history
+	var workItem WorkItem
+	found := false
+	for i := len(o.completedJobs) - 1; i >= 0; i-- {
+		if o.completedJobs[i].ID == jobID {
+			workItem = o.completedJobs[i].WorkItem
+			found = true
+			break
+		}
+	}
+	o.mu.RUnlock()
+
+	if !found {
+		return fmt.Errorf("job %s not found in history", jobID)
+	}
+
+	// 3. Resubmit
+	logger.Info("Retrying job", "id", jobID)
+	return o.processWorkItem(ctx, workItem, logger)
+}
+
 func (o *Orchestrator) processWorkItem(ctx context.Context, item WorkItem, logger *slog.Logger) error {
 	o.mu.Lock()
 	if _, exists := o.activeJobs[item.ID]; exists {
