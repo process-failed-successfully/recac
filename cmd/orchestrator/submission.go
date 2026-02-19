@@ -15,19 +15,26 @@ import (
 	"github.com/google/uuid"
 )
 
+var (
+	exitFunc = os.Exit
+	stdout   io.Writer = os.Stdout
+)
+
 func submitJob(host, filePath string, wait bool) {
 	file, err := os.Open(filePath)
 	if err != nil {
-		fmt.Printf("Failed to open file %s: %v\n", filePath, err)
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to open file %s: %v\n", filePath, err)
+		exitFunc(1)
+		return
 	}
 	defer file.Close()
 
 	// Verify JSON validity before sending (optional but good UX)
 	var item map[string]interface{}
 	if err := json.NewDecoder(file).Decode(&item); err != nil {
-		fmt.Printf("Invalid JSON in file %s: %v\n", filePath, err)
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Invalid JSON in file %s: %v\n", filePath, err)
+		exitFunc(1)
+		return
 	}
 	// Extract ID for waiting
 	id, _ := item["id"].(string)
@@ -37,23 +44,26 @@ func submitJob(host, filePath string, wait bool) {
 
 	resp, err := http.Post(fmt.Sprintf("%s/jobs", host), "application/json", file)
 	if err != nil {
-		fmt.Printf("Failed to connect to orchestrator at %s: %v\n", host, err)
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
 	}
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusAccepted {
-		fmt.Printf("Failed to submit job: %s\n", strings.TrimSpace(string(body)))
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to submit job: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
 	}
 
-	fmt.Printf("%s\n", strings.TrimSpace(string(body)))
+	fmt.Fprintf(stdout, "%s\n", strings.TrimSpace(string(body)))
 
 	if wait && id != "" {
-		if err := waitForJob(host, id, os.Stdout); err != nil {
-			fmt.Printf("Job failed: %v\n", err)
-			os.Exit(1)
+		if err := waitForJob(host, id, stdout); err != nil {
+			fmt.Fprintf(stdout, "Job failed: %v\n", err)
+			exitFunc(1)
+			return
 		}
 	}
 }
@@ -73,29 +83,33 @@ func submitAdHocJob(host, repo, task, id string, wait bool) {
 
 	payload, err := json.Marshal(item)
 	if err != nil {
-		fmt.Printf("Failed to marshal work item: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to marshal work item: %v\n", err)
+		exitFunc(1)
+		return
 	}
 
 	resp, err := http.Post(fmt.Sprintf("%s/jobs", host), "application/json", bytes.NewBuffer(payload))
 	if err != nil {
-		fmt.Printf("Failed to connect to orchestrator at %s: %v\n", host, err)
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
+		exitFunc(1)
+		return
 	}
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusAccepted {
-		fmt.Printf("Failed to submit job: %s\n", strings.TrimSpace(string(body)))
-		os.Exit(1)
+		fmt.Fprintf(stdout, "Failed to submit job: %s\n", strings.TrimSpace(string(body)))
+		exitFunc(1)
+		return
 	}
 
-	fmt.Printf("%s\n", strings.TrimSpace(string(body)))
+	fmt.Fprintf(stdout, "%s\n", strings.TrimSpace(string(body)))
 
 	if wait {
-		if err := waitForJob(host, id, os.Stdout); err != nil {
-			fmt.Printf("Job failed: %v\n", err)
-			os.Exit(1)
+		if err := waitForJob(host, id, stdout); err != nil {
+			fmt.Fprintf(stdout, "Job failed: %v\n", err)
+			exitFunc(1)
+			return
 		}
 	}
 }
