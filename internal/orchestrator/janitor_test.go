@@ -24,6 +24,7 @@ func TestJanitor_Cleanup(t *testing.T) {
 	oldTime := now.Add(-48 * time.Hour)
 	newTime := now.Add(-1 * time.Hour)
 
+	// ListContainers returns only matching containers because we use filters
 	containers := []types.Container{
 		{
 			ID:      "old-container",
@@ -41,17 +42,21 @@ func TestJanitor_Cleanup(t *testing.T) {
 				"work-item":  "TASK-2",
 			},
 		},
-		{
-			ID:      "manual-container",
-			Created: oldTime.Unix(),
-			Labels: map[string]string{
-				"created-by": "manual",
-			},
-		},
 	}
 
 	client.On("ListContainers", ctx, mock.MatchedBy(func(opts container.ListOptions) bool {
-		return opts.All == true
+		filters := opts.Filters
+		if filters.Len() == 0 {
+			return false
+		}
+		hasLabel := false
+		for _, f := range filters.Get("label") {
+			if f == "created-by=recac-orchestrator" {
+				hasLabel = true
+				break
+			}
+		}
+		return opts.All == true && hasLabel
 	})).Return(containers, nil)
 
 	// Expect removal of old-container
@@ -64,9 +69,8 @@ func TestJanitor_Cleanup(t *testing.T) {
 	assert.NoError(t, err)
 
 	client.AssertExpectations(t)
-	// Ensure new-container and manual-container were NOT removed
+	// Ensure new-container was NOT removed
 	client.AssertNotCalled(t, "RemoveContainer", ctx, "new-container", mock.Anything)
-	client.AssertNotCalled(t, "RemoveContainer", ctx, "manual-container", mock.Anything)
 }
 
 func TestJanitor_Cleanup_DryRun(t *testing.T) {

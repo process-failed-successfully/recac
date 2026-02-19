@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 )
 
 // Janitor cleans up old containers created by the orchestrator.
@@ -50,8 +51,12 @@ func (j *Janitor) Start(ctx context.Context) {
 
 // Cleanup performs a single cleanup run.
 func (j *Janitor) Cleanup(ctx context.Context) error {
+	f := filters.NewArgs()
+	f.Add("label", "created-by=recac-orchestrator")
+
 	containers, err := j.client.ListContainers(ctx, container.ListOptions{
-		All: true, // We want stopped containers too
+		All:     true, // We want stopped containers too
+		Filters: f,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to list containers: %w", err)
@@ -61,11 +66,6 @@ func (j *Janitor) Cleanup(ctx context.Context) error {
 	count := 0
 
 	for _, c := range containers {
-		// Filter by label
-		if val, ok := c.Labels["created-by"]; !ok || val != "recac-orchestrator" {
-			continue
-		}
-
 		// Check age
 		// Created is int64 timestamp (unix seconds)
 		createdAt := time.Unix(c.Created, 0)
