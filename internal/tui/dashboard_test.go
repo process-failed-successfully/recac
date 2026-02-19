@@ -2,7 +2,11 @@ package tui
 
 import (
 	"errors"
+	"fmt"
+	"io"
+	"net/http"
 	"recac/internal/orchestrator"
+	"strings"
 	"testing"
 	"time"
 
@@ -104,4 +108,70 @@ func TestDashboardModel_Quit(t *testing.T) {
 
 	assert.True(t, m.quitting)
 	assert.NotNil(t, cmd) // Should return tea.Quit
+}
+
+func TestFetchStatus_Mocked(t *testing.T) {
+	// Mock statusFetcher
+	originalFetcher := statusFetcher
+	defer func() { statusFetcher = originalFetcher }()
+
+	statusFetcher = func(url string) (*http.Response, error) {
+		if strings.Contains(url, "/status") {
+			// Return status JSON
+			body := `{"uptime": "1h", "active_spawns": 1}`
+			return &http.Response{
+				StatusCode: 200,
+				Body:       io.NopCloser(strings.NewReader(body)),
+			}, nil
+		}
+		if strings.Contains(url, "/jobs") {
+			// Return jobs JSON
+			body := `[{"id": "job1", "status": "running"}]`
+			return &http.Response{
+				StatusCode: 200,
+				Body:       io.NopCloser(strings.NewReader(body)),
+			}, nil
+		}
+		return nil, fmt.Errorf("unknown url")
+	}
+
+	cmd := fetchStatus("http://localhost")
+	msg := cmd()
+
+	sMsg, ok := msg.(statusMsg)
+	assert.True(t, ok)
+	assert.Nil(t, sMsg.Err)
+	assert.Equal(t, "1h", sMsg.Status.Uptime)
+	assert.Equal(t, 1, sMsg.Status.ActiveSpawns)
+	assert.Len(t, sMsg.Jobs, 1)
+	assert.Equal(t, "job1", sMsg.Jobs[0].ID)
+}
+
+func TestFetchStatus_Error_Mocked(t *testing.T) {
+	originalFetcher := statusFetcher
+	defer func() { statusFetcher = originalFetcher }()
+
+	statusFetcher = func(url string) (*http.Response, error) {
+		return nil, fmt.Errorf("network error")
+	}
+
+	cmd := fetchStatus("http://localhost")
+	msg := cmd()
+
+	sMsg, ok := msg.(statusMsg)
+	assert.True(t, ok)
+	assert.NotNil(t, sMsg.Err)
+	assert.Equal(t, "network error", sMsg.Err.Error())
+}
+
+func TestStartDashboard(t *testing.T) {
+	originalRunner := programRunner
+	defer func() { programRunner = originalRunner }()
+
+	programRunner = func(p *tea.Program) (tea.Model, error) {
+		return nil, nil
+	}
+
+	err := StartDashboard("http://localhost")
+	assert.NoError(t, err)
 }

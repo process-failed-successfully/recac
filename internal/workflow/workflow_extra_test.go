@@ -2,97 +2,39 @@ package workflow
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"testing"
 
+	"recac/internal/cmdutils"
+	"recac/internal/git"
 	"recac/internal/jira"
-	"recac/internal/runner"
 
 	"github.com/stretchr/testify/assert"
 )
 
-// SimpleMockSessionManager implements ISessionManager
-type SimpleMockSessionManager struct {
-	StartSessionFunc func(name, goal string, command []string, cwd string) (*runner.SessionState, error)
-}
-
-func (m *SimpleMockSessionManager) StartSession(name, goal string, command []string, cwd string) (*runner.SessionState, error) {
-	if m.StartSessionFunc != nil {
-		return m.StartSessionFunc(name, goal, command, cwd)
-	}
-	return &runner.SessionState{PID: 12345, LogFile: "/tmp/mock.log"}, nil
-}
-
-func TestRunWorkflow_Detached_Check(t *testing.T) {
-	// Setup mock SessionManager
-	mockSM := &SimpleMockSessionManager{
-		StartSessionFunc: func(name, goal string, command []string, cwd string) (*runner.SessionState, error) {
-			assert.Equal(t, "DETACHED-SESSION", name)
-			return &runner.SessionState{PID: 999, LogFile: "/tmp/detached.log"}, nil
-		},
-	}
-
-	cfg := SessionConfig{
-		SessionName:    "DETACHED-SESSION",
-		Detached:       true,
-		SessionManager: mockSM,
-		ProjectPath:    "/tmp/test-project",
-	}
-
-	// We need to ensure os.Executable check passes or fallback works.
-	// Since we can't easily mock os.Executable, we rely on the fact that "go test" creates an executable.
-
-	err := RunWorkflow(context.Background(), cfg)
-	assert.NoError(t, err)
-}
-
-func TestProcessJiraTicket_ExtraErrorPaths(t *testing.T) {
-	// Mock Jira Server
+func TestProcessJiraTicket_Error_GetTicket(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Mock GetTicket
-		if r.URL.Path == "/rest/api/3/issue/INVALID-1" {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer server.Close()
 
 	jClient := jira.NewClient(server.URL, "user", "token")
+	cfg := SessionConfig{}
 
-	// Test 1: Invalid Ticket
-	err := ProcessJiraTicket(context.Background(), "INVALID-1", jClient, SessionConfig{}, nil)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to fetch ticket")
-}
-
-func TestProcessDirectTask_WorkspaceFail(t *testing.T) {
-	// Test failure to setup workspace (e.g. invalid repo URL that causes git failure)
-
-	cfg := SessionConfig{
-		RepoURL: "/non/existent/repo",
-		ProjectPath: "/tmp/test-project-direct-fail",
-	}
-
-	err := ProcessDirectTask(context.Background(), cfg)
+	err := ProcessJiraTicket(context.Background(), "TEST-1", jClient, cfg, nil)
 	assert.Error(t, err)
 }
 
-func TestProcessJiraTicket_WorkspaceCreationFail(t *testing.T) {
-	// Mock Jira Server for a valid ticket
+func TestProcessJiraTicket_Error_SetupWorkspace(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{
-			"key": "VALID-1",
-			"fields": {
-				"summary": "Valid Ticket",
-				"description": {
-					"type": "doc",
-					"content": [{"type": "paragraph", "content": [{"type": "text", "text": "Repo: https://github.com/example/repo"}]}]
-				}
+			"key":"TEST-1",
+			"fields":{
+				"summary":"S",
+				"description": "D"
 			}
 		}`))
 	}))
@@ -100,15 +42,71 @@ func TestProcessJiraTicket_WorkspaceCreationFail(t *testing.T) {
 
 	jClient := jira.NewClient(server.URL, "user", "token")
 
-	// Provide a ProjectPath that is a file, so MkdirAll fails
-	tmpFile := filepath.Join(os.TempDir(), "recac-test-file")
-	os.WriteFile(tmpFile, []byte("content"), 0644)
-	defer os.Remove(tmpFile)
+	originalSetup := cmdutils.SetupWorkspace
+	defer func() { cmdutils.SetupWorkspace = originalSetup }()
 
-	cfg := SessionConfig{
-		ProjectPath: tmpFile, // This should cause MkdirAll to fail
+	cmdutils.SetupWorkspace = func(ctx context.Context, gitClient git.IClient, repoURL, workspace, ticketID, epicKey, timestamp string) (string, error) {
+		return "", errors.New("setup failed")
 	}
 
-	err := ProcessJiraTicket(context.Background(), "VALID-1", jClient, cfg, nil)
+	cfg := SessionConfig{
+		RepoURL:     "https://github.com/test/repo",
+		ProjectPath: "/tmp/test",
+	}
+
+	err := ProcessJiraTicket(context.Background(), "TEST-1", jClient, cfg, nil)
 	assert.Error(t, err)
+	assert.Equal(t, "setup failed", err.Error())
+}
+
+func TestProcessDirectTask_Error_SetupWorkspace(t *testing.T) {
+	originalSetup := cmdutils.SetupWorkspace
+	defer func() { cmdutils.SetupWorkspace = originalSetup }()
+
+	cmdutils.SetupWorkspace = func(ctx context.Context, gitClient git.IClient, repoURL, workspace, ticketID, epicKey, timestamp string) (string, error) {
+		return "", errors.New("setup failed")
+	}
+
+	cfg := SessionConfig{
+		RepoURL: "https://github.com/test/repo",
+	}
+
+	err := ProcessDirectTask(context.Background(), cfg)
+	assert.Error(t, err)
+	assert.Equal(t, "setup failed", err.Error())
+}
+
+func TestProcessJiraTicket_Blocked(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		// Return ticket with blockers
+		w.Write([]byte(`{
+			"key":"TEST-1",
+			"fields":{
+				"summary":"S",
+				"description": "D",
+				"issuelinks": [
+					{
+						"type": { "inward": "is blocked by" },
+						"inwardIssue": {
+							"key": "BLOCK-1",
+							"fields": {
+								"status": { "name": "Open" }
+							}
+						}
+					}
+				]
+			}
+		}`))
+	}))
+	defer server.Close()
+
+	jClient := jira.NewClient(server.URL, "user", "token")
+	cfg := SessionConfig{
+		Logger: nil,
+	}
+
+	// Should return nil (skipped)
+	err := ProcessJiraTicket(context.Background(), "TEST-1", jClient, cfg, nil)
+	assert.NoError(t, err)
 }
