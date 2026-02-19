@@ -260,6 +260,32 @@ func (o *Orchestrator) RetryJob(ctx context.Context, jobID string, logger *slog.
 	return o.processWorkItem(ctx, workItem, logger)
 }
 
+// RetryFailedJobs resubmits all failed jobs from history.
+func (o *Orchestrator) RetryFailedJobs(ctx context.Context, logger *slog.Logger) (int, error) {
+	o.mu.RLock()
+	var toRetry []WorkItem
+	for _, job := range o.completedJobs {
+		if job.Status == "Failed" {
+			// Check if already active
+			if _, active := o.activeJobs[job.ID]; !active {
+				toRetry = append(toRetry, job.WorkItem)
+			}
+		}
+	}
+	o.mu.RUnlock()
+
+	count := 0
+	for _, item := range toRetry {
+		logger.Info("Retrying failed job", "id", item.ID)
+		if err := o.processWorkItem(ctx, item, logger); err == nil {
+			count++
+		} else {
+			logger.Error("Failed to retry job", "id", item.ID, "error", err)
+		}
+	}
+	return count, nil
+}
+
 func (o *Orchestrator) processWorkItem(ctx context.Context, item WorkItem, logger *slog.Logger) error {
 	o.mu.Lock()
 	if _, exists := o.activeJobs[item.ID]; exists {
