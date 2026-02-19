@@ -65,6 +65,49 @@ func TestFetchStatus_Error(t *testing.T) {
 	assert.Error(t, statusMsg.Err)
 }
 
+func TestFetchStatus_JobsError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/status" {
+			status := orchestrator.Status{Uptime: "1h"}
+			json.NewEncoder(w).Encode(status)
+			return
+		}
+		// Jobs request returns error
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	cmd := fetchStatus(server.URL)
+	msg := cmd()
+
+	statusMsg, ok := msg.(statusMsg)
+	require.True(t, ok)
+	// JSON decode will fail because the body is empty or not JSON
+	assert.Error(t, statusMsg.Err)
+}
+
+func TestFetchStatus_JobsJSONError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/status" {
+			status := orchestrator.Status{Uptime: "1h"}
+			json.NewEncoder(w).Encode(status)
+			return
+		}
+		if r.URL.Path == "/jobs" {
+			w.Write([]byte("invalid json"))
+			return
+		}
+	}))
+	defer server.Close()
+
+	cmd := fetchStatus(server.URL)
+	msg := cmd()
+
+	statusMsg, ok := msg.(statusMsg)
+	require.True(t, ok)
+	assert.Error(t, statusMsg.Err)
+}
+
 func TestFetchStatus_JSONError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("invalid json"))
