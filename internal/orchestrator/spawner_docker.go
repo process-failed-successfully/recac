@@ -93,6 +93,9 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		"--verbose",
 		"--repo-url", item.RepoURL, // Delegate cloning
 	}
+	if item.PlanOnly {
+		agentCmd = append(agentCmd, "--plan")
+	}
 
 	cmd := s.constructShellCommand(agentCmd)
 
