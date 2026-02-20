@@ -52,6 +52,7 @@ type SessionConfig struct {
 	Logger            *slog.Logger
 	CommandPrefix     []string // Command arguments to prepend (e.g. "start")
 	SessionManager    ISessionManager
+	PlanOnly          bool
 }
 
 // ProcessDirectTask handles a coding session from a direct repository and task description
@@ -461,6 +462,7 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 	if cfg.Logger != nil {
 		session.Logger = cfg.Logger
 	}
+	session.PlanOnly = cfg.PlanOnly
 	session.MaxIterations = cfg.MaxIterations
 	session.TaskMaxIterations = cfg.TaskMaxIterations
 	session.ManagerFrequency = cfg.ManagerFrequency

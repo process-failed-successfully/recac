@@ -42,6 +42,7 @@ type Session struct {
 	ManagerFirst     bool
 	StreamOutput     bool
 	Model            string
+	PlanOnly         bool                // If true, generate PLAN.md and exit
 	AgentStateFile   string              // Path to agent state file (.agent_state.json)
 	StateManager     *agent.StateManager // State manager for agent state persistence
 	DBStore          db.Store            // Persistent database store
