@@ -78,6 +78,7 @@ type Session struct {
 	SlackThreadTS             string       // Thread Timestamp for Slack conversations
 	SuppressStartNotification bool         // Suppress "Session Started" notification (for sub-tasks)
 	UseLocalAgent             bool         // Execute commands locally (e.g. inside K8s pod) instead of spawning Docker container
+	PlanOnly                  bool         // If true, only generate a plan and exit
 	SpecContent               string       // Explicit specification content (e.g. from Jira)
 	FeatureContent            string       // Explicit feature list JSON content (authoritative)
 	Logger                    *slog.Logger // Structured logger for this session
