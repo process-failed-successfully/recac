@@ -26,6 +26,11 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		s.SleepFunc = time.Sleep
 	}
 
+	// Plan Only Mode
+	if s.PlanOnly {
+		return s.GeneratePlanOnly(ctx)
+	}
+
 	s.Logger.Info("entering autonomous run loop")
 	// Note: We use the stored SlackThreadTS if available (from startup), otherwise we start a new thread here if needed?
 	// But Start() is called before RunLoop(), so s.SlackThreadTS should be set if notifications are enabled.
