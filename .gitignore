@@ -62,6 +62,8 @@ temp/
 
 # RECAC Agent Artifacts
 .recac.db
+.recac.db-shm
+.recac.db-wal
 .agent_state.json
 .agent_state_*.json
 agent_state.json
