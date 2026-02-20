@@ -34,3 +34,39 @@ func GenerateFeatureList(ctx context.Context, a agent.Agent, spec string) (*db.F
 
 	return &featureList, nil
 }
+
+// GeneratePlanOnly creates a detailed plan without modifying the codebase.
+func (s *Session) GeneratePlanOnly(ctx context.Context, spec string) (string, error) {
+	// 1. Prepare Prompt
+	vars := map[string]string{
+		"summary":     s.Project,
+		"description": spec,
+		"workspace":   s.Workspace,
+	}
+
+	prompt, err := prompts.GetPrompt(prompts.PlanOnly, vars)
+	if err != nil {
+		return "", fmt.Errorf("failed to load plan_only prompt: %w", err)
+	}
+
+	s.Logger.Info("Generating plan...", "project", s.Project)
+
+	// 2. Send to Agent
+	var response string
+	if s.StreamOutput {
+		fmt.Print("Agent Response (Plan): ")
+		response, err = s.Agent.SendStream(ctx, prompt, func(chunk string) {
+			fmt.Print(chunk)
+		})
+		fmt.Println()
+	} else {
+		response, err = s.Agent.Send(ctx, prompt)
+	}
+
+	if err != nil {
+		return "", fmt.Errorf("agent failed to generate plan: %w", err)
+	}
+
+	// 3. Return the raw response (Markdown)
+	return response, nil
+}
