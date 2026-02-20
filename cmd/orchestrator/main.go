@@ -49,6 +49,7 @@ func main() {
 	pflag.String("submit-task", "", "Task description for ad-hoc job submission")
 	pflag.String("submit-id", "", "Optional ID for ad-hoc job submission")
 	pflag.Bool("wait", false, "Wait for job completion and stream logs (for submit/submit-url)")
+	pflag.Bool("plan", false, "Submit job in Plan-Only mode (no execution)")
 	pflag.String("host", "http://localhost:2112", "Orchestrator host URL (for list-jobs, logs, cancel-job, and submit)")
 
 	pflag.String("mode", "local", "Orchestrator mode: 'local' (Docker) or 'k8s' (Kubernetes Job)")
@@ -56,8 +57,8 @@ func main() {
 	pflag.String("image", "ghcr.io/process-failed-successfully/recac-agent:latest", "Agent image to spawn")
 	pflag.String("namespace", "default", "Kubernetes namespace (for k8s mode)")
 	pflag.Duration("interval", 1*time.Minute, "Polling interval")
-	pflag.String("agent-provider", "openrouter", "Provider for spawned agents")
-	pflag.String("agent-model", "openrouter/aurora-alpha", "Model for spawned agents")
+	pflag.String("agent-provider", "google", "Provider for spawned agents")
+	pflag.String("agent-model", "google/gemini-2.0-flash-001", "Model for spawned agents")
 	pflag.String("image-pull-policy", "Always", "Image pull policy for agents (Always, IfNotPresent, Never)")
 	pflag.Int("metrics-port", 2112, "Port to expose Prometheus metrics")
 	pflag.String("db-file", "", "Path to SQLite database for job history persistence")
@@ -114,6 +115,7 @@ func main() {
 	viper.BindPFlag("orchestrator.submit_task", pflag.Lookup("submit-task"))
 	viper.BindPFlag("orchestrator.submit_id", pflag.Lookup("submit-id"))
 	viper.BindPFlag("orchestrator.wait", pflag.Lookup("wait"))
+	viper.BindPFlag("orchestrator.plan", pflag.Lookup("plan"))
 	viper.BindPFlag("orchestrator.host", pflag.Lookup("host"))
 
 	viper.BindPFlag("orchestrator.mode", pflag.Lookup("mode"))
@@ -231,7 +233,8 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		}
 		id := viper.GetString("orchestrator.submit_id")
 		wait := viper.GetBool("orchestrator.wait")
-		submitAdHocJob(host, submitURL, task, id, wait)
+		plan := viper.GetBool("orchestrator.plan")
+		submitAdHocJob(host, submitURL, task, id, wait, plan)
 		return nil
 	}
 

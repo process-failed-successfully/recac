@@ -46,6 +46,7 @@ func initFlags(cfgFile *string) {
 	pflag.String("provider", "", "Agent provider override")
 	pflag.String("model", "", "Agent model override")
 	pflag.Bool("mock", false, "Mock mode")
+	pflag.Bool("plan", false, "Plan-only mode (no execution)")
 }
 
 func runApp(ctx context.Context) error {
@@ -74,6 +75,7 @@ func runApp(ctx context.Context) error {
 	viper.BindPFlag("provider", pflag.Lookup("provider"))
 	viper.BindPFlag("model", pflag.Lookup("model"))
 	viper.BindPFlag("mock", pflag.Lookup("mock"))
+	viper.BindPFlag("plan", pflag.Lookup("plan"))
 
 	viper.BindEnv("max_iterations", "RECAC_MAX_ITERATIONS")
 	viper.BindEnv("manager_frequency", "RECAC_MANAGER_FREQUENCY")
@@ -119,6 +121,7 @@ func runApp(ctx context.Context) error {
 		Summary:           viper.GetString("summary"),
 		Description:       viper.GetString("description"),
 		JiraTicketID:      viper.GetString("jira"),
+		PlanOnly:          viper.GetBool("plan"),
 		Logger:            logger,
 		CommandPrefix:     []string{}, // Agent binary doesn't use subcommands, unless needed.
 	}
