@@ -183,6 +183,35 @@ func TestK8sSpawner_Spawn_Lifecycle(t *testing.T) {
 	})
 }
 
+func TestK8sSpawner_Spawn_PlanOnly(t *testing.T) {
+	clientset := fake.NewSimpleClientset()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	spawner := &K8sSpawner{
+		Client:    clientset,
+		Namespace: "default",
+		Image:     "img",
+		Logger:    logger,
+	}
+
+	item := WorkItem{
+		ID:       "PLAN-ONLY-JOB",
+		RepoURL:  "https://github.com/test/repo",
+		PlanOnly: true,
+	}
+
+	err := spawner.Spawn(context.Background(), item)
+	assert.NoError(t, err)
+
+	jobName := "recac-agent-plan-only-job"
+	job, err := clientset.BatchV1().Jobs("default").Get(context.Background(), jobName, metav1.GetOptions{})
+	assert.NoError(t, err)
+
+	// Verify command contains --plan
+	// Command is in job.Spec.Template.Spec.Containers[0].Args[0] (as it's passed to sh -c)
+	cmd := job.Spec.Template.Spec.Containers[0].Args[0]
+	assert.Contains(t, cmd, "--plan")
+}
+
 func TestSanitizeK8sName(t *testing.T) {
 	tests := []struct {
 		input    string

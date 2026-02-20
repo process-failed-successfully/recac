@@ -225,6 +225,57 @@ func TestDockerSpawner_Spawn_Success(t *testing.T) {
 	mockSM.AssertExpectations(t)
 }
 
+func TestDockerSpawner_Spawn_PlanOnly(t *testing.T) {
+	mockDocker := new(MockDockerClient)
+	mockSM := new(MockSessionManager)
+	mockGit := new(MockGitClient)
+	mockPoller := new(MockPoller)
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	spawner := NewDockerSpawner(logger, mockDocker, "test-image", "test-proj", mockPoller, "provider", "model", mockSM)
+	spawner.GitClient = mockGit
+
+	item := WorkItem{
+		ID:       "TICKET-PLAN",
+		RepoURL:  "https://github.com/test/repo",
+		PlanOnly: true,
+	}
+
+	ctx := context.Background()
+
+	// Verify command contains --plan
+	mockDocker.On("RunContainerWithLabels", ctx, "test-image", mock.Anything, mock.Anything, mock.Anything, mock.MatchedBy(func(cmd []string) bool {
+		// Command is constructed via shellquote and wrapped in sh -c
+		// Check if the command string contains "--plan"
+		if len(cmd) < 3 {
+			return false
+		}
+		return strings.Contains(cmd[2], "--plan")
+	}), "", mock.Anything).Return("container-plan", nil)
+
+	mockDocker.On("WaitContainer", ctx, "container-plan").Return(int(0), nil)
+
+	mockSM.On("SaveSession", mock.MatchedBy(func(s *runner.SessionState) bool {
+		hasPlan := false
+		for _, arg := range s.Command {
+			if arg == "--plan" {
+				hasPlan = true
+				break
+			}
+		}
+		return hasPlan
+	})).Return(nil)
+
+	mockSM.On("LoadSession", "TICKET-PLAN").Return(&runner.SessionState{}, nil)
+	mockGit.On("CurrentCommitSHA", mock.Anything).Return("sha", nil)
+	mockSM.On("SaveSession", mock.Anything).Return(nil)
+
+	err := spawner.Spawn(ctx, item)
+	assert.NoError(t, err)
+
+	mockDocker.AssertExpectations(t)
+}
+
 func TestDockerSpawner_Spawn_RunContainerFails(t *testing.T) {
 	mockDocker := new(MockDockerClient)
 	mockSM := new(MockSessionManager)
