@@ -36,6 +36,7 @@ type SessionConfig struct {
 	JiraEpicKey       string
 	AllowDirty        bool
 	Stream            bool
+	PlanOnly          bool
 	AutoMerge         bool
 	SkipQA            bool
 	ManagerFirst      bool
@@ -466,6 +467,7 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 	session.ManagerFrequency = cfg.ManagerFrequency
 	session.ManagerFirst = cfg.ManagerFirst
 	session.StreamOutput = cfg.Stream
+	session.PlanOnly = cfg.PlanOnly
 	session.AutoMerge = cfg.AutoMerge
 	session.SkipQA = cfg.SkipQA
 	session.JiraClient = cfg.JiraClient

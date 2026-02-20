@@ -94,6 +94,10 @@ func (s *DockerSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		"--repo-url", item.RepoURL, // Delegate cloning
 	}
 
+	if item.PlanOnly {
+		agentCmd = append(agentCmd, "--plan")
+	}
+
 	cmd := s.constructShellCommand(agentCmd)
 
 	// 5. Create and Start Container

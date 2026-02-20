@@ -14,6 +14,7 @@ var templateFS embed.FS
 // List of available prompt templates
 const (
 	Planner        = "planner"
+	PlanOnly       = "plan_only"
 	ManagerReview  = "manager_review"
 	CodingAgent    = "coding_agent"
 	Initializer    = "initializer"

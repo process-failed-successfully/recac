@@ -46,6 +46,7 @@ func initFlags(cfgFile *string) {
 	pflag.String("provider", "", "Agent provider override")
 	pflag.String("model", "", "Agent model override")
 	pflag.Bool("mock", false, "Mock mode")
+	pflag.Bool("plan", false, "Plan only mode (generate PLAN.md and exit)")
 }
 
 func runApp(ctx context.Context) error {
@@ -74,6 +75,7 @@ func runApp(ctx context.Context) error {
 	viper.BindPFlag("provider", pflag.Lookup("provider"))
 	viper.BindPFlag("model", pflag.Lookup("model"))
 	viper.BindPFlag("mock", pflag.Lookup("mock"))
+	viper.BindPFlag("plan", pflag.Lookup("plan"))
 
 	viper.BindEnv("max_iterations", "RECAC_MAX_ITERATIONS")
 	viper.BindEnv("manager_frequency", "RECAC_MANAGER_FREQUENCY")
@@ -106,6 +108,7 @@ func runApp(ctx context.Context) error {
 		SessionName:       viper.GetString("name"),
 		AllowDirty:        viper.GetBool("allow_dirty"),
 		Stream:            viper.GetBool("stream"),
+		PlanOnly:          viper.GetBool("plan"),
 		AutoMerge:         viper.GetBool("auto_merge"),
 		SkipQA:            viper.GetBool("skip_qa"),
 		ManagerFirst:      viper.GetBool("manager_first"),
