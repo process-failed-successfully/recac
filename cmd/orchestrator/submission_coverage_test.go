@@ -29,7 +29,7 @@ func TestSubmitJob_Errors(t *testing.T) {
 	t.Run("FileNotFound", func(t *testing.T) {
 		exitCode = 0
 		buf.Reset()
-		submitJob("http://localhost", "non-existent-file.json", false)
+		submitJob("http://localhost", "non-existent-file.json", false, false)
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to open file")
 	})
@@ -42,7 +42,7 @@ func TestSubmitJob_Errors(t *testing.T) {
 
 		exitCode = 0
 		buf.Reset()
-		submitJob("http://localhost", tmpFile.Name(), false)
+		submitJob("http://localhost", tmpFile.Name(), false, false)
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Invalid JSON in file")
 	})
@@ -55,7 +55,7 @@ func TestSubmitJob_Errors(t *testing.T) {
 
 		exitCode = 0
 		buf.Reset()
-		submitJob("http://invalid-host", tmpFile.Name(), false)
+		submitJob("http://invalid-host", tmpFile.Name(), false, false)
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to connect to orchestrator")
 	})
@@ -73,7 +73,7 @@ func TestSubmitJob_Errors(t *testing.T) {
 
 		exitCode = 0
 		buf.Reset()
-		submitJob(server.URL, tmpFile.Name(), false)
+		submitJob(server.URL, tmpFile.Name(), false, false)
 		assert.Equal(t, 1, exitCode)
 		assert.Contains(t, buf.String(), "Failed to submit job")
 	})

@@ -34,3 +34,14 @@ func GenerateFeatureList(ctx context.Context, a agent.Agent, spec string) (*db.F
 
 	return &featureList, nil
 }
+
+// GeneratePlanOnly asks the agent to create a detailed implementation plan.
+func GeneratePlanOnly(ctx context.Context, a agent.Agent, spec string) (string, error) {
+	prompt, err := prompts.GetPrompt(prompts.PlanOnly, map[string]string{
+		"spec": spec,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to load plan_only prompt: %w", err)
+	}
+	return a.Send(ctx, prompt)
+}

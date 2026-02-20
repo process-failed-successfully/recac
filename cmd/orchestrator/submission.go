@@ -20,7 +20,7 @@ var (
 	stdout   io.Writer = os.Stdout
 )
 
-func submitJob(host, filePath string, wait bool) {
+func submitJob(host, filePath string, wait bool, plan bool) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to open file %s: %v\n", filePath, err)
@@ -39,10 +39,18 @@ func submitJob(host, filePath string, wait bool) {
 	// Extract ID for waiting
 	id, _ := item["id"].(string)
 
-	// Reset file pointer
-	file.Seek(0, 0)
+	if plan {
+		item["plan_only"] = true
+	}
 
-	resp, err := http.Post(fmt.Sprintf("%s/jobs", host), "application/json", file)
+	payload, err := json.Marshal(item)
+	if err != nil {
+		fmt.Fprintf(stdout, "Failed to marshal payload: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	resp, err := http.Post(fmt.Sprintf("%s/jobs", host), "application/json", bytes.NewBuffer(payload))
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
 		exitFunc(1)
@@ -68,7 +76,7 @@ func submitJob(host, filePath string, wait bool) {
 	}
 }
 
-func submitAdHocJob(host, repo, task, id string, wait bool) {
+func submitAdHocJob(host, repo, task, id string, wait bool, plan bool) {
 	if id == "" {
 		id = uuid.New().String()
 	}
@@ -78,6 +86,7 @@ func submitAdHocJob(host, repo, task, id string, wait bool) {
 		Summary:     task, // Using task description as summary for ad-hoc
 		Description: task,
 		RepoURL:     repo,
+		PlanOnly:    plan,
 		// No EnvVars for now, could add if needed
 	}
 
