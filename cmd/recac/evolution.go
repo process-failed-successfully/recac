@@ -1,7 +1,6 @@
 package main
 
 import (
-	"recac/internal/utils"
 	"bufio"
 	"bytes"
 	"encoding/json"
@@ -9,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"recac/internal/utils"
 	"strings"
 	"text/tabwriter"
 	"time"

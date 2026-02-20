@@ -10,36 +10,43 @@ import (
 	"os/exec"
 	"path/filepath"
 	"recac/internal/telemetry"
-	"regexp"
+	"recac/internal/utils"
 	"strings"
 	"time"
 
 	"github.com/spf13/viper"
 )
 
-var bashBlockRegex = regexp.MustCompile("(?s)```bash\\s*(.*?)\\s*```")
-
 // ProcessResponse parses the agent response for commands, executes them, and handles blockers.
 func (s *Session) ProcessResponse(ctx context.Context, response string) (string, error) {
-	// 1. Extract Bash Blocks (More robust regex to handle variations in LLM output)
-	matches := bashBlockRegex.FindAllStringSubmatch(response, -1)
+	// 1. Extract Bash Blocks using shared utility
+	allBlocks := utils.ExtractCodeBlocks(response)
+
+	var cmdScripts []string
+	for _, block := range allBlocks {
+		lang := strings.ToLower(block.Language)
+		// We accept bash, sh, or zsh. We explicitly ignore empty language blocks to avoid executing random text.
+		if lang == "bash" || lang == "sh" || lang == "zsh" {
+			cmdScripts = append(cmdScripts, block.Content)
+		}
+	}
 
 	// Safety valve: Prevent LLM loops from flooding the execution
 	const maxCommandBlocks = 100
-	if len(matches) > maxCommandBlocks {
-		s.Logger.Warn("Safety valve tripped: truncated too many command blocks", "total", len(matches), "limit", maxCommandBlocks)
-		matches = matches[:maxCommandBlocks]
+	if len(cmdScripts) > maxCommandBlocks {
+		s.Logger.Warn("Safety valve tripped: truncated too many command blocks", "total", len(cmdScripts), "limit", maxCommandBlocks)
+		cmdScripts = cmdScripts[:maxCommandBlocks]
 	}
 
 	var parsedOutput strings.Builder
 
-	for i, match := range matches {
-		cmdScript := strings.TrimSpace(match[1])
+	for i, cmdScript := range cmdScripts {
+		cmdScript = strings.TrimSpace(cmdScript)
 		if cmdScript == "" {
 			continue
 		}
 
-		output, err := s.executeCommandBlock(ctx, cmdScript, i+1, len(matches))
+		output, err := s.executeCommandBlock(ctx, cmdScript, i+1, len(cmdScripts))
 		parsedOutput.WriteString(output)
 
 		if err != nil {
@@ -59,12 +66,11 @@ func (s *Session) ProcessResponse(ctx context.Context, response string) (string,
 		FilesModified int
 		OutputLines   int
 	}{
-		Commands: len(matches),
+		Commands: len(cmdScripts),
 	}
 
 	// Heuristic for files modified (counting write operations)
-	for _, match := range matches {
-		script := match[1]
+	for _, script := range cmdScripts {
 		if strings.Contains(script, " > ") || strings.Contains(script, " >> ") || strings.Contains(script, "touch ") {
 			metrics.FilesModified++
 		}

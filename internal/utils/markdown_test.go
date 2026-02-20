@@ -150,8 +150,8 @@ func TestParseMarkdownBlocks(t *testing.T) {
 			expected: []MarkdownBlock{{Type: "code", Content: "package main\n", Lang: "go"}},
 		},
 		{
-			name:     "Mixed",
-			input:    []string{"Intro", "```bash", "echo hi", "```", "Outro"},
+			name:  "Mixed",
+			input: []string{"Intro", "```bash", "echo hi", "```", "Outro"},
 			expected: []MarkdownBlock{
 				{Type: "text", Content: "Intro\n"},
 				{Type: "code", Content: "echo hi\n", Lang: "bash"},
@@ -159,8 +159,8 @@ func TestParseMarkdownBlocks(t *testing.T) {
 			},
 		},
 		{
-			name:     "Unclosed Code",
-			input:    []string{"Intro", "```python", "print('hi')"},
+			name:  "Unclosed Code",
+			input: []string{"Intro", "```python", "print('hi')"},
 			expected: []MarkdownBlock{
 				{Type: "text", Content: "Intro\n"},
 				{Type: "code", Content: "print('hi')\n", Lang: "python"},
@@ -171,7 +171,58 @@ func TestParseMarkdownBlocks(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := ParseMarkdownBlocks(tt.input)
-			// DeepEqual or manual check? Go slice comparison requires cmp or manual
+			if len(got) != len(tt.expected) {
+				t.Errorf("len(got) = %d, want %d", len(got), len(tt.expected))
+				return
+			}
+			for i := range got {
+				if got[i] != tt.expected[i] {
+					t.Errorf("got[%d] = %+v, want %+v", i, got[i], tt.expected[i])
+				}
+			}
+		})
+	}
+}
+
+func TestExtractCodeBlocks(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected []CodeBlock
+	}{
+		{
+			name:     "No code block",
+			input:    "Just text",
+			expected: nil,
+		},
+		{
+			name:     "Single block",
+			input:    "Here is code:\n```go\nfmt.Println(\"Hi\")\n```",
+			expected: []CodeBlock{{Language: "go", Content: "fmt.Println(\"Hi\")"}},
+		},
+		{
+			name:  "Multiple blocks",
+			input: "Block 1:\n```bash\necho 1\n```\nBlock 2:\n```python\nprint(2)\n```",
+			expected: []CodeBlock{
+				{Language: "bash", Content: "echo 1"},
+				{Language: "python", Content: "print(2)"},
+			},
+		},
+		{
+			name:     "No language",
+			input:    "```\nplain text\n```",
+			expected: []CodeBlock{{Language: "", Content: "plain text"}},
+		},
+		{
+			name:     "Indented block (fence)",
+			input:    "  ```xml\n  <tag></tag>\n  ```",
+			expected: []CodeBlock{{Language: "xml", Content: "<tag></tag>"}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ExtractCodeBlocks(tt.input)
 			if len(got) != len(tt.expected) {
 				t.Errorf("len(got) = %d, want %d", len(got), len(tt.expected))
 				return

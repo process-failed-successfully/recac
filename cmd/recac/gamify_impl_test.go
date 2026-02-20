@@ -1,4 +1,4 @@
-package gamify
+package main
 
 import (
 	"testing"

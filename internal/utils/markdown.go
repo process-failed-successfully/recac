@@ -141,7 +141,8 @@ func ParseMarkdownBlocks(lines []string) []MarkdownBlock {
 	}
 
 	for _, line := range lines {
-		if strings.HasPrefix(strings.TrimSpace(line), "```") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "```") {
 			if inCodeBlock {
 				// End of code block
 				// Do not include the closing fence in the content
@@ -153,7 +154,7 @@ func ParseMarkdownBlocks(lines []string) []MarkdownBlock {
 				// Flush previous text
 				flushBuffer("text", "")
 				inCodeBlock = true
-				codeLang = strings.TrimPrefix(strings.TrimSpace(line), "```")
+				codeLang = strings.TrimPrefix(trimmed, "```")
 			}
 		} else {
 			currentBuilder.WriteString(line)
@@ -168,6 +169,38 @@ func ParseMarkdownBlocks(lines []string) []MarkdownBlock {
 			flushBuffer("code", codeLang)
 		} else {
 			flushBuffer("text", "")
+		}
+	}
+
+	return blocks
+}
+
+// CodeBlock represents a code block extracted from markdown.
+type CodeBlock struct {
+	Language string
+	Content  string
+}
+
+// ExtractCodeBlocks extracts all code blocks from the markdown content.
+// It supports language specifiers (e.g., ```go).
+func ExtractCodeBlocks(content string) []CodeBlock {
+	var blocks []CodeBlock
+
+	// Regex to match code blocks: ```language\ncontent\n```
+	// (?s) makes dot match newlines
+	// The regex captures: 1. Language (optional), 2. Content
+	// usage of \s* handles space after ```
+	re := regexp.MustCompile("(?s)```([a-zA-Z0-9_\\-\\.]*)\\s*(.*?)```")
+
+	matches := re.FindAllStringSubmatch(content, -1)
+	for _, match := range matches {
+		if len(match) == 3 {
+			lang := strings.TrimSpace(match[1])
+			code := strings.TrimSpace(match[2])
+			blocks = append(blocks, CodeBlock{
+				Language: lang,
+				Content:  code,
+			})
 		}
 	}
 
