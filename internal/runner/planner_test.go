@@ -73,3 +73,18 @@ func TestGenerateFeatureList(t *testing.T) {
 		t.Errorf("Expected description 'Login Page', got '%s'", featureList.Features[0].Description)
 	}
 }
+
+func TestGeneratePlanOnly(t *testing.T) {
+	ctx := context.Background()
+	mockResponse := "# Implementation Plan\n\n## Architecture\n\n- REST API\n- SQLite DB\n\n## File Structure\n\n- main.go\n- handler.go\n\n## Step-by-Step Plan\n\n1. Init project\n2. Create DB"
+	mockAgent := &MockPlannerAgent{Response: mockResponse}
+
+	plan, err := GeneratePlanOnly(ctx, mockAgent, "Build a simple API")
+	if err != nil {
+		t.Fatalf("GeneratePlanOnly failed: %v", err)
+	}
+
+	if plan != mockResponse {
+		t.Errorf("Expected plan %q, got %q", mockResponse, plan)
+	}
+}
