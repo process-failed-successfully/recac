@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -69,11 +70,11 @@ func doSomething(f float64) {
 	checkFinding(t, results, "\"magic_string\"", 2, "STRING")
 	checkFinding(t, results, "3.14", 1, "FLOAT")
 
-	checkMissing(t, results, "100")       // Const
-	checkMissing(t, results, "\"skip_me\"") // Const
+	checkMissing(t, results, "100")          // Const
+	checkMissing(t, results, "\"skip_me\"")  // Const
 	checkMissing(t, results, "\"skip_tag\"") // Tag
-	checkMissing(t, results, "\"fmt\"")     // Import
-	checkMissing(t, results, "0")           // Default ignore
+	checkMissing(t, results, "\"fmt\"")      // Import
+	checkMissing(t, results, "0")            // Default ignore
 }
 
 func checkFinding(t *testing.T, results map[string]MagicFinding, val string, count int, expectedType string) {
@@ -93,5 +94,42 @@ func checkFinding(t *testing.T, results map[string]MagicFinding, val string, cou
 func checkMissing(t *testing.T, results map[string]MagicFinding, val string) {
 	if _, ok := results[val]; ok {
 		t.Errorf("Did not expect to find literal %s, but did", val)
+	}
+}
+
+func BenchmarkExtractMagicLiterals(b *testing.B) {
+	// Create a temp directory structure
+	tmpDir, err := os.MkdirTemp("", "magic_bench")
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create 50 Go files
+	for i := 0; i < 50; i++ {
+		content := fmt.Sprintf("package main\nfunc f() { x := %d }", i)
+		name := fmt.Sprintf("file_%d.go", i)
+		path := filepath.Join(tmpDir, name)
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			b.Fatal(err)
+		}
+	}
+
+	// Create 5000 non-Go files (simulating assets, node_modules, etc.)
+	for i := 0; i < 5000; i++ {
+		content := "some text content"
+		name := fmt.Sprintf("asset_%d.txt", i)
+		path := filepath.Join(tmpDir, name)
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			b.Fatal(err)
+		}
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := ExtractMagicLiterals(tmpDir, nil)
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }
