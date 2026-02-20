@@ -18,6 +18,7 @@ type WorkItem struct {
 	Description string
 	RepoURL     string // Repo to clone
 	EnvVars     map[string]string
+	PlanOnly    bool `json:"plan_only"` // Agent should only create a plan
 }
 
 // Poller defines the interface for polling for work items.

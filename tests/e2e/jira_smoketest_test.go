@@ -158,7 +158,7 @@ func TestJiraEpicSmoketest_GoCalculator(t *testing.T) {
 
 	// 4. Run recac start for each ticket
 	provider := "openrouter"
-	model := "openrouter/aurora-alpha"
+	model := "google/gemini-2.0-flash-001"
 
 	for _, ticketID := range ticketIDs {
 		t.Logf("Starting work on ticket: %s", ticketID)
