@@ -34,8 +34,9 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 
 	// Smart Mocking for Smoke Tests: Prime Python Scenario
 	if strings.Contains(prompt, "primes.py") {
-		// Planning Phase (Agent is asked to break down the task or provide a JSON plan)
-		if strings.Contains(prompt, "JSON") || strings.Contains(prompt, "list of tasks") {
+		// Planning Phase (Planner Agent)
+		// Detects the planner prompt based on role definition
+		if strings.Contains(prompt, "Lead Software Architect") || strings.Contains(prompt, "application specification") {
 			return `[
   {
     "title": "ID:[PRIMES] Create Prime Number Script",
@@ -46,8 +47,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 ]`, nil
 		}
 
-		// Execution Phase (Agent is asked to implement the solution)
-		// Assuming standard prompt structure asking for implementation
+		// Execution Phase (Coding Agent)
+		// Returns the implementation if not in planning phase
 		return `I will implement the prime number script now.
 
 ` + "```bash" + `
