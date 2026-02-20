@@ -20,6 +20,7 @@ const (
 	QAAgent        = "qa_agent"
 	TPMAgent       = "tpm_agent"
 	ArchitectAgent = "architect_agent"
+	PlanOnly       = "plan_only"
 )
 
 // ListPrompts returns a list of available embedded prompts.

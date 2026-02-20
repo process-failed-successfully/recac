@@ -17,6 +17,7 @@ type WorkItem struct {
 	Summary     string
 	Description string
 	RepoURL     string // Repo to clone
+	PlanOnly    bool   // Generate plan and exit
 	EnvVars     map[string]string
 }
 
