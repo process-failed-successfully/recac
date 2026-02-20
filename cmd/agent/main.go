@@ -35,6 +35,7 @@ func initFlags(cfgFile *string) {
 
 	pflag.Bool("auto-merge", false, "Automatically merge PRs if checks pass")
 	pflag.Bool("skip-qa", false, "Skip QA phase and auto-complete (use with caution)")
+	pflag.Bool("plan", false, "Generate implementation plan and exit (no code)")
 	pflag.String("image", "ghcr.io/process-failed-successfully/recac-agent:latest", "Docker image to use for the agent session")
 	pflag.Bool("cleanup", true, "Cleanup temporary workspace after session ends")
 	pflag.String("project", "", "Project name override")
@@ -65,6 +66,7 @@ func runApp(ctx context.Context) error {
 	viper.BindPFlag("allow_dirty", pflag.Lookup("allow-dirty"))
 	viper.BindPFlag("auto_merge", pflag.Lookup("auto-merge"))
 	viper.BindPFlag("skip_qa", pflag.Lookup("skip-qa"))
+	viper.BindPFlag("plan", pflag.Lookup("plan"))
 	viper.BindPFlag("image", pflag.Lookup("image"))
 	viper.BindPFlag("cleanup", pflag.Lookup("cleanup"))
 	viper.BindPFlag("project", pflag.Lookup("project"))
@@ -108,6 +110,7 @@ func runApp(ctx context.Context) error {
 		Stream:            viper.GetBool("stream"),
 		AutoMerge:         viper.GetBool("auto_merge"),
 		SkipQA:            viper.GetBool("skip_qa"),
+		PlanOnly:          viper.GetBool("plan"),
 		ManagerFirst:      viper.GetBool("manager_first"),
 		Image:             viper.GetString("image"),
 		Debug:             viper.GetBool("verbose"),

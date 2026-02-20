@@ -163,6 +163,10 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 		recac-agent --jira %q --project %q --image %s --path /workspace --detached=false --cleanup=false --verbose --allow-dirty --repo-url %q
 	`, item.ID, item.ID, s.Image, item.RepoURL)
 
+	if item.PlanOnly {
+		cmd += " --plan"
+	}
+
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: jobName,

@@ -46,6 +46,7 @@ type SessionConfig struct {
 	Image             string
 	Provider          string
 	Model             string
+	PlanOnly          bool
 	Cleanup           bool
 	Summary           string
 	Description       string
@@ -468,6 +469,7 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 	session.StreamOutput = cfg.Stream
 	session.AutoMerge = cfg.AutoMerge
 	session.SkipQA = cfg.SkipQA
+	session.PlanOnly = cfg.PlanOnly
 	session.JiraClient = cfg.JiraClient
 	session.JiraTicketID = cfg.JiraTicketID
 	session.RepoURL = cfg.RepoURL
