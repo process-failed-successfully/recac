@@ -149,6 +149,7 @@ func main() {
 	viper.BindEnv("orchestrator.metrics_port", "RECAC_METRICS_PORT")
 	viper.BindPFlag("orchestrator.db_file", pflag.Lookup("db-file"))
 	viper.BindEnv("orchestrator.db_file", "RECAC_DB_FILE")
+	viper.BindEnv("orchestrator.api_key", "RECAC_ORCHESTRATOR_API_KEY")
 	viper.BindEnv("orchestrator.max_iterations", "RECAC_MAX_ITERATIONS")
 	viper.BindEnv("orchestrator.manager_frequency", "RECAC_MANAGER_FREQUENCY")
 	viper.BindEnv("orchestrator.task_max_iterations", "RECAC_TASK_MAX_ITERATIONS")
@@ -374,15 +375,45 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	// Start Metrics Server
 	metricsPort := viper.GetInt("orchestrator.metrics_port")
 	statusHandler := func(mux *http.ServeMux) {
-		mux.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
+		authMiddleware := func(next http.HandlerFunc) http.HandlerFunc {
+			return func(w http.ResponseWriter, r *http.Request) {
+				apiKey := viper.GetString("orchestrator.api_key")
+				if apiKey == "" {
+					next(w, r)
+					return
+				}
+
+				authHeader := r.Header.Get("Authorization")
+				tokenHeader := r.Header.Get("X-Recac-Token")
+
+				valid := false
+				if tokenHeader == apiKey {
+					valid = true
+				} else if strings.HasPrefix(authHeader, "Bearer ") {
+					token := strings.TrimPrefix(authHeader, "Bearer ")
+					if token == apiKey {
+						valid = true
+					}
+				}
+
+				if !valid {
+					http.Error(w, "Unauthorized", http.StatusUnauthorized)
+					return
+				}
+
+				next(w, r)
+			}
+		}
+
+		mux.HandleFunc("/status", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
 			status := orch.GetStatus()
 			w.Header().Set("Content-Type", "application/json")
 			if err := json.NewEncoder(w).Encode(status); err != nil {
 				logger.Error("Failed to encode status", "error", err)
 			}
-		})
+		}))
 
-		mux.HandleFunc("/jobs", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/jobs", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
 			state := r.URL.Query().Get("state")
 			var jobs []orchestrator.JobInfo
 
@@ -399,9 +430,9 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			if err := json.NewEncoder(w).Encode(jobs); err != nil {
 				logger.Error("Failed to encode jobs", "error", err)
 			}
-		})
+		}))
 
-		mux.HandleFunc("GET /jobs/{id}", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("GET /jobs/{id}", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
 			id := r.PathValue("id")
 			job, err := orch.GetJob(id)
 			if err != nil {
@@ -413,9 +444,9 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			if err := json.NewEncoder(w).Encode(job); err != nil {
 				logger.Error("Failed to encode job", "error", err)
 			}
-		})
+		}))
 
-		mux.HandleFunc("GET /jobs/{id}/logs", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("GET /jobs/{id}/logs", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
 			id := r.PathValue("id")
 			logStream, err := orch.GetLogs(r.Context(), id)
 			if err != nil {
@@ -424,9 +455,9 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			}
 			defer logStream.Close()
 			io.Copy(w, logStream)
-		})
+		}))
 
-		mux.HandleFunc("POST /jobs/{id}/retry", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("POST /jobs/{id}/retry", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
 			id := r.PathValue("id")
 			// Use r.Context() but ensure logger is available (captured from main)
 			if err := orch.RetryJob(r.Context(), id, logger); err != nil {
@@ -441,9 +472,9 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			}
 			w.WriteHeader(http.StatusAccepted)
 			fmt.Fprintf(w, "Job %s retry submitted", id)
-		})
+		}))
 
-		mux.HandleFunc("POST /jobs/retry-failed", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("POST /jobs/retry-failed", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
 			count, err := orch.RetryFailedJobs(r.Context(), logger)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -452,9 +483,9 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			w.WriteHeader(http.StatusOK)
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprintf(w, `{"retried": %d}`, count)
-		})
+		}))
 
-		mux.HandleFunc("DELETE /jobs/{id}", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("DELETE /jobs/{id}", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
 			id := r.PathValue("id")
 			if err := orch.CancelJob(r.Context(), id); err != nil {
 				// We don't know if it's 404 or 500, but let's assume if it returns error, it failed.
@@ -465,9 +496,9 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			}
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprintf(w, "Job %s cancellation requested", id)
-		})
+		}))
 
-		mux.HandleFunc("POST /jobs", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("POST /jobs", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
 			var item orchestrator.WorkItem
 			if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
 				http.Error(w, "Invalid JSON body", http.StatusBadRequest)
@@ -493,19 +524,19 @@ func run(ctx context.Context, logger *slog.Logger) error {
 
 			w.WriteHeader(http.StatusAccepted)
 			fmt.Fprintf(w, "Job %s submitted successfully", item.ID)
-		})
+		}))
 
-		mux.HandleFunc("POST /pause", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("POST /pause", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
 			orch.Pause()
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprintln(w, "Orchestrator paused")
-		})
+		}))
 
-		mux.HandleFunc("POST /resume", func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("POST /resume", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
 			orch.Resume()
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprintln(w, "Orchestrator resumed")
-		})
+		}))
 	}
 
 	metricsServer, actualPort, err := telemetry.StartMetricsServer(metricsPort, statusHandler)
@@ -585,13 +616,31 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	return nil
 }
 
+func authenticatedRequest(method, url string, body io.Reader) (*http.Response, error) {
+	req, err := http.NewRequest(method, url, body)
+	if err != nil {
+		return nil, err
+	}
+
+	if apiKey := viper.GetString("orchestrator.api_key"); apiKey != "" {
+		req.Header.Set("X-Recac-Token", apiKey)
+	}
+
+	// Only set Content-Type if we have a body or it's a POST/PUT
+	if (method == http.MethodPost || method == http.MethodPut) && body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	return http.DefaultClient.Do(req)
+}
+
 func listJobs(host string, history bool) {
 	url := fmt.Sprintf("%s/jobs", host)
 	if history {
 		url += "?state=all"
 	}
 
-	resp, err := http.Get(url)
+	resp, err := authenticatedRequest(http.MethodGet, url, nil)
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
 		exitFunc(1)
@@ -659,7 +708,7 @@ func listJobs(host string, history bool) {
 }
 
 func getLogs(host, jobID string) {
-	resp, err := http.Get(fmt.Sprintf("%s/jobs/%s/logs", host, jobID))
+	resp, err := authenticatedRequest(http.MethodGet, fmt.Sprintf("%s/jobs/%s/logs", host, jobID), nil)
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
 		exitFunc(1)
@@ -690,7 +739,7 @@ func limitString(s string, max int) string {
 }
 
 func inspectJob(host, jobID string) {
-	resp, err := http.Get(fmt.Sprintf("%s/jobs/%s", host, jobID))
+	resp, err := authenticatedRequest(http.MethodGet, fmt.Sprintf("%s/jobs/%s", host, jobID), nil)
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
 		exitFunc(1)
@@ -760,14 +809,7 @@ func inspectJob(host, jobID string) {
 }
 
 func cancelJob(host, jobID string) {
-	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/jobs/%s", host, jobID), nil)
-	if err != nil {
-		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
-		exitFunc(1)
-		return
-	}
-
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := authenticatedRequest(http.MethodDelete, fmt.Sprintf("%s/jobs/%s", host, jobID), nil)
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
 		exitFunc(1)
@@ -786,14 +828,7 @@ func cancelJob(host, jobID string) {
 }
 
 func pauseOrchestrator(host string) {
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/pause", host), nil)
-	if err != nil {
-		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
-		exitFunc(1)
-		return
-	}
-
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := authenticatedRequest(http.MethodPost, fmt.Sprintf("%s/pause", host), nil)
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
 		exitFunc(1)
@@ -812,14 +847,7 @@ func pauseOrchestrator(host string) {
 }
 
 func resumeOrchestrator(host string) {
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/resume", host), nil)
-	if err != nil {
-		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
-		exitFunc(1)
-		return
-	}
-
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := authenticatedRequest(http.MethodPost, fmt.Sprintf("%s/resume", host), nil)
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
 		exitFunc(1)
@@ -838,14 +866,7 @@ func resumeOrchestrator(host string) {
 }
 
 func retryJob(host, jobID string) {
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs/%s/retry", host, jobID), nil)
-	if err != nil {
-		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
-		exitFunc(1)
-		return
-	}
-
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := authenticatedRequest(http.MethodPost, fmt.Sprintf("%s/jobs/%s/retry", host, jobID), nil)
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
 		exitFunc(1)
@@ -864,14 +885,7 @@ func retryJob(host, jobID string) {
 }
 
 func retryFailedJobs(host string) {
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/jobs/retry-failed", host), nil)
-	if err != nil {
-		fmt.Fprintf(stdout, "Failed to create request: %v\n", err)
-		exitFunc(1)
-		return
-	}
-
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := authenticatedRequest(http.MethodPost, fmt.Sprintf("%s/jobs/retry-failed", host), nil)
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
 		exitFunc(1)
