@@ -55,11 +55,10 @@ helm upgrade --install recac ./deploy/helm/recac \
     --set config.verbose=true \
     --set config.interval=10s \
     --set config.max_iterations=10 \
-    --set config.provider=openrouter \
-    --set config.model="openai/gpt-4o" \
+    --set config.provider=mock \
+    --set config.model="mock-model" \
     --set config.jiraUrl="$JIRA_URL" \
     --set config.jiraUsername="$JIRA_USERNAME" \
-    --set secrets.openrouterApiKey="$OPENROUTER_API_KEY" \
     --set secrets.jiraApiToken="$JIRA_API_TOKEN" \
     --set secrets.ghApiKey="$GITHUB_API_KEY" \
     --set secrets.ghEmail="$GITHUB_EMAIL"
