@@ -25,7 +25,7 @@ Credentials:
 .env has them
 
 Provider settings:
---provider openrouter --model "openrouter/google/gemini-2.0-flash-001"
+--provider openrouter --model "google/gemini-2.0-flash-001"
 This is a free token so use large iteration counts.
 
 Github:

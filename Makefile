@@ -107,11 +107,11 @@ ci-simulate: ## Run E2E test exactly like CI (but on local cluster)
 
 ci-simulate-v2: ## Run Refactored E2E test
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
-	./scripts/ci_simulate_refactored.sh -provider openrouter -model "openrouter/google/gemini-2.0-flash-001"
+	./scripts/ci_simulate_refactored.sh -provider openrouter -model "google/gemini-2.0-flash-001"
 
 # Scenario Defaults
 PROVIDER ?= openrouter
-MODEL ?= "openrouter/google/gemini-2.0-flash-001"
+MODEL ?= "google/gemini-2.0-flash-001"
 
 e2e-local: ## Run a specific scenario locally (SCENARIO=x PROVIDER=y MODEL=z)
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
