@@ -156,16 +156,17 @@ func (s *K8sSpawner) Spawn(ctx context.Context, item WorkItem) error {
 	// We'll trust the Orchestrator passed a clone-able URL or we use env var injection in the shell command.
 	// item.RepoURL is plain.
 	// Command:
+	agentCmd := fmt.Sprintf("recac-agent --jira %q --project %q --image %s --path /workspace --detached=false --cleanup=false --verbose --allow-dirty --repo-url %q", item.ID, item.ID, s.Image, item.RepoURL)
+	if item.PlanOnly {
+		agentCmd += " --plan"
+	}
+
 	cmd := fmt.Sprintf(`
 		if [ -n "$GITHUB_TOKEN" ]; then
 			git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
 		fi
-		recac-agent --jira %q --project %q --image %s --path /workspace --detached=false --cleanup=false --verbose --allow-dirty --repo-url %q
-	`, item.ID, item.ID, s.Image, item.RepoURL)
-
-	if item.PlanOnly {
-		cmd += " --plan"
-	}
+		%s
+	`, agentCmd)
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
