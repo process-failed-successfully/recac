@@ -37,6 +37,7 @@ func init() {
 	startCmd.Flags().Bool("manager-first", false, "Run the Manager Agent before the first coding session")
 	startCmd.Flags().Bool("stream", false, "Stream agent output to the console")
 	startCmd.Flags().Bool("allow-dirty", false, "Allow running with uncommitted git changes")
+	startCmd.Flags().Bool("plan", false, "Generate an implementation plan without writing code")
 	viper.BindPFlag("path", startCmd.Flags().Lookup("path"))
 	viper.BindPFlag("max_iterations", startCmd.Flags().Lookup("max-iterations"))
 	viper.BindPFlag("manager_frequency", startCmd.Flags().Lookup("manager-frequency"))
@@ -48,6 +49,7 @@ func init() {
 	viper.BindPFlag("manager_first", startCmd.Flags().Lookup("manager-first"))
 	viper.BindPFlag("stream", startCmd.Flags().Lookup("stream"))
 	viper.BindPFlag("allow_dirty", startCmd.Flags().Lookup("allow-dirty"))
+	viper.BindPFlag("plan", startCmd.Flags().Lookup("plan"))
 	startCmd.Flags().String("jira-label", "", "Jira Label to find tickets (e.g. agent-work)")
 	startCmd.Flags().Int("max-parallel-tickets", 1, "Maximum number of Jira tickets to process in parallel")
 	viper.BindPFlag("jira_label", startCmd.Flags().Lookup("jira-label"))
@@ -181,6 +183,7 @@ var startCmd = &cobra.Command{
 			RepoURL:           repoURL,
 			Summary:           summary,
 			Description:       description,
+			PlanOnly:          viper.GetBool("plan"),
 		}
 
 		// Handle session resumption
@@ -405,6 +408,7 @@ type SessionConfig struct {
 	Cleanup           bool
 	Summary           string
 	Description       string
+	PlanOnly          bool
 	Logger            *slog.Logger
 }
 
@@ -730,6 +734,7 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 		session.AutoMerge = cfg.AutoMerge
 		session.SkipQA = cfg.SkipQA
 		session.ManagerFirst = cfg.ManagerFirst
+		session.PlanOnly = cfg.PlanOnly
 
 		if cfg.JiraEpicKey != "" {
 			session.BaseBranch = fmt.Sprintf("agent-epic/%s", cfg.JiraEpicKey)
@@ -805,6 +810,7 @@ func runWorkflow(ctx context.Context, cfg SessionConfig) error {
 	session.StreamOutput = cfg.Stream
 	session.AutoMerge = cfg.AutoMerge
 	session.SkipQA = cfg.SkipQA
+	session.PlanOnly = cfg.PlanOnly
 	session.JiraClient = cfg.JiraClient
 	session.JiraTicketID = cfg.JiraTicketID
 	session.RepoURL = cfg.RepoURL
