@@ -42,6 +42,7 @@ func initFlags(cfgFile *string) {
 	pflag.String("repo-url", "", "Repository URL to clone (bypasses Jira if provided)")
 	pflag.String("summary", "", "Task summary (bypasses Jira if provided)")
 	pflag.String("description", "", "Task description")
+	pflag.Bool("plan", false, "Run in plan-only mode (generate plan but do not execute)")
 
 	pflag.String("provider", "", "Agent provider override")
 	pflag.String("model", "", "Agent model override")
@@ -71,6 +72,7 @@ func runApp(ctx context.Context) error {
 	viper.BindPFlag("repo_url", pflag.Lookup("repo-url"))
 	viper.BindPFlag("summary", pflag.Lookup("summary"))
 	viper.BindPFlag("description", pflag.Lookup("description"))
+	viper.BindPFlag("plan", pflag.Lookup("plan"))
 	viper.BindPFlag("provider", pflag.Lookup("provider"))
 	viper.BindPFlag("model", pflag.Lookup("model"))
 	viper.BindPFlag("mock", pflag.Lookup("mock"))
@@ -118,6 +120,7 @@ func runApp(ctx context.Context) error {
 		RepoURL:           viper.GetString("repo_url"),
 		Summary:           viper.GetString("summary"),
 		Description:       viper.GetString("description"),
+		PlanOnly:          viper.GetBool("plan"),
 		JiraTicketID:      viper.GetString("jira"),
 		Logger:            logger,
 		CommandPrefix:     []string{}, // Agent binary doesn't use subcommands, unless needed.

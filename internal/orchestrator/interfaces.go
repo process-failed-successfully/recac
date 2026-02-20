@@ -18,6 +18,7 @@ type WorkItem struct {
 	Description string
 	RepoURL     string // Repo to clone
 	EnvVars     map[string]string
+	PlanOnly    bool
 }
 
 // Poller defines the interface for polling for work items.
