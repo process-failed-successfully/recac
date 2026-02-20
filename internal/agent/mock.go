@@ -33,8 +33,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Smart Mocking for Smoke Tests
-	// If the prompt looks like the Prime Python spec, return a valid JSON plan
-	if strings.Contains(prompt, "ID:[PRIMES] Prime Number Script") {
+	// 1. Planning Phase: If the prompt looks like the Prime Python spec, return a valid JSON plan
+	if strings.Contains(prompt, "ID:[PRIMES] Prime Number Script") && !strings.Contains(prompt, "Create a python script") {
 		return `[
   {
     "title": "ID:[PRIMES] Create Prime Number Script",
@@ -43,6 +43,42 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     "children": []
   }
 ]`, nil
+	}
+
+	// 2. Implementation Phase: If the prompt asks to create the prime script (based on the description above)
+	// We return a bash script that does exactly what is asked: creates the python script, runs it, and commits.
+	if strings.Contains(prompt, "Create a python script named 'primes.py'") {
+		return `I will create the 'primes.py' script to calculate prime numbers less than 10,000 and save them to 'primes.json'.
+
+` + "```bash" + `
+cat << 'EOF' > primes.py
+import json
+
+def get_primes(n):
+    primes = []
+    for i in range(2, n):
+        is_prime = True
+        for j in range(2, int(i ** 0.5) + 1):
+            if i % j == 0:
+                is_prime = False
+                break
+        if is_prime:
+            primes.append(i)
+    return primes
+
+primes = get_primes(10000)
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+# Run the script to generate the JSON
+python3 primes.py
+
+# Add and commit
+git add primes.py primes.json
+git commit -m "Add primes.py and generated primes.json"
+` + "```" + `
+`, nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
