@@ -33,7 +33,8 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Smart Mocking for Smoke Tests
-	// If the prompt looks like the Prime Python spec, return a valid JSON plan
+
+	// 1. Planning Phase: Detect the Prime Python spec and return a valid JSON plan
 	if strings.Contains(prompt, "ID:[PRIMES] Prime Number Script") {
 		return `[
   {
@@ -43,6 +44,41 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
     "children": []
   }
 ]`, nil
+	}
+
+	// 2. Execution Phase: Detect the implementation task and return code
+	// The prompt usually contains the task description we just returned
+	if strings.Contains(prompt, "Create a python script named 'primes.py'") {
+		return `I will create the primes.py script and run it.
+
+` + "```bash" + `
+cat << 'EOF' > primes.py
+import json
+
+def get_primes(n):
+    primes = []
+    is_prime = [True] * n
+    is_prime[0] = is_prime[1] = False
+    for i in range(2, int(n**0.5) + 1):
+        if is_prime[i]:
+            for j in range(i*i, n, i):
+                is_prime[j] = False
+    for i in range(2, n):
+        if is_prime[i]:
+            primes.append(i)
+    return primes
+
+primes = get_primes(10000)
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+python3 primes.py
+git add -f primes.json primes.py
+git commit -m "Add primes.py and primes.json"
+git push origin HEAD
+` + "```" + `
+`, nil
 	}
 
 	// Return a mock response that shows the agent received the prompt
