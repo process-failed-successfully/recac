@@ -2,6 +2,8 @@ package runner
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -71,5 +73,39 @@ func TestGenerateFeatureList(t *testing.T) {
 
 	if featureList.Features[0].Description != "Login Page" {
 		t.Errorf("Expected description 'Login Page', got '%s'", featureList.Features[0].Description)
+	}
+}
+
+func TestGeneratePlanOnly(t *testing.T) {
+	ctx := context.Background()
+	mockPlan := "# Implementation Plan\n\n- [ ] Step 1"
+	mockAgent := &MockPlannerAgent{Response: mockPlan}
+
+	// Create temp workspace
+	workspace := t.TempDir()
+	specPath := filepath.Join(workspace, "app_spec.txt")
+	if err := os.WriteFile(specPath, []byte("Do something"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	session := &Session{
+		Agent:     mockAgent,
+		Workspace: workspace,
+		SpecFile:  "app_spec.txt",
+	}
+
+	if err := GeneratePlanOnly(ctx, session); err != nil {
+		t.Fatalf("GeneratePlanOnly failed: %v", err)
+	}
+
+	// Verify PLAN.md
+	planPath := filepath.Join(workspace, "PLAN.md")
+	content, err := os.ReadFile(planPath)
+	if err != nil {
+		t.Fatalf("Failed to read PLAN.md: %v", err)
+	}
+
+	if string(content) != mockPlan {
+		t.Errorf("Expected plan '%s', got '%s'", mockPlan, string(content))
 	}
 }
