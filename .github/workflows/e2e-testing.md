@@ -25,7 +25,7 @@ Credentials:
 .env has them
 
 Provider settings:
---provider openrouter --model "openrouter/openai/gpt-4o"
+--provider openrouter --model "openai/gpt-4o"
 This is a free token so use large iteration counts.
 
 Github:

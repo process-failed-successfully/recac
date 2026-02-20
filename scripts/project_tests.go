@@ -26,7 +26,7 @@ func main() {
 	}
 	model := os.Getenv("RECAC_MODEL")
 	if model == "" {
-		model = "openrouter/openai/gpt-4o"
+		model = "openai/gpt-4o"
 	}
 
 	fmt.Printf("Starting Project Verification Suite...\n")

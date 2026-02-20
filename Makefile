@@ -101,17 +101,17 @@ ci-simulate: ## Run E2E test exactly like CI (but on local cluster)
 	go run e2e/runner/main.go \
 		-scenario prime-python \
 		-provider openrouter \
-		-model "openrouter/openai/gpt-4o" \
+		-model "openai/gpt-4o" \
 		-pull-policy IfNotPresent \
 		-skip-cleanup
 
 ci-simulate-v2: ## Run Refactored E2E test
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
-	./scripts/ci_simulate_refactored.sh -provider openrouter -model "openrouter/openai/gpt-4o"
+	./scripts/ci_simulate_refactored.sh -provider openrouter -model "openai/gpt-4o"
 
 # Scenario Defaults
 PROVIDER ?= openrouter
-MODEL ?= "openrouter/openai/gpt-4o"
+MODEL ?= "openai/gpt-4o"
 
 e2e-local: ## Run a specific scenario locally (SCENARIO=x PROVIDER=y MODEL=z)
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
