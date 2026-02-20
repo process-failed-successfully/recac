@@ -37,7 +37,7 @@ func Load(cfgFile string) {
 
 	// Set defaults
 	viper.SetDefault("provider", "openrouter")
-	viper.SetDefault("model", "openrouter/google/gemini-2.0-flash-001")
+	viper.SetDefault("model", "google/gemini-2.0-flash-001")
 	viper.SetDefault("max_iterations", 20)
 	viper.SetDefault("manager_frequency", 5)
 	viper.SetDefault("timeout", 300)
