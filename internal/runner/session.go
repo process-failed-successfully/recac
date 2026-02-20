@@ -80,6 +80,7 @@ type Session struct {
 	UseLocalAgent             bool         // Execute commands locally (e.g. inside K8s pod) instead of spawning Docker container
 	SpecContent               string       // Explicit specification content (e.g. from Jira)
 	FeatureContent            string       // Explicit feature list JSON content (authoritative)
+	PlanOnly                  bool         // Run in plan-only mode (generate plan but do not execute)
 	Logger                    *slog.Logger // Structured logger for this session
 	SleepFunc                 func(time.Duration) // Function for sleeping (mockable)
 
