@@ -34,3 +34,28 @@ func GenerateFeatureList(ctx context.Context, a agent.Agent, spec string) (*db.F
 
 	return &featureList, nil
 }
+
+// GeneratePlanOnly runs the agent in planning mode to produce a PLAN.md file.
+func (s *Session) GeneratePlanOnly(ctx context.Context) error {
+	spec, err := s.ReadSpec()
+	if err != nil {
+		return fmt.Errorf("failed to read spec: %w", err)
+	}
+
+	prompt, err := prompts.GetPrompt(prompts.PlanOnly, map[string]string{
+		"spec": spec,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to load plan_only prompt: %w", err)
+	}
+
+	// Use RunIteration to handle tool calls (write_file)
+	// false -> isManager (no)
+	output, err := s.RunIteration(ctx, prompt, false)
+	if err != nil {
+		return fmt.Errorf("agent failed to generate plan: %w", err)
+	}
+
+	s.Logger.Info("Plan generated", "output", output)
+	return nil
+}
