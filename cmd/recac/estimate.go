@@ -134,11 +134,12 @@ Do not wrap the JSON in markdown code blocks. Just return the raw JSON string.`,
 		return enc.Encode(result)
 	}
 
-	printEstimateReport(cmd, result)
+	PrintEstimateReport(cmd, result)
 	return nil
 }
 
-func printEstimateReport(cmd *cobra.Command, res EstimateResult) {
+// PrintEstimateReport prints the estimation result in a formatted way.
+func PrintEstimateReport(cmd *cobra.Command, res EstimateResult) {
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 3, ' ', 0)
 	fmt.Fprintln(w, "\nESTIMATION REPORT")
 	fmt.Fprintln(w, "-----------------")
