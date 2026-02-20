@@ -42,7 +42,7 @@ func submitJob(host, filePath string, wait bool) {
 	// Reset file pointer
 	file.Seek(0, 0)
 
-	resp, err := http.Post(fmt.Sprintf("%s/jobs", host), "application/json", file)
+	resp, err := authenticatedRequest(http.MethodPost, fmt.Sprintf("%s/jobs", host), file)
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
 		exitFunc(1)
@@ -88,7 +88,7 @@ func submitAdHocJob(host, repo, task, id string, wait bool) {
 		return
 	}
 
-	resp, err := http.Post(fmt.Sprintf("%s/jobs", host), "application/json", bytes.NewBuffer(payload))
+	resp, err := authenticatedRequest(http.MethodPost, fmt.Sprintf("%s/jobs", host), bytes.NewBuffer(payload))
 	if err != nil {
 		fmt.Fprintf(stdout, "Failed to connect to orchestrator at %s: %v\n", host, err)
 		exitFunc(1)
@@ -119,7 +119,7 @@ func waitForJob(host, jobID string, out io.Writer) error {
 
 	// Poll until active or completed
 	for {
-		resp, err := http.Get(fmt.Sprintf("%s/jobs/%s", host, jobID))
+		resp, err := authenticatedRequest(http.MethodGet, fmt.Sprintf("%s/jobs/%s", host, jobID), nil)
 		if err != nil {
 			// Retry on network error
 			time.Sleep(1 * time.Second)
@@ -147,7 +147,7 @@ func waitForJob(host, jobID string, out io.Writer) error {
 		// Note: "Spawning" is the status during execution in DockerSpawner.
 		if job.Status == "Spawning" || job.Status == "Running" || job.Status == "Active" {
 			// Try to stream logs
-			logsResp, err := http.Get(fmt.Sprintf("%s/jobs/%s/logs", host, jobID))
+			logsResp, err := authenticatedRequest(http.MethodGet, fmt.Sprintf("%s/jobs/%s/logs", host, jobID), nil)
 			if err == nil && logsResp.StatusCode == http.StatusOK {
 				fmt.Fprintln(out, "--- Log Stream Start ---")
 				io.Copy(out, logsResp.Body)
@@ -155,7 +155,7 @@ func waitForJob(host, jobID string, out io.Writer) error {
 				fmt.Fprintln(out, "\n--- Log Stream End ---")
 
 				// Logs finished, check final status
-				finalResp, err := http.Get(fmt.Sprintf("%s/jobs/%s", host, jobID))
+				finalResp, err := authenticatedRequest(http.MethodGet, fmt.Sprintf("%s/jobs/%s", host, jobID), nil)
 				if err == nil {
 					var finalJob orchestrator.JobInfo
 					if err := json.NewDecoder(finalResp.Body).Decode(&finalJob); err == nil {

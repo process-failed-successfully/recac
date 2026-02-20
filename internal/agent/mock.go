@@ -33,8 +33,46 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 	}
 
 	// Smart Mocking for Smoke Tests
-	// If the prompt looks like the Prime Python spec, return a valid JSON plan
-	if strings.Contains(prompt, "ID:[PRIMES] Prime Number Script") {
+	// If the prompt looks like the Prime Python spec planning phase, return a valid JSON plan
+	if strings.Contains(prompt, "ID:[PRIMES] Prime Number Script") || strings.Contains(prompt, "ID:[PRIMES] Create Prime Number Script") {
+		// If it asks for implementation (contains "implementation" or similar context), return code
+		// But usually plan prompt comes first. The implementation prompt comes after plan.
+		// The prompt for implementation usually contains "The plan is:".
+		if strings.Contains(prompt, "The plan is:") || strings.Contains(prompt, "PLAN.md") {
+			return `I will implement the prime number script now.
+
+` + "```bash" + `
+cat << 'EOF' > primes.py
+import json
+
+def get_primes(n):
+    primes = []
+    for i in range(2, n):
+        is_prime = True
+        for j in range(2, int(i**0.5) + 1):
+            if i % j == 0:
+                is_prime = False
+                break
+        if is_prime:
+            primes.append(i)
+    return primes
+
+primes = get_primes(10000)
+with open('primes.json', 'w') as f:
+    json.dump({"primes": primes}, f)
+EOF
+
+python3 primes.py
+git add primes.py primes.json
+git commit -m "Add prime number script"
+git push origin HEAD
+` + "```" + `
+
+I have created the script, generated the json, and pushed the changes.
+`, nil
+		}
+
+		// Otherwise return the plan
 		return `[
   {
     "title": "ID:[PRIMES] Create Prime Number Script",

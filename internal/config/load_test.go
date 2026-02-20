@@ -28,7 +28,7 @@ func TestLoad(t *testing.T) {
 		// However, Load() has logic: if os.Getenv("RECAC_PROVIDER") == "" ...
 
 		// Let's just check defaults are set
-		assert.Equal(t, "gemini", viper.GetString("provider"))
+		assert.Equal(t, "openrouter", viper.GetString("provider"))
 		assert.Equal(t, 20, viper.GetInt("max_iterations"))
 	})
 
