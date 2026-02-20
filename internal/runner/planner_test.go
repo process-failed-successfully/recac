@@ -2,6 +2,8 @@ package runner
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -19,6 +21,33 @@ func (m *MockPlannerAgent) SendStream(ctx context.Context, prompt string, onChun
 		onChunk(m.Response)
 	}
 	return m.Response, m.Err
+}
+
+func TestGeneratePlanOnly(t *testing.T) {
+	ctx := context.Background()
+
+	// Setup Workspace
+	workspace := t.TempDir()
+
+	// Test Case: Successful generation
+	mockResponse := "# Implementation Plan\n\n1. Step One\n2. Step Two"
+	mockAgent := &MockPlannerAgent{Response: mockResponse}
+
+	err := GeneratePlanOnly(ctx, mockAgent, "Task Spec", workspace)
+	if err != nil {
+		t.Fatalf("GeneratePlanOnly failed: %v", err)
+	}
+
+	// Verify PLAN.md exists and has content
+	planPath := filepath.Join(workspace, "PLAN.md")
+	content, err := os.ReadFile(planPath)
+	if err != nil {
+		t.Fatalf("Failed to read PLAN.md: %v", err)
+	}
+
+	if string(content) != mockResponse {
+		t.Errorf("Expected PLAN.md content %q, got %q", mockResponse, string(content))
+	}
 }
 
 func TestGenerateFeatureList(t *testing.T) {

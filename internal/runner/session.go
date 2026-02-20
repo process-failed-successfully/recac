@@ -71,6 +71,7 @@ type Session struct {
 	Notifier                  notify.Notifier
 	BaseBranch                string // Base Branch for merge guardrails
 	SkipQA                    bool   // Skip QA phase and auto-complete
+	PlanOnly                  bool   // If true, generate plan only and exit
 	AutoMerge                 bool   // Automatically merge PRs
 	JiraClient                JiraClient
 	JiraTicketID              string

@@ -49,6 +49,17 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		return fmt.Errorf("CRITICAL ERROR: app_spec.txt not found in workspace (%s). This file is required as the source of truth for the project.", s.Workspace)
 	}
 
+	// PLAN ONLY Mode
+	if s.PlanOnly {
+		s.Logger.Info("entering plan-only mode")
+		if err := GeneratePlanOnly(ctx, s.Agent, s.SpecContent, s.Workspace); err != nil {
+			s.Logger.Error("plan generation failed", "error", err)
+			return err
+		}
+		s.Logger.Info("plan generation complete")
+		return nil
+	}
+
 	// Load agent state if it exists (for session restoration)
 	if err := s.LoadAgentState(); err != nil {
 		fmt.Printf("Warning: Failed to load agent state: %v\n", err)

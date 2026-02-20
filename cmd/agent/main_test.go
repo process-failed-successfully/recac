@@ -85,6 +85,19 @@ func TestRunApp(t *testing.T) {
 			},
 			expectedError: "normal workflow error",
 		},
+		{
+			name: "Plan Only Mode",
+			args: []string{"--plan"},
+			setupMocks: func() {
+				workflow.RunWorkflow = func(ctx context.Context, cfg workflow.SessionConfig) error {
+					if !cfg.PlanOnly {
+						return errors.New("expected PlanOnly to be true")
+					}
+					return nil
+				}
+			},
+			expectedError: "",
+		},
 	}
 
 	for _, tc := range testCases {
