@@ -16,6 +16,11 @@ import (
 
 // RunLoop executes the autonomous agent loop.
 func (s *Session) RunLoop(ctx context.Context) error {
+	// Plan Only Mode
+	if s.PlanOnly {
+		return GeneratePlanOnly(ctx, s)
+	}
+
 	// Guard: Ensure Notifier is initialized (mostly for tests using manual struct initialization)
 	if s.Notifier == nil {
 		s.Notifier = notify.NewManager(func(string, ...interface{}) {})
