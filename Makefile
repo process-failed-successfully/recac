@@ -100,18 +100,18 @@ ci-simulate: ## Run E2E test exactly like CI (but on local cluster)
 	if [ -z "$$OPENROUTER_API_KEY" ]; then echo "Error: OPENROUTER_API_KEY is not set"; exit 1; fi; \
 	go run e2e/runner/main.go \
 		-scenario prime-python \
-		-provider openrouter \
-		-model "openrouter/aurora-alpha" \
+		-provider google \
+		-model "gemini-2.0-flash-lite-preview-02-05" \
 		-pull-policy IfNotPresent \
 		-skip-cleanup
 
 ci-simulate-v2: ## Run Refactored E2E test
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
-	./scripts/ci_simulate_refactored.sh -provider openrouter -model "openrouter/aurora-alpha"
+	./scripts/ci_simulate_refactored.sh -provider google -model "gemini-2.0-flash-lite-preview-02-05"
 
 # Scenario Defaults
-PROVIDER ?= openrouter
-MODEL ?= "openrouter/aurora-alpha"
+PROVIDER ?= google
+MODEL ?= "gemini-2.0-flash-lite-preview-02-05"
 
 e2e-local: ## Run a specific scenario locally (SCENARIO=x PROVIDER=y MODEL=z)
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
@@ -169,8 +169,8 @@ monitor-logs: ## View monitoring stack logs
 deploy-helm: ## Deploy with Helm using local .env and variables (PROVIDER=x MODEL=y)
 	@echo "Deploying to k8s context: $$(kubectl config current-context)"
 	@# Defaults
-	$(eval PROVIDER ?= openrouter)
-	$(eval MODEL ?= "")
+	$(eval PROVIDER ?= google)
+	$(eval MODEL ?= "gemini-2.0-flash-lite-preview-02-05")
 	$(eval DEPLOY_REPO ?= ghcr.io/process-failed-successfully/recac)
 	$(eval DEPLOY_TAG ?= latest)
 	@# Source .env if exists, then run helm (using '; true' ensures we proceed if .env missing)
@@ -220,4 +220,3 @@ dev-cycle: DEPLOY_REPO = ttl.sh/recac-dev-lukef
 dev-cycle: DEPLOY_TAG = 2h
 dev-cycle: push-prod deploy-helm ## Build, Push, Deploy, and Restart
 	kubectl rollout restart deployment recac
-
