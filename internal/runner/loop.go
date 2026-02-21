@@ -63,6 +63,32 @@ func (s *Session) RunLoop(ctx context.Context) error {
 		}
 	}
 
+	// Plan Only Mode
+	if s.PlanOnly {
+		s.Logger.Info("Running in Plan-Only mode")
+		fmt.Println("Generating implementation plan (PLAN.md)...")
+
+		// Read Spec (already checked for existence)
+		specContent, err := s.ReadSpec()
+		if err != nil {
+			return fmt.Errorf("failed to read spec for planning: %w", err)
+		}
+
+		plan, err := GeneratePlanOnly(ctx, s.Agent, specContent)
+		if err != nil {
+			return fmt.Errorf("failed to generate plan: %w", err)
+		}
+
+		planPath := filepath.Join(s.Workspace, "PLAN.md")
+		if err := os.WriteFile(planPath, []byte(plan), 0644); err != nil {
+			return fmt.Errorf("failed to write PLAN.md: %w", err)
+		}
+
+		fmt.Printf("Plan generated successfully: %s\n", planPath)
+		s.Notifier.Notify(ctx, notify.EventSuccess, fmt.Sprintf("Project %s Plan Generated", s.Project), s.GetSlackThreadTS())
+		return nil
+	}
+
 	// Startup Check: If feature list exists and all passed, mark COMPLETED
 	features := s.loadFeatures()
 	if len(features) > 0 {

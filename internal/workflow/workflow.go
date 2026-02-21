@@ -32,6 +32,7 @@ type SessionConfig struct {
 	MaxAgents         int
 	TaskMaxIterations int
 	Detached          bool
+	PlanOnly          bool
 	SessionName       string
 	JiraEpicKey       string
 	AllowDirty        bool
@@ -390,6 +391,7 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 		session.TaskMaxIterations = cfg.TaskMaxIterations
 		session.ManagerFrequency = cfg.ManagerFrequency
 		session.StreamOutput = cfg.Stream
+		session.PlanOnly = cfg.PlanOnly
 		session.AutoMerge = cfg.AutoMerge
 		session.SkipQA = cfg.SkipQA
 		session.ManagerFirst = cfg.ManagerFirst
@@ -466,6 +468,7 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 	session.ManagerFrequency = cfg.ManagerFrequency
 	session.ManagerFirst = cfg.ManagerFirst
 	session.StreamOutput = cfg.Stream
+	session.PlanOnly = cfg.PlanOnly
 	session.AutoMerge = cfg.AutoMerge
 	session.SkipQA = cfg.SkipQA
 	session.JiraClient = cfg.JiraClient

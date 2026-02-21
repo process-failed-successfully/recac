@@ -149,6 +149,7 @@ func TestRunLoop_Blocker(t *testing.T) {
 
 	s := &Session{
 		Workspace:     tmpDir,
+		SpecFile:      "app_spec.txt",
 		DBStore:       mockDB,
 		Agent:         mockAgent,
 		Notifier:      notify.NewManager(func(string, ...interface{}) {}),
@@ -548,4 +549,40 @@ func TestSession_RunInitScript_Local(t *testing.T) {
 		_, err := os.Stat(markerFile)
 		return err == nil
 	}, 2*time.Second, 100*time.Millisecond, "init.sh should have run and created marker file")
+}
+
+func TestRunLoop_PlanOnly(t *testing.T) {
+	// Setup
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec content"), 0644)
+
+	mockDB := &MockRunLoopDBStore{}
+	mockAgent := new(MockTestifyAgent)
+	mockAgent.On("Send", mock.Anything, mock.Anything).Return("# Implementation Plan\n\n1. Step 1", nil)
+
+	s := &Session{
+		Workspace:     tmpDir,
+		SpecFile:      "app_spec.txt",
+		DBStore:       mockDB,
+		Agent:         mockAgent,
+		Notifier:      notify.NewManager(func(string, ...interface{}) {}),
+		Logger:        telemetry.NewLogger(true, "", false),
+		MaxIterations: 5,
+		PlanOnly:      true, // Enable Plan Only Mode
+	}
+
+	// Execution
+	err := s.RunLoop(context.Background())
+
+	// Verification
+	assert.NoError(t, err) // Should return nil
+
+	// Verify PLAN.md exists
+	planPath := filepath.Join(tmpDir, "PLAN.md")
+	content, err := os.ReadFile(planPath)
+	assert.NoError(t, err)
+	assert.Equal(t, "# Implementation Plan\n\n1. Step 1", string(content))
+
+	// Verify Agent was called
+	mockAgent.AssertNumberOfCalls(t, "Send", 1)
 }
