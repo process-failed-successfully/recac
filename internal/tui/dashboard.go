@@ -13,6 +13,7 @@ import (
 	"recac/internal/orchestrator"
 
 	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -48,6 +49,9 @@ type DashboardModel struct {
 	host        string
 	table       table.Model
 	viewport    viewport.Model
+	filterInput textinput.Model
+	filterStatus string // "All", "Active", "Completed", "Failed"
+	sortBy      string // "Newest", "Oldest", "Duration"
 	status      orchestrator.Status
 	jobs        []orchestrator.JobInfo
 	details     orchestrator.JobInfo
@@ -220,13 +224,10 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *DashboardModel) updateTableContent() {
+	filteredJobs := filterAndSortJobs(m.jobs, m.filterInput.Value(), m.filterStatus, m.sortBy)
 	rows := []table.Row{}
-	// Sort jobs by start time (newest first)
-	sort.Slice(m.jobs, func(i, j int) bool {
-		return m.jobs[i].StartTime.After(m.jobs[j].StartTime)
-	})
 
-	for _, job := range m.jobs {
+	for _, job := range filteredJobs {
 		duration := time.Since(job.StartTime).Round(time.Second).String()
 		if !job.EndTime.IsZero() {
 			duration = job.EndTime.Sub(job.StartTime).Round(time.Second).String()
@@ -243,15 +244,60 @@ func (m *DashboardModel) updateTableContent() {
 
 func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 	var cmd tea.Cmd
+	var cmds []tea.Cmd
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		// If filter is focused, handle input there
+		if m.filterInput.Focused() {
+			switch msg.String() {
+			case "enter", "esc":
+				m.filterInput.Blur()
+				m.updateTableContent() // Update content after filter change
+				return m, nil
+			default:
+				m.filterInput, cmd = m.filterInput.Update(msg)
+				m.updateTableContent() // Update content as we type
+				return m, cmd
+			}
+		}
+
 		switch msg.String() {
-		case "q":
+		case "q", "ctrl+c":
 			m.quitting = true
 			if m.logStream != nil {
 				m.logStream.Close()
 			}
 			return m, tea.Quit
+		case "/":
+			m.filterInput.Focus()
+			return m, textinput.Blink
+		case "f":
+			// Cycle filter status
+			switch m.filterStatus {
+			case "All":
+				m.filterStatus = "Active"
+			case "Active":
+				m.filterStatus = "Completed"
+			case "Completed":
+				m.filterStatus = "Failed"
+			case "Failed":
+				m.filterStatus = "All"
+			}
+			m.updateTableContent()
+			return m, nil
+		case "s":
+			// Cycle sort
+			switch m.sortBy {
+			case "Newest":
+				m.sortBy = "Oldest"
+			case "Oldest":
+				m.sortBy = "Duration"
+			case "Duration":
+				m.sortBy = "Newest"
+			}
+			m.updateTableContent()
+			return m, nil
 		case "enter":
 			selected := m.table.SelectedRow()
 			if len(selected) > 0 {
@@ -282,7 +328,8 @@ func (m DashboardModel) updateMain(msg tea.Msg) (DashboardModel, tea.Cmd) {
 		}
 	}
 	m.table, cmd = m.table.Update(msg)
-	return m, cmd
+	cmds = append(cmds, cmd)
+	return m, tea.Batch(cmds...)
 }
 
 func (m DashboardModel) updateViewport(msg tea.Msg) (DashboardModel, tea.Cmd) {
@@ -324,8 +371,20 @@ func (m DashboardModel) View() string {
 
 	switch m.viewState {
 	case viewMain:
-		contentView = baseStyle.Render(m.table.View())
-		helpView = statusStyle.Render("h: history | enter: details | l: logs | c: cancel | r: retry | q: quit")
+		// Render Filter Bar
+		filterBar := lipgloss.JoinHorizontal(lipgloss.Left,
+			m.filterInput.View(),
+			lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Padding(0, 1).Render("|"),
+			statusStyle.Render(fmt.Sprintf("Status: %s (f)", m.filterStatus)),
+			lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Padding(0, 1).Render("|"),
+			statusStyle.Render(fmt.Sprintf("Sort: %s (s)", m.sortBy)),
+		)
+
+		contentView = lipgloss.JoinVertical(lipgloss.Left,
+			baseStyle.Render(m.table.View()),
+			filterBar,
+		)
+		helpView = statusStyle.Render("/: filter | h: history | enter: details | l: logs | c: cancel | r: retry | q: quit")
 	case viewDetails:
 		contentView = baseStyle.Render(m.viewport.View())
 		helpView = statusStyle.Render("esc/q: back")
@@ -497,12 +556,76 @@ func NewDashboardModel(host string) DashboardModel {
 	vp.Style = lipgloss.NewStyle().
 		Padding(1, 2)
 
+	ti := textinput.New()
+	ti.Placeholder = "Filter by ID/Summary..."
+	ti.CharLimit = 50
+	ti.Width = 30
+
 	return DashboardModel{
-		host:      host,
-		table:     t,
-		viewport:  vp,
-		viewState: viewMain,
+		host:         host,
+		table:        t,
+		viewport:     vp,
+		filterInput:  ti,
+		filterStatus: "All",
+		sortBy:       "Newest",
+		viewState:    viewMain,
 	}
+}
+
+func filterAndSortJobs(jobs []orchestrator.JobInfo, filterText string, filterStatus string, sortBy string) []orchestrator.JobInfo {
+	if filterStatus == "" {
+		filterStatus = "All"
+	}
+	if sortBy == "" {
+		sortBy = "Newest"
+	}
+
+	filtered := []orchestrator.JobInfo{}
+	filterText = strings.ToLower(filterText)
+
+	for _, job := range jobs {
+		// Text Filter
+		if filterText != "" {
+			if !strings.Contains(strings.ToLower(job.ID), filterText) &&
+				!strings.Contains(strings.ToLower(job.Summary), filterText) {
+				continue
+			}
+		}
+
+		// Status Filter
+		if filterStatus != "All" {
+			if filterStatus == "Active" {
+				if job.Status == "Completed" || job.Status == "Failed" {
+					continue
+				}
+			} else if job.Status != filterStatus {
+				continue
+			}
+		}
+		filtered = append(filtered, job)
+	}
+
+	// Sort
+	sort.Slice(filtered, func(i, j int) bool {
+		switch sortBy {
+		case "Oldest":
+			return filtered[i].StartTime.Before(filtered[j].StartTime)
+		case "Duration":
+			d1 := time.Since(filtered[i].StartTime)
+			if !filtered[i].EndTime.IsZero() {
+				d1 = filtered[i].EndTime.Sub(filtered[i].StartTime)
+			}
+			d2 := time.Since(filtered[j].StartTime)
+			if !filtered[j].EndTime.IsZero() {
+				d2 = filtered[j].EndTime.Sub(filtered[j].StartTime)
+			}
+			return d1 > d2
+		default: // Newest
+			return filtered[i].StartTime.After(filtered[j].StartTime)
+		}
+	})
+
+	return filtered
 }
 
 func StartDashboard(host string) error {
