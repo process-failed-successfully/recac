@@ -549,3 +549,37 @@ func TestSession_RunInitScript_Local(t *testing.T) {
 		return err == nil
 	}, 2*time.Second, 100*time.Millisecond, "init.sh should have run and created marker file")
 }
+
+func TestRunLoop_PlanOnly(t *testing.T) {
+	// Setup
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "app_spec.txt"), []byte("Spec"), 0644)
+
+	// Mock Agent
+	mockAgent := new(MockTestifyAgent)
+	mockAgent.On("Send", mock.Anything, mock.Anything).Return("# PLAN\n1. Step one", nil)
+
+	s := &Session{
+		Workspace: tmpDir,
+		Agent:     mockAgent,
+		PlanOnly:  true,
+		SpecFile:  "app_spec.txt",
+		Notifier:  notify.NewManager(func(string, ...interface{}) {}),
+		Logger:    telemetry.NewLogger(true, "", false),
+	}
+
+	// Execution
+	err := s.RunLoop(context.Background())
+
+	// Verification
+	assert.NoError(t, err)
+
+	// Verify PLAN.md exists
+	planPath := filepath.Join(tmpDir, "PLAN.md")
+	content, err := os.ReadFile(planPath)
+	assert.NoError(t, err)
+	assert.Contains(t, string(content), "# PLAN")
+
+	// Verify Agent was called with PlanOnly prompt (implied by success)
+	mockAgent.AssertExpectations(t)
+}
