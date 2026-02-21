@@ -98,6 +98,20 @@ func TestDeletePodError(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestGetPodLogs(t *testing.T) {
+	pod := corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod1", Namespace: "default"}}
+	fakeClientset := fake.NewSimpleClientset(&pod)
+
+	client := &Client{Clientset: fakeClientset, Namespace: "default"}
+
+	opts := &corev1.PodLogOptions{}
+	// Note: We expect an error here because the fake client doesn't support streaming logs fully,
+	// but this test verifies the method can be called correctly.
+	_, err := client.GetPodLogs(context.Background(), "pod1", opts)
+	// The fake client returns a request object without error, even if streaming might fail later.
+	assert.NoError(t, err)
+}
+
 func TestNewClient(t *testing.T) {
 	// No kubeconfig file
 	t.Run("No Kubeconfig", func(t *testing.T) {
