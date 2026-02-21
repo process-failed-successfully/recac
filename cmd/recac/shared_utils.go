@@ -11,6 +11,9 @@ import (
 // execCommand is a package-level variable to allow mocking in tests.
 var execCommand = exec.Command
 
+// execLookPath is a package-level variable to allow mocking in tests.
+var execLookPath = exec.LookPath
+
 // writeFileFunc is a package-level variable to allow mocking in tests.
 var writeFileFunc = os.WriteFile
 

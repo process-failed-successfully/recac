@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -18,47 +18,47 @@ var checkCmd = &cobra.Command{
 	Long: `Perform pre-flight checks on the environment and dependencies.
 Use --fix to automatically attempt repairs for minor issues.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Running pre-flight checks...")
+		fmt.Fprintln(cmd.OutOrStdout(), "Running pre-flight checks...")
 		allPassed := true
 
 		// 1. Check Config
 		if err := checkConfig(); err != nil {
 			allPassed = false
-			fmt.Printf("❌ Config: %v\n", err)
+			fmt.Fprintf(cmd.ErrOrStderr(), "❌ Config: %v\n", err)
 			if fixFlag {
 				if err := fixConfig(); err != nil {
-					fmt.Printf("  Failed to fix config: %v\n", err)
+					fmt.Fprintf(cmd.ErrOrStderr(), "  Failed to fix config: %v\n", err)
 				} else {
-					fmt.Printf("  ✅ Config fixed (created default)\n")
+					fmt.Fprintf(cmd.OutOrStdout(), "  ✅ Config fixed (created default)\n")
 					allPassed = true // reset? strictly speaking no, but for flow
 				}
 			}
 		} else {
-			fmt.Println("✅ Config found")
+			fmt.Fprintln(cmd.OutOrStdout(), "✅ Config found")
 		}
 
 		// 2. Check Go
 		if err := checkGo(); err != nil {
 			allPassed = false
-			fmt.Printf("❌ Go: %v\n", err)
+			fmt.Fprintf(cmd.ErrOrStderr(), "❌ Go: %v\n", err)
 		} else {
-			fmt.Println("✅ Go installed")
+			fmt.Fprintln(cmd.OutOrStdout(), "✅ Go installed")
 		}
 
 		// 3. Check Docker
 		if err := checkDocker(); err != nil {
 			allPassed = false
-			fmt.Printf("❌ Docker: %v\n", err)
+			fmt.Fprintf(cmd.ErrOrStderr(), "❌ Docker: %v\n", err)
 		} else {
-			fmt.Println("✅ Docker running")
+			fmt.Fprintln(cmd.OutOrStdout(), "✅ Docker running")
 		}
 
 		if allPassed {
-			fmt.Println("\nAll checks passed! 🚀")
+			fmt.Fprintln(cmd.OutOrStdout(), "\nAll checks passed! 🚀")
 		} else {
-			fmt.Println("\nSome checks failed.")
+			fmt.Fprintln(cmd.ErrOrStderr(), "\nSome checks failed.")
 			if !fixFlag {
-				fmt.Println("Run with --fix to attempt automatic repairs.")
+				fmt.Fprintln(cmd.ErrOrStderr(), "Run with --fix to attempt automatic repairs.")
 			}
 			exit(1)
 		}
@@ -85,11 +85,22 @@ func fixConfig() error {
 	// Simple fix: create default config if missing
 	viper.SetDefault("provider", "gemini")
 	viper.SetDefault("model", "gemini-pro")
-	return viper.SafeWriteConfig()
+
+	if viper.ConfigFileUsed() != "" {
+		return viper.SafeWriteConfig()
+	}
+
+	// Fallback to default location
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+	target := filepath.Join(home, ".recac.yaml")
+	return viper.SafeWriteConfigAs(target)
 }
 
 func checkGo() error {
-	_, err := exec.LookPath("go")
+	_, err := execLookPath("go")
 	if err != nil {
 		return fmt.Errorf("go binary not found in PATH")
 	}
@@ -97,6 +108,6 @@ func checkGo() error {
 }
 
 func checkDocker() error {
-	cmd := exec.Command("docker", "info")
+	cmd := execCommand("docker", "info")
 	return cmd.Run()
 }
