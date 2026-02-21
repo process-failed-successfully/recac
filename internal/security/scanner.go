@@ -3,7 +3,7 @@ package security
 import (
 	"fmt"
 	"regexp"
-	"sort"
+	"strings"
 )
 
 // Scanner defines the interface for security scanning
@@ -55,56 +55,40 @@ func NewRegexScanner() *RegexScanner {
 
 // Scan checks the content for security patterns
 func (s *RegexScanner) Scan(content string) ([]Finding, error) {
-	// 1. Find all matches first to avoid O(N) scan for newlines if not needed
-	type patternMatch struct {
-		name    string
-		matches [][]int
-	}
-	var allMatches []patternMatch
-	totalMatches := 0
+	var findings []Finding
+	lines := strings.Split(content, "\n")
 
 	for name, pattern := range s.patterns {
 		matches := pattern.FindAllStringIndex(content, -1)
-		if len(matches) > 0 {
-			allMatches = append(allMatches, patternMatch{name: name, matches: matches})
-			totalMatches += len(matches)
-		}
-	}
-
-	if totalMatches == 0 {
-		return nil, nil
-	}
-
-	// 2. Pre-calculate newline indices for O(log L) line number lookup
-	// This avoids rescanning the string for every match which was O(N*M)
-	// Only done if matches are found.
-	var newlines []int
-	for i := 0; i < len(content); i++ {
-		if content[i] == '\n' {
-			newlines = append(newlines, i)
-		}
-	}
-
-	var findings []Finding
-	for _, pm := range allMatches {
-		for _, match := range pm.matches {
+		for _, match := range matches {
+			// Find line number
 			start := match[0]
-			// Binary search to find how many newlines are before the start index
-			// sort.SearchInts returns the smallest index i such that newlines[i] >= start
-			// If newlines[i] >= start, it means the newline is at or after the start.
-			// All newlines before index i are strictly less than start, so they contribute to line count.
-			// Line number is count of previous newlines + 1.
-			lineNumber := sort.SearchInts(newlines, start) + 1
+			lineNumber := 1
+			for i := 0; i < start; i++ {
+				if content[i] == '\n' {
+					lineNumber++
+				}
+			}
 
 			matchedText := content[match[0]:match[1]]
 
 			findings = append(findings, Finding{
-				Type:        pm.name,
-				Description: fmt.Sprintf("Found potential %s", pm.name),
+				Type:        name,
+				Description: fmt.Sprintf("Found potential %s", name),
 				Match:       matchedText,
 				Line:        lineNumber,
 			})
 		}
+	}
+
+	// Scan line by line for context-aware checks (optional optimization)
+	for i, line := range lines {
+		// Example: Check for hardcoded passwords in typical config patterns
+		if strings.Contains(strings.ToLower(line), "password") && strings.Contains(line, "=") {
+			// Very basic heuristic, improved by ensuring it's not a variable definition in code but a value assignment
+			// For now, we'll be conservative to avoid noise, relying mostly on strict regexes above.
+		}
+		_ = i
 	}
 
 	return findings, nil
