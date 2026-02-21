@@ -101,17 +101,17 @@ ci-simulate: ## Run E2E test exactly like CI (but on local cluster)
 	go run e2e/runner/main.go \
 		-scenario prime-python \
 		-provider google \
-		-model "google/gemini-2.0-flash-lite-preview-02-05:free" \
+		-model "gemini-2.0-flash-lite-preview-02-05" \
 		-pull-policy IfNotPresent \
 		-skip-cleanup
 
 ci-simulate-v2: ## Run Refactored E2E test
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
-	./scripts/ci_simulate_refactored.sh -provider google -model "google/gemini-2.0-flash-lite-preview-02-05:free"
+	./scripts/ci_simulate_refactored.sh -provider google -model "gemini-2.0-flash-lite-preview-02-05"
 
 # Scenario Defaults
 PROVIDER ?= google
-MODEL ?= "google/gemini-2.0-flash-lite-preview-02-05:free"
+MODEL ?= "gemini-2.0-flash-lite-preview-02-05"
 
 e2e-local: ## Run a specific scenario locally (SCENARIO=x PROVIDER=y MODEL=z)
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
@@ -170,7 +170,7 @@ deploy-helm: ## Deploy with Helm using local .env and variables (PROVIDER=x MODE
 	@echo "Deploying to k8s context: $$(kubectl config current-context)"
 	@# Defaults
 	$(eval PROVIDER ?= google)
-	$(eval MODEL ?= "google/gemini-2.0-flash-lite-preview-02-05:free")
+	$(eval MODEL ?= "gemini-2.0-flash-lite-preview-02-05")
 	$(eval DEPLOY_REPO ?= ghcr.io/process-failed-successfully/recac)
 	$(eval DEPLOY_TAG ?= latest)
 	@# Source .env if exists, then run helm (using '; true' ensures we proceed if .env missing)
