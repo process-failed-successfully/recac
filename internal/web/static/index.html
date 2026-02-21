@@ -133,6 +133,8 @@
             } catch (e) {
                 console.error("Error loading data:", e);
                 showError("Error loading data. Is the server running?");
+                const tbody = document.querySelector('#features-table tbody');
+                if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #721c24;">Error loading data</td></tr>';
             } finally {
                 setLoading(false);
             }
