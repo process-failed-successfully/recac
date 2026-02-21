@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -88,4 +89,31 @@ func TestCalculateStats(t *testing.T) {
 	require.Equal(t, 2, stats.StatusCounts["completed"], "Should have 2 completed sessions")
 	require.Equal(t, 1, stats.StatusCounts["running"], "Should have 1 running session")
 	require.Equal(t, 1, stats.StatusCounts["failed"], "Should have 1 failed session")
+}
+
+func TestDisplayStats(t *testing.T) {
+	stats := &AggregateStats{
+		TotalSessions:       3,
+		TotalTokens:         1000,
+		TotalPromptTokens:   500,
+		TotalResponseTokens: 500,
+		TotalCost:           0.1234,
+		StatusCounts: map[string]int{
+			"completed": 2,
+			"failed":    1,
+		},
+	}
+
+	var buf bytes.Buffer
+	displayStats(&buf, stats)
+
+	output := buf.String()
+	require.Contains(t, output, "AGGREGATE SESSION STATISTICS")
+	require.Contains(t, output, "Total Sessions:")
+	require.Contains(t, output, "3")
+	require.Contains(t, output, "Total Tokens:")
+	require.Contains(t, output, "1000")
+	require.Contains(t, output, "$0.1234")
+	require.Contains(t, output, "completed:")
+	require.Contains(t, output, "failed:")
 }
