@@ -70,6 +70,7 @@ type Session struct {
 	TaskMaxIterations         int    // Max iterations for sub-tasks (if applicable)
 	Notifier                  notify.Notifier
 	BaseBranch                string // Base Branch for merge guardrails
+	PlanOnly                  bool   // Generate Plan Only (PLAN.md)
 	SkipQA                    bool   // Skip QA phase and auto-complete
 	AutoMerge                 bool   // Automatically merge PRs
 	JiraClient                JiraClient

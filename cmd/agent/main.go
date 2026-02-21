@@ -31,6 +31,7 @@ func initFlags(cfgFile *string) {
 	pflag.String("jira", "", "Jira Ticket ID to start session from (e.g. PROJ-123)")
 	pflag.Bool("manager-first", false, "Run the Manager Agent before the first coding session")
 	pflag.Bool("stream", false, "Stream agent output to the console")
+	pflag.Bool("plan", false, "Run in Plan-Only mode (generate PLAN.md and exit)")
 	pflag.Bool("allow-dirty", false, "Allow running with uncommitted git changes")
 
 	pflag.Bool("auto-merge", false, "Automatically merge PRs if checks pass")
@@ -62,6 +63,7 @@ func runApp(ctx context.Context) error {
 	viper.BindPFlag("jira", pflag.Lookup("jira"))
 	viper.BindPFlag("manager_first", pflag.Lookup("manager-first"))
 	viper.BindPFlag("stream", pflag.Lookup("stream"))
+	viper.BindPFlag("plan", pflag.Lookup("plan"))
 	viper.BindPFlag("allow_dirty", pflag.Lookup("allow-dirty"))
 	viper.BindPFlag("auto_merge", pflag.Lookup("auto-merge"))
 	viper.BindPFlag("skip_qa", pflag.Lookup("skip-qa"))
@@ -106,6 +108,7 @@ func runApp(ctx context.Context) error {
 		SessionName:       viper.GetString("name"),
 		AllowDirty:        viper.GetBool("allow_dirty"),
 		Stream:            viper.GetBool("stream"),
+		PlanOnly:          viper.GetBool("plan"),
 		AutoMerge:         viper.GetBool("auto_merge"),
 		SkipQA:            viper.GetBool("skip_qa"),
 		ManagerFirst:      viper.GetBool("manager_first"),
