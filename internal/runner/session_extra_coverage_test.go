@@ -14,22 +14,28 @@ type MinimalMockDB struct {
 	Spec string
 }
 
-func (m *MinimalMockDB) Close() error { return nil }
+func (m *MinimalMockDB) Close() error                                             { return nil }
 func (m *MinimalMockDB) SaveObservation(projectID, agentID, content string) error { return nil }
-func (m *MinimalMockDB) QueryHistory(projectID string, limit int) ([]db.Observation, error) { return nil, nil }
-func (m *MinimalMockDB) SetSignal(projectID, key, value string) error { return nil }
-func (m *MinimalMockDB) GetSignal(projectID, key string) (string, error) { return "", nil }
-func (m *MinimalMockDB) DeleteSignal(projectID, key string) error { return nil }
+func (m *MinimalMockDB) QueryHistory(projectID string, limit int) ([]db.Observation, error) {
+	return nil, nil
+}
+func (m *MinimalMockDB) SetSignal(projectID, key, value string) error         { return nil }
+func (m *MinimalMockDB) GetSignal(projectID, key string) (string, error)      { return "", nil }
+func (m *MinimalMockDB) DeleteSignal(projectID, key string) error             { return nil }
 func (m *MinimalMockDB) SaveFeatures(projectID string, features string) error { return nil }
-func (m *MinimalMockDB) GetFeatures(projectID string) (string, error) { return "", nil }
-func (m *MinimalMockDB) SaveSpec(projectID string, spec string) error { return nil }
-func (m *MinimalMockDB) GetSpec(projectID string) (string, error) { return m.Spec, nil }
-func (m *MinimalMockDB) UpdateFeatureStatus(projectID, id string, status string, passes bool) error { return nil }
-func (m *MinimalMockDB) AcquireLock(projectID, path, agentID string, timeout time.Duration) (bool, error) { return true, nil }
-func (m *MinimalMockDB) ReleaseLock(projectID, path, agentID string) error { return nil }
-func (m *MinimalMockDB) ReleaseAllLocks(projectID, agentID string) error { return nil }
+func (m *MinimalMockDB) GetFeatures(projectID string) (string, error)         { return "", nil }
+func (m *MinimalMockDB) SaveSpec(projectID string, spec string) error         { return nil }
+func (m *MinimalMockDB) GetSpec(projectID string) (string, error)             { return m.Spec, nil }
+func (m *MinimalMockDB) UpdateFeatureStatus(projectID, id string, status string, passes bool) error {
+	return nil
+}
+func (m *MinimalMockDB) AcquireLock(projectID, path, agentID string, timeout time.Duration) (bool, error) {
+	return true, nil
+}
+func (m *MinimalMockDB) ReleaseLock(projectID, path, agentID string) error  { return nil }
+func (m *MinimalMockDB) ReleaseAllLocks(projectID, agentID string) error    { return nil }
 func (m *MinimalMockDB) GetActiveLocks(projectID string) ([]db.Lock, error) { return nil, nil }
-func (m *MinimalMockDB) Cleanup() error { return nil }
+func (m *MinimalMockDB) Cleanup() error                                     { return nil }
 
 // TestSession_ReadSpec_Fallbacks covers scenarios where file is missing but content exists in memory or DB.
 func TestSession_ReadSpec_Fallbacks(t *testing.T) {

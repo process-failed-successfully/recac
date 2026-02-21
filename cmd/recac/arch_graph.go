@@ -13,7 +13,7 @@ import (
 var archGraphCmd = &cobra.Command{
 	Use:   "graph [path]",
 	Short: "Visualize the architectural layers and dependencies",
-	Long:  `Generates a Mermaid graph showing the relationships between defined architectural layers.
+	Long: `Generates a Mermaid graph showing the relationships between defined architectural layers.
 Edges are colored green for allowed dependencies and red for violations.`,
 	RunE: runArchGraph,
 }

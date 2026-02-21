@@ -1,4 +1,4 @@
-package gamify
+package main
 
 import (
 	"fmt"
@@ -16,16 +16,16 @@ type GitClient interface {
 
 // Player represents a contributor.
 type Player struct {
-	Name        string
-	Commits     int
-	LinesAdded  int
-	LinesDel    int
-	BugFixes    int
-	DocEdits    int
-	TestEdits   int
-	XP          int
-	Badges      []string
-	LastCommit  time.Time
+	Name       string
+	Commits    int
+	LinesAdded int
+	LinesDel   int
+	BugFixes   int
+	DocEdits   int
+	TestEdits  int
+	XP         int
+	Badges     []string
+	LastCommit time.Time
 }
 
 // Leaderboard holds all players.

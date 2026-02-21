@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"recac/internal/gamify"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -44,7 +43,7 @@ func runGamify(cmd *cobra.Command, args []string) error {
 
 	// 2. Analyze
 	// Go interface satisfaction is implicit. If client implements Log, it works.
-	lb, err := gamify.AnalyzeRepo(client, path)
+	lb, err := AnalyzeRepo(client, path)
 	if err != nil {
 		return fmt.Errorf("analysis failed: %w", err)
 	}

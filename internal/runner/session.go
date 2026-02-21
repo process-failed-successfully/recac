@@ -74,13 +74,13 @@ type Session struct {
 	AutoMerge                 bool   // Automatically merge PRs
 	JiraClient                JiraClient
 	JiraTicketID              string
-	RepoURL                   string       // Repository URL for links
-	SlackThreadTS             string       // Thread Timestamp for Slack conversations
-	SuppressStartNotification bool         // Suppress "Session Started" notification (for sub-tasks)
-	UseLocalAgent             bool         // Execute commands locally (e.g. inside K8s pod) instead of spawning Docker container
-	SpecContent               string       // Explicit specification content (e.g. from Jira)
-	FeatureContent            string       // Explicit feature list JSON content (authoritative)
-	Logger                    *slog.Logger // Structured logger for this session
+	RepoURL                   string              // Repository URL for links
+	SlackThreadTS             string              // Thread Timestamp for Slack conversations
+	SuppressStartNotification bool                // Suppress "Session Started" notification (for sub-tasks)
+	UseLocalAgent             bool                // Execute commands locally (e.g. inside K8s pod) instead of spawning Docker container
+	SpecContent               string              // Explicit specification content (e.g. from Jira)
+	FeatureContent            string              // Explicit feature list JSON content (authoritative)
+	Logger                    *slog.Logger        // Structured logger for this session
 	SleepFunc                 func(time.Duration) // Function for sleeping (mockable)
 
 	mu sync.RWMutex // Protects concurrent access to Iteration, SlackThreadTS, ContainerID
@@ -401,6 +401,38 @@ func (s *Session) ReadSpec() (string, error) {
 
 // Start initializes the session environment (Docker container).
 func (s *Session) Start(ctx context.Context) error {
+	s.injectTaskSpecificState()
+
+	fmt.Printf("Initializing session with image: %s\n", s.Image)
+
+	s.checkDockerAccess(ctx)
+
+	s.loadSpec()
+
+	if s.Docker != nil {
+		if err := s.ensureImage(ctx); err != nil {
+			fmt.Printf("Warning: Failed to ensure image %s: %v. Attempting to proceed anyway...\n", s.Image, err)
+		}
+	}
+
+	if err := s.runContainer(ctx); err != nil {
+		return err
+	}
+
+	// Bootstrap Git Config
+	if err := s.bootstrapGit(ctx); err != nil {
+		fmt.Printf("Warning: Git bootstrapping failed: %v\n", err)
+	}
+
+	// Run init.sh if it exists
+	s.runInitScript(ctx)
+
+	s.startNotifier(ctx)
+
+	return nil
+}
+
+func (s *Session) injectTaskSpecificState() {
 	// If a specific task is selected, use a task-specific state file to avoid clobbering
 	if s.SelectedTaskID != "" {
 		s.AgentStateFile = filepath.Join(s.Workspace, fmt.Sprintf(".agent_state_%s.json", s.SelectedTaskID))
@@ -425,9 +457,9 @@ func (s *Session) Start(ctx context.Context) error {
 			aw.WithStateManager(s.StateManager)
 		}
 	}
+}
 
-	fmt.Printf("Initializing session with image: %s\n", s.Image)
-
+func (s *Session) checkDockerAccess(ctx context.Context) {
 	// Check Docker Daemon
 	if s.Docker != nil {
 		if err := s.Docker.CheckDaemon(ctx); err != nil {
@@ -437,7 +469,9 @@ func (s *Session) Start(ctx context.Context) error {
 	} else {
 		fmt.Println("Running in restricted mode (no Docker access).")
 	}
+}
 
+func (s *Session) loadSpec() {
 	// Read Spec
 	spec, err := s.ReadSpec()
 	if err != nil {
@@ -445,14 +479,9 @@ func (s *Session) Start(ctx context.Context) error {
 	} else {
 		fmt.Printf("Loaded spec: %d bytes\n", len(spec))
 	}
+}
 
-	// Ensure Image is ready (only if Docker is available)
-	if s.Docker != nil {
-		if err := s.ensureImage(ctx); err != nil {
-			fmt.Printf("Warning: Failed to ensure image %s: %v. Attempting to proceed anyway...\n", s.Image, err)
-		}
-	}
-
+func (s *Session) runContainer(ctx context.Context) error {
 	// Determine users home directory for config mounting
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -462,10 +491,6 @@ func (s *Session) Start(ctx context.Context) error {
 	var extraBinds []string
 	if homeDir != "" {
 		// Mount configurations if they exist
-		// Note: Docker binds require the host path to exist, or it might auto-create as dir (depends on docker version/config).
-		// Best practice is to check existence to avoid creating empty dirs if they don't exist on host.
-		// SECURITY: We mount these as Read-Only (:ro) to prevent the agent from modifying or deleting sensitive files on the host.
-
 		sensitiveMounts := []struct {
 			hostPath      string
 			containerPath string
@@ -497,12 +522,9 @@ func (s *Session) Start(ctx context.Context) error {
 		fmt.Printf("Warning: Failed to locate agent-bridge binary: %v. Agent CLI tools will not work.\n", err)
 	} else {
 		// If found in standard location, assume it is present in the container image and skip mount
-		// This avoids issues with mounting files over existing files/directories in Docker-in-Docker scenarios
 		if bridgePath == "/usr/local/bin/agent-bridge" {
 			fmt.Printf("Agent bridge found in standard location %s, skipping mount (assumed present in image)\n", bridgePath)
 		} else {
-			// Append to extraBinds
-			// format: /host/path:/container/path:ro
 			extraBinds = append(extraBinds, fmt.Sprintf("%s:/usr/local/bin/agent-bridge:ro", bridgePath))
 			fmt.Printf("Mounting agent-bridge from %s to /usr/local/bin/agent-bridge\n", bridgePath)
 		}
@@ -548,15 +570,10 @@ func (s *Session) Start(ctx context.Context) error {
 			s.fixPasswdDatabase(ctx, containerUser)
 		}
 	}
+	return nil
+}
 
-	// Bootstrap Git Config
-	if err := s.bootstrapGit(ctx); err != nil {
-		fmt.Printf("Warning: Git bootstrapping failed: %v\n", err)
-	}
-
-	// Run init.sh if it exists
-	s.runInitScript(ctx)
-
+func (s *Session) startNotifier(ctx context.Context) {
 	// Start Notifier (Socket Mode)
 	s.Notifier.Start(ctx)
 
@@ -586,8 +603,6 @@ func (s *Session) Start(ctx context.Context) error {
 			}
 		}
 	}
-
-	return nil
 }
 
 // ensureImage ensures the agent image exists locally, pulling or building if needed.
@@ -748,8 +763,6 @@ func (s *Session) SetContainerID(id string) {
 	s.ContainerID = id
 }
 
-
-
 func (s *Session) loadFeatures() []db.Feature {
 	// 1. Try to fetch from DB first (Authoritative source)
 	var fromDB []db.Feature
@@ -853,8 +866,3 @@ func (s *Session) loadFeatures() []db.Feature {
 
 	return nil
 }
-
-
-
-
-

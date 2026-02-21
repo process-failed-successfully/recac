@@ -15,67 +15,84 @@ import (
 // SelectPrompt determines which prompt to send based on current state.
 func (s *Session) SelectPrompt() (string, string, bool, error) {
 	// 1. Initializer (Session 1)
-	// 1. Initializer Check (Run if feature_list.json is missing or empty)
-	// Only for main session (not sub-sessions) and not if ManagerFirst is active on iteration 1
 	if s.SelectedTaskID == "" {
-		runInitializer := false
-
-		// If ManagerFirst is requested on Iteration 1, we skip Initializer for now
-		// (Manager might create it, or we'll loop back and hit this again later if Manager doesn't)
-		if s.GetIteration() == 1 && s.ManagerFirst {
-			// Manager First: Skip Initializer, go straight to Manager prompt
-			// ... (existing logic for ManagerFirst)
-			qaReport := "Initial Planning Phase. No code implemented yet."
-			prompt, err := prompts.GetPrompt(prompts.ManagerReview, map[string]string{
-				"qa_report": qaReport,
-			})
-			return prompt, prompts.ManagerReview, true, err
-		}
-
-		// Check for existing features (DB, Injected, or File)
-		features := s.loadFeatures()
-		if len(features) > 0 {
-			// Features exist, so we don't need to run Initializer.
-			// s.loadFeatures() automatically syncs to file if found in DB.
-		} else {
-			// No features found anywhere. Run Initializer.
-			fmt.Println("Feature list not found (in DB, Content, or File). Running Initializer.")
-			runInitializer = true
-		}
-
-		if runInitializer {
-			spec, _ := s.ReadSpec()
-			prompt, err := prompts.GetPrompt(prompts.Initializer, map[string]string{
-				"spec": spec,
-			})
-			return prompt, prompts.Initializer, false, err
+		if prompt, name, interactive, handled, err := s.checkInitializer(); handled {
+			return prompt, name, interactive, err
 		}
 	}
 
 	// 2. Manager Review (Triggered by file or frequency) - Main Session Only
 	if s.SelectedTaskID == "" && (s.GetIteration()%s.ManagerFrequency == 0 || s.hasSignal("TRIGGER_MANAGER")) {
-		// Cleanup signal
-		s.clearSignal("TRIGGER_MANAGER")
-
-		features := s.loadFeatures()
-
-		qaReport := RunQA(features)
-
-		vars := map[string]string{
-			"qa_report": qaReport.String(),
+		if prompt, name, interactive, handled, err := s.checkManagerReview(); handled {
+			return prompt, name, interactive, err
 		}
-
-		// Inject Stall Warning if active
-		if s.hasSignal("STALLED_WARNING") {
-			s.clearSignal("STALLED_WARNING") // Clear after consuming
-			vars["stall_warning"] = fmt.Sprintf("CRITICAL WARNING: The Coding Agent has stalled for %d iterations. You must intervene. Review their recent history and provide specific redirection instructions or STOP the project.", s.StalledCount)
-		}
-
-		prompt, err := prompts.GetPrompt(prompts.ManagerReview, vars)
-		return prompt, prompts.ManagerReview, true, err
 	}
 
 	// 3. Coding Agent (Default)
+	return s.selectCodingAgentPrompt()
+}
+
+func (s *Session) checkInitializer() (string, string, bool, bool, error) {
+	runInitializer := false
+
+	// If ManagerFirst is requested on Iteration 1, we skip Initializer for now
+	// (Manager might create it, or we'll loop back and hit this again later if Manager doesn't)
+	if s.GetIteration() == 1 && s.ManagerFirst {
+		// Manager First: Skip Initializer, go straight to Manager prompt
+		// ... (existing logic for ManagerFirst)
+		qaReport := "Initial Planning Phase. No code implemented yet."
+		prompt, err := prompts.GetPrompt(prompts.ManagerReview, map[string]string{
+			"qa_report": qaReport,
+		})
+		// Handled=true
+		return prompt, prompts.ManagerReview, true, true, err
+	}
+
+	// Check for existing features (DB, Injected, or File)
+	features := s.loadFeatures()
+	if len(features) > 0 {
+		// Features exist, so we don't need to run Initializer.
+		// s.loadFeatures() automatically syncs to file if found in DB.
+	} else {
+		// No features found anywhere. Run Initializer.
+		fmt.Println("Feature list not found (in DB, Content, or File). Running Initializer.")
+		runInitializer = true
+	}
+
+	if runInitializer {
+		spec, _ := s.ReadSpec()
+		prompt, err := prompts.GetPrompt(prompts.Initializer, map[string]string{
+			"spec": spec,
+		})
+		return prompt, prompts.Initializer, false, true, err
+	}
+
+	return "", "", false, false, nil
+}
+
+func (s *Session) checkManagerReview() (string, string, bool, bool, error) {
+	// Cleanup signal
+	s.clearSignal("TRIGGER_MANAGER")
+
+	features := s.loadFeatures()
+
+	qaReport := RunQA(features)
+
+	vars := map[string]string{
+		"qa_report": qaReport.String(),
+	}
+
+	// Inject Stall Warning if active
+	if s.hasSignal("STALLED_WARNING") {
+		s.clearSignal("STALLED_WARNING") // Clear after consuming
+		vars["stall_warning"] = fmt.Sprintf("CRITICAL WARNING: The Coding Agent has stalled for %d iterations. You must intervene. Review their recent history and provide specific redirection instructions or STOP the project.", s.StalledCount)
+	}
+
+	prompt, err := prompts.GetPrompt(prompts.ManagerReview, vars)
+	return prompt, prompts.ManagerReview, true, true, err
+}
+
+func (s *Session) selectCodingAgentPrompt() (string, string, bool, error) {
 	var historyStr string
 	if s.DBStore != nil {
 		// Limit history size to prevent context exhaustion (413 errors)

@@ -1,9 +1,9 @@
 package main
 
 import (
-	"recac/internal/utils"
 	"fmt"
 	"os"
+	"recac/internal/utils"
 	"strconv"
 	"strings"
 

@@ -1,14 +1,14 @@
-package gamify
+package main
 
 import (
 	"testing"
 )
 
-type MockGitClient struct {
+type GamifyMockGitClient struct {
 	LogFunc func(directory string, args ...string) ([]string, error)
 }
 
-func (m *MockGitClient) Log(directory string, args ...string) ([]string, error) {
+func (m *GamifyMockGitClient) Log(directory string, args ...string) ([]string, error) {
 	if m.LogFunc != nil {
 		return m.LogFunc(directory, args...)
 	}
@@ -16,7 +16,7 @@ func (m *MockGitClient) Log(directory string, args ...string) ([]string, error) 
 }
 
 func TestAnalyzeRepo(t *testing.T) {
-	mockClient := &MockGitClient{
+	mockClient := &GamifyMockGitClient{
 		LogFunc: func(directory string, args ...string) ([]string, error) {
 			// Simulate git log output
 			return []string{
@@ -62,24 +62,6 @@ func TestAnalyzeRepo(t *testing.T) {
 	// Expected lines added: 10+5+20 = 35
 	// Expected Test Edits: 1
 	// Expected Doc Edits: 1
-
-	// My XP Logic in code:
-	// linesXP = added (capped 100) / 10
-	// Commit 1: 10/10 = 1 XP (main.go), 5/10 = 0 XP (README). Total 1 XP from lines?
-	// Wait, the loop runs per line of numstat.
-	// main.go: 10 added -> 1 XP.
-	// README.md: 5 added -> 0 XP. +5 Doc Bonus.
-	// Total Lines XP: 1.
-	// Total Bonuses: 5.
-	// Base Commit XP: 10.
-	// Total Commit 1: 10 + 1 + 5 = 16.
-
-	// Commit 2 (Alice - "Add tests"):
-	// main_test.go: 20 added -> 2 XP. +10 Test Bonus.
-	// Base Commit XP: 10.
-	// Total Commit 2: 10 + 2 + 10 = 22.
-
-	// Grand Total: 16 + 22 = 38.
 
 	if alice.Commits != 2 {
 		t.Errorf("Expected Alice commits 2, got %d", alice.Commits)
