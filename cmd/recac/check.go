@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -85,7 +86,17 @@ func fixConfig() error {
 	// Simple fix: create default config if missing
 	viper.SetDefault("provider", "gemini")
 	viper.SetDefault("model", "gemini-pro")
-	return viper.SafeWriteConfig()
+
+	target := cfgFile
+	if target == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return err
+		}
+		target = filepath.Join(home, ".recac.yaml")
+	}
+
+	return viper.SafeWriteConfigAs(target)
 }
 
 func checkGo() error {

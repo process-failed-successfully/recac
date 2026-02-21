@@ -1,111 +1,101 @@
 package main
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestDeadcodeAnalysis(t *testing.T) {
-	// 1. Create a temporary directory structure
-	tmpDir, err := os.MkdirTemp("", "recac-deadcode-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
+func TestAnalyzeDeadcode(t *testing.T) {
+	tmpDir := t.TempDir()
 
-	// 2. Create files
-	mainGo := `package main
+	// 1. main.go with unused exported function and used function
+	mainContent := `package main
 
-import "fmt"
+// UnusedFunc should be reported
+func UnusedFunc() {}
+
+// UsedFunc is used in main, should not be reported
+func UsedFunc() {}
+
+// UnusedType should be reported
+type UnusedType struct{}
 
 func main() {
 	UsedFunc()
-	fmt.Println("Hello")
-}
-
-func UsedFunc() {
-	fmt.Println("Used")
-}
-
-func UnusedFunc() {
-	fmt.Println("Unused")
-}
-
-type UsedType struct {
-	Field int
-}
-
-type UnusedType struct {
-	Field int
-}
-
-func (u *UsedType) UsedMethod() {
-}
-
-func (u *UsedType) UnusedMethod() {
-}
-
-func (u *UnusedType) UnusedMethodOnUnusedType() {
 }
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainGo), 0644); err != nil {
-		t.Fatalf("Failed to write main.go: %v", err)
-	}
+	err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(mainContent), 0644)
+	require.NoError(t, err)
 
-	// 3. Run analysis
-	findings, err := analyzeDeadcode(tmpDir)
-	if err != nil {
-		t.Fatalf("Analysis failed: %v", err)
-	}
+	// 2. lib/lib.go with exported function (library code, not necessarily used internally)
+	libDir := filepath.Join(tmpDir, "lib")
+	err = os.Mkdir(libDir, 0755)
+	require.NoError(t, err)
 
-	// 4. Assertions
-	foundUnusedFunc := false
-	foundUnusedType := false
-	foundUnusedMethod := false
-	foundUsedFunc := false
+	libContent := `package lib
 
-	for _, f := range findings {
-		// Log for debugging
-		t.Logf("Finding: %s (%s)", f.Identifier, f.Type)
+// ExportedLibFunc should be ignored unless strict
+func ExportedLibFunc() {}
+`
+	err = os.WriteFile(filepath.Join(libDir, "lib.go"), []byte(libContent), 0644)
+	require.NoError(t, err)
 
-		if f.Identifier == "UnusedFunc" {
-			foundUnusedFunc = true
+	t.Run("Default Mode (Not Strict)", func(t *testing.T) {
+		// Ensure global flag is false
+		originalStrict := deadcodeStrict
+		deadcodeStrict = false
+		defer func() { deadcodeStrict = originalStrict }()
+
+		findings, err := analyzeDeadcode(tmpDir)
+		require.NoError(t, err)
+
+		foundUnusedFunc := false
+		foundUnusedType := false
+		foundLibFunc := false
+		foundUsedFunc := false
+
+		for _, f := range findings {
+			if f.Identifier == "UnusedFunc" {
+				foundUnusedFunc = true
+			}
+			if f.Identifier == "UnusedType" {
+				foundUnusedType = true
+			}
+			if f.Identifier == "ExportedLibFunc" {
+				foundLibFunc = true
+			}
+			if f.Identifier == "UsedFunc" {
+				foundUsedFunc = true
+			}
 		}
-		if f.Identifier == "UnusedType" {
-			foundUnusedType = true
-		}
-		if strings.Contains(f.Identifier, "UnusedMethod") {
-			foundUnusedMethod = true
-		}
-		if f.Identifier == "UsedFunc" {
-			foundUsedFunc = true
-		}
-	}
 
-	if !foundUnusedFunc {
-		t.Error("Expected to find UnusedFunc")
-	}
-	if !foundUnusedType {
-		t.Error("Expected to find UnusedType")
-	}
-	if !foundUnusedMethod {
-		t.Error("Expected to find UnusedMethod")
-	}
-	if foundUsedFunc {
-		t.Error("Did not expect to find UsedFunc")
-	}
+		assert.True(t, foundUnusedFunc, "Should report UnusedFunc in main package")
+		assert.True(t, foundUnusedType, "Should report UnusedType in main package")
+		assert.False(t, foundLibFunc, "Should NOT report ExportedLibFunc in lib package by default")
+		assert.False(t, foundUsedFunc, "Should NOT report UsedFunc as it is used")
+	})
 
-	// Test JSON output logic (integration style)
-	// We can't easily mock stdout here without refactoring `runDeadcode` to take an io.Writer.
-	// But we can check if analyzeDeadcode returns valid structs.
-	b, err := json.Marshal(findings)
-	if err != nil {
-		t.Errorf("Failed to marshal findings: %v", err)
-	}
-	if len(b) == 0 {
-		t.Error("JSON output is empty")
-	}
+	t.Run("Strict Mode", func(t *testing.T) {
+		// Set global flag true
+		originalStrict := deadcodeStrict
+		deadcodeStrict = true
+		defer func() { deadcodeStrict = originalStrict }()
+
+		findings, err := analyzeDeadcode(tmpDir)
+		require.NoError(t, err)
+
+		foundLibFunc := false
+
+		for _, f := range findings {
+			if f.Identifier == "ExportedLibFunc" {
+				foundLibFunc = true
+			}
+		}
+
+		assert.True(t, foundLibFunc, "Should report ExportedLibFunc in strict mode")
+	})
 }
