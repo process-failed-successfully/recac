@@ -5,7 +5,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"os"
+	"io/fs"
 	"path/filepath"
 	"strings"
 )
@@ -37,13 +37,13 @@ func ExtractMagicLiterals(root string, ignoreList []string) ([]MagicFinding, err
 
 	fset := token.NewFileSet()
 
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
-		if info.IsDir() {
-			if (strings.HasPrefix(info.Name(), ".") && info.Name() != ".") || info.Name() == "vendor" || info.Name() == "node_modules" {
+		if d.IsDir() {
+			if (strings.HasPrefix(d.Name(), ".") && d.Name() != ".") || d.Name() == "vendor" || d.Name() == "node_modules" {
 				return filepath.SkipDir
 			}
 			return nil
@@ -53,7 +53,9 @@ func ExtractMagicLiterals(root string, ignoreList []string) ([]MagicFinding, err
 			return nil
 		}
 
-		node, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
+		// parser.SkipObjectResolution (added in Go 1.17) avoids resolving identifiers to objects,
+		// and we skip comments since we don't analyze them.
+		node, err := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution)
 		if err != nil {
 			// Just skip files that don't parse
 			return nil
