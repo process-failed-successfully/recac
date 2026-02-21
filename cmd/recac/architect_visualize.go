@@ -80,7 +80,7 @@ func generateMermaidGraph(arch *architecture.SystemArchitecture) string {
 				if label == "" {
 					label = "Consumes"
 				}
-				sb.WriteString(fmt.Sprintf("    %s -->|%s| %s\n", sourceID, label, safeID))
+				sb.WriteString(fmt.Sprintf("    %s -->|%s| %s\n", sourceID, escapeMermaidLabel(label), safeID))
 			}
 		}
 
@@ -95,7 +95,7 @@ func generateMermaidGraph(arch *architecture.SystemArchitecture) string {
 				if label == "" {
 					label = "Produces"
 				}
-				sb.WriteString(fmt.Sprintf("    %s -->|%s| %s\n", safeID, label, targetID))
+				sb.WriteString(fmt.Sprintf("    %s -->|%s| %s\n", safeID, escapeMermaidLabel(label), targetID))
 			}
 		}
 	}
@@ -103,14 +103,22 @@ func generateMermaidGraph(arch *architecture.SystemArchitecture) string {
 	return sb.String()
 }
 
+var archIDRegex = regexp.MustCompile(`[^a-zA-Z0-9_]`)
+
 func sanitizeArchID(id string) string {
 	// Replace non-alphanumeric chars with underscore
 	id = strings.ReplaceAll(id, " ", "_")
 	id = strings.ReplaceAll(id, "-", "_")
 	id = strings.ReplaceAll(id, ".", "_")
 	id = strings.ReplaceAll(id, "/", "_")
-	re := regexp.MustCompile(`[^a-zA-Z0-9_]`)
-	return re.ReplaceAllString(id, "")
+	return archIDRegex.ReplaceAllString(id, "")
+}
+
+func escapeMermaidLabel(label string) string {
+	label = strings.ReplaceAll(label, "\"", "#quot;")
+	label = strings.ReplaceAll(label, "<", "&lt;")
+	label = strings.ReplaceAll(label, ">", "&gt;")
+	return label
 }
 
 func generateHTML(mermaidGraph, outputPath string) error {
