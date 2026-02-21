@@ -61,7 +61,9 @@ func TestRunCmdHelperProcess(t *testing.T) {
 		os.Exit(0)
 	case "fail_cmd":
 		fmt.Fprint(os.Stdout, "Partial output before failure")
+		os.Stdout.Sync()
 		fmt.Fprint(os.Stderr, "Command failed with error")
+		os.Stderr.Sync()
 		os.Exit(1)
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown mock command: %s\n", cmd)
@@ -71,10 +73,10 @@ func TestRunCmdHelperProcess(t *testing.T) {
 
 func TestRunCmd_Success(t *testing.T) {
 	// Restore original execCommand after test
-	defer func() { runExecCommand = exec.Command }()
+	defer func() { execCommand = exec.Command }()
 
 	// Mock execCommand to call TestRunCmdHelperProcess
-	runExecCommand = func(command string, args ...string) *exec.Cmd {
+	execCommand = func(command string, args ...string) *exec.Cmd {
 		cs := []string{"-test.run=TestRunCmdHelperProcess", "--", command}
 		cs = append(cs, args...)
 		cmd := exec.Command(os.Args[0], cs...)
@@ -103,10 +105,10 @@ func TestRunCmd_Success(t *testing.T) {
 
 func TestRunCmd_Failure_CallsAI(t *testing.T) {
 	// Restore original execCommand after test
-	defer func() { runExecCommand = exec.Command }()
+	defer func() { execCommand = exec.Command }()
 
 	// Mock execCommand to call TestRunCmdHelperProcess
-	runExecCommand = func(command string, args ...string) *exec.Cmd {
+	execCommand = func(command string, args ...string) *exec.Cmd {
 		cs := []string{"-test.run=TestRunCmdHelperProcess", "--", command}
 		cs = append(cs, args...)
 		cmd := exec.Command(os.Args[0], cs...)

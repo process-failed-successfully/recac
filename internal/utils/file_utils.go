@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 )
 
 // ReadLines reads a whole file into memory and returns a slice of its lines.
@@ -46,6 +47,15 @@ func IsBinaryExt(ext string) bool {
 		return true
 	}
 	return false
+}
+
+// BasePathFS wraps os calls to be relative to a base directory
+type BasePathFS struct {
+	Base string
+}
+
+func (b *BasePathFS) Stat(name string) (os.FileInfo, error) {
+	return os.Stat(filepath.Join(b.Base, name))
 }
 
 // IsBinaryContent checks the first few bytes of a file to see if it contains null bytes, indicating binary content.

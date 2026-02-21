@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"recac/internal/agent"
 	"recac/internal/agent/prompts"
 	"recac/internal/architecture"
 	"recac/internal/cmdutils"
+	"recac/internal/utils"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -96,7 +96,7 @@ func runArchitectCmd(cmd *cobra.Command, args []string) {
 	}
 
 	// Use a validator that knows about the output directory base path
-	validator := architecture.NewValidator(&BasePathFS{Base: outDir})
+	validator := architecture.NewValidator(&utils.BasePathFS{Base: outDir})
 	if err := validator.Validate(&arch); err != nil {
 		fmt.Fprintf(os.Stderr, "VALIDATION FAILED:\n%v\n", err)
 		os.Exit(1)
@@ -118,20 +118,7 @@ func generateArchitecture(ctx context.Context, ag agent.Agent, spec string) (map
 	}
 
 	// Extract JSON
-	jsonStr := resp
-	if start := strings.Index(jsonStr, "```json"); start != -1 {
-		jsonStr = jsonStr[start+7:]
-		if end := strings.Index(jsonStr, "```"); end != -1 {
-			jsonStr = jsonStr[:end]
-		}
-	} else if start := strings.Index(jsonStr, "{"); start != -1 {
-		// Fallback: try to find the first curly brace
-		jsonStr = jsonStr[start:]
-		if end := strings.LastIndex(jsonStr, "}"); end != -1 {
-			jsonStr = jsonStr[:end+1]
-		}
-	}
-	jsonStr = strings.TrimSpace(jsonStr)
+	jsonStr := utils.CleanJSONBlock(resp)
 
 	var files map[string]string
 	if err := json.Unmarshal([]byte(jsonStr), &files); err != nil {
@@ -139,13 +126,4 @@ func generateArchitecture(ctx context.Context, ag agent.Agent, spec string) (map
 	}
 
 	return files, nil
-}
-
-// BasePathFS wraps os calls to be relative to a base directory
-type BasePathFS struct {
-	Base string
-}
-
-func (b *BasePathFS) Stat(name string) (os.FileInfo, error) {
-	return os.Stat(filepath.Join(b.Base, name))
 }

@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
+
+	"recac/internal/config"
+	"recac/internal/utils"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var fixFlag bool
@@ -22,11 +22,11 @@ Use --fix to automatically attempt repairs for minor issues.`,
 		allPassed := true
 
 		// 1. Check Config
-		if err := checkConfig(); err != nil {
+		if err := config.Check(); err != nil {
 			allPassed = false
 			fmt.Printf("❌ Config: %v\n", err)
 			if fixFlag {
-				if err := fixConfig(); err != nil {
+				if err := config.Fix(); err != nil {
 					fmt.Printf("  Failed to fix config: %v\n", err)
 				} else {
 					fmt.Printf("  ✅ Config fixed (created default)\n")
@@ -38,7 +38,7 @@ Use --fix to automatically attempt repairs for minor issues.`,
 		}
 
 		// 2. Check Go
-		if err := checkGo(); err != nil {
+		if err := utils.CheckGoInstalled(); err != nil {
 			allPassed = false
 			fmt.Printf("❌ Go: %v\n", err)
 		} else {
@@ -46,7 +46,7 @@ Use --fix to automatically attempt repairs for minor issues.`,
 		}
 
 		// 3. Check Docker
-		if err := checkDocker(); err != nil {
+		if err := utils.CheckDockerRunning(); err != nil {
 			allPassed = false
 			fmt.Printf("❌ Docker: %v\n", err)
 		} else {
@@ -70,33 +70,4 @@ func init() {
 	rootCmd.AddCommand(checkCmd)
 }
 
-func checkConfig() error {
-	configFile := viper.ConfigFileUsed()
-	if configFile == "" {
-		return fmt.Errorf("config file not found")
-	}
-	if _, err := os.Stat(configFile); os.IsNotExist(err) {
-		return fmt.Errorf("config file %s does not exist", configFile)
-	}
-	return nil
-}
 
-func fixConfig() error {
-	// Simple fix: create default config if missing
-	viper.SetDefault("provider", "gemini")
-	viper.SetDefault("model", "gemini-pro")
-	return viper.SafeWriteConfig()
-}
-
-func checkGo() error {
-	_, err := exec.LookPath("go")
-	if err != nil {
-		return fmt.Errorf("go binary not found in PATH")
-	}
-	return nil
-}
-
-func checkDocker() error {
-	cmd := exec.Command("docker", "info")
-	return cmd.Run()
-}

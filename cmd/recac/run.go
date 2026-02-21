@@ -13,9 +13,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-// runExecCommand allows mocking os/exec.Command in tests
-var runExecCommand = exec.Command
-
 var runCmd = &cobra.Command{
 	Use:   "run [command]...",
 	Short: "Execute a shell command and ask AI for help if it fails",
@@ -42,7 +39,7 @@ func executeRunCmd(cmd *cobra.Command, args []string) error {
 	// 1. Prepare command
 	commandName := args[0]
 	commandArgs := args[1:]
-	execCmd := runExecCommand(commandName, commandArgs...)
+	execCmd := execCommand(commandName, commandArgs...)
 
 	// 2. Setup IO capture
 	// We want to stream to the user AND capture for the AI
