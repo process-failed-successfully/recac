@@ -50,6 +50,7 @@ func (c *OpenRouterClient) getConfig() HTTPClientConfig {
 		APIURL:        c.apiURL,
 		HTTPClient:    c.httpClient,
 		MockResponder: c.mockResponder,
+		DropModelPrefix: false, // OpenRouter models need the prefix
 		Headers: map[string]string{
 			"HTTP-Referer": "https://github.com/process-failed-successfully/recac",
 			"X-Title":      "Process Failed Successfully",

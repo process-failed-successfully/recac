@@ -20,6 +20,7 @@ type HTTPClientConfig struct {
 	HTTPClient    *http.Client
 	MockResponder func(string) (string, error)
 	Headers       map[string]string
+	DropModelPrefix bool
 }
 
 // SendOnce performs a single non-streaming request
@@ -32,8 +33,23 @@ func SendOnce(ctx context.Context, cfg HTTPClientConfig, prompt string) (string,
 		return "", fmt.Errorf("API key is required")
 	}
 
+	modelID := cfg.Model
+	if cfg.DropModelPrefix {
+		// Strip common prefixes like "openrouter/" or others if needed
+		// For now, OpenRouter seems to expect "openai/gpt-4" but not "openrouter/openai/gpt-4"
+		// The issue in CI was `openrouter/google/gemini...`? No, it was just `google/gemini...` passed AS model.
+		// Wait, the CI failure said: "google/gemini-2.0-flash-lite-preview-02-05:free is not a valid model ID"
+		// This suggests OpenRouter expects us to use it, but maybe we ARE sending it correctly?
+		// Actually, if we pass `openrouter/aurora-alpha`, the code might be stripping it?
+		// No, `DropModelPrefix` wasn't there.
+		// Let's implement the logic: If DropModelPrefix is true, and model starts with "openrouter/", strip it.
+		if strings.HasPrefix(modelID, "openrouter/") {
+			modelID = strings.TrimPrefix(modelID, "openrouter/")
+		}
+	}
+
 	requestBody := map[string]interface{}{
-		"model": cfg.Model,
+		"model": modelID,
 		"messages": []map[string]interface{}{
 			{
 				"role":    "user",
@@ -91,8 +107,15 @@ func SendOnce(ctx context.Context, cfg HTTPClientConfig, prompt string) (string,
 
 // SendStreamOnce performs a single streaming request
 func SendStreamOnce(ctx context.Context, cfg HTTPClientConfig, prompt string, onChunk func(string)) (string, error) {
+	modelID := cfg.Model
+	if cfg.DropModelPrefix {
+		if strings.HasPrefix(modelID, "openrouter/") {
+			modelID = strings.TrimPrefix(modelID, "openrouter/")
+		}
+	}
+
 	requestBody := map[string]interface{}{
-		"model":  cfg.Model,
+		"model":  modelID,
 		"stream": true,
 		"messages": []map[string]interface{}{
 			{
