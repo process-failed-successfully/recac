@@ -280,8 +280,29 @@ func generateItinerary() (*TourItinerary, error) {
 	}
 
 	// 2. Ask Agent
+	// Try multiple config keys for robustness
 	provider := viper.GetString("provider")
+	if provider == "" {
+		provider = viper.GetString("agent_provider")
+	}
+	if provider == "" {
+		provider = viper.GetString("orchestrator.agent_provider")
+	}
+	if provider == "" {
+		provider = "openrouter" // Default
+	}
+
 	model := viper.GetString("model")
+	if model == "" {
+		model = viper.GetString("agent_model")
+	}
+	if model == "" {
+		model = viper.GetString("orchestrator.agent_model")
+	}
+	if model == "" {
+		model = "google/gemini-2.0-flash-lite-preview-02-05:free" // Default
+	}
+
 	ag, err := agentClientFactory(ctx, provider, model, cwd, "recac-tour")
 	if err != nil {
 		return nil, err
