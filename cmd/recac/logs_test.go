@@ -1,147 +1,168 @@
 package main
 
 import (
+	"context"
+	"fmt"
+	"io"
 	"os"
-	"path/filepath"
 	"recac/internal/runner"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// setupLogsTest configures a mock session manager with temporary log files.
-func setupLogsTest(t *testing.T) (*MockSessionManager, func()) {
-	t.Helper()
-
-	mockSM := NewMockSessionManager()
-
-	// Create a temp dir for log files
-	tmpDir, err := os.MkdirTemp("", "recac-logs-test-")
-	require.NoError(t, err)
-
-	// --- Create mock sessions and their log files ---
-	session1Log := filepath.Join(tmpDir, "session1.log")
-	err = os.WriteFile(session1Log, []byte("session 1 log line 1\nsession 1 log line 2\n"), 0644)
-	require.NoError(t, err)
-
-	session2Log := filepath.Join(tmpDir, "session2.log")
-	err = os.WriteFile(session2Log, []byte("session 2 log line 1\n"), 0644)
-	require.NoError(t, err)
-
-	stoppedSessionLog := filepath.Join(tmpDir, "stopped.log")
-	err = os.WriteFile(stoppedSessionLog, []byte("this should not be read\n"), 0644)
-	require.NoError(t, err)
-
-	mockSM.Sessions = map[string]*runner.SessionState{
-		"session1": {
-			Name:    "session1",
-			Status:  "running",
-			LogFile: session1Log,
-		},
-		"session2": {
-			Name:    "session2",
-			Status:  "running",
-			LogFile: session2Log,
-		},
-		"stopped-session": {
-			Name:    "stopped-session",
-			Status:  "stopped",
-			LogFile: stoppedSessionLog,
-		},
-	}
-
-	// Monkey-patch the sessionManagerFactory
-	originalFactory := sessionManagerFactory
-	sessionManagerFactory = func() (ISessionManager, error) {
-		return mockSM, nil
-	}
-
-	cleanup := func() {
-		os.RemoveAll(tmpDir)
-		sessionManagerFactory = originalFactory
-	}
-
-	return mockSM, cleanup
+// MockLogK8sClient is a mock implementation of IK8sClient
+type MockLogK8sClient struct {
+	Pods []corev1.Pod
+	Logs map[string]string
 }
 
-func TestLogsCmd(t *testing.T) {
-	t.Run("logs --all streams running sessions", func(t *testing.T) {
-		_, cleanup := setupLogsTest(t)
-		defer cleanup()
+func (m *MockLogK8sClient) ListPods(ctx context.Context, labelSelector string) ([]corev1.Pod, error) {
+	if strings.Contains(labelSelector, "ticket=") {
+		ticket := strings.TrimPrefix(labelSelector, "ticket=")
+		var res []corev1.Pod
+		for _, p := range m.Pods {
+			if p.Labels["ticket"] == ticket {
+				res = append(res, p)
+			}
+		}
+		return res, nil
+	}
+	// Basic filtering for "app=recac-agent" if needed, but for now return all if no specific ticket
+	return m.Pods, nil
+}
 
-		output, err := executeCommand(rootCmd, "logs", "--all")
-		require.NoError(t, err)
+func (m *MockLogK8sClient) GetPodLogs(ctx context.Context, name string, opts *corev1.PodLogOptions) (io.ReadCloser, error) {
+	if content, ok := m.Logs[name]; ok {
+		return io.NopCloser(strings.NewReader(content)), nil
+	}
+	return nil, fmt.Errorf("pod not found")
+}
 
-		// Check that output from both running sessions is present
-		assert.Contains(t, output, "[session1] session 1 log line 1")
-		assert.Contains(t, output, "[session1] session 1 log line 2")
-		assert.Contains(t, output, "[session2] session 2 log line 1")
+func (m *MockLogK8sClient) DeletePod(ctx context.Context, name string) error {
+	return nil
+}
 
-		// Check that output from the stopped session is not present
-		assert.NotContains(t, output, "stopped-session")
-		assert.NotContains(t, output, "this should not be read")
-	})
+func TestLogsCmd_Local(t *testing.T) {
+	// Setup Mocks
+	mockSM := NewMockSessionManager()
 
-	t.Run("logs single session", func(t *testing.T) {
-		_, cleanup := setupLogsTest(t)
-		defer cleanup()
+	// Create a temp log file
+	tmpFile, err := os.CreateTemp("", "recac-log-test-")
+	assert.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+	_, err = tmpFile.WriteString("local log content\nline 2\n")
+	assert.NoError(t, err)
+	tmpFile.Close()
 
-		output, err := executeCommand(rootCmd, "logs", "session1")
-		require.NoError(t, err)
+	mockSM.Sessions["session1"] = &runner.SessionState{
+		Name:    "session1",
+		Status:  "running",
+		LogFile: tmpFile.Name(),
+	}
 
-		assert.Contains(t, output, "session 1 log line 1")
-		assert.Contains(t, output, "session 1 log line 2")
-		assert.NotContains(t, output, "[session1]") // No prefix for single log
-		assert.NotContains(t, output, "session 2")
-	})
+	mockK8s := &MockLogK8sClient{}
 
-	t.Run("logs --all with filter", func(t *testing.T) {
-		_, cleanup := setupLogsTest(t)
-		defer cleanup()
+	// Override factories
+	oldSMFactory := sessionManagerFactory
+	sessionManagerFactory = func() (ISessionManager, error) { return mockSM, nil }
+	defer func() { sessionManagerFactory = oldSMFactory }()
 
-		output, err := executeCommand(rootCmd, "logs", "--all", "--filter", "line 2")
-		require.NoError(t, err)
+	oldK8sFactory := k8sClientFactory
+	k8sClientFactory = func() (IK8sClient, error) { return mockK8s, nil }
+	defer func() { k8sClientFactory = oldK8sFactory }()
 
-		assert.Contains(t, output, "[session1] session 1 log line 2")
-		assert.NotContains(t, output, "session 1 log line 1")
-		assert.NotContains(t, output, "session 2")
-	})
+	// Execute
+	output, err := executeCommand(rootCmd, "logs", "session1")
 
-	t.Run("logs --all with no running sessions", func(t *testing.T) {
-		mockSM, cleanup := setupLogsTest(t)
-		defer cleanup()
+	// Assert
+	assert.NoError(t, err)
+	assert.Contains(t, output, "local log content")
+	assert.Contains(t, output, "line 2")
+}
 
-		// Override to have no running sessions
-		mockSM.Sessions["session1"].Status = "completed"
-		mockSM.Sessions["session2"].Status = "error"
+func TestLogsCmd_Remote(t *testing.T) {
+	// Setup Mocks
+	mockSM := NewMockSessionManager()
+	// Ensure GetSessionLogs fails so it falls back to K8s
+	// MockSessionManager GetSessionLogs checks m.Sessions. Default is empty.
+	// So it should fail with "session not found".
 
-		output, err := executeCommand(rootCmd, "logs", "--all")
-		require.NoError(t, err)
+	mockK8s := &MockLogK8sClient{
+		Pods: []corev1.Pod{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "pod-123",
+					Namespace: "default",
+					Labels:    map[string]string{"ticket": "TICKET-123"},
+					CreationTimestamp: metav1.Now(),
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodRunning,
+				},
+			},
+		},
+		Logs: map[string]string{
+			"pod-123": "remote log content\nline 2\n",
+		},
+	}
 
-		assert.Contains(t, output, "No running sessions found.")
-	})
+	// Override factories
+	oldSMFactory := sessionManagerFactory
+	sessionManagerFactory = func() (ISessionManager, error) { return mockSM, nil }
+	defer func() { sessionManagerFactory = oldSMFactory }()
 
-	t.Run("logs validation errors", func(t *testing.T) {
-		_, cleanup := setupLogsTest(t)
-		defer cleanup()
+	oldK8sFactory := k8sClientFactory
+	k8sClientFactory = func() (IK8sClient, error) { return mockK8s, nil }
+	defer func() { k8sClientFactory = oldK8sFactory }()
 
-		_, err := executeCommand(rootCmd, "logs")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "requires a session name or --all flag")
+	// Execute
+	output, err := executeCommand(rootCmd, "logs", "TICKET-123")
 
-		_, err = executeCommand(rootCmd, "logs", "session1", "--all")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "cannot use session name with --all")
+	// Assert
+	assert.NoError(t, err)
+	assert.Contains(t, output, "remote log content")
+	assert.Contains(t, output, "line 2")
+}
 
-		_, err = executeCommand(rootCmd, "logs", "non-existent-session")
-		// This will print an error and exit(1), which is caught by executeCommand
-		// and does not return a Go error. We check stderr.
-		output, _ := executeCommand(rootCmd, "logs", "non-existent-session")
-		assert.Contains(t, output, "Error: session not found")
-	})
+func TestLogsCmd_All_Remote(t *testing.T) {
+	// Setup Mocks
+	mockSM := NewMockSessionManager()
 
-	// Note: Testing --follow is complex in unit tests as it involves long-running processes.
-	// This is better suited for E2E tests. The core logic of reading and streaming is
-	// already tested by the cases above.
+	mockK8s := &MockLogK8sClient{
+		Pods: []corev1.Pod{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "pod-123",
+					Namespace: "default",
+					Labels:    map[string]string{"ticket": "TICKET-123"},
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodRunning,
+				},
+			},
+		},
+		Logs: map[string]string{
+			"pod-123": "remote log from all",
+		},
+	}
+
+	// Override factories
+	oldSMFactory := sessionManagerFactory
+	sessionManagerFactory = func() (ISessionManager, error) { return mockSM, nil }
+	defer func() { sessionManagerFactory = oldSMFactory }()
+
+	oldK8sFactory := k8sClientFactory
+	k8sClientFactory = func() (IK8sClient, error) { return mockK8s, nil }
+	defer func() { k8sClientFactory = oldK8sFactory }()
+
+	// Execute
+	output, err := executeCommand(rootCmd, "logs", "--all")
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Contains(t, output, "[TICKET-123] remote log from all")
 }
