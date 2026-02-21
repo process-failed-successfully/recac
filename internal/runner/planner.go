@@ -34,3 +34,20 @@ func GenerateFeatureList(ctx context.Context, a agent.Agent, spec string) (*db.F
 
 	return &featureList, nil
 }
+
+// GeneratePlanOnly generates a markdown implementation plan without executing it.
+func GeneratePlanOnly(ctx context.Context, a agent.Agent, spec string) (string, error) {
+	prompt, err := prompts.GetPrompt(prompts.PlanOnly, map[string]string{
+		"spec": spec,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to load plan_only prompt: %w", err)
+	}
+
+	response, err := a.Send(ctx, prompt)
+	if err != nil {
+		return "", fmt.Errorf("agent failed to generate plan: %w", err)
+	}
+
+	return response, nil
+}

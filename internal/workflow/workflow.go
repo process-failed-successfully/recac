@@ -35,6 +35,7 @@ type SessionConfig struct {
 	SessionName       string
 	JiraEpicKey       string
 	AllowDirty        bool
+	PlanOnly          bool
 	Stream            bool
 	AutoMerge         bool
 	SkipQA            bool
@@ -341,6 +342,9 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 		if cfg.AllowDirty {
 			command = append(command, "--allow-dirty")
 		}
+		if cfg.PlanOnly {
+			command = append(command, "--plan")
+		}
 
 		projectPath := cfg.ProjectPath
 		if projectPath == "" {
@@ -468,6 +472,7 @@ var RunWorkflow = func(ctx context.Context, cfg SessionConfig) error {
 	session.StreamOutput = cfg.Stream
 	session.AutoMerge = cfg.AutoMerge
 	session.SkipQA = cfg.SkipQA
+	session.PlanOnly = cfg.PlanOnly
 	session.JiraClient = cfg.JiraClient
 	session.JiraTicketID = cfg.JiraTicketID
 	session.RepoURL = cfg.RepoURL

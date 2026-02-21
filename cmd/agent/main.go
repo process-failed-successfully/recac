@@ -32,6 +32,7 @@ func initFlags(cfgFile *string) {
 	pflag.Bool("manager-first", false, "Run the Manager Agent before the first coding session")
 	pflag.Bool("stream", false, "Stream agent output to the console")
 	pflag.Bool("allow-dirty", false, "Allow running with uncommitted git changes")
+	pflag.Bool("plan", false, "Generate implementation plan only (no execution)")
 
 	pflag.Bool("auto-merge", false, "Automatically merge PRs if checks pass")
 	pflag.Bool("skip-qa", false, "Skip QA phase and auto-complete (use with caution)")
@@ -63,6 +64,7 @@ func runApp(ctx context.Context) error {
 	viper.BindPFlag("manager_first", pflag.Lookup("manager-first"))
 	viper.BindPFlag("stream", pflag.Lookup("stream"))
 	viper.BindPFlag("allow_dirty", pflag.Lookup("allow-dirty"))
+	viper.BindPFlag("plan", pflag.Lookup("plan"))
 	viper.BindPFlag("auto_merge", pflag.Lookup("auto-merge"))
 	viper.BindPFlag("skip_qa", pflag.Lookup("skip-qa"))
 	viper.BindPFlag("image", pflag.Lookup("image"))
@@ -105,6 +107,7 @@ func runApp(ctx context.Context) error {
 		Detached:          viper.GetBool("detached"),
 		SessionName:       viper.GetString("name"),
 		AllowDirty:        viper.GetBool("allow_dirty"),
+		PlanOnly:          viper.GetBool("plan"),
 		Stream:            viper.GetBool("stream"),
 		AutoMerge:         viper.GetBool("auto_merge"),
 		SkipQA:            viper.GetBool("skip_qa"),
