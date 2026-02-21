@@ -51,6 +51,11 @@ func (m *MockAgent) Send(ctx context.Context, prompt string) (string, error) {
 		return `I will create the 'primes.py' script to calculate prime numbers less than 10,000 and save them to 'primes.json'.
 
 ` + "```bash" + `
+set -ex
+
+# Ensure git is safe (avoid dubious ownership errors in CI)
+git config --global --add safe.directory /workspace
+
 cat << 'EOF' > primes.py
 import json
 
