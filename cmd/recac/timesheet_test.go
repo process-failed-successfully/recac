@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseGitLogOutput(t *testing.T) {
@@ -89,4 +92,74 @@ func TestAggregateTimesheet(t *testing.T) {
 
 	assert.Equal(t, 1.5, report.DailyStats["2023-10-27"])
 	assert.Equal(t, 2.0, report.DailyStats["2023-10-28"])
+}
+
+func TestRunTimesheet(t *testing.T) {
+	// Mock git client
+	mockGit := &MockGitClient{
+		RunFunc: func(repoPath string, args ...string) (string, error) {
+			if len(args) > 0 && args[0] == "config" {
+				return "Test User", nil
+			}
+			return "", nil
+		},
+		LogFunc: func(repoPath string, args ...string) ([]string, error) {
+			// Return some dummy commits
+			return []string{
+				"hash1|Test User|2023-10-27T10:00:00Z|Message 1",
+				"hash2|Test User|2023-10-27T10:30:00Z|Message 2",
+			}, nil
+		},
+	}
+
+	origFactory := gitClientFactory
+	defer func() { gitClientFactory = origFactory }()
+	gitClientFactory = func() IGitClient {
+		return mockGit
+	}
+
+	// Manually set flags
+	oldAuthor := timesheetAuthor
+	timesheetAuthor = "" // Force auto-detection via "git config user.name" which we mocked
+	defer func() { timesheetAuthor = oldAuthor }()
+
+	oldSince := timesheetSince
+	timesheetSince = "24h"
+	defer func() { timesheetSince = oldSince }()
+
+	oldThreshold := timesheetThreshold
+	timesheetThreshold = "60m"
+	defer func() { timesheetThreshold = oldThreshold }()
+
+	oldPadding := timesheetPadding
+	timesheetPadding = "30m"
+	defer func() { timesheetPadding = oldPadding }()
+
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stdout = w
+
+	defer func() {
+		os.Stdout = oldStdout
+	}()
+
+	// Execute
+	err = runTimesheet(timesheetCmd, []string{})
+	require.NoError(t, err)
+	w.Close()
+
+	var buf bytes.Buffer
+	_, err = buf.ReadFrom(r)
+	require.NoError(t, err)
+	output := buf.String()
+
+	assert.Contains(t, output, "Test User")
+	assert.Contains(t, output, "Total Hours")
+	// 10:00 to 10:30 = 30m gap.
+	// Default padding 30m. Threshold 60m.
+	// Gap 30m <= 60m. Same session.
+	// Duration = (10:30 - 10:00) + 30m = 60m = 1.0 hr.
+	assert.Contains(t, output, "1.00 hrs")
 }
