@@ -7,8 +7,6 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"recac/internal/utils"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -17,16 +15,6 @@ var (
 	estimateFocus string
 	estimateJson  bool
 )
-
-// EstimateResult represents the structured output from the AI
-type EstimateResult struct {
-	Summary             string   `json:"summary"`
-	Complexity          string   `json:"complexity"`      // Low, Medium, High
-	StoryPoints         int      `json:"story_points"`    // Fibonacci: 1, 2, 3, 5, 8, 13, 21
-	EstimatedHours      string   `json:"estimated_hours"` // e.g. "2-4h"
-	Risks               []string `json:"risks"`
-	ImplementationSteps []string `json:"implementation_steps"`
-}
 
 var estimateCmd = &cobra.Command{
 	Use:   "estimate [task description]",
@@ -79,62 +67,29 @@ func runEstimate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to initialize agent: %w", err)
 	}
 
-	// 3. Construct Prompt
-	prompt := fmt.Sprintf(`You are a pragmatic Senior Software Engineer.
-Your goal is to ESTIMATE the effort required for the following task.
-
-Task: "%s"
-
-%s
-
-Provide a realistic estimation. Be conservative. Consider testing, documentation, and potential side effects.
-
-Return the result as a raw JSON object with the following structure:
-{
-  "summary": "Brief summary of the approach",
-  "complexity": "Low|Medium|High",
-  "story_points": <integer_fibonacci_sequence>,
-  "estimated_hours": "range (e.g. 4-6h)",
-  "risks": ["risk 1", "risk 2"],
-  "implementation_steps": ["step 1", "step 2"]
-}
-
-Do not wrap the JSON in markdown code blocks. Just return the raw JSON string.`,
-		taskDescription,
-		func() string {
-			if codebaseContext != "" {
-				return "Context Codebase:\n" + codebaseContext
-			}
-			return "No specific code context provided. Base estimate on general best practices."
-		}())
-
 	fmt.Fprintln(cmd.OutOrStdout(), "🤖 Crunching numbers (this may take a moment)...")
 
-	// 4. Send to Agent
-	resp, err := ag.Send(ctx, prompt)
+	// 3. Estimate
+	rawResp, result, err := EstimateTaskWithAgent(ctx, ag, taskDescription, codebaseContext)
 	if err != nil {
-		return fmt.Errorf("agent failed to generate estimate: %w", err)
+		// Fallback: Just print raw output if parsing fails (but we have a response)
+		if rawResp != "" {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Warning: Failed to parse JSON response: %v\n", err)
+			fmt.Fprintln(cmd.OutOrStdout(), "\nRaw Response:")
+			fmt.Fprintln(cmd.OutOrStdout(), rawResp)
+			return nil
+		}
+		return err
 	}
 
-	// 5. Parse Response
-	jsonStr := utils.CleanJSONBlock(resp)
-	var result EstimateResult
-	if err := json.Unmarshal([]byte(jsonStr), &result); err != nil {
-		// Fallback: Just print raw output if parsing fails
-		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: Failed to parse JSON response: %v\n", err)
-		fmt.Fprintln(cmd.OutOrStdout(), "\nRaw Response:")
-		fmt.Fprintln(cmd.OutOrStdout(), resp)
-		return nil
-	}
-
-	// 6. Output
+	// 4. Output
 	if estimateJson {
 		enc := json.NewEncoder(cmd.OutOrStdout())
 		enc.SetIndent("", "  ")
 		return enc.Encode(result)
 	}
 
-	printEstimateReport(cmd, result)
+	printEstimateReport(cmd, *result)
 	return nil
 }
 
